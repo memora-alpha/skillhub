@@ -1,0 +1,11 @@
+datasource db {
+  provider = "postgresql"
+}
+model SystemConfiguration {
+  key String @id
+  value Json
+  version Int @default(1)
+  effectiveAt DateTime @default(now()) @map("effective_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  @@map("system_configurations")
+}

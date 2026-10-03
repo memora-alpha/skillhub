@@ -1,36 +1,49 @@
-# Planning validation: Danh tính
+# Identity implementation validation
 
-Date: 2026-10-03. Scope is Spec Kit artifacts; no identity business implementation or runtime evidence.
+Date: 2026-10-03. Branch: `feat/user-identity`. Planning/schema baseline committed as `a3eb599` (`feat(api): define identity specification and product schemas`), with root formatting/lint/commitlint hooks. Implementation follows local `speckit-implement` and the prerequisite `speckit-tasks` workflow. Requirements checklist: 16/16 complete. No before/after implementation extension hooks are registered.
 
-## Source and workflow review
+## Delivered scope
 
-- Read root/scoped AGENTS, API README, constitution1.2.0, foundation plan and current source/schema.
-- Extracted actual SRS document paragraph text for auth/profile/administration rules; no document visual/layout claim.
-- Ran local speckit-specify workflow with numbered `002-user-identity` feature independent of Git branch; spec quality checklist reviewed.
-- Ran `.specify/scripts/powershell/setup-plan.ps1 -Json` from API project; feature path resolves via `.specify/feature.json`.
-- Local script reports HAS_GIT=false because API has no nested `.git`; its reported BRANCH is feature directory fallback. Actual Git branch/base verified from repository root separately; no nested repository created and shared scripts not changed for this planning task.
-- Generated research/model/HTTP contract/quickstart and pre/post design constitution checks; all extension hooks are optional, no Git/commit hook registered.
+All 21 method/path pairs in [HTTP contract](contracts/http.md) are implemented under `/api/v1`. Nest URI versioning excludes unversioned identity aliases; health/readiness remain version-neutral and Swagger remains `/api/docs` in development/test. Auth, users, notification and audit owner contracts share explicit PostgreSQL transaction contexts. No finance, chat, OAuth, online Admin grant or frontend implementation is included.
 
-## Artifact checks
+The identity migration introduces fourteen identity models and SystemConfiguration metadata, eight enums, normalized-email/counter/range/time/state CHECK constraints, outstanding-OTP partial uniqueness, ownership composite FKs and an append-only audit trigger. The complete 45-model catalog remains available in `prisma/schema.prisma`; `prisma/identity.prisma` is derived by `scripts/write-identity-schema.mjs` for current migration scope. Future catalog tables have no migration yet.
 
-- Spec Kit prerequisite check passed: active feature `002-user-identity` with research/model/contracts/quickstart available. Its Git-detection warning is the known project-root fallback described above.
-- Agent-context update script was attempted but its `python3.exe` detection failed in this Windows shell. Updated only the managed plan reference in API AGENTS.md manually, as required by speckit-plan; retained the separate foundation architecture reference.
-- `pnpm exec prettier --write` could not run because Prettier is unavailable in this checkout. No package installation was needed for documentation planning. Final validation uses Markdown link, placeholder, trailing-whitespace, feature-binding and Git-scope checks; automated formatting remains unverified.
-- Final artifact inspection passed: eight Markdown artifacts, fourteen local links with valid targets, no unresolved template placeholders or trailing whitespace. `git diff --check` passed. Active feature binding is correct; API AGENTS points to the identity plan.
-- Git confirms branch `feat/user-identity` and local `dev` both point to `031054469ded14d21dd58347dd505748b8352dda` before any commit. Working changes are limited to eight new feature documents, active feature JSON and the managed API AGENTS reference; no business source, schema or dependencies changed.
+## Verification evidence
 
-## Pending implementation evidence
+- Initial policy test was run before crypto implementation and failed on missing implementation. A contract-availability smoke test also failed before the corresponding services existed; the full behavioral integration matrix was added as implementation developed. Not every individual scenario had a separate observed red run.
+- Typecheck and build passed during development. PostgreSQL testing found and corrected Prisma's inability to deserialize the advisory lock function's void result. HTTP testing found and corrected acceptance of an empty profile patch after DTO transformation.
+- Crypto/input/config/DTO tests verify Argon2id, purpose/context-bound OTP and authenticated ciphertext, confirmation/terms/field allowlists, secret-safe startup errors and production reputation requirements.
+- Real PostgreSQL migrations are applied to uniquely named `identity_test_<UUID>` schemas, with explicit adapter schema and PostgreSQL search path. Fixtures seed definitions twice; tests drop only that validated disposable schema in `finally`. No migration was deployed into the existing application schema.
+- Twenty concurrent normalized signups create one aggregate without replacing credentials/profile. Twenty OTP consumes commit one activation; twenty wrong attempts persist/cap at five. Twenty reset consumes commit one password change with session revocation, preserved locked status and one notification.
+- Refresh races issue at most one successor; replay revocation survives HTTP rejection and invalidates that successor. Current/all logout, reset and lock reject subsequent old access tokens. Login/refresh versus lock, live delegated Staff grants/revocation and audit/proof rollback have targeted checks.
+- Outbox checks cover committed ID-only intent, expired lease recovery, reconstructed sender, duplicate processing, stale/exhausted proofs, bounded provider failures, terminal ciphertext erasure and previous-key-ring delivery/OTP verification. Real Redis counters and a real BullMQ queue/worker use a disposable prefix; counters use fixture-only random HMAC keys and expire after sixty seconds.
+- Avatar tests cover private/public projection allowlists, foreign asset denial, actual decoding, MIME mismatch, quarantine, infected/scanner-failure preservation, clear versus delayed worker and cleanup. Image bytes and provider fault injection are controlled fixtures, while avatar metadata and transitions use real PostgreSQL.
+- Actual SMTP, S3 and ClamAV adapters are exercised over local TCP/HTTP protocol servers. S3 requests are signed without a public ACL; SMTP refusal and scanner invalid replies fail safely. These are adapter tests against controlled servers, not certification of production providers.
+- HTTP/Swagger checks count all 21 versioned routes; health remains neutral, unsupported/missing versions return 404, protected calls require live identity, privilege/metric injections fail, public projections omit email/roles and token responses use no-store.
 
-## Schema conversion follow-up
+Final checks passed: API lint (zero warnings), full-catalog client generation/typecheck, identity deployment schema validation, Nest build and `git diff --check`. The complete rerun passed **27 Node test entries**: twelve foundation/policy/config/DTO/provider checks and fourteen real-storage/HTTP scenarios plus their parent suite. No skipped or failed tests. The final integration scenarios include delegated Staff grant revocation, login/refresh against lock, one-use proof rollback and key rotation.
 
-The user requested conversion of the identity data model into Prisma schema. `prisma/schema.prisma` now adds 14 models and 8 enums while retaining SystemConfiguration and existing generator/datasource configuration. Model notes and README/plan distinguish schema availability from pending migrations, SQL constraints, seeds and API behavior. No database deployment occurred.
+## Architecture refactor verification — 2026-10-04
 
-The user expanded conversion to all product models. The final PostgreSQL schema contains 45 models and 25 enums; two chat document models have a separate reference-only MongoDB Prisma file. All 42 logical catalog tables are represented, plus five identity helpers. Main-schema Prisma formatting and validation passed; `pnpm --filter api check-types` generated Prisma Client 7.8.0 and passed API type checking. No database migration/deployment occurred. Mongo reference was not generated or validated as a Prisma 7 runtime client; Mongoose remains the accepted ODM. See [schema catalog](../../prisma/README.md) for coverage and pending SQL/application invariants.
+Implemented the Memora-informed refinement within specs 002 on `feat/user-identity`:
 
-### Business implementation remains pending
+- 24 application use cases now handle authentication/session journeys, own/public profile reads and updates, administration, avatar processing/reconciliation and email delivery/reconciliation. HTTP controllers inject these use cases directly; cohesive OTP/session/reauth/account/projection/intent services remain separate.
+- Five private Prisma repository adapters live in the owning modules' `infrastructure/persistence`, injected through application ports. Application no longer constructs Prisma where/create/update inputs or accesses model delegates. Explicit shared IdentityTx and generated record/enum types remain internal contracts; use cases own transaction boundaries and shared moderation services participate in the caller's transaction.
+- Administrative listing uses a business UserListQuery. HTTP converts Multer to AvatarInput; application receives abstract storage/scanner/inspector/mail/job providers. Sharp, BullMQ processors, queue metadata and reconciliation timers live in infrastructure. Notifications read proof state through the auth-owned OTP service.
+- Integration fixtures now compile `IDENTITY_APPLICATION_PROVIDERS`, the same application provider graph used by IdentityModule, with controlled external resources. Failure fixtures override the audit contract instead of recreating monolithic services. The operator seed/Admin script uses the new repository-backed owner contracts.
 
-API version design updated to `/api/v1/...` across all 21 identity endpoints in plan/contracts and verification guidance. URI versioning, version-neutral health/readiness and versioned Swagger publication are planned implementation checks; application source remains unchanged by this documentation update.
+Final refactor checks passed: `pnpm --filter api lint` (zero warnings), `pnpm --filter api check-types` (full-catalog Prisma generation and TypeScript), `pnpm --filter api build`, foundation/policy/provider tests and real-storage identity integration tests. There are **27 passing Node test entries**, none failed or skipped. The fourteen integration scenarios plus parent include concurrent OTP/reset/refresh/lock, persistent invalid-attempt counters, replay revocation, audit/reauth rollback, recovery/key rotation, projections and all 21 versioned HTTP/Swagger routes.
 
-All identity routes/migrations/providers/guards/tests described here are planned. Schema availability and lint/typecheck/build or foundation tests do not prove signup/login/permissions work. Next `$speckit-tasks` carries real-storage concurrency, audit rollback, revoke races, outbox recovery, distributed throttle, upload scanning, privacy and contract checks from quickstart.
+The real BullMQ scenario also runs the extracted IdentityEmailWorker/BullIdentityEmailJobs and AvatarWorker/BullAvatarJobs with isolated queues and real PostgreSQL metadata. It verifies ID-only payloads, SENT email, CLEAN avatar selection and safe queue cleanup. Provider behavior remains controlled by fixtures; this is not production-provider certification or a full configured AppModule startup test. Schema, API behavior and deployment topology are unchanged; no application migration or push was performed. No before/after implementation hooks are registered.
 
-Production Staff mapping, initial reputation, terms/timezone, operational TTL/retention and providers are unresolved release gates. Schema conversion is authorized by the follow-up request; no business use-case/dependency/migration/env changes, commit, push or live email sends are included.
+## Release configuration and limitations
+
+Required keys, terms/timezone, lifetimes, throttling, delivery/retention and avatar timing values are explicit in `.env.example`; blanks intentionally prevent identity startup. Initial reputation must be approved in production; Staff has no initial administrative permissions. Registration proof lifetime, attempt cap and resend boundaries implement the SRS values (300 seconds, five attempts, sixty seconds, five issues/hour).
+
+SMTP, S3 credentials/private bucket policy and a reachable ClamAV service must be configured before production use. The existing ignored developer `.env` has not been populated with invented policy values. No production email was sent or cloud deployment performed. Docker Desktop was unavailable; real configured PostgreSQL/Redis services were used instead. Mongo readiness regression uses controlled connection fixtures; chat behavior is outside scope.
+
+External email may duplicate if a provider accepts it before a worker crash; domain proof consumption stays one-use. S3 bucket must deny public access and apply an orphan-object lifecycle: a crash between putting bytes and committing asset metadata cannot be transactionally rolled back across PostgreSQL/S3. Quarantined assets retry with expiring leases; old/unreferenced bytes are cleaned idempotently. Provider cleanup outages retain metadata for subsequent reconciliation. Historical session/proof digests are retained; no unapproved destructive history purge is enabled. Terminal email records follow the explicitly configured retention window.
+
+Maintain previous OTP/encryption keys until associated challenges/intents expire or drain. Missing historical keys fail closed. JWT signing-key rotation invalidates prior access tokens; refresh families still require live status/securityVersion checks. Clients must serialize refresh: strict replay has no grace period and requires another sign-in after a lost refresh response is retried.
+
+Production resource sizing/load testing and production-provider acceptance remain operational release checks, not claims established by the fixtures here. The pre-implementation baseline is `a3eb599`. The user requested a separate implementation/refactor commit on 2026-10-04; Git history records that commit. No deployment or push is included.

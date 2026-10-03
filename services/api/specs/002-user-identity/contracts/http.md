@@ -1,6 +1,6 @@
 # Proposed identity HTTP contract
 
-Design for future implementation/Swagger; routes do not exist yet. Identity API URI prefix `/api/v1`, UUID identifiers, UTC ISO timestamps, JSON unless multipart; reject unknown fields. No BIGINT output. Preserve existing error `{error:{statusCode,message}}` without a breaking envelope change.
+Implemented identity HTTP contract, published by development/test Swagger. Identity API URI prefix `/api/v1`, UUID identifiers, UTC ISO timestamps, JSON unless multipart; reject unknown fields. No BIGINT output. Preserve existing error `{error:{statusCode,message}}` without a breaking envelope change. See [validation](../validation.md) for verified behavior and release configuration.
 
 Identity routes explicitly use version `1` with NestJS URI versioning, after global prefix `api`. No unversioned identity alias is provided; missing/unsupported versions return404. Existing health/readiness are version-neutral at `/api/health` and `/api/health/ready`; Swagger remains `/api/docs` and describes the versioned identity paths. Incompatible public-contract changes require a new URI version with a documented support/deprecation policy.
 

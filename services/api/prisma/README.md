@@ -6,9 +6,14 @@ The full requirements-derived catalog in `docs/SkillHub_Entities_Fields.md` and
 - [schema.prisma](schema.prisma): 45 PostgreSQL models (40 relational catalog models plus five identity delivery/security/upload helpers), 25 enums; this is the API's actual Prisma schema.
 - [chat.schema.prisma](chat.schema.prisma): two MongoDB document models expressed as Prisma reference only. Runtime continues to use Mongoose; this file has no generator and is excluded from the API Prisma config. PostgreSQL Conversation/User references in documents are application-validated, not cross-database foreign keys.
 
-This is schema representation, not implemented modules, feature enablement or live
-database tables. Existing foundation migration is retained; no product migration,
-seed, database push or deployment was performed.
+The full catalog does not imply all modules are implemented. Spec 002 implements
+identity only, with a reviewed migration tested in disposable PostgreSQL schemas.
+[identity.prisma](identity.prisma) is generated from the catalog by
+`scripts/write-identity-schema.mjs`; `db:migrate` uses that current deployment scope.
+It contains SystemConfiguration plus fourteen identity models/eight enums. Future
+catalog tables remain deferred. No migration has been deployed into the existing
+application schema; no `db push` was performed. Seed/bootstrap and runtime checks
+are documented in [identity quickstart](../specs/002-user-identity/quickstart.md).
 
 ## Catalog coverage
 
@@ -92,7 +97,9 @@ No schema validation alone proves business safety. Required follow-up includes:
 `pnpm --filter api db:validate` and `pnpm --filter api check-types` passed with
 Prisma 7.8.0; the latter generated the ignored PostgreSQL client and typechecked
 existing API consumers. A catalog comparison verified 42/42 logical table coverage.
-Prisma formatting passed. No real-database migration/runtime behavior was tested.
+Prisma formatting passed. Spec 002 additionally tests its migration, constraints,
+concurrency and identity behavior against real PostgreSQL/Redis; see
+[validation](../specs/002-user-identity/validation.md). Future catalog behavior remains unimplemented.
 
 The Mongo reference is not a Prisma 7 runtime schema and was not validated/generated
 as an executable client. The project keeps MongoDB/Mongoose ownership; Prisma's

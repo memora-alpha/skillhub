@@ -2,7 +2,7 @@
 
 **Feature Branch**: `feat/user-identity`
 **Created**: 2026-10-03
-**Status**: Reviewed for planning; production policy gates remain below.
+**Status**: Implemented and verified in isolated fixtures; production policy gates remain below. See [validation](validation.md).
 **Input**: “Tạo branch từ dev và sử dụng speckit để plan phần tiếp theo Danh tính”.
 
 ## Sources and scope

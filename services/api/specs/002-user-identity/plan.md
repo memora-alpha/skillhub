@@ -8,7 +8,7 @@
 
 Build identity journeys inside existing NestJS modular monolith: email/OTP signup, login, access JWT with live session/account checks, rotated refresh, logout/reset, profile/avatar and minimal permission-based administration. PostgreSQL owns identity, grants, audit and durable email intent; Redis supplies shared throttle; BullMQ processes committed delivery IDs; S3 holds scanned avatar bytes.
 
-Scope/questions are in [spec.md](spec.md); no business use cases or `tasks.md` are implemented. Following the schema-conversion request and its expansion to all models, [prisma/schema.prisma](../../prisma/schema.prisma) contains 45 PostgreSQL models/25 enums, including the 14 identity models/8 identity enums from [data-model.md](data-model.md). Two MongoDB chat models have a separate Prisma reference file; runtime remains Mongoose. Full catalog coverage and limitations are in [schema catalog](../../prisma/README.md). Schema representation of later features does not expand this feature's endpoint scope. Migrations, seeds, SQL constraints and endpoints remain pending.
+Scope/questions are in [spec.md](spec.md). Identity use cases, tasks, migration, seed/bootstrap, providers and all 21 endpoints are implemented; see [validation.md](validation.md) for runtime evidence and operational limits. The full [Prisma catalog](../../prisma/schema.prisma) still contains 45 PostgreSQL models/25 enums; the fourteen identity models/eight enums plus SystemConfiguration form [identity deployment scope](../../prisma/identity.prisma). Later-feature catalog models and Mongo reference models do not expand endpoint scope or replace Mongoose. No migration has been deployed into the existing application schema.
 
 ## Danh sách endpoint dự kiến
 
@@ -20,7 +20,7 @@ Giai đoạn Danh tính có **21 endpoint**, chia thành ba nhóm dưới đây.
 - Khi triển khai, dùng URI versioning của NestJS (`VersioningType.URI`) trong `src/main.ts`, giữ global prefix `api` và khai báo version `1` rõ ràng trên các controller Danh tính. Không ghi thêm `v1` vào controller path để tránh lặp version. Thiết kế dựa trên [NestJS versioning](https://docs.nestjs.com/techniques/versioning).
 - Các endpoint vận hành hiện có `/api/health`, `/api/health/ready` dùng `VERSION_NEUTRAL` khi bật versioning; Swagger vẫn ở `/api/docs` và công bố đầy đủ đường dẫn `/api/v1/...`.
 - Không tạo alias Danh tính thiếu version; `/api/auth/...`, `/api/me` và version chưa hỗ trợ phải trả `404`. Khi có thay đổi public contract không tương thích, tạo version mới như `/api/v2/...` và xác định thời gian hỗ trợ/ngừng version cũ trong feature tương ứng.
-- Kiểm chứng routing và OpenAPI của đủ 21 endpoint `v1`, các đường dẫn thiếu/sai version và health/readiness sau khi bật versioning. Hiện tại `src/main.ts` mới có global prefix; versioning là hạng mục sẽ triển khai trong feature này.
+- Routing và OpenAPI của đủ 21 endpoint `v1`, các đường dẫn thiếu/sai version và health/readiness đã được kiểm chứng bằng HTTP integration tests; `src/main.ts` bật URI versioning.
 
 ### Đăng ký, xác thực và phiên đăng nhập — 10 endpoint
 
@@ -73,25 +73,25 @@ Các endpoint được bảo vệ kiểm tra trạng thái tài khoản, phiên 
 | Constraints      | Constitution 1.2.0; SRS field limits; no external calls in DB transactions; fail-closed secret/scan/throttle controls                                                              |
 | Scale/scope      | auth/users, minimal email notifications/audit, avatar storage and technical guards; no finance/chat                                                                                |
 
-Verified source baseline when planning began: `src/app.module.ts` exposes health/infrastructure only; Prisma initially contained only SystemConfiguration; environment validation lacks auth/email/storage keys; package lacks JWT/Argon2/email/S3 business integrations. The schema has since been extended with the identity models; database migration and business behavior are still pending. Existing throttle is 120/minute/IP in one process. Errors use `{error:{statusCode,message}}`; only sensitive header redaction currently exists. These observations are not proof of implemented identity.
+Historical source baseline at planning: only health/infrastructure, SystemConfiguration and a process-local throttle existed. Spec 002 now adds identity services/providers/configuration, Redis throttling and credential-body redaction. The error envelope remains `{error:{statusCode,message}}`. Verified implementation is recorded in [validation.md](validation.md).
 
 ## Constitution Check
 
-Before research and after design, reviewed against **v1.2.0**. Pass means proposed design compliance; runtime evidence remains pending.
+Before research, after design and after implementation, reviewed against **v1.2.0**. The historical design checks below are supplemented by the implementation recheck and linked runtime evidence.
 
-| Principle                  | Before research | After design / evidence                                                                                |
-| -------------------------- | --------------- | ------------------------------------------------------------------------------------------------------ |
-| Scope/modularity (1)       | Pass            | Pass design: API paths and ownership below                                                             |
-| Authoritative stores (2)   | Pass            | Pass design: [data-model.md](data-model.md), no Redis/Mongo identity authority                         |
-| Relational atomicity (3)   | Pass            | Pass design: signup/reset/moderation/outbox transactions; finance N/A                                  |
-| Auth/security (4)          | Pass            | Pass design: [research.md](research.md), live status/session, Argon2id, rotation, permission/ownership |
-| Config/contracts/files (5) | Pass            | Pass design: required validated config, UTC, scan/S3 and [contracts](contracts/http.md)                |
-| Verification (6)           | Pass planning   | Runtime Pending; [quickstart.md](quickstart.md) and [validation.md](validation.md) separate evidence   |
-| Ownership (7)              | Pass            | Pass design: private repositories and explicit shared transaction context                              |
-| Delivery reliability (8)   | Pass            | Pass design: encrypted secret/outbox, lease/retry/recovery; duplicate email possible                   |
-| Git workflow               | Pass            | Branch without spec number; actual Git base checked separately; no commit/push                         |
+| Principle                  | Before research | After design / evidence                                                                                                           |
+| -------------------------- | --------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Scope/modularity (1)       | Pass            | Pass design: API paths and ownership below                                                                                        |
+| Authoritative stores (2)   | Pass            | Pass design: [data-model.md](data-model.md), no Redis/Mongo identity authority                                                    |
+| Relational atomicity (3)   | Pass            | Pass design: signup/reset/moderation/outbox transactions; finance N/A                                                             |
+| Auth/security (4)          | Pass            | Pass design: [research.md](research.md), live status/session, Argon2id, rotation, permission/ownership                            |
+| Config/contracts/files (5) | Pass            | Pass design: required validated config, UTC, scan/S3 and [contracts](contracts/http.md)                                           |
+| Verification (6)           | Pass planning   | Pass implementation: real PostgreSQL/Redis/BullMQ, HTTP/Swagger and controlled provider tests; see [validation.md](validation.md) |
+| Ownership (7)              | Pass            | Pass design: private repositories and explicit shared transaction context                                                         |
+| Delivery reliability (8)   | Pass            | Pass design: encrypted secret/outbox, lease/retry/recovery; duplicate email possible                                              |
+| Git workflow               | Pass            | Branch without spec number; actual Git base checked separately; no commit/push                                                    |
 
-No architecture exception. Production values are explicit release gates rather than unresolved technical architecture. Carry runtime checks into later tasks/validation.
+No architecture exception. Production values remain explicit release gates. Implementation recheck: principles 1–8 Pass within identity scope, with verification rerun for the refactor tracked in Phase 9. Private repository adapters now live in each owning module's infrastructure and are injected through application ports. Exported owner services retain transaction-aware contracts; composition avoids circular Nest module imports. PostgreSQL is authoritative, Redis rate counters/queues are derived controls, and S3 holds private bytes. Finance and chat remain not applicable. Git pre-implementation commit is `a3eb599`; the implementation/refactor commit was requested on 2026-10-04. No push was requested.
 
 ## Project Structure
 
@@ -109,7 +109,7 @@ specs/002-user-identity/
   validation.md
 ```
 
-### Planned source (relative to services/api)
+### Implemented source (relative to services/api)
 
 ```text
 src/modules/auth/           # Credentials, challenge/session use cases and repositories
@@ -131,6 +131,33 @@ test/identity/
 ```
 
 Use presentation/http, application/use-cases/ports, domain and infrastructure/persistence where responsibility exists; no empty layers. No frontend/shared package/root tool changes needed; later dependency additions affect API manifest and root lockfile.
+
+### Architecture refinement after Memora source review
+
+Keep the modular monolith and existing 21 HTTP contracts. Organize implemented modules as follows; omit folders without a concrete responsibility:
+
+```text
+modules/<owner>/
+  application/contracts/        # Business inputs/results and administrative filters
+  application/ports/            # Private repository and external-provider contracts
+  application/services/         # Shared OTP, session, reauth, account and profile logic
+  application/use-cases/        # HTTP journeys and durable delivery/recovery actions
+  domain/                       # Existing crypto/profile policies
+  infrastructure/persistence/  # Prisma adapters using the caller's transaction
+  infrastructure/jobs/         # BullMQ adapters/processors and reconciliation timers
+  infrastructure/storage/      # Sharp image inspector in users
+  presentation/http/           # DTO mapping, validation, HTTP/Swagger contracts
+```
+
+`identity.module.ts` remains the composition root. `identity.providers.ts` wires application providers, private repository ports and provider adapters; integration fixtures compile this same graph with controlled external resources. Only UsersService, SessionsService, AuditService and technical guard/config contracts are exported from the Nest module. No feature module exposes its Prisma repository to another module.
+
+There are 24 use cases: nine authentication/session actions, three profile reads/updates, five account/STAFF administration actions, five avatar actions including processing/reconciliation, and two email delivery/reconciliation actions. OTP issuance/consumption, session issuance/live checks/revocation, reauth consumption, profile projection and encrypted email intent stay cohesive services. Audit append remains one small contract backed by its private repository.
+
+Use cases own transaction boundaries. Shared moderation/role services accept the caller's context rather than opening an inner transaction. Preserve locks, failed OTP/login counter commits, refresh replay revocation before rejection, atomic reset/audit/email intent, and action-bound proof rollback. Explicit `IdentityTx` and generated record/enum types remain internal backend contracts; Prisma filters and query construction remain in persistence adapters. Administrative listing accepts UserListQuery, not Prisma.UserWhereInput.
+
+HTTP maps Multer uploads to AvatarInput (bytes/MIME/size). Application workflows depend on storage/scanner/inspector/mail/job ports. S3/SMTP/ClamAV/Sharp and BullMQ details live in infrastructure. Timers invoke reconciliation use cases; worker payloads contain IDs only. External provider calls still run outside database transactions. Notifications read challenge state through the auth-owned OTP contract, rather than querying auth tables in their own repository.
+
+No behavior, database schema, deployment topology or production policy change is intended. Verification must establish the preserved behavior; this refactor makes no latency or throughput claim.
 
 ## Ownership contracts and atomic workflows
 
@@ -170,4 +197,4 @@ Redis rate-limit storage covers all replicas, separate from authoritative Postgr
 5. Management permission matrix, lock/unlock/STAFF changes and transactional audit; production Staff grants empty until approved.
 6. Enable URI versioning for identity controllers; preserve version-neutral operational routes. Align Swagger with `/api/v1/...` contracts; verify missing/unsupported versions return404, then focused lint/typecheck/build and real-storage/e2e checks; retain evidence separately from foundation tests.
 
-These are phases, not generated tasks. Next command is `$speckit-tasks`; business implementation needs a subsequent request.
+These phases are expanded in [tasks.md](tasks.md), generated and executed following the user's implementation request. See [validation.md](validation.md) for completed checks and production release configuration.

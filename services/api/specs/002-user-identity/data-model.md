@@ -1,6 +1,6 @@
 # Identity data model
 
-The identity model is represented in [prisma/schema.prisma](../../prisma/schema.prisma): 14 identity models and 8 identity enums. Following the user's expanded request for all models, that file additionally represents the complete relational catalog (45 models and 25 enums total); see [schema catalog](../../prisma/README.md). Message/MessageAttachment are represented separately as MongoDB reference models; runtime remains Mongoose. All identity state belongs to PostgreSQL; UUID IDs and UTC `timestamptz`. Schema conversion does not create database tables or implement business operations; migrations remain pending.
+The identity model is represented in [prisma/schema.prisma](../../prisma/schema.prisma): 14 identity models and 8 identity enums, within the complete relational catalog (45 models and 25 enums); see [schema catalog](../../prisma/README.md). Message/MessageAttachment are MongoDB reference models; runtime remains Mongoose. Identity state belongs to PostgreSQL with UUID IDs and UTC `timestamptz`. The identity-only migration and use cases now exist; later catalog migrations remain deferred. See [validation](validation.md) for the disposable PostgreSQL verification and deployment limits.
 
 ## Entities and ownership
 
@@ -42,10 +42,10 @@ Profile is sole fullName/timezone/locale authority; accountStatus belongs only t
 - Defaults encode only planned technical/SRS states: pending signup, false verification, zero counters, vi locale, pending delivery and quarantined upload. No default terms version, timezone, initial reputation, TTL, Admin account or Staff permissions is invented. Reputation remains nullable.
 - Foreign keys use Restrict on deletion so account deletion cannot cascade credentials/audit/delivery history silently. Approved cleanup must explicitly remove eligible dependents in a safe order; account hard deletion is outside this feature.
 - Profile relation is optional on the User side because Prisma cannot guarantee every User has a Profile; signup must create both atomically. Role definitions/grants need idempotent seed/operator flows, not schema defaults.
-- Pending SQL CHECKs: normalizedEmail lower/trim/no whitespace and 5–254 characters; nonnegative counters/generations/attempts/securityVersion; reputation 0–100 when present; fullName minimum length; avatar size 1–5 MB and allowed MIME; chronological expiry and compatible proof/delivery state fields. Business validation additionally enforces IANA timezone, password/OTP policy, legal transitions, fresh grants, one-use consumption, payload erasure and immutable secret-free audit.
+- Implemented SQL CHECKs: normalizedEmail lower/trim/no whitespace and 5–254 characters; nonnegative counters/generations/attempts/securityVersion; reputation 0–100 when present; fullName minimum length; avatar size 1–5 MB and allowed MIME; chronological expiry and compatible proof/delivery state fields. Application policies additionally enforce IANA timezone, password/OTP rules, legal transitions, fresh grants, one-use consumption and payload erasure; the migration makes audit append-only.
 - IdentityEmailDelivery user/challenge references are individually valid FKs; scheduling use cases must also check that challenge belongs to the recipient User and that kind/purpose agree. Leases/attempts/idempotency still require transactional worker logic.
 
-No identity migration, seed or live database update is included in this schema conversion. Do not deploy the feature until pending migration constraints and real-storage tests exist.
+Implementation follow-up: identity migration/SQL constraints and seed/bootstrap now exist and were verified against disposable real PostgreSQL schemas; see [validation](validation.md). The complete catalog still includes future, unmigrated models. No live application-schema deployment has been performed.
 
 ## State machines
 

@@ -1,11 +1,16 @@
-import { Controller, Get, ServiceUnavailableException } from "@nestjs/common";
+import {
+  Controller,
+  Get,
+  ServiceUnavailableException,
+  VERSION_NEUTRAL,
+} from "@nestjs/common";
 import { InjectConnection } from "@nestjs/mongoose";
 import { SkipThrottle } from "@nestjs/throttler";
 import type { Connection } from "mongoose";
 import { PrismaService } from "./infrastructure/database/prisma.service";
 import { RedisService } from "./infrastructure/cache/redis.service";
 
-@Controller("health")
+@Controller({ path: "health", version: VERSION_NEUTRAL })
 @SkipThrottle()
 export class HealthController {
   constructor(

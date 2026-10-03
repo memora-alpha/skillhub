@@ -1,50 +1,57 @@
-# Identity implementation and verification guide
+# Identity setup and verification
 
-Future guide: identity routes/config/tests are not implemented by planning. Foundation tests are not identity evidence.
+Identity controllers now invoke application use cases directly. Private Prisma
+adapters live under each owner's `infrastructure/persistence`; jobs/schedulers
+live under `infrastructure/jobs`. Integration fixtures compile the runtime
+application provider graph and substitute controlled external resources. The
+21 endpoints, deployment schema and required environment values remain the same.
 
-## Setup
+From the repository root, install with `pnpm install`. Work from `services/api` thereafter. PostgreSQL, MongoDB and Redis are required by the application; identity tests use real PostgreSQL/Redis with controlled providers.
 
-From root `pnpm install`. From `services/api`, use ignored `.env` based on `.env.example`; `pnpm infra:up` or team services for PostgreSQL/MongoDB/Redis. Use isolated data and controlled mailbox/S3/scanner test providers; production must not expose a test mailbox or print codes.
+## Configuration and database
 
-Obtain terms version/default timezone/approved initial reputation; keep Staff administrative grants empty until approved. Configure lifetimes/reauth/throttle/retention explicitly; test fixture values are not production defaults. Registration OTP defaults are defined by SRS. Production requires actual email/storage/scanner adapters.
+Use ignored `.env` based on `.env.example`. Set distinct cryptographic keys, terms/default timezone, session/reset/reauth lifetimes and rate/retention values explicitly. Generate OTP/encryption keys as 32 random bytes encoded in base64; use a separate high-entropy JWT key of at least 32 bytes. Keep old OTP/encryption key pairs in `IDENTITY_PREVIOUS_KEYS` while pending intents/proofs drain. No secret belongs in Git, logs or queue data.
 
-Existing commands (from API):
+Choose an approved production initial reputation (0..100); development/test may leave it uninitialized. Seed STAFF without administrative grants until product owners approve its mapping. Configure SMTP, a private S3-compatible bucket and ClamAV INSTREAM scanner. Production SMTP requires TLS; production S3 endpoint requires HTTPS. Bucket policies must block public access and lifecycle rules must remove orphan objects left by a crash between S3 upload and metadata commit.
+
+Review migrations before running these commands against the intended development database:
 
 ```powershell
 pnpm db:validate
 pnpm db:deploy
+pnpm build
+pnpm identity:seed
+pnpm identity:bootstrap-admin <existing-verified-active-user-uuid> "Operator reason"
+pnpm dev
+```
+
+Bootstrap never creates an account or sets a password; it assigns ADMIN to an existing verified ACTIVE account and appends audit, including no-op outcomes. No HTTP Admin grant is provided. For subsequent development migrations `pnpm db:migrate` regenerates `prisma/identity.prisma` and uses that deployment subset. The full schema is a product catalog; do not deploy all future models with `db push`.
+
+## Checks
+
+```powershell
 pnpm lint
 pnpm check-types
 pnpm build
 pnpm test:foundation
+pnpm test:identity
+pnpm test:identity:integration
 ```
 
-Implementation adds migrations with existing `pnpm db:migrate` in disposable development storage, plus identity test scripts (none exist today). Do not run deployment/bootstrap/migrations/email sends for this documentation-only plan. Swagger at `/api/docs` in development/test must match [contract](contracts/http.md).
+Integration reads `TEST_DATABASE_URL`/`TEST_REDIS_URL` when set, otherwise existing connection settings. PostgreSQL account must be allowed to create/drop a unique test schema; Redis account must allow the disposable queue and expiring HMAC rate keys. Tests never migrate the normal application schema, use a random queue prefix and clean their schema/queue in `finally`. Run only with credentials authorized for test data. Provider tests listen only on local ephemeral ports and send no external email.
 
-## Acceptance walkthrough after implementation
+## Walkthrough
 
-Call identity endpoints under `/api/v1/...`, for example `POST /api/v1/auth/register`, `POST /api/v1/auth/login` and `GET /api/v1/me`. Swagger at `/api/docs` must list all 21 versioned method/path pairs. Verify missing/unsupported identity versions return404 and existing `/api/health` and `/api/health/ready` remain available as version-neutral operational endpoints.
+Swagger is at `/api/docs` in development/test. Identity endpoints use `/api/v1/...`; unsupported/unversioned identity paths return 404. `/api/health` and `/api/health/ready` remain neutral.
 
-1. Register mixed-case email; neutral202/no tokens; controlled mailbox and DB show one pending User/profile/USER grant/challenge/outbox. Duplicate cannot alter credentials.
-2. Pending login issues no token; wrong/expired proof rejected; valid REGISTER proof activates once. Login then own/other-user profile projections preserve privacy.
-3. Refresh rotates; old-token replay commits family revoke. Fresh two-device fixtures prove current logout preserves other device, logout-all revokes both.
-4. Existing/unknown forgot email share safe response. Reset consumes once, revokes old access/refresh and sends change email; new password works and status never unlocks.
-5. Profile unknown/role/status/metric injection rejected. Valid scanned avatar selected; malformed/spoofed/oversized/foreign/quarantined upload never replaces avatar.
-6. Audited isolated Admin fixture versus USER/ungranted/delegated STAFF verifies exact matrix; lock rejects subsequent tokens, unlock restores no sessions; STAFF grants need one-use recent Admin proof.
+1. Register valid fields and accepted terms; receive neutral 202 without tokens. Obtain the code from a controlled mailbox. Duplicate signup cannot replace profile/password.
+2. Verify six-digit REGISTER code once, then login. An inactive account cannot obtain a session; invalid proof responses are neutral.
+3. Access own `/me` and authenticated public `/profiles/{userId}` projections. Public profile excludes email/roles. Profile edits accept only the declared fields.
+4. Rotate refresh serially. Replay revokes that family; logout accepts its refresh credential even after access expiry. Logout-all revokes all families.
+5. Request recovery neutrally and consume RESET_PASSWORD once; old families fail, status is preserved, and a change notification is queued. No automatic sign-in occurs.
+6. Upload multipart `image`; 202 returns QUARANTINED. Poll `/me/avatar/uploads/{assetId}`. Only content-valid scanned CLEAN images become selected/signed; failure keeps the previous avatar. Delete also cancels pending uploads.
+7. Admin/current explicit grants control masked listing and lock/unlock with reason. STAFF add/remove additionally needs a session-bound one-use proof from `/auth/reauthenticate` with purpose `STAFF_ROLE_CHANGE`.
 
-## Required real-storage/e2e matrix
+Durable email/avatar reconcilers run every five seconds. Email retries are bounded with exponential backoff and leased records recover after expiry. Monitor pending/failed intents and quarantined/cleanup metadata. Never recover by exposing OTPs, editing audit or accepting unscanned objects. Provider acceptance before sender crash can duplicate an email, but cannot consume a proof twice.
 
-| Area                 | Required evidence                                                                                                                                                           |
-| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Signup               | 20 normalized-email racers create one aggregate; transaction failure leaves no partial challenge/outbox                                                                     |
-| OTP                  | 20 consumes maxone transition; failed counters commit; expiry/leading zeros/purpose; five-attempt and 60sec/five-hour resend boundaries under concurrency                   |
-| Refresh              | Concurrent token cannot create surviving chains; replay revoke survives error; expiry/version; lost response strict replay documented                                       |
-| Revoke races         | Reset/lock vs login/refresh under real row locks; no stale post-revoke usable credential; repeat logout harmless                                                            |
-| Permission/audit     | Owner/nonowner/role/grant matrix, actor grant race, reauth replay/wrong purpose/session; audit failure rolls back mutation                                                  |
-| Email/outbox         | Crash before/after enqueue/provider acceptance; expired leases; Redis outage; retry exhaustion; stale generation rejection; encrypted payload/key rotation/terminal erasure |
-| Avatar               | MIME/content/5MB boundary, scanner outage/malware rejection, quarantine inaccessible, atomic select, duplicate orphan/old cleanup                                           |
-| Privacy              | Captured request/response/job/audit logs and allowlisted public view leak zero secrets; generic email/timing behavior                                                       |
-| Config/contracts     | Missing production config fails startup; unknown fields400; JWT wrong type/algorithm/issuer/audience; UTC/cursor validation; generated Swagger matches                      |
-| Distributed throttle | Two API replicas share email/IP/purpose limits; Redis failure denies required auth operations safely                                                                        |
-
-Use real PostgreSQL/Redis for uniqueness/locks/counters, injectable clock/provider failures and isolated secrets. Mocks alone do not establish concurrency behavior. Retain health/readiness regression checks; record static/runtime evidence in [validation.md](validation.md).
+See [validation](validation.md) for evidence and release limits and [HTTP contract](contracts/http.md) for all 21 routes.

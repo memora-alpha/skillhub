@@ -1,0 +1,332 @@
+// Generated from schema.prisma by scripts/write-identity-schema.mjs. Identity deployment scope only.
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model SystemConfiguration {
+  key         String   @id
+  value       Json
+  version     Int      @default(1)
+  effectiveAt DateTime @default(now()) @map("effective_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  valueType       String? @map("value_type") @db.Text
+  updatedByUserId String? @map("updated_by_user_id") @db.Uuid
+  updatedBy       User?   @relation("ConfigurationUpdater", fields: [updatedByUserId], references: [id], onDelete: Restrict)
+
+  @@index([updatedByUserId])
+  @@map("system_configurations")
+}
+
+enum AccountStatus {
+  PENDING_VERIFICATION
+  ACTIVE
+  SUSPENDED
+  LOCKED
+  DEACTIVATED
+}
+
+enum RoleCode {
+  USER
+  STAFF
+  ADMIN
+}
+
+enum ProfileLocale {
+  vi
+  en
+}
+
+enum OtpPurpose {
+  REGISTER
+  RESET_PASSWORD
+  CHANGE_EMAIL
+}
+
+enum ReauthPurpose {
+  STAFF_ROLE_CHANGE
+}
+
+enum IdentityEmailKind {
+  REGISTER_OTP
+  RESET_OTP
+  PASSWORD_CHANGED
+}
+
+enum EmailDeliveryStatus {
+  PENDING
+  LEASED
+  SENT
+  FAILED
+  EXPIRED
+  CANCELLED
+}
+
+enum AvatarAssetStatus {
+  QUARANTINED
+  CLEAN
+  REJECTED
+  DELETED
+}
+
+model User {
+  id               String        @id @default(uuid()) @db.Uuid
+  normalizedEmail  String        @unique @map("normalized_email") @db.VarChar(254)
+  passwordHash     String?       @map("password_hash") @db.Text
+  accountStatus    AccountStatus @default(PENDING_VERIFICATION) @map("account_status")
+  emailVerified    Boolean       @default(false) @map("email_verified")
+  failedLoginCount Int           @default(0) @map("failed_login_count")
+  lastLoginAt      DateTime?     @map("last_login_at") @db.Timestamptz(3)
+  securityVersion  Int           @default(0) @map("security_version")
+  termsVersion     String        @map("terms_version") @db.Text
+  termsAcceptedAt  DateTime      @map("terms_accepted_at") @db.Timestamptz(3)
+  createdAt        DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  profile                        Profile?
+  roles                          UserRole[]              @relation("UserRoleMembership")
+  assignedRoles                  UserRole[]              @relation("UserRoleAssigner")
+  challenges                     OtpChallenge[]
+  refreshSessions                RefreshSession[]
+  reauthProofs                   ReauthProof[]
+  emailDeliveries                IdentityEmailDelivery[]
+  avatarAssets                   AvatarAsset[]
+  auditLogs                      AuditLog[]              @relation("AuditActor")
+  updatedConfigurations          SystemConfiguration[]   @relation("ConfigurationUpdater")
+
+  @@index([createdAt(sort: Desc), id(sort: Desc)])
+  @@index([accountStatus, createdAt(sort: Desc), id(sort: Desc)])
+  @@map("users")
+}
+
+model Profile {
+  userId                String        @id @map("user_id") @db.Uuid
+  fullName              String        @map("full_name") @db.VarChar(100)
+  headline              String        @default("") @db.VarChar(120)
+  bio                   String        @default("") @db.VarChar(1000)
+  timezone              String?       @db.Text
+  locale                ProfileLocale @default(vi)
+  avatarAssetId         String?       @map("avatar_asset_id") @db.Uuid
+  // No product-approved initial score; null means uninitialized.
+  reputationScore       Int?          @map("reputation_score")
+  verifiedSkillCount    Int           @default(0) @map("verified_skill_count")
+  completedSessionCount Int           @default(0) @map("completed_session_count")
+  updatedAt             DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Restrict)
+  // Composite FK enforces avatar ownership; CLEAN state is checked by the use case.
+  avatarAsset AvatarAsset? @relation("SelectedAvatar", fields: [userId, avatarAssetId], references: [userId, id], onDelete: Restrict)
+
+  @@index([userId, avatarAssetId])
+  @@map("profiles")
+}
+
+model Role {
+  id          String           @id @default(uuid()) @db.Uuid
+  code        RoleCode         @unique
+  description String           @db.Text
+  users       UserRole[]
+  permissions RolePermission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String           @id @default(uuid()) @db.Uuid
+  code        String           @unique @db.Text
+  description String           @db.Text
+  roles       RolePermission[]
+
+  @@map("permissions")
+}
+
+model UserRole {
+  userId     String   @map("user_id") @db.Uuid
+  roleId     String   @map("role_id") @db.Uuid
+  assignedAt DateTime @default(now()) @map("assigned_at") @db.Timestamptz(3)
+  // Null identifies the SYSTEM actor, not a Guest role.
+  assignedBy String?  @map("assigned_by") @db.Uuid
+  user       User     @relation("UserRoleMembership", fields: [userId], references: [id], onDelete: Restrict)
+  role       Role     @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  assigner   User?    @relation("UserRoleAssigner", fields: [assignedBy], references: [id], onDelete: Restrict)
+
+  @@id([userId, roleId])
+  @@index([roleId, userId])
+  @@index([assignedBy])
+  @@map("user_roles")
+}
+
+model RolePermission {
+  roleId       String     @map("role_id") @db.Uuid
+  permissionId String     @map("permission_id") @db.Uuid
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Restrict)
+
+  @@id([roleId, permissionId])
+  @@index([permissionId])
+  @@map("role_permissions")
+}
+
+model OtpChallenge {
+  id              String                  @id @default(uuid()) @db.Uuid
+  userId          String                  @map("user_id") @db.Uuid
+  purpose         OtpPurpose
+  email           String                  @db.VarChar(254)
+  verifierDigest  Bytes                   @map("verifier_digest") @db.ByteA
+  verifierKeyId   String                  @map("verifier_key_id") @db.Text
+  expiresAt       DateTime                @map("expires_at") @db.Timestamptz(3)
+  consumedAt      DateTime?               @map("consumed_at") @db.Timestamptz(3)
+  supersededAt    DateTime?               @map("superseded_at") @db.Timestamptz(3)
+  failedAttempts  Int                     @default(0) @map("failed_attempts")
+  createdAt       DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
+  user            User                    @relation(fields: [userId], references: [id], onDelete: Restrict)
+  emailDeliveries IdentityEmailDelivery[]
+
+  // Outstanding-challenge partial uniqueness belongs in the SQL migration.
+  @@index([userId, purpose, createdAt])
+  @@index([expiresAt])
+  @@map("otp_challenges")
+}
+
+model OtpIssueWindow {
+  normalizedEmail String     @map("normalized_email") @db.VarChar(254)
+  purpose         OtpPurpose
+  windowStart     DateTime   @map("window_start") @db.Timestamptz(3)
+  issueCount      Int        @default(0) @map("issue_count")
+  resendCount     Int        @default(0) @map("resend_count")
+  lastIssuedAt    DateTime   @map("last_issued_at") @db.Timestamptz(3)
+
+  @@id([normalizedEmail, purpose, windowStart])
+  @@index([windowStart])
+  @@map("otp_issue_windows")
+}
+
+model RefreshSession {
+  id                String              @id @default(uuid()) @db.Uuid
+  userId            String              @map("user_id") @db.Uuid
+  securityVersion   Int                 @map("security_version")
+  createdAt         DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  absoluteExpiresAt DateTime            @map("absolute_expires_at") @db.Timestamptz(3)
+  rememberMe        Boolean             @default(false) @map("remember_me")
+  revokedAt         DateTime?           @map("revoked_at") @db.Timestamptz(3)
+  revokedReason     String?             @map("revoked_reason") @db.Text
+  currentGeneration Int                 @default(0) @map("current_generation")
+  deviceMetadata    Json?               @map("device_metadata")
+  user              User                @relation(fields: [userId], references: [id], onDelete: Restrict)
+  credentials       RefreshCredential[]
+  reauthProofs      ReauthProof[]
+
+  // ReauthProof references the owning user and session together.
+  @@unique([userId, id])
+  @@index([userId, revokedAt, absoluteExpiresAt])
+  @@index([absoluteExpiresAt])
+  @@map("refresh_sessions")
+}
+
+model RefreshCredential {
+  id          String         @id @default(uuid()) @db.Uuid
+  sessionId   String         @map("session_id") @db.Uuid
+  generation  Int
+  tokenDigest Bytes          @unique @map("token_digest") @db.ByteA
+  createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  expiresAt   DateTime       @map("expires_at") @db.Timestamptz(3)
+  consumedAt  DateTime?      @map("consumed_at") @db.Timestamptz(3)
+  session     RefreshSession @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+
+  @@unique([sessionId, generation])
+  @@index([expiresAt])
+  @@map("refresh_credentials")
+}
+
+model ReauthProof {
+  id              String         @id @default(uuid()) @db.Uuid
+  userId          String         @map("user_id") @db.Uuid
+  sessionId       String         @map("session_id") @db.Uuid
+  digest          Bytes          @unique @db.ByteA
+  securityVersion Int            @map("security_version")
+  purpose         ReauthPurpose
+  expiresAt       DateTime       @map("expires_at") @db.Timestamptz(3)
+  consumedAt      DateTime?      @map("consumed_at") @db.Timestamptz(3)
+  user            User           @relation(fields: [userId], references: [id], onDelete: Restrict)
+  session         RefreshSession @relation(fields: [userId, sessionId], references: [userId, id], onDelete: Restrict)
+
+  @@index([userId, sessionId])
+  @@index([expiresAt])
+  @@map("reauth_proofs")
+}
+
+model IdentityEmailDelivery {
+  id                 String              @id @default(uuid()) @db.Uuid
+  userId             String?             @map("user_id") @db.Uuid
+  challengeId        String?             @map("challenge_id") @db.Uuid
+  kind               IdentityEmailKind
+  encryptedRecipient Bytes               @map("encrypted_recipient") @db.ByteA
+  encryptedPayload   Bytes?              @map("encrypted_payload") @db.ByteA
+  encryptionKeyId    String              @map("encryption_key_id") @db.Text
+  expiresAt          DateTime            @map("expires_at") @db.Timestamptz(3)
+  dedupeKey          String              @unique @map("dedupe_key") @db.Text
+  status             EmailDeliveryStatus @default(PENDING)
+  attempts           Int                 @default(0)
+  nextAttemptAt      DateTime            @default(now()) @map("next_attempt_at") @db.Timestamptz(3)
+  leaseUntil         DateTime?           @map("lease_until") @db.Timestamptz(3)
+  providerMessageId  String?             @map("provider_message_id") @db.Text
+  lastErrorCode      String?             @map("last_error_code") @db.Text
+  createdAt          DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  sentAt             DateTime?           @map("sent_at") @db.Timestamptz(3)
+  user               User?               @relation(fields: [userId], references: [id], onDelete: Restrict)
+  challenge          OtpChallenge?       @relation(fields: [challengeId], references: [id], onDelete: Restrict)
+
+  @@index([status, nextAttemptAt])
+  @@index([status, leaseUntil])
+  @@index([expiresAt])
+  @@index([userId])
+  @@index([challengeId])
+  @@map("identity_email_deliveries")
+}
+
+model AvatarAsset {
+  id               String            @id @default(uuid()) @db.Uuid
+  userId           String            @map("user_id") @db.Uuid
+  storageKey       String            @unique @map("storage_key") @db.Text
+  mime             String            @db.Text
+  byteSize         Int               @map("byte_size")
+  state            AvatarAssetStatus @default(QUARANTINED)
+  scanEvidence     Json?             @map("scan_evidence")
+  checkedAt        DateTime?         @map("checked_at") @db.Timestamptz(3)
+  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  expiresAt        DateTime?         @map("expires_at") @db.Timestamptz(3)
+  user             User              @relation(fields: [userId], references: [id], onDelete: Restrict)
+  selectedProfiles Profile[]         @relation("SelectedAvatar")
+
+  @@unique([userId, id])
+  @@index([state, expiresAt])
+  @@map("avatar_assets")
+}
+
+model AuditLog {
+  id         String    @id @default(uuid()) @db.Uuid
+  actorId    String?   @map("actor_id") @db.Uuid
+  actorRole  RoleCode? @map("actor_role")
+  action     String    @db.Text
+  targetType String    @map("target_type") @db.Text
+  targetId   String    @map("target_id") @db.Text
+  before     Json?
+  after      Json?
+  reason     String?   @db.VarChar(1000)
+  requestId  String?   @map("request_id") @db.Text
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  actor      User?     @relation("AuditActor", fields: [actorId], references: [id], onDelete: Restrict)
+  ipAddress  String?   @map("ip_address") @db.VarChar(45)
+  userAgent  String?   @map("user_agent") @db.VarChar(500)
+
+  @@index([actorId, createdAt])
+  @@index([targetType, targetId, createdAt])
+  @@index([createdAt, id])
+  @@map("audit_logs")
+}
