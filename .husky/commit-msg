@@ -1,0 +1,15 @@
+if staged_files="$(git diff --cached --name-only --diff-filter=ACMR 2>/dev/null)"; then
+  export COMMITLINT_STAGED_FILES="$staged_files"
+else
+  echo "commit-msg: unable to inspect staged files; commitlint cannot validate the scope." >&2
+  exit 1
+fi
+
+if command -v pnpm >/dev/null 2>&1; then
+  pnpm commitlint --edit "$1"
+elif command -v pnpm.cmd >/dev/null 2>&1 || pnpm.cmd --version >/dev/null 2>&1; then
+  pnpm.cmd commitlint --edit "$1"
+else
+  echo "commit-msg: commitlint could not run because pnpm is not installed or unavailable in PATH." >&2
+  exit 1
+fi

@@ -1,0 +1,11 @@
+# Avoid a broken user-level Git ignore path from corrupting lint-staged's Git output.
+export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$PWD}"
+
+if command -v pnpm >/dev/null 2>&1; then
+  pnpm lint-staged
+elif command -v pnpm.cmd >/dev/null 2>&1 || pnpm.cmd --version >/dev/null 2>&1; then
+  pnpm.cmd lint-staged
+else
+  echo "pre-commit: lint-staged could not run because pnpm is not installed or unavailable in PATH." >&2
+  exit 1
+fi
