@@ -10,6 +10,12 @@ Web/mobile chỉ được thay đổi khi có yêu cầu riêng. Git và pnpm wo
 
 API đã có config validation, PostgreSQL/Prisma, MongoDB/Mongoose, Redis/BullMQ, logging, Swagger, health/readiness và migration nền tảng. Các module nghiệp vụ bên dưới vẫn là kế hoạch; chưa có login, chat hoặc giao dịch Credit.
 
+Schema Prisma đã biểu diễn toàn bộ danh mục dữ liệu: 45 model PostgreSQL và
+25 enum, cùng 2 model chat trong file Prisma MongoDB tham chiếu. Xem
+[schema catalog](prisma/README.md) để đối chiếu 42/42 model logical và phân biệt
+schema với runtime Mongoose. Migration nghiệp vụ, seed/quyền, ràng buộc SQL bổ
+sung và endpoint `/api/v1/...` chưa được triển khai.
+
 Nguồn nghiệp vụ:
 
 - [SRS SkillHub V1.3](../../docs/SRS_SkillHub_V1.3.docx): mục 6, 18 và phụ lục C.
