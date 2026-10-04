@@ -36,6 +36,8 @@ export function HomeScreen() {
   if (!session) return <Redirect href="/login" />;
   const name = session.name.split(/\s+/).slice(-2).join(" ");
   const action = (title: string) => {
+    if (title === "Hồ sơ" || title === "Hoàn thiện hồ sơ")
+      return router.push("/profile");
     if (title !== "Trang chủ") {
       setQuery("");
       setNotice(title);
