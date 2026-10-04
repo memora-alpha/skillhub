@@ -57,6 +57,14 @@ nhóm API dự kiến và đều nằm sau prefix `/api` hiện có.
 
 GET /api/health là liveness; GET /api/health/ready kiểm tra PostgreSQL, MongoDB và Redis; cả hai version-neutral. Swagger ở /api/docs trong development/test, tắt trong production. Rate limit chia sẻ qua Redis theo cấu hình, gồm IP toàn API và email/IP/device theo luồng danh tính; health được miễn. Cấu hình danh tính/provider trong `.env.example` bắt buộc có giá trị rõ ràng trước khi khởi động.
 
+Response JSON theo chuẩn Memora: thành công `{success:true,message,data,meta?}`;
+lỗi `{success:false,message,statusCode}`. Payload nằm trong `data`, phân trang
+danh sách quản trị nằm trong `meta.pagination` (`nextCursor`, `hasMore`, `limit`).
+Đăng ký/gửi lại OTP/quên mật khẩu trả `data:null`; response 204 không có body.
+Controller dùng helper tại `src/shared/http/response.ts`, use case trả kết quả
+nghiệp vụ; Swagger mô tả đúng envelope. Đây là thay đổi contract v1 trước release
+theo yêu cầu ngày 2026-10-04; xem [HTTP contract](specs/002-user-identity/contracts/http.md).
+
 ## Hạ tầng và quy tắc phụ thuộc
 
 Hạ tầng nằm trong `src/infrastructure/`; không coi mỗi provider là

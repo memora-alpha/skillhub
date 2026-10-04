@@ -44,7 +44,3 @@ export class AdminUserResponse {
   @ApiProperty({ type: [String] }) roles!: string[];
   @ApiProperty({ format: "date-time" }) createdAt!: string;
 }
-export class AdminUserListResponse {
-  @ApiProperty({ type: [AdminUserResponse] }) items!: AdminUserResponse[];
-  @ApiProperty({ type: String, nullable: true }) nextCursor!: string | null;
-}

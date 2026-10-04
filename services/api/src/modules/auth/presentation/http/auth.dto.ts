@@ -120,3 +120,7 @@ export class TokenPairDto {
   @ApiProperty() expiresIn!: number;
   @ApiProperty({ format: "date-time" }) refreshExpiresAt!: string;
 }
+export class ReauthResponseDto {
+  @ApiProperty() reauthToken!: string;
+  @ApiProperty({ format: "date-time" }) expiresAt!: string;
+}

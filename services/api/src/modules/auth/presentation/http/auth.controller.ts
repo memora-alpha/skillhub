@@ -23,6 +23,11 @@ import {
   ApiTags,
 } from "@nestjs/swagger";
 import { Request } from "express";
+import { success } from "../../../../shared/http/response";
+import {
+  ApiSuccessResponse,
+  ApiErrorResponse,
+} from "../../../../shared/http/api-response.decorators";
 
 import { Principal } from "../../application/services/sessions.service";
 import {
@@ -35,6 +40,7 @@ import {
   EmptyDto,
   LoginDto,
   ReauthDto,
+  ReauthResponseDto,
   RefreshDto,
   RegisterDto,
   ResetDto,
@@ -43,15 +49,10 @@ import {
 } from "./auth.dto";
 
 @ApiTags("auth")
-@ApiResponse({
-  status: 400,
-  description: "Invalid input or invalid/expired proof",
-})
-@ApiResponse({
-  status: 429,
-  description: "Shared identity rate limit exceeded",
-})
-@ApiResponse({ status: 503, description: "Required storage unavailable" })
+@ApiErrorResponse(400, "Invalid input or invalid/expired proof")
+@ApiErrorResponse(429, "Shared identity rate limit exceeded")
+@ApiErrorResponse(503, "Required storage unavailable")
+@ApiErrorResponse(500, "Internal server error")
 @Controller({ path: "auth", version: "1" })
 export class AuthController {
   constructor(
@@ -77,20 +78,22 @@ export class AuthController {
   @Post("register")
   @HttpCode(202)
   @ApiOperation({ summary: "Register a pending account; neutral response" })
-  @ApiResponse({ status: 202 })
+  @ApiSuccessResponse(202, null)
   async register(@Body() body: RegisterDto, @Req() req: Request) {
     await this.rate(req, "register", body.email);
-    return this.registerAccount.execute(body);
+    const result = await this.registerAccount.execute(body);
+    return success(null, result.message);
   }
   @Post("verification/resend")
   @HttpCode(202)
   @ApiOperation({
     summary: "Resend registration OTP subject to cooldown and hourly limit",
   })
-  @ApiResponse({ status: 202 })
+  @ApiSuccessResponse(202, null)
   async resend(@Body() body: EmailDto, @Req() req: Request) {
     await this.rate(req, "register", body.email);
-    return this.resendOtp.execute(body.email, "REGISTER");
+    const result = await this.resendOtp.execute(body.email, "REGISTER");
+    return success(null, result.message);
   }
   @Post("verification/verify")
   @HttpCode(204)
@@ -103,23 +106,29 @@ export class AuthController {
   @Post("login")
   @HttpCode(200)
   @ApiOperation({ summary: "Sign in an ACTIVE account" })
-  @ApiResponse({ status: 200, type: TokenPairDto })
-  @ApiResponse({ status: 401 })
-  @ApiResponse({ status: 403 })
+  @ApiSuccessResponse(200, TokenPairDto)
+  @ApiErrorResponse(401)
+  @ApiErrorResponse(403)
   @Header("Cache-Control", "no-store")
   async login(@Body() body: LoginDto, @Req() req: Request) {
     await this.rate(req, "login", body.email);
-    return this.signIn.execute(body.email, body.password, body.rememberMe);
+    return success(
+      await this.signIn.execute(body.email, body.password, body.rememberMe),
+      "Signed in successfully.",
+    );
   }
   @Post("refresh")
   @HttpCode(200)
   @ApiOperation({ summary: "Rotate renewal credential; replay revokes family" })
-  @ApiResponse({ status: 200, type: TokenPairDto })
-  @ApiResponse({ status: 401 })
+  @ApiSuccessResponse(200, TokenPairDto)
+  @ApiErrorResponse(401)
   @Header("Cache-Control", "no-store")
   async refresh(@Body() body: RefreshDto, @Req() req: Request) {
     await this.rate(req, "refresh", "credential");
-    return this.refreshToken.execute(body.refreshToken);
+    return success(
+      await this.refreshToken.execute(body.refreshToken),
+      "Tokens refreshed.",
+    );
   }
   @Post("logout")
   @HttpCode(204)
@@ -134,6 +143,7 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({ summary: "Revoke every current user session" })
   @ApiResponse({ status: 204 })
+  @ApiErrorResponse(401)
   async logoutAll(
     @Body() _body: EmptyDto,
     @CurrentIdentity() principal: Principal,
@@ -143,10 +153,11 @@ export class AuthController {
   @Post("password/forgot")
   @HttpCode(202)
   @ApiOperation({ summary: "Request password recovery; neutral response" })
-  @ApiResponse({ status: 202 })
+  @ApiSuccessResponse(202, null)
   async forgot(@Body() body: EmailDto, @Req() req: Request) {
     await this.rate(req, "forgot", body.email);
-    return this.resendOtp.execute(body.email, "RESET_PASSWORD");
+    const result = await this.resendOtp.execute(body.email, "RESET_PASSWORD");
+    return success(null, result.message);
   }
   @Post("password/reset")
   @HttpCode(204)
@@ -169,9 +180,9 @@ export class AuthController {
   @ApiOperation({
     summary: "Admin obtains session-bound one-use STAFF change proof",
   })
-  @ApiResponse({ status: 200 })
-  @ApiResponse({ status: 401 })
-  @ApiResponse({ status: 403 })
+  @ApiSuccessResponse(200, ReauthResponseDto)
+  @ApiErrorResponse(401)
+  @ApiErrorResponse(403)
   @Header("Cache-Control", "no-store")
   async reauth(
     @Body() body: ReauthDto,
@@ -179,6 +190,9 @@ export class AuthController {
     @Req() req: Request,
   ) {
     await this.rate(req, "reauth", principal.userId);
-    return this.reauthenticate.execute(principal, body.password);
+    return success(
+      await this.reauthenticate.execute(principal, body.password),
+      "Reauthentication completed.",
+    );
   }
 }

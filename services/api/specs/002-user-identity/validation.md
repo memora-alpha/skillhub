@@ -36,6 +36,17 @@ Final refactor checks passed: `pnpm --filter api lint` (zero warnings), `pnpm --
 
 The real BullMQ scenario also runs the extracted IdentityEmailWorker/BullIdentityEmailJobs and AvatarWorker/BullAvatarJobs with isolated queues and real PostgreSQL metadata. It verifies ID-only payloads, SENT email, CLEAN avatar selection and safe queue cleanup. Provider behavior remains controlled by fixtures; this is not production-provider certification or a full configured AppModule startup test. Schema, API behavior and deployment topology are unchanged; no application migration or push was performed. No before/after implementation hooks are registered.
 
+## Memora response amendment verification — 2026-10-04
+
+Reviewed Memora's live `shared/http/response.ts`, exception filter and controllers. Its success/paginated/failure types and helpers now live in SkillHub's shared HTTP layer; controllers explicitly format business results. No response wrapper is added to application use cases or a global interceptor. JSON health/readiness adopts the same envelope, with URI versions and status codes preserved.
+
+- Success JSON has `success:true`, a string `message`, and `data`; neutral register/resend/forgot acknowledgment uses `data:null`. Admin user listing returns an array in `data` with `meta.pagination.nextCursor`, `hasMore` and `limit`.
+- Exceptions use root `success:false`, string `message` and numeric `statusCode`. Validation messages join with `; `; 5xx returns `Internal server error` without credentials/provider details. Successful 204 endpoints remain bodiless.
+- All 21 identity routes retain their versions and security behavior. Swagger checks inspect success/error schemas for every documented response, data model references, pagination arrays and absent 204 content. Actual HTTP checks cover register/duplicate acknowledgment, resend/forgot, verify, login/refresh/reauth with no-store, own/public/update profile projections, avatar upload/status/delete, health/readiness, 400/401/403/404 and logout/revoked identity.
+- Real PostgreSQL/Redis cursor checks cover consecutive distinct records and the final page's null cursor/false hasMore; masked email and private-field allowlists remain intact. Existing concurrency, atomic audit/proof rollback, persistent OTP counters, replay revocation, outbox/key rotation and BullMQ worker scenarios also passed.
+
+Verification passed: API lint with zero warnings, Prisma generation/TypeScript check, Nest build, `git diff --check`, foundation tests (5), policy/provider tests (7), and real-storage integration entries (15): **27 passed, none failed or skipped**. Repository frontend/shared source search found no consumers of the identity endpoints to update. This is the user-approved replacement of the unreleased v1 response contract; consumers read payloads from `data` and pagination from `meta.pagination`. Production-provider/full configured startup limits below still apply; no migration deployment accompanies this amendment. The user requested a separate response amendment commit and pull request into dev on 2026-10-04.
+
 ## Release configuration and limitations
 
 Required keys, terms/timezone, lifetimes, throttling, delivery/retention and avatar timing values are explicit in `.env.example`; blanks intentionally prevent identity startup. Initial reputation must be approved in production; Staff has no initial administrative permissions. Registration proof lifetime, attempt cap and resend boundaries implement the SRS values (300 seconds, five attempts, sixty seconds, five issues/hour).

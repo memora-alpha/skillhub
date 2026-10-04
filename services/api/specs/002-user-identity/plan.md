@@ -73,7 +73,7 @@ Các endpoint được bảo vệ kiểm tra trạng thái tài khoản, phiên 
 | Constraints      | Constitution 1.2.0; SRS field limits; no external calls in DB transactions; fail-closed secret/scan/throttle controls                                                              |
 | Scale/scope      | auth/users, minimal email notifications/audit, avatar storage and technical guards; no finance/chat                                                                                |
 
-Historical source baseline at planning: only health/infrastructure, SystemConfiguration and a process-local throttle existed. Spec 002 now adds identity services/providers/configuration, Redis throttling and credential-body redaction. The error envelope remains `{error:{statusCode,message}}`. Verified implementation is recorded in [validation.md](validation.md).
+Historical source baseline at planning: only health/infrastructure, SystemConfiguration and a process-local throttle existed. Spec 002 now adds identity services/providers/configuration, Redis throttling and credential-body redaction. On 2026-10-04, the user requested Memora's response standard for the unreleased v1 API: JSON success `{success:true,message,data,meta?}`, error `{success:false,message,statusCode}`, cursor metadata in `meta.pagination`, and bodiless 204. Controller-level shared helpers keep transport envelopes out of application use cases. This supersedes the foundation's original error shape; HTTP statuses, URI versions, transactions, projections and token no-store remain unchanged. Verified implementation is recorded in [validation.md](validation.md).
 
 ## Constitution Check
 

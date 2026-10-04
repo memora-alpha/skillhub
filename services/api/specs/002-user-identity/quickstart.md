@@ -44,6 +44,8 @@ Integration reads `TEST_DATABASE_URL`/`TEST_REDIS_URL` when set, otherwise exist
 
 Swagger is at `/api/docs` in development/test. Identity endpoints use `/api/v1/...`; unsupported/unversioned identity paths return 404. `/api/health` and `/api/health/ready` remain neutral.
 
+JSON responses follow Memora: `{success:true,message,data,meta?}` or `{success:false,message,statusCode}`. Read tokens/profile/upload results from `data`; user list rows are the `data` array and cursor/hasMore/limit are in `meta.pagination`. Registration/resend/forgot use `data:null`. A 204 response has no JSON body. Validation `message` is one string joined with `; `; 5xx hides internal details. This replaces the previous response shapes in the unreleased v1 API.
+
 1. Register valid fields and accepted terms; receive neutral 202 without tokens. Obtain the code from a controlled mailbox. Duplicate signup cannot replace profile/password.
 2. Verify six-digit REGISTER code once, then login. An inactive account cannot obtain a session; invalid proof responses are neutral.
 3. Access own `/me` and authenticated public `/profiles/{userId}` projections. Public profile excludes email/roles. Profile edits accept only the declared fields.

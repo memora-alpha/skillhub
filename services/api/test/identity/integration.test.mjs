@@ -823,7 +823,7 @@ test(
         },
       );
       await t.test(
-        "21 versioned Swagger routes and HTTP validation/projections/no-store/neutral health",
+        "21 versioned routes with Memora success/error/pagination envelopes and bodiless 204",
         async () => {
           const module = await Test.createTestingModule({
             controllers: [
@@ -889,43 +889,143 @@ test(
           );
           assert.ok(document.paths["/api/health"]);
           assert.ok(!document.paths["/api/v1/health"]);
-          assert.equal((await request("/api/health")).status, 200);
+          for (const methods of Object.values(document.paths)) {
+            for (const operation of Object.values(methods)) {
+              for (const [status, response] of Object.entries(
+                operation.responses,
+              )) {
+                if (status === "204") {
+                  assert.equal(response.content, undefined);
+                  continue;
+                }
+                const schema = response.content["application/json"].schema;
+                assert.equal(schema.properties.message.type, "string");
+                if (Number(status) >= 400) {
+                  assert.deepEqual(schema.properties.success.enum, [false]);
+                  assert.deepEqual(schema.properties.statusCode.enum, [
+                    Number(status),
+                  ]);
+                } else {
+                  assert.deepEqual(schema.properties.success.enum, [true]);
+                  assert.ok(schema.required.includes("data"));
+                }
+              }
+            }
+          }
+          assert.equal(
+            document.paths["/api/v1/auth/login"].post.responses[200].content[
+              "application/json"
+            ].schema.properties.data.$ref,
+            "#/components/schemas/TokenPairDto",
+          );
+          assert.equal(
+            document.paths["/api/v1/admin/users"].get.responses[200].content[
+              "application/json"
+            ].schema.properties.data.items.$ref,
+            "#/components/schemas/AdminUserResponse",
+          );
+          const readSuccess = async (response, status = 200) => {
+            assert.equal(response.status, status);
+            const body = await response.json();
+            assert.equal(body.success, true);
+            assert.equal(typeof body.message, "string");
+            assert.ok(body.message.length > 0);
+            assert.ok("data" in body);
+            assert.ok(!("error" in body));
+            return body;
+          };
+          const readError = async (response, status) => {
+            assert.equal(response.status, status);
+            const body = await response.json();
+            assert.equal(body.success, false);
+            assert.equal(body.statusCode, status);
+            assert.equal(typeof body.message, "string");
+            assert.ok(!("data" in body));
+            assert.ok(!("error" in body));
+            return body;
+          };
+          assert.deepEqual(
+            (await readSuccess(await request("/api/health"))).data,
+            { status: "ok", service: "skillhub-api" },
+          );
+          assert.deepEqual(
+            (await readSuccess(await request("/api/health/ready"))).data,
+            { status: "ok", dependencies: ["postgresql", "mongodb", "redis"] },
+          );
           for (const path of ["/api/auth/login", "/api/v2/auth/login"])
-            assert.equal(
-              (
-                await request(path, "POST", {
-                  email: "race@example.com",
-                  password: "Newest123!",
-                })
-              ).status,
+            await readError(
+              await request(path, "POST", {
+                email: "race@example.com",
+                password: "Newest123!",
+              }),
               404,
             );
-          assert.equal(
-            (
-              await request("/api/v1/auth/register", "POST", {
-                email: "a@example.com",
-                password: "Strong123!",
-                confirmPassword: "Strong123!",
-                fullName: "Good Name",
-                agreeTerms: true,
-                roles: ["ADMIN"],
-              })
-            ).status,
+          const invalid = await readError(
+            await request("/api/v1/auth/register", "POST", {
+              email: "a@example.com",
+              password: "Strong123!",
+              confirmPassword: "Strong123!",
+              fullName: "Good Name",
+              agreeTerms: true,
+              roles: ["ADMIN"],
+            }),
             400,
           );
+          assert.match(invalid.message, /roles/);
+          for (const path of ["verification/resend", "password/forgot"]) {
+            const acknowledgement = await readSuccess(
+              await request(`/api/v1/auth/${path}`, "POST", {
+                email: "absent@example.com",
+              }),
+              202,
+            );
+            assert.equal(acknowledgement.data, null);
+          }
+          const registration = await readSuccess(
+            await request("/api/v1/auth/register", "POST", {
+              email: "http@example.com",
+              password: "Strong123!",
+              confirmPassword: "Strong123!",
+              fullName: "HTTP User",
+              agreeTerms: true,
+            }),
+            202,
+          );
+          assert.equal(registration.data, null);
+          const duplicate = await readSuccess(
+            await request("/api/v1/auth/register", "POST", {
+              email: "http@example.com",
+              password: "Strong123!",
+              confirmPassword: "Strong123!",
+              fullName: "HTTP User",
+              agreeTerms: true,
+            }),
+            202,
+          );
+          assert.deepEqual(duplicate, registration);
+          const verification = await request(
+            "/api/v1/auth/verification/verify",
+            "POST",
+            {
+              email: "http@example.com",
+              otpCode: (await proof("http@example.com", "REGISTER")).code,
+            },
+          );
+          assert.equal(verification.status, 204);
+          assert.equal(await verification.text(), "");
           const login = await request("/api/v1/auth/login", "POST", {
             email: " RACE@Example.com ",
             password: "Newest123!",
           });
           assert.equal(login.status, 200);
           assert.equal(login.headers.get("cache-control"), "no-store");
-          const pair = await login.json();
-          assert.equal((await request("/api/v1/me")).status, 401);
-          assert.equal(
-            (await request("/api/v1/me", "GET", undefined, pair.accessToken))
-              .status,
-            200,
+          let pair = (await readSuccess(login)).data;
+          await readError(await request("/api/v1/me"), 401);
+          const own = await readSuccess(
+            await request("/api/v1/me", "GET", undefined, pair.accessToken),
           );
+          assert.equal(own.data.email, "race@example.com");
+          assert.ok(!("passwordHash" in own.data));
           for (const body of [{ reputationScore: 100 }, {}])
             assert.equal(
               (
@@ -938,41 +1038,139 @@ test(
               ).status,
               400,
             );
-          assert.equal(
-            (
-              await request(
-                "/api/v1/admin/users",
-                "GET",
-                undefined,
-                pair.accessToken,
-              )
-            ).status,
-            403,
-          );
-          assert.equal(
-            (
-              await request(
-                "/api/v1/me/profile",
-                "PATCH",
-                { bio: "<script>plain text</script>" },
-                pair.accessToken,
-              )
-            ).status,
-            200,
-          );
-          const projection = await (
+          await readError(
             await request(
-              `/api/v1/profiles/${user.id}`,
+              "/api/v1/admin/users",
               "GET",
               undefined,
               pair.accessToken,
+            ),
+            403,
+          );
+          const profile = await readSuccess(
+            await request(
+              "/api/v1/me/profile",
+              "PATCH",
+              { bio: "<script>plain text</script>" },
+              pair.accessToken,
+            ),
+          );
+          assert.equal(profile.data.bio, "<script>plain text</script>");
+          const projection = (
+            await readSuccess(
+              await request(
+                `/api/v1/profiles/${user.id}`,
+                "GET",
+                undefined,
+                pair.accessToken,
+              ),
             )
-          ).json();
+          ).data;
           assert.ok(!JSON.stringify(projection).includes("race@example.com"));
           assert.ok(!("roles" in projection));
-          await request("/api/v1/auth/logout", "POST", {
+          const bytes = await sharp({
+            create: {
+              width: 16,
+              height: 16,
+              channels: 3,
+              background: "#112233",
+            },
+          })
+            .png()
+            .toBuffer();
+          const form = new FormData();
+          form.append(
+            "image",
+            new Blob([bytes], { type: "image/png" }),
+            "avatar.png",
+          );
+          const avatar = await readSuccess(
+            await fetch(`${base}/api/v1/me/avatar`, {
+              method: "POST",
+              headers: { Authorization: `Bearer ${pair.accessToken}` },
+              body: form,
+            }),
+            202,
+          );
+          assert.equal(avatar.data.status, "QUARANTINED");
+          const uploadStatus = await readSuccess(
+            await request(
+              `/api/v1/me/avatar/uploads/${avatar.data.assetId}`,
+              "GET",
+              undefined,
+              pair.accessToken,
+            ),
+          );
+          assert.equal(uploadStatus.data.assetId, avatar.data.assetId);
+          const clearAvatar = await request(
+            "/api/v1/me/avatar",
+            "DELETE",
+            undefined,
+            pair.accessToken,
+          );
+          assert.equal(clearAvatar.status, 204);
+          assert.equal(await clearAvatar.text(), "");
+          const operator = (
+            await readSuccess(
+              await request("/api/v1/auth/login", "POST", {
+                email: "operator@example.com",
+                password: "Strong123!",
+              }),
+            )
+          ).data;
+          const reauthResponse = await request(
+            "/api/v1/auth/reauthenticate",
+            "POST",
+            {
+              password: "Strong123!",
+              purpose: "STAFF_ROLE_CHANGE",
+            },
+            operator.accessToken,
+          );
+          assert.equal(reauthResponse.headers.get("cache-control"), "no-store");
+          assert.ok((await readSuccess(reauthResponse)).data.reauthToken);
+          const firstPage = await readSuccess(
+            await request(
+              "/api/v1/admin/users?limit=1",
+              "GET",
+              undefined,
+              operator.accessToken,
+            ),
+          );
+          assert.equal(firstPage.data.length, 1);
+          assert.match(firstPage.data[0].maskedEmail, /\*\*\*/);
+          assert.ok(!("email" in firstPage.data[0]));
+          assert.equal(firstPage.meta.pagination.hasMore, true);
+          assert.equal(firstPage.meta.pagination.limit, 1);
+          const nextPage = await readSuccess(
+            await request(
+              `/api/v1/admin/users?limit=1&cursor=${encodeURIComponent(firstPage.meta.pagination.nextCursor)}`,
+              "GET",
+              undefined,
+              operator.accessToken,
+            ),
+          );
+          assert.notEqual(nextPage.data[0].userId, firstPage.data[0].userId);
+          const finalPage = await readSuccess(
+            await request(
+              "/api/v1/admin/users?limit=100",
+              "GET",
+              undefined,
+              operator.accessToken,
+            ),
+          );
+          assert.equal(finalPage.meta.pagination.nextCursor, null);
+          assert.equal(finalPage.meta.pagination.hasMore, false);
+          const refreshed = await request("/api/v1/auth/refresh", "POST", {
             refreshToken: pair.refreshToken,
           });
+          assert.equal(refreshed.headers.get("cache-control"), "no-store");
+          pair = (await readSuccess(refreshed)).data;
+          const logout = await request("/api/v1/auth/logout", "POST", {
+            refreshToken: pair.refreshToken,
+          });
+          assert.equal(logout.status, 204);
+          assert.equal(await logout.text(), "");
           assert.equal(
             (await request("/api/v1/me", "GET", undefined, pair.accessToken))
               .status,

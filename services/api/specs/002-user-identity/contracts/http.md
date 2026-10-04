@@ -1,6 +1,16 @@
-# Proposed identity HTTP contract
+# Identity HTTP contract
 
-Implemented identity HTTP contract, published by development/test Swagger. Identity API URI prefix `/api/v1`, UUID identifiers, UTC ISO timestamps, JSON unless multipart; reject unknown fields. No BIGINT output. Preserve existing error `{error:{statusCode,message}}` without a breaking envelope change. See [validation](../validation.md) for verified behavior and release configuration.
+Implemented identity HTTP contract, published by development/test Swagger. Identity API URI prefix `/api/v1`, UUID identifiers, UTC ISO timestamps, JSON unless multipart; reject unknown fields. No BIGINT output. Responses follow Memora's standard envelope, adopted by user request on 2026-10-04 before release. See [validation](../validation.md) for verified behavior and release configuration.
+
+## Standard response
+
+- JSON success (200/202): `{success:true,message:string,data:T,meta?:object}`. Shapes in the route table and below describe `data`.
+- Neutral registration/resend/recovery acknowledgment (202): `{success:true,message:"If eligible, instructions will be sent",data:null}`; existing and unknown/ineligible email flows remain neutral.
+- Paginated user list (200): `{success:true,message:"Users retrieved.",data:AdminUserSummary[],meta:{pagination:{nextCursor:string|null,hasMore:boolean,limit:number}}}`. `hasMore` is true exactly when `nextCursor` is non-null; default limit 20, maximum 100. No total count is computed.
+- Error: `{success:false,message:string,statusCode:number}` with the actual HTTP status. Validation messages are joined with `; `; all 5xx messages are `Internal server error`, with no provider/database/credential details.
+- 204 success has no response body. Health/readiness JSON also uses the success envelope at the existing version-neutral paths.
+
+HTTP presentation uses shared `success`, `paginated` and `failure` helpers. Application use cases keep business results independent of HTTP envelopes. This intentionally replaces the prior flat payloads and nested error contract in the unreleased v1 API; consumers must read payloads from `data`, errors from root `message`/`statusCode`, and pagination from `meta.pagination`.
 
 Identity routes explicitly use version `1` with NestJS URI versioning, after global prefix `api`. No unversioned identity alias is provided; missing/unsupported versions return404. Existing health/readiness are version-neutral at `/api/health` and `/api/health/ready`; Swagger remains `/api/docs` and describes the versioned identity paths. Incompatible public-contract changes require a new URI version with a documented support/deprecation policy.
 
@@ -26,13 +36,13 @@ Protected routes use Bearer access JWT plus live session/User/status/securityVer
 | GET /api/v1/me/avatar/uploads/{assetId}         | Owner                      | UUID                                                                  | 200 assetId/status; foreign/missing404; CLEAN means profile selected                                                      |
 | DELETE /api/v1/me/avatar                        | Owner                      | none                                                                  | 204 clear selection and schedule idempotent cleanup                                                                       |
 | GET /api/v1/profiles/{userId}                   | Authenticated              | UUID                                                                  | 200 PublicProfile for ACTIVE; missing/nonpublic404                                                                        |
-| GET /api/v1/admin/users                         | users.read                 | cursor?,limit?,status?,role?                                          | 200 items/nextCursor; default20,max100,createdAt/id descending; bad cursor400                                             |
+| GET /api/v1/admin/users                         | users.read                 | cursor?,limit?,status?,role?                                          | 200 data array + meta.pagination; default20,max100,createdAt/id descending; bad cursor400                                 |
 | POST /api/v1/admin/users/{userId}/lock          | users.lock                 | reason nonblank1–1000                                                 | 204 ACTIVE→LOCKED/revoke/audit; wrong state409                                                                            |
 | POST /api/v1/admin/users/{userId}/unlock        | users.unlock               | reason nonblank1–1000                                                 | 204 verified LOCKED→ACTIVE/audit; sessions stay revoked; wrong state409                                                   |
 | PUT /api/v1/admin/users/{userId}/roles/staff    | ADMIN + roles.staff.assign | reauthToken,reason nonblank1–1000                                     | 204 idempotent STAFF add + consume reauth/audit; preserve USER/ADMIN                                                      |
 | DELETE /api/v1/admin/users/{userId}/roles/staff | ADMIN + roles.staff.assign | reauthToken,reason nonblank1–1000                                     | 204 idempotent STAFF removal + consume reauth/audit; preserve USER/ADMIN                                                  |
 
-Neutral acknowledgment: `{message:"If eligible, instructions will be sent"}`. Rate limits consistent for unknown emails; throttle storage outage safe503. Use trusted proxy IP policy, not arbitrary forwarded headers. Cursor validates sort/filter context. Role/audit no-op results explicit; no grant/no-op bypass of fresh proof or authorization.
+Neutral acknowledgment uses `data:null` and the same safe `message` for eligible/ineligible emails. Rate limits consistent for unknown emails; throttle storage outage safe503. Use trusted proxy IP policy, not arbitrary forwarded headers. Cursor validates sort/filter context. Role/audit no-op results explicit; no grant/no-op bypass of fresh proof or authorization.
 
 ## Shapes
 

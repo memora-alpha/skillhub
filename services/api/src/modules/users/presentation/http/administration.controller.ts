@@ -29,13 +29,21 @@ import {
 import { Principal } from "../../../auth/application/services/sessions.service";
 
 import { ReasonDto, StaffDto, UserListDto } from "./users.dto";
-import { AdminUserListResponse } from "./users.responses";
+import { AdminUserResponse } from "./users.responses";
+import { paginated } from "../../../../shared/http/response";
+import {
+  ApiSuccessResponse,
+  ApiErrorResponse,
+} from "../../../../shared/http/api-response.decorators";
 @ApiTags("administration")
 @ApiBearerAuth()
 @UseGuards(IdentityGuard)
-@ApiResponse({ status: 401 })
-@ApiResponse({ status: 403, description: "Current role/permission denied" })
-@ApiResponse({ status: 400 })
+@ApiErrorResponse(401)
+@ApiErrorResponse(403, "Current role/permission denied")
+@ApiErrorResponse(400)
+@ApiErrorResponse(429)
+@ApiErrorResponse(500)
+@ApiErrorResponse(503)
 @Controller({ path: "admin/users", version: "1" })
 export class AdministrationController {
   constructor(
@@ -47,9 +55,18 @@ export class AdministrationController {
   ) {}
   @Get()
   @ApiOperation({ summary: "List masked users with context-bound cursor" })
-  @ApiResponse({ status: 200, type: AdminUserListResponse })
-  list(@CurrentIdentity() actor: Principal, @Query() query: UserListDto) {
-    return this.listUsers.execute(actor, query);
+  @ApiSuccessResponse(200, AdminUserResponse, { paginated: true })
+  async list(@CurrentIdentity() actor: Principal, @Query() query: UserListDto) {
+    const result = await this.listUsers.execute(actor, query);
+    return paginated(
+      result.items,
+      {
+        nextCursor: result.nextCursor,
+        hasMore: result.nextCursor !== null,
+        limit: query.limit ?? 20,
+      },
+      "Users retrieved.",
+    );
   }
   @Post(":userId/lock")
   @HttpCode(204)
@@ -57,7 +74,7 @@ export class AdministrationController {
     summary: "Lock ACTIVE account and revoke sessions atomically with audit",
   })
   @ApiResponse({ status: 204 })
-  @ApiResponse({ status: 409 })
+  @ApiErrorResponse(409)
   lock(
     @CurrentIdentity() actor: Principal,
     @Param("userId", ParseUUIDPipe) userId: string,
@@ -71,7 +88,7 @@ export class AdministrationController {
     summary: "Unlock verified LOCKED account without restoring sessions",
   })
   @ApiResponse({ status: 204 })
-  @ApiResponse({ status: 409 })
+  @ApiErrorResponse(409)
   unlock(
     @CurrentIdentity() actor: Principal,
     @Param("userId", ParseUUIDPipe) userId: string,

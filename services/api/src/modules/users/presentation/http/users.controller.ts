@@ -35,6 +35,11 @@ import {
   IdentityGuard,
 } from "../../../../shared/auth/identity.guard";
 import { Principal } from "../../../auth/application/services/sessions.service";
+import { success } from "../../../../shared/http/response";
+import {
+  ApiSuccessResponse,
+  ApiErrorResponse,
+} from "../../../../shared/http/api-response.decorators";
 
 import { ProfileDto } from "./users.dto";
 import {
@@ -47,8 +52,11 @@ import {
 @ApiTags("profiles")
 @ApiBearerAuth()
 @UseGuards(IdentityGuard)
-@ApiResponse({ status: 401 })
-@ApiResponse({ status: 400 })
+@ApiErrorResponse(401)
+@ApiErrorResponse(400)
+@ApiErrorResponse(429)
+@ApiErrorResponse(500)
+@ApiErrorResponse(503)
 @Controller({ version: "1" })
 export class UsersController {
   constructor(
@@ -61,29 +69,38 @@ export class UsersController {
   ) {}
   @Get("me")
   @ApiOperation({ summary: "Read own account and profile allowlist" })
-  @ApiResponse({ status: 200, type: OwnIdentityResponse })
-  own(@CurrentIdentity() actor: Principal) {
-    return this.getOwnIdentity.execute(actor.userId);
+  @ApiSuccessResponse(200, OwnIdentityResponse)
+  async own(@CurrentIdentity() actor: Principal) {
+    return success(
+      await this.getOwnIdentity.execute(actor.userId),
+      "Account retrieved.",
+    );
   }
   @Patch("me/profile")
   @ApiOperation({ summary: "Update only owned editable profile fields" })
-  @ApiResponse({ status: 200, type: OwnProfileResponse })
-  update(@CurrentIdentity() actor: Principal, @Body() body: ProfileDto) {
+  @ApiSuccessResponse(200, OwnProfileResponse)
+  async update(@CurrentIdentity() actor: Principal, @Body() body: ProfileDto) {
     if (
       Object.values(body).every((value) => value === undefined) ||
       Object.values(body).some((value) => value === null)
     )
       throw new BadRequestException("NONEMPTY_PROFILE_REQUIRED");
-    return this.updateProfile.execute(actor.userId, body);
+    return success(
+      await this.updateProfile.execute(actor.userId, body),
+      "Profile updated.",
+    );
   }
   @Get("profiles/:userId")
   @ApiOperation({
     summary: "Read authenticated public ACTIVE profile without private fields",
   })
-  @ApiResponse({ status: 200, type: PublicProfileResponse })
-  @ApiResponse({ status: 404 })
-  public(@Param("userId", ParseUUIDPipe) userId: string) {
-    return this.getPublicProfile.execute(userId);
+  @ApiSuccessResponse(200, PublicProfileResponse)
+  @ApiErrorResponse(404)
+  async public(@Param("userId", ParseUUIDPipe) userId: string) {
+    return success(
+      await this.getPublicProfile.execute(userId),
+      "Profile retrieved.",
+    );
   }
   @Post("me/avatar")
   @HttpCode(202)
@@ -99,34 +116,40 @@ export class UsersController {
       properties: { image: { type: "string", format: "binary" } },
     },
   })
-  @ApiResponse({ status: 202, type: AvatarResponse })
-  @ApiResponse({ status: 413 })
-  @ApiResponse({ status: 415 })
+  @ApiSuccessResponse(202, AvatarResponse)
+  @ApiErrorResponse(413)
+  @ApiErrorResponse(415)
   @UseInterceptors(
     FileInterceptor("image", {
       limits: { fileSize: 5 * 1024 * 1024, files: 1, fields: 0 },
     }),
   )
-  upload(
+  async upload(
     @CurrentIdentity() actor: Principal,
     @UploadedFile() file: Express.Multer.File,
   ) {
-    return this.uploadAvatar.execute(
-      actor.userId,
-      file
-        ? { bytes: file.buffer, mime: file.mimetype, size: file.size }
-        : undefined,
+    return success(
+      await this.uploadAvatar.execute(
+        actor.userId,
+        file
+          ? { bytes: file.buffer, mime: file.mimetype, size: file.size }
+          : undefined,
+      ),
+      "Avatar upload accepted.",
     );
   }
   @Get("me/avatar/uploads/:assetId")
   @ApiOperation({ summary: "Read owned upload scan status" })
-  @ApiResponse({ status: 200, type: AvatarResponse })
-  @ApiResponse({ status: 404 })
-  status(
+  @ApiSuccessResponse(200, AvatarResponse)
+  @ApiErrorResponse(404)
+  async status(
     @CurrentIdentity() actor: Principal,
     @Param("assetId", ParseUUIDPipe) assetId: string,
   ) {
-    return this.getAvatarStatus.execute(actor.userId, assetId);
+    return success(
+      await this.getAvatarStatus.execute(actor.userId, assetId),
+      "Avatar upload status retrieved.",
+    );
   }
   @Delete("me/avatar")
   @HttpCode(204)

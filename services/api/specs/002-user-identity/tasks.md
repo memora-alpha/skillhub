@@ -80,6 +80,12 @@ Strategy: achieve verified signup/login first, then session security/recovery, t
 - [x] T033 Verify unchanged HTTP/Swagger contracts, transaction rollback, concurrency, failed-proof counters, replay revocation and durable recovery with real-storage tests; compile the runtime application provider graph and exercise both worker/queue adapters.
 - [x] T034 Update plan, README, quickstart and validation with actual architecture and check results.
 
+## Phase 10 — Memora response standard
+
+- [x] T035 Apply shared success/paginated/failure helpers at the HTTP boundary, preserving status codes, neutral acknowledgments, safe errors and bodiless 204 responses.
+- [x] T036 Align Swagger schemas, HTTP contract, plan, README and quickstart with `data` and `meta.pagination`.
+- [x] T037 Verify real HTTP envelopes, cursor continuity, projection safety, no-store and 204 bodies alongside lint/typecheck/build and all existing identity checks; record results in validation.md.
+
 ## Completion evidence
 
-All 34 tasks completed, including the architecture refactor verified on 2026-10-04. See validation.md: 24 use cases with owner-private persistence, application ports, infrastructure workers/schedulers, passing lint/typecheck/build and 27 Node test entries. Real PostgreSQL/Redis/BullMQ checks cover concurrency, rollback, versioned HTTP contracts and both email/avatar worker adapters. Production configuration/provider acceptance remains a release gate; no application-schema migration deployment or push was performed. The implementation/refactor commit was requested on 2026-10-04.
+All 37 tasks completed, including the architecture refactor and Memora response amendment verified on 2026-10-04. See validation.md: 24 use cases with owner-private persistence, application ports, infrastructure workers/schedulers, passing lint/typecheck/build and 27 Node test entries. Real PostgreSQL/Redis/BullMQ checks cover concurrency, rollback, versioned HTTP envelopes/pagination and both email/avatar worker adapters. Production configuration/provider acceptance remains a release gate; no application-schema migration deployment was performed. The implementation/refactor was committed separately; the user requested a response amendment commit and pull request into dev on 2026-10-04.
