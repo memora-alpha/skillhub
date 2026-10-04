@@ -1,8 +1,8 @@
-# SkillHub Mobile Agent Rules
+# SkillHub Mobile Frontend Rules
 
 ## Scope and source of truth
 
-- This directory is the mobile workspace for the future React Native and Expo app.
+- This directory is the React Native and Expo mobile workspace.
 - Git and pnpm workspace tooling stay at the repository root.
 - Read this file, `README.md`, `docs/architecture.md`, `docs/domain-rules.md`, `docs/api-contracts.md` and `docs/state-machines.md` before mobile work.
 - `../../docs/SRS_SkillHub_V1.6_VietLai_DongBoNghiepVu.docx` is the current business source of truth.
@@ -20,11 +20,11 @@
 
 - Use React Native with Expo and TypeScript strict.
 - Use Expo Router for file-based routing under `src/app`.
-- Use TanStack Query for server state.
-- Use Zustand only for client-only state.
-- Use React Hook Form and Zod for forms with validation.
-- Use one HTTP client under `src/lib/http`.
-- Store sensitive persisted credentials in Expo SecureStore.
+- When backend integration is explicitly requested, use TanStack Query for server state.
+- Use Zustand only for client-only state when the feature requires shared client state.
+- Use React Hook Form and Zod for forms with validation when those dependencies are present or explicitly authorized.
+- Keep any authorized HTTP client under `src/lib/http`.
+- Store sensitive persisted credentials in Expo SecureStore when real authentication is authorized.
 
 ## Architecture rules
 
@@ -33,7 +33,7 @@
 - Generic UI lives under `src/components`.
 - Infrastructure adapters live under `src/lib`.
 - Providers live under `src/providers`.
-- Theme tokens live under `src/theme`.
+- Theme tokens live under `src/constants`.
 - Feature public APIs export through `index.ts`.
 - Avoid importing private files from another feature.
 
@@ -72,3 +72,41 @@
 - Run the mobile typecheck, lint and tests when the workspace exists.
 - Report files changed, contract assumptions, TODOs and commands run.
 - Mention any file that exceeds the configured line limit.
+
+## Frontend design workflow
+
+React Native + Expo + TypeScript workspace. Current phase: FRONTEND UI FIRST.
+
+### Visual source of truth
+
+- Read root AGENTS.md and this file first. The user-provided Figma screen is the visual source of truth; inspect it before implementing UI.
+- Implement only the requested screen. Match spacing, typography, weights, colors, radius, shadows, assets and alignment; respect safe areas and responsive layout.
+- Do not redesign, restructure the app or modify unrelated routes, web or backend code.
+- The pasted folder tree is guidance, not authorization to scaffold every folder.
+
+### Frontend architecture details
+
+- src/app/ is for thin Expo Router routes and navigation only.
+- Screen UI belongs in src/features/<feature>/screens/; never create src/screens/.
+- Feature-specific components and local mock data belong in the owning feature.
+- Globally reusable UI belongs in src/components/; design tokens belong in src/constants/.
+- Create folders only when needed. Keep small prop types and StyleSheet.create in their component file.
+- Keep existing API code and architecture. Reuse dependencies, icons, assets, components and tokens before adding equivalents.
+
+## Frontend UI only
+
+- Use React Native View, Text, Image, Pressable, ScrollView, FlatList and TextInput; no HTML, DOM APIs or web CSS.
+- Use local mock data and React state. Local navigation, forms, validation, modals, tabs and selected states are allowed.
+- Do not add backend servers, database schemas, API calls/endpoints, real authentication/OTP/payment, WebSocket or LiveKit integrations, Firebase or Supabase.
+- Do not install a UI/state/network framework such as NativeBase, React Native Paper, Tamagui, Gluestack, NativeWind, Redux, Zustand, React Query or Axios without an explicit request.
+- Do not substitute Figma imagery with unrelated stock assets or emoji icons. Mark a missing asset as temporary rather than inventing a replacement.
+
+## Workflow and checks
+
+1. Inspect package.json, src/app, src/components, src/constants and the affected feature before changes.
+2. Report reusable files/components and planned created/modified files before implementation.
+3. Match the provided Figma screen and verify its visual output.
+4. Run npm run check-types and npm run lint from apps/mobile; fix introduced errors. Root pnpm --filter mobile commands are also supported.
+5. Report created/modified files and any unverified behavior.
+
+For mobile-only development, install dependencies with npm install from apps/mobile and keep its package-lock.json. Mobile must not depend on workspace:* packages, so npm can install it independently of web and API. The rest of the repository uses pnpm from the root; retain compatibility with root workspace commands. Add Expo packages through npx expo install <package> --npm from apps/mobile so versions match this workspace's SDK. Do not create ios/android manually or initialize a nested Git repository.
