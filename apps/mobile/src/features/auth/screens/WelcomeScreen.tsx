@@ -10,12 +10,14 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BrandLogo } from "@/components/BrandLogo";
+import { useRouter } from "expo-router";
 import { colors, fonts, layout } from "@/constants/theme";
 import { WelcomeNotice } from "../components/WelcomeNotice";
 import { WelcomeHero } from "../components/WelcomeHero";
 import { WelcomeSections } from "../components/WelcomeSections";
 
 export function WelcomeScreen() {
+  const router = useRouter();
   const [notice, setNotice] = useState<string | null>(null);
   const scroll = useRef<ScrollView>(null);
   const sections = useRef({ how: 0, categories: 0, credit: 0 });
@@ -23,7 +25,7 @@ export function WelcomeScreen() {
   const scrollTo = (section: keyof typeof sections.current) =>
     scroll.current?.scrollTo({ y: sections.current[section], animated: true });
   const openAuth = (destination: "Đăng nhập" | "Đăng ký") => {
-    setNotice(destination);
+    router.push(destination === "Đăng nhập" ? "/login" : "/register");
   };
   const onLink = (label: string) => {
     if (label === "Khám phá kỹ năng" || label === "Xem tất cả")

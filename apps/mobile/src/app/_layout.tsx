@@ -12,6 +12,7 @@ import { useFonts } from "expo-font";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { colors } from "@/constants/theme";
+import { MockSessionProvider } from "@/features/auth/context/MockSession";
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({
@@ -41,13 +42,15 @@ export default function RootLayout() {
     );
   return (
     <SafeAreaProvider>
-      <StatusBar style="dark" />
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: colors.cream },
-        }}
-      />
+      <MockSessionProvider>
+        <StatusBar style="dark" />
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: colors.cream },
+          }}
+        />
+      </MockSessionProvider>
     </SafeAreaProvider>
   );
 }
