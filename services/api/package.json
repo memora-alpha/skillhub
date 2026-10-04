@@ -18,7 +18,8 @@
     "infra:up": "docker compose up -d --wait",
     "infra:down": "docker compose down",
     "infra:logs": "docker compose logs -f",
-    "test:foundation": "node --test test/foundation.test.mjs"
+    "test:foundation": "node --test test/foundation.test.mjs",
+    "test:rbac": "nest build && node --test test/authorization.test.mjs test/authorization-http.test.mjs"
   },
   "dependencies": {
     "@nestjs/bullmq": "11.0.0",
