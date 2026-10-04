@@ -12,9 +12,17 @@ API đã có config validation, PostgreSQL/Prisma, MongoDB/Mongoose, Redis/BullM
 
 Nguồn nghiệp vụ:
 
-- [SRS SkillHub V1.3](../../docs/SRS_SkillHub_V1.3.docx): mục 6, 18 và phụ lục C.
+- [SRS SkillHub V1.4 tiếng Việt](../../docs/SRS_SkillHub_V1.4_BoSungQuyDinhNghiepVu_VI.docx): bản bổ sung nghiệp vụ; RBAC đối chiếu mục 3, NFR-SEC-03, BR-39/40 và mục 18.
+- [SRS SkillHub V1.3](../../docs/SRS_SkillHub_V1.3.docx): bản trước để đối chiếu lịch sử.
 - [Danh mục entity/field](../../docs/SkillHub_Entities_Fields.md): có phân biệt yêu cầu SRS và đề xuất thiết kế.
 - [Logical Data Model](../../docs/SkillHub_Logical_Data_Model.md): quan hệ, ràng buộc và transaction boundaries.
+
+[Thiết kế RBAC/ownership SH-002](specs/002-rbac-ownership/spec.md) và
+[kế hoạch triển khai](specs/002-rbac-ownership/plan.md) đang triển khai,
+do Long phụ trách theo backlog. Các mô hình và breakdown dưới đây có trước lần
+bổ sung v1.4; đối chiếu nghiệp vụ mới trong spec từng feature. Việc ghi nhận thiết
+kế chưa có nghĩa auth, RBAC hay các module nghiệp vụ đã được tích hợp vào
+production API; xem [kết quả kiểm chứng](specs/002-rbac-ownership/validation.md).
 
 Ưu tiên nghiệp vụ Must/Should/Could theo SRS vẫn được giữ. Thứ tự triển khai
 bên dưới là đề xuất kỹ thuật, không nâng tính năng Should/Could thành Must.
