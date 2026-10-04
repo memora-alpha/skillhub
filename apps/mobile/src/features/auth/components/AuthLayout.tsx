@@ -1,0 +1,178 @@
+import type { ReactNode } from "react";
+import {
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
+import { BrandLogo } from "@/components/BrandLogo";
+import { colors, fonts } from "@/constants/theme";
+import { authCommunity } from "../mocks/auth";
+
+export function AuthLayout({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string;
+  subtitle: string;
+  children: ReactNode;
+}) {
+  const { width } = useWindowDimensions();
+  const router = useRouter();
+  const wide = width >= 1024;
+  const logo = (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="SkillHub — về màn chào"
+      onPress={() => router.replace("/")}
+    >
+      <BrandLogo />
+    </Pressable>
+  );
+  return (
+    <SafeAreaView style={styles.screen}>
+      {wide && (
+        <View style={styles.aside}>
+          {logo}
+          <View style={styles.quoteGroup}>
+            <View style={styles.accent} />
+            <Text style={styles.quote}>
+              {'"Chia sẻ điều bạn biết.\nHọc điều bạn muốn."'}
+            </Text>
+            <View style={styles.community}>
+              <View style={styles.faces}>
+                {authCommunity.map((person) => (
+                  <View
+                    key={person.initials}
+                    style={[styles.face, { backgroundColor: person.color }]}
+                  >
+                    <Text style={styles.initials}>{person.initials}</Text>
+                  </View>
+                ))}
+              </View>
+              <Text style={styles.communityText}>
+                +12.000 người dùng đang học
+              </Text>
+            </View>
+          </View>
+          <Text style={styles.copyright}>
+            © 2024 SkillHub. Tất cả quyền được bảo lưu.
+          </Text>
+        </View>
+      )}
+      <KeyboardAvoidingView
+        style={styles.keyboard}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <ScrollView
+          contentContainerStyle={[
+            styles.scrollContent,
+            wide && { padding: 48 },
+          ]}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+        >
+          <View style={styles.form}>
+            {!wide && <View style={styles.logo}>{logo}</View>}
+            <View style={styles.heading}>
+              <Text accessibilityRole="header" style={styles.title}>
+                {title}
+              </Text>
+              <Text style={styles.subtitle}>{subtitle}</Text>
+            </View>
+            {children}
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+const styles = StyleSheet.create({
+  screen: { flex: 1, flexDirection: "row", backgroundColor: colors.cream },
+  keyboard: { flex: 1 },
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  form: { width: "100%", maxWidth: 448 },
+  logo: { marginBottom: 32, alignSelf: "flex-start" },
+  heading: { marginBottom: 32 },
+  title: {
+    fontFamily: fonts.display,
+    fontSize: 30,
+    lineHeight: 36,
+    color: colors.ink,
+    includeFontPadding: false,
+  },
+  subtitle: {
+    fontFamily: fonts.body,
+    fontSize: 16,
+    lineHeight: 24,
+    color: colors.muted,
+    marginTop: 8,
+    includeFontPadding: false,
+  },
+  aside: {
+    width: 420,
+    padding: 40,
+    backgroundColor: colors.ink,
+    justifyContent: "space-between",
+  },
+  quoteGroup: { gap: 24 },
+  accent: {
+    width: 64,
+    height: 4,
+    borderRadius: 4,
+    backgroundColor: colors.brand,
+  },
+  quote: {
+    fontFamily: fonts.display,
+    fontStyle: "italic",
+    fontSize: 24,
+    lineHeight: 33,
+    color: colors.white,
+    includeFontPadding: false,
+  },
+  community: { flexDirection: "row", alignItems: "center", gap: 12 },
+  faces: { flexDirection: "row", paddingLeft: 8 },
+  face: {
+    width: 32,
+    height: 32,
+    marginLeft: -8,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  initials: {
+    fontFamily: fonts.bold,
+    fontSize: 12,
+    color: colors.white,
+    includeFontPadding: false,
+  },
+  communityText: {
+    flexShrink: 1,
+    fontFamily: fonts.body,
+    fontSize: 14,
+    lineHeight: 20,
+    color: colors.muted,
+    includeFontPadding: false,
+  },
+  copyright: {
+    fontFamily: fonts.body,
+    fontSize: 12,
+    lineHeight: 16,
+    color: colors.body,
+    includeFontPadding: false,
+  },
+});
