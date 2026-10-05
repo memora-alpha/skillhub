@@ -165,7 +165,7 @@ test("download is signed only for the bound parent's owner; others get 404 and p
   const denied = async (response, status, message) => {
     assert.equal(response.status, status);
     const body = await response.json();
-    assert.deepEqual(body, { error: { statusCode: status, message } });
+    assert.deepEqual(body, { success: false, statusCode: status, message });
     assert.doesNotMatch(JSON.stringify(body), /signed|private\//);
   };
   try {

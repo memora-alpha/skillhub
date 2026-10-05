@@ -70,7 +70,7 @@ test(
         await prisma.systemConfigurationRevision.findUniqueOrThrow({
           where: { key_version: { key, version: before.version + 1 } },
         });
-      assert.equal(revision.auditId, audit.auditId);
+      assert.equal(revision.auditId, audit.id);
       assert.equal(revision.value, value);
 
       await setup(prisma);

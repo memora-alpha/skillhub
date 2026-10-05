@@ -147,6 +147,8 @@ test(
         for (const name of [
           "20261003000000_foundation",
           "20261003010000_identity",
+          // audit_logs columns added by SH-003; the generated client selects them.
+          "20261005010000_sh003_audit",
         ])
           await client.query(
             await readFile(
