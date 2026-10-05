@@ -26,7 +26,7 @@ export class ProcessAvatarUseCase {
   ) {}
   async execute(id: string) {
     const found = await this.repository.find(this.db, id);
-    if (!found || found.state !== "QUARANTINED") return;
+    if (found?.state !== "QUARANTINED") return;
     const asset = await transaction(this.db, async (tx) => {
       await lockUsers(tx, [found.userId]);
       const row = await this.repository.required(tx, id);

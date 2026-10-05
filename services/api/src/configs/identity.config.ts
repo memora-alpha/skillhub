@@ -61,37 +61,7 @@ export class IdentityConfig {
       throw new Error("Identity keys must be distinct");
     this.crypto = new IdentityCrypto({ otpKey, encryptionKey });
     this.keyId = required("IDENTITY_KEY_ID");
-    const previous = env.get<string>("IDENTITY_PREVIOUS_KEYS");
-    if (previous) {
-      try {
-        const entries: Record<
-          string,
-          { otpKey: string; encryptionKey: string }
-        > = JSON.parse(previous);
-        if (!entries || typeof entries !== "object" || Array.isArray(entries))
-          throw new Error();
-        for (const [id, keys] of Object.entries(entries)) {
-          const otp = Buffer.from(keys.otpKey, "base64");
-          const encryption = Buffer.from(keys.encryptionKey, "base64");
-          if (
-            id === this.keyId ||
-            !id ||
-            otp.length !== 32 ||
-            encryption.length !== 32 ||
-            otp.equals(encryption) ||
-            otp.toString("base64") !== keys.otpKey ||
-            encryption.toString("base64") !== keys.encryptionKey
-          )
-            throw new Error();
-          this.previousKeys.set(
-            id,
-            new IdentityCrypto({ otpKey: otp, encryptionKey: encryption }),
-          );
-        }
-      } catch {
-        throw new Error("Invalid IDENTITY_PREVIOUS_KEYS");
-      }
-    }
+    this.loadPreviousKeys(env.get<string>("IDENTITY_PREVIOUS_KEYS"));
     this.issuer = required("IDENTITY_JWT_ISSUER");
     this.audience = required("IDENTITY_JWT_AUDIENCE");
     this.accessSeconds = seconds("IDENTITY_ACCESS_SECONDS");
@@ -131,5 +101,37 @@ export class IdentityConfig {
   }
   cryptoFor(id: string): IdentityCrypto | undefined {
     return id === this.keyId ? this.crypto : this.previousKeys.get(id);
+  }
+  private loadPreviousKeys(previous: string | undefined): void {
+    if (!previous) return;
+    try {
+      const entries: Record<string, { otpKey: string; encryptionKey: string }> =
+        JSON.parse(previous);
+      if (!entries || typeof entries !== "object" || Array.isArray(entries))
+        throw new Error("Previous keys must be an object");
+      for (const [id, keys] of Object.entries(entries)) {
+        this.previousKeys.set(id, this.previousCrypto(id, keys));
+      }
+    } catch {
+      throw new Error("Invalid IDENTITY_PREVIOUS_KEYS");
+    }
+  }
+  private previousCrypto(
+    id: string,
+    keys: { otpKey: string; encryptionKey: string },
+  ): IdentityCrypto {
+    const otpKey = Buffer.from(keys.otpKey, "base64");
+    const encryptionKey = Buffer.from(keys.encryptionKey, "base64");
+    if (
+      id === this.keyId ||
+      !id ||
+      otpKey.length !== 32 ||
+      encryptionKey.length !== 32 ||
+      otpKey.equals(encryptionKey) ||
+      otpKey.toString("base64") !== keys.otpKey ||
+      encryptionKey.toString("base64") !== keys.encryptionKey
+    )
+      throw new Error("Invalid previous identity key");
+    return new IdentityCrypto({ otpKey, encryptionKey });
   }
 }

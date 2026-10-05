@@ -20,8 +20,7 @@ export class ReauthProofService {
       this.config.crypto.secretDigest(token),
     );
     if (
-      !proof ||
-      proof.userId !== principal.userId ||
+      proof?.userId !== principal.userId ||
       proof.sessionId !== principal.sessionId ||
       proof.securityVersion !== principal.securityVersion ||
       proof.purpose !== "STAFF_ROLE_CHANGE" ||

@@ -6,6 +6,7 @@ import { AvatarWorker } from "../../dist/modules/users/infrastructure/jobs/avata
 import { ProcessAvatarUseCase } from "../../dist/modules/users/application/use-cases/process-avatar.use-case.js";
 import { BullAvatarJobs } from "../../dist/modules/users/infrastructure/jobs/avatar-jobs.js";
 import { PrismaUsersRepository } from "../../dist/modules/users/infrastructure/persistence/prisma-users-repository.js";
+import { lockUsers } from "../../dist/shared/database/identity-transactions.js";
 import "reflect-metadata";
 import "dotenv/config";
 import { test } from "node:test";
@@ -162,6 +163,62 @@ test(
       await db.$connect();
       await seedIdentity(db, new PrismaUsersRepository());
       await seedIdentity(db, new PrismaUsersRepository());
+      await t.test(
+        "bulk seed is idempotent and preserves existing descriptions",
+        async () => {
+          await db.role.update({
+            where: { code: "ADMIN" },
+            data: { description: "operator description" },
+          });
+          await seedIdentity(db, new PrismaUsersRepository());
+          assert.equal(await db.role.count(), 3);
+          assert.equal(await db.permission.count(), 4);
+          assert.equal(await db.rolePermission.count(), 4);
+          assert.equal(
+            (await db.role.findUniqueOrThrow({ where: { code: "ADMIN" } }))
+              .description,
+            "operator description",
+          );
+        },
+      );
+      await t.test(
+        "bulk participant locks serialize reversed and duplicate UUID inputs",
+        async () => {
+          const ids = [randomUUID(), randomUUID()];
+          await db.user.createMany({
+            data: ids.map((id) => ({
+              id,
+              normalizedEmail: `${id}@lock.invalid`,
+              termsVersion: "fixture",
+              termsAcceptedAt: new Date(),
+            })),
+          });
+          try {
+            await lockUsers(db, []);
+            await Promise.all(
+              Array.from({ length: 8 }, (_, index) =>
+                db.$transaction(
+                  async (tx) => {
+                    await tx.$executeRaw`SET LOCAL lock_timeout = '5s'`;
+                    const ordered = index % 2 === 0 ? ids : [...ids].reverse();
+                    await lockUsers(tx, [...ordered, ordered[0]]);
+                    await tx.user.updateMany({
+                      where: { id: { in: ids } },
+                      data: { failedLoginCount: { increment: 1 } },
+                    });
+                  },
+                  { timeout: 10000 },
+                ),
+              ),
+            );
+            const rows = await db.user.findMany({ where: { id: { in: ids } } });
+            assert.equal(rows.length, 2);
+            assert.ok(rows.every((row) => row.failedLoginCount === 8));
+          } finally {
+            await db.user.deleteMany({ where: { id: { in: ids } } });
+          }
+        },
+      );
       const fixtures = [];
       const createFixture = async (options) => {
         const result = await createIdentityFixture(options);

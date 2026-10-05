@@ -189,39 +189,32 @@ export class PrismaUsersRepository extends UsersRepository {
       },
     });
   }
-  seedRoles(tx: IdentityTx): Promise<void> {
-    return (async () => {
-      for (const code of ["USER", "STAFF", "ADMIN"] as const)
-        await tx.role.upsert({
-          where: { code },
-          create: { code, description: code },
-          update: {},
-        });
-      const admin = await tx.role.findUniqueOrThrow({
-        where: { code: "ADMIN" },
-      });
-      for (const code of [
-        "users.read",
-        "users.lock",
-        "users.unlock",
-        "roles.staff.assign",
-      ]) {
-        const permission = await tx.permission.upsert({
-          where: { code },
-          create: { code, description: code },
-          update: {},
-        });
-        await tx.rolePermission.upsert({
-          where: {
-            roleId_permissionId: {
-              roleId: admin.id,
-              permissionId: permission.id,
-            },
-          },
-          create: { roleId: admin.id, permissionId: permission.id },
-          update: {},
-        });
-      }
-    })();
+  async seedRoles(tx: IdentityTx): Promise<void> {
+    const roles: RoleCode[] = ["USER", "STAFF", "ADMIN"];
+    await tx.role.createMany({
+      data: roles.map((code) => ({ code, description: code })),
+      skipDuplicates: true,
+    });
+    const codes = [
+      "users.read",
+      "users.lock",
+      "users.unlock",
+      "roles.staff.assign",
+    ];
+    await tx.permission.createMany({
+      data: codes.map((code) => ({ code, description: code })),
+      skipDuplicates: true,
+    });
+    const admin = await tx.role.findUniqueOrThrow({ where: { code: "ADMIN" } });
+    const permissions = await tx.permission.findMany({
+      where: { code: { in: codes } },
+    });
+    await tx.rolePermission.createMany({
+      data: permissions.map(({ id }) => ({
+        roleId: admin.id,
+        permissionId: id,
+      })),
+      skipDuplicates: true,
+    });
   }
 }

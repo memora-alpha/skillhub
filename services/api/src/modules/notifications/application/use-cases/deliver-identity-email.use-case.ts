@@ -22,11 +22,7 @@ export class DeliverIdentityEmailUseCase {
     const row = await transaction(this.db, async (tx) => {
       await this.repository.lock(tx, id);
       const found = await this.repository.find(tx, id);
-      if (
-        !found ||
-        found.status !== "PENDING" ||
-        found.nextAttemptAt > new Date()
-      )
+      if (found?.status !== "PENDING" || found.nextAttemptAt > new Date())
         return null;
       if (found.attempts >= this.config.deliveryAttempts) {
         await this.repository.finish(tx, id, "FAILED", "RETRY_EXHAUSTED");

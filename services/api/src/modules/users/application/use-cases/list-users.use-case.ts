@@ -20,6 +20,11 @@ function permitted(principal: Principal, permission: string, admin = false) {
   )
     throw new ForbiddenException();
 }
+function maskEmail(email: string): string {
+  const separator = email.lastIndexOf("@");
+  if (separator < 1) return email;
+  return `${email[0]}***${email.slice(separator)}`;
+}
 @Injectable()
 export class ListUsersUseCase {
   constructor(
@@ -57,7 +62,7 @@ export class ListUsersUseCase {
           cursor.status !== query.status ||
           cursor.role !== query.role
         )
-          throw new Error();
+          throw new Error("Invalid user list cursor");
       } catch {
         throw new BadRequestException("INVALID_CURSOR");
       }
@@ -74,7 +79,7 @@ export class ListUsersUseCase {
     const items = rows.slice(0, limit).map((row) => ({
       userId: row.id,
       fullName: row.profile?.fullName ?? "",
-      maskedEmail: row.normalizedEmail.replace(/^(.)(.*)(@.*)$/, "$1***$3"),
+      maskedEmail: maskEmail(row.normalizedEmail),
       accountStatus: row.accountStatus,
       roles: row.roles.map((grant) => grant.role.code),
       createdAt: row.createdAt.toISOString(),

@@ -35,7 +35,7 @@ export class RegisterUseCase {
       if (user) {
         await lockUsers(tx, [user.id]);
         user = await this.users.byId(tx, user.id);
-        if (!user || user.accountStatus !== "PENDING_VERIFICATION") return;
+        if (user?.accountStatus !== "PENDING_VERIFICATION") return;
       } else user = await this.users.create(tx, { ...data, passwordHash });
       await this.otp.issueOtp(
         tx,

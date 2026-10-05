@@ -102,7 +102,7 @@ export class SessionsService {
         !claims.iat ||
         !claims.jti
       )
-        throw new Error();
+        throw new Error("Invalid access token claims");
     } catch {
       throw new UnauthorizedException();
     }
@@ -110,8 +110,7 @@ export class SessionsService {
     const family = await this.repository.session(tx, claims.sid);
     if (
       !this.users.isActive(user) ||
-      !family ||
-      family.userId !== claims.sub ||
+      family?.userId !== claims.sub ||
       family.revokedAt ||
       family.absoluteExpiresAt <= new Date() ||
       family.securityVersion !== claims.sv ||

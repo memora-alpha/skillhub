@@ -73,7 +73,7 @@ export class RegisterDto extends EmailDto {
   locale?: "vi" | "en";
 }
 export class VerifyDto extends EmailDto {
-  @ApiProperty({ pattern: "^\\d{6}$", writeOnly: true })
+  @ApiProperty({ pattern: String.raw`^\d{6}$`, writeOnly: true })
   @IsString()
   @Matches(/^\d{6}$/)
   otpCode!: string;
@@ -112,6 +112,7 @@ export class ReauthDto {
   @Equals("STAFF_ROLE_CHANGE")
   purpose!: string;
 }
+// A concrete empty metatype lets ValidationPipe reject all body properties.
 export class EmptyDto {}
 export class TokenPairDto {
   @ApiProperty() accessToken!: string;
