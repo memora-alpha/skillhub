@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { randomInt, randomUUID } from "node:crypto";
 import {
   Inject,
   Injectable,
@@ -120,34 +120,40 @@ export class OutboxDispatcher implements OnModuleInit, OnModuleDestroy {
       RETURNING e."event_id", e."type", e."version", e."payload",
         e."correlation_id", e."lease_token", e."cycle_attempts"
     `;
-    let delivered = 0;
-    for (const row of claimed) {
-      const publisher = this.publishers.get(row.type);
-      if (!publisher) {
-        await this.fail(row, "UNKNOWN_EVENT_TYPE", true);
-        continue;
-      }
-      const event: OutboxMessage = {
-        eventId: row.event_id,
-        type: row.type,
-        version: row.version,
-        payload: row.payload,
-        correlationId: row.correlation_id,
-      };
-      try {
-        await withTimeout(publisher.publish(event), publishTimeoutMs);
-        const changed = await this.prisma.$executeRaw`
-          UPDATE "outbox_events"
-          SET "delivered_at" = CURRENT_TIMESTAMP,
-              "lease_token" = NULL, "lease_until" = NULL
-          WHERE "event_id" = ${row.event_id}::uuid AND "lease_token" = ${row.lease_token}::uuid
-        `;
-        delivered += changed;
-      } catch (error) {
-        await this.fail(row, failureCode(error), false);
-      }
+    // Events are independent; concurrent delivery keeps one batch inside its
+    // 30 s lease even when every publish runs into the 10 s timeout.
+    const delivered = await Promise.all(
+      claimed.map((row) => this.deliver(row)),
+    );
+    return delivered.reduce((total, count) => total + count, 0);
+  }
+
+  /** Publishes one leased event; returns 1 when the lease-checked ack applied. */
+  private async deliver(row: ClaimedEvent): Promise<number> {
+    const publisher = this.publishers.get(row.type);
+    if (!publisher) {
+      await this.fail(row, "UNKNOWN_EVENT_TYPE", true);
+      return 0;
     }
-    return delivered;
+    const event: OutboxMessage = {
+      eventId: row.event_id,
+      type: row.type,
+      version: row.version,
+      payload: row.payload,
+      correlationId: row.correlation_id,
+    };
+    try {
+      await withTimeout(publisher.publish(event), publishTimeoutMs);
+      return await this.prisma.$executeRaw`
+        UPDATE "outbox_events"
+        SET "delivered_at" = CURRENT_TIMESTAMP,
+            "lease_token" = NULL, "lease_until" = NULL
+        WHERE "event_id" = ${row.event_id}::uuid AND "lease_token" = ${row.lease_token}::uuid
+      `;
+    } catch (error) {
+      await this.fail(row, failureCode(error), false);
+      return 0;
+    }
   }
 
   private async fail(
@@ -158,7 +164,7 @@ export class OutboxDispatcher implements OnModuleInit, OnModuleDestroy {
     const exhausted = permanent || row.cycle_attempts >= maxCycleAttempts;
     const retryMs =
       Math.min(60_000, 1000 * 2 ** Math.max(0, row.cycle_attempts - 1)) +
-      Math.floor(Math.random() * 1000);
+      randomInt(1000);
     await this.prisma.$executeRaw`
       UPDATE "outbox_events"
       SET "lease_token" = NULL, "lease_until" = NULL,

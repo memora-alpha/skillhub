@@ -25,6 +25,67 @@ const environmentSchema = z.object({
     .default("info"),
 });
 
+type Environment = z.infer<typeof environmentSchema>;
+
+function fail(fields: readonly string[]): void {
+  if (fields.length)
+    throw new Error(`Invalid environment configuration: ${fields.join(", ")}`);
+}
+
+/** Production connections must verify TLS; flags that weaken verification are rejected. */
+function insecureProductionSettings(config: Environment): string[] {
+  const failures: string[] = [];
+  const database = new URL(config.DATABASE_URL);
+  const mongo = new URL(config.MONGODB_URI);
+  const redis = new URL(config.REDIS_URL);
+  const only = (url: URL, key: string, expected: string) =>
+    url.searchParams.getAll(key).length === 1 &&
+    url.searchParams.get(key) === expected;
+  const clientCertificateWithoutRoot =
+    database.searchParams.has("sslcert") &&
+    !database.searchParams.has("sslrootcert");
+  if (
+    !only(database, "sslmode", "verify-full") ||
+    database.searchParams.has("sslaccept") ||
+    clientCertificateWithoutRoot
+  )
+    failures.push("DATABASE_URL");
+  const mongoBypass = [
+    "tlsInsecure",
+    "tlsAllowInvalidCertificates",
+    "tlsAllowInvalidHostnames",
+  ].some((key) =>
+    mongo.searchParams.getAll(key).some((value) => value !== "false"),
+  );
+  if (!only(mongo, "tls", "true") || mongoBypass) failures.push("MONGODB_URI");
+  if (
+    redis.protocol !== "rediss:" ||
+    redis.searchParams.has("rejectUnauthorized")
+  )
+    failures.push("REDIS_URL");
+  if (!config.CORS_ORIGIN.startsWith("https://")) failures.push("CORS_ORIGIN");
+  return failures;
+}
+
+/** Provider values are required only when storage is enabled. */
+function invalidStorageSettings(config: Environment): string[] {
+  const required = [
+    "STORAGE_ENDPOINT",
+    "STORAGE_REGION",
+    "STORAGE_BUCKET",
+    "STORAGE_ACCESS_KEY_ID",
+    "STORAGE_SECRET_ACCESS_KEY",
+    "CLAMAV_HOST",
+    "CLAMAV_PORT",
+  ] as const;
+  const missing = required.filter((key) => !config[key]);
+  if (missing.length) return missing;
+  const plainHttpInProduction =
+    config.NODE_ENV === "production" &&
+    !config.STORAGE_ENDPOINT?.startsWith("https://");
+  return plainHttpInProduction ? ["STORAGE_ENDPOINT"] : [];
+}
+
 export function validateEnvironment(input: Record<string, unknown>) {
   const result = environmentSchema.safeParse(input);
   if (!result.success) {
@@ -33,73 +94,12 @@ export function validateEnvironment(input: Record<string, unknown>) {
     ];
     throw new Error(`Invalid environment configuration: ${fields.join(", ")}`);
   }
-  for (const name of ["DATABASE_URL", "MONGODB_URI", "REDIS_URL"] as const) {
-    try {
-      new URL(result.data[name]);
-    } catch {
-      throw new Error(`Invalid environment configuration: ${name}`);
-    }
-  }
   const config = result.data;
-  if (config.NODE_ENV === "production") {
-    const failures: string[] = [];
-    const database = new URL(config.DATABASE_URL);
-    const mongo = new URL(config.MONGODB_URI);
-    const redis = new URL(config.REDIS_URL);
-    const only = (url: URL, key: string, expected: string) =>
-      url.searchParams.getAll(key).length === 1 &&
-      url.searchParams.get(key) === expected;
-    if (
-      !only(database, "sslmode", "verify-full") ||
-      database.searchParams.has("sslaccept") ||
-      (database.searchParams.has("sslcert") &&
-        !database.searchParams.has("sslrootcert"))
-    )
-      failures.push("DATABASE_URL");
-    if (
-      !only(mongo, "tls", "true") ||
-      [
-        "tlsInsecure",
-        "tlsAllowInvalidCertificates",
-        "tlsAllowInvalidHostnames",
-      ].some((key) =>
-        mongo.searchParams.getAll(key).some((value) => value !== "false"),
-      )
-    )
-      failures.push("MONGODB_URI");
-    if (
-      redis.protocol !== "rediss:" ||
-      redis.searchParams.has("rejectUnauthorized")
-    )
-      failures.push("REDIS_URL");
-    if (!config.CORS_ORIGIN.startsWith("https://"))
-      failures.push("CORS_ORIGIN");
-    if (failures.length)
-      throw new Error(
-        `Invalid environment configuration: ${failures.join(", ")}`,
-      );
+  for (const name of ["DATABASE_URL", "MONGODB_URI", "REDIS_URL"] as const) {
+    if (!URL.canParse(config[name])) fail([name]);
   }
-  if (config.STORAGE_ENABLED) {
-    const required = [
-      "STORAGE_ENDPOINT",
-      "STORAGE_REGION",
-      "STORAGE_BUCKET",
-      "STORAGE_ACCESS_KEY_ID",
-      "STORAGE_SECRET_ACCESS_KEY",
-      "CLAMAV_HOST",
-      "CLAMAV_PORT",
-    ] as const;
-    const missing = required.filter((key) => !config[key]);
-    if (missing.length)
-      throw new Error(
-        `Invalid environment configuration: ${missing.join(", ")}`,
-      );
-    if (
-      config.NODE_ENV === "production" &&
-      !config.STORAGE_ENDPOINT?.startsWith("https://")
-    ) {
-      throw new Error("Invalid environment configuration: STORAGE_ENDPOINT");
-    }
-  }
-  return result.data;
+  if (config.NODE_ENV === "production")
+    fail(insecureProductionSettings(config));
+  if (config.STORAGE_ENABLED) fail(invalidStorageSettings(config));
+  return config;
 }

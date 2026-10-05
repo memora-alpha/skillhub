@@ -30,5 +30,6 @@ export type ContextualRequest = {
 export function getOrCreateRequestContext(
   request: ContextualRequest,
 ): RequestContext {
-  return (request.requestContext ??= createRequestContext(request.headers));
+  request.requestContext ??= createRequestContext(request.headers);
+  return request.requestContext;
 }

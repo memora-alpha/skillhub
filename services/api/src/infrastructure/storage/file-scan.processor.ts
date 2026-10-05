@@ -21,7 +21,7 @@ export class FileScanProcessor {
     let scannerVersion = "unavailable";
     try {
       const head = await this.objects.head(claim.objectKey);
-      if (head && head.size === claim.sizeBytes) {
+      if (head?.size === claim.sizeBytes) {
         const result = await this.scanner.scan({
           body: await this.objects.read(claim.objectKey),
           expectedSha256: claim.sha256,

@@ -5,7 +5,10 @@ import {
   parseConfigurationValue,
   type ConfigurationKey,
 } from "../domain/configuration.catalog";
-import { ConfigurationRepository } from "../infrastructure/configuration.repository";
+import {
+  ConfigurationRepository,
+  type CurrentConfigurationRow,
+} from "../infrastructure/configuration.repository";
 
 /** Insert approved defaults only; an existing operator change is never reset. */
 export async function seedApprovedConfigurations(
@@ -18,6 +21,8 @@ export async function seedApprovedConfigurations(
     (await repository.findCurrent(keys, tx)).map((row) => [row.key, row]),
   );
 
+  // Both loops stay sequential: the seed runs in one transaction, which is one
+  // connection, and the driver does not allow concurrent queries on it.
   for (const key of keys) {
     if (!existing.has(key)) {
       await repository.insertMissing(
@@ -33,23 +38,31 @@ export async function seedApprovedConfigurations(
     (await repository.findCurrent(keys, tx)).map((row) => [row.key, row]),
   );
   for (const key of keys) {
-    const row = current.get(key);
-    if (!row || !Number.isSafeInteger(row.version) || row.version < 1) {
-      throw new Error(`configuration seed could not read: ${key}`);
-    }
-    try {
-      parseConfigurationValue(key, row.value);
-    } catch {
-      throw new Error(`configuration requires reconciliation: ${key}`);
-    }
-    if (!(await repository.hasRevision(tx, key, row.version))) {
-      await repository.insertRevision(tx, {
-        key,
-        value: row.value as Prisma.InputJsonValue,
-        version: row.version,
-        effectiveAt: row.effectiveAt,
-        actorSnapshot: { kind: "SYSTEM", name: "SEED" },
-      });
-    }
+    await ensureBaselineRevision(tx, repository, key, current.get(key));
   }
+}
+
+/** Validates the stored value and records its baseline revision once. */
+async function ensureBaselineRevision(
+  tx: TransactionContext,
+  repository: ConfigurationRepository,
+  key: ConfigurationKey,
+  row: CurrentConfigurationRow | undefined,
+): Promise<void> {
+  if (!row || !Number.isSafeInteger(row.version) || row.version < 1) {
+    throw new Error(`configuration seed could not read: ${key}`);
+  }
+  try {
+    parseConfigurationValue(key, row.value);
+  } catch {
+    throw new Error(`configuration requires reconciliation: ${key}`);
+  }
+  if (await repository.hasRevision(tx, key, row.version)) return;
+  await repository.insertRevision(tx, {
+    key,
+    value: row.value as Prisma.InputJsonValue,
+    version: row.version,
+    effectiveAt: row.effectiveAt,
+    actorSnapshot: { kind: "SYSTEM", name: "SEED" },
+  });
 }

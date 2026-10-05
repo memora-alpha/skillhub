@@ -5,6 +5,7 @@ import {
   ServiceUnavailableException,
 } from "@nestjs/common";
 import { Prisma } from "../../../generated/prisma/client";
+import type { TransactionContext } from "../../../infrastructure/database/transaction-context";
 import { TransactionRunner } from "../../../infrastructure/database/transaction-runner";
 import { AuditWriter } from "../../audit/application/audit-writer";
 import type { AuditInput } from "../../audit/application/audit.types";
@@ -20,6 +21,11 @@ import type {
   UpdateConfigurationCommand,
 } from "./configuration.types";
 import { SystemConfigurationService } from "./system-configuration.service";
+
+const hasOnlyKeyAndValue = (change: object): boolean =>
+  Object.keys(change).length === 2 &&
+  Object.hasOwn(change, "key") &&
+  Object.hasOwn(change, "value");
 
 type ValidatedChange = {
   key: ConfigurationKey;
@@ -79,43 +85,53 @@ export class UpdateConfigurationUseCase {
         );
       }
 
+      // Sequential on purpose: one transaction is one connection, and the
+      // driver does not allow concurrent queries on it.
       for (const [index, change] of changes.entries()) {
-        const written =
-          change.expectedVersion === 0
-            ? await this.repository.insertMissing(
-                tx,
-                change.key,
-                change.value,
-                effectiveAt,
-              )
-            : await this.repository.updateIfVersion(
-                tx,
-                change.key,
-                change.expectedVersion,
-                change.value,
-                effectiveAt,
-              );
-        if (!written)
-          throw new ConflictException(
-            `Configuration version conflict: ${change.key}`,
-          );
-        const auditInput = audits[index];
-        if (!auditInput)
-          throw new Error("Configuration audit input unavailable");
-        const { auditId } = await this.audit.append(tx, auditInput);
-        await this.repository.insertRevision(tx, {
-          key: change.key,
-          value: change.value,
-          version: change.expectedVersion + 1,
-          effectiveAt,
-          actorSnapshot: input.actor,
-          auditId,
-        });
+        await this.applyChange(tx, change, audits[index], effectiveAt);
       }
       return this.reader.getSnapshot(
         Object.keys(CONFIGURATION_DEFINITIONS) as ConfigurationKey[],
         tx,
       );
+    });
+  }
+
+  /** Version-checked write, then its audit row and revision, all in the caller's transaction. */
+  private async applyChange(
+    tx: TransactionContext,
+    change: ValidatedChange,
+    auditInput: AuditInput | undefined,
+    effectiveAt: Date,
+  ): Promise<void> {
+    if (!auditInput) throw new Error("Configuration audit input unavailable");
+    const written =
+      change.expectedVersion === 0
+        ? await this.repository.insertMissing(
+            tx,
+            change.key,
+            change.value,
+            effectiveAt,
+          )
+        : await this.repository.updateIfVersion(
+            tx,
+            change.key,
+            change.expectedVersion,
+            change.value,
+            effectiveAt,
+          );
+    if (!written)
+      throw new ConflictException(
+        `Configuration version conflict: ${change.key}`,
+      );
+    const { auditId } = await this.audit.append(tx, auditInput);
+    await this.repository.insertRevision(tx, {
+      key: change.key,
+      value: change.value,
+      version: change.expectedVersion + 1,
+      effectiveAt,
+      actorSnapshot: auditInput.actor,
+      auditId,
     });
   }
 
@@ -136,7 +152,7 @@ export class UpdateConfigurationUseCase {
         if (
           !change ||
           typeof change !== "object" ||
-          Object.keys(change).sort().join(",") !== "key,value" ||
+          !hasOnlyKeyAndValue(change) ||
           typeof change.key !== "string" ||
           seen.has(change.key)
         ) {

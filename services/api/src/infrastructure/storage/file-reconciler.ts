@@ -6,7 +6,10 @@ import {
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import type { ObjectStorage } from "./object-storage.port";
-import type { ReconciliationRepository } from "./reconciliation-repository.port";
+import type {
+  CleanupCandidate,
+  ReconciliationRepository,
+} from "./reconciliation-repository.port";
 
 const UPLOAD_GRACE_MS = 24 * 60 * 60 * 1_000;
 
@@ -47,16 +50,21 @@ export class FileReconciler implements OnModuleInit, OnModuleDestroy {
       new Date(Date.now() - UPLOAD_GRACE_MS),
       20,
     );
-    let cleaned = 0;
-    for (const candidate of candidates) {
-      try {
-        await this.objects.remove(candidate.objectKey);
-        await this.repository.markDeleted(candidate.id);
-        cleaned++;
-      } catch {
-        this.logger.warn("File cleanup deferred");
-      }
+    const removed = await Promise.all(
+      candidates.map((candidate) => this.cleanup(candidate)),
+    );
+    return { cleaned: removed.filter(Boolean).length, scansRecovered };
+  }
+
+  /** The object is removed before the row is marked; a failure keeps CLEANUP_PENDING for the next run. */
+  private async cleanup(candidate: CleanupCandidate): Promise<boolean> {
+    try {
+      await this.objects.remove(candidate.objectKey);
+      await this.repository.markDeleted(candidate.id);
+      return true;
+    } catch {
+      this.logger.warn("File cleanup deferred");
+      return false;
     }
-    return { cleaned, scansRecovered };
   }
 }
