@@ -1,11 +1,32 @@
-import { Controller, Get, ServiceUnavailableException } from "@nestjs/common";
+import {
+  Controller,
+  Get,
+  ServiceUnavailableException,
+  VERSION_NEUTRAL,
+} from "@nestjs/common";
 import { InjectConnection } from "@nestjs/mongoose";
 import { SkipThrottle } from "@nestjs/throttler";
 import type { Connection } from "mongoose";
 import { PrismaService } from "./infrastructure/database/prisma.service";
 import { RedisService } from "./infrastructure/cache/redis.service";
+import { ApiProperty } from "@nestjs/swagger";
+import {
+  ApiSuccessResponse,
+  ApiErrorResponse,
+} from "./shared/http/api-response.decorators";
+import { success } from "./shared/http/response";
 
-@Controller("health")
+class HealthResponse {
+  @ApiProperty({ enum: ["ok"] }) status!: string;
+  @ApiProperty({ enum: ["skillhub-api"] }) service!: string;
+}
+
+class ReadinessResponse {
+  @ApiProperty({ enum: ["ok"] }) status!: string;
+  @ApiProperty({ type: [String] }) dependencies!: string[];
+}
+
+@Controller({ path: "health", version: VERSION_NEUTRAL })
 @SkipThrottle()
 export class HealthController {
   constructor(
@@ -14,11 +35,17 @@ export class HealthController {
     @InjectConnection() private readonly mongo: Connection,
   ) {}
   @Get()
+  @ApiSuccessResponse(200, HealthResponse)
   getHealth() {
-    return { status: "ok", service: "skillhub-api" };
+    return success(
+      { status: "ok", service: "skillhub-api" },
+      "Service is healthy.",
+    );
   }
 
   @Get("ready")
+  @ApiSuccessResponse(200, ReadinessResponse)
+  @ApiErrorResponse(503, "Required storage unavailable")
   async getReadiness() {
     const results = await Promise.allSettled([
       this.prisma.$queryRaw`SELECT 1`,
@@ -32,6 +59,6 @@ export class HealthController {
       result.status === "rejected" ? [names[index]] : [],
     );
     if (unavailable.length) throw new ServiceUnavailableException();
-    return { status: "ok", dependencies: names };
+    return success({ status: "ok", dependencies: names }, "Service is ready.");
   }
 }

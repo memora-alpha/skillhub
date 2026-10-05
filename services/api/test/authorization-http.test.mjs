@@ -112,11 +112,19 @@ test("HTTP guard chain rejects missing permission and wrong owner with the API e
   try {
     const missing = await request();
     assert.equal(missing.status, 401);
-    assert.deepEqual((await missing.json()).error.statusCode, 401);
+    assert.deepEqual(await missing.json(), {
+      success: false,
+      statusCode: 401,
+      message: "Unauthorized",
+    });
 
     const outsider = await request("bob");
     assert.equal(outsider.status, 404);
-    assert.deepEqual((await outsider.json()).error.statusCode, 404);
+    assert.deepEqual(await outsider.json(), {
+      success: false,
+      statusCode: 404,
+      message: "Not Found",
+    });
 
     const owner = await request("alice");
     assert.equal(owner.status, 200);
@@ -125,7 +133,11 @@ test("HTTP guard chain rejects missing permission and wrong owner with the API e
     users.get(alice).permissions.clear();
     const revoked = await request("alice");
     assert.equal(revoked.status, 403);
-    assert.deepEqual((await revoked.json()).error.statusCode, 403);
+    assert.deepEqual(await revoked.json(), {
+      success: false,
+      statusCode: 403,
+      message: "Forbidden",
+    });
 
     const malformed = await request("bob", "not-an-id");
     assert.equal(malformed.status, 400);

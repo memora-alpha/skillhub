@@ -1,0 +1,37 @@
+// Reference-only Prisma representation of the MongoDB chat documents.
+// Runtime remains MongoDB/Mongoose under the accepted constitution.
+// Prisma 7's runtime MongoDB connector is unavailable; do not generate a client,
+// db push, or migrate this file with the API's PostgreSQL Prisma configuration.
+// conversationId/senderId refer to PostgreSQL UUIDs, validated by application contracts.
+datasource chat {
+  provider = "mongodb"
+}
+
+model Message {
+  id String @id @default(uuid()) @map("_id")
+  conversationId String @map("conversation_id")
+  senderId String? @map("sender_id")
+  messageText String? @map("message_text")
+  // TEXT/FILE and business event vocabulary are validated by the chat use case.
+  messageType String @map("message_type")
+  sentAt DateTime @default(now()) @map("sent_at")
+  readAt DateTime? @map("read_at")
+  attachments MessageAttachment[]
+
+  @@index([conversationId, sentAt, id])
+  @@index([senderId])
+  @@map("messages")
+}
+
+model MessageAttachment {
+  id String @id @default(uuid()) @map("_id")
+  messageId String @map("message_id")
+  mimeType String @map("mime_type")
+  storageKey String @map("storage_key")
+  // Chat uploads are <=10 MB; Int also matches MongoDB/Mongoose Number storage.
+  fileSizeBytes Int @map("file_size_bytes")
+  message Message @relation(fields: [messageId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([messageId])
+  @@map("message_attachments")
+}
