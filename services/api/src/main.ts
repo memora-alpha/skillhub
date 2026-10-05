@@ -18,6 +18,7 @@ async function bootstrap() {
   app.setGlobalPrefix("api");
   app.enableCors({
     origin: config.getOrThrow<string>("CORS_ORIGIN"),
+    exposedHeaders: ["x-request-id", "x-correlation-id"],
   });
   app.enableShutdownHooks();
   app.useGlobalPipes(
