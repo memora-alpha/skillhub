@@ -22,7 +22,7 @@ function auditValues(id) {
 }
 
 const insertSql = `INSERT INTO audit_logs
-  (audit_id, actor_kind, system_actor, actor_roles, action, target_type, target_id, reason, request_id, correlation_id)
+  (id, actor_kind, system_actor, actor_roles, action, target_type, target_id, reason, request_id, correlation_id)
   VALUES ($1,$2,$3,'{}',$4,$5,$6,$7,$8,$9) RETURNING created_at`;
 
 test(
@@ -46,8 +46,8 @@ test(
       assert.ok(rows[0].created_at instanceof Date);
       assert.match(rows[0].created_at.toISOString(), /Z$/);
       for (const sql of [
-        "UPDATE audit_logs SET reason = 'changed' WHERE audit_id = $1",
-        "DELETE FROM audit_logs WHERE audit_id = $1",
+        "UPDATE audit_logs SET reason = 'changed' WHERE id = $1",
+        "DELETE FROM audit_logs WHERE id = $1",
         "TRUNCATE audit_logs",
       ]) {
         await client.query("SAVEPOINT mutation_attempt");
@@ -96,7 +96,7 @@ test(
         [key],
       );
       const audit = await client.query(
-        "SELECT audit_id FROM audit_logs WHERE audit_id = $1",
+        "SELECT id FROM audit_logs WHERE id = $1",
         [auditId],
       );
       assert.equal(config.rowCount, 0);

@@ -26,7 +26,7 @@ model SystemConfiguration {
 }
 
 model IdempotencyRecord {
-  id              String    @id @default(uuid()) @db.Uuid
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   scope           String
   operation       String
   keyDigest       String    @map("key_digest")
@@ -40,7 +40,7 @@ model IdempotencyRecord {
 }
 
 model OutboxEvent {
-  eventId       String    @id @default(uuid()) @map("event_id") @db.Uuid
+  eventId       String    @id @default(dbgenerated("gen_random_uuid()")) @map("event_id") @db.Uuid
   type          String
   version       Int
   payload       Json
@@ -70,7 +70,7 @@ model OutboxConsumerReceipt {
 }
 
 model SystemConfigurationRevision {
-  id            String              @id @default(uuid()) @db.Uuid
+  id            String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   key           String
   value         Json
   version       Int
@@ -118,14 +118,14 @@ model StoredFileScanEvent {
   fileId         String     @map("file_id") @db.Uuid
   generation     Int
   attempt        Int
-  leaseToken     String     @unique @map("lease_token") @db.Uuid
+  leaseToken     String     @unique(map: "stored_file_scan_events_unique_lease") @map("lease_token") @db.Uuid
   verdict        String
   scannerVersion String     @map("scanner_version")
   failureCode    String?    @map("failure_code")
   createdAt      DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
-  file           StoredFile @relation(fields: [fileId], references: [id], onDelete: Restrict)
+  file           StoredFile @relation(fields: [fileId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "stored_file_scan_events_file_fkey")
 
-  @@index([fileId, createdAt])
+  @@index([fileId, createdAt], map: "stored_file_scan_events_file_created_idx")
   @@map("stored_file_scan_events")
 }
 

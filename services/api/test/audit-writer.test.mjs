@@ -30,10 +30,10 @@ test("writer inserts only through the provided transaction and strips unvalidate
   const result = await writer.append(tx, input);
   assert.match(result.auditId, /^[0-9a-f-]{36}$/);
   assert.equal(calls.length, 1);
-  assert.equal(calls[0].data.auditId, result.auditId);
+  assert.equal(calls[0].data.id, result.auditId);
   assert.equal(calls[0].data.reason, "Restore shorter TTL");
   assert.equal(calls[0].data.actorKind, "SYSTEM");
-  assert.equal(calls[0].data.actorUserId, null);
+  assert.equal(calls[0].data.actorId, null);
   assert.deepEqual(calls[0].data.actorRoles, []);
   assert.deepEqual(calls[0].data.before, { value: 120, version: 1 });
   assert.equal("createdAt" in calls[0].data, false);

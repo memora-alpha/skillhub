@@ -15,8 +15,13 @@ and account consumers do not exist yet.
 - `AuditWriter.validate` / `append(tx, input)`: insert-only through the
   caller's transaction, backend-generated `auditId`, database `created_at`.
   `AuditModule` exports the writer only.
-- `audit_logs` rejects UPDATE, DELETE and TRUNCATE by trigger. Actor is a UUID
-  snapshot without a foreign key to a User table.
+- One `audit_logs` table shared with identity (merged from `dev`): the identity
+  migration creates it and rejects UPDATE/DELETE; the SH-003 migration adds
+  `actor_kind`, `actor_roles`, `system_actor`, `correlation_id`, widens
+  `reason` to 2,000 and rejects TRUNCATE. Identity security events leave
+  `actor_kind` NULL; `AuditWriter` rows must satisfy the actor and
+  reason/request/correlation checks. A HUMAN actor is `actor_id`, a foreign key
+  to `users`; SYSTEM actors have none.
 - `auditActorFromActor(actor)`: the only mapping from a verified `Actor`.
 - Consumer: `UpdateConfigurationUseCase` writes config, revision and audit in
   one transaction.
@@ -46,6 +51,15 @@ What the integration suite proved on PostgreSQL:
 missing permission is 403 and blank/missing reason is 400, both before any
 mutation; `actorId`, `role` and `actor` sent in the body do not reach the audit
 row. Its bearer values are not production authentication.
+
+## Merge with identity (`dev`)
+
+Both branches defined `audit_logs` and an `AuditLog` model. They are unified on
+the table identity already deploys; `AuditService` (identity) and `AuditWriter`
+(SH-003) write to it side by side. After the merge all six migrations apply in
+order on a fresh database, `prisma migrate diff` against the migration-scope
+schema is empty, and identity's own integration suite passes 17/17 with the
+SH-003 migration added to its schema setup.
 
 ## Fixed during validation
 

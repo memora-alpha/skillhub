@@ -9,25 +9,6 @@ const base = {
   REDIS_URL: "redis://localhost:6379/0",
 };
 
-test("rate limit is positive and validated", () => {
-  const values = validateEnvironment(base);
-  assert.equal(values.API_RATE_LIMIT_LIMIT, 120);
-  assert.equal(values.API_RATE_LIMIT_TTL_MS, 60_000);
-  assert.equal(
-    validateEnvironment({ ...base, API_RATE_LIMIT_LIMIT: "60" })
-      .API_RATE_LIMIT_LIMIT,
-    60,
-  );
-  assert.throws(
-    () => validateEnvironment({ ...base, API_RATE_LIMIT_LIMIT: "0" }),
-    /API_RATE_LIMIT_LIMIT/,
-  );
-  assert.throws(
-    () => validateEnvironment({ ...base, API_RATE_LIMIT_TTL_MS: "-1" }),
-    /API_RATE_LIMIT_TTL_MS/,
-  );
-});
-
 test("production database and redis URLs require TLS verification settings", () => {
   assert.throws(
     () => validateEnvironment({ ...base, NODE_ENV: "production" }),

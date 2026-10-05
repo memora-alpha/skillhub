@@ -130,7 +130,9 @@ test("sensitive mutation needs permission and reason; audit actor comes from the
       const response = await post("admin", { amount: 5, reason });
       assert.equal(response.status, 400);
       assert.deepEqual(await response.json(), {
-        error: { statusCode: 400, message: "Invalid audit input" },
+        success: false,
+        statusCode: 400,
+        message: "Invalid audit input",
       });
     }
     assert.deepEqual(
@@ -153,7 +155,7 @@ test("sensitive mutation needs permission and reason; audit actor comes from the
     assert.equal(state.mutations, 1);
     const [audit] = state.audits;
     assert.equal(audit.actorKind, "HUMAN");
-    assert.equal(audit.actorUserId, admin);
+    assert.equal(audit.actorId, admin);
     assert.deepEqual(audit.actorRoles, ["ADMIN"]);
     assert.equal(audit.systemActor, null);
     assert.equal(audit.reason, "Manual correction");

@@ -22,8 +22,7 @@ authorization are **Pending**.
 - Seed inserts missing approved defaults with a baseline revision and never
   overwrites an existing value; an invalid fixed value stops with a
   reconciliation error.
-- Environment: validated rate-limit integers wired into `ThrottlerModule`,
-  storage/scanner variables required only when `STORAGE_ENABLED=true`,
+- Environment: storage/scanner variables required only when `STORAGE_ENABLED=true`,
   production checks for database/Mongo/Redis TLS parameters and HTTPS origins.
   Request logs drop the query string and redact credential headers.
 
@@ -34,13 +33,19 @@ authorization are **Pending**.
   Prisma seed command. It compiles with the app and needs no extra runner.
 - `system-config:update` was not added to the permission catalog: there is no
   protected consumer yet, and the plan forbids granting it speculatively.
+- `API_RATE_LIMIT_LIMIT` / `API_RATE_LIMIT_TTL_MS` and the in-process
+  `ThrottlerModule` wiring were removed when merging `dev`: identity replaced
+  the global guard with a Redis-backed `SharedRequestGuard` configured by
+  `IDENTITY_REQUEST_RATE_LIMIT` and `IDENTITY_THROTTLE_WINDOW_SECONDS`, which
+  also covers the multi-instance gate. Keeping both would leave a knob that
+  does nothing.
 
 ## Checks run (API workspace, 2026-10-05)
 
 | Check                                                | Result      |
 | ---------------------------------------------------- | ----------- |
 | `pnpm build`, `tsc --noEmit`, `pnpm lint`            | Pass        |
-| `pnpm test:configuration` (time, catalog, env, logs) | Pass, 18/18 |
+| `pnpm test:configuration` (time, catalog, env, logs) | Pass, 17/17 |
 | `pnpm test:configuration:integration` (PostgreSQL)   | Pass, 3/3   |
 | Migration upgrade from the baseline, with backfill   | Pass        |
 
@@ -64,7 +69,7 @@ What ran on PostgreSQL:
 | ---- | -------------------------------------------------------------------------------------------------------------------- |
 | 3    | Human actor with a current-permission recheck (needs SH-010/012). Snapshot versions stored by path/credit consumers. |
 | 4    | Real TLS handshakes in a deployment environment. Validating URL parameters is not handshake evidence.                |
-| 5    | NTP on hosts, shared throttle storage before running several instances, admin HTTP authorization.                    |
+| 5    | NTP on hosts, admin HTTP authorization.                                                                              |
 
 The integration test changes `storage.downloadTtlSeconds` in the test database.
 

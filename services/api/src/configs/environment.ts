@@ -9,8 +9,6 @@ const environmentSchema = z.object({
   DATABASE_URL: z.string().regex(/^postgres(?:ql)?:\/\//),
   MONGODB_URI: z.string().regex(/^mongodb(?:\+srv)?:\/\//),
   REDIS_URL: z.string().regex(/^rediss?:\/\//),
-  API_RATE_LIMIT_LIMIT: z.coerce.number().int().positive().default(120),
-  API_RATE_LIMIT_TTL_MS: z.coerce.number().int().positive().default(60_000),
   STORAGE_ENABLED: z
     .enum(["true", "false"])
     .default("false")
