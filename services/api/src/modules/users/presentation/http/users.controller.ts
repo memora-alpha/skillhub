@@ -1,4 +1,3 @@
-import type {} from "multer";
 import { RemoveAvatarUseCase } from "../../application/use-cases/remove-avatar.use-case";
 import { GetAvatarStatusUseCase } from "../../application/use-cases/get-avatar-status.use-case";
 import { UploadAvatarUseCase } from "../../application/use-cases/upload-avatar.use-case";
@@ -82,7 +81,7 @@ export class UsersController {
   async update(@CurrentIdentity() actor: Principal, @Body() body: ProfileDto) {
     if (
       Object.values(body).every((value) => value === undefined) ||
-      Object.values(body).some((value) => value === null)
+      Object.values(body).includes(null)
     )
       throw new BadRequestException("NONEMPTY_PROFILE_REQUIRED");
     return success(

@@ -1,6 +1,7 @@
 {
   "extends": "@skillhub/typescript-config/nestjs.json",
   "compilerOptions": {
+    "types": ["node", "multer"],
     "outDir": "./dist",
     "rootDir": "./src",
     "tsBuildInfoFile": "./dist/tsconfig.tsbuildinfo"

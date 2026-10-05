@@ -15,7 +15,7 @@ export class SharpAvatarInspector extends AvatarInspector {
         !["jpeg", "png", "webp"].includes(metadata.format ?? "") ||
         (metadata.pages ?? 1) > 1
       )
-        throw new Error();
+        throw new Error("Unsupported image format or multiple pages");
       // Decode all pixels: metadata alone does not reject truncated images.
       await image.raw().toBuffer();
       return metadata.format === "jpeg"

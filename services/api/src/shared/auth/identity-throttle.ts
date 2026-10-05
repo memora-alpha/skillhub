@@ -29,6 +29,7 @@ export class IdentityThrottle {
     ] as const;
     try {
       for (const [kind, value, limit] of values) {
+        // Stop at the first exhausted dimension; later counters must not advance.
         const digest = createHmac("sha256", this.config.jwtKey)
           .update(`${purpose}:${kind}:${value}`)
           .digest("hex");
@@ -71,11 +72,12 @@ export class IdentityThrottle {
 @Injectable()
 export class SharedRequestGuard implements CanActivate {
   constructor(private readonly throttle: IdentityThrottle) {}
-  async canActivate(context: ExecutionContext) {
-    if (context.getClass().name === "HealthController") return true;
-    await this.throttle.request(
-      context.switchToHttp().getRequest<Request>().ip ?? "unknown",
-    );
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    if (context.getClass().name !== "HealthController") {
+      await this.throttle.request(
+        context.switchToHttp().getRequest<Request>().ip ?? "unknown",
+      );
+    }
     return true;
   }
 }

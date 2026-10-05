@@ -12,7 +12,7 @@ export class GetAvatarStatusUseCase {
   ) {}
   async execute(userId: string, id: string) {
     const row = await this.repository.find(this.db, id);
-    if (!row || row.userId !== userId) throw new NotFoundException();
+    if (row?.userId !== userId) throw new NotFoundException();
     return { assetId: id, status: row.state };
   }
 }

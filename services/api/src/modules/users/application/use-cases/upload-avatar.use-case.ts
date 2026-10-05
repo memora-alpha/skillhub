@@ -27,8 +27,7 @@ export class UploadAvatarUseCase {
     private readonly config: IdentityConfig,
   ) {}
   async execute(userId: string, file: AvatarInput | undefined) {
-    if (!file || !file.bytes.length)
-      throw new BadRequestException("IMAGE_REQUIRED");
+    if (!file?.bytes.length) throw new BadRequestException("IMAGE_REQUIRED");
     if (file.size > 5 * 1024 * 1024)
       throw new PayloadTooLargeException("IMAGE_TOO_LARGE");
     const mime = await this.inspector.inspect(file.bytes);

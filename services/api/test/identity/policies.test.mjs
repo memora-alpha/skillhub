@@ -68,6 +68,32 @@ test("strict config rejects missing, malformed and reused secrets without reveal
     { IDENTITY_DEFAULT_TIMEZONE: "invalid" },
     { NODE_ENV: "production" },
     { IDENTITY_INITIAL_REPUTATION: "101" },
+    { IDENTITY_PREVIOUS_KEYS: "null" },
+    { IDENTITY_PREVIOUS_KEYS: "[]" },
+    {
+      IDENTITY_PREVIOUS_KEYS: JSON.stringify({
+        test: {
+          otpKey: values.IDENTITY_OTP_KEY,
+          encryptionKey: values.IDENTITY_ENCRYPTION_KEY,
+        },
+      }),
+    },
+    {
+      IDENTITY_PREVIOUS_KEYS: JSON.stringify({
+        old: {
+          otpKey: "secret-invalid-value",
+          encryptionKey: values.IDENTITY_ENCRYPTION_KEY,
+        },
+      }),
+    },
+    {
+      IDENTITY_PREVIOUS_KEYS: JSON.stringify({
+        old: {
+          otpKey: values.IDENTITY_OTP_KEY,
+          encryptionKey: values.IDENTITY_OTP_KEY,
+        },
+      }),
+    },
   ]) {
     assert.throws(
       () => new IdentityConfig(new ConfigService({ ...values, ...patch })),

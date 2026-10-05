@@ -28,8 +28,7 @@ export class VerifyEmailUseCase {
       await lockUsers(tx, [lookup.id]);
       const user = await this.users.byId(tx, lookup.id);
       if (
-        !user ||
-        user.accountStatus !== "PENDING_VERIFICATION" ||
+        user?.accountStatus !== "PENDING_VERIFICATION" ||
         !(await this.otp.consume(tx, user.id, "REGISTER", code))
       )
         return false;
