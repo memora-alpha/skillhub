@@ -19,7 +19,7 @@
 - BR-29/36: chat/LiveKit kiểm tra participant; public projection không lộ private data.
 - Giữ envelope HTTP hiện có `error.statusCode/message`; không sửa contract lỗi toàn hệ thống trong SH-002.
 - Mục 18.34: hạn chế 30–39 chặn tạo Request/Proposal 24 giờ, vẫn cho xem lịch/học buổi đã chốt.
-- Grant chưa phê duyệt ở OP-06/OP-04 không trở thành seed production.
+- Grant chưa có artifact chi tiết ở OP-06 và case access còn mở ở OP-04 không trở thành seed production.
 
 ## Review Focus
 
@@ -179,7 +179,7 @@ contract nội bộ theo module, không giả một User ADMIN để bypass guar
 | Task                  | Owner trong sheet | Contract / phụ thuộc SH-002                                                                       |
 | --------------------- | ----------------- | ------------------------------------------------------------------------------------------------- |
 | SH-010/012/014/016    | Huy               | User/identity, session revocation, role USER khi register/OAuth, account restrictions             |
-| SH-003                | Huy               | Reason/audit dùng bởi các use case nhạy cảm; không ghi audit “thành công” từ guard trước mutation |
+| SH-003                | Long              | Reason/audit dùng bởi các use case nhạy cảm; không ghi audit “thành công” từ guard trước mutation |
 | SH-100, OP-06         | Huy               | Role/permission management, Staff matrix, policy cấp ADMIN                                        |
 | SH-023/024/025/032    | Long              | Owner resolver, verification/moderation permissions; consumer đầu tiên                            |
 | SH-021/004            | Long              | Public/private projection; quyền evidence/file, tách storage implementation                       |
@@ -353,5 +353,5 @@ business API đã được bảo vệ. SH-120/124 không phải lý do trì hoã
 
 Lần triển khai này đã thêm catalog/policy/guards và fixture tests. Database
 reader, migration, JWT production integration, consumer-owned resolvers và audit
-vẫn Pending. Bước tiếp theo là chốt RBAC-01/05 với Huy, rồi nối users/auth thật
+vẫn Pending. Bước tiếp theo là nhận artifact grant OP-06/RBAC-01 đã chốt và chốt RBAC-05 với Huy, rồi nối users/auth thật
 và kiểm chứng PostgreSQL, các endpoint nghiệp vụ theo [validation.md](validation.md).
