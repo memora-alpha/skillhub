@@ -17,7 +17,8 @@ consumers are still **Pending**, so SH-005 is not proven for payment flows.
   reference committed with the mutation; no raw request or response is stored.
 - Outbox: `OutboxWriter.append(tx, event)`, `OutboxDispatcher` (batch 20,
   lease 30 s, publish timeout 10 s, 8 cycle attempts, `FOR UPDATE SKIP LOCKED`,
-  lease-token CAS on ack/fail, `retryFailed`), `OutboxConsumer.processOnce`
+  lease-token CAS on ack/fail, `retryFailed`; events of one batch are published
+  concurrently so a slow provider cannot outlast the lease), `OutboxConsumer.processOnce`
   receipt for consumer-side dedup. Unknown event types are kept as failed.
 
 ## Checks run (API workspace, 2026-10-05)

@@ -18,7 +18,7 @@ export class ConfigurationRepository {
     private readonly prisma: Pick<PrismaService, "systemConfiguration">,
   ) {}
 
-  async findCurrent(
+  findCurrent(
     keys: readonly ConfigurationKey[],
     tx?: TransactionContext,
   ): Promise<CurrentConfigurationRow[]> {
@@ -34,7 +34,7 @@ export class ConfigurationRepository {
     >`SELECT CURRENT_TIMESTAMP AS now`;
     const timestamp = rows[0]?.now;
     if (!(timestamp instanceof Date) || !Number.isFinite(timestamp.getTime())) {
-      throw new Error("database time unavailable");
+      throw new TypeError("database time unavailable");
     }
     return timestamp;
   }

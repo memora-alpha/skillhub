@@ -19,6 +19,24 @@ import type {
   ReconciliationRepository,
 } from "./reconciliation-repository.port";
 
+/** UNKNOWN never becomes READY: it goes back to QUARANTINED, then fails closed on the third attempt. */
+function stateAfterVerdict(
+  verdict: ScanVerdict,
+  attempt: number,
+): StoredFileState {
+  if (verdict === "CLEAN") return "READY";
+  if (verdict === "INFECTED") return "REJECTED";
+  return attempt >= 3 ? "SCAN_FAILED" : "QUARANTINED";
+}
+
+type ExpiredScan = {
+  id: string;
+  generation: number;
+  scanAttempts: number;
+  scanLeaseToken: string | null;
+  scanLeaseUntil: Date | null;
+};
+
 @Injectable()
 export class PrismaStoredFileRepository
   implements StoredFileRepository, ScanRepository, ReconciliationRepository
@@ -129,7 +147,7 @@ export class PrismaStoredFileRepository
       RETURNING "id", "generation", "object_key", "size_bytes", "sha256", "scan_attempts", "scan_lease_token"
     `;
     const row = rows[0];
-    if (!row || !row.sha256 || !row.size_bytes) return null;
+    if (!row?.sha256 || !row.size_bytes) return null;
     return {
       id: row.id,
       generation: row.generation,
@@ -147,14 +165,7 @@ export class PrismaStoredFileRepository
     scannerVersion: string;
   }): Promise<boolean> {
     const { claim, verdict, scannerVersion } = input;
-    const nextState =
-      verdict === "CLEAN"
-        ? "READY"
-        : verdict === "INFECTED"
-          ? "REJECTED"
-          : claim.attempt >= 3
-            ? "SCAN_FAILED"
-            : "QUARANTINED";
+    const nextState = stateAfterVerdict(verdict, claim.attempt);
     return this.transactions.run(async (tx) => {
       const updated = await tx.storedFile.updateMany({
         where: {
@@ -200,7 +211,7 @@ export class PrismaStoredFileRepository
         where: { id: fileId },
         select: { generation: true, state: true },
       });
-      if (!row || row.state !== "SCAN_FAILED")
+      if (row?.state !== "SCAN_FAILED")
         throw new FileStorageError("FILE_SCAN_STATE_CONFLICT", 409);
       const updated = await tx.storedFile.updateMany({
         where: { id: fileId, state: "SCAN_FAILED", generation: row.generation },
@@ -228,7 +239,7 @@ export class PrismaStoredFileRepository
     graceBefore: Date,
     limit: number,
   ): Promise<CleanupCandidate[]> {
-    const rows = await this.prisma.storedFile.findMany({
+    const candidates = await this.prisma.storedFile.findMany({
       where: {
         OR: [
           {
@@ -240,24 +251,25 @@ export class PrismaStoredFileRepository
       },
       orderBy: { createdAt: "asc" },
       take: Math.min(Math.max(limit, 1), 50),
-      select: { id: true, objectKey: true, state: true },
+      select: { id: true },
     });
-    const claimed: CleanupCandidate[] = [];
-    for (const row of rows) {
-      if (row.state !== "CLEANUP_PENDING") {
-        const result = await this.prisma.storedFile.updateMany({
-          where: {
-            id: row.id,
-            state: row.state,
-            createdAt: { lt: graceBefore },
-          },
-          data: { state: "CLEANUP_PENDING" },
-        });
-        if (result.count !== 1) continue;
-      }
-      claimed.push({ id: row.id, objectKey: row.objectKey });
-    }
-    return claimed;
+    if (candidates.length === 0) return [];
+    const ids = candidates.map((row) => row.id);
+    // One CAS for the page: an upload finalized since the read no longer matches
+    // and is therefore absent from the claimed rows read back below.
+    await this.prisma.storedFile.updateMany({
+      where: {
+        id: { in: ids },
+        state: { in: ["UPLOADING", "UPLOAD_FAILED"] },
+        createdAt: { lt: graceBefore },
+      },
+      data: { state: "CLEANUP_PENDING" },
+    });
+    return this.prisma.storedFile.findMany({
+      where: { id: { in: ids }, state: "CLEANUP_PENDING" },
+      orderBy: { createdAt: "asc" },
+      select: { id: true, objectKey: true },
+    });
   }
 
   async markDeleted(id: string): Promise<void> {
@@ -280,40 +292,43 @@ export class PrismaStoredFileRepository
         scanLeaseUntil: true,
       },
     });
-    let recovered = 0;
-    for (const row of expired) {
-      if (!row.scanLeaseToken || !row.scanLeaseUntil) continue;
-      const changed = await this.transactions.run(async (tx) => {
-        const terminal = row.scanAttempts >= 3;
-        const result = await tx.storedFile.updateMany({
-          where: {
-            id: row.id,
-            generation: row.generation,
-            state: "SCANNING",
-            scanLeaseToken: row.scanLeaseToken,
-            scanLeaseUntil: { lt: new Date() },
-          },
-          data: {
-            state: terminal ? "SCAN_FAILED" : "QUARANTINED",
-            scanLeaseToken: null,
-            scanLeaseUntil: null,
-            failureCode: "SCAN_LEASE_EXPIRED",
-          },
-        });
-        if (result.count !== 1) return false;
-        if (!terminal) {
-          await this.outbox.append(tx, {
-            eventId: randomUUID(),
-            type: "file.scan.requested",
-            version: 1,
-            payload: { fileId: row.id, generation: row.generation },
-            correlationId: randomUUID(),
-          });
-        }
-        return true;
+    // Rows are independent and each recovery is its own transaction.
+    const recovered = await Promise.all(
+      expired.map((row) => this.recoverExpiredScan(row)),
+    );
+    return recovered.filter(Boolean).length;
+  }
+
+  private async recoverExpiredScan(row: ExpiredScan): Promise<boolean> {
+    if (!row.scanLeaseToken || !row.scanLeaseUntil) return false;
+    return this.transactions.run(async (tx) => {
+      const terminal = row.scanAttempts >= 3;
+      const result = await tx.storedFile.updateMany({
+        where: {
+          id: row.id,
+          generation: row.generation,
+          state: "SCANNING",
+          scanLeaseToken: row.scanLeaseToken,
+          scanLeaseUntil: { lt: new Date() },
+        },
+        data: {
+          state: terminal ? "SCAN_FAILED" : "QUARANTINED",
+          scanLeaseToken: null,
+          scanLeaseUntil: null,
+          failureCode: "SCAN_LEASE_EXPIRED",
+        },
       });
-      if (changed) recovered++;
-    }
-    return recovered;
+      if (result.count !== 1) return false;
+      if (!terminal) {
+        await this.outbox.append(tx, {
+          eventId: randomUUID(),
+          type: "file.scan.requested",
+          version: 1,
+          payload: { fileId: row.id, generation: row.generation },
+          correlationId: randomUUID(),
+        });
+      }
+      return true;
+    });
   }
 }

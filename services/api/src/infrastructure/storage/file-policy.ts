@@ -75,10 +75,10 @@ export function validateFile(input: {
     name.length === 0 ||
     name.length > 255 ||
     /[\\/]/u.test(name) ||
-    [...name].some(
-      (character) =>
-        character.charCodeAt(0) <= 31 || character.charCodeAt(0) === 127,
-    ) ||
+    [...name].some((character) => {
+      const code = character.codePointAt(0) ?? 0;
+      return code <= 31 || code === 127;
+    }) ||
     name === "." ||
     name === ".."
   ) {

@@ -141,7 +141,7 @@ export class FileStorageService {
     if (!row.detectedMime || !row.sizeBytes)
       throw new FileStorageError("FILE_NOT_READY", 409);
     const object = await this.objects.head(row.objectKey);
-    if (!object || object.size !== row.sizeBytes)
+    if (object?.size !== row.sizeBytes)
       throw new FileStorageError("FILE_OBJECT_MISMATCH", 503);
     const ttl = (
       await this.configuration.getSnapshot(["storage.downloadTtlSeconds"])

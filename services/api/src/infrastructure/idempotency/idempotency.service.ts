@@ -13,6 +13,12 @@ import type {
   ResultReference,
 } from "./idempotency.types";
 
+/** UTF-16 code unit order, same as the default sort: locale-independent, so a fingerprint is identical on every host. */
+function byCodeUnit(left: string, right: string): number {
+  if (left < right) return -1;
+  return left > right ? 1 : 0;
+}
+
 function normalizeJson(value: JsonValue): JsonValue {
   if (value === null || typeof value === "string" || typeof value === "boolean")
     return value;
@@ -25,7 +31,7 @@ function normalizeJson(value: JsonValue): JsonValue {
   if (typeof value !== "object")
     throw new BadRequestException("Invalid command");
   const result: Record<string, JsonValue> = {};
-  for (const key of Object.keys(value).sort()) {
+  for (const key of Object.keys(value).sort(byCodeUnit)) {
     const item = value[key];
     if (item === undefined) throw new BadRequestException("Invalid command");
     result[key] = normalizeJson(item);

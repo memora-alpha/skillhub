@@ -59,7 +59,8 @@ export function parseAbsoluteTimestamp(input: unknown): Date {
   ) {
     throw new TypeError("timestamp has an invalid calendar date");
   }
-  const direction = zone === "Z" ? 0 : sign === "+" ? 1 : -1;
+  let direction = 0;
+  if (zone !== "Z") direction = sign === "+" ? 1 : -1;
   const timestamp = new Date(
     local.getTime() - direction * (offsetHours * 60 + offsetMinutes) * 60_000,
   );
