@@ -22,7 +22,8 @@
     "test:identity": "node --test test/identity/policies.test.mjs test/identity/providers.test.mjs",
     "test:identity:integration": "node --test test/identity/integration.test.mjs",
     "identity:seed": "node scripts/identity-bootstrap.mjs seed",
-    "identity:bootstrap-admin": "node scripts/identity-bootstrap.mjs admin"
+    "identity:bootstrap-admin": "node scripts/identity-bootstrap.mjs admin",
+    "test:rbac": "nest build && node --test test/authorization.test.mjs test/authorization-http.test.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1146.0",
