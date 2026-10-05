@@ -1,7 +1,7 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { APP_FILTER, APP_GUARD } from "@nestjs/core";
-import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
+import { SharedRequestGuard } from "./shared/auth/identity-throttle";
 import { LoggerModule } from "nestjs-pino";
 import { validateEnvironment } from "./configs/environment";
 import { DatabaseModule } from "./infrastructure/database/database.module";
@@ -9,6 +9,7 @@ import { RedisModule } from "./infrastructure/cache/redis.module";
 import { QueueModule } from "./infrastructure/queue/queue.module";
 import { HttpExceptionFilter } from "./shared/http/http-exception.filter";
 import { HealthController } from "./health.controller";
+import { IdentityModule } from "./modules/identity.module";
 
 @Module({
   imports: [
@@ -26,19 +27,21 @@ import { HealthController } from "./health.controller";
             "req.headers.authorization",
             "req.headers.cookie",
             "res.headers.set-cookie",
+            "req.body",
+            "res.body",
           ],
         },
       }),
     }),
-    ThrottlerModule.forRoot([{ ttl: 60000, limit: 120 }]),
     DatabaseModule,
     RedisModule,
     QueueModule,
+    IdentityModule,
   ],
   controllers: [HealthController],
   providers: [
     { provide: APP_FILTER, useClass: HttpExceptionFilter },
-    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_GUARD, useExisting: SharedRequestGuard },
   ],
 })
 export class AppModule {}

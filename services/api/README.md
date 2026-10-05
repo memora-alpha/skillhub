@@ -8,7 +8,14 @@ Phạm vi phát triển hiện tại của dự án là **backend tại `service
 Web/mobile chỉ được thay đổi khi có yêu cầu riêng. Git và pnpm workspace vẫn
 đặt tại root SkillHub; backend không có Git repository riêng.
 
-API đã có config validation, PostgreSQL/Prisma, MongoDB/Mongoose, Redis/BullMQ, logging, Swagger, health/readiness và migration nền tảng. Các module nghiệp vụ bên dưới vẫn là kế hoạch; chưa có login, chat hoặc giao dịch Credit.
+API đã có nền tảng hạ tầng và phần Danh tính (spec 002): đăng ký/OTP/login, refresh/logout/reset, hồ sơ/avatar, quyền và quản trị tài khoản có audit. Các module còn lại bên dưới vẫn là kế hoạch; chat và giao dịch Credit chưa được triển khai.
+
+Schema Prisma đã biểu diễn toàn bộ danh mục dữ liệu: 45 model PostgreSQL và
+25 enum, cùng 2 model chat trong file Prisma MongoDB tham chiếu. Xem
+[schema catalog](prisma/README.md) để đối chiếu 42/42 model logical và phân biệt
+schema với runtime Mongoose. Migration danh tính, seed/operator bootstrap,
+ràng buộc SQL và 21 endpoint `/api/v1/...` đã có; migration chỉ được kiểm thử
+trong schema tạm, chưa deploy vào database ứng dụng. Xem [hướng dẫn danh tính](specs/002-user-identity/quickstart.md) và [kết quả kiểm thử](specs/002-user-identity/validation.md).
 
 Nguồn nghiệp vụ:
 
@@ -56,7 +63,15 @@ nhóm API dự kiến và đều nằm sau prefix `/api` hiện có.
 | `administration`    | API Staff/Admin, tổng hợp dashboard/báo cáo, quản lý cấu hình và phân quyền cho thao tác nhạy cảm; `/admin/*`.                              | SystemConfiguration và read models nếu cần. Dùng services của các module sở hữu nghiệp vụ; không tạo bản sao User/Skill/Session/ledger.                                     |
 | `audit`             | Ghi lịch sử bất biến của thao tác nhạy cảm, tra cứu theo quyền; `/admin/audit-logs/*`.                                                      | AuditLog. Không log password, OTP, token đầy đủ hay dữ liệu thanh toán nhạy cảm. Audit khác application logs.                                                               |
 
-GET /api/health là liveness; GET /api/health/ready kiểm tra PostgreSQL, MongoDB và Redis. Swagger ở /api/docs trong development/test, tắt trong production. Rate limit hiện tại là 120 requests/phút/IP trong một process; health được miễn. Cần shared throttle storage trước khi chạy nhiều instance.
+GET /api/health là liveness; GET /api/health/ready kiểm tra PostgreSQL, MongoDB và Redis; cả hai version-neutral. Swagger ở /api/docs trong development/test, tắt trong production. Rate limit chia sẻ qua Redis theo cấu hình, gồm IP toàn API và email/IP/device theo luồng danh tính; health được miễn. Cấu hình danh tính/provider trong `.env.example` bắt buộc có giá trị rõ ràng trước khi khởi động.
+
+Response JSON theo chuẩn Memora: thành công `{success:true,message,data,meta?}`;
+lỗi `{success:false,message,statusCode}`. Payload nằm trong `data`, phân trang
+danh sách quản trị nằm trong `meta.pagination` (`nextCursor`, `hasMore`, `limit`).
+Đăng ký/gửi lại OTP/quên mật khẩu trả `data:null`; response 204 không có body.
+Controller dùng helper tại `src/shared/http/response.ts`, use case trả kết quả
+nghiệp vụ; Swagger mô tả đúng envelope. Đây là thay đổi contract v1 trước release
+theo yêu cầu ngày 2026-10-04; xem [HTTP contract](specs/002-user-identity/contracts/http.md).
 
 ## Hạ tầng và quy tắc phụ thuộc
 
@@ -124,6 +139,20 @@ src/
 
 Theo Memora, module dùng presentation/http (controller/DTO), application (use-cases/commands/results/ports), domain (policies/entities/repository interfaces) và infrastructure (persistence/providers). Chỉ tạo tầng có trách nhiệm thực tế.
 
+Danh tính đã được tổ chức thành 24 use case trong `application/use-cases/`,
+các service dùng chung trong `application/services/`, contract/port riêng và
+Prisma repository trong `infrastructure/persistence/` của module sở hữu dữ liệu.
+Controller gọi trực tiếp use case; `identity.module.ts` giữ vai trò composition
+root và chỉ export các contract cần dùng liên module. Danh sách quản trị dùng
+query nghiệp vụ, không truyền Prisma filter giữa application services.
+
+Use case điều phối một transaction PostgreSQL; service/repository tham gia dùng
+cùng context. Worker BullMQ và timer reconciliation nằm trong
+`infrastructure/jobs/`. Application nhận port storage/scanner/email/queue;
+HTTP chuyển Multer thành input bytes/MIME/size và Sharp nằm trong infrastructure.
+Refactor giữ 21 endpoint, OTP counter/replay commit, audit/outbox atomic và
+khôi phục delivery/avatar; xem [plan danh tính](specs/002-user-identity/plan.md).
+
 ## Thứ tự triển khai và phụ thuộc
 
 | Giai đoạn               | Phạm vi                                                                                                                | Kết quả cần kiểm chứng                                                                                               |
@@ -161,7 +190,8 @@ Constitution v1.2.0 quy định module sở hữu dữ liệu và cung cấp con
 khác; jobs/webhooks phải xử lý trùng lặp, retry và khôi phục lỗi. Mỗi feature plan
 cần Constitution Check và bằng chứng kiểm chứng; ngoại lệ phải ghi rõ lý do,
 biện pháp giảm tác động, điều kiện gỡ bỏ và phê duyệt của người dùng. Đây là quy tắc
-cho các feature tiếp theo; outbox, webhook handlers và job processors chưa triển khai.
+cho các feature tiếp theo; outbox email và job processors danh tính đã triển khai.
+Webhook handlers và các job nghiệp vụ khác vẫn thuộc feature tương ứng.
 
 Git workflow: branch `feat/user-auth`, `fix/refresh-revocation` hoặc
 `docs/backend-modules`; slug viết lowercase kebab-case, không kèm số spec.
