@@ -50,8 +50,9 @@ foundation tests pass.
 - SH-012 with Huy: verified JWT/session identity, revocation and production
   guard order/wiring in AppModule. The current guards are reusable code, not yet
   active on production API routes.
-- RBAC-01 / OP-06: approved Staff action grants; RBAC-04 / OP-04: case-scoped
-  chat/evidence access. No undecided Staff/chat grant was seeded.
+- RBAC-01 / OP-06: Sheet now says decided (read again 2026-10-04), but the detailed
+  Staff grant artifact is not in the inspected range/repository. RBAC-04 / OP-04:
+  case-scoped chat/evidence access remains open. No grant was inferred from status.
 - Real owner/participant resolvers, list/count/export scope, nested resource
   checks and mutation rechecks in module transactions. Chat/Session/LiveKit
   modules are not present in this checkout.

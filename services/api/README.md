@@ -31,6 +31,15 @@ bổ sung v1.4; đối chiếu nghiệp vụ mới trong spec từng feature. Vi
 kế chưa có nghĩa auth, RBAC hay các module nghiệp vụ đã được tích hợp vào
 production API; xem [kết quả kiểm chứng](specs/002-rbac-ownership/validation.md).
 
+[Roadmap foundation SH-003–006](specs/foundation-roadmap.md) tách các kế hoạch
+[audit/reason](specs/003-audit-reason/plan.md),
+[private file storage](specs/004-private-file-storage/plan.md),
+[transaction/idempotency/correlation](specs/005-transaction-idempotency/plan.md)
+và [configuration/UTC/secrets](specs/006-system-configuration-time/plan.md).
+Thứ tự kỹ thuật đề xuất: SH-005 → SH-003 → SH-006 → SH-004. Source, unit tests
+và integration suites trên PostgreSQL đã có; kiểm chứng Redis/BullMQ, S3 và
+ClamAV thật còn Pending — xem `validation.md` trong từng spec và roadmap.
+
 Ưu tiên nghiệp vụ Must/Should/Could theo SRS vẫn được giữ. Thứ tự triển khai
 bên dưới là đề xuất kỹ thuật, không nâng tính năng Should/Could thành Must.
 Tên module, bảng và routes là định hướng thiết kế; contracts/schema vật lý
@@ -190,7 +199,8 @@ Constitution v1.2.0 quy định module sở hữu dữ liệu và cung cấp con
 khác; jobs/webhooks phải xử lý trùng lặp, retry và khôi phục lỗi. Mỗi feature plan
 cần Constitution Check và bằng chứng kiểm chứng; ngoại lệ phải ghi rõ lý do,
 biện pháp giảm tác động, điều kiện gỡ bỏ và phê duyệt của người dùng. Đây là quy tắc
-cho các feature tiếp theo; outbox email và job processors danh tính đã triển khai.
+cho các feature tiếp theo; outbox email và job processors danh tính đã triển khai,
+cùng outbox chung và file-scan processor của foundation (SH-005/004).
 Webhook handlers và các job nghiệp vụ khác vẫn thuộc feature tương ứng.
 
 Git workflow: branch `feat/user-auth`, `fix/refresh-revocation` hoặc
@@ -257,6 +267,24 @@ pnpm check-types
 pnpm build
 pnpm test:foundation
 ```
+
+Tests của foundation SH-002–006 build trước rồi chạy `node --test` trên `dist`:
+
+```powershell
+pnpm test:rbac
+pnpm test:consistency
+pnpm test:audit
+pnpm test:configuration
+pnpm test:files
+```
+
+Các suite `test:consistency:integration`, `test:audit:integration`,
+`test:configuration:integration` và `test:files:integration` cần
+`TEST_DATABASE_URL` trỏ tới một database PostgreSQL riêng cho test, đã
+`pnpm db:deploy`; chúng không đọc `DATABASE_URL` và không truncate bảng.
+`test:audit:integration` làm thay đổi `storage.downloadTtlSeconds` và để lại
+audit rows (append-only) trong database test. Kiểm tra quyền app-role cần thêm
+`TEST_AUDIT_APP_DATABASE_URL`. Chưa có suite cho S3/ClamAV/Redis thật.
 
 API mặc định chạy ở http://localhost:3001. GET /api/health kiểm tra liveness;
 GET /api/health/ready xác minh PostgreSQL, MongoDB và Redis; Swagger ở /api/docs.

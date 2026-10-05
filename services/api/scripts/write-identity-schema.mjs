@@ -21,6 +21,13 @@ const models = new Set([
   "IdentityEmailDelivery",
   "AvatarAsset",
   "AuditLog",
+  // Foundation tables (SH-003..006) deployed by the same migration history.
+  "IdempotencyRecord",
+  "OutboxEvent",
+  "OutboxConsumerReceipt",
+  "SystemConfigurationRevision",
+  "StoredFile",
+  "StoredFileScanEvent",
 ]);
 const enums = new Set([
   "AccountStatus",

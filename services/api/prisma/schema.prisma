@@ -10,11 +10,12 @@ datasource db {
 
 // Infrastructure configuration metadata only. Domain tables are introduced per feature.
 model SystemConfiguration {
-  key         String   @id
+  key         String                        @id
   value       Json
-  version     Int      @default(1)
-  effectiveAt DateTime @default(now()) @map("effective_at") @db.Timestamptz(3)
-  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  version     Int                           @default(1)
+  effectiveAt DateTime                      @default(now()) @map("effective_at") @db.Timestamptz(3)
+  updatedAt   DateTime                      @updatedAt @map("updated_at") @db.Timestamptz(3)
+  revisions   SystemConfigurationRevision[]
 
   valueType       String? @map("value_type") @db.Text
   updatedByUserId String? @map("updated_by_user_id") @db.Uuid
@@ -22,6 +23,110 @@ model SystemConfiguration {
 
   @@index([updatedByUserId])
   @@map("system_configurations")
+}
+
+model IdempotencyRecord {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  scope           String
+  operation       String
+  keyDigest       String    @map("key_digest")
+  fingerprint     String
+  resultReference Json?     @map("result_reference")
+  completedAt     DateTime? @map("completed_at") @db.Timestamptz(3)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@unique([scope, operation, keyDigest])
+  @@map("idempotency_records")
+}
+
+model OutboxEvent {
+  eventId       String    @id @default(dbgenerated("gen_random_uuid()")) @map("event_id") @db.Uuid
+  type          String
+  version       Int
+  payload       Json
+  correlationId String    @map("correlation_id") @db.Uuid
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  availableAt   DateTime  @default(now()) @map("available_at") @db.Timestamptz(3)
+  leaseToken    String?   @map("lease_token") @db.Uuid
+  leaseUntil    DateTime? @map("lease_until") @db.Timestamptz(3)
+  deliveredAt   DateTime? @map("delivered_at") @db.Timestamptz(3)
+  totalAttempts Int       @default(0) @map("total_attempts")
+  cycleAttempts Int       @default(0) @map("cycle_attempts")
+  replayCount   Int       @default(0) @map("replay_count")
+  failedAt      DateTime? @map("failed_at") @db.Timestamptz(3)
+  lastErrorCode String?   @map("last_error_code")
+
+  @@index([availableAt, createdAt])
+  @@map("outbox_events")
+}
+
+model OutboxConsumerReceipt {
+  consumer    String
+  eventId     String   @map("event_id") @db.Uuid
+  processedAt DateTime @default(now()) @map("processed_at") @db.Timestamptz(3)
+
+  @@id([consumer, eventId])
+  @@map("outbox_consumer_receipts")
+}
+
+model SystemConfigurationRevision {
+  id            String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  key           String
+  value         Json
+  version       Int
+  effectiveAt   DateTime            @map("effective_at") @db.Timestamptz(3)
+  createdAt     DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  actorSnapshot Json                @map("actor_snapshot")
+  auditId       String?             @map("audit_id") @db.Uuid
+  configuration SystemConfiguration @relation(fields: [key], references: [key], onDelete: Restrict)
+
+  @@unique([key, version])
+  @@index([key, createdAt(sort: Desc)])
+  @@map("system_configuration_revisions")
+}
+
+model StoredFile {
+  id                String                @id @db.Uuid
+  purpose           String
+  uploadedBy        String                @map("uploaded_by") @db.Uuid
+  objectKey         String                @unique @map("object_key")
+  generation        Int                   @default(1)
+  originalName      String                @map("original_name")
+  detectedMime      String?               @map("detected_mime")
+  sizeBytes         Int?                  @map("size_bytes")
+  sha256            String?
+  state             String
+  scanAttempts      Int                   @default(0) @map("scan_attempts")
+  scanVerdict       String?               @map("scan_verdict")
+  scannerVersion    String?               @map("scanner_version")
+  scannedAt         DateTime?             @map("scanned_at") @db.Timestamptz(3)
+  scanLeaseToken    String?               @map("scan_lease_token") @db.Uuid
+  scanLeaseUntil    DateTime?             @map("scan_lease_until") @db.Timestamptz(3)
+  providerVersionId String?               @map("provider_version_id")
+  failureCode       String?               @map("failure_code")
+  createdAt         DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime              @updatedAt @map("updated_at") @db.Timestamptz(3)
+  scanEvents        StoredFileScanEvent[]
+
+  @@index([state, createdAt])
+  @@index([scanLeaseUntil])
+  @@map("stored_files")
+}
+
+model StoredFileScanEvent {
+  id             String     @id @db.Uuid
+  fileId         String     @map("file_id") @db.Uuid
+  generation     Int
+  attempt        Int
+  leaseToken     String     @unique(map: "stored_file_scan_events_unique_lease") @map("lease_token") @db.Uuid
+  verdict        String
+  scannerVersion String     @map("scanner_version")
+  failureCode    String?    @map("failure_code")
+  createdAt      DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  file           StoredFile @relation(fields: [fileId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "stored_file_scan_events_file_fkey")
+
+  @@index([fileId, createdAt], map: "stored_file_scan_events_file_created_idx")
+  @@map("stored_file_scan_events")
 }
 
 enum AccountStatus {
@@ -342,7 +447,8 @@ model AvatarAsset {
   @@map("avatar_assets")
 }
 
-// audit owns immutable security history. Append-only enforcement needs DB privileges/use cases.
+// audit owns immutable history for identity security events and SH-003 sensitive actions.
+// Triggers reject UPDATE, DELETE and TRUNCATE; see the identity and sh003_audit migrations.
 model AuditLog {
   id         String    @id @default(uuid()) @db.Uuid
   actorId    String?   @map("actor_id") @db.Uuid
@@ -352,12 +458,18 @@ model AuditLog {
   targetId   String    @map("target_id") @db.Text
   before     Json?
   after      Json?
-  reason     String?   @db.VarChar(1000)
+  reason     String?   @db.VarChar(2000)
   requestId  String?   @map("request_id") @db.Text
   createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   actor      User?     @relation("AuditActor", fields: [actorId], references: [id], onDelete: Restrict)
   ipAddress  String?   @map("ip_address") @db.VarChar(45)
   userAgent  String?   @map("user_agent") @db.VarChar(500)
+
+  // Set by AuditWriter (SH-003); null/empty on identity security events.
+  actorKind     String?  @map("actor_kind") @db.Text
+  actorRoles    String[] @default([]) @map("actor_roles")
+  systemActor   String?  @map("system_actor") @db.Text
+  correlationId String?  @map("correlation_id") @db.Uuid
 
   @@index([actorId, createdAt])
   @@index([targetType, targetId, createdAt])
