@@ -1,7 +1,7 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { APP_FILTER, APP_GUARD } from "@nestjs/core";
-import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
+import { SharedRequestGuard } from "./shared/auth/identity-throttle";
 import { LoggerModule } from "nestjs-pino";
 import { validateEnvironment } from "./configs/environment";
 import {
@@ -18,6 +18,7 @@ import { StorageModule } from "./infrastructure/storage/storage.module";
 import { SystemConfigurationModule } from "./modules/system-configuration/system-configuration.module";
 import { HttpExceptionFilter } from "./shared/http/http-exception.filter";
 import { HealthController } from "./health.controller";
+import { IdentityModule } from "./modules/identity.module";
 
 @Module({
   imports: [
@@ -38,18 +39,11 @@ import { HealthController } from "./health.controller";
             "req.headers.authorization",
             "req.headers.cookie",
             "res.headers.set-cookie",
+            "req.body",
+            "res.body",
           ],
         },
       }),
-    }),
-    ThrottlerModule.forRootAsync({
-      inject: [ConfigService],
-      useFactory: (config: ConfigService) => [
-        {
-          ttl: config.getOrThrow<number>("API_RATE_LIMIT_TTL_MS"),
-          limit: config.getOrThrow<number>("API_RATE_LIMIT_LIMIT"),
-        },
-      ],
     }),
     DatabaseModule,
     RedisModule,
@@ -58,11 +52,12 @@ import { HealthController } from "./health.controller";
     OutboxModule,
     SystemConfigurationModule,
     StorageModule,
+    IdentityModule,
   ],
   controllers: [HealthController],
   providers: [
     { provide: APP_FILTER, useClass: HttpExceptionFilter },
-    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_GUARD, useExisting: SharedRequestGuard },
   ],
 })
 export class AppModule {}
