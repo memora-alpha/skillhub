@@ -5,7 +5,7 @@ import { AppScreenLayout } from "@/components/AppScreenLayout";
 import { Button } from "@/components/Button";
 import { EmptyState } from "@/components/EmptyState";
 import { InfoModal } from "@/components/InfoModal";
-import { colors, fonts } from "@/constants/theme";
+import { colors, fonts, radius } from "@/constants/theme";
 import { MonthCalendar } from "../components/MonthCalendar";
 import {
   HistoryPathCard,
@@ -54,6 +54,7 @@ export function CalendarScreen() {
           <ScrollView
             style={styles.scroll}
             contentContainerStyle={styles.content}
+            showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
             <MonthCalendar
@@ -74,6 +75,7 @@ export function CalendarScreen() {
                   key={value}
                   accessibilityRole="tab"
                   accessibilityState={{ selected: tab === value }}
+                  aria-selected={tab === value}
                   onPress={() => {
                     setTab(value);
                     clearDay();
@@ -186,19 +188,18 @@ const styles = StyleSheet.create({
   tabs: {
     flexDirection: "row",
     backgroundColor: colors.sand,
-    borderRadius: 16,
+    borderRadius: radius.card,
     padding: 4,
   },
   tab: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 12,
+    borderRadius: radius.control,
     paddingVertical: 8,
   },
   activeTab: {
     backgroundColor: colors.white,
-    boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
   },
   tabText: {
     fontFamily: fonts.semibold,

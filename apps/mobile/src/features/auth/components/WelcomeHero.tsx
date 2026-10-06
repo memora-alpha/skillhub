@@ -24,7 +24,7 @@ export function WelcomeHero({
         </View>
         <Text
           accessibilityRole="header"
-          style={[styles.title, wide && { fontSize: 60, lineHeight: 75 }]}
+          style={[styles.title, wide && styles.wideTitle]}
         >
           {"Chia sẻ điều\nbạn biết.\n"}
           <Text style={styles.accent}>Học điều</Text>
@@ -69,13 +69,19 @@ const styles = StyleSheet.create({
     maxWidth: layout.maxWidth,
     alignSelf: "center",
     paddingHorizontal: layout.gutter,
-    paddingTop: 80,
-    paddingBottom: layout.sectionPadding,
-    gap: 48,
+    paddingTop: 48,
+    paddingBottom: 48,
+    gap: 32,
   },
-  wide: { flexDirection: "row", alignItems: "center" },
+  wide: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 56,
+    paddingTop: 56,
+    paddingBottom: 40,
+  },
   column: { flex: 1 },
-  copy: { gap: 24 },
+  copy: { gap: 20 },
   pill: {
     flexDirection: "row",
     alignSelf: "flex-start",
@@ -95,17 +101,18 @@ const styles = StyleSheet.create({
   },
   title: {
     includeFontPadding: false,
-    fontFamily: fonts.displayBold,
-    fontSize: 48,
-    lineHeight: 60,
+    fontFamily: fonts.bold,
+    fontSize: 34,
+    lineHeight: 42,
     color: colors.ink,
   },
+  wideTitle: { fontSize: 46, lineHeight: 56 },
   accent: { color: colors.brand },
   description: {
     includeFontPadding: false,
     fontFamily: fonts.body,
-    fontSize: 18,
-    lineHeight: 29.25,
+    fontSize: 16,
+    lineHeight: 24,
     color: colors.body,
     maxWidth: 448,
   },
@@ -120,16 +127,16 @@ const styles = StyleSheet.create({
   stats: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 24,
-    paddingTop: 8,
+    gap: 20,
+    paddingTop: 4,
     flexWrap: "wrap",
   },
   stat: { alignItems: "center" },
   value: {
     includeFontPadding: false,
-    fontFamily: fonts.displayBold,
-    fontSize: 24,
-    lineHeight: 32,
+    fontFamily: fonts.bold,
+    fontSize: 20,
+    lineHeight: 26,
     color: colors.brand,
   },
   statLabel: {

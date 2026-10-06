@@ -9,14 +9,14 @@ import {
 } from "react-native";
 import { colors, fonts } from "@/constants/theme";
 
-export function HomeCard({
+export function HomeSection({
   children,
   style,
 }: {
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
 }) {
-  return <View style={[homeStyles.card, style]}>{children}</View>;
+  return <View style={[homeStyles.section, style]}>{children}</View>;
 }
 export function SectionHeading({
   title,
@@ -52,20 +52,14 @@ export function SectionHeading({
 }
 export const homeStyles = StyleSheet.create({
   stack: { gap: 24 },
-  card: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.white,
-    borderRadius: 16,
-    padding: 20,
-  },
+  section: { gap: 0 },
   row: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
   heading: {
-    fontFamily: fonts.display,
+    fontFamily: fonts.bold,
     fontSize: 16,
     lineHeight: 25.6,
     color: colors.ink,

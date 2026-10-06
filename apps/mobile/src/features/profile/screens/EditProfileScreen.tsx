@@ -3,13 +3,12 @@ import { Keyboard, StyleSheet, Text, View } from "react-native";
 import { Redirect, useRouter } from "expo-router";
 import { Avatar } from "@/components/Avatar";
 import { Button } from "@/components/Button";
-import { Icon } from "@/components/Icon";
+import { FormNotice } from "@/components/FormNotice";
 import { Input } from "@/components/Input";
 import { InfoModal } from "@/components/InfoModal";
-import { colors, fonts } from "@/constants/theme";
 import { useMockSession } from "@/features/auth/context/MockSession";
 import { ProfileLayout } from "../components/ProfileLayout";
-import { ProfileCard, profileStyles } from "../components/ProfilePrimitives";
+import { ProfileSection, profileStyles } from "../components/ProfilePrimitives";
 import { profileDetails } from "../mocks/profile";
 
 export function EditProfileScreen() {
@@ -58,12 +57,14 @@ export function EditProfileScreen() {
       {() => (
         <View style={styles.stack}>
           {saved && (
-            <View style={styles.success} accessibilityLiveRegion="polite">
-              <Icon name="check-circle" size={16} color={colors.success} />
-              <Text style={styles.successLabel}>Hồ sơ đã được cập nhật!</Text>
-            </View>
+            <FormNotice tone="success">Hồ sơ đã được cập nhật.</FormNotice>
           )}
-          <ProfileCard>
+          {Object.keys(errors).length > 0 && (
+            <FormNotice tone="error">
+              Kiểm tra lại các trường được đánh dấu.
+            </FormNotice>
+          )}
+          <ProfileSection>
             <View style={styles.avatarRow}>
               <Avatar name={session.name} size={96} />
               <View style={styles.avatarActions}>
@@ -77,8 +78,8 @@ export function EditProfileScreen() {
                 <Text style={profileStyles.caption}>JPG, PNG. Tối đa 5MB.</Text>
               </View>
             </View>
-          </ProfileCard>
-          <ProfileCard style={{ gap: 16 }}>
+          </ProfileSection>
+          <ProfileSection style={{ gap: 16 }}>
             <Text accessibilityRole="header" style={profileStyles.heading}>
               Thông tin cơ bản
             </Text>
@@ -105,7 +106,7 @@ export function EditProfileScreen() {
               multiline
               numberOfLines={4}
               textAlignVertical="top"
-              style={{ minHeight: 100 }}
+              hint="Giới thiệu ngắn để người học hiểu bạn hơn."
             />
             <Input
               label="Website / Portfolio"
@@ -121,7 +122,7 @@ export function EditProfileScreen() {
               autoCorrect={false}
               keyboardType="url"
             />
-          </ProfileCard>
+          </ProfileSection>
           <View style={styles.buttons}>
             <Button style={{ flex: 1 }} variant="secondary" onPress={back}>
               Hủy
@@ -152,22 +153,4 @@ const styles = StyleSheet.create({
   },
   avatarActions: { gap: 8, flexShrink: 1 },
   buttons: { flexDirection: "row", gap: 12 },
-  success: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: "#A3D4B9",
-    borderRadius: 12,
-    backgroundColor: colors.successLight,
-  },
-  successLabel: {
-    flex: 1,
-    fontFamily: fonts.body,
-    fontSize: 14,
-    lineHeight: 22,
-    color: colors.success,
-    includeFontPadding: false,
-  },
 });

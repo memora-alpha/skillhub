@@ -3,8 +3,9 @@ export const colors = {
   brandHover: "#B8521E",
   brandLight: "#FEF0E8",
   brandMuted: "#F5D4C0",
+  brandSurface: "#F6D3BA",
   sage: "#3D6B5A",
-  cream: "#FAF7F2",
+  cream: "#FFFCF8",
   white: "#FFFFFF",
   ink: "#1C1410",
   inkSoft: "#3D2E24",
@@ -13,7 +14,7 @@ export const colors = {
   mutedLight: "#BCA99A",
   border: "#E2D9CE",
   borderDark: "#C8BDB0",
-  sand: "#F0EBE3",
+  sand: "#F7F1E9",
   success: "#2E7D53",
   warning: "#D4901A",
   star: "#FBBF24",
@@ -23,6 +24,10 @@ export const colors = {
   sageLight: "#EAF2EE",
   warningLight: "#FEF3DC",
   gold: "#B8860B",
+} as const;
+
+export const gradients = {
+  discoveryCard: [colors.white, "#FFF9F4", "#FCEBDD"],
 } as const;
 
 export const fonts = {
@@ -40,5 +45,11 @@ export const layout = {
   gutter: 20,
   maxWidth: 1152,
   sectionPadding: 64,
-  radius: 12,
+  radius: 6,
+} as const;
+
+export const radius = {
+  badge: 4,
+  control: layout.radius,
+  card: 8,
 } as const;

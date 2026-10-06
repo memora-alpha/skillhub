@@ -3,8 +3,25 @@
 React Native + Expo + TypeScript app alongside `apps/web`, using Expo Router.
 This workspace currently contains frontend UI and local mock interactions only.
 It makes no API calls and does not implement backend authentication.
-The welcome, authentication, home and personal profile screens follow the supplied
-Complete SkillHub Product Design Figma Make export.
+The welcome, authentication, home and personal profile content is based on the
+supplied Complete SkillHub Product Design Figma Make export. The signed-in UI
+uses task-based visual hierarchy: a highlighted upcoming session, individual
+course/request cards on home, borderless discovery cards with a light warm-orange gradient
+and conversation-style avatar/content layout, compact message rows
+and open sections. The upcoming-session highlight uses a soft orange surface
+with dark text. Calendar dates use explicit seven-cell week rows so weekday
+alignment does not depend on percentage rounding or flex wrapping. The session
+mentor avatar uses a darker orange variant to stand apart from its background.
+Control corners are 6px, all cards and dialogs use shared 8px corners,
+and small labels 4px. The signed-in
+palette uses one light warm-white background and orange as its primary accent.
+New and returning users share the same home sections; new users see initial
+values, empty activity states and a collapsible getting-started guide.
+
+Visual references: [Airbnb Trips and Profile](https://news.airbnb.com/product-releases/airbnb-2025-summer-release)
+for combining content groups with individual cards, and [Duolingo's learning path](https://blog.duolingo.com/new-duolingo-home-screen-design/)
+for prioritizing the next learning action. These inform the hierarchy rather than
+copying their branding or adding unsupported content.
 
 ## Source of truth
 
@@ -58,8 +75,8 @@ Welcome buttons navigate to `/register` and `/login`; `/home`, `/profile` and
 Registration validates name, email, password requirements, confirmation and
 consent, then opens a clearly labelled demo confirmation before showing the
 new-user home. Login accepts a valid email and any nonempty password for UI
-preview only: `new@test.com` shows the new-user home; other emails show the
-returning-user home. Google buttons offer a clearly labelled demo profile,
+preview only: `new@test.com` shows the shared home with the getting-started guide
+and initial values; other emails show sample learning activity. Google buttons offer a clearly labelled demo profile,
 without OAuth.
 
 Passwords are not saved or sent. Session data exists only in memory and resets
@@ -74,9 +91,17 @@ the profile; cancelling discards unsaved input. The home greeting and account
 avatar/name reflect saved changes. Profile stats, verification, skills and badges
 are sample values from Figma.
 
-The bottom tabs now open `/discover`, `/calendar` and `/messages` from home,
+The five main screens live in the `(tabs)` Expo Router group, with a shared
+bottom bar. Root-stack and tab transitions have no animation; horizontal back
+gestures are disabled on the root stack. Their public paths are unchanged.
+Detail screens, chat and profile editing remain in the root stack without the
+bottom bar. Cards have no decorative navigation arrows; back buttons, calendar
+month controls and the getting-started disclosure retain functional indicators.
+The bottom tabs open `/discover`, `/calendar` and `/messages` from home,
 profile and each new screen. Discovery follows the signed-in "Yêu cầu học"
-screen, with programming/language category filters and request previews.
+screen, with programming/language category filters, an in-screen request search,
+advanced Credit/session filters and request previews. Headers do not show search;
+screen-level search stays close to the content it filters.
 Calendar supports month navigation, selecting a day, upcoming/history tabs,
 local detail previews and opening discovery to find more sessions. Its dates
 remain the fixed February–April 2025 sample period from the Figma export; they
@@ -139,15 +164,17 @@ safe-area insets and narrower header button padding on small phones.
 
 ## Current file layout
 
-- `src/app/`: thin Expo Router routes and the root font/safe-area/session providers.
+- `src/app/`: thin Expo Router routes and navigation configuration.
+- `src/providers/`: app-wide composition of font loading, safe areas and feature-owned demo providers.
 - `src/features/auth/`: welcome, registration, login, validation and the local demo session.
-- `src/features/home/`: new/returning user home content and sample data.
+- `src/features/home/`: shared home content, new-user guide and sample data.
 - `src/features/profile/`: personal profile, local editing and sample profile data.
 - `src/features/discovery/`: request list, filters, request detail and sample content.
 - `src/features/calendar/`: month grid, history, session detail and sample schedule.
 - `src/features/messages/`: conversation list, chat and session-scoped local messages.
 - `src/components/`: shared native controls, header, account menu, navigation and dialogs.
 - `src/constants/`: design tokens and shared navigation labels.
+- `src/mocks/`: local demo content shared by the app shell and multiple features; feature-specific fixtures stay in their owning feature.
 - `assets/`: locally bundled app icons, welcome photograph, fonts and their licenses.
 
 The shared header is `src/components/AppHeader.tsx`; all signed-in screens reuse it.
@@ -163,7 +190,7 @@ Created (16 files):
 - `src/app/discover.tsx`, `src/app/calendar.tsx`, `src/app/messages.tsx`
 - `src/components/AppScreenLayout.tsx`, `src/components/Tag.tsx`, `src/components/EmptyState.tsx`
 - `src/features/discovery/screens/DiscoverScreen.tsx`
-- `src/features/discovery/components/LearningRequestCard.tsx`
+- `src/features/discovery/components/LearningRequestRow.tsx`
 - `src/features/discovery/mocks/requests.ts`
 - `src/features/calendar/screens/CalendarScreen.tsx`
 - `src/features/calendar/components/MonthCalendar.tsx`, `SessionCards.tsx`

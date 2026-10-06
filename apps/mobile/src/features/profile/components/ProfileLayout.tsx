@@ -9,16 +9,16 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { AccountMenu, AppHeader, AppNavigation } from "@/components/AppHeader";
+import { AccountMenu, AppHeader } from "@/components/AppHeader";
 import { InfoModal } from "@/components/InfoModal";
 import { LogoutDialog } from "@/components/LogoutDialog";
 import {
   useMockSession,
   type MockSession,
 } from "@/features/auth/context/MockSession";
+import { demoNotifications, recentMessages } from "@/mocks/app";
 import { colors } from "@/constants/theme";
 import { appRoutes } from "@/constants/navigation";
-import { demoNotifications, recentMessages } from "@/features/home/mocks/home";
 import { profileStyles } from "./ProfilePrimitives";
 import { profileDetails } from "../mocks/profile";
 
@@ -39,7 +39,11 @@ export function ProfileLayout({
   const [logout, setLogout] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const action = (label: string) => {
-    if (label === "Trang chủ") return router.dismissTo("/home");
+    if (label === "Trang chủ") {
+      if (title) router.dismissTo("/home");
+      else router.navigate("/home");
+      return;
+    }
     if (label === "Hồ sơ") {
       if (title) router.dismissTo("/profile");
       return;
@@ -58,12 +62,14 @@ export function ProfileLayout({
               .map((skill) => `${skill.name} · ${skill.level}`)
               .join("\n")
           : notice === "Thành tích"
-            ? "Huy hiệu mẫu trong thiết kế: 🏆  ⚡  🎯. Chi tiết thành tích sẽ được triển khai sau."
+            ? `Huy hiệu mẫu trong thiết kế: ${profileDetails.badges.map((badge) => badge.label).join(", ")}. Chi tiết thành tích sẽ được triển khai sau.`
             : `Màn ${notice?.toLowerCase() ?? ""} sẽ được triển khai ở bước tiếp theo. Bạn đang xem hồ sơ với dữ liệu demo.`;
   return (
     <SafeAreaView
       style={styles.screen}
-      edges={["top", "left", "right", "bottom"]}
+      edges={
+        title ? ["top", "left", "right", "bottom"] : ["top", "left", "right"]
+      }
     >
       <AppHeader
         profile={session}
@@ -79,13 +85,13 @@ export function ProfileLayout({
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
         >
           {children(action)}
         </ScrollView>
       </KeyboardAvoidingView>
-      <AppNavigation selected={title ? "" : "Hồ sơ"} onAction={action} />
       <AccountMenu
         visible={menu}
         profile={session}

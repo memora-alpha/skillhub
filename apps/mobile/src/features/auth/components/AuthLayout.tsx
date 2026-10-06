@@ -76,6 +76,7 @@ export function AuthLayout({
             styles.scrollContent,
             wide && { padding: 48 },
           ]}
+          showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
         >
@@ -104,12 +105,12 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   form: { width: "100%", maxWidth: 448 },
-  logo: { marginBottom: 32, alignSelf: "flex-start" },
-  heading: { marginBottom: 32 },
+  logo: { marginBottom: 28, alignSelf: "flex-start" },
+  heading: { marginBottom: 28 },
   title: {
-    fontFamily: fonts.display,
-    fontSize: 30,
-    lineHeight: 36,
+    fontFamily: fonts.bold,
+    fontSize: 26,
+    lineHeight: 32,
     color: colors.ink,
     includeFontPadding: false,
   },
@@ -135,10 +136,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.brand,
   },
   quote: {
-    fontFamily: fonts.display,
-    fontStyle: "italic",
-    fontSize: 24,
-    lineHeight: 33,
+    fontFamily: fonts.semibold,
+    fontSize: 22,
+    lineHeight: 30,
     color: colors.white,
     includeFontPadding: false,
   },

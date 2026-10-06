@@ -33,6 +33,7 @@ export function SessionDetailScreen() {
           <ScrollView
             style={styles.scroll}
             contentContainerStyle={styles.content}
+            showsVerticalScrollIndicator={false}
           >
             <View style={styles.card}>
               <View style={styles.heading}>
@@ -102,11 +103,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   card: {
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 16,
-    padding: 20,
+    paddingVertical: 12,
     gap: 16,
   },
   heading: {
@@ -126,9 +123,7 @@ const styles = StyleSheet.create({
   cell: {
     flexBasis: "45%",
     flexGrow: 1,
-    padding: 12,
-    borderRadius: 12,
-    backgroundColor: colors.cream,
+    paddingVertical: 12,
     gap: 2,
   },
   caption: {

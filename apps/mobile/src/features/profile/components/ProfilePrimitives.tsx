@@ -8,16 +8,16 @@ import {
   type ViewStyle,
 } from "react-native";
 import { Icon } from "@/components/Icon";
-import { colors, fonts } from "@/constants/theme";
+import { colors, fonts, radius } from "@/constants/theme";
 
-export function ProfileCard({
+export function ProfileSection({
   children,
   style,
 }: {
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
 }) {
-  return <View style={[profileStyles.card, style]}>{children}</View>;
+  return <View style={[profileStyles.section, style]}>{children}</View>;
 }
 export function ProfileHeading({
   title,
@@ -55,13 +55,7 @@ export function VerifiedBadge() {
   );
 }
 export const profileStyles = StyleSheet.create({
-  card: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.white,
-    borderRadius: 16,
-    padding: 20,
-  },
+  section: { paddingVertical: 8 },
   headingRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -70,7 +64,7 @@ export const profileStyles = StyleSheet.create({
     marginBottom: 12,
   },
   heading: {
-    fontFamily: fonts.display,
+    fontFamily: fonts.semibold,
     fontSize: 16,
     lineHeight: 25.6,
     color: colors.ink,
@@ -112,7 +106,7 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingHorizontal: 10,
     paddingVertical: 2,
-    borderRadius: 99,
+    borderRadius: radius.badge,
     backgroundColor: colors.sageLight,
   },
   badgeText: {

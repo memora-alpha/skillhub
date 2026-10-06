@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from "react-native";
-import { colors, fonts } from "@/constants/theme";
+import { colors, fonts, radius } from "@/constants/theme";
 
 const variants = {
   default: { background: colors.sand, foreground: colors.body },
@@ -24,7 +24,7 @@ export function Badge({
 const styles = StyleSheet.create({
   badge: {
     alignSelf: "flex-start",
-    borderRadius: 99,
+    borderRadius: radius.badge,
     paddingHorizontal: 10,
     paddingVertical: 2,
   },

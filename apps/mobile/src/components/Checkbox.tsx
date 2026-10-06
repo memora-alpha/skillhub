@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { colors, fonts } from "@/constants/theme";
+import { colors, fonts, radius } from "@/constants/theme";
 import { Icon } from "./Icon";
 
 export function Checkbox({
@@ -24,7 +24,7 @@ export function Checkbox({
           accessibilityLabel={label}
           accessibilityState={{ checked }}
           aria-checked={checked}
-          hitSlop={8}
+          hitSlop={10}
           onPress={() => onChange(!checked)}
           style={[styles.box, checked && styles.checked]}
         >
@@ -46,12 +46,12 @@ const styles = StyleSheet.create({
   group: { gap: 4 },
   row: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
   box: {
-    width: 16,
-    height: 16,
-    marginTop: 2,
-    borderWidth: 2,
+    width: 20,
+    height: 20,
+    marginTop: 1,
+    borderWidth: 1,
     borderColor: colors.borderDark,
-    borderRadius: 4,
+    borderRadius: radius.badge,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -65,7 +65,7 @@ const styles = StyleSheet.create({
     includeFontPadding: false,
   },
   error: {
-    marginLeft: 26,
+    marginLeft: 30,
     color: colors.error,
     fontFamily: fonts.body,
     fontSize: 12,
