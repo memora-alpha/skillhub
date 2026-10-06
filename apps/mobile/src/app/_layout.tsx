@@ -13,6 +13,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { colors } from "@/constants/theme";
 import { MockSessionProvider } from "@/features/auth/context/MockSession";
+import { MockMessagesProvider } from "@/features/messages/context/MockMessages";
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({
@@ -43,13 +44,15 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <MockSessionProvider>
-        <StatusBar style="dark" />
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            contentStyle: { backgroundColor: colors.cream },
-          }}
-        />
+        <MockMessagesProvider>
+          <StatusBar style="dark" />
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              contentStyle: { backgroundColor: colors.cream },
+            }}
+          />
+        </MockMessagesProvider>
       </MockSessionProvider>
     </SafeAreaProvider>
   );
