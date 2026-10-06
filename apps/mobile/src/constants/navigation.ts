@@ -1,4 +1,17 @@
 import type { IconName } from "@/components/Icon";
+import type { Href } from "expo-router";
+
+// Shared by the bottom tabs, header actions and feature shortcuts.
+export const appRoutes: Record<string, Href | undefined> = {
+  "Trang chủ": "/home",
+  "Khám phá": "/discover",
+  "Khám phá kỹ năng": "/discover",
+  "Tìm kỹ năng": "/discover",
+  "Yêu cầu học phù hợp": "/discover",
+  "Lịch học": "/calendar",
+  "Tin nhắn": "/messages",
+  "Hồ sơ": "/profile",
+};
 
 export const appTabs: { label: string; icon: IconName }[] = [
   { label: "Trang chủ", icon: "home" },
