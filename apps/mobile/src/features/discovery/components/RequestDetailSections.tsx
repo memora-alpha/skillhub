@@ -111,11 +111,7 @@ export function RequestDetailSections({
 }
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 16,
-    padding: 20,
+    paddingVertical: 12,
     gap: 12,
   },
   heading: { flexDirection: "row", alignItems: "center", gap: 8 },

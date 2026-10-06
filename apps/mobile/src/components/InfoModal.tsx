@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import type { ReactNode } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { colors, fonts } from "@/constants/theme";
+import { colors, fonts, radius } from "@/constants/theme";
 import { Icon } from "./Icon";
 import { Button } from "./Button";
 
@@ -66,6 +66,7 @@ export function InfoModal({
           <ScrollView
             style={styles.content}
             contentContainerStyle={{ gap: 12 }}
+            showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
             {typeof children === "string" ? (
@@ -93,7 +94,7 @@ const styles = StyleSheet.create({
     maxWidth: 448,
     maxHeight: "90%",
     backgroundColor: colors.white,
-    borderRadius: 24,
+    borderRadius: radius.card,
     borderWidth: 1,
     borderColor: colors.border,
     padding: 24,
@@ -102,7 +103,7 @@ const styles = StyleSheet.create({
   heading: { flexDirection: "row", gap: 12, alignItems: "center" },
   title: {
     flex: 1,
-    fontFamily: fonts.display,
+    fontFamily: fonts.bold,
     fontSize: 20,
     lineHeight: 28,
     color: colors.ink,

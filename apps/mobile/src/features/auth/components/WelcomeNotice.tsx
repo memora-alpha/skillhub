@@ -1,6 +1,7 @@
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { Button } from "@/components/Button";
-import { colors, fonts } from "@/constants/theme";
+import { shadows } from "@/constants/shadows";
+import { colors, fonts, radius } from "@/constants/theme";
 
 export function WelcomeNotice({
   title,
@@ -49,14 +50,14 @@ const styles = StyleSheet.create({
     width: "100%",
     maxWidth: 384,
     padding: 24,
-    borderRadius: 16,
+    borderRadius: radius.card,
     backgroundColor: colors.white,
     gap: 24,
-    boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)",
+    ...shadows.lg,
   },
   title: {
     includeFontPadding: false,
-    fontFamily: fonts.display,
+    fontFamily: fonts.bold,
     fontSize: 20,
     lineHeight: 28,
     textAlign: "center",

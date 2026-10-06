@@ -31,54 +31,59 @@ export const welcomeSteps: {
     description: "Học 1:1 qua video call, hoàn thành lộ trình cùng nhau.",
   },
 ];
-export const welcomeCategories = [
+export const welcomeCategories: {
+  title: string;
+  description: string;
+  color: string;
+  icon: IconName;
+}[] = [
   {
     title: "Lập trình Web",
     description: "React, Vue, Angular...",
     color: colors.brand,
-    icon: "💻",
+    icon: "book",
   },
   {
     title: "Lập trình Backend",
     description: "Node.js, Python, Java...",
     color: "#B8860B",
-    icon: "⚙️",
+    icon: "settings",
   },
   {
     title: "Tiếng Anh",
     description: "IELTS, TOEIC, giao tiếp...",
     color: colors.sage,
-    icon: "🇬🇧",
+    icon: "message",
   },
   {
     title: "Tiếng Nhật",
     description: "N5 → N1, JLPT...",
     color: "#6B3DB5",
-    icon: "🇯🇵",
+    icon: "message",
   },
   {
     title: "Tiếng Hàn",
     description: "TOPIK I / II...",
     color: "#C03070",
-    icon: "🇰🇷",
+    icon: "message",
   },
   {
     title: "Tiếng Trung",
     description: "HSK, giao tiếp...",
     color: "#2050B5",
-    icon: "🇨🇳",
+    icon: "message",
   },
   {
     title: "Data Science & AI",
     description: "Python, ML, TensorFlow...",
     color: "#1A7030",
-    icon: "🤖",
+    icon: "zap",
   },
   {
     title: "Tiếng Pháp / Tây Ban Nha",
     description: "DELF, DELE...",
     color: "#B85A00",
-    icon: "🌍",
+    icon: "compass",
   },
 ];
 export const welcomeBenefits = [

@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Avatar } from "@/components/Avatar";
-import { colors, fonts } from "@/constants/theme";
+import { colors, fonts, radius } from "@/constants/theme";
 import type { Conversation } from "../mocks/conversations";
 
 export function ConversationCard({
@@ -60,12 +60,10 @@ export function ConversationCard({
 const styles = StyleSheet.create({
   card: {
     padding: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderRadius: radius.card,
     backgroundColor: colors.white,
-    borderRadius: 16,
   },
-  unread: { borderColor: colors.brand, backgroundColor: "#FEF0E833" },
+  unread: { backgroundColor: colors.brandLight },
   row: { flexDirection: "row", gap: 16, alignItems: "center" },
   main: { flex: 1, minWidth: 0, gap: 6 },
   nameRow: {
@@ -96,7 +94,7 @@ const styles = StyleSheet.create({
   badge: {
     paddingHorizontal: 10,
     paddingVertical: 2,
-    borderRadius: 99,
+    borderRadius: radius.badge,
     backgroundColor: colors.sageLight,
   },
   badgeText: {

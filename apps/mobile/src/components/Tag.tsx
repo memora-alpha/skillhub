@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { colors, fonts } from "@/constants/theme";
+import { colors, fonts, radius } from "@/constants/theme";
 
 export function Tag({
   label,
@@ -33,7 +33,7 @@ export function Tag({
 const styles = StyleSheet.create({
   tag: {
     alignSelf: "flex-start",
-    borderRadius: 99,
+    borderRadius: radius.badge,
     backgroundColor: colors.sand,
     paddingHorizontal: 12,
     paddingVertical: 6,

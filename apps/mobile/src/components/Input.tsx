@@ -7,13 +7,14 @@ import {
   View,
   type TextInputProps,
 } from "react-native";
-import { colors, fonts } from "@/constants/theme";
+import { colors, fonts, radius } from "@/constants/theme";
 import { Icon } from "./Icon";
 
 type InputProps = TextInputProps & {
   label: string;
   required?: boolean;
   error?: string;
+  hint?: string;
   password?: boolean;
   ref?: Ref<TextInput>;
 };
@@ -22,6 +23,7 @@ export function Input({
   label,
   required,
   error,
+  hint,
   password,
   ref,
   ...props
@@ -37,15 +39,16 @@ export function Input({
       <View
         style={[
           styles.field,
+          focused && !error && styles.focused,
           !!error && styles.invalid,
-          focused && styles.focused,
         ]}
       >
         <TextInput
           {...props}
           ref={ref}
           accessibilityLabel={label}
-          accessibilityHint={error}
+          accessibilityHint={error ?? hint}
+          aria-invalid={!!error}
           placeholderTextColor={colors.mutedLight}
           secureTextEntry={password && !visible}
           onFocus={(event) => {
@@ -56,7 +59,12 @@ export function Input({
             setFocused(false);
             props.onBlur?.(event);
           }}
-          style={[styles.input, password && { paddingRight: 40 }, props.style]}
+          style={[
+            styles.input,
+            props.multiline && styles.textarea,
+            password && { paddingRight: 48 },
+            props.style,
+          ]}
         />
         {password && (
           <Pressable
@@ -84,11 +92,12 @@ export function Input({
           <Text style={styles.error}>{error}</Text>
         </View>
       )}
+      {!error && !!hint && <Text style={styles.hint}>{hint}</Text>}
     </View>
   );
 }
 const styles = StyleSheet.create({
-  group: { gap: 4 },
+  group: { gap: 6 },
   label: {
     fontFamily: fonts.semibold,
     fontSize: 14,
@@ -98,38 +107,45 @@ const styles = StyleSheet.create({
   },
   required: { color: colors.brand },
   field: {
+    minHeight: 48,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 12,
+    borderRadius: radius.control,
     backgroundColor: colors.white,
   },
-  focused: { borderColor: colors.brand, boxShadow: "0 0 0 2px #D4622A" },
-  invalid: { borderColor: colors.error, backgroundColor: colors.errorLight },
+  focused: { borderColor: colors.brand, backgroundColor: colors.brandLight },
+  invalid: { borderColor: colors.error },
   input: {
     fontFamily: fonts.body,
     fontSize: 14,
     lineHeight: 20,
     color: colors.ink,
     paddingHorizontal: 16,
-    paddingVertical: 10,
-    minHeight: 40,
+    paddingVertical: 12,
+    minHeight: 48,
     includeFontPadding: false,
-    outlineWidth: 0,
-    outlineStyle: "solid",
   },
+  textarea: { minHeight: 104, paddingTop: 12 },
   eye: {
     position: "absolute",
     right: 0,
     top: 0,
     bottom: 0,
-    width: 40,
+            width: 48,
     alignItems: "center",
     justifyContent: "center",
   },
-  errorRow: { flexDirection: "row", alignItems: "flex-start", gap: 4 },
+  errorRow: { flexDirection: "row", alignItems: "flex-start", gap: 6 },
   error: {
     flex: 1,
     color: colors.error,
+    fontFamily: fonts.body,
+    fontSize: 12,
+    lineHeight: 16,
+    includeFontPadding: false,
+  },
+  hint: {
+    color: colors.muted,
     fontFamily: fonts.body,
     fontSize: 12,
     lineHeight: 16,

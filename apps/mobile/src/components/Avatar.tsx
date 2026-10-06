@@ -5,10 +5,12 @@ export function Avatar({
   name,
   size = 40,
   ring = false,
+  tone = "soft",
 }: {
   name: string;
   size?: number;
   ring?: boolean;
+  tone?: "soft" | "accent";
 }) {
   const initials = name
     .trim()
@@ -21,15 +23,15 @@ export function Avatar({
     <View
       style={[
         styles.circle,
+        tone === "accent" && styles.accent,
         { width: size, height: size, borderRadius: size / 2 },
-        ring && {
-          boxShadow: `0 0 0 2px ${colors.cream}, 0 0 0 4px ${colors.brand}`,
-        },
+        ring && styles.ring,
       ]}
     >
       <Text
         style={[
           styles.initials,
+          tone === "accent" && styles.accentInitials,
           {
             fontSize: size <= 32 ? 12 : size >= 96 ? 24 : size >= 64 ? 20 : 14,
           },
@@ -46,6 +48,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  ring: {
+    borderWidth: 3,
+    borderColor: colors.brand,
+  },
+  accent: { backgroundColor: colors.brandHover },
+  accentInitials: { color: colors.white },
   initials: {
     fontFamily: fonts.displayBold,
     color: colors.brand,

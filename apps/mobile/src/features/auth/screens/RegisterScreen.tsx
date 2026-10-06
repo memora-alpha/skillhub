@@ -3,6 +3,7 @@ import { Keyboard, Text, TextInput, View } from "react-native";
 import { useRouter } from "expo-router";
 import { Button } from "@/components/Button";
 import { Checkbox } from "@/components/Checkbox";
+import { FormNotice } from "@/components/FormNotice";
 import { Input } from "@/components/Input";
 import { InfoModal } from "@/components/InfoModal";
 import { AuthLayout } from "../components/AuthLayout";
@@ -83,6 +84,11 @@ export function RegisterScreen() {
           onPress={() => setNotice("google")}
         />
         <AuthDivider label="hoặc điền thông tin" />
+        {Object.keys(errors).length > 0 && (
+          <FormNotice tone="error">
+            Kiểm tra lại các trường được đánh dấu.
+          </FormNotice>
+        )}
         <Input
           label="Họ và tên"
           required

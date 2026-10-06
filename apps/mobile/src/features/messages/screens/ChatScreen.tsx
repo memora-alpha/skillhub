@@ -92,6 +92,7 @@ function ChatConversation({ conversation }: { conversation: Conversation }) {
           ref={list}
           data={messages}
           keyExtractor={(item) => item.id}
+          showsVerticalScrollIndicator={false}
           style={styles.list}
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"

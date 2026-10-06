@@ -1,8 +1,9 @@
-import { Modal, StyleSheet, Text, View } from "react-native";
+import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "./Button";
 import { Icon } from "./Icon";
-import { colors, fonts } from "@/constants/theme";
+import { shadows } from "@/constants/shadows";
+import { colors, fonts, radius } from "@/constants/theme";
 
 export function LogoutDialog({
   visible,
@@ -14,8 +15,19 @@ export function LogoutDialog({
   onConfirm: () => void;
 }) {
   return (
-    <Modal visible={visible} animationType="fade" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+    >
       <SafeAreaView style={styles.overlay}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Đóng xác nhận đăng xuất"
+          style={StyleSheet.absoluteFill}
+          onPress={onClose}
+        />
         <View
           role="alertdialog"
           aria-modal
@@ -24,23 +36,23 @@ export function LogoutDialog({
           style={styles.card}
         >
           <View style={styles.icon}>
-            <Icon name="logout" size={28} color={colors.muted} />
+            <Icon name="logout" size={24} color={colors.error} />
           </View>
           <View>
-            <Text style={styles.title}>Đăng xuất khỏi SkillHub?</Text>
+            <Text style={styles.title}>Đăng xuất?</Text>
             <Text style={styles.subtitle}>
-              Bạn sẽ cần đăng nhập lại để tiếp tục.
+              Bạn có muốn đăng xuất khỏi tài khoản này không?
             </Text>
           </View>
-          <View style={{ gap: 8 }}>
+          <View style={styles.actions}>
+            <Button variant="ghost" onPress={onClose} style={styles.stayButton}>
+              Ở lại
+            </Button>
             <Button
-              style={{ backgroundColor: colors.error }}
+              style={styles.logoutButton}
               onPress={onConfirm}
             >
               Đăng xuất
-            </Button>
-            <Button variant="ghost" onPress={onClose}>
-              Ở lại
             </Button>
           </View>
         </View>
@@ -54,31 +66,32 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     padding: 16,
-    backgroundColor: colors.cream,
+    backgroundColor: "rgba(28, 20, 16, 0.42)",
   },
   card: {
     width: "100%",
     maxWidth: 384,
     padding: 24,
-    gap: 24,
+    gap: 20,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 16,
+    borderRadius: radius.card,
     backgroundColor: colors.white,
+    ...shadows.lg,
   },
   icon: {
-    width: 64,
-    height: 64,
-    borderRadius: 16,
-    backgroundColor: colors.sand,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#FCE8E4",
     alignSelf: "center",
     alignItems: "center",
     justifyContent: "center",
   },
   title: {
-    fontFamily: fonts.displayBold,
-    fontSize: 20,
-    lineHeight: 28,
+    fontFamily: fonts.bold,
+    fontSize: 18,
+    lineHeight: 24,
     color: colors.ink,
     textAlign: "center",
     includeFontPadding: false,
@@ -92,4 +105,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     includeFontPadding: false,
   },
+  actions: { flexDirection: "row", gap: 8 },
+  stayButton: { flex: 1 },
+  logoutButton: { flex: 1, backgroundColor: colors.error },
 });

@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Icon } from "@/components/Icon";
-import { colors, fonts } from "@/constants/theme";
+import { colors, fonts, radius } from "@/constants/theme";
 import { calendarPeriod, upcomingSessions, weekDays } from "../mocks/calendar";
 
 export function MonthCalendar({
@@ -22,6 +22,9 @@ export function MonthCalendar({
       const day = index - firstWeekDay + 1;
       return day > 0 && day <= dayCount ? day : null;
     },
+  );
+  const weeks = Array.from({ length: cells.length / 7 }, (_, index) =>
+    cells.slice(index * 7, index * 7 + 7),
   );
   return (
     <View style={styles.card}>
@@ -70,46 +73,53 @@ export function MonthCalendar({
         ))}
       </View>
       <View style={styles.grid}>
-        {cells.map((day, index) => {
-          if (day === null)
-            return <View key={`blank-${index}`} style={styles.cell} />;
-          const today =
-            month === calendarPeriod.firstMonth && day === calendarPeriod.today;
-          const hasSession =
-            month === calendarPeriod.firstMonth &&
-            upcomingSessions.some((item) => item.day === day);
-          const selected = selectedDay === day;
-          return (
-            <View key={day} style={styles.cell}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`${day}/${month + 1}/${calendarPeriod.year}${hasSession ? ", có buổi học" : ""}${today ? ", hôm nay trong bản mẫu" : ""}`}
-                accessibilityState={{ selected }}
-                onPress={() => onDayPress(day)}
-                style={[
-                  styles.day,
-                  hasSession && styles.sessionDay,
-                  today && styles.today,
-                  selected && styles.selected,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.dayText,
-                    hasSession && {
-                      color: colors.brand,
-                      fontFamily: fonts.bold,
-                    },
-                    today && { color: colors.white },
-                  ]}
-                >
-                  {day}
-                </Text>
-                {hasSession && !today && <View style={styles.dot} />}
-              </Pressable>
-            </View>
-          );
-        })}
+        {weeks.map((week, weekIndex) => (
+          <View key={weekIndex} style={styles.week}>
+            {week.map((day, index) => {
+              if (day === null)
+                return <View key={`blank-${index}`} style={styles.cell} />;
+              const today =
+                month === calendarPeriod.firstMonth &&
+                day === calendarPeriod.today;
+              const hasSession =
+                month === calendarPeriod.firstMonth &&
+                upcomingSessions.some((item) => item.day === day);
+              const selected = selectedDay === day;
+              return (
+                <View key={day} style={styles.cell}>
+                  <Pressable
+                    accessibilityRole="button"
+                    hitSlop={4}
+                    accessibilityLabel={`${day}/${month + 1}/${calendarPeriod.year}${hasSession ? ", có buổi học" : ""}${today ? ", hôm nay trong bản mẫu" : ""}`}
+                    accessibilityState={{ selected }}
+                    aria-pressed={selected}
+                    onPress={() => onDayPress(day)}
+                    style={[
+                      styles.day,
+                      hasSession && styles.sessionDay,
+                      today && styles.today,
+                      selected && styles.selected,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.dayText,
+                        hasSession && {
+                          color: colors.brand,
+                          fontFamily: fonts.bold,
+                        },
+                        today && { color: colors.white },
+                      ]}
+                    >
+                      {day}
+                    </Text>
+                    {hasSession && !today && <View style={styles.dot} />}
+                  </Pressable>
+                </View>
+              );
+            })}
+          </View>
+        ))}
       </View>
       <View style={styles.legend}>
         <View style={styles.legendItem}>
@@ -130,7 +140,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 16,
+    borderRadius: radius.card,
   },
   heading: {
     flexDirection: "row",
@@ -146,7 +156,7 @@ const styles = StyleSheet.create({
     lineHeight: 26,
     color: colors.ink,
   },
-  week: { flexDirection: "row", gap: 4 },
+  week: { flexDirection: "row" },
   weekDay: {
     flex: 1,
     fontFamily: fonts.semibold,
@@ -156,10 +166,19 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     textAlign: "center",
   },
-  grid: { flexDirection: "row", flexWrap: "wrap" },
-  cell: { width: `${100 / 7}%`, aspectRatio: 1, padding: 2 },
-  day: {
+  grid: { gap: 2 },
+  cell: {
     flex: 1,
+    minWidth: 0,
+    height: 44,
+    padding: 2,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  day: {
+    width: "100%",
+    maxWidth: 40,
+    aspectRatio: 1,
     borderRadius: 99,
     justifyContent: "center",
     alignItems: "center",
