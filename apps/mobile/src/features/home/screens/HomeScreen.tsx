@@ -6,6 +6,7 @@ import { LogoutDialog } from "@/components/LogoutDialog";
 import { Icon } from "@/components/Icon";
 import { InfoModal } from "@/components/InfoModal";
 import { colors, fonts } from "@/constants/theme";
+import { appRoutes } from "@/constants/navigation";
 import { useMockSession } from "@/features/auth/context/MockSession";
 import {
   AccountMenu,
@@ -36,6 +37,8 @@ export function HomeScreen() {
   if (!session) return <Redirect href="/login" />;
   const name = session.name.split(/\s+/).slice(-2).join(" ");
   const action = (title: string) => {
+    const route = appRoutes[title];
+    if (route && title !== "Trang chủ") return router.navigate(route);
     if (title === "Hồ sơ" || title === "Hoàn thiện hồ sơ")
       return router.push("/profile");
     if (title !== "Trang chủ") {
