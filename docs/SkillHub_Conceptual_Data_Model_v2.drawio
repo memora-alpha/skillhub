@@ -1,0 +1,317 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net" agent="Codex" version="24.7.17" type="device">
+  <diagram id="skillhub-conceptual-v2" name="SkillHub Conceptual Data Model v2">
+    <mxGraphModel dx="1600" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="3570" pageHeight="1302" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="relation-0" value="grants permissions" edge="1" parent="1" source="entity-roles" target="entity-role_permissions" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERone;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-1" value="is granted to roles" edge="1" parent="1" source="entity-permissions" target="entity-role_permissions" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERone;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=0.5;exitY=0;entryX=0.5;entryY=1;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-2" value="links providers" edge="1" parent="1" source="entity-users" target="entity-oauth_accounts" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERone;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-3" value="opens sessions" edge="1" parent="1" source="entity-users" target="entity-refresh_sessions" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERone;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-4" value="groups skills" edge="1" parent="1" source="entity-skill_categories" target="entity-skills" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERone;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-5" value="offers skills" edge="1" parent="1" source="entity-users" target="entity-sharing_skills" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERone;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-6" value="is offered as" edge="1" parent="1" source="entity-skills" target="entity-sharing_skills" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERone;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-7" value="is submitted for" edge="1" parent="1" source="entity-sharing_skills" target="entity-skill_verifications" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERone;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-8" value="contains evidence" edge="1" parent="1" source="entity-skill_verifications" target="entity-skill_evidence" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERone;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-9" value="is documented by" edge="1" parent="1" source="entity-sharing_skills" target="entity-skill_evidence" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERone;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-10" value="reviews skills" edge="1" parent="1" source="entity-users" target="entity-skill_verifications" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERone;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-11" value="completes skills" edge="1" parent="1" source="entity-users" target="entity-user_learned_skills" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERone;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-12" value="is learned by" edge="1" parent="1" source="entity-skills" target="entity-user_learned_skills" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERone;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-13" value="posts requests" edge="1" parent="1" source="entity-users" target="entity-learning_requests" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERone;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-14" value="is requested in" edge="1" parent="1" source="entity-skills" target="entity-learning_requests" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERone;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-15" value="receives proposals" edge="1" parent="1" source="entity-learning_requests" target="entity-proposals" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERzeroToOne;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-16" value="submits proposals" edge="1" parent="1" source="entity-users" target="entity-proposals" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERone;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-17" value="opens negotiation" edge="1" parent="1" source="entity-proposals" target="entity-conversations" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERone;endArrow=ERzeroToOne;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-18" value="is negotiated in" edge="1" parent="1" source="entity-learning_requests" target="entity-conversations" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERzeroToOne;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-19" value="participates in" edge="1" parent="1" source="entity-users" target="entity-conversations" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERone;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-20" value="contains messages" edge="1" parent="1" source="entity-conversations" target="entity-messages" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERone;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;dashed=1;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-21" value="sends messages" edge="1" parent="1" source="entity-users" target="entity-messages" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERzeroToOne;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;dashed=1;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-22" value="participates in" edge="1" parent="1" source="entity-users" target="entity-sessions" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERone;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-23" value="owns wallet" edge="1" parent="1" source="entity-users" target="entity-credit_wallets" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERone;endArrow=ERone;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-24" value="commits credit" edge="1" parent="1" source="entity-users" target="entity-held_credit_allocations" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERone;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-25" value="records transactions" edge="1" parent="1" source="entity-credit_wallets" target="entity-credit_transactions" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERone;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-26" value="initiates payments" edge="1" parent="1" source="entity-users" target="entity-payments" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERone;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-27" value="writes / receives" edge="1" parent="1" source="entity-users" target="entity-reviews" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERone;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-28" value="accumulates reputation" edge="1" parent="1" source="entity-users" target="entity-reputation_history" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERone;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-29" value="files cases" edge="1" parent="1" source="entity-users" target="entity-report_cases" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERone;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-30" value="may be disputed" edge="1" parent="1" source="entity-sessions" target="entity-report_cases" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERone;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=0.5;exitY=0;entryX=0.5;entryY=1;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-31" value="receives notices" edge="1" parent="1" source="entity-users" target="entity-notifications" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERone;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-32" value="performs actions" edge="1" parent="1" source="entity-users" target="entity-audit_logs" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERzeroToOne;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-33" value="one role per user" edge="1" parent="1" source="entity-roles" target="entity-users" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERone;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-34" value="receives direct/request proposal" edge="1" parent="1" source="entity-users" target="entity-proposals" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERone;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-35" value="proposed skill" edge="1" parent="1" source="entity-skills" target="entity-proposals" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERone;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-36" value="negotiates agreement" edge="1" parent="1" source="entity-conversations" target="entity-learning_paths" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERone;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-37" value="A/B participants" edge="1" parent="1" source="entity-users" target="entity-learning_paths" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERone;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-38" value="draft 0..2; lock 1 or 2" edge="1" parent="1" source="entity-learning_paths" target="entity-learning_plans" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERone;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-39" value="teacher / learner / author" edge="1" parent="1" source="entity-users" target="entity-learning_plans" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERone;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-40" value="schedules agreement" edge="1" parent="1" source="entity-learning_paths" target="entity-schedule_proposals" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERone;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=0;exitY=0.5;entryX=1;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-41" value="agreement progress" edge="1" parent="1" source="entity-learning_paths" target="entity-sessions" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERone;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-42" value="TWO_WAY 2; ONE_WAY 1 at lock" edge="1" parent="1" source="entity-learning_paths" target="entity-held_credit_allocations" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERone;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-43" value="settlement policy" edge="1" parent="1" source="entity-fee_policy_versions" target="entity-learning_paths" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERzeroToOne;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=0;exitY=0.5;entryX=1;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-44" value="reversal references original" edge="1" parent="1" source="entity-credit_transactions" target="entity-credit_transactions" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERzeroToOne;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=0.5;exitY=0;entryX=0.5;entryY=1;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-45" value="review after whole agreement" edge="1" parent="1" source="entity-learning_paths" target="entity-reviews" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERone;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=0;exitY=0.5;entryX=1;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-46" value="completed agreement source" edge="1" parent="1" source="entity-learning_paths" target="entity-user_learned_skills" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERone;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=0;exitY=0.5;entryX=1;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-47" value="grant learner skill only" edge="1" parent="1" source="entity-learning_plans" target="entity-user_learned_skills" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERone;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=0;exitY=0.5;entryX=1;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-48" value="owns distribution" edge="1" parent="1" source="entity-users" target="entity-materials" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERone;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-49" value="primary skill" edge="1" parent="1" source="entity-skills" target="entity-materials" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERone;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-50" value="purchase history" edge="1" parent="1" source="entity-materials" target="entity-material_orders" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERone;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=0;exitY=0.5;entryX=1;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-51" value="buyer / seller" edge="1" parent="1" source="entity-users" target="entity-material_orders" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERone;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-52" value="approved fee snapshot" edge="1" parent="1" source="entity-fee_policy_versions" target="entity-material_orders" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERone;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=0;exitY=0.5;entryX=1;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-53" value="user access rights" edge="1" parent="1" source="entity-materials" target="entity-material_entitlements" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERone;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=0;exitY=0.5;entryX=1;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-54" value="receives rights" edge="1" parent="1" source="entity-users" target="entity-material_entitlements" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERone;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-55" value="purchase grants access" edge="1" parent="1" source="entity-material_orders" target="entity-material_entitlements" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERzeroToOne;endArrow=ERzeroToOne;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-56" value="timed activity restrictions" edge="1" parent="1" source="entity-users" target="entity-user_restrictions" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERone;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-57" value="learning dispute context" edge="1" parent="1" source="entity-learning_paths" target="entity-report_cases" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERzeroToOne;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=0;exitY=0.5;entryX=1;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-58" value="material report context" edge="1" parent="1" source="entity-materials" target="entity-report_cases" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERzeroToOne;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=0;exitY=0.5;entryX=1;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-59" value="order dispute context" edge="1" parent="1" source="entity-material_orders" target="entity-report_cases" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERzeroToOne;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=0;exitY=0.5;entryX=1;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-60" value="teaches one learner" edge="1" parent="1" source="entity-learning_plans" target="entity-sessions" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERone;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=0;exitY=0.5;entryX=1;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-61" value="confirmed schedule items" edge="1" parent="1" source="entity-schedule_proposals" target="entity-schedule_items" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERone;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-62" value="applied schedule (history retained)" edge="1" parent="1" source="entity-schedule_items" target="entity-sessions" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERzeroToOne;endArrow=ERzeroToOne;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-63" value="atomic debit/credit/fee" edge="1" parent="1" source="entity-material_orders" target="entity-credit_transactions" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERzeroToOne;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-64" value="final settlement entries via operation" edge="1" parent="1" source="entity-learning_paths" target="entity-credit_transactions" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERzeroToOne;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="relation-65" value="plan teaches skill" edge="1" parent="1" source="entity-skills" target="entity-learning_plans" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#64748B;strokeWidth=1.4;fontColor=#20334D;fontSize=12;labelBackgroundColor=#FFFFFF;labelBorderColor=none;startArrow=ERone;endArrow=ERzeroToMany;startFill=0;endFill=0;startSize=18;endSize=18;exitPerimeter=1;entryPerimeter=1;exitX=1;exitY=0.5;entryX=0;entryY=0.5;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="entity-users" value="User" style="shape=mxgraph.er.entity;buttonStyle=rect;buttonText=;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#3F668F;strokeWidth=1.8;fontColor=#162D47;fontSize=16;fontStyle=1;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="430" y="510" width="240" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="entity-roles" value="Role" style="shape=mxgraph.er.entity;buttonStyle=rect;buttonText=;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#3F668F;strokeWidth=1.8;fontColor=#162D47;fontSize=16;fontStyle=1;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="80" y="90" width="240" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="entity-permissions" value="Permission" style="shape=mxgraph.er.entity;buttonStyle=rect;buttonText=;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#3F668F;strokeWidth=1.8;fontColor=#162D47;fontSize=16;fontStyle=1;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="80" y="370" width="240" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="entity-role_permissions" value="RolePermission" style="shape=mxgraph.er.entity;buttonStyle=rect;buttonText=;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#3F668F;strokeWidth=1.8;fontColor=#162D47;fontSize=16;fontStyle=1;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="80" y="230" width="240" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="entity-oauth_accounts" value="OAuthAccount" style="shape=mxgraph.er.entity;buttonStyle=rect;buttonText=;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#3F668F;strokeWidth=1.8;fontColor=#162D47;fontSize=16;fontStyle=1;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="80" y="840" width="240" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="entity-refresh_sessions" value="RefreshSession" style="shape=mxgraph.er.entity;buttonStyle=rect;buttonText=;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#3F668F;strokeWidth=1.8;fontColor=#162D47;fontSize=16;fontStyle=1;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="80" y="980" width="240" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="entity-skill_categories" value="SkillCategory" style="shape=mxgraph.er.entity;buttonStyle=rect;buttonText=;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#3F668F;strokeWidth=1.8;fontColor=#162D47;fontSize=16;fontStyle=1;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="780" y="90" width="240" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="entity-skills" value="Skill" style="shape=mxgraph.er.entity;buttonStyle=rect;buttonText=;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#3F668F;strokeWidth=1.8;fontColor=#162D47;fontSize=16;fontStyle=1;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="780" y="230" width="240" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="entity-sharing_skills" value="SharingSkill" style="shape=mxgraph.er.entity;buttonStyle=rect;buttonText=;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#3F668F;strokeWidth=1.8;fontColor=#162D47;fontSize=16;fontStyle=1;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="780" y="370" width="240" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="entity-skill_verifications" value="SkillVerification" style="shape=mxgraph.er.entity;buttonStyle=rect;buttonText=;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#3F668F;strokeWidth=1.8;fontColor=#162D47;fontSize=16;fontStyle=1;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="780" y="510" width="240" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="entity-skill_evidence" value="SkillEvidence" style="shape=mxgraph.er.entity;buttonStyle=rect;buttonText=;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#3F668F;strokeWidth=1.8;fontColor=#162D47;fontSize=16;fontStyle=1;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="780" y="650" width="240" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="entity-user_learned_skills" value="UserLearnedSkill" style="shape=mxgraph.er.entity;buttonStyle=rect;buttonText=;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#3F668F;strokeWidth=1.8;fontColor=#162D47;fontSize=16;fontStyle=1;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="780" y="790" width="240" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="entity-learning_requests" value="LearningRequest" style="shape=mxgraph.er.entity;buttonStyle=rect;buttonText=;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#3F668F;strokeWidth=1.8;fontColor=#162D47;fontSize=16;fontStyle=1;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="1130" y="230" width="240" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="entity-proposals" value="Proposal" style="shape=mxgraph.er.entity;buttonStyle=rect;buttonText=;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#3F668F;strokeWidth=1.8;fontColor=#162D47;fontSize=16;fontStyle=1;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="1130" y="370" width="240" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="entity-conversations" value="Conversation" style="shape=mxgraph.er.entity;buttonStyle=rect;buttonText=;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#3F668F;strokeWidth=1.8;fontColor=#162D47;fontSize=16;fontStyle=1;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="1130" y="510" width="240" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="entity-learning_paths" value="LearningPath" style="shape=mxgraph.er.entity;buttonStyle=rect;buttonText=;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#3F668F;strokeWidth=1.8;fontColor=#162D47;fontSize=16;fontStyle=1;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="2180" y="90" width="240" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="entity-learning_plans" value="LearningPlan" style="shape=mxgraph.er.entity;buttonStyle=rect;buttonText=;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#3F668F;strokeWidth=1.8;fontColor=#162D47;fontSize=16;fontStyle=1;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="2530" y="90" width="240" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="entity-schedule_proposals" value="ScheduleProposal" style="shape=mxgraph.er.entity;buttonStyle=rect;buttonText=;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#3F668F;strokeWidth=1.8;fontColor=#162D47;fontSize=16;fontStyle=1;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="1130" y="790" width="240" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="entity-schedule_items" value="ScheduleItem" style="shape=mxgraph.er.entity;buttonStyle=rect;buttonText=;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#3F668F;strokeWidth=1.8;fontColor=#162D47;fontSize=16;fontStyle=1;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="1130" y="930" width="240" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="entity-sessions" value="Session" style="shape=mxgraph.er.entity;buttonStyle=rect;buttonText=;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#3F668F;strokeWidth=1.8;fontColor=#162D47;fontSize=16;fontStyle=1;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="1480" y="790" width="240" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="entity-credit_wallets" value="CreditWallet" style="shape=mxgraph.er.entity;buttonStyle=rect;buttonText=;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#3F668F;strokeWidth=1.8;fontColor=#162D47;fontSize=16;fontStyle=1;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="1830" y="510" width="240" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="entity-held_credit_allocations" value="HeldCreditAllocation" style="shape=mxgraph.er.entity;buttonStyle=rect;buttonText=;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#3F668F;strokeWidth=1.8;fontColor=#162D47;fontSize=16;fontStyle=1;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="1830" y="930" width="240" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="entity-credit_transactions" value="CreditTransaction" style="shape=mxgraph.er.entity;buttonStyle=rect;buttonText=;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#3F668F;strokeWidth=1.8;fontColor=#162D47;fontSize=16;fontStyle=1;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="1830" y="650" width="240" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="entity-payments" value="Payment" style="shape=mxgraph.er.entity;buttonStyle=rect;buttonText=;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#3F668F;strokeWidth=1.8;fontColor=#162D47;fontSize=16;fontStyle=1;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="1830" y="230" width="240" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="entity-fee_policy_versions" value="FeePolicy" style="shape=mxgraph.er.entity;buttonStyle=rect;buttonText=;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#3F668F;strokeWidth=1.8;fontColor=#162D47;fontSize=16;fontStyle=1;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="2880" y="90" width="240" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="entity-materials" value="Material" style="shape=mxgraph.er.entity;buttonStyle=rect;buttonText=;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#3F668F;strokeWidth=1.8;fontColor=#162D47;fontSize=16;fontStyle=1;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="3230" y="90" width="240" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="entity-material_orders" value="MaterialOrder" style="shape=mxgraph.er.entity;buttonStyle=rect;buttonText=;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#3F668F;strokeWidth=1.8;fontColor=#162D47;fontSize=16;fontStyle=1;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="2180" y="230" width="240" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="entity-material_entitlements" value="MaterialEntitlement" style="shape=mxgraph.er.entity;buttonStyle=rect;buttonText=;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#3F668F;strokeWidth=1.8;fontColor=#162D47;fontSize=16;fontStyle=1;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="2530" y="230" width="240" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="entity-reviews" value="Review" style="shape=mxgraph.er.entity;buttonStyle=rect;buttonText=;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#3F668F;strokeWidth=1.8;fontColor=#162D47;fontSize=16;fontStyle=1;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="1480" y="510" width="240" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="entity-reputation_history" value="ReputationHistory" style="shape=mxgraph.er.entity;buttonStyle=rect;buttonText=;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#3F668F;strokeWidth=1.8;fontColor=#162D47;fontSize=16;fontStyle=1;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="430" y="840" width="240" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="entity-user_restrictions" value="UserRestriction" style="shape=mxgraph.er.entity;buttonStyle=rect;buttonText=;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#3F668F;strokeWidth=1.8;fontColor=#162D47;fontSize=16;fontStyle=1;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="2880" y="230" width="240" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="entity-report_cases" value="ReportDispute" style="shape=mxgraph.er.entity;buttonStyle=rect;buttonText=;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#3F668F;strokeWidth=1.8;fontColor=#162D47;fontSize=16;fontStyle=1;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="1480" y="370" width="240" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="entity-notifications" value="Notification" style="shape=mxgraph.er.entity;buttonStyle=rect;buttonText=;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#3F668F;strokeWidth=1.8;fontColor=#162D47;fontSize=16;fontStyle=1;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="430" y="700" width="240" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="entity-audit_logs" value="AuditLog" style="shape=mxgraph.er.entity;buttonStyle=rect;buttonText=;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#3F668F;strokeWidth=1.8;fontColor=#162D47;fontSize=16;fontStyle=1;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="430" y="980" width="240" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="entity-system_configurations" value="SystemConfiguration" style="shape=mxgraph.er.entity;buttonStyle=rect;buttonText=;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#3F668F;strokeWidth=1.8;fontColor=#162D47;fontSize=16;fontStyle=1;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="430" y="1120" width="240" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="entity-messages" value="Message&lt;br&gt;[MongoDB]" style="shape=mxgraph.er.entity;buttonStyle=rect;buttonText=;whiteSpace=wrap;html=1;align=center;verticalAlign=middle;fillColor=#FFFFFF;strokeColor=#3F668F;strokeWidth=1.8;fontColor=#162D47;fontSize=16;fontStyle=1;shadow=0;" vertex="1" parent="1">
+          <mxGeometry x="1130" y="650" width="240" height="62" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -1,63 +1,18 @@
-import { readFileSync, writeFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-const root = new URL("../prisma/", import.meta.url);
-const source = readFileSync(new URL("schema.prisma", root), "utf8");
-const allModels = new Set(
-  [...source.matchAll(/^model (\w+)/gm)].map((match) => match[1]),
+// Compatibility entry point for db:migrate. Identity is now maintained separately:
+// extracting it from the v3 catalog would break current repositories/migrations.
+import { readFileSync } from "node:fs";
+
+const source = readFileSync(
+  new URL("../prisma/identity.prisma", import.meta.url),
+  "utf8",
 );
-const models = new Set([
-  "SystemConfiguration",
-  "User",
-  "Profile",
-  "Role",
-  "Permission",
-  "UserRole",
-  "RolePermission",
-  "OtpChallenge",
-  "OtpIssueWindow",
-  "RefreshSession",
-  "RefreshCredential",
-  "ReauthProof",
-  "IdentityEmailDelivery",
-  "AvatarAsset",
-  "AuditLog",
-]);
-const enums = new Set([
-  "AccountStatus",
-  "RoleCode",
-  "ProfileLocale",
-  "OtpPurpose",
-  "ReauthPurpose",
-  "IdentityEmailKind",
-  "EmailDeliveryStatus",
-  "AvatarAssetStatus",
-]);
-const blocks = source.match(
-  /^(?:generator|datasource|model|enum) \w+ \{[\s\S]*?^\}/gm,
-);
-const selected = blocks
-  .filter((block) => {
-    const [, kind, name] = /^(\w+) (\w+)/.exec(block);
-    return (
-      kind === "generator" ||
-      kind === "datasource" ||
-      (kind === "model" ? models.has(name) : enums.has(name))
+for (const name of ["User", "Profile", "UserRole", "OtpChallenge"]) {
+  if (!source.includes(`model ${name} {`)) {
+    throw new Error(
+      `Identity runtime schema is missing ${name}; migrate runtime explicitly before changing deployment scope.`,
     );
-  })
-  .map((block) =>
-    block.startsWith("model User ")
-      ? block
-          .split("\n")
-          .filter((line) => {
-            const field = /^\s+\w+\s+(\w+)/.exec(line);
-            return !field || !allModels.has(field[1]) || models.has(field[1]);
-          })
-          .join("\n")
-      : block,
-  );
-writeFileSync(
-  fileURLToPath(new URL("identity.prisma", root)),
-  "// Generated from schema.prisma by scripts/write-identity-schema.mjs. Identity deployment scope only.\n" +
-    selected.join("\n\n") +
-    "\n",
+  }
+}
+console.log(
+  "Using separately maintained prisma/identity.prisma; no extraction from the v3 catalog.",
 );

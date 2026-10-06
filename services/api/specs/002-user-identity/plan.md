@@ -12,6 +12,14 @@ Scope/questions are in [spec.md](spec.md). Identity use cases, tasks, migration,
 
 ## Danh sách endpoint dự kiến
 
+Catalog update 2026-10-06: [schema.prisma](../../prisma/schema.prisma) now follows
+logical v3 with 48 PostgreSQL models/32 enums. The 45-model count above describes
+the catalog at identity implementation time. Runtime/client/migrations now use the
+separately maintained [identity.prisma](../../prisma/identity.prisma); they retain
+legacy Profile/UserRole/SQL OTP until an explicit v3 migration/repository change.
+See [catalog review and validation](../../prisma/v3-review.md). Existing identity
+validation evidence is unchanged and is not evidence of deployed v3 behavior.
+
 Giai đoạn Danh tính có **21 endpoint**, chia thành ba nhóm dưới đây. Các route dùng đường dẫn có version `/api/v1/...`. Bảng mô tả chức năng và điều kiện truy cập; request/response, validation và mã lỗi chi tiết nằm trong [HTTP contract](contracts/http.md). Đây là danh sách dự kiến để triển khai và công bố trên Swagger.
 
 ### Quy ước API version
