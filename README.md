@@ -5,17 +5,23 @@ and Turborepo. The repository root is also the workspace root.
 
 ## Repository structure
 
-| Directory                    | Purpose                              | Workspace                     |
-| ---------------------------- | ------------------------------------ | ----------------------------- |
-| `apps/web`                   | Next.js frontend                     | `web`                         |
-| `services/api`               | NestJS backend                       | `api`                         |
-| `packages/eslint-config`     | Shared ESLint configuration          | `@skillhub/eslint-config`     |
-| `packages/typescript-config` | Shared TypeScript configuration      | `@skillhub/typescript-config` |
-| `docs`                       | Product requirements and data models | —                             |
+| Directory                    | Purpose                                      | Workspace                     |
+| ---------------------------- | -------------------------------------------- | ----------------------------- |
+| `apps/web`                   | Next.js frontend                             | `web`                         |
+| `apps/mobile`                | Mobile foundation docs for future Expo app   | —                             |
+| `services/api`               | NestJS backend                               | `api`                         |
+| `packages/eslint-config`     | Shared ESLint configuration                  | `@skillhub/eslint-config`     |
+| `packages/typescript-config` | Shared TypeScript configuration              | `@skillhub/typescript-config` |
+| `docs`                       | Product requirements and data models         | —                             |
 
 Workspace-specific setup and architecture belong in each workspace's documentation.
 See the [API README](services/api/README.md) for backend dependencies, migrations
-and module design, and [AGENTS.md](AGENTS.md) for common repository guidance.
+and module design. Mobile guidance starts at [apps/mobile/README.md](apps/mobile/README.md).
+Common repository guidance lives in [AGENTS.md](AGENTS.md).
+
+The current business source of truth is
+[SRS SkillHub V1.6](docs/SRS_SkillHub_V1.6_VietLai_DongBoNghiepVu.docx).
+Older SRS documents remain in `docs/` for historical comparison.
 
 ## Getting started
 
