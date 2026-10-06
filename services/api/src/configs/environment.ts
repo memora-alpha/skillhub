@@ -1,6 +1,7 @@
 import { z } from "zod";
 
-const environmentSchema = z.object({
+// Loose: identity, SMTP and S3 keys are validated by their own providers and must survive.
+const environmentSchema = z.looseObject({
   NODE_ENV: z
     .enum(["development", "test", "production"])
     .default("development"),
