@@ -4,24 +4,28 @@ import { colors, fonts } from "@/constants/theme";
 export function BrandLogo({
   compact = false,
   size = "md",
+  markOnly = false,
 }: {
   compact?: boolean;
   size?: "sm" | "md";
+  markOnly?: boolean;
 }) {
   return (
     <View style={styles.row}>
       <View style={[styles.mark, compact && styles.smallMark]}>
         <Text style={styles.initial}>S</Text>
       </View>
-      <Text
-        style={[
-          styles.word,
-          size === "sm" && { fontSize: 18 },
-          compact && styles.smallWord,
-        ]}
-      >
-        Skill<Text style={!compact && styles.accent}>Hub</Text>
-      </Text>
+      {!markOnly && (
+        <Text
+          style={[
+            styles.word,
+            size === "sm" && { fontSize: 18 },
+            compact && styles.smallWord,
+          ]}
+        >
+          Skill<Text style={!compact && styles.accent}>Hub</Text>
+        </Text>
+      )}
     </View>
   );
 }

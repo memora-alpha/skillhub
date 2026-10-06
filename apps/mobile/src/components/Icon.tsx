@@ -37,7 +37,10 @@ export type IconName =
   | "edit"
   | "shield"
   | "award"
-  | "lock";
+  | "lock"
+  | "flag"
+  | "send"
+  | "paperclip";
 export function Icon({
   name,
   size = 18,
@@ -210,6 +213,21 @@ export function Icon({
         <>
           <Circle cx={12} cy={8} r={6} />
           <Path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11" />
+        </>
+      )}
+      {name === "send" && (
+        <>
+          <Line x1={22} y1={2} x2={11} y2={13} />
+          <Polygon points="22 2 15 22 11 13 2 9 22 2" />
+        </>
+      )}
+      {name === "paperclip" && (
+        <Path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+      )}
+      {name === "flag" && (
+        <>
+          <Path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
+          <Line x1={4} y1={22} x2={4} y2={15} />
         </>
       )}
       {name === "lock" && (

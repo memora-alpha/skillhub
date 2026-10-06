@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import type { ReactNode } from "react";
 import {
   BackHandler,
   Pressable,
@@ -22,20 +23,24 @@ export function AppHeader({
   onAccount,
   title,
   onBack,
+  rightAction,
+  backLabel = "Quay lại hồ sơ",
 }: {
   profile: MockSession;
   onAction: (title: string) => void;
   onAccount: () => void;
   title?: string;
   onBack?: () => void;
+  rightAction?: ReactNode;
+  backLabel?: string;
 }) {
   const { width } = useWindowDimensions();
   return (
-    <View style={styles.header}>
+    <View style={[styles.header, !!title && { gap: 8 }]}>
       {onBack ? (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Quay lại hồ sơ"
+          accessibilityLabel={backLabel}
           onPress={onBack}
           style={{ padding: 6 }}
         >
@@ -49,15 +54,18 @@ export function AppHeader({
           accessibilityLabel="SkillHub — trang chủ"
           onPress={() => onAction("Trang chủ")}
         >
-          <BrandLogo size="sm" />
+          <BrandLogo size="sm" markOnly={!!title && width < 480} />
         </Pressable>
       )}
       {title && (
-        <Text style={styles.title} numberOfLines={1}>
+        <Text
+          style={[styles.title, { flex: 1 }]}
+          numberOfLines={width < 400 ? 2 : 1}
+        >
           {title}
         </Text>
       )}
-      <View style={{ flex: 1 }} />
+      {!title && <View style={{ flex: 1 }} />}
       {width >= 768 && (
         <Pressable
           onPress={() => onAction("Tìm kiếm")}
@@ -70,7 +78,7 @@ export function AppHeader({
         </Pressable>
       )}
       <View style={styles.headerActions}>
-        {width < 768 && (
+        {width < 768 && !(rightAction && width < 380) && (
           <Pressable
             style={styles.iconButton}
             accessibilityRole="button"
@@ -101,6 +109,7 @@ export function AppHeader({
             <Text style={styles.countLabel}>3</Text>
           </View>
         </Pressable>
+        {rightAction}
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Mở menu tài khoản"
