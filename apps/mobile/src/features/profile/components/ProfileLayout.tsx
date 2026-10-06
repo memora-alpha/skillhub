@@ -17,6 +17,7 @@ import {
   type MockSession,
 } from "@/features/auth/context/MockSession";
 import { colors } from "@/constants/theme";
+import { appRoutes } from "@/constants/navigation";
 import { demoNotifications, recentMessages } from "@/features/home/mocks/home";
 import { profileStyles } from "./ProfilePrimitives";
 import { profileDetails } from "../mocks/profile";
@@ -43,6 +44,8 @@ export function ProfileLayout({
       if (title) router.dismissTo("/profile");
       return;
     }
+    const route = appRoutes[label];
+    if (route) return router.navigate(route);
     setNotice(label);
   };
   const body =
