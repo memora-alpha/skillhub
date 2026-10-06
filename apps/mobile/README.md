@@ -74,6 +74,34 @@ the profile; cancelling discards unsaved input. The home greeting and account
 avatar/name reflect saved changes. Profile stats, verification, skills and badges
 are sample values from Figma.
 
+The bottom tabs now open `/discover`, `/calendar` and `/messages` from home,
+profile and each new screen. Discovery follows the signed-in "Yêu cầu học"
+screen, with programming/language category filters and request previews.
+Calendar supports month navigation, selecting a day, upcoming/history tabs,
+local detail previews and opening discovery to find more sessions. Its dates
+remain the fixed February–April 2025 sample period from the Figma export; they
+are not the current device date. The initial month matches the source's March
+view, while the upcoming list shows all sample sessions until a day is selected.
+Messages lists accepted-proposal conversations and searches names, skills, post
+content and proposal IDs. Each card opens `/chat/[proposalId]`; entering chat
+marks its conversation as read in the current local demo session.
+Chat supports sending nonempty text locally, reflects the latest sent message
+and message count in the list, and keeps messages when returning to a thread.
+Changing or ending the demo session resets the message store. There is no
+realtime connection, server delivery, file upload or remote persistence.
+
+Discovery cards open `/request/[id]`, and upcoming calendar cards open
+`/session/[id]`. Both detail screens resolve the selected sample item by ID and
+handle unknown IDs with an empty state. The Figma export contains full request
+detail copy only for React; the other requests keep their own known fields and
+use marked missing-content placeholders. Session dates, partner, duration and
+Credit match the selected sample calendar entry.
+
+Proposal handling, posting requests, public profiles, choosing agreements,
+file attachments, schedule-change forms, reports and live classrooms remain
+pending. Their actions open local notices; they do not create business records
+or move Credit. Online/typing indicators are fixtures from the design.
+
 Photo selection and the linked wallet, skill management, achievements, reviews
 and settings screens remain pending. Links to unfinished screens show a local
 notice. Forgot-password, email verification/OTP, onboarding, real authentication,
@@ -115,10 +143,71 @@ safe-area insets and narrower header button padding on small phones.
 - `src/features/auth/`: welcome, registration, login, validation and the local demo session.
 - `src/features/home/`: new/returning user home content and sample data.
 - `src/features/profile/`: personal profile, local editing and sample profile data.
+- `src/features/discovery/`: request list, filters, request detail and sample content.
+- `src/features/calendar/`: month grid, history, session detail and sample schedule.
+- `src/features/messages/`: conversation list, chat and session-scoped local messages.
 - `src/components/`: shared native controls, header, account menu, navigation and dialogs.
 - `src/constants/`: design tokens and shared navigation labels.
 - `assets/`: locally bundled app icons, welcome photograph, fonts and their licenses.
 
-The shared header is `src/components/AppHeader.tsx`; home and profile reuse it.
+The shared header is `src/components/AppHeader.tsx`; all signed-in screens reuse it.
+`AppScreenLayout.tsx` supplies safe areas, navigation, notices, account menu and
+logout for the three new screens. Each feature owns its scroll container.
 Keep screen implementations in their features and route files limited to navigation.
 See `AGENTS.md` for the UI-only implementation rules.
+
+## Discovery, calendar and messages file inventory
+
+Created (16 files):
+
+- `src/app/discover.tsx`, `src/app/calendar.tsx`, `src/app/messages.tsx`
+- `src/components/AppScreenLayout.tsx`, `src/components/Tag.tsx`, `src/components/EmptyState.tsx`
+- `src/features/discovery/screens/DiscoverScreen.tsx`
+- `src/features/discovery/components/LearningRequestCard.tsx`
+- `src/features/discovery/mocks/requests.ts`
+- `src/features/calendar/screens/CalendarScreen.tsx`
+- `src/features/calendar/components/MonthCalendar.tsx`, `SessionCards.tsx`
+- `src/features/calendar/mocks/calendar.ts`
+- `src/features/messages/screens/MessagesScreen.tsx`
+- `src/features/messages/components/ConversationCard.tsx`
+- `src/features/messages/mocks/conversations.ts`
+
+Modified (6 files):
+
+- `src/components/AppHeader.tsx`: right action slot and responsive screen title.
+- `src/components/BrandLogo.tsx`: optional mark-only mode for narrow headers.
+- `src/constants/navigation.ts`: shared destinations for the implemented tabs.
+- `src/features/home/screens/HomeScreen.tsx`: navigation to the new screens.
+- `src/features/profile/components/ProfileLayout.tsx`: navigation to the new screens.
+- `README.md`: implemented scope and this inventory.
+
+No dependencies, lockfiles, web or backend code were changed in this increment.
+
+## Request detail, chat and session detail file inventory
+
+Created (16 files):
+
+- `src/app/request/[id].tsx`, `src/app/chat/[proposalId].tsx`, `src/app/session/[id].tsx`
+- `src/components/Badge.tsx`
+- `src/features/discovery/screens/RequestDetailScreen.tsx`
+- `src/features/discovery/components/RequestDetailSections.tsx`
+- `src/features/discovery/mocks/requestDetails.ts`
+- `src/features/calendar/screens/SessionDetailScreen.tsx`
+- `src/features/calendar/mocks/sessionDetails.ts`
+- `src/features/messages/screens/ChatScreen.tsx`
+- `src/features/messages/components/ChatHeader.tsx`, `ChatComposer.tsx`, `ChatActionCards.tsx`, `MessageBubble.tsx`
+- `src/features/messages/context/MockMessages.tsx`
+- `src/features/messages/mocks/chat.ts`
+
+Modified (8 files):
+
+- `src/app/_layout.tsx`: provide the in-memory message store inside the existing demo session.
+- `src/components/AppHeader.tsx`: configurable accessible back-button label.
+- `src/components/AppScreenLayout.tsx`: detail back navigation and returning to the selected tab.
+- `src/components/Icon.tsx`: source SVG paths for send, paperclip and flag.
+- `src/features/discovery/screens/DiscoverScreen.tsx`: open the selected request detail.
+- `src/features/calendar/screens/CalendarScreen.tsx`: open the selected upcoming session detail.
+- `src/features/messages/screens/MessagesScreen.tsx`: open chat and reflect local unread/message state.
+- `README.md`: scope, missing-content notes and this inventory.
+
+No dependencies, lockfiles, web or backend code were changed in this increment.
