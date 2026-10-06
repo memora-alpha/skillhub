@@ -99,7 +99,11 @@ export function WelcomeScreen() {
           </View>
         </View>
       </View>
-      <ScrollView ref={scroll} style={styles.scroll}>
+      <ScrollView
+        ref={scroll}
+        style={styles.scroll}
+        showsVerticalScrollIndicator={false}
+      >
         <WelcomeHero
           onRegister={() => openAuth("Đăng ký")}
           onExplore={() => scrollTo("categories")}

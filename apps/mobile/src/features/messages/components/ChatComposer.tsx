@@ -87,7 +87,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     color: colors.ink,
-    outlineWidth: 0,
   },
   send: {
     paddingHorizontal: 12,

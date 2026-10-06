@@ -10,10 +10,9 @@ import {
 import { useRouter } from "expo-router";
 import { Button } from "@/components/Button";
 import { Checkbox } from "@/components/Checkbox";
+import { FormNotice } from "@/components/FormNotice";
 import { Input } from "@/components/Input";
-import { Icon } from "@/components/Icon";
 import { InfoModal } from "@/components/InfoModal";
-import { colors, fonts } from "@/constants/theme";
 import { AuthLayout } from "../components/AuthLayout";
 import {
   AuthDivider,
@@ -30,7 +29,9 @@ export function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(false);
-  const [error, setError] = useState("");
+  const [errors, setErrors] = useState<{ email?: string; password?: string }>(
+    {},
+  );
   const [notice, setNotice] = useState<"google" | "forgot" | null>(null);
   const passwordInput = useRef<TextInput>(null);
   const enter = (google = false) => {
@@ -43,10 +44,12 @@ export function LoginScreen() {
     router.replace("/home");
   };
   const submit = () => {
-    if (!email.trim() || !password)
-      return setError("Vui lòng nhập email và mật khẩu.");
-    if (!isEmail(email)) return setError("Email chưa đúng định dạng.");
-    setError("");
+    const next: typeof errors = {};
+    if (!email.trim()) next.email = "Vui lòng nhập email.";
+    else if (!isEmail(email)) next.email = "Email chưa đúng định dạng.";
+    if (!password) next.password = "Vui lòng nhập mật khẩu.";
+    setErrors(next);
+    if (Object.keys(next).length) return;
     enter();
   };
   return (
@@ -60,11 +63,10 @@ export function LoginScreen() {
           onPress={() => setNotice("google")}
         />
         <AuthDivider label="hoặc đăng nhập bằng email" />
-        {!!error && (
-          <View style={styles.alert} accessibilityLiveRegion="polite">
-            <Icon name="alert" size={16} color="#8A0000" />
-            <Text style={styles.error}>{error}</Text>
-          </View>
+        {Object.keys(errors).length > 0 && (
+          <FormNotice tone="error">
+            Kiểm tra lại các trường được đánh dấu.
+          </FormNotice>
         )}
         <Input
           label="Email"
@@ -73,8 +75,9 @@ export function LoginScreen() {
           value={email}
           onChangeText={(value) => {
             setEmail(value);
-            setError("");
+            setErrors((current) => ({ ...current, email: undefined }));
           }}
+          error={errors.email}
           keyboardType="email-address"
           autoFocus
           autoCapitalize="none"
@@ -93,8 +96,9 @@ export function LoginScreen() {
           value={password}
           onChangeText={(value) => {
             setPassword(value);
-            setError("");
+            setErrors((current) => ({ ...current, password: undefined }));
           }}
+          error={errors.password}
           autoCapitalize="none"
           autoCorrect={false}
           autoComplete="current-password"
@@ -160,23 +164,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
     flexWrap: "wrap",
-  },
-  alert: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 10,
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#F0A0A0",
-    backgroundColor: colors.errorLight,
-  },
-  error: {
-    flex: 1,
-    fontFamily: fonts.body,
-    fontSize: 14,
-    lineHeight: 22,
-    color: "#8A0000",
-    includeFontPadding: false,
   },
 });

@@ -12,7 +12,7 @@ import { AppScreenLayout } from "@/components/AppScreenLayout";
 import { Button } from "@/components/Button";
 import { EmptyState } from "@/components/EmptyState";
 import { Icon } from "@/components/Icon";
-import { colors, fonts } from "@/constants/theme";
+import { colors, fonts, radius } from "@/constants/theme";
 import { ConversationCard } from "../components/ConversationCard";
 import { useMockMessages } from "../context/MockMessages";
 import { initialThreads } from "../mocks/chat";
@@ -49,6 +49,7 @@ export function MessagesScreen() {
           <FlatList
             data={filtered}
             keyExtractor={(item) => item.proposal}
+            showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag"
             style={styles.list}
@@ -177,7 +178,6 @@ const styles = StyleSheet.create({
     color: colors.ink,
     fontSize: 14,
     lineHeight: 20,
-    outlineWidth: 0,
   },
   hint: {
     flexDirection: "row",
@@ -187,7 +187,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#BFDBFE",
     backgroundColor: "#EFF6FF",
-    borderRadius: 12,
+    borderRadius: radius.card,
     marginTop: 20,
   },
   hintText: {

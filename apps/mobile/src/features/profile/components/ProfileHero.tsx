@@ -1,8 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import { Avatar } from "@/components/Avatar";
 import { Icon } from "@/components/Icon";
-import { colors, fonts } from "@/constants/theme";
+import { colors, fonts, radius } from "@/constants/theme";
 import { VerifiedBadge } from "./ProfilePrimitives";
 import { profileDetails } from "../mocks/profile";
 
@@ -14,24 +13,16 @@ export function ProfileHero({
   onEdit: () => void;
 }) {
   return (
-    <LinearGradient
-      colors={[colors.ink, colors.inkSoft]}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={styles.hero}
-    >
+    <View style={styles.hero}>
       <View style={styles.top}>
-        <Avatar name={name} size={96} ring />
+        <Avatar name={name} size={64} />
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Chỉnh sửa hồ sơ"
           onPress={onEdit}
-          style={({ pressed }) => [
-            styles.edit,
-            pressed && { backgroundColor: "#FFFFFF33" },
-          ]}
+          style={({ pressed }) => [styles.edit, pressed && { opacity: 0.7 }]}
         >
-          <Icon name="edit" size={14} color={colors.white} />
+          <Icon name="edit" size={14} color={colors.ink} />
           <Text style={styles.editLabel}>Chỉnh sửa</Text>
         </Pressable>
       </View>
@@ -44,16 +35,12 @@ export function ProfileHero({
         </View>
         <Text style={styles.tagline}>{profileDetails.tagline}</Text>
       </View>
-    </LinearGradient>
+    </View>
   );
 }
 const styles = StyleSheet.create({
   hero: {
-    marginHorizontal: -16,
-    marginTop: -20,
-    paddingHorizontal: 16,
-    paddingTop: 20,
-    paddingBottom: 64,
+    paddingVertical: 8,
   },
   top: {
     flexDirection: "row",
@@ -68,16 +55,14 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#FFFFFF33",
-    backgroundColor: "#FFFFFF1A",
+    borderRadius: radius.control,
+    backgroundColor: colors.white,
   },
   editLabel: {
     fontFamily: fonts.semibold,
     fontSize: 14,
     lineHeight: 20,
-    color: colors.white,
+    color: colors.ink,
     includeFontPadding: false,
   },
   info: { marginTop: 16 },
@@ -92,7 +77,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.displayBold,
     fontSize: 24,
     lineHeight: 32,
-    color: colors.white,
+    color: colors.ink,
     includeFontPadding: false,
   },
   tagline: {
@@ -100,7 +85,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     fontSize: 14,
     lineHeight: 20,
-    color: "#FFFFFFB3",
+    color: colors.muted,
     includeFontPadding: false,
   },
 });

@@ -6,7 +6,7 @@ import { Badge } from "@/components/Badge";
 import { Button } from "@/components/Button";
 import { EmptyState } from "@/components/EmptyState";
 import { Icon } from "@/components/Icon";
-import { colors, fonts } from "@/constants/theme";
+import { colors, fonts, radius } from "@/constants/theme";
 import { RequestDetailSections } from "../components/RequestDetailSections";
 import { learningRequests } from "../mocks/requests";
 import { requestDetails } from "../mocks/requestDetails";
@@ -35,6 +35,7 @@ export function RequestDetailScreen() {
           <ScrollView
             style={styles.scroll}
             contentContainerStyle={styles.content}
+            showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
             <View style={styles.requestHeader}>
@@ -100,7 +101,6 @@ export function RequestDetailScreen() {
                   )}
                 </View>
               </View>
-              <Icon name="chevron" size={16} color={colors.mutedLight} />
             </Pressable>
             <View style={styles.actions}>
               <Button
@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
   },
   budget: {
     padding: 16,
-    borderRadius: 16,
+    borderRadius: radius.card,
     backgroundColor: colors.brandLight,
     flexDirection: "row",
     alignItems: "center",
@@ -200,7 +200,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.white,
-    borderRadius: 16,
+    borderRadius: radius.card,
     padding: 16,
   },
   posterMeta: {

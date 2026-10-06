@@ -2,7 +2,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { Badge } from "@/components/Badge";
 import { Button } from "@/components/Button";
 import { Icon } from "@/components/Icon";
-import { colors, fonts } from "@/constants/theme";
+import { colors, fonts, radius } from "@/constants/theme";
 import { chatCopy } from "../mocks/chat";
 
 export function AcceptedProposalNotice() {
@@ -42,7 +42,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.sageLight,
     borderWidth: 1,
     borderColor: "#C9DDD3",
-    borderRadius: 12,
+    borderRadius: radius.card,
     padding: 12,
     flexDirection: "row",
     alignItems: "flex-start",
@@ -67,7 +67,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: "#D8CCBE",
-    borderRadius: 16,
+    borderRadius: radius.card,
     overflow: "hidden",
   },
   accent: { height: 4, backgroundColor: colors.brand },

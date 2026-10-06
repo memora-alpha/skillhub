@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import type { ReactNode } from "react";
 import {
   BackHandler,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -13,8 +14,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BrandLogo } from "@/components/BrandLogo";
 import { Avatar } from "@/components/Avatar";
 import { Icon } from "@/components/Icon";
-import { colors, fonts } from "@/constants/theme";
-import type { MockSession } from "@/features/auth/context/MockSession";
+import { colors, fonts, radius } from "@/constants/theme";
 import { accountItems, appTabs } from "@/constants/navigation";
 
 export function AppHeader({
@@ -26,7 +26,7 @@ export function AppHeader({
   rightAction,
   backLabel = "Quay lại hồ sơ",
 }: {
-  profile: MockSession;
+  profile: { name: string };
   onAction: (title: string) => void;
   onAccount: () => void;
   title?: string;
@@ -66,28 +66,7 @@ export function AppHeader({
         </Text>
       )}
       {!title && <View style={{ flex: 1 }} />}
-      {width >= 768 && (
-        <Pressable
-          onPress={() => onAction("Tìm kiếm")}
-          accessibilityRole="button"
-          accessibilityLabel="Tìm kỹ năng, người dùng"
-          style={styles.search}
-        >
-          <Icon name="search" color={colors.muted} size={16} />
-          <Text style={styles.searchText}>Tìm kỹ năng, người dùng...</Text>
-        </Pressable>
-      )}
       <View style={styles.headerActions}>
-        {width < 768 && !(rightAction && width < 380) && (
-          <Pressable
-            style={styles.iconButton}
-            accessibilityRole="button"
-            accessibilityLabel="Tìm kiếm"
-            onPress={() => onAction("Tìm kiếm")}
-          >
-            <Icon name="search" size={18} color={colors.muted} />
-          </Pressable>
-        )}
         {width >= 640 && (
           <Pressable
             style={styles.iconButton}
@@ -166,14 +145,14 @@ export function AccountMenu({
   onLogout,
 }: {
   visible: boolean;
-  profile: MockSession;
+  profile: { name: string; email: string };
   onClose: () => void;
   onAction: (title: string) => void;
   onLogout: () => void;
 }) {
   const insets = useSafeAreaInsets();
   useEffect(() => {
-    if (!visible) return;
+    if (!visible || Platform.OS !== "android") return;
     const subscription = BackHandler.addEventListener(
       "hardwareBackPress",
       () => {
@@ -282,7 +261,7 @@ const styles = StyleSheet.create({
     includeFontPadding: false,
   },
   headerActions: { flexDirection: "row", alignItems: "center", gap: 4 },
-  iconButton: { padding: 8, borderRadius: 12 },
+  iconButton: { padding: 8, borderRadius: radius.control },
   count: {
     position: "absolute",
     right: 4,
@@ -299,24 +278,6 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontSize: 9,
     lineHeight: 12,
-    includeFontPadding: false,
-  },
-  search: {
-    width: 256,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: colors.cream,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    flexDirection: "row",
-    gap: 8,
-    alignItems: "center",
-  },
-  searchText: {
-    fontFamily: fonts.body,
-    fontSize: 14,
-    color: colors.mutedLight,
     includeFontPadding: false,
   },
   nav: {
@@ -344,12 +305,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.white,
-    borderRadius: 16,
+    borderRadius: radius.card,
     shadowColor: colors.ink,
-    shadowOpacity: 0.2,
-    shadowOffset: { width: 0, height: 10 },
-    shadowRadius: 24,
-    elevation: 12,
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 8,
+    elevation: 4,
   },
   menuOverlay: { zIndex: 50, elevation: 20 },
   profile: {
@@ -396,7 +357,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.cream,
-    borderRadius: 12,
+    borderRadius: radius.control,
     paddingHorizontal: 12,
     flexDirection: "row",
     alignItems: "center",

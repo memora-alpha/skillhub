@@ -9,7 +9,7 @@ import {
 import { Button } from "@/components/Button";
 import { Icon } from "@/components/Icon";
 import { BrandLogo } from "@/components/BrandLogo";
-import { colors, fonts, layout } from "@/constants/theme";
+import { colors, fonts, layout, radius } from "@/constants/theme";
 import {
   welcomeBenefits,
   welcomeCategories,
@@ -109,7 +109,7 @@ export function WelcomeSections({
                 pressed && { opacity: 0.7 },
               ]}
             >
-              <Text style={styles.emoji}>{category.icon}</Text>
+              <Icon name={category.icon} color={category.color} size={24} />
               <Text style={styles.categoryTitle}>{category.title}</Text>
               <Text
                 style={[styles.categoryDescription, { color: category.color }]}
@@ -251,7 +251,7 @@ export function WelcomeSections({
             ))}
           </View>
           <Text style={styles.copyright}>
-            © 2024 SkillHub. Làm với ❤️ tại Việt Nam.
+            © 2024 SkillHub. Phát triển tại Việt Nam.
           </Text>
         </View>
       </View>
@@ -268,9 +268,9 @@ const styles = StyleSheet.create({
   section: { paddingVertical: layout.sectionPadding },
   heading: {
     includeFontPadding: false,
-    fontFamily: fonts.displayBold,
-    fontSize: 30,
-    lineHeight: 36,
+    fontFamily: fonts.bold,
+    fontSize: 26,
+    lineHeight: 32,
     color: colors.ink,
   },
   subtitle: {
@@ -321,15 +321,15 @@ const styles = StyleSheet.create({
   },
   number: {
     includeFontPadding: false,
-    fontFamily: fonts.displayBold,
+    fontFamily: fonts.bold,
     fontSize: 12,
     color: colors.white,
   },
   stepTitle: {
     includeFontPadding: false,
-    fontFamily: fonts.display,
-    fontSize: 20,
-    lineHeight: 28,
+    fontFamily: fonts.bold,
+    fontSize: 18,
+    lineHeight: 24,
     color: colors.ink,
   },
   categoryHeading: {
@@ -352,16 +352,16 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 16,
+    borderRadius: radius.card,
     padding: 20,
   },
-  emoji: { fontSize: 24, lineHeight: 32, marginBottom: 12 },
   categoryTitle: {
     includeFontPadding: false,
     fontFamily: fonts.semibold,
     fontSize: 14,
     lineHeight: 17.5,
     color: colors.ink,
+    marginTop: 12,
   },
   categoryDescription: {
     includeFontPadding: false,
@@ -401,7 +401,7 @@ const styles = StyleSheet.create({
   },
   wallet: {
     padding: 32,
-    borderRadius: 24,
+    borderRadius: radius.card,
     backgroundColor: colors.inkSoft,
     gap: 16,
     alignSelf: "stretch",
@@ -413,7 +413,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     backgroundColor: colors.ink,
     padding: 16,
-    borderRadius: 12,
+    borderRadius: radius.card,
     gap: 8,
   },
   walletLabel: {
@@ -425,7 +425,7 @@ const styles = StyleSheet.create({
   },
   amount: {
     includeFontPadding: false,
-    fontFamily: fonts.displayBold,
+    fontFamily: fonts.bold,
     color: colors.brand,
     fontSize: 24,
     lineHeight: 32,
@@ -445,7 +445,7 @@ const styles = StyleSheet.create({
   reviews: { gap: 24 },
   review: {
     padding: 24,
-    borderRadius: 16,
+    borderRadius: radius.card,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.white,
@@ -480,9 +480,9 @@ const styles = StyleSheet.create({
   cta: { maxWidth: 672, gap: 24, alignItems: "center" },
   ctaHeading: {
     includeFontPadding: false,
-    fontFamily: fonts.displayBold,
-    fontSize: 36,
-    lineHeight: 40,
+    fontFamily: fonts.bold,
+    fontSize: 26,
+    lineHeight: 32,
     color: colors.white,
     textAlign: "center",
   },

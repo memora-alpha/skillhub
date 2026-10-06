@@ -103,12 +103,13 @@ export const authStyles = StyleSheet.create({
 });
 const styles = StyleSheet.create({
   google: {
+    minHeight: 48,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 12,
     paddingHorizontal: 20,
-    paddingVertical: 10,
+    paddingVertical: 12,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.white,

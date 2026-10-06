@@ -5,14 +5,16 @@ import {
   View,
   useWindowDimensions,
 } from "react-native";
+import { useState } from "react";
 import { Redirect, useRouter } from "expo-router";
 import { Icon } from "@/components/Icon";
-import { colors, fonts } from "@/constants/theme";
+import { shadows } from "@/constants/shadows";
+import { colors, fonts, radius } from "@/constants/theme";
 import { useMockSession } from "@/features/auth/context/MockSession";
 import { ProfileLayout } from "../components/ProfileLayout";
 import { ProfileHero } from "../components/ProfileHero";
 import {
-  ProfileCard,
+  ProfileSection,
   ProfileHeading,
   VerifiedBadge,
   profileStyles,
@@ -23,6 +25,7 @@ export function ProfileScreen() {
   const { session } = useMockSession();
   const router = useRouter();
   const compact = useWindowDimensions().width < 360;
+  const [hoveredAction, setHoveredAction] = useState<string | null>(null);
   if (!session) return <Redirect href="/login" />;
   return (
     <ProfileLayout session={session}>
@@ -34,13 +37,13 @@ export function ProfileScreen() {
           />
           <View style={styles.stats}>
             {profileDetails.stats.map((stat) => (
-              <ProfileCard
+              <View
                 key={stat.label}
                 style={[styles.stat, compact && { paddingHorizontal: 6 }]}
               >
                 <Text style={styles.statValue}>{stat.value}</Text>
                 <Text style={styles.statLabel}>{stat.label}</Text>
-              </ProfileCard>
+              </View>
             ))}
           </View>
           <View style={styles.actions}>
@@ -49,9 +52,12 @@ export function ProfileScreen() {
                 accessibilityRole="button"
                 key={action.label}
                 onPress={() => open(action.label)}
+                onHoverIn={() => setHoveredAction(action.label)}
+                onHoverOut={() => setHoveredAction(null)}
                 style={({ pressed }) => [
                   styles.action,
-                  pressed && { opacity: 0.7 },
+                  (pressed || hoveredAction === action.label) &&
+                    styles.actionRaised,
                 ]}
               >
                 <View style={styles.actionIcon}>
@@ -65,11 +71,10 @@ export function ProfileScreen() {
                 <Text style={[profileStyles.label, { flex: 1 }]}>
                   {action.label}
                 </Text>
-                <Icon name="chevron" size={14} color={colors.mutedLight} />
               </Pressable>
             ))}
           </View>
-          <ProfileCard>
+          <ProfileSection>
             <Text
               accessibilityRole="header"
               style={[profileStyles.heading, { marginBottom: 8 }]}
@@ -79,23 +84,16 @@ export function ProfileScreen() {
             <Text style={profileStyles.body}>
               {session.bio ?? profileDetails.bio}
             </Text>
-          </ProfileCard>
-          <ProfileCard>
+          </ProfileSection>
+          <ProfileSection>
             <ProfileHeading
               title="Kỹ năng chia sẻ"
               action="Quản lý"
               onPress={() => open("Kỹ năng")}
             />
             <View style={{ gap: 8 }}>
-              {profileDetails.sharingSkills.map((skill, index) => (
-                <View
-                  key={skill.name}
-                  style={[
-                    styles.skill,
-                    index < profileDetails.sharingSkills.length - 1 &&
-                      styles.skillBorder,
-                  ]}
-                >
+              {profileDetails.sharingSkills.map((skill) => (
+                <View key={skill.name} style={styles.skill}>
                   <View style={styles.skillName}>
                     <Text style={profileStyles.label}>{skill.name}</Text>
                     {skill.verified && <VerifiedBadge />}
@@ -106,8 +104,8 @@ export function ProfileScreen() {
                 </View>
               ))}
             </View>
-          </ProfileCard>
-          <ProfileCard>
+          </ProfileSection>
+          <ProfileSection>
             <ProfileHeading
               title="Huy hiệu"
               action="Tất cả"
@@ -120,7 +118,7 @@ export function ProfileScreen() {
                   accessibilityLabel={badge.label}
                   style={styles.badge}
                 >
-                  <Text style={{ fontSize: 24 }}>{badge.symbol}</Text>
+                  <Icon name={badge.icon} size={24} color={badge.color} />
                 </View>
               ))}
               <Pressable
@@ -135,7 +133,7 @@ export function ProfileScreen() {
                 <Icon name="plus" size={20} color={colors.muted} />
               </Pressable>
             </View>
-          </ProfileCard>
+          </ProfileSection>
           <Pressable
             accessibilityRole="button"
             onPress={() => open("Thông tin riêng tư")}
@@ -150,7 +148,6 @@ export function ProfileScreen() {
                 Email, số điện thoại, ngày sinh
               </Text>
             </View>
-            <Icon name="chevron" size={14} color={colors.mutedLight} />
           </Pressable>
         </View>
       )}
@@ -159,16 +156,18 @@ export function ProfileScreen() {
 }
 const styles = StyleSheet.create({
   stack: { gap: 16 },
-  stats: { flexDirection: "row", gap: 8, marginTop: -32, zIndex: 1 },
+  stats: {
+    flexDirection: "row",
+    paddingVertical: 8,
+  },
   stat: {
     flex: 1,
     minWidth: 0,
     padding: 12,
     alignItems: "center",
-    boxShadow: "0 4px 6px -1px #0000001A, 0 2px 4px -2px #0000001A",
   },
   statValue: {
-    fontFamily: fonts.displayBold,
+    fontFamily: fonts.bold,
     fontSize: 18,
     lineHeight: 28,
     color: colors.brand,
@@ -181,23 +180,29 @@ const styles = StyleSheet.create({
     color: colors.muted,
     includeFontPadding: false,
   },
-  actions: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
+  actions: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   action: {
     flexBasis: "45%",
     flexGrow: 1,
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
+    gap: 10,
+    padding: 10,
+    minHeight: 56,
+    borderRadius: radius.control,
     backgroundColor: colors.white,
-    borderRadius: 16,
+    ...shadows.sm,
+    boxShadow: "0 1px 3px rgba(28, 20, 16, 0.06)",
+  },
+  actionRaised: {
+    ...shadows.md,
+    boxShadow: "0 6px 14px rgba(28, 20, 16, 0.12)",
+    transform: [{ translateY: -1 }],
   },
   actionIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
+    width: 32,
+    height: 32,
+    borderRadius: radius.control,
     backgroundColor: colors.cream,
     justifyContent: "center",
     alignItems: "center",
@@ -210,7 +215,6 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     gap: 8,
   },
-  skillBorder: { borderBottomWidth: 1, borderColor: colors.sand },
   skillName: {
     flexDirection: "row",
     alignItems: "center",
@@ -221,7 +225,7 @@ const styles = StyleSheet.create({
   level: {
     paddingHorizontal: 10,
     paddingVertical: 2,
-    borderRadius: 99,
+    borderRadius: radius.badge,
     backgroundColor: colors.sand,
   },
   levelText: {
@@ -235,7 +239,7 @@ const styles = StyleSheet.create({
   badge: {
     width: 56,
     height: 56,
-    borderRadius: 16,
+    borderRadius: radius.card,
     backgroundColor: "#FFFBEB",
     borderWidth: 1,
     borderColor: "#FDE68A",
@@ -246,10 +250,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.white,
-    borderRadius: 16,
+    paddingVertical: 16,
   },
 });

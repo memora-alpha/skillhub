@@ -8,14 +8,14 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Redirect, useRouter, type Href } from "expo-router";
-import { AccountMenu, AppHeader, AppNavigation, HomeSearch } from "./AppHeader";
+import { AccountMenu, AppHeader, HomeSearch } from "./AppHeader";
 import { InfoModal } from "./InfoModal";
 import { LogoutDialog } from "./LogoutDialog";
 import { Tag } from "./Tag";
+import { demoNotifications, popularSkills } from "@/mocks/app";
 import { appRoutes } from "@/constants/navigation";
 import { colors, fonts } from "@/constants/theme";
 import { useMockSession } from "@/features/auth/context/MockSession";
-import { demoNotifications, popularSkills } from "@/features/home/mocks/home";
 
 // The feature owns its scroll container (FlatList or ScrollView).
 export function AppScreenLayout({
@@ -51,7 +51,9 @@ export function AppScreenLayout({
   };
   return (
     <SafeAreaView
-      edges={["top", "left", "right", "bottom"]}
+      edges={
+        back ? ["top", "left", "right", "bottom"] : ["top", "left", "right"]
+      }
       style={styles.screen}
     >
       <AppHeader
@@ -71,7 +73,6 @@ export function AppScreenLayout({
       >
         {children(action)}
       </KeyboardAvoidingView>
-      <AppNavigation selected={selected} onAction={action} />
       <AccountMenu
         visible={menu}
         profile={session}

@@ -13,12 +13,12 @@ export const appRoutes: Record<string, Href | undefined> = {
   "Hồ sơ": "/profile",
 };
 
-export const appTabs: { label: string; icon: IconName }[] = [
-  { label: "Trang chủ", icon: "home" },
-  { label: "Khám phá", icon: "compass" },
-  { label: "Lịch học", icon: "calendar" },
-  { label: "Tin nhắn", icon: "message" },
-  { label: "Hồ sơ", icon: "user" },
+export const appTabs: { name: string; label: string; icon: IconName }[] = [
+  { name: "home", label: "Trang chủ", icon: "home" },
+  { name: "discover", label: "Khám phá", icon: "compass" },
+  { name: "calendar", label: "Lịch học", icon: "calendar" },
+  { name: "messages", label: "Tin nhắn", icon: "message" },
+  { name: "profile", label: "Hồ sơ", icon: "user" },
 ];
 export const accountItems: { label: string; icon: IconName }[] = [
   { label: "Hồ sơ", icon: "user" },

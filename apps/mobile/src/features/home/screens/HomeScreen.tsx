@@ -5,26 +5,18 @@ import { Redirect, useRouter } from "expo-router";
 import { LogoutDialog } from "@/components/LogoutDialog";
 import { Icon } from "@/components/Icon";
 import { InfoModal } from "@/components/InfoModal";
+import { demoNotifications, popularSkills, recentMessages } from "@/mocks/app";
 import { colors, fonts } from "@/constants/theme";
 import { appRoutes } from "@/constants/navigation";
 import { useMockSession } from "@/features/auth/context/MockSession";
-import {
-  AccountMenu,
-  AppHeader,
-  AppNavigation,
-  HomeSearch,
-} from "@/components/AppHeader";
-import { NewHomeContent } from "../components/NewHomeContent";
-import { ReturningHomeContent } from "../components/ReturningHomeContent";
+import { AccountMenu, AppHeader, HomeSearch } from "@/components/AppHeader";
+import { HomeContent } from "../components/HomeContent";
 import { homeStyles } from "../components/HomePrimitives";
 import {
   achievement,
-  demoNotifications,
   learningPath,
   matchingRequests,
   nextSession,
-  popularSkills,
-  recentMessages,
 } from "../mocks/home";
 
 export function HomeScreen() {
@@ -55,7 +47,7 @@ export function HomeScreen() {
       : notice === "Lộ trình đang học"
         ? `${learningPath.title}\nĐã học ${learningPath.completed}/${learningPath.total} buổi.\nBuổi tiếp: ${learningPath.next}`
         : notice === "Tiến trình huy hiệu"
-          ? `${achievement.title}\n${achievement.description} · ${achievement.completed}/${achievement.total} buổi`
+          ? `${achievement.title}\n${achievement.description} · ${session.isNew ? 0 : achievement.completed}/${achievement.total} buổi`
           : notice === "Hồ sơ" || notice === "Hoàn thiện hồ sơ"
             ? `${session.name}\n${session.email}\n\nĐây là hồ sơ demo trong phiên hiện tại.`
             : notice === "Ví Credit"
@@ -66,10 +58,7 @@ export function HomeScreen() {
                   ? `${message.name}\n${message.message}\n${message.time}\n\nTrò chuyện trực tiếp sẽ được triển khai sau.`
                   : `Màn ${notice?.toLowerCase()} sẽ được triển khai ở bước tiếp theo. Hiện tại bạn đang xem trang chủ với dữ liệu mẫu.`;
   return (
-    <SafeAreaView
-      style={styles.screen}
-      edges={["top", "left", "right", "bottom"]}
-    >
+    <SafeAreaView style={styles.screen} edges={["top", "left", "right"]}>
       <AppHeader
         profile={session}
         onAction={action}
@@ -78,15 +67,11 @@ export function HomeScreen() {
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {session.isNew ? (
-          <NewHomeContent name={name} onAction={action} />
-        ) : (
-          <ReturningHomeContent name={name} onAction={action} />
-        )}
+        <HomeContent name={name} isNew={session.isNew} onAction={action} />
       </ScrollView>
-      <AppNavigation onAction={action} />
       <AccountMenu
         visible={menu}
         profile={session}
@@ -167,7 +152,7 @@ const styles = StyleSheet.create({
   scroll: { flex: 1, backgroundColor: colors.cream },
   content: {
     width: "100%",
-    maxWidth: 1280,
+    maxWidth: 1040,
     alignSelf: "center",
     paddingHorizontal: 16,
     paddingVertical: 20,

@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Icon } from "@/components/Icon";
-import { colors, fonts } from "@/constants/theme";
+import { colors, fonts, radius } from "@/constants/theme";
 import type { LearningPathHistory, UpcomingSession } from "../mocks/calendar";
 
 export function UpcomingSessionCard({
@@ -30,9 +30,7 @@ export function UpcomingSessionCard({
       <View style={styles.main}>
         <View style={styles.row}>
           <Text style={[styles.title, { flex: 1 }]}>{session.title}</Text>
-          <Text style={[styles.role, { color: tint }]}>
-            {teaching ? "🎓 Dạy" : "📖 Học"}
-          </Text>
+          <Text style={[styles.role, { color: tint }]}>{session.role}</Text>
         </View>
         <Text style={styles.caption}>{session.time}</Text>
         <View style={[styles.row, { marginTop: 6 }]}>
@@ -147,7 +145,7 @@ const styles = StyleSheet.create({
   card: {
     padding: 16,
     backgroundColor: colors.white,
-    borderRadius: 16,
+    borderRadius: radius.card,
     borderWidth: 1,
     borderColor: colors.border,
     flexDirection: "row",
@@ -157,7 +155,7 @@ const styles = StyleSheet.create({
   historyCard: {
     padding: 16,
     backgroundColor: colors.white,
-    borderRadius: 16,
+    borderRadius: radius.card,
     borderWidth: 1,
     borderColor: colors.border,
     gap: 12,
@@ -165,7 +163,7 @@ const styles = StyleSheet.create({
   icon: {
     width: 40,
     height: 40,
-    borderRadius: 12,
+    borderRadius: radius.control,
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,
@@ -196,7 +194,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 2,
     backgroundColor: colors.sand,
-    borderRadius: 99,
+    borderRadius: radius.badge,
   },
   countText: {
     fontFamily: fonts.semibold,

@@ -1,7 +1,8 @@
 import { Image, StyleSheet, Text, View } from "react-native";
 import welcomePhoto from "../../../../assets/images/welcome-study.jpg";
 import { LinearGradient } from "expo-linear-gradient";
-import { colors, fonts } from "@/constants/theme";
+import { shadows } from "@/constants/shadows";
+import { colors, fonts, radius } from "@/constants/theme";
 import { WelcomeAvatar, WelcomeStars } from "./WelcomeSocial";
 import { welcomeMentor, welcomeSession } from "../mocks/welcome";
 
@@ -10,7 +11,7 @@ export function WelcomeVisual() {
     <View>
       <View style={styles.panel}>
         <View style={styles.frame} />
-        <View style={[styles.photo, { filter: [{ grayscale: 0.12 }] }]}>
+        <View style={styles.photo}>
           <Image
             source={welcomePhoto}
             style={StyleSheet.absoluteFill}
@@ -60,7 +61,7 @@ export function WelcomeVisual() {
 const styles = StyleSheet.create({
   panel: {
     width: "100%",
-    maxWidth: 448,
+    maxWidth: 400,
     alignSelf: "center",
     aspectRatio: 4 / 5,
   },
@@ -80,12 +81,11 @@ const styles = StyleSheet.create({
     position: "absolute",
     width: 192,
     padding: 16,
-    borderRadius: 12,
+    borderRadius: radius.card,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.white,
-    boxShadow:
-      "0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.1)",
+    ...shadows.md,
   },
   mentor: { top: 28, left: -12 },
   mentorRow: {
@@ -138,10 +138,10 @@ const styles = StyleSheet.create({
   quote: { position: "absolute", bottom: 28, left: 24, maxWidth: 208 },
   quoteText: {
     includeFontPadding: false,
-    fontFamily: fonts.display,
+    fontFamily: fonts.semibold,
     color: colors.white,
-    fontSize: 24,
-    lineHeight: 30,
+    fontSize: 20,
+    lineHeight: 26,
   },
   quoteCaption: {
     includeFontPadding: false,
