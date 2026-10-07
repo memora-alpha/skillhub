@@ -1,6 +1,7 @@
 export type Conversation = {
   proposal: string;
   name: string;
+  userId: string;
   skill: string;
   request: string;
   last: string;
@@ -13,6 +14,7 @@ export const conversations: Conversation[] = [
   {
     proposal: "DX-2402",
     name: "Trần Việt Anh",
+    userId: "demo-viet-anh",
     skill: "React",
     request: "Muốn học React từ cơ bản đến nâng cao",
     last: "2 tháng là hoàn toàn khả thi!",
@@ -23,6 +25,7 @@ export const conversations: Conversation[] = [
   {
     proposal: "DX-2388",
     name: "Nguyễn Minh Hà",
+    userId: "demo-minh-ha",
     skill: "Tiếng Anh / IELTS",
     request: "Luyện IELTS Speaking lên 7.0",
     last: "Mình đã cập nhật lịch rồi nhé.",
@@ -33,6 +36,7 @@ export const conversations: Conversation[] = [
   {
     proposal: "DX-2314",
     name: "Đỗ Quang Huy",
+    userId: "demo-quang-huy",
     skill: "Python",
     request: "Python cho Data Science",
     last: "Bạn xem lộ trình Python giúp mình.",

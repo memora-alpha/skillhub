@@ -17,7 +17,7 @@ import {
   type MockSession,
 } from "@/features/auth/context/MockSession";
 import { demoNotifications, recentMessages } from "@/mocks/app";
-import { colors } from "@/constants/theme";
+import { signedInChrome } from "@/constants/theme";
 import { appRoutes } from "@/constants/navigation";
 import { profileStyles } from "./ProfilePrimitives";
 import { profileDetails } from "../mocks/profile";
@@ -72,6 +72,7 @@ export function ProfileLayout({
       }
     >
       <AppHeader
+        appearance="home"
         profile={session}
         title={title}
         onBack={onBack}
@@ -137,12 +138,12 @@ export function ProfileLayout({
   );
 }
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.white },
+  screen: { flex: 1, backgroundColor: signedInChrome.surface },
   keyboard: { flex: 1 },
-  scroll: { flex: 1, backgroundColor: colors.cream },
+  scroll: { flex: 1, backgroundColor: signedInChrome.background },
   content: {
-    paddingHorizontal: 16,
-    paddingVertical: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     width: "100%",
     maxWidth: 1280,
     alignSelf: "center",

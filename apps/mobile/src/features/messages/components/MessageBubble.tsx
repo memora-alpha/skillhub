@@ -1,63 +1,70 @@
 import { StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { Avatar } from "@/components/Avatar";
-import { colors, fonts } from "@/constants/theme";
+import { avatarSizes, typography, fonts } from "@/constants/theme";
 import type { ChatMessage } from "../mocks/chat";
+import { messageCardShadow, messageColors as colors } from "../constants/theme";
 
 export function MessageBubble({
   message,
   partner,
+  partnerId,
 }: {
   message: ChatMessage;
   partner: string;
+  partnerId: string;
 }) {
   const { width } = useWindowDimensions();
   const mine = message.from === "me";
   return (
-    <View style={[styles.row, mine && { justifyContent: "flex-end" }]}>
-      {!mine && <Avatar name={partner} size={24} />}
-      <View
-        style={[
-          styles.bubble,
-          { maxWidth: width >= 768 ? "65%" : "78%" },
-          mine ? styles.mine : styles.theirs,
-        ]}
-      >
-        <Text selectable style={[styles.text, mine && { color: colors.white }]}>
-          {message.text}
-        </Text>
-        <Text style={[styles.time, mine && { color: "#FFFFFFB3" }]}>
-          {message.time}
-        </Text>
+    <View style={styles.message}>
+      <View style={[styles.row, mine && styles.mineRow]}>
+        {!mine && (
+          <Avatar name={partner} userId={partnerId} size={avatarSizes.inline} />
+        )}
+        <View
+          style={[
+            styles.bubble,
+            { maxWidth: width >= 768 ? "62%" : mine ? "82%" : "70%" },
+            mine ? styles.mine : styles.theirs,
+          ]}
+        >
+          <Text selectable style={[styles.text, mine && { color: colors.white }]}>
+            {message.text}
+          </Text>
+        </View>
       </View>
+      <Text style={[styles.time, mine ? styles.myTime : styles.theirTime]}>
+        {message.time}
+      </Text>
     </View>
   );
 }
 const styles = StyleSheet.create({
-  row: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
+  row: { flexDirection: "row", alignItems: "flex-end", gap: 8 },
+  message: { gap: 2 },
+  mineRow: { justifyContent: "flex-end" },
   bubble: {
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    gap: 4,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
     minWidth: 0,
   },
-  mine: { backgroundColor: colors.brand, borderBottomRightRadius: 4 },
+  mine: { backgroundColor: colors.orange, borderBottomRightRadius: 3 },
   theirs: {
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderBottomLeftRadius: 4,
+    backgroundColor: colors.surface,
+    borderBottomLeftRadius: 3,
+    boxShadow: messageCardShadow,
   },
   text: {
     fontFamily: fonts.body,
-    fontSize: 14,
-    lineHeight: 22.75,
+    ...typography.body,
     color: colors.ink,
   },
   time: {
     fontFamily: fonts.body,
-    fontSize: 10,
-    lineHeight: 16,
+    ...typography.caption,
     color: colors.mutedLight,
   },
+  myTime: { color: colors.muted, textAlign: "right" },
+  theirTime: { marginLeft: avatarSizes.inline + 8 },
 });
