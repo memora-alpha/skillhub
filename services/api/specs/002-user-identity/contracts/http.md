@@ -39,15 +39,15 @@ Protected routes use Bearer access JWT plus live session/User/status/securityVer
 | GET /api/v1/admin/users                         | users.read                 | cursor?,limit?,status?,role?                                          | 200 data array + meta.pagination; default20,max100,createdAt/id descending; bad cursor400                                 |
 | POST /api/v1/admin/users/{userId}/lock          | users.lock                 | reason nonblank1–1000                                                 | 204 ACTIVE→LOCKED/revoke/audit; wrong state409                                                                            |
 | POST /api/v1/admin/users/{userId}/unlock        | users.unlock               | reason nonblank1–1000                                                 | 204 verified LOCKED→ACTIVE/audit; sessions stay revoked; wrong state409                                                   |
-| PUT /api/v1/admin/users/{userId}/roles/staff    | ADMIN + roles.staff.assign | reauthToken,reason nonblank1–1000                                     | 204 idempotent STAFF add + consume reauth/audit; preserve USER/ADMIN                                                      |
-| DELETE /api/v1/admin/users/{userId}/roles/staff | ADMIN + roles.staff.assign | reauthToken,reason nonblank1–1000                                     | 204 idempotent STAFF removal + consume reauth/audit; preserve USER/ADMIN                                                  |
+| PUT /api/v1/admin/users/{userId}/roles/staff    | ADMIN + roles.staff.assign | reauthToken,reason nonblank1–1000                                     | 204 set the single role to STAFF + consume reauth/audit; 400 when target is ADMIN                                         |
+| DELETE /api/v1/admin/users/{userId}/roles/staff | ADMIN + roles.staff.assign | reauthToken,reason nonblank1–1000                                     | 204 STAFF → USER + consume reauth/audit; USER/ADMIN targets unchanged                                                     |
 
 Neutral acknowledgment uses `data:null` and the same safe `message` for eligible/ineligible emails. Rate limits consistent for unknown emails; throttle storage outage safe503. Use trusted proxy IP policy, not arbitrary forwarded headers. Cursor validates sort/filter context. Role/audit no-op results explicit; no grant/no-op bypass of fresh proof or authorization.
 
 ## Shapes
 
 - TokenPair: `{accessToken,refreshToken,tokenType:"Bearer",expiresIn:number,refreshExpiresAt:string}`; expiry seconds/UTC, no family extension beyond configured absolute lifetime.
-- OwnIdentity: `{userId,email,emailVerified,accountStatus,roles:string[],profile:OwnProfile}`; never verifier/session internals/failed count.
+- OwnIdentity: `{userId,email,emailVerified,accountStatus,roles:string[] (exactly one role),profile:OwnProfile}`; never verifier/session internals/failed count.
 - OwnProfile: `{userId,fullName,headline,bio,timezone:string|null,locale,avatarUrl:string|null,reputationScore:number|null,verifiedSkillCount:number,completedSessionCount:number}`.
 - PublicProfile: `{userId,fullName,headline,bio,avatarUrl,reputationScore,verifiedSkillCount,completedSessionCount}` only; no email/role/status/session/terms/payment fields.
 - AdminUserSummary: `{userId,fullName,maskedEmail,accountStatus,roles,createdAt}`; credentials never available to Admin.

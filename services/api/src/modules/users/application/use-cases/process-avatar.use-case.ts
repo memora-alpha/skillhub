@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import { createHash } from "node:crypto";
 
 import { PrismaService } from "../../../../infrastructure/database/prisma.service";
 
@@ -58,7 +59,8 @@ export class ProcessAvatarUseCase {
     try {
       const bytes = await this.storage.read(asset.storageKey);
       clean =
-        bytes.length === asset.byteSize &&
+        BigInt(bytes.length) === asset.byteSize &&
+        createHash("sha256").update(bytes).digest("hex") === asset.checksum &&
         (await this.inspector.inspect(bytes)) === asset.mime &&
         (await this.scanner.scan(bytes));
     } catch {

@@ -1,0 +1,27 @@
+import "dotenv/config";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "./generated/prisma/client";
+import { seedApprovedConfigurations } from "./modules/system-configuration/application/seed-configuration";
+import { ConfigurationRepository } from "./modules/system-configuration/infrastructure/configuration.repository";
+
+async function main(): Promise<void> {
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) throw new Error("DATABASE_URL is required");
+  const prisma = new PrismaClient({
+    adapter: new PrismaPg({ connectionString }),
+  });
+  try {
+    const repository = new ConfigurationRepository(prisma);
+    await prisma.$transaction((tx) =>
+      seedApprovedConfigurations(tx, repository),
+    );
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
+void main().catch(() => {
+  // Never emit a provider exception: connection strings can contain credentials.
+  process.stderr.write("configuration seed failed\n");
+  process.exitCode = 1;
+});

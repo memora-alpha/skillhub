@@ -1,6 +1,13 @@
 # Identity data model
 
-The identity model is represented in [prisma/schema.prisma](../../prisma/schema.prisma): 14 identity models and 8 identity enums, within the complete relational catalog (45 models and 25 enums); see [schema catalog](../../prisma/README.md). Message/MessageAttachment are MongoDB reference models; runtime remains Mongoose. Identity state belongs to PostgreSQL with UUID IDs and UTC `timestamptz`. The identity-only migration and use cases now exist; later catalog migrations remain deferred. See [validation](validation.md) for the disposable PostgreSQL verification and deployment limits.
+The current runtime is [prisma/schema.prisma](../../prisma/schema.prisma): v3 domain
+models plus implemented OTP/foundation support. User owns profile fields and one
+required roleId; Profile/UserRole tables are archived by the v3 migration.
+Message/embedded attachments remain MongoDB/Mongoose-owned. Identity state belongs
+to PostgreSQL with UUID IDs and UTC `timestamptz`. See [schema guidance](../../prisma/README.md)
+and [validation](validation.md) for migration tests and deployment limits.
+The tables below describe the original identity implementation and its invariants;
+equivalent runtime properties map to v3 SQL columns as documented in the schema.
 
 ## Entities and ownership
 

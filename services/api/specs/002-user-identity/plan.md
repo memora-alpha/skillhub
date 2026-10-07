@@ -8,14 +8,17 @@
 
 Build identity journeys inside existing NestJS modular monolith: email/OTP signup, login, access JWT with live session/account checks, rotated refresh, logout/reset, profile/avatar and minimal permission-based administration. PostgreSQL owns identity, grants, audit and durable email intent; Redis supplies shared throttle; BullMQ processes committed delivery IDs; S3 holds scanned avatar bytes.
 
-Scope/questions are in [spec.md](spec.md). Identity use cases, tasks, migration, seed/bootstrap, providers and all 21 endpoints are implemented; see [validation.md](validation.md) for runtime evidence and operational limits. The full [Prisma catalog](../../prisma/schema.prisma) still contains 45 PostgreSQL models/25 enums; the fourteen identity models/eight enums plus SystemConfiguration form [identity deployment scope](../../prisma/identity.prisma). Later-feature catalog models and Mongo reference models do not expand endpoint scope or replace Mongoose. No migration has been deployed into the existing application schema.
+Scope/questions are in [spec.md](spec.md). Identity use cases, tasks, migration, seed/bootstrap, providers and all 21 endpoints are implemented; see [validation.md](validation.md) for runtime evidence and operational limits. The full [Prisma catalog](../../prisma/catalog.prisma) still contains 45 PostgreSQL models/25 enums; the fourteen identity models/eight enums plus SystemConfiguration form [identity deployment scope](../../prisma/schema.prisma). Later-feature catalog models and Mongo reference models do not expand endpoint scope or replace Mongoose. No migration has been deployed into the existing application schema.
 
 ## Danh sách endpoint dự kiến
 
-Catalog update 2026-10-06: [schema.prisma](../../prisma/schema.prisma) now follows
+Catalog update 2026-10-06: [catalog.prisma](../../prisma/catalog.prisma) now follows
 logical v3 with 48 PostgreSQL models/32 enums. The 45-model count above describes
 the catalog at identity implementation time. Runtime/client/migrations now use the
-separately maintained [identity.prisma](../../prisma/identity.prisma); they retain
+v3 runtime [schema.prisma](../../prisma/schema.prisma), generated from the catalog
+plus OTP/foundation support. As of 2026-10-07, profiles are inline on User and
+roles use one required roleId; see [runtime review](../../prisma/v3-review.md).
+The original catalog-only implementation retained
 legacy Profile/UserRole/SQL OTP until an explicit v3 migration/repository change.
 See [catalog review and validation](../../prisma/v3-review.md). Existing identity
 validation evidence is unchanged and is not evidence of deployed v3 behavior.
@@ -133,7 +136,7 @@ src/configs/environment.ts
 src/main.ts                # URI versioning; health controller version-neutral
 src/health.controller.ts   # Preserve existing operational routes
 src/app.module.ts
-prisma/schema.prisma
+prisma/catalog.prisma
 prisma/migrations/
 test/identity/
 ```

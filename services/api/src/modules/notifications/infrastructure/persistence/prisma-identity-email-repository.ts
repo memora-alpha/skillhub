@@ -55,7 +55,7 @@ export class PrismaIdentityEmailRepository extends IdentityEmailRepository {
   }
   lock(tx: IdentityTx, id: string): Promise<void> {
     return (async () => {
-      await tx.$queryRaw`SELECT id FROM identity_email_deliveries WHERE id=${id}::uuid FOR UPDATE`;
+      await tx.$queryRaw`SELECT delivery_id FROM identity_email_deliveries WHERE delivery_id=${id}::uuid FOR UPDATE`;
     })();
   }
   find(tx: IdentityTx, id: string): Promise<IdentityEmailDelivery | null> {

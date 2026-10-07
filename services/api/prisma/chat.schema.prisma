@@ -1,0 +1,33 @@
+// Reference-only MongoDB model. Runtime ownership remains Mongoose.
+// Prisma 7 does not support generating/migrating this MongoDB reference.
+datasource chat {
+  provider = "mongodb"
+}
+
+model Message {
+  id String @id @default(uuid()) @map("_id")
+  conversationId String @map("conversation_id")
+  senderId String? @map("sender_id")
+  messageText String? @map("message_text")
+  messageType String @map("message_type")
+  sentAt DateTime @default(now()) @map("sent_at")
+  readAt DateTime? @map("read_at")
+  attachments MessageAttachment[]
+  objectType String? @map("object_type")
+  objectId String? @map("object_id")
+  objectVersion Int? @map("object_version")
+  eventId String? @unique @map("event_id")
+
+  @@index([conversationId, sentAt, id])
+  @@index([senderId])
+  @@map("messages")
+}
+
+type MessageAttachment {
+  attachmentId String @map("attachment_id")
+  mimeType String @map("mime_type")
+  storageKey String @map("storage_key")
+  fileSizeBytes Int @map("file_size_bytes")
+  scanStatus String @map("scan_status")
+  checksum String
+}
