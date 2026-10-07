@@ -89,7 +89,9 @@ không diễn giải mọi mức giảm Reputation thành LOCKED toàn bộ.
 - **R-01:** Role lưu DB là USER/STAFF/ADMIN. Guest là trạng thái chưa đăng nhập;
   không có UserRole GUEST. USER không tách cố định thành Teacher/Learner (BR-01, REG-006).
 - **R-02:** Quyền hiệu lực là hợp các permission được cấp rõ ràng qua role hiện hành.
-  STAFF và ADMIN không tự kế thừa USER hoặc quyền của nhau; account có nhiều role phải được gán rõ ràng.
+  STAFF và ADMIN không tự kế thừa USER hoặc quyền của nhau. Runtime v3 dùng một
+  `User.roleId` bắt buộc; permission hiệu lực chỉ đến từ role này. Migration giữ
+  role cao nhất theo ADMIN > STAFF > USER và lưu grant cũ để đối chiếu.
 - **R-03:** Đăng ký/OAuth không nhận quyền STAFF/ADMIN từ client. Backend gán USER;
   thay đổi role qua flow quản trị được bảo vệ riêng (SH-010/014/100).
 - **R-04:** API nhạy cảm kiểm tra permission action ở backend; đủ mọi permission yêu cầu,

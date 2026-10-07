@@ -96,7 +96,7 @@ test(
         await prisma.$executeRaw`
       UPDATE "outbox_events"
       SET "lease_token" = gen_random_uuid(), "lease_until" = CURRENT_TIMESTAMP + INTERVAL '30 seconds',
-          "total_attempts" = 1, "cycle_attempts" = 1
+          "attempts" = 1, "cycle_attempts" = 1
       WHERE "event_id" = ${eventId}::uuid`;
         await publish({ eventId });
 

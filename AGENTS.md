@@ -7,6 +7,9 @@
 - Work in the workspace relevant to the task. Read its README and any scoped AGENTS.md before making changes.
 - Backend-specific architecture, Spec Kit and database guidance live in `services/api`. They apply to backend work, not frontend or unrelated packages.
 - Read `docs/` for product requirements. Record unclear business rules instead of inventing them.
+- Current business requirements are anchored by `docs/SRS_SkillHub_V1.6_VietLai_DongBoNghiepVu.docx`; older SRS files are retained for history and comparison.
+- Mobile-specific guidance lives in `apps/mobile`. For mobile work, read `apps/mobile/AGENTS.md`, its `README.md` and `apps/mobile/docs/` before coding.
+- Mobile work is scoped to `apps/mobile` and shared packages only when explicitly justified. Do not modify `services/api` for a mobile task unless the user explicitly asks for backend changes.
 - Keep changes focused. When modifying shared packages or root tooling, check the affected consumers and explain the impact.
 - Verify implementation in source files; plans and module breakdowns alone do not establish that a feature exists.
 
