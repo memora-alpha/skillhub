@@ -4,6 +4,7 @@ export type UpcomingSession = {
   day: number;
   time: string;
   partner: string;
+  partnerId: string;
   role: "Học" | "Dạy";
   credit: string;
   days: number;
@@ -12,16 +13,19 @@ export type UpcomingSession = {
 export const calendarPeriod = {
   year: 2025,
   firstMonth: 1,
+  initialMonth: 2,
   lastMonth: 3,
-  today: 5,
+  today: 10,
+  sessionDays: [8, 13, 15, 18],
 };
 export const weekDays = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
 export const upcomingSessions: UpcomingSession[] = [
   {
     id: "react-router",
+    partnerId: "demo-viet-anh",
     title: "React Router — Buổi 4",
     day: 8,
-    time: "08/02, 20:00 – 21:30",
+    time: "08/03, 20:00 – 21:30",
     partner: "Trần Việt Anh",
     role: "Học",
     credit: "200 CR",
@@ -29,9 +33,10 @@ export const upcomingSessions: UpcomingSession[] = [
   },
   {
     id: "redux",
+    partnerId: "demo-viet-anh",
     title: "Redux Toolkit — Buổi 5",
     day: 13,
-    time: "13/02, 20:00 – 21:30",
+    time: "13/03, 20:00 – 21:30",
     partner: "Trần Việt Anh",
     role: "Học",
     credit: "200 CR",
@@ -39,9 +44,10 @@ export const upcomingSessions: UpcomingSession[] = [
   },
   {
     id: "final-project",
+    partnerId: "demo-viet-anh",
     title: "Dự án cuối — Buổi 6",
     day: 15,
-    time: "15/02, 20:00 – 21:30",
+    time: "15/03, 20:00 – 21:30",
     partner: "Trần Việt Anh",
     role: "Học",
     credit: "200 CR",
@@ -49,9 +55,10 @@ export const upcomingSessions: UpcomingSession[] = [
   },
   {
     id: "ielts",
+    partnerId: "demo-thi-bich",
     title: "Tiếng Anh IELTS — Buổi 1",
     day: 18,
-    time: "18/02, 19:00 – 20:30",
+    time: "18/03, 19:00 – 20:30",
     partner: "Nguyễn Thị Bích",
     role: "Dạy",
     credit: "+180 CR",

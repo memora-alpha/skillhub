@@ -1,6 +1,10 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Icon } from "@/components/Icon";
-import { colors, fonts, radius } from "@/constants/theme";
+import { iconSizes, typography, fonts } from "@/constants/theme";
+import {
+  calendarCardShadow,
+  calendarColors as colors,
+} from "../constants/theme";
 import type { LearningPathHistory, UpcomingSession } from "../mocks/calendar";
 
 export function UpcomingSessionCard({
@@ -25,17 +29,32 @@ export function UpcomingSessionCard({
           { backgroundColor: teaching ? colors.sageLight : colors.brandLight },
         ]}
       >
-        <Icon name="calendar" size={18} color={tint} />
+        <Icon name="calendar" size={iconSizes.feature} color={tint} />
       </View>
       <View style={styles.main}>
         <View style={styles.row}>
           <Text style={[styles.title, { flex: 1 }]}>{session.title}</Text>
-          <Text style={[styles.role, { color: tint }]}>{session.role}</Text>
+          <View
+            style={[
+              styles.roleBadge,
+              {
+                borderColor: teaching ? colors.green : colors.orange,
+                backgroundColor: teaching
+                  ? colors.greenSoft
+                  : colors.orangeSoft,
+              },
+            ]}
+          >
+            <Text style={[styles.role, { color: tint }]}>{session.role}</Text>
+          </View>
         </View>
-        <Text style={styles.caption}>{session.time}</Text>
+        <View style={styles.timeRow}>
+          <Icon name="clock" size={iconSizes.inline} color={colors.orange} />
+          <Text style={styles.caption}>{session.time}</Text>
+        </View>
         <View style={[styles.row, { marginTop: 6 }]}>
           <Text style={[styles.caption, { flex: 1 }]}>
-            Với {session.partner}
+            Mentor: <Text style={styles.partner}>{session.partner}</Text>
           </Text>
           <View style={styles.count}>
             <Text style={styles.countText}>{session.days} ngày nữa</Text>
@@ -79,7 +98,7 @@ export function HistoryPathCard({
         >
           <Icon
             name={cancelled ? "alert" : "book"}
-            size={16}
+            size={iconSizes.control}
             color={cancelled ? colors.error : tint}
           />
         </View>
@@ -143,19 +162,20 @@ export function HistoryPathCard({
 }
 const styles = StyleSheet.create({
   card: {
-    padding: 16,
-    backgroundColor: colors.white,
-    borderRadius: radius.card,
+    padding: 12,
+    backgroundColor: colors.surface,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: colors.border,
+    boxShadow: calendarCardShadow,
     flexDirection: "row",
     alignItems: "flex-start",
-    gap: 12,
+    gap: 10,
   },
   historyCard: {
     padding: 16,
-    backgroundColor: colors.white,
-    borderRadius: radius.card,
+    backgroundColor: colors.surface,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: colors.border,
     gap: 12,
@@ -163,7 +183,7 @@ const styles = StyleSheet.create({
   icon: {
     width: 40,
     height: 40,
-    borderRadius: radius.control,
+    borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,
@@ -172,47 +192,41 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", gap: 8 },
   title: {
     fontFamily: fonts.semibold,
-    fontSize: 14,
-    lineHeight: 20,
+    ...typography.body,
     color: colors.ink,
     includeFontPadding: false,
   },
   caption: {
     fontFamily: fonts.body,
-    fontSize: 12,
-    lineHeight: 16,
+    ...typography.caption,
     color: colors.muted,
     includeFontPadding: false,
   },
   role: {
     fontFamily: fonts.semibold,
-    fontSize: 12,
-    lineHeight: 16,
+    ...typography.caption,
     flexShrink: 0,
   },
   count: {
     paddingHorizontal: 8,
-    paddingVertical: 2,
-    backgroundColor: colors.sand,
-    borderRadius: radius.badge,
+    paddingVertical: 4,
+    backgroundColor: colors.orangeSoft,
+    borderRadius: 5,
   },
   countText: {
     fontFamily: fonts.semibold,
-    fontSize: 12,
-    lineHeight: 16,
-    color: colors.body,
+    ...typography.caption,
+    color: colors.orange,
   },
   credit: { maxWidth: "30%", alignItems: "flex-end" },
   creditText: {
     fontFamily: fonts.bold,
-    fontSize: 14,
-    lineHeight: 20,
+    ...typography.body,
     textAlign: "right",
   },
   creditNote: {
     fontFamily: fonts.body,
-    fontSize: 10,
-    lineHeight: 16,
+    ...typography.caption,
     color: colors.muted,
     textAlign: "right",
   },
@@ -220,4 +234,12 @@ const styles = StyleSheet.create({
   progress: { flexDirection: "row", gap: 6 },
   segment: { flex: 1, height: 6, borderRadius: 99 },
   stars: { flexDirection: "row", gap: 2 },
+  roleBadge: {
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  timeRow: { flexDirection: "row", alignItems: "center", gap: 4 },
+  partner: { fontFamily: fonts.bold, color: colors.ink },
 });
