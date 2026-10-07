@@ -23,13 +23,13 @@ export function AccountMenu({
   onClose,
   onAction,
   onLogout,
-}: {
+}: Readonly<{
   visible: boolean;
-  profile: { name: string; email: string };
+  profile: Readonly<{ name: string; email: string }>;
   onClose: () => void;
   onAction: (title: string) => void;
   onLogout: () => void;
-}) {
+}>) {
   const insets = useSafeAreaInsets();
   useEffect(() => {
     if (!visible || Platform.OS !== "android") return;

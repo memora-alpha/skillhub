@@ -2,6 +2,8 @@ import { StyleSheet, Text, View } from "react-native";
 import { Icon } from "@/components/Icon";
 import { colors, fonts } from "@/constants/theme";
 
+const starIds = ["star-1", "star-2", "star-3", "star-4", "star-5"] as const;
+
 export function WelcomeAvatar({ name }: { name: string }) {
   const initials = name
     .split(" ")
@@ -17,8 +19,8 @@ export function WelcomeAvatar({ name }: { name: string }) {
 export function WelcomeStars({ size = 14 }: { size?: number }) {
   return (
     <View style={styles.stars}>
-      {Array.from({ length: 5 }, (_, index) => (
-        <Icon key={index} name="star" color={colors.star} size={size} />
+      {starIds.map((id) => (
+        <Icon key={id} name="star" color={colors.star} size={size} />
       ))}
     </View>
   );

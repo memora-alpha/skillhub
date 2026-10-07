@@ -23,6 +23,23 @@ import { useMockSession } from "../context/MockSession";
 import { demoProfile, newUserEmail } from "../mocks/auth";
 import { isEmail } from "../utils/validateRegistration";
 
+type LoginNotice = "google" | "forgot";
+const loginNoticeCopy: Record<
+  LoginNotice,
+  Readonly<{ title: string; confirmLabel: string; body: string }>
+> = {
+  google: {
+    title: "Đăng nhập với Google — bản demo",
+    confirmLabel: "Tiếp tục bản demo",
+    body: "Mở trang chủ bằng hồ sơ mẫu Nguyễn Lan Anh. Bản demo không kết nối tài khoản Google.",
+  },
+  forgot: {
+    title: "Quên mật khẩu?",
+    confirmLabel: "Đã hiểu",
+    body: "Khôi phục mật khẩu sẽ được bổ sung khi kết nối backend. Hiện tại bạn có thể dùng email hợp lệ và mật khẩu bất kỳ để xem trang chủ demo.",
+  },
+};
+
 export function LoginScreen() {
   const router = useRouter();
   const { enterDemo } = useMockSession();
@@ -32,7 +49,7 @@ export function LoginScreen() {
   const [errors, setErrors] = useState<{ email?: string; password?: string }>(
     {},
   );
-  const [notice, setNotice] = useState<"google" | "forgot" | null>(null);
+  const [notice, setNotice] = useState<LoginNotice | null>(null);
   const passwordInput = useRef<TextInput>(null);
   const enter = (google = false) => {
     Keyboard.dismiss();
@@ -52,6 +69,8 @@ export function LoginScreen() {
     if (Object.keys(next).length) return;
     enter();
   };
+  const noticeCopy = notice ? loginNoticeCopy[notice] : null;
+  const confirmNotice = notice === "google" ? () => enter(true) : undefined;
   return (
     <AuthLayout
       title="Chào mừng trở lại"
@@ -139,20 +158,12 @@ export function LoginScreen() {
         </Text>
       </View>
       <InfoModal
-        title={
-          notice === "google"
-            ? "Đăng nhập với Google — bản demo"
-            : notice === "forgot"
-              ? "Quên mật khẩu?"
-              : null
-        }
+        title={noticeCopy?.title ?? null}
         onClose={() => setNotice(null)}
-        confirmLabel={notice === "google" ? "Tiếp tục bản demo" : "Đã hiểu"}
-        onConfirm={notice === "google" ? () => enter(true) : undefined}
+        confirmLabel={noticeCopy?.confirmLabel ?? "Đã hiểu"}
+        onConfirm={confirmNotice}
       >
-        {notice === "google"
-          ? "Mở trang chủ bằng hồ sơ mẫu Nguyễn Lan Anh. Bản demo không kết nối tài khoản Google."
-          : "Khôi phục mật khẩu sẽ được bổ sung khi kết nối backend. Hiện tại bạn có thể dùng email hợp lệ và mật khẩu bất kỳ để xem trang chủ demo."}
+        {noticeCopy?.body ?? ""}
       </InfoModal>
     </AuthLayout>
   );

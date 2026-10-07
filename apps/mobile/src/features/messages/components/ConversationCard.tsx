@@ -13,10 +13,12 @@ export function ConversationCard({
   unread: number;
   onPress: () => void;
 }) {
+  const unreadLabel = unread > 0 ? `, ${unread} tin chưa đọc` : "";
+  const accessibilityLabel = `Xem trao đổi với ${conversation.name}${unreadLabel}`;
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`Xem trao đổi với ${conversation.name}${unread ? `, ${unread} tin chưa đọc` : ""}`}
+      accessibilityLabel={accessibilityLabel}
       onPress={onPress}
       style={({ pressed }) => [styles.card, pressed && { opacity: 0.72 }]}
     >

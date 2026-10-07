@@ -21,6 +21,29 @@ import {
   type RegistrationForm,
 } from "../utils/validateRegistration";
 
+type RegisterNotice = "success" | "google" | "terms" | "privacy";
+const registerNoticeCopy: Record<
+  RegisterNotice,
+  Readonly<{ title: string; body: string }>
+> = {
+  success: {
+    title: "Đăng ký giả lập thành công",
+    body: "Thông tin đã hợp lệ. Bạn sẽ xem trang chủ dành cho người mới; tài khoản chưa được tạo trên hệ thống và chưa có xác minh email.",
+  },
+  google: {
+    title: "Đăng ký với Google — bản demo",
+    body: "Tiếp tục bằng hồ sơ mẫu Nguyễn Lan Anh. Bản demo không kết nối tài khoản Google.",
+  },
+  terms: {
+    title: "Điều khoản sử dụng",
+    body: "Nội dung chính thức sẽ được bổ sung sau. Bản demo chỉ dùng thông tin trong phiên hiện tại và không gửi dữ liệu lên máy chủ.",
+  },
+  privacy: {
+    title: "Chính sách bảo mật",
+    body: "Nội dung chính thức sẽ được bổ sung sau. Bản demo chỉ dùng thông tin trong phiên hiện tại và không gửi dữ liệu lên máy chủ.",
+  },
+};
+
 export function RegisterScreen() {
   const router = useRouter();
   const { enterDemo } = useMockSession();
@@ -32,9 +55,7 @@ export function RegisterScreen() {
   });
   const [terms, setTerms] = useState(false);
   const [errors, setErrors] = useState<RegistrationErrors>({});
-  const [notice, setNotice] = useState<
-    "success" | "google" | "terms" | "privacy" | null
-  >(null);
+  const [notice, setNotice] = useState<RegisterNotice | null>(null);
   const emailInput = useRef<TextInput>(null);
   const passwordInput = useRef<TextInput>(null);
   const confirmInput = useRef<TextInput>(null);
@@ -63,16 +84,8 @@ export function RegisterScreen() {
     setForm((current) => ({ ...current, password: "", confirmPassword: "" }));
     router.replace("/home");
   };
-  const noticeTitle =
-    notice === "success"
-      ? "Đăng ký giả lập thành công"
-      : notice === "google"
-        ? "Đăng ký với Google — bản demo"
-        : notice === "terms"
-          ? "Điều khoản sử dụng"
-          : notice === "privacy"
-            ? "Chính sách bảo mật"
-            : null;
+  const noticeCopy = notice ? registerNoticeCopy[notice] : null;
+  const enterFromNotice = notice === "success" || notice === "google";
   return (
     <AuthLayout
       title="Tạo tài khoản"
@@ -193,22 +206,12 @@ export function RegisterScreen() {
         </Text>
       </View>
       <InfoModal
-        title={noticeTitle}
+        title={noticeCopy?.title ?? null}
         onClose={() => setNotice(null)}
-        confirmLabel={
-          notice === "success" || notice === "google"
-            ? "Vào trang chủ demo"
-            : "Đã hiểu"
-        }
-        onConfirm={
-          notice === "success" || notice === "google" ? enter : undefined
-        }
+        confirmLabel={enterFromNotice ? "Vào trang chủ demo" : "Đã hiểu"}
+        onConfirm={enterFromNotice ? enter : undefined}
       >
-        {notice === "success"
-          ? "Thông tin đã hợp lệ. Bạn sẽ xem trang chủ dành cho người mới; tài khoản chưa được tạo trên hệ thống và chưa có xác minh email."
-          : notice === "google"
-            ? "Tiếp tục bằng hồ sơ mẫu Nguyễn Lan Anh. Bản demo không kết nối tài khoản Google."
-            : "Nội dung chính thức sẽ được bổ sung sau. Bản demo chỉ dùng thông tin trong phiên hiện tại và không gửi dữ liệu lên máy chủ."}
+        {noticeCopy?.body ?? ""}
       </InfoModal>
     </AuthLayout>
   );

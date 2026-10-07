@@ -7,6 +7,8 @@ import {
   calendarColors as colors,
 } from "../constants/theme";
 
+type CalendarCell = Readonly<{ key: string; day: number | null }>;
+
 export function MonthCalendar({
   month,
   selectedDay,
@@ -20,11 +22,13 @@ export function MonthCalendar({
 }) {
   const firstWeekDay = new Date(calendarPeriod.year, month, 1).getDay();
   const dayCount = new Date(calendarPeriod.year, month + 1, 0).getDate();
-  const cells = Array.from(
+  const cells: CalendarCell[] = Array.from(
     { length: Math.ceil((firstWeekDay + dayCount) / 7) * 7 },
-    (_, index) => {
-      const day = index - firstWeekDay + 1;
-      return day > 0 && day <= dayCount ? day : null;
+    (_, position) => {
+      const day = position - firstWeekDay + 1;
+      if (day > 0 && day <= dayCount) return { key: `day-${day}`, day };
+      const blankPosition = day <= 0 ? `leading-${1 - day}` : `trailing-${day}`;
+      return { key: blankPosition, day: null };
     },
   );
   const weeks = Array.from({ length: cells.length / 7 }, (_, index) =>
@@ -77,11 +81,12 @@ export function MonthCalendar({
         ))}
       </View>
       <View style={styles.grid}>
-        {weeks.map((week, weekIndex) => (
-          <View key={weekIndex} style={styles.week}>
-            {week.map((day, index) => {
+        {weeks.map((week) => (
+          <View key={week[0]!.key} style={styles.week}>
+            {week.map((cell) => {
+              const { day } = cell;
               if (day === null)
-                return <View key={`blank-${index}`} style={styles.cell} />;
+                return <View key={cell.key} style={styles.cell} />;
               const today =
                 month === calendarPeriod.initialMonth &&
                 day === calendarPeriod.today;
@@ -90,7 +95,7 @@ export function MonthCalendar({
                 calendarPeriod.sessionDays.includes(day);
               const selected = selectedDay === day;
               return (
-                <View key={day} style={styles.cell}>
+                <View key={cell.key} style={styles.cell}>
                   <Pressable
                     accessibilityRole="button"
                     hitSlop={4}

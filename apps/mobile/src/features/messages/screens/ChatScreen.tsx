@@ -27,6 +27,26 @@ import {
 } from "../components/ChatActionCards";
 import { messageColors as colors } from "../constants/theme";
 
+type ChatNotice = "agreement" | "file";
+const chatNoticeCopy: Record<
+  ChatNotice,
+  Readonly<{ title: string; body: string }>
+> = {
+  agreement: {
+    title: "Chọn hình thức học",
+    body: "Màn chọn hình thức học sẽ được triển khai tiếp theo. Tin nhắn demo không tạo thỏa thuận, khóa lịch hoặc tạm giữ Credit.",
+  },
+  file: {
+    title: "Đính kèm tệp",
+    body: "Màn gửi tệp sẽ được triển khai tiếp theo. Hiện tại bản demo chỉ hỗ trợ gửi tin nhắn văn bản local, không tải tệp lên máy chủ.",
+  },
+};
+const typingDotIds = ["typing-dot-1", "typing-dot-2", "typing-dot-3"] as const;
+
+function ChatMessageSeparator() {
+  return <View style={styles.separator} />;
+}
+
 export function ChatScreen() {
   const router = useRouter();
   const { session } = useMockSession();
@@ -58,11 +78,13 @@ export function ChatScreen() {
     <ChatConversation key={conversation.proposal} conversation={conversation} />
   );
 }
-function ChatConversation({ conversation }: { conversation: Conversation }) {
+function ChatConversation({
+  conversation,
+}: Readonly<{ conversation: Conversation }>) {
   const router = useRouter();
   const { threads, markRead, send } = useMockMessages();
   const [draft, setDraft] = useState("");
-  const [notice, setNotice] = useState<"agreement" | "file" | null>(null);
+  const [notice, setNotice] = useState<ChatNotice | null>(null);
   const list = useRef<FlatList<ChatMessage>>(null);
   const scrollOnSend = useRef(false);
   const messages = threads[conversation.proposal] ?? [];
@@ -75,6 +97,7 @@ function ChatConversation({ conversation }: { conversation: Conversation }) {
     send(conversation.proposal, text);
     setDraft("");
   };
+  const noticeCopy = notice ? chatNoticeCopy[notice] : null;
   return (
     <SafeAreaView
       style={styles.screen}
@@ -98,7 +121,7 @@ function ChatConversation({ conversation }: { conversation: Conversation }) {
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
-          ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
+          ItemSeparatorComponent={ChatMessageSeparator}
           ListHeaderComponent={
             <View style={styles.heading}>
               <Text style={styles.date}>Hôm nay, {messages[0]?.time}</Text>
@@ -125,8 +148,8 @@ function ChatConversation({ conversation }: { conversation: Conversation }) {
                   size={avatarSizes.inline}
                 />
                 <View style={styles.typing}>
-                  {[0, 1, 2].map((index) => (
-                    <View key={index} style={styles.dot} />
+                  {typingDotIds.map((id) => (
+                    <View key={id} style={styles.dot} />
                   ))}
                 </View>
               </View>
@@ -147,18 +170,10 @@ function ChatConversation({ conversation }: { conversation: Conversation }) {
         />
       </KeyboardAvoidingView>
       <InfoModal
-        title={
-          notice === "agreement"
-            ? "Chọn hình thức học"
-            : notice === "file"
-              ? "Đính kèm tệp"
-              : null
-        }
+        title={noticeCopy?.title ?? null}
         onClose={() => setNotice(null)}
       >
-        {notice === "agreement"
-          ? "Màn chọn hình thức học sẽ được triển khai tiếp theo. Tin nhắn demo không tạo thỏa thuận, khóa lịch hoặc tạm giữ Credit."
-          : "Màn gửi tệp sẽ được triển khai tiếp theo. Hiện tại bản demo chỉ hỗ trợ gửi tin nhắn văn bản local, không tải tệp lên máy chủ."}
+        {noticeCopy?.body ?? ""}
       </InfoModal>
     </SafeAreaView>
   );
@@ -184,6 +199,7 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   footer: { gap: 8, marginTop: 10 },
+  separator: { height: 8 },
   typingRow: { flexDirection: "row", alignItems: "flex-end", gap: 8 },
   typing: {
     backgroundColor: colors.surface,

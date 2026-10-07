@@ -7,6 +7,8 @@ import {
 } from "../constants/theme";
 import type { LearningPathHistory, UpcomingSession } from "../mocks/calendar";
 
+const ratingStars = [1, 2, 3, 4, 5] as const;
+
 export function UpcomingSessionCard({
   session,
   onPress,
@@ -74,6 +76,14 @@ export function HistoryPathCard({
   const cancelled = path.status === "cancelled";
   const teaching = path.role === "Dạy";
   const tint = teaching ? colors.sage : colors.brand;
+  let historyIconBackground: string = teaching
+    ? colors.sageLight
+    : colors.brandLight;
+  if (cancelled) historyIconBackground = colors.errorLight;
+  const sessionSteps = path.sessionList.map((done, position) => ({
+    done,
+    id: `${path.id}-${path.sessionDates[position]}`,
+  }));
   return (
     <Pressable
       accessibilityRole="button"
@@ -88,11 +98,7 @@ export function HistoryPathCard({
             {
               width: 36,
               height: 36,
-              backgroundColor: cancelled
-                ? colors.errorLight
-                : teaching
-                  ? colors.sageLight
-                  : colors.brandLight,
+              backgroundColor: historyIconBackground,
             },
           ]}
         >
@@ -128,12 +134,12 @@ export function HistoryPathCard({
             style={styles.progress}
             accessibilityLabel={`Hoàn thành ${path.sessionList.filter(Boolean).length}/${path.sessions} buổi`}
           >
-            {path.sessionList.map((done, index) => (
+            {sessionSteps.map((step) => (
               <View
-                key={index}
+                key={step.id}
                 style={[
                   styles.segment,
-                  { backgroundColor: done ? tint : colors.border },
+                  { backgroundColor: step.done ? tint : colors.border },
                 ]}
               />
             ))}
@@ -143,13 +149,13 @@ export function HistoryPathCard({
               style={styles.stars}
               accessibilityLabel={`${path.rating}/5 sao`}
             >
-              {Array.from({ length: 5 }, (_, index) => (
+              {ratingStars.map((star) => (
                 <Icon
-                  key={index}
+                  key={star}
                   name="star"
                   size={10}
-                  filled={index < path.rating}
-                  color={index < path.rating ? colors.star : colors.border}
+                  filled={star <= path.rating}
+                  color={star <= path.rating ? colors.star : colors.border}
                 />
               ))}
             </View>

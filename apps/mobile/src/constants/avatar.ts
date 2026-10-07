@@ -17,8 +17,8 @@ export function getAvatarColors(userId: string) {
   const override = avatarOverrides[userId];
   if (override) return override;
   let hash = 2166136261;
-  for (let index = 0; index < userId.length; index += 1) {
-    hash = Math.imul(hash ^ userId.charCodeAt(index), 16777619);
+  for (const character of userId) {
+    hash = Math.imul(hash ^ character.codePointAt(0)!, 16777619);
   }
   return avatarPalette[(hash >>> 0) % avatarPalette.length]!;
 }

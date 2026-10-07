@@ -4,6 +4,7 @@ import {
   useState,
   useEffect,
   useCallback,
+  useMemo,
   type ReactNode,
 } from "react";
 import { useMockSession } from "@/features/auth";
@@ -18,7 +19,9 @@ type MessagesContextValue = {
 };
 const MessagesContext = createContext<MessagesContextValue | null>(null);
 
-export function MockMessagesProvider({ children }: { children: ReactNode }) {
+export function MockMessagesProvider({
+  children,
+}: Readonly<{ children: ReactNode }>) {
   const { session } = useMockSession();
   const [threads, setThreads] = useState(initialThreads);
   const [read, setRead] = useState<string[]>([]);
@@ -34,30 +37,37 @@ export function MockMessagesProvider({ children }: { children: ReactNode }) {
       ),
     [],
   );
-  const send = (proposal: string, text: string) => {
-    if (
-      !text.trim() ||
-      !conversations.some((item) => item.proposal === proposal)
-    )
-      return;
-    setThreads((current) => {
-      const previous = current[proposal] ?? [];
-      const message: ChatMessage = {
-        id: `local-${Date.now()}-${previous.length}`,
-        from: "me",
-        text: text.trim(),
-        time: new Date().toLocaleTimeString("vi-VN", {
-          timeZone: "Asia/Ho_Chi_Minh",
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
-      };
-      return { ...current, [proposal]: [...previous, message] };
-    });
-    markRead(proposal);
-  };
+  const send = useCallback(
+    (proposal: string, text: string) => {
+      if (
+        !text.trim() ||
+        !conversations.some((item) => item.proposal === proposal)
+      )
+        return;
+      setThreads((current) => {
+        const previous = current[proposal] ?? [];
+        const message: ChatMessage = {
+          id: `local-${Date.now()}-${previous.length}`,
+          from: "me",
+          text: text.trim(),
+          time: new Date().toLocaleTimeString("vi-VN", {
+            timeZone: "Asia/Ho_Chi_Minh",
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+        };
+        return { ...current, [proposal]: [...previous, message] };
+      });
+      markRead(proposal);
+    },
+    [markRead],
+  );
+  const value = useMemo(
+    () => ({ threads, read, markRead, send }),
+    [markRead, read, send, threads],
+  );
   return (
-    <MessagesContext.Provider value={{ threads, read, markRead, send }}>
+    <MessagesContext.Provider value={value}>
       {children}
     </MessagesContext.Provider>
   );

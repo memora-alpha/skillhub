@@ -6,10 +6,10 @@ import { fonts, iconSizes, signedInChrome } from "@/constants/theme";
 export function AppNavigation({
   onAction,
   selected = "Trang chủ",
-}: {
+}: Readonly<{
   onAction: (title: string) => void;
   selected?: string;
-}) {
+}>) {
   return (
     <View style={styles.nav}>
       {appTabs.map((tab) => (

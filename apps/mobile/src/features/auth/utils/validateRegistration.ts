@@ -7,7 +7,8 @@ export type RegistrationForm = {
 export type RegistrationErrors = Partial<
   Record<keyof RegistrationForm | "terms", string>
 >;
-export const isEmail = (value: string) => /^\S+@\S+\.\S+$/.test(value.trim());
+export const isEmail = (value: string) =>
+  /^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/.test(value.trim());
 
 export function passwordRequirements(password: string) {
   return [
