@@ -18,7 +18,8 @@ import {
   requestFilters,
   type RequestCategory,
 } from "../mocks/requests";
-import { colors, fonts, radius } from "@/constants/theme";
+import { iconSizes, typography, fonts } from "@/constants/theme";
+import { discoveryColors as colors } from "../constants/theme";
 
 type AdvancedFilter = "all" | "credit" | "sessions";
 
@@ -32,6 +33,8 @@ export function DiscoverScreen() {
   const [searchFocused, setSearchFocused] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [advancedFilter, setAdvancedFilter] = useState<AdvancedFilter>("all");
+  const [oldestFirst, setOldestFirst] = useState(false);
+  const [sortOpen, setSortOpen] = useState(false);
   useEffect(() => setSearch(query), [query]);
   const requests = learningRequests.filter(
     (item) =>
@@ -45,17 +48,22 @@ export function DiscoverScreen() {
           .toLowerCase()
           .includes(search.toLowerCase())),
   );
+  // Demo fixtures are already ordered from newest to oldest.
+  const sortedRequests = oldestFirst ? [...requests].reverse() : requests;
   return (
     <AppScreenLayout
       title="Yêu cầu học"
       selected="Khám phá"
+      contentStyle={styles.background}
       rightAction={(open) => (
         <Button
           size="sm"
+          variant="craft"
+          style={styles.postButton}
           onPress={() => open("Đăng yêu cầu học")}
           accessibilityLabel="Đăng yêu cầu học"
         >
-          <Icon name="plus" size={14} color={colors.white} />
+          <Icon name="plus" size={14} color={colors.surface} />
           <Text style={styles.postLabel}>Đăng</Text>
         </Button>
       )}
@@ -63,48 +71,23 @@ export function DiscoverScreen() {
       {() => (
         <>
           <FlatList
-            data={requests}
+            data={sortedRequests}
             keyExtractor={(item) => item.id}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
             style={styles.list}
             contentContainerStyle={styles.content}
-            ItemSeparatorComponent={() => <View style={{ height: 16 }} />}
+            ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
             ListHeaderComponent={
               <View style={styles.header}>
-                <View style={styles.filters}>
-                  {requestFilters.map((label) => (
-                    <Pressable
-                      key={label}
-                      accessibilityRole="tab"
-                      accessibilityState={{ selected: filter === label }}
-                      aria-selected={filter === label}
-                      onPress={() => setFilter(label)}
-                      style={({ pressed }) => [
-                        styles.filter,
-                        filter === label && styles.activeFilter,
-                        pressed && { opacity: 0.7 },
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.filterLabel,
-                          filter === label && { color: colors.brandHover },
-                        ]}
-                      >
-                        {label}
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
                 <View style={styles.searchRow}>
                   <View
                     style={[
                       styles.search,
-                      searchFocused && { borderColor: colors.brand },
+                      searchFocused && { borderColor: colors.orange },
                     ]}
                   >
-                    <Icon name="search" size={16} color={colors.muted} />
+                    <Icon name="search" size={iconSizes.control} color={colors.muted} />
                     <TextInput
                       accessibilityLabel="Tìm yêu cầu học"
                       value={search}
@@ -112,7 +95,7 @@ export function DiscoverScreen() {
                       onFocus={() => setSearchFocused(true)}
                       onBlur={() => setSearchFocused(false)}
                       placeholder="Tìm kỹ năng, người học..."
-                      placeholderTextColor={colors.mutedLight}
+                      placeholderTextColor={colors.muted}
                       autoCapitalize="none"
                       autoCorrect={false}
                       returnKeyType="search"
@@ -125,7 +108,7 @@ export function DiscoverScreen() {
                         onPress={() => setSearch("")}
                         hitSlop={8}
                       >
-                        <Icon name="close" size={16} color={colors.muted} />
+                        <Icon name="close" size={iconSizes.control} color={colors.muted} />
                       </Pressable>
                     )}
                   </View>
@@ -136,27 +119,44 @@ export function DiscoverScreen() {
                     onPress={() => setAdvancedOpen((open) => !open)}
                     style={({ pressed }) => [
                       styles.advancedToggle,
-                      advancedOpen && styles.advancedToggleActive,
+                      (advancedOpen ||
+                        filter !== "Tất cả" ||
+                        advancedFilter !== "all") &&
+                        styles.advancedToggleActive,
                       pressed && { opacity: 0.75 },
                     ]}
                   >
-                    <Icon
-                      name="settings"
-                      size={16}
-                      color={advancedOpen ? colors.white : colors.brand}
-                    />
-                    <Text
-                      style={[
-                        styles.advancedToggleLabel,
-                        advancedOpen && { color: colors.white },
-                      ]}
-                    >
-                      Lọc
-                    </Text>
+                    <Icon name="filter" size={iconSizes.control} color={colors.orange} />
+                    <Text style={[styles.advancedToggleLabel]}>Lọc</Text>
                   </Pressable>
                 </View>
                 {advancedOpen && (
                   <View style={styles.advancedFilters}>
+                    <View style={styles.filters}>
+                      {requestFilters.map((label) => (
+                        <Pressable
+                          key={label}
+                          accessibilityRole="tab"
+                          accessibilityState={{ selected: filter === label }}
+                          aria-selected={filter === label}
+                          onPress={() => setFilter(label)}
+                          style={({ pressed }) => [
+                            styles.filter,
+                            filter === label && styles.activeFilter,
+                            pressed && { opacity: 0.7 },
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.filterLabel,
+                              filter === label && { color: colors.orange },
+                            ]}
+                          >
+                            {label}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
                     <Text style={styles.advancedLabel}>Lọc nhanh</Text>
                     <View style={styles.advancedChoices}>
                       {[
@@ -183,7 +183,7 @@ export function DiscoverScreen() {
                             <Text
                               style={[
                                 styles.advancedChoiceLabel,
-                                selected && { color: colors.white },
+                                selected && { color: colors.orange },
                               ]}
                             >
                               {label}
@@ -195,10 +195,58 @@ export function DiscoverScreen() {
                   </View>
                 )}
                 <View style={styles.resultSummary}>
-                  <Text style={styles.resultCount}>
-                    {requests.length} yêu cầu
-                  </Text>
+                  <View style={styles.countRow}>
+                    <View style={styles.resultDot} />
+                    <Text style={styles.resultCount}>
+                      <Text style={styles.count}>
+                        {requests.length} yêu cầu
+                      </Text>{" "}
+                      đang tìm mentor
+                    </Text>
+                  </View>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Sắp xếp yêu cầu"
+                    accessibilityState={{ expanded: sortOpen }}
+                    onPress={() => setSortOpen((open) => !open)}
+                    style={styles.sortButton}
+                  >
+                    <Text style={styles.sortLabel}>
+                      {oldestFirst ? "Cũ nhất" : "Mới nhất"}
+                    </Text>
+                    <View style={{ transform: [{ rotate: "90deg" }] }}>
+                      <Icon name="chevron" size={iconSizes.inline} color={colors.muted} />
+                    </View>
+                  </Pressable>
                 </View>
+                {sortOpen && (
+                  <View style={styles.sortChoices}>
+                    {[false, true].map((oldest) => (
+                      <Pressable
+                        key={String(oldest)}
+                        accessibilityRole="radio"
+                        accessibilityState={{ checked: oldestFirst === oldest }}
+                        onPress={() => {
+                          setOldestFirst(oldest);
+                          setSortOpen(false);
+                        }}
+                        style={styles.sortChoice}
+                      >
+                        <Text
+                          style={[
+                            styles.sortLabel,
+                            oldestFirst === oldest && { color: colors.orange },
+                          ]}
+                        >
+                          {oldest ? "Cũ nhất" : "Mới nhất"}
+                        </Text>
+                        {oldestFirst === oldest && (
+                          <Icon name="check" size={14} color={colors.orange} />
+                        )}
+                      </Pressable>
+                    ))}
+                  </View>
+                )}
               </View>
             }
             ListEmptyComponent={
@@ -231,20 +279,22 @@ export function DiscoverScreen() {
   );
 }
 const styles = StyleSheet.create({
+  background: { backgroundColor: colors.background },
   list: { flex: 1 },
   content: {
     width: "100%",
     maxWidth: 840,
     alignSelf: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 20,
+    paddingHorizontal: 24,
+    paddingTop: 4,
+    paddingBottom: 24,
   },
-  header: { gap: 16, marginBottom: 8 },
+  header: { gap: 14, marginBottom: 14 },
   filters: {
     flexDirection: "row",
-    backgroundColor: colors.sand,
+    backgroundColor: colors.tag,
     padding: 4,
-    borderRadius: radius.control,
+    borderRadius: 6,
     gap: 4,
   },
   filter: {
@@ -253,9 +303,9 @@ const styles = StyleSheet.create({
     minHeight: 40,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: radius.control,
+    borderRadius: 4,
   },
-  activeFilter: { backgroundColor: colors.white },
+  activeFilter: { backgroundColor: colors.orangeSoft },
   searchRow: { flexDirection: "row", alignItems: "stretch", gap: 8 },
   search: {
     flex: 1,
@@ -265,70 +315,68 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radius.card,
-    backgroundColor: colors.white,
+    borderRadius: 8,
+    backgroundColor: colors.surface,
   },
   searchInput: {
     flex: 1,
     minWidth: 0,
-    paddingVertical: 10,
+    paddingVertical: 9,
     fontFamily: fonts.body,
-    fontSize: 14,
-    lineHeight: 20,
+    ...typography.secondary,
     color: colors.ink,
   },
   advancedToggle: {
-    minWidth: 72,
+    minWidth: 64,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 4,
     paddingHorizontal: 10,
     borderWidth: 1,
-    borderColor: colors.brandMuted,
-    borderRadius: radius.card,
-    backgroundColor: colors.brandLight,
+    borderColor: colors.border,
+    borderRadius: 6,
+    backgroundColor: colors.surface,
   },
   advancedToggleActive: {
-    borderColor: colors.brand,
-    backgroundColor: colors.brand,
+    borderColor: colors.orange,
+    backgroundColor: colors.orangeSoft,
   },
   advancedToggleLabel: {
     fontFamily: fonts.semibold,
-    fontSize: 12,
-    lineHeight: 16,
-    color: colors.brand,
+    ...typography.secondary,
+    color: colors.orange,
   },
   advancedFilters: {
     gap: 8,
     padding: 12,
-    borderRadius: radius.card,
-    backgroundColor: colors.white,
+    borderRadius: 8,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   advancedLabel: {
     fontFamily: fonts.medium,
-    fontSize: 12,
-    lineHeight: 16,
+    ...typography.secondary,
     color: colors.muted,
   },
   advancedChoices: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   advancedChoice: {
     paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: radius.badge,
-    backgroundColor: colors.sand,
+    borderRadius: 4,
+    backgroundColor: colors.tag,
   },
-  advancedChoiceSelected: { backgroundColor: colors.brand },
+  advancedChoiceSelected: { backgroundColor: colors.orangeSoft },
   advancedChoiceLabel: {
     fontFamily: fonts.semibold,
-    fontSize: 12,
-    lineHeight: 16,
-    color: colors.body,
+    ...typography.secondary,
+    color: colors.muted,
   },
   filterLabel: {
     fontFamily: fonts.semibold,
-    fontSize: 13,
-    lineHeight: 20,
-    color: colors.body,
+    ...typography.secondary,
+    color: colors.muted,
     textAlign: "center",
   },
   resultSummary: {
@@ -340,14 +388,50 @@ const styles = StyleSheet.create({
   },
   resultCount: {
     fontFamily: fonts.medium,
-    fontSize: 12,
-    lineHeight: 18,
+    ...typography.secondary,
     color: colors.muted,
   },
   postLabel: {
     fontFamily: fonts.semibold,
-    color: colors.white,
-    fontSize: 14,
-    lineHeight: 20,
+    color: colors.surface,
+    ...typography.secondary,
+  },
+  postButton: {
+    backgroundColor: colors.orange,
+    borderRadius: 6,
+    gap: 4,
+    paddingHorizontal: 10,
+  },
+  countRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexShrink: 1,
+    gap: 5,
+  },
+  resultDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: colors.green,
+  },
+  count: { color: colors.green, fontFamily: fonts.bold },
+  sortButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    minHeight: 28,
+  },
+  sortLabel: {
+    fontFamily: fonts.medium,
+    ...typography.secondary,
+    color: colors.muted,
+  },
+  sortChoices: { alignSelf: "flex-end", gap: 4 },
+  sortChoice: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 14,
+    padding: 8,
   },
 });

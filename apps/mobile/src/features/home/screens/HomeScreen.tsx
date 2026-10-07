@@ -6,7 +6,8 @@ import { LogoutDialog } from "@/components/LogoutDialog";
 import { Icon } from "@/components/Icon";
 import { InfoModal } from "@/components/InfoModal";
 import { demoNotifications, popularSkills, recentMessages } from "@/mocks/app";
-import { colors, fonts } from "@/constants/theme";
+import { typography, fonts } from "@/constants/theme";
+import { homeColors as colors } from "../constants/theme";
 import { appRoutes } from "@/constants/navigation";
 import { useMockSession } from "@/features/auth/context/MockSession";
 import { AccountMenu, AppHeader, HomeSearch } from "@/components/AppHeader";
@@ -60,6 +61,7 @@ export function HomeScreen() {
   return (
     <SafeAreaView style={styles.screen} edges={["top", "left", "right"]}>
       <AppHeader
+        appearance="home"
         profile={session}
         onAction={action}
         onAccount={() => setMenu(true)}
@@ -148,14 +150,15 @@ export function HomeScreen() {
   );
 }
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.white },
-  scroll: { flex: 1, backgroundColor: colors.cream },
+  screen: { flex: 1, backgroundColor: colors.surface },
+  scroll: { flex: 1, backgroundColor: colors.background },
   content: {
     width: "100%",
     maxWidth: 1040,
     alignSelf: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 20,
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 24,
   },
   searchResult: {
     flexDirection: "row",
@@ -165,8 +168,7 @@ const styles = StyleSheet.create({
   },
   noticeBody: {
     fontFamily: fonts.body,
-    fontSize: 14,
-    lineHeight: 22,
+    ...typography.body,
     color: colors.muted,
     includeFontPadding: false,
   },
