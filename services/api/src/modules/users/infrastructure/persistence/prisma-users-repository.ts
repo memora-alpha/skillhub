@@ -1,8 +1,7 @@
-import { Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable } from "@nestjs/common";
 import { IdentityTx } from "../../../../shared/database/identity-transactions";
 import {
   User,
-  Profile,
   AvatarAsset,
   RoleCode,
 } from "../../../../generated/prisma/client";
@@ -35,15 +34,17 @@ export class PrismaUsersRepository extends UsersRepository {
         passwordHash: data.passwordHash,
         termsVersion: data.termsVersion,
         termsAcceptedAt: new Date(),
-        profile: {
-          create: {
-            fullName: data.fullName,
-            timezone: data.timezone,
-            locale: data.locale ?? "vi",
-            reputationScore: data.reputationScore,
-          },
-        },
-        roles: { create: { roleId: role.id } },
+        roleId: role.id,
+        fullName: data.fullName,
+        timezone: data.timezone,
+        locale: data.locale ?? "vi",
+        reputationScore: data.reputationScore ?? 50,
+        accountStatus: "PENDING_VERIFICATION",
+        emailVerified: false,
+        securityVersion: 1,
+        failedLoginCount: 0,
+        verifiedSkillCount: 0,
+        completedSessionCount: 0,
       },
     });
   }
@@ -90,52 +91,62 @@ export class PrismaUsersRepository extends UsersRepository {
     userId: string,
     code: "STAFF" | "ADMIN",
     add: boolean,
-    assignedBy: string | null,
   ): Promise<boolean> {
     const role = await tx.role.findUniqueOrThrow({ where: { code } });
-    const before = !!(await tx.userRole.findUnique({
-      where: { userId_roleId: { userId, roleId: role.id } },
-    }));
-    if (add)
-      await tx.userRole.upsert({
-        where: { userId_roleId: { userId, roleId: role.id } },
-        create: { userId, roleId: role.id, assignedBy },
-        update: {},
-      });
-    else await tx.userRole.deleteMany({ where: { userId, roleId: role.id } });
-    return before !== add;
+    const user = await tx.user.findUniqueOrThrow({
+      where: { id: userId },
+      include: { roleIdRecord: true },
+    });
+    if (code === "STAFF" && user.roleIdRecord.code === "ADMIN") {
+      if (add)
+        throw new BadRequestException("ADMIN_ROLE_CANNOT_BE_REPLACED_BY_STAFF");
+      return false;
+    }
+    if ((user.roleId === role.id) === add) return false;
+    const next = add
+      ? role
+      : await tx.role.findUniqueOrThrow({ where: { code: "USER" } });
+    await tx.user.update({ where: { id: userId }, data: { roleId: next.id } });
+    return true;
   }
   async grants(
     tx: IdentityTx,
     userId: string,
   ): Promise<{ roles: RoleCode[]; permissions: string[] }> {
-    const rows = await tx.userRole.findMany({
-      where: { userId },
+    const user = await tx.user.findUniqueOrThrow({
+      where: { id: userId },
       include: {
-        role: { include: { permissions: { include: { permission: true } } } },
+        roleIdRecord: {
+          include: {
+            rolePermissionRoleIdRecords: {
+              include: { permissionIdRecord: true },
+            },
+          },
+        },
       },
     });
     return {
-      roles: rows.map((row) => row.role.code),
+      roles: [user.roleIdRecord.code],
       permissions: [
         ...new Set(
-          rows.flatMap((row) =>
-            row.role.permissions.map((grant) => grant.permission.code),
+          user.roleIdRecord.rolePermissionRoleIdRecords.map(
+            (grant) => grant.permissionIdRecord.code,
           ),
         ),
       ],
     };
   }
-  profile(
+  async profile(
     tx: IdentityTx,
     userId: string,
-  ): Promise<
-    (Profile & { user: User; avatarAsset: AvatarAsset | null }) | null
-  > {
-    return tx.profile.findUnique({
-      where: { userId },
-      include: { user: true, avatarAsset: true },
+  ): Promise<(User & { user: User; avatarAsset: AvatarAsset | null }) | null> {
+    const row = await tx.user.findUnique({
+      where: { id: userId },
+      include: { selectedAvatarRecord: true },
     });
+    return row
+      ? { ...row, user: row, avatarAsset: row.selectedAvatarRecord }
+      : null;
   }
   requiredUser(tx: IdentityTx, id: string): Promise<User> {
     return tx.user.findUniqueOrThrow({ where: { id } });
@@ -150,10 +161,10 @@ export class PrismaUsersRepository extends UsersRepository {
       timezone?: string;
       locale?: "vi" | "en";
     },
-  ): Promise<Profile> {
-    return tx.profile.update({ where: { userId }, data });
+  ): Promise<User> {
+    return tx.user.update({ where: { id: userId }, data });
   }
-  list(
+  async list(
     tx: IdentityTx,
     query: UserListQuery,
   ): Promise<
@@ -162,12 +173,10 @@ export class PrismaUsersRepository extends UsersRepository {
       roles: { role: { code: RoleCode } }[];
     })[]
   > {
-    return tx.user.findMany({
+    const rows = await tx.user.findMany({
       where: {
         accountStatus: query.status,
-        ...(query.role
-          ? { roles: { some: { role: { code: query.role } } } }
-          : {}),
+        ...(query.role ? { roleIdRecord: { code: query.role } } : {}),
         ...(query.before
           ? {
               OR: [
@@ -184,10 +193,15 @@ export class PrismaUsersRepository extends UsersRepository {
         normalizedEmail: true,
         accountStatus: true,
         createdAt: true,
-        profile: { select: { fullName: true } },
-        roles: { select: { role: { select: { code: true } } } },
+        fullName: true,
+        roleIdRecord: { select: { code: true } },
       },
     });
+    return rows.map(({ fullName, roleIdRecord, ...row }) => ({
+      ...row,
+      profile: { fullName },
+      roles: [{ role: roleIdRecord }],
+    }));
   }
   async seedRoles(tx: IdentityTx): Promise<void> {
     const roles: RoleCode[] = ["USER", "STAFF", "ADMIN"];

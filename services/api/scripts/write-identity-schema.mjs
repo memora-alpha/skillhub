@@ -1,17 +1,16 @@
-import { readFileSync, writeFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-const root = new URL("../prisma/", import.meta.url);
-const source = readFileSync(new URL("schema.prisma", root), "utf8");
-const allModels = new Set(
-  [...source.matchAll(/^model (\w+)/gm)].map((match) => match[1]),
+// Compatibility entry point for db:migrate: verify the complete v3 runtime.
+// Never replace it with a legacy identity-only subset of the domain schema.
+import { readFileSync } from "node:fs";
+
+const source = readFileSync(
+  new URL("../prisma/schema.prisma", import.meta.url),
+  "utf8",
 );
-const models = new Set([
+for (const name of [
   "SystemConfiguration",
   "User",
-  "Profile",
   "Role",
   "Permission",
-  "UserRole",
   "RolePermission",
   "OtpChallenge",
   "OtpIssueWindow",
@@ -21,50 +20,22 @@ const models = new Set([
   "IdentityEmailDelivery",
   "AvatarAsset",
   "AuditLog",
-  // Foundation tables (SH-003..006) deployed by the same migration history.
   "IdempotencyRecord",
   "OutboxEvent",
   "OutboxConsumerReceipt",
   "SystemConfigurationRevision",
   "StoredFile",
   "StoredFileScanEvent",
-]);
-const enums = new Set([
-  "AccountStatus",
-  "RoleCode",
-  "ProfileLocale",
-  "OtpPurpose",
-  "ReauthPurpose",
-  "IdentityEmailKind",
-  "EmailDeliveryStatus",
-  "AvatarAssetStatus",
-]);
-const blocks = source.match(
-  /^(?:generator|datasource|model|enum) \w+ \{[\s\S]*?^\}/gm,
-);
-const selected = blocks
-  .filter((block) => {
-    const [, kind, name] = /^(\w+) (\w+)/.exec(block);
-    return (
-      kind === "generator" ||
-      kind === "datasource" ||
-      (kind === "model" ? models.has(name) : enums.has(name))
+  "LearningPath",
+  "LearningPlan",
+  "Material",
+]) {
+  if (!source.includes(`model ${name} {`)) {
+    throw new Error(
+      `Runtime schema is missing ${name}; generate the v3 runtime before migrating.`,
     );
-  })
-  .map((block) =>
-    block.startsWith("model User ")
-      ? block
-          .split("\n")
-          .filter((line) => {
-            const field = /^\s+\w+\s+(\w+)/.exec(line);
-            return !field || !allModels.has(field[1]) || models.has(field[1]);
-          })
-          .join("\n")
-      : block,
-  );
-writeFileSync(
-  fileURLToPath(new URL("identity.prisma", root)),
-  "// Generated from schema.prisma by scripts/write-identity-schema.mjs. Identity deployment scope only.\n" +
-    selected.join("\n\n") +
-    "\n",
+  }
+}
+console.log(
+  "Using the full v3 runtime in prisma/schema.prisma, including OTP/foundation support.",
 );

@@ -9,7 +9,7 @@ export function validateOutboxMessage(event: OutboxMessage): void {
   if (
     !uuidPattern.test(event.eventId) ||
     !uuidPattern.test(event.correlationId) ||
-    !/^[a-z][a-z0-9.:-]{0,127}$/.test(event.type) ||
+    !/^[a-z][a-z0-9.:-]{0,99}$/.test(event.type) ||
     !Number.isInteger(event.version) ||
     event.version < 1
   )
@@ -37,6 +37,9 @@ export class OutboxWriter {
         version: event.version,
         payload: event.payload as object,
         correlationId: event.correlationId,
+        aggregateType: event.type,
+        aggregateId: event.eventId,
+        dedupeKey: event.eventId,
       },
     });
   }

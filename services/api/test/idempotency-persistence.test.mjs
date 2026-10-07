@@ -35,6 +35,9 @@ test(
         await tx.outboxEvent.create({
           data: {
             eventId: id,
+            aggregateType: "test.idempotency",
+            aggregateId: id,
+            dedupeKey: id,
             type: "test.idempotency",
             version: 1,
             payload: { id },

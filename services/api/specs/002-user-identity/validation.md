@@ -2,11 +2,21 @@
 
 Date: 2026-10-03. Branch: `feat/user-identity`. Planning/schema baseline committed as `a3eb599` (`feat(api): define identity specification and product schemas`), with root formatting/lint/commitlint hooks. Implementation follows local `speckit-implement` and the prerequisite `speckit-tasks` workflow. Requirements checklist: 16/16 complete. No before/after implementation extension hooks are registered.
 
+## Runtime v3 update (2026-10-07)
+
+The runtime now uses the v3 domain schema through `prisma.config.ts` and
+`prisma/schema.prisma`: inline User profile fields, one roleId, and v3 SQL column
+names. Seven technical OTP/foundation models preserve implemented functionality.
+The upgrade migration backfills existing data and archives original profile/grant
+tables. The migration preservation test and v3 repository tests pass; API lint,
+typecheck and build pass. This has not deployed migrations to the application DB.
+Earlier evidence below describes the original identity implementation.
+
 ## Delivered scope
 
 All 21 method/path pairs in [HTTP contract](contracts/http.md) are implemented under `/api/v1`. Nest URI versioning excludes unversioned identity aliases; health/readiness remain version-neutral and Swagger remains `/api/docs` in development/test. Auth, users, notification and audit owner contracts share explicit PostgreSQL transaction contexts. No finance, chat, OAuth, online Admin grant or frontend implementation is included.
 
-The identity migration introduces fourteen identity models and SystemConfiguration metadata, eight enums, normalized-email/counter/range/time/state CHECK constraints, outstanding-OTP partial uniqueness, ownership composite FKs and an append-only audit trigger. The complete 45-model catalog remains available in `prisma/schema.prisma`; `prisma/identity.prisma` is derived by `scripts/write-identity-schema.mjs` for current migration scope. Future catalog tables have no migration yet.
+The identity migration introduces fourteen identity models and SystemConfiguration metadata, eight enums, normalized-email/counter/range/time/state CHECK constraints, outstanding-OTP partial uniqueness, ownership composite FKs and an append-only audit trigger. The complete 45-model catalog remains available in `prisma/catalog.prisma`; `prisma/schema.prisma` is derived by `scripts/write-identity-schema.mjs` for current migration scope. Future catalog tables have no migration yet.
 
 ## Verification evidence
 

@@ -105,7 +105,7 @@ export class OutboxDispatcher implements OnModuleInit, OnModuleDestroy {
     const claimed = await this.prisma.$queryRaw<ClaimedEvent[]>`
       WITH picked AS (
         SELECT "event_id" FROM "outbox_events"
-        WHERE "delivered_at" IS NULL AND "failed_at" IS NULL
+        WHERE "published_at" IS NULL AND "failed_at" IS NULL
           AND "available_at" <= CURRENT_TIMESTAMP
           AND ("lease_until" IS NULL OR "lease_until" < CURRENT_TIMESTAMP)
         ORDER BY "available_at", "created_at"
@@ -114,10 +114,10 @@ export class OutboxDispatcher implements OnModuleInit, OnModuleDestroy {
       UPDATE "outbox_events" AS e
       SET "lease_token" = ${token}::uuid,
           "lease_until" = CURRENT_TIMESTAMP + INTERVAL '30 seconds',
-          "total_attempts" = e."total_attempts" + 1,
+          "attempts" = e."attempts" + 1,
           "cycle_attempts" = e."cycle_attempts" + 1
       FROM picked WHERE e."event_id" = picked."event_id"
-      RETURNING e."event_id", e."type", e."version", e."payload",
+      RETURNING e."event_id", e."event_type" AS type, e."aggregate_version" AS version, e."payload",
         e."correlation_id", e."lease_token", e."cycle_attempts"
     `;
     // Events are independent; concurrent delivery keeps one batch inside its
@@ -146,7 +146,7 @@ export class OutboxDispatcher implements OnModuleInit, OnModuleDestroy {
       await withTimeout(publisher.publish(event), publishTimeoutMs);
       return await this.prisma.$executeRaw`
         UPDATE "outbox_events"
-        SET "delivered_at" = CURRENT_TIMESTAMP,
+        SET "published_at" = CURRENT_TIMESTAMP,
             "lease_token" = NULL, "lease_until" = NULL
         WHERE "event_id" = ${row.event_id}::uuid AND "lease_token" = ${row.lease_token}::uuid
       `;

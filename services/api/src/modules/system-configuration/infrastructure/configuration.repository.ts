@@ -46,7 +46,7 @@ export class ConfigurationRepository {
     effectiveAt: Date,
   ): Promise<boolean> {
     const result = await tx.systemConfiguration.createMany({
-      data: [{ key, value, version: 1, effectiveAt }],
+      data: [{ key, value, valueType: typeof value, version: 1, effectiveAt }],
       skipDuplicates: true,
     });
     return result.count === 1;
@@ -61,7 +61,12 @@ export class ConfigurationRepository {
   ): Promise<boolean> {
     const result = await tx.systemConfiguration.updateMany({
       where: { key, version: expectedVersion },
-      data: { value, version: expectedVersion + 1, effectiveAt },
+      data: {
+        value,
+        valueType: typeof value,
+        version: expectedVersion + 1,
+        effectiveAt,
+      },
     });
     return result.count === 1;
   }

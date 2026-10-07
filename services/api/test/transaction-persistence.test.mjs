@@ -35,6 +35,9 @@ test(
           await tx.outboxEvent.create({
             data: {
               eventId,
+              aggregateType: "test.rollback",
+              aggregateId: eventId,
+              dedupeKey: eventId,
               type: "test.rollback",
               version: 1,
               payload: { id: eventId },
@@ -121,6 +124,9 @@ test("deadlock victim is retried and both writers commit", { skip }, (t) =>
     await prisma.outboxEvent.createMany({
       data: [left, right].map((eventId) => ({
         eventId,
+        aggregateType: type,
+        aggregateId: eventId,
+        dedupeKey: eventId,
         type,
         version: 1,
         payload: {},

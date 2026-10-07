@@ -147,8 +147,12 @@ test(
         for (const name of [
           "20261003000000_foundation",
           "20261003010000_identity",
+          "20261005000000_sh005_consistency",
           // audit_logs columns added by SH-003; the generated client selects them.
           "20261005010000_sh003_audit",
+          "20261005020000_sh006_configuration_history",
+          "20261005030000_sh004_stored_files",
+          "20261007000000_runtime_v3",
         ])
           await client.query(
             await readFile(
@@ -187,9 +191,21 @@ test(
         "bulk participant locks serialize reversed and duplicate UUID inputs",
         async () => {
           const ids = [randomUUID(), randomUUID()];
+          const role = await db.role.findUniqueOrThrow({
+            where: { code: "USER" },
+          });
           await db.user.createMany({
             data: ids.map((id) => ({
               id,
+              roleId: role.id,
+              fullName: "Lock Fixture",
+              accountStatus: "PENDING_VERIFICATION",
+              emailVerified: false,
+              securityVersion: 0,
+              failedLoginCount: 0,
+              locale: "vi",
+              verifiedSkillCount: 0,
+              completedSessionCount: 0,
               normalizedEmail: `${id}@lock.invalid`,
               termsVersion: "fixture",
               termsAcceptedAt: new Date(),
@@ -298,8 +314,6 @@ test(
           });
           for (const table of [
             db.user,
-            db.profile,
-            db.userRole,
             db.otpChallenge,
             db.identityEmailDelivery,
           ])
@@ -1385,8 +1399,8 @@ test(
               );
               assert.equal(
                 (
-                  await db.profile.findUniqueOrThrow({
-                    where: { userId: queueUser.id },
+                  await db.user.findUniqueOrThrow({
+                    where: { id: queueUser.id },
                   })
                 ).avatarAssetId,
                 upload.assetId,
@@ -1440,7 +1454,10 @@ test(
     } finally {
       if (app) await app.close();
       await db.$disconnect();
-      if (created) await pool.query(`DROP SCHEMA "${schema}" CASCADE`);
+      if (created) {
+        await pool.query(`DROP SCHEMA IF EXISTS "${schema}_legacy_v3" CASCADE`);
+        await pool.query(`DROP SCHEMA "${schema}" CASCADE`);
+      }
       await pool.end();
       redis.disconnect(); // Random-key HMAC Redis keys expire in 60 seconds.
     }
