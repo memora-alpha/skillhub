@@ -7,7 +7,7 @@ let schema = readFileSync(new URL("catalog.prisma", root), "utf8").replace(
 );
 
 function model(name, transform) {
-  const pattern = new RegExp(`^model ${name} \\{[\\s\\S]*?^\\}`, "m");
+  const pattern = new RegExp(String.raw`^model ${name} \{[\s\S]*?^\}`, "m");
   if (!pattern.test(schema)) throw new Error(`Missing v3 model ${name}`);
   schema = schema.replace(pattern, transform);
 }
