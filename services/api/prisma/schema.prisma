@@ -60,7 +60,7 @@ enum SkillVerificationStatus {
 
 enum VerificationRequestStatus {
   PENDING
-  VERIFIED
+  APPROVED @map("VERIFIED")
   REJECTED
 }
 
@@ -445,6 +445,11 @@ model Skill {
   learningPlanVersionSkillIdRecords LearningPlanVersion[] @relation("LearningPlanVersion_skill_id")
   materialSkillIdRecords            Material[]            @relation("Material_skill_id")
 
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  version   Int      @default(1)
+  nameKey   String   @unique @map("name_key") @db.Text
+
   @@index([categoryId])
   @@map("skills")
 }
@@ -464,6 +469,10 @@ model SharingSkill {
   skillIdRecord                          Skill               @relation("SharingSkill_skill_id", fields: [skillId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   skillVerificationSharingSkillIdRecords SkillVerification[] @relation("SkillVerification_sharing_skill_id")
 
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  version   Int      @default(1)
+
   @@index([userId])
   @@index([skillId])
   @@map("sharing_skills")
@@ -482,6 +491,7 @@ model SkillVerification {
   skillEvidenceSubmissionRecords SkillEvidence[] @relation("SkillEvidence_submission")
   sharingSkillIdRecord           SharingSkill    @relation("SkillVerification_sharing_skill_id", fields: [sharingSkillId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   reviewerIdRecord               User?           @relation("SkillVerification_reviewer_id", fields: [reviewerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  version                        Int             @default(1)
 
   @@unique([id, sharingSkillId])
   @@index([sharingSkillId])
@@ -514,6 +524,9 @@ model SkillEvidence {
   submissionRecord      SkillVerification @relation("SkillEvidence_submission", fields: [verificationId, sharingSkillId], references: [id, sharingSkillId], onDelete: Restrict, onUpdate: Restrict)
   reviewerIdRecord      User?             @relation("SkillEvidence_reviewer_id", fields: [reviewerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   revokedByUserIdRecord User?             @relation("SkillEvidence_revoked_by_user_id", fields: [revokedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  storedFileId String?     @unique @map("stored_file_id") @db.Uuid
+  storedFile   StoredFile? @relation(fields: [storedFileId], references: [id], onDelete: Restrict)
 
   @@index([verificationId, sharingSkillId])
   @@index([reviewerId])
@@ -1539,6 +1552,10 @@ model StoredFile {
   createdAt         DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt         DateTime              @updatedAt @map("updated_at") @db.Timestamptz(3)
   scanEvents        StoredFileScanEvent[]
+  attachedAt        DateTime?             @map("attached_at") @db.Timestamptz(3)
+  resourceType      String?               @map("resource_type")
+  resourceId        String?               @map("resource_id") @db.Uuid
+  evidence          SkillEvidence?
 
   @@index([state, createdAt])
   @@index([scanLeaseUntil])

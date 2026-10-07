@@ -15,6 +15,37 @@ function fields(block, added) {
   return block.replace(/\n\}/, `\n${added}\n}`);
 }
 
+// Domain approval names differ from the historical PostgreSQL enum label.
+schema = schema.replace(
+  /(enum VerificationRequestStatus \{[\s\S]*?)\bVERIFIED\b/,
+  '$1APPROVED @map("VERIFIED")',
+);
+for (const name of ["Skill", "SharingSkill"]) {
+  model(name, (block) =>
+    fields(
+      block,
+      `
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  version Int @default(1)
+  ${name === "Skill" ? 'nameKey String @unique @map("name_key") @db.Text' : ""}
+`,
+    ),
+  );
+}
+model("SkillVerification", (block) =>
+  fields(block, "  version Int @default(1)"),
+);
+model("SkillEvidence", (block) =>
+  fields(
+    block,
+    `
+  storedFileId String? @unique @map("stored_file_id") @db.Uuid
+  storedFile StoredFile? @relation(fields: [storedFileId], references: [id], onDelete: Restrict)
+`,
+  ),
+);
+
 model("User", (block) =>
   fields(
     block,

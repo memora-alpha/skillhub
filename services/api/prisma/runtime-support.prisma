@@ -105,6 +105,10 @@ model StoredFile {
   createdAt         DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt         DateTime              @updatedAt @map("updated_at") @db.Timestamptz(3)
   scanEvents        StoredFileScanEvent[]
+  attachedAt        DateTime? @map("attached_at") @db.Timestamptz(3)
+  resourceType      String? @map("resource_type")
+  resourceId        String? @map("resource_id") @db.Uuid
+  evidence          SkillEvidence?
 
   @@index([state, createdAt])
   @@index([scanLeaseUntil])

@@ -51,6 +51,19 @@ HTTP contracts now contain one role. Reputation uses 50 when not initialized.
 
 ## Representation and unresolved constraints
 
+Skills migration `20261007010000_skills` adds normalized catalog keys, optimistic
+versions, timestamps, active-sharing/pending-request partial unique constraints,
+and durable StoredFile bindings. Runtime Prisma `APPROVED` maps to the historical
+SQL enum value `VERIFIED` for verification requests; the model catalog stays unchanged.
+The migration reports collision IDs before adding unique indexes. It requires
+existing descriptions/reasons/sizes to satisfy the new checks; resolve invalid
+legacy rows deliberately before deployment. New evidence batches require 1–5
+bound files and at most 10,000,000 bytes per file. Unbound historical evidence is
+retained, but cannot be newly approved or downloaded through Skills routes.
+READY orphan evidence can enter cleanup after the existing 24-hour grace;
+attached files and scan facts remain immutable and are retained for history.
+Migration tests use disposable schemas and do not deploy the application database.
+
 - Profile fields and reputation (default 50) are on User; one required roleId,
   no UserRole. OTP tables/issue windows, Withdrawal, Achievement, SkillTag,
   separate confirmations/attendance/room, MaterialVersion and PathSettlement

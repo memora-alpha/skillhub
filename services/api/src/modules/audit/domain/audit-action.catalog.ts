@@ -8,6 +8,9 @@ import {
 import { validateReason } from "./reason.policy";
 
 export const AUDIT_ACTIONS = [
+  "SKILL_CATALOG_CREATE",
+  "SKILL_CATALOG_UPDATE",
+  "SKILL_CATALOG_ARCHIVE",
   "USER_LOCK",
   "USER_UNLOCK",
   "USER_SUSPEND",
@@ -70,6 +73,12 @@ const account = z.strictObject({
 const verification = z.strictObject({
   status: z.enum(["PENDING", "APPROVED", "REJECTED", "REVOKED"]).optional(),
 });
+const catalog = z.strictObject({
+  name: z.string().max(100),
+  slug: z.string().max(120),
+  status: z.enum(["ACTIVE", "INACTIVE", "ARCHIVED"]),
+  version: z.number().int().positive(),
+});
 const learningRequest = z.strictObject({
   status: z.enum(["PENDING", "APPROVED", "REJECTED", "REMOVED"]).optional(),
 });
@@ -102,6 +111,9 @@ const projectionByAction: Record<
   Exclude<AuditAction, "SYSTEM_CONFIGURATION_UPDATE">,
   z.ZodType
 > = {
+  SKILL_CATALOG_CREATE: catalog,
+  SKILL_CATALOG_UPDATE: catalog,
+  SKILL_CATALOG_ARCHIVE: catalog,
   USER_LOCK: account,
   USER_UNLOCK: account,
   USER_SUSPEND: account,

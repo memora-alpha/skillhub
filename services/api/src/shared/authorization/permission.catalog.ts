@@ -1,5 +1,20 @@
 // Codes are explicit actions. Role grants are stored separately by users.
 export const PERMISSION_CATALOG = [
+  {
+    code: "sharing-skill:create:self",
+    description: "Create own sharing skill",
+  },
+  {
+    code: "sharing-skill:archive:self",
+    description: "Archive own sharing skill",
+  },
+  {
+    code: "skill-verification:submit:self",
+    description: "Submit own evidence",
+  },
+  { code: "skill-catalog:create", description: "Create catalog skill" },
+  { code: "skill-catalog:update", description: "Update catalog skill" },
+  { code: "skill-catalog:archive", description: "Archive catalog skill" },
   { code: "profile:read:self", description: "Read own profile" },
   { code: "profile:update:self", description: "Update own profile" },
   {
