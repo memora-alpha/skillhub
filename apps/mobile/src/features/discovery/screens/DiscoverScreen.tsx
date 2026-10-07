@@ -2,13 +2,12 @@ import { useEffect, useState } from "react";
 import {
   FlatList,
   Pressable,
-  StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { AppScreenLayout } from "@/components/AppScreenLayout";
+import { AppScreenLayout } from "@/features/shell";
 import { Button } from "@/components/Button";
 import { EmptyState } from "@/components/EmptyState";
 import { Icon } from "@/components/Icon";
@@ -18,8 +17,9 @@ import {
   requestFilters,
   type RequestCategory,
 } from "../mocks/requests";
-import { iconSizes, typography, fonts } from "@/constants/theme";
+import { iconSizes } from "@/constants/theme";
 import { discoveryColors as colors } from "../constants/theme";
+import { styles } from "./DiscoverScreen.styles";
 
 type AdvancedFilter = "all" | "credit" | "sessions";
 
@@ -278,160 +278,3 @@ export function DiscoverScreen() {
     </AppScreenLayout>
   );
 }
-const styles = StyleSheet.create({
-  background: { backgroundColor: colors.background },
-  list: { flex: 1 },
-  content: {
-    width: "100%",
-    maxWidth: 840,
-    alignSelf: "center",
-    paddingHorizontal: 24,
-    paddingTop: 4,
-    paddingBottom: 24,
-  },
-  header: { gap: 14, marginBottom: 14 },
-  filters: {
-    flexDirection: "row",
-    backgroundColor: colors.tag,
-    padding: 4,
-    borderRadius: 6,
-    gap: 4,
-  },
-  filter: {
-    flex: 1,
-    minWidth: 0,
-    minHeight: 40,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 4,
-  },
-  activeFilter: { backgroundColor: colors.orangeSoft },
-  searchRow: { flexDirection: "row", alignItems: "stretch", gap: 8 },
-  search: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    backgroundColor: colors.surface,
-  },
-  searchInput: {
-    flex: 1,
-    minWidth: 0,
-    paddingVertical: 9,
-    fontFamily: fonts.body,
-    ...typography.secondary,
-    color: colors.ink,
-  },
-  advancedToggle: {
-    minWidth: 64,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 4,
-    paddingHorizontal: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 6,
-    backgroundColor: colors.surface,
-  },
-  advancedToggleActive: {
-    borderColor: colors.orange,
-    backgroundColor: colors.orangeSoft,
-  },
-  advancedToggleLabel: {
-    fontFamily: fonts.semibold,
-    ...typography.secondary,
-    color: colors.orange,
-  },
-  advancedFilters: {
-    gap: 8,
-    padding: 12,
-    borderRadius: 8,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  advancedLabel: {
-    fontFamily: fonts.medium,
-    ...typography.secondary,
-    color: colors.muted,
-  },
-  advancedChoices: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  advancedChoice: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 4,
-    backgroundColor: colors.tag,
-  },
-  advancedChoiceSelected: { backgroundColor: colors.orangeSoft },
-  advancedChoiceLabel: {
-    fontFamily: fonts.semibold,
-    ...typography.secondary,
-    color: colors.muted,
-  },
-  filterLabel: {
-    fontFamily: fonts.semibold,
-    ...typography.secondary,
-    color: colors.muted,
-    textAlign: "center",
-  },
-  resultSummary: {
-    flexDirection: "row",
-    alignItems: "center",
-    flexWrap: "wrap",
-    gap: 12,
-    justifyContent: "space-between",
-  },
-  resultCount: {
-    fontFamily: fonts.medium,
-    ...typography.secondary,
-    color: colors.muted,
-  },
-  postLabel: {
-    fontFamily: fonts.semibold,
-    color: colors.surface,
-    ...typography.secondary,
-  },
-  postButton: {
-    backgroundColor: colors.orange,
-    borderRadius: 6,
-    gap: 4,
-    paddingHorizontal: 10,
-  },
-  countRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    flexShrink: 1,
-    gap: 5,
-  },
-  resultDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 3,
-    backgroundColor: colors.green,
-  },
-  count: { color: colors.green, fontFamily: fonts.bold },
-  sortButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 3,
-    minHeight: 28,
-  },
-  sortLabel: {
-    fontFamily: fonts.medium,
-    ...typography.secondary,
-    color: colors.muted,
-  },
-  sortChoices: { alignSelf: "flex-end", gap: 4 },
-  sortChoice: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 14,
-    padding: 8,
-  },
-});

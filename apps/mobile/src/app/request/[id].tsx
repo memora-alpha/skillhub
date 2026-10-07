@@ -1,4 +1,4 @@
-import { RequestDetailScreen } from "@/features/discovery/screens/RequestDetailScreen";
+import { RequestDetailScreen } from "@/features/discovery";
 export default function RequestDetailRoute() {
   return <RequestDetailScreen />;
 }

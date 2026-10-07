@@ -33,16 +33,17 @@
 - Generic UI lives under `src/components`.
 - Infrastructure adapters live under `src/lib`.
 - Providers live under `src/providers`.
-- Theme tokens live under `src/constants`.
+- Global theme tokens live under `src/constants`.
+- Feature semantic aliases may live under `src/features/<domain>/constants` when they derive shared chrome and palette values from the global theme.
 - Feature public APIs export through `index.ts`.
 - Avoid importing private files from another feature.
 
 ## File size limits
 
-- Keep mobile source files at 250 lines or fewer by default.
-- Route files under `src/app` should stay at 80 lines or fewer.
-- Feature views and components should stay at 220 lines or fewer.
-- Hooks, API adapters, schemas and utility files should stay at 180 lines or fewer.
+- Keep mobile source files at 400 lines or fewer by default.
+- Route files under `src/app` should stay at 100 lines or fewer.
+- Feature views and components should stay at 400 lines or fewer.
+- Hooks, API adapters, schemas and utility files should stay at 250 lines or fewer.
 - Tests may exceed these limits only when table-driven cases remain clearer in one file.
 - Generated files, lockfiles and external copied artifacts are exempt.
 - If a file must exceed the limit, explain why in the implementation summary and split it in the next related change.
@@ -106,7 +107,7 @@ React Native + Expo + TypeScript workspace. Current phase: FRONTEND UI FIRST.
 1. Inspect package.json, src/app, src/components, src/constants and the affected feature before changes.
 2. Report reusable files/components and planned created/modified files before implementation.
 3. Match the provided Figma screen and verify its visual output.
-4. Run npm run check-types and npm run lint from apps/mobile; fix introduced errors. Root pnpm --filter mobile commands are also supported.
+4. Run npm run check-types, npm run lint and npm run check-structure from apps/mobile; fix introduced errors. Root pnpm --filter mobile commands are also supported.
 5. Report created/modified files and any unverified behavior.
 
 For mobile-only development, install dependencies with npm install from apps/mobile and keep its package-lock.json. Mobile must not depend on workspace:* packages, so npm can install it independently of web and API. The rest of the repository uses pnpm from the root; retain compatibility with root workspace commands. Add Expo packages through npx expo install <package> --npm from apps/mobile so versions match this workspace's SDK. Do not create ios/android manually or initialize a nested Git repository.

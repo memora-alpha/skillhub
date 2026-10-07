@@ -12,8 +12,8 @@ import {
   typography,
   iconSizes,
   fonts,
-  signedInChrome,
 } from "@/constants/theme";
+import { profileColors, profileShadows } from "../constants/theme";
 
 export function ProfileSection({
   children,
@@ -54,7 +54,11 @@ export function ProfileHeading({
 export function VerifiedBadge() {
   return (
     <View style={styles.badge}>
-      <Icon name="shield" size={iconSizes.inline} color="#24956C" />
+      <Icon
+        name="shield"
+        size={iconSizes.inline}
+        color={profileColors.verified}
+      />
       <Text style={styles.badgeText}>Xác minh</Text>
     </View>
   );
@@ -64,9 +68,9 @@ export const profileStyles = StyleSheet.create({
     padding: 16,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: signedInChrome.border,
-    backgroundColor: signedInChrome.surface,
-    boxShadow: "0 2px 8px rgba(53, 43, 31, 0.04)",
+    borderColor: profileColors.border,
+    backgroundColor: profileColors.surface,
+    boxShadow: profileShadows.section,
   },
   headingRow: {
     flexDirection: "row",
@@ -78,31 +82,31 @@ export const profileStyles = StyleSheet.create({
   heading: {
     fontFamily: fonts.bold,
     ...typography.heading,
-    color: signedInChrome.ink,
+    color: profileColors.ink,
     includeFontPadding: false,
   },
   label: {
     fontFamily: fonts.medium,
     ...typography.body,
-    color: signedInChrome.ink,
+    color: profileColors.ink,
     includeFontPadding: false,
   },
   body: {
     fontFamily: fonts.body,
     ...typography.body,
-    color: "#5A5550",
+    color: profileColors.body,
     includeFontPadding: false,
   },
   caption: {
     fontFamily: fonts.body,
     ...typography.secondary,
-    color: "#8D8881",
+    color: profileColors.muted,
     includeFontPadding: false,
   },
   link: {
     fontFamily: fonts.semibold,
     ...typography.secondary,
-    color: "#EF653D",
+    color: profileColors.accent,
     includeFontPadding: false,
   },
 });
@@ -114,12 +118,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 5,
     paddingVertical: 1,
     borderRadius: 8,
-    backgroundColor: "#E7F8F1",
+    backgroundColor: profileColors.verifiedSoft,
   },
   badgeText: {
     fontFamily: fonts.semibold,
     ...typography.caption,
-    color: "#24956C",
+    color: profileColors.verified,
     includeFontPadding: false,
   },
 });

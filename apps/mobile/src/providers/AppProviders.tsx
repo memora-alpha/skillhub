@@ -11,8 +11,8 @@ import { useFonts } from "expo-font";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { colors } from "@/constants/theme";
-import { MockSessionProvider } from "@/features/auth/context/MockSession";
-import { MockMessagesProvider } from "@/features/messages/context/MockMessages";
+import { MockSessionProvider } from "@/features/auth";
+import { MockMessagesProvider } from "@/features/messages";
 
 export function AppProviders({ children }: { children: ReactNode }) {
   const [loaded, error] = useFonts({

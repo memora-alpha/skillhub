@@ -1,4 +1,4 @@
-import { HomeScreen } from "@/features/home/screens/HomeScreen";
+import { HomeScreen } from "@/features/home";
 export default function HomeRoute() {
   return <HomeScreen />;
 }

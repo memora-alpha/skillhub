@@ -7,15 +7,14 @@ import {
 } from "react-native";
 import { useState } from "react";
 import { Redirect, useRouter } from "expo-router";
-import { Icon, type IconName } from "@/components/Icon";
+import { Icon } from "@/components/Icon";
 import { shadows } from "@/constants/shadows";
 import {
   typography,
   iconSizes,
   fonts,
-  signedInChrome,
 } from "@/constants/theme";
-import { useMockSession } from "@/features/auth/context/MockSession";
+import { useMockSession } from "@/features/auth";
 import { ProfileLayout } from "../components/ProfileLayout";
 import { ProfileHero } from "../components/ProfileHero";
 import {
@@ -25,6 +24,12 @@ import {
   profileStyles,
 } from "../components/ProfilePrimitives";
 import { profileActions, profileDetails } from "../mocks/profile";
+import {
+  profileActionTints,
+  profileColors,
+  profileShadows,
+  profileStatColors,
+} from "../constants/theme";
 
 export function ProfileScreen() {
   const { session } = useMockSession();
@@ -48,7 +53,12 @@ export function ProfileScreen() {
                   key={stat.label}
                   style={[styles.stat, compact && { paddingHorizontal: 6 }]}
                 >
-                  <Text style={[styles.statValue, { color: statColors[index] }]}>
+                  <Text
+                    style={[
+                      styles.statValue,
+                      { color: profileStatColors[index] },
+                    ]}
+                  >
                     {stat.value}
                   </Text>
                   <Text style={styles.statLabel}>{stat.label}</Text>
@@ -74,7 +84,8 @@ export function ProfileScreen() {
                   style={[
                     styles.actionIcon,
                     {
-                      backgroundColor: actionTints[action.icon] ?? "#F5F4F2",
+                      backgroundColor:
+                        profileActionTints[action.icon] ?? profileColors.neutral,
                     },
                   ]}
                 >
@@ -132,7 +143,11 @@ export function ProfileScreen() {
                   accessibilityLabel={badge.label}
                   style={styles.badge}
                 >
-                  <Icon name={badge.icon} size={iconSizes.feature} color={badge.color} />
+                  <Icon
+                    name={badge.icon}
+                    size={iconSizes.feature}
+                    color={badge.color}
+                  />
                 </View>
               ))}
               <Pressable
@@ -141,10 +156,17 @@ export function ProfileScreen() {
                 onPress={() => open("Thành tích")}
                 style={[
                   styles.badge,
-                  { borderWidth: 0, backgroundColor: "#F5F4F2" },
+                  {
+                    borderWidth: 0,
+                    backgroundColor: profileColors.neutral,
+                  },
                 ]}
               >
-                <Icon name="plus" size={iconSizes.control} color="#8D8881" />
+                <Icon
+                  name="plus"
+                  size={iconSizes.control}
+                  color={profileColors.muted}
+                />
               </Pressable>
             </View>
           </ProfileSection>
@@ -153,8 +175,17 @@ export function ProfileScreen() {
             onPress={() => open("Thông tin riêng tư")}
             style={styles.private}
           >
-            <View style={[styles.actionIcon, { backgroundColor: "#F5F4F2" }]}>
-              <Icon name="lock" size={iconSizes.control} color="#8D8881" />
+            <View
+              style={[
+                styles.actionIcon,
+                { backgroundColor: profileColors.neutral },
+              ]}
+            >
+              <Icon
+                name="lock"
+                size={iconSizes.control}
+                color={profileColors.muted}
+              />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={profileStyles.label}>Thông tin riêng tư</Text>
@@ -175,9 +206,9 @@ const styles = StyleSheet.create({
     gap: 10,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: signedInChrome.border,
-    backgroundColor: signedInChrome.surface,
-    boxShadow: "0 3px 10px rgba(53, 43, 31, 0.04)",
+    borderColor: profileColors.border,
+    backgroundColor: profileColors.surface,
+    boxShadow: profileShadows.hero,
   },
   stats: {
     flexDirection: "row",
@@ -198,7 +229,7 @@ const styles = StyleSheet.create({
   statLabel: {
     fontFamily: fonts.semibold,
     ...typography.caption,
-    color: "#8D8881",
+    color: profileColors.muted,
     includeFontPadding: false,
   },
   actions: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
@@ -212,14 +243,14 @@ const styles = StyleSheet.create({
     minHeight: 56,
     paddingVertical: 10,
     borderRadius: 8,
-    backgroundColor: signedInChrome.surface,
+    backgroundColor: profileColors.surface,
     borderWidth: 1,
-    borderColor: signedInChrome.border,
-    boxShadow: "0 2px 6px rgba(53, 43, 31, 0.03)",
+    borderColor: profileColors.border,
+    boxShadow: profileShadows.action,
   },
   actionRaised: {
     ...shadows.sm,
-    boxShadow: "0 4px 10px rgba(53, 43, 31, 0.10)",
+    boxShadow: profileShadows.actionRaised,
     transform: [{ translateY: -1 }],
   },
   actionIcon: {
@@ -227,7 +258,7 @@ const styles = StyleSheet.create({
     height: 32,
     flexShrink: 0,
     borderRadius: 7,
-    backgroundColor: "#FFF5EF",
+    backgroundColor: profileColors.accentSoft,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -250,12 +281,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 1,
     borderRadius: 7,
-    backgroundColor: "#F5F4F2",
+    backgroundColor: profileColors.neutral,
   },
   levelText: {
     fontFamily: fonts.semibold,
     ...typography.caption,
-    color: "#77716B",
+    color: profileColors.mutedStrong,
     includeFontPadding: false,
   },
   badges: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
@@ -263,9 +294,9 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 8,
-    backgroundColor: "#FFF8EF",
+    backgroundColor: profileColors.badge,
     borderWidth: 1,
-    borderColor: "#FFE3BE",
+    borderColor: profileColors.badgeBorder,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -276,17 +307,7 @@ const styles = StyleSheet.create({
     padding: 8,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: signedInChrome.border,
-    backgroundColor: signedInChrome.surface,
+    borderColor: profileColors.border,
+    backgroundColor: profileColors.surface,
   },
 });
-
-const statColors = ["#EF653D", "#2B9D91", "#E66B4A", "#EF653D"];
-const actionTints: Partial<Record<IconName, string>> = {
-  wallet: "#FFF1E9",
-  book: "#EAF8F6",
-  award: "#FFF7DE",
-  shield: "#F0EEFF",
-  star: "#FFF7DE",
-  settings: "#F5F4F2",
-};

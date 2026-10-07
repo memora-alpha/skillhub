@@ -6,7 +6,7 @@ import {
   useCallback,
   type ReactNode,
 } from "react";
-import { useMockSession } from "@/features/auth/context/MockSession";
+import { useMockSession } from "@/features/auth";
 import { conversations } from "../mocks/conversations";
 import { initialThreads, type ChatMessage } from "../mocks/chat";
 
