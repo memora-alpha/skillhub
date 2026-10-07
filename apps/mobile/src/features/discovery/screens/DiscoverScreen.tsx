@@ -1,11 +1,5 @@
 import { useEffect, useState } from "react";
-import {
-  FlatList,
-  Pressable,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { FlatList, Pressable, Text, TextInput, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { AppScreenLayout } from "@/features/shell";
 import { Button } from "@/components/Button";
@@ -95,7 +89,11 @@ export function DiscoverScreen() {
                       searchFocused && { borderColor: colors.orange },
                     ]}
                   >
-                    <Icon name="search" size={iconSizes.control} color={colors.muted} />
+                    <Icon
+                      name="search"
+                      size={iconSizes.control}
+                      color={colors.muted}
+                    />
                     <TextInput
                       accessibilityLabel="Tìm yêu cầu học"
                       value={search}
@@ -116,7 +114,11 @@ export function DiscoverScreen() {
                         onPress={() => setSearch("")}
                         hitSlop={8}
                       >
-                        <Icon name="close" size={iconSizes.control} color={colors.muted} />
+                        <Icon
+                          name="close"
+                          size={iconSizes.control}
+                          color={colors.muted}
+                        />
                       </Pressable>
                     )}
                   </View>
@@ -134,7 +136,11 @@ export function DiscoverScreen() {
                       pressed && { opacity: 0.75 },
                     ]}
                   >
-                    <Icon name="filter" size={iconSizes.control} color={colors.orange} />
+                    <Icon
+                      name="filter"
+                      size={iconSizes.control}
+                      color={colors.orange}
+                    />
                     <Text style={[styles.advancedToggleLabel]}>Lọc</Text>
                   </Pressable>
                 </View>
@@ -223,7 +229,11 @@ export function DiscoverScreen() {
                       {oldestFirst ? "Cũ nhất" : "Mới nhất"}
                     </Text>
                     <View style={{ transform: [{ rotate: "90deg" }] }}>
-                      <Icon name="chevron" size={iconSizes.inline} color={colors.muted} />
+                      <Icon
+                        name="chevron"
+                        size={iconSizes.inline}
+                        color={colors.muted}
+                      />
                     </View>
                   </Pressable>
                 </View>

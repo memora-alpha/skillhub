@@ -14,6 +14,7 @@ import {
   FileScanWorker,
 } from "./file-scan.queue";
 import { FileStorageService } from "./file-storage.service";
+import { FileAttachmentService } from "./file-attachment.service";
 import { FileReconciler } from "./file-reconciler";
 import { OBJECT_STORAGE, type ObjectStorage } from "./object-storage.port";
 import { PrismaStoredFileRepository } from "./prisma-stored-file.repository";
@@ -31,6 +32,7 @@ import { S3ObjectStorage } from "./s3-object-storage.adapter";
     BullModule.registerQueue({ name: FILE_SCAN_QUEUE }),
   ],
   providers: [
+    FileAttachmentService,
     PrismaStoredFileRepository,
     {
       provide: STORED_FILE_REPOSITORY,
@@ -104,6 +106,6 @@ import { S3ObjectStorage } from "./s3-object-storage.adapter";
       ) => new FileReconciler(repository, objects, config),
     },
   ],
-  exports: [FileStorageService],
+  exports: [FileStorageService, FileAttachmentService],
 })
 export class StorageModule {}

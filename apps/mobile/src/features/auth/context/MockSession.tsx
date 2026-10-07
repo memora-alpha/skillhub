@@ -37,8 +37,7 @@ export function MockSessionProvider({
       setSession({
         ...profile,
         userId:
-          profile.userId ??
-          `demo-user:${profile.email.trim().toLowerCase()}`,
+          profile.userId ?? `demo-user:${profile.email.trim().toLowerCase()}`,
       }),
     [],
   );
@@ -53,9 +52,7 @@ export function MockSessionProvider({
     [enterDemo, session, signOut, updateProfile],
   );
   return (
-    <SessionContext.Provider value={value}>
-      {children}
-    </SessionContext.Provider>
+    <SessionContext.Provider value={value}>{children}</SessionContext.Provider>
   );
 }
 export function useMockSession() {

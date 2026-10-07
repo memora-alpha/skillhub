@@ -60,11 +60,19 @@ export function RequestDetailScreen() {
                 </View>
                 <View style={styles.meta}>
                   <View style={styles.metaItem}>
-                    <Icon name="clock" size={iconSizes.inline} color={colors.muted} />
+                    <Icon
+                      name="clock"
+                      size={iconSizes.inline}
+                      color={colors.muted}
+                    />
                     <Text style={styles.caption}>Đăng {request.created}</Text>
                   </View>
                   <View style={styles.metaItem}>
-                    <Icon name="calendar" size={iconSizes.inline} color={colors.muted} />
+                    <Icon
+                      name="calendar"
+                      size={iconSizes.inline}
+                      color={colors.muted}
+                    />
                     <Text style={styles.caption}>
                       {request.sessions} buổi
                       {detail ? ` · ${detail.duration}` : ""}
@@ -116,7 +124,11 @@ export function RequestDetailScreen() {
                     )}
                   </View>
                 </View>
-                <Icon name="chevron" size={iconSizes.control} color={colors.muted} />
+                <Icon
+                  name="chevron"
+                  size={iconSizes.control}
+                  color={colors.muted}
+                />
               </Pressable>
             </ScrollView>
             <View style={styles.actions}>
@@ -134,7 +146,11 @@ export function RequestDetailScreen() {
                   accessibilityLabel="Liên hệ trao đổi"
                   onPress={() => open("Gửi Proposal")}
                 >
-                  <Icon name="message" size={iconSizes.control} color={colors.surface} />
+                  <Icon
+                    name="message"
+                    size={iconSizes.control}
+                    color={colors.surface}
+                  />
                   <Text style={styles.buttonText}>Liên hệ trao đổi</Text>
                 </Button>
               </View>

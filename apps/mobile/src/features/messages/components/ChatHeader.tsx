@@ -49,7 +49,11 @@ export function ChatHeader({
         onPress={onAgreement}
         style={({ pressed }) => [styles.agreement, pressed && { opacity: 0.8 }]}
       >
-        <Icon name="check-circle" size={iconSizes.inline} color={colors.white} />
+        <Icon
+          name="check-circle"
+          size={iconSizes.inline}
+          color={colors.white}
+        />
         <Text style={styles.agreementLabel}>Tạo thỏa thuận</Text>
       </Pressable>
     </View>

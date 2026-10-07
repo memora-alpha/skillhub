@@ -25,6 +25,9 @@ import { UsersService } from "./users/application/services/users.service";
 import { UsersController } from "./users/presentation/http/users.controller";
 import { AdministrationController } from "./users/presentation/http/administration.controller";
 import { AuditService } from "./audit/application/audit.service";
+import { SkillActorService } from "./users/application/services/skill-actor.service";
+import { PublicSkillReader } from "./users/application/services/public-skill-reader";
+import { ProfileReader } from "./users/application/services/profile-reader.service";
 
 // Composition root wires owner contracts without circular module imports.
 @Module({
@@ -40,6 +43,8 @@ import { AuditService } from "./audit/application/audit.service";
   controllers: [AuthController, UsersController, AdministrationController],
   providers: [
     IdentityConfig,
+    SkillActorService,
+    PublicSkillReader,
     SmtpAdapter,
     AvatarStorage,
     AvatarScanner,
@@ -53,7 +58,11 @@ import { AuditService } from "./audit/application/audit.service";
     IdentityEmailScheduler,
   ],
   exports: [
+    ProfileReader,
     UsersService,
+    IdentityGuard,
+    SkillActorService,
+    PublicSkillReader,
     SessionsService,
     AuditService,
     IdentityConfig,

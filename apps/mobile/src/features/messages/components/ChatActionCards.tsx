@@ -2,7 +2,12 @@ import { StyleSheet, Text, View } from "react-native";
 import { Badge } from "@/components/Badge";
 import { Button } from "@/components/Button";
 import { Icon } from "@/components/Icon";
-import { iconSizes, typography, appRadius as radius, fonts } from "@/constants/theme";
+import {
+  iconSizes,
+  typography,
+  appRadius as radius,
+  fonts,
+} from "@/constants/theme";
 import { chatCopy } from "../mocks/chat";
 import { messageColors as colors } from "../constants/theme";
 

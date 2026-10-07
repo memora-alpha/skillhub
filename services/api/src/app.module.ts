@@ -19,6 +19,10 @@ import { SystemConfigurationModule } from "./modules/system-configuration/system
 import { HttpExceptionFilter } from "./shared/http/http-exception.filter";
 import { HealthController } from "./health.controller";
 import { IdentityModule } from "./modules/identity.module";
+import { SkillsModule } from "./modules/skills/skills.module";
+import { SharingSkillsModule } from "./modules/sharing-skills/sharing-skills.module";
+import { VerificationsModule } from "./modules/verifications/verifications.module";
+import { SkillNotificationModule } from "./modules/notifications/skill-notification.module";
 import { LearningRequestsModule } from "./modules/learning-requests/learning-requests.module";
 import { NotificationsModule } from "./modules/notifications/notifications.module";
 
@@ -55,6 +59,10 @@ import { NotificationsModule } from "./modules/notifications/notifications.modul
     SystemConfigurationModule,
     StorageModule,
     IdentityModule,
+    SkillsModule,
+    SharingSkillsModule,
+    VerificationsModule,
+    SkillNotificationModule,
     LearningRequestsModule,
     NotificationsModule,
   ],

@@ -1,5 +1,10 @@
 import { ApiProperty } from "@nestjs/swagger";
 export class PublicProfileResponse {
+  @ApiProperty({
+    type: Object,
+    description: "Visible sharing skills preview with cursor pagination",
+  })
+  sharingSkills!: unknown;
   @ApiProperty({ format: "uuid" }) userId!: string;
   @ApiProperty() fullName!: string;
   @ApiProperty() headline!: string;

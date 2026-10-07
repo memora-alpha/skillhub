@@ -1,6 +1,10 @@
 import { StyleSheet, TextInput, View } from "react-native";
 import { Icon } from "@/components/Icon";
-import { appColors as colors, appRadius as radius, fonts } from "@/constants/theme";
+import {
+  appColors as colors,
+  appRadius as radius,
+  fonts,
+} from "@/constants/theme";
 
 export function HomeSearch({
   value,

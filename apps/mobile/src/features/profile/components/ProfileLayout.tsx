@@ -12,10 +12,7 @@ import { useRouter } from "expo-router";
 import { AccountMenu, AppHeader } from "@/features/shell";
 import { InfoModal } from "@/components/InfoModal";
 import { LogoutDialog } from "@/components/LogoutDialog";
-import {
-  useMockSession,
-  type MockSession,
-} from "@/features/auth";
+import { useMockSession, type MockSession } from "@/features/auth";
 import { demoNotifications, recentMessages } from "@/mocks/app";
 import { signedInChrome } from "@/constants/theme";
 import { appRoutes } from "@/constants/navigation";

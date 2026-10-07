@@ -78,7 +78,11 @@ export function AccountMenu({
               pressed && { backgroundColor: colors.canvas },
             ]}
           >
-            <Icon name={item.icon} size={iconSizes.control} color={colors.muted} />
+            <Icon
+              name={item.icon}
+              size={iconSizes.control}
+              color={colors.muted}
+            />
             <Text style={styles.menuLabel}>{item.label}</Text>
           </Pressable>
         ))}

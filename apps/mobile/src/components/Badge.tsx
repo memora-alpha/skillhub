@@ -1,5 +1,10 @@
 import { StyleSheet, Text, View } from "react-native";
-import { typography, appColors as colors, appRadius as radius, fonts } from "@/constants/theme";
+import {
+  typography,
+  appColors as colors,
+  appRadius as radius,
+  fonts,
+} from "@/constants/theme";
 
 const variants = {
   default: { background: colors.surfaceInset, foreground: colors.body },

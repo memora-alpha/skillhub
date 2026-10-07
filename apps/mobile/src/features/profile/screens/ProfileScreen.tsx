@@ -9,11 +9,7 @@ import { useState } from "react";
 import { Redirect, useRouter } from "expo-router";
 import { Icon } from "@/components/Icon";
 import { shadows } from "@/constants/shadows";
-import {
-  typography,
-  iconSizes,
-  fonts,
-} from "@/constants/theme";
+import { typography, iconSizes, fonts } from "@/constants/theme";
 import { useMockSession } from "@/features/auth";
 import { ProfileLayout } from "../components/ProfileLayout";
 import { ProfileHero } from "../components/ProfileHero";
@@ -85,7 +81,8 @@ export function ProfileScreen() {
                     styles.actionIcon,
                     {
                       backgroundColor:
-                        profileActionTints[action.icon] ?? profileColors.neutral,
+                        profileActionTints[action.icon] ??
+                        profileColors.neutral,
                     },
                   ]}
                 >

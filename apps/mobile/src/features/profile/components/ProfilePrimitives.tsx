@@ -8,11 +8,7 @@ import {
   type ViewStyle,
 } from "react-native";
 import { Icon } from "@/components/Icon";
-import {
-  typography,
-  iconSizes,
-  fonts,
-} from "@/constants/theme";
+import { typography, iconSizes, fonts } from "@/constants/theme";
 import { profileColors, profileShadows } from "../constants/theme";
 
 export function ProfileSection({

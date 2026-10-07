@@ -9,13 +9,7 @@ import {
 import { appColors, colors, fonts, layout } from "@/constants/theme";
 
 type ButtonVariant =
-  | "primary"
-  | "secondary"
-  | "ghost"
-  | "white"
-  | "craft"
-  | "forest"
-  | "paper";
+  "primary" | "secondary" | "ghost" | "white" | "craft" | "forest" | "paper";
 type ButtonSize = "sm" | "md" | "lg" | "xl";
 type ButtonProps = Readonly<{
   children: ReactNode;
@@ -37,12 +31,13 @@ const foregrounds: Record<ButtonVariant, string> = {
   paper: appColors.forest,
 };
 
-const labelSizes: Record<ButtonSize, { fontSize: number; lineHeight: number }> = {
-  sm: { fontSize: 14, lineHeight: 20 },
-  md: { fontSize: 14, lineHeight: 20 },
-  lg: { fontSize: 16, lineHeight: 24 },
-  xl: { fontSize: 18, lineHeight: 28 },
-};
+const labelSizes: Record<ButtonSize, { fontSize: number; lineHeight: number }> =
+  {
+    sm: { fontSize: 14, lineHeight: 20 },
+    md: { fontSize: 14, lineHeight: 20 },
+    lg: { fontSize: 16, lineHeight: 24 },
+    xl: { fontSize: 18, lineHeight: 28 },
+  };
 
 export function Button({
   children,
@@ -71,10 +66,7 @@ export function Button({
     >
       {typeof children === "string" ? (
         <Text
-          style={[
-            styles.label,
-            { color: foreground, ...labelSizes[size] },
-          ]}
+          style={[styles.label, { color: foreground, ...labelSizes[size] }]}
         >
           {children}
         </Text>

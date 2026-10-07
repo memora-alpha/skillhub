@@ -1,12 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Avatar } from "@/components/Avatar";
 import { Icon } from "@/components/Icon";
-import {
-  typography,
-  avatarSizes,
-  iconSizes,
-  fonts,
-} from "@/constants/theme";
+import { typography, avatarSizes, iconSizes, fonts } from "@/constants/theme";
 import { VerifiedBadge } from "./ProfilePrimitives";
 import { profileDetails } from "../mocks/profile";
 import { profileColors } from "../constants/theme";
