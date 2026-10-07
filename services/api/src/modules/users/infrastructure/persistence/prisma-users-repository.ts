@@ -8,6 +8,7 @@ import {
 } from "../../../../generated/prisma/client";
 import { UserListQuery } from "../../application/contracts/user-list-query";
 import { UsersRepository } from "../../application/ports/users-repository";
+import type { PermissionCode } from "../../../../shared/authorization/permission.catalog";
 @Injectable()
 export class PrismaUsersRepository extends UsersRepository {
   byEmail(tx: IdentityTx, normalizedEmail: string): Promise<User | null> {
@@ -195,25 +196,73 @@ export class PrismaUsersRepository extends UsersRepository {
       data: roles.map((code) => ({ code, description: code })),
       skipDuplicates: true,
     });
-    const codes = [
+    const systemAdminPermissions = [
       "users.read",
       "users.lock",
       "users.unlock",
       "roles.staff.assign",
     ];
+    const learningRequestGrants = {
+      USER: [
+        "learning-request:create",
+        "learning-request:read",
+        "learning-request:update:self",
+        "learning-request:cancel:self",
+        "notification:read:self",
+        "notification:update:self",
+      ],
+      STAFF: [
+        "learning-request:moderation:read",
+        "learning-request:approve",
+        "learning-request:reject",
+      ],
+      ADMIN: [
+        "learning-request:moderation:read",
+        "learning-request:approve",
+        "learning-request:reject",
+        "learning-request:moderation:configure",
+      ],
+    } satisfies Record<RoleCode, readonly PermissionCode[]>;
+    const codes = [
+      ...systemAdminPermissions,
+      ...Object.values(learningRequestGrants).flat(),
+    ];
     await tx.permission.createMany({
       data: codes.map((code) => ({ code, description: code })),
       skipDuplicates: true,
     });
-    const admin = await tx.role.findUniqueOrThrow({ where: { code: "ADMIN" } });
-    const permissions = await tx.permission.findMany({
-      where: { code: { in: codes } },
-    });
-    await tx.rolePermission.createMany({
-      data: permissions.map(({ id }) => ({
-        roleId: admin.id,
-        permissionId: id,
+    const permissions = new Map(
+      (
+        await tx.permission.findMany({
+          where: { code: { in: codes } },
+        })
+      ).map(({ id, code }) => [code, id]),
+    );
+    const roleIds = new Map<RoleCode, string>();
+    for (const code of roles) {
+      const role = await tx.role.findUniqueOrThrow({ where: { code } });
+      roleIds.set(code, role.id);
+    }
+    const assignments = [
+      ...systemAdminPermissions.map((permissionCode) => ({
+        roleCode: "ADMIN" as const,
+        permissionCode,
       })),
+      ...Object.entries(learningRequestGrants).flatMap(([roleCode, grants]) =>
+        grants.map((permissionCode) => ({
+          roleCode: roleCode as RoleCode,
+          permissionCode,
+        })),
+      ),
+    ];
+    await tx.rolePermission.createMany({
+      data: assignments.map(({ roleCode, permissionCode }) => {
+        const roleId = roleIds.get(roleCode);
+        const permissionId = permissions.get(permissionCode);
+        if (!roleId || !permissionId)
+          throw new Error("Permission bootstrap did not persist its catalog");
+        return { roleId, permissionId };
+      }),
       skipDuplicates: true,
     });
   }

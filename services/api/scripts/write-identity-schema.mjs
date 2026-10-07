@@ -8,6 +8,12 @@ const allModels = new Set(
 const models = new Set([
   "SystemConfiguration",
   "User",
+  "SkillCategory",
+  "Skill",
+  "Tag",
+  "LearningRequest",
+  "RequestTag",
+  "Notification",
   "Profile",
   "Role",
   "Permission",
@@ -31,6 +37,12 @@ const models = new Set([
 ]);
 const enums = new Set([
   "AccountStatus",
+  "CatalogStatus",
+  "LearningLevel",
+  "LearningRequestStatus",
+  "RequestModerationStatus",
+  "RequestExpiryMode",
+  "NotificationChannel",
   "RoleCode",
   "ProfileLocale",
   "OtpPurpose",
@@ -51,17 +63,17 @@ const selected = blocks
       (kind === "model" ? models.has(name) : enums.has(name))
     );
   })
-  .map((block) =>
-    block.startsWith("model User ")
-      ? block
-          .split("\n")
-          .filter((line) => {
-            const field = /^\s+\w+\s+(\w+)/.exec(line);
-            return !field || !allModels.has(field[1]) || models.has(field[1]);
-          })
-          .join("\n")
-      : block,
-  );
+  .map((block) => {
+    const [, kind, name] = /^(\w+) (\w+)/.exec(block);
+    if (kind !== "model" || !models.has(name)) return block;
+    return block
+      .split("\n")
+      .filter((line) => {
+        const field = /^\s+\w+\s+(\w+)/.exec(line);
+        return !field || !allModels.has(field[1]) || models.has(field[1]);
+      })
+      .join("\n");
+  });
 writeFileSync(
   fileURLToPath(new URL("identity.prisma", root)),
   "// Generated from schema.prisma by scripts/write-identity-schema.mjs. Identity deployment scope only.\n" +

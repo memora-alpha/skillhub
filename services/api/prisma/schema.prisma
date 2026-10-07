@@ -211,6 +211,7 @@ model User {
   SkillVerificationAsReviewer    SkillVerification[]     @relation("SkillVerification_reviewer")
   UserLearnedSkillAsUser         UserLearnedSkill[]      @relation("UserLearnedSkill_user")
   LearningRequestAsOwner         LearningRequest[]       @relation("LearningRequest_owner")
+  LearningRequestAsModerator     LearningRequest[]       @relation("LearningRequest_moderatedBy")
   ProposalAsProposer             Proposal[]              @relation("Proposal_proposer")
   ConversationAsParticipantA     Conversation[]          @relation("Conversation_participantA")
   ConversationAsParticipantB     Conversation[]          @relation("Conversation_participantB")
@@ -512,12 +513,26 @@ enum VerificationRequestStatus {
 
 enum LearningRequestStatus {
   DRAFT
+  PENDING_MODERATION
   OPEN
+  REJECTED
   NEGOTIATING
   MATCHED
   CLOSED
   CANCELLED
   EXPIRED
+}
+
+enum RequestModerationStatus {
+  NOT_REQUIRED
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum RequestExpiryMode {
+  DEFAULT
+  CUSTOM
 }
 
 enum ProposalStatus {
@@ -672,6 +687,17 @@ model Skill {
   @@map("skills")
 }
 
+// Catalog owns the canonical tag vocabulary. Learning Requests only reference its IDs.
+model Tag {
+  id     String        @id @default(uuid()) @map("tag_id") @db.Uuid
+  label  String        @unique @db.VarChar(80)
+  status CatalogStatus @map("status")
+
+  learningRequests RequestTag[] @relation("RequestTag_tag")
+
+  @@map("tags")
+}
+
 // Catalog schema only; owning feature still needs migrations and business invariants.
 model SharingSkill {
   id                 String                  @id @default(uuid()) @map("sharing_skill_id") @db.Uuid
@@ -760,51 +786,59 @@ model UserLearnedSkill {
 
 // Catalog schema only; owning feature still needs migrations and business invariants.
 model LearningRequest {
-  id                      String                @id @default(uuid()) @map("request_id") @db.Uuid
-  ownerId                 String                @map("owner_id") @db.Uuid
-  skillId                 String                @map("skill_id") @db.Uuid
-  title                   String                @map("title") @db.VarChar(120)
-  description             String                @map("description") @db.VarChar(3000)
-  learningGoal            String                @map("learning_goal") @db.VarChar(1000)
-  currentLevel            LearningLevel?        @map("current_level")
-  expectedDurationMinutes Int                   @map("expected_duration_minutes")
-  budgetCredit            BigInt?               @map("budget_credit")
-  verifiedTeacherOnly     Boolean               @default(false) @map("verified_teacher_only")
-  expiresAt               DateTime?             @map("expires_at") @db.Timestamptz(3)
-  status                  LearningRequestStatus @map("status")
-  createdAt               DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  id                        String                  @id @default(uuid()) @map("request_id") @db.Uuid
+  ownerId                   String                  @map("owner_id") @db.Uuid
+  skillId                   String                  @map("skill_id") @db.Uuid
+  title                     String                  @map("title") @db.VarChar(120)
+  description               String                  @map("description") @db.VarChar(3000)
+  learningGoal              String                  @map("learning_goal") @db.VarChar(1000)
+  preferredSlots            Json                    @default("[]") @map("preferred_slots")
+  currentLevel              LearningLevel?          @map("current_level")
+  verifiedTeacherOnly       Boolean                 @default(false) @map("verified_teacher_only")
+  status                    LearningRequestStatus   @default(DRAFT) @map("status")
+  moderationStatus          RequestModerationStatus @default(NOT_REQUIRED) @map("moderation_status")
+  moderationRejectReason    String?                 @map("reject_reason") @db.VarChar(500)
+  flaggedCategories         Json?                   @map("flagged_rules")
+  moderationRuleSetVersion  Int?                    @map("moderation_rule_set_version")
+  moderationReviewedVersion Int?                    @map("moderation_reviewed_version")
+  moderatedByUserId         String?                 @map("reviewed_by_user_id") @db.Uuid
+  moderatedAt               DateTime?               @map("reviewed_at") @db.Timestamptz(3)
+  requestedExpiresAt        DateTime?               @map("requested_expires_at") @db.Timestamptz(3)
+  expiresAt                 DateTime?               @map("expires_at") @db.Timestamptz(3)
+  expiryMode                RequestExpiryMode       @default(DEFAULT) @map("expiry_mode")
+  publishedAt               DateTime?               @map("published_at") @db.Timestamptz(3)
+  version                   Int                     @default(1) @map("content_version")
+  createdAt                 DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                 DateTime                @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  owner                         User                   @relation("LearningRequest_owner", fields: [ownerId], references: [id], onDelete: Restrict)
-  skill                         Skill                  @relation("LearningRequest_skill", fields: [skillId], references: [id], onDelete: Restrict)
-  RequestPreferredSlotAsRequest RequestPreferredSlot[] @relation("RequestPreferredSlot_request")
-  ProposalAsRequest             Proposal[]             @relation("Proposal_request")
-  ConversationAsRequest         Conversation[]         @relation("Conversation_request")
+  owner         User           @relation("LearningRequest_owner", fields: [ownerId], references: [id], onDelete: Restrict)
+  skill         Skill          @relation("LearningRequest_skill", fields: [skillId], references: [id], onDelete: Restrict)
+  moderatedBy   User?          @relation("LearningRequest_moderatedBy", fields: [moderatedByUserId], references: [id], onDelete: Restrict)
+  tagLinks      RequestTag[]   @relation("RequestTag_request")
+  proposals     Proposal[]     @relation("Proposal_request")
+  conversations Conversation[] @relation("Conversation_request")
 
-  @@index([ownerId])
-  @@index([skillId])
-  @@index([status, expiresAt])
-  @@index([status, createdAt])
-  @@index([createdAt, id])
+  @@index([ownerId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([skillId, status, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([status, createdAt(sort: Desc), id(sort: Desc)])
   @@map("learning_requests")
 }
 
-// Catalog schema only; owning feature still needs migrations and business invariants.
-model RequestPreferredSlot {
-  id        String   @id @default(uuid()) @map("slot_id") @db.Uuid
-  requestId String   @map("request_id") @db.Uuid
-  startAt   DateTime @map("start_at") @db.Timestamptz(3)
-  endAt     DateTime @map("end_at") @db.Timestamptz(3)
+model RequestTag {
+  requestId String          @map("request_id") @db.Uuid
+  tagId     String          @map("tag_id") @db.Uuid
+  request   LearningRequest @relation("RequestTag_request", fields: [requestId], references: [id], onDelete: Restrict)
+  tag       Tag             @relation("RequestTag_tag", fields: [tagId], references: [id], onDelete: Restrict)
 
-  request LearningRequest @relation("RequestPreferredSlot_request", fields: [requestId], references: [id], onDelete: Restrict)
-
-  @@index([requestId])
-  @@map("request_preferred_slots")
+  @@id([requestId, tagId])
+  @@index([tagId, requestId])
+  @@map("learning_request_tags")
 }
 
 // Catalog schema only; owning feature still needs migrations and business invariants.
 model Proposal {
   id                      String         @id @default(uuid()) @map("proposal_id") @db.Uuid
-  requestId               String         @map("request_id") @db.Uuid
+  requestId               String?        @map("request_id") @db.Uuid
   proposerId              String         @map("proposer_id") @db.Uuid
   message                 String         @map("message") @db.VarChar(1000)
   proposedDurationMinutes Int            @map("proposed_duration_minutes")
@@ -814,7 +848,7 @@ model Proposal {
   status                  ProposalStatus @map("status")
   createdAt               DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
 
-  request                         LearningRequest         @relation("Proposal_request", fields: [requestId], references: [id], onDelete: Restrict)
+  request                         LearningRequest?        @relation("Proposal_request", fields: [requestId], references: [id], onDelete: Restrict)
   proposer                        User                    @relation("Proposal_proposer", fields: [proposerId], references: [id], onDelete: Restrict)
   ProposalCandidateSlotAsProposal ProposalCandidateSlot[] @relation("ProposalCandidateSlot_proposal")
   ConversationAsProposal          Conversation?           @relation("Conversation_proposal")
@@ -846,13 +880,13 @@ model ProposalCandidateSlot {
 model Conversation {
   id             String   @id @default(uuid()) @map("conversation_id") @db.Uuid
   proposalId     String   @unique @map("proposal_id") @db.Uuid
-  requestId      String   @map("request_id") @db.Uuid
+  requestId      String?  @map("request_id") @db.Uuid
   participantAId String   @map("participant_a_id") @db.Uuid
   participantBId String   @map("participant_b_id") @db.Uuid
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
 
   proposal                       Proposal           @relation("Conversation_proposal", fields: [proposalId], references: [id], onDelete: Restrict)
-  request                        LearningRequest    @relation("Conversation_request", fields: [requestId], references: [id], onDelete: Restrict)
+  request                        LearningRequest?   @relation("Conversation_request", fields: [requestId], references: [id], onDelete: Restrict)
   participantA                   User               @relation("Conversation_participantA", fields: [participantAId], references: [id], onDelete: Restrict)
   participantB                   User               @relation("Conversation_participantB", fields: [participantBId], references: [id], onDelete: Restrict)
   ScheduleProposalAsConversation ScheduleProposal[] @relation("ScheduleProposal_conversation")
@@ -1236,7 +1270,6 @@ model Notification {
 
   user User @relation("Notification_user", fields: [userId], references: [id], onDelete: Restrict)
 
-  @@index([userId])
-  @@index([createdAt, id])
+  @@index([userId, createdAt(sort: Desc), id(sort: Desc)])
   @@map("notifications")
 }
