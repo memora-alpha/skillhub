@@ -150,26 +150,30 @@ def relation(child, fields, parent, refs=None, label=None):
     tables[child]["indexes"].append(fields)
     covered.update((child, f) for f in fields if "FK" in tables[child]["fields"][f]["markers"])
 
+PLAN_PATH_KEY = "plan_id path_id"
+PATH_VERSION_KEY = "path_id version_no"
+OUTLINE_KEY = "plan_id plan_version session_no"
+
 # Composite relations preserve version membership and file/proof ownership.
 for args in [
     ("users", "user_id avatar_asset_id", "avatar_assets", "user_id asset_id", "selected_avatar"),
     ("reauth_proofs", "user_id session_id", "refresh_sessions", "user_id session_id", "bound_session"),
     ("skill_evidence", "verification_id sharing_skill_id", "skill_verifications", "verification_id sharing_skill_id", "submission"),
-    ("user_learned_skills", "source_plan_id source_path_id", "learning_plans", "plan_id path_id", "source_plan"),
-    ("learning_paths", "path_id settled_path_version", "learning_path_versions", "path_id version_no", "settled_version"),
+    ("user_learned_skills", "source_plan_id source_path_id", "learning_plans", PLAN_PATH_KEY, "source_plan"),
+    ("learning_paths", "path_id settled_path_version", "learning_path_versions", PATH_VERSION_KEY, "settled_version"),
     ("learning_path_versions", "path_id", "learning_paths"),
     ("learning_plan_versions", "plan_id", "learning_plans"),
     ("plan_session_outlines", "plan_id plan_version", "learning_plan_versions", "plan_id version_no", "plan_version"),
-    ("path_version_plans", "path_id path_version", "learning_path_versions", "path_id version_no", "path_version"),
+    ("path_version_plans", "path_id path_version", "learning_path_versions", PATH_VERSION_KEY, "path_version"),
     ("path_version_plans", "plan_id plan_version", "learning_plan_versions", "plan_id version_no", "plan_version"),
-    ("path_version_plans", "plan_id path_id", "learning_plans", "plan_id path_id", "owned_plan"),
+    ("path_version_plans", PLAN_PATH_KEY, "learning_plans", PLAN_PATH_KEY, "owned_plan"),
     ("schedule_versions", "schedule_proposal_id path_id", "schedule_proposals", "schedule_proposal_id path_id", "proposal"),
-    ("schedule_versions", "path_id path_version", "learning_path_versions", "path_id version_no", "path_version"),
+    ("schedule_versions", "path_id path_version", "learning_path_versions", PATH_VERSION_KEY, "path_version"),
     ("schedule_items", "schedule_proposal_id schedule_version", "schedule_versions", "schedule_proposal_id version_no", "schedule_version"),
-    ("schedule_items", "plan_id plan_version session_no", "plan_session_outlines", "plan_id plan_version session_no", "outline"),
-    ("sessions", "plan_id plan_version outline_session_no", "plan_session_outlines", "plan_id plan_version session_no", "outline"),
-    ("sessions", "plan_id path_id", "learning_plans", "plan_id path_id", "owned_plan"),
-    ("held_credit_allocations", "path_id locked_path_version", "learning_path_versions", "path_id version_no", "locked_version"),
+    ("schedule_items", OUTLINE_KEY, "plan_session_outlines", OUTLINE_KEY, "outline"),
+    ("sessions", "plan_id plan_version outline_session_no", "plan_session_outlines", OUTLINE_KEY, "outline"),
+    ("sessions", PLAN_PATH_KEY, "learning_plans", PLAN_PATH_KEY, "owned_plan"),
+    ("held_credit_allocations", "path_id locked_path_version", "learning_path_versions", PATH_VERSION_KEY, "locked_version"),
     ("credit_transactions", "user_id", "credit_wallets"),
 ]:
     relation(*args)
@@ -202,36 +206,46 @@ for table, data in tables.items():
             target = targets[field]
         relation(table, field, target)
 
-def scalar(table, name, info):
-    markers, dtype = info["markers"], info["dtype"]
+def scalar_type(table, name, dtype):
     enum = ENUM_FIELDS.get(table, {}).get(name)
     attrs = []
     if enum:
         kind = enum
     elif dtype.startswith("UUID") and "STRING" not in dtype:
         kind = "String"; attrs.append("@db.Uuid")
-    elif dtype.startswith("BIGINT"):
-        kind = "BigInt"
-    elif dtype.startswith("SMALLINT"):
-        kind = "Int"; attrs.append("@db.SmallInt")
-    elif dtype.startswith("INTEGER"):
-        kind = "Int"
-    elif dtype.startswith("TIMESTAMP"):
-        kind = "DateTime"; attrs.append("@db.Timestamptz(3)")
-    elif dtype.startswith("BOOLEAN"):
-        kind = "Boolean"
-    elif dtype.startswith("BYTEA"):
-        kind = "Bytes"; attrs.append("@db.ByteA")
-    elif dtype.startswith("JSON"):
-        kind = "Json"
-    elif dtype.startswith("DECIMAL"):
-        kind = "Decimal"
-        attrs.append("@db.Decimal" + (dtype[7:] if "(" in dtype else "(12, 8)"))
     else:
-        kind = "String"
-        match = re.match(r"(VARCHAR|CHAR)\((\d+)\)", dtype)
-        attrs.append(f'@db.{"VarChar" if match[1] == "VARCHAR" else "Char"}({match[2]})' if match else "@db.Text")
-    required = "PK" in markers or "NN" in markers
+        kind, attrs = native_scalar_type(dtype)
+    return kind, attrs
+
+
+def native_scalar_type(dtype):
+    attrs = []
+    for prefix, kind, native in (
+        ("BIGINT", "BigInt", None),
+        ("SMALLINT", "Int", "@db.SmallInt"),
+        ("INTEGER", "Int", None),
+        ("TIMESTAMP", "DateTime", "@db.Timestamptz(3)"),
+        ("BOOLEAN", "Boolean", None),
+        ("BYTEA", "Bytes", "@db.ByteA"),
+        ("JSON", "Json", None),
+    ):
+        if dtype.startswith(prefix):
+            return kind, [native] if native else []
+    if dtype.startswith("DECIMAL"):
+        attrs.append("@db.Decimal" + (dtype[7:] if "(" in dtype else "(12, 8)"))
+        return "Decimal", attrs
+    return "String", [string_native_type(dtype)]
+
+
+def string_native_type(dtype):
+    match = re.match(r"(VARCHAR|CHAR)\((\d+)\)", dtype)
+    if not match:
+        return "@db.Text"
+    native = "VarChar" if match[1] == "VARCHAR" else "Char"
+    return f"@db.{native}({match[2]})"
+
+
+def field_attributes(table, name, markers, dtype, kind, attrs):
     if "PK" in markers and len(tables[table]["pks"]) == 1:
         attrs.insert(0, "@id")
         if kind == "String" and "@db.Uuid" in attrs and "FK" not in markers:
@@ -246,6 +260,15 @@ def scalar(table, name, info):
     if name == "updated_at":
         attrs.append("@updatedAt")
     attrs.append(f'@map("{name}")')
+    return attrs
+
+
+def scalar(table, name, info):
+    markers, dtype = info["markers"], info["dtype"]
+    enum = ENUM_FIELDS.get(table, {}).get(name)
+    kind, attrs = scalar_type(table, name, dtype)
+    attrs = field_attributes(table, name, markers, dtype, kind, attrs)
+    required = "PK" in markers or "NN" in markers
     comment = "  // Open vocabulary; owning feature must validate it before release.\n" if dtype == "ENUM" and not enum else ""
     return comment + f'  {info["name"]} {kind}{"" if required else "?"} {" ".join(attrs)}'
 

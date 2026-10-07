@@ -29,7 +29,9 @@ export class DeliverIdentityEmailUseCase {
       )
         return null;
       if (
-        !Object.values(IdentityEmailKind).some((kind) => kind === found.kind)
+        !(Object.values(IdentityEmailKind) as readonly string[]).includes(
+          found.kind,
+        )
       ) {
         await this.repository.finish(
           tx,
