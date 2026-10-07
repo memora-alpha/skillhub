@@ -64,6 +64,52 @@ model("SystemConfiguration", (block) =>
 `,
   ),
 );
+// Retain the deployed Learning Request names and invariants over the v3 catalog.
+for (const name of ["SkillCategory", "Skill", "Notification"]) {
+  model(name, (block) =>
+    block.replaceAll("onUpdate: Restrict", "onUpdate: Cascade"),
+  );
+}
+model("LearningRequest", (block) =>
+  fields(
+    block
+      .replace(/\bcontentVersion\b/g, "version")
+      .replace(/version(\s+Int)\b/, "version$1 @default(1)")
+      .replace(/\bflaggedRules\b/g, "flaggedCategories")
+      .replace(/\brejectReason\b/g, "moderationRejectReason")
+      .replace(/\breviewedByUserId\b/g, "moderatedByUserId")
+      .replace(/\breviewedAt\b/g, "moderatedAt")
+      .replace(/\breviewedByUserIdRecord\b/g, "moderatedBy")
+      .replace(
+        /verifiedTeacherOnly(\s+Boolean)\b/,
+        "verifiedTeacherOnly$1 @default(false)",
+      )
+      .replace(/status(\s+LearningRequestStatus)\b/, "status$1 @default(DRAFT)")
+      .replace(
+        /moderationStatus\s+String\s+@map\("moderation_status"\) @db.Text/,
+        'moderationStatus RequestModerationStatus @default(NOT_REQUIRED) @map("moderation_status")',
+      )
+      .replaceAll("onUpdate: Restrict", "onUpdate: Cascade"),
+    `
+  moderationRuleSetVersion Int? @map("moderation_rule_set_version")
+  moderationReviewedVersion Int? @map("moderation_reviewed_version")
+  requestedExpiresAt DateTime? @map("requested_expires_at") @db.Timestamptz(3)
+  expiryMode RequestExpiryMode @default(DEFAULT) @map("expiry_mode")
+  publishedAt DateTime? @map("published_at") @db.Timestamptz(3)
+  tagLinks RequestTag[] @relation("RequestTag_request")
+  @@index([ownerId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([skillId, status, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([status, createdAt(sort: Desc), id(sort: Desc)])
+`,
+  ),
+);
+model("Notification", (block) =>
+  fields(block, "  @@index([userId, createdAt(sort: Desc), id(sort: Desc)])"),
+);
+// Preserve the physical enum order established by the Learning Request migration.
+schema = schema.replace(/enum LearningRequestStatus \{[\s\S]*?\n\}/, (block) =>
+  block.replace(/ {2}REJECTED\r?\n {2}OPEN/, "  OPEN\n  REJECTED"),
+);
 // Keep application names for equivalent fields while using v3 database columns.
 model("RefreshSession", (block) =>
   fields(
@@ -171,7 +217,7 @@ model("OutboxEvent", (block) =>
   ),
 );
 schema +=
-  "\n\n// Technical models retained for implemented OTP and foundation services.\n" +
+  "\n\n// Support retained for implemented OTP, foundation and Learning Request services.\n" +
   readFileSync(new URL("runtime-support.prisma", root), "utf8");
 schema = schema.replace(
   /^\/\/ Logical v3 catalog:[\s\S]*?\n\n/,

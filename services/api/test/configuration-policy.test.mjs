@@ -40,6 +40,7 @@ test("approved defaults and mutability are explicit", () => {
     "credit.pathSettlementBps",
     "credit.topUpVndPerCredit",
     "learningPath.minCreditPerUser",
+    "learningRequest.moderationRuleSet",
     "schedule.rescheduleCutoffMinutes",
     "session.durationMinutes",
     "storage.downloadTtlSeconds",
@@ -96,6 +97,10 @@ test("only mutable keys enter runtime update", () => {
   assert.equal(
     requireMutableConfigurationKey("storage.evidenceMaxBytes"),
     "storage.evidenceMaxBytes",
+  );
+  assert.equal(
+    requireMutableConfigurationKey("learningRequest.moderationRuleSet"),
+    "learningRequest.moderationRuleSet",
   );
   assert.throws(() =>
     requireMutableConfigurationKey("credit.topUpVndPerCredit"),

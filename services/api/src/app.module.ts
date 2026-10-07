@@ -23,6 +23,8 @@ import { SkillsModule } from "./modules/skills/skills.module";
 import { SharingSkillsModule } from "./modules/sharing-skills/sharing-skills.module";
 import { VerificationsModule } from "./modules/verifications/verifications.module";
 import { SkillNotificationModule } from "./modules/notifications/skill-notification.module";
+import { LearningRequestsModule } from "./modules/learning-requests/learning-requests.module";
+import { NotificationsModule } from "./modules/notifications/notifications.module";
 
 @Module({
   imports: [
@@ -61,6 +63,8 @@ import { SkillNotificationModule } from "./modules/notifications/skill-notificat
     SharingSkillsModule,
     VerificationsModule,
     SkillNotificationModule,
+    LearningRequestsModule,
+    NotificationsModule,
   ],
   controllers: [HealthController],
   providers: [

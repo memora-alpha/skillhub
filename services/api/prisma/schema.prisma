@@ -94,8 +94,8 @@ enum EmailDeliveryStatus {
 enum LearningRequestStatus {
   DRAFT
   PENDING_MODERATION
-  REJECTED
   OPEN
+  REJECTED
   NEGOTIATING
   MATCHED
   CLOSED
@@ -421,7 +421,7 @@ model SkillCategory {
   status           CatalogStatus @map("status")
   parentCategoryId String?       @map("parent_category_id") @db.Uuid
 
-  parentCategoryIdRecord               SkillCategory?  @relation("SkillCategory_parent_category_id", fields: [parentCategoryId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  parentCategoryIdRecord               SkillCategory?  @relation("SkillCategory_parent_category_id", fields: [parentCategoryId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   skillCategoryParentCategoryIdRecords SkillCategory[] @relation("SkillCategory_parent_category_id")
   skillCategoryIdRecords               Skill[]         @relation("Skill_category_id")
 
@@ -437,7 +437,7 @@ model Skill {
   description String?       @map("description") @db.VarChar(500)
   status      CatalogStatus @map("status")
 
-  categoryIdRecord                  SkillCategory?        @relation("Skill_category_id", fields: [categoryId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  categoryIdRecord                  SkillCategory?        @relation("Skill_category_id", fields: [categoryId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   sharingSkillSkillIdRecords        SharingSkill[]        @relation("SharingSkill_skill_id")
   userLearnedSkillSkillIdRecords    UserLearnedSkill[]    @relation("UserLearnedSkill_skill_id")
   learningRequestSkillIdRecords     LearningRequest[]     @relation("LearningRequest_skill_id")
@@ -555,36 +555,46 @@ model UserLearnedSkill {
 }
 
 model LearningRequest {
-  id                  String                @id @default(uuid()) @map("request_id") @db.Uuid
-  ownerId             String                @map("owner_id") @db.Uuid
-  skillId             String                @map("skill_id") @db.Uuid
-  title               String                @map("title") @db.VarChar(120)
-  description         String                @map("description") @db.VarChar(3000)
-  learningGoal        String                @map("learning_goal") @db.VarChar(1000)
-  preferredSlots      Json                  @default("[]") @map("preferred_slots")
-  currentLevel        LearningLevel?        @map("current_level")
-  verifiedTeacherOnly Boolean               @map("verified_teacher_only")
-  contentVersion      Int                   @map("content_version")
+  id                     String                  @id @default(uuid()) @map("request_id") @db.Uuid
+  ownerId                String                  @map("owner_id") @db.Uuid
+  skillId                String                  @map("skill_id") @db.Uuid
+  title                  String                  @map("title") @db.VarChar(120)
+  description            String                  @map("description") @db.VarChar(3000)
+  learningGoal           String                  @map("learning_goal") @db.VarChar(1000)
+  preferredSlots         Json                    @default("[]") @map("preferred_slots")
+  currentLevel           LearningLevel?          @map("current_level")
+  verifiedTeacherOnly    Boolean                 @default(false) @map("verified_teacher_only")
+  version                Int                     @default(1) @map("content_version")
   // Open vocabulary; owning feature must validate it before release.
-  moderationStatus    String                @map("moderation_status") @db.Text
-  flaggedRules        Json?                 @map("flagged_rules")
-  rejectReason        String?               @map("reject_reason") @db.VarChar(500)
-  reviewedByUserId    String?               @map("reviewed_by_user_id") @db.Uuid
-  reviewedAt          DateTime?             @map("reviewed_at") @db.Timestamptz(3)
-  expiresAt           DateTime?             @map("expires_at") @db.Timestamptz(3)
-  status              LearningRequestStatus @map("status")
-  createdAt           DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt           DateTime              @updatedAt @map("updated_at") @db.Timestamptz(3)
+  moderationStatus       RequestModerationStatus @default(NOT_REQUIRED) @map("moderation_status")
+  flaggedCategories      Json?                   @map("flagged_rules")
+  moderationRejectReason String?                 @map("reject_reason") @db.VarChar(500)
+  moderatedByUserId      String?                 @map("reviewed_by_user_id") @db.Uuid
+  moderatedAt            DateTime?               @map("reviewed_at") @db.Timestamptz(3)
+  expiresAt              DateTime?               @map("expires_at") @db.Timestamptz(3)
+  status                 LearningRequestStatus   @default(DRAFT) @map("status")
+  createdAt              DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt              DateTime                @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  ownerIdRecord                User           @relation("LearningRequest_owner_id", fields: [ownerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  skillIdRecord                Skill          @relation("LearningRequest_skill_id", fields: [skillId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  reviewedByUserIdRecord       User?          @relation("LearningRequest_reviewed_by_user_id", fields: [reviewedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  ownerIdRecord                User           @relation("LearningRequest_owner_id", fields: [ownerId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  skillIdRecord                Skill          @relation("LearningRequest_skill_id", fields: [skillId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  moderatedBy                  User?          @relation("LearningRequest_reviewed_by_user_id", fields: [moderatedByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   proposalRequestIdRecords     Proposal[]     @relation("Proposal_request_id")
   conversationRequestIdRecords Conversation[] @relation("Conversation_request_id")
 
+  moderationRuleSetVersion  Int?              @map("moderation_rule_set_version")
+  moderationReviewedVersion Int?              @map("moderation_reviewed_version")
+  requestedExpiresAt        DateTime?         @map("requested_expires_at") @db.Timestamptz(3)
+  expiryMode                RequestExpiryMode @default(DEFAULT) @map("expiry_mode")
+  publishedAt               DateTime?         @map("published_at") @db.Timestamptz(3)
+  tagLinks                  RequestTag[]      @relation("RequestTag_request")
+
   @@index([ownerId])
   @@index([skillId])
-  @@index([reviewedByUserId])
+  @@index([moderatedByUserId])
+  @@index([ownerId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([skillId, status, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([status, createdAt(sort: Desc), id(sort: Desc)])
   @@map("learning_requests")
 }
 
@@ -960,9 +970,10 @@ model Notification {
   readAt    DateTime?           @map("read_at") @db.Timestamptz(3)
   createdAt DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
 
-  userIdRecord User @relation("Notification_user_id", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  userIdRecord User @relation("Notification_user_id", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 
   @@index([userId])
+  @@index([userId, createdAt(sort: Desc), id(sort: Desc)])
   @@map("notifications")
 }
 
@@ -1444,7 +1455,7 @@ model OutboxEvent {
   @@map("outbox_events")
 }
 
-// Technical models retained for implemented OTP and foundation services.
+// Support retained for implemented OTP, foundation and Learning Request services.
 enum OtpPurpose {
   REGISTER
   RESET_PASSWORD
@@ -1576,4 +1587,37 @@ model StoredFileScanEvent {
 
   @@index([fileId, createdAt], map: "stored_file_scan_events_file_created_idx")
   @@map("stored_file_scan_events")
+}
+
+// SRS V1.6 requires Learning Request tags beyond the logical v3 diagram.
+enum RequestModerationStatus {
+  NOT_REQUIRED
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum RequestExpiryMode {
+  DEFAULT
+  CUSTOM
+}
+
+model Tag {
+  id               String        @id @default(uuid()) @map("tag_id") @db.Uuid
+  label            String        @unique @db.VarChar(80)
+  status           CatalogStatus @map("status")
+  learningRequests RequestTag[]  @relation("RequestTag_tag")
+
+  @@map("tags")
+}
+
+model RequestTag {
+  requestId String          @map("request_id") @db.Uuid
+  tagId     String          @map("tag_id") @db.Uuid
+  request   LearningRequest @relation("RequestTag_request", fields: [requestId], references: [id], onDelete: Restrict)
+  tag       Tag             @relation("RequestTag_tag", fields: [tagId], references: [id], onDelete: Restrict)
+
+  @@id([requestId, tagId])
+  @@index([tagId, requestId])
+  @@map("learning_request_tags")
 }
