@@ -103,7 +103,9 @@ export class VerificationsService {
     )
       throw new BadRequestException("INVALID_EVIDENCE_BATCH");
     const data = {
-      fileIds: [...input.fileIds].sort(),
+      fileIds: [...input.fileIds].sort((left, right) =>
+        left.localeCompare(right),
+      ),
       ...(input.title !== undefined
         ? { title: text(input.title, 0, 120) }
         : {}),
@@ -133,6 +135,7 @@ export class VerificationsService {
             status: "PENDING",
             submittedAt: new Date(),
           });
+          // Acquire file locks in the sorted order and persist each binding before its evidence.
           for (const fileId of data.fileIds) {
             const evidenceId = randomUUID();
             const file = await this.attachments.attachReady(tx, actor, fileId, {
@@ -253,6 +256,7 @@ export class VerificationsService {
           row.skillEvidenceSubmissionRecords.length > 5
         )
           throw new ConflictException("INVALID_EVIDENCE_BATCH");
+        // Keep row-locking checks sequential on this transaction's connection.
         for (const file of row.skillEvidenceSubmissionRecords) {
           if (!file.storedFileId)
             throw new ConflictException("EVIDENCE_STORAGE_UNBOUND");

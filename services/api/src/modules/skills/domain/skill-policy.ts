@@ -45,7 +45,7 @@ export function skillSlug(value: string): string {
     .toLowerCase()
     .normalize("NFD")
     .replace(/\p{M}/gu, "")
-    .replace(/đ/gu, "d")
+    .replaceAll("đ", "d")
     .replace(/[^a-z0-9]+/gu, "-")
     .replace(/^-|-$/gu, "");
   if (!/^[a-z0-9](?:[a-z0-9-]{0,118}[a-z0-9])$/u.test(slug))
@@ -76,7 +76,7 @@ export function readCursor(
 ): Cursor | undefined {
   if (!value) return;
   try {
-    if (value.length > 1024) throw new Error();
+    if (value.length > 1024) throw new Error("Cursor exceeds maximum length");
     const parsed: unknown = JSON.parse(
       Buffer.from(value, "base64url").toString("utf8"),
     );
@@ -91,7 +91,7 @@ export function readCursor(
       !("value" in parsed) ||
       typeof parsed.value !== "string"
     )
-      throw new Error();
+      throw new Error("Cursor has invalid fields or scope");
     return parsed as Cursor;
   } catch {
     throw new BadRequestException("INVALID_CURSOR");
