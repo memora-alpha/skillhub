@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { moderationRuleSetSchema } from "./moderation-rule-set.schema";
 
 const positiveInt = z.number().int().safe().positive();
 const settlement = z
@@ -44,6 +45,11 @@ export const CONFIGURATION_DEFINITIONS = {
     schema: z.literal(60),
     mutable: false,
     defaultValue: 60,
+  },
+  "learningRequest.moderationRuleSet": {
+    schema: moderationRuleSetSchema,
+    mutable: true,
+    defaultValue: { rules: [] },
   },
   "storage.downloadTtlSeconds": {
     schema: z.number().int().min(1).max(300),

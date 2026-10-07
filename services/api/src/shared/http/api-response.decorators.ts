@@ -3,14 +3,24 @@ import { ApiExtraModels, ApiResponse, getSchemaPath } from "@nestjs/swagger";
 
 export function ApiSuccessResponse(
   status: number,
-  model: Type<unknown> | null,
+  model: Type<unknown> | readonly Type<unknown>[] | null,
   options: { paginated?: boolean } = {},
 ) {
-  const data = model
-    ? { $ref: getSchemaPath(model) }
+  let models: readonly Type<unknown>[] = [];
+  if (Array.isArray(model)) {
+    models = model;
+  } else if (model !== null) {
+    models = [model as Type<unknown>];
+  }
+  const singleModelSchema = models[0]
+    ? { $ref: getSchemaPath(models[0]) }
     : { type: "object" as const, nullable: true, enum: [null] };
+  const data =
+    models.length > 1
+      ? { oneOf: models.map((entry) => ({ $ref: getSchemaPath(entry) })) }
+      : singleModelSchema;
   return applyDecorators(
-    ...(model ? [ApiExtraModels(model)] : []),
+    ...(models.length > 0 ? [ApiExtraModels(...models)] : []),
     ApiResponse({
       status,
       schema: {

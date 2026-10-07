@@ -9,6 +9,12 @@ const source = readFileSync(
 for (const name of [
   "SystemConfiguration",
   "User",
+  "SkillCategory",
+  "Skill",
+  "Tag",
+  "LearningRequest",
+  "RequestTag",
+  "Notification",
   "Role",
   "Permission",
   "RolePermission",
