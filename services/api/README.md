@@ -8,7 +8,7 @@ Phạm vi phát triển hiện tại của dự án là **backend tại `service
 Web/mobile chỉ được thay đổi khi có yêu cầu riêng. Git và pnpm workspace vẫn
 đặt tại root SkillHub; backend không có Git repository riêng.
 
-API đã có nền tảng hạ tầng và phần Danh tính (spec 002): đăng ký/OTP/login, refresh/logout/reset, hồ sơ/avatar, quyền và quản trị tài khoản có audit. Các module còn lại bên dưới vẫn là kế hoạch; chat và giao dịch Credit chưa được triển khai.
+API đã có nền tảng hạ tầng và phần Danh tính (spec 002): đăng ký/OTP/login, refresh/logout/reset, hồ sơ/avatar, quyền và quản trị tài khoản có audit. Phần Kỹ năng (spec 007) đã có catalog, quản lý Sharing Skill, search/profile công khai, evidence và Staff Verification; xem [quickstart](specs/007-skills/quickstart.md) và [validation](specs/007-skills/validation.md). Chat, giao dịch Credit và các phần còn lại trong breakdown vẫn là kế hoạch.
 
 Catalog Prisma đã cập nhật theo logical v3: **48 model PostgreSQL và một document
 Message MongoDB** với attachments nhúng. Xem [schema catalog](prisma/README.md)
@@ -368,3 +368,5 @@ prerequisite check expects a feature plan and should be run after planning.
 
 Upstream references: [Spec Kit integrations](https://github.github.com/spec-kit/reference/integrations.html)
 and [installation](https://github.github.com/spec-kit/installation.html).
+
+- [SRS SkillHub V1.6](../../docs/SRS_SkillHub_V1.6_VietLai_DongBoNghiepVu.docx): nguồn yêu cầu hiện hành; spec Kỹ năng giới hạn evidence 10 MB/file theo quyết định đã chốt.

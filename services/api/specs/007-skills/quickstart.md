@@ -1,6 +1,6 @@
-# Quickstart and acceptance — planned
+# Quickstart and acceptance
 
-Đây là hướng dẫn kiểm chứng sau implementation, endpoints/scripts mới chưa tồn tại. Không tự deploy DB ứng dụng để thử plan.
+Endpoints/scripts đã có source. Kiểm thử tạo schema PostgreSQL tạm và tự dọn; không deploy migration vào DB ứng dụng. Xem [validation.md](validation.md) để phân biệt kiểm chứng local và release gates.
 
 ## Setup
 
@@ -23,8 +23,8 @@ Giới hạn evidence10.000.000 bytes/file; cấu hình thấp hơn được ph�
 
 Existing focused checks: `pnpm --filter api lint`, `pnpm --filter api check-types`, `pnpm --filter api build`, `pnpm --filter api test:identity`, `pnpm --filter api test:runtime-v3`.
 
-Sau implementation mới thêm/chạy `pnpm --filter api test:skills`, `test:skills:integration`, `test:skills:performance`; existing RBAC/files/audit/consistency suites bị ảnh hưởng phải pass. Integration test thiếu env fail rõ hoặc ghi Pending, không báo skip là pass.
+Chạy `pnpm --filter api test:skills`, `pnpm --filter api test:skills:integration`, `pnpm --filter api test:skills:performance`. Scripts build trước khi chạy; integration/performance dùng `TEST_DATABASE_URL` hoặc `DATABASE_URL` chỉ để tạo schema riêng, không thay schema ứng dụng. PostgreSQL account cần quyền tạo schema. HTTP tests dùng port local ngẫu nhiên. Existing RBAC/files/audit/consistency suites bị ảnh hưởng phải pass. Integration test thiếu env fail rõ hoặc ghi Pending, không báo skip là pass.
 
 ## Evidence to record
 
-`validation.md` sau implementation ghi versions/schema/environment, test counts, acceptance outcomes, migration fresh/upgrade, permission negatives, file bytes+MIME+real scan/S3, rollback/concurrency/replay, event recovery và search workload p95. Chưa có runtime evidence trong lượt plan; production TLS/storage/scan/migration deployment vẫn là release gates.
+[validation.md](validation.md) ghi versions/schema/environment, test counts, acceptance outcomes, migration fresh/upgrade, permission negatives, file bytes+MIME, rollback/concurrency/replay, event recovery và search workload p95. File tests dùng object provider và scan verdict fixture; chưa chứng minh S3/ClamAV thật. Production TLS/storage/scan/migration deployment vẫn là release gates.

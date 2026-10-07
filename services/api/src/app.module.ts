@@ -19,6 +19,10 @@ import { SystemConfigurationModule } from "./modules/system-configuration/system
 import { HttpExceptionFilter } from "./shared/http/http-exception.filter";
 import { HealthController } from "./health.controller";
 import { IdentityModule } from "./modules/identity.module";
+import { SkillsModule } from "./modules/skills/skills.module";
+import { SharingSkillsModule } from "./modules/sharing-skills/sharing-skills.module";
+import { VerificationsModule } from "./modules/verifications/verifications.module";
+import { SkillNotificationModule } from "./modules/notifications/skill-notification.module";
 
 @Module({
   imports: [
@@ -53,6 +57,10 @@ import { IdentityModule } from "./modules/identity.module";
     SystemConfigurationModule,
     StorageModule,
     IdentityModule,
+    SkillsModule,
+    SharingSkillsModule,
+    VerificationsModule,
+    SkillNotificationModule,
   ],
   controllers: [HealthController],
   providers: [

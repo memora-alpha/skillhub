@@ -7,6 +7,7 @@ import {
 } from "../../../../generated/prisma/client";
 import { UserListQuery } from "../../application/contracts/user-list-query";
 import { UsersRepository } from "../../application/ports/users-repository";
+import { SKILL_PERMISSIONS } from "../../../skills/domain/skill-policy";
 @Injectable()
 export class PrismaUsersRepository extends UsersRepository {
   byEmail(tx: IdentityTx, normalizedEmail: string): Promise<User | null> {
@@ -210,6 +211,7 @@ export class PrismaUsersRepository extends UsersRepository {
       skipDuplicates: true,
     });
     const codes = [
+      ...new Set(Object.values(SKILL_PERMISSIONS).flat()),
       "users.read",
       "users.lock",
       "users.unlock",
@@ -230,5 +232,15 @@ export class PrismaUsersRepository extends UsersRepository {
       })),
       skipDuplicates: true,
     });
+    for (const code of ["USER", "STAFF"] as const) {
+      const role = await tx.role.findUniqueOrThrow({ where: { code } });
+      const grants = permissions.filter((row) =>
+        (SKILL_PERMISSIONS[code] as readonly string[]).includes(row.code),
+      );
+      await tx.rolePermission.createMany({
+        data: grants.map((row) => ({ roleId: role.id, permissionId: row.id })),
+        skipDuplicates: true,
+      });
+    }
   }
 }

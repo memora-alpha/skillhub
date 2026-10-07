@@ -36,11 +36,15 @@ export class FileStorageService {
     body: Readable;
     context: { correlationId: string };
   }): Promise<{ fileId: string; state: "QUARANTINED" }> {
-    const cap =
+    const configuredCap =
       input.purpose === "CHAT"
         ? 15_000_000
         : (await this.configuration.getSnapshot(["storage.evidenceMaxBytes"]))
             .values["storage.evidenceMaxBytes"];
+    const cap =
+      input.purpose === "EVIDENCE" && configuredCap
+        ? Math.min(configuredCap, 10_000_000)
+        : configuredCap;
     if (!cap || !Number.isSafeInteger(cap) || cap <= 0) {
       throw new FileStorageError("FILE_POLICY_UNAVAILABLE", 503);
     }

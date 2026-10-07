@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable, NotFoundException, Optional } from "@nestjs/common";
+import { PublicSkillReader } from "./public-skill-reader";
 import { PrismaService } from "../../../../infrastructure/database/prisma.service";
 
 import { AvatarStorage } from "../../../../infrastructure/storage/avatar-storage";
@@ -10,6 +11,7 @@ export class ProfileReader {
     private readonly db: PrismaService,
     private readonly repository: UsersRepository,
     private readonly storage: AvatarStorage,
+    @Optional() private readonly skills?: PublicSkillReader,
   ) {}
   async profile(userId: string, publicOnly = false) {
     const row = await this.repository.profile(this.db, userId);
@@ -27,6 +29,7 @@ export class ProfileReader {
       reputationScore: row.reputationScore,
       verifiedSkillCount: row.verifiedSkillCount,
       completedSessionCount: row.completedSessionCount,
+      ...(this.skills ? { sharingSkills: await this.skills.read(userId) } : {}),
     };
     // URLs are supplied by the storage adapter/controller, never a quarantine key.
     return publicOnly

@@ -1,7 +1,7 @@
 # Implementation Plan: Kỹ năng
 
 **Branch**: `feat/skills` | **Date**: 2026-10-07 | **Spec**: [spec.md](spec.md)
-**Input**: `specs/007-skills/spec.md`. **Status**: Planned; chưa triển khai.
+**Input**: `specs/007-skills/spec.md`. **Status**: Source implemented; local validation passed. External S3/ClamAV end-to-end release gate pending — see [validation.md](validation.md).
 
 ## Summary
 
@@ -23,7 +23,7 @@ Branch bắt đầu từ commit `1141481` trên `refactor/data-model-v3`, giữ 
 
 ## Constitution Check
 
-Constitution v1.2.0. Trước research và sau design **Pass design**, không exception; runtime **Pending**.
+Constitution v1.2.0. Trước research và sau design **Pass design**, không exception. Source và local runtime checks đã pass; provider E2E/deployment còn Pending theo [validation.md](validation.md).
 
 | Principle           | Trước research / sau design                              | Verification Pending            |
 | ------------------- | -------------------------------------------------------- | ------------------------------- |
@@ -53,23 +53,23 @@ specs/007-skills/
   checklists/requirements.md
 ```
 
-`tasks.md` thuộc bước speckit-tasks sau plan, không tạo trong lần này.
+Implementation tasks and progress are in [tasks.md](tasks.md); measured evidence is in [validation.md](validation.md).
 
-### Source Code (planned, relative to services/api)
+### Source Code (relative to services/api)
 
 ```text
 src/modules/skills/
   skills.module.ts
   presentation/http/ (catalog/skills controllers, DTOs)
-  application/use-cases/, application/ports/, domain/, infrastructure/persistence/
+  application/, domain/, infrastructure/
 src/modules/sharing-skills/
   sharing-skills.module.ts
   presentation/http/ (owner management/search DTOs/controllers)
-  application/use-cases/, application/ports/, application/services/, domain/, infrastructure/persistence/
+  application/, infrastructure/
 src/modules/verifications/
   verifications.module.ts
   presentation/http/ (owner/Staff controllers, DTOs)
-  application/use-cases/, application/ports/, domain/, infrastructure/persistence/
+  application/, infrastructure/
 test/skills/ (policies, HTTP, persistence, concurrency, files, events)
 ```
 
@@ -101,7 +101,7 @@ Upload tách submit; poll scan rồi attach READY bằng owner API trong cùng s
 
 ## Verification & Release Gates
 
-Implementation bổ sung `test:skills`, `test:skills:integration`, `test:skills:performance`; các scripts này hiện chưa tồn tại. Chạy API lint/check-types/build, existing identity/runtime-v3/rbac/files suites và audit/consistency integration bị ảnh hưởng.
+Implementation đã bổ sung `test:skills`, `test:skills:integration`, `test:skills:performance`. Kết quả API lint/check-types/build, identity/runtime-v3/rbac/files/audit/consistency và PostgreSQL Skills được ghi trong [validation.md](validation.md).
 
 Required behavior: normalized duplicate concurrent; duplicate active/pending; approve-vs-reject; revoke-vs-submit; live permissions/session revoke; audit/outbox failure rollback; idempotency same/different body; other-owner/wrong-purpose/non-READY file;10.000.000 bytes và+1; infected/unknown scan; cleanup-vs-attach; signed TTL; public/private projection; envelope/Swagger/counter rebuild.
 

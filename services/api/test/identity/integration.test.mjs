@@ -178,8 +178,8 @@ test(
           });
           await seedIdentity(db, new PrismaUsersRepository());
           assert.equal(await db.role.count(), 3);
-          assert.equal(await db.permission.count(), 4);
-          assert.equal(await db.rolePermission.count(), 4);
+          assert.equal(await db.permission.count(), 15);
+          assert.equal(await db.rolePermission.count(), 26);
           assert.equal(
             (await db.role.findUniqueOrThrow({ where: { code: "ADMIN" } }))
               .description,
@@ -797,10 +797,16 @@ test(
           const role = await db.role.findUniqueOrThrow({
             where: { code: "STAFF" },
           });
-          for (const permission of await db.permission.findMany())
-            await db.rolePermission.create({
-              data: { roleId: role.id, permissionId: permission.id },
-            });
+          const originalGrants = await db.rolePermission.findMany({
+            where: { roleId: role.id },
+          });
+          await db.rolePermission.createMany({
+            data: (await db.permission.findMany()).map((permission) => ({
+              roleId: role.id,
+              permissionId: permission.id,
+            })),
+            skipDuplicates: true,
+          });
           assert.ok((await admin.list(principal, {})).items.length > 0);
           await assert.rejects(
             admin.staff(principal, other.id, true, "invalid", "stray grant"),
@@ -813,6 +819,10 @@ test(
             admin.list(principal, {}),
             (error) => error.getStatus() === 403,
           );
+          await db.rolePermission.createMany({
+            data: originalGrants,
+            skipDuplicates: true,
+          });
         },
       );
       await t.test(
