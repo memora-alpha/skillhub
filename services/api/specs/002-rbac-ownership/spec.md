@@ -1,6 +1,6 @@
 # Feature Specification: RBAC và ownership SH-002
 
-**Created:** 2026-10-04. **Status:** Đang triển khai; ma trận quyền và các quyết định mở chưa phê duyệt.
+**Created:** 2026-10-04. **Status:** Đang triển khai; grant matrix chi tiết chưa có artifact trong repo, các quyết định khác còn mở.
 **Owner:** LogKoNger. **Workspace:** `services/api`.
 
 ## Mục tiêu và nguồn yêu cầu
@@ -13,9 +13,9 @@ kiểm chứng với phần còn mở.
 
 Nguồn đã đọc ngày 2026-10-04:
 
-- [Backlog, dòng 3, A3:K3](https://docs.google.com/spreadsheets/d/1jdgrnCNeQLK1g339kY0WUYy6o7lgx6hG9j0tu1fb1Xw/edit?gid=733891926#gid=733891926): SH-002, owner Long, “Đang làm”, phụ thuộc SH-001; NFR-SEC-03, BR-39.
+- [Backlog, dòng 3, A3:K3](https://docs.google.com/spreadsheets/d/1jdgrnCNeQLK1g339kY0WUYy6o7lgx6hG9j0tu1fb1Xw/edit?gid=733891926#gid=733891926): SH-002, owner Long, đã chuyển “Hoàn thành” khi đọc lại 2026-10-04, phụ thuộc SH-001; NFR-SEC-03, BR-39. Source integration vẫn Pending như validation report.
 - Cùng workbook, tab `BR Mapping`: BR-28/29/36 về dữ liệu riêng tư và participant; BR-39 về Staff; BR-40 về reason và audit.
-- Cùng workbook, tab `Open Decisions`, dòng 7: OP-06 “Staff permissions”, owner chuẩn bị Huy, “Chờ chốt nghiệp vụ”. Dòng 5: OP-04 về phạm vi Staff/Admin xem chat khi xử lý report, owner Long.
+- Cùng workbook, tab `Open Decisions`, dòng 7: OP-06 “Staff permissions”, owner chuẩn bị Huy, đã chuyển “Đã chốt” khi đọc lại 2026-10-04; range không có grant matrix chi tiết. Dòng 5: OP-04 về phạm vi Staff/Admin xem chat khi xử lý report còn chờ chốt, owner Long.
 - [SRS v1.4](../../../../docs/SRS_SkillHub_V1.4_BoSungQuyDinhNghiepVu_VI.docx): mục 3, 5, 6.3, 7, 18.2.1/2, 18.9, 18.12, 18.18, 18.23–27, 18.34, 18.36 và 18.38.
 - [Constitution v1.2.0](../../.specify/memory/constitution.md), [foundation plan](../001-backend-foundation/plan.md), [logical model](../../../../docs/SkillHub_Logical_Data_Model.md).
 
@@ -89,7 +89,9 @@ không diễn giải mọi mức giảm Reputation thành LOCKED toàn bộ.
 - **R-01:** Role lưu DB là USER/STAFF/ADMIN. Guest là trạng thái chưa đăng nhập;
   không có UserRole GUEST. USER không tách cố định thành Teacher/Learner (BR-01, REG-006).
 - **R-02:** Quyền hiệu lực là hợp các permission được cấp rõ ràng qua role hiện hành.
-  STAFF và ADMIN không tự kế thừa USER hoặc quyền của nhau; account có nhiều role phải được gán rõ ràng.
+  STAFF và ADMIN không tự kế thừa USER hoặc quyền của nhau. Runtime v3 dùng một
+  `User.roleId` bắt buộc; permission hiệu lực chỉ đến từ role này. Migration giữ
+  role cao nhất theo ADMIN > STAFF > USER và lưu grant cũ để đối chiếu.
 - **R-03:** Đăng ký/OAuth không nhận quyền STAFF/ADMIN từ client. Backend gán USER;
   thay đổi role qua flow quản trị được bảo vệ riêng (SH-010/014/100).
 - **R-04:** API nhạy cảm kiểm tra permission action ở backend; đủ mọi permission yêu cầu,
@@ -121,7 +123,8 @@ không diễn giải mọi mức giảm Reputation thành LOCKED toàn bộ.
 
 Mã theo dạng `resource:action[:scope]`. Đây là đề xuất; cần review trước khi seed
 grants production. `Có*` là role được SRS nêu có chức năng nhưng cần grant action
-cụ thể; `Chờ` là chưa chốt quyền Staff ở OP-06; `—` là không tự cấp quyền.
+cụ thể; `Chờ` là chưa có artifact grant chi tiết để map vào implementation dù
+Sheet OP-06 đã ghi “Đã chốt”; `—` là không tự cấp quyền.
 Mọi grant còn phụ thuộc account state và scope. Không dùng ma trận này làm quyền
 truy cập file/chat toàn cục.
 

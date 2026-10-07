@@ -18,8 +18,8 @@ export class ProfileReader {
     const projection = {
       userId,
       fullName: row.fullName,
-      headline: row.headline,
-      bio: row.bio,
+      headline: row.headline ?? "",
+      bio: row.bio ?? "",
       avatarUrl:
         row.avatarAsset?.state === "CLEAN"
           ? await this.storage.url(row.avatarAsset.storageKey)

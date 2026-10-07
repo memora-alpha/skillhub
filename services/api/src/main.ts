@@ -23,6 +23,7 @@ async function bootstrap() {
   app.enableVersioning({ type: VersioningType.URI });
   app.enableCors({
     origin: config.getOrThrow<string>("CORS_ORIGIN"),
+    exposedHeaders: ["x-request-id", "x-correlation-id"],
   });
   app.enableShutdownHooks();
   app.useGlobalPipes(

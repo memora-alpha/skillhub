@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import { IdentityEmailKind } from "../../../../generated/prisma/client";
 
 import { IdentityConfig } from "../../../../configs/identity.config";
 import { PrismaService } from "../../../../infrastructure/database/prisma.service";
@@ -22,8 +23,22 @@ export class DeliverIdentityEmailUseCase {
     const row = await transaction(this.db, async (tx) => {
       await this.repository.lock(tx, id);
       const found = await this.repository.find(tx, id);
-      if (found?.status !== "PENDING" || found.nextAttemptAt > new Date())
+      if (
+        found?.status !== "PENDING" ||
+        (found.nextAttemptAt && found.nextAttemptAt > new Date())
+      )
         return null;
+      if (
+        !Object.values(IdentityEmailKind).some((kind) => kind === found.kind)
+      ) {
+        await this.repository.finish(
+          tx,
+          id,
+          "FAILED",
+          "UNSUPPORTED_EMAIL_KIND",
+        );
+        return null;
+      }
       if (found.attempts >= this.config.deliveryAttempts) {
         await this.repository.finish(tx, id, "FAILED", "RETRY_EXHAUSTED");
         return null;
@@ -54,7 +69,12 @@ export class DeliverIdentityEmailUseCase {
       const code = row.encryptedPayload
         ? crypto.decrypt(row.encryptedPayload, `${id}:payload`)
         : null;
-      const messageId = await this.smtp.send(id, recipient, row.kind, code);
+      const messageId = await this.smtp.send(
+        id,
+        recipient,
+        row.kind as IdentityEmailKind,
+        code,
+      );
       await this.repository.sent(this.db, id, leaseUntil, messageId);
     } catch {
       const terminal =

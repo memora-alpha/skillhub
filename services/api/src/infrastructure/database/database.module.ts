@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { MongooseModule } from "@nestjs/mongoose";
 import { PrismaService } from "./prisma.service";
+import { TransactionRunner } from "./transaction-runner";
 
 @Module({
   imports: [
@@ -15,7 +16,14 @@ import { PrismaService } from "./prisma.service";
       }),
     }),
   ],
-  providers: [PrismaService],
-  exports: [PrismaService, MongooseModule],
+  providers: [
+    PrismaService,
+    {
+      provide: TransactionRunner,
+      inject: [PrismaService],
+      useFactory: (prisma: PrismaService) => new TransactionRunner(prisma),
+    },
+  ],
+  exports: [PrismaService, TransactionRunner, MongooseModule],
 })
 export class DatabaseModule {}

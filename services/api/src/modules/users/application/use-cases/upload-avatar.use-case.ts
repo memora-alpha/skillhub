@@ -5,7 +5,7 @@ import {
   PayloadTooLargeException,
 } from "@nestjs/common";
 
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 
 import { PrismaService } from "../../../../infrastructure/database/prisma.service";
 
@@ -47,7 +47,8 @@ export class UploadAvatarUseCase {
           userId,
           storageKey,
           mime,
-          byteSize: file.size,
+          byteSize: BigInt(file.bytes.length),
+          checksum: createHash("sha256").update(file.bytes).digest("hex"),
           expiresAt: new Date(
             Date.now() + this.config.avatarRetentionSeconds * 1000,
           ),

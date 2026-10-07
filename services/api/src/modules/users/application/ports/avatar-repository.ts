@@ -1,9 +1,5 @@
 import { IdentityTx } from "../../../../shared/database/identity-transactions";
-import {
-  AvatarAsset,
-  User,
-  Profile,
-} from "../../../../generated/prisma/client";
+import { AvatarAsset, User } from "../../../../generated/prisma/client";
 import { ScanEvidence } from "../../application/contracts/avatar-input";
 export abstract class AvatarRepository {
   abstract requiredUser(tx: IdentityTx, id: string): Promise<User>;
@@ -11,7 +7,13 @@ export abstract class AvatarRepository {
     tx: IdentityTx,
     data: Pick<
       AvatarAsset,
-      "id" | "userId" | "storageKey" | "mime" | "byteSize" | "expiresAt"
+      | "id"
+      | "userId"
+      | "storageKey"
+      | "mime"
+      | "byteSize"
+      | "expiresAt"
+      | "checksum"
     >,
   ): Promise<AvatarAsset>;
   abstract find(tx: IdentityTx, id: string): Promise<AvatarAsset | null>;
@@ -20,7 +22,7 @@ export abstract class AvatarRepository {
     tx: IdentityTx,
     userId: string,
     id: string | null,
-  ): Promise<Profile>;
+  ): Promise<User>;
   abstract cancelUser(
     tx: IdentityTx,
     userId: string,
@@ -35,5 +37,5 @@ export abstract class AvatarRepository {
     },
   ): Promise<AvatarAsset>;
   abstract latest(tx: IdentityTx, userId: string): Promise<AvatarAsset | null>;
-  abstract profile(tx: IdentityTx, userId: string): Promise<Profile>;
+  abstract profile(tx: IdentityTx, userId: string): Promise<User>;
 }

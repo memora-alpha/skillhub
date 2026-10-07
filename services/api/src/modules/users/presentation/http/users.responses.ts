@@ -5,8 +5,7 @@ export class PublicProfileResponse {
   @ApiProperty() headline!: string;
   @ApiProperty() bio!: string;
   @ApiProperty({ type: String, nullable: true }) avatarUrl!: string | null;
-  @ApiProperty({ type: Number, nullable: true }) reputationScore!:
-    number | null;
+  @ApiProperty({ type: Number }) reputationScore!: number;
   @ApiProperty() verifiedSkillCount!: number;
   @ApiProperty() completedSessionCount!: number;
 }
@@ -28,7 +27,13 @@ export class OwnIdentityResponse {
     ],
   })
   accountStatus!: string;
-  @ApiProperty({ type: [String] }) roles!: string[];
+  @ApiProperty({
+    type: [String],
+    minItems: 1,
+    maxItems: 1,
+    description: "The account's one assigned role",
+  })
+  roles!: string[];
   @ApiProperty({ type: OwnProfileResponse }) profile!: OwnProfileResponse;
 }
 export class AvatarResponse {
@@ -41,6 +46,12 @@ export class AdminUserResponse {
   @ApiProperty() fullName!: string;
   @ApiProperty() maskedEmail!: string;
   @ApiProperty() accountStatus!: string;
-  @ApiProperty({ type: [String] }) roles!: string[];
+  @ApiProperty({
+    type: [String],
+    minItems: 1,
+    maxItems: 1,
+    description: "The account's one assigned role",
+  })
+  roles!: string[];
   @ApiProperty({ format: "date-time" }) createdAt!: string;
 }

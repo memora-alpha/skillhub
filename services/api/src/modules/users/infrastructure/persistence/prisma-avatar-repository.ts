@@ -1,9 +1,5 @@
 import { IdentityTx } from "../../../../shared/database/identity-transactions";
-import {
-  AvatarAsset,
-  User,
-  Profile,
-} from "../../../../generated/prisma/client";
+import { AvatarAsset, User } from "../../../../generated/prisma/client";
 import { ScanEvidence } from "../../application/contracts/avatar-input";
 import { Injectable } from "@nestjs/common";
 import { AvatarRepository } from "../../application/ports/avatar-repository";
@@ -16,10 +12,16 @@ export class PrismaAvatarRepository extends AvatarRepository {
     tx: IdentityTx,
     data: Pick<
       AvatarAsset,
-      "id" | "userId" | "storageKey" | "mime" | "byteSize" | "expiresAt"
+      | "id"
+      | "userId"
+      | "storageKey"
+      | "mime"
+      | "byteSize"
+      | "expiresAt"
+      | "checksum"
     >,
   ): Promise<AvatarAsset> {
-    return tx.avatarAsset.create({ data });
+    return tx.avatarAsset.create({ data: { ...data, state: "QUARANTINED" } });
   }
   find(tx: IdentityTx, id: string): Promise<AvatarAsset | null> {
     return tx.avatarAsset.findUnique({ where: { id } });
@@ -27,9 +29,9 @@ export class PrismaAvatarRepository extends AvatarRepository {
   required(tx: IdentityTx, id: string): Promise<AvatarAsset> {
     return tx.avatarAsset.findUniqueOrThrow({ where: { id } });
   }
-  select(tx: IdentityTx, userId: string, id: string | null): Promise<Profile> {
-    return tx.profile.update({
-      where: { userId },
+  select(tx: IdentityTx, userId: string, id: string | null): Promise<User> {
+    return tx.user.update({
+      where: { id: userId },
       data: { avatarAssetId: id },
     });
   }
@@ -50,7 +52,7 @@ export class PrismaAvatarRepository extends AvatarRepository {
       where: {
         state: { in: ["REJECTED", "DELETED", "CLEAN"] },
         expiresAt: { lte: new Date() },
-        selectedProfiles: { none: {} },
+        userSelectedAvatarRecords: { is: null },
       },
       take: 100,
     });
@@ -70,7 +72,7 @@ export class PrismaAvatarRepository extends AvatarRepository {
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     });
   }
-  profile(tx: IdentityTx, userId: string): Promise<Profile> {
-    return tx.profile.findUniqueOrThrow({ where: { userId } });
+  profile(tx: IdentityTx, userId: string): Promise<User> {
+    return tx.user.findUniqueOrThrow({ where: { id: userId } });
   }
 }

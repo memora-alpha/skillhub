@@ -7,36 +7,47 @@ entities; its simplification does not remove logical join tables.
 
 ## Catalog and implemented runtime
 
-- `schema.prisma` is the v3 PostgreSQL catalog. Its client output is
+- `catalog.prisma` is the v3 PostgreSQL catalog. Its client output is
   `src/generated/prisma-catalog`, separate from the running identity client.
-- `identity.prisma` remains the implemented legacy identity/deployment schema.
-  `prisma.config.ts`, default generate/build/typecheck and existing migrations use it.
-  Existing Profile/UserRole/PostgreSQL OTP runtime is retained until a separate
-  migration and repository change; it is not claimed to implement v3.
-- `scripts/write-identity-schema.mjs` now verifies the retained runtime scope; it
-  must not extract legacy identity from the incompatible v3 catalog.
+- `schema.prisma` is the runtime v3 schema, generated from the catalog by
+  `scripts/generate-runtime-schema.mjs`. It includes the 48 domain models and
+  seven technical models from `runtime-support.prisma` for OTP and foundation.
+  `prisma.config.ts`, default generate/build/typecheck and migrations use it.
+  Profile fields live on User; User has one required roleId.
+- `scripts/write-identity-schema.mjs` verifies the runtime scope without rewriting it.
+  Existing OTP remains PostgreSQL-backed; its omission from the diagram did not
+  authorize removing authentication functionality.
 - `chat.schema.prisma` is reference-only. MessageAttachment is an embedded `type`,
   not a collection/model. Runtime ownership remains MongoDB/Mongoose; Prisma 7
   cannot validate/generate this file as a runtime MongoDB schema.
 
-No database migration, db push, seed or deployment is part of this catalog update.
-Existing migration SQL is preserved. Client/schema validation does not demonstrate
+Migration `20261007000000_runtime_v3` backfills profiles and a single role, renames
+existing columns and adds v3 tables. It preserves original profile/grant rows in
+`<current_schema>_legacy_v3`. It does not deploy itself. Client/schema validation does not demonstrate
 financial concurrency, database deployment or working business features.
 
 ## Commands from repository root
 
 ```powershell
 python services/api/scripts/generate-prisma-catalog.py
+node services/api/scripts/generate-runtime-schema.mjs
 pnpm --filter api exec prisma format --schema prisma/schema.prisma
-pnpm --filter api db:validate
+pnpm --filter api exec prisma format --schema prisma/catalog.prisma
+pnpm --filter api db:validate:catalog
 pnpm --filter api db:generate:catalog
 pnpm --filter api db:validate:runtime
 pnpm --filter api check-types
 ```
 
 Default `db:generate`, prebuild and predev generate the **identity runtime** client.
-`db:migrate`/`db:deploy` remain scoped to identity. Do not point existing identity
-migrations at the v3 catalog; prepare a reviewed migration/data backfill first.
+`db:migrate`/`db:deploy` use the full runtime schema and migration history.
+The runtime retains delivery encryption, scan leases, audit reasons up to 2000
+characters and outbox retries. Equivalent application field names map to v3 SQL
+columns. Legacy avatar checksums may be null; new uploads store SHA-256, and the
+scanner verifies it. Existing reasons and unknown legacy checksums are not invented.
+Multi-role accounts map to ADMIN, then STAFF, then USER; missing grants map to USER.
+The Staff endpoint rejects replacing ADMIN with STAFF. Role arrays in existing
+HTTP contracts now contain one role. Reputation uses 50 when not initialized.
 
 ## Representation and unresolved constraints
 
