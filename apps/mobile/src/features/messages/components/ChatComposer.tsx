@@ -27,7 +27,11 @@ export function ChatComposer({
           onPress={onAttach}
           style={styles.attach}
         >
-          <Icon name="paperclip" size={iconSizes.control} color={colors.muted} />
+          <Icon
+            name="paperclip"
+            size={iconSizes.control}
+            color={colors.muted}
+          />
         </Pressable>
         <TextInput
           accessibilityLabel="Nhập tin nhắn"

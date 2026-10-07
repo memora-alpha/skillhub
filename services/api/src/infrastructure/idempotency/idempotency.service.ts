@@ -80,6 +80,7 @@ export class IdempotencyService {
   async execute<T extends ResultReference>(
     input: IdempotencyInput,
     work: (tx: Prisma.TransactionClient) => Promise<T>,
+    authorize?: (tx: Prisma.TransactionClient) => Promise<void>,
   ): Promise<{ value: T; replayed: boolean }> {
     if (
       !/^[\x21-\x7e]{1,128}$/.test(input.key) ||
@@ -90,6 +91,8 @@ export class IdempotencyService {
     const keyDigest = sha256(input.key);
     const fingerprint = fingerprintCommand(input.command);
     return this.transactions.run(async (tx) => {
+      // Authorization runs for fresh commands and completed replays in the same transaction.
+      await authorize?.(tx);
       const inserted = await tx.$executeRaw`
         INSERT INTO "idempotency_records" ("scope", "operation", "key_digest", "fingerprint")
         VALUES (${input.scope}, ${input.operation}, ${keyDigest}, ${fingerprint})

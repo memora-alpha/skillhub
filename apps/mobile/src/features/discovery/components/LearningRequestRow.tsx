@@ -44,7 +44,11 @@ export function LearningRequestRow({
       <View style={styles.footer}>
         <View style={styles.budget}>
           <View style={styles.sessions}>
-            <Icon name="calendar" size={iconSizes.inline} color={colors.muted} />
+            <Icon
+              name="calendar"
+              size={iconSizes.inline}
+              color={colors.muted}
+            />
             <Text style={styles.caption}>{request.sessions} buổi học</Text>
           </View>
           <Text style={styles.credit}>{request.budget}</Text>

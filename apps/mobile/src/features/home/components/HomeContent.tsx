@@ -1,9 +1,4 @@
-import {
-  Pressable,
-  Text,
-  View,
-  useWindowDimensions,
-} from "react-native";
+import { Pressable, Text, View, useWindowDimensions } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Avatar } from "@/components/Avatar";
 import { Button } from "@/components/Button";
@@ -59,7 +54,11 @@ export function HomeContent({
           style={({ pressed }) => [styles.wallet, pressed && styles.pressed]}
         >
           <View style={styles.walletIcon}>
-            <Icon name="wallet" size={iconSizes.control} color={colors.orange} />
+            <Icon
+              name="wallet"
+              size={iconSizes.control}
+              color={colors.orange}
+            />
           </View>
           <View>
             <Text style={styles.walletLabel}>SỐ DƯ</Text>
@@ -87,7 +86,11 @@ export function HomeContent({
               </View>
               {!isNew && (
                 <View style={styles.meetingBadge}>
-                  <Icon name="video" size={iconSizes.inline} color={colors.body} />
+                  <Icon
+                    name="video"
+                    size={iconSizes.inline}
+                    color={colors.body}
+                  />
                   <Text style={styles.meetingLabel}>Google Meet</Text>
                 </View>
               )}
@@ -129,7 +132,11 @@ export function HomeContent({
                 <Text style={styles.sessionButtonLabel}>
                   {isNew ? "Khám phá kỹ năng" : "Vào học"}
                 </Text>
-                <Icon name="arrow" size={iconSizes.inline} color={colors.orange} />
+                <Icon
+                  name="arrow"
+                  size={iconSizes.inline}
+                  color={colors.orange}
+                />
               </Button>
             </View>
           </LinearGradient>
@@ -153,7 +160,11 @@ export function HomeContent({
             >
               <View style={[homeStyles.row, { gap: 10 }]}>
                 <View style={styles.courseIcon}>
-                  <Icon name="book" size={iconSizes.feature} color={colors.orange} />
+                  <Icon
+                    name="book"
+                    size={iconSizes.feature}
+                    color={colors.orange}
+                  />
                 </View>
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <Text style={homeStyles.label}>
@@ -211,7 +222,11 @@ export function HomeContent({
             />
             <View style={[styles.card, styles.achievement]}>
               <View style={styles.award}>
-                <Icon name="award" size={iconSizes.feature} color={colors.yellow} />
+                <Icon
+                  name="award"
+                  size={iconSizes.feature}
+                  color={colors.yellow}
+                />
               </View>
               <View style={{ flex: 1, minWidth: 0, gap: 8 }}>
                 <View>
@@ -291,7 +306,11 @@ export function HomeContent({
                     </Text>
                     <View style={styles.connectButton}>
                       <Text style={styles.connectLabel}>Xem chi tiết</Text>
-                      <Icon name="chevron" size={iconSizes.inline} color={colors.orange} />
+                      <Icon
+                        name="chevron"
+                        size={iconSizes.inline}
+                        color={colors.orange}
+                      />
                     </View>
                   </View>
                 </Pressable>

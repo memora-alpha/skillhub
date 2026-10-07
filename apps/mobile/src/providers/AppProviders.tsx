@@ -43,9 +43,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
   return (
     <SafeAreaProvider>
       <MockSessionProvider>
-        <MockMessagesProvider>
-          {children}
-        </MockMessagesProvider>
+        <MockMessagesProvider>{children}</MockMessagesProvider>
       </MockSessionProvider>
     </SafeAreaProvider>
   );

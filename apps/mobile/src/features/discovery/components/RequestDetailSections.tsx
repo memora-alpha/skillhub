@@ -29,7 +29,12 @@ function SkillSection({
             },
           ]}
         >
-          <Icon name={icon} size={iconSizes.control} color={tint} filled={false} />
+          <Icon
+            name={icon}
+            size={iconSizes.control}
+            color={tint}
+            filled={false}
+          />
         </View>
         <Text style={[styles.title, { color: tint }]}>{title}</Text>
       </View>
@@ -81,7 +86,11 @@ export function RequestDetailSections({
       <View style={styles.card}>
         <View style={styles.heading}>
           <View style={[styles.icon, { backgroundColor: colors.purpleSoft }]}>
-            <Icon name="calendar" size={iconSizes.control} color={colors.purple} />
+            <Icon
+              name="calendar"
+              size={iconSizes.control}
+              color={colors.purple}
+            />
           </View>
           <Text style={[styles.title, { color: colors.ink }]}>Lịch rảnh</Text>
         </View>

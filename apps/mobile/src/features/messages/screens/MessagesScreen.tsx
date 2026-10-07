@@ -72,7 +72,11 @@ export function MessagesScreen() {
                 onPress={() => open("Proposal")}
               >
                 <View style={styles.bannerIcon}>
-                  <Icon name="clipboard" size={iconSizes.control} color={colors.orange} />
+                  <Icon
+                    name="clipboard"
+                    size={iconSizes.control}
+                    color={colors.orange}
+                  />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.bannerTitle}>Các proposal hiện có</Text>
@@ -82,7 +86,11 @@ export function MessagesScreen() {
                 </View>
                 <View style={styles.bannerBtn}>
                   <Text style={styles.bannerBtnText}>Xem</Text>
-                  <Icon name="chevron" size={iconSizes.inline} color={colors.orange} />
+                  <Icon
+                    name="chevron"
+                    size={iconSizes.inline}
+                    color={colors.orange}
+                  />
                 </View>
               </Pressable>
 
@@ -93,7 +101,11 @@ export function MessagesScreen() {
                   focused && { borderColor: colors.orange },
                 ]}
               >
-                <Icon name="search" color={colors.muted} size={iconSizes.control} />
+                <Icon
+                  name="search"
+                  color={colors.muted}
+                  size={iconSizes.control}
+                />
                 <TextInput
                   accessibilityLabel="Tìm cuộc trao đổi"
                   value={query}
@@ -114,7 +126,11 @@ export function MessagesScreen() {
                     onPress={() => setQuery("")}
                     hitSlop={8}
                   >
-                    <Icon name="close" size={iconSizes.control} color={colors.muted} />
+                    <Icon
+                      name="close"
+                      size={iconSizes.control}
+                      color={colors.muted}
+                    />
                   </Pressable>
                 )}
               </View>

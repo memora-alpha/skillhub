@@ -27,7 +27,8 @@ for (const path of files) {
       ? 250
       : 400;
 
-  if (lines > limit) errors.push(`${normalized}: ${lines} lines (limit ${limit})`);
+  if (lines > limit)
+    errors.push(`${normalized}: ${lines} lines (limit ${limit})`);
 
   const privateFeatureImport = source.match(/["']@\/features\/[^/"']+\//);
   if (privateFeatureImport) {

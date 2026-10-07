@@ -92,7 +92,11 @@ export function AppHeader({
             accessibilityLabel="Tin nhắn"
             onPress={() => onAction("Tin nhắn")}
           >
-            <Icon name="message" size={iconSizes.control} color={colors.muted} />
+            <Icon
+              name="message"
+              size={iconSizes.control}
+              color={colors.muted}
+            />
           </Pressable>
         )}
         <Pressable
@@ -108,9 +112,7 @@ export function AppHeader({
             color={home ? signedInChrome.accent : colors.muted}
           />
           <View style={[styles.count, home && styles.homeCount]}>
-            <Text style={styles.countLabel}>
-              3
-            </Text>
+            <Text style={styles.countLabel}>3</Text>
           </View>
         </Pressable>
         {rightAction}

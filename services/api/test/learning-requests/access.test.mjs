@@ -163,6 +163,10 @@ test("bootstrap grants only the chosen per-role actions and preserves existing g
       "learning-request:cancel:self",
       "notification:read:self",
       "notification:update:self",
+      "sharing-skill:create:self",
+      "sharing-skill:update:self",
+      "sharing-skill:archive:self",
+      "skill-verification:submit:self",
     ],
   );
   assert.deepEqual(
@@ -171,6 +175,13 @@ test("bootstrap grants only the chosen per-role actions and preserves existing g
       "learning-request:moderation:read",
       "learning-request:approve",
       "learning-request:reject",
+      "sharing-skill:create:self",
+      "sharing-skill:update:self",
+      "sharing-skill:archive:self",
+      "skill-verification:submit:self",
+      "skill-verification:read",
+      "skill-verification:approve",
+      "skill-verification:reject",
     ],
   );
   for (const permission of [
@@ -185,4 +196,11 @@ test("bootstrap grants only the chosen per-role actions and preserves existing g
     );
   }
   assert.ok(calls.grants.every(({ skipDuplicates }) => skipDuplicates));
+  assert.equal(grants.get("USER").has("skill-catalog:create"), false);
+  assert.equal(grants.get("STAFF").has("skill-verification:revoke"), false);
+  assert.ok(grants.get("ADMIN").has("skill-catalog:create"));
+  assert.equal(
+    new Set(calls.permissions[0].data.map((row) => row.code)).size,
+    calls.permissions[0].data.length,
+  );
 });

@@ -7,6 +7,7 @@ import {
 } from "../../../../generated/prisma/client";
 import { UserListQuery } from "../../application/contracts/user-list-query";
 import { UsersRepository } from "../../application/ports/users-repository";
+import { SKILL_PERMISSIONS } from "../../../skills/domain/skill-policy";
 import type { PermissionCode } from "../../../../shared/authorization/permission.catalog";
 @Injectable()
 export class PrismaUsersRepository extends UsersRepository {
@@ -238,8 +239,11 @@ export class PrismaUsersRepository extends UsersRepository {
       ],
     } satisfies Record<RoleCode, readonly PermissionCode[]>;
     const codes = [
-      ...systemAdminPermissions,
-      ...Object.values(learningRequestGrants).flat(),
+      ...new Set([
+        ...systemAdminPermissions,
+        ...Object.values(learningRequestGrants).flat(),
+        ...Object.values(SKILL_PERMISSIONS).flat(),
+      ]),
     ];
     await tx.permission.createMany({
       data: codes.map((code) => ({ code, description: code })),
@@ -266,6 +270,12 @@ export class PrismaUsersRepository extends UsersRepository {
         permissionCode,
       })),
       ...Object.entries(learningRequestGrants).flatMap(([roleCode, grants]) =>
+        grants.map((permissionCode) => ({
+          roleCode: roleCode as RoleCode,
+          permissionCode,
+        })),
+      ),
+      ...Object.entries(SKILL_PERMISSIONS).flatMap(([roleCode, grants]) =>
         grants.map((permissionCode) => ({
           roleCode: roleCode as RoleCode,
           permissionCode,

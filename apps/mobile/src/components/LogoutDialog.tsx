@@ -48,10 +48,7 @@ export function LogoutDialog({
             <Button variant="ghost" onPress={onClose} style={styles.stayButton}>
               Ở lại
             </Button>
-            <Button
-              style={styles.logoutButton}
-              onPress={onConfirm}
-            >
+            <Button style={styles.logoutButton} onPress={onConfirm}>
               Đăng xuất
             </Button>
           </View>

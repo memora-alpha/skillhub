@@ -241,12 +241,18 @@ export class PrismaStoredFileRepository
   ): Promise<CleanupCandidate[]> {
     const candidates = await this.prisma.storedFile.findMany({
       where: {
+        attachedAt: null,
         OR: [
           {
             state: { in: ["UPLOADING", "UPLOAD_FAILED"] },
             createdAt: { lt: graceBefore },
           },
           { state: "CLEANUP_PENDING" },
+          {
+            state: "READY",
+            purpose: "EVIDENCE",
+            createdAt: { lt: graceBefore },
+          },
         ],
       },
       orderBy: { createdAt: "asc" },
@@ -260,13 +266,17 @@ export class PrismaStoredFileRepository
     await this.prisma.storedFile.updateMany({
       where: {
         id: { in: ids },
-        state: { in: ["UPLOADING", "UPLOAD_FAILED"] },
+        attachedAt: null,
+        OR: [
+          { state: { in: ["UPLOADING", "UPLOAD_FAILED"] } },
+          { state: "READY", purpose: "EVIDENCE" },
+        ],
         createdAt: { lt: graceBefore },
       },
       data: { state: "CLEANUP_PENDING" },
     });
     return this.prisma.storedFile.findMany({
-      where: { id: { in: ids }, state: "CLEANUP_PENDING" },
+      where: { id: { in: ids }, state: "CLEANUP_PENDING", attachedAt: null },
       orderBy: { createdAt: "asc" },
       select: { id: true, objectKey: true },
     });

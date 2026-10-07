@@ -22,7 +22,12 @@ export function FormNotice({
         size={16}
         color={success ? colors.success : colors.error}
       />
-      <Text style={[styles.label, { color: success ? colors.success : colors.error }]}>
+      <Text
+        style={[
+          styles.label,
+          { color: success ? colors.success : colors.error },
+        ]}
+      >
         {children}
       </Text>
     </View>

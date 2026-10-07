@@ -36,7 +36,10 @@ export function MessageBubble({
             mine ? styles.mine : styles.theirs,
           ]}
         >
-          <Text selectable style={[styles.text, mine && { color: colors.white }]}>
+          <Text
+            selectable
+            style={[styles.text, mine && { color: colors.white }]}
+          >
             {message.text}
           </Text>
         </View>
