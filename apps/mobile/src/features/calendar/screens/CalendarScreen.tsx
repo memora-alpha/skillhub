@@ -4,8 +4,9 @@ import { useRouter } from "expo-router";
 import { AppScreenLayout } from "@/components/AppScreenLayout";
 import { Button } from "@/components/Button";
 import { EmptyState } from "@/components/EmptyState";
+import { Icon } from "@/components/Icon";
 import { InfoModal } from "@/components/InfoModal";
-import { colors, fonts, radius } from "@/constants/theme";
+import { iconSizes, typography, fonts } from "@/constants/theme";
 import { MonthCalendar } from "../components/MonthCalendar";
 import {
   HistoryPathCard,
@@ -16,11 +17,12 @@ import {
   learningHistory,
   upcomingSessions,
 } from "../mocks/calendar";
+import { calendarColors as colors } from "../constants/theme";
 
 export function CalendarScreen() {
   const router = useRouter();
   const [tab, setTab] = useState<"upcoming" | "history">("upcoming");
-  const [month, setMonth] = useState(2); // March 2025, matching the source's initial view.
+  const [month, setMonth] = useState(calendarPeriod.initialMonth);
   const [day, setDay] = useState<number | null>(null);
   const [expandedHistory, setExpandedHistory] = useState(false);
   const [detail, setDetail] = useState<{ title: string; body: string } | null>(
@@ -28,13 +30,15 @@ export function CalendarScreen() {
   );
   const sessions = upcomingSessions.filter(
     (item) =>
-      day === null || (month === calendarPeriod.firstMonth && item.day === day),
+      day === null ||
+      (month === calendarPeriod.initialMonth && item.day === day),
   );
   const clearDay = () => setDay(null);
   return (
     <AppScreenLayout
       title="Lịch học"
       selected="Lịch học"
+      contentStyle={styles.background}
       rightAction={
         <Pressable
           accessibilityRole="button"
@@ -43,8 +47,12 @@ export function CalendarScreen() {
             setTab("history");
             clearDay();
           }}
-          style={{ paddingVertical: 6 }}
+          style={({ pressed }) => [
+            styles.historyLink,
+            pressed && { opacity: 0.7 },
+          ]}
         >
+          <Icon name="clock" size={iconSizes.inline} color={colors.orange} />
           <Text style={styles.link}>Lịch sử</Text>
         </Pressable>
       }
@@ -80,18 +88,27 @@ export function CalendarScreen() {
                     setTab(value);
                     clearDay();
                   }}
-                  style={[styles.tab, tab === value && styles.activeTab]}
+                  style={({ pressed }) => [
+                    styles.tab,
+                    tab === value && styles.activeTab,
+                    pressed && { opacity: 0.75 },
+                  ]}
                 >
                   <Text
                     style={[
                       styles.tabText,
-                      tab === value && { color: colors.ink },
+                      tab === value && styles.activeTabText,
                     ]}
                   >
-                    {value === "upcoming"
-                      ? `Sắp tới (${upcomingSessions.length})`
-                      : "Đã học"}
+                    {value === "upcoming" ? "Sắp tới" : "Đã học"}
                   </Text>
+                  {value === "upcoming" && (
+                    <View style={styles.tabCount}>
+                      <Text style={styles.tabCountText}>
+                        {upcomingSessions.length}
+                      </Text>
+                    </View>
+                  )}
                 </Pressable>
               ))}
             </View>
@@ -130,6 +147,7 @@ export function CalendarScreen() {
                 )}
                 <Button
                   variant="secondary"
+                  style={styles.bookMore}
                   onPress={() => router.navigate("/discover")}
                 >
                   + Đặt thêm buổi học
@@ -175,48 +193,52 @@ export function CalendarScreen() {
   );
 }
 const styles = StyleSheet.create({
+  background: { backgroundColor: colors.background },
   scroll: { flex: 1 },
   content: {
     width: "100%",
-    maxWidth: 1280,
+    maxWidth: 840,
     alignSelf: "center",
     paddingHorizontal: 16,
-    paddingVertical: 20,
-    gap: 16,
+    paddingTop: 8,
+    paddingBottom: 24,
+    gap: 12,
   },
   list: { gap: 12 },
   tabs: {
     flexDirection: "row",
-    backgroundColor: colors.sand,
-    borderRadius: radius.card,
-    padding: 4,
+    backgroundColor: colors.segment,
+    borderRadius: 8,
+    padding: 3,
+    gap: 3,
   },
   tab: {
     flex: 1,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: radius.control,
-    paddingVertical: 8,
+    borderRadius: 6,
+    paddingVertical: 9,
+    gap: 6,
   },
   activeTab: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
+    boxShadow: "0 1px 5px rgba(53, 43, 31, 0.08)",
   },
+  activeTabText: { color: colors.ink, fontFamily: fonts.bold },
   tabText: {
     fontFamily: fonts.semibold,
-    fontSize: 14,
-    lineHeight: 20,
+    ...typography.secondary,
     color: colors.muted,
   },
   link: {
     fontFamily: fonts.semibold,
-    fontSize: 14,
-    lineHeight: 20,
-    color: colors.brand,
+    ...typography.body,
+    color: colors.orange,
   },
   caption: {
     fontFamily: fonts.body,
-    fontSize: 12,
-    lineHeight: 16,
+    ...typography.secondary,
     color: colors.muted,
   },
   selectedDate: {
@@ -226,4 +248,27 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   historyAction: { alignItems: "center", paddingVertical: 8 },
+  historyLink: {
+    minHeight: 32,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 4,
+  },
+  tabCount: {
+    minWidth: 18,
+    height: 18,
+    paddingHorizontal: 5,
+    borderRadius: 9,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.orangeSoft,
+  },
+  tabCountText: {
+    fontFamily: fonts.bold,
+    ...typography.caption,
+    color: colors.orange,
+    fontVariant: ["tabular-nums"],
+  },
+  bookMore: { borderRadius: 6, backgroundColor: colors.orangeSoft },
 });
