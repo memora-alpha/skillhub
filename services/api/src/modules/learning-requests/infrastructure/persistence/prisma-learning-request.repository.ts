@@ -57,7 +57,7 @@ const maxExpiryBatchSize = 500;
 const maxPageSize = 101;
 
 function escapeLike(value: string): string {
-  return value.replace(/[\\%_]/g, "\\$&");
+  return value.replace(/[\\%_]/g, String.raw`\$&`);
 }
 
 function uuidArray(values: readonly string[]): Prisma.Sql {
@@ -187,7 +187,7 @@ export class PrismaLearningRequestRepository implements LearningRequestRepositor
     return result.count === 1;
   }
 
-  async findExpired(
+  findExpired(
     tx: TransactionContext,
     now: Date,
     batchSize: number,
@@ -197,8 +197,8 @@ export class PrismaLearningRequestRepository implements LearningRequestRepositor
       batchSize < 1 ||
       batchSize > maxExpiryBatchSize
     ) {
-      throw new RangeError(
-        `batchSize must be between 1 and ${maxExpiryBatchSize}`,
+      return Promise.reject(
+        new RangeError(`batchSize must be between 1 and ${maxExpiryBatchSize}`),
       );
     }
     return tx.learningRequest.findMany({

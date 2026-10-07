@@ -28,8 +28,10 @@ function assertSelection(
   skillId: string,
   tagIds: readonly string[],
 ): void {
-  const expected = [...tagIds].sort();
-  const actual = selection.tags.map(({ id }) => id).sort();
+  const expected = [...tagIds].sort((left, right) => left.localeCompare(right));
+  const actual = selection.tags
+    .map(({ id }) => id)
+    .sort((left, right) => left.localeCompare(right));
   if (
     selection.skillId !== skillId ||
     expected.length !== actual.length ||

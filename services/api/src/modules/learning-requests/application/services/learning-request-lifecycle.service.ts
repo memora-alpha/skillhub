@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  Inject,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
@@ -9,7 +10,6 @@ import {
   LEARNING_REQUEST_REPOSITORY,
   type LearningRequestRepository,
 } from "../ports/learning-request-repository";
-import { Inject } from "@nestjs/common";
 
 const startableStatuses = ["OPEN"] as const;
 

@@ -33,8 +33,7 @@ export class ExpireLearningRequestsUseCase {
       const expired = await this.transactions.run(async (tx) => {
         const request = await this.repository.lock(tx, candidate.id);
         if (
-          !request ||
-          request.version !== candidate.version ||
+          request?.version !== candidate.version ||
           !expiryStatuses.includes(
             request.status as (typeof expiryStatuses)[number],
           )

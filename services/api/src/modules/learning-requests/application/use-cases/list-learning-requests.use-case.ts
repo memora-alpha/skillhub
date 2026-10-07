@@ -80,15 +80,9 @@ type PageItem =
   | LearningRequestModerationDetail
   | (LearningRequestSummary & { matchScore: number });
 type Page = { items: PageItem[]; nextCursor: string | null };
+type Candidate = { request: LearningRequestRecord; matchScore?: number };
 
-function normalizeQuery(input: LearningRequestListQuery): NormalizedQuery {
-  const limit = input.limit ?? defaultLimit;
-  if (!Number.isSafeInteger(limit) || limit < 1 || limit > maxLimit) {
-    throw new BadRequestException("INVALID_REQUEST_QUERY");
-  }
-  if (input.skillId !== undefined && !uuid.test(input.skillId)) {
-    throw new BadRequestException("INVALID_REQUEST_QUERY");
-  }
+function normalizedTagIds(input: LearningRequestListQuery): string[] {
   const tagIds = input.tagIds ?? [];
   if (
     !Array.isArray(tagIds) ||
@@ -98,15 +92,29 @@ function normalizeQuery(input: LearningRequestListQuery): NormalizedQuery {
   ) {
     throw new BadRequestException("INVALID_REQUEST_QUERY");
   }
-  let keyword: string | undefined;
-  if (input.keyword !== undefined) {
-    if (typeof input.keyword !== "string")
-      throw new BadRequestException("INVALID_REQUEST_QUERY");
-    keyword = sanitizeLearningRequestText(input.keyword);
-    if ([...keyword].length > maxKeywordLength)
-      throw new BadRequestException("INVALID_REQUEST_QUERY");
-    if (keyword.length === 0) keyword = undefined;
+  return [...tagIds].sort((left, right) => left.localeCompare(right));
+}
+
+function normalizedKeyword(value: string | undefined): string | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== "string")
+    throw new BadRequestException("INVALID_REQUEST_QUERY");
+  const keyword = sanitizeLearningRequestText(value);
+  if ([...keyword].length > maxKeywordLength)
+    throw new BadRequestException("INVALID_REQUEST_QUERY");
+  return keyword.length > 0 ? keyword : undefined;
+}
+
+function normalizeQuery(input: LearningRequestListQuery): NormalizedQuery {
+  const limit = input.limit ?? defaultLimit;
+  if (!Number.isSafeInteger(limit) || limit < 1 || limit > maxLimit) {
+    throw new BadRequestException("INVALID_REQUEST_QUERY");
   }
+  if (input.skillId !== undefined && !uuid.test(input.skillId)) {
+    throw new BadRequestException("INVALID_REQUEST_QUERY");
+  }
+  const tagIds = normalizedTagIds(input);
+  const keyword = normalizedKeyword(input.keyword);
   if (
     input.status !== undefined &&
     !allStatuses.includes(input.status as (typeof allStatuses)[number])
@@ -121,7 +129,7 @@ function normalizeQuery(input: LearningRequestListQuery): NormalizedQuery {
   }
   return {
     ...(input.skillId ? { skillId: input.skillId } : {}),
-    tagIds: [...tagIds].sort(),
+    tagIds,
     ...(keyword ? { keyword } : {}),
     ...(input.status
       ? { status: input.status as (typeof allStatuses)[number] }
@@ -219,6 +227,63 @@ function projectSummary(
   };
 }
 
+function pageStatuses(
+  scope: LearningRequestListScope,
+  status: NormalizedQuery["status"],
+): LearningRequestPageFilter["statuses"] {
+  if (scope === "MODERATION") return ["PENDING_MODERATION"];
+  if (scope !== "MINE") return ["OPEN"];
+  if (!status) return allStatuses;
+  if (status === "EXPIRED") return ["EXPIRED", "OPEN", "PENDING_MODERATION"];
+  return [status];
+}
+
+function pageFilter(
+  scope: LearningRequestListScope,
+  query: NormalizedQuery,
+  actorId: string,
+  now: Date,
+  cursor: RequestCursor | null,
+): LearningRequestPageFilter {
+  const expiredOwnerFilter = scope === "MINE" && query.status === "EXPIRED";
+  return {
+    statuses: pageStatuses(scope, query.status),
+    ...(scope === "MINE" ? { ownerId: actorId } : {}),
+    ...(query.skillId ? { skillId: query.skillId } : {}),
+    tagIds: query.tagIds,
+    ...(query.keyword ? { keyword: query.keyword } : {}),
+    ...(scope !== "MINE" ||
+    ["OPEN", "PENDING_MODERATION"].includes(query.status ?? "")
+      ? { now }
+      : {}),
+    ...(expiredOwnerFilter ? { expiredAtOrBefore: now } : {}),
+    after: cursor
+      ? { createdAt: new Date(cursor.createdAt), id: cursor.id }
+      : null,
+    take: query.limit + 1,
+  };
+}
+
+function nextPageCursor(
+  hasMore: boolean,
+  last: { request: LearningRequestRecord; matchScore?: number } | undefined,
+  scope: LearningRequestListScope,
+  actorId: string,
+  hash: string,
+  matchingVersion: string | undefined,
+): string | null {
+  if (!hasMore || !last) return null;
+  return encodeCursor({
+    scope,
+    actorId,
+    filterHash: hash,
+    id: last.request.id,
+    createdAt: last.request.createdAt.toISOString(),
+    ...(matchingVersion ? { matchingVersion } : {}),
+    ...(last.matchScore !== undefined ? { matchScore: last.matchScore } : {}),
+  });
+}
+
 @Injectable()
 export class ListLearningRequestsUseCase {
   constructor(
@@ -292,86 +357,79 @@ export class ListLearningRequestsUseCase {
         hash,
         matchingVersion,
       );
-      const expiredOwnerFilter = scope === "MINE" && query.status === "EXPIRED";
-      const requestStatuses =
-        scope === "MINE"
-          ? query.status
-            ? expiredOwnerFilter
-              ? (["EXPIRED", "OPEN", "PENDING_MODERATION"] as const)
-              : [query.status]
-            : allStatuses
-          : scope === "MODERATION"
-            ? ["PENDING_MODERATION" as const]
-            : ["OPEN" as const];
-      const filter: LearningRequestPageFilter = {
-        statuses: requestStatuses,
-        ...(scope === "MINE" ? { ownerId: live.userId } : {}),
-        ...(query.skillId ? { skillId: query.skillId } : {}),
-        tagIds: query.tagIds,
-        ...(query.keyword ? { keyword: query.keyword } : {}),
-        ...(scope !== "MINE" ||
-        ["OPEN", "PENDING_MODERATION"].includes(query.status ?? "")
-          ? { now }
-          : {}),
-        ...(expiredOwnerFilter ? { expiredAtOrBefore: now } : {}),
-        after: cursor
-          ? { createdAt: new Date(cursor.createdAt), id: cursor.id }
-          : null,
-        take: query.limit + 1,
-      };
+      const filter = pageFilter(scope, query, live.userId, now, cursor);
 
-      const candidates = recommendedInput
-        ? await this.repository.findRecommended(tx, {
-            ...recommendedInput,
-            after: cursor
-              ? {
-                  matchScore: cursor.matchScore!,
-                  createdAt: new Date(cursor.createdAt),
-                  id: cursor.id,
-                }
-              : null,
-          })
-        : (await this.repository.findPage(tx, filter)).map((request) => ({
-            request,
-            matchScore: undefined,
-          }));
+      const candidates = await this.findCandidates(
+        tx,
+        filter,
+        recommendedInput,
+        cursor,
+      );
       const hasMore = candidates.length > query.limit;
       const pageCandidates = candidates.slice(0, query.limit);
       const records = pageCandidates.map(({ request }) => request);
-      let items: PageItem[];
-      if (scope === "MINE") {
-        items = records.map((record) => ({
-          ...toLearningRequestOwnerDetail(record),
-          effectiveStatus: effectiveStatus(record, now),
-        }));
-      } else if (scope === "MODERATION") {
-        items = records.map(toLearningRequestModerationDetail);
-      } else {
-        items = await this.projectPublicItems(
-          tx,
-          records,
-          pageCandidates.map(({ matchScore }) => matchScore),
-        );
-      }
-      const last = pageCandidates.at(-1);
+      const items = await this.projectPageItems(
+        tx,
+        scope,
+        records,
+        pageCandidates.map(({ matchScore }) => matchScore),
+        now,
+      );
       return {
         items,
-        nextCursor:
-          hasMore && last
-            ? encodeCursor({
-                scope,
-                actorId: live.userId,
-                filterHash: hash,
-                id: last.request.id,
-                createdAt: last.request.createdAt.toISOString(),
-                ...(matchingVersion ? { matchingVersion } : {}),
-                ...(last.matchScore !== undefined
-                  ? { matchScore: last.matchScore }
-                  : {}),
-              })
-            : null,
+        nextCursor: nextPageCursor(
+          hasMore,
+          pageCandidates.at(-1),
+          scope,
+          live.userId,
+          hash,
+          matchingVersion,
+        ),
       };
     });
+  }
+
+  private async findCandidates(
+    tx: TransactionContext,
+    filter: LearningRequestPageFilter,
+    recommendedInput: LearningRequestRecommendationFilter | undefined,
+    cursor: RequestCursor | null,
+  ): Promise<Candidate[]> {
+    if (recommendedInput) {
+      return this.repository.findRecommended(tx, {
+        ...recommendedInput,
+        after: cursor
+          ? {
+              matchScore: cursor.matchScore!,
+              createdAt: new Date(cursor.createdAt),
+              id: cursor.id,
+            }
+          : null,
+      });
+    }
+    return (await this.repository.findPage(tx, filter)).map((request) => ({
+      request,
+      matchScore: undefined,
+    }));
+  }
+
+  private async projectPageItems(
+    tx: TransactionContext,
+    scope: LearningRequestListScope,
+    records: LearningRequestRecord[],
+    scores: (number | undefined)[],
+    now: Date,
+  ): Promise<PageItem[]> {
+    if (scope === "MINE") {
+      return records.map((record) => ({
+        ...toLearningRequestOwnerDetail(record),
+        effectiveStatus: effectiveStatus(record, now),
+      }));
+    }
+    if (scope === "MODERATION") {
+      return records.map(toLearningRequestModerationDetail);
+    }
+    return this.projectPublicItems(tx, records, scores);
   }
 
   private async projectPublicItems(

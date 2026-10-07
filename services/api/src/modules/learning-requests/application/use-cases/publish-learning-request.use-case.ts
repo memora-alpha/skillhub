@@ -9,10 +9,10 @@ import { lockUsers } from "../../../../shared/database/identity-transactions";
 import { TransactionRunner } from "../../../../infrastructure/database/transaction-runner";
 import type { Principal } from "../../../auth/application/services/sessions.service";
 import { SystemConfigurationService } from "../../../system-configuration/application/system-configuration.service";
-import type { LearningRequestRecord } from "../contracts/learning-request.types";
 import {
   toLearningRequestOwnerDetail,
   type LearningRequestOwnerDetail,
+  type LearningRequestRecord,
 } from "../contracts/learning-request.types";
 import {
   NEW_ACTIVITY_ELIGIBILITY_READER,
@@ -45,7 +45,9 @@ function signature(request: LearningRequestRecord): string {
     learningGoal: request.learningGoal,
     currentLevel: request.currentLevel,
     verifiedTeacherOnly: request.verifiedTeacherOnly,
-    tagIds: request.tagLinks.map(({ tagId }) => tagId).sort(),
+    tagIds: request.tagLinks
+      .map(({ tagId }) => tagId)
+      .sort((left, right) => left.localeCompare(right)),
     slots: request.preferredSlots
       .map(({ startAt, endAt }) => [startAt.toISOString(), endAt.toISOString()])
       .sort(([a], [b]) => String(a).localeCompare(String(b))),
@@ -65,7 +67,7 @@ function assertOwnerAndDraft(
   actorId: string,
   expectedVersion: number,
 ): asserts request is LearningRequestRecord {
-  if (!request || request.ownerId !== actorId) throw new NotFoundException();
+  if (request?.ownerId !== actorId) throw new NotFoundException();
   if (request.status !== "DRAFT" || request.version !== expectedVersion) {
     throw new ConflictException("REQUEST_VERSION_CONFLICT");
   }
@@ -75,8 +77,12 @@ function assertSelection(
   selection: { skillId: string; tags: { id: string; label: string }[] },
   request: LearningRequestRecord,
 ): void {
-  const expectedIds = request.tagLinks.map(({ tagId }) => tagId).sort();
-  const actualIds = selection.tags.map(({ id }) => id).sort();
+  const expectedIds = request.tagLinks
+    .map(({ tagId }) => tagId)
+    .sort((left, right) => left.localeCompare(right));
+  const actualIds = selection.tags
+    .map(({ id }) => id)
+    .sort((left, right) => left.localeCompare(right));
   if (
     selection.skillId !== request.skillId ||
     expectedIds.length !== actualIds.length ||
@@ -93,7 +99,14 @@ function sameTags(
   const key = (tag: { id: string; label: string }) =>
     `${tag.id}\u0000${tag.label}`;
   return (
-    left.map(key).sort().join("\u0001") === right.map(key).sort().join("\u0001")
+    left
+      .map(key)
+      .sort((a, b) => a.localeCompare(b))
+      .join("\u0001") ===
+    right
+      .map(key)
+      .sort((a, b) => a.localeCompare(b))
+      .join("\u0001")
   );
 }
 

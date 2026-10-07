@@ -101,7 +101,7 @@ export class LearningRequestModerationRulesUseCase {
       const current = (
         await this.repository.findCurrent([configurationKey], tx)
       )[0];
-      if (!current || current.version !== input.expectedVersion) {
+      if (current?.version !== input.expectedVersion) {
         throw new ConflictException("Configuration version conflict");
       }
       const effectiveAt = await this.repository.databaseNow(tx);

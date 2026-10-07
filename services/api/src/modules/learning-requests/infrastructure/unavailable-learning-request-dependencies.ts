@@ -16,33 +16,39 @@ export class UnavailableLearningRequestDependencies
     RequestOwnerReader,
     SharingSkillReader
 {
-  async assertAllowed(): Promise<void> {
-    throw new ServiceUnavailableException(
-      "New activity eligibility unavailable",
+  assertAllowed(): Promise<void> {
+    return Promise.reject(
+      new ServiceUnavailableException("New activity eligibility unavailable"),
     );
   }
 
-  async assertActiveSelection(): Promise<never> {
-    throw new ServiceUnavailableException("Skill Catalog unavailable");
-  }
-
-  async readSelections(): Promise<never> {
-    throw new ServiceUnavailableException("Skill Catalog unavailable");
-  }
-
-  async assertNotLocked(): Promise<never> {
-    throw new ServiceUnavailableException(
-      "Path/Schedule lock state unavailable",
+  assertActiveSelection(): Promise<never> {
+    return Promise.reject(
+      new ServiceUnavailableException("Skill Catalog unavailable"),
     );
   }
 
-  async readPublicOwners(): Promise<never> {
-    throw new ServiceUnavailableException(
-      "Public owner projection unavailable",
+  readSelections(): Promise<never> {
+    return Promise.reject(
+      new ServiceUnavailableException("Skill Catalog unavailable"),
     );
   }
 
-  async getMatchingSnapshot(): Promise<never> {
-    throw new ServiceUnavailableException("Sharing Skill snapshot unavailable");
+  assertNotLocked(): Promise<never> {
+    return Promise.reject(
+      new ServiceUnavailableException("Path/Schedule lock state unavailable"),
+    );
+  }
+
+  readPublicOwners(): Promise<never> {
+    return Promise.reject(
+      new ServiceUnavailableException("Public owner projection unavailable"),
+    );
+  }
+
+  getMatchingSnapshot(): Promise<never> {
+    return Promise.reject(
+      new ServiceUnavailableException("Sharing Skill snapshot unavailable"),
+    );
   }
 }

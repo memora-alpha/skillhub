@@ -7,12 +7,13 @@ import {
 } from "@nestjs/common";
 import { lockUsers } from "../../../../shared/database/identity-transactions";
 import { TransactionRunner } from "../../../../infrastructure/database/transaction-runner";
+import type { TransactionContext } from "../../../../infrastructure/database/transaction-context";
 import type { Principal } from "../../../auth/application/services/sessions.service";
 import { SystemConfigurationService } from "../../../system-configuration/application/system-configuration.service";
-import type { LearningRequestRecord } from "../contracts/learning-request.types";
 import {
   toLearningRequestOwnerDetail,
   type LearningRequestOwnerDetail,
+  type LearningRequestRecord,
 } from "../contracts/learning-request.types";
 import {
   SKILL_CATALOG_READER,
@@ -71,7 +72,7 @@ function assertOwnerAndEditable(
   actorId: string,
   expectedVersion: number,
 ): asserts request is LearningRequestRecord {
-  if (!request || request.ownerId !== actorId) throw new NotFoundException();
+  if (request?.ownerId !== actorId) throw new NotFoundException();
   if (
     request.version !== expectedVersion ||
     !editableStatuses.includes(request.status as EditableStatus)
@@ -84,8 +85,12 @@ function assertSelection(
   selection: { skillId: string; tags: { id: string; label: string }[] },
   content: PreparedLearningRequestContent,
 ): void {
-  const expected = [...content.tagIds].sort();
-  const actual = selection.tags.map(({ id }) => id).sort();
+  const expected = [...content.tagIds].sort((left, right) =>
+    left.localeCompare(right),
+  );
+  const actual = selection.tags
+    .map(({ id }) => id)
+    .sort((left, right) => left.localeCompare(right));
   if (
     selection.skillId !== content.skillId ||
     expected.length !== actual.length ||
@@ -102,7 +107,14 @@ function sameTags(
   const key = ({ id, label }: { id: string; label: string }) =>
     `${id}\u0000${label}`;
   return (
-    left.map(key).sort().join("\u0001") === right.map(key).sort().join("\u0001")
+    left
+      .map(key)
+      .sort((a, b) => a.localeCompare(b))
+      .join("\u0001") ===
+    right
+      .map(key)
+      .sort((a, b) => a.localeCompare(b))
+      .join("\u0001")
   );
 }
 
@@ -154,18 +166,22 @@ function changed(
   request: LearningRequestRecord,
   content: PreparedLearningRequestContent,
 ): boolean {
-  const requestTags = request.tagLinks.map(({ tagId }) => tagId).sort();
-  const contentTags = [...content.tagIds].sort();
+  const requestTags = request.tagLinks
+    .map(({ tagId }) => tagId)
+    .sort((left, right) => left.localeCompare(right));
+  const contentTags = [...content.tagIds].sort((left, right) =>
+    left.localeCompare(right),
+  );
   const requestSlots = request.preferredSlots
     .map(
       ({ startAt, endAt }) => `${startAt.toISOString()}|${endAt.toISOString()}`,
     )
-    .sort();
+    .sort((left, right) => left.localeCompare(right));
   const contentSlots = content.preferredSlots
     .map(
       ({ startAt, endAt }) => `${startAt.toISOString()}|${endAt.toISOString()}`,
     )
-    .sort();
+    .sort((left, right) => left.localeCompare(right));
   return (
     request.title !== content.title ||
     request.skillId !== content.skillId ||
@@ -190,6 +206,40 @@ function assertNotExpired(request: LearningRequestRecord, now: Date): void {
   ) {
     throw new ConflictException("REQUEST_EXPIRED");
   }
+}
+
+function nextExpiresAt(
+  request: LearningRequestRecord,
+  content: PreparedLearningRequestContent,
+  expiresAtSupplied: boolean,
+  published: boolean,
+  now: Date,
+): Date | null {
+  let expiresAt = request.expiresAt;
+  if (request.publishedAt === null) {
+    expiresAt = null;
+  } else if (expiresAtSupplied) {
+    expiresAt = content.requestedExpiresAt ?? request.expiresAt;
+  }
+  if (published && request.publishedAt) {
+    expiresAt = validateExpiryAtPublish(
+      content.requestedExpiresAt,
+      request.publishedAt,
+    );
+    if (expiresAt <= now)
+      throw new BadRequestException("INVALID_REQUEST_INPUT");
+  }
+  return expiresAt;
+}
+
+function nextStatus(
+  request: LearningRequestRecord,
+  published: boolean,
+  flagged: boolean,
+): LearningRequestRecord["status"] {
+  if (request.status === "REJECTED") return "DRAFT";
+  if (flagged) return "PENDING_MODERATION";
+  return published ? "OPEN" : "DRAFT";
 }
 
 @Injectable()
@@ -244,58 +294,25 @@ export class EditLearningRequestUseCase {
       const currentSnapshot = { ...current };
       const now = await this.repository.databaseNow(tx);
       assertNotExpired(current, now);
-      if (
-        current.publishedAt !== null &&
-        current.skillId !== snapshot.content.skillId
-      ) {
-        throw new ConflictException("PUBLISHED_SKILL_IMMUTABLE");
-      }
-      const currentSelection = await this.catalog.assertActiveSelection(tx, {
-        skillId: snapshot.content.skillId,
-        tagIds: snapshot.content.tagIds,
-      });
-      assertSelection(currentSelection, snapshot.content);
-      if (!sameTags(currentSelection.tags, snapshot.tags)) {
-        throw new ConflictException("Catalog labels changed; retry edit");
-      }
-      if (published) {
-        const currentConfig = await this.configuration.getSnapshot(
-          [moderationKey],
-          tx,
-        );
-        if (currentConfig.versions[moderationKey] !== snapshot.configVersion) {
-          throw new ConflictException("Moderation rules changed; retry edit");
-        }
-      }
+      await this.assertSnapshotCurrent(tx, current, snapshot, published);
 
       const expiryMode = snapshot.content.requestedExpiresAt
         ? "CUSTOM"
         : "DEFAULT";
-      let expiresAt = current.expiresAt;
-      if (current.publishedAt === null) {
-        expiresAt = null;
-      } else if (input.expiresAt !== undefined) {
-        expiresAt = snapshot.content.requestedExpiresAt ?? current.expiresAt;
-      }
-      if (published && current.publishedAt) {
-        expiresAt = validateExpiryAtPublish(
-          snapshot.content.requestedExpiresAt,
-          current.publishedAt,
-        );
-        if (expiresAt <= now)
-          throw new BadRequestException("INVALID_REQUEST_INPUT");
-      }
-
-      const nextStatus =
-        current.status === "REJECTED"
-          ? "DRAFT"
-          : moderation?.flagged
-            ? "PENDING_MODERATION"
-            : published
-              ? "OPEN"
-              : "DRAFT";
+      const expiresAt = nextExpiresAt(
+        current,
+        snapshot.content,
+        input.expiresAt !== undefined,
+        published,
+        now,
+      );
+      const status = nextStatus(
+        current,
+        published,
+        moderation?.flagged ?? false,
+      );
       const nextModerationStatus =
-        nextStatus === "PENDING_MODERATION" ? "PENDING" : "NOT_REQUIRED";
+        status === "PENDING_MODERATION" ? "PENDING" : "NOT_REQUIRED";
       const fields = {
         skillId: snapshot.content.skillId,
         title: snapshot.content.title,
@@ -306,7 +323,7 @@ export class EditLearningRequestUseCase {
         requestedExpiresAt: snapshot.content.requestedExpiresAt,
         expiryMode,
         expiresAt,
-        status: nextStatus,
+        status,
         moderationStatus: nextModerationStatus,
         moderationRejectReason: null,
         flaggedCategories: moderation?.categories ?? [],
@@ -339,6 +356,37 @@ export class EditLearningRequestUseCase {
         updatedAt: now,
       });
     });
+  }
+
+  private async assertSnapshotCurrent(
+    tx: TransactionContext,
+    current: LearningRequestRecord,
+    snapshot: Snapshot,
+    published: boolean,
+  ): Promise<void> {
+    if (
+      current.publishedAt !== null &&
+      current.skillId !== snapshot.content.skillId
+    ) {
+      throw new ConflictException("PUBLISHED_SKILL_IMMUTABLE");
+    }
+    const currentSelection = await this.catalog.assertActiveSelection(tx, {
+      skillId: snapshot.content.skillId,
+      tagIds: snapshot.content.tagIds,
+    });
+    assertSelection(currentSelection, snapshot.content);
+    if (!sameTags(currentSelection.tags, snapshot.tags)) {
+      throw new ConflictException("Catalog labels changed; retry edit");
+    }
+    if (published) {
+      const currentConfig = await this.configuration.getSnapshot(
+        [moderationKey],
+        tx,
+      );
+      if (currentConfig.versions[moderationKey] !== snapshot.configVersion) {
+        throw new ConflictException("Moderation rules changed; retry edit");
+      }
+    }
   }
 
   private readSnapshot(

@@ -6,13 +6,19 @@ export function ApiSuccessResponse(
   model: Type<unknown> | readonly Type<unknown>[] | null,
   options: { paginated?: boolean } = {},
 ) {
-  const models = model === null ? [] : Array.isArray(model) ? model : [model];
+  let models: readonly Type<unknown>[] = [];
+  if (Array.isArray(model)) {
+    models = model;
+  } else if (model !== null) {
+    models = [model as Type<unknown>];
+  }
+  const singleModelSchema = models[0]
+    ? { $ref: getSchemaPath(models[0]) }
+    : { type: "object" as const, nullable: true, enum: [null] };
   const data =
     models.length > 1
       ? { oneOf: models.map((entry) => ({ $ref: getSchemaPath(entry) })) }
-      : models[0]
-        ? { $ref: getSchemaPath(models[0]) }
-        : { type: "object" as const, nullable: true, enum: [null] };
+      : singleModelSchema;
   return applyDecorators(
     ...(models.length > 0 ? [ApiExtraModels(...models)] : []),
     ApiResponse({

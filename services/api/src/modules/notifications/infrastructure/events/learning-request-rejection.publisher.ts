@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit } from "@nestjs/common";
+import { Inject, Injectable, OnModuleInit } from "@nestjs/common";
 import { z } from "zod";
 import { OutboxConsumer } from "../../../../infrastructure/events/outbox-consumer";
 import type { OutboxMessage } from "../../../../infrastructure/events/outbox.types";
@@ -6,7 +6,6 @@ import { OutboxPublisherRegistry } from "../../../../infrastructure/events/outbo
 import type { LearningRequestRejectionPayload } from "../../../learning-requests/application/contracts/learning-request-rejection.event";
 import type { NotificationRepository } from "../../application/ports/notification-repository";
 import { NOTIFICATION_REPOSITORY } from "../../application/ports/notification-repository";
-import { Inject } from "@nestjs/common";
 
 const eventType = "learning-request.rejected";
 const consumerName = "learning-request-rejection-in-app-v1";

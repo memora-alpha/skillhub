@@ -116,7 +116,9 @@ export function toLearningRequestOwnerDetail(
     learningGoal: record.learningGoal,
     currentLevel: record.currentLevel,
     verifiedTeacherOnly: record.verifiedTeacherOnly,
-    tagIds: record.tagLinks.map((link) => link.tagId).sort(),
+    tagIds: record.tagLinks
+      .map((link) => link.tagId)
+      .sort((left, right) => left.localeCompare(right)),
     preferredSlots: record.preferredSlots
       .map(({ startAt, endAt }) => ({ startAt, endAt }))
       .sort((left, right) => left.startAt.getTime() - right.startAt.getTime()),
@@ -144,7 +146,9 @@ export function toLearningRequestModerationDetail(
     learningGoal: record.learningGoal,
     currentLevel: record.currentLevel,
     verifiedTeacherOnly: record.verifiedTeacherOnly,
-    tagIds: record.tagLinks.map((link) => link.tagId).sort(),
+    tagIds: record.tagLinks
+      .map((link) => link.tagId)
+      .sort((left, right) => left.localeCompare(right)),
     preferredSlots: record.preferredSlots
       .map(({ startAt, endAt }) => ({ startAt, endAt }))
       .sort((left, right) => left.startAt.getTime() - right.startAt.getTime()),
