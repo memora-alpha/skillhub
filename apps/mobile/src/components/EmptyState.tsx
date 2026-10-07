@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from "react-native";
 import { Button } from "./Button";
 import { Icon, type IconName } from "./Icon";
-import { colors, fonts } from "@/constants/theme";
+import { typography, appColors as colors, fonts } from "@/constants/theme";
 
 export function EmptyState({
   title,
@@ -24,7 +24,7 @@ export function EmptyState({
       </Text>
       <Text style={styles.description}>{description}</Text>
       {action && onAction && (
-        <Button variant="secondary" onPress={onAction}>
+        <Button variant="paper" onPress={onAction}>
           {action}
         </Button>
       )}
@@ -42,8 +42,7 @@ const styles = StyleSheet.create({
   },
   description: {
     fontFamily: fonts.body,
-    fontSize: 14,
-    lineHeight: 22,
+    ...typography.body,
     color: colors.muted,
     textAlign: "center",
   },

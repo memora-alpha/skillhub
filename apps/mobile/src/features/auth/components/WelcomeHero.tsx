@@ -2,7 +2,7 @@ import { Fragment } from "react";
 import { StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { Button } from "@/components/Button";
 import { Icon } from "@/components/Icon";
-import { colors, fonts, layout } from "@/constants/theme";
+import { typography, colors, fonts, layout } from "@/constants/theme";
 import { welcomeStats } from "../mocks/welcome";
 import { WelcomeVisual } from "./WelcomeVisual";
 
@@ -95,8 +95,7 @@ const styles = StyleSheet.create({
   pillText: {
     includeFontPadding: false,
     fontFamily: fonts.semibold,
-    fontSize: 14,
-    lineHeight: 20,
+    ...typography.body,
     color: colors.brand,
   },
   title: {
@@ -142,8 +141,7 @@ const styles = StyleSheet.create({
   statLabel: {
     includeFontPadding: false,
     fontFamily: fonts.body,
-    fontSize: 12,
-    lineHeight: 16,
+    ...typography.secondary,
     color: colors.muted,
   },
   divider: { width: 1, height: 32, backgroundColor: colors.border },

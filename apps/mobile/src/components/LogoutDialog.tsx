@@ -3,7 +3,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Button } from "./Button";
 import { Icon } from "./Icon";
 import { shadows } from "@/constants/shadows";
-import { colors, fonts, radius } from "@/constants/theme";
+import { typography, colors, fonts, radius } from "@/constants/theme";
 
 export function LogoutDialog({
   visible,
@@ -98,8 +98,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontFamily: fonts.body,
-    fontSize: 14,
-    lineHeight: 20,
+    ...typography.body,
     marginTop: 4,
     color: colors.muted,
     textAlign: "center",

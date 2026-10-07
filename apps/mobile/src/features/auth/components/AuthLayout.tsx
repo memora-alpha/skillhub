@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { BrandLogo } from "@/components/BrandLogo";
-import { colors, fonts } from "@/constants/theme";
+import { typography, colors, fonts } from "@/constants/theme";
 import { authCommunity } from "../mocks/auth";
 
 export function AuthLayout({
@@ -163,15 +163,13 @@ const styles = StyleSheet.create({
   communityText: {
     flexShrink: 1,
     fontFamily: fonts.body,
-    fontSize: 14,
-    lineHeight: 20,
+    ...typography.body,
     color: colors.muted,
     includeFontPadding: false,
   },
   copyright: {
     fontFamily: fonts.body,
-    fontSize: 12,
-    lineHeight: 16,
+    ...typography.secondary,
     color: colors.body,
     includeFontPadding: false,
   },

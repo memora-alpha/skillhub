@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { colors, fonts, radius } from "@/constants/theme";
+import { typography, appColors as colors, appRadius as radius, fonts } from "@/constants/theme";
 
 export function Tag({
   label,
@@ -34,15 +34,14 @@ const styles = StyleSheet.create({
   tag: {
     alignSelf: "flex-start",
     borderRadius: radius.badge,
-    backgroundColor: colors.sand,
+    backgroundColor: colors.surfaceInset,
     paddingHorizontal: 12,
     paddingVertical: 6,
   },
-  active: { backgroundColor: colors.brand },
+  active: { backgroundColor: colors.forest },
   label: {
     fontFamily: fonts.semibold,
-    fontSize: 12,
-    lineHeight: 16,
+    ...typography.secondary,
     color: colors.body,
     includeFontPadding: false,
   },

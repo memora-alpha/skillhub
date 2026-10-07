@@ -11,7 +11,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BrandLogo } from "@/components/BrandLogo";
 import { useRouter } from "expo-router";
-import { colors, fonts, layout } from "@/constants/theme";
+import { typography, colors, fonts, layout } from "@/constants/theme";
 import { WelcomeNotice } from "../components/WelcomeNotice";
 import { WelcomeHero } from "../components/WelcomeHero";
 import { WelcomeSections } from "../components/WelcomeSections";
@@ -150,16 +150,14 @@ const styles = StyleSheet.create({
   login: {
     includeFontPadding: false,
     fontFamily: fonts.semibold,
-    fontSize: 14,
-    lineHeight: 20,
+    ...typography.body,
     color: colors.ink,
   },
   registerButton: { backgroundColor: colors.brand },
   register: {
     includeFontPadding: false,
     fontFamily: fonts.semibold,
-    fontSize: 14,
-    lineHeight: 20,
+    ...typography.body,
     color: colors.white,
   },
   pressed: { opacity: 0.75 },

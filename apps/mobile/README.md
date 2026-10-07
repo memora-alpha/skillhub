@@ -6,12 +6,18 @@ It makes no API calls and does not implement backend authentication.
 The welcome, authentication, home and personal profile content is based on the
 supplied Complete SkillHub Product Design Figma Make export. The signed-in UI
 uses task-based visual hierarchy: a highlighted upcoming session, individual
-course/request cards on home, borderless discovery cards with a light warm-orange gradient
-and conversation-style avatar/content layout, compact message rows
+course/request cards on home, compact white discovery cards with a poster byline,
+skill tags and a details action, compact message rows
 and open sections. The upcoming-session highlight uses a soft orange surface
 with dark text. Calendar dates use explicit seven-cell week rows so weekday
 alignment does not depend on percentage rounding or flex wrapping. The session
-mentor avatar uses a darker orange variant to stand apart from its background.
+mentor avatar uses the same identity-based colors as its message and chat avatars.
+Avatars show initials in circles with one of five pastel backgrounds and a
+contrasting text color, chosen deterministically from the user ID. Demo users
+have stable fixture IDs; the signed-in demo account gets an ID derived from its
+normalized email. Changing a display name or list order does not change its
+avatar color. Palette pairs and the selection function live in
+`src/constants/avatar.ts`.
 Control corners are 6px, all cards and dialogs use shared 8px corners,
 and small labels 4px. The signed-in
 palette uses one light warm-white background and orange as its primary accent.
