@@ -29,9 +29,16 @@ test("invalid config fails without exposing connection credentials", () => {
   assert.equal(validateEnvironment(valid).PORT, 3001);
 });
 
-test("validation keeps keys owned by other configuration providers", () => {
-  const config = validateEnvironment({ ...valid, IDENTITY_JWT_KEY: "value" });
+test("environment validation preserves module configuration alongside storage settings", () => {
+  const config = validateEnvironment({
+    ...valid,
+    IDENTITY_JWT_KEY: "value",
+    IDENTITY_JWT_ISSUER: "skillhub-test",
+    STORAGE_ENABLED: "false",
+  });
   assert.equal(config.IDENTITY_JWT_KEY, "value");
+  assert.equal(config.IDENTITY_JWT_ISSUER, "skillhub-test");
+  assert.equal(config.STORAGE_ENABLED, false);
 });
 
 function invokeFilter(error) {

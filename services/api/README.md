@@ -10,19 +10,31 @@ Web/mobile chỉ được thay đổi khi có yêu cầu riêng. Git và pnpm wo
 
 API đã có nền tảng hạ tầng và phần Danh tính (spec 002): đăng ký/OTP/login, refresh/logout/reset, hồ sơ/avatar, quyền và quản trị tài khoản có audit. Core Learning Request đang được implement theo [spec 007](specs/007-learning-request/plan.md); Catalog/eligibility, Sharing Skill matching, Path/Schedule/Wallet consumers, migration rollout và kiểm chứng DB/Redis thật vẫn là gates. Chat và giao dịch Credit chưa được triển khai.
 
-Schema Prisma đã biểu diễn toàn bộ danh mục dữ liệu: 52 model PostgreSQL và
-27 enum, cùng 2 model chat trong file Prisma MongoDB tham chiếu. Xem
-[schema catalog](prisma/README.md) và [LR ERD v3 alignment](specs/007-learning-request/erd-v3-alignment.md) để đối chiếu mapping hiện tại và phân biệt
-schema với runtime Mongoose. Migration danh tính, seed/operator bootstrap,
+Catalog Prisma đã cập nhật theo logical v3: **48 model PostgreSQL và một document
+Message MongoDB** với attachments nhúng. Xem [schema catalog](prisma/README.md)
+để đối chiếu 49/49 định nghĩa logical. Tag và RequestTag được giữ theo SRS V1.6
+như phần mở rộng ngoài diagram; xem [LR ERD v3 alignment](specs/007-learning-request/erd-v3-alignment.md).
+Schema v3 ở `prisma/catalog.prisma` sinh client
+riêng `src/generated/prisma-catalog` để đối chiếu mô hình.
+API, generate mặc định và migration dùng `prisma/schema.prisma`: runtime v3 gồm
+48 model domain, 7 model kỹ thuật cho OTP/foundation và Tag/RequestTag.
+Learning Request giữ preferred slots JSONB và metadata moderation/expiry/version
+với tên application tương thích, ánh xạ sang cột v3. Profile nằm trong User,
+User có một roleId; các repository danh tính đã chuyển sang cấu trúc này.
+Migration `20261007000000_runtime_v3` backfill và giữ bản gốc profile/grant trong
+schema `<current_schema>_legacy_v3`. Migration chưa deploy vào database ứng dụng.
+Migration danh tính, seed/operator bootstrap,
 ràng buộc SQL và 21 endpoint `/api/v1/...` đã có; migration chỉ được kiểm thử
 trong schema tạm, chưa deploy vào database ứng dụng. Xem [hướng dẫn danh tính](specs/002-user-identity/quickstart.md) và [kết quả kiểm thử](specs/002-user-identity/validation.md).
 
 Nguồn nghiệp vụ:
 
+- [SRS SkillHub V1.6](../../docs/SRS_SkillHub_V1.6_VietLai_DongBoNghiepVu.docx): yêu cầu nghiệp vụ hiện hành, gồm Tag cho Learning Request.
 - [SRS SkillHub V1.4 tiếng Việt](../../docs/SRS_SkillHub_V1.4_BoSungQuyDinhNghiepVu_VI.docx): bản bổ sung nghiệp vụ; RBAC đối chiếu mục 3, NFR-SEC-03, BR-39/40 và mục 18.
 - [SRS SkillHub V1.3](../../docs/SRS_SkillHub_V1.3.docx): bản trước để đối chiếu lịch sử.
-- [Danh mục entity/field](../../docs/SkillHub_Entities_Fields.md): có phân biệt yêu cầu SRS và đề xuất thiết kế.
-- [Logical Data Model](../../docs/SkillHub_Logical_Data_Model.md): quan hệ, ràng buộc và transaction boundaries.
+- [SRS SkillHub V1.5](../../docs/SRS_SkillHub_V1.5.docx): bản trước để đối chiếu lịch sử; mô hình v3 có điều chỉnh phạm vi theo quyết định người dùng.
+- [Danh mục entity/field v3](../../docs/SkillHub_Entities_Fields_v3.md): có phân biệt yêu cầu SRS và đề xuất thiết kế.
+- [Logical Data Model v3](../../docs/SkillHub_Logical_Data_Model_v3.md): quan hệ, ràng buộc và transaction boundaries.
 
 [Thiết kế RBAC/ownership SH-002](specs/002-rbac-ownership/spec.md) và
 [kế hoạch triển khai](specs/002-rbac-ownership/plan.md) đang triển khai,

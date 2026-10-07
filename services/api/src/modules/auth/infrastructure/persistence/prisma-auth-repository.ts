@@ -149,7 +149,9 @@ export class PrismaAuthRepository extends AuthRepository {
       "userId" | "securityVersion" | "rememberMe" | "absoluteExpiresAt"
     >,
   ): Promise<RefreshSession> {
-    return tx.refreshSession.create({ data });
+    return tx.refreshSession.create({
+      data: { ...data, currentGeneration: 0 },
+    });
   }
   createCredential(
     tx: IdentityTx,
@@ -170,23 +172,25 @@ export class PrismaAuthRepository extends AuthRepository {
       data: { revokedAt: new Date(), revokedReason: reason },
     });
   }
-  credential(
+  async credential(
     tx: IdentityTx,
     tokenDigest: Uint8Array<ArrayBuffer>,
   ): Promise<(RefreshCredential & { session: RefreshSession }) | null> {
-    return tx.refreshCredential.findUnique({
+    const row = await tx.refreshCredential.findUnique({
       where: { tokenDigest },
-      include: { session: true },
+      include: { sessionIdRecord: true },
     });
+    return row ? { ...row, session: row.sessionIdRecord } : null;
   }
-  requiredCredential(
+  async requiredCredential(
     tx: IdentityTx,
     tokenDigest: Uint8Array<ArrayBuffer>,
   ): Promise<RefreshCredential & { session: RefreshSession }> {
-    return tx.refreshCredential.findUniqueOrThrow({
+    const row = await tx.refreshCredential.findUniqueOrThrow({
       where: { tokenDigest },
-      include: { session: true },
+      include: { sessionIdRecord: true },
     });
+    return { ...row, session: row.sessionIdRecord };
   }
   revokeFamily(
     tx: IdentityTx,
