@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from "react-native";
 import { Icon, type IconName } from "@/components/Icon";
-import { colors, fonts } from "@/constants/theme";
+import { iconSizes, typography, fonts } from "@/constants/theme";
+import { discoveryColors as colors } from "../constants/theme";
 import type { RequestDetailContent } from "../mocks/requestDetails";
 
 function SkillSection({
@@ -16,21 +17,21 @@ function SkillSection({
   tags?: string[];
   teaching?: boolean;
 }) {
-  const tint = teaching ? colors.sage : colors.brand;
+  const tint = teaching ? colors.green : colors.orange;
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, teaching && styles.teachingCard]}>
       <View style={styles.heading}>
         <View
           style={[
             styles.icon,
             {
-              backgroundColor: teaching ? colors.sageLight : colors.brandLight,
+              backgroundColor: teaching ? colors.greenSoft : colors.orangeSoft,
             },
           ]}
         >
-          <Icon name={icon} size={14} color={tint} filled={false} />
+          <Icon name={icon} size={iconSizes.control} color={tint} filled={false} />
         </View>
-        <Text style={styles.title}>{title}</Text>
+        <Text style={[styles.title, { color: tint }]}>{title}</Text>
       </View>
       <Text style={styles.body}>
         {text ?? "Nội dung chi tiết đang được cập nhật."}
@@ -42,11 +43,11 @@ function SkillSection({
               key={tag}
               style={[
                 styles.tag,
-                teaching && { backgroundColor: colors.sageLight },
+                teaching && { backgroundColor: colors.greenSoft },
               ]}
             >
               <Text
-                style={[styles.tagText, teaching && { color: colors.sage }]}
+                style={[styles.tagText, teaching && { color: colors.green }]}
               >
                 {tag}
               </Text>
@@ -79,10 +80,10 @@ export function RequestDetailSections({
       />
       <View style={styles.card}>
         <View style={styles.heading}>
-          <View style={[styles.icon, { backgroundColor: "#F0EBF9" }]}>
-            <Icon name="calendar" size={14} color="#6B3DB5" />
+          <View style={[styles.icon, { backgroundColor: colors.purpleSoft }]}>
+            <Icon name="calendar" size={iconSizes.control} color={colors.purple} />
           </View>
-          <Text style={styles.title}>Lịch rảnh</Text>
+          <Text style={[styles.title, { color: colors.ink }]}>Lịch rảnh</Text>
         </View>
         {detail ? (
           <>
@@ -100,7 +101,10 @@ export function RequestDetailSections({
                 </View>
               ))}
             </View>
-            <Text style={styles.caption}>{detail.scheduleNote}</Text>
+            <View style={styles.note}>
+              <Icon name="clock" size={iconSizes.inline} color={colors.muted} />
+              <Text style={styles.caption}>{detail.scheduleNote}</Text>
+            </View>
           </>
         ) : (
           <Text style={styles.body}>Lịch rảnh đang được cập nhật.</Text>
@@ -111,63 +115,82 @@ export function RequestDetailSections({
 }
 const styles = StyleSheet.create({
   card: {
-    paddingVertical: 12,
+    padding: 16,
     gap: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 8,
+    backgroundColor: colors.surface,
+    boxShadow: "0 2px 8px rgba(53, 43, 31, 0.025)",
+  },
+  teachingCard: {
+    backgroundColor: colors.sharing,
+    borderColor: colors.greenSoft,
   },
   heading: { flexDirection: "row", alignItems: "center", gap: 8 },
   icon: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
+    width: 32,
+    height: 32,
+    flexShrink: 0,
+    borderRadius: 6,
     alignItems: "center",
     justifyContent: "center",
   },
   title: {
-    fontFamily: fonts.display,
-    fontSize: 14,
-    lineHeight: 20,
+    fontFamily: fonts.bold,
+    ...typography.body,
     color: colors.ink,
   },
   body: {
     fontFamily: fonts.body,
-    fontSize: 14,
-    lineHeight: 22.75,
+    ...typography.body,
     color: colors.body,
+    includeFontPadding: false,
   },
   tags: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   tag: {
-    borderRadius: 6,
-    backgroundColor: colors.sand,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
+    borderRadius: 4,
+    backgroundColor: colors.tag,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
   },
   tagText: {
     fontFamily: fonts.medium,
     color: colors.body,
-    fontSize: 12,
-    lineHeight: 16,
+    ...typography.caption,
   },
-  scheduleRow: { flexDirection: "row", alignItems: "center", gap: 12 },
+  scheduleRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   weekDay: {
-    width: 64,
+    width: 58,
     fontFamily: fonts.semibold,
-    fontSize: 12,
-    lineHeight: 16,
+    ...typography.secondary,
     color: colors.body,
   },
-  slots: { flex: 1, flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  slots: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+  },
   slot: {
-    borderRadius: 8,
-    paddingHorizontal: 10,
+    borderRadius: 4,
+    paddingHorizontal: 8,
     paddingVertical: 4,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: colors.cream,
+    backgroundColor: colors.tag,
+  },
+  note: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 6,
+    paddingTop: 4,
   },
   caption: {
+    flex: 1,
     fontFamily: fonts.body,
-    fontSize: 12,
-    lineHeight: 16,
+    ...typography.caption,
     color: colors.muted,
   },
 });

@@ -5,12 +5,14 @@ import {
   View,
   useWindowDimensions,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { Avatar } from "@/components/Avatar";
 import { Button } from "@/components/Button";
 import { Icon } from "@/components/Icon";
 import { ProgressBar } from "@/components/ProgressBar";
 import { recentMessages } from "@/mocks/app";
-import { colors, fonts, radius } from "@/constants/theme";
+import { avatarSizes, iconSizes, typography, fonts } from "@/constants/theme";
+import { homeCardShadow, homeColors as colors } from "../constants/theme";
 import {
   achievement,
   learningPath,
@@ -34,13 +36,12 @@ export function HomeContent({
   const wide = useWindowDimensions().width >= 840;
   const summary = isNew ? newUserSummary : returningSummary;
   const achievementProgress = isNew ? 0 : achievement.completed;
+  const achievementPercent = Math.round(
+    (achievementProgress / achievement.total) * 100,
+  );
   const messages = isNew ? [] : recentMessages;
   const stats = [
-    {
-      label: "Reputation",
-      value: summary.reputation,
-      color: colors.brand,
-    },
+    { label: "Reputation", value: summary.reputation, color: colors.orange },
     { label: "Đã học", value: summary.learned, color: colors.ink },
     { label: "Đã dạy", value: summary.taught, color: colors.ink },
   ];
@@ -48,149 +49,156 @@ export function HomeContent({
     <View style={homeStyles.stack}>
       <View style={[homeStyles.row, { gap: 16 }]}>
         <View style={{ flex: 1 }}>
-          <Text style={homeStyles.body}>Chào bạn</Text>
+          <Text style={styles.greeting}>CHÀO BẠN</Text>
           <Text style={homeStyles.title}>{name}!</Text>
         </View>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Ví Credit"
           onPress={() => onAction("Ví Credit")}
-          style={({ pressed }) => [styles.wallet, pressed && { opacity: 0.7 }]}
+          style={({ pressed }) => [styles.wallet, pressed && styles.pressed]}
         >
-          <Icon name="wallet" size={16} color={colors.brand} />
-          <Text style={styles.credit}>{summary.credit} CR</Text>
+          <View style={styles.walletIcon}>
+            <Icon name="wallet" size={iconSizes.control} color={colors.orange} />
+          </View>
+          <View>
+            <Text style={styles.walletLabel}>SỐ DƯ</Text>
+            <Text style={styles.credit}>
+              {summary.credit} <Text style={{ color: colors.orange }}>CR</Text>
+            </Text>
+          </View>
         </Pressable>
       </View>
       {isNew && <NewUserGuide onAction={onAction} />}
       <View style={[styles.columns, wide && styles.wideColumns]}>
         <View style={[styles.primary, wide && styles.wideColumn]}>
-          <View style={styles.session}>
+          <LinearGradient
+            colors={[colors.sessionStart, colors.sessionEnd]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.session}
+          >
+            <View style={homeStyles.row}>
+              <View style={styles.sessionStatus}>
+                <View style={styles.statusDot} />
+                <Text style={styles.statusLabel}>
+                  {isNew ? "Buổi học tiếp theo" : "Sắp diễn ra"}
+                </Text>
+              </View>
+              {!isNew && (
+                <View style={styles.meetingBadge}>
+                  <Icon name="video" size={iconSizes.inline} color={colors.body} />
+                  <Text style={styles.meetingLabel}>Google Meet</Text>
+                </View>
+              )}
+            </View>
+            <Text style={styles.sessionTitle}>
+              {isNew ? "Chưa có buổi học sắp tới" : nextSession.title}
+            </Text>
             {isNew ? (
-              <>
-                <View style={styles.sessionStatus}>
-                  <Icon name="clock" size={14} color={colors.brandHover} />
-                  <Text style={styles.sessionCaption}>Buổi học tiếp theo</Text>
-                </View>
-                <Text style={styles.sessionTitle}>
-                  Chưa có buổi học sắp tới
-                </Text>
-                <Text style={styles.sessionCaption}>
-                  Tìm kỹ năng bạn muốn học và kết nối với người hướng dẫn.
-                </Text>
-                <View style={styles.sessionFooter}>
-                  <Button
-                    size="sm"
-                    variant="white"
-                    onPress={() => onAction("Khám phá")}
-                  >
-                    Khám phá kỹ năng
-                  </Button>
-                </View>
-              </>
+              <Text style={styles.sessionCaption}>
+                Tìm kỹ năng bạn muốn học và kết nối với người hướng dẫn.
+              </Text>
             ) : (
-              <>
-                <View style={styles.sessionStatus}>
-                  <Icon name="clock" size={14} color={colors.brandHover} />
-                  <Text style={styles.sessionCaption}>Sắp diễn ra</Text>
+              <View style={styles.partner}>
+                <Avatar
+                  name={nextSession.mentor}
+                  userId={nextSession.mentorId}
+                  size={avatarSizes.compact}
+                  shape="circle"
+                />
+                <Text style={styles.mentorName}>{nextSession.mentor}</Text>
+                <View style={styles.mentorBadge}>
+                  <Text style={styles.mentorBadgeLabel}>Mentor</Text>
                 </View>
-                <Text style={styles.sessionTitle}>{nextSession.title}</Text>
-                <View style={styles.partner}>
-                  <Avatar name={nextSession.mentor} size={28} tone="accent" />
-                  <Text style={[styles.sessionCaption, { flex: 1 }]}>
-                    {nextSession.mentor}
-                  </Text>
-                </View>
-                <View style={styles.sessionFooter}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.sessionTime}>
-                      {nextSession.schedule}
-                    </Text>
-                  </View>
-                  <Button
-                    size="sm"
-                    variant="white"
-                    onPress={() => onAction("Vào học")}
-                  >
-                    Vào học
-                  </Button>
-                </View>
-              </>
+              </View>
             )}
-          </View>
+            <View style={styles.sessionFooter}>
+              {!isNew && (
+                <View style={styles.sessionSchedule}>
+                  <Icon name="clock" size={14} color={colors.orangeDark} />
+                  <Text style={styles.sessionTime}>{nextSession.schedule}</Text>
+                </View>
+              )}
+              <Button
+                size="sm"
+                variant="white"
+                style={styles.sessionButton}
+                onPress={() => onAction(isNew ? "Khám phá" : "Vào học")}
+              >
+                <Text style={styles.sessionButtonLabel}>
+                  {isNew ? "Khám phá kỹ năng" : "Vào học"}
+                </Text>
+                <Icon name="arrow" size={iconSizes.inline} color={colors.orange} />
+              </Button>
+            </View>
+          </LinearGradient>
           <HomeSection>
             <SectionHeading
               title="Lộ trình đang học"
               action={isNew ? "Khám phá" : "Chi tiết"}
               onPress={() => onAction(isNew ? "Khám phá" : "Lộ trình đang học")}
             />
-            {isNew ? (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Tìm lộ trình học"
-                onPress={() => onAction("Khám phá")}
-                style={({ pressed }) => [
-                  styles.course,
-                  pressed && { opacity: 0.8 },
-                ]}
-              >
-                <View style={[homeStyles.row, { gap: 12 }]}>
-                  <View style={styles.courseIcon}>
-                    <Icon name="book" size={20} color={colors.brand} />
-                  </View>
-                  <View style={{ flex: 1, gap: 4 }}>
-                    <Text style={homeStyles.label}>
-                      Chưa có lộ trình đang học
-                    </Text>
-                    <Text style={homeStyles.caption}>
-                      Tìm kỹ năng để bắt đầu buổi đầu tiên.
-                    </Text>
-                  </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={
+                isNew ? "Tìm lộ trình học" : learningPath.title
+              }
+              onPress={() => onAction(isNew ? "Khám phá" : "Lộ trình đang học")}
+              style={({ pressed }) => [
+                styles.card,
+                styles.course,
+                pressed && styles.pressed,
+              ]}
+            >
+              <View style={[homeStyles.row, { gap: 10 }]}>
+                <View style={styles.courseIcon}>
+                  <Icon name="book" size={iconSizes.feature} color={colors.orange} />
                 </View>
-              </Pressable>
-            ) : (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={learningPath.title}
-                onPress={() => onAction("Lộ trình đang học")}
-                style={({ pressed }) => [
-                  styles.course,
-                  pressed && { opacity: 0.8 },
-                ]}
-              >
-                <View style={[homeStyles.row, { gap: 12, marginBottom: 16 }]}>
-                  <View style={styles.courseIcon}>
-                    <Icon name="book" size={20} color={colors.brand} />
-                  </View>
-                  <Text style={[homeStyles.label, { flex: 1 }]}>
-                    {learningPath.title}
-                  </Text>
-                </View>
-                <ProgressBar
-                  value={learningPath.completed}
-                  max={learningPath.total}
-                  color={colors.brand}
-                  label={learningPath.title}
-                />
-                <View style={[homeStyles.row, { gap: 8, marginTop: 10 }]}>
-                  <Text style={[homeStyles.caption, { flex: 1 }]}>
-                    Buổi tiếp: {learningPath.next}
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={homeStyles.label}>
+                    {isNew ? "Chưa có lộ trình đang học" : learningPath.title}
                   </Text>
                   <Text style={homeStyles.caption}>
-                    {learningPath.completed}/{learningPath.total} buổi
+                    {isNew
+                      ? "Tìm kỹ năng để bắt đầu buổi đầu tiên."
+                      : `Buổi tiếp: ${learningPath.next}`}
                   </Text>
                 </View>
-              </Pressable>
-            )}
+                {!isNew && (
+                  <View style={styles.courseCount}>
+                    <Text style={styles.courseCountLabel}>
+                      {learningPath.completed}/{learningPath.total} buổi
+                    </Text>
+                  </View>
+                )}
+              </View>
+              {!isNew && (
+                <View style={styles.progress}>
+                  <ProgressBar
+                    value={learningPath.completed}
+                    max={learningPath.total}
+                    color={colors.orange}
+                    trackColor={colors.track}
+                    height={6}
+                    label={learningPath.title}
+                  />
+                </View>
+              )}
+            </Pressable>
           </HomeSection>
           <View style={styles.stats}>
-            {stats.map((stat) => (
-              <View key={stat.label} style={styles.stat}>
-                <Text style={[styles.statValue, { color: stat.color }]}>
-                  {stat.value}
-                </Text>
-                <Text style={[homeStyles.caption, styles.statLabel]}>
-                  {stat.label}
-                </Text>
+            {stats.map((stat, index) => (
+              <View key={stat.label} style={[styles.card, styles.stat]}>
+                <View style={styles.statValueRow}>
+                  {index === 0 && (
+                    <Icon name="star" size={14} color={colors.yellow} />
+                  )}
+                  <Text style={[styles.statValue, { color: stat.color }]}>
+                    {stat.value}
+                  </Text>
+                </View>
+                <Text style={styles.statLabel}>{stat.label}</Text>
               </View>
             ))}
           </View>
@@ -198,24 +206,38 @@ export function HomeContent({
             <SectionHeading
               title="Tiến trình huy hiệu"
               action="Xem tất cả"
+              accent={colors.yellow}
               onPress={() => onAction("Tiến trình huy hiệu")}
             />
-            <View style={styles.achievement}>
+            <View style={[styles.card, styles.achievement]}>
               <View style={styles.award}>
-                <Icon name="award" size={24} color={colors.gold} />
+                <Icon name="award" size={iconSizes.feature} color={colors.yellow} />
               </View>
-              <View style={{ flex: 1, gap: 6 }}>
-                <Text style={homeStyles.label}>{achievement.title}</Text>
-                <Text style={homeStyles.caption}>
-                  {achievement.description} · {achievementProgress}/
-                  {achievement.total} buổi
-                </Text>
-                <ProgressBar
-                  value={achievementProgress}
-                  max={achievement.total}
-                  color={colors.gold}
-                  label={achievement.title}
-                />
+              <View style={{ flex: 1, minWidth: 0, gap: 8 }}>
+                <View>
+                  <View style={[homeStyles.row, { gap: 8 }]}>
+                    <Text style={[homeStyles.label, { flex: 1 }]}>
+                      {achievement.title}
+                    </Text>
+                    <Text style={styles.achievementPercent}>
+                      {achievementPercent}%
+                    </Text>
+                  </View>
+                  <Text style={homeStyles.caption}>
+                    {achievement.description} · {achievementProgress}/
+                    {achievement.total} buổi
+                  </Text>
+                </View>
+                <View style={styles.progress}>
+                  <ProgressBar
+                    value={achievementProgress}
+                    max={achievement.total}
+                    color={colors.yellow}
+                    trackColor={colors.track}
+                    height={6}
+                    label={achievement.title}
+                  />
+                </View>
               </View>
             </View>
           </HomeSection>
@@ -225,6 +247,7 @@ export function HomeContent({
             <SectionHeading
               title="Yêu cầu học phù hợp"
               action="Xem thêm"
+              accent={colors.green}
               onPress={() => onAction("Yêu cầu học phù hợp")}
             />
             <View style={{ gap: 12 }}>
@@ -235,28 +258,41 @@ export function HomeContent({
                   accessibilityLabel={request.title}
                   onPress={() => onAction(request.title)}
                   style={({ pressed }) => [
+                    styles.card,
                     styles.request,
-                    pressed && { opacity: 0.8 },
+                    pressed && styles.pressed,
                   ]}
                 >
-                  <View style={[homeStyles.row, { gap: 12 }]}>
+                  <View style={[homeStyles.row, { gap: 10 }]}>
                     <View style={styles.match}>
+                      <Icon name="check" size={11} color={colors.green} />
                       <Text style={styles.matchLabel}>
                         {request.match}% phù hợp
                       </Text>
                     </View>
-                    <Text style={styles.budget}>
-                      {request.credit} CR/lộ trình
-                    </Text>
+                    <View style={styles.budgetBadge}>
+                      <Text style={styles.budget}>
+                        {request.credit} CR/lộ trình
+                      </Text>
+                    </View>
                   </View>
                   <Text style={styles.requestTitle} numberOfLines={2}>
                     {request.title}
                   </Text>
                   <View style={styles.requestPerson}>
-                    <Avatar name={request.name} size={24} />
+                    <Avatar
+                      name={request.name}
+                      userId={request.userId}
+                      size={avatarSizes.inline}
+                      shape="circle"
+                    />
                     <Text style={[homeStyles.caption, { flex: 1 }]}>
                       {request.name}
                     </Text>
+                    <View style={styles.connectButton}>
+                      <Text style={styles.connectLabel}>Xem chi tiết</Text>
+                      <Icon name="chevron" size={iconSizes.inline} color={colors.orange} />
+                    </View>
                   </View>
                 </Pressable>
               ))}
@@ -266,9 +302,10 @@ export function HomeContent({
             <SectionHeading
               title="Tin nhắn mới"
               action="Tất cả"
+              accent={colors.blue}
               onPress={() => onAction("Tin nhắn")}
             />
-            <View style={{ gap: 16 }}>
+            <View style={[styles.card, styles.messages]}>
               {messages.length === 0 && (
                 <View style={styles.emptyMessages}>
                   <Icon name="message" size={24} color={colors.muted} />
@@ -280,7 +317,7 @@ export function HomeContent({
                   </View>
                 </View>
               )}
-              {messages.map((message) => (
+              {messages.map((message, index) => (
                 <Pressable
                   key={message.id}
                   accessibilityRole="button"
@@ -288,26 +325,44 @@ export function HomeContent({
                   onPress={() => onAction(message.name)}
                   style={({ pressed }) => [
                     styles.message,
-                    pressed && { opacity: 0.7 },
+                    index > 0 && styles.messageDivider,
+                    pressed && styles.pressed,
                   ]}
                 >
-                  <Avatar name={message.name} />
-                  <View style={{ flex: 1, gap: 3 }}>
-                    <Text style={homeStyles.label} numberOfLines={1}>
-                      {message.name}
-                    </Text>
-                    <Text style={homeStyles.caption} numberOfLines={1}>
+                  <View style={styles.messageAvatar}>
+                    <Avatar
+                      name={message.name}
+                      userId={message.userId}
+                      size={avatarSizes.list}
+                      shape="circle"
+                    />
+                    {index === 0 && <View style={styles.onlineDot} />}
+                  </View>
+                  <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+                    <View style={[homeStyles.row, { gap: 6 }]}>
+                      <Text
+                        style={[homeStyles.label, { flex: 1 }]}
+                        numberOfLines={1}
+                      >
+                        {message.name}
+                      </Text>
+                      <Text style={styles.time}>{message.time}</Text>
+                    </View>
+                    <Text
+                      style={[
+                        homeStyles.caption,
+                        message.unread > 0 && { color: colors.body },
+                      ]}
+                      numberOfLines={1}
+                    >
                       {message.message}
                     </Text>
                   </View>
-                  <View style={styles.messageMeta}>
-                    <Text style={styles.time}>{message.time}</Text>
-                    {message.unread > 0 && (
-                      <View style={styles.unread}>
-                        <Text style={styles.unreadLabel}>{message.unread}</Text>
-                      </View>
-                    )}
-                  </View>
+                  {message.unread > 0 && (
+                    <View style={styles.unread}>
+                      <Text style={styles.unreadLabel}>{message.unread}</Text>
+                    </View>
+                  )}
                 </Pressable>
               ))}
             </View>
@@ -317,156 +372,299 @@ export function HomeContent({
     </View>
   );
 }
+
 const styles = StyleSheet.create({
-  columns: { gap: 28 },
+  columns: { gap: 24 },
   wideColumns: { flexDirection: "row", alignItems: "flex-start" },
   wideColumn: { flex: 1 },
-  primary: { minWidth: 0, gap: 24 },
-  secondary: { minWidth: 0, gap: 28 },
+  primary: { minWidth: 0, gap: 28 },
+  secondary: { minWidth: 0, gap: 24 },
+  pressed: { opacity: 0.75 },
+  greeting: {
+    fontFamily: fonts.medium,
+    ...typography.secondary,
+    color: colors.muted,
+  },
   wallet: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 8,
+    paddingHorizontal: 12,
     paddingVertical: 8,
+    borderRadius: 12,
+    backgroundColor: colors.surface,
+    boxShadow: homeCardShadow,
+  },
+  walletIcon: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.orangeSoft,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  walletLabel: {
+    fontFamily: fonts.semibold,
+    ...typography.caption,
+    color: colors.muted,
   },
   credit: {
     fontFamily: fonts.bold,
-    fontSize: 16,
-    lineHeight: 24,
+    ...typography.body,
     color: colors.ink,
   },
   session: {
     padding: 20,
-    gap: 14,
-    borderRadius: radius.card,
-    backgroundColor: colors.brandSurface,
+    gap: 12,
+    borderRadius: 24,
+    boxShadow: "0 6px 18px rgba(214, 114, 66, 0.12)",
   },
-  sessionStatus: { flexDirection: "row", alignItems: "center", gap: 6 },
-  sessionCaption: {
-    fontFamily: fonts.medium,
-    fontSize: 12,
-    lineHeight: 18,
+  sessionStatus: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: "#FFFAF5",
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.green,
+  },
+  statusLabel: {
+    fontFamily: fonts.semibold,
+    ...typography.caption,
+    color: colors.body,
+  },
+  meetingBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: "rgba(255, 255, 255, 0.45)",
+  },
+  meetingLabel: {
+    fontFamily: fonts.semibold,
+    ...typography.caption,
     color: colors.body,
   },
   sessionTitle: {
     fontFamily: fonts.bold,
     fontSize: 18,
-    lineHeight: 26,
+    lineHeight: 25,
     color: colors.ink,
   },
-  partner: { flexDirection: "row", alignItems: "center", gap: 8 },
+  sessionCaption: {
+    fontFamily: fonts.medium,
+    ...typography.secondary,
+    color: colors.body,
+  },
+  partner: { flexDirection: "row", alignItems: "center", gap: 7 },
+  mentorName: {
+    flexShrink: 1,
+    fontFamily: fonts.semibold,
+    ...typography.secondary,
+    color: colors.body,
+  },
+  mentorBadge: {
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    backgroundColor: "rgba(255, 255, 255, 0.6)",
+  },
+  mentorBadgeLabel: {
+    fontFamily: fonts.medium,
+    ...typography.caption,
+    color: colors.orangeDark,
+  },
   sessionFooter: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
     flexWrap: "wrap",
-    gap: 12,
-    marginTop: 4,
+    gap: 10,
+    marginTop: 16,
+  },
+  sessionSchedule: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    flexShrink: 1,
   },
   sessionTime: {
-    fontFamily: fonts.body,
-    fontSize: 12,
-    lineHeight: 18,
+    fontFamily: fonts.medium,
+    ...typography.secondary,
     color: colors.body,
   },
-  course: {
-    padding: 16,
+  sessionButton: {
+    minHeight: 36,
+    gap: 4,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+  },
+  sessionButtonLabel: {
+    fontFamily: fonts.bold,
+    ...typography.secondary,
+    color: colors.orange,
+  },
+  card: {
+    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radius.card,
-    backgroundColor: colors.white,
+    borderRadius: 16,
+    boxShadow: homeCardShadow,
   },
+  course: { padding: 16, gap: 12 },
   courseIcon: {
     width: 40,
     height: 40,
-    borderRadius: radius.control,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.brandLight,
+    backgroundColor: colors.yellowSoft,
   },
-  stats: { flexDirection: "row", gap: 12 },
-  stat: { flex: 1, minWidth: 0, gap: 4, alignItems: "center" },
-  statValue: {
+  courseCount: {
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: "#F7F8FA",
+  },
+  courseCountLabel: {
     fontFamily: fonts.bold,
-    fontSize: 24,
-    lineHeight: 32,
-    textAlign: "center",
-  },
-  statLabel: { textAlign: "center" },
-  request: {
-    padding: 16,
-    gap: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.card,
-    backgroundColor: colors.white,
-  },
-  requestTitle: {
-    fontFamily: fonts.semibold,
-    fontSize: 15,
-    lineHeight: 22,
+    ...typography.caption,
     color: colors.ink,
   },
-  requestPerson: { flexDirection: "row", alignItems: "center", gap: 8 },
-  budget: {
-    flexShrink: 1,
-    fontFamily: fonts.semibold,
-    fontSize: 11,
-    lineHeight: 16,
-    color: colors.brand,
-    textAlign: "right",
+  progress: { height: 6, overflow: "hidden", borderRadius: 3 },
+  stats: { flexDirection: "row", gap: 12 },
+  stat: {
+    flex: 1,
+    minWidth: 0,
+    gap: 8,
+    alignItems: "center",
+    paddingVertical: 16,
+    paddingHorizontal: 4,
   },
+  statValueRow: { flexDirection: "row", alignItems: "center", gap: 4 },
+  statValue: { fontFamily: fonts.bold, fontSize: 21, lineHeight: 28 },
+  statLabel: {
+    fontFamily: fonts.medium,
+    ...typography.caption,
+    color: colors.muted,
+    textAlign: "center",
+  },
+  achievement: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    padding: 16,
+  },
+  award: {
+    width: 44,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: colors.yellowSoft,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  achievementPercent: {
+    fontFamily: fonts.bold,
+    ...typography.secondary,
+    color: colors.orange,
+  },
+  request: { padding: 16, gap: 10 },
   match: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: radius.badge,
-    backgroundColor: colors.sageLight,
+    borderRadius: 6,
+    backgroundColor: colors.greenSoft,
   },
   matchLabel: {
-    fontFamily: fonts.semibold,
-    fontSize: 11,
-    lineHeight: 16,
-    color: colors.sage,
+    fontFamily: fonts.bold,
+    ...typography.caption,
+    color: colors.green,
   },
+  budgetBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    backgroundColor: colors.orangeSoft,
+  },
+  budget: {
+    fontFamily: fonts.semibold,
+    ...typography.caption,
+    color: colors.orangeDark,
+  },
+  requestTitle: {
+    fontFamily: fonts.bold,
+    ...typography.body,
+    color: colors.ink,
+  },
+  requestPerson: { flexDirection: "row", alignItems: "center", gap: 6 },
+  connectButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 1,
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: colors.orangeSoft,
+    borderRadius: 7,
+  },
+  connectLabel: {
+    fontFamily: fonts.bold,
+    ...typography.caption,
+    color: colors.orange,
+  },
+  messages: { paddingHorizontal: 16 },
   message: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    paddingVertical: 4,
+    paddingVertical: 14,
+  },
+  messageDivider: { borderTopWidth: 1, borderTopColor: colors.border },
+  messageAvatar: { position: "relative" },
+  onlineDot: {
+    position: "absolute",
+    right: 0,
+    bottom: 0,
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    backgroundColor: colors.green,
+    borderWidth: 2,
+    borderColor: colors.surface,
   },
   emptyMessages: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    paddingVertical: 12,
+    paddingVertical: 16,
   },
-  messageMeta: { alignItems: "flex-end", gap: 4 },
   time: {
-    fontFamily: fonts.body,
-    fontSize: 10,
-    lineHeight: 16,
+    fontFamily: fonts.medium,
+    ...typography.caption,
     color: colors.muted,
   },
   unread: {
     width: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: colors.brand,
+    backgroundColor: colors.orange,
     alignItems: "center",
     justifyContent: "center",
   },
   unreadLabel: {
     fontFamily: fonts.bold,
-    fontSize: 10,
-    lineHeight: 14,
-    color: colors.white,
-  },
-  achievement: { flexDirection: "row", alignItems: "center", gap: 12 },
-  award: {
-    width: 48,
-    height: 48,
-    borderRadius: radius.card,
-    backgroundColor: colors.warningLight,
-    alignItems: "center",
-    justifyContent: "center",
+    ...typography.caption,
+    color: colors.surface,
   },
 });

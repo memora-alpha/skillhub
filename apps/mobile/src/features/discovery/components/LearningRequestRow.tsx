@@ -1,7 +1,8 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import { Avatar } from "@/components/Avatar";
-import { colors, fonts, gradients, radius } from "@/constants/theme";
+import { Icon } from "@/components/Icon";
+import { avatarSizes, iconSizes, typography, fonts } from "@/constants/theme";
+import { discoveryColors as colors } from "../constants/theme";
 import type { LearningRequest } from "../mocks/requests";
 
 export function LearningRequestRow({
@@ -18,91 +19,136 @@ export function LearningRequestRow({
       onPress={onPress}
       style={({ pressed }) => [styles.card, pressed && { opacity: 0.8 }]}
     >
-      <LinearGradient
-        colors={gradients.discoveryCard}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.row}
-      >
-        <Avatar name={request.user} size={48} />
-        <View style={styles.main}>
-          <View style={styles.byline}>
-            <Text style={styles.name}>{request.user}</Text>
-            <Text style={styles.time}>{request.created}</Text>
-          </View>
-          <Text style={styles.title}>{request.title}</Text>
-          <Text style={styles.skills}>{request.tags.join(" · ")}</Text>
-          <View style={styles.footer}>
-            <Text style={styles.caption}>{request.sessions} buổi</Text>
-            <View style={styles.creditBadge}>
-              <Text style={styles.credit}>{request.budget}</Text>
-            </View>
-          </View>
+      <View style={styles.byline}>
+        <Avatar
+          name={request.user}
+          userId={request.userId}
+          size={avatarSizes.list}
+        />
+        <View style={styles.person}>
+          <Text style={styles.name}>{request.user}</Text>
+          <Text style={styles.time}>Mới đăng · {request.created}</Text>
         </View>
-      </LinearGradient>
+        <View style={styles.status}>
+          <Text style={styles.statusLabel}>Đang mở</Text>
+        </View>
+      </View>
+      <Text style={styles.title}>{request.title}</Text>
+      <View style={styles.tags}>
+        {request.tags.map((tag) => (
+          <View key={tag} style={styles.tag}>
+            <Text style={styles.tagLabel}>{tag}</Text>
+          </View>
+        ))}
+      </View>
+      <View style={styles.footer}>
+        <View style={styles.budget}>
+          <View style={styles.sessions}>
+            <Icon name="calendar" size={iconSizes.inline} color={colors.muted} />
+            <Text style={styles.caption}>{request.sessions} buổi học</Text>
+          </View>
+          <Text style={styles.credit}>{request.budget}</Text>
+        </View>
+        <View style={styles.details}>
+          <Text style={styles.detailsLabel}>Xem chi tiết</Text>
+          <Icon name="chevron" size={iconSizes.inline} color={colors.orange} />
+        </View>
+      </View>
     </Pressable>
   );
 }
 const styles = StyleSheet.create({
   card: {
-    borderRadius: radius.card,
-    overflow: "hidden",
+    borderRadius: 8,
+    padding: 16,
+    gap: 12,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    boxShadow: "0 3px 12px rgba(53, 43, 31, 0.04)",
   },
-  row: { padding: 16, flexDirection: "row", alignItems: "center", gap: 16 },
-  main: { flex: 1, minWidth: 0, gap: 7 },
-  byline: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
+  byline: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  person: { flex: 1, minWidth: 0 },
   name: {
-    flex: 1,
     fontFamily: fonts.semibold,
-    fontSize: 14,
-    lineHeight: 20,
-    color: colors.ink,
-  },
-  time: {
-    fontFamily: fonts.body,
-    fontSize: 10,
-    lineHeight: 20,
-    color: colors.muted,
-  },
-  title: {
-    fontFamily: fonts.bold,
-    fontSize: 16,
-    lineHeight: 23,
+    ...typography.secondary,
     color: colors.ink,
     includeFontPadding: false,
   },
-  skills: {
+  time: {
+    fontFamily: fonts.body,
+    ...typography.caption,
+    color: colors.muted,
+  },
+  title: {
+    fontFamily: fonts.semibold,
+    ...typography.body,
+    color: colors.ink,
+    includeFontPadding: false,
+  },
+  tags: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+  tag: {
+    backgroundColor: colors.tag,
+    borderRadius: 4,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+  },
+  tagLabel: {
     fontFamily: fonts.medium,
-    fontSize: 12,
-    lineHeight: 18,
-    color: colors.body,
+    ...typography.caption,
+    color: colors.muted,
   },
   credit: {
     fontFamily: fonts.bold,
-    fontSize: 12,
-    lineHeight: 16,
-    color: colors.brand,
-    textAlign: "right",
+    ...typography.secondary,
+    color: colors.orange,
     includeFontPadding: false,
   },
   caption: {
     fontFamily: fonts.body,
-    fontSize: 12,
-    lineHeight: 16,
+    ...typography.secondary,
     color: colors.muted,
     includeFontPadding: false,
   },
-  creditBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: radius.badge,
-    backgroundColor: colors.brandLight,
+  status: {
+    alignSelf: "flex-start",
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 4,
+    backgroundColor: colors.greenSoft,
   },
+  statusLabel: {
+    fontFamily: fonts.bold,
+    ...typography.caption,
+    color: colors.green,
+  },
+  budget: { flex: 1, minWidth: 0, gap: 2 },
+  sessions: { flexDirection: "row", alignItems: "center", gap: 4 },
   footer: {
     flexDirection: "row",
-    alignItems: "flex-end",
+    alignItems: "center",
     justifyContent: "space-between",
     flexWrap: "wrap",
     gap: 8,
+  },
+  details: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: "#FFE3D5",
+    backgroundColor: colors.orangeSoft,
+    borderRadius: 6,
+  },
+  detailsLabel: {
+    fontFamily: fonts.bold,
+    ...typography.secondary,
+    color: colors.orange,
   },
 });
