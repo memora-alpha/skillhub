@@ -22,7 +22,7 @@ function auditValues(id) {
 }
 
 const insertSql = `INSERT INTO audit_logs
-  (id, actor_kind, system_actor, actor_roles, action, target_type, target_id, reason, request_id, correlation_id)
+  (audit_id, actor_kind, system_actor, actor_roles, action, target_type, target_id, reason, request_id, correlation_id)
   VALUES ($1,$2,$3,'{}',$4,$5,$6,$7,$8,$9) RETURNING created_at`;
 
 test(
@@ -46,8 +46,8 @@ test(
       assert.ok(rows[0].created_at instanceof Date);
       assert.match(rows[0].created_at.toISOString(), /Z$/);
       for (const sql of [
-        "UPDATE audit_logs SET reason = 'changed' WHERE id = $1",
-        "DELETE FROM audit_logs WHERE id = $1",
+        "UPDATE audit_logs SET reason = 'changed' WHERE audit_id = $1",
+        "DELETE FROM audit_logs WHERE audit_id = $1",
         "TRUNCATE audit_logs",
       ]) {
         await client.query("SAVEPOINT mutation_attempt");
@@ -82,7 +82,7 @@ test(
     try {
       await client.query("BEGIN");
       await client.query(
-        "INSERT INTO system_configurations (key, value, version, updated_at) VALUES ($1, $2::jsonb, 1, CURRENT_TIMESTAMP)",
+        "INSERT INTO system_configurations (config_key, value, value_type, version, effective_at, updated_at) VALUES ($1, $2::jsonb, 'number', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
         [key, "120"],
       );
       await client.query(insertSql, auditValues(auditId));
@@ -92,11 +92,11 @@ test(
       );
       await client.query("ROLLBACK");
       const config = await client.query(
-        "SELECT key FROM system_configurations WHERE key = $1",
+        "SELECT config_key FROM system_configurations WHERE config_key = $1",
         [key],
       );
       const audit = await client.query(
-        "SELECT id FROM audit_logs WHERE id = $1",
+        "SELECT audit_id FROM audit_logs WHERE audit_id = $1",
         [auditId],
       );
       assert.equal(config.rowCount, 0);

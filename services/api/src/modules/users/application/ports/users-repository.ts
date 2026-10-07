@@ -1,7 +1,6 @@
 import { IdentityTx } from "../../../../shared/database/identity-transactions";
 import {
   User,
-  Profile,
   AvatarAsset,
   RoleCode,
 } from "../../../../generated/prisma/client";
@@ -47,9 +46,7 @@ export abstract class UsersRepository {
   abstract profile(
     tx: IdentityTx,
     userId: string,
-  ): Promise<
-    (Profile & { user: User; avatarAsset: AvatarAsset | null }) | null
-  >;
+  ): Promise<(User & { user: User; avatarAsset: AvatarAsset | null }) | null>;
   abstract requiredUser(tx: IdentityTx, id: string): Promise<User>;
   abstract updateProfile(
     tx: IdentityTx,
@@ -61,7 +58,7 @@ export abstract class UsersRepository {
       timezone?: string;
       locale?: "vi" | "en";
     },
-  ): Promise<Profile>;
+  ): Promise<User>;
   abstract list(
     tx: IdentityTx,
     query: UserListQuery,

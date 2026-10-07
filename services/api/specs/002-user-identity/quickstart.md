@@ -25,7 +25,7 @@ pnpm identity:bootstrap-admin <existing-verified-active-user-uuid> "Operator rea
 pnpm dev
 ```
 
-Bootstrap never creates an account or sets a password; it assigns ADMIN to an existing verified ACTIVE account and appends audit, including no-op outcomes. No HTTP Admin grant is provided. For subsequent development migrations `pnpm db:migrate` regenerates `prisma/identity.prisma` and uses that deployment subset. The full schema is a product catalog; do not deploy all future models with `db push`.
+Bootstrap never creates an account or sets a password; it assigns ADMIN to an existing verified ACTIVE account and appends audit, including no-op outcomes. No HTTP Admin grant is provided. For subsequent development migrations `pnpm db:migrate` verifies the maintained runtime `prisma/schema.prisma` and uses it for migrations. The v3 product catalog is kept separately in `prisma/catalog.prisma`; do not deploy future catalog models with `db push`.
 
 ## Checks
 

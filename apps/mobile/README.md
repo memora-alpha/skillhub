@@ -11,15 +11,15 @@ This workspace will contain the SkillHub mobile app. It is intentionally startin
 
 ## Documentation
 
-| File | Purpose |
-| --- | --- |
-| `AGENTS.md` | Mobile-specific coding-agent rules and backend boundary. |
-| `docs/architecture.md` | Expo architecture, folder layout and import boundaries. |
-| `docs/domain-rules.md` | Mobile-facing SRS 1.6 business rules. |
-| `docs/api-contracts.md` | API response, error and contract assumptions. |
-| `docs/state-machines.md` | States mobile must render without inventing transitions. |
-| `docs/feature-matrix.md` | SRS module to mobile feature mapping. |
-| `specs/001-mobile-foundation/` | Foundation spec, plan, tasks and validation checklist. |
+| File                           | Purpose                                                  |
+| ------------------------------ | -------------------------------------------------------- |
+| `AGENTS.md`                    | Mobile-specific coding-agent rules and backend boundary. |
+| `docs/architecture.md`         | Expo architecture, folder layout and import boundaries.  |
+| `docs/domain-rules.md`         | Mobile-facing SRS 1.6 business rules.                    |
+| `docs/api-contracts.md`        | API response, error and contract assumptions.            |
+| `docs/state-machines.md`       | States mobile must render without inventing transitions. |
+| `docs/feature-matrix.md`       | SRS module to mobile feature mapping.                    |
+| `specs/001-mobile-foundation/` | Foundation spec, plan, tasks and validation checklist.   |
 
 ## Planned stack
 

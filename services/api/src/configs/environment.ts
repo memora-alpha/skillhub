@@ -1,29 +1,31 @@
 import { z } from "zod";
 
-const environmentSchema = z.object({
-  NODE_ENV: z
-    .enum(["development", "test", "production"])
-    .default("development"),
-  PORT: z.coerce.number().int().min(1).max(65535).default(3001),
-  CORS_ORIGIN: z.url(),
-  DATABASE_URL: z.string().regex(/^postgres(?:ql)?:\/\//),
-  MONGODB_URI: z.string().regex(/^mongodb(?:\+srv)?:\/\//),
-  REDIS_URL: z.string().regex(/^rediss?:\/\//),
-  STORAGE_ENABLED: z
-    .enum(["true", "false"])
-    .default("false")
-    .transform((value) => value === "true"),
-  STORAGE_ENDPOINT: z.string().url().optional(),
-  STORAGE_REGION: z.string().min(1).optional(),
-  STORAGE_BUCKET: z.string().min(1).optional(),
-  STORAGE_ACCESS_KEY_ID: z.string().min(1).optional(),
-  STORAGE_SECRET_ACCESS_KEY: z.string().min(1).optional(),
-  CLAMAV_HOST: z.string().min(1).optional(),
-  CLAMAV_PORT: z.coerce.number().int().min(1).max(65535).optional(),
-  LOG_LEVEL: z
-    .enum(["trace", "debug", "info", "warn", "error", "fatal", "silent"])
-    .default("info"),
-});
+const environmentSchema = z
+  .object({
+    NODE_ENV: z
+      .enum(["development", "test", "production"])
+      .default("development"),
+    PORT: z.coerce.number().int().min(1).max(65535).default(3001),
+    CORS_ORIGIN: z.url(),
+    DATABASE_URL: z.string().regex(/^postgres(?:ql)?:\/\//),
+    MONGODB_URI: z.string().regex(/^mongodb(?:\+srv)?:\/\//),
+    REDIS_URL: z.string().regex(/^rediss?:\/\//),
+    STORAGE_ENABLED: z
+      .enum(["true", "false"])
+      .default("false")
+      .transform((value) => value === "true"),
+    STORAGE_ENDPOINT: z.string().url().optional(),
+    STORAGE_REGION: z.string().min(1).optional(),
+    STORAGE_BUCKET: z.string().min(1).optional(),
+    STORAGE_ACCESS_KEY_ID: z.string().min(1).optional(),
+    STORAGE_SECRET_ACCESS_KEY: z.string().min(1).optional(),
+    CLAMAV_HOST: z.string().min(1).optional(),
+    CLAMAV_PORT: z.coerce.number().int().min(1).max(65535).optional(),
+    LOG_LEVEL: z
+      .enum(["trace", "debug", "info", "warn", "error", "fatal", "silent"])
+      .default("info"),
+  })
+  .passthrough();
 
 type Environment = z.infer<typeof environmentSchema>;
 
