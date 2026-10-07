@@ -1,4 +1,11 @@
-import { createContext, useContext, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 
 export type MockSession = {
   userId: string;
@@ -21,26 +28,32 @@ type SessionContextValue = {
 const SessionContext = createContext<SessionContextValue | null>(null);
 
 // UI preview only: credentials are never stored, sent or checked against an account.
-export function MockSessionProvider({ children }: { children: ReactNode }) {
+export function MockSessionProvider({
+  children,
+}: Readonly<{ children: ReactNode }>) {
   const [session, setSession] = useState<MockSession | null>(null);
-  const updateProfile = (
-    changes: Pick<MockSession, "name" | "bio" | "website">,
-  ) => setSession((current) => (current ? { ...current, ...changes } : null));
+  const enterDemo = useCallback(
+    (profile: Omit<MockSession, "userId"> & { userId?: string }) =>
+      setSession({
+        ...profile,
+        userId:
+          profile.userId ??
+          `demo-user:${profile.email.trim().toLowerCase()}`,
+      }),
+    [],
+  );
+  const signOut = useCallback(() => setSession(null), []);
+  const updateProfile = useCallback(
+    (changes: Pick<MockSession, "name" | "bio" | "website">) =>
+      setSession((current) => (current ? { ...current, ...changes } : null)),
+    [],
+  );
+  const value = useMemo(
+    () => ({ session, enterDemo, signOut, updateProfile }),
+    [enterDemo, session, signOut, updateProfile],
+  );
   return (
-    <SessionContext.Provider
-      value={{
-        session,
-        enterDemo: (profile) =>
-          setSession({
-            ...profile,
-            userId:
-              profile.userId ??
-              `demo-user:${profile.email.trim().toLowerCase()}`,
-          }),
-        signOut: () => setSession(null),
-        updateProfile,
-      }}
-    >
+    <SessionContext.Provider value={value}>
       {children}
     </SessionContext.Provider>
   );

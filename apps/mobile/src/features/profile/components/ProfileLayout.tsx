@@ -22,17 +22,72 @@ import { appRoutes } from "@/constants/navigation";
 import { profileStyles } from "./ProfilePrimitives";
 import { profileDetails } from "../mocks/profile";
 
+type ProfileLayoutProps = Readonly<{
+  session: MockSession;
+  title?: string;
+  onBack?: () => void;
+  children: (open: (label: string) => void) => ReactNode;
+}>;
+
+function getProfileNoticeBody(notice: string | null, session: MockSession) {
+  switch (notice) {
+    case "Thông tin riêng tư":
+      return `${session.email}\n\nSố điện thoại và ngày sinh chưa có dữ liệu trong phiên demo. Thông tin không được gửi lên máy chủ.`;
+    case "Ví Credit": {
+      const balance = session.isNew ? 50 : 340;
+      return `Số dư demo: ${balance} CR. Chức năng giao dịch chưa được kết nối.`;
+    }
+    case "Kỹ năng":
+      return profileDetails.sharingSkills
+        .map((skill) => `${skill.name} · ${skill.level}`)
+        .join("\n");
+    case "Thành tích": {
+      const badges = profileDetails.badges
+        .map((badge) => badge.label)
+        .join(", ");
+      return `Huy hiệu mẫu trong thiết kế: ${badges}. Chi tiết thành tích sẽ được triển khai sau.`;
+    }
+    default:
+      return `Màn ${notice?.toLowerCase() ?? ""} sẽ được triển khai ở bước tiếp theo. Bạn đang xem hồ sơ với dữ liệu demo.`;
+  }
+}
+
+function ProfileNoticeContent({
+  notice,
+  body,
+}: Readonly<{ notice: string | null; body: string }>) {
+  if (notice === "Thông báo") {
+    return (
+      <View style={{ gap: 12 }}>
+        {demoNotifications.map((item) => (
+          <Text key={item} style={profileStyles.body}>
+            {item}
+          </Text>
+        ))}
+      </View>
+    );
+  }
+  if (notice === "Tin nhắn") {
+    return (
+      <View style={{ gap: 12 }}>
+        {recentMessages.map((item) => (
+          <View key={item.id}>
+            <Text style={profileStyles.label}>{item.name}</Text>
+            <Text style={profileStyles.caption}>{item.message}</Text>
+          </View>
+        ))}
+      </View>
+    );
+  }
+  return body;
+}
+
 export function ProfileLayout({
   session,
   title,
   onBack,
   children,
-}: {
-  session: MockSession;
-  title?: string;
-  onBack?: () => void;
-  children: (open: (label: string) => void) => ReactNode;
-}) {
+}: ProfileLayoutProps) {
   const router = useRouter();
   const { signOut } = useMockSession();
   const [menu, setMenu] = useState(false);
@@ -52,25 +107,12 @@ export function ProfileLayout({
     if (route) return router.navigate(route);
     setNotice(label);
   };
-  const body =
-    notice === "Thông tin riêng tư"
-      ? `${session.email}\n\nSố điện thoại và ngày sinh chưa có dữ liệu trong phiên demo. Thông tin không được gửi lên máy chủ.`
-      : notice === "Ví Credit"
-        ? `Số dư demo: ${session.isNew ? 50 : 340} CR. Chức năng giao dịch chưa được kết nối.`
-        : notice === "Kỹ năng"
-          ? profileDetails.sharingSkills
-              .map((skill) => `${skill.name} · ${skill.level}`)
-              .join("\n")
-          : notice === "Thành tích"
-            ? `Huy hiệu mẫu trong thiết kế: ${profileDetails.badges.map((badge) => badge.label).join(", ")}. Chi tiết thành tích sẽ được triển khai sau.`
-            : `Màn ${notice?.toLowerCase() ?? ""} sẽ được triển khai ở bước tiếp theo. Bạn đang xem hồ sơ với dữ liệu demo.`;
+  const body = getProfileNoticeBody(notice, session);
+  const edges = title
+    ? (["top", "left", "right", "bottom"] as const)
+    : (["top", "left", "right"] as const);
   return (
-    <SafeAreaView
-      style={styles.screen}
-      edges={
-        title ? ["top", "left", "right", "bottom"] : ["top", "left", "right"]
-      }
-    >
+    <SafeAreaView style={styles.screen} edges={edges}>
       <AppHeader
         appearance="home"
         profile={session}
@@ -104,26 +146,7 @@ export function ProfileLayout({
         }}
       />
       <InfoModal title={notice} onClose={() => setNotice(null)}>
-        {notice === "Thông báo" ? (
-          <View style={{ gap: 12 }}>
-            {demoNotifications.map((item) => (
-              <Text key={item} style={profileStyles.body}>
-                {item}
-              </Text>
-            ))}
-          </View>
-        ) : notice === "Tin nhắn" ? (
-          <View style={{ gap: 12 }}>
-            {recentMessages.map((item) => (
-              <View key={item.id}>
-                <Text style={profileStyles.label}>{item.name}</Text>
-                <Text style={profileStyles.caption}>{item.message}</Text>
-              </View>
-            ))}
-          </View>
-        ) : (
-          body
-        )}
+        <ProfileNoticeContent notice={notice} body={body} />
       </InfoModal>
       <LogoutDialog
         visible={logout}

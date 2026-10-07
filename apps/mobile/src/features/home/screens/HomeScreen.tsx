@@ -9,7 +9,7 @@ import { demoNotifications, popularSkills, recentMessages } from "@/mocks/app";
 import { typography, fonts } from "@/constants/theme";
 import { homeColors as colors } from "../constants/theme";
 import { appRoutes } from "@/constants/navigation";
-import { useMockSession } from "@/features/auth";
+import { useMockSession, type MockSession } from "@/features/auth";
 import { AccountMenu, AppHeader, HomeSearch } from "@/features/shell";
 import { HomeContent } from "../components/HomeContent";
 import { homeStyles } from "../components/HomePrimitives";
@@ -19,6 +19,107 @@ import {
   matchingRequests,
   nextSession,
 } from "../mocks/home";
+
+function getHomeNoticeBody(notice: string | null, session: MockSession) {
+  if (!notice) return "";
+  switch (notice) {
+    case "Vào học":
+      return `${nextSession.title}\nVới ${nextSession.mentor}\n${nextSession.schedule}\n\nĐây là buổi học mẫu. Chức năng vào phòng học sẽ được triển khai sau.`;
+    case "Lộ trình đang học":
+      return `${learningPath.title}\nĐã học ${learningPath.completed}/${learningPath.total} buổi.\nBuổi tiếp: ${learningPath.next}`;
+    case "Tiến trình huy hiệu": {
+      const completed = session.isNew ? 0 : achievement.completed;
+      return `${achievement.title}\n${achievement.description} · ${completed}/${achievement.total} buổi`;
+    }
+    case "Hồ sơ":
+    case "Hoàn thiện hồ sơ":
+      return `${session.name}\n${session.email}\n\nĐây là hồ sơ demo trong phiên hiện tại.`;
+    case "Ví Credit": {
+      const balance = session.isNew ? 50 : 340;
+      return `Số dư mẫu: ${balance} CR.\nGiao dịch và thanh toán chưa được kết nối.`;
+    }
+  }
+  const request = matchingRequests.find((item) => item.title === notice);
+  if (request) {
+    return `${request.title}\n${request.name} · ${request.credit} CR/lộ trình\n${request.match}% phù hợp\n\nĐề xuất học sẽ được triển khai sau.`;
+  }
+  const message = recentMessages.find((item) => item.name === notice);
+  if (message) {
+    return `${message.name}\n${message.message}\n${message.time}\n\nTrò chuyện trực tiếp sẽ được triển khai sau.`;
+  }
+  return `Màn ${notice.toLowerCase()} sẽ được triển khai ở bước tiếp theo. Hiện tại bạn đang xem trang chủ với dữ liệu mẫu.`;
+}
+
+function HomeNoticeContent({
+  notice,
+  noticeBody,
+  query,
+  onQueryChange,
+  onNoticeChange,
+}: Readonly<{
+  notice: string | null;
+  noticeBody: string;
+  query: string;
+  onQueryChange: (value: string) => void;
+  onNoticeChange: (value: string) => void;
+}>) {
+  if (notice === "Tìm kiếm") {
+    const normalizedQuery = query.trim().toLowerCase();
+    const skills = popularSkills.filter((skill) =>
+      skill.toLowerCase().includes(normalizedQuery),
+    );
+    return (
+      <View style={{ gap: 12 }}>
+        <HomeSearch value={query} onChange={onQueryChange} />
+        <Text style={homeStyles.caption}>Kỹ năng mẫu</Text>
+        {skills.map((skill) => (
+          <Pressable
+            key={skill}
+            accessibilityRole="button"
+            onPress={() => onNoticeChange(skill)}
+            style={styles.searchResult}
+          >
+            <Text style={homeStyles.label}>{skill}</Text>
+            <Icon name="chevron" size={16} color={colors.muted} />
+          </Pressable>
+        ))}
+        {skills.length === 0 && (
+          <Text style={homeStyles.caption}>
+            Không tìm thấy kỹ năng trong dữ liệu mẫu.
+          </Text>
+        )}
+      </View>
+    );
+  }
+  if (notice === "Thông báo") {
+    return (
+      <View style={{ gap: 12 }}>
+        {demoNotifications.map((text) => (
+          <Text key={text} style={homeStyles.body}>
+            {text}
+          </Text>
+        ))}
+      </View>
+    );
+  }
+  if (notice === "Tin nhắn") {
+    return (
+      <View style={{ gap: 12 }}>
+        {recentMessages.map((item) => (
+          <Pressable
+            key={item.id}
+            accessibilityRole="button"
+            onPress={() => onNoticeChange(item.name)}
+          >
+            <Text style={homeStyles.label}>{item.name}</Text>
+            <Text style={homeStyles.caption}>{item.message}</Text>
+          </Pressable>
+        ))}
+      </View>
+    );
+  }
+  return <Text style={styles.noticeBody}>{noticeBody}</Text>;
+}
 
 export function HomeScreen() {
   const router = useRouter();
@@ -39,25 +140,7 @@ export function HomeScreen() {
       setNotice(title);
     }
   };
-  const request = matchingRequests.find((item) => item.title === notice);
-  const message = recentMessages.find((item) => item.name === notice);
-  const noticeBody = !notice
-    ? ""
-    : notice === "Vào học"
-      ? `${nextSession.title}\nVới ${nextSession.mentor}\n${nextSession.schedule}\n\nĐây là buổi học mẫu. Chức năng vào phòng học sẽ được triển khai sau.`
-      : notice === "Lộ trình đang học"
-        ? `${learningPath.title}\nĐã học ${learningPath.completed}/${learningPath.total} buổi.\nBuổi tiếp: ${learningPath.next}`
-        : notice === "Tiến trình huy hiệu"
-          ? `${achievement.title}\n${achievement.description} · ${session.isNew ? 0 : achievement.completed}/${achievement.total} buổi`
-          : notice === "Hồ sơ" || notice === "Hoàn thiện hồ sơ"
-            ? `${session.name}\n${session.email}\n\nĐây là hồ sơ demo trong phiên hiện tại.`
-            : notice === "Ví Credit"
-              ? `Số dư mẫu: ${session.isNew ? 50 : 340} CR.\nGiao dịch và thanh toán chưa được kết nối.`
-              : request
-                ? `${request.title}\n${request.name} · ${request.credit} CR/lộ trình\n${request.match}% phù hợp\n\nĐề xuất học sẽ được triển khai sau.`
-                : message
-                  ? `${message.name}\n${message.message}\n${message.time}\n\nTrò chuyện trực tiếp sẽ được triển khai sau.`
-                  : `Màn ${notice?.toLowerCase()} sẽ được triển khai ở bước tiếp theo. Hiện tại bạn đang xem trang chủ với dữ liệu mẫu.`;
+  const noticeBody = getHomeNoticeBody(notice, session);
   return (
     <SafeAreaView style={styles.screen} edges={["top", "left", "right"]}>
       <AppHeader
@@ -85,57 +168,13 @@ export function HomeScreen() {
         }}
       />
       <InfoModal title={notice} onClose={() => setNotice(null)}>
-        {notice === "Tìm kiếm" ? (
-          <View style={{ gap: 12 }}>
-            <HomeSearch value={query} onChange={setQuery} />
-            <Text style={homeStyles.caption}>Kỹ năng mẫu</Text>
-            {popularSkills
-              .filter((skill) =>
-                skill.toLowerCase().includes(query.trim().toLowerCase()),
-              )
-              .map((skill) => (
-                <Pressable
-                  key={skill}
-                  accessibilityRole="button"
-                  onPress={() => setNotice(skill)}
-                  style={styles.searchResult}
-                >
-                  <Text style={homeStyles.label}>{skill}</Text>
-                  <Icon name="chevron" size={16} color={colors.muted} />
-                </Pressable>
-              ))}
-            {!popularSkills.some((skill) =>
-              skill.toLowerCase().includes(query.trim().toLowerCase()),
-            ) && (
-              <Text style={homeStyles.caption}>
-                Không tìm thấy kỹ năng trong dữ liệu mẫu.
-              </Text>
-            )}
-          </View>
-        ) : notice === "Thông báo" ? (
-          <View style={{ gap: 12 }}>
-            {demoNotifications.map((text) => (
-              <Text key={text} style={homeStyles.body}>
-                {text}
-              </Text>
-            ))}
-          </View>
-        ) : notice === "Tin nhắn" ? (
-          <View style={{ gap: 12 }}>
-            {recentMessages.map((item) => (
-              <Pressable
-                key={item.id}
-                accessibilityRole="button"
-                onPress={() => setNotice(item.name)}
-              >
-                <Text style={homeStyles.label}>{item.name}</Text>
-                <Text style={homeStyles.caption}>{item.message}</Text>
-              </Pressable>
-            ))}
-          </View>
-        ) : (
-          <Text style={styles.noticeBody}>{noticeBody}</Text>
-        )}
+        <HomeNoticeContent
+          notice={notice}
+          noticeBody={noticeBody}
+          query={query}
+          onQueryChange={setQuery}
+          onNoticeChange={setNotice}
+        />
       </InfoModal>
       <LogoutDialog
         visible={logout}

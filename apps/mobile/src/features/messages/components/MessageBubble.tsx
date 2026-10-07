@@ -1,4 +1,10 @@
-import { StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import {
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+  type ViewStyle,
+} from "react-native";
 import { Avatar } from "@/components/Avatar";
 import { avatarSizes, typography, fonts } from "@/constants/theme";
 import type { ChatMessage } from "../mocks/chat";
@@ -15,6 +21,8 @@ export function MessageBubble({
 }) {
   const { width } = useWindowDimensions();
   const mine = message.from === "me";
+  let bubbleWidth: ViewStyle["maxWidth"] = mine ? "82%" : "70%";
+  if (width >= 768) bubbleWidth = "62%";
   return (
     <View style={styles.message}>
       <View style={[styles.row, mine && styles.mineRow]}>
@@ -24,7 +32,7 @@ export function MessageBubble({
         <View
           style={[
             styles.bubble,
-            { maxWidth: width >= 768 ? "62%" : mine ? "82%" : "70%" },
+            { maxWidth: bubbleWidth },
             mine ? styles.mine : styles.theirs,
           ]}
         >

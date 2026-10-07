@@ -18,6 +18,10 @@ import { initialThreads } from "../mocks/chat";
 import { conversations } from "../mocks/conversations";
 import { messageColors as colors } from "../constants/theme";
 
+function ConversationSeparator() {
+  return <View style={styles.separator} />;
+}
+
 export function MessagesScreen() {
   const router = useRouter();
   const { threads, read } = useMockMessages();
@@ -57,7 +61,7 @@ export function MessagesScreen() {
           keyboardDismissMode="on-drag"
           style={styles.list}
           contentContainerStyle={styles.content}
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
+          ItemSeparatorComponent={ConversationSeparator}
           ListHeaderComponent={
             <View>
               {/* Proposal banner */}

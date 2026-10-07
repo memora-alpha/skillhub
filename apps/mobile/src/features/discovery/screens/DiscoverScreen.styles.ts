@@ -5,6 +5,7 @@ import { discoveryColors as colors } from "../constants/theme";
 export const styles = StyleSheet.create({
   background: { backgroundColor: colors.background },
   list: { flex: 1 },
+  separator: { height: 12 },
   content: {
     width: "100%",
     maxWidth: 840,

@@ -23,6 +23,25 @@ import { styles } from "./DiscoverScreen.styles";
 
 type AdvancedFilter = "all" | "credit" | "sessions";
 
+function renderPostAction(open: (label: string) => void) {
+  return (
+    <Button
+      size="sm"
+      variant="craft"
+      style={styles.postButton}
+      onPress={() => open("Đăng yêu cầu học")}
+      accessibilityLabel="Đăng yêu cầu học"
+    >
+      <Icon name="plus" size={14} color={colors.surface} />
+      <Text style={styles.postLabel}>Đăng</Text>
+    </Button>
+  );
+}
+
+function RequestSeparator() {
+  return <View style={styles.separator} />;
+}
+
 export function DiscoverScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ query?: string | string[] }>();
@@ -55,18 +74,7 @@ export function DiscoverScreen() {
       title="Yêu cầu học"
       selected="Khám phá"
       contentStyle={styles.background}
-      rightAction={(open) => (
-        <Button
-          size="sm"
-          variant="craft"
-          style={styles.postButton}
-          onPress={() => open("Đăng yêu cầu học")}
-          accessibilityLabel="Đăng yêu cầu học"
-        >
-          <Icon name="plus" size={14} color={colors.surface} />
-          <Text style={styles.postLabel}>Đăng</Text>
-        </Button>
-      )}
+      rightAction={renderPostAction}
     >
       {() => (
         <>
@@ -77,7 +85,7 @@ export function DiscoverScreen() {
             keyboardShouldPersistTaps="handled"
             style={styles.list}
             contentContainerStyle={styles.content}
-            ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+            ItemSeparatorComponent={RequestSeparator}
             ListHeaderComponent={
               <View style={styles.header}>
                 <View style={styles.searchRow}>

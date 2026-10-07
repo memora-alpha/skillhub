@@ -5,10 +5,10 @@ import { appColors as colors, appRadius as radius, fonts } from "@/constants/the
 export function HomeSearch({
   value,
   onChange,
-}: {
+}: Readonly<{
   value: string;
   onChange: (value: string) => void;
-}) {
+}>) {
   return (
     <View style={styles.field}>
       <Icon name="search" color={colors.muted} size={18} />

@@ -18,6 +18,17 @@ import {
   signedInChrome,
 } from "@/constants/theme";
 
+type AppHeaderProps = Readonly<{
+  profile: Readonly<{ name: string; userId?: string }>;
+  onAction: (title: string) => void;
+  onAccount: () => void;
+  title?: string;
+  onBack?: () => void;
+  rightAction?: ReactNode;
+  backLabel?: string;
+  appearance?: "default" | "home";
+}>;
+
 export function AppHeader({
   profile,
   onAction,
@@ -27,16 +38,7 @@ export function AppHeader({
   rightAction,
   backLabel = "Quay lại hồ sơ",
   appearance = "home",
-}: {
-  profile: { name: string; userId?: string };
-  onAction: (title: string) => void;
-  onAccount: () => void;
-  title?: string;
-  onBack?: () => void;
-  rightAction?: ReactNode;
-  backLabel?: string;
-  appearance?: "default" | "home";
-}) {
+}: AppHeaderProps) {
   const { width } = useWindowDimensions();
   const home = appearance === "home";
   return (

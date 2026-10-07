@@ -6,23 +6,42 @@ import {
   type StyleProp,
   type ViewStyle,
 } from "react-native";
-import { colors, fonts, layout } from "@/constants/theme";
+import { appColors, colors, fonts, layout } from "@/constants/theme";
 
-type ButtonProps = {
+type ButtonVariant =
+  | "primary"
+  | "secondary"
+  | "ghost"
+  | "white"
+  | "craft"
+  | "forest"
+  | "paper";
+type ButtonSize = "sm" | "md" | "lg" | "xl";
+type ButtonProps = Readonly<{
   children: ReactNode;
   onPress: () => void;
-  variant?:
-    | "primary"
-    | "secondary"
-    | "ghost"
-    | "white"
-    | "craft"
-    | "forest"
-    | "paper";
-  size?: "sm" | "md" | "lg" | "xl";
+  variant?: ButtonVariant;
+  size?: ButtonSize;
   style?: StyleProp<ViewStyle>;
   accessibilityLabel?: string;
   disabled?: boolean;
+}>;
+
+const foregrounds: Record<ButtonVariant, string> = {
+  primary: colors.white,
+  secondary: colors.inkSoft,
+  ghost: colors.inkSoft,
+  white: colors.brand,
+  craft: colors.white,
+  forest: colors.white,
+  paper: appColors.forest,
+};
+
+const labelSizes: Record<ButtonSize, { fontSize: number; lineHeight: number }> = {
+  sm: { fontSize: 14, lineHeight: 20 },
+  md: { fontSize: 14, lineHeight: 20 },
+  lg: { fontSize: 16, lineHeight: 24 },
+  xl: { fontSize: 18, lineHeight: 28 },
 };
 
 export function Button({
@@ -34,14 +53,7 @@ export function Button({
   accessibilityLabel,
   disabled = false,
 }: ButtonProps) {
-  const foreground =
-    variant === "primary" || variant === "craft" || variant === "forest"
-      ? colors.white
-      : variant === "paper"
-        ? "#264E3F"
-      : variant === "white"
-        ? colors.brand
-        : colors.inkSoft;
+  const foreground = foregrounds[variant];
   return (
     <Pressable
       accessibilityRole="button"
@@ -61,11 +73,7 @@ export function Button({
         <Text
           style={[
             styles.label,
-            {
-              color: foreground,
-              fontSize: size === "xl" ? 18 : size === "lg" ? 16 : 14,
-              lineHeight: size === "xl" ? 28 : size === "lg" ? 24 : 20,
-            },
+            { color: foreground, ...labelSizes[size] },
           ]}
         >
           {children}
@@ -93,12 +101,12 @@ const styles = StyleSheet.create({
   secondary: { backgroundColor: colors.sand },
   ghost: { backgroundColor: "transparent" },
   white: { backgroundColor: colors.white },
-  craft: { backgroundColor: "#BA4E36" },
-  forest: { backgroundColor: "#264E3F" },
+  craft: { backgroundColor: appColors.primary },
+  forest: { backgroundColor: appColors.forest },
   paper: {
-    backgroundColor: "#EDE8DF",
+    backgroundColor: appColors.surfaceInset,
     borderWidth: 1,
-    borderColor: "#E2DCD2",
+    borderColor: appColors.border,
   },
 });
 const sizes = StyleSheet.create({
