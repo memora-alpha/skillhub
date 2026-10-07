@@ -1,7 +1,11 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Icon } from "@/components/Icon";
-import { colors, fonts, radius } from "@/constants/theme";
-import { calendarPeriod, upcomingSessions, weekDays } from "../mocks/calendar";
+import { typography, fonts } from "@/constants/theme";
+import { calendarPeriod, weekDays } from "../mocks/calendar";
+import {
+  calendarCardShadow,
+  calendarColors as colors,
+} from "../constants/theme";
 
 export function MonthCalendar({
   month,
@@ -79,11 +83,11 @@ export function MonthCalendar({
               if (day === null)
                 return <View key={`blank-${index}`} style={styles.cell} />;
               const today =
-                month === calendarPeriod.firstMonth &&
+                month === calendarPeriod.initialMonth &&
                 day === calendarPeriod.today;
               const hasSession =
-                month === calendarPeriod.firstMonth &&
-                upcomingSessions.some((item) => item.day === day);
+                month === calendarPeriod.initialMonth &&
+                calendarPeriod.sessionDays.includes(day);
               const selected = selectedDay === day;
               return (
                 <View key={day} style={styles.cell}>
@@ -97,23 +101,22 @@ export function MonthCalendar({
                     style={[
                       styles.day,
                       hasSession && styles.sessionDay,
-                      today && styles.today,
                       selected && styles.selected,
+                      today && styles.today,
                     ]}
                   >
                     <Text
                       style={[
                         styles.dayText,
                         hasSession && {
-                          color: colors.brand,
+                          color: colors.orange,
                           fontFamily: fonts.bold,
                         },
-                        today && { color: colors.white },
+                        today && { color: colors.surface },
                       ]}
                     >
                       {day}
                     </Text>
-                    {hasSession && !today && <View style={styles.dot} />}
                   </Pressable>
                 </View>
               );
@@ -137,23 +140,21 @@ export function MonthCalendar({
 const styles = StyleSheet.create({
   card: {
     padding: 16,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.card,
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    boxShadow: calendarCardShadow,
   },
   heading: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     gap: 8,
-    marginBottom: 12,
+    marginBottom: 8,
   },
-  arrow: { padding: 6 },
+  arrow: { padding: 5 },
   month: {
-    fontFamily: fonts.display,
-    fontSize: 16,
-    lineHeight: 26,
+    fontFamily: fonts.bold,
+    ...typography.heading,
     color: colors.ink,
   },
   week: { flexDirection: "row" },
@@ -161,25 +162,23 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: fonts.semibold,
     color: colors.muted,
-    fontSize: 10,
-    lineHeight: 16,
-    paddingVertical: 4,
+    ...typography.caption,
+    paddingVertical: 3,
     textAlign: "center",
   },
-  grid: { gap: 2 },
+  grid: { gap: 1 },
   cell: {
     flex: 1,
     minWidth: 0,
-    height: 44,
+    height: 36,
     padding: 2,
     alignItems: "center",
     justifyContent: "center",
   },
   day: {
-    width: "100%",
-    maxWidth: 40,
-    aspectRatio: 1,
-    borderRadius: 99,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 1,
@@ -188,48 +187,50 @@ const styles = StyleSheet.create({
   dayText: {
     fontFamily: fonts.medium,
     color: colors.body,
-    fontSize: 12,
-    lineHeight: 16,
+    ...typography.secondary,
+    fontVariant: ["tabular-nums"],
   },
-  sessionDay: { backgroundColor: colors.brandLight },
-  today: { backgroundColor: colors.brand },
-  selected: { borderColor: colors.brand },
-  dot: {
-    position: "absolute",
-    bottom: 2,
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.brand,
+  sessionDay: {
+    backgroundColor: colors.surface,
+    borderColor: colors.orange,
+    borderWidth: 1.5,
+  },
+  today: {
+    backgroundColor: colors.orange,
+    borderColor: colors.orange,
+  },
+  selected: {
+    backgroundColor: colors.orangeSoft,
+    borderColor: colors.orange,
+    boxShadow: "0 0 0 2px rgba(239, 101, 61, 0.12)",
   },
   legend: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 16,
-    marginTop: 12,
-    paddingTop: 12,
+    gap: 14,
+    marginTop: 10,
+    paddingTop: 10,
     borderTopWidth: 1,
-    borderColor: colors.sand,
+    borderColor: colors.border,
   },
   legendItem: { flexDirection: "row", alignItems: "center", gap: 6 },
   caption: {
     fontFamily: fonts.body,
-    fontSize: 12,
-    lineHeight: 16,
+    ...typography.caption,
     color: colors.muted,
   },
   todayDot: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: colors.brand,
+    backgroundColor: colors.orange,
   },
   sessionDot: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: colors.brandLight,
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: colors.brand,
+    borderColor: colors.orange,
   },
 });

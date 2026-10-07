@@ -6,7 +6,7 @@ import { Badge } from "@/components/Badge";
 import { Button } from "@/components/Button";
 import { EmptyState } from "@/components/EmptyState";
 import { Icon } from "@/components/Icon";
-import { colors, fonts } from "@/constants/theme";
+import { avatarSizes, typography, colors, fonts } from "@/constants/theme";
 import { sessionDetails } from "../mocks/sessionDetails";
 
 export function SessionDetailScreen() {
@@ -59,7 +59,11 @@ export function SessionDetailScreen() {
                 ))}
               </View>
               <View style={styles.partner}>
-                <Avatar name={session.partner} size={40} />
+                <Avatar
+                  name={session.partner}
+                  userId={session.partnerId}
+                  size={avatarSizes.list}
+                />
                 <View>
                   <Text style={styles.value}>{session.partner}</Text>
                   <Text style={styles.caption}>{session.partnerRole}</Text>
@@ -114,7 +118,7 @@ const styles = StyleSheet.create({
   },
   title: {
     flex: 1,
-    fontFamily: fonts.displayBold,
+    fontFamily: fonts.bold,
     fontSize: 16,
     lineHeight: 26,
     color: colors.ink,
@@ -128,14 +132,12 @@ const styles = StyleSheet.create({
   },
   caption: {
     fontFamily: fonts.body,
-    fontSize: 12,
-    lineHeight: 16,
+    ...typography.secondary,
     color: colors.muted,
   },
   value: {
     fontFamily: fonts.semibold,
-    fontSize: 14,
-    lineHeight: 20,
+    ...typography.body,
     color: colors.ink,
   },
   partner: { flexDirection: "row", alignItems: "center", gap: 12 },
@@ -149,8 +151,7 @@ const styles = StyleSheet.create({
   },
   reportText: {
     fontFamily: fonts.body,
-    fontSize: 14,
-    lineHeight: 20,
+    ...typography.body,
     color: colors.error,
   },
 });
