@@ -152,7 +152,9 @@ test(
           "20261005010000_sh003_audit",
           "20261005020000_sh006_configuration_history",
           "20261005030000_sh004_stored_files",
+          "20261006000000_learning_requests",
           "20261007000000_runtime_v3",
+          "20261007010000_skills",
         ])
           await client.query(
             await readFile(
@@ -163,6 +165,9 @@ test(
               "utf8",
             ),
           );
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
       } finally {
         client.release();
       }
@@ -178,8 +183,8 @@ test(
           });
           await seedIdentity(db, new PrismaUsersRepository());
           assert.equal(await db.role.count(), 3);
-          assert.equal(await db.permission.count(), 15);
-          assert.equal(await db.rolePermission.count(), 26);
+          assert.equal(await db.permission.count(), 25);
+          assert.equal(await db.rolePermission.count(), 39);
           assert.equal(
             (await db.role.findUniqueOrThrow({ where: { code: "ADMIN" } }))
               .description,

@@ -80,7 +80,8 @@ const catalog = z.strictObject({
   version: z.number().int().positive(),
 });
 const learningRequest = z.strictObject({
-  status: z.enum(["PENDING", "APPROVED", "REJECTED", "REMOVED"]).optional(),
+  status: z.enum(["PENDING", "APPROVED", "REJECTED"]),
+  requestVersion: z.number().int().positive(),
 });
 const rolePermission = z.strictObject({
   roles: z.array(role).optional(),

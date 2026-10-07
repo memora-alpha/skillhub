@@ -92,6 +92,28 @@ test("verification rejection uses its 10-500 character reason bound", () => {
   );
 });
 
+test("learning request moderation projections require a positive request version", () => {
+  const moderation = {
+    ...configuration,
+    action: "LEARNING_REQUEST_MODERATE",
+    target: { type: "LEARNING_REQUEST", id: requestId },
+    before: { status: "PENDING", requestVersion: 3 },
+    after: { status: "REJECTED", requestVersion: 4 },
+  };
+  assert.deepEqual(validateAuditInput(moderation).after, {
+    status: "REJECTED",
+    requestVersion: 4,
+  });
+  for (const invalid of [
+    { ...moderation, before: { status: "OPEN", requestVersion: 3 } },
+    { ...moderation, after: { status: "REJECTED", requestVersion: 0 } },
+    { ...moderation, after: { status: "APPROVED", requestVersion: 1.5 } },
+    { ...moderation, after: { status: "REMOVED", requestVersion: 4 } },
+  ]) {
+    assert.throws(() => validateAuditInput(invalid));
+  }
+});
+
 test("secret and unknown snapshot fields are rejected recursively", () => {
   for (const badValue of [
     { returned: 9600, fee: 400, token: "secret" },

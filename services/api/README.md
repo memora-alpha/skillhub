@@ -8,14 +8,18 @@ Phạm vi phát triển hiện tại của dự án là **backend tại `service
 Web/mobile chỉ được thay đổi khi có yêu cầu riêng. Git và pnpm workspace vẫn
 đặt tại root SkillHub; backend không có Git repository riêng.
 
-API đã có nền tảng hạ tầng và phần Danh tính (spec 002): đăng ký/OTP/login, refresh/logout/reset, hồ sơ/avatar, quyền và quản trị tài khoản có audit. Phần Kỹ năng (spec 007) đã có catalog, quản lý Sharing Skill, search/profile công khai, evidence và Staff Verification; xem [quickstart](specs/007-skills/quickstart.md) và [validation](specs/007-skills/validation.md). Chat, giao dịch Credit và các phần còn lại trong breakdown vẫn là kế hoạch.
+API đã có nền tảng hạ tầng và phần Danh tính (spec 002): đăng ký/OTP/login, refresh/logout/reset, hồ sơ/avatar, quyền và quản trị tài khoản có audit. Phần Kỹ năng (spec 007) đã có catalog, quản lý Sharing Skill, search/profile công khai, evidence và Staff Verification; xem [quickstart](specs/007-skills/quickstart.md) và [validation](specs/007-skills/validation.md). Core Learning Request có source theo [plan](specs/007-learning-request/plan.md); việc nối owner adapters cho catalog/eligibility, Sharing Skill matching, Path/Schedule/Wallet consumers, migration rollout và kiểm chứng DB/Redis thật vẫn là gates. Chat và giao dịch Credit chưa được triển khai.
 
 Catalog Prisma đã cập nhật theo logical v3: **48 model PostgreSQL và một document
 Message MongoDB** với attachments nhúng. Xem [schema catalog](prisma/README.md)
-để đối chiếu 49/49 định nghĩa logical. Schema v3 ở `prisma/catalog.prisma` sinh client
+để đối chiếu 49/49 định nghĩa logical. Tag và RequestTag được giữ theo SRS V1.6
+như phần mở rộng ngoài diagram; xem [LR ERD v3 alignment](specs/007-learning-request/erd-v3-alignment.md).
+Schema v3 ở `prisma/catalog.prisma` sinh client
 riêng `src/generated/prisma-catalog` để đối chiếu mô hình.
 API, generate mặc định và migration dùng `prisma/schema.prisma`: runtime v3 gồm
-48 model domain và 7 model kỹ thuật cho OTP/foundation. Profile nằm trong User,
+48 model domain, 7 model kỹ thuật cho OTP/foundation và Tag/RequestTag.
+Learning Request giữ preferred slots JSONB và metadata moderation/expiry/version
+với tên application tương thích, ánh xạ sang cột v3. Profile nằm trong User,
 User có một roleId; các repository danh tính đã chuyển sang cấu trúc này.
 Migration `20261007000000_runtime_v3` backfill và giữ bản gốc profile/grant trong
 schema `<current_schema>_legacy_v3`. Migration chưa deploy vào database ứng dụng.
@@ -25,9 +29,10 @@ trong schema tạm, chưa deploy vào database ứng dụng. Xem [hướng dẫn
 
 Nguồn nghiệp vụ:
 
+- [SRS SkillHub V1.6](../../docs/SRS_SkillHub_V1.6_VietLai_DongBoNghiepVu.docx): yêu cầu nghiệp vụ hiện hành, gồm Tag cho Learning Request.
 - [SRS SkillHub V1.4 tiếng Việt](../../docs/SRS_SkillHub_V1.4_BoSungQuyDinhNghiepVu_VI.docx): bản bổ sung nghiệp vụ; RBAC đối chiếu mục 3, NFR-SEC-03, BR-39/40 và mục 18.
 - [SRS SkillHub V1.3](../../docs/SRS_SkillHub_V1.3.docx): bản trước để đối chiếu lịch sử.
-- [SRS SkillHub V1.5](../../docs/SRS_SkillHub_V1.5.docx): yêu cầu mới; mô hình v3 có điều chỉnh phạm vi theo quyết định người dùng.
+- [SRS SkillHub V1.5](../../docs/SRS_SkillHub_V1.5.docx): bản trước để đối chiếu lịch sử; mô hình v3 có điều chỉnh phạm vi theo quyết định người dùng.
 - [Danh mục entity/field v3](../../docs/SkillHub_Entities_Fields_v3.md): có phân biệt yêu cầu SRS và đề xuất thiết kế.
 - [Logical Data Model v3](../../docs/SkillHub_Logical_Data_Model_v3.md): quan hệ, ràng buộc và transaction boundaries.
 
@@ -199,6 +204,17 @@ trước khi viết spec liên quan. Ghi câu hỏi cần chốt trong feature; 
 giá trị production hoặc coi bản breakdown này là database schema đã phê duyệt.
 
 ## Development
+
+Learning Request verification scripts (run from the repository root):
+
+```powershell
+pnpm --filter api test:learning-request
+pnpm --filter api test:learning-request:integration
+```
+
+The first command builds the API and runs the feature's non-database suites. The
+integration command requires `TEST_DATABASE_URL` to reference an isolated,
+migrated PostgreSQL database; it never falls back to `DATABASE_URL`.
 
 Stack đã chốt và giới hạn triển khai: [foundation plan](specs/001-backend-foundation/plan.md).
 Constitution: [.specify/memory/constitution.md](.specify/memory/constitution.md).

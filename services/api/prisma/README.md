@@ -12,11 +12,15 @@ entities; its simplification does not remove logical join tables.
 - `schema.prisma` is the runtime v3 schema, generated from the catalog by
   `scripts/generate-runtime-schema.mjs`. It includes the 48 domain models and
   seven technical models from `runtime-support.prisma` for OTP and foundation.
+  Tag and RequestTag extend the runtime to meet SRS V1.6; they are not part of
+  the 48-model logical catalog. Learning Request keeps its moderation/expiry
+  metadata and application aliases mapped to v3 columns.
   `prisma.config.ts`, default generate/build/typecheck and migrations use it.
   Profile fields live on User; User has one required roleId.
 - `scripts/write-identity-schema.mjs` verifies the runtime scope without rewriting it.
   Existing OTP remains PostgreSQL-backed; its omission from the diagram did not
   authorize removing authentication functionality.
+  There is no separate `identity.prisma` deployment schema.
 - `chat.schema.prisma` is reference-only. MessageAttachment is an embedded `type`,
   not a collection/model. Runtime ownership remains MongoDB/Mongoose; Prisma 7
   cannot validate/generate this file as a runtime MongoDB schema.
@@ -39,7 +43,7 @@ pnpm --filter api db:validate:runtime
 pnpm --filter api check-types
 ```
 
-Default `db:generate`, prebuild and predev generate the **identity runtime** client.
+Default `db:generate`, prebuild and predev generate the **full runtime v3** client.
 `db:migrate`/`db:deploy` use the full runtime schema and migration history.
 The runtime retains delivery encryption, scan leases, audit reasons up to 2000
 characters and outbox retries. Equivalent application field names map to v3 SQL
@@ -69,6 +73,13 @@ Migration tests use disposable schemas and do not deploy the application databas
   separate confirmations/attendance/room, MaterialVersion and PathSettlement
   are absent from the v3 catalog. RolePermission/SharingSkill/UserLearnedSkill/
   MaterialEntitlement remain logical models.
+- Learning Request preferred slots are JSONB, with no RequestPreferredSlot table.
+  Its verified-teacher preference and versioned moderation/expiry metadata remain
+  compatible with the existing feature contracts. Canonical Tag and the composite
+  RequestTag relationship are retained for SRS V1.6 sections 18.10/9.2, FR-LR-01/
+  07/08 and BR-07; see [alignment and Tag evidence](../specs/007-learning-request/erd-v3-alignment.md).
+  Schema coverage does not establish Catalog eligibility, Sharing Skill matching,
+  Path/Schedule/Wallet integration or migration rollout.
 - Path/Plan/version/outline membership uses explicit composite keys and FKs.
   User avatar ownership and reauth session ownership are composite references.
   Current/locked/applied version pointers must be checked at transitions; cyclic

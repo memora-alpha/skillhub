@@ -29,8 +29,33 @@ export const PERMISSION_CATALOG = [
     description: "Revoke approved evidence",
   },
   { code: "learning-request:create", description: "Create learning request" },
+  { code: "learning-request:read", description: "Read learning requests" },
+  {
+    code: "learning-request:update:self",
+    description: "Update own learning request",
+  },
+  {
+    code: "learning-request:cancel:self",
+    description: "Cancel own learning request before schedule lock",
+  },
+  {
+    code: "learning-request:moderation:read",
+    description: "Read flagged learning requests",
+  },
   { code: "learning-request:approve", description: "Approve flagged request" },
   { code: "learning-request:reject", description: "Reject flagged request" },
+  {
+    code: "learning-request:moderation:configure",
+    description: "Configure learning request moderation rules",
+  },
+  {
+    code: "notification:read:self",
+    description: "Read own in-app notifications",
+  },
+  {
+    code: "notification:update:self",
+    description: "Mark own notifications as read",
+  },
   { code: "proposal:create", description: "Create proposal" },
   {
     code: "conversation:read:participant",

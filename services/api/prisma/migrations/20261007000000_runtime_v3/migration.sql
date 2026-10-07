@@ -1,5 +1,7 @@
 -- Upgrade implemented identity/foundation to the v3 domain model.
 -- Backfill existing data before adding v3 tables and constraints.
+-- Catalog, Learning Request and Notification storage already exists from
+-- 20261006000000_learning_requests; retain its data, defaults, checks and tags.
 BEGIN;
 ALTER TABLE "users" RENAME COLUMN "id" TO "user_id";
 ALTER TABLE "roles" RENAME COLUMN "id" TO "role_id";
@@ -81,13 +83,7 @@ UPDATE outbox_events SET aggregate_type=event_type, aggregate_id=event_id::text,
 ALTER TABLE outbox_events ALTER COLUMN aggregate_type SET NOT NULL,
   ALTER COLUMN aggregate_id SET NOT NULL, ALTER COLUMN dedupe_key SET NOT NULL;
 -- CreateEnum
-CREATE TYPE "CatalogStatus" AS ENUM ('ACTIVE', 'INACTIVE', 'ARCHIVED');
-
--- CreateEnum
 CREATE TYPE "SharingSkillLevel" AS ENUM ('BEGINNER', 'INTERMEDIATE', 'ADVANCED', 'EXPERT');
-
--- CreateEnum
-CREATE TYPE "LearningLevel" AS ENUM ('NONE', 'BEGINNER', 'INTERMEDIATE', 'ADVANCED');
 
 -- CreateEnum
 CREATE TYPE "SkillVerificationStatus" AS ENUM ('UNVERIFIED', 'PENDING', 'VERIFIED', 'REJECTED');
@@ -97,9 +93,6 @@ CREATE TYPE "VerificationRequestStatus" AS ENUM ('PENDING', 'VERIFIED', 'REJECTE
 
 -- CreateEnum
 CREATE TYPE "EvidenceApprovalStatus" AS ENUM ('PENDING', 'APPROVED', 'REJECTED', 'REVOKED');
-
--- CreateEnum
-CREATE TYPE "LearningRequestStatus" AS ENUM ('DRAFT', 'PENDING_MODERATION', 'REJECTED', 'OPEN', 'NEGOTIATING', 'MATCHED', 'CLOSED', 'CANCELLED', 'EXPIRED');
 
 -- CreateEnum
 CREATE TYPE "ProposalStatus" AS ENUM ('PENDING', 'ACCEPTED', 'REJECTED', 'WITHDRAWN', 'EXPIRED');
@@ -154,9 +147,6 @@ CREATE TYPE "ReportTargetType" AS ENUM ('USER', 'SESSION', 'REVIEW', 'MESSAGE', 
 
 -- CreateEnum
 CREATE TYPE "ReportCaseStatus" AS ENUM ('OPEN', 'UNDER_REVIEW', 'NEED_MORE_INFO', 'RESOLVED', 'REJECTED', 'CLOSED');
-
--- CreateEnum
-CREATE TYPE "NotificationChannel" AS ENUM ('IN_APP', 'EMAIL');
 
 -- DropForeignKey
 ALTER TABLE "system_configurations" DROP CONSTRAINT "system_configurations_updated_by_user_id_fkey";
@@ -253,29 +243,6 @@ CREATE TABLE "oauth_accounts" (
 );
 
 -- CreateTable
-CREATE TABLE "skill_categories" (
-    "category_id" UUID NOT NULL,
-    "name" VARCHAR(100) NOT NULL,
-    "slug" VARCHAR(120) NOT NULL,
-    "status" "CatalogStatus" NOT NULL,
-    "parent_category_id" UUID,
-
-    CONSTRAINT "skill_categories_pkey" PRIMARY KEY ("category_id")
-);
-
--- CreateTable
-CREATE TABLE "skills" (
-    "skill_id" UUID NOT NULL,
-    "name" VARCHAR(100) NOT NULL,
-    "slug" VARCHAR(120) NOT NULL,
-    "category_id" UUID,
-    "description" VARCHAR(500),
-    "status" "CatalogStatus" NOT NULL,
-
-    CONSTRAINT "skills_pkey" PRIMARY KEY ("skill_id")
-);
-
--- CreateTable
 CREATE TABLE "sharing_skills" (
     "sharing_skill_id" UUID NOT NULL,
     "user_id" UUID NOT NULL,
@@ -340,31 +307,6 @@ CREATE TABLE "user_learned_skills" (
     "completion_rule_version" VARCHAR(40) NOT NULL,
 
     CONSTRAINT "user_learned_skills_pkey" PRIMARY KEY ("learned_skill_id")
-);
-
--- CreateTable
-CREATE TABLE "learning_requests" (
-    "request_id" UUID NOT NULL,
-    "owner_id" UUID NOT NULL,
-    "skill_id" UUID NOT NULL,
-    "title" VARCHAR(120) NOT NULL,
-    "description" VARCHAR(3000) NOT NULL,
-    "learning_goal" VARCHAR(1000) NOT NULL,
-    "preferred_slots" JSONB NOT NULL DEFAULT '[]',
-    "current_level" "LearningLevel",
-    "verified_teacher_only" BOOLEAN NOT NULL,
-    "content_version" INTEGER NOT NULL,
-    "moderation_status" TEXT NOT NULL,
-    "flagged_rules" JSONB,
-    "reject_reason" VARCHAR(500),
-    "reviewed_by_user_id" UUID,
-    "reviewed_at" TIMESTAMPTZ(3),
-    "expires_at" TIMESTAMPTZ(3),
-    "status" "LearningRequestStatus" NOT NULL,
-    "created_at" TIMESTAMPTZ(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMPTZ(3) NOT NULL,
-
-    CONSTRAINT "learning_requests_pkey" PRIMARY KEY ("request_id")
 );
 
 -- CreateTable
@@ -607,21 +549,6 @@ CREATE TABLE "report_evidence" (
 );
 
 -- CreateTable
-CREATE TABLE "notifications" (
-    "notification_id" UUID NOT NULL,
-    "user_id" UUID NOT NULL,
-    "type" TEXT NOT NULL,
-    "title" VARCHAR(255) NOT NULL,
-    "body" TEXT NOT NULL,
-    "payload" JSONB,
-    "channel" "NotificationChannel" NOT NULL,
-    "read_at" TIMESTAMPTZ(3),
-    "created_at" TIMESTAMPTZ(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "notifications_pkey" PRIMARY KEY ("notification_id")
-);
-
--- CreateTable
 CREATE TABLE "learning_paths" (
     "path_id" UUID NOT NULL,
     "conversation_id" UUID NOT NULL,
@@ -839,24 +766,6 @@ CREATE INDEX "oauth_accounts_user_id_idx" ON "oauth_accounts"("user_id");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "oauth_accounts_provider_provider_account_id_key" ON "oauth_accounts"("provider", "provider_account_id");
-
--- CreateIndex
-CREATE UNIQUE INDEX "skill_categories_name_key" ON "skill_categories"("name");
-
--- CreateIndex
-CREATE UNIQUE INDEX "skill_categories_slug_key" ON "skill_categories"("slug");
-
--- CreateIndex
-CREATE INDEX "skill_categories_parent_category_id_idx" ON "skill_categories"("parent_category_id");
-
--- CreateIndex
-CREATE UNIQUE INDEX "skills_name_key" ON "skills"("name");
-
--- CreateIndex
-CREATE UNIQUE INDEX "skills_slug_key" ON "skills"("slug");
-
--- CreateIndex
-CREATE INDEX "skills_category_id_idx" ON "skills"("category_id");
 
 -- CreateIndex
 CREATE INDEX "sharing_skills_user_id_idx" ON "sharing_skills"("user_id");
@@ -1246,12 +1155,6 @@ ALTER TABLE "oauth_accounts" ADD CONSTRAINT "oauth_accounts_user_id_fkey" FOREIG
 ALTER TABLE "refresh_sessions" ADD CONSTRAINT "refresh_sessions_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("user_id") ON DELETE RESTRICT ON UPDATE RESTRICT;
 
 -- AddForeignKey
-ALTER TABLE "skill_categories" ADD CONSTRAINT "skill_categories_parent_category_id_fkey" FOREIGN KEY ("parent_category_id") REFERENCES "skill_categories"("category_id") ON DELETE RESTRICT ON UPDATE RESTRICT;
-
--- AddForeignKey
-ALTER TABLE "skills" ADD CONSTRAINT "skills_category_id_fkey" FOREIGN KEY ("category_id") REFERENCES "skill_categories"("category_id") ON DELETE RESTRICT ON UPDATE RESTRICT;
-
--- AddForeignKey
 ALTER TABLE "sharing_skills" ADD CONSTRAINT "sharing_skills_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("user_id") ON DELETE RESTRICT ON UPDATE RESTRICT;
 
 -- AddForeignKey
@@ -1280,15 +1183,6 @@ ALTER TABLE "user_learned_skills" ADD CONSTRAINT "user_learned_skills_user_id_fk
 
 -- AddForeignKey
 ALTER TABLE "user_learned_skills" ADD CONSTRAINT "user_learned_skills_skill_id_fkey" FOREIGN KEY ("skill_id") REFERENCES "skills"("skill_id") ON DELETE RESTRICT ON UPDATE RESTRICT;
-
--- AddForeignKey
-ALTER TABLE "learning_requests" ADD CONSTRAINT "learning_requests_owner_id_fkey" FOREIGN KEY ("owner_id") REFERENCES "users"("user_id") ON DELETE RESTRICT ON UPDATE RESTRICT;
-
--- AddForeignKey
-ALTER TABLE "learning_requests" ADD CONSTRAINT "learning_requests_skill_id_fkey" FOREIGN KEY ("skill_id") REFERENCES "skills"("skill_id") ON DELETE RESTRICT ON UPDATE RESTRICT;
-
--- AddForeignKey
-ALTER TABLE "learning_requests" ADD CONSTRAINT "learning_requests_reviewed_by_user_id_fkey" FOREIGN KEY ("reviewed_by_user_id") REFERENCES "users"("user_id") ON DELETE RESTRICT ON UPDATE RESTRICT;
 
 -- AddForeignKey
 ALTER TABLE "proposals" ADD CONSTRAINT "proposals_request_id_fkey" FOREIGN KEY ("request_id") REFERENCES "learning_requests"("request_id") ON DELETE RESTRICT ON UPDATE RESTRICT;
@@ -1412,9 +1306,6 @@ ALTER TABLE "report_cases" ADD CONSTRAINT "report_cases_related_order_id_fkey" F
 
 -- AddForeignKey
 ALTER TABLE "report_evidence" ADD CONSTRAINT "report_evidence_case_id_fkey" FOREIGN KEY ("case_id") REFERENCES "report_cases"("case_id") ON DELETE RESTRICT ON UPDATE RESTRICT;
-
--- AddForeignKey
-ALTER TABLE "notifications" ADD CONSTRAINT "notifications_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("user_id") ON DELETE RESTRICT ON UPDATE RESTRICT;
 
 -- AddForeignKey
 ALTER TABLE "audit_logs" ADD CONSTRAINT "audit_logs_actor_id_fkey" FOREIGN KEY ("actor_id") REFERENCES "users"("user_id") ON DELETE RESTRICT ON UPDATE RESTRICT;

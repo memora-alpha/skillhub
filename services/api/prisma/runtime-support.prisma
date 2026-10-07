@@ -130,3 +130,36 @@ model StoredFileScanEvent {
   @@index([fileId, createdAt], map: "stored_file_scan_events_file_created_idx")
   @@map("stored_file_scan_events")
 }
+
+// SRS V1.6 requires Learning Request tags beyond the logical v3 diagram.
+enum RequestModerationStatus {
+  NOT_REQUIRED
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum RequestExpiryMode {
+  DEFAULT
+  CUSTOM
+}
+
+model Tag {
+  id String @id @default(uuid()) @map("tag_id") @db.Uuid
+  label String @unique @db.VarChar(80)
+  status CatalogStatus @map("status")
+  learningRequests RequestTag[] @relation("RequestTag_tag")
+
+  @@map("tags")
+}
+
+model RequestTag {
+  requestId String @map("request_id") @db.Uuid
+  tagId String @map("tag_id") @db.Uuid
+  request LearningRequest @relation("RequestTag_request", fields: [requestId], references: [id], onDelete: Restrict)
+  tag Tag @relation("RequestTag_tag", fields: [tagId], references: [id], onDelete: Restrict)
+
+  @@id([requestId, tagId])
+  @@index([tagId, requestId])
+  @@map("learning_request_tags")
+}
