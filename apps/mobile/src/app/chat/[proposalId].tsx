@@ -1,4 +1,4 @@
-import { ChatScreen } from "@/features/messages/screens/ChatScreen";
+import { ChatScreen } from "@/features/messages";
 export default function ChatRoute() {
   return <ChatScreen />;
 }

@@ -9,12 +9,12 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Redirect, useLocalSearchParams, useRouter } from "expo-router";
-import { AppScreenLayout } from "@/components/AppScreenLayout";
+import { AppScreenLayout } from "@/features/shell";
 import { Avatar } from "@/components/Avatar";
 import { EmptyState } from "@/components/EmptyState";
 import { InfoModal } from "@/components/InfoModal";
 import { avatarSizes, typography, fonts } from "@/constants/theme";
-import { useMockSession } from "@/features/auth/context/MockSession";
+import { useMockSession } from "@/features/auth";
 import { useMockMessages } from "../context/MockMessages";
 import { conversations, type Conversation } from "../mocks/conversations";
 import type { ChatMessage } from "../mocks/chat";

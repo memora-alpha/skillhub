@@ -8,7 +8,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { AppScreenLayout } from "@/components/AppScreenLayout";
+import { AppScreenLayout } from "@/features/shell";
 import { EmptyState } from "@/components/EmptyState";
 import { Icon } from "@/components/Icon";
 import { iconSizes, typography, fonts } from "@/constants/theme";

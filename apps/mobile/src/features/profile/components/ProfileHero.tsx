@@ -6,10 +6,10 @@ import {
   avatarSizes,
   iconSizes,
   fonts,
-  signedInChrome,
 } from "@/constants/theme";
 import { VerifiedBadge } from "./ProfilePrimitives";
 import { profileDetails } from "../mocks/profile";
+import { profileColors } from "../constants/theme";
 
 export function ProfileHero({
   name,
@@ -30,7 +30,7 @@ export function ProfileHero({
           onPress={onEdit}
           style={({ pressed }) => [styles.edit, pressed && { opacity: 0.7 }]}
         >
-          <Icon name="edit" size={iconSizes.inline} color={signedInChrome.ink} />
+          <Icon name="edit" size={iconSizes.inline} color={profileColors.ink} />
           <Text style={styles.editLabel}>Chỉnh sửa</Text>
         </Pressable>
       </View>
@@ -65,14 +65,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 9,
     minHeight: 36,
     borderRadius: 13,
-    backgroundColor: signedInChrome.surface,
+    backgroundColor: profileColors.surface,
     borderWidth: 1,
-    borderColor: signedInChrome.border,
+    borderColor: profileColors.border,
   },
   editLabel: {
     fontFamily: fonts.semibold,
     ...typography.caption,
-    color: signedInChrome.ink,
+    color: profileColors.ink,
     includeFontPadding: false,
   },
   info: { marginTop: 8 },
@@ -86,14 +86,14 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     fontFamily: fonts.bold,
     ...typography.title,
-    color: signedInChrome.ink,
+    color: profileColors.ink,
     includeFontPadding: false,
   },
   tagline: {
     marginTop: 1,
     fontFamily: fonts.body,
     ...typography.secondary,
-    color: "#847E77",
+    color: profileColors.muted,
     includeFontPadding: false,
   },
 });

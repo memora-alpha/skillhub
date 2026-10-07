@@ -9,13 +9,13 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { AccountMenu, AppHeader } from "@/components/AppHeader";
+import { AccountMenu, AppHeader } from "@/features/shell";
 import { InfoModal } from "@/components/InfoModal";
 import { LogoutDialog } from "@/components/LogoutDialog";
 import {
   useMockSession,
   type MockSession,
-} from "@/features/auth/context/MockSession";
+} from "@/features/auth";
 import { demoNotifications, recentMessages } from "@/mocks/app";
 import { signedInChrome } from "@/constants/theme";
 import { appRoutes } from "@/constants/navigation";

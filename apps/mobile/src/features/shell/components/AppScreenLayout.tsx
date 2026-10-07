@@ -10,14 +10,16 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Redirect, useRouter, type Href } from "expo-router";
-import { AccountMenu, AppHeader, HomeSearch } from "./AppHeader";
-import { InfoModal } from "./InfoModal";
-import { LogoutDialog } from "./LogoutDialog";
-import { Tag } from "./Tag";
+import { AccountMenu } from "./AccountMenu";
+import { AppHeader } from "./AppHeader";
+import { HomeSearch } from "./HomeSearch";
+import { InfoModal } from "@/components/InfoModal";
+import { LogoutDialog } from "@/components/LogoutDialog";
+import { Tag } from "@/components/Tag";
 import { demoNotifications, popularSkills } from "@/mocks/app";
 import { appRoutes } from "@/constants/navigation";
 import { typography, appColors as colors, fonts } from "@/constants/theme";
-import { useMockSession } from "@/features/auth/context/MockSession";
+import { useMockSession } from "@/features/auth";
 
 // The feature owns its scroll container (FlatList or ScrollView).
 export function AppScreenLayout({

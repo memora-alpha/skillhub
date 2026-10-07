@@ -1,9 +1,9 @@
 import { Redirect, Tabs } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { AppNavigation } from "@/components/AppHeader";
+import { AppNavigation } from "@/features/shell";
 import { appTabs } from "@/constants/navigation";
 import { colors, signedInChrome } from "@/constants/theme";
-import { useMockSession } from "@/features/auth/context/MockSession";
+import { useMockSession } from "@/features/auth";
 
 export default function MainTabsLayout() {
   const { session } = useMockSession();

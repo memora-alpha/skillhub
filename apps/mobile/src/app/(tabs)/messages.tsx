@@ -1,4 +1,4 @@
-import { MessagesScreen } from "@/features/messages/screens/MessagesScreen";
+import { MessagesScreen } from "@/features/messages";
 export default function MessagesRoute() {
   return <MessagesScreen />;
 }

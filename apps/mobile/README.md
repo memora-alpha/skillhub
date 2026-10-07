@@ -52,7 +52,8 @@ npm start
 
 Run `npm run android` to open an Android emulator, or `npm run web` to preview
 this mobile app in the browser. This preview is separate from `apps/web`.
-Run `npm run check-types` and `npm run lint` here to check the mobile app.
+Run `npm run check-structure`, `npm run check-types` and `npm run lint` here to
+check the mobile app.
 Add Expo packages with `npx expo install <package> --npm` for SDK-compatible versions.
 
 Mobile uses local ESLint and TypeScript configuration with no `workspace:*`
@@ -63,6 +64,7 @@ commands can also run mobile's scripts:
 ```powershell
 pnpm --filter mobile check-types
 pnpm --filter mobile lint
+pnpm --filter mobile check-structure
 ```
 
 Keep `package-lock.json` for independent npm installs. The root `pnpm-lock.yaml`
@@ -178,14 +180,16 @@ safe-area insets and narrower header button padding on small phones.
 - `src/features/discovery/`: request list, filters, request detail and sample content.
 - `src/features/calendar/`: month grid, history, session detail and sample schedule.
 - `src/features/messages/`: conversation list, chat and session-scoped local messages.
-- `src/components/`: shared native controls, header, account menu, navigation and dialogs.
+- `src/features/shell/`: signed-in header, account menu, search, navigation and screen shell.
+- `src/components/`: generic native controls and dialogs shared across features.
 - `src/constants/`: design tokens and shared navigation labels.
 - `src/mocks/`: local demo content shared by the app shell and multiple features; feature-specific fixtures stay in their owning feature.
 - `assets/`: locally bundled app icons, welcome photograph, fonts and their licenses.
 
-The shared header is `src/components/AppHeader.tsx`; all signed-in screens reuse it.
-`AppScreenLayout.tsx` supplies safe areas, navigation, notices, account menu and
-logout for the three new screens. Each feature owns its scroll container.
+The shared signed-in shell lives under `src/features/shell/`; all signed-in
+screens reuse it through that feature's public `index.ts`. `AppScreenLayout`
+supplies safe areas, navigation, notices, account menu and logout. Each feature
+owns its scroll container and exposes its public screen API through `index.ts`.
 Keep screen implementations in their features and route files limited to navigation.
 See `AGENTS.md` for the UI-only implementation rules.
 
@@ -194,7 +198,7 @@ See `AGENTS.md` for the UI-only implementation rules.
 Created (16 files):
 
 - `src/app/discover.tsx`, `src/app/calendar.tsx`, `src/app/messages.tsx`
-- `src/components/AppScreenLayout.tsx`, `src/components/Tag.tsx`, `src/components/EmptyState.tsx`
+- `src/features/shell/components/AppScreenLayout.tsx`, `src/components/Tag.tsx`, `src/components/EmptyState.tsx`
 - `src/features/discovery/screens/DiscoverScreen.tsx`
 - `src/features/discovery/components/LearningRequestRow.tsx`
 - `src/features/discovery/mocks/requests.ts`
@@ -207,7 +211,7 @@ Created (16 files):
 
 Modified (6 files):
 
-- `src/components/AppHeader.tsx`: right action slot and responsive screen title.
+- `src/features/shell/components/AppHeader.tsx`: right action slot and responsive screen title.
 - `src/components/BrandLogo.tsx`: optional mark-only mode for narrow headers.
 - `src/constants/navigation.ts`: shared destinations for the implemented tabs.
 - `src/features/home/screens/HomeScreen.tsx`: navigation to the new screens.
@@ -235,8 +239,8 @@ Created (16 files):
 Modified (8 files):
 
 - `src/app/_layout.tsx`: provide the in-memory message store inside the existing demo session.
-- `src/components/AppHeader.tsx`: configurable accessible back-button label.
-- `src/components/AppScreenLayout.tsx`: detail back navigation and returning to the selected tab.
+- `src/features/shell/components/AppHeader.tsx`: configurable accessible back-button label.
+- `src/features/shell/components/AppScreenLayout.tsx`: detail back navigation and returning to the selected tab.
 - `src/components/Icon.tsx`: source SVG paths for send, paperclip and flag.
 - `src/features/discovery/screens/DiscoverScreen.tsx`: open the selected request detail.
 - `src/features/calendar/screens/CalendarScreen.tsx`: open the selected upcoming session detail.

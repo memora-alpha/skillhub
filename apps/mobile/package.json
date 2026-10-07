@@ -38,7 +38,8 @@
     "web": "expo start --web",
     "dev": "expo start",
     "lint": "eslint . --max-warnings 0",
-    "check-types": "tsc --noEmit"
+    "check-types": "tsc --noEmit",
+    "check-structure": "node scripts/check-structure.mjs"
   },
   "private": true
 }

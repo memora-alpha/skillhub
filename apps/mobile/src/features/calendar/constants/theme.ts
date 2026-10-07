@@ -1,11 +1,13 @@
+import { signedInChrome } from "@/constants/theme";
+
 export const calendarColors = {
-  background: "#FCFAF7",
-  surface: "#FFFFFF",
-  ink: "#202521",
+  background: signedInChrome.background,
+  surface: signedInChrome.surface,
+  ink: signedInChrome.ink,
   body: "#534D47",
   muted: "#97928A",
-  border: "#F0ECE6",
-  orange: "#EF653D",
+  border: signedInChrome.border,
+  orange: signedInChrome.accent,
   orangeDark: "#D95120",
   orangeSoft: "#FFF2EC",
   green: "#27977B",
@@ -14,7 +16,7 @@ export const calendarColors = {
   error: "#BA1A1A",
   errorLight: "#FFEFED",
   star: "#FFB800",
-  brand: "#EF653D",
+  brand: signedInChrome.accent,
   brandLight: "#FFF2EC",
   sage: "#27977B",
   sageLight: "#EAF7F0",

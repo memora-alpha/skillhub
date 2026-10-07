@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
-import { AppScreenLayout } from "@/components/AppScreenLayout";
+import { AppScreenLayout } from "@/features/shell";
 import { Button } from "@/components/Button";
 import { EmptyState } from "@/components/EmptyState";
 import { Icon } from "@/components/Icon";

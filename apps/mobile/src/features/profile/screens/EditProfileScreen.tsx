@@ -7,7 +7,7 @@ import { FormNotice } from "@/components/FormNotice";
 import { Input } from "@/components/Input";
 import { InfoModal } from "@/components/InfoModal";
 import { avatarSizes } from "@/constants/theme";
-import { useMockSession } from "@/features/auth/context/MockSession";
+import { useMockSession } from "@/features/auth";
 import { ProfileLayout } from "../components/ProfileLayout";
 import { ProfileSection, profileStyles } from "../components/ProfilePrimitives";
 import { profileDetails } from "../mocks/profile";

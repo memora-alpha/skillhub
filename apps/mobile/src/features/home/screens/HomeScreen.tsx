@@ -9,8 +9,8 @@ import { demoNotifications, popularSkills, recentMessages } from "@/mocks/app";
 import { typography, fonts } from "@/constants/theme";
 import { homeColors as colors } from "../constants/theme";
 import { appRoutes } from "@/constants/navigation";
-import { useMockSession } from "@/features/auth/context/MockSession";
-import { AccountMenu, AppHeader, HomeSearch } from "@/components/AppHeader";
+import { useMockSession } from "@/features/auth";
+import { AccountMenu, AppHeader, HomeSearch } from "@/features/shell";
 import { HomeContent } from "../components/HomeContent";
 import { homeStyles } from "../components/HomePrimitives";
 import {

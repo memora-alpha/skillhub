@@ -1,4 +1,4 @@
-import { CalendarScreen } from "@/features/calendar/screens/CalendarScreen";
+import { CalendarScreen } from "@/features/calendar";
 export default function CalendarRoute() {
   return <CalendarScreen />;
 }

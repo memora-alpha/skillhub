@@ -1,11 +1,13 @@
+import { signedInChrome } from "@/constants/theme";
+
 export const discoveryColors = {
-  background: "#FCFAF7",
-  surface: "#FFFFFF",
-  ink: "#202521",
+  background: signedInChrome.background,
+  surface: signedInChrome.surface,
+  ink: signedInChrome.ink,
   body: "#6E6B66",
   muted: "#97928A",
-  border: "#F0ECE6",
-  orange: "#EF653D",
+  border: signedInChrome.border,
+  orange: signedInChrome.accent,
   orangeDark: "#D95120",
   orangeSoft: "#FFF4EE",
   green: "#27977B",
