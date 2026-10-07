@@ -1,7 +1,8 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Avatar } from "@/components/Avatar";
-import { colors, fonts, radius } from "@/constants/theme";
+import { avatarSizes, typography, fonts } from "@/constants/theme";
 import type { Conversation } from "../mocks/conversations";
+import { messageCardShadow, messageColors as colors } from "../constants/theme";
 
 export function ConversationCard({
   conversation,
@@ -17,131 +18,154 @@ export function ConversationCard({
       accessibilityRole="button"
       accessibilityLabel={`Xem trao đổi với ${conversation.name}${unread ? `, ${unread} tin chưa đọc` : ""}`}
       onPress={onPress}
-      style={({ pressed }) => [
-        styles.card,
-        unread > 0 && styles.unread,
-        pressed && { opacity: 0.8 },
-      ]}
+      style={({ pressed }) => [styles.card, pressed && { opacity: 0.72 }]}
     >
       <View style={styles.row}>
-        <View>
-          <Avatar name={conversation.name} size={48} />
+        {/* Avatar + unread badge */}
+        <View style={styles.avatarWrap}>
+          <Avatar
+            name={conversation.name}
+            userId={conversation.userId}
+            size={avatarSizes.list}
+          />
           {unread > 0 && (
             <View style={styles.count}>
               <Text style={styles.countText}>{unread}</Text>
             </View>
           )}
         </View>
+
+        {/* Content */}
         <View style={styles.main}>
+          {/* Name row */}
           <View style={styles.nameRow}>
-            <Text style={styles.name}>{conversation.name}</Text>
-            <Text style={styles.time}>{conversation.time}</Text>
-          </View>
-          <View style={styles.proposalRow}>
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>Proposal đã chấp nhận</Text>
+            <View style={styles.nameLeft}>
+              <Text
+                numberOfLines={1}
+                style={[styles.name, unread > 0 && styles.nameUnread]}
+              >
+                {conversation.name}
+              </Text>
+              {/* Skill badge */}
+              <View style={styles.skillBadge}>
+                <Text style={styles.skillText}>{conversation.skill}</Text>
+              </View>
             </View>
-            <Text style={styles.proposal}>#{conversation.proposal}</Text>
+            <Text style={[styles.time, unread > 0 && styles.timeUnread]}>
+              {conversation.time}
+            </Text>
           </View>
-          <Text numberOfLines={1} style={styles.request}>
-            {conversation.skill} · {conversation.request}
-          </Text>
-          <Text numberOfLines={1} style={styles.preview}>
+
+          {/* Preview message */}
+          <Text
+            numberOfLines={1}
+            style={[styles.preview, unread > 0 && styles.previewUnread]}
+          >
             {conversation.last}
           </Text>
-          <Text style={styles.messageCount}>
-            {conversation.messages} tin nhắn
+
+          {/* Course / request subtitle */}
+          <Text numberOfLines={1} style={styles.request}>
+            {conversation.request}
           </Text>
         </View>
       </View>
     </Pressable>
   );
 }
+
 const styles = StyleSheet.create({
   card: {
-    padding: 16,
-    borderRadius: radius.card,
-    backgroundColor: colors.white,
+    marginHorizontal: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    backgroundColor: colors.surface,
+    borderRadius: 10,
+    boxShadow: messageCardShadow,
   },
-  unread: { backgroundColor: colors.brandLight },
-  row: { flexDirection: "row", gap: 16, alignItems: "center" },
-  main: { flex: 1, minWidth: 0, gap: 6 },
+  row: { flexDirection: "row", gap: 10, alignItems: "center" },
+  avatarWrap: { position: "relative", flexShrink: 0 },
+  main: { flex: 1, minWidth: 0, gap: 2 },
+
+  // Name row
   nameRow: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     justifyContent: "space-between",
-    gap: 8,
+    gap: 5,
+  },
+  nameLeft: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    minWidth: 0,
+    flexShrink: 1,
   },
   name: {
-    flex: 1,
-    fontFamily: fonts.semibold,
-    fontSize: 16,
-    lineHeight: 24,
+    fontFamily: fonts.bold,
+    ...typography.body,
     color: colors.ink,
+    flexShrink: 1,
+  },
+  nameUnread: {
+    fontFamily: fonts.bold,
   },
   time: {
     fontFamily: fonts.body,
-    fontSize: 12,
-    lineHeight: 16,
+    ...typography.caption,
+    color: colors.mutedLight,
+    flexShrink: 0,
+  },
+
+  skillBadge: {
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 4,
+    backgroundColor: colors.tag,
+    flexShrink: 0,
+  },
+  skillText: {
+    fontFamily: fonts.medium,
+    ...typography.caption,
     color: colors.muted,
-  },
-  proposalRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    alignItems: "center",
-    gap: 8,
-  },
-  badge: {
-    paddingHorizontal: 10,
-    paddingVertical: 2,
-    borderRadius: radius.badge,
-    backgroundColor: colors.sageLight,
-  },
-  badgeText: {
-    fontFamily: fonts.semibold,
-    fontSize: 12,
-    lineHeight: 16,
-    color: colors.sage,
-  },
-  proposal: {
-    fontFamily: fonts.body,
-    fontSize: 10,
-    lineHeight: 16,
-    color: colors.muted,
-  },
-  request: {
-    fontFamily: fonts.body,
-    fontSize: 12,
-    lineHeight: 16,
-    color: colors.body,
   },
   preview: {
     fontFamily: fonts.body,
-    fontSize: 14,
-    lineHeight: 20,
-    color: colors.muted,
+    ...typography.body,
+    color: colors.body,
   },
-  messageCount: {
+  previewUnread: {
+    fontFamily: fonts.semibold,
+    color: colors.ink,
+  },
+
+  request: {
     fontFamily: fonts.body,
-    fontSize: 10,
-    lineHeight: 16,
+    ...typography.secondary,
     color: colors.mutedLight,
   },
+
   count: {
     position: "absolute",
-    top: -4,
-    right: -4,
-    width: 20,
-    height: 20,
+    top: -3,
+    right: -3,
+    minWidth: 18,
+    height: 18,
+    paddingHorizontal: 2,
     borderRadius: 10,
-    backgroundColor: colors.brand,
+    borderWidth: 2,
+    borderColor: colors.surface,
+    backgroundColor: colors.orange,
     justifyContent: "center",
     alignItems: "center",
   },
   countText: {
     fontFamily: fonts.bold,
-    fontSize: 10,
-    lineHeight: 16,
+    fontSize: 9,
+    lineHeight: 12,
+    includeFontPadding: false,
     color: colors.white,
   },
+  timeUnread: { color: colors.orange, fontFamily: fonts.bold },
 });

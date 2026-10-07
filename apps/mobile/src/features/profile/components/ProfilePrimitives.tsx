@@ -8,7 +8,12 @@ import {
   type ViewStyle,
 } from "react-native";
 import { Icon } from "@/components/Icon";
-import { colors, fonts, radius } from "@/constants/theme";
+import {
+  typography,
+  iconSizes,
+  fonts,
+  signedInChrome,
+} from "@/constants/theme";
 
 export function ProfileSection({
   children,
@@ -49,53 +54,55 @@ export function ProfileHeading({
 export function VerifiedBadge() {
   return (
     <View style={styles.badge}>
-      <Icon name="shield" size={10} color={colors.sage} />
+      <Icon name="shield" size={iconSizes.inline} color="#24956C" />
       <Text style={styles.badgeText}>Xác minh</Text>
     </View>
   );
 }
 export const profileStyles = StyleSheet.create({
-  section: { paddingVertical: 8 },
+  section: {
+    padding: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: signedInChrome.border,
+    backgroundColor: signedInChrome.surface,
+    boxShadow: "0 2px 8px rgba(53, 43, 31, 0.04)",
+  },
   headingRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 12,
-    marginBottom: 12,
+    gap: 8,
+    marginBottom: 6,
   },
   heading: {
-    fontFamily: fonts.semibold,
-    fontSize: 16,
-    lineHeight: 25.6,
-    color: colors.ink,
+    fontFamily: fonts.bold,
+    ...typography.heading,
+    color: signedInChrome.ink,
     includeFontPadding: false,
   },
   label: {
     fontFamily: fonts.medium,
-    fontSize: 14,
-    lineHeight: 20,
-    color: colors.ink,
+    ...typography.body,
+    color: signedInChrome.ink,
     includeFontPadding: false,
   },
   body: {
     fontFamily: fonts.body,
-    fontSize: 14,
-    lineHeight: 22.75,
-    color: colors.body,
+    ...typography.body,
+    color: "#5A5550",
     includeFontPadding: false,
   },
   caption: {
     fontFamily: fonts.body,
-    fontSize: 12,
-    lineHeight: 16,
-    color: colors.muted,
+    ...typography.secondary,
+    color: "#8D8881",
     includeFontPadding: false,
   },
   link: {
     fontFamily: fonts.semibold,
-    fontSize: 14,
-    lineHeight: 20,
-    color: colors.brand,
+    ...typography.secondary,
+    color: "#EF653D",
     includeFontPadding: false,
   },
 });
@@ -103,17 +110,16 @@ const styles = StyleSheet.create({
   badge: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 2,
-    borderRadius: radius.badge,
-    backgroundColor: colors.sageLight,
+    gap: 3,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 8,
+    backgroundColor: "#E7F8F1",
   },
   badgeText: {
     fontFamily: fonts.semibold,
-    fontSize: 12,
-    lineHeight: 16,
-    color: colors.sage,
+    ...typography.caption,
+    color: "#24956C",
     includeFontPadding: false,
   },
 });

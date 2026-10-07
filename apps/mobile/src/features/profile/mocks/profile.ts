@@ -1,5 +1,5 @@
 import type { IconName } from "@/components/Icon";
-import { colors } from "@/constants/theme";
+import { appColors as colors } from "@/constants/theme";
 
 export const profileDetails: {
   tagline: string;

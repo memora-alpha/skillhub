@@ -13,7 +13,7 @@ import { AppScreenLayout } from "@/components/AppScreenLayout";
 import { Avatar } from "@/components/Avatar";
 import { EmptyState } from "@/components/EmptyState";
 import { InfoModal } from "@/components/InfoModal";
-import { colors, fonts } from "@/constants/theme";
+import { avatarSizes, typography, fonts } from "@/constants/theme";
 import { useMockSession } from "@/features/auth/context/MockSession";
 import { useMockMessages } from "../context/MockMessages";
 import { conversations, type Conversation } from "../mocks/conversations";
@@ -25,6 +25,7 @@ import {
   AcceptedProposalNotice,
   ChatNextStep,
 } from "../components/ChatActionCards";
+import { messageColors as colors } from "../constants/theme";
 
 export function ChatScreen() {
   const router = useRouter();
@@ -97,7 +98,7 @@ function ChatConversation({ conversation }: { conversation: Conversation }) {
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
-          ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+          ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
           ListHeaderComponent={
             <View style={styles.heading}>
               <Text style={styles.date}>Hôm nay, {messages[0]?.time}</Text>
@@ -105,7 +106,11 @@ function ChatConversation({ conversation }: { conversation: Conversation }) {
             </View>
           }
           renderItem={({ item }) => (
-            <MessageBubble message={item} partner={conversation.name} />
+            <MessageBubble
+              message={item}
+              partner={conversation.name}
+              partnerId={conversation.userId}
+            />
           )}
           ListFooterComponent={
             <View style={styles.footer}>
@@ -114,7 +119,11 @@ function ChatConversation({ conversation }: { conversation: Conversation }) {
                 style={styles.typingRow}
                 accessibilityLabel="Trạng thái đang nhập mẫu"
               >
-                <Avatar name={conversation.name} size={24} />
+                <Avatar
+                  name={conversation.name}
+                  userId={conversation.userId}
+                  size={avatarSizes.inline}
+                />
                 <View style={styles.typing}>
                   {[0, 1, 2].map((index) => (
                     <View key={index} style={styles.dot} />
@@ -155,44 +164,42 @@ function ChatConversation({ conversation }: { conversation: Conversation }) {
   );
 }
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.white },
+  screen: { flex: 1, backgroundColor: colors.surface },
   keyboard: { flex: 1 },
-  list: { flex: 1, backgroundColor: colors.cream },
+  list: { flex: 1, backgroundColor: colors.canvas },
   content: {
     width: "100%",
-    maxWidth: 1152,
+    maxWidth: 640,
     alignSelf: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 20,
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    paddingBottom: 16,
   },
-  heading: { gap: 12, marginBottom: 12 },
+  heading: { gap: 8, marginBottom: 8 },
   date: {
     textAlign: "center",
     fontFamily: fonts.body,
-    fontSize: 12,
-    lineHeight: 16,
+    ...typography.caption,
     color: colors.mutedLight,
-    paddingVertical: 8,
+    paddingVertical: 2,
   },
-  footer: { gap: 12, marginTop: 12 },
-  typingRow: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
+  footer: { gap: 8, marginTop: 10 },
+  typingRow: { flexDirection: "row", alignItems: "flex-end", gap: 8 },
   typing: {
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 16,
-    borderBottomLeftRadius: 4,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    backgroundColor: colors.surface,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
     flexDirection: "row",
     gap: 4,
     alignItems: "center",
-    minHeight: 32,
+    minHeight: 24,
+    boxShadow: "0 2px 6px rgba(53, 43, 31, 0.04)",
   },
   dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 4,
+    height: 4,
+    borderRadius: 2,
     backgroundColor: colors.mutedLight,
   },
 });

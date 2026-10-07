@@ -7,9 +7,14 @@ import {
 } from "react-native";
 import { useState } from "react";
 import { Redirect, useRouter } from "expo-router";
-import { Icon } from "@/components/Icon";
+import { Icon, type IconName } from "@/components/Icon";
 import { shadows } from "@/constants/shadows";
-import { colors, fonts, radius } from "@/constants/theme";
+import {
+  typography,
+  iconSizes,
+  fonts,
+  signedInChrome,
+} from "@/constants/theme";
 import { useMockSession } from "@/features/auth/context/MockSession";
 import { ProfileLayout } from "../components/ProfileLayout";
 import { ProfileHero } from "../components/ProfileHero";
@@ -31,20 +36,25 @@ export function ProfileScreen() {
     <ProfileLayout session={session}>
       {(open) => (
         <View style={styles.stack}>
-          <ProfileHero
-            name={session.name}
-            onEdit={() => router.push("/edit-profile")}
-          />
-          <View style={styles.stats}>
-            {profileDetails.stats.map((stat) => (
-              <View
-                key={stat.label}
-                style={[styles.stat, compact && { paddingHorizontal: 6 }]}
-              >
-                <Text style={styles.statValue}>{stat.value}</Text>
-                <Text style={styles.statLabel}>{stat.label}</Text>
-              </View>
-            ))}
+          <View style={styles.heroCard}>
+            <ProfileHero
+              name={session.name}
+              userId={session.userId}
+              onEdit={() => router.push("/edit-profile")}
+            />
+            <View style={styles.stats}>
+              {profileDetails.stats.map((stat, index) => (
+                <View
+                  key={stat.label}
+                  style={[styles.stat, compact && { paddingHorizontal: 6 }]}
+                >
+                  <Text style={[styles.statValue, { color: statColors[index] }]}>
+                    {stat.value}
+                  </Text>
+                  <Text style={styles.statLabel}>{stat.label}</Text>
+                </View>
+              ))}
+            </View>
           </View>
           <View style={styles.actions}>
             {profileActions.map((action) => (
@@ -60,11 +70,18 @@ export function ProfileScreen() {
                     styles.actionRaised,
                 ]}
               >
-                <View style={styles.actionIcon}>
+                <View
+                  style={[
+                    styles.actionIcon,
+                    {
+                      backgroundColor: actionTints[action.icon] ?? "#F5F4F2",
+                    },
+                  ]}
+                >
                   <Icon
                     name={action.icon}
                     color={action.color}
-                    size={18}
+                    size={iconSizes.control}
                     filled={false}
                   />
                 </View>
@@ -75,10 +92,7 @@ export function ProfileScreen() {
             ))}
           </View>
           <ProfileSection>
-            <Text
-              accessibilityRole="header"
-              style={[profileStyles.heading, { marginBottom: 8 }]}
-            >
+            <Text accessibilityRole="header" style={profileStyles.heading}>
               Giới thiệu
             </Text>
             <Text style={profileStyles.body}>
@@ -91,7 +105,7 @@ export function ProfileScreen() {
               action="Quản lý"
               onPress={() => open("Kỹ năng")}
             />
-            <View style={{ gap: 8 }}>
+            <View style={{ gap: 2 }}>
               {profileDetails.sharingSkills.map((skill) => (
                 <View key={skill.name} style={styles.skill}>
                   <View style={styles.skillName}>
@@ -118,7 +132,7 @@ export function ProfileScreen() {
                   accessibilityLabel={badge.label}
                   style={styles.badge}
                 >
-                  <Icon name={badge.icon} size={24} color={badge.color} />
+                  <Icon name={badge.icon} size={iconSizes.feature} color={badge.color} />
                 </View>
               ))}
               <Pressable
@@ -127,10 +141,10 @@ export function ProfileScreen() {
                 onPress={() => open("Thành tích")}
                 style={[
                   styles.badge,
-                  { borderWidth: 0, backgroundColor: colors.sand },
+                  { borderWidth: 0, backgroundColor: "#F5F4F2" },
                 ]}
               >
-                <Icon name="plus" size={20} color={colors.muted} />
+                <Icon name="plus" size={iconSizes.control} color="#8D8881" />
               </Pressable>
             </View>
           </ProfileSection>
@@ -139,8 +153,8 @@ export function ProfileScreen() {
             onPress={() => open("Thông tin riêng tư")}
             style={styles.private}
           >
-            <View style={styles.actionIcon}>
-              <Icon name="lock" size={18} color={colors.muted} />
+            <View style={[styles.actionIcon, { backgroundColor: "#F5F4F2" }]}>
+              <Icon name="lock" size={iconSizes.control} color="#8D8881" />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={profileStyles.label}>Thông tin riêng tư</Text>
@@ -155,55 +169,65 @@ export function ProfileScreen() {
   );
 }
 const styles = StyleSheet.create({
-  stack: { gap: 16 },
+  stack: { gap: 12 },
+  heroCard: {
+    padding: 16,
+    gap: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: signedInChrome.border,
+    backgroundColor: signedInChrome.surface,
+    boxShadow: "0 3px 10px rgba(53, 43, 31, 0.04)",
+  },
   stats: {
     flexDirection: "row",
-    paddingVertical: 8,
+    gap: 2,
   },
   stat: {
     flex: 1,
     minWidth: 0,
-    padding: 12,
+    paddingVertical: 2,
     alignItems: "center",
+    borderRadius: 0,
   },
   statValue: {
     fontFamily: fonts.bold,
-    fontSize: 18,
-    lineHeight: 28,
-    color: colors.brand,
+    ...typography.body,
     includeFontPadding: false,
   },
   statLabel: {
     fontFamily: fonts.semibold,
-    fontSize: 10,
-    lineHeight: 16,
-    color: colors.muted,
+    ...typography.caption,
+    color: "#8D8881",
     includeFontPadding: false,
   },
-  actions: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  actions: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   action: {
-    flexBasis: "45%",
+    flexBasis: "47%",
     flexGrow: 1,
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    padding: 10,
+    gap: 7,
+    paddingHorizontal: 8,
     minHeight: 56,
-    borderRadius: radius.control,
-    backgroundColor: colors.white,
-    ...shadows.sm,
-    boxShadow: "0 1px 3px rgba(28, 20, 16, 0.06)",
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: signedInChrome.surface,
+    borderWidth: 1,
+    borderColor: signedInChrome.border,
+    boxShadow: "0 2px 6px rgba(53, 43, 31, 0.03)",
   },
   actionRaised: {
-    ...shadows.md,
-    boxShadow: "0 6px 14px rgba(28, 20, 16, 0.12)",
+    ...shadows.sm,
+    boxShadow: "0 4px 10px rgba(53, 43, 31, 0.10)",
     transform: [{ translateY: -1 }],
   },
   actionIcon: {
     width: 32,
     height: 32,
-    borderRadius: radius.control,
-    backgroundColor: colors.cream,
+    flexShrink: 0,
+    borderRadius: 7,
+    backgroundColor: "#FFF5EF",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -212,8 +236,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     flexWrap: "wrap",
-    paddingVertical: 8,
-    gap: 8,
+    paddingVertical: 5,
+    gap: 6,
   },
   skillName: {
     flexDirection: "row",
@@ -223,33 +247,46 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   level: {
-    paddingHorizontal: 10,
-    paddingVertical: 2,
-    borderRadius: radius.badge,
-    backgroundColor: colors.sand,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 7,
+    backgroundColor: "#F5F4F2",
   },
   levelText: {
     fontFamily: fonts.semibold,
-    fontSize: 12,
-    lineHeight: 16,
-    color: colors.body,
+    ...typography.caption,
+    color: "#77716B",
     includeFontPadding: false,
   },
-  badges: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
+  badges: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   badge: {
-    width: 56,
-    height: 56,
-    borderRadius: radius.card,
-    backgroundColor: "#FFFBEB",
+    width: 44,
+    height: 44,
+    borderRadius: 8,
+    backgroundColor: "#FFF8EF",
     borderWidth: 1,
-    borderColor: "#FDE68A",
+    borderColor: "#FFE3BE",
     alignItems: "center",
     justifyContent: "center",
   },
   private: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    paddingVertical: 16,
+    gap: 8,
+    padding: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: signedInChrome.border,
+    backgroundColor: signedInChrome.surface,
   },
 });
+
+const statColors = ["#EF653D", "#2B9D91", "#E66B4A", "#EF653D"];
+const actionTints: Partial<Record<IconName, string>> = {
+  wallet: "#FFF1E9",
+  book: "#EAF8F6",
+  award: "#FFF7DE",
+  shield: "#F0EEFF",
+  star: "#FFF7DE",
+  settings: "#F5F4F2",
+};
