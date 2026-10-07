@@ -8,11 +8,11 @@ Phạm vi phát triển hiện tại của dự án là **backend tại `service
 Web/mobile chỉ được thay đổi khi có yêu cầu riêng. Git và pnpm workspace vẫn
 đặt tại root SkillHub; backend không có Git repository riêng.
 
-API đã có nền tảng hạ tầng và phần Danh tính (spec 002): đăng ký/OTP/login, refresh/logout/reset, hồ sơ/avatar, quyền và quản trị tài khoản có audit. Các module còn lại bên dưới vẫn là kế hoạch; chat và giao dịch Credit chưa được triển khai.
+API đã có nền tảng hạ tầng và phần Danh tính (spec 002): đăng ký/OTP/login, refresh/logout/reset, hồ sơ/avatar, quyền và quản trị tài khoản có audit. Core Learning Request đang được implement theo [spec 007](specs/007-learning-request/plan.md); Catalog/eligibility, Sharing Skill matching, Path/Schedule/Wallet consumers, migration rollout và kiểm chứng DB/Redis thật vẫn là gates. Chat và giao dịch Credit chưa được triển khai.
 
-Schema Prisma đã biểu diễn toàn bộ danh mục dữ liệu: 45 model PostgreSQL và
-25 enum, cùng 2 model chat trong file Prisma MongoDB tham chiếu. Xem
-[schema catalog](prisma/README.md) để đối chiếu 42/42 model logical và phân biệt
+Schema Prisma đã biểu diễn toàn bộ danh mục dữ liệu: 52 model PostgreSQL và
+27 enum, cùng 2 model chat trong file Prisma MongoDB tham chiếu. Xem
+[schema catalog](prisma/README.md) và [LR ERD v3 alignment](specs/007-learning-request/erd-v3-alignment.md) để đối chiếu mapping hiện tại và phân biệt
 schema với runtime Mongoose. Migration danh tính, seed/operator bootstrap,
 ràng buộc SQL và 21 endpoint `/api/v1/...` đã có; migration chỉ được kiểm thử
 trong schema tạm, chưa deploy vào database ứng dụng. Xem [hướng dẫn danh tính](specs/002-user-identity/quickstart.md) và [kết quả kiểm thử](specs/002-user-identity/validation.md).
@@ -192,6 +192,17 @@ trước khi viết spec liên quan. Ghi câu hỏi cần chốt trong feature; 
 giá trị production hoặc coi bản breakdown này là database schema đã phê duyệt.
 
 ## Development
+
+Learning Request verification scripts (run from the repository root):
+
+```powershell
+pnpm --filter api test:learning-request
+pnpm --filter api test:learning-request:integration
+```
+
+The first command builds the API and runs the feature's non-database suites. The
+integration command requires `TEST_DATABASE_URL` to reference an isolated,
+migrated PostgreSQL database; it never falls back to `DATABASE_URL`.
 
 Stack đã chốt và giới hạn triển khai: [foundation plan](specs/001-backend-foundation/plan.md).
 Constitution: [.specify/memory/constitution.md](.specify/memory/constitution.md).

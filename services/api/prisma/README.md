@@ -3,21 +3,23 @@
 The full requirements-derived catalog in `docs/SkillHub_Entities_Fields.md` and
 `docs/SkillHub_Logical_Data_Model.md` is represented by the files here:
 
-- [schema.prisma](schema.prisma): 45 PostgreSQL models (40 relational catalog models plus five identity delivery/security/upload helpers), 25 enums; this is the API's actual Prisma schema.
+- [schema.prisma](schema.prisma): 52 PostgreSQL models, 27 enums; this is the API's actual Prisma schema.
 - [chat.schema.prisma](chat.schema.prisma): two MongoDB document models expressed as Prisma reference only. Runtime continues to use Mongoose; this file has no generator and is excluded from the API Prisma config. PostgreSQL Conversation/User references in documents are application-validated, not cross-database foreign keys.
 
 The full catalog does not imply all modules are implemented. Spec 002 implements
 identity only, with a reviewed migration tested in disposable PostgreSQL schemas.
 [identity.prisma](identity.prisma) is generated from the catalog by
 `scripts/write-identity-schema.mjs`; `db:migrate` uses that current deployment scope.
-It contains SystemConfiguration plus fourteen identity models/eight enums. Future
-catalog tables remain deferred. No migration has been deployed into the existing
+It contains SystemConfiguration, identity/foundation models, and the scoped
+Skill/SkillCategory/Tag and Learning Request dependencies selected by feature
+migrations. The snapshot generator removes relations to models outside deployment
+scope. No migration has been deployed into the existing
 application schema; no `db push` was performed. Seed/bootstrap and runtime checks
 are documented in [identity quickstart](../specs/002-user-identity/quickstart.md).
 
 ## Catalog coverage
 
-All 42 logical table concepts are mapped below. Catalog source fields are kept,
+The legacy logical concepts are mapped below; Learning Request now follows the user-supplied v3 ERD. Its preferred slots are a JSONB field instead of a separate table. See [alignment and Tag evidence](../specs/007-learning-request/erd-v3-alignment.md). Other v3 modules are not audited by this feature. Catalog source fields are kept,
 with the identity feature's more specific credential/session/upload structures.
 
 | Logical table              | Prisma model            | Store             |
@@ -38,7 +40,6 @@ with the identity feature's more specific credential/session/upload structures.
 | `skill_evidence`           | `SkillEvidence`         | PostgreSQL        |
 | `user_learned_skills`      | `UserLearnedSkill`      | PostgreSQL        |
 | `learning_requests`        | `LearningRequest`       | PostgreSQL        |
-| `request_preferred_slots`  | `RequestPreferredSlot`  | PostgreSQL        |
 | `proposals`                | `Proposal`              | PostgreSQL        |
 | `proposal_candidate_slots` | `ProposalCandidateSlot` | PostgreSQL        |
 | `conversations`            | `Conversation`          | PostgreSQL        |
@@ -96,7 +97,7 @@ No schema validation alone proves business safety. Required follow-up includes:
 
 `pnpm --filter api db:validate` and `pnpm --filter api check-types` passed with
 Prisma 7.8.0; the latter generated the ignored PostgreSQL client and typechecked
-existing API consumers. A catalog comparison verified 42/42 logical table coverage.
+existing API consumers. The earlier 42-table comparison predates the LR v3 JSON-slot representation; current LR mapping and verification are recorded in the feature alignment report.
 Prisma formatting passed. Spec 002 additionally tests its migration, constraints,
 concurrency and identity behavior against real PostgreSQL/Redis; see
 [validation](../specs/002-user-identity/validation.md). Future catalog behavior remains unimplemented.

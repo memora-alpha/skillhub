@@ -204,6 +204,9 @@ model User {
   avatarAssets                   AvatarAsset[]
   auditLogs                      AuditLog[]              @relation("AuditActor")
   updatedConfigurations          SystemConfiguration[]   @relation("ConfigurationUpdater")
+  LearningRequestAsOwner         LearningRequest[]       @relation("LearningRequest_owner")
+  LearningRequestAsModerator     LearningRequest[]       @relation("LearningRequest_moderatedBy")
+  NotificationAsUser             Notification[]          @relation("Notification_user")
 
   @@index([createdAt(sort: Desc), id(sort: Desc)])
   @@index([accountStatus, createdAt(sort: Desc), id(sort: Desc)])
@@ -440,4 +443,152 @@ model AuditLog {
   @@index([targetType, targetId, createdAt])
   @@index([createdAt, id])
   @@map("audit_logs")
+}
+
+enum CatalogStatus {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+enum LearningLevel {
+  NONE
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+enum LearningRequestStatus {
+  DRAFT
+  PENDING_MODERATION
+  OPEN
+  REJECTED
+  NEGOTIATING
+  MATCHED
+  CLOSED
+  CANCELLED
+  EXPIRED
+}
+
+enum RequestModerationStatus {
+  NOT_REQUIRED
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum RequestExpiryMode {
+  DEFAULT
+  CUSTOM
+}
+
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+}
+
+model SkillCategory {
+  id               String        @id @default(uuid()) @map("category_id") @db.Uuid
+  name             String        @unique @map("name") @db.VarChar(100)
+  slug             String        @unique @map("slug") @db.VarChar(120)
+  status           CatalogStatus @map("status")
+  parentCategoryId String?       @map("parent_category_id") @db.Uuid
+
+  parentCategory                SkillCategory?  @relation("SkillCategory_parentCategory", fields: [parentCategoryId], references: [id], onDelete: Restrict)
+  SkillCategoryAsParentCategory SkillCategory[] @relation("SkillCategory_parentCategory")
+  SkillAsCategory               Skill[]         @relation("Skill_category")
+
+  @@index([parentCategoryId])
+  @@map("skill_categories")
+}
+
+model Skill {
+  id          String        @id @default(uuid()) @map("skill_id") @db.Uuid
+  name        String        @unique @map("name") @db.VarChar(100)
+  slug        String        @unique @map("slug") @db.VarChar(120)
+  categoryId  String?       @map("category_id") @db.Uuid
+  description String?       @map("description") @db.VarChar(500)
+  status      CatalogStatus @map("status")
+
+  category                SkillCategory?     @relation("Skill_category", fields: [categoryId], references: [id], onDelete: Restrict)
+  LearningRequestAsSkill  LearningRequest[]  @relation("LearningRequest_skill")
+
+  @@index([categoryId])
+  @@map("skills")
+}
+
+model Tag {
+  id     String        @id @default(uuid()) @map("tag_id") @db.Uuid
+  label  String        @unique @db.VarChar(80)
+  status CatalogStatus @map("status")
+
+  learningRequests RequestTag[] @relation("RequestTag_tag")
+
+  @@map("tags")
+}
+
+model LearningRequest {
+  id                        String                  @id @default(uuid()) @map("request_id") @db.Uuid
+  ownerId                   String                  @map("owner_id") @db.Uuid
+  skillId                   String                  @map("skill_id") @db.Uuid
+  title                     String                  @map("title") @db.VarChar(120)
+  description               String                  @map("description") @db.VarChar(3000)
+  learningGoal              String                  @map("learning_goal") @db.VarChar(1000)
+  preferredSlots            Json                    @default("[]") @map("preferred_slots")
+  currentLevel              LearningLevel?          @map("current_level")
+  verifiedTeacherOnly       Boolean                 @default(false) @map("verified_teacher_only")
+  status                    LearningRequestStatus   @default(DRAFT) @map("status")
+  moderationStatus          RequestModerationStatus @default(NOT_REQUIRED) @map("moderation_status")
+  moderationRejectReason    String?                 @map("reject_reason") @db.VarChar(500)
+  flaggedCategories         Json?                   @map("flagged_rules")
+  moderationRuleSetVersion  Int?                    @map("moderation_rule_set_version")
+  moderationReviewedVersion Int?                    @map("moderation_reviewed_version")
+  moderatedByUserId         String?                 @map("reviewed_by_user_id") @db.Uuid
+  moderatedAt               DateTime?               @map("reviewed_at") @db.Timestamptz(3)
+  requestedExpiresAt        DateTime?               @map("requested_expires_at") @db.Timestamptz(3)
+  expiresAt                 DateTime?               @map("expires_at") @db.Timestamptz(3)
+  expiryMode                RequestExpiryMode       @default(DEFAULT) @map("expiry_mode")
+  publishedAt               DateTime?               @map("published_at") @db.Timestamptz(3)
+  version                   Int                     @default(1) @map("content_version")
+  createdAt                 DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                 DateTime                @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  owner         User           @relation("LearningRequest_owner", fields: [ownerId], references: [id], onDelete: Restrict)
+  skill         Skill          @relation("LearningRequest_skill", fields: [skillId], references: [id], onDelete: Restrict)
+  moderatedBy   User?          @relation("LearningRequest_moderatedBy", fields: [moderatedByUserId], references: [id], onDelete: Restrict)
+  tagLinks      RequestTag[]   @relation("RequestTag_request")
+
+  @@index([ownerId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([skillId, status, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([status, createdAt(sort: Desc), id(sort: Desc)])
+  @@map("learning_requests")
+}
+
+model RequestTag {
+  requestId String          @map("request_id") @db.Uuid
+  tagId     String          @map("tag_id") @db.Uuid
+  request   LearningRequest @relation("RequestTag_request", fields: [requestId], references: [id], onDelete: Restrict)
+  tag       Tag             @relation("RequestTag_tag", fields: [tagId], references: [id], onDelete: Restrict)
+
+  @@id([requestId, tagId])
+  @@index([tagId, requestId])
+  @@map("learning_request_tags")
+}
+
+model Notification {
+  id        String              @id @default(uuid()) @map("notification_id") @db.Uuid
+  userId    String              @map("user_id") @db.Uuid
+  // Vocabulary remains open in the SRS; validate in the owning feature.
+  type      String              @map("type") @db.Text
+  title     String              @map("title") @db.VarChar(255)
+  body      String              @map("body") @db.Text
+  payload   Json?               @map("payload")
+  channel   NotificationChannel @map("channel")
+  readAt    DateTime?           @map("read_at") @db.Timestamptz(3)
+  createdAt DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation("Notification_user", fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId, createdAt(sort: Desc), id(sort: Desc)])
+  @@map("notifications")
 }
