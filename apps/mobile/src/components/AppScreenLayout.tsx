@@ -5,6 +5,8 @@ import {
   StyleSheet,
   Text,
   View,
+  type StyleProp,
+  type ViewStyle,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Redirect, useRouter, type Href } from "expo-router";
@@ -14,7 +16,7 @@ import { LogoutDialog } from "./LogoutDialog";
 import { Tag } from "./Tag";
 import { demoNotifications, popularSkills } from "@/mocks/app";
 import { appRoutes } from "@/constants/navigation";
-import { colors, fonts } from "@/constants/theme";
+import { typography, appColors as colors, fonts } from "@/constants/theme";
 import { useMockSession } from "@/features/auth/context/MockSession";
 
 // The feature owns its scroll container (FlatList or ScrollView).
@@ -23,6 +25,7 @@ export function AppScreenLayout({
   selected,
   rightAction,
   back,
+  contentStyle,
   children,
 }: {
   title: string;
@@ -30,6 +33,7 @@ export function AppScreenLayout({
   rightAction?:
     ReactNode | ((openNotice: (label: string) => void) => ReactNode);
   back?: { href: Href; label: string };
+  contentStyle?: StyleProp<ViewStyle>;
   children: (openNotice: (label: string) => void) => ReactNode;
 }) {
   const router = useRouter();
@@ -57,6 +61,7 @@ export function AppScreenLayout({
       style={styles.screen}
     >
       <AppHeader
+        appearance="home"
         profile={session}
         title={title}
         onBack={back ? () => router.dismissTo(back.href) : undefined}
@@ -68,7 +73,7 @@ export function AppScreenLayout({
         onAccount={() => setMenu(true)}
       />
       <KeyboardAvoidingView
-        style={styles.content}
+        style={[styles.content, contentStyle]}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         {children(action)}
@@ -137,12 +142,11 @@ export function AppScreenLayout({
   );
 }
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.white },
-  content: { flex: 1, backgroundColor: colors.cream },
+  screen: { flex: 1, backgroundColor: colors.surface },
+  content: { flex: 1, backgroundColor: colors.canvas },
   body: {
     fontFamily: fonts.body,
-    fontSize: 14,
-    lineHeight: 22,
+    ...typography.body,
     color: colors.body,
   },
 });

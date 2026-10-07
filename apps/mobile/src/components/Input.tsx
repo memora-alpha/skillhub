@@ -7,7 +7,7 @@ import {
   View,
   type TextInputProps,
 } from "react-native";
-import { colors, fonts, radius } from "@/constants/theme";
+import { typography, colors, fonts, radius } from "@/constants/theme";
 import { Icon } from "./Icon";
 
 type InputProps = TextInputProps & {
@@ -100,8 +100,7 @@ const styles = StyleSheet.create({
   group: { gap: 6 },
   label: {
     fontFamily: fonts.semibold,
-    fontSize: 14,
-    lineHeight: 20,
+    ...typography.body,
     color: colors.inkSoft,
     includeFontPadding: false,
   },
@@ -117,8 +116,7 @@ const styles = StyleSheet.create({
   invalid: { borderColor: colors.error },
   input: {
     fontFamily: fonts.body,
-    fontSize: 14,
-    lineHeight: 20,
+    ...typography.body,
     color: colors.ink,
     paddingHorizontal: 16,
     paddingVertical: 12,
@@ -140,15 +138,13 @@ const styles = StyleSheet.create({
     flex: 1,
     color: colors.error,
     fontFamily: fonts.body,
-    fontSize: 12,
-    lineHeight: 16,
+    ...typography.secondary,
     includeFontPadding: false,
   },
   hint: {
     color: colors.muted,
     fontFamily: fonts.body,
-    fontSize: 12,
-    lineHeight: 16,
+    ...typography.secondary,
     includeFontPadding: false,
   },
 });

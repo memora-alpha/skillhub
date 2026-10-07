@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { colors, fonts, radius } from "@/constants/theme";
+import { typography, colors, fonts, radius } from "@/constants/theme";
 import { Icon } from "./Icon";
 
 export function Checkbox({
@@ -59,8 +59,7 @@ const styles = StyleSheet.create({
   label: {
     flexShrink: 1,
     fontFamily: fonts.body,
-    fontSize: 14,
-    lineHeight: 22.75,
+    ...typography.body,
     color: colors.inkSoft,
     includeFontPadding: false,
   },
@@ -68,8 +67,7 @@ const styles = StyleSheet.create({
     marginLeft: 30,
     color: colors.error,
     fontFamily: fonts.body,
-    fontSize: 12,
-    lineHeight: 16,
+    ...typography.secondary,
     includeFontPadding: false,
   },
 });

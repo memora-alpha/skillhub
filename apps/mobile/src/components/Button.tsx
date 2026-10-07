@@ -11,7 +11,14 @@ import { colors, fonts, layout } from "@/constants/theme";
 type ButtonProps = {
   children: ReactNode;
   onPress: () => void;
-  variant?: "primary" | "secondary" | "ghost" | "white";
+  variant?:
+    | "primary"
+    | "secondary"
+    | "ghost"
+    | "white"
+    | "craft"
+    | "forest"
+    | "paper";
   size?: "sm" | "md" | "lg" | "xl";
   style?: StyleProp<ViewStyle>;
   accessibilityLabel?: string;
@@ -28,8 +35,10 @@ export function Button({
   disabled = false,
 }: ButtonProps) {
   const foreground =
-    variant === "primary"
+    variant === "primary" || variant === "craft" || variant === "forest"
       ? colors.white
+      : variant === "paper"
+        ? "#264E3F"
       : variant === "white"
         ? colors.brand
         : colors.inkSoft;
@@ -84,6 +93,13 @@ const styles = StyleSheet.create({
   secondary: { backgroundColor: colors.sand },
   ghost: { backgroundColor: "transparent" },
   white: { backgroundColor: colors.white },
+  craft: { backgroundColor: "#BA4E36" },
+  forest: { backgroundColor: "#264E3F" },
+  paper: {
+    backgroundColor: "#EDE8DF",
+    borderWidth: 1,
+    borderColor: "#E2DCD2",
+  },
 });
 const sizes = StyleSheet.create({
   sm: { paddingHorizontal: 12, paddingVertical: 6 },

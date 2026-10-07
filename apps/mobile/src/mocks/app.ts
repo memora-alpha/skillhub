@@ -11,6 +11,7 @@ export const recentMessages = [
   {
     id: "viet-anh",
     name: "Trần Việt Anh",
+    userId: "demo-viet-anh",
     message: "Xác nhận buổi học thứ 5 nhé bạn?",
     time: "2 giờ trước",
     unread: 2,
@@ -18,6 +19,7 @@ export const recentMessages = [
   {
     id: "bich",
     name: "Nguyễn Thị Bích",
+    userId: "demo-thi-bich",
     message: "Mình muốn học Python cơ bản...",
     time: "5 giờ trước",
     unread: 0,

@@ -6,7 +6,7 @@ import Svg, {
   Polyline,
   Rect,
 } from "react-native-svg";
-import { colors } from "@/constants/theme";
+import { colors, iconSizes } from "@/constants/theme";
 
 export type IconName =
   | "zap"
@@ -33,6 +33,8 @@ export type IconName =
   | "close"
   | "wallet"
   | "settings"
+  | "filter"
+  | "clipboard"
   | "help"
   | "edit"
   | "shield"
@@ -40,10 +42,11 @@ export type IconName =
   | "lock"
   | "flag"
   | "send"
-  | "paperclip";
+  | "paperclip"
+  | "video";
 export function Icon({
   name,
-  size = 18,
+  size = iconSizes.control,
   color = colors.brand,
   filled = name === "star",
 }: {
@@ -56,6 +59,7 @@ export function Icon({
     <Svg
       width={size}
       height={size}
+      style={{ flexShrink: 0 }}
       viewBox="0 0 24 24"
       fill={name === "star" && filled ? color : "none"}
       stroke={color}
@@ -142,6 +146,12 @@ export function Icon({
           <Circle cx={12} cy={7} r={4} />
         </>
       )}
+      {name === "video" && (
+        <>
+          <Rect x={3} y={5} width={12} height={14} rx={2} />
+          <Polygon points="15 9 21 6 21 18 15 15 15 9" />
+        </>
+      )}
       {name === "calendar" && (
         <>
           <Rect x={3} y={4} width={18} height={18} rx={2} />
@@ -191,6 +201,27 @@ export function Icon({
         <>
           <Circle cx={12} cy={12} r={3} />
           <Path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+        </>
+      )}
+      {name === "filter" && (
+        <>
+          <Line x1={3} y1={6} x2={7} y2={6} />
+          <Line x1={11} y1={6} x2={21} y2={6} />
+          <Circle cx={9} cy={6} r={2} />
+          <Line x1={3} y1={12} x2={13} y2={12} />
+          <Line x1={17} y1={12} x2={21} y2={12} />
+          <Circle cx={15} cy={12} r={2} />
+          <Line x1={3} y1={18} x2={7} y2={18} />
+          <Line x1={11} y1={18} x2={21} y2={18} />
+          <Circle cx={9} cy={18} r={2} />
+        </>
+      )}
+      {name === "clipboard" && (
+        <>
+          <Path d="M9 5H6a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3" />
+          <Rect x={9} y={2} width={6} height={6} rx={1} />
+          <Line x1={9} y1={12} x2={15} y2={12} />
+          <Line x1={9} y1={16} x2={15} y2={16} />
         </>
       )}
       {name === "help" && (

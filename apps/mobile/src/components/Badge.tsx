@@ -1,11 +1,11 @@
 import { StyleSheet, Text, View } from "react-native";
-import { colors, fonts, radius } from "@/constants/theme";
+import { typography, appColors as colors, appRadius as radius, fonts } from "@/constants/theme";
 
 const variants = {
-  default: { background: colors.sand, foreground: colors.body },
-  success: { background: colors.successLight, foreground: colors.success },
-  warning: { background: colors.warningLight, foreground: colors.warning },
-  sage: { background: colors.sageLight, foreground: colors.sage },
+  default: { background: colors.surfaceInset, foreground: colors.body },
+  success: { background: colors.successSoft, foreground: colors.success },
+  warning: { background: colors.amberSoft, foreground: colors.amber },
+  sage: { background: colors.forestSoft, foreground: colors.forest },
 };
 export function Badge({
   label,
@@ -30,8 +30,7 @@ const styles = StyleSheet.create({
   },
   text: {
     fontFamily: fonts.semibold,
-    fontSize: 12,
-    lineHeight: 16,
+    ...typography.secondary,
     includeFontPadding: false,
   },
 });

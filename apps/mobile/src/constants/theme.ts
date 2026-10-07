@@ -41,6 +41,29 @@ export const fonts = {
   displayBold: "FrauncesBold",
 } as const;
 
+export const typography = {
+  caption: { fontSize: 11, lineHeight: 15 },
+  secondary: { fontSize: 13, lineHeight: 18 },
+  body: { fontSize: 15, lineHeight: 22 },
+  heading: { fontSize: 17, lineHeight: 24 },
+  title: { fontSize: 20, lineHeight: 28 },
+} as const;
+
+export const iconSizes = {
+  inline: 14,
+  control: 18,
+  navigation: 22,
+  feature: 24,
+} as const;
+
+export const avatarSizes = {
+  inline: 24,
+  compact: 32,
+  list: 40,
+  profile: 64,
+  edit: 96,
+} as const;
+
 export const layout = {
   gutter: 20,
   maxWidth: 1152,
@@ -52,4 +75,72 @@ export const radius = {
   badge: 4,
   control: layout.radius,
   card: 8,
+} as const;
+
+// Stitch "Crafted Exchange" tokens used by the signed-in product surfaces.
+// The public/auth experience keeps the original palette above.
+export const appColors = {
+  primary: "#BA4E36",
+  primaryDark: "#9A3721",
+  primaryPressed: "#832612",
+  primarySoft: "#FFF2F0",
+  primaryMuted: "#FFDAD2",
+  forest: "#264E3F",
+  forestSoft: "#E7F2EC",
+  forestMuted: "#BDE9D5",
+  amber: "#D97736",
+  amberSoft: "#FFF1E7",
+  canvas: "#FCF9F3",
+  surface: "#FFFFFF",
+  surfaceLow: "#F6F3ED",
+  surfaceInset: "#EDE8DF",
+  surfaceHigh: "#E5E2DC",
+  ink: "#1C2520",
+  body: "#57423D",
+  muted: "#8A716C",
+  mutedLight: "#A9958F",
+  border: "#E2DCD2",
+  borderStrong: "#D8CFC4",
+  success: "#2D6A4F",
+  successSoft: "#E7F3EC",
+  warning: "#C85A17",
+  error: "#BA1A1A",
+  white: "#FFFFFF",
+  // Familiar aliases keep feature styles readable while using the Stitch palette.
+  brand: "#BA4E36",
+  brandHover: "#9A3721",
+  brandLight: "#FFF2F0",
+  brandMuted: "#FFDAD2",
+  brandSurface: "#FFDAD2",
+  sage: "#264E3F",
+  sageLight: "#E7F2EC",
+  cream: "#FCF9F3",
+  inkSoft: "#57423D",
+  sand: "#EDE8DF",
+  warningLight: "#FFF1E7",
+  gold: "#D97736",
+  star: "#D97736",
+  errorLight: "#FFEFED",
+} as const;
+
+export const appRadius = {
+  badge: 8,
+  control: 8,
+  card: 16,
+  feature: 24,
+  full: 999,
+} as const;
+
+export const appGradients = {
+  discoveryCard: [appColors.surface, appColors.surfaceLow],
+} as const;
+
+// Shared chrome for every signed-in screen: header, logo and bottom navigation.
+export const signedInChrome = {
+  background: "#FCFAF7",
+  surface: "#FFFFFF",
+  ink: "#202521",
+  muted: "#AAA69F",
+  border: "#F0ECE6",
+  accent: "#EF653D",
 } as const;
