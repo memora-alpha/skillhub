@@ -10,7 +10,12 @@ export const onboardingTasks: {
   { label: "Khám phá kỹ năng", done: false, icon: "search" },
   { label: "Tạo yêu cầu học đầu tiên", done: false, icon: "edit" },
 ];
-export const newUserSummary = { credit: 50, reputation: 50, learned: 0, taught: 0 };
+export const newUserSummary = {
+  credit: 50,
+  reputation: 50,
+  learned: 0,
+  taught: 0,
+};
 export const returningSummary = {
   credit: 340,
   reputation: 142,
@@ -20,6 +25,7 @@ export const returningSummary = {
 export const nextSession = {
   title: "React Hooks & State Management",
   mentor: "Trần Việt Anh",
+  mentorId: "demo-viet-anh",
   schedule: "Thứ 5, 20:00 – 21:30",
 };
 export const learningPath = {
@@ -33,6 +39,7 @@ export const matchingRequests = [
     id: "react",
     title: "Muốn học React từ cơ bản đến nâng cao",
     name: "Lê Hồng Anh",
+    userId: "demo-hong-anh",
     credit: 50,
     match: 95,
   },
@@ -40,6 +47,7 @@ export const matchingRequests = [
     id: "portfolio",
     title: "Cần mentor hướng dẫn xây dựng portfolio",
     name: "Vũ Minh Tuấn",
+    userId: "demo-minh-tuan",
     credit: 45,
     match: 87,
   },
