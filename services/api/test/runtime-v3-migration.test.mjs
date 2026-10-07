@@ -12,7 +12,7 @@ import { OutboxPublisherRegistry } from "../dist/infrastructure/events/outbox.ty
 
 const url = process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL;
 test(
-  "v3 migration preserves identity, profile, role and foundation data",
+  "v3 migration preserves identity, foundation and learning request data and constraints",
   {
     skip:
       !url &&
@@ -46,6 +46,11 @@ test(
         admin = randomUUID();
       const audit = randomUUID(),
         event = randomUUID();
+      const category = randomUUID(),
+        skill = randomUUID(),
+        tag = randomUUID(),
+        request = randomUUID(),
+        notification = randomUUID();
       const uninitialized = randomUUID();
       await client.query(
         `INSERT INTO roles(id,code,description) VALUES ($1,'USER','USER'),($2,'STAFF','STAFF'),($3,'ADMIN','ADMIN')`,
@@ -85,10 +90,130 @@ test(
         [event],
       );
       await client.query(
+        `INSERT INTO skill_categories(category_id,name,slug,status) VALUES ($1,'Migration category','migration-category','ACTIVE')`,
+        [category],
+      );
+      await client.query(
+        `INSERT INTO skills(skill_id,name,slug,category_id,status) VALUES ($1,'Migration skill','migration-skill',$2,'ACTIVE')`,
+        [skill, category],
+      );
+      await client.query(
+        `INSERT INTO tags(tag_id,label,status) VALUES ($1,'Migration tag','ACTIVE')`,
+        [tag],
+      );
+      await client.query(
+        `INSERT INTO learning_requests(request_id,owner_id,skill_id,title,description,learning_goal,
+          preferred_slots,current_level,verified_teacher_only,status,moderation_status,reject_reason,
+          flagged_rules,moderation_rule_set_version,moderation_reviewed_version,reviewed_by_user_id,
+          reviewed_at,requested_expires_at,expires_at,expiry_mode,published_at,content_version,updated_at)
+        VALUES ($1,$2,$3,'Learn migration safety','A detailed request that survives the v3 upgrade.',
+          'Preserve request lifecycle data.',
+          '[{"startAt":"2026-12-01T10:00:00Z","endAt":"2026-12-01T11:00:00Z"}]',
+          'BEGINNER',true,'REJECTED','REJECTED','Please clarify the learning goal',
+          '["review-category"]',4,2,$2,'2026-10-07T00:00:00Z',
+          '2026-12-01T00:00:00Z','2026-12-01T00:00:00Z','CUSTOM','2026-10-06T00:00:00Z',3,CURRENT_TIMESTAMP)`,
+        [request, user, skill],
+      );
+      await client.query(
+        `INSERT INTO learning_request_tags(request_id,tag_id) VALUES ($1,$2)`,
+        [request, tag],
+      );
+      await client.query(
+        `INSERT INTO notifications(notification_id,user_id,type,title,body,payload,channel,read_at)
+        VALUES ($1,$2,'LEARNING_REQUEST_REJECTED','Request update','Please clarify the learning goal',
+          jsonb_build_object('requestId',$3::text),'IN_APP','2026-10-07T01:00:00Z')`,
+        [notification, user, request],
+      );
+      const retainedTables = [
+        "skill_categories",
+        "skills",
+        "tags",
+        "learning_requests",
+        "learning_request_tags",
+        "notifications",
+      ];
+      const beforeLearningRequest = new Map();
+      for (const table of retainedTables)
+        beforeLearningRequest.set(
+          table,
+          (await client.query(`SELECT * FROM "${table}"`)).rows,
+        );
+      const requestChecks = (
+        await client.query(
+          `SELECT conname,pg_get_constraintdef(oid) AS definition FROM pg_constraint
+          WHERE conrelid='learning_requests'::regclass AND contype='c' ORDER BY conname`,
+        )
+      ).rows;
+      assert.equal(requestChecks.length, 11);
+      await client.query(
         await readFile(
           new URL("20261007000000_runtime_v3/migration.sql", root),
           "utf8",
         ),
+      );
+      for (const table of retainedTables)
+        assert.deepEqual(
+          (await client.query(`SELECT * FROM "${table}"`)).rows,
+          beforeLearningRequest.get(table),
+          `${table} data changed during v3 upgrade`,
+        );
+      assert.deepEqual(
+        (
+          await client.query(
+            `SELECT conname,pg_get_constraintdef(oid) AS definition FROM pg_constraint
+          WHERE conrelid='learning_requests'::regclass AND contype='c' ORDER BY conname`,
+          )
+        ).rows,
+        requestChecks,
+      );
+      const draft = (
+        await client.query(
+          `INSERT INTO learning_requests(request_id,owner_id,skill_id,title,description,learning_goal,updated_at)
+          VALUES ($1,$2,$3,'Default request','A detailed request using retained defaults.','Verify request defaults.',CURRENT_TIMESTAMP)
+          RETURNING *`,
+          [randomUUID(), user, skill],
+        )
+      ).rows[0];
+      assert.equal(draft.status, "DRAFT");
+      assert.equal(draft.moderation_status, "NOT_REQUIRED");
+      assert.equal(draft.verified_teacher_only, false);
+      assert.equal(draft.content_version, 1);
+      assert.equal(draft.expiry_mode, "DEFAULT");
+      assert.deepEqual(draft.preferred_slots, []);
+      await assert.rejects(
+        client.query(
+          `UPDATE learning_requests SET title='short' WHERE request_id=$1`,
+          [request],
+        ),
+        /learning_requests_title_check/,
+      );
+      await assert.rejects(
+        client.query(
+          `UPDATE learning_requests SET preferred_slots='[{}, {}, {}, {}, {}, {}]' WHERE request_id=$1`,
+          [request],
+        ),
+        /learning_requests_preferred_slots_check/,
+      );
+      await assert.rejects(
+        client.query(
+          `UPDATE learning_requests SET requested_expires_at=NULL WHERE request_id=$1`,
+          [request],
+        ),
+        /learning_requests_requested_expiry_mode_check/,
+      );
+      const ownerForeignKey = (
+        await client.query(
+          `SELECT pg_get_constraintdef(oid) AS definition FROM pg_constraint
+          WHERE conrelid='learning_requests'::regclass AND conname='learning_requests_owner_id_fkey'`,
+        )
+      ).rows[0].definition;
+      assert.match(ownerForeignKey, /REFERENCES users\(user_id\)/);
+      await assert.rejects(
+        client.query(
+          `UPDATE learning_requests SET owner_id=$1 WHERE request_id=$2`,
+          [randomUUID(), request],
+        ),
+        /learning_requests_owner_id_fkey/,
       );
       const {
         rows: [row],
@@ -188,7 +313,7 @@ test(
             [schema],
           )
         ).rows[0].count,
-        55,
+        57,
       );
     } finally {
       await client.query("ROLLBACK").catch(() => {});
