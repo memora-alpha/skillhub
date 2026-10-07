@@ -9,14 +9,14 @@ import {
   View,
 } from "react-native";
 import { AppScreenLayout } from "@/components/AppScreenLayout";
-import { Button } from "@/components/Button";
 import { EmptyState } from "@/components/EmptyState";
 import { Icon } from "@/components/Icon";
-import { colors, fonts, radius } from "@/constants/theme";
+import { iconSizes, typography, fonts } from "@/constants/theme";
 import { ConversationCard } from "../components/ConversationCard";
 import { useMockMessages } from "../context/MockMessages";
 import { initialThreads } from "../mocks/chat";
-import { conversations, conversationHint } from "../mocks/conversations";
+import { conversations } from "../mocks/conversations";
+import { messageColors as colors } from "../constants/theme";
 
 export function MessagesScreen() {
   const router = useRouter();
@@ -43,158 +43,214 @@ export function MessagesScreen() {
       .includes(normalized),
   );
   return (
-    <AppScreenLayout title="Tin nhắn" selected="Tin nhắn">
+    <AppScreenLayout
+      title="Tin nhắn"
+      selected="Tin nhắn"
+      contentStyle={styles.background}
+    >
       {(open) => (
-        <>
-          <FlatList
-            data={filtered}
-            keyExtractor={(item) => item.proposal}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-            keyboardDismissMode="on-drag"
-            style={styles.list}
-            contentContainerStyle={styles.content}
-            ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
-            ListHeaderComponent={
-              <View style={styles.heading}>
-                <View style={{ gap: 4 }}>
-                  <Text accessibilityRole="header" style={styles.title}>
-                    Các cuộc trao đổi đã mở
-                  </Text>
-                  <Text style={styles.subtitle}>
-                    Chỉ Proposal đã được chấp nhận mới xuất hiện tại đây.
+        <FlatList
+          data={filtered}
+          keyExtractor={(item) => item.proposal}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          style={styles.list}
+          contentContainerStyle={styles.content}
+          ItemSeparatorComponent={() => <View style={styles.separator} />}
+          ListHeaderComponent={
+            <View>
+              {/* Proposal banner */}
+              <Pressable
+                style={styles.banner}
+                accessibilityRole="button"
+                accessibilityLabel="Xem các proposal hiện có"
+                onPress={() => open("Proposal")}
+              >
+                <View style={styles.bannerIcon}>
+                  <Icon name="clipboard" size={iconSizes.control} color={colors.orange} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.bannerTitle}>Các proposal hiện có</Text>
+                  <Text style={styles.bannerSub}>
+                    Đang chờ duyệt hoặc phản hồi
                   </Text>
                 </View>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onPress={() => open("Proposal")}
-                >
-                  Xem Proposal
-                </Button>
-                <View
-                  style={[
-                    styles.search,
-                    focused && { borderColor: colors.brand },
-                  ]}
-                >
-                  <Icon name="search" color={colors.muted} size={16} />
-                  <TextInput
-                    accessibilityLabel="Tìm cuộc trao đổi"
-                    value={query}
-                    onChangeText={setQuery}
-                    onFocus={() => setFocused(true)}
-                    onBlur={() => setFocused(false)}
-                    placeholder="Tìm theo người, kỹ năng hoặc bài đăng..."
-                    placeholderTextColor={colors.mutedLight}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    returnKeyType="search"
-                    style={styles.input}
-                  />
-                  {!!query && (
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel="Xóa tìm kiếm"
-                      onPress={() => setQuery("")}
-                      hitSlop={8}
-                    >
-                      <Icon name="close" size={16} color={colors.muted} />
-                    </Pressable>
-                  )}
+                <View style={styles.bannerBtn}>
+                  <Text style={styles.bannerBtnText}>Xem</Text>
+                  <Icon name="chevron" size={iconSizes.inline} color={colors.orange} />
                 </View>
+              </Pressable>
+
+              {/* Search bar */}
+              <View
+                style={[
+                  styles.search,
+                  focused && { borderColor: colors.orange },
+                ]}
+              >
+                <Icon name="search" color={colors.muted} size={iconSizes.control} />
+                <TextInput
+                  accessibilityLabel="Tìm cuộc trao đổi"
+                  value={query}
+                  onChangeText={setQuery}
+                  onFocus={() => setFocused(true)}
+                  onBlur={() => setFocused(false)}
+                  placeholder="Tìm theo người, kỹ năng hoặc bài đăng..."
+                  placeholderTextColor={colors.mutedLight}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  returnKeyType="search"
+                  style={styles.input}
+                />
+                {!!query && (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Xóa tìm kiếm"
+                    onPress={() => setQuery("")}
+                    hitSlop={8}
+                  >
+                    <Icon name="close" size={iconSizes.control} color={colors.muted} />
+                  </Pressable>
+                )}
               </View>
-            }
-            renderItem={({ item }) => (
-              <ConversationCard
-                conversation={item}
-                unread={read.includes(item.proposal) ? 0 : item.unread}
-                onPress={() =>
-                  router.push({
-                    pathname: "/chat/[proposalId]",
-                    params: { proposalId: item.proposal },
-                  })
-                }
-              />
-            )}
-            ListEmptyComponent={
-              <EmptyState
-                icon="message"
-                title="Không tìm thấy cuộc trao đổi"
-                description="Thử tên người, kỹ năng hoặc nội dung bài đăng khác."
-                action="Xóa tìm kiếm"
-                onAction={() => setQuery("")}
-              />
-            }
-            ListFooterComponent={
-              <View style={styles.hint}>
-                <Icon name="alert" size={16} color="#1E40AF" />
-                <Text style={styles.hintText}>{conversationHint}</Text>
+
+              {/* Section header */}
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>
+                  {"CÁC PROPOSAL ĐÃ CHẤP NHẬN  "}
+                  <Text style={styles.sectionCount}>{filtered.length}</Text>
+                </Text>
+                <Text style={styles.sectionRight}>Đang trao đổi</Text>
               </View>
-            }
-          />
-        </>
+            </View>
+          }
+          renderItem={({ item }) => (
+            <ConversationCard
+              conversation={item}
+              unread={read.includes(item.proposal) ? 0 : item.unread}
+              onPress={() =>
+                router.push({
+                  pathname: "/chat/[proposalId]",
+                  params: { proposalId: item.proposal },
+                })
+              }
+            />
+          )}
+          ListEmptyComponent={
+            <EmptyState
+              icon="message"
+              title="Không tìm thấy cuộc trao đổi"
+              description="Thử tên người, kỹ năng hoặc nội dung bài đăng khác."
+              action="Xóa tìm kiếm"
+              onAction={() => setQuery("")}
+            />
+          }
+        />
       )}
     </AppScreenLayout>
   );
 }
+
 const styles = StyleSheet.create({
+  background: { backgroundColor: colors.background },
   list: { flex: 1 },
   content: {
     width: "100%",
-    maxWidth: 896,
+    maxWidth: 640,
     alignSelf: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 20,
+    paddingBottom: 24,
   },
-  heading: { gap: 20, marginBottom: 20 },
-  title: {
-    fontFamily: fonts.displayBold,
+  separator: { height: 8 },
+  banner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginHorizontal: 12,
+    marginTop: 14,
+    marginBottom: 10,
+    paddingVertical: 9,
+    paddingHorizontal: 10,
+    backgroundColor: colors.orangePale,
+    borderWidth: 1,
+    borderColor: "#FFE6D9",
+    borderRadius: 9,
+  },
+  bannerTitle: {
+    fontFamily: fonts.bold,
+    ...typography.body,
     color: colors.ink,
-    fontSize: 24,
-    lineHeight: 32,
   },
-  subtitle: {
+  bannerSub: {
     fontFamily: fonts.body,
+    ...typography.caption,
     color: colors.muted,
-    fontSize: 14,
-    lineHeight: 20,
+  },
+  bannerBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 5,
+    backgroundColor: colors.orangeSoft,
+  },
+  bannerBtnText: {
+    fontFamily: fonts.bold,
+    ...typography.caption,
+    color: colors.orange,
+  },
+  bannerIcon: {
+    width: 32,
+    height: 32,
+    flexShrink: 0,
+    borderRadius: 7,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.orangeSoft,
   },
   search: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    paddingHorizontal: 12,
+    marginHorizontal: 12,
+    marginBottom: 2,
+    paddingHorizontal: 10,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 12,
-    backgroundColor: colors.white,
+    borderRadius: 8,
+    backgroundColor: colors.surface,
   },
   input: {
     flex: 1,
     minWidth: 0,
-    paddingVertical: 10,
+    paddingVertical: 8,
     fontFamily: fonts.body,
     color: colors.ink,
-    fontSize: 14,
-    lineHeight: 20,
+    ...typography.secondary,
   },
-  hint: {
+  sectionHeader: {
     flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 10,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: "#BFDBFE",
-    backgroundColor: "#EFF6FF",
-    borderRadius: radius.card,
-    marginTop: 20,
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 12,
+    paddingTop: 14,
+    paddingBottom: 8,
   },
-  hintText: {
-    flex: 1,
+  sectionTitle: {
+    fontFamily: fonts.bold,
+    ...typography.caption,
+    letterSpacing: 0,
+    color: colors.muted,
+  },
+  sectionCount: {
+    fontFamily: fonts.bold,
+    ...typography.caption,
+    color: colors.orange,
+  },
+  sectionRight: {
     fontFamily: fonts.body,
-    fontSize: 14,
-    lineHeight: 22.75,
-    color: "#1E40AF",
+    ...typography.caption,
+    color: colors.muted,
   },
 });

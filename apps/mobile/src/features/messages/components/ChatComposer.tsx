@@ -1,8 +1,9 @@
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { useState } from "react";
 import { Icon } from "@/components/Icon";
-import { colors, fonts } from "@/constants/theme";
+import { iconSizes, typography, fonts } from "@/constants/theme";
 import { chatCopy } from "../mocks/chat";
+import { messageColors as colors } from "../constants/theme";
 
 export function ChatComposer({
   value,
@@ -26,7 +27,7 @@ export function ChatComposer({
           onPress={onAttach}
           style={styles.attach}
         >
-          <Icon name="paperclip" size={18} color={colors.muted} />
+          <Icon name="paperclip" size={iconSizes.control} color={colors.muted} />
         </Pressable>
         <TextInput
           accessibilityLabel="Nhập tin nhắn"
@@ -49,7 +50,7 @@ export function ChatComposer({
           onPress={() => onSend(value)}
           style={[styles.send, disabled && { opacity: 0.5 }]}
         >
-          <Icon name="send" size={16} color={colors.white} />
+          <Icon name="send" size={iconSizes.control} color={colors.white} />
         </Pressable>
       </View>
       <Text style={styles.hint}>{chatCopy.footer}</Text>
@@ -58,46 +59,50 @@ export function ChatComposer({
 }
 const styles = StyleSheet.create({
   composer: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderTopWidth: 1,
     borderColor: colors.border,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    gap: 3,
   },
   row: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 6,
     width: "100%",
     maxWidth: 768,
     alignSelf: "center",
   },
-  attach: { paddingHorizontal: 12, paddingVertical: 6 },
+  attach: {
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   input: {
     flex: 1,
     minWidth: 0,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: colors.cream,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
+    minHeight: 44,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: "#F5F4F2",
+    borderRadius: 16,
     fontFamily: fonts.body,
-    fontSize: 14,
-    lineHeight: 20,
+    ...typography.body,
     color: colors.ink,
   },
   send: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    backgroundColor: colors.brand,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.orange,
   },
   hint: {
     fontFamily: fonts.body,
-    fontSize: 10,
-    lineHeight: 16,
+    ...typography.caption,
     textAlign: "center",
     color: colors.mutedLight,
   },

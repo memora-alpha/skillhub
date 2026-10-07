@@ -6,6 +6,7 @@ import { Button } from "@/components/Button";
 import { FormNotice } from "@/components/FormNotice";
 import { Input } from "@/components/Input";
 import { InfoModal } from "@/components/InfoModal";
+import { avatarSizes } from "@/constants/theme";
 import { useMockSession } from "@/features/auth/context/MockSession";
 import { ProfileLayout } from "../components/ProfileLayout";
 import { ProfileSection, profileStyles } from "../components/ProfilePrimitives";
@@ -66,7 +67,11 @@ export function EditProfileScreen() {
           )}
           <ProfileSection>
             <View style={styles.avatarRow}>
-              <Avatar name={session.name} size={96} />
+              <Avatar
+                name={session.name}
+                userId={session.userId}
+                size={avatarSizes.edit}
+              />
               <View style={styles.avatarActions}>
                 <Button
                   size="sm"

@@ -1,28 +1,36 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Avatar } from "@/components/Avatar";
 import { Icon } from "@/components/Icon";
-import { colors, fonts, radius } from "@/constants/theme";
+import {
+  typography,
+  avatarSizes,
+  iconSizes,
+  fonts,
+  signedInChrome,
+} from "@/constants/theme";
 import { VerifiedBadge } from "./ProfilePrimitives";
 import { profileDetails } from "../mocks/profile";
 
 export function ProfileHero({
   name,
+  userId,
   onEdit,
 }: {
   name: string;
+  userId: string;
   onEdit: () => void;
 }) {
   return (
     <View style={styles.hero}>
       <View style={styles.top}>
-        <Avatar name={name} size={64} />
+        <Avatar name={name} userId={userId} size={avatarSizes.profile} />
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Chỉnh sửa hồ sơ"
           onPress={onEdit}
           style={({ pressed }) => [styles.edit, pressed && { opacity: 0.7 }]}
         >
-          <Icon name="edit" size={14} color={colors.ink} />
+          <Icon name="edit" size={iconSizes.inline} color={signedInChrome.ink} />
           <Text style={styles.editLabel}>Chỉnh sửa</Text>
         </Pressable>
       </View>
@@ -40,52 +48,52 @@ export function ProfileHero({
 }
 const styles = StyleSheet.create({
   hero: {
-    paddingVertical: 8,
+    paddingHorizontal: 2,
+    paddingTop: 1,
   },
   top: {
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: "space-between",
-    gap: 12,
+    gap: 8,
   },
   edit: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: radius.control,
-    backgroundColor: colors.white,
+    gap: 4,
+    paddingHorizontal: 9,
+    minHeight: 36,
+    borderRadius: 13,
+    backgroundColor: signedInChrome.surface,
+    borderWidth: 1,
+    borderColor: signedInChrome.border,
   },
   editLabel: {
     fontFamily: fonts.semibold,
-    fontSize: 14,
-    lineHeight: 20,
-    color: colors.ink,
+    ...typography.caption,
+    color: signedInChrome.ink,
     includeFontPadding: false,
   },
-  info: { marginTop: 16 },
+  info: { marginTop: 8 },
   nameRow: {
     flexDirection: "row",
     alignItems: "center",
     flexWrap: "wrap",
-    gap: 8,
+    gap: 5,
   },
   name: {
     flexShrink: 1,
-    fontFamily: fonts.displayBold,
-    fontSize: 24,
-    lineHeight: 32,
-    color: colors.ink,
+    fontFamily: fonts.bold,
+    ...typography.title,
+    color: signedInChrome.ink,
     includeFontPadding: false,
   },
   tagline: {
-    marginTop: 2,
+    marginTop: 1,
     fontFamily: fonts.body,
-    fontSize: 14,
-    lineHeight: 20,
-    color: colors.muted,
+    ...typography.secondary,
+    color: "#847E77",
     includeFontPadding: false,
   },
 });
