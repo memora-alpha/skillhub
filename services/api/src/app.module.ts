@@ -19,6 +19,8 @@ import { SystemConfigurationModule } from "./modules/system-configuration/system
 import { HttpExceptionFilter } from "./shared/http/http-exception.filter";
 import { HealthController } from "./health.controller";
 import { IdentityModule } from "./modules/identity.module";
+import { LearningRequestsModule } from "./modules/learning-requests/learning-requests.module";
+import { NotificationsModule } from "./modules/notifications/notifications.module";
 
 @Module({
   imports: [
@@ -53,6 +55,8 @@ import { IdentityModule } from "./modules/identity.module";
     SystemConfigurationModule,
     StorageModule,
     IdentityModule,
+    LearningRequestsModule,
+    NotificationsModule,
   ],
   controllers: [HealthController],
   providers: [
