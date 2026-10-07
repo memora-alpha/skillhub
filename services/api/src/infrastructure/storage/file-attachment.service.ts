@@ -9,7 +9,7 @@ export class FileAttachmentService {
   constructor(private readonly db: PrismaService) {}
   async status(actor: Actor, id: string) {
     const row = await this.db.storedFile.findUnique({ where: { id } });
-    if (!row || row.uploadedBy !== actor.userId || row.purpose !== "EVIDENCE")
+    if (row?.uploadedBy !== actor.userId || row.purpose !== "EVIDENCE")
       throw new FileStorageError("FILE_NOT_FOUND", 404);
     return { fileId: row.id, state: row.state, generation: row.generation };
   }
@@ -21,7 +21,7 @@ export class FileAttachmentService {
   ) {
     await tx.$queryRaw`SELECT id FROM stored_files WHERE id=${id}::uuid FOR UPDATE`;
     const row = await tx.storedFile.findUnique({ where: { id } });
-    if (!row || row.uploadedBy !== actor.userId || row.purpose !== "EVIDENCE")
+    if (row?.uploadedBy !== actor.userId || row.purpose !== "EVIDENCE")
       throw new FileStorageError("FILE_NOT_FOUND", 404);
     if (
       row.state !== "READY" ||
@@ -57,11 +57,7 @@ export class FileAttachmentService {
   ) {
     await tx.$queryRaw`SELECT id FROM stored_files WHERE id=${id}::uuid FOR UPDATE`;
     const row = await tx.storedFile.findUnique({ where: { id } });
-    if (
-      !row ||
-      row.resourceType !== resource.type ||
-      row.resourceId !== resource.id
-    )
+    if (row?.resourceType !== resource.type || row.resourceId !== resource.id)
       throw new FileStorageError("FILE_NOT_FOUND", 404);
     if (row.state !== "READY" || row.scanVerdict !== "CLEAN")
       throw new FileStorageError("FILE_NOT_READY", 409);

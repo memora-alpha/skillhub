@@ -37,16 +37,15 @@ export class SkillsRepository {
       status: admin ? (query.status ?? null) : "ACTIVE",
     });
     const cursor = readCursor(query.cursor, scope);
+    const status = admin ? query.status : "ACTIVE";
     const where: Prisma.SkillWhereInput = {
-      ...(admin
-        ? query.status
-          ? { status: query.status }
-          : {}
-        : { status: "ACTIVE" }),
+      ...(status ? { status } : {}),
       ...(query.categoryId ? { categoryId: query.categoryId } : {}),
       ...(query.q
         ? {
-            nameKey: { contains: nameKey(query.q).replace(/[\\%_]/gu, "\\$&") },
+            nameKey: {
+              contains: nameKey(query.q).replace(/[\\%_]/gu, String.raw`\$&`),
+            },
           }
         : {}),
       ...(cursor

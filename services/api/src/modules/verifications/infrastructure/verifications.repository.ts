@@ -81,7 +81,7 @@ export class VerificationsRepository {
   ) {
     return tx.skillEvidence.create({ data });
   }
-  async pending(tx: TransactionContext, sharingSkillId: string) {
+  pending(tx: TransactionContext, sharingSkillId: string) {
     return tx.skillVerification.count({
       where: { sharingSkillId, status: "PENDING" },
     });

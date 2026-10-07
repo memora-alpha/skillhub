@@ -63,9 +63,10 @@ export async function createSkillFixture(beforeSkillsMigration) {
     await client.query(`CREATE SCHEMA "${schema}"`);
     await client.query(`SET search_path TO "${schema}"`);
     const migrations = new URL("../../prisma/migrations/", import.meta.url);
+    // Migrations and the pre-Skills hook must finish in chronological order.
     for (const name of (await readdir(migrations))
-      .filter((n) => /^2026/.test(n))
-      .sort()) {
+      .filter((n) => n.startsWith("2026"))
+      .sort((left, right) => left.localeCompare(right))) {
       if (name === "20261007010000_skills")
         await beforeSkillsMigration?.(client);
       await client.query(
@@ -164,6 +165,7 @@ export async function createSkillFixture(beforeSkillsMigration) {
         const user = await identity.users.create(tx, {
           email: `${id}@fixture.invalid`,
           fullName: "Skill Fixture User",
+          // Test placeholder only; these accounts authenticate through issued session tokens.
           passwordHash: "fixture-hash",
         });
         await identity.users.activate(tx, user.id);

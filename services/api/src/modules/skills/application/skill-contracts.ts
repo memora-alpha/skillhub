@@ -15,6 +15,8 @@ export type SkillQuery = {
   limit: number;
 };
 export function commandJson(value: object): JsonValue {
+  // Normalize to JSON, removing undefined optional fields before idempotency validation.
+  // structuredClone preserves undefined and would change the command contract.
   return JSON.parse(JSON.stringify(value)) as JsonValue;
 }
 export function uniqueConflict(error: unknown): never {

@@ -76,19 +76,21 @@ export class SharingSkillsRepository {
       archived: query.includeArchived ?? false,
     });
     const cursor = readCursor(query.cursor, scope);
+    let visibility: Prisma.SharingSkillWhereInput = query.includeArchived
+      ? {}
+      : { archivedAt: null };
+    if (publicOnly) {
+      visibility = {
+        isVisible: true,
+        archivedAt: null,
+        userIdRecord: { accountStatus: "ACTIVE" },
+        skillIdRecord: { status: "ACTIVE" },
+      };
+    }
     const rows = await this.db.sharingSkill.findMany({
       where: {
         userId,
-        ...(publicOnly
-          ? {
-              isVisible: true,
-              archivedAt: null,
-              userIdRecord: { accountStatus: "ACTIVE" },
-              skillIdRecord: { status: "ACTIVE" },
-            }
-          : query.includeArchived
-            ? {}
-            : { archivedAt: null }),
+        ...visibility,
         ...(cursor ? { id: { gt: cursor.id } } : {}),
       },
       include,

@@ -19,8 +19,11 @@ import {
 } from "class-validator";
 import { PageDto } from "../../../skills/presentation/http/skills.dto";
 import type { SharingSkillLevel } from "../../../../generated/prisma/client";
-const bool = ({ value }: { value: unknown }) =>
-  value === "true" ? true : value === "false" ? false : value;
+const bool = ({ value }: { value: unknown }) => {
+  if (value === "true") return true;
+  if (value === "false") return false;
+  return value;
+};
 export class SharingQueryDto extends PageDto {
   @ApiPropertyOptional({ default: false })
   @ValidateIf((_o, v) => v !== undefined)

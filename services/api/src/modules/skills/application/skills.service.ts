@@ -81,11 +81,9 @@ export class SkillsService {
       nameKey: nameKey(input.name),
       slug: input.slug ?? skillSlug(input.name),
       description:
-        input.description === undefined
-          ? undefined
-          : input.description === null
-            ? null
-            : text(input.description, 0, 500),
+        input.description === undefined || input.description === null
+          ? input.description
+          : text(input.description, 0, 500),
     };
     try {
       const result = await this.commands.execute(
