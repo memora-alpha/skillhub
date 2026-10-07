@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { colors, fonts, radius } from "@/constants/theme";
+import { typography, colors, fonts, radius } from "@/constants/theme";
 import { Icon } from "./Icon";
 
 export function FormNotice({
@@ -43,8 +43,7 @@ const styles = StyleSheet.create({
   label: {
     flex: 1,
     fontFamily: fonts.body,
-    fontSize: 14,
-    lineHeight: 20,
+    ...typography.body,
     includeFontPadding: false,
   },
 });

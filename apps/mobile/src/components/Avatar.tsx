@@ -1,17 +1,39 @@
-import { StyleSheet, Text, View } from "react-native";
-import { colors, fonts } from "@/constants/theme";
+import {
+  StyleSheet,
+  Text,
+  View,
+  type StyleProp,
+  type TextStyle,
+  type ViewStyle,
+} from "react-native";
+import {
+  appColors as colors,
+  appRadius,
+  avatarSizes,
+  fonts,
+} from "@/constants/theme";
+import { getAvatarColors } from "@/constants/avatar";
 
 export function Avatar({
   name,
-  size = 40,
+  userId,
+  size = avatarSizes.list,
   ring = false,
-  tone = "soft",
+  shape = "circle",
+  style,
+  textStyle,
 }: {
   name: string;
+  userId?: string;
   size?: number;
   ring?: boolean;
-  tone?: "soft" | "accent";
+  shape?: "square" | "circle";
+  style?: StyleProp<ViewStyle>;
+  textStyle?: StyleProp<TextStyle>;
 }) {
+  const tint = getAvatarColors(
+    userId ?? name.normalize("NFC").trim().toLowerCase(),
+  );
   const initials = name
     .trim()
     .split(/\s+/)
@@ -19,22 +41,31 @@ export function Avatar({
     .map((word) => word[0])
     .join("")
     .toUpperCase();
+  const initialSize = Math.max(9, Math.min(24, Math.round(size * 0.35)));
   return (
     <View
       style={[
         styles.circle,
-        tone === "accent" && styles.accent,
-        { width: size, height: size, borderRadius: size / 2 },
+        {
+          width: size,
+          height: size,
+          borderRadius: shape === "circle" ? size / 2 : appRadius.control,
+          backgroundColor: tint.background,
+        },
         ring && styles.ring,
+        style,
       ]}
     >
       <Text
+        numberOfLines={1}
         style={[
           styles.initials,
-          tone === "accent" && styles.accentInitials,
           {
-            fontSize: size <= 32 ? 12 : size >= 96 ? 24 : size >= 64 ? 20 : 14,
+            fontSize: initialSize,
+            lineHeight: Math.ceil(initialSize * 1.2),
+            color: tint.foreground,
           },
+          textStyle,
         ]}
       >
         {initials}
@@ -44,19 +75,17 @@ export function Avatar({
 }
 const styles = StyleSheet.create({
   circle: {
-    backgroundColor: colors.brandMuted,
+    flexShrink: 0,
     alignItems: "center",
     justifyContent: "center",
   },
   ring: {
     borderWidth: 3,
-    borderColor: colors.brand,
+    borderColor: colors.primary,
   },
-  accent: { backgroundColor: colors.brandHover },
-  accentInitials: { color: colors.white },
   initials: {
-    fontFamily: fonts.displayBold,
-    color: colors.brand,
+    fontFamily: fonts.bold,
+    textAlign: "center",
     includeFontPadding: false,
   },
 });

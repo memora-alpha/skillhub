@@ -9,7 +9,7 @@ import {
 import { Button } from "@/components/Button";
 import { Icon } from "@/components/Icon";
 import { BrandLogo } from "@/components/BrandLogo";
-import { colors, fonts, layout, radius } from "@/constants/theme";
+import { typography, colors, fonts, layout, radius } from "@/constants/theme";
 import {
   welcomeBenefits,
   welcomeCategories,
@@ -283,8 +283,7 @@ const styles = StyleSheet.create({
   body: {
     includeFontPadding: false,
     fontFamily: fonts.body,
-    fontSize: 14,
-    lineHeight: 20,
+    ...typography.body,
     color: colors.muted,
   },
   center: { textAlign: "center" },
@@ -341,8 +340,7 @@ const styles = StyleSheet.create({
   linkLabel: {
     includeFontPadding: false,
     fontFamily: fonts.semibold,
-    fontSize: 14,
-    lineHeight: 20,
+    ...typography.body,
     color: colors.inkSoft,
   },
   categories: { flexDirection: "row", flexWrap: "wrap", gap: 16 },
@@ -358,16 +356,14 @@ const styles = StyleSheet.create({
   categoryTitle: {
     includeFontPadding: false,
     fontFamily: fonts.semibold,
-    fontSize: 14,
-    lineHeight: 17.5,
+    ...typography.body,
     color: colors.ink,
     marginTop: 12,
   },
   categoryDescription: {
     includeFontPadding: false,
     fontFamily: fonts.body,
-    fontSize: 12,
-    lineHeight: 16,
+    ...typography.secondary,
     marginTop: 4,
   },
   creditSection: {
@@ -394,8 +390,7 @@ const styles = StyleSheet.create({
   benefitText: {
     includeFontPadding: false,
     fontFamily: fonts.body,
-    fontSize: 14,
-    lineHeight: 20,
+    ...typography.body,
     color: colors.border,
     flex: 1,
   },
@@ -420,8 +415,7 @@ const styles = StyleSheet.create({
     includeFontPadding: false,
     fontFamily: fonts.body,
     color: colors.mutedLight,
-    fontSize: 14,
-    lineHeight: 20,
+    ...typography.body,
   },
   amount: {
     includeFontPadding: false,
@@ -439,8 +433,7 @@ const styles = StyleSheet.create({
   transactionAmount: {
     includeFontPadding: false,
     fontFamily: fonts.semibold,
-    fontSize: 14,
-    lineHeight: 20,
+    ...typography.body,
   },
   reviews: { gap: 24 },
   review: {
@@ -455,22 +448,19 @@ const styles = StyleSheet.create({
     includeFontPadding: false,
     fontFamily: fonts.italic,
     color: colors.body,
-    fontSize: 14,
-    lineHeight: 22.75,
+    ...typography.body,
   },
   reviewer: { flexDirection: "row", gap: 12, alignItems: "center" },
   reviewName: {
     includeFontPadding: false,
     fontFamily: fonts.semibold,
-    fontSize: 14,
-    lineHeight: 20,
+    ...typography.body,
     color: colors.ink,
   },
   reviewRole: {
     includeFontPadding: false,
     fontFamily: fonts.body,
-    fontSize: 12,
-    lineHeight: 16,
+    ...typography.secondary,
     color: colors.muted,
   },
   ctaSection: {
@@ -504,15 +494,13 @@ const styles = StyleSheet.create({
   footerText: {
     includeFontPadding: false,
     fontFamily: fonts.body,
-    fontSize: 12,
-    lineHeight: 16,
+    ...typography.secondary,
     color: colors.muted,
   },
   footerTitle: {
     includeFontPadding: false,
     fontFamily: fonts.semibold,
-    fontSize: 14,
-    lineHeight: 20,
+    ...typography.body,
     color: colors.ink,
     marginBottom: 12,
   },
@@ -522,8 +510,7 @@ const styles = StyleSheet.create({
     paddingTop: 24,
     includeFontPadding: false,
     fontFamily: fonts.body,
-    fontSize: 12,
-    lineHeight: 16,
+    ...typography.secondary,
     textAlign: "center",
     color: colors.muted,
   },

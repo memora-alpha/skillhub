@@ -2,7 +2,7 @@ import { Image, StyleSheet, Text, View } from "react-native";
 import welcomePhoto from "../../../../assets/images/welcome-study.jpg";
 import { LinearGradient } from "expo-linear-gradient";
 import { shadows } from "@/constants/shadows";
-import { colors, fonts, radius } from "@/constants/theme";
+import { typography, colors, fonts, radius } from "@/constants/theme";
 import { WelcomeAvatar, WelcomeStars } from "./WelcomeSocial";
 import { welcomeMentor, welcomeSession } from "../mocks/welcome";
 
@@ -98,23 +98,20 @@ const styles = StyleSheet.create({
     includeFontPadding: false,
     fontFamily: fonts.bold,
     color: colors.ink,
-    fontSize: 12,
-    lineHeight: 16,
+    ...typography.secondary,
   },
   small: {
     includeFontPadding: false,
     fontFamily: fonts.body,
     color: colors.muted,
-    fontSize: 10,
-    lineHeight: 16,
+    ...typography.caption,
   },
   session: { bottom: 28, right: -12 },
   schedule: {
     includeFontPadding: false,
     fontFamily: fonts.semibold,
     color: colors.brand,
-    fontSize: 10,
-    lineHeight: 16,
+    ...typography.caption,
   },
   confirmed: {
     flexDirection: "row",
@@ -132,8 +129,7 @@ const styles = StyleSheet.create({
     includeFontPadding: false,
     fontFamily: fonts.semibold,
     color: colors.success,
-    fontSize: 10,
-    lineHeight: 16,
+    ...typography.caption,
   },
   quote: { position: "absolute", bottom: 28, left: 24, maxWidth: 208 },
   quoteText: {
@@ -147,16 +143,14 @@ const styles = StyleSheet.create({
     includeFontPadding: false,
     fontFamily: fonts.body,
     color: "rgba(255,255,255,0.8)",
-    fontSize: 12,
-    lineHeight: 16,
+    ...typography.secondary,
     marginTop: 8,
   },
   credit: {
     includeFontPadding: false,
     fontFamily: fonts.body,
     color: colors.muted,
-    fontSize: 10,
-    lineHeight: 16,
+    ...typography.caption,
     textAlign: "center",
     marginTop: 16,
   },

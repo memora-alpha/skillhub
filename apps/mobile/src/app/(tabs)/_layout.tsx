@@ -2,7 +2,7 @@ import { Redirect, Tabs } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { AppNavigation } from "@/components/AppHeader";
 import { appTabs } from "@/constants/navigation";
-import { colors } from "@/constants/theme";
+import { colors, signedInChrome } from "@/constants/theme";
 import { useMockSession } from "@/features/auth/context/MockSession";
 
 export default function MainTabsLayout() {
@@ -18,7 +18,7 @@ export default function MainTabsLayout() {
       tabBar={({ state, navigation }) => (
         <SafeAreaView
           edges={["left", "right", "bottom"]}
-          style={{ backgroundColor: colors.white }}
+          style={{ backgroundColor: signedInChrome.surface }}
         >
           <AppNavigation
             selected={

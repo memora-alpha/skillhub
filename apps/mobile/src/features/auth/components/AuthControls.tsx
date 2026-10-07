@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import { Icon } from "@/components/Icon";
-import { colors, fonts } from "@/constants/theme";
+import { typography, colors, fonts } from "@/constants/theme";
 import { passwordRequirements } from "../utils/validateRegistration";
 
 export function GoogleButton({
@@ -80,23 +80,20 @@ export const authStyles = StyleSheet.create({
   link: {
     color: colors.brand,
     fontFamily: fonts.semibold,
-    fontSize: 14,
-    lineHeight: 20,
+    ...typography.body,
     includeFontPadding: false,
   },
   footer: {
     color: colors.muted,
     fontFamily: fonts.body,
-    fontSize: 14,
-    lineHeight: 20,
+    ...typography.body,
     textAlign: "center",
     includeFontPadding: false,
   },
   hint: {
     color: colors.mutedLight,
     fontFamily: fonts.body,
-    fontSize: 12,
-    lineHeight: 16,
+    ...typography.secondary,
     textAlign: "center",
     includeFontPadding: false,
   },
@@ -117,8 +114,7 @@ const styles = StyleSheet.create({
   },
   googleLabel: {
     fontFamily: fonts.semibold,
-    fontSize: 14,
-    lineHeight: 20,
+    ...typography.body,
     color: colors.ink,
     includeFontPadding: false,
   },
@@ -126,8 +122,7 @@ const styles = StyleSheet.create({
   line: { flex: 1, height: 1, backgroundColor: colors.border },
   dividerLabel: {
     fontFamily: fonts.medium,
-    fontSize: 12,
-    lineHeight: 16,
+    ...typography.secondary,
     color: colors.mutedLight,
     includeFontPadding: false,
   },
@@ -142,8 +137,7 @@ const styles = StyleSheet.create({
   },
   ruleLabel: {
     fontFamily: fonts.body,
-    fontSize: 12,
-    lineHeight: 16,
+    ...typography.secondary,
     includeFontPadding: false,
   },
 });

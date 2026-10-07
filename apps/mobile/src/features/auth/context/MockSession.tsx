@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, type ReactNode } from "react";
 
 export type MockSession = {
+  userId: string;
   name: string;
   email: string;
   isNew: boolean;
@@ -9,7 +10,9 @@ export type MockSession = {
 };
 type SessionContextValue = {
   session: MockSession | null;
-  enterDemo: (profile: MockSession) => void;
+  enterDemo: (
+    profile: Omit<MockSession, "userId"> & { userId?: string },
+  ) => void;
   signOut: () => void;
   updateProfile: (
     changes: Pick<MockSession, "name" | "bio" | "website">,
@@ -27,7 +30,13 @@ export function MockSessionProvider({ children }: { children: ReactNode }) {
     <SessionContext.Provider
       value={{
         session,
-        enterDemo: setSession,
+        enterDemo: (profile) =>
+          setSession({
+            ...profile,
+            userId:
+              profile.userId ??
+              `demo-user:${profile.email.trim().toLowerCase()}`,
+          }),
         signOut: () => setSession(null),
         updateProfile,
       }}

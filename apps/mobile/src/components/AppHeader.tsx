@@ -14,7 +14,14 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BrandLogo } from "@/components/BrandLogo";
 import { Avatar } from "@/components/Avatar";
 import { Icon } from "@/components/Icon";
-import { colors, fonts, radius } from "@/constants/theme";
+import {
+  appColors as colors,
+  appRadius as radius,
+  avatarSizes,
+  iconSizes,
+  fonts,
+  signedInChrome,
+} from "@/constants/theme";
 import { accountItems, appTabs } from "@/constants/navigation";
 
 export function AppHeader({
@@ -25,24 +32,35 @@ export function AppHeader({
   onBack,
   rightAction,
   backLabel = "Quay lại hồ sơ",
+  appearance = "home",
 }: {
-  profile: { name: string };
+  profile: { name: string; userId?: string };
   onAction: (title: string) => void;
   onAccount: () => void;
   title?: string;
   onBack?: () => void;
   rightAction?: ReactNode;
   backLabel?: string;
+  appearance?: "default" | "home";
 }) {
   const { width } = useWindowDimensions();
+  const home = appearance === "home";
   return (
-    <View style={[styles.header, !!title && { gap: 8 }]}>
+    <View
+      style={[
+        styles.header,
+        home && styles.homeHeader,
+        !!title && { gap: 8 },
+        home && !!title && styles.homeTitledHeader,
+      ]}
+    >
       {onBack ? (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={backLabel}
           onPress={onBack}
           style={{ padding: 6 }}
+          hitSlop={6}
         >
           <View style={{ transform: [{ rotate: "180deg" }] }}>
             <Icon name="arrow" size={20} color={colors.muted} />
@@ -54,12 +72,16 @@ export function AppHeader({
           accessibilityLabel="SkillHub — trang chủ"
           onPress={() => onAction("Trang chủ")}
         >
-          <BrandLogo size="sm" markOnly={!!title && width < 480} />
+          <BrandLogo
+            size="sm"
+            appearance={home ? "home" : "default"}
+            markOnly={!!title && width < 480}
+          />
         </Pressable>
       )}
       {title && (
         <Text
-          style={[styles.title, { flex: 1 }]}
+          style={[styles.title, home && styles.homeTitle, { flex: 1 }]}
           numberOfLines={width < 400 ? 2 : 1}
         >
           {title}
@@ -74,18 +96,25 @@ export function AppHeader({
             accessibilityLabel="Tin nhắn"
             onPress={() => onAction("Tin nhắn")}
           >
-            <Icon name="message" size={18} color={colors.muted} />
+            <Icon name="message" size={iconSizes.control} color={colors.muted} />
           </Pressable>
         )}
         <Pressable
-          style={styles.iconButton}
+          style={[styles.iconButton, home && styles.homeNotification]}
           accessibilityRole="button"
           accessibilityLabel="Thông báo — 3 thông báo"
           onPress={() => onAction("Thông báo")}
+          hitSlop={6}
         >
-          <Icon name="bell" size={18} color={colors.muted} />
-          <View style={styles.count}>
-            <Text style={styles.countLabel}>3</Text>
+          <Icon
+            name="bell"
+            size={iconSizes.control}
+            color={home ? signedInChrome.accent : colors.muted}
+          />
+          <View style={[styles.count, home && styles.homeCount]}>
+            <Text style={styles.countLabel}>
+              3
+            </Text>
           </View>
         </Pressable>
         {rightAction}
@@ -94,8 +123,13 @@ export function AppHeader({
           accessibilityLabel="Mở menu tài khoản"
           onPress={onAccount}
           style={{ marginLeft: 4 }}
+          hitSlop={6}
         >
-          <Avatar name={profile.name} size={32} />
+          <Avatar
+            name={profile.name}
+            userId={profile.userId}
+            size={avatarSizes.compact}
+          />
         </Pressable>
       </View>
     </View>
@@ -114,20 +148,28 @@ export function AppNavigation({
         <Pressable
           key={tab.label}
           accessibilityRole="tab"
+          accessibilityLabel={tab.label}
           accessibilityState={{ selected: tab.label === selected }}
           aria-selected={tab.label === selected}
           onPress={() => onAction(tab.label)}
           style={({ pressed }) => [styles.tab, pressed && { opacity: 0.7 }]}
         >
-          <Icon
-            name={tab.icon}
-            size={20}
-            color={tab.label === selected ? colors.brand : colors.muted}
-          />
+          <View style={styles.tabIcon}>
+            <Icon
+              name={tab.icon}
+              size={iconSizes.navigation}
+              color={
+                tab.label === selected
+                  ? signedInChrome.accent
+                  : signedInChrome.muted
+              }
+            />
+          </View>
           <Text
             style={[
               styles.tabLabel,
-              tab.label === selected && { color: colors.brand },
+              { color: signedInChrome.muted },
+              tab.label === selected && { color: signedInChrome.accent },
             ]}
           >
             {tab.label}
@@ -195,10 +237,10 @@ export function AccountMenu({
             }}
             style={({ pressed }) => [
               styles.menuItem,
-              pressed && { backgroundColor: colors.cream },
+              pressed && { backgroundColor: colors.canvas },
             ]}
           >
-            <Icon name={item.icon} size={16} color={colors.muted} />
+            <Icon name={item.icon} size={iconSizes.control} color={colors.muted} />
             <Text style={styles.menuLabel}>{item.label}</Text>
           </Pressable>
         ))}
@@ -208,7 +250,7 @@ export function AccountMenu({
             onPress={onLogout}
             style={styles.menuItem}
           >
-            <Icon name="logout" size={16} color={colors.error} />
+            <Icon name="logout" size={iconSizes.control} color={colors.error} />
             <Text style={[styles.menuLabel, { color: colors.error }]}>
               Đăng xuất
             </Text>
@@ -242,13 +284,41 @@ export function HomeSearch({
   );
 }
 const styles = StyleSheet.create({
+  homeHeader: {
+    minHeight: 64,
+    paddingVertical: 8,
+    paddingHorizontal: 24,
+    borderBottomWidth: 0,
+    backgroundColor: signedInChrome.background,
+  },
+  homeTitledHeader: { paddingHorizontal: 16, gap: 6 },
+  homeTitle: { fontFamily: fonts.bold, fontSize: 18, lineHeight: 26 },
+  homeNotification: {
+    width: 36,
+    height: 36,
+    padding: 0,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: signedInChrome.border,
+  },
+  homeCount: {
+    width: 14,
+    height: 14,
+    right: 2,
+    top: 1,
+    borderRadius: 7,
+    backgroundColor: signedInChrome.accent,
+  },
   header: {
-    height: 65,
+    minHeight: 68,
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     gap: 12,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
     borderColor: colors.border,
   },
@@ -261,7 +331,7 @@ const styles = StyleSheet.create({
     includeFontPadding: false,
   },
   headerActions: { flexDirection: "row", alignItems: "center", gap: 4 },
-  iconButton: { padding: 8, borderRadius: radius.control },
+  iconButton: { padding: 9, borderRadius: radius.control },
   count: {
     position: "absolute",
     right: 4,
@@ -269,7 +339,7 @@ const styles = StyleSheet.create({
     width: 16,
     height: 16,
     borderRadius: 8,
-    backgroundColor: colors.brand,
+    backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -283,16 +353,32 @@ const styles = StyleSheet.create({
   nav: {
     flexDirection: "row",
     width: "100%",
+    minHeight: 64,
     maxWidth: 1024,
     alignSelf: "center",
     borderTopWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.white,
+    borderColor: signedInChrome.border,
+    backgroundColor: signedInChrome.surface,
+    boxShadow: "0 -2px 12px rgba(53, 43, 31, 0.03)",
   },
-  tab: { flex: 1, alignItems: "center", gap: 2, paddingVertical: 10 },
+  tab: {
+    flex: 1,
+    minHeight: 64,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 3,
+    paddingVertical: 8,
+  },
+  tabIcon: {
+    position: "relative",
+    width: 24,
+    height: 24,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   tabLabel: {
     fontFamily: fonts.semibold,
-    fontSize: 10,
+    fontSize: 12,
     lineHeight: 16,
     color: colors.muted,
     includeFontPadding: false,
@@ -304,7 +390,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderRadius: radius.card,
     shadowColor: colors.ink,
     shadowOpacity: 0.1,
@@ -344,7 +430,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     fontSize: 14,
     lineHeight: 20,
-    color: colors.inkSoft,
+    color: colors.body,
     includeFontPadding: false,
   },
   logout: {
@@ -356,7 +442,7 @@ const styles = StyleSheet.create({
   searchField: {
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: colors.cream,
+    backgroundColor: colors.surfaceLow,
     borderRadius: radius.control,
     paddingHorizontal: 12,
     flexDirection: "row",
