@@ -33,9 +33,7 @@ function matches(text: string, pattern: string): boolean {
   const after = pattern.slice(wildcardAt + 1);
   const beforeAt = before ? text.indexOf(before) : 0;
   if (beforeAt < 0) return false;
-  return (
-    after.length === 0 || text.indexOf(after, beforeAt + before.length) >= 0
-  );
+  return after.length === 0 || text.includes(after, beforeAt + before.length);
 }
 
 export function evaluateModeration(
@@ -69,7 +67,9 @@ export function evaluateModeration(
       categories.add(rule.category);
     }
   }
-  const sortedCategories = [...categories].sort();
+  const sortedCategories = [...categories].sort((left, right) =>
+    left.localeCompare(right),
+  );
   return {
     flagged: sortedCategories.length > 0,
     categories: sortedCategories,

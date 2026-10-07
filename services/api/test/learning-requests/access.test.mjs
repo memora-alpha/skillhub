@@ -133,7 +133,8 @@ test("bootstrap grants only the chosen per-role actions and preserves existing g
   const tx = {
     role: {
       createMany: async (input) => calls.roles.push(input),
-      findUniqueOrThrow: async ({ where }) => ({ id: where.code }),
+      findMany: async ({ where }) =>
+        where.code.in.map((code) => ({ id: code, code })),
     },
     permission: {
       createMany: async (input) => calls.permissions.push(input),

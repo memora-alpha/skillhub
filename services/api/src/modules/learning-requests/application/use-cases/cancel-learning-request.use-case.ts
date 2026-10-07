@@ -60,8 +60,7 @@ export class CancelLearningRequestUseCase {
         "learning-request:cancel:self",
       );
       const request = await this.repository.lock(tx, requestId);
-      if (!request || request.ownerId !== live.userId)
-        throw new NotFoundException();
+      if (request?.ownerId !== live.userId) throw new NotFoundException();
       const snapshot = { ...request };
       const now = await this.repository.databaseNow(tx);
       if (

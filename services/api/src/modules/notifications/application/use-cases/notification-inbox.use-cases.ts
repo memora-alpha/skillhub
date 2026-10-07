@@ -103,9 +103,7 @@ export class ListNotificationsUseCase {
       return {
         items,
         nextCursor:
-          hasMore && items.length > 0
-            ? encodeCursor(items[items.length - 1]!)
-            : null,
+          hasMore && items.length > 0 ? encodeCursor(items.at(-1)!) : null,
       };
     });
   }

@@ -238,11 +238,14 @@ export class PrismaUsersRepository extends UsersRepository {
         })
       ).map(({ id, code }) => [code, id]),
     );
-    const roleIds = new Map<RoleCode, string>();
-    for (const code of roles) {
-      const role = await tx.role.findUniqueOrThrow({ where: { code } });
-      roleIds.set(code, role.id);
-    }
+    const roleIds = new Map<RoleCode, string>(
+      (
+        await tx.role.findMany({
+          where: { code: { in: roles } },
+          select: { id: true, code: true },
+        })
+      ).map(({ code, id }) => [code, id]),
+    );
     const assignments = [
       ...systemAdminPermissions.map((permissionCode) => ({
         roleCode: "ADMIN" as const,
