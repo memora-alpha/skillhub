@@ -40,6 +40,7 @@ export function AuthNavigator() {
         <Stack.Screen name="request/[id]" />
         <Stack.Screen name="session/[id]" />
         <Stack.Screen name="edit-profile" />
+        <Stack.Screen name="profiles/[userId]" />
         <Stack.Screen name="account-settings" />
         <Stack.Screen name="user/[id]" />
         <Stack.Screen name="send-proposal" />

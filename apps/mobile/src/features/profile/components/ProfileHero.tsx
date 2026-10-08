@@ -2,23 +2,20 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Avatar } from "@/components/Avatar";
 import { Icon } from "@/components/Icon";
 import { typography, avatarSizes, iconSizes, fonts } from "@/constants/theme";
-import { VerifiedBadge } from "./ProfilePrimitives";
 import { profileColors } from "../constants/theme";
 
 export function ProfileHero({
   name,
   userId,
-  onEdit,
   headline,
-  avatarUrl,
-  verified,
+  avatarUrl = null,
+  onEdit,
 }: {
   name: string;
   userId: string;
-  onEdit: () => void;
   headline: string;
-  avatarUrl: string | null;
-  verified: boolean;
+  avatarUrl?: string | null;
+  onEdit?: () => void;
 }) {
   return (
     <View style={styles.hero}>
@@ -29,24 +26,33 @@ export function ProfileHero({
           size={avatarSizes.profile}
           sourceUri={avatarUrl}
         />
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Chỉnh sửa hồ sơ"
-          onPress={onEdit}
-          style={({ pressed }) => [styles.edit, pressed && { opacity: 0.7 }]}
-        >
-          <Icon name="edit" size={iconSizes.inline} color={profileColors.ink} />
-          <Text style={styles.editLabel}>Chỉnh sửa</Text>
-        </Pressable>
+        {onEdit && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Chỉnh sửa hồ sơ"
+            onPress={onEdit}
+            style={({ pressed }) => [styles.edit, pressed && { opacity: 0.7 }]}
+          >
+            <Icon
+              name="edit"
+              size={iconSizes.inline}
+              color={profileColors.ink}
+            />
+            <Text style={styles.editLabel}>Chỉnh sửa</Text>
+          </Pressable>
+        )}
       </View>
       <View style={styles.info}>
         <View style={styles.nameRow}>
           <Text accessibilityRole="header" style={styles.name}>
             {name}
           </Text>
-          {verified && <VerifiedBadge />}
         </View>
-        {!!headline && <Text style={styles.tagline}>{headline}</Text>}
+        {!!headline.trim() && (
+          <Text selectable style={styles.tagline}>
+            {headline}
+          </Text>
+        )}
       </View>
     </View>
   );

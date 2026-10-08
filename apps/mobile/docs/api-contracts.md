@@ -8,6 +8,11 @@ identity v1 is implemented and documented in
 an external contract and must not import backend source or modify backend code
 unless the user explicitly requests backend work.
 
+Profile/public profile follows [spec 003](../specs/003-profile-public-profile/spec.md).
+Own editing retains the existing `PATCH /me/profile` integration. Self-preview
+projects the real own profile; other public targets and their skill lists remain
+fixtures pending API integration. No public-profile API calls are introduced here.
+
 ## Response envelope
 
 Backend README currently describes the API response envelope:
