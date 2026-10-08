@@ -4,21 +4,40 @@
 
 - Branch: `feat/mobile-auth-account-shell`.
 - Base: `origin/dev` at `da3de45`.
-- Existing UI is complete enough to preserve; current auth/session behavior is
-  local demo state and must be migrated incrementally.
-- Backend identity v1 is implemented and verified. Mobile consumes it as an
-  external contract and does not import backend source.
+- The original planning baseline used demo auth. Auth/account runtime now uses
+  identity v1; learning/calendar/chat content remains local fixtures.
+- Backend identity v1 exists in source. Mobile consumes its external contract
+  without backend imports; live API/device acceptance is still pending.
+
+## Checkpoint: 2026-10-08
+
+- Ready for a temporary development checkpoint, not production acceptance.
+- Implemented: Axios transport, Query/SecureStore account shell, React Hook
+  Form/Zod auth/profile forms, singleton toast feedback, keyboard-aware forms,
+  read-only verification email and six-cell OTP with 60-second resend cooldown.
+- Recovery UI is email -> code entry -> new password. Code entry checks only
+  format; v1 verifies the code during final password/reset submission. No
+  intermediate verified state is created. Backend changes are deferred by the
+  user; the next integration step depends on a published recovery contract.
+- Recovery email/code are memory-only Zustand state, cleared when leaving or
+  succeeding. Passwords stay local to the final form. Separate registration
+  and recovery cooldown timestamps follow the server's OTP purposes.
+- Known release blockers: session-switch request retry/expiration race,
+  logout-all pending/error handling, missing provider/storage integration tests,
+  live email/API acceptance and Android/iOS keyboard/SecureStore verification.
 
 ## Decisions
 
-- Use the platform `fetch` API behind one client in `src/lib/http`.
-- Add TanStack Query for own-account server state and mutation invalidation.
+- Use Axios behind one client in `src/lib/http`, as requested by the user.
+- Use TanStack Query for API queries, mutations and own-account cache invalidation.
 - Add Expo SecureStore for refresh-token persistence.
 - Keep access tokens in memory and reconstruct sessions through refresh on app
   startup.
 - Implement a single-flight refresh coordinator shared by bootstrap and HTTP
   retry. Never send the same refresh token concurrently.
-- Keep form state local to each auth screen. Do not add Zustand for this scope.
+- Use React Hook Form/Zod for screen-local form state and blur/change validation.
+- Use Zustand only for client-only recovery drafts and cooldown timestamps;
+  never mirror server account entities or persist the recovery code.
 - Keep the existing public paths. Route groups may organize files only when the
   URL remains unchanged.
 - Replace `MockSessionProvider` after consumers can use the new compatibility
@@ -41,25 +60,33 @@ apps/mobile/src/
   providers/
     AppProviders.tsx
     QueryProvider.tsx
+    ToastProvider.tsx
+  components/
+    ControlledInput.tsx
+    KeyboardFormScrollView.tsx
+    OtpInput.tsx
   features/auth/
     api/
       auth-api.ts
       auth-contracts.ts
     components/
-      OtpInput.tsx
       SessionGate.tsx
     context/
       AuthSession.tsx
     hooks/
       use-auth-actions.ts
+      use-verification-cooldown.ts
     screens/
       LoginScreen.tsx
       RegisterScreen.tsx
       VerifyEmailScreen.tsx
       ForgotPasswordScreen.tsx
+      ResetPasswordCodeScreen.tsx
       ResetPasswordScreen.tsx
     utils/
       validateRegistration.ts
+      password-recovery-flow.ts
+      verification-cooldown.ts
   features/account/
     api/
       account-api.ts
@@ -75,31 +102,33 @@ apps/mobile/src/
 ```
 
 Create only the files needed by each phase. Feature consumers import through
-`index.ts`; routes remain thin.
+`index.ts`; routes remain thin. Account hooks shown above remain target work:
+the current query/profile mutation still live in AuthSession.tsx.
 
 ## Session model
 
 ```ts
-type AuthState =
-  | { status: "bootstrapping" }
-  | { status: "guest" }
-  | { status: "offline"; retry: () => void }
-  | { status: "authenticated"; accessToken: string };
+type AuthStatus =
+  "bootstrapping" | "guest" | "offline" | "reauth" | "authenticated";
 ```
 
 The context exposes state plus login, logout, logout-all and retry-bootstrap.
+The access token stays inside SessionController, not the UI projection.
 TanStack Query owns `OwnIdentity`. A small compatibility selector maps
 `OwnIdentity` to the display fields currently consumed by header/profile code
 during migration.
 
 ## HTTP and renewal flow
 
-1. `request()` resolves the configured API base URL and sends JSON unless the
+1. `request()` resolves the configured API base URL through Axios and sends JSON unless the
    request is multipart or bodyless.
 2. Protected calls read the current access token through an injected getter.
 3. A protected `401` requests one serialized refresh and retries once.
 4. Refresh stores the replacement credential before releasing waiting calls.
-5. A second `401`, invalid envelope or rejected refresh clears auth state.
+5. A second `401` or rejected refresh expires the session. An ambiguous refresh
+   outcome retains the in-flight storage marker and requires reauthentication;
+   do not replay a possibly consumed refresh credential. Invalid envelopes are
+   normalized errors, not an unconditional instruction to clear every session.
 6. `204` returns `undefined`; JSON success returns `data`; failures throw the
    normalized `AppError`.
 7. The client never retries registration, verification, reset or other mutation
@@ -111,7 +140,7 @@ during migration.
 
 - Add and configure TanStack Query and Expo SecureStore.
 - Validate `EXPO_PUBLIC_API_URL` in `src/config/env.ts`.
-- Implement response parsing, normalized errors and the fetch client.
+- Implement response parsing, normalized errors and the shared Axios client.
 - Implement the secure token store and single-flight refresh coordinator.
 - Add AuthSession provider and a root bootstrap gate.
 - Add unit coverage for envelope parsing, token storage adapter behavior and
@@ -135,8 +164,32 @@ during migration.
 ### Phase 4: password recovery
 
 - Replace the forgot-password notice with a real request screen.
-- Add reset-password form and OTP handling.
+- Separate the email, code-entry and new-password screens.
+- Reuse the shared six-cell input and per-purpose 60-second resend cooldown.
+- Preserve neutral send acknowledgments and the existing combined reset payload.
+- Keep recovery drafts memory-only; guard direct entry without a draft and return
+  invalid/expired-code errors to the code screen. Other failures keep the password
+  form draft for retry.
 - Return to login after success without creating a session.
+
+### Backend handoff: standalone recovery verification
+
+Backend work is not part of this checkpoint. Publish the contract first:
+
+- Define a recovery-only verification request and response. Registration OTP
+  verification must not activate or authorize password recovery.
+- Define short-lived, single-use reset authorization after a valid recovery OTP,
+  including expiry, replay behavior, resend invalidation and rate/attempt limits.
+- Specify the new reset request and whether the combined v1 reset flow remains
+  compatible during migration. Endpoint paths and response fields are not yet
+  agreed; mobile must not invent them.
+- Preserve neutral public errors/acknowledgments, server password policy and
+  session revocation. Include invalid/expired/replayed proof tests and actual
+  mail-delivery acceptance in the backend handoff.
+
+After the contract is published, mobile will add typed adapters/mutations, replace
+format-only Continue with server verification, keep reset authorization out of
+URLs/persistent storage, adapt the final submission and rerun integration tests.
 
 ### Phase 5: profile migration and hardening
 
@@ -150,6 +203,10 @@ during migration.
 
 - Add `expo-secure-store` through `npx expo install expo-secure-store --npm`.
 - Add `@tanstack/react-query` to the mobile package.
+- Use Axios, React Hook Form, Zod and @hookform/resolvers for transport/forms.
+- Use react-native-toast-message for one replaceable root toast and
+  react-native-keyboard-controller for native form scrolling.
+- Use Zustand only for the client-only, in-memory recovery/cooldown state.
 - Add a focused Expo-compatible test stack only with the first executable tests;
   do not add a framework without tests that use it.
 
@@ -158,7 +215,14 @@ Lockfile updates must include both `apps/mobile/package-lock.json` and the root
 
 ## Risks and mitigations
 
-- **Refresh replay:** serialize rotation and retry once; clear on ambiguity.
+- **Refresh replay:** serialize rotation; require reauthentication rather than
+  replaying a credential after an ambiguous outcome.
+- **Session-switch race:** bind protected requests and retries/expiration to the
+  original session generation before allowing account switching in production.
+- **Recovery contract gap:** code entry is format-only until BE supplies a
+  separate verification contract; never label it server-verified.
+- **Native dependencies:** rebuild a development client with keyboard-controller
+  when necessary and verify keyboard/autofill on devices before acceptance.
 - **Cold-start flash:** keep the root bootstrap gate visible until auth resolves.
 - **Offline startup:** retain the secure credential and show retry, not guest.
 - **Contract drift:** keep mobile DTOs explicit and link the backend HTTP
