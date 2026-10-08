@@ -1,9 +1,7 @@
 import type { ReactNode } from "react";
 import {
-  KeyboardAvoidingView,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -12,7 +10,8 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { BrandLogo } from "@/components/BrandLogo";
-import { typography, colors, fonts } from "@/constants/theme";
+import { KeyboardFormScrollView } from "@/components/KeyboardFormScrollView";
+import { typography, colors, fonts, layout } from "@/constants/theme";
 import { authCommunity } from "../mocks/auth";
 
 export function AuthLayout({
@@ -67,31 +66,27 @@ export function AuthLayout({
           </Text>
         </View>
       )}
-      <KeyboardAvoidingView
+      <KeyboardFormScrollView
         style={styles.keyboard}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        contentContainerStyle={[
+          styles.scrollContent,
+          Platform.OS === "web" && wide && { justifyContent: "center" },
+          wide && { padding: 48 },
+        ]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
-        <ScrollView
-          contentContainerStyle={[
-            styles.scrollContent,
-            wide && { padding: 48 },
-          ]}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="on-drag"
-        >
-          <View style={styles.form}>
-            {!wide && <View style={styles.logo}>{logo}</View>}
-            <View style={styles.heading}>
-              <Text accessibilityRole="header" style={styles.title}>
-                {title}
-              </Text>
-              <Text style={styles.subtitle}>{subtitle}</Text>
-            </View>
-            {children}
+        <View style={styles.form}>
+          {!wide && <View style={styles.logo}>{logo}</View>}
+          <View style={styles.heading}>
+            <Text accessibilityRole="header" style={styles.title}>
+              {title}
+            </Text>
+            <Text style={styles.subtitle}>{subtitle}</Text>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+          {children}
+        </View>
+      </KeyboardFormScrollView>
     </SafeAreaView>
   );
 }
@@ -100,13 +95,14 @@ const styles = StyleSheet.create({
   keyboard: { flex: 1 },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: "center",
     alignItems: "center",
-    padding: 24,
+    padding: layout.gutter,
+    paddingTop: 32,
+    paddingBottom: 32,
   },
   form: { width: "100%", maxWidth: 448 },
-  logo: { marginBottom: 28, alignSelf: "flex-start" },
-  heading: { marginBottom: 28 },
+  logo: { marginBottom: 24, alignSelf: "flex-start" },
+  heading: { marginBottom: 24 },
   title: {
     fontFamily: fonts.bold,
     fontSize: 26,
@@ -123,9 +119,9 @@ const styles = StyleSheet.create({
     includeFontPadding: false,
   },
   aside: {
-    width: 420,
+    width: 360,
     padding: 40,
-    backgroundColor: colors.ink,
+    backgroundColor: colors.sageLight,
     justifyContent: "space-between",
   },
   quoteGroup: { gap: 24 },
@@ -139,7 +135,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.semibold,
     fontSize: 22,
     lineHeight: 30,
-    color: colors.white,
+    color: colors.ink,
     includeFontPadding: false,
   },
   community: { flexDirection: "row", alignItems: "center", gap: 12 },
@@ -150,7 +146,7 @@ const styles = StyleSheet.create({
     marginLeft: -8,
     borderRadius: 16,
     borderWidth: 2,
-    borderColor: colors.ink,
+    borderColor: colors.sageLight,
     alignItems: "center",
     justifyContent: "center",
   },
