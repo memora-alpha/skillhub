@@ -65,6 +65,18 @@ memory and never logs credential payloads. See
 
 ## Remaining contract gaps
 
+- The requested recovery flow is email request -> OTP verification -> new
+  password. V1 only verifies/consumes the RESET_PASSWORD OTP inside
+  `POST /auth/password/reset`, together with the new password fields. There is
+  no standalone recovery OTP verification contract or reset authorization proof.
+  Registration's `/auth/verification/verify` consumes only REGISTER OTPs and
+  must not be reused for recovery. A genuinely server-verified intermediate
+  screen requires an explicitly authorized backend contract change; checking
+  six-digit format alone must not be presented as successful verification.
+  The mobile UI now separates the three screens using an in-memory email/code
+  draft; final submission still uses the existing combined reset endpoint.
+  No intermediate verification API is called or simulated. Backend additions
+  are deferred at the user's request.
 - Google OAuth, email change and device/session management are not exposed in v1.
 - Exact Learning Path, LearningPlan and Schedule DTOs for SRS 1.6.
 - Exact enum values for exchange type, plan status, schedule status and report reason codes.
