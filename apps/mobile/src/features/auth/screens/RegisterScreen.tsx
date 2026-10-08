@@ -7,46 +7,33 @@ import { FormNotice } from "@/components/FormNotice";
 import { Input } from "@/components/Input";
 import { InfoModal } from "@/components/InfoModal";
 import { AuthLayout } from "../components/AuthLayout";
-import {
-  AuthDivider,
-  GoogleButton,
-  PasswordRequirements,
-  authStyles,
-} from "../components/AuthControls";
-import { useMockSession } from "../context/MockSession";
-import { demoProfile } from "../mocks/auth";
+import { PasswordRequirements, authStyles } from "../components/AuthControls";
+import { useAuthActions } from "../hooks/use-auth-actions";
+import { errorMessage } from "@/lib/http/errors";
 import {
   validateRegistration,
   type RegistrationErrors,
   type RegistrationForm,
 } from "../utils/validateRegistration";
 
-type RegisterNotice = "success" | "google" | "terms" | "privacy";
+type RegisterNotice = "terms" | "privacy";
 const registerNoticeCopy: Record<
   RegisterNotice,
   Readonly<{ title: string; body: string }>
 > = {
-  success: {
-    title: "Đăng ký giả lập thành công",
-    body: "Thông tin đã hợp lệ. Bạn sẽ xem trang chủ dành cho người mới; tài khoản chưa được tạo trên hệ thống và chưa có xác minh email.",
-  },
-  google: {
-    title: "Đăng ký với Google — bản demo",
-    body: "Tiếp tục bằng hồ sơ mẫu Nguyễn Lan Anh. Bản demo không kết nối tài khoản Google.",
-  },
   terms: {
     title: "Điều khoản sử dụng",
-    body: "Nội dung chính thức sẽ được bổ sung sau. Bản demo chỉ dùng thông tin trong phiên hiện tại và không gửi dữ liệu lên máy chủ.",
+    body: "Nội dung điều khoản chính thức chưa được cung cấp. Vui lòng liên hệ SkillHub để được hỗ trợ trước khi đăng ký.",
   },
   privacy: {
     title: "Chính sách bảo mật",
-    body: "Nội dung chính thức sẽ được bổ sung sau. Bản demo chỉ dùng thông tin trong phiên hiện tại và không gửi dữ liệu lên máy chủ.",
+    body: "Nội dung chính sách chính thức chưa được cung cấp. Vui lòng liên hệ SkillHub để được hỗ trợ trước khi đăng ký.",
   },
 };
 
 export function RegisterScreen() {
   const router = useRouter();
-  const { enterDemo } = useMockSession();
+  const { register } = useAuthActions();
   const [form, setForm] = useState<RegistrationForm>({
     name: "",
     email: "",
@@ -60,6 +47,7 @@ export function RegisterScreen() {
   const passwordInput = useRef<TextInput>(null);
   const confirmInput = useRef<TextInput>(null);
   const update = (key: keyof RegistrationForm, value: string) => {
+    register.reset();
     setForm((current) => ({ ...current, [key]: value }));
     setErrors((current) => ({
       ...current,
@@ -68,35 +56,45 @@ export function RegisterScreen() {
     }));
   };
   const submit = () => {
+    if (register.isPending) return;
     const next = validateRegistration(form, terms);
     setErrors(next);
     if (Object.keys(next).length) return;
     Keyboard.dismiss();
-    setNotice("success");
-  };
-  const enter = () => {
-    enterDemo({
-      ...(notice === "google"
-        ? demoProfile
-        : { name: form.name.trim(), email: form.email.trim().toLowerCase() }),
-      isNew: true,
-    });
-    setForm((current) => ({ ...current, password: "", confirmPassword: "" }));
-    router.replace("/home");
+    register.mutate(
+      {
+        fullName: form.name.trim(),
+        email: form.email.trim().toLowerCase(),
+        password: form.password,
+        confirmPassword: form.confirmPassword,
+        agreeTerms: true,
+        locale: "vi",
+      },
+      {
+        onSuccess: () => {
+          setForm((current) => ({
+            ...current,
+            password: "",
+            confirmPassword: "",
+          }));
+          router.replace({
+            pathname: "/verify-email",
+            params: { email: form.email.trim().toLowerCase(), sent: "true" },
+          });
+        },
+      },
+    );
   };
   const noticeCopy = notice ? registerNoticeCopy[notice] : null;
-  const enterFromNotice = notice === "success" || notice === "google";
   return (
     <AuthLayout
       title="Tạo tài khoản"
       subtitle="Bắt đầu hành trình học và chia sẻ kỹ năng."
     >
       <View style={authStyles.fields}>
-        <GoogleButton
-          label="Đăng ký với Google"
-          onPress={() => setNotice("google")}
-        />
-        <AuthDivider label="hoặc điền thông tin" />
+        {register.isError && (
+          <FormNotice tone="error">{errorMessage(register.error)}</FormNotice>
+        )}
         {Object.keys(errors).length > 0 && (
           <FormNotice tone="error">
             Kiểm tra lại các trường được đánh dấu.
@@ -107,6 +105,7 @@ export function RegisterScreen() {
           required
           placeholder="Nguyễn Văn A"
           value={form.name}
+          editable={!register.isPending}
           onChangeText={(value) => update("name", value)}
           error={errors.name}
           autoCapitalize="words"
@@ -121,6 +120,7 @@ export function RegisterScreen() {
           required
           placeholder="email@gmail.com"
           value={form.email}
+          editable={!register.isPending}
           onChangeText={(value) => update("email", value)}
           error={errors.email}
           keyboardType="email-address"
@@ -138,6 +138,7 @@ export function RegisterScreen() {
           password
           placeholder="8–64 ký tự"
           value={form.password}
+          editable={!register.isPending}
           onChangeText={(value) => update("password", value)}
           error={errors.password}
           autoCapitalize="none"
@@ -155,6 +156,7 @@ export function RegisterScreen() {
           password
           placeholder="Nhập lại mật khẩu"
           value={form.confirmPassword}
+          editable={!register.isPending}
           onChangeText={(value) => update("confirmPassword", value)}
           error={errors.confirmPassword}
           autoCapitalize="none"
@@ -167,6 +169,7 @@ export function RegisterScreen() {
         <Checkbox
           checked={terms}
           onChange={(value) => {
+            if (register.isPending) return;
             setTerms(value);
             setErrors((current) => ({ ...current, terms: undefined }));
           }}
@@ -191,15 +194,17 @@ export function RegisterScreen() {
           </Text>
           .
         </Checkbox>
-        <Button size="lg" onPress={submit}>
-          Tạo tài khoản
+        <Button size="lg" onPress={submit} disabled={register.isPending}>
+          {register.isPending ? "Đang gửi..." : "Tạo tài khoản"}
         </Button>
         <Text style={authStyles.footer}>
           Đã có tài khoản?{" "}
           <Text
             accessibilityRole="link"
             style={authStyles.link}
-            onPress={() => router.replace("/login")}
+            onPress={() => {
+              if (!register.isPending) router.replace("/login");
+            }}
           >
             Đăng nhập
           </Text>
@@ -208,8 +213,7 @@ export function RegisterScreen() {
       <InfoModal
         title={noticeCopy?.title ?? null}
         onClose={() => setNotice(null)}
-        confirmLabel={enterFromNotice ? "Vào trang chủ demo" : "Đã hiểu"}
-        onConfirm={enterFromNotice ? enter : undefined}
+        confirmLabel="Đã hiểu"
       >
         {noticeCopy?.body ?? ""}
       </InfoModal>

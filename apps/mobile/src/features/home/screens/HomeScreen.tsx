@@ -9,7 +9,7 @@ import { demoNotifications, popularSkills, recentMessages } from "@/mocks/app";
 import { typography, fonts } from "@/constants/theme";
 import { homeColors as colors } from "../constants/theme";
 import { appRoutes } from "@/constants/navigation";
-import { useMockSession, type MockSession } from "@/features/auth";
+import { useAuthSession, type AccountSession } from "@/features/auth";
 import { AccountMenu, AppHeader, HomeSearch } from "@/features/shell";
 import { HomeContent } from "../components/HomeContent";
 import { homeStyles } from "../components/HomePrimitives";
@@ -20,7 +20,7 @@ import {
   nextSession,
 } from "../mocks/home";
 
-function getHomeNoticeBody(notice: string | null, session: MockSession) {
+function getHomeNoticeBody(notice: string | null, session: AccountSession) {
   if (!notice) return "";
   switch (notice) {
     case "Vào học":
@@ -123,7 +123,7 @@ function HomeNoticeContent({
 
 export function HomeScreen() {
   const router = useRouter();
-  const { session, signOut } = useMockSession();
+  const { session, signOut } = useAuthSession();
   const [menu, setMenu] = useState(false);
   const [logout, setLogout] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -181,7 +181,7 @@ export function HomeScreen() {
         onClose={() => setLogout(false)}
         onConfirm={() => {
           setLogout(false);
-          signOut();
+          void signOut();
           router.replace("/");
         }}
       />
