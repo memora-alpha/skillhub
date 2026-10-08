@@ -66,8 +66,12 @@ export const newPasswordSchema = z
     message: "Mật khẩu nhập lại chưa khớp.",
   });
 
-export const resetPasswordSchema = verifyEmailSchema
-  .extend(newPasswordFields)
+export const resetPasswordSchema = z
+  .object({
+    email: emailSchema,
+    resetToken: z.string().regex(/^[A-Za-z0-9_-]{43}$/),
+    ...newPasswordFields,
+  })
   .refine((value) => value.newPassword === value.confirmNewPassword, {
     path: ["confirmNewPassword"],
     message: "Mật khẩu nhập lại chưa khớp.",

@@ -8,6 +8,7 @@ export type RequestOptions = {
   authenticated?: boolean;
 };
 export type SessionTransport = {
+  readonly generation: number;
   getToken: () => Promise<string | null>;
   renew: (staleToken: string) => Promise<void>;
   expire: () => Promise<void>;
@@ -58,24 +59,45 @@ export function createHttpClient(
     ): Promise<unknown> {
       if (!path.startsWith("/") || path.startsWith("//"))
         throw new AppError("config");
-      const token = options.authenticated ? await session?.getToken() : null;
-      if (options.authenticated && !token) throw new AppError("session");
+      if (!options.authenticated) return send(path, options, null);
+      const transport = session;
+      if (!transport) throw new AppError("session");
+      const generation = transport.generation;
+      const assertCurrentSession = () => {
+        if (session !== transport || transport.generation !== generation)
+          throw new AppError("session");
+      };
+      const token = await transport.getToken();
+      assertCurrentSession();
+      if (!token) throw new AppError("session");
       try {
-        return await send(path, options, token ?? null);
+        const result = await send(path, options, token);
+        assertCurrentSession();
+        return result;
       } catch (error) {
-        if (!options.authenticated || !(error instanceof AppError)) throw error;
+        assertCurrentSession();
+        if (!(error instanceof AppError)) throw error;
         if (error.status !== 401) {
-          if (error.code === "ACCOUNT_NOT_ACTIVE") await session?.expire();
+          if (error.code === "ACCOUNT_NOT_ACTIVE") await transport.expire();
           throw error;
         }
-        await session?.renew(token!);
-        const nextToken = await session?.getToken();
+        await transport.renew(token);
+        assertCurrentSession();
+        const nextToken = await transport.getToken();
+        assertCurrentSession();
         if (!nextToken) throw new AppError("session");
         try {
-          return await send(path, options, nextToken);
+          const result = await send(path, options, nextToken);
+          assertCurrentSession();
+          return result;
         } catch (retryError) {
-          if (retryError instanceof AppError && retryError.status === 401)
-            await session?.expire();
+          assertCurrentSession();
+          if (
+            retryError instanceof AppError &&
+            (retryError.status === 401 ||
+              retryError.code === "ACCOUNT_NOT_ACTIVE")
+          )
+            await transport.expire();
           throw retryError;
         }
       }

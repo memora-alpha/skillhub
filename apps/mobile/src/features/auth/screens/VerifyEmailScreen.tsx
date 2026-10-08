@@ -1,12 +1,13 @@
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Keyboard, Text, View } from "react-native";
+import { Keyboard, Pressable, StyleSheet, Text, View } from "react-native";
 import { Redirect, useLocalSearchParams, useRouter } from "expo-router";
 import { Button } from "@/components/Button";
 import { OtpInput } from "@/components/OtpInput";
 import { formValidationOptions } from "@/utils/form-validation";
 import { useAuthFeedback } from "../hooks/use-auth-feedback";
 import { AuthLayout } from "../components/AuthLayout";
+import { OTP_REQUEST_ACKNOWLEDGMENT } from "../utils/otp-feedback";
 import { authStyles } from "../components/AuthControls";
 import { AuthFormInput } from "../components/AuthFormInput";
 import { useAuthActions } from "../hooks/use-auth-actions";
@@ -28,9 +29,7 @@ export function VerifyEmailScreen() {
     params.sent === "true" && hasValidEmail,
   );
   useAuthFeedback(
-    params.sent === "true" && hasValidEmail
-      ? "Nếu địa chỉ đủ điều kiện, mã xác minh đã được gửi."
-      : null,
+    params.sent === "true" && hasValidEmail ? OTP_REQUEST_ACKNOWLEDGMENT : null,
   );
   const form = useForm<VerifyEmailFormValues>({
     ...formValidationOptions,
@@ -115,17 +114,46 @@ export function VerifyEmailScreen() {
               ? `Gửi lại mã sau ${cooldown.seconds}s`
               : "Gửi lại mã"}
         </Button>
-        <Text style={authStyles.footer}>
-          Đã có tài khoản?{" "}
-          <Text
+        <View>
+          <Pressable
             accessibilityRole="link"
-            style={authStyles.link}
-            onPress={() => router.replace("/login")}
+            accessibilityState={{
+              disabled: verify.isPending || resend.isPending,
+            }}
+            disabled={verify.isPending || resend.isPending}
+            style={({ pressed }) => [
+              styles.backLink,
+              (pressed || verify.isPending || resend.isPending) && {
+                opacity: 0.6,
+              },
+            ]}
+            onPress={() =>
+              router.replace({ pathname: "/register", params: { email } })
+            }
           >
-            Đăng nhập
+            <Text style={authStyles.link}>Quay lại đăng ký</Text>
+          </Pressable>
+          <Text style={[authStyles.footer, styles.footer]}>
+            Đã có tài khoản?{" "}
+            <Text
+              accessibilityRole="link"
+              style={authStyles.link}
+              onPress={() => router.replace("/login")}
+            >
+              Đăng nhập
+            </Text>
           </Text>
-        </Text>
+        </View>
       </View>
     </AuthLayout>
   );
 }
+
+const styles = StyleSheet.create({
+  footer: { paddingTop: 0 },
+  backLink: {
+    alignSelf: "center",
+    minHeight: 44,
+    justifyContent: "center",
+  },
+});

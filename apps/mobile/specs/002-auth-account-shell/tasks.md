@@ -2,16 +2,16 @@
 
 ## Status convention
 
-Reviewed against source on 2026-10-08. Checked implementation tasks mean the
+Reviewed against source on 2026-10-09. Checked implementation tasks mean the
 code exists; they do not establish live API or native-device acceptance.
 Partial tasks remain unchecked. See `validation.md` for evidence and gaps.
 
-## Temporary checkpoint
+## Development checkpoint
 
-- [x] Review the UI-only recovery split and rerun mobile automated checks.
-- [x] Update plan with implemented libraries, temporary recovery behavior and release blockers.
-- [x] Document backend recovery verification handoff without changing backend code.
-- [ ] Accept the full auth/account feature for release (live API/native checks and hardening remain open).
+- [x] Review registration, token-based recovery and session hardening; rerun mobile checks (55 tests).
+- [x] Update the specification and plan with the published recovery contract and remaining acceptance gaps.
+- [x] Verify mocked registration, recovery and logout-all browser journeys.
+- [ ] Accept the full auth/account feature for release (real mailbox, provider/storage and native checks remain open).
 
 ## Planning
 
@@ -31,7 +31,7 @@ Partial tasks remain unchecked. See `validation.md` for evidence and gaps.
 - [x] Implement serialized refresh rotation.
 - [x] Add QueryProvider and AuthSession provider.
 - [x] Add the root session bootstrap gate.
-- [ ] Add focused infrastructure/provider tests (five HTTP/session unit tests exist; provider and storage coverage is missing).
+- [ ] Complete infrastructure/provider tests (HTTP/session regressions exist; provider and native storage coverage remains missing).
 
 ## Phase 2: login and account shell
 
@@ -41,7 +41,7 @@ Partial tasks remain unchecked. See `validation.md` for evidence and gaps.
 - [x] Gate authenticated routes without a login-screen flash (implemented; native verification remains pending).
 - [x] Adapt AppHeader, AccountMenu and Profile consumers to OwnIdentity.
 - [x] Implement current-session logout.
-- [ ] Implement logout-all (endpoint and local cleanup exist; pending/error handling is missing).
+- [x] Implement logout-all with pending guards, deduplication, error feedback and explicit retry.
 - [x] Implement offline/retry and expired-session UI (ambiguous refresh requires reauthentication).
 
 ## Phase 3: registration and verification
@@ -57,7 +57,8 @@ Partial tasks remain unchecked. See `validation.md` for evidence and gaps.
 
 - [x] Add forgot-password route and screen.
 - [x] Add reset-password route and screen.
-- [x] Split email, OTP entry and new-password screens using the existing API; keep the recovery draft in memory and defer standalone backend OTP verification.
+- [x] Split email, OTP verification and new-password screens; verify with the API and keep reset authorization only in memory.
+- [x] Reset with the verified token; restart expired proof from the email step without offering to re-enter a consumed OTP.
 - [x] Preserve neutral forgot-password behavior.
 - [x] Return reset users to login without auto-login.
 
@@ -71,19 +72,19 @@ Partial tasks remain unchecked. See `validation.md` for evidence and gaps.
 - [ ] Validate happy paths and recovery paths against a local API.
 - [x] Record source review, automated checks and remaining verification gaps in `validation.md`.
 
-## Deferred backend handoff and next integration
+## Published recovery contract and acceptance
 
-- [ ] BE: publish recovery-only OTP verification and reset authorization contracts, including expiry, single use, resend invalidation and error/rate-limit behavior.
-- [ ] BE: implement and test the approved recovery contract, mail delivery and final reset/session revocation. Backend work is explicitly deferred, not implemented here.
-- [ ] Mobile: add typed API adapter and TanStack mutation after BE publishes the contract.
-- [ ] Mobile: replace format-only OTP Continue with real verification; retain reset authorization only in memory.
-- [ ] Mobile: adapt final reset payload and invalid/expired proof recovery to the approved contract.
+- [x] Confirm published `/password/verify-otp` and resetToken-based `/password/reset` contracts in source and local Swagger.
+- [x] Add typed API adapters and TanStack mutations for the published contract.
+- [x] Replace format-only OTP Continue with server verification; retain reset authorization only in memory.
+- [x] Adapt final reset payload and invalid/expired proof recovery to the contract.
 - [ ] Add real API happy-path and expired/wrong/replayed OTP/proof acceptance tests.
 - [ ] Verify recovery and registration keyboard, OTP autofill and navigation on Android/iOS.
 
 ## Review follow-ups
 
-- [ ] Prevent in-flight protected requests from retrying or expiring a different session after an account switch.
+- [x] Bind protected requests to the original session generation; reject stale responses and prevent retry/expiration of another session.
 - [x] Prevent profile edits made during a save from being discarded by the success redirect.
 - [x] Forward the React Hook Form field ref through `ControlledInput` for error focus.
-- [ ] Align architecture documentation with Axios, React Hook Form/Zod and the implemented account hooks; update stale demo-only README/API descriptions.
+- [x] Update README/API descriptions for real authentication, OTP verification and token-based recovery.
+- [ ] Finish the account-hook extraction described in the target architecture (query/profile mutation still live in AuthSession).

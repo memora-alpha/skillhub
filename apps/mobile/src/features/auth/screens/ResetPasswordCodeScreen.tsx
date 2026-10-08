@@ -5,10 +5,12 @@ import { Redirect, useLocalSearchParams, useRouter } from "expo-router";
 import { useStore } from "zustand";
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
+import { AppError, errorMessage } from "@/lib/http/errors";
 import { OtpInput } from "@/components/OtpInput";
 import { useToast } from "@/providers/ToastProvider";
 import { formValidationOptions } from "@/utils/form-validation";
 import { AuthLayout } from "../components/AuthLayout";
+import { OTP_REQUEST_ACKNOWLEDGMENT } from "../utils/otp-feedback";
 import { authStyles } from "../components/AuthControls";
 import { useAuthActions } from "../hooks/use-auth-actions";
 import { useAuthFeedback } from "../hooks/use-auth-feedback";
@@ -23,7 +25,8 @@ export function ResetPasswordCodeScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ sent?: string }>();
   const draft = useStore(passwordRecoveryStore, (state) => state.draft);
-  const { forgot } = useAuthActions();
+  const { forgot, verifyRecovery } = useAuthActions();
+  const busy = forgot.isPending || verifyRecovery.isPending;
   const { showToast } = useToast();
   const cooldown = useVerificationCooldown(
     draft?.email ?? "",
@@ -31,23 +34,34 @@ export function ResetPasswordCodeScreen() {
     "recovery",
   );
   useAuthFeedback(
-    params.sent === "true" && draft
-      ? "Nếu địa chỉ đủ điều kiện, mã khôi phục đã được gửi."
-      : null,
+    params.sent === "true" && draft ? OTP_REQUEST_ACKNOWLEDGMENT : null,
   );
   const form = useForm<RecoveryCodeFormValues>({
     ...formValidationOptions,
     resolver: zodResolver(recoveryCodeSchema),
-    defaultValues: { otpCode: draft?.otpCode ?? "" },
+    defaultValues: { otpCode: "" },
   });
   if (!draft) return <Redirect href="/forgot-password" />;
+  if (draft.proof) return <Redirect href="/reset-password" />;
 
   const submit = form.handleSubmit(({ otpCode }) => {
-    if (forgot.isPending) return;
+    if (busy) return;
     Keyboard.dismiss();
-    // TODO: replace draft collection with the future recovery verification API.
-    if (passwordRecoveryStore.getState().setCode(otpCode))
-      router.replace("/reset-password");
+    verifyRecovery.mutate(
+      { email: draft.email, otpCode },
+      {
+        onSuccess: (proof) => {
+          if (passwordRecoveryStore.getState().draft !== draft) return;
+          if (!passwordRecoveryStore.getState().authorize(draft.email, proof))
+            showToast(
+              errorMessage(
+                new AppError("http", 400, "RESET_TOKEN_INVALID_OR_EXPIRED"),
+              ),
+              "error",
+            );
+        },
+      },
+    );
   });
 
   return (
@@ -71,28 +85,29 @@ export function ResetPasswordCodeScreen() {
               value={field.value}
               onBlur={field.onBlur}
               error={fieldState.error?.message}
-              editable={!forgot.isPending}
-              onChangeText={field.onChange}
+              editable={!busy}
+              onChangeText={(value) => {
+                field.onChange(value);
+                verifyRecovery.reset();
+              }}
               onSubmitEditing={submit}
             />
           )}
         />
-        <Button size="lg" onPress={submit} disabled={forgot.isPending}>
-          Tiếp tục
+        <Button size="lg" onPress={submit} disabled={busy}>
+          {verifyRecovery.isPending ? "Đang xác minh..." : "Tiếp tục"}
         </Button>
         <Button
           variant="secondary"
-          disabled={forgot.isPending || cooldown.seconds > 0}
+          disabled={busy || cooldown.seconds > 0}
           onPress={() => {
-            if (forgot.isPending || !cooldown.reserve()) return;
+            if (busy || !cooldown.reserve()) return;
             forgot.mutate(draft.email, {
               onSuccess: () => {
-                passwordRecoveryStore.getState().clearCode();
+                passwordRecoveryStore.getState().clearProof();
+                verifyRecovery.reset();
                 form.reset({ otpCode: "" });
-                showToast(
-                  "Nếu địa chỉ đủ điều kiện, mã mới đã được gửi.",
-                  "success",
-                );
+                showToast(OTP_REQUEST_ACKNOWLEDGMENT, "success");
               },
             });
           }}
@@ -109,7 +124,7 @@ export function ResetPasswordCodeScreen() {
             accessibilityRole="link"
             style={authStyles.link}
             onPress={() => {
-              if (!forgot.isPending) passwordRecoveryStore.getState().clear();
+              if (!busy) passwordRecoveryStore.getState().clear();
             }}
           >
             Đổi email
@@ -119,7 +134,7 @@ export function ResetPasswordCodeScreen() {
           accessibilityRole="link"
           style={[authStyles.link, { textAlign: "center" }]}
           onPress={() => {
-            if (!forgot.isPending) router.replace("/login");
+            if (!busy) router.replace("/login");
           }}
         >
           Quay lại đăng nhập

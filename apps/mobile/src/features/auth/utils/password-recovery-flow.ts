@@ -1,15 +1,16 @@
 import { createStore } from "zustand/vanilla";
+import { forgotPasswordSchema } from "../schemas/auth-schemas";
 import {
-  forgotPasswordSchema,
-  recoveryCodeSchema,
-} from "../schemas/auth-schemas";
+  parsePasswordResetProof,
+  type PasswordResetProof,
+} from "../api/auth-contracts";
 
-type RecoveryDraft = { email: string; otpCode: string | null };
+type RecoveryDraft = { email: string; proof: PasswordResetProof | null };
 type PasswordRecoveryState = {
   draft: RecoveryDraft | null;
   begin: (email: string) => boolean;
-  setCode: (otpCode: string) => boolean;
-  clearCode: () => void;
+  authorize: (email: string, proof: PasswordResetProof) => boolean;
+  clearProof: () => void;
   clear: () => void;
 };
 
@@ -22,24 +23,30 @@ export function createPasswordRecoveryStore() {
         set({ draft: null });
         return false;
       }
-      set({ draft: { email: result.data.email.toLowerCase(), otpCode: null } });
+      set({
+        draft: { email: result.data.email.toLowerCase(), proof: null },
+      });
       return true;
     },
-    setCode: (otpCode) => {
+    authorize: (email, proof) => {
       const draft = get().draft;
-      if (!draft || !recoveryCodeSchema.safeParse({ otpCode }).success)
+      if (!draft || draft.email !== email.trim().toLowerCase()) return false;
+      try {
+        const parsed = parsePasswordResetProof(proof);
+        if (Date.parse(parsed.expiresAt) <= Date.now()) return false;
+        set({ draft: { ...draft, proof: parsed } });
+        return true;
+      } catch {
         return false;
-      set({ draft: { ...draft, otpCode } });
-      return true;
+      }
     },
-    clearCode: () => {
+    clearProof: () => {
       const draft = get().draft;
-      if (draft) set({ draft: { ...draft, otpCode: null } });
+      if (draft) set({ draft: { ...draft, proof: null } });
     },
     clear: () => set({ draft: null }),
   }));
 }
 
-// This draft is not verification proof. V1 consumes the OTP only at reset.
-// Keep it in memory only, never in route params or persistent storage.
+// Reset credentials stay in memory, never in route params or persistent storage.
 export const passwordRecoveryStore = createPasswordRecoveryStore();

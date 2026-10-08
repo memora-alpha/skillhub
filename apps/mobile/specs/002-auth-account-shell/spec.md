@@ -55,9 +55,10 @@ derive its account state from `GET /api/v1/me`.
 3. The app fetches `GET /api/v1/me` before entering the signed-in tabs.
 4. On a cold start, a stored refresh token is rotated once, the replacement is
    persisted, and then the account projection is loaded.
-5. Missing or rejected refresh credentials resolve to guest state. A transport
-   failure with a stored credential shows a retry state instead of silently
-   treating the user as logged out.
+5. Missing or rejected refresh credentials resolve to guest state. Failures
+   before refresh submission offer retry. An uncertain result after submission
+   retains the pending rotation marker and requires reauthentication, because
+   replaying the credential could revoke the session.
 
 ### Renewal and logout
 
@@ -65,10 +66,14 @@ derive its account state from `GET /api/v1/me`.
    refresh rotation and no replay grace period.
 2. Requests waiting on renewal reuse the same promise and retry at most once
    with the new access token.
-3. Refresh failure clears local credentials and moves to the login screen.
+3. Rejected/expired refresh clears credentials. An ambiguous rotation outcome
+   requires reauthentication without replaying the possibly consumed credential.
 4. Current-session logout calls `/auth/logout` with the refresh token and clears
    local state even when the neutral revoke request cannot confirm a body.
 5. Logout-all calls the protected endpoint, then clears the local session.
+   Pending calls are deduplicated and actions disabled. Failures show one toast,
+   retain the session and allow explicit retry. A late response cannot clear a
+   newer account's session.
 
 ### Password recovery
 
@@ -77,19 +82,24 @@ derive its account state from `GET /api/v1/me`.
 2. The code-entry screen shows the email read-only, the shared six-cell OTP
    control and a 60-second resend countdown. Resend calls `/auth/password/forgot`,
    not the registration resend endpoint.
-3. Continue checks only six-digit format, retains the email/code in an in-memory
-   draft and opens a separate new-password/confirmation screen. It is not server
-   verification; no verified state or success toast is shown at this step.
-4. Final submission sends the draft email/code together with the password fields
-   to the existing `/auth/password/reset`. Invalid/expired OTP returns to code
-   entry; other failures retain the password draft for retry.
+3. Continue submits `email, otpCode` to `/auth/password/verify-otp`. Only a valid
+   `200` response with `resetToken, expiresAt` opens the new-password screen.
+   OTP errors remain on code entry and show one toast.
+4. Final submission sends `email, resetToken` and password fields to
+   `/auth/password/reset`. There is no action to re-enter the consumed OTP on
+   this screen. Invalid/expired reset authorization restarts at the email step
+   with email retained; other failures retain the password draft for retry.
 5. Successful `204` clears the recovery draft and returns to login without
    automatically authenticating. Leaving recovery also clears the draft; app
-   restarts/deep links without the draft return to the email step. OTP is never
-   passed in a URL or stored persistently.
-6. TODO: replace code collection with standalone backend recovery verification
-   and reset authorization once that contract is supplied. Backend changes are
-   explicitly deferred for this UI-only split.
+   restarts/deep links without the draft return to the email step. Neither OTP
+   nor resetToken is passed in a URL or stored persistently.
+6. Redis OTP policy applies across registration and recovery: five wrong codes
+   temporarily block OTP for the email for 24 hours; resend does not reset attempts.
+   The shared error does not distinguish a blocked email from an invalid/expired
+   code, so the client shows conditional guidance without a local ban counter.
+7. A network/5xx reset failure may happen after the password transaction commits.
+   Preserve password input and offer login with the email prefilled; do not retry
+   automatically or claim the password is unchanged.
 
 ## Functional requirements
 
@@ -116,6 +126,17 @@ derive its account state from `GET /api/v1/me`.
 - **AAS-012:** Existing route paths and signed-in navigation remain stable.
 - **AAS-013:** Google buttons are disabled or marked unavailable until an
   approved backend OAuth contract exists; they must not enter a demo session.
+- **AAS-014:** OTP request feedback is neutral; `202` does not prove delivery.
+  Registration creates an account only after verification, and an expired
+  five-minute registration draft requires submitting registration again.
+- **AAS-015:** OTP screens explain the shared 24-hour OTP restriction without
+  treating it as account LOCKED or blocking ordinary password login.
+- **AAS-016:** Protected requests bind to the original session generation before
+  token reads. Stale responses, retries and expiration must not affect another session.
+- **AAS-017:** Logout-all guards pending actions, deduplicates concurrent calls
+  and handles failures without automatic mutation retries or unhandled rejections.
+- **AAS-018:** Recovery OTP must be verified by the API before new-password entry;
+  reset authorization remains memory-only and is cleared after success or exit.
 
 ## Acceptance criteria
 
@@ -124,7 +145,9 @@ derive its account state from `GET /api/v1/me`.
   without seeing the login screen flash.
 - Concurrent protected requests cause at most one refresh call.
 - An invalid/replayed/expired refresh token clears the local session once.
-- Network failure during bootstrap offers retry and preserves the stored token.
+- Bootstrap failures before refresh submission offer retry. Uncertain rotation
+  results require reauthentication and never replay the stored token.
+- Requests begun under an earlier session cannot retry with or expire a later session.
 - Logout and logout-all remove local credentials and return to the public flow.
 - Forgot/reset follows the backend's neutral response behavior.
 - Profile/header/account menu use the authenticated `OwnIdentity` projection.

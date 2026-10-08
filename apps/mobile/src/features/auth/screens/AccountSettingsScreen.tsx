@@ -3,11 +3,11 @@ import { useRouter } from "expo-router";
 import { Button } from "@/components/Button";
 import { AuthLayout } from "../components/AuthLayout";
 import { authStyles } from "../components/AuthControls";
-import { useAuthSession } from "../context/AuthSession";
+import { useAuthActions } from "../hooks/use-auth-actions";
 
 export function AccountSettingsScreen() {
   const router = useRouter();
-  const { signOutAll } = useAuthSession();
+  const { logoutAll } = useAuthActions();
   return (
     <AuthLayout
       title="Bảo mật tài khoản"
@@ -20,13 +20,22 @@ export function AccountSettingsScreen() {
         </Text>
         <Button
           variant="secondary"
+          disabled={logoutAll.isPending}
           onPress={() => {
-            void signOutAll();
+            if (!logoutAll.isPending) logoutAll.mutate();
           }}
         >
-          Đăng xuất tất cả thiết bị
+          {logoutAll.isPending
+            ? "Đang đăng xuất..."
+            : "Đăng xuất tất cả thiết bị"}
         </Button>
-        <Button variant="ghost" onPress={() => router.back()}>
+        <Button
+          variant="ghost"
+          disabled={logoutAll.isPending}
+          onPress={() => {
+            if (!logoutAll.isPending) router.back();
+          }}
+        >
           Quay lại
         </Button>
       </View>
