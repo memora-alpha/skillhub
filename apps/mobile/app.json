@@ -23,6 +23,6 @@
       "bundler": "metro"
     },
     "scheme": "skillhub",
-    "plugins": ["expo-router", "expo-font"]
+    "plugins": ["expo-router", "expo-font", "expo-secure-store"]
   }
 }

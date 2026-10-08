@@ -2,7 +2,11 @@
 
 ## Current contract status
 
-Mobile code has not been scaffolded yet. Treat backend APIs as external contracts owned by `services/api` and documented by backend specs. Do not modify backend code from a mobile task unless the user explicitly asks for it.
+The mobile UI is scaffolded but still uses local demo session state. Backend
+identity v1 is implemented and documented in
+`services/api/specs/002-user-identity/contracts/http.md`. Mobile consumes it as
+an external contract and must not import backend source or modify backend code
+unless the user explicitly requests backend work.
 
 ## Response envelope
 
@@ -20,8 +24,7 @@ type ApiFailure = {
   success: false;
   message: string;
   statusCode: number;
-  fieldErrors?: Record<string, string[]>;
-  code?: string;
+  details?: unknown;
 };
 ```
 
@@ -36,28 +39,33 @@ Keep mobile parsing tolerant while still typed. If the backend contract differs,
 - Do not log Authorization headers, OTP, password, payment payloads, private evidence URLs or LiveKit tokens.
 - Do not create feature-local axios instances.
 
-## Suggested app error codes
+## Auth and account shell contract
 
-Use backend codes when available. These names are placeholders until the API contract is finalized:
+Use only versioned `/api/v1` routes:
 
-- `VALIDATION_ERROR`
-- `EMAIL_ALREADY_EXISTS`
-- `OTP_INVALID_OR_EXPIRED`
-- `AUTH_INVALID_CREDENTIALS`
-- `ACCOUNT_NOT_ACTIVE`
-- `FORBIDDEN`
-- `RESOURCE_NOT_FOUND`
-- `CONFLICT`
-- `VERSION_MISMATCH`
-- `INSUFFICIENT_CREDIT`
-- `CONTENT_REJECTED`
-- `RATE_LIMITED`
-- `NETWORK_ERROR`
-- `UNKNOWN`
+- `POST /auth/register`, `/auth/verification/resend` return neutral `202`.
+- `POST /auth/verification/verify` returns bodyless `204`.
+- `POST /auth/login`, `/auth/refresh` return `TokenPair` in `data` with
+  `accessToken`, `refreshToken`, `tokenType`, `expiresIn` and
+  `refreshExpiresAt`.
+- `POST /auth/logout`, `/auth/logout-all`, `/auth/password/reset` return `204`.
+- `POST /auth/password/forgot` returns neutral `202`.
+- `GET /me` returns account state and the own-profile projection.
+- `PATCH /me/profile` accepts only `fullName`, `headline`, `bio`, `timezone`
+  and `locale`.
 
-## Contract gaps to confirm before coding features
+Registration uses `fullName`, not the current demo form's `name`. Verification
+and reset OTP values are exactly six digits. Protected calls use Bearer access
+tokens. Refresh tokens are rotated strictly and must be serialized by the
+client; there is no replay grace period.
 
-- Exact auth endpoints, refresh behavior and logout/revoke semantics.
+Mobile stores refresh credentials in Expo SecureStore, keeps access tokens in
+memory and never logs credential payloads. See
+`specs/002-auth-account-shell/spec.md` for the mobile flow.
+
+## Remaining contract gaps
+
+- Google OAuth, email change and device/session management are not exposed in v1.
 - Exact Learning Path, LearningPlan and Schedule DTOs for SRS 1.6.
 - Exact enum values for exchange type, plan status, schedule status and report reason codes.
 - Exact payment status polling contract after redirect.

@@ -1,4 +1,6 @@
+import { useEffect, useState } from "react";
 import {
+  Image,
   StyleSheet,
   Text,
   View,
@@ -22,6 +24,7 @@ export function Avatar({
   shape = "circle",
   style,
   textStyle,
+  sourceUri,
 }: {
   name: string;
   userId?: string;
@@ -30,7 +33,10 @@ export function Avatar({
   shape?: "square" | "circle";
   style?: StyleProp<ViewStyle>;
   textStyle?: StyleProp<TextStyle>;
+  sourceUri?: string | null;
 }) {
+  const [imageFailed, setImageFailed] = useState(false);
+  useEffect(() => setImageFailed(false), [sourceUri]);
   const tint = getAvatarColors(
     userId ?? name.normalize("NFC").trim().toLowerCase(),
   );
@@ -56,26 +62,35 @@ export function Avatar({
         style,
       ]}
     >
-      <Text
-        numberOfLines={1}
-        style={[
-          styles.initials,
-          {
-            fontSize: initialSize,
-            lineHeight: Math.ceil(initialSize * 1.2),
-            color: tint.foreground,
-          },
-          textStyle,
-        ]}
-      >
-        {initials}
-      </Text>
+      {sourceUri && !imageFailed ? (
+        <Image
+          source={{ uri: sourceUri }}
+          onError={() => setImageFailed(true)}
+          style={styles.image}
+        />
+      ) : (
+        <Text
+          numberOfLines={1}
+          style={[
+            styles.initials,
+            {
+              fontSize: initialSize,
+              lineHeight: Math.ceil(initialSize * 1.2),
+              color: tint.foreground,
+            },
+            textStyle,
+          ]}
+        >
+          {initials}
+        </Text>
+      )}
     </View>
   );
 }
 const styles = StyleSheet.create({
   circle: {
     flexShrink: 0,
+    overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -88,4 +103,5 @@ const styles = StyleSheet.create({
     textAlign: "center",
     includeFontPadding: false,
   },
+  image: { width: "100%", height: "100%" },
 });
