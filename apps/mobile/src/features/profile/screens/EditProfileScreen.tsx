@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Keyboard, StyleSheet, Text, View } from "react-native";
 import { Redirect, useRouter } from "expo-router";
 import { Avatar } from "@/components/Avatar";
@@ -8,38 +9,64 @@ import { Button } from "@/components/Button";
 import { ControlledInput } from "@/components/ControlledInput";
 import { InfoModal } from "@/components/InfoModal";
 import { avatarSizes } from "@/constants/theme";
-import { useAuthSession, useUpdateProfile } from "@/features/auth";
 import {
-  profileEditSchema,
-  type ProfileEditFormValues,
-} from "@/features/account";
+  useAuthSession,
+  useUpdateProfile,
+  type AccountSession,
+} from "@/features/auth";
 import { errorMessage } from "@/lib/http/errors";
 import { useToast } from "@/providers/ToastProvider";
 import { formValidationOptions } from "@/utils/form-validation";
 import { ProfileLayout } from "../components/ProfileLayout";
 import { ProfileSection, profileStyles } from "../components/ProfilePrimitives";
+import {
+  profileHasChanges,
+  validateProfileDraft,
+} from "../utils/profile-validation";
+import type { ProfileDraft } from "../types/profile";
+
+const profileFormSchema = z
+  .object({
+    fullName: z.string().trim(),
+    headline: z.string(),
+    bio: z.string(),
+  })
+  .superRefine((draft, context) => {
+    for (const [field, message] of Object.entries(validateProfileDraft(draft)))
+      context.addIssue({ code: "custom", path: [field], message });
+  });
 
 export function EditProfileScreen() {
+  const { session, runtime } = useAuthSession();
+  if (!session) return <Redirect href="/login" />;
+  return <ProfileForm key={runtime.controller.generation} session={session} />;
+}
+
+function ProfileForm({ session }: { session: AccountSession }) {
   const router = useRouter();
-  const { session } = useAuthSession();
   const updateProfile = useUpdateProfile();
   const { showToast, dismissToast } = useToast();
-  const form = useForm<ProfileEditFormValues>({
+  const form = useForm<ProfileDraft>({
     ...formValidationOptions,
-    resolver: zodResolver(profileEditSchema),
+    resolver: zodResolver(profileFormSchema),
     defaultValues: {
-      fullName: session?.name ?? "",
-      headline: session?.headline ?? "",
-      bio: session?.bio ?? "",
+      fullName: session.name,
+      headline: session.headline,
+      bio: session.bio,
     },
   });
   const [avatarNotice, setAvatarNotice] = useState(false);
-  if (!session) return <Redirect href="/login" />;
+  const initial = {
+    fullName: session.name,
+    headline: session.headline,
+    bio: session.bio,
+  };
+  const changed = profileHasChanges(initial, form.watch());
   const back = () => {
     if (!updateProfile.isPending) router.dismissTo("/profile");
   };
   const save = form.handleSubmit((values) => {
-    if (updateProfile.isPending) return;
+    if (updateProfile.isPending || !profileHasChanges(initial, values)) return;
     dismissToast();
     Keyboard.dismiss();
     updateProfile.mutate(values, {
@@ -102,7 +129,6 @@ export function EditProfileScreen() {
               placeholder="Ví dụ: Frontend Developer"
               editable={!updateProfile.isPending}
               onChangeText={updateProfile.reset}
-              maxLength={120}
               hint="Không bắt buộc. Tối đa 120 ký tự."
               returnKeyType="next"
               submitBehavior="submit"
@@ -134,7 +160,7 @@ export function EditProfileScreen() {
               size="lg"
               style={{ flex: 1 }}
               onPress={save}
-              disabled={updateProfile.isPending}
+              disabled={updateProfile.isPending || !changed}
             >
               {updateProfile.isPending ? "Đang lưu..." : "Lưu thay đổi"}
             </Button>
