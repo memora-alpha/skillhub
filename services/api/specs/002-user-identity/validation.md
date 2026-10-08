@@ -94,3 +94,19 @@ Swagger and the HTTP contract now state that register stages data and verify cre
 ## Development-only OTP cleanup — 2026-10-08
 
 The user confirmed this is development and old OTP records do not need preservation. The new Redis OTP migration now drops the two obsolete OTP tables and legacy delivery payload columns directly, without archive schemas or data copies. Historical migrations for unrelated runtime-v3 changes are unchanged. Test cleanup no longer references an OTP archive; integration asserts the archive namespace is absent. This edits the migration source only; it does not reset or mutate the configured application database.
+
+## Development database synchronization and live signup — 2026-10-08
+
+The user subsequently authorized synchronizing the configured development database and repeating the real signup/login journey. Inspection confirmed its existing schema contained no records and no migration history. A replacement schema was built through the repository migration chain and switched into the runtime namespace; the previous empty schema remains available for recovery. Identity roles and permissions were seeded through the existing bootstrap command.
+
+Migration `20261008010000_runtime_schema_alignment` reconciles residual index names, timestamp defaults and the StoredFile update action with the runtime Prisma model. All 11 migrations are applied and Prisma reports no schema differences. OTP tables are absent. The identity integration fixture now includes this migration; all 22 entries passed again.
+
+The authorized external mailbox journey passed: registration returned 202, SMTP delivery completed, and no database account existed before verification. A mailbox-provided OTP returned 204, login returned 200 with access/refresh credentials, and authenticated `/me` returned 200 with an ACTIVE, email-verified USER account. Tokens, passwords and OTP values are not recorded here. This supersedes the earlier development schema/seed blockers; it does not establish production deployment or acceptance of unrelated integrations.
+
+## Separate recovery OTP verification and password reset
+
+The user requested a distinct OTP verification step before password entry/update. The implemented contract is documented in [password-recovery.md](password-recovery.md): forgot (202), verify-otp (200 with one-use resetToken/expiry and no-store), reset (204 with email/resetToken/new passwords). Reset no longer accepts otpCode. No database migration is required for this recovery change; the earlier runtime schema alignment remains separate work.
+
+Build, TypeScript no-emit and API ESLint passed. Identity policies/providers/regressions passed **12/12**. PostgreSQL/Redis/BullMQ integration passed **23/23 entries** after updating the Swagger endpoint assertion from 21 to 22. The first run stopped the HTTP case at that obsolete count; the corrected run exercises the new recovery HTTP contract through successful login. Tests cover wrong OTP/no grant, no password/securityVersion/session change at verify, exactly one grant from 20 concurrent verifications, digest-only Redis token storage, required token/legacy-body rejection, email/expiry/securityVersion/status binding, consumed/replaced token rejection, cooldown and in-flight-reset resend behavior, exactly one password update from 20 concurrent resets, audit rollback and all-session revocation. Existing signup, refresh, RBAC, key rotation and workers remain passing. Providers are controlled in this suite; no additional real-mailbox recovery or real-user password change is claimed.
+
+The development API was restarted with the built implementation. Its live Swagger exposes password/verify-otp and a ResetDto containing resetToken without otpCode; an unknown-email OTP verification returns 400 OTP_INVALID_OR_EXPIRED. This smoke check sends no email and changes no real user's password.

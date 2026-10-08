@@ -43,17 +43,21 @@ export class RedisOtpStore extends OtpStore {
           if not current or cjson.decode(current).id~=ARGV[4] then return 0 end
         elseif current then return 0 end
       end
+      if ARGV[5]=='RESET_PASSWORD' and redis.call('EXISTS',KEYS[7])==1 then return 0 end
       if tonumber(redis.call('GET',KEYS[3]) or '0') >= 5 then return 0 end
+      if ARGV[5]=='RESET_PASSWORD' then redis.call('DEL',KEYS[6]) end
       redis.call('SET',KEYS[1],ARGV[1],'PX',ARGV[2])
       redis.call('SET',KEYS[2],'1','EX',60)
       local n=redis.call('INCR',KEYS[3]); if n==1 then redis.call('PEXPIRE',KEYS[3],ARGV[3]) end
       return 1`,
-          5,
+          7,
           key,
           `${key}:cooldown`,
           `${key}:hour:${hour}`,
           `${key}:claim`,
           `${this.addressKey(email)}:ban`,
+          this.key(email, "PASSWORD_RESET_GRANT"),
+          `${this.key(email, "PASSWORD_RESET_GRANT")}:claim`,
           JSON.stringify(record),
           record.expiresAt - now,
           (hour + 1) * 3600000 - now,
@@ -66,6 +70,33 @@ export class RedisOtpStore extends OtpStore {
   async read(email: string, purpose: string): Promise<OtpRecord | null> {
     const value = await this.redis.get(this.key(email, purpose));
     return value ? (JSON.parse(value) as OtpRecord) : null;
+  }
+  async exchangeReset(
+    email: string,
+    id: string,
+    lease: string,
+    grant: OtpRecord,
+  ): Promise<boolean> {
+    const key = this.key(email, "RESET_PASSWORD");
+    return (
+      Number(
+        await this.redis.eval(
+          `if redis.call('GET',KEYS[2])~=ARGV[2] then return 0 end
+       local raw=redis.call('GET',KEYS[1])
+       if not raw or cjson.decode(raw).id~=ARGV[1] then return 0 end
+       redis.call('SET',KEYS[3],ARGV[3],'PX',ARGV[4])
+       redis.call('DEL',KEYS[1],KEYS[2]); return 1`,
+          3,
+          key,
+          `${key}:claim`,
+          this.key(email, "PASSWORD_RESET_GRANT"),
+          id,
+          lease,
+          JSON.stringify(grant),
+          grant.expiresAt - Date.now(),
+        ),
+      ) === 1
+    );
   }
   async claim(
     email: string,
@@ -83,6 +114,7 @@ export class RedisOtpStore extends OtpStore {
       local row=cjson.decode(raw)
       if row.id~=ARGV[1] or row.failedAttempts>=5 or redis.call('EXISTS',KEYS[2])==1 or redis.call('EXISTS',KEYS[4])==1 then return 0 end
       if row.digest~=ARGV[2] then
+        if ARGV[4]=='0' then return 0 end
         row.failedAttempts=row.failedAttempts+1
         local failures=redis.call('INCR',KEYS[3]); if failures==1 then redis.call('EXPIRE',KEYS[3],86400) end
         if failures>=5 then redis.call('SET',KEYS[4],'1','EX',86400) end
@@ -97,6 +129,7 @@ export class RedisOtpStore extends OtpStore {
           id,
           digest,
           lease,
+          purpose === "PASSWORD_RESET_GRANT" ? "0" : "1",
         ),
       ) === 1
     );
