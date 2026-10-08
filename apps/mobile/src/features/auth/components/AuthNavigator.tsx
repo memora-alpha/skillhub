@@ -1,9 +1,20 @@
-import { Stack } from "expo-router";
+import { useEffect } from "react";
+import { Stack, usePathname } from "expo-router";
 import { colors } from "@/constants/theme";
 import { useAuthSession } from "../context/AuthSession";
+import { passwordRecoveryStore } from "../utils/password-recovery-flow";
 
 export function AuthNavigator() {
   const { status } = useAuthSession();
+  const pathname = usePathname();
+  useEffect(() => {
+    if (
+      !["/forgot-password", "/reset-password-code", "/reset-password"].includes(
+        pathname,
+      )
+    )
+      passwordRecoveryStore.getState().clear();
+  }, [pathname]);
   const authenticated = status === "authenticated";
   return (
     <Stack
@@ -20,6 +31,7 @@ export function AuthNavigator() {
         <Stack.Screen name="register" />
         <Stack.Screen name="verify-email" />
         <Stack.Screen name="forgot-password" />
+        <Stack.Screen name="reset-password-code" />
         <Stack.Screen name="reset-password" />
       </Stack.Protected>
       <Stack.Protected guard={authenticated}>

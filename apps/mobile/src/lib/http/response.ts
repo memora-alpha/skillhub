@@ -4,15 +4,9 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-export async function readResponse(response: Response): Promise<unknown> {
-  if (response.status === 204) return undefined;
-  let payload: unknown;
-  try {
-    payload = await response.json();
-  } catch {
-    throw new AppError(response.ok ? "protocol" : "http", response.status);
-  }
-  if (!response.ok) {
+export function readPayload(status: number, payload: unknown): unknown {
+  if (status === 204) return undefined;
+  if (status < 200 || status >= 300) {
     // Only accept known-shaped codes, never display arbitrary server text or details.
     const code =
       isRecord(payload) &&
@@ -20,7 +14,7 @@ export async function readResponse(response: Response): Promise<unknown> {
       /^[A-Z_]+$/.test(payload.message)
         ? payload.message
         : "";
-    throw new AppError("http", response.status, code);
+    throw new AppError("http", status, code);
   }
   if (!isRecord(payload) || payload.success !== true || !("data" in payload))
     throw new AppError("protocol");
