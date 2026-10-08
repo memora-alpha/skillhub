@@ -7,6 +7,14 @@ export abstract class IdentityMailer {
     code: string | null,
   ): Promise<string>;
 }
+export interface IdentityEmailPayload {
+  keyId: string;
+  encrypted: string;
+}
 export abstract class IdentityEmailJobs {
-  abstract enqueue(id: string, attempts: number): Promise<void>;
+  abstract enqueue(
+    id: string,
+    attempts: number,
+    payload: IdentityEmailPayload,
+  ): Promise<void>;
 }

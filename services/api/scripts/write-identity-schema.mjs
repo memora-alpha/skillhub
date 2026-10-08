@@ -18,8 +18,6 @@ for (const name of [
   "Role",
   "Permission",
   "RolePermission",
-  "OtpChallenge",
-  "OtpIssueWindow",
   "RefreshSession",
   "RefreshCredential",
   "ReauthProof",
@@ -43,5 +41,5 @@ for (const name of [
   }
 }
 console.log(
-  "Using the full v3 runtime in prisma/schema.prisma, including OTP/foundation support.",
+  "Using the full v3 runtime in prisma/schema.prisma, including foundation support (OTP is Redis-only).",
 );

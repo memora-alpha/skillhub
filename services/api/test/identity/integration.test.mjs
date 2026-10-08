@@ -1,3 +1,4 @@
+import { RedisOtpStore } from "../../dist/modules/auth/infrastructure/tokens/redis-otp.store.js";
 import { createIdentityFixture } from "./fixture.mjs";
 import { IdentityEmailWorker } from "../../dist/modules/notifications/infrastructure/jobs/identity-email.worker.js";
 import { DeliverIdentityEmailUseCase } from "../../dist/modules/notifications/application/use-cases/deliver-identity-email.use-case.js";
@@ -155,6 +156,7 @@ test(
           "20261006000000_learning_requests",
           "20261007000000_runtime_v3",
           "20261007010000_skills",
+          "20261008000000_redis_otp",
         ])
           await client.query(
             await readFile(
@@ -172,6 +174,23 @@ test(
         client.release();
       }
       await db.$connect();
+      assert.equal(
+        (
+          await pool.query("SELECT to_regnamespace($1) AS archive", [
+            `${schema}_legacy_redis_otp`,
+          ])
+        ).rows[0].archive,
+        null,
+      );
+      assert.equal(
+        (
+          await pool.query(
+            "SELECT count(*)::int AS n FROM information_schema.tables WHERE table_schema=$1 AND table_name IN ('otp_challenges','otp_issue_windows')",
+            [schema],
+          )
+        ).rows[0].n,
+        0,
+      );
       await seedIdentity(db, new PrismaUsersRepository());
       await seedIdentity(db, new PrismaUsersRepository());
       await t.test(
@@ -244,7 +263,7 @@ test(
       );
       const fixtures = [];
       const createFixture = async (options) => {
-        const result = await createIdentityFixture(options);
+        const result = await createIdentityFixture({ ...options, redis });
         fixtures.push(result);
         return result;
       };
@@ -261,30 +280,23 @@ test(
       });
       const { users, audit, sessions, email, auth, admin, avatars } = fixture;
       const throttle = new IdentityThrottle(redis, config);
+      const otpStore = new RedisOtpStore(redis, config);
       const proof = async (address, purpose) => {
-        const user = await db.user.findUniqueOrThrow({
-          where: { normalizedEmail: address },
-        });
-        const challenge = await db.otpChallenge.findFirstOrThrow({
-          where: {
-            userId: user.id,
-            purpose,
-            consumedAt: null,
-            supersededAt: null,
-          },
-          orderBy: { createdAt: "desc" },
-        });
-        const delivery = await db.identityEmailDelivery.findFirstOrThrow({
-          where: { challengeId: challenge.id },
-        });
-        return {
-          challenge,
-          delivery,
-          code: config.crypto.decrypt(
-            delivery.encryptedPayload,
-            `${delivery.id}:payload`,
-          ),
-        };
+        const challenge = await otpStore.read(address, purpose);
+        assert.ok(challenge);
+        const delivery = queued.find(
+          (item) => item.id === `otp-${challenge.id}`,
+        );
+        assert.ok(delivery);
+        const data = JSON.parse(
+          config
+            .cryptoFor(delivery.payload.keyId)
+            .decrypt(
+              Buffer.from(delivery.payload.encrypted, "base64"),
+              `${delivery.id}:email`,
+            ),
+        );
+        return { challenge, delivery, code: data.code };
       };
       const signup = (address) =>
         auth.register({
@@ -303,7 +315,7 @@ test(
       let other;
       let actor;
       await t.test(
-        "20 normalized signup races: one aggregate, immutable retry, encrypted durable intent",
+        "20 normalized signup races stage one encrypted draft and create no account",
         async () => {
           const results = await Promise.allSettled(
             Array.from({ length: 20 }, (_, index) =>
@@ -314,39 +326,35 @@ test(
             (result) => result.status === "rejected",
           );
           if (rejected) throw rejected.reason;
-          user = await db.user.findUniqueOrThrow({
-            where: { normalizedEmail: "race@example.com" },
-          });
-          for (const table of [
-            db.user,
-            db.otpChallenge,
-            db.identityEmailDelivery,
-          ])
-            assert.equal(await table.count(), 1);
+          assert.equal(await db.user.count(), 0);
+          assert.equal(queued.length, 1);
+          const original = await otpStore.read("race@example.com", "REGISTER");
           await auth.register({
             email: "RACE@example.com",
             password: "Replacement123!",
             fullName: "Other Name",
           });
-          assert.equal(
-            (await db.user.findUniqueOrThrow({ where: { id: user.id } }))
-              .passwordHash,
-            user.passwordHash,
-          );
-          assert.equal((await users.profile(user.id)).fullName, "Nguyễn Hà");
-          await assert.rejects(
-            auth.login("race@example.com", "Strong123!"),
-            (error) => error.getStatus() === 403,
-          );
-          const p = await proof("race@example.com", "REGISTER");
-          assert.ok(
-            !Buffer.from(p.delivery.encryptedPayload).includes(
-              Buffer.from(p.code),
+          const current = await otpStore.read("race@example.com", "REGISTER");
+          assert.equal(current.registration, original.registration);
+          const draft = JSON.parse(
+            config.crypto.decrypt(
+              Buffer.from(current.registration, "base64"),
+              `${current.userId}:registration`,
             ),
           );
-          await email.reconcile();
+          assert.equal(draft.fullName, "Nguyễn Hà");
+          assert.match(draft.passwordHash, /^\$argon2id\$/);
+          assert.ok(!JSON.stringify(current).includes("Strong123!"));
+          assert.ok(!JSON.stringify(current).includes("Nguyễn Hà"));
+          assert.equal(await db.user.count(), 0);
+          await assert.rejects(
+            auth.login("race@example.com", "Strong123!"),
+            (error) => error.getStatus() === 401,
+          );
+          const p = await proof("race@example.com", "REGISTER");
+          assert.ok(!JSON.stringify(p.delivery).includes(p.code));
+          assert.ok(!JSON.stringify(p.delivery).includes("race@example.com"));
           assert.ok(queued.some((item) => item.id === p.delivery.id));
-          assert.ok(queued.every((item) => Object.keys(item).length === 1));
         },
       );
       await t.test(
@@ -361,6 +369,16 @@ test(
           assert.equal(
             results.filter((result) => result.status === "fulfilled").length,
             1,
+          );
+          user = await db.user.findUniqueOrThrow({
+            where: { normalizedEmail: "race@example.com" },
+          });
+          assert.equal(await db.user.count(), 1);
+          assert.equal((await users.profile(user.id)).fullName, "Nguyễn Hà");
+          assert.equal(user.emailVerified, true);
+          assert.equal(
+            await otpStore.read("race@example.com", "REGISTER"),
+            null,
           );
           assert.equal(
             (await db.user.findUniqueOrThrow({ where: { id: user.id } }))
@@ -378,23 +396,97 @@ test(
             ),
           );
           assert.equal(
-            (
-              await db.otpChallenge.findUniqueOrThrow({
-                where: { id: wrong.challenge.id },
-              })
-            ).failedAttempts,
+            (await otpStore.read("attempt@example.com", "REGISTER"))
+              .failedAttempts,
             5,
           );
           await assert.rejects(auth.verify("attempt@example.com", wrong.code));
-          await email.deliver(wrong.delivery.id);
+          const before = sent.length;
+          await email.deliver(wrong.delivery.id, wrong.delivery.payload);
+          assert.equal(sent.length, before);
+        },
+      );
+      await t.test(
+        "registration audit rollback creates no user and preserves the draft for retry",
+        async () => {
+          const address = "registration-rollback@example.com";
+          await signup(address);
+          const p = await proof(address, "REGISTER");
+          const failed = (
+            await createFixture({
+              db,
+              config,
+              storage,
+              scanner,
+              smtp,
+              queue,
+              audit: {
+                append: async () => {
+                  throw new Error("audit down");
+                },
+              },
+            })
+          ).auth;
+          await assert.rejects(failed.verify(address, p.code));
           assert.equal(
-            (
-              await db.identityEmailDelivery.findUniqueOrThrow({
-                where: { id: wrong.delivery.id },
-              })
-            ).status,
-            "CANCELLED",
+            await db.user.findUnique({ where: { normalizedEmail: address } }),
+            null,
           );
+          assert.equal(
+            (await otpStore.read(address, "REGISTER")).id,
+            p.challenge.id,
+          );
+          await auth.verify(address, p.code);
+          const created = await db.user.findUniqueOrThrow({
+            where: { normalizedEmail: address },
+          });
+          assert.equal(created.id, p.challenge.userId);
+          assert.equal(created.accountStatus, "ACTIVE");
+          await assert.rejects(auth.verify(address, p.code));
+        },
+      );
+      await t.test(
+        "Redis cleanup failure after create retries without another user or audit",
+        async () => {
+          const address = "registration-cleanup@example.com";
+          await signup(address);
+          const p = await proof(address, "REGISTER");
+          const failed = (
+            await createFixture({
+              db,
+              config,
+              storage,
+              scanner,
+              smtp,
+              queue,
+              otpStore: {
+                issue: otpStore.issue.bind(otpStore),
+                read: otpStore.read.bind(otpStore),
+                claim: otpStore.claim.bind(otpStore),
+                finish: async () => {
+                  throw new Error("redis cleanup down");
+                },
+              },
+            })
+          ).auth;
+          await assert.rejects(failed.verify(address, p.code));
+          const created = await db.user.findUniqueOrThrow({
+            where: { normalizedEmail: address },
+          });
+          assert.equal(created.emailVerified, true);
+          await redis.del(`${otpStore.key(address, "REGISTER")}:claim`); // Simulate lease expiry after a crash.
+          await auth.verify(address, p.code);
+          assert.equal(
+            await db.user.count({ where: { normalizedEmail: address } }),
+            1,
+          );
+          assert.equal(
+            await db.auditLog.count({
+              where: { targetId: created.id, action: "EMAIL_VERIFIED" },
+            }),
+            1,
+          );
+          assert.equal(await otpStore.read(address, "REGISTER"), null);
         },
       );
       await t.test(
@@ -408,33 +500,137 @@ test(
             ),
           );
           assert.equal(
-            await db.otpChallenge.count({
-              where: { userId: p.challenge.userId },
-            }),
-            1,
+            (await otpStore.read("resend@example.com", "REGISTER")).id,
+            p.challenge.id,
           );
           for (let index = 0; index < 8; index++) {
-            await db.otpIssueWindow.updateMany({
-              where: { normalizedEmail: "resend@example.com" },
-              data: { lastIssuedAt: new Date(Date.now() - 61000) },
-            });
+            await redis.del(
+              `${otpStore.key("resend@example.com", "REGISTER")}:cooldown`,
+            );
             await auth.resend("resend@example.com", "REGISTER");
           }
           assert.equal(
-            await db.otpChallenge.count({
-              where: { userId: p.challenge.userId },
-            }),
+            queued.filter((item) => {
+              const data = JSON.parse(
+                config.crypto.decrypt(
+                  Buffer.from(item.payload.encrypted, "base64"),
+                  `${item.id}:email`,
+                ),
+              );
+              return data.email === "resend@example.com";
+            }).length,
             5,
           );
           await assert.rejects(auth.verify("resend@example.com", p.code));
-          await email.deliver(p.delivery.id);
+          const before = sent.length;
+          await email.deliver(p.delivery.id, p.delivery.payload);
+          assert.equal(sent.length, before);
+        },
+      );
+      await t.test(
+        "Redis proof TTL expires and stale jobs never send",
+        async () => {
+          await signup("expiry@example.com");
+          const p = await proof("expiry@example.com", "REGISTER");
+          const key = otpStore.key("expiry@example.com", "REGISTER");
+          const ttl = await redis.pttl(key);
+          assert.ok(ttl > 290000 && ttl <= 300000);
+          assert.ok(!key.includes("expiry@example.com"));
+          assert.ok(
+            !JSON.stringify(
+              await otpStore.read("expiry@example.com", "REGISTER"),
+            ).includes(p.code),
+          );
+          await redis.pexpire(key, 0);
           assert.equal(
-            (
-              await db.identityEmailDelivery.findUniqueOrThrow({
-                where: { id: p.delivery.id },
-              })
-            ).status,
-            "CANCELLED",
+            await db.user.findUnique({
+              where: { normalizedEmail: "expiry@example.com" },
+            }),
+            null,
+          );
+          const queuedBefore = queued.length;
+          await auth.resend("expiry@example.com", "REGISTER");
+          assert.equal(queued.length, queuedBefore);
+          await assert.rejects(auth.verify("expiry@example.com", p.code));
+          const before = sent.length;
+          await email.deliver(p.delivery.id, p.delivery.payload);
+          assert.equal(sent.length, before);
+        },
+      );
+      await t.test(
+        "wrong attempts across replacement codes softban the address for 24 hours",
+        async () => {
+          const address = "softban@example.com";
+          await signup(address);
+          let p = await proof(address, "REGISTER");
+          for (let i = 0; i < 3; i++)
+            await assert.rejects(
+              auth.verify(address, p.code === "000000" ? "999999" : "000000"),
+            );
+          await redis.del(`${otpStore.key(address, "REGISTER")}:cooldown`);
+          await auth.resend(address, "REGISTER");
+          p = await proof(address, "REGISTER");
+          for (let i = 0; i < 2; i++)
+            await assert.rejects(
+              auth.verify(address, p.code === "000000" ? "999999" : "000000"),
+            );
+          await assert.rejects(auth.verify(address, p.code));
+          const banKey = otpStore.key(address, "").slice(0, -1) + ":ban";
+          assert.ok((await redis.ttl(banKey)) > 86390);
+          assert.equal(
+            await otpStore.issue(address, "RESET_PASSWORD", {
+              ...p.challenge,
+              id: randomUUID(),
+            }),
+            false,
+          );
+        },
+      );
+      await t.test(
+        "enqueue failure keeps only a Redis draft and resend recovers",
+        async () => {
+          const failed = (
+            await createFixture({
+              db,
+              config,
+              storage,
+              scanner,
+              smtp,
+              queue: {
+                add: async () => {
+                  throw new Error("queue down");
+                },
+              },
+            })
+          ).auth;
+          await assert.rejects(
+            failed.register({
+              email: "queue-down@example.com",
+              fullName: "Queue Test",
+              password: "Strong123!",
+            }),
+          );
+          assert.equal(
+            await db.user.findUnique({
+              where: { normalizedEmail: "queue-down@example.com" },
+            }),
+            null,
+          );
+          const pending = await otpStore.read(
+            "queue-down@example.com",
+            "REGISTER",
+          );
+          assert.ok(pending.registration);
+          await redis.del(
+            `${otpStore.key("queue-down@example.com", "REGISTER")}:cooldown`,
+          );
+          await auth.resend("queue-down@example.com", "REGISTER");
+          const p = await proof("queue-down@example.com", "REGISTER");
+          await auth.verify("queue-down@example.com", p.code);
+          assert.equal(
+            (await db.user.findUniqueOrThrow({ where: { id: pending.userId } }))
+              .emailVerified,
+            true,
           );
         },
       );
@@ -522,12 +718,8 @@ test(
             failed.reset("race@example.com", p.code, "NewStrong123!"),
           );
           assert.equal(
-            (
-              await db.otpChallenge.findUniqueOrThrow({
-                where: { id: p.challenge.id },
-              })
-            ).consumedAt,
-            null,
+            (await otpStore.read("race@example.com", "RESET_PASSWORD")).id,
+            p.challenge.id,
           );
           await sessions.principal(a.accessToken);
           const results = await Promise.allSettled(
@@ -544,22 +736,19 @@ test(
           await assert.rejects(auth.login("race@example.com", "Strong123!"));
           await auth.login("race@example.com", "NewStrong123!");
           assert.equal(
-            await db.identityEmailDelivery.count({
-              where: { userId: user.id, kind: "PASSWORD_CHANGED" },
-            }),
+            queued.filter(
+              (item) =>
+                item.id === `password-${user.id}-${user.securityVersion + 1}`,
+            ).length,
             1,
           );
           await db.user.update({
             where: { id: user.id },
             data: { accountStatus: "LOCKED" },
           });
-          await db.otpIssueWindow.updateMany({
-            where: {
-              normalizedEmail: "race@example.com",
-              purpose: "RESET_PASSWORD",
-            },
-            data: { lastIssuedAt: new Date(Date.now() - 61000) },
-          });
+          await redis.del(
+            `${otpStore.key("race@example.com", "RESET_PASSWORD")}:cooldown`,
+          );
           await auth.resend("race@example.com", "RESET_PASSWORD");
           await auth.reset(
             "race@example.com",
@@ -582,59 +771,28 @@ test(
         },
       );
       await t.test(
-        "outbox expired lease recovery, restart, duplicate and bounded provider failures",
+        "Redis email sender survives restart, deduplicates and propagates provider failures",
         async () => {
           other = await activate("other@example.com");
           await auth.resend("other@example.com", "RESET_PASSWORD");
           const p = await proof("other@example.com", "RESET_PASSWORD");
-          await db.identityEmailDelivery.update({
-            where: { id: p.delivery.id },
-            data: { status: "LEASED", leaseUntil: new Date(Date.now() - 1000) },
-          });
-          await email.reconcile();
-          assert.equal(
-            (
-              await db.identityEmailDelivery.findUniqueOrThrow({
-                where: { id: p.delivery.id },
-              })
-            ).status,
-            "PENDING",
-          );
           const restart = (
             await createFixture({ db, config, storage, scanner, smtp, queue })
           ).email;
-          await restart.deliver(p.delivery.id);
-          await restart.deliver(p.delivery.id);
+          await restart.deliver(p.delivery.id, p.delivery.payload);
+          await restart.deliver(p.delivery.id, p.delivery.payload);
           assert.equal(
             sent.filter((args) => args[0] === p.delivery.id).length,
             1,
           );
-          assert.equal(
-            (
-              await db.identityEmailDelivery.findUniqueOrThrow({
-                where: { id: p.delivery.id },
-              })
-            ).encryptedPayload,
-            null,
-          );
           await signup("delivery@example.com");
           const failed = await proof("delivery@example.com", "REGISTER");
           smtpFailure = true;
-          for (let i = 0; i < 3; i++) {
-            await db.identityEmailDelivery.update({
-              where: { id: failed.delivery.id },
-              data: { nextAttemptAt: new Date(Date.now() - 1000) },
-            });
-            await email.deliver(failed.delivery.id);
-          }
+          await assert.rejects(
+            email.deliver(failed.delivery.id, failed.delivery.payload),
+          );
           smtpFailure = false;
-          const row = await db.identityEmailDelivery.findUniqueOrThrow({
-            where: { id: failed.delivery.id },
-          });
-          assert.equal(row.status, "FAILED");
-          assert.equal(row.attempts, 3);
-          assert.equal(row.encryptedPayload, null);
-          assert.equal(row.lastErrorCode, "DELIVERY_FAILED");
+          await email.deliver(failed.delivery.id, failed.delivery.payload);
         },
       );
       await t.test(
@@ -1080,6 +1238,12 @@ test(
             202,
           );
           assert.equal(registration.data, null);
+          assert.equal(
+            await db.user.findUnique({
+              where: { normalizedEmail: "http@example.com" },
+            }),
+            null,
+          );
           const duplicate = await readSuccess(
             await request("/api/v1/auth/register", "POST", {
               email: "http@example.com",
@@ -1295,7 +1459,7 @@ test(
               queue,
             })
           ).email;
-          await sender.deliver(p.delivery.id);
+          await sender.deliver(p.delivery.id, p.delivery.payload);
           assert.ok(
             sent.some(
               (args) => args[0] === p.delivery.id && args[3] === p.code,
@@ -1340,7 +1504,7 @@ test(
           const processor = new IdentityEmailWorker(
             fixture.module.get(DeliverIdentityEmailUseCase),
           );
-          const dispatcher = new BullIdentityEmailJobs(liveQueue);
+          const dispatcher = new BullIdentityEmailJobs(liveQueue, config);
           const worker = new Worker(name, (job) => processor.process(job), {
             connection,
             prefix: schema,
@@ -1348,19 +1512,18 @@ test(
           try {
             await events.waitUntilReady();
             await worker.waitUntilReady();
-            await dispatcher.enqueue(p.delivery.id, 0);
-            const job = await liveQueue.getJob(`${p.delivery.id}-0`);
+            await dispatcher.enqueue(p.delivery.id, 0, p.delivery.payload);
+            const job = await liveQueue.getJob(p.delivery.id);
             assert.ok(job);
-            assert.deepEqual(job.data, { id: p.delivery.id });
+            assert.deepEqual(job.data, {
+              id: p.delivery.id,
+              payload: p.delivery.payload,
+            });
             await liveQueue.resume();
             await job.waitUntilFinished(events, 10000);
             assert.equal(
-              (
-                await db.identityEmailDelivery.findUniqueOrThrow({
-                  where: { id: p.delivery.id },
-                })
-              ).status,
-              "SENT",
+              await redis.get(`identity:email:sent:${p.delivery.id}`),
+              "1",
             );
             assert.ok(sent.some((args) => args[0] === p.delivery.id));
 
@@ -1468,6 +1631,50 @@ test(
       );
     } finally {
       if (app) await app.close();
+      if (created) {
+        const cleanupStore = new RedisOtpStore(redis, config);
+        const accounts = await db.user.findMany({
+          select: { normalizedEmail: true },
+        });
+        const addresses = new Set(accounts.map((row) => row.normalizedEmail));
+        for (const item of queued) {
+          try {
+            const crypto = config.cryptoFor(item.payload.keyId);
+            if (crypto)
+              addresses.add(
+                JSON.parse(
+                  crypto.decrypt(
+                    Buffer.from(item.payload.encrypted, "base64"),
+                    `${item.id}:email`,
+                  ),
+                ).email,
+              );
+          } catch {
+            /* Rotation cases may use a key from a different fixture. */
+          }
+        }
+        for (const normalizedEmail of addresses) {
+          const account = { normalizedEmail };
+          const pattern = cleanupStore.key(account.normalizedEmail, "") + "*";
+          let cursor = "0";
+          do {
+            const [next, keys] = await redis.scan(
+              cursor,
+              "MATCH",
+              pattern,
+              "COUNT",
+              100,
+            );
+            cursor = next;
+            if (keys.length) await redis.del(...keys);
+          } while (cursor !== "0");
+        }
+        for (const item of queued)
+          await redis.del(
+            `identity:email:sent:${item.id}`,
+            `identity:email:lease:${item.id}`,
+          );
+      }
       await db.$disconnect();
       if (created) {
         await pool.query(`DROP SCHEMA IF EXISTS "${schema}_legacy_v3" CASCADE`);

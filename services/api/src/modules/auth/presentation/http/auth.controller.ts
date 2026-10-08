@@ -77,7 +77,10 @@ export class AuthController {
   }
   @Post("register")
   @HttpCode(202)
-  @ApiOperation({ summary: "Register a pending account; neutral response" })
+  @ApiOperation({
+    summary:
+      "Stage registration in Redis and send OTP; no account is created yet",
+  })
   @ApiSuccessResponse(202, null)
   async register(@Body() body: RegisterDto, @Req() req: Request) {
     await this.rate(req, "register", body.email);
@@ -97,7 +100,7 @@ export class AuthController {
   }
   @Post("verification/verify")
   @HttpCode(204)
-  @ApiOperation({ summary: "Consume registration OTP and activate once" })
+  @ApiOperation({ summary: "Verify OTP and create an active account once" })
   @ApiResponse({ status: 204 })
   async verify(@Body() body: VerifyDto, @Req() req: Request) {
     await this.rate(req, "verify", body.email);

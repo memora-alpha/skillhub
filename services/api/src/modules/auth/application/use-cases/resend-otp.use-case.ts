@@ -20,7 +20,12 @@ export class ResendOtpUseCase {
   ) {}
   async execute(email: string, purpose: "REGISTER" | "RESET_PASSWORD") {
     email = normalizeEmail(email);
-    await transaction(this.db, async (tx) => {
+    if (purpose === "REGISTER") {
+      if (!(await this.users.byEmail(this.db, email)))
+        await this.otp.requestRegistration(email);
+      return acknowledgment;
+    }
+    const user = await transaction(this.db, async (tx) => {
       await lockEmail(tx, email);
       const lookup = await this.users.byEmail(tx, email);
       if (!lookup) return;
@@ -28,13 +33,12 @@ export class ResendOtpUseCase {
       const user = await this.users.byId(tx, lookup.id);
       if (
         !user ||
-        (purpose === "REGISTER"
-          ? user.accountStatus !== "PENDING_VERIFICATION"
-          : !this.otp.resetEligible(user.accountStatus, user.emailVerified))
+        !this.otp.resetEligible(user.accountStatus, user.emailVerified)
       )
         return;
-      await this.otp.issueOtp(tx, user.id, email, purpose, true);
+      return user;
     });
+    if (user) await this.otp.issueOtp(user, purpose);
     return acknowledgment;
   }
 }

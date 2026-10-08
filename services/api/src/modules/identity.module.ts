@@ -2,7 +2,6 @@ import { IDENTITY_APPLICATION_PROVIDERS } from "./identity.providers";
 import { AvatarWorker } from "./users/infrastructure/jobs/avatar.worker";
 import { AvatarScheduler } from "./users/infrastructure/jobs/avatar.scheduler";
 import { IdentityEmailWorker } from "./notifications/infrastructure/jobs/identity-email.worker";
-import { IdentityEmailScheduler } from "./notifications/infrastructure/jobs/identity-email.scheduler";
 import { Module } from "@nestjs/common";
 import { BullModule } from "@nestjs/bullmq";
 import { IdentityConfig } from "../configs/identity.config";
@@ -55,7 +54,6 @@ import { ProfileReader } from "./users/application/services/profile-reader.servi
     AvatarWorker,
     AvatarScheduler,
     IdentityEmailWorker,
-    IdentityEmailScheduler,
   ],
   exports: [
     ProfileReader,

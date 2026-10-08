@@ -20,6 +20,8 @@ export class PrismaUsersRepository extends UsersRepository {
   async create(
     tx: IdentityTx,
     data: {
+      id?: string;
+      termsAcceptedAt?: Date;
       email: string;
       fullName: string;
       passwordHash: string;
@@ -32,10 +34,11 @@ export class PrismaUsersRepository extends UsersRepository {
     const role = await tx.role.findUniqueOrThrow({ where: { code: "USER" } });
     return tx.user.create({
       data: {
+        id: data.id,
         normalizedEmail: data.email,
         passwordHash: data.passwordHash,
         termsVersion: data.termsVersion,
-        termsAcceptedAt: new Date(),
+        termsAcceptedAt: data.termsAcceptedAt ?? new Date(),
         roleId: role.id,
         fullName: data.fullName,
         timezone: data.timezone,

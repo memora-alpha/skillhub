@@ -1,58 +1,10 @@
 import { IdentityTx } from "../../../../shared/database/identity-transactions";
 import {
-  OtpChallenge,
-  OtpIssueWindow,
-  OtpPurpose,
   ReauthProof,
   RefreshSession,
   RefreshCredential,
 } from "../../../../generated/prisma/client";
 export abstract class AuthRepository {
-  abstract latestIssue(
-    tx: IdentityTx,
-    email: string,
-    purpose: OtpPurpose,
-  ): Promise<OtpIssueWindow | null>;
-  abstract issueWindow(
-    tx: IdentityTx,
-    email: string,
-    purpose: OtpPurpose,
-    windowStart: Date,
-  ): Promise<OtpIssueWindow | null>;
-  abstract recordIssue(
-    tx: IdentityTx,
-    email: string,
-    purpose: OtpPurpose,
-    windowStart: Date,
-    now: Date,
-    resend: boolean,
-  ): Promise<OtpIssueWindow>;
-  abstract supersedeChallenges(
-    tx: IdentityTx,
-    userId: string,
-    purpose: OtpPurpose,
-    now: Date,
-  ): Promise<{ count: number }>;
-  abstract createChallenge(
-    tx: IdentityTx,
-    data: Pick<
-      OtpChallenge,
-      | "id"
-      | "userId"
-      | "email"
-      | "purpose"
-      | "expiresAt"
-      | "verifierKeyId"
-      | "verifierDigest"
-    >,
-  ): Promise<OtpChallenge>;
-  abstract activeChallenge(
-    tx: IdentityTx,
-    userId: string,
-    purpose: OtpPurpose,
-  ): Promise<OtpChallenge | null>;
-  abstract failChallenge(tx: IdentityTx, id: string): Promise<OtpChallenge>;
-  abstract consumeChallenge(tx: IdentityTx, id: string): Promise<OtpChallenge>;
   abstract createProof(
     tx: IdentityTx,
     data: Pick<
@@ -112,8 +64,4 @@ export abstract class AuthRepository {
   ): Promise<RefreshSession>;
   abstract logoutFamily(tx: IdentityTx, id: string): Promise<{ count: number }>;
   abstract session(tx: IdentityTx, id: string): Promise<RefreshSession | null>;
-  abstract challengeById(
-    tx: IdentityTx,
-    id: string,
-  ): Promise<OtpChallenge | null>;
 }

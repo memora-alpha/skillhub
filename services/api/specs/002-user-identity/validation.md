@@ -68,3 +68,29 @@ External email may duplicate if a provider accepts it before a worker crash; dom
 Maintain previous OTP/encryption keys until associated challenges/intents expire or drain. Missing historical keys fail closed. JWT signing-key rotation invalidates prior access tokens; refresh families still require live status/securityVersion checks. Clients must serialize refresh: strict replay has no grace period and requires another sign-in after a lost refresh response is retried.
 
 Production resource sizing/load testing and production-provider acceptance remain operational release checks, not claims established by the fixtures here. The pre-implementation baseline is `a3eb599`. The user requested a separate implementation/refactor commit on 2026-10-04; Git history records that commit. No deployment or push is included.
+
+## Redis OTP / Memora flow amendment — 2026-10-08
+
+Implemented the user-requested Redis-owned OTP design described in [redis-otp.md](redis-otp.md). Historical PostgreSQL proof/outbox descriptions above are retained as previous validation, not the current runtime architecture.
+
+- Runtime Prisma has no OtpChallenge/OtpIssueWindow model or challenge foreign key. The new migration was executed only in disposable integration schemas; assertions confirm both OTP tables are absent from the operational schema. The initial archive variant was superseded by the later dev-only cleanup below.
+- Nest build and TypeScript no-emit check passed. API ESLint passed with zero warnings. Diff whitespace checks passed.
+- Identity integration: **20/20 entries passed**, including registration concurrency, one successful OTP consume, wrong-attempt caps, 300-second Redis TTL and expiry, stale-job suppression, five-issues/hour, 24-hour email softban across replacements and purposes, enqueue-failure/account-commit recovery, reset concurrency, rollback, sessions/RBAC, all 21 HTTP routes, key rotation and real BullMQ delivery.
+- Identity policies/providers/regressions: **12 tests passed** across the policy/regression run and final provider run. The added SMTP regression checks blank TLS on port 465 and display-name sender fallback; provider mail goes only to a controlled localhost mailbox. The first version of that new test mocked a different Nodemailer module instance; it was corrected to mock the runtime's CommonJS module and the provider suite passed.
+- Affected consumers: Skills module bootstrap passed against a disposable PostgreSQL schema; three runtime-v3 repository regressions passed. Shared test fixtures resolve the Redis-backed identity graph. Temporary schemas and new long-lived Redis test counters are cleaned up.
+
+Application deployment remains separate: no migration, role seed, commit, push or new real email was performed during this implementation. Read-only inspection found the configured application database has an empty roles table and lacks foundation audit columns, so passing isolated integration tests does not establish that its full live journey is ready. Reconcile that partially provisioned v3 schema and seed roles before the next end-to-end mailbox test. Do not replay all historical CREATE TABLE migrations blindly against existing tables.
+
+The user approved Memora-style post-commit enqueue. Account creation/password update and Redis/BullMQ are not distributed transactions; see the documented retry/resend behavior and the principle-8 design exception in redis-otp.md.
+
+## Create account only after OTP — 2026-10-08
+
+This later user instruction supersedes the account-before-email ordering described in the preceding amendment. Registration now stores only an encrypted draft in Redis; the database User/USER assignment and EMAIL_VERIFIED audit are committed only after a valid OTP. No application migration or seed was run for this ordering change.
+
+Validation passed: Nest build, TypeScript no-emit, API ESLint with zero warnings and diff whitespace checks. Identity integration passed **22/22 entries** on real PostgreSQL/Redis and disposable BullMQ queues with a controlled mailer. It asserts zero User rows after concurrent registration, immutable encrypted draft/password hash, exactly one verified ACTIVE User after concurrent OTP requests, draft consumption, expired-draft resend creating nothing, audit rollback creating no User, and retry after post-commit Redis cleanup failure creating neither another User nor another audit. Existing reset/session/RBAC/key rotation/HTTP/worker cases remain passing.
+
+Swagger and the HTTP contract now state that register stages data and verify creates the account. The endpoint paths, body fields, neutral 202 response and bodiless verification 204 remain unchanged. Reserved UUID and accepted terms time/version are carried to the user repository so retries and delayed verification preserve the original registration context. Legacy pending database accounts are not silently deleted or activated by draftless proofs.
+
+## Development-only OTP cleanup — 2026-10-08
+
+The user confirmed this is development and old OTP records do not need preservation. The new Redis OTP migration now drops the two obsolete OTP tables and legacy delivery payload columns directly, without archive schemas or data copies. Historical migrations for unrelated runtime-v3 changes are unchanged. Test cleanup no longer references an OTP archive; integration asserts the archive namespace is absent. This edits the migration source only; it does not reset or mutate the configured application database.
