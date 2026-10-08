@@ -4,25 +4,10 @@ import { appColors as colors } from "@/constants/theme";
 export const profileDetails: {
   tagline: string;
   bio: string;
-  verified: boolean;
-  stats: { value: string; label: string }[];
-  sharingSkills: { name: string; level: string; verified: boolean }[];
   badges: { icon: IconName; label: string; color: string }[];
 } = {
   tagline: "Frontend Developer & React Enthusiast",
   bio: "Frontend Developer với 3 năm kinh nghiệm. Đam mê React, TypeScript và Node.js. Đang học tiếng Anh IELTS để mở rộng cơ hội nghề nghiệp.",
-  verified: true,
-  stats: [
-    { value: "142", label: "Reputation" },
-    { value: "8", label: "Đã học" },
-    { value: "12", label: "Đã dạy" },
-    { value: "4.9", label: "Đánh giá" },
-  ],
-  sharingSkills: [
-    { name: "React & Frontend", level: "Nâng cao", verified: true },
-    { name: "JavaScript", level: "Chuyên gia", verified: true },
-    { name: "TypeScript", level: "Trung cấp", verified: false },
-  ],
   badges: [
     { icon: "award", label: "Huy hiệu cúp", color: colors.gold },
     { icon: "zap", label: "Huy hiệu năng lượng", color: colors.brand },
