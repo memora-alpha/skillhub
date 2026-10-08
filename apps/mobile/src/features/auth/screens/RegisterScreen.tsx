@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Keyboard, Text, View } from "react-native";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { Button } from "@/components/Button";
 import { Checkbox } from "@/components/Checkbox";
 import { InfoModal } from "@/components/InfoModal";
@@ -33,13 +33,14 @@ const registerNoticeCopy: Record<
 
 export function RegisterScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ email?: string }>();
   const { register } = useAuthActions();
   const form = useForm<RegisterFormValues>({
     ...formValidationOptions,
     resolver: zodResolver(registerSchema),
     defaultValues: {
       fullName: "",
-      email: "",
+      email: typeof params.email === "string" ? params.email : "",
       password: "",
       confirmPassword: "",
       agreeTerms: false,

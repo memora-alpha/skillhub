@@ -2,7 +2,7 @@
 
 ## Current contract status
 
-The mobile UI is scaffolded but still uses local demo session state. Backend
+Mobile authentication consumes the identity API and uses a real account session. Backend
 identity v1 is implemented and documented in
 `services/api/specs/002-user-identity/contracts/http.md`. Mobile consumes it as
 an external contract and must not import backend source or modify backend code
@@ -36,6 +36,10 @@ Keep mobile parsing tolerant while still typed. If the backend contract differs,
 - Read base URL from `src/config/env.ts`.
 - Attach auth tokens through one interceptor or wrapper.
 - Normalize backend errors into an app error model.
+- Bind protected requests, renewal, retries and response handling to the session
+  generation captured at request start. Discard stale responses after account
+  changes; never replay an old mutation with a new account's credentials or
+  expire the new account because of an old request's failure.
 - Do not log Authorization headers, OTP, password, payment payloads, private evidence URLs or LiveKit tokens.
 - Do not create feature-local axios instances.
 
@@ -50,6 +54,10 @@ Use only versioned `/api/v1` routes:
   `refreshExpiresAt`.
 - `POST /auth/logout`, `/auth/logout-all`, `/auth/password/reset` return `204`.
 - `POST /auth/password/forgot` returns neutral `202`.
+- `POST /auth/password/verify-otp` accepts `email, otpCode` and returns
+  `data: { resetToken, expiresAt }` with `200`.
+- `POST /auth/password/reset` accepts `email, resetToken, newPassword,
+  confirmNewPassword`; it no longer accepts `otpCode`.
 - `GET /me` returns account state and the own-profile projection.
 - `PATCH /me/profile` accepts only `fullName`, `headline`, `bio`, `timezone`
   and `locale`.
@@ -63,20 +71,34 @@ Mobile stores refresh credentials in Expo SecureStore, keeps access tokens in
 memory and never logs credential payloads. See
 `specs/002-auth-account-shell/spec.md` for the mobile flow.
 
+## Redis OTP contract (2026-10-08)
+
+- Registration stages an encrypted draft in Redis; no account exists until
+  `/auth/verification/verify` succeeds. Registration OTP/draft TTL is 5 minutes;
+  after expiry the user must register again. Resend cannot restore an expired draft.
+- Recovery uses `/auth/password/forgot` for initial and repeat code requests.
+  `/auth/password/verify-otp` verifies the six-digit code before opening the
+  new-password screen. Keep its one-use `resetToken` and `expiresAt` in memory.
+  `/auth/password/reset` consumes that token, returns bodyless `204`, revokes
+  sessions and preserves account status. Verification alone changes no password.
+  A replacement OTP invalidates older reset tokens. Missing, expired or rejected
+  reset tokens return to the email step to request a new code, not the consumed OTP.
+- Both purposes enforce a 60-second resend cooldown and at most five code issues
+  per UTC hour per email/purpose. Neutral `202` only acknowledges the request;
+  it does not prove an email was delivered or a new code issued.
+- Five wrong codes across purposes/challenges temporarily block OTP for the
+  normalized email for 24 hours. Resend does not reset this counter. This is
+  not an account lock and must not disable ordinary password login in the client.
+- Invalid, expired, consumed, replaced and blocked codes share
+  `400 OTP_INVALID_OR_EXPIRED`. No remaining-attempt or unblock timestamp is
+  exposed. Mobile shows conditional guidance and does not invent a ban countdown
+  or infer a lock from five local API errors; failures may originate on other devices.
+- Reset may commit before Redis cleanup or password-change email enqueue fails.
+  On network/5xx failure, mobile preserves input and offers login with the email
+  prefilled; the new password may already be effective. It does not retry automatically.
+
 ## Remaining contract gaps
 
-- The requested recovery flow is email request -> OTP verification -> new
-  password. V1 only verifies/consumes the RESET_PASSWORD OTP inside
-  `POST /auth/password/reset`, together with the new password fields. There is
-  no standalone recovery OTP verification contract or reset authorization proof.
-  Registration's `/auth/verification/verify` consumes only REGISTER OTPs and
-  must not be reused for recovery. A genuinely server-verified intermediate
-  screen requires an explicitly authorized backend contract change; checking
-  six-digit format alone must not be presented as successful verification.
-  The mobile UI now separates the three screens using an in-memory email/code
-  draft; final submission still uses the existing combined reset endpoint.
-  No intermediate verification API is called or simulated. Backend additions
-  are deferred at the user's request.
 - Google OAuth, email change and device/session management are not exposed in v1.
 - Exact Learning Path, LearningPlan and Schedule DTOs for SRS 1.6.
 - Exact enum values for exchange type, plan status, schedule status and report reason codes.

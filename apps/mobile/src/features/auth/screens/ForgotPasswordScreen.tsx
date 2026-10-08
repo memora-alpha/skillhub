@@ -21,7 +21,9 @@ export function ForgotPasswordScreen() {
   const form = useForm<ForgotPasswordFormValues>({
     ...formValidationOptions,
     resolver: zodResolver(forgotPasswordSchema),
-    defaultValues: { email: "" },
+    defaultValues: {
+      email: passwordRecoveryStore.getState().draft?.email ?? "",
+    },
   });
   const cooldown = useVerificationCooldown(
     form.watch("email"),

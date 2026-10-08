@@ -1,8 +1,25 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import { colors, fonts, radius, typography } from "@/constants/theme";
-import { Icon } from "./Icon";
+import {
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from "react-native";
+import {
+  avatarSizes,
+  fonts,
+  iconSizes,
+  toastTheme,
+  typography,
+} from "@/constants/theme";
+import { Icon, type IconName } from "./Icon";
 
 export type ToastTone = "success" | "error" | "info";
+const icons: Record<ToastTone, IconName> = {
+  success: "check",
+  error: "alert",
+  info: "bell",
+};
 export function ToastContent({
   message,
   tone,
@@ -14,66 +31,81 @@ export function ToastContent({
   visible: boolean;
   onDismiss: () => void;
 }) {
-  const color =
-    tone === "error"
-      ? colors.error
-      : tone === "success"
-        ? colors.success
-        : colors.brand;
+  const { width } = useWindowDimensions();
+  const appearance = toastTheme.tones[tone];
   return (
     <View
-      style={[styles.toast, { borderLeftColor: color }]}
+      style={[
+        styles.toast,
+        { width: Math.min(width - toastTheme.gutter * 2, toastTheme.maxWidth) },
+      ]}
       accessibilityRole="alert"
       accessibilityLiveRegion="polite"
       aria-hidden={!visible}
       accessibilityElementsHidden={!visible}
       importantForAccessibility={visible ? "auto" : "no-hide-descendants"}
     >
-      <Icon
-        name={tone === "success" ? "check-circle" : "alert"}
-        color={color}
-        size={20}
-      />
+      <View style={[styles.icon, { backgroundColor: appearance.background }]}>
+        <Icon
+          name={icons[tone]}
+          color={appearance.foreground}
+          size={iconSizes.control}
+        />
+      </View>
       <Text style={styles.message}>{message}</Text>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Đóng thông báo"
         onPress={onDismiss}
-        style={styles.close}
+        style={({ pressed }) => [
+          styles.close,
+          pressed && { backgroundColor: toastTheme.closePressed },
+        ]}
       >
-        <Icon name="close" color={colors.muted} size={18} />
+        <Icon
+          name="close"
+          color={toastTheme.closeForeground}
+          size={iconSizes.inline}
+        />
       </Pressable>
     </View>
   );
 }
 const styles = StyleSheet.create({
   toast: {
-    width: "92%",
-    maxWidth: 448,
-    minHeight: 56,
+    minHeight: toastTheme.minHeight,
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    paddingLeft: 14,
-    paddingVertical: 6,
-    backgroundColor: colors.white,
-    borderRadius: radius.card,
+    gap: toastTheme.gap,
+    paddingLeft: toastTheme.padding,
+    paddingVertical: toastTheme.padding,
+    backgroundColor: toastTheme.surface,
+    borderRadius: toastTheme.radius,
+    borderCurve: "continuous",
     borderWidth: 1,
-    borderColor: colors.border,
-    borderLeftWidth: 3,
-    boxShadow: "0 4px 16px rgba(28, 20, 16, 0.12)",
+    borderColor: toastTheme.border,
+    boxShadow: toastTheme.shadow,
+  },
+  icon: {
+    width: avatarSizes.compact,
+    height: avatarSizes.compact,
+    borderRadius: avatarSizes.compact / 2,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
   },
   message: {
     flex: 1,
     fontFamily: fonts.semibold,
     ...typography.body,
-    color: colors.inkSoft,
+    color: toastTheme.foreground,
     includeFontPadding: false,
-    paddingVertical: 6,
   },
   close: {
-    width: 44,
-    height: 44,
+    width: toastTheme.dismissSize,
+    height: toastTheme.dismissSize,
+    borderRadius: toastTheme.dismissSize / 2,
+    marginRight: toastTheme.gutter / 2,
     alignItems: "center",
     justifyContent: "center",
   },

@@ -5,7 +5,9 @@ import { Redirect, useRouter } from "expo-router";
 import { useStore } from "zustand";
 import { Button } from "@/components/Button";
 import { formValidationOptions } from "@/utils/form-validation";
-import { AppError } from "@/lib/http/errors";
+import { AppError, errorMessage } from "@/lib/http/errors";
+import { useToast } from "@/providers/ToastProvider";
+import { isResetTokenRejected } from "../utils/otp-feedback";
 import { AuthLayout } from "../components/AuthLayout";
 import { PasswordRequirements, authStyles } from "../components/AuthControls";
 import { AuthFormInput } from "../components/AuthFormInput";
@@ -20,6 +22,7 @@ export function ResetPasswordScreen() {
   const router = useRouter();
   const draft = useStore(passwordRecoveryStore, (state) => state.draft);
   const { reset } = useAuthActions();
+  const { showToast } = useToast();
   const form = useForm<NewPasswordFormValues>({
     ...formValidationOptions,
     resolver: zodResolver(newPasswordSchema),
@@ -39,24 +42,31 @@ export function ResetPasswordScreen() {
       />
     );
   if (!draft) return <Redirect href="/forgot-password" />;
-  if (!draft.otpCode) return <Redirect href="/reset-password-code" />;
+  if (!draft.proof) return <Redirect href="/forgot-password" />;
   const submit = form.handleSubmit((values) => {
-    if (reset.isPending || !draft.otpCode) return;
+    if (reset.isPending || !draft.proof) return;
+    if (Date.parse(draft.proof.expiresAt) <= Date.now()) {
+      showToast(
+        errorMessage(
+          new AppError("http", 400, "RESET_TOKEN_INVALID_OR_EXPIRED"),
+        ),
+        "error",
+      );
+      passwordRecoveryStore.getState().clearProof();
+      return;
+    }
     Keyboard.dismiss();
     reset.mutate(
       {
         ...values,
         email: draft.email,
-        otpCode: draft.otpCode,
+        resetToken: draft.proof.resetToken,
       },
       {
         onSuccess: () => passwordRecoveryStore.getState().clear(),
         onError: (error) => {
-          if (
-            error instanceof AppError &&
-            error.code === "OTP_INVALID_OR_EXPIRED"
-          )
-            passwordRecoveryStore.getState().clearCode();
+          if (isResetTokenRejected(error))
+            passwordRecoveryStore.getState().clearProof();
         },
       },
     );
@@ -106,20 +116,17 @@ export function ResetPasswordScreen() {
         <Button size="lg" onPress={submit} disabled={reset.isPending}>
           {reset.isPending ? "Đang đặt lại..." : "Đặt lại mật khẩu"}
         </Button>
-        <Button
-          variant="secondary"
-          disabled={reset.isPending}
-          onPress={() => passwordRecoveryStore.getState().clearCode()}
-        >
-          Nhập lại mã xác minh
-        </Button>
         <Text style={authStyles.footer}>
           Quay lại{" "}
           <Text
             accessibilityRole="link"
             style={authStyles.link}
             onPress={() => {
-              if (!reset.isPending) router.replace("/login");
+              if (!reset.isPending)
+                router.replace({
+                  pathname: "/login",
+                  params: { email: draft.email },
+                });
             }}
           >
             đăng nhập

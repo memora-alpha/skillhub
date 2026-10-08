@@ -191,7 +191,7 @@ test("copy changes preserve valid registration and reset contracts", () => {
   assert.equal(
     resetPasswordSchema.safeParse({
       email: registration.email,
-      otpCode: "123456",
+      resetToken: "a".repeat(43),
       newPassword: registration.password,
       confirmNewPassword: registration.password,
     }).success,

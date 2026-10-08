@@ -10,12 +10,16 @@ export class AppError extends Error {
   }
 }
 
+export const OTP_ERROR_MESSAGE =
+  "Mã không đúng hoặc đã hết hạn. Nếu sai 5 lần, hãy thử lại sau 24 giờ.";
+
 const messages: Record<string, string> = {
   INVALID_CREDENTIALS: "Email hoặc mật khẩu chưa đúng.",
   ACCOUNT_NOT_ACTIVE:
     "Tài khoản chưa thể đăng nhập. Nếu chưa xác minh email, hãy xác minh trước.",
-  OTP_INVALID_OR_EXPIRED:
-    "Mã không đúng hoặc đã hết hạn. Vui lòng yêu cầu mã mới.",
+  OTP_INVALID_OR_EXPIRED: OTP_ERROR_MESSAGE,
+  RESET_TOKEN_INVALID_OR_EXPIRED:
+    "Phiên đặt lại mật khẩu đã hết hạn. Vui lòng yêu cầu mã mới.",
   INVALID_REFRESH_TOKEN: "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
 };
 

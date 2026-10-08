@@ -4,6 +4,11 @@ import type { RegisterInput, ResetInput } from "../api/auth-contracts";
 import { useToast } from "@/providers/ToastProvider";
 import { errorMessage } from "@/lib/http/errors";
 import {
+  OTP_REQUEST_ACKNOWLEDGMENT,
+  isResetOutcomeUncertain,
+  RESET_UNCERTAIN_GUIDANCE,
+} from "../utils/otp-feedback";
+import {
   passwordRecoveryCooldownStore,
   verificationCooldownStore,
 } from "../utils/verification-cooldown";
@@ -35,7 +40,7 @@ export function useAuthActions() {
     mutationFn: (email: string) => runtime.api.resend(email),
     onSuccess: (_data, email) => {
       verificationCooldownStore.getState().start(email);
-      showToast("Nếu địa chỉ đủ điều kiện, mã mới đã được gửi.", "success");
+      showToast(OTP_REQUEST_ACKNOWLEDGMENT, "success");
     },
   });
   const forgot = useMutation({
@@ -47,6 +52,32 @@ export function useAuthActions() {
   const reset = useMutation({
     ...feedback,
     mutationFn: (input: ResetInput) => runtime.api.reset(input),
+    onError: (error) =>
+      showToast(
+        isResetOutcomeUncertain(error)
+          ? RESET_UNCERTAIN_GUIDANCE
+          : errorMessage(error),
+        "error",
+      ),
   });
-  return { login, register, verify, resend, forgot, reset };
+  const verifyRecovery = useMutation({
+    ...feedback,
+    mutationFn: ({ email, otpCode }: { email: string; otpCode: string }) =>
+      runtime.api.verifyRecovery(email, otpCode),
+  });
+  const logoutAll = useMutation({
+    ...feedback,
+    mutationFn: runtime.controller.signOutAll,
+    retry: false,
+  });
+  return {
+    login,
+    register,
+    verify,
+    resend,
+    forgot,
+    verifyRecovery,
+    reset,
+    logoutAll,
+  };
 }

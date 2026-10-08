@@ -112,3 +112,73 @@ test("logout wins over a late login response", async () => {
   assert.equal(controller.getSnapshot(), "guest");
   assert.equal(store.value, null);
 });
+
+test("logout-all deduplicates pending requests and clears credentials after success", async () => {
+  const store = memoryStore();
+  let calls = 0;
+  let complete!: () => void;
+  const api = fakeApi(async () => pair("refresh"));
+  api.logoutAll = () => {
+    calls++;
+    return new Promise<void>((resolve) => {
+      complete = resolve;
+    });
+  };
+  const controller = new SessionController(api, store);
+  await controller.login({
+    email: "a@example.com",
+    password: "Password1!",
+    rememberMe: true,
+  });
+  const pending = controller.signOutAll();
+  assert.equal(controller.signOutAll(), pending);
+  assert.equal(calls, 1);
+  assert.equal(controller.getSnapshot(), "ready");
+  complete();
+  await pending;
+  assert.equal(controller.getSnapshot(), "guest");
+  assert.equal(store.value, null);
+});
+
+test("failed logout-all retains the current session and permits an explicit retry", async () => {
+  const store = memoryStore();
+  let calls = 0;
+  const api = fakeApi(async () => pair("refresh"));
+  api.logoutAll = async () => {
+    if (++calls === 1) throw new AppError("network");
+  };
+  const controller = new SessionController(api, store);
+  await controller.login({
+    email: "a@example.com",
+    password: "Password1!",
+    rememberMe: true,
+  });
+  await assert.rejects(controller.signOutAll(), AppError);
+  assert.equal(controller.getSnapshot(), "ready");
+  assert.equal(store.value, "refresh-login");
+  await controller.signOutAll();
+  assert.equal(calls, 2);
+  assert.equal(controller.getSnapshot(), "guest");
+});
+
+test("a late logout-all success from account A cannot clear account B's session", async () => {
+  const store = memoryStore();
+  let complete!: () => void;
+  const api = fakeApi(async () => pair("refresh"));
+  api.login = async (input) => pair(input.email);
+  api.logoutAll = () =>
+    new Promise<void>((resolve) => {
+      complete = resolve;
+    });
+  const controller = new SessionController(api, store);
+  const login = (email: string) =>
+    controller.login({ email, password: "Password1!", rememberMe: true });
+  await login("a@example.com");
+  const rejected = assert.rejects(controller.signOutAll(), AppError);
+  await login("b@example.com");
+  complete();
+  await rejected;
+  assert.equal(controller.getSnapshot(), "ready");
+  assert.equal(store.value, "refresh-b@example.com");
+  assert.equal(await controller.getToken(), "access-b@example.com");
+});

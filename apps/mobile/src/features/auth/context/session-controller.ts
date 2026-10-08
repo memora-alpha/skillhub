@@ -15,6 +15,8 @@ export class SessionController {
   private listeners = new Set<() => void>();
   private rotation: Promise<void> | null = null;
   private bootstrapTask: Promise<void> | null = null;
+  private logoutAllTask: { epoch: number; promise: Promise<void> } | null =
+    null;
   private writes: Promise<void> = Promise.resolve();
   error: unknown = null;
 
@@ -177,8 +179,18 @@ export class SessionController {
     await this.expire();
     if (token) void this.api.logout(token).catch(() => {});
   };
-  signOutAll = async () => {
-    await this.api.logoutAll();
-    await this.expire();
+  signOutAll = () => {
+    const epoch = this.epoch;
+    if (this.logoutAllTask?.epoch === epoch) return this.logoutAllTask.promise;
+    const promise = this.revokeAll(epoch).finally(() => {
+      if (this.logoutAllTask?.promise === promise) this.logoutAllTask = null;
+    });
+    this.logoutAllTask = { epoch, promise };
+    return promise;
   };
+  private async revokeAll(epoch: number) {
+    await this.api.logoutAll();
+    if (epoch !== this.epoch) throw new AppError("session");
+    await this.expire();
+  }
 }

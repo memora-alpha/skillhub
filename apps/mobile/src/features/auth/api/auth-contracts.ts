@@ -24,10 +24,26 @@ export type RegisterInput = {
 };
 export type ResetInput = {
   email: string;
-  otpCode: string;
+  resetToken: string;
   newPassword: string;
   confirmNewPassword: string;
 };
+export type PasswordResetProof = {
+  resetToken: string;
+  expiresAt: string;
+};
+
+export function parsePasswordResetProof(value: unknown): PasswordResetProof {
+  if (
+    !isRecord(value) ||
+    typeof value.resetToken !== "string" ||
+    !/^[A-Za-z0-9_-]{43}$/.test(value.resetToken) ||
+    typeof value.expiresAt !== "string" ||
+    !Number.isFinite(Date.parse(value.expiresAt))
+  )
+    throw new AppError("protocol");
+  return { resetToken: value.resetToken, expiresAt: value.expiresAt };
+}
 
 export function parseTokenPair(value: unknown): TokenPair {
   if (

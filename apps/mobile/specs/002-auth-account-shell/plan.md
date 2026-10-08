@@ -9,22 +9,22 @@
 - Backend identity v1 exists in source. Mobile consumes its external contract
   without backend imports; live API/device acceptance is still pending.
 
-## Checkpoint: 2026-10-08
+## Checkpoint: 2026-10-09
 
-- Ready for a temporary development checkpoint, not production acceptance.
+- Ready for development integration. Real mailbox and native acceptance remain pending.
 - Implemented: Axios transport, Query/SecureStore account shell, React Hook
   Form/Zod auth/profile forms, singleton toast feedback, keyboard-aware forms,
   read-only verification email and six-cell OTP with 60-second resend cooldown.
-- Recovery UI is email -> code entry -> new password. Code entry checks only
-  format; v1 verifies the code during final password/reset submission. No
-  intermediate verified state is created. Backend changes are deferred by the
-  user; the next integration step depends on a published recovery contract.
-- Recovery email/code are memory-only Zustand state, cleared when leaving or
+- Recovery is email -> server OTP verification -> new password. The published
+  `/password/verify-otp` response supplies `resetToken, expiresAt`; final reset
+  uses this authorization instead of sending the OTP again.
+- Recovery email/proof are memory-only Zustand state, cleared when leaving or
   succeeding. Passwords stay local to the final form. Separate registration
   and recovery cooldown timestamps follow the server's OTP purposes.
-- Known release blockers: session-switch request retry/expiration race,
-  logout-all pending/error handling, missing provider/storage integration tests,
-  live email/API acceptance and Android/iOS keyboard/SecureStore verification.
+- Session-switch retry/expiration and logout-all pending/error findings are
+  resolved with regression coverage. All 55 mobile tests and mocked browser
+  journeys pass. Provider/storage integration, live email/API acceptance and
+  Android/iOS keyboard/SecureStore verification remain pending.
 
 ## Decisions
 
@@ -37,7 +37,7 @@
   retry. Never send the same refresh token concurrently.
 - Use React Hook Form/Zod for screen-local form state and blur/change validation.
 - Use Zustand only for client-only recovery drafts and cooldown timestamps;
-  never mirror server account entities or persist the recovery code.
+  never mirror server account entities or persist recovery OTP/reset authorization.
 - Keep the existing public paths. Route groups may organize files only when the
   URL remains unchanged.
 - Replace `MockSessionProvider` after consumers can use the new compatibility
@@ -122,8 +122,10 @@ during migration.
 
 1. `request()` resolves the configured API base URL through Axios and sends JSON unless the
    request is multipart or bodyless.
-2. Protected calls read the current access token through an injected getter.
-3. A protected `401` requests one serialized refresh and retries once.
+2. Protected calls capture the bound session generation before reading the token.
+   They recheck it after async boundaries and reject stale responses.
+3. A protected `401` requests one serialized refresh and retries once only while
+   the original session remains current; it cannot retry or expire another account.
 4. Refresh stores the replacement credential before releasing waiting calls.
 5. A second `401` or rejected refresh expires the session. An ambiguous refresh
    outcome retains the in-flight storage marker and requires reauthentication;
@@ -131,8 +133,9 @@ during migration.
    normalized errors, not an unconditional instruction to clear every session.
 6. `204` returns `undefined`; JSON success returns `data`; failures throw the
    normalized `AppError`.
-7. The client never retries registration, verification, reset or other mutation
-   failures automatically.
+7. Public registration, verification and reset mutations, and the logout-all
+   mutation, have no automatic failure retry. Protected calls retain the one
+   same-session `401` renewal retry described above.
 
 ## Implementation phases
 
@@ -166,30 +169,25 @@ during migration.
 - Replace the forgot-password notice with a real request screen.
 - Separate the email, code-entry and new-password screens.
 - Reuse the shared six-cell input and per-purpose 60-second resend cooldown.
-- Preserve neutral send acknowledgments and the existing combined reset payload.
-- Keep recovery drafts memory-only; guard direct entry without a draft and return
-  invalid/expired-code errors to the code screen. Other failures keep the password
-  form draft for retry.
+- Preserve neutral send acknowledgments and verify OTP with `/password/verify-otp`.
+- Keep email and reset proof memory-only; guard direct entry without valid proof.
+  OTP failures stay on code entry. Invalid/expired reset proof restarts from email;
+  other failures keep password input and suggest trying the new password at login.
+- Submit `email, resetToken, newPassword, confirmNewPassword` to `/password/reset`.
+- Do not offer a new-password action to re-enter the consumed OTP.
 - Return to login after success without creating a session.
 
-### Backend handoff: standalone recovery verification
+### Published backend recovery contract
 
-Backend work is not part of this checkpoint. Publish the contract first:
+Mobile consumes the contract now implemented by the API without backend edits:
 
-- Define a recovery-only verification request and response. Registration OTP
-  verification must not activate or authorize password recovery.
-- Define short-lived, single-use reset authorization after a valid recovery OTP,
-  including expiry, replay behavior, resend invalidation and rate/attempt limits.
-- Specify the new reset request and whether the combined v1 reset flow remains
-  compatible during migration. Endpoint paths and response fields are not yet
-  agreed; mobile must not invent them.
-- Preserve neutral public errors/acknowledgments, server password policy and
-  session revocation. Include invalid/expired/replayed proof tests and actual
-  mail-delivery acceptance in the backend handoff.
-
-After the contract is published, mobile will add typed adapters/mutations, replace
-format-only Continue with server verification, keep reset authorization out of
-URLs/persistent storage, adapt the final submission and rerun integration tests.
+- `/password/forgot`: neutral `202`, also used for resend.
+- `/password/verify-otp`: `email, otpCode` returns `resetToken, expiresAt` on `200`.
+- `/password/reset`: `email, resetToken` plus matching password fields returns `204`.
+- Registration verification remains a separate purpose and endpoint. Redis OTP
+  attempts are server-enforced; five wrong entries can block OTP for 24 hours.
+- OTP/reset proof stay out of URLs and persistent storage. Error feedback remains
+  neutral; real delivery, expiry/replay and session-revocation acceptance are pending.
 
 ### Phase 5: profile migration and hardening
 
@@ -218,13 +216,14 @@ Lockfile updates must include both `apps/mobile/package-lock.json` and the root
 - **Refresh replay:** serialize rotation; require reauthentication rather than
   replaying a credential after an ambiguous outcome.
 - **Session-switch race:** bind protected requests and retries/expiration to the
-  original session generation before allowing account switching in production.
-- **Recovery contract gap:** code entry is format-only until BE supplies a
-  separate verification contract; never label it server-verified.
+  original session generation; regression tests cover late responses and renewal.
+- **Reset outcome uncertainty:** preserve input after network/server failure and
+  suggest login with the new password; never automatically repeat reset.
 - **Native dependencies:** rebuild a development client with keyboard-controller
   when necessary and verify keyboard/autofill on devices before acceptance.
 - **Cold-start flash:** keep the root bootstrap gate visible until auth resolves.
-- **Offline startup:** retain the secure credential and show retry, not guest.
+- **Offline startup:** retry failures before refresh submission; once rotation may
+  have reached the server, retain the pending marker and require reauthentication.
 - **Contract drift:** keep mobile DTOs explicit and link the backend HTTP
   contract; do not deep-import backend types.
 - **Mock migration blast radius:** provide one temporary account display

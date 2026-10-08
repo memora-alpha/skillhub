@@ -33,6 +33,7 @@ test("retries one protected request after Axios receives a 401", async () => {
     http,
   );
   client.bindSession({
+    generation: 1,
     getToken: async () => token,
     renew: async () => {
       renewals += 1;

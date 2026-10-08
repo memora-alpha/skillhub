@@ -1,5 +1,65 @@
 # Validation: mobile auth and account shell
 
+## Session boundary and logout-all fixes (2026-10-09)
+
+- Resolved both blockers from the readiness review below. Protected HTTP calls
+  capture the bound transport and session generation before reading a token.
+  They check it after async token reads, renewal and responses, before retry or
+  expiration. A request started under A never replays using B's credentials or
+  expires B's session; stale successful results are also rejected.
+- Logout-all uses the shared mutation/toast feedback with no automatic retry.
+  The action and Back button are disabled while pending. The controller deduplicates
+  concurrent requests in the same session and rejects late success after an
+  account switch. Network/server failures retain the session for explicit retry.
+- Typecheck, lint, structure and all 55 mobile tests passed. Added nine HTTP
+  boundary cases and three logout-all controller cases, including delayed first
+  and retry responses, pending token reads/renewal, account switching, duplicate
+  calls, success, failure and manual retry. Same-session renewal still works.
+- Playwright/Edge at 390×844 with all API calls mocked passed pending guards,
+  one toast after 503 or transport failure, session retention, manual retries and
+  guest navigation after bodyless 204. No unhandled promise/page errors occurred.
+- Mobile-only changes; no backend, dependency or environment changes. Native
+  SecureStore/device behavior and real mailbox acceptance remain unverified.
+
+## Commit and dev readiness review (2026-10-09)
+
+- Updated `origin/dev`; it is an ancestor of this feature branch (0 behind,
+  15 ahead at review). No unmerged paths or tracked environment files found.
+- Typecheck, lint, structure and all 43 mobile tests passed. Registration and
+  recovery browser checks passed again with all API requests mocked.
+- Fixed formatting in four changed mobile files to match the Prettier Git hook.
+- Local BE now exposes `password/verify-otp` and resetToken-based reset in Swagger;
+  PostgreSQL, MongoDB and Redis readiness passes.
+- **Pre-fix finding, resolved above:** a fresh mock adapter reproduction confirmed
+  the existing account-switch retry finding: a PATCH started under A receives a
+  delayed 401 and is replayed with B's token. `src/lib/http/client.ts` must bind
+  retry and expiration to the original session generation before any replay.
+- **Pre-fix finding, resolved above:** `AccountSettingsScreen.tsx` discarded the logout-all promise without a
+  rejection handler or pending guard. Offline/server failures produce no useful
+  feedback, and repeated taps can issue concurrent logout-all requests.
+- Real mailbox journeys and native SecureStore/cold-start checks remain pending.
+
+## Recovery token alignment (2026-10-09)
+
+- Mobile now calls `/auth/password/verify-otp` before opening the new-password
+  screen and sends its `resetToken` to `/auth/password/reset`. Email and reset
+  proof stay in memory; the OTP is not retained after verification.
+- Removed the new-password action to re-enter the consumed OTP. Invalid or
+  expired reset authorization restarts at the email step with email retained.
+  OTP failures stay on code entry with one toast; reset network/5xx failures
+  retain password input and suggest trying the new password at login.
+- `npm run check-types`, `npm run lint`, `npm run check-structure` and
+  `npm test` passed (43 tests; 143 source files within configured limits).
+- Playwright/Edge at 390×844 passed mocked forgot → wrong OTP → resend →
+  verified OTP → password form without code actions → 503 with retained input →
+  retry 204 → login. Rejected reset tokens restart at forgot with email retained;
+  a direct new-password link without in-memory proof also returns to forgot.
+  Verified request bodies, leading-zero OTP, no Bearer tokens, no automatic
+  login/retry, secret-free route parameters and no browser runtime errors.
+- Screenshot: `reset-password-no-code-390.png` in the task artifact directory.
+  These are mock API checks, not a real mailbox/password-reset journey. Native
+  device verification remains pending; the updated backend now runs locally.
+
 ## Planning baseline
 
 The following describes the initial planning state, not the current runtime.
@@ -21,7 +81,7 @@ pnpm --filter mobile check-structure
 pnpm --filter mobile test
 ```
 
-The test command runs 38 HTTP/session, form-validation and recovery tests through
+The test command runs 55 HTTP/session, form-validation and recovery tests through
 `tsx` and `node:test`. Committed provider, screen and auth/account integration
 tests are not yet implemented.
 
@@ -32,16 +92,18 @@ tests are not yet implemented.
 - Cold start rotates one stored refresh token and replaces it securely.
 - Concurrent protected requests issue only one refresh request.
 - Invalid refresh resolves to guest and removes local credentials.
-- Offline bootstrap preserves the stored token and offers retry.
+- Bootstrap failures before refresh submission offer retry; an uncertain rotation
+  result requires reauthentication without replaying the stored credential.
 - Current logout and logout-all both clear local state.
 - Forgot/reset preserves neutral responses and does not auto-login.
 - No password, OTP, refresh token or Authorization value appears in logs.
 
 ## Current status
 
-Source and task review completed on 2026-10-08. Auth/account runtime code exists;
-the feature is not acceptance-complete. The checklist distinguishes implemented
-code from missing hardening and integration evidence.
+Source and task review completed on 2026-10-09. This mobile increment is ready
+for development integration; full feature acceptance still needs real mailbox,
+provider/storage and native-device evidence. The checklist distinguishes these
+gaps from the implemented and regression-tested behavior.
 
 ## Source evidence
 
@@ -69,12 +131,12 @@ code from missing hardening and integration evidence.
 
 ## Automated checks
 
-All four commands above were rerun successfully on 2026-10-08:
+All four commands above were rerun successfully on 2026-10-09:
 
 - TypeScript: passed.
 - ESLint: passed with no warnings.
-- Structure check: passed for 142 source files using the scoped AGENTS limits.
-- Unit tests: 38 passed, 0 failed.
+- Structure check: passed for 143 source files using the scoped AGENTS limits.
+- Unit tests: 55 passed, 0 failed.
 
 The tests cover one 401 retry, malformed success envelope, concurrent refresh,
 ambiguous refresh recovery and logout winning over a late login response. Form
@@ -163,29 +225,98 @@ SecureStore behavior, full Query/provider lifecycle or end-to-end API correctnes
   were sent and no real account password was changed.
 - Native keyboard, autofill and device navigation remain unverified.
 
-## Open hardening findings
+## Redis OTP alignment — 2026-10-08
 
-- A mock-only review reproduction confirmed that a PATCH started under account
-  A can be retried under account B when A's delayed response is 401. The HTTP
-  layer does not bind retry/expiration to the original session generation.
-  Checking generation after the mutation response cannot undo a server write.
-- Logout-all calls the protected endpoint but its screen does not handle
-  pending state or rejected promises.
+- Long OTP guidance blocks were removed. Invalid-code feedback briefly mentions
+  the conditional five-wrong-code/24-hour restriction. Registration still offers
+  register-again with the email prefilled.
+- Request/resend feedback asks users to check email without claiming delivery.
+  Existing 60-second per-purpose cooldowns and public API payloads remain intact.
+- An actual reset OTP rejection preserves the email and an inline rejection
+  notice on returning to code entry. No local error counter or ban timestamp is
+  inferred from the generic API error. Ordinary password login remains available.
+- Reset network/5xx failures preserve password input and briefly suggest trying
+  the new password at login, with an email-prefilled login link.
+- `npm run check-types`, `npm run lint`, `npm run check-structure` and `npm test`
+  pass. There are 143 source files within the configured limits and 43 passing
+  tests, including five new API/recovery regression cases using an Axios adapter.
+- New checks cover public forgot/resend requests, leading-zero OTP payloads,
+  bodyless `204`, no automatic retry/resend, retained rejection state and
+  ambiguous reset outcomes. No real emails were sent or passwords changed.
+- Visual/native device verification for this alignment remains pending.
+  Backend source and dependency/lock files were not modified.
+
+## Toast appearance refresh — 2026-10-08
+
+- Updated the shared `src/components/Toast.tsx` and centralized its appearance in
+  `src/constants/theme.ts`. The light overlay uses rounded corners, a subtle
+  shadow, tinted success/error/info icons and Nunito text without extra headings.
+- Width follows the viewport with 16px side margins and a 448px cap. Text wraps;
+  the close button retains a 44px target and visible pressed feedback.
+- Browser checks on the running mobile preview passed at 390px and 320px:
+  success/error screenshots, dismissal, error expiry and no runtime errors.
+  The error response was intercepted in the browser; no real login/reset was sent.
+- Typecheck, lint, structure (143 source files) and all 43 tests passed.
+  Native-device rendering remains unverified; toast timings, safe-area placement
+  and reduced-motion behavior retain the existing provider configuration.
+
+## Verification back link — 2026-10-08
+
+- Replaced the registration-expiry button in `VerifyEmailScreen.tsx` with a
+  plain "Quay lại đăng ký" link. It retains the email and disables during requests.
+- Browser preview at 390px passed: link appearance, 44px target, navigation to
+  registration with email prefilled and no runtime errors. No API was sent.
+- Typecheck, lint, structure and all 43 tests passed. Native-device verification
+  remains pending.
+
+## Registration API audit — 2026-10-09
+
+- Source and live Swagger confirm registration `202`, registration resend `202`,
+  verification `204`, login `200` and protected `/me` are connected in mobile.
+  The local API URL matches the current Wi-Fi address.
+- Browser checks exercised the real screens with intercepted API responses:
+  registration `503` stays on the form, `202` opens verification, cooldown blocks
+  early resend, OTP `400` stays on verification, resend clears the old code,
+  leading-zero OTP `204` opens login exactly once, and login/`me` opens home.
+- Request bodies, JSON headers and token boundaries matched the contracts.
+  No password was put in route params; no runtime errors or automatic OTP retry
+  were observed. All API responses in this browser check were mocked, so SMTP,
+  Redis verification and account creation with a real emailed OTP remain untested.
+- No mobile implementation or backend changes were needed for this audit.
+- Live CORS preflight for the mobile web origin `http://localhost:8081` returned
+  `Access-Control-Allow-Origin: http://localhost:3000`. Browser requests from
+  the mobile preview are therefore blocked despite reachable backend Swagger.
+  Native requests do not use browser CORS. Backend configuration was not changed.
+
+## Verification error feedback — 2026-10-09
+
+- Removed the duplicate inline API-error banner from `VerifyEmailScreen.tsx`.
+  OTP rejection now uses only the shared toast; field-format validation remains
+  attached to the OTP input.
+- Browser check confirmed exactly one OTP-error alert, no verification redirect
+  after `400`, and login after `204`. Screenshot was reviewed at 390px.
+  API responses were mocked; no real account or email was created.
+- Typecheck, lint, structure and all 43 tests passed. Native-device verification
+  remains pending.
+
+## Hardening status
+
+- The account-switch retry and logout-all pending/error findings were resolved
+  in the 2026-10-09 follow-up above, with repository regression tests and
+  mocked browser checks.
 - Account queries/profile mutations remain in the auth context instead of the
   planned account hooks. The plan now records actual Axios/form/recovery choices;
-  README/API status descriptions still contain obsolete demo-only statements.
+  README/API descriptions now reflect real auth and the published recovery contract.
 
 ## Acceptance evidence still required
 
 - Run registration, verification/resend, login and forgot/reset with a local API.
 - Run native cold-start, SecureStore persistence/deletion, expired/rejected
   refresh, current logout and logout-all paths on Android/iOS.
-- Add storage, Query/provider, screen and auth/account integration coverage,
-  including the account-switch retry race.
-- Reconcile the spec's offline-bootstrap retry expectation with the strict
-  rotation implementation: an ambiguous refresh response currently retains the
-  in-flight marker and requires reauthentication rather than replaying a token.
-- Fix the open hardening findings and record the final acceptance results.
+- Add storage, Query/provider, screen and auth/account integration coverage.
+  Account-switch HTTP/controller regressions are already covered by repository tests.
+- Record the remaining live/native acceptance results. The spec now matches
+  strict rotation: uncertain refresh outcomes require reauthentication.
 
 The initial task check changed only documentation. The subsequent form UX
 follow-up changed mobile runtime, tests and dependency lockfiles. No backend
