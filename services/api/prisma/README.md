@@ -1,3 +1,5 @@
+> OTP is Redis-owned as of 2026-10-08. Runtime has no OTP challenge/issue-window models; see [Redis OTP amendment](../specs/002-user-identity/redis-otp.md). The dev transition migration drops obsolete OTP tables/payload columns directly without preserving their records.
+
 # SkillHub Prisma catalog — logical v3
 
 The catalog follows [logical v3](../../../docs/SkillHub_Logical_Data_Model_v3.md)

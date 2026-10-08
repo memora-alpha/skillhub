@@ -1,3 +1,5 @@
+import { OtpStore } from "../../dist/modules/auth/application/ports/otp-store.js";
+import { RedisService } from "../../dist/infrastructure/cache/redis.service.js";
 import { Test } from "@nestjs/testing";
 import { IDENTITY_APPLICATION_PROVIDERS } from "../../dist/modules/identity.providers.js";
 import { PrismaService } from "../../dist/infrastructure/database/prisma.service.js";
@@ -34,13 +36,14 @@ import { RemoveAvatarUseCase } from "../../dist/modules/users/application/use-ca
 import { ProcessAvatarUseCase } from "../../dist/modules/users/application/use-cases/process-avatar.use-case.js";
 import { ReconcileAvatarsUseCase } from "../../dist/modules/users/application/use-cases/reconcile-avatars.use-case.js";
 import { DeliverIdentityEmailUseCase } from "../../dist/modules/notifications/application/use-cases/deliver-identity-email.use-case.js";
-import { ReconcileIdentityEmailsUseCase } from "../../dist/modules/notifications/application/use-cases/reconcile-identity-emails.use-case.js";
 
 // Resolve the same application provider graph as production, substituting only
 // controlled external resources. Facades below keep journey tests readable;
 // HTTP controllers receive the real use cases from this compiled graph.
 export async function createIdentityFixture({
   db,
+  redis,
+  otpStore,
   config,
   storage,
   scanner,
@@ -52,6 +55,7 @@ export async function createIdentityFixture({
     providers: [
       ...IDENTITY_APPLICATION_PROVIDERS,
       { provide: PrismaService, useValue: db },
+      { provide: RedisService, useValue: redis ?? {} },
       { provide: IdentityConfig, useValue: config },
       { provide: AvatarStorage, useValue: storage },
       { provide: AvatarScanner, useValue: scanner },
@@ -62,11 +66,12 @@ export async function createIdentityFixture({
     .overrideProvider(AvatarJobs)
     .useValue({ enqueue: (id) => queue.add("scan", { id }) });
   builder.overrideProvider(IdentityEmailJobs).useValue({
-    enqueue: (id, attempts) =>
-      queue.add("deliver", { id }, { jobId: id + "-" + attempts }),
+    enqueue: (id, attempts, payload) =>
+      queue.add("deliver", { id, payload }, { jobId: id + "-" + attempts }),
   });
   if (overrideAudit)
     builder.overrideProvider(AuditService).useValue(overrideAudit);
+  if (otpStore) builder.overrideProvider(OtpStore).useValue(otpStore);
   const module = await builder.compile();
   const get = (type) => module.get(type);
   const execute = (type) => get(type).execute.bind(get(type));
@@ -82,7 +87,6 @@ export async function createIdentityFixture({
   });
   const email = Object.assign(Object.create(get(IdentityEmailIntentService)), {
     deliver: execute(DeliverIdentityEmailUseCase),
-    reconcile: execute(ReconcileIdentityEmailsUseCase),
   });
   const auth = {
     register: execute(RegisterUseCase),

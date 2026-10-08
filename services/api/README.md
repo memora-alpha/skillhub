@@ -8,6 +8,8 @@ Phạm vi phát triển hiện tại của dự án là **backend tại `service
 Web/mobile chỉ được thay đổi khi có yêu cầu riêng. Git và pnpm workspace vẫn
 đặt tại root SkillHub; backend không có Git repository riêng.
 
+Luồng đăng ký/OTP đã chuyển sang Redis và BullMQ theo [Redis OTP amendment](specs/002-user-identity/redis-otp.md): chỉ lưu bản nháp mã hóa trong Redis khi gửi OTP; xác thực OTP thành công mới tạo tài khoản ACTIVE trong database. Không dùng bảng OTP trong runtime.
+
 API đã có nền tảng hạ tầng và phần Danh tính (spec 002): đăng ký/OTP/login, refresh/logout/reset, hồ sơ/avatar, quyền và quản trị tài khoản có audit. Phần Kỹ năng (spec 007) đã có catalog, quản lý Sharing Skill, search/profile công khai, evidence và Staff Verification; xem [quickstart](specs/007-skills/quickstart.md) và [validation](specs/007-skills/validation.md). Core Learning Request có source theo [plan](specs/007-learning-request/plan.md); việc nối owner adapters cho catalog/eligibility, Sharing Skill matching, Path/Schedule/Wallet consumers, migration rollout và kiểm chứng DB/Redis thật vẫn là gates. Chat và giao dịch Credit chưa được triển khai.
 
 Catalog Prisma đã cập nhật theo logical v3: **48 model PostgreSQL và một document
@@ -17,7 +19,7 @@ như phần mở rộng ngoài diagram; xem [LR ERD v3 alignment](specs/007-lear
 Schema v3 ở `prisma/catalog.prisma` sinh client
 riêng `src/generated/prisma-catalog` để đối chiếu mô hình.
 API, generate mặc định và migration dùng `prisma/schema.prisma`: runtime v3 gồm
-48 model domain, 7 model kỹ thuật cho OTP/foundation và Tag/RequestTag.
+48 model domain, 5 model kỹ thuật cho foundation và Tag/RequestTag.
 Learning Request giữ preferred slots JSONB và metadata moderation/expiry/version
 với tên application tương thích, ánh xạ sang cột v3. Profile nằm trong User,
 User có một roleId; các repository danh tính đã chuyển sang cấu trúc này.

@@ -1,5 +1,7 @@
 # Identity data model
 
+> Current OTP design: [Redis OTP amendment (2026-10-08)](redis-otp.md) supersedes PostgreSQL challenge/counter and email-outbox statements below.
+
 The current runtime is [prisma/schema.prisma](../../prisma/schema.prisma): v3 domain
 models plus implemented OTP/foundation support. User owns profile fields and one
 required roleId; Profile/UserRole tables are archived by the v3 migration.
@@ -66,3 +68,7 @@ Implementation follow-up: identity migration/SQL constraints and seed/bootstrap 
 | Delivery  | PENDING→LEASED→SENT; bounded retry→PENDING; terminal FAILED/EXPIRED/CANCELLED; scrub temporary secret                                                            |
 
 Lock User rows first (sorted actor/target IDs), then challenge/session/authorization rows consistently. Issue/revoke operations recheck status/hash/version under same lock; no stale login/refresh survives reset/lock. Actor grants and one-use reauth validated within privileged transaction. Audit failure rolls back mutations. Failure counters and replay revocation commit before returning domain error. Requests admitted before revoke may complete; requests authorized after commit must fail. External provider calls occur outside DB locks, with outbox/compensation for recovery.
+
+## Registration draft amendment — 2026-10-08
+
+No User row exists before successful REGISTER verification. Redis OtpRecord carries an authenticated encrypted RegistrationDraft (fullName, Argon2id passwordHash, timezone/locale, accepted terms version/time) and a reserved UUID. Its TTL matches the registration OTP. After proof validation the reserved UUID is used to create/activate User and append audit in a single PostgreSQL transaction. Draft cleanup follows commit; rollback preserves the draft for retry. No additional SQL column or OTP table is required.

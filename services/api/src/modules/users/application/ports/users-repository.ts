@@ -14,6 +14,8 @@ export abstract class UsersRepository {
   abstract create(
     tx: IdentityTx,
     data: {
+      id?: string;
+      termsAcceptedAt?: Date;
       email: string;
       fullName: string;
       passwordHash: string;

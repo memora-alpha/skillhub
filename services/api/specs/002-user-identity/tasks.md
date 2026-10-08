@@ -1,5 +1,7 @@
 # Tasks: Danh tính người dùng
 
+> Current OTP design: [Redis OTP amendment (2026-10-08)](redis-otp.md) supersedes PostgreSQL challenge/counter and email-outbox statements below.
+
 Input: spec/plan/research/data-model/contracts/quickstart in this directory.
 Paths below are relative to services/api. Tests are required by spec acceptance criteria and constitution. No feature-blocking checklist entries; production configuration choices remain explicit release gates.
 
@@ -89,3 +91,11 @@ Strategy: achieve verified signup/login first, then session security/recovery, t
 ## Completion evidence
 
 All 37 tasks completed, including the architecture refactor and Memora response amendment verified on 2026-10-04. See validation.md: 24 use cases with owner-private persistence, application ports, infrastructure workers/schedulers, passing lint/typecheck/build and 27 Node test entries. Real PostgreSQL/Redis/BullMQ checks cover concurrency, rollback, versioned HTTP envelopes/pagination and both email/avatar worker adapters. Production configuration/provider acceptance remains a release gate; no application-schema migration deployment was performed. The implementation/refactor was committed separately; the user requested a response amendment commit and pull request into dev on 2026-10-04.
+
+## Registration after proof amendment — 2026-10-08
+
+- [x] Stage encrypted registration draft/hash in Redis without a User row.
+- [x] Create verified ACTIVE User/USER assignment/audit only after valid OTP.
+- [x] Preserve drafts across duplicate signup/resend and consume after commit.
+- [x] Cover concurrent verification, rollback, expiry and cleanup-failure retries.
+- [x] Update Swagger lifecycle, HTTP contract and current design documentation.

@@ -1,9 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { IdentityTx } from "../../../../shared/database/identity-transactions";
 import {
-  OtpChallenge,
-  OtpIssueWindow,
-  OtpPurpose,
   ReauthProof,
   RefreshSession,
   RefreshCredential,
@@ -11,111 +8,6 @@ import {
 import { AuthRepository } from "../../application/ports/auth-repository";
 @Injectable()
 export class PrismaAuthRepository extends AuthRepository {
-  latestIssue(
-    tx: IdentityTx,
-    email: string,
-    purpose: OtpPurpose,
-  ): Promise<OtpIssueWindow | null> {
-    return tx.otpIssueWindow.findFirst({
-      where: { normalizedEmail: email, purpose },
-      orderBy: { lastIssuedAt: "desc" },
-    });
-  }
-  issueWindow(
-    tx: IdentityTx,
-    email: string,
-    purpose: OtpPurpose,
-    windowStart: Date,
-  ): Promise<OtpIssueWindow | null> {
-    return tx.otpIssueWindow.findUnique({
-      where: {
-        normalizedEmail_purpose_windowStart: {
-          normalizedEmail: email,
-          purpose,
-          windowStart,
-        },
-      },
-    });
-  }
-  recordIssue(
-    tx: IdentityTx,
-    email: string,
-    purpose: OtpPurpose,
-    windowStart: Date,
-    now: Date,
-    resend: boolean,
-  ): Promise<OtpIssueWindow> {
-    return tx.otpIssueWindow.upsert({
-      where: {
-        normalizedEmail_purpose_windowStart: {
-          normalizedEmail: email,
-          purpose,
-          windowStart,
-        },
-      },
-      create: {
-        normalizedEmail: email,
-        purpose,
-        windowStart,
-        issueCount: 1,
-        resendCount: resend ? 1 : 0,
-        lastIssuedAt: now,
-      },
-      update: {
-        issueCount: { increment: 1 },
-        resendCount: { increment: resend ? 1 : 0 },
-        lastIssuedAt: now,
-      },
-    });
-  }
-  supersedeChallenges(
-    tx: IdentityTx,
-    userId: string,
-    purpose: OtpPurpose,
-    now: Date,
-  ): Promise<{ count: number }> {
-    return tx.otpChallenge.updateMany({
-      where: { userId, purpose, consumedAt: null, supersededAt: null },
-      data: { supersededAt: now },
-    });
-  }
-  createChallenge(
-    tx: IdentityTx,
-    data: Pick<
-      OtpChallenge,
-      | "id"
-      | "userId"
-      | "email"
-      | "purpose"
-      | "expiresAt"
-      | "verifierKeyId"
-      | "verifierDigest"
-    >,
-  ): Promise<OtpChallenge> {
-    return tx.otpChallenge.create({ data });
-  }
-  activeChallenge(
-    tx: IdentityTx,
-    userId: string,
-    purpose: OtpPurpose,
-  ): Promise<OtpChallenge | null> {
-    return tx.otpChallenge.findFirst({
-      where: { userId, purpose, consumedAt: null, supersededAt: null },
-      orderBy: { createdAt: "desc" },
-    });
-  }
-  failChallenge(tx: IdentityTx, id: string): Promise<OtpChallenge> {
-    return tx.otpChallenge.update({
-      where: { id },
-      data: { failedAttempts: { increment: 1 } },
-    });
-  }
-  consumeChallenge(tx: IdentityTx, id: string): Promise<OtpChallenge> {
-    return tx.otpChallenge.update({
-      where: { id },
-      data: { consumedAt: new Date() },
-    });
-  }
   createProof(
     tx: IdentityTx,
     data: Pick<
@@ -222,9 +114,5 @@ export class PrismaAuthRepository extends AuthRepository {
   }
   session(tx: IdentityTx, id: string): Promise<RefreshSession | null> {
     return tx.refreshSession.findUnique({ where: { id } });
-  }
-
-  challengeById(tx: IdentityTx, id: string): Promise<OtpChallenge | null> {
-    return tx.otpChallenge.findUnique({ where: { id } });
   }
 }

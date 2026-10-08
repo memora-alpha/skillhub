@@ -10,40 +10,6 @@ enum IdentityEmailKind {
   PASSWORD_CHANGED
 }
 
-model OtpChallenge {
-  id              String                  @id @default(uuid()) @db.Uuid
-  userId          String                  @map("user_id") @db.Uuid
-  purpose         OtpPurpose
-  email           String                  @db.VarChar(254)
-  verifierDigest  Bytes                   @map("verifier_digest") @db.ByteA
-  verifierKeyId   String                  @map("verifier_key_id") @db.Text
-  expiresAt       DateTime                @map("expires_at") @db.Timestamptz(3)
-  consumedAt      DateTime?               @map("consumed_at") @db.Timestamptz(3)
-  supersededAt    DateTime?               @map("superseded_at") @db.Timestamptz(3)
-  failedAttempts  Int                     @default(0) @map("failed_attempts")
-  createdAt       DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
-  user            User                    @relation(fields: [userId], references: [id], onDelete: Restrict)
-  emailDeliveries IdentityEmailDelivery[]
-
-  // Outstanding-challenge partial uniqueness belongs in the SQL migration.
-  @@index([userId, purpose, createdAt])
-  @@index([expiresAt])
-  @@map("otp_challenges")
-}
-
-model OtpIssueWindow {
-  normalizedEmail String     @map("normalized_email") @db.VarChar(254)
-  purpose         OtpPurpose
-  windowStart     DateTime   @map("window_start") @db.Timestamptz(3)
-  issueCount      Int        @default(0) @map("issue_count")
-  resendCount     Int        @default(0) @map("resend_count")
-  lastIssuedAt    DateTime   @map("last_issued_at") @db.Timestamptz(3)
-
-  @@id([normalizedEmail, purpose, windowStart])
-  @@index([windowStart])
-  @@map("otp_issue_windows")
-}
-
 model IdempotencyRecord {
   id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   scope           String

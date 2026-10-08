@@ -1,5 +1,7 @@
 # Feature Specification: Danh tính người dùng
 
+> Current OTP design: [Redis OTP amendment (2026-10-08)](redis-otp.md) supersedes PostgreSQL challenge/counter and email-outbox statements below.
+
 **Feature Branch**: `feat/user-identity`
 **Created**: 2026-10-03
 **Status**: Implemented and verified in isolated fixtures; production policy gates remain below. See [validation](validation.md).
@@ -17,18 +19,18 @@ Google login (FR-AUTH-04, Should) is deferred to a separate feature with safe li
 
 ### User Story 1 — Register, verify and sign in (Priority: P1)
 
-A Guest creates one account, proves email ownership and signs in after activation.
+A Guest stages registration, proves email ownership, then receives one active account and can sign in.
 
 **Why this priority**: Entry point for all authenticated journeys; SRS Must.
 **Independent Test**: Controlled mailbox registration → verification → login, with expired/invalid cases.
 
 **Acceptance Scenarios**:
 
-1. **Given** a valid unused email and accepted terms, **When** registering, **Then** one pending account/profile/USER assignment and verification request exist; no active session is issued.
+1. **Given** a valid unused email and accepted terms, **When** registering, **Then** one encrypted Redis registration draft and verification request exist; no database account or session is created.
 2. **Given** repeated/concurrent signup differing only by email case, **When** processed, **Then** at most one account exists and existing credentials/profile are never overwritten.
-3. **Given** a valid unexpired six-digit registration code, **When** verified, **Then** email becomes verified and account ACTIVE once. Wrong-purpose, superseded, expired and consumed codes cannot activate it.
+3. **Given** a valid unexpired six-digit registration code, **When** verified, **Then** one verified ACTIVE account/USER assignment and audit event are committed once. Wrong-purpose, superseded, expired and consumed codes cannot activate it.
 4. **Given** correct credentials, **When** logging in, **Then** only ACTIVE accounts receive a session; lastLoginAt updates and failedLoginCount resets. Other statuses issue no session.
-5. **Given** delivery failure, **When** retry/resend occurs, **Then** account remains pending and resend limits hold without duplicate signup.
+5. **Given** delivery failure, **When** retry/resend occurs, **Then** only the Redis draft remains; resend limits hold, and no account is created before verification.
 
 ### User Story 2 — Renew and terminate sessions (Priority: P1)
 
@@ -102,9 +104,9 @@ Admin and explicitly authorized Staff list users and lock/unlock accounts with a
 ### Functional Requirements
 
 - **FR-001**: Enforce SRS registration validation: trimmed fullName 2–100 Unicode characters, letters/spaces/apostrophes/hyphens with at least one letter; valid email 5–254, trim/lowercase/no spaces; password 8–64 with upper/lower/digit/special, never trimmed; exact confirmation; agreeTerms=true. Store accepted terms version/time; locale vi/en default vi; supplied timezone valid IANA and mandatory after setup.
-- **FR-002**: Create one pending User/profile/USER assignment per normalized email; reject client role/status/metrics and never overwrite existing data on duplicate signup.
-- **FR-003**: Issue one-use six-digit codes. SRS registration defaults: expiry five minutes, five wrong attempts/challenge, resend >=60 seconds and <=five/hour/email, plus IP/device throttle. Configure limits and enforce under concurrency; resend invalidates old proof.
-- **FR-004**: Only REGISTER proof activates pending accounts; endpoints choose purpose. All invalid/nonexistent/expired proof errors are neutral.
+- **FR-002**: Stage registration in Redis; create one verified ACTIVE User/profile/USER assignment only after valid registration OTP; reject client role/status/metrics and never overwrite existing data on duplicate signup.
+- **FR-003**: Issue one-use six-digit codes. SRS registration defaults: expiry five minutes, five wrong attempts/email across challenges/purposes followed by a 24-hour OTP softban, resend >=60 seconds and <=five/hour/email, plus IP/device throttle. Configure limits and enforce under concurrency; resend invalidates old proof.
+- **FR-004**: Only REGISTER proof with a valid staged draft creates an active account; endpoints choose purpose. All invalid/nonexistent/expired proof errors are neutral.
 - **FR-005**: Login only ACTIVE; update last login/reset failed count. Wrong email/password share a generic failure and per-email/IP throttling applies; no tokens for nonactive accounts.
 - **FR-006**: Bound session lifetimes, rotate renewal credentials, detect replay, support current/all-session logout and reject subsequent revoked credentials. rememberMe uses configured longer lifetime.
 - **FR-007**: Neutral recovery, one-use RESET_PASSWORD proof, same password rules, all-session revocation and change email. Reset preserves status; privileged actors cannot set/read User passwords directly.
@@ -129,7 +131,7 @@ User; Profile; Role/Permission and assignments; one-use VerificationChallenge; S
 - **SC-004**: Logout/reset/lock reject every subsequent use of affected old credentials; unrelated device survives current-session logout.
 - **SC-005**: Every permission/ownership denial causes zero mutations; each successful sensitive change has one matching audit outcome.
 - **SC-006**: Public projection/log tests expose zero password/code/token/private email/payment fields.
-- **SC-007**: Crash/retry preserves committed email intent; stale deliveries cannot activate/reset accounts.
+- **SC-007**: Queue retry preserves staged registration while valid; stale deliveries cannot create/reset accounts. Redis draft/queue failure creates no user.
 - **SC-008**: All invalid avatar cases preserve the previous avatar; no unscanned object becomes visible.
 
 ## Assumptions and production decisions
