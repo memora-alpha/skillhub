@@ -1,12 +1,14 @@
 # Implementation Plan: Danh tính người dùng
 
+> Current OTP design: [Redis OTP amendment (2026-10-08)](redis-otp.md) supersedes PostgreSQL challenge/counter and email-outbox statements below.
+
 **Branch**: `feat/user-identity` | **Date**: 2026-10-03 | **Spec**: [spec.md](spec.md)
 **Input**: `specs/002-user-identity/spec.md`; project root `services/api`.
 **Base**: local `dev` at `0310544` (`chore: set up project`); no remote refresh requested.
 
 ## Summary
 
-Build identity journeys inside existing NestJS modular monolith: email/OTP signup, login, access JWT with live session/account checks, rotated refresh, logout/reset, profile/avatar and minimal permission-based administration. PostgreSQL owns identity, grants, audit and durable email intent; Redis supplies shared throttle; BullMQ processes committed delivery IDs; S3 holds scanned avatar bytes.
+Build identity journeys inside existing NestJS modular monolith: email/OTP signup, login, access JWT with live session/account checks, rotated refresh, logout/reset, profile/avatar and minimal permission-based administration. PostgreSQL owns identity, grants and audit; Redis owns OTP and shared throttle; BullMQ processes encrypted emails queued after Redis registration staging; S3 holds scanned avatar bytes.
 
 Scope/questions are in [spec.md](spec.md). Identity use cases, tasks, migration, seed/bootstrap, providers and all 21 endpoints are implemented; see [validation.md](validation.md) for runtime evidence and operational limits. The full [Prisma catalog](../../prisma/catalog.prisma) still contains 45 PostgreSQL models/25 enums; the fourteen identity models/eight enums plus SystemConfiguration form [identity deployment scope](../../prisma/schema.prisma). Later-feature catalog models and Mongo reference models do not expand endpoint scope or replace Mongoose. No migration has been deployed into the existing application schema.
 
@@ -39,7 +41,7 @@ Giai đoạn Danh tính có **21 endpoint**, chia thành ba nhóm dưới đây.
 | ------ | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
 | POST   | `/api/v1/auth/register`            | Đăng ký bằng email/password; tạo tài khoản chờ xác minh, hồ sơ và role USER, đồng thời lên lịch gửi OTP. Trả thông báo trung tính, chưa cấp token đăng nhập. | Không cần đăng nhập; validate thông tin và chấp thuận điều khoản.                                          |
 | POST   | `/api/v1/auth/verification/resend` | Gửi lại OTP đăng ký, vô hiệu mã trước đó; áp dụng thời gian chờ và giới hạn gửi lại.                                                                         | Không cần đăng nhập; chỉ tài khoản chờ xác minh đủ điều kiện nhận email, response không tiết lộ tài khoản. |
-| POST   | `/api/v1/auth/verification/verify` | Kiểm tra OTP đăng ký dùng một lần; xác minh email và chuyển tài khoản từ PENDING_VERIFICATION sang ACTIVE.                                                   | Không cần đăng nhập; email và OTP đúng, chưa hết hạn hoặc bị thay thế.                                     |
+| POST   | `/api/v1/auth/verification/verify` | Kiểm tra OTP đăng ký dùng một lần; tạo tài khoản ACTIVE đã xác minh từ bản nháp Redis.                                                                       | Không cần đăng nhập; email và OTP đúng, chưa hết hạn hoặc bị thay thế.                                     |
 | POST   | `/api/v1/auth/login`               | Đăng nhập email/password, cập nhật lần đăng nhập và cấp access/refresh token; `rememberMe` chọn thời hạn phiên theo cấu hình.                                | Không cần phiên hiện tại; thông tin đúng và tài khoản ACTIVE.                                              |
 | POST   | `/api/v1/auth/refresh`             | Cấp cặp token mới và vô hiệu refresh token vừa sử dụng. Phát hiện sử dụng lại token đã dùng sẽ thu hồi toàn bộ phiên tương ứng.                              | Refresh token hợp lệ và phiên/tài khoản còn được phép hoạt động.                                           |
 | POST   | `/api/v1/auth/logout`              | Thu hồi phiên được xác định bởi refresh token; token của phiên đó không còn dùng được. Gọi lặp vẫn trả kết quả trung tính.                                   | Gửi refresh token; không yêu cầu access token còn hạn.                                                     |
@@ -172,18 +174,18 @@ No behavior, database schema, deployment topology or production policy change is
 
 ## Ownership contracts and atomic workflows
 
-| Owner         | Exported application contracts                                                                                                                                        | Authority                                         |
-| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
-| users         | CreatePendingAccount, ReadIdentityForAuth, ActivateAfterVerification, RecordLoginOutcome, ChangePassword, ReadPrincipal, UpdateOwnProfile, ManageAccount, AssignStaff | User/Profile/grants/AvatarAsset                   |
-| auth          | Register/Verify/Login/Refresh/Logout/Reset/Reauthenticate; RevokeSessions(tx,userId/sessionId)                                                                        | Challenges/sessions/refresh history/reauth proofs |
-| notifications | ScheduleIdentityEmail(tx,intent), DispatchCommittedDelivery                                                                                                           | Email/outbox state                                |
-| audit         | AppendSecurityEvent(tx,event), no update/delete port                                                                                                                  | AuditLog                                          |
-| storage       | UploadQuarantine, InspectAndScan, PublishAvatar, DeleteUnreferenced                                                                                                   | Bytes; metadata selected by users                 |
+| Owner         | Exported application contracts                                                                                                                                         | Authority                                         |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| users         | CreateVerifiedAccount, ReadIdentityForAuth, ActivateAfterVerification, RecordLoginOutcome, ChangePassword, ReadPrincipal, UpdateOwnProfile, ManageAccount, AssignStaff | User/Profile/grants/AvatarAsset                   |
+| auth          | Register/Verify/Login/Refresh/Logout/Reset/Reauthenticate; RevokeSessions(tx,userId/sessionId)                                                                         | Challenges/sessions/refresh history/reauth proofs |
+| notifications | ScheduleIdentityEmail(tx,intent), DispatchCommittedDelivery                                                                                                            | Email/outbox state                                |
+| audit         | AppendSecurityEvent(tx,event), no update/delete port                                                                                                                   | AuditLog                                          |
+| storage       | UploadQuarantine, InspectAndScan, PublishAvatar, DeleteUnreferenced                                                                                                    | Bytes; metadata selected by users                 |
 
 Pass a typed Prisma transaction context through exported use cases; other modules never write owner tables. Auth orchestrates signup/verify/reset; users orchestrates moderation and invokes auth revocation/audit. Lock User rows first (actor/target sorted IDs), then challenge/session rows deterministically. Hash/check expensive passwords outside transaction, then recheck hash/securityVersion/status under lock before issuing credentials.
 
-1. Signup transaction creates User/Profile/USER grant/challenge/protected email intent; uniqueness converts duplicate retries to neutral responses without overwriting data.
-2. Verify locks User/challenge, checks purpose/expiry/attempts, consumes/activates atomically. Invalid-attempt increments commit before returning failure; avoid exception rollback of counters.
+1. Signup stages an encrypted draft/password hash and proof in Redis, then queues an encrypted email. No User is created. Duplicate retries preserve staged data.
+2. Verify reserves the Redis proof and locks normalized email in PostgreSQL; it creates/activates User with USER assignment and audit atomically, then consumes the draft after commit. Invalid-attempt counters remain in Redis.
 3. Login/refresh recheck account/security version under User lock. Refresh consumes generation and creates successor atomically. Replay revocation commits before returning 401, rather than rolling back on exception.
 4. Reset consumes challenge, changes password/securityVersion, revokes all sessions, appends audit and schedules change email in one transaction; status unchanged.
 5. Moderation/role mutation revalidate actor grants under lock, consume action-bound fresh reauth if needed, change status/grants/version, revoke sessions and append audit atomically. Unlock restores no session.

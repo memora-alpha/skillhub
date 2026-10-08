@@ -8,6 +8,7 @@ import type { Transporter } from "nodemailer";
 export class SmtpAdapter extends IdentityMailer implements OnModuleDestroy {
   private readonly transporter: Transporter;
   private readonly from: string;
+  private readonly user: string | undefined;
   constructor(config: ConfigService) {
     super();
     this.from = config.getOrThrow<string>("SMTP_FROM");
@@ -23,12 +24,17 @@ export class SmtpAdapter extends IdentityMailer implements OnModuleDestroy {
       throw new Error("Invalid SMTP configuration");
     const user = config.get<string>("SMTP_USER");
     const pass = config.get<string>("SMTP_PASSWORD");
+    this.user = user;
+    if (!this.from.includes("@") && !user?.includes("@"))
+      throw new Error("Invalid SMTP sender configuration");
     if (!!user !== !!pass)
       throw new Error("Invalid SMTP authentication configuration");
     this.transporter = nodemailer.createTransport({
       host,
       port,
-      secure: config.get("SMTP_SECURE") === "true",
+      secure: config.get<string>("SMTP_SECURE")?.trim()
+        ? config.get("SMTP_SECURE") === "true"
+        : port === 465,
       requireTLS: config.get("NODE_ENV") === "production",
       auth: user && pass ? { user, pass } : undefined,
       connectionTimeout: 5000,
@@ -43,7 +49,9 @@ export class SmtpAdapter extends IdentityMailer implements OnModuleDestroy {
     code: string | null,
   ): Promise<string> {
     const result = await this.transporter.sendMail({
-      from: this.from,
+      from: this.from.includes("@")
+        ? this.from
+        : { name: this.from, address: this.user! },
       to: recipient,
       messageId: `<${id}@skillhub>`,
       subject:

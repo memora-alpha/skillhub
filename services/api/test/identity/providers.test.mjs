@@ -1,3 +1,7 @@
+import { createRequire } from "node:module";
+const nodemailer = createRequire(
+  new URL("../../dist/infrastructure/email/smtp.adapter.js", import.meta.url),
+)("nodemailer");
 import "reflect-metadata";
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -188,4 +192,49 @@ test("actual SMTP adapter sends to controlled local mailbox and rejects refusal"
     smtp.onModuleDestroy();
     await close(server);
   }
+});
+
+test("SMTP port 465 defaults to TLS and display names use the authenticated mailbox", async (t) => {
+  let options;
+  let message;
+  t.mock.method(nodemailer, "createTransport", (config) => {
+    options = config;
+    return {
+      sendMail: async (data) => {
+        message = data;
+        return { accepted: [data.to], messageId: data.messageId };
+      },
+      close: () => {},
+    };
+  });
+  const values = {
+    NODE_ENV: "development",
+    SMTP_HOST: "smtp.fixture.invalid",
+    SMTP_PORT: "465",
+    SMTP_SECURE: "",
+    SMTP_FROM: "SkillHub",
+    SMTP_USER: "sender@example.com",
+    SMTP_PASSWORD: "fixture",
+  };
+  const smtp = new SmtpAdapter(new ConfigService(values));
+  assert.equal(options.secure, true);
+  await smtp.send(
+    "tls-fixture",
+    "recipient@example.com",
+    "REGISTER_OTP",
+    "000012",
+  );
+  assert.deepEqual(message.from, {
+    name: "SkillHub",
+    address: "sender@example.com",
+  });
+  new SmtpAdapter(new ConfigService({ ...values, SMTP_SECURE: "false" }));
+  assert.equal(options.secure, false);
+  assert.throws(
+    () =>
+      new SmtpAdapter(
+        new ConfigService({ ...values, SMTP_USER: "", SMTP_PASSWORD: "" }),
+      ),
+    /sender/,
+  );
 });

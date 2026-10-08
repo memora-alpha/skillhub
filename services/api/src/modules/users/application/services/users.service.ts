@@ -21,6 +21,9 @@ export class UsersService {
   create(
     tx: IdentityTx,
     data: {
+      id?: string;
+      termsAcceptedAt?: Date;
+      termsVersion?: string;
       email: string;
       fullName: string;
       passwordHash: string;
@@ -30,7 +33,7 @@ export class UsersService {
   ) {
     return this.repository.create(tx, {
       ...data,
-      termsVersion: this.config.termsVersion,
+      termsVersion: data.termsVersion ?? this.config.termsVersion,
       timezone: data.timezone ?? this.config.timezone,
       reputationScore: this.config.initialReputation,
     });

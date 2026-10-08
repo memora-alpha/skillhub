@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 
 import { IdentityConfig } from "../../../../configs/identity.config";
 import { PrismaService } from "../../../../infrastructure/database/prisma.service";
@@ -28,36 +28,41 @@ export class ResetPasswordUseCase {
   async execute(email: string, code: string, password: string) {
     email = normalizeEmail(email);
     const hash = await this.config.crypto.hashPassword(password);
-    const success = await transaction(this.db, async (tx) => {
-      const lookup = await this.users.byEmail(tx, email);
-      if (!lookup) return false;
-      await lockUsers(tx, [lookup.id]);
-      const user = await this.users.byId(tx, lookup.id);
-      if (
-        !user ||
-        !this.otp.resetEligible(user.accountStatus, user.emailVerified) ||
-        !(await this.otp.consume(tx, user.id, "RESET_PASSWORD", code))
-      )
-        return false;
-      await this.users.password(tx, user.id, hash);
-      await this.sessions.revoke(tx, user.id, "PASSWORD_RESET");
-      await this.audit.append(tx, {
-        actorId: user.id,
-        action: "PASSWORD_RESET",
-        targetType: "User",
-        targetId: user.id,
-      });
-      await this.email.intent(tx, {
+    await this.otp.verify(email, "RESET_PASSWORD", code, (proof) =>
+      transaction(this.db, async (tx) => {
+        const lookup = await this.users.byEmail(tx, email);
+        if (!lookup) return false;
+        await lockUsers(tx, [lookup.id]);
+        const user = await this.users.byId(tx, lookup.id);
+        if (
+          !user ||
+          !this.otp.resetEligible(user.accountStatus, user.emailVerified) ||
+          user.id !== proof.userId ||
+          user.securityVersion !== proof.securityVersion
+        )
+          return false;
+        await this.users.password(tx, user.id, hash);
+        await this.sessions.revoke(tx, user.id, "PASSWORD_RESET");
+        await this.audit.append(tx, {
+          actorId: user.id,
+          action: "PASSWORD_RESET",
+          targetType: "User",
+          targetId: user.id,
+        });
+
+        return true;
+      }),
+    );
+    const user = await this.users.byEmail(this.db, email);
+    if (user)
+      await this.email.intent({
         userId: user.id,
         email,
         kind: "PASSWORD_CHANGED",
         expiresAt: new Date(
           Date.now() + this.config.notificationSeconds * 1000,
         ),
-        dedupeKey: `password:${user.id}:${user.securityVersion + 1}`,
+        dedupeKey: `password-${user.id}-${user.securityVersion}`,
       });
-      return true;
-    });
-    if (!success) throw new BadRequestException("OTP_INVALID_OR_EXPIRED");
   }
 }
