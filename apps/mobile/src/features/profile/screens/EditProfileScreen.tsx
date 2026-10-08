@@ -7,18 +7,27 @@ import { FormNotice } from "@/components/FormNotice";
 import { Input } from "@/components/Input";
 import { InfoModal } from "@/components/InfoModal";
 import { avatarSizes } from "@/constants/theme";
-import { useMockSession } from "@/features/auth";
+import {
+  useAuthSession,
+  useUpdateProfile,
+  validateName,
+} from "@/features/auth";
+import { errorMessage } from "@/lib/http/errors";
 import { ProfileLayout } from "../components/ProfileLayout";
 import { ProfileSection, profileStyles } from "../components/ProfilePrimitives";
-import { profileDetails } from "../mocks/profile";
 
 export function EditProfileScreen() {
   const router = useRouter();
-  const { session, updateProfile } = useMockSession();
+  const { session } = useAuthSession();
+  const updateProfile = useUpdateProfile();
   const [name, setName] = useState(session?.name ?? "");
-  const [bio, setBio] = useState(session?.bio ?? profileDetails.bio);
-  const [website, setWebsite] = useState(session?.website ?? "");
-  const [errors, setErrors] = useState<{ name?: string; website?: string }>({});
+  const [bio, setBio] = useState(session?.bio ?? "");
+  const [headline, setHeadline] = useState(session?.headline ?? "");
+  const [errors, setErrors] = useState<{
+    name?: string;
+    headline?: string;
+    bio?: string;
+  }>({});
   const [saved, setSaved] = useState(false);
   const [avatarNotice, setAvatarNotice] = useState(false);
   useEffect(() => {
@@ -30,28 +39,19 @@ export function EditProfileScreen() {
   const back = () => router.dismissTo("/profile");
   const save = () => {
     const next: typeof errors = {};
-    if (!name.trim()) next.name = "Vui lòng nhập tên hiển thị.";
-    if (website.trim()) {
-      try {
-        const url = new URL(website.trim());
-        if (
-          !["http:", "https:"].includes(url.protocol) ||
-          !url.hostname.includes(".")
-        )
-          next.website = "Vui lòng nhập URL website hợp lệ (http hoặc https).";
-      } catch {
-        next.website = "Vui lòng nhập URL website hợp lệ (http hoặc https).";
-      }
-    }
+    const nameError = validateName(name);
+    if (nameError) next.name = nameError;
+    if (headline.trim().length > 120)
+      next.headline = "Tiêu đề không quá 120 ký tự.";
+    if (bio.trim().length > 1000)
+      next.bio = "Giới thiệu không quá 1.000 ký tự.";
     setErrors(next);
     if (Object.keys(next).length) return;
     Keyboard.dismiss();
-    updateProfile({
-      name: name.trim(),
-      bio: bio.trim(),
-      website: website.trim(),
-    });
-    setSaved(true);
+    updateProfile.mutate(
+      { fullName: name.trim(), headline: headline.trim(), bio: bio.trim() },
+      { onSuccess: () => setSaved(true) },
+    );
   };
   return (
     <ProfileLayout session={session} title="Chỉnh sửa hồ sơ" onBack={back}>
@@ -59,6 +59,11 @@ export function EditProfileScreen() {
         <View style={styles.stack}>
           {saved && (
             <FormNotice tone="success">Hồ sơ đã được cập nhật.</FormNotice>
+          )}
+          {updateProfile.isError && (
+            <FormNotice tone="error">
+              {errorMessage(updateProfile.error)}
+            </FormNotice>
           )}
           {Object.keys(errors).length > 0 && (
             <FormNotice tone="error">
@@ -71,6 +76,7 @@ export function EditProfileScreen() {
                 name={session.name}
                 userId={session.userId}
                 size={avatarSizes.edit}
+                sourceUri={session.avatarUrl}
               />
               <View style={styles.avatarActions}>
                 <Button
@@ -114,34 +120,36 @@ export function EditProfileScreen() {
               hint="Giới thiệu ngắn để người học hiểu bạn hơn."
             />
             <Input
-              label="Website / Portfolio"
-              value={website}
-              placeholder="https://portfolio.com"
+              label="Vai trò / tiêu đề"
+              value={headline}
+              placeholder="Ví dụ: Frontend Developer"
               onChangeText={(value) => {
-                setWebsite(value);
-                setErrors((current) => ({ ...current, website: undefined }));
+                setHeadline(value);
+                setErrors((current) => ({ ...current, headline: undefined }));
                 setSaved(false);
               }}
-              error={errors.website}
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="url"
+              error={errors.headline}
+              maxLength={120}
             />
           </ProfileSection>
           <View style={styles.buttons}>
             <Button style={{ flex: 1 }} variant="secondary" onPress={back}>
               Hủy
             </Button>
-            <Button style={{ flex: 1 }} onPress={save} disabled={saved}>
-              Lưu thay đổi
+            <Button
+              style={{ flex: 1 }}
+              onPress={save}
+              disabled={saved || updateProfile.isPending}
+            >
+              {updateProfile.isPending ? "Đang lưu..." : "Lưu thay đổi"}
             </Button>
           </View>
           <InfoModal
             title={avatarNotice ? "Thay ảnh đại diện" : null}
             onClose={() => setAvatarNotice(false)}
           >
-            Chọn ảnh từ thiết bị sẽ được bổ sung sau. Phiên demo hiện dùng ảnh
-            đại diện bằng chữ cái, đúng mẫu Figma.
+            Chọn ảnh từ thiết bị sẽ được bổ sung sau khi luồng quét ảnh đại diện
+            sẵn sàng.
           </InfoModal>
         </View>
       )}
