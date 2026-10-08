@@ -94,7 +94,11 @@ export class RefreshDto {
   @Length(1, 1024)
   refreshToken!: string;
 }
-export class ResetDto extends VerifyDto {
+export class ResetDto extends EmailDto {
+  @ApiProperty({ writeOnly: true, minLength: 43, maxLength: 43 })
+  @IsString()
+  @Matches(/^[A-Za-z0-9_-]{43}$/)
+  resetToken!: string;
   @ApiProperty({ minLength: 8, maxLength: 64, writeOnly: true })
   @Policy(validPassword)
   newPassword!: string;
@@ -123,5 +127,10 @@ export class TokenPairDto {
 }
 export class ReauthResponseDto {
   @ApiProperty() reauthToken!: string;
+  @ApiProperty({ format: "date-time" }) expiresAt!: string;
+}
+export class PasswordResetProofDto {
+  @ApiProperty({ readOnly: true, minLength: 43, maxLength: 43 })
+  resetToken!: string;
   @ApiProperty({ format: "date-time" }) expiresAt!: string;
 }
