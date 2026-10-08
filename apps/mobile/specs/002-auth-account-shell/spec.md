@@ -74,8 +74,22 @@ derive its account state from `GET /api/v1/me`.
 
 1. Forgot-password submits only email and always displays the neutral `202`
    acknowledgment.
-2. Reset collects email, six-digit OTP, new password and confirmation.
-3. Successful `204` returns to login; it does not automatically authenticate.
+2. The code-entry screen shows the email read-only, the shared six-cell OTP
+   control and a 60-second resend countdown. Resend calls `/auth/password/forgot`,
+   not the registration resend endpoint.
+3. Continue checks only six-digit format, retains the email/code in an in-memory
+   draft and opens a separate new-password/confirmation screen. It is not server
+   verification; no verified state or success toast is shown at this step.
+4. Final submission sends the draft email/code together with the password fields
+   to the existing `/auth/password/reset`. Invalid/expired OTP returns to code
+   entry; other failures retain the password draft for retry.
+5. Successful `204` clears the recovery draft and returns to login without
+   automatically authenticating. Leaving recovery also clears the draft; app
+   restarts/deep links without the draft return to the email step. OTP is never
+   passed in a URL or stored persistently.
+6. TODO: replace code collection with standalone backend recovery verification
+   and reset authorization once that contract is supplied. Backend changes are
+   explicitly deferred for this UI-only split.
 
 ## Functional requirements
 
