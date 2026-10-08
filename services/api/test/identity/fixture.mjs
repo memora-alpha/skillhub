@@ -19,6 +19,7 @@ import { ResendOtpUseCase } from "../../dist/modules/auth/application/use-cases/
 import { VerifyEmailUseCase } from "../../dist/modules/auth/application/use-cases/verify-email.use-case.js";
 import { LoginUseCase } from "../../dist/modules/auth/application/use-cases/login.use-case.js";
 import { ResetPasswordUseCase } from "../../dist/modules/auth/application/use-cases/reset-password.use-case.js";
+import { VerifyPasswordResetOtpUseCase } from "../../dist/modules/auth/application/use-cases/verify-password-reset-otp.use-case.js";
 import { ReauthenticateUseCase } from "../../dist/modules/auth/application/use-cases/reauthenticate.use-case.js";
 import { RefreshTokenUseCase } from "../../dist/modules/auth/application/use-cases/refresh-token.use-case.js";
 import { LogoutUseCase } from "../../dist/modules/auth/application/use-cases/logout.use-case.js";
@@ -94,6 +95,7 @@ export async function createIdentityFixture({
     verify: execute(VerifyEmailUseCase),
     login: execute(LoginUseCase),
     reset: execute(ResetPasswordUseCase),
+    verifyResetOtp: execute(VerifyPasswordResetOtpUseCase),
     reauthenticate: execute(ReauthenticateUseCase),
   };
   const admin = {

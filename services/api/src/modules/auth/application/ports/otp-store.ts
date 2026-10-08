@@ -17,6 +17,12 @@ export abstract class OtpStore {
     expectedId?: string,
   ): Promise<boolean>;
   abstract read(email: string, purpose: string): Promise<OtpRecord | null>;
+  abstract exchangeReset(
+    email: string,
+    id: string,
+    lease: string,
+    grant: OtpRecord,
+  ): Promise<boolean>;
   abstract claim(
     email: string,
     purpose: string,

@@ -140,13 +140,32 @@ test("HTTP DTO validation rejects privilege injection, wrong confirmation and we
     pipe.transform(
       {
         email: "user@example.com",
-        otpCode: "000012",
+        resetToken: "A".repeat(43),
         newPassword: "weak",
         confirmNewPassword: "weak",
       },
       { type: "body", metatype: ResetDto },
     ),
   );
+  const resetBody = {
+    email: "user@example.com",
+    resetToken: "A".repeat(43),
+    newPassword: "Strong123!",
+    confirmNewPassword: "Strong123!",
+  };
+  await pipe.transform(resetBody, { type: "body", metatype: ResetDto });
+  for (const patch of [
+    { resetToken: undefined },
+    { resetToken: "000012" },
+    { otpCode: "000012" },
+    { confirmNewPassword: "Mismatch123!" },
+  ])
+    await assert.rejects(
+      pipe.transform(
+        { ...resetBody, ...patch },
+        { type: "body", metatype: ResetDto },
+      ),
+    );
 });
 
 test("OTP binds challenge/purpose; ciphertext authenticates and opaque secrets hash", async () => {

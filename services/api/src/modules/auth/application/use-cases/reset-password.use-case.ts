@@ -25,10 +25,10 @@ export class ResetPasswordUseCase {
     private readonly audit: AuditService,
     private readonly otp: OtpService,
   ) {}
-  async execute(email: string, code: string, password: string) {
+  async execute(email: string, resetToken: string, password: string) {
     email = normalizeEmail(email);
     const hash = await this.config.crypto.hashPassword(password);
-    await this.otp.verify(email, "RESET_PASSWORD", code, (proof) =>
+    await this.otp.verify(email, "PASSWORD_RESET_GRANT", resetToken, (proof) =>
       transaction(this.db, async (tx) => {
         const lookup = await this.users.byEmail(tx, email);
         if (!lookup) return false;
