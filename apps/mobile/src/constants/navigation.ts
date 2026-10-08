@@ -11,6 +11,7 @@ export const appRoutes: Record<string, Href | undefined> = {
   "Lịch học": "/calendar",
   "Tin nhắn": "/messages",
   "Hồ sơ": "/profile",
+  "Cài đặt": "/account-settings",
 };
 
 export const appTabs: { name: string; label: string; icon: IconName }[] = [

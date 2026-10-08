@@ -1,8 +1,9 @@
 # SkillHub Mobile
 
 React Native + Expo + TypeScript app alongside `apps/web`, using Expo Router.
-This workspace currently contains frontend UI and local mock interactions only.
-It makes no API calls and does not implement backend authentication.
+This workspace uses the versioned identity API for account authentication and
+profile management. Learning, calendar and chat content remains local while
+their backend contracts are introduced.
 The welcome, authentication, home and personal profile content is based on the
 supplied Complete SkillHub Product Design Figma Make export. The signed-in UI
 uses task-based visual hierarchy: a highlighted upcoming session, individual
@@ -81,23 +82,17 @@ Welcome buttons navigate to `/register` and `/login`; `/home`, `/profile` and
 `/edit-profile` require a local demo session.
 
 Registration validates name, email, password requirements, confirmation and
-consent, then opens a clearly labelled demo confirmation before showing the
-new-user home. Login accepts a valid email and any nonempty password for UI
-preview only: `new@test.com` shows the shared home with the getting-started guide
-and initial values; other emails show sample learning activity. Google buttons offer a clearly labelled demo profile,
-without OAuth.
-
-Passwords are not saved or sent. Session data exists only in memory and resets
-on reload or logout. Remember-me is a local checkbox preview, with no persistent
-authentication. Home contains local search, notifications, message previews,
-account menu and logout.
+consent, then continues to six-digit email verification. Login uses the identity
+API and stores only the refresh credential in Expo SecureStore; access tokens
+stay in memory. Google OAuth remains unavailable until the API publishes a
+supported route. Home retains its local learning-content previews, notifications,
+messages and account menu.
 
 The profile tab and account menu open `/profile`; its edit button opens
-`/edit-profile`. Name, bio and portfolio edits are validated and stored only in
-the current demo session. Saving shows the source success banner and returns to
-the profile; cancelling discards unsaved input. The home greeting and account
-avatar/name reflect saved changes. Profile stats, verification, skills and badges
-are sample values from Figma.
+`/edit-profile`. Name, headline and bio save through `PATCH /api/v1/me/profile`.
+The home greeting, account avatar/name and own-profile summary reflect the
+authenticated account. Skills, badges and non-account actions remain design
+fixtures until their contracts are available.
 
 The five main screens live in the `(tabs)` Expo Router group, with a shared
 bottom bar. Root-stack and tab transitions have no animation; horizontal back
