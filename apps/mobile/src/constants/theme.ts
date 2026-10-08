@@ -144,3 +144,24 @@ export const signedInChrome = {
   border: "#F0ECE6",
   accent: "#EF653D",
 } as const;
+
+export const toastTheme = {
+  surface: colors.white,
+  border: colors.border,
+  foreground: colors.inkSoft,
+  closeForeground: colors.muted,
+  closePressed: colors.sand,
+  radius: appRadius.card,
+  gutter: 16,
+  padding: 12,
+  gap: 12,
+  minHeight: 64,
+  maxWidth: 448,
+  dismissSize: 44,
+  shadow: "0 8px 24px rgba(28, 20, 16, 0.10), 0 2px 6px rgba(28, 20, 16, 0.04)",
+  tones: {
+    success: { foreground: colors.success, background: colors.successLight },
+    error: { foreground: colors.error, background: colors.errorLight },
+    info: { foreground: colors.brand, background: colors.brandLight },
+  },
+} as const;

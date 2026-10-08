@@ -1,8 +1,9 @@
 # SkillHub Mobile
 
 React Native + Expo + TypeScript app alongside `apps/web`, using Expo Router.
-This workspace currently contains frontend UI and local mock interactions only.
-It makes no API calls and does not implement backend authentication.
+This workspace uses the versioned identity API for account authentication and
+profile management. Learning, calendar and chat content remains local while
+their backend contracts are introduced.
 The welcome, authentication, home and personal profile content is based on the
 supplied Complete SkillHub Product Design Figma Make export. The signed-in UI
 uses task-based visual hierarchy: a highlighted upcoming session, individual
@@ -14,13 +15,16 @@ alignment does not depend on percentage rounding or flex wrapping. The session
 mentor avatar uses the same identity-based colors as its message and chat avatars.
 Avatars show initials in circles with one of five pastel backgrounds and a
 contrasting text color, chosen deterministically from the user ID. Demo users
-have stable fixture IDs; the signed-in demo account gets an ID derived from its
-normalized email. Changing a display name or list order does not change its
+have stable fixture IDs; the signed-in account uses its backend user ID.
+Changing a display name or list order does not change its
 avatar color. Palette pairs and the selection function live in
 `src/constants/avatar.ts`.
 Control corners are 6px, all cards and dialogs use shared 8px corners,
 and small labels 4px. The signed-in
 palette uses one light warm-white background and orange as its primary accent.
+Toast overlays use 16px corners, a light surface, a subtle shadow and tinted
+status icons, with the same Nunito font and warm palette. Messages wrap, and
+the dismiss button keeps a 44px touch target.
 New and returning users share the same home sections; new users see initial
 values, empty activity states and a collapsible getting-started guide.
 
@@ -30,6 +34,17 @@ for prioritizing the next learning action. These inform the hierarchy rather tha
 copying their branding or adding unsupported content.
 
 ## Source of truth
+
+Auth follows the Redis OTP backend update: registration creates the account
+only after verification. OTP errors briefly explain the five-error/24-hour
+restriction; expired registration can be restarted with the email prefilled.
+Code request acknowledgments do not claim email delivery. Recovery verifies OTP
+before opening the new-password screen, then resets with a one-use token kept
+in memory. The new-password screen has no action to re-enter the consumed OTP.
+Password-reset
+network/5xx errors advise trying the new password at login because the change
+may already have committed. The backend's generic OTP error cannot identify a
+ban deadline, so mobile does not display a guessed lock countdown.
 
 - `../../docs/SRS_SkillHub_V1.6_VietLai_DongBoNghiepVu.docx` defines current business behavior.
 - `../../docs/SOURCE_OF_TRUTH.md` tracks the active SRS and historical documents.
@@ -78,26 +93,20 @@ React Native Web.
 ## Implemented UI scope
 
 Welcome buttons navigate to `/register` and `/login`; `/home`, `/profile` and
-`/edit-profile` require a local demo session.
+`/edit-profile` require an authenticated account session.
 
 Registration validates name, email, password requirements, confirmation and
-consent, then opens a clearly labelled demo confirmation before showing the
-new-user home. Login accepts a valid email and any nonempty password for UI
-preview only: `new@test.com` shows the shared home with the getting-started guide
-and initial values; other emails show sample learning activity. Google buttons offer a clearly labelled demo profile,
-without OAuth.
-
-Passwords are not saved or sent. Session data exists only in memory and resets
-on reload or logout. Remember-me is a local checkbox preview, with no persistent
-authentication. Home contains local search, notifications, message previews,
-account menu and logout.
+consent, then continues to six-digit email verification. Login uses the identity
+API and stores only the refresh credential in Expo SecureStore; access tokens
+stay in memory. Google OAuth remains unavailable until the API publishes a
+supported route. Home retains its local learning-content previews, notifications,
+messages and account menu.
 
 The profile tab and account menu open `/profile`; its edit button opens
-`/edit-profile`. Name, bio and portfolio edits are validated and stored only in
-the current demo session. Saving shows the source success banner and returns to
-the profile; cancelling discards unsaved input. The home greeting and account
-avatar/name reflect saved changes. Profile stats, verification, skills and badges
-are sample values from Figma.
+`/edit-profile`. Name, headline and bio save through `PATCH /api/v1/me/profile`.
+The home greeting, account avatar/name and own-profile summary reflect the
+authenticated account. Skills, badges and non-account actions remain design
+fixtures until their contracts are available.
 
 The five main screens live in the `(tabs)` Expo Router group, with a shared
 bottom bar. Root-stack and tab transitions have no animation; horizontal back
@@ -117,10 +126,10 @@ are not the current device date. The initial month matches the source's March
 view, while the upcoming list shows all sample sessions until a day is selected.
 Messages lists accepted-proposal conversations and searches names, skills, post
 content and proposal IDs. Each card opens `/chat/[proposalId]`; entering chat
-marks its conversation as read in the current local demo session.
+marks its conversation as read in the current account session.
 Chat supports sending nonempty text locally, reflects the latest sent message
 and message count in the list, and keeps messages when returning to a thread.
-Changing or ending the demo session resets the message store. There is no
+Changing or ending the account session resets the message store. There is no
 realtime connection, server delivery, file upload or remote persistence.
 
 Discovery cards open `/request/[id]`, and upcoming calendar cards open
@@ -136,9 +145,9 @@ pending. Their actions open local notices; they do not create business records
 or move Credit. Online/typing indicators are fixtures from the design.
 
 Photo selection and the linked wallet, skill management, achievements, reviews
-and settings screens remain pending. Links to unfinished screens show a local
-notice. Forgot-password, email verification/OTP, onboarding, real authentication,
-APIs and backend integration remain out of scope.
+remain pending. Links to unfinished screens show a local notice. Account
+settings supports logout-all with pending guards and error feedback. Onboarding
+and backend integration for learning/calendar/chat remain pending.
 
 ## Environment configuration
 
@@ -150,9 +159,8 @@ the local file if it does not already exist:
 if (-not (Test-Path .env)) { Copy-Item .env.example .env }
 ```
 
-The current UI requires no environment variables. The template includes a
-commented `EXPO_PUBLIC_API_URL` example for future API integration; the app does
-not currently read it. On a physical device, use your development machine's
+Set `EXPO_PUBLIC_API_URL` to the running API address; configuration validation
+accepts the server root or a URL ending in `/api/v1`. On a physical device, use your development machine's
 LAN IP instead of `localhost`. Variables prefixed with `EXPO_PUBLIC_` are public
 and must not contain secrets.
 
@@ -173,16 +181,18 @@ safe-area insets and narrower header button padding on small phones.
 ## Current file layout
 
 - `src/app/`: thin Expo Router routes and navigation configuration.
-- `src/providers/`: app-wide composition of font loading, safe areas and feature-owned demo providers.
-- `src/features/auth/`: welcome, registration, login, validation and the local demo session.
+- `src/providers/`: fonts, safe areas, QueryClient, auth session and shared toast composition.
+- `src/features/auth/`: welcome, real registration/verification/login/recovery, validation and session lifecycle.
+- `src/features/account/`: typed own-account API and profile contracts.
 - `src/features/home/`: shared home content, new-user guide and sample data.
-- `src/features/profile/`: personal profile, local editing and sample profile data.
+- `src/features/profile/`: authenticated own-profile display/editing and remaining sample profile content.
 - `src/features/discovery/`: request list, filters, request detail and sample content.
 - `src/features/calendar/`: month grid, history, session detail and sample schedule.
 - `src/features/messages/`: conversation list, chat and session-scoped local messages.
 - `src/features/shell/`: signed-in header, account menu, search, navigation and screen shell.
 - `src/components/`: generic native controls and dialogs shared across features.
 - `src/constants/`: design tokens and shared navigation labels.
+- `src/lib/`: shared HTTP transport, error parsing and secure refresh-token storage.
 - `src/mocks/`: local demo content shared by the app shell and multiple features; feature-specific fixtures stay in their owning feature.
 - `assets/`: locally bundled app icons, welcome photograph, fonts and their licenses.
 
