@@ -1,105 +1,119 @@
-import { useState } from "react";
-import { Text, View } from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { Controller, useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Keyboard, Text, View } from "react-native";
+import { Redirect, useLocalSearchParams, useRouter } from "expo-router";
 import { Button } from "@/components/Button";
-import { FormNotice } from "@/components/FormNotice";
-import { Input } from "@/components/Input";
-import { errorMessage } from "@/lib/http/errors";
+import { OtpInput } from "@/components/OtpInput";
+import { formValidationOptions } from "@/utils/form-validation";
+import { useAuthFeedback } from "../hooks/use-auth-feedback";
 import { AuthLayout } from "../components/AuthLayout";
 import { authStyles } from "../components/AuthControls";
+import { AuthFormInput } from "../components/AuthFormInput";
 import { useAuthActions } from "../hooks/use-auth-actions";
-import { isEmail } from "../utils/validateRegistration";
+import { useVerificationCooldown } from "../hooks/use-verification-cooldown";
+import {
+  verifyEmailSchema,
+  type VerifyEmailFormValues,
+} from "../schemas/auth-schemas";
 
 export function VerifyEmailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ email?: string; sent?: string }>();
+  const email =
+    typeof params.email === "string" ? params.email.trim().toLowerCase() : "";
+  const hasValidEmail = verifyEmailSchema.shape.email.safeParse(email).success;
   const { verify, resend } = useAuthActions();
-  const [email, setEmail] = useState(
-    typeof params.email === "string" ? params.email : "",
+  const cooldown = useVerificationCooldown(
+    email,
+    params.sent === "true" && hasValidEmail,
   );
-  const [code, setCode] = useState("");
-  const [error, setError] = useState("");
-  const submit = () => {
-    if (verify.isPending) return;
-    if (!isEmail(email)) return setError("Vui lòng nhập email hợp lệ.");
-    if (!/^\d{6}$/.test(code))
-      return setError("Mã xác minh gồm đúng 6 chữ số.");
-    setError("");
+  useAuthFeedback(
+    params.sent === "true" && hasValidEmail
+      ? "Nếu địa chỉ đủ điều kiện, mã xác minh đã được gửi."
+      : null,
+  );
+  const form = useForm<VerifyEmailFormValues>({
+    ...formValidationOptions,
+    resolver: zodResolver(verifyEmailSchema),
+    defaultValues: {
+      email,
+      otpCode: "",
+    },
+  });
+  if (!hasValidEmail) return <Redirect href="/login" />;
+  const submit = form.handleSubmit((values) => {
+    if (verify.isPending || resend.isPending) return;
+    Keyboard.dismiss();
     verify.mutate(
-      { email: email.trim().toLowerCase(), otpCode: code },
+      { email, otpCode: values.otpCode },
       {
         onSuccess: () =>
           router.replace({
             pathname: "/login",
-            params: { email: email.trim().toLowerCase(), result: "verified" },
+            params: { email, result: "verified" },
           }),
       },
     );
-  };
+  });
   return (
     <AuthLayout
       title="Xác minh email"
       subtitle="Nhập mã 6 chữ số được gửi đến email của bạn."
     >
       <View style={authStyles.fields}>
-        {params.sent === "true" && (
-          <FormNotice tone="success">
-            Nếu địa chỉ đủ điều kiện, mã xác minh đã được gửi.
-          </FormNotice>
-        )}
-        {(error || verify.isError) && (
-          <FormNotice tone="error">
-            {error || errorMessage(verify.error)}
-          </FormNotice>
-        )}
-        {resend.isSuccess && (
-          <FormNotice tone="success">
-            Nếu địa chỉ đủ điều kiện, mã mới đã được gửi.
-          </FormNotice>
-        )}
-        {resend.isError && (
-          <FormNotice tone="error">{errorMessage(resend.error)}</FormNotice>
-        )}
-        <Input
+        <AuthFormInput
+          control={form.control}
+          name="email"
           label="Email"
-          required
-          value={email}
-          editable={!verify.isPending && !resend.isPending}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          autoCorrect={false}
-          autoComplete="email"
-          onChangeText={(value) => {
-            setEmail(value);
-            setError("");
-          }}
+          editable={false}
+          autoComplete="off"
         />
-        <Input
-          label="Mã xác minh"
-          required
-          value={code}
-          editable={!verify.isPending}
-          placeholder="123456"
-          keyboardType="number-pad"
-          autoComplete="one-time-code"
-          textContentType="oneTimeCode"
-          maxLength={6}
-          onChangeText={(value) => {
-            setCode(value.replace(/\D/g, ""));
-            setError("");
-          }}
-          returnKeyType="go"
-          onSubmitEditing={submit}
+        <Controller
+          control={form.control}
+          name="otpCode"
+          render={({ field, fieldState }) => (
+            <OtpInput
+              ref={field.ref}
+              value={field.value}
+              onBlur={field.onBlur}
+              error={fieldState.error?.message}
+              editable={!verify.isPending && !resend.isPending}
+              onChangeText={(value) => {
+                field.onChange(value);
+                verify.reset();
+              }}
+              onSubmitEditing={submit}
+            />
+          )}
         />
-        <Button size="lg" onPress={submit} disabled={verify.isPending}>
+        <Button
+          size="lg"
+          onPress={submit}
+          disabled={verify.isPending || resend.isPending}
+        >
           {verify.isPending ? "Đang xác minh..." : "Xác minh email"}
         </Button>
         <Button
           variant="secondary"
-          onPress={() => resend.mutate(email.trim().toLowerCase())}
-          disabled={resend.isPending || verify.isPending}
+          onPress={() => {
+            if (resend.isPending || verify.isPending || !cooldown.reserve())
+              return;
+            resend.mutate(email, {
+              onSuccess: () => {
+                form.resetField("otpCode");
+                verify.reset();
+              },
+            });
+          }}
+          disabled={
+            cooldown.seconds > 0 || resend.isPending || verify.isPending
+          }
         >
-          {resend.isPending ? "Đang gửi..." : "Gửi lại mã"}
+          {resend.isPending
+            ? "Đang gửi..."
+            : cooldown.seconds > 0
+              ? `Gửi lại mã sau ${cooldown.seconds}s`
+              : "Gửi lại mã"}
         </Button>
         <Text style={authStyles.footer}>
           Đã có tài khoản?{" "}

@@ -49,7 +49,6 @@ export function AuthDivider({ label }: { label: string }) {
   );
 }
 export function PasswordRequirements({ password }: { password: string }) {
-  if (!password) return null;
   return (
     <View style={styles.requirements}>
       {passwordRequirements(password).map((rule) => (
@@ -76,7 +75,7 @@ export function PasswordRequirements({ password }: { password: string }) {
   );
 }
 export const authStyles = StyleSheet.create({
-  fields: { gap: 16 },
+  fields: { gap: 12 },
   link: {
     color: colors.brand,
     fontFamily: fonts.semibold,
@@ -84,6 +83,7 @@ export const authStyles = StyleSheet.create({
     includeFontPadding: false,
   },
   footer: {
+    paddingTop: 8,
     color: colors.muted,
     fontFamily: fonts.body,
     ...typography.body,
@@ -126,8 +126,20 @@ const styles = StyleSheet.create({
     color: colors.mutedLight,
     includeFontPadding: false,
   },
-  requirements: { gap: 4, marginTop: 4 },
-  rule: { flexDirection: "row", alignItems: "center", gap: 8 },
+  requirements: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 4,
+  },
+  rule: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    flexBasis: "47%",
+    flexGrow: 1,
+    minWidth: 140,
+  },
   dot: {
     width: 12,
     height: 12,
@@ -136,6 +148,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   ruleLabel: {
+    flexShrink: 1,
     fontFamily: fonts.body,
     ...typography.secondary,
     includeFontPadding: false,
