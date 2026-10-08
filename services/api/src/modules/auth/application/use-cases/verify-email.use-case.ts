@@ -1,8 +1,8 @@
-import { BadRequestException, Injectable } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 
 import { PrismaService } from "../../../../infrastructure/database/prisma.service";
 import {
-  lockUsers,
+  lockEmail,
   transaction,
 } from "../../../../shared/database/identity-transactions";
 import { UsersService } from "../../../users/application/services/users.service";
@@ -22,25 +22,33 @@ export class VerifyEmailUseCase {
   ) {}
   async execute(email: string, code: string) {
     email = normalizeEmail(email);
-    const success = await transaction(this.db, async (tx) => {
-      const lookup = await this.users.byEmail(tx, email);
-      if (!lookup) return false;
-      await lockUsers(tx, [lookup.id]);
-      const user = await this.users.byId(tx, lookup.id);
-      if (
-        user?.accountStatus !== "PENDING_VERIFICATION" ||
-        !(await this.otp.consume(tx, user.id, "REGISTER", code))
-      )
-        return false;
-      await this.users.activate(tx, user.id);
-      await this.audit.append(tx, {
-        actorId: user.id,
-        action: "EMAIL_VERIFIED",
-        targetType: "User",
-        targetId: user.id,
-      });
-      return true;
-    });
-    if (!success) throw new BadRequestException("OTP_INVALID_OR_EXPIRED");
+    await this.otp.verify(email, "REGISTER", code, (proof) =>
+      transaction(this.db, async (tx) => {
+        const draft = this.otp.registration(proof);
+        await lockEmail(tx, email);
+        const existing = await this.users.byEmail(tx, email);
+        // A committed create followed by Redis cleanup failure can be retried safely.
+        if (existing)
+          return (
+            existing.id === proof.userId &&
+            existing.emailVerified &&
+            existing.accountStatus === "ACTIVE"
+          );
+        const user = await this.users.create(tx, {
+          ...draft,
+          email,
+          id: proof.userId,
+          termsAcceptedAt: new Date(draft.termsAcceptedAt),
+        });
+        await this.users.activate(tx, user.id);
+        await this.audit.append(tx, {
+          actorId: user.id,
+          action: "EMAIL_VERIFIED",
+          targetType: "User",
+          targetId: user.id,
+        });
+        return true;
+      }),
+    );
   }
 }

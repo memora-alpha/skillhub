@@ -16,6 +16,10 @@ Identity routes explicitly use version `1` with NestJS URI versioning, after glo
 
 Protected routes use Bearer access JWT plus live session/User/status/securityVersion and current permissions. Missing identity=401, denied permission=403. Owner derives from principal. Public profile is an authenticated public projection in this scope. Refresh credentials use JSON, never URLs; browser cookie/BFF/CSRF integration deferred. Token responses `Cache-Control:no-store`; never log credential bodies/responses.
 
+## Registration lifecycle (2026-10-08 amendment)
+
+`POST /auth/register` stages an encrypted registration draft and OTP in Redis and queues email; it creates no User and returns the same neutral 202 envelope. `POST /auth/verification/verify` commits one verified ACTIVE User/USER assignment and audit only after a valid OTP; success remains bodiless 204. Resend uses the valid cached draft without replacing its password/profile. Once the draft expires, resend remains neutral and the client must submit registration again. Existing accounts are never overwritten. See [Redis OTP amendment](../redis-otp.md).
+
 ## Routes
 
 | Method/path                                     | Access                     | Request                                                               | Response/behavior                                                                                                         |

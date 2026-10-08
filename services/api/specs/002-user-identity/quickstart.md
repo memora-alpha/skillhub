@@ -1,5 +1,7 @@
 # Identity setup and verification
 
+> Current OTP design: [Redis OTP amendment (2026-10-08)](redis-otp.md) supersedes PostgreSQL challenge/counter and email-outbox statements below.
+
 Identity controllers now invoke application use cases directly. Private Prisma
 adapters live under each owner's `infrastructure/persistence`; jobs/schedulers
 live under `infrastructure/jobs`. Integration fixtures compile the runtime
@@ -46,8 +48,8 @@ Swagger is at `/api/docs` in development/test. Identity endpoints use `/api/v1/.
 
 JSON responses follow Memora: `{success:true,message,data,meta?}` or `{success:false,message,statusCode}`. Read tokens/profile/upload results from `data`; user list rows are the `data` array and cursor/hasMore/limit are in `meta.pagination`. Registration/resend/forgot use `data:null`. A 204 response has no JSON body. Validation `message` is one string joined with `; `; 5xx hides internal details. This replaces the previous response shapes in the unreleased v1 API.
 
-1. Register valid fields and accepted terms; receive neutral 202 without tokens. Obtain the code from a controlled mailbox. Duplicate signup cannot replace profile/password.
-2. Verify six-digit REGISTER code once, then login. An inactive account cannot obtain a session; invalid proof responses are neutral.
+1. Register valid fields and accepted terms; receive neutral 202 without tokens or a database account. Registration data is encrypted in Redis for five minutes. Obtain the code from a controlled mailbox. Duplicate signup cannot replace profile/password.
+2. Verify six-digit REGISTER code once to create a verified ACTIVE account, then login. An inactive account cannot obtain a session; invalid proof responses are neutral.
 3. Access own `/me` and authenticated public `/profiles/{userId}` projections. Public profile excludes email/roles. Profile edits accept only the declared fields.
 4. Rotate refresh serially. Replay revokes that family; logout accepts its refresh credential even after access expiry. Logout-all revokes all families.
 5. Request recovery neutrally and consume RESET_PASSWORD once; old families fail, status is preserved, and a change notification is queued. No automatic sign-in occurs.

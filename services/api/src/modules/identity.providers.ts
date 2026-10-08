@@ -1,3 +1,5 @@
+import { OtpStore } from "./auth/application/ports/otp-store";
+import { RedisOtpStore } from "./auth/infrastructure/tokens/redis-otp.store";
 import { SessionsService } from "./auth/application/services/sessions.service";
 import { OtpService } from "./auth/application/services/otp.service";
 import { ReauthProofService } from "./auth/application/services/reauth-proof.service";
@@ -30,15 +32,12 @@ import { RemoveAvatarUseCase } from "./users/application/use-cases/remove-avatar
 import { ProcessAvatarUseCase } from "./users/application/use-cases/process-avatar.use-case";
 import { ReconcileAvatarsUseCase } from "./users/application/use-cases/reconcile-avatars.use-case";
 import { DeliverIdentityEmailUseCase } from "./notifications/application/use-cases/deliver-identity-email.use-case";
-import { ReconcileIdentityEmailsUseCase } from "./notifications/application/use-cases/reconcile-identity-emails.use-case";
 import { AuthRepository } from "./auth/application/ports/auth-repository";
 import { PrismaAuthRepository } from "./auth/infrastructure/persistence/prisma-auth-repository";
 import { UsersRepository } from "./users/application/ports/users-repository";
 import { PrismaUsersRepository } from "./users/infrastructure/persistence/prisma-users-repository";
 import { AvatarRepository } from "./users/application/ports/avatar-repository";
 import { PrismaAvatarRepository } from "./users/infrastructure/persistence/prisma-avatar-repository";
-import { IdentityEmailRepository } from "./notifications/application/ports/identity-email-repository";
-import { PrismaIdentityEmailRepository } from "./notifications/infrastructure/persistence/prisma-identity-email-repository";
 import { AuditRepository } from "./audit/application/ports/audit-repository";
 import { PrismaAuditRepository } from "./audit/infrastructure/persistence/prisma-audit-repository";
 import {
@@ -61,6 +60,7 @@ import { BullIdentityEmailJobs } from "./notifications/infrastructure/jobs/ident
 export const IDENTITY_APPLICATION_PROVIDERS = [
   SessionsService,
   OtpService,
+  { provide: OtpStore, useClass: RedisOtpStore },
   ReauthProofService,
   UsersService,
   ProfileReader,
@@ -91,11 +91,9 @@ export const IDENTITY_APPLICATION_PROVIDERS = [
   ProcessAvatarUseCase,
   ReconcileAvatarsUseCase,
   DeliverIdentityEmailUseCase,
-  ReconcileIdentityEmailsUseCase,
   { provide: AuthRepository, useClass: PrismaAuthRepository },
   { provide: UsersRepository, useClass: PrismaUsersRepository },
   { provide: AvatarRepository, useClass: PrismaAvatarRepository },
-  { provide: IdentityEmailRepository, useClass: PrismaIdentityEmailRepository },
   { provide: AuditRepository, useClass: PrismaAuditRepository },
   SharpAvatarInspector,
   { provide: AvatarStoragePort, useExisting: AvatarStorage },
