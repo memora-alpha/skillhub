@@ -13,29 +13,21 @@ export const isEmail = (value: string) =>
   /^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/.test(value.trim());
 
 export function validateName(value: string): string | undefined {
-  const name = value.trim();
-  if (!name) return "Vui lòng nhập họ và tên.";
-  if (
-    [...name].length < 2 ||
-    [...name].length > 100 ||
-    !/\p{L}/u.test(name) ||
-    !/^[\p{L}\p{M} '\u2019-]+$/u.test(name)
-  )
-    return "Tên cần từ 2 đến 100 ký tự, chỉ gồm chữ, khoảng trắng, dấu nháy hoặc gạch nối.";
-  return undefined;
+  const result = fullNameSchema.safeParse(value);
+  return result.success ? undefined : result.error.issues[0]?.message;
 }
 
 export function passwordRequirements(password: string) {
   return [
     {
-      label: "Từ 8 đến 64 ký tự",
+      label: "8–64 ký tự",
       met: password.length >= 8 && password.length <= 64,
     },
-    { label: "Có ít nhất một chữ hoa", met: /[A-Z]/.test(password) },
-    { label: "Có ít nhất một chữ thường", met: /[a-z]/.test(password) },
-    { label: "Có ít nhất một chữ số", met: /[0-9]/.test(password) },
+    { label: "Chữ hoa (A–Z)", met: /[A-Z]/.test(password) },
+    { label: "Chữ thường (a–z)", met: /[a-z]/.test(password) },
+    { label: "Chữ số (0–9)", met: /[0-9]/.test(password) },
     {
-      label: "Có ít nhất một ký tự đặc biệt",
+      label: "Ký tự đặc biệt",
       met: /[^A-Za-z0-9\s]/.test(password),
     },
   ];
@@ -55,9 +47,9 @@ export function validateRegistration(
   if (!form.confirmPassword)
     errors.confirmPassword = "Vui lòng nhập lại mật khẩu.";
   else if (form.confirmPassword !== form.password)
-    errors.confirmPassword = "Mật khẩu xác nhận chưa khớp.";
+    errors.confirmPassword = "Mật khẩu nhập lại chưa khớp.";
   if (!terms)
-    errors.terms =
-      "Bạn cần đồng ý với Điều khoản sử dụng và Chính sách bảo mật để tiếp tục.";
+    errors.terms = "Vui lòng đồng ý điều khoản và chính sách bảo mật.";
   return errors;
 }
+import { fullNameSchema } from "@/utils/identity-validation";

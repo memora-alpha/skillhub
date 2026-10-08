@@ -1,5 +1,6 @@
+import axios, { type AxiosInstance } from "axios";
 import { AppError } from "./errors";
-import { readResponse } from "./response";
+import { readPayload } from "./response";
 
 export type RequestOptions = {
   method?: "GET" | "POST" | "PATCH";
@@ -14,7 +15,10 @@ export type SessionTransport = {
 
 export function createHttpClient(
   baseUrl: () => string,
-  fetcher: typeof fetch = fetch,
+  http: AxiosInstance = axios.create({
+    timeout: 20_000,
+    validateStatus: () => true,
+  }),
 ) {
   let session: SessionTransport | undefined;
   async function send(
@@ -22,12 +26,10 @@ export function createHttpClient(
     options: RequestOptions,
     token: string | null,
   ) {
-    const url = `${baseUrl()}${path}`;
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 20_000);
-    let response: Response;
     try {
-      response = await fetcher(url, {
+      const response = await http.request({
+        baseURL: baseUrl(),
+        url: path,
         method: options.method ?? "GET",
         headers: {
           Accept: "application/json",
@@ -36,16 +38,15 @@ export function createHttpClient(
             : { "Content-Type": "application/json" }),
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body:
-          options.body === undefined ? undefined : JSON.stringify(options.body),
-        signal: controller.signal,
+        data: options.body,
       });
-    } catch {
+      return readPayload(response.status, response.data);
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      if (axios.isAxiosError(error) && error.response)
+        return readPayload(error.response.status, error.response.data);
       throw new AppError("network");
-    } finally {
-      clearTimeout(timeout);
     }
-    return readResponse(response);
   }
   return {
     bindSession(transport: SessionTransport) {

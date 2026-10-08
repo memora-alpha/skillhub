@@ -14,6 +14,8 @@ import { colors } from "@/constants/theme";
 import { AuthSessionProvider, SessionGate } from "@/features/auth";
 import { MockMessagesProvider } from "@/features/messages";
 import { QueryProvider } from "./QueryProvider";
+import { KeyboardProvider } from "react-native-keyboard-controller";
+import { ToastProvider } from "./ToastProvider";
 
 export function AppProviders({ children }: { children: ReactNode }) {
   const [loaded, error] = useFonts({
@@ -43,13 +45,17 @@ export function AppProviders({ children }: { children: ReactNode }) {
     );
   return (
     <SafeAreaProvider>
-      <QueryProvider>
-        <AuthSessionProvider>
-          <SessionGate>
-            <MockMessagesProvider>{children}</MockMessagesProvider>
-          </SessionGate>
-        </AuthSessionProvider>
-      </QueryProvider>
+      <KeyboardProvider>
+        <ToastProvider>
+          <QueryProvider>
+            <AuthSessionProvider>
+              <SessionGate>
+                <MockMessagesProvider>{children}</MockMessagesProvider>
+              </SessionGate>
+            </AuthSessionProvider>
+          </QueryProvider>
+        </ToastProvider>
+      </KeyboardProvider>
     </SafeAreaProvider>
   );
 }
