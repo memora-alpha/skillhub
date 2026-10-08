@@ -1,29 +1,34 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Avatar } from "@/components/Avatar";
 import { Icon } from "@/components/Icon";
-import {
-  typography,
-  avatarSizes,
-  iconSizes,
-  fonts,
-} from "@/constants/theme";
+import { typography, avatarSizes, iconSizes, fonts } from "@/constants/theme";
 import { VerifiedBadge } from "./ProfilePrimitives";
-import { profileDetails } from "../mocks/profile";
 import { profileColors } from "../constants/theme";
 
 export function ProfileHero({
   name,
   userId,
   onEdit,
+  headline,
+  avatarUrl,
+  verified,
 }: {
   name: string;
   userId: string;
   onEdit: () => void;
+  headline: string;
+  avatarUrl: string | null;
+  verified: boolean;
 }) {
   return (
     <View style={styles.hero}>
       <View style={styles.top}>
-        <Avatar name={name} userId={userId} size={avatarSizes.profile} />
+        <Avatar
+          name={name}
+          userId={userId}
+          size={avatarSizes.profile}
+          sourceUri={avatarUrl}
+        />
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Chỉnh sửa hồ sơ"
@@ -39,9 +44,9 @@ export function ProfileHero({
           <Text accessibilityRole="header" style={styles.name}>
             {name}
           </Text>
-          {profileDetails.verified && <VerifiedBadge />}
+          {verified && <VerifiedBadge />}
         </View>
-        <Text style={styles.tagline}>{profileDetails.tagline}</Text>
+        {!!headline && <Text style={styles.tagline}>{headline}</Text>}
       </View>
     </View>
   );

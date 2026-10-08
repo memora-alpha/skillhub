@@ -12,10 +12,7 @@ import { useRouter } from "expo-router";
 import { AccountMenu, AppHeader } from "@/features/shell";
 import { InfoModal } from "@/components/InfoModal";
 import { LogoutDialog } from "@/components/LogoutDialog";
-import {
-  useMockSession,
-  type MockSession,
-} from "@/features/auth";
+import { useAuthSession, type AccountSession } from "@/features/auth";
 import { demoNotifications, recentMessages } from "@/mocks/app";
 import { signedInChrome } from "@/constants/theme";
 import { appRoutes } from "@/constants/navigation";
@@ -23,13 +20,13 @@ import { profileStyles } from "./ProfilePrimitives";
 import { profileDetails } from "../mocks/profile";
 
 type ProfileLayoutProps = Readonly<{
-  session: MockSession;
+  session: AccountSession;
   title?: string;
   onBack?: () => void;
   children: (open: (label: string) => void) => ReactNode;
 }>;
 
-function getProfileNoticeBody(notice: string | null, session: MockSession) {
+function getProfileNoticeBody(notice: string | null, session: AccountSession) {
   switch (notice) {
     case "Thông tin riêng tư":
       return `${session.email}\n\nSố điện thoại và ngày sinh chưa có dữ liệu trong phiên demo. Thông tin không được gửi lên máy chủ.`;
@@ -89,7 +86,7 @@ export function ProfileLayout({
   children,
 }: ProfileLayoutProps) {
   const router = useRouter();
-  const { signOut } = useMockSession();
+  const { signOut } = useAuthSession();
   const [menu, setMenu] = useState(false);
   const [logout, setLogout] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -153,7 +150,7 @@ export function ProfileLayout({
         onClose={() => setLogout(false)}
         onConfirm={() => {
           setLogout(false);
-          signOut();
+          void signOut();
           router.replace("/");
         }}
       />

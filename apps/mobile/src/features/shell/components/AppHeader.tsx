@@ -19,7 +19,11 @@ import {
 } from "@/constants/theme";
 
 type AppHeaderProps = Readonly<{
-  profile: Readonly<{ name: string; userId?: string }>;
+  profile: Readonly<{
+    name: string;
+    userId?: string;
+    avatarUrl?: string | null;
+  }>;
   onAction: (title: string) => void;
   onAccount: () => void;
   title?: string;
@@ -92,7 +96,11 @@ export function AppHeader({
             accessibilityLabel="Tin nhắn"
             onPress={() => onAction("Tin nhắn")}
           >
-            <Icon name="message" size={iconSizes.control} color={colors.muted} />
+            <Icon
+              name="message"
+              size={iconSizes.control}
+              color={colors.muted}
+            />
           </Pressable>
         )}
         <Pressable
@@ -108,9 +116,7 @@ export function AppHeader({
             color={home ? signedInChrome.accent : colors.muted}
           />
           <View style={[styles.count, home && styles.homeCount]}>
-            <Text style={styles.countLabel}>
-              3
-            </Text>
+            <Text style={styles.countLabel}>3</Text>
           </View>
         </Pressable>
         {rightAction}
@@ -125,6 +131,7 @@ export function AppHeader({
             name={profile.name}
             userId={profile.userId}
             size={avatarSizes.compact}
+            sourceUri={profile.avatarUrl}
           />
         </Pressable>
       </View>
