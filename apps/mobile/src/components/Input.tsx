@@ -16,6 +16,7 @@ type InputProps = TextInputProps & {
   error?: string;
   hint?: string;
   password?: boolean;
+  reserveMessageSpace?: boolean;
   ref?: Ref<TextInput>;
 };
 
@@ -25,6 +26,7 @@ export function Input({
   error,
   hint,
   password,
+  reserveMessageSpace,
   ref,
   ...props
 }: InputProps) {
@@ -39,7 +41,8 @@ export function Input({
       <View
         style={[
           styles.field,
-          focused && !error && styles.focused,
+          props.editable === false && styles.readOnly,
+          focused && props.editable !== false && !error && styles.focused,
           !!error && styles.invalid,
         ]}
       >
@@ -86,13 +89,17 @@ export function Input({
           </Pressable>
         )}
       </View>
-      {!!error && (
-        <View style={styles.errorRow} accessibilityLiveRegion="polite">
-          <Icon name="alert" size={12} color={colors.error} />
-          <Text style={styles.error}>{error}</Text>
+      {(reserveMessageSpace || !!error || !!hint) && (
+        <View style={reserveMessageSpace && styles.messageSpace}>
+          {!!error && (
+            <View style={styles.errorRow} accessibilityLiveRegion="polite">
+              <Icon name="alert" size={12} color={colors.error} />
+              <Text style={styles.error}>{error}</Text>
+            </View>
+          )}
+          {!error && !!hint && <Text style={styles.hint}>{hint}</Text>}
         </View>
       )}
-      {!error && !!hint && <Text style={styles.hint}>{hint}</Text>}
     </View>
   );
 }
@@ -113,6 +120,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
   },
   focused: { borderColor: colors.brand, backgroundColor: colors.brandLight },
+  readOnly: { backgroundColor: colors.sand },
   invalid: { borderColor: colors.error },
   input: {
     fontFamily: fonts.body,
@@ -122,6 +130,9 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     minHeight: 48,
     includeFontPadding: false,
+    outlineWidth: 0,
+    outlineStyle: "solid",
+    outlineColor: "transparent",
   },
   textarea: { minHeight: 104, paddingTop: 12 },
   eye: {
@@ -129,11 +140,12 @@ const styles = StyleSheet.create({
     right: 0,
     top: 0,
     bottom: 0,
-            width: 48,
+    width: 48,
     alignItems: "center",
     justifyContent: "center",
   },
   errorRow: { flexDirection: "row", alignItems: "flex-start", gap: 6 },
+  messageSpace: { minHeight: typography.secondary.lineHeight },
   error: {
     flex: 1,
     color: colors.error,

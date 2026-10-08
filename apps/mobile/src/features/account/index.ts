@@ -4,3 +4,7 @@ export type {
   OwnProfile,
   ProfilePatch,
 } from "./api/account-contracts";
+export {
+  profileEditSchema,
+  type ProfileEditFormValues,
+} from "./schemas/profile-schema";
