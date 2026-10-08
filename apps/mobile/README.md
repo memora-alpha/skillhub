@@ -93,7 +93,7 @@ React Native Web.
 ## Implemented UI scope
 
 Welcome buttons navigate to `/register` and `/login`; `/home`, `/profile` and
-`/edit-profile` require an authenticated account session.
+`/edit-profile` and `/profiles/[userId]` require an authenticated account session.
 
 Registration validates name, email, password requirements, confirmation and
 consent, then continues to six-digit email verification. Login uses the identity
@@ -107,6 +107,14 @@ The profile tab and account menu open `/profile`; its edit button opens
 The home greeting, account avatar/name and own-profile summary reflect the
 authenticated account. Skills, badges and non-account actions remain design
 fixtures until their contracts are available.
+
+Own profile opens a public self-preview at `/profiles/[userId]`, using saved
+account fields and an explicit public projection. Other targets remain local
+fixtures with loading, unavailable, error/retry and empty states; public API and
+skill-list integration remain pending. Public screens expose no target email or
+account metadata, and their account menu belongs to the signed-in viewer.
+See [spec 003](specs/003-profile-public-profile/plan.md) for scope and fixture IDs.
+Run `npm test` for auth and profile tests, or `npm run test:profile` for profile only.
 
 The five main screens live in the `(tabs)` Expo Router group, with a shared
 bottom bar. Root-stack and tab transitions have no animation; horizontal back
@@ -185,7 +193,7 @@ safe-area insets and narrower header button padding on small phones.
 - `src/features/auth/`: welcome, real registration/verification/login/recovery, validation and session lifecycle.
 - `src/features/account/`: typed own-account API and profile contracts.
 - `src/features/home/`: shared home content, new-user guide and sample data.
-- `src/features/profile/`: authenticated own-profile display/editing and remaining sample profile content.
+- `src/features/profile/`: authenticated own/edit profile, public self-preview, public projection and other-profile fixtures.
 - `src/features/discovery/`: request list, filters, request detail and sample content.
 - `src/features/calendar/`: month grid, history, session detail and sample schedule.
 - `src/features/messages/`: conversation list, chat and session-scoped local messages.
