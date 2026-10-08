@@ -1,47 +1,57 @@
-import { useState } from "react";
-import { Text, View } from "react-native";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Keyboard, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { Button } from "@/components/Button";
-import { FormNotice } from "@/components/FormNotice";
-import { Input } from "@/components/Input";
-import { errorMessage } from "@/lib/http/errors";
+import { formValidationOptions } from "@/utils/form-validation";
 import { AuthLayout } from "../components/AuthLayout";
 import { authStyles } from "../components/AuthControls";
+import { AuthFormInput } from "../components/AuthFormInput";
 import { useAuthActions } from "../hooks/use-auth-actions";
-import { isEmail } from "../utils/validateRegistration";
+import { useVerificationCooldown } from "../hooks/use-verification-cooldown";
+import { passwordRecoveryStore } from "../utils/password-recovery-flow";
+import {
+  forgotPasswordSchema,
+  type ForgotPasswordFormValues,
+} from "../schemas/auth-schemas";
 
 export function ForgotPasswordScreen() {
   const router = useRouter();
   const { forgot } = useAuthActions();
-  const [email, setEmail] = useState("");
-  const [error, setError] = useState("");
-  const submit = () => {
-    if (forgot.isPending) return;
-    if (!isEmail(email)) return setError("Vui lòng nhập email hợp lệ.");
-    setError("");
-    forgot.mutate(email.trim().toLowerCase(), {
-      onSuccess: () =>
+  const form = useForm<ForgotPasswordFormValues>({
+    ...formValidationOptions,
+    resolver: zodResolver(forgotPasswordSchema),
+    defaultValues: { email: "" },
+  });
+  const cooldown = useVerificationCooldown(
+    form.watch("email"),
+    false,
+    "recovery",
+  );
+  const submit = form.handleSubmit((values) => {
+    if (forgot.isPending || !cooldown.reserve()) return;
+    Keyboard.dismiss();
+    forgot.mutate(values.email.toLowerCase(), {
+      onSuccess: () => {
+        passwordRecoveryStore.getState().begin(values.email);
         router.replace({
-          pathname: "/reset-password",
-          params: { email: email.trim().toLowerCase(), sent: "true" },
-        }),
+          pathname: "/reset-password-code",
+          params: { sent: "true" },
+        });
+      },
     });
-  };
+  });
   return (
     <AuthLayout
       title="Quên mật khẩu"
-      subtitle="Chúng tôi sẽ gửi hướng dẫn đặt lại mật khẩu nếu địa chỉ đủ điều kiện."
+      subtitle="Nhập email tài khoản để nhận mã khôi phục mật khẩu."
     >
       <View style={authStyles.fields}>
-        {(error || forgot.isError) && (
-          <FormNotice tone="error">
-            {error || errorMessage(forgot.error)}
-          </FormNotice>
-        )}
-        <Input
+        <AuthFormInput
+          control={form.control}
+          name="email"
           label="Email"
           required
-          value={email}
           editable={!forgot.isPending}
           placeholder="email@gmail.com"
           keyboardType="email-address"
@@ -49,22 +59,29 @@ export function ForgotPasswordScreen() {
           autoCorrect={false}
           autoComplete="email"
           textContentType="emailAddress"
-          onChangeText={(value) => {
-            setEmail(value);
-            setError("");
-          }}
+          onChangeText={forgot.reset}
           returnKeyType="go"
           onSubmitEditing={submit}
         />
-        <Button size="lg" onPress={submit} disabled={forgot.isPending}>
-          {forgot.isPending ? "Đang gửi..." : "Gửi hướng dẫn"}
+        <Button
+          size="lg"
+          onPress={submit}
+          disabled={forgot.isPending || cooldown.seconds > 0}
+        >
+          {forgot.isPending
+            ? "Đang gửi..."
+            : cooldown.seconds > 0
+              ? `Gửi lại mã sau ${cooldown.seconds}s`
+              : "Gửi mã xác minh"}
         </Button>
         <Text style={authStyles.footer}>
           Nhớ mật khẩu rồi?{" "}
           <Text
             accessibilityRole="link"
             style={authStyles.link}
-            onPress={() => router.replace("/login")}
+            onPress={() => {
+              if (!forgot.isPending) router.replace("/login");
+            }}
           >
             Đăng nhập
           </Text>

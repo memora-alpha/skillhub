@@ -1,138 +1,126 @@
-import { useState } from "react";
-import { Text, View } from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Keyboard, Text, View } from "react-native";
+import { Redirect, useRouter } from "expo-router";
+import { useStore } from "zustand";
 import { Button } from "@/components/Button";
-import { FormNotice } from "@/components/FormNotice";
-import { Input } from "@/components/Input";
-import { errorMessage } from "@/lib/http/errors";
+import { formValidationOptions } from "@/utils/form-validation";
+import { AppError } from "@/lib/http/errors";
 import { AuthLayout } from "../components/AuthLayout";
 import { PasswordRequirements, authStyles } from "../components/AuthControls";
+import { AuthFormInput } from "../components/AuthFormInput";
 import { useAuthActions } from "../hooks/use-auth-actions";
-import { isEmail, passwordRequirements } from "../utils/validateRegistration";
+import {
+  newPasswordSchema,
+  type NewPasswordFormValues,
+} from "../schemas/auth-schemas";
+import { passwordRecoveryStore } from "../utils/password-recovery-flow";
 
 export function ResetPasswordScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ email?: string; sent?: string }>();
+  const draft = useStore(passwordRecoveryStore, (state) => state.draft);
   const { reset } = useAuthActions();
-  const [email, setEmail] = useState(
-    typeof params.email === "string" ? params.email : "",
-  );
-  const [code, setCode] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirm, setConfirm] = useState("");
-  const [error, setError] = useState("");
-  const submit = () => {
-    if (reset.isPending) return;
-    if (!isEmail(email)) return setError("Vui lòng nhập email hợp lệ.");
-    if (!/^\d{6}$/.test(code))
-      return setError("Mã xác minh gồm đúng 6 chữ số.");
-    if (!passwordRequirements(password).every((item) => item.met))
-      return setError("Mật khẩu chưa đáp ứng các yêu cầu.");
-    if (password !== confirm) return setError("Mật khẩu xác nhận chưa khớp.");
-    setError("");
+  const form = useForm<NewPasswordFormValues>({
+    ...formValidationOptions,
+    resolver: zodResolver(newPasswordSchema),
+    defaultValues: {
+      newPassword: "",
+      confirmNewPassword: "",
+    },
+  });
+  const password = form.watch("newPassword");
+  if (reset.isSuccess)
+    return (
+      <Redirect
+        href={{
+          pathname: "/login",
+          params: { email: reset.variables.email, result: "reset" },
+        }}
+      />
+    );
+  if (!draft) return <Redirect href="/forgot-password" />;
+  if (!draft.otpCode) return <Redirect href="/reset-password-code" />;
+  const submit = form.handleSubmit((values) => {
+    if (reset.isPending || !draft.otpCode) return;
+    Keyboard.dismiss();
     reset.mutate(
       {
-        email: email.trim().toLowerCase(),
-        otpCode: code,
-        newPassword: password,
-        confirmNewPassword: confirm,
+        ...values,
+        email: draft.email,
+        otpCode: draft.otpCode,
       },
       {
-        onSuccess: () =>
-          router.replace({
-            pathname: "/login",
-            params: { email: email.trim().toLowerCase(), result: "reset" },
-          }),
+        onSuccess: () => passwordRecoveryStore.getState().clear(),
+        onError: (error) => {
+          if (
+            error instanceof AppError &&
+            error.code === "OTP_INVALID_OR_EXPIRED"
+          )
+            passwordRecoveryStore.getState().clearCode();
+        },
       },
     );
-  };
+  });
   return (
     <AuthLayout
-      title="Đặt lại mật khẩu"
-      subtitle="Dùng mã trong email để tạo mật khẩu mới."
+      title="Đặt mật khẩu mới"
+      subtitle="Chọn mật khẩu mới cho tài khoản của bạn."
     >
       <View style={authStyles.fields}>
-        {params.sent === "true" && (
-          <FormNotice tone="success">
-            Nếu địa chỉ đủ điều kiện, hướng dẫn đã được gửi.
-          </FormNotice>
-        )}
-        {(error || reset.isError) && (
-          <FormNotice tone="error">
-            {error || errorMessage(reset.error)}
-          </FormNotice>
-        )}
-        <Input
-          label="Email"
-          required
-          value={email}
-          editable={!reset.isPending}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          autoCorrect={false}
-          autoComplete="email"
-          onChangeText={(value) => {
-            setEmail(value);
-            setError("");
-          }}
-        />
-        <Input
-          label="Mã xác minh"
-          required
-          value={code}
-          editable={!reset.isPending}
-          placeholder="123456"
-          keyboardType="number-pad"
-          autoComplete="one-time-code"
-          textContentType="oneTimeCode"
-          maxLength={6}
-          onChangeText={(value) => {
-            setCode(value.replace(/\D/g, ""));
-            setError("");
-          }}
-        />
-        <Input
+        <AuthFormInput
+          control={form.control}
+          name="newPassword"
           label="Mật khẩu mới"
           required
           password
-          value={password}
           editable={!reset.isPending}
           autoCapitalize="none"
           autoCorrect={false}
           autoComplete="new-password"
           textContentType="newPassword"
-          onChangeText={(value) => {
-            setPassword(value);
-            setError("");
+          onChangeText={() => {
+            reset.reset();
+            if (form.getFieldState("confirmNewPassword").isTouched)
+              void form.trigger("confirmNewPassword");
           }}
+          returnKeyType="next"
+          submitBehavior="submit"
+          onSubmitEditing={() => form.setFocus("confirmNewPassword")}
         />
         <PasswordRequirements password={password} />
-        <Input
+        <AuthFormInput
+          control={form.control}
+          name="confirmNewPassword"
           label="Xác nhận mật khẩu mới"
           required
           password
-          value={confirm}
           editable={!reset.isPending}
           autoCapitalize="none"
           autoCorrect={false}
           autoComplete="new-password"
           textContentType="newPassword"
-          onChangeText={(value) => {
-            setConfirm(value);
-            setError("");
-          }}
+          onChangeText={reset.reset}
           returnKeyType="go"
           onSubmitEditing={submit}
         />
         <Button size="lg" onPress={submit} disabled={reset.isPending}>
           {reset.isPending ? "Đang đặt lại..." : "Đặt lại mật khẩu"}
         </Button>
+        <Button
+          variant="secondary"
+          disabled={reset.isPending}
+          onPress={() => passwordRecoveryStore.getState().clearCode()}
+        >
+          Nhập lại mã xác minh
+        </Button>
         <Text style={authStyles.footer}>
           Quay lại{" "}
           <Text
             accessibilityRole="link"
             style={authStyles.link}
-            onPress={() => router.replace("/login")}
+            onPress={() => {
+              if (!reset.isPending) router.replace("/login");
+            }}
           >
             đăng nhập
           </Text>

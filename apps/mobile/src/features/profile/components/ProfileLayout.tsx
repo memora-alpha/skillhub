@@ -12,6 +12,7 @@ import { useRouter } from "expo-router";
 import { AccountMenu, AppHeader } from "@/features/shell";
 import { InfoModal } from "@/components/InfoModal";
 import { LogoutDialog } from "@/components/LogoutDialog";
+import { KeyboardFormScrollView } from "@/components/KeyboardFormScrollView";
 import { useAuthSession, type AccountSession } from "@/features/auth";
 import { demoNotifications, recentMessages } from "@/mocks/app";
 import { signedInChrome } from "@/constants/theme";
@@ -23,6 +24,7 @@ type ProfileLayoutProps = Readonly<{
   session: AccountSession;
   title?: string;
   onBack?: () => void;
+  keyboardAware?: boolean;
   children: (open: (label: string) => void) => ReactNode;
 }>;
 
@@ -83,6 +85,7 @@ export function ProfileLayout({
   session,
   title,
   onBack,
+  keyboardAware = false,
   children,
 }: ProfileLayoutProps) {
   const router = useRouter();
@@ -105,6 +108,7 @@ export function ProfileLayout({
     setNotice(label);
   };
   const body = getProfileNoticeBody(notice, session);
+  const ScrollContainer = keyboardAware ? KeyboardFormScrollView : ScrollView;
   const edges = title
     ? (["top", "left", "right", "bottom"] as const)
     : (["top", "left", "right"] as const);
@@ -119,18 +123,21 @@ export function ProfileLayout({
         onAccount={() => setMenu(true)}
       />
       <KeyboardAvoidingView
+        enabled={!keyboardAware}
         style={styles.keyboard}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <ScrollView
+        <ScrollContainer
           style={styles.scroll}
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="on-drag"
+          keyboardDismissMode={
+            keyboardAware && Platform.OS === "ios" ? "interactive" : "on-drag"
+          }
         >
           {children(action)}
-        </ScrollView>
+        </ScrollContainer>
       </KeyboardAvoidingView>
       <AccountMenu
         visible={menu}
