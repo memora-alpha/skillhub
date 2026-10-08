@@ -8,7 +8,22 @@ export type RegistrationErrors = Partial<
   Record<keyof RegistrationForm | "terms", string>
 >;
 export const isEmail = (value: string) =>
+  value.trim().length >= 5 &&
+  value.trim().length <= 254 &&
   /^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/.test(value.trim());
+
+export function validateName(value: string): string | undefined {
+  const name = value.trim();
+  if (!name) return "Vui lòng nhập họ và tên.";
+  if (
+    [...name].length < 2 ||
+    [...name].length > 100 ||
+    !/\p{L}/u.test(name) ||
+    !/^[\p{L}\p{M} '\u2019-]+$/u.test(name)
+  )
+    return "Tên cần từ 2 đến 100 ký tự, chỉ gồm chữ, khoảng trắng, dấu nháy hoặc gạch nối.";
+  return undefined;
+}
 
 export function passwordRequirements(password: string) {
   return [
@@ -21,7 +36,7 @@ export function passwordRequirements(password: string) {
     { label: "Có ít nhất một chữ số", met: /[0-9]/.test(password) },
     {
       label: "Có ít nhất một ký tự đặc biệt",
-      met: /[^A-Za-z0-9]/.test(password),
+      met: /[^A-Za-z0-9\s]/.test(password),
     },
   ];
 }
@@ -30,7 +45,8 @@ export function validateRegistration(
   terms: boolean,
 ): RegistrationErrors {
   const errors: RegistrationErrors = {};
-  if (!form.name.trim()) errors.name = "Vui lòng nhập họ và tên.";
+  const nameError = validateName(form.name);
+  if (nameError) errors.name = nameError;
   if (!form.email.trim()) errors.email = "Vui lòng nhập email.";
   else if (!isEmail(form.email)) errors.email = "Email chưa đúng định dạng.";
   if (!form.password) errors.password = "Vui lòng nhập mật khẩu.";

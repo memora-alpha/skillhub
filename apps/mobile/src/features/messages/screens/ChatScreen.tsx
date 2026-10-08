@@ -14,7 +14,7 @@ import { Avatar } from "@/components/Avatar";
 import { EmptyState } from "@/components/EmptyState";
 import { InfoModal } from "@/components/InfoModal";
 import { avatarSizes, typography, fonts } from "@/constants/theme";
-import { useMockSession } from "@/features/auth";
+import { useAuthSession } from "@/features/auth";
 import { useMockMessages } from "../context/MockMessages";
 import { conversations, type Conversation } from "../mocks/conversations";
 import type { ChatMessage } from "../mocks/chat";
@@ -49,7 +49,7 @@ function ChatMessageSeparator() {
 
 export function ChatScreen() {
   const router = useRouter();
-  const { session } = useMockSession();
+  const { session } = useAuthSession();
   const params = useLocalSearchParams<{ proposalId?: string | string[] }>();
   const id = Array.isArray(params.proposalId)
     ? params.proposalId[0]
