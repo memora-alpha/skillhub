@@ -106,10 +106,14 @@ export class OtpService {
   }
   async verify(
     email: string,
-    purpose: OtpPurpose,
+    purpose: OtpPurpose | "PASSWORD_RESET_GRANT",
     code: string,
-    work: (record: OtpRecord) => Promise<boolean>,
+    work: (record: OtpRecord, lease: string) => Promise<boolean>,
   ): Promise<void> {
+    const invalid =
+      purpose === "PASSWORD_RESET_GRANT"
+        ? "RESET_TOKEN_INVALID_OR_EXPIRED"
+        : "OTP_INVALID_OR_EXPIRED";
     const row = await this.store.read(email, purpose);
     const crypto = row && this.config.cryptoFor(row.keyId);
     const lease = randomUUID();
@@ -125,14 +129,38 @@ export class OtpService {
         lease,
       ))
     )
-      throw new BadRequestException("OTP_INVALID_OR_EXPIRED");
+      throw new BadRequestException(invalid);
     let committed = false;
     try {
-      committed = await work(row);
-      if (!committed) throw new BadRequestException("OTP_INVALID_OR_EXPIRED");
+      committed = await work(row, lease);
+      if (!committed) throw new BadRequestException(invalid);
     } finally {
       await this.store.finish(email, purpose, row.id, lease, committed);
     }
+  }
+  async verifyResetOtp(
+    email: string,
+    code: string,
+    eligible: (record: OtpRecord) => Promise<boolean>,
+  ): Promise<{ resetToken: string; expiresAt: string }> {
+    const resetToken = this.config.crypto.secret();
+    const id = randomUUID();
+    const expiresAt = Date.now() + this.config.resetSeconds * 1000;
+    await this.verify(email, "RESET_PASSWORD", code, async (proof, lease) => {
+      if (!(await eligible(proof))) return false;
+      return this.store.exchangeReset(email, proof.id, lease, {
+        id,
+        userId: proof.userId,
+        securityVersion: proof.securityVersion,
+        keyId: this.config.keyId,
+        failedAttempts: 0,
+        expiresAt,
+        digest: Buffer.from(
+          this.config.crypto.otpDigest(id, "PASSWORD_RESET_GRANT", resetToken),
+        ).toString("hex"),
+      });
+    });
+    return { resetToken, expiresAt: new Date(expiresAt).toISOString() };
   }
   resetEligible(status: string, verified: boolean) {
     return verified && ["ACTIVE", "LOCKED", "SUSPENDED"].includes(status);

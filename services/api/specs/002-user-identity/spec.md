@@ -1,5 +1,7 @@
 # Feature Specification: Danh tính người dùng
 
+> Password recovery amendment (2026-10-08): verify RESET_PASSWORD OTP before accepting a password update. See [password-recovery.md](password-recovery.md): forgot → verify-otp → one-use resetToken → reset. Verification alone never changes the password or revokes sessions.
+
 > Current OTP design: [Redis OTP amendment (2026-10-08)](redis-otp.md) supersedes PostgreSQL challenge/counter and email-outbox statements below.
 
 **Feature Branch**: `feat/user-identity`
@@ -51,12 +53,12 @@ A person renews a session and ends the current session or all sessions.
 A person proves email ownership to reset a password and receives a change email.
 
 **Why this priority**: SRS Must recovery.
-**Independent Test**: Existing active account with two sessions; request reset, consume proof and sign in with new password.
+**Independent Test**: Existing active account with two sessions; request OTP, verify it without changing the password/sessions, consume the returned reset token and sign in with the new password.
 
 **Acceptance Scenarios**:
 
 1. **Given** any email, **When** requesting reset, **Then** acknowledgment does not reveal account existence; eligible accounts receive a one-use proof.
-2. **Given** valid reset proof and matching new password, **When** resetting, **Then** password changes once, proof is consumed, all old sessions are revoked and change notification is durably scheduled.
+2. **Given** a valid recovery OTP, **When** verifying it, **Then** consume the OTP and return a short-lived one-use reset token without changing the password or sessions. Only this token and matching new passwords can reset the password once, revoke all sessions and enqueue the change notification.
 3. **Given** a locked/suspended account, **When** resetting, **Then** its status is preserved. Pending accounts require registration verification; deactivated recovery is denied neutrally.
 4. **Given** concurrent consumes, **When** executed, **Then** at most one change commits and no partial revocation remains.
 
@@ -109,7 +111,7 @@ Admin and explicitly authorized Staff list users and lock/unlock accounts with a
 - **FR-004**: Only REGISTER proof with a valid staged draft creates an active account; endpoints choose purpose. All invalid/nonexistent/expired proof errors are neutral.
 - **FR-005**: Login only ACTIVE; update last login/reset failed count. Wrong email/password share a generic failure and per-email/IP throttling applies; no tokens for nonactive accounts.
 - **FR-006**: Bound session lifetimes, rotate renewal credentials, detect replay, support current/all-session logout and reject subsequent revoked credentials. rememberMe uses configured longer lifetime.
-- **FR-007**: Neutral recovery, one-use RESET_PASSWORD proof, same password rules, all-session revocation and change email. Reset preserves status; privileged actors cannot set/read User passwords directly.
+- **FR-007**: Neutral recovery followed by separate RESET_PASSWORD OTP verification and a digest-only Redis reset token. Password updates require this one-use email/user/securityVersion-bound token; OTP alone is rejected. Same password rules, all-session revocation and change email apply. Reset preserves status; privileged actors cannot set/read User passwords directly.
 - **FR-008**: Separate own/private account and authenticated public profile projections; allow only owned editable fields. Bio is plain text safely handled; reputation/counters remain system-owned.
 - **FR-009**: Accept scanned JPG/PNG/WebP <=5 MB with actual content and ownership validation; quarantine/failure never replaces current avatar.
 - **FR-010**: Resolve explicit roles/permissions and ownership currently; deny unspecified operations/self-escalation. Staff receives no administrative grants until approved mapping exists.
