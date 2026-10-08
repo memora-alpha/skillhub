@@ -1,102 +1,80 @@
-import { useRef, useState } from "react";
-import {
-  Keyboard,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { Controller, useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Keyboard, Pressable, StyleSheet, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Button } from "@/components/Button";
 import { Checkbox } from "@/components/Checkbox";
-import { FormNotice } from "@/components/FormNotice";
-import { Input } from "@/components/Input";
-import { AppError, errorMessage } from "@/lib/http/errors";
+import { AppError } from "@/lib/http/errors";
+import { formValidationOptions } from "@/utils/form-validation";
+import { useAuthFeedback } from "../hooks/use-auth-feedback";
 import { AuthLayout } from "../components/AuthLayout";
 import { authStyles } from "../components/AuthControls";
+import { AuthFormInput } from "../components/AuthFormInput";
 import { useAuthActions } from "../hooks/use-auth-actions";
-import { isEmail } from "../utils/validateRegistration";
+import { loginSchema, type LoginFormValues } from "../schemas/auth-schemas";
 
 export function LoginScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ email?: string; result?: string }>();
   const { login } = useAuthActions();
-  const [email, setEmail] = useState(
-    typeof params.email === "string" ? params.email : "",
+  useAuthFeedback(
+    params.result === "verified"
+      ? "Email đã được xác minh. Bạn có thể đăng nhập."
+      : params.result === "reset"
+        ? "Mật khẩu đã được đổi. Đăng nhập bằng mật khẩu mới."
+        : null,
   );
-  const [password, setPassword] = useState("");
-  const [remember, setRemember] = useState(false);
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>(
-    {},
-  );
-  const passwordInput = useRef<TextInput>(null);
-  const submit = () => {
+  const form = useForm<LoginFormValues>({
+    ...formValidationOptions,
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: typeof params.email === "string" ? params.email : "",
+      password: "",
+      rememberMe: false,
+    },
+  });
+  const submit = form.handleSubmit((values) => {
     if (login.isPending) return;
-    const next: typeof errors = {};
-    if (!isEmail(email)) next.email = "Vui lòng nhập email hợp lệ.";
-    if (!password) next.password = "Vui lòng nhập mật khẩu.";
-    setErrors(next);
-    if (Object.keys(next).length) return;
     Keyboard.dismiss();
     login.mutate(
-      { email: email.trim().toLowerCase(), password, rememberMe: remember },
-      { onSuccess: () => setPassword("") },
+      { ...values, email: values.email.toLowerCase() },
+      {
+        onSuccess: () => form.reset({ ...values, password: "" }),
+      },
     );
-  };
+  });
   return (
     <AuthLayout
       title="Chào mừng trở lại"
       subtitle="Đăng nhập để tiếp tục hành trình của bạn."
     >
       <View style={authStyles.fields}>
-        {params.result === "verified" && (
-          <FormNotice tone="success">
-            Email đã được xác minh. Bạn có thể đăng nhập.
-          </FormNotice>
-        )}
-        {params.result === "reset" && (
-          <FormNotice tone="success">
-            Mật khẩu đã được đổi. Đăng nhập bằng mật khẩu mới.
-          </FormNotice>
-        )}
-        {login.isError && (
-          <FormNotice tone="error">{errorMessage(login.error)}</FormNotice>
-        )}
-        <Input
+        <AuthFormInput
+          control={form.control}
+          name="email"
           label="Email"
           required
           placeholder="email@gmail.com"
-          value={email}
           editable={!login.isPending}
-          onChangeText={(value) => {
-            setEmail(value);
-            login.reset();
-            setErrors((current) => ({ ...current, email: undefined }));
-          }}
-          error={errors.email}
+          onChangeText={login.reset}
           keyboardType="email-address"
           autoCapitalize="none"
           autoCorrect={false}
           autoComplete="email"
           textContentType="emailAddress"
           returnKeyType="next"
-          onSubmitEditing={() => passwordInput.current?.focus()}
+          submitBehavior="submit"
+          onSubmitEditing={() => form.setFocus("password")}
         />
-        <Input
-          ref={passwordInput}
+        <AuthFormInput
+          control={form.control}
+          name="password"
           label="Mật khẩu"
           required
           password
           placeholder="Mật khẩu của bạn"
-          value={password}
           editable={!login.isPending}
-          onChangeText={(value) => {
-            setPassword(value);
-            login.reset();
-            setErrors((current) => ({ ...current, password: undefined }));
-          }}
-          error={errors.password}
+          onChangeText={login.reset}
           autoCapitalize="none"
           autoCorrect={false}
           autoComplete="current-password"
@@ -105,15 +83,21 @@ export function LoginScreen() {
           onSubmitEditing={submit}
         />
         <View style={styles.options}>
-          <Checkbox
-            checked={remember}
-            onChange={(value) => {
-              if (!login.isPending) setRemember(value);
-            }}
-            label="Ghi nhớ đăng nhập"
-          >
-            Ghi nhớ đăng nhập
-          </Checkbox>
+          <Controller
+            control={form.control}
+            name="rememberMe"
+            render={({ field }) => (
+              <Checkbox
+                checked={field.value}
+                onChange={(value) => {
+                  if (!login.isPending) field.onChange(value);
+                }}
+                label="Ghi nhớ đăng nhập"
+              >
+                Ghi nhớ đăng nhập
+              </Checkbox>
+            )}
+          />
           <Pressable
             accessibilityRole="button"
             disabled={login.isPending}
@@ -132,7 +116,9 @@ export function LoginScreen() {
               onPress={() =>
                 router.push({
                   pathname: "/verify-email",
-                  params: { email: email.trim().toLowerCase() },
+                  params: {
+                    email: form.getValues("email").trim().toLowerCase(),
+                  },
                 })
               }
             >

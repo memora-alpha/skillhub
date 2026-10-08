@@ -1,20 +1,20 @@
-import { useRef, useState } from "react";
-import { Keyboard, Text, TextInput, View } from "react-native";
+import { useState } from "react";
+import { Controller, useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Keyboard, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { Button } from "@/components/Button";
 import { Checkbox } from "@/components/Checkbox";
-import { FormNotice } from "@/components/FormNotice";
-import { Input } from "@/components/Input";
 import { InfoModal } from "@/components/InfoModal";
 import { AuthLayout } from "../components/AuthLayout";
 import { PasswordRequirements, authStyles } from "../components/AuthControls";
+import { AuthFormInput } from "../components/AuthFormInput";
 import { useAuthActions } from "../hooks/use-auth-actions";
-import { errorMessage } from "@/lib/http/errors";
+import { formValidationOptions } from "@/utils/form-validation";
 import {
-  validateRegistration,
-  type RegistrationErrors,
-  type RegistrationForm,
-} from "../utils/validateRegistration";
+  registerSchema,
+  type RegisterFormValues,
+} from "../schemas/auth-schemas";
 
 type RegisterNotice = "terms" | "privacy";
 const registerNoticeCopy: Record<
@@ -34,57 +34,42 @@ const registerNoticeCopy: Record<
 export function RegisterScreen() {
   const router = useRouter();
   const { register } = useAuthActions();
-  const [form, setForm] = useState<RegistrationForm>({
-    name: "",
-    email: "",
-    password: "",
-    confirmPassword: "",
+  const form = useForm<RegisterFormValues>({
+    ...formValidationOptions,
+    resolver: zodResolver(registerSchema),
+    defaultValues: {
+      fullName: "",
+      email: "",
+      password: "",
+      confirmPassword: "",
+      agreeTerms: false,
+    },
   });
-  const [terms, setTerms] = useState(false);
-  const [errors, setErrors] = useState<RegistrationErrors>({});
   const [notice, setNotice] = useState<RegisterNotice | null>(null);
-  const emailInput = useRef<TextInput>(null);
-  const passwordInput = useRef<TextInput>(null);
-  const confirmInput = useRef<TextInput>(null);
-  const update = (key: keyof RegistrationForm, value: string) => {
-    register.reset();
-    setForm((current) => ({ ...current, [key]: value }));
-    setErrors((current) => ({
-      ...current,
-      [key]: undefined,
-      ...(key === "password" ? { confirmPassword: undefined } : {}),
-    }));
-  };
-  const submit = () => {
+  const password = form.watch("password");
+  const submit = form.handleSubmit((values) => {
     if (register.isPending) return;
-    const next = validateRegistration(form, terms);
-    setErrors(next);
-    if (Object.keys(next).length) return;
     Keyboard.dismiss();
     register.mutate(
       {
-        fullName: form.name.trim(),
-        email: form.email.trim().toLowerCase(),
-        password: form.password,
-        confirmPassword: form.confirmPassword,
+        fullName: values.fullName,
+        email: values.email.toLowerCase(),
+        password: values.password,
+        confirmPassword: values.confirmPassword,
         agreeTerms: true,
         locale: "vi",
       },
       {
         onSuccess: () => {
-          setForm((current) => ({
-            ...current,
-            password: "",
-            confirmPassword: "",
-          }));
+          form.reset({ ...values, password: "", confirmPassword: "" });
           router.replace({
             pathname: "/verify-email",
-            params: { email: form.email.trim().toLowerCase(), sent: "true" },
+            params: { email: values.email.toLowerCase(), sent: "true" },
           });
         },
       },
     );
-  };
+  });
   const noticeCopy = notice ? registerNoticeCopy[notice] : null;
   return (
     <AuthLayout
@@ -92,73 +77,69 @@ export function RegisterScreen() {
       subtitle="Bắt đầu hành trình học và chia sẻ kỹ năng."
     >
       <View style={authStyles.fields}>
-        {register.isError && (
-          <FormNotice tone="error">{errorMessage(register.error)}</FormNotice>
-        )}
-        {Object.keys(errors).length > 0 && (
-          <FormNotice tone="error">
-            Kiểm tra lại các trường được đánh dấu.
-          </FormNotice>
-        )}
-        <Input
+        <AuthFormInput
+          control={form.control}
+          name="fullName"
           label="Họ và tên"
           required
           placeholder="Nguyễn Văn A"
-          value={form.name}
           editable={!register.isPending}
-          onChangeText={(value) => update("name", value)}
-          error={errors.name}
+          onChangeText={register.reset}
           autoCapitalize="words"
           autoComplete="name"
           textContentType="name"
           returnKeyType="next"
-          onSubmitEditing={() => emailInput.current?.focus()}
+          submitBehavior="submit"
+          onSubmitEditing={() => form.setFocus("email")}
         />
-        <Input
-          ref={emailInput}
+        <AuthFormInput
+          control={form.control}
+          name="email"
           label="Email"
           required
           placeholder="email@gmail.com"
-          value={form.email}
           editable={!register.isPending}
-          onChangeText={(value) => update("email", value)}
-          error={errors.email}
+          onChangeText={register.reset}
           keyboardType="email-address"
           autoCapitalize="none"
           autoCorrect={false}
           autoComplete="email"
           textContentType="emailAddress"
           returnKeyType="next"
-          onSubmitEditing={() => passwordInput.current?.focus()}
+          submitBehavior="submit"
+          onSubmitEditing={() => form.setFocus("password")}
         />
-        <Input
-          ref={passwordInput}
+        <AuthFormInput
+          control={form.control}
+          name="password"
           label="Mật khẩu"
           required
           password
           placeholder="8–64 ký tự"
-          value={form.password}
           editable={!register.isPending}
-          onChangeText={(value) => update("password", value)}
-          error={errors.password}
+          onChangeText={() => {
+            register.reset();
+            if (form.getFieldState("confirmPassword").isTouched)
+              void form.trigger("confirmPassword");
+          }}
           autoCapitalize="none"
           autoCorrect={false}
           autoComplete="new-password"
           textContentType="newPassword"
           returnKeyType="next"
-          onSubmitEditing={() => confirmInput.current?.focus()}
+          submitBehavior="submit"
+          onSubmitEditing={() => form.setFocus("confirmPassword")}
         />
-        {!!form.password && <PasswordRequirements password={form.password} />}
-        <Input
-          ref={confirmInput}
+        <PasswordRequirements password={password} />
+        <AuthFormInput
+          control={form.control}
+          name="confirmPassword"
           label="Xác nhận mật khẩu"
           required
           password
           placeholder="Nhập lại mật khẩu"
-          value={form.confirmPassword}
           editable={!register.isPending}
-          onChangeText={(value) => update("confirmPassword", value)}
-          error={errors.confirmPassword}
+          onChangeText={register.reset}
           autoCapitalize="none"
           autoCorrect={false}
           autoComplete="new-password"
@@ -166,34 +147,40 @@ export function RegisterScreen() {
           returnKeyType="done"
           onSubmitEditing={submit}
         />
-        <Checkbox
-          checked={terms}
-          onChange={(value) => {
-            if (register.isPending) return;
-            setTerms(value);
-            setErrors((current) => ({ ...current, terms: undefined }));
-          }}
-          label="Đồng ý điều khoản sử dụng và chính sách bảo mật"
-          error={errors.terms}
-        >
-          Tôi đồng ý với{" "}
-          <Text
-            accessibilityRole="link"
-            style={authStyles.link}
-            onPress={() => setNotice("terms")}
-          >
-            Điều{"\u00a0"}khoản{"\u00a0"}sử{"\u00a0"}dụng
-          </Text>{" "}
-          và{" "}
-          <Text
-            accessibilityRole="link"
-            style={authStyles.link}
-            onPress={() => setNotice("privacy")}
-          >
-            Chính{"\u00a0"}sách{"\u00a0"}bảo{"\u00a0"}mật
-          </Text>
-          .
-        </Checkbox>
+        <Controller
+          control={form.control}
+          name="agreeTerms"
+          render={({ field, fieldState }) => (
+            <Checkbox
+              checked={field.value}
+              onChange={(value) => {
+                if (register.isPending) return;
+                field.onChange(value);
+                field.onBlur();
+              }}
+              label="Đồng ý điều khoản sử dụng và chính sách bảo mật"
+              error={fieldState.error?.message}
+            >
+              Tôi đồng ý với{" "}
+              <Text
+                accessibilityRole="link"
+                style={authStyles.link}
+                onPress={() => setNotice("terms")}
+              >
+                Điều{"\u00a0"}khoản{"\u00a0"}sử{"\u00a0"}dụng
+              </Text>{" "}
+              và{" "}
+              <Text
+                accessibilityRole="link"
+                style={authStyles.link}
+                onPress={() => setNotice("privacy")}
+              >
+                Chính{"\u00a0"}sách{"\u00a0"}bảo{"\u00a0"}mật
+              </Text>
+              .
+            </Checkbox>
+          )}
+        />
         <Button size="lg" onPress={submit} disabled={register.isPending}>
           {register.isPending ? "Đang gửi..." : "Tạo tài khoản"}
         </Button>
