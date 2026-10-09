@@ -12,7 +12,8 @@ import { useRouter } from "expo-router";
 import { AccountMenu, AppHeader } from "@/features/shell";
 import { InfoModal } from "@/components/InfoModal";
 import { LogoutDialog } from "@/components/LogoutDialog";
-import { useMockSession, type MockSession } from "@/features/auth";
+import { KeyboardFormScrollView } from "@/components/KeyboardFormScrollView";
+import { useAuthSession, type AccountSession } from "@/features/auth";
 import { demoNotifications, recentMessages } from "@/mocks/app";
 import { signedInChrome } from "@/constants/theme";
 import { appRoutes } from "@/constants/navigation";
@@ -20,13 +21,14 @@ import { profileStyles } from "./ProfilePrimitives";
 import { profileDetails } from "../mocks/profile";
 
 type ProfileLayoutProps = Readonly<{
-  session: MockSession;
+  session: AccountSession;
   title?: string;
   onBack?: () => void;
+  keyboardAware?: boolean;
   children: (open: (label: string) => void) => ReactNode;
 }>;
 
-function getProfileNoticeBody(notice: string | null, session: MockSession) {
+function getProfileNoticeBody(notice: string | null, session: AccountSession) {
   switch (notice) {
     case "Thông tin riêng tư":
       return `${session.email}\n\nSố điện thoại và ngày sinh chưa có dữ liệu trong phiên demo. Thông tin không được gửi lên máy chủ.`;
@@ -83,10 +85,11 @@ export function ProfileLayout({
   session,
   title,
   onBack,
+  keyboardAware = false,
   children,
 }: ProfileLayoutProps) {
   const router = useRouter();
-  const { signOut } = useMockSession();
+  const { signOut } = useAuthSession();
   const [menu, setMenu] = useState(false);
   const [logout, setLogout] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -105,6 +108,7 @@ export function ProfileLayout({
     setNotice(label);
   };
   const body = getProfileNoticeBody(notice, session);
+  const ScrollContainer = keyboardAware ? KeyboardFormScrollView : ScrollView;
   const edges = title
     ? (["top", "left", "right", "bottom"] as const)
     : (["top", "left", "right"] as const);
@@ -119,18 +123,21 @@ export function ProfileLayout({
         onAccount={() => setMenu(true)}
       />
       <KeyboardAvoidingView
+        enabled={!keyboardAware}
         style={styles.keyboard}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <ScrollView
+        <ScrollContainer
           style={styles.scroll}
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="on-drag"
+          keyboardDismissMode={
+            keyboardAware && Platform.OS === "ios" ? "interactive" : "on-drag"
+          }
         >
           {children(action)}
-        </ScrollView>
+        </ScrollContainer>
       </KeyboardAvoidingView>
       <AccountMenu
         visible={menu}
@@ -150,7 +157,7 @@ export function ProfileLayout({
         onClose={() => setLogout(false)}
         onConfirm={() => {
           setLogout(false);
-          signOut();
+          void signOut();
           router.replace("/");
         }}
       />

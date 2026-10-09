@@ -14,6 +14,7 @@ import { ResendOtpUseCase } from "./auth/application/use-cases/resend-otp.use-ca
 import { VerifyEmailUseCase } from "./auth/application/use-cases/verify-email.use-case";
 import { LoginUseCase } from "./auth/application/use-cases/login.use-case";
 import { ResetPasswordUseCase } from "./auth/application/use-cases/reset-password.use-case";
+import { VerifyPasswordResetOtpUseCase } from "./auth/application/use-cases/verify-password-reset-otp.use-case";
 import { ReauthenticateUseCase } from "./auth/application/use-cases/reauthenticate.use-case";
 import { RefreshTokenUseCase } from "./auth/application/use-cases/refresh-token.use-case";
 import { LogoutUseCase } from "./auth/application/use-cases/logout.use-case";
@@ -73,6 +74,7 @@ export const IDENTITY_APPLICATION_PROVIDERS = [
   VerifyEmailUseCase,
   LoginUseCase,
   ResetPasswordUseCase,
+  VerifyPasswordResetOtpUseCase,
   ReauthenticateUseCase,
   RefreshTokenUseCase,
   LogoutUseCase,

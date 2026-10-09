@@ -18,7 +18,7 @@ import { FormNotice } from "@/components/FormNotice";
 import { colors, fonts, typography, signedInChrome } from "@/constants/theme";
 import { learningRequests } from "@/features/discovery";
 import { publicProfiles } from "@/features/profile";
-import { useMockSession } from "@/features/auth";
+import { useAuthSession } from "@/features/auth";
 import { useMockProposals } from "../context/MockProposals";
 import { demoTeachingSkills } from "../mocks/proposals";
 
@@ -28,7 +28,7 @@ export function SendProposalScreen() {
     requestId?: string;
     userId?: string;
   }>();
-  const { session } = useMockSession();
+  const { session } = useAuthSession();
   const { proposals, submit } = useMockProposals();
   const request = learningRequests.find((item) => item.id === params.requestId);
   const profile = publicProfiles.find(

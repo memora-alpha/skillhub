@@ -6,7 +6,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { useMockSession } from "@/features/auth";
+import { useAuthSession } from "@/features/auth";
 import { useMockMessages } from "@/features/messages";
 import { initialProposals, type DemoProposal } from "../mocks/proposals";
 
@@ -22,7 +22,7 @@ type ProposalStore = {
 const Context = createContext<ProposalStore | null>(null);
 
 export function MockProposalsProvider({ children }: { children: ReactNode }) {
-  const { session } = useMockSession();
+  const { session } = useAuthSession();
   const { openConversation } = useMockMessages();
   const [proposals, setProposals] = useState(initialProposals);
   const current = useRef(proposals);
@@ -34,7 +34,7 @@ export function MockProposalsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     current.current = initialProposals;
     setProposals(initialProposals);
-  }, [session?.email]);
+  }, [session?.userId]);
   const submit = (draft: ProposalDraft) => {
     if (
       !session ||
