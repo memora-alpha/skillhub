@@ -7,7 +7,7 @@ import {
   useMemo,
   type ReactNode,
 } from "react";
-import { useMockSession } from "@/features/auth";
+import { useAuthSession } from "@/features/auth";
 import { conversations, type Conversation } from "../mocks/conversations";
 import { initialThreads, type ChatMessage } from "../mocks/chat";
 
@@ -24,16 +24,16 @@ const MessagesContext = createContext<MessagesContextValue | null>(null);
 export function MockMessagesProvider({
   children,
 }: Readonly<{ children: ReactNode }>) {
-  const { session } = useMockSession();
+  const { session } = useAuthSession();
   const [items, setItems] = useState(conversations);
   const [threads, setThreads] = useState(initialThreads);
   const [read, setRead] = useState<string[]>([]);
-  // Reset local messages when the demo session changes, without remounting navigation.
+  // Reset local messages when the signed-in account changes, without remounting navigation.
   useEffect(() => {
     setItems(conversations);
     setThreads(initialThreads);
     setRead([]);
-  }, [session?.email]);
+  }, [session?.userId]);
   const openConversation = useCallback((conversation: Conversation) => {
     setItems((current) =>
       current.some((item) => item.proposal === conversation.proposal)

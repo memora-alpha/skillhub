@@ -10,7 +10,7 @@ import { Redirect, useRouter } from "expo-router";
 import { Icon } from "@/components/Icon";
 import { shadows } from "@/constants/shadows";
 import { typography, iconSizes, fonts } from "@/constants/theme";
-import { useMockSession } from "@/features/auth";
+import { useAuthSession } from "@/features/auth";
 import { ProfileLayout } from "../components/ProfileLayout";
 import { ProfileHero } from "../components/ProfileHero";
 import {
@@ -28,7 +28,7 @@ import {
 } from "../constants/theme";
 
 export function ProfileScreen() {
-  const { session } = useMockSession();
+  const { session } = useAuthSession();
   const router = useRouter();
   const compact = useWindowDimensions().width < 360;
   const [hoveredAction, setHoveredAction] = useState<string | null>(null);
@@ -41,10 +41,17 @@ export function ProfileScreen() {
             <ProfileHero
               name={session.name}
               userId={session.userId}
+              headline={session.headline}
+              avatarUrl={session.avatarUrl}
+              verified={session.verifiedSkillCount > 0}
               onEdit={() => router.push("/edit-profile")}
             />
             <View style={styles.stats}>
-              {profileDetails.stats.map((stat, index) => (
+              {[
+                { label: "Điểm uy tín", value: session.reputationScore ?? "-" },
+                { label: "Đã học", value: session.completedSessionCount },
+                { label: "Kỹ năng", value: session.verifiedSkillCount },
+              ].map((stat, index) => (
                 <View
                   key={stat.label}
                   style={[styles.stat, compact && { paddingHorizontal: 6 }]}

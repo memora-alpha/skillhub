@@ -11,9 +11,12 @@ import { useFonts } from "expo-font";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { colors } from "@/constants/theme";
-import { MockSessionProvider } from "@/features/auth";
+import { AuthSessionProvider, SessionGate } from "@/features/auth";
 import { MockMessagesProvider } from "@/features/messages";
 import { MockProposalsProvider } from "@/features/proposals";
+import { QueryProvider } from "./QueryProvider";
+import { KeyboardProvider } from "react-native-keyboard-controller";
+import { ToastProvider } from "./ToastProvider";
 
 export function AppProviders({ children }: { children: ReactNode }) {
   const [loaded, error] = useFonts({
@@ -43,11 +46,19 @@ export function AppProviders({ children }: { children: ReactNode }) {
     );
   return (
     <SafeAreaProvider>
-      <MockSessionProvider>
-        <MockMessagesProvider>
-          <MockProposalsProvider>{children}</MockProposalsProvider>
-        </MockMessagesProvider>
-      </MockSessionProvider>
+      <KeyboardProvider>
+        <ToastProvider>
+          <QueryProvider>
+            <AuthSessionProvider>
+              <SessionGate>
+                <MockMessagesProvider>
+                  <MockProposalsProvider>{children}</MockProposalsProvider>
+                </MockMessagesProvider>
+              </SessionGate>
+            </AuthSessionProvider>
+          </QueryProvider>
+        </ToastProvider>
+      </KeyboardProvider>
     </SafeAreaProvider>
   );
 }

@@ -19,7 +19,11 @@ import {
 } from "@/constants/theme";
 
 type AppHeaderProps = Readonly<{
-  profile: Readonly<{ name: string; userId?: string }>;
+  profile: Readonly<{
+    name: string;
+    userId?: string;
+    avatarUrl?: string | null;
+  }>;
   onAction: (title: string) => void;
   onAccount: () => void;
   title?: string;
@@ -127,6 +131,7 @@ export function AppHeader({
             name={profile.name}
             userId={profile.userId}
             size={avatarSizes.compact}
+            sourceUri={profile.avatarUrl}
           />
         </Pressable>
       </View>
