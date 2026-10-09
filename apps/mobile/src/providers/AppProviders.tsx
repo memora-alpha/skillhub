@@ -13,6 +13,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { colors } from "@/constants/theme";
 import { AuthSessionProvider, SessionGate } from "@/features/auth";
 import { MockMessagesProvider } from "@/features/messages";
+import { MockProposalsProvider } from "@/features/proposals";
 import { QueryProvider } from "./QueryProvider";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { ToastProvider } from "./ToastProvider";
@@ -50,7 +51,9 @@ export function AppProviders({ children }: { children: ReactNode }) {
           <QueryProvider>
             <AuthSessionProvider>
               <SessionGate>
-                <MockMessagesProvider>{children}</MockMessagesProvider>
+                <MockMessagesProvider>
+                  <MockProposalsProvider>{children}</MockProposalsProvider>
+                </MockMessagesProvider>
               </SessionGate>
             </AuthSessionProvider>
           </QueryProvider>

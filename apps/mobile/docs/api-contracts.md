@@ -99,6 +99,30 @@ memory and never logs credential payloads. See
 
 ## Remaining contract gaps
 
+### Proposal UI boundary
+
+Proposal list, detail, sent-proposal editing, rejection with a reason and withdrawal
+are local fixtures. No Proposal HTTP routes or DTOs are assumed. SRS 1.6 PP-002
+allows updating/withdrawing a pending proposal; the local store allows editing only
+sent `PENDING` proposals and accept/reject only received `PENDING` proposals.
+Acceptance opens a local conversation and never creates a Learning Path, schedule,
+Session or Credit hold. A pending proposal for the same request cannot be accepted
+when another has already been accepted locally.
+
+`localDecisionNote` is UI-only metadata based on the supplied rejection design;
+it is not an assumed backend response field and is not sent to another account.
+The reason form requires nonblank text up to 1000 characters as a UI constraint.
+Confirm backend reason-field semantics before integrating rejection.
+An `EXPIRED` fixture illustrates the read-only screen; expiry timing remains
+server/config controlled and no local deadline is invented.
+
+TODO: confirm Proposal/direct-invitation DTOs and update contract, request OPEN/
+NEGOTIATING synchronization, account ACTIVE checks, verified Sharing Skill policy,
+anti-spam/expiry policy, optional suggestion limits, structured future candidate
+slots and exchange-specific Credit limits. Current forms keep Credit/session count
+as positive suggestions and availability as display text. They do not establish
+TWO_WAY/ONE_WAY agreement terms or validate final Credit/schedules.
+
 - Google OAuth, email change and device/session management are not exposed in v1.
 - Exact Learning Path, LearningPlan and Schedule DTOs for SRS 1.6.
 - Exact enum values for exchange type, plan status, schedule status and report reason codes.
