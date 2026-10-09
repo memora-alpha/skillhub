@@ -32,8 +32,9 @@ export function ProfileSummary({
   avatarNotice?: ReactNode;
 }) {
   const stats = [
-    { value: profile.reputationScore, label: "Uy tín" },
-    { value: profile.verifiedSkillCount, label: "Kỹ năng xác minh" },
+    { value: profile.reputationScore, label: "Điểm uy tín" },
+    { value: profile.verifiedSkillCount, label: "Kỹ năng đã xác minh" },
+    { value: null, label: "Lộ trình hoàn thành", pending: true },
   ];
   return (
     <View style={styles.heroCard}>
@@ -50,11 +51,19 @@ export function ProfileSummary({
           <View key={stat.label} style={styles.stat}>
             <Text
               selectable
-              style={[styles.statValue, { color: profileStatColors[index] }]}
+              style={[
+                styles.statValue,
+                {
+                  color: stat.pending
+                    ? profileColors.muted
+                    : profileStatColors[index],
+                },
+              ]}
             >
-              {stat.value ?? "-"}
+              {stat.value ?? "—"}
             </Text>
             <Text style={styles.statLabel}>{stat.label}</Text>
+            {stat.pending && <Text style={styles.statLabel}>Sắp có</Text>}
           </View>
         ))}
       </View>

@@ -76,7 +76,7 @@ function ProfileNoticeContent({
       </View>
     );
   }
-  return body;
+  return <Text style={profileStyles.body}>{body}</Text>;
 }
 
 export function ProfileLayout({
@@ -116,7 +116,7 @@ export function ProfileLayout({
       <AppHeader
         appearance="home"
         profile={session}
-        title={title}
+        title={title ?? "Hồ sơ"}
         onBack={onBack}
         onAction={action}
         onAccount={() => setMenu(true)}

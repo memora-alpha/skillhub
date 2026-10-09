@@ -16,7 +16,10 @@ nghiệm thu sản phẩm theo [checklist](checklist.md), kết quả ở [valid
 - [x] Poll scan theo phiên; CLEAN refresh hồ sơ; ảnh từ chối/chờ lâu/refresh lỗi có feedback và retry.
 - [x] Trạng thái ảnh báo bằng toast, không có dòng dưới avatar; chỉ hiện kiểm tra lại khi chờ lâu/lỗi.
 - [x] Tests multipart, validation ảnh, partial save, lỗi/retry và đổi account lúc upload.
-- [x] Sắp xếp own profile; chuyển private info vào Settings/Tài khoản; thêm privacy/help/version và quản lý đăng xuất.
+- [x] Sắp xếp own profile; private info ở Settings/Tài khoản; Trợ giúp gộp thông tin công khai, Giới thiệu riêng, version và quản lý đăng xuất.
+- [x] Bỏ avatar/menu header mobile; giữ menu trên web rộng và tab Hồ sơ/shortcut mobile.
+- [x] Thêm entry Múi giờ/Ngôn ngữ/Thông báo disabled, ghi “Sắp có”; chưa triển khai lựa chọn hoặc API.
+- [x] Thêm ô Lộ trình hoàn thành “—”/“Sắp có” và Danh hiệu chờ triển khai; không gán số buổi hoặc danh hiệu mẫu.
 - [x] Nối signed-in password recovery bằng OTP hiện có; dedup reset và bảo vệ generation; 4 session tests mới.
 - [x] Browser fixtures toàn luồng cài đặt/reset/logout và screenshot 320/430/900.
 - [x] Audit SRS 1.6: bỏ huy hiệu/số dư mẫu và thống kê số buổi; ghi rõ Xác minh kỹ năng, giữ Cài đặt.
@@ -41,4 +44,5 @@ nghiệm thu sản phẩm theo [checklist](checklist.md), kết quả ở [valid
 
 - [ ] Tích hợp public-profile API và skill list; cập nhật scope/plan khi triển khai.
 - [ ] Timezone/locale setup.
+- [ ] Tùy chọn nhận thông báo và lưu lựa chọn; các entry Cài đặt hiện chỉ chờ triển khai.
 - [ ] Title/achievement và thống kê Learning Path khi contract được bổ sung.

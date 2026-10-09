@@ -53,6 +53,16 @@ export function ProfileHero({
             {headline}
           </Text>
         )}
+        {onEdit && (
+          <View style={styles.titlePlaceholder}>
+            <Icon
+              name="award"
+              size={iconSizes.inline}
+              color={profileColors.muted}
+            />
+            <Text style={styles.tagline}>Danh hiệu · Sắp có</Text>
+          </View>
+        )}
       </View>
     </View>
   );
@@ -87,6 +97,12 @@ const styles = StyleSheet.create({
     includeFontPadding: false,
   },
   info: { marginTop: 8 },
+  titlePlaceholder: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    marginTop: 6,
+  },
   nameRow: {
     flexDirection: "row",
     alignItems: "center",

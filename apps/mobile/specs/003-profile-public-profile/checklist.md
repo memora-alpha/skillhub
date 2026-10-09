@@ -29,7 +29,9 @@ Chỉ tick khi có bằng chứng; có source hoặc helper test chưa đủ ngh
 - [ ] Real scan → CLEAN và avatar mới: ClamAV local đã bật và quét ảnh trực tiếp thành công; chưa xác nhận toàn luồng API.
 - [ ] Chọn ảnh/gallery và upload trên native với integration avatar mới.
 
-- [x] AC-16..17 web: bố cục profile/settings/account 320/430/900, private info chuyển vào Tài khoản; privacy/help/version và xác nhận đăng xuất.
+- [x] AC-16..17 web: bố cục profile/settings/account 320/430/900, private info ở Tài khoản; Trợ giúp/Giới thiệu/version và xác nhận đăng xuất.
+- [x] Web: Múi giờ/Ngôn ngữ/Thông báo ghi “Sắp có”, disabled; chạm không mở dialog/gửi request. Chưa triển khai lựa chọn.
+- [x] Web own/self-preview: ô Lộ trình hoàn thành “—”/“Sắp có”, không dùng số buổi; Danh hiệu chờ triển khai chỉ ở own hero, không gán danh hiệu public.
 - [x] Sau audit SRS: own/public không hiển thị số buổi; Profile và notice không có huy hiệu/số dư mẫu; các shortcut và Cài đặt vẫn hoạt động (web fixtures).
 - [x] AC-18 fixtures + session tests: signed-in OTP/reset; lỗi/pending/retry, reset thành công về login; callback cũ không xóa phiên mới; guest reset giữ nguyên behavior.
 - [ ] Kiểm tra lại bố cục settings/profile và recovery trên native; OTP gửi email thật từ Cài đặt chưa được nghiệm thu.

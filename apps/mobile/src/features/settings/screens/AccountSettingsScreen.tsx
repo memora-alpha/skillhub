@@ -34,7 +34,7 @@ export function AccountSettingsScreen() {
       {() => (
         <>
           <ScrollView contentContainerStyle={styles.content}>
-            <ActionGroup title="Thông tin cá nhân">
+            <ActionGroup title="Tài khoản và bảo mật">
               <ActionRow
                 icon="user"
                 label="Tài khoản"
@@ -42,8 +42,6 @@ export function AccountSettingsScreen() {
                 disabled={busy}
                 onPress={() => router.push("/account-details")}
               />
-            </ActionGroup>
-            <ActionGroup title="Bảo mật">
               <ActionRow
                 icon="lock"
                 label="Đặt lại mật khẩu"
@@ -59,18 +57,31 @@ export function AccountSettingsScreen() {
                 onPress={() => setNotice("sessions")}
               />
             </ActionGroup>
-            <ActionGroup title="Thông tin và hỗ trợ">
+            <ActionGroup title="Tùy chọn ứng dụng">
               <ActionRow
-                icon="eye"
-                label="Quyền riêng tư"
-                description="Thông tin nào hiển thị trên hồ sơ công khai"
-                disabled={busy}
-                onPress={() => setNotice("privacy")}
+                icon="clock"
+                label="Múi giờ"
+                description="Sắp có · Giờ hiển thị lịch học"
+                disabled
               />
+              <ActionRow
+                icon="book"
+                label="Ngôn ngữ"
+                description="Sắp có · Tiếng Việt / English"
+                disabled
+              />
+              <ActionRow
+                icon="bell"
+                label="Thông báo"
+                description="Sắp có · Tùy chọn nhận thông báo"
+                disabled
+              />
+            </ActionGroup>
+            <ActionGroup title="Thông tin và hỗ trợ">
               <ActionRow
                 icon="help"
                 label="Trợ giúp"
-                description="Hồ sơ, ảnh đại diện và mật khẩu"
+                description="Hồ sơ, ảnh đại diện và bảo mật"
                 disabled={busy}
                 onPress={() => setNotice("help")}
               />

@@ -66,10 +66,12 @@ Own profile khôi phục kiểu dáng commit `ac4590d`: thẻ trắng, avatar 64
 preview riêng; grid hai cột trước bio/skills (Ví Credit, Tài liệu của tôi, Thành tích,
 Xác minh kỹ năng, Đánh giá, Cài đặt). Theo audit SRS 1.6, bỏ huy hiệu mẫu, số dư
 demo và số buổi hoàn thành; giữ reputation/verified skill count từ server.
-Số Learning Path cần contract riêng. Thông tin riêng tư ở Cài đặt. `features/settings` giữ account
-details, nội dung privacy/help/version và entry point bảo mật. Tái sử dụng
+Ô Lộ trình hoàn thành chỉ hiển thị “—”/“Sắp có”; danh hiệu own cũng ghi “Sắp có”.
+Giá trị/chọn danh hiệu thật cần contract riêng. Thông tin riêng tư ở Cài đặt. `features/settings` giữ account
+details, Trợ giúp gộp thông tin công khai, Giới thiệu riêng, version ở footer và entry point
+bảo mật. Header mobile dùng tab Hồ sơ thay menu avatar; web ≥640px giữ menu. Tái sử dụng
 AppScreenLayout, InfoModal, LogoutDialog và theme; nút đăng xuất phiên hiện tại
-có nền đỏ nhạt, viền/icon đỏ. Không thêm UI dependency hoặc thay đổi chức năng.
+có nền đỏ nhạt, viền/icon đỏ. Không thêm UI dependency hoặc thay đổi API.
 Auth giữ OTP recovery, mở recovery routes cho cả guest/signed-in sau các nhóm
 protected để không đổi landing page sau login. SessionController deduplicate
 reset theo proof/generation và clear credential sau reset signed-in thành công.
