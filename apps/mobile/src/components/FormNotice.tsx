@@ -7,29 +7,31 @@ export function FormNotice({
   tone,
   children,
 }: {
-  tone: "error" | "success";
+  tone: "error" | "success" | "info";
   children: ReactNode;
 }) {
   const success = tone === "success";
+  const info = tone === "info";
+  const foreground = success
+    ? colors.success
+    : info
+      ? colors.inkSoft
+      : colors.error;
   return (
     <View
       accessibilityRole="alert"
       accessibilityLiveRegion="polite"
-      style={[styles.notice, success ? styles.success : styles.error]}
+      style={[
+        styles.notice,
+        success ? styles.success : info ? styles.info : styles.error,
+      ]}
     >
       <Icon
         name={success ? "check-circle" : "alert"}
         size={16}
-        color={success ? colors.success : colors.error}
+        color={foreground}
       />
-      <Text
-        style={[
-          styles.label,
-          { color: success ? colors.success : colors.error },
-        ]}
-      >
-        {children}
-      </Text>
+      <Text style={[styles.label, { color: foreground }]}>{children}</Text>
     </View>
   );
 }
@@ -45,6 +47,7 @@ const styles = StyleSheet.create({
   },
   error: { borderColor: "#F0A0A0", backgroundColor: colors.errorLight },
   success: { borderColor: "#A3D4B9", backgroundColor: colors.successLight },
+  info: { borderColor: colors.border, backgroundColor: colors.sand },
   label: {
     flex: 1,
     fontFamily: fonts.body,

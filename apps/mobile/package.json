@@ -9,6 +9,7 @@
     "expo": "~57.0.26",
     "expo-constants": "~57.0.20",
     "expo-font": "~57.0.4",
+    "expo-image-picker": "~57.0.20",
     "expo-linear-gradient": "~57.0.2",
     "expo-linking": "~57.0.11",
     "expo-router": "~57.0.24",
@@ -51,7 +52,8 @@
     "lint": "eslint . --max-warnings 0",
     "check-types": "tsc --noEmit",
     "check-structure": "node scripts/check-structure.mjs",
-    "test": "tsx --test tests/**/*.test.ts"
+    "test": "tsx --test tests/**/*.test.ts test/profile.test.mjs",
+    "test:profile": "node --test test/profile.test.mjs"
   },
   "private": true
 }

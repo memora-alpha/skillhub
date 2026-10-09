@@ -1,4 +1,4 @@
-import { AccountSettingsScreen } from "@/features/auth";
+import { AccountSettingsScreen } from "@/features/settings";
 export default function AccountSettingsRoute() {
   return <AccountSettingsScreen />;
 }
