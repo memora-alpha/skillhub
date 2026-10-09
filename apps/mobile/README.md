@@ -130,10 +130,36 @@ detail copy only for React; the other requests keep their own known fields and
 use marked missing-content placeholders. Session dates, partner, duration and
 Credit match the selected sample calendar entry.
 
-Proposal handling, posting requests, public profiles, choosing agreements,
-file attachments, schedule-change forms, reports and live classrooms remain
-pending. Their actions open local notices; they do not create business records
-or move Credit. Online/typing indicators are fixtures from the design.
+Three more screens complete the local connection flow:
+
+- `/user/[id]`: public profile, public Sharing Skills/verification labels and
+  sample reviews. Request detail opens the correct poster by ID and carries
+  the request into the proposal form. Profiles with limited source content
+  show missing-data copy rather than another user's biography. Email, phone,
+  payment information and private evidence are never shown.
+- `/send-proposal`: reply to a request or send a direct invitation from a
+  public profile. The form validates a 10–1000-character message, positive
+  Credit with at most two decimal places and a positive integer session count.
+  Replies require a matching skill in the demo Sharing Skills. It prevents
+  duplicate pending proposals and self-proposals; submission shows a local
+  success state and opens the Sent tab on demand.
+- `/proposals`: Received, Sent, Discussing, Accepted and Closed tabs, empty
+  states and a detail dialog. Received proposals can be accepted/rejected;
+  pending sent proposals can be withdrawn. Accept opens the matching local
+  conversation and prevents accepting another proposal for the same request.
+  Discussing is a UI filter for accepted proposals with local messages, not
+  an additional proposal status.
+
+Proposal and conversation changes live only in the current demo session and
+reset when the session changes or the page reloads. Accept never holds Credit,
+locks a schedule or creates a Session. Credit, session count and free-text
+availability in a proposal remain suggestions for subsequent negotiation.
+The provider is composed under `MockMessagesProvider` in `AppProviders`.
+
+Posting requests, choosing agreements, file attachments, schedule-change
+forms, reports and live classrooms remain pending. Their actions open local
+notices; they do not create business records or move Credit. Online/typing
+indicators are fixtures from the design.
 
 Photo selection and the linked wallet, skill management, achievements, reviews
 and settings screens remain pending. Links to unfinished screens show a local
@@ -180,6 +206,7 @@ safe-area insets and narrower header button padding on small phones.
 - `src/features/discovery/`: request list, filters, request detail and sample content.
 - `src/features/calendar/`: month grid, history, session detail and sample schedule.
 - `src/features/messages/`: conversation list, chat and session-scoped local messages.
+- `src/features/proposals/`: send form, proposal inbox/detail, fixtures and session-scoped local proposal state.
 - `src/features/shell/`: signed-in header, account menu, search, navigation and screen shell.
 - `src/components/`: generic native controls and dialogs shared across features.
 - `src/constants/`: design tokens and shared navigation labels.
@@ -192,6 +219,21 @@ supplies safe areas, navigation, notices, account menu and logout. Each feature
 owns its scroll container and exposes its public screen API through `index.ts`.
 Keep screen implementations in their features and route files limited to navigation.
 See `AGENTS.md` for the UI-only implementation rules.
+
+## Public profile and Proposal file inventory
+
+Created:
+
+- `src/app/user/[id].tsx`, `src/app/send-proposal.tsx`, `src/app/proposals.tsx`
+- `src/features/profile/screens/PublicProfileScreen.tsx`, `src/features/profile/mocks/publicProfiles.ts`
+- `src/features/proposals/screens/SendProposalScreen.tsx`, `src/features/proposals/screens/ProposalsScreen.tsx`
+- `src/features/proposals/components/ProposalCard.tsx`, `src/features/proposals/context/MockProposals.tsx`
+- `src/features/proposals/mocks/proposals.ts`, `src/features/proposals/index.ts`
+
+Updated feature public exports, `AppProviders`, request-detail actions,
+the Messages proposal entry point and the message store/Chat to resolve newly
+accepted conversations. Authentication screens, backend, web, dependencies
+and lockfiles are unchanged. This increment has no API integration.
 
 ## Discovery, calendar and messages file inventory
 

@@ -18,6 +18,13 @@ export function RequestDetailScreen() {
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
   const request = learningRequests.find((item) => item.id === id);
   const detail = request ? requestDetails[request.id] : undefined;
+  const openProfile = () => {
+    if (request)
+      router.push({
+        pathname: "/user/[id]",
+        params: { id: request.userId, requestId: request.id },
+      });
+  };
   return (
     <AppScreenLayout
       title="Chi tiết yêu cầu"
@@ -25,7 +32,7 @@ export function RequestDetailScreen() {
       contentStyle={styles.background}
       back={{ href: "/discover", label: "Quay lại yêu cầu học" }}
     >
-      {(open) =>
+      {() =>
         !request ? (
           <EmptyState
             title="Không tìm thấy yêu cầu học"
@@ -99,7 +106,7 @@ export function RequestDetailScreen() {
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={`Xem hồ sơ ${request.user}`}
-                onPress={() => open(`Hồ sơ ${request.user}`)}
+                onPress={openProfile}
                 style={styles.poster}
               >
                 <Avatar
@@ -136,7 +143,7 @@ export function RequestDetailScreen() {
                 <Button
                   variant="paper"
                   style={styles.profileButton}
-                  onPress={() => open(`Hồ sơ ${request.user}`)}
+                  onPress={openProfile}
                 >
                   <Text style={styles.profileButtonText}>Xem hồ sơ</Text>
                 </Button>
@@ -144,7 +151,12 @@ export function RequestDetailScreen() {
                   variant="craft"
                   style={styles.contactButton}
                   accessibilityLabel="Liên hệ trao đổi"
-                  onPress={() => open("Gửi Proposal")}
+                  onPress={() =>
+                    router.push({
+                      pathname: "/send-proposal",
+                      params: { requestId: request.id },
+                    })
+                  }
                 >
                   <Icon
                     name="message"
