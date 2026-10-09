@@ -13,6 +13,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { colors } from "@/constants/theme";
 import { MockSessionProvider } from "@/features/auth";
 import { MockMessagesProvider } from "@/features/messages";
+import { MockProposalsProvider } from "@/features/proposals";
 
 export function AppProviders({ children }: { children: ReactNode }) {
   const [loaded, error] = useFonts({
@@ -43,7 +44,9 @@ export function AppProviders({ children }: { children: ReactNode }) {
   return (
     <SafeAreaProvider>
       <MockSessionProvider>
-        <MockMessagesProvider>{children}</MockMessagesProvider>
+        <MockMessagesProvider>
+          <MockProposalsProvider>{children}</MockProposalsProvider>
+        </MockMessagesProvider>
       </MockSessionProvider>
     </SafeAreaProvider>
   );

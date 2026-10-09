@@ -16,7 +16,7 @@ import { InfoModal } from "@/components/InfoModal";
 import { avatarSizes, typography, fonts } from "@/constants/theme";
 import { useMockSession } from "@/features/auth";
 import { useMockMessages } from "../context/MockMessages";
-import { conversations, type Conversation } from "../mocks/conversations";
+import type { Conversation } from "../mocks/conversations";
 import type { ChatMessage } from "../mocks/chat";
 import { ChatHeader } from "../components/ChatHeader";
 import { ChatComposer } from "../components/ChatComposer";
@@ -50,6 +50,7 @@ function ChatMessageSeparator() {
 export function ChatScreen() {
   const router = useRouter();
   const { session } = useMockSession();
+  const { conversations } = useMockMessages();
   const params = useLocalSearchParams<{ proposalId?: string | string[] }>();
   const id = Array.isArray(params.proposalId)
     ? params.proposalId[0]
@@ -124,7 +125,11 @@ function ChatConversation({
           ItemSeparatorComponent={ChatMessageSeparator}
           ListHeaderComponent={
             <View style={styles.heading}>
-              <Text style={styles.date}>Hôm nay, {messages[0]?.time}</Text>
+              <Text style={styles.date}>
+                {messages.length
+                  ? `Hôm nay, ${messages[0]?.time}`
+                  : "Bắt đầu cuộc trao đổi"}
+              </Text>
               <AcceptedProposalNotice />
             </View>
           }
