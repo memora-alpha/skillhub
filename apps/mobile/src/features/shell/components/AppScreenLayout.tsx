@@ -72,7 +72,12 @@ function ScreenNoticeContent({
       </View>
     );
   }
-  return `Màn ${notice?.toLowerCase() ?? ""} sẽ được triển khai ở bước tiếp theo. Hiện tại bạn đang xem giao diện với dữ liệu mẫu.`;
+  return (
+    <Text style={styles.body}>
+      Màn {notice?.toLowerCase() ?? ""} sẽ được triển khai ở bước tiếp theo.
+      Hiện tại bạn đang xem giao diện với dữ liệu mẫu.
+    </Text>
+  );
 }
 
 // The feature owns its scroll container (FlatList or ScrollView).

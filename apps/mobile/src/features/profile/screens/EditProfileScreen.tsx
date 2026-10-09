@@ -1,54 +1,197 @@
-import { useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Keyboard, StyleSheet, Text, View } from "react-native";
-import { Redirect, useRouter } from "expo-router";
-import { Avatar } from "@/components/Avatar";
+import { z } from "zod";
+import {
+  BackHandler,
+  Keyboard,
+  Platform,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { Redirect, useFocusEffect, useRouter } from "expo-router";
+import * as ImagePicker from "expo-image-picker";
 import { Button } from "@/components/Button";
 import { ControlledInput } from "@/components/ControlledInput";
-import { InfoModal } from "@/components/InfoModal";
-import { avatarSizes } from "@/constants/theme";
-import { useAuthSession, useUpdateProfile } from "@/features/auth";
+import { FormNotice } from "@/components/FormNotice";
 import {
-  profileEditSchema,
-  type ProfileEditFormValues,
-} from "@/features/account";
-import { errorMessage } from "@/lib/http/errors";
+  useAuthSession,
+  useUpdateProfile,
+  useSaveAvatar,
+  type AccountSession,
+} from "@/features/auth";
 import { useToast } from "@/providers/ToastProvider";
 import { formValidationOptions } from "@/utils/form-validation";
 import { ProfileLayout } from "../components/ProfileLayout";
 import { ProfileSection, profileStyles } from "../components/ProfilePrimitives";
+import { AvatarDraftEditor } from "../components/AvatarDraftEditor";
+import {
+  avatarImage,
+  avatarFormData,
+  AvatarSelectionError,
+  type AvatarDraft,
+} from "../utils/avatar-draft";
+import { avatarSaveErrorMessage } from "../utils/avatar-save-error";
+import {
+  profileHasChanges,
+  validateProfileDraft,
+} from "../utils/profile-validation";
+import type { ProfileDraft } from "../types/profile";
+import { profileSaveErrorMessage } from "../utils/profile-save-error";
+
+const profileFormSchema = z
+  .object({
+    fullName: z.string().trim(),
+    headline: z.string(),
+    bio: z.string(),
+  })
+  .superRefine((draft, context) => {
+    for (const [field, message] of Object.entries(validateProfileDraft(draft)))
+      context.addIssue({ code: "custom", path: [field], message });
+  });
 
 export function EditProfileScreen() {
-  const router = useRouter();
-  const { session } = useAuthSession();
-  const updateProfile = useUpdateProfile();
-  const { showToast, dismissToast } = useToast();
-  const form = useForm<ProfileEditFormValues>({
-    ...formValidationOptions,
-    resolver: zodResolver(profileEditSchema),
-    defaultValues: {
-      fullName: session?.name ?? "",
-      headline: session?.headline ?? "",
-      bio: session?.bio ?? "",
-    },
-  });
-  const [avatarNotice, setAvatarNotice] = useState(false);
+  const { session, runtime } = useAuthSession();
   if (!session) return <Redirect href="/login" />;
+  return <ProfileForm key={runtime.controller.generation} session={session} />;
+}
+
+function ProfileForm({ session }: { session: AccountSession }) {
+  const router = useRouter();
+  const { runtime } = useAuthSession();
+  const updateProfile = useUpdateProfile();
+  const saveAvatar = useSaveAvatar();
+  const { showToast, dismissToast } = useToast();
+  const focused = useRef(false);
+  const saving = useRef(false);
+  const selecting = useRef(false);
+  const [initial, setInitial] = useState<ProfileDraft>(() => ({
+    fullName: session.name,
+    headline: session.headline,
+    bio: session.bio,
+  }));
+  const form = useForm<ProfileDraft>({
+    ...formValidationOptions,
+    resolver: zodResolver(profileFormSchema),
+    defaultValues: initial,
+  });
+  const [avatarDraft, setAvatarDraft] = useState<AvatarDraft>(null);
+  const [picking, setPicking] = useState(false);
+  const [pickerError, setPickerError] = useState<string | null>(null);
+  const [profileSaved, setProfileSaved] = useState(false);
+  const submitting =
+    updateProfile.isPending ||
+    saveAvatar.isPending ||
+    form.formState.isSubmitting;
+  const pending = submitting || picking;
+  useFocusEffect(
+    useCallback(() => {
+      focused.current = true;
+      const subscription =
+        Platform.OS === "android"
+          ? BackHandler.addEventListener(
+              "hardwareBackPress",
+              () => saving.current || selecting.current || pending,
+            )
+          : null;
+      return () => {
+        focused.current = false;
+        subscription?.remove();
+      };
+    }, [pending]),
+  );
+  const changed = profileHasChanges(initial, form.watch()) || !!avatarDraft;
   const back = () => {
-    if (!updateProfile.isPending) router.dismissTo("/profile");
+    if (!saving.current && !selecting.current && !pending)
+      router.dismissTo("/profile");
   };
-  const save = form.handleSubmit((values) => {
-    if (updateProfile.isPending) return;
+  const changeAvatar = (draft: AvatarDraft) => {
+    setAvatarDraft(draft);
+    setPickerError(null);
+    saveAvatar.reset();
+  };
+  const pickAvatar = async () => {
+    if (saving.current || selecting.current || pending) return;
+    selecting.current = true;
+    setPicking(true);
+    setPickerError(null);
+    const generation = runtime.controller.generation;
+    const isCurrent = () =>
+      focused.current && generation === runtime.controller.generation;
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        allowsMultipleSelection: false,
+        allowsEditing: false,
+        quality: 1,
+      });
+      if (!result.canceled && isCurrent()) {
+        const asset = result.assets[0];
+        if (!asset)
+          throw new AvatarSelectionError(
+            "Không đọc được ảnh đã chọn. Hãy chọn lại.",
+          );
+        const image = avatarImage(asset);
+        if (Platform.OS === "web" && !image.file)
+          throw new AvatarSelectionError(
+            "Không đọc được ảnh đã chọn. Hãy chọn lại.",
+          );
+        changeAvatar({ kind: "upload", image });
+      }
+    } catch (error) {
+      if (isCurrent())
+        setPickerError(
+          error instanceof AvatarSelectionError
+            ? error.message
+            : "Không mở được thư viện ảnh. Hãy thử lại.",
+        );
+    } finally {
+      selecting.current = false;
+      if (isCurrent()) setPicking(false);
+    }
+  };
+  const save = form.handleSubmit(async (values) => {
+    if (
+      saving.current ||
+      selecting.current ||
+      (!profileHasChanges(initial, values) && !avatarDraft)
+    )
+      return;
+    saving.current = true;
+    const generation = runtime.controller.generation;
+    const isCurrent = () =>
+      focused.current && generation === runtime.controller.generation;
     dismissToast();
     Keyboard.dismiss();
-    updateProfile.mutate(values, {
-      onSuccess: () => {
-        showToast("Hồ sơ đã được cập nhật.", "success");
+    setProfileSaved(false);
+    try {
+      if (profileHasChanges(initial, values)) {
+        await updateProfile.mutateAsync(values);
+        if (!isCurrent()) return;
+        setInitial(values);
+        setProfileSaved(true);
+      }
+      const upload = avatarDraft
+        ? await saveAvatar.mutateAsync(
+            avatarDraft.kind === "upload"
+              ? avatarFormData(avatarDraft.image)
+              : null,
+          )
+        : null;
+      if (isCurrent()) {
+        setAvatarDraft(null);
+        showToast(
+          upload ? "Ảnh đã tải lên, đang kiểm tra." : "Hồ sơ đã được cập nhật.",
+          upload ? "info" : "success",
+        );
         router.dismissTo("/profile");
-      },
-      onError: (error) => showToast(errorMessage(error), "error"),
-    });
+      }
+    } catch {
+      // The mutation keeps the error and draft; an old screen must not show a toast.
+    } finally {
+      saving.current = false;
+    }
   });
   return (
     <ProfileLayout
@@ -59,25 +202,17 @@ export function EditProfileScreen() {
     >
       {() => (
         <View style={styles.stack}>
-          <View style={styles.avatarRow}>
-            <Avatar
-              name={session.name}
-              userId={session.userId}
-              size={avatarSizes.profile}
-              sourceUri={session.avatarUrl}
-            />
-            <View style={styles.avatarActions}>
-              <Button
-                size="md"
-                variant="secondary"
-                disabled={updateProfile.isPending}
-                onPress={() => setAvatarNotice(true)}
-              >
-                Thay ảnh đại diện
-              </Button>
-              <Text style={profileStyles.caption}>JPG, PNG. Tối đa 5MB.</Text>
-            </View>
-          </View>
+          <AvatarDraftEditor
+            session={session}
+            draft={avatarDraft}
+            disabled={pending}
+            picking={picking}
+            error={pickerError}
+            onPick={() => {
+              void pickAvatar();
+            }}
+            onChange={changeAvatar}
+          />
           <ProfileSection style={styles.fields}>
             <Text accessibilityRole="header" style={profileStyles.heading}>
               Thông tin cơ bản
@@ -86,7 +221,7 @@ export function EditProfileScreen() {
               control={form.control}
               name="fullName"
               label="Tên hiển thị"
-              editable={!updateProfile.isPending}
+              editable={!pending}
               onChangeText={updateProfile.reset}
               required
               autoCapitalize="words"
@@ -100,9 +235,8 @@ export function EditProfileScreen() {
               name="headline"
               label="Vai trò / tiêu đề"
               placeholder="Ví dụ: Frontend Developer"
-              editable={!updateProfile.isPending}
+              editable={!pending}
               onChangeText={updateProfile.reset}
-              maxLength={120}
               hint="Không bắt buộc. Tối đa 120 ký tự."
               returnKeyType="next"
               submitBehavior="submit"
@@ -112,7 +246,7 @@ export function EditProfileScreen() {
               control={form.control}
               name="bio"
               label="Giới thiệu bản thân"
-              editable={!updateProfile.isPending}
+              editable={!pending}
               onChangeText={updateProfile.reset}
               multiline
               numberOfLines={4}
@@ -120,13 +254,24 @@ export function EditProfileScreen() {
               hint="Không bắt buộc. Tối đa 1.000 ký tự."
             />
           </ProfileSection>
+          {updateProfile.isError && (
+            <FormNotice tone="error">
+              {profileSaveErrorMessage(updateProfile.error)}
+            </FormNotice>
+          )}
+          {saveAvatar.isError && (
+            <FormNotice tone="error">
+              {profileSaved ? "Thông tin hồ sơ đã lưu. " : ""}
+              {avatarSaveErrorMessage(saveAvatar.error)}
+            </FormNotice>
+          )}
           <View style={styles.buttons}>
             <Button
               size="lg"
               style={{ flex: 1 }}
               variant="secondary"
               onPress={back}
-              disabled={updateProfile.isPending}
+              disabled={pending}
             >
               Hủy
             </Button>
@@ -134,18 +279,11 @@ export function EditProfileScreen() {
               size="lg"
               style={{ flex: 1 }}
               onPress={save}
-              disabled={updateProfile.isPending}
+              disabled={pending || !changed}
             >
-              {updateProfile.isPending ? "Đang lưu..." : "Lưu thay đổi"}
+              {submitting ? "Đang lưu..." : "Lưu thay đổi"}
             </Button>
           </View>
-          <InfoModal
-            title={avatarNotice ? "Thay ảnh đại diện" : null}
-            onClose={() => setAvatarNotice(false)}
-          >
-            Chọn ảnh từ thiết bị sẽ được bổ sung sau khi luồng quét ảnh đại diện
-            sẵn sàng.
-          </InfoModal>
         </View>
       )}
     </ProfileLayout>
@@ -160,13 +298,5 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   fields: { gap: 12 },
-  avatarRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    flexWrap: "wrap",
-    gap: 16,
-    paddingHorizontal: 8,
-  },
-  avatarActions: { gap: 8, flexShrink: 1 },
   buttons: { flexDirection: "row", gap: 12 },
 });

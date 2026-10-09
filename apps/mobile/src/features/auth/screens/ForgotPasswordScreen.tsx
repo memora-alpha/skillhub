@@ -10,6 +10,7 @@ import { AuthFormInput } from "../components/AuthFormInput";
 import { useAuthActions } from "../hooks/use-auth-actions";
 import { useVerificationCooldown } from "../hooks/use-verification-cooldown";
 import { passwordRecoveryStore } from "../utils/password-recovery-flow";
+import { useAuthSession } from "../context/AuthSession";
 import {
   forgotPasswordSchema,
   type ForgotPasswordFormValues,
@@ -17,12 +18,14 @@ import {
 
 export function ForgotPasswordScreen() {
   const router = useRouter();
+  const { session, runtime } = useAuthSession();
   const { forgot } = useAuthActions();
   const form = useForm<ForgotPasswordFormValues>({
     ...formValidationOptions,
     resolver: zodResolver(forgotPasswordSchema),
     defaultValues: {
-      email: passwordRecoveryStore.getState().draft?.email ?? "",
+      email:
+        session?.email ?? passwordRecoveryStore.getState().draft?.email ?? "",
     },
   });
   const cooldown = useVerificationCooldown(
@@ -33,8 +36,10 @@ export function ForgotPasswordScreen() {
   const submit = form.handleSubmit((values) => {
     if (forgot.isPending || !cooldown.reserve()) return;
     Keyboard.dismiss();
+    const generation = runtime.controller.generation;
     forgot.mutate(values.email.toLowerCase(), {
       onSuccess: () => {
+        if (generation !== runtime.controller.generation) return;
         passwordRecoveryStore.getState().begin(values.email);
         router.replace({
           pathname: "/reset-password-code",
@@ -45,7 +50,7 @@ export function ForgotPasswordScreen() {
   });
   return (
     <AuthLayout
-      title="Quên mật khẩu"
+      title={session ? "Đặt lại mật khẩu" : "Quên mật khẩu"}
       subtitle="Nhập email tài khoản để nhận mã khôi phục mật khẩu."
     >
       <View style={authStyles.fields}>
@@ -54,7 +59,7 @@ export function ForgotPasswordScreen() {
           name="email"
           label="Email"
           required
-          editable={!forgot.isPending}
+          editable={!forgot.isPending && !session}
           placeholder="email@gmail.com"
           keyboardType="email-address"
           autoCapitalize="none"
@@ -77,15 +82,16 @@ export function ForgotPasswordScreen() {
               : "Gửi mã xác minh"}
         </Button>
         <Text style={authStyles.footer}>
-          Nhớ mật khẩu rồi?{" "}
+          {session ? "" : "Nhớ mật khẩu rồi? "}
           <Text
             accessibilityRole="link"
             style={authStyles.link}
             onPress={() => {
-              if (!forgot.isPending) router.replace("/login");
+              if (!forgot.isPending)
+                router.replace(session ? "/account-settings" : "/login");
             }}
           >
-            Đăng nhập
+            {session ? "Quay lại cài đặt" : "Đăng nhập"}
           </Text>
         </Text>
       </View>

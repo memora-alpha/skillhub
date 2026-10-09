@@ -48,6 +48,11 @@ apps/mobile/
 
 ## Feature template
 
+`features/settings` owns the signed-in Settings/account screens and static help
+content. It consumes Auth through its public API; Auth does not import Settings
+or shell layouts. Shared grouped action rows live in `components/ActionGroup`.
+Password recovery remains inside Auth, available to guests and signed-in users.
+
 ```text
 src/features/learning-paths/
   api/
@@ -76,3 +81,12 @@ Create only folders that contain files. A feature does not need every folder on 
 - Feature views and components target 220 lines or fewer.
 - Hooks, API adapters, schemas and utilities target 180 lines or fewer.
 - Split files by responsibility before adding broad abstractions.
+
+## Profile and proposal composition
+
+`/profiles/[userId]` uses `PublicProfilePreviewScreen` for saved own-profile
+projection and preview fixtures. `/user/[id]` uses `PublicProfileScreen` for the
+request/proposal public-profile flow. Both routes remain authenticated.
+`AppProviders` nests `MockProposalsProvider` inside `MockMessagesProvider` under
+`ProfilePreviewProvider` and the session gate. Avatar toasts remain under
+`AuthSessionProvider`, so upload feedback continues after leaving the editor.

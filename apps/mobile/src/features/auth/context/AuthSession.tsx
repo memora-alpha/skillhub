@@ -1,6 +1,7 @@
 import {
   createContext,
   useContext,
+  useCallback,
   useEffect,
   useMemo,
   useState,
@@ -19,6 +20,10 @@ import { AppError } from "@/lib/http/errors";
 import { createAuthTokenStore } from "@/lib/storage/auth-token-store";
 import { createAuthApi } from "../api/auth-api";
 import { SessionController } from "./session-controller";
+import {
+  useAvatarMonitor,
+  type TrackedAvatarUpload,
+} from "../hooks/use-avatar-monitor";
 
 export type AccountSession = {
   userId: string;
@@ -57,11 +62,19 @@ type AuthContextValue = {
   signOut: () => Promise<void>;
   signOutAll: () => Promise<void>;
   retryBootstrap: () => void;
+  avatar: ReturnType<typeof useAvatarMonitor>;
+  trackAvatar: (upload: TrackedAvatarUpload | null) => void;
 };
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthSessionProvider({ children }: { children: ReactNode }) {
   const [runtime] = useState(createRuntime);
+  const [trackedAvatar, setTrackedAvatar] =
+    useState<TrackedAvatarUpload | null>(null);
+  const trackAvatar = useCallback(
+    (upload: TrackedAvatarUpload | null) => setTrackedAvatar(upload),
+    [],
+  );
   const { controller } = runtime;
   const queryClient = useQueryClient();
   const phase = useSyncExternalStore(
@@ -81,7 +94,17 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
       return account;
     },
     enabled: phase === "ready",
+    // The current API signs avatar URLs for 60 seconds.
+    refetchInterval: (query) =>
+      query.state.data?.profile.avatarUrl ? 45_000 : false,
   });
+  const avatar = useAvatarMonitor(
+    runtime.accountApi,
+    generation,
+    phase === "ready",
+    trackedAvatar,
+    query.refetch,
+  );
   useEffect(() => {
     void controller.bootstrap();
   }, [controller]);
@@ -107,6 +130,8 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
       status,
       error: query.error ?? controller.error,
       runtime,
+      avatar,
+      trackAvatar,
       signOut: controller.signOut,
       signOutAll: controller.signOutAll,
       retryBootstrap: () => {
@@ -114,7 +139,16 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
         else void controller.bootstrap();
       },
     }),
-    [account, status, query.error, query.refetch, runtime, controller],
+    [
+      account,
+      status,
+      query.error,
+      query.refetch,
+      runtime,
+      controller,
+      avatar,
+      trackAvatar,
+    ],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

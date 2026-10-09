@@ -18,7 +18,8 @@ import { demoNotifications, recentMessages } from "@/mocks/app";
 import { signedInChrome } from "@/constants/theme";
 import { appRoutes } from "@/constants/navigation";
 import { profileStyles } from "./ProfilePrimitives";
-import { profileDetails } from "../mocks/profile";
+import { useProfilePreview } from "../context/ProfilePreview";
+import type { PublicProfile } from "../types/profile";
 
 type ProfileLayoutProps = Readonly<{
   session: AccountSession;
@@ -28,26 +29,23 @@ type ProfileLayoutProps = Readonly<{
   children: (open: (label: string) => void) => ReactNode;
 }>;
 
-function getProfileNoticeBody(notice: string | null, session: AccountSession) {
+function getProfileNoticeBody(
+  notice: string | null,
+  profile: PublicProfile | null,
+) {
   switch (notice) {
-    case "Thông tin riêng tư":
-      return `${session.email}\n\nSố điện thoại và ngày sinh chưa có dữ liệu trong phiên demo. Thông tin không được gửi lên máy chủ.`;
-    case "Ví Credit": {
-      const balance = session.isNew ? 50 : 340;
-      return `Số dư demo: ${balance} CR. Chức năng giao dịch chưa được kết nối.`;
-    }
+    case "Ví Credit":
+      return "Chức năng ví và giao dịch Credit chưa được kết nối.";
     case "Kỹ năng":
-      return profileDetails.sharingSkills
-        .map((skill) => `${skill.name} · ${skill.level}`)
-        .join("\n");
-    case "Thành tích": {
-      const badges = profileDetails.badges
-        .map((badge) => badge.label)
-        .join(", ");
-      return `Huy hiệu mẫu trong thiết kế: ${badges}. Chi tiết thành tích sẽ được triển khai sau.`;
-    }
+      return profile?.sharingSkills.length
+        ? "Quản lý kỹ năng sẽ được bổ sung sau."
+        : "Danh sách kỹ năng chưa được kết nối.";
+    case "Thành tích":
+      return "Quản lý danh hiệu sẽ được bổ sung sau.";
+    case "Xác minh kỹ năng":
+      return "Chức năng gửi bằng chứng và theo dõi xác minh kỹ năng chưa được kết nối.";
     default:
-      return `Màn ${notice?.toLowerCase() ?? ""} sẽ được triển khai ở bước tiếp theo. Bạn đang xem hồ sơ với dữ liệu demo.`;
+      return `Màn ${notice?.toLowerCase() ?? ""} sẽ được triển khai ở bước tiếp theo.`;
   }
 }
 
@@ -78,7 +76,7 @@ function ProfileNoticeContent({
       </View>
     );
   }
-  return body;
+  return <Text style={profileStyles.body}>{body}</Text>;
 }
 
 export function ProfileLayout({
@@ -90,6 +88,7 @@ export function ProfileLayout({
 }: ProfileLayoutProps) {
   const router = useRouter();
   const { signOut } = useAuthSession();
+  const { profile } = useProfilePreview();
   const [menu, setMenu] = useState(false);
   const [logout, setLogout] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -107,7 +106,7 @@ export function ProfileLayout({
     if (route) return router.navigate(route);
     setNotice(label);
   };
-  const body = getProfileNoticeBody(notice, session);
+  const body = getProfileNoticeBody(notice, profile);
   const ScrollContainer = keyboardAware ? KeyboardFormScrollView : ScrollView;
   const edges = title
     ? (["top", "left", "right", "bottom"] as const)
@@ -117,7 +116,7 @@ export function ProfileLayout({
       <AppHeader
         appearance="home"
         profile={session}
-        title={title}
+        title={title ?? "Hồ sơ"}
         onBack={onBack}
         onAction={action}
         onAccount={() => setMenu(true)}
