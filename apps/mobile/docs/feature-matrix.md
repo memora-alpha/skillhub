@@ -17,6 +17,19 @@
 
 ## First implementation order
 
+Spec 003 checkpoint (2026-10-09): own/edit profile uses the real account API;
+public self-preview uses saved data. Other public profiles remain fixtures, and
+avatar selection/upload/status/removal uses the existing API. Only CLEAN updates
+the published image; real scan completion needs a running ClamAV service.
+The real skill list/title flows are pending. Track work in
+[tasks](../specs/003-profile-public-profile/tasks.md) and acceptance in
+[checklist](../specs/003-profile-public-profile/checklist.md).
+
+Own profile now groups actions below personal content. `settings` owns the
+account details, privacy/help/version and security entry points; `auth` owns
+OTP recovery and session revocation. Password recovery also opens from signed-in
+Settings, with no new endpoint or legal-policy content.
+
 1. Mobile foundation.
 2. Auth and account shell.
 3. Profile and public profile.

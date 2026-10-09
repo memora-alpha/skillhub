@@ -3,8 +3,9 @@ import { AppError } from "./errors";
 import { readPayload } from "./response";
 
 export type RequestOptions = {
-  method?: "GET" | "POST" | "PATCH";
+  method?: "GET" | "POST" | "PATCH" | "DELETE";
   body?: unknown;
+  multipart?: boolean;
   authenticated?: boolean;
 };
 export type SessionTransport = {
@@ -36,7 +37,9 @@ export function createHttpClient(
           Accept: "application/json",
           ...(options.body === undefined
             ? {}
-            : { "Content-Type": "application/json" }),
+            : {
+                "Content-Type": options.multipart ? false : "application/json",
+              }),
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         data: options.body,

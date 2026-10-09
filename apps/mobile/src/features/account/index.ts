@@ -1,4 +1,5 @@
 export { createAccountApi } from "./api/account-api";
+export type { AvatarUpload } from "./api/avatar-contracts";
 export type {
   OwnIdentity,
   OwnProfile,
