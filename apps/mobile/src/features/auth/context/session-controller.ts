@@ -1,7 +1,7 @@
 import { AppError } from "@/lib/http/errors";
 import type { TokenStore, RefreshCredential } from "@/lib/storage/token-store";
 import type { AuthApi } from "../api/auth-api";
-import type { LoginInput, TokenPair } from "../api/auth-contracts";
+import type { LoginInput, TokenPair, ResetInput } from "../api/auth-contracts";
 
 export type SessionStatus =
   "bootstrapping" | "guest" | "ready" | "offline" | "reauth";
@@ -18,6 +18,11 @@ export class SessionController {
   private logoutAllTask: { epoch: number; promise: Promise<void> } | null =
     null;
   private writes: Promise<void> = Promise.resolve();
+  private resetTask: {
+    epoch: number;
+    token: string;
+    promise: Promise<void>;
+  } | null = null;
   error: unknown = null;
 
   constructor(
@@ -188,6 +193,25 @@ export class SessionController {
     this.logoutAllTask = { epoch, promise };
     return promise;
   };
+  resetPassword = (input: ResetInput) => {
+    const epoch = this.epoch;
+    if (
+      this.resetTask?.epoch === epoch &&
+      this.resetTask.token === input.resetToken
+    )
+      return this.resetTask.promise;
+    const promise = this.applyPasswordReset(input, epoch).finally(() => {
+      if (this.resetTask?.promise === promise) this.resetTask = null;
+    });
+    this.resetTask = { epoch, token: input.resetToken, promise };
+    return promise;
+  };
+  private async applyPasswordReset(input: ResetInput, epoch: number) {
+    const signedIn = !!this.credential;
+    await this.api.reset(input);
+    if (epoch !== this.epoch) throw new AppError("session");
+    if (signedIn) await this.expire();
+  }
   private async revokeAll(epoch: number) {
     await this.api.logoutAll();
     if (epoch !== this.epoch) throw new AppError("session");

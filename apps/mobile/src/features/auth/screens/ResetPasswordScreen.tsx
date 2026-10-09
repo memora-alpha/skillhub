@@ -17,9 +17,11 @@ import {
   type NewPasswordFormValues,
 } from "../schemas/auth-schemas";
 import { passwordRecoveryStore } from "../utils/password-recovery-flow";
+import { useAuthSession } from "../context/AuthSession";
 
 export function ResetPasswordScreen() {
   const router = useRouter();
+  const { session } = useAuthSession();
   const draft = useStore(passwordRecoveryStore, (state) => state.draft);
   const { reset } = useAuthActions();
   const { showToast } = useToast();
@@ -123,13 +125,17 @@ export function ResetPasswordScreen() {
             style={authStyles.link}
             onPress={() => {
               if (!reset.isPending)
-                router.replace({
-                  pathname: "/login",
-                  params: { email: draft.email },
-                });
+                router.replace(
+                  session
+                    ? "/account-settings"
+                    : {
+                        pathname: "/login",
+                        params: { email: draft.email },
+                      },
+                );
             }}
           >
-            đăng nhập
+            {session ? "cài đặt" : "đăng nhập"}
           </Text>
         </Text>
       </View>

@@ -48,6 +48,11 @@ apps/mobile/
 
 ## Feature template
 
+`features/settings` owns the signed-in Settings/account screens and static help
+content. It consumes Auth through its public API; Auth does not import Settings
+or shell layouts. Shared grouped action rows live in `components/ActionGroup`.
+Password recovery remains inside Auth, available to guests and signed-in users.
+
 ```text
 src/features/learning-paths/
   api/

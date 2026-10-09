@@ -1,153 +1,167 @@
-# Plan: Spec 003 — Profile và Public Profile
+# Plan: Spec 003 — Hồ sơ cá nhân và hồ sơ công khai
 
-Ngày: 2026-10-08. Nhánh: `feat/mobile-profile`, từ local `dev` tại `4b8def4`.
-Yêu cầu ở [spec.md](spec.md). Baseline bên dưới ghi lại triển khai UI ngày 2026-10-08.
+**Ngày cập nhật:** 2026-10-09. **Nhánh:** `feat/mobile-profile`.
+Yêu cầu và tiêu chí nghiệm thu nằm trong [spec.md](spec.md).
+Plan mô tả runtime sau rebase; các kết quả trước rebase chỉ là bằng chứng lịch sử.
 
-## Tích hợp sau rebase — 2026-10-09
+## 1. Baseline và phạm vi
 
-- Rebase lên `dev` tại `d2f175a`, đã có Auth spec 002. Runtime dùng
-  AuthSession/Query/SecureStore/Toast/KeyboardProvider, không dùng MockSession.
-- Giữ editor gọi `PATCH /me/profile`, pending guards, toast và cache cập nhật.
-  Dùng validation của feature profile; không gửi khi draft không đổi, cho clear
-  headline/bio. Form được tạo lại theo session generation khi đổi phiên.
-- ProfilePreview chỉ chiếu dữ liệu own account hiện hành, không tạo bản sao
-  identity hoặc lưu headline demo. Avatar, reputation và counters lấy từ API;
-  reputation null hiển thị dấu gạch. Self-preview dùng dữ liệu đã lưu.
-- Thêm route public profile vào auth gate. Public target khác vẫn là fixture;
-  skill list của own account chưa được tích hợp, không gán skill mẫu cho tài khoản thật.
-- Public projection và UI không suy ra badge toàn tài khoản từ verifiedSkillCount.
-- Giữ cả test auth và profile trong `npm test`; `test:profile` chạy riêng profile.
-- Mailbox/native acceptance và public-profile API integration vẫn còn cần kiểm chứng.
+- Mobile Foundation thuộc spec 001; Auth/account shell thuộc spec 002 và đã có
+  trên base `dev` sau rebase ngày 2026-10-09.
+- Runtime dùng AuthSession, QueryClient, SecureStore, Toast và KeyboardProvider.
+  Profile không dùng MockSession để xác định tài khoản đang đăng nhập.
+- Own/edit profile giữ API đã có; self-preview dùng account thật đã lưu. Target
+  khác dùng fixture, không bổ sung public API/skill-list API trong phạm vi này.
+- Artifact gồm spec, plan, [tasks](tasks.md), [checklist](checklist.md) và
+  [validation](validation.md); giữ nội dung ngắn và tránh lặp yêu cầu.
+- Không thêm dependency, sửa backend, root/shared tooling hoặc feature ngoài profile.
 
-## Điểm bắt đầu và dependency
+## 2. Cấu trúc và phần tái sử dụng
 
-Các mục baseline sau mô tả trạng thái trước rebase; phần tích hợp trên là runtime hiện tại.
+| Phần                                                       | Trách nhiệm                                                                         |
+| ---------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `src/app/(tabs)/profile.tsx`                               | Route own profile trong tabs.                                                       |
+| `src/app/edit-profile.tsx`                                 | Route editor ngoài tabs.                                                            |
+| `src/app/profiles/[userId].tsx`                            | Đọc target param và mở public screen ngoài tabs.                                    |
+| `src/features/profile/screens`                             | Own/edit/public UI và điều phối state của màn hình.                                 |
+| `src/features/profile/context/ProfilePreview.tsx`          | Chiếu account đã lưu từ AuthSession; không lưu bản sao identity hoặc headline demo. |
+| `src/features/profile/utils/public-profile.ts`             | Allowlist profile/skill và đọc target ID.                                           |
+| `src/features/profile/utils/profile-validation.ts`         | Validation draft và so sánh với dữ liệu đã lưu.                                     |
+| `src/features/profile/mocks/public-profiles.ts`            | Resolver target demo, unavailable và retry fixture.                                 |
+| `src/features/account`, public API của `src/features/auth` | Own-account contracts, HTTP adapter, session và mutation/cache hiện có.             |
 
-- Base `dev` có own/edit profile, MockSession và dữ liệu mẫu; chưa có public profile.
-  Spec 003 đã thay headline/badge cố định và reputation 142 bằng dữ liệu theo identity.
-- **Auth/account shell thuộc spec 002 ở nhánh khác.** UI hiện dùng Auth qua public
-  `index.ts`; trước tích hợp API, đọc lại interface khi spec 002 được đưa vào base.
-  Không làm lại Auth, tạo HTTP client thứ hai hoặc tự sửa contract Auth.
-- UI-first là phạm vi hiện tại; nếu chuyển API thật thì cập nhật plan dựa trên
-  Auth đã có và API dev đang chạy, không suy đoán từ mock trên `dev`.
-- Chưa thấy reference Public Profile trong checkout. Cần đối chiếu thiết kế hoặc
-  thống nhất dùng layout hiện có trước khi xác nhận phần visual hoàn thành.
+Tái sử dụng ProfileLayout, ProfileSummary, ProfileHero, ProfileAbout/ProfileSkills,
+Avatar, ControlledInput, Button, InfoModal, shell/header, theme và toast.
+Public view không truyền edit/manage callback cho target. Account menu nhận
+session của viewer, tách khỏi profile đang hiển thị.
 
-## Cấu trúc và reuse
+Routes giữ thin; feature exports qua `index.ts`; không deep-import backend hoặc
+private files của feature khác. Giới hạn theo AGENTS.md mobile: routes ≤100 dòng,
+utils/hooks/API ≤250, source khác ≤400. Không đổi layout thư mục hiện có.
 
-Giữ `/profile` và `/edit-profile`; thêm `/profiles/[userId]` ở root stack ngoài tabs.
-Route chỉ đọc param/navigation, phần UI và business nằm trong feature profile.
+## 3. Dữ liệu và state
 
-Tái sử dụng ProfileLayout, ProfileSection/ProfileHeading, Avatar, Input, Button,
-FormNotice, InfoModal, shell/header và theme hiện có. ProfileHero nhận dữ liệu qua
-props và edit callback tùy mode, bỏ fixture identity/badge cố định.
+### Own account và self-preview
 
-Các phần đã thêm:
+Auth spec 002 tải `GET /api/v1/me`; profile đọc `account.profile` và tạo public
+projection tường minh. Avatar/reputation/counters giữ giá trị server; reputation
+`null` hiển thị dấu gạch. Không thay optional field rỗng bằng dữ liệu demo.
 
-- `src/app/profiles/[userId].tsx`
-- `src/features/profile/screens/PublicProfileScreen.tsx`
-- `src/features/profile/types/profile.ts`
-- `src/features/profile/utils/profile-validation.ts`
-- `src/features/profile/utils/public-profile.ts`
-- `src/features/profile/mocks/public-profiles.ts`
-- `src/features/profile/components/ProfileSummary.tsx`
-- `src/features/profile/context/ProfilePreview.tsx`
-- `test/profile.test.mjs` và script `test:profile`
+`toOwnProfilePreview` trả `sharingSkills: []` vì mobile chưa tích hợp skill list.
+UI phải dùng trạng thái chưa kết nối thay vì kết luận user không có kỹ năng;
+`verifiedSkillCount` vẫn giữ số server và không suy ra skill/badge toàn tài khoản.
 
-Sửa ProfileScreen, EditProfileScreen, ProfileHero, ProfileLayout, fixtures và profile `index.ts`.
-AppProviders chỉ compose thêm ProfilePreviewProvider trong MockSessionProvider;
-Auth source và shared shell không đổi.
-Chỉ tách component thực sự dùng chung. Không sửa Auth source để né dependency;
-nếu thiếu field/callback thì ghi rõ cần phối hợp với spec 002.
-Giới hạn: route <=100 dòng, utils/hooks/API <=250, source khác <=400.
+### Editor
 
-## Dữ liệu và state
+Avatar bổ sung: dùng `expo-image-picker` chọn một ảnh JPG/PNG/WebP ≤5MB, preview
+trong draft và upload multipart field `image` qua `POST /me/avatar` khi Lưu.
+Theo dõi `GET /me/avatar/uploads/:assetId` ở provider theo generation của phiên;
+chỉ refresh own-account/avatar sau CLEAN. DELETE `/me/avatar` dùng khi Lưu thao tác
+xóa ảnh. Hủy draft không gọi các endpoint avatar. Các endpoint profile/avatar
+độc lập: nếu avatar lỗi sau khi profile đã lưu, giữ draft ảnh và báo phần đã lưu.
 
-- Public display model chỉ gồm userId/fullName/headline/bio/avatarUrl,
-  reputationScore/verifiedSkillCount/completedSessionCount và skill preview.
-- Skill preview lấy id, tên skill, level, mô tả, experienceYears, verificationStatus;
-  không spread raw catalog/identity/evidence. Status BE: UNVERIFIED/PENDING/VERIFIED/REJECTED.
-- Own view tách phần private; draft edit tách khỏi dữ liệu đã lưu. Adapter demo
-  ProfilePreview dùng `updateProfile` hiện có cho tên/bio, giữ headline trong React
-  context thuộc feature vì MockSession chưa có field này. Reset khi đổi identity/logout.
-  Không thêm framework; thay adapter này khi tích hợp Auth spec 002.
-- Trong UI-first, fixture theo identity; self-preview lấy dữ liệu hiện hành;
-  user mới có reputation50, counter0, skills rỗng. Demo IDs không phải UUID để gọi BE.
-- Optional field rỗng có nghĩa đã clear; không thay bằng default. Chỉ trim tên.
-  Length BE cho headline/bio trừ surrogate pair và presentation selector khỏi
-  UTF-16 length; không đồng nhất với `Array.from` của tên.
-- View có loading/ready/unavailable/error; reset result/draft/timer khi đổi ID/session.
+React Hook Form/Zod hiện có quản lý draft, sử dụng validation của feature profile.
 
-## Contract BE đã kiểm tra
+Own profile khôi phục kiểu dáng commit `ac4590d`: thẻ trắng, avatar 64px, nút public
+preview riêng; grid hai cột trước bio/skills (Ví Credit, Tài liệu của tôi, Thành tích,
+Xác minh kỹ năng, Đánh giá, Cài đặt). Theo audit SRS 1.6, bỏ huy hiệu mẫu, số dư
+demo và số buổi hoàn thành; giữ reputation/verified skill count từ server.
+Số Learning Path cần contract riêng. Thông tin riêng tư ở Cài đặt. `features/settings` giữ account
+details, nội dung privacy/help/version và entry point bảo mật. Tái sử dụng
+AppScreenLayout, InfoModal, LogoutDialog và theme; nút đăng xuất phiên hiện tại
+có nền đỏ nhạt, viền/icon đỏ. Không thêm UI dependency hoặc thay đổi chức năng.
+Auth giữ OTP recovery, mở recovery routes cho cả guest/signed-in sau các nhóm
+protected để không đổi landing page sau login. SessionController deduplicate
+reset theo proof/generation và clear credential sau reset signed-in thành công.
+Tham khảo: [Airbnb profile](https://www.airbnb.com/help/article/3386) và
+[LinkedIn settings](https://www.linkedin.com/help/linkedin/answer/a1337839/managing-your-account-and-privacy-settings?lang=en).
+Tên trim và đếm code points. Headline/bio dùng helper tương thích validator BE:
+UTF-16 length trừ surrogate pairs và presentation selectors được helper nhận diện.
+Không đồng nhất cách đếm này với tên hoặc tự đổi sang grapheme count.
 
-Source: [UsersController](../../../../services/api/src/modules/users/presentation/http/users.controller.ts),
+Không mutate khi draft không đổi/không hợp lệ. `useUpdateProfile` gọi adapter
+account hiện có, cập nhật cache từ response và invalidate own account.
+Pending khóa controls với cả mutation state và khóa đồng bộ chống lưu trùng;
+Android hardware back bị chặn trong lúc lưu. Thành công toast và dismiss về
+`/profile`; lỗi giữ draft và hiển thị FormNotice, kết quả không rõ yêu cầu kiểm tra
+hồ sơ trước khi lưu lại. Callback chỉ điều hướng/toast khi editor còn focus và
+cùng session generation.
+Form được tạo lại theo session generation. HTTP/session và mutation phải bỏ
+response cũ, không replay request của account A bằng credentials của account B.
+
+### Public target
+
+Auth gate do AuthNavigator cung cấp. Content được reset theo session generation
+và target ID; cleanup timer khi unmount/đổi target. Resolver chọn self trước,
+sau đó lookup fixture; ID thiếu/không rõ không fallback sang viewer.
+
+Các trạng thái: loading → ready/unavailable/error; retry quay về loading rồi
+resolve lại. Ready có kỹ năng rỗng khác với skill list chưa kết nối.
+Back dùng history, không có history thì replace `/profile`.
+
+Fixtures hiện có:
+
+- `demo-mentor-an`: có kỹ năng VERIFIED và UNVERIFIED.
+- `demo-learner-linh`: bio/headline rỗng, reputation 50, counter 0, skills rỗng.
+- `demo-retry`: lỗi lần đầu, retry trả hồ sơ mentor mẫu; chỉ phục vụ kiểm thử demo.
+- ID khác: unavailable. Demo IDs không phải UUID và không gửi tới API.
+
+## 4. Contract đã đối chiếu
+
+Source tham chiếu read-only:
+[mobile account adapter](../../src/features/account/api/account-api.ts),
+[mobile contracts](../../src/features/account/api/account-contracts.ts),
+[UsersController](../../../../services/api/src/modules/users/presentation/http/users.controller.ts),
 [DTO](../../../../services/api/src/modules/users/presentation/http/users.dto.ts),
-[response](../../../../services/api/src/modules/users/presentation/http/users.responses.ts),
-[ProfileReader](../../../../services/api/src/modules/users/application/services/profile-reader.service.ts),
-[SkillSearchController](../../../../services/api/src/modules/sharing-skills/presentation/http/sharing-skills.controller.ts).
-Đây là reference, chưa có adapter mobile trong feature này.
+[response](../../../../services/api/src/modules/users/presentation/http/users.responses.ts) và
+[ProfileReader](../../../../services/api/src/modules/users/application/services/profile-reader.service.ts).
 
-| Endpoint                                                                          | Contract cần lưu ý                                                                                                                                                               |
-| --------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| GET `/api/v1/me`                                                                  | Có auth; own identity chứa email/account metadata và nested `data.profile`.                                                                                                      |
-| PATCH `/api/v1/me/profile`                                                        | Có auth; fullName/headline/bio/timezone/locale tùy chọn, body không rỗng, không null. Trả OwnProfile trực tiếp ở `data`; không có expectedVersion.                               |
-| GET `/api/v1/profiles/:userId`                                                    | Có auth; target UUID và ACTIVE, không tồn tại/inactive trả404; chỉ projection public.                                                                                            |
-| GET `/api/v1/profiles/:userId/skills`                                             | Handler hiện không gắn auth guard; lọc public, limit1–50/default20, cursor opaque; page ở `meta.pagination`.                                                                     |
-| Avatar: POST `/me/avatar`, GET `/me/avatar/uploads/:assetId`, DELETE `/me/avatar` | Đều dưới `/api/v1`, có auth. Multipart `image`, JPEG/PNG/WebP <=5,242,880 bytes; upload202 là QUARANTINED, chỉ CLEAN có URL; delete204 không body. Upload thật chưa thuộc scope. |
+| Endpoint                                                                                       | Contract và trạng thái mobile                                                                                                                                         |
+| ---------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET `/api/v1/me`                                                                               | Có auth; identity chứa email/account metadata và nested `data.profile`. Mobile dùng qua spec 002.                                                                     |
+| PATCH `/api/v1/me/profile`                                                                     | Có auth; các field optional `fullName/headline/bio/timezone/locale`; trả OwnProfile trực tiếp ở `data`, không có expectedVersion. Editor chỉ gửi ba field trong spec. |
+| GET `/api/v1/profiles/:userId`                                                                 | Có auth; target UUID và ACTIVE; không tồn tại/inactive trả 404; projection public. Mobile chưa gọi.                                                                   |
+| GET `/api/v1/profiles/:userId/skills`                                                          | Public skill list, cursor opaque, limit 1–50/default 20, pagination trong `meta.pagination`. Mobile chưa gọi; list không chứng minh target tồn tại.                   |
+| POST `/api/v1/me/avatar`, GET `/api/v1/me/avatar/uploads/:assetId`, DELETE `/api/v1/me/avatar` | Đã nối chọn/upload/status/xóa; 202 QUARANTINED, chỉ CLEAN refresh avatar, delete 204 không body.                                                                      |
 
-Envelope success `{success:true,message,data,meta?}`; lỗi hiện trả
-`{success:false,message,statusCode}`, không đảm bảo code/fieldErrors.
-Profile có skill preview tối đa20 trong `sharingSkills.data/pagination`; không
-nhầm với endpoint list riêng. Public list không đảm bảo404 khi user không tồn tại.
+Envelope success `{success:true,message,data,meta?}`. Lỗi hiện tại không bảo đảm
+`code` hoặc `fieldErrors`; giữ parser/error feedback hiện có. Backend profile có
+skill preview dạng `sharingSkills.data/pagination`; không cast trực tiếp sang array
+`PublicProfile.sharingSkills` của mobile khi tích hợp sau này.
 
-Gap cần giữ rõ:
+Các contract gaps và giới hạn nghiệp vụ theo GAP-01..06 trong spec. Đặc biệt không
+ánh xạ session count thành path count, không suy ra title/rating và không coi native
+Text là bằng chứng backend sanitize bio.
 
-- Website, rating, learned/taught totals và title/achievement chưa có profile field.
-- `completedSessionCount` không phải `completedLearningPathCount` trong SRS.
-- SRS yêu cầu sanitize bio nhưng chưa thấy sanitizer trong update path đã đọc.
-  Native Text không chứng minh backend đã đáp ứng yêu cầu này.
-- Full skill pagination, avatar thật và API/cache integration để feature sau hoặc
-  cập nhật scope; không tự thêm endpoint/field hay sửa BE.
+## 5. Trạng thái triển khai đã kiểm tra trong source
 
-## Checklist triển khai
+- [x] Own account/real Auth và editor `PATCH /me/profile` đã được nối.
+- [x] Public projection, profile validation, own/self-preview và target fixtures.
+- [x] Auth gate, target/session reset, timer cleanup, loading/error/retry/unavailable.
+- [x] Own skill list báo chưa kết nối; target mẫu được nhận diện là dữ liệu mẫu.
+- [x] Helper tests cho Unicode, clear/no-change, privacy, target, self-preview/retry.
+- [ ] Kết nối API public profile và skill list: ngoài phạm vi hiện tại.
+- [x] Avatar chọn/preview/upload/status/xóa, multipart và session guards.
+- [ ] Timezone/locale setup, title/achievement: ngoài phạm vi hiện tại.
+- [x] Kiểm chứng own/edit với API local và browser fixtures sau rebase.
+- [x] LAN/CORS trực tiếp và Android emulator keyboard/Back bỏ draft, save/reopen, chữ lớn 130%.
+- [ ] Pending Back native, iOS/thiết bị thật và đối chiếu Public Profile Figma riêng.
 
-- [x] Kiểm tra interface Auth trên base dev, reuse UI và giới hạn file impact.
-- [x] Thêm model/projection/fixtures, validation và sửa stats/badge mẫu sai.
-- [x] Chuyển ProfileHero và section dùng chung sang props theo own/public mode.
-- [x] Hoàn thiện own/edit: save/cancel/clear, đồng bộ identity, tách draft/session.
-- [x] Thêm public screen/route, target lookup, state và back fallback.
-- [x] Thêm self-preview từ own profile; giữ discovery/chat ngoài phạm vi.
-- [x] Automated tests cho privacy, biên validation, target và retry.
-- [x] Kiểm tra luồng web, quality checks và cập nhật README theo source thực tế.
-- [ ] Đối chiếu Public Profile với Figma riêng, kiểm tra native device/large text.
-- [ ] Tích hợp Auth spec 002/API khi dependency sẵn sàng và scope được mở.
+Các dấu đã hoàn thành ghi nhận source hiện có, không thay thế AC UI/API trong spec.
+Theo dõi công việc tiếp theo ở [tasks.md](tasks.md); đánh dấu nghiệm thu tại
+[checklist.md](checklist.md) khi có bằng chứng trong [validation.md](validation.md).
 
-## Kiểm chứng và handoff
+## 6. Kế hoạch kiểm chứng
 
-Từ `apps/mobile`, dùng `npm run web` hoặc `npm start` để preview khi có code.
-Chạy `npm run check-types`, `npm run lint`, `npm run check-structure` và
-`npm run test:profile`. Bộ test dùng Node test runner và TypeScript đã có, không thêm dependency.
+Từ `apps/mobile`, chạy `npm run check-types`, `npm run lint`,
+`npm run check-structure` và `npm test` khi thay đổi implementation.
+`npm run test:profile` chạy riêng helper/fixture tests.
 
-Fixtures để preview: `demo-mentor-an` (có kỹ năng), `demo-learner-linh` (rỗng),
-`demo-retry` (lỗi lần đầu rồi retry thành công), ID khác (unavailable).
-Self-preview mở từ own profile; cần demo session, reload xóa session.
+Kiểm tra UI theo AC-01..11 của spec: own/new/null values; edit/save/clear/cancel;
+pending/errors; đổi account trong request; own/self và target demo; privacy và badge;
+target invalid, retry/back/deep link; native safe area/keyboard/large text và width
+320/375/430. Dùng API thật để xác minh own-profile persistence; không dùng fixture
+tests làm bằng chứng API integration.
 
-Kết quả ngày 2026-10-08:
-
-- `npm run check-types`, `npm run lint`, `npm run check-structure`: pass;
-  structure kiểm tra 109 source files, không vượt giới hạn dòng.
-- `npm run test:profile`: 7 tests pass; kiểm tra biên Unicode, clear/no-change,
-  public projection có dữ liệu private cố tình chèn vào, target thiếu/không rõ,
-  self-preview, fixture rỗng và retry.
-- Expo web bundle pass. Browser smoke bằng Playwright có sẵn trong runtime:
-  save/invalid/cancel/clear, tự xem hồ sơ, viewer menu, public target khác,
-  đổi target/unavailable/retry, back theo lịch sử và fallback không có lịch sử,
-  logout khi đang edit, đổi account, user mới và signed-out deep link đều pass;
-  không có page runtime error.
-- Kiểm tra overflow và screenshot own/edit/public ở width 320/375/430;
-  đã xem ảnh public và own/edit 320/430, không thấy tràn ngang.
-  Screenshot nằm trong `.expo/` ignored, không thêm tài liệu nghiệm thu riêng.
-
-Chưa kiểm tra iOS/Android device, native keyboard/large text và pixel-match với
-reference Public Profile riêng. Chưa gọi API thật, kiểm tra Auth spec 002 sau merge
-hoặc upload avatar. Web/mock tests không được coi là API E2E.
+Kết quả checks ngày 2026-10-09, bằng chứng lịch sử trước rebase và phần còn chưa
+kiểm chứng được tập trung trong [validation.md](validation.md).

@@ -13,6 +13,47 @@ Own editing retains the existing `PATCH /me/profile` integration. Self-preview
 projects the real own profile; other public targets and their skill lists remain
 fixtures pending API integration. No public-profile API calls are introduced here.
 
+## Profile contract checkpoint — 2026-10-09
+
+All routes below use `/api/v1`; existing Auth/session handling remains shared.
+
+| Flow | Current mobile behavior |
+| --- | --- |
+| GET `/me` | Reads own identity and nested `data.profile` through Auth spec 002. |
+| PATCH `/me/profile` | Editor sends `fullName`, `headline`, `bio`; response profile is directly in `data`. Empty headline/bio clears content. |
+| Public self-preview | Projects saved own-account fields through an explicit allowlist; no extra API call. |
+| Other public targets | Fixtures only. Backend `/profiles/:userId` exists but is not integrated in mobile. |
+| Sharing skills | Own/self list is not connected; other-target lists are fixtures. Do not interpret this as an empty real skill list. |
+| POST `/me/avatar` | Save selected image using multipart field `image`; 202 returns `assetId`/`QUARANTINED`. JPG/PNG/WebP ≤5MB. |
+| GET `/me/avatar/uploads/:assetId` | Poll by session generation; only CLEAN triggers own-account refresh. REJECTED/DELETED do not publish the draft. |
+| DELETE `/me/avatar` | Save removal draft; 204 has no body. Clear own avatar and pending tracking. |
+
+`completedSessionCount` means completed sessions, not Learning Paths; it is kept
+in the existing adapter but hidden from profile UI after the SRS 1.6 audit. The
+SRS `completedLearningPathCount` needs its own contract; no label-only substitution.
+Wallet/achievement notices show no demo balances or invented badges. Title,
+website and rating are not available profile fields in the current mobile contract.
+Avatar selection/upload/status/removal is integrated in spec 003. Backend spec FR-009
+requires automatic content validation and malware scan before replacement, without
+Staff approval. SRS PRO-004 separately allows Staff moderation after a violation.
+The earlier real upload stayed QUARANTINED. Local ClamAV has since started and
+passed PING/INSTREAM with a repo image; the full real API CLEAN journey still needs
+verification. Timezone/locale setup remains outside spec 003. Backend bio
+sanitization still needs verification; native text rendering does not establish it.
+See GAP-01..07 in [spec 003](../specs/003-profile-public-profile/spec.md).
+
+## Account settings
+
+`/account-settings` and `/account-details` require authentication. Account data
+uses the existing GET `/me` (`email`, `emailVerified`, `accountStatus`, profile).
+Signed-in password recovery uses the existing POST `/auth/password/forgot`,
+POST `/auth/password/verify-otp` and POST `/auth/password/reset`, with the current
+email fixed in the form. Reset proof stays in memory. Successful reset clears
+local credentials; failed reset preserves the session and draft. Pending reset
+is deduplicated and old-generation completion cannot expire a new session.
+POST `/auth/logout-all` remains the only all-device action, with confirmation.
+No device-list, email-change, notification preference or account-deletion API is added.
+
 ## Response envelope
 
 Backend README currently describes the API response envelope:

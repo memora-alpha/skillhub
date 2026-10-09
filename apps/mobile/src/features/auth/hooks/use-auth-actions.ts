@@ -51,7 +51,7 @@ export function useAuthActions() {
   });
   const reset = useMutation({
     ...feedback,
-    mutationFn: (input: ResetInput) => runtime.api.reset(input),
+    mutationFn: (input: ResetInput) => runtime.controller.resetPassword(input),
     onError: (error) =>
       showToast(
         isResetOutcomeUncertain(error)
