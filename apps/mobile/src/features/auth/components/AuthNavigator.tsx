@@ -5,16 +5,21 @@ import { useAuthSession } from "../context/AuthSession";
 import { passwordRecoveryStore } from "../utils/password-recovery-flow";
 
 export function AuthNavigator() {
-  const { status } = useAuthSession();
+  const { status, session, runtime } = useAuthSession();
+  const generation = runtime.controller.generation;
+  const email = session?.email.toLowerCase();
   const pathname = usePathname();
   useEffect(() => {
     if (
       !["/forgot-password", "/reset-password-code", "/reset-password"].includes(
         pathname,
-      )
+      ) ||
+      (email &&
+        passwordRecoveryStore.getState().draft &&
+        passwordRecoveryStore.getState().draft?.email !== email)
     )
       passwordRecoveryStore.getState().clear();
-  }, [pathname]);
+  }, [pathname, email, generation]);
   const authenticated = status === "authenticated";
   return (
     <Stack
@@ -30,9 +35,6 @@ export function AuthNavigator() {
         <Stack.Screen name="login" />
         <Stack.Screen name="register" />
         <Stack.Screen name="verify-email" />
-        <Stack.Screen name="forgot-password" />
-        <Stack.Screen name="reset-password-code" />
-        <Stack.Screen name="reset-password" />
       </Stack.Protected>
       <Stack.Protected guard={authenticated}>
         <Stack.Screen name="(tabs)" />
@@ -48,7 +50,11 @@ export function AuthNavigator() {
         <Stack.Screen name="proposal/[id]/index" />
         <Stack.Screen name="proposal/[id]/edit" />
         <Stack.Screen name="proposal/[id]/close" />
+        <Stack.Screen name="account-details" />
       </Stack.Protected>
+      <Stack.Screen name="forgot-password" />
+      <Stack.Screen name="reset-password-code" />
+      <Stack.Screen name="reset-password" />
     </Stack>
   );
 }

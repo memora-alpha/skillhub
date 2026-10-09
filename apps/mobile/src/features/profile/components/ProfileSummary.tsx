@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { ProfileHero } from "./ProfileHero";
 import {
@@ -24,14 +25,15 @@ const levels: Record<SkillLevel, string> = {
 export function ProfileSummary({
   profile,
   onEdit,
+  avatarNotice,
 }: {
   profile: PublicProfile;
   onEdit?: () => void;
+  avatarNotice?: ReactNode;
 }) {
   const stats = [
     { value: profile.reputationScore, label: "Uy tín" },
     { value: profile.verifiedSkillCount, label: "Kỹ năng xác minh" },
-    { value: profile.completedSessionCount, label: "Buổi hoàn thành" },
   ];
   return (
     <View style={styles.heroCard}>
@@ -42,6 +44,7 @@ export function ProfileSummary({
         avatarUrl={profile.avatarUrl}
         onEdit={onEdit}
       />
+      {avatarNotice}
       <View style={styles.stats}>
         {stats.map((stat, index) => (
           <View key={stat.label} style={styles.stat}>
