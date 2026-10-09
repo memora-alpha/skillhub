@@ -16,6 +16,7 @@ import { useAuthActions } from "../hooks/use-auth-actions";
 import { useAuthFeedback } from "../hooks/use-auth-feedback";
 import { useVerificationCooldown } from "../hooks/use-verification-cooldown";
 import { passwordRecoveryStore } from "../utils/password-recovery-flow";
+import { useAuthSession } from "../context/AuthSession";
 import {
   recoveryCodeSchema,
   type RecoveryCodeFormValues,
@@ -23,6 +24,7 @@ import {
 
 export function ResetPasswordCodeScreen() {
   const router = useRouter();
+  const { session } = useAuthSession();
   const params = useLocalSearchParams<{ sent?: string }>();
   const draft = useStore(passwordRecoveryStore, (state) => state.draft);
   const { forgot, verifyRecovery } = useAuthActions();
@@ -118,26 +120,28 @@ export function ResetPasswordCodeScreen() {
               ? `Gửi lại mã sau ${cooldown.seconds}s`
               : "Gửi lại mã"}
         </Button>
-        <Text style={authStyles.footer}>
-          Nhập nhầm email?{" "}
-          <Text
-            accessibilityRole="link"
-            style={authStyles.link}
-            onPress={() => {
-              if (!busy) passwordRecoveryStore.getState().clear();
-            }}
-          >
-            Đổi email
+        {!session && (
+          <Text style={authStyles.footer}>
+            Nhập nhầm email?{" "}
+            <Text
+              accessibilityRole="link"
+              style={authStyles.link}
+              onPress={() => {
+                if (!busy) passwordRecoveryStore.getState().clear();
+              }}
+            >
+              Đổi email
+            </Text>
           </Text>
-        </Text>
+        )}
         <Text
           accessibilityRole="link"
           style={[authStyles.link, { textAlign: "center" }]}
           onPress={() => {
-            if (!busy) router.replace("/login");
+            if (!busy) router.replace(session ? "/account-settings" : "/login");
           }}
         >
-          Quay lại đăng nhập
+          {session ? "Quay lại cài đặt" : "Quay lại đăng nhập"}
         </Text>
       </View>
     </AuthLayout>
