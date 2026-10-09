@@ -21,7 +21,7 @@ export function ProposalCard({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`Xem đề xuất từ ${proposal.partner}, ${proposalStatusLabels[proposal.status]}`}
+      accessibilityLabel={`Xem đề xuất ${proposal.direction === "sent" ? "gửi đến" : "từ"} ${proposal.partner}, ${proposalStatusLabels[proposal.status]}`}
       onPress={onPress}
       style={({ pressed }) => [styles.card, pressed && { opacity: 0.75 }]}
     >
@@ -41,6 +41,11 @@ export function ProposalCard({
       </Text>
       <Text style={styles.body} numberOfLines={2}>
         {proposal.requestTitle}
+      </Text>
+      <Text style={styles.caption}>
+        {proposal.sourceType === "DIRECT_SEARCH"
+          ? "Lời mời trực tiếp"
+          : "Phản hồi yêu cầu học"}
       </Text>
       <View style={styles.row}>
         <Badge
