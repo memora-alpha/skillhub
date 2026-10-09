@@ -1,12 +1,5 @@
 import { useState } from "react";
-import {
-  Keyboard,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Keyboard, Pressable, StyleSheet, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter, type Href } from "expo-router";
 import { AppScreenLayout } from "@/features/shell";
 import { Avatar } from "@/components/Avatar";
@@ -15,12 +8,14 @@ import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
 import { EmptyState } from "@/components/EmptyState";
 import { FormNotice } from "@/components/FormNotice";
+import { KeyboardFormScrollView } from "@/components/KeyboardFormScrollView";
 import { colors, fonts, typography, signedInChrome } from "@/constants/theme";
 import { learningRequests } from "@/features/discovery";
 import { publicProfiles } from "@/features/profile";
 import { useAuthSession } from "@/features/auth";
 import { useMockProposals } from "../context/MockProposals";
 import { demoTeachingSkills } from "../mocks/proposals";
+import { proposalFormSchema } from "../schemas/proposal-form";
 
 export function SendProposalScreen() {
   const router = useRouter();
@@ -62,21 +57,15 @@ export function SendProposalScreen() {
       : "/discover";
   const send = () => {
     const next: Record<string, string> = {};
-    if (message.trim().length < 10 || message.trim().length > 1000)
-      next.message = "Nhập lời giới thiệu từ 10 đến 1.000 ký tự.";
-    if (
-      !/^\d{1,10}(?:\.\d{1,2})?$/.test(credit.trim()) ||
-      !Number.isFinite(Number(credit)) ||
-      Number(credit) <= 0
-    )
-      next.credit =
-        "Nhập Credit lớn hơn 0, tối đa 10 chữ số nguyên và 2 chữ số thập phân.";
-    if (
-      !/^\d+$/.test(sessions.trim()) ||
-      !Number.isSafeInteger(Number(sessions)) ||
-      Number(sessions) < 1
-    )
-      next.sessions = "Nhập số buổi nguyên lớn hơn hoặc bằng 1.";
+    const parsed = proposalFormSchema.safeParse({
+      message,
+      credit,
+      sessions,
+      schedule,
+    });
+    if (!parsed.success)
+      for (const issue of parsed.error.issues)
+        next[String(issue.path[0])] = issue.message;
     if (!skills.some((skill) => skill.id === skillId))
       next.skill = "Chọn kỹ năng phù hợp.";
     if (!targetId || targetId === session?.userId)
@@ -120,7 +109,7 @@ export function SendProposalScreen() {
             onAction={() => router.dismissTo("/discover")}
           />
         ) : (
-          <ScrollView
+          <KeyboardFormScrollView
             contentContainerStyle={styles.content}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag"
@@ -275,7 +264,7 @@ export function SendProposalScreen() {
                 </Text>
               </>
             )}
-          </ScrollView>
+          </KeyboardFormScrollView>
         )
       }
     </AppScreenLayout>

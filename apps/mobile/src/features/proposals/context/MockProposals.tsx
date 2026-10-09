@@ -9,14 +9,21 @@ import {
 import { useAuthSession } from "@/features/auth";
 import { useMockMessages } from "@/features/messages";
 import { initialProposals, type DemoProposal } from "../mocks/proposals";
+import {
+  decidePendingProposal,
+  updatePendingProposal,
+  type ProposalChanges,
+} from "../utils/proposal-transitions";
 
 type ProposalDraft = Omit<DemoProposal, "id" | "direction" | "time" | "status">;
 type ProposalStore = {
   proposals: DemoProposal[];
   submit: (draft: ProposalDraft) => boolean;
+  update: (id: string, changes: ProposalChanges) => boolean;
   decide: (
     id: string,
     status: "ACCEPTED" | "REJECTED" | "WITHDRAWN",
+    localDecisionNote?: string,
   ) => boolean;
 };
 const Context = createContext<ProposalStore | null>(null);
@@ -60,34 +67,28 @@ export function MockProposalsProvider({ children }: { children: ReactNode }) {
     ]);
     return true;
   };
+  const update = (id: string, changes: ProposalChanges) => {
+    if (!session) return false;
+    const next = updatePendingProposal(current.current, id, changes);
+    if (!next) return false;
+    replace(next);
+    return true;
+  };
   const decide = (
     id: string,
     status: "ACCEPTED" | "REJECTED" | "WITHDRAWN",
+    localDecisionNote?: string,
   ) => {
     const item = current.current.find((proposal) => proposal.id === id);
-    if (
-      !session ||
-      !item ||
-      item.status !== "PENDING" ||
-      (status === "WITHDRAWN"
-        ? item.direction !== "sent"
-        : item.direction !== "received")
-    )
-      return false;
-    if (
-      status === "ACCEPTED" &&
-      item.requestId !== undefined &&
-      current.current.some(
-        (other) =>
-          other.requestId === item.requestId && other.status === "ACCEPTED",
-      )
-    )
-      return false;
-    replace(
-      current.current.map((proposal) =>
-        proposal.id === id ? { ...proposal, status } : proposal,
-      ),
+    if (!session || !item) return false;
+    const next = decidePendingProposal(
+      current.current,
+      id,
+      status,
+      localDecisionNote,
     );
+    if (!next) return false;
+    replace(next);
     if (status === "ACCEPTED")
       openConversation({
         proposal: item.id,
@@ -103,7 +104,7 @@ export function MockProposalsProvider({ children }: { children: ReactNode }) {
     return true;
   };
   return (
-    <Context.Provider value={{ proposals, submit, decide }}>
+    <Context.Provider value={{ proposals, submit, update, decide }}>
       {children}
     </Context.Provider>
   );

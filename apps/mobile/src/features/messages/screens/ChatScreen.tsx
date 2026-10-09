@@ -13,6 +13,7 @@ import { AppScreenLayout } from "@/features/shell";
 import { Avatar } from "@/components/Avatar";
 import { EmptyState } from "@/components/EmptyState";
 import { InfoModal } from "@/components/InfoModal";
+import { Button } from "@/components/Button";
 import { avatarSizes, typography, fonts } from "@/constants/theme";
 import { useAuthSession } from "@/features/auth";
 import { useMockMessages } from "../context/MockMessages";
@@ -131,6 +132,17 @@ function ChatConversation({
                   : "Bắt đầu cuộc trao đổi"}
               </Text>
               <AcceptedProposalNotice />
+              <Button
+                variant="secondary"
+                onPress={() =>
+                  router.push({
+                    pathname: "/proposal/[id]",
+                    params: { id: conversation.proposal },
+                  })
+                }
+              >
+                Xem đề xuất gốc
+              </Button>
             </View>
           }
           renderItem={({ item }) => (

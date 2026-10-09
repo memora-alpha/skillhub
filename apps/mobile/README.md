@@ -153,11 +153,26 @@ Three more screens complete the local connection flow:
   duplicate pending proposals and self-proposals; submission shows a local
   success state and opens the Sent tab on demand.
 - `/proposals`: Received, Sent, Discussing, Accepted and Closed tabs, empty
-  states and a detail dialog. Received proposals can be accepted/rejected;
-  pending sent proposals can be withdrawn. Accept opens the matching local
+  states and navigation to a dedicated detail screen. Request responses and
+  direct invitations use the same lifecycle. Received proposals can be accepted/rejected;
+  pending sent proposals can be edited or withdrawn. Accept opens the matching local
   conversation and prevents accepting another proposal for the same request.
   Discussing is a UI filter for accepted proposals with local messages, not
   an additional proposal status.
+- `/proposal/[id]`: detail for received/sent proposals and direct invitations,
+  partner public profile, known source request and original suggestions. Accepted
+  proposals reopen Chat; closed and expired proposals retain history. Chat links
+  back to the original proposal.
+- `/proposal/[id]/edit`: prefilled form for sent `PENDING` proposals only.
+  Save updates the original item; cancel discards edits. Message, Credit and session
+  validation is shared with the send form. Native forms use the existing keyboard-aware scroll.
+- `/proposal/[id]/close?action=reject|withdraw`: review before closing, required
+  local rejection reason, cancel and completion state linking to the Closed tab.
+  The reason is retained locally, without claiming delivery to another user.
+
+Proposal, send, public-profile and detail/edit/close routes are explicitly registered
+under the authenticated stack guard. Unknown IDs and invalid state/direction show
+an empty or unavailable state instead of exposing mutation controls.
 
 Proposal and conversation changes remain local to the signed-in account and
 reset when the account changes, signs out or the page reloads. Accept never holds Credit,
@@ -239,6 +254,14 @@ Created:
 - `src/features/proposals/screens/SendProposalScreen.tsx`, `src/features/proposals/screens/ProposalsScreen.tsx`
 - `src/features/proposals/components/ProposalCard.tsx`, `src/features/proposals/context/MockProposals.tsx`
 - `src/features/proposals/mocks/proposals.ts`, `src/features/proposals/index.ts`
+
+Proposal follow-up adds `src/app/proposal/[id]/{index,edit,close}.tsx`,
+`ProposalDetailScreen`, `EditProposalScreen`, `CloseProposalScreen`, `ProposalSummary`,
+shared form schemas and guarded pure transitions under `src/features/proposals`.
+It updates the inbox, send form, fixtures, account-scoped store, Chat entry point
+and authenticated route declarations. `tests/proposal-lifecycle.test.ts` verifies
+editing ownership/status, closed-state guards, duplicate acceptance and validation.
+See `docs/api-contracts.md` for the remaining Proposal integration gaps.
 
 Updated feature public exports, `AppProviders`, request-detail actions,
 the Messages proposal entry point and the message store/Chat to resolve newly

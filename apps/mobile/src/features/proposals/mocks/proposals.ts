@@ -17,6 +17,8 @@ export type DemoProposal = {
   schedule: string;
   time: string;
   status: ProposalStatus;
+  // UI-only note; no backend rejection DTO is defined yet.
+  localDecisionNote?: string;
 };
 
 export const demoTeachingSkills = [
@@ -82,4 +84,36 @@ export const initialProposals: DemoProposal[] = [
     time: item.time,
     status: "ACCEPTED",
   })),
+  {
+    id: "demo-direct-invitation",
+    direction: "received",
+    sourceType: "DIRECT_SEARCH",
+    requestTitle: "Lời mời học React từ hồ sơ công khai",
+    partnerId: "demo-hong-anh",
+    partner: "Nguyễn Hồng Anh",
+    skill: "React",
+    message:
+      "Mình muốn cùng bạn trao đổi cách xây dựng giao diện React và thực hành một dự án nhỏ vào cuối tuần.",
+    credit: "30",
+    sessions: 4,
+    schedule: "Cuối tuần, trao đổi thêm sau khi kết nối",
+    time: "Dữ liệu mẫu",
+    status: "PENDING",
+  },
+  {
+    id: "demo-expired-proposal",
+    direction: "sent",
+    sourceType: "DIRECT_SEARCH",
+    requestTitle: "Lời mời trao đổi React",
+    partnerId: "demo-thu-ha",
+    partner: "Phạm Thu Hà",
+    skill: "React",
+    message:
+      "Mình có thể chia sẻ React qua các bài tập thực hành, cùng xem lại kết quả sau mỗi buổi.",
+    credit: "40",
+    sessions: 4,
+    schedule: "Chưa thống nhất",
+    time: "Dữ liệu mẫu",
+    status: "EXPIRED",
+  },
 ];
