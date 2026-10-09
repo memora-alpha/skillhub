@@ -139,10 +139,51 @@ detail copy only for React; the other requests keep their own known fields and
 use marked missing-content placeholders. Session dates, partner, duration and
 Credit match the selected sample calendar entry.
 
-Proposal handling, posting requests, public profiles, choosing agreements,
-file attachments, schedule-change forms, reports and live classrooms remain
-pending. Their actions open local notices; they do not create business records
-or move Credit. Online/typing indicators are fixtures from the design.
+Three more screens complete the local connection flow:
+
+- `/user/[id]`: public profile, public Sharing Skills/verification labels and
+  sample reviews. Request detail opens the correct poster by ID and carries
+  the request into the proposal form. Profiles with limited source content
+  show missing-data copy rather than another user's biography. Email, phone,
+  payment information and private evidence are never shown.
+- `/send-proposal`: reply to a request or send a direct invitation from a
+  public profile. The form validates a 10–1000-character message, positive
+  Credit with at most two decimal places and a positive integer session count.
+  Replies require a matching skill in the demo Sharing Skills. It prevents
+  duplicate pending proposals and self-proposals; submission shows a local
+  success state and opens the Sent tab on demand.
+- `/proposals`: Received, Sent, Discussing, Accepted and Closed tabs, empty
+  states and navigation to a dedicated detail screen. Request responses and
+  direct invitations use the same lifecycle. Received proposals can be accepted/rejected;
+  pending sent proposals can be edited or withdrawn. Accept opens the matching local
+  conversation and prevents accepting another proposal for the same request.
+  Discussing is a UI filter for accepted proposals with local messages, not
+  an additional proposal status.
+- `/proposal/[id]`: detail for received/sent proposals and direct invitations,
+  partner public profile, known source request and original suggestions. Accepted
+  proposals reopen Chat; closed and expired proposals retain history. Chat links
+  back to the original proposal.
+- `/proposal/[id]/edit`: prefilled form for sent `PENDING` proposals only.
+  Save updates the original item; cancel discards edits. Message, Credit and session
+  validation is shared with the send form. Native forms use the existing keyboard-aware scroll.
+- `/proposal/[id]/close?action=reject|withdraw`: review before closing, required
+  local rejection reason, cancel and completion state linking to the Closed tab.
+  The reason is retained locally, without claiming delivery to another user.
+
+Proposal, send, public-profile and detail/edit/close routes are explicitly registered
+under the authenticated stack guard. Unknown IDs and invalid state/direction show
+an empty or unavailable state instead of exposing mutation controls.
+
+Proposal and conversation changes remain local to the signed-in account and
+reset when the account changes, signs out or the page reloads. Accept never holds Credit,
+locks a schedule or creates a Session. Credit, session count and free-text
+availability in a proposal remain suggestions for subsequent negotiation.
+The provider is composed under `MockMessagesProvider` in `AppProviders`.
+
+Posting requests, choosing agreements, file attachments, schedule-change
+forms, reports and live classrooms remain pending. Their actions open local
+notices; they do not create business records or move Credit. Online/typing
+indicators are fixtures from the design.
 
 Photo selection and the linked wallet, skill management, achievements, reviews
 remain pending. Links to unfinished screens show a local notice. Account
@@ -189,6 +230,7 @@ safe-area insets and narrower header button padding on small phones.
 - `src/features/discovery/`: request list, filters, request detail and sample content.
 - `src/features/calendar/`: month grid, history, session detail and sample schedule.
 - `src/features/messages/`: conversation list, chat and session-scoped local messages.
+- `src/features/proposals/`: send form, proposal inbox/detail, fixtures and session-scoped local proposal state.
 - `src/features/shell/`: signed-in header, account menu, search, navigation and screen shell.
 - `src/components/`: generic native controls and dialogs shared across features.
 - `src/constants/`: design tokens and shared navigation labels.
@@ -202,6 +244,30 @@ supplies safe areas, navigation, notices, account menu and logout. Each feature
 owns its scroll container and exposes its public screen API through `index.ts`.
 Keep screen implementations in their features and route files limited to navigation.
 See `AGENTS.md` for the UI-only implementation rules.
+
+## Public profile and Proposal file inventory
+
+Created:
+
+- `src/app/user/[id].tsx`, `src/app/send-proposal.tsx`, `src/app/proposals.tsx`
+- `src/features/profile/screens/PublicProfileScreen.tsx`, `src/features/profile/mocks/publicProfiles.ts`
+- `src/features/proposals/screens/SendProposalScreen.tsx`, `src/features/proposals/screens/ProposalsScreen.tsx`
+- `src/features/proposals/components/ProposalCard.tsx`, `src/features/proposals/context/MockProposals.tsx`
+- `src/features/proposals/mocks/proposals.ts`, `src/features/proposals/index.ts`
+
+Proposal follow-up adds `src/app/proposal/[id]/{index,edit,close}.tsx`,
+`ProposalDetailScreen`, `EditProposalScreen`, `CloseProposalScreen`, `ProposalSummary`,
+shared form schemas and guarded pure transitions under `src/features/proposals`.
+It updates the inbox, send form, fixtures, account-scoped store, Chat entry point
+and authenticated route declarations. `tests/proposal-lifecycle.test.ts` verifies
+editing ownership/status, closed-state guards, duplicate acceptance and validation.
+See `docs/api-contracts.md` for the remaining Proposal integration gaps.
+
+Updated feature public exports, `AppProviders`, request-detail actions,
+the Messages proposal entry point and the message store/Chat to resolve newly
+accepted conversations. These local flows now use the shared authenticated
+session and are nested under the auth/session gate. Proposal and Chat API
+integration remains pending.
 
 ## Discovery, calendar and messages file inventory
 
