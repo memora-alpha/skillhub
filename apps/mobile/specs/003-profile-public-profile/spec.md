@@ -14,7 +14,7 @@ và dữ liệu của người đang xem phải tách biệt với hồ sơ đan
 
 Nguồn nghiệp vụ là [SRS V1.6](../../../../docs/SRS_SkillHub_V1.6_VietLai_DongBoNghiepVu.docx),
 FR-PRO-01/02/03, PRO-001/002/003, mục 18.7, BR-31 và FR-REV-04.
-Spec tuân thủ [AGENTS.md mobile](../../AGENTS.md),
+Spec tuân thủ [AGENTS.md repository](../../../../AGENTS.md),
 [domain rules](../../docs/domain-rules.md) và
 [API contracts](../../docs/api-contracts.md).
 [Plan](plan.md) ghi cách triển khai, dependencies và bằng chứng kiểm chứng.
@@ -47,8 +47,10 @@ không tạo bản ghi nghiệp vụ hoặc thông báo thành công giả.
 
 Theo yêu cầu bổ sung, sắp xếp lại own profile và Cài đặt: chuyển thông tin riêng
 tư vào mục Tài khoản, thêm đặt lại mật khẩu qua luồng OTP hiện có, quản lý đăng
-xuất, thông tin quyền riêng tư, trợ giúp và phiên bản app. Không thêm API hoặc
-chức năng đổi email, xóa tài khoản, tùy chọn thông báo khi chưa có hợp đồng.
+xuất, trợ giúp, giới thiệu và phiên bản app. Thông tin hồ sơ công khai được gộp
+vào Trợ giúp; Giới thiệu SkillHub giữ riêng, không có mục Quyền riêng tư.
+Thêm entry Múi giờ/Ngôn ngữ/Thông báo để triển khai sau: disabled, ghi “Sắp có”,
+không có form hoặc lưu lựa chọn. Không thêm API hay chức năng đổi email/xóa tài khoản.
 
 ## 3. Luồng người dùng
 
@@ -64,6 +66,8 @@ thông tin của đúng tài khoản đang hoạt động.
   hợp lệ; không thay bằng số mẫu hoặc tính từ các màn learning demo.
 - **FR-03:** Không hiển thị `completedSessionCount` trên own/public profile.
   Chưa có contract số Learning Path hoàn thành; không đổi nhãn số buổi thành số path.
+  Thêm ô “Lộ trình hoàn thành” hiển thị “—”/“Sắp có” ở own/public self-preview,
+  không gán 0 hoặc suy ra giá trị khi chưa có dữ liệu hỗ trợ.
 - **FR-04:** Nội dung optional đã xóa giữ nguyên nghĩa rỗng; bio rỗng có thông báo
   “Chưa có giới thiệu”. Avatar thiếu dùng fallback theo identity hiện có.
 - **FR-05:** Email chỉ thuộc ngữ cảnh riêng tư của own account. Bỏ huy hiệu mẫu
@@ -103,8 +107,8 @@ Người dùng sửa tên, dòng giới thiệu và bio, lưu hoặc hủy mà k
 - **FR-12:** Hủy hoặc back khi không pending bỏ draft và quay về `/profile`.
   Vào lại editor lấy dữ liệu đã lưu. Logout/đổi tài khoản bỏ draft cũ; response,
   callback hoặc timer của phiên cũ không cập nhật cache, UI hoặc điều hướng phiên mới.
-- **FR-13:** “Thay ảnh đại diện” chỉ mở notice về phần chưa hỗ trợ. Không thay
-  ảnh cục bộ như thể đã upload hoặc tạo URL riêng tư giả.
+- **FR-13:** Thay ảnh đại diện dùng chọn/preview/upload và theo dõi trạng thái
+  theo FR-23..25. Preview draft không được coi là avatar đã công bố.
 
 **Nghiệm thu độc lập:** Sửa/lưu rồi mở lại, xóa headline/bio, hủy draft, lưu lặp,
 API lỗi và đổi phiên khi request đang chạy đều giữ đúng dữ liệu và identity.
@@ -154,13 +158,22 @@ không tồn tại và retry đều có đúng identity, nội dung và trạng 
   trắng, avatar 64px, public preview riêng; grid hai cột (Ví Credit, Tài liệu của tôi,
   Thành tích, Xác minh kỹ năng, Đánh giá, Cài đặt) rồi giới thiệu/kỹ năng.
   Bỏ huy hiệu mẫu và số dư demo. Thông tin riêng tư giữ trong Cài đặt → Tài khoản.
-- **FR-27:** Cài đặt có Tài khoản (tên/email/xác minh/trạng thái từ own identity),
+  Summary có uy tín/kỹ năng xác minh và ô Lộ trình hoàn thành “—”/“Sắp có”.
+  Own hero có “Danh hiệu · Sắp có”; chưa chọn/hiển thị danh hiệu thật trên public.
+  Số Learning Path và danh hiệu chờ contract hỗ trợ. Header mobile bỏ avatar/menu tài khoản, dùng tab Hồ sơ;
+  màn Hồ sơ có tiêu đề và chuông, màn con có nút quay lại. Web rộng ≥640px giữ menu.
+- **FR-27:** Cài đặt có Tài khoản (email/xác minh/trạng thái từ own identity),
+  email là thông tin chính; trạng thái dùng nhãn rõ ràng, có ghi chú riêng tư.
+  Màn chỉ đọc không lặp tên hoặc nút chỉnh sửa hồ sơ.
   Đặt lại mật khẩu qua OTP email, đăng xuất phiên hiện tại/tất cả thiết bị.
   Nút đăng xuất phiên hiện tại nổi bật với nền đỏ nhạt, viền và biểu tượng đỏ.
   Reset chỉ thành công sau token hợp lệ; xóa credential cục bộ sau reset thành
   công từ phiên signed-in, không để callback cũ ảnh hưởng account mới.
-- **FR-28:** Thông tin quyền riêng tư mô tả dữ liệu hồ sơ được công khai, không
-  giả làm chính sách pháp lý. Trợ giúp/giới thiệu dùng nội dung tĩnh và version app.
+- **FR-28:** Cài đặt gồm nhóm Tài khoản và bảo mật, Tùy chọn ứng dụng, Thông tin
+  và hỗ trợ và nút Đăng xuất. Tùy chọn ứng dụng có Múi giờ, Ngôn ngữ, Thông báo;
+  cả ba disabled, ghi “Sắp có”, không có mũi tên hoặc thao tác/lưu lựa chọn.
+  Trợ giúp gộp hướng dẫn và thông tin hồ sơ được công khai; Giới thiệu SkillHub là
+  mục riêng. Không có mục Quyền riêng tư. Version app hiển thị ở cuối trang.
 
 ## 4. Ranh giới dữ liệu và quyền riêng tư
 
@@ -215,7 +228,9 @@ không bắt buộc đều xuất hiện thành một section UI.
 - **AC-16:** Hồ sơ sắp xếp theo summary → grid shortcut hai cột → bio → skills,
   Thông tin riêng tư nằm ở Cài đặt; không có huy hiệu mẫu, số dư demo hoặc số buổi;
   width 320/430/900 không tràn ngang.
-- **AC-17:** Cài đặt mở Tài khoản đúng own identity, privacy/help/version; đăng xuất
+- **AC-17:** Header mobile không có avatar, tab Hồ sơ/shortcut vẫn truy cập được;
+  web rộng giữ menu tài khoản. Cài đặt mở Tài khoản đúng own identity, Trợ giúp,
+  Giới thiệu SkillHub và version; không có mục Quyền riêng tư. Đăng xuất
   hiện tại/tất cả có xác nhận, hủy không gửi request, lỗi có thể thử lại.
 - **AC-18:** Đặt lại mật khẩu từ signed-in dùng email hiện tại/OTP/reset token;
   lỗi giữ form/phiên, lưu trùng chỉ một request, thành công trở về đăng nhập.
@@ -235,9 +250,9 @@ FR-PRO hoàn tất khi các phần ngoài phạm vi vẫn còn pending.
 | Mã     | Điểm còn thiếu                                                                    | Cách xử lý trong spec này                                                                                                |
 | ------ | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
 | GAP-01 | API public profile và skill list chưa được mobile tích hợp                        | Giữ fixture cho target khác; own/self skill list ghi chưa kết nối. API backend đã có không đồng nghĩa mobile đã gọi.     |
-| GAP-02 | SRS có `completedLearningPathCount`, contract hiện tại có `completedSessionCount` | Ẩn số buổi trên profile; không ánh xạ thay số path. Field/count path cần contract riêng.                                 |
+| GAP-02 | SRS có `completedLearningPathCount`, contract hiện tại có `completedSessionCount` | Ẩn số buổi; ô Lộ trình hoàn thành chỉ “—”/“Sắp có”, không ánh xạ số path. Count thật cần contract riêng.                 |
 | GAP-03 | SRS yêu cầu sanitize bio; chưa có bằng chứng sanitizer trong update path đã đọc   | Render text thuần ở mobile và ghi gap; không sửa backend trong task mobile.                                              |
-| GAP-04 | Timezone/locale setup và selected title chưa có UI trong phạm vi                  | Giữ notice/không suy đoán; avatar đã được bổ sung theo yêu cầu.                                                          |
+| GAP-04 | Timezone/locale setup và chọn selected title chưa được triển khai                 | Entry Cài đặt và Danh hiệu chỉ “Sắp có”, không lưu lựa chọn hoặc gán danh hiệu. Avatar đã được bổ sung theo yêu cầu.     |
 | GAP-05 | Website, rating, learned/taught totals chưa có profile contract                   | Không dùng field/counter khác thay thế; không đưa lên public view.                                                       |
 | GAP-06 | Pending Back native, iOS/thiết bị thật và Public Profile Figma riêng              | LAN/CORS trực tiếp và Android keyboard/save/reopen/chữ lớn 130% đã kiểm chứng; các mục còn lại theo checklist.           |
 | GAP-07 | Real avatar scan chưa hoàn tất trên môi trường local                              | Lần upload trước còn QUARANTINED sau 90 giây. ClamAV local đã bật, PING/INSTREAM đạt; cần xác nhận toàn luồng API CLEAN. |

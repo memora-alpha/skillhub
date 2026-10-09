@@ -9,7 +9,7 @@ Cập nhật: 2026-10-09. Phạm vi theo [spec](spec.md), nghiệm thu theo
 | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Typecheck / lint           | Pass.                                                                                                                                                                        |
 | Structure                  | Pass, 185 source files; không vượt giới hạn dòng.                                                                                                                            |
-| `npm test`                 | 81 pass; gồm auth/profile/avatar/reset và 6 tests proposal lifecycle từ dev.                                                                                                 |
+| `npm test`                 | 84 pass; gồm auth/profile/avatar/reset, proposal lifecycle và 3 tests bảo vệ text native.                                                                                    |
 | Browser với API local thật | Login/own identity; save/reopen/clear persistence; invalid/no-change không gửi; cancel bỏ draft; self-preview dùng hồ sơ đã lưu.                                             |
 | Browser với HTTP fixtures  | Unicode validation, pending/back/lưu trùng, 400/503/network và retry; public targets/empty/unavailable/retry; menu viewer; logout/đổi account trong lúc lưu.                 |
 | Responsive web             | Own editor/self-preview ở width 320/375/430 không tràn ngang; đã xem screenshots 320 và 430.                                                                                 |
@@ -88,6 +88,47 @@ public profile → gửi đề xuất → detail/profile và chấp nhận → c
 đạt, 0 runtime errors. Helpers/build output ở `.expo/` ignored. Các mục native,
 OTP email thật và real avatar CLEAN bên dưới vẫn chưa được nghiệm thu lại.
 
+## Tinh chỉnh màn Tài khoản (2026-10-09)
+
+Email đăng nhập là thông tin chính; xác minh email và trạng thái tài khoản dùng
+nhãn màu. Bỏ tên/nút chỉnh sửa hồ sơ lặp, giữ ghi chú riêng tư và quay về Cài đặt.
+Typecheck/lint/structure và 81 tests đạt. Browser verified/unverified/email dài
+ở width 320/430/900 không tràn hoặc cắt email; không còn nút chỉnh sửa hồ sơ,
+back và các luồng cài đặt/reset/logout đạt, 0 runtime errors. Đã xem screenshots
+verified/email dài ở 320. Chưa QA lại trên native; không thay API.
+
+## Sửa lỗi text native (2026-10-09)
+
+Nội dung thông báo dự phòng ở ProfileLayout và AppScreenLayout trả chuỗi trực
+tiếp trong ScrollView; đã bọc bằng Text. Test cây render tái hiện lỗi ở cả hai
+component trước sửa và đạt sau sửa. Typecheck/lint/structure, 84 tests và browser
+profile/settings/recovery/logout đạt; không có lỗi runtime hoặc cảnh báo raw text.
+Không có thiết bị Android kết nối để kiểm tra lại trực tiếp trên native.
+
+## Tinh gọn header và Cài đặt (2026-10-09)
+
+Header mobile bỏ avatar/menu và logo cạnh tiêu đề; màn Hồ sơ có tiêu đề/chuông,
+màn con giữ Back. Web ≥640px giữ menu tài khoản. Profile giữ Điểm uy tín và
+Kỹ năng đã xác minh; không thêm thống kê thiếu contract. Cài đặt gộp Tài khoản
+và bảo mật; bỏ mục Quyền riêng tư, đưa thông tin công khai vào Trợ giúp.
+Giới thiệu SkillHub vẫn là mục riêng; giữ version và nút đăng xuất đỏ.
+
+Typecheck/lint/structure và 84 tests đạt. Browser 320/430/900 và breakpoint 639/640
+đạt: tab Hồ sơ/shortcut, edit/self-preview/Back, menu web, Trợ giúp/Giới thiệu,
+reset OTP và đăng xuất hiện tại/tất cả; không tràn ngang, 0 runtime/raw-text errors.
+Đã xem screenshots profile/settings/help ở 320. Chưa QA lại trực tiếp trên native.
+
+Thêm nhóm Tùy chọn ứng dụng với Múi giờ/Ngôn ngữ/Thông báo, disabled và ghi
+“Sắp có”; không có mũi tên hoặc handler. Browser xác nhận chạm không mở dialog/gửi
+request, 320/430/900 không tràn; reset/logout vẫn đạt, 0 runtime errors. Đã xem
+screenshot 320. Typecheck/lint/structure và 84 tests đạt; chức năng tùy chọn còn pending.
+
+Profile bổ sung ô Lộ trình hoàn thành “—”/“Sắp có” và dòng Danh hiệu chờ triển
+khai trên own hero. Browser own/self-preview 320/430/900 đạt, không dùng số buổi
+12 trong fixture làm count lộ trình, không có danh hiệu giả trên public; đã xem
+screenshots 320. Regression cài đặt/reset/logout, typecheck/lint/structure và
+84 tests đạt, 0 runtime errors. Count thật/chọn danh hiệu và QA native còn pending.
+
 ## Điều kiện kiểm thử
 
 - Lần đầu: preview `http://localhost:8084`, API local cổng 3001 qua transport proxy
@@ -116,15 +157,18 @@ OTP email thật và real avatar CLEAN bên dưới vẫn chưa được nghiệ
 
 ## Phần còn mở
 
-Review trước commit/push (2026-10-09): typecheck/lint/structure, 75 mobile tests,
-6 commit-scope tests, Prettier, diff whitespace và pnpm frozen lockfile đạt.
-Production Expo web export đạt; output nằm trong `.expo/` ignored. Fetch xác nhận
-`origin/dev` tại `1b5b423`, nhánh hiện tại `ac4590d` thiếu 5 commit và có 1 commit
-riêng. Mô phỏng merge hai HEAD phát hiện conflict ở profile/index.ts,
-PublicProfileScreen.tsx và AppProviders.tsx do dev thêm public profile/proposals.
-Chưa áp dụng merge vào working tree; kết quả checks hiện tại chưa xác minh bản
-đã kết hợp với dev. Root `.expo/` và `tsconfig.json` là file local ngoài scope,
-không đưa vào commit này. Real CLEAN/native vẫn còn các mục bên dưới.
+Việc tích hợp dev và giữ hai luồng public profile đã hoàn tất (xem mục Tích hợp
+với dev ở trên); merge reconcile history tại `ce30cf9` không còn conflict.
+Các thay đổi UI hiện tại chỉ nằm trong mobile, không sửa backend hoặc dependency.
+Helpers/screenshots/export ở `.expo/` ignored. Các mục real CLEAN/native và
+API chưa tích hợp bên dưới vẫn còn mở, không coi entry “Sắp có” là chức năng hoàn tất.
+
+Review trước commit UI (2026-10-09): typecheck/lint/structure, 84 mobile tests,
+6 commit-scope tests, Prettier toàn bộ file thay đổi, diff whitespace và conflict
+markers đạt. Production web export đạt (1638 modules). Browser account verified/
+unverified/email dài 320/430/900 đạt sau khi chạy riêng lại; profile/settings/
+reset/logout và các entry “Sắp có” đã đạt ở lần kiểm tra bản source cuối.
+Chưa kiểm tra lại trên native; không commit/push trong bước review này.
 
 - Pending hardware Back native; iOS/thiết bị thật và Public Profile Figma riêng.
 - Native gallery/upload avatar; real CLEAN sau khi ClamAV hoạt động.

@@ -66,29 +66,17 @@ Add Expo packages with `npx expo install <package> --npm` to use SDK-compatible
 versions. Keep both `apps/mobile/package-lock.json` for independent npm installs
 and the root `pnpm-lock.yaml` for monorepo tooling.
 
-## Current scope
+## Feature overview
 
-- Authentication uses the identity API for registration, email verification,
-  login, password recovery and session management.
-- Own profile supports editing name, headline and bio, plus avatar upload and
-  removal. A new avatar appears after backend checks return `CLEAN`; pending or
-  failed checks use toasts. The backend scanning service must be configured.
-- Settings includes account information, password recovery, current-device and
-  all-device logout, privacy information, help and app version.
-- Public self-preview at `/profiles/[userId]` uses saved account fields with private
-  information removed. Request/proposal profiles at `/user/[id]` retain sample
-  skills, reviews and the send-proposal entry point.
-  Other public profiles use fixtures; public-profile API and skill integration
-  remain pending.
-- Proposals support local sending, editing, withdrawal, acceptance/rejection and
-  navigation to chat. Proposal and chat state resets with the account session;
-  acceptance does not create sessions or hold Credit. Their APIs remain pending.
-- Learning requests, calendar and chat use local sample content. Wallet,
-  documents, achievements, skill verification and reviews are entry points with
-  notices while their integrations remain pending.
+The app covers account access, profiles and skill-exchange learning flows.
+Authentication, own profile and account settings connect to the SkillHub API.
+Some other flows still use sample data or local state while integration is in
+progress.
 
-See the [feature matrix](docs/feature-matrix.md) for integration status and
-[API contracts](docs/api-contracts.md) for supported operations and contract gaps.
+See the [feature matrix](docs/feature-matrix.md) and
+[API contracts](docs/api-contracts.md) for integration scope. Feature behavior,
+pending work and test results belong in the [specs](specs/), tasks, checklists
+and validation documents linked below.
 
 ## Project layout
 

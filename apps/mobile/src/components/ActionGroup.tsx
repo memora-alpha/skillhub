@@ -43,22 +43,24 @@ export function ActionRow({
   icon: IconName;
   label: string;
   description?: string;
-  onPress: () => void;
+  onPress?: () => void;
   disabled?: boolean;
   destructive?: boolean;
   iconTint?: Readonly<{ foreground: string; background: string }>;
 }>) {
+  const inactive = disabled || !onPress;
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityHint={description}
-      disabled={disabled}
+      accessibilityState={{ disabled: inactive }}
+      disabled={inactive}
       onPress={onPress}
       style={({ pressed }) => [
         styles.row,
         pressed && styles.pressed,
-        disabled && styles.disabled,
+        inactive && styles.disabled,
       ]}
     >
       <View
@@ -87,7 +89,7 @@ export function ActionRow({
         </Text>
         {!!description && <Text style={styles.description}>{description}</Text>}
       </View>
-      <Icon name="chevron" size={16} color={colors.muted} />
+      {!!onPress && <Icon name="chevron" size={16} color={colors.muted} />}
     </Pressable>
   );
 }

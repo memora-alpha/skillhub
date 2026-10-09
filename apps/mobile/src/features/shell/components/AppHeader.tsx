@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import {
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -45,6 +46,7 @@ export function AppHeader({
 }: AppHeaderProps) {
   const { width } = useWindowDimensions();
   const home = appearance === "home";
+  const compact = Platform.OS !== "web" || width < 640;
   return (
     <View
       style={[
@@ -66,7 +68,7 @@ export function AppHeader({
             <Icon name="arrow" size={20} color={colors.muted} />
           </View>
         </Pressable>
-      ) : (
+      ) : !compact || !title ? (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="SkillHub — trang chủ"
@@ -78,7 +80,7 @@ export function AppHeader({
             markOnly={!!title && width < 480}
           />
         </Pressable>
-      )}
+      ) : null}
       {title && (
         <Text
           style={[styles.title, home && styles.homeTitle, { flex: 1 }]}
@@ -89,7 +91,7 @@ export function AppHeader({
       )}
       {!title && <View style={{ flex: 1 }} />}
       <View style={styles.headerActions}>
-        {width >= 640 && (
+        {!compact && (
           <Pressable
             style={styles.iconButton}
             accessibilityRole="button"
@@ -120,20 +122,22 @@ export function AppHeader({
           </View>
         </Pressable>
         {rightAction}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Mở menu tài khoản"
-          onPress={onAccount}
-          style={{ marginLeft: 4 }}
-          hitSlop={6}
-        >
-          <Avatar
-            name={profile.name}
-            userId={profile.userId}
-            size={avatarSizes.compact}
-            sourceUri={profile.avatarUrl}
-          />
-        </Pressable>
+        {!compact && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Mở menu tài khoản"
+            onPress={onAccount}
+            style={{ marginLeft: 4 }}
+            hitSlop={6}
+          >
+            <Avatar
+              name={profile.name}
+              userId={profile.userId}
+              size={avatarSizes.compact}
+              sourceUri={profile.avatarUrl}
+            />
+          </Pressable>
+        )}
       </View>
     </View>
   );
