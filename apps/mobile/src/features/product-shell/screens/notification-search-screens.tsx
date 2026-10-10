@@ -1,0 +1,152 @@
+import { useState } from "react";
+import { useRouter } from "expo-router";
+import { Input } from "@/components/Input";
+import { Button } from "@/components/Button";
+import { Badge } from "@/components/Badge";
+import { EmptyState } from "@/components/EmptyState";
+import { ChoiceGroup } from "@/components/choice-group";
+import { Avatar } from "@/components/Avatar";
+import {
+  FeaturePage,
+  Panel,
+  Copy,
+  RouteButton,
+} from "@/components/feature-page";
+import { publicProfiles } from "@/features/profile";
+import { learningRequests } from "@/features/discovery";
+import { useProductPreview } from "../context";
+export function NotificationsScreen() {
+  const { notifications, read, enabled } = useProductPreview();
+  const [filter, setFilter] = useState("Tất cả");
+  const router = useRouter();
+  const items = notifications.filter(
+    (n) => enabled.includes(n.group) && (filter === "Tất cả" || !n.read),
+  );
+  return (
+    <FeaturePage title="Thông báo" back="/home">
+      <ChoiceGroup
+        label="Hiển thị"
+        options={["Tất cả", "Chưa đọc"]}
+        value={filter}
+        onChange={setFilter}
+      />
+      <Button variant="paper" onPress={() => read()}>
+        Đánh dấu tất cả đã đọc
+      </Button>
+      {items.map((n) => (
+        <Panel key={n.id} title={n.title}>
+          <Badge label={n.read ? "Đã đọc" : "Mới"} />
+          <Copy>{n.body}</Copy>
+          <Button
+            variant="paper"
+            onPress={() => {
+              read(n.id);
+              router.push(n.href);
+            }}
+          >
+            Xem nội dung liên quan
+          </Button>
+        </Panel>
+      ))}
+      {!items.length && (
+        <EmptyState
+          title="Không có thông báo"
+          description="Bạn đã xem hết hoặc nhóm thông báo này đã tắt trong bản xem thử."
+        />
+      )}
+      <RouteButton secondary href="/preferences/notifications">
+        Tùy chỉnh thông báo mẫu
+      </RouteButton>
+    </FeaturePage>
+  );
+}
+export function SearchScreen() {
+  const [query, setQuery] = useState("");
+  const [tab, setTab] = useState("Người chia sẻ");
+  const [verified, setVerified] = useState(false);
+  const users = publicProfiles.filter(
+    (p) =>
+      p.skills.length &&
+      `${p.name} ${p.skills.map((s) => s.name).join(" ")}`
+        .toLowerCase()
+        .includes(query.toLowerCase()) &&
+      (!verified || p.skills.some((s) => s.verified)),
+  );
+  const requests = learningRequests.filter((r) =>
+    `${r.title} ${r.tags.join(" ")}`
+      .toLowerCase()
+      .includes(query.toLowerCase()),
+  );
+  return (
+    <FeaturePage
+      title="Tìm kiếm"
+      back="/home"
+      subtitle="Kết nối với người có kỹ năng bạn muốn học."
+    >
+      <Input
+        label="Tên người hoặc kỹ năng"
+        value={query}
+        onChangeText={setQuery}
+      />
+      <ChoiceGroup
+        label="Tìm trong"
+        options={["Người chia sẻ", "Yêu cầu học"]}
+        value={tab}
+        onChange={setTab}
+      />
+      {tab === "Người chia sẻ" ? (
+        <>
+          <Button variant="paper" onPress={() => setVerified((v) => !v)}>
+            {verified ? "Đang lọc: đã xác minh" : "Chỉ kỹ năng đã xác minh"}
+          </Button>
+          {users.map((p) => (
+            <Panel key={p.id} title={p.name}>
+              <Avatar name={p.name} userId={p.id} size={48} />
+              <Copy>
+                {p.skills
+                  .map(
+                    (s) =>
+                      `${s.name}${s.verified ? " · đã xác minh" : " · chưa xác minh"}`,
+                  )
+                  .join("\n")}
+              </Copy>
+              <RouteButton secondary href={`/user/${p.id}`}>
+                Xem hồ sơ
+              </RouteButton>
+              <RouteButton
+                href={{ pathname: "/send-proposal", params: { userId: p.id } }}
+              >
+                Gửi lời mời trao đổi
+              </RouteButton>
+            </Panel>
+          ))}
+          {!users.length && (
+            <EmptyState
+              title="Không tìm thấy người chia sẻ"
+              description="Thử kỹ năng khác hoặc tắt bộ lọc xác minh."
+            />
+          )}
+        </>
+      ) : (
+        <>
+          {requests.map((r) => (
+            <Panel key={r.id} title={r.title}>
+              <Copy>
+                {r.user} · {r.tags.join(", ")}
+              </Copy>
+              <RouteButton secondary href={`/request/${r.id}`}>
+                Xem yêu cầu
+              </RouteButton>
+            </Panel>
+          ))}
+          {!requests.length && (
+            <EmptyState
+              title="Không tìm thấy yêu cầu"
+              description="Thử từ khóa khác."
+            />
+          )}
+        </>
+      )}
+    </FeaturePage>
+  );
+}
