@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Icon } from "@/components/Icon";
 import { typography, fonts } from "@/constants/theme";
-import { calendarPeriod, weekDays } from "../mocks/calendar";
+import { weekDays } from "../mocks/calendar";
 import {
   calendarCardShadow,
   calendarColors as colors,
@@ -11,17 +11,22 @@ type CalendarCell = Readonly<{ key: string; day: number | null }>;
 
 export function MonthCalendar({
   month,
+  year,
+  sessionDays,
   selectedDay,
   onMonthChange,
   onDayPress,
 }: {
   month: number;
+  year: number;
+  sessionDays: number[];
   selectedDay: number | null;
   onMonthChange: (month: number) => void;
   onDayPress: (day: number) => void;
 }) {
-  const firstWeekDay = new Date(calendarPeriod.year, month, 1).getDay();
-  const dayCount = new Date(calendarPeriod.year, month + 1, 0).getDate();
+  const firstWeekDay = new Date(year, month, 1).getDay();
+  const dayCount = new Date(year, month + 1, 0).getDate();
+  const currentDate = new Date();
   const cells: CalendarCell[] = Array.from(
     { length: Math.ceil((firstWeekDay + dayCount) / 7) * 7 },
     (_, position) => {
@@ -41,34 +46,26 @@ export function MonthCalendar({
           accessibilityRole="button"
           hitSlop={6}
           accessibilityLabel="Tháng trước"
-          accessibilityState={{ disabled: month === calendarPeriod.firstMonth }}
-          disabled={month === calendarPeriod.firstMonth}
           onPress={() => onMonthChange(month - 1)}
           style={styles.arrow}
         >
           <View
             style={{
               transform: [{ rotate: "180deg" }],
-              opacity: month === calendarPeriod.firstMonth ? 0.3 : 1,
             }}
           >
             <Icon name="chevron" color={colors.muted} size={18} />
           </View>
         </Pressable>
         <Text accessibilityRole="header" style={styles.month}>
-          Tháng {month + 1}, {calendarPeriod.year}
+          Tháng {month + 1}, {year}
         </Text>
         <Pressable
           accessibilityRole="button"
           hitSlop={6}
           accessibilityLabel="Tháng sau"
-          accessibilityState={{ disabled: month === calendarPeriod.lastMonth }}
-          disabled={month === calendarPeriod.lastMonth}
           onPress={() => onMonthChange(month + 1)}
-          style={[
-            styles.arrow,
-            month === calendarPeriod.lastMonth && { opacity: 0.3 },
-          ]}
+          style={[styles.arrow]}
         >
           <Icon name="chevron" color={colors.muted} size={18} />
         </Pressable>
@@ -88,18 +85,17 @@ export function MonthCalendar({
               if (day === null)
                 return <View key={cell.key} style={styles.cell} />;
               const today =
-                month === calendarPeriod.initialMonth &&
-                day === calendarPeriod.today;
-              const hasSession =
-                month === calendarPeriod.initialMonth &&
-                calendarPeriod.sessionDays.includes(day);
+                month === currentDate.getMonth() &&
+                year === currentDate.getFullYear() &&
+                day === currentDate.getDate();
+              const hasSession = sessionDays.includes(day);
               const selected = selectedDay === day;
               return (
                 <View key={cell.key} style={styles.cell}>
                   <Pressable
                     accessibilityRole="button"
                     hitSlop={4}
-                    accessibilityLabel={`${day}/${month + 1}/${calendarPeriod.year}${hasSession ? ", có buổi học" : ""}${today ? ", hôm nay trong bản mẫu" : ""}`}
+                    accessibilityLabel={`${day}/${month + 1}/${year}${hasSession ? ", có buổi học" : ""}${today ? ", hôm nay" : ""}`}
                     accessibilityState={{ selected }}
                     aria-pressed={selected}
                     onPress={() => onDayPress(day)}

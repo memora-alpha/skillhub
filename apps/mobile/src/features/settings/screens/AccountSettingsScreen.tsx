@@ -61,20 +61,26 @@ export function AccountSettingsScreen() {
               <ActionRow
                 icon="clock"
                 label="Múi giờ"
-                description="Sắp có · Giờ hiển thị lịch học"
-                disabled
+                description="Xem lựa chọn và đồng hồ mẫu"
+                onPress={() => router.push("/preferences/timezone")}
               />
               <ActionRow
                 icon="book"
                 label="Ngôn ngữ"
-                description="Sắp có · Tiếng Việt / English"
-                disabled
+                description="Tiếng Việt / English · bản xem thử"
+                onPress={() => router.push("/preferences/language")}
               />
               <ActionRow
                 icon="bell"
                 label="Thông báo"
-                description="Sắp có · Tùy chọn nhận thông báo"
-                disabled
+                description="Tùy chỉnh nhóm thông báo trong bản xem thử"
+                onPress={() => router.push("/preferences/notifications")}
+              />
+              <ActionRow
+                icon="shield"
+                label="Quyền riêng tư"
+                description="Thông tin công khai và riêng tư"
+                onPress={() => router.push("/preferences/privacy")}
               />
             </ActionGroup>
             <ActionGroup title="Thông tin và hỗ trợ">
@@ -83,7 +89,7 @@ export function AccountSettingsScreen() {
                 label="Trợ giúp"
                 description="Hồ sơ, ảnh đại diện và bảo mật"
                 disabled={busy}
-                onPress={() => setNotice("help")}
+                onPress={() => router.push("/help")}
               />
               <ActionRow
                 icon="compass"
