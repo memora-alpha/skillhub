@@ -1,4 +1,5 @@
 import { StyleSheet, Text, View } from "react-native";
+import { uiLabel } from "@/constants/ui-copy";
 import {
   typography,
   appColors as colors,
@@ -22,7 +23,9 @@ export function Badge({
   const tint = variants[variant];
   return (
     <View style={[styles.badge, { backgroundColor: tint.background }]}>
-      <Text style={[styles.text, { color: tint.foreground }]}>{label}</Text>
+      <Text style={[styles.text, { color: tint.foreground }]}>
+        {uiLabel(label)}
+      </Text>
     </View>
   );
 }
