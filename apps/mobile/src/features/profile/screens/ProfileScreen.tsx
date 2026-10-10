@@ -41,6 +41,9 @@ export function ProfileScreen() {
             onOpen={open}
             onSettings={() => router.push("/account-settings")}
           />
+          <Button variant="paper" onPress={() => router.push("/ui")}>
+            Bộ giao diện mobile
+          </Button>
           <ProfileAbout bio={profile.bio} />
           <ProfileSkills
             profile={profile}

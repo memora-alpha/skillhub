@@ -18,6 +18,10 @@ type MessagesContextValue = {
   read: string[];
   markRead: (proposal: string) => void;
   send: (proposal: string, text: string) => void;
+  sendFile: (
+    proposal: string,
+    file: { name: string; bytes: number },
+  ) => boolean;
 };
 const MessagesContext = createContext<MessagesContextValue | null>(null);
 
@@ -86,6 +90,32 @@ export function MockMessagesProvider({
       read,
       markRead,
       send,
+      sendFile: (proposal: string, file: { name: string; bytes: number }) => {
+        if (
+          file.bytes > 15 * 1024 * 1024 ||
+          file.bytes <= 0 ||
+          !items.some((i) => i.proposal === proposal)
+        )
+          return false;
+        setThreads((current) => ({
+          ...current,
+          [proposal]: [
+            ...(current[proposal] ?? []),
+            {
+              id: `file-${Date.now()}-${current[proposal]?.length ?? 0}`,
+              from: "me",
+              text: `Tệp mẫu: ${file.name}`,
+              file,
+              time: new Date().toLocaleTimeString("vi-VN", {
+                hour: "2-digit",
+                minute: "2-digit",
+              }),
+            },
+          ],
+        }));
+        markRead(proposal);
+        return true;
+      },
     }),
     [items, openConversation, markRead, read, send, threads],
   );

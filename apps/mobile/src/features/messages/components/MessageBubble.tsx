@@ -41,6 +41,9 @@ export function MessageBubble({
             style={[styles.text, mine && { color: colors.white }]}
           >
             {message.text}
+            {message.file
+              ? `\n${(message.file.bytes / 1024 / 1024).toFixed(1)} MB · tệp mẫu, không có đường dẫn tải`
+              : ""}
           </Text>
         </View>
       </View>

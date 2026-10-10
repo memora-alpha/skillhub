@@ -15,6 +15,7 @@ import { AuthSessionProvider, SessionGate } from "@/features/auth";
 import { MockMessagesProvider } from "@/features/messages";
 import { ProfilePreviewProvider, AvatarUploadToasts } from "@/features/profile";
 import { MockProposalsProvider } from "@/features/proposals";
+import { UiPreviewProvider } from "@/features/ui-preview";
 import { QueryProvider } from "./QueryProvider";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { ToastProvider } from "./ToastProvider";
@@ -55,7 +56,9 @@ export function AppProviders({ children }: { children: ReactNode }) {
               <SessionGate>
                 <ProfilePreviewProvider>
                   <MockMessagesProvider>
-                    <MockProposalsProvider>{children}</MockProposalsProvider>
+                    <MockProposalsProvider>
+                      <UiPreviewProvider>{children}</UiPreviewProvider>
+                    </MockProposalsProvider>
                   </MockMessagesProvider>
                 </ProfilePreviewProvider>
               </SessionGate>
