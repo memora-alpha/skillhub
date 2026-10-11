@@ -1,5 +1,6 @@
 import { ReauthenticateUseCase } from "../../application/use-cases/reauthenticate.use-case";
 import { ResetPasswordUseCase } from "../../application/use-cases/reset-password.use-case";
+import { VerifyPasswordResetOtpUseCase } from "../../application/use-cases/verify-password-reset-otp.use-case";
 import { LogoutAllUseCase } from "../../application/use-cases/logout-all.use-case";
 import { LogoutUseCase } from "../../application/use-cases/logout.use-case";
 import { RefreshTokenUseCase } from "../../application/use-cases/refresh-token.use-case";
@@ -44,6 +45,7 @@ import {
   RefreshDto,
   RegisterDto,
   ResetDto,
+  PasswordResetProofDto,
   TokenPairDto,
   VerifyDto,
 } from "./auth.dto";
@@ -64,6 +66,7 @@ export class AuthController {
     private readonly logoutSession: LogoutUseCase,
     private readonly logoutEverySession: LogoutAllUseCase,
     private readonly resetPassword: ResetPasswordUseCase,
+    private readonly verifyPasswordResetOtp: VerifyPasswordResetOtpUseCase,
     private readonly reauthenticate: ReauthenticateUseCase,
     private readonly throttle: IdentityThrottle,
   ) {}
@@ -162,17 +165,32 @@ export class AuthController {
     const result = await this.resendOtp.execute(body.email, "RESET_PASSWORD");
     return success(null, result.message);
   }
+  @Post("password/verify-otp")
+  @HttpCode(200)
+  @Header("Cache-Control", "no-store")
+  @ApiOperation({
+    summary: "Verify recovery OTP and issue a one-use reset token",
+  })
+  @ApiSuccessResponse(200, PasswordResetProofDto)
+  async verifyRecovery(@Body() body: VerifyDto, @Req() req: Request) {
+    await this.rate(req, "reset-verify", body.email);
+    return success(
+      await this.verifyPasswordResetOtp.execute(body.email, body.otpCode),
+      "OTP verified. You can reset your password.",
+    );
+  }
   @Post("password/reset")
   @HttpCode(204)
   @ApiOperation({
-    summary: "Consume recovery OTP, preserve status and revoke all sessions",
+    summary:
+      "Consume verified reset token, preserve status and revoke all sessions",
   })
   @ApiResponse({ status: 204 })
   async reset(@Body() body: ResetDto, @Req() req: Request) {
     await this.rate(req, "reset", body.email);
     await this.resetPassword.execute(
       body.email,
-      body.otpCode,
+      body.resetToken,
       body.newPassword,
     );
   }

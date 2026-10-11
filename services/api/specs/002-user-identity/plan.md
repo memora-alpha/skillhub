@@ -1,5 +1,7 @@
 # Implementation Plan: Danh tính người dùng
 
+> Current password recovery plan: [verify OTP before password reset](password-recovery.md). The 2026-10-08 amendment adds a separate verification API and supersedes the combined OTP/password reset flow below.
+
 > Current OTP design: [Redis OTP amendment (2026-10-08)](redis-otp.md) supersedes PostgreSQL challenge/counter and email-outbox statements below.
 
 **Branch**: `feat/user-identity` | **Date**: 2026-10-03 | **Spec**: [spec.md](spec.md)
@@ -25,7 +27,7 @@ legacy Profile/UserRole/SQL OTP until an explicit v3 migration/repository change
 See [catalog review and validation](../../prisma/v3-review.md). Existing identity
 validation evidence is unchanged and is not evidence of deployed v3 behavior.
 
-Giai đoạn Danh tính có **21 endpoint**, chia thành ba nhóm dưới đây. Các route dùng đường dẫn có version `/api/v1/...`. Bảng mô tả chức năng và điều kiện truy cập; request/response, validation và mã lỗi chi tiết nằm trong [HTTP contract](contracts/http.md). Đây là danh sách dự kiến để triển khai và công bố trên Swagger.
+Giai đoạn Danh tính có **22 endpoint**, chia thành ba nhóm dưới đây. Các route dùng đường dẫn có version `/api/v1/...`. Bảng mô tả chức năng và điều kiện truy cập; request/response, validation và mã lỗi chi tiết nằm trong [HTTP contract](contracts/http.md).
 
 ### Quy ước API version
 
@@ -35,20 +37,21 @@ Giai đoạn Danh tính có **21 endpoint**, chia thành ba nhóm dưới đây.
 - Không tạo alias Danh tính thiếu version; `/api/auth/...`, `/api/me` và version chưa hỗ trợ phải trả `404`. Khi có thay đổi public contract không tương thích, tạo version mới như `/api/v2/...` và xác định thời gian hỗ trợ/ngừng version cũ trong feature tương ứng.
 - Routing và OpenAPI của đủ 21 endpoint `v1`, các đường dẫn thiếu/sai version và health/readiness đã được kiểm chứng bằng HTTP integration tests; `src/main.ts` bật URI versioning.
 
-### Đăng ký, xác thực và phiên đăng nhập — 10 endpoint
+### Đăng ký, xác thực và phiên đăng nhập — 11 endpoint
 
-| Method | Endpoint                           | Mô tả                                                                                                                                                        | Điều kiện truy cập                                                                                         |
-| ------ | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
-| POST   | `/api/v1/auth/register`            | Đăng ký bằng email/password; tạo tài khoản chờ xác minh, hồ sơ và role USER, đồng thời lên lịch gửi OTP. Trả thông báo trung tính, chưa cấp token đăng nhập. | Không cần đăng nhập; validate thông tin và chấp thuận điều khoản.                                          |
-| POST   | `/api/v1/auth/verification/resend` | Gửi lại OTP đăng ký, vô hiệu mã trước đó; áp dụng thời gian chờ và giới hạn gửi lại.                                                                         | Không cần đăng nhập; chỉ tài khoản chờ xác minh đủ điều kiện nhận email, response không tiết lộ tài khoản. |
-| POST   | `/api/v1/auth/verification/verify` | Kiểm tra OTP đăng ký dùng một lần; tạo tài khoản ACTIVE đã xác minh từ bản nháp Redis.                                                                       | Không cần đăng nhập; email và OTP đúng, chưa hết hạn hoặc bị thay thế.                                     |
-| POST   | `/api/v1/auth/login`               | Đăng nhập email/password, cập nhật lần đăng nhập và cấp access/refresh token; `rememberMe` chọn thời hạn phiên theo cấu hình.                                | Không cần phiên hiện tại; thông tin đúng và tài khoản ACTIVE.                                              |
-| POST   | `/api/v1/auth/refresh`             | Cấp cặp token mới và vô hiệu refresh token vừa sử dụng. Phát hiện sử dụng lại token đã dùng sẽ thu hồi toàn bộ phiên tương ứng.                              | Refresh token hợp lệ và phiên/tài khoản còn được phép hoạt động.                                           |
-| POST   | `/api/v1/auth/logout`              | Thu hồi phiên được xác định bởi refresh token; token của phiên đó không còn dùng được. Gọi lặp vẫn trả kết quả trung tính.                                   | Gửi refresh token; không yêu cầu access token còn hạn.                                                     |
-| POST   | `/api/v1/auth/logout-all`          | Thu hồi mọi phiên của tài khoản, bao gồm phiên đang gọi và các thiết bị khác.                                                                                | Đã đăng nhập, tài khoản ACTIVE.                                                                            |
-| POST   | `/api/v1/auth/password/forgot`     | Yêu cầu gửi OTP đặt lại mật khẩu; trả cùng thông báo cho email tồn tại, không tồn tại hoặc không đủ điều kiện.                                               | Không cần đăng nhập; giới hạn chống gửi quá nhiều yêu cầu.                                                 |
-| POST   | `/api/v1/auth/password/reset`      | Dùng OTP reset để đặt mật khẩu mới, thu hồi mọi phiên cũ và lên lịch email thông báo. Không tự đăng nhập hoặc mở khóa tài khoản.                             | Không cần đăng nhập; proof RESET_PASSWORD hợp lệ và mật khẩu mới đúng policy.                              |
-| POST   | `/api/v1/auth/reauthenticate`      | Xác thực lại mật khẩu Admin để cấp proof ngắn hạn, dùng một lần, gắn với phiên và thao tác thay đổi role STAFF.                                              | Admin đã đăng nhập; mật khẩu hiện tại đúng, purpose STAFF_ROLE_CHANGE.                                     |
+| Method | Endpoint                           | Mô tả                                                                                                                                                          | Điều kiện truy cập                                                                                         |
+| ------ | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| POST   | `/api/v1/auth/register`            | Đăng ký bằng email/password; tạo tài khoản chờ xác minh, hồ sơ và role USER, đồng thời lên lịch gửi OTP. Trả thông báo trung tính, chưa cấp token đăng nhập.   | Không cần đăng nhập; validate thông tin và chấp thuận điều khoản.                                          |
+| POST   | `/api/v1/auth/verification/resend` | Gửi lại OTP đăng ký, vô hiệu mã trước đó; áp dụng thời gian chờ và giới hạn gửi lại.                                                                           | Không cần đăng nhập; chỉ tài khoản chờ xác minh đủ điều kiện nhận email, response không tiết lộ tài khoản. |
+| POST   | `/api/v1/auth/verification/verify` | Kiểm tra OTP đăng ký dùng một lần; tạo tài khoản ACTIVE đã xác minh từ bản nháp Redis.                                                                         | Không cần đăng nhập; email và OTP đúng, chưa hết hạn hoặc bị thay thế.                                     |
+| POST   | `/api/v1/auth/login`               | Đăng nhập email/password, cập nhật lần đăng nhập và cấp access/refresh token; `rememberMe` chọn thời hạn phiên theo cấu hình.                                  | Không cần phiên hiện tại; thông tin đúng và tài khoản ACTIVE.                                              |
+| POST   | `/api/v1/auth/refresh`             | Cấp cặp token mới và vô hiệu refresh token vừa sử dụng. Phát hiện sử dụng lại token đã dùng sẽ thu hồi toàn bộ phiên tương ứng.                                | Refresh token hợp lệ và phiên/tài khoản còn được phép hoạt động.                                           |
+| POST   | `/api/v1/auth/logout`              | Thu hồi phiên được xác định bởi refresh token; token của phiên đó không còn dùng được. Gọi lặp vẫn trả kết quả trung tính.                                     | Gửi refresh token; không yêu cầu access token còn hạn.                                                     |
+| POST   | `/api/v1/auth/logout-all`          | Thu hồi mọi phiên của tài khoản, bao gồm phiên đang gọi và các thiết bị khác.                                                                                  | Đã đăng nhập, tài khoản ACTIVE.                                                                            |
+| POST   | `/api/v1/auth/password/forgot`     | Yêu cầu gửi OTP đặt lại mật khẩu; trả cùng thông báo cho email tồn tại, không tồn tại hoặc không đủ điều kiện.                                                 | Không cần đăng nhập; giới hạn chống gửi quá nhiều yêu cầu.                                                 |
+| POST   | `/api/v1/auth/password/verify-otp` | Xác thực OTP reset và cấp resetToken dùng một lần; không đổi mật khẩu hoặc thu hồi phiên.                                                                      | Không cần đăng nhập; OTP RESET_PASSWORD hợp lệ.                                                            |
+| POST   | `/api/v1/auth/password/reset`      | Dùng resetToken đã được cấp sau xác thực OTP để đặt mật khẩu mới, thu hồi mọi phiên cũ và lên lịch email thông báo. Không tự đăng nhập hoặc mở khóa tài khoản. | Không cần đăng nhập; resetToken hợp lệ và mật khẩu mới đúng policy.                                        |
+| POST   | `/api/v1/auth/reauthenticate`      | Xác thực lại mật khẩu Admin để cấp proof ngắn hạn, dùng một lần, gắn với phiên và thao tác thay đổi role STAFF.                                                | Admin đã đăng nhập; mật khẩu hiện tại đúng, purpose STAFF_ROLE_CHANGE.                                     |
 
 ### Hồ sơ và avatar — 6 endpoint
 
@@ -187,7 +190,7 @@ Pass a typed Prisma transaction context through exported use cases; other module
 1. Signup stages an encrypted draft/password hash and proof in Redis, then queues an encrypted email. No User is created. Duplicate retries preserve staged data.
 2. Verify reserves the Redis proof and locks normalized email in PostgreSQL; it creates/activates User with USER assignment and audit atomically, then consumes the draft after commit. Invalid-attempt counters remain in Redis.
 3. Login/refresh recheck account/security version under User lock. Refresh consumes generation and creates successor atomically. Replay revocation commits before returning 401, rather than rolling back on exception.
-4. Reset consumes challenge, changes password/securityVersion, revokes all sessions, appends audit and schedules change email in one transaction; status unchanged.
+4. Recovery verification atomically exchanges the OTP for a Redis reset grant without account/session mutation. Reset consumes that grant, changes password/securityVersion, revokes all sessions and appends audit in one PostgreSQL transaction, then consumes the grant and queues the change email; status unchanged.
 5. Moderation/role mutation revalidate actor grants under lock, consume action-bound fresh reauth if needed, change status/grants/version, revoke sessions and append audit atomically. Unlock restores no session.
 6. Avatar metadata is quarantined first; upload/inspect/scan outside DB transaction; final owner/status check and CLEAN selection atomic. Failure preserves old avatar; cleanup compensates orphan objects idempotently.
 

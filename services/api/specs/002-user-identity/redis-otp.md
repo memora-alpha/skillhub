@@ -1,5 +1,7 @@
 # Redis OTP amendment — 2026-10-08
 
+> Recovery now requires a separate [OTP verification and reset grant](password-recovery.md). Only registration continues to use its existing direct verification flow. The earlier combined reset descriptions are superseded.
+
 The user requested the Memora registration flow and explicitly rejected PostgreSQL OTP challenge tables. This amendment supersedes the original PostgreSQL proof, issue-window and email-outbox design in spec 002.
 
 ## Reference and public contract

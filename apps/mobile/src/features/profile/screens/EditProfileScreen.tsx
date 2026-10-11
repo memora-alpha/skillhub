@@ -1,161 +1,302 @@
-import { useEffect, useState } from "react";
-import { Keyboard, StyleSheet, Text, View } from "react-native";
-import { Redirect, useRouter } from "expo-router";
-import { Avatar } from "@/components/Avatar";
+import { useCallback, useRef, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import {
+  BackHandler,
+  Keyboard,
+  Platform,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { Redirect, useFocusEffect, useRouter } from "expo-router";
+import * as ImagePicker from "expo-image-picker";
 import { Button } from "@/components/Button";
+import { ControlledInput } from "@/components/ControlledInput";
 import { FormNotice } from "@/components/FormNotice";
-import { Input } from "@/components/Input";
-import { InfoModal } from "@/components/InfoModal";
-import { avatarSizes } from "@/constants/theme";
-import { useMockSession } from "@/features/auth";
+import {
+  useAuthSession,
+  useUpdateProfile,
+  useSaveAvatar,
+  type AccountSession,
+} from "@/features/auth";
+import { useToast } from "@/providers/ToastProvider";
+import { formValidationOptions } from "@/utils/form-validation";
 import { ProfileLayout } from "../components/ProfileLayout";
 import { ProfileSection, profileStyles } from "../components/ProfilePrimitives";
-import { profileDetails } from "../mocks/profile";
+import { AvatarDraftEditor } from "../components/AvatarDraftEditor";
+import {
+  avatarImage,
+  avatarFormData,
+  AvatarSelectionError,
+  type AvatarDraft,
+} from "../utils/avatar-draft";
+import { avatarSaveErrorMessage } from "../utils/avatar-save-error";
+import {
+  profileHasChanges,
+  validateProfileDraft,
+} from "../utils/profile-validation";
+import type { ProfileDraft } from "../types/profile";
+import { profileSaveErrorMessage } from "../utils/profile-save-error";
+
+const profileFormSchema = z
+  .object({
+    fullName: z.string().trim(),
+    headline: z.string(),
+    bio: z.string(),
+  })
+  .superRefine((draft, context) => {
+    for (const [field, message] of Object.entries(validateProfileDraft(draft)))
+      context.addIssue({ code: "custom", path: [field], message });
+  });
 
 export function EditProfileScreen() {
-  const router = useRouter();
-  const { session, updateProfile } = useMockSession();
-  const [name, setName] = useState(session?.name ?? "");
-  const [bio, setBio] = useState(session?.bio ?? profileDetails.bio);
-  const [website, setWebsite] = useState(session?.website ?? "");
-  const [errors, setErrors] = useState<{ name?: string; website?: string }>({});
-  const [saved, setSaved] = useState(false);
-  const [avatarNotice, setAvatarNotice] = useState(false);
-  useEffect(() => {
-    if (!saved) return;
-    const timer = setTimeout(() => router.dismissTo("/profile"), 1500);
-    return () => clearTimeout(timer);
-  }, [saved, router]);
+  const { session, runtime } = useAuthSession();
   if (!session) return <Redirect href="/login" />;
-  const back = () => router.dismissTo("/profile");
-  const save = () => {
-    const next: typeof errors = {};
-    if (!name.trim()) next.name = "Vui lòng nhập tên hiển thị.";
-    if (website.trim()) {
-      try {
-        const url = new URL(website.trim());
-        if (
-          !["http:", "https:"].includes(url.protocol) ||
-          !url.hostname.includes(".")
-        )
-          next.website = "Vui lòng nhập URL website hợp lệ (http hoặc https).";
-      } catch {
-        next.website = "Vui lòng nhập URL website hợp lệ (http hoặc https).";
-      }
-    }
-    setErrors(next);
-    if (Object.keys(next).length) return;
-    Keyboard.dismiss();
-    updateProfile({
-      name: name.trim(),
-      bio: bio.trim(),
-      website: website.trim(),
-    });
-    setSaved(true);
+  return <ProfileForm key={runtime.controller.generation} session={session} />;
+}
+
+function ProfileForm({ session }: { session: AccountSession }) {
+  const router = useRouter();
+  const { runtime } = useAuthSession();
+  const updateProfile = useUpdateProfile();
+  const saveAvatar = useSaveAvatar();
+  const { showToast, dismissToast } = useToast();
+  const focused = useRef(false);
+  const saving = useRef(false);
+  const selecting = useRef(false);
+  const [initial, setInitial] = useState<ProfileDraft>(() => ({
+    fullName: session.name,
+    headline: session.headline,
+    bio: session.bio,
+  }));
+  const form = useForm<ProfileDraft>({
+    ...formValidationOptions,
+    resolver: zodResolver(profileFormSchema),
+    defaultValues: initial,
+  });
+  const [avatarDraft, setAvatarDraft] = useState<AvatarDraft>(null);
+  const [picking, setPicking] = useState(false);
+  const [pickerError, setPickerError] = useState<string | null>(null);
+  const [profileSaved, setProfileSaved] = useState(false);
+  const submitting =
+    updateProfile.isPending ||
+    saveAvatar.isPending ||
+    form.formState.isSubmitting;
+  const pending = submitting || picking;
+  useFocusEffect(
+    useCallback(() => {
+      focused.current = true;
+      const subscription =
+        Platform.OS === "android"
+          ? BackHandler.addEventListener(
+              "hardwareBackPress",
+              () => saving.current || selecting.current || pending,
+            )
+          : null;
+      return () => {
+        focused.current = false;
+        subscription?.remove();
+      };
+    }, [pending]),
+  );
+  const changed = profileHasChanges(initial, form.watch()) || !!avatarDraft;
+  const back = () => {
+    if (!saving.current && !selecting.current && !pending)
+      router.dismissTo("/profile");
   };
+  const changeAvatar = (draft: AvatarDraft) => {
+    setAvatarDraft(draft);
+    setPickerError(null);
+    saveAvatar.reset();
+  };
+  const pickAvatar = async () => {
+    if (saving.current || selecting.current || pending) return;
+    selecting.current = true;
+    setPicking(true);
+    setPickerError(null);
+    const generation = runtime.controller.generation;
+    const isCurrent = () =>
+      focused.current && generation === runtime.controller.generation;
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        allowsMultipleSelection: false,
+        allowsEditing: false,
+        quality: 1,
+      });
+      if (!result.canceled && isCurrent()) {
+        const asset = result.assets[0];
+        if (!asset)
+          throw new AvatarSelectionError(
+            "Không đọc được ảnh đã chọn. Hãy chọn lại.",
+          );
+        const image = avatarImage(asset);
+        if (Platform.OS === "web" && !image.file)
+          throw new AvatarSelectionError(
+            "Không đọc được ảnh đã chọn. Hãy chọn lại.",
+          );
+        changeAvatar({ kind: "upload", image });
+      }
+    } catch (error) {
+      if (isCurrent())
+        setPickerError(
+          error instanceof AvatarSelectionError
+            ? error.message
+            : "Không mở được thư viện ảnh. Hãy thử lại.",
+        );
+    } finally {
+      selecting.current = false;
+      if (isCurrent()) setPicking(false);
+    }
+  };
+  const save = form.handleSubmit(async (values) => {
+    if (
+      saving.current ||
+      selecting.current ||
+      (!profileHasChanges(initial, values) && !avatarDraft)
+    )
+      return;
+    saving.current = true;
+    const generation = runtime.controller.generation;
+    const isCurrent = () =>
+      focused.current && generation === runtime.controller.generation;
+    dismissToast();
+    Keyboard.dismiss();
+    setProfileSaved(false);
+    try {
+      if (profileHasChanges(initial, values)) {
+        await updateProfile.mutateAsync(values);
+        if (!isCurrent()) return;
+        setInitial(values);
+        setProfileSaved(true);
+      }
+      const upload = avatarDraft
+        ? await saveAvatar.mutateAsync(
+            avatarDraft.kind === "upload"
+              ? avatarFormData(avatarDraft.image)
+              : null,
+          )
+        : null;
+      if (isCurrent()) {
+        setAvatarDraft(null);
+        showToast(
+          upload ? "Ảnh đã tải lên, đang kiểm tra." : "Hồ sơ đã được cập nhật.",
+          upload ? "info" : "success",
+        );
+        router.dismissTo("/profile");
+      }
+    } catch {
+      // The mutation keeps the error and draft; an old screen must not show a toast.
+    } finally {
+      saving.current = false;
+    }
+  });
   return (
-    <ProfileLayout session={session} title="Chỉnh sửa hồ sơ" onBack={back}>
+    <ProfileLayout
+      session={session}
+      title="Chỉnh sửa hồ sơ"
+      onBack={back}
+      keyboardAware
+    >
       {() => (
         <View style={styles.stack}>
-          {saved && (
-            <FormNotice tone="success">Hồ sơ đã được cập nhật.</FormNotice>
-          )}
-          {Object.keys(errors).length > 0 && (
-            <FormNotice tone="error">
-              Kiểm tra lại các trường được đánh dấu.
-            </FormNotice>
-          )}
-          <ProfileSection>
-            <View style={styles.avatarRow}>
-              <Avatar
-                name={session.name}
-                userId={session.userId}
-                size={avatarSizes.edit}
-              />
-              <View style={styles.avatarActions}>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onPress={() => setAvatarNotice(true)}
-                >
-                  Thay ảnh đại diện
-                </Button>
-                <Text style={profileStyles.caption}>JPG, PNG. Tối đa 5MB.</Text>
-              </View>
-            </View>
-          </ProfileSection>
-          <ProfileSection style={{ gap: 16 }}>
+          <AvatarDraftEditor
+            session={session}
+            draft={avatarDraft}
+            disabled={pending}
+            picking={picking}
+            error={pickerError}
+            onPick={() => {
+              void pickAvatar();
+            }}
+            onChange={changeAvatar}
+          />
+          <ProfileSection style={styles.fields}>
             <Text accessibilityRole="header" style={profileStyles.heading}>
               Thông tin cơ bản
             </Text>
-            <Input
+            <ControlledInput
+              control={form.control}
+              name="fullName"
               label="Tên hiển thị"
-              value={name}
-              onChangeText={(value) => {
-                setName(value);
-                setErrors((current) => ({ ...current, name: undefined }));
-                setSaved(false);
-              }}
+              editable={!pending}
+              onChangeText={updateProfile.reset}
               required
-              error={errors.name}
               autoCapitalize="words"
               autoComplete="name"
+              returnKeyType="next"
+              submitBehavior="submit"
+              onSubmitEditing={() => form.setFocus("headline")}
             />
-            <Input
+            <ControlledInput
+              control={form.control}
+              name="headline"
+              label="Vai trò / tiêu đề"
+              placeholder="Ví dụ: Frontend Developer"
+              editable={!pending}
+              onChangeText={updateProfile.reset}
+              hint="Không bắt buộc. Tối đa 120 ký tự."
+              returnKeyType="next"
+              submitBehavior="submit"
+              onSubmitEditing={() => form.setFocus("bio")}
+            />
+            <ControlledInput
+              control={form.control}
+              name="bio"
               label="Giới thiệu bản thân"
-              value={bio}
-              onChangeText={(value) => {
-                setBio(value);
-                setSaved(false);
-              }}
+              editable={!pending}
+              onChangeText={updateProfile.reset}
               multiline
               numberOfLines={4}
               textAlignVertical="top"
-              hint="Giới thiệu ngắn để người học hiểu bạn hơn."
-            />
-            <Input
-              label="Website / Portfolio"
-              value={website}
-              placeholder="https://portfolio.com"
-              onChangeText={(value) => {
-                setWebsite(value);
-                setErrors((current) => ({ ...current, website: undefined }));
-                setSaved(false);
-              }}
-              error={errors.website}
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="url"
+              hint="Không bắt buộc. Tối đa 1.000 ký tự."
             />
           </ProfileSection>
+          {updateProfile.isError && (
+            <FormNotice tone="error">
+              {profileSaveErrorMessage(updateProfile.error)}
+            </FormNotice>
+          )}
+          {saveAvatar.isError && (
+            <FormNotice tone="error">
+              {profileSaved ? "Thông tin hồ sơ đã lưu. " : ""}
+              {avatarSaveErrorMessage(saveAvatar.error)}
+            </FormNotice>
+          )}
           <View style={styles.buttons}>
-            <Button style={{ flex: 1 }} variant="secondary" onPress={back}>
+            <Button
+              size="lg"
+              style={{ flex: 1 }}
+              variant="secondary"
+              onPress={back}
+              disabled={pending}
+            >
               Hủy
             </Button>
-            <Button style={{ flex: 1 }} onPress={save} disabled={saved}>
-              Lưu thay đổi
+            <Button
+              size="lg"
+              style={{ flex: 1 }}
+              onPress={save}
+              disabled={pending || !changed}
+            >
+              {submitting ? "Đang lưu..." : "Lưu thay đổi"}
             </Button>
           </View>
-          <InfoModal
-            title={avatarNotice ? "Thay ảnh đại diện" : null}
-            onClose={() => setAvatarNotice(false)}
-          >
-            Chọn ảnh từ thiết bị sẽ được bổ sung sau. Phiên demo hiện dùng ảnh
-            đại diện bằng chữ cái, đúng mẫu Figma.
-          </InfoModal>
         </View>
       )}
     </ProfileLayout>
   );
 }
 const styles = StyleSheet.create({
-  stack: { gap: 20 },
-  avatarRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    flexWrap: "wrap",
-    gap: 16,
+  stack: {
+    gap: 20,
+    width: "100%",
+    maxWidth: 560,
+    alignSelf: "center",
+    paddingVertical: 12,
   },
-  avatarActions: { gap: 8, flexShrink: 1 },
+  fields: { gap: 12 },
   buttons: { flexDirection: "row", gap: 12 },
 });

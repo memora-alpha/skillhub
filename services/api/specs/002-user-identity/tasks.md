@@ -99,3 +99,11 @@ All 37 tasks completed, including the architecture refactor and Memora response 
 - [x] Preserve drafts across duplicate signup/resend and consume after commit.
 - [x] Cover concurrent verification, rollback, expiry and cleanup-failure retries.
 - [x] Update Swagger lifecycle, HTTP contract and current design documentation.
+
+# Password recovery amendment — 2026-10-08
+
+- [x] Record three-step recovery plan and incompatible unreleased v1 request change in password-recovery.md.
+- [x] Implement separate OTP verification, atomic Redis OTP-to-grant exchange and digest-only one-use reset token.
+- [x] Require resetToken at password/reset; preserve password/session/audit transaction and account status.
+- [x] Update composition, Swagger, HTTP contract and client walkthrough.
+- [x] Complete build/typecheck/lint and PostgreSQL/Redis integration verification; record results in validation.md.

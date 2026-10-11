@@ -5,6 +5,7 @@ export type ChatMessage = {
   from: "them" | "me";
   text: string;
   time: string;
+  file?: { name: string; bytes: number };
 };
 const reactMessages: ChatMessage[] = [
   {
