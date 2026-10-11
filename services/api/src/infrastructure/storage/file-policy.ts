@@ -6,6 +6,7 @@ import {
 
 export const CHAT_MAX_BYTES = 15_000_000;
 export const APPROVED_EVIDENCE_MAX_BYTES = 10_000_000;
+export const MATERIAL_MAX_BYTES = 20_000_000;
 
 const formats = {
   pdf: "application/pdf",
@@ -58,7 +59,12 @@ export function validateFile(input: {
   capBytes?: number;
 }): ValidatedFileFormat {
   const { purpose, name, claimedMime, detectedMime, sizeBytes } = input;
-  if (purpose !== "EVIDENCE" && purpose !== "REPORT" && purpose !== "CHAT") {
+  if (
+    purpose !== "EVIDENCE" &&
+    purpose !== "REPORT" &&
+    purpose !== "CHAT" &&
+    purpose !== "MATERIAL"
+  ) {
     throw new FileStorageError("FILE_POLICY_UNAVAILABLE", 503);
   }
   const cap = purpose === "CHAT" ? CHAT_MAX_BYTES : input.capBytes;
@@ -97,7 +103,11 @@ export function validateFile(input: {
     throw new FileStorageError("FILE_NAME_INVALID", 400);
   }
   const allowed =
-    purpose === "CHAT" ? Object.keys(formats) : evidenceExtensions;
+    purpose === "CHAT"
+      ? Object.keys(formats)
+      : purpose === "MATERIAL"
+        ? new Set(["pdf", "docx", "pptx", "xlsx"])
+        : evidenceExtensions;
   if (
     !(allowed instanceof Set
       ? allowed.has(extension)

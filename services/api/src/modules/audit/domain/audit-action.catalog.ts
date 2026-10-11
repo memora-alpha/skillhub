@@ -23,6 +23,8 @@ export const AUDIT_ACTIONS = [
   "LEARNING_REQUEST_MODERATE",
   "ROLE_PERMISSION_CHANGE",
   "DISPUTE_RESOLVE",
+  "REPORT_CASE_UPDATE",
+  "REPORT_EVIDENCE_READ",
   "REPUTATION_ADJUST",
   "CREDIT_ADJUST",
   "CREDIT_REVERSE",
@@ -93,6 +95,19 @@ const rolePermission = z.strictObject({
 const dispute = z.strictObject({
   status: z.enum(["OPEN", "RESOLVED", "REJECTED", "ESCALATED"]).optional(),
 });
+const reportCase = z.strictObject({
+  status: z.enum([
+    "OPEN",
+    "UNDER_REVIEW",
+    "NEED_MORE_INFO",
+    "RESOLVED",
+    "REJECTED",
+  ]),
+});
+const reportEvidenceRead = z.strictObject({
+  caseId: uuid,
+  access: z.literal("READ"),
+});
 const reputation = z.strictObject({ score: z.number().finite() });
 const credit = z.strictObject({
   amount: z
@@ -139,6 +154,8 @@ const projectionByAction: Record<
   LEARNING_REQUEST_MODERATE: learningRequest,
   ROLE_PERMISSION_CHANGE: rolePermission,
   DISPUTE_RESOLVE: dispute,
+  REPORT_CASE_UPDATE: reportCase,
+  REPORT_EVIDENCE_READ: reportEvidenceRead,
   REPUTATION_ADJUST: reputation,
   CREDIT_ADJUST: credit,
   CREDIT_REVERSE: credit,

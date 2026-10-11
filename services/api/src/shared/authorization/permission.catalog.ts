@@ -96,6 +96,15 @@ export const PERMISSION_CATALOG = [
     description: "Issue participant token",
   },
   { code: "credit:adjust", description: "Adjust credit with audit" },
+  {
+    code: "report:moderate",
+    description: "Process session reports and disputes",
+  },
+  {
+    code: "credit:reverse:settlement",
+    description: "Reverse a settled Credit operation",
+  },
+  { code: "dispute:override", description: "Override a dispute decision" },
 ] as const;
 
 export type PermissionCode = (typeof PERMISSION_CATALOG)[number]["code"];

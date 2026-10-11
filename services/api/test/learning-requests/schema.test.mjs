@@ -45,7 +45,7 @@ test("deployment snapshot contains the approved Learning Request lifecycle field
   }
 });
 
-test("request child models and notification remain in deployment scope", () => {
+test("request child models and notification remain in runtime scope", () => {
   for (const model of ["LearningRequest", "RequestTag", "Notification"]) {
     assert.ok(includesModel(model), `missing model ${model}`);
   }
@@ -76,11 +76,8 @@ test("ERD v3 storage names and optional Request relationships are preserved", ()
     );
   }
   assert.match(request, /flaggedCategories\s+Json\?\s+@map\("flagged_rules"\)/);
-  const full = readFileSync(join(apiRoot, "prisma/schema.prisma"), "utf8");
   for (const model of ["Proposal", "Conversation"]) {
-    const block = full.match(
-      new RegExp(`^model ${model} \\{([\\s\\S]*?)^\\}`, "m"),
-    )[1];
+    const block = modelBlock(model);
     assert.match(block, /requestId\s+String\?\s+@map\("request_id"\)/);
     assert.match(block, /requestIdRecord\s+LearningRequest\?/);
   }
@@ -96,22 +93,12 @@ test("runtime retains v3 owner models and uses the full runtime schema", () => {
   ]) {
     assert.ok(includesModel(model), `missing runtime owner model ${model}`);
   }
-  for (const relation of [
-    "ProposalAsRequest",
-    "ConversationAsRequest",
-    "SessionAsSkill",
-    "SharingSkillAsSkill",
-  ]) {
-    assert.ok(
-      !new RegExp(`^\\s+${relation}\\s+`, "m").test(schema),
-      `unexpected relation ${relation}`,
-    );
-  }
-  assert.ok(includesModel("Skill"));
-  assert.ok(includesModel("SkillCategory"));
+  const request = modelBlock("LearningRequest");
+  assert.match(request, /proposalRequestIdRecords\s+Proposal\[\]/);
+  assert.match(request, /conversationRequestIdRecords\s+Conversation\[\]/);
 });
 
-test("identity and foundation models remain in the scoped snapshot", () => {
+test("identity and foundation models remain in the runtime schema", () => {
   for (const model of [
     "User",
     "AuditLog",

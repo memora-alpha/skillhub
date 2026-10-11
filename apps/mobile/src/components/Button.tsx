@@ -85,6 +85,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   label: {
+    flexShrink: 1,
+    textAlign: "center",
     includeFontPadding: false,
     fontFamily: fonts.semibold,
     lineHeight: 24,

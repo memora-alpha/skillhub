@@ -11,8 +11,14 @@ import { useFonts } from "expo-font";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { colors } from "@/constants/theme";
-import { MockSessionProvider } from "@/features/auth";
+import { AuthSessionProvider, SessionGate } from "@/features/auth";
 import { MockMessagesProvider } from "@/features/messages";
+import { ProfilePreviewProvider, AvatarUploadToasts } from "@/features/profile";
+import { MockProposalsProvider } from "@/features/proposals";
+import { UiPreviewProvider } from "@/features/ui-preview";
+import { QueryProvider } from "./QueryProvider";
+import { KeyboardProvider } from "react-native-keyboard-controller";
+import { ToastProvider } from "./ToastProvider";
 
 export function AppProviders({ children }: { children: ReactNode }) {
   const [loaded, error] = useFonts({
@@ -42,9 +48,24 @@ export function AppProviders({ children }: { children: ReactNode }) {
     );
   return (
     <SafeAreaProvider>
-      <MockSessionProvider>
-        <MockMessagesProvider>{children}</MockMessagesProvider>
-      </MockSessionProvider>
+      <KeyboardProvider>
+        <ToastProvider>
+          <QueryProvider>
+            <AuthSessionProvider>
+              <AvatarUploadToasts />
+              <SessionGate>
+                <ProfilePreviewProvider>
+                  <MockMessagesProvider>
+                    <MockProposalsProvider>
+                      <UiPreviewProvider>{children}</UiPreviewProvider>
+                    </MockProposalsProvider>
+                  </MockMessagesProvider>
+                </ProfilePreviewProvider>
+              </SessionGate>
+            </AuthSessionProvider>
+          </QueryProvider>
+        </ToastProvider>
+      </KeyboardProvider>
     </SafeAreaProvider>
   );
 }

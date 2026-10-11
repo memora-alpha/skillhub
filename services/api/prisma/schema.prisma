@@ -279,6 +279,7 @@ model User {
   reputationScore       Int           @default(50) @map("reputation_score") @db.SmallInt
   verifiedSkillCount    Int           @map("verified_skill_count")
   completedSessionCount Int           @map("completed_session_count")
+  selectedTitle         String?       @map("selected_title") @db.VarChar(80)
   createdAt             DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt             DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
 
@@ -309,6 +310,7 @@ model User {
   reviewReviewerIdRecords                   Review[]                @relation("Review_reviewer_id")
   reviewRevieweeIdRecords                   Review[]                @relation("Review_reviewee_id")
   reputationHistoryUserIdRecords            ReputationHistory[]     @relation("ReputationHistory_user_id")
+  userAchievementUserIdRecords              UserAchievement[]       @relation("UserAchievement_user_id")
   reportCaseReporterIdRecords               ReportCase[]            @relation("ReportCase_reporter_id")
   reportCaseHandlerIdRecords                ReportCase[]            @relation("ReportCase_handler_id")
   reportCaseResolvedByUserIdRecords         ReportCase[]            @relation("ReportCase_resolved_by_user_id")
@@ -335,9 +337,11 @@ model User {
 
   @@unique([id, avatarAssetId])
   @@index([roleId])
+  @@map("users")
+
   @@index([createdAt(sort: Desc), id(sort: Desc)])
   @@index([accountStatus, createdAt(sort: Desc), id(sort: Desc)])
-  @@map("users")
+
 }
 
 model Role {
@@ -407,9 +411,11 @@ model RefreshSession {
 
   @@unique([userId, id])
   @@index([userId])
+  @@map("refresh_sessions")
+
   @@index([userId, revokedAt, absoluteExpiresAt])
   @@index([absoluteExpiresAt])
-  @@map("refresh_sessions")
+
 }
 
 model SkillCategory {
@@ -443,13 +449,14 @@ model Skill {
   learningPlanVersionSkillIdRecords LearningPlanVersion[] @relation("LearningPlanVersion_skill_id")
   materialSkillIdRecords            Material[]            @relation("Material_skill_id")
 
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
-  version   Int      @default(1)
-  nameKey   String   @unique @map("name_key") @db.Text
-
   @@index([categoryId])
   @@map("skills")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  version Int @default(1)
+  nameKey String @unique @map("name_key") @db.Text
+
 }
 
 model SharingSkill {
@@ -467,13 +474,15 @@ model SharingSkill {
   skillIdRecord                          Skill               @relation("SharingSkill_skill_id", fields: [skillId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   skillVerificationSharingSkillIdRecords SkillVerification[] @relation("SkillVerification_sharing_skill_id")
 
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
-  version   Int      @default(1)
-
   @@index([userId])
   @@index([skillId])
   @@map("sharing_skills")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  version Int @default(1)
+
+
 }
 
 model SkillVerification {
@@ -489,12 +498,12 @@ model SkillVerification {
   skillEvidenceSubmissionRecords SkillEvidence[] @relation("SkillEvidence_submission")
   sharingSkillIdRecord           SharingSkill    @relation("SkillVerification_sharing_skill_id", fields: [sharingSkillId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   reviewerIdRecord               User?           @relation("SkillVerification_reviewer_id", fields: [reviewerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  version                        Int             @default(1)
 
   @@unique([id, sharingSkillId])
   @@index([sharingSkillId])
   @@index([reviewerId])
   @@map("skill_verifications")
+  version Int @default(1)
 }
 
 model SkillEvidence {
@@ -523,13 +532,14 @@ model SkillEvidence {
   reviewerIdRecord      User?             @relation("SkillEvidence_reviewer_id", fields: [reviewerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   revokedByUserIdRecord User?             @relation("SkillEvidence_revoked_by_user_id", fields: [revokedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
 
-  storedFileId String?     @unique @map("stored_file_id") @db.Uuid
-  storedFile   StoredFile? @relation(fields: [storedFileId], references: [id], onDelete: Restrict)
-
   @@index([verificationId, sharingSkillId])
   @@index([reviewerId])
   @@index([revokedByUserId])
   @@map("skill_evidence")
+
+  storedFileId String? @unique @map("stored_file_id") @db.Uuid
+  storedFile StoredFile? @relation(fields: [storedFileId], references: [id], onDelete: Restrict)
+
 }
 
 model UserLearnedSkill {
@@ -553,47 +563,48 @@ model UserLearnedSkill {
 }
 
 model LearningRequest {
-  id                     String                  @id @default(uuid()) @map("request_id") @db.Uuid
-  ownerId                String                  @map("owner_id") @db.Uuid
-  skillId                String                  @map("skill_id") @db.Uuid
-  title                  String                  @map("title") @db.VarChar(120)
-  description            String                  @map("description") @db.VarChar(3000)
-  learningGoal           String                  @map("learning_goal") @db.VarChar(1000)
-  preferredSlots         Json                    @default("[]") @map("preferred_slots")
-  currentLevel           LearningLevel?          @map("current_level")
-  verifiedTeacherOnly    Boolean                 @default(false) @map("verified_teacher_only")
-  version                Int                     @default(1) @map("content_version")
+  id                  String                @id @default(uuid()) @map("request_id") @db.Uuid
+  ownerId             String                @map("owner_id") @db.Uuid
+  skillId             String                @map("skill_id") @db.Uuid
+  title               String                @map("title") @db.VarChar(120)
+  description         String                @map("description") @db.VarChar(3000)
+  learningGoal        String                @map("learning_goal") @db.VarChar(1000)
+  preferredSlots      Json                  @default("[]") @map("preferred_slots")
+  currentLevel        LearningLevel?        @map("current_level")
+  verifiedTeacherOnly Boolean @default(false)               @map("verified_teacher_only")
+  version      Int @default(1)                   @map("content_version")
   // Open vocabulary; owning feature must validate it before release.
-  moderationStatus       RequestModerationStatus @default(NOT_REQUIRED) @map("moderation_status")
-  flaggedCategories      Json?                   @map("flagged_rules")
-  moderationRejectReason String?                 @map("reject_reason") @db.VarChar(500)
-  moderatedByUserId      String?                 @map("reviewed_by_user_id") @db.Uuid
-  moderatedAt            DateTime?               @map("reviewed_at") @db.Timestamptz(3)
-  expiresAt              DateTime?               @map("expires_at") @db.Timestamptz(3)
-  status                 LearningRequestStatus   @default(DRAFT) @map("status")
-  createdAt              DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt              DateTime                @updatedAt @map("updated_at") @db.Timestamptz(3)
+  moderationStatus RequestModerationStatus @default(NOT_REQUIRED) @map("moderation_status")
+  flaggedCategories        Json?                 @map("flagged_rules")
+  moderationRejectReason        String?               @map("reject_reason") @db.VarChar(500)
+  moderatedByUserId    String?               @map("reviewed_by_user_id") @db.Uuid
+  moderatedAt          DateTime?             @map("reviewed_at") @db.Timestamptz(3)
+  expiresAt           DateTime?             @map("expires_at") @db.Timestamptz(3)
+  status              LearningRequestStatus @default(DRAFT) @map("status")
+  createdAt           DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime              @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   ownerIdRecord                User           @relation("LearningRequest_owner_id", fields: [ownerId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   skillIdRecord                Skill          @relation("LearningRequest_skill_id", fields: [skillId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  moderatedBy                  User?          @relation("LearningRequest_reviewed_by_user_id", fields: [moderatedByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  moderatedBy       User?          @relation("LearningRequest_reviewed_by_user_id", fields: [moderatedByUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   proposalRequestIdRecords     Proposal[]     @relation("Proposal_request_id")
   conversationRequestIdRecords Conversation[] @relation("Conversation_request_id")
-
-  moderationRuleSetVersion  Int?              @map("moderation_rule_set_version")
-  moderationReviewedVersion Int?              @map("moderation_reviewed_version")
-  requestedExpiresAt        DateTime?         @map("requested_expires_at") @db.Timestamptz(3)
-  expiryMode                RequestExpiryMode @default(DEFAULT) @map("expiry_mode")
-  publishedAt               DateTime?         @map("published_at") @db.Timestamptz(3)
-  tagLinks                  RequestTag[]      @relation("RequestTag_request")
 
   @@index([ownerId])
   @@index([skillId])
   @@index([moderatedByUserId])
+  @@map("learning_requests")
+
+  moderationRuleSetVersion Int? @map("moderation_rule_set_version")
+  moderationReviewedVersion Int? @map("moderation_reviewed_version")
+  requestedExpiresAt DateTime? @map("requested_expires_at") @db.Timestamptz(3)
+  expiryMode RequestExpiryMode @default(DEFAULT) @map("expiry_mode")
+  publishedAt DateTime? @map("published_at") @db.Timestamptz(3)
+  tagLinks RequestTag[] @relation("RequestTag_request")
   @@index([ownerId, createdAt(sort: Desc), id(sort: Desc)])
   @@index([skillId, status, createdAt(sort: Desc), id(sort: Desc)])
   @@index([status, createdAt(sort: Desc), id(sort: Desc)])
-  @@map("learning_requests")
+
 }
 
 model Proposal {
@@ -861,10 +872,11 @@ model SystemConfiguration {
 
   updatedByUserIdRecord User? @relation("SystemConfiguration_updated_by_user_id", fields: [updatedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
 
-  revisions SystemConfigurationRevision[]
-
   @@index([updatedByUserId])
   @@map("system_configurations")
+
+  revisions SystemConfigurationRevision[]
+
 }
 
 model Review {
@@ -906,6 +918,34 @@ model ReputationHistory {
 
   @@index([userId])
   @@map("reputation_history")
+}
+
+model Achievement {
+  id          String   @id @default(uuid()) @map("achievement_id") @db.Uuid
+  code        String   @unique @map("code") @db.VarChar(80)
+  title       String   @map("title") @db.VarChar(80)
+  description String   @map("description") @db.VarChar(500)
+  criteria    Json     @map("criteria")
+  active      Boolean  @default(true) @map("active")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  userAchievementAchievementIdRecords UserAchievement[] @relation("UserAchievement_achievement_id")
+
+  @@map("achievements")
+}
+
+model UserAchievement {
+  userId         String   @map("user_id") @db.Uuid
+  achievementId  String   @map("achievement_id") @db.Uuid
+  unlockedAt     DateTime @map("unlocked_at") @db.Timestamptz(3)
+  sourceSnapshot Json     @map("source_snapshot")
+
+  userIdRecord        User        @relation("UserAchievement_user_id", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  achievementIdRecord Achievement @relation("UserAchievement_achievement_id", fields: [achievementId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@id([userId, achievementId])
+  @@index([achievementId, unlockedAt])
+  @@map("user_achievements")
 }
 
 model ReportCase {
@@ -980,8 +1020,8 @@ model Notification {
   userIdRecord User @relation("Notification_user_id", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
 
   @@index([userId])
-  @@index([userId, createdAt(sort: Desc), id(sort: Desc)])
   @@map("notifications")
+  @@index([userId, createdAt(sort: Desc), id(sort: Desc)])
 }
 
 model AuditLog {
@@ -991,8 +1031,8 @@ model AuditLog {
   action     String   @map("action") @db.VarChar(100)
   targetType String   @map("target_type") @db.VarChar(100)
   targetId   String   @map("target_id") @db.Text
-  before     Json?    @map("before_data")
-  after      Json?    @map("after_data")
+  before Json?    @map("before_data")
+  after  Json?    @map("after_data")
   reason     String?  @map("reason") @db.VarChar(2000)
   ipAddress  String?  @map("ip_address") @db.VarChar(45)
   userAgent  String?  @map("user_agent") @db.VarChar(500)
@@ -1000,17 +1040,18 @@ model AuditLog {
 
   actorIdRecord User? @relation("AuditLog_actor_id", fields: [actorId], references: [id], onDelete: Restrict, onUpdate: Restrict)
 
-  requestId     String?  @map("request_id") @db.Text
-  actorKind     String?  @map("actor_kind") @db.Text
-  actorRoles    String[] @default([]) @map("actor_roles")
-  systemActor   String?  @map("system_actor") @db.Text
-  correlationId String?  @map("correlation_id") @db.Uuid
-
   @@index([actorId])
+  @@map("audit_logs")
+
+  requestId String? @map("request_id") @db.Text
+  actorKind String? @map("actor_kind") @db.Text
+  actorRoles String[] @default([]) @map("actor_roles")
+  systemActor String? @map("system_actor") @db.Text
+  correlationId String? @map("correlation_id") @db.Uuid
   @@index([actorId, createdAt])
   @@index([targetType, targetId, createdAt])
   @@index([createdAt, id])
-  @@map("audit_logs")
+
 }
 
 model RefreshCredential {
@@ -1019,7 +1060,7 @@ model RefreshCredential {
   generation  Int       @map("generation")
   tokenDigest Bytes     @unique @map("token_digest") @db.ByteA
   expiresAt   DateTime  @map("expires_at") @db.Timestamptz(3)
-  consumedAt  DateTime? @map("used_at") @db.Timestamptz(3)
+  consumedAt      DateTime? @map("used_at") @db.Timestamptz(3)
   revokedAt   DateTime? @map("revoked_at") @db.Timestamptz(3)
   createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
 
@@ -1027,8 +1068,10 @@ model RefreshCredential {
 
   @@unique([sessionId, generation])
   @@index([sessionId])
-  @@index([expiresAt])
   @@map("refresh_credentials")
+
+  @@index([expiresAt])
+
 }
 
 model ReauthProof {
@@ -1036,40 +1079,43 @@ model ReauthProof {
   userId          String        @map("user_id") @db.Uuid
   sessionId       String        @map("session_id") @db.Uuid
   purpose         ReauthPurpose @map("purpose")
-  digest          Bytes         @unique @map("token_digest") @db.ByteA
+  digest     Bytes         @unique @map("token_digest") @db.ByteA
   securityVersion Int           @map("security_version")
   expiresAt       DateTime      @map("expires_at") @db.Timestamptz(3)
-  consumedAt      DateTime?     @map("used_at") @db.Timestamptz(3)
+  consumedAt          DateTime?     @map("used_at") @db.Timestamptz(3)
   createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
 
   boundSessionRecord RefreshSession @relation("ReauthProof_bound_session", fields: [userId, sessionId], references: [userId, id], onDelete: Restrict, onUpdate: Restrict)
 
   @@index([userId, sessionId])
-  @@index([expiresAt])
   @@map("reauth_proofs")
+
+  @@index([expiresAt])
+
 }
 
 model AvatarAsset {
   id         String            @id @default(uuid()) @map("asset_id") @db.Uuid
   userId     String            @map("user_id") @db.Uuid
   storageKey String            @unique @map("storage_key") @db.Text
-  state      AvatarAssetStatus @map("status")
-  mime       String            @map("mime_type") @db.VarChar(100)
-  byteSize   BigInt            @map("size_bytes")
-  checksum   String?           @map("checksum") @db.Text
+  state     AvatarAssetStatus @map("status")
+  mime   String            @map("mime_type") @db.VarChar(100)
+  byteSize  BigInt            @map("size_bytes")
+  checksum   String?            @map("checksum") @db.Text
   createdAt  DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
 
   userSelectedAvatarRecords User? @relation("User_selected_avatar")
   userIdRecord              User  @relation("AvatarAsset_user_id", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Restrict)
 
-  scanEvidence Json?     @map("scan_evidence")
-  checkedAt    DateTime? @map("checked_at") @db.Timestamptz(3)
-  expiresAt    DateTime? @map("expires_at") @db.Timestamptz(3)
-
   @@unique([userId, id])
   @@index([userId])
-  @@index([state, expiresAt])
   @@map("avatar_assets")
+
+  scanEvidence Json? @map("scan_evidence")
+  checkedAt DateTime? @map("checked_at") @db.Timestamptz(3)
+  expiresAt DateTime? @map("expires_at") @db.Timestamptz(3)
+  @@index([state, expiresAt])
+
 }
 
 model IdentityEmailDelivery {
@@ -1080,8 +1126,8 @@ model IdentityEmailDelivery {
   dedupeKey         String              @unique @map("dedupe_key") @db.Text
   status            EmailDeliveryStatus @default(PENDING) @map("status")
   expiresAt         DateTime            @map("expires_at") @db.Timestamptz(3)
-  attempts          Int                 @default(0) @map("attempts")
-  nextAttemptAt     DateTime?           @default(now()) @map("next_attempt_at") @db.Timestamptz(3)
+  attempts          Int @default(0)                 @map("attempts")
+  nextAttemptAt     DateTime? @default(now())           @map("next_attempt_at") @db.Timestamptz(3)
   leaseUntil        DateTime?           @map("lease_until") @db.Timestamptz(3)
   providerMessageId String?             @map("provider_message_id") @db.Text
   createdAt         DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -1090,10 +1136,12 @@ model IdentityEmailDelivery {
   userIdRecord User? @relation("IdentityEmailDelivery_user_id", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Restrict)
 
   @@index([userId])
+  @@map("identity_email_deliveries")
+
   @@index([status, nextAttemptAt])
   @@index([status, leaseUntil])
   @@index([expiresAt])
-  @@map("identity_email_deliveries")
+
 }
 
 model LearningPath {
@@ -1430,29 +1478,31 @@ model UserRestriction {
 }
 
 model OutboxEvent {
-  eventId       String    @id @default(uuid()) @map("event_id") @db.Uuid
-  aggregateType String    @map("aggregate_type") @db.Text
-  aggregateId   String    @map("aggregate_id") @db.Text
-  version       Int       @map("aggregate_version")
-  type          String    @map("event_type") @db.VarChar(100)
-  payload       Json      @map("payload")
-  dedupeKey     String    @unique @map("dedupe_key") @db.Text
-  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
-  deliveredAt   DateTime? @map("published_at") @db.Timestamptz(3)
-  totalAttempts Int       @default(0) @map("attempts")
+  eventId               String    @id @default(uuid()) @map("event_id") @db.Uuid
+  aggregateType    String    @map("aggregate_type") @db.Text
+  aggregateId      String    @map("aggregate_id") @db.Text
+  version Int       @map("aggregate_version")
+  type        String    @map("event_type") @db.VarChar(100)
+  payload          Json      @map("payload")
+  dedupeKey        String    @unique @map("dedupe_key") @db.Text
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  deliveredAt      DateTime? @map("published_at") @db.Timestamptz(3)
+  totalAttempts         Int @default(0)       @map("attempts")
 
-  correlationId String    @map("correlation_id") @db.Uuid
-  availableAt   DateTime  @default(now()) @map("available_at") @db.Timestamptz(3)
-  leaseToken    String?   @map("lease_token") @db.Uuid
-  leaseUntil    DateTime? @map("lease_until") @db.Timestamptz(3)
-  cycleAttempts Int       @default(0) @map("cycle_attempts")
-  replayCount   Int       @default(0) @map("replay_count")
-  failedAt      DateTime? @map("failed_at") @db.Timestamptz(3)
-  lastErrorCode String?   @map("last_error_code")
-
-  @@index([availableAt, createdAt])
   @@map("outbox_events")
+
+  correlationId String @map("correlation_id") @db.Uuid
+  availableAt DateTime @default(now()) @map("available_at") @db.Timestamptz(3)
+  leaseToken String? @map("lease_token") @db.Uuid
+  leaseUntil DateTime? @map("lease_until") @db.Timestamptz(3)
+  cycleAttempts Int @default(0) @map("cycle_attempts")
+  replayCount Int @default(0) @map("replay_count")
+  failedAt DateTime? @map("failed_at") @db.Timestamptz(3)
+  lastErrorCode String? @map("last_error_code")
+  @@index([availableAt, createdAt])
+
 }
+
 
 // Support retained for implemented foundation and Learning Request services.
 enum OtpPurpose {
@@ -1528,9 +1578,9 @@ model StoredFile {
   createdAt         DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt         DateTime              @updatedAt @map("updated_at") @db.Timestamptz(3)
   scanEvents        StoredFileScanEvent[]
-  attachedAt        DateTime?             @map("attached_at") @db.Timestamptz(3)
-  resourceType      String?               @map("resource_type")
-  resourceId        String?               @map("resource_id") @db.Uuid
+  attachedAt        DateTime? @map("attached_at") @db.Timestamptz(3)
+  resourceType      String? @map("resource_type")
+  resourceId        String? @map("resource_id") @db.Uuid
   evidence          SkillEvidence?
 
   @@index([state, createdAt])
@@ -1612,19 +1662,19 @@ enum RequestExpiryMode {
 }
 
 model Tag {
-  id               String        @id @default(uuid()) @map("tag_id") @db.Uuid
-  label            String        @unique @db.VarChar(80)
-  status           CatalogStatus @map("status")
-  learningRequests RequestTag[]  @relation("RequestTag_tag")
+  id String @id @default(uuid()) @map("tag_id") @db.Uuid
+  label String @unique @db.VarChar(80)
+  status CatalogStatus @map("status")
+  learningRequests RequestTag[] @relation("RequestTag_tag")
 
   @@map("tags")
 }
 
 model RequestTag {
-  requestId String          @map("request_id") @db.Uuid
-  tagId     String          @map("tag_id") @db.Uuid
-  request   LearningRequest @relation("RequestTag_request", fields: [requestId], references: [id], onDelete: Restrict)
-  tag       Tag             @relation("RequestTag_tag", fields: [tagId], references: [id], onDelete: Restrict)
+  requestId String @map("request_id") @db.Uuid
+  tagId String @map("tag_id") @db.Uuid
+  request LearningRequest @relation("RequestTag_request", fields: [requestId], references: [id], onDelete: Restrict)
+  tag Tag @relation("RequestTag_tag", fields: [tagId], references: [id], onDelete: Restrict)
 
   @@id([requestId, tagId])
   @@index([tagId, requestId])

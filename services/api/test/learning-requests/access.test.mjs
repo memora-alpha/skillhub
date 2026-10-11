@@ -188,6 +188,7 @@ test("bootstrap grants only the chosen per-role actions and preserves existing g
       "learning-request:moderation:read",
       "learning-request:approve",
       "learning-request:reject",
+      "report:moderate",
       "sharing-skill:create:self",
       "sharing-skill:update:self",
       "sharing-skill:archive:self",

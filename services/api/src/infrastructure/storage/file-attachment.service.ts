@@ -1,9 +1,12 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../database/prisma.service";
 import type { TransactionContext } from "../database/transaction-context";
-import type { Actor } from "../../shared/authorization/authorization.types";
 import { FileStorageError } from "./file.types";
-type Binding = { type: string; id: string };
+type Binding = {
+  type: string;
+  id: string;
+  purpose?: "EVIDENCE" | "REPORT" | "MATERIAL";
+};
 @Injectable()
 export class FileAttachmentService {
   constructor(private readonly db: PrismaService) {}
@@ -73,21 +76,29 @@ export class FileAttachmentService {
       throw new FileStorageError("FILE_NOT_FOUND", 404);
     return { fileId: row.id, state: row.state, generation: row.generation };
   }
-  async status(actor: Actor, id: string) {
+  async status(actor: { userId: string }, id: string) {
     const row = await this.db.storedFile.findUnique({ where: { id } });
-    if (row?.uploadedBy !== actor.userId || row.purpose !== "EVIDENCE")
+    if (
+      row?.uploadedBy !== actor.userId ||
+      (row.purpose !== "EVIDENCE" &&
+        row.purpose !== "REPORT" &&
+        row.purpose !== "MATERIAL")
+    )
       throw new FileStorageError("FILE_NOT_FOUND", 404);
     return { fileId: row.id, state: row.state, generation: row.generation };
   }
   async attachReady(
     tx: TransactionContext,
-    actor: Actor,
+    actor: { userId: string },
     id: string,
     resource: Binding,
   ) {
     await tx.$queryRaw`SELECT id FROM stored_files WHERE id=${id}::uuid FOR UPDATE`;
     const row = await tx.storedFile.findUnique({ where: { id } });
-    if (row?.uploadedBy !== actor.userId || row.purpose !== "EVIDENCE")
+    if (
+      row?.uploadedBy !== actor.userId ||
+      row.purpose !== (resource.purpose ?? "EVIDENCE")
+    )
       throw new FileStorageError("FILE_NOT_FOUND", 404);
     if (
       row.state !== "READY" ||
@@ -95,7 +106,8 @@ export class FileAttachmentService {
       !row.sha256 ||
       !row.detectedMime ||
       !row.sizeBytes ||
-      row.sizeBytes > 10_000_000 ||
+      row.sizeBytes >
+        (resource.purpose === "MATERIAL" ? 20_000_000 : 10_000_000) ||
       row.attachedAt
     )
       throw new FileStorageError("FILE_NOT_READY", 409);

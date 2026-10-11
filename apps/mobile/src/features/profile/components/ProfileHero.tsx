@@ -2,41 +2,67 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Avatar } from "@/components/Avatar";
 import { Icon } from "@/components/Icon";
 import { typography, avatarSizes, iconSizes, fonts } from "@/constants/theme";
-import { VerifiedBadge } from "./ProfilePrimitives";
-import { profileDetails } from "../mocks/profile";
 import { profileColors } from "../constants/theme";
 
 export function ProfileHero({
   name,
   userId,
+  headline,
+  avatarUrl = null,
   onEdit,
 }: {
   name: string;
   userId: string;
-  onEdit: () => void;
+  headline: string;
+  avatarUrl?: string | null;
+  onEdit?: () => void;
 }) {
   return (
     <View style={styles.hero}>
       <View style={styles.top}>
-        <Avatar name={name} userId={userId} size={avatarSizes.profile} />
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Chỉnh sửa hồ sơ"
-          onPress={onEdit}
-          style={({ pressed }) => [styles.edit, pressed && { opacity: 0.7 }]}
-        >
-          <Icon name="edit" size={iconSizes.inline} color={profileColors.ink} />
-          <Text style={styles.editLabel}>Chỉnh sửa</Text>
-        </Pressable>
+        <Avatar
+          name={name}
+          userId={userId}
+          size={avatarSizes.profile}
+          sourceUri={avatarUrl}
+        />
+        {onEdit && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Chỉnh sửa hồ sơ"
+            onPress={onEdit}
+            style={({ pressed }) => [styles.edit, pressed && { opacity: 0.7 }]}
+          >
+            <Icon
+              name="edit"
+              size={iconSizes.inline}
+              color={profileColors.ink}
+            />
+            <Text style={styles.editLabel}>Chỉnh sửa</Text>
+          </Pressable>
+        )}
       </View>
       <View style={styles.info}>
         <View style={styles.nameRow}>
           <Text accessibilityRole="header" style={styles.name}>
             {name}
           </Text>
-          {profileDetails.verified && <VerifiedBadge />}
         </View>
-        <Text style={styles.tagline}>{profileDetails.tagline}</Text>
+        {!!headline.trim() && (
+          <Text selectable style={styles.tagline}>
+            {headline}
+          </Text>
+        )}
+        {onEdit && (
+          <View style={styles.titlePlaceholder}>
+            <Icon
+              name="award"
+              size={iconSizes.inline}
+              color={profileColors.muted}
+            />
+            <Text style={styles.tagline}>Danh hiệu · Sắp có</Text>
+          </View>
+        )}
       </View>
     </View>
   );
@@ -71,6 +97,12 @@ const styles = StyleSheet.create({
     includeFontPadding: false,
   },
   info: { marginTop: 8 },
+  titlePlaceholder: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    marginTop: 6,
+  },
   nameRow: {
     flexDirection: "row",
     alignItems: "center",

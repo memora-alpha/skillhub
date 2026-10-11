@@ -12,11 +12,11 @@ import { Redirect, useLocalSearchParams, useRouter } from "expo-router";
 import { AppScreenLayout } from "@/features/shell";
 import { Avatar } from "@/components/Avatar";
 import { EmptyState } from "@/components/EmptyState";
-import { InfoModal } from "@/components/InfoModal";
+import { Button } from "@/components/Button";
 import { avatarSizes, typography, fonts } from "@/constants/theme";
-import { useMockSession } from "@/features/auth";
+import { useAuthSession } from "@/features/auth";
 import { useMockMessages } from "../context/MockMessages";
-import { conversations, type Conversation } from "../mocks/conversations";
+import type { Conversation } from "../mocks/conversations";
 import type { ChatMessage } from "../mocks/chat";
 import { ChatHeader } from "../components/ChatHeader";
 import { ChatComposer } from "../components/ChatComposer";
@@ -27,20 +27,6 @@ import {
 } from "../components/ChatActionCards";
 import { messageColors as colors } from "../constants/theme";
 
-type ChatNotice = "agreement" | "file";
-const chatNoticeCopy: Record<
-  ChatNotice,
-  Readonly<{ title: string; body: string }>
-> = {
-  agreement: {
-    title: "Chọn hình thức học",
-    body: "Màn chọn hình thức học sẽ được triển khai tiếp theo. Tin nhắn demo không tạo thỏa thuận, khóa lịch hoặc tạm giữ Credit.",
-  },
-  file: {
-    title: "Đính kèm tệp",
-    body: "Màn gửi tệp sẽ được triển khai tiếp theo. Hiện tại bản demo chỉ hỗ trợ gửi tin nhắn văn bản local, không tải tệp lên máy chủ.",
-  },
-};
 const typingDotIds = ["typing-dot-1", "typing-dot-2", "typing-dot-3"] as const;
 
 function ChatMessageSeparator() {
@@ -49,7 +35,8 @@ function ChatMessageSeparator() {
 
 export function ChatScreen() {
   const router = useRouter();
-  const { session } = useMockSession();
+  const { session } = useAuthSession();
+  const { conversations } = useMockMessages();
   const params = useLocalSearchParams<{ proposalId?: string | string[] }>();
   const id = Array.isArray(params.proposalId)
     ? params.proposalId[0]
@@ -84,7 +71,6 @@ function ChatConversation({
   const router = useRouter();
   const { threads, markRead, send } = useMockMessages();
   const [draft, setDraft] = useState("");
-  const [notice, setNotice] = useState<ChatNotice | null>(null);
   const list = useRef<FlatList<ChatMessage>>(null);
   const scrollOnSend = useRef(false);
   const messages = threads[conversation.proposal] ?? [];
@@ -97,7 +83,11 @@ function ChatConversation({
     send(conversation.proposal, text);
     setDraft("");
   };
-  const noticeCopy = notice ? chatNoticeCopy[notice] : null;
+  const agreement = () =>
+    router.push({
+      pathname: "/agreement-type",
+      params: { proposalId: conversation.proposal },
+    });
   return (
     <SafeAreaView
       style={styles.screen}
@@ -110,7 +100,7 @@ function ChatConversation({
         <ChatHeader
           conversation={conversation}
           onBack={() => router.dismissTo("/messages")}
-          onAgreement={() => setNotice("agreement")}
+          onAgreement={agreement}
         />
         <FlatList
           ref={list}
@@ -124,8 +114,23 @@ function ChatConversation({
           ItemSeparatorComponent={ChatMessageSeparator}
           ListHeaderComponent={
             <View style={styles.heading}>
-              <Text style={styles.date}>Hôm nay, {messages[0]?.time}</Text>
+              <Text style={styles.date}>
+                {messages.length
+                  ? `Hôm nay, ${messages[0]?.time}`
+                  : "Bắt đầu cuộc trao đổi"}
+              </Text>
               <AcceptedProposalNotice />
+              <Button
+                variant="secondary"
+                onPress={() =>
+                  router.push({
+                    pathname: "/proposal/[id]",
+                    params: { id: conversation.proposal },
+                  })
+                }
+              >
+                Xem đề xuất gốc
+              </Button>
             </View>
           }
           renderItem={({ item }) => (
@@ -137,7 +142,7 @@ function ChatConversation({
           )}
           ListFooterComponent={
             <View style={styles.footer}>
-              <ChatNextStep onPress={() => setNotice("agreement")} />
+              <ChatNextStep onPress={agreement} />
               <View
                 style={styles.typingRow}
                 accessibilityLabel="Trạng thái đang nhập mẫu"
@@ -166,15 +171,14 @@ function ChatConversation({
           value={draft}
           onChange={setDraft}
           onSend={submit}
-          onAttach={() => setNotice("file")}
+          onAttach={() =>
+            router.push({
+              pathname: "/chat-attachment",
+              params: { proposalId: conversation.proposal },
+            })
+          }
         />
       </KeyboardAvoidingView>
-      <InfoModal
-        title={noticeCopy?.title ?? null}
-        onClose={() => setNotice(null)}
-      >
-        {noticeCopy?.body ?? ""}
-      </InfoModal>
     </SafeAreaView>
   );
 }

@@ -29,7 +29,7 @@ export function WelcomeScreen() {
   };
   const onLink = (label: string) => {
     if (label === "Khám phá kỹ năng" || label === "Xem tất cả")
-      return scrollTo("categories");
+      return router.push("/explore");
     if (label === "Cách hoạt động") return scrollTo("how");
     if (label === "Credit") return scrollTo("credit");
     setNotice(label);

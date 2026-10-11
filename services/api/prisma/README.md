@@ -3,19 +3,19 @@
 # SkillHub Prisma catalog — logical v3
 
 The catalog follows [logical v3](../../../docs/SkillHub_Logical_Data_Model_v3.md)
-and [field catalog v3](../../../docs/SkillHub_Entities_Fields_v3.md): **48 PostgreSQL
-models and one MongoDB Message document**. Conceptual v3 hides associative
+and [field catalog v3](../../../docs/SkillHub_Entities_Fields_v3.md), with two
+additive Achievement/UserAchievement models: **50 PostgreSQL models and one MongoDB Message document**. Conceptual v3 hides associative
 entities; its simplification does not remove logical join tables.
 
 ## Catalog and implemented runtime
 
-- `catalog.prisma` is the v3 PostgreSQL catalog. Its client output is
+- `catalog.prisma` is the v3 PostgreSQL catalog plus the SH-083 achievement extension. Its client output is
   `src/generated/prisma-catalog`, separate from the running identity client.
 - `schema.prisma` is the runtime v3 schema, generated from the catalog by
-  `scripts/generate-runtime-schema.mjs`. It includes the 48 domain models and
+  `scripts/generate-runtime-schema.mjs`. It includes the 50 domain models and
   eight technical models from `runtime-support.prisma` for foundation and Connections.
   Tag and RequestTag extend the runtime to meet SRS V1.6; they are not part of
-  the 48-model logical catalog. Learning Request keeps its moderation/expiry
+  the 50-model catalog. Learning Request keeps its moderation/expiry
   metadata and application aliases mapped to v3 columns.
   `prisma.config.ts`, default generate/build/typecheck and migrations use it.
   Profile fields live on User; User has one required roleId.
@@ -90,8 +90,8 @@ READY orphan evidence can enter cleanup after the existing 24-hour grace;
 attached files and scan facts remain immutable and are retained for history.
 Migration tests use disposable schemas and do not deploy the application database.
 
-- Profile fields and reputation (default 50) are on User; one required roleId,
-  no UserRole. OTP tables/issue windows, Withdrawal, Achievement, SkillTag,
+- Profile fields, reputation (default 50), and selected title are on User; one required roleId,
+  no UserRole. OTP tables/issue windows, Withdrawal, SkillTag,
   separate confirmations/attendance/room, MaterialVersion and PathSettlement
   are absent from the v3 catalog. RolePermission/SharingSkill/UserLearnedSkill/
   MaterialEntitlement remain logical models.
@@ -135,6 +135,10 @@ Migration tests use disposable schemas and do not deploy the application databas
 - Atomic workflows and locks are required for Hold, settlement, material purchase,
   payment callback, refunds and wallet/ledger reconciliation. No fee/min-max/no-show/
   penalty/refund value is invented for open policies.
+
+Migration `20261009000000_achievement_badges` adds badge definitions/unlocks
+and the public selected title. Runtime client generation and migration deployment
+are still required before the extension can run against PostgreSQL.
 
 ## Coverage
 
