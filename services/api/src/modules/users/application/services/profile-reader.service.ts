@@ -29,6 +29,7 @@ export class ProfileReader {
       reputationScore: row.reputationScore,
       verifiedSkillCount: row.verifiedSkillCount,
       completedSessionCount: row.completedSessionCount,
+      selectedTitle: row.selectedTitle,
       ...(this.skills ? { sharingSkills: await this.skills.read(userId) } : {}),
     };
     // URLs are supplied by the storage adapter/controller, never a quarantine key.

@@ -13,6 +13,7 @@ export class PublicProfileResponse {
   @ApiProperty({ type: Number }) reputationScore!: number;
   @ApiProperty() verifiedSkillCount!: number;
   @ApiProperty() completedSessionCount!: number;
+  @ApiProperty({ type: String, nullable: true }) selectedTitle!: string | null;
 }
 export class OwnProfileResponse extends PublicProfileResponse {
   @ApiProperty({ type: String, nullable: true }) timezone!: string | null;
