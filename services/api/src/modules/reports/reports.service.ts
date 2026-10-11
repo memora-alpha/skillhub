@@ -33,6 +33,20 @@ export class ReportsService {
     private readonly audit: AuditWriter,
   ) {}
 
+  private storageActor(principal: Principal): Actor {
+    const roles = principal.roles.filter(
+      (role): role is "USER" | "STAFF" | "ADMIN" =>
+        role === "USER" || role === "STAFF" || role === "ADMIN",
+    );
+    return {
+      userId: principal.userId,
+      accountStatus: "ACTIVE",
+      roles,
+      permissions: new Set(principal.permissions as PermissionCode[]),
+      blockedPermissions: new Set(),
+    };
+  }
+
   upload(
     principal: Principal,
     input: {
@@ -43,9 +57,12 @@ export class ReportsService {
     },
   ) {
     return this.storage.upload({
-      actor: { userId: principal.userId },
+      actor: this.storageActor(principal),
       purpose: "REPORT",
-      ...input,
+      name: input.name,
+      claimedMime: input.claimedMime,
+      body: input.body,
+      context: { correlationId: input.correlationId },
     });
   }
 
@@ -85,19 +102,9 @@ export class ReportsService {
       });
       return { fileId: stored.id, caseId: evidence.caseId };
     });
-    const storageActor: Actor = {
-      userId: actor.userId,
-      accountStatus: "ACTIVE",
-      roles: actor.roles.filter(
-        (role): role is "USER" | "STAFF" | "ADMIN" =>
-          role === "USER" || role === "STAFF" || role === "ADMIN",
-      ),
-      permissions: new Set(actor.permissions as PermissionCode[]),
-      blockedPermissions: new Set(),
-    };
     return this.storage.issueDownload(
       {
-        actor: storageActor,
+        actor: this.storageActor(actor),
         fileId: row.fileId,
         resource: { type: "REPORT_EVIDENCE", id: evidenceId },
       },
