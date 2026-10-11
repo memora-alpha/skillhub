@@ -5,6 +5,12 @@ verified on PostgreSQL 17.11 (Docker Compose, isolated database
 `skillhub_test`). S3, ClamAV and BullMQ evidence is **Pending**. This report
 separates fake-backed tests from real provider/runtime evidence.
 
+## Shared bucket update (2026-10-11)
+
+Per the user's decision, AvatarStorage and file CHAT/Evidence storage now select the same `S3_BUCKET=skillhub`. The ignored local `.env` and shared `.env.example` use the new key; separate old bucket keys are removed. Object prefixes and private signed access are retained. Provider endpoint/credentials must identify the same service; existing objects are not copied automatically when changing bucket.
+
+Validation: Nest build, `tsc --noEmit --incremental false`, focused ESLint and Prettier pass. `node --test test/foundation.test.mjs test/provider-configuration.test.mjs test/identity/providers.test.mjs test/s3-storage.test.mjs` passed **13 tests, 0 failures, 0 skips**, including actual SDK requests against a loopback fixture with the `/skillhub/avatars/...` path and enabled-storage validation of `S3_BUCKET`. No Docker, R2 upload or external SMTP delivery was used. File storage remains disabled in the local environment; real provider readiness is unchanged.
+
 ## Approved values
 
 - Evidence/report: 10,000,000 bytes per file, from the user's 2026-10-05 answer.

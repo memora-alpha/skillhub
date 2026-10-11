@@ -12,11 +12,13 @@ import { NotificationAccessService } from "./application/services/notification-a
 import { LearningRequestRejectionPublisher } from "./infrastructure/events/learning-request-rejection.publisher";
 import { PrismaNotificationRepository } from "./infrastructure/persistence/prisma-notification.repository";
 import { NotificationsController } from "./presentation/http/notifications.controller";
+import { ConnectionNotificationService } from "./application/services/connection-notification.service";
 
 @Module({
   imports: [DatabaseModule, IdentityModule, OutboxModule],
   controllers: [NotificationsController],
   providers: [
+    ConnectionNotificationService,
     IdentityGuard,
     NotificationAccessService,
     ListNotificationsUseCase,
@@ -27,5 +29,6 @@ import { NotificationsController } from "./presentation/http/notifications.contr
       useClass: PrismaNotificationRepository,
     },
   ],
+  exports: [ConnectionNotificationService],
 })
 export class NotificationsModule {}

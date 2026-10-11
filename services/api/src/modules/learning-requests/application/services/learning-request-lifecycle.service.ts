@@ -19,6 +19,11 @@ export class LearningRequestLifecycleService {
     @Inject(LEARNING_REQUEST_REPOSITORY)
     private readonly repository: LearningRequestRepository,
   ) {}
+  async proposalSource(tx: TransactionContext, id: string) {
+    const row = await this.repository.get(tx, id);
+    if (!row) throw new NotFoundException();
+    return { ownerId: row.ownerId, skillId: row.skillId };
+  }
 
   async lockForProposal(
     tx: TransactionContext,

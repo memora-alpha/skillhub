@@ -56,7 +56,7 @@ import { S3ObjectStorage } from "./s3-object-storage.adapter";
         });
         return new S3ObjectStorage(
           client,
-          config.getOrThrow<string>("STORAGE_BUCKET"),
+          config.getOrThrow<string>("S3_BUCKET"),
         );
       },
       inject: [ConfigService],

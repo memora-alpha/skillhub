@@ -98,6 +98,47 @@ model StoredFileScanEvent {
 }
 
 // SRS V1.6 requires Learning Request tags beyond the logical v3 diagram.
+model ChatPublication {
+  id String @id @db.Uuid
+  conversationId String @map("conversation_id") @db.Uuid
+  senderId String @map("sender_id") @db.Uuid
+  clientMessageId String @map("client_message_id") @db.Uuid
+  commandDigest String @map("command_digest")
+  draftDigest String? @map("draft_digest")
+  draftFormatVersion Int @default(1) @map("draft_format_version")
+  deliveredEventId String @unique @map("delivered_event_id") @db.Uuid
+  status String @default("PREPARING")
+  messageSequence BigInt? @map("message_sequence")
+  failureCode String? @map("failure_code")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  @@unique([conversationId, senderId, clientMessageId])
+  @@index([status, createdAt])
+  @@index([senderId, createdAt])
+  @@map("chat_publications")
+}
+
+model UserEventStream {
+  userId String @id @map("user_id") @db.Uuid
+  epoch String @default(uuid()) @db.Uuid
+  lastSequence BigInt @default(0) @map("last_sequence")
+  firstRetainedSequence BigInt @default(1) @map("first_retained_sequence")
+  @@map("user_event_streams")
+}
+
+model UserEventDelivery {
+  userId String @map("user_id") @db.Uuid
+  sequence BigInt
+  eventId String @map("event_id") @db.Uuid
+  type String
+  version Int @default(1)
+  payload Json
+  occurredAt DateTime @default(now()) @map("occurred_at") @db.Timestamptz(3)
+  @@id([userId, sequence])
+  @@unique([userId, eventId])
+  @@map("user_event_deliveries")
+}
+
 enum RequestModerationStatus {
   NOT_REQUIRED
   PENDING

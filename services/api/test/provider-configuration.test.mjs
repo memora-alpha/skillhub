@@ -52,4 +52,20 @@ test("enabled storage requires provider values, disabled storage does not", () =
     () => validateEnvironment({ ...base, STORAGE_ENABLED: "true" }),
     /STORAGE_/,
   );
+  const storage = {
+    ...base,
+    STORAGE_ENABLED: "true",
+    STORAGE_ENDPOINT: "http://127.0.0.1:9000",
+    STORAGE_REGION: "fixture",
+    S3_BUCKET: "skillhub",
+    STORAGE_ACCESS_KEY_ID: "fixture",
+    STORAGE_SECRET_ACCESS_KEY: "fixture-secret",
+    CLAMAV_HOST: "127.0.0.1",
+    CLAMAV_PORT: "3310",
+  };
+  assert.equal(validateEnvironment(storage).S3_BUCKET, "skillhub");
+  assert.throws(
+    () => validateEnvironment({ ...storage, S3_BUCKET: undefined }),
+    /S3_BUCKET/,
+  );
 });

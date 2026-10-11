@@ -43,6 +43,18 @@ export function ownSharing(row: SharingRow) {
 @Injectable()
 export class SharingSkillsRepository {
   constructor(private readonly db: PrismaService) {}
+  async matchingSnapshot(tx: TransactionContext, userId: string) {
+    const rows = await tx.sharingSkill.findMany({
+      where: { userId, archivedAt: null, skillIdRecord: { status: "ACTIVE" } },
+      select: { id: true, skillId: true, version: true },
+      orderBy: { id: "asc" },
+    });
+    return {
+      skillIds: rows.map((row) => row.skillId),
+      tagIds: [],
+      version: cursorScope(rows),
+    };
+  }
   async get(id: string, tx: TransactionContext = this.db, lock = false) {
     if (lock)
       await tx.$queryRaw`SELECT sharing_skill_id FROM sharing_skills WHERE sharing_skill_id=${id}::uuid FOR UPDATE`;

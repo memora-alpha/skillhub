@@ -12,7 +12,9 @@ Luồng đăng ký/OTP đã chuyển sang Redis và BullMQ theo [Redis OTP amend
 
 Quên mật khẩu dùng ba API: `password/forgot` → `password/verify-otp` → `password/reset`. Xác thực OTP đúng mới nhận `resetToken` dùng một lần để đổi mật khẩu; bước verify không đổi mật khẩu hoặc thu hồi phiên. Xem [luồng khôi phục mật khẩu](specs/002-user-identity/password-recovery.md).
 
-API đã có nền tảng hạ tầng và phần Danh tính (spec 002): đăng ký/OTP/login, refresh/logout/reset, hồ sơ/avatar, quyền và quản trị tài khoản có audit. Phần Kỹ năng (spec 007) đã có catalog, quản lý Sharing Skill, search/profile công khai, evidence và Staff Verification; xem [quickstart](specs/007-skills/quickstart.md) và [validation](specs/007-skills/validation.md). Core Learning Request có source theo [plan](specs/007-learning-request/plan.md); việc nối owner adapters cho catalog/eligibility, Sharing Skill matching, Path/Schedule/Wallet consumers, migration rollout và kiểm chứng DB/Redis thật vẫn là gates. Chat và giao dịch Credit chưa được triển khai.
+API đã có nền tảng hạ tầng và phần Danh tính (spec 002): đăng ký/OTP/login, refresh/logout/reset, hồ sơ/avatar, quyền và quản trị tài khoản có audit. Phần Kỹ năng (spec 007) đã có catalog, quản lý Sharing Skill, search/profile công khai, evidence và Staff Verification; xem [quickstart](specs/007-skills/quickstart.md) và [validation](specs/007-skills/validation.md). Core Learning Request đã nối owner adapters cho catalog, eligibility, public owner và Sharing Skill matching. Path/Schedule lock reader còn trả unavailable; cancellation phụ thuộc reader này vẫn bị chặn. Giao dịch Credit và các consumer Path/Schedule/Wallet chưa được triển khai.
+
+Phần Kết nối đã có source cho Proposal từ Request/lời mời trực tiếp, accept mở Conversation, chat text/file, delivery receipt, read watermark và notification in-app. Chat, notification và application events dùng [SSE chung](specs/008-connections/contracts/sse.md) với reconnect/replay; commands/history vẫn qua HTTP. [Policy đã chốt](specs/008-connections/policies.md): proposal 7 ngày, 10/giờ và 50/ngày, direct cooldown 24 giờ; chat 30/phút/User và 120/phút/Conversation; 5 file/tin, 15 MB/file, 50 MB/tin. Xem [quickstart](specs/008-connections/quickstart.md), [tasks](specs/008-connections/tasks.md) và [validation](specs/008-connections/validation.md). Migration Connections và seed cấu hình đã áp dụng trên PostgreSQL local; journeys HTTP/SSE đã pass với PostgreSQL schema riêng và Mongo rs0 local. Mongo service/indexes đã cấu hình; storage local đã bật trên bucket chung `skillhub` và truy cập bucket trả HTTP 200. API local trả health/ready 200; luồng CHAT upload → scan READY/CLEAN → gửi file → download đã pass với R2/ClamAV thật trên dữ liệu test riêng. Moderation rules chưa chốt; SSE nhiều instance/proxy, recovery/cleanup races và load vẫn cần kiểm chứng. Retention, report/staff access và external notification chưa được mở.
 
 Catalog Prisma đã cập nhật theo logical v3: **48 model PostgreSQL và một document
 Message MongoDB** với attachments nhúng. Xem [schema catalog](prisma/README.md)
@@ -21,7 +23,7 @@ như phần mở rộng ngoài diagram; xem [LR ERD v3 alignment](specs/007-lear
 Schema v3 ở `prisma/catalog.prisma` sinh client
 riêng `src/generated/prisma-catalog` để đối chiếu mô hình.
 API, generate mặc định và migration dùng `prisma/schema.prisma`: runtime v3 gồm
-48 model domain, 5 model kỹ thuật cho foundation và Tag/RequestTag.
+48 model domain, 8 model kỹ thuật cho foundation/Kết nối và Tag/RequestTag.
 Learning Request giữ preferred slots JSONB và metadata moderation/expiry/version
 với tên application tương thích, ánh xạ sang cột v3. Profile nằm trong User,
 User có một roleId; các repository danh tính đã chuyển sang cấu trúc này.
@@ -89,6 +91,8 @@ nhóm API dự kiến và đều nằm sau prefix `/api` hiện có.
 | `audit`             | Ghi lịch sử bất biến của thao tác nhạy cảm, tra cứu theo quyền; `/admin/audit-logs/*`.                                                      | AuditLog. Không log password, OTP, token đầy đủ hay dữ liệu thanh toán nhạy cảm. Audit khác application logs.                                                               |
 
 GET /api/health là liveness; GET /api/health/ready kiểm tra PostgreSQL, MongoDB và Redis; cả hai version-neutral. Swagger ở /api/docs trong development/test, tắt trong production. Rate limit chia sẻ qua Redis theo cấu hình, gồm IP toàn API và email/IP/device theo luồng danh tính; health được miễn. Cấu hình danh tính/provider trong `.env.example` bắt buộc có giá trị rõ ràng trước khi khởi động.
+
+Avatar, file CHAT và Evidence dùng chung bucket `skillhub`, cấu hình bằng `S3_BUCKET`. Avatar lưu dưới prefix `avatars/`, file CHAT/Evidence dưới `private/`; đọc qua quyền và URL ký có hạn. Avatar dùng provider `S3_*`; file CHAT/Evidence dùng `STORAGE_*` cho endpoint/region/credentials và cần `STORAGE_ENABLED=true`. Hai bộ provider phải trỏ cùng dịch vụ S3-compatible chứa bucket này. Khi đổi bucket của môi trường đã có dữ liệu, cần chuyển các object sang bucket mới, giữ nguyên object key để metadata hiện có tiếp tục đọc được.
 
 Response JSON theo chuẩn Memora: thành công `{success:true,message,data,meta?}`;
 lỗi `{success:false,message,statusCode}`. Payload nằm trong `data`, phân trang
@@ -258,7 +262,7 @@ Chạy pnpm infra:up từ services/api và dùng các giá trị development sau
 
 ```dotenv
 DATABASE_URL=postgresql://skillhub:skillhub_local@127.0.0.1:5433/skillhub
-MONGODB_URI=mongodb://127.0.0.1:27018/skillhub_chat
+MONGODB_URI=mongodb://127.0.0.1:27018/skillhub_chat?replicaSet=rs0&directConnection=true
 REDIS_URL=redis://127.0.0.1:6380/0
 ```
 
