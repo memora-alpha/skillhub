@@ -31,11 +31,13 @@ import { LearningRequestExpiryWorker } from "./infrastructure/jobs/learning-requ
 import { EditLearningRequestUseCase } from "./application/use-cases/edit-learning-request.use-case";
 import { ListLearningRequestsUseCase } from "./application/use-cases/list-learning-requests.use-case";
 import { GetLearningRequestUseCase } from "./application/use-cases/get-learning-request.use-case";
+import { ReputationModule } from "../reputation/reputation.module";
 
 @Module({
   imports: [
     DatabaseModule,
     IdentityModule,
+    ReputationModule,
     SystemConfigurationModule,
     AuditModule,
     OutboxModule,

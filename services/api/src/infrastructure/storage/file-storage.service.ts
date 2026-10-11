@@ -3,14 +3,14 @@ import { Readable, Transform } from "node:stream";
 import type { Actor } from "../../shared/authorization/authorization.types";
 import type { SystemConfigurationService } from "../../modules/system-configuration/application/system-configuration.service";
 import { FileFormatDetector } from "./file-format-detector";
-import { validateFile } from "./file-policy";
+import { MATERIAL_MAX_BYTES, validateFile } from "./file-policy";
 import { FileStorageError, type FilePurpose } from "./file.types";
 import type { ObjectStorage } from "./object-storage.port";
 import type { StoredFileRepository } from "./stored-file.repository";
 
 export interface FileAccessPolicy {
   assertRead(input: {
-    actor: Actor;
+    actor: Pick<Actor, "userId">;
     fileId: string;
     resource: { type: string; id: string };
   }): Promise<void>;
@@ -39,8 +39,10 @@ export class FileStorageService {
     const configuredCap =
       input.purpose === "CHAT"
         ? 15_000_000
-        : (await this.configuration.getSnapshot(["storage.evidenceMaxBytes"]))
-            .values["storage.evidenceMaxBytes"];
+        : input.purpose === "MATERIAL"
+          ? MATERIAL_MAX_BYTES
+          : (await this.configuration.getSnapshot(["storage.evidenceMaxBytes"]))
+              .values["storage.evidenceMaxBytes"];
     const cap =
       input.purpose === "EVIDENCE" && configuredCap
         ? Math.min(configuredCap, 10_000_000)
