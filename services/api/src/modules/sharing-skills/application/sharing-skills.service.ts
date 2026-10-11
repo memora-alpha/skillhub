@@ -28,6 +28,8 @@ import {
   type SkillCommand,
 } from "../../skills/application/skill-contracts";
 import { text, expectedVersion } from "../../skills/domain/skill-policy";
+import { AuditWriter } from "../../audit/application/audit-writer";
+import { auditActorFromActor } from "../../audit/application/audit.types";
 export type SharingInput = {
   skillId: string;
   level: SharingSkillLevel;
@@ -45,6 +47,7 @@ export class SharingSkillsService implements OnModuleInit {
     private readonly transactions: TransactionRunner,
     private readonly profiles: ProfileReader,
     private readonly publicReader: PublicSkillReader,
+    private readonly audit: AuditWriter,
   ) {}
   onModuleInit(): void {
     this.publicReader.register((userId) =>
@@ -187,6 +190,87 @@ export class SharingSkillsService implements OnModuleInit {
     } catch (error) {
       uniqueConflict(error);
     }
+  }
+  async restore(
+    command: SkillCommand,
+    id: string,
+    input: { expectedVersion: number },
+  ) {
+    try {
+      const result = await this.commands.execute(
+        {
+          scope: command.principal.userId,
+          operation: "sharing-skill:restore:self",
+          key: command.key,
+          command: commandJson({ id, ...input }),
+        },
+        async (tx) => {
+          const actor = await this.actors.require(
+            tx,
+            command.principal,
+            "sharing-skill:restore:self",
+          );
+          // Read ownership first, then lock catalog before the sharing row.
+          const snapshot = await this.repository.get(id, tx);
+          if (snapshot.userId !== actor.userId) throw new NotFoundException();
+          await this.skills.assertActive(tx, snapshot.skillId);
+          const before = await this.repository.get(id, tx, true);
+          expectedVersion(before.version, input.expectedVersion);
+          if (!before.archivedAt)
+            throw new ConflictException("SHARING_SKILL_NOT_ARCHIVED");
+          if (
+            await this.repository.findUnarchived(
+              tx,
+              actor.userId,
+              before.skillId,
+            )
+          )
+            throw new ConflictException("SKILL_DUPLICATE");
+          const after = await this.repository.update(tx, id, {
+            archivedAt: null,
+            version: { increment: 1 },
+          });
+          await this.refreshCounter(tx, actor.userId);
+          await this.audit.append(tx, {
+            actor: auditActorFromActor(actor),
+            action: "SHARING_SKILL_RESTORE",
+            target: { type: "SHARING_SKILL", id },
+            before: this.restoreSnapshot(before),
+            after: this.restoreSnapshot(after),
+            reason: "Owner restored sharing skill",
+            context: command.context,
+          });
+          return {
+            id,
+            status: after.verificationStatus,
+            version: after.version,
+          };
+        },
+        async (tx) => {
+          await this.actors.require(
+            tx,
+            command.principal,
+            "sharing-skill:restore:self",
+          );
+        },
+      );
+      return ownSharing(await this.repository.get(result.value.id));
+    } catch (error) {
+      uniqueConflict(error);
+    }
+  }
+  private restoreSnapshot(row: {
+    archivedAt: Date | null;
+    isVisible: boolean;
+    verificationStatus: SkillVerificationStatus;
+    version: number;
+  }) {
+    return {
+      archivedAt: row.archivedAt?.toISOString() ?? null,
+      isVisible: row.isVisible,
+      verificationStatus: row.verificationStatus,
+      version: row.version,
+    };
   }
   async change(
     command: SkillCommand,

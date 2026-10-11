@@ -80,6 +80,12 @@ export class SharingSkillsRepository {
       where: { userId, archivedAt: null, verificationStatus: "VERIFIED" },
     });
   }
+  findUnarchived(tx: TransactionContext, userId: string, skillId: string) {
+    return tx.sharingSkill.findFirst({
+      where: { userId, skillId, archivedAt: null },
+      select: { id: true },
+    });
+  }
   async list(userId: string, query: SharingQuery, publicOnly = false) {
     const scope = cursorScope({
       type: "sharing",

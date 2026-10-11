@@ -28,8 +28,8 @@ Metadata PostgreSQL authoritative; bytes S3 private. Evidence MIME/size/hash là
 
 ## State transitions
 
-- Catalog ACTIVE↔INACTIVE, ACTIVE/INACTIVE→ARCHIVED terminal trong API.
-- SharingSkill chưa archive→archive; nếu PENDING trả409. Visible độc lập. Archive giữ references/approval/history.
+- Catalog ACTIVE↔INACTIVE, ACTIVE/INACTIVE→ARCHIVED; ARCHIVED→ACTIVE/INACTIVE qua restore riêng với permission, expectedVersion và reason.
+- SharingSkill chưa archive→archive; nếu PENDING trả409. Restore archive→chưa archive khi catalog ACTIVE và không có bản chưa archive cùng userId/skillId. Visible độc lập và được giữ khi restore. Archive/restore giữ references/approval/history.
 - Request PENDING→APPROVED/REJECTED, terminal immutable; submit mới record mới.
 - Evidence PENDING→APPROVED/REJECTED theo batch, APPROVED→REVOKED có audit. Revoke không đổi request APPROVED cũ. Không replace bytes hoặc expiry cùng ID.
 
@@ -38,5 +38,7 @@ Badge reducer dưới SharingSkill lock: còn APPROVED chưa revoke→VERIFIED; 
 ## Atomic workflows and recovery
 
 Decision tx: current auth/grants, request/evidence CAS, badge, users count, audit, outbox, idempotency result. Count recompute toàn VERIFIED chưa archive sau lock user; outbox retry không ghi lại decision. Public/search joins current visible+ACTIVE; profile gọi sharing reader qua owner contract.
+
+Restore không đổi schema. Catalog restore khóa user/session→catalog; Sharing Skill restore khóa user/session→catalog→SharingSkill, giữ partial unique chưa archive để chống create/restore race. Sharing restore cập nhật archivedAt/version, recompute count qua users owner, audit và idempotency result trong cùng transaction; failure rollback toàn bộ. Badge đã được verification owner cập nhật cả khi revoke trên bản archived; restore giữ giá trị hiện tại, không hồi sinh approval đã revoke.
 
 Internal reconciliation báo counter mismatch và users-owned recompute; không sửa approvals để khớp counter. Storage attach-vs-cleanup cùng lock/CAS, external delete sau CLEANUP_PENDING; không attach state đó. READY orphan grace24h; attached REJECTED/REVOKED cũng giữ để audit; retention/delete policy nếu cần là feature riêng.

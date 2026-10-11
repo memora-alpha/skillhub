@@ -14,6 +14,8 @@ export const AUDIT_ACTIONS = [
   "SKILL_CATALOG_CREATE",
   "SKILL_CATALOG_UPDATE",
   "SKILL_CATALOG_ARCHIVE",
+  "SKILL_CATALOG_RESTORE",
+  "SHARING_SKILL_RESTORE",
   "USER_LOCK",
   "USER_UNLOCK",
   "USER_SUSPEND",
@@ -84,6 +86,12 @@ const catalog = z.strictObject({
   status: z.enum(["ACTIVE", "INACTIVE", "ARCHIVED"]),
   version: z.number().int().positive(),
 });
+const sharingSkill = z.strictObject({
+  archivedAt: z.iso.datetime().nullable(),
+  isVisible: z.boolean(),
+  verificationStatus: z.enum(["UNVERIFIED", "PENDING", "VERIFIED", "REJECTED"]),
+  version: z.number().int().positive(),
+});
 const learningRequest = z.strictObject({
   status: z.enum(["PENDING", "APPROVED", "REJECTED"]),
   requestVersion: z.number().int().positive(),
@@ -145,6 +153,8 @@ const projectionByAction: Record<
   SKILL_CATALOG_CREATE: catalog,
   SKILL_CATALOG_UPDATE: catalog,
   SKILL_CATALOG_ARCHIVE: catalog,
+  SKILL_CATALOG_RESTORE: catalog,
+  SHARING_SKILL_RESTORE: sharingSkill,
   USER_LOCK: account,
   USER_UNLOCK: account,
   USER_SUSPEND: account,

@@ -118,6 +118,20 @@ export class SharingSkillsController {
       await this.sharing.change(skillCommand(req, key, p), id, body, true),
     );
   }
+  @Post(":sharingSkillId/restore")
+  @HttpCode(200)
+  @ApiSuccessResponse(200, SharingResponse)
+  async restore(
+    @Req() req: IdentityRequest,
+    @CurrentIdentity() p: Principal,
+    @Headers("idempotency-key") key: string | undefined,
+    @Param("sharingSkillId", ParseUUIDPipe) id: string,
+    @Body() body: VersionDto,
+  ) {
+    return success(
+      await this.sharing.restore(skillCommand(req, key, p), id, body),
+    );
+  }
 }
 @ApiTags("skill-search")
 @Controller({ version: "1" })

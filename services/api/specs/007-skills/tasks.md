@@ -72,3 +72,9 @@ MVP: foundation+catalog+own Sharing Skill with real HTTP/DB tests. Then add sear
 ## External release gate
 
 - [ ] T026 Run S3/private bucket and ClamAV end-to-end through configured production adapters, plus deployment bootstrap/TLS and migrations on a staging environment. Local provider fixtures are not evidence of this gate. See validation.md.
+
+## Restore amendment
+
+- [x] T027 Add dedicated catalog/Sharing Skill restore routes, DTOs, live permissions/default grants, idempotency and atomic audit/counter updates. Preserve records/history/visibility/current badge; reject duplicate current skills.
+- [x] T028 Amend spec/plan/data model/contracts/README and add restore walkthrough; replace terminal archive policy for these two resources only.
+- [x] T029 Verify PostgreSQL restore/replay/rollback/concurrency, guarded HTTP/Swagger, module bootstrap and affected audit/RBAC regressions; record results in validation.md.

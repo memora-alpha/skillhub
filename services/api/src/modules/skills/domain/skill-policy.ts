@@ -6,12 +6,14 @@ export const SKILL_PERMISSIONS = {
     "sharing-skill:create:self",
     "sharing-skill:update:self",
     "sharing-skill:archive:self",
+    "sharing-skill:restore:self",
     "skill-verification:submit:self",
   ],
   STAFF: [
     "sharing-skill:create:self",
     "sharing-skill:update:self",
     "sharing-skill:archive:self",
+    "sharing-skill:restore:self",
     "skill-verification:submit:self",
     "skill-verification:read",
     "skill-verification:approve",
@@ -21,6 +23,7 @@ export const SKILL_PERMISSIONS = {
     "sharing-skill:create:self",
     "sharing-skill:update:self",
     "sharing-skill:archive:self",
+    "sharing-skill:restore:self",
     "skill-verification:submit:self",
     "skill-verification:read",
     "skill-verification:approve",
@@ -29,6 +32,7 @@ export const SKILL_PERMISSIONS = {
     "skill-catalog:create",
     "skill-catalog:update",
     "skill-catalog:archive",
+    "skill-catalog:restore",
   ],
 } as const;
 export function text(value: string, min: number, max: number): string {

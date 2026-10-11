@@ -15,6 +15,7 @@ Unknown DTO fields rejected; không nhận userId/reviewerId/verificationStatus/
 | POST /me/skills                                                          | sharing-skill:create:self            | skillId,level,description,experienceYears?,isVisible?;201 created                                                     |
 | PATCH /me/skills/{sharingSkillId}                                        | sharing-skill:update:self+owner      | level?,description?,experienceYears?,isVisible?,expectedVersion;200 updated, no skillId                               |
 | POST /me/skills/{sharingSkillId}/archive                                 | sharing-skill:archive:self+owner     | expectedVersion;200 archived; PENDING→409                                                                             |
+| POST /me/skills/{sharingSkillId}/restore                                 | sharing-skill:restore:self+owner     | expectedVersion;200 original record restored; catalog must be ACTIVE; duplicate unarchived skill→409                  |
 | POST /me/skills/{sharingSkillId}/evidence-files                          | skill-verification:submit:self+owner | multipart one file; validate linked skill before upload;202 {fileId,state:QUARANTINED}                                |
 | GET /me/skills/{sharingSkillId}/evidence-files/{fileId}                  | Owner                                | upload/scan status only, no objectKey; file must owned and purpose EVIDENCE                                           |
 | POST /me/skills/{sharingSkillId}/verifications                           | skill-verification:submit:self+owner | fileIds1–5 distinct,title?,description?;201 pending request                                                           |
@@ -31,6 +32,7 @@ Unknown DTO fields rejected; không nhận userId/reviewerId/verificationStatus/
 | POST /admin/skills                                                       | skill-catalog:create                 | name,slug?,categoryId?,description?,status;201 created                                                                |
 | PATCH /admin/skills/{skillId}                                            | skill-catalog:update                 | name?,slug?,categoryId?,description?,status ACTIVE/INACTIVE?,expectedVersion;200 updated                              |
 | POST /admin/skills/{skillId}/archive                                     | skill-catalog:archive                | expectedVersion,reason;200 archived, no DELETE                                                                        |
+| POST /admin/skills/{skillId}/restore                                     | skill-catalog:restore                | expectedVersion,reason,status ACTIVE/INACTIVE (required);200 restored; non-ARCHIVED→409                               |
 
 `GET /api/v1/profiles/{userId}` hiện có được bổ sung `sharingSkills` chỉ visible/chưa archive, badge và verifiedSkillCount; lịch sử catalog INACTIVE có thể hiển thị label/status trong profile nhưng không xuất hiện search. Không trả evidence/reasons/private fields. Profile page không bị cắt ngầm danh sách: thêm cursor endpoint `GET /profiles/{userId}/skills` public theo cùng rules khi số lượng vượt embedded preview20.
 
@@ -44,20 +46,22 @@ Submission title/description áp dụng cho file mới trong batch; download req
 
 ## Permission matrix and seeds
 
-| Permission                               | USER default   | STAFF default       | ADMIN default  |
-| ---------------------------------------- | -------------- | ------------------- | -------------- |
-| sharing-skill:create/update/archive:self | Yes (own only) | Yes (own only)      | Yes (own only) |
-| skill-verification:submit:self           | Yes (own only) | Yes (own only)      | Yes (own only) |
-| skill-verification:read/approve/reject   | No             | Yes                 | Yes            |
-| skill-verification:revoke                | No             | Explicit grant only | Yes            |
-| skill-catalog:create/update/archive      | No             | Explicit grant only | Yes            |
+| Permission                                       | USER default   | STAFF default       | ADMIN default  |
+| ------------------------------------------------ | -------------- | ------------------- | -------------- |
+| sharing-skill:create/update/archive/restore:self | Yes (own only) | Yes (own only)      | Yes (own only) |
+| skill-verification:submit:self                   | Yes (own only) | Yes (own only)      | Yes (own only) |
+| skill-verification:read/approve/reject           | No             | Yes                 | Yes            |
+| skill-verification:revoke                        | No             | Explicit grant only | Yes            |
+| skill-catalog:create/update/archive/restore      | No             | Explicit grant only | Yes            |
 
-Admin list cần một trong catalog create/update/archive; không bypass permission chỉ vì route `/admin`. Seeds merge missing grants, không overwrite assignments/restrictions. Existing update/verification permission codes giữ nguyên; add create/archive/submit/catalog codes đồng bộ type catalog. Recheck current grants trong mutation tx và trước idempotent replay.
+Admin list cần một trong catalog create/update/archive/restore; không bypass permission chỉ vì route `/admin`. Seeds merge missing grants, không overwrite assignments/restrictions. Existing update/verification permission codes giữ nguyên; add create/archive/restore/submit/catalog codes đồng bộ type catalog. Recheck current grants trong mutation tx và trước idempotent replay.
+
+Restore là command riêng, không cho PATCH bỏ qua archive. Catalog giữ nguyên ID/name/slug/references; restore không tự khôi phục các Sharing Skill đã archive. Sharing Skill giữ level/description/experienceYears/isVisible và badge hiện tại, kể cả bằng đã revoke trong lúc archive; archivedAt về null, version tăng một, verifiedSkillCount được recompute cùng transaction. Lịch sử/evidence không bị sao chép hoặc reset. Audit catalog yêu cầu reason; Sharing Skill ghi lý do hệ thống cho thao tác owner. Xem [restore amendment](../restore.md).
 
 ## Idempotency and errors
 
-`Idempotency-Key` required for JSON mutating POST/PATCH (create/submit/archive/decision/catalog changes); upload stream không replay key vì bytes không trong fingerprint, retries tạo fileId mới và orphan cleanup. Key user+operation scoped; normalized payload fingerprint; same key/body replay minimal reference then hydrate current DTO, khác body409. Retry không nhân đôi audit/event; auth current phải pass cả replay.
+`Idempotency-Key` required for JSON mutating POST/PATCH (create/submit/archive/restore/decision/catalog changes); upload stream không replay key vì bytes không trong fingerprint, retries tạo fileId mới và orphan cleanup. Key user+operation scoped; normalized payload fingerprint; same key/body replay minimal reference then hydrate current DTO, khác body409. Retry không nhân đôi audit/event; auth current phải pass cả replay.
 
-400 invalid/unknown input;401 invalid/revoked session;403 missing permission;404 wrong owner/resource/file binding hoặc hidden profile;409 duplicate active/pending/name/slug,stale version,terminal decision,file not READY hoặc pending archive;413 bytes>10.000.000;415 MIME/format;429 throttle hiện có;503 storage/scan/policy unavailable. All use error envelope hiện hành, không expose raw provider exception.
+400 invalid/unknown input;401 invalid/revoked session;403 missing permission;404 wrong owner/resource/file binding hoặc hidden profile;409 duplicate active/pending/name/slug,stale version,terminal decision,file not READY hoặc pending archive. Restore conflicts: SKILL_NOT_ARCHIVED, SHARING_SKILL_NOT_ARCHIVED, SKILL_NOT_ACTIVE, SKILL_DUPLICATE, STALE_VERSION. 413 bytes>10.000.000;415 MIME/format;429 throttle hiện có;503 storage/scan/policy unavailable. All use error envelope hiện hành, không expose raw provider exception.
 
 Signed URL TTL từ `storage.downloadTtlSeconds` (default120,max300 hiện có); permission được check mỗi lần cấp. Link đã cấp có hiệu lực đến TTL dù quyền bị thu hồi sau đó; feature không hứa thu hồi immediate S3 URL.
