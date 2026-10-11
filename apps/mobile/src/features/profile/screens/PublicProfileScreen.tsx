@@ -2,7 +2,12 @@ import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter, type Href } from "expo-router";
 import { AppScreenLayout } from "@/features/shell";
 import { Avatar } from "@/components/Avatar";
-import { Badge } from "@/components/Badge";
+import {
+  ProfileSkillSection,
+  ProfileSkillRow,
+  ProfileSkillMore,
+  useProfileSkillWindow,
+} from "@/features/skills";
 import { Button } from "@/components/Button";
 import { EmptyState } from "@/components/EmptyState";
 import { Icon } from "@/components/Icon";
@@ -14,6 +19,7 @@ export function PublicProfileScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ id?: string; requestId?: string }>();
   const profile = publicProfiles.find((item) => item.id === params.id);
+  const preview = useProfileSkillWindow({ count: profile?.skills.length ?? 0 });
   const request = learningRequests.find(
     (item) => item.id === params.requestId && item.userId === profile?.id,
   );
@@ -83,29 +89,27 @@ export function PublicProfileScreen() {
                   "Người dùng chưa có phần giới thiệu trong dữ liệu mẫu."}
               </Text>
             </View>
-            <View style={styles.section}>
-              <Text accessibilityRole="header" style={styles.heading}>
-                Kỹ năng chia sẻ
-              </Text>
+            <ProfileSkillSection>
               {profile.skills.length ? (
-                profile.skills.map((skill) => (
-                  <View key={skill.id} style={styles.skill}>
-                    <View style={styles.skillName}>
-                      <Text style={styles.label}>{skill.name}</Text>
-                      <Badge
-                        label={skill.verified ? "Đã xác minh" : "Chưa xác minh"}
-                        variant={skill.verified ? "sage" : "default"}
-                      />
-                    </View>
-                    <Text style={styles.caption}>{skill.level}</Text>
-                  </View>
-                ))
+                profile.skills
+                  .slice(0, preview.visible)
+                  .map((skill) => (
+                    <ProfileSkillRow
+                      key={skill.id}
+                      name={skill.name}
+                      level={skill.level}
+                      status={skill.verified ? "VERIFIED" : "UNVERIFIED"}
+                    />
+                  ))
               ) : (
                 <Text style={styles.body}>
                   Chưa có kỹ năng chia sẻ trong dữ liệu mẫu.
                 </Text>
               )}
-            </View>
+              {preview.hasMore && (
+                <ProfileSkillMore onPress={() => void preview.showMore()} />
+              )}
+            </ProfileSkillSection>
             <View style={styles.section}>
               <Text accessibilityRole="header" style={styles.heading}>
                 Đánh giá
@@ -226,16 +230,6 @@ const styles = StyleSheet.create({
   body: { fontFamily: fonts.body, ...typography.body, color: colors.body },
   label: { fontFamily: fonts.semibold, ...typography.body, color: colors.ink },
   row: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 6 },
-  skill: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-    gap: 8,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderColor: signedInChrome.border,
-  },
-  skillName: { gap: 6, flexShrink: 1 },
   review: { gap: 8, paddingVertical: 6 },
   actions: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   action: { flexGrow: 1, minHeight: 48 },

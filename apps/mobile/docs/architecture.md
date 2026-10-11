@@ -90,3 +90,37 @@ request/proposal public-profile flow. Both routes remain authenticated.
 `AppProviders` nests `MockProposalsProvider` inside `MockMessagesProvider` under
 `ProfilePreviewProvider` and the session gate. Avatar toasts remain under
 `AuthSessionProvider`, so upload feedback continues after leaving the editor.
+
+## Profile skill presentation
+
+Own and public profile skill sections share `ProfileSkillSection` and
+`ProfileSkillRow`. The owner supplies private visibility and management actions;
+the public section supplies only the API's public projection. Other profile
+fixtures use the same presentation without gaining new API integration.
+Rows have no separators. Detail shows the centered verification text action
+below Delete; submitting the form uses the shared `craft` button variant.
+Existing button variants retain their current colors.
+
+Evidence selection separates the system photo library (`expo-image-picker`)
+from PDF/Word documents (`expo-document-picker`). Both feed the same validated
+draft and automatic upload/scan/submit pipeline. Picker metadata is normalized
+without changing file bytes; unsupported image formats or unreadable sizes are
+rejected before upload. Neither picker uploads on selection.
+
+## Header actions
+
+`AppHeader` shows notifications on main screens. When a layout supplies `onBack`
+for a secondary screen, the notification bell and count are omitted. This covers
+skills management/forms/details, edit/public profiles, account settings/details
+and detail/form screens using `AppScreenLayout`. Back navigation and feature
+actions remain available. Chat uses its own header without a notification bell.
+
+## App-wide connection boundary
+
+`ConnectionGate` sits inside `AuthSessionProvider` and outside `SessionGate`.
+It covers every route and feature with a full-screen connection view when the
+device is offline or the shared HTTP transport reports a network failure.
+The underlying router remains mounted, with interaction and accessibility
+disabled while covered. Returning online reloads active read queries and keeps
+the current route. Saving, uploading and submitting are never replayed by this
+boundary. See [network states and validation](network-state.md).

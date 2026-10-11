@@ -1,10 +1,15 @@
 import type { ReactNode } from "react";
+import {
+  ProfileSkillSection,
+  ProfileSkillRow,
+  ProfileSkillMore,
+  useProfileSkillWindow,
+} from "@/features/skills";
 import { StyleSheet, Text, View } from "react-native";
 import { ProfileHero } from "./ProfileHero";
 import {
   ProfileSection,
   ProfileHeading,
-  VerifiedBadge,
   profileStyles,
 } from "./ProfilePrimitives";
 import {
@@ -91,35 +96,33 @@ export function ProfileSkills({
   onManage?: () => void;
   available?: boolean;
 }) {
+  const preview = useProfileSkillWindow({
+    count: available ? profile.sharingSkills.length : 0,
+  });
   return (
-    <ProfileSection>
-      <ProfileHeading
-        title="Kỹ năng chia sẻ"
-        action={onManage ? "Quản lý" : undefined}
-        onPress={onManage}
-      />
+    <ProfileSkillSection onManage={onManage}>
       {!available ? (
         <Text style={profileStyles.caption}>
           Danh sách kỹ năng chưa được kết nối.
         </Text>
-      ) : profile.sharingSkills.length === 0 ? (
+      ) : !profile.sharingSkills.length ? (
         <Text style={profileStyles.caption}>Chưa có kỹ năng chia sẻ.</Text>
       ) : (
-        profile.sharingSkills.map((skill) => (
-          <View key={skill.id} style={styles.skill}>
-            <View style={styles.skillName}>
-              <Text selectable style={profileStyles.label}>
-                {skill.name}
-              </Text>
-              {skill.verificationStatus === "VERIFIED" && <VerifiedBadge />}
-            </View>
-            <View style={styles.level}>
-              <Text style={styles.levelText}>{levels[skill.level]}</Text>
-            </View>
-          </View>
-        ))
+        profile.sharingSkills
+          .slice(0, preview.visible)
+          .map((skill) => (
+            <ProfileSkillRow
+              key={skill.id}
+              name={skill.name}
+              level={levels[skill.level]}
+              status={skill.verificationStatus}
+            />
+          ))
       )}
-    </ProfileSection>
+      {preview.hasMore && (
+        <ProfileSkillMore onPress={() => void preview.showMore()} />
+      )}
+    </ProfileSkillSection>
   );
 }
 
@@ -146,33 +149,6 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: profileColors.muted,
     textAlign: "center",
-    includeFontPadding: false,
-  },
-  skill: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    flexWrap: "wrap",
-    paddingVertical: 5,
-    gap: 6,
-  },
-  skillName: {
-    flexDirection: "row",
-    alignItems: "center",
-    flexWrap: "wrap",
-    gap: 8,
-    flexShrink: 1,
-  },
-  level: {
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: 4,
-    backgroundColor: profileColors.neutral,
-  },
-  levelText: {
-    fontFamily: fonts.semibold,
-    ...typography.caption,
-    color: profileColors.mutedStrong,
     includeFontPadding: false,
   },
 });

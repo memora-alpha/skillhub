@@ -63,8 +63,10 @@ xóa ảnh. Hủy draft không gọi các endpoint avatar. Các endpoint profile
 React Hook Form/Zod hiện có quản lý draft, sử dụng validation của feature profile.
 
 Own profile khôi phục kiểu dáng commit `ac4590d`: thẻ trắng, avatar 64px, nút public
-preview riêng; grid hai cột trước bio/skills (Ví Credit, Tài liệu của tôi, Thành tích,
-Xác minh kỹ năng, Đánh giá, Cài đặt). Theo audit SRS 1.6, bỏ huy hiệu mẫu, số dư
+preview riêng; grid hai cột trước bio/skills (Ví Credit, Tài liệu của tôi,
+Hành trình của tôi, Đánh giá về tôi, Thành tích, Cài đặt). Hành trình mở hub hai tab
+Yêu cầu học/Lộ trình chưa kết nối; Đánh giá hiện notice chưa kết nối theo spec.
+Theo audit SRS 1.6, bỏ huy hiệu mẫu, số dư
 demo và số buổi hoàn thành; giữ reputation/verified skill count từ server.
 Ô Lộ trình hoàn thành chỉ hiển thị “—”/“Sắp có”; danh hiệu own cũng ghi “Sắp có”.
 Giá trị/chọn danh hiệu thật cần contract riêng. Thông tin riêng tư ở Cài đặt. `features/settings` giữ account

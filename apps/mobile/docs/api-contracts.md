@@ -11,7 +11,9 @@ unless the user explicitly requests backend work.
 Profile/public profile follows [spec 003](../specs/003-profile-public-profile/spec.md).
 Own editing retains the existing `PATCH /me/profile` integration. Self-preview
 projects the real own profile; other public targets and their skill lists remain
-fixtures pending API integration. No public-profile API calls are introduced here.
+fixtures pending API integration. The self skill list now uses the public skills
+projection in [spec 004](../specs/004-skills-management/spec.md); other public
+targets retain the fixture boundary.
 
 ## Profile contract checkpoint — 2026-10-09
 
@@ -143,6 +145,75 @@ memory and never logs credential payloads. See
   On network/5xx failure, mobile preserves input and offers login with the email
   prefilled; the new password may already be effective. It does not retry automatically.
 
+## Skills contract checkpoint — 2026-10-09
+
+[Spec 004](../specs/004-skills-management/spec.md) covers own management and
+verification. The backend contract in
+[skills HTTP](../../../services/api/specs/007-skills/contracts/http.md) still has
+a planned heading; controllers/DTO/services/repositories were checked read-only.
+Mobile now connects owner CRUD, public self skills and evidence/history/download
+to these routes through `features/skills`. Browser fixtures and transport tests
+pass; the full real API/storage/scanner journey remains pending.
+
+| Route (base `/api/v1`)                                         | Current source contract                                                                               |
+| -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| GET `/skills`, `/skills/:skillId`                              | Public ACTIVE catalog, q2–100/categoryId/cursor/limit for list.                                       |
+| GET `/me/skills`                                               | Owner list, includeArchived default false; true includes all, not only archived.                      |
+| POST `/me/skills`                                              | skillId, level, description20–1500, experienceYears decimal string/null, isVisible default true; 201. |
+| PATCH `/me/skills/:sharingSkillId`                             | Changed editable fields + expectedVersion; no skillId; 200.                                           |
+| POST `/me/skills/:sharingSkillId/archive`                      | expectedVersion; pending batch blocks archive with 409; 200.                                          |
+| GET `/profiles/:userId/skills`                                 | Public projection, visible/nonarchived/ACTIVE account and catalog; spec 004 uses self UUID.           |
+| POST `/me/skills/:sharingSkillId/evidence-files`               | One multipart field file; 202 with fileId/state QUARANTINED.                                          |
+| GET `/me/skills/:sharingSkillId/evidence-files/:fileId`        | Storage state; READY is required for submission.                                                      |
+| POST `/me/skills/:sharingSkillId/verifications`                | 1–5 distinct fileIds, title0–120?, description0–500?; 201 PENDING batch.                              |
+| GET `/me/skills/:sharingSkillId/verifications`                 | Owner history, cursor/limit.                                                                          |
+| GET `/me/skills/:sharingSkillId/verifications/:verificationId` | Owner batch detail with evidence metadata/reasons.                                                    |
+| GET `/me/skills/:sharingSkillId/evidence/:evidenceId/download` | Owner authorized short-lived url/expiresAt; file must be READY.                                       |
+
+JSON mutations require `Idempotency-Key`; edit/archive also need expectedVersion.
+Mobile labels archive as "Xóa kỹ năng" and always reads own list/detail with
+`includeArchived=false`. A confirmed archived DTO removes its ID from visible
+lists, detail/history caches and local evidence drafts. Deleted records stay on
+the server for history; mobile has no archived-list toggle or read-only view.
+Same operation/body retry keeps the key; changed body/version uses a new intent.
+Multipart upload is not idempotent replay: retry may create a new fileId.
+The user's Send action uploads missing evidence files, checks storage state until
+READY, then submits the JSON batch. There is no separate upload button. Partial
+failures retain returned file IDs; explicit retry checks and reuses them. Scan
+checks are bounded and stop on blur/background/session change. Successful batch
+submission refreshes data and returns to skill detail. This changes client flow,
+not the endpoints or server verification policy.
+The confirmed submit DTO is retained in session-scoped owner/history caches before
+refresh, so failed reads do not remove the saved request or enable duplicate Send.
+Owner history includes files; image previews obtain fresh authorized download URLs
+and retain them only in component state until blur/background/expiry. No preview
+URL is projected onto public profiles. The Pending filter uses latestVerification
+in addition to the aggregate badge; it adds no API parameter or backend field.
+Mobile HTTP now exposes `idempotencyKey` and `requestPage`, sharing the existing
+session/renewal pipeline. Ordinary `request` still returns only data for
+Auth/account/avatar. Evidence upload renews credentials after 401 but requires
+explicit retry instead of replaying bytes; avatar behavior remains compatible.
+
+List envelope uses `data: []` and `meta.pagination: {limit,hasMore,nextCursor}`;
+limit1–50/default20, cursor opaque and bound to filters. Do not read pagination
+from data or infer completeness from item count. Own Sharing Skill includes nested
+skill, isVisible, archivedAt, version and latestVerification. The latter is raw
+batch metadata, not a full detail response with files. Public projection excludes
+owner metadata/reasons/evidence. Map fields with an explicit allowlist.
+
+Evidence cap follows config with a current hard ceiling of 10,000,000 bytes/file;
+the client has no config endpoint and must handle stricter server 413/503 results.
+Allowed formats are PDF/DOC/DOCX/JPG/JPEG/PNG/WEBP; no avatar/chat policy reuse.
+Batch PENDING/APPROVED/REJECTED and evidence PENDING/APPROVED/REJECTED/REVOKED
+are distinct from the four-value Sharing Skill badge. New batches can coexist
+with a VERIFIED badge when older approved evidence remains.
+
+Known differences/gaps: no owner skill-detail or unarchive endpoint; public
+repository filters catalog ACTIVE although HTTP markdown mentions historical
+INACTIVE public display; SRS material-change verification policy is not implemented
+as an edit reset in the current service. Record these differences rather than
+creating mobile policy/endpoints. See GAP-01..08 in spec 004.
+
 ## Remaining contract gaps
 
 ### Proposal UI boundary
@@ -173,6 +244,8 @@ TWO_WAY/ONE_WAY agreement terms or validate final Credit/schedules.
 - Exact Learning Path, LearningPlan and Schedule DTOs for SRS 1.6.
 - Exact enum values for exchange type, plan status, schedule status and report reason codes.
 - Exact payment status polling contract after redirect.
-- Exact upload limits and MIME policy for evidence, chat attachments and materials.
+- Evidence format/cap/scan source is documented above; exposure of a configured
+  client cap and runtime verification remain pending. Confirm exact contracts for
+  chat attachments and material uploads separately.
 - Exact LiveKit token endpoint and join-window behavior.
 - Exact material purchase and entitlement endpoints.

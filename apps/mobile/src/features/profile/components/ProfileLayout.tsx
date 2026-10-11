@@ -42,8 +42,8 @@ function getProfileNoticeBody(
         : "Danh sách kỹ năng chưa được kết nối.";
     case "Thành tích":
       return "Quản lý danh hiệu sẽ được bổ sung sau.";
-    case "Xác minh kỹ năng":
-      return "Chức năng gửi bằng chứng và theo dõi xác minh kỹ năng chưa được kết nối.";
+    case "Đánh giá về tôi":
+      return "Đánh giá từ người học cùng chưa được kết nối.";
     default:
       return `Màn ${notice?.toLowerCase() ?? ""} sẽ được triển khai ở bước tiếp theo.`;
   }
@@ -93,6 +93,7 @@ export function ProfileLayout({
   const [logout, setLogout] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const action = (label: string) => {
+    if (label === "Kỹ năng") return router.push("/my-skills");
     if (label === "Trang chủ") {
       if (title) router.dismissTo("/home");
       else router.navigate("/home");
