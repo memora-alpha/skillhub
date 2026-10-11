@@ -33,6 +33,7 @@ import {
   CreateSkillDto,
   ChangeSkillDto,
   ArchiveSkillDto,
+  RestoreSkillDto,
 } from "./skills.dto";
 import { SkillResponse } from "./skills.responses";
 import type { SkillCommand } from "../../application/skill-contracts";
@@ -139,6 +140,20 @@ export class CatalogController {
         input,
         true,
       ),
+    );
+  }
+  @Post(":skillId/restore")
+  @HttpCode(200)
+  @ApiSuccessResponse(200, SkillResponse)
+  async restore(
+    @Req() req: IdentityRequest,
+    @CurrentIdentity() principal: Principal,
+    @Headers("idempotency-key") key: string | undefined,
+    @Param("skillId", ParseUUIDPipe) id: string,
+    @Body() input: RestoreSkillDto,
+  ) {
+    return success(
+      await this.skills.restore(skillCommand(req, key, principal), id, input),
     );
   }
 }

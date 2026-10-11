@@ -16,8 +16,11 @@ Giới hạn evidence10.000.000 bytes/file; cấu hình thấp hơn được ph�
 4. Submit1–5 fileId READY nhận PENDING; second pending409; other-owner/wrong-purpose files404/409. Staff queue/detail/download cần quyền current.
 5. Approve ghi reviewer/time, VERIFIED, count tăng, audit/outbox/notification đúng một lần; dùng lại key cùng body không tạo duplicate.
 6. Gửi batch mới: badge vẫn VERIFIED. Reject lý do10–500, owner thấy reason; bằng cũ vẫn APPROVED. Revoke bằng cuối ghi reason/audit, badge tính lại và count giảm.
-7. Archive PENDING409; quyết định xong archive giữ history, search không hiện; User có thể tạo bản mới cùng skill nếu catalog ACTIVE.
+7. Archive PENDING409; quyết định xong archive giữ history, search không hiện; User có thể restore bản cũ hoặc tạo bản mới cùng skill nếu catalog ACTIVE. Nếu bản mới chưa archive tồn tại thì restore bản cũ409.
+
 8. Đồng thời approve/reject và create-vs-deactivate; chỉ một outcome hợp lệ, không partial writes. Audit/outbox lỗi rollback cả badge/count. Cleanup orphan đồng thời attach không xóa file đã bind.
+
+Restore walkthrough: xem bản cũ qua `GET /api/v1/me/skills?includeArchived=true` hoặc `GET /api/v1/admin/skills?status=ARCHIVED`, lấy version hiện tại, rồi gọi POST restore với Bearer token và `Idempotency-Key`. Catalog body `{expectedVersion,status:"ACTIVE"|"INACTIVE",reason}`; Sharing Skill body `{expectedVersion}`. Xem [restore.md](restore.md) cho payload đầy đủ, conflicts và seed permissions.
 
 ## Verification commands
 

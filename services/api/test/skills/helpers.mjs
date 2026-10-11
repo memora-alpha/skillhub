@@ -112,6 +112,7 @@ export async function createSkillFixture(beforeSkillsMigration) {
       transactions,
       profiles,
       publicReader,
+      audit,
     );
     sharing.onModuleInit();
     const stored = new PrismaStoredFileRepository(db, transactions, outbox),

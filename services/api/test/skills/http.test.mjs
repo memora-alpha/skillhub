@@ -198,6 +198,144 @@ test(
         false,
       );
       assert.equal((await request("GET", `/skills?limit=51`)).status, 400);
+      // Restore keeps the original skill/history and enforces the HTTP contract.
+      const current = await f.sharing.read(id);
+      const archived = await request(
+        "POST",
+        `/me/skills/${id}/archive`,
+        owner,
+        {
+          expectedVersion: current.version,
+        },
+      );
+      assert.equal(archived.status, 200);
+      const restoreBody = { expectedVersion: archived.body.data.version };
+      assert.equal(
+        (
+          await request(
+            "POST",
+            `/me/skills/${id}/restore`,
+            undefined,
+            restoreBody,
+          )
+        ).status,
+        401,
+      );
+      assert.equal(
+        (await request("POST", `/me/skills/${id}/restore`, other, restoreBody))
+          .status,
+        404,
+      );
+      for (const body of [
+        {},
+        { expectedVersion: null },
+        { expectedVersion: 0 },
+        { ...restoreBody, archivedAt: null },
+      ]) {
+        assert.equal(
+          (await request("POST", `/me/skills/${id}/restore`, owner, body))
+            .status,
+          400,
+        );
+      }
+      assert.equal(
+        (
+          await request(
+            "POST",
+            `/me/skills/${id}/restore`,
+            owner,
+            restoreBody,
+            "",
+          )
+        ).status,
+        400,
+      );
+      const restored = await request(
+        "POST",
+        `/me/skills/${id}/restore`,
+        owner,
+        restoreBody,
+      );
+      assert.equal(restored.status, 200);
+      assert.equal(restored.body.success, true);
+      assert.equal(restored.body.data.id, id);
+      assert.equal(restored.body.data.archivedAt, null);
+      assert.equal(restored.body.data.verificationStatus, "VERIFIED");
+      assert.equal(
+        restored.body.data.latestVerification.id,
+        submitted.body.data.id,
+      );
+      const archivedCatalog = await request(
+        "POST",
+        `/admin/skills/${skill.id}/archive`,
+        admin,
+        {
+          expectedVersion: skill.version,
+          reason: "Temporarily retire catalog skill",
+        },
+      );
+      assert.equal(archivedCatalog.status, 200);
+      const catalogBody = {
+        expectedVersion: archivedCatalog.body.data.version,
+        reason: "Restore catalog skill",
+        status: "ACTIVE",
+      };
+      assert.equal(
+        (
+          await request(
+            "POST",
+            `/admin/skills/${skill.id}/restore`,
+            staff,
+            catalogBody,
+          )
+        ).status,
+        403,
+      );
+      for (const body of [
+        {
+          expectedVersion: catalogBody.expectedVersion,
+          reason: catalogBody.reason,
+        },
+        { ...catalogBody, status: null },
+        { ...catalogBody, status: "ARCHIVED" },
+        { ...catalogBody, reason: " " },
+        { ...catalogBody, name: "Renamed during restore" },
+      ]) {
+        assert.equal(
+          (
+            await request(
+              "POST",
+              `/admin/skills/${skill.id}/restore`,
+              admin,
+              body,
+            )
+          ).status,
+          400,
+        );
+      }
+      assert.equal(
+        (
+          await request(
+            "POST",
+            `/admin/skills/${skill.id}/restore`,
+            admin,
+            catalogBody,
+            "",
+          )
+        ).status,
+        400,
+      );
+      const restoredCatalog = await request(
+        "POST",
+        `/admin/skills/${skill.id}/restore`,
+        admin,
+        catalogBody,
+      );
+      assert.equal(restoredCatalog.status, 200);
+      assert.equal(restoredCatalog.body.success, true);
+      assert.equal(restoredCatalog.body.data.id, skill.id);
+      assert.equal(restoredCatalog.body.data.status, "ACTIVE");
+      assert.equal((await request("GET", `/skills/${skill.id}`)).status, 200);
       const schema = SwaggerModule.createDocument(
         app,
         new DocumentBuilder()
@@ -207,6 +345,23 @@ test(
       );
       assert.ok(
         schema.paths["/api/v1/me/skills/{sharingSkillId}/verifications"],
+      );
+      assert.ok(
+        schema.paths["/api/v1/me/skills/{sharingSkillId}/restore"].post
+          .responses["200"],
+      );
+      assert.ok(
+        schema.paths["/api/v1/admin/skills/{skillId}/restore"].post.responses[
+          "200"
+        ],
+      );
+      assert.deepEqual(
+        schema.components.schemas.RestoreSkillDto.properties.status.enum,
+        ["ACTIVE", "INACTIVE"],
+      );
+      assert.deepEqual(
+        new Set(schema.components.schemas.RestoreSkillDto.required),
+        new Set(["expectedVersion", "reason", "status"]),
       );
       assert.equal(
         schema.components.schemas.VerificationResponse.properties.status.enum.includes(

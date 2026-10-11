@@ -96,6 +96,7 @@ Admin hoặc Staff được cấp permission riêng tạo/sửa/ẩn/archive ski
 - **FR-011**: Kết quả xác minh tạo sự kiện thông báo sau commit, retry không trùng; owner luôn có thể đọc kết quả dù delivery đang lỗi. Không triển khai notification inbox/email nghiệp vụ đầy đủ trong feature này.
 - **FR-012**: Evidence chỉ có link download ngắn hạn sau kiểm tra quyền; không trả storageKey hoặc link file trong public/search.
 - **FR-013**: Kỹ năng đã học là dữ liệu riêng, chỉ được ghi khi toàn thỏa thuận hoàn tất cho đúng learner/skill; không tự tạo từ Sharing Skill hay approval. Feature này ghi handoff, chưa mở chức năng ghi lịch sử khi module Learning Path chưa có.
+- **FR-014**: Theo yêu cầu bổ sung restore của User, catalog ARCHIVED được khôi phục đúng ID về ACTIVE/INACTIVE do operator có permission chọn và phải có reason. Owner được restore Sharing Skill khi catalog ACTIVE và chưa có bản chưa archive cùng skill; giữ visibility, trạng thái xác minh hiện tại và history. Hai luồng có expectedVersion, idempotency và audit cùng transaction; Sharing Skill restore recompute verifiedSkillCount. Chi tiết tại [restore.md](restore.md).
 
 ### Key Entities
 

@@ -93,3 +93,8 @@ export class ArchiveSkillDto extends VersionDto {
   @Length(1, 2000)
   reason!: string;
 }
+export class RestoreSkillDto extends ArchiveSkillDto {
+  @ApiProperty({ enum: ["ACTIVE", "INACTIVE"] })
+  @IsIn(["ACTIVE", "INACTIVE"])
+  status!: "ACTIVE" | "INACTIVE";
+}

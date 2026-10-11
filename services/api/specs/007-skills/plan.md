@@ -93,7 +93,7 @@ Upload tách submit; poll scan rồi attach READY bằng owner API trong cùng s
 
 1. **DB/domain**: validators/nameKey/badge reducer, storage FK/timestamps/version, partial uniques; additive migration, fresh/upgrade tests. Preflight collision báo IDs, không tự merge/archive dữ liệu.
 2. **Identity integration**: live Principal→Actor adapter, users-owned tx permission checks, guards wiring/export; seed feature matrix idempotent, counter contract; identity regression.
-3. **Catalog/sharing**: use cases/controllers/paging/ownership/archive; concurrent create-vs-deactivate. Archive terminal, tạo bản mới khi skill ACTIVE.
+3. **Catalog/sharing**: use cases/controllers/paging/ownership/archive/restore; concurrent create-vs-deactivate và create-vs-restore. Archive được đảo qua restore riêng theo [restore amendment](restore.md); vẫn có thể tạo bản mới khi skill ACTIVE.
 4. **Search/profile**: visible+ACTIVE joins, verified filter/public projection; count VERIFIED chưa archive, visibility không đổi count; benchmark SC-005.
 5. **Storage binding**: upload/status/attach API,10 MB ceiling; MIME/scan/generation; READY orphan cleanup race-safe.
 6. **Verification**: submit/history/review/revoke/download; state CAS, atomic badge/counter/audit/outbox; idempotency replay rechecks current auth trước hydrate.
@@ -108,5 +108,7 @@ Required behavior: normalized duplicate concurrent; duplicate active/pending; ap
 Runtime thiếu môi trường phải giữ Pending, không gọi mocks là E2E. Plan này không deploy migration, commit hoặc push.
 
 ## Complexity Tracking
+
+Restore amendment: reuse PostgreSQL transaction/idempotency/live permission/audit và users-owned counter; không thêm schema hoặc provider. Catalog restore và Sharing Skill restore dùng permission riêng. Constitution principles 1–5/7 Pass implementation; principle 6 Pass lint/types/build và behavioral HTTP/DB/rollback/concurrency checks; principle 8 không có delivery mới (restore không tạo notification). Scope chỉ backend; deployment/UI chưa kiểm chứng. Xem [restore.md](restore.md) và [validation.md](validation.md) cho bằng chứng cuối.
 
 Không exception. Không thêm search service, auto-reverification, toàn notification subsystem hoặc tài chính. Owner contracts được bổ sung có chủ đích thay vì cross-module repository writes.

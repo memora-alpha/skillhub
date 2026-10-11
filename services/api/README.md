@@ -67,6 +67,8 @@ sẽ được chốt trong spec và plan của từng feature.
 
 ## Breakdown backend thành module
 
+Skill catalog và Sharing Skill hỗ trợ [archive/restore](specs/007-skills/restore.md): catalog restore về ACTIVE/INACTIVE do operator chọn; owner restore Sharing Skill giữ history/visibility/badge hiện tại và chặn bản trùng. Routes `POST /api/v1/admin/skills/{skillId}/restore` và `POST /api/v1/me/skills/{sharingSkillId}/restore` yêu cầu permission riêng, expectedVersion và Idempotency-Key. Chạy identity seed khi rollout để bổ sung grants.
+
 Đề xuất dùng một ứng dụng NestJS với các module theo nghiệp vụ, cùng database
 và cơ chế transaction. Chưa cần tách microservices. Các routes trong bảng là
 nhóm API dự kiến và đều nằm sau prefix `/api` hiện có.

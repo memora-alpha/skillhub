@@ -9,12 +9,20 @@ export const PERMISSION_CATALOG = [
     description: "Archive own sharing skill",
   },
   {
+    code: "sharing-skill:restore:self",
+    description: "Restore own archived sharing skill",
+  },
+  {
     code: "skill-verification:submit:self",
     description: "Submit own evidence",
   },
   { code: "skill-catalog:create", description: "Create catalog skill" },
   { code: "skill-catalog:update", description: "Update catalog skill" },
   { code: "skill-catalog:archive", description: "Archive catalog skill" },
+  {
+    code: "skill-catalog:restore",
+    description: "Restore archived catalog skill",
+  },
   { code: "profile:read:self", description: "Read own profile" },
   { code: "profile:update:self", description: "Update own profile" },
   {

@@ -1,5 +1,26 @@
 # Skills implementation validation
 
+## Restore amendment validation
+
+Dedicated restore commands are implemented for catalog and Sharing Skills; see [restore.md](restore.md). No schema migration or application-data seed was run for this change.
+
+| Check                               | Result                                                                                        |
+| ----------------------------------- | --------------------------------------------------------------------------------------------- |
+| `pnpm --filter api lint`            | Passed, zero warnings                                                                         |
+| `pnpm --filter api check-types`     | Passed, Prisma generation and TypeScript                                                      |
+| `pnpm --filter api build`           | Passed, Prisma generation and Nest compiler                                                   |
+| Skills PostgreSQL/HTTP/bootstrap    | 23 tests passed, zero skips/failures: restore, HTTP, bootstrap, journeys, migration and files |
+| Affected audit/RBAC/Skills policies | 26 tests passed: audit policy/writer/HTTP, authorization policy/HTTP and Skills policies      |
+| `git diff --check`                  | Passed                                                                                        |
+
+The Skills run used `node --test --test-concurrency=1 test/skills/restore.test.mjs test/skills/http.test.mjs test/skills/bootstrap.test.mjs test/skills/journeys.test.mjs test/skills/migration.test.mjs test/skills/files.test.mjs` from services/api. Fixtures used real PostgreSQL disposable schemas and removed them afterward. Restore scenarios verify catalog ACTIVE/INACTIVE targets, live permission checks and replay denial after grant removal/restriction, ownership, expectedVersion, original ID/visibility/history, verified count, revoked evidence during archive, inactive/archived catalog rejection, duplicate current Sharing Skill, create-versus-restore and restore-versus-restore races, and audit-failure rollback of state/version/count/idempotency. HTTP tests verify 200 envelopes, missing authorization/key, invalid/null/unknown fields, required catalog status/reason and Swagger request/response declarations. Module bootstrap resolves the new Sharing Skills AuditModule dependency.
+
+Initial sandbox runs could not reach PostgreSQL (`EACCES 127.0.0.1:5432`) or fixture HTTP listeners (`fetch failed`). Rerunning the affected network tests outside the sandbox passed. Policy/writer tests passed inside the sandbox. There are no unresolved restore test failures.
+
+Constitution recheck: backend/module ownership, PostgreSQL atomicity, live authorization, contract validation and verification are Pass for this amendment. Delivery is not applicable: restore introduces no external call or new event/notification. UI and deployed application behavior were not exercised. During rollout, run the existing idempotent identity seed to add the two restore permissions/default grants. Earlier provider/staging release gates below remain separate from this restore evidence.
+
+## Original Skills implementation
+
 Date: 2026-10-07. Branch: `feat/skills`. Spec/plan committed as
 `045403e docs(api): plan skills and evidence verification`. Implementation is a
 working-tree change. No application database migration was deployed.

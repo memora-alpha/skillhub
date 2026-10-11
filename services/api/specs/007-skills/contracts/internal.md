@@ -7,7 +7,7 @@ Paths relative to `services/api`. Signatures dưới đây là contract thiết 
 - `SessionsService.principal(token)` và `assertLive(tx,principal)` xác thực session hiện hành; IdentityGuard gắn principal. IdentityModule phải export guard hoặc composition provider cần thiết cho ba module mới.
 - `UsersService.byId/isActive/grants`: dữ liệu users-owned; thêm `assertFeaturePermission(tx,principal,permission)` rechecks session/account/blocked permissions cùng tx. Không dùng foundation AUTHORIZATION_READER trước khi có binding thật.
 - `TransactionRunner.run(work)` và `IdempotencyService.execute(input,work)`: tx Serializable/conflict retries, business callback chỉ DB. Idempotency hydrate/replay không bỏ current auth.
-- `AuditWriter.append(tx,input)` từ AuditModule; verification actions đã có catalog. Identity AuditService có signature khác; không interchange. Catalog create/update/archive thêm audited action projection chỉ allowed fields; reason bắt buộc cho archive/revoke/reject.
+- `AuditWriter.append(tx,input)` từ AuditModule; verification actions đã có catalog. Identity AuditService có signature khác; không interchange. Catalog create/update/archive/restore thêm audited action projection chỉ allowed fields; reason bắt buộc cho archive/restore/revoke/reject. Sharing restore audit chỉ archivedAt/isVisible/verificationStatus/version, không đưa description/evidence vào log.
 - `OutboxWriter.append(tx,event)`; payload≤4096 serialized chars, no file URL/key/token. Register publisher/consumer đúng type trước enqueue.
 - `FileStorageService.upload`/`issueDownload(input,policy)`; scan/storage providers đã có. Status/attach chưa public, phải bổ sung owner API.
 

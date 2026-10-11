@@ -85,6 +85,7 @@ export class SkillsService {
             "skill-catalog:create",
             "skill-catalog:update",
             "skill-catalog:archive",
+            "skill-catalog:restore",
           ] as const
         ).some(
           (code) =>
@@ -222,6 +223,58 @@ export class SkillsService {
     } catch (error) {
       uniqueConflict(error);
     }
+  }
+  async restore(
+    command: SkillCommand,
+    id: string,
+    input: {
+      expectedVersion: number;
+      reason: string;
+      status: "ACTIVE" | "INACTIVE";
+    },
+  ) {
+    const data = { ...input, reason: text(input.reason, 1, 2000) };
+    const result = await this.commands.execute(
+      {
+        scope: command.principal.userId,
+        operation: "skill-catalog:restore",
+        key: command.key,
+        command: commandJson({ id, ...data }),
+      },
+      async (tx) => {
+        const actor = await this.actors.require(
+          tx,
+          command.principal,
+          "skill-catalog:restore",
+        );
+        const before = await this.repository.get(id, tx, true);
+        expectedVersion(before.version, data.expectedVersion);
+        if (before.status !== "ARCHIVED")
+          throw new ConflictException("SKILL_NOT_ARCHIVED");
+        const after = await this.repository.update(tx, id, {
+          status: data.status,
+          version: { increment: 1 },
+        });
+        await this.audit.append(tx, {
+          actor: auditActorFromActor(actor),
+          action: "SKILL_CATALOG_RESTORE",
+          target: { type: "SKILL", id },
+          before: this.snapshot(before),
+          after: this.snapshot(after),
+          reason: data.reason,
+          context: command.context,
+        });
+        return { id, status: after.status, version: after.version };
+      },
+      async (tx) => {
+        await this.actors.require(
+          tx,
+          command.principal,
+          "skill-catalog:restore",
+        );
+      },
+    );
+    return this.repository.get(result.value.id);
   }
   private snapshot(row: {
     name: string;
