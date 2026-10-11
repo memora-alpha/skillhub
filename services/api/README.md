@@ -12,16 +12,18 @@ Luồng đăng ký/OTP đã chuyển sang Redis và BullMQ theo [Redis OTP amend
 
 Quên mật khẩu dùng ba API: `password/forgot` → `password/verify-otp` → `password/reset`. Xác thực OTP đúng mới nhận `resetToken` dùng một lần để đổi mật khẩu; bước verify không đổi mật khẩu hoặc thu hồi phiên. Xem [luồng khôi phục mật khẩu](specs/002-user-identity/password-recovery.md).
 
-API đã có nền tảng hạ tầng và phần Danh tính (spec 002): đăng ký/OTP/login, refresh/logout/reset, hồ sơ/avatar, quyền và quản trị tài khoản có audit. Phần Kỹ năng (spec 007) đã có catalog, quản lý Sharing Skill, search/profile công khai, evidence và Staff Verification; xem [quickstart](specs/007-skills/quickstart.md) và [validation](specs/007-skills/validation.md). Core Learning Request có source theo [plan](specs/007-learning-request/plan.md); việc nối owner adapters cho catalog/eligibility, Sharing Skill matching, Path/Schedule/Wallet consumers, migration rollout và kiểm chứng DB/Redis thật vẫn là gates. Chat và giao dịch Credit chưa được triển khai.
+API đã có nền tảng hạ tầng và phần Danh tính (spec 002): đăng ký/OTP/login, refresh/logout/reset, hồ sơ/avatar, quyền và quản trị tài khoản có audit. Phần Kỹ năng (spec 007) đã có catalog, quản lý Sharing Skill, search/profile công khai, evidence và Staff Verification; xem [quickstart](specs/007-skills/quickstart.md) và [validation](specs/007-skills/validation.md). Core Learning Request có source theo [plan](specs/007-learning-request/plan.md); việc nối owner adapters cho catalog/eligibility, Sharing Skill matching, Path/Schedule/Wallet consumers, migration rollout và kiểm chứng DB/Redis thật vẫn là gates.
 
-Catalog Prisma đã cập nhật theo logical v3: **48 model PostgreSQL và một document
+Nhánh `feat/learning-platform-modules` bổ sung source ban đầu cho LearningPath/Plan, scheduling, Session completion, Credit Hold/settlement, reviews, reputation, achievements và report/dispute. Các phần này vẫn cần generate client, áp dụng/kiểm tra migration, type-check và kiểm chứng tích hợp. Proposal/Chat, cancel/no-show policy, LiveKit, Gmail/FCM delivery và luồng Learning Materials đầy đủ còn thiếu hoặc chưa tích hợp.
+
+Catalog Prisma theo logical v3 cộng hai model Achievement/UserAchievement: **50 model PostgreSQL và một document
 Message MongoDB** với attachments nhúng. Xem [schema catalog](prisma/README.md)
-để đối chiếu 49/49 định nghĩa logical. Tag và RequestTag được giữ theo SRS V1.6
+để đối chiếu 51/51 định nghĩa logical. Tag và RequestTag được giữ theo SRS V1.6
 như phần mở rộng ngoài diagram; xem [LR ERD v3 alignment](specs/007-learning-request/erd-v3-alignment.md).
 Schema v3 ở `prisma/catalog.prisma` sinh client
 riêng `src/generated/prisma-catalog` để đối chiếu mô hình.
 API, generate mặc định và migration dùng `prisma/schema.prisma`: runtime v3 gồm
-48 model domain, 5 model kỹ thuật cho foundation và Tag/RequestTag.
+50 model domain, 5 model kỹ thuật cho foundation và Tag/RequestTag.
 Learning Request giữ preferred slots JSONB và metadata moderation/expiry/version
 với tên application tương thích, ánh xạ sang cột v3. Profile nằm trong User,
 User có một roleId; các repository danh tính đã chuyển sang cấu trúc này.

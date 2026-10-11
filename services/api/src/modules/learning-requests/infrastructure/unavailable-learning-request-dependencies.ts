@@ -6,6 +6,8 @@ import type {
   SharingSkillReader,
   SkillCatalogReader,
 } from "../application/ports/learning-request-dependencies";
+import type { TransactionContext } from "../../../infrastructure/database/transaction-context";
+import { ReputationService } from "../../reputation/reputation.service";
 
 @Injectable()
 export class UnavailableLearningRequestDependencies
@@ -16,10 +18,16 @@ export class UnavailableLearningRequestDependencies
     RequestOwnerReader,
     SharingSkillReader
 {
-  assertAllowed(): Promise<void> {
-    return Promise.reject(
-      new ServiceUnavailableException("New activity eligibility unavailable"),
-    );
+  constructor(private readonly reputation: ReputationService) {}
+
+  async assertAllowed(tx: TransactionContext, userId: string): Promise<void> {
+    const [clock] = await tx.$queryRaw<{ now: Date }[]>`
+      SELECT CURRENT_TIMESTAMP AS now
+    `;
+    if (!(clock?.now instanceof Date)) {
+      throw new ServiceUnavailableException("Database time unavailable");
+    }
+    await this.reputation.assertMayCreateActivity(tx, userId, clock.now);
   }
 
   assertActiveSelection(): Promise<never> {

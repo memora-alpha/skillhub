@@ -3,6 +3,8 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "./generated/prisma/client";
 import { seedApprovedConfigurations } from "./modules/system-configuration/application/seed-configuration";
 import { ConfigurationRepository } from "./modules/system-configuration/infrastructure/configuration.repository";
+import { seedPathFeePolicies } from "./modules/credit/seed-fee-policies";
+import { seedAchievements } from "./modules/reputation/seed-achievements";
 
 async function main(): Promise<void> {
   const connectionString = process.env.DATABASE_URL;
@@ -12,9 +14,11 @@ async function main(): Promise<void> {
   });
   try {
     const repository = new ConfigurationRepository(prisma);
-    await prisma.$transaction((tx) =>
-      seedApprovedConfigurations(tx, repository),
-    );
+    await prisma.$transaction(async (tx) => {
+      await seedApprovedConfigurations(tx, repository);
+      await seedPathFeePolicies(tx);
+      await seedAchievements(tx);
+    });
   } finally {
     await prisma.$disconnect();
   }

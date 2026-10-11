@@ -1,6 +1,6 @@
 import { HttpException } from "@nestjs/common";
 
-export type FilePurpose = "EVIDENCE" | "CHAT" | "REPORT";
+export type FilePurpose = "EVIDENCE" | "CHAT" | "REPORT" | "MATERIAL";
 
 export type StoredFileState =
   | "UPLOADING"
