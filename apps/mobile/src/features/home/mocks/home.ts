@@ -11,14 +11,14 @@ export const onboardingTasks: {
   { label: "Tạo yêu cầu học đầu tiên", done: false, icon: "edit" },
 ];
 export const newUserSummary = {
-  credit: 50,
+  credit: 0,
   reputation: 50,
   learned: 0,
   taught: 0,
 };
 export const returningSummary = {
-  credit: 340,
-  reputation: 142,
+  credit: 180,
+  reputation: 85,
   learned: 8,
   taught: 12,
 };

@@ -19,7 +19,7 @@ import { Tag } from "@/components/Tag";
 import { demoNotifications, popularSkills } from "@/mocks/app";
 import { appRoutes } from "@/constants/navigation";
 import { typography, appColors as colors, fonts } from "@/constants/theme";
-import { useMockSession } from "@/features/auth";
+import { useAuthSession } from "@/features/auth";
 
 type OpenNotice = (label: string) => void;
 type AppScreenLayoutProps = Readonly<{
@@ -72,7 +72,12 @@ function ScreenNoticeContent({
       </View>
     );
   }
-  return `Màn ${notice?.toLowerCase() ?? ""} sẽ được triển khai ở bước tiếp theo. Hiện tại bạn đang xem giao diện với dữ liệu mẫu.`;
+  return (
+    <Text style={styles.body}>
+      Màn {notice?.toLowerCase() ?? ""} sẽ được triển khai ở bước tiếp theo.
+      Hiện tại bạn đang xem giao diện với dữ liệu mẫu.
+    </Text>
+  );
 }
 
 // The feature owns its scroll container (FlatList or ScrollView).
@@ -85,7 +90,7 @@ export function AppScreenLayout({
   children,
 }: AppScreenLayoutProps) {
   const router = useRouter();
-  const { session, signOut } = useMockSession();
+  const { session, signOut } = useAuthSession();
   const [menu, setMenu] = useState(false);
   const [logout, setLogout] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -153,7 +158,7 @@ export function AppScreenLayout({
         visible={logout}
         onClose={() => setLogout(false)}
         onConfirm={() => {
-          signOut();
+          void signOut();
           setLogout(false);
           router.replace("/");
         }}

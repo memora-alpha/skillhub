@@ -15,7 +15,6 @@ import { iconSizes, typography, fonts } from "@/constants/theme";
 import { ConversationCard } from "../components/ConversationCard";
 import { useMockMessages } from "../context/MockMessages";
 import { initialThreads } from "../mocks/chat";
-import { conversations } from "../mocks/conversations";
 import { messageColors as colors } from "../constants/theme";
 
 function ConversationSeparator() {
@@ -24,7 +23,7 @@ function ConversationSeparator() {
 
 export function MessagesScreen() {
   const router = useRouter();
-  const { threads, read } = useMockMessages();
+  const { threads, read, conversations } = useMockMessages();
   const [query, setQuery] = useState("");
   const [focused, setFocused] = useState(false);
   const normalized = query.trim().toLocaleLowerCase("vi");
@@ -52,7 +51,7 @@ export function MessagesScreen() {
       selected="Tin nhắn"
       contentStyle={styles.background}
     >
-      {(open) => (
+      {() => (
         <FlatList
           data={filtered}
           keyExtractor={(item) => item.proposal}
@@ -69,7 +68,7 @@ export function MessagesScreen() {
                 style={styles.banner}
                 accessibilityRole="button"
                 accessibilityLabel="Xem các proposal hiện có"
-                onPress={() => open("Proposal")}
+                onPress={() => router.push("/proposals")}
               >
                 <View style={styles.bannerIcon}>
                   <Icon

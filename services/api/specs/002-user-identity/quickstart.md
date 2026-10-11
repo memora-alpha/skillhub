@@ -52,7 +52,7 @@ JSON responses follow Memora: `{success:true,message,data,meta?}` or `{success:f
 2. Verify six-digit REGISTER code once to create a verified ACTIVE account, then login. An inactive account cannot obtain a session; invalid proof responses are neutral.
 3. Access own `/me` and authenticated public `/profiles/{userId}` projections. Public profile excludes email/roles. Profile edits accept only the declared fields.
 4. Rotate refresh serially. Replay revokes that family; logout accepts its refresh credential even after access expiry. Logout-all revokes all families.
-5. Request recovery neutrally and consume RESET_PASSWORD once; old families fail, status is preserved, and a change notification is queued. No automatic sign-in occurs.
+5. Request recovery at `POST /api/v1/auth/password/forgot` with `{email}` (202). Verify its OTP at `POST /api/v1/auth/password/verify-otp` with `{email,otpCode}` (200, `data:{resetToken,expiresAt}`); this does not change the password. Then call `POST /api/v1/auth/password/reset` with `{email,resetToken,newPassword,confirmNewPassword}` (204). The one-use grant is consumed, old families fail, status is preserved, and a change notification is queued. No automatic sign-in occurs. The old OTP-plus-password reset body is rejected.
 6. Upload multipart `image`; 202 returns QUARANTINED. Poll `/me/avatar/uploads/{assetId}`. Only content-valid scanned CLEAN images become selected/signed; failure keeps the previous avatar. Delete also cancels pending uploads.
 7. Admin/current explicit grants control masked listing and lock/unlock with reason. STAFF add/remove additionally needs a session-bound one-use proof from `/auth/reauthenticate` with purpose `STAFF_ROLE_CHANGE`.
 

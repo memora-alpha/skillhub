@@ -41,3 +41,31 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Local AI instructions and assistant tooling (mobile only)
+AGENTS.md
+AGENTS.override.md
+CLAUDE.md
+CLAUDE.local.md
+GEMINI.md
+SKILL.md
+.agents/
+.agent/
+.claude/
+.codex/
+.cursor/
+.gemini/
+.windsurf/
+.specify/
+.cursorrules
+.windsurfrules
+.clinerules
+.roo/
+.roorules
+.aider.conf.yml
+.aiderignore
+.aider.chat.history.md
+.aider.input.history
+**/.github/copilot-instructions.md
+**/.github/instructions/
+**/.github/prompts/

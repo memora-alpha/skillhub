@@ -157,6 +157,7 @@ test(
           "20261007000000_runtime_v3",
           "20261007010000_skills",
           "20261008000000_redis_otp",
+          "20261008010000_runtime_schema_alignment",
         ])
           await client.query(
             await readFile(
@@ -699,6 +700,54 @@ test(
             await auth.resend("race@example.com", "RESET_PASSWORD"),
           );
           const p = await proof("race@example.com", "RESET_PASSWORD");
+          const before = await db.user.findUniqueOrThrow({
+            where: { id: user.id },
+          });
+          await assert.rejects(
+            auth.reset("race@example.com", p.code, "NewStrong123!"),
+          );
+          await assert.rejects(
+            auth.verifyResetOtp(
+              "race@example.com",
+              p.code === "000000" ? "000001" : "000000",
+            ),
+          );
+          assert.equal(
+            await otpStore.read("race@example.com", "PASSWORD_RESET_GRANT"),
+            null,
+          );
+          const verified = await Promise.allSettled(
+            Array.from({ length: 20 }, () =>
+              auth.verifyResetOtp("race@example.com", p.code),
+            ),
+          );
+          assert.equal(
+            verified.filter((result) => result.status === "fulfilled").length,
+            1,
+          );
+          const grant = verified.find(
+            (result) => result.status === "fulfilled",
+          ).value;
+          assert.equal(
+            await otpStore.read("race@example.com", "RESET_PASSWORD"),
+            null,
+          );
+          const cached = await otpStore.read(
+            "race@example.com",
+            "PASSWORD_RESET_GRANT",
+          );
+          assert.ok(!JSON.stringify(cached).includes(grant.resetToken));
+          assert.ok(
+            (await redis.ttl(
+              otpStore.key("race@example.com", "PASSWORD_RESET_GRANT"),
+            )) > 0,
+          );
+          const afterVerify = await db.user.findUniqueOrThrow({
+            where: { id: user.id },
+          });
+          assert.equal(afterVerify.passwordHash, before.passwordHash);
+          assert.equal(afterVerify.securityVersion, before.securityVersion);
+          await sessions.principal(a.accessToken);
           const failed = (
             await createFixture({
               db,
@@ -715,16 +764,17 @@ test(
             })
           ).auth;
           await assert.rejects(
-            failed.reset("race@example.com", p.code, "NewStrong123!"),
+            failed.reset("race@example.com", grant.resetToken, "NewStrong123!"),
           );
           assert.equal(
-            (await otpStore.read("race@example.com", "RESET_PASSWORD")).id,
-            p.challenge.id,
+            (await otpStore.read("race@example.com", "PASSWORD_RESET_GRANT"))
+              .id,
+            cached.id,
           );
           await sessions.principal(a.accessToken);
           const results = await Promise.allSettled(
             Array.from({ length: 20 }, () =>
-              auth.reset("race@example.com", p.code, "NewStrong123!"),
+              auth.reset("race@example.com", grant.resetToken, "NewStrong123!"),
             ),
           );
           assert.equal(
@@ -735,6 +785,13 @@ test(
           await assert.rejects(sessions.principal(b.accessToken));
           await assert.rejects(auth.login("race@example.com", "Strong123!"));
           await auth.login("race@example.com", "NewStrong123!");
+          assert.equal(
+            await otpStore.read("race@example.com", "PASSWORD_RESET_GRANT"),
+            null,
+          );
+          await assert.rejects(
+            auth.reset("race@example.com", grant.resetToken, "Replay123!"),
+          );
           assert.equal(
             queued.filter(
               (item) =>
@@ -750,9 +807,13 @@ test(
             `${otpStore.key("race@example.com", "RESET_PASSWORD")}:cooldown`,
           );
           await auth.resend("race@example.com", "RESET_PASSWORD");
-          await auth.reset(
+          const lockedGrant = await auth.verifyResetOtp(
             "race@example.com",
             (await proof("race@example.com", "RESET_PASSWORD")).code,
+          );
+          await auth.reset(
+            "race@example.com",
+            lockedGrant.resetToken,
             "Newest123!",
           );
           assert.equal(
@@ -768,6 +829,111 @@ test(
             where: { id: user.id },
             data: { accountStatus: "ACTIVE" },
           });
+        },
+      );
+      await t.test(
+        "reset grants expire, bind email/security version and are revoked by a new OTP",
+        async () => {
+          const address = "reset-guards@example.com";
+          const account = await activate(address);
+          const original = await db.user.findUniqueOrThrow({
+            where: { id: account.id },
+          });
+          const grantKey = otpStore.key(address, "PASSWORD_RESET_GRANT");
+          const requestCode = async () => {
+            await redis.del(
+              `${otpStore.key(address, "RESET_PASSWORD")}:cooldown`,
+            );
+            await auth.resend(address, "RESET_PASSWORD");
+            return (await proof(address, "RESET_PASSWORD")).code;
+          };
+          const first = await auth.verifyResetOtp(address, await requestCode());
+          await auth.resend(address, "RESET_PASSWORD"); // Cooldown suppression must preserve the grant.
+          assert.ok(await otpStore.read(address, "PASSWORD_RESET_GRANT"));
+          const reserved = await otpStore.read(address, "PASSWORD_RESET_GRANT");
+          assert.equal(
+            await otpStore.claim(
+              address,
+              "PASSWORD_RESET_GRANT",
+              reserved.id,
+              reserved.digest,
+              "fixture-reset-lease",
+            ),
+            true,
+          );
+          await redis.del(
+            `${otpStore.key(address, "RESET_PASSWORD")}:cooldown`,
+          );
+          await auth.resend(address, "RESET_PASSWORD"); // An in-flight reset cannot be invalidated by resend.
+          assert.equal(await otpStore.read(address, "RESET_PASSWORD"), null);
+          assert.equal(
+            (await otpStore.read(address, "PASSWORD_RESET_GRANT")).id,
+            reserved.id,
+          );
+          await otpStore.finish(
+            address,
+            "PASSWORD_RESET_GRANT",
+            reserved.id,
+            "fixture-reset-lease",
+            false,
+          );
+          await assert.rejects(
+            auth.reset(
+              "someone-else@example.com",
+              first.resetToken,
+              "Changed123!",
+            ),
+          );
+          await assert.rejects(
+            auth.reset(address, "A".repeat(43), "Changed123!"),
+          );
+          assert.equal(
+            (await otpStore.read(address, "PASSWORD_RESET_GRANT"))
+              .failedAttempts,
+            0,
+          );
+          await redis.pexpire(grantKey, 1);
+          await new Promise((resolve) => setTimeout(resolve, 10));
+          await assert.rejects(
+            auth.reset(address, first.resetToken, "Changed123!"),
+          );
+          const second = await auth.verifyResetOtp(
+            address,
+            await requestCode(),
+          );
+          const freshCode = await requestCode();
+          await assert.rejects(
+            auth.reset(address, second.resetToken, "Changed123!"),
+          );
+          const third = await auth.verifyResetOtp(address, freshCode);
+          await db.user.update({
+            where: { id: account.id },
+            data: { securityVersion: { increment: 1 } },
+          });
+          await assert.rejects(
+            auth.reset(address, third.resetToken, "Changed123!"),
+          );
+          assert.equal(
+            (await db.user.findUniqueOrThrow({ where: { id: account.id } }))
+              .passwordHash,
+            original.passwordHash,
+          );
+          const fourth = await auth.verifyResetOtp(
+            address,
+            await requestCode(),
+          );
+          await db.user.update({
+            where: { id: account.id },
+            data: { accountStatus: "DEACTIVATED" },
+          });
+          await assert.rejects(
+            auth.reset(address, fourth.resetToken, "Changed123!"),
+          );
+          assert.equal(
+            (await db.user.findUniqueOrThrow({ where: { id: account.id } }))
+              .passwordHash,
+            original.passwordHash,
+          );
         },
       );
       await t.test(
@@ -1069,7 +1235,7 @@ test(
         },
       );
       await t.test(
-        "21 versioned routes with Memora success/error/pagination envelopes and bodiless 204",
+        "22 versioned routes with Memora success/error/pagination envelopes and bodiless 204",
         async () => {
           const module = await Test.createTestingModule({
             controllers: [
@@ -1131,7 +1297,7 @@ test(
                   ).length,
                 0,
               ),
-            21,
+            22,
           );
           assert.ok(document.paths["/api/health"]);
           assert.ok(!document.paths["/api/v1/health"]);
@@ -1265,6 +1431,68 @@ test(
           );
           assert.equal(verification.status, 204);
           assert.equal(await verification.text(), "");
+          await readError(
+            await request("/api/v1/auth/password/reset", "POST", {
+              email: "http@example.com",
+              otpCode: "123456",
+              newPassword: "HttpChanged123!",
+              confirmNewPassword: "HttpChanged123!",
+            }),
+            400,
+          );
+          await readSuccess(
+            await request("/api/v1/auth/password/forgot", "POST", {
+              email: "http@example.com",
+            }),
+            202,
+          );
+          const resetCode = (await proof("http@example.com", "RESET_PASSWORD"))
+            .code;
+          await readError(
+            await request("/api/v1/auth/password/verify-otp", "POST", {
+              email: "http@example.com",
+              otpCode: resetCode === "000000" ? "000001" : "000000",
+            }),
+            400,
+          );
+          const verifiedResponse = await request(
+            "/api/v1/auth/password/verify-otp",
+            "POST",
+            {
+              email: "http@example.com",
+              otpCode: resetCode,
+            },
+          );
+          assert.equal(
+            verifiedResponse.headers.get("cache-control"),
+            "no-store",
+          );
+          const recovery = (await readSuccess(verifiedResponse)).data;
+          assert.match(recovery.resetToken, /^[A-Za-z0-9_-]{43}$/);
+          assert.ok(Date.parse(recovery.expiresAt) > Date.now());
+          const resetBody = {
+            email: "http@example.com",
+            resetToken: recovery.resetToken,
+            newPassword: "HttpChanged123!",
+            confirmNewPassword: "HttpChanged123!",
+          };
+          const resetResponse = await request(
+            "/api/v1/auth/password/reset",
+            "POST",
+            resetBody,
+          );
+          assert.equal(resetResponse.status, 204);
+          assert.equal(await resetResponse.text(), "");
+          await readError(
+            await request("/api/v1/auth/password/reset", "POST", resetBody),
+            400,
+          );
+          await readSuccess(
+            await request("/api/v1/auth/login", "POST", {
+              email: "http@example.com",
+              password: "HttpChanged123!",
+            }),
+          );
           const login = await request("/api/v1/auth/login", "POST", {
             email: " RACE@Example.com ",
             password: "Newest123!",

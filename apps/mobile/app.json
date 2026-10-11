@@ -23,6 +23,18 @@
       "bundler": "metro"
     },
     "scheme": "skillhub",
-    "plugins": ["expo-router", "expo-font"]
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "SkillHub dùng ảnh bạn chọn để cập nhật ảnh đại diện.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ]
+    ]
   }
 }

@@ -72,3 +72,7 @@ Lock User rows first (sorted actor/target IDs), then challenge/session/authoriza
 ## Registration draft amendment — 2026-10-08
 
 No User row exists before successful REGISTER verification. Redis OtpRecord carries an authenticated encrypted RegistrationDraft (fullName, Argon2id passwordHash, timezone/locale, accepted terms version/time) and a reserved UUID. Its TTL matches the registration OTP. After proof validation the reserved UUID is used to create/activate User and append audit in a single PostgreSQL transaction. Draft cleanup follows commit; rollback preserves the draft for retry. No additional SQL column or OTP table is required.
+
+# Verified password reset grant — 2026-10-08 amendment
+
+Auth stores a short-lived reset grant in Redis, keyed by HMAC-normalized-email and purpose PASSWORD_RESET_GRANT. Its fields are id, userId, securityVersion, keyId, token HMAC digest, expiresAt and failedAttempts (zero; incorrect opaque tokens do not count as OTP mistakes). A separate claim lease reserves the grant for one password transaction. The plaintext 32-byte token is returned once after OTP exchange and never stored. TTL uses IDENTITY_RESET_SECONDS. A new issued recovery OTP invalidates the grant; successful reset consumes it. PostgreSQL account, sessions and audit remain authoritative. See [password recovery plan](password-recovery.md).
