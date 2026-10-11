@@ -50,7 +50,7 @@ export class SkillActorService {
           revokedAt: null,
           startsAt: { lte: now },
           endsAt: { gt: now },
-          scope: "learning-request:create",
+          scope: { in: ["learning-request:create", "CREATE_NEW_ACTIVITY"] },
         },
       })
     )

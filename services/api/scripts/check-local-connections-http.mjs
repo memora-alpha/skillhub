@@ -8,7 +8,7 @@ import { createServer } from "node:net";
 import { spawn, spawnSync } from "node:child_process";
 import { setTimeout as delay } from "node:timers/promises";
 import pg from "pg";
-import { mongo } from "mongoose";
+import mongoose, { mongo } from "mongoose";
 import Redis from "ioredis";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Test } from "@nestjs/testing";
@@ -867,7 +867,8 @@ try {
 } catch (error) {
   console.error(
     error.message?.startsWith("HTTP_CHECK_FAILED") ||
-      error.message?.startsWith("SSE_CHECK_FAILED")
+      error.message?.startsWith("SSE_CHECK_FAILED") ||
+      error.message?.startsWith("Nest can't resolve dependencies")
       ? error.message
       : `Local HTTP check failed: ${error.code ?? error.name}: ${error.message?.match(/^[A-Z_]+$/)?.[0] ?? "see stage output"}`,
   );
@@ -875,6 +876,11 @@ try {
 } finally {
   for (const stream of streams) stream.abort();
   await app?.close().catch(() => {});
+  // A failed Nest compile can leave a Mongoose connection without an app to close.
+  for (const connection of mongoose.connections.filter(
+    (value) => value.name === schema,
+  ))
+    await connection.close().catch(() => {});
   if (liveObjects && db) {
     let cleanupFailed = false;
     // Inspect only this run's isolated schema; never enumerate the live bucket.
@@ -905,7 +911,13 @@ try {
   await db?.$disconnect();
   // This client always targets the random database owned by this run, never skillhub_chat.
   if (configuredClient && configuredClient.db().databaseName === schema) {
-    await configuredClient.db().dropDatabase();
+    await configuredClient
+      .db()
+      .dropDatabase()
+      .catch(() => {
+        console.error("CHECK_MONGO_CLEANUP_FAILED");
+        process.exitCode = 1;
+      });
   }
   await configuredClient?.close().catch(() => {});
   await nativeClient

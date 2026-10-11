@@ -30,6 +30,10 @@ import { SharingSkillsModule } from "../../dist/modules/sharing-skills/sharing-s
 import { SharingSkillsService } from "../../dist/modules/sharing-skills/application/sharing-skills.service.js";
 import { LearningRequestsModule } from "../../dist/modules/learning-requests/learning-requests.module.js";
 import { LearningRequestLifecycleService } from "../../dist/modules/learning-requests/application/services/learning-request-lifecycle.service.js";
+import { LearningPathsModule } from "../../dist/modules/learning-paths/learning-paths.module.js";
+import { LearningPathsService } from "../../dist/modules/learning-paths/learning-paths.service.js";
+import { ConversationMembershipReader } from "../../dist/modules/conversations/conversation-membership.reader.js";
+import { ReputationModule } from "../../dist/modules/reputation/reputation.module.js";
 function fixtureModule(entries) {
   class Fixture {}
   Module({
@@ -55,6 +59,8 @@ test("feature modules resolve owner contracts and register SSE/chat workers; HTT
         load: [() => ({ EVENT_CURSOR_KEY: "x".repeat(32) })],
       }),
       ProposalsModule,
+      LearningPathsModule,
+      ReputationModule,
     ],
   })
     .overrideModule(DatabaseModule)
@@ -105,6 +111,8 @@ test("feature modules resolve owner contracts and register SSE/chat workers; HTT
     await app.init();
     assert(module.get(ProposalsService));
     assert(module.get(ConversationsService));
+    assert(module.get(LearningPathsService));
+    assert(module.get(ConversationMembershipReader));
     const registry = module.get(OutboxPublisherRegistry);
     for (const type of [
       "application.events.wakeup",
@@ -121,6 +129,7 @@ test("feature modules resolve owner contracts and register SSE/chat workers; HTT
       "/api/v1/proposals/{id}/accept",
       "/api/v1/conversations/{id}/messages",
       "/api/v1/events",
+      "/api/v1/me/achievements",
     ])
       assert(doc.paths[route], route);
     assert(

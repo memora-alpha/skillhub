@@ -3,6 +3,7 @@ import { test } from "node:test";
 import { PERMISSION_CATALOG } from "../../dist/shared/authorization/permission.catalog.js";
 import { LearningRequestAccessService } from "../../dist/modules/learning-requests/application/services/learning-request-access.service.js";
 import { PrismaUsersRepository } from "../../dist/modules/users/infrastructure/persistence/prisma-users-repository.js";
+import { SkillActorService } from "../../dist/modules/users/application/services/skill-actor.service.js";
 
 const userId = "11111111-1111-4111-8111-111111111111";
 const sessionId = "22222222-2222-4222-8222-222222222222";
@@ -14,6 +15,37 @@ const principal = (roles, permissions) => ({
   permissions,
 });
 const status = (error) => error?.getStatus?.();
+
+for (const scope of ["learning-request:create", "CREATE_NEW_ACTIVITY"]) {
+  test(`create and publish respect the ${scope} restriction after owner integration`, async () => {
+    const eligibility = new SkillActorService({});
+    const tx = {
+      user: {
+        findUnique: async () => ({
+          accountStatus: "ACTIVE",
+          emailVerified: true,
+        }),
+      },
+      userRestriction: {
+        findFirst: async ({ where }) => {
+          const scopes =
+            typeof where.scope === "string" ? [where.scope] : where.scope.in;
+          return scopes.includes(scope) ? { id: "restricted" } : null;
+        },
+      },
+    };
+    for (const action of [
+      "CREATE_LEARNING_REQUEST",
+      "PUBLISH_LEARNING_REQUEST",
+    ]) {
+      await assert.rejects(
+        eligibility.assertAllowed(tx, userId, action),
+        (error) =>
+          status(error) === 403 && error.message === "NEW_ACTIVITY_RESTRICTED",
+      );
+    }
+  });
+}
 
 test("permission catalog keeps Learning Request actions distinct and explicit", () => {
   const codes = PERMISSION_CATALOG.map(({ code }) => code);
