@@ -29,6 +29,7 @@ function validateItems(
   );
   for (let index = 0; index < sorted.length; index += 1) {
     const item = sorted[index];
+    if (!item) throw new BadRequestException("INVALID_SCHEDULE_ITEMS");
     const start = new Date(item.startAt);
     const end = new Date(item.endAt);
     const duration = (end.getTime() - start.getTime()) / millisecondsPerMinute;
@@ -42,7 +43,8 @@ function validateItems(
     ) {
       throw new BadRequestException("INVALID_SCHEDULE_ITEMS");
     }
-    if (index > 0 && start < new Date(sorted[index - 1].endAt)) {
+    const previous = sorted[index - 1];
+    if (previous && start < new Date(previous.endAt)) {
       throw new BadRequestException("SCHEDULE_ITEMS_OVERLAP");
     }
   }

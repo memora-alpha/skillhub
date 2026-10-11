@@ -22,7 +22,9 @@ function creditUnits(value: string): bigint {
   if (!/^(?:0|[1-9]\d{0,9})(?:\.\d{1,2})?$/.test(value)) {
     throw new BadRequestException("INVALID_CREDIT_AMOUNT");
   }
-  const [whole, fraction = ""] = value.split(".");
+  const decimalPoint = value.indexOf(".");
+  const whole = decimalPoint < 0 ? value : value.slice(0, decimalPoint);
+  const fraction = decimalPoint < 0 ? "" : value.slice(decimalPoint + 1);
   return BigInt(whole) * 100n + BigInt(fraction.padEnd(2, "0"));
 }
 
@@ -509,6 +511,9 @@ export class LearningPathsService {
         throw new ConflictException("REQUIRED_SCHEDULE_PROPOSAL_MISSING");
       }
       const schedule = schedules[0];
+      if (!schedule) {
+        throw new ConflictException("REQUIRED_SCHEDULE_PROPOSAL_MISSING");
+      }
       if (
         !schedule.participantAConfirmedAt ||
         !schedule.participantBConfirmedAt ||
@@ -538,7 +543,12 @@ export class LearningPathsService {
       throw new ConflictException("INVALID_SCHEDULE_ITEMS");
     }
     for (let index = 1; index < orderedItems.length; index += 1) {
-      if (orderedItems[index].startAt < orderedItems[index - 1].endAt) {
+      const current = orderedItems[index];
+      const previous = orderedItems[index - 1];
+      if (!current || !previous) {
+        throw new ConflictException("INVALID_SCHEDULE_ITEMS");
+      }
+      if (current.startAt < previous.endAt) {
         throw new ConflictException("SCHEDULE_CONFLICT");
       }
     }
