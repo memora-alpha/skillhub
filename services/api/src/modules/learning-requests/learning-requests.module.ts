@@ -6,6 +6,11 @@ import { OutboxModule } from "../../infrastructure/events/outbox.module";
 import { AuditModule } from "../audit/audit.module";
 import { IdentityGuard } from "../../shared/auth/identity.guard";
 import { IdentityModule } from "../identity.module";
+import { SkillActorService } from "../users/application/services/skill-actor.service";
+import { SkillsModule } from "../skills/skills.module";
+import { SkillsService } from "../skills/application/skills.service";
+import { SharingSkillsModule } from "../sharing-skills/sharing-skills.module";
+import { SharingSkillsService } from "../sharing-skills/application/sharing-skills.service";
 import { LearningRequestAccessService } from "./application/services/learning-request-access.service";
 import { LEARNING_REQUEST_REPOSITORY } from "./application/ports/learning-request-repository";
 import { PrismaLearningRequestRepository } from "./infrastructure/persistence/prisma-learning-request.repository";
@@ -36,6 +41,8 @@ import { GetLearningRequestUseCase } from "./application/use-cases/get-learning-
   imports: [
     DatabaseModule,
     IdentityModule,
+    SkillsModule,
+    SharingSkillsModule,
     SystemConfigurationModule,
     AuditModule,
     OutboxModule,
@@ -51,11 +58,11 @@ import { GetLearningRequestUseCase } from "./application/use-cases/get-learning-
     UnavailableLearningRequestDependencies,
     {
       provide: NEW_ACTIVITY_ELIGIBILITY_READER,
-      useExisting: UnavailableLearningRequestDependencies,
+      useExisting: SkillActorService,
     },
     {
       provide: SKILL_CATALOG_READER,
-      useExisting: UnavailableLearningRequestDependencies,
+      useExisting: SkillsService,
     },
     {
       provide: REQUEST_LOCK_READER,
@@ -63,11 +70,11 @@ import { GetLearningRequestUseCase } from "./application/use-cases/get-learning-
     },
     {
       provide: REQUEST_OWNER_READER,
-      useExisting: UnavailableLearningRequestDependencies,
+      useExisting: SkillActorService,
     },
     {
       provide: SHARING_SKILL_READER,
-      useExisting: UnavailableLearningRequestDependencies,
+      useExisting: SharingSkillsService,
     },
     CreateLearningRequestUseCase,
     PublishLearningRequestUseCase,

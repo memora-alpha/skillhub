@@ -105,6 +105,21 @@ model("LearningRequest", (block) =>
 model("Notification", (block) =>
   fields(block, "  @@index([userId, createdAt(sort: Desc), id(sort: Desc)])"),
 );
+model("Proposal", (block) =>
+  fields(
+    block,
+    `
+  version Int @default(1)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  terminalAt DateTime? @map("terminal_at") @db.Timestamptz(3)
+  exchangeTypeHint ExchangeType? @map("exchange_type_hint")
+  targetSharingSkillId String? @map("target_sharing_skill_id") @db.Uuid
+  @@index([status, expiresAt])
+  @@index([proposerId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([recipientId, createdAt(sort: Desc), id(sort: Desc)])
+`,
+  ),
+);
 // Preserve the physical enum order established by the Learning Request migration.
 schema = schema.replace(/enum LearningRequestStatus \{[\s\S]*?\n\}/, (block) =>
   block.replace(/ {2}REJECTED\r?\n {2}OPEN/, "  OPEN\n  REJECTED"),

@@ -57,6 +57,35 @@ export const PERMISSION_CATALOG = [
     description: "Mark own notifications as read",
   },
   { code: "proposal:create", description: "Create proposal" },
+  { code: "event:read:self", description: "Read own application event stream" },
+  { code: "proposal:read:party", description: "Read own proposals" },
+  { code: "proposal:update:self", description: "Update own pending proposals" },
+  {
+    code: "proposal:accept:recipient",
+    description: "Accept proposals addressed to self",
+  },
+  {
+    code: "proposal:reject:recipient",
+    description: "Reject proposals addressed to self",
+  },
+  { code: "proposal:withdraw:self", description: "Withdraw own proposals" },
+  {
+    code: "message:create:participant",
+    description: "Send participant messages",
+  },
+  { code: "message:delivery:read:self", description: "Read own send receipts" },
+  {
+    code: "conversation:read-state:update:self",
+    description: "Advance own read watermark",
+  },
+  {
+    code: "message:attachment:create:participant",
+    description: "Upload own chat files",
+  },
+  {
+    code: "message:attachment:read:participant",
+    description: "Download published participant files",
+  },
   {
     code: "conversation:read:participant",
     description: "Read participant chat",

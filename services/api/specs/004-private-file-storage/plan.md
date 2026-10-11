@@ -21,6 +21,7 @@ Paths tính từ `services/api`.
 - Actual streams bounded; rights từ server/module, không từ client owner/purpose.
 - Signed URL default120/max300 s là technical proposal; đã cấp có bearer TTL.
 - Real tests chỉ test bucket/database/queue/scanner riêng; không xóa files production.
+- Bucket được chốt lại ngày 2026-10-11: avatar, CHAT và Evidence dùng chung `S3_BUCKET=skillhub`, giữ prefix `avatars/` và `private/`. Đổi cấu hình không tự di chuyển object từ bucket cũ; provider endpoint/credentials phải cùng trỏ dịch vụ chứa bucket này.
 
 ## Review Focus
 

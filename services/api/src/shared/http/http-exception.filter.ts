@@ -31,6 +31,20 @@ export class HttpExceptionFilter implements ExceptionFilter {
           (detail as { message?: unknown } | undefined)?.message ?? fallback;
       }
     }
+    // Only public capability codes are safe to expose for service-unavailable errors.
+    if (
+      status === 503 &&
+      typeof detail === "string" &&
+      new Set([
+        "CONNECTION_POLICY_UNAVAILABLE",
+        "CHAT_REPLICA_SET_OR_INDEXES_UNAVAILABLE",
+        "CHAT_STORE_UNAVAILABLE",
+        "COMMITTED_DRAFT_MISSING",
+        "MESSAGE_NOT_READY",
+        "EVENT_CONNECTIONS_UNAVAILABLE",
+      ]).has(detail)
+    )
+      message = detail;
     let text = "Request failed.";
     if (Array.isArray(message)) text = message.join("; ");
     else if (typeof message === "string") text = message;

@@ -15,7 +15,7 @@ export class AvatarStorage extends AvatarStoragePort {
   private readonly bucket: string;
   constructor(config: ConfigService) {
     super();
-    this.bucket = config.getOrThrow<string>("S3_AVATAR_BUCKET");
+    this.bucket = config.getOrThrow<string>("S3_BUCKET");
     const endpoint = config.getOrThrow<string>("S3_ENDPOINT");
     if (
       !this.bucket ||

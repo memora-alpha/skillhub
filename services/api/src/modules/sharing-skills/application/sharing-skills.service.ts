@@ -123,10 +123,28 @@ export class SharingSkillsService implements OnModuleInit {
       input.verifiedRequired,
     );
     if (!row) throw new ConflictException("TEACHER_SKILL_NOT_ELIGIBLE");
+    await this.skills.assertActive(tx, input.skillId);
+    const locked = await this.repository.get(row.id, tx, true);
+    if (
+      locked.archivedAt ||
+      (input.verifiedRequired && locked.verificationStatus !== "VERIFIED")
+    )
+      throw new ConflictException("TEACHER_SKILL_NOT_ELIGIBLE");
     return {
       sharingSkillId: row.id,
       verificationStatus: row.verificationStatus,
     };
+  }
+  async connectionTarget(tx: TransactionContext, id: string) {
+    const snapshot = await this.repository.get(id, tx);
+    await this.skills.assertActive(tx, snapshot.skillId);
+    const row = await this.repository.get(id, tx, true);
+    if (row.archivedAt || !row.isVisible)
+      throw new ConflictException("DIRECT_TARGET_UNAVAILABLE");
+    return { sharingSkillId: row.id, userId: row.userId, skillId: row.skillId };
+  }
+  async getMatchingSnapshot(tx: TransactionContext, userId: string) {
+    return this.repository.matchingSnapshot(tx, userId);
   }
   async create(command: SkillCommand, input: SharingInput) {
     const data = { ...input, description: text(input.description, 20, 1500) };

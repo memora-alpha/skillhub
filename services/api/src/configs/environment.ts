@@ -16,7 +16,7 @@ const environmentSchema = z.looseObject({
     .transform((value) => value === "true"),
   STORAGE_ENDPOINT: z.string().url().optional(),
   STORAGE_REGION: z.string().min(1).optional(),
-  STORAGE_BUCKET: z.string().min(1).optional(),
+  S3_BUCKET: z.string().min(1).optional(),
   STORAGE_ACCESS_KEY_ID: z.string().min(1).optional(),
   STORAGE_SECRET_ACCESS_KEY: z.string().min(1).optional(),
   CLAMAV_HOST: z.string().min(1).optional(),
@@ -73,7 +73,7 @@ function invalidStorageSettings(config: Environment): string[] {
   const required = [
     "STORAGE_ENDPOINT",
     "STORAGE_REGION",
-    "STORAGE_BUCKET",
+    "S3_BUCKET",
     "STORAGE_ACCESS_KEY_ID",
     "STORAGE_SECRET_ACCESS_KEY",
     "CLAMAV_HOST",

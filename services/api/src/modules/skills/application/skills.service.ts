@@ -41,6 +41,33 @@ export class SkillsService {
     private readonly transactions: TransactionRunner,
     private readonly audit: AuditWriter,
   ) {}
+  async assertActiveSelection(
+    tx: TransactionContext,
+    selection: { skillId: string; tagIds: readonly string[] },
+  ) {
+    await this.assertActive(tx, selection.skillId);
+    const tags = await tx.tag.findMany({
+      where: { id: { in: [...selection.tagIds] }, status: "ACTIVE" },
+      select: { id: true, label: true },
+    });
+    if (tags.length !== new Set(selection.tagIds).size)
+      throw new ConflictException("TAG_NOT_ACTIVE");
+    return { skillId: selection.skillId, tags };
+  }
+  async readSelections(
+    tx: TransactionContext,
+    selection: { skillIds: readonly string[]; tagIds: readonly string[] },
+  ) {
+    const skills = await tx.skill.findMany({
+      where: { id: { in: [...selection.skillIds] } },
+      select: { id: true, name: true },
+    });
+    const tags = await tx.tag.findMany({
+      where: { id: { in: [...selection.tagIds] } },
+      select: { id: true, label: true },
+    });
+    return { skills, tags };
+  }
   list(query: SkillQuery) {
     return this.repository.list(query);
   }

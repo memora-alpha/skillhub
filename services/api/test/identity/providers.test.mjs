@@ -24,6 +24,7 @@ test("actual S3 adapter signs private upload/read/delete and never uses a public
       method: req.method,
       auth: req.headers.authorization,
       acl: req.headers["x-amz-acl"],
+      path: req.url.split("?")[0],
     });
     const key = req.url.split("?")[0];
     if (req.method === "PUT") {
@@ -53,7 +54,7 @@ test("actual S3 adapter signs private upload/read/delete and never uses a public
         NODE_ENV: "test",
         S3_ENDPOINT: `http://127.0.0.1:${server.address().port}`,
         S3_REGION: "fixture",
-        S3_AVATAR_BUCKET: "avatars",
+        S3_BUCKET: "skillhub",
         S3_ACCESS_KEY: "fixture",
         S3_SECRET_KEY: "fixture-secret",
       }),
@@ -72,7 +73,10 @@ test("actual S3 adapter signs private upload/read/delete and never uses a public
     assert.equal(objects.size, 0);
     assert.ok(
       requests.every(
-        (req) => req.auth?.startsWith("AWS4-HMAC-SHA256") && !req.acl,
+        (req) =>
+          req.auth?.startsWith("AWS4-HMAC-SHA256") &&
+          !req.acl &&
+          req.path === "/skillhub/avatars/user/image",
       ),
     );
   } finally {

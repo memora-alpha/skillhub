@@ -13,15 +13,14 @@ entities; its simplification does not remove logical join tables.
   `src/generated/prisma-catalog`, separate from the running identity client.
 - `schema.prisma` is the runtime v3 schema, generated from the catalog by
   `scripts/generate-runtime-schema.mjs`. It includes the 48 domain models and
-  seven technical models from `runtime-support.prisma` for OTP and foundation.
+  eight technical models from `runtime-support.prisma` for foundation and Connections.
   Tag and RequestTag extend the runtime to meet SRS V1.6; they are not part of
   the 48-model logical catalog. Learning Request keeps its moderation/expiry
   metadata and application aliases mapped to v3 columns.
   `prisma.config.ts`, default generate/build/typecheck and migrations use it.
   Profile fields live on User; User has one required roleId.
 - `scripts/write-identity-schema.mjs` verifies the runtime scope without rewriting it.
-  Existing OTP remains PostgreSQL-backed; its omission from the diagram did not
-  authorize removing authentication functionality.
+  OTP authority is Redis; no PostgreSQL OTP models are generated.
   There is no separate `identity.prisma` deployment schema.
 - `chat.schema.prisma` is reference-only. MessageAttachment is an embedded `type`,
   not a collection/model. Runtime ownership remains MongoDB/Mongoose; Prisma 7
@@ -56,6 +55,27 @@ The Staff endpoint rejects replacing ADMIN with STAFF. Role arrays in existing
 HTTP contracts now contain one role. Reputation uses 50 when not initialized.
 
 ## Representation and unresolved constraints
+
+Connections migration `20261009010000_connections` adds Proposal version/expiry/source
+constraints and partial uniqueness, immutable Conversation membership, ChatPublication
+receipts and the per-user replay feed. Non-null legacy credit suggestions or direct
+proposals fail preflight because their units/target identity need operator review;
+the migration never rescales or deletes them. Nullable historical expiry is backfilled
+to createdAt + 7 days. Existing invalid text/party/duplicate rows must be resolved
+before deployment. See [Connections quickstart](../specs/008-connections/quickstart.md).
+
+Notification create/read and CHAT file state triggers append reference-only feed rows
+and wakeup outbox in the same PostgreSQL transaction, including existing producer paths.
+Sorted recipient counter locks allocate commit-ordered sequences. Wakeup outbox rows
+also retain event dedupe after replay-prefix trimming; do not purge these receipts
+without designing a replacement dedupe store. Business chat/receipt/file purge is disabled.
+
+Mongo chat uses explicit native collection indexes and replica-set transactions.
+Run `pnpm --filter api db:migrate:chat` against the intended isolated/deployment database
+after reviewing `MONGODB_URI`; startup does not implicitly create these indexes.
+Message drafts/content/read watermarks remain Mongo-owned. PostgreSQL stores only
+command/draft digests, publication identity and references. Applying PostgreSQL
+migrations alone does not enable message publication.
 
 Skills migration `20261007010000_skills` adds normalized catalog keys, optimistic
 versions, timestamps, active-sharing/pending-request partial unique constraints,
