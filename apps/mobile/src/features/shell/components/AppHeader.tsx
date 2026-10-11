@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import {
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -9,6 +10,7 @@ import {
 import { BrandLogo } from "@/components/BrandLogo";
 import { Avatar } from "@/components/Avatar";
 import { Icon } from "@/components/Icon";
+import { useProductPreview } from "@/features/product-shell";
 import {
   appColors as colors,
   appRadius as radius,
@@ -19,7 +21,11 @@ import {
 } from "@/constants/theme";
 
 type AppHeaderProps = Readonly<{
-  profile: Readonly<{ name: string; userId?: string }>;
+  profile: Readonly<{
+    name: string;
+    userId?: string;
+    avatarUrl?: string | null;
+  }>;
   onAction: (title: string) => void;
   onAccount: () => void;
   title?: string;
@@ -40,7 +46,10 @@ export function AppHeader({
   appearance = "home",
 }: AppHeaderProps) {
   const { width } = useWindowDimensions();
+  const { notifications } = useProductPreview();
+  const unread = notifications.filter((item) => !item.read).length;
   const home = appearance === "home";
+  const compact = Platform.OS !== "web" || width < 640;
   return (
     <View
       style={[
@@ -62,7 +71,7 @@ export function AppHeader({
             <Icon name="arrow" size={20} color={colors.muted} />
           </View>
         </Pressable>
-      ) : (
+      ) : !compact || !title ? (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="SkillHub — trang chủ"
@@ -74,7 +83,7 @@ export function AppHeader({
             markOnly={!!title && width < 480}
           />
         </Pressable>
-      )}
+      ) : null}
       {title && (
         <Text
           style={[styles.title, home && styles.homeTitle, { flex: 1 }]}
@@ -85,7 +94,7 @@ export function AppHeader({
       )}
       {!title && <View style={{ flex: 1 }} />}
       <View style={styles.headerActions}>
-        {width >= 640 && (
+        {!compact && (
           <Pressable
             style={styles.iconButton}
             accessibilityRole="button"
@@ -102,7 +111,7 @@ export function AppHeader({
         <Pressable
           style={[styles.iconButton, home && styles.homeNotification]}
           accessibilityRole="button"
-          accessibilityLabel="Thông báo — 3 thông báo"
+          accessibilityLabel={`Thông báo — ${unread} chưa đọc`}
           onPress={() => onAction("Thông báo")}
           hitSlop={6}
         >
@@ -112,23 +121,26 @@ export function AppHeader({
             color={home ? signedInChrome.accent : colors.muted}
           />
           <View style={[styles.count, home && styles.homeCount]}>
-            <Text style={styles.countLabel}>3</Text>
+            <Text style={styles.countLabel}>{unread}</Text>
           </View>
         </Pressable>
         {rightAction}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Mở menu tài khoản"
-          onPress={onAccount}
-          style={{ marginLeft: 4 }}
-          hitSlop={6}
-        >
-          <Avatar
-            name={profile.name}
-            userId={profile.userId}
-            size={avatarSizes.compact}
-          />
-        </Pressable>
+        {!compact && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Mở menu tài khoản"
+            onPress={onAccount}
+            style={{ marginLeft: 4 }}
+            hitSlop={6}
+          >
+            <Avatar
+              name={profile.name}
+              userId={profile.userId}
+              size={avatarSizes.compact}
+              sourceUri={profile.avatarUrl}
+            />
+          </Pressable>
+        )}
       </View>
     </View>
   );

@@ -1,11 +1,10 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { AppScreenLayout } from "@/features/shell";
 import { Avatar } from "@/components/Avatar";
 import { Badge } from "@/components/Badge";
 import { Button } from "@/components/Button";
 import { EmptyState } from "@/components/EmptyState";
-import { Icon } from "@/components/Icon";
 import { avatarSizes, typography, colors, fonts } from "@/constants/theme";
 import { sessionDetails } from "../mocks/sessionDetails";
 
@@ -20,7 +19,7 @@ export function SessionDetailScreen() {
       selected="Lịch học"
       back={{ href: "/calendar", label: "Quay lại lịch học" }}
     >
-      {(open) =>
+      {() =>
         !session ? (
           <EmptyState
             icon="calendar"
@@ -40,7 +39,7 @@ export function SessionDetailScreen() {
                 <Text accessibilityRole="header" style={styles.title}>
                   {session.detailTitle}
                 </Text>
-                <Badge label="Sắp tới" variant="warning" />
+                <Badge label="Mẫu lịch cũ" variant="warning" />
               </View>
               <View style={styles.grid}>
                 {[
@@ -70,26 +69,13 @@ export function SessionDetailScreen() {
                 </View>
               </View>
             </View>
-            <View style={styles.actions}>
-              <Button
-                variant="secondary"
-                style={{ flex: 1 }}
-                onPress={() => open("Thay đổi lịch học")}
-              >
-                Thay đổi lịch
-              </Button>
-              <Button style={{ flex: 1 }} onPress={() => open("Phòng học")}>
-                Vào phòng học
-              </Button>
-            </View>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => open("Báo cáo vấn đề")}
-              style={styles.report}
-            >
-              <Icon name="flag" size={14} color={colors.error} />
-              <Text style={styles.reportText}>Báo cáo vấn đề</Text>
-            </Pressable>
+            <Text style={styles.caption}>
+              Đây là dữ liệu minh họa của lịch cũ. Chọn buổi học trong lịch mới
+              để đổi lịch, vào phòng hoặc báo cáo đúng lộ trình.
+            </Text>
+            <Button onPress={() => router.dismissTo("/calendar")}>
+              Mở lịch học
+            </Button>
           </ScrollView>
         )
       }

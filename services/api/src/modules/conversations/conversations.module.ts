@@ -12,6 +12,7 @@ import { ConversationAccessService } from "./application/conversation-access.ser
 import { ChatPublicationService } from "./application/chat-publication.service";
 import { ConversationsService } from "./application/conversations.service";
 import { ConversationsController } from "./presentation/conversations.controller";
+import { ConversationMembershipReader } from "./conversation-membership.reader";
 @Module({
   imports: [
     DatabaseModule,
@@ -28,8 +29,9 @@ import { ConversationsController } from "./presentation/conversations.controller
     ConversationAccessService,
     ChatPublicationService,
     ConversationsService,
+    ConversationMembershipReader,
   ],
   controllers: [ConversationsController],
-  exports: [ConversationLifecycleService],
+  exports: [ConversationLifecycleService, ConversationMembershipReader],
 })
 export class ConversationsModule {}

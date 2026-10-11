@@ -16,3 +16,4 @@ __pycache__/
 .DS_Store
 Thumbs.db
 *.drawio.bkp
+.expo

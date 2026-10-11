@@ -254,10 +254,21 @@ export class PrismaUsersRepository extends UsersRepository {
         "learning-request:moderation:configure",
       ],
     } satisfies Record<RoleCode, readonly PermissionCode[]>;
+    const reportGrants = {
+      USER: [],
+      STAFF: ["report:moderate"],
+      ADMIN: [
+        "report:moderate",
+        "credit:adjust",
+        "credit:reverse:settlement",
+        "dispute:override",
+      ],
+    } satisfies Record<RoleCode, readonly PermissionCode[]>;
     const codes = [
       ...new Set([
         ...systemAdminPermissions,
         ...Object.values(learningRequestGrants).flat(),
+        ...Object.values(reportGrants).flat(),
         ...Object.values(SKILL_PERMISSIONS).flat(),
       ]),
     ];
@@ -286,6 +297,12 @@ export class PrismaUsersRepository extends UsersRepository {
         permissionCode,
       })),
       ...Object.entries(learningRequestGrants).flatMap(([roleCode, grants]) =>
+        grants.map((permissionCode) => ({
+          roleCode: roleCode as RoleCode,
+          permissionCode,
+        })),
+      ),
+      ...Object.entries(reportGrants).flatMap(([roleCode, grants]) =>
         grants.map((permissionCode) => ({
           roleCode: roleCode as RoleCode,
           permissionCode,

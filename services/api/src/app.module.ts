@@ -28,6 +28,11 @@ import { NotificationsModule } from "./modules/notifications/notifications.modul
 import { ApplicationEventsModule } from "./modules/application-events/application-events.module";
 import { ProposalsModule } from "./modules/proposals/proposals.module";
 import { ConversationsModule } from "./modules/conversations/conversations.module";
+import { LearningPathsModule } from "./modules/learning-paths/learning-paths.module";
+import { SchedulingModule } from "./modules/scheduling/scheduling.module";
+import { LearningSessionsModule } from "./modules/learning-sessions/learning-sessions.module";
+import { ReviewsModule } from "./modules/reviews/reviews.module";
+import { ReportsModule } from "./modules/reports/reports.module";
 
 @Module({
   imports: [
@@ -71,6 +76,11 @@ import { ConversationsModule } from "./modules/conversations/conversations.modul
     ApplicationEventsModule,
     ProposalsModule,
     ConversationsModule,
+    LearningPathsModule,
+    SchedulingModule,
+    LearningSessionsModule,
+    ReviewsModule,
+    ReportsModule,
   ],
   controllers: [HealthController],
   providers: [

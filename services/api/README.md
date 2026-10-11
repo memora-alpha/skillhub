@@ -12,18 +12,20 @@ Luồng đăng ký/OTP đã chuyển sang Redis và BullMQ theo [Redis OTP amend
 
 Quên mật khẩu dùng ba API: `password/forgot` → `password/verify-otp` → `password/reset`. Xác thực OTP đúng mới nhận `resetToken` dùng một lần để đổi mật khẩu; bước verify không đổi mật khẩu hoặc thu hồi phiên. Xem [luồng khôi phục mật khẩu](specs/002-user-identity/password-recovery.md).
 
-API đã có nền tảng hạ tầng và phần Danh tính (spec 002): đăng ký/OTP/login, refresh/logout/reset, hồ sơ/avatar, quyền và quản trị tài khoản có audit. Phần Kỹ năng (spec 007) đã có catalog, quản lý Sharing Skill, search/profile công khai, evidence và Staff Verification; xem [quickstart](specs/007-skills/quickstart.md) và [validation](specs/007-skills/validation.md). Core Learning Request đã nối owner adapters cho catalog, eligibility, public owner và Sharing Skill matching. Path/Schedule lock reader còn trả unavailable; cancellation phụ thuộc reader này vẫn bị chặn. Giao dịch Credit và các consumer Path/Schedule/Wallet chưa được triển khai.
+API đã có nền tảng hạ tầng và phần Danh tính (spec 002): đăng ký/OTP/login, refresh/logout/reset, hồ sơ/avatar, quyền và quản trị tài khoản có audit. Phần Kỹ năng (spec 007) đã có catalog, quản lý Sharing Skill, search/profile công khai, evidence và Staff Verification; xem [quickstart](specs/007-skills/quickstart.md) và [validation](specs/007-skills/validation.md). Core Learning Request đã nối owner adapters cho catalog, eligibility, public owner và Sharing Skill matching, đồng thời giữ kiểm tra restriction tạo hoạt động từ reputation. Path/Schedule lock reader còn trả unavailable; cancellation phụ thuộc reader này vẫn bị chặn.
 
 Phần Kết nối đã có source cho Proposal từ Request/lời mời trực tiếp, accept mở Conversation, chat text/file, delivery receipt, read watermark và notification in-app. Chat, notification và application events dùng [SSE chung](specs/008-connections/contracts/sse.md) với reconnect/replay; commands/history vẫn qua HTTP. [Policy đã chốt](specs/008-connections/policies.md): proposal 7 ngày, 10/giờ và 50/ngày, direct cooldown 24 giờ; chat 30/phút/User và 120/phút/Conversation; 5 file/tin, 15 MB/file, 50 MB/tin. Xem [quickstart](specs/008-connections/quickstart.md), [tasks](specs/008-connections/tasks.md) và [validation](specs/008-connections/validation.md). Migration Connections và seed cấu hình đã áp dụng trên PostgreSQL local; journeys HTTP/SSE đã pass với PostgreSQL schema riêng và Mongo rs0 local. Mongo service/indexes đã cấu hình; storage local đã bật trên bucket chung `skillhub` và truy cập bucket trả HTTP 200. API local trả health/ready 200; luồng CHAT upload → scan READY/CLEAN → gửi file → download đã pass với R2/ClamAV thật trên dữ liệu test riêng. Moderation rules chưa chốt; SSE nhiều instance/proxy, recovery/cleanup races và load vẫn cần kiểm chứng. Retention, report/staff access và external notification chưa được mở.
 
-Catalog Prisma đã cập nhật theo logical v3: **48 model PostgreSQL và một document
+Các module từ `feat/learning-platform-modules` đã được gộp cùng Kết nối: source ban đầu cho LearningPath/Plan, scheduling, Session completion, Credit Hold/settlement, reviews, reputation, achievements và report/dispute. Các phần này vẫn cần áp dụng/kiểm tra migration và kiểm chứng tích hợp. Cancel/no-show policy, LiveKit, Gmail/FCM delivery và luồng Learning Materials đầy đủ còn thiếu hoặc chưa tích hợp. Conversations xuất cả lifecycle cho Proposal và membership reader cho LearningPath.
+
+Catalog Prisma theo logical v3 cộng hai model Achievement/UserAchievement: **50 model PostgreSQL và một document
 Message MongoDB** với attachments nhúng. Xem [schema catalog](prisma/README.md)
-để đối chiếu 49/49 định nghĩa logical. Tag và RequestTag được giữ theo SRS V1.6
+để đối chiếu 51/51 định nghĩa logical. Tag và RequestTag được giữ theo SRS V1.6
 như phần mở rộng ngoài diagram; xem [LR ERD v3 alignment](specs/007-learning-request/erd-v3-alignment.md).
 Schema v3 ở `prisma/catalog.prisma` sinh client
 riêng `src/generated/prisma-catalog` để đối chiếu mô hình.
 API, generate mặc định và migration dùng `prisma/schema.prisma`: runtime v3 gồm
-48 model domain, 8 model kỹ thuật cho foundation/Kết nối và Tag/RequestTag.
+50 model domain, 8 model kỹ thuật cho foundation/Kết nối và Tag/RequestTag.
 Learning Request giữ preferred slots JSONB và metadata moderation/expiry/version
 với tên application tương thích, ánh xạ sang cột v3. Profile nằm trong User,
 User có một roleId; các repository danh tính đã chuyển sang cấu trúc này.
