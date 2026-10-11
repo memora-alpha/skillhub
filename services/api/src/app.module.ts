@@ -25,6 +25,11 @@ import { VerificationsModule } from "./modules/verifications/verifications.modul
 import { SkillNotificationModule } from "./modules/notifications/skill-notification.module";
 import { LearningRequestsModule } from "./modules/learning-requests/learning-requests.module";
 import { NotificationsModule } from "./modules/notifications/notifications.module";
+import { LearningPathsModule } from "./modules/learning-paths/learning-paths.module";
+import { SchedulingModule } from "./modules/scheduling/scheduling.module";
+import { LearningSessionsModule } from "./modules/learning-sessions/learning-sessions.module";
+import { ReviewsModule } from "./modules/reviews/reviews.module";
+import { ReportsModule } from "./modules/reports/reports.module";
 
 @Module({
   imports: [
@@ -65,6 +70,11 @@ import { NotificationsModule } from "./modules/notifications/notifications.modul
     SkillNotificationModule,
     LearningRequestsModule,
     NotificationsModule,
+    LearningPathsModule,
+    SchedulingModule,
+    LearningSessionsModule,
+    ReviewsModule,
+    ReportsModule,
   ],
   controllers: [HealthController],
   providers: [
