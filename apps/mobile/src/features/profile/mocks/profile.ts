@@ -17,19 +17,19 @@ export const profileActions: {
     color: colors.sage,
   },
   {
-    label: "Thành tích",
-    icon: "award",
+    label: "Hành trình của tôi",
+    icon: "clipboard",
+    color: colors.sage,
+  },
+  {
+    label: "Đánh giá về tôi",
+    icon: "star",
     color: colors.gold,
   },
   {
-    label: "Xác minh kỹ năng",
-    icon: "shield",
-    color: "#6B3DB5",
-  },
-  {
-    label: "Đánh giá",
-    icon: "star",
-    color: "#F59E0B",
+    label: "Thành tích",
+    icon: "award",
+    color: colors.gold,
   },
   {
     label: "Cài đặt",

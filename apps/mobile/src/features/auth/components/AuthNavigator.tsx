@@ -110,6 +110,13 @@ export function AuthNavigator() {
         <Stack.Screen name="preferences/[section]" />
         <Stack.Screen name="help" />
         <Stack.Screen name="policies" />
+        <Stack.Screen name="my-learning" />
+        <Stack.Screen name="my-skills/index" />
+        <Stack.Screen name="my-skills/new" />
+        <Stack.Screen name="my-skills/[sharingSkillId]/index" />
+        <Stack.Screen name="my-skills/[sharingSkillId]/edit" />
+        <Stack.Screen name="my-skills/[sharingSkillId]/verify" />
+        <Stack.Screen name="my-skills/[sharingSkillId]/verifications/[verificationId]" />
       </Stack.Protected>
       <Stack.Screen name="forgot-password" />
       <Stack.Screen name="explore/index" />

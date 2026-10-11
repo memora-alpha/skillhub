@@ -11,6 +11,7 @@ export const appRoutes: Record<string, Href | undefined> = {
   "Lịch học": "/calendar",
   "Tin nhắn": "/messages",
   "Hồ sơ": "/profile",
+  "Hành trình của tôi": "/my-learning",
   "Cài đặt": "/account-settings",
   "Thông báo": "/notifications",
   "Tìm kiếm": "/search",

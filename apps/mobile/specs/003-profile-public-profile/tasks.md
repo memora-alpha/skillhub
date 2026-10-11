@@ -42,7 +42,7 @@ nghiệm thu sản phẩm theo [checklist](checklist.md), kết quả ở [valid
 
 ## Phần mở rộng ngoài phạm vi hiện tại
 
-- [ ] Tích hợp public-profile API và skill list; cập nhật scope/plan khi triển khai.
+- [x] Own/public self skill list đã triển khai ở [spec 004](../004-skills-management/spec.md), checks/browser fixtures ở validation của spec đó; public-profile API cho người khác vẫn ngoài phạm vi.
 - [ ] Timezone/locale setup.
 - [ ] Tùy chọn nhận thông báo và lưu lựa chọn; các entry Cài đặt hiện chỉ chờ triển khai.
 - [ ] Title/achievement và thống kê Learning Path khi contract được bổ sung.

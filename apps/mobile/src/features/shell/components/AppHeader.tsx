@@ -108,22 +108,24 @@ export function AppHeader({
             />
           </Pressable>
         )}
-        <Pressable
-          style={[styles.iconButton, home && styles.homeNotification]}
-          accessibilityRole="button"
-          accessibilityLabel={`Thông báo — ${unread} chưa đọc`}
-          onPress={() => onAction("Thông báo")}
-          hitSlop={6}
-        >
-          <Icon
-            name="bell"
-            size={iconSizes.control}
-            color={home ? signedInChrome.accent : colors.muted}
-          />
-          <View style={[styles.count, home && styles.homeCount]}>
-            <Text style={styles.countLabel}>{unread}</Text>
-          </View>
-        </Pressable>
+        {!onBack && (
+          <Pressable
+            style={[styles.iconButton, home && styles.homeNotification]}
+            accessibilityRole="button"
+            accessibilityLabel={`Thông báo — ${unread} chưa đọc`}
+            onPress={() => onAction("Thông báo")}
+            hitSlop={6}
+          >
+            <Icon
+              name="bell"
+              size={iconSizes.control}
+              color={home ? signedInChrome.accent : colors.muted}
+            />
+            <View style={[styles.count, home && styles.homeCount]}>
+              <Text style={styles.countLabel}>{unread}</Text>
+            </View>
+          </Pressable>
+        )}
         {rightAction}
         {!compact && (
           <Pressable

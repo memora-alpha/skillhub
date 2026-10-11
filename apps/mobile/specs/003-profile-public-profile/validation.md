@@ -178,3 +178,27 @@ Chưa kiểm tra lại trên native; không commit/push trong bước review nà
 Plan cũ ghi web/mock checks pass ngày 2026-10-08 trước rebase dùng MockSession.
 Bằng chứng hiện tại ở trên dùng AuthSession sau rebase; không dùng kết quả lịch sử
 để tick nghiệm thu native hoặc các phần ngoài scope.
+
+## Gộp mục Học & dạy — 2026-10-11
+
+Profile có sáu shortcut: Ví Credit, Tài liệu của tôi, Học & dạy của tôi,
+Đánh giá về tôi, Thành tích, Cài đặt. Yêu cầu học/lộ trình được gộp vào màn
+`/my-learning` với hai tab riêng; mặc định Yêu cầu học, quay lại Hồ sơ, header
+không có chuông. Hai tab chưa kết nối dữ liệu, không dùng danh sách mẫu hoặc
+gọi thêm API. Đánh giá vẫn là entry chưa kết nối. Không sửa BE.
+
+Typecheck, lint, structure (253 source files), Prettier, diff check và web export
+đạt. Harness local `.expo/learning-hub-browser.cjs` đạt sáu nhóm checks,
+22 fixture requests và không page error: sáu ô/ba hàng ở 320/375/430, mở hub,
+chuyển tab/selected state, quay lại profile, chặn guest truy cập trực tiếp;
+giữ các checks badge, giới hạn năm kỹ năng và pagination own/public.
+Ảnh `.expo/skills-validation/profile-learning-hub-{320,375,430}.png`,
+`learning-requests-tab-{320,375,430}.png`, `learning-paths-tab-{320,375,430}.png`
+và kết quả `learning-hub-result.json`. Đã rà soát ảnh; native chưa kiểm tra.
+
+Rà soát trước commit (2026-10-11): tên hiển thị cuối là **Hành trình của tôi**,
+đồng bộ shortcut, header và route map; URL `/my-learning` không đổi.
+Harness hub chạy lại đạt sáu nhóm/22 requests, không page error. Race Xem thêm
+trở về profile được sửa và có ba regression tests; toàn bộ mobile đạt 148 tests,
+typecheck/lint/structure (253 files) và web export. Menu vẫn có sáu ô, hai tab
+và mục Đánh giá về tôi chưa kết nối dữ liệu. BE không thay đổi.
