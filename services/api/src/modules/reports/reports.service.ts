@@ -302,7 +302,7 @@ export class ReportsService {
       >`SELECT CURRENT_TIMESTAMP AS now`;
       if (!(clock?.now instanceof Date))
         throw new ConflictException("DATABASE_TIME_UNAVAILABLE");
-      if (action === "claim") {
+      const claimCase = async () => {
         if (item.status === "UNDER_REVIEW" && item.handlerId === actor.userId)
           return item;
         if (item.status !== "OPEN")
@@ -325,7 +325,8 @@ export class ReportsService {
           updated.status,
         );
         return updated;
-      }
+      };
+      if (action === "claim") return claimCase();
       if (item.handlerId !== actor.userId)
         throw new ForbiddenException("REPORT_CASE_NOT_ASSIGNED_TO_CALLER");
       if (action === "need-more-info") {
@@ -372,31 +373,36 @@ export class ReportsService {
         resolved.reporterId,
         resolved.status,
       );
-      if (item.relatedPathId) {
-        const unresolvedBlocks = await tx.reportCase.count({
-          where: {
-            relatedPathId: item.relatedPathId,
-            id: { not: caseId },
-            blocksSettlement: true,
-            status: { in: ["OPEN", "UNDER_REVIEW", "NEED_MORE_INFO"] },
-          },
-        });
-        if (unresolvedBlocks === 0) {
-          const path = await tx.learningPath.findUnique({
-            where: { id: item.relatedPathId },
+      const reconcilePathAfterReport = async () => {
+        if (item.relatedPathId) {
+          const unresolvedBlocks = await tx.reportCase.count({
+            where: {
+              relatedPathId: item.relatedPathId,
+              id: { not: caseId },
+              blocksSettlement: true,
+              status: { in: ["OPEN", "UNDER_REVIEW", "NEED_MORE_INFO"] },
+            },
           });
-          if (path?.status === "DISPUTED") {
-            const incomplete = await tx.session.count({
-              where: { pathId: path.id, status: { not: "COMPLETED" } },
+          if (unresolvedBlocks === 0) {
+            const path = await tx.learningPath.findUnique({
+              where: { id: item.relatedPathId },
             });
-            const unsettledStatus = incomplete === 0 ? "ACTIVE" : "SCHEDULED";
-            await tx.learningPath.update({
-              where: { id: path.id },
-              data: { status: path.settledAt ? "COMPLETED" : unsettledStatus },
-            });
+            if (path?.status === "DISPUTED") {
+              const incomplete = await tx.session.count({
+                where: { pathId: path.id, status: { not: "COMPLETED" } },
+              });
+              const unsettledStatus = incomplete === 0 ? "ACTIVE" : "SCHEDULED";
+              await tx.learningPath.update({
+                where: { id: path.id },
+                data: {
+                  status: path.settledAt ? "COMPLETED" : unsettledStatus,
+                },
+              });
+            }
           }
         }
-      }
+      };
+      await reconcilePathAfterReport();
       return resolved;
     });
   }

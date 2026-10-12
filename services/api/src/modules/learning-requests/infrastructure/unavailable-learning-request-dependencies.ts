@@ -38,7 +38,7 @@ export class UnavailableLearningRequestDependencies
 
   readSelections(): Promise<never> {
     return Promise.reject(
-      new ServiceUnavailableException("Skill Catalog unavailable"),
+      new ServiceUnavailableException("Skill Catalog selections unavailable"),
     );
   }
 

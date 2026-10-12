@@ -1,0 +1,67 @@
+{
+  "branch": "fix/sonar-findings",
+  "baseCommit": "547c7d7bb8923da796763bd9d23c67e2f7d96d2a",
+  "publishedSonarAnalysisAfterChanges": "pending",
+  "cloudDispositionsApplied": false,
+  "checks": {
+    "apiLint": "passed",
+    "apiTypecheck": "passed",
+    "apiBuild": "passed",
+    "apiRegressions": {
+      "passed": 191,
+      "failed": 0,
+      "skipped": 0
+    },
+    "connections": {
+      "passed": 24,
+      "failed": 0,
+      "skippedWithoutTestUrls": 2
+    },
+    "connectionsLocalPostgresqlAndMongoReplicaSet": {
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0
+    },
+    "settlementAndSerializationRegressions": {
+      "passed": 6,
+      "failed": 0,
+      "skipped": 0,
+      "financialStore": "controlled repository fixtures"
+    },
+    "localSonarJs": {
+      "version": "3.0.5",
+      "configuredRules": 7,
+      "typescriptProjectInformation": true,
+      "unreviewedErrors": 0,
+      "scope": "Historical scan before frontend discard; retained API/root changes were included and are unchanged.",
+      "sourceFilesAtOriginalRun": 132
+    },
+    "rootCommitScopeAndShellQuoting": {
+      "passed": 6,
+      "failed": 0
+    },
+    "pythonSyntax": "passed",
+    "gitDiffWhitespace": "passed",
+    "frontendDiscardVerification": {
+      "status": "passed",
+      "trackedFilesRestored": 114,
+      "remainingFrontendChanges": 0
+    }
+  },
+  "limitations": [
+    "Fresh SonarCloud analysis requires an authorized publish step.",
+    "87 reviewed dispositions require an authorized SonarCloud login.",
+    "Financial settlement tests are not real-store financial proof."
+  ],
+  "scope": {
+    "included": [
+      "services/api",
+      "docs generators",
+      "root lint-staged quoting"
+    ],
+    "excluded": [
+      "apps/web",
+      "apps/mobile"
+    ]
+  }
+}

@@ -6,6 +6,7 @@ from xml.etree import ElementTree as ET
 
 OUTPUT = Path(__file__).with_name("SkillHub_Logical_Data_Model.drawio")
 TABLE_WIDTH = 450
+PARTICIPATION_LABEL = "participates in"
 
 # Lane order follows the business lifecycle. PK, FK, UQ, and NN markers are
 # visible in every table; all data types are database-neutral logical types.
@@ -359,20 +360,20 @@ RELATIONS = [
     ("proposals", "proposal_candidate_slots", "suggests slots", "N"),
     ("proposals", "conversations", "opens negotiation", "0..1"),
     ("learning_requests", "conversations", "is negotiated in", "N"),
-    ("users", "conversations", "participates in", "N"),
+    ("users", "conversations", PARTICIPATION_LABEL, "N"),
     ("conversations", "messages", "contains messages", "N"),
     ("users", "messages", "sends messages", "N"),
     ("messages", "message_attachments", "has attachments", "N"),
     ("conversations", "schedule_proposals", "negotiates schedules", "N"),
     ("proposals", "schedule_proposals", "is detailed by", "N"),
-    ("users", "schedule_proposals", "participates in", "N"),
+    ("users", "schedule_proposals", PARTICIPATION_LABEL, "N"),
     ("schedule_proposals", "schedule_versions", "has versions", "N"),
     ("users", "schedule_versions", "creates versions", "N"),
     ("schedule_versions", "schedule_items", "contains items", "N"),
     ("schedule_versions", "schedule_confirmations", "receives confirmations", "N"),
     ("users", "schedule_confirmations", "confirms version", "N"),
     ("schedule_items", "sessions", "becomes session", "0..1"),
-    ("users", "sessions", "participates in", "N"),
+    ("users", "sessions", PARTICIPATION_LABEL, "N"),
     ("skills", "sessions", "is taught in", "N"),
     ("sessions", "session_confirmations", "requires confirmations", "N"),
     ("users", "session_confirmations", "confirms completion", "N"),

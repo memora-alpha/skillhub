@@ -44,27 +44,7 @@ export class LearningPathNotificationHandler
     let recipients: string[] = [];
     let title = "";
     let body = "";
-    if (
-      event.type === "learning-path.locked" ||
-      event.type === "learning-path.settled"
-    ) {
-      if (typeof data.pathId !== "string")
-        throw new Error("INVALID_LEARNING_PATH_EVENT");
-      const path = await this.db.learningPath.findUnique({
-        where: { id: data.pathId },
-        select: { participantAId: true, participantBId: true },
-      });
-      if (!path) throw new Error("LEARNING_PATH_EVENT_TARGET_MISSING");
-      recipients = [path.participantAId, path.participantBId];
-      title =
-        event.type === "learning-path.locked"
-          ? "Learning path scheduled"
-          : "Learning path completed";
-      body =
-        event.type === "learning-path.locked"
-          ? "Your learning path schedule is now locked."
-          : "Your learning path has completed and settlement is recorded.";
-    } else if (event.type === "report.session.opened") {
+    const resolveSessionNotification = async () => {
       if (
         typeof data.sessionId !== "string" ||
         typeof data.reporterId !== "string"
@@ -81,18 +61,44 @@ export class LearningPathNotificationHandler
       );
       title = "Session report opened";
       body = "A report was opened for a session you participated in.";
-    } else {
+    };
+    const resolveNotification = async () => {
       if (
-        typeof data.reporterId !== "string" ||
-        typeof data.status !== "string" ||
-        typeof data.caseId !== "string"
+        event.type === "learning-path.locked" ||
+        event.type === "learning-path.settled"
       ) {
-        throw new TypeError("INVALID_REPORT_CASE_EVENT");
+        if (typeof data.pathId !== "string")
+          throw new Error("INVALID_LEARNING_PATH_EVENT");
+        const path = await this.db.learningPath.findUnique({
+          where: { id: data.pathId },
+          select: { participantAId: true, participantBId: true },
+        });
+        if (!path) throw new Error("LEARNING_PATH_EVENT_TARGET_MISSING");
+        recipients = [path.participantAId, path.participantBId];
+        title =
+          event.type === "learning-path.locked"
+            ? "Learning path scheduled"
+            : "Learning path completed";
+        body =
+          event.type === "learning-path.locked"
+            ? "Your learning path schedule is now locked."
+            : "Your learning path has completed and settlement is recorded.";
+      } else if (event.type === "report.session.opened") {
+        await resolveSessionNotification();
+      } else {
+        if (
+          typeof data.reporterId !== "string" ||
+          typeof data.status !== "string" ||
+          typeof data.caseId !== "string"
+        ) {
+          throw new TypeError("INVALID_REPORT_CASE_EVENT");
+        }
+        recipients = [data.reporterId];
+        title = "Report case updated";
+        body = `Your report case status is ${data.status}.`;
       }
-      recipients = [data.reporterId];
-      title = "Report case updated";
-      body = `Your report case status is ${data.status}.`;
-    }
+    };
+    await resolveNotification();
     await this.consumer.processOnce(
       "learning-path.notifications",
       event.eventId,

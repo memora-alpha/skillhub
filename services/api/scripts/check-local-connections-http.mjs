@@ -126,7 +126,8 @@ async function boot(uri, enableStorage = false) {
   return instance;
 }
 let base;
-async function call(method, path, token, body, status = 200, key) {
+async function call(method, path, token, body, status, key) {
+  const expectedStatus = status ?? 200;
   const response = await fetch(base + path, {
     method,
     headers: {
@@ -138,9 +139,9 @@ async function call(method, path, token, body, status = 200, key) {
     signal: AbortSignal.timeout(15000),
   });
   const data = response.status === 204 ? null : await response.json();
-  if (response.status !== status)
+  if (response.status !== expectedStatus)
     throw new Error(
-      `HTTP_CHECK_FAILED ${method} ${path.replace(/[a-f0-9-]{36}/gi, ":id")}: ${response.status} expected ${status}; ${typeof data?.message === "string" ? data.message : "invalid response"}`,
+      `HTTP_CHECK_FAILED ${method} ${path.replace(/[a-f0-9-]{36}/gi, ":id")}: ${response.status} expected ${expectedStatus}; ${typeof data?.message === "string" ? data.message : "invalid response"}`,
     );
   return { data: data?.data, response: data, status: response.status };
 }
@@ -209,7 +210,7 @@ try {
   await client.query(`SET search_path TO "${schema}"`);
   const root = new URL("../prisma/migrations/", import.meta.url);
   for (const name of (await readdir(root))
-    .filter((name) => /^2026/.test(name))
+    .filter((name) => name.startsWith("2026"))
     .sort())
     await client.query(
       await readFile(new URL(`${name}/migration.sql`, root), "utf8"),
@@ -910,7 +911,7 @@ try {
   }
   await db?.$disconnect();
   // This client always targets the random database owned by this run, never skillhub_chat.
-  if (configuredClient && configuredClient.db().databaseName === schema) {
+  if (configuredClient?.db().databaseName === schema) {
     await configuredClient
       .db()
       .dropDatabase()

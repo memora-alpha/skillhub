@@ -105,7 +105,7 @@ export class ApplicationEventsService implements OnModuleInit, OnModuleDestroy {
     for (const userId of [...new Set(users)].sort((a, b) => a.localeCompare(b)))
       await tx.$executeRaw`SELECT skillhub_append_user_event(${userId}::uuid,${source}::uuid,${type},${JSON.stringify(payload)}::jsonb)`;
   }
-  async head(userId: string) {
+  head(userId: string) {
     return this.db.userEventStream.upsert({
       where: { userId },
       create: { userId },
@@ -141,13 +141,19 @@ export class ApplicationEventsService implements OnModuleInit, OnModuleDestroy {
     return this.transactions.run(async (tx) => {
       const type = event.type,
         refs = event.payload as Record<string, string>;
-      const permission = type.startsWith("proposal.")
-        ? "proposal:read:party"
-        : type.startsWith("notification.")
-          ? "notification:read:self"
-          : type === "chat.attachment.updated"
-            ? "message:attachment:create:participant"
-            : "conversation:read:participant";
+      const resolvePermission = () => {
+        if (type.startsWith("proposal.")) {
+          return "proposal:read:party" as const;
+        }
+        if (type.startsWith("notification.")) {
+          return "notification:read:self" as const;
+        }
+        if (type === "chat.attachment.updated") {
+          return "message:attachment:create:participant" as const;
+        }
+        return "conversation:read:participant" as const;
+      };
+      const permission = resolvePermission();
       await this.actors.require(tx, principal, "event:read:self");
       try {
         await this.actors.require(tx, principal, permission);
