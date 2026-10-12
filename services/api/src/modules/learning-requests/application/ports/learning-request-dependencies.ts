@@ -53,6 +53,15 @@ export interface RequestOwnerReader {
 }
 
 export interface SharingSkillReader {
+  assertRequestOfferings(
+    tx: TransactionContext,
+    userId: string,
+    sharingSkillIds: readonly string[],
+  ): Promise<void>;
+  readRequestOfferings(
+    tx: TransactionContext,
+    sharingSkillIds: readonly string[],
+  ): Promise<OfferedSharingSkill[]>;
   getMatchingSnapshot(
     tx: TransactionContext,
     userId: string,
@@ -62,3 +71,11 @@ export interface SharingSkillReader {
     version: string;
   }>;
 }
+
+export type OfferedSharingSkill = {
+  id: string;
+  ownerId: string;
+  skill: { id: string; name: string };
+  level: string;
+  verificationStatus: string;
+};

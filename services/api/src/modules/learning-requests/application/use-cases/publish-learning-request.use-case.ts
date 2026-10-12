@@ -17,6 +17,8 @@ import {
 import {
   NEW_ACTIVITY_ELIGIBILITY_READER,
   SKILL_CATALOG_READER,
+  SHARING_SKILL_READER,
+  type SharingSkillReader,
   type NewActivityEligibilityReader,
   type SkillCatalogReader,
 } from "../ports/learning-request-dependencies";
@@ -43,6 +45,12 @@ function signature(request: LearningRequestRecord): string {
     title: request.title,
     description: request.description,
     learningGoal: request.learningGoal,
+    teachingOverview: request.teachingOverview ?? null,
+    preferredAvailability: request.preferredAvailability ?? null,
+    desiredCreditPerHour: request.desiredCreditPerHour?.toString() ?? null,
+    offeredSharingSkillIds: (request.offeringLinks ?? [])
+      .map((link) => link.sharingSkillId)
+      .sort((left, right) => left.localeCompare(right)),
     currentLevel: request.currentLevel,
     verifiedTeacherOnly: request.verifiedTeacherOnly,
     tagIds: request.tagLinks
@@ -122,6 +130,7 @@ export class PublishLearningRequestUseCase {
     @Inject(SKILL_CATALOG_READER)
     private readonly catalog: SkillCatalogReader,
     private readonly configuration: SystemConfigurationService,
+    @Inject(SHARING_SKILL_READER) private readonly sharing: SharingSkillReader,
   ) {}
 
   async execute(
@@ -140,6 +149,7 @@ export class PublishLearningRequestUseCase {
         title: snapshot.request.title,
         description: snapshot.request.description,
         learningGoal: snapshot.request.learningGoal,
+        teachingOverview: snapshot.request.teachingOverview,
         tags: snapshot.tags.map(({ label }) => label),
       },
       { ruleSet: snapshot.ruleSet, version: snapshot.configVersion },
@@ -174,6 +184,11 @@ export class PublishLearningRequestUseCase {
         tagIds: current.tagLinks.map(({ tagId }) => tagId),
       });
       assertSelection(currentSelection, current);
+      const offeringIds = (current.offeringLinks ?? []).map(
+        (link) => link.sharingSkillId,
+      );
+      if (offeringIds.length > 0)
+        await this.sharing.assertRequestOfferings(tx, live.userId, offeringIds);
       if (!sameTags(currentSelection.tags, snapshot.tags)) {
         throw new ConflictException("Catalog labels changed; retry publish");
       }
@@ -209,12 +224,17 @@ export class PublishLearningRequestUseCase {
         transition,
       );
       if (!written) throw new ConflictException("REQUEST_VERSION_CONFLICT");
-      return toLearningRequestOwnerDetail({
-        ...current,
-        ...transition,
-        version: current.version + 1,
-        updatedAt: publishedAt,
-      });
+      return toLearningRequestOwnerDetail(
+        {
+          ...current,
+          ...transition,
+          version: current.version + 1,
+          updatedAt: publishedAt,
+        },
+        offeringIds.length
+          ? await this.sharing.readRequestOfferings(tx, offeringIds)
+          : [],
+      );
     });
   }
 

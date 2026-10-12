@@ -10,6 +10,8 @@ import { TransactionRunner } from "../../../../infrastructure/database/transacti
 import type { Principal } from "../../../auth/application/services/sessions.service";
 import {
   REQUEST_LOCK_READER,
+  SHARING_SKILL_READER,
+  type SharingSkillReader,
   type RequestLockReader,
 } from "../ports/learning-request-dependencies";
 import {
@@ -39,6 +41,7 @@ export class CancelLearningRequestUseCase {
     private readonly repository: LearningRequestRepository,
     @Inject(REQUEST_LOCK_READER)
     private readonly requestLock: RequestLockReader,
+    @Inject(SHARING_SKILL_READER) private readonly sharing: SharingSkillReader,
   ) {}
 
   async execute(
@@ -89,12 +92,20 @@ export class CancelLearningRequestUseCase {
         { status: "CANCELLED" },
       );
       if (!written) throw new ConflictException("REQUEST_VERSION_CONFLICT");
-      return toLearningRequestOwnerDetail({
-        ...snapshot,
-        status: "CANCELLED",
-        version: snapshot.version + 1,
-        updatedAt: now,
-      });
+      const offeringIds = (snapshot.offeringLinks ?? []).map(
+        (link) => link.sharingSkillId,
+      );
+      return toLearningRequestOwnerDetail(
+        {
+          ...snapshot,
+          status: "CANCELLED",
+          version: snapshot.version + 1,
+          updatedAt: now,
+        },
+        offeringIds.length
+          ? await this.sharing.readRequestOfferings(tx, offeringIds)
+          : [],
+      );
     });
   }
 }

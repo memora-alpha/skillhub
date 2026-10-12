@@ -27,6 +27,10 @@ import {
   type LearningRequestRepository,
 } from "../ports/learning-request-repository";
 import { LearningRequestAccessService } from "../services/learning-request-access.service";
+import {
+  SHARING_SKILL_READER,
+  type SharingSkillReader,
+} from "../ports/learning-request-dependencies";
 
 export type ModerationDecision = "APPROVE" | "REJECT";
 export type ModerationCommand = { expectedVersion: number; reason: string };
@@ -67,6 +71,7 @@ export class ModerateLearningRequestUseCase {
     private readonly repository: LearningRequestRepository,
     private readonly audit: AuditWriter,
     private readonly outbox: OutboxWriter,
+    @Inject(SHARING_SKILL_READER) private readonly sharing: SharingSkillReader,
   ) {}
 
   async execute(
@@ -157,12 +162,20 @@ export class ModerateLearningRequestUseCase {
         await this.outbox.append(tx, event);
       }
 
-      return toLearningRequestModerationDetail({
-        ...reviewed,
-        ...transition,
-        version: reviewed.version + 1,
-        updatedAt: now,
-      });
+      const offeringIds = (reviewed.offeringLinks ?? []).map(
+        (link) => link.sharingSkillId,
+      );
+      return toLearningRequestModerationDetail(
+        {
+          ...reviewed,
+          ...transition,
+          version: reviewed.version + 1,
+          updatedAt: now,
+        },
+        offeringIds.length
+          ? await this.sharing.readRequestOfferings(tx, offeringIds)
+          : [],
+      );
     });
   }
 }

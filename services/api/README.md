@@ -2,6 +2,8 @@
 
 NestJS backend in the SkillHub pnpm/Turborepo workspace.
 
+Learning Request FE extension (2026-10-12) bổ sung teachingOverview, kỹ năng có thể dạy chọn từ profile người đăng, lịch rảnh theo thứ/timezone và desiredCreditPerHour. API tag ACTIVE: `GET /api/v1/tags`; kỹ năng để chọn: `GET /api/v1/me/skills`. Xem [payload và migration](specs/007-learning-request/quickstart.md) cùng [contract](specs/007-learning-request/contracts/http.md). Field mới được trả ở feed/detail/mine/moderation; credit là mức mong muốn theo giờ, chưa Hold.
+
 ## Phạm vi và trạng thái
 
 Phạm vi phát triển hiện tại của dự án là **backend tại `services/api`**.
