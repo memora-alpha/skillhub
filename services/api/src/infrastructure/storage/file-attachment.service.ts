@@ -18,7 +18,7 @@ export class FileAttachmentService {
     bind = false,
   ) {
     const result = [];
-    for (const id of [...ids].sort()) {
+    for (const id of [...ids].sort((a, b) => a.localeCompare(b))) {
       await tx.$queryRaw`SELECT id FROM stored_files WHERE id=${id}::uuid FOR UPDATE`;
       const row = await tx.storedFile.findUnique({ where: { id } });
       if (!row || row.uploadedBy !== userId || row.purpose !== "CHAT")

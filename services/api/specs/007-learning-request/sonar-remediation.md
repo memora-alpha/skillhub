@@ -40,3 +40,23 @@ Do not report the Quality Gate as passed until the updated PR revision is analyz
 
 These checks do not replace SonarCloud reanalysis or real PostgreSQL/Redis
 integration verification.
+
+## PR #18 duplication follow-up — 2026-10-12
+
+Inspected the live SonarCloud duplication details for PR #18 at `e52659d`:
+19 duplicated new lines, 4.2% density, four blocks across two files.
+
+- DTO: create lines 182–200 duplicate edit lines 273–291 (preferred-slot
+  validation and nullable expiry). Shared property decorators retain the
+  distinct create/edit defaults and descriptions.
+- Responses: owner lines 25–50 duplicate moderation lines 162–187 (request
+  content). Both responses now inherit that exact common content schema.
+
+Verification: build and lint passed; 93/93 Learning Request tests passed,
+including nested-slot and nullable-expiry validation. All 13 generated Swagger
+schemas match the pre-change baseline, ignoring object-key and required-array
+ordering. A local TypeScript-token comparison using the documented default
+100-token/10-line threshold reproduced both baseline pairs and found no remaining
+matches involving the two modified files across API source. This supplemental
+comparison does not replace SonarCloud's analyzer. Cloud Quality Gate status
+requires reanalysis of the published revision.

@@ -10,7 +10,12 @@ import {
   Req,
   UseGuards,
 } from "@nestjs/common";
-import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiParam,
+  ApiTags,
+} from "@nestjs/swagger";
 import type { Request } from "express";
 import {
   CurrentIdentity,
@@ -69,6 +74,7 @@ export class RequestModerationController {
   }
 
   @Post(":requestId/approve")
+  @ApiParam({ name: "requestId", format: "uuid" })
   @HttpCode(200)
   @ApiOperation({ summary: "Approve a pending Learning Request" })
   @ApiSuccessResponse(200, LearningRequestModerationResponse)
@@ -91,6 +97,7 @@ export class RequestModerationController {
   }
 
   @Post(":requestId/reject")
+  @ApiParam({ name: "requestId", format: "uuid" })
   @HttpCode(200)
   @ApiOperation({ summary: "Reject a pending Learning Request" })
   @ApiSuccessResponse(200, LearningRequestModerationResponse)
