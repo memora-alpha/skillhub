@@ -1,4 +1,5 @@
 import { Transform, Type } from "class-transformer";
+import { applyDecorators } from "@nestjs/common";
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import {
   ArrayMaxSize,
@@ -117,6 +118,35 @@ export class PreferredSlotDto {
   endAt!: string;
 }
 
+function OptionalPreferredSlots(defaultValue?: []) {
+  return applyDecorators(
+    ApiPropertyOptional({
+      type: [PreferredSlotDto],
+      maxItems: 5,
+      default: defaultValue,
+    }),
+    ValidateIf((_object, value) => value !== undefined),
+    IsArray(),
+    ArrayMaxSize(5),
+    ValidateNested({ each: true }),
+    Type(() => PreferredSlotDto),
+  );
+}
+
+function OptionalExpiry(description: string) {
+  return applyDecorators(
+    ApiPropertyOptional({
+      type: String,
+      format: "date-time",
+      nullable: true,
+      description,
+    }),
+    ValidateIf((_object, value) => value !== undefined && value !== null),
+    IsString(),
+    IsDateString({ strict: true }),
+  );
+}
+
 export class CreateLearningRequestDto {
   @ApiProperty({
     minLength: 10,
@@ -178,24 +208,12 @@ export class CreateLearningRequestDto {
   @IsUUID("all", { each: true })
   tagIds?: string[];
 
-  @ApiPropertyOptional({ type: [PreferredSlotDto], maxItems: 5, default: [] })
-  @ValidateIf((_object, value) => value !== undefined)
-  @IsArray()
-  @ArrayMaxSize(5)
-  @ValidateNested({ each: true })
-  @Type(() => PreferredSlotDto)
+  @OptionalPreferredSlots([])
   preferredSlots?: PreferredSlotDto[];
 
-  @ApiPropertyOptional({
-    type: String,
-    format: "date-time",
-    nullable: true,
-    description:
-      "Future expiry with timezone offset, at most 90 days after publishing. Omit or use null for 30 days after publishing.",
-  })
-  @ValidateIf((_object, value) => value !== undefined && value !== null)
-  @IsString()
-  @IsDateString({ strict: true })
+  @OptionalExpiry(
+    "Future expiry with timezone offset, at most 90 days after publishing. Omit or use null for 30 days after publishing.",
+  )
   expiresAt?: string | null;
 }
 
@@ -269,23 +287,11 @@ export class EditLearningRequestDto extends VersionedLearningRequestDto {
   @IsUUID("all", { each: true })
   tagIds?: string[];
 
-  @ApiPropertyOptional({ type: [PreferredSlotDto], maxItems: 5 })
-  @ValidateIf((_object, value) => value !== undefined)
-  @IsArray()
-  @ArrayMaxSize(5)
-  @ValidateNested({ each: true })
-  @Type(() => PreferredSlotDto)
+  @OptionalPreferredSlots()
   preferredSlots?: PreferredSlotDto[];
 
-  @ApiPropertyOptional({
-    type: String,
-    format: "date-time",
-    nullable: true,
-    description:
-      "Omit to keep the current expiry preference; use null for the default expiry.",
-  })
-  @ValidateIf((_object, value) => value !== undefined && value !== null)
-  @IsString()
-  @IsDateString({ strict: true })
+  @OptionalExpiry(
+    "Omit to keep the current expiry preference; use null for the default expiry.",
+  )
   expiresAt?: string | null;
 }

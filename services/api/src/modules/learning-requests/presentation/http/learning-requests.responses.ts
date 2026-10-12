@@ -18,7 +18,7 @@ export class PreferredSlotResponse {
   endAt!: Date;
 }
 
-export class LearningRequestOwnerResponse {
+class LearningRequestContentResponse {
   @ApiProperty({ format: "uuid" })
   id!: string;
 
@@ -48,7 +48,9 @@ export class LearningRequestOwnerResponse {
 
   @ApiProperty({ enum: LEARNING_REQUEST_STATUSES })
   status!: string;
+}
 
+export class LearningRequestOwnerResponse extends LearningRequestContentResponse {
   @ApiPropertyOptional({ enum: LEARNING_REQUEST_STATUSES })
   effectiveStatus?: string;
 
@@ -152,39 +154,9 @@ export class LearningRequestRecommendationResponse extends LearningRequestSummar
   matchScore!: number;
 }
 
-export class LearningRequestModerationResponse {
-  @ApiProperty({ format: "uuid" })
-  id!: string;
-
+export class LearningRequestModerationResponse extends LearningRequestContentResponse {
   @ApiProperty({ format: "uuid" })
   ownerId!: string;
-
-  @ApiProperty({ format: "uuid" })
-  skillId!: string;
-
-  @ApiProperty()
-  title!: string;
-
-  @ApiProperty()
-  description!: string;
-
-  @ApiProperty()
-  learningGoal!: string;
-
-  @ApiProperty(NULLABLE_LEVEL)
-  currentLevel!: string | null;
-
-  @ApiProperty({ default: false })
-  verifiedTeacherOnly!: boolean;
-
-  @ApiProperty({ type: [String], format: "uuid" })
-  tagIds!: string[];
-
-  @ApiProperty({ type: [PreferredSlotResponse] })
-  preferredSlots!: PreferredSlotResponse[];
-
-  @ApiProperty({ enum: LEARNING_REQUEST_STATUSES })
-  status!: string;
 
   @ApiProperty({ enum: ["NOT_REQUIRED", "PENDING", "APPROVED", "REJECTED"] })
   moderationStatus!: string;
