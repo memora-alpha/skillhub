@@ -17,6 +17,17 @@
 
 ## First implementation order
 
+Spec 005 checkpoint (2026-10-11): Learning Request own list/detail, draft form,
+edit/publish/cancel and Discovery use the API. Profile links to My Requests;
+editor Back returns to its origin. Skill lookup is integrated; Tag selection
+and Proposal/public profile integration remain pending. Backend LR adapters still
+return 503 for their dependent flows. See [tasks](../specs/005-learning-request/tasks.md)
+and [validation](../specs/005-learning-request/validation.md).
+
+UI correction2026-10-12: weekday/time controls and smaller expiry-calendar font
+are implemented. Weekly choices remain a form draft; save awaits B08/T036.
+Resume from the [checkpoint](../specs/005-learning-request/resume.md).
+
 Spec 003 checkpoint (2026-10-09): own/edit profile uses the real account API;
 public self-preview uses saved data. Other public profiles remain fixtures, and
 avatar selection/upload/status/removal uses the existing API. Only CLEAN updates
