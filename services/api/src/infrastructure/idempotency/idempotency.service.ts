@@ -14,7 +14,7 @@ import type {
 } from "./idempotency.types";
 
 /** UTF-16 code unit order, same as the default sort: locale-independent, so a fingerprint is identical on every host. */
-function byCodeUnit(left: string, right: string): number {
+export function byCodeUnit(left: string, right: string): number {
   if (left < right) return -1;
   return left > right ? 1 : 0;
 }
