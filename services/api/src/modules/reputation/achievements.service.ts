@@ -82,16 +82,18 @@ export class AchievementsService {
     const unlockedIds = new Set(
       unlocked.map(({ achievementId }) => achievementId),
     );
-    for (const definition of definitions) {
-      if (unlockedIds.has(definition.id) || !achieved(definition.code, facts))
-        continue;
-      await tx.userAchievement.create({
-        data: {
+    const newlyUnlocked = definitions.filter(
+      (definition) =>
+        !unlockedIds.has(definition.id) && achieved(definition.code, facts),
+    );
+    if (newlyUnlocked.length !== 0) {
+      await tx.userAchievement.createMany({
+        data: newlyUnlocked.map((definition) => ({
           userId,
           achievementId: definition.id,
           unlockedAt: now,
           sourceSnapshot: facts,
-        },
+        })),
       });
     }
   }

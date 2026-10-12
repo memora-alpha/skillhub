@@ -97,29 +97,25 @@ export class LearningPathNotificationHandler
       "learning-path.notifications",
       event.eventId,
       async (tx) => {
-        for (const [index, userId] of recipients.entries()) {
-          await tx.notification.create({
-            data: {
-              id: index === 0 ? event.eventId : randomUUID(),
-              userId,
-              type: event.type,
-              title,
-              body,
-              payload: {
-                ...(typeof data.pathId === "string"
-                  ? { pathId: data.pathId }
-                  : {}),
-                ...(typeof data.sessionId === "string"
-                  ? { sessionId: data.sessionId }
-                  : {}),
-                ...(typeof data.caseId === "string"
-                  ? { caseId: data.caseId }
-                  : {}),
-              },
-              channel: "IN_APP",
-            },
-          });
-        }
+        if (recipients.length === 0) return;
+        const notificationPayload = {
+          ...(typeof data.pathId === "string" ? { pathId: data.pathId } : {}),
+          ...(typeof data.sessionId === "string"
+            ? { sessionId: data.sessionId }
+            : {}),
+          ...(typeof data.caseId === "string" ? { caseId: data.caseId } : {}),
+        };
+        await tx.notification.createMany({
+          data: recipients.map((userId, index) => ({
+            id: index === 0 ? event.eventId : randomUUID(),
+            userId,
+            type: event.type,
+            title,
+            body,
+            payload: notificationPayload,
+            channel: "IN_APP" as const,
+          })),
+        });
       },
     );
   }
