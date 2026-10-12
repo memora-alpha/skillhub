@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { test } from "node:test";
 import { runRelease } from "../../services/api/scripts/release.mjs";
 import { deployImage } from "./coolify.mjs";
-import { runHostRelease } from "./release-dev.mjs";
+import { docker, runHostRelease } from "./release-dev.mjs";
 
 const digest = `sha256:${"a".repeat(64)}`;
 const config = {
@@ -245,6 +245,22 @@ test("invalid URLs are rejected without transmitting tokens", async () => {
   assert.equal(calls, 0);
 });
 
+test("invalid polling settings fail before any deployment request", async () => {
+  let calls = 0;
+  const request = async () => {
+    calls++;
+  };
+  await assert.rejects(
+    deployImage(config, { request, attempts: 0 }),
+    /polling/,
+  );
+  await assert.rejects(
+    deployImage(config, { request, interval: -1 }),
+    /polling/,
+  );
+  assert.equal(calls, 0);
+});
+
 test("host migration failure blocks Coolify mutation and retains the release lock", async () => {
   const calls = [];
   let deploys = 0;
@@ -307,4 +323,124 @@ test("host seed-only completes and unlocks without deploying API", async () => {
       .find((args) => args[0] === "run")
       .includes("RELEASE_OPERATION=seed-only"),
   );
+});
+
+test("Docker lookup ignores the inherited executable search path", () => {
+  const inheritedPath = process.env.PATH;
+  try {
+    process.env.PATH = "/untrusted/runner/bin";
+    const output = docker(["--version"], true, (executable, args, options) => {
+      assert.equal(executable, "/usr/bin/docker");
+      assert.deepEqual(args, ["--version"]);
+      assert.equal(options.env.PATH, "/usr/bin:/bin");
+      assert.equal(options.stdio, "pipe");
+      return { status: 0, stdout: "Docker test fixture\n" };
+    });
+    assert.equal(output, "Docker test fixture");
+  } finally {
+    if (inheritedPath === undefined) delete process.env.PATH;
+    else process.env.PATH = inheritedPath;
+  }
+});
+
+test("each seed request is persisted before the next starts, including partial failure retry", async (t) => {
+  const { calls, options } = await releaseFixture(t);
+  const requests = [
+    {
+      id: "initial-data",
+      seeds: ["identity", "configuration"],
+      reason: "Bootstrap definitions",
+    },
+    { id: "new-permissions", seeds: ["identity"], reason: "Add new grants" },
+  ];
+  let identityRuns = 0;
+  await assert.rejects(
+    runRelease({
+      ...options,
+      plan: { requests },
+      run: async (kind) => {
+        calls.push(kind);
+        if (kind !== "identity" || ++identityRuns !== 2) return;
+        const [file] = await readdir(options.stateDirectory);
+        const state = JSON.parse(
+          await readFile(join(options.stateDirectory, file), "utf8"),
+        );
+        assert(Object.hasOwn(state.completed, "initial-data"));
+        assert.equal(Object.hasOwn(state.completed, "new-permissions"), false);
+        throw new Error("second request failed");
+      },
+    }),
+    /second request failed/,
+  );
+  assert.deepEqual(calls, [
+    "postgres",
+    "mongo",
+    "identity",
+    "configuration",
+    "identity",
+  ]);
+  calls.length = 0;
+  await runRelease({ ...options, plan: { requests } });
+  assert.deepEqual(calls, ["postgres", "mongo", "identity"]);
+});
+
+test("seed stages do not overlap while an earlier seed is still pending", async (t) => {
+  const { calls, options } = await releaseFixture(t);
+  const started = Promise.withResolvers();
+  const completion = Promise.withResolvers();
+  const release = runRelease({
+    ...options,
+    seed: "both",
+    operation: "seed-only",
+    run: async (kind) => {
+      calls.push(kind);
+      if (kind === "identity") {
+        started.resolve();
+        await completion.promise;
+      }
+    },
+  });
+  await started.promise;
+  assert.deepEqual(calls, ["identity"]);
+  completion.resolve();
+  await release;
+  assert.deepEqual(calls, ["identity", "configuration"]);
+});
+
+test("polling waits between probes and retries transient readiness failures", async () => {
+  const fixture = coolifyFixture();
+  const trace = [];
+  let readinessCalls = 0;
+  await deployImage(config, {
+    attempts: 3,
+    interval: 25,
+    sleep: async (milliseconds) => {
+      assert.equal(milliseconds, 25);
+      trace.push("delay");
+    },
+    request: async (url, options) => {
+      if (url.includes("/deployments/")) trace.push("deployment");
+      if (url === config.readinessUrl) {
+        trace.push("readiness");
+        readinessCalls++;
+        if (readinessCalls === 1) throw new Error("transient network error");
+        if (readinessCalls === 2)
+          return {
+            ok: true,
+            json: async () => ({ success: true, data: { status: "ok" } }),
+          };
+      }
+      return fixture.request(url, options);
+    },
+  });
+  assert.deepEqual(trace, [
+    "deployment",
+    "delay",
+    "deployment",
+    "readiness",
+    "delay",
+    "readiness",
+    "delay",
+    "readiness",
+  ]);
 });

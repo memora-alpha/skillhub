@@ -58,6 +58,65 @@ async function readState(path) {
   }
 }
 
+function seedStatePath(stateDirectory, databaseUrl) {
+  const database = new URL(databaseUrl);
+  if (!["postgres:", "postgresql:"].includes(database.protocol))
+    throw new Error("PostgreSQL connection required");
+  // Password rotation does not re-run seeds. Different databases/schemas get separate state.
+  const scope = createHash("sha256")
+    .update(
+      JSON.stringify([
+        database.host,
+        database.pathname,
+        database.searchParams.get("schema") ?? "public",
+      ]),
+    )
+    .digest("hex");
+  return join(stateDirectory, `${scope}.json`);
+}
+
+function assertRequestHistory(requests, state) {
+  for (const request of requests) {
+    if (
+      Object.hasOwn(state.completed, request.id) &&
+      state.completed[request.id] !== fingerprint(request)
+    )
+      throw new Error(
+        "An applied seed request was changed; append a new request ID",
+      );
+  }
+}
+
+/** Each seed starts after the previous seed succeeds, including operator selections. */
+function runSeeds(kinds, { run, log, requestId }) {
+  return kinds.reduce(
+    (completed, kind) =>
+      completed.then(() => {
+        log(
+          requestId
+            ? `Running requested ${kind} seed: ${requestId}`
+            : `Running operator-requested ${kind} seed`,
+        );
+        return run(kind);
+      }),
+    Promise.resolve(),
+  );
+}
+
+async function applySeedRequest(
+  request,
+  { state, statePath, stateDirectory, run, log },
+) {
+  if (Object.hasOwn(state.completed, request.id)) return;
+  await runSeeds(request.seeds, { run, log, requestId: request.id });
+  state.completed[request.id] = fingerprint(request);
+  await mkdir(stateDirectory, { recursive: true });
+  // Persist a completed request before any subsequent request can start.
+  const temporary = `${statePath}.${process.pid}.tmp`;
+  await writeFile(temporary, `${JSON.stringify(state)}\n`, { mode: 0o600 });
+  await rename(temporary, statePath);
+}
+
 /** Serialize externally; these seeds are idempotent if a crash precedes the marker. */
 export async function runRelease({
   plan,
@@ -76,54 +135,23 @@ export async function runRelease({
     throw new Error("Invalid release operation or seed selection");
   if (operation === "seed-only" && seed === "none")
     throw new Error("Seed-only requires an explicit seed selection");
-  const database = new URL(databaseUrl);
-  if (!["postgres:", "postgresql:"].includes(database.protocol))
-    throw new Error("PostgreSQL connection required");
-  // Password rotation does not re-run seeds. Different databases/schemas get separate state.
-  const scope = createHash("sha256")
-    .update(
-      JSON.stringify([
-        database.host,
-        database.pathname,
-        database.searchParams.get("schema") ?? "public",
-      ]),
-    )
-    .digest("hex");
-  const statePath = join(stateDirectory, `${scope}.json`);
+  const statePath = seedStatePath(stateDirectory, databaseUrl);
   const state = await readState(statePath);
-  for (const request of requests) {
-    if (
-      Object.hasOwn(state.completed, request.id) &&
-      state.completed[request.id] !== fingerprint(request)
-    )
-      throw new Error(
-        "An applied seed request was changed; append a new request ID",
-      );
-  }
+  assertRequestHistory(requests, state);
 
   if (operation === "deploy") {
     log("Applying PostgreSQL migrations");
     await run("postgres");
     log("Applying MongoDB indexes");
     await run("mongo");
-    for (const request of requests) {
-      if (Object.hasOwn(state.completed, request.id)) continue;
-      for (const kind of request.seeds) {
-        log(`Running requested ${kind} seed: ${request.id}`);
-        await run(kind);
-      }
-      state.completed[request.id] = fingerprint(request);
-      await mkdir(stateDirectory, { recursive: true });
-      // Record only successful requests. Persist each before moving to the next request.
-      const temporary = `${statePath}.${process.pid}.tmp`;
-      await writeFile(temporary, `${JSON.stringify(state)}\n`, { mode: 0o600 });
-      await rename(temporary, statePath);
-    }
+    const context = { state, statePath, stateDirectory, run, log };
+    await requests.reduce(
+      (completed, request) =>
+        completed.then(() => applySeedRequest(request, context)),
+      Promise.resolve(),
+    );
   }
-  for (const kind of selections[seed]) {
-    log(`Running operator-requested ${kind} seed`);
-    await run(kind);
-  }
+  await runSeeds(selections[seed], { run, log });
   log("Release database steps completed");
 }
 

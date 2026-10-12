@@ -3,10 +3,12 @@ import { isAbsolute } from "node:path";
 import { pathToFileURL } from "node:url";
 import { deployImage, verifyApplication } from "./coolify.mjs";
 
-function docker(args, capture = false) {
-  const result = spawnSync("docker", args, {
+export function docker(args, capture = false, spawn = spawnSync) {
+  // The Linux release runner uses a root-owned CLI; never resolve it through PATH.
+  const result = spawn("/usr/bin/docker", args, {
     stdio: capture ? "pipe" : "inherit",
     encoding: "utf8",
+    env: { ...process.env, PATH: "/usr/bin:/bin" },
   });
   if (result.error || result.status !== 0)
     throw new Error("Docker release command failed");

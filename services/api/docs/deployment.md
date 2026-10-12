@@ -75,7 +75,8 @@ Create the GitHub **dev** environment with deployment restricted to branch `dev`
 Protect that branch and require `API CI` checks before merging. Register a dedicated
 self-hosted runner with labels `self-hosted`, `linux`, `x64`, `skillhub-dev-release`.
 Only the trusted `dev` deploy workflow uses it; PR checks stay on hosted runners.
-The runner needs Node 22.12+, Docker, outbound HTTPS access and network access to
+The runner needs Node 22.12+, a root-owned Docker CLI at `/usr/bin/docker`,
+outbound HTTPS access and network access to
 the target stores. Its Docker daemon must stay on the same server so the release
 lock and seed-state volume survive runner replacement. Keep manual operations in
 this workflow rather than starting concurrent release commands elsewhere.
@@ -157,3 +158,5 @@ Principle 6 evidence on 2026-10-13:
 References: [Coolify Docker Image](https://coolify.io/docs/applications/deployments/docker-image),
 [application update API](https://coolify.io/docs/api/endpoints/applications/update-application-by-uuid),
 [deployment status API](https://coolify.io/docs/api/endpoints/deployments/get-deployment-by-uuid).
+
+Sonar remediation for PR #21 is tracked in [sonar-pr21.md](sonar-pr21.md).
