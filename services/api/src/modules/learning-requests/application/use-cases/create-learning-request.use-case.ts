@@ -5,6 +5,8 @@ import { TransactionRunner } from "../../../../infrastructure/database/transacti
 import {
   NEW_ACTIVITY_ELIGIBILITY_READER,
   SKILL_CATALOG_READER,
+  SHARING_SKILL_READER,
+  type SharingSkillReader,
   type NewActivityEligibilityReader,
   type SkillCatalogReader,
 } from "../ports/learning-request-dependencies";
@@ -71,6 +73,7 @@ export class CreateLearningRequestUseCase {
     private readonly catalog: SkillCatalogReader,
     @Inject(LEARNING_REQUEST_REPOSITORY)
     private readonly repository: LearningRequestRepository,
+    @Inject(SHARING_SKILL_READER) private readonly sharing: SharingSkillReader,
   ) {}
 
   async execute(
@@ -95,6 +98,12 @@ export class CreateLearningRequestUseCase {
         tagIds: content.tagIds,
       });
       assertSelection(selection, content.skillId, content.tagIds);
+      if (content.offeredSharingSkillIds.length > 0)
+        await this.sharing.assertRequestOfferings(
+          tx,
+          live.userId,
+          content.offeredSharingSkillIds,
+        );
       assertFutureDates(content, await this.repository.databaseNow(tx));
       const record = await this.repository.create(tx, {
         ownerId: live.userId,
@@ -102,6 +111,10 @@ export class CreateLearningRequestUseCase {
         title: content.title,
         description: content.description,
         learningGoal: content.learningGoal,
+        teachingOverview: content.teachingOverview,
+        preferredAvailability: content.preferredAvailability,
+        desiredCreditPerHour: content.desiredCreditPerHour,
+        offeredSharingSkillIds: content.offeredSharingSkillIds,
         currentLevel: content.currentLevel,
         verifiedTeacherOnly: content.verifiedTeacherOnly,
         tagIds: content.tagIds,
@@ -109,7 +122,15 @@ export class CreateLearningRequestUseCase {
         requestedExpiresAt: content.requestedExpiresAt,
         expiryMode: content.requestedExpiresAt ? "CUSTOM" : "DEFAULT",
       });
-      return toLearningRequestOwnerDetail(record);
+      return toLearningRequestOwnerDetail(
+        record,
+        content.offeredSharingSkillIds.length
+          ? await this.sharing.readRequestOfferings(
+              tx,
+              content.offeredSharingSkillIds,
+            )
+          : [],
+      );
     });
   }
 }

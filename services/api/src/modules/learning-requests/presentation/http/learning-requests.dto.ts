@@ -18,7 +18,14 @@ import {
   MaxLength,
   ValidateIf,
   ValidateNested,
+  Matches,
+  IsTimeZone,
 } from "class-validator";
+import {
+  LOCAL_TIME_PATTERN,
+  IANA_ZONE_PATTERN,
+  WEEKDAYS,
+} from "../../domain/request-preferences.policy";
 
 export const LEARNING_LEVELS = [
   "NONE",
@@ -118,6 +125,101 @@ export class PreferredSlotDto {
   endAt!: string;
 }
 
+export class WeeklySlotDto {
+  @ApiProperty({ enum: WEEKDAYS, example: "MON" })
+  @IsEnum(WEEKDAYS)
+  weekday!: (typeof WEEKDAYS)[number];
+
+  @ApiProperty({ pattern: LOCAL_TIME_PATTERN.source, example: "19:00" })
+  @Matches(LOCAL_TIME_PATTERN)
+  startTime!: string;
+
+  @ApiProperty({ pattern: LOCAL_TIME_PATTERN.source, example: "21:00" })
+  @Matches(LOCAL_TIME_PATTERN)
+  endTime!: string;
+}
+
+export class PreferredAvailabilityDto {
+  @ApiProperty({
+    example: "Asia/Ho_Chi_Minh",
+    description: "IANA timezone for local weekly wall-clock times.",
+  })
+  @IsTimeZone()
+  @Matches(IANA_ZONE_PATTERN)
+  timeZone!: string;
+
+  @ApiProperty({
+    type: [WeeklySlotDto],
+    maxItems: 5,
+    description:
+      "Same-day ranges; end must exceed start; no overlap on the same weekday.",
+  })
+  @IsArray()
+  @ArrayMaxSize(5)
+  @ValidateNested({ each: true })
+  @Type(() => WeeklySlotDto)
+  weeklySlots!: WeeklySlotDto[];
+}
+
+class LearningRequestOfferingDto {
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    minLength: 20,
+    maxLength: 3000,
+    description:
+      "What the request owner can teach in exchange; sanitized and moderated.",
+  })
+  @IsOptional()
+  @IsString()
+  teachingOverview?: string | null;
+
+  @ApiPropertyOptional({
+    type: [String],
+    format: "uuid",
+    maxItems: 10,
+    uniqueItems: true,
+    description:
+      "Owner's active, visible Sharing Skill IDs selected from GET /me/skills. [] clears selections.",
+  })
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsArray()
+  @ArrayMaxSize(10)
+  @ArrayUnique()
+  @IsUUID("all", { each: true })
+  @Transform(({ value }) =>
+    Array.isArray(value)
+      ? value.map((id: unknown) =>
+          typeof id === "string" ? id.toLowerCase() : id,
+        )
+      : value,
+  )
+  offeredSharingSkillIds?: string[];
+
+  @ApiPropertyOptional({
+    type: PreferredAvailabilityDto,
+    nullable: true,
+    description:
+      "Weekly availability. Replaces absolute preferredSlots; null clears.",
+  })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => PreferredAvailabilityDto)
+  preferredAvailability?: PreferredAvailabilityDto | null;
+
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    example: "50.00",
+    description:
+      "Desired Credit per hour, greater than zero with up to two decimals. An indicative budget; null clears.",
+  })
+  @IsOptional()
+  @IsString()
+  @Matches(/^(?:0|[1-9]\d{0,9})(?:\.\d{1,2})?$/)
+  desiredCreditPerHour?: string | null;
+}
+
 function OptionalPreferredSlots(defaultValue?: []) {
   return applyDecorators(
     ApiPropertyOptional({
@@ -147,7 +249,7 @@ function OptionalExpiry(description: string) {
   );
 }
 
-export class CreateLearningRequestDto {
+export class CreateLearningRequestDto extends LearningRequestOfferingDto {
   @ApiProperty({
     minLength: 10,
     maxLength: 120,
@@ -233,7 +335,16 @@ export class PublishLearningRequestDto extends VersionedLearningRequestDto {}
 
 export class CancelLearningRequestDto extends VersionedLearningRequestDto {}
 
-export class EditLearningRequestDto extends VersionedLearningRequestDto {
+export class EditLearningRequestDto extends LearningRequestOfferingDto {
+  @ApiProperty({
+    type: "integer",
+    minimum: 1,
+    maximum: Number.MAX_SAFE_INTEGER,
+  })
+  @IsInt()
+  @Min(1)
+  @Max(Number.MAX_SAFE_INTEGER)
+  expectedVersion!: number;
   @ApiPropertyOptional({ minLength: 10, maxLength: 120 })
   @ValidateIf((_object, value) => value !== undefined)
   @IsString()

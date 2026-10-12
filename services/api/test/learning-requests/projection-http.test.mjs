@@ -519,6 +519,10 @@ test("OpenAPI documents complete Learning Request inputs and scoped responses", 
     }
     assert.equal(operationCount, 15);
     const contentFields = [
+      "teachingOverview",
+      "offeredSharingSkillIds",
+      "desiredCreditPerHour",
+      "preferredAvailability",
       "title",
       "skillId",
       "description",
@@ -556,6 +560,28 @@ test("OpenAPI documents complete Learning Request inputs and scoped responses", 
     assert.equal(create.tagIds.items.format, "uuid");
     assert.equal(create.tagIds.maxItems, 10);
     assert.equal(create.preferredSlots.maxItems, 5);
+    assert.equal(create.offeredSharingSkillIds.maxItems, 10);
+    assert.equal(create.offeredSharingSkillIds.items.format, "uuid");
+    assert.equal(create.teachingOverview.nullable, true);
+    assert.equal(create.desiredCreditPerHour.type, "string");
+    assert.equal(create.desiredCreditPerHour.nullable, true);
+    assert.deepEqual(
+      new Set(schemas.PreferredAvailabilityDto.required),
+      new Set(["timeZone", "weeklySlots"]),
+    );
+    assert.equal(
+      schemas.PreferredAvailabilityDto.properties.weeklySlots.maxItems,
+      5,
+    );
+    assert.deepEqual(schemas.WeeklySlotDto.properties.weekday.enum, [
+      "MON",
+      "TUE",
+      "WED",
+      "THU",
+      "FRI",
+      "SAT",
+      "SUN",
+    ]);
     assert.equal(
       create.preferredSlots.items.$ref,
       "#/components/schemas/PreferredSlotDto",
@@ -601,6 +627,14 @@ test("OpenAPI documents complete Learning Request inputs and scoped responses", 
         schemas[name].properties.verifiedTeacherOnly.type,
         "boolean",
       );
+      for (const field of [
+        "teachingOverview",
+        "offeredSharingSkills",
+        "desiredCreditPerHour",
+        "preferredAvailability",
+      ]) {
+        assert.ok(schemas[name].properties[field], `${name}.${field}`);
+      }
     }
   } finally {
     await app.close();

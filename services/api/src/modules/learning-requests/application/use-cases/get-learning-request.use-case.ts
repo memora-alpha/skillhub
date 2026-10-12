@@ -10,6 +10,7 @@ import type { TransactionContext } from "../../../../infrastructure/database/tra
 import type { Principal } from "../../../auth/application/services/sessions.service";
 import {
   toLearningRequestModerationDetail,
+  toLearningRequestCardContent,
   toLearningRequestOwnerDetail,
   type LearningRequestDetail,
   type LearningRequestModerationDetail,
@@ -18,6 +19,8 @@ import {
 } from "../contracts/learning-request.types";
 import {
   REQUEST_OWNER_READER,
+  SHARING_SKILL_READER,
+  type SharingSkillReader,
   SKILL_CATALOG_READER,
   type RequestOwnerReader,
   type SkillCatalogReader,
@@ -60,6 +63,7 @@ export class GetLearningRequestUseCase {
     private readonly catalog: SkillCatalogReader,
     @Inject(REQUEST_OWNER_READER)
     private readonly owners: RequestOwnerReader,
+    @Inject(SHARING_SKILL_READER) private readonly sharing: SharingSkillReader,
   ) {}
 
   execute(
@@ -82,7 +86,10 @@ export class GetLearningRequestUseCase {
         live.permissions.includes("learning-request:read")
       ) {
         return {
-          ...toLearningRequestOwnerDetail(request),
+          ...toLearningRequestOwnerDetail(
+            request,
+            await this.readOfferings(tx, request),
+          ),
           effectiveStatus: isExpired(request, now) ? "EXPIRED" : request.status,
         };
       }
@@ -92,7 +99,10 @@ export class GetLearningRequestUseCase {
         live.roles.some((role) => reviewerRoles.has(role))
       ) {
         if (isExpired(request, now)) throw new NotFoundException();
-        return toLearningRequestModerationDetail(request);
+        return toLearningRequestModerationDetail(
+          request,
+          await this.readOfferings(tx, request),
+        );
       }
       if (
         request.status !== "OPEN" ||
@@ -124,6 +134,10 @@ export class GetLearningRequestUseCase {
     }
     return {
       id: request.id,
+      ...toLearningRequestCardContent(
+        request,
+        await this.readOfferings(tx, request),
+      ),
       title: request.title,
       skill: { id: skill.id, name: skill.name },
       tags: tags.map((tag) => ({ id: tag!.id, label: tag!.label })),
@@ -142,5 +156,16 @@ export class GetLearningRequestUseCase {
         ),
       version: request.version,
     };
+  }
+  private readOfferings(
+    tx: TransactionContext,
+    request: LearningRequestRecord,
+  ) {
+    const ids = (request.offeringLinks ?? []).map(
+      (link) => link.sharingSkillId,
+    );
+    return ids.length
+      ? this.sharing.readRequestOfferings(tx, ids)
+      : Promise.resolve([]);
   }
 }

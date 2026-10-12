@@ -2,6 +2,11 @@ import { BadRequestException } from "@nestjs/common";
 import { decode } from "html-entities";
 import sanitizeHtml from "sanitize-html";
 import { z } from "zod";
+import {
+  preferredAvailabilitySchema,
+  hourlyCreditSchema,
+  type PreferredAvailability,
+} from "./request-preferences.policy";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const uuidSchema = z.uuid();
@@ -15,6 +20,14 @@ const requestShape = z.strictObject({
   skillId: uuidSchema,
   description: z.string(),
   learningGoal: z.string(),
+  teachingOverview: z.string().nullable().optional(),
+  offeredSharingSkillIds: z
+    .array(uuidSchema.transform((id) => id.toLowerCase()))
+    .max(10)
+    .refine((ids) => new Set(ids).size === ids.length)
+    .optional(),
+  preferredAvailability: preferredAvailabilitySchema.nullable().optional(),
+  desiredCreditPerHour: hourlyCreditSchema.nullable().optional(),
   currentLevel: levelSchema.nullable().optional(),
   verifiedTeacherOnly: z.boolean().optional(),
   tagIds: z
@@ -32,6 +45,10 @@ export type PreparedLearningRequestContent = {
   skillId: string;
   description: string;
   learningGoal: string;
+  teachingOverview: string | null;
+  offeredSharingSkillIds: string[];
+  preferredAvailability: PreferredAvailability | null;
+  desiredCreditPerHour: bigint | null;
   currentLevel: "NONE" | "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | null;
   verifiedTeacherOnly: boolean;
   tagIds: string[];
@@ -93,10 +110,22 @@ export function prepareLearningRequestContent(
         typeof raw.learningGoal === "string"
           ? sanitizeLearningRequestText(raw.learningGoal)
           : raw.learningGoal,
+      teachingOverview:
+        typeof raw.teachingOverview === "string"
+          ? sanitizeLearningRequestText(raw.teachingOverview)
+          : raw.teachingOverview,
     });
     assertLength(parsed.title, 10, 120);
     assertLength(parsed.description, 20, 3000);
     assertLength(parsed.learningGoal, 10, 1000);
+    if (parsed.teachingOverview != null)
+      assertLength(parsed.teachingOverview, 20, 3000);
+    if (
+      parsed.preferredSlots?.length &&
+      parsed.preferredAvailability?.weeklySlots.length
+    ) {
+      throw new BadRequestException("INVALID_REQUEST_INPUT");
+    }
 
     const preferredSlots = (parsed.preferredSlots ?? []).map((slot) => {
       const startAt = parseDate(slot.startAt);
@@ -117,6 +146,12 @@ export function prepareLearningRequestContent(
       skillId: parsed.skillId,
       description: parsed.description,
       learningGoal: parsed.learningGoal,
+      teachingOverview: parsed.teachingOverview ?? null,
+      offeredSharingSkillIds: [...(parsed.offeredSharingSkillIds ?? [])].sort(
+        (left, right) => left.localeCompare(right),
+      ),
+      preferredAvailability: parsed.preferredAvailability ?? null,
+      desiredCreditPerHour: parsed.desiredCreditPerHour ?? null,
       currentLevel: parsed.currentLevel ?? null,
       verifiedTeacherOnly: parsed.verifiedTeacherOnly ?? false,
       tagIds: parsed.tagIds ?? [],

@@ -27,6 +27,8 @@ const baseRow = {
   createdAt: new Date("2026-10-06T00:00:00Z"),
   updatedAt: new Date("2026-10-06T00:00:00Z"),
   preferredSlots: [],
+  offeringLinks: [],
+  preferredAvailability: null,
   tagLinks: [],
 };
 
@@ -39,6 +41,7 @@ test("get includes preferred slots and canonical tag IDs", async () => {
         assert.deepEqual(query.where, { id: requestId });
         assert.deepEqual(query.include, {
           tagLinks: true,
+          offeringLinks: true,
         });
         return baseRow;
       },

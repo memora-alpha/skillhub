@@ -1,5 +1,35 @@
 # Learning Request quickstart
 
+## FE payload after the 2026-10-12 extension
+
+Use `GET /api/v1/skills`, `GET /api/v1/me/skills`, and `GET /api/v1/tags?q=react` to obtain actual catalog/profile IDs. The offered sharing IDs belong to the request owner. Create example (replace illustrative UUIDs):
+
+```json
+{
+  "title": "Muốn học React từ cơ bản đến nâng cao",
+  "skillId": "11111111-1111-4111-8111-111111111111",
+  "description": "Mình muốn học React hooks và cách xây dựng component tái sử dụng.",
+  "learningGoal": "Tự xây dựng ứng dụng React hoàn chỉnh.",
+  "teachingOverview": "Mình có thể hướng dẫn JavaScript cơ bản và cách xử lý dữ liệu.",
+  "offeredSharingSkillIds": ["22222222-2222-4222-8222-222222222222"],
+  "tagIds": ["33333333-3333-4333-8333-333333333333"],
+  "desiredCreditPerHour": "50.00",
+  "preferredAvailability": {
+    "timeZone": "Asia/Ho_Chi_Minh",
+    "weeklySlots": [
+      { "weekday": "MON", "startTime": "19:00", "endTime": "21:00" },
+      { "weekday": "SAT", "startTime": "09:00", "endTime": "12:00" }
+    ]
+  }
+}
+```
+
+PATCH uses the same optional fields plus `expectedVersion`. To clear them, send nullable fields as null and offered IDs as []. Responses normalize the hourly budget to two decimal places and include `offeredSharingSkills` with real skill metadata. Card data is returned by feed/recommended as well as detail.
+
+Deployment from services/api: `pnpm db:deploy`, then restart `pnpm dev`. The extension tests apply all migrations in a disposable schema; this does not deploy the user's existing database. Swagger remains at `/api/docs` (default local port3001); schema verification does not require starting the API.
+
+The original planning notes below are historical; use the full current runtime schema/migrations and the recorded validation rather than the old identity-only migrate commands.
+
 Ngày 2026-10-06. Đây là checklist triển khai/kiểm chứng sau khi plan được review, **không phải hướng dẫn chạy module đã có**. Lượt lập plan chưa tạo endpoints/test scripts/migrations mới.
 
 ## Before implementation

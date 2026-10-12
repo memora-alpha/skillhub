@@ -149,6 +149,43 @@ export class SharingSkillsService implements OnModuleInit {
   async getMatchingSnapshot(tx: TransactionContext, userId: string) {
     return this.repository.matchingSnapshot(tx, userId);
   }
+  readRequestOfferings(tx: TransactionContext, ids: readonly string[]) {
+    return this.repository.requestOfferings(tx, ids);
+  }
+  async assertRequestOfferings(
+    tx: TransactionContext,
+    userId: string,
+    ids: readonly string[],
+  ): Promise<void> {
+    const selectionIds = [...new Set(ids)];
+    if (selectionIds.length === 0) return;
+    const snapshots = await this.repository.requestSelection(tx, selectionIds);
+    if (
+      snapshots.length !== selectionIds.length ||
+      snapshots.some((row) => row.userId !== userId)
+    )
+      throw new NotFoundException();
+    await this.skills.assertActiveMany(
+      tx,
+      snapshots.map((row) => row.skillId),
+    );
+    const rows = await this.repository.lockRequestSelection(tx, selectionIds);
+    if (
+      rows.length !== selectionIds.length ||
+      rows.some((row) => row.userId !== userId)
+    )
+      throw new NotFoundException();
+    const selectedSkills = new Map(
+      snapshots.map((row) => [row.id, row.skillId]),
+    );
+    for (const row of rows) {
+      if (row.skillId !== selectedSkills.get(row.id))
+        throw new ConflictException("SHARING_SKILL_CHANGED");
+      if (row.archivedAt) throw new ConflictException("SHARING_SKILL_ARCHIVED");
+      if (!row.isVisible)
+        throw new ConflictException("SHARING_SKILL_NOT_VISIBLE");
+    }
+  }
   async create(command: SkillCommand, input: SharingInput) {
     const data = { ...input, description: text(input.description, 20, 1500) };
     try {
