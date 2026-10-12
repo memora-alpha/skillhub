@@ -4,7 +4,8 @@ NestJS backend in the SkillHub pnpm/Turborepo workspace.
 
 CD cho API và quy trình migrate/seed được mô tả trong
 [deployment guide](docs/deployment.md). Seed mặc định tắt; chỉ chạy request được
-khai báo hoặc lựa chọn thủ công. Cấu hình CD cần runner/Coolify trước khi sử dụng.
+khai báo hoặc lựa chọn thủ công. CD dev dùng GitHub checks → webhook → Coolify;
+chỉ cần hai secrets, cấu hình runtime và volume seed-state trong Coolify.
 Learning Request FE extension (2026-10-12) bổ sung teachingOverview, kỹ năng có thể dạy chọn từ profile người đăng, lịch rảnh theo thứ/timezone và desiredCreditPerHour. API tag ACTIVE: `GET /api/v1/tags`; kỹ năng để chọn: `GET /api/v1/me/skills`. Xem [payload và migration](specs/007-learning-request/quickstart.md) cùng [contract](specs/007-learning-request/contracts/http.md). Field mới được trả ở feed/detail/mine/moderation; credit là mức mong muốn theo giờ, chưa Hold.
 
 ## Phạm vi và trạng thái

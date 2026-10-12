@@ -1,21 +1,200 @@
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
 import { test } from "node:test";
-import { runRelease } from "../../services/api/scripts/release.mjs";
-import { deployImage } from "./coolify.mjs";
-import { docker, runHostRelease } from "./release-dev.mjs";
+import {
+  runRelease,
+  withReleaseLock,
+} from "../../services/api/scripts/release.mjs";
+import { startDevApi } from "../../services/api/scripts/start-api.mjs";
+import { triggerDeployment } from "./deploy-dev.mjs";
 
-const digest = `sha256:${"a".repeat(64)}`;
-const config = {
-  apiUrl: "https://coolify.example.invalid/api/v1",
-  token: "test-token",
-  applicationUuid: "api123",
-  imageName: "ghcr.io/example/skillhub-api",
-  imageDigest: digest,
-  readinessUrl: "https://api.example.invalid/api/health/ready",
-};
+test("dev startup completes bootstrap before loading the compiled API", async () => {
+  const calls = [];
+  await startDevApi({
+    env: {
+      NODE_ENV: "development",
+      RELEASE_SEED: "both",
+      RELEASE_OPERATION: "seed-only",
+    },
+    release: async ({ env }) => {
+      assert.equal(env.RELEASE_SEED, "none");
+      assert.equal(env.RELEASE_OPERATION, "deploy");
+      calls.push("bootstrap");
+    },
+    start: async () => calls.push("api"),
+  });
+  assert.deepEqual(calls, ["bootstrap", "api"]);
+});
+
+test("bootstrap failure never starts the API", async () => {
+  let started = false;
+  await assert.rejects(
+    startDevApi({
+      env: { NODE_ENV: "development" },
+      release: async () => {
+        throw new Error("migration failed");
+      },
+      start: async () => {
+        started = true;
+      },
+    }),
+    /migration failed/,
+  );
+  assert.equal(started, false);
+});
+
+test("development entrypoint rejects production before running migrations", async () => {
+  let bootstraps = 0;
+  await assert.rejects(
+    startDevApi({
+      env: { NODE_ENV: "production" },
+      release: async () => {
+        bootstraps++;
+      },
+      start: async () => assert.fail("must not start"),
+    }),
+    /development deployments only/,
+  );
+  assert.equal(bootstraps, 0);
+});
+
+function lockFixture() {
+  const calls = [];
+  return {
+    calls,
+    client: {
+      connect: async () => calls.push("connect"),
+      query: async (sql, values) => calls.push({ sql, values }),
+      end: async () => calls.push("end"),
+    },
+  };
+}
+
+test("database release lock surrounds the task and closes after failure", async () => {
+  const { calls, client } = lockFixture();
+  await assert.rejects(
+    withReleaseLock(
+      "postgresql://user@localhost/test?schema=cd_test",
+      async () => {
+        calls.push("task");
+        throw new Error("seed failed");
+      },
+      () => client,
+    ),
+    /seed failed/,
+  );
+  assert.equal(calls[0], "connect");
+  assert.equal(calls[1].sql, "SET lock_timeout = '30s'");
+  assert.equal(
+    calls[2].sql,
+    "SELECT pg_advisory_lock(hashtextextended($1, 0))",
+  );
+  assert.deepEqual(calls[2].values, ["skillhub-dev-bootstrap:cd_test"]);
+  assert.deepEqual(calls.slice(3), ["task", "end"]);
+});
+
+test("failure to acquire the database lock stops the task", async () => {
+  const { client } = lockFixture();
+  let closed = false;
+  client.query = async () => {
+    throw new Error("lock failed");
+  };
+  client.end = async () => {
+    closed = true;
+  };
+  await assert.rejects(
+    withReleaseLock(
+      "postgresql://user@localhost/test",
+      async () => assert.fail("must not seed"),
+      () => client,
+    ),
+    /lock failed/,
+  );
+  assert.equal(closed, true);
+});
+
+test("seed cannot run while lock acquisition is pending", async () => {
+  const { client } = lockFixture();
+  const locked = Promise.withResolvers();
+  const pending = Promise.withResolvers();
+  let ran = false;
+  client.query = async (sql) => {
+    if (sql.startsWith("SELECT")) {
+      pending.resolve();
+      await locked.promise;
+    }
+  };
+  const task = withReleaseLock(
+    "postgresql://user@localhost/test",
+    async () => {
+      ran = true;
+    },
+    () => client,
+  );
+  await pending.promise;
+  assert.equal(ran, false);
+  locked.resolve();
+  await task;
+  assert.equal(ran, true);
+});
+
+const webhook =
+  "https://coolify.example.invalid/api/v1/deploy?uuid=api123&force=false";
+
+test("webhook requests one application using bearer authentication", async () => {
+  await triggerDeployment(
+    { webhook, token: "test-token" },
+    async (url, options) => {
+      assert.equal(url, webhook);
+      assert.equal(options.method, "GET");
+      assert.equal(options.redirect, "error");
+      assert.equal(options.headers.Authorization, "Bearer test-token");
+      return { ok: true };
+    },
+  );
+});
+
+test("failed webhook request fails the deploy step", async () => {
+  await assert.rejects(
+    triggerDeployment({ webhook, token: "test-token" }, async () => ({
+      ok: false,
+      status: 403,
+    })),
+    /rejected deployment \(403\)/,
+  );
+});
+
+test("missing credentials or multi-resource webhook fails before transmitting anything", async () => {
+  let calls = 0;
+  const request = async () => {
+    calls++;
+  };
+  await assert.rejects(
+    triggerDeployment({ webhook, token: "" }, request),
+    /Configure/,
+  );
+  await assert.rejects(
+    triggerDeployment(
+      {
+        webhook: webhook.replace("api123", "api123,other"),
+        token: "test-token",
+      },
+      request,
+    ),
+    /Configure/,
+  );
+  await assert.rejects(
+    triggerDeployment(
+      { webhook: webhook.replace("https:", "http:"), token: "test-token" },
+      request,
+    ),
+    /Configure/,
+  );
+  assert.equal(calls, 0);
+});
+
 const plan = {
   requests: [
     {
@@ -135,214 +314,6 @@ test("migration failure prevents indexes and seeds; invalid plans fail before wr
   assert.deepEqual(calls, []);
 });
 
-function coolifyFixture(statuses = ["in_progress", "finished"]) {
-  const calls = [];
-  const tag = digest.replace("sha256:", "sha256-");
-  return {
-    calls,
-    async request(url, options) {
-      calls.push({ url, ...options });
-      let data;
-      if (url.includes("/applications/"))
-        data = {
-          docker_registry_image_name: config.imageName,
-          git_repository: null,
-        };
-      else if (url.endsWith("/deploy"))
-        data = {
-          deployments: [
-            { resource_uuid: "api123", deployment_uuid: "release123" },
-          ],
-        };
-      else if (url.includes("/deployments/"))
-        data = { status: statuses.shift(), docker_registry_image_tag: tag };
-      else
-        data = {
-          success: true,
-          data: {
-            status: "ok",
-            dependencies: ["postgresql", "mongodb", "redis"],
-          },
-        };
-      return { ok: true, json: async () => data };
-    },
-  };
-}
-
-test("Coolify is pinned by digest and deployment completion precedes readiness", async () => {
-  const fixture = coolifyFixture();
-  const uuid = await deployImage(config, {
-    ...fixture,
-    sleep: async () => {},
-    attempts: 3,
-  });
-  assert.equal(uuid, "release123");
-  const patch = fixture.calls.find((call) => call.method === "PATCH");
-  assert.equal(
-    JSON.parse(patch.body).docker_registry_image_tag,
-    digest.replace("sha256:", "sha256-"),
-  );
-  assert.equal(fixture.calls.at(-1).url, config.readinessUrl);
-  assert.equal(fixture.calls.at(-1).headers, undefined);
-});
-
-test("failed or timed-out deployment never reports readiness success", async () => {
-  for (const statuses of [["failed"], ["in_progress", "in_progress"]]) {
-    const fixture = coolifyFixture(statuses);
-    await assert.rejects(
-      deployImage(config, { ...fixture, sleep: async () => {}, attempts: 2 }),
-    );
-    assert.equal(
-      fixture.calls.some((call) => call.url === config.readinessUrl),
-      false,
-    );
-  }
-});
-
-test("wrong Coolify application and unexpected deployed digest fail closed", async () => {
-  const fixture = coolifyFixture();
-  await assert.rejects(
-    deployImage(config, {
-      request: async () => ({
-        ok: true,
-        json: async () => ({ docker_registry_image_name: "other" }),
-      }),
-    }),
-    /configured/,
-  );
-  await assert.rejects(
-    deployImage(config, {
-      sleep: async () => {},
-      request: async (url, options) => {
-        if (url.includes("/deployments/"))
-          return {
-            ok: true,
-            json: async () => ({
-              status: "finished",
-              docker_registry_image_tag: "latest",
-            }),
-          };
-        return fixture.request(url, options);
-      },
-    }),
-    /unexpected/,
-  );
-});
-
-test("invalid URLs are rejected without transmitting tokens", async () => {
-  let calls = 0;
-  await assert.rejects(
-    deployImage(
-      { ...config, apiUrl: "http://example.invalid/api/v1" },
-      {
-        request: async () => {
-          calls++;
-        },
-      },
-    ),
-    /Invalid/,
-  );
-  assert.equal(calls, 0);
-});
-
-test("invalid polling settings fail before any deployment request", async () => {
-  let calls = 0;
-  const request = async () => {
-    calls++;
-  };
-  await assert.rejects(
-    deployImage(config, { request, attempts: 0 }),
-    /polling/,
-  );
-  await assert.rejects(
-    deployImage(config, { request, interval: -1 }),
-    /polling/,
-  );
-  assert.equal(calls, 0);
-});
-
-test("host migration failure blocks Coolify mutation and retains the release lock", async () => {
-  const calls = [];
-  let deploys = 0;
-  await assert.rejects(
-    runHostRelease(
-      {
-        config,
-        envFile: resolve("release.env"),
-        network: "coolify",
-        volume: "skillhub-dev-state",
-        sha: "b".repeat(40),
-      },
-      {
-        verify: async () => {},
-        deploy: async () => {
-          deploys++;
-        },
-        log: () => {},
-        runDocker: (args) => {
-          calls.push(args[0]);
-          if (args[0] === "image") return "b".repeat(40);
-          if (args[0] === "run") throw new Error("database release failed");
-        },
-      },
-    ),
-    /database release failed/,
-  );
-  assert.equal(deploys, 0);
-  assert.deepEqual(calls, ["pull", "image", "create", "run"]);
-});
-
-test("host seed-only completes and unlocks without deploying API", async () => {
-  const calls = [];
-  await runHostRelease(
-    {
-      config,
-      envFile: resolve("release.env"),
-      network: "coolify",
-      volume: "skillhub-dev-state",
-      sha: "b".repeat(40),
-      operation: "seed-only",
-      seed: "identity",
-    },
-    {
-      verify: async () => {},
-      deploy: async () => assert.fail("must not deploy"),
-      log: () => {},
-      runDocker: (args) => {
-        calls.push(args);
-        if (args[0] === "image") return "b".repeat(40);
-      },
-    },
-  );
-  assert.deepEqual(
-    calls.map((args) => args[0]),
-    ["pull", "image", "create", "run", "rm"],
-  );
-  assert(
-    calls
-      .find((args) => args[0] === "run")
-      .includes("RELEASE_OPERATION=seed-only"),
-  );
-});
-
-test("Docker lookup ignores the inherited executable search path", () => {
-  const inheritedPath = process.env.PATH;
-  try {
-    process.env.PATH = "/untrusted/runner/bin";
-    const output = docker(["--version"], true, (executable, args, options) => {
-      assert.equal(executable, "/usr/bin/docker");
-      assert.deepEqual(args, ["--version"]);
-      assert.equal(options.env.PATH, "/usr/bin:/bin");
-      assert.equal(options.stdio, "pipe");
-      return { status: 0, stdout: "Docker test fixture\n" };
-    });
-    assert.equal(output, "Docker test fixture");
-  } finally {
-    if (inheritedPath === undefined) delete process.env.PATH;
-    else process.env.PATH = inheritedPath;
-  }
-});
-
 test("each seed request is persisted before the next starts, including partial failure retry", async (t) => {
   const { calls, options } = await releaseFixture(t);
   const requests = [
@@ -405,42 +376,4 @@ test("seed stages do not overlap while an earlier seed is still pending", async 
   completion.resolve();
   await release;
   assert.deepEqual(calls, ["identity", "configuration"]);
-});
-
-test("polling waits between probes and retries transient readiness failures", async () => {
-  const fixture = coolifyFixture();
-  const trace = [];
-  let readinessCalls = 0;
-  await deployImage(config, {
-    attempts: 3,
-    interval: 25,
-    sleep: async (milliseconds) => {
-      assert.equal(milliseconds, 25);
-      trace.push("delay");
-    },
-    request: async (url, options) => {
-      if (url.includes("/deployments/")) trace.push("deployment");
-      if (url === config.readinessUrl) {
-        trace.push("readiness");
-        readinessCalls++;
-        if (readinessCalls === 1) throw new Error("transient network error");
-        if (readinessCalls === 2)
-          return {
-            ok: true,
-            json: async () => ({ success: true, data: { status: "ok" } }),
-          };
-      }
-      return fixture.request(url, options);
-    },
-  });
-  assert.deepEqual(trace, [
-    "deployment",
-    "delay",
-    "deployment",
-    "readiness",
-    "delay",
-    "readiness",
-    "delay",
-    "readiness",
-  ]);
 });
