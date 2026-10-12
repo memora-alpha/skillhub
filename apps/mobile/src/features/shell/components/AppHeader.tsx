@@ -33,6 +33,7 @@ type AppHeaderProps = Readonly<{
   rightAction?: ReactNode;
   backLabel?: string;
   appearance?: "default" | "home";
+  navigationBlocked?: boolean;
 }>;
 
 export function AppHeader({
@@ -44,12 +45,17 @@ export function AppHeader({
   rightAction,
   backLabel = "Quay lại hồ sơ",
   appearance = "home",
+  navigationBlocked = false,
 }: AppHeaderProps) {
   const { width } = useWindowDimensions();
   const { notifications } = useProductPreview();
   const unread = notifications.filter((item) => !item.read).length;
   const home = appearance === "home";
   const compact = Platform.OS !== "web" || width < 640;
+  const navigationState = {
+    disabled: navigationBlocked,
+    accessibilityState: { disabled: navigationBlocked },
+  };
   return (
     <View
       style={[
@@ -63,8 +69,9 @@ export function AppHeader({
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={backLabel}
+          {...navigationState}
           onPress={onBack}
-          style={{ padding: 6 }}
+          style={{ padding: 6, opacity: navigationBlocked ? 0.5 : 1 }}
           hitSlop={6}
         >
           <View style={{ transform: [{ rotate: "180deg" }] }}>
@@ -75,6 +82,7 @@ export function AppHeader({
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="SkillHub — trang chủ"
+          {...navigationState}
           onPress={() => onAction("Trang chủ")}
         >
           <BrandLogo
@@ -84,7 +92,7 @@ export function AppHeader({
           />
         </Pressable>
       ) : null}
-      {title && (
+      {!!title && (
         <Text
           style={[styles.title, home && styles.homeTitle, { flex: 1 }]}
           numberOfLines={width < 400 ? 2 : 1}
@@ -99,6 +107,7 @@ export function AppHeader({
             style={styles.iconButton}
             accessibilityRole="button"
             accessibilityLabel="Tin nhắn"
+            {...navigationState}
             onPress={() => onAction("Tin nhắn")}
           >
             <Icon
@@ -112,6 +121,7 @@ export function AppHeader({
           style={[styles.iconButton, home && styles.homeNotification]}
           accessibilityRole="button"
           accessibilityLabel={`Thông báo — ${unread} chưa đọc`}
+          {...navigationState}
           onPress={() => onAction("Thông báo")}
           hitSlop={6}
         >
@@ -129,6 +139,7 @@ export function AppHeader({
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Mở menu tài khoản"
+            {...navigationState}
             onPress={onAccount}
             style={{ marginLeft: 4 }}
             hitSlop={6}

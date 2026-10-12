@@ -18,7 +18,7 @@ export function PublicProfileScreen() {
     (item) => item.id === params.requestId && item.userId === profile?.id,
   );
   const back: Href = request
-    ? { pathname: "/request/[id]", params: { id: request.id } }
+    ? { pathname: "/explore/requests/[id]", params: { id: request.id } }
     : "/proposals";
   return (
     <AppScreenLayout
