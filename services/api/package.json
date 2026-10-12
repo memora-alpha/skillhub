@@ -22,6 +22,8 @@
     "db:generate:catalog": "prisma generate --schema prisma/catalog.prisma",
     "db:migrate": "node scripts/write-identity-schema.mjs && prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
+    "db:release": "node scripts/release.mjs",
+    "db:seed-configuration:built": "node dist/seed-configuration.js",
     "db:seed-configuration": "prisma generate && nest build && node dist/seed-configuration.js",
     "infra:up": "docker compose up -d --wait",
     "infra:down": "docker compose down",
