@@ -8,6 +8,7 @@ import {
 import { PrismaService } from "../../infrastructure/database/prisma.service";
 import { TransactionRunner } from "../../infrastructure/database/transaction-runner";
 import type { TransactionContext } from "../../infrastructure/database/transaction-context";
+import { byCodeUnit } from "../../infrastructure/idempotency/idempotency.service";
 import type { Principal } from "../auth/application/services/sessions.service";
 import { CreditLedgerService } from "../credit/credit-ledger.service";
 import { ReputationService } from "../reputation/reputation.service";
@@ -204,31 +205,23 @@ export class LearningSessionsService {
         where: { pathId, pathVersion: lockedVersion },
         include: { ownedPlanRecord: true, planVersionRecord: true },
       });
-      for (const plan of plans) {
-        const exists = await tx.userLearnedSkill.findUnique({
-          where: {
-            userId_skillId_sourcePlanId: {
-              userId: plan.ownedPlanRecord.learnerId,
-              skillId: plan.planVersionRecord.skillId,
-              sourcePlanId: plan.planId,
-            },
-          },
-          select: { id: true },
+      if (plans.length !== 0) {
+        // The only unique key is (userId, skillId, sourcePlanId): already-learned rows are kept as-is.
+        await tx.userLearnedSkill.createMany({
+          data: plans.map((plan) => ({
+            userId: plan.ownedPlanRecord.learnerId,
+            skillId: plan.planVersionRecord.skillId,
+            sourcePathId: pathId,
+            sourcePlanId: plan.planId,
+            completedAt: clock.now,
+            completionRuleVersion: "SRS-1.6",
+          })),
+          skipDuplicates: true,
         });
-        if (!exists) {
-          await tx.userLearnedSkill.create({
-            data: {
-              userId: plan.ownedPlanRecord.learnerId,
-              skillId: plan.planVersionRecord.skillId,
-              sourcePathId: pathId,
-              sourcePlanId: plan.planId,
-              completedAt: clock.now,
-              completionRuleVersion: "SRS-1.6",
-            },
-          });
-        }
       }
-      for (const userId of [path.participantAId, path.participantBId].sort()) {
+      for (const userId of [path.participantAId, path.participantBId].sort(
+        byCodeUnit,
+      )) {
         await this.reputation.applyPathCompletion(
           tx,
           userId,

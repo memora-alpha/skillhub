@@ -102,12 +102,11 @@ export function validateFile(input: {
   ) {
     throw new FileStorageError("FILE_NAME_INVALID", 400);
   }
-  const allowed =
-    purpose === "CHAT"
-      ? Object.keys(formats)
-      : purpose === "MATERIAL"
-        ? new Set(["pdf", "docx", "pptx", "xlsx"])
-        : evidenceExtensions;
+  const nonChatExtensions =
+    purpose === "MATERIAL"
+      ? new Set(["pdf", "docx", "pptx", "xlsx"])
+      : evidenceExtensions;
+  const allowed = purpose === "CHAT" ? Object.keys(formats) : nonChatExtensions;
   if (
     !(allowed instanceof Set
       ? allowed.has(extension)

@@ -74,12 +74,10 @@ async function refreshPathConfirmation(
   const agreementConfirmed =
     Boolean(version.participantAConfirmedAt) &&
     Boolean(version.participantBConfirmedAt);
+  const partialStatus =
+    plansConfirmed || agreementConfirmed ? "PARTIALLY_CONFIRMED" : "PROPOSED";
   const status =
-    plansConfirmed && agreementConfirmed
-      ? "CONFIRMED"
-      : plansConfirmed || agreementConfirmed
-        ? "PARTIALLY_CONFIRMED"
-        : "PROPOSED";
+    plansConfirmed && agreementConfirmed ? "CONFIRMED" : partialStatus;
   await tx.learningPath.update({ where: { id: pathId }, data: { status } });
 }
 
@@ -114,17 +112,17 @@ export class LearningPathsService {
         input.conversationId,
       );
       if (!conversation) throw new NotFoundException("CONVERSATION_NOT_FOUND");
-      const participants = [
+      const participants = new Set([
         conversation.participantAId,
         conversation.participantBId,
-      ];
-      if (!participants.includes(actor.userId)) {
+      ]);
+      if (!participants.has(actor.userId)) {
         throw new ForbiddenException("CONVERSATION_ACCESS_DENIED");
       }
       if (
         input.exchangeType === "ONE_WAY" &&
-        (!participants.includes(input.teacherId!) ||
-          !participants.includes(input.learnerId!))
+        (!participants.has(input.teacherId!) ||
+          !participants.has(input.learnerId!))
       ) {
         throw new BadRequestException("INVALID_LEARNING_AGREEMENT");
       }
@@ -230,25 +228,24 @@ export class LearningPathsService {
         data: { currentVersion: nextVersion, status: "PROPOSED" },
       });
       const plans = await tx.learningPlan.findMany({ where: { pathId } });
-      for (const plan of plans) {
-        const directionMatches =
-          input.exchangeType === "ONE_WAY"
-            ? plan.teacherId === input.teacherId &&
-              plan.learnerId === input.learnerId
-            : (plan.teacherId === path.participantAId &&
-                plan.learnerId === path.participantBId) ||
-              (plan.teacherId === path.participantBId &&
-                plan.learnerId === path.participantAId);
-        if (directionMatches) {
-          await tx.pathVersionPlan.create({
-            data: {
-              pathId,
-              pathVersion: nextVersion,
-              planId: plan.id,
-              planVersion: plan.currentVersion,
-            },
-          });
-        }
+      const matchingPlans = plans.filter((plan) =>
+        input.exchangeType === "ONE_WAY"
+          ? plan.teacherId === input.teacherId &&
+            plan.learnerId === input.learnerId
+          : (plan.teacherId === path.participantAId &&
+              plan.learnerId === path.participantBId) ||
+            (plan.teacherId === path.participantBId &&
+              plan.learnerId === path.participantAId),
+      );
+      if (matchingPlans.length !== 0) {
+        await tx.pathVersionPlan.createMany({
+          data: matchingPlans.map((plan) => ({
+            pathId,
+            pathVersion: nextVersion,
+            planId: plan.id,
+            planVersion: plan.currentVersion,
+          })),
+        });
       }
       await refreshPathConfirmation(tx, pathId);
       return {
@@ -294,12 +291,12 @@ export class LearningPathsService {
         throw new ForbiddenException("LEARNING_PATH_ACCESS_DENIED");
       }
       const teacherId = actor.userId;
+      const counterpartId =
+        actor.userId === path.participantAId
+          ? path.participantBId
+          : path.participantAId;
       const learnerId =
-        version.exchangeType === "ONE_WAY"
-          ? version.learnerId!
-          : actor.userId === path.participantAId
-            ? path.participantBId
-            : path.participantAId;
+        version.exchangeType === "ONE_WAY" ? version.learnerId! : counterpartId;
       const existingCount = await tx.pathVersionPlan.count({
         where: { pathId, pathVersion: path.currentVersion },
       });
@@ -835,7 +832,7 @@ export class LearningPathsService {
           },
         },
       });
-      if (!linked || linked.planVersion !== expectedVersion) {
+      if (linked?.planVersion !== expectedVersion) {
         throw new ConflictException("PLAN_NOT_IN_CURRENT_AGREEMENT");
       }
       const currentPlanVersion = await tx.learningPlanVersion.findUniqueOrThrow(
@@ -947,28 +944,25 @@ export class LearningPathsService {
       const plans = await tx.learningPlan.findMany({
         where: { pathId: locked.pathId },
       });
-      for (const otherPlan of plans) {
-        const directionMatches =
-          currentPathVersion.exchangeType === "ONE_WAY"
-            ? otherPlan.teacherId === currentPathVersion.teacherId &&
-              otherPlan.learnerId === currentPathVersion.learnerId
-            : (otherPlan.teacherId === path.participantAId &&
-                otherPlan.learnerId === path.participantBId) ||
-              (otherPlan.teacherId === path.participantBId &&
-                otherPlan.learnerId === path.participantAId);
-        if (directionMatches) {
-          await tx.pathVersionPlan.create({
-            data: {
-              pathId: locked.pathId,
-              pathVersion: nextPathVersion,
-              planId: otherPlan.id,
-              planVersion:
-                otherPlan.id === planId
-                  ? nextVersion
-                  : otherPlan.currentVersion,
-            },
-          });
-        }
+      const matchingPlans = plans.filter((otherPlan) =>
+        currentPathVersion.exchangeType === "ONE_WAY"
+          ? otherPlan.teacherId === currentPathVersion.teacherId &&
+            otherPlan.learnerId === currentPathVersion.learnerId
+          : (otherPlan.teacherId === path.participantAId &&
+              otherPlan.learnerId === path.participantBId) ||
+            (otherPlan.teacherId === path.participantBId &&
+              otherPlan.learnerId === path.participantAId),
+      );
+      if (matchingPlans.length !== 0) {
+        await tx.pathVersionPlan.createMany({
+          data: matchingPlans.map((otherPlan) => ({
+            pathId: locked.pathId,
+            pathVersion: nextPathVersion,
+            planId: otherPlan.id,
+            planVersion:
+              otherPlan.id === planId ? nextVersion : otherPlan.currentVersion,
+          })),
+        });
       }
       await refreshPathConfirmation(tx, plan.pathId);
       return {
