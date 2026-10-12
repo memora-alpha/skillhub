@@ -123,11 +123,12 @@ rejected before upload. Neither picker uploads on selection.
 ## Header actions
 
 The Profile "Hành trình của tôi" shortcut opens `/my-learning`. It owns the
-request/path list layout with URL-selected `requests`/`paths` tabs. Existing
-request/path components reuse their preview providers and detail/editor routes.
+request/path list layout with URL-selected `requests`/`paths` tabs.
+The request tab uses the session-scoped Learning Request API list and its
+detail/editor routes; the path tab retains its preview provider and routes.
 Legacy `/requests` and `/paths` list routes redirect to the matching hub tab;
-Calendar and action maps use the same targets. Preview data remains labeled and
-no learning API integration is implied by navigation consolidation.
+Calendar and action maps use the same targets. Path preview data remains labeled;
+request API/backend and native acceptance gaps remain tracked in spec 005.
 
 Request creation and own-request detail use history-based Back navigation so
 Home, Discover and the profile's learning hub retain their entry context. With
