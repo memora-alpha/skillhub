@@ -211,6 +211,7 @@ test("bootstrap grants only the chosen per-role actions and preserves existing g
       "sharing-skill:create:self",
       "sharing-skill:update:self",
       "sharing-skill:archive:self",
+      "sharing-skill:restore:self",
       "skill-verification:submit:self",
     ],
   );
@@ -224,6 +225,7 @@ test("bootstrap grants only the chosen per-role actions and preserves existing g
       "sharing-skill:create:self",
       "sharing-skill:update:self",
       "sharing-skill:archive:self",
+      "sharing-skill:restore:self",
       "skill-verification:submit:self",
       "skill-verification:read",
       "skill-verification:approve",

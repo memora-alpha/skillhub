@@ -24,7 +24,8 @@ export class LearningRequestOwnerResponse {
   @ApiProperty()
   learningGoal!: string;
 
-  @ApiPropertyOptional({
+  @ApiProperty({
+    type: String,
     enum: ["NONE", "BEGINNER", "INTERMEDIATE", "ADVANCED"],
     nullable: true,
   })
@@ -72,19 +73,19 @@ export class LearningRequestOwnerResponse {
   @ApiProperty({ enum: ["NOT_REQUIRED", "PENDING", "APPROVED", "REJECTED"] })
   moderationStatus!: string;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiProperty({ type: String, nullable: true })
   moderationRejectReason!: string | null;
 
-  @ApiProperty({ minimum: 1 })
+  @ApiProperty({ type: "integer", minimum: 1 })
   version!: number;
 
-  @ApiPropertyOptional({ format: "date-time", nullable: true })
+  @ApiProperty({ type: String, format: "date-time", nullable: true })
   requestedExpiresAt!: Date | null;
 
-  @ApiPropertyOptional({ format: "date-time", nullable: true })
+  @ApiProperty({ type: String, format: "date-time", nullable: true })
   expiresAt!: Date | null;
 
-  @ApiPropertyOptional({ format: "date-time", nullable: true })
+  @ApiProperty({ type: String, format: "date-time", nullable: true })
   publishedAt!: Date | null;
 
   @ApiProperty({ format: "date-time" })
@@ -103,6 +104,7 @@ export class LearningRequestSummaryResponse {
 
   @ApiProperty({
     type: "object",
+    required: ["id", "name"],
     properties: {
       id: { type: "string", format: "uuid" },
       name: { type: "string" },
@@ -114,6 +116,7 @@ export class LearningRequestSummaryResponse {
     type: "array",
     items: {
       type: "object",
+      required: ["id", "label"],
       properties: {
         id: { type: "string", format: "uuid" },
         label: { type: "string" },
@@ -125,7 +128,11 @@ export class LearningRequestSummaryResponse {
   @ApiProperty()
   learningGoal!: string;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiProperty({
+    type: String,
+    enum: ["NONE", "BEGINNER", "INTERMEDIATE", "ADVANCED"],
+    nullable: true,
+  })
   currentLevel!: string | null;
 
   @ApiProperty({ default: false })
@@ -136,6 +143,7 @@ export class LearningRequestSummaryResponse {
 
   @ApiProperty({
     type: "object",
+    required: ["id", "displayName"],
     properties: {
       id: { type: "string", format: "uuid" },
       displayName: { type: "string" },
@@ -146,7 +154,7 @@ export class LearningRequestSummaryResponse {
   @ApiProperty({ format: "date-time" })
   createdAt!: Date;
 
-  @ApiProperty({ format: "date-time", nullable: true })
+  @ApiProperty({ type: String, format: "date-time", nullable: true })
   expiresAt!: Date | null;
 }
 
@@ -157,12 +165,12 @@ export class LearningRequestDetailResponse extends LearningRequestSummaryRespons
   @ApiProperty({ type: [PreferredSlotResponse] })
   preferredSlots!: PreferredSlotResponse[];
 
-  @ApiProperty({ minimum: 1 })
+  @ApiProperty({ type: "integer", minimum: 1 })
   version!: number;
 }
 
 export class LearningRequestRecommendationResponse extends LearningRequestSummaryResponse {
-  @ApiProperty({ minimum: 0 })
+  @ApiProperty({ type: "integer", minimum: 0 })
   matchScore!: number;
 }
 
@@ -185,43 +193,59 @@ export class LearningRequestModerationResponse {
   @ApiProperty()
   learningGoal!: string;
 
-  @ApiProperty({ nullable: true })
+  @ApiProperty({
+    type: String,
+    enum: ["NONE", "BEGINNER", "INTERMEDIATE", "ADVANCED"],
+    nullable: true,
+  })
   currentLevel!: string | null;
 
   @ApiProperty({ default: false })
   verifiedTeacherOnly!: boolean;
 
-  @ApiProperty({ type: [String] })
+  @ApiProperty({ type: [String], format: "uuid" })
   tagIds!: string[];
 
   @ApiProperty({ type: [PreferredSlotResponse] })
   preferredSlots!: PreferredSlotResponse[];
 
-  @ApiProperty()
+  @ApiProperty({
+    enum: [
+      "DRAFT",
+      "PENDING_MODERATION",
+      "OPEN",
+      "REJECTED",
+      "NEGOTIATING",
+      "MATCHED",
+      "CLOSED",
+      "CANCELLED",
+      "EXPIRED",
+    ],
+  })
   status!: string;
 
-  @ApiProperty()
+  @ApiProperty({ enum: ["NOT_REQUIRED", "PENDING", "APPROVED", "REJECTED"] })
   moderationStatus!: string;
 
-  @ApiProperty({ nullable: true })
+  @ApiProperty({ type: String, nullable: true })
   moderationRejectReason!: string | null;
 
   @ApiProperty({ type: [String] })
   flaggedCategories!: string[];
 
-  @ApiProperty({ nullable: true })
+  @ApiProperty({ type: "integer", minimum: 1, nullable: true })
   moderationReviewedVersion!: number | null;
 
-  @ApiProperty({ nullable: true, format: "uuid" })
+  @ApiProperty({ type: String, nullable: true, format: "uuid" })
   moderatedByUserId!: string | null;
 
-  @ApiProperty({ nullable: true, format: "date-time" })
+  @ApiProperty({ type: String, nullable: true, format: "date-time" })
   moderatedAt!: Date | null;
 
-  @ApiProperty({ nullable: true, format: "date-time" })
+  @ApiProperty({ type: String, nullable: true, format: "date-time" })
   expiresAt!: Date | null;
 
-  @ApiProperty()
+  @ApiProperty({ type: "integer", minimum: 1 })
   version!: number;
 
   @ApiProperty({ format: "date-time" })

@@ -12,6 +12,7 @@ import {
   ApiBearerAuth,
   ApiNoContentResponse,
   ApiOperation,
+  ApiParam,
   ApiTags,
 } from "@nestjs/swagger";
 import {
@@ -65,6 +66,7 @@ export class NotificationsController {
   }
 
   @Patch(":notificationId/read")
+  @ApiParam({ name: "notificationId", format: "uuid" })
   @HttpCode(204)
   @ApiOperation({
     summary: "Mark one of the authenticated user's notifications as read",
