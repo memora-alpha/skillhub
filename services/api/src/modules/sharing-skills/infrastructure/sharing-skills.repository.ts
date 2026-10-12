@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../../../infrastructure/database/prisma.service";
 import type { TransactionContext } from "../../../infrastructure/database/transaction-context";
-import type { Prisma } from "../../../generated/prisma/client";
+import { Prisma } from "../../../generated/prisma/client";
 import {
   cursorScope,
   readCursor,
@@ -43,6 +43,30 @@ export function ownSharing(row: SharingRow) {
 @Injectable()
 export class SharingSkillsRepository {
   constructor(private readonly db: PrismaService) {}
+  requestSelection(tx: TransactionContext, ids: readonly string[]) {
+    return tx.sharingSkill.findMany({
+      where: { id: { in: [...ids] } },
+      select: { id: true, userId: true, skillId: true },
+    });
+  }
+  lockRequestSelection(tx: TransactionContext, ids: readonly string[]) {
+    return tx.$queryRaw<
+      {
+        id: string;
+        userId: string;
+        skillId: string;
+        archivedAt: Date | null;
+        isVisible: boolean;
+      }[]
+    >(Prisma.sql`
+      SELECT sharing_skill_id AS id, user_id AS "userId", skill_id AS "skillId",
+             archived_at AS "archivedAt", is_visible AS "isVisible"
+      FROM sharing_skills
+      WHERE sharing_skill_id IN (${Prisma.join(ids.map((id) => Prisma.sql`${id}::uuid`))})
+      ORDER BY sharing_skill_id
+      FOR UPDATE
+    `);
+  }
   async requestOfferings(tx: TransactionContext, ids: readonly string[]) {
     if (ids.length === 0) return [];
     const rows = await tx.sharingSkill.findMany({

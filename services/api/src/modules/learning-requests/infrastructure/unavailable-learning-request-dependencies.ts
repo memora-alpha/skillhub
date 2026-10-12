@@ -61,9 +61,7 @@ export class UnavailableLearningRequestDependencies
   }
 
   assertRequestOfferings(): Promise<never> {
-    return Promise.reject(
-      new ServiceUnavailableException("Sharing Skill selections unavailable"),
-    );
+    return this.readRequestOfferings();
   }
 
   readRequestOfferings(): Promise<never> {
