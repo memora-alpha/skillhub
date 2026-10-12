@@ -1,0 +1,131 @@
+name: Deploy API Dev
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - services/api/**
+      - packages/**
+      - scripts/cd/**
+      - scripts/commit-scope*
+      - .github/workflows/**
+      - .dockerignore
+      - .npmrc
+      - package.json
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - turbo.json
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Deploy API or run only the explicitly selected seed
+        type: choice
+        default: deploy
+        options: [deploy, seed-only]
+      seed:
+        description: Additional seed to run for this operation; none by default
+        type: choice
+        default: none
+        options: [none, identity, configuration, both]
+
+permissions:
+  contents: read
+
+# Includes migration, seed, deployment and readiness. Never cancel a running release.
+concurrency:
+  group: skillhub-api-dev-release
+  cancel-in-progress: false
+
+jobs:
+  checks:
+    if: github.ref == 'refs/heads/dev'
+    uses: ./.github/workflows/api-checks.yml
+    with:
+      build_image: false
+
+  publish:
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image_name: ${{ steps.image.outputs.name }}
+      image_digest: ${{ steps.image.outputs.digest }}
+    steps:
+      - uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0
+        with:
+          persist-credentials: false
+      - name: Prepare isolated registry authentication
+        id: registry_config
+        shell: bash
+        run: echo "DOCKER_CONFIG=$RUNNER_TEMP/skillhub-publish-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" >> "$GITHUB_ENV"
+      - name: Build and publish release image
+        id: image
+        shell: bash
+        env:
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REGISTRY_USER: ${{ github.actor }}
+          RELEASE_SHA: ${{ github.sha }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          image_name="ghcr.io/${GITHUB_REPOSITORY,,}-api"
+          image_tag="$image_name:sha-$RELEASE_SHA-$RUN_ID-$RUN_ATTEMPT"
+          printf '%s' "$REGISTRY_TOKEN" | docker login ghcr.io --username "$REGISTRY_USER" --password-stdin
+          docker build --build-arg "GIT_SHA=$RELEASE_SHA" --target runner -f services/api/Dockerfile -t "$image_tag" .
+          docker push "$image_tag"
+          digest="$(docker image inspect --format '{{index .RepoDigests 0}}' "$image_tag")"
+          [[ "$digest" == "$image_name"@sha256:* ]]
+          echo "name=$image_name" >> "$GITHUB_OUTPUT"
+          echo "digest=${digest#*@}" >> "$GITHUB_OUTPUT"
+      - name: Remove temporary registry authentication
+        if: always() && steps.registry_config.outcome == 'success'
+        run: rm -rf -- "$DOCKER_CONFIG"
+
+  release:
+    needs: publish
+    runs-on: [self-hosted, linux, x64, skillhub-dev-release]
+    environment: dev
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: read
+    env:
+      IMAGE_NAME: ${{ needs.publish.outputs.image_name }}
+      IMAGE_DIGEST: ${{ needs.publish.outputs.image_digest }}
+      RELEASE_SHA: ${{ github.sha }}
+      RELEASE_OPERATION: ${{ inputs.operation || 'deploy' }}
+      RELEASE_SEED: ${{ inputs.seed || 'none' }}
+      RELEASE_ENV_FILE: ${{ vars.RELEASE_ENV_FILE }}
+      RELEASE_DOCKER_NETWORK: ${{ vars.RELEASE_DOCKER_NETWORK }}
+      RELEASE_STATE_VOLUME: ${{ vars.RELEASE_STATE_VOLUME }}
+      COOLIFY_API_URL: ${{ vars.COOLIFY_API_URL }}
+      COOLIFY_API_UUID: ${{ vars.COOLIFY_API_UUID }}
+      API_READINESS_URL: ${{ vars.API_READINESS_URL }}
+    steps:
+      - uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: "22"
+      - name: Prepare isolated registry authentication
+        id: registry_config
+        shell: bash
+        run: echo "DOCKER_CONFIG=$RUNNER_TEMP/skillhub-release-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" >> "$GITHUB_ENV"
+      - name: Authenticate runner to registry
+        shell: bash
+        env:
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REGISTRY_USER: ${{ github.actor }}
+        run: printf '%s' "$REGISTRY_TOKEN" | docker login ghcr.io --username "$REGISTRY_USER" --password-stdin
+      - name: Database release, deploy immutable image, and wait for readiness
+        env:
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+        run: node scripts/cd/release-dev.mjs
+      - name: Remove temporary registry authentication
+        if: always() && steps.registry_config.outcome == 'success'
+        run: rm -rf -- "$DOCKER_CONFIG"

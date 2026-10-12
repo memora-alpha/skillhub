@@ -1,0 +1,17 @@
+name: API CI
+
+on:
+  pull_request:
+    branches: [dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: api-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  api:
+    uses: ./.github/workflows/api-checks.yml
