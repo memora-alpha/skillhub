@@ -12,7 +12,7 @@ export class LearningRequestModerationRulesResponse {
   @ApiProperty({ type: [LearningRequestModerationRuleResponse] })
   rules!: LearningRequestModerationRuleResponse[];
 
-  @ApiProperty({ example: 3 })
+  @ApiProperty({ type: "integer", minimum: 1, example: 3 })
   version!: number;
 
   @ApiProperty({ format: "date-time" })
