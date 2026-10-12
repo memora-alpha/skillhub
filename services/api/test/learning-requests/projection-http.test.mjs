@@ -19,7 +19,12 @@ import { LearningRequestsController } from "../../dist/modules/learning-requests
 import { RequestModerationController } from "../../dist/modules/learning-requests/presentation/http/request-moderation.controller.js";
 import { LearningRequestModerationRulesController } from "../../dist/modules/system-configuration/presentation/http/learning-request-moderation-rules.controller.js";
 import { NotificationsController } from "../../dist/modules/notifications/presentation/http/notifications.controller.js";
-import { LearningRequestQueryDto } from "../../dist/modules/learning-requests/presentation/http/learning-requests.dto.js";
+import {
+  CreateLearningRequestDto,
+  EditLearningRequestDto,
+  LearningRequestQueryDto,
+  PreferredSlotDto,
+} from "../../dist/modules/learning-requests/presentation/http/learning-requests.dto.js";
 
 const ownerId = "11111111-1111-4111-8111-111111111111";
 const otherId = "22222222-2222-4222-8222-222222222222";
@@ -275,6 +280,50 @@ test("query routes validate scope, retain the standard envelope and reject guest
     data: [{ id: requestId }],
     meta: { pagination: { nextCursor: null, hasMore: false, limit: 5 } },
   });
+});
+
+test("create and edit retain optional slots, nested validation and nullable expiry", async () => {
+  const pipe = new ValidationPipe({
+    whitelist: true,
+    forbidNonWhitelisted: true,
+    transform: true,
+  });
+  const slot = {
+    startAt: "2026-12-01T10:00:00Z",
+    endAt: "2026-12-01T11:00:00Z",
+  };
+  for (const [metatype, body] of [
+    [
+      CreateLearningRequestDto,
+      {
+        title: "Learn backend",
+        skillId,
+        description: "A detailed learning request",
+        learningGoal: "Build a working API",
+      },
+    ],
+    [EditLearningRequestDto, { expectedVersion: 1 }],
+  ]) {
+    const transform = (fields) =>
+      pipe.transform({ ...body, ...fields }, { type: "body", metatype });
+    const omitted = await transform({});
+    assert.equal(omitted.preferredSlots, undefined);
+    assert.equal(omitted.expiresAt, undefined);
+    const valid = await transform({ preferredSlots: [slot], expiresAt: null });
+    assert.ok(valid.preferredSlots[0] instanceof PreferredSlotDto);
+    assert.equal(valid.expiresAt, null);
+    for (const fields of [
+      { preferredSlots: null },
+      { preferredSlots: Array(6).fill(slot) },
+      { preferredSlots: [{ ...slot, startAt: "invalid" }] },
+      { expiresAt: "invalid" },
+    ]) {
+      await assert.rejects(
+        () => transform(fields),
+        (error) => error.getStatus?.() === 400,
+      );
+    }
+  }
 });
 
 test("detail route documents every scoped response in OpenAPI", () => {
