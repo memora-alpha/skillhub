@@ -62,3 +62,22 @@ The earlier broad Identity provider run had three environment-blocked cases: S3 
 - OTP cooldown does not become an account lock; BR-41 remains an Identity-owned regression requirement. Email/push rejection channels under OP-05 are outside this in-app slice.
 
 These gates separate implemented core behavior from downstream release evidence; do not mark SH-030–034 fully released based on unit tests or plans alone.
+
+## Swagger contract audit — 2026-10-12
+
+Scope confirmed by the user: Learning Request and its related moderation,
+rule configuration and notification APIs (15 HTTP operations across four controllers).
+
+- Added the missing approve/reject body fields, moderation rule inputs and nested
+  rule schema, and notification pagination query fields.
+- Documented UUID path parameters, input bounds/defaults, and the allowed status
+  filter for each list scope.
+- Corrected nullable response values that reflection had inferred as objects:
+  text, UUIDs, timestamps and reviewed versions now have explicit scalar types.
+  Fields always returned as null remain required; fields the API may omit remain optional.
+- The generated OpenAPI regression checks all 15 operations for bearer auth,
+  success status/envelope, UUID parameters, input schemas and nullable response fields.
+  It uses the real controllers with mocked application providers and no listening port.
+- API build and lint passed; the Learning Request suite passed 92/92 tests.
+  The existing bootstrap regression was aligned with the previously approved
+  Sharing Skill restore permission; runtime grants were not changed.

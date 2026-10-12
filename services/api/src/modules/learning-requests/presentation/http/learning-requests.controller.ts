@@ -10,7 +10,12 @@ import {
   Query,
   UseGuards,
 } from "@nestjs/common";
-import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiParam,
+  ApiTags,
+} from "@nestjs/swagger";
 import {
   CurrentIdentity,
   IdentityGuard,
@@ -95,6 +100,7 @@ export class LearningRequestsController {
   }
 
   @Get(":requestId")
+  @ApiParam({ name: "requestId", format: "uuid" })
   @ApiOperation({
     summary: "Read a Learning Request within the caller's scope",
   })
@@ -127,6 +133,7 @@ export class LearningRequestsController {
   }
 
   @Post(":requestId/publish")
+  @ApiParam({ name: "requestId", format: "uuid" })
   @HttpCode(200)
   @ApiOperation({ summary: "Publish after versioned moderation filtering" })
   @ApiSuccessResponse(200, LearningRequestOwnerResponse)
@@ -142,6 +149,7 @@ export class LearningRequestsController {
   }
 
   @Post(":requestId/cancel")
+  @ApiParam({ name: "requestId", format: "uuid" })
   @HttpCode(200)
   @ApiOperation({
     summary: "Cancel an owned Learning Request before Schedule lock",
@@ -159,6 +167,7 @@ export class LearningRequestsController {
   }
 
   @Patch(":requestId")
+  @ApiParam({ name: "requestId", format: "uuid" })
   @ApiOperation({
     summary: "Edit an owned Learning Request before Negotiating",
   })

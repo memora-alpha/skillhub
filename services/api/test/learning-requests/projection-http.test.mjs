@@ -16,6 +16,9 @@ import {
 import { IdentityGuard } from "../../dist/shared/auth/identity.guard.js";
 import { GetLearningRequestUseCase } from "../../dist/modules/learning-requests/application/use-cases/get-learning-request.use-case.js";
 import { LearningRequestsController } from "../../dist/modules/learning-requests/presentation/http/learning-requests.controller.js";
+import { RequestModerationController } from "../../dist/modules/learning-requests/presentation/http/request-moderation.controller.js";
+import { LearningRequestModerationRulesController } from "../../dist/modules/system-configuration/presentation/http/learning-request-moderation-rules.controller.js";
+import { NotificationsController } from "../../dist/modules/notifications/presentation/http/notifications.controller.js";
 import { LearningRequestQueryDto } from "../../dist/modules/learning-requests/presentation/http/learning-requests.dto.js";
 
 const ownerId = "11111111-1111-4111-8111-111111111111";
@@ -289,14 +292,24 @@ test("detail route documents every scoped response in OpenAPI", () => {
   );
 });
 
-test("OpenAPI includes the verified-teacher preference in create, edit and scoped responses", async () => {
-  const dependencies = Reflect.getMetadata(
-    "design:paramtypes",
+test("OpenAPI documents complete Learning Request inputs and scoped responses", async () => {
+  const controllers = [
     LearningRequestsController,
+    RequestModerationController,
+    LearningRequestModerationRulesController,
+    NotificationsController,
+  ];
+  const dependencies = new Set(
+    controllers.flatMap((controller) =>
+      Reflect.getMetadata("design:paramtypes", controller),
+    ),
   );
   const module = await Test.createTestingModule({
-    controllers: [LearningRequestsController],
-    providers: dependencies.map((token) => ({ provide: token, useValue: {} })),
+    controllers,
+    providers: [...dependencies].map((token) => ({
+      provide: token,
+      useValue: {},
+    })),
   })
     .overrideGuard(IdentityGuard)
     .useValue({ canActivate: () => true })
@@ -307,9 +320,215 @@ test("OpenAPI includes the verified-teacher preference in create, edit and scope
   try {
     const document = SwaggerModule.createDocument(
       app,
-      new DocumentBuilder().build(),
+      new DocumentBuilder().addBearerAuth().build(),
     );
     const schemas = document.components.schemas;
+    for (const [name, fields] of [
+      [
+        "LearningRequestOwnerResponse",
+        {
+          currentLevel: "string",
+          moderationRejectReason: "string",
+          requestedExpiresAt: "string",
+          expiresAt: "string",
+          publishedAt: "string",
+        },
+      ],
+      [
+        "LearningRequestSummaryResponse",
+        { currentLevel: "string", expiresAt: "string" },
+      ],
+      [
+        "LearningRequestModerationResponse",
+        {
+          currentLevel: "string",
+          moderationRejectReason: "string",
+          moderationReviewedVersion: "integer",
+          moderatedByUserId: "string",
+          moderatedAt: "string",
+          expiresAt: "string",
+        },
+      ],
+      ["NotificationResponse", { readAt: "string" }],
+    ]) {
+      for (const [field, type] of Object.entries(fields)) {
+        assert.equal(
+          schemas[name].properties[field].type,
+          type,
+          `${name}.${field} type`,
+        );
+        assert.equal(
+          schemas[name].properties[field].nullable,
+          true,
+          `${name}.${field} nullable`,
+        );
+        assert.ok(
+          schemas[name].required.includes(field),
+          `${name}.${field} is always present`,
+        );
+      }
+    }
+    for (const name of [
+      "ApproveLearningRequestDto",
+      "RejectLearningRequestDto",
+    ]) {
+      assert.deepEqual(
+        new Set(schemas[name].required),
+        new Set(["expectedVersion", "reason"]),
+      );
+      assert.equal(schemas[name].properties.expectedVersion.type, "integer");
+    }
+    assert.equal(
+      schemas.ApproveLearningRequestDto.properties.reason.maxLength,
+      2000,
+    );
+    assert.equal(
+      schemas.RejectLearningRequestDto.properties.reason.minLength,
+      10,
+    );
+    assert.equal(
+      schemas.RejectLearningRequestDto.properties.reason.maxLength,
+      500,
+    );
+    const rules = schemas.UpdateLearningRequestModerationRulesDto;
+    assert.deepEqual(
+      new Set(rules.required),
+      new Set(["expectedVersion", "rules", "reason"]),
+    );
+    assert.equal(rules.properties.rules.minItems, 1);
+    assert.equal(rules.properties.rules.maxItems, 250);
+    assert.equal(
+      rules.properties.rules.items.$ref,
+      "#/components/schemas/ModerationRuleDto",
+    );
+    assert.deepEqual(schemas.ModerationRuleDto.required, [
+      "category",
+      "pattern",
+    ]);
+    assert.equal(
+      schemas.ModerationRuleDto.properties.category.pattern,
+      "^[A-Za-z][A-Za-z0-9_-]*$",
+    );
+    const inbox = document.paths["/api/v1/notifications"];
+    assert.deepEqual(
+      new Set(inbox.get.parameters.map(({ name }) => name)),
+      new Set(["limit", "cursor"]),
+    );
+    assert.equal(
+      inbox.get.parameters.find(({ name }) => name === "limit").schema.default,
+      20,
+    );
+    const markRead =
+      document.paths["/api/v1/notifications/{notificationId}/read"].patch;
+    assert.ok(markRead.responses[204]);
+    assert.equal(markRead.parameters[0].schema.format, "uuid");
+    for (const suffix of ["approve", "reject"]) {
+      const operation =
+        document.paths[`/api/v1/staff/learning-requests/{requestId}/${suffix}`]
+          .post;
+      assert.ok(
+        operation.responses[200].content["application/json"].schema.properties
+          .data.$ref,
+      );
+      assert.equal(operation.parameters[0].schema.format, "uuid");
+      assert.deepEqual(operation.security, [{ bearer: [] }]);
+    }
+    let operationCount = 0;
+    for (const [path, operations] of Object.entries(document.paths)) {
+      for (const [method, operation] of Object.entries(operations)) {
+        operationCount += 1;
+        assert.deepEqual(
+          operation.security,
+          [{ bearer: [] }],
+          `${method} ${path} authentication`,
+        );
+        let successStatus = 200;
+        if (path.endsWith("/read")) successStatus = 204;
+        else if (method === "post" && path === "/api/v1/learning-requests")
+          successStatus = 201;
+        assert.ok(
+          operation.responses[successStatus],
+          `${method} ${path} success response`,
+        );
+        if (successStatus !== 204) {
+          assert.ok(
+            operation.responses[successStatus].content["application/json"]
+              .schema.properties.data,
+            `${method} ${path} response envelope`,
+          );
+        }
+        for (const parameter of operation.parameters ?? []) {
+          if (parameter.in !== "path") continue;
+          assert.equal(parameter.required, true);
+          assert.equal(
+            parameter.schema.format,
+            "uuid",
+            `${method} ${path} ${parameter.name}`,
+          );
+        }
+      }
+    }
+    assert.equal(operationCount, 15);
+    const contentFields = [
+      "title",
+      "skillId",
+      "description",
+      "learningGoal",
+      "currentLevel",
+      "verifiedTeacherOnly",
+      "tagIds",
+      "preferredSlots",
+      "expiresAt",
+    ];
+    assert.deepEqual(
+      new Set(Object.keys(schemas.CreateLearningRequestDto.properties)),
+      new Set(contentFields),
+    );
+    assert.deepEqual(
+      new Set(schemas.CreateLearningRequestDto.required),
+      new Set(["title", "skillId", "description", "learningGoal"]),
+    );
+    assert.deepEqual(
+      new Set(Object.keys(schemas.EditLearningRequestDto.properties)),
+      new Set(["expectedVersion", ...contentFields]),
+    );
+    assert.deepEqual(schemas.EditLearningRequestDto.required, [
+      "expectedVersion",
+    ]);
+    for (const name of [
+      "PublishLearningRequestDto",
+      "CancelLearningRequestDto",
+    ]) {
+      assert.deepEqual(schemas[name].required, ["expectedVersion"]);
+      assert.equal(schemas[name].properties.expectedVersion.minimum, 1);
+    }
+    const create = schemas.CreateLearningRequestDto.properties;
+    assert.equal(create.skillId.format, "uuid");
+    assert.equal(create.tagIds.items.format, "uuid");
+    assert.equal(create.tagIds.maxItems, 10);
+    assert.equal(create.preferredSlots.maxItems, 5);
+    assert.equal(
+      create.preferredSlots.items.$ref,
+      "#/components/schemas/PreferredSlotDto",
+    );
+    assert.deepEqual(schemas.PreferredSlotDto.required, ["startAt", "endAt"]);
+    assert.equal(
+      schemas.PreferredSlotDto.properties.startAt.format,
+      "date-time",
+    );
+    assert.equal(schemas.PreferredSlotDto.properties.endAt.format, "date-time");
+    assert.equal(create.currentLevel.nullable, true);
+    assert.equal(create.expiresAt.format, "date-time");
+    assert.equal(create.expiresAt.nullable, true);
+    const routes = document.paths["/api/v1/learning-requests"];
+    assert.equal(
+      routes.post.requestBody.content["application/json"].schema.$ref,
+      "#/components/schemas/CreateLearningRequestDto",
+    );
+    assert.deepEqual(
+      new Set(routes.get.parameters.map(({ name }) => name)),
+      new Set(["skillId", "tagIds", "keyword", "status", "limit", "cursor"]),
+    );
     for (const name of ["CreateLearningRequestDto", "EditLearningRequestDto"]) {
       assert.equal(
         schemas[name].properties.verifiedTeacherOnly?.type,
