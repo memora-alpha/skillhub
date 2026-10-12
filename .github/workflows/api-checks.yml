@@ -55,9 +55,7 @@ jobs:
         run: pnpm --filter api exec node --test test/sonar-remediation.test.mjs
       - name: Validate release image
         if: inputs.build_image
-        env:
-          RELEASE_SHA: ${{ github.sha }}
-        run: docker build --build-arg "GIT_SHA=$RELEASE_SHA" --target runner -f services/api/Dockerfile -t skillhub-api-ci .
+        run: docker build --target runner -f services/api/Dockerfile -t skillhub-api-ci .
       - name: Stop disposable test stores
         if: always()
         run: docker compose -f services/api/test/connections/compose.yaml down --volumes

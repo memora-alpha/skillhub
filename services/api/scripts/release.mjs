@@ -4,6 +4,7 @@ import { createRequire } from "node:module";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
+import pg from "pg";
 
 const require = createRequire(import.meta.url);
 const selections = {
@@ -174,22 +175,54 @@ function execute(kind) {
     );
 }
 
+/** Serialize dev bootstrap/manual seeds across containers sharing the same database. */
+export async function withReleaseLock(
+  databaseUrl,
+  task,
+  createClient = (options) => new pg.Client(options),
+) {
+  const database = new URL(databaseUrl);
+  if (!["postgres:", "postgresql:"].includes(database.protocol))
+    throw new Error("PostgreSQL connection required");
+  const client = createClient({
+    connectionString: databaseUrl,
+    connectionTimeoutMillis: 5000,
+  });
+  try {
+    await client.connect();
+    await client.query("SET lock_timeout = '30s'");
+    await client.query("SELECT pg_advisory_lock(hashtextextended($1, 0))", [
+      `skillhub-dev-bootstrap:${database.searchParams.get("schema") ?? "public"}`,
+    ]);
+    return await task();
+  } finally {
+    // Closing the dedicated session releases its advisory lock even after a failure.
+    await client.end();
+  }
+}
+
+export async function runConfiguredRelease({ env = process.env } = {}) {
+  const plan = JSON.parse(
+    await readFile(new URL("../release-seeds.json", import.meta.url), "utf8"),
+  );
+  return withReleaseLock(env.DATABASE_URL, () =>
+    runRelease({
+      plan,
+      stateDirectory: env.RELEASE_STATE_DIRECTORY ?? "/release-state",
+      databaseUrl: env.DATABASE_URL,
+      seed: env.RELEASE_SEED ?? "none",
+      operation: env.RELEASE_OPERATION ?? "deploy",
+      run: execute,
+    }),
+  );
+}
+
 if (
   process.argv[1] &&
   import.meta.url === pathToFileURL(process.argv[1]).href
 ) {
   try {
-    const plan = JSON.parse(
-      await readFile(new URL("../release-seeds.json", import.meta.url), "utf8"),
-    );
-    await runRelease({
-      plan,
-      stateDirectory: process.env.RELEASE_STATE_DIRECTORY ?? "/release-state",
-      databaseUrl: process.env.DATABASE_URL,
-      seed: process.env.RELEASE_SEED ?? "none",
-      operation: process.env.RELEASE_OPERATION ?? "deploy",
-      run: execute,
-    });
+    await runConfiguredRelease();
   } catch {
     console.error(
       "Release database steps failed; deployment must stop. Check the plan, state and database.",
