@@ -30,8 +30,10 @@ type AppScreenLayoutProps = Readonly<{
     href: Href;
     label: string;
     behavior?: "destination" | "history";
+    onPress?: () => void;
   }>;
   contentStyle?: StyleProp<ViewStyle>;
+  navigationBlocked?: boolean;
   children: (openNotice: OpenNotice) => ReactNode;
 }>;
 
@@ -91,6 +93,7 @@ export function AppScreenLayout({
   rightAction,
   back,
   contentStyle,
+  navigationBlocked = false,
   children,
 }: AppScreenLayoutProps) {
   const router = useRouter();
@@ -101,6 +104,7 @@ export function AppScreenLayout({
   const [query, setQuery] = useState("");
   if (!session) return <Redirect href="/login" />;
   const action = (label: string) => {
+    if (navigationBlocked) return;
     const route = appRoutes[label];
     if (route) {
       if (back && label === selected) router.dismissTo(route);
@@ -114,10 +118,11 @@ export function AppScreenLayout({
     ? (["top", "left", "right", "bottom"] as const)
     : (["top", "left", "right"] as const);
   const handleBack = back
-    ? () => {
+    ? (back.onPress ??
+      (() => {
         if (back.behavior === "history" && router.canGoBack()) router.back();
         else router.dismissTo(back.href);
-      }
+      }))
     : undefined;
   const headerAction =
     typeof rightAction === "function" ? rightAction(action) : rightAction;
@@ -129,9 +134,12 @@ export function AppScreenLayout({
         title={title}
         onBack={handleBack}
         backLabel={back?.label}
+        navigationBlocked={navigationBlocked}
         rightAction={headerAction}
         onAction={action}
-        onAccount={() => setMenu(true)}
+        onAccount={() => {
+          if (!navigationBlocked) setMenu(true);
+        }}
       />
       <KeyboardAvoidingView
         style={[styles.content, contentStyle]}

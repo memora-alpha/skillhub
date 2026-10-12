@@ -13,7 +13,6 @@ import {
   RouteButton,
 } from "@/components/feature-page";
 import { publicProfiles } from "@/features/profile";
-import { learningRequests } from "@/features/discovery";
 import { useProductPreview } from "../context";
 export function NotificationsScreen() {
   const { notifications, read, enabled } = useProductPreview();
@@ -72,11 +71,6 @@ export function SearchScreen() {
         .includes(query.toLowerCase()) &&
       (!verified || p.skills.some((s) => s.verified)),
   );
-  const requests = learningRequests.filter((r) =>
-    `${r.title} ${r.tags.join(" ")}`
-      .toLowerCase()
-      .includes(query.toLowerCase()),
-  );
   return (
     <FeaturePage
       title="Tìm kiếm"
@@ -84,9 +78,14 @@ export function SearchScreen() {
       subtitle="Kết nối với người có kỹ năng bạn muốn học."
     >
       <Input
-        label="Tên người hoặc kỹ năng"
+        label={
+          tab === "Yêu cầu học"
+            ? "Từ khóa yêu cầu học"
+            : "Tên người hoặc kỹ năng"
+        }
         value={query}
         onChangeText={setQuery}
+        maxLength={tab === "Yêu cầu học" ? 120 : 254}
       />
       <ChoiceGroup
         label="Tìm trong"
@@ -129,22 +128,15 @@ export function SearchScreen() {
         </>
       ) : (
         <>
-          {requests.map((r) => (
-            <Panel key={r.id} title={r.title}>
-              <Copy>
-                {r.user} · {r.tags.join(", ")}
-              </Copy>
-              <RouteButton secondary href={`/request/${r.id}`}>
-                Xem yêu cầu
-              </RouteButton>
-            </Panel>
-          ))}
-          {!requests.length && (
-            <EmptyState
-              title="Không tìm thấy yêu cầu"
-              description="Thử từ khóa khác."
-            />
-          )}
+          <Copy>Tìm theo tiêu đề, mô tả hoặc mục tiêu học tập.</Copy>
+          <RouteButton
+            href={{
+              pathname: "/discover",
+              params: { query: query.normalize("NFKC").trim() },
+            }}
+          >
+            Tìm yêu cầu học
+          </RouteButton>
         </>
       )}
     </FeaturePage>
