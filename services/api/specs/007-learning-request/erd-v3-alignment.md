@@ -1,5 +1,7 @@
 # Learning Request alignment with ERD v3
 
+**Later FE extension (2026-10-12):** [User-approved design](fe-extension-design.md) adds request-specific teaching overview, owner's offered SharingSkill links, recurring weekly availability and desired hourly Credit. These are documented additions beyond the supplied logical v3/SRS field table, not inferred diagram attributes. Existing mapped columns and preferredSlots remain compatible; the new additive migration preserves request history.
+
 Date: 2026-10-07. Scope: Learning Request attributes/storage, its Request relationships, HTTP projections and persistence. This is not a conformance claim for all downstream modules.
 
 ## Authoritative sources

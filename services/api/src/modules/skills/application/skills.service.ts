@@ -22,6 +22,7 @@ import {
   uniqueConflict,
   type SkillCommand,
   type SkillQuery,
+  type TagQuery,
 } from "./skill-contracts";
 import type { CatalogStatus } from "../../../generated/prisma/client";
 
@@ -70,6 +71,9 @@ export class SkillsService {
   }
   list(query: SkillQuery) {
     return this.repository.list(query);
+  }
+  listTags(query: TagQuery) {
+    return this.repository.listTags(query);
   }
   async detail(id: string) {
     const row = await this.repository.get(id);

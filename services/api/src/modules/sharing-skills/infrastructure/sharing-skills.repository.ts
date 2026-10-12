@@ -43,6 +43,33 @@ export function ownSharing(row: SharingRow) {
 @Injectable()
 export class SharingSkillsRepository {
   constructor(private readonly db: PrismaService) {}
+  async requestOfferings(tx: TransactionContext, ids: readonly string[]) {
+    if (ids.length === 0) return [];
+    const rows = await tx.sharingSkill.findMany({
+      where: {
+        id: { in: [...ids] },
+        archivedAt: null,
+        isVisible: true,
+        skillIdRecord: { status: "ACTIVE" },
+        userIdRecord: { accountStatus: "ACTIVE" },
+      },
+      select: {
+        id: true,
+        userId: true,
+        level: true,
+        verificationStatus: true,
+        skillIdRecord: { select: { id: true, name: true } },
+      },
+      orderBy: { id: "asc" },
+    });
+    return rows.map((row) => ({
+      id: row.id,
+      ownerId: row.userId,
+      skill: row.skillIdRecord,
+      level: row.level,
+      verificationStatus: row.verificationStatus,
+    }));
+  }
   async matchingSnapshot(tx: TransactionContext, userId: string) {
     const rows = await tx.sharingSkill.findMany({
       where: { userId, archivedAt: null, skillIdRecord: { status: "ACTIVE" } },

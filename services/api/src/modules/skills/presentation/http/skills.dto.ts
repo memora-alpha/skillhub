@@ -19,6 +19,43 @@ import {
 } from "class-validator";
 const trim = ({ value }: { value: unknown }) =>
   typeof value === "string" ? value.trim().normalize("NFC") : value;
+export class TagQueryDto {
+  @ApiPropertyOptional({
+    type: String,
+    minLength: 0,
+    maxLength: 120,
+    description:
+      "Case-insensitive literal label search; empty returns all ACTIVE tags.",
+  })
+  @IsOptional()
+  @Transform(trim)
+  @IsString()
+  @Length(0, 120)
+  q?: string;
+  @ApiPropertyOptional({
+    type: "integer",
+    minimum: 1,
+    maximum: 100,
+    default: 20,
+    description: "Maximum tags per page.",
+  })
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  limit = 20;
+  @ApiPropertyOptional({
+    type: String,
+    minLength: 1,
+    maxLength: 1024,
+    description:
+      "Opaque nextCursor from the same search; ordered by label then id.",
+  })
+  @IsOptional()
+  @IsString()
+  @Length(1, 1024)
+  cursor?: string;
+}
 export class PageDto {
   @ApiPropertyOptional({ minimum: 1, maximum: 50, default: 20 })
   @Type(() => Number)

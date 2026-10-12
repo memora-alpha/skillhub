@@ -170,3 +170,15 @@ model RequestTag {
   @@index([tagId, requestId])
   @@map("learning_request_tags")
 }
+
+// User-approved FE extension; offered skills remain owned by Sharing Skills.
+model RequestOffering {
+  requestId String @map("request_id") @db.Uuid
+  sharingSkillId String @map("sharing_skill_id") @db.Uuid
+  request LearningRequest @relation("RequestOffering_request", fields: [requestId], references: [id], onDelete: Restrict, map: "learning_request_offerings_request_fkey")
+  sharingSkill SharingSkill @relation("RequestOffering_sharing", fields: [sharingSkillId], references: [id], onDelete: Restrict, map: "learning_request_offerings_sharing_fkey")
+
+  @@id([requestId, sharingSkillId])
+  @@index([sharingSkillId, requestId], map: "learning_request_offerings_sharing_idx")
+  @@map("learning_request_offerings")
+}

@@ -96,10 +96,20 @@ model("LearningRequest", (block) =>
   expiryMode RequestExpiryMode @default(DEFAULT) @map("expiry_mode")
   publishedAt DateTime? @map("published_at") @db.Timestamptz(3)
   tagLinks RequestTag[] @relation("RequestTag_request")
+  teachingOverview String? @map("teaching_overview") @db.VarChar(3000)
+  preferredAvailability Json? @map("preferred_availability")
+  desiredCreditPerHour BigInt? @map("desired_credit_per_hour")
+  offeringLinks RequestOffering[] @relation("RequestOffering_request")
   @@index([ownerId, createdAt(sort: Desc), id(sort: Desc)])
   @@index([skillId, status, createdAt(sort: Desc), id(sort: Desc)])
   @@index([status, createdAt(sort: Desc), id(sort: Desc)])
 `,
+  ),
+);
+model("SharingSkill", (block) =>
+  fields(
+    block,
+    '  requestOfferings RequestOffering[] @relation("RequestOffering_sharing")',
   ),
 );
 model("Notification", (block) =>

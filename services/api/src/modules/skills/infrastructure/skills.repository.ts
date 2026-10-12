@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../../../infrastructure/database/prisma.service";
 import type { TransactionContext } from "../../../infrastructure/database/transaction-context";
 import type { Prisma } from "../../../generated/prisma/client";
-import type { SkillQuery } from "../application/skill-contracts";
+import type { SkillQuery, TagQuery } from "../application/skill-contracts";
 import { cursorScope, page, readCursor, nameKey } from "../domain/skill-policy";
 
 @Injectable()
@@ -28,6 +28,40 @@ export class SkillsRepository {
   async category(tx: TransactionContext, id: string) {
     if (!(await tx.skillCategory.findUnique({ where: { id } })))
       throw new NotFoundException("SKILL_CATEGORY_NOT_FOUND");
+  }
+  async listTags(query: TagQuery) {
+    const scope = cursorScope({ type: "tags", q: query.q || null });
+    const cursor = readCursor(query.cursor, scope);
+    const where: Prisma.TagWhereInput = {
+      status: "ACTIVE",
+      ...(query.q
+        ? {
+            label: {
+              contains: query.q.replace(/[\\%_]/gu, String.raw`\$&`),
+              mode: "insensitive",
+            },
+          }
+        : {}),
+      ...(cursor
+        ? {
+            OR: [
+              { label: { gt: cursor.value } },
+              { label: cursor.value, id: { gt: cursor.id } },
+            ],
+          }
+        : {}),
+    };
+    return page(
+      await this.db.tag.findMany({
+        where,
+        select: { id: true, label: true },
+        orderBy: [{ label: "asc" }, { id: "asc" }],
+        take: query.limit + 1,
+      }),
+      query.limit,
+      scope,
+      (row) => row.label,
+    );
   }
   async list(query: SkillQuery, admin = false) {
     const scope = cursorScope({

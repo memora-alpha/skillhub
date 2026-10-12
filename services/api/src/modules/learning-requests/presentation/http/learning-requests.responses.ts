@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import {
   LEARNING_LEVELS,
   LEARNING_REQUEST_STATUSES,
+  PreferredAvailabilityDto,
 } from "./learning-requests.dto";
 
 const NULLABLE_LEVEL = {
@@ -18,7 +19,60 @@ export class PreferredSlotResponse {
   endAt!: Date;
 }
 
-class LearningRequestContentResponse {
+export class OfferedSharingSkillResponse {
+  @ApiProperty({ format: "uuid" })
+  id!: string;
+
+  @ApiProperty({
+    type: "object",
+    required: ["id", "name"],
+    properties: {
+      id: { type: "string", format: "uuid" },
+      name: { type: "string" },
+    },
+  })
+  skill!: { id: string; name: string };
+
+  @ApiProperty({ enum: ["BEGINNER", "INTERMEDIATE", "ADVANCED", "EXPERT"] })
+  level!: string;
+
+  @ApiProperty({ enum: ["UNVERIFIED", "PENDING", "VERIFIED", "REJECTED"] })
+  verificationStatus!: string;
+}
+
+class LearningRequestCardResponse {
+  @ApiProperty()
+  description!: string;
+
+  @ApiProperty({ type: [PreferredSlotResponse] })
+  preferredSlots!: PreferredSlotResponse[];
+
+  @ApiProperty({ type: String, nullable: true, maxLength: 3000 })
+  teachingOverview!: string | null;
+
+  @ApiProperty({ type: PreferredAvailabilityDto, nullable: true })
+  preferredAvailability!: PreferredAvailabilityDto | null;
+
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    example: "50.00",
+    description:
+      "Desired Credit per hour. An indicative budget, not a wallet Hold.",
+  })
+  desiredCreditPerHour!: string | null;
+
+  @ApiProperty({
+    type: [OfferedSharingSkillResponse],
+    description:
+      "Currently public, eligible Sharing Skills selected by the request owner.",
+  })
+  offeredSharingSkills!: OfferedSharingSkillResponse[];
+}
+
+class LearningRequestContentResponse extends LearningRequestCardResponse {
+  @ApiProperty({ type: [String], format: "uuid" })
+  offeredSharingSkillIds!: string[];
   @ApiProperty({ format: "uuid" })
   id!: string;
 
@@ -27,9 +81,6 @@ class LearningRequestContentResponse {
 
   @ApiProperty()
   title!: string;
-
-  @ApiProperty()
-  description!: string;
 
   @ApiProperty()
   learningGoal!: string;
@@ -42,9 +93,6 @@ class LearningRequestContentResponse {
 
   @ApiProperty({ type: [String], format: "uuid" })
   tagIds!: string[];
-
-  @ApiProperty({ type: [PreferredSlotResponse] })
-  preferredSlots!: PreferredSlotResponse[];
 
   @ApiProperty({ enum: LEARNING_REQUEST_STATUSES })
   status!: string;
@@ -79,7 +127,7 @@ export class LearningRequestOwnerResponse extends LearningRequestContentResponse
   updatedAt!: Date;
 }
 
-export class LearningRequestSummaryResponse {
+export class LearningRequestSummaryResponse extends LearningRequestCardResponse {
   @ApiProperty({ format: "uuid" })
   id!: string;
 
@@ -139,12 +187,6 @@ export class LearningRequestSummaryResponse {
 }
 
 export class LearningRequestDetailResponse extends LearningRequestSummaryResponse {
-  @ApiProperty()
-  description!: string;
-
-  @ApiProperty({ type: [PreferredSlotResponse] })
-  preferredSlots!: PreferredSlotResponse[];
-
   @ApiProperty({ type: "integer", minimum: 1 })
   version!: number;
 }

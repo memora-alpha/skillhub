@@ -13,7 +13,12 @@ import {
   UseGuards,
   BadRequestException,
 } from "@nestjs/common";
-import { ApiTags, ApiBearerAuth, ApiHeader } from "@nestjs/swagger";
+import {
+  ApiTags,
+  ApiBearerAuth,
+  ApiHeader,
+  ApiOperation,
+} from "@nestjs/swagger";
 import {
   IdentityGuard,
   CurrentIdentity,
@@ -29,13 +34,14 @@ import {
 import { SkillsService } from "../../application/skills.service";
 import {
   SkillQueryDto,
+  TagQueryDto,
   AdminSkillQueryDto,
   CreateSkillDto,
   ChangeSkillDto,
   ArchiveSkillDto,
   RestoreSkillDto,
 } from "./skills.dto";
-import { SkillResponse } from "./skills.responses";
+import { SkillResponse, TagResponse } from "./skills.responses";
 import type { SkillCommand } from "../../application/skill-contracts";
 export function skillCommand(
   request: IdentityRequest,
@@ -44,6 +50,26 @@ export function skillCommand(
 ): SkillCommand {
   if (!key) throw new BadRequestException("IDEMPOTENCY_KEY_REQUIRED");
   return { principal, key, context: getOrCreateRequestContext(request) };
+}
+@ApiTags("tags")
+@ApiErrorResponse(
+  400,
+  "Unknown query input, invalid limits or malformed/filter-mismatched cursor.",
+)
+@Controller({ path: "tags", version: "1" })
+export class TagsController {
+  constructor(private readonly skills: SkillsService) {}
+  @Get()
+  @ApiOperation({
+    summary: "List ACTIVE canonical tags",
+    description:
+      "Public read-only catalog lookup with literal label search and cursor pagination by label then id.",
+  })
+  @ApiSuccessResponse(200, TagResponse, { paginated: true })
+  async list(@Query() query: TagQueryDto) {
+    const result = await this.skills.listTags(query);
+    return paginated(result.data, result.pagination);
+  }
 }
 @ApiTags("skills")
 @ApiErrorResponse(400)
