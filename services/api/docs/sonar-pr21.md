@@ -1,5 +1,9 @@
 # PR #21 Sonar remediation
 
+Historical snapshot: the later dev-only simplification replaces the GHCR/self-hosted
+runner scripts with a webhook and container bootstrap. The current flow is documented
+in [deployment.md](deployment.md). Cloud verification still requires a fresh analysis.
+
 Scope: `ci/api-cd`, API release scripts and Dockerfile. Published snapshot:
 2026-10-13 01:53 +07, commit `5613b3b9c0acd353a907d04569c0b739cc798f4b`.
 [Sonar summary](https://sonarcloud.io/dashboard?id=memora-alpha_skillhub&pullRequest=21)

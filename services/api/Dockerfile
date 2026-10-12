@@ -21,11 +21,9 @@ RUN HUSKY=0 CI=true DATABASE_URL=postgresql://localhost/build_only pnpm install 
 COPY services/api ./services/api
 RUN DATABASE_URL=postgresql://localhost/build_only pnpm --filter api build
 
-# Keep Prisma CLI for release jobs. No compilation or dependency installation at release time.
+# Dev image: keep Prisma CLI for the migration/bootstrap step before API startup.
 FROM base AS runner
-ARG GIT_SHA
-LABEL org.opencontainers.image.revision=$GIT_SHA
-ENV NODE_ENV=production
+ENV NODE_ENV=development
 ENV PORT=3001
 COPY --from=builder /app/package.json /app/pnpm-workspace.yaml /app/.npmrc ./
 COPY --from=builder /app/node_modules ./node_modules
@@ -41,6 +39,6 @@ RUN mkdir /release-state && chown node:node /release-state
 WORKDIR /app/services/api
 USER node
 EXPOSE 3001
-HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-    CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3001)+'/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
-CMD ["node", "dist/main.js"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=120s --retries=3 \
+    CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3001)+'/api/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+CMD ["node", "scripts/start-api.mjs"]
