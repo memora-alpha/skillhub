@@ -8,6 +8,7 @@ import {
 import { PrismaService } from "../../infrastructure/database/prisma.service";
 import { TransactionRunner } from "../../infrastructure/database/transaction-runner";
 import type { TransactionContext } from "../../infrastructure/database/transaction-context";
+import { byCodeUnit } from "../../infrastructure/idempotency/idempotency.service";
 import type { Principal } from "../auth/application/services/sessions.service";
 import { CreditLedgerService } from "../credit/credit-ledger.service";
 import { ReputationService } from "../reputation/reputation.service";
@@ -228,7 +229,9 @@ export class LearningSessionsService {
           });
         }
       }
-      for (const userId of [path.participantAId, path.participantBId].sort()) {
+      for (const userId of [path.participantAId, path.participantBId].sort(
+        byCodeUnit,
+      )) {
         await this.reputation.applyPathCompletion(
           tx,
           userId,
