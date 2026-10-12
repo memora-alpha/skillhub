@@ -20,6 +20,7 @@ import type {
 } from "../contracts/learning-request.types";
 import {
   toLearningRequestModerationDetail,
+  toLearningRequestCardContent,
   toLearningRequestOwnerDetail,
 } from "../contracts/learning-request.types";
 import {
@@ -28,6 +29,7 @@ import {
   SKILL_CATALOG_READER,
   type RequestOwnerReader,
   type SharingSkillReader,
+  type OfferedSharingSkill,
   type SkillCatalogReader,
 } from "../ports/learning-request-dependencies";
 import {
@@ -211,9 +213,13 @@ function projectSummary(
   skill: { id: string; name: string },
   tags: { id: string; label: string }[],
   owner: { id: string; displayName: string },
+  offerings: readonly OfferedSharingSkill[],
 ): LearningRequestSummary {
   return {
     id: record.id,
+    ...toLearningRequestCardContent(record, offerings),
+    description: record.description,
+    preferredSlots: record.preferredSlots,
     title: record.title,
     skill,
     tags,
@@ -420,22 +426,35 @@ export class ListLearningRequestsUseCase {
     scores: (number | undefined)[],
     now: Date,
   ): Promise<PageItem[]> {
+    const offeringIds = [
+      ...new Set(
+        records.flatMap((record) =>
+          (record.offeringLinks ?? []).map((link) => link.sharingSkillId),
+        ),
+      ),
+    ];
+    const offerings = offeringIds.length
+      ? await this.sharing.readRequestOfferings(tx, offeringIds)
+      : [];
     if (scope === "MINE") {
       return records.map((record) => ({
-        ...toLearningRequestOwnerDetail(record),
+        ...toLearningRequestOwnerDetail(record, offerings),
         effectiveStatus: effectiveStatus(record, now),
       }));
     }
     if (scope === "MODERATION") {
-      return records.map(toLearningRequestModerationDetail);
+      return records.map((record) =>
+        toLearningRequestModerationDetail(record, offerings),
+      );
     }
-    return this.projectPublicItems(tx, records, scores);
+    return this.projectPublicItems(tx, records, scores, offerings);
   }
 
   private async projectPublicItems(
     tx: TransactionContext,
     records: LearningRequestRecord[],
     scores: (number | undefined)[],
+    offerings: readonly OfferedSharingSkill[],
   ): Promise<PageItem[]> {
     if (records.length === 0) return [];
     const selection = await this.catalog.readSelections(tx, {
@@ -466,6 +485,7 @@ export class ListLearningRequestsUseCase {
         { id: skill.id, name: skill.name },
         requestTags.map((tag) => ({ id: tag!.id, label: tag!.label })),
         owner,
+        offerings,
       );
       return scores[index] === undefined
         ? item

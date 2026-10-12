@@ -16,8 +16,9 @@ import type {
   LearningRequestRepository,
 } from "../../application/ports/learning-request-repository";
 import type { LearningRequestStatus } from "../../../../generated/prisma/client";
+import { preferredAvailabilitySchema } from "../../domain/request-preferences.policy";
 
-const includeContent = { tagLinks: true } as const;
+const includeContent = { tagLinks: true, offeringLinks: true } as const;
 type StoredLearningRequest = Prisma.LearningRequestGetPayload<{
   include: typeof includeContent;
 }>;
@@ -36,6 +37,11 @@ const storedCategoriesSchema = z.array(z.string());
 function toRecord(row: StoredLearningRequest): LearningRequestRecord {
   return {
     ...row,
+    offeringLinks: row.offeringLinks ?? [],
+    preferredAvailability:
+      row.preferredAvailability == null
+        ? null
+        : preferredAvailabilitySchema.parse(row.preferredAvailability),
     preferredSlots: storedSlotsSchema.parse(row.preferredSlots).map((slot) => ({
       startAt: new Date(slot.startAt),
       endAt: new Date(slot.endAt),
@@ -122,6 +128,16 @@ export class PrismaLearningRequestRepository implements LearningRequestRepositor
         title: input.title,
         description: input.description,
         learningGoal: input.learningGoal,
+        teachingOverview: input.teachingOverview ?? null,
+        preferredAvailability: input.preferredAvailability ?? Prisma.DbNull,
+        desiredCreditPerHour: input.desiredCreditPerHour ?? null,
+        offeringLinks: {
+          create: (input.offeredSharingSkillIds ?? []).map(
+            (sharingSkillId) => ({
+              sharingSkill: { connect: { id: sharingSkillId } },
+            }),
+          ),
+        },
         currentLevel: input.currentLevel,
         verifiedTeacherOnly: input.verifiedTeacherOnly,
         requestedExpiresAt: input.requestedExpiresAt,
@@ -144,11 +160,20 @@ export class PrismaLearningRequestRepository implements LearningRequestRepositor
     expectedVersion: number,
     content: ReplaceLearningRequestContent,
   ): Promise<boolean> {
-    const { tagIds, preferredSlots, ...fields } = content;
+    const {
+      tagIds,
+      preferredSlots,
+      offeredSharingSkillIds,
+      preferredAvailability,
+      ...fields
+    } = content;
     const result = await tx.learningRequest.updateMany({
       where: { id: requestId, version: expectedVersion },
       data: {
         ...fields,
+        ...(preferredAvailability !== undefined
+          ? { preferredAvailability: preferredAvailability ?? Prisma.DbNull }
+          : {}),
         ...(preferredSlots !== undefined
           ? { preferredSlots: serializeSlots(preferredSlots) }
           : {}),
@@ -156,6 +181,17 @@ export class PrismaLearningRequestRepository implements LearningRequestRepositor
       },
     });
     if (result.count !== 1) return false;
+
+    if (offeredSharingSkillIds !== undefined) {
+      await tx.requestOffering.deleteMany({ where: { requestId } });
+      if (offeredSharingSkillIds.length > 0)
+        await tx.requestOffering.createMany({
+          data: offeredSharingSkillIds.map((sharingSkillId) => ({
+            requestId,
+            sharingSkillId,
+          })),
+        });
+    }
 
     if (tagIds !== undefined) {
       await tx.requestTag.deleteMany({ where: { requestId } });

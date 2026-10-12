@@ -14,6 +14,7 @@ for (const name of [
   "Tag",
   "LearningRequest",
   "RequestTag",
+  "RequestOffering",
   "Notification",
   "Role",
   "Permission",

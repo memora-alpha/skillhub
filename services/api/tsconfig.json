@@ -1,5 +1,5 @@
 {
-  "extends": "@skillhub/typescript-config/nestjs.json",
+  "extends": "../../packages/typescript-config/nestjs.json",
   "compilerOptions": {
     "types": ["node", "multer"],
     "outDir": "./dist",

@@ -473,6 +473,8 @@ model SharingSkill {
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
   version   Int      @default(1)
 
+  requestOfferings RequestOffering[] @relation("RequestOffering_sharing")
+
   @@index([userId])
   @@index([skillId])
   @@map("sharing_skills")
@@ -588,6 +590,10 @@ model LearningRequest {
   expiryMode                RequestExpiryMode @default(DEFAULT) @map("expiry_mode")
   publishedAt               DateTime?         @map("published_at") @db.Timestamptz(3)
   tagLinks                  RequestTag[]      @relation("RequestTag_request")
+  teachingOverview          String?           @map("teaching_overview") @db.VarChar(3000)
+  preferredAvailability     Json?             @map("preferred_availability")
+  desiredCreditPerHour      BigInt?           @map("desired_credit_per_hour")
+  offeringLinks             RequestOffering[] @relation("RequestOffering_request")
 
   @@index([ownerId])
   @@index([skillId])
@@ -1659,4 +1665,16 @@ model RequestTag {
   @@id([requestId, tagId])
   @@index([tagId, requestId])
   @@map("learning_request_tags")
+}
+
+// User-approved FE extension; offered skills remain owned by Sharing Skills.
+model RequestOffering {
+  requestId      String          @map("request_id") @db.Uuid
+  sharingSkillId String          @map("sharing_skill_id") @db.Uuid
+  request        LearningRequest @relation("RequestOffering_request", fields: [requestId], references: [id], onDelete: Restrict, map: "learning_request_offerings_request_fkey")
+  sharingSkill   SharingSkill    @relation("RequestOffering_sharing", fields: [sharingSkillId], references: [id], onDelete: Restrict, map: "learning_request_offerings_sharing_fkey")
+
+  @@id([requestId, sharingSkillId])
+  @@index([sharingSkillId, requestId], map: "learning_request_offerings_sharing_idx")
+  @@map("learning_request_offerings")
 }

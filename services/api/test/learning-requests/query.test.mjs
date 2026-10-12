@@ -132,7 +132,8 @@ test("FEED is OPEN/unexpired and returns only the public allowlist projection", 
   assert.equal(page.items[0].skill.name, "Backend engineering");
   assert.equal(page.items[0].tags[0].label, "API design");
   assert.equal(page.items[0].owner.displayName, "Learner");
-  assert.equal("description" in page.items[0], false);
+  assert.equal("description" in page.items[0], true);
+  assert.equal("offeredSharingSkillIds" in page.items[0], false);
   assert.equal("passwordHash" in page.items[0], false);
 });
 

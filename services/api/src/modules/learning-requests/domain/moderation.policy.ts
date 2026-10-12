@@ -5,6 +5,7 @@ import {
 } from "../../system-configuration/domain/moderation-rule-set.schema";
 
 export type ModerationContent = {
+  teachingOverview?: string | null;
   title: string;
   description: string;
   learningGoal: string;
@@ -59,6 +60,7 @@ export function evaluateModeration(
     content.title,
     content.description,
     content.learningGoal,
+    content.teachingOverview ?? "",
     ...content.tags,
   ].map(normalizeRequestText);
   const categories = new Set<string>();

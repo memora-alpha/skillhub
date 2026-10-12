@@ -22,6 +22,7 @@ import {
   uniqueConflict,
   type SkillCommand,
   type SkillQuery,
+  type TagQuery,
 } from "./skill-contracts";
 import type { CatalogStatus } from "../../../generated/prisma/client";
 
@@ -71,6 +72,9 @@ export class SkillsService {
   list(query: SkillQuery) {
     return this.repository.list(query);
   }
+  listTags(query: TagQuery) {
+    return this.repository.listTags(query);
+  }
   async detail(id: string) {
     const row = await this.repository.get(id);
     if (row.status !== "ACTIVE") throw new NotFoundException();
@@ -101,6 +105,14 @@ export class SkillsService {
     if (row.status !== "ACTIVE")
       throw new ConflictException("SKILL_NOT_ACTIVE");
     return row;
+  }
+  async assertActiveMany(tx: TransactionContext, ids: readonly string[]) {
+    const selectionIds = [...new Set(ids)];
+    if (selectionIds.length === 0) return;
+    const rows = await this.repository.lockSelection(tx, selectionIds);
+    if (rows.length !== selectionIds.length) throw new NotFoundException();
+    if (rows.some((row) => row.status !== "ACTIVE"))
+      throw new ConflictException("SKILL_NOT_ACTIVE");
   }
   async create(command: SkillCommand, input: CatalogInput) {
     const data = {

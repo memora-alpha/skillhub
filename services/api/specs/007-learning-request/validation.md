@@ -1,5 +1,26 @@
 # Learning Request validation
 
+## FE extension verification — 2026-10-12
+
+The approved [FE design](fe-extension-design.md) and [plan](fe-extension-plan.md) are implemented in services/api. No frontend edits, commit/push or migration deployment to the user's application database were performed.
+
+| Check                                                | Observed result                                                                                                                                                                                                         |
+| ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Existing Learning Request baseline                   | 93/93 passed before product changes.                                                                                                                                                                                    |
+| Test-first FE checks                                 | 7/7 failed for missing payload fields/validation/moderation, then passed. Review regressions for UUID canonicalization and fixed-offset zones each failed before their fixes and passed after.                          |
+| Complete focused Learning Request unit/Swagger suite | 102/102 passed on the final built source.                                                                                                                                                                               |
+| Real PostgreSQL + HTTP feature tests                 | 16/16 passed: FE create/publish/edit/get/feed/recommendation/cancel, owned skill links/privacy/current verification, ACTIVE Tag search/pagination/Swagger. Every fixture uses a unique disposable schema and cleans it. |
+| Existing Skills policy/integration                   | 26/26 passed; new Tag tests also had an observed missing-route/Swagger RED before implementation.                                                                                                                       |
+| Foundation/runtime checks                            | Foundation and runtime repositories passed; v3 migration passed on local PostgreSQL after rerunning with localhost access outside the sandbox.                                                                          |
+| API lint/typecheck/build                             | Installed ESLint, tsc --noEmit and Nest CLI each exited 0.                                                                                                                                                              |
+| Prisma                                               | Runtime generation, Prisma Client generation and schema validation passed. The new migration ran with all existing migrations in disposable schemas; constraints and persisted fields were exercised.                   |
+| Diff and formatting                                  | git diff --check passed; changed TS/MJS/JSON/Markdown formatted with installed Prettier; Prisma formatted via CLI.                                                                                                      |
+| Fresh review                                         | Two P2 input-contract findings (UUID case variants and native fixed-offset timezone acceptance) reproduced and fixed; reviewer reported no unresolved Critical/Important finding.                                       |
+
+Corepack attempted to download uncached pnpm10.24.0 but sandbox registry DNS was unavailable. Equivalent installed local CLIs were used for the checks above; no dependency changes or hook bypass. Local PostgreSQL/HTTP checks required sandbox escalation; this is not an application error.
+
+Deployment: apply `20261012000000_learning_request_fe_preferences` via `pnpm --filter api db:deploy`, then restart API. Swagger at `/api/docs` exposes the added schemas. The new payload fields remain optional and legacy preferredSlots continues to work.
+
 Date 2026-10-07. Core implementation through Task 6 and the user-requested ERD v3 corrections are present; Task 7 remains partial, with real-infrastructure and upstream owner gates remaining. [Alignment report](erd-v3-alignment.md) includes the SRS V1.6 Tag evidence and the exact storage mappings.
 
 ## Planning evidence
