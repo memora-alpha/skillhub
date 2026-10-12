@@ -36,13 +36,7 @@ export class FileStorageService {
     body: Readable;
     context: { correlationId: string };
   }): Promise<{ fileId: string; state: "QUARANTINED" }> {
-    const configuredCap =
-      input.purpose === "CHAT"
-        ? 15_000_000
-        : input.purpose === "MATERIAL"
-          ? MATERIAL_MAX_BYTES
-          : (await this.configuration.getSnapshot(["storage.evidenceMaxBytes"]))
-              .values["storage.evidenceMaxBytes"];
+    const configuredCap = await this.configuredCapBytes(input.purpose);
     const cap =
       input.purpose === "EVIDENCE" && configuredCap
         ? Math.min(configuredCap, 10_000_000)
@@ -165,5 +159,14 @@ export class FileStorageService {
     });
     const now = this.now();
     return { url, expiresAt: new Date(now.getTime() + ttl * 1_000) };
+  }
+
+  private async configuredCapBytes(purpose: FilePurpose) {
+    if (purpose === "CHAT") return 15_000_000;
+    if (purpose === "MATERIAL") return MATERIAL_MAX_BYTES;
+    const snapshot = await this.configuration.getSnapshot([
+      "storage.evidenceMaxBytes",
+    ]);
+    return snapshot.values["storage.evidenceMaxBytes"];
   }
 }

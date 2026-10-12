@@ -386,15 +386,10 @@ export class ReportsService {
             const incomplete = await tx.session.count({
               where: { pathId: path.id, status: { not: "COMPLETED" } },
             });
+            const unsettledStatus = incomplete === 0 ? "ACTIVE" : "SCHEDULED";
             await tx.learningPath.update({
               where: { id: path.id },
-              data: {
-                status: path.settledAt
-                  ? "COMPLETED"
-                  : incomplete === 0
-                    ? "ACTIVE"
-                    : "SCHEDULED",
-              },
+              data: { status: path.settledAt ? "COMPLETED" : unsettledStatus },
             });
           }
         }

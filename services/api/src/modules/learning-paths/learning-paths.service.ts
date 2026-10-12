@@ -74,12 +74,10 @@ async function refreshPathConfirmation(
   const agreementConfirmed =
     Boolean(version.participantAConfirmedAt) &&
     Boolean(version.participantBConfirmedAt);
+  const partialStatus =
+    plansConfirmed || agreementConfirmed ? "PARTIALLY_CONFIRMED" : "PROPOSED";
   const status =
-    plansConfirmed && agreementConfirmed
-      ? "CONFIRMED"
-      : plansConfirmed || agreementConfirmed
-        ? "PARTIALLY_CONFIRMED"
-        : "PROPOSED";
+    plansConfirmed && agreementConfirmed ? "CONFIRMED" : partialStatus;
   await tx.learningPath.update({ where: { id: pathId }, data: { status } });
 }
 
@@ -294,12 +292,12 @@ export class LearningPathsService {
         throw new ForbiddenException("LEARNING_PATH_ACCESS_DENIED");
       }
       const teacherId = actor.userId;
+      const counterpartId =
+        actor.userId === path.participantAId
+          ? path.participantBId
+          : path.participantAId;
       const learnerId =
-        version.exchangeType === "ONE_WAY"
-          ? version.learnerId!
-          : actor.userId === path.participantAId
-            ? path.participantBId
-            : path.participantAId;
+        version.exchangeType === "ONE_WAY" ? version.learnerId! : counterpartId;
       const existingCount = await tx.pathVersionPlan.count({
         where: { pathId, pathVersion: path.currentVersion },
       });

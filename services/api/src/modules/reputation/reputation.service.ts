@@ -9,6 +9,14 @@ const scoreMinimum = 0;
 const scoreMaximum = 100;
 const ruleVersion = "SRS-1.6";
 
+function restrictionDays(score: number): number {
+  if (score >= 40) return 0;
+  if (score >= 30) return 1;
+  if (score >= 20) return 3;
+  if (score >= 10) return 7;
+  return 30;
+}
+
 @Injectable()
 export class ReputationService {
   async assertMayCreateActivity(
@@ -162,16 +170,7 @@ export class ReputationService {
     input: { userId: string; sourceType: string; sourceId: string; now: Date },
     score: number,
   ) {
-    const days =
-      score >= 40
-        ? 0
-        : score >= 30
-          ? 1
-          : score >= 20
-            ? 3
-            : score >= 10
-              ? 7
-              : 30;
+    const days = restrictionDays(score);
     if (days === 0) {
       await tx.userRestriction.updateMany({
         where: {
