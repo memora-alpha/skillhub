@@ -1,31 +1,126 @@
+/* Design tokens — Minimalism/Swiss, dense dashboard. Raw hex lives only here. */
 :root {
-  color-scheme: light;
-  font-family: Arial, Helvetica, sans-serif;
-  color: #172c36;
-  background: #f4f7f6;
+  color-scheme: light dark;
+  --bg: #f4f7f6;
+  --surface: #ffffff;
+  --surface-2: #eef3f2;
+  --ink: #172c36;
+  --ink-2: #3d5560;
+  --muted: #566a73;
+  --line: #d9e2e0;
+  --line-strong: #b9c7c4;
+  --brand: #166b57;
+  --brand-ink: #ffffff;
+  --brand-soft: #e3f1ed;
+  --brand-strong: #0f5242;
+  --ok: #067647;
+  --ok-soft: #e3f5ec;
+  --warn: #93370d;
+  --warn-soft: #fef0d9;
+  --bad: #b42318;
+  --bad-soft: #fde8e6;
+  --info: #175cd3;
+  --info-soft: #e6eefc;
+  --focus: #1d4ed8;
+  --scrim: rgb(10 24 30 / 0.5);
+  --r-sm: 6px;
+  --r: 10px;
+  --shadow: 0 1px 2px rgb(23 44 54 / 0.06), 0 1px 3px rgb(23 44 54 / 0.04);
+  --font-body: var(--font-sans), system-ui, "Segoe UI", sans-serif;
+  --font-code: var(--font-mono), ui-monospace, "Cascadia Mono", monospace;
 }
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0e1a1f;
+    --surface: #14252c;
+    --surface-2: #1b3038;
+    --ink: #e6efed;
+    --ink-2: #c3d3d0;
+    --muted: #9db3b9;
+    --line: #27404a;
+    --line-strong: #3a5865;
+    --brand: #3fbf97;
+    --brand-ink: #06251c;
+    --brand-soft: #12342b;
+    --brand-strong: #6fe0bd;
+    --ok: #4ade80;
+    --ok-soft: #0f2e22;
+    --warn: #fbbf24;
+    --warn-soft: #3a2a0b;
+    --bad: #f87171;
+    --bad-soft: #3d1715;
+    --info: #8ab4ff;
+    --info-soft: #14284d;
+    --focus: #8ab4ff;
+    --scrim: rgb(0 0 0 / 0.6);
+    --shadow: none;
+  }
+}
+
 * {
   box-sizing: border-box;
 }
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
   margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.5;
 }
-main {
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+/* Landing (public) — scoped so it cannot leak into the console */
+.landing {
   max-width: 960px;
   margin: 0 auto;
   padding: 120px 24px;
 }
-.eyebrow {
-  color: #166b57;
+.landing .eyebrow {
+  color: var(--brand);
   font-weight: 700;
   letter-spacing: 0.18em;
 }
-h1 {
+.landing h1 {
   font-size: clamp(2.5rem, 6vw, 4.5rem);
   line-height: 1.12;
   letter-spacing: -0.045em;
 }
-p {
+.landing p {
   font-size: 1.125rem;
   line-height: 1.6;
+}
+.landing .portal-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 32px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
