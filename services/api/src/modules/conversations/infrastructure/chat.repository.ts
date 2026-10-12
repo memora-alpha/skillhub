@@ -159,7 +159,8 @@ export class ChatRepository {
     if (this.checked) return;
     try {
       const hello = await this.db.admin().command({ hello: 1 });
-      if (!hello.setName) throw new Error();
+      if (!hello.setName)
+        throw new Error("Chat requires a MongoDB replica set");
       const indexes = await this.messages.listIndexes().toArray();
       if (
         !indexes.some(
@@ -169,7 +170,7 @@ export class ChatRepository {
           (index) => index.name === "sender_identity" && index.unique,
         )
       )
-        throw new Error();
+        throw new Error("Chat requires the configured message indexes");
       this.checked = true;
     } catch {
       throw new ServiceUnavailableException(
@@ -210,8 +211,7 @@ export class ChatRepository {
       { readConcern: { level: "majority" } },
     );
     if (
-      !stored ||
-      stored.commandDigest !== input.commandDigest ||
+      stored?.commandDigest !== input.commandDigest ||
       stored.draftFormatVersion !== 1 ||
       draftDigest(stored) !== stored.draftDigest
     )
@@ -226,8 +226,7 @@ export class ChatRepository {
         async () => {
           const row = await this.messages.findOne({ _id: id }, { session });
           if (
-            !row ||
-            row.draftDigest !== expectedDigest ||
+            row?.draftDigest !== expectedDigest ||
             draftDigest(row) !== expectedDigest
           )
             throw new Error("COMMITTED_DRAFT_MISSING_OR_CHANGED");
@@ -265,15 +264,20 @@ export class ChatRepository {
     after?: string,
   ) {
     await this.ready();
+    const resolveRows = () => {
+      if (before) {
+        return { sequence: { $lt: mongo.Long.fromString(before) } };
+      }
+      if (after) {
+        return { sequence: { $gt: mongo.Long.fromString(after) } };
+      }
+      return {};
+    };
     const rows = await this.messages
       .find({
         conversationId,
         status: "PUBLISHED",
-        ...(before
-          ? { sequence: { $lt: mongo.Long.fromString(before) } }
-          : after
-            ? { sequence: { $gt: mongo.Long.fromString(after) } }
-            : {}),
+        ...resolveRows(),
       })
       .sort({ sequence: after ? 1 : -1 })
       .limit(limit + 1)
@@ -300,10 +304,7 @@ export class ChatRepository {
           if (!message?.sequence) return null;
           const _id = `${conversationId}:${userId}`,
             current = await this.reads.findOne({ _id }, { session });
-          if (
-            current &&
-            current.lastReadSequence.greaterThanOrEqual(message.sequence)
-          )
+          if (current?.lastReadSequence.greaterThanOrEqual(message.sequence))
             return current;
           const next: ReadState = {
             _id,

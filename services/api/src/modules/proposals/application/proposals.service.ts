@@ -47,17 +47,13 @@ export type CreateProposal = ProposalHints & {
   recipientSharingSkillId?: string;
 };
 export function proposalView(row: Proposal, conversationId?: string) {
-  const {
-    requestId,
-    proposedCredit,
-    targetSharingSkillId,
-    terminalAt,
-    ...rest
-  } = row;
-  void targetSharingSkillId;
-  void terminalAt;
+  const { requestId, proposedCredit, ...rest } = row;
+  const privateFields = new Set(["targetSharingSkillId", "terminalAt"]);
+  const publicFields = Object.fromEntries(
+    Object.entries(rest).filter(([key]) => !privateFields.has(key)),
+  ) as Omit<typeof rest, "targetSharingSkillId" | "terminalAt">;
   return {
-    ...rest,
+    ...publicFields,
     learningRequestId: requestId,
     proposedCredit: formatCredit(proposedCredit),
     ...(conversationId ? { conversationId } : {}),
@@ -294,6 +290,43 @@ export class ProposalsService {
       this.rethrow(error);
     }
   }
+  private async validateAcceptance(
+    tx: TransactionContext,
+    snapshot: Proposal,
+    input: { expectedRequestVersion?: number },
+  ) {
+    await this.actors.assertConnectionParty(tx, snapshot.proposerId);
+    await this.actors.assertConnectionParty(tx, snapshot.recipientId);
+    if (snapshot.requestId) {
+      const request = await this.requests.lockForProposal(
+        tx,
+        snapshot.requestId,
+        snapshot.proposerId,
+      );
+      if (
+        request.skillId !== snapshot.skillId ||
+        request.ownerId !== snapshot.recipientId ||
+        (input.expectedRequestVersion !== undefined &&
+          input.expectedRequestVersion !== request.version)
+      )
+        throw new ConflictException("REQUEST_VERSION_CONFLICT");
+      await this.sharing.assertTeacherEligible(tx, {
+        userId: snapshot.proposerId,
+        skillId: request.skillId,
+        verifiedRequired: request.verifiedTeacherOnly,
+      });
+      return request.version;
+    }
+    const target = await this.sharing.connectionTarget(
+      tx,
+      snapshot.targetSharingSkillId!,
+    );
+    if (
+      target.userId !== snapshot.recipientId ||
+      target.skillId !== snapshot.skillId
+    )
+      throw new ConflictException("DIRECT_TARGET_UNAVAILABLE");
+  }
   async mutate(
     command: SkillCommand,
     id: string,
@@ -329,40 +362,8 @@ export class ProposalsService {
         },
         async (tx) => {
           let requestVersion: number | undefined;
-          if (action === "accept") {
-            await this.actors.assertConnectionParty(tx, snapshot.proposerId);
-            await this.actors.assertConnectionParty(tx, snapshot.recipientId);
-            if (snapshot.requestId) {
-              const request = await this.requests.lockForProposal(
-                tx,
-                snapshot.requestId,
-                snapshot.proposerId,
-              );
-              if (
-                request.skillId !== snapshot.skillId ||
-                request.ownerId !== snapshot.recipientId ||
-                (input.expectedRequestVersion !== undefined &&
-                  input.expectedRequestVersion !== request.version)
-              )
-                throw new ConflictException("REQUEST_VERSION_CONFLICT");
-              requestVersion = request.version;
-              await this.sharing.assertTeacherEligible(tx, {
-                userId: snapshot.proposerId,
-                skillId: request.skillId,
-                verifiedRequired: request.verifiedTeacherOnly,
-              });
-            } else {
-              const target = await this.sharing.connectionTarget(
-                tx,
-                snapshot.targetSharingSkillId!,
-              );
-              if (
-                target.userId !== snapshot.recipientId ||
-                target.skillId !== snapshot.skillId
-              )
-                throw new ConflictException("DIRECT_TARGET_UNAVAILABLE");
-            }
-          }
+          if (action === "accept")
+            requestVersion = await this.validateAcceptance(tx, snapshot, input);
           const row = await this.raw(tx, id, true),
             now = await this.clock(tx);
           if (row.version !== input.expectedVersion || row.status !== "PENDING")
@@ -370,6 +371,15 @@ export class ProposalsService {
           if (!row.expiresAt || row.expiresAt <= now)
             throw new ConflictException("PROPOSAL_EXPIRED");
           let data: Prisma.ProposalUpdateInput;
+          const resolveStatus = () => {
+            if (action === "accept") {
+              return "ACCEPTED" as const;
+            }
+            if (action === "reject") {
+              return "REJECTED" as const;
+            }
+            return "WITHDRAWN" as const;
+          };
           if (action === "update") {
             const merged = {
               message: row.message,
@@ -386,12 +396,7 @@ export class ProposalsService {
             data = normalizeProposal(merged, this.config.policy, now);
           } else
             data = {
-              status:
-                action === "accept"
-                  ? "ACCEPTED"
-                  : action === "reject"
-                    ? "REJECTED"
-                    : "WITHDRAWN",
+              status: resolveStatus(),
               terminalAt: now,
             };
           const updated = await tx.proposal.update({
@@ -418,13 +423,13 @@ export class ProposalsService {
             reason: `Connection proposal ${action}`,
             context: command.context,
           });
-          await this.notify(
-            tx,
-            updated,
-            action === "update"
-              ? "proposal.updated"
-              : `proposal.${action === "accept" ? "accepted" : action === "reject" ? "rejected" : "withdrawn"}`,
-          );
+          const eventType = {
+            update: "proposal.updated",
+            accept: "proposal.accepted",
+            reject: "proposal.rejected",
+            withdraw: "proposal.withdrawn",
+          }[action];
+          await this.notify(tx, updated, eventType);
           return { id, status: updated.status, version: updated.version };
         },
         authorize,

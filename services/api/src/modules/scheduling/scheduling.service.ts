@@ -313,16 +313,19 @@ export class SchedulingService {
           },
         },
       });
-      const isReschedule = proposal.appliedVersion !== null;
-      if (
-        (!isReschedule && path.status !== "CONFIRMED") ||
-        (isReschedule &&
-          path.status !== "SCHEDULED" &&
-          path.status !== "ACTIVE") ||
-        version.pathVersion !== path.currentVersion
-      ) {
-        throw new ConflictException("STALE_LEARNING_PATH_VERSION");
-      }
+      const validateSchedulePath = () => {
+        const isReschedule = proposal.appliedVersion !== null;
+        if (
+          (!isReschedule && path.status !== "CONFIRMED") ||
+          (isReschedule &&
+            path.status !== "SCHEDULED" &&
+            path.status !== "ACTIVE") ||
+          version.pathVersion !== path.currentVersion
+        ) {
+          throw new ConflictException("STALE_LEARNING_PATH_VERSION");
+        }
+      };
+      validateSchedulePath();
       const confirmField =
         actor.userId === path.participantAId
           ? version.participantAConfirmedAt
@@ -352,21 +355,24 @@ export class SchedulingService {
       const bothConfirmed =
         Boolean(refreshed.participantAConfirmedAt) &&
         Boolean(refreshed.participantBConfirmedAt);
-      if (bothConfirmed && proposal.appliedVersion !== null) {
-        const [clock] = await tx.$queryRaw<{ now: Date }[]>`
+      const applyConfirmedReschedule = async () => {
+        if (bothConfirmed && proposal.appliedVersion !== null) {
+          const [clock] = await tx.$queryRaw<{ now: Date }[]>`
           SELECT CURRENT_TIMESTAMP AS now
         `;
-        if (!(clock?.now instanceof Date)) {
-          throw new ConflictException("DATABASE_TIME_UNAVAILABLE");
+          if (!(clock?.now instanceof Date)) {
+            throw new ConflictException("DATABASE_TIME_UNAVAILABLE");
+          }
+          await applyReschedule(
+            tx,
+            scheduleId,
+            expectedVersion,
+            proposal.appliedVersion,
+            clock.now,
+          );
         }
-        await applyReschedule(
-          tx,
-          scheduleId,
-          expectedVersion,
-          proposal.appliedVersion,
-          clock.now,
-        );
-      }
+      };
+      await applyConfirmedReschedule();
       const rescheduleApplied =
         bothConfirmed && proposal.appliedVersion !== null;
       const pendingStatus = bothConfirmed ? "PROPOSED" : "PARTIALLY_CONFIRMED";

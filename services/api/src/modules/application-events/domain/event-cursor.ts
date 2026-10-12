@@ -18,13 +18,14 @@ export function decodeCursor(
   secret: string,
 ): bigint {
   try {
-    if (value.length > 1024) throw new Error();
+    if (value.length > 1024) throw new Error("Invalid cursor length");
     const [body, signature, ...extra] = value.split(".");
-    if (!body || !signature || extra.length) throw new Error();
+    if (!body || !signature || extra.length)
+      throw new Error("Missing cursor body or signature");
     const actual = Buffer.from(signature, "base64url"),
       expected = createHmac("sha256", secret).update(body).digest();
     if (actual.length !== expected.length || !timingSafeEqual(actual, expected))
-      throw new Error();
+      throw new Error("Invalid cursor signature");
     const parsed: unknown = JSON.parse(
       Buffer.from(body, "base64url").toString(),
     );
@@ -36,7 +37,7 @@ export function decodeCursor(
       typeof parsed[3] !== "string" ||
       !/^\d{1,19}$/.test(parsed[3])
     )
-      throw new Error();
+      throw new Error("Invalid cursor payload");
     if (parsed[2] !== epoch)
       throw new ConflictException("EVENT_CURSOR_EXPIRED");
     return BigInt(parsed[3]);

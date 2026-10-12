@@ -212,12 +212,15 @@ export class ConversationsService {
         receipt.id,
         true,
       );
-      const expected = immutableDraft.attachments.map(
-        ({ attachmentId, ...file }) => {
-          void attachmentId;
-          return file;
-        },
-      );
+      const expected = immutableDraft.attachments.map((file) => ({
+        fileId: file.fileId,
+        generation: file.generation,
+        filename: file.filename,
+        mimeType: file.mimeType,
+        fileSizeBytes: file.fileSizeBytes,
+        storageKey: file.storageKey,
+        checksum: file.checksum,
+      }));
       if (fingerprintCommand(manifest) !== fingerprintCommand(expected))
         throw new ConflictException("FILE_MANIFEST_CHANGED");
       await tx.chatPublication.update({
@@ -308,27 +311,31 @@ export class ConversationsService {
       conversation: id,
     });
     let before: string | undefined;
-    if (query.cursor) {
-      try {
-        if (query.cursor.length > 1024) throw new Error();
-        const cursor: unknown = JSON.parse(
-          Buffer.from(query.cursor, "base64url").toString(),
-        );
-        if (
-          !cursor ||
-          typeof cursor !== "object" ||
-          !("scope" in cursor) ||
-          cursor.scope !== scope ||
-          !("sequence" in cursor) ||
-          typeof cursor.sequence !== "string" ||
-          !/^\d{1,19}$/.test(cursor.sequence)
-        )
-          throw new Error();
-        before = cursor.sequence;
-      } catch {
-        throw new BadRequestException("INVALID_MESSAGE_CURSOR");
+    const readHistoryCursor = () => {
+      if (query.cursor) {
+        try {
+          if (query.cursor.length > 1024)
+            throw new Error("Invalid cursor length");
+          const cursor: unknown = JSON.parse(
+            Buffer.from(query.cursor, "base64url").toString(),
+          );
+          if (
+            !cursor ||
+            typeof cursor !== "object" ||
+            !("scope" in cursor) ||
+            cursor.scope !== scope ||
+            !("sequence" in cursor) ||
+            typeof cursor.sequence !== "string" ||
+            !/^\d{1,19}$/.test(cursor.sequence)
+          )
+            throw new Error("Invalid cursor structure or signature");
+          before = cursor.sequence;
+        } catch {
+          throw new BadRequestException("INVALID_MESSAGE_CURSOR");
+        }
       }
-    }
+    };
+    readHistoryCursor();
     if (before && query.afterSequence)
       throw new BadRequestException("INVALID_MESSAGE_CURSOR");
     for (const value of [before, query.afterSequence])

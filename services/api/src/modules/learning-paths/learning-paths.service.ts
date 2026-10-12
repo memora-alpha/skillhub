@@ -445,40 +445,43 @@ export class LearningPathsService {
     if (plans.length !== expectedPlanCount) {
       throw new ConflictException("REQUIRED_LEARNING_PLANS_MISSING");
     }
-    for (const link of plans) {
-      if (!link.planVersionRecord.learnerConfirmedAt) {
-        throw new ConflictException("LEARNING_PLAN_NOT_CONFIRMED");
+    const validateAgreementPlans = () => {
+      for (const link of plans) {
+        if (!link.planVersionRecord.learnerConfirmedAt) {
+          throw new ConflictException("LEARNING_PLAN_NOT_CONFIRMED");
+        }
+        if (
+          link.ownedPlanRecord.currentVersion !== link.planVersion ||
+          link.ownedPlanRecord.status !== "CONFIRMED"
+        ) {
+          throw new ConflictException("STALE_LEARNING_PLAN_VERSION");
+        }
       }
-      if (
-        link.ownedPlanRecord.currentVersion !== link.planVersion ||
-        link.ownedPlanRecord.status !== "CONFIRMED"
+      if (agreement.exchangeType === "TWO_WAY") {
+        const aToB = plans.some(
+          ({ ownedPlanRecord }) =>
+            ownedPlanRecord.teacherId === path.participantAId &&
+            ownedPlanRecord.learnerId === path.participantBId,
+        );
+        const bToA = plans.some(
+          ({ ownedPlanRecord }) =>
+            ownedPlanRecord.teacherId === path.participantBId &&
+            ownedPlanRecord.learnerId === path.participantAId,
+        );
+        if (!aToB || !bToA || (agreement.totalCreditPerUser ?? 0n) < 2000n) {
+          throw new ConflictException("INVALID_TWO_WAY_AGREEMENT");
+        }
+      } else if (
+        !agreement.teacherId ||
+        !agreement.learnerId ||
+        (agreement.negotiatedCredit ?? 0n) <= 0n ||
+        plans[0]?.ownedPlanRecord.teacherId !== agreement.teacherId ||
+        plans[0]?.ownedPlanRecord.learnerId !== agreement.learnerId
       ) {
-        throw new ConflictException("STALE_LEARNING_PLAN_VERSION");
+        throw new ConflictException("INVALID_ONE_WAY_AGREEMENT");
       }
-    }
-    if (agreement.exchangeType === "TWO_WAY") {
-      const aToB = plans.some(
-        ({ ownedPlanRecord }) =>
-          ownedPlanRecord.teacherId === path.participantAId &&
-          ownedPlanRecord.learnerId === path.participantBId,
-      );
-      const bToA = plans.some(
-        ({ ownedPlanRecord }) =>
-          ownedPlanRecord.teacherId === path.participantBId &&
-          ownedPlanRecord.learnerId === path.participantAId,
-      );
-      if (!aToB || !bToA || (agreement.totalCreditPerUser ?? 0n) < 2000n) {
-        throw new ConflictException("INVALID_TWO_WAY_AGREEMENT");
-      }
-    } else if (
-      !agreement.teacherId ||
-      !agreement.learnerId ||
-      (agreement.negotiatedCredit ?? 0n) <= 0n ||
-      plans[0]?.ownedPlanRecord.teacherId !== agreement.teacherId ||
-      plans[0]?.ownedPlanRecord.learnerId !== agreement.learnerId
-    ) {
-      throw new ConflictException("INVALID_ONE_WAY_AGREEMENT");
-    }
+    };
+    validateAgreementPlans();
     const scheduleVersions = await tx.scheduleVersion.findMany({
       where: { pathId, pathVersion: path.currentVersion },
       include: {
@@ -494,33 +497,38 @@ export class LearningPathsService {
     if (currentSchedules.length !== expectedPlanCount) {
       throw new ConflictException("REQUIRED_SCHEDULE_PROPOSAL_MISSING");
     }
-    const scheduleItems =
-      [] as (typeof currentSchedules)[number]["scheduleItemScheduleVersionRecords"];
-    for (const link of plans) {
-      const schedules = currentSchedules.filter((schedule) =>
-        schedule.scheduleItemScheduleVersionRecords.some(
-          (item) =>
-            item.planId === link.planId &&
-            item.planVersion === link.planVersion,
-        ),
-      );
-      if (schedules.length !== 1) {
-        throw new ConflictException("REQUIRED_SCHEDULE_PROPOSAL_MISSING");
+    const collectScheduleItems = () => {
+      const scheduleItems =
+        [] as (typeof currentSchedules)[number]["scheduleItemScheduleVersionRecords"];
+      for (const link of plans) {
+        const schedules = currentSchedules.filter((schedule) =>
+          schedule.scheduleItemScheduleVersionRecords.some(
+            (item) =>
+              item.planId === link.planId &&
+              item.planVersion === link.planVersion,
+          ),
+        );
+        if (schedules.length !== 1) {
+          throw new ConflictException("REQUIRED_SCHEDULE_PROPOSAL_MISSING");
+        }
+        const schedule = schedules[0];
+        if (!schedule) {
+          throw new ConflictException("REQUIRED_SCHEDULE_PROPOSAL_MISSING");
+        }
+        if (
+          !schedule.participantAConfirmedAt ||
+          !schedule.participantBConfirmedAt ||
+          schedule.scheduleItemScheduleVersionRecords.length !==
+            link.planVersionRecord.totalSessions
+        ) {
+          throw new ConflictException("SCHEDULE_NOT_CONFIRMED");
+        }
+        scheduleItems.push(...schedule.scheduleItemScheduleVersionRecords);
       }
-      const schedule = schedules[0];
-      if (!schedule) {
-        throw new ConflictException("REQUIRED_SCHEDULE_PROPOSAL_MISSING");
-      }
-      if (
-        !schedule.participantAConfirmedAt ||
-        !schedule.participantBConfirmedAt ||
-        schedule.scheduleItemScheduleVersionRecords.length !==
-          link.planVersionRecord.totalSessions
-      ) {
-        throw new ConflictException("SCHEDULE_NOT_CONFIRMED");
-      }
-      scheduleItems.push(...schedule.scheduleItemScheduleVersionRecords);
-    }
+
+      return scheduleItems;
+    };
+    const scheduleItems = collectScheduleItems();
     const orderedItems = [...scheduleItems].sort(
       (left, right) => left.startAt.getTime() - right.startAt.getTime(),
     );
@@ -530,25 +538,28 @@ export class LearningPathsService {
     if (!(clock?.now instanceof Date)) {
       throw new ConflictException("DATABASE_TIME_UNAVAILABLE");
     }
-    if (
-      orderedItems.some((item) => {
-        const duration =
-          (item.endAt.getTime() - item.startAt.getTime()) / 60_000;
-        return item.startAt <= clock.now || duration < 60 || duration > 180;
-      })
-    ) {
-      throw new ConflictException("INVALID_SCHEDULE_ITEMS");
-    }
-    for (let index = 1; index < orderedItems.length; index += 1) {
-      const current = orderedItems[index];
-      const previous = orderedItems[index - 1];
-      if (!current || !previous) {
+    const validateScheduleTimes = () => {
+      if (
+        orderedItems.some((item) => {
+          const duration =
+            (item.endAt.getTime() - item.startAt.getTime()) / 60_000;
+          return item.startAt <= clock.now || duration < 60 || duration > 180;
+        })
+      ) {
         throw new ConflictException("INVALID_SCHEDULE_ITEMS");
       }
-      if (current.startAt < previous.endAt) {
-        throw new ConflictException("SCHEDULE_CONFLICT");
+      for (let index = 1; index < orderedItems.length; index += 1) {
+        const current = orderedItems[index];
+        const previous = orderedItems[index - 1];
+        if (!current || !previous) {
+          throw new ConflictException("INVALID_SCHEDULE_ITEMS");
+        }
+        if (current.startAt < previous.endAt) {
+          throw new ConflictException("SCHEDULE_CONFLICT");
+        }
       }
-    }
+    };
+    validateScheduleTimes();
     const existingSessions = await tx.session.findMany({
       where: {
         pathId: { not: pathId },
