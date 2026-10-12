@@ -1,5 +1,13 @@
 # Learning Request data model
 
+## User-approved FE extension — 2026-10-12
+
+Migration `20261012000000_learning_request_fe_preferences` adds nullable `teaching_overview` VARCHAR(3000), `preferred_availability` JSONB, and `desired_credit_per_hour` BIGINT hundredths of Credit. Existing rows keep null preferences and no associations. SQL checks cover overview length, positive bounded credit, availability object/required keys/array size and exclusion of simultaneous nonempty weekly and absolute slots; application/storage decoding validates timezone, weekdays, times and overlap.
+
+`RequestOffering(requestId,sharingSkillId)` is an LR-owned association to authoritative SharingSkill with composite primary key and restrictive foreign keys. No copied skill/profile fields are stored. LR changes its links only in its transaction; Sharing Skills validates owned/current active/public choices and provides batch public projections. Owner/reviewer selected IDs remain available after archive/hide for correction/history. Catalog Tag remains unchanged; lookup is implemented by Skills.
+
+This is an explicit extension beyond logical ERD v3/SRS field tables, authorized by the FE requirements and [design](fe-extension-design.md). It does not modify negotiated prices, wallet balances or schedules. Migration/persistence/HTTP were verified in a disposable PostgreSQL schema; the migration is not applied to the user's application database by these tests.
+
 Updated 2026-10-07 for ERD v3 and the SRS V1.6 Tag requirement. Schema and a scoped migration have been added; the migration has not been applied to a database. Approved decisions are in the [spec](spec.md); exact initial moderation terms still need Product Owner review.
 
 ## Ownership and fields

@@ -17,6 +17,8 @@ import {
 } from "../contracts/learning-request.types";
 import {
   SKILL_CATALOG_READER,
+  SHARING_SKILL_READER,
+  type SharingSkillReader,
   type SkillCatalogReader,
 } from "../ports/learning-request-dependencies";
 import {
@@ -30,6 +32,10 @@ import {
   type PreparedLearningRequestContent,
 } from "../../domain/request-text.policy";
 import { evaluateModeration } from "../../domain/moderation.policy";
+import {
+  formatHourlyCredit,
+  type PreferredAvailability,
+} from "../../domain/request-preferences.policy";
 
 const moderationKey = "learningRequest.moderationRuleSet" as const;
 const editableStatuses = [
@@ -41,6 +47,10 @@ const editableStatuses = [
 type EditableStatus = (typeof editableStatuses)[number];
 
 type EditInput = {
+  teachingOverview?: string | null;
+  preferredAvailability?: PreferredAvailability | null;
+  desiredCreditPerHour?: string | null;
+  offeredSharingSkillIds?: string[];
   expectedVersion: number;
   title?: string;
   skillId?: string;
@@ -122,11 +132,29 @@ function mergedInput(
   request: LearningRequestRecord,
   input: EditInput,
 ): Record<string, unknown> {
+  let preferredAvailability = request.preferredAvailability ?? null;
+  if (input.preferredAvailability !== undefined) {
+    preferredAvailability = input.preferredAvailability;
+  } else if (input.preferredSlots?.length) {
+    preferredAvailability = null;
+  }
   return {
     title: input.title ?? request.title,
     skillId: input.skillId ?? request.skillId,
     description: input.description ?? request.description,
     learningGoal: input.learningGoal ?? request.learningGoal,
+    teachingOverview:
+      input.teachingOverview === undefined
+        ? (request.teachingOverview ?? null)
+        : input.teachingOverview,
+    desiredCreditPerHour:
+      input.desiredCreditPerHour === undefined
+        ? formatHourlyCredit(request.desiredCreditPerHour)
+        : input.desiredCreditPerHour,
+    offeredSharingSkillIds:
+      input.offeredSharingSkillIds ??
+      (request.offeringLinks ?? []).map((link) => link.sharingSkillId),
+    preferredAvailability,
     currentLevel:
       input.currentLevel === undefined
         ? request.currentLevel
@@ -136,10 +164,12 @@ function mergedInput(
     tagIds: input.tagIds ?? request.tagLinks.map(({ tagId }) => tagId),
     preferredSlots:
       input.preferredSlots ??
-      request.preferredSlots.map(({ startAt, endAt }) => ({
-        startAt: startAt.toISOString(),
-        endAt: endAt.toISOString(),
-      })),
+      (input.preferredAvailability?.weeklySlots.length
+        ? []
+        : request.preferredSlots.map(({ startAt, endAt }) => ({
+            startAt: startAt.toISOString(),
+            endAt: endAt.toISOString(),
+          }))),
     expiresAt:
       input.expiresAt === undefined
         ? (request.requestedExpiresAt?.toISOString() ?? null)
@@ -187,6 +217,14 @@ function changed(
     request.skillId !== content.skillId ||
     request.description !== content.description ||
     request.learningGoal !== content.learningGoal ||
+    (request.teachingOverview ?? null) !== content.teachingOverview ||
+    (request.desiredCreditPerHour ?? null) !== content.desiredCreditPerHour ||
+    JSON.stringify(request.preferredAvailability ?? null) !==
+      JSON.stringify(content.preferredAvailability) ||
+    (request.offeringLinks ?? [])
+      .map((link) => link.sharingSkillId)
+      .sort((left, right) => left.localeCompare(right))
+      .join("|") !== content.offeredSharingSkillIds.join("|") ||
     request.currentLevel !== content.currentLevel ||
     request.verifiedTeacherOnly !== content.verifiedTeacherOnly ||
     requestTags.join("|") !== contentTags.join("|") ||
@@ -252,6 +290,7 @@ export class EditLearningRequestUseCase {
     @Inject(LEARNING_REQUEST_REPOSITORY)
     private readonly repository: LearningRequestRepository,
     private readonly configuration: SystemConfigurationService,
+    @Inject(SHARING_SKILL_READER) private readonly sharing: SharingSkillReader,
   ) {}
 
   async execute(
@@ -273,6 +312,7 @@ export class EditLearningRequestUseCase {
             title: snapshot.content.title,
             description: snapshot.content.description,
             learningGoal: snapshot.content.learningGoal,
+            teachingOverview: snapshot.content.teachingOverview,
             tags: snapshot.tags.map(({ label }) => label),
           },
           { ruleSet: snapshot.ruleSet, version: snapshot.configVersion! },
@@ -295,6 +335,12 @@ export class EditLearningRequestUseCase {
       const now = await this.repository.databaseNow(tx);
       assertNotExpired(current, now);
       await this.assertSnapshotCurrent(tx, current, snapshot, published);
+      if (snapshot.content.offeredSharingSkillIds.length > 0)
+        await this.sharing.assertRequestOfferings(
+          tx,
+          live.userId,
+          snapshot.content.offeredSharingSkillIds,
+        );
 
       const expiryMode = snapshot.content.requestedExpiresAt
         ? "CUSTOM"
@@ -318,6 +364,10 @@ export class EditLearningRequestUseCase {
         title: snapshot.content.title,
         description: snapshot.content.description,
         learningGoal: snapshot.content.learningGoal,
+        teachingOverview: snapshot.content.teachingOverview,
+        preferredAvailability: snapshot.content.preferredAvailability,
+        desiredCreditPerHour: snapshot.content.desiredCreditPerHour,
+        offeredSharingSkillIds: snapshot.content.offeredSharingSkillIds,
         currentLevel: snapshot.content.currentLevel,
         verifiedTeacherOnly: snapshot.content.verifiedTeacherOnly,
         requestedExpiresAt: snapshot.content.requestedExpiresAt,
@@ -347,14 +397,25 @@ export class EditLearningRequestUseCase {
         fields,
       );
       if (!written) throw new ConflictException("REQUEST_VERSION_CONFLICT");
-      return toLearningRequestOwnerDetail({
-        ...currentSnapshot,
-        ...fields,
-        preferredSlots: snapshot.content.preferredSlots,
-        tagLinks: snapshot.content.tagIds.map((tagId) => ({ tagId })),
-        version: currentSnapshot.version + 1,
-        updatedAt: now,
-      });
+      return toLearningRequestOwnerDetail(
+        {
+          ...currentSnapshot,
+          ...fields,
+          preferredSlots: snapshot.content.preferredSlots,
+          tagLinks: snapshot.content.tagIds.map((tagId) => ({ tagId })),
+          offeringLinks: snapshot.content.offeredSharingSkillIds.map(
+            (sharingSkillId) => ({ sharingSkillId }),
+          ),
+          version: currentSnapshot.version + 1,
+          updatedAt: now,
+        },
+        snapshot.content.offeredSharingSkillIds.length
+          ? await this.sharing.readRequestOfferings(
+              tx,
+              snapshot.content.offeredSharingSkillIds,
+            )
+          : [],
+      );
     });
   }
 

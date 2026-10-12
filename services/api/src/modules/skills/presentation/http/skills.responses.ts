@@ -1,4 +1,18 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+export class TagResponse {
+  @ApiProperty({
+    type: String,
+    format: "uuid",
+    description: "Canonical Tag identifier.",
+  })
+  id!: string;
+  @ApiProperty({
+    type: String,
+    maxLength: 80,
+    description: "Canonical catalog label.",
+  })
+  label!: string;
+}
 export class SkillResponse {
   @ApiProperty({ format: "uuid" }) id!: string;
   @ApiProperty() name!: string;

@@ -1,0 +1,148 @@
+{
+  "project": "memora-alpha_skillhub",
+  "pullRequest": 20,
+  "revision": "8853244b6607dd5f33953330790d6661001f79c2",
+  "analysisDate": "2026-10-12T21:56:27+07:00",
+  "analysisId": "459335de-17f6-4aea-a9aa-e48fa021a5af",
+  "qualityGate": "ERROR",
+  "failedCondition": "new_reliability_rating",
+  "duplicatedNewLines": 0,
+  "duplicatedNewLinesDensity": 0,
+  "issues": [
+    {
+      "key": "AaEwnivCUVrduFYmTBDc",
+      "rule": "plsql:S1192",
+      "severity": "CRITICAL",
+      "path": "services/api/prisma/migrations/20261012000000_learning_request_fe_preferences/migration.sql",
+      "line": 14,
+      "message": "Define a constant instead of duplicating this literal 4 times.",
+      "type": "CODE_SMELL",
+      "disposition": "proposed-false-positive",
+      "cloudStatus": "OPEN"
+    },
+    {
+      "key": "AaEwnitCUVrduFYmTBDV",
+      "rule": "typescript:S2871",
+      "severity": "CRITICAL",
+      "path": "services/api/src/modules/learning-requests/application/contracts/learning-request.types.ts",
+      "line": 163,
+      "message": "Provide a compare function to avoid sorting elements alphabetically.",
+      "type": "BUG",
+      "disposition": "code-fix",
+      "cloudStatus": "OPEN"
+    },
+    {
+      "key": "AaEwnitCUVrduFYmTBDW",
+      "rule": "typescript:S2871",
+      "severity": "CRITICAL",
+      "path": "services/api/src/modules/learning-requests/application/contracts/learning-request.types.ts",
+      "line": 197,
+      "message": "Provide a compare function to avoid sorting elements alphabetically.",
+      "type": "BUG",
+      "disposition": "code-fix",
+      "cloudStatus": "OPEN"
+    },
+    {
+      "key": "AaEwnisxUVrduFYmTBDU",
+      "rule": "typescript:S3358",
+      "severity": "MAJOR",
+      "path": "services/api/src/modules/learning-requests/application/use-cases/edit-learning-request.use-case.ts",
+      "line": 154,
+      "message": "Extract this nested ternary operation into an independent statement.",
+      "type": "CODE_SMELL",
+      "disposition": "code-fix",
+      "cloudStatus": "OPEN"
+    },
+    {
+      "key": "AaEwninSUVrduFYmTBDT",
+      "rule": "typescript:S2871",
+      "severity": "CRITICAL",
+      "path": "services/api/src/modules/learning-requests/domain/request-text.policy.ts",
+      "line": 150,
+      "message": "Provide a compare function to avoid sorting elements alphabetically.",
+      "type": "BUG",
+      "disposition": "code-fix",
+      "cloudStatus": "OPEN"
+    },
+    {
+      "key": "AaEwnitRUVrduFYmTBDX",
+      "rule": "typescript:S4144",
+      "severity": "MAJOR",
+      "path": "services/api/src/modules/learning-requests/infrastructure/unavailable-learning-request-dependencies.ts",
+      "line": 69,
+      "message": "Update this function so that its implementation is not identical to the one on line 63.",
+      "type": "CODE_SMELL",
+      "disposition": "code-fix",
+      "cloudStatus": "OPEN"
+    },
+    {
+      "key": "AaEwniu3UVrduFYmTBDY",
+      "rule": "typescript:S2871",
+      "severity": "CRITICAL",
+      "path": "services/api/src/modules/sharing-skills/application/sharing-skills.service.ts",
+      "line": 160,
+      "message": "Provide a compare function that depends on \"String.localeCompare\", to reliably sort elements alphabetically.",
+      "type": "BUG",
+      "disposition": "code-fix",
+      "cloudStatus": "OPEN"
+    },
+    {
+      "key": "AaEwniu3UVrduFYmTBDZ",
+      "rule": "typescript:S9382",
+      "severity": "MINOR",
+      "path": "services/api/src/modules/sharing-skills/application/sharing-skills.service.ts",
+      "line": 161,
+      "message": "Unexpected `await` inside a loop.",
+      "type": "CODE_SMELL",
+      "disposition": "code-fix",
+      "cloudStatus": "OPEN"
+    },
+    {
+      "key": "AaEwniu3UVrduFYmTBDa",
+      "rule": "typescript:S9382",
+      "severity": "MINOR",
+      "path": "services/api/src/modules/sharing-skills/application/sharing-skills.service.ts",
+      "line": 163,
+      "message": "Unexpected `await` inside a loop.",
+      "type": "CODE_SMELL",
+      "disposition": "code-fix",
+      "cloudStatus": "OPEN"
+    },
+    {
+      "key": "AaEwniu3UVrduFYmTBDb",
+      "rule": "typescript:S9382",
+      "severity": "MINOR",
+      "path": "services/api/src/modules/sharing-skills/application/sharing-skills.service.ts",
+      "line": 164,
+      "message": "Unexpected `await` inside a loop.",
+      "type": "CODE_SMELL",
+      "disposition": "code-fix",
+      "cloudStatus": "OPEN"
+    }
+  ],
+  "source": "https://sonarcloud.io/project/issues?id=memora-alpha_skillhub&pullRequest=20",
+  "note": "Snapshot before local remediation. Cloud closure and Quality Gate require analysis of a published fix revision. PostgreSQL migration JSON keys are not PL/SQL procedural literals.",
+  "analysisWarnings": [
+    {
+      "category": "python-version",
+      "localChange": "sonar.python.version=3.12",
+      "cloudVerified": false
+    },
+    {
+      "category": "source-encoding",
+      "localChange": "sonar.sourceEncoding=UTF-8; strict tracked-text UTF8 scan clean",
+      "cloudVerified": false
+    },
+    {
+      "category": "tsconfig-dependency",
+      "localChange": "API uses equivalent repository-local shared config; frontend external configs remain owner scope",
+      "cloudVerified": false
+    }
+  ],
+  "localRemediation": {
+    "codeIssues": 9,
+    "proposedFalsePositive": 1,
+    "cloudDispositionsSubmitted": false,
+    "publishedFix": false
+  }
+}
