@@ -14,6 +14,7 @@ export type SkillQuery = {
   cursor?: string;
   limit: number;
 };
+export type TagQuery = Pick<SkillQuery, "q" | "cursor" | "limit">;
 export function commandJson(value: object): JsonValue {
   // Normalize to JSON, removing undefined optional fields before idempotency validation.
   // structuredClone preserves undefined and would change the command contract.

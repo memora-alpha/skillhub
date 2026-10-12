@@ -1,25 +1,69 @@
 import type { Prisma } from "../../../../generated/prisma/client";
+import {
+  formatHourlyCredit,
+  type PreferredAvailability,
+} from "../../domain/request-preferences.policy";
+import type { OfferedSharingSkill } from "../ports/learning-request-dependencies";
 
 export type LearningRequestRecord = Omit<
-  Prisma.LearningRequestGetPayload<{ include: { tagLinks: true } }>,
-  "preferredSlots" | "flaggedCategories"
+  Prisma.LearningRequestGetPayload<{
+    include: { tagLinks: true; offeringLinks: true };
+  }>,
+  "preferredSlots" | "flaggedCategories" | "preferredAvailability"
 > & {
   preferredSlots: PreferredSlotRecord[];
   flaggedCategories: string[];
+  preferredAvailability: PreferredAvailability | null;
 };
 
 type LearningRequestProjectionSource = Omit<
   LearningRequestRecord,
-  "preferredSlots" | "tagLinks"
+  "preferredSlots" | "tagLinks" | "offeringLinks"
 > & {
   preferredSlots: Pick<
     LearningRequestRecord["preferredSlots"][number],
     "startAt" | "endAt"
   >[];
   tagLinks: Pick<LearningRequestRecord["tagLinks"][number], "tagId">[];
+  offeringLinks?: Pick<
+    LearningRequestRecord["offeringLinks"][number],
+    "sharingSkillId"
+  >[];
 };
 
-export type LearningRequestOwnerDetail = {
+export type LearningRequestCardContent = {
+  teachingOverview: string | null;
+  preferredAvailability: PreferredAvailability | null;
+  desiredCreditPerHour: string | null;
+  offeredSharingSkills: Omit<OfferedSharingSkill, "ownerId">[];
+};
+
+export function toLearningRequestCardContent(
+  record: LearningRequestProjectionSource,
+  offerings: readonly OfferedSharingSkill[] = [],
+): LearningRequestCardContent {
+  const selected = new Set(
+    (record.offeringLinks ?? []).map((link) => link.sharingSkillId),
+  );
+  return {
+    teachingOverview: record.teachingOverview ?? null,
+    preferredAvailability: record.preferredAvailability ?? null,
+    desiredCreditPerHour: formatHourlyCredit(record.desiredCreditPerHour),
+    offeredSharingSkills: offerings
+      .filter(
+        (skill) => skill.ownerId === record.ownerId && selected.has(skill.id),
+      )
+      .map(({ id, skill, level, verificationStatus }) => ({
+        id,
+        skill,
+        level,
+        verificationStatus,
+      })),
+  };
+}
+
+export type LearningRequestOwnerDetail = LearningRequestCardContent & {
+  offeredSharingSkillIds: string[];
   id: string;
   skillId: string;
   title: string;
@@ -40,7 +84,8 @@ export type LearningRequestOwnerDetail = {
   updatedAt: Date;
 };
 
-export type LearningRequestModerationDetail = {
+export type LearningRequestModerationDetail = LearningRequestCardContent & {
+  offeredSharingSkillIds: string[];
   id: string;
   ownerId: string;
   skillId: string;
@@ -64,7 +109,9 @@ export type LearningRequestModerationDetail = {
   updatedAt: Date;
 };
 
-export type LearningRequestSummary = {
+export type LearningRequestSummary = LearningRequestCardContent & {
+  description: string;
+  preferredSlots: PreferredSlotRecord[];
   id: string;
   title: string;
   skill: { id: string; name: string };
@@ -107,8 +154,13 @@ export type LearningRequestPage<T> = {
 
 export function toLearningRequestOwnerDetail(
   record: LearningRequestProjectionSource,
+  offerings: readonly OfferedSharingSkill[] = [],
 ): LearningRequestOwnerDetail {
   return {
+    ...toLearningRequestCardContent(record, offerings),
+    offeredSharingSkillIds: (record.offeringLinks ?? [])
+      .map((link) => link.sharingSkillId)
+      .sort(),
     id: record.id,
     skillId: record.skillId,
     title: record.title,
@@ -136,8 +188,13 @@ export function toLearningRequestOwnerDetail(
 
 export function toLearningRequestModerationDetail(
   record: LearningRequestProjectionSource,
+  offerings: readonly OfferedSharingSkill[] = [],
 ): LearningRequestModerationDetail {
   return {
+    ...toLearningRequestCardContent(record, offerings),
+    offeredSharingSkillIds: (record.offeringLinks ?? [])
+      .map((link) => link.sharingSkillId)
+      .sort(),
     id: record.id,
     ownerId: record.ownerId,
     skillId: record.skillId,
@@ -172,6 +229,10 @@ export type PreferredSlotRecord = {
 };
 
 export type CreateLearningRequestRecord = {
+  teachingOverview?: string | null;
+  preferredAvailability?: PreferredAvailability | null;
+  desiredCreditPerHour?: bigint | null;
+  offeredSharingSkillIds?: readonly string[];
   id?: string;
   ownerId: string;
   skillId: string;
@@ -193,6 +254,9 @@ export type ReplaceLearningRequestContent = Partial<
     | "title"
     | "description"
     | "learningGoal"
+    | "teachingOverview"
+    | "preferredAvailability"
+    | "desiredCreditPerHour"
     | "currentLevel"
     | "verifiedTeacherOnly"
     | "requestedExpiresAt"
@@ -209,6 +273,7 @@ export type ReplaceLearningRequestContent = Partial<
   >
 > & {
   tagIds?: readonly string[];
+  offeredSharingSkillIds?: readonly string[];
   preferredSlots?: readonly PreferredSlotRecord[];
 };
 

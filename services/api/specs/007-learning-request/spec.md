@@ -1,5 +1,7 @@
 # Feature Specification: Learning Request
 
+**User-approved FE amendment (2026-10-12):** [fe-extension-design.md](fe-extension-design.md) extends LR with request-specific teaching overview, selected owner's Sharing Skills, recurring weekly availability, hourly desired Credit and canonical Tag lookup. These additions supersede older planning exclusions for those exact hints, while retaining legacy slots and existing lifecycle/moderation rules.
+
 **Feature Branch**: `feat/learning-request`
 
 **Created**: 2026-10-06

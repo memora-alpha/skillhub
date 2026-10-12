@@ -7,12 +7,13 @@ import { SkillsRepository } from "./infrastructure/skills.repository";
 import { SkillsService } from "./application/skills.service";
 import {
   SkillsController,
+  TagsController,
   CatalogController,
 } from "./presentation/http/skills.controller";
 @Module({
   imports: [DatabaseModule, IdempotencyModule, AuditModule, IdentityModule],
   providers: [SkillsRepository, SkillsService],
-  controllers: [SkillsController, CatalogController],
+  controllers: [SkillsController, TagsController, CatalogController],
   exports: [SkillsService],
 })
 export class SkillsModule {}

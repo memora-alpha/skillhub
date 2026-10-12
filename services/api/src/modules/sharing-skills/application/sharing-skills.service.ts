@@ -149,6 +149,23 @@ export class SharingSkillsService implements OnModuleInit {
   async getMatchingSnapshot(tx: TransactionContext, userId: string) {
     return this.repository.matchingSnapshot(tx, userId);
   }
+  readRequestOfferings(tx: TransactionContext, ids: readonly string[]) {
+    return this.repository.requestOfferings(tx, ids);
+  }
+  async assertRequestOfferings(
+    tx: TransactionContext,
+    userId: string,
+    ids: readonly string[],
+  ): Promise<void> {
+    for (const id of [...ids].sort()) {
+      const snapshot = await this.repository.get(id, tx);
+      if (snapshot.userId !== userId) throw new NotFoundException();
+      await this.skills.assertActive(tx, snapshot.skillId);
+      const row = await this.assertOwnedActive(tx, userId, id);
+      if (!row.isVisible)
+        throw new ConflictException("SHARING_SKILL_NOT_VISIBLE");
+    }
+  }
   async create(command: SkillCommand, input: SharingInput) {
     const data = { ...input, description: text(input.description, 20, 1500) };
     try {

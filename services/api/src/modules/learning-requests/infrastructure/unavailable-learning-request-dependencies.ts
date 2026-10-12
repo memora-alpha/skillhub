@@ -59,4 +59,16 @@ export class UnavailableLearningRequestDependencies
       new ServiceUnavailableException("Sharing Skill snapshot unavailable"),
     );
   }
+
+  assertRequestOfferings(): Promise<never> {
+    return Promise.reject(
+      new ServiceUnavailableException("Sharing Skill selections unavailable"),
+    );
+  }
+
+  readRequestOfferings(): Promise<never> {
+    return Promise.reject(
+      new ServiceUnavailableException("Sharing Skill selections unavailable"),
+    );
+  }
 }

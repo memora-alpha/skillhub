@@ -1,5 +1,18 @@
 # Learning Request HTTP contract
 
+## FE extension — 2026-10-12
+
+User approved [the extension design](../fe-extension-design.md). Create and PATCH accept optional `teachingOverview`, `offeredSharingSkillIds`, `preferredAvailability`, and `desiredCreditPerHour`. Omission on PATCH keeps values; null clears nullable text/availability/credit; [] clears selected offerings. The existing expectedVersion/status/auth requirements still apply.
+
+- Overview: 20–3000 code points after sanitize/trim; scanned on publish and published-content edits.
+- Offered IDs: up to 10 distinct active/public Sharing Skills of the authenticated owner, selected with `GET /api/v1/me/skills`; validation repeats at mutation/publish. Response `offeredSharingSkills` supplies current skill name/id, level and actual verificationStatus, with hidden/archived/inactive selections omitted. Owner/reviewer responses also retain `offeredSharingSkillIds` for repair/history.
+- Availability: `{timeZone,weeklySlots:[{weekday,startTime,endTime}]}`; IANA zone, MON–SUN, HH:mm, at most five same-day non-overlapping intervals. Weekly wall-clock times remain local, preserving timezone/DST intent. A supplied nonempty weekly schedule clears legacy absolute slots; a supplied nonempty absolute schedule clears weekly availability. Supplying both nonempty is 400. Null or [] explicitly clears the relevant preference.
+- Hourly budget: Credit decimal string greater than zero, at most two fractional digits and ten whole digits; response normalized to two decimals. `"50.00"` is 50 CR/hour, stored as 5000 integer units. No wallet Hold, final price or schedule creation.
+- Feed/recommended now include description, preferredSlots, overview, weekly availability, hourly budget and selected public skill metadata for the card. Detail/mine/moderation/mutation responses include the corresponding fields; existing private-field rules remain.
+- New public catalog lookup: `GET /api/v1/tags?q=&limit=&cursor=` returns ACTIVE `{id,label}` in the standard pagination envelope. Search is case-insensitive and treats wildcard characters literally; q max120, limit default20/range1–100, cursor tied to the filter. No tag mutation endpoints. Requests continue using `tagIds`.
+
+Additive migration: `20261012000000_learning_request_fe_preferences`. Existing requests receive nullable preferences/empty offered associations. Apply deployment migrations before running the new source against an existing database.
+
 Contracts đã implement ở backend `/api/v1`, JSON/Swagger/class-validator theo foundation. Toàn bộ routes có IdentityGuard và action/scope check; Guest -> 401. TTL/edit/cancel/tags/grants/channel đã được user chọn; initial moderation terms vẫn là pre-production gate ([spec](../spec.md)).
 
 ERD v3 alignment adds optional verifiedTeacherOnly (default false), preferred_slots JSONB and database column mappings; HTTP routes and existing aliases stay compatible. [SRS V1.6 evidence](../erd-v3-alignment.md) confirms the Tag requirement. The earlier V1.5 comparison remains historical evidence. exchangeType, teacherId, learnerId, negotiatedCredit, LearningPlan và các lỗi confirmation/fee mới thuộc Chat/Path/Wallet contracts; không tự thêm route, field hoặc lỗi OTP_EMAIL_COOLDOWN vào LR. MATCHED/CLOSED do internal owner flow theo [module ports](module-ports.md), không phải lệnh HTTP client. [Chi tiết thay đổi](../srs-v1.5-changes.md).
