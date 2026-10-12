@@ -69,7 +69,7 @@ export class LearningPathNotificationHandler
         typeof data.sessionId !== "string" ||
         typeof data.reporterId !== "string"
       ) {
-        throw new Error("INVALID_LEARNING_PATH_EVENT");
+        throw new TypeError("INVALID_LEARNING_PATH_EVENT");
       }
       const session = await this.db.session.findUnique({
         where: { id: data.sessionId },
@@ -87,7 +87,7 @@ export class LearningPathNotificationHandler
         typeof data.status !== "string" ||
         typeof data.caseId !== "string"
       ) {
-        throw new Error("INVALID_REPORT_CASE_EVENT");
+        throw new TypeError("INVALID_REPORT_CASE_EVENT");
       }
       recipients = [data.reporterId];
       title = "Report case updated";

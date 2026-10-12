@@ -112,17 +112,17 @@ export class LearningPathsService {
         input.conversationId,
       );
       if (!conversation) throw new NotFoundException("CONVERSATION_NOT_FOUND");
-      const participants = [
+      const participants = new Set([
         conversation.participantAId,
         conversation.participantBId,
-      ];
-      if (!participants.includes(actor.userId)) {
+      ]);
+      if (!participants.has(actor.userId)) {
         throw new ForbiddenException("CONVERSATION_ACCESS_DENIED");
       }
       if (
         input.exchangeType === "ONE_WAY" &&
-        (!participants.includes(input.teacherId!) ||
-          !participants.includes(input.learnerId!))
+        (!participants.has(input.teacherId!) ||
+          !participants.has(input.learnerId!))
       ) {
         throw new BadRequestException("INVALID_LEARNING_AGREEMENT");
       }
@@ -833,7 +833,7 @@ export class LearningPathsService {
           },
         },
       });
-      if (!linked || linked.planVersion !== expectedVersion) {
+      if (linked?.planVersion !== expectedVersion) {
         throw new ConflictException("PLAN_NOT_IN_CURRENT_AGREEMENT");
       }
       const currentPlanVersion = await tx.learningPlanVersion.findUniqueOrThrow(
