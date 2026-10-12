@@ -367,30 +367,22 @@ export class SchedulingService {
           clock.now,
         );
       }
+      const rescheduleApplied =
+        bothConfirmed && proposal.appliedVersion !== null;
+      const pendingStatus = bothConfirmed ? "PROPOSED" : "PARTIALLY_CONFIRMED";
+      const status = rescheduleApplied ? "LOCKED" : pendingStatus;
       await tx.scheduleProposal.update({
         where: { id: scheduleId },
         data: {
-          status:
-            bothConfirmed && proposal.appliedVersion !== null
-              ? "LOCKED"
-              : bothConfirmed
-                ? "PROPOSED"
-                : "PARTIALLY_CONFIRMED",
-          ...(bothConfirmed && proposal.appliedVersion !== null
-            ? { appliedVersion: expectedVersion }
-            : {}),
+          status,
+          ...(rescheduleApplied ? { appliedVersion: expectedVersion } : {}),
         },
       });
       return {
         id: scheduleId,
         version: expectedVersion,
         bothConfirmed,
-        status:
-          bothConfirmed && proposal.appliedVersion !== null
-            ? "LOCKED"
-            : bothConfirmed
-              ? "PROPOSED"
-              : "PARTIALLY_CONFIRMED",
+        status,
       };
     });
   }
