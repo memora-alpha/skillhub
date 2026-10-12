@@ -102,7 +102,7 @@ export class ApplicationEventsService implements OnModuleInit, OnModuleDestroy {
     payload: Record<string, string>,
   ) {
     validateEventPayload(type, payload);
-    for (const userId of [...new Set(users)].sort())
+    for (const userId of [...new Set(users)].sort((a, b) => a.localeCompare(b)))
       await tx.$executeRaw`SELECT skillhub_append_user_event(${userId}::uuid,${source}::uuid,${type},${JSON.stringify(payload)}::jsonb)`;
   }
   async head(userId: string) {
@@ -113,7 +113,9 @@ export class ApplicationEventsService implements OnModuleInit, OnModuleDestroy {
     });
   }
   async lockRecipients(tx: TransactionContext, users: readonly string[]) {
-    for (const userId of [...new Set(users)].sort()) {
+    for (const userId of [...new Set(users)].sort((a, b) =>
+      a.localeCompare(b),
+    )) {
       await tx.$executeRaw`INSERT INTO user_event_streams(user_id) VALUES(${userId}::uuid) ON CONFLICT DO NOTHING`;
       await tx.$queryRaw`SELECT user_id FROM user_event_streams WHERE user_id=${userId}::uuid FOR UPDATE`;
     }
