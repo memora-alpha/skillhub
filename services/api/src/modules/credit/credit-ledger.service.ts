@@ -137,13 +137,13 @@ export class CreditLedgerService {
     const path = await tx.learningPath.findUniqueOrThrow({
       where: { id: input.pathId },
     });
-    if (path.settlementOperationId) {
-      return {
-        operationId: path.settlementOperationId,
-        gross: path.settlementGrossAmount ?? 0n,
-        fee: path.settlementFeeAmount ?? 0n,
-      };
-    }
+    const recordedSettlement = (operationId: string) => ({
+      operationId,
+      gross: path.settlementGrossAmount ?? 0n,
+      fee: path.settlementFeeAmount ?? 0n,
+    });
+    if (path.settlementOperationId)
+      return recordedSettlement(path.settlementOperationId);
     const agreement = await tx.learningPathVersion.findUniqueOrThrow({
       where: {
         pathId_versionNo: {
@@ -218,19 +218,22 @@ export class CreditLedgerService {
       where: { userId: { in: userIds } },
     });
     const byUser = new Map(wallets.map((wallet) => [wallet.userId, wallet]));
-    if (
-      allocations.some(
-        (item) =>
-          item.remainingHeld !== item.amount ||
-          (byUser.get(item.userId)?.heldCredit ?? -1n) < item.amount ||
-          (input.exchangeType === "ONE_WAY" &&
-            (!item.beneficiaryId ||
-              item.beneficiaryId === item.userId ||
-              !byUser.has(item.beneficiaryId))),
-      )
-    ) {
-      throw new ConflictException("PATH_HOLD_BALANCE_MISMATCH");
-    }
+    const validateHeldBalances = () => {
+      if (
+        allocations.some(
+          (item) =>
+            item.remainingHeld !== item.amount ||
+            (byUser.get(item.userId)?.heldCredit ?? -1n) < item.amount ||
+            (input.exchangeType === "ONE_WAY" &&
+              (!item.beneficiaryId ||
+                item.beneficiaryId === item.userId ||
+                !byUser.has(item.beneficiaryId))),
+        )
+      ) {
+        throw new ConflictException("PATH_HOLD_BALANCE_MISMATCH");
+      }
+    };
+    validateHeldBalances();
     const results = allocations.map((item) => ({
       item,
       gross: item.remainingHeld,
@@ -247,106 +250,111 @@ export class CreditLedgerService {
       },
       select: { id: true },
     });
-    let entryNo = 0;
-    let grossTotal = 0n;
-    let feeTotal = 0n;
-    for (const result of results) {
-      const wallet = byUser.get(result.item.userId)!;
-      const oneWay = input.exchangeType === "ONE_WAY";
-      const availableAfter = oneWay
-        ? wallet.availableCredit
-        : wallet.availableCredit + result.returned;
-      const heldAfter = wallet.heldCredit - result.gross;
-      await tx.creditWallet.update({
-        where: { userId: result.item.userId },
-        data: {
-          availableCredit: availableAfter,
-          heldCredit: heldAfter,
-          walletVersion: { increment: 1 },
-        },
-      });
-      if (oneWay) {
-        const teacherWallet = byUser.get(result.item.beneficiaryId!)!;
-        const teacherAvailableAfter =
-          teacherWallet.availableCredit + result.returned;
+    const applySettlementEntries = async () => {
+      let entryNo = 0;
+      let grossTotal = 0n;
+      let feeTotal = 0n;
+      for (const result of results) {
+        const wallet = byUser.get(result.item.userId)!;
+        const oneWay = input.exchangeType === "ONE_WAY";
+        const availableAfter = oneWay
+          ? wallet.availableCredit
+          : wallet.availableCredit + result.returned;
+        const heldAfter = wallet.heldCredit - result.gross;
         await tx.creditWallet.update({
-          where: { userId: teacherWallet.userId },
+          where: { userId: result.item.userId },
           data: {
-            availableCredit: teacherAvailableAfter,
+            availableCredit: availableAfter,
+            heldCredit: heldAfter,
             walletVersion: { increment: 1 },
           },
         });
-        await tx.creditTransaction.create({
-          data: {
-            userId: result.item.userId,
-            operationId: operation.id,
-            entryNo: ++entryNo,
-            type: "TEACHING_PAYMENT",
-            amount: result.returned,
-            availableDelta: 0n,
-            heldDelta: -result.returned,
-            availableAfter: wallet.availableCredit,
-            heldAfter: wallet.heldCredit - result.returned,
-            status: "SUCCESS",
-            idempotencyKey: `${operationKey}:${result.item.userId}:payment`,
-          },
+        if (oneWay) {
+          const teacherWallet = byUser.get(result.item.beneficiaryId!)!;
+          const teacherAvailableAfter =
+            teacherWallet.availableCredit + result.returned;
+          await tx.creditWallet.update({
+            where: { userId: teacherWallet.userId },
+            data: {
+              availableCredit: teacherAvailableAfter,
+              walletVersion: { increment: 1 },
+            },
+          });
+          await tx.creditTransaction.create({
+            data: {
+              userId: result.item.userId,
+              operationId: operation.id,
+              entryNo: ++entryNo,
+              type: "TEACHING_PAYMENT",
+              amount: result.returned,
+              availableDelta: 0n,
+              heldDelta: -result.returned,
+              availableAfter: wallet.availableCredit,
+              heldAfter: wallet.heldCredit - result.returned,
+              status: "SUCCESS",
+              idempotencyKey: `${operationKey}:${result.item.userId}:payment`,
+            },
+          });
+          await tx.creditTransaction.create({
+            data: {
+              userId: teacherWallet.userId,
+              operationId: operation.id,
+              entryNo: ++entryNo,
+              type: "TEACHING_EARNING",
+              amount: result.returned,
+              availableDelta: result.returned,
+              heldDelta: 0n,
+              availableAfter: teacherAvailableAfter,
+              heldAfter: teacherWallet.heldCredit,
+              status: "SUCCESS",
+              idempotencyKey: `${operationKey}:${teacherWallet.userId}:earning`,
+            },
+          });
+        } else {
+          await tx.creditTransaction.create({
+            data: {
+              userId: result.item.userId,
+              operationId: operation.id,
+              entryNo: ++entryNo,
+              type: "PATH_RETURN",
+              amount: result.returned,
+              availableDelta: result.returned,
+              heldDelta: -result.returned,
+              availableAfter,
+              heldAfter: wallet.heldCredit - result.returned,
+              status: "SUCCESS",
+              idempotencyKey: `${operationKey}:${result.item.userId}:return`,
+            },
+          });
+        }
+        if (result.fee > 0n) {
+          await tx.creditTransaction.create({
+            data: {
+              userId: result.item.userId,
+              operationId: operation.id,
+              entryNo: ++entryNo,
+              type: "PLATFORM_FEE",
+              amount: result.fee,
+              availableDelta: 0n,
+              heldDelta: -result.fee,
+              availableAfter,
+              heldAfter,
+              status: "SUCCESS",
+              idempotencyKey: `${operationKey}:${result.item.userId}:fee`,
+            },
+          });
+        }
+        await tx.heldCreditAllocation.update({
+          where: { id: result.item.id },
+          data: { remainingHeld: 0n, status: "SETTLED", settledAt: input.now },
         });
-        await tx.creditTransaction.create({
-          data: {
-            userId: teacherWallet.userId,
-            operationId: operation.id,
-            entryNo: ++entryNo,
-            type: "TEACHING_EARNING",
-            amount: result.returned,
-            availableDelta: result.returned,
-            heldDelta: 0n,
-            availableAfter: teacherAvailableAfter,
-            heldAfter: teacherWallet.heldCredit,
-            status: "SUCCESS",
-            idempotencyKey: `${operationKey}:${teacherWallet.userId}:earning`,
-          },
-        });
-      } else {
-        await tx.creditTransaction.create({
-          data: {
-            userId: result.item.userId,
-            operationId: operation.id,
-            entryNo: ++entryNo,
-            type: "PATH_RETURN",
-            amount: result.returned,
-            availableDelta: result.returned,
-            heldDelta: -result.returned,
-            availableAfter,
-            heldAfter: wallet.heldCredit - result.returned,
-            status: "SUCCESS",
-            idempotencyKey: `${operationKey}:${result.item.userId}:return`,
-          },
-        });
+        grossTotal += result.gross;
+        feeTotal += result.fee;
       }
-      if (result.fee > 0n) {
-        await tx.creditTransaction.create({
-          data: {
-            userId: result.item.userId,
-            operationId: operation.id,
-            entryNo: ++entryNo,
-            type: "PLATFORM_FEE",
-            amount: result.fee,
-            availableDelta: 0n,
-            heldDelta: -result.fee,
-            availableAfter,
-            heldAfter,
-            status: "SUCCESS",
-            idempotencyKey: `${operationKey}:${result.item.userId}:fee`,
-          },
-        });
-      }
-      await tx.heldCreditAllocation.update({
-        where: { id: result.item.id },
-        data: { remainingHeld: 0n, status: "SETTLED", settledAt: input.now },
-      });
-      grossTotal += result.gross;
-      feeTotal += result.fee;
-    }
+
+      return { grossTotal, feeTotal };
+    };
+    const { grossTotal, feeTotal } = await applySettlementEntries();
     const snapshot = {
       policyCode: policy.policyCode,
       versionNo: policy.versionNo,

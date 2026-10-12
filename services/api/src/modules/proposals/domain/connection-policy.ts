@@ -64,7 +64,7 @@ export function plainText(value: string, min: number, max: number) {
     [...text].length < min ||
     [...text].length > max ||
     [...text].some(
-      (char) => char.charCodeAt(0) < 32 && !["\t", "\n", "\r"].includes(char),
+      (char) => char.codePointAt(0)! < 32 && !["\t", "\n", "\r"].includes(char),
     )
   )
     throw new BadRequestException("INVALID_TEXT");
@@ -82,13 +82,22 @@ export function normalizeProposal(
     (!Number.isInteger(duration) || duration < 60 || duration > 180)
   )
     throw new BadRequestException("INVALID_DURATION_HINT");
-  const count = input.initialSessionCount ?? null;
-  if (count !== null) {
-    if (!policy.sessionCountMax)
-      throw new ServiceUnavailableException("CONNECTION_POLICY_UNAVAILABLE");
-    if (!Number.isInteger(count) || count < 1 || count > policy.sessionCountMax)
-      throw new BadRequestException("INVALID_SESSION_COUNT_HINT");
-  }
+  const readSessionCount = () => {
+    const count = input.initialSessionCount ?? null;
+    if (count !== null) {
+      if (!policy.sessionCountMax)
+        throw new ServiceUnavailableException("CONNECTION_POLICY_UNAVAILABLE");
+      if (
+        !Number.isInteger(count) ||
+        count < 1 ||
+        count > policy.sessionCountMax
+      )
+        throw new BadRequestException("INVALID_SESSION_COUNT_HINT");
+    }
+
+    return count;
+  };
+  const count = readSessionCount();
   const exchangeTypeHint = input.exchangeTypeHint ?? null;
   if (
     exchangeTypeHint !== null &&
@@ -99,23 +108,28 @@ export function normalizeProposal(
     input.proposedCredit === undefined || input.proposedCredit === null
       ? null
       : creditUnits(input.proposedCredit);
-  if (proposedCredit !== null) {
-    if (
-      !exchangeTypeHint ||
-      proposedCredit <= 0n ||
-      (exchangeTypeHint === "TWO_WAY" && proposedCredit < 2000n)
-    )
-      throw new BadRequestException("INVALID_CREDIT_HINT");
-    if (exchangeTypeHint === "ONE_WAY") {
-      if (!policy.oneWayMin || !policy.oneWayMax)
-        throw new ServiceUnavailableException("CONNECTION_POLICY_UNAVAILABLE");
+  const validateCreditHint = () => {
+    if (proposedCredit !== null) {
       if (
-        proposedCredit < creditUnits(policy.oneWayMin) ||
-        proposedCredit > creditUnits(policy.oneWayMax)
+        !exchangeTypeHint ||
+        proposedCredit <= 0n ||
+        (exchangeTypeHint === "TWO_WAY" && proposedCredit < 2000n)
       )
         throw new BadRequestException("INVALID_CREDIT_HINT");
+      if (exchangeTypeHint === "ONE_WAY") {
+        if (!policy.oneWayMin || !policy.oneWayMax)
+          throw new ServiceUnavailableException(
+            "CONNECTION_POLICY_UNAVAILABLE",
+          );
+        if (
+          proposedCredit < creditUnits(policy.oneWayMin) ||
+          proposedCredit > creditUnits(policy.oneWayMax)
+        )
+          throw new BadRequestException("INVALID_CREDIT_HINT");
+      }
     }
-  }
+  };
+  validateCreditHint();
   const candidateSlots = input.candidateSlots ?? [];
   if (
     candidateSlots.length > 5 ||
@@ -152,7 +166,14 @@ export function normalizeMessage(input: {
     input.messageText === undefined
       ? ""
       : plainText(input.messageText, 0, 2000);
-  const attachmentFileIds = [...(input.attachmentFileIds ?? [])].sort();
+  // Keep the existing code-unit order so persisted command digests remain stable,
+  // including UUIDs supplied with mixed casing.
+  const attachmentFileIds = [...(input.attachmentFileIds ?? [])].sort(
+    (a, b) => {
+      if (a === b) return 0;
+      return a < b ? -1 : 1;
+    },
+  );
   if (
     attachmentFileIds.length > 5 ||
     new Set(attachmentFileIds).size !== attachmentFileIds.length ||

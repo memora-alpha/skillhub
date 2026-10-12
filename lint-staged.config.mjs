@@ -1,7 +1,8 @@
 import path from "node:path";
 
 export function quoteShellArgument(value) {
-  return `'${value.replaceAll("'", `'\\''`)}'`;
+  const escaped = value.replaceAll("'", String.raw`'\''`);
+  return `'${escaped}'`;
 }
 
 function apiEslint(files) {

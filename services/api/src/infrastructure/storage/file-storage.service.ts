@@ -84,7 +84,7 @@ export class FileStorageService {
       if (uploadedSize === 0)
         throw new FileStorageError("FILE_EMPTY_OR_INVALID", 400);
       const object = await this.objects.head(objectKey);
-      if (!object || object.size !== uploadedSize)
+      if (object?.size !== uploadedSize)
         throw new FileStorageError("FILE_OBJECT_MISMATCH", 503);
       const inspected = await this.detector.inspect({
         body: await this.objects.read(objectKey),

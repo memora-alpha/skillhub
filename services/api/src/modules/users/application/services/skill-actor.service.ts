@@ -27,20 +27,10 @@ export class SkillActorService {
         scope: "ALL",
       },
     });
-    if (
-      !user ||
-      user.accountStatus !== "ACTIVE" ||
-      !user.emailVerified ||
-      restriction
-    )
+    if (user?.accountStatus !== "ACTIVE" || !user.emailVerified || restriction)
       throw new ConflictException("CONNECTION_PARTY_UNAVAILABLE");
   }
-  async assertAllowed(
-    tx: TransactionContext,
-    userId: string,
-    _action: "CREATE_LEARNING_REQUEST" | "PUBLISH_LEARNING_REQUEST",
-  ) {
-    void _action;
+  async assertAllowed(tx: TransactionContext, userId: string) {
     await this.assertConnectionParty(tx, userId);
     const now = new Date();
     if (
