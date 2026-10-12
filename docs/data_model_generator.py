@@ -793,7 +793,7 @@ def add_relation(root, index, relation, positions, conceptual):
 
 
 def add_entity(root, name, position, conceptual):
-    x, y, width, height, ext, lines = position
+    x, y, width, height, _, lines = position
     title = LABELS[name] if conceptual else name
     if STORE[name] != "PostgreSQL":
         title += ("\n" if conceptual else " ") + f"[{STORE[name]}]"
@@ -851,7 +851,7 @@ def preview_edges(draw, positions, relations):
 
 
 def preview_title(draw, name, position, kind, bold, stroke):
-    x, y, w, h, ext, lines = position
+    x, y, w, _, _, _ = position
     title = LABELS.get(name, name) if kind == "conceptual" else name
     if STORE[name] != "PostgreSQL":
         title += ("\n" if kind == "conceptual" else " ") + f"[{STORE[name]}]"
@@ -863,7 +863,7 @@ def preview_title(draw, name, position, kind, bold, stroke):
 
 
 def preview_fields(draw, name, position, kind, normal, stroke):
-    x, y, w, h, ext, lines = position
+    x, y, w, _, _, lines = position
     if kind == "logical":
         draw.line((x, y + 48, x + w, y + 48), fill=stroke, width=2)
     for row, text in enumerate(lines):
@@ -872,7 +872,7 @@ def preview_fields(draw, name, position, kind, normal, stroke):
 
 
 def preview_entity(draw, name, position, kind, normal, bold):
-    x, y, w, h, ext, lines = position
+    x, y, w, h, _, _ = position
     stroke = "#3F668F" if kind == "conceptual" else "#111111"
     draw.rounded_rectangle((x, y, x + w, y + h), radius=0 if kind == "conceptual" else 10, fill="white", outline=stroke, width=2)
     preview_title(draw, name, position, kind, bold, stroke)

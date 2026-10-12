@@ -20,7 +20,10 @@ import {
   IdentityGuard,
   type IdentityRequest,
 } from "../../../shared/auth/identity.guard";
-import { SessionsService } from "../../auth/application/services/sessions.service";
+import {
+  SessionsService,
+  type Principal,
+} from "../../auth/application/services/sessions.service";
 import { ApplicationEventsService } from "../application/application-events.service";
 import { EventConnectionsService } from "../application/event-connections.service";
 import { decodeCursor, encodeCursor } from "../domain/event-cursor";
@@ -112,6 +115,22 @@ export class EventsController implements OnModuleDestroy {
         { userId: principal.userId, epoch, sequence: cursor },
         this.secret,
       );
+    const sendRows = async (
+      live: Principal,
+      rows: Awaited<ReturnType<ApplicationEventsService["batch"]>>,
+    ) => {
+      for (const row of rows) {
+        if (closed) break;
+        await this.sessions.principal(token);
+        const visible = await this.events.visible(live, row);
+        cursor = row.sequence;
+        await write(
+          visible
+            ? `id: ${id()}\nevent: ${row.type}\ndata: ${JSON.stringify({ eventId: row.eventId, version: row.version, occurredAt: row.occurredAt, data: row.payload })}\n\n`
+            : `id: ${id()}\nevent: stream.checkpoint\ndata: {}\n\n`,
+        );
+      }
+    };
     const pump = async () => {
       if (running) {
         again = true;
@@ -124,17 +143,7 @@ export class EventsController implements OnModuleDestroy {
           const live = await this.sessions.principal(token);
           await this.events.authorize(live);
           const rows = await this.events.batch(principal.userId, epoch, cursor);
-          for (const row of rows) {
-            if (closed) break;
-            await this.sessions.principal(token);
-            const visible = await this.events.visible(live, row);
-            cursor = row.sequence;
-            await write(
-              visible
-                ? `id: ${id()}\nevent: ${row.type}\ndata: ${JSON.stringify({ eventId: row.eventId, version: row.version, occurredAt: row.occurredAt, data: row.payload })}\n\n`
-                : `id: ${id()}\nevent: stream.checkpoint\ndata: {}\n\n`,
-            );
-          }
+          await sendRows(live, rows);
           if (rows.length === 100) again = true;
         } while (again && !closed);
       } catch (error) {

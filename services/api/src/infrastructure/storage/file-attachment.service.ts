@@ -21,7 +21,7 @@ export class FileAttachmentService {
     for (const id of [...ids].sort((a, b) => a.localeCompare(b))) {
       await tx.$queryRaw`SELECT id FROM stored_files WHERE id=${id}::uuid FOR UPDATE`;
       const row = await tx.storedFile.findUnique({ where: { id } });
-      if (!row || row.uploadedBy !== userId || row.purpose !== "CHAT")
+      if (row?.uploadedBy !== userId || row.purpose !== "CHAT")
         throw new FileStorageError("FILE_NOT_FOUND", 404);
       if (
         row.state !== "READY" ||
@@ -51,7 +51,7 @@ export class FileAttachmentService {
         generation: row.generation,
         filename: [...row.originalName]
           .map((char) =>
-            char.charCodeAt(0) < 32 || char === "/" || char === "\\"
+            char.codePointAt(0)! < 32 || char === "/" || char === "\\"
               ? "_"
               : char,
           )

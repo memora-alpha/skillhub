@@ -29,7 +29,7 @@ export class AccessControlService {
     } catch {
       throw new ServiceUnavailableException();
     }
-    if (!actor || actor.userId !== identity.userId) {
+    if (actor?.userId !== identity.userId) {
       throw new UnauthorizedException();
     }
     return actor;
