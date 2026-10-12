@@ -1,0 +1,229 @@
+import { Pressable, Text, View, StyleSheet } from "react-native";
+import { Avatar } from "@/components/Avatar";
+import { Icon } from "@/components/Icon";
+import {
+  appColors as colors,
+  appRadius,
+  fonts,
+  signedInChrome,
+  typography,
+} from "@/constants/theme";
+import { uiLabel } from "@/constants/ui-copy";
+import { useSkillName } from "../hooks/use-requests";
+import {
+  isOwnRequest,
+  requestState,
+  statusLabels,
+} from "../utils/request-policy";
+import type { RequestItem } from "../types";
+
+function shortDate(value: string) {
+  return new Date(value).toLocaleDateString("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
+export function RequestCard({
+  request,
+  onPress,
+}: {
+  request: RequestItem;
+  onPress: () => void;
+}) {
+  const own = isOwnRequest(request);
+  const skill = useSkillName(own ? request.skillId : undefined);
+  const state = requestState(request);
+  const skillName = own ? skill.data?.name : request.skill.name;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Xem yêu cầu: ${request.title}`}
+      onPress={onPress}
+      style={({ pressed }) => [styles.card, pressed && { opacity: 0.8 }]}
+    >
+      <View style={styles.between}>
+        <View style={[styles.row, styles.identity]}>
+          {own ? (
+            <View style={styles.draftIcon}>
+              <Icon name="book" size={20} color={colors.forest} />
+            </View>
+          ) : (
+            <Avatar
+              name={request.owner.displayName}
+              userId={request.owner.id}
+              size={36}
+            />
+          )}
+          <View style={styles.identityText}>
+            <Text numberOfLines={1} style={styles.name}>
+              {own
+                ? (skillName ?? "Yêu cầu của bạn")
+                : request.owner.displayName}
+            </Text>
+            <Text style={styles.caption}>
+              Tạo ngày {shortDate(request.createdAt)}
+            </Text>
+          </View>
+        </View>
+        <View
+          style={[
+            styles.status,
+            state === "OPEN" && styles.openStatus,
+            state === "PENDING_MODERATION" && styles.pendingStatus,
+          ]}
+        >
+          <Text
+            style={[
+              styles.statusText,
+              state === "OPEN" && styles.openText,
+              state === "PENDING_MODERATION" && styles.pendingText,
+            ]}
+          >
+            {statusLabels[state]}
+          </Text>
+        </View>
+      </View>
+      <View style={{ gap: 6 }}>
+        <Text numberOfLines={2} style={styles.title}>
+          {request.title}
+        </Text>
+        <Text numberOfLines={2} style={styles.body}>
+          {request.learningGoal}
+        </Text>
+      </View>
+      <View style={styles.tags}>
+        {!own && !!skillName && (
+          <View style={styles.tag}>
+            <Text style={styles.tagText}>{skillName}</Text>
+          </View>
+        )}
+        {request.currentLevel && (
+          <View style={styles.tag}>
+            <Text style={styles.tagText}>{uiLabel(request.currentLevel)}</Text>
+          </View>
+        )}
+        {!own &&
+          request.tags.map((tag) => (
+            <View key={tag.id} style={styles.tag}>
+              <Text style={styles.tagText}>{tag.label}</Text>
+            </View>
+          ))}
+        {request.verifiedTeacherOnly && (
+          <View style={[styles.row, styles.verified]}>
+            <Icon name="shield" size={13} color={colors.forest} />
+            <Text style={styles.verifiedText}>Cần kỹ năng dạy đã xác minh</Text>
+          </View>
+        )}
+      </View>
+      <View style={[styles.between, styles.footer]}>
+        <View style={[styles.row, styles.identity]}>
+          <Icon
+            name={state === "DRAFT" ? "edit" : "calendar"}
+            size={14}
+            color={colors.muted}
+          />
+          <Text style={styles.caption}>
+            {state === "DRAFT"
+              ? "Chưa đăng"
+              : request.expiresAt
+                ? `Hạn ${shortDate(request.expiresAt)}`
+                : "Chưa có hạn yêu cầu"}
+          </Text>
+        </View>
+        <View style={styles.row}>
+          <Text style={styles.link}>Chi tiết</Text>
+          <Icon name="chevron" size={14} color={signedInChrome.accent} />
+        </View>
+      </View>
+    </Pressable>
+  );
+}
+const styles = StyleSheet.create({
+  card: {
+    padding: 16,
+    borderRadius: appRadius.card,
+    gap: 14,
+    borderWidth: 1,
+    borderColor: signedInChrome.border,
+    backgroundColor: signedInChrome.surface,
+  },
+  row: { flexDirection: "row", alignItems: "center", gap: 6 },
+  between: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  identity: { flex: 1, minWidth: 0 },
+  identityText: { flex: 1, gap: 2 },
+  draftIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: appRadius.control,
+    backgroundColor: colors.forestSoft,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  name: {
+    fontFamily: fonts.semibold,
+    ...typography.secondary,
+    color: signedInChrome.ink,
+  },
+  title: {
+    fontFamily: fonts.bold,
+    ...typography.body,
+    color: signedInChrome.ink,
+  },
+  body: { fontFamily: fonts.body, ...typography.secondary, color: colors.body },
+  caption: {
+    fontFamily: fonts.body,
+    ...typography.caption,
+    color: colors.muted,
+  },
+  status: {
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: appRadius.badge,
+    backgroundColor: colors.surfaceLow,
+    maxWidth: "44%",
+  },
+  openStatus: { backgroundColor: colors.forestSoft },
+  pendingStatus: { backgroundColor: colors.primarySoft },
+  statusText: {
+    fontFamily: fonts.semibold,
+    ...typography.caption,
+    color: colors.body,
+  },
+  openText: { color: colors.forest },
+  pendingText: { color: colors.primaryDark },
+  tags: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+  tag: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: appRadius.badge,
+    backgroundColor: colors.surfaceLow,
+    maxWidth: "100%",
+  },
+  tagText: {
+    fontFamily: fonts.medium,
+    ...typography.caption,
+    color: colors.body,
+  },
+  verified: { paddingVertical: 4 },
+  verifiedText: {
+    fontFamily: fonts.medium,
+    ...typography.caption,
+    color: colors.forest,
+  },
+  footer: {
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: signedInChrome.border,
+  },
+  link: {
+    fontFamily: fonts.semibold,
+    ...typography.secondary,
+    color: signedInChrome.accent,
+  },
+});

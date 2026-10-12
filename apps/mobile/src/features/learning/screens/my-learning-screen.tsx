@@ -63,14 +63,17 @@ export function MyLearningScreen() {
               );
             })}
           </View>
-          <ScrollView
-            key={tab}
-            contentContainerStyle={styles.scroll}
-            showsVerticalScrollIndicator={false}
-          >
-            <Text style={styles.caption}>BẢN XEM THỬ · DỮ LIỆU MẪU</Text>
-            {tab === "requests" ? <MyRequestsContent /> : <MyPathsContent />}
-          </ScrollView>
+          {tab === "requests" ? (
+            <MyRequestsContent />
+          ) : (
+            <ScrollView
+              contentContainerStyle={styles.scroll}
+              showsVerticalScrollIndicator={false}
+            >
+              <Text style={styles.caption}>BẢN XEM THỬ · DỮ LIỆU MẪU</Text>
+              <MyPathsContent />
+            </ScrollView>
+          )}
         </View>
       )}
     </AppScreenLayout>

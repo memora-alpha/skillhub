@@ -6,6 +6,7 @@ export const profileActions: {
   icon: IconName;
   color: string;
 }[] = [
+  { label: "Yêu cầu học của tôi", icon: "book", color: colors.brand },
   {
     label: "Ví Credit",
     icon: "wallet",

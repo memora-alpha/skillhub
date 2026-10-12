@@ -23,7 +23,7 @@ export function HomeScreen() {
           if (matched)
             return router.push(
               learningRequests.some((r) => r.id === matched.id)
-                ? `/request/${matched.id}`
+                ? `/explore/requests/${matched.id}`
                 : "/discover",
             );
           const conversation = conversations.find((c) => c.name === label);

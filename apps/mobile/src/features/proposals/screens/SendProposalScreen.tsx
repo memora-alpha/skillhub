@@ -51,7 +51,7 @@ export function SendProposalScreen() {
       item.requestId === request?.id,
   );
   const back: Href = request
-    ? { pathname: "/request/[id]", params: { id: request.id } }
+    ? { pathname: "/explore/requests/[id]", params: { id: request.id } }
     : profile
       ? { pathname: "/user/[id]", params: { id: profile.id } }
       : "/discover";
