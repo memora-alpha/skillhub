@@ -19,14 +19,14 @@ import {
   ValidateNested,
 } from "class-validator";
 
-const LEARNING_LEVELS = [
+export const LEARNING_LEVELS = [
   "NONE",
   "BEGINNER",
   "INTERMEDIATE",
   "ADVANCED",
 ] as const;
 
-const LEARNING_REQUEST_STATUSES = [
+export const LEARNING_REQUEST_STATUSES = [
   "DRAFT",
   "PENDING_MODERATION",
   "OPEN",
@@ -199,7 +199,7 @@ export class CreateLearningRequestDto {
   expiresAt?: string | null;
 }
 
-export class PublishLearningRequestDto {
+class VersionedLearningRequestDto {
   @ApiProperty({
     type: "integer",
     minimum: 1,
@@ -211,29 +211,11 @@ export class PublishLearningRequestDto {
   expectedVersion!: number;
 }
 
-export class CancelLearningRequestDto {
-  @ApiProperty({
-    type: "integer",
-    minimum: 1,
-    maximum: Number.MAX_SAFE_INTEGER,
-  })
-  @IsInt()
-  @Min(1)
-  @Max(Number.MAX_SAFE_INTEGER)
-  expectedVersion!: number;
-}
+export class PublishLearningRequestDto extends VersionedLearningRequestDto {}
 
-export class EditLearningRequestDto {
-  @ApiProperty({
-    type: "integer",
-    minimum: 1,
-    maximum: Number.MAX_SAFE_INTEGER,
-  })
-  @IsInt()
-  @Min(1)
-  @Max(Number.MAX_SAFE_INTEGER)
-  expectedVersion!: number;
+export class CancelLearningRequestDto extends VersionedLearningRequestDto {}
 
+export class EditLearningRequestDto extends VersionedLearningRequestDto {
   @ApiPropertyOptional({ minLength: 10, maxLength: 120 })
   @ValidateIf((_object, value) => value !== undefined)
   @IsString()

@@ -1,4 +1,14 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import {
+  LEARNING_LEVELS,
+  LEARNING_REQUEST_STATUSES,
+} from "./learning-requests.dto";
+
+const NULLABLE_LEVEL = {
+  type: String,
+  enum: LEARNING_LEVELS,
+  nullable: true,
+} as const;
 
 export class PreferredSlotResponse {
   @ApiProperty({ format: "date-time" })
@@ -24,11 +34,7 @@ export class LearningRequestOwnerResponse {
   @ApiProperty()
   learningGoal!: string;
 
-  @ApiProperty({
-    type: String,
-    enum: ["NONE", "BEGINNER", "INTERMEDIATE", "ADVANCED"],
-    nullable: true,
-  })
+  @ApiProperty(NULLABLE_LEVEL)
   currentLevel!: string | null;
 
   @ApiProperty({ default: false })
@@ -40,34 +46,10 @@ export class LearningRequestOwnerResponse {
   @ApiProperty({ type: [PreferredSlotResponse] })
   preferredSlots!: PreferredSlotResponse[];
 
-  @ApiProperty({
-    enum: [
-      "DRAFT",
-      "PENDING_MODERATION",
-      "OPEN",
-      "REJECTED",
-      "NEGOTIATING",
-      "MATCHED",
-      "CLOSED",
-      "CANCELLED",
-      "EXPIRED",
-    ],
-  })
+  @ApiProperty({ enum: LEARNING_REQUEST_STATUSES })
   status!: string;
 
-  @ApiPropertyOptional({
-    enum: [
-      "DRAFT",
-      "PENDING_MODERATION",
-      "OPEN",
-      "REJECTED",
-      "NEGOTIATING",
-      "MATCHED",
-      "CLOSED",
-      "CANCELLED",
-      "EXPIRED",
-    ],
-  })
+  @ApiPropertyOptional({ enum: LEARNING_REQUEST_STATUSES })
   effectiveStatus?: string;
 
   @ApiProperty({ enum: ["NOT_REQUIRED", "PENDING", "APPROVED", "REJECTED"] })
@@ -128,11 +110,7 @@ export class LearningRequestSummaryResponse {
   @ApiProperty()
   learningGoal!: string;
 
-  @ApiProperty({
-    type: String,
-    enum: ["NONE", "BEGINNER", "INTERMEDIATE", "ADVANCED"],
-    nullable: true,
-  })
+  @ApiProperty(NULLABLE_LEVEL)
   currentLevel!: string | null;
 
   @ApiProperty({ default: false })
@@ -193,11 +171,7 @@ export class LearningRequestModerationResponse {
   @ApiProperty()
   learningGoal!: string;
 
-  @ApiProperty({
-    type: String,
-    enum: ["NONE", "BEGINNER", "INTERMEDIATE", "ADVANCED"],
-    nullable: true,
-  })
+  @ApiProperty(NULLABLE_LEVEL)
   currentLevel!: string | null;
 
   @ApiProperty({ default: false })
@@ -209,19 +183,7 @@ export class LearningRequestModerationResponse {
   @ApiProperty({ type: [PreferredSlotResponse] })
   preferredSlots!: PreferredSlotResponse[];
 
-  @ApiProperty({
-    enum: [
-      "DRAFT",
-      "PENDING_MODERATION",
-      "OPEN",
-      "REJECTED",
-      "NEGOTIATING",
-      "MATCHED",
-      "CLOSED",
-      "CANCELLED",
-      "EXPIRED",
-    ],
-  })
+  @ApiProperty({ enum: LEARNING_REQUEST_STATUSES })
   status!: string;
 
   @ApiProperty({ enum: ["NOT_REQUIRED", "PENDING", "APPROVED", "REJECTED"] })
