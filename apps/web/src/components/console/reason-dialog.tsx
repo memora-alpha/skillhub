@@ -45,6 +45,18 @@ export function ReasonDialog({
     if (dialog && !dialog.open) dialog.showModal();
   }, []);
 
+  // Clicking the backdrop closes the dialog. Mouse-only shortcut: keyboard users have
+  // Esc (native <dialog> cancel) and the Cancel button, so it is not a JSX click handler.
+  useEffect(() => {
+    const dialog = ref.current;
+    if (!dialog) return;
+    const onBackdropClick = (e: MouseEvent) => {
+      if (e.target === dialog) onClose();
+    };
+    dialog.addEventListener("click", onBackdropClick);
+    return () => dialog.removeEventListener("click", onBackdropClick);
+  }, [onClose]);
+
   const length = Array.from(reason.trim()).length;
   const error = !withReason
     ? null
@@ -59,8 +71,13 @@ export function ReasonDialog({
       ref={ref}
       className="dialog"
       aria-labelledby={`${id}-title`}
+      onCancel={(e) => {
+        // Esc: keep the parent's state as the single source of truth instead of letting
+        // the browser close the dialog behind React's back (it would never re-open).
+        e.preventDefault();
+        onClose();
+      }}
       onClose={onClose}
-      onClick={(e) => e.target === ref.current && onClose()}
     >
       <form
         noValidate

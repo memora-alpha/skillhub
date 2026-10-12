@@ -18,7 +18,9 @@ export default function AdminAuditPage() {
   const [action, setAction] = useState("");
   const [role, setRole] = useState<RoleCode | "">("");
 
-  const actions = [...new Set(audit.map((a) => a.action))].sort();
+  const actions = [...new Set(audit.map((a) => a.action))].sort((a, b) =>
+    a.localeCompare(b),
+  );
   const q = query.trim().toLowerCase();
   const rows = audit.filter(
     (a) =>
