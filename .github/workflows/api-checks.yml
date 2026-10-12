@@ -1,0 +1,63 @@
+name: API checks
+
+on:
+  workflow_call:
+    inputs:
+      build_image:
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CI: true
+      HUSKY: "0"
+      DATABASE_URL: postgresql://connections_test:local_test_only@127.0.0.1:55433/connections_test
+      TEST_DATABASE_URL: postgresql://connections_test:local_test_only@127.0.0.1:55433/connections_test
+      TEST_MONGODB_URI: mongodb://127.0.0.1:27028/connections_test?replicaSet=rs0&directConnection=true
+    steps:
+      - uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@ab5d408e9d066b8ffe7503f789d50fd7e35c0c92
+        with:
+          version: 10.24.0
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: "22"
+          cache: pnpm
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Start disposable test stores
+        run: docker compose -f services/api/test/connections/compose.yaml up -d --wait --wait-timeout 120
+      - name: Generate Prisma client
+        run: pnpm --filter api db:generate
+      - name: Lint API
+        run: pnpm --filter api lint
+      - name: Check API types
+        run: pnpm --filter api check-types
+      - name: Build API before imported regression suites
+        run: pnpm --filter api build
+      - name: Test repository hooks and CD controls
+        run: |
+          pnpm test:commitlint
+          pnpm test:cd
+      - name: API regressions
+        run: pnpm --filter api exec node scripts/test-connections-regressions.mjs
+      - name: Connections including real PostgreSQL and MongoDB tests
+        run: pnpm --filter api test:connections
+      - name: Settlement and serialization regressions
+        run: pnpm --filter api exec node --test test/sonar-remediation.test.mjs
+      - name: Validate release image
+        if: inputs.build_image
+        env:
+          RELEASE_SHA: ${{ github.sha }}
+        run: docker build --build-arg "GIT_SHA=$RELEASE_SHA" --target runner -f services/api/Dockerfile -t skillhub-api-ci .
+      - name: Stop disposable test stores
+        if: always()
+        run: docker compose -f services/api/test/connections/compose.yaml down --volumes

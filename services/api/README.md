@@ -2,6 +2,10 @@
 
 NestJS backend in the SkillHub pnpm/Turborepo workspace.
 
+CD cho API và quy trình migrate/seed được mô tả trong
+[deployment guide](docs/deployment.md). Seed mặc định tắt; chỉ chạy request được
+khai báo hoặc lựa chọn thủ công. Cấu hình CD cần runner/Coolify trước khi sử dụng.
+
 ## Phạm vi và trạng thái
 
 Phạm vi phát triển hiện tại của dự án là **backend tại `services/api`**.
