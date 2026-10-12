@@ -19,6 +19,9 @@ See the [API README](services/api/README.md) for backend dependencies, migration
 and module design. Mobile guidance starts at [apps/mobile/README.md](apps/mobile/README.md).
 Common repository guidance lives in [AGENTS.md](AGENTS.md).
 
+API CI/CD, Docker packaging and explicit migration/seed release steps are described
+in the [deployment guide](services/api/docs/deployment.md).
+
 The current business source of truth is
 [SRS SkillHub V1.6](docs/SRS_SkillHub_V1.6_VietLai_DongBoNghiepVu.docx).
 Older SRS documents remain in `docs/` for historical comparison.
