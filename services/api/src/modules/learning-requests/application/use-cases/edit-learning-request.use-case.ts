@@ -132,6 +132,12 @@ function mergedInput(
   request: LearningRequestRecord,
   input: EditInput,
 ): Record<string, unknown> {
+  let preferredAvailability = request.preferredAvailability ?? null;
+  if (input.preferredAvailability !== undefined) {
+    preferredAvailability = input.preferredAvailability;
+  } else if (input.preferredSlots?.length) {
+    preferredAvailability = null;
+  }
   return {
     title: input.title ?? request.title,
     skillId: input.skillId ?? request.skillId,
@@ -148,12 +154,7 @@ function mergedInput(
     offeredSharingSkillIds:
       input.offeredSharingSkillIds ??
       (request.offeringLinks ?? []).map((link) => link.sharingSkillId),
-    preferredAvailability:
-      input.preferredAvailability !== undefined
-        ? input.preferredAvailability
-        : input.preferredSlots?.length
-          ? null
-          : (request.preferredAvailability ?? null),
+    preferredAvailability,
     currentLevel:
       input.currentLevel === undefined
         ? request.currentLevel
@@ -222,7 +223,7 @@ function changed(
       JSON.stringify(content.preferredAvailability) ||
     (request.offeringLinks ?? [])
       .map((link) => link.sharingSkillId)
-      .sort()
+      .sort((left, right) => left.localeCompare(right))
       .join("|") !== content.offeredSharingSkillIds.join("|") ||
     request.currentLevel !== content.currentLevel ||
     request.verifiedTeacherOnly !== content.verifiedTeacherOnly ||

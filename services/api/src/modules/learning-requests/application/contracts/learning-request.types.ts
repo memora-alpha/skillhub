@@ -160,7 +160,7 @@ export function toLearningRequestOwnerDetail(
     ...toLearningRequestCardContent(record, offerings),
     offeredSharingSkillIds: (record.offeringLinks ?? [])
       .map((link) => link.sharingSkillId)
-      .sort(),
+      .sort((left, right) => left.localeCompare(right)),
     id: record.id,
     skillId: record.skillId,
     title: record.title,
@@ -194,7 +194,7 @@ export function toLearningRequestModerationDetail(
     ...toLearningRequestCardContent(record, offerings),
     offeredSharingSkillIds: (record.offeringLinks ?? [])
       .map((link) => link.sharingSkillId)
-      .sort(),
+      .sort((left, right) => left.localeCompare(right)),
     id: record.id,
     ownerId: record.ownerId,
     skillId: record.skillId,

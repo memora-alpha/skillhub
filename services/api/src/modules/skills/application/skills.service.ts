@@ -106,6 +106,14 @@ export class SkillsService {
       throw new ConflictException("SKILL_NOT_ACTIVE");
     return row;
   }
+  async assertActiveMany(tx: TransactionContext, ids: readonly string[]) {
+    const selectionIds = [...new Set(ids)];
+    if (selectionIds.length === 0) return;
+    const rows = await this.repository.lockSelection(tx, selectionIds);
+    if (rows.length !== selectionIds.length) throw new NotFoundException();
+    if (rows.some((row) => row.status !== "ACTIVE"))
+      throw new ConflictException("SKILL_NOT_ACTIVE");
+  }
   async create(command: SkillCommand, input: CatalogInput) {
     const data = {
       ...input,

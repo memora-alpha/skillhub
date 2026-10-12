@@ -147,7 +147,9 @@ export function prepareLearningRequestContent(
       description: parsed.description,
       learningGoal: parsed.learningGoal,
       teachingOverview: parsed.teachingOverview ?? null,
-      offeredSharingSkillIds: [...(parsed.offeredSharingSkillIds ?? [])].sort(),
+      offeredSharingSkillIds: [...(parsed.offeredSharingSkillIds ?? [])].sort(
+        (left, right) => left.localeCompare(right),
+      ),
       preferredAvailability: parsed.preferredAvailability ?? null,
       desiredCreditPerHour: parsed.desiredCreditPerHour ?? null,
       currentLevel: parsed.currentLevel ?? null,

@@ -1,13 +1,21 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../../../infrastructure/database/prisma.service";
 import type { TransactionContext } from "../../../infrastructure/database/transaction-context";
-import type { Prisma } from "../../../generated/prisma/client";
+import { Prisma, type CatalogStatus } from "../../../generated/prisma/client";
 import type { SkillQuery, TagQuery } from "../application/skill-contracts";
 import { cursorScope, page, readCursor, nameKey } from "../domain/skill-policy";
 
 @Injectable()
 export class SkillsRepository {
   constructor(private readonly db: PrismaService) {}
+  lockSelection(tx: TransactionContext, ids: readonly string[]) {
+    return tx.$queryRaw<{ id: string; status: CatalogStatus }[]>(Prisma.sql`
+      SELECT skill_id AS id, status FROM skills
+      WHERE skill_id IN (${Prisma.join(ids.map((id) => Prisma.sql`${id}::uuid`))})
+      ORDER BY skill_id
+      FOR UPDATE
+    `);
+  }
   async get(id: string, tx: TransactionContext = this.db, lock = false) {
     if (lock)
       await tx.$queryRaw`SELECT skill_id FROM skills WHERE skill_id=${id}::uuid FOR UPDATE`;

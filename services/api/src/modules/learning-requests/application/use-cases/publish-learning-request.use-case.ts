@@ -50,7 +50,7 @@ function signature(request: LearningRequestRecord): string {
     desiredCreditPerHour: request.desiredCreditPerHour?.toString() ?? null,
     offeredSharingSkillIds: (request.offeringLinks ?? [])
       .map((link) => link.sharingSkillId)
-      .sort(),
+      .sort((left, right) => left.localeCompare(right)),
     currentLevel: request.currentLevel,
     verifiedTeacherOnly: request.verifiedTeacherOnly,
     tagIds: request.tagLinks
