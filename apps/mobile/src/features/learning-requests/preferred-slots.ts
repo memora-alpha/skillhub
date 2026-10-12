@@ -9,8 +9,8 @@ export function parsePreferredSlots(
   const slots: PreferredSlot[] = [];
   for (const row of rows) {
     const [start, end, extra] = row.split("→").map((v) => v.trim());
-    const from = parseLocalDateTime(start ?? "");
-    const to = parseLocalDateTime(end ?? "");
+    const from = parseLocalDateTime((start ?? "").replace(" ", "T"));
+    const to = parseLocalDateTime((end ?? "").replace(" ", "T"));
     if (
       extra !== undefined ||
       !from ||
@@ -27,7 +27,7 @@ export function formatPreferredSlots(slots: PreferredSlot[] = []): string {
   const local = (iso: string) => {
     const d = new Date(iso);
     const pad = (v: number) => String(v).padStart(2, "0");
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
   };
   return slots.map((s) => `${local(s.startAt)} → ${local(s.endAt)}`).join("\n");
 }

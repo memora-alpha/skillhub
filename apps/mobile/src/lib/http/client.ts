@@ -7,6 +7,7 @@ export type RequestOptions = {
   body?: unknown;
   multipart?: boolean;
   authenticated?: boolean;
+  includeMeta?: boolean;
 };
 export type SessionTransport = {
   readonly generation: number;
@@ -44,11 +45,15 @@ export function createHttpClient(
         },
         data: options.body,
       });
-      return readPayload(response.status, response.data);
+      return readPayload(response.status, response.data, options.includeMeta);
     } catch (error) {
       if (error instanceof AppError) throw error;
       if (axios.isAxiosError(error) && error.response)
-        return readPayload(error.response.status, error.response.data);
+        return readPayload(
+          error.response.status,
+          error.response.data,
+          options.includeMeta,
+        );
       throw new AppError("network");
     }
   }
