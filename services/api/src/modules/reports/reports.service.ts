@@ -13,7 +13,10 @@ import type { TransactionContext } from "../../infrastructure/database/transacti
 import type { Principal } from "../auth/application/services/sessions.service";
 import { AuditWriter } from "../audit/application/audit-writer";
 import type { AuditActor } from "../audit/application/audit.types";
-import type { Actor } from "../../shared/authorization/authorization.types";
+import type {
+  Actor,
+  RoleCode,
+} from "../../shared/authorization/authorization.types";
 import type { PermissionCode } from "../../shared/authorization/permission.catalog";
 import type { CreateSessionReportDto } from "./reports.dto";
 
@@ -35,7 +38,7 @@ export class ReportsService {
 
   private storageActor(principal: Principal): Actor {
     const roles = principal.roles.filter(
-      (role): role is "USER" | "STAFF" | "ADMIN" =>
+      (role): role is RoleCode =>
         role === "USER" || role === "STAFF" || role === "ADMIN",
     );
     return {
@@ -89,7 +92,7 @@ export class ReportsService {
       });
       if (!stored) throw new NotFoundException("REPORT_EVIDENCE_NOT_FOUND");
       const roles = actor.roles.filter(
-        (role): role is "USER" | "STAFF" | "ADMIN" =>
+        (role): role is RoleCode =>
           role === "USER" || role === "STAFF" || role === "ADMIN",
       );
       await this.audit.append(tx, {
@@ -109,8 +112,9 @@ export class ReportsService {
         resource: { type: "REPORT_EVIDENCE", id: evidenceId },
       },
       {
-        assertRead: async () => {
+        assertRead: () => {
           this.requireStaff(actor);
+          return Promise.resolve();
         },
       },
     );
@@ -276,9 +280,8 @@ export class ReportsService {
       select: { endAt: true },
     });
     if (!sessions.length) throw new ConflictException("PATH_SESSIONS_MISSING");
-    const latestEnd = sessions.reduce(
-      (latest, session) => (session.endAt > latest ? session.endAt : latest),
-      sessions[0]!.endAt,
+    const latestEnd = new Date(
+      Math.max(...sessions.map(({ endAt }) => endAt.getTime())),
     );
     const deadline = this.disputeDeadline(latestEnd);
     if (now < deadline) throw new ConflictException("DISPUTE_WINDOW_OPEN");
@@ -419,7 +422,7 @@ export class ReportsService {
     reason: string,
   ) {
     const validRoles = actor.roles.filter(
-      (role): role is "USER" | "STAFF" | "ADMIN" =>
+      (role): role is RoleCode =>
         role === "USER" || role === "STAFF" || role === "ADMIN",
     );
     const auditActor: AuditActor = {

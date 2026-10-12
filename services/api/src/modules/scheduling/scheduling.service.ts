@@ -198,7 +198,7 @@ export class SchedulingService {
       const path = await tx.learningPath.findUnique({
         where: { id: plan.pathId },
       });
-      if (!path || path.status !== "CONFIRMED") {
+      if (path?.status !== "CONFIRMED") {
         throw new ConflictException("LEARNING_PATH_NOT_CONFIRMED");
       }
       const pathVersion = await tx.learningPathVersion.findUnique({
