@@ -69,7 +69,7 @@ export class LearningPathNotificationHandler
         typeof data.sessionId !== "string" ||
         typeof data.reporterId !== "string"
       ) {
-        throw new Error("INVALID_LEARNING_PATH_EVENT");
+        throw new TypeError("INVALID_LEARNING_PATH_EVENT");
       }
       const session = await this.db.session.findUnique({
         where: { id: data.sessionId },
@@ -87,7 +87,7 @@ export class LearningPathNotificationHandler
         typeof data.status !== "string" ||
         typeof data.caseId !== "string"
       ) {
-        throw new Error("INVALID_REPORT_CASE_EVENT");
+        throw new TypeError("INVALID_REPORT_CASE_EVENT");
       }
       recipients = [data.reporterId];
       title = "Report case updated";
@@ -97,29 +97,25 @@ export class LearningPathNotificationHandler
       "learning-path.notifications",
       event.eventId,
       async (tx) => {
-        for (const [index, userId] of recipients.entries()) {
-          await tx.notification.create({
-            data: {
-              id: index === 0 ? event.eventId : randomUUID(),
-              userId,
-              type: event.type,
-              title,
-              body,
-              payload: {
-                ...(typeof data.pathId === "string"
-                  ? { pathId: data.pathId }
-                  : {}),
-                ...(typeof data.sessionId === "string"
-                  ? { sessionId: data.sessionId }
-                  : {}),
-                ...(typeof data.caseId === "string"
-                  ? { caseId: data.caseId }
-                  : {}),
-              },
-              channel: "IN_APP",
-            },
-          });
-        }
+        if (recipients.length === 0) return;
+        const notificationPayload = {
+          ...(typeof data.pathId === "string" ? { pathId: data.pathId } : {}),
+          ...(typeof data.sessionId === "string"
+            ? { sessionId: data.sessionId }
+            : {}),
+          ...(typeof data.caseId === "string" ? { caseId: data.caseId } : {}),
+        };
+        await tx.notification.createMany({
+          data: recipients.map((userId, index) => ({
+            id: index === 0 ? event.eventId : randomUUID(),
+            userId,
+            type: event.type,
+            title,
+            body,
+            payload: notificationPayload,
+            channel: "IN_APP" as const,
+          })),
+        });
       },
     );
   }

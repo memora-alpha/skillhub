@@ -46,12 +46,9 @@ const definitions = [
 ] as const;
 
 export async function seedAchievements(tx: TransactionContext): Promise<void> {
-  for (const definition of definitions) {
-    const exists = await tx.achievement.findUnique({
-      where: { code: definition.code },
-      select: { id: true },
-    });
-    if (exists) continue;
-    await tx.achievement.create({ data: { ...definition } });
-  }
+  // `code` is the only unique key besides the generated id: existing definitions are kept as-is.
+  await tx.achievement.createMany({
+    data: definitions.map((definition) => ({ ...definition })),
+    skipDuplicates: true,
+  });
 }

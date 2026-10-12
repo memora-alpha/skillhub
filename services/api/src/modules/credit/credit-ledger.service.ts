@@ -1,6 +1,7 @@
 import { ConflictException, Injectable } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import type { TransactionContext } from "../../infrastructure/database/transaction-context";
+import { byCodeUnit } from "../../infrastructure/idempotency/idempotency.service";
 
 export type PathHoldInput = {
   pathId: string;
@@ -51,7 +52,7 @@ export class CreditLedgerService {
               purpose: "TEACHING_PAYMENT" as const,
             },
           ];
-    const userIds = allocation.map(({ userId }) => userId).sort();
+    const userIds = allocation.map(({ userId }) => userId).sort(byCodeUnit);
     for (const userId of userIds) {
       await tx.$queryRaw`
         SELECT user_id FROM credit_wallets
@@ -209,7 +210,7 @@ export class CreditLedgerService {
             : []),
         ]),
       ),
-    ].sort();
+    ].sort(byCodeUnit);
     for (const userId of userIds) {
       await tx.$queryRaw`SELECT user_id FROM credit_wallets WHERE user_id = ${userId}::uuid FOR UPDATE`;
     }
