@@ -1,5 +1,18 @@
 # Checkpoint để làm tiếp — 2026-10-12
 
+## Checkpoint mới — 2026-10-13
+
+Đã nối BE PR #20 đọc từ origin/dev `f4dd314`, không merge/sửa backend. T021..T024,
+T036 có mobile source/fixture/web evidence; T037 bổ sung overview/own Sharing
+Skills/Credit mỗi giờ theo FR-35. Weekly Save mở, save/reopen/clear và timezone
+được bảo toàn. Tag lookup/filter đã có; không còn guard weekly hoặc placeholder Tag.
+
+Tiếp theo: T025..T029 nghiệm thu BE thật với migration
+`20261012000000_learning_request_fe_preferences` đã apply bởi API owner, accounts/
+grants/config/data phù hợp. Catalog/owner/matching wired trên ref mới; lock reader
+NEGOTIATING vẫn unavailable. T030..T032/AC-16 cần device/build native riêng.
+Không tick live/native từ fixture. Hướng dẫn backend-pending bên dưới là lịch sử.
+
 Nhánh: `feat/mobile-learning-request`. Tiếp tục spec005 trong `apps/mobile`.
 Đọc [tasks](tasks.md), [contracts](contracts.md), [plan](plan.md) và
 [validation](validation.md); giữ nguyên ID/trạng thái các task đã hoàn thành.

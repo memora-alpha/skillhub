@@ -326,3 +326,24 @@ TWO_WAY/ONE_WAY agreement terms or validate final Credit/schedules.
   chat attachments and material uploads separately.
 - Exact LiveKit token endpoint and join-window behavior.
 - Exact material purchase and entitlement endpoints.
+
+## Public profile read contract — 2026-10-13
+
+/profiles/[userId] for another UUID uses authenticated GET /profiles/:userId.
+Public fields: userId/fullName/headline/bio/avatarUrl/reputationScore/
+verifiedSkillCount/completedSessionCount. Matching target ID is required; private
+fields and nested sharingSkills are not forwarded. Public skills come from the
+existing paginated /profiles/:userId/skills endpoint and can open their public
+skill detail. Self-preview and named demo routes are preserved. Request footer
+passes owner ID and requestId; Back preserves history and has a UUID request
+fallback.403/404 removes the profile snapshot;503 exposes retry, with no mock
+fallback. Real backend/native acceptance remains separate from fixture evidence.
+
+## Request-context mock entry — 2026-10-13
+
+The user's explicit request permits request detail to open the existing Proposal
+mock screen. /send-proposal?mode=mock-request validates a public context snapshot,
+displays that request's title/owner/skill and labels the entire form as a preview.
+The local request/party IDs have preview prefixes; actual UUIDs are not sent to
+Proposal/Chat APIs. API integration remains assigned to the separate Proposal
+branch. Named demo entries retain their existing behavior.

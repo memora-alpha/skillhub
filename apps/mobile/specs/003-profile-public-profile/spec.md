@@ -273,3 +273,11 @@ quản lý Sharing Skill, evidence/xác minh và nối own/public self skill lis
 Spec 004 đã triển khai own/public self skills và quản lý/xác minh; bằng chứng và
 gates API/native thuộc validation của spec đó. Public profile API cho người khác
 và title/counter gaps vẫn ngoài phạm vi.
+
+## Public profile integration — 2026-10-13
+
+Other UUID profiles now load the public-profile API and public skills when reached
+from a real Learning Request's Xem hồ sơ button. This user-authorized amendment
+supersedes the earlier fixture-only scope for those targets. Self-preview and
+explicit demo profiles retain existing behavior. This does not integrate Proposal,
+chat, a public request list, public reviews or unprovided reputation/title rules.
