@@ -26,6 +26,9 @@ nghiệm thu sản phẩm theo [checklist](checklist.md), kết quả ở [valid
 
 ## Còn cần kiểm chứng
 
+- [x] 2026-10-13: Gỡ require cycles shell/product và paths/sessions bằng public state/policy entry points; giữ private import guard.
+- [x] Nối Hành trình trong Hồ sơ với list yêu cầu/lộ trình mẫu hiện có; route cũ chuyển đúng tab, giữ detail/editor và ghi rõ preview boundary.
+
 - [x] Kiểm tra own-profile save/reopen/clear/cancel với API local; tài khoản test đã khôi phục.
 - [x] Browser fixtures cho lỗi/pending/lưu trùng, đổi account/logout, public target và back fallback.
 - [x] Responsive web 320/375/430 và cập nhật bằng chứng trong validation/checklist.

@@ -1,4 +1,5 @@
-import { MyRequestsScreen } from "@/features/learning-requests";
+import { Redirect } from "expo-router";
+import { learningRoutes } from "@/constants/navigation";
 export default function Screen() {
-  return <MyRequestsScreen />;
+  return <Redirect href={learningRoutes.requests} />;
 }

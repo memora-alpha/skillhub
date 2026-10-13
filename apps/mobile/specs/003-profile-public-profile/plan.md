@@ -18,6 +18,15 @@ Plan mô tả runtime sau rebase; các kết quả trước rebase chỉ là b�
 
 ## 2. Cấu trúc và phần tái sử dụng
 
+Amendment theo yêu cầu 2026-10-13: mở rộng mobile shell/learning/sessions để gỡ
+require cycles và hợp nhất hai list mẫu vào Hành trình từ Hồ sơ. Narrow public
+state/policy entry points được khai báo trong architecture và check-structure;
+không import private feature files. MyRequestsContent/MyPathsContent dùng chung
+provider với editor/detail hiện có; route list cũ redirect, back và Calendar
+dùng cùng learningRoutes. Hai tab sync URL, dữ liệu vẫn ghi rõ bản xem thử.
+Không dependency mới hoặc backend/shared/root changes. Kiểm chứng source runtime
+graph, type/lint/structure/tests và browser navigation; native/API vẫn pending.
+
 | Phần                                                       | Trách nhiệm                                                                         |
 | ---------------------------------------------------------- | ----------------------------------------------------------------------------------- |
 | `src/app/(tabs)/profile.tsx`                               | Route own profile trong tabs.                                                       |

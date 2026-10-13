@@ -1,6 +1,11 @@
 import type { IconName } from "@/components/Icon";
 import type { Href } from "expo-router";
 
+export const learningRoutes = {
+  requests: { pathname: "/my-learning", params: { tab: "requests" } },
+  paths: { pathname: "/my-learning", params: { tab: "paths" } },
+} as const satisfies Record<string, Href>;
+
 // Shared by the bottom tabs, header actions and feature shortcuts.
 export const appRoutes: Record<string, Href | undefined> = {
   "Trang chủ": "/home",
@@ -29,10 +34,11 @@ export const appRoutes: Record<string, Href | undefined> = {
   "Báo cáo của tôi": "/reports",
   "Đăng yêu cầu học": "/requests/new",
   "Tạo yêu cầu học đầu tiên": "/requests/new",
-  "Yêu cầu học của tôi": "/requests",
+  "Yêu cầu học của tôi": learningRoutes.requests,
+  "Yêu cầu của tôi": learningRoutes.requests,
   "Lộ trình đang học": "/paths/path-active",
   "Vào học": "/learning-sessions/active-react-1/room",
-  "Lộ trình của tôi": "/paths",
+  "Lộ trình của tôi": learningRoutes.paths,
   "Bộ giao diện mobile": "/ui",
 };
 
