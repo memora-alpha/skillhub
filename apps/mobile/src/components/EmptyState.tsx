@@ -1,4 +1,10 @@
-import { StyleSheet, Text, View } from "react-native";
+import {
+  StyleSheet,
+  Text,
+  View,
+  type StyleProp,
+  type TextStyle,
+} from "react-native";
 import { Button } from "./Button";
 import { Icon, type IconName } from "./Icon";
 import { typography, appColors as colors, fonts } from "@/constants/theme";
@@ -9,17 +15,19 @@ export function EmptyState({
   icon = "search",
   action,
   onAction,
+  titleStyle,
 }: {
   title: string;
   description: string;
   icon?: IconName;
   action?: string;
   onAction?: () => void;
+  titleStyle?: StyleProp<TextStyle>;
 }) {
   return (
     <View style={styles.container}>
       <Icon name={icon} size={32} color={colors.muted} />
-      <Text accessibilityRole="header" style={styles.title}>
+      <Text accessibilityRole="header" style={[styles.title, titleStyle]}>
         {title}
       </Text>
       <Text style={styles.description}>{description}</Text>

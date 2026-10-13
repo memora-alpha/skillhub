@@ -115,6 +115,12 @@ route files and follow the [mobile architecture](docs/architecture.md).
   [validation](specs/004-skills-management/validation.md).
   Implementation and browser fixtures are checked; real API/storage/scan and
   Android/iOS acceptance remain pending in validation.
+- Learning Request: [spec 005](specs/005-learning-request/spec.md),
+  [contract checkpoint](specs/005-learning-request/contracts.md) and
+  [review/acceptance checklist](specs/005-learning-request/checklist.md),
+  [implementation tasks](specs/005-learning-request/tasks.md) and
+  [validation](specs/005-learning-request/validation.md).
+- Learning Request checkpoint: [resume after backend readiness](specs/005-learning-request/resume.md).
 - Profile delivery: [tasks](specs/003-profile-public-profile/tasks.md),
   [acceptance checklist](specs/003-profile-public-profile/checklist.md) and
   [validation evidence](specs/003-profile-public-profile/validation.md).

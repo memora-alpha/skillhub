@@ -263,6 +263,36 @@ creating mobile policy/endpoints. See GAP-01..08 in spec 004.
 
 ## Remaining contract gaps
 
+### Learning Request checkpoint — 2026-10-11
+
+[Spec 005](../specs/005-learning-request/spec.md) covers own requests,
+create/publish/edit/cancel, discovery/search and owner moderation status/reason. The
+[contract checkpoint](../specs/005-learning-request/contracts.md) records verified
+routes, payloads, projections, versions, expiry and runtime dependencies at
+`dev` commit `c52ec74`. Mobile now calls the API for own list/detail, draft create,
+edit, publish/cancel, feed/recommended and Skill lookup. Shared schemas strip
+fields outside the projection; pagination keeps `meta.pagination`. UI tests use
+an isolated fixture API; LR backend acceptance remains open. See
+[validation](../specs/005-learning-request/validation.md).
+
+Backend LR still wires Catalog, public owner, Path/Schedule lock and Sharing Skill
+readers to adapters returning 503. The separate Skill HTTP API does not establish
+LR runtime readiness. Tag lookup is an open contract gap. Real request IDs must
+not enter the existing mock Proposal/Chat flow, and API failures must not fall back
+to demo data. Tag selection/filtering remains deferred; existing owner tag IDs
+are preserved on edit and public tag labels are rendered from the API. See
+GAP-01..08 and [tasks](../specs/005-learning-request/tasks.md).
+
+UI correction2026-10-12 adds weekday/time availability as a form draft. The API
+still accepts only dated preferredSlots; weekly save is blocked pending B08/GAP-09.
+Confirm the actual timezone/weekly contract before T036 integration. See
+[resume checkpoint](../specs/005-learning-request/resume.md).
+
+Notification inbox, mark-read and notification deep links belong to a separate
+spec. Spec 005 retains Notification as DEP-01 for the SRS rejection-notification
+requirement; it does not integrate notification APIs or claim full FR-LR-04
+end-to-end acceptance.
+
 ### Proposal UI boundary
 
 Proposal list, detail, sent-proposal editing, rejection with a reason and withdrawal
@@ -296,3 +326,24 @@ TWO_WAY/ONE_WAY agreement terms or validate final Credit/schedules.
   chat attachments and material uploads separately.
 - Exact LiveKit token endpoint and join-window behavior.
 - Exact material purchase and entitlement endpoints.
+
+## Public profile read contract — 2026-10-13
+
+/profiles/[userId] for another UUID uses authenticated GET /profiles/:userId.
+Public fields: userId/fullName/headline/bio/avatarUrl/reputationScore/
+verifiedSkillCount/completedSessionCount. Matching target ID is required; private
+fields and nested sharingSkills are not forwarded. Public skills come from the
+existing paginated /profiles/:userId/skills endpoint and can open their public
+skill detail. Self-preview and named demo routes are preserved. Request footer
+passes owner ID and requestId; Back preserves history and has a UUID request
+fallback.403/404 removes the profile snapshot;503 exposes retry, with no mock
+fallback. Real backend/native acceptance remains separate from fixture evidence.
+
+## Request-context mock entry — 2026-10-13
+
+The user's explicit request permits request detail to open the existing Proposal
+mock screen. /send-proposal?mode=mock-request validates a public context snapshot,
+displays that request's title/owner/skill and labels the entire form as a preview.
+The local request/party IDs have preview prefixes; actual UUIDs are not sent to
+Proposal/Chat APIs. API integration remains assigned to the separate Proposal
+branch. Named demo entries retain their existing behavior.
