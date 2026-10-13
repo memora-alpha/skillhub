@@ -15,6 +15,7 @@ import {
 } from "../utils/skill-filter";
 import { withSubmittedVerification } from "../utils/verification-state";
 import { useSkillReadFocus } from "./use-skill-read-focus";
+import { useEffect } from "react";
 
 export function validId(value?: string | string[]) {
   return typeof value === "string" && z.uuid().safeParse(value).success
@@ -23,8 +24,14 @@ export function validId(value?: string | string[]) {
 }
 export function useOwnSkills(filter: SkillFilter = "ALL") {
   const client = useQueryClient();
-  const { api, scope, assertCurrent, deletedSkillIds, submittedVerifications } =
-    useSkills();
+  const {
+    api,
+    scope,
+    assertCurrent,
+    deletedSkillIds,
+    submittedVerifications,
+    observeCreatedSkills,
+  } = useSkills();
   const query = useInfiniteQuery<
     Page<OwnSkill>,
     Error,
@@ -52,6 +59,10 @@ export function useOwnSkills(filter: SkillFilter = "ALL") {
         async (cursor) => {
           const result = await api.own(false, cursor, signal);
           assertCurrent();
+          observeCreatedSkills(
+            result.data,
+            !cursor && !result.pagination.hasMore,
+          );
           return {
             ...result,
             data: result.data
@@ -117,8 +128,15 @@ export function useCatalog(search: string, enabled = true) {
   });
 }
 export function useOwnSkill(id: string | null) {
-  const { api, scope, assertCurrent, deletedSkillIds, submittedVerifications } =
-    useSkills();
+  const {
+    api,
+    scope,
+    assertCurrent,
+    deletedSkillIds,
+    submittedVerifications,
+    observeCreatedSkills,
+    recentlyCreatedSkills,
+  } = useSkills();
   const query = useQuery({
     queryKey: [...scope, "detail", id],
     enabled: !!id && !deletedSkillIds.has(id),
@@ -126,6 +144,8 @@ export function useOwnSkill(id: string | null) {
     queryFn: async ({ signal }) => {
       const result = await api.findOwn(id!, signal);
       assertCurrent();
+      if (result) observeCreatedSkills([result]);
+      else recentlyCreatedSkills.delete(id!);
       return deletedSkillIds.has(id!) || !result
         ? null
         : withSubmittedVerification(result, submittedVerifications);
@@ -135,7 +155,7 @@ export function useOwnSkill(id: string | null) {
   return query;
 }
 export function useVerificationHistory(id: string | null) {
-  const { api, scope, assertCurrent } = useSkills();
+  const { api, scope, assertCurrent, observeVerifications } = useSkills();
   const query = useInfiniteQuery({
     queryKey: [...scope, "history", id],
     enabled: !!id,
@@ -151,6 +171,9 @@ export function useVerificationHistory(id: string | null) {
         ? (last.pagination.nextCursor ?? undefined)
         : undefined,
   });
+  useEffect(() => {
+    observeVerifications(query.data?.pages.flatMap((page) => page.data) ?? []);
+  }, [query.data, observeVerifications]);
   useSkillReadFocus(query.refetch, !!id);
   return query;
 }
@@ -158,7 +181,7 @@ export function useVerification(
   id: string | null,
   verificationId: string | null,
 ) {
-  const { api, scope, assertCurrent } = useSkills();
+  const { api, scope, assertCurrent, observeVerifications } = useSkills();
   const query = useQuery({
     queryKey: [...scope, "verification", id, verificationId],
     enabled: !!id && !!verificationId,
@@ -169,6 +192,9 @@ export function useVerification(
       return result;
     },
   });
+  useEffect(() => {
+    if (query.data) observeVerifications([query.data]);
+  }, [query.data, observeVerifications]);
   useSkillReadFocus(query.refetch, !!id && !!verificationId);
   return query;
 }

@@ -10,6 +10,8 @@ import { QueryFeedback, PageFooter } from "../components/QueryFeedback";
 import { SkillFilters } from "../components/SkillFilters";
 import type { SkillFilter } from "../utils/skill-filter";
 import type { OwnSkill } from "../types/skills";
+import { useSkills } from "../context/SkillsProvider";
+import { ownSkillItems } from "../utils/own-skill-order";
 
 const emptyLabels: Record<SkillFilter, string> = {
   ALL: "Chưa có kỹ năng. Chọn Thêm kỹ năng để bắt đầu.",
@@ -22,7 +24,15 @@ export function MySkillsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const list = useRef<FlatList<OwnSkill>>(null);
   const query = useOwnSkills(filter);
-  const items = uniqueItems(query.data?.pages);
+  const { recentlyCreatedSkills, deletedSkillIds, submittedVerifications } =
+    useSkills();
+  const items = ownSkillItems(
+    uniqueItems(query.data?.pages),
+    recentlyCreatedSkills,
+    filter,
+    deletedSkillIds,
+    submittedVerifications,
+  );
   const router = useRouter();
   const refresh = async () => {
     setRefreshing(true);
@@ -75,6 +85,11 @@ export function MySkillsScreen() {
         contentContainerStyle={[skillStyles.content, { paddingTop: 8 }]}
         refreshing={refreshing}
         onRefresh={() => void refresh()}
+        ListHeaderComponent={
+          items.length && !query.data && query.error ? (
+            <QueryFeedback query={query} />
+          ) : null
+        }
         ListEmptyComponent={
           query.isPlaceholderData ? null : (
             <QueryFeedback
