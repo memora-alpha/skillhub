@@ -28,6 +28,10 @@ test("confirmed deletion clears all list variants/private views, preserving othe
   for (const key of [...lists, [...otherScope, "own", false, "ALL"]])
     client.setQueryData(key, pages);
   client.setQueryData([...scope, "detail", ids.sharing], ownSkill);
+  client.setQueryData(
+    [...scope, "public-detail", "account-a", ids.sharing],
+    ownSkill,
+  );
   client.setQueryData([...scope, "detail", ids.other], survivor);
   client.setQueryData([...scope, "history", ids.sharing], { pages: [batch] });
   client.setQueryData(
@@ -45,6 +49,10 @@ test("confirmed deletion clears all list variants/private views, preserving othe
     assert.deepEqual(value.pages[0]!.pagination, pagination);
   }
   assert.equal(client.getQueryData([...scope, "detail", ids.sharing]), null);
+  assert.equal(
+    client.getQueryData([...scope, "public-detail", "account-a", ids.sharing]),
+    null,
+  );
   assert.equal(
     client.getQueryData([...scope, "history", ids.sharing]),
     undefined,

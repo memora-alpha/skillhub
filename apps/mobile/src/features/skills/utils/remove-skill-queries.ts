@@ -26,6 +26,13 @@ export function removeSkillQueries(
     );
   }
   client.setQueryData([...scope, "detail", id], null);
+  client.setQueriesData(
+    {
+      queryKey: [...scope, "public-detail"],
+      predicate: (query) => query.queryKey.at(-1) === id,
+    },
+    null,
+  );
   client.removeQueries({ queryKey: [...scope, "history", id] });
   client.removeQueries({ queryKey: [...scope, "verification", id] });
 }

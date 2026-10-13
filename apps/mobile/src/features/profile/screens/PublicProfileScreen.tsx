@@ -4,7 +4,7 @@ import { AppScreenLayout } from "@/features/shell";
 import { Avatar } from "@/components/Avatar";
 import {
   ProfileSkillSection,
-  ProfileSkillRow,
+  SamplePublicSkillRow,
   ProfileSkillMore,
   useProfileSkillWindow,
 } from "@/features/skills";
@@ -94,7 +94,7 @@ export function PublicProfileScreen() {
                 profile.skills
                   .slice(0, preview.visible)
                   .map((skill) => (
-                    <ProfileSkillRow
+                    <SamplePublicSkillRow
                       key={skill.id}
                       name={skill.name}
                       level={skill.level}

@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import {
   ProfileSkillSection,
-  ProfileSkillRow,
+  SamplePublicSkillRow,
   ProfileSkillMore,
   useProfileSkillWindow,
 } from "@/features/skills";
@@ -111,11 +111,13 @@ export function ProfileSkills({
         profile.sharingSkills
           .slice(0, preview.visible)
           .map((skill) => (
-            <ProfileSkillRow
+            <SamplePublicSkillRow
               key={skill.id}
               name={skill.name}
               level={levels[skill.level]}
               status={skill.verificationStatus}
+              description={skill.description}
+              experienceYears={skill.experienceYears}
             />
           ))
       )}
