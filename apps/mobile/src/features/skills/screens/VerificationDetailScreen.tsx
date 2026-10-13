@@ -13,6 +13,7 @@ import { useSkills } from "../context/SkillsProvider";
 import { useSkillAction } from "../hooks/use-skill-action";
 import { decisionLabels } from "../types/skills";
 import { SubmittedEvidence } from "../components/SubmittedEvidence";
+import { evidenceTime } from "../utils/evidence-time";
 export function VerificationDetailScreen({
   sharingSkillId,
   verificationId,
@@ -64,11 +65,11 @@ export function VerificationDetailScreen({
               {decisionLabels[batch.status]}
             </Text>
             <Text style={skillStyles.body}>
-              Gửi: {new Date(batch.submittedAt).toLocaleString("vi-VN")}
+              Gửi: {evidenceTime(batch.submittedAt)}
             </Text>
             {batch.reviewedAt && (
               <Text style={skillStyles.body}>
-                Xét duyệt: {new Date(batch.reviewedAt).toLocaleString("vi-VN")}
+                Xét duyệt: {evidenceTime(batch.reviewedAt)}
               </Text>
             )}
             {batch.rejectReason && (
