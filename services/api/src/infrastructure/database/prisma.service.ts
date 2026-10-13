@@ -2,6 +2,7 @@ import { Injectable, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../../generated/prisma/client";
+import { postgresConnectionString } from "./postgres-connection";
 
 @Injectable()
 export class PrismaService
@@ -11,7 +12,9 @@ export class PrismaService
   constructor(config: ConfigService) {
     super({
       adapter: new PrismaPg({
-        connectionString: config.getOrThrow<string>("DATABASE_URL"),
+        connectionString: postgresConnectionString(
+          config.getOrThrow<string>("DATABASE_URL"),
+        ),
         connectionTimeoutMillis: 5000,
       }),
     });

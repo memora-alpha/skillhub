@@ -4,6 +4,29 @@ Date: 2026-10-05. Status: implemented and verified on PostgreSQL 17.11 (Docker
 Compose, isolated database `skillhub_test`). Deployment TLS and human-actor
 authorization are **Pending**.
 
+## Prisma/PostgreSQL session UTC regression — 2026-10-13
+
+Đã tái hiện adapter pg đọc `2026-10-12 23:29:10.915+07` thành
+`2026-10-12T23:29:10.915Z` trong session Asia/Bangkok: lệch 7 giờ, làm policy
+effectiveAt có thể bị coi là tương lai và upload evidence trả 503. API và seed
+configuration nay dùng chung postgresConnectionString, thêm timezone UTC ở cuối
+URL options (pg URL options có ưu tiên hơn PoolConfig.options). Giữ TLS,
+credentials và các options khác; không chỉnh timezone DB/role hoặc sửa rows.
+
+Checks: API build/lint/typecheck đạt. UTC/foundation/configuration suite 27/27
+đạt, không skip; test PostgreSQL thật dùng connection URL có Asia/Bangkok rồi
+helper đưa session về UTC, SELECT read-only literal timestamptz và server clock.
+Storage/scan/S3 regression 6/6 đạt. Probe bằng PrismaService runtime đọc policy
+thật `storage.evidenceMaxBytes=10000000`, effectiveAt đúng
+`2026-10-12T16:29:10.915Z`; snapshot với clock sau hiệu lực 1 giây đạt.
+Missing/invalid/future policy vẫn fail closed theo regression tests.
+
+`test:configuration` bao gồm postgres-timezone.test.mjs; phần PostgreSQL thực
+chỉ chạy khi có TEST_POSTGRES_URL. Lượt này không mutation database hoặc gọi
+upload thật. Các journey/TLS/human-actor gates trước đó vẫn giữ trạng thái riêng.
+API đang chạy cần reload/restart để pool mới nhận UTC; không cần seed lại để
+"sửa giờ" hay cộng/trừ giờ vào dữ liệu hiện có.
+
 ## Implemented
 
 - `Clock` / `CLOCK` / `ServerClock`; strict RFC 3339 instant parsing with
