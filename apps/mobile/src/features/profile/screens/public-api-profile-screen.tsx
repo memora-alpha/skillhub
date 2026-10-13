@@ -12,7 +12,9 @@ import { ProfileAbout, ProfileSummary } from "../components/ProfileSummary";
 import { usePublicProfile } from "../hooks/use-public-profile";
 import { profileColors } from "../constants/theme";
 
-export function PublicApiProfileScreen({ userId }: { userId: string }) {
+export function PublicApiProfileScreen({
+  userId,
+}: Readonly<{ userId: string }>) {
   const { session } = useAuthSession();
   const query = usePublicProfile(userId);
   const router = useRouter();
@@ -38,49 +40,63 @@ export function PublicApiProfileScreen({ userId }: { userId: string }) {
     >
       {() => (
         <View style={styles.stack}>
-          {query.data === null ? (
-            <EmptyState
-              title="Hồ sơ không khả dụng"
-              description="Hồ sơ không còn công khai hoặc bạn không có quyền xem."
-              action="Thử lại"
-              onAction={() => void query.refetch()}
-            />
-          ) : query.data ? (
-            <>
-              {query.error && (
-                <>
-                  <FormNotice tone="error">
-                    {errorMessage(query.error)}
-                  </FormNotice>
-                  <Button
-                    variant="ghost"
-                    disabled={query.isFetching}
-                    onPress={() => void query.refetch()}
-                  >
-                    Thử tải lại
-                  </Button>
-                </>
-              )}
-              <ProfileSummary profile={query.data} />
-              <ProfileAbout bio={query.data.bio} />
-              <PublicProfileSkillList userId={userId} />
-            </>
-          ) : query.error ? (
-            <EmptyState
-              title="Chưa thể tải hồ sơ"
-              description={errorMessage(query.error)}
-              action="Thử lại"
-              onAction={() => void query.refetch()}
-            />
-          ) : (
-            <ActivityIndicator
-              color={profileColors.accent}
-              accessibilityLabel="Đang tải hồ sơ công khai"
-            />
-          )}
+          <PublicProfileReadState query={query} userId={userId} />
         </View>
       )}
     </ProfileLayout>
+  );
+}
+
+function PublicProfileReadState({
+  query,
+  userId,
+}: Readonly<{
+  query: ReturnType<typeof usePublicProfile>;
+  userId: string;
+}>) {
+  if (query.data === null)
+    return (
+      <EmptyState
+        title="Hồ sơ không khả dụng"
+        description="Hồ sơ không còn công khai hoặc bạn không có quyền xem."
+        action="Thử lại"
+        onAction={() => void query.refetch()}
+      />
+    );
+  if (query.data)
+    return (
+      <>
+        {query.error && (
+          <>
+            <FormNotice tone="error">{errorMessage(query.error)}</FormNotice>
+            <Button
+              variant="ghost"
+              disabled={query.isFetching}
+              onPress={() => void query.refetch()}
+            >
+              Thử tải lại
+            </Button>
+          </>
+        )}
+        <ProfileSummary profile={query.data} />
+        <ProfileAbout bio={query.data.bio} />
+        <PublicProfileSkillList userId={userId} />
+      </>
+    );
+  if (query.error)
+    return (
+      <EmptyState
+        title="Chưa thể tải hồ sơ"
+        description={errorMessage(query.error)}
+        action="Thử lại"
+        onAction={() => void query.refetch()}
+      />
+    );
+  return (
+    <ActivityIndicator
+      color={profileColors.accent}
+      accessibilityLabel="Đang tải hồ sơ công khai"
+    />
   );
 }
 

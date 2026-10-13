@@ -17,16 +17,20 @@ import { useRequestDetail } from "../hooks/use-requests";
 import { useRequestAction } from "../hooks/use-request-action";
 import { isOwnRequest, requestState } from "../utils/request-policy";
 
-export function RequestDetailScreen({ own = false }: { own?: boolean }) {
+type DetailProps = Readonly<{
+  own: boolean;
+  query: ReturnType<typeof useRequestDetail>;
+  action: ReturnType<typeof useRequestAction>;
+}>;
+
+export function RequestDetailScreen({
+  own = false,
+}: Readonly<{ own?: boolean }>) {
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const id = typeof params.id === "string" ? params.id : undefined;
   const query = useRequestDetail(id);
   const action = useRequestAction(query);
   const request = query.data;
-  const ownerRequest =
-    query.valid && !query.readDenied && request && isOwnRequest(request)
-      ? request
-      : undefined;
   if (!query.readDenied && !own && request && isOwnRequest(request))
     return <Redirect href={`/requests/${request.id}`} />;
   return (
@@ -35,74 +39,82 @@ export function RequestDetailScreen({ own = false }: { own?: boolean }) {
       pending={action.pending}
       feed={!own}
       fallback="/discover"
-      footer={
-        ownerRequest ? (
-          <RequestOwnerFooter
-            request={ownerRequest}
-            pending={action.pending || query.isFetching}
-            blocked={action.blocked}
-            run={action.run}
-            error={action.error}
-            refresh={() => void action.refresh()}
-          />
-        ) : query.valid &&
-          !query.readDenied &&
-          !own &&
-          request &&
-          !isOwnRequest(request) ? (
-          <RequestPublicFooter request={request} />
-        ) : undefined
-      }
+      footer={<RequestDetailFooter own={own} query={query} action={action} />}
     >
-      {!query.valid || (own && request && !isOwnRequest(request)) ? (
-        <RequestUnavailable />
-      ) : query.readDenied ? (
-        <RequestReadDenied
-          denial={query.readDenied}
-          retry={() => void action.refresh()}
-          pending={action.pending || query.isFetching}
-        />
-      ) : !request ? (
-        query.error ? (
-          <RequestFailure
-            error={query.error}
-            retry={() => void action.refresh()}
-            pending={action.pending || query.isFetching}
-          />
-        ) : (
-          <RequestLoading />
-        )
-      ) : (
-        <>
-          {query.error && (
-            <RequestFailure
-              error={query.error}
-              stale
-              retry={() => void action.refresh()}
-              pending={action.pending || query.isFetching}
-            />
-          )}
-          <RequestContent request={request} />
-          {!!action.error &&
-            (!ownerRequest || requestState(ownerRequest) !== "DRAFT") && (
-              <RequestActionError
-                error={action.error}
-                pending={action.pending || query.isFetching}
-                refresh={() => void action.refresh()}
-              />
-            )}
-          {isOwnRequest(request) ? (
-            <RequestDetailActions
-              key={request.id}
-              request={request}
-              pending={action.pending || query.isFetching}
-              blocked={action.blocked}
-              run={action.run}
-            />
-          ) : null}
-        </>
-      )}
+      <RequestDetailBody own={own} query={query} action={action} />
     </RequestPage>
+  );
+}
+
+function RequestDetailFooter({ own, query, action }: DetailProps) {
+  const request = query.data;
+  if (!query.valid || query.readDenied || !request) return null;
+  if (isOwnRequest(request))
+    return (
+      <RequestOwnerFooter
+        request={request}
+        pending={action.pending || query.isFetching}
+        blocked={action.blocked}
+        run={action.run}
+        error={action.error}
+        refresh={() => void action.refresh()}
+      />
+    );
+  if (!own) return <RequestPublicFooter request={request} />;
+  return null;
+}
+
+function RequestDetailBody({ own, query, action }: DetailProps) {
+  const request = query.data;
+  const pending = action.pending || query.isFetching;
+  const refresh = () => void action.refresh();
+  if (!query.valid || (own && request && !isOwnRequest(request)))
+    return <RequestUnavailable />;
+  if (query.readDenied)
+    return (
+      <RequestReadDenied
+        denial={query.readDenied}
+        retry={refresh}
+        pending={pending}
+      />
+    );
+  if (!request) {
+    if (query.error)
+      return (
+        <RequestFailure error={query.error} retry={refresh} pending={pending} />
+      );
+    return <RequestLoading />;
+  }
+  const ownerRequest = isOwnRequest(request) ? request : undefined;
+  return (
+    <>
+      {query.error && (
+        <RequestFailure
+          error={query.error}
+          stale
+          retry={refresh}
+          pending={pending}
+        />
+      )}
+      <RequestContent request={request} />
+      {!!action.error &&
+        (!ownerRequest || requestState(ownerRequest) !== "DRAFT") && (
+          <RequestActionError
+            error={action.error}
+            pending={pending}
+            refresh={refresh}
+          />
+        )}
+      {ownerRequest && (
+        <RequestDetailActions
+          key={request.id}
+          request={ownerRequest}
+          pending={pending}
+          blocked={action.blocked}
+          run={action.run}
+        />
+      )}
+    </>
   );
 }
 export function OwnRequestScreen() {

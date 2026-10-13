@@ -23,12 +23,12 @@ export function RequestFailure({
   retry,
   pending = false,
   stale = false,
-}: {
+}: Readonly<{
   error: unknown;
   retry: () => void;
   pending?: boolean;
   stale?: boolean;
-}) {
+}>) {
   return (
     <View style={{ gap: 12 }}>
       {stale && (
@@ -48,11 +48,11 @@ export function RequestReadDenied({
   denial,
   retry,
   pending = false,
-}: {
+}: Readonly<{
   denial: ReadDenial;
   retry: () => void;
   pending?: boolean;
-}) {
+}>) {
   return (
     <View style={{ gap: 12 }}>
       {denial === "unavailable" ? (

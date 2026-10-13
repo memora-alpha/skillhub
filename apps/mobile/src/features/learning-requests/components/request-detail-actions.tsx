@@ -29,7 +29,7 @@ export function RequestDetailActions({
   pending,
   blocked,
   run,
-}: RequestActionProps) {
+}: Readonly<RequestActionProps>) {
   const [confirm, setConfirm] = useState(false);
   const disabled = pending || blocked;
   return (
@@ -79,7 +79,7 @@ export function RequestOwnerFooter({
   run,
   error,
   refresh,
-}: RequestActionProps & { error?: unknown; refresh: () => void }) {
+}: Readonly<RequestActionProps & { error?: unknown; refresh: () => void }>) {
   if (!editableRequest(request)) return null;
   const draft = requestState(request) === "DRAFT";
   return (
@@ -137,11 +137,11 @@ export function RequestActionError({
   error,
   pending,
   refresh,
-}: {
+}: Readonly<{
   error: unknown;
   pending: boolean;
   refresh: () => void;
-}) {
+}>) {
   return (
     <View style={{ gap: 8 }}>
       <FormNotice tone="error">{requestError(error, true)}</FormNotice>

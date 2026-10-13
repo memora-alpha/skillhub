@@ -20,7 +20,7 @@ export function RequestDatePicker({
   value,
   mode,
   onChange,
-}: RequestDatePickerProps) {
+}: Readonly<RequestDatePickerProps>) {
   if (mode === "date")
     return <RequestCalendar value={value} onChange={onChange} />;
   const choose = (hours: number, minutes: number) => {

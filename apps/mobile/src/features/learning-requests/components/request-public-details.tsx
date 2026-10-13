@@ -11,9 +11,9 @@ import {
 
 export function RequestRequesterDetails({
   owner,
-}: {
+}: Readonly<{
   owner: PublicRequest["owner"];
-}) {
+}>) {
   return (
     <View style={[styles.card, styles.metadataRow]}>
       <Avatar
@@ -32,7 +32,9 @@ export function RequestRequesterDetails({
   );
 }
 
-export function RequestPublicFooter({ request }: { request: PublicRequest }) {
+export function RequestPublicFooter({
+  request,
+}: Readonly<{ request: PublicRequest }>) {
   const router = useRouter();
   return (
     <View style={styles.footer}>

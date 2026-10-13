@@ -13,7 +13,7 @@ export function RequestPage({
   list = false,
   rightAction,
   footer,
-}: {
+}: Readonly<{
   title: string;
   children: ReactNode;
   fallback?: Href;
@@ -22,7 +22,7 @@ export function RequestPage({
   list?: boolean;
   rightAction?: ReactNode;
   footer?: ReactNode;
-}) {
+}>) {
   const back = useRequestBack(fallback, pending);
   return (
     <AppScreenLayout

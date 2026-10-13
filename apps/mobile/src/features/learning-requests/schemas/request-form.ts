@@ -1,8 +1,11 @@
 import { z } from "zod";
 import { parseLocalDateTime } from "@/utils/local-date-time";
 import { formatPreferredSlots, parsePreferredSlots } from "../preferred-slots";
-import { validWeeklyRows } from "../utils/request-weekly-slots";
-import { weeklyRows, weeklyRowsValue } from "../utils/request-weekly-slots";
+import {
+  validWeeklyRows,
+  weeklyRows,
+  weeklyRowsValue,
+} from "../utils/request-weekly-slots";
 import {
   availabilitySchema,
   creditSchema,
@@ -101,15 +104,19 @@ export function draftToInput(
     draft.weeklyAvailability.trim() ? { ...draft, preferredSlots: "" } : draft,
   );
   const weeklySlots = weeklyRows(parsed.weeklyAvailability)!;
-  const preferredAvailability =
+  let preferredAvailability: RequestInput["preferredAvailability"] = null;
+  if (
     initial &&
     parsed.weeklyAvailability ===
       weeklyRowsValue(initial.preferredAvailability?.weeklySlots ?? []) &&
     parsed.timeZone === initial.preferredAvailability?.timeZone
-      ? initial.preferredAvailability
-      : weeklySlots.length
-        ? availabilitySchema.parse({ timeZone: parsed.timeZone, weeklySlots })
-        : null;
+  )
+    preferredAvailability = initial.preferredAvailability;
+  else if (weeklySlots.length)
+    preferredAvailability = availabilitySchema.parse({
+      timeZone: parsed.timeZone,
+      weeklySlots,
+    });
   const slots =
     initial &&
     parsed.preferredSlots === formatPreferredSlots(initial.preferredSlots)

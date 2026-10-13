@@ -389,3 +389,19 @@ Native devices and real backend Proposal submission were not exercised.
   unstaged/new dependencies when preparing the commit; checks above validate the
   complete working tree, not the current staged snapshot. No commit or push was
   performed. Native acceptance remains pending; Proposal submission remains mock.
+
+## PR25 Sonar annotation remediation — 2026-10-14
+
+- Addressed the user's pasted snapshot of 50 annotations across 35 mobile source
+  and fixture files: readonly component props, independent conditional branches,
+  matching state/setter names, catch naming, explicit Error constructors/messages,
+  duplicate imports and the offering retry callback's conditional void expression.
+- Split request detail rendering into footer/body states and editor read-state
+  rendering into a separate component. Form submission now separates validation,
+  expiry/version preflight, persistence and error mapping. Draft retention, read
+  denial, stale content, session checks and mutation recovery are preserved.
+- Local lint, TypeScript, structure (451 files) and the full 266-test suite passed
+  after the refactor. The suite also passed 266/266 after the final fixture/profile
+  cleanup. Changed files passed Prettier and Git whitespace checks.
+- This is source/local verification of the supplied annotations; a fresh SonarCloud
+  analysis of the fix revision is required to confirm issue closure and Quality Gate.

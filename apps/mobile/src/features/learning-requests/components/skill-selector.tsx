@@ -18,14 +18,14 @@ export function SkillSelector({
   locked = false,
   allowAll = false,
   disabled = false,
-}: {
+}: Readonly<{
   value: string;
   onChange: (id: string) => void;
   error?: string;
   locked?: boolean;
   allowAll?: boolean;
   disabled?: boolean;
-}) {
+}>) {
   const [search, setSearch] = useState("");
   const [keyword, setKeyword] = useState("");
   const [expanded, setExpanded] = useState(false);
@@ -52,6 +52,9 @@ export function SkillSelector({
         .toLocaleLowerCase("vi")
         .includes(keyword.toLocaleLowerCase("vi")),
   );
+  let selectionLabel = allowAll ? "Tất cả kỹ năng" : "Chọn kỹ năng muốn học";
+  if (value) selectionLabel = "Đã chọn kỹ năng";
+  selectionLabel = selected.data?.name ?? selectionLabel;
   return (
     <View style={{ gap: 10 }}>
       {!allowAll && <Copy>Kỹ năng muốn học *</Copy>}
@@ -70,12 +73,7 @@ export function SkillSelector({
             disabled={disabled}
             onPress={() => setExpanded((open) => !open)}
           >
-            {selected.data?.name ??
-              (value
-                ? "Đã chọn kỹ năng"
-                : allowAll
-                  ? "Tất cả kỹ năng"
-                  : "Chọn kỹ năng muốn học")}
+            {selectionLabel}
           </Button>
           {expanded && (
             <>

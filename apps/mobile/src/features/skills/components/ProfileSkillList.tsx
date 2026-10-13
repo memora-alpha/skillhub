@@ -60,7 +60,9 @@ export function PublicSelfSkillList() {
   const { userId } = useSkills();
   return <PublicProfileSkillList userId={userId} />;
 }
-export function PublicProfileSkillList({ userId }: { userId: string }) {
+export function PublicProfileSkillList({
+  userId,
+}: Readonly<{ userId: string }>) {
   const query = usePublicSkills(userId);
   const router = useRouter();
   const items = uniqueItems(query.data?.pages);

@@ -10,12 +10,12 @@ export function RequestDetailSection({
   icon,
   tone = "primary",
   children,
-}: {
+}: Readonly<{
   title: string;
   icon: IconName;
   tone?: "primary" | "forest" | "amber";
   children: ReactNode;
-}) {
+}>) {
   return (
     <View
       style={[requestDetailStyles.card, tone === "forest" && styles.exchange]}

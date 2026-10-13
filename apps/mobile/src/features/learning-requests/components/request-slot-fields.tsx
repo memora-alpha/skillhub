@@ -12,12 +12,12 @@ export function RequestSlotFields({
   index,
   disabled,
   onChange,
-}: {
+}: Readonly<{
   row: WeeklyRow;
   index: number;
   disabled: boolean;
   onChange: (row: WeeklyRow) => void;
-}) {
+}>) {
   return (
     <View style={{ gap: 12 }}>
       <ChoiceGroup

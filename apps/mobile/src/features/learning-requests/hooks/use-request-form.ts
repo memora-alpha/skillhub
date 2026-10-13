@@ -16,7 +16,7 @@ import { useRequestSync } from "./use-requests";
 import { requestPatch } from "../utils/request-policy";
 import { requestPreflight } from "../utils/request-preflight";
 import { useRequestRecovery, type EditorRead } from "./use-request-recovery";
-import type { OwnerRequest } from "../types";
+import type { OwnerRequest, RequestInput } from "../types";
 export function useRequestForm(incoming?: OwnerRequest, source?: EditorRead) {
   const [initial, setInitial] = useState(incoming);
   const router = useRouter();
@@ -24,7 +24,7 @@ export function useRequestForm(incoming?: OwnerRequest, source?: EditorRead) {
   const sync = useRequestSync();
   const { showToast } = useToast();
   const saving = useRef(false);
-  const [mutating, setPending] = useState(false);
+  const [mutating, setMutating] = useState(false);
   const [error, setError] = useState<unknown>();
   const [saved, setSaved] = useState<OwnerRequest>();
   const form = useForm<RequestDraft>({
@@ -38,76 +38,83 @@ export function useRequestForm(incoming?: OwnerRequest, source?: EditorRead) {
   useEffect(() => {
     if (saved && !pending && isCurrent()) {
       if (initial && router.canGoBack()) router.back();
-      else if (initial) router.replace(`/requests/${saved.id}`);
       else router.replace(`/requests/${saved.id}`);
     }
   }, [saved, pending, isCurrent, initial, router]);
+  function reportError(error_: unknown, mutation = false) {
+    if (error_ instanceof ZodError) {
+      for (const issue of error_.issues)
+        form.setError(issue.path[0] as keyof RequestDraft, {
+          message: issue.message,
+        });
+      return;
+    }
+    setError(error_);
+    if (mutation) recovery.mutationFailed(error_);
+  }
+  function prepareInput(draft: RequestDraft) {
+    try {
+      return draftToInput(draft, initial);
+    } catch (error_) {
+      reportError(error_);
+      return undefined;
+    }
+  }
+  async function prepareEdit(draft: RequestDraft) {
+    if (!initial) return undefined;
+    let preflight;
+    try {
+      preflight = await requestPreflight(
+        initial,
+        "edit",
+        recovery.readCurrent,
+        isCurrent,
+      );
+    } catch (error_) {
+      recovery.readFailed(error_, true);
+      return undefined;
+    }
+    if (!isCurrent()) return undefined;
+    if (preflight.kind !== "ready") {
+      recovery.showLatest(preflight.request);
+      return undefined;
+    }
+    // A preflight may take long enough for newly entered slots to pass.
+    return draftToInput(draft, initial);
+  }
+  async function persist(input: RequestInput) {
+    if (initial) return api.edit(initial.id, requestPatch(initial, input)!);
+    return api.create(input);
+  }
   async function save(draft: RequestDraft) {
     if (saving.current || recovery.blocked || recovery.isReading() || saved)
       return;
-    let input;
-    try {
-      input = draftToInput(draft, initial);
-    } catch (failure) {
-      if (failure instanceof ZodError) {
-        for (const issue of failure.issues)
-          form.setError(issue.path[0] as keyof RequestDraft, {
-            message: issue.message,
-          });
-      } else setError(failure);
-      return;
-    }
-    const patch = initial ? requestPatch(initial, input) : undefined;
-    if (initial && !patch) {
+    let input = prepareInput(draft);
+    if (!input) return;
+    if (initial && !requestPatch(initial, input)) {
       showToast("Nội dung chưa thay đổi.");
       return;
     }
     saving.current = true;
-    setPending(true);
+    setMutating(true);
     setError(undefined);
     try {
       if (initial) {
-        let preflight;
-        try {
-          preflight = await requestPreflight(
-            initial,
-            "edit",
-            recovery.readCurrent,
-            isCurrent,
-          );
-        } catch (failure) {
-          recovery.readFailed(failure, true);
-          return;
-        }
-        if (!isCurrent()) return;
-        if (preflight.kind !== "ready") {
-          recovery.showLatest(preflight.request);
-          return;
-        }
-        // A preflight may take long enough for newly entered slots to pass.
-        input = draftToInput(draft, initial);
+        const prepared = await prepareEdit(draft);
+        if (!prepared) return;
+        input = prepared;
       }
-      const result = initial
-        ? await api.edit(initial.id, requestPatch(initial, input)!)
-        : await api.create(input);
+      const result = await persist(input);
       if (!isCurrent()) return;
       showToast(initial ? "Đã lưu thay đổi." : "Đã lưu bản nháp.", "success");
       void sync(result);
       setSaved(result);
-    } catch (failure) {
+    } catch (error_) {
       if (!isCurrent()) return;
-      if (failure instanceof ZodError) {
-        for (const issue of failure.issues)
-          form.setError(issue.path[0] as keyof RequestDraft, {
-            message: issue.message,
-          });
-      } else {
-        setError(failure);
-        recovery.mutationFailed(failure);
-      }
+      reportError(error_, true);
     } finally {
       saving.current = false;
-      if (isCurrent()) setPending(false);
+      if (isCurrent()) setMutating(false);
     }
   }
   return {

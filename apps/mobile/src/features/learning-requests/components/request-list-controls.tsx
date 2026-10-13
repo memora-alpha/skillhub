@@ -8,9 +8,9 @@ import { requestListStyles as styles } from "./request-list.styles";
 
 export function RequestCreateButton({
   compact = false,
-}: {
+}: Readonly<{
   compact?: boolean;
-}) {
+}>) {
   const router = useRouter();
   const content = (
     <>
@@ -57,12 +57,12 @@ export function RequestTabs({
   value,
   onChange,
   label,
-}: {
+}: Readonly<{
   options: readonly string[];
   value: string;
   onChange: (value: string) => void;
   label: string;
-}) {
+}>) {
   return (
     <ScrollView
       horizontal
@@ -91,10 +91,10 @@ export function RequestTabs({
 export function RequestListSummary({
   count,
   recommended = false,
-}: {
+}: Readonly<{
   count: number;
   recommended?: boolean;
-}) {
+}>) {
   return (
     <View style={styles.between}>
       <View style={styles.row}>

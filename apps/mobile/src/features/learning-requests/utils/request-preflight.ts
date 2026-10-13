@@ -30,12 +30,9 @@ export async function requestPreflight(
   if (!isCurrent()) throw new AppError("session");
   if (result.id !== request.id) throw new AppError("protocol");
   if (!isOwnRequest(result)) throw new AppError("http", 403);
-  const allowed =
-    operation === "edit"
-      ? editableRequest(result)
-      : operation === "cancel"
-        ? cancelableRequest(result)
-        : requestState(result) === "DRAFT";
+  let allowed = requestState(result) === "DRAFT";
+  if (operation === "edit") allowed = editableRequest(result);
+  else if (operation === "cancel") allowed = cancelableRequest(result);
   if (!allowed) return { kind: "readonly", request: result };
   if (
     result.version !== request.version ||

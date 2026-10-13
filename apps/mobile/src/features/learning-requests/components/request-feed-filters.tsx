@@ -20,13 +20,13 @@ export function RequestFeedFilters({
   onSubmit,
   filters,
   onApply,
-}: {
+}: Readonly<{
   search: string;
   onSearch: (value: string) => void;
   onSubmit: () => void;
   filters: FeedFilters;
   onApply: (value: FeedFilters) => void;
-}) {
+}>) {
   const [open, setOpen] = useState(false);
   const [focused, setFocused] = useState(false);
   const [draft, setDraft] = useState(filters);

@@ -10,10 +10,10 @@ import type { RequestDraft } from "../schemas/request-form";
 export function RequestDeadlineFields({
   form,
   disabled,
-}: {
+}: Readonly<{
   form: UseFormReturn<RequestDraft>;
   disabled: boolean;
-}) {
+}>) {
   return (
     <RequestSection
       title="Hạn đăng bài"

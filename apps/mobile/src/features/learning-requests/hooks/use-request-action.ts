@@ -88,19 +88,15 @@ export function useRequestAction(query: ReturnType<typeof useRequestDetail>) {
         prepared.request.version,
       );
       if (!isCurrent()) return;
-      showToast(
-        command === "cancel"
-          ? "Đã hủy yêu cầu."
-          : result.status === "OPEN"
-            ? "Yêu cầu đã được đăng."
-            : "Yêu cầu đang chờ duyệt.",
-        "success",
-      );
+      let message = "Yêu cầu đang chờ duyệt.";
+      if (command === "cancel") message = "Đã hủy yêu cầu.";
+      else if (result.status === "OPEN") message = "Yêu cầu đã được đăng.";
+      showToast(message, "success");
       void sync(result);
-    } catch (failure) {
+    } catch (error_) {
       if (!isCurrent()) return;
-      setError(failure);
-      setBlocked(!sending || mutationNeedsReconcile(failure));
+      setError(error_);
+      setBlocked(!sending || mutationNeedsReconcile(error_));
     } finally {
       if (ticket === sequence.current) {
         busy.current = false;
@@ -119,8 +115,8 @@ export function useRequestAction(query: ReturnType<typeof useRequestDetail>) {
         setError(undefined);
         setBlocked(false);
       }
-    } catch (failure) {
-      if (isCurrent()) setError(failure);
+    } catch (error_) {
+      if (isCurrent()) setError(error_);
     } finally {
       if (ticket === sequence.current) {
         busy.current = false;
