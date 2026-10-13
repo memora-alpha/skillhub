@@ -1,11 +1,12 @@
 import { View } from "react-native";
 import { Controller, type UseFormReturn } from "react-hook-form";
-import { ControlledInput } from "@/components/ControlledInput";
+import { RequestTextField } from "./request-text-field";
 import { ChoiceGroup } from "@/components/choice-group";
-import { Copy } from "@/components/feature-page";
 import { RequestSection as Panel } from "./request-section";
 import { SkillSelector } from "./skill-selector";
 import { RequestTimeFields } from "./request-time-fields";
+import { TagSelector } from "./tag-selector";
+import { RequestOfferingFields } from "./request-offering-fields";
 import { requestLevels, type OwnerRequest } from "../types";
 import type { RequestDraft } from "../schemas/request-form";
 export function RequestFields({
@@ -23,14 +24,14 @@ export function RequestFields({
       accessibilityState={{ disabled: pending }}
       style={{ gap: 16 }}
     >
-      <Panel title="Nhu cầu học">
-        <ControlledInput
-          control={form.control}
+      <Panel title="Nhu cầu học" icon="book">
+        <RequestTextField
+          form={form}
           name="title"
           label="Tiêu đề"
           required
-          editable={!pending}
-          placeholder="Bạn muốn học điều gì?"
+          disabled={pending}
+          placeholder="Ví dụ: Muốn học React Hooks để làm dự án web"
         />
         <Controller
           control={form.control}
@@ -45,26 +46,29 @@ export function RequestFields({
             />
           )}
         />
-        <ControlledInput
-          control={form.control}
+        <RequestTextField
+          form={form}
           name="description"
           label="Mô tả nhu cầu"
           required
           multiline
-          editable={!pending}
+          disabled={pending}
+          placeholder="Bạn đang ở đâu, cần hỗ trợ gì và thích học theo cách nào?"
           hint="20–3000 ký tự."
         />
-        <ControlledInput
-          control={form.control}
+        <RequestTextField
+          form={form}
           name="learningGoal"
           label="Mục tiêu học tập"
           required
           multiline
-          editable={!pending}
+          disabled={pending}
+          placeholder="Ví dụ: Tự hoàn thành một ứng dụng web sau 2 tháng"
           hint="10–1000 ký tự."
         />
       </Panel>
-      <Panel title="Tùy chọn học tập">
+      <RequestOfferingFields form={form} disabled={pending} initial={initial} />
+      <Panel title="Tùy chọn học tập" icon="filter" tone="amber">
         <Controller
           control={form.control}
           name="currentLevel"
@@ -93,14 +97,29 @@ export function RequestFields({
             />
           )}
         />
-        <Copy muted>
-          Chọn tag sẽ được bổ sung sau.
-          {initial?.tagIds.length
-            ? ` ${initial.tagIds.length} tag đã chọn được giữ nguyên.`
-            : ""}
-        </Copy>
-        <RequestTimeFields form={form} disabled={pending} />
+        <Controller
+          control={form.control}
+          name="tagIds"
+          render={({ field, fieldState }) => (
+            <TagSelector
+              value={field.value}
+              onChange={field.onChange}
+              disabled={pending}
+              error={fieldState.error?.message}
+            />
+          )}
+        />
+        <RequestTextField
+          form={form}
+          name="desiredCreditPerHour"
+          label="Credit mong muốn mỗi giờ (không bắt buộc)"
+          keyboardType="decimal-pad"
+          disabled={pending}
+          placeholder="Ví dụ: 50.00"
+          hint="Mức mong muốn; giá cuối cùng sẽ được thỏa thuận."
+        />
       </Panel>
+      <RequestTimeFields form={form} disabled={pending} />
     </View>
   );
 }

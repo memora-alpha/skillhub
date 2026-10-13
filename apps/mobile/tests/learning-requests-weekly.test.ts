@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { ZodError } from "zod";
 import {
   validWeeklyRows,
   weeklyRows,
@@ -73,7 +72,7 @@ test("weekly UI allows five rows and availability outside Session duration limit
   );
   assert.equal(weeklyRows("{broken"), undefined);
 });
-test("selected weekly draft blocks API conversion instead of discarding it or mapping to next occurrence", () => {
+test("selected weekly draft replaces legacy absolute slots with local weekly API data", () => {
   const initial = fixtureRequest();
   const draft = {
     ...requestDefaults(initial),
@@ -81,12 +80,12 @@ test("selected weekly draft blocks API conversion instead of discarding it or ma
   };
   const snapshot = structuredClone(draft);
   assert.equal(requestFormSchema(initial).safeParse(draft).success, true);
-  assert.throws(
-    () => draftToInput(draft, initial),
-    (error) =>
-      error instanceof ZodError &&
-      error.issues[0]?.path[0] === "weeklyAvailability",
-  );
+  const weekly = draftToInput(draft, initial);
+  assert.deepEqual(weekly.preferredSlots, []);
+  assert.deepEqual(weekly.preferredAvailability, {
+    timeZone: draft.timeZone,
+    weeklySlots: [row],
+  });
   assert.deepEqual(draft, snapshot);
   const input = draftToInput({ ...draft, weeklyAvailability: "" }, initial);
   assert.deepEqual(input.preferredSlots, initial.preferredSlots);

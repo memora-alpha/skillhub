@@ -4,9 +4,13 @@ import { Input } from "@/components/Input";
 import { Button } from "@/components/Button";
 import { Copy } from "@/components/feature-page";
 import { FormNotice } from "@/components/FormNotice";
-import { appColors as colors, fonts } from "@/constants/theme";
+import { Icon } from "@/components/Icon";
 import { useSkillOptions, useSkillName } from "../hooks/use-requests";
 import { RequestFailure, RequestLoading } from "./request-state";
+import {
+  requestFormColors as colors,
+  requestFormStyles,
+} from "./request-form.styles";
 export function SkillSelector({
   value,
   onChange,
@@ -62,6 +66,7 @@ export function SkillSelector({
         <>
           <Button
             variant="paper"
+            style={requestFormStyles.action}
             disabled={disabled}
             onPress={() => setExpanded((open) => !open)}
           >
@@ -102,35 +107,42 @@ export function SkillSelector({
                   retry={() => void query.refetch()}
                 />
               )}
-              {options.map((skill) => (
-                <Pressable
-                  key={skill.id}
-                  accessibilityRole="radio"
-                  accessibilityState={{ checked: value === skill.id, disabled }}
-                  disabled={disabled}
-                  onPress={() => {
-                    onChange(skill.id);
-                    setExpanded(false);
-                  }}
-                  style={{
-                    padding: 12,
-                    minHeight: 44,
-                    borderWidth: 1,
-                    borderRadius: 6,
-                    borderColor:
-                      value === skill.id ? colors.primary : colors.border,
-                    backgroundColor:
-                      value === skill.id ? colors.primarySoft : colors.surface,
-                  }}
-                >
-                  <Text
-                    style={{ fontFamily: fonts.semibold, color: colors.ink }}
+              <View style={requestFormStyles.badgeList}>
+                {options.map((skill) => (
+                  <Pressable
+                    key={skill.id}
+                    accessibilityRole="radio"
+                    accessibilityLabel={skill.name}
+                    accessibilityState={{
+                      checked: value === skill.id,
+                      disabled,
+                    }}
+                    hitSlop={4}
+                    disabled={disabled}
+                    onPress={() => {
+                      onChange(skill.id);
+                      setExpanded(false);
+                    }}
+                    style={({ pressed }) => [
+                      requestFormStyles.choiceBadge,
+                      value === skill.id && requestFormStyles.selected,
+                      (pressed || disabled) && { opacity: 0.6 },
+                    ]}
                   >
-                    {skill.name}
-                    {value === skill.id ? " ✓" : ""}
-                  </Text>
-                </Pressable>
-              ))}
+                    <Text
+                      style={[
+                        requestFormStyles.choiceLabel,
+                        value === skill.id && { color: colors.primary },
+                      ]}
+                    >
+                      {skill.name}
+                    </Text>
+                    {value === skill.id && (
+                      <Icon name="check" size={13} color={colors.primary} />
+                    )}
+                  </Pressable>
+                ))}
+              </View>
               {!query.isPending && !query.error && options.length === 0 && (
                 <Copy muted>Chưa có kỹ năng phù hợp.</Copy>
               )}

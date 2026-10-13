@@ -23,6 +23,11 @@ import { type OwnerRequest } from "../types";
 import { AppError } from "@/lib/http/errors";
 import { RequestConflict } from "../components/request-conflict";
 import type { EditorRead } from "../hooks/use-request-recovery";
+import { Text, View } from "react-native";
+import {
+  requestFormColors as colors,
+  requestFormStyles as styles,
+} from "../components/request-form.styles";
 
 export function RequestEditorScreen() {
   const { id } = useLocalSearchParams<{ id?: string | string[] }>();
@@ -114,9 +119,59 @@ function RequestForm({
       title={initial ? "Sửa yêu cầu học" : "Tạo yêu cầu học"}
       pending={pending}
       fallback={initial ? `/requests/${initial.id}` : "/discover"}
+      rightAction={
+        !initial || initial.status === "DRAFT" ? (
+          <Text
+            style={[
+              styles.hint,
+              {
+                paddingHorizontal: 10,
+                paddingVertical: 6,
+                borderRadius: 20,
+                backgroundColor: colors.amberSoft,
+                color: colors.primary,
+              },
+            ]}
+          >
+            Bản nháp
+          </Text>
+        ) : undefined
+      }
+      footer={
+        !recovery.denied && (
+          <View style={styles.footer}>
+            <View
+              style={{
+                width: "100%",
+                maxWidth: 608,
+                alignSelf: "center",
+                gap: 8,
+              }}
+            >
+              <Button
+                variant="craft"
+                style={[styles.action, { backgroundColor: colors.accent }]}
+                disabled={pending || blocked}
+                onPress={() => void form.handleSubmit(save)()}
+              >
+                {pending
+                  ? "Đang lưu..."
+                  : initial
+                    ? "Lưu thay đổi"
+                    : "Lưu bản nháp"}
+              </Button>
+              {!initial && (
+                <Text style={[styles.hint, { textAlign: "center" }]}>
+                  Lưu nháp để xem lại trước khi đăng.
+                </Text>
+              )}
+            </View>
+          </View>
+        )
+      }
     >
       <Copy muted>
-        {initial
+        {initial?.publishedAt
           ? "Bài đã đăng sẽ được duyệt lại khi sửa."
           : "Lưu nháp, sau đó đăng bài."}
       </Copy>
@@ -143,15 +198,6 @@ function RequestForm({
       )}
       {!!error && !recovery.denied && (
         <FormNotice tone="error">{requestError(error, true)}</FormNotice>
-      )}
-      {!recovery.denied && (
-        <Button
-          variant="craft"
-          disabled={pending || blocked || !!form.watch("weeklyAvailability")}
-          onPress={() => void form.handleSubmit(save)()}
-        >
-          {pending ? "Đang lưu..." : initial ? "Lưu thay đổi" : "Lưu bản nháp"}
-        </Button>
       )}
     </RequestPage>
   );

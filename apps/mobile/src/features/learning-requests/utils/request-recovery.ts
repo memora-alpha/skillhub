@@ -22,6 +22,11 @@ export const requestDraftLabels: Record<keyof RequestDraft, string> = {
   preferredSlots: "Thời gian ưu tiên",
   weeklyAvailability: "Lịch rảnh theo tuần",
   expiresAt: "Hạn yêu cầu",
+  timeZone: "Múi giờ lịch tuần",
+  teachingOverview: "Nội dung có thể dạy",
+  desiredCreditPerHour: "Credit mong muốn mỗi giờ",
+  tagIds: "Tag",
+  offeredSharingSkillIds: "Kỹ năng có thể dạy",
 };
 export function compareRequestDraft(
   initial: OwnerRequest,
@@ -30,12 +35,14 @@ export function compareRequestDraft(
   const before = requestDefaults(initial),
     after = requestDefaults(latest);
   return (Object.keys(requestDraftLabels) as (keyof RequestDraft)[])
-    .filter((field) => before[field] !== after[field])
+    .filter(
+      (field) => JSON.stringify(before[field]) !== JSON.stringify(after[field]),
+    )
     .map((field) => ({
       field,
       label: requestDraftLabels[field],
-      before: before[field],
-      after: after[field],
+      before: String(before[field]),
+      after: String(after[field]),
     }));
 }
 export function rebaseRequestDraft(
@@ -48,7 +55,7 @@ export function rebaseRequestDraft(
   const old = requestDefaults(initial),
     next = requestDefaults(latest);
   for (const field of Object.keys(next) as (keyof RequestDraft)[]) {
-    if (draft[field] !== old[field])
+    if (JSON.stringify(draft[field]) !== JSON.stringify(old[field]))
       Object.assign(next, { [field]: draft[field] });
   }
   if (latest.publishedAt) next.skillId = latest.skillId;

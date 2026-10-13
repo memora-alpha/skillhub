@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { cardPreferences, idsSchema } from "./schemas/request-preferences";
 export const requestStatuses = [
   "DRAFT",
   "PENDING_MODERATION",
@@ -21,6 +22,7 @@ export const slotSchema = z.object({
   endAt: z.iso.datetime({ offset: true }),
 });
 const base = {
+  ...cardPreferences,
   id: z.uuid(),
   title: z.string(),
   learningGoal: z.string(),
@@ -35,6 +37,7 @@ export const ownerSchema = z.object({
   skillId: z.uuid(),
   description: z.string(),
   tagIds: z.array(z.uuid()),
+  offeredSharingSkillIds: idsSchema.default([]),
   preferredSlots: z.array(slotSchema),
   version: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
   moderationStatus: z.enum(["NOT_REQUIRED", "PENDING", "APPROVED", "REJECTED"]),
@@ -46,6 +49,8 @@ export const ownerSchema = z.object({
 });
 export const publicSchema = z.object({
   ...base,
+  description: z.string().optional(),
+  preferredSlots: z.array(slotSchema).default([]),
   skill: z.object({ id: z.uuid(), name: z.string() }),
   tags: z.array(z.object({ id: z.uuid(), label: z.string() })),
   owner: z.object({ id: z.uuid(), displayName: z.string() }),
@@ -61,12 +66,28 @@ export const skillSchema = z.object({
   name: z.string(),
   status: z.enum(["ACTIVE", "INACTIVE", "ARCHIVED"]),
 });
+export const tagSchema = z.object({ id: z.uuid(), label: z.string() });
+export const ownOfferingSchema = z.object({
+  id: z.uuid(),
+  skill: skillSchema,
+  level: z.string(),
+  verificationStatus: z.string(),
+  isVisible: z.boolean(),
+  archivedAt: z.iso.datetime({ offset: true }).nullable(),
+});
+export type TagOption = z.infer<typeof tagSchema>;
+export type OwnOffering = z.infer<typeof ownOfferingSchema>;
 export type OwnerRequest = z.infer<typeof ownerSchema>;
 export type PublicRequest = z.infer<typeof publicSchema>;
 export type PublicRequestDetail = z.infer<typeof publicDetailSchema>;
 export type RequestItem = OwnerRequest | PublicRequest;
 export type SkillOption = z.infer<typeof skillSchema>;
 export type RequestInput = {
+  teachingOverview?: string | null;
+  offeredSharingSkillIds?: string[];
+  preferredAvailability?: OwnerRequest["preferredAvailability"];
+  desiredCreditPerHour?: string | null;
+  tagIds?: string[];
   title: string;
   skillId: string;
   description: string;

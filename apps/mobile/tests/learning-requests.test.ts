@@ -135,7 +135,13 @@ test("untouched editor preserves expired slots, seconds and tags; patch sends on
     }),
     { expectedVersion: 7, learningGoal: "Mục tiêu mới để học React" },
   );
-  assert.equal("tagIds" in input, false);
+  assert.deepEqual(input.tagIds, request.tagIds);
+  assert.equal(
+    "tagIds" in
+      (requestPatch(request, { ...input, title: "Một tiêu đề mới đủ dài" }) ??
+        {}),
+    false,
+  );
 });
 
 test("optional fields can be cleared explicitly without resetting other fields", () => {

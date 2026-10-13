@@ -197,7 +197,7 @@ const styles = StyleSheet.create({
     gap: 10,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radius.control,
+    borderRadius: radius.card,
     backgroundColor: colors.surface,
   },
   active: { borderColor: colors.primary },

@@ -6,6 +6,8 @@ import {
   publicSchema,
   publicDetailSchema,
   skillSchema,
+  tagSchema,
+  ownOfferingSchema,
   type RequestInput,
   type RequestPatch,
   type RequestFilters,
@@ -114,6 +116,22 @@ export function createRequestsApi(client: HttpClient, isCurrent = () => true) {
       return parsePage(
         skillSchema,
         await call(`/skills?${queryString({ cursor, q })}`, {
+          includeMeta: true,
+        }),
+      );
+    },
+    async tags(cursor?: string, q?: string) {
+      return parsePage(
+        tagSchema,
+        await call(`/tags?${queryString({ cursor, q })}`, {
+          includeMeta: true,
+        }),
+      );
+    },
+    async offerings(cursor?: string) {
+      return parsePage(
+        ownOfferingSchema,
+        await call(`/me/skills?${queryString({ cursor })}`, {
           includeMeta: true,
         }),
       );

@@ -100,7 +100,7 @@ test("untouched server slots and custom expiry retain seconds/milliseconds even 
   const input = draftToInput(requestDefaults(request), request);
   assert.deepEqual(input.preferredSlots, request.preferredSlots);
   assert.equal(input.expiresAt, request.requestedExpiresAt);
-  assert.equal("tagIds" in input, false);
+  assert.deepEqual(input.tagIds, request.tagIds);
 });
 
 test("submit conversion normalizes NFKC/trim without HTML stripping or entity decoding", () => {
