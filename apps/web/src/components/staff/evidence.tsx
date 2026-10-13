@@ -17,13 +17,38 @@ type Decision = {
   action: "approve" | "reject" | "revoke";
   evidenceId?: string;
 };
+const decisionLabels = {
+  approve: {
+    title: "Phê duyệt yêu cầu xác minh",
+    confirmLabel: "Xác nhận phê duyệt",
+  },
+  reject: {
+    title: "Từ chối yêu cầu xác minh",
+    confirmLabel: "Xác nhận từ chối",
+  },
+  revoke: {
+    title: "Thu hồi phê duyệt bằng chứng",
+    confirmLabel: "Xác nhận thu hồi",
+  },
+};
+function decisionBody(
+  action: Decision["action"],
+  version: number,
+  note: string,
+) {
+  if (action === "approve")
+    return { expectedVersion: version, ...(note ? { note } : {}) };
+  if (action === "reject")
+    return { expectedVersion: version, rejectReason: note };
+  return { reason: note };
+}
 function VerificationDetail({
   id,
   onQueueReload,
-}: {
+}: Readonly<{
   id: string;
   onQueueReload: () => void;
-}) {
+}>) {
   const { api } = useStaffSession();
   const detail = useStaffResource<Verification>(`verifications/${id}`);
   const [decision, setDecision] = useState<Decision | null>(null);
@@ -69,11 +94,7 @@ function VerificationDetail({
                 </>
               )}
             </dl>
-            {success && (
-              <p className="staff-success" role="status">
-                {success}
-              </p>
-            )}
+            {success && <output className="staff-success">{success}</output>}
             <h3 className="sub-title">
               Bằng chứng đính kèm ({item.files.length})
             </h3>
@@ -100,6 +121,7 @@ function VerificationDetail({
                   />
                   {file.approvalStatus === "APPROVED" && !file.revokedAt && (
                     <button
+                      type="button"
                       className="btn btn-danger btn-sm"
                       disabled={!!decision || detail.loading}
                       onClick={() =>
@@ -115,6 +137,7 @@ function VerificationDetail({
             {item.status === "PENDING" && (
               <div className="staff-detail-actions">
                 <button
+                  type="button"
                   className="btn btn-danger"
                   disabled={!!decision || detail.loading}
                   onClick={() => setDecision({ action: "reject" })}
@@ -122,6 +145,7 @@ function VerificationDetail({
                   Từ chối
                 </button>
                 <button
+                  type="button"
                   className="btn btn-primary"
                   disabled={!!decision || detail.loading}
                   onClick={() => setDecision({ action: "approve" })}
@@ -133,13 +157,7 @@ function VerificationDetail({
             {decision && (
               <DecisionDialog
                 key={`${decision.action}:${decision.evidenceId ?? id}`}
-                title={
-                  decision.action === "approve"
-                    ? "Phê duyệt yêu cầu xác minh"
-                    : decision.action === "reject"
-                      ? "Từ chối yêu cầu xác minh"
-                      : "Thu hồi phê duyệt bằng chứng"
-                }
+                title={decisionLabels[decision.action].title}
                 description={
                   decision.action === "revoke"
                     ? "Bằng chứng này sẽ không còn được tính là bằng chứng đã phê duyệt."
@@ -149,13 +167,7 @@ function VerificationDetail({
                 min={decision.action === "approve" ? 0 : 10}
                 max={500}
                 danger={decision.action !== "approve"}
-                confirmLabel={
-                  decision.action === "approve"
-                    ? "Xác nhận phê duyệt"
-                    : decision.action === "reject"
-                      ? "Xác nhận từ chối"
-                      : "Xác nhận thu hồi"
-                }
+                confirmLabel={decisionLabels[decision.action].confirmLabel}
                 idempotent
                 onClose={() => setDecision(null)}
                 onReload={() => {
@@ -167,15 +179,11 @@ function VerificationDetail({
                     decision.action === "revoke"
                       ? `verifications/${id}/evidence/${decision.evidenceId}/revoke`
                       : `verifications/${id}/${decision.action}`;
-                  const body =
-                    decision.action === "approve"
-                      ? {
-                          expectedVersion: item.version,
-                          ...(note ? { note } : {}),
-                        }
-                      : decision.action === "reject"
-                        ? { expectedVersion: item.version, rejectReason: note }
-                        : { reason: note };
+                  const body = decisionBody(
+                    decision.action,
+                    item.version,
+                    note,
+                  );
                   await api<Verification>(path, {
                     method: "POST",
                     body,
@@ -207,6 +215,7 @@ export function EvidenceScreen() {
         desc="Xem xét các tệp người dùng gửi và ghi nhận kết quả xác minh."
         actions={
           <button
+            type="button"
             className="btn"
             disabled={queue.loading}
             onClick={queue.reload}
@@ -246,6 +255,7 @@ export function EvidenceScreen() {
               {queue.items.map((item) => (
                 <li key={item.id}>
                   <button
+                    type="button"
                     className="q-item"
                     aria-current={item.id === selected}
                     onClick={() => setSelected(item.id)}

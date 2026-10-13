@@ -42,6 +42,7 @@ export function ReportsScreen() {
         desc="Tiếp nhận báo cáo Session, xem bằng chứng và ghi nhận kết quả xử lý."
         actions={
           <button
+            type="button"
             className="btn"
             disabled={queue.loading}
             onClick={queue.reload}
@@ -163,18 +164,237 @@ const actions: Record<
     description: "Nêu rõ lý do bác bỏ để kết quả xử lý có thể truy vết.",
   },
 };
-export function ReportDetailScreen({ id }: { id: string }) {
-  const { actor, portal, api } = useStaffSession();
+function ReportOverview({ item }: Readonly<{ item: ReportCase }>) {
+  return (
+    <Card title="Nội dung báo cáo">
+      <div className="stack">
+        <div className="row">
+          <StatusBadge status={item.status} />
+          <Badge tone={item.blocksSettlement ? "warn" : "neutral"}>
+            {item.blocksSettlement
+              ? "Settlement đang bị chặn"
+              : "Không chặn settlement"}
+          </Badge>
+        </div>
+        <h3 className="sub-title">
+          {reasons[item.reasonCode] ?? item.reasonCode}
+        </h3>
+        <p className="prose">{item.description}</p>
+        <dl className="kv staff-kv">
+          <dt>Mã báo cáo</dt>
+          <dd className="mono">{item.id}</dd>
+          <dt>Người gửi</dt>
+          <dd className="mono">{item.reporterId}</dd>
+          <dt>Session liên quan</dt>
+          <dd className="mono">{item.relatedSessionId ?? item.targetId}</dd>
+          <dt>Learning Path</dt>
+          <dd className="mono">{item.relatedPathId ?? "Không có"}</dd>
+          <dt>Ngày gửi</dt>
+          <dd>{fmtDateTime(item.createdAt)}</dd>
+          <dt>Người xử lý</dt>
+          <dd className="mono">{item.handlerId ?? "Chưa được giao"}</dd>
+        </dl>
+      </div>
+    </Card>
+  );
+}
+function ReportFiles({
+  files,
+}: Readonly<{ files: ReportCase["reportEvidenceCaseIdRecords"] }>) {
+  if (!files?.length)
+    return <p className="muted">Không có bằng chứng đính kèm.</p>;
+  return (
+    <div className="stack">
+      {files.map((file, index) => (
+        <div className="staff-evidence-file" key={file.id}>
+          <strong>Bằng chứng {index + 1}</strong>
+          <p className="muted">
+            {file.mimeType} · {fmtSize(Number(file.fileSizeBytes))} ·{" "}
+            {fmtDateTime(file.uploadedAt)}
+          </p>
+          <DownloadButton
+            path={"reports/evidence/" + file.id + "/download"}
+            name={"Bằng chứng " + (index + 1)}
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
+type ReportActionProps = Readonly<{
+  item: ReportCase;
+  owns: boolean;
+  busy: boolean;
+  onAction: (action: ReportAction) => void;
+}>;
+function ReportActions({ item, owns, busy, onAction }: ReportActionProps) {
+  if (item.status === "RESOLVED" || item.status === "REJECTED")
+    return <StatusBadge status={item.status} />;
+  if (item.status === "OPEN")
+    return (
+      <button
+        type="button"
+        className="btn btn-primary"
+        disabled={busy}
+        onClick={() => onAction("claim")}
+      >
+        Nhận xử lý
+      </button>
+    );
+  if (!owns)
+    return (
+      <p className="staff-flag">
+        Một nhân viên khác đang phụ trách vụ việc này.
+      </p>
+    );
+  return (
+    <>
+      <p className="muted">Bạn đang phụ trách vụ việc này.</p>
+      {item.status !== "NEED_MORE_INFO" && (
+        <button
+          type="button"
+          className="btn"
+          disabled={busy}
+          onClick={() => onAction("need-more-info")}
+        >
+          Yêu cầu bổ sung thông tin
+        </button>
+      )}
+      <button
+        type="button"
+        className="btn btn-primary"
+        disabled={busy}
+        onClick={() => onAction("resolve")}
+      >
+        Đã xử lý
+      </button>
+      <button
+        type="button"
+        className="btn btn-danger"
+        disabled={busy}
+        onClick={() => onAction("reject")}
+      >
+        Bác bỏ báo cáo
+      </button>
+    </>
+  );
+}
+function ReportDetailContent({
+  item,
+  loading,
+  error,
+  confirmed,
+  owns,
+  busy,
+  reload,
+  onAction,
+}: Readonly<{
+  item: ReportCase | null | undefined;
+  loading: boolean;
+  error?: string;
+  confirmed: boolean;
+  owns: boolean;
+  busy: boolean;
+  reload: () => void;
+  onAction: (action: ReportAction) => void;
+}>) {
+  const { portal } = useStaffSession();
+  if (error)
+    return (
+      <QueueState error={error} loading={false} empty reload={reload}>
+        {null}
+      </QueueState>
+    );
+  if (loading && !confirmed)
+    return <output className="staff-state">Đang tải vụ việc…</output>;
+  if (!item)
+    return (
+      <Card>
+        <Empty
+          title="Báo cáo không còn trong hàng đợi"
+          desc="Vụ việc có thể đã được xử lý hoặc không nằm trong 100 báo cáo đang mở được trả về."
+        />
+        <Link className="link" href={"/" + portal + "/disputes"}>
+          Quay lại hàng đợi
+        </Link>
+      </Card>
+    );
+  return (
+    <div className="grid grid-2 staff-report-grid">
+      <div className="stack">
+        <ReportOverview item={item} />
+        <Card title="Bằng chứng">
+          <ReportFiles files={item.reportEvidenceCaseIdRecords} />
+        </Card>
+      </div>
+      <Card title="Xử lý vụ việc">
+        <div className="stack">
+          {confirmed && (
+            <output className="staff-success">
+              Máy chủ đã ghi nhận thao tác.
+            </output>
+          )}
+          {item.resolutionNote && (
+            <section>
+              <h3 className="sub-title">Ghi chú xử lý</h3>
+              <p className="prose">{item.resolutionNote}</p>
+            </section>
+          )}
+          <ReportActions
+            item={item}
+            owns={owns}
+            busy={busy}
+            onAction={onAction}
+          />
+        </div>
+      </Card>
+    </div>
+  );
+}
+function ReportDecision({
+  item,
+  action,
+  onClose,
+  reload,
+  onComplete,
+}: Readonly<{
+  item: ReportCase;
+  action: ReportAction;
+  onClose: () => void;
+  reload: () => void;
+  onComplete: (item: ReportCase) => void;
+}>) {
+  const { api } = useStaffSession();
+  return (
+    <DecisionDialog
+      title={actions[action].title}
+      description={actions[action].description}
+      label={action === "claim" ? "Ghi chú" : "Nội dung xử lý"}
+      min={action === "claim" ? 0 : 1}
+      confirmLabel={actions[action].label}
+      danger={action === "reject"}
+      onClose={onClose}
+      onReload={reload}
+      onSubmit={async (note) => {
+        const result = await api<ReportCase>(
+          "reports/" + item.id + "/" + action,
+          { method: "POST", body: note ? { note } : {} },
+        );
+        onComplete({ ...item, ...result.data });
+      }}
+    />
+  );
+}
+export function ReportDetailScreen({ id }: Readonly<{ id: string }>) {
+  const { actor, portal } = useStaffSession();
   const resource = useStaffResource<ReportCase[]>("reports");
   const [receipt, setReceipt] = useState<ReportCase | null>(null);
   const [action, setAction] = useState<ReportAction | null>(null);
-  const item =
-    receipt ??
-    (Array.isArray(resource.data)
-      ? resource.data.find((r) => r.id === id)
-      : null);
-  const owns = item?.handlerId === actor?.userId;
-  const closed = item?.status === "RESOLVED" || item?.status === "REJECTED";
+  const currentReceipt = receipt?.id === id ? receipt : null;
+  const queueItem = Array.isArray(resource.data)
+    ? resource.data.find((report) => report.id === id)
+    : null;
+  const item = currentReceipt ?? queueItem;
   const reload = () => {
     setReceipt(null);
     void resource.reload();
@@ -183,176 +403,42 @@ export function ReportDetailScreen({ id }: { id: string }) {
     <>
       <PageHeader
         title="Chi tiết báo cáo"
-        desc={`Báo cáo #${id.slice(0, 8)}`}
+        desc={"Báo cáo #" + id.slice(0, 8)}
         back={
-          <Link className="link" href={`/${portal}/disputes`}>
+          <Link className="link" href={"/" + portal + "/disputes"}>
             ← Hàng đợi báo cáo
           </Link>
         }
         actions={
-          <button className="btn" disabled={resource.loading} onClick={reload}>
+          <button
+            type="button"
+            className="btn"
+            disabled={resource.loading}
+            onClick={reload}
+          >
             Làm mới
           </button>
         }
       />
-      {resource.error ? (
-        <QueueState
-          error={resource.error}
-          loading={false}
-          empty
+      <ReportDetailContent
+        item={item}
+        loading={resource.loading}
+        error={resource.error}
+        confirmed={currentReceipt !== null}
+        owns={item?.handlerId === actor?.userId}
+        busy={action !== null}
+        reload={reload}
+        onAction={setAction}
+      />
+      {item && action && (
+        <ReportDecision
+          key={id + ":" + action}
+          item={item}
+          action={action}
+          onClose={() => setAction(null)}
           reload={reload}
-        >
-          {null}
-        </QueueState>
-      ) : resource.loading && !receipt ? (
-        <p className="staff-state" role="status">
-          Đang tải vụ việc…
-        </p>
-      ) : !item ? (
-        <Card>
-          <Empty
-            title="Báo cáo không còn trong hàng đợi"
-            desc="Vụ việc có thể đã được xử lý hoặc không nằm trong 100 báo cáo đang mở được trả về."
-          />
-          <Link className="link" href={`/${portal}/disputes`}>
-            Quay lại hàng đợi
-          </Link>
-        </Card>
-      ) : (
-        <div className="grid grid-2 staff-report-grid">
-          <div className="stack">
-            <Card title="Nội dung báo cáo">
-              <div className="stack">
-                <div className="row">
-                  <StatusBadge status={item.status} />
-                  <Badge tone={item.blocksSettlement ? "warn" : "neutral"}>
-                    {item.blocksSettlement
-                      ? "Settlement đang bị chặn"
-                      : "Không chặn settlement"}
-                  </Badge>
-                </div>
-                <h3 className="sub-title">
-                  {reasons[item.reasonCode] ?? item.reasonCode}
-                </h3>
-                <p className="prose">{item.description}</p>
-                <dl className="kv staff-kv">
-                  <dt>Mã báo cáo</dt>
-                  <dd className="mono">{item.id}</dd>
-                  <dt>Người gửi</dt>
-                  <dd className="mono">{item.reporterId}</dd>
-                  <dt>Session liên quan</dt>
-                  <dd className="mono">
-                    {item.relatedSessionId ?? item.targetId}
-                  </dd>
-                  <dt>Learning Path</dt>
-                  <dd className="mono">{item.relatedPathId ?? "Không có"}</dd>
-                  <dt>Ngày gửi</dt>
-                  <dd>{fmtDateTime(item.createdAt)}</dd>
-                  <dt>Người xử lý</dt>
-                  <dd className="mono">{item.handlerId ?? "Chưa được giao"}</dd>
-                </dl>
-              </div>
-            </Card>
-            <Card title="Bằng chứng">
-              {!item.reportEvidenceCaseIdRecords?.length ? (
-                <p className="muted">Không có bằng chứng đính kèm.</p>
-              ) : (
-                <div className="stack">
-                  {item.reportEvidenceCaseIdRecords.map((file, index) => (
-                    <div className="staff-evidence-file" key={file.id}>
-                      <strong>Bằng chứng {index + 1}</strong>
-                      <p className="muted">
-                        {file.mimeType} · {fmtSize(Number(file.fileSizeBytes))}{" "}
-                        · {fmtDateTime(file.uploadedAt)}
-                      </p>
-                      <DownloadButton
-                        path={`reports/evidence/${file.id}/download`}
-                        name={`Bằng chứng ${index + 1}`}
-                      />
-                    </div>
-                  ))}
-                </div>
-              )}
-            </Card>
-          </div>
-          <Card title="Xử lý vụ việc">
-            <div className="stack">
-              {receipt && (
-                <p className="staff-success" role="status">
-                  Máy chủ đã ghi nhận thao tác.
-                </p>
-              )}
-              {item.resolutionNote && (
-                <section>
-                  <h3 className="sub-title">Ghi chú xử lý</h3>
-                  <p className="prose">{item.resolutionNote}</p>
-                </section>
-              )}
-              {closed ? (
-                <StatusBadge status={item.status} />
-              ) : item.status === "OPEN" ? (
-                <button
-                  className="btn btn-primary"
-                  disabled={!!action}
-                  onClick={() => setAction("claim")}
-                >
-                  Nhận xử lý
-                </button>
-              ) : owns ? (
-                <>
-                  <p className="muted">Bạn đang phụ trách vụ việc này.</p>
-                  {item.status !== "NEED_MORE_INFO" && (
-                    <button
-                      className="btn"
-                      disabled={!!action}
-                      onClick={() => setAction("need-more-info")}
-                    >
-                      Yêu cầu bổ sung thông tin
-                    </button>
-                  )}
-                  <button
-                    className="btn btn-primary"
-                    disabled={!!action}
-                    onClick={() => setAction("resolve")}
-                  >
-                    Đã xử lý
-                  </button>
-                  <button
-                    className="btn btn-danger"
-                    disabled={!!action}
-                    onClick={() => setAction("reject")}
-                  >
-                    Bác bỏ báo cáo
-                  </button>
-                </>
-              ) : (
-                <p className="staff-flag">
-                  Một nhân viên khác đang phụ trách vụ việc này.
-                </p>
-              )}
-            </div>
-          </Card>
-          {action && (
-            <DecisionDialog
-              key={`${id}:${action}`}
-              title={actions[action].title}
-              description={actions[action].description}
-              label={action === "claim" ? "Ghi chú" : "Nội dung xử lý"}
-              min={action === "claim" ? 0 : 1}
-              confirmLabel={actions[action].label}
-              danger={action === "reject"}
-              onClose={() => setAction(null)}
-              onReload={reload}
-              onSubmit={async (note) => {
-                const result = await api<ReportCase>(
-                  `reports/${id}/${action}`,
-                  { method: "POST", body: note ? { note } : {} },
-                );
-                setReceipt({ ...item, ...result.data });
-              }}
-            />
-          )}
-        </div>
+          onComplete={setReceipt}
+        />
       )}
     </>
   );

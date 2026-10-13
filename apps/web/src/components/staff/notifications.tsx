@@ -27,6 +27,7 @@ export function NotificationsScreen() {
         desc="Thông báo của tài khoản đang đăng nhập."
         actions={
           <button
+            type="button"
             className="btn"
             disabled={queue.loading || busy !== null}
             onClick={queue.reload}
@@ -77,6 +78,7 @@ export function NotificationsScreen() {
                   </div>
                   {!n.readAt && (
                     <button
+                      type="button"
                       className="btn btn-sm"
                       disabled={busy !== null}
                       onClick={async () => {
