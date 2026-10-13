@@ -1,5 +1,4 @@
-import { DisputeList } from "@/components/console/disputes";
-
-export default function AdminDisputesPage() {
-  return <DisputeList base="/admin" />;
+import { ReportsScreen } from "@/components/staff/reports";
+export default function Page() {
+  return <ReportsScreen />;
 }
