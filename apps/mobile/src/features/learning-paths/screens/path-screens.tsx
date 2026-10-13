@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { learningRoutes } from "@/constants/navigation";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { View } from "react-native";
 import { Badge } from "@/components/Badge";
@@ -17,51 +18,6 @@ import {
 } from "@/components/feature-page";
 import { usePathsPreview } from "../context";
 import { plansConfirmed, agreementConfirmed } from "../rules";
-export function PathsScreen() {
-  const { paths } = usePathsPreview();
-  const [filter, setFilter] = useState("Tất cả");
-  const items = paths.filter((p) => filter === "Tất cả" || p.status === filter);
-  return (
-    <FeaturePage
-      title="Lộ trình của tôi"
-      back="/calendar"
-      subtitle="Mỗi lần học là một bước tiến cùng nhau."
-    >
-      <ChoiceGroup
-        label="Trạng thái"
-        value={filter}
-        options={["Tất cả", "PROPOSED", "ACTIVE", "COMPLETED", "DISPUTED"]}
-        onChange={setFilter}
-      />
-      {items.map((path) => (
-        <Panel key={path.id} title={path.title}>
-          <Badge label={path.status} />
-          <Copy>
-            {path.partner} ·{" "}
-            {path.type === "TWO_WAY"
-              ? "Trao đổi hai chiều"
-              : "Dạy học một chiều"}
-          </Copy>
-          <Copy muted>
-            {path.completedSessions}/
-            {path.plans.reduce((sum, p) => sum + p.outline.length, 0)} buổi ·
-            phiên bản {path.version}
-          </Copy>
-          <RouteButton href={`/paths/${path.id}`}>Mở lộ trình</RouteButton>
-        </Panel>
-      ))}
-      {!items.length && (
-        <EmptyState
-          title="Chưa có lộ trình"
-          description="Chấp nhận đề xuất và thương lượng qua tin nhắn để bắt đầu."
-        />
-      )}
-      <RouteButton secondary href="/messages">
-        Đến cuộc trao đổi
-      </RouteButton>
-    </FeaturePage>
-  );
-}
 export function AgreementTypeScreen() {
   const { proposalId } = useLocalSearchParams<{ proposalId?: string }>();
   const { save } = usePathsPreview();
@@ -141,7 +97,7 @@ export function PathDetailScreen() {
   const { paths, save } = usePathsPreview();
   const path = paths.find((p) => p.id === id);
   return (
-    <FeaturePage title="Không gian lộ trình" back="/paths">
+    <FeaturePage title="Không gian lộ trình" back={learningRoutes.paths}>
       {!path ? (
         <EmptyState
           title="Không tìm thấy lộ trình"

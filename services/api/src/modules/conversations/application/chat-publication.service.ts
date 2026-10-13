@@ -7,7 +7,10 @@ import {
 } from "../../../infrastructure/events/outbox.types";
 import { lockUsers } from "../../../shared/database/identity-transactions";
 import { ApplicationEventsService } from "../../application-events/application/application-events.service";
-import { ChatRepository } from "../infrastructure/chat.repository";
+import {
+  ChatRepository,
+  type ChatMessage,
+} from "../infrastructure/chat.repository";
 import { ConnectionNotificationService } from "../../notifications/application/services/connection-notification.service";
 @Injectable()
 export class ChatPublicationService implements OnModuleInit, OnModuleDestroy {
@@ -45,7 +48,7 @@ export class ChatPublicationService implements OnModuleInit, OnModuleDestroy {
       throw new Error("INVALID_CHAT_PUBLICATION");
     await this.deliver(payload.messageId);
   }
-  async deliver(id: string) {
+  async deliver(id: string): Promise<ChatMessage> {
     const receipt = await this.db.chatPublication.findUniqueOrThrow({
       where: { id },
     });

@@ -1,10 +1,15 @@
 import type { ReactNode } from "react";
+import {
+  ProfileSkillSection,
+  SamplePublicSkillRow,
+  ProfileSkillMore,
+  useProfileSkillWindow,
+} from "@/features/skills";
 import { StyleSheet, Text, View } from "react-native";
 import { ProfileHero } from "./ProfileHero";
 import {
   ProfileSection,
   ProfileHeading,
-  VerifiedBadge,
   profileStyles,
 } from "./ProfilePrimitives";
 import {
@@ -26,11 +31,11 @@ export function ProfileSummary({
   profile,
   onEdit,
   avatarNotice,
-}: {
+}: Readonly<{
   profile: PublicProfile;
   onEdit?: () => void;
   avatarNotice?: ReactNode;
-}) {
+}>) {
   const stats = [
     { value: profile.reputationScore, label: "Điểm uy tín" },
     { value: profile.verifiedSkillCount, label: "Kỹ năng đã xác minh" },
@@ -71,7 +76,7 @@ export function ProfileSummary({
   );
 }
 
-export function ProfileAbout({ bio }: { bio: string }) {
+export function ProfileAbout({ bio }: Readonly<{ bio: string }>) {
   return (
     <ProfileSection>
       <ProfileHeading title="Giới thiệu" />
@@ -86,40 +91,45 @@ export function ProfileSkills({
   profile,
   onManage,
   available = true,
-}: {
+}: Readonly<{
   profile: PublicProfile;
   onManage?: () => void;
   available?: boolean;
-}) {
+}>) {
+  const preview = useProfileSkillWindow({
+    count: available ? profile.sharingSkills.length : 0,
+  });
+  let content: ReactNode;
+  if (!available)
+    content = (
+      <Text style={profileStyles.caption}>
+        Danh sách kỹ năng chưa được kết nối.
+      </Text>
+    );
+  else if (!profile.sharingSkills.length)
+    content = (
+      <Text style={profileStyles.caption}>Chưa có kỹ năng chia sẻ.</Text>
+    );
+  else
+    content = profile.sharingSkills
+      .slice(0, preview.visible)
+      .map((skill) => (
+        <SamplePublicSkillRow
+          key={skill.id}
+          name={skill.name}
+          level={levels[skill.level]}
+          status={skill.verificationStatus}
+          description={skill.description}
+          experienceYears={skill.experienceYears}
+        />
+      ));
   return (
-    <ProfileSection>
-      <ProfileHeading
-        title="Kỹ năng chia sẻ"
-        action={onManage ? "Quản lý" : undefined}
-        onPress={onManage}
-      />
-      {!available ? (
-        <Text style={profileStyles.caption}>
-          Danh sách kỹ năng chưa được kết nối.
-        </Text>
-      ) : profile.sharingSkills.length === 0 ? (
-        <Text style={profileStyles.caption}>Chưa có kỹ năng chia sẻ.</Text>
-      ) : (
-        profile.sharingSkills.map((skill) => (
-          <View key={skill.id} style={styles.skill}>
-            <View style={styles.skillName}>
-              <Text selectable style={profileStyles.label}>
-                {skill.name}
-              </Text>
-              {skill.verificationStatus === "VERIFIED" && <VerifiedBadge />}
-            </View>
-            <View style={styles.level}>
-              <Text style={styles.levelText}>{levels[skill.level]}</Text>
-            </View>
-          </View>
-        ))
+    <ProfileSkillSection onManage={onManage}>
+      {content}
+      {preview.hasMore && (
+        <ProfileSkillMore onPress={() => void preview.showMore()} />
       )}
-    </ProfileSection>
+    </ProfileSkillSection>
   );
 }
 
@@ -146,33 +156,6 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: profileColors.muted,
     textAlign: "center",
-    includeFontPadding: false,
-  },
-  skill: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    flexWrap: "wrap",
-    paddingVertical: 5,
-    gap: 6,
-  },
-  skillName: {
-    flexDirection: "row",
-    alignItems: "center",
-    flexWrap: "wrap",
-    gap: 8,
-    flexShrink: 1,
-  },
-  level: {
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: 4,
-    backgroundColor: profileColors.neutral,
-  },
-  levelText: {
-    fontFamily: fonts.semibold,
-    ...typography.caption,
-    color: profileColors.mutedStrong,
     includeFontPadding: false,
   },
 });

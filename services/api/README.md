@@ -8,6 +8,13 @@ khai báo hoặc lựa chọn thủ công. CD dev dùng GitHub checks → webhoo
 chỉ cần hai secrets, cấu hình runtime và volume seed-state trong Coolify.
 Learning Request FE extension (2026-10-12) bổ sung teachingOverview, kỹ năng có thể dạy chọn từ profile người đăng, lịch rảnh theo thứ/timezone và desiredCreditPerHour. API tag ACTIVE: `GET /api/v1/tags`; kỹ năng để chọn: `GET /api/v1/me/skills`. Xem [payload và migration](specs/007-learning-request/quickstart.md) cùng [contract](specs/007-learning-request/contracts/http.md). Field mới được trả ở feed/detail/mine/moderation; credit là mức mong muốn theo giờ, chưa Hold.
 
+API và `db:seed-configuration` chuẩn hóa mỗi kết nối Prisma/PostgreSQL về UTC.
+Database/role có thể có timezone mặc định khác; helper thêm `-c timezone=UTC`
+sau các connection options hiện có, giữ nguyên TLS và các settings khác.
+Đây là cấu hình theo session, không sửa timezone toàn database hoặc dữ liệu.
+Sau thay đổi cần reload/restart API để pool mới nhận cấu hình. Xem regression
+và bằng chứng PostgreSQL ở [UTC validation](specs/006-system-configuration-time/validation.md).
+
 ## Phạm vi và trạng thái
 
 Phạm vi phát triển hiện tại của dự án là **backend tại `services/api`**.

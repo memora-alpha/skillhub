@@ -18,6 +18,15 @@ Plan mô tả runtime sau rebase; các kết quả trước rebase chỉ là b�
 
 ## 2. Cấu trúc và phần tái sử dụng
 
+Amendment theo yêu cầu 2026-10-13: mở rộng mobile shell/learning/sessions để gỡ
+require cycles và hợp nhất hai list mẫu vào Hành trình từ Hồ sơ. Narrow public
+state/policy entry points được khai báo trong architecture và check-structure;
+không import private feature files. MyRequestsContent/MyPathsContent dùng chung
+provider với editor/detail hiện có; route list cũ redirect, back và Calendar
+dùng cùng learningRoutes. Hai tab sync URL, dữ liệu vẫn ghi rõ bản xem thử.
+Không dependency mới hoặc backend/shared/root changes. Kiểm chứng source runtime
+graph, type/lint/structure/tests và browser navigation; native/API vẫn pending.
+
 | Phần                                                       | Trách nhiệm                                                                         |
 | ---------------------------------------------------------- | ----------------------------------------------------------------------------------- |
 | `src/app/(tabs)/profile.tsx`                               | Route own profile trong tabs.                                                       |
@@ -63,8 +72,10 @@ xóa ảnh. Hủy draft không gọi các endpoint avatar. Các endpoint profile
 React Hook Form/Zod hiện có quản lý draft, sử dụng validation của feature profile.
 
 Own profile khôi phục kiểu dáng commit `ac4590d`: thẻ trắng, avatar 64px, nút public
-preview riêng; grid hai cột trước bio/skills (Ví Credit, Tài liệu của tôi, Thành tích,
-Xác minh kỹ năng, Đánh giá, Cài đặt). Theo audit SRS 1.6, bỏ huy hiệu mẫu, số dư
+preview riêng; grid hai cột trước bio/skills (Ví Credit, Tài liệu của tôi,
+Hành trình của tôi, Đánh giá về tôi, Thành tích, Cài đặt). Hành trình mở hub hai tab
+Yêu cầu học/Lộ trình chưa kết nối; Đánh giá hiện notice chưa kết nối theo spec.
+Theo audit SRS 1.6, bỏ huy hiệu mẫu, số dư
 demo và số buổi hoàn thành; giữ reputation/verified skill count từ server.
 Ô Lộ trình hoàn thành chỉ hiển thị “—”/“Sắp có”; danh hiệu own cũng ghi “Sắp có”.
 Giá trị/chọn danh hiệu thật cần contract riêng. Thông tin riêng tư ở Cài đặt. `features/settings` giữ account

@@ -11,19 +11,21 @@ export function FeaturePage({
   subtitle,
   children,
   back = "/ui",
+  backBehavior = "destination",
   demo = true,
 }: {
   title: string;
   subtitle?: string;
   children: ReactNode;
   back?: Href;
+  backBehavior?: "destination" | "history";
   demo?: boolean;
 }) {
   return (
     <AppScreenLayout
       title={title}
       selected="Hồ sơ"
-      back={{ href: back, label: "Quay lại" }}
+      back={{ href: back, label: "Quay lại", behavior: backBehavior }}
     >
       {() => (
         <KeyboardFormScrollView contentContainerStyle={ui.page}>

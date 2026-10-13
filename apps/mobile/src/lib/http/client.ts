@@ -1,12 +1,17 @@
 import axios, { type AxiosInstance } from "axios";
 import { AppError } from "./errors";
-import { readPayload } from "./response";
+import { readPayload, readPagePayload, type Page } from "./response";
+import { connectionStore } from "../network/connection-store";
 
 export type RequestOptions = {
   method?: "GET" | "POST" | "PATCH" | "DELETE";
   body?: unknown;
   multipart?: boolean;
   authenticated?: boolean;
+  idempotencyKey?: string;
+  signal?: AbortSignal;
+  paginated?: boolean;
+  replayAfterRenewal?: boolean;
 };
 export type SessionTransport = {
   readonly generation: number;
@@ -14,6 +19,18 @@ export type SessionTransport = {
   renew: (staleToken: string) => Promise<void>;
   expire: () => Promise<void>;
 };
+
+function requestHeaders(options: RequestOptions, token: string | null) {
+  const headers: Record<string, string | boolean> = {
+    Accept: "application/json",
+  };
+  if (options.body !== undefined)
+    headers["Content-Type"] = options.multipart ? false : "application/json";
+  if (token) headers.Authorization = `Bearer ${token}`;
+  if (options.idempotencyKey)
+    headers["Idempotency-Key"] = options.idempotencyKey;
+  return headers;
+}
 
 export function createHttpClient(
   baseUrl: () => string,
@@ -28,31 +45,34 @@ export function createHttpClient(
     options: RequestOptions,
     token: string | null,
   ) {
+    const read = options.paginated ? readPagePayload : readPayload;
+    if (options.signal?.aborted) throw new AppError("session");
+    if (
+      options.idempotencyKey &&
+      (options.multipart ||
+        !["POST", "PATCH"].includes(options.method ?? "GET"))
+    )
+      throw new AppError("config");
     try {
       const response = await http.request({
         baseURL: baseUrl(),
         url: path,
         method: options.method ?? "GET",
-        headers: {
-          Accept: "application/json",
-          ...(options.body === undefined
-            ? {}
-            : {
-                "Content-Type": options.multipart ? false : "application/json",
-              }),
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+        headers: requestHeaders(options, token),
         data: options.body,
+        signal: options.signal,
       });
-      return readPayload(response.status, response.data);
+      return read(response.status, response.data);
     } catch (error) {
+      if (options.signal?.aborted || axios.isCancel(error))
+        throw new AppError("session");
       if (error instanceof AppError) throw error;
       if (axios.isAxiosError(error) && error.response)
-        return readPayload(error.response.status, error.response.data);
+        return read(error.response.status, error.response.data);
       throw new AppError("network");
     }
   }
-  return {
+  const client = {
     bindSession(transport: SessionTransport) {
       session = transport;
     },
@@ -86,6 +106,8 @@ export function createHttpClient(
         }
         await transport.renew(token);
         assertCurrentSession();
+        // Upload bytes are not an idempotent JSON intent. Let the owner retry.
+        if (options.replayAfterRenewal === false) throw error;
         const nextToken = await transport.getToken();
         assertCurrentSession();
         if (!nextToken) throw new AppError("session");
@@ -106,5 +128,27 @@ export function createHttpClient(
       }
     },
   };
+  const request: typeof client.request = async (path, options) => {
+    try {
+      return await client.request(path, options);
+    } catch (error) {
+      if (error instanceof AppError && error.kind === "network")
+        connectionStore.unavailable();
+      throw error;
+    }
+  };
+  return {
+    ...client,
+    request,
+    requestPage: async (path: string, options: RequestOptions = {}) =>
+      (await request(path, {
+        ...options,
+        paginated: true,
+      })) as Page<unknown>,
+  };
 }
-export type HttpClient = ReturnType<typeof createHttpClient>;
+export type HttpClient = Pick<
+  ReturnType<typeof createHttpClient>,
+  "bindSession" | "request"
+>;
+export type PaginatedHttpClient = ReturnType<typeof createHttpClient>;

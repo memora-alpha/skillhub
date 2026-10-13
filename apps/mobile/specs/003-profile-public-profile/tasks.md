@@ -26,6 +26,9 @@ nghiệm thu sản phẩm theo [checklist](checklist.md), kết quả ở [valid
 
 ## Còn cần kiểm chứng
 
+- [x] 2026-10-13: Gỡ require cycles shell/product và paths/sessions bằng public state/policy entry points; giữ private import guard.
+- [x] Nối Hành trình trong Hồ sơ với list yêu cầu/lộ trình mẫu hiện có; route cũ chuyển đúng tab, giữ detail/editor và ghi rõ preview boundary.
+
 - [x] Kiểm tra own-profile save/reopen/clear/cancel với API local; tài khoản test đã khôi phục.
 - [x] Browser fixtures cho lỗi/pending/lưu trùng, đổi account/logout, public target và back fallback.
 - [x] Responsive web 320/375/430 và cập nhật bằng chứng trong validation/checklist.
@@ -42,7 +45,7 @@ nghiệm thu sản phẩm theo [checklist](checklist.md), kết quả ở [valid
 
 ## Phần mở rộng ngoài phạm vi hiện tại
 
-- [ ] Tích hợp public-profile API và skill list; cập nhật scope/plan khi triển khai.
+- [x] Own/public self skill list đã triển khai ở [spec 004](../004-skills-management/spec.md), checks/browser fixtures ở validation của spec đó; public-profile API cho người khác vẫn ngoài phạm vi.
 - [ ] Timezone/locale setup.
 - [ ] Tùy chọn nhận thông báo và lưu lựa chọn; các entry Cài đặt hiện chỉ chờ triển khai.
 - [ ] Title/achievement và thống kê Learning Path khi contract được bổ sung.

@@ -30,13 +30,13 @@ không được coi là hoàn thành chỉ vì màn hình đã có.
 Spec 001 cung cấp foundation; spec 002 cung cấp Auth/account shell, phiên đăng
 nhập, HTTP client và own-account API. Spec 003 tái sử dụng các phần này.
 
-| Luồng                                 | Nguồn dữ liệu trong phạm vi hiện tại       | Hành vi                                                                                  |
-| ------------------------------------- | ------------------------------------------ | ---------------------------------------------------------------------------------------- |
-| Hồ sơ cá nhân `/profile`              | Own account từ API qua Auth spec 002       | Xem tên, avatar, headline, bio và thống kê được hỗ trợ.                                  |
-| Chỉnh sửa `/edit-profile`             | Draft từ hồ sơ đã lưu; lưu qua API hiện có | Sửa `fullName`, `headline`, `bio`, chọn/upload/xóa avatar.                               |
-| Tự xem `/profiles/[userId]`           | Projection công khai từ own account đã lưu | Không dùng draft chưa lưu hoặc dữ liệu mẫu thay thế.                                     |
-| Hồ sơ người khác `/profiles/[userId]` | Fixture được nhận diện rõ là dữ liệu mẫu   | Xem thông tin công khai, kỹ năng và các trạng thái tải/lỗi/rỗng.                         |
-| Kỹ năng của tài khoản thật            | Chưa tích hợp danh sách kỹ năng            | Hiển thị “Danh sách kỹ năng chưa được kết nối”, không suy ra tài khoản không có kỹ năng. |
+| Luồng                                 | Nguồn dữ liệu trong phạm vi hiện tại       | Hành vi                                                          |
+| ------------------------------------- | ------------------------------------------ | ---------------------------------------------------------------- |
+| Hồ sơ cá nhân `/profile`              | Own account từ API qua Auth spec 002       | Xem tên, avatar, headline, bio và thống kê được hỗ trợ.          |
+| Chỉnh sửa `/edit-profile`             | Draft từ hồ sơ đã lưu; lưu qua API hiện có | Sửa `fullName`, `headline`, `bio`, chọn/upload/xóa avatar.       |
+| Tự xem `/profiles/[userId]`           | Projection công khai từ own account đã lưu | Không dùng draft chưa lưu hoặc dữ liệu mẫu thay thế.             |
+| Hồ sơ người khác `/profiles/[userId]` | Fixture được nhận diện rõ là dữ liệu mẫu   | Xem thông tin công khai, kỹ năng và các trạng thái tải/lỗi/rỗng. |
+| Kỹ năng của tài khoản thật            | API own/public self, do spec 004 sở hữu    | Xem trạng thái tải/lỗi/rỗng thật; Quản lý mở My Skills.          |
 
 Theo yêu cầu bổ sung, editor chọn ảnh, preview rồi upload khi Lưu; theo dõi trạng thái
 QUARANTINED/CLEAN/REJECTED/DELETED và xóa avatar qua API hiện có. Hủy bỏ ảnh chưa upload.
@@ -156,7 +156,15 @@ không tồn tại và retry đều có đúng identity, nội dung và trạng 
 
 - **FR-26:** Own profile dùng kiểu dáng commit `ac4590d`: summary/thống kê trên thẻ
   trắng, avatar 64px, public preview riêng; grid hai cột (Ví Credit, Tài liệu của tôi,
-  Thành tích, Xác minh kỹ năng, Đánh giá, Cài đặt) rồi giới thiệu/kỹ năng.
+  Hành trình của tôi, Đánh giá về tôi, Thành tích, Cài đặt) rồi giới thiệu/kỹ năng.
+  Hành trình của tôi mở màn `/my-learning` được bảo vệ theo phiên, có hai tab Yêu cầu học
+  và Lộ trình; mặc định Yêu cầu học, quay lại Hồ sơ và không có chuông trên header.
+  Hai tab dùng chung danh sách mẫu yêu cầu/lộ trình đã có, gồm bộ lọc và link
+  tạo/chỉnh sửa/chi tiết tương ứng. Dữ liệu ghi rõ bản xem thử; không nối API
+  Learning Request/Path trong thay đổi điều hướng này. `/requests` và `/paths`
+  chuyển về `/my-learning?tab=requests|paths`, không có danh sách riêng bị lặp.
+  Đổi tab đồng bộ URL; link từ Lịch học tới tab Lộ trình, back hub về Hồ sơ.
+  Đánh giá về tôi vẫn hiện thông báo chưa kết nối. Amendment 2026-10-13.
   Bỏ huy hiệu mẫu và số dư demo. Thông tin riêng tư giữ trong Cài đặt → Tài khoản.
   Summary có uy tín/kỹ năng xác minh và ô Lộ trình hoàn thành “—”/“Sắp có”.
   Own hero có “Danh hiệu · Sắp có”; chưa chọn/hiển thị danh hiệu thật trên public.
@@ -259,3 +267,9 @@ FR-PRO hoàn tất khi các phần ngoài phạm vi vẫn còn pending.
 
 Mọi mở rộng sang API public/skills phải cập nhật scope và plan trước
 khi triển khai. Không tự tạo endpoint, field, enum hoặc chính sách nghiệp vụ mới.
+
+Phần kế tiếp được đặc tả riêng ở [spec 004](../004-skills-management/spec.md):
+quản lý Sharing Skill, evidence/xác minh và nối own/public self skill list.
+Spec 004 đã triển khai own/public self skills và quản lý/xác minh; bằng chứng và
+gates API/native thuộc validation của spec đó. Public profile API cho người khác
+và title/counter gaps vẫn ngoài phạm vi.

@@ -5,12 +5,15 @@ import { seedApprovedConfigurations } from "./modules/system-configuration/appli
 import { ConfigurationRepository } from "./modules/system-configuration/infrastructure/configuration.repository";
 import { seedPathFeePolicies } from "./modules/credit/seed-fee-policies";
 import { seedAchievements } from "./modules/reputation/seed-achievements";
+import { postgresConnectionString } from "./infrastructure/database/postgres-connection";
 
 async function main(): Promise<void> {
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) throw new Error("DATABASE_URL is required");
   const prisma = new PrismaClient({
-    adapter: new PrismaPg({ connectionString }),
+    adapter: new PrismaPg({
+      connectionString: postgresConnectionString(connectionString),
+    }),
   });
   try {
     const repository = new ConfigurationRepository(prisma);

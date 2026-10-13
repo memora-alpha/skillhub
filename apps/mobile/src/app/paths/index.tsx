@@ -1,4 +1,5 @@
-import { PathsScreen } from "@/features/learning-paths";
+import { Redirect } from "expo-router";
+import { learningRoutes } from "@/constants/navigation";
 export default function Screen() {
-  return <PathsScreen />;
+  return <Redirect href={learningRoutes.paths} />;
 }

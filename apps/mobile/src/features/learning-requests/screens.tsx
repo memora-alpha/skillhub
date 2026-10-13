@@ -3,7 +3,6 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { z } from "zod";
 import { Badge } from "@/components/Badge";
 import { Button } from "@/components/Button";
-import { ChoiceGroup } from "@/components/choice-group";
 import { FormNotice } from "@/components/FormNotice";
 import { EmptyState } from "@/components/EmptyState";
 import { DataForm, textRule } from "@/components/data-form";
@@ -18,51 +17,6 @@ import { skillCatalog, previewSkillId } from "@/features/skills";
 import { uiLabel } from "@/constants/ui-copy";
 import { parsePreferredSlots, formatPreferredSlots } from "./preferred-slots";
 const editable = ["DRAFT", "OPEN", "PENDING_MODERATION", "REJECTED"];
-export function MyRequestsScreen() {
-  const { requests } = useRequestsPreview();
-  const [filter, setFilter] = useState("Tất cả");
-  const items = requests.filter(
-    (r) => filter === "Tất cả" || r.status === filter,
-  );
-  return (
-    <FeaturePage
-      title="Yêu cầu học của tôi"
-      back="/discover"
-      subtitle="Quản lý nhu cầu học, bài nháp và phản hồi kiểm duyệt."
-    >
-      <RouteButton href="/requests/new">Đăng yêu cầu học</RouteButton>
-      <ChoiceGroup
-        label="Trạng thái"
-        options={[
-          "Tất cả",
-          "DRAFT",
-          "PENDING_MODERATION",
-          "OPEN",
-          "REJECTED",
-          "MATCHED",
-          "CANCELLED",
-        ]}
-        value={filter}
-        onChange={setFilter}
-      />
-      {items.map((r) => (
-        <Panel key={r.id} title={r.title}>
-          <Badge label={r.status} />
-          <Copy>{r.goal}</Copy>
-          <RouteButton secondary href={`/requests/${r.id}`}>
-            Xem yêu cầu
-          </RouteButton>
-        </Panel>
-      ))}
-      {!items.length && (
-        <EmptyState
-          title="Chưa có yêu cầu ở trạng thái này"
-          description="Thử bộ lọc khác hoặc tạo yêu cầu mới."
-        />
-      )}
-    </FeaturePage>
-  );
-}
 export function RequestEditorScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { requests, save } = useRequestsPreview();
@@ -71,7 +25,8 @@ export function RequestEditorScreen() {
   return (
     <FeaturePage
       title={id ? "Sửa yêu cầu học" : "Tạo yêu cầu học"}
-      back="/requests"
+      back={id ? `/requests/${id}` : "/discover"}
+      backBehavior="history"
     >
       {id && (!request || !editable.includes(request.status)) ? (
         <EmptyState
@@ -183,7 +138,8 @@ export function RequestEditorScreen() {
                 level: v.level!,
                 status: "DRAFT",
               });
-              router.replace(`/requests/${key}`);
+              if (id && router.canGoBack()) router.back();
+              else router.replace(`/requests/${key}`);
             }}
           />
           <Copy muted>
@@ -201,7 +157,11 @@ export function OwnRequestScreen() {
   const request = requests.find((r) => r.id === id);
   const [cancel, setCancel] = useState(false);
   return (
-    <FeaturePage title="Chi tiết yêu cầu của tôi" back="/requests">
+    <FeaturePage
+      title="Chi tiết yêu cầu của tôi"
+      back="/discover"
+      backBehavior="history"
+    >
       {!request ? (
         <EmptyState
           title="Không tìm thấy yêu cầu"
