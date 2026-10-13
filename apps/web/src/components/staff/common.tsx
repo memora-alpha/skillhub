@@ -9,30 +9,26 @@ export function QueueState({
   empty,
   reload,
   children,
-}: {
+}: Readonly<{
   loading: boolean;
   error?: string;
   empty: boolean;
   reload: () => void;
   children: ReactNode;
-}) {
+}>) {
   if (error)
     return (
       <div className="staff-state">
         <p role="alert" className="staff-error">
           {error}
         </p>
-        <button className="btn" onClick={reload}>
+        <button type="button" className="btn" onClick={reload}>
           Thử lại
         </button>
       </div>
     );
   if (loading && empty)
-    return (
-      <div className="staff-state" role="status">
-        Đang tải hàng đợi…
-      </div>
-    );
+    return <output className="staff-state">Đang tải hàng đợi…</output>;
   if (empty)
     return (
       <Empty
@@ -40,20 +36,20 @@ export function QueueState({
         desc="Chưa có mục nào cần xử lý ở trạng thái này."
       />
     );
-  return <>{children}</>;
+  return children;
 }
 export function Pager({
   loading,
   more,
   hasMore,
-}: {
+}: Readonly<{
   loading: boolean;
   more: () => void;
   hasMore?: boolean;
-}) {
+}>) {
   return hasMore ? (
     <div className="staff-pager">
-      <button className="btn" onClick={more} disabled={loading}>
+      <button type="button" className="btn" onClick={more} disabled={loading}>
         {loading ? "Đang tải…" : "Tải thêm"}
       </button>
     </div>
@@ -74,7 +70,7 @@ export function DecisionDialog({
   idempotent = false,
   children,
   withReason = true,
-}: {
+}: Readonly<{
   title: string;
   description: string;
   label?: string;
@@ -88,7 +84,7 @@ export function DecisionDialog({
   idempotent?: boolean;
   children?: ReactNode;
   withReason?: boolean;
-}) {
+}>) {
   const { expire } = useStaffSession();
   const dialog = useRef<HTMLDialogElement>(null);
   const area = useRef<HTMLTextAreaElement>(null);
@@ -121,9 +117,11 @@ export function DecisionDialog({
           const trimmed = text.trim(),
             length = Array.from(trimmed).length;
           if (length < min || (max !== undefined && length > max)) {
-            setError(
-              `Nội dung cần ${min}${max === undefined ? " ký tự trở lên" : `–${max} ký tự`}.`,
-            );
+            const constraint =
+              max === undefined
+                ? `${min} ký tự trở lên`
+                : `${min}–${max} ký tự`;
+            setError(`Nội dung cần ${constraint}.`);
             area.current?.focus();
             return;
           }
@@ -210,6 +208,7 @@ export function DecisionDialog({
             </button>
           ) : (
             <button
+              type="submit"
               className={`btn ${danger ? "btn-danger" : "btn-primary"}`}
               disabled={busy}
             >

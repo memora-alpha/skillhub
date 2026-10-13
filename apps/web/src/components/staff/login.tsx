@@ -70,7 +70,7 @@ export function StaffLogin() {
             }}
           >
             <label className="staff-field">
-              Email
+              <span>Email</span>
               <input
                 type="email"
                 required
@@ -85,7 +85,7 @@ export function StaffLogin() {
               />
             </label>
             <label className="staff-field">
-              Mật khẩu
+              <span>Mật khẩu</span>
               <input
                 type="password"
                 required
@@ -96,13 +96,18 @@ export function StaffLogin() {
                 onChange={(e) => setPassword(e.target.value)}
               />
             </label>
-            <button className="btn btn-primary" disabled={session.busy}>
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={session.busy}
+            >
               {session.busy ? "Đang đăng nhập…" : "Đăng nhập"}
               <Icon name="right" size={16} />
             </button>
           </form>
           <div className="staff-login-tools">
             <button
+              type="button"
               className="link"
               disabled={session.busy}
               onClick={async () => {
@@ -121,6 +126,7 @@ export function StaffLogin() {
               Kết thúc phiên cũ
             </button>
             <button
+              type="button"
               className="link"
               disabled={session.busy}
               onClick={session.refresh}

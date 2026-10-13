@@ -146,6 +146,11 @@
   align-items: center;
   gap: 10px;
 }
+output.staff-state,
+output.staff-loading,
+output.staff-success {
+  display: block;
+}
 .staff-download .staff-error {
   flex-basis: 100%;
 }

@@ -99,18 +99,16 @@ async function portalResponse(
       ? !options.method || options.method === "GET"
       : !path.startsWith("session/"))
   ) {
-    if (!renewals[portal]) {
-      renewals[portal] = staffApi(
-        "session/refresh",
-        { method: "POST", body: {} },
-        portal,
-        false,
-      )
-        .then(() => undefined)
-        .finally(() => {
-          delete renewals[portal];
-        });
-    }
+    renewals[portal] ??= staffApi(
+      "session/refresh",
+      { method: "POST", body: {} },
+      portal,
+      false,
+    )
+      .then(() => undefined)
+      .finally(() => {
+        delete renewals[portal];
+      });
     await renewals[portal];
     return portalResponse(path, options, portal, false);
   }
@@ -133,7 +131,7 @@ export async function staffApi<T>(
   } catch {
     throw new StaffApiError(502, "API_RESPONSE_INVALID");
   }
-  if (!envelope || envelope.success !== true)
+  if (envelope?.success !== true)
     throw new StaffApiError(502, "API_RESPONSE_INVALID");
   if (!("data" in envelope))
     throw new StaffApiError(502, "API_RESPONSE_INVALID");

@@ -50,11 +50,16 @@ function clear(response: NextResponse, portal: Portal) {
   return response;
 }
 function baseUrl() {
-  const u = new URL(
-    process.env.SKILLHUB_API_URL ??
-      process.env.EXPO_PUBLIC_API_URL ??
-      "http://localhost:3001/api/v1",
-  );
+  let u: URL;
+  try {
+    u = new URL(
+      process.env.SKILLHUB_API_URL ??
+        process.env.EXPO_PUBLIC_API_URL ??
+        "http://localhost:3001/api/v1",
+    );
+  } catch {
+    throw new GatewayError(503, "API_CONFIGURATION_INVALID");
+  }
   if (
     !["http:", "https:"].includes(u.protocol) ||
     u.username ||
@@ -63,30 +68,38 @@ function baseUrl() {
     u.hash
   )
     throw new GatewayError(503, "API_CONFIGURATION_INVALID");
-  u.pathname = u.pathname.replace(/\/+$/, "") + "/";
+  let end = u.pathname.length;
+  while (end > 0 && u.pathname[end - 1] === "/") end--;
+  u.pathname = u.pathname.slice(0, end) + "/";
   return u;
+}
+async function readLimitedBody(
+  body: ReadableStream<Uint8Array>,
+  maximum: number,
+  code: string,
+) {
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  // pipeTo preserves byte order and backpressure and cancels the source on overflow.
+  await body.pipeTo(
+    new WritableStream<Uint8Array>({
+      write(chunk) {
+        size += chunk.byteLength;
+        if (size > maximum) throw new GatewayError(413, code);
+        chunks.push(chunk);
+      },
+    }),
+  );
+  return Buffer.concat(chunks);
 }
 async function jsonBody(request: Request): Promise<Record<string, unknown>> {
   if (!request.headers.get("content-type")?.startsWith("application/json"))
     throw new GatewayError(415, "JSON_REQUIRED");
-  const reader = request.body?.getReader();
-  if (!reader) throw new GatewayError(400, "BODY_REQUIRED");
-  let size = 0,
-    text = "";
-  const decoder = new TextDecoder();
-  while (true) {
-    const part = await reader.read();
-    if (part.done) break;
-    size += part.value.byteLength;
-    if (size > 32768) {
-      await reader.cancel();
-      throw new GatewayError(413, "BODY_TOO_LARGE");
-    }
-    text += decoder.decode(part.value, { stream: true });
-  }
+  if (!request.body) throw new GatewayError(400, "BODY_REQUIRED");
+  const bytes = await readLimitedBody(request.body, 32768, "BODY_TOO_LARGE");
   let body: unknown;
   try {
-    body = JSON.parse(text + decoder.decode());
+    body = JSON.parse(new TextDecoder().decode(bytes));
   } catch {
     throw new GatewayError(400, "INVALID_JSON");
   }
@@ -149,12 +162,13 @@ async function identity(token: string, portal: Portal) {
     throw new GatewayError(403, "ADMIN_PORTAL_ACCESS_REQUIRED");
   return actor;
 }
-async function evidenceContent(link: unknown, signal: AbortSignal) {
+async function fetchEvidence(
+  link: unknown,
+  signal: AbortSignal,
+): Promise<Response> {
   if (!safeDownload(link)) throw new GatewayError(502, "INVALID_DOWNLOAD_LINK");
-  const maximum = 10_000_000; // Existing evidence/report upload cap.
-  let file: Response;
   try {
-    file = await fetch(link.url, {
+    return await fetch(link.url, {
       cache: "no-store",
       redirect: "error",
       signal: AbortSignal.any([signal, AbortSignal.timeout(30000)]),
@@ -162,6 +176,9 @@ async function evidenceContent(link: unknown, signal: AbortSignal) {
   } catch {
     throw new GatewayError(504, "FILE_UNAVAILABLE");
   }
+}
+const evidenceMaximum = 10_000_000; // Existing evidence/report upload cap.
+async function validateEvidenceResponse(file: Response): Promise<string> {
   if (!file.ok) {
     await file.body?.cancel();
     throw new GatewayError(
@@ -174,35 +191,29 @@ async function evidenceContent(link: unknown, signal: AbortSignal) {
     await file.body?.cancel();
     throw new GatewayError(415, "FILE_TYPE_NOT_SUPPORTED");
   }
-  if (Number(file.headers.get("content-length")) > maximum) {
+  if (Number(file.headers.get("content-length")) > evidenceMaximum) {
     await file.body?.cancel();
     throw new GatewayError(413, "FILE_TOO_LARGE");
   }
-  const reader = file.body?.getReader();
-  if (!reader) throw new GatewayError(502, "FILE_UNAVAILABLE");
-  const chunks: Uint8Array[] = [];
-  let size = 0;
+  return mime;
+}
+async function evidenceContent(link: unknown, signal: AbortSignal) {
+  const file = await fetchEvidence(link, signal);
+  const mime = await validateEvidenceResponse(file);
+  if (!file.body) throw new GatewayError(502, "FILE_UNAVAILABLE");
+  let bytes: Buffer;
   try {
-    while (true) {
-      const part = await reader.read();
-      if (part.done) break;
-      size += part.value.byteLength;
-      if (size > maximum) {
-        await reader.cancel();
-        throw new GatewayError(413, "FILE_TOO_LARGE");
-      }
-      chunks.push(part.value);
-    }
+    bytes = await readLimitedBody(file.body, evidenceMaximum, "FILE_TOO_LARGE");
   } catch (error) {
     if (error instanceof GatewayError) throw error;
     throw new GatewayError(504, "FILE_UNAVAILABLE");
   }
-  if (!size) throw new GatewayError(502, "FILE_UNAVAILABLE");
-  return new NextResponse(Buffer.concat(chunks), {
+  if (!bytes.length) throw new GatewayError(502, "FILE_UNAVAILABLE");
+  return new NextResponse(new Uint8Array(bytes), {
     headers: {
       ...headers,
       "Content-Type": mime,
-      "Content-Length": String(size),
+      "Content-Length": String(bytes.length),
       "Content-Disposition":
         evidencePreviewKind(mime) === "unsupported" ? "attachment" : "inline",
       "Content-Security-Policy": "default-src 'none'; sandbox",
@@ -270,95 +281,120 @@ async function establish(data: unknown, portal: Portal) {
     throw e;
   }
 }
+async function refreshSession(request: NextRequest, portal: Portal) {
+  const refreshToken = request.cookies.get(cookiesFor(portal).refresh)?.value;
+  if (!refreshToken) throw new GatewayError(401, "SESSION_EXPIRED");
+  const result = await backend("auth/refresh", undefined, "POST", {
+    refreshToken,
+  });
+  if (result.status === 200 && result.value?.success)
+    return establish(result.value.data, portal);
+  const response = reply(result.value, result.status);
+  return result.status === 401 ? clear(response, portal) : response;
+}
+async function logoutSession(request: NextRequest, portal: Portal) {
+  const token = request.cookies.get(cookiesFor(portal).refresh)?.value;
+  if (token) {
+    const result = await backend("auth/logout", undefined, "POST", {
+      refreshToken: token,
+    });
+    if (result.status !== 204 && result.status !== 401)
+      return reply(result.value, result.status);
+  }
+  return clear(reply({ success: true, data: null }), portal);
+}
+function accessToken(request: NextRequest, portal: Portal): string {
+  const token = request.cookies.get(cookiesFor(portal).access)?.value;
+  if (!token) throw new GatewayError(401, "SESSION_EXPIRED");
+  return token;
+}
+async function readSession(request: NextRequest, portal: Portal) {
+  return reply({
+    success: true,
+    data: await identity(accessToken(request, portal), portal),
+  });
+}
+const sessionHandlers = new Map<
+  string,
+  (request: NextRequest, portal: Portal) => Promise<NextResponse>
+>([
+  ["GET", readSession],
+  ["POST", login],
+  ["DELETE", logoutSession],
+]);
+function querySuffix(request: NextRequest): string {
+  if (request.method !== "GET") return "";
+  const query = request.nextUrl.searchParams;
+  const accepted = new URLSearchParams();
+  for (const name of [
+    "cursor",
+    "limit",
+    "status",
+    "role",
+    "categoryId",
+    "q",
+    "unreadOnly",
+  ])
+    if (query.has(name)) accepted.set(name, query.get(name)!);
+  return accepted.size ? "?" + accepted : "";
+}
+async function forwardRequest(
+  request: NextRequest,
+  path: string,
+  portal: Portal,
+) {
+  const target = upstreamPath(request.method, path, portal);
+  if (!target) throw new GatewayError(404, "ROUTE_NOT_AVAILABLE");
+  const token = accessToken(request, portal);
+  await identity(token, portal);
+  const body = ["POST", "PATCH", "PUT", "DELETE"].includes(request.method)
+    ? await jsonBody(request)
+    : undefined;
+  const key = request.headers.get("idempotency-key") ?? undefined;
+  if (key && (key.length > 200 || /[\r\n]/.test(key)))
+    throw new GatewayError(400, "INVALID_IDEMPOTENCY_KEY");
+  const result = await backend(
+    target + querySuffix(request),
+    token,
+    request.method,
+    body,
+    key,
+  );
+  if (
+    path.endsWith("/content") &&
+    result.status === 200 &&
+    result.value?.success
+  )
+    return evidenceContent(result.value.data, request.signal);
+  if (result.status === 204)
+    return new NextResponse(null, { status: 204, headers });
+  return reply(result.value, result.status);
+}
 export async function staffGateway(
   request: NextRequest,
   segments: string[],
   portal: Portal = "staff",
 ) {
-  const cookies = cookiesFor(portal);
   try {
-    const path = segments.join("/");
     if (request.method !== "GET" && !sameOriginMutation(request))
       throw new GatewayError(403, "ORIGIN_NOT_ALLOWED");
-    if (path === "session/refresh" && request.method === "POST") {
-      const refreshToken = request.cookies.get(cookies.refresh)?.value;
-      if (!refreshToken) throw new GatewayError(401, "SESSION_EXPIRED");
-      const result = await backend("auth/refresh", undefined, "POST", {
-        refreshToken,
-      });
-      if (result.status !== 200 || !result.value?.success) {
-        const response = reply(result.value, result.status);
-        return result.status === 401 ? clear(response, portal) : response;
-      }
-      return await establish(result.value.data, portal);
-    }
+    const path = segments.join("/");
+    if (path === "session/refresh" && request.method === "POST")
+      return await refreshSession(request, portal);
     if (path === "session") {
-      if (request.method === "POST") return await login(request, portal);
-      if (request.method === "DELETE") {
-        const token = request.cookies.get(cookies.refresh)?.value;
-        if (token) {
-          const result = await backend("auth/logout", undefined, "POST", {
-            refreshToken: token,
-          });
-          if (result.status !== 204 && result.status !== 401)
-            return reply(result.value, result.status);
-        }
-        return clear(reply({ success: true, data: null }), portal);
-      }
-      if (request.method === "GET") {
-        const token = request.cookies.get(cookies.access)?.value;
-        if (!token) throw new GatewayError(401, "SESSION_EXPIRED");
-        return reply({ success: true, data: await identity(token, portal) });
-      }
-      throw new GatewayError(405, "METHOD_NOT_ALLOWED");
+      const handler = sessionHandlers.get(request.method);
+      if (!handler) throw new GatewayError(405, "METHOD_NOT_ALLOWED");
+      return await handler(request, portal);
     }
-    const target = upstreamPath(request.method, path, portal);
-    if (!target) throw new GatewayError(404, "ROUTE_NOT_AVAILABLE");
-    const token = request.cookies.get(cookies.access)?.value;
-    if (!token) throw new GatewayError(401, "SESSION_EXPIRED");
-    await identity(token, portal);
-    const query = new URL(request.url).searchParams;
-    const accepted = new URLSearchParams();
-    for (const name of [
-      "cursor",
-      "limit",
-      "status",
-      "role",
-      "categoryId",
-      "q",
-      "unreadOnly",
-    ])
-      if (query.has(name)) accepted.set(name, query.get(name)!);
-    const suffix =
-      request.method === "GET" && accepted.size ? `?${accepted}` : "";
-    const body = ["POST", "PATCH", "PUT", "DELETE"].includes(request.method)
-      ? await jsonBody(request)
-      : undefined;
-    const key = request.headers.get("idempotency-key") ?? undefined;
-    if (key && (key.length > 200 || /[\r\n]/.test(key)))
-      throw new GatewayError(400, "INVALID_IDEMPOTENCY_KEY");
-    const result = await backend(
-      target + suffix,
-      token,
-      request.method,
-      body,
-      key,
-    );
-    if (
-      path.endsWith("/content") &&
-      result.status === 200 &&
-      result.value?.success
-    )
-      return await evidenceContent(result.value.data, request.signal);
-    return result.status === 204
-      ? new NextResponse(null, { status: 204, headers })
-      : reply(result.value, result.status);
-  } catch (e) {
-    const error =
-      e instanceof GatewayError ? e : new GatewayError(500, "REQUEST_FAILED");
+    return await forwardRequest(request, path, portal);
+  } catch (error) {
+    const failure =
+      error instanceof GatewayError
+        ? error
+        : new GatewayError(500, "REQUEST_FAILED");
     return reply(
-      { success: false, message: error.message, statusCode: error.status },
-      error.status,
+      { success: false, message: failure.message, statusCode: failure.status },
+      failure.status,
     );
   }
 }
