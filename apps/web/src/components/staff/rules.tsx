@@ -1,5 +1,10 @@
 "use client";
 import { useState } from "react";
+import {
+  editableRules,
+  ruleValues,
+  validateRules,
+} from "@/lib/staff/moderation-rules";
 import { Badge, Card, PageHeader } from "@/components/console/ui";
 import type { ModerationRules } from "@/lib/staff/admin-types";
 import { fmtDateTime } from "@/lib/console/format";
@@ -10,40 +15,17 @@ function RulesEditor({
   snapshot,
   reload,
   onSaved,
-}: {
+}: Readonly<{
   snapshot: ModerationRules;
   reload: () => void;
   onSaved: () => void;
-}) {
+}>) {
   const { api } = useStaffSession();
-  const [rules, setRules] = useState(snapshot.rules);
+  const [rules, setRules] = useState(() => editableRules(snapshot.rules));
   const [confirm, setConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const changed = JSON.stringify(rules) !== JSON.stringify(snapshot.rules);
-  function validate() {
-    const pairs = new Set<string>();
-    if (!rules.length || rules.length > 250) return "Cần từ 1 đến 250 quy tắc.";
-    for (const r of rules) {
-      const category = r.category.trim().toUpperCase();
-      const pattern = r.pattern
-        .normalize("NFKC")
-        .toLowerCase()
-        .replace(/\s+/gu, " ")
-        .trim();
-      if (!/^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(category))
-        return "Nhóm quy tắc bắt đầu bằng chữ, tối đa 64 ký tự; chỉ dùng chữ, số, dấu _ hoặc -.";
-      if (
-        pattern.length > 120 ||
-        [...pattern].filter((c) => c !== "*").length < 2 ||
-        [...pattern].filter((c) => c === "*").length > 1
-      )
-        return "Mẫu cần ít nhất 2 ký tự ngoài dấu *, tối đa 120 ký tự và tối đa một dấu *.";
-      const key = `${category}\u0000${pattern}`;
-      if (pairs.has(key)) return "Có quy tắc trùng nhóm và mẫu sau chuẩn hóa.";
-      pairs.add(key);
-    }
-    return null;
-  }
+  const changed =
+    JSON.stringify(ruleValues(rules)) !== JSON.stringify(snapshot.rules);
   return (
     <div className="stack">
       <div className="row">
@@ -58,16 +40,16 @@ function RulesEditor({
         className="stack"
         onSubmit={(e) => {
           e.preventDefault();
-          const issue = validate();
+          const issue = validateRules(rules);
           setError(issue);
           if (!issue) setConfirm(true);
         }}
       >
         <fieldset className="portal-fields stack" disabled={confirm}>
           {rules.map((rule, i) => (
-            <div className="portal-rule" key={i}>
+            <div className="portal-rule" key={rule.id}>
               <label className="staff-field">
-                Nhóm quy tắc
+                <span>Nhóm quy tắc</span>
                 <input
                   required
                   maxLength={64}
@@ -75,23 +57,27 @@ function RulesEditor({
                   value={rule.category}
                   onChange={(e) =>
                     setRules(
-                      rules.map((r, j) =>
-                        j === i ? { ...r, category: e.target.value } : r,
+                      rules.map((r) =>
+                        r.id === rule.id
+                          ? { ...r, category: e.target.value }
+                          : r,
                       ),
                     )
                   }
                 />
               </label>
               <label className="staff-field">
-                Mẫu nội dung
+                <span>Mẫu nội dung</span>
                 <input
                   required
                   maxLength={120}
                   value={rule.pattern}
                   onChange={(e) =>
                     setRules(
-                      rules.map((r, j) =>
-                        j === i ? { ...r, pattern: e.target.value } : r,
+                      rules.map((r) =>
+                        r.id === rule.id
+                          ? { ...r, pattern: e.target.value }
+                          : r,
                       ),
                     )
                   }
@@ -101,7 +87,7 @@ function RulesEditor({
                 type="button"
                 className="btn btn-sm"
                 disabled={rules.length <= 1}
-                onClick={() => setRules(rules.filter((_, j) => j !== i))}
+                onClick={() => setRules(rules.filter((r) => r.id !== rule.id))}
                 aria-label={`Xóa quy tắc ${i + 1}`}
               >
                 Xóa
@@ -114,12 +100,19 @@ function RulesEditor({
               className="btn"
               disabled={rules.length >= 250}
               onClick={() =>
-                setRules([...rules, { category: "", pattern: "" }])
+                setRules([
+                  ...rules,
+                  ...editableRules([{ category: "", pattern: "" }]),
+                ])
               }
             >
               Thêm quy tắc
             </button>
-            <button className="btn btn-primary" disabled={!changed}>
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={!changed}
+            >
               Lưu thay đổi
             </button>
             <button
@@ -127,7 +120,7 @@ function RulesEditor({
               className="btn"
               disabled={!changed}
               onClick={() => {
-                setRules(snapshot.rules);
+                setRules(editableRules(snapshot.rules));
                 setError(null);
               }}
             >
@@ -153,7 +146,11 @@ function RulesEditor({
           onSubmit={async (reason) => {
             await api<ModerationRules>("moderation-rules", {
               method: "PUT",
-              body: { expectedVersion: snapshot.version, rules, reason },
+              body: {
+                expectedVersion: snapshot.version,
+                rules: ruleValues(rules),
+                reason,
+              },
             });
             onSaved();
           }}
@@ -172,6 +169,7 @@ export function RulesScreen() {
         desc="Cấu hình phát hiện nội dung cần xem xét trong yêu cầu học."
         actions={
           <button
+            type="button"
             className="btn"
             disabled={resource.loading}
             onClick={resource.reload}
@@ -181,9 +179,7 @@ export function RulesScreen() {
         }
       />
       {success && (
-        <p className="staff-success" role="status">
-          Đã lưu quy tắc kiểm duyệt.
-        </p>
+        <output className="staff-success">Đã lưu quy tắc kiểm duyệt.</output>
       )}
       <Card>
         <QueueState

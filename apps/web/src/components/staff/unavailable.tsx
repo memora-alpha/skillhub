@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Card, Empty, PageHeader } from "@/components/console/ui";
-export function UnavailableScreen({ title }: { title: string }) {
+export function UnavailableScreen({ title }: Readonly<{ title: string }>) {
   return (
     <>
       <PageHeader title={title} />
