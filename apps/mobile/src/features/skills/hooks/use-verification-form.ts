@@ -1,7 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useToast } from "@/providers/ToastProvider";
-import { AppError } from "@/lib/http/errors";
 import { Platform } from "react-native";
 import { randomUUID } from "expo-crypto";
 import { useEvidenceDraft } from "./use-evidence-draft";
@@ -12,15 +11,15 @@ import { useSkills } from "../context/SkillsProvider";
 import { evidenceDraft } from "../utils/evidence-draft";
 import { pickEvidence, type EvidenceSource } from "../utils/pick-evidence";
 import { normalizeText } from "../schemas/skill-form";
-import { skillError } from "../utils/skill-errors";
+import { useEvidenceSubmission } from "./use-evidence-submission";
 
 export function useVerificationForm(
   id: string | undefined,
   blocked: boolean,
   disabled: boolean,
 ) {
-  const { api, verificationDrafts, isCurrent, rememberVerification, refresh } =
-    useSkills();
+  const { verificationDrafts, isCurrent } = useSkills();
+  const sendEvidence = useEvidenceSubmission();
   const initial = useRef(id ? verificationDrafts.get(id) : undefined).current;
   const draft = useEvidenceDraft(id ?? "", initial?.files);
   const action = useSkillAction({ notifySuccess: false });
@@ -91,6 +90,41 @@ export function useVerificationForm(
       if (mountedSession()) setPicking(false);
     }
   };
+  const submitForSkill = async (targetId: string) => {
+    if (
+      sending.current ||
+      draft.locked() ||
+      selecting.current ||
+      !action.current() ||
+      !draft.files.length ||
+      titleInvalid ||
+      descriptionInvalid ||
+      submittedId ||
+      blocked
+    )
+      throw new Error(
+        "Bằng chứng chưa hợp lệ hoặc chưa thể gửi. Hãy kiểm tra lại.",
+      );
+    sending.current = true;
+    setPreparing(true);
+    preserveDraft(targetId);
+    try {
+      const fileIds = await draft.prepare(targetId);
+      if (!action.current()) throw new Error("Quá trình gửi đã tạm dừng.");
+      const result = await sendEvidence(targetId, fileIds, title, description);
+      if (!isCurrent()) throw new Error("Phiên gửi bằng chứng đã kết thúc.");
+      verificationDrafts.delete(targetId);
+      snapshot.current = { files: [], title: "", description: "" };
+      if (mountedSession()) {
+        setSubmittedId(result.id);
+        draft.setFiles([]);
+      }
+      return result;
+    } finally {
+      sending.current = false;
+      if (mountedSession()) setPreparing(false);
+    }
+  };
   const submit = async () => {
     if (
       !id ||
@@ -102,64 +136,23 @@ export function useVerificationForm(
       blocked
     )
       return;
-    sending.current = true;
-    setPreparing(true);
-    action.clearError();
-    try {
-      const fileIds = await draft.prepare();
-      if (!action.current()) return;
-      const body = {
-        fileIds,
-        title: normalizeText(title),
-        description: normalizeText(description),
-      };
-      await action.run(
-        `submit:${id}`,
-        body,
-        async (key) => {
-          try {
-            const result = await api.submit(id, body, key);
-            if (action.current()) await rememberVerification(result);
-            return result;
-          } catch (error) {
-            if (
-              error instanceof AppError &&
-              error.code === "VERIFICATION_PENDING" &&
-              action.current()
-            )
-              await refresh();
-            throw error;
-          }
-        },
-        (result, refreshed) => {
-          setSubmittedId(result.id);
-          verificationDrafts.delete(id);
-          snapshot.current = { files: [], title: "", description: "" };
-          draft.setFiles([]);
-          showToast(
-            refreshed
-              ? "Đã gửi yêu cầu xác minh."
-              : "Đã gửi yêu cầu. Chưa cập nhật được dữ liệu; hãy làm mới.",
-            refreshed ? "success" : "info",
-          );
-          router.dismissTo({
-            pathname: "/my-skills/[sharingSkillId]",
-            params: { sharingSkillId: id },
-          });
-        },
-      );
-    } catch (error) {
-      if (action.current())
+    await action.run(
+      `submit-flow:${id}`,
+      null,
+      () => submitForSkill(id),
+      (_result, refreshed) => {
         showToast(
-          error instanceof Error && !("kind" in error)
-            ? error.message
-            : skillError(error),
-          "error",
+          refreshed
+            ? "Đã gửi yêu cầu xác minh."
+            : "Đã gửi yêu cầu. Chưa cập nhật được dữ liệu; hãy làm mới.",
+          refreshed ? "success" : "info",
         );
-    } finally {
-      sending.current = false;
-      if (mountedSession()) setPreparing(false);
-    }
+        router.dismissTo({
+          pathname: "/my-skills/[sharingSkillId]",
+          params: { sharingSkillId: id },
+        });
+      },
+    );
   };
   return {
     draft,
@@ -179,6 +172,7 @@ export function useVerificationForm(
     descriptionInvalid,
     pick,
     submit,
+    submitForSkill,
     preserveDraft,
   };
 }
