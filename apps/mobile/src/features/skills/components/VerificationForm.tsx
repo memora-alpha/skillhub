@@ -4,10 +4,14 @@ import { SkillsLayout, skillStyles } from "./SkillsLayout";
 import { useVerificationForm } from "../hooks/use-verification-form";
 import { VerificationFields } from "./VerificationFields";
 import { formStyles } from "./skill-form-styles";
+import type { Verification } from "../types/skills";
 
 export type VerificationFormHandle = {
   locked: () => boolean;
   preserveDraft: (id: string) => void;
+  hasFiles: () => boolean;
+  valid: () => boolean;
+  submitForSkill: (id: string) => Promise<Verification>;
 };
 export function VerificationForm({
   id,
@@ -16,6 +20,8 @@ export function VerificationForm({
   embedded = false,
   disabled = false,
   onBusyChange,
+  saveWithSkill = false,
+  onDraftChange,
   ref,
 }: {
   id?: string;
@@ -24,16 +30,28 @@ export function VerificationForm({
   embedded?: boolean;
   disabled?: boolean;
   onBusyChange?: (busy: boolean) => void;
+  saveWithSkill?: boolean;
+  onDraftChange?: (state: { hasFiles: boolean; valid: boolean }) => void;
   ref?: Ref<VerificationFormHandle>;
 }) {
   const model = useVerificationForm(id, blocked, disabled);
   useImperativeHandle(ref, () => ({
     locked: model.localLocked,
     preserveDraft: model.preserveDraft,
+    hasFiles: () => !!model.draft.files.length,
+    valid: () => !model.titleInvalid && !model.descriptionInvalid,
+    submitForSkill: model.submitForSkill,
   }));
   useEffect(() => {
     onBusyChange?.(model.localBusy);
   }, [model.localBusy, onBusyChange]);
+  const hasFiles = !!model.draft.files.length;
+  useEffect(() => {
+    onDraftChange?.({
+      hasFiles,
+      valid: !hasFiles || (!model.titleInvalid && !model.descriptionInvalid),
+    });
+  }, [hasFiles, model.titleInvalid, model.descriptionInvalid, onDraftChange]);
   const content = (
     <View style={[formStyles.section, { padding: 14, gap: 12 }]}>
       <View style={formStyles.sectionHeader}>
@@ -50,7 +68,11 @@ export function VerificationForm({
         </Text>
       )}
       {!model.submittedId && !blocked && (
-        <VerificationFields model={model} saved={!!id} />
+        <VerificationFields
+          model={model}
+          saved={!!id}
+          saveWithSkill={saveWithSkill}
+        />
       )}
     </View>
   );

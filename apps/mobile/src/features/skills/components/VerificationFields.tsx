@@ -9,9 +9,11 @@ import { skillStyles } from "./SkillsLayout";
 export function VerificationFields({
   model,
   saved,
+  saveWithSkill = false,
 }: {
   model: ReturnType<typeof useVerificationForm>;
   saved: boolean;
+  saveWithSkill?: boolean;
 }) {
   const { draft, busy } = model;
   return (
@@ -31,9 +33,9 @@ export function VerificationFields({
             );
         }}
       />
-      {!saved && !!draft.files.length && (
+      {saveWithSkill && !!draft.files.length && (
         <Text style={skillStyles.caption}>
-          Lưu kỹ năng trước khi gửi bằng chứng.
+          Bằng chứng sẽ được gửi khi lưu kỹ năng.
         </Text>
       )}
       {!!draft.files.length && (
@@ -59,7 +61,7 @@ export function VerificationFields({
           />
         </>
       )}
-      {saved && (
+      {saved && !saveWithSkill && (
         <Button
           variant="craft"
           style={{ borderRadius: 12 }}
@@ -71,10 +73,10 @@ export function VerificationFields({
           }
           onPress={() => void model.submit()}
         >
-          {model.action.pending
-            ? "Đang gửi yêu cầu…"
-            : model.preparing
-              ? "Đang xử lý bằng chứng…"
+          {model.preparing
+            ? "Đang xử lý bằng chứng…"
+            : model.action.pending
+              ? "Đang gửi yêu cầu…"
               : "Gửi yêu cầu xác minh"}
         </Button>
       )}

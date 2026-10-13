@@ -91,6 +91,11 @@ export function EvidenceFiles({
               </View>
               {!image && remove}
             </View>
+            {!!file.error && (
+              <Text style={[skillStyles.caption, { color: appColors.error }]}>
+                {file.error}
+              </Text>
+            )}
           </View>
         );
       })}

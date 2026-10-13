@@ -13,7 +13,7 @@ import {
 } from "./VerificationForm";
 import { SkillAction } from "./SkillAction";
 import { SkillConflict } from "./SkillConflict";
-import { useSkillAction } from "../hooks/use-skill-action";
+import { useSkillSave } from "../hooks/use-skill-save";
 import { usePendingBack } from "../hooks/use-pending-back";
 import { useMountedSession } from "../hooks/use-mounted-session";
 import { useSkills } from "../context/SkillsProvider";
@@ -32,10 +32,16 @@ import type { OwnSkill, CatalogSkill } from "../types/skills";
 export function SkillForm({ initial }: { initial?: OwnSkill }) {
   const { api } = useSkills();
   const { showToast } = useToast();
-  const action = useSkillAction({ notifySuccess: false });
   const mountedSession = useMountedSession();
   const router = useRouter();
   const [baseline, setBaseline] = useState(initial);
+  const saveWithEvidence = useRef(!initial).current;
+  const evidenceRef = useRef<VerificationFormHandle>(null);
+  const {
+    action,
+    save: saveConfirmed,
+    created,
+  } = useSkillSave(baseline, setBaseline, evidenceRef, saveWithEvidence);
   const serverSnapshot = useOwnSkill(baseline?.id ?? null).data;
   useEffect(() => {
     // A verification changes version/status, not the editable fields. Sync only
@@ -59,8 +65,11 @@ export function SkillForm({ initial }: { initial?: OwnSkill }) {
   );
   const [latest, setLatest] = useState<OwnSkill | null>(null);
   const [checking, setChecking] = useState(false);
-  const evidenceRef = useRef<VerificationFormHandle>(null);
   const [evidenceBusy, setEvidenceBusy] = useState(false);
+  const [evidenceState, setEvidenceState] = useState({
+    hasFiles: false,
+    valid: true,
+  });
   const form = useForm<SkillFormValues>({
     ...formValidationOptions,
     resolver: zodResolver(skillFormSchema),
@@ -79,27 +88,13 @@ export function SkillForm({ initial }: { initial?: OwnSkill }) {
     action.locked() || pending || !!evidenceRef.current?.locked();
   usePendingBack(locked);
   const save = form.handleSubmit(async (values) => {
-    if (locked() || !changed) return;
-    const input = skillInput(values);
-    const body = baseline ? skillPatch(baseline, input) : input;
-    await action.run(
-      baseline ? `update:${baseline.id}` : "create",
-      body,
-      (key) =>
-        baseline
-          ? api.update(baseline.id, skillPatch(baseline, input), key)
-          : api.create(input, key),
-      (saved, refreshed) => {
-        evidenceRef.current?.preserveDraft(saved.id);
-        showToast(
-          refreshed
-            ? "Đã lưu kỹ năng."
-            : "Đã lưu kỹ năng. Chưa cập nhật được toàn bộ dữ liệu; hãy tải lại.",
-          refreshed ? "success" : "info",
-        );
-        router.dismissTo("/my-skills");
-      },
-    );
+    if (
+      locked() ||
+      (!changed && !created) ||
+      (saveWithEvidence && !evidenceState.valid)
+    )
+      return;
+    await saveConfirmed(values);
   });
   const checkLatest = async () => {
     if (!baseline || locked()) return;
@@ -142,6 +137,8 @@ export function SkillForm({ initial }: { initial?: OwnSkill }) {
         blocked={!!baseline && hasPendingVerification(baseline)}
         disabled={skillPending}
         onBusyChange={setEvidenceBusy}
+        saveWithSkill={saveWithEvidence}
+        onDraftChange={setEvidenceState}
       />
       {baseline && !!action.error && (
         <SkillAction
@@ -175,7 +172,8 @@ export function SkillForm({ initial }: { initial?: OwnSkill }) {
         disabled={
           pending ||
           !form.formState.isValid ||
-          !changed ||
+          (!changed && !created) ||
+          (saveWithEvidence && !evidenceState.valid) ||
           !!baseline?.archivedAt ||
           !!latest
         }

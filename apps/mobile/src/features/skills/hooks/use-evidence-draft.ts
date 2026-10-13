@@ -8,7 +8,7 @@ import { skillError } from "../utils/skill-errors";
 import { prepareEvidence } from "../utils/prepare-evidence";
 
 export function useEvidenceDraft(id: string, initial: EvidenceDraft[] = []) {
-  const { api, isCurrent } = useSkills();
+  const { api, isCurrent, verificationDrafts } = useSkills();
   const { showToast } = useToast();
   const [files, setFiles] = useState<EvidenceDraft[]>(initial);
   const [focused, setFocused] = useState(false);
@@ -125,8 +125,8 @@ export function useEvidenceDraft(id: string, initial: EvidenceDraft[] = []) {
       abort.abort();
     };
   }, [files, focused, foreground, busy, api, id, isCurrent, showToast]);
-  async function prepare() {
-    if (!id || uploading.current || !active.current || !isCurrent())
+  async function prepare(targetId = id) {
+    if (!targetId || uploading.current || !active.current || !isCurrent())
       throw new Error("Chưa thể gửi bằng chứng. Hãy thử lại.");
     uploading.current = true;
     setBusy(true);
@@ -135,7 +135,7 @@ export function useEvidenceDraft(id: string, initial: EvidenceDraft[] = []) {
     try {
       return await prepareEvidence({
         api,
-        id,
+        id: targetId,
         files,
         signal: abort.signal,
         assertCurrent: () => {
@@ -143,12 +143,21 @@ export function useEvidenceDraft(id: string, initial: EvidenceDraft[] = []) {
             throw new Error("Quá trình gửi đã tạm dừng.");
         },
         update: (file) => {
-          if (mounted.current && isCurrent())
+          if (mounted.current && isCurrent()) {
             setFiles((current) =>
               current.map((item) =>
                 item.localId === file.localId ? file : item,
               ),
             );
+            const saved = verificationDrafts.get(targetId);
+            if (saved)
+              verificationDrafts.set(targetId, {
+                ...saved,
+                files: saved.files.map((item) =>
+                  item.localId === file.localId ? file : item,
+                ),
+              });
+          }
         },
       });
     } finally {
