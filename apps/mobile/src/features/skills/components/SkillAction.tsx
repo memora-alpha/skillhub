@@ -8,13 +8,13 @@ export function SkillAction({
   onPress,
   disabled = false,
   outlined = false,
-}: {
+}: Readonly<{
   label: string;
   icon?: IconName;
   onPress: () => void;
   disabled?: boolean;
   outlined?: boolean;
-}) {
+}>) {
   return (
     <Pressable
       accessibilityRole="button"

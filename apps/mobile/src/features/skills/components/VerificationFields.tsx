@@ -10,12 +10,15 @@ export function VerificationFields({
   model,
   saved,
   saveWithSkill = false,
-}: {
+}: Readonly<{
   model: ReturnType<typeof useVerificationForm>;
   saved: boolean;
   saveWithSkill?: boolean;
-}) {
+}>) {
   const { draft, busy } = model;
+  let submitLabel = "Gửi yêu cầu xác minh";
+  if (model.preparing) submitLabel = "Đang xử lý bằng chứng…";
+  else if (model.action.pending) submitLabel = "Đang gửi yêu cầu…";
   return (
     <View style={{ gap: 14 }}>
       <EvidencePicker
@@ -73,11 +76,7 @@ export function VerificationFields({
           }
           onPress={() => void model.submit()}
         >
-          {model.preparing
-            ? "Đang xử lý bằng chứng…"
-            : model.action.pending
-              ? "Đang gửi yêu cầu…"
-              : "Gửi yêu cầu xác minh"}
+          {submitLabel}
         </Button>
       )}
     </View>

@@ -11,10 +11,10 @@ import { SkillLevelGuide } from "./skill-level-guide";
 export function SkillFormFields({
   form,
   disabled,
-}: {
+}: Readonly<{
   form: UseFormReturn<SkillFormValues>;
   disabled: boolean;
-}) {
+}>) {
   return (
     <View style={{ gap: 18 }}>
       <Text style={formStyles.label}>Trình độ của bạn</Text>

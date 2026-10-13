@@ -13,7 +13,7 @@ export function SkillDetailActions({
   onVisibility,
   onVerify,
   onDelete,
-}: {
+}: Readonly<{
   skill: OwnSkill;
   pending: boolean;
   waiting?: boolean;
@@ -21,7 +21,7 @@ export function SkillDetailActions({
   onVisibility: () => void;
   onVerify: () => void;
   onDelete: () => void;
-}) {
+}>) {
   const waiting = historyWaiting || hasPendingVerification(skill);
   if (skill.archivedAt) return null;
   return (
@@ -73,12 +73,12 @@ function Control({
   label,
   disabled,
   onPress,
-}: {
+}: Readonly<{
   icon: IconName;
   label: string;
   disabled: boolean;
   onPress: () => void;
-}) {
+}>) {
   return (
     <Pressable
       accessibilityRole="button"

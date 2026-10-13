@@ -24,10 +24,10 @@ const tones: Record<
 export function VerificationBadge({
   status,
   compact = false,
-}: {
+}: Readonly<{
   status: SkillBadge;
   compact?: boolean;
-}) {
+}>) {
   const tone = tones[status];
   return (
     <View

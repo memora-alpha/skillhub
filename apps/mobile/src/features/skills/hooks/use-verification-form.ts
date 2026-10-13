@@ -76,15 +76,13 @@ export function useVerificationForm(
       });
       draft.setFiles((current) => [...current, ...additions]);
     } catch (error) {
-      if (action.current())
-        showToast(
-          error instanceof Error
-            ? error.message
-            : source === "photos"
-              ? "Không mở được thư viện ảnh."
-              : "Không mở được trình chọn file.",
-          "error",
-        );
+      if (action.current()) {
+        const fallback =
+          source === "photos"
+            ? "Không mở được thư viện ảnh."
+            : "Không mở được trình chọn file.";
+        showToast(error instanceof Error ? error.message : fallback, "error");
+      }
     } finally {
       selecting.current = false;
       if (mountedSession()) setPicking(false);

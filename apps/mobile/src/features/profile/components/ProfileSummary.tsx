@@ -31,11 +31,11 @@ export function ProfileSummary({
   profile,
   onEdit,
   avatarNotice,
-}: {
+}: Readonly<{
   profile: PublicProfile;
   onEdit?: () => void;
   avatarNotice?: ReactNode;
-}) {
+}>) {
   const stats = [
     { value: profile.reputationScore, label: "Điểm uy tín" },
     { value: profile.verifiedSkillCount, label: "Kỹ năng đã xác minh" },
@@ -76,7 +76,7 @@ export function ProfileSummary({
   );
 }
 
-export function ProfileAbout({ bio }: { bio: string }) {
+export function ProfileAbout({ bio }: Readonly<{ bio: string }>) {
   return (
     <ProfileSection>
       <ProfileHeading title="Giới thiệu" />
@@ -91,36 +91,41 @@ export function ProfileSkills({
   profile,
   onManage,
   available = true,
-}: {
+}: Readonly<{
   profile: PublicProfile;
   onManage?: () => void;
   available?: boolean;
-}) {
+}>) {
   const preview = useProfileSkillWindow({
     count: available ? profile.sharingSkills.length : 0,
   });
+  let content: ReactNode;
+  if (!available)
+    content = (
+      <Text style={profileStyles.caption}>
+        Danh sách kỹ năng chưa được kết nối.
+      </Text>
+    );
+  else if (!profile.sharingSkills.length)
+    content = (
+      <Text style={profileStyles.caption}>Chưa có kỹ năng chia sẻ.</Text>
+    );
+  else
+    content = profile.sharingSkills
+      .slice(0, preview.visible)
+      .map((skill) => (
+        <SamplePublicSkillRow
+          key={skill.id}
+          name={skill.name}
+          level={levels[skill.level]}
+          status={skill.verificationStatus}
+          description={skill.description}
+          experienceYears={skill.experienceYears}
+        />
+      ));
   return (
     <ProfileSkillSection onManage={onManage}>
-      {!available ? (
-        <Text style={profileStyles.caption}>
-          Danh sách kỹ năng chưa được kết nối.
-        </Text>
-      ) : !profile.sharingSkills.length ? (
-        <Text style={profileStyles.caption}>Chưa có kỹ năng chia sẻ.</Text>
-      ) : (
-        profile.sharingSkills
-          .slice(0, preview.visible)
-          .map((skill) => (
-            <SamplePublicSkillRow
-              key={skill.id}
-              name={skill.name}
-              level={levels[skill.level]}
-              status={skill.verificationStatus}
-              description={skill.description}
-              experienceYears={skill.experienceYears}
-            />
-          ))
-      )}
+      {content}
       {preview.hasMore && (
         <ProfileSkillMore onPress={() => void preview.showMore()} />
       )}

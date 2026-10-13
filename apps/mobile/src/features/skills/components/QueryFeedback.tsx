@@ -13,11 +13,11 @@ export function QueryFeedback({
   query,
   empty = false,
   emptyText = "Chưa có dữ liệu.",
-}: {
+}: Readonly<{
   query: FeedbackQuery;
   empty?: boolean;
   emptyText?: string;
-}) {
+}>) {
   return (
     <View style={{ gap: 8 }}>
       {query.error ? (
@@ -47,13 +47,13 @@ export function QueryFeedback({
 }
 export function PageFooter({
   query,
-}: {
+}: Readonly<{
   query: FeedbackQuery & {
     hasNextPage: boolean;
     isFetchingNextPage: boolean;
     fetchNextPage: () => Promise<unknown>;
   };
-}) {
+}>) {
   return (
     <View style={{ gap: 8 }}>
       <QueryFeedback query={query} />

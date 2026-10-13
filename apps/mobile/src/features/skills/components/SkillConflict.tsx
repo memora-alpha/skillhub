@@ -8,11 +8,11 @@ export function SkillConflict({
   latest,
   pending,
   onAccept,
-}: {
+}: Readonly<{
   latest: OwnSkill;
   pending: boolean;
   onAccept: () => void;
-}) {
+}>) {
   return (
     <View style={formStyles.section}>
       <Text style={formStyles.sectionHeading}>

@@ -82,12 +82,14 @@ export function harness(
     get generation() {
       return generation;
     },
-    getToken: async () => "test-session",
-    renew: async () => {
+    getToken: () => Promise.resolve("test-session"),
+    renew: () => {
       renewals++;
+      return Promise.resolve();
     },
-    expire: async () => {
+    expire: () => {
       generation++;
+      return Promise.resolve();
     },
   });
   return {

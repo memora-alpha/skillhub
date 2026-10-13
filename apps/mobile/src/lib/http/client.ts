@@ -20,6 +20,18 @@ export type SessionTransport = {
   expire: () => Promise<void>;
 };
 
+function requestHeaders(options: RequestOptions, token: string | null) {
+  const headers: Record<string, string | boolean> = {
+    Accept: "application/json",
+  };
+  if (options.body !== undefined)
+    headers["Content-Type"] = options.multipart ? false : "application/json";
+  if (token) headers.Authorization = `Bearer ${token}`;
+  if (options.idempotencyKey)
+    headers["Idempotency-Key"] = options.idempotencyKey;
+  return headers;
+}
+
 export function createHttpClient(
   baseUrl: () => string,
   http: AxiosInstance = axios.create({
@@ -46,18 +58,7 @@ export function createHttpClient(
         baseURL: baseUrl(),
         url: path,
         method: options.method ?? "GET",
-        headers: {
-          Accept: "application/json",
-          ...(options.body === undefined
-            ? {}
-            : {
-                "Content-Type": options.multipart ? false : "application/json",
-              }),
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          ...(options.idempotencyKey
-            ? { "Idempotency-Key": options.idempotencyKey }
-            : {}),
-        },
+        headers: requestHeaders(options, token),
         data: options.body,
         signal: options.signal,
       });

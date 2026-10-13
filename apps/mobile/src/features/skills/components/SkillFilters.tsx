@@ -12,10 +12,10 @@ const options: { value: SkillFilter; label: string; icon: IconName }[] = [
 export function SkillFilters({
   value,
   onChange,
-}: {
+}: Readonly<{
   value: SkillFilter;
   onChange: (value: SkillFilter) => void;
-}) {
+}>) {
   return (
     <ScrollView
       horizontal

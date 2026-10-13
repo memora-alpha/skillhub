@@ -18,14 +18,16 @@ export function SubmittedEvidence({
   file,
   index,
   compact = false,
-}: {
+}: Readonly<{
   id: string;
   file: Evidence;
   index: number;
   compact?: boolean;
-}) {
+}>) {
   const image = file.mimeType.startsWith("image/");
   const title = file.title || `${image ? "Ảnh" : "Tài liệu"} ${index + 1}`;
+  let format = image ? "Ảnh" : "Word";
+  if (!image && file.mimeType === "application/pdf") format = "PDF";
   return (
     <View style={compact ? styles.compactRow : { gap: 8 }}>
       {image && (
@@ -47,8 +49,7 @@ export function SubmittedEvidence({
           {title}
         </Text>
         <Text style={skillStyles.caption}>
-          {image ? "Ảnh" : file.mimeType === "application/pdf" ? "PDF" : "Word"}{" "}
-          · {formatFileSize(Number(file.fileSizeBytes))}
+          {format} · {formatFileSize(Number(file.fileSizeBytes))}
         </Text>
       </View>
     </View>
@@ -60,12 +61,12 @@ function SubmittedImage({
   evidenceId,
   title,
   compact,
-}: {
+}: Readonly<{
   id: string;
   evidenceId: string;
   title: string;
   compact: boolean;
-}) {
+}>) {
   const image = useEvidenceImage(id, evidenceId);
   return (
     <View style={[styles.preview, compact && styles.thumbnail]}>
@@ -87,40 +88,55 @@ function SubmittedImage({
         <View
           style={[styles.placeholder, compact && styles.compactPlaceholder]}
         >
-          {image.loading ? (
-            <ActivityIndicator
-              color={colors.primary}
-              accessibilityLabel="Đang tải ảnh bằng chứng"
-            />
-          ) : compact ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Tải lại ảnh"
-              accessibilityHint="Ảnh chưa tải được. Thử lấy ảnh lại."
-              onPress={image.retry}
-              style={({ pressed }) => ({
-                minHeight: 44,
-                justifyContent: "center",
-                opacity: pressed ? 0.55 : 1,
-              })}
-            >
-              <Text style={[skillStyles.caption, { color: colors.primary }]}>
-                Tải lại ảnh
-              </Text>
-            </Pressable>
-          ) : (
-            <>
-              <Text style={skillStyles.caption}>Chưa tải được ảnh.</Text>
-              <SkillAction
-                label="Tải lại ảnh"
-                icon="image"
-                onPress={image.retry}
-              />
-            </>
-          )}
+          <SubmittedImageFallback
+            loading={image.loading}
+            compact={compact}
+            onRetry={image.retry}
+          />
         </View>
       )}
     </View>
+  );
+}
+function SubmittedImageFallback({
+  loading,
+  compact,
+  onRetry,
+}: Readonly<{
+  loading: boolean;
+  compact: boolean;
+  onRetry: () => void;
+}>) {
+  if (loading)
+    return (
+      <ActivityIndicator
+        color={colors.primary}
+        accessibilityLabel="Đang tải ảnh bằng chứng"
+      />
+    );
+  if (compact)
+    return (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Tải lại ảnh"
+        accessibilityHint="Ảnh chưa tải được. Thử lấy ảnh lại."
+        onPress={onRetry}
+        style={({ pressed }) => ({
+          minHeight: 44,
+          justifyContent: "center",
+          opacity: pressed ? 0.55 : 1,
+        })}
+      >
+        <Text style={[skillStyles.caption, { color: colors.primary }]}>
+          Tải lại ảnh
+        </Text>
+      </Pressable>
+    );
+  return (
+    <>
+      <Text style={skillStyles.caption}>Chưa tải được ảnh.</Text>
+      <SkillAction label="Tải lại ảnh" icon="image" onPress={onRetry} />
+    </>
   );
 }
 const styles = StyleSheet.create({

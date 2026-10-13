@@ -10,11 +10,11 @@ export function CatalogPicker({
   selected,
   disabled,
   onSelect,
-}: {
+}: Readonly<{
   selected?: CatalogSkill;
   disabled: boolean;
   onSelect: (skill: CatalogSkill) => void;
-}) {
+}>) {
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   return (

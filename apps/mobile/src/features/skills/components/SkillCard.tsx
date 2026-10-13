@@ -19,14 +19,16 @@ export function SkillCard({
   skill,
   onPress,
   detail = false,
-}: {
+}: Readonly<{
   skill: PublicSkill | OwnSkill;
   onPress?: () => void;
   detail?: boolean;
-}) {
+}>) {
   const own = "isVisible" in skill ? skill : null;
   if (own?.archivedAt) return null;
-  const visibility = own ? (own.isVisible ? "Công khai" : "Riêng tư") : null;
+  let visibility: string | null = null;
+  if (own) visibility = own.isVisible ? "Công khai" : "Riêng tư";
+  const visibilityHint = visibility ? `. ${visibility}` : "";
   const content = (
     <View style={styles.content}>
       <View style={styles.header}>
@@ -73,7 +75,7 @@ export function SkillCard({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`Xem kỹ năng: ${skill.skill.name}`}
-      accessibilityHint={`${levelLabels[skill.level]}. ${badgeLabels[skill.verificationStatus]}${visibility ? `. ${visibility}` : ""}`}
+      accessibilityHint={`${levelLabels[skill.level]}. ${badgeLabels[skill.verificationStatus]}${visibilityHint}`}
       onPress={onPress}
       style={({ pressed }) => [styles.card, pressed && styles.pressed]}
     >

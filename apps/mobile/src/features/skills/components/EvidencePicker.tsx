@@ -7,11 +7,11 @@ export function EvidencePicker({
   disabled,
   picking,
   onPick,
-}: {
+}: Readonly<{
   disabled: boolean;
   picking: boolean;
   onPick: (source: EvidenceSource) => void;
-}) {
+}>) {
   return (
     <View style={styles.section}>
       <View style={styles.row}>
@@ -43,13 +43,13 @@ function Choice({
   hint,
   disabled,
   onPress,
-}: {
+}: Readonly<{
   icon: IconName;
   label: string;
   hint: string;
   disabled: boolean;
   onPress: () => void;
-}) {
+}>) {
   return (
     <Pressable
       accessibilityRole="button"

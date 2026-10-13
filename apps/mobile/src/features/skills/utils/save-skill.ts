@@ -37,11 +37,11 @@ export async function saveSkill({
   if (send && !evidence!.valid())
     throw new Error("Kiểm tra tiêu đề và mô tả bằng chứng trước khi lưu.");
   const patch = previous ? skillPatch(previous, input) : null;
-  const skill = previous
-    ? Object.keys(patch!).length > 1
-      ? await api.update(previous.id, patch!, key)
-      : previous
-    : await api.create(input, key);
+  let skill: OwnSkill;
+  if (!previous) skill = await api.create(input, key);
+  else if (Object.keys(patch!).length > 1)
+    skill = await api.update(previous.id, patch!, key);
+  else skill = previous;
   assertCurrent();
   // Persist the confirmed skill before file I/O; evidence failure cannot undo it.
   await onSaved(skill, !previous);

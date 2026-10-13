@@ -56,9 +56,10 @@ export function recordSkillQueries(
         ...page,
         data: [
           ...(include && !found && index === 0 ? [skill] : []),
-          ...page.data.flatMap((item) =>
-            item.id !== skill.id ? [item] : include ? [skill] : [],
-          ),
+          ...page.data.flatMap((item) => {
+            if (item.id !== skill.id) return [item];
+            return include ? [skill] : [];
+          }),
         ],
       })),
     });
@@ -70,15 +71,16 @@ export function recordSkillQueries(
         ...data,
         pages: data.pages.map((page) => ({
           ...page,
-          data: page.data.flatMap((item) =>
-            item.id !== skill.id
-              ? [item]
-              : !skill.isVisible ||
-                  skill.archivedAt ||
-                  skill.skill.status !== "ACTIVE"
-                ? []
-                : [publicSkillSchema.parse(skill)],
-          ),
+          data: page.data.flatMap((item) => {
+            if (item.id !== skill.id) return [item];
+            if (
+              !skill.isVisible ||
+              skill.archivedAt ||
+              skill.skill.status !== "ACTIVE"
+            )
+              return [];
+            return [publicSkillSchema.parse(skill)];
+          }),
         })),
       },
   );

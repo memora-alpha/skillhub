@@ -10,7 +10,17 @@ export function ConnectionScreen({
   reason,
   retrying,
   onRetry,
-}: ConnectionState & { onRetry: () => void }) {
+}: Readonly<ConnectionState & { onRetry: () => void }>) {
+  let title = "Kết nối bị gián đoạn";
+  let description = "Chưa thể kết nối tới SkillHub. Vui lòng thử lại.";
+  if (reason === "offline") {
+    title = "Bạn đang ngoại tuyến";
+    description = "Kiểm tra Wi-Fi hoặc dữ liệu di động rồi thử lại.";
+  }
+  if (retrying) {
+    title = "Đang kết nối lại…";
+    description = "Chờ một chút, SkillHub đang tải lại dữ liệu.";
+  }
   return (
     <SafeAreaView style={styles.screen}>
       <View style={styles.brand}>
@@ -29,19 +39,9 @@ export function ConnectionScreen({
           )}
         </View>
         <Text accessibilityRole="header" style={styles.title}>
-          {retrying
-            ? "Đang kết nối lại…"
-            : reason === "offline"
-              ? "Bạn đang ngoại tuyến"
-              : "Kết nối bị gián đoạn"}
+          {title}
         </Text>
-        <Text style={styles.body}>
-          {retrying
-            ? "Chờ một chút, SkillHub đang tải lại dữ liệu."
-            : reason === "offline"
-              ? "Kiểm tra Wi-Fi hoặc dữ liệu di động rồi thử lại."
-              : "Chưa thể kết nối tới SkillHub. Vui lòng thử lại."}
-        </Text>
+        <Text style={styles.body}>{description}</Text>
         <Button disabled={retrying} onPress={onRetry} style={styles.button}>
           {retrying ? "Đang tải lại…" : "Thử lại"}
         </Button>

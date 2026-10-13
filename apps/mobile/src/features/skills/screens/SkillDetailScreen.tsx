@@ -1,13 +1,11 @@
 import { useState } from "react";
-import { Text, View } from "react-native";
+import { Text } from "react-native";
 import { useRouter } from "expo-router";
 import { Button } from "@/components/Button";
 import { InfoModal } from "@/components/InfoModal";
 import { FormNotice } from "@/components/FormNotice";
 import { SkillsLayout, skillStyles } from "../components/SkillsLayout";
-import { SkillCard } from "../components/SkillCard";
-import { SkillDetailActions } from "../components/SkillDetailActions";
-import { SkillAction } from "../components/SkillAction";
+import { SkillDetailHeader } from "../components/SkillDetailHeader";
 import { QueryFeedback } from "../components/QueryFeedback";
 import { VerificationHistory } from "../components/VerificationHistory";
 import { useOwnSkill, validId } from "../hooks/use-skill-queries";
@@ -15,9 +13,9 @@ import { useSkillAction } from "../hooks/use-skill-action";
 import { useSkills } from "../context/SkillsProvider";
 export function SkillDetailScreen({
   sharingSkillId,
-}: {
+}: Readonly<{
   sharingSkillId?: string | string[];
-}) {
+}>) {
   const id = validId(sharingSkillId);
   const query = useOwnSkill(id);
   const { api, refresh, forgetSkill, rememberSkill } = useSkills();
@@ -65,58 +63,43 @@ export function SkillDetailScreen({
         onRefresh={() => {
           if (!action.locked()) void refresh();
         }}
-        header={(waiting) => (
-          <View style={{ gap: 12 }}>
-            <View style={skillStyles.row}>
-              <Text style={[skillStyles.caption, { flex: 1 }]}>
-                Thông tin kỹ năng
-              </Text>
-              <SkillAction
-                label="Làm mới"
-                icon="clock"
-                disabled={action.pending || query.isFetching}
-                onPress={() => {
-                  if (!action.locked()) void refresh();
-                }}
-              />
-            </View>
-            <SkillCard skill={skill} detail />
-            {!!query.error && <QueryFeedback query={query} />}
-            <SkillDetailActions
-              skill={skill}
-              waiting={waiting}
-              pending={action.pending}
-              onEdit={() => {
-                if (!action.locked())
-                  router.push({
-                    pathname: "/my-skills/[sharingSkillId]/edit",
-                    params: { sharingSkillId: id },
-                  });
-              }}
-              onVisibility={() => {
-                const body = {
-                  expectedVersion: skill.version,
-                  isVisible: !skill.isVisible,
-                };
-                void action.run(`visibility:${id}`, body, async (key) => {
-                  const saved = await api.update(id, body, key);
-                  if (action.current()) await rememberSkill(saved);
-                  return saved;
-                });
-              }}
-              onVerify={() => {
-                if (!action.locked() && !waiting)
-                  router.push({
-                    pathname: "/my-skills/[sharingSkillId]/verify",
-                    params: { sharingSkillId: id },
-                  });
-              }}
-              onDelete={() => {
-                if (!action.locked()) setConfirm(true);
-              }}
-            />
-          </View>
-        )}
+        header={SkillDetailHeader}
+        headerProps={{
+          skill,
+          query,
+          pending: action.pending,
+          onRefresh: () => {
+            if (!action.locked()) void refresh();
+          },
+          onEdit: () => {
+            if (!action.locked())
+              router.push({
+                pathname: "/my-skills/[sharingSkillId]/edit",
+                params: { sharingSkillId: id },
+              });
+          },
+          onVisibility: () => {
+            const body = {
+              expectedVersion: skill.version,
+              isVisible: !skill.isVisible,
+            };
+            void action.run(`visibility:${id}`, body, async (key) => {
+              const saved = await api.update(id, body, key);
+              if (action.current()) await rememberSkill(saved);
+              return saved;
+            });
+          },
+          onVerify: (waiting: boolean) => {
+            if (!action.locked() && !waiting)
+              router.push({
+                pathname: "/my-skills/[sharingSkillId]/verify",
+                params: { sharingSkillId: id },
+              });
+          },
+          onDelete: () => {
+            if (!action.locked()) setConfirm(true);
+          },
+        }}
       />
       <InfoModal
         title={confirm ? "Xóa kỹ năng?" : null}
