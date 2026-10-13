@@ -13,6 +13,7 @@ import { LearningRequestsController } from "../../dist/modules/learning-requests
 import { SessionsService } from "../../dist/modules/auth/application/services/sessions.service.js";
 import { Test } from "@nestjs/testing";
 import { ValidationPipe, VersioningType } from "@nestjs/common";
+import { HttpExceptionFilter } from "../../dist/shared/http/http-exception.filter.js";
 
 test(
   "FE request preferences persist and project through real PostgreSQL owner contracts",
@@ -291,6 +292,7 @@ test(
             ],
           }).compile();
           const app = module.createNestApplication();
+          app.useGlobalFilters(new HttpExceptionFilter());
           app.setGlobalPrefix("api");
           app.enableVersioning({
             type: VersioningType.URI,
@@ -363,6 +365,14 @@ test(
             assert.equal(created.status, 201);
             let result = (await created.json()).data;
             assert.equal(result.desiredCreditPerHour, "50.00");
+            const mine = await call("GET", "/mine");
+            assert.equal(mine.status, 200);
+            const ownerRequests = (await mine.json()).data;
+            const own = ownerRequests.find((item) => item.id === result.id);
+            assert.ok(own);
+            assert.equal(own.desiredCreditPerHour, "50.00");
+            assert.deepEqual(own.preferredAvailability, weekly);
+            assert.deepEqual(own.offeredSharingSkillIds, [offered.id]);
             let response = await call("POST", `/${result.id}/publish`, {
               expectedVersion: result.version,
             });
