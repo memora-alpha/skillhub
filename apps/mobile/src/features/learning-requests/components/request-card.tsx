@@ -17,7 +17,15 @@ import {
 } from "../utils/request-policy";
 import type { RequestItem } from "../types";
 
-function shortDate(value: string) {
+function createdLabel(value: string) {
+  const minutes = Math.max(
+    0,
+    Math.floor((Date.now() - Date.parse(value)) / 60_000),
+  );
+  if (minutes < 1) return "Vừa tạo";
+  if (minutes < 60) return `${minutes} phút trước`;
+  if (minutes < 1_440) return `${Math.floor(minutes / 60)} giờ trước`;
+  if (minutes < 10_080) return `${Math.floor(minutes / 1_440)} ngày trước`;
   return new Date(value).toLocaleDateString("vi-VN", {
     day: "2-digit",
     month: "2-digit",
@@ -35,6 +43,15 @@ export function RequestCard({
   const skill = useSkillName(own ? request.skillId : undefined);
   const state = requestState(request);
   const skillName = own ? skill.data?.name : request.skill.name;
+  const tags = [
+    ...new Set(
+      [
+        skillName,
+        request.currentLevel ? uiLabel(request.currentLevel) : undefined,
+        ...(!own ? request.tags.map((tag) => tag.label) : []),
+      ].filter((label): label is string => !!label),
+    ),
+  ].slice(0, 3);
   return (
     <Pressable
       accessibilityRole="button"
@@ -43,29 +60,27 @@ export function RequestCard({
       style={({ pressed }) => [styles.card, pressed && { opacity: 0.8 }]}
     >
       <View style={styles.between}>
-        <View style={[styles.row, styles.identity]}>
-          {own ? (
-            <View style={styles.draftIcon}>
-              <Icon name="book" size={20} color={colors.forest} />
-            </View>
-          ) : (
+        {own ? (
+          <Text style={[styles.caption, styles.identity]}>
+            {createdLabel(request.createdAt)}
+          </Text>
+        ) : (
+          <View style={[styles.row, styles.identity]}>
             <Avatar
               name={request.owner.displayName}
               userId={request.owner.id}
               size={36}
             />
-          )}
-          <View style={styles.identityText}>
-            <Text numberOfLines={1} style={styles.name}>
-              {own
-                ? (skillName ?? "Yêu cầu của bạn")
-                : request.owner.displayName}
-            </Text>
-            <Text style={styles.caption}>
-              Tạo ngày {shortDate(request.createdAt)}
-            </Text>
+            <View style={styles.identityText}>
+              <Text numberOfLines={1} style={styles.name}>
+                {request.owner.displayName}
+              </Text>
+              <Text style={styles.caption}>
+                {createdLabel(request.createdAt)}
+              </Text>
+            </View>
           </View>
-        </View>
+        )}
         <View
           style={[
             styles.status,
@@ -84,55 +99,38 @@ export function RequestCard({
           </Text>
         </View>
       </View>
-      <View style={{ gap: 6 }}>
-        <Text numberOfLines={2} style={styles.title}>
-          {request.title}
-        </Text>
-        <Text numberOfLines={2} style={styles.body}>
-          {request.learningGoal}
-        </Text>
-      </View>
-      <View style={styles.tags}>
-        {!own && !!skillName && (
-          <View style={styles.tag}>
-            <Text style={styles.tagText}>{skillName}</Text>
-          </View>
-        )}
-        {request.currentLevel && (
-          <View style={styles.tag}>
-            <Text style={styles.tagText}>{uiLabel(request.currentLevel)}</Text>
-          </View>
-        )}
-        {!own &&
-          request.tags.map((tag) => (
-            <View key={tag.id} style={styles.tag}>
-              <Text style={styles.tagText}>{tag.label}</Text>
+      <Text numberOfLines={2} style={styles.title}>
+        {request.title}
+      </Text>
+      {!!tags.length && (
+        <View style={styles.tags}>
+          {tags.map((tag) => (
+            <View key={tag} style={styles.tag}>
+              <Text numberOfLines={1} style={styles.tagText}>
+                {tag}
+              </Text>
             </View>
           ))}
-        {request.verifiedTeacherOnly && (
-          <View style={[styles.row, styles.verified]}>
-            <Icon name="shield" size={13} color={colors.forest} />
-            <Text style={styles.verifiedText}>Cần kỹ năng dạy đã xác minh</Text>
-          </View>
-        )}
-      </View>
+        </View>
+      )}
       <View style={[styles.between, styles.footer]}>
-        <View style={[styles.row, styles.identity]}>
-          <Icon
-            name={state === "DRAFT" ? "edit" : "calendar"}
-            size={14}
-            color={colors.muted}
-          />
-          <Text style={styles.caption}>
-            {state === "DRAFT"
-              ? "Chưa đăng"
-              : request.expiresAt
-                ? `Hạn ${shortDate(request.expiresAt)}`
-                : "Chưa có hạn yêu cầu"}
+        <View style={styles.identity}>
+          <Text style={styles.credit}>
+            {request.desiredCreditPerHour ? (
+              <>
+                {new Intl.NumberFormat("vi-VN", {
+                  maximumFractionDigits: 2,
+                }).format(Number(request.desiredCreditPerHour))}{" "}
+                CR
+                <Text style={styles.caption}> / giờ</Text>
+              </>
+            ) : (
+              "Chưa đặt Credit"
+            )}
           </Text>
         </View>
-        <View style={styles.row}>
-          <Text style={styles.link}>Chi tiết</Text>
+        <View style={styles.detailLink}>
+          <Text style={styles.link}>Xem chi tiết</Text>
           <Icon name="chevron" size={14} color={signedInChrome.accent} />
         </View>
       </View>
@@ -141,9 +139,9 @@ export function RequestCard({
 }
 const styles = StyleSheet.create({
   card: {
-    padding: 16,
+    padding: 14,
     borderRadius: appRadius.card,
-    gap: 14,
+    gap: 10,
     borderWidth: 1,
     borderColor: signedInChrome.border,
     backgroundColor: signedInChrome.surface,
@@ -157,14 +155,6 @@ const styles = StyleSheet.create({
   },
   identity: { flex: 1, minWidth: 0 },
   identityText: { flex: 1, gap: 2 },
-  draftIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: appRadius.control,
-    backgroundColor: colors.forestSoft,
-    alignItems: "center",
-    justifyContent: "center",
-  },
   name: {
     fontFamily: fonts.semibold,
     ...typography.secondary,
@@ -175,7 +165,6 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: signedInChrome.ink,
   },
-  body: { fontFamily: fonts.body, ...typography.secondary, color: colors.body },
   caption: {
     fontFamily: fonts.body,
     ...typography.caption,
@@ -183,8 +172,8 @@ const styles = StyleSheet.create({
   },
   status: {
     paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: appRadius.badge,
+    paddingVertical: 3,
+    borderRadius: appRadius.full,
     backgroundColor: colors.surfaceLow,
     maxWidth: "44%",
   },
@@ -210,16 +199,27 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.body,
   },
-  verified: { paddingVertical: 4 },
-  verifiedText: {
-    fontFamily: fonts.medium,
-    ...typography.caption,
-    color: colors.forest,
-  },
   footer: {
-    paddingTop: 12,
+    paddingTop: 10,
     borderTopWidth: 1,
     borderTopColor: signedInChrome.border,
+    flexWrap: "wrap",
+  },
+  credit: {
+    fontFamily: fonts.bold,
+    ...typography.secondary,
+    color: signedInChrome.accent,
+  },
+  detailLink: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: appRadius.control,
+    borderWidth: 1,
+    borderColor: colors.primaryMuted,
+    backgroundColor: colors.primarySoft,
   },
   link: {
     fontFamily: fonts.semibold,

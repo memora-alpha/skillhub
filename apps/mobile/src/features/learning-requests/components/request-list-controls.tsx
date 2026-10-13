@@ -6,8 +6,39 @@ import { signedInChrome } from "@/constants/theme";
 import { uiLabel } from "@/constants/ui-copy";
 import { requestListStyles as styles } from "./request-list.styles";
 
-export function RequestCreateButton() {
+export function RequestCreateButton({
+  compact = false,
+}: {
+  compact?: boolean;
+}) {
   const router = useRouter();
+  const content = (
+    <>
+      <Icon
+        name="plus"
+        size={compact ? 14 : 16}
+        color={signedInChrome.surface}
+      />
+      <Text style={styles.publishText}>Đăng</Text>
+    </>
+  );
+  if (compact) {
+    return (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Tạo yêu cầu học"
+        hitSlop={4}
+        onPress={() => router.navigate("/requests/new")}
+        style={({ pressed }) => [
+          styles.publish,
+          styles.publishCompact,
+          pressed && { opacity: 0.75 },
+        ]}
+      >
+        {content}
+      </Pressable>
+    );
+  }
   return (
     <Button
       variant="craft"
@@ -16,8 +47,7 @@ export function RequestCreateButton() {
       onPress={() => router.navigate("/requests/new")}
       accessibilityLabel="Tạo yêu cầu học"
     >
-      <Icon name="plus" size={16} color={signedInChrome.surface} />
-      <Text style={styles.publishText}>Đăng</Text>
+      {content}
     </Button>
   );
 }

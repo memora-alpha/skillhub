@@ -5,10 +5,15 @@ import { Button } from "@/components/Button";
 import { appColors, signedInChrome } from "@/constants/theme";
 import { useSkillName } from "../hooks/use-requests";
 import { SkillSelector } from "./skill-selector";
+import { TagSelector } from "./tag-selector";
 import { RequestTabs } from "./request-list-controls";
 import { requestListStyles as styles } from "./request-list.styles";
 
-export type FeedFilters = { skillId: string; scope: "feed" | "recommended" };
+export type FeedFilters = {
+  skillId: string;
+  scope: "feed" | "recommended";
+  tagIds: string[];
+};
 export function RequestFeedFilters({
   search,
   onSearch,
@@ -27,7 +32,9 @@ export function RequestFeedFilters({
   const [draft, setDraft] = useState(filters);
   const skill = useSkillName(filters.skillId || undefined);
   const active =
-    Number(!!filters.skillId) + Number(filters.scope === "recommended");
+    Number(!!filters.skillId) +
+    Number(filters.scope === "recommended") +
+    filters.tagIds.length;
   return (
     <View style={{ gap: 12 }}>
       <View style={styles.row}>
@@ -87,7 +94,9 @@ export function RequestFeedFilters({
             <Text style={styles.heading}>Bộ lọc</Text>
             <Pressable
               accessibilityRole="button"
-              onPress={() => setDraft({ skillId: "", scope: "feed" })}
+              onPress={() =>
+                setDraft({ skillId: "", scope: "feed", tagIds: [] })
+              }
               style={styles.reset}
             >
               <Text style={styles.resetText}>Đặt lại</Text>
@@ -117,6 +126,10 @@ export function RequestFeedFilters({
               onChange={(skillId) => setDraft({ ...draft, skillId })}
             />
           </View>
+          <TagSelector
+            value={draft.tagIds}
+            onChange={(tagIds) => setDraft({ ...draft, tagIds })}
+          />
           <View style={styles.row}>
             <Button variant="ghost" onPress={() => setOpen(false)}>
               Đóng
@@ -136,6 +149,17 @@ export function RequestFeedFilters({
       )}
       {!!active && (
         <View style={styles.chips}>
+          {!!filters.tagIds.length && (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Xóa lọc tag"
+              onPress={() => onApply({ ...filters, tagIds: [] })}
+              style={styles.chip}
+            >
+              <Text style={styles.chipText}>{filters.tagIds.length} tag</Text>
+              <Icon name="close" size={14} color={appColors.primaryDark} />
+            </Pressable>
+          )}
           {!!filters.skillId && (
             <Pressable
               accessibilityRole="button"
