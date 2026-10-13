@@ -2,8 +2,8 @@ function searchable(value: string) {
   return value
     .toLocaleLowerCase("vi")
     .normalize("NFD")
-    .replace(/\p{M}/gu, "")
-    .replace(/đ/g, "d")
+    .replaceAll(/\p{M}/gu, "")
+    .replaceAll("đ", "d")
     .trim();
 }
 export function matchingRequestOptions<T extends { label: string }>(

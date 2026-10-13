@@ -17,6 +17,7 @@ import { RequestLoading, RequestFailure } from "../components/request-state";
 import { RequestListFooter } from "../components/request-list-footer";
 import { useRequestList } from "../hooks/use-requests";
 import { isOwnRequest } from "../utils/request-policy";
+import { RequestListSeparator } from "../components/request-list-separator";
 export function RequestsFeedScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ query?: string | string[] }>();
@@ -68,7 +69,7 @@ export function RequestsFeedScreen() {
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
-          ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+          ItemSeparatorComponent={RequestListSeparator}
           refreshing={query.isRefetching && !query.isFetchingNextPage}
           onRefresh={() => void query.refetch()}
           ListHeaderComponent={

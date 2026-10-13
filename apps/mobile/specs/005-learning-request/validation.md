@@ -405,3 +405,19 @@ Native devices and real backend Proposal submission were not exercised.
   cleanup. Changed files passed Prettier and Git whitespace checks.
 - This is source/local verification of the supplied annotations; a fresh SonarCloud
   analysis of the fix revision is required to confirm issue closure and Quality Gate.
+
+## Remaining Sonar findings — 2026-10-14
+
+- Added explicit UUID comparators, removed async wrappers without await while
+  preserving Promise contracts, used replaceAll for search normalization, stable
+  weekly-slot keys and readonly props for the remaining request components/provider.
+- List separators are shared components defined outside the list render functions.
+  Date label formatting and header leading controls have separate functions; layout,
+  pending navigation and date selection behavior are preserved.
+- The fixture's large HTTP handler is split into 13 helpers for control/auth,
+  catalog/profile/list routing, simulated failures and lifecycle mutations. All
+  remain test-only. Added an HTTP regression for authentication/refresh, CORS,
+  unknown endpoints, public profile/skill projections and recorded actor/status.
+- Final lint, TypeScript, structure (452 source files), Prettier and whitespace
+  checks passed. Full suite passed 267/267. SonarCloud closure/Quality Gate still
+  requires a new CI analysis; native acceptance was not performed for this refactor.

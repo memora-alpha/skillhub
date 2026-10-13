@@ -14,7 +14,7 @@ import {
   createFixtureData,
   publicFixture,
 } from "./learning-requests-data";
-import type { FixtureRequest } from "./learning-requests-data";
+import type { FixtureRequest, FixtureUser } from "./learning-requests-data";
 import type { OwnerRequest } from "../../src/features/learning-requests/types";
 import {
   fixtureTags,
@@ -46,6 +46,21 @@ type Control = {
   rules?: FixtureRule[];
   matchingVersion?: number;
   update?: Partial<OwnerRequest> & { id: string };
+};
+type FixtureSend = (
+  status: number,
+  value: unknown,
+  pagination?: object,
+) => void;
+type FixtureRouteContext = {
+  req: IncomingMessage;
+  url: URL;
+  path: string;
+  method: string;
+  user: FixtureUser;
+  rule?: FixtureRule;
+  send: FixtureSend;
+  loseResponse: (status: number) => Promise<void>;
 };
 async function readBody(
   req: IncomingMessage,
@@ -86,6 +101,447 @@ export async function startLearningRequestsFixture({
         ? "EXPIRED"
         : entry.request.status,
   });
+  async function handleControl(
+    req: IncomingMessage,
+    method: string,
+    send: FixtureSend,
+  ) {
+    if (method === "POST") {
+      const control = (await readBody(req)) as Control;
+      if (control.reset) {
+        data = createFixtureData(now());
+        rules = [];
+        matchingVersion = 1;
+        nextId = 1_000;
+        events.length = 0;
+      }
+      if (control.rules) rules = structuredClone(control.rules);
+      if (control.matchingVersion) matchingVersion = control.matchingVersion;
+      if (control.update) {
+        const entry = data.find(
+          (item) => item.request.id === control.update!.id,
+        );
+        if (entry) Object.assign(entry.request, control.update);
+      }
+    }
+    send(200, {
+      events,
+      matchingVersion,
+      requests: data.map((entry) => ({
+        actor: entry.actor,
+        ...ownerRead(entry),
+      })),
+    });
+    return;
+  }
+
+  async function handleLogin(req: IncomingMessage, send: FixtureSend) {
+    const body = await readBody(req);
+    const login = fixtureUsers.find(
+      (item) =>
+        item.email === body.email ||
+        `refresh-${item.token}` === body.refreshToken,
+    );
+    if (!login) {
+      send(401, "INVALID_CREDENTIALS");
+      return;
+    }
+    send(200, {
+      accessToken: login.token,
+      refreshToken: `refresh-${login.token}`,
+      tokenType: "Bearer",
+      expiresIn: 3_600,
+      refreshExpiresAt: new Date(now() + 86_400_000).toISOString(),
+    });
+    return;
+  }
+
+  function handleSkills(context: FixtureRouteContext) {
+    const { path, url, send } = context;
+    const id = path.split("/")[4];
+    if (id) {
+      const skill = fixtureSkills.find((item) => item.id === id);
+      send(skill ? 200 : 404, skill ?? "NOT_FOUND");
+    } else {
+      const q = (url.searchParams.get("q") ?? "").toLocaleLowerCase("vi");
+      const items = fixtureSkills.filter((item) =>
+        item.name.toLocaleLowerCase("vi").includes(q),
+      );
+      send(200, items, { limit: 20, hasMore: false, nextCursor: null });
+    }
+    return;
+  }
+
+  function handleProfiles(context: FixtureRouteContext) {
+    const { path, send } = context;
+    const target = fixtureUsers.find((item) => item.id === path.split("/")[4]);
+    if (!target) {
+      send(404, "NOT_FOUND");
+      return;
+    }
+    if (path.endsWith("/skills")) {
+      send(
+        200,
+        fixtureOfferings.map((item) => ({
+          id: item.id,
+          skill: { ...item.skill, description: null },
+          level: item.level,
+          description: "Public fixture skill description.",
+          experienceYears: null,
+          verificationStatus: item.verificationStatus,
+        })),
+        { limit: 20, hasMore: false, nextCursor: null },
+      );
+    } else {
+      const profile = fixtureIdentity(target).profile;
+      send(200, {
+        userId: profile.userId,
+        fullName: profile.fullName,
+        headline: profile.headline,
+        bio: profile.bio,
+        avatarUrl: profile.avatarUrl,
+        reputationScore: profile.reputationScore,
+        verifiedSkillCount: profile.verifiedSkillCount,
+        completedSessionCount: profile.completedSessionCount,
+        selectedTitle: null,
+      });
+    }
+    return;
+  }
+
+  function handleCatalog(context: FixtureRouteContext) {
+    const { path, url, send } = context;
+    const q = (url.searchParams.get("q") ?? "").normalize("NFC").trim();
+    const items = path.endsWith("/tags")
+      ? fixtureTags.filter((tag) =>
+          tag.label.toLocaleLowerCase("vi").includes(q.toLocaleLowerCase("vi")),
+        )
+      : fixtureOfferings;
+    const signature = JSON.stringify([path, q]);
+    let offset = 0;
+    const cursor = url.searchParams.get("cursor");
+    if (cursor) {
+      try {
+        const parsed = JSON.parse(Buffer.from(cursor, "base64url").toString());
+        if (parsed.signature !== signature || !Number.isInteger(parsed.offset))
+          throw new Error("Invalid catalog cursor signature or offset");
+        offset = parsed.offset;
+      } catch {
+        send(400, "INVALID_CATALOG_CURSOR");
+        return;
+      }
+    }
+    const limit = Number(url.searchParams.get("limit") ?? 20);
+    const hasMore = offset + limit < items.length;
+    send(200, items.slice(offset, offset + limit), {
+      limit,
+      hasMore,
+      nextCursor: hasMore
+        ? Buffer.from(
+            JSON.stringify({ signature, offset: offset + limit }),
+          ).toString("base64url")
+        : null,
+    });
+    return;
+  }
+
+  function handleList(context: FixtureRouteContext, suffix: string) {
+    const { url, user, send } = context;
+    const scope = suffix || "/feed";
+    const filters = new URLSearchParams(url.searchParams);
+    filters.delete("cursor");
+    const signature = JSON.stringify([
+      scope,
+      user.id,
+      filters.toString(),
+      scope === "/recommended" ? matchingVersion : 0,
+    ]);
+    let offset = 0;
+    const cursor = url.searchParams.get("cursor");
+    if (cursor) {
+      try {
+        const parsed = JSON.parse(Buffer.from(cursor, "base64url").toString());
+        if (parsed.signature !== signature || !Number.isInteger(parsed.offset))
+          throw new Error("Invalid request cursor signature or offset");
+        offset = parsed.offset;
+      } catch {
+        send(400, "INVALID_REQUEST_CURSOR");
+        return;
+      }
+    }
+    const keyword = (url.searchParams.get("keyword") ?? "")
+      .normalize("NFKC")
+      .trim()
+      .toLocaleLowerCase("vi");
+    if ([...keyword].length > 120) {
+      send(400, "INVALID_REQUEST_QUERY");
+      return;
+    }
+    const selected = data
+      .filter((entry) => {
+        const request = entry.request;
+        if (
+          scope === "/mine"
+            ? entry.actor !== user.id
+            : ownerRead(entry).effectiveStatus !== "OPEN"
+        )
+          return false;
+        if (scope === "/recommended" && entry.actor === user.id) return false;
+        if (
+          url.searchParams.get("status") &&
+          ownerRead(entry).effectiveStatus !== url.searchParams.get("status")
+        )
+          return false;
+        if (
+          url.searchParams.get("skillId") &&
+          request.skillId !== url.searchParams.get("skillId")
+        )
+          return false;
+        const tags = url.searchParams.getAll("tagIds");
+        if (tags.length && !tags.some((id) => request.tagIds.includes(id)))
+          return false;
+        return (
+          !keyword ||
+          [request.title, request.description, request.learningGoal]
+            .join(" ")
+            .toLocaleLowerCase("vi")
+            .includes(keyword)
+        );
+      })
+      .sort(
+        (a, b) =>
+          b.request.createdAt.localeCompare(a.request.createdAt) ||
+          b.request.id.localeCompare(a.request.id),
+      );
+    const limit = Math.min(
+      100,
+      Math.max(1, Number(url.searchParams.get("limit") ?? 20)),
+    );
+    const page = selected.slice(offset, offset + limit);
+    const hasMore = offset + limit < selected.length;
+    send(
+      200,
+      page.map((entry) => {
+        if (scope === "/mine") return ownerRead(entry);
+        const matching = scope === "/recommended" ? { matchScore: 0.8 } : {};
+        return { ...publicFixture(entry), ...matching };
+      }),
+      {
+        limit,
+        hasMore,
+        nextCursor: hasMore
+          ? Buffer.from(
+              JSON.stringify({ signature, offset: offset + limit }),
+            ).toString("base64url")
+          : null,
+      },
+    );
+    return;
+  }
+
+  async function handleCreate(
+    context: FixtureRouteContext,
+    body: Record<string, unknown>,
+  ) {
+    const { user, rule, send, loseResponse } = context;
+    const request = fixtureRequest(
+      {
+        ...body,
+        id: fixtureId(nextId++),
+        status: "DRAFT",
+        publishedAt: null,
+        expiresAt: null,
+        preferredSlots: Array.isArray(body.preferredSlots)
+          ? body.preferredSlots
+          : [],
+        tagIds: Array.isArray(body.tagIds) ? body.tagIds : [],
+        requestedExpiresAt:
+          typeof body.expiresAt === "string" ? body.expiresAt : null,
+      } as Partial<OwnerRequest>,
+      now(),
+    );
+    data.unshift({ actor: user.id, request });
+    request.offeredSharingSkills = selectedOfferings(
+      request.offeredSharingSkillIds,
+    );
+    if (rule?.kind === "unknown-commit") {
+      await loseResponse(201);
+      return;
+    }
+    send(201, request);
+    return;
+  }
+
+  async function applyRule(
+    rule: FixtureRule,
+    req: IncomingMessage,
+    event: Event,
+    send: FixtureSend,
+  ) {
+    rule.times = (rule.times ?? 1) - 1;
+    if (rule.kind === "delay") await delay(rule.delayMs ?? 500);
+    if (rule.kind === "network") {
+      event.status = -1;
+      req.socket.destroy();
+      return true;
+    }
+    if (rule.kind === "http") {
+      send(rule.status ?? 503, rule.code ?? "DEPENDENCY_UNAVAILABLE");
+      return true;
+    }
+    return false;
+  }
+
+  function patchRequest(request: OwnerRequest, body: Record<string, unknown>) {
+    Object.assign(request, body);
+    if (
+      (body.preferredAvailability as OwnerRequest["preferredAvailability"])
+        ?.weeklySlots.length
+    )
+      request.preferredSlots = [];
+    if (Array.isArray(body.preferredSlots) && body.preferredSlots.length)
+      request.preferredAvailability = null;
+    if ("expiresAt" in body)
+      request.requestedExpiresAt = body.expiresAt as string | null;
+    delete (request as OwnerRequest & { expectedVersion?: number })
+      .expectedVersion;
+    if (request.status === "REJECTED") request.status = "DRAFT";
+    request.moderationRejectReason = null;
+    request.moderationStatus = "NOT_REQUIRED";
+  }
+
+  function applyMutation(
+    context: FixtureRouteContext,
+    entry: FixtureRequest,
+    body: Record<string, unknown>,
+    action?: string,
+  ) {
+    const { method, send } = context;
+    if (method === "PATCH") {
+      patchRequest(entry.request, body);
+      return true;
+    }
+    if (action === "publish") {
+      entry.request.status = "OPEN";
+      entry.request.moderationStatus = "NOT_REQUIRED";
+      entry.request.moderationRejectReason = null;
+      entry.request.publishedAt = new Date(now()).toISOString();
+      entry.request.expiresAt =
+        entry.request.requestedExpiresAt ??
+        new Date(now() + 30 * 86_400_000).toISOString();
+      return true;
+    }
+    if (action === "cancel") {
+      entry.request.status = "CANCELLED";
+      return true;
+    }
+    send(404, "NOT_FOUND");
+    return false;
+  }
+
+  async function handleExisting(
+    context: FixtureRouteContext,
+    suffix: string,
+    body: Record<string, unknown>,
+  ) {
+    const { method, user, rule, send, loseResponse } = context;
+    const [, id, action] = suffix.split("/");
+    const entry = data.find((item) => item.request.id === id);
+    if (
+      !entry ||
+      (entry.actor !== user.id &&
+        (method !== "GET" || ownerRead(entry).effectiveStatus !== "OPEN"))
+    ) {
+      send(404, "NOT_FOUND");
+      return;
+    }
+    if (method === "GET") {
+      send(
+        200,
+        entry.actor === user.id ? ownerRead(entry) : publicFixture(entry),
+      );
+      return;
+    }
+    if (rule?.kind === "conflict") {
+      entry.request.version++;
+      entry.request.learningGoal = "Mục tiêu mới từ thiết bị khác";
+    }
+    if (body.expectedVersion !== entry.request.version) {
+      send(409, "REQUEST_VERSION_CONFLICT");
+      return;
+    }
+    if (ownerRead(entry).effectiveStatus === "EXPIRED") {
+      send(409, "REQUEST_EXPIRED");
+      return;
+    }
+    if (!applyMutation(context, entry, body, action)) return;
+    entry.request.version++;
+    entry.request.offeredSharingSkills = selectedOfferings(
+      entry.request.offeredSharingSkillIds,
+    );
+    entry.request.updatedAt = new Date(now()).toISOString();
+    if (rule?.kind === "unknown-commit") {
+      await loseResponse(200);
+      return;
+    }
+    send(
+      200,
+      rule?.kind === "wrong-id"
+        ? { ...entry.request, id: fixtureId(9_999) }
+        : entry.request,
+    );
+  }
+
+  async function handleRequestMutation(
+    context: FixtureRouteContext,
+    suffix: string,
+  ) {
+    const { req, method, send } = context;
+    const body = method === "GET" ? {} : await readBody(req);
+    if (method === "PATCH" || (method === "POST" && !suffix)) {
+      const preferences = fixturePreferences(body);
+      if (!preferences) {
+        send(400, "INVALID_REQUEST_INPUT");
+        return;
+      }
+      Object.assign(body, preferences);
+    }
+    if (method === "POST" && !suffix) {
+      await handleCreate(context, body);
+      return;
+    }
+
+    await handleExisting(context, suffix, body);
+  }
+
+  async function dispatchAuthenticated(context: FixtureRouteContext) {
+    const { path, method, send } = context;
+    if (path.startsWith("/api/v1/skills")) {
+      handleSkills(context);
+      return;
+    }
+    if (path.startsWith("/api/v1/profiles/")) {
+      handleProfiles(context);
+      return;
+    }
+    const prefix = "/api/v1/learning-requests";
+    if (path === "/api/v1/tags" || path === "/api/v1/me/skills") {
+      handleCatalog(context);
+      return;
+    }
+    if (!path.startsWith(prefix)) {
+      send(404, "NOT_FOUND");
+      return;
+    }
+    const suffix = path.slice(prefix.length);
+    if (method === "GET" && ["", "/mine", "/recommended"].includes(suffix)) {
+      handleList(context, suffix);
+      return;
+    }
+
+    await handleRequestMutation(context, suffix);
+  }
+
   async function handle(req: IncomingMessage, res: ServerResponse) {
     const url = new URL(req.url ?? "/", "http://127.0.0.1");
     const path = url.pathname;
@@ -136,52 +592,11 @@ export async function startLearningRequestsFixture({
       res.destroy();
     };
     if (path === "/__fixture") {
-      if (method === "POST") {
-        const control = (await readBody(req)) as Control;
-        if (control.reset) {
-          data = createFixtureData(now());
-          rules = [];
-          matchingVersion = 1;
-          nextId = 1_000;
-          events.length = 0;
-        }
-        if (control.rules) rules = structuredClone(control.rules);
-        if (control.matchingVersion) matchingVersion = control.matchingVersion;
-        if (control.update) {
-          const entry = data.find(
-            (item) => item.request.id === control.update!.id,
-          );
-          if (entry) Object.assign(entry.request, control.update);
-        }
-      }
-      send(200, {
-        events,
-        matchingVersion,
-        requests: data.map((entry) => ({
-          actor: entry.actor,
-          ...ownerRead(entry),
-        })),
-      });
+      await handleControl(req, method, send);
       return;
     }
     if (path === "/api/v1/auth/login" || path === "/api/v1/auth/refresh") {
-      const body = await readBody(req);
-      const login = fixtureUsers.find(
-        (item) =>
-          item.email === body.email ||
-          `refresh-${item.token}` === body.refreshToken,
-      );
-      if (!login) {
-        send(401, "INVALID_CREDENTIALS");
-        return;
-      }
-      send(200, {
-        accessToken: login.token,
-        refreshToken: `refresh-${login.token}`,
-        tokenType: "Bearer",
-        expiresIn: 3_600,
-        refreshExpiresAt: new Date(now() + 86_400_000).toISOString(),
-      });
+      await handleLogin(req, send);
       return;
     }
     if (path.startsWith("/api/v1/auth/logout")) {
@@ -205,324 +620,9 @@ export async function startLearningRequestsFixture({
         (item.cursor === undefined ||
           item.cursor === url.searchParams.has("cursor")),
     );
-    if (rule) {
-      rule.times = (rule.times ?? 1) - 1;
-      if (rule.kind === "delay") await delay(rule.delayMs ?? 500);
-      if (rule.kind === "network") {
-        event.status = -1;
-        req.socket.destroy();
-        return;
-      }
-      if (rule.kind === "http") {
-        send(rule.status ?? 503, rule.code ?? "DEPENDENCY_UNAVAILABLE");
-        return;
-      }
-    }
-    if (path.startsWith("/api/v1/skills")) {
-      const id = path.split("/")[4];
-      if (id) {
-        const skill = fixtureSkills.find((item) => item.id === id);
-        send(skill ? 200 : 404, skill ?? "NOT_FOUND");
-      } else {
-        const q = (url.searchParams.get("q") ?? "").toLocaleLowerCase("vi");
-        const items = fixtureSkills.filter((item) =>
-          item.name.toLocaleLowerCase("vi").includes(q),
-        );
-        send(200, items, { limit: 20, hasMore: false, nextCursor: null });
-      }
-      return;
-    }
-    if (path.startsWith("/api/v1/profiles/")) {
-      const target = fixtureUsers.find(
-        (item) => item.id === path.split("/")[4],
-      );
-      if (!target) {
-        send(404, "NOT_FOUND");
-        return;
-      }
-      if (path.endsWith("/skills")) {
-        send(
-          200,
-          fixtureOfferings.map((item) => ({
-            id: item.id,
-            skill: { ...item.skill, description: null },
-            level: item.level,
-            description: "Public fixture skill description.",
-            experienceYears: null,
-            verificationStatus: item.verificationStatus,
-          })),
-          { limit: 20, hasMore: false, nextCursor: null },
-        );
-      } else {
-        const profile = fixtureIdentity(target).profile;
-        send(200, {
-          userId: profile.userId,
-          fullName: profile.fullName,
-          headline: profile.headline,
-          bio: profile.bio,
-          avatarUrl: profile.avatarUrl,
-          reputationScore: profile.reputationScore,
-          verifiedSkillCount: profile.verifiedSkillCount,
-          completedSessionCount: profile.completedSessionCount,
-          selectedTitle: null,
-        });
-      }
-      return;
-    }
-    const prefix = "/api/v1/learning-requests";
-    if (path === "/api/v1/tags" || path === "/api/v1/me/skills") {
-      const q = (url.searchParams.get("q") ?? "").normalize("NFC").trim();
-      const items = path.endsWith("/tags")
-        ? fixtureTags.filter((tag) =>
-            tag.label
-              .toLocaleLowerCase("vi")
-              .includes(q.toLocaleLowerCase("vi")),
-          )
-        : fixtureOfferings;
-      const signature = JSON.stringify([path, q]);
-      let offset = 0;
-      const cursor = url.searchParams.get("cursor");
-      if (cursor) {
-        try {
-          const parsed = JSON.parse(
-            Buffer.from(cursor, "base64url").toString(),
-          );
-          if (
-            parsed.signature !== signature ||
-            !Number.isInteger(parsed.offset)
-          )
-            throw new Error("Invalid catalog cursor signature or offset");
-          offset = parsed.offset;
-        } catch {
-          send(400, "INVALID_CATALOG_CURSOR");
-          return;
-        }
-      }
-      const limit = Number(url.searchParams.get("limit") ?? 20);
-      const hasMore = offset + limit < items.length;
-      send(200, items.slice(offset, offset + limit), {
-        limit,
-        hasMore,
-        nextCursor: hasMore
-          ? Buffer.from(
-              JSON.stringify({ signature, offset: offset + limit }),
-            ).toString("base64url")
-          : null,
-      });
-      return;
-    }
-    if (!path.startsWith(prefix)) {
-      send(404, "NOT_FOUND");
-      return;
-    }
-    const suffix = path.slice(prefix.length);
-    if (method === "GET" && ["", "/mine", "/recommended"].includes(suffix)) {
-      const scope = suffix || "/feed";
-      const filters = new URLSearchParams(url.searchParams);
-      filters.delete("cursor");
-      const signature = JSON.stringify([
-        scope,
-        user.id,
-        filters.toString(),
-        scope === "/recommended" ? matchingVersion : 0,
-      ]);
-      let offset = 0;
-      const cursor = url.searchParams.get("cursor");
-      if (cursor) {
-        try {
-          const parsed = JSON.parse(
-            Buffer.from(cursor, "base64url").toString(),
-          );
-          if (
-            parsed.signature !== signature ||
-            !Number.isInteger(parsed.offset)
-          )
-            throw new Error("Invalid request cursor signature or offset");
-          offset = parsed.offset;
-        } catch {
-          send(400, "INVALID_REQUEST_CURSOR");
-          return;
-        }
-      }
-      const keyword = (url.searchParams.get("keyword") ?? "")
-        .normalize("NFKC")
-        .trim()
-        .toLocaleLowerCase("vi");
-      if ([...keyword].length > 120) {
-        send(400, "INVALID_REQUEST_QUERY");
-        return;
-      }
-      const selected = data
-        .filter((entry) => {
-          const request = entry.request;
-          if (
-            scope === "/mine"
-              ? entry.actor !== user.id
-              : ownerRead(entry).effectiveStatus !== "OPEN"
-          )
-            return false;
-          if (scope === "/recommended" && entry.actor === user.id) return false;
-          if (
-            url.searchParams.get("status") &&
-            ownerRead(entry).effectiveStatus !== url.searchParams.get("status")
-          )
-            return false;
-          if (
-            url.searchParams.get("skillId") &&
-            request.skillId !== url.searchParams.get("skillId")
-          )
-            return false;
-          const tags = url.searchParams.getAll("tagIds");
-          if (tags.length && !tags.some((id) => request.tagIds.includes(id)))
-            return false;
-          return (
-            !keyword ||
-            [request.title, request.description, request.learningGoal]
-              .join(" ")
-              .toLocaleLowerCase("vi")
-              .includes(keyword)
-          );
-        })
-        .sort(
-          (a, b) =>
-            b.request.createdAt.localeCompare(a.request.createdAt) ||
-            b.request.id.localeCompare(a.request.id),
-        );
-      const limit = Math.min(
-        100,
-        Math.max(1, Number(url.searchParams.get("limit") ?? 20)),
-      );
-      const page = selected.slice(offset, offset + limit);
-      const hasMore = offset + limit < selected.length;
-      send(
-        200,
-        page.map((entry) => {
-          if (scope === "/mine") return ownerRead(entry);
-          const matching = scope === "/recommended" ? { matchScore: 0.8 } : {};
-          return { ...publicFixture(entry), ...matching };
-        }),
-        {
-          limit,
-          hasMore,
-          nextCursor: hasMore
-            ? Buffer.from(
-                JSON.stringify({ signature, offset: offset + limit }),
-              ).toString("base64url")
-            : null,
-        },
-      );
-      return;
-    }
-    const body = method === "GET" ? {} : await readBody(req);
-    if (method === "PATCH" || (method === "POST" && !suffix)) {
-      const preferences = fixturePreferences(body);
-      if (!preferences) {
-        send(400, "INVALID_REQUEST_INPUT");
-        return;
-      }
-      Object.assign(body, preferences);
-    }
-    if (method === "POST" && !suffix) {
-      const request = fixtureRequest(
-        {
-          ...body,
-          id: fixtureId(nextId++),
-          status: "DRAFT",
-          publishedAt: null,
-          expiresAt: null,
-          preferredSlots: Array.isArray(body.preferredSlots)
-            ? body.preferredSlots
-            : [],
-          tagIds: Array.isArray(body.tagIds) ? body.tagIds : [],
-          requestedExpiresAt:
-            typeof body.expiresAt === "string" ? body.expiresAt : null,
-        } as Partial<OwnerRequest>,
-        now(),
-      );
-      data.unshift({ actor: user.id, request });
-      request.offeredSharingSkills = selectedOfferings(
-        request.offeredSharingSkillIds,
-      );
-      if (rule?.kind === "unknown-commit") {
-        await loseResponse(201);
-        return;
-      }
-      send(201, request);
-      return;
-    }
-    const [, id, action] = suffix.split("/");
-    const entry = data.find((item) => item.request.id === id);
-    if (
-      !entry ||
-      (entry.actor !== user.id &&
-        (method !== "GET" || ownerRead(entry).effectiveStatus !== "OPEN"))
-    ) {
-      send(404, "NOT_FOUND");
-      return;
-    }
-    if (method === "GET") {
-      send(
-        200,
-        entry.actor === user.id ? ownerRead(entry) : publicFixture(entry),
-      );
-      return;
-    }
-    if (rule?.kind === "conflict") {
-      entry.request.version++;
-      entry.request.learningGoal = "Mục tiêu mới từ thiết bị khác";
-    }
-    if (body.expectedVersion !== entry.request.version) {
-      send(409, "REQUEST_VERSION_CONFLICT");
-      return;
-    }
-    if (ownerRead(entry).effectiveStatus === "EXPIRED") {
-      send(409, "REQUEST_EXPIRED");
-      return;
-    }
-    if (method === "PATCH") {
-      Object.assign(entry.request, body);
-      if (
-        (body.preferredAvailability as OwnerRequest["preferredAvailability"])
-          ?.weeklySlots.length
-      )
-        entry.request.preferredSlots = [];
-      if (Array.isArray(body.preferredSlots) && body.preferredSlots.length)
-        entry.request.preferredAvailability = null;
-      if ("expiresAt" in body)
-        entry.request.requestedExpiresAt = body.expiresAt as string | null;
-      delete (entry.request as OwnerRequest & { expectedVersion?: number })
-        .expectedVersion;
-      if (entry.request.status === "REJECTED") entry.request.status = "DRAFT";
-      entry.request.moderationRejectReason = null;
-      entry.request.moderationStatus = "NOT_REQUIRED";
-    } else if (action === "publish") {
-      entry.request.status = "OPEN";
-      entry.request.moderationStatus = "NOT_REQUIRED";
-      entry.request.moderationRejectReason = null;
-      entry.request.publishedAt = new Date(now()).toISOString();
-      entry.request.expiresAt =
-        entry.request.requestedExpiresAt ??
-        new Date(now() + 30 * 86_400_000).toISOString();
-    } else if (action === "cancel") entry.request.status = "CANCELLED";
-    else {
-      send(404, "NOT_FOUND");
-      return;
-    }
-    entry.request.version++;
-    entry.request.offeredSharingSkills = selectedOfferings(
-      entry.request.offeredSharingSkillIds,
-    );
-    entry.request.updatedAt = new Date(now()).toISOString();
-    if (rule?.kind === "unknown-commit") {
-      await loseResponse(200);
-      return;
-    }
-    send(
-      200,
-      rule?.kind === "wrong-id"
-        ? { ...entry.request, id: fixtureId(9_999) }
-        : entry.request,
-    );
+    if (rule && (await applyRule(rule, req, event, send))) return;
+    const context = { req, url, path, method, user, rule, send, loseResponse };
+    await dispatchAuthenticated(context);
   }
   await new Promise<void>((resolve, reject) => {
     server.once("error", reject);

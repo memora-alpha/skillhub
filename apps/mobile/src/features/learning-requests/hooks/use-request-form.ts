@@ -82,7 +82,7 @@ export function useRequestForm(incoming?: OwnerRequest, source?: EditorRead) {
     // A preflight may take long enough for newly entered slots to pass.
     return draftToInput(draft, initial);
   }
-  async function persist(input: RequestInput) {
+  function persist(input: RequestInput) {
     if (initial) return api.edit(initial.id, requestPatch(initial, input)!);
     return api.create(input);
   }

@@ -16,10 +16,10 @@ import { requestTimeZoneNote } from "../utils/request-time-zone";
 export function RequestTimeFields({
   form,
   disabled,
-}: {
+}: Readonly<{
   form: UseFormReturn<RequestDraft>;
   disabled: boolean;
-}) {
+}>) {
   return (
     <>
       <RequestSection

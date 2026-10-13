@@ -10,9 +10,9 @@ export function fixtureClient(
   const http = createHttpClient(() => `${url}/api/v1`);
   http.bindSession({
     generation: 1,
-    getToken: async () => fixtureUsers[userIndex]!.token,
-    renew: async () => {},
-    expire: async () => {},
+    getToken: () => Promise.resolve(fixtureUsers[userIndex]!.token),
+    renew: () => Promise.resolve(),
+    expire: () => Promise.resolve(),
   });
   return createRequestsApi(http, isCurrent);
 }

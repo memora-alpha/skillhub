@@ -9,10 +9,10 @@ import { requestDetailStyles } from "./request-detail.styles";
 export function RequestOwnerTags({
   ids,
   detail = false,
-}: {
+}: Readonly<{
   ids: string[];
   detail?: boolean;
-}) {
+}>) {
   const query = useTagOptions();
   const names = new Map(
     query.data?.pages
