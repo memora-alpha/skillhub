@@ -176,3 +176,226 @@ font scaling/touch/keyboard/hardware Back trên thiết bị; T030..T032/AC-16 p
 [calendar nhỏ](validation/screenshots/expiry-calendar-small-font.jpg).
 Lịch sử144 tests và picker cũ phía trên giữ để truy vết; không đại diện layout mới.
 Weekly save/reopen/public/matching chưa nghiệm thu, T036 pending B08.
+
+## Form redesign — 2026-10-13
+
+Theo mẫu HTML user cung cấp: năm section/card bo tròn, input có placeholder,
+section icon và CTA lưu cố định. Không hứa autosave hoặc thay flow lưu nháp rồi đăng.
+Kỹ năng dạy thu gọn về chips; mở picker có search không dấu, xem thêm từng sáu mục,
+search đọc tiếp pages. Timezone mới theo thiết bị, hiện caption GMT; edit giữ zone đã lưu.
+
+- `npm run check-types`, `npm run lint`, `npm run check-structure`: pass (438 source files).
+- `npm test`: 258/258 pass; gồm hai regression mới cho search tiếng Việt và timezone caption.
+- Expo web export: pass, ignored `.expo/lr-form-redesign-web`; process dùng API fixture riêng,
+  không sửa `.env`, không ghi backend thật.
+- Browser390: fixture có 26 offerings; tìm `tieng nhat` tìm đúng item26 ở page sau;
+  chọn rồi thu gọn giữ chip; mở lại/search không kết quả không mất lựa chọn.
+- Form Thứ2 19:00–21:00 theo GMT+7; POST503 giữ title/description/goal/skill/offering/lịch;
+  retry tạo DRAFT thành công, mở editor lại đúng chip và giờ.
+- Width320/375/430: document.scrollWidth bằng viewport width, CTA nằm trong viewport.
+- Lịch timezone khác thiết bị/no-change/explicit clear được kiểm trong suite; chưa thao tác
+  native Android/iOS, font scale130%, keyboard/gesture/hardware Back trên thiết bị thật.
+
+Ảnh: [form390](validation/screenshots/request-form-redesign.jpg),
+[picker/search](validation/screenshots/request-offering-picker-redesign.jpg).
+Không dùng bằng chứng fixture để tick real API/native acceptance.
+
+## Request detail redesign — 2026-10-13
+
+- Mobile-only source: compact detail cards, grouped goal, exchange/Credit and weekly
+  schedule; normal reload removed; draft publish footer; secondary edit/cancel.
+  Compact feed preferences and backend contracts remain the existing consumers.
+- TypeScript, lint, structure442 and web export pass; mobile suite258/258 pass.
+- Loopback fixture4328/static preview8098 with fake accounts only: draft detail has
+  zero normal reload buttons. Width320/375/430 have document width equal viewport;
+  publish button stays within844px viewport. Summary and schedule timestamps are real
+  fixture projections, not HTML sample/status-bar values.
+- Edit opens existing values; Cancel then Keep makes zero cancel POSTs. Publish503
+  shows visible footer error/reconcile, GET retry clears it; explicit publish succeeds
+  to OPEN and removes publish footer. Exactly two publish POSTs (503,200), no auto resend.
+- UI images: [summary](validation/screenshots/request-detail-redesign.jpg),
+  [schedule/actions](validation/screenshots/request-detail-schedule-redesign.jpg).
+- Native keyboard/safearea/font scaling/Back still require Android/iOS device checks;
+  this fixture evidence does not establish real backend or native acceptance.
+
+## Detail typography and layout follow-up — 2026-10-13
+
+- Shared Nunito ramp now used for title20/28, headings17/24, body15/22 and supporting
+  information13/18; removed all-caps labels and NOT_REQUIRED moderation badge.
+  Actual moderation statuses and reject reason remain visible.
+- Summary separates skill/level from dates. Exchange orders teaching description,
+  offering name/level/verification then Credit; weekday/time rows omit duplicate day chips.
+  Shared RequestSection compact heading now uses the same17px heading as forms;
+  detail and inline cancel confirmation are affected, feed layout is unchanged.
+- TypeScript/lint/structure442, mobile tests258/258 and Expo web export pass.
+- Loopback fixture: computed title NunitoBold20/28, heading NunitoBold17/24,
+  body NunitoRegular15/22, secondary NunitoRegular13/18. Width320/375/430 has no
+  horizontal document overflow; draft publish remains in844px viewport. Draft
+  has no NOT_REQUIRED badge; rejected detail retains badge, reason and edit/cancel.
+- Current screenshots: [top](validation/screenshots/request-detail-typography.jpg),
+  [exchange/schedule](validation/screenshots/request-detail-schedule-typography.jpg).
+  Earlier redesign screenshots above document the preceding layout.
+- Web/fixture verification only; native text scaling, safe area and device acceptance
+  remain pending. No backend changes or real request mutations in this follow-up.
+
+## Subsection emphasis and compact skill cards — 2026-10-13
+
+- Detail subsection labels now use shared NunitoBold/body15 and primary color.
+  Selected skill cards use a wrapping row with name, level and verification,
+  8px vertical padding and control radius; short Python card is about40px tall
+  at390px, previously about74px. Other inset goal/credit/schedule layouts unchanged.
+- TypeScript, lint, structure442 and web export pass. Pure visual follow-up;
+  no new tests or API/mutation changes, previous258-test result remains above.
+- Loopback fixture web widths320/375/430 have no horizontal document overflow.
+  At320px a long Vietnamese skill name wraps to two lines and retains level and
+  verification; card expands to about88px instead of truncating the name.
+- Current visual evidence: [emphasized headings and compact skill](validation/screenshots/request-detail-compact-skills.jpg),
+  [long skill at320px](validation/screenshots/request-detail-compact-long-skill.jpg).
+  Native device/font-scale acceptance remains pending.
+
+## Compact request list cards — 2026-10-13
+
+- Following the supplied screenshot and owner-specific correction: private cards
+  omit identity/avatar and keep creation age/status, two-line title, up to3 chips,
+  hourly desired Credit and detail affordance. Remove goal/preferences/expiry from
+  list only; detail content and existing navigation/actions remain intact.
+- TypeScript, lint, structure442, Expo web export and diff whitespace check pass.
+  Presentation-only change; no new API contracts or tests, previous258-test run
+  remains recorded above.
+- Loopback fixture: mine cards contain no owner identity, teaching/goal/schedule;
+  50.00 projects to50 CR/giờ; missing Credit says Chưa đặt Credit. Cards about168px
+  for one-line title,190px for two-line title at320. Width320/375/430 does not overflow.
+  Opening draft restores all description/goal/offering/credit/weekdays in detail.
+  Shared public feed retains owner identity and compact tags/footer.
+- Screenshot: [compact mine cards](validation/screenshots/my-request-cards-compact.jpg).
+  No real backend mutations; native font scaling/device acceptance remains pending.
+
+## Learning hub header create action — 2026-10-13
+
+- Removed the own-list intro title, description and full-width create button.
+  RequestCreateButton exported through the feature API; MyLearningScreen uses
+  compact header rightAction only for requests tab, legacy own screen also gets
+  header create action. Existing public feed create button uses default styling.
+- Source/typecheck confirms navigation stays /requests/new; compact control
+  minHeight36, horizontal padding10, gap4, icon14, text13 and hitSlop4.
+  TypeScript, lint, structure442 and Expo web export pass. No API/state changes.
+- Browser sign-in was rejected by automatic approval review. User explicitly
+  declined fixture sign-in/visual checks and will test the UI themselves; no
+  screenshots, responsive rendering or click-through acceptance claimed for
+  this header follow-up. Native/device acceptance remains pending.
+
+## Learning hub card width correction — 2026-10-13
+
+- Own list now receives embedded layout in MyLearningScreen: list horizontal
+  padding20 becomes0 inside the existing16px hub gutter. Source layout removes
+  compounded36px gutters, aligning cards/filter/summary with the hub tab edges.
+  Standalone own screen and public feed retain default list padding.
+- TypeScript, lint, structure442 and diff whitespace checks pass. Only layout
+  changed; card content, header create action, tab behavior and request API unchanged.
+- User requested self-testing in the preceding turn; no browser sign-in, screenshot
+  or responsive/native acceptance claimed for this correction.
+
+## Shared public/owner detail design — 2026-10-13
+
+- Rebuilt detail from the user's HTML reference with shared round24/padding18 cards:
+  status-first hero/topic tags, learning description/goal, forest skill exchange,
+  weekly schedule grouped by weekday, separate hourly Credit and public-only owner
+  identity. Existing Nunito typography and real app chrome retained.
+- New detail section/tag/credit/public components are feature-local. Owner tag
+  catalog lookup/paging/retry retained in hero. No invented REQ code, session count,
+  duration, roadmap total, reputation, membership age or verification data.
+- Owner edit moved into fixed footer: draft edit+publish, other editable states edit;
+  cancel confirmation remains in content. Existing pending/blocked, effective status,
+  read denial, version/session and GET reconciliation protections remain in source.
+  Public profile/contact buttons explicitly disabled; no mock route or external action.
+- TypeScript/lint pass; structure447 pass after formatting;259/259 tests pass. Added
+  a regression for multiple intervals on one weekday, weekday/time ordering, preservation
+  of all intervals and non-mutation of saved input, including an empty schedule.
+- Expo export web/iOS/Android passes to ignored `.expo/lr-shared-detail-preview`;
+  native Hermes bundles generated. No dependency, backend, migration or API changes.
+- User opted to test UI themselves: no browser sign-in, new screenshots, tap-through,
+  width/font-scale or device acceptance claimed. Previous detail screenshots document
+  earlier layouts and do not represent this redesign. Android/iOS acceptance remains pending.
+
+## Detail hashtag layout — 2026-10-13
+
+- Skill name now has a separate book-icon row; current level follows it. Tags
+  appear in an optional Chủ đề group, using shared compact neutral chips for
+  owner/public detail. Owner catalog lookup, pagination, retry and unresolved
+  labels are preserved. No API, mutation or business-rule changes.
+- `npm run lint`, `npm run check-types` and `npm run check-structure` passed
+  (447 source files); `npm exec -- tsx --test tests/learning-requests-tags.test.ts`
+  passed 4/4 existing tag regressions. Root pnpm dispatch attempted an automatic
+  dependency reinstall and aborted without a TTY; npm ran the workspace scripts
+  against the installed dependencies successfully.
+- Separate fixture API4315 / Expo web8082, fake account A only: own detail with
+  10 selected tags displayed the separate skill/level/topic layout. At320px,
+  tags wrapped into four rows and document scrollWidth equaled viewport width320;
+  no horizontal overflow. Native font scaling/device acceptance remains pending.
+- Preview used disposable fixture data and no real API/database mutations.
+
+## Compact Skill/Tag picker badges — 2026-10-13
+
+- Skill choices, available Tags and offered Sharing Skills now wrap as compact
+  badges rather than full-width rows. Selected multi-select chips use the same
+  spacing/size, preserve full labels and removal controls. Main picker buttons,
+  lookup/error/retry/paging,10-item limits and selection IDs remain unchanged.
+- npm lint/check-types/check-structure passed (447 files);13 existing regressions
+  passed across learning-requests-tags, form-ui and preferences. Prettier formatted
+  only the three affected source files.
+- Separate fixture API4315 / Expo web8082, fake accountA: React/Python appeared on
+  one row; selecting React closed its picker and retained selection. Twenty Tag
+  choices occupied a wrapping group rather than20 rows. Selecting10 disabled
+  remaining choices; removing Dự án reenabled them; load-more added Tags20–24.
+  Offered-skill choices retained level/verification text within compact badges.
+- At320px document scrollWidth equaled viewport width and no choice exceeded the
+  viewport. Browser exercise made no real API mutation and did not submit a draft.
+  Native touch target/font scaling and real-API acceptance remain unverified.
+
+## View Profile integration — 2026-10-13
+
+User selected the View Profile link from request detail only. Footer now sends the
+owner UUID and originating requestId to the profile feature's authenticated public
+API screen. Fixture navigation, public skill detail, Back and503/404 recovery passed;
+51 focused tests and lint/typecheck/structure passed. Profile implementation/evidence
+is in spec003. B07 remains open for Proposal/chat and real/native acceptance; no
+profile request list or Notification scope was added.
+
+## Proposal CTA handoff — 2026-10-13
+
+User reserved Proposal screens/integration for another branch. Existing
+/send-proposal and SendProposalScreen are present but still use mock discovery,
+profile and proposal state. This branch only renames the disabled detail CTA to
+Gửi đề xuất and explains that exchange follows acceptance. No Proposal source,
+route, API adapter or sending behavior is changed; real requests cannot enter the
+mock submit flow. View Profile stays enabled with its existing API integration.
+
+## Explicit Proposal mock link — 2026-10-13
+
+User explicitly requested linking the existing mock screen after reserving real
+Proposal integration for another branch. Gửi đề xuất now opens /send-proposal with
+mode=mock-request and public title/owner/skill context. The form and success view
+state clearly that submission is local-only. Mock store request/party identifiers
+use preview prefixes; the real request ID only supports Back navigation. Real
+Proposal/chat API integration remains outside this branch.
+
+Fixture API4315/Expo web8082 with fake actorA: B request -> mock form retained
+B/title/React; empty message validation worked, valid message submitted locally,
+Back returned to the same real-detail route and reopening showed duplicate pending
+state with Send disabled. Fixture events confirmed zero /proposals HTTP calls.
+9 preview/lifecycle tests passed; lint/typecheck/structure passed (451 source files).
+Native devices and real backend Proposal submission were not exercised.
+
+## Development readiness review — 2026-10-13
+
+- Full mobile test suite passed 266/266; lint, TypeScript and structure checks
+  passed (451 source files). Expo web export succeeded to ignored
+  `.expo/review-dev-web`. Changed source/docs passed Prettier and Git whitespace
+  checks after formatting corrections. Root commit scope tests passed 6/6.
+- After fetching `origin/dev`, the current branch includes its latest commit
+  (`25ce9be`): zero commits behind and nine commits ahead. No merge conflict is
+  indicated by ancestry; this does not include uncommitted work.
+- The existing index contains only part of the implementation. Include intended
+  unstaged/new dependencies when preparing the commit; checks above validate the
+  complete working tree, not the current staged snapshot. No commit or push was
+  performed. Native acceptance remains pending; Proposal submission remains mock.

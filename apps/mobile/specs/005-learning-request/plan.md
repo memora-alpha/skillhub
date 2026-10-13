@@ -7,6 +7,25 @@
 
 ## Summary
 
+### Backend integration refresh — 2026-10-13
+
+Theo user yêu cầu làm tiếp theo BE đã fix, source contract từ origin/dev
+`f4dd314`/PR #20 mở Tag (T021..T024) và weekly (T036). Thêm FR-35: overview,
+offered Sharing Skills và Credit/giờ trên form/card/detail; T037 ghi evidence.
+Parser additions ở `schemas/request-preferences.ts`; lookup API trong requests-api,
+query theo session ở use-request-options; tag-selector/request-multi-select/
+request-offering-fields/request-preferences/request-owner-tags tái sử dụng UI hiện có.
+Form/default/diff/recovery giữ version/expiry/auth; weekly replacement theo BE,
+timezone saved không phụ thuộc device, legacy response defaults và timestamps giữ.
+Không đổi HTTP/Auth chung/dependency/backend/branch. Mọi assertion BE source bên
+dưới là lịch sử2026-10-12; trạng thái mới ở contracts/tasks/validation. T025..T032
+vẫn cần môi trường/API thật/native; lock NEGOTIATING chưa wired trên origin/dev.
+
+Constitution check: phạm vi apps/mobile, giữ architecture/session/theme/server
+authority, phân biệt fixture với acceptance thật; không thêm offline draft,
+Notification/Proposal/Chat/Path/Wallet hoặc database work. FR-35 mở rộng theo contract
+BE được user yêu cầu nối, không invent policy ngân sách/lịch hay kỹ năng tự do.
+
 Tiếp tục phần Learning Request đã triển khai, hoàn thiện các tình huống phục hồi
 và nghiệm thu còn thiếu. Không tạo spec mới, viết lại feature hoặc bỏ trạng thái
 hoàn thành trong tasks. Notification là spec riêng; backend, Proposal, public
@@ -261,3 +280,15 @@ checks phù hợp trong quickstart; không báo lại 102 pass như evidence m�
 Không có exception mới. Không thêm database, offline sync, provider/service mới,
 package dùng chung, backend stub hay Git extension. Các task recovery xử lý trong
 feature hiện có; nếu cần abstraction mới, chứng minh trách nhiệm riêng khi implement.
+
+## UI amendment: shared detail design — 2026-10-13
+
+Theo HTML user gửi, detail public/owner dùng chung presentation trong feature:
+RequestDetailSection/Tag cho card/topic, RequestCreditDetails tách dữ liệu giá,
+RequestRequesterDetails/PublicFooter cho identity public và entry chưa khả dụng.
+RequestOwnerFooter giữ mutations hiện có; RequestContent sắp xếp lại các section.
+groupRequestSchedule chỉ nhóm/sắp xếp projection lịch để render, không mutate data
+hoặc thay weekly contract. Form/feed không đổi bởi redesign này; không thêm package,
+backend adapter hoặc business rule. Font/chrome theo theme app, nội dung từ projection.
+Kiểm tra source/tests/export và giới hạn self-test/native tại validation checkpoint mới;
+không dùng export để tick AC-16 hoặc mở dependency B07 Proposal/public profile.

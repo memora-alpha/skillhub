@@ -18,7 +18,9 @@ field/UI, nối yêu cầu của tôi vào Hồ sơ và sửa Back form. Notific
 - [x] Unit/API fixture tests và kiểm tra web ở viewport điện thoại.
 - [ ] Tag picker/filter: cần endpoint lookup canonical Tag IDs (GAP-02).
 - [ ] Backend nối Catalog/public owner/Sharing Skill/lock readers và kiểm tra LR thật.
-- [ ] Public profile và Proposal thật: chờ contract của các feature tương ứng.
+- [x] Public profile: Xem hồ sơ ở detail nối owner UUID tới API profile/skills;
+      source, fixture navigation và denial/retry checked2026-10-13, API/native acceptance pending.
+- [ ] Proposal thật: chờ contract của feature tương ứng.
 - [ ] Android/iOS: keyboard, font lớn, hardware Back/gesture trong lúc pending.
 - [ ] Nghiệm thu đầy đủ AC-01..16 sau khi dependencies sẵn sàng.
 
@@ -155,10 +157,10 @@ Goal/independent test sau mở gate: Picker/filter dùng canonical UUID/label đ
 0/10/11, duplicate/inactive, omission/clear và tag ANY + Skill/keyword đúng
 (AC-03/07/11). Fixture pass chưa chứng minh real Tag readiness.
 
-- [ ] T021 [US2] Sau B05, thêm contract tests trong `tests/learning-requests-tags.test.ts` cho tagIds "Optional max10 UUID distinct ACTIVE", Tag lookup paging/error/empty, owner unknown label retention, omitted giữ nguyên và `[]` clear, Tag ANY AND Skill/keyword; lưu endpoint/query/projection được chốt vào `specs/005-learning-request/contracts.md` trước khi code, không đoán /tags.
-- [ ] T022 [US2] Sau T021, bổ sung Tag lookup parser/API vào `src/features/learning-requests/api/requests-api.ts` và types/schema/diff mapping ở `src/features/learning-requests/types.ts`, `src/features/learning-requests/schemas/request-form.ts`, `src/features/learning-requests/utils/request-policy.ts`; chỉ gửi tagIds khi được chọn/thay đổi, bảo toàn omitted và explicit clear, theo HTTP contract đã được chốt.
-- [ ] T023 [US2] Sau T022, tạo `src/features/learning-requests/components/tag-selector.tsx`, nối `src/features/learning-requests/components/request-fields.tsx` và resolver label trong `src/features/learning-requests/components/request-content.tsx`; chỉ canonical ACTIVE IDs, max10 distinct, lookup lỗi không fallback Skill ID/text label, giữ selections cũ khi chưa resolve tên và khóa fields khi pending; kiểm T021.
-- [ ] T024 [US6] Sau T022, nối Tag filter/chips vào `src/features/learning-requests/components/request-feed-filters.tsx` và `src/features/learning-requests/screens/requests-feed-screen.tsx`; query dùng repeated tagIds, đổi filter bỏ cursor cũ, giữ ANY AND Skill/keyword server semantics, Apply/Close/Reset không gửi nhầm IDs; kiểm T021 và fixture paging.
+- [x] T021 [US2] Sau B05, thêm contract tests trong `tests/learning-requests-tags.test.ts` cho tagIds "Optional max10 UUID distinct ACTIVE", Tag lookup paging/error/empty, owner unknown label retention, omitted giữ nguyên và `[]` clear, Tag ANY AND Skill/keyword; lưu endpoint/query/projection được chốt vào `specs/005-learning-request/contracts.md` trước khi code, không đoán /tags.
+- [x] T022 [US2] Sau T021, bổ sung Tag lookup parser/API vào `src/features/learning-requests/api/requests-api.ts` và types/schema/diff mapping ở `src/features/learning-requests/types.ts`, `src/features/learning-requests/schemas/request-form.ts`, `src/features/learning-requests/utils/request-policy.ts`; chỉ gửi tagIds khi được chọn/thay đổi, bảo toàn omitted và explicit clear, theo HTTP contract đã được chốt.
+- [x] T023 [US2] Sau T022, tạo `src/features/learning-requests/components/tag-selector.tsx`, nối `src/features/learning-requests/components/request-fields.tsx` và resolver label trong `src/features/learning-requests/components/request-content.tsx`; chỉ canonical ACTIVE IDs, max10 distinct, lookup lỗi không fallback Skill ID/text label, giữ selections cũ khi chưa resolve tên và khóa fields khi pending; kiểm T021.
+- [x] T024 [US6] Sau T022, nối Tag filter/chips vào `src/features/learning-requests/components/request-feed-filters.tsx` và `src/features/learning-requests/screens/requests-feed-screen.tsx`; query dùng repeated tagIds, đổi filter bỏ cursor cũ, giữ ANY AND Skill/keyword server semantics, Apply/Close/Reset không gửi nhầm IDs; kiểm T021 và fixture paging.
 
 ### Gates bên ngoài workspace mobile
 
@@ -349,7 +351,7 @@ lưu weekly. Chú thích form ngắn hơn; calendar expiry dùng font app ngày1
 tháng13 trên component RN chung. Dữ liệu preferredSlots cũ chỉ giữ/xóa, không suy
 lịch tuần. Giữ nguyên checkbox/ID T001..T035 và history; backend/native chưa nghiệm thu.
 
-- [ ] T036 Sau B08/GAP-09 được chốt và backend triển khai contract weekly, nối mobile
+- [x] T036 Sau B08/GAP-09 được chốt và backend triển khai contract weekly, nối mobile
       create/edit/owner/public detail với preferredAvailability (tên/shape phải theo
       contract thật), timeZone/weeklySlots, bỏ guard chỉ khi backend đã hỗ trợ; kiểm
       save/reopen/clear, weekday/HH:mm/overlap/timezone, legacy compatibility và conflict.

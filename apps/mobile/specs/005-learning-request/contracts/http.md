@@ -1,5 +1,14 @@
 # HTTP integration contract — Spec 005
 
+## Refresh2026-10-13
+
+[Contract checkpoint](../contracts.md#contract-refresh--2026-10-13) ghi source BE
+PR #20. Mobile thêm GET /tags?q=&limit=&cursor= và GET /me/skills?limit=&cursor=,
+standard meta.pagination; own client vẫn authenticated/session scoped.
+Create/PATCH/projections nhận overview/offered IDs/weekly/hourly-credit.
+Các ghi chú Tag/Catalog/owner/matching unavailable phía dưới là lịch sử;
+lock NEGOTIATING và runtime acceptance vẫn pending.
+
 Design checkpoint 2026-10-12. [contracts.md](../contracts.md) là checkpoint
 payload/projection/order đã có; file này bổ sung recovery/readiness cho plan,
 không thay backend API hoặc tạo endpoint mới.

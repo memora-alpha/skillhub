@@ -90,9 +90,11 @@ Create only folders that contain files. A feature does not need every folder on 
 
 ## Profile and proposal composition
 
-`/profiles/[userId]` uses `PublicProfilePreviewScreen` for saved own-profile
-projection and preview fixtures. `/user/[id]` uses `PublicProfileScreen` for the
-request/proposal public-profile flow. Both routes remain authenticated.
+`/profiles/[userId]` preserves saved self-preview and explicit demo targets;
+other UUID targets load the authenticated public-profile API and public skills.
+Learning Request detail passes its owner ID and request ID to this route; Back
+returns through history, falling back to that request or Discover. `/user/[id]`
+keeps the existing sample proposal/profile flow. Both routes remain authenticated.
 `AppProviders` nests `MockProposalsProvider` inside `MockMessagesProvider` under
 `ProfilePreviewProvider` and the session gate. Avatar toasts remain under
 `AuthSessionProvider`, so upload feedback continues after leaving the editor.
@@ -124,6 +126,9 @@ rejected before upload. Neither picker uploads on selection.
 
 The Profile "Hành trình của tôi" shortcut opens `/my-learning`. It owns the
 request/path list layout with URL-selected `requests`/`paths` tabs.
+Profile uses this single learning entry; the separate "Yêu cầu học của tôi"
+shortcut is removed. Its six shortcuts use a two-column grid: Hành trình/Ví,
+Tài liệu/Thành tích, Đánh giá/Cài đặt. The UI gallery entry follows bio and skills.
 The request tab uses the session-scoped Learning Request API list and its
 detail/editor routes; the path tab retains its preview provider and routes.
 Legacy `/requests` and `/paths` list routes redirect to the matching hub tab;

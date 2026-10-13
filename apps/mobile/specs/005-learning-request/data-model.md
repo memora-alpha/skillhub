@@ -1,5 +1,17 @@
 # Data model — Learning Request mobile
 
+## Refresh2026-10-13 (thay các ghi chú pending Tag/weekly bên dưới)
+
+RequestDraft bổ sung tagIds/offeredSharingSkillIds arrays, teachingOverview/
+desiredCreditPerHour/timeZone strings và weeklyAvailability serialized rows.
+RequestInput map sang [BE contract mới](contracts.md): nullable overview/credit/
+preferredAvailability, selected UUID arrays. PATCH diff canonical ID sets, chỉ field
+đổi; [] và null clear. Untouched weekly object/zone và absolute timestamps giữ.
+Owner projection thêm offeredSharingSkillIds và card fields; public chỉ
+offeredSharingSkills metadata, không selected private IDs. Legacy response thiếu
+field mới nhận defaults null/[]; present malformed data là protocol error.
+Conflict comparison/rebase bao gồm fields mới, arrays so bằng nội dung.
+
 Design checkpoint 2026-10-12. Đây là model/projection mobile, không thêm bảng
 database hoặc sửa Prisma/backend. [Contract checkpoint](contracts.md) giữ chi
 tiết API; [plan](plan.md) ghi phần đã có, Mxx còn cần làm và Bxx dependencies.

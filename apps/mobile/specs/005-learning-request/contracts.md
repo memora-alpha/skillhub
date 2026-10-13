@@ -1,5 +1,42 @@
 # Checkpoint contract — Mobile Learning Request
 
+## Contract refresh — 2026-10-13
+
+Source đã xác minh bằng `git show origin/dev:...`, remote tip `f4dd314`,
+FE extension commit `8853244` và fix `616bdee` (PR #20). Checkout mobile chưa
+merge dev; đọc contract từ ref không thay backend source hay migration.
+Các ghi chú unavailable phía dưới là lịch sử checkpoint 2026-10-11.
+
+- `preferredAvailability`: nullable `{timeZone,weeklySlots:[{weekday,startTime,endTime}]}`;
+  IANA timezone, MON–SUN, HH:mm, tối đa5, end>start cùng ngày, không overlap,
+  cho phép adjacent; BE sort thứ/giờ. Weekly wall-clock không chuyển thành UTC/ngày giả.
+  Weekly nonempty thay absolute slots; absolute nonempty thay weekly; cả hai nonempty
+  bị400. PATCH omission giữ, null clear weekly, [] clear absolute.
+- `teachingOverview`: nullable20–3000 code points, sanitize/moderate bởi BE.
+- `offeredSharingSkillIds`: tối đa10 distinct UUID, active/public Sharing Skills
+  của owner, từ GET `/me/skills?limit=&cursor=`. Response lookup:
+  `{id,skill:{id,name,status,...},level,verificationStatus,isVisible,archivedAt,...}`.
+  Chỉ chọn visible/nonarchived/ACTIVE; BE recheck ownership khi mutate/publish.
+  Public `offeredSharingSkills` chỉ có `{id,skill:{id,name},level,verificationStatus}`;
+  owner giữ selected IDs kể cả mục đã hidden/archive để sửa. [] clear.
+- `desiredCreditPerHour`: nullable decimal string >0, tối đa10 chữ số nguyên/2
+  chữ số thập phân; output2 decimals. Chỉ ngân sách mong muốn, không Hold.
+- Tag lookup đã có GET `/tags?q=&limit=&cursor=`: ACTIVE `{id,label}`, standard
+  `meta.pagination`; q NFC/trim0–120, literal case-insensitive, limit1–100/default20,
+  cursor theo filter. Không có GET tag by id; giữ ID đã chọn khi chưa resolve tên.
+  Create/PATCH `tagIds` max10 distinct UUID; PATCH omission giữ, [] clear.
+  Feed/recommended dùng repeated tagIds; ANY tags AND Skill/keyword, đổi filter
+  bắt đầu cursor chain mới. Empty lookup/error không fallback Skill/text taxonomy.
+- Owner/public detail và feed có overview/weekly/budget/offered metadata;
+  feed thêm description/preferredSlots. Parser cho fields mới defaults trên legacy
+  response nhưng reject giá trị sai khi field có mặt, strip private data.
+- Catalog/public owner/Sharing Skill readers đã wired trong source BE mới.
+  NEGOTIATING lock reader vẫn unavailable; runtime migration/config/test data
+  và real API/native acceptance vẫn cần evidence riêng (T025..T032).
+
+Migration cần ở môi trường BE: `20261012000000_learning_request_fe_preferences`.
+Mobile không apply migration, seed hoặc thay configuration BE.
+
 Ngày đọc: 2026-10-11. Baseline `dev`: `c52ec74`.
 Tham chiếu [spec](spec.md),
 [backend HTTP contract](../../../../services/api/specs/007-learning-request/contracts/http.md)

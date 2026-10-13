@@ -111,18 +111,19 @@ empty/error/retry và deep link đều có hành vi đúng, không lẫn bài m�
   là nguồn quyết định cuối cùng; client không báo nội dung chắc chắn được duyệt.
 - **FR-06:** Picker lấy UUID thật và tên để hiển thị; không gửi preview ID, slug
   hay dùng Skill ID thay Tag ID. Catalog lỗi có retry; không có Skill ACTIVE thì
-  chưa tạo được bài. Tag catalog chưa có contract là gap, không tự tạo taxonomy.
+  chưa tạo được bài. Tag dùng GET /tags theo contract refresh2026-10-13.
 - **FR-07:** Khoảng ưu tiên hiển thị múi giờ thiết bị rõ ràng và chuyển thành
   timestamp tuyệt đối khi gửi. Đây không phải lịch đã confirm; không áp hạn
   60–180 phút của Session vào preferredSlots. Đồng hồ thiết bị chỉ hỗ trợ nhập,
   không quyết định expiry cuối cùng.
   User sửa yêu cầu UI2026-10-12: thời gian ưu tiên chọn thứ trong tuần rồi hai
   giờ rảnh, lặp hằng tuần; max5, end>start trong cùng ngày, không chồng nhau cùng
-  thứ. Đây là yêu cầu mới ngoài contract timestamp SRS18.10, chờ B08/GAP-09.
-  Weekly draft chỉ giữ trong mounted form; Save bị khóa khi còn weekly rows,
-  có thông báo ngắn. Không đổi thành lần xuất hiện tiếp theo hoặc âm thầm bỏ.
-  Không tự gửi field mới. preferredSlots ngày cụ thể đã lưu vẫn hiển thị riêng,
-  giữ exact timestamps khi untouched và có thể xóa explicit [].
+  thứ. BE PR #20 đã triển khai preferredAvailability theo contract refresh2026-10-13.
+  Form gửi timeZone IANA và weeklySlots MON–SUN/HH:mm; giờ giữ theo timezone đã lưu
+  khi mở trên thiết bị khác. Save được mở; không tạo ngày giả hoặc UTC weekly offset.
+  preferredSlots ngày cụ thể đã lưu vẫn hiển thị riêng, giữ exact timestamps khi
+  untouched và xóa explicit []. Chọn weekly nonempty thay legacy absolute slots;
+  bỏ hết weekly gửi null, omission PATCH giữ nguyên. Không áp lịch Session ở client.
   Hủy lựa chọn giữ giá trị cũ, Xong mới cập nhật field. Hạn riêng có thể bỏ để
   dùng mặc định backend; không tự áp deadline từ picker.
   Lịch chọn hạn dùng font app: số ngày12, thứ11, tháng13; ô ngày cao tối thiểu44.
@@ -221,6 +222,8 @@ arrays, re-moderation, rejected re-publish và hai thiết bị cùng sửa đ�
 - **FR-25:** Card/detail dùng field thật trong projection. Bỏ budget, số buổi,
   duration, kỹ năng trao đổi lại, reputation/memberSince mẫu nếu không có contract
   riêng. Thiếu avatar dùng fallback, không gán avatar hoặc badge VERIFIED mẫu.
+  Contract BE mới có desiredCreditPerHour, teachingOverview, offeredSharingSkills
+  và preferredAvailability; hiển thị dữ liệu thật này theo FR-35, không dùng mẫu.
 - **FR-26:** Gợi ý P2 dùng `/recommended`, không tính điểm ở client hay đòi mọi
   Sharing Skill phải VERIFIED. Nếu endpoint 503, hiển thị gợi ý chưa khả dụng;
   người dùng có thể chọn feed thường, không gắn nhãn “gợi ý” cho feed thay thế.
@@ -260,6 +263,15 @@ recommended 503, owner mở bài của mình và guest deep link đều đúng s
   không chỉ biểu đạt bằng màu. Nội dung request/reason không diễn giải HTML.
 - **FR-34:** Không log token/body/reject reason hoặc nội dung private. Public
   display model chọn field tường minh, không spread raw owner/moderation DTO.
+
+- **FR-35 (BE extension2026-10-13):** Form create/edit hỗ trợ teachingOverview
+  optional20–3000 code points; offeredSharingSkillIds max10 distinct UUID từ
+  own GET /me/skills, chỉ visible/nonarchived/ACTIVE; desiredCreditPerHour optional
+  decimal string >0 với10 chữ số nguyên/2 decimals. Empty text/credit gửi null,
+  bỏ selected offerings gửi []; unchanged PATCH omission. Card/detail hiển thị
+  metadata offeredSharingSkills do BE trả, badge chỉ khi verificationStatus VERIFIED.
+  Ngân sách mỗi giờ không Hold hoặc giá đã thỏa thuận. Các field tham gia conflict
+  compare/rebase và session guards hiện có; API lỗi giữ input. Không sửa backend.
 
 ## 6. Điều kiện nghiệm thu
 
@@ -312,10 +324,11 @@ Các gap là câu hỏi contract hoặc điều kiện tích hợp, không phả
 backend đã được giao. Spec đã có plan/contracts/tasks và phần mobile được triển khai
 theo checkpoint; recovery mobile đã có source/fixture evidence 2026-10-12,
 Tag và nghiệm thu API thật/native còn pending theo task/gate.
-GAP-09 / B08: user yêu cầu lịch rảnh lặp tuần (UI correction2026-10-12), nhưng API
-chỉ lưu preferredSlots ngày cụ thể. UI draft đã có; lưu/reopen/public/matching lịch
-tuần chưa có contract. Backend owner cần chốt timezone/weekday/HH:mm và compatibility;
-T036 pending. Không coi phần lịch tuần hoàn tất từ fixture UI.
+GAP-09 / B08: contract/source đã mở bởi BE PR #20; T036 nối mobile theo
+[contract refresh2026-10-13](contracts.md). Gate B05 Tag lookup cũng đã mở ở source.
+GAP-01/02/03 trong bảng là checkpoint lịch sử: Catalog/owner/matching wired trên
+origin/dev; lock NEGOTIATING vẫn unavailable. Readiness môi trường/migration và
+nghiệm thu API thật/native vẫn theo T025..T032, không suy từ source/fixture.
 
 Redesign Figma, polling realtime, offline draft và policy mới ngoài yêu cầu đã chốt vẫn ngoài phạm vi;
 tài liệu được bổ sung không chứng minh source hoặc API/native đã nghiệm thu.
