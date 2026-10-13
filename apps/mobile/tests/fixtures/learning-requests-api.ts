@@ -16,6 +16,12 @@ import {
 } from "./learning-requests-data";
 import type { FixtureRequest } from "./learning-requests-data";
 import type { OwnerRequest } from "../../src/features/learning-requests/types";
+import {
+  fixtureTags,
+  fixtureOfferings,
+  fixturePreferences,
+  selectedOfferings,
+} from "./learning-requests-preferences";
 
 export type FixtureRule = {
   method?: string;
@@ -225,7 +231,85 @@ export async function startLearningRequestsFixture({
       }
       return;
     }
+    if (path.startsWith("/api/v1/profiles/")) {
+      const target = fixtureUsers.find(
+        (item) => item.id === path.split("/")[4],
+      );
+      if (!target) {
+        send(404, "NOT_FOUND");
+        return;
+      }
+      if (path.endsWith("/skills")) {
+        send(
+          200,
+          fixtureOfferings.map((item) => ({
+            id: item.id,
+            skill: { ...item.skill, description: null },
+            level: item.level,
+            description: "Public fixture skill description.",
+            experienceYears: null,
+            verificationStatus: item.verificationStatus,
+          })),
+          { limit: 20, hasMore: false, nextCursor: null },
+        );
+      } else {
+        const profile = fixtureIdentity(target).profile;
+        send(200, {
+          userId: profile.userId,
+          fullName: profile.fullName,
+          headline: profile.headline,
+          bio: profile.bio,
+          avatarUrl: profile.avatarUrl,
+          reputationScore: profile.reputationScore,
+          verifiedSkillCount: profile.verifiedSkillCount,
+          completedSessionCount: profile.completedSessionCount,
+          selectedTitle: null,
+        });
+      }
+      return;
+    }
     const prefix = "/api/v1/learning-requests";
+    if (path === "/api/v1/tags" || path === "/api/v1/me/skills") {
+      const q = (url.searchParams.get("q") ?? "").normalize("NFC").trim();
+      const items = path.endsWith("/tags")
+        ? fixtureTags.filter((tag) =>
+            tag.label
+              .toLocaleLowerCase("vi")
+              .includes(q.toLocaleLowerCase("vi")),
+          )
+        : fixtureOfferings;
+      const signature = JSON.stringify([path, q]);
+      let offset = 0;
+      const cursor = url.searchParams.get("cursor");
+      if (cursor) {
+        try {
+          const parsed = JSON.parse(
+            Buffer.from(cursor, "base64url").toString(),
+          );
+          if (
+            parsed.signature !== signature ||
+            !Number.isInteger(parsed.offset)
+          )
+            throw Error();
+          offset = parsed.offset;
+        } catch {
+          send(400, "INVALID_CATALOG_CURSOR");
+          return;
+        }
+      }
+      const limit = Number(url.searchParams.get("limit") ?? 20);
+      const hasMore = offset + limit < items.length;
+      send(200, items.slice(offset, offset + limit), {
+        limit,
+        hasMore,
+        nextCursor: hasMore
+          ? Buffer.from(
+              JSON.stringify({ signature, offset: offset + limit }),
+            ).toString("base64url")
+          : null,
+      });
+      return;
+    }
     if (!path.startsWith(prefix)) {
       send(404, "NOT_FOUND");
       return;
@@ -287,6 +371,9 @@ export async function startLearningRequestsFixture({
             request.skillId !== url.searchParams.get("skillId")
           )
             return false;
+          const tags = url.searchParams.getAll("tagIds");
+          if (tags.length && !tags.some((id) => request.tagIds.includes(id)))
+            return false;
           return (
             !keyword ||
             [request.title, request.description, request.learningGoal]
@@ -329,6 +416,14 @@ export async function startLearningRequestsFixture({
       return;
     }
     const body = method === "GET" ? {} : await readBody(req);
+    if (method === "PATCH" || (method === "POST" && !suffix)) {
+      const preferences = fixturePreferences(body);
+      if (!preferences) {
+        send(400, "INVALID_REQUEST_INPUT");
+        return;
+      }
+      Object.assign(body, preferences);
+    }
     if (method === "POST" && !suffix) {
       const request = fixtureRequest(
         {
@@ -340,13 +435,16 @@ export async function startLearningRequestsFixture({
           preferredSlots: Array.isArray(body.preferredSlots)
             ? body.preferredSlots
             : [],
-          tagIds: [],
+          tagIds: Array.isArray(body.tagIds) ? body.tagIds : [],
           requestedExpiresAt:
             typeof body.expiresAt === "string" ? body.expiresAt : null,
         } as Partial<OwnerRequest>,
         now(),
       );
       data.unshift({ actor: user.id, request });
+      request.offeredSharingSkills = selectedOfferings(
+        request.offeredSharingSkillIds,
+      );
       if (rule?.kind === "unknown-commit") {
         await loseResponse(201);
         return;
@@ -385,6 +483,13 @@ export async function startLearningRequestsFixture({
     }
     if (method === "PATCH") {
       Object.assign(entry.request, body);
+      if (
+        (body.preferredAvailability as OwnerRequest["preferredAvailability"])
+          ?.weeklySlots.length
+      )
+        entry.request.preferredSlots = [];
+      if (Array.isArray(body.preferredSlots) && body.preferredSlots.length)
+        entry.request.preferredAvailability = null;
       if ("expiresAt" in body)
         entry.request.requestedExpiresAt = body.expiresAt as string | null;
       delete (entry.request as OwnerRequest & { expectedVersion?: number })
@@ -406,6 +511,9 @@ export async function startLearningRequestsFixture({
       return;
     }
     entry.request.version++;
+    entry.request.offeredSharingSkills = selectedOfferings(
+      entry.request.offeredSharingSkillIds,
+    );
     entry.request.updatedAt = new Date(now()).toISOString();
     if (rule?.kind === "unknown-commit") {
       await loseResponse(200);

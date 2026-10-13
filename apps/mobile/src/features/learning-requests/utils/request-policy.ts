@@ -76,10 +76,26 @@ export function requestPatch(
     "learningGoal",
     "currentLevel",
     "verifiedTeacherOnly",
+    "teachingOverview",
+    "desiredCreditPerHour",
   ] as const) {
-    if (request[field] !== input[field])
+    if (input[field] !== undefined && request[field] !== input[field])
       Object.assign(patch, { [field]: input[field] });
   }
+  for (const field of ["tagIds", "offeredSharingSkillIds"] as const) {
+    if (
+      input[field] !== undefined &&
+      JSON.stringify([...request[field]].sort()) !==
+        JSON.stringify([...input[field]].sort())
+    )
+      Object.assign(patch, { [field]: input[field] });
+  }
+  if (
+    input.preferredAvailability !== undefined &&
+    JSON.stringify(request.preferredAvailability) !==
+      JSON.stringify(input.preferredAvailability)
+  )
+    patch.preferredAvailability = input.preferredAvailability;
   if (
     JSON.stringify(request.preferredSlots) !==
     JSON.stringify(input.preferredSlots)

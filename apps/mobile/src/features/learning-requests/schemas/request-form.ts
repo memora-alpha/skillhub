@@ -2,6 +2,15 @@ import { z } from "zod";
 import { parseLocalDateTime } from "@/utils/local-date-time";
 import { formatPreferredSlots, parsePreferredSlots } from "../preferred-slots";
 import { validWeeklyRows } from "../utils/request-weekly-slots";
+import { weeklyRows, weeklyRowsValue } from "../utils/request-weekly-slots";
+import {
+  availabilitySchema,
+  creditSchema,
+  deviceTimeZone,
+  idsSchema,
+  normalizeCredit,
+  validTimeZone,
+} from "./request-preferences";
 import { requestLevels, type OwnerRequest, type RequestInput } from "../types";
 const text = (min: number, max: number) =>
   z
@@ -23,6 +32,14 @@ export function requestFormSchema(
 ) {
   const now = () => (typeof clock === "number" ? clock : clock());
   return z.object({
+    teachingOverview: text(0, 3000).refine(
+      (value) => !value || [...value].length >= 20,
+      "Nhập từ 20 đến 3000 ký tự khi điền.",
+    ),
+    desiredCreditPerHour: z.union([z.literal(""), creditSchema]),
+    tagIds: idsSchema,
+    offeredSharingSkillIds: idsSchema,
+    timeZone: z.string().refine(validTimeZone, "Nhập múi giờ IANA hợp lệ."),
     title: text(10, 120),
     skillId: z.uuid("Chọn một kỹ năng trong danh mục."),
     description: text(20, 3000),
@@ -57,6 +74,11 @@ export function requestFormSchema(
 export type RequestDraft = z.infer<ReturnType<typeof requestFormSchema>>;
 export function requestDefaults(initial?: OwnerRequest): RequestDraft {
   return {
+    teachingOverview: initial?.teachingOverview ?? "",
+    desiredCreditPerHour: initial?.desiredCreditPerHour ?? "",
+    tagIds: initial?.tagIds ?? [],
+    offeredSharingSkillIds: initial?.offeredSharingSkillIds ?? [],
+    timeZone: initial?.preferredAvailability?.timeZone ?? deviceTimeZone(),
     title: initial?.title ?? "",
     skillId: initial?.skillId ?? "",
     description: initial?.description ?? "",
@@ -64,7 +86,9 @@ export function requestDefaults(initial?: OwnerRequest): RequestDraft {
     currentLevel: initial?.currentLevel ?? "",
     verifiedTeacherOnly: initial?.verifiedTeacherOnly ? "Có" : "Không",
     preferredSlots: formatPreferredSlots(initial?.preferredSlots),
-    weeklyAvailability: "",
+    weeklyAvailability: weeklyRowsValue(
+      initial?.preferredAvailability?.weeklySlots ?? [],
+    ),
     expiresAt: localTimestamp(initial?.requestedExpiresAt ?? null),
   };
 }
@@ -73,15 +97,19 @@ export function draftToInput(
   initial?: OwnerRequest,
   now = Date.now(),
 ): RequestInput {
-  const parsed = requestFormSchema(initial, now).parse(draft);
-  if (parsed.weeklyAvailability.trim())
-    throw new z.ZodError([
-      {
-        code: "custom",
-        path: ["weeklyAvailability"],
-        message: "Lịch theo tuần chưa hỗ trợ lưu.",
-      },
-    ]);
+  const parsed = requestFormSchema(initial, now).parse(
+    draft.weeklyAvailability.trim() ? { ...draft, preferredSlots: "" } : draft,
+  );
+  const weeklySlots = weeklyRows(parsed.weeklyAvailability)!;
+  const preferredAvailability =
+    initial &&
+    parsed.weeklyAvailability ===
+      weeklyRowsValue(initial.preferredAvailability?.weeklySlots ?? []) &&
+    parsed.timeZone === initial.preferredAvailability?.timeZone
+      ? initial.preferredAvailability
+      : weeklySlots.length
+        ? availabilitySchema.parse({ timeZone: parsed.timeZone, weeklySlots })
+        : null;
   const slots =
     initial &&
     parsed.preferredSlots === formatPreferredSlots(initial.preferredSlots)
@@ -114,6 +142,13 @@ export function draftToInput(
     expiresAt = date.toISOString();
   }
   return {
+    teachingOverview: parsed.teachingOverview || null,
+    desiredCreditPerHour: parsed.desiredCreditPerHour
+      ? normalizeCredit(parsed.desiredCreditPerHour)
+      : null,
+    tagIds: parsed.tagIds,
+    offeredSharingSkillIds: parsed.offeredSharingSkillIds,
+    preferredAvailability,
     title: parsed.title,
     skillId: parsed.skillId,
     description: parsed.description,

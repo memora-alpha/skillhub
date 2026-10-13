@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { StyleSheet } from "react-native";
+import { StyleSheet, View } from "react-native";
 import type { Href } from "expo-router";
 import { AppScreenLayout } from "@/features/shell";
 import { KeyboardFormScrollView } from "@/components/KeyboardFormScrollView";
@@ -12,6 +12,7 @@ export function RequestPage({
   feed = false,
   list = false,
   rightAction,
+  footer,
 }: {
   title: string;
   children: ReactNode;
@@ -20,6 +21,7 @@ export function RequestPage({
   feed?: boolean;
   list?: boolean;
   rightAction?: ReactNode;
+  footer?: ReactNode;
 }) {
   const back = useRequestBack(fallback, pending);
   return (
@@ -34,12 +36,16 @@ export function RequestPage({
         list ? (
           children
         ) : (
-          <KeyboardFormScrollView
-            contentInsetAdjustmentBehavior="automatic"
-            contentContainerStyle={requestLayout.page}
-          >
-            {children}
-          </KeyboardFormScrollView>
+          <View style={{ flex: 1 }}>
+            <KeyboardFormScrollView
+              style={{ flex: 1 }}
+              contentInsetAdjustmentBehavior="automatic"
+              contentContainerStyle={requestLayout.page}
+            >
+              {children}
+            </KeyboardFormScrollView>
+            {footer}
+          </View>
         )
       }
     </AppScreenLayout>
