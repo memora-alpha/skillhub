@@ -35,10 +35,10 @@ function createdLabel(value: string) {
 export function RequestCard({
   request,
   onPress,
-}: {
+}: Readonly<{
   request: RequestItem;
   onPress: () => void;
-}) {
+}>) {
   const own = isOwnRequest(request);
   const skill = useSkillName(own ? request.skillId : undefined);
   const state = requestState(request);

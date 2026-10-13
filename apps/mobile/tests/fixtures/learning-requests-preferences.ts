@@ -7,15 +7,12 @@ import {
 } from "../../src/features/learning-requests/schemas/request-preferences";
 import { fixtureId, fixtureSkills } from "./learning-requests-data";
 
-export const fixtureTags = Array.from({ length: 25 }, (_, index) => ({
-  id: fixtureId(20 + index),
-  label:
-    index === 0
-      ? "Thực hành"
-      : index === 1
-        ? "Dự án"
-        : `Tag ${String(index).padStart(2, "0")}`,
-}));
+export const fixtureTags = Array.from({ length: 25 }, (_, index) => {
+  let label = `Tag ${String(index).padStart(2, "0")}`;
+  if (index === 0) label = "Thực hành";
+  else if (index === 1) label = "Dự án";
+  return { id: fixtureId(20 + index), label };
+});
 export const fixtureOfferings = [0, 1].map((index) => ({
   id: fixtureId(50 + index),
   skill: fixtureSkills[index]!,

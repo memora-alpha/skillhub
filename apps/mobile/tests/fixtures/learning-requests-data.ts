@@ -64,6 +64,9 @@ export function createFixtureData(now = Date.now()): FixtureRequest[] {
     Array.from({ length: 25 }, (_, index) => {
       const draft = actorIndex === 0 && index === 2;
       const rejected = actorIndex === 0 && index === 1;
+      let status: OwnerRequest["status"] = "OPEN";
+      if (draft) status = "DRAFT";
+      else if (rejected) status = "REJECTED";
       return {
         actor: user.id,
         request: fixtureRequest(
@@ -72,7 +75,7 @@ export function createFixtureData(now = Date.now()): FixtureRequest[] {
             title: `Học ${index % 2 ? "Python" : "React"} thực hành ${index + 1}`,
             skillId: fixtureSkills[index % 2]!.id,
             createdAt: new Date(now - index * 3_600_000).toISOString(),
-            status: draft ? "DRAFT" : rejected ? "REJECTED" : "OPEN",
+            status,
             moderationStatus: rejected ? "REJECTED" : "NOT_REQUIRED",
             moderationRejectReason: rejected
               ? "Cần mô tả mục tiêu rõ hơn."

@@ -16,9 +16,9 @@ import {
 
 export function RequestContent({
   request,
-}: {
+}: Readonly<{
   request: OwnerRequest | PublicRequestDetail;
-}) {
+}>) {
   const own = isOwnRequest(request);
   const state = requestState(request);
   return (

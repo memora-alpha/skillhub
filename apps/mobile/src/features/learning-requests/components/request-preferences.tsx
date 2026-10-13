@@ -9,10 +9,10 @@ import { RequestSection } from "./request-section";
 export function RequestPreferences({
   request,
   compact = false,
-}: {
+}: Readonly<{
   request: RequestItem;
   compact?: boolean;
-}) {
+}>) {
   const availability = request.preferredAvailability;
   const body = (
     <View style={{ gap: 8 }}>
@@ -43,8 +43,8 @@ export function RequestPreferences({
           {(compact
             ? availability.weeklySlots.slice(0, 2)
             : availability.weeklySlots
-          ).map((slot, index) => (
-            <Copy key={index}>
+          ).map((slot) => (
+            <Copy key={`${slot.weekday}:${slot.startTime}:${slot.endTime}`}>
               {weekdayLabels[weekdays.indexOf(slot.weekday)]} · {slot.startTime}
               –{slot.endTime}
             </Copy>

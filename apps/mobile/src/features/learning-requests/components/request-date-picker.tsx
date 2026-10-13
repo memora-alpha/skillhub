@@ -13,7 +13,7 @@ export function RequestDatePicker({
   value,
   mode,
   onChange,
-}: RequestDatePickerProps) {
+}: Readonly<RequestDatePickerProps>) {
   if (mode === "date")
     return <RequestCalendar value={value} onChange={onChange} />;
   return (

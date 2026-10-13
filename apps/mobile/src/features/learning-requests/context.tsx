@@ -15,7 +15,9 @@ type RequestsRuntime = {
   enabled: boolean;
 };
 const Context = createContext<RequestsRuntime | null>(null);
-export function RequestsProvider({ children }: { children: ReactNode }) {
+export function RequestsProvider({
+  children,
+}: Readonly<{ children: ReactNode }>) {
   const { runtime, session, status } = useAuthSession();
   const generation = runtime.controller.generation;
   const queryClient = useQueryClient();

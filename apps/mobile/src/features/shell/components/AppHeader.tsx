@@ -65,33 +65,16 @@ export function AppHeader({
         home && !!title && styles.homeTitledHeader,
       ]}
     >
-      {onBack ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={backLabel}
-          {...navigationState}
-          onPress={onBack}
-          style={{ padding: 6, opacity: navigationBlocked ? 0.5 : 1 }}
-          hitSlop={6}
-        >
-          <View style={{ transform: [{ rotate: "180deg" }] }}>
-            <Icon name="arrow" size={20} color={colors.muted} />
-          </View>
-        </Pressable>
-      ) : !compact || !title ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="SkillHub — trang chủ"
-          {...navigationState}
-          onPress={() => onAction("Trang chủ")}
-        >
-          <BrandLogo
-            size="sm"
-            appearance={home ? "home" : "default"}
-            markOnly={!!title && width < 480}
-          />
-        </Pressable>
-      ) : null}
+      <HeaderLeading
+        onBack={onBack}
+        backLabel={backLabel}
+        onAction={onAction}
+        navigationBlocked={navigationBlocked}
+        compact={compact}
+        title={title}
+        home={home}
+        width={width}
+      />
       {!!title && (
         <Text
           style={[styles.title, home && styles.homeTitle, { flex: 1 }]}
@@ -156,6 +139,56 @@ export function AppHeader({
         )}
       </View>
     </View>
+  );
+}
+function HeaderLeading({
+  onBack,
+  backLabel,
+  onAction,
+  navigationBlocked,
+  compact,
+  title,
+  home,
+  width,
+}: Readonly<
+  Pick<
+    AppHeaderProps,
+    "onBack" | "onAction" | "navigationBlocked" | "title"
+  > & { backLabel: string; compact: boolean; home: boolean; width: number }
+>) {
+  const navigationState = {
+    disabled: navigationBlocked,
+    accessibilityState: { disabled: navigationBlocked },
+  };
+  if (onBack)
+    return (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={backLabel}
+        {...navigationState}
+        onPress={onBack}
+        style={{ padding: 6, opacity: navigationBlocked ? 0.5 : 1 }}
+        hitSlop={6}
+      >
+        <View style={{ transform: [{ rotate: "180deg" }] }}>
+          <Icon name="arrow" size={20} color={colors.muted} />
+        </View>
+      </Pressable>
+    );
+  if (compact && title) return null;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="SkillHub — trang chủ"
+      {...navigationState}
+      onPress={() => onAction("Trang chủ")}
+    >
+      <BrandLogo
+        size="sm"
+        appearance={home ? "home" : "default"}
+        markOnly={!!title && width < 480}
+      />
+    </Pressable>
   );
 }
 const styles = StyleSheet.create({

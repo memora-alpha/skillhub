@@ -9,7 +9,9 @@ import {
   requestDetailStyles as styles,
 } from "./request-detail.styles";
 
-export function RequestExchangeDetails({ request }: { request: RequestItem }) {
+export function RequestExchangeDetails({
+  request,
+}: Readonly<{ request: RequestItem }>) {
   if (!request.teachingOverview && !request.offeredSharingSkills.length)
     return null;
   return (

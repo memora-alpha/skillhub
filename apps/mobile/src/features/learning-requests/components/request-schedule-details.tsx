@@ -6,7 +6,9 @@ import type { RequestItem } from "../types";
 import { RequestDetailSection } from "./request-detail-section";
 import { requestDetailStyles as styles } from "./request-detail.styles";
 
-export function RequestScheduleDetails({ request }: { request: RequestItem }) {
+export function RequestScheduleDetails({
+  request,
+}: Readonly<{ request: RequestItem }>) {
   const availability = request.preferredAvailability;
   return (
     <>

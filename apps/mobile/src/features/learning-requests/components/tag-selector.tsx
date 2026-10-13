@@ -13,12 +13,12 @@ export function TagSelector({
   onChange,
   disabled = false,
   error,
-}: {
+}: Readonly<{
   value: string[];
   onChange: (ids: string[]) => void;
   disabled?: boolean;
   error?: string;
-}) {
+}>) {
   const [expanded, setExpanded] = useState(false);
   const [search, setSearch] = useState("");
   const [keyword, setKeyword] = useState("");

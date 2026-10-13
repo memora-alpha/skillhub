@@ -17,32 +17,12 @@ import {
 } from "../utils/request-dates";
 import { RequestDatePicker } from "./request-date-picker";
 
-export function RequestDateField({
-  label,
-  value,
-  onChange,
-  disabled,
-  seed,
-  mode = "datetime",
-}: Readonly<{
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  disabled: boolean;
-  seed?: string;
-  mode?: "date" | "time" | "datetime";
-}>) {
-  const [open, setOpen] = useState(false);
-  const [draft, setDraft] = useState(new Date());
-  const [part, setPart] = useState<DatePart>("date");
-  const selected = parseLocalDateTime(value);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const valid =
-    mode === "time" ||
-    (mode === "date"
-      ? draft.getTime() >= today.getTime()
-      : (parseLocalDateTime(pickerValue(draft))?.getTime() ?? 0) > Date.now());
+type DateFieldMode = DatePart | "datetime";
+function dateLabels(
+  selected: Date | null | undefined,
+  draft: Date,
+  mode: DateFieldMode,
+) {
   const emptyLabel = {
     date: "Chọn ngày",
     time: "Chọn giờ",
@@ -75,6 +55,40 @@ export function RequestDateField({
   });
   if (mode === "time") draftLabel = timeLabel(draft);
   else if (mode === "date") draftLabel = draft.toLocaleDateString("vi-VN");
+  return { valueLabel, hintLabel, draftLabel };
+}
+
+export function RequestDateField({
+  label,
+  value,
+  onChange,
+  disabled,
+  seed,
+  mode = "datetime",
+}: Readonly<{
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  disabled: boolean;
+  seed?: string;
+  mode?: "date" | "time" | "datetime";
+}>) {
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState(new Date());
+  const [part, setPart] = useState<DatePart>("date");
+  const selected = parseLocalDateTime(value);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const valid =
+    mode === "time" ||
+    (mode === "date"
+      ? draft.getTime() >= today.getTime()
+      : (parseLocalDateTime(pickerValue(draft))?.getTime() ?? 0) > Date.now());
+  const { valueLabel, hintLabel, draftLabel } = dateLabels(
+    selected,
+    draft,
+    mode,
+  );
   useEffect(() => {
     if (disabled) setOpen(false);
   }, [disabled]);

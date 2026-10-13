@@ -85,8 +85,8 @@ export function requestPatch(
   for (const field of ["tagIds", "offeredSharingSkillIds"] as const) {
     if (
       input[field] !== undefined &&
-      JSON.stringify([...request[field]].sort()) !==
-        JSON.stringify([...input[field]].sort())
+      JSON.stringify([...request[field]].sort((a, b) => a.localeCompare(b))) !==
+        JSON.stringify([...input[field]].sort((a, b) => a.localeCompare(b)))
     )
       Object.assign(patch, { [field]: input[field] });
   }

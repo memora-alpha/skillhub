@@ -10,14 +10,14 @@ export function RequestSection({
   tone = "primary",
   subtitle,
   compact = false,
-}: {
+}: Readonly<{
   title: string;
   children: ReactNode;
   icon?: IconName;
   tone?: "primary" | "forest" | "amber";
   subtitle?: string;
   compact?: boolean;
-}) {
+}>) {
   return (
     <View style={[styles.section, compact && styles.compact]}>
       <View style={[styles.header, compact && { paddingBottom: 10 }]}>

@@ -17,7 +17,7 @@ export function RequestMultiSelect({
   showOptions = true,
   selectionLabels = options,
   showSelection = true,
-}: {
+}: Readonly<{
   value: string[];
   options: { id: string; label: string }[];
   onChange: (ids: string[]) => void;
@@ -26,7 +26,7 @@ export function RequestMultiSelect({
   showOptions?: boolean;
   selectionLabels?: { id: string; label: string }[];
   showSelection?: boolean;
-}) {
+}>) {
   const names = new Map(
     selectionLabels.map((option) => [option.id, option.label]),
   );
@@ -41,7 +41,7 @@ export function RequestMultiSelect({
               hitSlop={4}
               disabled={disabled}
               accessibilityState={{ disabled }}
-              accessibilityLabel={`Bỏ ${names.get(id) ?? `mục đã chọn ${index + 1}`}`}
+              accessibilityLabel={`Bỏ ${names.get(id) ?? "mục đã chọn " + (index + 1)}`}
               onPress={() =>
                 onChange(value.filter((selected) => selected !== id))
               }

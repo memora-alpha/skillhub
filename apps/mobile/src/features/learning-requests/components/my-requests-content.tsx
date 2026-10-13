@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { FlatList, View } from "react-native";
 import { useRouter } from "expo-router";
 import { EmptyState } from "@/components/EmptyState";
@@ -13,14 +13,29 @@ import { RequestFailure, RequestLoading } from "../components/request-state";
 import { RequestListFooter } from "../components/request-list-footer";
 import { useRequestList } from "../hooks/use-requests";
 import { requestStatuses } from "../types";
+import { RequestListSeparator } from "./request-list-separator";
 export function MyRequestsContent({
   embedded = false,
-}: {
+}: Readonly<{
   embedded?: boolean;
-}) {
+}>) {
   const [status, setStatus] = useState("Tất cả");
   const query = useRequestList("mine", status === "Tất cả" ? {} : { status });
   const router = useRouter();
+  let emptyContent: ReactNode = null;
+  if (query.isPending) emptyContent = <RequestLoading />;
+  else if (!query.error)
+    emptyContent = (
+      <EmptyState
+        title={
+          status === "Tất cả"
+            ? "Bạn chưa có yêu cầu học"
+            : "Không có yêu cầu ở trạng thái này"
+        }
+        description="Tạo một yêu cầu mới hoặc chọn trạng thái khác."
+        titleStyle={styles.heading}
+      />
+    );
   return (
     <FlatList
       contentInsetAdjustmentBehavior="automatic"
@@ -32,7 +47,7 @@ export function MyRequestsContent({
         embedded && styles.embeddedContent,
       ]}
       showsVerticalScrollIndicator={false}
-      ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+      ItemSeparatorComponent={RequestListSeparator}
       refreshing={query.isRefetching && !query.isFetchingNextPage}
       onRefresh={() => void query.refetch()}
       ListHeaderComponent={
@@ -58,21 +73,7 @@ export function MyRequestsContent({
           onPress={() => router.navigate(`/requests/${item.id}`)}
         />
       )}
-      ListEmptyComponent={
-        query.isPending ? (
-          <RequestLoading />
-        ) : !query.error ? (
-          <EmptyState
-            title={
-              status === "Tất cả"
-                ? "Bạn chưa có yêu cầu học"
-                : "Không có yêu cầu ở trạng thái này"
-            }
-            description="Tạo một yêu cầu mới hoặc chọn trạng thái khác."
-            titleStyle={styles.heading}
-          />
-        ) : null
-      }
+      ListEmptyComponent={emptyContent}
       ListFooterComponent={
         <RequestListFooter
           hasNextPage={query.hasNextPage}
