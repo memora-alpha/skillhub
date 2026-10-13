@@ -25,7 +25,7 @@ All routes below use `/api/v1`; existing Auth/session handling remains shared.
 | PATCH `/me/profile`               | Editor sends `fullName`, `headline`, `bio`; response profile is directly in `data`. Empty headline/bio clears content. |
 | Public self-preview               | Projects saved own-account fields through an explicit allowlist; no extra API call.                                    |
 | Other public targets              | Fixtures only. Backend `/profiles/:userId` exists but is not integrated in mobile.                                     |
-| Sharing skills                    | Own/self list is not connected; other-target lists are fixtures. Do not interpret this as an empty real skill list.    |
+| Sharing skills                    | Own/self lists use skills APIs (spec 004); other-target profiles remain fixtures. Public rows open public-only detail. |
 | POST `/me/avatar`                 | Save selected image using multipart field `image`; 202 returns `assetId`/`QUARANTINED`. JPG/PNG/WebP ≤5MB.             |
 | GET `/me/avatar/uploads/:assetId` | Poll by session generation; only CLEAN triggers own-account refresh. REJECTED/DELETED do not publish the draft.        |
 | DELETE `/me/avatar`               | Save removal draft; 204 has no body. Clear own avatar and pending tracking.                                            |
@@ -177,11 +177,18 @@ lists, detail/history caches and local evidence drafts. Deleted records stay on
 the server for history; mobile has no archived-list toggle or read-only view.
 Same operation/body retry keeps the key; changed body/version uses a new intent.
 Multipart upload is not idempotent replay: retry may create a new fileId.
-The user's Send action uploads missing evidence files, checks storage state until
-READY, then submits the JSON batch. There is no separate upload button. Partial
-failures retain returned file IDs; explicit retry checks and reuses them. Scan
+The user's Save action on a new skill creates the record, uploads selected evidence,
+checks storage state until READY, then submits the JSON batch. Once the skill save
+is confirmed, return to My Skills even when evidence fails, with an error toast
+distinguishing saved skill from incomplete evidence. With no files it only creates
+the skill. Unconfirmed create/update stays on the form. Existing-skill verification
+uses the separate Send action. There is no separate upload button. Partial
+failures retain drafts and returned file IDs in the session; reopen the skill to
+explicitly retry. Submit intent/key survives leaving and reopening the screen;
+explicit retry checks and reuses returned file IDs. Scan
 checks are bounded and stop on blur/background/session change. Successful batch
-submission refreshes data and returns to skill detail. This changes client flow,
+submission refreshes data and returns to skill detail for the separate Send flow,
+or My Skills for the new-skill Save flow. This changes client flow,
 not the endpoints or server verification policy.
 The confirmed submit DTO is retained in session-scoped owner/history caches before
 refresh, so failed reads do not remove the saved request or enable duplicate Send.
@@ -200,15 +207,55 @@ from data or infer completeness from item count. Own Sharing Skill includes nest
 skill, isVisible, archivedAt, version and latestVerification. The latter is raw
 batch metadata, not a full detail response with files. Public projection excludes
 owner metadata/reasons/evidence. Map fields with an explicit allowlist.
+Public detail at `/public-skills/:userId/:sharingSkillId` walks the target user's
+public skill pages, including later pages, because no public Sharing Skill detail
+endpoint exists. It displays only name, level, full description, experienceYears
+and verificationStatus. It never calls own/history/evidence/download endpoints,
+even for self-preview; unavailable/hidden/deleted/wrong-owner IDs do not fall back
+to owner caches. Confirmed hide/archive clears matching public detail caches.
+Other-profile fixtures open sample detail with their existing public fields,
+without adding real profile API integration or invented missing descriptions.
 
 Evidence cap follows config with a current hard ceiling of 10,000,000 bytes/file;
 the client has no config endpoint and must handle stricter server 413/503 results.
 Allowed formats are PDF/DOC/DOCX/JPG/JPEG/PNG/WEBP; no avatar/chat policy reuse.
+My Skills keeps confirmed creates newest first within the current session, merges
+them with loaded owner pages, and retains their latest known server version when
+refresh fails or a UUID-ordered page omits the new record. Edits do not change
+creation order. The current owner projection does not expose createdAt or sorting;
+full historical newest-first pagination remains a backend dependency (GAP-09).
+
 Batch PENDING/APPROVED/REJECTED and evidence PENDING/APPROVED/REJECTED/REVOKED
 are distinct from the four-value Sharing Skill badge. New batches can coexist
 with a VERIFIED badge when older approved evidence remains.
 
-Known differences/gaps: no owner skill-detail or unarchive endpoint; public
+Evidence history/detail reads submittedAt/reviewedAt from the server's absolute
+ISO timestamp and renders explicitly in Asia/Ho_Chi_Minh with a Vietnam-time
+label. It never adds/removes seven hours from the instant or sends a client save
+time in upload/submit payloads. The current evidence projection omits uploadedAt;
+the displayed submission time belongs to the verification batch, not a file's
+upload time. Masked HTTP 503 shows a generic server-unavailable message rather
+than inventing a storage/scan/timezone diagnosis. The UTC Prisma connection fix
+is owned by the backend, authorized separately by the user on 2026-10-13.
+
+Backend recheck (2026-10-12): `POST /me/skills/:sharingSkillId/restore` exists with
+its own permission, expectedVersion and Idempotency-Key. Restore remains outside
+mobile spec 004; the delete confirmation describes removal and retained history.
+There is still no owner skill-detail endpoint, so detail walks the active owner list.
+
+Create/edit/visibility responses now update the scoped detail and already-loaded
+owner lists before refresh. Pagination metadata stays unchanged; replay cannot
+replace a newer cached version. Public updates use an allowlist and only replace
+already-public rows; hidden/inactive/archived rows are removed. Mobile does not
+invent public membership or profile counters when a refresh fails.
+History/detail decisions clear only a matching submitted snapshot with an equal
+or newer version, then refetch the owner/public/account projections. A decision
+alone does not supply the aggregate badge or Sharing Skill version.
+Web multipart normalizes empty/generic picker MIME to the validated format while
+preserving the bytes and filename. Filename checks follow the backend's rejection
+of empty basenames and unsafe earlier extensions, such as `proof.exe.pdf`.
+
+Known differences/gaps: public
 repository filters catalog ACTIVE although HTTP markdown mentions historical
 INACTIVE public display; SRS material-change verification policy is not implemented
 as an edit reset in the current service. Record these differences rather than

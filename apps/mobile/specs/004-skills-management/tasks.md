@@ -1,6 +1,6 @@
 # Tasks — Spec 004
 
-Cập nhật: 2026-10-11. Implementation có ở `features/skills` và thin routes.
+Cập nhật: 2026-10-12. Implementation có ở `features/skills` và thin routes.
 `[x]` trong nhóm implementation ghi nhận source/checks, không thay nghiệm thu
 API thật hay thiết bị;
 nghiệm thu theo [checklist](checklist.md), bằng chứng ở [validation](validation.md).
@@ -28,7 +28,7 @@ nghiệm thu theo [checklist](checklist.md), bằng chứng ở [validation](val
 - [x] Detail lookup theo owner list chưa xóa cho cold start/ID lạ; không xem lại bản archive.
 - [x] Form create/edit, Unicode length, decimal string/null và baseline draft.
 - [x] UI Quản lý dạng link, nút thêm gọn, form chia nhóm và evidence chọn trước create.
-- [x] Danh mục chọn/nút chi tiết hiện đại; lưu thành công quay về danh sách và giữ draft evidence theo skillId/phiên.
+- [x] Danh mục chọn/nút chi tiết hiện đại; form tạo gửi evidence cùng Lưu rồi về danh sách; partial failure giữ draft theo skillId/phiên.
 - [x] Thẻ lọc Tất cả/Đã xác minh/Đang chờ xác minh/Chưa xác minh qua pagination; badge kỹ năng trên own/public self profile.
 - [x] Synchronous pending lock, Hủy/Back/no-change và stale version recovery.
 - [x] Idempotent create/edit/visibility/xóa qua archive, confirm/Hủy và pending conflict.
@@ -54,6 +54,19 @@ nghiệm thu theo [checklist](checklist.md), bằng chứng ở [validation](val
 - [x] Clear private cache/draft/poll và ignore callbacks khi logout/đổi account.
 
 ## Kiểm chứng
+
+- [x] Đối chiếu source BE ngày 2026-10-12; cập nhật gap restore/detail và giữ phạm vi mobile.
+- [x] Chuẩn hóa MIME multipart web, giữ byte và chặn tên file theo policy BE.
+- [x] Lưu response create/edit/visibility vào cache trước refresh, không ghi đè version mới hoặc lộ owner metadata ra public.
+- [x] History/detail gỡ snapshot PENDING khi nhận quyết định cùng batch/version mới; đọc lại badge/version/counter từ BE.
+- [x] Form tạo Lưu kèm upload/scan READY/submit nếu có file; không file chỉ create; thành công trở về My Skills.
+- [x] Evidence failure sau save vẫn về My Skills, toast lỗi phân biệt kỹ năng đã lưu; draft/fileIds và submit key giữ theo skillId/phiên để mở lại, không create trùng.
+- [x] Save chưa xác nhận thành công giữ form; không dùng lỗi evidence để che lỗi create/update.
+- [x] Gợi ý từng level cho ngôn ngữ và lập trình trên form tạo/chỉnh sửa; không quy đổi chứng chỉ hay đổi tiêu chí duyệt.
+- [x] Public profile mở chi tiết kỹ năng với tên/level/mô tả/kinh nghiệm/badge, query public đúng owner và phân trang; không gọi history/evidence hoặc mount owner actions.
+- [x] Hidden/archive clears public-detail cache; public lỗi/không khả dụng không fallback owner data. Hồ sơ mẫu mở chi tiết từ field public đã có.
+- [x] My Skills ưu tiên lượt tạo mới nhất trong phiên qua refresh/filter/pagination; edit không đổi thứ tự tạo.
+- [ ] Xếp toàn bộ dữ liệu cũ theo createdAt mới nhất, gồm sau restart: cần BE bổ sung timestamp và sort pagination (GAP-09).
 
 - [x] Checks mobile và regression profile/Auth/account/avatar đạt.
 - [x] Tests pagination/race/409/idempotency/scan/status/privacy/session.

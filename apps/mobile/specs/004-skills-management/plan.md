@@ -1,6 +1,6 @@
 # Plan — Spec 004
 
-Cập nhật: 2026-10-11. Implementation theo [spec](spec.md) đã có ở `apps/mobile`;
+Cập nhật: 2026-10-12. Implementation theo [spec](spec.md) đã có ở `apps/mobile`;
 chỉ root `pnpm-lock.yaml` đổi để đồng bộ bốn dependencies Expo mới: crypto,
 document picker, image và network. Backend/shared
 không đổi. Tiến độ và nghiệm thu theo [tasks](tasks.md)/[validation](validation.md).
@@ -52,8 +52,10 @@ API/hooks/utils/schema250, source khác400. Không nâng giới hạn để thê
    tới ID hoặc hết dữ liệu, dừng khi đổi target/phiên. Không gọi endpoint giả.
 3. Form create/edit với draft/baseline, code-point trim/NFC và decimal string/null.
    Pending synchronous lock; giữ draft và yêu cầu xem lại khi stale.
-   Lưu thành công dismiss về own list, toast phân biệt lỗi refresh. Draft evidence
-   chuyển theo skillId vào Map trong provider phiên và tiếp tục từ màn verify.
+   Lưu form tạo có evidence: create → upload → READY → submit → refresh và
+   dismiss về own list. Giữ ID server khi file/submit lỗi để retry không create
+   trùng; không file thì chỉ create. Draft/fileIds chuyển theo ID vào Map phiên.
+   Form edit kỹ năng hiện có vẫn có hành động gửi bằng chứng riêng.
 4. Mutation intent giữ key/body trong phiên; tạo intent mới khi body/version đổi.
    Unknown outcome cung cấp refetch và explicit retry, không reset key tự động.
 5. Visibility/xóa dùng returned DTO và invalidate các query phụ thuộc. Xóa dùng
@@ -87,6 +89,52 @@ API/hooks/utils/schema250, source khác400. Không nâng giới hạn để thê
 3. Mutation refresh counter bằng own account, không cộng/trừ cục bộ.
 4. Giữ profile target demo và `/user/[id]` proposal fixtures theo spec 003;
    không mở rộng public-profile API hay liên hệ người dạy trong spec 004.
+
+### E. Đối chiếu BE và sửa mobile — 2026-10-12
+
+1. Create/edit/visibility lưu owner DTO vào cache phiên trước refresh; giữ phiên
+   bản mới hơn đã đọc, cập nhật các list/filter đã tải mà không tạo pagination.
+   Public chỉ cập nhật row đã có qua allowlist hoặc loại row không còn hiển thị;
+   không ghép own list thành danh sách public mới hoặc tính counter cục bộ.
+2. History/detail nhận quyết định cùng batch/version mới thì bỏ snapshot PENDING
+   cũ và invalidate owner/detail/public/account. Badge/version của Sharing Skill
+   vẫn phải đọc từ BE, không tính từ trạng thái batch.
+3. Web multipart dùng MIME format đã kiểm tra khi File.type rỗng/generic;
+   byte giữ nguyên. Precheck filename theo policy BE, gồm basename và extension
+   nguy hiểm ở giữa. Backend restore đã có nhưng không mở UI restore trong spec này.
+4. Kiểm chứng bằng tests cache/bytes/privacy/version và browser fixtures;
+   API thật/scanner/native giữ pending nếu môi trường chưa sẵn sàng.
+
+### F. Lưu form tạo kèm bằng chứng — 2026-10-12
+
+`save-skill.ts` điều phối create/update và ghi snapshot ID trước file I/O;
+`use-skill-save.ts` giữ bản đã tạo và trả về My Skills sau khi save được xác nhận,
+kể cả evidence lỗi; toast lỗi nêu rõ phần chưa hoàn tất. Save chưa xác nhận thì
+giữ form. VerificationForm cung cấp pipeline gửi cho ID vừa tạo, dùng chung
+prepare/scan/session guards và idempotent submission với luồng gửi riêng.
+Busy/metadata khóa form; bản đã tạo hoặc fileIds đã upload không bị gửi tạo lại.
+Draft và submit intent được giữ theo skillId/phiên để mở lại và thử gửi, kể cả
+unknown outcome. Form có gợi ý level cho ngôn ngữ/lập trình, không thêm API policy.
+
+My Skills ghép các response create đã xác nhận trong scope phiên với các trang
+đã tải, ưu tiên lượt tạo sau trước và chọn version mới hơn; không thay pagination.
+Edit không đổi thứ tự tạo. BE chưa trả thời gian/sort owner list nên việc sắp toàn
+bộ dữ liệu cũ theo thời gian tạo còn pending; xem GAP-09. Không mở phạm vi BE.
+
+Constitution Check cho amendment: phạm vi mobile, shared HTTP/session, feature
+boundary và server-authoritative badge/version/counter được giữ. Không thay BE,
+SDK, dependency versions hoặc API contracts. Runtime/native evidence còn pending.
+
+### G. Chi tiết kỹ năng công khai — 2026-10-13
+
+PublicSelfSkillList mở route public-skills theo userId/Sharing Skill ID.
+`find-public-skill.ts` chỉ đi qua public pagination; query/cache riêng không
+lấy own detail, kể cả chủ hồ sơ tự xem. Screen reuse SkillCard đầy đủ nội dung,
+không mount history/evidence/actions. Hidden/archive xóa cache public detail;
+unknown/error không fallback sang dữ liệu riêng tư. Profile fixtures mở modal
+chi tiết mẫu bằng field public có sẵn qua SamplePublicSkillRow. Không nối thêm
+API hồ sơ người khác, không đổi BE/shared/dependencies. Kiểm chứng privacy,
+pagination/cursor/cancel, hidden/sai owner, retry, navigation và các fixture.
 
 ## 4. Kiểm chứng cần có
 
