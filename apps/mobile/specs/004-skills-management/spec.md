@@ -3,7 +3,8 @@
 **Ngày:** 2026-10-09. **Workspace:** `apps/mobile`.
 **Trạng thái:** Đã triển khai mobile và kiểm tra bằng fixtures; nghiệm thu API
 thật/scanner và Android/iOS còn pending, xem [validation](validation.md).
-**Nhánh:** `feat/mobile-skills` (tạo từ `dev`; thay đổi chưa commit).
+**Nhánh:** `feat/mobile-skills` (implementation nền và các amendment ngày
+2026-10-12/13 đã được chia commit theo chức năng).
 
 ## 1. Mục tiêu và nguồn yêu cầu
 
@@ -111,6 +112,9 @@ tiếp tục ghi rõ dữ liệu mẫu; không gửi demo IDs tới API.
   Không tạo hai Sharing Skill chưa archive cho cùng catalog ID; 409 phải có
   feedback và refresh list. Không tự sửa bản cũ khi create bị trùng.
 - **FR-06:** Level thuộc BEGINNER/INTERMEDIATE/ADVANCED/EXPERT, là thông tin tự khai.
+  Form tạo/chỉnh sửa hiển thị gợi ý tự đánh giá theo mức đang chọn, gồm ví dụ
+  cho ngôn ngữ và lập trình. Đây là nội dung hỗ trợ, không phải tiêu chí duyệt
+  hoặc quy đổi chứng chỉ, không thêm validation hay field vào API.
   Mô tả trim/NFC, 20–1500 Unicode code points theo policy hiện tại.
   Số năm tùy chọn 0–60, tối đa một chữ số thập phân; gửi decimal **string** hoặc
   `null` khi xóa, không gửi số JSON. UI có thể nhận dấu phẩy rồi chuẩn hóa dấu chấm.
@@ -129,8 +133,8 @@ tiếp tục ghi rõ dữ liệu mẫu; không gửi demo IDs tới API.
 
 - **FR-10:** `isVisible=false` chỉ ẩn khỏi public/search; owner vẫn thấy và có thể
   hiện lại. Public self-preview dùng public endpoint nên không lộ skill ẩn/archive.
-- **FR-11:** UI dùng “Xóa kỹ năng”, xác nhận gỡ khỏi hồ sơ/danh sách và không thể
-  khôi phục. Vẫn POST `.../archive` với expectedVersion và key để giữ lịch sử
+- **FR-11:** UI dùng “Xóa kỹ năng”, xác nhận gỡ khỏi hồ sơ/danh sách và giữ
+  lịch sử hệ thống. Vẫn POST `.../archive` với expectedVersion và key để giữ lịch sử
   hệ thống. Hủy dialog không gửi. Chỉ sau response có archivedAt mới loại ID khỏi
   cache own/public/detail/evidence draft, dừng query cũ và quay về My Skills với
   toast. Refresh lỗi sau đó không làm kỹ năng xuất hiện lại. Không dùng DELETE
@@ -152,11 +156,18 @@ tiếp tục ghi rõ dữ liệu mẫu; không gửi demo IDs tới API.
   multipart field `file` qua evidence-files, không gọi API avatar. Bỏ file khỏi
   draft không xóa evidence đã submit; chưa có API xóa upload nên không hứa xóa
   server ngay. Retry upload có thể tạo fileId mới và không auto-replay bytes.
-  Form kỹ năng cho chọn file/nhập tiêu đề/mô tả ngay trước khi create; chưa có
-  Sharing Skill ID thì không upload hoặc submit. Sau khi lưu, quay về danh sách;
-  draft file/tiêu đề/mô tả được giữ theo skillId trong phiên đăng nhập để tiếp tục
-  ở chi tiết → Gửi bằng chứng xác minh. Rời màn xác minh giữ draft; gửi thành công
-  hoặc đổi phiên xóa draft. Không lưu file draft vào storage lâu dài.
+  Khi tạo kỹ năng, bấm Lưu tạo Sharing Skill trước rồi tự upload các file đã chọn,
+  chờ READY và submit yêu cầu xác minh. Hoàn tất thì tự quay về Kỹ năng của tôi;
+  không có nút gửi riêng trong form tạo. Không chọn file thì chỉ tạo kỹ năng.
+  Metadata bằng chứng không hợp lệ chặn Lưu trước khi create. Nếu kỹ năng đã được
+  tạo nhưng upload/scan/submit lỗi, vẫn tự về Kỹ năng của tôi và hiện toast lỗi
+  nói rõ kỹ năng đã lưu nhưng bằng chứng chưa hoàn tất. Giữ draft/fileIds theo
+  skillId trong phiên để mở lại kỹ năng và thử gửi bằng chứng, không tạo lại.
+  Nếu create/update chưa được xác nhận thành công, ở lại form với lỗi.
+  Retry submit giữ key/body cả khi mở lại màn; không tự retry ghi dữ liệu khi
+  resume hoặc mất mạng.
+  Rời màn xác minh giữ draft; gửi thành công hoặc đổi phiên xóa draft.
+  Không lưu file draft vào storage lâu dài. Amendment theo yêu cầu 2026-10-12.
   Chọn file không tự gửi yêu cầu và không đổi badge.
 - **FR-15:** 202 QUARANTINED chỉ xác nhận tiếp nhận. Poll status theo file/session;
   QUARANTINED/SCANNING là chờ, READY mới đủ điều kiện submit.
@@ -173,7 +184,8 @@ tiếp tục ghi rõ dữ liệu mẫu; không gửi demo IDs tới API.
   metadata hợp lệ; pipeline chỉ gọi submit JSON khi mọi file READY. Không cần
   người dùng tự nhấn upload hoặc kiểm tra trạng thái trước khi gửi.
   Thành công 201 tạo request PENDING, chưa có nghĩa Sharing Skill VERIFIED.
-  Thành công refresh dữ liệu, toast và tự quay về chi tiết kỹ năng. Form gửi
+  Luồng Gửi riêng thành công thì refresh dữ liệu, toast và tự quay về chi tiết
+  kỹ năng; form tạo có bằng chứng theo FR-14 quay về My Skills. Form gửi
   không có link “Kiểm tra lịch sử đã gửi”; lịch sử nằm ở màn chi tiết.
 - **FR-17:** Chỉ một batch PENDING cho một Sharing Skill; backend quyết định và
   trả 409 nếu có batch khác. File đang scan không phải batch PENDING của Staff.
@@ -205,7 +217,14 @@ tiếp tục ghi rõ dữ liệu mẫu; không gửi demo IDs tới API.
 - **FR-22:** Profile integration dùng public projection tường minh; không truyền
   owner metadata, private evidence, reviewer IDs hoặc reasons sang public view.
   Tự xem skill list public có loading/error/empty/load-more thật, không chỉ preview
-  20 items. Profile user khác tiếp tục theo fixture boundary của spec 003.
+  20 items. Nhấn một kỹ năng mở chi tiết công khai: tên, level, toàn bộ mô tả,
+  số năm kinh nghiệm tự khai và badge. Route `/public-skills/[userId]/[sharingSkillId]`
+  tìm Sharing Skill qua public list của đúng userId, phân trang khi cần; không
+  dùng own list/cache hoặc catalog detail thay thế. Kỹ năng ẩn/xóa/sai owner hoặc
+  không còn public báo không khả dụng; read lỗi có retry, không gọi history,
+  evidence/download và không có edit/delete/submit. Profile user khác tiếp tục
+  theo fixture boundary của spec 003, mở chi tiết mẫu từ field public đã có;
+  không bịa mô tả/kinh nghiệm thiếu. Amendment theo yêu cầu 2026-10-13.
 - **FR-23:** Cache/request/draft/poll/callback ràng buộc userId và session generation.
   Logout/đổi account dừng hoạt động cũ, xóa dữ liệu riêng tư; callback cũ không
   toast, navigate, expire phiên mới hoặc cập nhật cache tài khoản mới.
@@ -253,6 +272,12 @@ tiếp tục ghi rõ dữ liệu mẫu; không gửi demo IDs tới API.
   Xem thêm mở tiếp 5 dòng từ dữ liệu đã tải, chỉ fetch trang sau khi cần. Lỗi trang
   sau giữ các dòng đang hiện; không báo hết dữ liệu hoặc tăng phần hiển thị khi
   fetch lỗi. Ẩn Xem thêm khi không còn dữ liệu/cursor, không suy ra từ page size.
+- **FR-31:** Kỹ năng của tôi yêu cầu xếp mới nhất trước. Mobile giữ thứ tự các
+  lần tạo đã được xác nhận trong phiên: bản mới nhất ở đầu, không đổi thứ tự khi
+  edit/visibility/refresh; không mất bản vừa tạo nếu nó chưa nằm trong trang API
+  đang tải. Giữ cursor/filter/version server và loại bản đã xóa. Thứ tự thời gian
+  tạo của toàn bộ dữ liệu cũ và sau khởi động lại còn phụ thuộc GAP-09; không suy
+  thời gian từ UUID, catalog hoặc lần gửi bằng chứng.
 
 ## 4. Contract áp dụng
 
@@ -310,22 +335,30 @@ Nếu scanner hoặc thiết bị chưa sẵn sàng, ghi pending cụ thể, kh�
 
 ## 7. Dependencies và điểm cần làm rõ
 
-| Gap    | Bằng chứng/ảnh hưởng                                                                                        | Xử lý trong spec                                                                                                                |
-| ------ | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| GAP-01 | HTTP `RequestOptions` chưa nhận key; `readPayload` bỏ `meta`.                                               | Thêm hỗ trợ JSON idempotency/paginated result trong `apps/mobile/src/lib/http`; giữ API caller cũ và có regression tests.       |
-| GAP-02 | Không có own detail endpoint hoặc unarchive.                                                                | Detail đi qua owner list chưa xóa; ID đã archive không khả dụng, không tự thêm API.                                             |
-| GAP-03 | SRS dùng cap config; upload/attach source có hard ceiling 10.000.000 bytes, chưa có config endpoint mobile. | Client chỉ precheck ceiling; server có thể nhỏ hơn và trả 413/503. Không quảng cáo cap cố định là quy tắc SRS.                  |
-| GAP-04 | API contract markdown nói INACTIVE có thể hiện public; repository thực tế lọc catalog ACTIVE.               | Ghi chênh lệch; mobile dùng kết quả server, không ghép own data để công khai INACTIVE. Cần thống nhất contract trước discovery. |
-| GAP-05 | SRS SK-002 nhắc nội dung trọng yếu theo policy; service hiện không reset badge khi edit.                    | Không tự định nghĩa policy hoặc revoke ở mobile; giữ badge server, ghi dependency nếu policy thay đổi.                          |
-| GAP-06 | Chưa có document picker/file opener chuyên evidence trong mobile.                                           | Chọn giải pháp tương thích SDK/platform trong implementation; không cài package trong task soạn spec.                           |
-| GAP-07 | Contract API đang ghi planned; đã thấy source nhưng chưa gọi runtime skills/evidence trong task này.        | Cần integration checks độc lập; source không chứng minh service/storage/scan đang chạy đúng.                                    |
-| GAP-08 | `latestVerification` owner hiện là raw batch, chưa có files và Swagger type cụ thể.                         | Typed allowlist cho phần cần dùng; detail/history lấy endpoint riêng, không cast sang đầy đủ VerificationResponse.              |
+| Gap    | Bằng chứng/ảnh hưởng                                                                                        | Xử lý trong spec                                                                                                                        |
+| ------ | ----------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| GAP-01 | HTTP `RequestOptions` chưa nhận key; `readPayload` bỏ `meta`.                                               | Thêm hỗ trợ JSON idempotency/paginated result trong `apps/mobile/src/lib/http`; giữ API caller cũ và có regression tests.               |
+| GAP-02 | Không có own detail endpoint; BE đã có restore command khi đối chiếu ngày 2026-10-12.                       | Detail đi qua owner list chưa xóa; ID đã archive không khả dụng trong mobile. Restore vẫn ngoài phạm vi UI spec này.                    |
+| GAP-03 | SRS dùng cap config; upload/attach source có hard ceiling 10.000.000 bytes, chưa có config endpoint mobile. | Client chỉ precheck ceiling; server có thể nhỏ hơn và trả 413/503. Không quảng cáo cap cố định là quy tắc SRS.                          |
+| GAP-04 | API contract markdown nói INACTIVE có thể hiện public; repository thực tế lọc catalog ACTIVE.               | Ghi chênh lệch; mobile dùng kết quả server, không ghép own data để công khai INACTIVE. Cần thống nhất contract trước discovery.         |
+| GAP-05 | SRS SK-002 nhắc nội dung trọng yếu theo policy; service hiện không reset badge khi edit.                    | Không tự định nghĩa policy hoặc revoke ở mobile; giữ badge server, ghi dependency nếu policy thay đổi.                                  |
+| GAP-06 | Chưa có document picker/file opener chuyên evidence trong mobile.                                           | Chọn giải pháp tương thích SDK/platform trong implementation; không cài package trong task soạn spec.                                   |
+| GAP-07 | Contract API đang ghi planned; đã thấy source nhưng chưa gọi runtime skills/evidence trong task này.        | Cần integration checks độc lập; source không chứng minh service/storage/scan đang chạy đúng.                                            |
+| GAP-08 | `latestVerification` owner hiện là raw batch, chưa có files và Swagger type cụ thể.                         | Typed allowlist cho phần cần dùng; detail/history lấy endpoint riêng, không cast sang đầy đủ VerificationResponse.                      |
+| GAP-09 | BE owner list phân trang theo UUID tăng dần và không trả createdAt/param sắp xếp.                           | Ưu tiên bản mới tạo trong phiên; sắp toàn bộ mới nhất trước cần BE trả createdAt và phân trang theo createdAt DESC/id. Không tự sửa BE. |
 
-`apps/mobile/AGENTS.md` được hướng dẫn gốc nhắc tới nhưng chưa có trong checkout
-ngày 2026-10-09. Áp dụng hướng dẫn gốc và docs mobile; không tạo guideline mới
-hoặc sửa backend trong task này.
+`apps/mobile/AGENTS.md` chưa có trong checkout ngày 2026-10-09; đã có khi đối
+chiếu ngày 2026-10-12. Các lần tiếp tục áp dụng hướng dẫn workspace và constitution
+mobile hiện tại; việc đối chiếu BE không mở rộng phạm vi thay đổi sang backend.
 
 Checkpoint implementation: GAP-01 đã giải quyết bằng paginated transport/key;
 GAP-06 dùng `expo-document-picker ~57.0.3` và `expo-linking`; GAP-08 dùng typed
 allowlist summary, riêng history/detail. GAP-02..05 vẫn giữ workaround/contract
-boundary. GAP-07 chưa đóng: catalog local trả rỗng, full API/scanner chưa nghiệm thu.
+boundary. GAP-07 chưa đóng: catalog local trả rỗng ở lần kiểm tra cũ; ngày
+2026-10-12 API local cổng 3001 không chạy, full API/scanner chưa nghiệm thu.
+
+Đối chiếu BE ngày 2026-10-12: JSON mutation trả owner DTO hiện hành, kể cả replay;
+lưu DTO trước refresh, giữ version/cursor server và cập nhật các list đã tải.
+Response lịch sử/detail có version và quyết định được dùng để gỡ snapshot submit
+cũ rồi đọc lại badge/version/counter từ owner/account. Web evidence dùng MIME
+đã chuẩn hóa và chặn tên file có basename rỗng/extension nguy hiểm ở giữa theo BE.

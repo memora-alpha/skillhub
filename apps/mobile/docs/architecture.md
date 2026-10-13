@@ -70,6 +70,12 @@ Create only folders that contain files. A feature does not need every folder on 
 ## Import rules
 
 - Outside code imports a feature through its `index.ts` when possible.
+- Declared narrow public entry points are `product-shell/state`,
+  `learning-paths/state`, `learning-paths/policy` and `sessions/state`.
+  They expose context/hooks or pure policy without loading screen barrels;
+  shell, scheduling and session consumers use them to prevent runtime cycles.
+  `check-structure` permits only these explicit subpaths; other private imports
+  remain blocked.
 - A feature must not import private files from another feature.
 - `src/lib` must not import UI feature components.
 - Route files must not call axios, fetch or business services directly.
@@ -101,6 +107,13 @@ Rows have no separators. Detail shows the centered verification text action
 below Delete; submitting the form uses the shared `craft` button variant.
 Existing button variants retain their current colors.
 
+Public self-profile skill rows open a separate public detail route and query,
+scoped by target userId and Sharing Skill ID. It walks only public skill pages
+and reuses SkillCard in detail mode; owner history/actions/evidence components
+are never mounted. Hidden/archive confirmations clear public detail data.
+Other profile fixtures use SamplePublicSkillRow to open read-only sample details
+from their public fields; missing fields remain unavailable rather than invented.
+
 Evidence selection separates the system photo library (`expo-image-picker`)
 from PDF/Word documents (`expo-document-picker`). Both feed the same validated
 draft and automatic upload/scan/submit pipeline. Picker metadata is normalized
@@ -108,6 +121,20 @@ without changing file bytes; unsupported image formats or unreadable sizes are
 rejected before upload. Neither picker uploads on selection.
 
 ## Header actions
+
+The Profile "Hành trình của tôi" shortcut opens `/my-learning`. It owns the
+request/path list layout with URL-selected `requests`/`paths` tabs. Existing
+request/path components reuse their preview providers and detail/editor routes.
+Legacy `/requests` and `/paths` list routes redirect to the matching hub tab;
+Calendar and action maps use the same targets. Preview data remains labeled and
+no learning API integration is implied by navigation consolidation.
+
+Request creation and own-request detail use history-based Back navigation so
+Home, Discover and the profile's learning hub retain their entry context. With
+no history, they fall back to Discover; an edit falls back to its request detail.
+Saving a new draft replaces the editor with detail, preserving the entry screen
+for Back after publishing. Saving an edit returns to the existing detail when
+history is available, avoiding a duplicate detail screen.
 
 `AppHeader` shows notifications on main screens. When a layout supplies `onBack`
 for a secondary screen, the notification bell and count are omitted. This covers

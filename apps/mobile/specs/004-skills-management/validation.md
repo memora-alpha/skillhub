@@ -1,8 +1,170 @@
 # Validation — Spec 004
 
-Cập nhật: 2026-10-11. Source trên `feat/mobile-skills`, tạo từ `dev`
+Cập nhật: 2026-10-13. Source trên `feat/mobile-skills`, tạo từ `dev`
 `0790c3b`. Phạm vi theo [spec](spec.md), nghiệm thu theo [checklist](checklist.md).
 Implementation có ở mobile; full API/scanner và Android/iOS còn pending.
+
+## Thời gian bằng chứng theo BE và xử lý 503 — 2026-10-13
+
+Theo clarification, đây là lỗi timezone cấu hình Prisma/BE, không phải timeout
+scan. FE không gửi giờ lưu file hoặc giờ hiệu lực policy. History/detail nay
+dùng formatter nhận timestamp ISO server và hiển thị rõ giờ Việt Nam, giữ cùng
+instant cho Z/+07, không bù 7 giờ để che lỗi backend. Gửi/Xét duyệt giữ đúng
+submittedAt/reviewedAt; uploadedAt chưa có trong response, không suy đoán.
+503 bị BE mask chỉ báo server chưa sẵn sàng; không chẩn đoán là scan/storage.
+Saved skill/draft/key và điều hướng sau evidence failure giữ hành vi đã kiểm tra.
+
+Mobile typecheck/lint/structure đạt (384 source files); tests 181/181 đạt, thêm
+4 checks timestamp offsets/qua ngày/missing timezone và masked 503. User đã cho
+phép sửa BE: API/seed session UTC và PostgreSQL read-only regression ở
+[backend UTC validation](../../../../services/api/specs/006-system-configuration-time/validation.md).
+Không thay chính sách scan/verification hoặc tự gửi lại multipart.
+Web export đạt 1876 modules. Browser `.expo/skills-evidence-time-browser.cjs`
+đạt 6 nhóm/73 fixture requests, không page error; batch ISO
+`2026-10-12T16:29:10.915Z` hiện `23:29:10 12/10/2026` (giờ Việt Nam).
+Regression 503 về list/draft retry/key reuse/refresh failure vẫn đạt. Ignored
+evidence: `.expo/skills-validation/skills-evidence-time-375.png` và
+`skills-evidence-time-result.json`. Không upload BE thật; native còn pending.
+
+## Chi tiết kỹ năng từ hồ sơ công khai — 2026-10-13
+
+Theo yêu cầu UI tiếp theo, đã bỏ nút “Làm mới” khỏi màn chi tiết kỹ năng
+công khai. Lint/typecheck/structure đạt (384 source files); 5/5 tests
+`skills-public-detail.test.ts` đạt. Chưa chạy lại browser/native cho thay đổi này.
+
+PublicSelfSkillList đã có hành động mở chi tiết công khai. Route riêng
+`/public-skills/[userId]/[sharingSkillId]` tìm đúng Sharing Skill trong public
+pages của target userId và đọc các trang sau khi cần; không dùng catalog/own
+detail thay thế. Màn hiển thị tên, level, toàn bộ mô tả, experienceYears tự khai
+và badge. Không mount actions/history/evidence hoặc gọi private download.
+Read lỗi hiển thị retry, hidden/archive/sai owner/invalid ID không khả dụng.
+Confirmed hide/archive clear cache public-detail trong đúng phiên. Profile mẫu
+ở cả `/profiles/demo-*` và `/user/demo-*` mở chi tiết mẫu bằng field công khai
+có sẵn, không bịa phần mô tả/kinh nghiệm thiếu hoặc nối API hồ sơ người khác.
+
+Typecheck/lint/structure đạt (377 source files); tests 177/177 đạt, thêm 5 checks
+public pagination/privacy/không fallback/error/cancel/cache hide, mở rộng archive
+cache regression. Web export đạt 1869 modules. Browser fixture
+`.expo/skills-public-detail-browser.cjs` đạt 8 nhóm/16 requests, không page error:
+public profile → full detail, hidden refresh, trang sau, private direct link,
+đúng/sai target owner, lỗi read/retry, invalid IDs và hai bề mặt hồ sơ mẫu.
+Fixture điều hướng bằng router thật trong phiên; cold-start authenticated link
+và Android/iOS chưa được xác nhận. Không mutation BE thật hoặc private file call.
+Ignored evidence `.expo/skills-validation/skills-public-detail-375.png` và
+`skills-public-detail-result.json`. Không thay source/config/database BE.
+
+## Evidence lỗi vẫn về danh sách và gợi ý level — 2026-10-13
+
+Theo yêu cầu mới, sau khi create/update được xác nhận, Save trả về My Skills
+kể cả upload/scan/submit lỗi. Toast lỗi nói rõ kỹ năng đã lưu, bằng chứng chưa
+hoàn tất và hướng dẫn mở kỹ năng để kiểm tra/thử lại. Nếu create/update chưa
+xác nhận, vẫn ở form với draft. Draft/fileIds và JSON submit intent được giữ
+theo skillId/phiên; mở lại dùng cùng key/body nếu chưa biết kết quả, không
+create trùng hay tự upload lại file đã nhận ID. Đổi tài khoản chặn callback.
+
+Form tạo/chỉnh sửa có chú thích cho cả bốn level đang chọn, gồm ví dụ ngôn ngữ
+và lập trình. Nội dung là gợi ý tự đánh giá, không phải tiêu chí xác minh hoặc
+quy đổi chứng chỉ; API/validation không thay đổi.
+
+Typecheck/lint/structure đạt (372 source files); tests 172/172 đạt, gồm evidence
+failure trả saved result, skill create lỗi không bị che và đổi phiên lúc evidence
+lỗi. Web export đạt 1864 modules. Browser fixture
+`.expo/skills-save-evidence-error-browser.cjs` đạt 6 nhóm/73 requests: bốn mức
+level, upload 503 về list/toast, reopen draft/Send không create lại, submit 503
+reopen giữ key/body/fileIds, create lỗi ở form và refresh 503 sau success. Không
+page error. Regression `.expo/skills-compact-browser.cjs` đạt 7 nhóm/82 requests
+cho luồng Gửi riêng, history/decision, private image và refresh lỗi. Ảnh ignored:
+`skills-level-guide-375.png` và
+`skills-evidence-error-list-375.png`, result `skills-save-evidence-error-result.json`
+trong `.expo/skills-validation/`. Android/iOS và API/storage/scanner thật còn
+pending; không gọi mutation BE thật hoặc thay source/config/database BE.
+
+## Lưu kỹ năng kèm bằng chứng và vị trí mới nhất — luồng ban đầu, 2026-10-12
+
+Theo yêu cầu người dùng, form tạo dùng một nút Lưu: create nhận Sharing Skill ID
+→ upload từng file đã chọn → scan READY → submit batch → tự về My Skills.
+Không file thì chỉ create. Form chỉnh sửa bản hiện có vẫn có hành động gửi riêng.
+Metadata bằng chứng không hợp lệ chặn tạo; chọn ảnh/file không tự upload.
+
+Đã tách coordinator/save hook và dùng chung pipeline chuẩn bị/submit giữa Lưu
+và Gửi yêu cầu. Nếu file/scan/submit lỗi sau create, giữ record/ID và draft trên
+form, hiển thị phần chưa hoàn tất. Lưu lại không create hoặc PATCH bản không đổi;
+fileIds đã nhận được giữ ngay sau mỗi upload và READY được kiểm tra lại. Lost
+submit response retry giữ JSON key/body; nhận success thì xóa draft, giữ batch
+trong cache owner/history trước refresh. Không tự retry khi quay lại/foreground.
+
+My Skills ưu tiên các lượt create đã được server xác nhận trong phiên, mới nhất
+ở đầu qua refresh và đọc các trang UUID. Giữ bản vừa tạo nếu chưa nằm trong trang
+đã tải; merge theo version, filter badge và session tombstone, không sửa metadata
+pagination. Edit không đổi thứ tự tạo. Một owner read đầy đủ hoặc detail lookup
+không tìm thấy sẽ bỏ snapshot đã bị xóa từ nơi khác.
+
+**GAP-09 còn mở:** owner API hiện order UUID ASC, không trả createdAt hoặc sort
+parameter. Mobile không thể xếp đúng thời gian tạo của toàn bộ dữ liệu cũ hoặc
+sau restart bằng contract này. Không dùng UUID/catalog/verification time thay
+creation time; cần BE bổ sung thời gian và pagination order. Lượt này chỉ sửa
+mobile, giữ nguyên source/config BE đang có.
+
+| Check                                  | Kết quả                                                                                                                                                      |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Typecheck / lint / structure           | Đạt; 371 source files, không tăng giới hạn.                                                                                                                  |
+| `npm test`                             | 170/170 đạt, thêm 9 tests cho save partial failure, metadata, no-file, đổi phiên và thứ tự/refresh/delete.                                                   |
+| Web export                             | Đạt, 1863 modules.                                                                                                                                           |
+| `.expo/skills-create-save-browser.cjs` | 5 nhóm / 68 requests; create với ảnh/không ảnh, detail preview, upload failure retry, lost submit response, refresh 503 và thứ tự mới tạo. Không page error. |
+| `.expo/skills-compact-browser.cjs`     | 7 nhóm / 82 requests; regression luồng Gửi riêng, history/decision và private image/expiry. Không page error.                                                |
+
+Ảnh/result local ignored trong `.expo/skills-validation/`:
+`skills-create-save-list-375.png`, `skills-create-save-result.json` và
+`skills-compact-result.json`. Browser intercept API bằng fixtures, không gọi
+mutation BE thật. API/storage/scanner thật và Android/iOS còn pending; không
+tick các gate đó bằng fixture. Các mục dưới giữ kết quả lịch sử của luồng cũ.
+
+## Đối chiếu BE và sửa mobile — 2026-10-12
+
+Đã đọc controllers/DTO/services/repositories Skills, Sharing Skills,
+Verifications và policy/attachment của storage. Chỉ thay đổi mobile. BE hiện
+có restore riêng nhưng UI spec 004 giữ scope xóa; sửa câu xác nhận để mô tả
+gỡ khỏi hồ sơ và giữ lịch sử, không khẳng định BE không thể khôi phục.
+
+- Web File.type rỗng/generic trước đây vẫn được append nguyên vào multipart,
+  gây MIME không khớp policy BE dù draft hợp lệ. Đã tái hiện test thất bại;
+  multipart nay dùng MIME format đã validate, giữ nguyên byte/tên file.
+  Chặn basename rỗng, extension nguy hiểm ở giữa và key kế thừa ngoài allowlist.
+- Response create/edit/visibility trước đây chỉ được dùng sau refresh, nên
+  refresh lỗi có thể để cache thiếu bản mới hoặc giữ version/visibility cũ.
+  Nay lưu owner DTO trước refresh, giữ version mới hơn đã biết, cập nhật các
+  list/filter đã tải và giữ cursor/pageParams. Public chỉ cập nhật row đã có
+  qua allowlist hoặc loại row ẩn/inactive; không tạo public list/counter giả.
+- History/detail nay nhận quyết định cùng batch/version mới thì bỏ snapshot
+  submit PENDING cũ và đọc lại owner/detail/public/account. Không tự tính badge
+  hoặc Sharing Skill version từ batch. Quyết định cũ/khác batch/khác skill
+  không xóa snapshot của yêu cầu mới.
+
+| Check                                   | Kết quả                                                                                             |
+| --------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `npm run check-types`                   | Đạt.                                                                                                |
+| `npm run lint`                          | Đạt, không warning.                                                                                 |
+| `npm run check-structure`               | Đạt, 367 source files; không tăng giới hạn.                                                         |
+| `npm test`                              | 161/161 đạt, gồm 5 tests mới cho MIME, cache lưu và quyết định.                                     |
+| Web export                              | Đạt, 1859 modules.                                                                                  |
+| `.expo/skills-be-alignment-browser.cjs` | 6 nhóm / 64 requests; CRUD/version/privacy và create/edit/visibility refresh 503, không page error. |
+| `.expo/skills-compact-browser.cjs`      | 7 nhóm / 82 requests; upload/scan/submit, history/decision, private image/expiry, không page error. |
+
+Typecheck ban đầu thiếu bốn Expo packages đã khai báo; cài lại từ npm cache
+bằng `npm install --offline --ignore-scripts --no-audit --no-fund` rồi đạt.
+Không đổi package versions hoặc lockfiles. QA web dùng URL tạm thời trong process
+và xóa cache Metro để inlined config đúng; không sửa `.env` của người dùng.
+Browser intercept API bằng fixtures; scripts/result/screenshot local ignored
+dưới `.expo/skills-validation/`, gồm `skills-be-alignment-result.json`,
+`skills-be-alignment-cache-375.png`, `skills-compact-result.json`.
+
+Read-only probes tới `localhost:3001` và API cấu hình trong `.env` mobile đều
+bị từ chối kết nối trong lượt này. Chưa xác nhận CRUD/evidence với
+server/storage/scanner thật; Android/iOS còn pending. Các gate API/native trong
+checklist vẫn giữ chưa tick.
+
+Các mục bên dưới giữ evidence lịch sử; mô tả AGENTS.md chưa có chỉ áp dụng
+checkout cũ. Hiện workspace đã có AGENTS.md và constitution mobile.
 
 ## Source và checks
 
