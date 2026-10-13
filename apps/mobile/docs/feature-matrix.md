@@ -37,8 +37,10 @@ Settings, with no new endpoint or legal-policy content.
 
 The `learning` feature exposes the authenticated `/my-learning` hub from the
 profile's "Hành trình của tôi" shortcut. Its "Yêu cầu học" and "Lộ trình" tabs
-are navigation scaffolding with explicit unconnected states; no learning API
-integration, sample records or business mutations are added. Received reviews
+reuse the existing request/path preview lists and their detail/editor routes.
+The old `/requests` and `/paths` list URLs redirect to the matching hub tab;
+Profile and Calendar share these destinations. Records remain explicitly labeled
+preview data; this does not add learning API integration. Received reviews
 remain an unconnected "Đánh giá về tôi" shortcut.
 
 1. Mobile foundation.

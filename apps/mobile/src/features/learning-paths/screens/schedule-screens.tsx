@@ -15,7 +15,7 @@ import { usePathsPreview } from "../context";
 import { agreementConfirmed, validSlots, finalValidation } from "../rules";
 import { futureSlot } from "../fixtures";
 import { parseLocalDateTime } from "@/utils/local-date-time";
-import { useSessionsPreview } from "@/features/sessions";
+import { useSessionsPreview } from "@/features/sessions/state";
 export function SchedulesScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { paths, save } = usePathsPreview();

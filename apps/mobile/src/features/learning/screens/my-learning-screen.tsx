@@ -1,6 +1,8 @@
-import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { AppScreenLayout } from "@/features/shell";
+import { MyRequestsContent } from "@/features/learning-requests";
+import { MyPathsContent } from "@/features/learning-paths";
 import {
   appColors as colors,
   appRadius,
@@ -12,19 +14,17 @@ const tabs = [
   {
     value: "requests",
     label: "Yêu cầu học",
-    notice: "Danh sách yêu cầu học đã đăng chưa được kết nối.",
   },
   {
     value: "paths",
     label: "Lộ trình",
-    notice: "Lộ trình học và dạy chưa được kết nối.",
   },
 ] as const;
-type LearningTab = (typeof tabs)[number]["value"];
 
 export function MyLearningScreen() {
-  const [tab, setTab] = useState<LearningTab>("requests");
-  const current = tabs.find((item) => item.value === tab)!;
+  const params = useLocalSearchParams<{ tab?: string | string[] }>();
+  const router = useRouter();
+  const tab = params.tab === "paths" ? "paths" : "requests";
   return (
     <AppScreenLayout
       title="Hành trình của tôi"
@@ -47,7 +47,7 @@ export function MyLearningScreen() {
                   accessibilityLabel={item.label}
                   accessibilityState={{ selected }}
                   aria-selected={selected}
-                  onPress={() => setTab(item.value)}
+                  onPress={() => router.setParams({ tab: item.value })}
                   style={({ pressed }) => [
                     styles.tab,
                     selected && styles.selected,
@@ -64,15 +64,12 @@ export function MyLearningScreen() {
             })}
           </View>
           <ScrollView
+            key={tab}
             contentContainerStyle={styles.scroll}
             showsVerticalScrollIndicator={false}
           >
-            <View style={styles.notice}>
-              <Text accessibilityRole="header" style={styles.title}>
-                {current.label}
-              </Text>
-              <Text style={styles.caption}>{current.notice}</Text>
-            </View>
+            <Text style={styles.caption}>BẢN XEM THỬ · DỮ LIỆU MẪU</Text>
+            {tab === "requests" ? <MyRequestsContent /> : <MyPathsContent />}
           </ScrollView>
         </View>
       )}
@@ -116,16 +113,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   selectedLabel: { color: colors.primary },
-  scroll: { paddingBottom: 24 },
-  notice: {
-    padding: 24,
-    gap: 8,
-    borderRadius: appRadius.card,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  title: { ...typography.heading, fontFamily: fonts.bold, color: colors.ink },
+  scroll: { paddingBottom: 24, gap: 16 },
   caption: {
     ...typography.secondary,
     fontFamily: fonts.body,

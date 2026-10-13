@@ -1,9 +1,37 @@
 # Validation — Spec 003
 
-Cập nhật: 2026-10-09. Phạm vi theo [spec](spec.md), nghiệm thu theo
+Cập nhật: 2026-10-13. Phạm vi theo [spec](spec.md), nghiệm thu theo
 [checklist](checklist.md). Phạm vi mobile profile/settings, recovery Auth và tài liệu liên quan.
 
-## Kết quả hiện tại
+## Gỡ vòng import và hợp nhất Hành trình — 2026-10-13
+
+Theo yêu cầu mới, gỡ vòng runtime shell → AppHeader → product-shell screens →
+shell và paths/screens → sessions/context/screens → paths. Public entry points
+`product-shell/state`, `learning-paths/state`, `learning-paths/policy` và
+`sessions/state` chỉ export state hoặc pure policy. Checker cho phép đúng bốn
+subpath đã khai báo, vẫn chặn các deep import private khác. Không suppress warn,
+không lazy-load để che vòng. Đồ thị import của source TypeScript sau khi loại
+type-only imports có 0 cycle groups (382 runtime source files, trước đó 2 nhóm).
+Ignored analyzer: `.expo/check-runtime-cycles.cjs`.
+
+Hồ sơ → Hành trình dùng chung MyRequestsContent/MyPathsContent từ các preview
+provider hiện có. Hai tab đồng bộ `tab=requests|paths` trong URL; tab sai về
+requests. Route list `/requests` và `/paths` redirect đúng tab; chi tiết/editor
+và Calendar dùng chung `learningRoutes`. Back từ chi tiết về đúng hub, hub về
+Hồ sơ, không mount hai header hay duy trì danh sách riêng. Dữ liệu mẫu được ghi
+rõ; chưa nối API Learning Request/Path và không sửa BE.
+
+Typecheck/lint/structure đạt (383 source files); mobile tests 177/177 đạt; web
+export đạt (1875 modules). Browser `.expo/learning-hub-connected-browser.cjs`
+đạt 7 nhóm/4 fixture requests, không page error/cycle warning: profile entry,
+filter/detail/back, tạo draft mẫu hiện trong hub, path/session detail,
+schedule/hold context, legacy redirects, Calendar và invalid tab. Screenshot
+320/375/430 ở `.expo/skills-validation/learning-hub-requests-*.png` và
+`learning-hub-paths-*.png`; result `learning-hub-connected-result.json`.
+Không mutation BE thật. Android/iOS và require-cycle log của cold Metro trên
+thiết bị chưa chạy lại; source graph và browser không thay thế native evidence.
+
+## Kết quả nền trước các amendment dưới đây
 
 | Kiểm tra                   | Kết quả                                                                                                                                                                      |
 | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

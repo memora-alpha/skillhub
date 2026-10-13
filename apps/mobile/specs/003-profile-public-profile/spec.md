@@ -159,8 +159,12 @@ không tồn tại và retry đều có đúng identity, nội dung và trạng 
   Hành trình của tôi, Đánh giá về tôi, Thành tích, Cài đặt) rồi giới thiệu/kỹ năng.
   Hành trình của tôi mở màn `/my-learning` được bảo vệ theo phiên, có hai tab Yêu cầu học
   và Lộ trình; mặc định Yêu cầu học, quay lại Hồ sơ và không có chuông trên header.
-  Hai tab hiện trạng thái chưa kết nối; Đánh giá về tôi hiện thông báo chưa kết nối.
-  Chưa triển khai danh sách, chi tiết hoặc contract API cho các mục này trong spec profile.
+  Hai tab dùng chung danh sách mẫu yêu cầu/lộ trình đã có, gồm bộ lọc và link
+  tạo/chỉnh sửa/chi tiết tương ứng. Dữ liệu ghi rõ bản xem thử; không nối API
+  Learning Request/Path trong thay đổi điều hướng này. `/requests` và `/paths`
+  chuyển về `/my-learning?tab=requests|paths`, không có danh sách riêng bị lặp.
+  Đổi tab đồng bộ URL; link từ Lịch học tới tab Lộ trình, back hub về Hồ sơ.
+  Đánh giá về tôi vẫn hiện thông báo chưa kết nối. Amendment 2026-10-13.
   Bỏ huy hiệu mẫu và số dư demo. Thông tin riêng tư giữ trong Cài đặt → Tài khoản.
   Summary có uy tín/kỹ năng xác minh và ô Lộ trình hoàn thành “—”/“Sắp có”.
   Own hero có “Danh hiệu · Sắp có”; chưa chọn/hiển thị danh hiệu thật trên public.

@@ -10,7 +10,7 @@ import {
 import { BrandLogo } from "@/components/BrandLogo";
 import { Avatar } from "@/components/Avatar";
 import { Icon } from "@/components/Icon";
-import { useProductPreview } from "@/features/product-shell";
+import { useProductPreview } from "@/features/product-shell/state";
 import {
   appColors as colors,
   appRadius as radius,
