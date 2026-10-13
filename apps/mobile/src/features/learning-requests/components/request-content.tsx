@@ -1,92 +1,52 @@
-import { View } from "react-native";
-import { Badge } from "@/components/Badge";
-import { Copy } from "@/components/feature-page";
-import { RequestSection as Panel } from "./request-section";
+import { Text, View } from "react-native";
+import { Icon } from "@/components/Icon";
 import { FormNotice } from "@/components/FormNotice";
-import { uiLabel } from "@/constants/ui-copy";
-import { useSkillName } from "../hooks/use-requests";
-import {
-  isOwnRequest,
-  requestState,
-  statusLabels,
-  dateLabel,
-} from "../utils/request-policy";
+import { RequestDetailSection as Panel } from "./request-detail-section";
+import { RequestDetailSummary } from "./request-detail-summary";
+import { RequestExchangeDetails } from "./request-exchange-details";
+import { RequestScheduleDetails } from "./request-schedule-details";
+import { RequestCreditDetails } from "./request-credit-details";
+import { RequestRequesterDetails } from "./request-public-details";
+import { isOwnRequest, requestState } from "../utils/request-policy";
 import type { OwnerRequest, PublicRequestDetail } from "../types";
+import {
+  requestDetailColors as colors,
+  requestDetailStyles as styles,
+} from "./request-detail.styles";
+
 export function RequestContent({
   request,
 }: {
   request: OwnerRequest | PublicRequestDetail;
 }) {
   const own = isOwnRequest(request);
-  const skill = useSkillName(own ? request.skillId : undefined);
   const state = requestState(request);
   return (
     <>
-      <Panel title={request.title}>
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-          <Badge
-            label={statusLabels[state]}
-            variant={
-              state === "OPEN"
-                ? "success"
-                : state === "PENDING_MODERATION"
-                  ? "warning"
-                  : "default"
-            }
-          />
-          {own && (
-            <Badge label={`Kiểm duyệt: ${uiLabel(request.moderationStatus)}`} />
-          )}
-        </View>
-        <Copy>
-          {own
-            ? (skill.data?.name ?? "Thông tin kỹ năng chưa khả dụng")
-            : request.skill.name}{" "}
-          ·{" "}
-          {request.currentLevel
-            ? uiLabel(request.currentLevel)
-            : "Chưa khai trình độ"}
-        </Copy>
-        {!own && <Copy muted>Người đăng: {request.owner.displayName}</Copy>}
-        {request.verifiedTeacherOnly && (
-          <Copy>Chỉ nhận người dạy có kỹ năng này đã được xác minh.</Copy>
-        )}
-        <Copy muted>Ngày tạo: {dateLabel(request.createdAt)}</Copy>
-        {request.expiresAt && (
-          <Copy muted>Hạn yêu cầu: {dateLabel(request.expiresAt)}</Copy>
-        )}
-      </Panel>
-      <Panel title="Nhu cầu học">
-        <Copy>{request.description}</Copy>
-      </Panel>
-      <Panel title="Mục tiêu học tập">
-        <Copy>{request.learningGoal}</Copy>
-      </Panel>
-      {!own && request.tags.length > 0 && (
-        <Panel title="Tag">
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-            {request.tags.map((tag) => (
-              <Badge key={tag.id} label={tag.label} />
-            ))}
+      <RequestDetailSummary request={request} />
+      <Panel title={own ? "Tôi muốn học" : "Nhu cầu học tập"} icon="book">
+        <Text selectable style={styles.body}>
+          {request.description}
+        </Text>
+        <View
+          style={[
+            styles.inset,
+            { flexDirection: "row", alignItems: "flex-start", gap: 10 },
+          ]}
+        >
+          <Icon name="flag" size={18} color={colors.accent} />
+          <View style={{ flex: 1, gap: 4 }}>
+            <Text style={styles.label}>Mục tiêu kỳ vọng</Text>
+            <Text selectable style={styles.emphasis}>
+              {request.learningGoal}
+            </Text>
           </View>
-        </Panel>
-      )}
-      {own && request.tagIds.length > 0 && (
-        <Copy muted>
-          {request.tagIds.length} tag đã chọn được giữ nguyên. Tên tag hiện chưa
-          khả dụng.
-        </Copy>
-      )}
-      {request.preferredSlots.length > 0 && (
-        <Panel title="Thời gian ưu tiên">
-          <Copy muted>Theo múi giờ thiết bị · Chưa chốt lịch học</Copy>
-          {request.preferredSlots.map((slot, index) => (
-            <Copy key={`${slot.startAt}-${index}`}>
-              {dateLabel(slot.startAt)} → {dateLabel(slot.endAt)}
-            </Copy>
-          ))}
-        </Panel>
-      )}
+        </View>
+      </Panel>
+      <RequestExchangeDetails request={request} />
+      <RequestScheduleDetails request={request} />
+      <RequestCreditDetails request={request} />
+      {!own && <RequestRequesterDetails owner={request.owner} />}
       {own &&
         request.moderationStatus === "REJECTED" &&
         request.moderationRejectReason && (
