@@ -4,6 +4,25 @@ Cập nhật: 2026-10-13. Source trên `feat/mobile-skills`, tạo từ `dev`
 `0790c3b`. Phạm vi theo [spec](spec.md), nghiệm thu theo [checklist](checklist.md).
 Implementation có ở mobile; full API/scanner và Android/iOS còn pending.
 
+## Sonar remediation — 2026-10-13
+
+Đã xử lý các findings user gửi: explicit localeCompare sort và codePointAt cho
+evidence draft, Promise-returning fixture methods không async thừa, giảm nesting
+polling bằng evidence-polling helper, tách uploadMissingFile/scanFile trong
+prepare-evidence, tách success feedback/use-skill-action và headers/HTTP client.
+Các UI branches bỏ nested ternary/template; component props Readonly; header
+chi tiết là SkillDetailHeader ổn định, nhận waiting state từ VerificationHistory.
+Không sửa BE, dependency, auth/retry/scan policy hoặc DTO.
+
+`npm run lint`, `npm run check-types`, `npm run check-structure` qua (386 source
+files); `npm test`184/184 qua. Ba regression mới kiểm READY recheck, polling mixed
+error giữ file IDs/checking guard và timeout/recheck. Suite đầy đủ bao gồm HTTP
+renewal/multipart/idempotency/session boundary, Skills save/cache/profile consumers.
+Local AST audit34 source files/34 component props: không còn nested ternary/
+template, async-without-await, mutable component props hoặc function nesting>5
+trong use-evidence-draft. Audit là kiểm source riêng, không thay SonarCloud analysis
+hoặc chứng minh Quality Gate đã pass. Chưa commit/push hay tick native/API acceptance.
+
 ## Thời gian bằng chứng theo BE và xử lý 503 — 2026-10-13
 
 Theo clarification, đây là lỗi timezone cấu hình Prisma/BE, không phải timeout

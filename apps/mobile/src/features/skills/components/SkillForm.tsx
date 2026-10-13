@@ -29,7 +29,7 @@ import {
 } from "../schemas/skill-form";
 import type { OwnSkill, CatalogSkill } from "../types/skills";
 
-export function SkillForm({ initial }: { initial?: OwnSkill }) {
+export function SkillForm({ initial }: Readonly<{ initial?: OwnSkill }>) {
   const { api } = useSkills();
   const { showToast } = useToast();
   const mountedSession = useMountedSession();

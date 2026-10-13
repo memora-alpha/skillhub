@@ -44,13 +44,13 @@ export function SkillsLayout({
   scroll = true,
   locked,
   fallback = "/my-skills",
-}: {
+}: Readonly<{
   title: string;
   children: ReactNode;
   scroll?: boolean;
   locked?: () => boolean;
   fallback?: Href;
-}) {
+}>) {
   const { session } = useAuthSession();
   const router = useRouter();
   if (!session) return <Redirect href="/login" />;
@@ -87,6 +87,6 @@ export function SkillsLayout({
     </SafeAreaView>
   );
 }
-export function SkillText({ children }: { children: ReactNode }) {
+export function SkillText({ children }: Readonly<{ children: ReactNode }>) {
   return <Text style={skillStyles.body}>{children}</Text>;
 }

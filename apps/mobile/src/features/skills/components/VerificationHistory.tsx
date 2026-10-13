@@ -1,5 +1,5 @@
 import { FlatList, Text, View } from "react-native";
-import type { ReactNode } from "react";
+import type { ComponentType } from "react";
 import { useRouter } from "expo-router";
 import {
   useVerificationHistory,
@@ -13,19 +13,21 @@ import { SubmittedEvidence } from "./SubmittedEvidence";
 import { useSkills } from "../context/SkillsProvider";
 import { verificationItems } from "../utils/verification-state";
 import { evidenceTime } from "../utils/evidence-time";
-export function VerificationHistory({
+export function VerificationHistory<T extends object>({
   id,
-  header,
+  header: Header,
+  headerProps,
   pending = false,
   locked,
   onRefresh,
-}: {
+}: Readonly<{
   id: string;
-  header: ReactNode | ((waiting: boolean) => ReactNode);
+  header: ComponentType<T & { waiting: boolean }>;
+  headerProps: T;
   pending?: boolean;
   locked?: () => boolean;
   onRefresh?: () => void;
-}) {
+}>) {
   const query = useVerificationHistory(id);
   const router = useRouter();
   const { submittedVerifications } = useSkills();
@@ -42,9 +44,10 @@ export function VerificationHistory({
       onRefresh={onRefresh ?? (() => void query.refetch())}
       ListHeaderComponent={
         <View style={{ gap: 12, marginBottom: 16 }}>
-          {typeof header === "function"
-            ? header(items.some((item) => item.status === "PENDING"))
-            : header}
+          <Header
+            {...headerProps}
+            waiting={items.some((item) => item.status === "PENDING")}
+          />
           <Text style={skillStyles.heading}>Lịch sử xác minh</Text>
           <QueryFeedback
             query={query}

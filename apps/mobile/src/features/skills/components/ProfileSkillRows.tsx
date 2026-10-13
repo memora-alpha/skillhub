@@ -12,10 +12,10 @@ import { VerificationBadge } from "./VerificationBadge";
 export function ProfileSkillSection({
   children,
   onManage,
-}: {
+}: Readonly<{
   children: ReactNode;
   onManage?: () => void;
-}) {
+}>) {
   return (
     <View style={styles.card}>
       <View style={styles.header}>
@@ -35,13 +35,13 @@ export function ProfileSkillRow({
   status,
   isVisible,
   onPress,
-}: {
+}: Readonly<{
   name: string;
   level: string;
   status: SkillBadge;
   isVisible?: boolean;
   onPress?: () => void;
-}) {
+}>) {
   const content = (
     <>
       <View style={styles.content}>
@@ -77,10 +77,10 @@ export function ProfileSkillRow({
 export function ProfileSkillMore({
   busy = false,
   onPress,
-}: {
+}: Readonly<{
   busy?: boolean;
   onPress: () => void;
-}) {
+}>) {
   return (
     <Pressable
       accessibilityRole="button"

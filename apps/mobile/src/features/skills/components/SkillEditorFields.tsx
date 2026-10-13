@@ -16,13 +16,13 @@ export function SkillEditorFields({
   form,
   disabled,
   onSelect,
-}: {
+}: Readonly<{
   baseline?: OwnSkill;
   selected?: CatalogSkill;
   form: UseFormReturn<SkillFormValues>;
   disabled: boolean;
   onSelect: (skill: CatalogSkill) => void;
-}) {
+}>) {
   return (
     <View style={formStyles.section}>
       <View style={formStyles.sectionHeader}>

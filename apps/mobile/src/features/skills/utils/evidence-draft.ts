@@ -53,9 +53,10 @@ export function evidenceDraft(
       ) ||
     /[\\/]/.test(asset.name) ||
     asset.name.length > 255 ||
-    [...asset.name].some(
-      (char) => char.charCodeAt(0) <= 31 || char.charCodeAt(0) === 127,
-    )
+    [...asset.name].some((char) => {
+      const point = char.codePointAt(0)!;
+      return point <= 31 || point === 127;
+    })
   )
     throw new Error(
       "Chọn file PDF, DOC, DOCX, JPG, JPEG, PNG hoặc WEBP hợp lệ.",
@@ -97,7 +98,9 @@ export function readyFileIds(files: EvidenceDraft[]): string[] | null {
   )
     return null;
   const ids = files.map((file) => file.fileId!);
-  return new Set(ids).size === ids.length ? ids.sort() : null;
+  return new Set(ids).size === ids.length
+    ? ids.sort((left, right) => left.localeCompare(right))
+    : null;
 }
 export const needsScan = (state: string) =>
   state === "QUARANTINED" || state === "SCANNING";

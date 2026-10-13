@@ -9,20 +9,19 @@ export function EvidenceFiles({
   files,
   disabled,
   onRemove,
-}: {
+}: Readonly<{
   files: EvidenceDraft[];
   disabled: boolean;
   onRemove: (id: string) => void;
-}) {
+}>) {
   return (
     <View style={{ gap: 8 }}>
       {files.map((file) => {
         const image = file.mime.startsWith("image/");
-        const status = file.checking
-          ? "Đang kiểm tra…"
-          : file.state === "SELECTED"
-            ? null
-            : (fileStateLabels[file.state] ?? "File không khả dụng");
+        let status: string | null = null;
+        if (file.checking) status = "Đang kiểm tra…";
+        else if (file.state !== "SELECTED")
+          status = fileStateLabels[file.state] ?? "File không khả dụng";
         const remove = (
           <Pressable
             accessibilityRole="button"

@@ -6,6 +6,10 @@ import { useSkills } from "../context/SkillsProvider";
 import { needsScan, type EvidenceDraft } from "../utils/evidence-draft";
 import { skillError } from "../utils/skill-errors";
 import { prepareEvidence } from "../utils/prepare-evidence";
+import {
+  markEvidenceChecking,
+  reconcileEvidencePolling,
+} from "../utils/evidence-polling";
 
 export function useEvidenceDraft(id: string, initial: EvidenceDraft[] = []) {
   const { api, isCurrent, verificationDrafts } = useSkills();
@@ -25,13 +29,7 @@ export function useEvidenceDraft(id: string, initial: EvidenceDraft[] = []) {
     useCallback(() => {
       active.current = true;
       attempts.current.clear();
-      setFiles((current) =>
-        current.map((file) =>
-          file.fileId && (needsScan(file.state) || file.state === "READY")
-            ? { ...file, checking: true, error: undefined }
-            : file,
-        ),
-      );
+      setFiles(markEvidenceChecking);
       setFocused(true);
       setBusy(uploading.current);
       return () => {
@@ -48,13 +46,7 @@ export function useEvidenceDraft(id: string, initial: EvidenceDraft[] = []) {
       if (state !== "active") preparation.current?.abort();
       if (state === "active") {
         attempts.current.clear();
-        setFiles((current) =>
-          current.map((file) =>
-            file.fileId && (needsScan(file.state) || file.state === "READY")
-              ? { ...file, checking: true, error: undefined }
-              : file,
-          ),
-        );
+        setFiles(markEvidenceChecking);
       }
     });
     return () => {
@@ -82,44 +74,25 @@ export function useEvidenceDraft(id: string, initial: EvidenceDraft[] = []) {
           ),
       8000,
     );
-    const timer = setTimeout(() => {
-      void (async () => {
-        const results = await Promise.allSettled(
-          waiting.map(async (file) => {
-            attempts.current.set(
-              file.fileId!,
-              (attempts.current.get(file.fileId!) ?? 0) + 1,
-            );
-            return api.fileStatus(id, file.fileId!, abort.signal);
-          }),
-        );
-        if (abort.signal.aborted || !active.current || !isCurrent()) return;
-        const failed = results.find((result) => result.status === "rejected");
-        if (failed?.status === "rejected")
-          showToast(skillError(failed.reason), "error");
-        setFiles((current) =>
-          current.map((file) => {
-            const index = waiting.findIndex(
-              (item) => item.localId === file.localId,
-            );
-            const result = results[index];
-            if (!result || index < 0) return file;
-            return result.status === "fulfilled"
-              ? {
-                  ...file,
-                  state: result.value.state,
-                  checking: false,
-                  error:
-                    needsScan(result.value.state) &&
-                    (attempts.current.get(file.fileId!) ?? 0) >= 10
-                      ? "Đang chờ kiểm tra lâu hơn dự kiến. Bạn có thể kiểm tra lại."
-                      : undefined,
-                }
-              : { ...file, error: skillError(result.reason) };
-          }),
-        );
-      })();
-    }, delay);
+    const poll = async () => {
+      const results = await Promise.allSettled(
+        waiting.map((file) => {
+          attempts.current.set(
+            file.fileId!,
+            (attempts.current.get(file.fileId!) ?? 0) + 1,
+          );
+          return api.fileStatus(id, file.fileId!, abort.signal);
+        }),
+      );
+      if (abort.signal.aborted || !active.current || !isCurrent()) return;
+      const failed = results.find((result) => result.status === "rejected");
+      if (failed?.status === "rejected")
+        showToast(skillError(failed.reason), "error");
+      setFiles((current) =>
+        reconcileEvidencePolling(current, waiting, results, attempts.current),
+      );
+    };
+    const timer = setTimeout(() => void poll(), delay);
     return () => {
       clearTimeout(timer);
       abort.abort();

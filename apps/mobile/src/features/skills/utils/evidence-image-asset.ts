@@ -21,11 +21,12 @@ export function evidenceImageAsset(asset: ImagePickerAsset): EvidenceAsset {
     throw new Error("Chọn ảnh JPG, PNG hoặc WebP.");
   const extension = mime === "image/jpeg" ? "jpg" : mime.split("/")[1];
   // The picker may return a converted JPEG with the original HEIC filename.
-  const name = asset.fileName
-    ? evidenceFormats[nameExtension ?? ""] === mime
-      ? asset.fileName
-      : `${asset.fileName.replace(/\.[^.]*$/, "")}.${extension}`
-    : `bang-chung.${extension}`;
+  let name = `bang-chung.${extension}`;
+  if (asset.fileName) {
+    name = asset.fileName;
+    if (evidenceFormats[nameExtension ?? ""] !== mime)
+      name = `${asset.fileName.replace(/\.[^.]*$/, "")}.${extension}`;
+  }
   return {
     uri: asset.uri,
     name,

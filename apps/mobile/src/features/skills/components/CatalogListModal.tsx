@@ -23,7 +23,7 @@ export function CatalogListModal({
   onSearch,
   onClose,
   onSelect,
-}: {
+}: Readonly<{
   open: boolean;
   search: string;
   selected?: CatalogSkill;
@@ -31,7 +31,7 @@ export function CatalogListModal({
   onSearch: (value: string) => void;
   onClose: () => void;
   onSelect: (skill: CatalogSkill) => void;
-}) {
+}>) {
   const query = useCatalog(search, open);
   const length = [...search.trim().normalize("NFC")].length;
   const invalid = length === 1 || length > 100;

@@ -30,6 +30,13 @@ export function useSkillAction({ notifySuccess = true } = {}) {
     }, []),
   );
   const current = () => focused.current && isCurrent();
+  function notifySaved(refreshed: boolean, successMessage?: string) {
+    if (!notifySuccess) return;
+    const message = refreshed
+      ? (successMessage ?? "Đã lưu thay đổi.")
+      : `${successMessage ?? "Đã lưu."} Chưa cập nhật được toàn bộ dữ liệu; hãy tải lại.`;
+    showToast(message, refreshed ? "success" : "info");
+  }
   async function run<T>(
     operation: string,
     body: unknown,
@@ -49,12 +56,7 @@ export function useSkillAction({ notifySuccess = true } = {}) {
       const refreshed = refreshAfter ? await refresh() : true;
       if (!current()) return;
       intent.current.clear();
-      if (refreshAfter) {
-        const message = refreshed
-          ? (successMessage ?? "Đã lưu thay đổi.")
-          : `${successMessage ?? "Đã lưu."} Chưa cập nhật được toàn bộ dữ liệu; hãy tải lại.`;
-        if (notifySuccess) showToast(message, refreshed ? "success" : "info");
-      }
+      if (refreshAfter) notifySaved(refreshed, successMessage);
       done?.(result, refreshed);
       return result;
     } catch (failure) {
