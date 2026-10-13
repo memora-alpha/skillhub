@@ -19,6 +19,12 @@ export const formStyles = StyleSheet.create({
   icon: { padding: 9, borderRadius: 12, backgroundColor: colors.primarySoft },
   label: { fontFamily: fonts.semibold, ...typography.body, color: colors.ink },
   options: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  levelGuide: {
+    gap: 8,
+    padding: 14,
+    borderRadius: 12,
+    backgroundColor: colors.surfaceLow,
+  },
   option: {
     flexGrow: 1,
     flexBasis: "45%",
