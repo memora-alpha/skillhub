@@ -12,6 +12,7 @@ import {
   ProfileSkillMore,
 } from "./ProfileSkillRows";
 import { useProfileSkillWindow } from "../hooks/use-profile-skill-window";
+import { useSkills } from "../context/SkillsProvider";
 
 export function OwnProfileSkillList() {
   const query = useOwnSkills();
@@ -57,6 +58,8 @@ export function OwnProfileSkillList() {
 }
 export function PublicSelfSkillList() {
   const query = usePublicSkills();
+  const router = useRouter();
+  const { userId } = useSkills();
   const items = uniqueItems(query.data?.pages);
   const preview = useProfileSkillWindow({
     count: items.length,
@@ -78,6 +81,12 @@ export function PublicSelfSkillList() {
           name={skill.skill.name}
           level={levelLabels[skill.level]}
           status={skill.verificationStatus}
+          onPress={() =>
+            router.push({
+              pathname: "/public-skills/[userId]/[sharingSkillId]",
+              params: { userId, sharingSkillId: skill.id },
+            })
+          }
         />
       ))}
       {preview.hasMore && (
