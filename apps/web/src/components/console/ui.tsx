@@ -77,6 +77,7 @@ const STATUS: Record<string, [string, Tone]> = {
   PENDING: ["Chờ duyệt", "warn"],
   APPROVED: ["Đã duyệt", "ok"],
   REJECTED: ["Từ chối", "bad"],
+  REVOKED: ["Đã thu hồi", "bad"],
   PENDING_MODERATION: ["Chờ kiểm duyệt", "warn"],
   PENDING_REVIEW: ["Chờ duyệt", "warn"],
   PUBLISHED: ["Đã đăng", "ok"],
