@@ -3,6 +3,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { Redirect, useRouter } from "expo-router";
 import { EmptyState } from "@/components/EmptyState";
 import { useAuthSession } from "@/features/auth";
+import { PublicSelfSkillList } from "@/features/skills";
 import { ProfileLayout } from "../components/ProfileLayout";
 import {
   ProfileAbout,
@@ -67,10 +68,14 @@ function PublicProfileContent({ userId }: { userId: string | null }) {
             <>
               <ProfileSummary profile={result.profile} />
               <ProfileAbout bio={result.profile.bio} />
-              <ProfileSkills
-                profile={result.profile}
-                available={userId !== profile.userId}
-              />
+              {userId === profile.userId ? (
+                <PublicSelfSkillList />
+              ) : (
+                <ProfileSkills
+                  profile={result.profile}
+                  available={userId !== profile.userId}
+                />
+              )}
             </>
           ) : result.status === "error" ? (
             <EmptyState
@@ -97,6 +102,6 @@ function PublicProfileContent({ userId }: { userId: string | null }) {
 }
 
 const styles = StyleSheet.create({
-  stack: { gap: 12 },
+  stack: { gap: 12, width: "100%", maxWidth: 640, alignSelf: "center" },
   loading: { alignItems: "center", padding: 32, gap: 12 },
 });

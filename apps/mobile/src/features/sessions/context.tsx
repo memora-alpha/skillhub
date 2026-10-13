@@ -5,7 +5,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { usePathsPreview } from "@/features/learning-paths";
+import { usePathsPreview } from "@/features/learning-paths/state";
 export type PreviewSession = {
   id: string;
   pathId: string;

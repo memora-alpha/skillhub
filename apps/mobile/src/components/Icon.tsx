@@ -35,6 +35,7 @@ export type IconName =
   | "settings"
   | "filter"
   | "clipboard"
+  | "trash"
   | "help"
   | "edit"
   | "shield"
@@ -43,7 +44,9 @@ export type IconName =
   | "flag"
   | "send"
   | "paperclip"
-  | "video";
+  | "image"
+  | "video"
+  | "wifi-off";
 export function Icon({
   name,
   size = iconSizes.control,
@@ -69,6 +72,20 @@ export function Icon({
     >
       {name === "zap" && (
         <Polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+      )}
+      {name === "image" && (
+        <>
+          <Rect x={3} y={3} width={18} height={18} rx={3} />
+          <Circle cx={8} cy={8} r={1.5} />
+          <Polyline points="21 15 16 10 5 21" />
+        </>
+      )}
+      {name === "wifi-off" && (
+        <>
+          <Line x1={2} y1={2} x2={22} y2={22} />
+          <Path d="M8.5 8.5A12 12 0 0 0 2 12M6 16a8 8 0 0 1 6-2.5M15.5 9.3A12 12 0 0 1 22 12M12 5a16 16 0 0 1 10 3.5M2 8.5a16 16 0 0 1 2.6-1.8" />
+          <Circle cx={12} cy={19} r={1} />
+        </>
       )}
       {name === "compass" && (
         <>
@@ -214,6 +231,13 @@ export function Icon({
           <Line x1={3} y1={18} x2={7} y2={18} />
           <Line x1={11} y1={18} x2={21} y2={18} />
           <Circle cx={9} cy={18} r={2} />
+        </>
+      )}
+      {name === "trash" && (
+        <>
+          <Path d="M3 6h18M9 6V4h6v2M5 6l1 14h12l1-14" />
+          <Line x1="10" y1="10" x2="10" y2="16" />
+          <Line x1="14" y1="10" x2="14" y2="16" />
         </>
       )}
       {name === "clipboard" && (

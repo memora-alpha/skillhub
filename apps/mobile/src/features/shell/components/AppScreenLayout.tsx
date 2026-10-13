@@ -26,7 +26,11 @@ type AppScreenLayoutProps = Readonly<{
   title: string;
   selected: string;
   rightAction?: ReactNode | ((openNotice: OpenNotice) => ReactNode);
-  back?: Readonly<{ href: Href; label: string }>;
+  back?: Readonly<{
+    href: Href;
+    label: string;
+    behavior?: "destination" | "history";
+  }>;
   contentStyle?: StyleProp<ViewStyle>;
   children: (openNotice: OpenNotice) => ReactNode;
 }>;
@@ -109,7 +113,12 @@ export function AppScreenLayout({
   const edges = back
     ? (["top", "left", "right", "bottom"] as const)
     : (["top", "left", "right"] as const);
-  const handleBack = back ? () => router.dismissTo(back.href) : undefined;
+  const handleBack = back
+    ? () => {
+        if (back.behavior === "history" && router.canGoBack()) router.back();
+        else router.dismissTo(back.href);
+      }
+    : undefined;
   const headerAction =
     typeof rightAction === "function" ? rightAction(action) : rightAction;
   return (
