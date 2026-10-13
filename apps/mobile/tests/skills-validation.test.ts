@@ -94,6 +94,11 @@ test("evidence rejects empty/unknown size, unsupported or mismatching MIME, and 
     { ...valid, size: 10_000_001 },
     { ...valid, mimeType: "image/png" },
     { ...valid, name: "proof.exe" },
+    { ...valid, name: ".pdf" },
+    { ...valid, name: "proof.EXE.pdf" },
+    { ...valid, name: "proof.ps1.pdf" },
+    { ...valid, name: "proof.constructor", mimeType: undefined },
+    { ...valid, name: "proof.__proto__", mimeType: undefined },
   ])
     assert.throws(() => evidenceDraft(bad, "local"));
 });
@@ -135,4 +140,18 @@ test("web evidence multipart uses file field and actual bytes, never avatar fiel
   const body = evidenceFormData(draft);
   assert.equal(body.has("image"), false);
   assert.equal(await (body.get("file") as File).text(), "proof");
+});
+
+test("web multipart normalizes generic picker MIME to the backend format without changing bytes", async () => {
+  for (const type of ["", "application/octet-stream", "APPLICATION/PDF"]) {
+    const file = new File(["%PDF-1.7\nproof"], "proof.pdf", { type });
+    const draft = evidenceDraft(
+      { uri: "blob:proof", name: file.name, file },
+      "local",
+    );
+    const sent = evidenceFormData(draft).get("file") as File;
+    assert.equal(sent.type, "application/pdf");
+    assert.equal(sent.name, file.name);
+    assert.deepEqual(await sent.arrayBuffer(), await file.arrayBuffer());
+  }
 });

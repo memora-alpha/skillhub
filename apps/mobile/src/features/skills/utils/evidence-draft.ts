@@ -34,12 +34,23 @@ export function evidenceDraft(
   asset: EvidenceAsset,
   localId: string,
 ): EvidenceDraft {
-  const extension = asset.name.split(".").at(-1)?.toLowerCase() ?? "";
-  const mime = evidenceFormats[extension];
-  const claimed = asset.file?.type || asset.mimeType;
+  const segments = asset.name.toLowerCase().split(".");
+  const extension = segments.at(-1) ?? "";
+  const mime = Object.hasOwn(evidenceFormats, extension)
+    ? evidenceFormats[extension]
+    : undefined;
+  const claimed = (asset.file?.type || asset.mimeType)?.trim().toLowerCase();
   if (
     !asset.uri ||
     !mime ||
+    !segments[0] ||
+    segments
+      .slice(0, -1)
+      .some((part) =>
+        /^(exe|com|dll|bat|cmd|ps1|js|mjs|html|htm|svg|php|sh|jar|msi)$/.test(
+          part,
+        ),
+      ) ||
     /[\\/]/.test(asset.name) ||
     asset.name.length > 255 ||
     [...asset.name].some(
@@ -49,11 +60,7 @@ export function evidenceDraft(
     throw new Error(
       "Chọn file PDF, DOC, DOCX, JPG, JPEG, PNG hoặc WEBP hợp lệ.",
     );
-  if (
-    claimed &&
-    claimed !== "application/octet-stream" &&
-    claimed.toLowerCase() !== mime
-  )
+  if (claimed && claimed !== "application/octet-stream" && claimed !== mime)
     throw new Error("Tên file và định dạng không khớp. Hãy chọn file khác.");
   const size = asset.file?.size ?? asset.size;
   if (size === undefined || !Number.isSafeInteger(size) || size <= 0)
@@ -66,7 +73,12 @@ export function evidenceDraft(
 }
 export function evidenceFormData(draft: EvidenceDraft) {
   const body = new FormData();
-  if (draft.asset.file) body.append("file", draft.asset.file, draft.asset.name);
+  if (draft.asset.file)
+    body.append(
+      "file",
+      draft.asset.file.slice(0, draft.asset.file.size, draft.mime),
+      draft.asset.name,
+    );
   else
     body.append("file", {
       uri: draft.asset.uri,
