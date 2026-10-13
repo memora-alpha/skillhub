@@ -38,7 +38,7 @@ export function RequestPublicFooter({ request }: { request: PublicRequest }) {
     <View style={styles.footer}>
       <View style={styles.footerContent}>
         <Text style={styles.caption}>
-          Gửi đề xuất trước khi trao đổi. Chức năng này đang được hoàn thiện.
+          Gửi đề xuất đang ở bản xem thử, chưa gửi tới người nhận.
         </Text>
         <View style={styles.footerRow}>
           <Button
@@ -57,8 +57,20 @@ export function RequestPublicFooter({ request }: { request: PublicRequest }) {
           <Button
             variant="craft"
             style={[styles.publish, styles.footerPrimary]}
-            accessibilityLabel="Gửi đề xuất"
-            disabled
+            accessibilityLabel="Gửi đề xuất — bản xem thử"
+            onPress={() =>
+              router.push({
+                pathname: "/send-proposal",
+                params: {
+                  mode: "mock-request",
+                  requestId: request.id,
+                  previewTitle: request.title,
+                  previewOwnerId: request.owner.id,
+                  previewOwnerName: request.owner.displayName,
+                  previewSkillName: request.skill.name,
+                },
+              })
+            }
           >
             <Icon name="message" size={17} color={colors.white} />
             <Text style={styles.publishLabel}>Gửi đề xuất</Text>
