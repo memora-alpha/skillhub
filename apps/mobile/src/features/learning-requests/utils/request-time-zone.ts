@@ -17,7 +17,8 @@ export function requestTimeZoneNote(
       const offset = formatter
         .formatToParts(new Date())
         .find((part) => part.type === "timeZoneName")?.value;
-      return `Giờ theo thiết bị${offset ? ` · ${offset}` : ""}`;
+      const suffix = offset ? " · " + offset : "";
+      return `Giờ theo thiết bị${suffix}`;
     }
     // Keep the saved IANA zone visible. A current GMT offset alone is ambiguous
     // for recurring schedules in regions with daylight saving time.

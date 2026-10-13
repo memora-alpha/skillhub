@@ -11,12 +11,12 @@ export function RequestSavedSlots({
   disabled,
   error,
   onRemove,
-}: {
+}: Readonly<{
   rows: SlotRow[];
   disabled: boolean;
   error?: string;
   onRemove: (index: number) => void;
-}) {
+}>) {
   if (!rows.length) return null;
   const label = (value: string) => {
     const date = parseLocalDateTime(value);

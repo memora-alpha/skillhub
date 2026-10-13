@@ -38,14 +38,13 @@ export function SendProposalScreen() {
   );
   const targetId = request?.userId ?? profile?.id;
   const targetName = request?.user ?? profile?.name;
-  const skills = preview
-    ? preview.teachingSkills
-    : request
-      ? demoTeachingSkills.filter((skill) =>
-          request.tags.some((tag) => tag.toLowerCase() === skill.id),
-        )
-      : demoTeachingSkills;
-  const [selectedSkillId, setSkillId] = useState(skills[0]?.id ?? "");
+  let skills = demoTeachingSkills;
+  if (preview) skills = preview.teachingSkills;
+  else if (request)
+    skills = demoTeachingSkills.filter((skill) =>
+      request.tags.some((tag) => tag.toLowerCase() === skill.id),
+    );
+  const [selectedSkillId, setSelectedSkillId] = useState(skills[0]?.id ?? "");
   const skillId = preview?.teachingSkills[0]?.id ?? selectedSkillId;
   const [message, setMessage] = useState("");
   const [credit, setCredit] = useState(request?.budget.split(" ")[0] ?? "50");
@@ -60,13 +59,16 @@ export function SendProposalScreen() {
       item.partnerId === targetId &&
       item.requestId === request?.id,
   );
-  const back: Href = preview
-    ? { pathname: "/request/[id]", params: { id: preview.sourceRequestId } }
-    : request
-      ? { pathname: "/explore/requests/[id]", params: { id: request.id } }
-      : profile
-        ? { pathname: "/user/[id]", params: { id: profile.id } }
-        : "/discover";
+  let back: Href = "/discover";
+  if (preview)
+    back = {
+      pathname: "/request/[id]",
+      params: { id: preview.sourceRequestId },
+    };
+  else if (request)
+    back = { pathname: "/explore/requests/[id]", params: { id: request.id } };
+  else if (profile)
+    back = { pathname: "/user/[id]", params: { id: profile.id } };
   const send = () => {
     const next: Record<string, string> = {};
     const parsed = proposalFormSchema.safeParse({
@@ -188,7 +190,7 @@ export function SendProposalScreen() {
                         key={skill.id}
                         accessibilityRole="radio"
                         accessibilityState={{ checked: skillId === skill.id }}
-                        onPress={() => setSkillId(skill.id)}
+                        onPress={() => setSelectedSkillId(skill.id)}
                         style={[
                           styles.skill,
                           skillId === skill.id && styles.selectedSkill,

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { FlatList, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { AppScreenLayout } from "@/features/shell";
@@ -44,6 +44,16 @@ export function RequestsFeedScreen() {
     skillId: filters.skillId || undefined,
     tagIds: filters.tagIds.length ? filters.tagIds : undefined,
   });
+  let emptyContent: ReactNode = null;
+  if (query.isPending) emptyContent = <RequestLoading />;
+  else if (!query.error)
+    emptyContent = (
+      <EmptyState
+        title="Chưa có yêu cầu phù hợp"
+        description="Thử từ khóa khác hoặc quay lại tất cả yêu cầu."
+        titleStyle={styles.heading}
+      />
+    );
   return (
     <AppScreenLayout
       title="Yêu cầu học"
@@ -96,17 +106,7 @@ export function RequestsFeedScreen() {
               }
             />
           )}
-          ListEmptyComponent={
-            query.isPending ? (
-              <RequestLoading />
-            ) : !query.error ? (
-              <EmptyState
-                title="Chưa có yêu cầu phù hợp"
-                description="Thử từ khóa khác hoặc quay lại tất cả yêu cầu."
-                titleStyle={styles.heading}
-              />
-            ) : null
-          }
+          ListEmptyComponent={emptyContent}
           ListFooterComponent={
             <RequestListFooter
               hasNextPage={query.hasNextPage}

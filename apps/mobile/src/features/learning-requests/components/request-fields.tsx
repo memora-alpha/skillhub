@@ -13,11 +13,11 @@ export function RequestFields({
   form,
   pending,
   initial,
-}: {
+}: Readonly<{
   form: UseFormReturn<RequestDraft>;
   pending: boolean;
   initial?: OwnerRequest;
-}) {
+}>) {
   return (
     <View
       pointerEvents={pending ? "none" : "auto"}

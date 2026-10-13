@@ -113,6 +113,7 @@ export async function startLearningRequestsFixture({
     const send = (status: number, value: unknown, pagination?: object) => {
       event.status = status;
       res.writeHead(status);
+      const meta = pagination ? { meta: { pagination } } : {};
       res.end(
         JSON.stringify(
           status >= 400
@@ -120,7 +121,7 @@ export async function startLearningRequestsFixture({
             : {
                 success: true,
                 data: value,
-                ...(pagination ? { meta: { pagination } } : {}),
+                ...meta,
               },
         ),
       );
@@ -290,7 +291,7 @@ export async function startLearningRequestsFixture({
             parsed.signature !== signature ||
             !Number.isInteger(parsed.offset)
           )
-            throw Error();
+            throw new Error("Invalid catalog cursor signature or offset");
           offset = parsed.offset;
         } catch {
           send(400, "INVALID_CATALOG_CURSOR");
@@ -336,7 +337,7 @@ export async function startLearningRequestsFixture({
             parsed.signature !== signature ||
             !Number.isInteger(parsed.offset)
           )
-            throw Error();
+            throw new Error("Invalid request cursor signature or offset");
           offset = parsed.offset;
         } catch {
           send(400, "INVALID_REQUEST_CURSOR");
@@ -395,14 +396,11 @@ export async function startLearningRequestsFixture({
       const hasMore = offset + limit < selected.length;
       send(
         200,
-        page.map((entry) =>
-          scope === "/mine"
-            ? ownerRead(entry)
-            : {
-                ...publicFixture(entry),
-                ...(scope === "/recommended" ? { matchScore: 0.8 } : {}),
-              },
-        ),
+        page.map((entry) => {
+          if (scope === "/mine") return ownerRead(entry);
+          const matching = scope === "/recommended" ? { matchScore: 0.8 } : {};
+          return { ...publicFixture(entry), ...matching };
+        }),
         {
           limit,
           hasMore,
@@ -532,7 +530,7 @@ export async function startLearningRequestsFixture({
   });
   const address = server.address();
   if (!address || typeof address === "string")
-    throw Error("No fixture address");
+    throw new Error("No fixture address");
   const url = `http://127.0.0.1:${address.port}`;
   return {
     url,
@@ -543,7 +541,7 @@ export async function startLearningRequestsFixture({
         body: JSON.stringify(value),
         headers: { "Content-Type": "application/json" },
       });
-      if (!response.ok) throw Error("Fixture control failed");
+      if (!response.ok) throw new Error("Fixture control failed");
     },
     stop: () =>
       new Promise<void>((resolve) => {

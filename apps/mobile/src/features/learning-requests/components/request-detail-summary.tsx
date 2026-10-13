@@ -18,9 +18,9 @@ import {
 
 export function RequestDetailSummary({
   request,
-}: {
+}: Readonly<{
   request: OwnerRequest | PublicRequestDetail;
-}) {
+}>) {
   const own = isOwnRequest(request);
   const skill = useSkillName(own ? request.skillId : undefined);
   const state = requestState(request);

@@ -8,7 +8,9 @@ import {
   requestDetailStyles as styles,
 } from "./request-detail.styles";
 
-export function RequestCreditDetails({ request }: { request: RequestItem }) {
+export function RequestCreditDetails({
+  request,
+}: Readonly<{ request: RequestItem }>) {
   if (!request.desiredCreditPerHour) return null;
   return (
     <View style={[styles.card, { borderColor: colors.primaryMuted }]}>

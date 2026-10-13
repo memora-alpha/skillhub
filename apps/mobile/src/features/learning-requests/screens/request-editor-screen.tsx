@@ -29,6 +29,33 @@ import {
   requestFormStyles as styles,
 } from "../components/request-form.styles";
 
+function editorUnavailable(
+  query: ReturnType<typeof useRequestDetail>,
+  hasBaseline: boolean,
+) {
+  if (!query.valid) return true;
+  if (hasBaseline || !query.data) return false;
+  return !isOwnRequest(query.data) || !editableRequest(query.data);
+}
+
+function RequestEditorReadState({
+  query,
+}: Readonly<{ query: ReturnType<typeof useRequestDetail> }>) {
+  if (query.readDenied)
+    return (
+      <RequestReadDenied
+        denial={query.readDenied}
+        retry={() => void query.refetch()}
+        pending={query.isFetching}
+      />
+    );
+  if (query.error)
+    return (
+      <RequestFailure error={query.error} retry={() => void query.refetch()} />
+    );
+  return <RequestLoading />;
+}
+
 export function RequestEditorScreen() {
   const { id } = useLocalSearchParams<{ id?: string | string[] }>();
   const { session, runtime } = useAuthSession();
@@ -57,13 +84,7 @@ export function RequestEditorScreen() {
     baseline.current = query.data;
   const owner = baseline.current;
   if (!session) return <Redirect href="/login" />;
-  if (
-    id !== undefined &&
-    (!query.valid ||
-      (!owner &&
-        query.data &&
-        (!isOwnRequest(query.data) || !editableRequest(query.data))))
-  )
+  if (id !== undefined && editorUnavailable(query, !!owner))
     return (
       <RequestPage title="Sửa yêu cầu học">
         <RequestUnavailable />
@@ -72,20 +93,7 @@ export function RequestEditorScreen() {
   if (id !== undefined && !owner)
     return (
       <RequestPage title="Sửa yêu cầu học">
-        {query.readDenied ? (
-          <RequestReadDenied
-            denial={query.readDenied}
-            retry={() => void query.refetch()}
-            pending={query.isFetching}
-          />
-        ) : query.error ? (
-          <RequestFailure
-            error={query.error}
-            retry={() => void query.refetch()}
-          />
-        ) : (
-          <RequestLoading />
-        )}
+        <RequestEditorReadState query={query} />
       </RequestPage>
     );
   return (
@@ -99,10 +107,10 @@ export function RequestEditorScreen() {
 function RequestForm({
   initial,
   source,
-}: {
+}: Readonly<{
   initial?: OwnerRequest;
   source?: EditorRead;
-}) {
+}>) {
   const router = useRouter();
   const {
     form,
@@ -114,6 +122,8 @@ function RequestForm({
     recovery,
     acceptLatest,
   } = useRequestForm(initial, source);
+  let saveLabel = initial ? "Lưu thay đổi" : "Lưu bản nháp";
+  if (pending) saveLabel = "Đang lưu...";
   return (
     <RequestPage
       title={initial ? "Sửa yêu cầu học" : "Tạo yêu cầu học"}
@@ -154,11 +164,7 @@ function RequestForm({
                 disabled={pending || blocked}
                 onPress={() => void form.handleSubmit(save)()}
               >
-                {pending
-                  ? "Đang lưu..."
-                  : initial
-                    ? "Lưu thay đổi"
-                    : "Lưu bản nháp"}
+                {saveLabel}
               </Button>
               {!initial && (
                 <Text style={[styles.hint, { textAlign: "center" }]}>

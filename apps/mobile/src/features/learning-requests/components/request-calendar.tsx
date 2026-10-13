@@ -5,10 +5,10 @@ import { appColors as colors, fonts } from "@/constants/theme";
 export function RequestCalendar({
   value,
   onChange,
-}: {
+}: Readonly<{
   value: Date;
   onChange: (date: Date) => void;
-}) {
+}>) {
   const [month, setMonth] = useState(
     () => new Date(value.getFullYear(), value.getMonth(), 1),
   );

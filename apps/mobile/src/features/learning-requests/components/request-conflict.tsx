@@ -16,6 +16,12 @@ import { RequestSection } from "./request-section";
 import { RequestReadDenied } from "./request-state";
 import { useSkillName } from "../hooks/use-requests";
 
+function comparisonLabel(field: string, value: string, skillLabel: string) {
+  if (field === "skillId") return skillLabel;
+  if (field === "currentLevel") return uiLabel(value);
+  return value || "Để trống";
+}
+
 export function RequestConflict({
   initial,
   latest,
@@ -27,7 +33,7 @@ export function RequestConflict({
   keep,
   discard,
   leave,
-}: {
+}: Readonly<{
   initial?: OwnerRequest;
   latest?: OwnerRequest;
   mode?: string;
@@ -38,7 +44,7 @@ export function RequestConflict({
   keep: () => void;
   discard: () => void;
   leave: () => void;
-}) {
+}>) {
   const oldSkill = useSkillName(initial?.skillId);
   const newSkill = useSkillName(latest?.skillId);
   if (denied)
@@ -73,19 +79,19 @@ export function RequestConflict({
               <Copy>{item.label}</Copy>
               <Copy muted>
                 Bản đã mở:{" "}
-                {item.field === "skillId"
-                  ? (oldSkill.data?.name ?? "Kỹ năng trước đó")
-                  : item.field === "currentLevel"
-                    ? uiLabel(item.before)
-                    : item.before || "Để trống"}
+                {comparisonLabel(
+                  item.field,
+                  item.before,
+                  oldSkill.data?.name ?? "Kỹ năng trước đó",
+                )}
               </Copy>
               <Copy>
                 Bản mới:{" "}
-                {item.field === "skillId"
-                  ? (newSkill.data?.name ?? "Kỹ năng đã thay đổi")
-                  : item.field === "currentLevel"
-                    ? uiLabel(item.after)
-                    : item.after || "Để trống"}
+                {comparisonLabel(
+                  item.field,
+                  item.after,
+                  newSkill.data?.name ?? "Kỹ năng đã thay đổi",
+                )}
               </Copy>
             </View>
           ))}

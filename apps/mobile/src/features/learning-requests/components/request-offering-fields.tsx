@@ -23,11 +23,11 @@ export function RequestOfferingFields({
   form,
   disabled,
   initial,
-}: {
+}: Readonly<{
   form: UseFormReturn<RequestDraft>;
   disabled: boolean;
   initial?: OwnerRequest;
-}) {
+}>) {
   const selected = form.watch("offeredSharingSkillIds");
   const {
     query,
@@ -41,6 +41,14 @@ export function RequestOfferingFields({
     matches,
     selectionLabels,
   } = useOfferingPicker(selected, disabled, initial);
+  let emptyLabel = options.length
+    ? "Bạn đã chọn hết kỹ năng hiện có."
+    : "Chưa có kỹ năng công khai để chọn.";
+  if (search.trim()) emptyLabel = "Không tìm thấy kỹ năng phù hợp.";
+  let toggleLabel = selected.length
+    ? "Thêm kỹ năng"
+    : "Chọn kỹ năng có thể dạy";
+  if (expanded) toggleLabel = "Thu gọn danh sách";
   return (
     <RequestSection
       title="Bạn có thể dạy"
@@ -93,13 +101,7 @@ export function RequestOfferingFields({
           size={16}
           color={colors.muted}
         />
-        <Text style={[styles.label, { fontSize: 13 }]}>
-          {expanded
-            ? "Thu gọn danh sách"
-            : selected.length
-              ? "Thêm kỹ năng"
-              : "Chọn kỹ năng có thể dạy"}
-        </Text>
+        <Text style={[styles.label, { fontSize: 13 }]}>{toggleLabel}</Text>
       </Pressable>
       {expanded && (
         <>
@@ -130,11 +132,13 @@ export function RequestOfferingFields({
           {query.error && (
             <RequestFailure
               error={query.error}
-              retry={() =>
-                void (query.isFetchNextPageError
-                  ? query.fetchNextPage({ cancelRefetch: false })
-                  : query.refetch())
-              }
+              retry={() => {
+                if (query.isFetchNextPageError) {
+                  void query.fetchNextPage({ cancelRefetch: false });
+                  return;
+                }
+                void query.refetch();
+              }}
             />
           )}
           {search.trim() && query.hasNextPage && query.isFetching && (
@@ -143,15 +147,7 @@ export function RequestOfferingFields({
           {!query.isPending &&
             !query.error &&
             !matches.length &&
-            !query.hasNextPage && (
-              <Copy muted>
-                {search.trim()
-                  ? "Không tìm thấy kỹ năng phù hợp."
-                  : options.length
-                    ? "Bạn đã chọn hết kỹ năng hiện có."
-                    : "Chưa có kỹ năng công khai để chọn."}
-              </Copy>
-            )}
+            !query.hasNextPage && <Copy muted>{emptyLabel}</Copy>}
           {matches.length > visibleCount && (
             <Button
               variant="ghost"

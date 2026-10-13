@@ -11,15 +11,19 @@ export function RequestListFooter({
   nextError,
   loadMore,
   reload,
-}: {
+}: Readonly<{
   hasNextPage: boolean;
   fetching: boolean;
   fetchingNext: boolean;
   nextError?: unknown;
   loadMore: () => void;
   reload: () => void;
-}) {
+}>) {
   const invalidCursor = isInvalidRequestCursor(nextError);
+  let buttonLabel = "Xem thêm yêu cầu";
+  if (fetchingNext) buttonLabel = "Đang tải...";
+  else if (invalidCursor) buttonLabel = "Tải lại danh sách";
+  else if (nextError) buttonLabel = "Thử lại trang tiếp theo";
   if (!hasNextPage && !nextError) return null;
   return (
     <View style={{ gap: 12 }}>
@@ -36,13 +40,7 @@ export function RequestListFooter({
         disabled={fetching}
         onPress={invalidCursor ? reload : loadMore}
       >
-        {fetchingNext
-          ? "Đang tải..."
-          : invalidCursor
-            ? "Tải lại danh sách"
-            : nextError
-              ? "Thử lại trang tiếp theo"
-              : "Xem thêm yêu cầu"}
+        {buttonLabel}
       </Button>
     </View>
   );

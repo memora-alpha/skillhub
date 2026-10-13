@@ -24,14 +24,14 @@ export function RequestDateField({
   disabled,
   seed,
   mode = "datetime",
-}: {
+}: Readonly<{
   label: string;
   value: string;
   onChange: (value: string) => void;
   disabled: boolean;
   seed?: string;
   mode?: "date" | "time" | "datetime";
-}) {
+}>) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(new Date());
   const [part, setPart] = useState<DatePart>("date");
@@ -43,23 +43,38 @@ export function RequestDateField({
     (mode === "date"
       ? draft.getTime() >= today.getTime()
       : (parseLocalDateTime(pickerValue(draft))?.getTime() ?? 0) > Date.now());
-  const emptyLabel =
-    mode === "date"
-      ? "Chọn ngày"
-      : mode === "time"
-        ? "Chọn giờ"
-        : "Chọn ngày và giờ";
+  const emptyLabel = {
+    date: "Chọn ngày",
+    time: "Chọn giờ",
+    datetime: "Chọn ngày và giờ",
+  }[mode];
   const timeLabel = (date: Date) =>
     date.toLocaleTimeString("vi-VN", {
       hour: "2-digit",
       minute: "2-digit",
       hour12: false,
     });
-  const valueLabel = selected
-    ? mode === "time"
-      ? timeLabel(selected)
-      : selected.toLocaleDateString("vi-VN")
-    : emptyLabel;
+  let valueLabel = emptyLabel;
+  let hintLabel = "Chạm để chọn";
+  if (selected) {
+    valueLabel =
+      mode === "time"
+        ? timeLabel(selected)
+        : selected.toLocaleDateString("vi-VN");
+    hintLabel = "Giờ thiết bị";
+    if (mode === "datetime")
+      hintLabel = `${timeLabel(selected)} · Giờ thiết bị`;
+  }
+  let draftLabel = draft.toLocaleString("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  if (mode === "time") draftLabel = timeLabel(draft);
+  else if (mode === "date") draftLabel = draft.toLocaleDateString("vi-VN");
   useEffect(() => {
     if (disabled) setOpen(false);
   }, [disabled]);
@@ -98,13 +113,7 @@ export function RequestDateField({
         <View style={{ flex: 1, gap: 2 }}>
           <Text style={styles.value}>{valueLabel}</Text>
           {(!selected || mode === "datetime") && (
-            <Text style={styles.hint}>
-              {selected && mode === "datetime"
-                ? `${selected.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit", hour12: false })} · Giờ thiết bị`
-                : selected
-                  ? "Giờ thiết bị"
-                  : "Chạm để chọn"}
-            </Text>
+            <Text style={styles.hint}>{hintLabel}</Text>
           )}
         </View>
         <Icon name="chevron" color={colors.muted} size={16} />
@@ -129,19 +138,7 @@ export function RequestDateField({
             }
           />
           <Text style={styles.hint}>
-            {mode === "time"
-              ? timeLabel(draft)
-              : mode === "date"
-                ? draft.toLocaleDateString("vi-VN")
-                : draft.toLocaleString("vi-VN", {
-                    day: "2-digit",
-                    month: "2-digit",
-                    year: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    hour12: false,
-                  })}{" "}
-            {mode !== "time" && "· Giờ thiết bị"}
+            {draftLabel} {mode !== "time" && "· Giờ thiết bị"}
           </Text>
           {!valid && (
             <FormNotice tone="error">

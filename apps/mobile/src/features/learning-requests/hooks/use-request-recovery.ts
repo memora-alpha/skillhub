@@ -51,15 +51,15 @@ export function useRequestRecovery(
     setLatest(request);
     setDenied(undefined);
     setError(undefined);
-    setMode(
-      !editableRequest(request)
-        ? "readonly"
-        : compare ||
-            request.version !== initial.version ||
-            request.publishedAt !== initial.publishedAt
-          ? "compare"
-          : undefined,
-    );
+    let nextMode: "readonly" | "compare" | undefined;
+    if (!editableRequest(request)) nextMode = "readonly";
+    else if (
+      compare ||
+      request.version !== initial.version ||
+      request.publishedAt !== initial.publishedAt
+    )
+      nextMode = "compare";
+    setMode(nextMode);
   }
   function readFailed(failure: unknown, expiry = false) {
     if (!isCurrent()) return;
@@ -67,11 +67,11 @@ export function useRequestRecovery(
     setDenied(access.current.denial);
     setError(failure);
     setLatest(undefined);
-    setMode((current) =>
-      access.current.denial
-        ? "denied"
-        : (current ?? (expiry ? "expiry" : "compare")),
-    );
+    setMode((current) => {
+      if (access.current.denial) return "denied";
+      const fallback = expiry ? "expiry" : "compare";
+      return current ?? fallback;
+    });
   }
   async function loadLatest(compare = true) {
     if (!initial || busy.current || !isCurrent()) return;
@@ -79,8 +79,8 @@ export function useRequestRecovery(
     setReading(true);
     try {
       showLatest(await readCurrent(), compare);
-    } catch (failure) {
-      readFailed(failure, !compare);
+    } catch (error_) {
+      readFailed(error_, !compare);
     } finally {
       busy.current = false;
       if (isCurrent()) setReading(false);
