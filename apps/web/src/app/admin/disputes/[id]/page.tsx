@@ -1,10 +1,9 @@
-import { DisputeDetail } from "@/components/console/disputes";
-
-export default async function AdminDisputePage({
+import { ReportDetailScreen } from "@/components/staff/reports";
+export default async function Page({
   params,
-}: {
+}: Readonly<{
   params: Promise<{ id: string }>;
-}) {
+}>) {
   const { id } = await params;
-  return <DisputeDetail id={id} base="/admin" />;
+  return <ReportDetailScreen key={id} id={id} />;
 }
