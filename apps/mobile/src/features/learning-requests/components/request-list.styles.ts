@@ -17,6 +17,7 @@ export const requestListStyles = StyleSheet.create({
     paddingBottom: 32,
     gap: 12,
   },
+  embeddedContent: { paddingHorizontal: 0 },
   header: { gap: 16, paddingBottom: 4 },
   row: { flexDirection: "row", alignItems: "center", gap: 8 },
   between: {
@@ -25,7 +26,6 @@ export const requestListStyles = StyleSheet.create({
     justifyContent: "space-between",
     gap: 12,
   },
-  intro: { gap: 4, paddingVertical: 8 },
   heading: {
     fontFamily: fonts.bold,
     ...typography.heading,
@@ -156,6 +156,15 @@ export const requestListStyles = StyleSheet.create({
     minHeight: 44,
     backgroundColor: signedInChrome.accent,
     borderRadius: appRadius.control,
+  },
+  publishCompact: {
+    minHeight: 36,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    gap: 4,
   },
   publishText: {
     fontFamily: fonts.semibold,

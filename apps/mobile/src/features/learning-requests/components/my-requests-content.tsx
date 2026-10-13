@@ -1,10 +1,9 @@
 import { useState } from "react";
-import { FlatList, Text, View } from "react-native";
+import { FlatList, View } from "react-native";
 import { useRouter } from "expo-router";
 import { EmptyState } from "@/components/EmptyState";
 
 import {
-  RequestCreateButton,
   RequestTabs,
   RequestListSummary,
 } from "../components/request-list-controls";
@@ -14,7 +13,11 @@ import { RequestFailure, RequestLoading } from "../components/request-state";
 import { RequestListFooter } from "../components/request-list-footer";
 import { useRequestList } from "../hooks/use-requests";
 import { requestStatuses } from "../types";
-export function MyRequestsContent() {
+export function MyRequestsContent({
+  embedded = false,
+}: {
+  embedded?: boolean;
+}) {
   const [status, setStatus] = useState("Tất cả");
   const query = useRequestList("mine", status === "Tất cả" ? {} : { status });
   const router = useRouter();
@@ -24,20 +27,16 @@ export function MyRequestsContent() {
       keyboardShouldPersistTaps="handled"
       data={query.items}
       keyExtractor={(item) => item.id}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[
+        styles.content,
+        embedded && styles.embeddedContent,
+      ]}
       showsVerticalScrollIndicator={false}
       ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
       refreshing={query.isRefetching && !query.isFetchingNextPage}
       onRefresh={() => void query.refetch()}
       ListHeaderComponent={
         <View style={styles.header}>
-          <View style={styles.intro}>
-            <RequestCreateButton />
-            <Text style={styles.heading}>Bạn muốn học gì tiếp theo?</Text>
-            <Text style={styles.body}>
-              Theo dõi bài đã đăng và tiếp tục những bản nháp của bạn.
-            </Text>
-          </View>
           <RequestTabs
             label="Trạng thái"
             options={["Tất cả", ...requestStatuses]}

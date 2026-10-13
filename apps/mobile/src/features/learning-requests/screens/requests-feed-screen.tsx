@@ -26,6 +26,7 @@ export function RequestsFeedScreen() {
   const [filters, setFilters] = useState<FeedFilters>({
     scope: "feed",
     skillId: "",
+    tagIds: [],
   });
   useEffect(() => {
     setSearch(initial);
@@ -41,6 +42,7 @@ export function RequestsFeedScreen() {
   const query = useRequestList(filters.scope, {
     keyword: keyword.trim() || undefined,
     skillId: filters.skillId || undefined,
+    tagIds: filters.tagIds.length ? filters.tagIds : undefined,
   });
   return (
     <AppScreenLayout
