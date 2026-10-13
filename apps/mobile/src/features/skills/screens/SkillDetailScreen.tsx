@@ -20,7 +20,7 @@ export function SkillDetailScreen({
 }) {
   const id = validId(sharingSkillId);
   const query = useOwnSkill(id);
-  const { api, refresh, forgetSkill } = useSkills();
+  const { api, refresh, forgetSkill, rememberSkill } = useSkills();
   const action = useSkillAction();
   const [confirm, setConfirm] = useState(false);
   const router = useRouter();
@@ -98,9 +98,11 @@ export function SkillDetailScreen({
                   expectedVersion: skill.version,
                   isVisible: !skill.isVisible,
                 };
-                void action.run(`visibility:${id}`, body, (key) =>
-                  api.update(id, body, key),
-                );
+                void action.run(`visibility:${id}`, body, async (key) => {
+                  const saved = await api.update(id, body, key);
+                  if (action.current()) await rememberSkill(saved);
+                  return saved;
+                });
               }}
               onVerify={() => {
                 if (!action.locked() && !waiting)
@@ -123,7 +125,8 @@ export function SkillDetailScreen({
         onConfirm={remove}
       >
         <Text style={skillStyles.body}>
-          Kỹ năng sẽ bị gỡ khỏi hồ sơ và danh sách của bạn. Không thể khôi phục.
+          Kỹ năng sẽ bị gỡ khỏi hồ sơ và danh sách của bạn. Lịch sử xác minh vẫn
+          được hệ thống lưu giữ.
         </Text>
         <Button variant="secondary" onPress={() => setConfirm(false)}>
           Hủy

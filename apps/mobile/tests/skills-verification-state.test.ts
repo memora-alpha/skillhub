@@ -10,9 +10,35 @@ import {
   hasPendingVerification,
   withSubmittedVerification,
   verificationItems,
+  observeVerificationDecisions,
 } from "../src/features/skills/utils/verification-state";
 import { recordVerificationQueries } from "../src/features/skills/utils/record-verification-queries";
 import { filteredSkillPage } from "../src/features/skills/utils/skill-filter";
+
+test("history and detail decisions release only the matching submitted snapshot", () => {
+  const pending = verificationSchema.parse(batch);
+  for (const status of ["APPROVED", "REJECTED"]) {
+    const submitted = new Map([[ids.sharing, pending]]);
+    const decision = verificationSchema.parse({ ...batch, status, version: 2 });
+    assert.equal(observeVerificationDecisions([decision], submitted), true);
+    assert.equal(submitted.size, 0);
+    assert.equal(observeVerificationDecisions([decision], submitted), false);
+  }
+  const submitted = new Map([[ids.sharing, { ...pending, version: 2 }]]);
+  for (const item of [
+    pending,
+    { ...pending, status: "APPROVED" as const },
+    { ...pending, version: 3, status: "APPROVED" as const, id: ids.other },
+    {
+      ...pending,
+      version: 3,
+      status: "APPROVED" as const,
+      sharingSkillId: ids.other,
+    },
+  ])
+    assert.equal(observeVerificationDecisions([item], submitted), false);
+  assert.equal(submitted.size, 1);
+});
 
 test("pending includes a verified skill awaiting another request, and walks later pages", async () => {
   const verifiedPending = ownSkillSchema.parse({
