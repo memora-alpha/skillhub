@@ -47,3 +47,25 @@ tests alone do not establish application connectivity.
 
 From the repository root, run pnpm test:commitlint. Git hook checks do not
 replace API typecheck, build or behavioral tests.
+
+## HTTP error diagnostics — 2026-10-13
+
+The global HTTP exception filter previously returned its safe 500 envelope without
+logging the original exception, leaving only pino-http's synthetic status error.
+Server failures now log request/correlation IDs, method/path, error type, Prisma
+and PostgreSQL codes, a strictly parsed missing-column identifier and up to eight
+stack frames. Complete exception messages, SQL parameters, bodies, auth headers
+and query strings are excluded. The public response remains unchanged.
+
+Nest build, TypeScript and focused ESLint passed. Foundation/log privacy/request
+context and authorization/audit HTTP regressions passed 12/12. Privacy assertions
+cover credentials, database detail values and messages containing embedded newlines.
+The Learning Request HTTP fixture now registers the same filter as the production
+app; this avoids the default Nest filter interpreting a guard exception from a
+different installed Nest copy as an unknown 500 in the fixture.
+
+Readiness recheck on 2026-10-13: workspace lint, Prisma generation, TypeScript and
+Nest build passed. Foundation/log privacy passed 9/9; audit, authorization and file
+access HTTP fixtures passed 3/3 against the rebuilt output. PostgreSQL integration
+was not run because this checkout has no `TEST_DATABASE_URL`; these fixtures do
+not validate real database connectivity or migrations. No commit or push occurred.

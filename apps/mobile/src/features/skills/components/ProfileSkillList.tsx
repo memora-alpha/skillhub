@@ -57,9 +57,14 @@ export function OwnProfileSkillList() {
   );
 }
 export function PublicSelfSkillList() {
-  const query = usePublicSkills();
-  const router = useRouter();
   const { userId } = useSkills();
+  return <PublicProfileSkillList userId={userId} />;
+}
+export function PublicProfileSkillList({
+  userId,
+}: Readonly<{ userId: string }>) {
+  const query = usePublicSkills(userId);
+  const router = useRouter();
   const items = uniqueItems(query.data?.pages);
   const preview = useProfileSkillWindow({
     count: items.length,

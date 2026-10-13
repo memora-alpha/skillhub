@@ -178,3 +178,21 @@ tests làm bằng chứng API integration.
 
 Kết quả checks ngày 2026-10-09, bằng chứng lịch sử trước rebase và phần còn chưa
 kiểm chứng được tập trung trong [validation.md](validation.md).
+
+## Public profile from Learning Request — 2026-10-13
+
+User explicitly requested the View Profile button in request detail, without a
+profile request list. Other UUID targets at /profiles/[userId] now load GET
+/profiles/:userId using the shared authenticated HTTP client. Projection validates
+target ID and public fields and strips private/nested metadata. Skill rows use
+GET /profiles/:userId/skills and existing public skill detail/pagination, while
+self-preview and named demo routes retain their current behavior.
+
+Session generation and viewer scope protect queries; late session reads fail.
+Profile403/404 resolves unavailable and replaces cached content with null;503
+cannot restore it. Transient errors may retain a last successful public snapshot
+with retry. Back uses history, then the originating request ID or Discover.
+Only Xem hồ sơ is enabled in the request footer; Proposal/chat remains deferred.
+No backend, shared-package or root tooling change, new dependency, account mutation
+or public request-list endpoint is introduced. Profile/Skills own the implementation;
+Spec005 only connects its detail footer. Existing theme/components are reused.

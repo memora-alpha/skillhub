@@ -15,6 +15,8 @@ import { profileStyles } from "../components/ProfilePrimitives";
 import { useProfilePreview } from "../context/ProfilePreview";
 import { resolvePublicProfile } from "../mocks/public-profiles";
 import { readProfileId } from "../utils/public-profile";
+import { z } from "zod";
+import { PublicApiProfileScreen } from "./public-api-profile-screen";
 
 export function PublicProfilePreviewScreen({
   userId,
@@ -25,6 +27,17 @@ export function PublicProfilePreviewScreen({
   const { profile } = useProfilePreview();
   const targetId = readProfileId(userId);
   if (!session || !profile) return <Redirect href="/login" />;
+  if (
+    targetId &&
+    targetId !== profile.userId &&
+    z.uuid().safeParse(targetId).success
+  )
+    return (
+      <PublicApiProfileScreen
+        key={runtime.controller.generation + ":" + targetId}
+        userId={targetId}
+      />
+    );
   return (
     <PublicProfileContent
       key={runtime.controller.generation + ":" + targetId}

@@ -7,6 +7,11 @@ export const profileActions: {
   color: string;
 }[] = [
   {
+    label: "Hành trình của tôi",
+    icon: "clipboard",
+    color: colors.sage,
+  },
+  {
     label: "Ví Credit",
     icon: "wallet",
     color: colors.brand,
@@ -17,18 +22,13 @@ export const profileActions: {
     color: colors.sage,
   },
   {
-    label: "Hành trình của tôi",
-    icon: "clipboard",
-    color: colors.sage,
+    label: "Thành tích",
+    icon: "award",
+    color: colors.gold,
   },
   {
     label: "Đánh giá về tôi",
     icon: "star",
-    color: colors.gold,
-  },
-  {
-    label: "Thành tích",
-    icon: "award",
     color: colors.gold,
   },
   {

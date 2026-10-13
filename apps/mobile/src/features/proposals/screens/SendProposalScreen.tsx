@@ -16,27 +16,36 @@ import { useAuthSession } from "@/features/auth";
 import { useMockProposals } from "../context/MockProposals";
 import { demoTeachingSkills } from "../mocks/proposals";
 import { proposalFormSchema } from "../schemas/proposal-form";
+import {
+  readRequestProposalPreview,
+  type RequestProposalPreviewParams,
+} from "../utils/request-proposal-preview";
 
 export function SendProposalScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{
-    requestId?: string;
-    userId?: string;
-  }>();
+  const params = useLocalSearchParams<
+    RequestProposalPreviewParams & {
+      userId?: string;
+    }
+  >();
   const { session } = useAuthSession();
   const { proposals, submit } = useMockProposals();
-  const request = learningRequests.find((item) => item.id === params.requestId);
+  const preview = readRequestProposalPreview(params);
+  const request =
+    preview ?? learningRequests.find((item) => item.id === params.requestId);
   const profile = publicProfiles.find(
     (item) => item.id === (request?.userId ?? params.userId),
   );
   const targetId = request?.userId ?? profile?.id;
   const targetName = request?.user ?? profile?.name;
-  const skills = request
-    ? demoTeachingSkills.filter((skill) =>
-        request.tags.some((tag) => tag.toLowerCase() === skill.id),
-      )
-    : demoTeachingSkills;
-  const [skillId, setSkillId] = useState(skills[0]?.id ?? "");
+  let skills = demoTeachingSkills;
+  if (preview) skills = preview.teachingSkills;
+  else if (request)
+    skills = demoTeachingSkills.filter((skill) =>
+      request.tags.some((tag) => tag.toLowerCase() === skill.id),
+    );
+  const [selectedSkillId, setSelectedSkillId] = useState(skills[0]?.id ?? "");
+  const skillId = preview?.teachingSkills[0]?.id ?? selectedSkillId;
   const [message, setMessage] = useState("");
   const [credit, setCredit] = useState(request?.budget.split(" ")[0] ?? "50");
   const [sessions, setSessions] = useState(String(request?.sessions ?? 4));
@@ -50,11 +59,16 @@ export function SendProposalScreen() {
       item.partnerId === targetId &&
       item.requestId === request?.id,
   );
-  const back: Href = request
-    ? { pathname: "/request/[id]", params: { id: request.id } }
-    : profile
-      ? { pathname: "/user/[id]", params: { id: profile.id } }
-      : "/discover";
+  let back: Href = "/discover";
+  if (preview)
+    back = {
+      pathname: "/request/[id]",
+      params: { id: preview.sourceRequestId },
+    };
+  else if (request)
+    back = { pathname: "/explore/requests/[id]", params: { id: request.id } };
+  else if (profile)
+    back = { pathname: "/user/[id]", params: { id: profile.id } };
   const send = () => {
     const next: Record<string, string> = {};
     const parsed = proposalFormSchema.safeParse({
@@ -118,8 +132,8 @@ export function SendProposalScreen() {
               <>
                 <FormNotice tone="success">Đề xuất mẫu đã gửi!</FormNotice>
                 <Text style={styles.body}>
-                  {targetName} sẽ xem nội dung và mức Credit gợi ý. Chat chỉ mở
-                  sau khi đề xuất được chấp nhận.
+                  Đề xuất chỉ lưu trong phiên hiện tại, chưa gửi tới người nhận.
+                  Chat mẫu chỉ mở sau khi đề xuất được chấp nhận trong bản mẫu.
                 </Text>
                 <Button
                   onPress={() =>
@@ -140,6 +154,13 @@ export function SendProposalScreen() {
               </>
             ) : (
               <>
+                {preview && (
+                  <FormNotice tone="info">
+                    Bản xem thử · Nội dung yêu cầu được dùng để minh họa. Kỹ
+                    năng, Credit, số buổi và lịch bên dưới là gợi ý mẫu; gửi chỉ
+                    lưu trong phiên, chưa gửi tới người nhận qua API.
+                  </FormNotice>
+                )}
                 <Text accessibilityRole="header" style={styles.title}>
                   Cho {targetName} biết bạn có thể chia sẻ gì
                 </Text>
@@ -155,7 +176,9 @@ export function SendProposalScreen() {
                     <Avatar name={targetName} userId={targetId} size={28} />
                     <Text style={styles.caption}>
                       {targetName}
-                      {request ? ` · ${request.sessions} buổi dự kiến` : ""}
+                      {request && !preview
+                        ? ` · ${request.sessions} buổi dự kiến`
+                        : ""}
                     </Text>
                   </View>
                 </View>
@@ -167,7 +190,7 @@ export function SendProposalScreen() {
                         key={skill.id}
                         accessibilityRole="radio"
                         accessibilityState={{ checked: skillId === skill.id }}
-                        onPress={() => setSkillId(skill.id)}
+                        onPress={() => setSelectedSkillId(skill.id)}
                         style={[
                           styles.skill,
                           skillId === skill.id && styles.selectedSkill,

@@ -230,3 +230,43 @@ Harness hub chạy lại đạt sáu nhóm/22 requests, không page error. Race 
 trở về profile được sửa và có ba regression tests; toàn bộ mobile đạt 148 tests,
 typecheck/lint/structure (253 files) và web export. Menu vẫn có sáu ô, hai tab
 và mục Đánh giá về tôi chưa kết nối dữ liệu. BE không thay đổi.
+
+## Profile shortcuts cleanup — 2026-10-13
+
+Removed the separate Yêu cầu học của tôi shortcut. Six actions now use two
+columns and three rows: Hành trình/Ví Credit, Tài liệu/Thành tích, Đánh giá/Cài đặt.
+Shortcut spacing, padding and labels are consistent; the UI-gallery action is a
+quiet ghost button after bio and skills. Existing route/session/API behavior stays.
+
+npm lint, check-types and check-structure passed (447 source files); existing
+profile tests passed8/8. Separate fixture API4315 / Expo web8082 with fake accountA:
+profile displayed all six actions, no request-only shortcut, and document width
+matched320px with two equal143px columns and64px rows. Hành trình opened
+/my-learning with Yêu cầu học selected; Back returned to Profile and Cài đặt
+opened /account-settings. No real account/database mutations. Native layout and
+font scaling for this adjustment remain unverified.
+
+## View Profile from Learning Request — 2026-10-13
+
+Source now connects Xem hồ sơ in public request detail to the owner's UUID at
+/profiles/[userId]?requestId=... . Another UUID loads the public profile API;
+self-preview and explicit demo routes retain their established behavior. Public
+skills reuse the paginated target-user endpoint and public skill detail, without
+owner/evidence endpoints. Shared PublicSelfSkillList remains a wrapper for the
+viewer ID; other users do not inherit the viewer's locally deleted-skill filter.
+
+Validation: npm lint, check-types and check-structure passed (450 source files).
+51 focused tests passed:21 profile API/LR/preferences,8 existing profile tests,
+22 public-skill detail/contracts/window tests. New API tests cover target matching,
+private-field stripping, malformed input, session changes and real loopback HTTP
+403/404 -> cached null ->503 -> recovery through the shared authenticated client.
+
+Separate fixture API4315 / Expo web8082, fake viewerA/ownerB: Discover -> B's
+request -> Xem hồ sơ -> B's profile -> React public detail -> Back -> profile ->
+Back -> original request. Initial profile503 showed retry; retry200 loaded B.
+Returning from skill detail with injected profile404 hid B's previous profile and
+skill rows; retry200 restored the target. At320px document width equaled viewport.
+No profile-edit, create-request, Proposal/chat or real API/database mutation.
+Real backend data, native devices/font scaling and direct-deep-link fallback
+acceptance remain unverified. The final accessibility Back label uses generic
+Quay lại, preserving other ProfileLayout consumers' default.

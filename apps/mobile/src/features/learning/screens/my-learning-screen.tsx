@@ -1,7 +1,10 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { AppScreenLayout } from "@/features/shell";
-import { MyRequestsContent } from "@/features/learning-requests";
+import {
+  MyRequestsContent,
+  RequestCreateButton,
+} from "@/features/learning-requests";
 import { MyPathsContent } from "@/features/learning-paths";
 import {
   appColors as colors,
@@ -29,6 +32,9 @@ export function MyLearningScreen() {
     <AppScreenLayout
       title="Hành trình của tôi"
       selected="Hồ sơ"
+      rightAction={
+        tab === "requests" ? <RequestCreateButton compact /> : undefined
+      }
       back={{ href: "/profile", label: "Quay lại hồ sơ" }}
     >
       {() => (
@@ -63,14 +69,17 @@ export function MyLearningScreen() {
               );
             })}
           </View>
-          <ScrollView
-            key={tab}
-            contentContainerStyle={styles.scroll}
-            showsVerticalScrollIndicator={false}
-          >
-            <Text style={styles.caption}>BẢN XEM THỬ · DỮ LIỆU MẪU</Text>
-            {tab === "requests" ? <MyRequestsContent /> : <MyPathsContent />}
-          </ScrollView>
+          {tab === "requests" ? (
+            <MyRequestsContent embedded />
+          ) : (
+            <ScrollView
+              contentContainerStyle={styles.scroll}
+              showsVerticalScrollIndicator={false}
+            >
+              <Text style={styles.caption}>BẢN XEM THỬ · DỮ LIỆU MẪU</Text>
+              <MyPathsContent />
+            </ScrollView>
+          )}
         </View>
       )}
     </AppScreenLayout>

@@ -24,4 +24,5 @@ export { VerificationDetailScreen } from "./screens/VerificationDetailScreen";
 export {
   OwnProfileSkillList,
   PublicSelfSkillList,
+  PublicProfileSkillList,
 } from "./components/ProfileSkillList";

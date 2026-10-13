@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { useAuthSession } from "@/features/auth";
 import { SkillsPreviewProvider } from "@/features/skills";
-import { RequestsPreviewProvider } from "@/features/learning-requests";
+import { RequestsProvider } from "@/features/learning-requests";
 import { PathsPreviewProvider } from "@/features/learning-paths";
 import { SessionsPreviewProvider } from "@/features/sessions";
 import { MaterialsPreviewProvider } from "@/features/materials";
@@ -12,7 +12,7 @@ export function UiPreviewProvider({ children }: { children: ReactNode }) {
   const { session } = useAuthSession();
   return (
     <SkillsPreviewProvider key={session?.userId ?? "guest"}>
-      <RequestsPreviewProvider>
+      <RequestsProvider>
         <PathsPreviewProvider>
           <SessionsPreviewProvider>
             <MaterialsPreviewProvider>
@@ -24,7 +24,7 @@ export function UiPreviewProvider({ children }: { children: ReactNode }) {
             </MaterialsPreviewProvider>
           </SessionsPreviewProvider>
         </PathsPreviewProvider>
-      </RequestsPreviewProvider>
+      </RequestsProvider>
     </SkillsPreviewProvider>
   );
 }

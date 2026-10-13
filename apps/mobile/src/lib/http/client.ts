@@ -12,6 +12,7 @@ export type RequestOptions = {
   signal?: AbortSignal;
   paginated?: boolean;
   replayAfterRenewal?: boolean;
+  includeMeta?: boolean;
 };
 export type SessionTransport = {
   readonly generation: number;
@@ -45,7 +46,10 @@ export function createHttpClient(
     options: RequestOptions,
     token: string | null,
   ) {
-    const read = options.paginated ? readPagePayload : readPayload;
+    const read = (status: number, payload: unknown) =>
+      options.paginated
+        ? readPagePayload(status, payload)
+        : readPayload(status, payload, options.includeMeta);
     if (options.signal?.aborted) throw new AppError("session");
     if (
       options.idempotencyKey &&
