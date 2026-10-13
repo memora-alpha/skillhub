@@ -1,9 +1,10 @@
-import { ConsoleShell } from "@/components/console/shell";
+import { StaffShell } from "@/components/staff/shell";
+import "./staff.css";
 
 export default function StaffLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <ConsoleShell portal="staff">{children}</ConsoleShell>;
+  return <StaffShell>{children}</StaffShell>;
 }
