@@ -7,6 +7,7 @@ import { ControlledInput } from "@/components/ControlledInput";
 import { skillLevels, levelLabels } from "../types/skills";
 import type { SkillFormValues } from "../schemas/skill-form";
 import { formStyles } from "./skill-form-styles";
+import { SkillLevelGuide } from "./skill-level-guide";
 export function SkillFormFields({
   form,
   disabled,
@@ -21,41 +22,44 @@ export function SkillFormFields({
         control={form.control}
         name="level"
         render={({ field }) => (
-          <View style={formStyles.options}>
-            {skillLevels.map((level) => (
-              <Pressable
-                key={level}
-                accessibilityRole="radio"
-                accessibilityLabel={levelLabels[level]}
-                accessibilityState={{
-                  checked: field.value === level,
-                  disabled,
-                }}
-                disabled={disabled}
-                style={[
-                  formStyles.option,
-                  field.value === level && formStyles.selected,
-                  disabled && { opacity: 0.6 },
-                ]}
-                onPress={() => field.onChange(level)}
-              >
-                <Text
+          <View style={{ gap: 12 }}>
+            <View style={formStyles.options}>
+              {skillLevels.map((level) => (
+                <Pressable
+                  key={level}
+                  accessibilityRole="radio"
+                  accessibilityLabel={levelLabels[level]}
+                  accessibilityState={{
+                    checked: field.value === level,
+                    disabled,
+                  }}
+                  disabled={disabled}
                   style={[
-                    formStyles.label,
-                    field.value === level && formStyles.selectedText,
+                    formStyles.option,
+                    field.value === level && formStyles.selected,
+                    disabled && { opacity: 0.6 },
                   ]}
+                  onPress={() => field.onChange(level)}
                 >
-                  {levelLabels[level]}
-                </Text>
-                {field.value === level && (
-                  <Icon
-                    name="check-circle"
-                    size={16}
-                    color={appColors.primary}
-                  />
-                )}
-              </Pressable>
-            ))}
+                  <Text
+                    style={[
+                      formStyles.label,
+                      field.value === level && formStyles.selectedText,
+                    ]}
+                  >
+                    {levelLabels[level]}
+                  </Text>
+                  {field.value === level && (
+                    <Icon
+                      name="check-circle"
+                      size={16}
+                      color={appColors.primary}
+                    />
+                  )}
+                </Pressable>
+              ))}
+            </View>
+            <SkillLevelGuide level={field.value} />
           </View>
         )}
       />
