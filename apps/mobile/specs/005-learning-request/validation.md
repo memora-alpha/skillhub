@@ -196,8 +196,6 @@ search đọc tiếp pages. Timezone mới theo thiết bị, hiện caption GMT
 - Lịch timezone khác thiết bị/no-change/explicit clear được kiểm trong suite; chưa thao tác
   native Android/iOS, font scale130%, keyboard/gesture/hardware Back trên thiết bị thật.
 
-Ảnh: [form390](validation/screenshots/request-form-redesign.jpg),
-[picker/search](validation/screenshots/request-offering-picker-redesign.jpg).
 Không dùng bằng chứng fixture để tick real API/native acceptance.
 
 ## Request detail redesign — 2026-10-13
@@ -213,8 +211,6 @@ Không dùng bằng chứng fixture để tick real API/native acceptance.
 - Edit opens existing values; Cancel then Keep makes zero cancel POSTs. Publish503
   shows visible footer error/reconcile, GET retry clears it; explicit publish succeeds
   to OPEN and removes publish footer. Exactly two publish POSTs (503,200), no auto resend.
-- UI images: [summary](validation/screenshots/request-detail-redesign.jpg),
-  [schedule/actions](validation/screenshots/request-detail-schedule-redesign.jpg).
 - Native keyboard/safearea/font scaling/Back still require Android/iOS device checks;
   this fixture evidence does not establish real backend or native acceptance.
 
@@ -232,9 +228,6 @@ Không dùng bằng chứng fixture để tick real API/native acceptance.
   body NunitoRegular15/22, secondary NunitoRegular13/18. Width320/375/430 has no
   horizontal document overflow; draft publish remains in844px viewport. Draft
   has no NOT_REQUIRED badge; rejected detail retains badge, reason and edit/cancel.
-- Current screenshots: [top](validation/screenshots/request-detail-typography.jpg),
-  [exchange/schedule](validation/screenshots/request-detail-schedule-typography.jpg).
-  Earlier redesign screenshots above document the preceding layout.
 - Web/fixture verification only; native text scaling, safe area and device acceptance
   remain pending. No backend changes or real request mutations in this follow-up.
 
@@ -249,9 +242,7 @@ Không dùng bằng chứng fixture để tick real API/native acceptance.
 - Loopback fixture web widths320/375/430 have no horizontal document overflow.
   At320px a long Vietnamese skill name wraps to two lines and retains level and
   verification; card expands to about88px instead of truncating the name.
-- Current visual evidence: [emphasized headings and compact skill](validation/screenshots/request-detail-compact-skills.jpg),
-  [long skill at320px](validation/screenshots/request-detail-compact-long-skill.jpg).
-  Native device/font-scale acceptance remains pending.
+- Native device/font-scale acceptance remains pending.
 
 ## Compact request list cards — 2026-10-13
 
@@ -267,8 +258,7 @@ Không dùng bằng chứng fixture để tick real API/native acceptance.
   for one-line title,190px for two-line title at320. Width320/375/430 does not overflow.
   Opening draft restores all description/goal/offering/credit/weekdays in detail.
   Shared public feed retains owner identity and compact tags/footer.
-- Screenshot: [compact mine cards](validation/screenshots/my-request-cards-compact.jpg).
-  No real backend mutations; native font scaling/device acceptance remains pending.
+- No real backend mutations; native font scaling/device acceptance remains pending.
 
 ## Learning hub header create action — 2026-10-13
 
