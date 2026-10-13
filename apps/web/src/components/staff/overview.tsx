@@ -6,9 +6,29 @@ import type {
   LearningRequest,
   ReportCase,
   Verification,
+  Pagination,
 } from "@/lib/staff/types";
 import { useStaffList } from "./hooks";
 import { useStaffSession } from "./session";
+type QueueSummary = Readonly<{
+  loading: boolean;
+  error?: string;
+  items: readonly unknown[];
+  page?: Pagination;
+}>;
+function queueCount(source: QueueSummary): string {
+  if (source.loading) return "…";
+  if (source.error) return "—";
+  return `${source.items.length}${source.page?.hasMore ? "+" : ""}`;
+}
+function emptyQueueMessage(
+  groups: readonly { source: QueueSummary }[],
+): string {
+  if (groups.some((group) => group.source.loading)) return "Đang tải hàng đợi…";
+  if (groups.some((group) => group.source.error))
+    return "Một số hàng đợi chưa tải được. Mở từng hàng đợi để kiểm tra.";
+  return "Hiện không có mục nào cần xử lý.";
+}
 export function OverviewScreen() {
   const { actor, portal } = useStaffSession();
   const evidence = useStaffList<Verification>(
@@ -68,6 +88,7 @@ export function OverviewScreen() {
         desc="Bắt đầu từ các mục cần xem xét trong hàng đợi của bạn."
         actions={
           <button
+            type="button"
             className="btn"
             disabled={groups.some((g) => g.source.loading)}
             onClick={() => {
@@ -94,13 +115,7 @@ export function OverviewScreen() {
             <Stat
               label={group.title}
               icon={group.icon}
-              value={
-                group.source.loading
-                  ? "…"
-                  : group.source.error
-                    ? "—"
-                    : `${group.source.items.length}${group.source.page?.hasMore ? "+" : ""}`
-              }
+              value={queueCount(group.source)}
               hint="Số mục đang được tải trong hàng đợi"
             />
             {group.source.error && (
@@ -116,13 +131,7 @@ export function OverviewScreen() {
       </div>
       <Card className="section" title="Các mục đang chờ xem xét" flush>
         {!rows.length ? (
-          <p className="staff-state">
-            {groups.some((g) => g.source.loading)
-              ? "Đang tải hàng đợi…"
-              : groups.some((g) => g.source.error)
-                ? "Một số hàng đợi chưa tải được. Mở từng hàng đợi để kiểm tra."
-                : "Hiện không có mục nào cần xử lý."}
-          </p>
+          <p className="staff-state">{emptyQueueMessage(groups)}</p>
         ) : (
           <div className="table-wrap">
             <table className="table">

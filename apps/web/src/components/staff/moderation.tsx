@@ -22,6 +22,62 @@ const weekdays: Record<string, string> = {
   SAT: "Thứ bảy",
   SUN: "Chủ nhật",
 };
+function RequestAvailability({
+  request,
+}: Readonly<{ request: LearningRequest }>) {
+  const availability = request.preferredAvailability;
+  if (availability)
+    return (
+      <section>
+        <h3 className="sub-title">Thời gian rảnh · {availability.timeZone}</h3>
+        <ul className="staff-slots">
+          {availability.weeklySlots.map((slot) => (
+            <li key={slot.weekday + ":" + slot.startTime}>
+              {weekdays[slot.weekday] ?? slot.weekday}: {slot.startTime}–
+              {slot.endTime}
+            </li>
+          ))}
+        </ul>
+      </section>
+    );
+  if (!request.preferredSlots?.length) return null;
+  return (
+    <section>
+      <h3 className="sub-title">Thời gian mong muốn</h3>
+      {request.preferredSlots.map((slot) => (
+        <p key={slot.startAt}>
+          {fmtDateTime(slot.startAt)} — {fmtDateTime(slot.endAt)}
+        </p>
+      ))}
+    </section>
+  );
+}
+function RequestFacts({ request }: Readonly<{ request: LearningRequest }>) {
+  return (
+    <dl className="kv staff-kv">
+      <dt>Người đăng</dt>
+      <dd className="mono">{request.ownerId}</dd>
+      <dt>Mã kỹ năng muốn học</dt>
+      <dd className="mono">{request.skillId}</dd>
+      <dt>Trình độ hiện tại</dt>
+      <dd>{request.currentLevel ?? "Chưa cung cấp"}</dd>
+      <dt>Người dạy đã xác minh</dt>
+      <dd>{request.verifiedTeacherOnly ? "Bắt buộc" : "Không bắt buộc"}</dd>
+      <dt>Credit mong muốn / giờ</dt>
+      <dd>
+        {request.desiredCreditPerHour
+          ? `${request.desiredCreditPerHour} CR`
+          : "Chưa cung cấp"}
+      </dd>
+      {request.moderationRejectReason && (
+        <>
+          <dt>Lý do từ chối</dt>
+          <dd>{request.moderationRejectReason}</dd>
+        </>
+      )}
+    </dl>
+  );
+}
 export function ModerationScreen() {
   const { api } = useStaffSession();
   const [q, setQ] = useState("");
@@ -44,6 +100,7 @@ export function ModerationScreen() {
         desc="Xem nội dung bị gắn cờ, kiểm tra nhu cầu học và lý do trước khi duyệt."
         actions={
           <button
+            type="button"
             className="btn"
             disabled={queue.loading}
             onClick={() => {
@@ -82,6 +139,7 @@ export function ModerationScreen() {
                 {visible.map((item) => (
                   <li key={item.id}>
                     <button
+                      type="button"
                       className="q-item"
                       aria-current={item.id === selectedId}
                       onClick={() => {
@@ -126,9 +184,9 @@ export function ModerationScreen() {
                   <Badge>Phiên bản {selected.version}</Badge>
                 </div>
                 {receipt?.id === selected.id && (
-                  <p className="staff-success" role="status">
+                  <output className="staff-success">
                     Máy chủ đã ghi nhận quyết định.
-                  </p>
+                  </output>
                 )}
                 {selected.flaggedCategories.length > 0 && (
                   <div className="staff-flag">
@@ -165,64 +223,13 @@ export function ModerationScreen() {
                     ))}
                   </div>
                 )}
-                <dl className="kv staff-kv">
-                  <dt>Người đăng</dt>
-                  <dd className="mono">{selected.ownerId}</dd>
-                  <dt>Mã kỹ năng muốn học</dt>
-                  <dd className="mono">{selected.skillId}</dd>
-                  <dt>Trình độ hiện tại</dt>
-                  <dd>{selected.currentLevel ?? "Chưa cung cấp"}</dd>
-                  <dt>Người dạy đã xác minh</dt>
-                  <dd>
-                    {selected.verifiedTeacherOnly
-                      ? "Bắt buộc"
-                      : "Không bắt buộc"}
-                  </dd>
-                  <dt>Credit mong muốn / giờ</dt>
-                  <dd>
-                    {selected.desiredCreditPerHour
-                      ? `${selected.desiredCreditPerHour} CR`
-                      : "Chưa cung cấp"}
-                  </dd>
-                  {selected.moderationRejectReason && (
-                    <>
-                      <dt>Lý do từ chối</dt>
-                      <dd>{selected.moderationRejectReason}</dd>
-                    </>
-                  )}
-                </dl>
-                {selected.preferredAvailability && (
-                  <section>
-                    <h3 className="sub-title">
-                      Thời gian rảnh · {selected.preferredAvailability.timeZone}
-                    </h3>
-                    <ul className="staff-slots">
-                      {selected.preferredAvailability.weeklySlots.map(
-                        (slot) => (
-                          <li key={`${slot.weekday}:${slot.startTime}`}>
-                            {weekdays[slot.weekday] ?? slot.weekday}:{" "}
-                            {slot.startTime}–{slot.endTime}
-                          </li>
-                        ),
-                      )}
-                    </ul>
-                  </section>
-                )}
-                {!selected.preferredAvailability &&
-                  !!selected.preferredSlots?.length && (
-                    <section>
-                      <h3 className="sub-title">Thời gian mong muốn</h3>
-                      {selected.preferredSlots.map((slot) => (
-                        <p key={slot.startAt}>
-                          {fmtDateTime(slot.startAt)} —{" "}
-                          {fmtDateTime(slot.endAt)}
-                        </p>
-                      ))}
-                    </section>
-                  )}
+                <RequestFacts request={selected} />
+                <RequestAvailability request={selected} />
+
                 {selected.status === "PENDING_MODERATION" && (
                   <div className="staff-detail-actions">
                     <button
+                      type="button"
                       className="btn btn-danger"
                       disabled={!!decision || queue.loading}
                       onClick={() => setDecision("reject")}
@@ -230,6 +237,7 @@ export function ModerationScreen() {
                       Từ chối
                     </button>
                     <button
+                      type="button"
                       className="btn btn-primary"
                       disabled={!!decision || queue.loading}
                       onClick={() => setDecision("approve")}
