@@ -21,7 +21,16 @@ const labels: Record<Action, string> = {
   assign: "Cấp quyền Staff",
   remove: "Gỡ quyền Staff",
 };
-export function UsersScreen({ initialUserId }: { initialUserId?: string }) {
+function actionDescription(action: Action, selected: AdminUser): string {
+  if (action === "lock")
+    return "Tài khoản sẽ bị khóa và toàn bộ phiên đăng nhập bị thu hồi.";
+  if (action === "unlock")
+    return "Tài khoản đã xác minh sẽ hoạt động trở lại. Người dùng cần đăng nhập lại.";
+  return `Thay đổi vai trò của ${selected.fullName || selected.maskedEmail}. Nhập lại mật khẩu Admin để xác nhận.`;
+}
+export function UsersScreen({
+  initialUserId,
+}: Readonly<{ initialUserId?: string }>) {
   const { api, actor } = useStaffSession();
   const [status, setStatus] = useState("");
   const [role, setRole] = useState("");
@@ -58,7 +67,12 @@ export function UsersScreen({ initialUserId }: { initialUserId?: string }) {
         title="Người dùng"
         desc="Quản lý trạng thái tài khoản và phân quyền nhân viên."
         actions={
-          <button className="btn" disabled={queue.loading} onClick={reload}>
+          <button
+            type="button"
+            className="btn"
+            disabled={queue.loading}
+            onClick={reload}
+          >
             Làm mới
           </button>
         }
@@ -111,11 +125,7 @@ export function UsersScreen({ initialUserId }: { initialUserId?: string }) {
           </select>
         </label>
       </div>
-      {success && (
-        <p className="staff-success" role="status">
-          {success}
-        </p>
-      )}
+      {success && <output className="staff-success">{success}</output>}
       <Card flush>
         <QueueState
           loading={queue.loading}
@@ -145,6 +155,7 @@ export function UsersScreen({ initialUserId }: { initialUserId?: string }) {
                           <Avatar name={u.fullName || "Người dùng"} />
                           <div>
                             <button
+                              type="button"
                               className="link"
                               onClick={() => {
                                 setSelectedId(u.userId);
@@ -168,6 +179,7 @@ export function UsersScreen({ initialUserId }: { initialUserId?: string }) {
                       <td>{fmtDateTime(u.createdAt)}</td>
                       <td>
                         <button
+                          type="button"
                           className="btn btn-sm"
                           onClick={() => setSelectedId(u.userId)}
                         >
@@ -209,7 +221,11 @@ export function UsersScreen({ initialUserId }: { initialUserId?: string }) {
           className="section"
           title={selected.fullName || "Tài khoản"}
           actions={
-            <button className="btn btn-sm" onClick={() => setSelectedId(null)}>
+            <button
+              type="button"
+              className="btn btn-sm"
+              onClick={() => setSelectedId(null)}
+            >
               Đóng chi tiết
             </button>
           }
@@ -235,6 +251,7 @@ export function UsersScreen({ initialUserId }: { initialUserId?: string }) {
             <div className="row">
               {selected.accountStatus === "ACTIVE" && (
                 <button
+                  type="button"
                   className="btn btn-danger"
                   disabled={
                     selected.userId === actor?.userId ||
@@ -248,6 +265,7 @@ export function UsersScreen({ initialUserId }: { initialUserId?: string }) {
               )}
               {selected.accountStatus === "LOCKED" && (
                 <button
+                  type="button"
                   className="btn"
                   disabled={!!action || queue.loading}
                   onClick={() => setAction("unlock")}
@@ -257,6 +275,7 @@ export function UsersScreen({ initialUserId }: { initialUserId?: string }) {
               )}
               {!selected.roles.includes("ADMIN") && (
                 <button
+                  type="button"
                   className="btn btn-primary"
                   disabled={!!action || queue.loading}
                   onClick={() => {
@@ -278,13 +297,7 @@ export function UsersScreen({ initialUserId }: { initialUserId?: string }) {
       {selected && action && (
         <DecisionDialog
           title={labels[action]}
-          description={
-            action === "lock"
-              ? "Tài khoản sẽ bị khóa và toàn bộ phiên đăng nhập bị thu hồi."
-              : action === "unlock"
-                ? "Tài khoản đã xác minh sẽ hoạt động trở lại. Người dùng cần đăng nhập lại."
-                : `Thay đổi vai trò của ${selected.fullName || selected.maskedEmail}. Nhập lại mật khẩu Admin để xác nhận.`
-          }
+          description={actionDescription(action, selected)}
           min={1}
           max={1000}
           confirmLabel={labels[action]}
@@ -320,7 +333,7 @@ export function UsersScreen({ initialUserId }: { initialUserId?: string }) {
         >
           {(action === "assign" || action === "remove") && (
             <label className="staff-field">
-              Mật khẩu Admin
+              <span>Mật khẩu Admin</span>
               <input
                 type="password"
                 required

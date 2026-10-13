@@ -66,10 +66,19 @@ export function CatalogScreen() {
         desc="Thêm, chỉnh sửa, ẩn và khôi phục kỹ năng của cộng đồng."
         actions={
           <div className="row">
-            <button className="btn" disabled={queue.loading} onClick={reload}>
+            <button
+              type="button"
+              className="btn"
+              disabled={queue.loading}
+              onClick={reload}
+            >
               Làm mới
             </button>
-            <button className="btn btn-primary" onClick={() => edit()}>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => edit()}
+            >
               Thêm kỹ năng
             </button>
           </div>
@@ -88,7 +97,7 @@ export function CatalogScreen() {
           value={q}
           onChange={setQ}
         />
-        <button className="btn" disabled={q.trim().length === 1}>
+        <button type="submit" className="btn" disabled={q.trim().length === 1}>
           Tìm kiếm
         </button>
         <label>
@@ -105,11 +114,7 @@ export function CatalogScreen() {
           </select>
         </label>
       </form>
-      {success && (
-        <p className="staff-success" role="status">
-          {success}
-        </p>
-      )}
+      {success && <output className="staff-success">{success}</output>}
       <Card flush>
         <QueueState
           loading={queue.loading}
@@ -146,6 +151,7 @@ export function CatalogScreen() {
                       <div className="row">
                         {s.status !== "ARCHIVED" && (
                           <button
+                            type="button"
                             className="btn btn-sm"
                             onClick={() => edit(s)}
                           >
@@ -153,6 +159,7 @@ export function CatalogScreen() {
                           </button>
                         )}
                         <button
+                          type="button"
                           className="btn btn-sm"
                           onClick={() => {
                             setRestoreStatus("ACTIVE");
@@ -212,7 +219,7 @@ export function CatalogScreen() {
         >
           <div className="stack">
             <label className="staff-field">
-              Tên kỹ năng
+              <span>Tên kỹ năng</span>
               <input
                 required
                 minLength={2}
@@ -222,7 +229,7 @@ export function CatalogScreen() {
               />
             </label>
             <label className="staff-field">
-              Slug (không bắt buộc)
+              <span>Slug (không bắt buộc)</span>
               <input
                 pattern="[a-z0-9][a-z0-9-]*[a-z0-9]"
                 minLength={2}
@@ -232,7 +239,7 @@ export function CatalogScreen() {
               />
             </label>
             <label className="staff-field">
-              Mô tả
+              <span>Mô tả</span>
               <textarea
                 maxLength={500}
                 value={editor.description}
@@ -242,7 +249,7 @@ export function CatalogScreen() {
               />
             </label>
             <label className="staff-field">
-              Mã danh mục (không bắt buộc)
+              <span>Mã danh mục (không bắt buộc)</span>
               <input
                 pattern={uuidPattern}
                 placeholder="UUID danh mục"
@@ -253,7 +260,7 @@ export function CatalogScreen() {
               />
             </label>
             <label className="staff-field">
-              Trạng thái
+              <span>Trạng thái</span>
               <select
                 value={editor.status}
                 onChange={(e) =>
@@ -306,7 +313,7 @@ export function CatalogScreen() {
         >
           {transition.status === "ARCHIVED" ? (
             <label className="staff-field">
-              Trạng thái sau khôi phục
+              <span>Trạng thái sau khôi phục</span>
               <select
                 value={restoreStatus}
                 onChange={(e) => setRestoreStatus(e.target.value)}
