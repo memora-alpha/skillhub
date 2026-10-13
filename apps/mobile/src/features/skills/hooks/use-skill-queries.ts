@@ -16,6 +16,7 @@ import {
 import { withSubmittedVerification } from "../utils/verification-state";
 import { useSkillReadFocus } from "./use-skill-read-focus";
 import { useEffect } from "react";
+import { AppError } from "@/lib/http/errors";
 
 export function validId(value?: string | string[]) {
   return typeof value === "string" && z.uuid().safeParse(value).success
@@ -86,18 +87,42 @@ export function useOwnSkills(filter: SkillFilter = "ALL") {
   useSkillReadFocus(query.refetch);
   return query;
 }
-export function usePublicSkills() {
-  const { api, scope, userId, assertCurrent, deletedSkillIds } = useSkills();
+export function usePublicSkills(targetUserId?: string) {
+  const {
+    api,
+    scope,
+    userId: ownUserId,
+    assertCurrent,
+    deletedSkillIds,
+  } = useSkills();
+  const userId = targetUserId ?? ownUserId;
   const query = useInfiniteQuery({
     queryKey: [...scope, "public", userId],
     staleTime: 0,
     initialPageParam: undefined as string | undefined,
     queryFn: async ({ pageParam, signal }) => {
-      const result = await api.publicSkills(userId, pageParam, signal);
+      let result;
+      try {
+        result = await api.publicSkills(userId, pageParam, signal);
+      } catch (error) {
+        assertCurrent();
+        if (
+          userId !== ownUserId &&
+          error instanceof AppError &&
+          (error.status === 403 || error.status === 404)
+        )
+          return {
+            data: [],
+            pagination: { limit: 20, hasMore: false, nextCursor: null },
+          };
+        throw error;
+      }
       assertCurrent();
       return {
         ...result,
-        data: result.data.filter((skill) => !deletedSkillIds.has(skill.id)),
+        data: result.data.filter(
+          (skill) => userId !== ownUserId || !deletedSkillIds.has(skill.id),
+        ),
       };
     },
     getNextPageParam: (last) =>

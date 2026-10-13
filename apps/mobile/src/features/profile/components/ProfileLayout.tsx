@@ -25,6 +25,7 @@ type ProfileLayoutProps = Readonly<{
   session: AccountSession;
   title?: string;
   onBack?: () => void;
+  backLabel?: string;
   keyboardAware?: boolean;
   children: (open: (label: string) => void) => ReactNode;
 }>;
@@ -83,6 +84,7 @@ export function ProfileLayout({
   session,
   title,
   onBack,
+  backLabel,
   keyboardAware = false,
   children,
 }: ProfileLayoutProps) {
@@ -119,6 +121,7 @@ export function ProfileLayout({
         profile={session}
         title={title ?? "Hồ sơ"}
         onBack={onBack}
+        backLabel={backLabel}
         onAction={action}
         onAccount={() => setMenu(true)}
       />
