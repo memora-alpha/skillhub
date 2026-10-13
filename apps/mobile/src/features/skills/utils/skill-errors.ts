@@ -29,7 +29,7 @@ export function skillError(error: unknown, saving = false) {
     if (error.status === 415)
       return "Định dạng hoặc nội dung file không được hỗ trợ.";
     if (error.status === 503)
-      return "Dịch vụ lưu trữ/kiểm tra file chưa sẵn sàng. Hãy thử lại sau.";
+      return "Máy chủ chưa sẵn sàng xử lý yêu cầu. Hãy thử lại sau.";
   }
   return errorMessage(error);
 }

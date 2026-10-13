@@ -12,6 +12,7 @@ import { SkillAction } from "./SkillAction";
 import { SubmittedEvidence } from "./SubmittedEvidence";
 import { useSkills } from "../context/SkillsProvider";
 import { verificationItems } from "../utils/verification-state";
+import { evidenceTime } from "../utils/evidence-time";
 export function VerificationHistory({
   id,
   header,
@@ -56,7 +57,7 @@ export function VerificationHistory({
         <View style={[skillStyles.card, { marginBottom: 12 }]}>
           <Text style={skillStyles.heading}>{decisionLabels[item.status]}</Text>
           <Text style={skillStyles.caption}>
-            {new Date(item.submittedAt).toLocaleString("vi-VN")}
+            Gửi: {evidenceTime(item.submittedAt)}
           </Text>
           {item.rejectReason && (
             <Text style={skillStyles.body}>Lý do: {item.rejectReason}</Text>
