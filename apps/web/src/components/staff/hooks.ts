@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { StaffApiError } from "@/lib/staff/client";
+import { StaffApiError, isSessionFailure } from "@/lib/staff/client";
+import { appendCursor, mergePage } from "@/lib/staff/pagination";
 import type { ApiEnvelope, Pagination } from "@/lib/staff/types";
 import { useStaffSession } from "./session";
 export function useStaffResource<T>(path: string) {
@@ -23,13 +24,7 @@ export function useStaffResource<T>(path: string) {
       })
       .catch((e: unknown) => {
         if (controller.signal.aborted) return;
-        if (
-          e instanceof StaffApiError &&
-          (e.status === 401 ||
-            e.code === "STAFF_PORTAL_ACCESS_REQUIRED" ||
-            e.code === "ADMIN_PORTAL_ACCESS_REQUIRED")
-        )
-          expire();
+        if (isSessionFailure(e)) expire();
         setState({
           path,
           loading: false,
@@ -53,7 +48,9 @@ export function useStaffResource<T>(path: string) {
     },
   };
 }
-export function useStaffList<T>(path: string) {
+export function useStaffList<T extends { id?: string; userId?: string }>(
+  path: string,
+) {
   const { expire, api } = useStaffSession();
   const [state, setState] = useState<{
     path: string;
@@ -71,44 +68,21 @@ export function useStaffList<T>(path: string) {
       const controller = new AbortController();
       current.current = controller;
       pending.current = true;
-      return api<T[]>(
-        path +
-          (cursor
-            ? `${path.includes("?") ? "&" : "?"}cursor=${encodeURIComponent(cursor)}`
-            : ""),
-        { signal: controller.signal },
-      )
+      return api<T[]>(appendCursor(path, cursor), { signal: controller.signal })
         .then((result) => {
           if (!Array.isArray(result.data))
             throw new StaffApiError(502, "API_RESPONSE_INVALID");
           if (!controller.signal.aborted)
             setState((s) => ({
               path,
-              items: cursor
-                ? [...s.items, ...result.data].filter(
-                    (item, index, all) =>
-                      all.findIndex(
-                        (other) =>
-                          ((other as { id?: string; userId?: string }).id ??
-                            (other as { userId?: string }).userId) ===
-                          ((item as { id?: string; userId?: string }).id ??
-                            (item as { userId?: string }).userId),
-                      ) === index,
-                  )
-                : result.data,
+              items: cursor ? mergePage(s.items, result.data) : result.data,
               page: result.meta?.pagination,
               loading: false,
             }));
         })
         .catch((e: unknown) => {
           if (controller.signal.aborted) return;
-          if (
-            e instanceof StaffApiError &&
-            (e.status === 401 ||
-              e.code === "STAFF_PORTAL_ACCESS_REQUIRED" ||
-              e.code === "ADMIN_PORTAL_ACCESS_REQUIRED")
-          )
-            expire();
+          if (isSessionFailure(e)) expire();
           setState((s) => ({
             path,
             items: cursor && s.path === path ? s.items : [],

@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Icon, type IconName } from "@/components/console/icon";
 import { StaffSessionProvider, useStaffSession } from "./session";
 import { StaffLogin } from "./login";
@@ -23,18 +23,24 @@ const adminNav: typeof nav = [
   { href: "/admin/config", label: "Quy tắc kiểm duyệt", icon: "sliders" },
   { href: "/admin/notifications", label: "Thông báo", icon: "bell" },
 ];
-function Frame({ children }: { children: ReactNode }) {
+function Frame({ children }: Readonly<{ children: ReactNode }>) {
   const { actor, loading, logout, busy, portal } = useStaffSession();
   const links = portal === "admin" ? adminNav : nav;
   const portalName = portal === "admin" ? "Admin" : "Staff";
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [open]);
   if (loading)
     return (
-      <main className="staff-loading" role="status">
-        Đang kiểm tra phiên làm việc…
-      </main>
+      <output className="staff-loading">Đang kiểm tra phiên làm việc…</output>
     );
   if (!actor) return <StaffLogin />;
   const current = links.find((item) =>
@@ -47,14 +53,7 @@ function Frame({ children }: { children: ReactNode }) {
       <a className="skip-link" href="#main">
         Bỏ qua điều hướng
       </a>
-      <aside
-        id="staff-side"
-        className="side"
-        data-open={open}
-        onKeyDown={(event) => {
-          if (event.key === "Escape") setOpen(false);
-        }}
-      >
+      <aside id="staff-side" className="side" data-open={open}>
         <div className="side-head">
           <span className="logo" aria-hidden="true">
             S
@@ -64,6 +63,7 @@ function Frame({ children }: { children: ReactNode }) {
             <div className="side-sub">Cổng {portalName}</div>
           </div>
           <button
+            type="button"
             className="icon-btn menu-btn side-close"
             aria-label="Đóng menu"
             onClick={() => setOpen(false)}
@@ -97,6 +97,7 @@ function Frame({ children }: { children: ReactNode }) {
             </div>
           </div>
           <button
+            type="button"
             className="nav-link subtle"
             disabled={busy}
             onClick={async () => {
@@ -117,6 +118,7 @@ function Frame({ children }: { children: ReactNode }) {
       </aside>
       {open && (
         <button
+          type="button"
           className="scrim"
           aria-label="Đóng menu"
           onClick={() => setOpen(false)}
@@ -125,6 +127,7 @@ function Frame({ children }: { children: ReactNode }) {
       <div className="main-col">
         <header className="topbar">
           <button
+            type="button"
             className="icon-btn menu-btn"
             aria-label="Mở menu"
             aria-expanded={open}
@@ -160,10 +163,10 @@ function Frame({ children }: { children: ReactNode }) {
 export function StaffShell({
   children,
   portal = "staff",
-}: {
+}: Readonly<{
   children: ReactNode;
   portal?: Portal;
-}) {
+}>) {
   return (
     <StaffSessionProvider portal={portal}>
       <Frame>{children}</Frame>

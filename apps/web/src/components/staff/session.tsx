@@ -4,6 +4,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
@@ -24,6 +25,12 @@ type Session = {
   expire: () => void;
 };
 const Context = createContext<Session | null>(null);
+function sessionError(error: unknown): string | null {
+  if (error instanceof StaffApiError && error.status === 401) return null;
+  return error instanceof Error
+    ? error.message
+    : "Không thể kiểm tra phiên làm việc.";
+}
 export function useStaffSession() {
   const context = useContext(Context);
   if (!context) throw new Error("StaffSessionProvider missing");
@@ -32,10 +39,10 @@ export function useStaffSession() {
 export function StaffSessionProvider({
   children,
   portal = "staff",
-}: {
+}: Readonly<{
   children: ReactNode;
   portal?: Portal;
-}) {
+}>) {
   const api: PortalApi = useCallback(
     (path, options) => staffApi(path, options, portal),
     [portal],
@@ -54,26 +61,21 @@ export function StaffSessionProvider({
     const controller = new AbortController();
     api<StaffIdentity>("session", { signal: controller.signal })
       .then((result) => {
+        if (controller.signal.aborted) return;
         setActor(result.data);
         setError(null);
       })
       .catch((e: unknown) => {
         if (controller.signal.aborted) return;
         setActor(null);
-        setError(
-          e instanceof StaffApiError && e.status === 401
-            ? null
-            : e instanceof Error
-              ? e.message
-              : "Không thể kiểm tra phiên làm việc.",
-        );
+        setError(sessionError(e));
       })
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
   }, [revision, api]);
-  async function perform(fn: () => Promise<void>) {
+  const perform = useCallback(async (fn: () => Promise<void>) => {
     if (action.current) return;
     action.current = true;
     setBusy(true);
@@ -83,43 +85,45 @@ export function StaffSessionProvider({
       action.current = false;
       setBusy(false);
     }
-  }
-  async function login(email: string, password: string) {
-    await perform(async () => {
-      const result = await api<StaffIdentity>("session", {
-        method: "POST",
-        body: { email, password },
+  }, []);
+  const login = useCallback(
+    async (email: string, password: string) => {
+      await perform(async () => {
+        const result = await api<StaffIdentity>("session", {
+          method: "POST",
+          body: { email, password },
+        });
+        setActor(result.data);
+        setError(null);
       });
-      setActor(result.data);
-      setError(null);
-    });
-  }
-  async function logout() {
+    },
+    [api, perform],
+  );
+  const logout = useCallback(async () => {
     await perform(async () => {
       await api<null>("session", { method: "DELETE" });
       setActor(null);
       setError(null);
     });
-  }
-  return (
-    <Context.Provider
-      value={{
-        portal,
-        api,
-        actor,
-        loading,
-        error,
-        busy,
-        login,
-        logout,
-        expire,
-        refresh: () => {
-          setLoading(true);
-          setRevision((v) => v + 1);
-        },
-      }}
-    >
-      {children}
-    </Context.Provider>
+  }, [api, perform]);
+  const refresh = useCallback(() => {
+    setLoading(true);
+    setRevision((v) => v + 1);
+  }, []);
+  const value = useMemo<Session>(
+    () => ({
+      portal,
+      api,
+      actor,
+      loading,
+      error,
+      busy,
+      login,
+      logout,
+      expire,
+      refresh,
+    }),
+    [portal, api, actor, loading, error, busy, login, logout, expire, refresh],
   );
+  return <Context.Provider value={value}>{children}</Context.Provider>;
 }
