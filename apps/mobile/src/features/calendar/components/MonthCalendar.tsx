@@ -1,11 +1,9 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { styles } from "./MonthCalendar.styles";
+import { Pressable, Text, View } from "react-native";
 import { Icon } from "@/components/Icon";
-import { typography, fonts } from "@/constants/theme";
+import { fonts } from "@/constants/theme";
 import { weekDays } from "../mocks/calendar";
-import {
-  calendarCardShadow,
-  calendarColors as colors,
-} from "../constants/theme";
+import { calendarColors as colors } from "../constants/theme";
 
 type CalendarCell = Readonly<{ key: string; day: number | null }>;
 
@@ -42,33 +40,35 @@ export function MonthCalendar({
   return (
     <View style={styles.card}>
       <View style={styles.heading}>
-        <Pressable
-          accessibilityRole="button"
-          hitSlop={6}
-          accessibilityLabel="Tháng trước"
-          onPress={() => onMonthChange(month - 1)}
-          style={styles.arrow}
-        >
-          <View
-            style={{
-              transform: [{ rotate: "180deg" }],
-            }}
-          >
-            <Icon name="chevron" color={colors.muted} size={18} />
-          </View>
-        </Pressable>
         <Text accessibilityRole="header" style={styles.month}>
           Tháng {month + 1}, {year}
         </Text>
-        <Pressable
-          accessibilityRole="button"
-          hitSlop={6}
-          accessibilityLabel="Tháng sau"
-          onPress={() => onMonthChange(month + 1)}
-          style={[styles.arrow]}
-        >
-          <Icon name="chevron" color={colors.muted} size={18} />
-        </Pressable>
+        <View style={styles.arrows}>
+          <Pressable
+            accessibilityRole="button"
+            hitSlop={6}
+            accessibilityLabel="Tháng trước"
+            onPress={() => onMonthChange(month - 1)}
+            style={styles.arrow}
+          >
+            <View
+              style={{
+                transform: [{ rotate: "180deg" }],
+              }}
+            >
+              <Icon name="chevron" color={colors.muted} size={18} />
+            </View>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            hitSlop={6}
+            accessibilityLabel="Tháng sau"
+            onPress={() => onMonthChange(month + 1)}
+            style={[styles.arrow]}
+          >
+            <Icon name="chevron" color={colors.muted} size={18} />
+          </Pressable>
+        </View>
       </View>
       <View style={styles.week}>
         {weekDays.map((day) => (
@@ -99,25 +99,31 @@ export function MonthCalendar({
                     accessibilityState={{ selected }}
                     aria-pressed={selected}
                     onPress={() => onDayPress(day)}
-                    style={[
-                      styles.day,
-                      hasSession && styles.sessionDay,
-                      selected && styles.selected,
-                      today && styles.today,
-                    ]}
+                    style={[styles.day, selected && styles.circled]}
                   >
                     <Text
                       style={[
                         styles.dayText,
-                        hasSession && {
+                        selected && {
+                          fontFamily: fonts.semibold,
+                        },
+                        selected && { color: colors.orange },
+                        today && {
                           color: colors.orange,
                           fontFamily: fonts.bold,
                         },
-                        today && { color: colors.surface },
                       ]}
                     >
                       {day}
                     </Text>
+                    {hasSession && (
+                      <View
+                        style={[
+                          styles.dayDot,
+                          selected && styles.selectedDayDot,
+                        ]}
+                      />
+                    )}
                   </Pressable>
                 </View>
               );
@@ -125,113 +131,6 @@ export function MonthCalendar({
           </View>
         ))}
       </View>
-      <View style={styles.legend}>
-        <View style={styles.legendItem}>
-          <View style={styles.todayDot} />
-          <Text style={styles.caption}>Hôm nay</Text>
-        </View>
-        <View style={styles.legendItem}>
-          <View style={styles.sessionDot} />
-          <Text style={styles.caption}>Có buổi học</Text>
-        </View>
-      </View>
     </View>
   );
 }
-const styles = StyleSheet.create({
-  card: {
-    padding: 16,
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    boxShadow: calendarCardShadow,
-  },
-  heading: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 8,
-    marginBottom: 8,
-  },
-  arrow: { padding: 5 },
-  month: {
-    fontFamily: fonts.bold,
-    ...typography.heading,
-    color: colors.ink,
-  },
-  week: { flexDirection: "row" },
-  weekDay: {
-    flex: 1,
-    fontFamily: fonts.semibold,
-    color: colors.muted,
-    ...typography.caption,
-    paddingVertical: 3,
-    textAlign: "center",
-  },
-  grid: { gap: 1 },
-  cell: {
-    flex: 1,
-    minWidth: 0,
-    height: 36,
-    padding: 2,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  day: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "transparent",
-  },
-  dayText: {
-    fontFamily: fonts.medium,
-    color: colors.body,
-    ...typography.secondary,
-    fontVariant: ["tabular-nums"],
-  },
-  sessionDay: {
-    backgroundColor: colors.surface,
-    borderColor: colors.orange,
-    borderWidth: 1.5,
-  },
-  today: {
-    backgroundColor: colors.orange,
-    borderColor: colors.orange,
-  },
-  selected: {
-    backgroundColor: colors.orangeSoft,
-    borderColor: colors.orange,
-    boxShadow: "0 0 0 2px rgba(239, 101, 61, 0.12)",
-  },
-  legend: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 14,
-    marginTop: 10,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderColor: colors.border,
-  },
-  legendItem: { flexDirection: "row", alignItems: "center", gap: 6 },
-  caption: {
-    fontFamily: fonts.body,
-    ...typography.caption,
-    color: colors.muted,
-  },
-  todayDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: colors.orange,
-  },
-  sessionDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.orange,
-  },
-});

@@ -1,18 +1,18 @@
 import { signedInChrome } from "@/constants/theme";
 
 export const calendarColors = {
-  background: signedInChrome.background,
+  background: "#FAF7F2",
   surface: signedInChrome.surface,
-  ink: signedInChrome.ink,
-  body: "#534D47",
-  muted: "#97928A",
-  border: signedInChrome.border,
-  orange: signedInChrome.accent,
-  orangeDark: "#D95120",
-  orangeSoft: "#FFF2EC",
+  ink: "#1C1917",
+  body: "#44403C",
+  muted: "#78716C",
+  border: "#EFE8E1",
+  orange: "#D9532F",
+  orangeDark: "#C7441E",
+  orangeSoft: "#FDF2EE",
   green: "#27977B",
   greenSoft: "#EAF7F0",
-  segment: "#ECE9E3",
+  segment: "#F4EFEA",
   error: "#BA1A1A",
   errorLight: "#FFEFED",
   star: "#FFB800",
@@ -23,4 +23,5 @@ export const calendarColors = {
   sand: "#F6F4F0",
 } as const;
 
-export const calendarCardShadow = "0 4px 16px rgba(53, 43, 31, 0.045)";
+export const calendarCardShadow = "0 4px 20px rgba(90, 60, 40, 0.06)";
+export const calendarButtonShadow = "0 4px 14px rgba(217, 83, 47, 0.25)";
