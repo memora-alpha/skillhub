@@ -1,3 +1,26 @@
+// Per-skill level catalog; legacy SharingSkill.level stays during client rollout.
+model SkillLevel {
+  id String @id @default(uuid()) @map("level_id") @db.Uuid
+  skillId String @map("skill_id") @db.Uuid
+  code String @db.VarChar(40)
+  name String @db.VarChar(100)
+  nameKey String @map("name_key") @db.Text
+  description String? @db.VarChar(500)
+  sortOrder Int @default(0) @map("sort_order")
+  status CatalogStatus @default(ACTIVE)
+  version Int @default(1)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  skill Skill @relation(fields: [skillId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  sharingSkills SharingSkill[]
+
+  @@unique([skillId, id])
+  @@unique([skillId, code])
+  @@unique([skillId, nameKey])
+  @@index([skillId, status, sortOrder, id])
+  @@map("skill_levels")
+}
+
 enum OtpPurpose {
   REGISTER
   RESET_PASSWORD

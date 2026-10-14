@@ -73,6 +73,14 @@ sẽ được chốt trong spec và plan của từng feature.
 
 ## Breakdown backend thành module
 
+Skills hỗ trợ [catalog level theo từng skill](specs/007-skills/skill-level-catalog.md):
+Admin quản lý qua `/api/v1/admin/skills/{skillId}/levels`; public lấy level ACTIVE
+qua `/api/v1/skills/{skillId}/levels`. Sharing Skill chọn bằng `levelId`; input enum
+`level` cũ vẫn được ánh xạ. Response `level` có thể là code tùy chỉnh như B2/N3,
+kèm `levelId` và `skillLevel`. Rollout cần migration skill_level_catalog, seed quyền
+`skill-level:manage`, và cập nhật client dùng danh sách level động. Learning Request
+`currentLevel` giữ nguyên. Xem amendment để biết tương thích và kiểm thử.
+
 Skill catalog và Sharing Skill hỗ trợ [archive/restore](specs/007-skills/restore.md): catalog restore về ACTIVE/INACTIVE do operator chọn; owner restore Sharing Skill giữ history/visibility/badge hiện tại và chặn bản trùng. Routes `POST /api/v1/admin/skills/{skillId}/restore` và `POST /api/v1/me/skills/{sharingSkillId}/restore` yêu cầu permission riêng, expectedVersion và Idempotency-Key. Chạy identity seed khi rollout để bổ sung grants.
 
 Đề xuất dùng một ứng dụng NestJS với các module theo nghiệp vụ, cùng database

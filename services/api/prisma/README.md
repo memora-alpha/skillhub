@@ -19,6 +19,10 @@ entities; its simplification does not remove logical join tables.
   metadata and application aliases mapped to v3 columns.
   `prisma.config.ts`, default generate/build/typecheck and migrations use it.
   Profile fields live on User; User has one required roleId.
+- The [per-skill level catalog amendment](../specs/007-skills/skill-level-catalog.md)
+  adds runtime `SkillLevel` and SharingSkill.levelId through the runtime generator
+  and `runtime-support.prisma`; the historical logical-v3 catalog remains intact.
+  Migration `20261014000000_skill_level_catalog` backfills all old selections.
 - `scripts/write-identity-schema.mjs` verifies the runtime scope without rewriting it.
   OTP authority is Redis; no PostgreSQL OTP models are generated.
   There is no separate `identity.prisma` deployment schema.

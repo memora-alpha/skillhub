@@ -21,6 +21,7 @@ import { PublicSkillReader } from "../../dist/modules/users/application/services
 import { ProfileReader } from "../../dist/modules/users/application/services/profile-reader.service.js";
 import { SkillsRepository } from "../../dist/modules/skills/infrastructure/skills.repository.js";
 import { SkillsService } from "../../dist/modules/skills/application/skills.service.js";
+import { SkillLevelsService } from "../../dist/modules/skills/application/skill-levels.service.js";
 import { SharingSkillsRepository } from "../../dist/modules/sharing-skills/infrastructure/sharing-skills.repository.js";
 import { SharingSkillsService } from "../../dist/modules/sharing-skills/application/sharing-skills.service.js";
 import { VerificationsRepository } from "../../dist/modules/verifications/infrastructure/verifications.repository.js";
@@ -30,7 +31,10 @@ import { PrismaStoredFileRepository } from "../../dist/infrastructure/storage/pr
 import { FileStorageService } from "../../dist/infrastructure/storage/file-storage.service.js";
 import { SkillNotificationHandler } from "../../dist/modules/notifications/application/skill-notification.handler.js";
 
-export async function createSkillFixture(beforeSkillsMigration) {
+export async function createSkillFixture(
+  beforeSkillsMigration,
+  beforeLevelMigration,
+) {
   const schema = `skills_test_${randomUUID().replaceAll("-", "")}`;
   if (!/^skills_test_[a-f0-9]{32}$/.test(schema))
     throw new Error("Invalid test schema");
@@ -69,6 +73,8 @@ export async function createSkillFixture(beforeSkillsMigration) {
       .sort((left, right) => left.localeCompare(right))) {
       if (name === "20261007010000_skills")
         await beforeSkillsMigration?.(client);
+      if (name === "20261014000000_skill_level_catalog")
+        await beforeLevelMigration?.(client);
       await client.query(
         await readFile(new URL(`${name}/migration.sql`, migrations), "utf8"),
       );
@@ -102,6 +108,14 @@ export async function createSkillFixture(beforeSkillsMigration) {
       actors,
       commands,
       transactions,
+      audit,
+    );
+    const levels = new SkillLevelsService(
+      db,
+      new SkillsRepository(db),
+      actors,
+      transactions,
+      commands,
       audit,
     );
     const sharing = new SharingSkillsService(
@@ -216,6 +230,7 @@ export async function createSkillFixture(beforeSkillsMigration) {
       outbox,
       skills,
       sharing,
+      levels,
       profiles,
       verifications,
       attachments,
