@@ -5,3 +5,4 @@ export { PublicProfilePreviewScreen } from "./screens/public-profile-preview-scr
 export { publicProfiles } from "./mocks/publicProfiles";
 export { ProfilePreviewProvider } from "./context/ProfilePreview";
 export { AvatarUploadToasts } from "./components/AvatarUploadNotice";
+export { createPublicProfileApi } from "./api/public-profile-api";
