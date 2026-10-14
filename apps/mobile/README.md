@@ -93,6 +93,17 @@ Retry and reconnection reload the open page's data; see
 Some other flows still use sample data or local state while integration is in
 progress.
 
+Session [spec 006](specs/006-session/spec.md) connects Calendar, month-based session
+lists, participant detail and completion confirmation to the existing API.
+Reschedule is a local draft with submission disabled until the backend provides
+a proposal/version read contract. [Validation](specs/006-session/validation.md)
+records passing fixture/web checks separately from pending real-API and native acceptance.
+
+Scrollable screens support pull-to-refresh through shared scroll/list components.
+Session cards and detail distinguish upcoming, in-progress, ended awaiting
+confirmation, completed, cancelled and disputed sessions. Calendar defaults to
+today and displays all sessions for the selected day, with status on each card.
+
 See the [feature matrix](docs/feature-matrix.md) and
 [API contracts](docs/api-contracts.md) for integration scope. Feature behavior,
 pending work and test results belong in the [specs](specs/), tasks, checklists

@@ -175,3 +175,88 @@ The underlying router remains mounted, with interaction and accessibility
 disabled while covered. Returning online reloads active read queries and keeps
 the current route. Saving, uploading and submitting are never replayed by this
 boundary. See [network states and validation](network-state.md).
+
+Vertical page scrolls/lists use the shared refreshable components. Keyboard-aware
+forms attach native refresh to their existing scroll container, preserving one
+scroll owner. `AppRefreshProvider` sits under QueryProvider and refreshes reads;
+web gestures stay in PullRefreshBoundary, outside feature/business modules.
+See [pull-to-refresh](network-state.md#pull-to-refresh--2026-10-14).
+
+## Calendar presentation
+
+Calendar uses its existing feature palette to match the supplied mobile HTML
+reference: warm canvas, compact month card, dot markers
+and a text-only gradient Session action. `CalendarSessionCard` is a Calendar-specific
+presentation of the validated Session API projection; other Session lists keep
+their existing shared card. Calendar now uses the app's shared fonts/typography
+and default shell header. Today uses orange digits without a background and is
+selected on first opening. Days with sessions have small dots and only the
+selected day is circled. No calendar
+legend is displayed. The standalone
+learning-history route and its navigation links have been removed. Calendar has
+no status filter: all sessions for the selected day appear with status on each card.
+Its empty-state title uses Nunito Bold and the shared heading typography.
+
+Calendar has one Session list query for the displayed month. Selecting a day
+filters that month's validated data locally and never changes the query
+key or issues a separate day request. Calendar dots come from all sessions in
+that month's response, before filtering by selected day. Changing month and the
+existing refresh/focus/resume mechanisms reload
+reads. Cap warnings remain honest about the backend's 100-row limit; local day
+filtering does not retrieve missing rows. Calendar headings/metadata use the
+signed-in list font conventions (Nunito and shared typography tokens).
+
+Session detail follows the supplied detail HTML with shared Nunito typography:
+status pill at the top right inside the rounded information card,
+orange day/month text without a tile background, and prominent local time/date/duration
+before partner avatar/name/role. The entire partner row opens the existing public
+profile route with the other participant ID from Session; Back returns to detail.
+Timezone/UTC offset labels are hidden; device timezone still drives formatting.
+Schedule and partner are unboxed rows inside one white card. Guidance is plain
+text outside that card; room is a separate red errorLight block with a solid red
+icon tile. Header, confirmation
+and action dock have no horizontal divider. The ended-session badge is shortened
+to “Chờ xác nhận”, with the full ended guidance below the card.
+Date ranges preserve both dates for overnight sessions and local times across
+daylight-saving changes.
+The action dock stays below the scroll area: upcoming sessions link to the
+existing reschedule draft; ended sessions open a confirmation dialog directly on detail.
+There is no separate completion page or route.
+The action uses the primary terracotta color with white label/icon; confirmed
+sessions show a disabled paper button labeled “Đã xác nhận”.
+Cancelled or disputed sessions and denied reads have no action dock. Pull refresh remains
+available for content and error states. Room access is labeled unavailable;
+no room opening time, online/expert verification, session count, cancellation
+command, policy or chat flow is inferred from the reference's sample content.
+
+Ended sessions show an inline confirmation section inside the main information
+card, with individual clock/check/unknown indicators and authoritative labels.
+Cancellation reason and timestamp are grouped in an inline red-tinted section
+of that same card. These read sections do not add a cancellation form or command.
+
+Reschedule uses shared `DateTimeField`, `CalendarPicker`, `DateTimeSelector` and
+date-choice helpers extracted from the existing Learning Request picker. Its old
+feature entry points re-export the shared components/helpers so existing callers
+retain their contract. Date and time are selected, staged until Done, and Cancel
+preserves the previous value; past date/time cannot be committed. Web uses the
+calendar and hour/minute selects, Android the Expo UI time picker, and iOS the
+SwiftUI wheel. Form headings/body/hints use Nunito and shared 17/15/13 tokens.
+Reschedule opts into solid Date/Time tabs (primary/white selected, surfaceInset
+unselected); other DateTimeField consumers retain their default soft variant.
+The draft survives read refresh; submission remains gated by the missing backend
+proposal/version contract. No package was added or upgraded.
+
+Remaining Session pages use feature-scoped `SessionPage`, panel/copy/button and
+empty-state components with Nunito/shared heading 17, body/button 15 and secondary
+13 typography. Path session lists have a compact month bar and status badges at
+the right of each card; their cap warning does not imply a day query can fetch
+additional rows. Detail keeps the shared `SessionConfirmations` inside its
+information card, read/mutation notices in the scroll area and the action in its
+footer. The footer opens a confirmation dialog; Cancel, outside dismissal and native Back do not send a command. Only
+dialog confirmation calls the guarded action. Own confirmed detail, server
+COMPLETED or a matching successful receipt displays disabled “Đã xác nhận”,
+including on reopening the page. An unknown POST outcome retains the read
+reconciliation flow without claiming success or automatically retrying.
+Action guards/preflight/reconciliation are unchanged. Room styling uses
+the same components, while remaining an explicit preview with local controls.
+This does not enable LiveKit or real Session UUID access to mock rooms.

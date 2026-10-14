@@ -68,3 +68,23 @@ but the feature is app-wide. The harness is `.expo/connection-browser.cjs`.
 
 Android/iOS airplane mode, native modal stacking, hardware Back and foreground
 resume still require device validation.
+
+## Pull-to-refresh — 2026-10-14
+
+Vertical page scrolls and lists share `RefreshableScrollView`,
+`RefreshableFlatList` and the existing `KeyboardFormScrollView` integration.
+Native uses [React Native RefreshControl](https://reactnative.dev/docs/0.86/refreshcontrol);
+web supports mouse and touch pulls at the top with a visible refresh indicator.
+Horizontal chip lists and the onboarding carousel retain their normal gestures.
+
+`AppRefreshProvider` defaults to refetching active React Query reads (including
+the account/profile query), coalesces overlapping pulls and lets each existing
+list keep its own refresh callback. Disabled/inactive reads and mutations are
+not replayed. Forms remain mounted and preserve their draft. Errors stay with
+the feature or ConnectionGate; cached-data denial guards still apply.
+
+Automated checks cover active/disabled/inactive queries, refresh locking,
+failure recovery and gesture direction/threshold. Native physical gestures and
+keyboard behavior still require Android/iOS device acceptance. Fixture web
+evidence is recorded in `specs/006-session/validation.md` and ignored
+`.expo/refresh-validation/`.
