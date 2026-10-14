@@ -1,46 +1,55 @@
+import { RefreshableScrollView as ScrollView } from "@/components/RefreshableScrollView";
 import { useState } from "react";
-import { ScrollView } from "react-native";
-import { useRouter } from "expo-router";
-import { learningRoutes } from "@/constants/navigation";
+import { StyleSheet, Text } from "react-native";
+
+import { fonts, typography } from "@/constants/theme";
 import { AppScreenLayout } from "@/features/shell";
-import { useSessionsPreview } from "@/features/sessions";
-import { Button } from "@/components/Button";
-import { Badge } from "@/components/Badge";
+import {
+  useSessionList,
+  sessionRange,
+  deviceTimezone,
+  sessionDay,
+  listIsLimited,
+  SessionFeedback,
+} from "@/features/sessions";
 import { EmptyState } from "@/components/EmptyState";
-import { ChoiceGroup } from "@/components/choice-group";
-import { Panel, Copy, RouteButton, ui } from "@/components/feature-page";
+import { FormNotice } from "@/components/FormNotice";
 import { MonthCalendar } from "../components/MonthCalendar";
+import { CalendarSessionCard } from "../components/CalendarSessionCard";
+import { calendarColors as colors } from "../constants/theme";
+
 export function CalendarScreen() {
-  const router = useRouter();
-  const { sessions } = useSessionsPreview();
   const [date, setDate] = useState(() => new Date());
-  const [day, setDay] = useState<number | null>(null);
-  const [tab, setTab] = useState("Sắp tới");
-  const month = date.getMonth();
-  const year = date.getFullYear();
-  const monthSessions = sessions.filter((s) => {
-    const d = new Date(s.startAt);
-    return d.getMonth() === month && d.getFullYear() === year;
-  });
-  const visible = monthSessions.filter(
-    (s) =>
-      (day === null || new Date(s.startAt).getDate() === day) &&
-      (tab === "Sắp tới" ? s.status === "CONFIRMED" : s.status !== "CONFIRMED"),
+  const [day, setDay] = useState<number | null>(() => date.getDate());
+  const month = date.getMonth(),
+    year = date.getFullYear(),
+    timezone = deviceTimezone();
+  const query = useSessionList(
+    sessionRange(year, month, null, timezone),
+    timezone,
+  );
+  const sessions = query.data ?? [];
+  const visible = sessions.filter(
+    (s) => day === null || sessionDay(s.startAt, timezone) === day,
   );
   return (
-    <AppScreenLayout title="Lịch học" selected="Lịch học">
+    <AppScreenLayout
+      title="Lịch học"
+      selected="Lịch học"
+      contentStyle={styles.background}
+    >
       {() => (
-        <ScrollView contentContainerStyle={ui.page}>
-          <Copy muted>
-            Lịch và buổi học trong bản xem thử. Không có lịch tài khoản thật
-            được tải tại đây.
-          </Copy>
+        <ScrollView
+          style={styles.background}
+          contentContainerStyle={styles.page}
+          showsVerticalScrollIndicator={false}
+        >
           <MonthCalendar
             month={month}
             year={year}
-            sessionDays={monthSessions.map((s) =>
-              new Date(s.startAt).getDate(),
-            )}
+            sessionDays={[
+              ...new Set(sessions.map((s) => sessionDay(s.startAt, timezone))),
+            ]}
             selectedDay={day}
             onDayPress={(value) => setDay(day === value ? null : value)}
             onMonthChange={(value) => {
@@ -48,46 +57,55 @@ export function CalendarScreen() {
               setDay(null);
             }}
           />
-          <ChoiceGroup
-            label="Buổi học"
-            options={["Sắp tới", "Đã kết thúc / lịch sử"]}
-            value={tab}
-            onChange={setTab}
-          />
-          {day !== null && (
-            <Button variant="paper" onPress={() => setDay(null)}>
-              Xem cả tháng
-            </Button>
-          )}
-          {visible.map((s) => (
-            <Panel key={s.id} title={s.title}>
-              <Badge label={s.status} />
-              <Copy>
-                {s.partner} · {new Date(s.startAt).toLocaleString("vi-VN")} ·{" "}
-                {s.duration} phút
-              </Copy>
-              <RouteButton href={`/learning-sessions/${s.id}`}>
-                Mở buổi học
-              </RouteButton>
-            </Panel>
-          ))}
-          {!visible.length && (
-            <EmptyState
-              title="Không có buổi học phù hợp"
-              description="Thử ngày, tháng hoặc nhóm buổi học khác."
-            />
-          )}
-          <Button
-            variant="craft"
-            onPress={() => router.push(learningRoutes.paths)}
+          <Text accessibilityRole="header" style={styles.heading}>
+            Buổi học
+          </Text>
+          <SessionFeedback
+            {...query}
+            refreshing={query.isFetching}
+            retry={() => query.refetch()}
           >
-            Lộ trình của tôi
-          </Button>
-          <RouteButton secondary href="/learning-history">
-            Toàn bộ lịch sử học
-          </RouteButton>
+            {listIsLimited(sessions) && (
+              <FormNotice tone="info">
+                Tháng này đang hiển thị tối đa 100 buổi. Dữ liệu có thể chưa đầy
+                đủ.
+              </FormNotice>
+            )}
+            {visible.map((s) => (
+              <CalendarSessionCard key={s.id} session={s} timezone={timezone} />
+            ))}
+            {!visible.length && (
+              <EmptyState
+                title={
+                  day === null
+                    ? "Chưa có buổi học trong tháng này"
+                    : "Chưa có buổi học trong ngày này"
+                }
+                description="Chọn ngày hoặc tháng khác để xem lịch học."
+                titleStyle={styles.heading}
+              />
+            )}
+          </SessionFeedback>
         </ScrollView>
       )}
     </AppScreenLayout>
   );
 }
+
+const styles = StyleSheet.create({
+  heading: {
+    fontFamily: fonts.bold,
+    ...typography.heading,
+    color: colors.ink,
+  },
+  background: { backgroundColor: colors.background },
+  page: {
+    width: "100%",
+    maxWidth: 640,
+    alignSelf: "center",
+    padding: 16,
+    paddingTop: 8,
+    paddingBottom: 28,
+    gap: 16,
+  },
+});

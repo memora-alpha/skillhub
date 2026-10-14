@@ -23,4 +23,5 @@ export const calendarColors = {
   sand: appColors.surfaceLow,
 } as const;
 
-export const calendarCardShadow = "0 4px 16px rgba(53, 43, 31, 0.045)";
+export const calendarCardShadow = "0 4px 20px rgba(90, 60, 40, 0.06)";
+export const calendarButtonShadow = "0 4px 14px rgba(217, 83, 47, 0.25)";
