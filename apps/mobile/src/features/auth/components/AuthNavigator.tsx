@@ -78,10 +78,8 @@ export function AuthNavigator() {
         <Stack.Screen name="paths/[id]/terms" />
         <Stack.Screen name="paths/[id]/settlement" />
         <Stack.Screen name="paths/[id]/sessions" />
-        <Stack.Screen name="learning-history" />
         <Stack.Screen name="learning-sessions/[id]/index" />
         <Stack.Screen name="learning-sessions/[id]/reschedule" />
-        <Stack.Screen name="learning-sessions/[id]/completion" />
         <Stack.Screen name="learning-sessions/[id]/room" />
         <Stack.Screen name="wallet/index" />
         <Stack.Screen name="wallet/topup" />
