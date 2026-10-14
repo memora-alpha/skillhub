@@ -108,10 +108,14 @@ model("LearningRequest", (block) =>
 );
 model("SharingSkill", (block) =>
   fields(
-    block,
-    '  requestOfferings RequestOffering[] @relation("RequestOffering_sharing")',
+    block.replace(/level(\s+)SharingSkillLevel\b/, "level$1SharingSkillLevel?"),
+    `  requestOfferings RequestOffering[] @relation("RequestOffering_sharing")
+  levelId String? @map("level_id") @db.Uuid
+  levelIdRecord SkillLevel? @relation(fields: [skillId, levelId], references: [skillId, id], onDelete: Restrict, onUpdate: Restrict)
+  @@index([skillId, levelId])`,
   ),
 );
+model("Skill", (block) => fields(block, "  levels SkillLevel[]"));
 model("Notification", (block) =>
   fields(block, "  @@index([userId, createdAt(sort: Desc), id(sort: Desc)])"),
 );

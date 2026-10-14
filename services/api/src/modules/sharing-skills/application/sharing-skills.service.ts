@@ -32,7 +32,8 @@ import { AuditWriter } from "../../audit/application/audit-writer";
 import { auditActorFromActor } from "../../audit/application/audit.types";
 export type SharingInput = {
   skillId: string;
-  level: SharingSkillLevel;
+  level?: SharingSkillLevel;
+  levelId?: string;
   description: string;
   experienceYears?: string | null;
   isVisible?: boolean;
@@ -203,8 +204,14 @@ export class SharingSkillsService implements OnModuleInit {
             "sharing-skill:create:self",
           );
           await this.skills.assertActive(tx, data.skillId);
+          const selection = await this.skills.selectLevel(
+            tx,
+            data.skillId,
+            data,
+          );
           const row = await this.repository.create(tx, {
             ...data,
+            ...selection,
             userId: command.principal.userId,
             verificationStatus: "UNVERIFIED",
             isVisible: data.isVisible ?? true,
@@ -328,6 +335,19 @@ export class SharingSkillsService implements OnModuleInit {
       },
       async (tx) => {
         await this.actors.require(tx, command.principal, permission);
+        let selection:
+          { levelId: string; level: SharingSkillLevel | null } | undefined;
+        if (patch.level !== undefined || patch.levelId !== undefined) {
+          const snapshot = await this.repository.get(id, tx);
+          if (snapshot.userId !== command.principal.userId)
+            throw new NotFoundException();
+          await this.skills.assertActive(tx, snapshot.skillId);
+          selection = await this.skills.selectLevel(
+            tx,
+            snapshot.skillId,
+            patch,
+          );
+        }
         const row = await this.assertOwnedActive(
           tx,
           command.principal.userId,
@@ -343,6 +363,7 @@ export class SharingSkillsService implements OnModuleInit {
           throw new ConflictException("VERIFICATION_PENDING");
         const updated = await this.repository.update(tx, id, {
           ...patch,
+          ...selection,
           ...(patch.description !== undefined
             ? { description: text(patch.description, 20, 1500) }
             : {}),

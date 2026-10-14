@@ -1,5 +1,9 @@
 # Feature Specification: Kỹ năng và xác minh bằng chứng
 
+> 2026-10-14: [Per-skill level catalog amendment](skill-level-catalog.md) replaces
+> the fixed Sharing Skill level selection with Admin-managed choices. It includes
+> compatibility, API contract, rollout and verification requirements.
+
 **Feature Branch**: `feat/skills`
 **Created**: 2026-10-07
 **Status**: Ready for planning; implementation chưa bắt đầu.

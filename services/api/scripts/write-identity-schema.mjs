@@ -11,6 +11,7 @@ for (const name of [
   "User",
   "SkillCategory",
   "Skill",
+  "SkillLevel",
   "Tag",
   "LearningRequest",
   "RequestTag",

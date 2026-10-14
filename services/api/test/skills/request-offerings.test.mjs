@@ -93,6 +93,8 @@ test(
               ownerId: owner.user.id,
               skill: { id: own.skill.id, name: "Own offered skill" },
               level: "INTERMEDIATE",
+              levelId: own.sharing.levelId,
+              skillLevel: own.sharing.skillLevel,
               verificationStatus: "UNVERIFIED",
             },
           );
@@ -100,8 +102,10 @@ test(
             assert.deepEqual(Object.keys(row).sort(), [
               "id",
               "level",
+              "levelId",
               "ownerId",
               "skill",
+              "skillLevel",
               "verificationStatus",
             ]);
             assert.deepEqual(Object.keys(row.skill).sort(), ["id", "name"]);
@@ -142,6 +146,8 @@ test(
               ownerId: owner.user.id,
               skill: { id: own.skill.id, name: "Renamed offered skill" },
               level: "EXPERT",
+              levelId: (await f.sharing.read(own.sharing.id)).levelId,
+              skillLevel: (await f.sharing.read(own.sharing.id)).levelIdRecord,
               verificationStatus: "VERIFIED",
             },
           ]);

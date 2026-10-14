@@ -5,6 +5,11 @@ import { AuditModule } from "../audit/audit.module";
 import { IdentityModule } from "../identity.module";
 import { SkillsRepository } from "./infrastructure/skills.repository";
 import { SkillsService } from "./application/skills.service";
+import { SkillLevelsService } from "./application/skill-levels.service";
+import {
+  SkillLevelsController,
+  AdminSkillLevelsController,
+} from "./presentation/http/skill-levels.controller";
 import {
   SkillsController,
   TagsController,
@@ -12,8 +17,14 @@ import {
 } from "./presentation/http/skills.controller";
 @Module({
   imports: [DatabaseModule, IdempotencyModule, AuditModule, IdentityModule],
-  providers: [SkillsRepository, SkillsService],
-  controllers: [SkillsController, TagsController, CatalogController],
+  providers: [SkillsRepository, SkillsService, SkillLevelsService],
+  controllers: [
+    SkillsController,
+    TagsController,
+    CatalogController,
+    SkillLevelsController,
+    AdminSkillLevelsController,
+  ],
   exports: [SkillsService],
 })
 export class SkillsModule {}

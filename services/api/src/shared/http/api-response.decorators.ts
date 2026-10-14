@@ -4,7 +4,7 @@ import { ApiExtraModels, ApiResponse, getSchemaPath } from "@nestjs/swagger";
 export function ApiSuccessResponse(
   status: number,
   model: Type<unknown> | readonly Type<unknown>[] | null,
-  options: { paginated?: boolean } = {},
+  options: { paginated?: boolean; isArray?: boolean } = {},
 ) {
   let models: readonly Type<unknown>[] = [];
   if (Array.isArray(model)) {
@@ -34,7 +34,10 @@ export function ApiSuccessResponse(
         properties: {
           success: { type: "boolean", enum: [true] },
           message: { type: "string" },
-          data: options.paginated ? { type: "array", items: data } : data,
+          data:
+            options.paginated || options.isArray
+              ? { type: "array", items: data }
+              : data,
           ...(options.paginated
             ? {
                 meta: {
