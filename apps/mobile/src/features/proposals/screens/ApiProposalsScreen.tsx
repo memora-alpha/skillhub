@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { FlatList, View } from "react-native";
+import { RefreshableFlatList as FlatList } from "@/components/RefreshableFlatList";
+import { View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { AppScreenLayout } from "@/features/shell";
 import { Button } from "@/components/Button";

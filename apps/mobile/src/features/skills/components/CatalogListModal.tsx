@@ -1,11 +1,5 @@
-import {
-  FlatList,
-  Modal,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { RefreshableFlatList as FlatList } from "@/components/RefreshableFlatList";
+import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Input } from "@/components/Input";
 import { Icon } from "@/components/Icon";

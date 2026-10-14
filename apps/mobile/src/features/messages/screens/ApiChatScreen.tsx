@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { uuid } from "@/lib/http/contracts";
+import { RefreshableFlatList as FlatList } from "@/components/RefreshableFlatList";
 import {
-  FlatList,
   KeyboardAvoidingView,
   Platform,
   View,

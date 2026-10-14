@@ -56,7 +56,7 @@ export function ReportsScreen() {
           description="Báo cáo được gửi từ buổi học hoặc chi tiết tài liệu liên quan."
         />
       )}
-      <RouteButton secondary href="/learning-history">
+      <RouteButton secondary href="/calendar">
         Chọn buổi học cần báo cáo
       </RouteButton>
     </FeaturePage>

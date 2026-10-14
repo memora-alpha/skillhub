@@ -1,5 +1,6 @@
+import { RefreshableScrollView as ScrollView } from "@/components/RefreshableScrollView";
 import { useState } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { Redirect, useRouter } from "expo-router";
 import Constants from "expo-constants";
 import { ActionGroup, ActionRow } from "@/components/ActionGroup";
