@@ -7,6 +7,7 @@ import {
   RouteButton,
 } from "@/components/feature-page";
 import { appColors } from "@/constants/theme";
+import { Button } from "@/components/Button";
 const groups = [
   {
     title: "Bắt đầu & khám phá",
@@ -59,15 +60,11 @@ const groups = [
   {
     title: "Buổi học & LiveKit",
     items: [
-      ["Lịch sử học", "/learning-history"],
       ["Buổi đã kết thúc", "/learning-sessions/active-react-0"],
-      ["Xác nhận hoàn thành", "/learning-sessions/active-react-0/completion"],
+      ["Xác nhận hoàn thành", "/learning-sessions/active-react-0"],
       ["Đổi lịch", "/learning-sessions/active-react-1/reschedule"],
       ["Nhận đề nghị đổi lịch", "/learning-sessions/active-react-1"],
-      [
-        "Chờ đối tác xác nhận hoàn thành",
-        "/learning-sessions/awaiting-ux-0/completion",
-      ],
+      ["Chờ đối tác xác nhận hoàn thành", "/learning-sessions/awaiting-ux-0"],
       ["Phòng chờ / phòng mẫu", "/learning-sessions/active-react-1/room"],
     ],
   },
@@ -169,17 +166,17 @@ export const systemStates = {
   "livekit-failed": [
     "Chưa thể vào phòng học",
     "Kiểm tra kết nối và điều kiện buổi học. Gặp lỗi kết nối không xác nhận buổi học hoàn thành.",
-    "/learning-history",
+    "/calendar",
   ],
   "camera-permission-denied": [
     "Chưa có quyền camera",
     "Bạn có thể bật quyền camera trong cài đặt thiết bị trước khi tham gia phòng thật.",
-    "/learning-history",
+    "/calendar",
   ],
   "mic-permission-denied": [
     "Chưa có quyền microphone",
     "Bật quyền microphone trong cài đặt thiết bị để trao đổi bằng âm thanh.",
-    "/learning-history",
+    "/calendar",
   ],
   "session-not-started": [
     "Buổi học chưa bắt đầu",
@@ -189,7 +186,7 @@ export const systemStates = {
   "session-already-ended": [
     "Buổi học đã kết thúc",
     "Xem chi tiết và xác nhận đã học nếu đã đủ điều kiện.",
-    "/learning-history",
+    "/calendar",
   ],
   "schedule-conflict": [
     "Lịch đang bị trùng",
@@ -217,11 +214,22 @@ export function UiCatalogScreen() {
     >
       {groups.map((group) => (
         <Panel key={group.title} title={group.title}>
-          {group.items.map(([label, href]) => (
-            <RouteButton key={href} secondary href={href}>
-              {label}
-            </RouteButton>
-          ))}
+          {group.items.map(([label, href]) =>
+            href.startsWith("/learning-sessions/") ? (
+              <Button
+                key={`${href}:${label}`}
+                variant="paper"
+                disabled
+                onPress={() => {}}
+              >
+                {label} · Chưa khả dụng
+              </Button>
+            ) : (
+              <RouteButton key={`${href}:${label}`} secondary href={href}>
+                {label}
+              </RouteButton>
+            ),
+          )}
         </Panel>
       ))}
       <Panel title="Hệ thống & tình huống biên">
