@@ -15,7 +15,7 @@
 
 Server state thuộc Query; client-only recovery/cooldown dùng Zustand hoặc context hiện hữu. Không mirror entity server sang một global store khác. Không tạo thư mục rỗng từ template.
 
-[AppProviders](../src/providers/AppProviders.tsx) tải Nunito/Fraunces trước, rồi SafeAreaProvider → KeyboardProvider → ToastProvider → QueryProvider → AuthSessionProvider → ConnectionGate. AvatarUploadToasts nằm trong connection boundary, ngoài SessionGate; SessionGate → SkillsProvider → ProfilePreviewProvider → ConnectionsProvider → ChatEventsProvider → UiPreviewProvider → router children. Chat/Proposal dùng API và SSE; các provider preview còn lại phục vụ các màn chưa tích hợp API.
+[AppProviders](../src/providers/AppProviders.tsx) tải Nunito/Fraunces trước, rồi SafeAreaProvider → KeyboardProvider → ToastProvider → QueryProvider → AppRefreshProvider → AuthSessionProvider → WalletProvider → ConnectionGate. AvatarUploadToasts nằm trong connection boundary, ngoài SessionGate; SessionGate → SessionsProvider → SkillsProvider → ProfilePreviewProvider → ConnectionsProvider → ChatEventsProvider → UiPreviewProvider → router children. Chat/Proposal dùng API và SSE; các provider preview còn lại phục vụ các màn chưa tích hợp API.
 
 ## Imports và trách nhiệm
 
@@ -52,3 +52,5 @@ Không thực hiện các khoản nợ này trong Phase 00. Đề xuất logger/
 Audit Wallet đã bỏ inert preparation model khỏi account WalletProvider; helper cũ chỉ còn trong test fixtures. Đã xóa thư mục Wallet preview, route và entry/catalog/notification mẫu; hai host tạo đơn/QR còn dùng cho regression được chuyển sang tests/fixtures. Không thay account API bằng mock. Public event subscription giữ ack sau hydrate đạt version; reconnect chỉ reset budget sau kết nối ổn định, foreground hoặc explicit retry.
 
 Wallet giữ các lớp route → screens/views → hooks/context/utils → API, cùng components/schemas/types/storage theo trách nhiệm. Model intent/observer/quote/QR và helper không có application consumer đã chuyển sang tests/fixtures; production types/outcome/policy chỉ giữ phần dùng thật. Style riêng đặt cùng tên component. Source không import test; QA tiếp tục là công cụ gọi API nội bộ có binding owner/build/environment, không mock fallback cho account.
+
+Calendar/Session dùng `SessionsProvider` theo account và React Query cho danh sách tháng, chi tiết và xác nhận hoàn tất. Calendar lọc ngày trên dữ liệu của tháng hiện tại; không gửi thêm truy vấn ngày. Reschedule giữ draft cục bộ và chưa gửi khi thiếu contract đọc proposal/version từ backend.
