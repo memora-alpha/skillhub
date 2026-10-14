@@ -1,5 +1,59 @@
 # Skills implementation validation
 
+## Per-skill level catalog validation — 2026-10-14
+
+Branch: `feat/skill-level-catalog`. See [contract and rollout](skill-level-catalog.md).
+
+| Check                                                         | Result                                                   |
+| ------------------------------------------------------------- | -------------------------------------------------------- |
+| API lint                                                      | Passed, zero warnings                                    |
+| API check-types                                               | Passed, Prisma generation and TypeScript                 |
+| API build                                                     | Passed, Prisma generation and Nest compiler              |
+| Runtime Prisma validation                                     | Passed                                                   |
+| Skills PostgreSQL/HTTP/bootstrap                              | 38 passed; zero failures/skips                           |
+| Affected policy, audit, RBAC, HTTP and projection regressions | 45 passed across sandbox and approved local-network runs |
+| Learning Request FE input/schema regressions                  | 14 passed                                                |
+| Learning Request PostgreSQL/HTTP integration                  | 7 passed                                                 |
+| Formatting and git diff whitespace                            | Passed                                                   |
+
+Skills command from services/api:
+
+```powershell
+node --test --test-reporter=spec --test-concurrency=1 test/skills/levels.test.mjs test/skills/migration.test.mjs test/skills/journeys.test.mjs test/skills/restore.test.mjs test/skills/files.test.mjs test/skills/http.test.mjs test/skills/bootstrap.test.mjs test/skills/tags.test.mjs test/skills/request-offerings.test.mjs
+```
+
+The level tests additionally reran with two independent Admin accounts for the
+concurrent-edit scenario. That run included
+`test/learning-requests/fe-extension.integration.test.mjs`: all 13 tests passed
+(6 level tests already counted in Skills, plus 7 Learning Request tests).
+The migration fixture inserts pre-upgrade active and archived Sharing Skills on
+an archived Skill, then verifies their original IDs, enum codes, versions and
+archive metadata survive with correct catalog references. Guarded HTTP verifies
+new/default/legacy selection, same-skill FK, active-only choices, preserved old
+selections, role/permission checks, malformed/null/unknown inputs, duplicate
+code/normalized names, immutable codes, Swagger and success/error envelopes.
+Concurrency, replay after permission revocation, stale versions and injected
+audit failure verify atomic state/audit/idempotency behavior.
+
+Affected regression command:
+
+```powershell
+node --test test/skills/policies.test.mjs test/skills/request-offerings-batch.test.mjs test/audit-policy.test.mjs test/audit-writer.test.mjs test/audit-http.test.mjs test/authorization.test.mjs test/authorization-http.test.mjs test/learning-requests/projection-http.test.mjs test/learning-requests/notification-repository.test.mjs
+node --test test/learning-requests/fe-extension.test.mjs test/learning-requests/schema.test.mjs
+```
+
+The initial sandbox network attempts failed with EACCES to local PostgreSQL and
+fetch failures to fixture HTTP; approved runs with local-network access passed.
+The first upgrade fixture omitted required updated_at values; its seed was fixed
+and the migration test passed. No unresolved failures remain. pg emits the existing
+concurrent-query deprecation warning during some fixtures; it did not fail checks.
+
+All PostgreSQL checks used randomized disposable schemas, removed after each run.
+Application migrations and identity seed were **not** executed. Production rollout
+must apply the new migration, deploy the new API, seed `skill-level:manage`, and
+update web/mobile consumers to support dynamic level codes. No frontend files were
+changed; no production deployment, provider validation or cloud analysis is claimed.
+
 ## Restore amendment validation
 
 Dedicated restore commands are implemented for catalog and Sharing Skills; see [restore.md](restore.md). No schema migration or application-data seed was run for this change.

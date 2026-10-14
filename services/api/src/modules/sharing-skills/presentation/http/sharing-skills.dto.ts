@@ -40,9 +40,22 @@ export class SharerQueryDto extends PageDto {
 }
 export class CreateSharingDto {
   @ApiProperty({ format: "uuid" }) @IsUUID() skillId!: string;
-  @ApiProperty({ enum: ["BEGINNER", "INTERMEDIATE", "ADVANCED", "EXPERT"] })
+  @ApiPropertyOptional({
+    enum: ["BEGINNER", "INTERMEDIATE", "ADVANCED", "EXPERT"],
+    deprecated: true,
+    description: "Legacy selection; send exactly one of level or levelId.",
+  })
+  @ValidateIf((_o, v) => v !== undefined)
   @IsIn(["BEGINNER", "INTERMEDIATE", "ADVANCED", "EXPERT"])
-  level!: SharingSkillLevel;
+  level?: SharingSkillLevel;
+  @ApiPropertyOptional({
+    format: "uuid",
+    description:
+      "ACTIVE level from the selected skill catalog; replaces legacy level.",
+  })
+  @ValidateIf((_o, v) => v !== undefined)
+  @IsUUID()
+  levelId?: string;
   @ApiProperty({ minLength: 20, maxLength: 1500 })
   @IsString()
   @Length(20, 1500)
@@ -58,6 +71,7 @@ export class CreateSharingDto {
 }
 export class ChangeSharingDto extends PartialType(
   OmitType(CreateSharingDto, ["skillId"] as const),
+  { skipNullProperties: false },
 ) {
   @ApiProperty() @IsInt() @Min(1) expectedVersion!: number;
 }

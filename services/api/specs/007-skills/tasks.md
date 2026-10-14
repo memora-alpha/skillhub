@@ -78,3 +78,13 @@ MVP: foundation+catalog+own Sharing Skill with real HTTP/DB tests. Then add sear
 - [x] T027 Add dedicated catalog/Sharing Skill restore routes, DTOs, live permissions/default grants, idempotency and atomic audit/counter updates. Preserve records/history/visibility/current badge; reject duplicate current skills.
 - [x] T028 Amend spec/plan/data model/contracts/README and add restore walkthrough; replace terminal archive policy for these two resources only.
 - [x] T029 Verify PostgreSQL restore/replay/rollback/concurrency, guarded HTTP/Swagger, module bootstrap and affected audit/RBAC regressions; record results in validation.md.
+
+## Per-skill level catalog amendment
+
+The following work is documented in [skill-level-catalog.md](skill-level-catalog.md).
+
+- [x] T030 Implement per-Skill level schema/backfill, Admin permission/audit/idempotent
+      commands, public lookup, and Sharing Skill levelId/legacy selection.
+- [x] T031 Update Swagger/profile/offering contracts and rollout/spec/model docs.
+- [x] T032 Verify level catalog migration, guarded HTTP, conflicts/replay/rollback,
+      concurrent edits and affected Skills/RBAC/audit/projection regressions.

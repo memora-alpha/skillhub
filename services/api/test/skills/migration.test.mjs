@@ -18,6 +18,7 @@ test(
       const row = await f.db.skill.findUniqueOrThrow({ where: { id } });
       assert.equal(row.nameKey, "kỹ năng cũ");
       assert.equal(row.version, 1);
+      assert.equal(await f.db.skillLevel.count({ where: { skillId: id } }), 4);
       const owner = await f.account();
       await assert.rejects(
         f.db.sharingSkill.create({

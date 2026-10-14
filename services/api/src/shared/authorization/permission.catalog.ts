@@ -1,6 +1,10 @@
 // Codes are explicit actions. Role grants are stored separately by users.
 export const PERMISSION_CATALOG = [
   {
+    code: "skill-level:manage",
+    description: "Manage per-skill level catalogs",
+  },
+  {
     code: "sharing-skill:create:self",
     description: "Create own sharing skill",
   },
