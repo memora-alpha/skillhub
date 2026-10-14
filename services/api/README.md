@@ -17,6 +17,12 @@ và bằng chứng PostgreSQL ở [UTC validation](specs/006-system-configuratio
 
 ## Phạm vi và trạng thái
 
+Operator có thể [tạo tài khoản Admin từ env](specs/002-user-identity/admin-account-seed.md)
+bằng `pnpm --filter api identity:create-admin` sau build hoặc `node scripts/create-admin.mjs`
+trong Terminal container tại `/app/services/api`. Cấu hình runtime `BOOTSTRAP_ADMIN_EMAIL`
+và `BOOTSTRAP_ADMIN_PASSWORD`; tên/lý do tùy chọn. Command seed quyền hiện tại rồi tạo
+Admin ACTIVE có audit; email tồn tại sẽ bị từ chối. Không tự tạo Admin khi startup.
+
 Phạm vi phát triển hiện tại của dự án là **backend tại `services/api`**.
 Web/mobile chỉ được thay đổi khi có yêu cầu riêng. Git và pnpm workspace vẫn
 đặt tại root SkillHub; backend không có Git repository riêng.
