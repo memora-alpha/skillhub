@@ -113,6 +113,52 @@ always forces the manual selection to `none`. Demo data and admin bootstrap rema
 separate operator actions. Data backfills/destructive changes require reviewed
 migrations rather than generic seeds.
 
+## Create an Admin account from environment variables
+
+Configure these **runtime** values in the API application's Coolify environment
+(or an ignored `services/api/.env` for local development):
+
+```dotenv
+BOOTSTRAP_ADMIN_EMAIL=admin@example.com
+BOOTSTRAP_ADMIN_PASSWORD=<your-strong-password>
+BOOTSTRAP_ADMIN_NAME=SkillHub Admin
+BOOTSTRAP_ADMIN_REASON=Initialize development administrator
+```
+
+Email and password are required. Name defaults to `SkillHub Admin`; reason defaults
+to `Create Admin account from operator environment` when omitted or blank.
+Password policy is the registration policy: 8–64 characters with uppercase,
+lowercase, digit and special character. Password whitespace is preserved.
+
+After deploying the image that includes this command and applying the runtime
+environment, open Terminal for the running **API container** and run:
+
+```sh
+cd /app/services/api
+node scripts/create-admin.mjs
+```
+
+Locally, build once and use `pnpm --filter api identity:create-admin` from the root.
+The command accepts no credential arguments and reads only environment values.
+It obtains the shared release advisory lock, seeds current roles/permissions,
+then creates the account with an Argon2id hash, ACTIVE status, verified email and
+the single ADMIN role. This trusted operator action attests the email; ordinary
+public registration still requires OTP. User creation, activation, role and
+`ADMIN_BOOTSTRAP` audit commit together or roll back together. The printed result
+contains only the new UUID and status/role, never a password or password hash.
+
+Success: `Admin account created: <uuid> (ACTIVE, ADMIN).` The account can log in
+with the configured email/password. Existing normalized emails are refused;
+rerunning does not reset a password, replace roles, activate or unlock an account.
+Use the separate UUID-based bootstrap if an existing verified ACTIVE account
+should be promoted. The create command does not run migrations, does not create
+accounts on container restart, and is not included in `release-seeds.json`.
+Credentials belong in runtime secrets, not Git/build arguments. The bootstrap
+password variable can be removed after successful creation; changing it later
+does not rotate the account's password.
+
+See [Admin account seed contract and validation](../specs/002-user-identity/admin-account-seed.md).
+
 ## Validation and recovery
 
 API bootstrap, seed ordering, retry/state recording and PostgreSQL lock boundaries
