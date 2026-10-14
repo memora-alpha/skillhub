@@ -1,4 +1,4 @@
-import { SessionDetailScreen } from "@/features/calendar";
+import { LearningSessionScreen } from "@/features/sessions";
 export default function SessionDetailRoute() {
-  return <SessionDetailScreen />;
+  return <LearningSessionScreen />;
 }
