@@ -1,5 +1,6 @@
+import { RefreshableFlatList as FlatList } from "@/components/RefreshableFlatList";
 import { useRef, useState } from "react";
-import { ActivityIndicator, FlatList, View } from "react-native";
+import { ActivityIndicator, View } from "react-native";
 import { useRouter } from "expo-router";
 import { appColors } from "@/constants/theme";
 import { SkillAction } from "../components/SkillAction";

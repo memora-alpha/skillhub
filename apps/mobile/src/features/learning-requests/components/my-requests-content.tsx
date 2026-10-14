@@ -1,5 +1,6 @@
+import { RefreshableFlatList as FlatList } from "@/components/RefreshableFlatList";
 import { useState, type ReactNode } from "react";
-import { FlatList, View } from "react-native";
+import { View } from "react-native";
 import { useRouter } from "expo-router";
 import { EmptyState } from "@/components/EmptyState";
 

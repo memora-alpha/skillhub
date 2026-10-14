@@ -1,4 +1,5 @@
-import { FlatList, Text, View } from "react-native";
+import { RefreshableFlatList as FlatList } from "@/components/RefreshableFlatList";
+import { Text, View } from "react-native";
 import type { ComponentType } from "react";
 import { useRouter } from "expo-router";
 import {

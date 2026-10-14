@@ -65,6 +65,7 @@ function loadNotice(file: string, component: string) {
     "@/components/InfoModal",
     "@/components/LogoutDialog",
     "@/components/KeyboardFormScrollView",
+    "@/components/RefreshableScrollView",
     "@/constants/navigation",
     "../context/ProfilePreview",
     "./AccountMenu",

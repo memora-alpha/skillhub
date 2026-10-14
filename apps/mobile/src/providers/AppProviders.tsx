@@ -17,10 +17,12 @@ import { ProfilePreviewProvider, AvatarUploadToasts } from "@/features/profile";
 import { MockProposalsProvider } from "@/features/proposals";
 import { UiPreviewProvider } from "@/features/ui-preview";
 import { SkillsProvider } from "@/features/skills";
+import { SessionsProvider } from "@/features/sessions";
 import { QueryProvider } from "./QueryProvider";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { ToastProvider } from "./ToastProvider";
 import { ConnectionGate } from "./ConnectionGate";
+import { AppRefreshProvider } from "./AppRefreshProvider";
 
 export function AppProviders({ children }: { children: ReactNode }) {
   const [loaded, error] = useFonts({
@@ -53,22 +55,26 @@ export function AppProviders({ children }: { children: ReactNode }) {
       <KeyboardProvider>
         <ToastProvider>
           <QueryProvider>
-            <AuthSessionProvider>
-              <ConnectionGate>
-                <AvatarUploadToasts />
-                <SessionGate>
-                  <SkillsProvider>
-                    <ProfilePreviewProvider>
-                      <MockMessagesProvider>
-                        <MockProposalsProvider>
-                          <UiPreviewProvider>{children}</UiPreviewProvider>
-                        </MockProposalsProvider>
-                      </MockMessagesProvider>
-                    </ProfilePreviewProvider>
-                  </SkillsProvider>
-                </SessionGate>
-              </ConnectionGate>
-            </AuthSessionProvider>
+            <AppRefreshProvider>
+              <AuthSessionProvider>
+                <ConnectionGate>
+                  <AvatarUploadToasts />
+                  <SessionGate>
+                    <SessionsProvider>
+                      <SkillsProvider>
+                        <ProfilePreviewProvider>
+                          <MockMessagesProvider>
+                            <MockProposalsProvider>
+                              <UiPreviewProvider>{children}</UiPreviewProvider>
+                            </MockProposalsProvider>
+                          </MockMessagesProvider>
+                        </ProfilePreviewProvider>
+                      </SkillsProvider>
+                    </SessionsProvider>
+                  </SessionGate>
+                </ConnectionGate>
+              </AuthSessionProvider>
+            </AppRefreshProvider>
           </QueryProvider>
         </ToastProvider>
       </KeyboardProvider>

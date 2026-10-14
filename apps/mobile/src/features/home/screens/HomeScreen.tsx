@@ -1,4 +1,5 @@
-import { ScrollView, Text } from "react-native";
+import { RefreshableScrollView as ScrollView } from "@/components/RefreshableScrollView";
+import { Text } from "react-native";
 import { Redirect, useRouter } from "expo-router";
 import { appColors, fonts } from "@/constants/theme";
 import { appRoutes } from "@/constants/navigation";

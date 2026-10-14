@@ -1,12 +1,7 @@
+import { RefreshableFlatList as FlatList } from "@/components/RefreshableFlatList";
+import { RefreshableScrollView as ScrollView } from "@/components/RefreshableScrollView";
 import { useEffect, useState } from "react";
-import {
-  FlatList,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { AppScreenLayout } from "@/features/shell";
 import { Badge } from "@/components/Badge";

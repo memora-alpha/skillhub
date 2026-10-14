@@ -1,13 +1,7 @@
+import { RefreshableFlatList as FlatList } from "@/components/RefreshableFlatList";
 import { useState } from "react";
 import { useRouter } from "expo-router";
-import {
-  FlatList,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { AppScreenLayout } from "@/features/shell";
 import { EmptyState } from "@/components/EmptyState";
 import { Icon } from "@/components/Icon";

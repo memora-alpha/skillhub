@@ -1,6 +1,6 @@
+import { RefreshableFlatList as FlatList } from "@/components/RefreshableFlatList";
 import { useEffect, useRef, useState } from "react";
 import {
-  FlatList,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
