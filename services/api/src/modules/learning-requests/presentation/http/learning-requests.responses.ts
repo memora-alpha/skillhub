@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { SkillLevelResponse } from "../../../skills/presentation/http/skill-levels.dto";
 import {
   LEARNING_LEVELS,
   LEARNING_REQUEST_STATUSES,
@@ -33,8 +34,12 @@ export class OfferedSharingSkillResponse {
   })
   skill!: { id: string; name: string };
 
-  @ApiProperty({ enum: ["BEGINNER", "INTERMEDIATE", "ADVANCED", "EXPERT"] })
+  @ApiProperty({ description: "Sharing Skill catalog level code." })
   level!: string;
+  @ApiProperty({ type: String, format: "uuid", nullable: true }) levelId!:
+    string | null;
+  @ApiProperty({ type: SkillLevelResponse, nullable: true })
+  skillLevel!: SkillLevelResponse | null;
 
   @ApiProperty({ enum: ["UNVERIFIED", "PENDING", "VERIFIED", "REJECTED"] })
   verificationStatus!: string;

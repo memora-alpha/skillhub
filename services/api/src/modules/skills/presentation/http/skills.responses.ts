@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { SkillLevelResponse } from "./skill-levels.dto";
 export class TagResponse {
   @ApiProperty({
     type: String,
@@ -28,8 +29,14 @@ export class SkillResponse {
 export class PublicSharingResponse {
   @ApiProperty({ format: "uuid" }) id!: string;
   @ApiProperty({ type: SkillResponse }) skill!: SkillResponse;
-  @ApiProperty({ enum: ["BEGINNER", "INTERMEDIATE", "ADVANCED", "EXPERT"] })
+  @ApiProperty({
+    description: "Selected catalog code, including custom codes such as B2.",
+  })
   level!: string;
+  @ApiProperty({ type: String, format: "uuid", nullable: true }) levelId!:
+    string | null;
+  @ApiProperty({ type: SkillLevelResponse, nullable: true })
+  skillLevel!: SkillLevelResponse | null;
   @ApiProperty() description!: string;
   @ApiProperty({ type: String, nullable: true }) experienceYears!:
     string | null;

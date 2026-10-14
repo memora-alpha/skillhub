@@ -8,6 +8,7 @@ import {
 import { validateReason } from "./reason.policy";
 
 export const AUDIT_ACTIONS = [
+  "SKILL_LEVEL_UPDATE",
   "PROPOSAL_CREATE",
   "PROPOSAL_UPDATE",
   "PROPOSAL_DECIDE",
@@ -138,6 +139,15 @@ const projectionByAction: Record<
   Exclude<AuditAction, "SYSTEM_CONFIGURATION_UPDATE">,
   z.ZodType
 > = {
+  SKILL_LEVEL_UPDATE: z.strictObject({
+    skillId: uuid,
+    code: z.string().max(40),
+    name: z.string().max(100),
+    description: z.string().max(500).nullable(),
+    sortOrder: z.number().int().min(0).max(100000),
+    status: z.enum(["ACTIVE", "INACTIVE"]),
+    version: z.number().int().positive(),
+  }),
   PROPOSAL_CREATE: z.strictObject({
     status: z.enum(["PENDING", "ACCEPTED", "REJECTED", "WITHDRAWN", "EXPIRED"]),
     version: z.number().int().positive(),

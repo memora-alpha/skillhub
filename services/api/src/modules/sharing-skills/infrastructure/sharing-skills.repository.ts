@@ -15,6 +15,7 @@ export type SharingQuery = {
 };
 const include = {
   skillIdRecord: true,
+  levelIdRecord: true,
   skillVerificationSharingSkillIdRecords: {
     orderBy: [{ submittedAt: "desc" }, { id: "desc" }],
     take: 1,
@@ -25,7 +26,9 @@ export function publicSharing(row: SharingRow) {
   return {
     id: row.id,
     skill: row.skillIdRecord,
-    level: row.level,
+    level: row.levelIdRecord?.code ?? row.level!,
+    levelId: row.levelId,
+    skillLevel: row.levelIdRecord,
     description: row.description,
     experienceYears: row.experienceYears?.toFixed(1) ?? null,
     verificationStatus: row.verificationStatus,
@@ -81,6 +84,8 @@ export class SharingSkillsRepository {
         id: true,
         userId: true,
         level: true,
+        levelId: true,
+        levelIdRecord: true,
         verificationStatus: true,
         skillIdRecord: { select: { id: true, name: true } },
       },
@@ -90,7 +95,9 @@ export class SharingSkillsRepository {
       id: row.id,
       ownerId: row.userId,
       skill: row.skillIdRecord,
-      level: row.level,
+      level: row.levelIdRecord?.code ?? row.level!,
+      levelId: row.levelId,
+      skillLevel: row.levelIdRecord,
       verificationStatus: row.verificationStatus,
     }));
   }

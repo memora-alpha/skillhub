@@ -450,6 +450,8 @@ model Skill {
   version   Int      @default(1)
   nameKey   String   @unique @map("name_key") @db.Text
 
+  levels SkillLevel[]
+
   @@index([categoryId])
   @@map("skills")
 }
@@ -458,7 +460,7 @@ model SharingSkill {
   id                 String                  @id @default(uuid()) @map("sharing_skill_id") @db.Uuid
   userId             String                  @map("user_id") @db.Uuid
   skillId            String                  @map("skill_id") @db.Uuid
-  level              SharingSkillLevel       @map("level")
+  level              SharingSkillLevel?      @map("level")
   description        String                  @map("description") @db.VarChar(1500)
   experienceYears    Decimal?                @map("experience_years") @db.Decimal(3, 1)
   verificationStatus SkillVerificationStatus @map("verification_status")
@@ -474,9 +476,12 @@ model SharingSkill {
   version   Int      @default(1)
 
   requestOfferings RequestOffering[] @relation("RequestOffering_sharing")
+  levelId          String?           @map("level_id") @db.Uuid
+  levelIdRecord    SkillLevel?       @relation(fields: [skillId, levelId], references: [skillId, id], onDelete: Restrict, onUpdate: Restrict)
 
   @@index([userId])
   @@index([skillId])
+  @@index([skillId, levelId])
   @@map("sharing_skills")
 }
 
@@ -1491,6 +1496,29 @@ model OutboxEvent {
 }
 
 // Support retained for implemented foundation and Learning Request services.
+// Per-skill level catalog; legacy SharingSkill.level stays during client rollout.
+model SkillLevel {
+  id            String         @id @default(uuid()) @map("level_id") @db.Uuid
+  skillId       String         @map("skill_id") @db.Uuid
+  code          String         @db.VarChar(40)
+  name          String         @db.VarChar(100)
+  nameKey       String         @map("name_key") @db.Text
+  description   String?        @db.VarChar(500)
+  sortOrder     Int            @default(0) @map("sort_order")
+  status        CatalogStatus  @default(ACTIVE)
+  version       Int            @default(1)
+  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt     DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  skill         Skill          @relation(fields: [skillId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  sharingSkills SharingSkill[]
+
+  @@unique([skillId, id])
+  @@unique([skillId, code])
+  @@unique([skillId, nameKey])
+  @@index([skillId, status, sortOrder, id])
+  @@map("skill_levels")
+}
+
 enum OtpPurpose {
   REGISTER
   RESET_PASSWORD

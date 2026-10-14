@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
@@ -25,6 +26,10 @@ import {
   type TagQuery,
 } from "./skill-contracts";
 import type { CatalogStatus } from "../../../generated/prisma/client";
+import {
+  DEFAULT_SKILL_LEVELS,
+  legacySkillLevel,
+} from "../domain/skill-level.policy";
 
 export type CatalogInput = {
   name: string;
@@ -114,6 +119,32 @@ export class SkillsService {
     if (rows.some((row) => row.status !== "ACTIVE"))
       throw new ConflictException("SKILL_NOT_ACTIVE");
   }
+  // Caller locks the parent catalog first; all level mutations use that same lock.
+  async selectLevel(
+    tx: TransactionContext,
+    skillId: string,
+    input: { levelId?: string; level?: string },
+  ) {
+    if (
+      (input.levelId === undefined) === (input.level === undefined) ||
+      input.levelId === null ||
+      input.level === null
+    ) {
+      throw new BadRequestException("EXACTLY_ONE_LEVEL_SELECTION_REQUIRED");
+    }
+    const row = await tx.skillLevel.findFirst({
+      where: {
+        skillId,
+        ...(input.levelId !== undefined
+          ? { id: input.levelId }
+          : { code: input.level }),
+      },
+    });
+    if (!row) throw new NotFoundException("SKILL_LEVEL_NOT_FOUND");
+    if (row.status !== "ACTIVE")
+      throw new ConflictException("SKILL_LEVEL_NOT_ACTIVE");
+    return { levelId: row.id, level: legacySkillLevel(row.code) };
+  }
   async create(command: SkillCommand, input: CatalogInput) {
     const data = {
       ...input,
@@ -142,6 +173,14 @@ export class SkillsService {
           if (data.categoryId)
             await this.repository.category(tx, data.categoryId);
           const row = await this.repository.create(tx, data);
+          await tx.skillLevel.createMany({
+            data: DEFAULT_SKILL_LEVELS.map((level, sortOrder) => ({
+              skillId: row.id,
+              ...level,
+              nameKey: nameKey(level.name),
+              sortOrder,
+            })),
+          });
           await this.audit.append(tx, {
             actor: auditActorFromActor(actor),
             action: "SKILL_CATALOG_CREATE",

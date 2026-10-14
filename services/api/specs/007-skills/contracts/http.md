@@ -1,5 +1,10 @@
 # HTTP Contract — Kỹ năng (planned)
 
+> 2026-10-14: [Level catalog contract](../skill-level-catalog.md) adds public/Admin
+> level routes and Sharing Skill `levelId` input. Sharing Skill response `level` is
+> now an open catalog code, with `levelId` and `skillLevel`. Learning Request offered
+> skill cards inherit these additions; Learning Request currentLevel stays unchanged.
+
 Base `/api/v1`. JWT Bearer qua IdentityGuard/live session cho protected routes. Envelope hiện hành `success:true,message,data,meta?`; errors `success:false,message,statusCode`. Paginated `meta.pagination={nextCursor,hasMore,limit}`; limit1–50/default20; opaque cursor gắn filter/order, invalid cursor400. UTC ISO Z; UUID IDs; experienceYears JSON decimal string hoặc null, max1 decimal; fileSizeBytes JSON integer string.
 
 Unknown DTO fields rejected; không nhận userId/reviewerId/verificationStatus/storageKey/scanStatus từ client. String validation theo Unicode code points sau trim; optional empty title/description cho phép trong giới hạn. All decisions/save dùng server clock.

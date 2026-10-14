@@ -1,5 +1,11 @@
 # Implementation Plan: Kỹ năng
 
+> 2026-10-14, `feat/skill-level-catalog`: implement the
+> [per-skill level catalog amendment](skill-level-catalog.md) in the existing Skills
+> owner, runtime generator/additive migration, Sharing Skill selection and exposed
+> offering/profile contracts. No frontend edits or historical-model regeneration.
+> The amendment records the architecture/transaction/authorization check.
+
 **Branch**: `feat/skills` | **Date**: 2026-10-07 | **Spec**: [spec.md](spec.md)
 **Input**: `specs/007-skills/spec.md`. **Status**: Source implemented; local validation passed. External S3/ClamAV end-to-end release gate pending — see [validation.md](validation.md).
 
