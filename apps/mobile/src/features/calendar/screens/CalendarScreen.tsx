@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ScrollView } from "react-native";
 import { useRouter } from "expo-router";
+import { learningRoutes } from "@/constants/navigation";
 import { AppScreenLayout } from "@/features/shell";
 import { useSessionsPreview } from "@/features/sessions";
 import { Button } from "@/components/Button";
@@ -76,7 +77,10 @@ export function CalendarScreen() {
               description="Thử ngày, tháng hoặc nhóm buổi học khác."
             />
           )}
-          <Button variant="craft" onPress={() => router.push("/paths")}>
+          <Button
+            variant="craft"
+            onPress={() => router.push(learningRoutes.paths)}
+          >
             Lộ trình của tôi
           </Button>
           <RouteButton secondary href="/learning-history">

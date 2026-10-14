@@ -1,1 +1,4 @@
-export { default } from "../../staff/moderation/page";
+import { ModerationScreen } from "@/components/staff/moderation";
+export default function Page() {
+  return <ModerationScreen />;
+}

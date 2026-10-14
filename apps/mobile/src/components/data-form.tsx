@@ -11,7 +11,7 @@ import { ChoiceGroup } from "./choice-group";
 export type DataField = {
   name: string;
   label: string;
-  rule: z.ZodType<string>;
+  rule: z.ZodType<string, string>;
   multiline?: boolean;
   hint?: string;
   numeric?: boolean;

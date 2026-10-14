@@ -102,7 +102,7 @@ export function ProposalDetailScreen() {
                 variant="secondary"
                 onPress={() =>
                   router.push({
-                    pathname: "/request/[id]",
+                    pathname: "/explore/requests/[id]",
                     params: { id: request.id },
                   })
                 }

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { learningRoutes } from "@/constants/navigation";
 import { useLocalSearchParams } from "expo-router";
 import { EmptyState } from "@/components/EmptyState";
 import { FormNotice } from "@/components/FormNotice";
@@ -34,7 +35,9 @@ export function PathCancellationScreen() {
               <Copy>Lý do: {path.cancellation.reason}</Copy>
             </>
           )}
-          <RouteButton href="/paths">Danh sách lộ trình</RouteButton>
+          <RouteButton href={learningRoutes.paths}>
+            Danh sách lộ trình
+          </RouteButton>
         </Panel>
       ) : !["PROPOSED", "ACTIVE"].includes(path.status) ? (
         <EmptyState

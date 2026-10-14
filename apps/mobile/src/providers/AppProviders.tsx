@@ -16,9 +16,11 @@ import { MockMessagesProvider } from "@/features/messages";
 import { ProfilePreviewProvider, AvatarUploadToasts } from "@/features/profile";
 import { MockProposalsProvider } from "@/features/proposals";
 import { UiPreviewProvider } from "@/features/ui-preview";
+import { SkillsProvider } from "@/features/skills";
 import { QueryProvider } from "./QueryProvider";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { ToastProvider } from "./ToastProvider";
+import { ConnectionGate } from "./ConnectionGate";
 
 export function AppProviders({ children }: { children: ReactNode }) {
   const [loaded, error] = useFonts({
@@ -52,16 +54,20 @@ export function AppProviders({ children }: { children: ReactNode }) {
         <ToastProvider>
           <QueryProvider>
             <AuthSessionProvider>
-              <AvatarUploadToasts />
-              <SessionGate>
-                <ProfilePreviewProvider>
-                  <MockMessagesProvider>
-                    <MockProposalsProvider>
-                      <UiPreviewProvider>{children}</UiPreviewProvider>
-                    </MockProposalsProvider>
-                  </MockMessagesProvider>
-                </ProfilePreviewProvider>
-              </SessionGate>
+              <ConnectionGate>
+                <AvatarUploadToasts />
+                <SessionGate>
+                  <SkillsProvider>
+                    <ProfilePreviewProvider>
+                      <MockMessagesProvider>
+                        <MockProposalsProvider>
+                          <UiPreviewProvider>{children}</UiPreviewProvider>
+                        </MockProposalsProvider>
+                      </MockMessagesProvider>
+                    </ProfilePreviewProvider>
+                  </SkillsProvider>
+                </SessionGate>
+              </ConnectionGate>
             </AuthSessionProvider>
           </QueryProvider>
         </ToastProvider>

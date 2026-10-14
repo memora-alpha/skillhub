@@ -10,6 +10,60 @@ Use `../../../docs/SRS_SkillHub_V1.6_VietLai_DongBoNghiepVu.docx` as the current
 - User can be both learner and teacher depending on the agreement.
 - Public profile may show display name, avatar, bio, reputation, selected badge and public sharing skills.
 - Public profile must not show login email, phone, payment data, private evidence files or private material URLs.
+- Public skill detail may show the skill name, self-declared level, description,
+  experience years and verification badge for a currently public skill. Evidence,
+  certificates, review history/reasons and owner actions stay private, including
+  when the owner previews their public profile.
+
+## Sharing skills and verification
+
+- Sharing Skill references an ACTIVE Skill Catalog ID; users do not create free-text
+  catalog entries. Only one nonarchived Sharing Skill per user/catalog ID is allowed.
+- Level is self-declared: BEGINNER, INTERMEDIATE, ADVANCED or EXPERT. Description
+  is 20–1500 characters; experienceYears is optional, 0–60 with one decimal place.
+  The current API sends the decimal as a string or null.
+- Create/edit forms show examples for language and programming at each selected
+  level. These are self-assessment hints, not approval criteria or certificate
+  equivalences, and add no server validation.
+- Hiding a skill preserves the owner's record and history. Archive is soft deletion;
+  changing catalog ID requires another Sharing Skill. Current API blocks archive
+  while a verification batch is PENDING. The backend now exposes a dedicated
+  restore command; mobile spec 004 does not expose that action.
+- Per the user's 2026-10-11 UI decision, soft deletion is labeled "Xóa kỹ năng".
+  Deleted skills disappear from own/public lists and cannot be opened through
+  old mobile detail/edit/verification links. Mobile exposes no archived-record
+  toggle; the active skill's public/private controls remain available.
+- Editing level/description does not let mobile decide or reset verification.
+  SRS SK-002 leaves material-change policy to the system; current service preserves
+  the server badge. Do not invent that policy in the client.
+- Evidence submission accepts 1–5 new files: PDF/DOC/DOCX/JPG/JPEG/PNG/WEBP.
+  Upload and malware scan do not approve expertise; only authorized Staff/Admin
+  decisions do. New files require their own review.
+- Evidence size follows server configuration. Current upload/attachment code also
+  caps each file at 10,000,000 bytes; configuration may lower that limit.
+- READY is the evidence storage state required before submitting a verification
+  batch. This differs from avatar CLEAN. A 202 upload response is only receipt.
+- Saving a new skill with evidence creates the skill first, then uploads/scans
+  and submits a verification request before returning to My Skills. If evidence
+  fails, return to My Skills with an error toast explaining the skill was saved.
+  Keep the evidence draft in the session so the owner can reopen the skill and
+  explicitly retry. A failed/unconfirmed skill save stays on the form.
+  Confirmed creates appear newest first in the current session. Historical
+  creation ordering needs the missing owner timestamp/sort contract (spec GAP-09).
+- Skill badge, verification batch and evidence approval are different states;
+  REVOKED belongs to evidence, not the four-value Sharing Skill badge.
+- Only one verification batch may be PENDING for a skill. Mobile hides resubmit
+  until a decision; its Pending filter also includes VERIFIED skills with a new
+  PENDING latestVerification, preserving the existing verified badge.
+- Approved evidence does not expire automatically. Display rejection/revocation
+  reasons from owner-only history/detail, never in public profile.
+- Learned skills after Learning Path completion are separate from VERIFIED skills.
+  They remain outside spec 004.
+
+Implementation scope and unresolved contract differences are recorded in
+[spec 004](../specs/004-skills-management/spec.md). Implementation connects the
+existing API; runtime and platform evidence is recorded separately in its
+[validation](../specs/004-skills-management/validation.md).
 
 ## Learning Request and Proposal
 

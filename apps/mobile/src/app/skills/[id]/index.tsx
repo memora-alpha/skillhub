@@ -1,4 +1,4 @@
-import { SkillDetailScreen } from "@/features/skills";
+import { PreviewSkillDetailScreen } from "@/features/skills";
 export default function Screen() {
-  return <SkillDetailScreen />;
+  return <PreviewSkillDetailScreen />;
 }

@@ -50,7 +50,7 @@ function createRuntime() {
   const api = createAuthApi(client);
   const controller = new SessionController(api, createAuthTokenStore());
   client.bindSession(controller);
-  return { api, controller, accountApi: createAccountApi(client) };
+  return { api, controller, client, accountApi: createAccountApi(client) };
 }
 type Runtime = ReturnType<typeof createRuntime>;
 type AuthContextValue = {

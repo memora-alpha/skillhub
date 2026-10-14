@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { learningRoutes } from "@/constants/navigation";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { View } from "react-native";
 import { z } from "zod";
@@ -14,7 +15,7 @@ import {
   RouteButton,
   ui,
 } from "@/components/feature-page";
-import { canReschedule } from "@/features/learning-paths";
+import { canReschedule } from "@/features/learning-paths/policy";
 import { useSessionsPreview } from "./context";
 import { parseLocalDateTime } from "@/utils/local-date-time";
 export function PathSessionsScreen() {
@@ -55,7 +56,7 @@ export function LearningSessionScreen() {
   return (
     <FeaturePage
       title="Chi tiết buổi học"
-      back={s ? `/paths/${s.pathId}/sessions` : "/paths"}
+      back={s ? `/paths/${s.pathId}/sessions` : learningRoutes.paths}
     >
       {!s ? (
         <EmptyState
