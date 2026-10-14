@@ -30,11 +30,12 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "SkillHub dùng ảnh bạn chọn để cập nhật ảnh đại diện.",
+          "photosPermission": "SkillHub dùng ảnh bạn chọn làm ảnh đại diện hoặc bằng chứng xác minh kỹ năng.",
           "cameraPermission": false,
           "microphonePermission": false
         }
-      ]
+      ],
+      "expo-image"
     ]
   }
 }

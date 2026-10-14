@@ -2,6 +2,22 @@
 
 Mobile renders backend state. It must not invent transitions or silently infer final business outcomes.
 
+## App connection
+
+This is client infrastructure state, independent of the business states below.
+
+```text
+AVAILABLE -> OFFLINE (device reports no connection)
+AVAILABLE -> UNREACHABLE (HTTP transport cannot reach the API)
+OFFLINE or UNREACHABLE -> RETRYING (manual retry, device reconnect or app resume)
+RETRYING -> AVAILABLE (API responds and read queries finish without a new network failure)
+RETRYING -> OFFLINE or UNREACHABLE (connection still fails)
+```
+
+OFFLINE, UNREACHABLE and RETRYING use the same app-wide full-screen view. Reconnect
+does not replay mutations. HTTP business errors, cancelled requests and stale
+session responses do not change this state. See [connection behavior](network-state.md).
+
 ## Account
 
 ```text
@@ -13,14 +29,35 @@ ACTIVE -> DEACTIVATED
 
 ## Skill Verification
 
+Keep three independent server states; do not use a single linear state machine.
+
+| Resource            | Current API states                                   |
+| ------------------- | ---------------------------------------------------- |
+| Sharing Skill badge | UNVERIFIED, PENDING, VERIFIED, REJECTED              |
+| Verification batch  | PENDING -> APPROVED or REJECTED                      |
+| Evidence approval   | PENDING -> APPROVED or REJECTED; APPROVED -> REVOKED |
+
+Current aggregate policy prioritizes remaining APPROVED evidence, then PENDING
+requests, then REJECTED when a submitted batch exists, otherwise UNVERIFIED. Thus a skill
+may stay VERIFIED while a new batch is PENDING or after one file is revoked.
+Mobile reads the aggregate returned by the server; it must not calculate it from
+one page of history. REVOKED is not a Sharing Skill badge value.
+
+Approved evidence does not expire automatically. New batches/files need separate
+review; a malware scan does not approve expertise.
+
+Evidence storage is separate from approval:
+
 ```text
-UNVERIFIED -> PENDING
-PENDING -> VERIFIED
-PENDING -> REJECTED
-VERIFIED -> REVOKED
+UPLOADING -> QUARANTINED -> SCANNING -> READY
+SCANNING -> QUARANTINED (server retry)
+SCANNING -> REJECTED or SCAN_FAILED
 ```
 
-`VERIFIED` evidence does not expire automatically.
+UPLOAD_FAILED, CLEANUP_PENDING and DELETED also exist in storage. Only READY
+permits submission; unexpected states are unavailable for submission. Avatar
+CLEAN is a different contract. Follow [spec 004](../specs/004-skills-management/spec.md)
+for polling, retry and session boundaries.
 
 ## Learning Request
 

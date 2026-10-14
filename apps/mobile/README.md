@@ -69,7 +69,12 @@ and the root `pnpm-lock.yaml` for monorepo tooling.
 ## Feature overview
 
 The app covers account access, profiles and skill-exchange learning flows.
-Authentication, own profile and account settings connect to the SkillHub API.
+Authentication, own profile, account settings and sharing skill management connect
+to the SkillHub API. Owner evidence upload, scan status, submission and history
+use the existing skills endpoints.
+An app-wide connection screen handles device disconnection and transport failures.
+Retry and reconnection reload the open page's data; see
+[connection behavior and validation](docs/network-state.md).
 Some other flows still use sample data or local state while integration is in
 progress.
 
@@ -103,6 +108,19 @@ route files and follow the [mobile architecture](docs/architecture.md).
 - Specs: [foundation](specs/001-mobile-foundation/spec.md),
   [authentication](specs/002-auth-account-shell/spec.md) and
   [profile](specs/003-profile-public-profile/spec.md).
+- Skills delivery: [sharing skills and verification](specs/004-skills-management/spec.md),
+  with [plan](specs/004-skills-management/plan.md),
+  [tasks](specs/004-skills-management/tasks.md),
+  [acceptance checklist](specs/004-skills-management/checklist.md) and
+  [validation](specs/004-skills-management/validation.md).
+  Implementation and browser fixtures are checked; real API/storage/scan and
+  Android/iOS acceptance remain pending in validation.
+- Learning Request: [spec 005](specs/005-learning-request/spec.md),
+  [contract checkpoint](specs/005-learning-request/contracts.md) and
+  [review/acceptance checklist](specs/005-learning-request/checklist.md),
+  [implementation tasks](specs/005-learning-request/tasks.md) and
+  [validation](specs/005-learning-request/validation.md).
+- Learning Request checkpoint: [resume after backend readiness](specs/005-learning-request/resume.md).
 - Profile delivery: [tasks](specs/003-profile-public-profile/tasks.md),
   [acceptance checklist](specs/003-profile-public-profile/checklist.md) and
   [validation evidence](specs/003-profile-public-profile/validation.md).

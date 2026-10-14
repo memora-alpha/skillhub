@@ -56,6 +56,9 @@ Chỉ publish immediate config updates; chưa thêm scheduler future-effective.
   (503 an toàn) hoặc ngăn feature startup/activation. Feature chưa bật không làm
   health nền tảng fail chỉ vì chưa có credentials/policy của feature đó.
 - **R-07:** UTC instants dùng timestamptz(3), API ISO-8601 có timezone, output `Z`.
+  Prisma runtime/seed PostgreSQL connections phải dùng UTC bất kể timezone mặc
+  định của database hoặc role. Connection options khác và TLS được giữ nguyên;
+  không chỉnh dữ liệu hoặc bù offset ở frontend (regression fix 2026-10-13).
   Local datetime không offset, invalid calendar date hoặc invalid IANA timezone
   bị reject. User timezone phục vụ hiển thị; không thay instant hoặc backend clock.
 - **R-08:** Clock do server/DI cung cấp; không nhận clientNow để kiểm tra cutoff.

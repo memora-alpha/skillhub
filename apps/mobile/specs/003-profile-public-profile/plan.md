@@ -18,6 +18,15 @@ Plan mô tả runtime sau rebase; các kết quả trước rebase chỉ là b�
 
 ## 2. Cấu trúc và phần tái sử dụng
 
+Amendment theo yêu cầu 2026-10-13: mở rộng mobile shell/learning/sessions để gỡ
+require cycles và hợp nhất hai list mẫu vào Hành trình từ Hồ sơ. Narrow public
+state/policy entry points được khai báo trong architecture và check-structure;
+không import private feature files. MyRequestsContent/MyPathsContent dùng chung
+provider với editor/detail hiện có; route list cũ redirect, back và Calendar
+dùng cùng learningRoutes. Hai tab sync URL, dữ liệu vẫn ghi rõ bản xem thử.
+Không dependency mới hoặc backend/shared/root changes. Kiểm chứng source runtime
+graph, type/lint/structure/tests và browser navigation; native/API vẫn pending.
+
 | Phần                                                       | Trách nhiệm                                                                         |
 | ---------------------------------------------------------- | ----------------------------------------------------------------------------------- |
 | `src/app/(tabs)/profile.tsx`                               | Route own profile trong tabs.                                                       |
@@ -63,8 +72,10 @@ xóa ảnh. Hủy draft không gọi các endpoint avatar. Các endpoint profile
 React Hook Form/Zod hiện có quản lý draft, sử dụng validation của feature profile.
 
 Own profile khôi phục kiểu dáng commit `ac4590d`: thẻ trắng, avatar 64px, nút public
-preview riêng; grid hai cột trước bio/skills (Ví Credit, Tài liệu của tôi, Thành tích,
-Xác minh kỹ năng, Đánh giá, Cài đặt). Theo audit SRS 1.6, bỏ huy hiệu mẫu, số dư
+preview riêng; grid hai cột trước bio/skills (Ví Credit, Tài liệu của tôi,
+Hành trình của tôi, Đánh giá về tôi, Thành tích, Cài đặt). Hành trình mở hub hai tab
+Yêu cầu học/Lộ trình chưa kết nối; Đánh giá hiện notice chưa kết nối theo spec.
+Theo audit SRS 1.6, bỏ huy hiệu mẫu, số dư
 demo và số buổi hoàn thành; giữ reputation/verified skill count từ server.
 Ô Lộ trình hoàn thành chỉ hiển thị “—”/“Sắp có”; danh hiệu own cũng ghi “Sắp có”.
 Giá trị/chọn danh hiệu thật cần contract riêng. Thông tin riêng tư ở Cài đặt. `features/settings` giữ account
@@ -167,3 +178,21 @@ tests làm bằng chứng API integration.
 
 Kết quả checks ngày 2026-10-09, bằng chứng lịch sử trước rebase và phần còn chưa
 kiểm chứng được tập trung trong [validation.md](validation.md).
+
+## Public profile from Learning Request — 2026-10-13
+
+User explicitly requested the View Profile button in request detail, without a
+profile request list. Other UUID targets at /profiles/[userId] now load GET
+/profiles/:userId using the shared authenticated HTTP client. Projection validates
+target ID and public fields and strips private/nested metadata. Skill rows use
+GET /profiles/:userId/skills and existing public skill detail/pagination, while
+self-preview and named demo routes retain their current behavior.
+
+Session generation and viewer scope protect queries; late session reads fail.
+Profile403/404 resolves unavailable and replaces cached content with null;503
+cannot restore it. Transient errors may retain a last successful public snapshot
+with retry. Back uses history, then the originating request ID or Discover.
+Only Xem hồ sơ is enabled in the request footer; Proposal/chat remains deferred.
+No backend, shared-package or root tooling change, new dependency, account mutation
+or public request-list endpoint is introduced. Profile/Skills own the implementation;
+Spec005 only connects its detail footer. Existing theme/components are reused.

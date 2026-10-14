@@ -1,9 +1,37 @@
 # Validation — Spec 003
 
-Cập nhật: 2026-10-09. Phạm vi theo [spec](spec.md), nghiệm thu theo
+Cập nhật: 2026-10-13. Phạm vi theo [spec](spec.md), nghiệm thu theo
 [checklist](checklist.md). Phạm vi mobile profile/settings, recovery Auth và tài liệu liên quan.
 
-## Kết quả hiện tại
+## Gỡ vòng import và hợp nhất Hành trình — 2026-10-13
+
+Theo yêu cầu mới, gỡ vòng runtime shell → AppHeader → product-shell screens →
+shell và paths/screens → sessions/context/screens → paths. Public entry points
+`product-shell/state`, `learning-paths/state`, `learning-paths/policy` và
+`sessions/state` chỉ export state hoặc pure policy. Checker cho phép đúng bốn
+subpath đã khai báo, vẫn chặn các deep import private khác. Không suppress warn,
+không lazy-load để che vòng. Đồ thị import của source TypeScript sau khi loại
+type-only imports có 0 cycle groups (382 runtime source files, trước đó 2 nhóm).
+Ignored analyzer: `.expo/check-runtime-cycles.cjs`.
+
+Hồ sơ → Hành trình dùng chung MyRequestsContent/MyPathsContent từ các preview
+provider hiện có. Hai tab đồng bộ `tab=requests|paths` trong URL; tab sai về
+requests. Route list `/requests` và `/paths` redirect đúng tab; chi tiết/editor
+và Calendar dùng chung `learningRoutes`. Back từ chi tiết về đúng hub, hub về
+Hồ sơ, không mount hai header hay duy trì danh sách riêng. Dữ liệu mẫu được ghi
+rõ; chưa nối API Learning Request/Path và không sửa BE.
+
+Typecheck/lint/structure đạt (383 source files); mobile tests 177/177 đạt; web
+export đạt (1875 modules). Browser `.expo/learning-hub-connected-browser.cjs`
+đạt 7 nhóm/4 fixture requests, không page error/cycle warning: profile entry,
+filter/detail/back, tạo draft mẫu hiện trong hub, path/session detail,
+schedule/hold context, legacy redirects, Calendar và invalid tab. Screenshot
+320/375/430 ở `.expo/skills-validation/learning-hub-requests-*.png` và
+`learning-hub-paths-*.png`; result `learning-hub-connected-result.json`.
+Không mutation BE thật. Android/iOS và require-cycle log của cold Metro trên
+thiết bị chưa chạy lại; source graph và browser không thay thế native evidence.
+
+## Kết quả nền trước các amendment dưới đây
 
 | Kiểm tra                   | Kết quả                                                                                                                                                                      |
 | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -178,3 +206,67 @@ Chưa kiểm tra lại trên native; không commit/push trong bước review nà
 Plan cũ ghi web/mock checks pass ngày 2026-10-08 trước rebase dùng MockSession.
 Bằng chứng hiện tại ở trên dùng AuthSession sau rebase; không dùng kết quả lịch sử
 để tick nghiệm thu native hoặc các phần ngoài scope.
+
+## Gộp mục Học & dạy — 2026-10-11
+
+Profile có sáu shortcut: Ví Credit, Tài liệu của tôi, Học & dạy của tôi,
+Đánh giá về tôi, Thành tích, Cài đặt. Yêu cầu học/lộ trình được gộp vào màn
+`/my-learning` với hai tab riêng; mặc định Yêu cầu học, quay lại Hồ sơ, header
+không có chuông. Hai tab chưa kết nối dữ liệu, không dùng danh sách mẫu hoặc
+gọi thêm API. Đánh giá vẫn là entry chưa kết nối. Không sửa BE.
+
+Typecheck, lint, structure (253 source files), Prettier, diff check và web export
+đạt. Harness local `.expo/learning-hub-browser.cjs` đạt sáu nhóm checks,
+22 fixture requests và không page error: sáu ô/ba hàng ở 320/375/430, mở hub,
+chuyển tab/selected state, quay lại profile, chặn guest truy cập trực tiếp;
+giữ các checks badge, giới hạn năm kỹ năng và pagination own/public.
+Ảnh `.expo/skills-validation/profile-learning-hub-{320,375,430}.png`,
+`learning-requests-tab-{320,375,430}.png`, `learning-paths-tab-{320,375,430}.png`
+và kết quả `learning-hub-result.json`. Đã rà soát ảnh; native chưa kiểm tra.
+
+Rà soát trước commit (2026-10-11): tên hiển thị cuối là **Hành trình của tôi**,
+đồng bộ shortcut, header và route map; URL `/my-learning` không đổi.
+Harness hub chạy lại đạt sáu nhóm/22 requests, không page error. Race Xem thêm
+trở về profile được sửa và có ba regression tests; toàn bộ mobile đạt 148 tests,
+typecheck/lint/structure (253 files) và web export. Menu vẫn có sáu ô, hai tab
+và mục Đánh giá về tôi chưa kết nối dữ liệu. BE không thay đổi.
+
+## Profile shortcuts cleanup — 2026-10-13
+
+Removed the separate Yêu cầu học của tôi shortcut. Six actions now use two
+columns and three rows: Hành trình/Ví Credit, Tài liệu/Thành tích, Đánh giá/Cài đặt.
+Shortcut spacing, padding and labels are consistent; the UI-gallery action is a
+quiet ghost button after bio and skills. Existing route/session/API behavior stays.
+
+npm lint, check-types and check-structure passed (447 source files); existing
+profile tests passed8/8. Separate fixture API4315 / Expo web8082 with fake accountA:
+profile displayed all six actions, no request-only shortcut, and document width
+matched320px with two equal143px columns and64px rows. Hành trình opened
+/my-learning with Yêu cầu học selected; Back returned to Profile and Cài đặt
+opened /account-settings. No real account/database mutations. Native layout and
+font scaling for this adjustment remain unverified.
+
+## View Profile from Learning Request — 2026-10-13
+
+Source now connects Xem hồ sơ in public request detail to the owner's UUID at
+/profiles/[userId]?requestId=... . Another UUID loads the public profile API;
+self-preview and explicit demo routes retain their established behavior. Public
+skills reuse the paginated target-user endpoint and public skill detail, without
+owner/evidence endpoints. Shared PublicSelfSkillList remains a wrapper for the
+viewer ID; other users do not inherit the viewer's locally deleted-skill filter.
+
+Validation: npm lint, check-types and check-structure passed (450 source files).
+51 focused tests passed:21 profile API/LR/preferences,8 existing profile tests,
+22 public-skill detail/contracts/window tests. New API tests cover target matching,
+private-field stripping, malformed input, session changes and real loopback HTTP
+403/404 -> cached null ->503 -> recovery through the shared authenticated client.
+
+Separate fixture API4315 / Expo web8082, fake viewerA/ownerB: Discover -> B's
+request -> Xem hồ sơ -> B's profile -> React public detail -> Back -> profile ->
+Back -> original request. Initial profile503 showed retry; retry200 loaded B.
+Returning from skill detail with injected profile404 hid B's previous profile and
+skill rows; retry200 restored the target. At320px document width equaled viewport.
+No profile-edit, create-request, Proposal/chat or real API/database mutation.
+Real backend data, native devices/font scaling and direct-deep-link fallback
+acceptance remain unverified. The final accessibility Back label uses generic
+Quay lại, preserving other ProfileLayout consumers' default.

@@ -131,6 +131,19 @@ export const appRadius = {
   full: 999,
 } as const;
 
+export const skillBadgeColors = {
+  VERIFIED: { color: "#24654F", background: "#E9F5EE", border: "#D0E9D9" },
+  UNVERIFIED: { color: "#6C625B", background: "#F3EEE6", border: "#E4DDD3" },
+  PENDING: { color: "#91621A", background: "#FFF5DE", border: "#F2E1BA" },
+  REJECTED: { color: "#B14347", background: "#FCEEF0", border: "#F2D7DC" },
+} as const;
+
+export const skillLevelColors = {
+  color: "#9A4F3D",
+  background: "#FBEFE9",
+  border: "#F0DED3",
+} as const;
+
 export const appGradients = {
   discoveryCard: [appColors.surface, appColors.surfaceLow],
 } as const;

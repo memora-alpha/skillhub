@@ -17,25 +17,51 @@
 
 ## First implementation order
 
+Spec 005 checkpoint (2026-10-11): Learning Request own list/detail, draft form,
+edit/publish/cancel and Discovery use the API. Profile links to My Requests;
+editor Back returns to its origin. Skill lookup is integrated; Tag selection
+and Proposal/public profile integration remain pending. Backend LR adapters still
+return 503 for their dependent flows. See [tasks](../specs/005-learning-request/tasks.md)
+and [validation](../specs/005-learning-request/validation.md).
+
+UI correction2026-10-12: weekday/time controls and smaller expiry-calendar font
+are implemented. Weekly choices remain a form draft; save awaits B08/T036.
+Resume from the [checkpoint](../specs/005-learning-request/resume.md).
+
 Spec 003 checkpoint (2026-10-09): own/edit profile uses the real account API;
 public self-preview uses saved data. Other public profiles remain fixtures, and
 avatar selection/upload/status/removal uses the existing API. Only CLEAN updates
 the published image; real scan completion needs a running ClamAV service.
-The real skill list/title flows are pending. Track work in
+Title selection remains pending. Track profile work in
 [tasks](../specs/003-profile-public-profile/tasks.md) and acceptance in
 [checklist](../specs/003-profile-public-profile/checklist.md).
+
+Spec 004 checkpoint (2026-10-09): `skills` connects own management, catalog,
+evidence/verification history and public self skills to the existing API. Mobile
+checks and browser fixtures pass; real API/scanner and Android/iOS acceptance
+remain pending in [validation](../specs/004-skills-management/validation.md).
 
 Own profile shows action shortcuts before bio and skills. `settings` owns the
 account details, privacy/help/version and security entry points; `auth` owns
 OTP recovery and session revocation. Password recovery also opens from signed-in
 Settings, with no new endpoint or legal-policy content.
 
+The `learning` feature exposes the authenticated `/my-learning` hub from the
+profile's "Hành trình của tôi" shortcut. Its "Yêu cầu học" and "Lộ trình" tabs
+use the session-scoped Learning Request API list and the existing path preview
+list, with their detail/editor routes.
+The old `/requests` and `/paths` list URLs redirect to the matching hub tab;
+Profile and Calendar share these destinations. Path records remain explicitly
+labeled preview data; request acceptance gaps remain tracked in spec 005. Received reviews
+remain an unconnected "Đánh giá về tôi" shortcut.
+
 1. Mobile foundation.
 2. Auth and account shell.
 3. Profile and public profile.
-4. Discovery, skills and Learning Request read flows.
-5. Proposal and chat negotiation.
-6. Learning Path, LearningPlan and schedule confirmation.
-7. Sessions, LiveKit and completion confirmation.
-8. Wallet, payment status and transaction history.
-9. Review, reputation, reports and materials.
+4. Sharing Skill management and owner verification
+5. Discovery, skill/tag sharer search and Learning Request read flows.
+6. Proposal and chat negotiation.
+7. Learning Path, LearningPlan and schedule confirmation.
+8. Sessions, LiveKit and completion confirmation.
+9. Wallet, payment status and transaction history.
+10. Review, reputation, reports and materials.

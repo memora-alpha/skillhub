@@ -5,6 +5,14 @@ import { fileURLToPath } from "node:url";
 const rootPath = fileURLToPath(new URL("../src/", import.meta.url));
 const sourceExtensions = new Set([".ts", ".tsx"]);
 const errors = [];
+// These declared public entry points expose state/policy without importing screens.
+// Keep the list explicit so feature-private imports remain disallowed.
+const publicFeatureEntries = new Set([
+  "product-shell/state",
+  "learning-paths/state",
+  "learning-paths/policy",
+  "sessions/state",
+]);
 
 function walk(directory) {
   return readdirSync(directory).flatMap((name) => {
@@ -30,10 +38,13 @@ for (const path of files) {
   if (lines > limit)
     errors.push(`${normalized}: ${lines} lines (limit ${limit})`);
 
-  const privateFeatureImport = source.match(/["']@\/features\/[^/"']+\//);
-  if (privateFeatureImport) {
-    errors.push(`${normalized}: import features through their public index.ts`);
-  }
+  for (const match of source.matchAll(
+    /["']@\/features\/([^/"']+\/[^"']+)["']/g,
+  ))
+    if (!publicFeatureEntries.has(match[1]))
+      errors.push(
+        `${normalized}: import features through their declared public entry points`,
+      );
 }
 
 const featuresPath = join(rootPath, "features");

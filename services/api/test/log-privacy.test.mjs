@@ -4,6 +4,7 @@ import {
   requestLogId,
   requestLogProperties,
   safeRequestLog,
+  safeServerErrorLog,
 } from "../dist/configs/logging.config.js";
 
 test("request logging keeps IDs and omits query secrets and headers", () => {
@@ -30,4 +31,33 @@ test("request logging keeps IDs and omits query secrets and headers", () => {
   assert.deepEqual(entry, { id: requestId, method: "GET", path: "/api/files" });
   assert.ok(!JSON.stringify(entry).includes("sensitive"));
   assert.ok(!JSON.stringify(entry).includes("secret"));
+});
+
+test("server diagnostics never serialize arbitrary messages or database detail values", () => {
+  const error = new Error(
+    "postgresql://user:private-password@localhost/db\n    at private-token",
+  );
+  error.meta = {
+    driverAdapterError: {
+      cause: {
+        originalCode: "23505",
+        originalMessage: "Key (email)=(private-email) already exists",
+      },
+    },
+  };
+  const diagnostic = safeServerErrorLog(error);
+  assert.equal(diagnostic.errorType, "Error");
+  assert.equal(diagnostic.databaseCode, "23505");
+  assert.equal(diagnostic.missingColumn, undefined);
+  assert.ok(diagnostic.stackFrames.length > 0);
+  assert.ok(diagnostic.stackFrames.length <= 8);
+  assert.doesNotMatch(JSON.stringify(diagnostic), /private-|postgresql/);
+  error.meta.driverAdapterError.cause.originalCode = "42703";
+  error.meta.driverAdapterError.cause.originalMessage =
+    "column private-password with private-token does not exist";
+  assert.equal(safeServerErrorLog(error).missingColumn, undefined);
+  assert.equal(
+    safeServerErrorLog("private-password").errorType,
+    "UnknownError",
+  );
 });
