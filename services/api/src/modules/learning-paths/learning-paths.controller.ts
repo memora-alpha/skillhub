@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Get,
   HttpCode,
   Param,
   ParseUUIDPipe,
@@ -30,6 +31,30 @@ import {
 @Controller({ path: "learning-paths", version: "1" })
 export class LearningPathsController {
   constructor(private readonly paths: LearningPathsService) {}
+
+  @Get("mine")
+  @ApiOperation({ summary: "List the caller's LearningPaths" })
+  async mine(@CurrentIdentity() actor: Principal) {
+    return success(
+      await this.paths.listMine(actor),
+      "Learning paths retrieved.",
+    );
+  }
+
+  @Get(":pathId")
+  @ApiOperation({
+    summary:
+      "Read the current agreement, plans, schedule proposals and sessions",
+  })
+  async detail(
+    @CurrentIdentity() actor: Principal,
+    @Param("pathId", ParseUUIDPipe) pathId: string,
+  ) {
+    return success(
+      await this.paths.detail(actor, pathId),
+      "Learning path retrieved.",
+    );
+  }
 
   @Post()
   @ApiOperation({ summary: "Create a versioned LearningPath agreement" })
