@@ -15,6 +15,35 @@ export abstract class WalletPort {
   ): Promise<{ operationId: string }>;
 }
 
+/** New compensating ledger entries for a decided case; old entries are never edited (SH-068). */
+export abstract class CreditAdjustmentPort {
+  abstract adjust(
+    tx: TransactionContext,
+    input: {
+      userId: string;
+      /** Signed hundredths of a Credit. */
+      amount: bigint;
+      referenceType: "REPORT_CASE";
+      referenceId: string;
+      actorId: string;
+      reason: string;
+      idempotencyKey: string;
+    },
+  ): Promise<{ operationId: string }>;
+
+  abstract reverse(
+    tx: TransactionContext,
+    input: {
+      operationId: string;
+      referenceType: "REPORT_CASE";
+      referenceId: string;
+      actorId: string;
+      reason: string;
+      idempotencyKey: string;
+    },
+  ): Promise<{ operationId: string }>;
+}
+
 /** One-time final settlement of a locked path (SH-067 owns the implementation). */
 export abstract class PathSettlementPort {
   abstract settlePath(
