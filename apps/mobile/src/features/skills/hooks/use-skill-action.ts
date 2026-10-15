@@ -30,19 +30,23 @@ export function useSkillAction({ notifySuccess = true } = {}) {
     }, []),
   );
   const current = () => focused.current && isCurrent();
-  function notifySaved(refreshed: boolean, successMessage?: string) {
+  function notifySaved(
+    refreshed: boolean | undefined,
+    successMessage?: string,
+  ) {
     if (!notifySuccess) return;
-    const message = refreshed
-      ? (successMessage ?? "Đã lưu thay đổi.")
-      : `${successMessage ?? "Đã lưu."} Chưa cập nhật được toàn bộ dữ liệu; hãy tải lại.`;
-    showToast(message, refreshed ? "success" : "info");
+    const message =
+      refreshed !== false
+        ? (successMessage ?? "Đã lưu thay đổi.")
+        : `${successMessage ?? "Đã lưu."} Chưa cập nhật được toàn bộ dữ liệu; hãy tải lại.`;
+    showToast(message, refreshed !== false ? "success" : "info");
   }
   async function run<T>(
     operation: string,
     body: unknown,
     execute: (key: string) => Promise<T>,
-    done?: (result: T, refreshed: boolean) => void,
-    refreshAfter = true,
+    done?: (result: T, refreshed: boolean | undefined) => void,
+    refreshAfter: boolean | "background" = true,
     successMessage?: string,
   ) {
     if (lock.current || !current()) return;
@@ -53,7 +57,11 @@ export function useSkillAction({ notifySuccess = true } = {}) {
       const result = await execute(intent.current.key(operation, body));
       if (!current()) return;
       // The write committed. Refresh errors must never turn it into a failed write.
-      const refreshed = refreshAfter ? await refresh() : true;
+      let refreshed: boolean | undefined = true;
+      if (refreshAfter === "background") {
+        refreshed = undefined;
+        void refresh().catch(() => false);
+      } else if (refreshAfter) refreshed = await refresh();
       if (!current()) return;
       intent.current.clear();
       if (refreshAfter) notifySaved(refreshed, successMessage);
@@ -62,7 +70,7 @@ export function useSkillAction({ notifySuccess = true } = {}) {
     } catch (failure) {
       if (current()) {
         setError(failure);
-        showToast(skillError(failure, refreshAfter), "error");
+        showToast(skillError(failure, !!refreshAfter), "error");
       }
     } finally {
       lock.current = false;
