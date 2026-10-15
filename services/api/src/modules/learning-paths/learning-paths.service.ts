@@ -28,6 +28,11 @@ function creditUnits(value: string): bigint {
   return BigInt(whole) * 100n + BigInt(fraction.padEnd(2, "0"));
 }
 
+function creditText(units: bigint | null): string | null {
+  if (units === null) return null;
+  return `${units / 100n}.${String(units % 100n).padStart(2, "0")}`;
+}
+
 async function lockPath(tx: TransactionContext, pathId: string): Promise<void> {
   const rows = await tx.$queryRaw<{ id: string }[]>`
     SELECT path_id AS id FROM learning_paths WHERE path_id = ${pathId}::uuid FOR UPDATE
@@ -89,6 +94,176 @@ export class LearningPathsService {
     private readonly wallets: CreditWalletReader,
     private readonly creditLedger: CreditLedgerService,
   ) {}
+
+  listMine(actor: Principal) {
+    return this.transactions.run(async (tx) => {
+      const paths = await tx.learningPath.findMany({
+        where: {
+          OR: [
+            { participantAId: actor.userId },
+            { participantBId: actor.userId },
+          ],
+        },
+        orderBy: [{ updatedAt: "desc" }, { id: "asc" }],
+        take: 100,
+      });
+      if (paths.length === 0) return [];
+      const agreements = await tx.learningPathVersion.findMany({
+        where: {
+          OR: paths.map(({ id, currentVersion }) => ({
+            pathId: id,
+            versionNo: currentVersion,
+          })),
+        },
+        select: { pathId: true, exchangeType: true },
+      });
+      const exchangeTypes = new Map(
+        agreements.map(({ pathId, exchangeType }) => [pathId, exchangeType]),
+      );
+      return paths.map((path) => ({
+        id: path.id,
+        conversationId: path.conversationId,
+        status: path.status,
+        exchangeType: exchangeTypes.get(path.id) ?? null,
+        counterpartId:
+          path.participantAId === actor.userId
+            ? path.participantBId
+            : path.participantAId,
+        currentVersion: path.currentVersion,
+        lockedVersion: path.lockedVersion,
+        createdAt: path.createdAt,
+        updatedAt: path.updatedAt,
+      }));
+    });
+  }
+
+  detail(actor: Principal, pathId: string) {
+    return this.transactions.run(async (tx) => {
+      const path = await tx.learningPath.findUnique({ where: { id: pathId } });
+      if (!path) throw new NotFoundException("LEARNING_PATH_NOT_FOUND");
+      if (
+        actor.userId !== path.participantAId &&
+        actor.userId !== path.participantBId
+      ) {
+        throw new ForbiddenException("LEARNING_PATH_ACCESS_DENIED");
+      }
+      const agreement = await tx.learningPathVersion.findUniqueOrThrow({
+        where: { pathId_versionNo: { pathId, versionNo: path.currentVersion } },
+      });
+      const links = await tx.pathVersionPlan.findMany({
+        where: { pathId, pathVersion: path.currentVersion },
+        include: {
+          ownedPlanRecord: true,
+          planVersionRecord: {
+            include: {
+              planSessionOutlinePlanVersionRecords: {
+                orderBy: { sessionNo: "asc" },
+              },
+            },
+          },
+        },
+        orderBy: { planId: "asc" },
+      });
+      const scheduleVersions = await tx.scheduleVersion.findMany({
+        where: { pathId, pathVersion: path.currentVersion },
+        include: {
+          proposalRecord: true,
+          scheduleItemScheduleVersionRecords: { orderBy: { sessionNo: "asc" } },
+        },
+      });
+      const currentSchedules = scheduleVersions.filter(
+        (schedule) =>
+          schedule.versionNo === schedule.proposalRecord.currentVersion,
+      );
+      const sessions =
+        path.lockedVersion === null
+          ? []
+          : await tx.session.findMany({
+              where: { pathId },
+              orderBy: [{ planId: "asc" }, { outlineSessionNo: "asc" }],
+              select: {
+                id: true,
+                planId: true,
+                outlineSessionNo: true,
+                startAt: true,
+                endAt: true,
+                status: true,
+              },
+            });
+      return {
+        id: path.id,
+        conversationId: path.conversationId,
+        status: path.status,
+        participantAId: path.participantAId,
+        participantBId: path.participantBId,
+        currentVersion: path.currentVersion,
+        lockedVersion: path.lockedVersion,
+        completedAt: path.completedAt,
+        settledAt: path.settledAt,
+        agreement: {
+          version: agreement.versionNo,
+          exchangeType: agreement.exchangeType,
+          totalCreditPerUser: creditText(agreement.totalCreditPerUser),
+          negotiatedCredit: creditText(agreement.negotiatedCredit),
+          teacherId: agreement.teacherId,
+          learnerId: agreement.learnerId,
+          participantAConfirmedAt: agreement.participantAConfirmedAt,
+          participantBConfirmedAt: agreement.participantBConfirmedAt,
+        },
+        plans: links.map(
+          ({ ownedPlanRecord: plan, planVersionRecord, planVersion }) => {
+            const schedule = currentSchedules.find((candidate) =>
+              candidate.scheduleItemScheduleVersionRecords.some(
+                (item) =>
+                  item.planId === plan.id && item.planVersion === planVersion,
+              ),
+            );
+            return {
+              id: plan.id,
+              version: planVersion,
+              status: plan.status,
+              teacherId: plan.teacherId,
+              learnerId: plan.learnerId,
+              skillId: planVersionRecord.skillId,
+              learningGoal: planVersionRecord.learningGoal,
+              totalSessions: planVersionRecord.totalSessions,
+              learnerConfirmedAt: planVersionRecord.learnerConfirmedAt,
+              sessionOutline:
+                planVersionRecord.planSessionOutlinePlanVersionRecords.map(
+                  ({ sessionNo, content }) => ({ sessionNo, content }),
+                ),
+              schedule: schedule
+                ? {
+                    id: schedule.scheduleProposalId,
+                    version: schedule.versionNo,
+                    appliedVersion: schedule.proposalRecord.appliedVersion,
+                    status: schedule.proposalRecord.status,
+                    participantAConfirmedAt: schedule.participantAConfirmedAt,
+                    participantBConfirmedAt: schedule.participantBConfirmedAt,
+                    items: schedule.scheduleItemScheduleVersionRecords.map(
+                      ({ sessionNo, startAt, endAt }) => ({
+                        sessionNo,
+                        startAt,
+                        endAt,
+                      }),
+                    ),
+                  }
+                : null,
+              sessions: sessions
+                .filter((session) => session.planId === plan.id)
+                .map(({ id, outlineSessionNo, startAt, endAt, status }) => ({
+                  id,
+                  sessionNo: outlineSessionNo,
+                  startAt,
+                  endAt,
+                  status,
+                })),
+            };
+          },
+        ),
+      };
+    });
+  }
 
   create(actor: Principal, input: CreateLearningPathDto) {
     const creditInput =
