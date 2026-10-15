@@ -10,6 +10,7 @@ import type { TransactionContext } from "../../infrastructure/database/transacti
 import { TransactionRunner } from "../../infrastructure/database/transaction-runner";
 import type { Principal } from "../auth/application/services/sessions.service";
 import { AuditWriter } from "../audit/application/audit-writer";
+import { SystemConfigurationService } from "../system-configuration/application/system-configuration.service";
 import type { RoleCode } from "../../shared/authorization/authorization.types";
 import type {
   CreateScheduleProposalDto,
@@ -22,6 +23,7 @@ function validateItems(
   items: CreateScheduleProposalDto["items"],
   expectedSessions: number,
   now: Date,
+  durationMinutes: { min: number; max: number },
 ): void {
   if (items.length !== expectedSessions) {
     throw new BadRequestException("SCHEDULE_ITEM_COUNT_MISMATCH");
@@ -40,8 +42,8 @@ function validateItems(
       !Number.isFinite(start.getTime()) ||
       !Number.isFinite(end.getTime()) ||
       start <= now ||
-      duration < 60 ||
-      duration > 180
+      duration < durationMinutes.min ||
+      duration > durationMinutes.max
     ) {
       throw new BadRequestException("INVALID_SCHEDULE_ITEMS");
     }
@@ -163,6 +165,7 @@ export class SchedulingService {
   constructor(
     private readonly transactions: TransactionRunner,
     private readonly audit: AuditWriter,
+    private readonly configuration: SystemConfigurationService,
   ) {}
 
   createProposal(
@@ -248,7 +251,16 @@ export class SchedulingService {
       if (!(clock?.now instanceof Date)) {
         throw new ConflictException("DATABASE_TIME_UNAVAILABLE");
       }
-      validateItems(input.items, planVersion.totalSessions, clock.now);
+      const { values } = await this.configuration.getSnapshot(
+        ["session.durationMinutes"],
+        tx,
+      );
+      validateItems(
+        input.items,
+        planVersion.totalSessions,
+        clock.now,
+        values["session.durationMinutes"],
+      );
       const scheduleId = randomUUID();
       await tx.scheduleProposal.create({
         data: {
