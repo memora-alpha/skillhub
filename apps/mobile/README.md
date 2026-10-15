@@ -72,8 +72,21 @@ when switching from npm so package-manager auto-detection stays consistent.
 
 The app covers account access, profiles and skill-exchange learning flows.
 Authentication, own profile, account settings and sharing skill management connect
-to the SkillHub API. Owner evidence upload, scan status, submission and history
+to the SkillHub API. Sharing skill forms load each skill's ACTIVE level catalog
+and save levelId; own/public profiles and offered skills show the catalog name.
+Owner evidence upload, scan status, submission and history
 use the existing skills endpoints.
+Saving a skill returns to the list after the confirmed save; evidence continues
+in the signed-in session with sending/pending/retry states on own cards and a
+separate result toast. Navigation keeps it running; app background pauses it for
+explicit retry, and closing the app does not preserve in-memory drafts.
+Preparation/upload use two workers. Cards distinguish preparation, upload, scan
+and submission. Slow scans keep uploaded IDs and offer Check again after the
+bounded polling window; they do not become upload failures or pending approval.
+Images over 2 MB may be compressed at quality 0.9 without resizing; a smaller
+valid output is used, with a Keep original choice. PDF/Word and small images keep
+their original bytes. Expo Go includes ImageManipulator; an existing development
+client needs a new binary to include newly installed native modules.
 An app-wide connection screen handles device disconnection and transport failures.
 Retry and reconnection reload the open page's data; see
 [connection behavior and validation](docs/network-state.md).

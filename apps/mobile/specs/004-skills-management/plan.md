@@ -1,11 +1,44 @@
 # Plan — Spec 004
 
-Cập nhật: 2026-10-12. Implementation theo [spec](spec.md) đã có ở `apps/mobile`;
-chỉ root `pnpm-lock.yaml` đổi để đồng bộ bốn dependencies Expo mới: crypto,
-document picker, image và network. Backend/shared
+Cập nhật: 2026-10-15. Implementation theo [spec](spec.md) đã có ở `apps/mobile`;
+root pnpm lockfile đồng bộ dependencies Expo mobile, amendment mới bổ sung ImageManipulator
+và FileSystem để nén ảnh. Backend/shared
 không đổi. Tiến độ và nghiệm thu theo [tasks](tasks.md)/[validation](validation.md).
 
 ## 1. Baseline trước implementation
+
+Amendment mobile-only 2026-10-15: hai worker pipeline chuẩn bị/upload thay cho
+nén cả batch rồi upload tuần tự. Giữ lock đến khi upload đang chạy kết thúc để
+không mất IDs khi retry. `evidence-scan` tách polling 48 reads với thông báo chậm
+sau 24 reads và WAITING_SCAN sau ngân sách; card hiển thị các giai đoạn và
+Kiểm tra lại dùng IDs cũ. Không thay endpoints, timeout HTTP, BE hoặc dependencies.
+
+Amendment 2026-10-14 trên `fix/mobile-skill`: cập nhật contract cấp độ theo từng
+kỹ năng, giữ SDK/dependencies và chỉ thay mobile. API/parser/query bổ sung
+`GET /skills/:skillId/levels`, form gửi levelId và giữ level cũ khi không đổi.
+Danh sách/profile/detail dùng name từ backend; gợi ý tĩnh được thay bằng mô tả
+catalog. Consumer Learning Request offered skills bỏ enum cũ, nhận tên mới;
+currentLevel vẫn giữ policy riêng. Regression bao gồm custom/legacy/inactive,
+cross-skill IDs, session/cancellation, lỗi tải/retry và đổi catalog. Nghiệm thu
+API thật và thiết bị vẫn tách khỏi fixture theo validation.
+
+Amendment tốc độ lưu ảnh 2026-10-14: `prepare-evidence` upload trước và poll các
+file cùng lúc, giữ READY và draft/IDs; khoảng poll tối đa 3 giây, ngân sách chờ
+vẫn khoảng một phút. `use-skill-action` thêm chế độ refresh nền chỉ cho save/Send,
+giữ hành vi cũ của các action khác. CTA nhận tiến độ từ VerificationForm.
+Kiểm chứng bằng deferred scan/read promises và browser giả lập upload/scan,
+refresh 6 giây, lỗi một phần rồi retry; không đổi chất lượng ảnh, BE hoặc dependencies.
+
+Amendment tiếp theo theo yêu cầu người dùng: gửi nằm trong session runtime ở
+SkillsProvider, observable task state theo sharingSkillId. Skill save ghi DTO
+rồi queue và về list; upload/scan/submit và toast không phụ thuộc focus màn hình.
+Card retry là sibling của vùng mở detail, không nested button; chỉ owner nhận
+trạng thái. Logout/archive/app background hủy job đúng scope, giữ retry trong
+phiên khi pause; không thêm durable/background OS execution.
+ImageManipulator/FileSystem tương thích SDK 57 làm re-encode quality 0,9 cho ảnh
+lớn hơn 2 MB, không resize/crop; policy chỉ nhận output nhỏ hơn/hợp lệ, có Keep original.
+Tests pure runner/session và browser byte/dimensions/UI là các lớp kiểm riêng;
+root lockfile đổi chỉ cho importer mobile và package mới, consumers khác không đổi.
 
 - Expo `~57.0.26`, Expo Router, TanStack Query, React Hook Form và Zod đã có.
 - Chưa có `src/features/skills` hoặc route My Skills.
@@ -69,7 +102,7 @@ API/hooks/utils/schema250, source khác400. Không nâng giới hạn để thê
 
 1. Xác định document picker và mở download phù hợp SDK 57/native/web, đọc Expo
    skills liên quan trước implementation. Cài Expo packages bằng expo install
-   khi cần, giữ npm/pnpm lockfiles theo README; không đổi SDK.
+   khi cần, dùng pnpm và giữ root pnpm-lock.yaml theo README hiện tại; không đổi SDK.
 2. Draft file riêng với localId/URI/name/MIME/size và status/fileId.
    Không encode toàn bộ file vào global store; không lẫn fileId/evidenceId/batchId.
 3. Upload từng file, status từng file; status polling có bounded backoff, manual
