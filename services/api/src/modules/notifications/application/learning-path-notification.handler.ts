@@ -1,12 +1,11 @@
 import { Injectable, OnModuleInit } from "@nestjs/common";
-import { randomUUID } from "node:crypto";
 import { PrismaService } from "../../../infrastructure/database/prisma.service";
-import { OutboxConsumer } from "../../../infrastructure/events/outbox-consumer";
 import {
   OutboxPublisherRegistry,
   type OutboxMessage,
   type OutboxPublisher,
 } from "../../../infrastructure/events/outbox.types";
+import { NotificationDispatcher } from "./notification-dispatcher";
 
 const eventTypes = [
   "learning-path.locked",
@@ -21,7 +20,7 @@ export class LearningPathNotificationHandler
 {
   constructor(
     private readonly registry: OutboxPublisherRegistry,
-    private readonly consumer: OutboxConsumer,
+    private readonly dispatcher: NotificationDispatcher,
     private readonly db: PrismaService,
   ) {}
 
@@ -103,31 +102,20 @@ export class LearningPathNotificationHandler
       }
     };
     await resolveNotification();
-    await this.consumer.processOnce(
-      "learning-path.notifications",
-      event.eventId,
-      async (tx) => {
-        if (recipients.length === 0) return;
-        const notificationPayload = {
-          ...(typeof data.pathId === "string" ? { pathId: data.pathId } : {}),
-          ...(typeof data.sessionId === "string"
-            ? { sessionId: data.sessionId }
-            : {}),
-          ...(typeof data.caseId === "string" ? { caseId: data.caseId } : {}),
-        };
-        await tx.notification.createMany({
-          data: recipients.map((userId, index) => ({
-            id: index === 0 ? event.eventId : randomUUID(),
-            userId,
-            type: event.type,
-            title,
-            body,
-            payload: notificationPayload,
-            channel: "IN_APP" as const,
-          })),
-        });
+    await this.dispatcher.dispatch({
+      eventId: event.eventId,
+      type: event.type,
+      userIds: recipients,
+      title,
+      body,
+      payload: {
+        ...(typeof data.pathId === "string" ? { pathId: data.pathId } : {}),
+        ...(typeof data.sessionId === "string"
+          ? { sessionId: data.sessionId }
+          : {}),
+        ...(typeof data.caseId === "string" ? { caseId: data.caseId } : {}),
       },
-    );
+    });
   }
 
   /** A final decision reaches both path participants; other updates only the reporter. */
