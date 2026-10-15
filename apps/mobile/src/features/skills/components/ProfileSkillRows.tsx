@@ -153,7 +153,8 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   levelBadge: {
-    flexShrink: 0,
+    flexShrink: 1,
+    maxWidth: "55%",
     paddingHorizontal: 10,
     paddingVertical: 3,
     borderRadius: 8,

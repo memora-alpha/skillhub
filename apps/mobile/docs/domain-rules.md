@@ -19,12 +19,17 @@ Use `../../../docs/SRS_SkillHub_V1.6_VietLai_DongBoNghiepVu.docx` as the current
 
 - Sharing Skill references an ACTIVE Skill Catalog ID; users do not create free-text
   catalog entries. Only one nonarchived Sharing Skill per user/catalog ID is allowed.
-- Level is self-declared: BEGINNER, INTERMEDIATE, ADVANCED or EXPERT. Description
+- Level is self-declared and selected from the chosen skill's ACTIVE level catalog
+  (`GET /skills/:skillId/levels`). Create/level changes send `levelId`; display
+  uses `skillLevel.name`, including custom codes such as B2/N3. Existing inactive
+  selections remain valid for edits that omit levelId. Legacy records with null
+  metadata display their old code/label. Description
   is 20–1500 characters; experienceYears is optional, 0–60 with one decimal place.
   The current API sends the decimal as a string or null.
-- Create/edit forms show examples for language and programming at each selected
-  level. These are self-assessment hints, not approval criteria or certificate
-  equivalences, and add no server validation.
+- Create/edit forms show the selected catalog level's description when provided.
+  Changing skill clears the previous level selection. Missing/failed/empty level
+  lookup blocks new selection until it succeeds; input drafts remain available.
+  Catalog descriptions do not grant verification or imply certificate equivalence.
 - Hiding a skill preserves the owner's record and history. Archive is soft deletion;
   changing catalog ID requires another Sharing Skill. Current API blocks archive
   while a verification batch is PENDING. The backend now exposes a dedicated
@@ -43,13 +48,29 @@ Use `../../../docs/SRS_SkillHub_V1.6_VietLai_DongBoNghiepVu.docx` as the current
   caps each file at 10,000,000 bytes; configuration may lower that limit.
 - READY is the evidence storage state required before submitting a verification
   batch. This differs from avatar CLEAN. A 202 upload response is only receipt.
-- Saving a new skill with evidence creates the skill first, then uploads/scans
-  and submits a verification request before returning to My Skills. If evidence
-  fails, return to My Skills with an error toast explaining the skill was saved.
+- Saving a new skill with evidence creates the skill first, then returns to
+  My Skills with the confirmed DTO. A session-owned task compresses/uploads/scans
+  and submits the verification request after navigation. If evidence fails,
+  the card shows an incomplete transfer and explicit Retry, plus an error toast.
   Keep the evidence draft in the session so the owner can reopen the skill and
   explicitly retry. A failed/unconfirmed skill save stays on the form.
+  Mobile uploads all selected files before waiting for their scans, reads scan
+  status together and reports the current upload/check/submit stage. Only READY
+  files are submitted. Confirmed save/submit navigates immediately; refreshing
+  reads runs in the background and does not turn success into a failed save.
+  Own cards show a small sending spinner, Chờ duyệt only after confirmed PENDING,
+  or Gửi chưa hoàn tất with Retry. Existing VERIFIED badges remain separate.
+  Navigation does not cancel sending; app background pauses it for explicit retry.
+  Closing the app loses session-only drafts/jobs; no durable background promise.
+- Evidence images over 2 MB may be re-encoded as JPEG quality 0.9 without crop
+  or resize, only retaining a smaller valid output. Small images/documents and
+  files already uploaded are preserved. Owner can choose the original before
+  upload; compression failure preserves it. READY/cap/privacy remain authoritative.
   Confirmed creates appear newest first in the current session. Historical
   creation ordering needs the missing owner timestamp/sort contract (spec GAP-09).
+- Slow QUARANTINED/SCANNING files retain their uploaded IDs and an informational
+  waiting state after bounded polling. Check again reads those IDs before any
+  submission; waiting for scan never grants a pending-approval or verified badge.
 - Skill badge, verification batch and evidence approval are different states;
   REVOKED belongs to evidence, not the four-value Sharing Skill badge.
 - Only one verification batch may be PENDING for a skill. Mobile hides resubmit

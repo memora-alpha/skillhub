@@ -35,6 +35,8 @@ test("public detail walks public pages for the target profile and strips private
       "id",
       "skill",
       "level",
+      "levelId",
+      "skillLevel",
       "description",
       "experienceYears",
       "verificationStatus",

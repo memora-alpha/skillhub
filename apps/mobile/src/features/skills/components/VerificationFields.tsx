@@ -5,6 +5,7 @@ import type { useVerificationForm } from "../hooks/use-verification-form";
 import { EvidenceFiles } from "./EvidenceFiles";
 import { EvidencePicker } from "./EvidencePicker";
 import { skillStyles } from "./SkillsLayout";
+import { keepOriginalEvidence } from "../utils/compress-evidence";
 
 export function VerificationFields({
   model,
@@ -18,6 +19,7 @@ export function VerificationFields({
   const { draft, busy } = model;
   let submitLabel = "Gửi yêu cầu xác minh";
   if (model.preparing) submitLabel = "Đang xử lý bằng chứng…";
+  else if (model.waitingScan) submitLabel = "Kiểm tra và gửi yêu cầu";
   else if (model.action.pending) submitLabel = "Đang gửi yêu cầu…";
   return (
     <View style={{ gap: 14 }}>
@@ -35,7 +37,23 @@ export function VerificationFields({
               files.filter((file) => file.localId !== localId),
             );
         }}
+        onOriginalChange={(localId, original) => {
+          if (!model.locked())
+            draft.setFiles((files) =>
+              files.map((file) =>
+                file.localId === localId
+                  ? keepOriginalEvidence(file, original)
+                  : file,
+              ),
+            );
+        }}
       />
+      {model.waitingScan && (
+        <Text style={skillStyles.caption}>
+          Bằng chứng đã tải lên và đang được kiểm tra. Không cần chọn hoặc tải
+          lại file.
+        </Text>
+      )}
       {saveWithSkill && !!draft.files.length && (
         <Text style={skillStyles.caption}>
           Bằng chứng sẽ được gửi khi lưu kỹ năng.

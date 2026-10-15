@@ -15,8 +15,9 @@ import {
   downloadSchema,
   parseContract,
   parseOwnMutation,
+  skillLevelSchema,
 } from "./skill-contracts";
-import type { z } from "zod";
+import { z } from "zod";
 
 export function queryString(
   values: Record<string, string | boolean | undefined>,
@@ -66,6 +67,23 @@ export function createSkillsApi(client: PaginatedHttpClient) {
     });
   return {
     own,
+    async levels(skillId: string, signal?: AbortSignal) {
+      const levels = parseContract(
+        z.array(skillLevelSchema),
+        await client.request(`/skills/${encodeURIComponent(skillId)}/levels`, {
+          authenticated: true,
+          signal,
+        }),
+      );
+      if (
+        levels.some((level) => level.skillId !== skillId) ||
+        new Set(levels.map((level) => level.id)).size !== levels.length
+      )
+        throw new AppError("protocol");
+      return levels
+        .filter((level) => level.status === "ACTIVE")
+        .sort((a, b) => a.sortOrder - b.sortOrder || a.id.localeCompare(b.id));
+    },
     catalog: (q?: string, cursor?: string, signal?: AbortSignal) =>
       page(`/skills${queryString({ q, cursor })}`, catalogSchema, signal),
     publicSkills: (userId: string, cursor?: string, signal?: AbortSignal) =>
@@ -95,9 +113,15 @@ export function createSkillsApi(client: PaginatedHttpClient) {
         await mutate("/me/skills", body, key),
         undefined,
         body.skillId,
+        body.levelId,
       ),
     update: async (id: string, body: SkillPatch, key: string) =>
-      parseOwnMutation(await mutate(root(id), body, key, "PATCH"), id),
+      parseOwnMutation(
+        await mutate(root(id), body, key, "PATCH"),
+        id,
+        undefined,
+        body.levelId,
+      ),
     archive: async (id: string, expectedVersion: number, key: string) => {
       const result = parseOwnMutation(
         await mutate(`${root(id)}/archive`, { expectedVersion }, key),
@@ -106,7 +130,7 @@ export function createSkillsApi(client: PaginatedHttpClient) {
       if (!result.archivedAt) throw new AppError("protocol");
       return result;
     },
-    async upload(id: string, body: FormData) {
+    async upload(id: string, body: FormData, signal?: AbortSignal) {
       return parseContract(
         fileStatusSchema,
         await client.request(`${root(id)}/evidence-files`, {
@@ -115,6 +139,7 @@ export function createSkillsApi(client: PaginatedHttpClient) {
           multipart: true,
           authenticated: true,
           replayAfterRenewal: false,
+          signal,
         }),
       );
     },

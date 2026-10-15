@@ -9,6 +9,7 @@ import { CatalogPicker } from "./CatalogPicker";
 import { SkillFormFields } from "./SkillFormFields";
 import { skillStyles } from "./SkillsLayout";
 import { formStyles } from "./skill-form-styles";
+import type { useSkillLevels } from "../hooks/use-skill-levels";
 
 export function SkillEditorFields({
   baseline,
@@ -16,12 +17,14 @@ export function SkillEditorFields({
   form,
   disabled,
   onSelect,
+  levels,
 }: Readonly<{
   baseline?: OwnSkill;
   selected?: CatalogSkill;
   form: UseFormReturn<SkillFormValues>;
   disabled: boolean;
   onSelect: (skill: CatalogSkill) => void;
+  levels: ReturnType<typeof useSkillLevels>;
 }>) {
   return (
     <View style={formStyles.section}>
@@ -51,6 +54,8 @@ export function SkillEditorFields({
       <SkillFormFields
         form={form}
         disabled={disabled || !!baseline?.archivedAt}
+        levels={levels}
+        baseline={baseline}
       />
     </View>
   );

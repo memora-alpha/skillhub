@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import { levelLabels } from "../types/skills";
+import { skillLevelLabel } from "../utils/skill-level";
 import {
   useOwnSkills,
   usePublicSkills,
@@ -36,7 +36,7 @@ export function OwnProfileSkillList() {
         <ProfileSkillRow
           key={skill.id}
           name={skill.skill.name}
-          level={levelLabels[skill.level]}
+          level={skillLevelLabel(skill)}
           status={skill.verificationStatus}
           isVisible={skill.isVisible}
           onPress={() =>
@@ -84,7 +84,7 @@ export function PublicProfileSkillList({
         <ProfileSkillRow
           key={skill.id}
           name={skill.skill.name}
-          level={levelLabels[skill.level]}
+          level={skillLevelLabel(skill)}
           status={skill.verificationStatus}
           onPress={() =>
             router.push({

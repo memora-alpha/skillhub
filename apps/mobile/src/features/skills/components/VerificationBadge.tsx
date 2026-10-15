@@ -24,9 +24,11 @@ const tones: Record<
 export function VerificationBadge({
   status,
   compact = false,
+  label,
 }: Readonly<{
   status: SkillBadge;
   compact?: boolean;
+  label?: string;
 }>) {
   const tone = tones[status];
   return (
@@ -45,7 +47,8 @@ export function VerificationBadge({
           { color: tone.color },
         ]}
       >
-        {compact && status === "VERIFIED" ? "Xác minh" : badgeLabels[status]}
+        {label ??
+          (compact && status === "VERIFIED" ? "Xác minh" : badgeLabels[status])}
       </Text>
     </View>
   );
