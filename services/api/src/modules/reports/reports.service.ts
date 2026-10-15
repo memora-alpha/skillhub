@@ -27,6 +27,27 @@ async function lockPath(tx: TransactionContext, pathId: string) {
   if (!rows.length) throw new NotFoundException("LEARNING_PATH_NOT_FOUND");
 }
 
+const evidenceSummary = {
+  reportEvidenceCaseIdRecords: {
+    select: { id: true, mimeType: true, fileSizeBytes: true, uploadedAt: true },
+  },
+} as const;
+
+/** BigInt is not JSON-serializable; sizes are returned as strings like skill evidence. */
+function withEvidenceSizeText<
+  T extends { reportEvidenceCaseIdRecords: { fileSizeBytes: bigint }[] },
+>(cases: T[]) {
+  return cases.map((item) => ({
+    ...item,
+    reportEvidenceCaseIdRecords: item.reportEvidenceCaseIdRecords.map(
+      (evidence) => ({
+        ...evidence,
+        fileSizeBytes: evidence.fileSizeBytes.toString(),
+      }),
+    ),
+  }));
+}
+
 @Injectable()
 export class ReportsService {
   constructor(
@@ -221,42 +242,30 @@ export class ReportsService {
   }
 
   listMine(actor: Principal) {
-    return this.transactions.run((tx) =>
-      tx.reportCase.findMany({
-        where: { reporterId: actor.userId },
-        include: {
-          reportEvidenceCaseIdRecords: {
-            select: {
-              id: true,
-              mimeType: true,
-              fileSizeBytes: true,
-              uploadedAt: true,
-            },
-          },
-        },
-        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-      }),
+    return this.transactions.run(async (tx) =>
+      withEvidenceSizeText(
+        await tx.reportCase.findMany({
+          where: { reporterId: actor.userId },
+          include: evidenceSummary,
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        }),
+      ),
     );
   }
 
   staffQueue(actor: Principal) {
     this.requireStaff(actor);
-    return this.transactions.run((tx) =>
-      tx.reportCase.findMany({
-        where: { status: { in: ["OPEN", "UNDER_REVIEW", "NEED_MORE_INFO"] } },
-        include: {
-          reportEvidenceCaseIdRecords: {
-            select: {
-              id: true,
-              mimeType: true,
-              fileSizeBytes: true,
-              uploadedAt: true,
-            },
+    return this.transactions.run(async (tx) =>
+      withEvidenceSizeText(
+        await tx.reportCase.findMany({
+          where: {
+            status: { in: ["OPEN", "UNDER_REVIEW", "NEED_MORE_INFO"] },
           },
-        },
-        orderBy: [{ id: "asc" }],
-        take: 100,
-      }),
+          include: evidenceSummary,
+          orderBy: [{ id: "asc" }],
+          take: 100,
+        }),
+      ),
     );
   }
 
