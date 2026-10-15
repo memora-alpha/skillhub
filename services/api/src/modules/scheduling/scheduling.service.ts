@@ -87,6 +87,7 @@ async function applyReschedule(
   versionNo: number,
   appliedVersion: number,
   now: Date,
+  cutoffMinutes: number,
 ) {
   const previousItems = await tx.scheduleItem.findMany({
     where: { scheduleProposalId: scheduleId, scheduleVersion: appliedVersion },
@@ -126,7 +127,8 @@ async function applyReschedule(
     if (changed) {
       if (
         session.status !== "CONFIRMED" ||
-        session.startAt.getTime() - now.getTime() < 60 * millisecondsPerMinute
+        session.startAt.getTime() - now.getTime() <
+          cutoffMinutes * millisecondsPerMinute
       ) {
         throw new ConflictException("RESCHEDULE_CUTOFF_OR_STATE_VIOLATION");
       }
@@ -381,12 +383,17 @@ export class SchedulingService {
           if (!(clock?.now instanceof Date)) {
             throw new ConflictException("DATABASE_TIME_UNAVAILABLE");
           }
+          const { values } = await this.configuration.getSnapshot(
+            ["schedule.rescheduleCutoffMinutes"],
+            tx,
+          );
           const changes = await applyReschedule(
             tx,
             scheduleId,
             expectedVersion,
             proposal.appliedVersion,
             clock.now,
+            values["schedule.rescheduleCutoffMinutes"],
           );
           await this.audit.append(tx, {
             actor: {
@@ -493,12 +500,17 @@ export class SchedulingService {
       if (!(clock?.now instanceof Date)) {
         throw new ConflictException("DATABASE_TIME_UNAVAILABLE");
       }
+      const { values } = await this.configuration.getSnapshot(
+        ["schedule.rescheduleCutoffMinutes", "session.durationMinutes"],
+        tx,
+      );
       if (
         lockedSession.startAt.getTime() - clock.now.getTime() <
-        60 * millisecondsPerMinute
+        values["schedule.rescheduleCutoffMinutes"] * millisecondsPerMinute
       ) {
         throw new ConflictException("RESCHEDULE_CUTOFF_VIOLATION");
       }
+      const durationMinutes = values["session.durationMinutes"];
       const startAt = new Date(input.startAt);
       const endAt = new Date(input.endAt);
       const duration =
@@ -507,8 +519,8 @@ export class SchedulingService {
         !Number.isFinite(startAt.getTime()) ||
         !Number.isFinite(endAt.getTime()) ||
         startAt <= clock.now ||
-        duration < 60 ||
-        duration > 180
+        duration < durationMinutes.min ||
+        duration > durationMinutes.max
       ) {
         throw new BadRequestException("INVALID_SCHEDULE_ITEMS");
       }
