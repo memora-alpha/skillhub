@@ -4,64 +4,29 @@ import { Pressable, Text, View } from "react-native";
 import { Icon } from "@/components/Icon";
 import { appColors } from "@/constants/theme";
 import { ControlledInput } from "@/components/ControlledInput";
-import { skillLevels, levelLabels } from "../types/skills";
+import type { OwnSkill } from "../types/skills";
 import type { SkillFormValues } from "../schemas/skill-form";
 import { formStyles } from "./skill-form-styles";
-import { SkillLevelGuide } from "./skill-level-guide";
+import { SkillLevelField } from "./skill-level-field";
+import type { useSkillLevels } from "../hooks/use-skill-levels";
 export function SkillFormFields({
   form,
   disabled,
+  levels,
+  baseline,
 }: Readonly<{
   form: UseFormReturn<SkillFormValues>;
   disabled: boolean;
+  levels: ReturnType<typeof useSkillLevels>;
+  baseline?: OwnSkill;
 }>) {
   return (
     <View style={{ gap: 18 }}>
-      <Text style={formStyles.label}>Trình độ của bạn</Text>
-      <Controller
-        control={form.control}
-        name="level"
-        render={({ field }) => (
-          <View style={{ gap: 12 }}>
-            <View style={formStyles.options}>
-              {skillLevels.map((level) => (
-                <Pressable
-                  key={level}
-                  accessibilityRole="radio"
-                  accessibilityLabel={levelLabels[level]}
-                  accessibilityState={{
-                    checked: field.value === level,
-                    disabled,
-                  }}
-                  disabled={disabled}
-                  style={[
-                    formStyles.option,
-                    field.value === level && formStyles.selected,
-                    disabled && { opacity: 0.6 },
-                  ]}
-                  onPress={() => field.onChange(level)}
-                >
-                  <Text
-                    style={[
-                      formStyles.label,
-                      field.value === level && formStyles.selectedText,
-                    ]}
-                  >
-                    {levelLabels[level]}
-                  </Text>
-                  {field.value === level && (
-                    <Icon
-                      name="check-circle"
-                      size={16}
-                      color={appColors.primary}
-                    />
-                  )}
-                </Pressable>
-              ))}
-            </View>
-            <SkillLevelGuide level={field.value} />
-          </View>
-        )}
+      <SkillLevelField
+        form={form}
+        query={levels}
+        baseline={baseline}
+        disabled={disabled}
       />
       <ControlledInput
         control={form.control}

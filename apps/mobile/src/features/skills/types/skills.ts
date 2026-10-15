@@ -11,7 +11,16 @@ export const skillBadges = [
   "REJECTED",
 ] as const;
 export const batchStates = ["PENDING", "APPROVED", "REJECTED"] as const;
-export type SkillLevel = (typeof skillLevels)[number];
+export type LegacySkillLevel = (typeof skillLevels)[number];
+export type SkillLevel = {
+  id: string;
+  skillId: string;
+  code: string;
+  name: string;
+  description: string | null;
+  sortOrder: number;
+  status: "ACTIVE" | "INACTIVE";
+};
 export type SkillBadge = (typeof skillBadges)[number];
 export type BatchState = (typeof batchStates)[number];
 export type CatalogSkill = {
@@ -23,7 +32,9 @@ export type CatalogSkill = {
 export type PublicSkill = {
   id: string;
   skill: CatalogSkill;
-  level: SkillLevel;
+  level: string;
+  levelId?: string | null;
+  skillLevel?: SkillLevel | null;
   description: string;
   experienceYears: string | null;
   verificationStatus: SkillBadge;
@@ -62,7 +73,7 @@ export type Verification = BatchSummary & {
 export type FileStatus = { fileId: string; state: string };
 export type SkillInput = {
   skillId: string;
-  level: SkillLevel;
+  levelId: string;
   description: string;
   experienceYears: string | null;
   isVisible: boolean;
@@ -75,7 +86,7 @@ export type VerificationInput = {
   title?: string;
   description?: string;
 };
-export const levelLabels: Record<SkillLevel, string> = {
+export const levelLabels: Record<LegacySkillLevel, string> = {
   BEGINNER: "Cơ bản",
   INTERMEDIATE: "Trung cấp",
   ADVANCED: "Nâng cao",
