@@ -1,97 +1,19 @@
-import "reflect-metadata";
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { AuditWriter } from "../../dist/modules/audit/application/audit-writer.js";
-import { AuditRepository } from "../../dist/modules/audit/infrastructure/audit.repository.js";
-import { ConversationMembershipReader } from "../../dist/modules/conversations/conversation-membership.reader.js";
-import { CreditWalletReader } from "../../dist/modules/credit/credit-wallet.reader.js";
-import { LearningPathsService } from "../../dist/modules/learning-paths/learning-paths.service.js";
-import { SchedulingService } from "../../dist/modules/scheduling/scheduling.service.js";
-import { createFakeDb, runner } from "./fake-db.mjs";
-
-const A = "0a0a0a0a-0000-4000-8000-00000000000a";
-const B = "0b0b0b0b-0000-4000-8000-00000000000b";
-const C = "0c0c0c0c-0000-4000-8000-00000000000c";
-const conversationId = "c0c0c0c0-0000-4000-8000-0000000000c0";
-const now = new Date("2026-10-20T00:00:00.000Z");
-const user = (userId) => ({ userId, roles: ["USER"], permissions: [] });
-
-function setup({ duration = { min: 60, max: 180 }, wallets = {} } = {}) {
-  const db = createFakeDb({ now: () => now });
-  db.seed("conversation", {
-    id: conversationId,
-    participantAId: A,
-    participantBId: B,
-  });
-  for (const [userId, availableCredit] of Object.entries({
-    [A]: 0n,
-    [B]: 0n,
-    ...wallets,
-  })) {
-    db.seed("creditWallet", { userId, availableCredit, heldCredit: 0n });
-  }
-  const paths = new LearningPathsService(
-    runner(db),
-    new ConversationMembershipReader(),
-    new CreditWalletReader(),
-    {},
-  );
-  const schedules = new SchedulingService(
-    runner(db),
-    new AuditWriter(new AuditRepository()),
-    {
-      getSnapshot: async () => ({
-        values: { "session.durationMinutes": duration },
-      }),
-    },
-  );
-  return { db, paths, schedules };
-}
-
-const plan = (totalSessions = 1) => ({
-  skillId: "5k111111-0000-4000-8000-000000000001",
-  learningGoal: "Goal",
-  totalSessions,
-  sessionOutline: Array.from({ length: totalSessions }, (_, index) => ({
-    content: `Session ${index + 1}`,
-  })),
-});
-
-const slots = (...ranges) =>
-  ranges.map(([startAt, endAt], index) => ({
-    sessionNo: index + 1,
-    startAt,
-    endAt,
-  }));
-
-const rejectsWith = (promise, status, code) =>
-  assert.rejects(
-    promise,
-    (error) => error.getStatus?.() === status && error.message === code,
-  );
-
-async function twoWayWithPlans(ctx) {
-  const path = await ctx.paths.create(user(A), {
-    conversationId,
-    exchangeType: "TWO_WAY",
-    totalCreditPerUser: "20.00",
-  });
-  const planAB = await ctx.paths.addPlan(user(A), path.id, plan());
-  const planBA = await ctx.paths.addPlan(user(B), path.id, plan());
-  return { pathId: path.id, planAB, planBA };
-}
-
-async function confirmedTwoWay(ctx) {
-  const ids = await twoWayWithPlans(ctx);
-  await ctx.paths.confirmPlan(user(B), ids.planAB.id, 1);
-  await ctx.paths.confirmPlan(user(A), ids.planBA.id, 1);
-  await ctx.paths.confirmAgreement(user(A), ids.pathId, 1);
-  await ctx.paths.confirmAgreement(user(B), ids.pathId, 1);
-  return ids;
-}
-
-const pathStatus = (db, pathId) =>
-  db.rows("learningPath").find((row) => row.id === pathId).status;
+import {
+  A,
+  B,
+  C,
+  confirmedTwoWay,
+  conversationId,
+  pathStatus,
+  plan,
+  rejectsWith,
+  setup,
+  slots,
+  twoWayWithPlans,
+  user,
+} from "./fixtures.mjs";
 
 test("SH-050: TWO_WAY takes exactly two opposite plans, each created by its teacher", async () => {
   const ctx = setup();
@@ -234,7 +156,9 @@ test("SH-052: schedules need a CONFIRMED path and come from the plan's teacher",
 });
 
 test("SH-052: item count follows totalSessions and duration bounds come from configuration", async () => {
-  const ctx = setup({ duration: { min: 90, max: 120 } });
+  const ctx = setup({
+    config: { "session.durationMinutes": { min: 90, max: 120 } },
+  });
   const path = await ctx.paths.create(user(A), {
     conversationId,
     exchangeType: "ONE_WAY",
