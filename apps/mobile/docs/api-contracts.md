@@ -159,7 +159,8 @@ pass; the full real API/storage/scanner journey remains pending.
 | -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
 | GET `/skills`, `/skills/:skillId`                              | Public ACTIVE catalog, q2–100/categoryId/cursor/limit for list.                                       |
 | GET `/me/skills`                                               | Owner list, includeArchived default false; true includes all, not only archived.                      |
-| POST `/me/skills`                                              | skillId, level, description20–1500, experienceYears decimal string/null, isVisible default true; 201. |
+| GET `/skills/:skillId/levels`                                  | ACTIVE per-skill levels; nonpaginated array ordered by sortOrder then id.                              |
+| POST `/me/skills`                                              | skillId, levelId, description20–1500, experienceYears decimal string/null, isVisible default true; 201. |
 | PATCH `/me/skills/:sharingSkillId`                             | Changed editable fields + expectedVersion; no skillId; 200.                                           |
 | POST `/me/skills/:sharingSkillId/archive`                      | expectedVersion; pending batch blocks archive with 409; 200.                                          |
 | GET `/profiles/:userId/skills`                                 | Public projection, visible/nonarchived/ACTIVE account and catalog; spec 004 uses self UUID.           |
@@ -177,19 +178,42 @@ lists, detail/history caches and local evidence drafts. Deleted records stay on
 the server for history; mobile has no archived-list toggle or read-only view.
 Same operation/body retry keeps the key; changed body/version uses a new intent.
 Multipart upload is not idempotent replay: retry may create a new fileId.
-The user's Save action on a new skill creates the record, uploads selected evidence,
-checks storage state until READY, then submits the JSON batch. Once the skill save
-is confirmed, return to My Skills even when evidence fails, with an error toast
-distinguishing saved skill from incomplete evidence. With no files it only creates
+The user's Save action on a new skill creates the record and queues a session-owned
+evidence transfer, returning to My Skills as soon as skill creation is confirmed.
+The task uploads selected evidence, checks READY, then submits the JSON batch.
+Failure updates the card and shows an error toast without undoing the saved skill.
+With no files it only creates
 the skill. Unconfirmed create/update stays on the form. Existing-skill verification
 uses the separate Send action. There is no separate upload button. Partial
 failures retain drafts and returned file IDs in the session; reopen the skill to
 explicitly retry. Submit intent/key survives leaving and reopening the screen;
 explicit retry checks and reuses returned file IDs. Scan
-checks are bounded and stop on blur/background/session change. Successful batch
-submission refreshes data and returns to skill detail for the separate Send flow,
-or My Skills for the new-skill Save flow. This changes client flow,
+checks are bounded and continue across route blur; app background pauses them,
+and session change discards them. Separate Send queues the task and returns to
+skill detail immediately. Confirmed batch submission updates owner/history caches
+and shows its own success toast. Read refresh starts in the background after the confirmed
+write is recorded, so slow reads do not prolong the save. This changes client flow,
 not the endpoints or server verification policy.
+Two workers each prepare a file and upload it before taking the next file;
+in-flight uploads settle before failure releases the retry lock, preserving IDs.
+Status reads then run together for at most five files. Active Send polls
+immediately, with 0.5/1/2/3-second waits initially and 5-second waits after the
+24th read, capped at 48 reads/file (183.5 seconds of waits, excluding HTTP time).
+After 24 pending reads the card explains that checking is taking longer.
+Exhaustion with QUARANTINED/SCANNING retains an informational WAITING_SCAN state
+and Check again action. Explicit retry rechecks IDs without uploading them again;
+only READY files can submit. Terminal failures cancel sibling waits and remain
+errors. No mutation automatically resumes after pause.
+Own cards show preparation/upload/checking/submission progress with a spinner,
+waiting for scan, confirmed pending approval, or failed/Retry;
+the card detail remains reachable and VERIFIED stays independent.
+Session-only jobs/drafts do not promise execution or restoration after app closure.
+Images over 2 MB are optionally re-encoded to JPEG quality 0.9 using SDK 57
+ImageManipulator, without resizing/cropping. A smaller validated output updates
+the upload URI/name/MIME/size consistently; encoder failures or larger outputs
+retain the original. Already-uploaded IDs and PDF/Word are never re-encoded.
+Owner can keep the original before upload. All files still require READY and
+the server's cap; private original/compressed assets stay out of public projections.
 The confirmed submit DTO is retained in session-scoped owner/history caches before
 refresh, so failed reads do not remove the saved request or enable duplicate Send.
 Owner history includes files; image previews obtain fresh authorized download URLs
@@ -262,6 +286,26 @@ as an edit reset in the current service. Record these differences rather than
 creating mobile policy/endpoints. See GAP-01..08 in spec 004.
 
 ## Remaining contract gaps
+
+### Per-skill level catalog — 2026-10-14
+
+Backend source and its [catalog amendment](../../../services/api/specs/007-skills/skill-level-catalog.md)
+replace fixed Sharing Skill levels with Admin-managed catalog selections. The
+level lookup returns a success envelope with `data: []` and no pagination. Mobile
+validates IDs/parent skill, displays ACTIVE choices in server order and sends
+only `levelId` for creation or a changed selection. PATCH omits levelId when
+preserving an existing selection, including a now-INACTIVE level.
+
+Own/public skill projections accept open-string `level`, nullable `levelId` and
+`skillLevel`. Display uses the catalog name and optional description; nested
+metadata is allowlisted. Legacy null/absent metadata keeps the old display label.
+Changing the skill clears its selected level; failed/empty reads do not supply
+the former four choices. Query keys retain session and skill scope.
+
+Learning Request offered-skill and own offering-option projections also accept
+custom codes and render `skillLevel.name`. Their parser forwards only the level
+name needed for display. Request `currentLevel` retains its independent learning
+progress enum. Fixture checks and native/real-API acceptance remain separate.
 
 ### Learning Request checkpoint — 2026-10-11
 

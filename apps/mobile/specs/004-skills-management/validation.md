@@ -1,8 +1,203 @@
 # Validation — Spec 004
 
-Cập nhật: 2026-10-13. Source trên `feat/mobile-skills`, tạo từ `dev`
+## Rà soát trước commit — 2026-10-15
+
+Checklist/tasks/plan/spec đã đồng bộ lại ngày 2026-10-15: phần kiểm tra mobile
+để commit có checkbox riêng; AC-01..16 giữ trạng thái nghiệm thu tổng thể và
+ma trận bằng chứng/phần còn thiếu. Admin catalog API thật được ghi riêng với
+User/mobile acceptance; JS/Hermes export được tách khỏi chạy trên thiết bị.
+
+Chạy lại trên working tree hiện tại: lint, check-types, structure (460 source
+files), 296/296 tests mobile, 6/6 commit-scope tests, Prettier cho các file thay
+đổi và git diff whitespace checks (staged/unstaged) đều đạt. Đã sửa formatting
+của plan/checklist và cập nhật tài liệu active theo pnpm-only; giữ nguyên lịch
+sử kiểm tra npm/pnpm của các revision cũ bên dưới.
+
+Mobile `.gitignore`, README và staged deletion của npm lock đã được rà soát.
+Theo yêu cầu cuối, giữ nguyên root `.gitignore`; các quy tắc mới chỉ áp dụng
+trong mobile. Root pnpm-lock.yaml được xác minh
+bằng pnpm 10.24.0: `install --lockfile-only --frozen-lockfile --ignore-scripts`
+thành công trên cả 6 workspace; đây là kiểm consistency lockfile, không phải
+cài sạch hoặc chạy mọi workspace. Expo dependency check offline báo up to date;
+online check không hoàn tất vì quyền ghi cache Expo ngoài workspace.
+
+Expo export all đạt Web 1977, Android 2422 và iOS 2485 modules, gồm Hermes
+bundles native. Đây là JS/assets export, không phải build native binary hoặc
+kiểm chứng trên thiết bị. Artifacts ignored ở `.expo/skills-commit-export/`.
+
+Browser fixtures chạy lại trên web export hiện tại:
+
+- `.expo/skill-commit-readiness-browser.cjs`: 5 nhóm/64 requests; level động,
+  đổi catalog/reset selection, lookup lỗi/chậm, mô tả/tên dài 320/375/430,
+  level lịch sử inactive, profile/detail, catalog rỗng, ẩn/hiện có version,
+  hủy xóa không mutation và xác nhận archive chỉ một request rồi card biến mất.
+- `.expo/evidence-background-browser.cjs`: 5 kịch bản tạo hai ảnh, partial
+  failure/retry trên VERIFIED, nén, giữ ảnh gốc và scan lâu/kiểm tra lại. Mỗi
+  trường hợp chỉ submit một lần sau READY; retry không upload lại ID đã có.
+  Điều hướng fixture 164/124/175/75/116 ms; không phải benchmark API/native.
+- Cả hai không có page error. Kết quả ignored tại
+  `.expo/skills-validation/skill-commit-readiness-result.json` và
+  `evidence-background-result.json`.
+
+Rà 63 file thay đổi theo các mẫu private key, JWT, GitHub token và mật khẩu được
+cung cấp: không phát hiện khớp. `.env`, `.expo` và npm lockfile được ignore;
+specs vẫn được theo dõi. Không đổi services/api hoặc packages. Chưa stage thêm,
+commit/push, gọi mutation API thật hoặc kiểm tra thiết bị trong lần rà soát này.
+Không có lỗi source/check cản commit được phát hiện; native/full API/scanner
+acceptance tiếp tục Pending, với lỗi upload 503 thật đã ghi nhận bên dưới.
+
+## Pipeline và trạng thái scan lâu, mobile-only — 2026-10-15
+
+Theo yêu cầu chỉ sửa mobile: không thay source/configuration/migration/deployment
+BE. Hai worker pipeline chuẩn bị/nén rồi upload từng file. Upload lỗi đợi các
+upload đang chạy kết thúc để giữ ID trước khi cho retry; không tự replay bytes.
+Card hiển thị chuẩn bị/tải/kiểm tra/gửi request, giữ badge riêng. Poll 48 reads:
+0,5/1/2/3 giây ban đầu, sau 24 reads dùng 5 giây; tổng 183,5 giây chờ, chưa gồm
+HTTP. Sau 24 reads báo kiểm tra lâu; hết lượt còn QUARANTINED/SCANNING giữ trạng
+thái WAITING_SCAN, toast thông tin và Kiểm tra lại. Kiểm tra lại giữ fileIds,
+không upload lại, chỉ READY mới submit. Terminal scan/HTTP 503 vẫn là lỗi;
+pause/session/archive và submit intent giữ các boundary trước đó.
+
+Checks: 296/296 tests, lint, check-types và structure (460 source files) đạt.
+Sáu regression mới kiểm scan vượt 65 giây, concurrency tối đa hai, pipeline
+không chờ nén cả batch, đợi upload đang chạy khi lỗi, WAITING_SCAN/recheck và
+503 không tự replay. Web export đạt 1977 modules.
+
+Browser fixture `.expo/evidence-background-browser.cjs` đạt 5 kịch bản: tạo hai
+ảnh, partial failure trên skill VERIFIED rồi retry, nén ảnh, giữ ảnh gốc và scan
+lâu. Thời gian từ thao tác tới điều hướng lần lượt 91/71/151/66/151 ms trong
+fixture; đây không phải đo hiệu năng API/native thật. Không page error. Case scan
+lâu rút ngắn timer trong browser để kiểm exhaustion, không submit trước READY,
+không hiện lỗi upload; Kiểm tra lại chỉ đọc IDs và submit một lần. Tổng vẫn hai
+upload, không phát sinh upload thứ ba. Xem lại ảnh waiting-scan 320 và sending
+375; kiểm không tràn ngang ở 320/375/430. Evidence ignored dưới
+`.expo/skills-validation/evidence-card-waiting-scan-{320,375,430}.png` và
+`evidence-background-result.json`.
+
+API thật trước thay đổi: ảnh PNG mẫu 68 bytes trả 503 ở evidence-files sau
+673 ms (2026-10-15T09:32:54.333Z), correlation
+`580ed123-aed3-457b-a7bf-ab33381fe1b1`. Bản Sharing Skill ẩn dùng chẩn đoán đã
+archive; không submit xác minh. Health/ready trả 200 cho PostgreSQL/MongoDB/Redis,
+không chứng minh S3/scanner sẵn sàng. Chưa có log runtime để kết luận nguyên nhân.
+Amendment mobile này không khắc phục lỗi server 503. Native và full API/scanner
+acceptance vẫn Pending; không thực hiện thêm mutation trên server để kiểm bản mới.
+
+Các mục bên dưới là bằng chứng của các revision trước.
+
+Cập nhật: 2026-10-14. Amendment hiện tại trên `fix/mobile-skill` từ `dev`
+`2f73c3c`. Nền implementation trước đó trên `feat/mobile-skills` từ `dev`
 `0790c3b`. Phạm vi theo [spec](spec.md), nghiệm thu theo [checklist](checklist.md).
 Implementation có ở mobile; full API/scanner và Android/iOS còn pending.
+
+## Gửi trong phiên, card trạng thái và nén ảnh — 2026-10-14
+
+Theo quyết định của người dùng, skill save xác nhận là về My Skills ngay. Job
+thuộc SkillsProvider tiếp tục nén/upload/scan/submit qua đổi màn; card owner hiện
+spinner Đang gửi bằng chứng…, Chờ duyệt sau response PENDING, hoặc Gửi chưa hoàn
+tất + Thử lại. Retry là sibling của vùng mở detail, tránh nested Pressable.
+Badge VERIFIED giữ độc lập. Chỉ Send bị khóa khi job cùng skill đang chạy;
+edit/visibility vẫn mở. Toast ghi skill đã lưu và kết quả submit riêng.
+
+Job giữ draft/fileIds/intent theo phiên. Pause abort và giữ retry; resume chỉ
+mở lại khả năng gửi, không tự POST. Create vừa trả về trong lúc app background
+cũng chỉ giữ draft, không bắt đầu upload. Archive/log out chặn callback cũ và
+queue lại ID đã xóa. Decision đúng batch gỡ marker PENDING. Đây là tác vụ trong
+phiên khi app đang hoạt động, không phải OS background/durable queue; app closure
+không phục hồi file draft. Đã bỏ pipeline/poll gắn với focus màn hình.
+
+Nén dùng ImageManipulator ~57.0.21 và FileSystem ~57.0.7 cài qua Expo CLI;
+npm lock và root pnpm lock đồng bộ. Root diff chỉ importer mobile/package mới,
+không đổi API/shared/consumer khác. Shared mobile Checkbox thêm disabled tùy chọn
+cho Keep original; Auth/account/profile consumers nằm trong suite đầy đủ.
+Ảnh >2 MB thử JPEG quality 0,9, không gọi crop/resize; chỉ dùng output nhỏ hơn
+và hợp lệ với name/MIME/size/URI nhất quán. File nhỏ, PDF/Word, ID đã upload và
+Keep original giữ bytes; nén lỗi/bản lớn hơn dùng original và không nén lại liên tục.
+
+Checks source cuối: 290/290 tests, typecheck, lint, structure (459 source files),
+Prettier/diff check và web export (1976 modules) đạt. Bộ tests mới gồm session
+job/duplicate/partial failure/unknown submit key/READY recheck/pause/resume/late
+session/archive/decision/replayed approval và policy nén/fallback/original.
+
+Browser `.expo/evidence-background-browser.cjs` đạt 4 scenario, không page error:
+create với hai ảnh về list trong 142 ms khi submit chưa xảy ra; mở detail trong
+lúc gửi, Send disabled còn edit/visibility enabled; gửi lỗi trên skill VERIFIED
+rồi retry không upload lại ảnh đã có ID, chỉ một submit. Card sending ở
+320/375/430 không tràn ngang. Pending sau submit giữ badge VERIFIED riêng.
+Hai case lớn xác nhận dimensions vẫn 1800×1400: PNG 6.796.900 bytes → JPEG
+1.043.731 bytes; Keep original gửi PNG với bytes giống hệt nguồn. Ảnh nhỏ 14.534
+bytes gửi nguyên bản. Các case create chỉ một create, retry skill có sẵn không create.
+
+Đã xem card sending 375, failed 375, pending VERIFIED và JPEG fixture sau nén;
+chữ/mã mẫu vẫn đọc được. Evidence ignored dưới `.expo/skills-validation/`:
+`evidence-card-sending-{320,375,430}.png`, `evidence-card-failed-375.png`,
+`evidence-card-pending-*.png`, `evidence-compressed-certificate.jpg`,
+`evidence-background-result.json`. Fixture intercept API, không gửi dữ liệu thật.
+Native readability/EXIF, app background và API/storage/scan thật còn pending.
+Expo Go hỗ trợ module; development client cũ cần binary mới có module nén.
+
+Các validation bên dưới mô tả các revision trước của luồng gửi.
+
+## Lưu kỹ năng kèm ảnh bị chậm — 2026-10-14
+
+Source trước amendment chờ upload → scan tuần tự mỗi file, poll backoff tới
+8 giây và chờ mọi query refresh trước khi toast/navigation. Đây là các đoạn chờ
+do mobile; không suy ra scanner hay đường truyền thật đã chậm từ source.
+
+Đã upload các file trước rồi đọc scan cùng lúc, poll 0,5/1/2/3 giây (24 reads,
+63,5 giây chờ tối đa/file). Scan lỗi hủy sibling waits nhưng giữ fileId để retry.
+Vẫn recheck READY khi gửi lại và chỉ submit khi toàn bộ files READY. Save/Send
+ghi cache DTO xác nhận rồi refresh nền; completion không chờ query chậm hoặc
+bị lỗi. Nút Lưu hiển thị tiến độ upload/check/submit, giữ khóa trong pipeline.
+Không giảm chất lượng ảnh hoặc sửa storage/scan policy phía BE.
+
+Checks đạt: 280/280 tests, typecheck, lint, structure (455 source files),
+production web export (1941 modules) và diff check. Bốn regression mới kiểm
+scan đồng thời, lỗi scan hủy chờ khác/giữ IDs, completion trước refresh chậm
+và refresh nền lỗi không biến save thành failure.
+
+`.expo/skill-evidence-speed-browser.cjs` kiểm ảnh PNG qua Chọn ảnh thật của web,
+preview/khóa picker/delete, một create và một verification submit, READY-only,
+tiến độ và navigation. Fixture upload 250 ms/ảnh, scan sẵn sàng sau 800 ms,
+read refresh cố tình chậm 6 giây: lượt 1 ảnh 2266 ms, 2 ảnh 2325 ms; navigation
+sau submit xác nhận lần lượt 268/35 ms. Lỗi upload ảnh thứ hai rồi mở lại gửi
+thành công, giữ ID ảnh đầu, không create trùng hoặc reupload ảnh đã có ID
+(3 upload attempts gồm một lỗi, một verification submit). Ba lượt không page error.
+
+Đã xem `.expo/skills-validation/evidence-save-progress-375.png`; kết quả ở
+`evidence-save-speed-result.json`, harness/evidence ignored. Đây là số đo fixture,
+không phải thời gian upload/ClamAV/API thật. Thiết bị Android/iOS và mạng/scan
+thật chưa được đo; các nghiệm thu đó vẫn pending.
+
+## Skill Level catalog theo từng kỹ năng — 2026-10-14
+
+Đối chiếu read-only controllers/DTO/service/repository và BE 007
+`skill-level-catalog.md`. Form tải ACTIVE levels từ endpoint nonpaginated,
+gửi levelId cho create/đổi trình độ; đổi skill xóa lựa chọn cũ. Tên/mô tả dùng
+catalog, bỏ gợi ý cố định; public allowlist giữ metadata cần hiển thị. Level
+INACTIVE đã lưu không bị xóa hoặc gửi lại khi chỉ sửa mô tả/hiển thị. Dữ liệu
+legacy null vẫn có nhãn. Learning Request offered skills/options nhận custom
+codes và name, còn currentLevel giữ enum learning progress riêng.
+
+Checks source cuối đạt: 276/276 tests (9 regression mới), `npm run check-types`,
+`npm run lint`, `npm run check-structure` (454 source files), production web
+export (1940 modules) và diff check. `pnpm --filter mobile check-types` ban đầu
+bị môi trường pnpm gọi install rồi dừng vì non-TTY; dùng các npm scripts tương
+đương theo README với dependencies đã cài, không thay package/lockfile.
+
+Browser `.expo/skill-level-browser.cjs` đạt 4 nhóm checks/47 fixture requests,
+không page error: tên/mô tả catalog và first selection validation, đổi skill
+không giữ levelId cũ, lỗi 503/retry giữ draft, lookup chậm của skill cũ không
+ghi đè lựa chọn hiện tại, POST/PATCH ID đúng, edit no-change, giữ level INACTIVE
+khi sửa mô tả, own/public profile/public detail và empty catalog khóa create.
+Web radio có aria-checked; first tap cập nhật validation/touched state để Lưu
+không bị khóa bởi lỗi chọn cấp độ cũ. Tên dài ở 320/375/430 không tràn ngang.
+
+Đã xem form 320 và public detail 430. Evidence ignored dưới
+`.expo/skills-validation/`: `skill-level-form-{320,375,430}.png`,
+`skill-level-public-detail-430.png`, `skill-level-result.json`.
+Fixture chỉ intercept API; không gọi mutation thật hoặc sửa BE/shared/dependency.
+BE rollout/migration và custom/INACTIVE với API thật, Android/iOS và screen reader
+trên thiết bị vẫn pending theo checklist. Các mục cũ bên dưới là lịch sử.
 
 ## Sonar remediation — 2026-10-13
 
