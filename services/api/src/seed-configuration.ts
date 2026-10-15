@@ -3,7 +3,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "./generated/prisma/client";
 import { seedApprovedConfigurations } from "./modules/system-configuration/application/seed-configuration";
 import { ConfigurationRepository } from "./modules/system-configuration/infrastructure/configuration.repository";
-import { seedPathFeePolicies } from "./modules/credit/seed-fee-policies";
+import { seedPathFeePolicies } from "./modules/credit/application/seed-fee-policies";
 import { seedAchievements } from "./modules/reputation/seed-achievements";
 import { postgresConnectionString } from "./infrastructure/database/postgres-connection";
 

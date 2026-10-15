@@ -22,11 +22,11 @@
 ## Feature Readiness
 
 - [x] Đủ đầu vào thiết kế phần nền tảng Credit và port Payment chung.
-- [x] Provider đã chọn: SePay; checkout/signing/IPN/lookup/sandbox contract được đối chiếu tài liệu chính thức trong contracts/gateway.md.
+- [x] Provider đã chọn: payOS; REST create/signed response/webhook/lookup contract được đối chiếu tài liệu chính thức trong contracts/gateway.md.
 - [x] User xác nhận floor phí 4%, phần còn lại cho người nhận ngày 2026-10-15.
-- [ ] Merchant configuration, các điểm contract cần sandbox kiểm chứng và toàn bộ integration runtime đã hoàn tất.
+- [ ] Merchant configuration, các điểm contract cần channel kiểm chứng và toàn bộ integration runtime đã hoàn tất.
 - [ ] Toàn bộ chính sách bổ sung đã chốt: [policies.md](../policies.md) còn gate.
-- [ ] Đủ bằng chứng runtime: lần này chỉ plan; [validation.md](../validation.md).
+- [ ] Đủ bằng chứng runtime cho toàn feature: initial wallet/PG/HTTP đã kiểm, Payment posting/provenance/payOS channel/load còn Pending; [validation.md](../validation.md).
 
 ## Notes
 

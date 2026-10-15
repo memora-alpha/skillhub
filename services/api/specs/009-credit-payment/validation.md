@@ -1,38 +1,72 @@
 # Validation — Credit & Payment
 
-Date: 2026-10-15. **Planning only**. Baseline source audit không chứng minh runtime; mọi check implementation dưới đây **Pending**.
+Date: 2026-10-15. **Initial implementation verified; full feature Pending.** Spec baseline commit `e5dd088`; implementation working tree chưa commit/push/deploy.
 
-## Planning evidence
+## Planning và quyết định
 
-- [x] Đọc root/API guidance, README, constitution v1.2.0 và local speckit-specify/plan skills/templates/hooks.
-- [x] Đối chiếu SRS V1.6 XML paragraphs/tables, source/model/migrations/tests; read-only research agent hoàn tất.
-- [x] Spec/quality checklist, research, plan, data-model, HTTP/internal/gateway contracts, policies và quickstart tạo trong spec009.
-- [x] `setup-plan.ps1 -Json` resolve spec009; monorepo branch `feat/credit-payment` từ local dev `2f73c3c`.
-- [x] 11 feature files được kiểm tra relative links; Spec Kit pointer và AGENTS managed block trỏ spec009. Agent-context script đã được gọi nhưng block chưa đổi, sau đó cập nhật trực tiếp đúng markers và verify lại.
-- [x] Prettier format/check và whitespace checks cho tài liệu mới; `git diff --check` cho tracked changes. Không thay application source.
-- [x] User trả lời clarifications: SePay và floor phí 4%, net lấy phần còn lại (2026-10-15); spec/policies/plan/contracts/research/model/quickstart cập nhật.
-- [x] Đọc official SePay one-time checkout/signature, IPN SECRET_KEY, REST detail/auth và sandbox; URLs/khác biệt docs ghi trong contracts/gateway.md. Chưa dùng credentials hoặc gọi gateway API.
+Đã đọc repository/API guidance, local speckit-specify/plan/tasks/implement skills, constitution v1.2.0, SRS V1.6 và source tại baseline `2f73c3c`. Bộ spec có research/data model/contracts/policy/quickstart; pointer và AGENTS trỏ spec009. Commit spec chạy lint-staged và commitlint thành công.
 
-## Implementation verification matrix
+User đổi provider sang **payOS** ngày 2026-10-15, thay SePay. Giữ floor phí4% và net phần còn lại; nạp1.000..2.000.000 VND, step1.000, TTL60 phút; nguồn Credit có thể tiêu, BONUS trước rồi FIFO các nguồn còn lại, hoàn đúng nguồn. Contract hiện hành ở contracts/gateway.md; không dùng merchant credentials hoặc gateway thật. Các kết quả SePay bên dưới là lịch sử, không được coi là payOS proof.
 
-| Scope / criteria               | Required evidence                                                                                                                                                                                                                                                        | Status  |
-| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------- |
-| US1, FR001..003, SC003/005/006 | Wallet zero/init race, HTTP decimal strings including existing settlement, stable pagination under concurrent append, IDOR/live revoke; bounded read benchmark                                                                                                           | Pending |
-| Schema invariants              | Additive migration clean/legacy/invalid fixture, sequence backfill/preflight, nonnegative/allocation checks, append-only guards, generator no-loss compare                                                                                                               | Pending |
-| US2, FR004..008, SC001/002     | Exact100k→100; one gateway txn across two Payment rows; same event altered business digest; same business payload with different delivery timestamp; callback same/different key, retry and out of order; invalid proof/ref/merchant/currency/amount; redirect no-credit | Pending |
-| Payment crash recovery         | Checkout preparation crash/repeated submit/lookup, IPN before checkout preparation acknowledgment, crash before/after receipt/post/ACK/outbox; DB unavailable/retry; worker lease exhaustion/manual replay                                                               | Pending |
-| Atomicity/finance concurrency  | Real PG same/different wallet spends/topups/adjustments, deterministic lock order/retry; inject failure after each state/entry/wallet/audit/outbox write; no partial success                                                                                             | Pending |
-| US3, FR009..011, SC004         | Owner-level finalize TWO_WAY/ONE_WAY, all required plans/schedules/sessions, insufficient balance rollback, no per-session settle, dispute-vs-settle, replay snapshot; no Proposal accept Hold                                                                           | Pending |
-| Rounding                       | Gross0,01/10,01/20,00/100,00; one and two holder fee computation, fee0 without invalid entry, exact net+fee=gross, large input/overflow                                                                                                                                  | Pending |
-| Release/relock                 | Approved instruction, partial remainder, stale allocation/version, already settled, over-release/retry; G05/G08 before activation                                                                                                                                        | Pending |
-| US4, FR012..013, SC002/003/005 | Admin current permission/reason/ref/version; duplicate/different body; negative Available reject; audit/outbox rollback; immutable compensation; Staff denied                                                                                                            | Pending |
-| Reconciliation                 | Consistent snapshot wallet/deltas, Held/allocation, Payment/TOP_UP, settlement/fee; injected missing/duplicate/mismatch findings, no auto-repair                                                                                                                         | Pending |
-| Delivery, FR014                | Outbox/inbox/SSE exactly-once visible identity, duplicate/stale delivery/reconnect/privacy, Redis/worker restart; unknown event retention                                                                                                                                | Pending |
-| Gated policies, FR015/016      | Disabled SePay/bonus/cancel/refund fail safely; no withdrawal/arbitrary transfer/material-fee assumption; G01–G10 documented                                                                                                                                             | Pending |
-| Static/regressions             | API lint/types/build/Prisma generation; affected auth/config/audit/idempotency/connections/owner regression suites                                                                                                                                                       | Pending |
-| Real provider                  | SePay contract researched; còn sandbox checkout canonical signature/ordered form, IPN secret auth, invoice/order_id lookup, transaction identity mapping, repeated submission/retry/retention proof; authenticated end-to-end one posting                                | Pending |
-| Deployment                     | Intended SHA, applied migration/grants/config, readiness/logs/receipt backlog/reconciliation and actual provider callback                                                                                                                                                | Pending |
+Checklist implementation còn mở đã được công khai trước khi User yêu cầu “Commit lại spec và bắt đầu implement”. Tiếp tục initial tranche theo authorization đó; không tự bật policy/provider hoặc đổi runtime Pending thành Pass.
 
-## Limitations
+## Source thực hiện
 
-Không chạy lint/types/build/tests, không kết nối DB/provider, không apply migration/seed hoặc thực hiện giao dịch tiền trong lần planning. Không có endpoint/model mới nào được tạo bởi tài liệu. Không thể đánh dấu production ready từ source/mocks hoặc bằng chứng cũ của feature khác. Checklist policy-dependent vẫn mở cho đến có quyết định và evidence phù hợp.
+- `GET /api/v1/me/wallet`, history/detail own-only; virtual zero không tặng Credit hoặc tạo ví ngầm; owner repository có zero upsert cho future writes.
+- Exact bigint hundredths parser/formatter, signed delta formatting, VND conversion, fee conservation; dùng lại cho LearningPath/Proposal và settlement HTTP.
+- Per-wallet entry sequence cấp dưới wallet row lock, signed cursor bind owner/filter/watermark; append mới không chen vào snapshot history.
+- Additive financial migration: preflight zero-origin ledger/history order/Held allocations, nonnegative/bounds, immutable ledger, zero-wallet backfill. Không rescale/auto-repair dữ liệu cũ.
+- Pure payOS adapter thay SePay: server-only signed REST request preparation, signed checkout response quote/origin verification và webhook HMAC toàn bộ data trước strip PII. Chưa có REST transport hoặc operational Payment API.
+- Disabled capability config và approved top-up quote policy. Provenance lots/spend/refund allocations chưa implement; source fields chưa expose như counters.
+
+## Verification tranche ban đầu đã pass (lịch sử trước đổi provider)
+
+| Evidence                                                    | Kết quả                                                                                                                                                        |
+| ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| API `check-types`                                           | Pass; Prisma generate + TypeScript noEmit                                                                                                                      |
+| API `build`                                                 | Pass; final full Nest build trước test imports                                                                                                                 |
+| API `lint` + focused final changed TypeScript lint          | Pass, 0 warnings                                                                                                                                               |
+| Prisma runtime validate                                     | Pass                                                                                                                                                           |
+| Exact money/cursor/SePay policy+adapter + sonar regressions | 14/14 Node tests, 0 skipped                                                                                                                                    |
+| Credit PostgreSQL suite                                     | 6/6 gồm parent: zero init concurrency, concurrent commit order, rollback balances/operation/entry/sequence, nonnegative/append-only, opening-balance preflight |
+| Credit HTTP/OpenAPI suite                                   | 6/6 gồm parent: actual CreditModule DI/OpenAPI, zero read, append-vs-cursor watermark, exact money/ownership/invalid query, revocation                         |
+| Config/log privacy/local S3/ClamAV/SMTP regressions         | 8/8                                                                                                                                                            |
+| Connections policy/bootstrap regression                     | 4/4; IdentityModule stub bổ sung IdentityConfig export tương ứng module thật                                                                                   |
+| Total distinct final Node test cases                        | **38 passed**, 0 skipped (bao gồm parent cases của Node runner)                                                                                                |
+
+PostgreSQL dùng harness tạo fresh `skills_test_<UUID>` schema rồi drop schema và legacy sibling trong finally; không apply migration hoặc seed vào application schema. HTTP settlement test dùng fake domain result **chỉ để kiểm transport BigInt serialization**, không chứng minh settlement owner business flow. Pure SePay tests không là sandbox/merchant proof.
+
+Lần đầu sandbox chặn loopback bằng EACCES; rerun real PG/HTTP/local mock servers ngoài sandbox đã pass. Lỗi fixture revoke thiếu revokedReason đã sửa theo sessions_valid constraint. Connections bootstrap mock thiếu IdentityConfig export đã sửa; không bỏ guard hoặc nới production DI. Build đầu bị dừng khi không thấy tiến triển; final build completed exit0 trước final suites.
+
+## Application structure refactor (2026-10-15)
+
+Theo yêu cầu User, Credit tách application thành contracts/ports/services/use-cases theo auth/users: ba read use cases thay WalletService; WalletRepository port bind với PrismaWalletRepository trong infrastructure/persistence; ledger/reader chuyển vào services, fee seed vào application. Cập nhật controller, DI, LearningPath/LearningSession callers, configuration seed và test imports. Ledger class body đối chiếu baseline giống nhau sau chuẩn hóa whitespace. Payment checkout/event contracts và gateway port nằm trong application, SePay adapter triển khai port; không thêm operational payment flow.
+
+Sau refactor: API check-types/build/lint pass; focused Prettier và git diff --check pass. Chạy lại **30/30 Node cases**, 0 skipped: 18 money/cursor/SePay/settlement/Connections regression và 12 HTTP/PostgreSQL (gồm parent cases). HTTP dùng CreditModule thật để kiểm use cases + repository DI; PostgreSQL vẫn dùng schema test cô lập. Các kết quả 38 cases phía trên thuộc tranche implementation ban đầu; lần refactor không chạy lại 8 config/provider cases vì phần đó không thay đổi.
+
+## Provider amendment: payOS (2026-10-15)
+
+Thay SePay adapter/config/tests bằng payOS, giữ application contracts/ports và chính sách Credit. prepareCheckout tạo server-only REST payload, không client-submit form; verifyCheckoutResponse kiểm toàn bộ data signature rồi match quote/currency/origin; verifyWebhook kiểm HMAC trước strip PII và normalize channel/orderCode/paymentLinkId/reference. Không thêm REST transport, receipts/posting route hoặc sửa application DB/env thật. Không gọi gateway hay đăng ký webhook.
+
+Golden webhook dùng vector/checksum công khai từ docs payOS, không merchant secret. Test mới đã phát hiện URL refine ném Invalid URL cho chuỗi rỗng; thêm URL.canParse guard ở config và checkout response, giữ lỗi theo field/contract. Lịch sử SePay bên trên không phải payOS proof.
+
+Final sau sửa: full API lint/check-types/build pass; focused Prettier và git diff --check pass. **25/25 Node cases pass, 0 skipped**: 7 payOS protocol/config/policy cases + 18 money/cursor/settlement/Connections/config/log-privacy regressions. Không chạy lại PostgreSQL suite vì lần này không đổi financial persistence/writer; kết quả PG trước đó giữ lịch sử riêng. Không có live payOS/channel/create/lookup/posting proof; provider mặc định disabled, T014..T018 còn Pending.
+
+## Full feature/release matrix
+
+| Phạm vi còn lại                                                                                | Trạng thái / giới hạn                                                          |
+| ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| US1 benchmark/load và exhaustive valid/ambiguous legacy backfill fixtures                      | Pending; current migration fresh schema + rejected unexplained balance đã kiểm |
+| Provenance source lots + BONUS-first/FIFO + refund-origin allocation                           | Pending T014..; User policy đã chốt, source cũ chưa theo dõi lots              |
+| Payment quote/create/query API, durable receipts/posting, TOP_UP+wallet+audit/outbox atomicity | Pending T014..T017                                                             |
+| Idempotent payment transaction reuse, out-of-order/crash/recovery/lookup                       | Pending; adapter digest test không thay real posting proof                     |
+| Hold/settlement owner races, source-aware writes, Path completion ownership refactor           | Pending T019..T020; existing mock regression vẫn pass                          |
+| Approved release/refund/penalty/relock/dispute policy                                          | Pending G05/G06/G08/G09; không public arbitrary transfers/cash-out             |
+| Admin adjustment/reversal/full reconciliation                                                  | Pending T022..T024; current preflight chỉ detect/no repair                     |
+| Notification/SSE committed events, retry/recovery/load                                         | Pending T027                                                                   |
+| payOS channel/production signing, create/lookup/retry/sample/partial/late proof                | Pending; không đăng ký/cấu hình merchant hoặc thực hiện giao dịch thật         |
+| Deployment/migration/grants/live SHA/readiness/backlog/actual callback                         | Pending; không deploy/push                                                     |
+
+## Limits
+
+Đã bắt đầu implementation, chưa hoàn tất toàn spec009. Code hiện có không nhận/cộng tiền từ webhook và không tự bật bonus, refund, material sales hoặc cash-out. Migration dừng khi lịch sử thiếu opening provenance; operator phải đối soát, không đoán nguồn tiền. Mọi task chưa làm trong tasks.md giữ unchecked.

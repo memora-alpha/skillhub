@@ -12,13 +12,15 @@ Date: 2026-10-15. Proposed additions, chưa thay Prisma/SQL. Giữ BigInt hundre
 | HeldCreditAllocation         | credit        | Existing path/version/holder/beneficiary/purpose/amount/remaining/status; amount>0 và 0<=remaining<=amount. G05/G08 cho partial release/relock                                                                                                                          |
 | FeePolicyVersion             | credit policy | Existing APPROVED/effective/calc/rounding; 400 bps, floor fee; snapshot không đổi lịch sử                                                                                                                                                                               |
 | Payment                      | payments      | Existing owner/gateway/ref/provider txn/VND/Credit/rate/status; thêm version, quote digest, nonsecret merchant identity, expires/verified/paid/updated timestamps, unique nullable `topUpOperationId` FK và private checkout projection. Order ref bắt buộc với đơn mới |
-| PaymentCheckoutIntent        | payments      | One per Payment: immutable invoice/descriptor-input digest; PREPARING/READY/ISSUED/REVIEW, lease/retry; ISSUED chỉ là form đã trả cho client, không chứng minh gateway order tồn tại                                                                                    |
-| PaymentGatewayReceipt        | payments      | Gateway/environment/merchant/eventKey/business digest/delivery digest/claimed transaction+ref, verified evidence tối thiểu, RECEIVED/PROCESSING/PROCESSED/REJECTED/REVIEW, lease/retry/timestamps/paymentId nullable; unique(gateway,environment,merchant,eventKey)     |
+| PaymentCheckoutIntent        | payments      | One per Payment: immutable orderCode/request-input digest; PREPARING/READY/ISSUED/REVIEW, lease/retry; READY cần verified provider response, ISSUED chỉ là checkout GET đã trả cho owner                                                                                |
+| PaymentGatewayReceipt        | payments      | Gateway/channel/eventKey/business digest/delivery digest/claimed reference+orderCode+paymentLinkId, verified evidence tối thiểu, RECEIVED/PROCESSING/PROCESSED/REJECTED/REVIEW, lease/retry/timestamps/paymentId nullable; unique(gateway,channel,eventKey)             |
 | PaymentReconciliationFinding | payments      | Dedupe finding key/category/refs/evidence digest, OPEN/RESOLVED/timestamps/audit ref; không tự thay wallet                                                                                                                                                              |
 
-Quote snapshot: VND/currency/creditUnits/conversionRate/gateway/merchant/ref/config version. Checkout URL/token chỉ expose cho owner theo provider contract, không đưa vào audit/event/log. Payment thêm provider environment/merchant/order_id/order UUID; provider transaction UUID và external transaction_id được lưu tách biệt. Unique transaction phải scoped gateway+environment+merchant; migration không cho collision hoặc cùng giao dịch post hai lần. Không thay transaction uniqueness bằng event identity. Nhiều receipt cùng provider transaction vẫn chỉ một posting; cùng eventKey khác business digest không overwrite evidence cũ; delivery timestamp khác không phải business conflict.
+Quote snapshot: VND/currency/creditUnits/conversionRate/gateway/channel/orderCode/config version. Checkout URL/QR chỉ expose cho owner theo provider contract, không đưa vào audit/event/log. Payment thêm payOS channel/orderCode/paymentLinkId; canonical orderCode là positive safe-integer decimal string, unique theo channel khi reserve, không random Date.now. Provider transaction identity là reference; unique gateway+channel+reference, migration không cho collision hoặc cùng giao dịch post hai lần. Không thay transaction uniqueness bằng event identity. Nhiều receipt cùng provider transaction vẫn chỉ một posting; cùng eventKey khác business digest không overwrite evidence cũ; delivery timestamp khác không phải business conflict.
 
 ## Monetary invariants
+
+User amendment 2026-10-15: nguồn Credit là spendable provenance, không lifetime counters. Thiết kế kế tiếp cần `CreditLot` (source PURCHASED/BONUS/EARNED, grantedAt, available/held/consumed, source operation) và `CreditLotAllocation` cho Hold/chi tiêu/hoàn. BONUS trước, các nguồn còn lại FIFO(grantedAt, stable id); release/refund trả đúng lot gốc, không áp lại thứ tự tiêu tại thời điểm hoàn. `purchasedCredit`/`bonusCredit` là tổng chưa tiêu của source tương ứng, gồm Available và Held, không là tổng ví bổ sung. EARNED cần nguồn riêng để không giả mạo tiền nạp. Historical provenance không rõ phải preflight/manual reconciliation; không gán toàn bộ balance cũ thành PURCHASED. Phần lot chưa có trong initial wallet-read migration.
 
 - `creditUnits = VND×100/rate`; positive, chia hết, trong BigInt DB và business limits. Rate1000 nghĩa bước biểu diễn tối thiểu 10 VND; G02 có thể quy định bước chặt hơn, không tự coi bội1000 là bắt buộc.
 - HTTP Credit `100.00`, VND `100000`, đều string. Parse/format bằng integer; không Number/toFixed cho arithmetic.
@@ -32,17 +34,17 @@ Row SQL checks bảo vệ nonnegative balances/positive magnitude/allocation bou
 
 ## Payment transitions
 
-| From            | To       | Điều kiện                                                                                         |
-| --------------- | -------- | ------------------------------------------------------------------------------------------------- |
-| CREATED         | PENDING  | Provider order xác định; CAS không ghi đè PAID callback đến sớm                                   |
-| CREATED/PENDING | PAID     | Verified matched success + atomic TOP_UP                                                          |
-| CREATED/PENDING | FAILED   | Definitive failure, chưa posted; timeout không phải failure                                       |
-| CREATED/PENDING | EXPIRED  | Server/provider expiry policy G02, chưa posted; local TTL không tự vô hiệu signed form tại SePay  |
-| FAILED/EXPIRED  | PAID     | Chỉ trusted lookup/reconciliation + approved late-success mapping; trước đó REVIEW, không tự cộng |
-| PAID            | PAID     | Valid replay; stale failure/expiry không downgrade                                                |
-| PAID            | REFUNDED | Không active MVP; G06 và compensating ledger, không chỉ đổi enum                                  |
+| From            | To       | Điều kiện                                                                                                     |
+| --------------- | -------- | ------------------------------------------------------------------------------------------------------------- |
+| CREATED         | PENDING  | Provider order xác định; CAS không ghi đè PAID callback đến sớm                                               |
+| CREATED/PENDING | PAID     | Verified matched success + atomic TOP_UP                                                                      |
+| CREATED/PENDING | FAILED   | Definitive failure, chưa posted; timeout không phải failure                                                   |
+| CREATED/PENDING | EXPIRED  | Server/provider expiry policy G02, chưa posted; expiredAt gửi payOS; local TTL không chứng minh chưa thu tiền |
+| FAILED/EXPIRED  | PAID     | Chỉ trusted lookup/reconciliation + approved late-success mapping; trước đó REVIEW, không tự cộng             |
+| PAID            | PAID     | Valid replay; stale failure/expiry không downgrade                                                            |
+| PAID            | REFUNDED | Không active MVP; G06 và compensating ledger, không chỉ đổi enum                                              |
 
-Receipt/intent trạng thái kỹ thuật khác Payment business status. REVIEW ở receipt/finding, không tự thêm vào Payment enum. SePay checkout là signed form, không REST create. UNKNOWN provider state được lookup/reconcile; không tự tạo invoice khác hoặc coi form ISSUED là provider PENDING.
+Receipt/intent trạng thái kỹ thuật khác Payment business status. REVIEW ở receipt/finding, không tự thêm vào Payment enum. payOS checkout dùng server-side REST create và verified response; UNKNOWN cần lookup/reconcile bằng cùng orderCode/paymentLinkId. Không cấp orderCode mới khi timeout hoặc coi request prepared là provider PENDING.
 
 ## Financial transitions
 

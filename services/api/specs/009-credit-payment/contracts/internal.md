@@ -44,6 +44,6 @@ Per-wallet sequence allocated dưới wallet lock cho từng ledger entry; after
 
 ## Recovery/observability
 
-Workers claim durable rows bằng bounded lease/CAS, scan due work; queue loss không mất receipt/checkout intent. SePay prepareCheckout tạo signed form descriptor sau reserve tx, không remote REST-create; IPN SECRET_KEY auth và merchant/env binding theo gateway.md. Track attempts/nextAttempt/lastErrorCode an toàn; exhausted/unrecoverable items chuyển REVIEW/manual action, không xóa. Operator replay bắt đầu từ stored authenticated evidence, rechecks posting state/business digest, luôn idempotent.
+Workers claim durable rows bằng bounded lease/CAS, scan due work; queue loss không mất receipt/checkout intent. payOS prepareCheckout tạo server-only REST payload sau reserve tx; future transport dùng channel credentials ngoài PG tx rồi verify signed response trước persist checkout projection. Verify webhook HMAC toàn bộ data trước normalize/match. Khi timeout lookup cùng persisted orderCode/paymentLinkId trước retry, không cấp mã mới. Track attempts/nextAttempt/lastErrorCode an toàn; exhausted/unrecoverable items chuyển REVIEW/manual action. Replay recheck posting state/business digest, luôn idempotent.
 
 Metrics: pending/unknown age, receipt failures/replay/conflict, post lag, lock retries, reconciliation differences; structured logs refs/status/correlation, không secret/raw body/checkout token. Reconciliation lấy consistent snapshot để không báo giả khi có commit giữa hai truy vấn. Payment mismatch được report riêng khỏi successful ledger.
