@@ -315,6 +315,7 @@ model User {
   reportCaseHandlerIdRecords                ReportCase[]            @relation("ReportCase_handler_id")
   reportCaseResolvedByUserIdRecords         ReportCase[]            @relation("ReportCase_resolved_by_user_id")
   notificationUserIdRecords                 Notification[]          @relation("Notification_user_id")
+  pushDeviceTokenUserIdRecords              PushDeviceToken[]       @relation("PushDeviceToken_user_id")
   auditLogActorIdRecords                    AuditLog[]              @relation("AuditLog_actor_id")
   avatarAssetUserIdRecords                  AvatarAsset[]           @relation("AvatarAsset_user_id")
   identityEmailDeliveryUserIdRecords        IdentityEmailDelivery[] @relation("IdentityEmailDelivery_user_id")
@@ -1023,6 +1024,21 @@ model Notification {
   @@index([userId])
   @@index([userId, createdAt(sort: Desc), id(sort: Desc)])
   @@map("notifications")
+}
+
+/// FCM web-push registration; a token belongs to the account that last registered it.
+model PushDeviceToken {
+  id         String    @id @default(uuid()) @map("push_device_token_id") @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  token      String    @unique @map("token") @db.Text
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  lastSeenAt DateTime  @default(now()) @map("last_seen_at") @db.Timestamptz(3)
+  revokedAt  DateTime? @map("revoked_at") @db.Timestamptz(3)
+
+  userIdRecord User @relation("PushDeviceToken_user_id", fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([userId])
+  @@map("push_device_tokens")
 }
 
 model AuditLog {
