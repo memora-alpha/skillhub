@@ -23,6 +23,7 @@ import { FileAttachmentService } from "../../dist/infrastructure/storage/file-at
 import { AuditModule } from "../../dist/modules/audit/audit.module.js";
 import { AuditWriter } from "../../dist/modules/audit/application/audit-writer.js";
 import { IdentityModule } from "../../dist/modules/identity.module.js";
+import { IdentityConfig } from "../../dist/configs/identity.config.js";
 import { IdentityGuard } from "../../dist/shared/auth/identity.guard.js";
 import { SessionsService } from "../../dist/modules/auth/application/services/sessions.service.js";
 import { SkillActorService } from "../../dist/modules/users/application/services/skill-actor.service.js";
@@ -77,6 +78,7 @@ test("feature modules resolve owner contracts and register SSE/chat workers; HTT
     .useModule(
       fixtureModule([
         [SessionsService, {}],
+        [IdentityConfig, { jwtKey: "fixture-ledger-cursor-key" }],
         [SkillActorService, {}],
         [IdentityGuard, { canActivate: () => true }],
       ]),

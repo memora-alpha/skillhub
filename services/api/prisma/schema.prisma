@@ -784,6 +784,7 @@ model CreditWallet {
 
   creditTransactionUserIdRecords CreditTransaction[] @relation("CreditTransaction_user_id")
   userIdRecord                   User                @relation("CreditWallet_user_id", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  lastEntrySequence              BigInt              @default(0) @map("last_entry_sequence")
 
   @@map("credit_wallets")
 }
@@ -834,8 +835,10 @@ model CreditTransaction {
   reversesTransactionIdRecord                   CreditTransaction?  @relation("CreditTransaction_reverses_transaction_id", fields: [reversesTransactionId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   creditTransactionReversesTransactionIdRecords CreditTransaction[] @relation("CreditTransaction_reverses_transaction_id")
   reportCaseRelatedTransactionIdRecords         ReportCase[]        @relation("ReportCase_related_transaction_id")
+  entrySequence                                 BigInt              @default(0) @map("entry_sequence")
 
   @@unique([operationId, entryNo])
+  @@unique([userId, entrySequence])
   @@index([userId])
   @@index([operationId])
   @@index([reversesTransactionId])

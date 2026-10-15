@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-15
 
-**Status**: Draft — đặc tả nền tảng; các nhánh cần policy/provider trong [policies.md](policies.md) chưa được bật.
+**Status**: Implementation in progress — wallet/history và pure payOS adapter đã có source; Payment posting/provenance và production activation còn Pending trong [tasks.md](tasks.md).
 
 **Input**: “Bắt đầu sử dụng speckit để plan phần tiếp tục : credit & payment”.
 
@@ -41,7 +41,7 @@ User tạo yêu cầu nạp VND, nhận hướng dẫn thanh toán của cổng 
 4. **Given** cùng giao dịch cổng được gửi lại hoặc gán cho đơn khác, **When** xử lý đồng thời, **Then** không cộng lần thứ hai, không chuyển người nhận.
 5. **Given** sự kiện sai thông tin xác thực cổng, sai số tiền hoặc đơn không xác định, **When** nhận, **Then** không cộng Credit và có dấu vết vận hành an toàn để điều tra.
 6. **Given** kết quả đến muộn hoặc trạng thái mâu thuẫn, **When** chưa thể xác định kết quả chắc chắn, **Then** giữ hồ sơ đối soát; không tự đánh dấu đã trả tiền hay xóa bằng chứng.
-7. **Given** SePay chưa được bật hoặc chưa đủ cấu hình, **When** yêu cầu nạp, **Then** trả trạng thái dịch vụ chưa sẵn sàng; đọc ví/lịch sử vẫn dùng được.
+7. **Given** payOS chưa được bật hoặc chưa đủ cấu hình, **When** yêu cầu nạp, **Then** trả trạng thái dịch vụ chưa sẵn sàng; đọc ví/lịch sử vẫn dùng được.
 
 ### User Story 3 — Giữ, giải phóng và quyết toán đúng thỏa thuận (Priority: P1)
 
@@ -94,7 +94,7 @@ Admin có quyền xem đối soát và điều chỉnh sai lệch bằng bút to
 - **FR-001**: Hiển thị Available/Held và lịch sử/chi tiết thuộc ví hiện tại; phân trang ổn định và không lộ dữ liệu người khác.
 - **FR-002**: Credit chính xác tới 0,01; VND là số nguyên; mọi số tiền có thể truy vết nguồn, không tự làm tròn số tiền nạp không biểu diễn được.
 - **FR-003**: Mọi biến động số dư có bút toán với thay đổi Available/Held, số dư sau và tham chiếu nghiệp vụ; lịch sử thành công không bị sửa/xóa.
-- **FR-004**: Tạo yêu cầu nạp theo cổng/cấu hình được bật; tính Credit tại backend theo snapshot 1.000 VND = 1 Credit; không nhận creditAmount do client quyết định.
+- **FR-004**: Tạo yêu cầu nạp từ 1.000 tới 2.000.000 VND, bước 1.000 VND, hết hạn sau 60 phút, theo cổng/cấu hình được bật; tính Credit tại backend theo snapshot 1.000 VND = 1 Credit; không nhận creditAmount do client quyết định.
 - **FR-005**: Chỉ cộng tiền sau xác minh kết quả cổng và đối chiếu đầy đủ danh tính đơn, merchant, số tiền, tiền tệ; redirect không phải bằng chứng.
 - **FR-006**: Payment thành công, cộng ví, bút toán và bằng chứng xử lý được ghi nguyên tử; cùng giao dịch cổng không cộng cho hai đơn.
 - **FR-007**: Yêu cầu nạp/điều chỉnh/thao tác tài chính retry an toàn; cùng mã và nội dung trả lại cùng kết quả, mã cũ với nội dung khác bị từ chối.
@@ -133,9 +133,9 @@ Admin có quyền xem đối soát và điều chỉnh sai lệch bằng bút to
 
 - SRS V1.6 là nguồn nghiệp vụ: FR-CR-01..09; mục 10.3, 18.14–18.17, 18.19–18.20, 18.40–18.41; model v3/source chỉ là bằng chứng cấu trúc và hành vi hiện có.
 - Phạm vi backend `services/api`; kế thừa identity/permission, transaction/idempotency/audit/outbox/config và SSE. Không sửa frontend/mobile, triển khai cổng thật hoặc di chuyển tiền trong lần plan.
-- User xác nhận ngày 2026-10-15: chọn **SePay**. Thiết kế tích hợp chọn Cổng thanh toán one-time checkout/IPN; phương thức BANK_TRANSFER là baseline kỹ thuật, không tự mở thêm thẻ/recurring. SePay merchant/sandbox cần được cấu hình và kiểm thử trước activation.
+- User đổi provider sang **payOS** ngày 2026-10-15, thay lựa chọn SePay trước đó. Thiết kế tích hợp dùng payment link/QR và signed webhook; không tự mở cash-out/recurring. Channel credentials và luồng tạo link/lookup/webhook phải kiểm chứng trước activation. Hạn mức 1.000–2.000.000 VND/bước1.000/TTL60 phút, fee floor và source balances giữ nguyên.
 - User xác nhận ngày 2026-10-15: **làm tròn xuống phí 4% tại đơn vị 0,01 Credit; người nhận lấy phần còn lại**. Fee + net = gross; nếu đổi cần policy version mới.
-- Purchased/bonus là các field lịch sử chưa có semantics được chứng minh; không cộng chúng vào Available/Held để hiển thị tổng tiền. Các nhánh cần phân nguồn chờ policy.
+- User xác nhận 2026-10-15: purchased/bonus là số dư theo nguồn, cần theo dõi chi tiêu/hoàn. Ưu tiên Credit thưởng trước; sau đó các nguồn khác theo thời điểm nhận; hoàn về đúng nguồn đã dùng. Lot tracking triển khai riêng, không cộng source balances vào Available/Held lần nữa.
 - Daily/Feedback bonus, material purchase, dispute adjudication/cancel/no-show và cash refund không thuộc MVP này. Owner contracts phục vụ tích hợp, không cấp quyền tự đặt policy.
 
 ## Traceability

@@ -30,7 +30,7 @@ Transaction projection: `id`, `operationId`, `type`, `amount`, `availableDelta`,
 
 | Method / path               | Contract                                                                                                        |
 | --------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| POST `/payments`            | Body `{paymentAmountVnd:"100000",gateway:"SEPAY"}`; không nhận creditAmount/userId/status/rate/return URL tùy ý |
+| POST `/payments`            | Body `{paymentAmountVnd:"100000",gateway:"PAYOS"}`; không nhận creditAmount/userId/status/rate/return URL tùy ý |
 | GET `/payments`             | Own payments, optional status/cursor/limit                                                                      |
 | GET `/payments/{paymentId}` | Own safe status/quote/checkout projection; không gọi gateway chỉ vì client polling                              |
 
@@ -44,20 +44,20 @@ Create reserve lần đầu trả201, replay200; resource `CREATED` với checko
   "currency": "VND",
   "creditAmount": "100.00",
   "conversionRateVndPerCredit": 1000,
-  "gateway": "SEPAY",
+  "gateway": "PAYOS",
   "checkout": null,
   "expiresAt": null,
   "createdAt": "2026-10-15T00:00:00.000Z"
 }
 ```
 
-SePay checkout là descriptor `{method:"POST",action,fields:[{name,value}]}` do backend ký từ quote đã lưu, server-controlled redirect URLs, fields giữ đúng thứ tự theo [gateway contract](gateway.md). Ví dụ checkout:null là response trước preparation, không giả định có checkout URL GET từ REST-create. GET status có thể trả prepared descriptor cho owner với Cache-Control:no-store; không log signature. TTL theo G02; local expiry không tự vô hiệu form phía SePay. Query amount/state từ Payment authority; không cộng theo client success URL. Disabled/missing provider policy trả503 `PAYMENT_PROVIDER_UNAVAILABLE`/`PAYMENT_POLICY_UNAVAILABLE`, không tạo đơn giả.
+payOS checkout là `{method:"GET",url,paymentLinkId,qrCode,orderCode,providerStatus}` sau server-side REST create và verify signed response theo [gateway contract](gateway.md). `orderCode` là string trong public projection. Không trả server-only create payload/signature/headers. Checkout:null nghĩa chưa hoàn tất preparation; status chưa PENDING chỉ vì đã queue. Owner GET dùng Cache-Control:no-store; không log URL/QR. Expiry theo immutable quote 60 phút, không tự gia hạn khi retry. Payment authority quyết định số tiền/trạng thái; redirect không cấp Credit. Disabled/missing provider policy trả503 `PAYMENT_PROVIDER_UNAVAILABLE`/`PAYMENT_POLICY_UNAVAILABLE`.
 
 ## Provider callback
 
-`POST /payments/webhooks/sepay` nhận IPN JSON của SePay Payment Gateway. Không dùng IdentityGuard; require X-Secret-Key từ auth type SECRET_KEY đã cấu hình, bind endpoint/credential với merchant/environment. Checkout HMAC và IPN authentication là hai boundary khác nhau; IPN không tự có HMAC body signature. Source: [SePay IPN](https://developer.sepay.vn/vi/cong-thanh-toan/IPN).
+`POST /payments/webhooks/payos` nhận JSON `{code,desc,success,data,signature}`. Không dùng IdentityGuard; verify HMAC-SHA256 hex toàn bộ data bằng checksum key trước strip/matching. Channel bind qua credential cấu hình. Source: [payOS signature](https://payos.vn/docs/tich-hop-webhook/kiem-tra-du-lieu-voi-signature/).
 
-ACK HTTP200 `{success:true}` sau receipt bền hoặc posting commit; không thêm standard API envelope. Sai/thiếu secret401, persistence unavailable5xx. Valid mismatch/unknown order/TRANSACTION_VOID lưu REVIEW rồi ACK200; không auto-refund hoặc downgrade PAID. Reverify duplicate và return200 không post lại. SePay docs không chốt retry schedule/retention, không lấy ACK thành bảo đảm gateway retry. Canonical business digest bỏ delivery timestamp để valid resend không bị báo conflict giả.
+ACK HTTP200 `{success:true}` sau receipt bền hoặc posting commit; không thêm standard API envelope. Malformed/missing signature400, sai chữ ký401, persistence unavailable5xx. Valid mismatch/unknown quote/sample/partial/late payment lưu REVIEW rồi ACK200; không auto-refund hoặc downgrade PAID. Reverify duplicate và return200 không post lại. ACK không thay receipt recovery hoặc lookup; không giả định retry schedule chưa được chứng minh. Dedupe PAYOS+channel+reference; business digest chỉ chứa normalized signed evidence, không delivery metadata.
 
 Không có endpoint client `mark-paid`, `confirm-payment` hoặc callback bypass chỉ cho Admin. Verify/reconcile chạy server-side với permission/operator contract riêng.
 

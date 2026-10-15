@@ -1,4 +1,4 @@
-import type { TransactionContext } from "../../infrastructure/database/transaction-context";
+import type { TransactionContext } from "../../../infrastructure/database/transaction-context";
 
 /** The SRS fixes the 96/4 split; the product owner selected floor rounding. */
 export async function seedPathFeePolicies(

@@ -4,6 +4,8 @@ Date: 2026-10-15. Baseline Git `2f73c3c` trên local `dev`, working tree sạch 
 
 ## 1. Nguồn và trạng thái thực tế
 
+User amendment trong implementation 2026-10-15: min1.000/max2.000.000 VND, step1.000, TTL60 phút; purchased/bonus là nguồn còn có thể tiêu, BONUS-first rồi FIFO các nguồn khác, hoàn đúng lot gốc. Phân tích source bên dưới là baseline trước implementation, không có nghĩa source cũ đã giữ được provenance. Lot/allocation migration và các writers theo nguồn còn là tasks kế tiếp.
+
 SRS hiện hành: `docs/SRS_SkillHub_V1.6_VietLai_DongBoNghiepVu.docx`, đọc XML paragraphs/tables theo thứ tự document. Đối chiếu FR-CR-01..09, 10.3, CR-001..010, PAY-001..005, 18.19/18.20/18.40/18.41. Không sửa/render tài liệu Word trong lần plan này; không đánh giá layout. `docs/SOURCE_OF_TRUTH.md` xác nhận 1.6 ưu tiên hơn model v3.
 
 | Evidence tại baseline (relative to services/api)                               | Kết luận                                                                                                                  |
@@ -52,13 +54,13 @@ Wallet equation: số dư tại watermark = opening có chứng từ + tổng le
 
 ## 5. Payment orchestration và authenticity
 
-**Decision (user confirmed 2026-10-15)**: SePay, floor phí 4%/net=gross−fee. Theo tài liệu chính thức, dùng hosted one-time checkout/IPN; port là prepareCheckout chứ không REST createOrder. Reserve Payment/invoice/quote trước, server ký descriptor POST form, client submit gateway. REST dùng lookup ngoài PG transaction, không gọi checkout/init như JSON API. Merchant/sandbox/runtime và G02/G03 vẫn gate.
+**Decision (User amendment 2026-10-15)**: đổi từ SePay sang payOS; fee floor/provenance/limits giữ nguyên. payOS tạo link qua server REST, không client submit signed form. Reserve immutable quote/orderCode trước; prepare request, remote create ngoài PG transaction, verify signed response rồi persist safe GET checkout/QR. Transport và durable orchestration vẫn pending.
 
-IPN SePay xác thực X-Secret-Key với auth type SECRET_KEY; checkout ký HMAC khác boundary. Match invoice/VND/amount/order+transaction outcomes; merchant bind bằng credential/env. Receipt dedupe theo canonical business evidence, không gồm timestamp biến đổi; domain transaction/posting dedupe độc lập HTTP TTL. HTTP200 sau durable receipt, worker recovery tới atomic TOP_UP; không lưu raw card/customer payload. [Provider contract và nguồn](contracts/gateway.md).
+Webhook xác thực HMAC-SHA256 hex trên toàn bộ data bằng channel checksum key, rồi normalize whitelist PII-safe. Match channel/orderCode/paymentLinkId/VND/exact amount/reference với quote mới là entitlement; unsigned envelope không thay signed status. Dedupe channel+reference và immutable business digest; same transaction không được post hai Payment. Sample/partial/late/unknown vào REVIEW. [Provider contract và nguồn](contracts/gateway.md).
 
-**Rationale**: Không mở transaction khi gọi gateway; bảo toàn kết quả lúc crash/duplicate/out-of-order. SePay IPN không có eventId riêng trong payload đã đọc, nên derive identity từ merchant/env/type/transaction UUID; không nhầm checkout HMAC với IPN shared secret. Contract lookup REST order_id và SDK invoice có khác biệt, cần kiểm sandbox.
+**Rationale**: REST create có uncertainty window nên lookup cùng persisted orderCode trước retry, không gia hạn quote hoặc cấp mã mới. Response signing và webhook signing đều cần verify trước dùng evidence. Callback có thể sớm hơn create-response commit; CAS không overwrite PAID. Provider JSON numbers phải safe integer; domain arithmetic vẫn bigint.
 
-**Alternatives considered**: Webhook biến động số dư là lựa chọn SePay khác, chưa dùng trong baseline hosted checkout. JSON REST-create không phù hợp checkout form protocol. Cộng theo redirect/unverified callback, Redis-only dedupe hoặc provider I/O trong PG tx bị loại. Minimal Node crypto+HTTP giữ exact strings; chưa thêm SDK do doc/repo khác endpoint sandbox và lookup argument cần sandbox kiểm chứng.
+**Alternatives considered**: Giữ protocol SePay bằng đổi tên provider là sai auth/payload. Redirect-based issuance, Redis-only dedupe, provider I/O trong transaction hoặc mặc định sample webhook là paid đều bị loại. Dùng Node crypto theo official golden vector; chưa thêm SDK/dependency. Docs payOS chỉ liệt kê production host, không invent sandbox.
 
 ## 6. State/recovery
 
@@ -78,4 +80,4 @@ IPN SePay xác thực X-Secret-Key với auth type SECRET_KEY; checkout ký HMAC
 
 ## Phase 0 result
 
-Provider SePay và floor phí đã được User xác nhận. Research official checkout/flow/IPN/REST detail/sandbox/SDK ngày 2026-10-15 được ghi tại [contracts/gateway.md](contracts/gateway.md). Blueprint đã cụ thể hóa; merchant setup, signing/lookup/re-submit behavior và full runtime evidence còn Pending cùng các business gates khác. Không giả định provider idempotency/retry schedule chưa được tài liệu cam kết.
+Provider hiện tại là payOS theo User amendment. Official REST/payment-link/webhook/signature docs ngày 2026-10-15 ghi ở [contracts/gateway.md](contracts/gateway.md). Channel setup, create/lookup/retry/partial/late/sample handling và full runtime vẫn Pending. Không chuyển các test SePay cũ thành bằng chứng payOS; validation giữ lịch sử riêng.

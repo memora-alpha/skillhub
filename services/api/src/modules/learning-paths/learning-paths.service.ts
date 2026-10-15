@@ -10,23 +10,14 @@ import { TransactionRunner } from "../../infrastructure/database/transaction-run
 import type { TransactionContext } from "../../infrastructure/database/transaction-context";
 import type { Principal } from "../auth/application/services/sessions.service";
 import { ConversationMembershipReader } from "../conversations/conversation-membership.reader";
-import { CreditWalletReader } from "../credit/credit-wallet.reader";
-import { CreditLedgerService } from "../credit/credit-ledger.service";
+import { CreditWalletReader } from "../credit/application/services/credit-wallet.reader";
+import { CreditLedgerService } from "../credit/application/services/credit-ledger.service";
+import { parseCredit as creditUnits } from "../credit/domain/money";
 import type {
   ChangeLearningPathDto,
   CreateLearningPathDto,
   CreateLearningPlanDto,
 } from "./learning-paths.dto";
-
-function creditUnits(value: string): bigint {
-  if (!/^(?:0|[1-9]\d{0,9})(?:\.\d{1,2})?$/.test(value)) {
-    throw new BadRequestException("INVALID_CREDIT_AMOUNT");
-  }
-  const decimalPoint = value.indexOf(".");
-  const whole = decimalPoint < 0 ? value : value.slice(0, decimalPoint);
-  const fraction = decimalPoint < 0 ? "" : value.slice(decimalPoint + 1);
-  return BigInt(whole) * 100n + BigInt(fraction.padEnd(2, "0"));
-}
 
 async function lockPath(tx: TransactionContext, pathId: string): Promise<void> {
   const rows = await tx.$queryRaw<{ id: string }[]>`

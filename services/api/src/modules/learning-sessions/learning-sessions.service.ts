@@ -10,7 +10,7 @@ import { TransactionRunner } from "../../infrastructure/database/transaction-run
 import type { TransactionContext } from "../../infrastructure/database/transaction-context";
 import { byCodeUnit } from "../../infrastructure/idempotency/idempotency.service";
 import type { Principal } from "../auth/application/services/sessions.service";
-import { CreditLedgerService } from "../credit/credit-ledger.service";
+import { CreditLedgerService } from "../credit/application/services/credit-ledger.service";
 import { ReputationService } from "../reputation/reputation.service";
 import { AchievementsService } from "../reputation/achievements.service";
 import { ReportsService } from "../reports/reports.service";
