@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
@@ -18,7 +19,22 @@ import type {
   RoleCode,
 } from "../../shared/authorization/authorization.types";
 import type { PermissionCode } from "../../shared/authorization/permission.catalog";
-import type { CreateSessionReportDto } from "./reports.dto";
+import { CreditAdjustmentPort } from "../credit/credit.ports";
+import { ReputationService } from "../reputation/reputation.service";
+import type {
+  CreateSessionReportDto,
+  ReportCaseActionDto,
+} from "./reports.dto";
+
+/** Signed Credit text, already format-checked by the DTO, in hundredths. */
+function signedCreditUnits(value: string): bigint {
+  const negative = value.startsWith("-");
+  const [whole = "0", fraction = ""] = (
+    negative ? value.slice(1) : value
+  ).split(".");
+  const units = BigInt(whole) * 100n + BigInt(fraction.padEnd(2, "0"));
+  return negative ? -units : units;
+}
 
 async function lockPath(tx: TransactionContext, pathId: string) {
   const rows = await tx.$queryRaw<
@@ -55,6 +71,8 @@ export class ReportsService {
     private readonly storage: FileStorageService,
     private readonly attachments: FileAttachmentService,
     private readonly audit: AuditWriter,
+    private readonly reputation: ReputationService,
+    private readonly creditAdjustments: CreditAdjustmentPort,
   ) {}
 
   private storageActor(principal: Principal): Actor {
@@ -269,20 +287,28 @@ export class ReportsService {
     );
   }
 
-  async assertPathSettlementAllowed(
+  /** True while an unresolved case on the path holds its final settlement. */
+  async hasBlockingDispute(
     tx: TransactionContext,
-    pathId: string,
-    now: Date,
-  ) {
+    learningPathId: string,
+  ): Promise<boolean> {
     const blockingCase = await tx.reportCase.findFirst({
       where: {
-        relatedPathId: pathId,
+        relatedPathId: learningPathId,
         blocksSettlement: true,
         status: { in: ["OPEN", "UNDER_REVIEW", "NEED_MORE_INFO"] },
       },
       select: { id: true },
     });
-    if (blockingCase)
+    return blockingCase !== null;
+  }
+
+  async assertPathSettlementAllowed(
+    tx: TransactionContext,
+    pathId: string,
+    now: Date,
+  ) {
+    if (await this.hasBlockingDispute(tx, pathId))
       throw new ConflictException("SETTLEMENT_BLOCKED_BY_DISPUTE");
     const sessions = await tx.session.findMany({
       where: { pathId },
@@ -300,9 +326,11 @@ export class ReportsService {
     actor: Principal,
     caseId: string,
     action: "claim" | "need-more-info" | "resolve" | "reject",
-    note?: string,
+    input: ReportCaseActionDto = {},
   ) {
     this.requireStaff(actor);
+    const note = input.note;
+    this.assertResolutionAllowed(actor, action, input);
     return this.transactions.run(async (tx) => {
       const item = await tx.reportCase.findUnique({ where: { id: caseId } });
       if (!item) throw new NotFoundException("REPORT_CASE_NOT_FOUND");
@@ -376,11 +404,15 @@ export class ReportsService {
         },
       });
       await this.auditCaseAction(tx, actor, item, resolved.status, note.trim());
+      if (action === "resolve") {
+        await this.applyResolution(tx, actor, item, input, clock.now);
+      }
       await this.emitCaseUpdated(
         tx,
         resolved.id,
         resolved.reporterId,
         resolved.status,
+        item.relatedPathId,
       );
       const reconcilePathAfterReport = async () => {
         if (item.relatedPathId) {
@@ -425,6 +457,186 @@ export class ReportsService {
     }
   }
 
+  staffCaseDetail(actor: Principal, caseId: string) {
+    this.requireStaff(actor);
+    return this.transactions.run(async (tx) => {
+      const item = await tx.reportCase.findUnique({
+        where: { id: caseId },
+        include: evidenceSummary,
+      });
+      if (!item) throw new NotFoundException("REPORT_CASE_NOT_FOUND");
+      const session = item.relatedSessionId
+        ? await tx.session.findUnique({
+            where: { id: item.relatedSessionId },
+            select: {
+              id: true,
+              planId: true,
+              teacherId: true,
+              learnerId: true,
+              startAt: true,
+              endAt: true,
+              status: true,
+              teacherConfirmationStatus: true,
+              learnerConfirmationStatus: true,
+            },
+          })
+        : null;
+      const path = item.relatedPathId
+        ? await tx.learningPath.findUnique({
+            where: { id: item.relatedPathId },
+            select: {
+              id: true,
+              status: true,
+              participantAId: true,
+              participantBId: true,
+              lockedVersion: true,
+              settledAt: true,
+            },
+          })
+        : null;
+      const [withSizes] = withEvidenceSizeText([item]);
+      return { ...withSizes, session, path };
+    });
+  }
+
+  /** Outcome options exist only on resolve, and each credit/lock power needs its permission. */
+  private assertResolutionAllowed(
+    actor: Principal,
+    action: string,
+    input: ReportCaseActionDto,
+  ) {
+    const requested = {
+      violations: (input.violations?.length ?? 0) > 0,
+      restriction: input.restriction !== undefined,
+      creditAdjustments: (input.creditAdjustments?.length ?? 0) > 0,
+      reversals: (input.reversals?.length ?? 0) > 0,
+    };
+    if (action !== "resolve" && Object.values(requested).some(Boolean)) {
+      throw new BadRequestException("RESOLUTION_OPTIONS_REQUIRE_RESOLVE");
+    }
+    const required: [boolean, PermissionCode][] = [
+      [requested.restriction, "dispute:override"],
+      [requested.creditAdjustments, "credit:adjust"],
+      [requested.reversals, "credit:reverse:settlement"],
+    ];
+    if (
+      required.some(
+        ([wanted, permission]) =>
+          wanted && !actor.permissions.includes(permission),
+      )
+    ) {
+      throw new ForbiddenException("RESOLUTION_PERMISSION_REQUIRED");
+    }
+  }
+
+  /**
+   * Applies the decided outcome inside the resolve transaction: confirmed
+   * violations, an adjudicated lock, and new compensating credit entries that
+   * reference the case. Any failure rolls the whole resolution back.
+   */
+  private async applyResolution(
+    tx: TransactionContext,
+    actor: Principal,
+    item: { id: string; relatedPathId: string | null },
+    input: ReportCaseActionDto,
+    now: Date,
+  ) {
+    const violations = input.violations ?? [];
+    const adjustments = input.creditAdjustments ?? [];
+    const reversals = input.reversals ?? [];
+    const targets = [
+      ...violations,
+      ...adjustments,
+      ...(input.restriction ? [input.restriction] : []),
+    ];
+    if (targets.length === 0 && reversals.length === 0) return;
+    const path = item.relatedPathId
+      ? await tx.learningPath.findUnique({ where: { id: item.relatedPathId } })
+      : null;
+    if (!path) throw new ConflictException("REPORT_CASE_PATH_REQUIRED");
+    const participants = new Set([path.participantAId, path.participantBId]);
+    if (targets.some(({ userId }) => !participants.has(userId))) {
+      throw new BadRequestException("RESOLUTION_TARGET_NOT_PARTICIPANT");
+    }
+    const reason = input.note!.trim();
+    const auditActor = this.auditActor(actor);
+    const context = { requestId: randomUUID(), correlationId: randomUUID() };
+    for (const violation of violations) {
+      await this.reputation.applyViolation(tx, {
+        ...violation,
+        sourceId: item.id,
+        eventKey: `report-case:${item.id}:${violation.reasonCode}:${violation.userId}`,
+        now,
+      });
+    }
+    if (input.restriction) {
+      await this.reputation.applyAdjudicatedRestriction(tx, {
+        ...input.restriction,
+        caseId: item.id,
+        actor: auditActor,
+        reason,
+        now,
+      });
+    }
+    for (const [index, adjustment] of adjustments.entries()) {
+      const amount = signedCreditUnits(adjustment.amount);
+      if (amount === 0n) throw new BadRequestException("INVALID_CREDIT_AMOUNT");
+      const { operationId } = await this.creditAdjustments.adjust(tx, {
+        userId: adjustment.userId,
+        amount,
+        referenceType: "REPORT_CASE",
+        referenceId: item.id,
+        actorId: actor.userId,
+        reason,
+        idempotencyKey: `report-case:${item.id}:adjust:${index}`,
+      });
+      await this.audit.append(tx, {
+        actor: auditActor,
+        action: "CREDIT_ADJUST",
+        target: { type: "USER", id: adjustment.userId },
+        after: { amount: amount.toString(), operationId, referenceId: item.id },
+        reason,
+        context,
+      });
+    }
+    for (const reversal of reversals) {
+      const operation = await tx.creditOperation.findUnique({
+        where: { id: reversal.operationId },
+        select: { referenceId: true },
+      });
+      if (operation?.referenceId !== path.id) {
+        throw new BadRequestException("REVERSAL_OPERATION_NOT_IN_PATH");
+      }
+      const { operationId } = await this.creditAdjustments.reverse(tx, {
+        operationId: reversal.operationId,
+        referenceType: "REPORT_CASE",
+        referenceId: item.id,
+        actorId: actor.userId,
+        reason,
+        idempotencyKey: `report-case:${item.id}:reverse:${reversal.operationId}`,
+      });
+      await this.audit.append(tx, {
+        actor: auditActor,
+        action: "CREDIT_REVERSE",
+        target: { type: "CREDIT_OPERATION", id: reversal.operationId },
+        after: { operationId, referenceId: item.id },
+        reason,
+        context,
+      });
+    }
+  }
+
+  private auditActor(actor: Principal): AuditActor {
+    return {
+      kind: "HUMAN",
+      userId: actor.userId,
+      roles: actor.roles.filter(
+        (role): role is RoleCode =>
+          role === "USER" || role === "STAFF" || role === "ADMIN",
+      ),
+    };
+  }
+
   private disputeDeadline(sessionEndAt: Date): Date {
     return new Date(sessionEndAt.getTime() + 48 * 60 * 60 * 1_000);
   }
@@ -436,17 +648,8 @@ export class ReportsService {
     status: string,
     reason: string,
   ) {
-    const validRoles = actor.roles.filter(
-      (role): role is RoleCode =>
-        role === "USER" || role === "STAFF" || role === "ADMIN",
-    );
-    const auditActor: AuditActor = {
-      kind: "HUMAN",
-      userId: actor.userId,
-      roles: validRoles,
-    };
     await this.audit.append(tx, {
-      actor: auditActor,
+      actor: this.auditActor(actor),
       action: "REPORT_CASE_UPDATE",
       target: { type: "REPORT_CASE", id: before.id },
       before: { status: before.status },
@@ -461,6 +664,7 @@ export class ReportsService {
     caseId: string,
     reporterId: string,
     status: string,
+    pathId?: string | null,
   ) {
     await tx.outboxEvent.create({
       data: {
@@ -468,7 +672,7 @@ export class ReportsService {
         aggregateId: caseId,
         version: 1,
         type: "report.case.updated",
-        payload: { caseId, reporterId, status },
+        payload: { caseId, reporterId, status, ...(pathId ? { pathId } : {}) },
         dedupeKey: `report-case-updated:${caseId}:${status}`,
         correlationId: randomUUID(),
       },

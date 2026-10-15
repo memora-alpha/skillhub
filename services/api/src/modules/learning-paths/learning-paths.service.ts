@@ -9,14 +9,25 @@ import { randomUUID } from "node:crypto";
 import { TransactionRunner } from "../../infrastructure/database/transaction-runner";
 import type { TransactionContext } from "../../infrastructure/database/transaction-context";
 import type { Principal } from "../auth/application/services/sessions.service";
+import { IdempotencyService } from "../../infrastructure/idempotency/idempotency.service";
 import { ConversationMembershipReader } from "../conversations/conversation-membership.reader";
-import { CreditWalletReader } from "../credit/credit-wallet.reader";
-import { CreditLedgerService } from "../credit/credit-ledger.service";
+import { WalletPort } from "../credit/credit.ports";
+import { SystemConfigurationService } from "../system-configuration/application/system-configuration.service";
 import type {
   ChangeLearningPathDto,
   CreateLearningPathDto,
   CreateLearningPlanDto,
 } from "./learning-paths.dto";
+
+/** SRS 1.6: a TWO_WAY agreement commits at least 20 Credit per user. */
+const minimumTwoWayCreditUnits = 2000n;
+
+/** Terms, plans and schedules stay negotiable until the path is locked. */
+const editableBeforeLock = new Set([
+  "PROPOSED",
+  "PARTIALLY_CONFIRMED",
+  "CONFIRMED",
+]);
 
 function creditUnits(value: string): bigint {
   if (!/^(?:0|[1-9]\d{0,9})(?:\.\d{1,2})?$/.test(value)) {
@@ -91,8 +102,9 @@ export class LearningPathsService {
   constructor(
     private readonly transactions: TransactionRunner,
     private readonly conversations: ConversationMembershipReader,
-    private readonly wallets: CreditWalletReader,
-    private readonly creditLedger: CreditLedgerService,
+    private readonly wallet: WalletPort,
+    private readonly configuration: SystemConfigurationService,
+    private readonly commands: IdempotencyService,
   ) {}
 
   listMine(actor: Principal) {
@@ -363,7 +375,7 @@ export class LearningPathsService {
       ) {
         throw new ForbiddenException("LEARNING_PATH_ACCESS_DENIED");
       }
-      if (path.status !== "PROPOSED" && path.status !== "PARTIALLY_CONFIRMED") {
+      if (!editableBeforeLock.has(path.status)) {
         throw new ConflictException("LEARNING_PATH_NOT_EDITABLE");
       }
       if (path.currentVersion !== input.expectedVersion) {
@@ -444,10 +456,7 @@ export class LearningPathsService {
     return this.transactions.run(async (tx) => {
       await lockPath(tx, pathId);
       const path = await tx.learningPath.findUnique({ where: { id: pathId } });
-      if (
-        !path ||
-        (path.status !== "PROPOSED" && path.status !== "PARTIALLY_CONFIRMED")
-      ) {
+      if (!path || !editableBeforeLock.has(path.status)) {
         throw new ConflictException("LEARNING_PATH_NOT_EDITABLE");
       }
       const version = await tx.learningPathVersion.findUnique({
@@ -643,7 +652,11 @@ export class LearningPathsService {
             ownedPlanRecord.teacherId === path.participantBId &&
             ownedPlanRecord.learnerId === path.participantAId,
         );
-        if (!aToB || !bToA || (agreement.totalCreditPerUser ?? 0n) < 2000n) {
+        if (
+          !aToB ||
+          !bToA ||
+          (agreement.totalCreditPerUser ?? 0n) < minimumTwoWayCreditUnits
+        ) {
           throw new ConflictException("INVALID_TWO_WAY_AGREEMENT");
         }
       } else if (
@@ -664,10 +677,12 @@ export class LearningPathsService {
         scheduleItemScheduleVersionRecords: true,
       },
     });
+    // Partially confirmed schedules stay in scope so they fail as SCHEDULE_NOT_CONFIRMED.
     const currentSchedules = scheduleVersions.filter(
       (schedule) =>
         schedule.proposalRecord.currentVersion === schedule.versionNo &&
-        schedule.proposalRecord.status === "PROPOSED",
+        (schedule.proposalRecord.status === "PROPOSED" ||
+          schedule.proposalRecord.status === "PARTIALLY_CONFIRMED"),
     );
     if (currentSchedules.length !== expectedPlanCount) {
       throw new ConflictException("REQUIRED_SCHEDULE_PROPOSAL_MISSING");
@@ -713,12 +728,21 @@ export class LearningPathsService {
     if (!(clock?.now instanceof Date)) {
       throw new ConflictException("DATABASE_TIME_UNAVAILABLE");
     }
+    const { values } = await this.configuration.getSnapshot(
+      ["session.durationMinutes"],
+      tx,
+    );
+    const durationMinutes = values["session.durationMinutes"];
     const validateScheduleTimes = () => {
       if (
         orderedItems.some((item) => {
           const duration =
             (item.endAt.getTime() - item.startAt.getTime()) / 60_000;
-          return item.startAt <= clock.now || duration < 60 || duration > 180;
+          return (
+            item.startAt <= clock.now ||
+            duration < durationMinutes.min ||
+            duration > durationMinutes.max
+          );
         })
       ) {
         throw new ConflictException("INVALID_SCHEDULE_ITEMS");
@@ -760,7 +784,7 @@ export class LearningPathsService {
       agreement.exchangeType === "TWO_WAY"
         ? [path.participantAId, path.participantBId]
         : [agreement.learnerId!];
-    const balances = await this.wallets.balances(tx, payerIds);
+    const balances = await this.wallet.availableBalances(tx, payerIds);
     const required =
       agreement.exchangeType === "TWO_WAY"
         ? agreement.totalCreditPerUser!
@@ -783,208 +807,241 @@ export class LearningPathsService {
     };
   }
 
-  async finalize(actor: Principal, pathId: string, expectedVersion: number) {
-    return this.transactions.run(async (tx) => {
-      await lockPath(tx, pathId);
-      const path = await tx.learningPath.findUniqueOrThrow({
-        where: { id: pathId },
-      });
-      if (
-        actor.userId !== path.participantAId &&
-        actor.userId !== path.participantBId
-      ) {
-        throw new ForbiddenException("LEARNING_PATH_ACCESS_DENIED");
-      }
-      if (
-        path.status === "SCHEDULED" ||
-        path.status === "ACTIVE" ||
-        path.status === "COMPLETED"
-      ) {
-        if (path.lockedVersion !== expectedVersion) {
-          throw new ConflictException("STALE_LEARNING_PATH_VERSION");
-        }
-        const sessions = await tx.session.findMany({
-          where: { pathId },
-          orderBy: [{ planId: "asc" }, { outlineSessionNo: "asc" }],
-          select: {
-            id: true,
-            planId: true,
-            startAt: true,
-            endAt: true,
-            status: true,
-          },
-        });
-        return {
-          pathId,
-          version: expectedVersion,
-          sessions,
-          status: path.status,
-        };
-      }
-      const validation = await this.validateForFinalizeTx(tx, actor, pathId);
-      if (validation.version !== expectedVersion) {
+  async finalize(
+    command: { principal: Principal; key: string },
+    pathId: string,
+    expectedVersion: number,
+  ) {
+    const actor = command.principal;
+    let fresh: Awaited<ReturnType<typeof this.finalizeTx>> | undefined;
+    const { replayed } = await this.commands.execute(
+      {
+        scope: actor.userId,
+        operation: "learning-path:finalize",
+        key: command.key,
+        command: { pathId, expectedVersion },
+      },
+      async (tx) => {
+        fresh = await this.finalizeTx(tx, actor, pathId, expectedVersion);
+        return { id: pathId, status: fresh.status, version: expectedVersion };
+      },
+    );
+    if (fresh && !replayed) return fresh;
+    // A replay reads the locked path; finalizeTx only reads once it is locked.
+    return this.transactions.run((tx) =>
+      this.finalizeTx(tx, actor, pathId, expectedVersion),
+    );
+  }
+
+  private async finalizeTx(
+    tx: TransactionContext,
+    actor: Principal,
+    pathId: string,
+    expectedVersion: number,
+  ) {
+    await lockPath(tx, pathId);
+    const path = await tx.learningPath.findUniqueOrThrow({
+      where: { id: pathId },
+    });
+    if (
+      actor.userId !== path.participantAId &&
+      actor.userId !== path.participantBId
+    ) {
+      throw new ForbiddenException("LEARNING_PATH_ACCESS_DENIED");
+    }
+    if (
+      path.status === "SCHEDULED" ||
+      path.status === "ACTIVE" ||
+      path.status === "COMPLETED"
+    ) {
+      if (path.lockedVersion !== expectedVersion) {
         throw new ConflictException("STALE_LEARNING_PATH_VERSION");
       }
-      const agreement = await tx.learningPathVersion.findUniqueOrThrow({
-        where: {
-          pathId_versionNo: { pathId, versionNo: expectedVersion },
-        },
-      });
-      const pathPlans = await tx.pathVersionPlan.findMany({
-        where: { pathId, pathVersion: expectedVersion },
-        include: { ownedPlanRecord: true },
-      });
-      const schedules = await tx.scheduleVersion.findMany({
-        where: { pathId, pathVersion: expectedVersion },
-        include: {
-          proposalRecord: true,
-          scheduleItemScheduleVersionRecords: true,
-        },
-      });
-      const currentSchedules = schedules.filter(
-        (schedule) =>
-          schedule.proposalRecord.currentVersion === schedule.versionNo &&
-          schedule.proposalRecord.status === "PROPOSED",
-      );
-      const sessionIds: string[] = [];
-      const sessionEntries = currentSchedules.flatMap((schedule) =>
-        schedule.scheduleItemScheduleVersionRecords.map((item) => {
-          const plan = pathPlans.find(({ planId }) => planId === item.planId);
-          if (!plan || plan.planVersion !== item.planVersion) {
-            throw new ConflictException("STALE_LEARNING_PLAN_VERSION");
-          }
-          const id = randomUUID();
-          sessionIds.push(id);
-          return {
-            scheduleItemId: item.id,
-            id,
-            pathId,
-            planId: plan.planId,
-            planVersion: plan.planVersion,
-            outlineSessionNo: item.sessionNo,
-            teacherId: plan.ownedPlanRecord.teacherId,
-            learnerId: plan.ownedPlanRecord.learnerId,
-            startAt: item.startAt,
-            endAt: item.endAt,
-            status: "CONFIRMED" as const,
-          };
-        }),
-      );
-      const [clock] = await tx.$queryRaw<{ now: Date }[]>`
-        SELECT CURRENT_TIMESTAMP AS now
-      `;
-      if (!(clock?.now instanceof Date)) {
-        throw new ConflictException("DATABASE_TIME_UNAVAILABLE");
-      }
-      const feePolicy = await tx.feePolicyVersion.findFirst({
-        where: {
-          policyCode: agreement.exchangeType,
-          status: "APPROVED",
-          approvedAt: { not: null },
-          effectiveAt: { lte: clock.now },
-        },
-        orderBy: [{ effectiveAt: "desc" }, { versionNo: "desc" }],
-      });
-      if (!feePolicy)
-        throw new ConflictException("APPROVED_FEE_POLICY_REQUIRED");
-      const feeRule = feePolicy.calculationRule as {
-        returnedBps?: unknown;
-        feeBps?: unknown;
-      };
-      const roundingRule = feePolicy.roundingRule as {
-        mode?: unknown;
-        precision?: unknown;
-      };
-      if (
-        feeRule.returnedBps !== 9600 ||
-        feeRule.feeBps !== 400 ||
-        roundingRule.mode !== "DOWN" ||
-        roundingRule.precision !== 2
-      ) {
-        throw new ConflictException("UNSUPPORTED_FEE_POLICY");
-      }
-      const payerCount = agreement.exchangeType === "TWO_WAY" ? 2n : 1n;
-      const grossPerPayer =
-        agreement.exchangeType === "TWO_WAY"
-          ? agreement.totalCreditPerUser!
-          : agreement.negotiatedCredit!;
-      const feeSnapshot = ((grossPerPayer * 400n) / 10_000n) * payerCount;
-      await tx.learningPathVersion.update({
-        where: { pathId_versionNo: { pathId, versionNo: expectedVersion } },
-        data: {
-          feePolicyId: feePolicy.id,
-          feeRateSnapshot: "0.04",
-          feeAmountSnapshot: feeSnapshot,
-          roundingSnapshot: { mode: "DOWN", precision: 2 },
-        },
-      });
-      await this.creditLedger.holdPath(tx, {
-        pathId,
-        pathVersion: expectedVersion,
-        exchangeType: agreement.exchangeType,
-        participantAId: path.participantAId,
-        participantBId: path.participantBId,
-        teacherId: agreement.teacherId,
-        learnerId: agreement.learnerId,
-        totalCreditPerUser: agreement.totalCreditPerUser,
-        negotiatedCredit: agreement.negotiatedCredit,
-      });
-      const sessions = sessionEntries.map((entry) => ({
-        id: entry.id,
-        pathId: entry.pathId,
-        planId: entry.planId,
-        planVersion: entry.planVersion,
-        outlineSessionNo: entry.outlineSessionNo,
-        teacherId: entry.teacherId,
-        learnerId: entry.learnerId,
-        startAt: entry.startAt,
-        endAt: entry.endAt,
-        status: entry.status,
-      }));
-      if (sessions.length !== 0)
-        await tx.session.createMany({ data: sessions });
-      if (sessionEntries.length !== 0) {
-        await tx.sessionScheduleHistory.createMany({
-          data: sessionEntries.map((entry) => ({
-            sessionId: entry.id,
-            scheduleItemId: entry.scheduleItemId,
-            appliedAt: clock.now,
-          })),
-        });
-      }
-      for (const schedule of currentSchedules) {
-        await tx.scheduleProposal.update({
-          where: { id: schedule.scheduleProposalId },
-          data: { status: "LOCKED", appliedVersion: schedule.versionNo },
-        });
-      }
-      await tx.learningPath.update({
-        where: { id: pathId },
-        data: { status: "SCHEDULED", lockedVersion: expectedVersion },
-      });
-      await tx.outboxEvent.create({
-        data: {
-          aggregateType: "LEARNING_PATH",
-          aggregateId: pathId,
-          version: expectedVersion,
-          type: "learning-path.locked",
-          payload: { pathId, sessionIds },
-          dedupeKey: `learning-path-locked:${pathId}:v${expectedVersion}`,
-          correlationId: randomUUID(),
+      const sessions = await tx.session.findMany({
+        where: { pathId },
+        orderBy: [{ planId: "asc" }, { outlineSessionNo: "asc" }],
+        select: {
+          id: true,
+          planId: true,
+          startAt: true,
+          endAt: true,
+          status: true,
         },
       });
       return {
         pathId,
         version: expectedVersion,
-        sessions: sessions.map(({ id, planId, startAt, endAt }) => ({
-          id,
-          planId,
-          startAt,
-          endAt,
-        })),
-        status: "SCHEDULED" as const,
+        sessions,
+        status: path.status,
       };
+    }
+    const validation = await this.validateForFinalizeTx(tx, actor, pathId);
+    if (validation.version !== expectedVersion) {
+      throw new ConflictException("STALE_LEARNING_PATH_VERSION");
+    }
+    const agreement = await tx.learningPathVersion.findUniqueOrThrow({
+      where: {
+        pathId_versionNo: { pathId, versionNo: expectedVersion },
+      },
     });
+    const pathPlans = await tx.pathVersionPlan.findMany({
+      where: { pathId, pathVersion: expectedVersion },
+      include: { ownedPlanRecord: true },
+    });
+    const schedules = await tx.scheduleVersion.findMany({
+      where: { pathId, pathVersion: expectedVersion },
+      include: {
+        proposalRecord: true,
+        scheduleItemScheduleVersionRecords: true,
+      },
+    });
+    const currentSchedules = schedules.filter(
+      (schedule) =>
+        schedule.proposalRecord.currentVersion === schedule.versionNo &&
+        schedule.proposalRecord.status === "PROPOSED",
+    );
+    const sessionIds: string[] = [];
+    const sessionEntries = currentSchedules.flatMap((schedule) =>
+      schedule.scheduleItemScheduleVersionRecords.map((item) => {
+        const plan = pathPlans.find(({ planId }) => planId === item.planId);
+        if (!plan || plan.planVersion !== item.planVersion) {
+          throw new ConflictException("STALE_LEARNING_PLAN_VERSION");
+        }
+        const id = randomUUID();
+        sessionIds.push(id);
+        return {
+          scheduleItemId: item.id,
+          id,
+          pathId,
+          planId: plan.planId,
+          planVersion: plan.planVersion,
+          outlineSessionNo: item.sessionNo,
+          teacherId: plan.ownedPlanRecord.teacherId,
+          learnerId: plan.ownedPlanRecord.learnerId,
+          startAt: item.startAt,
+          endAt: item.endAt,
+          status: "CONFIRMED" as const,
+        };
+      }),
+    );
+    const [clock] = await tx.$queryRaw<{ now: Date }[]>`
+        SELECT CURRENT_TIMESTAMP AS now
+      `;
+    if (!(clock?.now instanceof Date)) {
+      throw new ConflictException("DATABASE_TIME_UNAVAILABLE");
+    }
+    const feePolicy = await tx.feePolicyVersion.findFirst({
+      where: {
+        policyCode: agreement.exchangeType,
+        status: "APPROVED",
+        approvedAt: { not: null },
+        effectiveAt: { lte: clock.now },
+      },
+      orderBy: [{ effectiveAt: "desc" }, { versionNo: "desc" }],
+    });
+    if (!feePolicy) throw new ConflictException("APPROVED_FEE_POLICY_REQUIRED");
+    const feeRule = feePolicy.calculationRule as {
+      returnedBps?: unknown;
+      feeBps?: unknown;
+    };
+    const roundingRule = feePolicy.roundingRule as {
+      mode?: unknown;
+      precision?: unknown;
+    };
+    const { values } = await this.configuration.getSnapshot(
+      ["credit.pathSettlementBps"],
+      tx,
+    );
+    const settlementBps = values["credit.pathSettlementBps"];
+    if (
+      feeRule.returnedBps !== settlementBps.returned ||
+      feeRule.feeBps !== settlementBps.fee ||
+      roundingRule.mode !== "DOWN" ||
+      roundingRule.precision !== 2
+    ) {
+      throw new ConflictException("UNSUPPORTED_FEE_POLICY");
+    }
+    const payerCount = agreement.exchangeType === "TWO_WAY" ? 2n : 1n;
+    const grossPerPayer =
+      agreement.exchangeType === "TWO_WAY"
+        ? agreement.totalCreditPerUser!
+        : agreement.negotiatedCredit!;
+    const feeSnapshot =
+      ((grossPerPayer * BigInt(settlementBps.fee)) / 10_000n) * payerCount;
+    await tx.learningPathVersion.update({
+      where: { pathId_versionNo: { pathId, versionNo: expectedVersion } },
+      data: {
+        feePolicyId: feePolicy.id,
+        feeRateSnapshot: String(settlementBps.fee / 10_000),
+        feeAmountSnapshot: feeSnapshot,
+        roundingSnapshot: { mode: "DOWN", precision: 2 },
+      },
+    });
+    await this.wallet.holdForPath(tx, {
+      pathId,
+      pathVersion: expectedVersion,
+      exchangeType: agreement.exchangeType,
+      participantAId: path.participantAId,
+      participantBId: path.participantBId,
+      teacherId: agreement.teacherId,
+      learnerId: agreement.learnerId,
+      totalCreditPerUser: agreement.totalCreditPerUser,
+      negotiatedCredit: agreement.negotiatedCredit,
+    });
+    const sessions = sessionEntries.map((entry) => ({
+      id: entry.id,
+      pathId: entry.pathId,
+      planId: entry.planId,
+      planVersion: entry.planVersion,
+      outlineSessionNo: entry.outlineSessionNo,
+      teacherId: entry.teacherId,
+      learnerId: entry.learnerId,
+      startAt: entry.startAt,
+      endAt: entry.endAt,
+      status: entry.status,
+    }));
+    if (sessions.length !== 0) await tx.session.createMany({ data: sessions });
+    if (sessionEntries.length !== 0) {
+      await tx.sessionScheduleHistory.createMany({
+        data: sessionEntries.map((entry) => ({
+          sessionId: entry.id,
+          scheduleItemId: entry.scheduleItemId,
+          appliedAt: clock.now,
+        })),
+      });
+    }
+    for (const schedule of currentSchedules) {
+      await tx.scheduleProposal.update({
+        where: { id: schedule.scheduleProposalId },
+        data: { status: "LOCKED", appliedVersion: schedule.versionNo },
+      });
+    }
+    await tx.learningPath.update({
+      where: { id: pathId },
+      data: { status: "SCHEDULED", lockedVersion: expectedVersion },
+    });
+    await tx.outboxEvent.create({
+      data: {
+        aggregateType: "LEARNING_PATH",
+        aggregateId: pathId,
+        version: expectedVersion,
+        type: "learning-path.locked",
+        payload: { pathId, sessionIds },
+        dedupeKey: `learning-path-locked:${pathId}:v${expectedVersion}`,
+        correlationId: randomUUID(),
+      },
+    });
+    return {
+      pathId,
+      version: expectedVersion,
+      sessions: sessions.map(({ id, planId, startAt, endAt }) => ({
+        id,
+        planId,
+        startAt,
+        endAt,
+      })),
+      status: "SCHEDULED" as const,
+    };
   }
 
   async confirmPlan(actor: Principal, planId: string, expectedVersion: number) {
@@ -1074,7 +1131,7 @@ export class LearningPathsService {
       const path = await tx.learningPath.findUniqueOrThrow({
         where: { id: locked.pathId },
       });
-      if (path.status !== "PROPOSED" && path.status !== "PARTIALLY_CONFIRMED") {
+      if (!editableBeforeLock.has(path.status)) {
         throw new ConflictException("LEARNING_PATH_NOT_EDITABLE");
       }
       const currentPathVersion = await tx.learningPathVersion.findUniqueOrThrow(

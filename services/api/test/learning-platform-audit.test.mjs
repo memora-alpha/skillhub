@@ -177,6 +177,11 @@ test("an applied reschedule is audited with old and new session times", async ()
   const service = new SchedulingService(
     { run: (work) => work(tx) },
     new AuditWriter(new AuditRepository()),
+    {
+      getSnapshot: async () => ({
+        values: { "schedule.rescheduleCutoffMinutes": 60 },
+      }),
+    },
   );
 
   const result = await service.confirmProposal(
