@@ -1,6 +1,5 @@
 import { z } from "zod";
 import {
-  skillLevels,
   type OwnSkill,
   type SkillInput,
   type SkillPatch,
@@ -11,7 +10,7 @@ export function normalizeYears(value: string): string | null {
 }
 export const skillFormSchema = z.object({
   skillId: z.uuid("Chọn kỹ năng từ danh mục."),
-  level: z.enum(skillLevels),
+  levelId: z.uuid("Chọn trình độ của kỹ năng."),
   description: z
     .string()
     .transform(normalizeText)
@@ -29,7 +28,7 @@ export type SkillFormValues = z.input<typeof skillFormSchema>;
 export function formValues(skill?: OwnSkill): SkillFormValues {
   return {
     skillId: skill?.skill.id ?? "",
-    level: skill?.level ?? "BEGINNER",
+    levelId: skill?.levelId ?? "",
     description: skill?.description ?? "",
     experienceYears: skill?.experienceYears ?? "",
     isVisible: skill?.isVisible ?? true,
@@ -41,7 +40,7 @@ export function skillInput(values: SkillFormValues): SkillInput {
 }
 export function skillPatch(skill: OwnSkill, input: SkillInput): SkillPatch {
   const patch: SkillPatch = { expectedVersion: skill.version };
-  if (input.level !== skill.level) patch.level = input.level;
+  if (input.levelId !== skill.levelId) patch.levelId = input.levelId;
   if (input.description !== skill.description)
     patch.description = input.description;
   if (

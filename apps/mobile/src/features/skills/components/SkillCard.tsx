@@ -6,12 +6,8 @@ import {
   signedInChrome,
   skillLevelColors,
 } from "@/constants/theme";
-import {
-  levelLabels,
-  badgeLabels,
-  type PublicSkill,
-  type OwnSkill,
-} from "../types/skills";
+import { badgeLabels, type PublicSkill, type OwnSkill } from "../types/skills";
+import { skillLevelLabel } from "../utils/skill-level";
 import { VerificationBadge } from "./VerificationBadge";
 import { hasPendingVerification } from "../utils/verification-state";
 
@@ -40,7 +36,7 @@ export function SkillCard({
           {skill.skill.name}
         </Text>
         <View style={styles.levelBadge}>
-          <Text style={styles.level}>{levelLabels[skill.level]}</Text>
+          <Text style={styles.level}>{skillLevelLabel(skill)}</Text>
         </View>
       </View>
       <View style={styles.statusRow}>
@@ -75,7 +71,7 @@ export function SkillCard({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`Xem kỹ năng: ${skill.skill.name}`}
-      accessibilityHint={`${levelLabels[skill.level]}. ${badgeLabels[skill.verificationStatus]}${visibilityHint}`}
+      accessibilityHint={`${skillLevelLabel(skill)}. ${badgeLabels[skill.verificationStatus]}${visibilityHint}`}
       onPress={onPress}
       style={({ pressed }) => [styles.card, pressed && styles.pressed]}
     >
@@ -110,7 +106,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: skillLevelColors.border,
     backgroundColor: skillLevelColors.background,
-    flexShrink: 0,
+    flexShrink: 1,
+    maxWidth: "100%",
   },
   level: {
     ...typography.caption,

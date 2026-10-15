@@ -21,6 +21,7 @@ test("skill form validates Unicode code points after NFC and trim", () => {
   const values = {
     ...formValues(),
     skillId: ids.skill,
+    levelId: ids.level,
     description: `  ${"😀".repeat(20)}  `,
   };
   assert.equal(skillInput(values).description, "😀".repeat(20));
@@ -39,6 +40,7 @@ test("experience years keeps decimal strings, accepts comma, and clears with nul
   const values = {
     ...formValues(),
     skillId: ids.skill,
+    levelId: ids.level,
     description: ownSkill.description,
   };
   assert.equal(

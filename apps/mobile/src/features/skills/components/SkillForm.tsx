@@ -28,6 +28,7 @@ import {
   type SkillFormValues,
 } from "../schemas/skill-form";
 import type { OwnSkill, CatalogSkill } from "../types/skills";
+import { useSkillLevelForm } from "../hooks/use-skill-levels";
 
 export function SkillForm({ initial }: Readonly<{ initial?: OwnSkill }>) {
   const { api } = useSkills();
@@ -55,6 +56,7 @@ export function SkillForm({ initial }: Readonly<{ initial?: OwnSkill }>) {
         skillPatch(baseline, {
           ...serverSnapshot,
           skillId: serverSnapshot.skill.id,
+          levelId: serverSnapshot.levelId ?? "",
         }),
       ).length === 1
     )
@@ -76,6 +78,7 @@ export function SkillForm({ initial }: Readonly<{ initial?: OwnSkill }>) {
     defaultValues: formValues(initial),
   });
   const values = form.watch();
+  const { levels, levelValid } = useSkillLevelForm(form, baseline);
   const parsed = skillFormSchema.safeParse(values);
   const changed =
     parsed.success &&
@@ -90,6 +93,7 @@ export function SkillForm({ initial }: Readonly<{ initial?: OwnSkill }>) {
   const save = form.handleSubmit(async (values) => {
     if (
       locked() ||
+      !levelValid ||
       (!changed && !created) ||
       (saveWithEvidence && !evidenceState.valid)
     )
@@ -121,7 +125,13 @@ export function SkillForm({ initial }: Readonly<{ initial?: OwnSkill }>) {
         selected={selected}
         form={form}
         disabled={pending}
+        levels={levels}
         onSelect={(skill) => {
+          if (values.skillId !== skill.id)
+            form.setValue("levelId", "", {
+              shouldValidate: true,
+              shouldDirty: true,
+            });
           setSelected(skill);
           form.setValue("skillId", skill.id, {
             shouldValidate: true,
@@ -171,6 +181,7 @@ export function SkillForm({ initial }: Readonly<{ initial?: OwnSkill }>) {
         style={{ borderRadius: 12, minHeight: 48 }}
         disabled={
           pending ||
+          !levelValid ||
           !form.formState.isValid ||
           (!changed && !created) ||
           (saveWithEvidence && !evidenceState.valid) ||

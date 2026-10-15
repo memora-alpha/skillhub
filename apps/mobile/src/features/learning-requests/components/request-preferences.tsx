@@ -29,7 +29,7 @@ export function RequestPreferences({
           {request.offeredSharingSkills.map((item) => (
             <Badge
               key={item.id}
-              label={`${item.skill.name} · ${uiLabel(item.level)}${item.verificationStatus === "VERIFIED" ? " · Đã xác minh" : ""}`}
+              label={`${item.skill.name} · ${item.skillLevel?.name ?? uiLabel(item.level)}${item.verificationStatus === "VERIFIED" ? " · Đã xác minh" : ""}`}
             />
           ))}
         </View>
