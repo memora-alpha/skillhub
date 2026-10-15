@@ -28,7 +28,7 @@ import {
 import type { Principal } from "../auth/application/services/sessions.service";
 import { getOrCreateRequestContext } from "../../shared/http/request-context";
 import { success } from "../../shared/http/response";
-import { CreateSessionReportDto } from "./reports.dto";
+import { CreateSessionReportDto, ReportCaseActionDto } from "./reports.dto";
 import { ReportsService } from "./reports.service";
 
 @ApiTags("reports")
@@ -110,18 +110,26 @@ export class ReportsController {
     return success(await this.reports.staffQueue(actor));
   }
 
+  @Get("staff/:caseId")
+  async staffCaseDetail(
+    @CurrentIdentity() actor: Principal,
+    @Param("caseId", ParseUUIDPipe) caseId: string,
+  ) {
+    return success(await this.reports.staffCaseDetail(actor, caseId));
+  }
+
   @Post("staff/:caseId/:action")
   async staffAction(
     @CurrentIdentity() actor: Principal,
     @Param("caseId", ParseUUIDPipe) caseId: string,
     @Param("action") action: "claim" | "need-more-info" | "resolve" | "reject",
-    @Body("note") note?: string,
+    @Body() body: ReportCaseActionDto,
   ) {
     if (!["claim", "need-more-info", "resolve", "reject"].includes(action)) {
       throw new BadRequestException("INVALID_REPORT_ACTION");
     }
     return success(
-      await this.reports.updateCase(actor, caseId, action, note),
+      await this.reports.updateCase(actor, caseId, action, body),
       "Report case updated.",
     );
   }
