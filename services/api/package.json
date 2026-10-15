@@ -43,6 +43,7 @@
     "test:audit:integration": "node test/require-integration-env.mjs && nest build && node --test --test-concurrency=1 test/audit-persistence.test.mjs test/audit-transaction.test.mjs test/configuration-update-persistence.test.mjs",
     "test:configuration": "nest build && node --test test/time-policy.test.mjs test/postgres-timezone.test.mjs test/configuration-policy.test.mjs test/configuration-persistence.test.mjs test/configuration-update.test.mjs test/provider-configuration.test.mjs test/log-privacy.test.mjs",
     "test:configuration:integration": "node test/require-integration-env.mjs && nest build && node --test --test-concurrency=1 test/configuration-update-persistence.test.mjs",
+    "test:bigint-responses": "nest build && node --test test/bigint-responses.test.mjs",
     "test:files": "nest build && node --test test/file-policy.test.mjs test/file-detector.test.mjs test/file-storage.test.mjs test/file-download.test.mjs test/file-access-http.test.mjs test/file-scan.test.mjs test/file-reconciliation.test.mjs test/clamav-scanner.test.mjs test/s3-storage.test.mjs",
     "test:files:integration": "node test/require-integration-env.mjs && nest build && node --test --test-concurrency=1 test/file-storage-persistence.test.mjs test/file-scan-recovery.test.mjs",
     "test:skills": "nest build && node --test test/skills/policies.test.mjs test/skills/request-offerings-batch.test.mjs",
