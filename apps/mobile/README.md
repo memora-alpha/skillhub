@@ -7,7 +7,7 @@ monorepo alongside the web application and API service.
 ## Requirements
 
 - Node.js 22.13+ on the 22.x line, or Node.js 24.3+.
-- npm for independent mobile development; pnpm for root workspace commands.
+- pnpm 10.24.0, as pinned in the root `package.json`.
 - A running SkillHub API for authentication and account features.
 
 ## Quick start
@@ -15,8 +15,8 @@ monorepo alongside the web application and API service.
 From the repository root:
 
 ```powershell
+pnpm install
 cd apps/mobile
-npm install
 if (-not (Test-Path .env)) { Copy-Item .env.example .env }
 ```
 
@@ -29,11 +29,11 @@ EXPO_PUBLIC_API_URL=http://localhost:3001/api/v1
 Then start Expo:
 
 ```powershell
-npm start
+pnpm start
 ```
 
 Use a compatible Expo Go version or development client on a device. For a local
-Android emulator, run `npm run android`; for browser preview, run `npm run web`.
+Android emulator, run `pnpm android`; for browser preview, run `pnpm web`.
 The browser preview is separate from `apps/web`. A local iOS simulator requires
 macOS and Xcode.
 
@@ -47,24 +47,26 @@ for backend setup.
 
 Run these from `apps/mobile`:
 
-| Command                   | Purpose                                     |
-| ------------------------- | ------------------------------------------- |
-| `npm start`               | Start the Expo development server           |
-| `npm run android`         | Open the app on Android                     |
-| `npm run ios`             | Open the app on an iOS simulator            |
-| `npm run web`             | Start the mobile web preview                |
-| `npm run check-types`     | Check TypeScript                            |
-| `npm run lint`            | Run ESLint                                  |
-| `npm run check-structure` | Check source structure and file size limits |
-| `npm test`                | Run the mobile tests                        |
-| `npm run test:profile`    | Run the profile contract tests              |
+| Command                | Purpose                                     |
+| ---------------------- | ------------------------------------------- |
+| `pnpm start`           | Start the Expo development server           |
+| `pnpm android`         | Open the app on Android                     |
+| `pnpm ios`             | Open the app on an iOS simulator            |
+| `pnpm web`             | Start the mobile web preview                |
+| `pnpm check-types`     | Check TypeScript                            |
+| `pnpm lint`            | Run ESLint                                  |
+| `pnpm check-structure` | Check source structure and file size limits |
+| `pnpm test`            | Run the mobile tests                        |
+| `pnpm test:profile`    | Run the profile contract tests              |
 
 Root workspace commands are also supported, for example
 `pnpm --filter mobile check-types`.
 
-Add Expo packages with `npx expo install <package> --npm` to use SDK-compatible
-versions. Keep both `apps/mobile/package-lock.json` for independent npm installs
-and the root `pnpm-lock.yaml` for monorepo tooling.
+Add Expo packages with `pnpm exec expo install <package> --pnpm` from this
+directory to use SDK-compatible versions. Use pnpm across the monorepo and
+commit only the root `pnpm-lock.yaml`; mobile ignores npm, Yarn, Bun and nested
+pnpm lockfiles through its own `.gitignore`. Remove any old `apps/mobile/package-lock.json` from your checkout
+when switching from npm so package-manager auto-detection stays consistent.
 
 ## Feature overview
 
