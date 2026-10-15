@@ -15,6 +15,12 @@ import { ReputationService } from "../reputation/reputation.service";
 import { AchievementsService } from "../reputation/achievements.service";
 import { ReportsService } from "../reports/reports.service";
 
+/** Credit is stored in hundredths; responses use the same "12.50" form as requests. */
+function creditText(units: bigint | null): string | null {
+  if (units === null) return null;
+  return `${units / 100n}.${String(units % 100n).padStart(2, "0")}`;
+}
+
 async function lockSession(tx: TransactionContext, sessionId: string) {
   const rows = await tx.$queryRaw<{ id: string }[]>`
     SELECT session_id AS id FROM sessions WHERE session_id = ${sessionId}::uuid FOR UPDATE
@@ -88,7 +94,11 @@ export class LearningSessionsService {
     ) {
       throw new ForbiddenException("SESSION_ACCESS_DENIED");
     }
-    return session;
+    return {
+      ...session,
+      teacherAttendanceSeconds: session.teacherAttendanceSeconds.toString(),
+      learnerAttendanceSeconds: session.learnerAttendanceSeconds.toString(),
+    };
   }
 
   complete(actor: Principal, sessionId: string, note: string) {
@@ -172,8 +182,8 @@ export class LearningSessionsService {
           pathId,
           status: path.status,
           operationId: path.settlementOperationId,
-          gross: path.settlementGrossAmount,
-          fee: path.settlementFeeAmount,
+          gross: creditText(path.settlementGrossAmount),
+          fee: creditText(path.settlementFeeAmount),
         };
       }
       if (path.status !== "ACTIVE")
@@ -230,7 +240,13 @@ export class LearningSessionsService {
         );
         await this.achievements.evaluate(tx, userId, clock.now);
       }
-      return { pathId, status: "COMPLETED" as const, ...result };
+      return {
+        pathId,
+        status: "COMPLETED" as const,
+        operationId: result.operationId,
+        gross: creditText(result.gross),
+        fee: creditText(result.fee),
+      };
     });
   }
 
