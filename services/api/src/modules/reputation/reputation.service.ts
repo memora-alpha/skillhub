@@ -3,11 +3,22 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
+import { randomUUID } from "node:crypto";
 import type { TransactionContext } from "../../infrastructure/database/transaction-context";
+import { AuditWriter } from "../audit/application/audit-writer";
 
 const scoreMinimum = 0;
 const scoreMaximum = 100;
 const ruleVersion = "SRS-1.6";
+const policyActor = { kind: "SYSTEM", name: "reputation-policy" } as const;
+
+function restrictionSnapshot(restriction: { scope: string; endsAt: Date }) {
+  return { scope: restriction.scope, endsAt: restriction.endsAt.toISOString() };
+}
+
+function auditContext() {
+  return { requestId: randomUUID(), correlationId: randomUUID() };
+}
 
 function restrictionDays(score: number): number {
   if (score >= 40) return 0;
@@ -19,6 +30,8 @@ function restrictionDays(score: number): number {
 
 @Injectable()
 export class ReputationService {
+  constructor(private readonly audit: AuditWriter) {}
+
   async assertMayCreateActivity(
     tx: TransactionContext,
     userId: string,
@@ -172,13 +185,27 @@ export class ReputationService {
   ) {
     const days = restrictionDays(score);
     if (days === 0) {
-      await tx.userRestriction.updateMany({
+      const lifted = await tx.userRestriction.findMany({
         where: {
           userId: input.userId,
           reasonCode: "LOW_REPUTATION",
           revokedAt: null,
         },
+        select: { id: true, scope: true, endsAt: true },
+      });
+      if (lifted.length === 0) return;
+      await tx.userRestriction.updateMany({
+        where: { id: { in: lifted.map(({ id }) => id) } },
         data: { revokedAt: input.now },
+      });
+      await this.audit.append(tx, {
+        actor: policyActor,
+        action: "USER_RESTRICTION_REVOKE",
+        target: { type: "USER", id: input.userId },
+        before: { restrictions: lifted.map(restrictionSnapshot) },
+        after: { score, restrictions: [] },
+        reason: `Reputation score ${score} lifts low-reputation restrictions`,
+        context: auditContext(),
       });
       return;
     }
@@ -189,6 +216,8 @@ export class ReputationService {
         ? [score < 10 ? "REQUIRE_ADMIN_REVIEW" : "REQUIRE_STAFF_REVIEW"]
         : []),
     ];
+    const superseded: { scope: string; endsAt: Date }[] = [];
+    const applied: { scope: string; endsAt: Date }[] = [];
     for (const scope of scopes) {
       const active = await tx.userRestriction.findMany({
         where: {
@@ -205,6 +234,7 @@ export class ReputationService {
           where: { id: { in: active.map(({ id }) => id) } },
           data: { revokedAt: input.now },
         });
+        superseded.push(...active);
       }
       await tx.userRestriction.create({
         data: {
@@ -217,6 +247,17 @@ export class ReputationService {
           sourceId: input.sourceId,
         },
       });
+      applied.push({ scope, endsAt });
     }
+    if (applied.length === 0) return;
+    await this.audit.append(tx, {
+      actor: policyActor,
+      action: "USER_RESTRICTION_APPLY",
+      target: { type: "USER", id: input.userId },
+      before: { restrictions: superseded.map(restrictionSnapshot) },
+      after: { score, restrictions: applied.map(restrictionSnapshot) },
+      reason: `Reputation score ${score} requires a ${days}-day restriction`,
+      context: auditContext(),
+    });
   }
 }
