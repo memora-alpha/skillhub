@@ -29,6 +29,9 @@ export const AUDIT_ACTIONS = [
   "REPORT_CASE_UPDATE",
   "REPORT_EVIDENCE_READ",
   "REPUTATION_ADJUST",
+  "USER_RESTRICTION_APPLY",
+  "USER_RESTRICTION_REVOKE",
+  "SCHEDULE_RESCHEDULE",
   "CREDIT_ADJUST",
   "CREDIT_REVERSE",
   "SYSTEM_CONFIGURATION_UPDATE",
@@ -118,6 +121,33 @@ const reportEvidenceRead = z.strictObject({
   access: z.literal("READ"),
 });
 const reputation = z.strictObject({ score: z.number().finite() });
+const userRestrictions = z.strictObject({
+  score: z.number().int().min(0).max(100).optional(),
+  restrictions: z
+    .array(
+      z.strictObject({
+        scope: z.enum([
+          "CREATE_NEW_ACTIVITY",
+          "REQUIRE_STAFF_REVIEW",
+          "REQUIRE_ADMIN_REVIEW",
+        ]),
+        endsAt: z.iso.datetime(),
+      }),
+    )
+    .max(10),
+});
+const reschedule = z.strictObject({
+  appliedVersion: z.number().int().positive(),
+  sessions: z
+    .array(
+      z.strictObject({
+        sessionId: uuid,
+        startAt: z.iso.datetime(),
+        endAt: z.iso.datetime(),
+      }),
+    )
+    .max(100),
+});
 const credit = z.strictObject({
   amount: z
     .string()
@@ -177,6 +207,9 @@ const projectionByAction: Record<
   REPORT_CASE_UPDATE: reportCase,
   REPORT_EVIDENCE_READ: reportEvidenceRead,
   REPUTATION_ADJUST: reputation,
+  USER_RESTRICTION_APPLY: userRestrictions,
+  USER_RESTRICTION_REVOKE: userRestrictions,
+  SCHEDULE_RESCHEDULE: reschedule,
   CREDIT_ADJUST: credit,
   CREDIT_REVERSE: credit,
 };
