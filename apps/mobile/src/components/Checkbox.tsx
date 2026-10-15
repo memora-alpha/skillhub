@@ -9,12 +9,14 @@ export function Checkbox({
   children,
   label,
   error,
+  disabled = false,
 }: {
   checked: boolean;
   onChange: (value: boolean) => void;
   children: ReactNode;
   label: string;
   error?: string;
+  disabled?: boolean;
 }) {
   return (
     <View style={styles.group}>
@@ -22,15 +24,23 @@ export function Checkbox({
         <Pressable
           accessibilityRole="checkbox"
           accessibilityLabel={label}
-          accessibilityState={{ checked }}
+          accessibilityState={{ checked, disabled }}
           aria-checked={checked}
+          disabled={disabled}
           hitSlop={10}
           onPress={() => onChange(!checked)}
-          style={[styles.box, checked && styles.checked]}
+          style={[
+            styles.box,
+            checked && styles.checked,
+            disabled && { opacity: 0.5 },
+          ]}
         >
           {checked && <Icon name="check" size={10} color={colors.white} />}
         </Pressable>
-        <Text style={styles.label} onPress={() => onChange(!checked)}>
+        <Text
+          style={styles.label}
+          onPress={disabled ? undefined : () => onChange(!checked)}
+        >
           {children}
         </Text>
       </View>

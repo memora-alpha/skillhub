@@ -5,14 +5,18 @@ import { fileStateLabels, type EvidenceDraft } from "../utils/evidence-draft";
 import { formatFileSize } from "../utils/format-file-size";
 import { EvidenceImagePreview } from "./evidence-image-preview";
 import { skillStyles } from "./SkillsLayout";
+import { Checkbox } from "@/components/Checkbox";
+import { IMAGE_COMPRESSION_THRESHOLD } from "../utils/compress-evidence";
 export function EvidenceFiles({
   files,
   disabled,
   onRemove,
+  onOriginalChange,
 }: Readonly<{
   files: EvidenceDraft[];
   disabled: boolean;
   onRemove: (id: string) => void;
+  onOriginalChange?: (id: string, original: boolean) => void;
 }>) {
   return (
     <View style={{ gap: 8 }}>
@@ -93,6 +97,27 @@ export function EvidenceFiles({
             {!!file.error && (
               <Text style={[skillStyles.caption, { color: appColors.error }]}>
                 {file.error}
+              </Text>
+            )}
+            {image &&
+              !file.fileId &&
+              (file.originalSize ?? file.size) > IMAGE_COMPRESSION_THRESHOLD &&
+              onOriginalChange && (
+                <Checkbox
+                  checked={!!file.keepOriginal}
+                  disabled={disabled}
+                  label={`Giữ ảnh gốc: ${file.asset.name}`}
+                  onChange={(original) =>
+                    onOriginalChange(file.localId, original)
+                  }
+                >
+                  Giữ ảnh gốc
+                </Checkbox>
+              )}
+            {!!file.originalSize && (
+              <Text style={skillStyles.caption}>
+                Đã nén từ {formatFileSize(file.originalSize)} · giữ nguyên kích
+                thước ảnh
               </Text>
             )}
           </View>

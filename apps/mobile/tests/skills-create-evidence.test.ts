@@ -11,7 +11,7 @@ import { ownSkill, ids } from "./skills-fixtures";
 function fixture() {
   const skill = ownSkillSchema.parse(ownSkill);
   const calls: string[] = [];
-  let created: typeof skill | undefined;
+  let previous: typeof skill | undefined;
   let files = true;
   const evidence = {
     hasFiles: () => files,
@@ -20,36 +20,39 @@ function fixture() {
       assert.equal(id, ids.sharing);
       calls.push("preserve");
     },
-    submitForSkill: async (id: string) => {
+    queueForSkill: (id: string) => {
       assert.equal(id, ids.sharing);
-      calls.push("upload-scan-submit");
+      calls.push("queue");
+      return true;
     },
   };
-  const run = () =>
+  const api = {
+    create: async () => {
+      calls.push("create");
+      return skill;
+    },
+    update: async () => {
+      calls.push("update");
+      return skill;
+    },
+  };
+  const run = (assertCurrent = () => {}) =>
     saveSkill({
-      api: {
-        create: async () => {
-          calls.push("create");
-          return skill;
-        },
-        update: async () => {
-          calls.push("update");
-          return skill;
-        },
-      },
+      api,
       input: skillInput(formValues(skill)),
-      previous: created,
+      previous,
       key: "save-key",
       evidence,
-      assertCurrent: () => {},
-      onSaved: async (saved, isCreated) => {
-        calls.push(isCreated ? "remember-create" : "remember-existing");
-        created = saved;
+      assertCurrent,
+      onSaved: async (saved, created) => {
+        calls.push(created ? "remember-create" : "remember-existing");
+        previous = saved;
       },
     });
   return {
     calls,
     evidence,
+    api,
     run,
     setFiles: (value: boolean) => {
       files = value;
@@ -57,150 +60,60 @@ function fixture() {
   };
 }
 
-test("save creates and remembers the skill before uploading evidence under its returned ID", async () => {
+test("save returns a confirmed skill after queueing evidence without awaiting its upload", async () => {
   const f = fixture();
   const result = await f.run();
-  assert.deepEqual(f.calls, [
-    "create",
-    "remember-create",
-    "preserve",
-    "upload-scan-submit",
-  ]);
-  assert.equal(result.evidenceSent, true);
+  assert.deepEqual(f.calls, ["create", "remember-create", "preserve", "queue"]);
+  assert.equal(result.evidenceQueued, true);
   assert.equal(result.skill.id, ids.sharing);
 });
 
-test("evidence failure returns the saved skill with an error and retry does not create or patch it again", async () => {
+test("retry after a queued save cannot create or patch the skill again", async () => {
   const f = fixture();
-  const send = f.evidence.submitForSkill;
-  const error = new Error("upload unavailable");
-  f.evidence.submitForSkill = async () => {
-    throw error;
-  };
-  const result = await f.run();
-  assert.equal(result.skill.id, ids.sharing);
-  assert.equal(result.evidenceSent, false);
-  assert.equal(result.evidenceFailure?.error, error);
-  f.evidence.submitForSkill = send;
-  assert.equal((await f.run()).evidenceSent, true);
+  await f.run();
+  f.evidence.queueForSkill = () => false;
+  assert.equal((await f.run()).evidenceQueued, false);
   assert.equal(f.calls.filter((call) => call === "create").length, 1);
   assert.equal(f.calls.filter((call) => call === "update").length, 0);
 });
 
-test("save without files completes after create and does not upload or submit", async () => {
+test("save without evidence completes without queueing a transfer", async () => {
   const f = fixture();
   f.setFiles(false);
-  assert.equal((await f.run()).evidenceSent, false);
+  assert.equal((await f.run()).evidenceQueued, false);
   assert.deepEqual(f.calls, ["create", "remember-create"]);
 });
 
-test("invalid evidence metadata prevents creation and all file writes", async () => {
+test("invalid evidence metadata still prevents skill creation", async () => {
   const f = fixture();
   f.evidence.valid = () => false;
   await assert.rejects(f.run(), /tiêu đề/);
   assert.deepEqual(f.calls, []);
 });
 
-test("a user can remove failed evidence and finish the already-created skill without another create", async () => {
+test("unconfirmed create cannot queue evidence or write owner caches", async () => {
   const f = fixture();
-  f.evidence.submitForSkill = async () => {
-    throw new Error("scan unavailable");
+  f.api.create = async () => {
+    throw new Error("create unavailable");
   };
-  assert.ok((await f.run()).evidenceFailure);
-  f.setFiles(false);
-  assert.equal((await f.run()).evidenceSent, false);
-  assert.equal(f.calls.filter((call) => call === "create").length, 1);
-  assert.equal(f.calls.filter((call) => call === "update").length, 0);
+  await assert.rejects(f.run(), /create unavailable/);
+  assert.deepEqual(f.calls, []);
 });
 
-test("a failed skill create remains a failure without starting evidence or caching a skill", async () => {
-  const skill = ownSkillSchema.parse(ownSkill);
-  const calls: string[] = [];
-  await assert.rejects(
-    saveSkill({
-      api: {
-        create: async () => {
-          throw new Error("create unavailable");
-        },
-        update: async () => skill,
-      },
-      input: skillInput(formValues(skill)),
-      key: "failed-create",
-      evidence: {
-        hasFiles: () => true,
-        valid: () => true,
-        preserveDraft: () => calls.push("draft"),
-        submitForSkill: async () => {
-          calls.push("evidence");
-        },
-      },
-      assertCurrent: () => {},
-      onSaved: async () => {
-        calls.push("cache");
-      },
-    }),
-    /create unavailable/,
-  );
-  assert.deepEqual(calls, []);
-});
-
-test("account change during evidence failure cannot produce a saved result for the new session", async () => {
-  const skill = ownSkillSchema.parse(ownSkill);
+test("account change during create stops caching and transfer queueing", async () => {
+  const f = fixture();
   let current = true;
+  const create = f.api.create;
+  f.api.create = async () => {
+    const result = await create();
+    current = false;
+    return result;
+  };
   await assert.rejects(
-    saveSkill({
-      api: { create: async () => skill, update: async () => skill },
-      input: skillInput(formValues(skill)),
-      key: "old-session",
-      evidence: {
-        hasFiles: () => true,
-        valid: () => true,
-        preserveDraft: () => {},
-        submitForSkill: async () => {
-          current = false;
-          throw new Error("evidence unavailable");
-        },
-      },
-      assertCurrent: () => {
-        if (!current) throw new Error("session changed");
-      },
-      onSaved: async () => {},
+    f.run(() => {
+      if (!current) throw new Error("session changed");
     }),
     /session changed/,
   );
-});
-
-test("account change during create stops owner-cache writes and subsequent evidence requests", async () => {
-  const skill = ownSkillSchema.parse(ownSkill);
-  let current = true;
-  const calls: string[] = [];
-  await assert.rejects(
-    saveSkill({
-      api: {
-        create: async () => {
-          current = false;
-          return skill;
-        },
-        update: async () => skill,
-      },
-      input: skillInput(formValues(skill)),
-      key: "old-session-key",
-      evidence: {
-        hasFiles: () => true,
-        valid: () => true,
-        preserveDraft: () => calls.push("draft"),
-        submitForSkill: async () => {
-          calls.push("upload");
-        },
-      },
-      assertCurrent: () => {
-        if (!current) throw new Error("session changed");
-      },
-      onSaved: async () => {
-        calls.push("cache");
-      },
-    }),
-    /session changed/,
-  );
-  assert.deepEqual(calls, []);
+  assert.deepEqual(f.calls, ["create"]);
 });

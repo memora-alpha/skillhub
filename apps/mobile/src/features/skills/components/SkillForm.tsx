@@ -68,6 +68,7 @@ export function SkillForm({ initial }: Readonly<{ initial?: OwnSkill }>) {
   const [latest, setLatest] = useState<OwnSkill | null>(null);
   const [checking, setChecking] = useState(false);
   const [evidenceBusy, setEvidenceBusy] = useState(false);
+  const [evidenceProgress, setEvidenceProgress] = useState<string | null>(null);
   const [evidenceState, setEvidenceState] = useState({
     hasFiles: false,
     valid: true,
@@ -147,6 +148,7 @@ export function SkillForm({ initial }: Readonly<{ initial?: OwnSkill }>) {
         blocked={!!baseline && hasPendingVerification(baseline)}
         disabled={skillPending}
         onBusyChange={setEvidenceBusy}
+        onProgressChange={setEvidenceProgress}
         saveWithSkill={saveWithEvidence}
         onDraftChange={setEvidenceState}
       />
@@ -190,7 +192,7 @@ export function SkillForm({ initial }: Readonly<{ initial?: OwnSkill }>) {
         }
         onPress={() => void save()}
       >
-        {pending ? "Đang xử lý…" : "Lưu kỹ năng"}
+        {pending ? (evidenceProgress ?? "Đang lưu kỹ năng…") : "Lưu kỹ năng"}
       </Button>
       <Button
         disabled={pending}

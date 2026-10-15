@@ -6,13 +6,12 @@ type Evidence = {
   hasFiles: () => boolean;
   valid: () => boolean;
   preserveDraft: (id: string) => void;
-  submitForSkill: (id: string) => Promise<unknown>;
+  queueForSkill: (id: string) => boolean;
 };
 
 export type SkillSaveResult = {
   skill: OwnSkill;
-  evidenceSent: boolean;
-  evidenceFailure?: { error: unknown };
+  evidenceQueued: boolean;
 };
 
 export async function saveSkill({
@@ -46,15 +45,10 @@ export async function saveSkill({
   // Persist the confirmed skill before file I/O; evidence failure cannot undo it.
   await onSaved(skill, !previous);
   assertCurrent();
+  let evidenceQueued = false;
   if (send) {
     evidence!.preserveDraft(skill.id);
-    try {
-      await evidence!.submitForSkill(skill.id);
-    } catch (error) {
-      assertCurrent();
-      return { skill, evidenceSent: false, evidenceFailure: { error } };
-    }
-    assertCurrent();
+    evidenceQueued = evidence!.queueForSkill(skill.id);
   }
-  return { skill, evidenceSent: send };
+  return { skill, evidenceQueued };
 }
