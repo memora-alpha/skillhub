@@ -4,14 +4,14 @@ import { SkillsLayout, skillStyles } from "./SkillsLayout";
 import { useVerificationForm } from "../hooks/use-verification-form";
 import { VerificationFields } from "./VerificationFields";
 import { formStyles } from "./skill-form-styles";
-import type { Verification } from "../types/skills";
+import { evidenceProgress } from "../utils/evidence-progress";
 
 export type VerificationFormHandle = {
   locked: () => boolean;
   preserveDraft: (id: string) => void;
   hasFiles: () => boolean;
   valid: () => boolean;
-  submitForSkill: (id: string) => Promise<Verification>;
+  queueForSkill: (id: string) => boolean;
 };
 export function VerificationForm({
   id,
@@ -20,6 +20,7 @@ export function VerificationForm({
   embedded = false,
   disabled = false,
   onBusyChange,
+  onProgressChange,
   saveWithSkill = false,
   onDraftChange,
   ref,
@@ -30,6 +31,7 @@ export function VerificationForm({
   embedded?: boolean;
   disabled?: boolean;
   onBusyChange?: (busy: boolean) => void;
+  onProgressChange?: (progress: string | null) => void;
   saveWithSkill?: boolean;
   onDraftChange?: (state: { hasFiles: boolean; valid: boolean }) => void;
   ref?: Ref<VerificationFormHandle>;
@@ -40,11 +42,17 @@ export function VerificationForm({
     preserveDraft: model.preserveDraft,
     hasFiles: () => !!model.draft.files.length,
     valid: () => !model.titleInvalid && !model.descriptionInvalid,
-    submitForSkill: model.submitForSkill,
+    queueForSkill: model.queueForSkill,
   }));
   useEffect(() => {
     onBusyChange?.(model.localBusy);
   }, [model.localBusy, onBusyChange]);
+  const progress = model.preparing
+    ? (model.progress ?? evidenceProgress(model.draft.files))
+    : null;
+  useEffect(() => {
+    onProgressChange?.(progress);
+  }, [progress, onProgressChange]);
   const hasFiles = !!model.draft.files.length;
   useEffect(() => {
     onDraftChange?.({
@@ -62,10 +70,8 @@ export function VerificationForm({
           </Text>
         </View>
       </View>
-      {blocked && !model.submittedId && (
-        <Text style={skillStyles.caption}>
-          Yêu cầu xác minh đang chờ duyệt.
-        </Text>
+      {(blocked || model.submittedId) && (
+        <Text style={skillStyles.caption}>Chờ duyệt</Text>
       )}
       {!model.submittedId && !blocked && (
         <VerificationFields

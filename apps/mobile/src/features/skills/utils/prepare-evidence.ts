@@ -1,11 +1,11 @@
 import type { createSkillsApi } from "../api/skills-api";
 import {
   evidenceFormData,
-  needsScan,
   readyFileIds,
   type EvidenceDraft,
 } from "./evidence-draft";
 import { skillError } from "./skill-errors";
+import { EvidenceScanPending, scanEvidence } from "./evidence-scan";
 
 type EvidenceApi = Pick<
   ReturnType<typeof createSkillsApi>,
@@ -39,6 +39,8 @@ type PreparationOptions = {
   assertCurrent: () => void;
   update: (file: EvidenceDraft) => void;
   sleep?: (ms: number, signal: AbortSignal) => Promise<void>;
+  prepare?: (file: EvidenceDraft) => Promise<EvidenceDraft>;
+  onSlowScan?: () => void;
 };
 type PreparationContext = Omit<
   PreparationOptions,
@@ -77,43 +79,8 @@ async function uploadMissingFile(
   }
 }
 
-async function scanFile(context: PreparationContext, original: EvidenceDraft) {
-  const { api, id, update, check, signal, sleep } = context;
-  let file = original;
-  try {
-    for (let attempt = 0; attempt < 10; attempt++) {
-      check();
-      const result = await api.fileStatus(id, file.fileId!, signal);
-      check();
-      file = { ...file, state: result.state, checking: false };
-      update(file);
-      if (file.state === "READY") return file;
-      if (!needsScan(file.state))
-        throw new Error(
-          "File chưa thể sử dụng. Hãy bỏ file này và chọn bằng chứng khác.",
-        );
-      if (attempt === 9)
-        throw new Error(
-          "File đang được kiểm tra lâu hơn dự kiến. Hãy bấm gửi lại sau.",
-        );
-      await sleep(Math.min(1000 * 2 ** attempt, 8000), signal);
-    }
-  } catch (error) {
-    const failure = signal.aborted ? paused() : error;
-    update({
-      ...file,
-      checking: false,
-      error:
-        failure instanceof Error && !("kind" in failure)
-          ? failure.message
-          : skillError(failure),
-    });
-    throw failure;
-  }
-  return file;
-}
-
-// Upload and scan sequentially; preserve each uploaded ID for an explicit retry.
+// Two workers pipeline preparation/upload. Drain in-flight work on failure so
+// successful upload IDs are retained before an explicit retry can start.
 export async function prepareEvidence({
   api,
   id,
@@ -122,6 +89,8 @@ export async function prepareEvidence({
   assertCurrent,
   update,
   sleep = wait,
+  prepare = async (file) => file,
+  onSlowScan,
 }: PreparationOptions) {
   if (!files.length || files.length > 5)
     throw new Error("Chọn từ 1 đến 5 file bằng chứng.");
@@ -136,14 +105,63 @@ export async function prepareEvidence({
       assertCurrent();
     },
   };
-  const prepared: EvidenceDraft[] = [];
-  for (const original of files) {
-    context.check();
-    const file = await uploadMissingFile(context, original);
-    context.check();
-    prepared.push(await scanFile(context, file));
+  const uploaded: EvidenceDraft[] = new Array(files.length);
+  let next = 0;
+  let uploadFailure: { error: unknown } | undefined;
+  async function worker() {
+    while (!uploadFailure && next < files.length) {
+      const index = next++;
+      try {
+        context.check();
+        const original = files[index]!;
+        if (!original.fileId) update({ ...original, state: "PREPARING" });
+        const file = await prepare(original);
+        context.check();
+        update(file);
+        uploaded[index] = await uploadMissingFile(context, file);
+        context.check();
+      } catch (error) {
+        uploadFailure ??= { error };
+      }
+    }
   }
+  await Promise.all(Array.from({ length: Math.min(2, files.length) }, worker));
+  if (uploadFailure) throw uploadFailure.error;
+  const scanAbort = new AbortController();
+  const stopScans = () => scanAbort.abort();
+  signal.addEventListener("abort", stopScans, { once: true });
+  const scanContext = {
+    ...context,
+    signal: scanAbort.signal,
+    check: () => {
+      context.check();
+      if (scanAbort.signal.aborted) throw paused();
+    },
+  };
+  let failure: { error: unknown } | undefined;
+  const results = await Promise.allSettled(
+    uploaded.map((file) =>
+      scanEvidence(
+        {
+          ...scanContext,
+          read: (fileId, scanSignal) => api.fileStatus(id, fileId, scanSignal),
+          onSlowScan,
+        },
+        file,
+      ).catch((error: unknown) => {
+        if (!failure || failure.error instanceof EvidenceScanPending)
+          failure = { error };
+        if (!(error instanceof EvidenceScanPending)) stopScans();
+        throw error;
+      }),
+    ),
+  );
+  signal.removeEventListener("abort", stopScans);
   context.check();
+  if (failure) throw failure.error;
+  const prepared = results.flatMap((result) =>
+    result.status === "fulfilled" ? [result.value] : [],
+  );
   const fileIds = readyFileIds(prepared);
   if (!fileIds) throw new Error("Các file chưa sẵn sàng để gửi.");
   return fileIds;

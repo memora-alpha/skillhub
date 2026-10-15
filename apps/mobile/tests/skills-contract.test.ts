@@ -47,7 +47,7 @@ test("JSON mutation renews with the same key/body and decimal string", async () 
   await h.api.create(
     {
       skillId: ids.skill,
-      level: "BEGINNER",
+      levelId: ids.level,
       description: ownSkill.description,
       experienceYears: "0.0",
       isVisible: false,
@@ -59,6 +59,8 @@ test("JSON mutation renews with the same key/body and decimal string", async () 
   for (const call of h.calls) {
     assert.equal(call.headers.get("Idempotency-Key"), "intent-1");
     assert.equal(JSON.parse(call.data).experienceYears, "0.0");
+    assert.equal(JSON.parse(call.data).levelId, ids.level);
+    assert.equal("level" in JSON.parse(call.data), false);
     assert.equal("userId" in JSON.parse(call.data), false);
   }
   assert.equal(h.calls[0]?.data, h.calls[1]?.data);
@@ -199,7 +201,7 @@ test("mutation responses and history are bound to the requested skill", async ()
     h.api.create(
       {
         skillId: ids.other,
-        level: "BEGINNER",
+        levelId: ids.level,
         description: ownSkill.description,
         experienceYears: null,
         isVisible: true,

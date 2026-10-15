@@ -1,9 +1,8 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState, useEffect } from "react";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useToast } from "@/providers/ToastProvider";
 import { Platform } from "react-native";
 import { randomUUID } from "expo-crypto";
-import { useEvidenceDraft } from "./use-evidence-draft";
 import { useSkillAction } from "./use-skill-action";
 import { usePendingBack } from "./use-pending-back";
 import { useMountedSession } from "./use-mounted-session";
@@ -11,39 +10,62 @@ import { useSkills } from "../context/SkillsProvider";
 import { evidenceDraft } from "../utils/evidence-draft";
 import { pickEvidence, type EvidenceSource } from "../utils/pick-evidence";
 import { normalizeText } from "../schemas/skill-form";
-import { useEvidenceSubmission } from "./use-evidence-submission";
+import { useEvidenceTransfer } from "./use-evidence-transfer";
 
 export function useVerificationForm(
   id: string | undefined,
   blocked: boolean,
   disabled: boolean,
 ) {
-  const { verificationDrafts, isCurrent } = useSkills();
-  const sendEvidence = useEvidenceSubmission();
+  const { verificationDrafts, isCurrent, transfers } = useSkills();
   const initial = useRef(id ? verificationDrafts.get(id) : undefined).current;
-  const draft = useEvidenceDraft(id ?? "", initial?.files);
+  const [files, setFiles] = useState(initial?.files ?? []);
+  const [title, setTitle] = useState(initial?.title ?? "");
+  const [description, setDescription] = useState(initial?.description ?? "");
   const action = useSkillAction({ notifySuccess: false });
   const mountedSession = useMountedSession();
   const router = useRouter();
   const { showToast } = useToast();
-  const sending = useRef(false);
-  const [preparing, setPreparing] = useState(false);
-  const [title, setTitle] = useState(initial?.title ?? "");
-  const [description, setDescription] = useState(initial?.description ?? "");
   const selecting = useRef(false);
   const [picking, setPicking] = useState(false);
-  const [submittedId, setSubmittedId] = useState<string | null>(null);
-  const snapshot = useRef({ files: draft.files, title, description });
-  snapshot.current = { files: draft.files, title, description };
+  const task = useEvidenceTransfer(id);
+  const ownedByTransfer = useRef(new Set<string>());
+  const snapshot = useRef({ files, title, description });
+  snapshot.current = { files, title, description };
   const preserveDraft = useCallback(
     (savedId: string) => {
-      if (!isCurrent()) return;
+      const state = transfers.get(savedId)?.state;
+      if (
+        !isCurrent() ||
+        ownedByTransfer.current.has(savedId) ||
+        state === "SENDING" ||
+        state === "PENDING"
+      )
+        return;
       if (snapshot.current.files.length)
         verificationDrafts.set(savedId, snapshot.current);
       else verificationDrafts.delete(savedId);
     },
-    [isCurrent, verificationDrafts],
+    [isCurrent, verificationDrafts, transfers],
   );
+  useEffect(() => {
+    if (!id) return;
+    if (task?.state === "PENDING") {
+      setFiles([]);
+      setTitle("");
+      setDescription("");
+      return;
+    }
+    if (!task || !["SENDING", "FAILED", "WAITING_SCAN"].includes(task.state))
+      return;
+    const saved = verificationDrafts.get(id);
+    if (saved) {
+      setFiles(saved.files);
+      setTitle(saved.title);
+      setDescription(saved.description);
+    }
+    if (task.state !== "SENDING") ownedByTransfer.current.delete(id);
+  }, [id, task, verificationDrafts]);
   useFocusEffect(
     useCallback(
       () => () => {
@@ -52,108 +74,71 @@ export function useVerificationForm(
       [id, preserveDraft],
     ),
   );
-  const localBusy = preparing || action.pending || draft.busy || picking;
-  const busy = localBusy || disabled;
-  const localLocked = () =>
-    sending.current || action.locked() || draft.locked() || selecting.current;
-  const locked = () => disabled || localLocked();
-  usePendingBack(locked);
+  const localLocked = () => selecting.current;
+  const locked = () =>
+    disabled ||
+    selecting.current ||
+    (!!id && transfers.get(id)?.state === "SENDING");
+  // Sending belongs to the session and continues after leaving this screen.
+  usePendingBack(() => disabled || selecting.current);
   const titleInvalid = [...normalizeText(title)].length > 120;
   const descriptionInvalid = [...normalizeText(description)].length > 500;
+  const submittedId = task?.state === "PENDING" ? task.verificationId : null;
   const pick = async (source: EvidenceSource) => {
-    if (locked() || blocked || submittedId || draft.files.length >= 5) return;
+    if (locked() || blocked || submittedId || files.length >= 5) return;
     selecting.current = true;
     setPicking(true);
     try {
-      const assets = await pickEvidence(source, 5 - draft.files.length);
+      const assets = await pickEvidence(source, 5 - files.length);
       if (!assets.length || !action.current()) return;
-      if (draft.files.length + assets.length > 5)
+      if (files.length + assets.length > 5)
         throw new Error("Một lần gửi chỉ gồm tối đa 5 file.");
       const additions = assets.map((asset) => {
         if (Platform.OS === "web" && !asset.file)
           throw new Error("Không đọc được file đã chọn. Hãy chọn lại.");
         return evidenceDraft(asset, randomUUID());
       });
-      draft.setFiles((current) => [...current, ...additions]);
+      setFiles((current) => [...current, ...additions]);
     } catch (error) {
-      if (action.current()) {
-        const fallback =
-          source === "photos"
-            ? "Không mở được thư viện ảnh."
-            : "Không mở được trình chọn file.";
-        showToast(error instanceof Error ? error.message : fallback, "error");
-      }
+      if (action.current())
+        showToast(
+          error instanceof Error
+            ? error.message
+            : "Không chọn được bằng chứng.",
+          "error",
+        );
     } finally {
       selecting.current = false;
       if (mountedSession()) setPicking(false);
     }
   };
-  const submitForSkill = async (targetId: string) => {
+  const queueForSkill = (targetId: string) => {
     if (
-      sending.current ||
-      draft.locked() ||
       selecting.current ||
       !action.current() ||
-      !draft.files.length ||
+      !files.length ||
       titleInvalid ||
       descriptionInvalid ||
-      submittedId ||
-      blocked
+      blocked ||
+      submittedId
     )
-      throw new Error(
-        "Bằng chứng chưa hợp lệ hoặc chưa thể gửi. Hãy kiểm tra lại.",
-      );
-    sending.current = true;
-    setPreparing(true);
-    preserveDraft(targetId);
-    try {
-      const fileIds = await draft.prepare(targetId);
-      if (!action.current()) throw new Error("Quá trình gửi đã tạm dừng.");
-      const result = await sendEvidence(targetId, fileIds, title, description);
-      if (!isCurrent()) throw new Error("Phiên gửi bằng chứng đã kết thúc.");
-      verificationDrafts.delete(targetId);
-      snapshot.current = { files: [], title: "", description: "" };
-      if (mountedSession()) {
-        setSubmittedId(result.id);
-        draft.setFiles([]);
-      }
-      return result;
-    } finally {
-      sending.current = false;
-      if (mountedSession()) setPreparing(false);
+      return false;
+    const queued = transfers.start(targetId, snapshot.current);
+    if (queued) ownedByTransfer.current.add(targetId);
+    return queued;
+  };
+  const submit = () => {
+    if (!id || locked()) return;
+    if (queueForSkill(id)) {
+      showToast("Đang gửi bằng chứng…", "info");
+      router.dismissTo({
+        pathname: "/my-skills/[sharingSkillId]",
+        params: { sharingSkillId: id },
+      });
     }
   };
-  const submit = async () => {
-    if (
-      !id ||
-      locked() ||
-      !draft.files.length ||
-      titleInvalid ||
-      descriptionInvalid ||
-      submittedId ||
-      blocked
-    )
-      return;
-    await action.run(
-      `submit-flow:${id}`,
-      null,
-      () => submitForSkill(id),
-      (_result, refreshed) => {
-        showToast(
-          refreshed
-            ? "Đã gửi yêu cầu xác minh."
-            : "Đã gửi yêu cầu. Chưa cập nhật được dữ liệu; hãy làm mới.",
-          refreshed ? "success" : "info",
-        );
-        router.dismissTo({
-          pathname: "/my-skills/[sharingSkillId]",
-          params: { sharingSkillId: id },
-        });
-      },
-    );
-  };
   return {
-    draft,
+    draft: { files, setFiles },
     action,
     title,
     setTitle,
@@ -161,16 +146,18 @@ export function useVerificationForm(
     setDescription,
     picking,
     submittedId,
-    busy,
-    localBusy,
+    busy: disabled || picking || task?.state === "SENDING",
+    localBusy: picking,
     locked,
     localLocked,
-    preparing,
+    preparing: task?.state === "SENDING",
+    progress: task?.progress,
+    waitingScan: task?.state === "WAITING_SCAN",
     titleInvalid,
     descriptionInvalid,
     pick,
     submit,
-    submitForSkill,
+    queueForSkill,
     preserveDraft,
   };
 }

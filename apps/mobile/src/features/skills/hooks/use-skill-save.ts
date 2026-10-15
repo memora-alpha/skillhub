@@ -5,7 +5,6 @@ import { useToast } from "@/providers/ToastProvider";
 import { useSkills } from "../context/SkillsProvider";
 import { useSkillAction } from "./use-skill-action";
 import { saveSkill } from "../utils/save-skill";
-import { skillError } from "../utils/skill-errors";
 import {
   skillInput,
   skillPatch,
@@ -51,27 +50,20 @@ export function useSkillSave(
             await rememberSkill(skill, isCreated);
           },
         }),
-      ({ skill, evidenceSent, evidenceFailure }, refreshed) => {
-        if (evidenceFailure) {
-          showToast(
-            `Đã lưu kỹ năng, nhưng gửi bằng chứng chưa hoàn tất. ${skillError(evidenceFailure.error)} Mở kỹ năng để kiểm tra và thử lại.`,
-            "error",
-          );
-          router.dismissTo("/my-skills");
-          return;
-        }
-        if (!evidenceSent) evidenceRef.current?.preserveDraft(skill.id);
-        const message = evidenceSent
-          ? "Đã lưu kỹ năng và gửi yêu cầu xác minh."
+      ({ skill, evidenceQueued }, refreshed) => {
+        if (!evidenceQueued) evidenceRef.current?.preserveDraft(skill.id);
+        const message = evidenceQueued
+          ? "Đã lưu kỹ năng. Đang gửi bằng chứng…"
           : "Đã lưu kỹ năng.";
         showToast(
-          refreshed
+          refreshed !== false
             ? message
             : `${message} Chưa cập nhật được toàn bộ dữ liệu; hãy tải lại.`,
-          refreshed ? "success" : "info",
+          refreshed !== false ? "success" : "info",
         );
         router.dismissTo("/my-skills");
       },
+      "background",
     );
   };
   return { action, save, created };

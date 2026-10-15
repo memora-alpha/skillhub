@@ -36,9 +36,10 @@ export function useOfferingPicker(
   const offeringLabel = (item: {
     skill: { name: string };
     level: string;
+    skillLevel?: { name: string } | null;
     verificationStatus: string;
   }) =>
-    `${item.skill.name} · ${uiLabel(item.level)}${item.verificationStatus === "VERIFIED" ? " · Đã xác minh" : ""}`;
+    `${item.skill.name} · ${item.skillLevel?.name ?? uiLabel(item.level)}${item.verificationStatus === "VERIFIED" ? " · Đã xác minh" : ""}`;
   const all = [
     ...new Map(
       query.data?.pages
