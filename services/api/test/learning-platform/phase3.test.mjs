@@ -7,6 +7,8 @@ import { AuditWriter } from "../../dist/modules/audit/application/audit-writer.j
 import { AuditRepository } from "../../dist/modules/audit/infrastructure/audit.repository.js";
 import { UnavailableCreditAdjustmentAdapter } from "../../dist/modules/credit/unavailable-credit-adjustment.adapter.js";
 import { LearningPathNotificationHandler } from "../../dist/modules/notifications/application/learning-path-notification.handler.js";
+import { NotificationDispatcher } from "../../dist/modules/notifications/application/notification-dispatcher.js";
+import { PrismaInAppNotificationAdapter } from "../../dist/modules/notifications/infrastructure/channels/prisma-in-app-notification.adapter.js";
 import { AchievementsService } from "../../dist/modules/reputation/achievements.service.js";
 import { ReputationService } from "../../dist/modules/reputation/reputation.service.js";
 import { seedAchievements } from "../../dist/modules/reputation/seed-achievements.js";
@@ -23,6 +25,7 @@ import {
   B,
   C,
   completedOneWay,
+  fakeOutboxConsumer,
   pathRow,
   pathStatus,
   rejectsWith,
@@ -515,7 +518,13 @@ test("SH-093: a final decision notifies both participants; other updates only th
   const { pathId } = await completedOneWay(ctx);
   const handler = new LearningPathNotificationHandler(
     { register() {} },
-    { processOnce: async (_consumer, _eventId, work) => work(ctx.db) },
+    new NotificationDispatcher(
+      fakeOutboxConsumer(ctx.db),
+      new PrismaInAppNotificationAdapter(),
+      {},
+      {},
+      new Set(["IN_APP"]),
+    ),
     ctx.db,
   );
   const publish = (status) =>

@@ -335,6 +335,12 @@ export function createFakeDb({ now = () => new Date() } = {}) {
         apply(row, data);
         return shape(name, row, args);
       },
+      upsert: ({ where, create, update, ...args }) => {
+        const row = find(where);
+        if (!row) return shape(name, insert(name, create), args);
+        apply(row, update);
+        return shape(name, row, args);
+      },
       updateMany: ({ where, data }) => {
         const hits = rows(name).filter((row) => matches(name, row, where));
         hits.forEach((row) => apply(row, data));
