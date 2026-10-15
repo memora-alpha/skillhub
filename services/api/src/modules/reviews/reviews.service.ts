@@ -8,7 +8,10 @@ import { randomUUID } from "node:crypto";
 import { TransactionRunner } from "../../infrastructure/database/transaction-runner";
 import type { TransactionContext } from "../../infrastructure/database/transaction-context";
 import type { Principal } from "../auth/application/services/sessions.service";
-import { ReputationService } from "../reputation/reputation.service";
+import {
+  ReputationService,
+  reputationLevel,
+} from "../reputation/reputation.service";
 import { AchievementsService } from "../reputation/achievements.service";
 import type { CreateReviewDto } from "./reviews.dto";
 
@@ -119,8 +122,26 @@ export class ReviewsService {
             }
           : {}),
       });
+      const [clock] = await tx.$queryRaw<
+        { now: Date }[]
+      >`SELECT CURRENT_TIMESTAMP AS now`;
+      if (!(clock?.now instanceof Date)) {
+        throw new ConflictException("DATABASE_TIME_UNAVAILABLE");
+      }
+      const activeRestrictions = await tx.userRestriction.findMany({
+        where: {
+          userId: actor.userId,
+          revokedAt: null,
+          startsAt: { lte: clock.now },
+          endsAt: { gt: clock.now },
+        },
+        orderBy: [{ endsAt: "asc" }, { id: "asc" }],
+        select: { scope: true, reasonCode: true, endsAt: true },
+      });
       return {
         reputationScore: user.reputationScore,
+        level: reputationLevel(user.reputationScore),
+        activeRestrictions,
         items: rows.slice(0, 50),
         nextCursor: rows.length > 50 ? (rows[49]?.id ?? null) : null,
       };

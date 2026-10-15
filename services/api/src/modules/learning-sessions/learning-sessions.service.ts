@@ -10,7 +10,7 @@ import { TransactionRunner } from "../../infrastructure/database/transaction-run
 import type { TransactionContext } from "../../infrastructure/database/transaction-context";
 import { byCodeUnit } from "../../infrastructure/idempotency/idempotency.service";
 import type { Principal } from "../auth/application/services/sessions.service";
-import { CreditLedgerService } from "../credit/credit-ledger.service";
+import { PathSettlementPort } from "../credit/credit.ports";
 import { ReputationService } from "../reputation/reputation.service";
 import { AchievementsService } from "../reputation/achievements.service";
 import { ReportsService } from "../reports/reports.service";
@@ -40,7 +40,7 @@ export class LearningSessionsService {
   constructor(
     private readonly transactions: TransactionRunner,
     private readonly db: PrismaService,
-    private readonly creditLedger: CreditLedgerService,
+    private readonly settlement: PathSettlementPort,
     private readonly reputation: ReputationService,
     private readonly achievements: AchievementsService,
     private readonly reports: ReportsService,
@@ -205,7 +205,7 @@ export class LearningSessionsService {
       if (!(clock?.now instanceof Date))
         throw new ConflictException("DATABASE_TIME_UNAVAILABLE");
       await this.reports.assertPathSettlementAllowed(tx, pathId, clock.now);
-      const result = await this.creditLedger.settlePath(tx, {
+      const result = await this.settlement.settlePath(tx, {
         pathId,
         pathVersion: lockedVersion,
         exchangeType: agreement.exchangeType,

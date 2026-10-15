@@ -7,6 +7,7 @@ import {
   Max,
   MaxLength,
   Min,
+  MinLength,
 } from "class-validator";
 
 export class ListNotificationsDto {
@@ -31,4 +32,12 @@ export class ListNotificationsDto {
   @IsString()
   @MaxLength(200)
   cursor?: string;
+}
+
+export class RegisterPushTokenDto {
+  /** FCM registration token issued to this browser. */
+  @IsString()
+  @MinLength(20)
+  @MaxLength(4096)
+  token!: string;
 }

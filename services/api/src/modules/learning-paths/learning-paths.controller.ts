@@ -2,20 +2,29 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
   HttpCode,
   Param,
   ParseUUIDPipe,
   Patch,
   Post,
+  Req,
   UseGuards,
 } from "@nestjs/common";
-import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
+import {
+  ApiBearerAuth,
+  ApiHeader,
+  ApiOperation,
+  ApiTags,
+} from "@nestjs/swagger";
 import {
   CurrentIdentity,
   IdentityGuard,
+  type IdentityRequest,
 } from "../../shared/auth/identity.guard";
 import type { Principal } from "../auth/application/services/sessions.service";
 import { success } from "../../shared/http/response";
+import { skillCommand } from "../skills/presentation/http/skills.controller";
 import { LearningPathsService } from "./learning-paths.service";
 import {
   ConfirmVersionDto,
@@ -99,13 +108,20 @@ export class LearningPathsController {
   @ApiOperation({
     summary: "Atomically Hold Credit, lock schedules and create sessions",
   })
+  @ApiHeader({ name: "Idempotency-Key", required: true })
   async finalize(
+    @Req() req: IdentityRequest,
+    @Headers("idempotency-key") key: string | undefined,
     @CurrentIdentity() actor: Principal,
     @Param("pathId", ParseUUIDPipe) pathId: string,
     @Body() body: ConfirmVersionDto,
   ) {
     return success(
-      await this.paths.finalize(actor, pathId, body.expectedVersion),
+      await this.paths.finalize(
+        skillCommand(req, key, actor),
+        pathId,
+        body.expectedVersion,
+      ),
       "Learning path finalized.",
     );
   }

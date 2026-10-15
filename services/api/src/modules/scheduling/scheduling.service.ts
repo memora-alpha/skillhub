@@ -10,6 +10,7 @@ import type { TransactionContext } from "../../infrastructure/database/transacti
 import { TransactionRunner } from "../../infrastructure/database/transaction-runner";
 import type { Principal } from "../auth/application/services/sessions.service";
 import { AuditWriter } from "../audit/application/audit-writer";
+import { SystemConfigurationService } from "../system-configuration/application/system-configuration.service";
 import type { RoleCode } from "../../shared/authorization/authorization.types";
 import type {
   CreateScheduleProposalDto,
@@ -22,6 +23,7 @@ function validateItems(
   items: CreateScheduleProposalDto["items"],
   expectedSessions: number,
   now: Date,
+  durationMinutes: { min: number; max: number },
 ): void {
   if (items.length !== expectedSessions) {
     throw new BadRequestException("SCHEDULE_ITEM_COUNT_MISMATCH");
@@ -40,8 +42,8 @@ function validateItems(
       !Number.isFinite(start.getTime()) ||
       !Number.isFinite(end.getTime()) ||
       start <= now ||
-      duration < 60 ||
-      duration > 180
+      duration < durationMinutes.min ||
+      duration > durationMinutes.max
     ) {
       throw new BadRequestException("INVALID_SCHEDULE_ITEMS");
     }
@@ -85,6 +87,7 @@ async function applyReschedule(
   versionNo: number,
   appliedVersion: number,
   now: Date,
+  cutoffMinutes: number,
 ) {
   const previousItems = await tx.scheduleItem.findMany({
     where: { scheduleProposalId: scheduleId, scheduleVersion: appliedVersion },
@@ -124,7 +127,8 @@ async function applyReschedule(
     if (changed) {
       if (
         session.status !== "CONFIRMED" ||
-        session.startAt.getTime() - now.getTime() < 60 * millisecondsPerMinute
+        session.startAt.getTime() - now.getTime() <
+          cutoffMinutes * millisecondsPerMinute
       ) {
         throw new ConflictException("RESCHEDULE_CUTOFF_OR_STATE_VIOLATION");
       }
@@ -163,6 +167,7 @@ export class SchedulingService {
   constructor(
     private readonly transactions: TransactionRunner,
     private readonly audit: AuditWriter,
+    private readonly configuration: SystemConfigurationService,
   ) {}
 
   createProposal(
@@ -248,7 +253,16 @@ export class SchedulingService {
       if (!(clock?.now instanceof Date)) {
         throw new ConflictException("DATABASE_TIME_UNAVAILABLE");
       }
-      validateItems(input.items, planVersion.totalSessions, clock.now);
+      const { values } = await this.configuration.getSnapshot(
+        ["session.durationMinutes"],
+        tx,
+      );
+      validateItems(
+        input.items,
+        planVersion.totalSessions,
+        clock.now,
+        values["session.durationMinutes"],
+      );
       const scheduleId = randomUUID();
       await tx.scheduleProposal.create({
         data: {
@@ -369,12 +383,17 @@ export class SchedulingService {
           if (!(clock?.now instanceof Date)) {
             throw new ConflictException("DATABASE_TIME_UNAVAILABLE");
           }
+          const { values } = await this.configuration.getSnapshot(
+            ["schedule.rescheduleCutoffMinutes"],
+            tx,
+          );
           const changes = await applyReschedule(
             tx,
             scheduleId,
             expectedVersion,
             proposal.appliedVersion,
             clock.now,
+            values["schedule.rescheduleCutoffMinutes"],
           );
           await this.audit.append(tx, {
             actor: {
@@ -481,12 +500,17 @@ export class SchedulingService {
       if (!(clock?.now instanceof Date)) {
         throw new ConflictException("DATABASE_TIME_UNAVAILABLE");
       }
+      const { values } = await this.configuration.getSnapshot(
+        ["schedule.rescheduleCutoffMinutes", "session.durationMinutes"],
+        tx,
+      );
       if (
         lockedSession.startAt.getTime() - clock.now.getTime() <
-        60 * millisecondsPerMinute
+        values["schedule.rescheduleCutoffMinutes"] * millisecondsPerMinute
       ) {
         throw new ConflictException("RESCHEDULE_CUTOFF_VIOLATION");
       }
+      const durationMinutes = values["session.durationMinutes"];
       const startAt = new Date(input.startAt);
       const endAt = new Date(input.endAt);
       const duration =
@@ -495,8 +519,8 @@ export class SchedulingService {
         !Number.isFinite(startAt.getTime()) ||
         !Number.isFinite(endAt.getTime()) ||
         startAt <= clock.now ||
-        duration < 60 ||
-        duration > 180
+        duration < durationMinutes.min ||
+        duration > durationMinutes.max
       ) {
         throw new BadRequestException("INVALID_SCHEDULE_ITEMS");
       }
