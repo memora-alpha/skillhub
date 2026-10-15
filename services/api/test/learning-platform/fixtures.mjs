@@ -41,6 +41,21 @@ function fakeIdempotency(db) {
   };
 }
 
+/** Outbox receipts per consumer and event; a failing delivery leaves no receipt, like a rollback. */
+export function fakeOutboxConsumer(db) {
+  const receipts = new Set();
+  return {
+    receipts,
+    async processOnce(consumer, eventId, work) {
+      const key = `${consumer}:${eventId}`;
+      if (receipts.has(key)) return { processed: false };
+      const value = await work(db);
+      receipts.add(key);
+      return { processed: true, value };
+    },
+  };
+}
+
 export function setup({ wallets = {}, config = {} } = {}) {
   const clock = { now: new Date("2026-10-20T00:00:00.000Z") };
   const db = createFakeDb({ now: () => clock.now });
