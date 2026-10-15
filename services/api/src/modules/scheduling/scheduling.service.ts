@@ -9,6 +9,8 @@ import { randomUUID } from "node:crypto";
 import type { TransactionContext } from "../../infrastructure/database/transaction-context";
 import { TransactionRunner } from "../../infrastructure/database/transaction-runner";
 import type { Principal } from "../auth/application/services/sessions.service";
+import { AuditWriter } from "../audit/application/audit-writer";
+import type { RoleCode } from "../../shared/authorization/authorization.types";
 import type {
   CreateScheduleProposalDto,
   RescheduleSessionDto,
@@ -153,11 +155,15 @@ async function applyReschedule(
       })),
     });
   }
+  return updates.filter(({ changed }) => changed);
 }
 
 @Injectable()
 export class SchedulingService {
-  constructor(private readonly transactions: TransactionRunner) {}
+  constructor(
+    private readonly transactions: TransactionRunner,
+    private readonly audit: AuditWriter,
+  ) {}
 
   createProposal(
     actor: Principal,
@@ -363,13 +369,43 @@ export class SchedulingService {
           if (!(clock?.now instanceof Date)) {
             throw new ConflictException("DATABASE_TIME_UNAVAILABLE");
           }
-          await applyReschedule(
+          const changes = await applyReschedule(
             tx,
             scheduleId,
             expectedVersion,
             proposal.appliedVersion,
             clock.now,
           );
+          await this.audit.append(tx, {
+            actor: {
+              kind: "HUMAN",
+              userId: actor.userId,
+              roles: actor.roles.filter(
+                (role): role is RoleCode =>
+                  role === "USER" || role === "STAFF" || role === "ADMIN",
+              ),
+            },
+            action: "SCHEDULE_RESCHEDULE",
+            target: { type: "SCHEDULE_PROPOSAL", id: scheduleId },
+            before: {
+              appliedVersion: proposal.appliedVersion,
+              sessions: changes.map(({ session }) => ({
+                sessionId: session.id,
+                startAt: session.startAt.toISOString(),
+                endAt: session.endAt.toISOString(),
+              })),
+            },
+            after: {
+              appliedVersion: expectedVersion,
+              sessions: changes.map(({ item, session }) => ({
+                sessionId: session.id,
+                startAt: item.startAt.toISOString(),
+                endAt: item.endAt.toISOString(),
+              })),
+            },
+            reason: "Reschedule confirmed by both participants",
+            context: { requestId: randomUUID(), correlationId: randomUUID() },
+          });
         }
       };
       await applyConfirmedReschedule();
