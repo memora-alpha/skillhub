@@ -4,7 +4,10 @@ import {
   A,
   B,
   C,
+  completedOneWay,
   confirmedTwoWay,
+  finalizeAs,
+  finalizedOneWay,
   pathRow,
   pathStatus,
   rejectsWith,
@@ -15,9 +18,6 @@ import {
   user,
   wallet,
 } from "./fixtures.mjs";
-
-const finalizeAs = (ctx, userId, pathId, key = "finalize-1") =>
-  ctx.paths.finalize({ principal: user(userId), key }, pathId, 1);
 
 function assertNothingLocked(db, pathId) {
   assert.equal(pathStatus(db, pathId), "CONFIRMED");
@@ -222,13 +222,6 @@ test("SH-055: finalize never holds twice, whatever the idempotency key", async (
   assert.equal(wallet(ctx.db, B).heldCredit, 10000n);
 });
 
-async function finalizedOneWay(ctx) {
-  const ids = await scheduledOneWay(ctx);
-  await finalizeAs(ctx, A, ids.pathId);
-  const [session] = ctx.db.rows("session");
-  return { ...ids, session };
-}
-
 test("SH-056: a reschedule applies only after both confirm; until then the old time stands", async () => {
   const ctx = setup({ wallets: { [B]: 10000n } });
   const { scheduleId, session } = await finalizedOneWay(ctx);
@@ -289,14 +282,6 @@ test("SH-056: the reschedule cutoff comes from configuration and keeps the old t
     "2026-11-02T10:00:00.000Z",
   );
 });
-
-async function completedOneWay(ctx) {
-  const ids = await finalizedOneWay(ctx);
-  ctx.clock.now = new Date("2026-11-02T11:30:00Z");
-  await ctx.sessions.complete(user(A), ids.session.id, "Taught");
-  await ctx.sessions.complete(user(B), ids.session.id, "Learned");
-  return ids;
-}
 
 test("SH-059: ONE_WAY 100 Credit settles 96 to the teacher and 4 as fee, exactly once", async () => {
   const ctx = setup({ wallets: { [A]: 0n, [B]: 10000n } });

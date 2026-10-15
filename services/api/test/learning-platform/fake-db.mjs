@@ -11,7 +11,18 @@ const relations = {
       true,
     ],
   },
+  achievement: {
+    userAchievementAchievementIdRecords: [
+      "userAchievement",
+      [["id", "achievementId"]],
+      true,
+    ],
+  },
+  reportCase: {
+    reportEvidenceCaseIdRecords: ["reportEvidence", [["id", "caseId"]], true],
+  },
   learningPlan: {
+    pathIdRecord: ["learningPath", [["pathId", "id"]], false],
     learningPlanVersionPlanIdRecords: [
       "learningPlanVersion",
       [["id", "planId"]],

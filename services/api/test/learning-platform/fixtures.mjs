@@ -50,6 +50,15 @@ export function setup({ wallets = {}, config = {} } = {}) {
     participantAId: A,
     participantBId: B,
   });
+  for (const id of [A, B, C]) {
+    db.seed("user", {
+      id,
+      emailVerified: true,
+      accountStatus: "ACTIVE",
+      verifiedSkillCount: 0,
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    });
+  }
   for (const [userId, availableCredit] of Object.entries({
     [A]: 0n,
     [B]: 0n,
@@ -188,6 +197,34 @@ export async function scheduledOneWay(ctx, negotiatedCredit = "100.00") {
   await ctx.schedules.confirmProposal(user(A), schedule.id, 1);
   await ctx.schedules.confirmProposal(user(B), schedule.id, 1);
   return { pathId: path.id, planId: onlyPlan.id, scheduleId: schedule.id };
+}
+
+export const finalizeAs = (ctx, userId, pathId, key = "finalize-1") =>
+  ctx.paths.finalize({ principal: user(userId), key }, pathId, 1);
+
+/** ONE_WAY locked with its single session (2026-11-02 10:00-11:00 UTC). */
+export async function finalizedOneWay(ctx) {
+  const ids = await scheduledOneWay(ctx);
+  await finalizeAs(ctx, A, ids.pathId);
+  const session = ctx.db.rows("session").find((s) => s.pathId === ids.pathId);
+  return { ...ids, session };
+}
+
+/** Both participants confirmed the session; the path is ACTIVE. */
+export async function completedOneWay(ctx) {
+  const ids = await finalizedOneWay(ctx);
+  ctx.clock.now = new Date("2026-11-02T11:30:00Z");
+  await ctx.sessions.complete(user(A), ids.session.id, "Taught");
+  await ctx.sessions.complete(user(B), ids.session.id, "Learned");
+  return ids;
+}
+
+/** Settled after the dispute window; the path is COMPLETED. */
+export async function settledOneWay(ctx) {
+  const ids = await completedOneWay(ctx);
+  ctx.clock.now = new Date("2026-11-05T00:00:00Z");
+  await ctx.sessions.settlePath(user(B), ids.pathId);
+  return ids;
 }
 
 export const pathRow = (db, pathId) =>
