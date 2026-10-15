@@ -93,9 +93,13 @@ export class LearningPathNotificationHandler
         ) {
           throw new TypeError("INVALID_REPORT_CASE_EVENT");
         }
-        recipients = [data.reporterId];
+        recipients = await this.caseRecipients(
+          data.reporterId,
+          data.status,
+          data.pathId,
+        );
         title = "Report case updated";
-        body = `Your report case status is ${data.status}.`;
+        body = `The report case status is ${data.status}.`;
       }
     };
     await resolveNotification();
@@ -124,5 +128,30 @@ export class LearningPathNotificationHandler
         });
       },
     );
+  }
+
+  /** A final decision reaches both path participants; other updates only the reporter. */
+  private async caseRecipients(
+    reporterId: string,
+    status: string,
+    pathId: unknown,
+  ): Promise<string[]> {
+    if (
+      typeof pathId !== "string" ||
+      (status !== "RESOLVED" && status !== "REJECTED")
+    ) {
+      return [reporterId];
+    }
+    const path = await this.db.learningPath.findUnique({
+      where: { id: pathId },
+      select: { participantAId: true, participantBId: true },
+    });
+    return [
+      ...new Set(
+        path
+          ? [reporterId, path.participantAId, path.participantBId]
+          : [reporterId],
+      ),
+    ];
   }
 }
