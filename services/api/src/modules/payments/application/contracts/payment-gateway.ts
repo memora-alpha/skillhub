@@ -19,9 +19,8 @@ export type CheckoutRequest = {
   };
 };
 
+/** Owner-only QR payload. Render qrCode locally; never navigate to a provider URL. */
 export type CheckoutDescriptor = {
-  method: "GET";
-  url: string;
   paymentLinkId: string;
   qrCode: string;
   orderCode: string;

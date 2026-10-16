@@ -91,6 +91,32 @@ These checks establish local merge compatibility for the tested scope. The
 production rollout, real provider delivery, payment posting, and adjustment
 implementation gates below remain pending.
 
+## QR-only payOS amendment (2026-10-16)
+
+User yêu cầu chỉ dùng QR payOS. `CheckoutDescriptor` hiện chỉ trả
+`{paymentLinkId,qrCode,orderCode,providerStatus}` sau khi kiểm chữ ký toàn bộ
+provider data và đối chiếu quote/currency/status/QR. Không trả method, hosted
+checkout URL hoặc return/cancel URLs cho client. Hosted metadata, nếu có, vẫn
+được authenticate trước khi bị loại khỏi projection; không còn phụ thuộc sự có
+mặt hoặc giá trị của checkoutUrl để dùng QR. qrCode là chuỗi để render QR tại
+client, không phải URL ảnh.
+
+API payOS vẫn yêu cầu returnUrl/cancelUrl trong signed create request. Giữ hai
+HTTPS env fields server-side và bổ sung chú thích .env.example; QR flow không
+điều hướng qua chúng và không cần triển khai trang return/cancel. Spec, plan,
+policy, research, tasks, data model, HTTP/gateway contracts và quickstart đã
+đồng bộ. Không sửa frontend, env thật, SQL/migration, merchant config hoặc bật
+payment. Tạo đơn/transport, status routes, durable webhook/posting và frontend
+QR/status rendering vẫn chưa triển khai; các task tương ứng giữ Pending.
+
+Verification: API lint, Prisma generate + TypeScript check, Nest build, focused
+Prettier và git diff --check pass. **22/22 Node cases pass, 0 skipped**: 8 payOS
+protocol/config/policy cases (gồm QR-only projection, missing/invalid QR,
+tampering QR/hosted metadata và loại URL sau signature verification), 4 Credit
+money/cursor, 4 environment/log privacy và 6 Sonar/settlement regressions.
+Không chạy lại PostgreSQL vì không đổi financial persistence, schema hay ledger
+writer. Không có provider/channel/live-payment proof hoặc deployment mới.
+
 ## Full feature/release matrix
 
 | Phạm vi còn lại                                                                                | Trạng thái / giới hạn                                                          |

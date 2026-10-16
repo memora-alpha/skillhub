@@ -51,16 +51,6 @@ const checkoutData = z.object({
   paymentLinkId: identifier,
   currency: z.literal("VND"),
   status: z.enum(["PENDING", "PROCESSING", "PAID", "CANCELLED", "EXPIRED"]),
-  checkoutUrl: z.url().refine((value) => {
-    if (!URL.canParse(value)) return false;
-    const url = new URL(value);
-    return (
-      url.origin === "https://pay.payos.vn" &&
-      !url.username &&
-      !url.password &&
-      !url.hash
-    );
-  }),
   qrCode: z.string().min(1).max(4096),
 });
 
@@ -160,8 +150,6 @@ export class PayosGateway extends PaymentGateway {
       throw new BadRequestException("PAYMENT_CHECKOUT_MISMATCH");
     const data = parsed.data;
     return {
-      method: "GET",
-      url: data.checkoutUrl,
       paymentLinkId: data.paymentLinkId,
       qrCode: data.qrCode,
       orderCode: String(data.orderCode),

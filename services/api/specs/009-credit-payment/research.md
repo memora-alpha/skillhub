@@ -54,7 +54,7 @@ Wallet equation: số dư tại watermark = opening có chứng từ + tổng le
 
 ## 5. Payment orchestration và authenticity
 
-**Decision (User amendment 2026-10-15)**: đổi từ SePay sang payOS; fee floor/provenance/limits giữ nguyên. payOS tạo link qua server REST, không client submit signed form. Reserve immutable quote/orderCode trước; prepare request, remote create ngoài PG transaction, verify signed response rồi persist safe GET checkout/QR. Transport và durable orchestration vẫn pending.
+**Decision (User amendment 2026-10-15)**: đổi từ SePay sang payOS; fee floor/provenance/limits giữ nguyên. payOS tạo link qua server REST, không client submit signed form. Reserve immutable quote/orderCode trước; prepare request, remote create ngoài PG transaction, verify signed response rồi persist safe QR-only projection cho owner (amendment 2026-10-16). Transport và durable orchestration vẫn pending.
 
 Webhook xác thực HMAC-SHA256 hex trên toàn bộ data bằng channel checksum key, rồi normalize whitelist PII-safe. Match channel/orderCode/paymentLinkId/VND/exact amount/reference với quote mới là entitlement; unsigned envelope không thay signed status. Dedupe channel+reference và immutable business digest; same transaction không được post hai Payment. Sample/partial/late/unknown vào REVIEW. [Provider contract và nguồn](contracts/gateway.md).
 

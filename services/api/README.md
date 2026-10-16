@@ -20,7 +20,10 @@ và bằng chứng PostgreSQL ở [UTC validation](specs/006-system-configuratio
 Credit & Payment đang triển khai theo [spec009](specs/009-credit-payment/plan.md).
 Initial tranche bổ sung `/api/v1/me/wallet`, history/detail cùng exact decimal-string DTO,
 ledger sequence/append-only migration và pure payOS checkout/webhook adapter. Payment routes,
-posting/recovery và provenance lots chưa tích hợp; không coi chọn provider hoặc config bật
+posting/recovery và provenance lots chưa tích hợp. Theo quyết định 2026-10-16,
+payOS chỉ cung cấp QR payload để hiển thị trực tiếp trong SkillHub; không trả hosted checkout URL.
+Return/cancel HTTPS vẫn bắt buộc trong server request/signature của payOS.
+Không coi chọn provider hoặc config bật
 là nạp đã hoạt động. Xem [tasks](specs/009-credit-payment/tasks.md) và
 [validation](specs/009-credit-payment/validation.md) cho trạng thái kiểm chứng.
 

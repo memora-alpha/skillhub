@@ -51,7 +51,7 @@ Create reserve lần đầu trả201, replay200; resource `CREATED` với checko
 }
 ```
 
-payOS checkout là `{method:"GET",url,paymentLinkId,qrCode,orderCode,providerStatus}` sau server-side REST create và verify signed response theo [gateway contract](gateway.md). `orderCode` là string trong public projection. Không trả server-only create payload/signature/headers. Checkout:null nghĩa chưa hoàn tất preparation; status chưa PENDING chỉ vì đã queue. Owner GET dùng Cache-Control:no-store; không log URL/QR. Expiry theo immutable quote 60 phút, không tự gia hạn khi retry. Payment authority quyết định số tiền/trạng thái; redirect không cấp Credit. Disabled/missing provider policy trả503 `PAYMENT_PROVIDER_UNAVAILABLE`/`PAYMENT_POLICY_UNAVAILABLE`.
+payOS checkout chỉ dùng QR: `{paymentLinkId,qrCode,orderCode,providerStatus}` sau server-side REST create và verify signed response theo [gateway contract](gateway.md). `qrCode` là dữ liệu QR để render trực tiếp trong SkillHub, không phải ảnh/URL; không điều hướng sang checkout payOS. `orderCode` là string trong public projection. Không trả hosted checkout URL, server-only create payload/signature/headers hoặc return/cancel URLs. Checkout:null nghĩa chưa hoàn tất preparation; status chưa PENDING chỉ vì đã queue. Owner GET dùng Cache-Control:no-store; không log QR. Expiry theo immutable quote 60 phút, không tự gia hạn khi retry. UI kiểm trạng thái từ backend bằng GET/SSE/polling; QR hay việc đóng màn hình không cấp Credit hoặc tự hủy đơn. Disabled/missing provider policy trả503 `PAYMENT_PROVIDER_UNAVAILABLE`/`PAYMENT_POLICY_UNAVAILABLE`.
 
 ## Provider callback
 

@@ -269,11 +269,14 @@ test("canonical signature retains unknown scalar fields and handles null without
   );
 });
 
-test("signed checkout response must match the reserved quote and approved payOS origin", () => {
+test("signed QR checkout matches the reserved quote without exposing a hosted URL", () => {
   const checkout = gateway().verifyCheckoutResponse(response(), quote);
-  assert.equal(checkout.method, "GET");
-  assert.equal(checkout.url, "https://pay.payos.vn/web/provider-link");
-  assert.equal(checkout.paymentLinkId, "provider-link");
+  assert.deepEqual(checkout, {
+    paymentLinkId: "provider-link",
+    qrCode: response().data.qrCode,
+    orderCode: quote.orderCode,
+    providerStatus: "PENDING",
+  });
   assert.ok(!JSON.stringify(checkout).includes("signature"));
   const tampered = response();
   tampered.data.amount = 5000;
@@ -286,9 +289,9 @@ test("signed checkout response must match the reserved quote and approved payOS 
     { amount: 5000 },
     { currency: "USD" },
     { status: "UNKNOWN" },
-    { checkoutUrl: "invalid-url" },
-    { checkoutUrl: "https://evil.invalid" },
-    { checkoutUrl: "https://pay.payos.vn.evil.invalid/web/link" },
+    { qrCode: "" },
+    { qrCode: "x".repeat(4097) },
+    { qrCode: null },
   ]) {
     const body = response();
     Object.assign(body.data, patch);
@@ -297,4 +300,35 @@ test("signed checkout response must match the reserved quote and approved payOS 
       /PAYMENT_CHECKOUT_MISMATCH/,
     );
   }
+});
+
+test("QR presentation ignores hosted checkout metadata only after verifying its signature", () => {
+  const expected = gateway().verifyCheckoutResponse(response(), quote);
+  for (const checkoutUrl of [
+    undefined,
+    "invalid-url",
+    "https://evil.invalid",
+  ]) {
+    const body = response();
+    if (checkoutUrl === undefined) delete body.data.checkoutUrl;
+    else body.data.checkoutUrl = checkoutUrl;
+    assert.deepEqual(
+      gateway().verifyCheckoutResponse(sign(body), quote),
+      expected,
+    );
+  }
+  for (const key of ["qrCode", "checkoutUrl"]) {
+    const body = response();
+    body.data[key] = "tampered";
+    assert.throws(
+      () => gateway().verifyCheckoutResponse(body, quote),
+      /PAYMENT_SIGNATURE_INVALID/,
+    );
+  }
+  const missing = response();
+  delete missing.data.qrCode;
+  assert.throws(
+    () => gateway().verifyCheckoutResponse(sign(missing), quote),
+    /PAYMENT_CHECKOUT_MISMATCH/,
+  );
 });
