@@ -6,14 +6,10 @@ import {
   signedInChrome,
   skillLevelColors,
 } from "@/constants/theme";
-import {
-  levelLabels,
-  badgeLabels,
-  type PublicSkill,
-  type OwnSkill,
-} from "../types/skills";
+import { badgeLabels, type PublicSkill, type OwnSkill } from "../types/skills";
 import { VerificationBadge } from "./VerificationBadge";
-import { hasPendingVerification } from "../utils/verification-state";
+import { skillLevelLabel } from "../utils/skill-level";
+import { EvidenceTransferStatus } from "./evidence-transfer-status";
 
 export function SkillCard({
   skill,
@@ -40,16 +36,18 @@ export function SkillCard({
           {skill.skill.name}
         </Text>
         <View style={styles.levelBadge}>
-          <Text style={styles.level}>{levelLabels[skill.level]}</Text>
+          <Text style={styles.level}>{skillLevelLabel(skill)}</Text>
         </View>
       </View>
       <View style={styles.statusRow}>
-        <VerificationBadge status={skill.verificationStatus} />
-        {own &&
-          hasPendingVerification(own) &&
-          skill.verificationStatus !== "PENDING" && (
-            <VerificationBadge status="PENDING" />
-          )}
+        <VerificationBadge
+          status={skill.verificationStatus}
+          label={
+            own && skill.verificationStatus === "PENDING"
+              ? "Chờ duyệt"
+              : undefined
+          }
+        />
         {visibility && <Text style={styles.caption}>{visibility}</Text>}
       </View>
       <Text
@@ -71,18 +69,24 @@ export function SkillCard({
       )}
     </View>
   );
-  return onPress ? (
+  const body = onPress ? (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`Xem kỹ năng: ${skill.skill.name}`}
-      accessibilityHint={`${levelLabels[skill.level]}. ${badgeLabels[skill.verificationStatus]}${visibilityHint}`}
+      accessibilityHint={`${skillLevelLabel(skill)}. ${badgeLabels[skill.verificationStatus]}${visibilityHint}`}
       onPress={onPress}
-      style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+      style={({ pressed }) => [pressed && styles.pressed]}
     >
       {content}
     </Pressable>
   ) : (
-    <View style={styles.card}>{content}</View>
+    content
+  );
+  return (
+    <View style={[styles.card, { gap: 10 }]}>
+      {body}
+      {own && <EvidenceTransferStatus skill={own} />}
+    </View>
   );
 }
 const styles = StyleSheet.create({
@@ -95,7 +99,12 @@ const styles = StyleSheet.create({
   },
   pressed: { backgroundColor: colors.surfaceLow },
   content: { gap: 12 },
-  header: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
+  header: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "flex-start",
+    gap: 12,
+  },
   name: {
     ...typography.heading,
     fontFamily: fonts.bold,
@@ -110,7 +119,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: skillLevelColors.border,
     backgroundColor: skillLevelColors.background,
-    flexShrink: 0,
+    flexShrink: 1,
+    maxWidth: "100%",
   },
   level: {
     ...typography.caption,

@@ -1,10 +1,11 @@
 # Spec 004: Quản lý kỹ năng chia sẻ và xác minh
 
 **Ngày:** 2026-10-09. **Workspace:** `apps/mobile`.
+**Cập nhật:** 2026-10-15; checklist tách checks để commit và AC cần API/native thật.
 **Trạng thái:** Đã triển khai mobile và kiểm tra bằng fixtures; nghiệm thu API
 thật/scanner và Android/iOS còn pending, xem [validation](validation.md).
-**Nhánh:** `feat/mobile-skills` (implementation nền và các amendment ngày
-2026-10-12/13 đã được chia commit theo chức năng).
+**Nhánh hiện tại:** `fix/mobile-skill`; implementation nền trên `feat/mobile-skills`
+và các amendment ngày 2026-10-12/13 đã được chia commit theo chức năng.
 
 ## 1. Mục tiêu và nguồn yêu cầu
 
@@ -107,14 +108,17 @@ tiếp tục ghi rõ dữ liệu mẫu; không gửi demo IDs tới API.
 
 ### US-02 — Thêm và chỉnh sửa (P1)
 
-- **FR-05:** Create gửi `skillId`, `level`, `description`, `experienceYears?`,
+- **FR-05:** Create gửi `skillId`, `levelId`, `description`, `experienceYears?`,
   `isVisible?`; không gửi userId, verificationStatus hoặc dữ liệu evidence.
   Không tạo hai Sharing Skill chưa archive cho cùng catalog ID; 409 phải có
   feedback và refresh list. Không tự sửa bản cũ khi create bị trùng.
-- **FR-06:** Level thuộc BEGINNER/INTERMEDIATE/ADVANCED/EXPERT, là thông tin tự khai.
-  Form tạo/chỉnh sửa hiển thị gợi ý tự đánh giá theo mức đang chọn, gồm ví dụ
-  cho ngôn ngữ và lập trình. Đây là nội dung hỗ trợ, không phải tiêu chí duyệt
-  hoặc quy đổi chứng chỉ, không thêm validation hay field vào API.
+- **FR-06:** Theo BE amendment 2026-10-14, level chọn từ danh mục ACTIVE của
+  kỹ năng qua `GET /skills/:skillId/levels`, là thông tin tự khai. Form hiển thị
+  name/description của cấp độ đã chọn; không cố định bốn mức hoặc tự quy đổi
+  chứng chỉ. Đổi kỹ năng xóa levelId đã chọn; tải lỗi/rỗng không tạo lựa chọn giả.
+  Own/public/detail và kỹ năng dạy lại trong Learning Request dùng skillLevel.name;
+  level code là string mở, hỗ trợ B2/N3. Metadata legacy null giữ nhãn cũ.
+  Level đã INACTIVE vẫn giữ được khi chỉ sửa field khác, PATCH không gửi levelId.
   Mô tả trim/NFC, 20–1500 Unicode code points theo policy hiện tại.
   Số năm tùy chọn 0–60, tối đa một chữ số thập phân; gửi decimal **string** hoặc
   `null` khi xóa, không gửi số JSON. UI có thể nhận dấu phẩy rồi chuẩn hóa dấu chấm.
@@ -156,41 +160,59 @@ tiếp tục ghi rõ dữ liệu mẫu; không gửi demo IDs tới API.
   multipart field `file` qua evidence-files, không gọi API avatar. Bỏ file khỏi
   draft không xóa evidence đã submit; chưa có API xóa upload nên không hứa xóa
   server ngay. Retry upload có thể tạo fileId mới và không auto-replay bytes.
-  Khi tạo kỹ năng, bấm Lưu tạo Sharing Skill trước rồi tự upload các file đã chọn,
-  chờ READY và submit yêu cầu xác minh. Hoàn tất thì tự quay về Kỹ năng của tôi;
+  Khi tạo kỹ năng, bấm Lưu tạo Sharing Skill trước, ghi DTO đã xác nhận rồi về
+  Kỹ năng của tôi ngay. Tác vụ gửi trong SkillsProvider tiếp tục nén/upload các
+  file đã chọn, chờ READY và submit yêu cầu xác minh;
   không có nút gửi riêng trong form tạo. Không chọn file thì chỉ tạo kỹ năng.
   Metadata bằng chứng không hợp lệ chặn Lưu trước khi create. Nếu kỹ năng đã được
-  tạo nhưng upload/scan/submit lỗi, vẫn tự về Kỹ năng của tôi và hiện toast lỗi
+  tạo nhưng upload/scan/submit lỗi, card hiện Gửi chưa hoàn tất và hiện toast lỗi
   nói rõ kỹ năng đã lưu nhưng bằng chứng chưa hoàn tất. Giữ draft/fileIds theo
   skillId trong phiên để mở lại kỹ năng và thử gửi bằng chứng, không tạo lại.
   Nếu create/update chưa được xác nhận thành công, ở lại form với lỗi.
   Retry submit giữ key/body cả khi mở lại màn; không tự retry ghi dữ liệu khi
   resume hoặc mất mạng.
-  Rời màn xác minh giữ draft; gửi thành công hoặc đổi phiên xóa draft.
-  Không lưu file draft vào storage lâu dài. Amendment theo yêu cầu 2026-10-12.
+  Rời màn không dừng tác vụ gửi; gửi thành công hoặc đổi phiên xóa draft.
+  Không lưu file draft vào storage lâu dài. Amendment theo yêu cầu 2026-10-14.
   Chọn file không tự gửi yêu cầu và không đổi badge.
 - **FR-15:** 202 QUARANTINED chỉ xác nhận tiếp nhận. Poll status theo file/session;
   QUARANTINED/SCANNING là chờ, READY mới đủ điều kiện submit.
   REJECTED/SCAN_FAILED/UPLOAD_FAILED/DELETED không thể submit; trạng thái lạ
   phải chặn an toàn. Lỗi/quá thời gian kiểm tra cho phép kiểm tra lại, không coi
-  file đã sạch. Dừng poll khi rời flow, app background hoặc đổi phiên; resume
+  file đã sạch. Tác vụ tiếp tục khi đổi màn; dừng khi app background hoặc đổi phiên; resume
   phải đọc lại trạng thái, không tự upload/gửi lại. Nếu một file lỗi, giữ fileId
   các file đã tải thành công để lần gửi có chủ đích tiếp theo tái sử dụng. Một
-  lượt gửi kiểm tra tối đa 10 lần/file với backoff tối đa 8 giây; hết lượt giữ
-  draft và yêu cầu gửi lại sau. Double tap bị khóa từ trước bước upload.
+  lượt gửi dùng tối đa hai worker nén/upload từng file rồi kiểm tra scan cùng
+  lúc (tối đa 5 file). Poll tối đa 48 lần/file: ban đầu chờ 0,5 → 1 → 2 → 3 giây,
+  sau lần đọc thứ 24 chờ 5 giây (tổng 183,5 giây chờ, chưa gồm HTTP). Card phân
+  biệt chuẩn bị/tải lên/kiểm tra/gửi yêu cầu; sau 24 lần báo kiểm tra lâu hơn dự
+  kiến. Một scan lỗi kết thúc dừng các scan đang chờ, giữ fileId cho retry.
+  Hết lượt mà file còn QUARANTINED/SCANNING giữ WAITING_SCAN và nút Kiểm tra lại,
+  không báo upload lỗi hoặc Chờ duyệt. Kiểm tra lại dùng IDs cũ, không tải lại
+  bytes; chỉ READY mới submit. Lỗi upload đợi các upload đã bắt đầu trả kết quả
+  và giữ IDs trước khi mở retry. Double tap bị khóa từ trước bước upload.
 - **FR-16:** Submit JSON `fileIds`, `title?` (0–120), `description?` (0–500)
   với key; hai field áp dụng cho batch file mới, không gửi tên field SRS
   `evidenceTitle/evidenceDescription`. Nút gửi enable khi có 1–5 file hợp lệ và
   metadata hợp lệ; pipeline chỉ gọi submit JSON khi mọi file READY. Không cần
   người dùng tự nhấn upload hoặc kiểm tra trạng thái trước khi gửi.
   Thành công 201 tạo request PENDING, chưa có nghĩa Sharing Skill VERIFIED.
-  Luồng Gửi riêng thành công thì refresh dữ liệu, toast và tự quay về chi tiết
-  kỹ năng; form tạo có bằng chứng theo FR-14 quay về My Skills. Form gửi
+  Luồng Gửi riêng bắt đầu tác vụ thì tự quay về chi tiết kỹ năng; form tạo
+  có bằng chứng theo FR-14 quay về My Skills. Khi server xác nhận submit mới báo
+  toast Đã gửi yêu cầu xác minh. Refresh chạy nền sau xác nhận
+  của server, không kéo dài thời gian khóa nút Lưu/Gửi. Card hiện spinner nhỏ và
+  Đang gửi bằng chứng…, Chờ duyệt sau response PENDING hoặc Gửi chưa hoàn tất +
+  Thử lại khi lỗi; vẫn mở chi tiết và giữ badge VERIFIED riêng. Form gửi
   không có link “Kiểm tra lịch sử đã gửi”; lịch sử nằm ở màn chi tiết.
 - **FR-17:** Chỉ một batch PENDING cho một Sharing Skill; backend quyết định và
   trả 409 nếu có batch khác. File đang scan không phải batch PENDING của Staff.
   Có thể gửi batch mới sau quyết định; file mới cần duyệt riêng. Kỹ năng đã
   VERIFIED vẫn có thể có batch PENDING mà badge tiếp tục VERIFIED.
+
+Ảnh lớn hơn 2 MB được thử re-encode JPEG quality 0,9 trên thiết bị trước upload;
+giữ nguyên pixel dimensions/toàn bộ ảnh, chỉ dùng kết quả nhỏ hơn và hợp lệ.
+Ảnh nhỏ, PDF/Word và file đã có ID giữ nguyên; nén lỗi/bản lớn hơn dùng bản gốc.
+Owner có thể chọn Giữ ảnh gốc trước upload. Nén không cấp quyền xác minh hoặc
+bỏ qua cap/scan. Tác vụ/draft chỉ trong phiên; đóng app không bảo đảm tiếp tục.
 
 ### US-05 — Theo dõi xác minh và đồng bộ hồ sơ (P1)
 
@@ -356,6 +378,12 @@ GAP-06 dùng `expo-document-picker ~57.0.3` và `expo-linking`; GAP-08 dùng typ
 allowlist summary, riêng history/detail. GAP-02..05 vẫn giữ workaround/contract
 boundary. GAP-07 chưa đóng: catalog local trả rỗng ở lần kiểm tra cũ; ngày
 2026-10-12 API local cổng 3001 không chạy, full API/scanner chưa nghiệm thu.
+
+Cập nhật 2026-10-15: catalog trên `skillhub.memora.cam` đã được tạo/cập nhật và
+đọc lại qua Admin/public API, gồm 43 level ACTIVE có mô tả. Đây chưa phải nghiệm
+thu CRUD bằng mobile/User hoặc full evidence journey. Upload ảnh mẫu trên server
+trả 503; GAP-07 vẫn mở. Checks commit, browser và JS/Hermes export đã đạt theo
+[checklist](checklist.md); Android/iOS trên thiết bị vẫn Pending.
 
 Đối chiếu BE ngày 2026-10-12: JSON mutation trả owner DTO hiện hành, kể cả replay;
 lưu DTO trước refresh, giữ version/cursor server và cập nhật các list đã tải.

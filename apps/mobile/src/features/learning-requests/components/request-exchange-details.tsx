@@ -38,7 +38,9 @@ export function RequestExchangeDetails({
                 <Text selectable style={styles.offeringName}>
                   {item.skill.name}
                 </Text>
-                <Text style={styles.caption}>{uiLabel(item.level)}</Text>
+                <Text style={styles.caption}>
+                  {item.skillLevel?.name ?? uiLabel(item.level)}
+                </Text>
                 {item.verificationStatus === "VERIFIED" && (
                   <View style={styles.verification}>
                     <Icon

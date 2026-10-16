@@ -52,6 +52,45 @@ Golden webhook dùng vector/checksum công khai từ docs payOS, không merchant
 
 Final sau sửa: full API lint/check-types/build pass; focused Prettier và git diff --check pass. **25/25 Node cases pass, 0 skipped**: 7 payOS protocol/config/policy cases + 18 money/cursor/settlement/Connections/config/log-privacy regressions. Không chạy lại PostgreSQL suite vì lần này không đổi financial persistence/writer; kết quả PG trước đó giữ lịch sử riêng. Không có live payOS/channel/create/lookup/posting proof; provider mặc định disabled, T014..T018 còn Pending.
 
+## Merge compatibility with dev (2026-10-16)
+
+Integrated `dev` at `92c923e` into Credit & Payment at `a03ffdf` locally, without
+committing, pushing, deploying, or applying migrations to the application schema.
+
+- Preserved WalletPort/PathSettlementPort/CreditAdjustmentPort bindings alongside
+  wallet read use cases, repository, signed cursors, and HTTP endpoints.
+- Updated adapter, PathHoldInput, and learning-platform test imports after the
+  Credit application directory refactor. LearningPath keeps dev's validation,
+  configuration, finalization idempotency, and atomic Hold/session behavior.
+- Reused the exact Credit money helpers. Settlement responses are formatted by
+  the service once; the controller forwards the result. The HTTP regression now
+  exercises the real service/controller pair with a stored bigint settlement.
+- Real PostgreSQL validation exposed a Conversation fixture missing requestId
+  and a production nested ScheduleVersion create supplying pathId already
+  inherited from its composite parent relation. Corrected both, and aligned the
+  fake database's composite relation with Prisma.
+- Extended the module bootstrap regression to verify wallet routes, shared ledger
+  adapter bindings, the unavailable adjustment adapter, and the required
+  Idempotency-Key header on finalize.
+
+Verification: API lint, typecheck, build, and focused Prettier checks passed.
+73 regression cases passed (learning-platform phases 1-4, audit, path reads,
+bigint responses, Credit money/cursor, payOS, Connections bootstrap/policies,
+and Sonar regressions). After the scheduling correction, all 45 affected
+learning-platform/audit cases passed again. PostgreSQL wallet persistence and
+HTTP suites passed 12 cases; the real finalize rollback/retry case also passed:
+**86 distinct cases passed, 0 skipped**. Database tests created and dropped UUID
+test schemas; their transactions did not modify application data. Earlier failed
+runs identified the fixture and nested-create problems described above.
+The finalize harness also cleans its legacy migration sibling schema. Diff
+whitespace validation against dev passes; the full merge diff against the PR
+head retains dev's existing trailing blank line in the push-token migration.
+That published migration was kept unchanged to preserve its checksum.
+
+These checks establish local merge compatibility for the tested scope. The
+production rollout, real provider delivery, payment posting, and adjustment
+implementation gates below remain pending.
+
 ## Full feature/release matrix
 
 | Phạm vi còn lại                                                                                | Trạng thái / giới hạn                                                          |

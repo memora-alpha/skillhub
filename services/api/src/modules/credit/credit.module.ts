@@ -11,6 +11,13 @@ import { ListCreditTransactionsUseCase } from "./application/use-cases/list-cred
 import { GetCreditTransactionUseCase } from "./application/use-cases/get-credit-transaction.use-case";
 import { LedgerCursor } from "./domain/ledger-cursor";
 import { WalletController } from "./presentation/http/wallet.controller";
+import { CreditLedgerAdapter } from "./credit-ledger.adapter";
+import {
+  CreditAdjustmentPort,
+  PathSettlementPort,
+  WalletPort,
+} from "./credit.ports";
+import { UnavailableCreditAdjustmentAdapter } from "./unavailable-credit-adjustment.adapter";
 
 @Module({
   imports: [DatabaseModule, IdentityModule],
@@ -18,6 +25,13 @@ import { WalletController } from "./presentation/http/wallet.controller";
   providers: [
     CreditWalletReader,
     CreditLedgerService,
+    CreditLedgerAdapter,
+    { provide: WalletPort, useExisting: CreditLedgerAdapter },
+    { provide: PathSettlementPort, useExisting: CreditLedgerAdapter },
+    {
+      provide: CreditAdjustmentPort,
+      useClass: UnavailableCreditAdjustmentAdapter,
+    },
     { provide: WalletRepository, useClass: PrismaWalletRepository },
     GetWalletUseCase,
     ListCreditTransactionsUseCase,
@@ -28,6 +42,12 @@ import { WalletController } from "./presentation/http/wallet.controller";
       useFactory: (config: IdentityConfig) => new LedgerCursor(config.jwtKey),
     },
   ],
-  exports: [CreditWalletReader, CreditLedgerService],
+  exports: [
+    CreditWalletReader,
+    CreditLedgerService,
+    WalletPort,
+    PathSettlementPort,
+    CreditAdjustmentPort,
+  ],
 })
 export class CreditModule {}

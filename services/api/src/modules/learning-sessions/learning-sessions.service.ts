@@ -10,7 +10,8 @@ import { TransactionRunner } from "../../infrastructure/database/transaction-run
 import type { TransactionContext } from "../../infrastructure/database/transaction-context";
 import { byCodeUnit } from "../../infrastructure/idempotency/idempotency.service";
 import type { Principal } from "../auth/application/services/sessions.service";
-import { CreditLedgerService } from "../credit/application/services/credit-ledger.service";
+import { PathSettlementPort } from "../credit/credit.ports";
+import { formatCredit as creditText } from "../credit/domain/money";
 import { ReputationService } from "../reputation/reputation.service";
 import { AchievementsService } from "../reputation/achievements.service";
 import { ReportsService } from "../reports/reports.service";
@@ -34,7 +35,7 @@ export class LearningSessionsService {
   constructor(
     private readonly transactions: TransactionRunner,
     private readonly db: PrismaService,
-    private readonly creditLedger: CreditLedgerService,
+    private readonly settlement: PathSettlementPort,
     private readonly reputation: ReputationService,
     private readonly achievements: AchievementsService,
     private readonly reports: ReportsService,
@@ -88,7 +89,11 @@ export class LearningSessionsService {
     ) {
       throw new ForbiddenException("SESSION_ACCESS_DENIED");
     }
-    return session;
+    return {
+      ...session,
+      teacherAttendanceSeconds: session.teacherAttendanceSeconds.toString(),
+      learnerAttendanceSeconds: session.learnerAttendanceSeconds.toString(),
+    };
   }
 
   complete(actor: Principal, sessionId: string, note: string) {
@@ -172,8 +177,8 @@ export class LearningSessionsService {
           pathId,
           status: path.status,
           operationId: path.settlementOperationId,
-          gross: path.settlementGrossAmount,
-          fee: path.settlementFeeAmount,
+          gross: creditText(path.settlementGrossAmount),
+          fee: creditText(path.settlementFeeAmount),
         };
       }
       if (path.status !== "ACTIVE")
@@ -195,7 +200,7 @@ export class LearningSessionsService {
       if (!(clock?.now instanceof Date))
         throw new ConflictException("DATABASE_TIME_UNAVAILABLE");
       await this.reports.assertPathSettlementAllowed(tx, pathId, clock.now);
-      const result = await this.creditLedger.settlePath(tx, {
+      const result = await this.settlement.settlePath(tx, {
         pathId,
         pathVersion: lockedVersion,
         exchangeType: agreement.exchangeType,
@@ -230,7 +235,13 @@ export class LearningSessionsService {
         );
         await this.achievements.evaluate(tx, userId, clock.now);
       }
-      return { pathId, status: "COMPLETED" as const, ...result };
+      return {
+        pathId,
+        status: "COMPLETED" as const,
+        operationId: result.operationId,
+        gross: creditText(result.gross),
+        fee: creditText(result.fee),
+      };
     });
   }
 
