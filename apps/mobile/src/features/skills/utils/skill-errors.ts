@@ -7,6 +7,10 @@ const messages: Record<string, string> = {
   SHARING_SKILL_ARCHIVED: "Kỹ năng đã bị xóa khỏi hồ sơ.",
   FILE_NOT_READY: "File chưa sẵn sàng. Kiểm tra trạng thái trước khi gửi.",
   SKILL_NOT_ACTIVE: "Kỹ năng không còn có thể chọn. Hãy chọn lại từ danh mục.",
+  SKILL_LEVEL_NOT_ACTIVE:
+    "Trình độ không còn hoạt động. Tải lại và chọn trình độ khác.",
+  SKILL_LEVEL_NOT_FOUND:
+    "Trình độ không thuộc kỹ năng này hoặc không còn khả dụng.",
 };
 export function outcomeUnknown(error: unknown) {
   return (

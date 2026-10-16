@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { AppError } from "@/lib/http/errors";
-import { skillLevels, skillBadges, batchStates } from "../types/skills";
+import { skillBadges, batchStates } from "../types/skills";
 
 const id = z.uuid();
 const date = z.iso.datetime({ offset: true });
@@ -12,24 +12,43 @@ export const catalogSchema = z.object({
   status: z.enum(["ACTIVE", "INACTIVE", "ARCHIVED"]),
   description: nullableText,
 });
-export const publicSkillSchema = z.object({
+export const skillLevelSchema = z.object({
   id,
-  skill: catalogSchema,
-  level: z.enum(skillLevels),
-  description: z.string(),
-  experienceYears: z
-    .string()
-    .regex(/^(?:[0-5]?\d(?:\.\d)?|60(?:\.0)?)$/)
-    .nullable(),
-  verificationStatus: z.enum(skillBadges),
+  skillId: id,
+  code: z.string().min(1),
+  name: z.string().min(1),
+  description: nullableText,
+  sortOrder: z.number().int().min(0),
+  status: z.enum(["ACTIVE", "INACTIVE"]),
 });
+export const publicSkillSchema = z
+  .object({
+    id,
+    skill: catalogSchema,
+    level: z.string().min(1),
+    levelId: id.nullable().optional(),
+    skillLevel: skillLevelSchema.nullable().optional(),
+    description: z.string(),
+    experienceYears: z
+      .string()
+      .regex(/^(?:[0-5]?\d(?:\.\d)?|60(?:\.0)?)$/)
+      .nullable(),
+    verificationStatus: z.enum(skillBadges),
+  })
+  .refine(
+    (value) =>
+      !value.skillLevel ||
+      (value.skillLevel.id === value.levelId &&
+        value.skillLevel.skillId === value.skill.id &&
+        value.skillLevel.code === value.level),
+  );
 const summarySchema = z.object({
   id,
   status: z.enum(batchStates),
   submittedAt: date,
   rejectReason: nullableText,
 });
-export const ownSkillSchema = publicSkillSchema.extend({
+export const ownSkillSchema = publicSkillSchema.safeExtend({
   isVisible: z.boolean(),
   archivedAt: date.nullable(),
   version,
@@ -73,11 +92,13 @@ export function parseOwnMutation(
   value: unknown,
   sharingId?: string,
   skillId?: string,
+  levelId?: string,
 ) {
   const result = parseContract(ownSkillSchema, value);
   if (
     (sharingId && result.id !== sharingId) ||
-    (skillId && result.skill.id !== skillId)
+    (skillId && result.skill.id !== skillId) ||
+    (levelId && result.levelId !== levelId)
   )
     throw new AppError("protocol");
   return result;

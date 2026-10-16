@@ -17,7 +17,6 @@ import type { Principal } from "../auth/application/services/sessions.service";
 import { success } from "../../shared/http/response";
 import { ConfirmSessionCompletionDto } from "./learning-sessions.dto";
 import { LearningSessionsService } from "./learning-sessions.service";
-import { formatCredit } from "../credit/domain/money";
 
 @ApiTags("sessions")
 @ApiBearerAuth()
@@ -57,13 +56,8 @@ export class LearningSessionsController {
     @CurrentIdentity() actor: Principal,
     @Param("pathId", ParseUUIDPipe) pathId: string,
   ) {
-    const result = await this.sessions.settlePath(actor, pathId);
     return success(
-      {
-        ...result,
-        gross: formatCredit(result.gross),
-        fee: formatCredit(result.fee),
-      },
+      await this.sessions.settlePath(actor, pathId),
       "Path settlement processed.",
     );
   }

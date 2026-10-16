@@ -35,6 +35,12 @@ import { LearningPathsModule } from "../../dist/modules/learning-paths/learning-
 import { LearningPathsService } from "../../dist/modules/learning-paths/learning-paths.service.js";
 import { ConversationMembershipReader } from "../../dist/modules/conversations/conversation-membership.reader.js";
 import { ReputationModule } from "../../dist/modules/reputation/reputation.module.js";
+import { CreditLedgerAdapter } from "../../dist/modules/credit/credit-ledger.adapter.js";
+import {
+  WalletPort,
+  PathSettlementPort,
+  CreditAdjustmentPort,
+} from "../../dist/modules/credit/credit.ports.js";
 function fixtureModule(entries) {
   class Fixture {}
   Module({
@@ -115,6 +121,13 @@ test("feature modules resolve owner contracts and register SSE/chat workers; HTT
     assert(module.get(ConversationsService));
     assert(module.get(LearningPathsService));
     assert(module.get(ConversationMembershipReader));
+    const ledgerAdapter = module.get(CreditLedgerAdapter);
+    assert.equal(module.get(WalletPort), ledgerAdapter);
+    assert.equal(module.get(PathSettlementPort), ledgerAdapter);
+    await assert.rejects(
+      module.get(CreditAdjustmentPort).adjust(),
+      /CREDIT_ADJUSTMENT_UNAVAILABLE/,
+    );
     const registry = module.get(OutboxPublisherRegistry);
     for (const type of [
       "application.events.wakeup",
@@ -132,8 +145,22 @@ test("feature modules resolve owner contracts and register SSE/chat workers; HTT
       "/api/v1/conversations/{id}/messages",
       "/api/v1/events",
       "/api/v1/me/achievements",
+      "/api/v1/me/wallet",
+      "/api/v1/me/wallet/transactions",
+      "/api/v1/learning-paths/mine",
+      "/api/v1/learning-paths/{pathId}/finalize",
     ])
       assert(doc.paths[route], route);
+    assert(
+      doc.paths[
+        "/api/v1/learning-paths/{pathId}/finalize"
+      ].post.parameters.some(
+        (parameter) =>
+          parameter.in === "header" &&
+          parameter.name === "Idempotency-Key" &&
+          parameter.required,
+      ),
+    );
     assert(
       doc.paths["/api/v1/events"].get.responses["200"].content?.[
         "text/event-stream"

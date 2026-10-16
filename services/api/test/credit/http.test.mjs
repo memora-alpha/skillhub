@@ -28,17 +28,33 @@ test("wallet HTTP uses live identity, exact strings, snapshot cursors and own-on
       imports: [CreditModule, IdentityModule],
       controllers: [LearningSessionsController],
       providers: [
-        // Only isolates the existing settlement transport regression; wallet routes use real PG.
+        // Exercise the real service/controller serialization together; wallet routes use real PG.
         {
           provide: LearningSessionsService,
-          useValue: {
-            settlePath: async () => ({
-              gross: 1001n,
-              fee: 40n,
-              pathId: randomUUID(),
-              status: "COMPLETED",
-            }),
-          },
+          useValue: new LearningSessionsService(
+            {
+              run: (work) =>
+                work({
+                  $queryRaw: async () => [{ id: "settled-path" }],
+                  learningPath: {
+                    findUniqueOrThrow: async () => ({
+                      participantAId: owner.user.id,
+                      participantBId: other.user.id,
+                      settledAt: new Date(),
+                      settlementOperationId: randomUUID(),
+                      settlementGrossAmount: 1001n,
+                      settlementFeeAmount: 40n,
+                      status: "COMPLETED",
+                    }),
+                  },
+                }),
+            },
+            {},
+            {},
+            {},
+            {},
+            {},
+          ),
         },
       ],
     })

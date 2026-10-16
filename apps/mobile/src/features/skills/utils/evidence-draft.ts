@@ -24,6 +24,10 @@ export type EvidenceDraft = {
   fileId?: string;
   error?: string;
   checking?: boolean;
+  keepOriginal?: boolean;
+  compressionChecked?: boolean;
+  originalAsset?: EvidenceAsset;
+  originalSize?: number;
 };
 export type VerificationDraft = {
   files: EvidenceDraft[];
@@ -106,6 +110,7 @@ export const needsScan = (state: string) =>
   state === "QUARANTINED" || state === "SCANNING";
 export const fileStateLabels: Record<string, string> = {
   SELECTED: "Đã chọn · chờ gửi",
+  PREPARING: "Đang chuẩn bị",
   UPLOADING: "Đang tải lên",
   QUARANTINED: "Đang chờ kiểm tra",
   SCANNING: "Đang kiểm tra",

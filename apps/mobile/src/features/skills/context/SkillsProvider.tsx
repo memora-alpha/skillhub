@@ -17,10 +17,16 @@ import { recordSkillQueries } from "../utils/record-skill-queries";
 import { observeVerificationDecisions } from "../utils/verification-state";
 import { recordCreatedSkillReads } from "../utils/own-skill-order";
 import { createMutationIntent } from "../utils/mutation-intent";
+import { createEvidenceTransfers } from "../utils/evidence-transfers";
+import { compressEvidence } from "../api/evidence-compression";
+import { randomUUID } from "expo-crypto";
+import { useToast } from "@/providers/ToastProvider";
+import { AppState } from "react-native";
 
 function useSkillsRuntime() {
   const { runtime, session } = useAuthSession();
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
   const generation = runtime.controller.generation;
   const userId = session?.userId ?? "";
   return useMemo(() => {
@@ -36,7 +42,7 @@ function useSkillsRuntime() {
     const isCurrent = () =>
       runtime.controller.generation === generation &&
       runtime.controller.getSnapshot() === "ready";
-    return {
+    const core = {
       api: createSkillsApi(runtime.client),
       scope,
       generation,
@@ -49,6 +55,7 @@ function useSkillsRuntime() {
       recentlyCreatedSkills,
       observeCreatedSkills(skills: OwnSkill[], complete = false) {
         if (!isCurrent()) return;
+        transfers.observeSkills(skills);
         recordCreatedSkillReads(recentlyCreatedSkills, skills, complete);
       },
       async rememberSkill(skill: OwnSkill, created = false) {
@@ -61,6 +68,7 @@ function useSkillsRuntime() {
         }
       },
       observeVerifications(batches: Verification[]) {
+        if (isCurrent()) transfers.observe(batches);
         if (
           !isCurrent() ||
           !observeVerificationDecisions(batches, submittedVerifications)
@@ -92,6 +100,7 @@ function useSkillsRuntime() {
       async forgetSkill(id: string) {
         if (!isCurrent()) return;
         deletedSkillIds.add(id);
+        transfers.forget(id);
         verificationDrafts.delete(id);
         verificationIntents.delete(id);
         submittedVerifications.delete(id);
@@ -120,7 +129,20 @@ function useSkillsRuntime() {
         );
       },
     };
-  }, [runtime, generation, userId, queryClient]);
+    const transfers: ReturnType<typeof createEvidenceTransfers> =
+      createEvidenceTransfers({
+        api: core.api,
+        drafts: verificationDrafts,
+        intents: verificationIntents,
+        isCurrent,
+        compress: compressEvidence,
+        remember: core.rememberVerification,
+        refresh: core.refresh,
+        key: randomUUID,
+        notify: showToast,
+      });
+    return { ...core, transfers };
+  }, [runtime, generation, userId, queryClient, showToast]);
 }
 type SkillsRuntime = ReturnType<typeof useSkillsRuntime>;
 const SkillsContext = createContext<SkillsRuntime | null>(null);
@@ -135,17 +157,30 @@ export function SkillsProvider({ children }: { children: ReactNode }) {
 function SkillsSession({ children }: { children: ReactNode }) {
   const value = useSkillsRuntime();
   const queryClient = useQueryClient();
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    value.transfers.activate();
+    if (
+      AppState.currentState === "background" ||
+      AppState.currentState === "inactive"
+    )
+      value.transfers.pause();
+    else value.transfers.resume();
+    const listener = AppState.addEventListener("change", (state) => {
+      if (state !== "active") value.transfers.pause();
+      else value.transfers.resume();
+    });
+    return () => {
+      listener.remove();
+      value.transfers.dispose();
       value.verificationDrafts.clear();
+      value.verificationIntents.clear();
       value.submittedVerifications.clear();
       value.deletedSkillIds.clear();
       value.recentlyCreatedSkills.clear();
       void queryClient.cancelQueries({ queryKey: value.scope });
       queryClient.removeQueries({ queryKey: value.scope });
-    },
-    [queryClient, value],
-  );
+    };
+  }, [queryClient, value]);
   return (
     <SkillsContext.Provider value={value}>{children}</SkillsContext.Provider>
   );

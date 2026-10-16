@@ -61,7 +61,12 @@ export const idsSchema = z
 export const offeringSchema = z.object({
   id: z.uuid(),
   skill: z.object({ id: z.uuid(), name: z.string() }),
-  level: z.enum(["BEGINNER", "INTERMEDIATE", "ADVANCED", "EXPERT"]),
+  level: z.string().min(1),
+  levelId: z.uuid().nullable().optional(),
+  skillLevel: z
+    .object({ name: z.string().min(1) })
+    .nullable()
+    .optional(),
   verificationStatus: z.string(),
 });
 export const cardPreferences = {

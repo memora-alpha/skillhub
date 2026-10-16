@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { cardPreferences, idsSchema } from "./schemas/request-preferences";
+import {
+  cardPreferences,
+  idsSchema,
+  offeringSchema,
+} from "./schemas/request-preferences";
 export const requestStatuses = [
   "DRAFT",
   "PENDING_MODERATION",
@@ -67,11 +71,8 @@ export const skillSchema = z.object({
   status: z.enum(["ACTIVE", "INACTIVE", "ARCHIVED"]),
 });
 export const tagSchema = z.object({ id: z.uuid(), label: z.string() });
-export const ownOfferingSchema = z.object({
-  id: z.uuid(),
+export const ownOfferingSchema = offeringSchema.extend({
   skill: skillSchema,
-  level: z.string(),
-  verificationStatus: z.string(),
   isVisible: z.boolean(),
   archivedAt: z.iso.datetime({ offset: true }).nullable(),
 });

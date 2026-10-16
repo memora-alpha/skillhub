@@ -8,6 +8,16 @@ export const ids = {
   other: "10000000-0000-4000-8000-000000000004",
   verification: "10000000-0000-4000-8000-000000000005",
   file: "10000000-0000-4000-8000-000000000006",
+  level: "10000000-0000-4000-8000-000000000007",
+};
+export const skillLevel = {
+  id: ids.level,
+  skillId: ids.skill,
+  code: "BEGINNER",
+  name: "Cơ bản",
+  description: "Nắm kiến thức nền tảng.",
+  sortOrder: 0,
+  status: "ACTIVE",
 };
 export const catalog = {
   id: ids.skill,
@@ -19,6 +29,8 @@ export const ownSkill = {
   id: ids.sharing,
   skill: catalog,
   level: "BEGINNER",
+  levelId: ids.level,
+  skillLevel,
   description: "Hướng dẫn React cơ bản và thực hành UI.",
   experienceYears: "0.0",
   verificationStatus: "UNVERIFIED",

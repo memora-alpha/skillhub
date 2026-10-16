@@ -10,8 +10,8 @@ type Action = {
     operation: string,
     body: unknown,
     execute: (key: string) => Promise<T>,
-    done?: (value: T) => void,
-    refreshAfter?: boolean,
+    done?: (value: T, refreshed: boolean | undefined) => void,
+    refreshAfter?: boolean | "background",
   ) => Promise<T | undefined>;
   pending: boolean;
   error: unknown;
@@ -278,4 +278,55 @@ test("late failure after leaving the screen cannot show a toast", async () => {
   write.resolve("done");
   await pending;
   assert.equal(view.toasts.length, 0);
+});
+
+test("confirmed save completes and unlocks while read refresh is still pending", async () => {
+  const view = harness();
+  const refresh = deferred<boolean>();
+  view.setRefresh(() => refresh.promise);
+  let completion: { value: string; refreshed: boolean | undefined } | undefined;
+  const pending = view.render({ notifySuccess: false }).run(
+    "create",
+    {},
+    async () => "saved",
+    (value, refreshed) => {
+      completion = { value, refreshed };
+    },
+    "background",
+  );
+  await new Promise((resolve) => setImmediate(resolve));
+  try {
+    assert.deepEqual(completion, { value: "saved", refreshed: undefined });
+    assert.equal(view.render().pending, false);
+    assert.equal(view.back(), false);
+    assert.equal(view.refreshes(), 1);
+    assert.equal(view.toasts.length, 0);
+  } finally {
+    refresh.resolve(false);
+  }
+  assert.equal(await pending, "saved");
+  assert.deepEqual(completion, { value: "saved", refreshed: undefined });
+  assert.equal(view.toasts.length, 0);
+});
+
+test("a failed background read cannot turn a committed save into a mutation failure", async () => {
+  const view = harness();
+  view.setRefresh(async () => {
+    throw new Error("read unavailable");
+  });
+  let completed = 0;
+  await view.render().run(
+    "create",
+    {},
+    async () => "saved",
+    () => {
+      completed++;
+    },
+    "background",
+  );
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(completed, 1);
+  assert.equal(view.render().error, null);
+  assert.equal(view.toasts.length, 1);
+  assert.equal(view.toasts[0]?.tone, "success");
 });

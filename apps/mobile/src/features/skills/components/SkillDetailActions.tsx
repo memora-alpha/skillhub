@@ -4,6 +4,7 @@ import { appColors as colors, fonts, typography } from "@/constants/theme";
 import type { OwnSkill } from "../types/skills";
 import { hasPendingVerification } from "../utils/verification-state";
 import { SkillAction } from "./SkillAction";
+import { useEvidenceTransfer } from "../hooks/use-evidence-transfer";
 
 export function SkillDetailActions({
   skill,
@@ -23,6 +24,7 @@ export function SkillDetailActions({
   onDelete: () => void;
 }>) {
   const waiting = historyWaiting || hasPendingVerification(skill);
+  const sending = useEvidenceTransfer(skill.id)?.state === "SENDING";
   if (skill.archivedAt) return null;
   return (
     <View style={styles.panel}>
@@ -60,7 +62,7 @@ export function SkillDetailActions({
         ) : (
           <SkillAction
             label="Gửi bằng chứng xác minh"
-            disabled={pending}
+            disabled={pending || sending}
             onPress={onVerify}
           />
         )}

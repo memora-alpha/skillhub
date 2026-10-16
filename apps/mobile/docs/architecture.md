@@ -122,6 +122,24 @@ draft and automatic upload/scan/submit pipeline. Picker metadata is normalized
 without changing file bytes; unsupported image formats or unreadable sizes are
 rejected before upload. Neither picker uploads on selection.
 
+Evidence transfers belong to the Skills session runtime and expose observable
+SENDING/WAITING_SCAN/FAILED/PENDING state per Sharing Skill ID. Save records the confirmed
+skill before queueing and navigating; Send also queues before returning to detail.
+Route changes leave transfers running. App background cancels/retains drafts for
+explicit retry; logout/archive removes jobs in scope. Closing the app does not
+persist these jobs. Two workers pipeline preparation/upload and drain in-flight
+uploads before releasing the retry lock. Owner cards show phase progress, scan
+waiting/Check again, pending approval or failed/Retry separately from verification
+badges; public cards never mount that state. Scan polling is bounded; exhaustion
+keeps file IDs and an informational state, while only confirmed READY can submit.
+Retry sits outside the card's detail Pressable to avoid nested action targets.
+
+ImageManipulator/FileSystem re-encode images over 2 MB at JPEG quality 0.9,
+preserving pixel dimensions and accepting only smaller validated results. Picker
+assets remain originals; owners can keep them before upload. Documents, small
+images and uploaded IDs keep their bytes. The shared Checkbox adds an optional
+disabled state for this control; existing auth consumers retain their behavior.
+
 ## Header actions
 
 The Profile "Hành trình của tôi" shortcut opens `/my-learning`. It owns the
