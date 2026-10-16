@@ -9,6 +9,7 @@ import { PrismaNotificationRepository } from "../../dist/modules/notifications/i
 import { skip, withDatabase } from "../integration-db.mjs";
 
 async function createOwner(prisma, ownerId) {
+  const role = await prisma.role.findUniqueOrThrow({ where: { code: "USER" } });
   await prisma.user.create({
     data: {
       id: ownerId,
@@ -17,6 +18,13 @@ async function createOwner(prisma, ownerId) {
       emailVerified: true,
       termsVersion: "integration",
       termsAcceptedAt: new Date(),
+      roleId: role.id,
+      securityVersion: 1,
+      failedLoginCount: 0,
+      fullName: "Notification integration user",
+      locale: "vi",
+      verifiedSkillCount: 0,
+      completedSessionCount: 0,
     },
   });
 }
@@ -86,6 +94,10 @@ test(
         await prisma.outboxConsumerReceipt.deleteMany({
           where: { consumer: consumerName, eventId },
         });
+        await prisma.userEventDelivery.deleteMany({
+          where: { userId: ownerId },
+        });
+        await prisma.userEventStream.deleteMany({ where: { userId: ownerId } });
         await prisma.user.deleteMany({ where: { id: ownerId } });
       }
     }),

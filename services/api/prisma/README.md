@@ -23,6 +23,13 @@ entities; its simplification does not remove logical join tables.
   adds runtime `SkillLevel` and SharingSkill.levelId through the runtime generator
   and `runtime-support.prisma`; the historical logical-v3 catalog remains intact.
   Migration `20261014000000_skill_level_catalog` backfills all old selections.
+- Tag/request amendment adds creator/version/normalized key to Tag and the
+  `TagCreationRequest` runtime model. Migration
+  `20261015000000_tag_creation_requests` retains existing IDs, labels, statuses
+  and RequestTag links; legacy creator/creation time remain null. Run tag
+  preflight before migration and `--verify` after it, then seed identity grants;
+  [rollout instructions](../specs/009-tags/quickstart.md#rollout-database-hiện-hữu)
+  describe collision/locale guards. The historical v3 catalog is unchanged.
 - `scripts/write-identity-schema.mjs` verifies the runtime scope without rewriting it.
   OTP authority is Redis; no PostgreSQL OTP models are generated.
   There is no separate `identity.prisma` deployment schema.

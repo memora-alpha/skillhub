@@ -34,6 +34,7 @@ import { SkillNotificationHandler } from "../../dist/modules/notifications/appli
 export async function createSkillFixture(
   beforeSkillsMigration,
   beforeLevelMigration,
+  beforeTagMigration,
 ) {
   const schema = `skills_test_${randomUUID().replaceAll("-", "")}`;
   if (!/^skills_test_[a-f0-9]{32}$/.test(schema))
@@ -75,6 +76,8 @@ export async function createSkillFixture(
         await beforeSkillsMigration?.(client);
       if (name === "20261014000000_skill_level_catalog")
         await beforeLevelMigration?.(client);
+      if (name === "20261015000000_tag_creation_requests")
+        await beforeTagMigration?.(client);
       await client.query(
         await readFile(new URL(`${name}/migration.sql`, migrations), "utf8"),
       );

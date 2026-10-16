@@ -7,6 +7,7 @@ import { TransactionRunner } from "../../dist/infrastructure/database/transactio
 import { skip, withDatabase } from "../integration-db.mjs";
 
 async function createUser(prisma, id) {
+  const role = await prisma.role.findUniqueOrThrow({ where: { code: "USER" } });
   return prisma.user.create({
     data: {
       id,
@@ -15,6 +16,13 @@ async function createUser(prisma, id) {
       emailVerified: true,
       termsVersion: "integration",
       termsAcceptedAt: new Date(),
+      roleId: role.id,
+      securityVersion: 1,
+      failedLoginCount: 0,
+      fullName: "Learning request integration user",
+      locale: "vi",
+      verifiedSkillCount: 0,
+      completedSessionCount: 0,
     },
   });
 }
@@ -39,12 +47,18 @@ test(
           data: {
             id: skillId,
             name: `LR integration ${skillId}`,
+            nameKey: `lr integration ${skillId}`,
             slug: `lr-integration-${skillId}`,
             status: "ACTIVE",
           },
         });
         await prisma.tag.create({
-          data: { id: tagId, label: `LR ${tagId}`, status: "ACTIVE" },
+          data: {
+            id: tagId,
+            label: `LR ${tagId}`,
+            labelKey: `lr ${tagId}`,
+            status: "ACTIVE",
+          },
         });
 
         const repository = new PrismaLearningRequestRepository(prisma);
@@ -211,6 +225,7 @@ test(
           data: {
             id: skillId,
             name: `LR race ${skillId}`,
+            nameKey: `lr race ${skillId}`,
             slug: `lr-race-${skillId}`,
             status: "ACTIVE",
           },

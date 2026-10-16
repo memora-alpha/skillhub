@@ -28,7 +28,7 @@ test(
           { label: "100plainXdone", status: "ACTIVE" },
           { label: "Tag inactive", status: "INACTIVE" },
           { label: "Tag archived", status: "ARCHIVED" },
-        ],
+        ].map((row) => ({ ...row, labelKey: row.label.toLowerCase() })),
       });
       const module = await Test.createTestingModule({
         controllers: [
