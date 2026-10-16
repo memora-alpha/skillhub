@@ -42,6 +42,7 @@ User tạo yêu cầu nạp VND, nhận hướng dẫn thanh toán của cổng 
 5. **Given** sự kiện sai thông tin xác thực cổng, sai số tiền hoặc đơn không xác định, **When** nhận, **Then** không cộng Credit và có dấu vết vận hành an toàn để điều tra.
 6. **Given** kết quả đến muộn hoặc trạng thái mâu thuẫn, **When** chưa thể xác định kết quả chắc chắn, **Then** giữ hồ sơ đối soát; không tự đánh dấu đã trả tiền hay xóa bằng chứng.
 7. **Given** payOS chưa được bật hoặc chưa đủ cấu hình, **When** yêu cầu nạp, **Then** trả trạng thái dịch vụ chưa sẵn sàng; đọc ví/lịch sử vẫn dùng được.
+8. **Given** payOS trả response đã xác minh và khớp quote, **When** hiển thị hướng dẫn nạp, **Then** SkillHub render trực tiếp dữ liệu `qrCode`, không mở hosted checkout và không trả checkout URL; kết quả lấy từ backend, không suy ra từ việc quét QR hay đóng màn hình.
 
 ### User Story 3 — Giữ, giải phóng và quyết toán đúng thỏa thuận (Priority: P1)
 

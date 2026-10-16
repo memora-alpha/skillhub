@@ -4,11 +4,13 @@ Date: 2026-10-15. User đổi provider từ SePay sang **payOS**. Quy tắc phí
 
 ## REST checkout và identity
 
-[API chính thức](https://payos.vn/docs/api/): server gọi `POST https://api-merchant.payos.vn/v2/payment-requests` với `x-client-id` và `x-api-key`. Không gửi credential hoặc signed create payload xuống client. Adapter `prepareCheckout` trả server-only request; transport sẽ chạy sau khi commit immutable quote/intent, ngoài PostgreSQL transaction. Response hợp lệ được `verifyCheckoutResponse` kiểm chữ ký, orderCode, amount, currency và URL trước khi lưu checkout GET/QR cho owner.
+[API chính thức](https://payos.vn/docs/api/): server gọi `POST https://api-merchant.payos.vn/v2/payment-requests` với `x-client-id` và `x-api-key`. Không gửi credential hoặc signed create payload xuống client. Adapter `prepareCheckout` trả server-only request; transport sẽ chạy sau khi commit immutable quote/intent, ngoài PostgreSQL transaction. Response hợp lệ được `verifyCheckoutResponse` kiểm chữ ký toàn bộ data, orderCode, amount, currency và QR trước khi lưu QR projection cho owner.
+
+User amendment 2026-10-16: **chỉ dùng QR payOS**. `qrCode` là chuỗi dữ liệu để client render QR trực tiếp trong SkillHub, không phải URL ảnh hay URL checkout để mở bằng trình duyệt/WebView. Projection chỉ có `{paymentLinkId,qrCode,orderCode,providerStatus}`; không trả `method`, `url` hoặc `checkoutUrl`. Hosted checkout metadata, nếu có, vẫn thuộc payload được kiểm chữ ký rồi bị loại khỏi projection. QR flow không phụ thuộc giá trị hay sự có mặt của `checkoutUrl`.
 
 `orderCode` là positive safe integer ở provider boundary, canonical decimal string trong application. Future reserve phải cấp unique theo channel, persist một lần và dùng lại khi retry; không dùng Date.now hoặc cắt UUID để giả định uniqueness. VND dùng bigint ở domain, chỉ đổi sang JSON integer sau kiểm bounds 1.000–2.000.000/bước1.000. `expiredAt` là Unix seconds Int32 từ expiry đã lưu, tối đa một giờ; không cấp lại TTL khi retry.
 
-Create signature dùng năm fields theo thứ tự alphabet: amount, cancelUrl, description, orderCode, returnUrl; nối key=value bằng &, HMAC-SHA256 hex với checksum key. Description cố định SH CREDIT. expiredAt gửi kèm nhưng không thuộc năm fields ký. Return/cancel URLs do server config, không quyết định PAID. Docs hiện liệt kê production host; không invent sandbox host/flag.
+Create signature dùng năm fields theo thứ tự alphabet: amount, cancelUrl, description, orderCode, returnUrl; nối key=value bằng &, HMAC-SHA256 hex với checksum key. Description cố định SH CREDIT. expiredAt gửi kèm nhưng không thuộc năm fields ký. payOS vẫn bắt buộc returnUrl/cancelUrl dù SkillHub chỉ dùng QR: giữ cấu hình HTTPS server-side để tạo request và chữ ký hợp lệ; không dùng chúng để điều hướng trong QR flow hoặc quyết định PAID. Không cần xây trang return/cancel cho trải nghiệm QR này. Docs hiện liệt kê production host; không invent sandbox host/flag.
 
 ## Webhook authentication
 
@@ -26,4 +28,4 @@ API `GET /v2/payment-requests/{id}` nhận orderCode hoặc paymentLinkId; futur
 
 PAYMENTS_ENABLED=false mặc định. Enabled yêu cầu PAYOS_CLIENT_ID, PAYOS_API_KEY, PAYOS_CHECKSUM_KEY, HTTPS PAYOS_RETURN_URL và PAYOS_CANCEL_URL. Không log headers/signatures/raw payload/checkout URL. Không sửa env thật, đăng ký webhook hoặc gọi gateway thật trong lần chuyển provider.
 
-Tests phải kiểm golden webhook vector chính thức, create canonical fields/expiry/safe integers, signed response quote/origin matching, tampered data/PII/missing signature, duplicate identity/digest và unknown outcomes. Full create→lookup→webhook→durable receipt→one TOP_UP, partial/late/crash recovery và channel readiness vẫn là activation gates trong tasks/validation.
+Tests phải kiểm golden webhook vector chính thức, create canonical fields/expiry/safe integers, signed response quote/QR matching, projection không chứa hosted URL, tampered data/PII/missing signature, duplicate identity/digest và unknown outcomes. Full create→lookup→webhook→durable receipt→one TOP_UP, partial/late/crash recovery và channel readiness vẫn là activation gates trong tasks/validation. Trạng thái UI lấy từ Payment API/SSE/polling đã xác thực; đóng màn hình QR không tự hủy hay chứng minh chưa trả tiền. Không thêm cancel endpoint/policy khi chưa có yêu cầu nghiệp vụ riêng.

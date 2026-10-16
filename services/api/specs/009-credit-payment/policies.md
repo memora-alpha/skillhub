@@ -32,7 +32,7 @@ Fee example: gross `10.01` → units `1001`, fee `floor(1001×400/10000)=40` →
 | G09 | Cửa sổ dispute trước settlement                                                                          | Source reports dùng 48h; không coi con số đó là policy mới được duyệt                               | PO/report owner xác nhận hoặc đổi config có version; race test cùng path lock                             |
 | G10 | Preflight existing balances/ledger và opening entries                                                    | Chặn migrate/enable nếu không đối soát được; không đoán/sửa số dư                                   | Operator duyệt reconciliation/opening-balance manifest có reference + audit                               |
 
-Provider payOS và rounding đã chốt theo trả lời trực tiếp của User. Payment link/QR và signed webhook theo contract payOS; cần channel proof trước activation. Lựa chọn SePay trước đó đã được User thay thế. G01 không còn câu hỏi chọn nhà cung cấp; phần merchant setup/runtime verification cùng G02–G10 vẫn mở. Không coi tài liệu hoặc provider selection là bằng chứng production ready.
+Provider payOS và rounding đã chốt theo trả lời trực tiếp của User. Payment link được tạo server-side nhưng chỉ hiển thị QR trong SkillHub (amendment 2026-10-16), cùng signed webhook theo contract payOS; cần channel proof trước activation. Lựa chọn SePay trước đó đã được User thay thế. G01 không còn câu hỏi chọn nhà cung cấp; phần merchant setup/runtime verification cùng G02–G10 vẫn mở. Không coi tài liệu hoặc provider selection là bằng chứng production ready.
 
 ## Ngoài phạm vi
 

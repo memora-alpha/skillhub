@@ -6,6 +6,8 @@
 
 ## Summary
 
+User amendment 2026-10-16: chỉ render QR payOS trực tiếp trong SkillHub; không mở hosted checkout. Owner projection không có checkout URL/method. Return/cancel HTTPS vẫn là fields bắt buộc của provider request/signature, chỉ giữ server-side; không cần trang redirect trong QR flow. Transport/posting/provenance và frontend integration vẫn chưa triển khai ở tranche này.
+
 Hoàn thiện Credit owner hiện có: lifecycle ví, wallet/history API, exact monetary DTO, invariants/immutable ledger, TOP_UP/Release/Adjustment contracts và đối soát. Bổ sung payments owner: quote/checkout intent, payOS adapter, verified durable receipts và atomic Payment PAID + TOP_UP. Kiểm chứng Hold/settlement đã có source trên PostgreSQL thật; giữ BigInt hundredths và fee floor đã được User xác nhận ngày 2026-10-15.
 
 User đổi sang payOS ngày 2026-10-15. Thiết kế dùng REST payment-link create, signed response và signed payment webhook; giữ nguyên hạn mức/TTL/provenance đã chốt, các policy bonus/refund khác chưa tự bật. Baseline `2f73c3c`, nhánh tạo từ local `dev`, không fetch/pull. `setup-plan.ps1 -Json` từ `services/api` trả `HAS_GIT=false`, `BRANCH=009-credit-payment` do project root không có nested Git; Git branch thực là `feat/credit-payment`.
