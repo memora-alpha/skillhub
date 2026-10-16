@@ -7,7 +7,7 @@ import {
 
 const money = {
   type: String,
-  pattern: "^-?[0-9]+\\.[0-9]{2}$",
+  pattern: String.raw`^-?[0-9]+\.[0-9]{2}$`,
   example: "100.00",
 };
 export class WalletResponse {
