@@ -68,20 +68,28 @@ export async function createSkillFixture(
     await client.query(`CREATE SCHEMA "${schema}"`);
     await client.query(`SET search_path TO "${schema}"`);
     const migrations = new URL("../../prisma/migrations/", import.meta.url);
-    // Migrations and the pre-Skills hook must finish in chronological order.
-    for (const name of (await readdir(migrations))
+    const names = (await readdir(migrations))
       .filter((n) => n.startsWith("2026"))
-      .sort((left, right) => left.localeCompare(right))) {
-      if (name === "20261007010000_skills")
-        await beforeSkillsMigration?.(client);
-      if (name === "20261014000000_skill_level_catalog")
-        await beforeLevelMigration?.(client);
-      if (name === "20261015000000_tag_creation_requests")
-        await beforeTagMigration?.(client);
-      await client.query(
-        await readFile(new URL(`${name}/migration.sql`, migrations), "utf8"),
-      );
-    }
+      .sort((left, right) => left.localeCompare(right));
+    // Each hook needs the preceding schema; a failure must stop later migrations.
+    await names.reduce(
+      (previous, name) =>
+        previous.then(async () => {
+          if (name === "20261007010000_skills")
+            await beforeSkillsMigration?.(client);
+          if (name === "20261014000000_skill_level_catalog")
+            await beforeLevelMigration?.(client);
+          if (name === "20261015000000_tag_creation_requests")
+            await beforeTagMigration?.(client);
+          await client.query(
+            await readFile(
+              new URL(`${name}/migration.sql`, migrations),
+              "utf8",
+            ),
+          );
+        }),
+      Promise.resolve(),
+    );
     await db.$connect();
     const usersRepository = new PrismaUsersRepository();
     await db.$transaction((tx) => usersRepository.seedRoles(tx));
