@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { paymentConfiguration } from "../modules/payments/domain/payment-config";
 
 // Loose: identity, SMTP and S3 keys are validated by their own providers and must survive.
 const environmentSchema = z.looseObject({
@@ -102,5 +103,6 @@ export function validateEnvironment(input: Record<string, unknown>) {
   if (config.NODE_ENV === "production")
     fail(insecureProductionSettings(config));
   if (config.STORAGE_ENABLED) fail(invalidStorageSettings(config));
+  paymentConfiguration(input);
   return config;
 }

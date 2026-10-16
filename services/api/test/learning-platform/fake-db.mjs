@@ -53,13 +53,23 @@ const relations = {
   scheduleProposal: {
     scheduleVersionProposalRecords: [
       "scheduleVersion",
-      [["id", "scheduleProposalId"]],
+      [
+        ["id", "scheduleProposalId"],
+        ["pathId", "pathId"],
+      ],
       true,
     ],
     pathIdRecord: ["learningPath", [["pathId", "id"]], false],
   },
   scheduleVersion: {
-    proposalRecord: ["scheduleProposal", [["scheduleProposalId", "id"]], false],
+    proposalRecord: [
+      "scheduleProposal",
+      [
+        ["scheduleProposalId", "id"],
+        ["pathId", "pathId"],
+      ],
+      false,
+    ],
     scheduleItemScheduleVersionRecords: [
       "scheduleItem",
       [

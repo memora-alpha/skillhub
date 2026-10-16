@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import type { TransactionContext } from "../../infrastructure/database/transaction-context";
+import type { TransactionContext } from "../../../../infrastructure/database/transaction-context";
 
 @Injectable()
 export class CreditWalletReader {

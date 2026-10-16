@@ -4,8 +4,8 @@ import { AuditWriter } from "../../dist/modules/audit/application/audit-writer.j
 import { AuditRepository } from "../../dist/modules/audit/infrastructure/audit.repository.js";
 import { ConversationMembershipReader } from "../../dist/modules/conversations/conversation-membership.reader.js";
 import { CreditLedgerAdapter } from "../../dist/modules/credit/credit-ledger.adapter.js";
-import { CreditLedgerService } from "../../dist/modules/credit/credit-ledger.service.js";
-import { CreditWalletReader } from "../../dist/modules/credit/credit-wallet.reader.js";
+import { CreditLedgerService } from "../../dist/modules/credit/application/services/credit-ledger.service.js";
+import { CreditWalletReader } from "../../dist/modules/credit/application/services/credit-wallet.reader.js";
 import { LearningPathsService } from "../../dist/modules/learning-paths/learning-paths.service.js";
 import { LearningSessionsService } from "../../dist/modules/learning-sessions/learning-sessions.service.js";
 import { ReportsService } from "../../dist/modules/reports/reports.service.js";

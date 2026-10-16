@@ -1,5 +1,5 @@
 import type { TransactionContext } from "../../infrastructure/database/transaction-context";
-import type { PathHoldInput } from "./credit-ledger.service";
+import type { PathHoldInput } from "./application/contracts/path-credit";
 
 /** Wallet operations the learning-path flow needs (SH-060 owns the implementation). */
 export abstract class WalletPort {

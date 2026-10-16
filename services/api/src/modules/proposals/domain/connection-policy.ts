@@ -153,11 +153,7 @@ export function normalizeProposal(
     candidateSlots,
   };
 }
-export function formatCredit(value: bigint | null): string | null {
-  return value === null
-    ? null
-    : `${value / 100n}.${(value % 100n).toString().padStart(2, "0")}`;
-}
+export { formatCredit } from "../../credit/domain/money";
 export function normalizeMessage(input: {
   messageText?: string;
   attachmentFileIds?: string[];

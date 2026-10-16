@@ -12,9 +12,9 @@ import { AuditWriter } from "../../dist/modules/audit/application/audit-writer.j
 import { AuditRepository } from "../../dist/modules/audit/infrastructure/audit.repository.js";
 import { ConversationMembershipReader } from "../../dist/modules/conversations/conversation-membership.reader.js";
 import { CreditLedgerAdapter } from "../../dist/modules/credit/credit-ledger.adapter.js";
-import { CreditLedgerService } from "../../dist/modules/credit/credit-ledger.service.js";
-import { CreditWalletReader } from "../../dist/modules/credit/credit-wallet.reader.js";
-import { seedPathFeePolicies } from "../../dist/modules/credit/seed-fee-policies.js";
+import { CreditLedgerService } from "../../dist/modules/credit/application/services/credit-ledger.service.js";
+import { CreditWalletReader } from "../../dist/modules/credit/application/services/credit-wallet.reader.js";
+import { seedPathFeePolicies } from "../../dist/modules/credit/application/seed-fee-policies.js";
 import { LearningPathsService } from "../../dist/modules/learning-paths/learning-paths.service.js";
 import { SchedulingService } from "../../dist/modules/scheduling/scheduling.service.js";
 import { defaultConfiguration, plan, slots, user } from "./fixtures.mjs";
@@ -111,6 +111,7 @@ async function seedParticipants(db) {
   const conversation = await db.conversation.create({
     data: {
       proposalId: proposal.id,
+      requestId: request.id,
       participantAId: teacher,
       participantBId: learner,
     },
@@ -268,6 +269,7 @@ test(
     } finally {
       await db?.$disconnect();
       await client.query(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`);
+      await client.query(`DROP SCHEMA IF EXISTS "${schema}_legacy_v3" CASCADE`);
       await client.end();
     }
   },
