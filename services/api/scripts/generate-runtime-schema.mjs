@@ -50,6 +50,9 @@ model("User", (block) =>
   fields(
     block,
     `
+  createdTags Tag[] @relation("Tag_creator")
+  tagCreationRequests TagCreationRequest[] @relation("TagRequest_owner")
+  reviewedTagCreationRequests TagCreationRequest[] @relation("TagRequest_reviewer")
   @@index([createdAt(sort: Desc), id(sort: Desc)])
   @@index([accountStatus, createdAt(sort: Desc), id(sort: Desc)])
 `,
