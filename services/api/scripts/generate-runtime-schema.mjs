@@ -240,6 +240,20 @@ model("OutboxEvent", (block) =>
 schema +=
   "\n\n// Support retained for implemented foundation and Learning Request services.\n" +
   readFileSync(new URL("runtime-support.prisma", root), "utf8");
+// Financial entry order is assigned under the owning wallet lock by a DB trigger.
+model("CreditWallet", (block) =>
+  fields(
+    block,
+    '  lastEntrySequence BigInt @default(0) @map("last_entry_sequence")',
+  ),
+);
+model("CreditTransaction", (block) =>
+  fields(
+    block,
+    `  entrySequence BigInt @default(0) @map("entry_sequence")
+  @@unique([userId, entrySequence])`,
+  ),
+);
 schema = schema.replace(
   /^\/\/ Logical v3[^\r\n]*\r?\n(?:\/\/[^\r\n]*\r?\n)*\r?\n/,
   "// Runtime: v3 domain models plus implemented foundation support.\n" +

@@ -11,6 +11,10 @@ import type { TransactionContext } from "../../infrastructure/database/transacti
 import type { Principal } from "../auth/application/services/sessions.service";
 import { IdempotencyService } from "../../infrastructure/idempotency/idempotency.service";
 import { ConversationMembershipReader } from "../conversations/conversation-membership.reader";
+import {
+  parseCredit as creditUnits,
+  formatCredit as creditText,
+} from "../credit/domain/money";
 import { WalletPort } from "../credit/credit.ports";
 import { SystemConfigurationService } from "../system-configuration/application/system-configuration.service";
 import type {
@@ -28,21 +32,6 @@ const editableBeforeLock = new Set([
   "PARTIALLY_CONFIRMED",
   "CONFIRMED",
 ]);
-
-function creditUnits(value: string): bigint {
-  if (!/^(?:0|[1-9]\d{0,9})(?:\.\d{1,2})?$/.test(value)) {
-    throw new BadRequestException("INVALID_CREDIT_AMOUNT");
-  }
-  const decimalPoint = value.indexOf(".");
-  const whole = decimalPoint < 0 ? value : value.slice(0, decimalPoint);
-  const fraction = decimalPoint < 0 ? "" : value.slice(decimalPoint + 1);
-  return BigInt(whole) * 100n + BigInt(fraction.padEnd(2, "0"));
-}
-
-function creditText(units: bigint | null): string | null {
-  if (units === null) return null;
-  return `${units / 100n}.${String(units % 100n).padStart(2, "0")}`;
-}
 
 async function lockPath(tx: TransactionContext, pathId: string): Promise<void> {
   const rows = await tx.$queryRaw<{ id: string }[]>`

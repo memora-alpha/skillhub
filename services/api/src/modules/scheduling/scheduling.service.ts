@@ -273,7 +273,6 @@ export class SchedulingService {
           scheduleVersionProposalRecords: {
             create: {
               versionNo: 1,
-              pathId: path.id,
               pathVersion: path.currentVersion,
               createdByUserId: actor.userId,
               scheduleItemScheduleVersionRecords: {

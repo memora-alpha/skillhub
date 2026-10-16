@@ -11,15 +11,10 @@ import type { TransactionContext } from "../../infrastructure/database/transacti
 import { byCodeUnit } from "../../infrastructure/idempotency/idempotency.service";
 import type { Principal } from "../auth/application/services/sessions.service";
 import { PathSettlementPort } from "../credit/credit.ports";
+import { formatCredit as creditText } from "../credit/domain/money";
 import { ReputationService } from "../reputation/reputation.service";
 import { AchievementsService } from "../reputation/achievements.service";
 import { ReportsService } from "../reports/reports.service";
-
-/** Credit is stored in hundredths; responses use the same "12.50" form as requests. */
-function creditText(units: bigint | null): string | null {
-  if (units === null) return null;
-  return `${units / 100n}.${String(units % 100n).padStart(2, "0")}`;
-}
 
 async function lockSession(tx: TransactionContext, sessionId: string) {
   const rows = await tx.$queryRaw<{ id: string }[]>`

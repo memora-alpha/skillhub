@@ -1,10 +1,8 @@
 import { Injectable } from "@nestjs/common";
 import type { TransactionContext } from "../../infrastructure/database/transaction-context";
-import {
-  CreditLedgerService,
-  type PathHoldInput,
-} from "./credit-ledger.service";
-import { CreditWalletReader } from "./credit-wallet.reader";
+import { CreditLedgerService } from "./application/services/credit-ledger.service";
+import type { PathHoldInput } from "./application/contracts/path-credit";
+import { CreditWalletReader } from "./application/services/credit-wallet.reader";
 import type { PathSettlementPort, WalletPort } from "./credit.ports";
 
 @Injectable()

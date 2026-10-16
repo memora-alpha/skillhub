@@ -1,19 +1,9 @@
 import { ConflictException, Injectable } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
-import type { TransactionContext } from "../../infrastructure/database/transaction-context";
-import { byCodeUnit } from "../../infrastructure/idempotency/idempotency.service";
+import type { TransactionContext } from "../../../../infrastructure/database/transaction-context";
+import { byCodeUnit } from "../../../../infrastructure/idempotency/idempotency.service";
 
-export type PathHoldInput = {
-  pathId: string;
-  pathVersion: number;
-  exchangeType: "TWO_WAY" | "ONE_WAY";
-  participantAId: string;
-  participantBId: string;
-  teacherId: string | null;
-  learnerId: string | null;
-  totalCreditPerUser: bigint | null;
-  negotiatedCredit: bigint | null;
-};
+import type { PathHoldInput } from "../contracts/path-credit";
 
 @Injectable()
 export class CreditLedgerService {

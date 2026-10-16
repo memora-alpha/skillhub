@@ -60,6 +60,13 @@ HTTP contracts now contain one role. Reputation uses 50 when not initialized.
 
 ## Representation and unresolved constraints
 
+Credit foundation migration `20261015000000_credit_wallet_foundation` thêm per-wallet
+ledger sequence, nonnegative/allocation checks và append-only ledger guards. Preflight
+đòi lịch sử/Available/Held/allocations khớp; unexplained openings hoặc ambiguous order
+dừng migration, không tự bù số dư. Zero-wallet backfill không cấp tiền. Trigger cấp sequence
+trong wallet row lock và rollback cùng entry, dùng cho stable snapshot history pagination.
+Migration này chưa thêm Payment posting hoặc source provenance lots; không deploy tự động.
+
 Connections migration `20261009010000_connections` adds Proposal version/expiry/source
 constraints and partial uniqueness, immutable Conversation membership, ChatPublication
 receipts and the per-user replay feed. Non-null legacy credit suggestions or direct
