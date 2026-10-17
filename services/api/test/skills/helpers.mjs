@@ -6,6 +6,7 @@ import pg from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { ConfigService } from "@nestjs/config";
 import { PrismaClient } from "../../dist/generated/prisma/client.js";
+import { postgresConnectionString } from "../../dist/infrastructure/database/postgres-connection.js";
 import { IdentityConfig } from "../../dist/configs/identity.config.js";
 import { createIdentityFixture } from "../identity/fixture.mjs";
 import { PrismaUsersRepository } from "../../dist/modules/users/infrastructure/persistence/prisma-users-repository.js";
@@ -40,17 +41,23 @@ export async function createSkillFixture(
     throw new Error("Invalid test schema");
   const url = process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL;
   if (!url) throw new Error("TEST_DATABASE_URL or DATABASE_URL required");
+  const utcUrl = new URL(postgresConnectionString(url));
+  // URL options override PoolConfig.options in pg. Keep schema isolation in the URL too.
+  const isolatedUrl = new URL(utcUrl);
+  isolatedUrl.searchParams.set(
+    "options",
+    `${utcUrl.searchParams.get("options")} -c search_path=${schema}`,
+  );
   const client = new pg.Client({
-    connectionString: url,
+    connectionString: utcUrl.toString(),
     connectionTimeoutMillis: 5000,
   });
   await client.connect();
   const db = new PrismaClient({
     adapter: new PrismaPg(
       {
-        connectionString: url,
+        connectionString: isolatedUrl.toString(),
         connectionTimeoutMillis: 5000,
-        options: `-c search_path=${schema}`,
       },
       { schema },
     ),

@@ -244,7 +244,8 @@ schema +=
 model("CreditWallet", (block) =>
   fields(
     block,
-    '  lastEntrySequence BigInt @default(0) @map("last_entry_sequence")',
+    `  lastEntrySequence BigInt @default(0) @map("last_entry_sequence")
+  provenanceTracked Boolean @default(false) @map("provenance_tracked")`,
   ),
 );
 model("CreditTransaction", (block) =>
@@ -252,6 +253,16 @@ model("CreditTransaction", (block) =>
     block,
     `  entrySequence BigInt @default(0) @map("entry_sequence")
   @@unique([userId, entrySequence])`,
+  ),
+);
+schema = schema.replace(/enum PaymentStatus \{[\s\S]*?\n\}/, (block) =>
+  fields(block, "  REVIEW"),
+);
+model("Payment", (block) => fields(block, "  payosCheckout PayosCheckout?"));
+model("CreditOperation", (block) =>
+  fields(
+    block,
+    '  instructionDigest String? @map("instruction_digest") @db.Char(64)',
   ),
 );
 schema = schema.replace(

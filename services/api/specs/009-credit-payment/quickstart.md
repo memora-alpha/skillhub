@@ -1,24 +1,24 @@
-# Quickstart — review và triển khai kế tiếp
+# Quickstart — Credit & QR payment
 
-Date: 2026-10-15. Planning only; không có Credit/Payment API mới được implement trong lần này.
+Updated: 2026-10-17. Backend wallet/payment API, webhook posting, transport/recovery và nguồn Credit đã có implementation. Merchant/production vẫn cần kiểm chứng riêng. Hướng dẫn đầy đủ: [env, deploy, FE/SSE và đối soát](../../docs/payos-qr-payments.vi.md).
 
 ## Review
 
-Đọc [spec](spec.md) → [policies/gates](policies.md) → [plan](plan.md) → [contracts](contracts/http.md). User đã chốt payOS và floor phí 4%, phần còn lại cho bên nhận. [payOS contract](contracts/gateway.md) dùng server-side REST create, verified QR projection và signed webhook; G01 còn channel/runtime proof. G02/G03 đã chốt policy, provenance writers/migration chưa có. G05/G08/G09 chặn release/relock/dispute policy liên quan.
+Đọc [spec](spec.md) → [policies/gates](policies.md) → [plan](plan.md) → [contracts](contracts/http.md). User đã chốt payOS và floor phí 4%, phần còn lại cho bên nhận. [payOS contract](contracts/gateway.md) dùng server-side REST create, verified QR projection và signed webhook; G01 còn channel proof. G02/G03 đã chốt policy và có source lots cho ví tracked. Legacy backfill/refund-origin và G05/G08/G09 vẫn cần phần việc riêng.
 
 Git/pnpm chạy từ root; Spec Kit chạy từ `services/api`. Pointer `.specify/feature.json` trỏ `specs/009-credit-payment`. Branch thực `feat/credit-payment`; API-local script `HAS_GIT=false` không có nghĩa monorepo thiếu Git. Không init nested repo.
 
 ## Bước tiếp theo với Spec Kit
 
-Từ `services/api`, dùng `$speckit-clarify` nếu muốn chốt các policy gates; sau review dùng `$speckit-tasks` để tạo backlog theo US1–US4 và implementation sequence. `$speckit-analyze` kiểm tra spec/plan/tasks trước implement. Chưa có tasks.md trong phase plan này; không dùng `$speckit-implement` để tự đặt policy chưa duyệt hoặc coi merchant setup đã hoàn tất.
+Backlog hiện có ở [tasks](tasks.md). Không tự đặt policy chưa duyệt hoặc coi merchant setup đã hoàn tất từ kết quả mock/local. Backend payment là phạm vi hiện tại; admin adjustment/release/refund và frontend chưa nằm trong lần hoàn thiện này.
 
 ## Checks khi implementation có source
 
-Initial implementation có wallet/history HTTP, exact money/cursor và pure payOS adapter. Chưa có Payment create/webhook posting routes hoặc provenance lots. Config PAYMENTS_ENABLED chỉ validate capability, không tự bật những routes chưa implement. User đã chốt amount1k..2tr/step1k/TTL60m và BONUS-first/FIFO/refund-origin; policy decisions khác với runtime readiness.
+Có wallet/history HTTP, exact money/cursor, Payment create/list/detail/webhook trên Swagger, durable TOP_UP/audit/events và signed lookup recovery. Config PAYMENTS_ENABLED mặc định false; không tự bật provider thật. User đã chốt amount1k..2tr/step1k/TTL60m và BONUS-first/FIFO; policy decisions khác với runtime readiness.
 
 payOS config dùng PAYOS_CLIENT_ID, PAYOS_API_KEY, PAYOS_CHECKSUM_KEY, PAYOS_RETURN_URL và PAYOS_CANCEL_URL theo .env.example. Return/cancel phải HTTPS vì payOS create/signature vẫn bắt buộc hai fields này; QR-only flow không điều hướng qua chúng và không cần trang return/cancel. Không còn SEPAY_* hoặc sandbox host; không sửa env thật trong lần chuyển provider. prepareCheckout là request gửi từ server, chỉ verified QR payload được trả owner, không mở hosted checkout; không đưa signed request/credential xuống client.
 
-Focused scripts: `pnpm --filter api test:credit`, `pnpm --filter api test:payments`; `pnpm --filter api test:credit:integration` dùng fresh UUID-named schema qua harness hiện có (TEST_DATABASE_URL hoặc DATABASE_URL trong ignored .env). Chỉ schema test bị tạo/xóa, không migrate application schema. Không chạy đồng thời build/generate với các suites import dist.
+Focused scripts: `pnpm --filter api test:credit`, `pnpm --filter api test:payments`; `pnpm --filter api test:credit:integration` và `pnpm --filter api test:payments:integration` dùng fresh UUID-named schema qua harness hiện có (TEST_DATABASE_URL hoặc DATABASE_URL trong ignored .env). Chỉ schema test bị tạo/xóa, không migrate application schema. Không chạy đồng thời build với các suites import dist.
 
 Từ monorepo root:
 
@@ -29,7 +29,7 @@ pnpm --filter api build
 pnpm --filter api db:validate:runtime
 ```
 
-Financial tests phải chạy bằng Node test runner sau build và dùng disposable PostgreSQL DB/schema explicit, không application schema. Bổ sung package scripts cho `test/credit/` và `test/payments/` khi tests được tạo; tên scripts mới chưa tồn tại, không coi là lệnh hiện có.
+Financial tests dùng Node test runner sau build và disposable PostgreSQL schema. payOS HTTP được giả lập; không lấy mock result làm bằng chứng merchant hoặc callback production.
 
 Regressions hiện có chọn theo affected paths: `test:consistency`, `test:audit`, `test:configuration`, `test:identity`, `test:connections:regression`, và `node --test services/api/test/sonar-remediation.test.mjs` sau build. Real integration scripts phải đọc đúng required env/isolation harness, không chạy chúng mù trên DB đang dùng. Rebuild trước suites import dist. Không chạy migrate/deploy/seed nhờ mỗi tài liệu này.
 

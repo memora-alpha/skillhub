@@ -18,6 +18,7 @@ import type {
 import { PaymentGateway } from "../application/ports/payment-gateway";
 import type { PaymentConfiguration } from "../domain/payment-config";
 import { createTopUpQuote } from "../domain/top-up-policy";
+import { paymentTime } from "../domain/payment-time";
 
 const identifier = z.string().min(1).max(255);
 const positiveInteger = z
@@ -53,16 +54,57 @@ const checkoutData = z.object({
   status: z.enum(["PENDING", "PROCESSING", "PAID", "CANCELLED", "EXPIRED"]),
   qrCode: z.string().min(1).max(4096),
 });
+const scalar = z.union([z.string(), z.number().safe(), z.boolean(), z.null()]);
+const lookupEnvelope = signedEnvelope.extend({
+  data: z.record(
+    z.string(),
+    z.union([scalar, z.array(z.record(z.string(), scalar))]),
+  ),
+});
+const lookupData = z.object({
+  id: identifier,
+  orderCode: positiveInteger,
+  amount: positiveInteger,
+  amountPaid: z.number().int().nonnegative().safe(),
+  amountRemaining: z.number().int().nonnegative().safe(),
+  status: checkoutData.shape.status,
+  transactions: z
+    .array(
+      z.object({
+        reference: identifier,
+        amount: positiveInteger,
+        transactionDateTime: identifier,
+      }),
+    )
+    .max(100),
+});
 
 /** Payment-request signatures use raw values, not payout URI encoding. */
 function signatureFor(
-  data: Record<string, string | number | boolean | null>,
+  data: Record<
+    string,
+    | string
+    | number
+    | boolean
+    | null
+    | Record<string, string | number | boolean | null>[]
+  >,
   key: string,
 ): string {
   const canonical = Object.keys(data)
     .sort(byCodeUnit)
     .map((name) => {
       const value = data[name];
+      if (Array.isArray(value)) {
+        const sorted = value.map((item) =>
+          Object.fromEntries(
+            Object.keys(item)
+              .sort(byCodeUnit)
+              .map((key) => [key, item[key]]),
+          ),
+        );
+        return `${name}=${JSON.stringify(sorted)}`;
+      }
       const text =
         value === null || value === "null" || value === "undefined"
           ? ""
@@ -158,12 +200,68 @@ export class PayosGateway extends PaymentGateway {
   }
 
   verifyWebhook(body: unknown): GatewayPaymentEvent {
-    const config = this.enabled();
     const envelope = this.verifyEnvelope(body);
     const parsed = webhookData.safeParse(envelope.data);
     if (!parsed.success)
       throw new BadRequestException("INVALID_PAYMENT_WEBHOOK");
     const data = parsed.data;
+    return this.event(
+      data,
+      envelope.code === "00" && envelope.success === true,
+    );
+  }
+
+  verifyLookupResponse(body: unknown, quote: CheckoutQuote) {
+    const config = this.enabled();
+    const envelope = lookupEnvelope.safeParse(body);
+    if (!envelope.success)
+      throw new BadRequestException("INVALID_PAYMENT_LOOKUP");
+    const expected = signatureFor(
+      envelope.data.data,
+      config.PAYOS_CHECKSUM_KEY,
+    );
+    if (
+      !timingSafeEqual(
+        Buffer.from(expected, "hex"),
+        Buffer.from(envelope.data.signature, "hex"),
+      )
+    )
+      throw new UnauthorizedException("PAYMENT_SIGNATURE_INVALID");
+    const data = lookupData.parse(envelope.data.data);
+    if (
+      envelope.data.code !== "00" ||
+      String(data.orderCode) !== quote.orderCode ||
+      BigInt(data.amount) !== quote.paymentAmountVnd
+    )
+      throw new BadRequestException("PAYMENT_LOOKUP_MISMATCH");
+    return {
+      paymentLinkId: data.id,
+      status: data.status,
+      exact:
+        data.amountPaid === data.amount &&
+        data.amountRemaining === 0 &&
+        data.transactions.length === 1 &&
+        data.transactions[0]!.amount === data.amount,
+      events: data.transactions.map((transaction) =>
+        this.event(
+          {
+            ...transaction,
+            orderCode: data.orderCode,
+            paymentLinkId: data.id,
+            currency: "VND",
+            code: "00",
+          },
+          data.status === "PAID",
+        ),
+      ),
+    };
+  }
+
+  private event(
+    data: z.infer<typeof webhookData>,
+    success: boolean,
+  ): GatewayPaymentEvent {
+    const config = this.enabled();
     // Only whitelisted business evidence leaves the adapter, after authenticating
     // every signed field (including account details that must not be persisted).
     const evidence = {
@@ -175,15 +273,14 @@ export class PayosGateway extends PaymentGateway {
       amountVnd: String(data.amount),
       currency: data.currency,
       statusCode: data.code,
-      transactionDateTime: data.transactionDateTime,
+      transactionDateTime:
+        paymentTime(data.transactionDateTime)?.toISOString() ??
+        data.transactionDateTime,
     };
     return {
       ...evidence,
       outcome:
-        envelope.code === "00" &&
-        envelope.success === true &&
-        data.code === "00" &&
-        data.currency === "VND"
+        success && data.code === "00" && data.currency === "VND"
           ? "PAID"
           : "REVIEW",
       businessDigest: fingerprintCommand(evidence),

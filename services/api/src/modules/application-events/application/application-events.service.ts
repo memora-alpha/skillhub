@@ -141,6 +141,16 @@ export class ApplicationEventsService implements OnModuleInit, OnModuleDestroy {
     return this.transactions.run(async (tx) => {
       const type = event.type,
         refs = event.payload as Record<string, string>;
+      await this.actors.require(tx, principal, "event:read:self");
+      if (event.userId !== principal.userId || !PUBLIC_EVENTS.has(type))
+        return false;
+      if (type === "payment.updated")
+        return !!(await tx.payment.findFirst({
+          where: { id: refs.paymentId, userId: principal.userId },
+          select: { id: true },
+        }));
+      if (type === "wallet.updated")
+        return refs.walletUserId === principal.userId;
       const resolvePermission = () => {
         if (type.startsWith("proposal.")) {
           return "proposal:read:party" as const;
@@ -154,7 +164,6 @@ export class ApplicationEventsService implements OnModuleInit, OnModuleDestroy {
         return "conversation:read:participant" as const;
       };
       const permission = resolvePermission();
-      await this.actors.require(tx, principal, "event:read:self");
       try {
         await this.actors.require(tx, principal, permission);
       } catch {

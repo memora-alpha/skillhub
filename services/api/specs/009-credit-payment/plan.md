@@ -2,11 +2,11 @@
 
 **Branch**: `feat/credit-payment` | **Date**: 2026-10-15 | **Spec**: [spec.md](spec.md)
 
-**Input**: `specs/009-credit-payment/spec.md`. **Status**: Initial implementation in progress. Spec baseline committed `e5dd088`; wallet/history/monetary DTO/pure payOS adapter có source và focused tests. Migration chỉ chạy trong schema test; chưa deploy, chưa push. Xem tasks/validation cho phần còn lại.
+**Input**: `specs/009-credit-payment/spec.md`. **Status (2026-10-17)**: Backend QR payment đã có routes/Swagger, bounded transport, immutable quote/intent, durable receipts/findings, atomic TOP_UP + audit/events/outbox và lookup recovery. Source lots tích hợp Hold/settlement cho tracked wallets; legacy funded wallets chưa có backfill nguồn tiền bị chặn top-up. Migration chỉ chạy trong schema test; chưa deploy/push. Admin/release/refund/Path ownership refactor vẫn ngoài phần Payment này. Xem tasks/validation và [hướng dẫn vận hành](../../docs/payos-qr-payments.vi.md).
 
 ## Summary
 
-User amendment 2026-10-16: chỉ render QR payOS trực tiếp trong SkillHub; không mở hosted checkout. Owner projection không có checkout URL/method. Return/cancel HTTPS vẫn là fields bắt buộc của provider request/signature, chỉ giữ server-side; không cần trang redirect trong QR flow. Transport/posting/provenance và frontend integration vẫn chưa triển khai ở tranche này.
+User amendment 2026-10-16: chỉ render QR payOS trực tiếp trong SkillHub; không mở hosted checkout. Owner projection không có checkout URL/method. Return/cancel HTTPS vẫn là fields bắt buộc của provider request/signature, chỉ giữ server-side; không cần trang redirect trong QR flow. Backend transport/posting/provenance triển khai ngày 2026-10-17; frontend integration và merchant proof vẫn riêng.
 
 Hoàn thiện Credit owner hiện có: lifecycle ví, wallet/history API, exact monetary DTO, invariants/immutable ledger, TOP_UP/Release/Adjustment contracts và đối soát. Bổ sung payments owner: quote/checkout intent, payOS adapter, verified durable receipts và atomic Payment PAID + TOP_UP. Kiểm chứng Hold/settlement đã có source trên PostgreSQL thật; giữ BigInt hundredths và fee floor đã được User xác nhận ngày 2026-10-15.
 
@@ -16,7 +16,7 @@ User đổi sang payOS ngày 2026-10-15. Thiết kế dùng REST payment-link cr
 
 **Language/Version**: TypeScript 6.0.3; Node 22.12+ trên 22.x hoặc 24+ theo README.
 
-**Primary Dependencies**: NestJS 11/Express, Prisma 7.8 + pg, Zod/class-validator/Swagger; existing identity/permissions, TransactionRunner/IdempotencyService/AuditWriter/Outbox, Redis/BullMQ và SSE application-events. payOS adapter dùng Node crypto; domain bigint chuyển sang safe JSON integer chỉ sau bounds check. REST transport/recovery chưa tích hợp; chưa thêm SDK.
+**Primary Dependencies**: NestJS 11/Express, Prisma 7.8 + pg, Zod/class-validator/Swagger; existing identity/permissions, TransactionRunner/IdempotencyService/AuditWriter/Outbox, Redis/BullMQ và SSE application-events. payOS adapter dùng Node crypto/fetch với deadline/body bound. Durable worker dùng bảng checkout và fenced leases; chưa thêm SDK/dependency.
 
 **Storage**: PostgreSQL authority cho tài chính/Payment/receipts/audit/outbox; Redis chỉ delivery/rate limits. Không lưu financial authority ở MongoDB/client.
 
@@ -133,4 +133,4 @@ Provider/DB runtime, live deployment SHA/readiness và vận hành thật vẫn 
 
 ## Complexity Tracking
 
-Không exception. Durable checkout preparation/receipts cần để phục hồi trạng thái khi crash và reconcile provider I/O và dedupe lúc crash; queue-only không đủ. Không thêm accounting subsystem hoặc provenance lots trước business decision.
+Không exception. Durable checkout preparation/receipts cần để phục hồi trạng thái khi crash và reconcile provider I/O và dedupe lúc crash; queue-only không đủ. Source-lot policy đã được user duyệt; implementation giữ legacy funds chưa rõ nguồn ở trạng thái untracked và không tự dựng opening balances.

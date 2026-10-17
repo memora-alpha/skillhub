@@ -1,5 +1,13 @@
 # Data Model — Credit & Payment
 
+Implementation amendment 2026-10-17: runtime bổ sung `PayosCheckout` (immutable
+quote digest/policy/URLs/expiry, sequence orderCode, QR/link, lease/retry, posting
+operation), `PaymentReceipt` (POSTED/REVIEW), `PaymentFinding` (conflicting
+evidence), `CreditLot`, `CreditLotHold`, operation instruction digest và
+`CreditWallet.provenanceTracked`. Xem migration `20261017000000_payos_payments`.
+Legacy funded wallets không tự backfill; release/refund/adjustment trong thiết
+kế bên dưới vẫn Pending, không phải các API đã mở.
+
 Date: 2026-10-15. Proposed additions, chưa thay Prisma/SQL. Giữ BigInt hundredths; VND BigInt nguyên. Runtime additions phải qua generator/runtime-support và additive migration, không sửa riêng generated schema hoặc historical catalog.
 
 ## Entities và ownership

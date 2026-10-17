@@ -33,6 +33,7 @@ export const AUDIT_ACTIONS = [
   "USER_RESTRICTION_REVOKE",
   "SCHEDULE_RESCHEDULE",
   "CREDIT_ADJUST",
+  "CREDIT_TOP_UP",
   "CREDIT_REVERSE",
   "SYSTEM_CONFIGURATION_UPDATE",
 ] as const;
@@ -211,6 +212,7 @@ const projectionByAction: Record<
   USER_RESTRICTION_REVOKE: userRestrictions,
   SCHEDULE_RESCHEDULE: reschedule,
   CREDIT_ADJUST: credit,
+  CREDIT_TOP_UP: credit,
   CREDIT_REVERSE: credit,
 };
 

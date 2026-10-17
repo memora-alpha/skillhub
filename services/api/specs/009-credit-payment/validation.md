@@ -1,6 +1,44 @@
 # Validation — Credit & Payment
 
-Date: 2026-10-15. **Initial implementation verified; full feature Pending.** Spec baseline commit `e5dd088`; implementation working tree chưa commit/push/deploy.
+Updated: 2026-10-17. **Backend QR Payment implemented and locally verified; merchant/production and remaining spec009 work Pending.** Source đang ở working tree, chưa commit/push/deploy cho tranche này. Các phần 2026-10-15/16 phía dưới là lịch sử.
+
+## Backend QR payment completion — 2026-10-17
+
+- Registered PaymentsModule: authenticated create/list/detail + public signed payOS webhook, Swagger DTO/string money, no-store QR projection, own-only reads, 201/200 idempotency semantics and live revocation checks.
+- Persisted provider-unique identity orderCode, channel/quote/policy/URLs/expiry, checkout lease/retry, paid posting link, normalized receipts and conflicting findings. Provider HMAC covers every supported field before PII is stripped; lookup array signatures are verified before deriving receipt evidence.
+- Atomic Payment PAID + one permanent-digest TOP_UP + wallet/purchased lot/ledger + audit + application event deliveries/outbox. Invalid/unknown/sample/partial/multiple/late/conflicting evidence never grants extra Credit; PAID is never downgraded. Duplicate receipts survive deletion of HTTP idempotency records.
+- Fixed-origin fetch, four-second deadline, 128 KiB bound and redirects disabled. Durable checkout rows recover after crash with fenced 30-second leases. Lost create response is looked up using the same orderCode before retry. Missing provider QR after an ambiguous create becomes explicit REVIEW; QR is never reconstructed from bank details.
+- BONUS-first/FIFO lots follow tracked funds through Hold and TWO_WAY return/fee or ONE_WAY learner spend/teacher EARNED lot. Legacy funded wallets remain untracked and cannot top up until reviewed backfill; legacy Path behavior is preserved. No bonus program/refund/release/admin adjustment is enabled.
+- Added [Vietnamese setup/operations guide](../../docs/payos-qr-payments.vi.md). Frontend UI, real merchant configuration, deployment and migration of application schema were not performed.
+
+Verification evidence: **35/35** final focused real PostgreSQL/HTTP cases pass
+(wallet persistence/HTTP, payment persistence/HTTP/SSE, source-aware Hold/settlement),
+**9/9** payOS protocol/transport cases pass, and the existing real PostgreSQL
+finalize rollback/retry case passes. The broader regression run also passed its
+audit, Connections/SSE/bootstrap, wallet money/cursor, Learning Path read, bigint
+and learning-platform phases 1–4 cases. Together these cover **116 distinct
+cases** across runs. Earlier fixture failures are resolved; no skip was used to
+hide them. Provider HTTP is mocked; PostgreSQL and HTTP/SSE frames are real.
+Redis wakeup is stubbed in the new Payment HTTP harness; heartbeat/replay reads
+from PostgreSQL are exercised, not multi-instance Redis delivery or load.
+
+Real-PG checks exposed a test harness discrepancy: raw timestamptz policy seed
+reads used a +07 session while runtime Prisma explicitly uses UTC. Aligned the
+shared test harness with the runtime UTC connection helper and moved schema
+search_path into URL options so pg cannot override isolation. No application
+timezone or financial policy guard was changed. Earlier new fixtures were also
+corrected to provide current Request/Conversation relationships, ACTIVE Path
+state and session revocation reason. The receipt advisory lock uses executeRaw
+because Prisma cannot deserialize PostgreSQL's void return type from queryRaw.
+
+API lint, typecheck, build and formatting/diff checks are recorded for this
+tranche; cloud Sonar analysis of these uncommitted changes has not run.
+
+Constitution recheck: owner-only backend layers, PostgreSQL authority, atomic
+financial/audit/event transaction, live auth, signed callbacks and durable recovery
+are implemented with the above local evidence. Merchant, deployed SHA/migration,
+multi-instance delivery/load, legacy backfill and remaining non-Payment features
+remain separate Pending gates. No constitutional exception was introduced.
 
 ## Planning và quyết định
 
@@ -122,16 +160,21 @@ writer. Không có provider/channel/live-payment proof hoặc deployment mới.
 | Phạm vi còn lại                                                                                | Trạng thái / giới hạn                                                          |
 | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
 | US1 benchmark/load và exhaustive valid/ambiguous legacy backfill fixtures                      | Pending; current migration fresh schema + rejected unexplained balance đã kiểm |
-| Provenance source lots + BONUS-first/FIFO + refund-origin allocation                           | Pending T014..; User policy đã chốt, source cũ chưa theo dõi lots              |
-| Payment quote/create/query API, durable receipts/posting, TOP_UP+wallet+audit/outbox atomicity | Pending T014..T017                                                             |
-| Idempotent payment transaction reuse, out-of-order/crash/recovery/lookup                       | Pending; adapter digest test không thay real posting proof                     |
+| Provenance source lots + BONUS-first/FIFO + refund-origin allocation                           | Tracked Hold/settlement pass; legacy backfill và refund/release còn Pending    |
+| Payment quote/create/query API, durable receipts/posting, TOP_UP+wallet+audit/outbox atomicity | Local PG/HTTP pass T015..T017; merchant/production riêng                       |
+| Idempotent payment transaction reuse, out-of-order/crash/recovery/lookup                       | Local PG + mocked provider HTTP pass; provider retry semantics thật Pending    |
 | Hold/settlement owner races, source-aware writes, Path completion ownership refactor           | Pending T019..T020; existing mock regression vẫn pass                          |
 | Approved release/refund/penalty/relock/dispute policy                                          | Pending G05/G06/G08/G09; không public arbitrary transfers/cash-out             |
 | Admin adjustment/reversal/full reconciliation                                                  | Pending T022..T024; current preflight chỉ detect/no repair                     |
-| Notification/SSE committed events, retry/recovery/load                                         | Pending T027                                                                   |
+| Notification/SSE committed events, retry/recovery/load                                         | Payment PG/HTTP frames/visibility pass; Redis multi-instance/load Pending      |
 | payOS channel/production signing, create/lookup/retry/sample/partial/late proof                | Pending; không đăng ký/cấu hình merchant hoặc thực hiện giao dịch thật         |
 | Deployment/migration/grants/live SHA/readiness/backlog/actual callback                         | Pending; không deploy/push                                                     |
 
 ## Limits
 
-Đã bắt đầu implementation, chưa hoàn tất toàn spec009. Code hiện có không nhận/cộng tiền từ webhook và không tự bật bonus, refund, material sales hoặc cash-out. Migration dừng khi lịch sử thiếu opening provenance; operator phải đối soát, không đoán nguồn tiền. Mọi task chưa làm trong tasks.md giữ unchecked.
+Backend QR payment hiện nhận verified webhook và cộng Credit atomically khi bật
+provider với schema/config hợp lệ. Mặc định vẫn disabled. Chưa hoàn tất toàn
+spec009: admin/reconciliation/release/refund/Path ownership refactor và các gate
+merchant/production còn mở. Không tự bật bonus, material sales hoặc cash-out.
+Legacy funded wallets bị chặn top-up để operator đối soát nguồn tiền, không đoán
+opening balance. Task chưa đủ phạm vi giữ unchecked.

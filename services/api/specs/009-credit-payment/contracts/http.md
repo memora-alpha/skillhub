@@ -1,13 +1,13 @@
-# HTTP Contracts — proposed Credit & Payment API
+# HTTP Contracts — Credit & Payment API
 
-Date: 2026-10-15. Đây là thiết kế, routes chưa tồn tại. Base `/api/v1`; reuse identity guards, live authorization và Swagger DTOs.
+Updated: 2026-10-17. Self wallet/payment routes và payOS webhook đã có source/Swagger. Admin routes bên dưới vẫn là thiết kế chưa mở. Base `/api/v1`; reuse identity guards, live authorization và Swagger DTOs. Xem [hướng dẫn runtime](../../../docs/payos-qr-payments.vi.md) và [validation](../validation.md).
 
 ## Shared rules
 
 - Standard envelope: `{success:true,message,data,meta?}`; error `{success:false,message,statusCode,details?}`. Pagination nằm `meta.pagination`.
 - Credit là signed/unsigned decimal string đúng 2 chữ số tùy field, VND là positive integer string; không JSON BigInt hoặc JS Number money. UTC ISO timestamps, UUID identifiers.
 - Mutations từ client bắt buộc `Idempotency-Key` theo foundation constraints. Scope actor+operation, digest gồm body canonical. Replay kiểm quyền hiện tại rồi trả resource/result cũ; cùng key khác body 409. Domain posting identity không hết hạn theo HTTP TTL.
-- Cursor opaque, bind owner/filters/direction; limit 1..100 (default20, technical bound). Ledger cursor chứa high-water sequence từ trang đầu và last sequence; chỉ đọc entries <=watermark để concurrent append không đổi snapshot. Payment pages keyset createdAt/id, không hứa snapshot trạng thái bất biến.
+- Cursor opaque, bind owner/filters/direction; limit 1..100 (default20, technical bound). Ledger cursor chứa high-water sequence từ trang đầu và last sequence; chỉ đọc entries <=watermark để concurrent append không đổi snapshot. Payment pages dùng high-water persisted orderCode/last orderCode, giảm dần; không hứa snapshot trạng thái bất biến.
 - Không expose raw receipts/secret/merchant credential/card info hoặc toàn bộ Prisma row. Nonowner resource trả404; quyền admin thiếu trả403. Các DTO cụ thể cần OpenAPI và HTTP tests khi implement.
 
 ## Self wallet/history
