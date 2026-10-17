@@ -74,13 +74,25 @@ const groups = [
   {
     title: "Ví & thanh toán",
     items: [
-      ["Ví Credit", "/wallet"],
-      ["Nạp Credit", "/wallet/topup"],
-      ["Lịch sử giao dịch", "/wallet/history"],
-      ["Thanh toán chờ xác minh", "/wallet/payment-status?state=pending"],
-      ["Thanh toán thành công mẫu", "/wallet/payment-status?state=success"],
-      ["Thanh toán thất bại", "/wallet/payment-status?state=failed"],
-      ["Thanh toán hết hạn", "/wallet/payment-status?state=expired"],
+      ["Ví Credit mẫu", "/ui/wallet-preview?view=wallet"],
+      ["Nạp Credit mẫu", "/ui/wallet-preview?view=topup"],
+      ["Lịch sử giao dịch mẫu", "/ui/wallet-preview?view=history"],
+      [
+        "Thanh toán chờ xác minh mẫu",
+        "/ui/wallet-preview?view=status&state=PENDING",
+      ],
+      [
+        "Thanh toán thành công mẫu",
+        "/ui/wallet-preview?view=status&state=PAID",
+      ],
+      [
+        "Thanh toán thất bại mẫu",
+        "/ui/wallet-preview?view=status&state=FAILED",
+      ],
+      [
+        "Thanh toán hết hạn mẫu",
+        "/ui/wallet-preview?view=status&state=EXPIRED",
+      ],
     ],
   },
   {

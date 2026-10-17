@@ -17,6 +17,7 @@ import { ProfilePreviewProvider, AvatarUploadToasts } from "@/features/profile";
 import { ConnectionsProvider } from "@/features/connections";
 import { UiPreviewProvider } from "@/features/ui-preview";
 import { SkillsProvider } from "@/features/skills";
+import { WalletProvider } from "@/features/wallet";
 import { QueryProvider } from "./QueryProvider";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { ToastProvider } from "./ToastProvider";
@@ -54,22 +55,24 @@ export function AppProviders({ children }: { children: ReactNode }) {
         <ToastProvider>
           <QueryProvider>
             <AuthSessionProvider>
-              <ConnectionGate>
-                <AvatarUploadToasts />
-                <SessionGate>
-                  <SkillsProvider>
-                    <ProfilePreviewProvider>
-                      <MockMessagesProvider>
-                        <ConnectionsProvider>
-                          <ChatEventsProvider>
-                            <UiPreviewProvider>{children}</UiPreviewProvider>
-                          </ChatEventsProvider>
-                        </ConnectionsProvider>
-                      </MockMessagesProvider>
-                    </ProfilePreviewProvider>
-                  </SkillsProvider>
-                </SessionGate>
-              </ConnectionGate>
+              <WalletProvider>
+                <ConnectionGate>
+                  <AvatarUploadToasts />
+                  <SessionGate>
+                    <SkillsProvider>
+                      <ProfilePreviewProvider>
+                        <MockMessagesProvider>
+                          <ConnectionsProvider>
+                            <ChatEventsProvider>
+                              <UiPreviewProvider>{children}</UiPreviewProvider>
+                            </ChatEventsProvider>
+                          </ConnectionsProvider>
+                        </MockMessagesProvider>
+                      </ProfilePreviewProvider>
+                    </SkillsProvider>
+                  </SessionGate>
+                </ConnectionGate>
+              </WalletProvider>
             </AuthSessionProvider>
           </QueryProvider>
         </ToastProvider>
