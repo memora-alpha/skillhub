@@ -1,0 +1,75 @@
+# Wallet and payment contract checkpoint
+
+**P5 preparation checkpoint — 2026-10-17**: T044..T051 are L/W/DOC preparation only. New target/receipt/observer/refresh types are local injected models, not implemented public schemas, endpoints or freshness rules. Production status has no configured reader and ignores route outcomes; all Payment flags/Confirm remain off. Scoped model association, unknown/conflict/denial and independent PAID-related read results are covered by22 independent US3 tests;86 focused/382 full mobile tests and8 synthetic W groups pass. Owner-read/P4 behavior and backend baseline17e3ac1 are unchanged. Recovery cases record BLOCKED C/A/G/NA/NI prerequisites without journal/lookup or US2 dependency. T042/T043/T052..T062 remain unchecked; no real Payment/API/channel/QR/native acceptance is implied.
+
+**P5 preparation checkpoint — 2026-10-17**: T044..T051 are L/W/DOC preparation only. New target/receipt/observer/refresh types are local injected models, not implemented public schemas, endpoints or freshness rules. Production status has no configured reader and ignores route outcomes; all Payment flags/Confirm remain off. Scoped model association, unknown/conflict/denial and independent PAID-related read results are covered by22 independent US3 tests;86 focused/382 full mobile tests and8 synthetic W groups pass. Owner-read/P4 behavior and backend baseline17e3ac1 are unchanged. Recovery cases record BLOCKED C/A/G/NA/NI prerequisites without journal/lookup or US2 dependency. T042/T043/T052..T062 remain unchecked; no real Payment/API/channel/QR/native acceptance is implied.
+
+**P4 preparation checkpoint — 2026-10-17**: T033..T041 complete only L/W/DOC preparation. `TopUpReview`, `QuoteModel`, inert `ModelDispatch`/receipt association and `QrPresentation` are local types, **not** public Payment wire contracts. Normal UI can validate/review the approved exact amount but cannot dispatch confirmation. Transport replay opt-out is tested through the unchanged shared client using an in-memory Axios adapter at the existing `/me` read path, with no Payment path/body fixture. All Payment flags remain false. [QR-01 specification](contracts/qr-validation.md) records renderer/decoder BLOCKED; T042/T043, P5 and T053+ are untouched. Source baseline remains17e3ac1; no API/channel/native claim follows from63 focused/359 regression tests and7 web observations.
+
+**Revised**: 2026-10-16. **Source baseline**: `17e3ac1f38df1b645bd5f103a7111eae00f5e0b4`, merge of backend Credit/Payment initial tranche.
+**Branch**: `feat/mobile-wallet-payment-history`. **Workspace**: `apps/mobile`.
+
+**Implementation checkpoint — 2026-10-17**: P1/P2 T001..T020 are implemented in the working tree; [validation.md](validation.md) records exact source and observed L/C/W limits. Wallet GET and shared Home/Wallet balance are integrated; History and Payment remain unavailable. Backend source contract is unchanged at17e3ac1. The planning statements below describe the earlier replan unless explicitly superseded by this checkpoint; they are not deployment acceptance.
+
+**P3 checkpoint — 2026-10-17 (supersedes the P2 mobile scope above)**: T021..T032 now integrate owner History/detail with explicitpage20, supported filters, snapshot replacement and denial eviction. All three confirmed read capabilities are enabled only on focused current-owner consumers. References/reversal are supplied read-only text, with no inferred destination/refund/settlement. Payment remains unavailable; backend baseline and shared max50 parser are unchanged. Validation records48 focused/344 regression tests and10 synthetic web observations; A/G/NA/NI and T053+ checkpoints remain NOT_RUN.
+
+This revision supersedes the earlier `92c923e` checkpoint. Source and backend-reported verification are distinct from tests executed during this replan: no application/API/provider tests were run here. The original staged documents remain unchanged in the index; edits are working-tree documentation only.
+
+## Authoritative inputs
+
+- [SRS V1.6](../../../../docs/SRS_SkillHub_V1.6_VietLai_DongBoNghiepVu.docx) and [source priority](../../../../docs/SOURCE_OF_TRUTH.md): separate Available/Held, exact Credit, immutable ledger, backend-verified top-up, no cash-out, no per-Session settlement.
+- Current backend [spec009 policies](../../../../services/api/specs/009-credit-payment/policies.md), [gateway contract](../../../../services/api/specs/009-credit-payment/contracts/gateway.md), [HTTP design](../../../../services/api/specs/009-credit-payment/contracts/http.md), [tasks](../../../../services/api/specs/009-credit-payment/tasks.md), [validation report](../../../../services/api/specs/009-credit-payment/validation.md). The HTTP document's overall proposed label is stale for the three wallet reads: source proves them, while its payment endpoints remain design-only.
+- Accepted provider is payOS, amended to **QR displayed directly in SkillHub**. Approved policy is 1,000–2,000,000 VND, step 1,000, rate 1,000 VND/Credit, quote TTL 60 minutes from server time. `top-up-policy.ts` implements the pure rule; it is not an exposed payment/quote API.
+- Mobile README/constitution and [architecture](../../docs/architecture.md), [domain rules](../../docs/domain-rules.md), [state machines](../../docs/state-machines.md), [API contracts](../../docs/api-contracts.md), [feature matrix](../../docs/feature-matrix.md), [connection behavior](../../docs/network-state.md) remain applicable.
+
+## Current implementation versus design
+
+| Capability                | Current source                                                                                                               | Mobile planning consequence                                                                                                                                                     |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Owner wallet              | `services/api/src/modules/credit/presentation/http/wallet.controller.ts:33–45`, registered in `credit.module.ts:24`          | Implement authenticated GET `/api/v1/me/wallet`; source contract ready, deployed environment/migration and mobile acceptance still pending.                                     |
+| Owner history/detail      | Same controller:48–66, repository owner predicates and exact mapper                                                          | GET `/api/v1/me/wallet/transactions` and `/transactions/:id` are implemented; bind adapters to [wallet-http.md](contracts/wallet-http.md).                                      |
+| Wallet zero/units         | `get-wallet.use-case.ts:18–25`, `credit/domain/money.ts:16–23`                                                               | Successful absent-row read returns virtual `0.00`/`0.00`, version 0. Public Credit is decimal text; never divide received strings by 100. Failed reads still never become zero. |
+| History order/filter/page | `wallet.dto.ts:18–39`, `list-credit-transactions.use-case.ts:20–55`, `prisma-wallet.repository.ts:48–66`, `ledger-cursor.ts` | Sequence-descending high-water snapshot; type/referenceType only, no status. Mobile explicitly requests limit 20 to fit its max-50 page parser while BE permits 1–100.          |
+| Payment provider/policy   | `payments/domain/{payment-config,top-up-policy}.ts` and backend accepted policy record                                       | Provider choice, range/step/TTL are known; merchant/runtime activation and operational quote/create/query/recovery are not complete.                                            |
+| payOS QR adapter          | `payments/infrastructure/payos-gateway.ts`; `application/contracts/payment-gateway.ts:22–28`                                 | Pure signed-request/response/webhook-evidence adapter returns QR descriptor only. No hosted URL, remote QR image, required redirect or mobile return/cancel screen.             |
+| Payment orchestration     | No payment controller/module/REST transport/posting/recovery implementation found; spec009 T014..T018 remain pending         | Proposed POST/GET `/payments` and webhook routes are not live mobile contracts. Creation/status stays capability-unavailable; prepare isolated QR/UI models only.               |
+| Refund/related context    | Actual ledger includes status, deltas, operation reference and nullable reversing ID                                         | Display supplied immutable fields; arbitrary reference navigation, refund execution, cash payout and held-allocation reads remain unsupported.                                  |
+
+## Exact public read projection
+
+Wallet has `availableCredit`, `heldCredit`, `walletVersion`; no owner/as-of/purchased/bonus field. Bind ownership to the captured authenticated request/session, not a required invented response owner field.
+
+Ledger row has `id`, `operationId`, `type`, `amount`, `availableDelta`, `heldDelta`, `availableAfter`, `heldAfter`, `status`, `referenceType`, `referenceId`, nullable `reversesTransactionId`, `createdAt`. Monetary fields are two-decimal Credit strings. Amount is magnitude, not a universal signed Available delta. No public entrySequence, fixture `description`, combined `reference` or single `after` field.
+
+History response envelope matches shared `success/data/meta.pagination`; the backend limit is 1–100/default20, while `apps/mobile/src/lib/http/response.ts:35–54` rejects returned limits over50. Use explicit **limit20** and existing shared requestPage parsing plus wallet-owned row validation. Do not widen shared parser or claim full 1–100 support. Cursor is opaque and scoped to owner/type/referenceType, with no client-invented TTL or session binding. Restart cursor-free on refresh/filter change; retain server order and rebuild continuations rather than mixing snapshots.
+
+## QR-only boundary
+
+The pure adapter descriptor is `{paymentLinkId,qrCode,orderCode,providerStatus}`. `qrCode` is raw data to encode exactly into a local QR matrix, not an image/URL/SVG document. The mobile app must not upload it to a QR service, open hosted checkout, trust providerStatus as the owner Payment state, or log/store it as credentials/public route data.
+
+Backend HTTPS return/cancel URLs remain server-side payOS request/signature configuration; the QR product flow needs no mobile return/cancel page and does not infer outcomes from those URLs. Checkout preparation may be incomplete in the proposed future HTTP design; that nullable projection is not yet an implemented mobile response. Keep preparing/unavailable/render-error states separate from financial state. QR failure/closure preserves the known payment and cannot create/cancel another one.
+
+Existing `react-native-svg` can draw locally but is not a QR encoder. A vetted encoder and independent decode verification are a gated P4 dependency decision, not installed by this replan. No scanner/camera permission, save/share QR or bank-app deep link is assumed; same-device usability must be explicitly validated before payment acceptance.
+
+## Mobile source checkpoint after P3
+
+The feature now has exact money/session foundation, source-backed Wallet/history/detail schemas/adapters/queries and separate Available/Held in overview with shared Home balance. Home no longer selects sample money from isNew. The three Payment screens remain unavailable; preview stays lazy/labeled/inert. History uses a feature-owned FlatList and supported filters, preserving selection through detail Back. Profile still maps to `/wallet`; six public route exports remain thin. Only focused current-owner reads are active; no Payment capability is enabled. See validation for actual files and separate deployed/native gaps.
+
+Existing HTTP/session/query infrastructure still fits: authenticated client and session epoch, forwarded signals plus current-request guards, false mutation retry plus explicit payment `replayAfterRenewal:false`, scoped cache cleanup and read-only reconnect. Do not instantiate another HTTP client or treat cancellation as undoing a server payment.
+
+## GAP disposition and evidence
+
+| Gap    | Revised disposition                                           | What remains                                                                                                           |
+| ------ | ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| GAP-01 | **Source contract available**                                 | Mobile integration, deployed migration/configuration and owner-read acceptance.                                        |
+| GAP-02 | **Source contract available**                                 | Mobile exact projection, limit/filter/cursor handling and real environment acceptance.                                 |
+| GAP-03 | **Partial**: payOS/QR protocol chosen and pure adapter exists | Public creation/quote/QR readiness contract, orchestration, merchant proof, local QR encoder/decoding and usability.   |
+| GAP-04 | **Policy decision/pure code available**                       | Public persisted quote/version/expiry projection and runtime payment acceptance; no invented policy question remains.  |
+| GAP-05 | **Blocked operationally**                                     | Owner Payment query, verified receipt/posting, authoritative transitions/expiry/freshness and event/checking contract. |
+| GAP-06 | **Blocked operationally**                                     | Payment-specific replay/key/retention/lost-ID/restart recovery and durable identity evidence.                          |
+| GAP-07 | **Partial read context**                                      | Ledger supplies real reversal/reference/deltas; no refund execution/payout/partial-refund meaning inferred.            |
+| GAP-08 | **Partial reference fields**                                  | Arbitrary related destinations/held allocations are not authorized merely by those IDs.                                |
+
+Detailed closure requirements: [integration-gates.md](contracts/integration-gates.md). Source-backed reads can proceed independently of payment orchestration. All acceptance layers remain distinct: [research](research.md), [plan](plan.md), [UI](contracts/ui-flows.md), [recovery](contracts/payment-recovery.md), [validation](validation-matrix.md), [quickstart](quickstart.md).
+
+Backend validation reports describe its own prior wallet PostgreSQL/HTTP and pure adapter checks; they do not establish mobile integration, deployed migration readiness, merchant/channel proof or live top-up. This replan changes no source, environment, credentials, migration or index entries and creates no tasks.
