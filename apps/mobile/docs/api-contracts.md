@@ -1,5 +1,43 @@
 # Mobile API contracts
 
+## Payment status preparation checkpoint — 2026-10-17
+
+Spec006 P5 implements injected local owner-observation/related-refresh models
+and labeled preview only. Normal status is unavailable and ignores URL outcome,
+amount and provider claims. There is no Payment endpoint/DTO/HTTP hook, freshness
+ordering or restart/lost-ID recovery contract. Conflicting models retain the
+previous result stale; denial evicts it; PAID survives independent refresh errors.
+Owner reads/P4 remain unchanged and all Payment capabilities stay off.
+Source/model/web checks are separate from actual API/payOS/native acceptance;
+see [validation](../specs/006-wallet-payment-history/validation.md).
+
+## Wallet/History checkpoint — 2026-10-17
+
+Spec006 P2 integrates authenticated `GET /me/wallet` through the existing client.
+The strict projection is `availableCredit`, `heldCredit` (exact two-decimal Credit
+strings, already CR) and safe nonnegative integer `walletVersion`. Successful
+authorized absent-wallet reads may return virtualzero; missing/malformed/error
+responses never supply a zero fallback. Home and overview share one owner/session
+query;403/404 evicts the money, and hidden screens do not keep financial reads
+active behind preview. Other Home learning content retains its existing mocks.
+P3 also integrates owner History/detail GETs. List sendslimit20 with only
+type/referenceType/cursor, retaining returned order and rebuilding snapshot
+continuations on refresh. Shared page parser stays max50. Detail validates UUID
+and returned identity; all five monetary strings remain exact.403/404 evicts
+private projections, with no cached-list detail fallback or inferred related
+destination. The three confirmed read capabilities are enabled on focused
+current-owner screens; all Payment operations remain unavailable. Source/fixture/web checks do not establish
+deployed migration/API, payOS or native acceptance; see
+[spec006 validation](../specs/006-wallet-payment-history/validation.md).
+
+P4 adds only approved-policy amount/review and session-owned inert intent/QR
+presentation models. Normal Confirm and all Payment capabilities stay off;
+there is no Payment endpoint/DTO/adapter or durable recovery implementation.
+Replay opt-out is tested with an in-memory adapter at the existing `/me` read
+path, without Payment traffic. Synthetic preview models cannot access account
+queries. QR rendering/independent decode remain BLOCKED by QR-01; passing
+model/web checks does not establish API/payOS/Android/iOS acceptance.
+
 ## Current contract status
 
 Mobile authentication consumes the identity API and uses a real account session. Backend
@@ -155,21 +193,21 @@ Mobile now connects owner CRUD, public self skills and evidence/history/download
 to these routes through `features/skills`. Browser fixtures and transport tests
 pass; the full real API/storage/scanner journey remains pending.
 
-| Route (base `/api/v1`)                                         | Current source contract                                                                               |
-| -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
-| GET `/skills`, `/skills/:skillId`                              | Public ACTIVE catalog, q2–100/categoryId/cursor/limit for list.                                       |
-| GET `/me/skills`                                               | Owner list, includeArchived default false; true includes all, not only archived.                      |
-| GET `/skills/:skillId/levels`                                  | ACTIVE per-skill levels; nonpaginated array ordered by sortOrder then id.                              |
+| Route (base `/api/v1`)                                         | Current source contract                                                                                 |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| GET `/skills`, `/skills/:skillId`                              | Public ACTIVE catalog, q2–100/categoryId/cursor/limit for list.                                         |
+| GET `/me/skills`                                               | Owner list, includeArchived default false; true includes all, not only archived.                        |
+| GET `/skills/:skillId/levels`                                  | ACTIVE per-skill levels; nonpaginated array ordered by sortOrder then id.                               |
 | POST `/me/skills`                                              | skillId, levelId, description20–1500, experienceYears decimal string/null, isVisible default true; 201. |
-| PATCH `/me/skills/:sharingSkillId`                             | Changed editable fields + expectedVersion; no skillId; 200.                                           |
-| POST `/me/skills/:sharingSkillId/archive`                      | expectedVersion; pending batch blocks archive with 409; 200.                                          |
-| GET `/profiles/:userId/skills`                                 | Public projection, visible/nonarchived/ACTIVE account and catalog; spec 004 uses self UUID.           |
-| POST `/me/skills/:sharingSkillId/evidence-files`               | One multipart field file; 202 with fileId/state QUARANTINED.                                          |
-| GET `/me/skills/:sharingSkillId/evidence-files/:fileId`        | Storage state; READY is required for submission.                                                      |
-| POST `/me/skills/:sharingSkillId/verifications`                | 1–5 distinct fileIds, title0–120?, description0–500?; 201 PENDING batch.                              |
-| GET `/me/skills/:sharingSkillId/verifications`                 | Owner history, cursor/limit.                                                                          |
-| GET `/me/skills/:sharingSkillId/verifications/:verificationId` | Owner batch detail with evidence metadata/reasons.                                                    |
-| GET `/me/skills/:sharingSkillId/evidence/:evidenceId/download` | Owner authorized short-lived url/expiresAt; file must be READY.                                       |
+| PATCH `/me/skills/:sharingSkillId`                             | Changed editable fields + expectedVersion; no skillId; 200.                                             |
+| POST `/me/skills/:sharingSkillId/archive`                      | expectedVersion; pending batch blocks archive with 409; 200.                                            |
+| GET `/profiles/:userId/skills`                                 | Public projection, visible/nonarchived/ACTIVE account and catalog; spec 004 uses self UUID.             |
+| POST `/me/skills/:sharingSkillId/evidence-files`               | One multipart field file; 202 with fileId/state QUARANTINED.                                            |
+| GET `/me/skills/:sharingSkillId/evidence-files/:fileId`        | Storage state; READY is required for submission.                                                        |
+| POST `/me/skills/:sharingSkillId/verifications`                | 1–5 distinct fileIds, title0–120?, description0–500?; 201 PENDING batch.                                |
+| GET `/me/skills/:sharingSkillId/verifications`                 | Owner history, cursor/limit.                                                                            |
+| GET `/me/skills/:sharingSkillId/verifications/:verificationId` | Owner batch detail with evidence metadata/reasons.                                                      |
+| GET `/me/skills/:sharingSkillId/evidence/:evidenceId/download` | Owner authorized short-lived url/expiresAt; file must be READY.                                         |
 
 JSON mutations require `Idempotency-Key`; edit/archive also need expectedVersion.
 Mobile labels archive as "Xóa kỹ năng" and always reads own list/detail with
