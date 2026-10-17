@@ -4,9 +4,11 @@ import type { TransactionContext } from "../../../../infrastructure/database/tra
 import { byCodeUnit } from "../../../../infrastructure/idempotency/idempotency.service";
 
 import type { PathHoldInput } from "../contracts/path-credit";
+import { CreditProvenanceService } from "./credit-provenance.service";
 
 @Injectable()
 export class CreditLedgerService {
+  private readonly provenance = new CreditProvenanceService();
   async holdPath(
     tx: TransactionContext,
     input: PathHoldInput,
@@ -54,6 +56,10 @@ export class CreditLedgerService {
       orderBy: { userId: "asc" },
     });
     const byUser = new Map(wallets.map((wallet) => [wallet.userId, wallet]));
+    for (const wallet of wallets) {
+      if (wallet.provenanceTracked)
+        await this.provenance.requireTracked(tx, wallet);
+    }
     if (
       allocation.some(
         ({ userId, amount }) =>
@@ -99,7 +105,7 @@ export class CreditLedgerService {
           idempotencyKey: `${operationKey}:${item.userId}`,
         },
       });
-      await tx.heldCreditAllocation.create({
+      const held = await tx.heldCreditAllocation.create({
         data: {
           userId: item.userId,
           pathId: input.pathId,
@@ -111,6 +117,8 @@ export class CreditLedgerService {
           status: "ACTIVE",
         },
       });
+      if (wallet.provenanceTracked)
+        await this.provenance.hold(tx, wallet.userId, held.id, item.amount);
     }
     return operation.id;
   }
@@ -208,6 +216,16 @@ export class CreditLedgerService {
       where: { userId: { in: userIds } },
     });
     const byUser = new Map(wallets.map((wallet) => [wallet.userId, wallet]));
+    for (const wallet of wallets) {
+      if (
+        wallet.provenanceTracked ||
+        (wallet.availableCredit === 0n &&
+          wallet.heldCredit === 0n &&
+          wallet.purchasedCredit === 0n &&
+          wallet.bonusCredit === 0n)
+      )
+        await this.provenance.requireTracked(tx, wallet);
+    }
     const validateHeldBalances = () => {
       if (
         allocations.some(
@@ -251,6 +269,15 @@ export class CreditLedgerService {
           ? wallet.availableCredit
           : wallet.availableCredit + result.returned;
         const heldAfter = wallet.heldCredit - result.gross;
+        if (wallet.provenanceTracked) {
+          await this.provenance.settle(
+            tx,
+            wallet.userId,
+            result.item.id,
+            oneWay ? result.gross : result.fee,
+            result.gross,
+          );
+        }
         await tx.creditWallet.update({
           where: { userId: result.item.userId },
           data: {
@@ -263,6 +290,16 @@ export class CreditLedgerService {
           const teacherWallet = byUser.get(result.item.beneficiaryId!)!;
           const teacherAvailableAfter =
             teacherWallet.availableCredit + result.returned;
+          if (teacherWallet.provenanceTracked)
+            await tx.creditLot.create({
+              data: {
+                userId: teacherWallet.userId,
+                operationId: operation.id,
+                source: "EARNED",
+                available: result.returned,
+                granted: result.returned,
+              },
+            });
           await tx.creditWallet.update({
             where: { userId: teacherWallet.userId },
             data: {

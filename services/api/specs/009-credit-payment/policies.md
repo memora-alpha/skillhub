@@ -19,6 +19,11 @@ Fee example: gross `10.01` → units `1001`, fee `floor(1001×400/10000)=40` →
 
 ## Gates cần chốt trước nhánh implementation tương ứng
 
+Cập nhật 2026-10-17: backend create/query/webhook/posting/recovery và source lots
+đã có implementation. Local evidence ở [validation](validation.md) không đóng
+merchant/production gates. G03 chỉ được đáp ứng cho ví tracked; legacy funded
+wallets cần backfill được duyệt, không tự suy luận nguồn tiền.
+
 | ID  | Chưa chốt / cần bằng chứng                                                                               | Hành vi khi chưa có                                                                                 | Owner / tiêu chí đóng                                                                                     |
 | --- | -------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
 | G01 | **Provider decision CLOSED: payOS**; merchant activation/runtime còn Pending                             | Design REST payment-link + signed webhook ở contracts/gateway.md; disabled tới đủ cấu hình/evidence | Docs REST create/lookup và webhook HMAC đã đọc; còn channel create/lookup/retry/partial/late/sample proof |

@@ -65,6 +65,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
         "COMMITTED_DRAFT_MISSING",
         "MESSAGE_NOT_READY",
         "EVENT_CONNECTIONS_UNAVAILABLE",
+        "PAYMENT_PROVIDER_UNAVAILABLE",
       ]).has(detail)
     )
       message = detail;

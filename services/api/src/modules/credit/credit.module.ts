@@ -18,12 +18,16 @@ import {
   WalletPort,
 } from "./credit.ports";
 import { UnavailableCreditAdjustmentAdapter } from "./unavailable-credit-adjustment.adapter";
+import { CreditOperationsService } from "./application/services/credit-operations.service";
+import { CreditProvenanceService } from "./application/services/credit-provenance.service";
 
 @Module({
   imports: [DatabaseModule, IdentityModule],
   controllers: [WalletController],
   providers: [
     CreditWalletReader,
+    CreditProvenanceService,
+    CreditOperationsService,
     CreditLedgerService,
     CreditLedgerAdapter,
     { provide: WalletPort, useExisting: CreditLedgerAdapter },
@@ -43,6 +47,7 @@ import { UnavailableCreditAdjustmentAdapter } from "./unavailable-credit-adjustm
     },
   ],
   exports: [
+    CreditOperationsService,
     CreditWalletReader,
     CreditLedgerService,
     WalletPort,

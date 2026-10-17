@@ -212,6 +212,7 @@ enum PaymentStatus {
   FAILED
   EXPIRED
   REFUNDED
+  REVIEW
 }
 
 enum MaterialAccessType {
@@ -786,6 +787,7 @@ model CreditWallet {
   creditTransactionUserIdRecords CreditTransaction[] @relation("CreditTransaction_user_id")
   userIdRecord                   User                @relation("CreditWallet_user_id", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   lastEntrySequence              BigInt              @default(0) @map("last_entry_sequence")
+  provenanceTracked              Boolean             @default(false) @map("provenance_tracked")
 
   @@map("credit_wallets")
 }
@@ -859,7 +861,8 @@ model Payment {
   createdAt                  DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
   conversionRateVndPerCredit Int           @default(1000) @map("conversion_rate_vnd_per_credit")
 
-  userIdRecord User @relation("Payment_user_id", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  userIdRecord  User           @relation("Payment_user_id", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  payosCheckout PayosCheckout?
 
   @@unique([gateway, gatewayTransactionId])
   @@index([userId])
@@ -1366,6 +1369,7 @@ model CreditOperation {
   creditTransactionOperationIdRecords      CreditTransaction[] @relation("CreditTransaction_operation_id")
   learningPathSettlementOperationIdRecords LearningPath?       @relation("LearningPath_settlement_operation_id")
   materialOrderOperationIdRecords          MaterialOrder?      @relation("MaterialOrder_operation_id")
+  instructionDigest                        String?             @map("instruction_digest") @db.Char(64)
 
   @@map("credit_operations")
 }
@@ -1515,6 +1519,89 @@ model OutboxEvent {
 }
 
 // Support retained for implemented foundation and Learning Request services.
+// Payment technical records. SQL migration owns foreign keys to existing domain tables.
+model PayosCheckout {
+  paymentId        String    @id @map("payment_id") @db.Uuid
+  payment          Payment   @relation(fields: [paymentId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  channel          String    @db.VarChar(100)
+  orderCode        BigInt    @unique @default(autoincrement()) @map("order_code")
+  paymentLinkId    String?   @map("payment_link_id") @db.VarChar(255)
+  qrCode           String?   @map("qr_code") @db.VarChar(4096)
+  state            String    @default("PREPARING") @db.VarChar(24)
+  version          Int       @default(1)
+  quoteDigest      String    @map("quote_digest") @db.Char(64)
+  policyVersion    String    @map("policy_version") @db.VarChar(40)
+  expiresAt        DateTime  @map("expires_at") @db.Timestamptz(3)
+  paidAt           DateTime? @map("paid_at") @db.Timestamptz(3)
+  topUpOperationId String?   @unique @map("top_up_operation_id") @db.Uuid
+  lastError        String?   @map("last_error") @db.VarChar(80)
+  attempts         Int       @default(0)
+  nextAttemptAt    DateTime  @default(now()) @map("next_attempt_at") @db.Timestamptz(3)
+  leaseUntil       DateTime? @map("lease_until") @db.Timestamptz(3)
+  leaseToken       String?   @map("lease_token") @db.Uuid
+  returnUrl        String    @map("return_url") @db.Text
+  cancelUrl        String    @map("cancel_url") @db.Text
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@unique([channel, paymentLinkId])
+  @@index([nextAttemptAt])
+  @@map("payos_checkouts")
+}
+
+model PaymentReceipt {
+  id            String   @id @default(uuid()) @db.Uuid
+  channel       String   @db.VarChar(100)
+  transactionId String   @map("transaction_id") @db.VarChar(255)
+  digest        String   @db.Char(64)
+  evidence      Json
+  paymentId     String?  @map("payment_id") @db.Uuid
+  state         String   @db.VarChar(24)
+  reason        String?  @db.VarChar(80)
+  conflict      Boolean  @default(false)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@unique([channel, transactionId])
+  @@index([paymentId])
+  @@map("payment_receipts")
+}
+
+model CreditLot {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  operationId String   @unique @map("operation_id") @db.Uuid
+  source      String   @db.VarChar(20)
+  available   BigInt
+  held        BigInt   @default(0)
+  consumed    BigInt   @default(0)
+  granted     BigInt
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([userId, createdAt, id])
+  @@map("credit_lots")
+}
+
+model PaymentFinding {
+  id        String   @id @default(uuid()) @db.Uuid
+  receiptId String   @map("receipt_id") @db.Uuid
+  digest    String   @db.Char(64)
+  evidence  Json
+  reason    String   @db.VarChar(80)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@unique([receiptId, digest])
+  @@map("payment_findings")
+}
+
+model CreditLotHold {
+  allocationId String @map("allocation_id") @db.Uuid
+  lotId        String @map("lot_id") @db.Uuid
+  amount       BigInt
+  remaining    BigInt
+
+  @@id([allocationId, lotId])
+  @@map("credit_lot_holds")
+}
+
 // Per-skill level catalog; legacy SharingSkill.level stays during client rollout.
 model SkillLevel {
   id            String         @id @default(uuid()) @map("level_id") @db.Uuid
