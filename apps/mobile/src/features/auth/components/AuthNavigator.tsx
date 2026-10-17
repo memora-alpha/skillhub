@@ -54,6 +54,7 @@ export function AuthNavigator() {
         <Stack.Screen name="proposal/[id]/close" />
         <Stack.Screen name="account-details" />
         <Stack.Screen name="ui" />
+        <Stack.Screen name="ui/wallet-preview" />
         <Stack.Screen name="states/[state]" />
         <Stack.Screen name="requests/index" />
         <Stack.Screen name="requests/new" />

@@ -30,7 +30,7 @@ const initial: PreviewNotification[] = [
     title: "Giao dịch Credit đã được ghi nhận",
     body: "Mở chi tiết để xem snapshot giao dịch mẫu.",
     group: "Credit",
-    href: "/wallet/transactions/tx-topup",
+    href: "/ui/wallet-preview?view=transaction&id=preview-tx-topup",
     read: false,
   },
   {

@@ -6,3 +6,6 @@ export {
   TransactionsScreen,
   TransactionDetailScreen,
 } from "./screens";
+export { WalletProvider } from "./context/WalletProvider";
+export { HomeWalletBalance } from "./components/home-wallet-balance";
+export { WalletPreviewScreen } from "./preview/entry";
