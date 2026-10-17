@@ -17,6 +17,20 @@ const message = z
   .strict();
 const notification = z.object({ notificationId: id }).strict();
 const schemas: Record<string, z.ZodType> = {
+  "payment.updated": z.strictObject({
+    paymentId: id,
+    status: z.enum([
+      "CREATED",
+      "PENDING",
+      "PAID",
+      "FAILED",
+      "EXPIRED",
+      "REFUNDED",
+      "REVIEW",
+    ]),
+    version: sequence,
+  }),
+  "wallet.updated": z.strictObject({ walletUserId: id, operationId: id }),
   "proposal.created": proposal,
   "proposal.updated": proposal,
   "proposal.accepted": proposal,

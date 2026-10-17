@@ -35,9 +35,10 @@ Goal: chuẩn bị signed checkout và verified receipts; one verified payment�
 - [x] T012 [US2] Implement typed payOS disabled-by-default config trong src/modules/payments/domain/payment-config.ts và .env.example.
 - [x] T013 [US2] Implement server-only signed REST create request, verify signed checkout response/quote/QR, chỉ trả QR projection không chứa hosted URL và constant-time webhook HMAC + canonical event trong src/modules/payments/infrastructure/payos-gateway.ts; giữ bigint domain/safe integers ở provider boundary.
 - [ ] T014 [US2] Thêm Payment quote/posting links, checkout intents/receipts/findings và provenance lots/hold-spend-refund allocations (BONUS-first rồi FIFO) trong scripts/generate-runtime-schema.mjs, prisma/runtime-support.prisma và additive migration riêng; giữ legacy preflight.
-- [ ] T015 [US2] Implement Credit TOP_UP port với immutable business digest, purchased-source lot, audit/outbox trong src/modules/credit/application/services/credit-operations.service.ts; provenance user đã chốt, cần code + tests trước activation.
-- [ ] T016 [US2] Implement self create/query + durable webhook ingestion/posting/recovery và bounded REST transport create/lookup (x-client-id/x-api-key) ngoài PG transaction trong src/modules/payments/application/, src/modules/payments/infrastructure/, src/modules/payments/presentation/http/ và payments.module.ts. Unique persisted orderCode theo channel; verify before projection, sample/partial/late REVIEW; thiếu provenance/channel readiness vẫn fail closed.
-- [ ] T017 [US2] Kiểm duplicate/out-of-order/crash/lookup trên real PG trong test/payments/persistence.test.mjs; fake gateway chỉ test.
+- T014 progress 2026-10-17: migration checkout/receipt/finding/quote policy snapshot, lots/hold allocation và source-aware settlement đã implement/test trên PG; legacy funded-wallet backfill và refund/release-origin writer vẫn giữ Pending, không tick toàn task.
+- [x] T015 [US2] Implement Credit TOP_UP application contract với permanent digest/purchased lot; Payment orchestration ghi audit/events/outbox cùng transaction. Real PG rollback/audit/event-failure và duplicate tests pass; không coi đây là merchant activation.
+- [x] T016 [US2] Implement self create/list/detail + Swagger, durable verified receipts/posting và bounded create/lookup transport ngoài PG transaction trong payments.module.ts. Persist sequence orderCode/channel/quote; sample/partial/late vào REVIEW, unknown provenance fail closed; fenced-lease recovery. HTTP/PG/SSE local pass.
+- [x] T017 [US2] Kiểm duplicate/concurrent khác đơn, webhook trước create response, rollback, expired lease/restart và signed lookup trên real PG trong test/payments/persistence.test.mjs; payOS HTTP giả lập, không phải channel proof.
 - [ ] T018 [US2] Hoàn tất channel signing/lookup/re-submit proof theo contracts/gateway.md và ghi specs/009-credit-payment/validation.md; chưa credentials thì Pending.
 
 ## Phase 5: US3 — Hold/release/settlement (P1)
@@ -61,6 +62,7 @@ Independent test: explicit live permission/reason/ref, atomic ledger/audit, no a
 - [x] T025 Thêm focused unit/integration scripts trong package.json và ghi phạm vi thực sự đã implement tại README.md/specs/009-credit-payment/validation.md.
 - [x] T026 Chạy API lint/typecheck/build, real PG và affected regression suites cho initial tranche; cập nhật specs/009-credit-payment/tasks.md và validation.md theo bằng chứng.
 - [ ] T027 Kiểm notification/SSE/recovery/privacy/load và production activation gates trong specs/009-credit-payment/validation.md; không thay Pending bằng mock proof.
+- T027 progress 2026-10-17: payment.updated/wallet.updated commit atomic, owner/live-auth visibility và SSE HTTP frames pass; Redis thật/multi-instance/load/production còn Pending.
 
 ## Dependencies và execution
 

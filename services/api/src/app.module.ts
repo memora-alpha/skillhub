@@ -34,6 +34,7 @@ import { LearningSessionsModule } from "./modules/learning-sessions/learning-ses
 import { ReviewsModule } from "./modules/reviews/reviews.module";
 import { ReportsModule } from "./modules/reports/reports.module";
 import { CreditModule } from "./modules/credit/credit.module";
+import { PaymentsModule } from "./modules/payments/payments.module";
 
 @Module({
   imports: [
@@ -83,6 +84,7 @@ import { CreditModule } from "./modules/credit/credit.module";
     ReviewsModule,
     ReportsModule,
     CreditModule,
+    PaymentsModule,
   ],
   controllers: [HealthController],
   providers: [

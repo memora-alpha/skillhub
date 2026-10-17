@@ -18,9 +18,13 @@ và bằng chứng PostgreSQL ở [UTC validation](specs/006-system-configuratio
 ## Phạm vi và trạng thái
 
 Credit & Payment đang triển khai theo [spec009](specs/009-credit-payment/plan.md).
-Initial tranche bổ sung `/api/v1/me/wallet`, history/detail cùng exact decimal-string DTO,
-ledger sequence/append-only migration và pure payOS checkout/webhook adapter. Payment routes,
-posting/recovery và provenance lots chưa tích hợp. Theo quyết định 2026-10-16,
+Backend có `/api/v1/me/wallet`, history/detail, exact decimal-string DTO,
+ledger append-only và Payment create/list/detail/webhook qua payOS. Posting TOP_UP,
+audit/user events/outbox cùng transaction PostgreSQL; có recovery qua signed lookup
+và source lots tích hợp Hold/settlement cho ví tracked. Ví legacy có tiền chưa rõ
+nguồn bị chặn tạo payment để đối soát. Xem [hướng dẫn QR payment](docs/payos-qr-payments.vi.md)
+cho env, API, FE/SSE, migration, recovery và các bước kiểm chứng merchant.
+Theo quyết định 2026-10-16,
 payOS chỉ cung cấp QR payload để hiển thị trực tiếp trong SkillHub; không trả hosted checkout URL.
 Return/cancel HTTPS vẫn bắt buộc trong server request/signature của payOS.
 Không coi chọn provider hoặc config bật
