@@ -17,6 +17,7 @@ import { ProfilePreviewProvider, AvatarUploadToasts } from "@/features/profile";
 import { MockProposalsProvider } from "@/features/proposals";
 import { UiPreviewProvider } from "@/features/ui-preview";
 import { SkillsProvider } from "@/features/skills";
+import { WalletProvider } from "@/features/wallet";
 import { QueryProvider } from "./QueryProvider";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { ToastProvider } from "./ToastProvider";
@@ -54,20 +55,22 @@ export function AppProviders({ children }: { children: ReactNode }) {
         <ToastProvider>
           <QueryProvider>
             <AuthSessionProvider>
-              <ConnectionGate>
-                <AvatarUploadToasts />
-                <SessionGate>
-                  <SkillsProvider>
-                    <ProfilePreviewProvider>
-                      <MockMessagesProvider>
-                        <MockProposalsProvider>
-                          <UiPreviewProvider>{children}</UiPreviewProvider>
-                        </MockProposalsProvider>
-                      </MockMessagesProvider>
-                    </ProfilePreviewProvider>
-                  </SkillsProvider>
-                </SessionGate>
-              </ConnectionGate>
+              <WalletProvider>
+                <ConnectionGate>
+                  <AvatarUploadToasts />
+                  <SessionGate>
+                    <SkillsProvider>
+                      <ProfilePreviewProvider>
+                        <MockMessagesProvider>
+                          <MockProposalsProvider>
+                            <UiPreviewProvider>{children}</UiPreviewProvider>
+                          </MockProposalsProvider>
+                        </MockMessagesProvider>
+                      </ProfilePreviewProvider>
+                    </SkillsProvider>
+                  </SessionGate>
+                </ConnectionGate>
+              </WalletProvider>
             </AuthSessionProvider>
           </QueryProvider>
         </ToastProvider>
