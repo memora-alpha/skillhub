@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { uuid } from "@/lib/http/contracts";
+import { ApiAttachmentScreen } from "./ApiAttachmentScreen";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Button } from "@/components/Button";
 import { EmptyState } from "@/components/EmptyState";
@@ -7,6 +9,12 @@ import { SampleFiles, sampleFiles } from "@/components/sample-files";
 import { FeaturePage, Panel, Copy } from "@/components/feature-page";
 import { useMockMessages } from "../context/MockMessages";
 export function AttachmentScreen() {
+  const { proposalId } = useLocalSearchParams<{ proposalId: string }>();
+  if (uuid.safeParse(proposalId).success)
+    return <ApiAttachmentScreen id={proposalId} />;
+  return <PreviewAttachmentScreen />;
+}
+function PreviewAttachmentScreen() {
   const { proposalId } = useLocalSearchParams<{ proposalId: string }>();
   const { conversations, sendFile } = useMockMessages();
   const router = useRouter();
