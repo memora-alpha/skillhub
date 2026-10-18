@@ -1,35 +1,25 @@
-import { Host, Picker } from "@expo/ui";
-import { appColors } from "@/constants/theme";
-export type FilterControlProps = {
-  label: string;
-  value: string;
-  options: readonly { value: string; label: string }[];
-  onChange: (value: string) => void;
-};
+import { useRef, useState } from "react";
+import { View } from "react-native";
+import {
+  HistoryFilterCard,
+  type FilterControlProps,
+} from "./history-filter-card";
+export type { FilterControlProps } from "./history-filter-card";
 
-// SDK57 universal Picker on native. Prefix values with field purpose because
-// this installed Picker has no accessibilityLabel prop; native acceptance pending.
-export function HistoryFilterControl({
-  label,
-  value,
-  options,
-  onChange,
-}: FilterControlProps) {
+export function HistoryFilterControl(props: FilterControlProps) {
+  const [expanded, setExpanded] = useState(false);
+  const trigger = useRef<View>(null);
+  const close = () => {
+    setExpanded(false);
+    trigger.current?.focus();
+  };
   return (
-    <Host
-      matchContents
-      seedColor={appColors.primary}
-      accessibilityLabel={label}
-    >
-      <Picker selectedValue={value} onValueChange={onChange}>
-        {options.map((option) => (
-          <Picker.Item
-            key={option.value}
-            value={option.value}
-            label={`${label}: ${option.label}`}
-          />
-        ))}
-      </Picker>
-    </Host>
+    <HistoryFilterCard
+      {...props}
+      expanded={expanded}
+      triggerRef={trigger}
+      onToggle={() => setExpanded((open) => !open)}
+      onClose={close}
+    />
   );
 }

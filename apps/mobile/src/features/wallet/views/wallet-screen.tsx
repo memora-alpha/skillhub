@@ -1,15 +1,16 @@
 import { AppScreenLayout } from "@/features/shell";
 import { KeyboardFormScrollView } from "@/components/KeyboardFormScrollView";
-import { Button } from "@/components/Button";
-import { Copy, Panel, RouteButton, ui } from "@/components/feature-page";
+import { RefreshControl } from "react-native";
+import { useRouter } from "expo-router";
+import { ui } from "../components/wallet-ui";
 import { useWallet } from "../hooks/use-wallet";
 import { useWalletBack } from "../hooks/use-wallet-back";
-import { FinancialReadState } from "../components/financial-read-state";
-import { WalletBalances } from "../components/wallet-balances";
+import { WalletOverviewContent } from "../components/wallet-overview-content";
 
 export function WalletOverview() {
   const { state, refresh } = useWallet();
   const onBack = useWalletBack("wallet");
+  const router = useRouter();
   return (
     <AppScreenLayout
       title="Ví Credit"
@@ -17,26 +18,22 @@ export function WalletOverview() {
       back={{ href: "/profile", label: "Quay lại", onPress: onBack }}
     >
       {() => (
-        <KeyboardFormScrollView contentContainerStyle={ui.page}>
-          <Panel title="Số dư Credit">
-            <FinancialReadState state={state} onRetry={() => void refresh()}>
-              {state.data && <WalletBalances snapshot={state.data} />}
-            </FinancialReadState>
-            {state.status === "ready" && (
-              <Button variant="paper" onPress={() => void refresh()}>
-                Cập nhật số dư
-              </Button>
-            )}
-            {state.status === "refreshing" && (
-              <Copy muted>Đang hiển thị số dư trước đó.</Copy>
-            )}
-          </Panel>
-          <Panel title="Ví của bạn">
-            <RouteButton href="/wallet/topup">Nạp Credit</RouteButton>
-            <RouteButton secondary href="/wallet/history">
-              Lịch sử giao dịch
-            </RouteButton>
-          </Panel>
+        <KeyboardFormScrollView
+          contentContainerStyle={ui.page}
+          refreshControl={
+            <RefreshControl
+              refreshing={state.status === "refreshing"}
+              onRefresh={() => void refresh()}
+            />
+          }
+        >
+          <WalletOverviewContent
+            refreshIndicator="pull"
+            state={state}
+            onRetry={() => void refresh()}
+            onTopup={() => router.push("/wallet/topup")}
+            onHistory={() => router.push("/wallet/history")}
+          />
         </KeyboardFormScrollView>
       )}
     </AppScreenLayout>

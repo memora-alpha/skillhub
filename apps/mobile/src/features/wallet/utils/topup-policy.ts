@@ -2,7 +2,8 @@ import { creditAmount, vndAmount } from "./amount";
 import type { QuoteModel, TopUpReview } from "../types/payment";
 
 // Approved policy, mirrored from BE domain/top-up-policy.ts at 17e3ac1.
-// No quote endpoint, local expiry, presets or authoritative Credit calculation.
+// No quote endpoint, local expiry or authoritative Credit calculation.
+// Presentation shortcuts pass canonical text through this same validation.
 export const topUpPolicy = Object.freeze({
   version: "2026-10-15-v1",
   minimum: "1000",
