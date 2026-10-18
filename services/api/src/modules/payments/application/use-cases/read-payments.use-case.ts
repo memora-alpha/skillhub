@@ -9,10 +9,37 @@ import { SkillActorService } from "../../../users/application/services/skill-act
 import type { Principal } from "../../../auth/application/services/sessions.service";
 import { formatCredit } from "../../../credit/domain/money";
 import { LedgerCursor } from "../../../credit/domain/ledger-cursor";
+import { PayosTransport } from "../../infrastructure/payos-transport";
+import type { PaymentConfiguration } from "../../domain/payment-config";
+import { PaymentCreationPolicy } from "../services/payment-creation-policy";
 
 export class PaymentCursor extends LedgerCursor {}
-function view(payment: Payment, checkout: PayosCheckout | null) {
+function recoveryReason(
+  payment: Payment,
+  checkout: PayosCheckout | null,
+  config: PaymentConfiguration,
+) {
+  if (!checkout) return "PAYMENT_CHECKOUT_MISSING";
+  if (payment.status === "REVIEW") return "PAYMENT_REVIEW_REQUIRED";
+  if (
+    config.enabled &&
+    checkout.channel !== config.PAYOS_CLIENT_ID &&
+    ["CREATED", "PENDING"].includes(payment.status)
+  )
+    return "PAYMENT_CHANNEL_UNAVAILABLE";
+  return null;
+}
+function view(
+  payment: Payment,
+  checkout: PayosCheckout | null,
+  config: PaymentConfiguration,
+) {
+  const reason = recoveryReason(payment, checkout, config);
   const showQr =
+    config.enabled &&
+    !config.creationPaused &&
+    checkout?.channel === config.PAYOS_CLIENT_ID &&
+    !reason &&
     payment.status === "PENDING" &&
     checkout?.state === "READY" &&
     checkout.expiresAt > new Date() &&
@@ -29,6 +56,8 @@ function view(payment: Payment, checkout: PayosCheckout | null) {
     expiresAt: checkout?.expiresAt ?? null,
     paidAt: checkout?.paidAt ?? null,
     version: checkout?.version ?? 1,
+    recoveryRequired: reason !== null,
+    recoveryReason: reason,
     checkout: showQr
       ? {
           paymentLinkId: checkout.paymentLinkId,
@@ -45,7 +74,15 @@ export class ReadPaymentsUseCase {
     private readonly transactions: TransactionRunner,
     private readonly actors: SkillActorService,
     private readonly cursors: PaymentCursor,
+    private readonly transport: PayosTransport,
+    private readonly policy: PaymentCreationPolicy,
   ) {}
+  creationPolicy(principal: Principal) {
+    return this.transactions.run(async (tx) => {
+      await this.actors.require(tx, principal);
+      return this.policy.read(tx, principal.userId);
+    });
+  }
   detail(principal: Principal, id: string) {
     return this.transactions.run(async (tx) => {
       await this.actors.require(tx, principal);
@@ -56,6 +93,7 @@ export class ReadPaymentsUseCase {
       return view(
         payment,
         await tx.payosCheckout.findUnique({ where: { paymentId: id } }),
+        this.transport.config,
       );
     });
   }
@@ -94,7 +132,9 @@ export class ReadPaymentsUseCase {
         last = visible.at(-1),
         hasMore = rows.length > query.limit;
       return {
-        data: visible.map((row) => view(row.payment, row)),
+        data: visible.map((row) =>
+          view(row.payment, row, this.transport.config),
+        ),
         pagination: {
           limit: query.limit,
           hasMore,

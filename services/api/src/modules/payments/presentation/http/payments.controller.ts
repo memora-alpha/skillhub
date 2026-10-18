@@ -41,6 +41,7 @@ import {
   CreatePaymentDto,
   PaymentQueryDto,
   PaymentResponse,
+  PaymentCreationPolicyResponse,
 } from "./payments.dto";
 
 @ApiTags("payments")
@@ -93,6 +94,15 @@ export class PaymentsController {
   ) {
     const result = await this.reads.list(principal, query);
     return paginated(result.data, result.pagination);
+  }
+  @Get("creation-policy")
+  @Header("Cache-Control", "no-store")
+  @ApiSuccessResponse(200, PaymentCreationPolicyResponse)
+  @ApiOperation({
+    summary: "Read current own payment creation gate; does not contact payOS",
+  })
+  async creationPolicy(@CurrentIdentity() principal: Principal) {
+    return success(await this.reads.creationPolicy(principal));
   }
   @Get(":id")
   @Header("Cache-Control", "no-store")

@@ -76,6 +76,29 @@ Reconciliation thực thi qua bounded operator command/job, report read-only; kh
 
 ## Errors và committed delivery
 
+### Recovery hardening — 2026-10-18
+
+`GET /payments/creation-policy` trả `{canCreate,reasonCode,existingPaymentId}`,
+authenticated/no-store; existing ID chỉ của owner, global gate trả null. Đây là
+snapshot; POST kiểm lại trong serializable transaction/live user lock. Một owner
+chỉ có thể tạo mới khi không còn CREATED/PENDING/REVIEW và không có payOS legacy
+thiếu creation identity, kể cả legacy PAID. 409 PAYMENT_UNRESOLVED hoặc
+PAYMENT_RECONCILIATION_REQUIRED có `details.existingPaymentId`.
+
+Payment persist SHA256(key)/canonical fingerprint với owner-unique index. Mất
+riêng mapping HTTP thì POST phục hồi mapping, trả200 cùng Payment/orderCode;
+khác body vẫn409. Mapping còn nhưng resource mất trả409 reconciliation, không
+tạo lại. Restore mất cả hai chưa có automatic recovery; không coi404 là safe retry.
+
+Payment projection thêm `recoveryRequired:boolean`, `recoveryReason:string|null`.
+Reasons: PAYMENT_REVIEW_REQUIRED, PAYMENT_CHANNEL_UNAVAILABLE,
+PAYMENT_CHECKOUT_MISSING. QR bị ẩn khi disabled, paused hoặc khác channel hiện tại.
+POST mới trả503 PAYMENT_CREATION_PAUSED hoặc
+PAYMENT_CHANNEL_RECONCILIATION_REQUIRED khi operational gate đóng; safe replay
+resource cũ vẫn200 khi provider enabled. Pause không dừng webhook/worker.
+Không có public API repair/approve replacement cho REVIEW. Xem
+[operations contract](../../../docs/payment-recovery-operations.vi.md).
+
 400 invalid format/precision/amount; 401 missing/expired/revoked identity; 403 missing permission; 404 nonowner resource; 409 idempotency conflict/stale wallet/insufficient funds/invalid transition; 429 configured limits; 503 unavailable provider/policy/storage. Reuse existing error names khi có; alias `INSUFFICIENT_AVAILABLE_CREDIT` hiện tại nếu chuẩn hóa `INSUFFICIENT_CREDIT` phải test affected callers và ghi compatibility.
 
 SSE dùng `/api/v1/events` hiện có. Event projections chỉ refs `{walletUserId,operationId}` hoặc `{paymentId,status,version}`, không checkout URL, raw webhook hoặc số tiền. Event types/dedupe phải register trong application-events/outbox bridge khi implement; HTTP hydrate là source status. SSE delivery không là bằng chứng Payment thành công.

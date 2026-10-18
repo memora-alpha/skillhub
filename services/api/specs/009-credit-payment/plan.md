@@ -133,4 +133,30 @@ Provider/DB runtime, live deployment SHA/readiness và vận hành thật vẫn 
 
 ## Complexity Tracking
 
+### Recovery hardening — 2026-10-18
+
+User authorized branch/fix after the restore/idempotency/REVIEW audit.
+Branch `fix/payment-recovery-guards`; API only, no mobile/shared changes.
+Keep Payment creation identity in the owning row with unique owner/key digest;
+fallback only reconstructs the derived HTTP mapping. Hold live user lock and
+recheck fresh-create policy in the serializable reserve transaction. One owner
+cannot reserve a fresh top-up while CREATED/PENDING/REVIEW or an unanchored legacy
+payOS payment exists. Safe replay remains allowed when creation is paused.
+
+Infrastructure `PAYMENT_CREATION_PAUSED` stays outside restored business DB;
+worker/webhook stay enabled, old-channel QR is hidden. A stranded unresolved
+channel blocks fresh reserve globally without leaking an owner's ID. Existing
+credentials are single-channel; switching requires drain/reconciliation.
+
+Add authenticated read-only creation-policy projection and an operator-only
+bounded READ ONLY snapshot report, optional signed lookup outside transaction.
+This is a diagnostic payment report, not full Credit reconciliation T023, repair,
+receipt reassignment or authorization to create a replacement. Lost-all-identity,
+multi-channel service and per-case REVIEW approval remain explicitly unsupported.
+
+Constitution check for this tranche: architecture/scope, PG authority,
+transaction ownership, live auth, safe projections and provider-I/O boundary Pass
+by source; financial concurrency/rollback/migration checks recorded in validation.
+No exception, no provider deployment or production migration authorized.
+
 Không exception. Durable checkout preparation/receipts cần để phục hồi trạng thái khi crash và reconcile provider I/O và dedupe lúc crash; queue-only không đủ. Source-lot policy đã được user duyệt; implementation giữ legacy funds chưa rõ nguồn ở trạng thái untracked và không tự dựng opening balances.

@@ -14,6 +14,7 @@ export class PayosTransport {
       Object.fromEntries(
         [
           "PAYMENTS_ENABLED",
+          "PAYMENT_CREATION_PAUSED",
           "PAYOS_CLIENT_ID",
           "PAYOS_API_KEY",
           "PAYOS_CHECKSUM_KEY",

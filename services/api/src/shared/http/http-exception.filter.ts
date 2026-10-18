@@ -57,7 +57,6 @@ export class HttpExceptionFilter implements ExceptionFilter {
     // Only public capability codes are safe to expose for service-unavailable errors.
     if (
       status === 503 &&
-      typeof detail === "string" &&
       new Set([
         "CONNECTION_POLICY_UNAVAILABLE",
         "CHAT_REPLICA_SET_OR_INDEXES_UNAVAILABLE",
@@ -66,12 +65,33 @@ export class HttpExceptionFilter implements ExceptionFilter {
         "MESSAGE_NOT_READY",
         "EVENT_CONNECTIONS_UNAVAILABLE",
         "PAYMENT_PROVIDER_UNAVAILABLE",
-      ]).has(detail)
+        "PAYMENT_CREATION_PAUSED",
+        "PAYMENT_CHANNEL_RECONCILIATION_REQUIRED",
+      ]).has(
+        typeof detail === "string"
+          ? detail
+          : ((detail as { message?: string } | undefined)?.message ?? ""),
+      )
     )
-      message = detail;
+      message =
+        typeof detail === "string"
+          ? detail
+          : (detail as { message: string }).message;
     let text = "Request failed.";
     if (Array.isArray(message)) text = message.join("; ");
     else if (typeof message === "string") text = message;
-    response.status(status).json(failure(status, text));
+    // Only payment-owned UUIDs are exposed for these two explicit recovery errors.
+    const paymentId = (detail as { existingPaymentId?: unknown } | undefined)
+      ?.existingPaymentId;
+    const paymentDetails =
+      status === 409 &&
+      ["PAYMENT_UNRESOLVED", "PAYMENT_RECONCILIATION_REQUIRED"].includes(
+        text,
+      ) &&
+      typeof paymentId === "string" &&
+      /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(paymentId)
+        ? { existingPaymentId: paymentId }
+        : undefined;
+    response.status(status).json(failure(status, text, paymentDetails));
   }
 }
