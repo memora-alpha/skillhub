@@ -156,19 +156,6 @@ export function PublicProfileScreen() {
                   Xem yêu cầu
                 </Button>
               )}
-              <Button
-                style={styles.action}
-                onPress={() =>
-                  router.push({
-                    pathname: "/send-proposal",
-                    params: request
-                      ? { requestId: request.id }
-                      : { userId: profile.id },
-                  })
-                }
-              >
-                {request ? "Gửi đề xuất" : "Gửi lời mời trao đổi"}
-              </Button>
             </View>
           </ScrollView>
         )
