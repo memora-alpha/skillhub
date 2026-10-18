@@ -5,7 +5,7 @@ import {
   MyRequestsContent,
   RequestCreateButton,
 } from "@/features/learning-requests";
-import { MyPathsContent } from "@/features/learning-paths";
+import { ApiPathsContent } from "@/features/learning-paths";
 import {
   appColors as colors,
   appRadius,
@@ -76,8 +76,7 @@ export function MyLearningScreen() {
               contentContainerStyle={styles.scroll}
               showsVerticalScrollIndicator={false}
             >
-              <Text style={styles.caption}>BẢN XEM THỬ · DỮ LIỆU MẪU</Text>
-              <MyPathsContent />
+              <ApiPathsContent />
             </ScrollView>
           )}
         </View>

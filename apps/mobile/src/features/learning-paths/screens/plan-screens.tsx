@@ -11,7 +11,17 @@ import {
 } from "@/components/feature-page";
 import { usePathsPreview } from "../context";
 import { editOwnPlan } from "../rules";
+import { uuid } from "@/lib/http/contracts";
+import { ApiPlanDetailScreen, ApiPlanEditorScreen } from "./ApiPlanScreens";
 export function PlanDetailScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  return uuid.safeParse(id).success ? (
+    <ApiPlanDetailScreen />
+  ) : (
+    <PreviewPlanDetailScreen />
+  );
+}
+function PreviewPlanDetailScreen() {
   const { id, planId } = useLocalSearchParams<{ id: string; planId: string }>();
   const { paths, save } = usePathsPreview();
   const path = paths.find((p) => p.id === id);
@@ -115,6 +125,14 @@ export function PlanDetailScreen() {
   );
 }
 export function PlanEditorScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  return uuid.safeParse(id).success ? (
+    <ApiPlanEditorScreen />
+  ) : (
+    <PreviewPlanEditorScreen />
+  );
+}
+function PreviewPlanEditorScreen() {
   const { id, planId } = useLocalSearchParams<{
     id: string;
     planId?: string;
