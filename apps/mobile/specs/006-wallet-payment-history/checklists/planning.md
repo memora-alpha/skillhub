@@ -4,6 +4,8 @@
 **Feature**: [spec](../spec.md) | **Plan**: [plan](../plan.md)
 **Meaning**: Checked items are reviewed design quality, not completed implementation, closed backend gaps or passed application acceptance.
 
+**Current replan review — 2026-10-17**: Payment081b3d2/f80ef7a inspected at4121c3f versus17e3ac1. [Actual Payment HTTP](../contracts/payment-http.md) now supplies create/list/detail/quote/QR/version/REVIEW and posting evidence. GAP-06 retention/mobile correlation and QR-01 remain open; mobile Payment stays disabled. Plan I1..I6 are proposals, not newly generated executable tasks.49/62 historical task completions remain unchanged; documentation review does not close financial or native acceptance. Original review notes below are historical.
+
 ## Scope and evidence
 
 - [x] Root/mobile guidance, constitution, README/docs, SRS V1.6 and existing feature artifacts considered.
@@ -11,7 +13,7 @@
 - [x] Research distinguishes SRS, source, fixtures, proposed design and unresolved external dependencies.
 - [x] Source-backed conclusions have repository paths/line anchors; README/model/internal port existence is not called an owner API.
 - [x] GAP-01..08 distinguish source-ready reads, approved policy, partial QR/reversal/reference support and operational payment blockers with explicit stop/activation evidence.
-- [x] Existing Profile navigation corrected in checkpoint interpretation; current wallet destination remains a sample.
+- [x] Existing Profile/Home navigation and shared Wallet projection retained; current Wallet/history use owner reads and preview samples remain isolated.
 
 ## Detailed design
 
@@ -33,9 +35,9 @@
 - [x] Quickstart identifies runnable current document checks and future commands gated on actual implementation/environment.
 - [x] Stages identify goal/files, entry, exit and stop conditions; independent reads need not wait for creation.
 - [x] Open Product/backend decisions, concrete risks and conditional readiness for `speckit-tasks` are recorded.
-- [x] No `tasks.md`, implementation execution or runtime acceptance is claimed by this command.
+- [x] Existing task history/completions are preserved; no new executable task IDs, implementation execution or runtime acceptance is claimed by this command.
 
-## Review notes
+## Historical review notes — baseline17e3ac1
 
 - Replan baseline17e3ac1 supersedes the old all-eight-open classification. GAP-01/02 now have implemented owner reads; GAP-04 has approved amount/step/TTL code; payOS QR-only protocol is selected but public Payment/create/query/posting/recovery is not implemented.
 - Two research agents inspected source/spec009 and updated research/actual read contract plus data-model/validation/quickstart documents. No source/index/branch edits were delegated; all new edits are working-tree Markdown.
