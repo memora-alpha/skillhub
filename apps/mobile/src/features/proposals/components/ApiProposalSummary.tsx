@@ -1,0 +1,105 @@
+import { useRouter } from "expo-router";
+import { Panel, Copy } from "@/components/feature-page";
+import { Badge } from "@/components/Badge";
+import { Button } from "@/components/Button";
+import {
+  useConnections,
+  useParticipantName,
+  useCatalogName,
+} from "@/features/connections";
+import type { Proposal } from "../api/proposals-api";
+import { proposalStatusLabels } from "../constants/proposal-status";
+
+export function ApiProposalSummary({
+  proposal,
+  compact = false,
+}: {
+  proposal: Proposal;
+  compact?: boolean;
+}) {
+  const router = useRouter();
+  const { userId } = useConnections();
+  const sent = proposal.proposerId === userId;
+  const partnerId = sent ? proposal.recipientId : proposal.proposerId;
+  const partner = useParticipantName(partnerId);
+  const skill = useCatalogName(proposal.skillId);
+  return (
+    <Panel title={skill.data ?? "Đề xuất trao đổi"}>
+      <Copy>
+        {sent ? "Gửi tới" : "Nhận từ"} {partner.data ?? "Thành viên SkillHub"}
+      </Copy>
+      <Badge
+        label={proposalStatusLabels[proposal.status]}
+        variant={
+          proposal.status === "ACCEPTED"
+            ? "success"
+            : proposal.status === "PENDING"
+              ? "warning"
+              : "default"
+        }
+      />
+      <Copy>
+        {proposal.sourceType === "DIRECT_SEARCH"
+          ? "Lời mời trực tiếp"
+          : "Phản hồi yêu cầu học"}{" "}
+      </Copy>
+      <Copy>{proposal.message}</Copy>
+      {!compact && (
+        <>
+          {proposal.exchangeTypeHint && (
+            <Copy>
+              Hình thức gợi ý:{" "}
+              {proposal.exchangeTypeHint === "TWO_WAY"
+                ? "Trao đổi hai chiều"
+                : "Học một chiều"}
+            </Copy>
+          )}
+          {proposal.proposedCredit !== null && (
+            <Copy>Credit gợi ý: {proposal.proposedCredit}</Copy>
+          )}
+          {proposal.initialSessionCount !== null && (
+            <Copy>Số buổi gợi ý: {proposal.initialSessionCount}</Copy>
+          )}
+          {proposal.proposedDurationMinutes !== null && (
+            <Copy>
+              Thời lượng gợi ý: {proposal.proposedDurationMinutes} phút
+            </Copy>
+          )}
+          {proposal.candidateSlots.map((slot) => (
+            <Copy key={`${slot.startAt}-${slot.endAt}`}>
+              {new Date(slot.startAt).toLocaleString("vi-VN")} —{" "}
+              {new Date(slot.endAt).toLocaleString("vi-VN")}
+            </Copy>
+          ))}
+          <Copy muted>
+            Hết hạn: {new Date(proposal.expiresAt).toLocaleString("vi-VN")}.
+          </Copy>
+          {proposal.learningRequestId && (
+            <Button
+              variant="secondary"
+              onPress={() =>
+                router.push({
+                  pathname: "/request/[id]",
+                  params: { id: proposal.learningRequestId! },
+                })
+              }
+            >
+              Xem yêu cầu học
+            </Button>
+          )}
+          <Button
+            variant="secondary"
+            onPress={() =>
+              router.push({
+                pathname: "/profiles/[userId]",
+                params: { userId: partnerId },
+              })
+            }
+          >
+            Xem hồ sơ
+          </Button>
+        </>
+      )}
+    </Panel>
+  );
+}
