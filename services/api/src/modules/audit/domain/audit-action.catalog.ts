@@ -8,6 +8,11 @@ import {
 import { validateReason } from "./reason.policy";
 
 export const AUDIT_ACTIONS = [
+  "TAG_CREATE",
+  "TAG_UPDATE",
+  "TAG_REQUEST_CREATE",
+  "TAG_REQUEST_APPROVE",
+  "TAG_REQUEST_REJECT",
   "SKILL_LEVEL_UPDATE",
   "PROPOSAL_CREATE",
   "PROPOSAL_UPDATE",
@@ -91,6 +96,25 @@ const catalog = z.strictObject({
   status: z.enum(["ACTIVE", "INACTIVE", "ARCHIVED"]),
   version: z.number().int().positive(),
 });
+const tagLabel = z
+  .string()
+  .refine((value) => [...value].length >= 1 && [...value].length <= 80);
+const tag = z.strictObject({
+  label: tagLabel,
+  status: z.enum(["ACTIVE", "INACTIVE", "ARCHIVED"]),
+  version: z.number().int().positive(),
+  createdByUserId: uuid.nullable(),
+});
+const tagRequest = z.strictObject({
+  label: tagLabel,
+  status: z.enum(["PENDING", "APPROVED", "REJECTED"]),
+  version: z.number().int().positive(),
+  requestedByUserId: uuid,
+  reviewedByUserId: uuid.nullable(),
+  reviewedAt: z.iso.datetime().nullable(),
+  resultTagId: uuid.nullable(),
+  rejectReason: z.string().nullable(),
+});
 const sharingSkill = z.strictObject({
   archivedAt: z.iso.datetime().nullable(),
   isVisible: z.boolean(),
@@ -170,6 +194,11 @@ const projectionByAction: Record<
   Exclude<AuditAction, "SYSTEM_CONFIGURATION_UPDATE">,
   z.ZodType
 > = {
+  TAG_CREATE: tag,
+  TAG_UPDATE: tag,
+  TAG_REQUEST_CREATE: tagRequest,
+  TAG_REQUEST_APPROVE: tagRequest,
+  TAG_REQUEST_REJECT: tagRequest,
   SKILL_LEVEL_UPDATE: z.strictObject({
     skillId: uuid,
     code: z.string().max(40),

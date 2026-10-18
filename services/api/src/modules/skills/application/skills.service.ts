@@ -25,7 +25,7 @@ import {
   type SkillQuery,
   type TagQuery,
 } from "./skill-contracts";
-import type { CatalogStatus } from "../../../generated/prisma/client";
+import { Prisma, type CatalogStatus } from "../../../generated/prisma/client";
 import {
   DEFAULT_SKILL_LEVELS,
   legacySkillLevel,
@@ -52,6 +52,14 @@ export class SkillsService {
     selection: { skillId: string; tagIds: readonly string[] },
   ) {
     await this.assertActive(tx, selection.skillId);
+    if (selection.tagIds.length > 0) {
+      // Catalog updates take the same locks; retain user -> request -> skill -> tag order.
+      await tx.$queryRaw(Prisma.sql`
+        SELECT tag_id FROM tags
+        WHERE tag_id IN (${Prisma.join(selection.tagIds.map((id) => Prisma.sql`${id}::uuid`))})
+        ORDER BY tag_id FOR SHARE
+      `);
+    }
     const tags = await tx.tag.findMany({
       where: { id: { in: [...selection.tagIds] }, status: "ACTIVE" },
       select: { id: true, label: true },
