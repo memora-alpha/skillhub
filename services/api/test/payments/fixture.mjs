@@ -6,6 +6,7 @@ import { createCreditFixture } from "../credit/fixture.mjs";
 import { PayosTransport } from "../../dist/modules/payments/infrastructure/payos-transport.js";
 import { PaymentCheckoutWorker } from "../../dist/modules/payments/application/services/payment-checkout.worker.js";
 import { PaymentReceiptsService } from "../../dist/modules/payments/application/services/payment-receipts.service.js";
+import { PaymentCreationPolicy } from "../../dist/modules/payments/application/services/payment-creation-policy.js";
 import { CreatePaymentUseCase } from "../../dist/modules/payments/application/use-cases/create-payment.use-case.js";
 import {
   ReadPaymentsUseCase,
@@ -85,10 +86,13 @@ export async function createPaymentFixture() {
     receipts,
     events,
   );
+  const policy = new PaymentCreationPolicy(transport);
   const reads = new ReadPaymentsUseCase(
     f.transactions,
     f.actors,
     new PaymentCursor("fixture-payment-cursor"),
+    transport,
+    policy,
   );
   const create = new CreatePaymentUseCase(
     f.commands,
@@ -97,6 +101,7 @@ export async function createPaymentFixture() {
     transport,
     worker,
     reads,
+    policy,
   );
   const providerOrders = new Map();
   const requests = [];
@@ -181,6 +186,7 @@ export async function createPaymentFixture() {
     receipts,
     worker,
     reads,
+    policy,
     create,
     order,
     webhook,

@@ -1,6 +1,6 @@
 # Nạp Credit bằng QR payOS
 
-Ngày cập nhật: 2026-10-17. Phạm vi: backend `services/api`.
+Ngày cập nhật: 2026-10-18. Phạm vi: backend `services/api`.
 Code có API/Swagger, transport payOS, lưu đơn/biên nhận, posting TOP_UP,
 nguồn Credit, recovery và event SSE. Web/mobile cần tích hợp UI riêng.
 Kiểm thử provider giả lập không thay thế giao dịch thật với merchant.
@@ -11,7 +11,10 @@ Kiểm thử provider giả lập không thay thế giao dịch thật với mer
 2. BE kiểm danh tính còn hiệu lực, số tiền và nguồn Credit của ví. PostgreSQL
    lưu Payment, quote, policy version, expiry, return/cancel URLs và orderCode
    duy nhất trước khi gọi payOS. Cùng actor/key/body trả lại đơn cũ; đổi body
-   với key cũ trả 409. Đổi số tiền cần một key mới.
+   với key cũ trả 409. Payment giữ key digest/fingerprint riêng, không TTL.
+   Mất riêng mapping HTTP vẫn replay cùng Payment và phục hồi mapping.
+   Key mới bị chặn nếu owner còn CREATED/PENDING/REVIEW hoặc Payment payOS legacy
+   thiếu identity tạo đơn. Chỉ đổi số tiền bằng key mới sau khi đơn cũ được giải quyết.
 3. BE gọi REST payOS ngoài database transaction; xác minh chữ ký response và
    đối chiếu orderCode/số tiền/currency. FE chỉ nhận chuỗi `qrCode` để render QR.
    Không nhận hosted checkout URL, credentials, signature hay return/cancel URL.
@@ -37,6 +40,7 @@ Swagger chỉ được bật khi `NODE_ENV` khác `production`; kiểm đúng m�
 | `POST /api/v1/payments` | Bearer + Idempotency-Key | Tạo đơn own; 201 mới, 200 replay |
 | `GET /api/v1/payments?limit=20&status=PENDING` | Bearer | Liệt kê own theo cursor |
 | `GET /api/v1/payments/{id}` | Bearer | Trạng thái/quote/QR còn hiệu lực |
+| `GET /api/v1/payments/creation-policy` | Bearer | Khả năng tạo mới và own blocking ID; không gọi provider |
 | `POST /api/v1/payments/webhooks/payos` | Chữ ký payOS | Callback công khai của provider |
 | `GET /api/v1/me/wallet` | Bearer | Available/Held và walletVersion |
 | `GET /api/v1/events` | Bearer | SSE dùng chung, hỗ trợ replay |
@@ -118,6 +122,7 @@ thanh toán payOS do nhóm sở hữu; mỗi môi trường dùng merchant/chann
 | Biến | Giá trị / nguồn |
 | --- | --- |
 | `PAYMENTS_ENABLED` | Mặc định `false`; `true` mới cho phép tạo/xử lý provider |
+| `PAYMENT_CREATION_PAUSED` | Mặc định `false`; `true` chặn đơn mới, ẩn QR; giữ webhook/recovery và replay đúng đơn |
 | `PAYOS_CLIENT_ID` | Client ID từ payOS; snapshot vào đơn để bind merchant |
 | `PAYOS_API_KEY` | API key từ payOS; header server-to-server |
 | `PAYOS_CHECKSUM_KEY` | Checksum key từ payOS; ký request/verify callback/response |
@@ -179,7 +184,8 @@ muộn vẫn được nhận theo timestamp giao dịch đã ký.
 
 Nếu provider đã tạo đơn nhưng response QR bị mất và lookup không cung cấp QR,
 đơn chuyển REVIEW `PAYMENT_QR_UNAVAILABLE`; không tự dựng QR từ dữ liệu ngân hàng.
-FE có thể cho người dùng tạo đơn mới với key mới. Đơn REVIEW không tự phát Credit.
+FE phải chặn tạo đơn mới và yêu cầu đối soát. Đơn REVIEW không tự phát Credit,
+kể cả khi có webhook hợp lệ đến sau đó; không coi mất QR là bằng chứng chưa trả tiền.
 Giao dịch thực sự đã đến cần operator đối chiếu, không sửa ledger cũ hoặc gọi
 endpoint giả confirm-paid. Các policy refund/compensation chưa chốt vẫn đóng.
 
@@ -208,6 +214,10 @@ không được coi là đã backfill provenance. Chưa mở bonus program, cash
 admin adjustment hoặc tự sửa số dư trong phạm vi Payment này.
 
 ## Kiểm thử và troubleshooting
+
+[Runbook restore/channel và hỗ trợ mất định danh](payment-recovery-operations.vi.md)
+quy định khóa create riêng, contract cho mobile, công cụ report read-only và
+những thao tác chưa hỗ trợ. Không đổi channel khi còn đơn chưa đối soát.
 
 Từ root sau khi cài dependencies:
 

@@ -72,4 +72,16 @@ Parallel examples (không yêu cầu spawn agents): US1 cursor tests và HTTP DT
 
 ## Implementation strategy
 
+### Recovery hardening — 2026-10-18
+
+- [x] R001 Retain owner/key/fingerprint identity on Payment, additive/backfill migration and immutable identity guards; repair missing HTTP mapping from domain identity.
+- [x] R002 Serialize fresh creates under live owner lock; block unresolved and legacy unanchored payments; replay the original intent.
+- [x] R003 Separate infrastructure creation pause, authenticated creation-policy, safe recovery reasons/errors and old-channel QR suppression/global fresh-create gate.
+- [x] R004 Add bounded operator payment report with READ ONLY snapshot and optional signed lookup, without repair or receipt reassignment.
+- [x] R005 Update HTTP/data-model/README and restore/channel/support runbook; retain unsupported financial recovery/REVIEW approval explicitly.
+- [x] R006 Complete focused lint/types/build, payment protocol/HTTP/PG/concurrency/migration/report regressions; record evidence in validation.
+- [ ] R007 Apply migration/config to a deployment and verify real merchant/restore/channel incident procedures; separate release work.
+
+R004 does not complete full wallet/financial reconciliation T023.
+
 Initial tranche: T003–T010 và T011–T013, kiểm đầy đủ phần source thực hiện; không cần chốt buckets hoặc chuyển tiền. Sau đó tiếp tục payment persistence/posting khi policy cho phép. Đây là khởi đầu implementation theo yêu cầu, không tuyên bố cả spec009 hoàn tất; gates giữ rõ và các task chưa làm không được tick.
