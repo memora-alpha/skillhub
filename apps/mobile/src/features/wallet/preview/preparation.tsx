@@ -1,6 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { Button } from "@/components/Button";
-import { Copy, Panel } from "@/components/feature-page";
+import { Copy, Panel } from "../components/wallet-ui";
 import { TopupForm } from "../components/topup-form";
 import { PaymentQr } from "../components/payment-qr";
 import { createPaymentPreparation } from "../utils/payment-intent";
@@ -93,7 +93,7 @@ export function WalletPreparationPreview({
         <QrPreview paymentId={state.paymentId} />
       )}
       {display === "payment" && !state.paymentId && (
-        <PaymentQr model={{ stage: "preparing" }} />
+        <PaymentQr model={{ stage: "preparing" }} synthetic />
       )}
       {display === "topup" && state.paymentId && (
         <Button variant="paper" onPress={() => setDisplay("payment")}>
@@ -123,7 +123,11 @@ function QrPreview({ paymentId }: { paymentId: string }) {
   }, [qr]);
   return (
     <>
-      <PaymentQr model={state} />
+      <PaymentQr
+        model={state}
+        synthetic
+        onRetryPresentation={qr.retryPresentation}
+      />
       <Button variant="paper" onPress={qr.renderError}>
         Minh họa lỗi hiển thị
       </Button>

@@ -1,23 +1,34 @@
-import { useLocalSearchParams } from "expo-router";
-import {
-  FeaturePage,
-  Panel,
-  Copy,
-  Metric,
-  RouteButton,
-  ui,
-} from "@/components/feature-page";
+import { useState } from "react";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { FeaturePage } from "@/components/feature-page";
+import { Panel, Copy, Metric, RouteButton } from "../components/wallet-ui";
 import { View } from "react-native";
-import { formatCredit } from "../utils/amount";
-import { previewBalances, previewTransactions } from "./fixtures";
+import { creditAmount, formatCredit } from "../utils/amount";
+import {
+  previewBalances,
+  previewTransactions,
+  previewLedgerEntries,
+} from "./fixtures";
+import { WalletOverviewContent } from "../components/wallet-overview-content";
+import {
+  TransactionRow,
+  RecordedMovement,
+} from "../components/transaction-row";
+import { HistoryFilters } from "../components/history-filters";
+import type { HistoryFilters as Selection } from "../types/transaction";
+import { transactionLabel } from "../utils/transaction-labels";
 import { previewHref, previewSelection } from "./navigation";
 import { WalletPreparationPreview } from "./preparation";
 import { WalletStatusPreview } from "./status";
+import { WalletQrPreview } from "./qr";
 
 // Intentionally no query/client/session runtime injection: this is inert UI.
 export function WalletPreviewContent() {
   const { view, state, id } = previewSelection(useLocalSearchParams());
   const transaction = previewTransactions.find((entry) => entry.id === id);
+  const ledgerEntry = previewLedgerEntries.find((entry) => entry.id === id);
+  const router = useRouter();
+  const [filters, setFilters] = useState<Selection>({});
   return (
     <FeaturePage
       title="Ví Credit · Xem thử"
@@ -30,22 +41,24 @@ export function WalletPreviewContent() {
         tiền.
       </Copy>
       {view === "wallet" && (
-        <Panel title="Ví tài khoản mẫu">
-          <View style={ui.row}>
-            <Metric
-              label="Khả dụng mẫu"
-              value={formatCredit(previewBalances.available)}
-            />
-            <Metric
-              label="Đang tạm giữ mẫu"
-              value={formatCredit(previewBalances.held)}
-            />
-          </View>
-        </Panel>
+        <WalletOverviewContent
+          state={{
+            status: "ready",
+            stale: false,
+            data: {
+              availableCredit: creditAmount(previewBalances.available),
+              heldCredit: creditAmount(previewBalances.held),
+              walletVersion: 1,
+            },
+          }}
+          onTopup={() => router.push(previewHref("topup"))}
+          onHistory={() => router.push(previewHref("history"))}
+        />
       )}
       {(view === "topup" || view === "payment") && (
         <WalletPreparationPreview view={view} />
       )}
+      {view === "qr" && <WalletQrPreview />}
       {view === "status" && (
         <>
           <WalletStatusPreview initialState={state} />
@@ -54,23 +67,37 @@ export function WalletPreviewContent() {
           </RouteButton>
         </>
       )}
-      {view === "history" &&
-        previewTransactions.map((entry) => (
-          <Panel key={entry.id} title={entry.type}>
-            <Metric label="Số Credit mẫu" value={formatCredit(entry.amount)} />
-            <Copy>
-              {entry.status} · {entry.context}
-            </Copy>
-            <RouteButton
-              secondary
-              href={previewHref("transaction", undefined, entry.id)}
-            >
-              Xem giao dịch mẫu
-            </RouteButton>
-          </Panel>
-        ))}
+      {view === "history" && (
+        <View>
+          <View style={{ marginBottom: 12 }}>
+            <HistoryFilters filters={filters} onChange={setFilters} />
+          </View>
+          {previewLedgerEntries
+            .filter(
+              (entry) =>
+                (!filters.type || entry.type === filters.type) &&
+                (!filters.referenceType ||
+                  entry.referenceType === filters.referenceType),
+            )
+            .map((entry) => (
+              <TransactionRow
+                key={entry.id}
+                row={entry}
+                onOpen={() =>
+                  router.push(previewHref("transaction", undefined, entry.id))
+                }
+              />
+            ))}
+        </View>
+      )}
       {view === "transaction" && (
-        <Panel title={transaction?.type ?? "Không có giao dịch mẫu"}>
+        <Panel
+          title={
+            transaction
+              ? transactionLabel(transaction.type)
+              : "Không có giao dịch mẫu"
+          }
+        >
           {transaction ? (
             <>
               <Metric
@@ -78,6 +105,7 @@ export function WalletPreviewContent() {
                 value={formatCredit(transaction.amount)}
               />
               <Copy>{transaction.context}</Copy>
+              {ledgerEntry && <RecordedMovement row={ledgerEntry} />}
               <Copy>{transaction.id}</Copy>
             </>
           ) : (
@@ -85,12 +113,19 @@ export function WalletPreviewContent() {
           )}
         </Panel>
       )}
-      <RouteButton secondary href={previewHref("wallet")}>
-        Ví mẫu
-      </RouteButton>
-      <RouteButton secondary href={previewHref("history")}>
-        Lịch sử mẫu
-      </RouteButton>
+      <Panel title="Điều hướng bản mẫu">
+        <RouteButton secondary href={previewHref("wallet")}>
+          Ví mẫu
+        </RouteButton>
+        {view !== "qr" && (
+          <RouteButton secondary href={previewHref("qr")}>
+            QR local mẫu độc lập
+          </RouteButton>
+        )}
+        <RouteButton secondary href={previewHref("history")}>
+          Lịch sử mẫu
+        </RouteButton>
+      </Panel>
     </FeaturePage>
   );
 }

@@ -24,5 +24,21 @@ export const transactionLabel = (code: string) =>
   labels[code] ?? `Loại chưa nhận diện (${code})`;
 export const transactionStatus = (code: string) =>
   states[code] ?? `Trạng thái chưa nhận diện (${code})`;
+const references: Record<string, string> = {
+  PAYMENT: "Thanh toán",
+  LEARNING_PATH: "Lộ trình học",
+  SESSION: "Buổi học",
+  REVIEW: "Đánh giá",
+  DISPUTE: "Tranh chấp",
+  MATERIAL_ORDER: "Đơn tài liệu",
+  SYSTEM: "Hệ thống",
+};
+export const referenceLabel = (code: string) => references[code] ?? code;
 export const transactionTime = (value: string) =>
-  new Date(value).toLocaleString("vi-VN");
+  new Date(value).toLocaleString("vi-VN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });

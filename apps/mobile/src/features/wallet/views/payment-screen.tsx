@@ -1,6 +1,6 @@
 import { AppScreenLayout } from "@/features/shell";
 import { KeyboardFormScrollView } from "@/components/KeyboardFormScrollView";
-import { Copy, RouteButton, ui } from "@/components/feature-page";
+import { Copy, RouteButton, ui } from "../components/wallet-ui";
 import { PaymentQr } from "../components/payment-qr";
 import { useWalletBack } from "../hooks/use-wallet-back";
 

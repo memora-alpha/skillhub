@@ -8,13 +8,14 @@ import {
 import { AppState } from "react-native";
 import { useFocusEffect } from "expo-router";
 import { Button } from "@/components/Button";
-import { Copy, Panel } from "@/components/feature-page";
+import { Copy, Panel } from "../components/wallet-ui";
 import { AppError } from "@/lib/http/errors";
 import { creditAmount, vndAmount } from "../utils/amount";
 import { createPaymentObserver } from "../utils/payment-observer";
 import { PaidRefresh } from "./status-refresh";
 import { PaymentStatusPanel } from "../components/payment-status-panel";
 import { previewPaymentStates } from "./fixtures";
+import { LivePaymentStatusPreview } from "./live-status";
 
 export function WalletStatusPreview({
   initialState,
@@ -36,6 +37,7 @@ export function WalletStatusPreview({
         ))}
       </Panel>
       <StatusCase key={selected} code={selected} />
+      <LivePaymentStatusPreview />
     </>
   );
 }

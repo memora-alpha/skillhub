@@ -122,13 +122,18 @@ test("P4 public wrappers bind preparation only; normal form cannot dispatch or t
   );
 });
 
-test("P5 normal status ignores forged link outcomes and has no configured reader; preview status is independent of intent", () => {
+test("status accepts only a validated ID through the gated read hook; preview remains independent of intent", () => {
   const normal = source("features/wallet/views/payment-status-screen.tsx");
   assert.doesNotMatch(
     normal,
-    /useLocalSearchParams|\.request|fetch\(|createPaymentObserver|useWalletRuntime|preview/,
+    /\.request|fetch\(|createPaymentObserver|useWalletRuntime|preview/,
   );
-  assert.match(normal, /status: "unavailable"/);
+  assert.match(normal, /paymentStatusId\(useLocalSearchParams\(\)\)/);
+  assert.match(normal, /usePaymentStatus\(id\)/);
+  assert.doesNotMatch(
+    source("features/wallet/context/WalletProvider.tsx"),
+    /paymentStatus:\s*true/,
+  );
   assert.match(
     source("features/wallet/screens.tsx"),
     /PaymentStatusPreparationScreen/,

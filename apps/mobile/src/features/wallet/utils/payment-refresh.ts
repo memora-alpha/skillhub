@@ -22,7 +22,7 @@ export function createPaymentRefresh({
 }: {
   payment: PaymentObservationModel;
   current: () => boolean;
-  reads?: Readonly<Record<Resource, Read>>;
+  reads?: Readonly<Partial<Record<Resource, Read>>>;
 }) {
   const observed = Object.isFrozen(payment)
     ? payment
@@ -33,8 +33,8 @@ export function createPaymentRefresh({
     : unavailable;
   const store = paymentModelStore<PaymentRefreshSnapshot>({
     payment: observed,
-    wallet: idle,
-    history: idle,
+    wallet: reads?.wallet ? idle : unavailable,
+    history: reads?.history ? idle : unavailable,
   });
   let active = true;
   const pending = new Map<
@@ -47,7 +47,7 @@ export function createPaymentRefresh({
       store.publish({ ...store.getSnapshot(), [name]: Object.freeze(result) });
   };
   function run(name: Resource): Promise<void> {
-    if (!eligible || !live()) return Promise.resolve();
+    if (!eligible || !live() || !reads?.[name]) return Promise.resolve();
     const old = pending.get(name);
     if (old) return old.promise;
     const prior = store.getSnapshot()[name];
@@ -66,7 +66,7 @@ export function createPaymentRefresh({
     void (async () => {
       try {
         if (!valid()) return;
-        await reads![name](controller.signal);
+        await reads![name]!(controller.signal);
         if (valid()) update(name, { status: "success", stale: false });
       } catch {
         if (valid()) update(name, { status: "error", stale });
@@ -101,7 +101,11 @@ export function createPaymentRefresh({
     activate: () => {
       if (!active && current()) {
         active = true;
-        store.publish({ payment: observed, wallet: idle, history: idle });
+        store.publish({
+          payment: observed,
+          wallet: reads?.wallet ? idle : unavailable,
+          history: reads?.history ? idle : unavailable,
+        });
       }
     },
   };

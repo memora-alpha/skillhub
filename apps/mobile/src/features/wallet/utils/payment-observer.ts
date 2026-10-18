@@ -151,3 +151,9 @@ export function createPaymentObserver({
   };
 }
 export type PaymentObserver = ReturnType<typeof createPaymentObserver>;
+// Actual-contract read path is independent of the inert preparation reader.
+export {
+  paymentReadOptions,
+  projectPaymentRead,
+  pausePaymentRead,
+} from "./payment-read-query";

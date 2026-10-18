@@ -5,9 +5,30 @@ import type {
   FinancialRead,
 } from "./wallet";
 
-// Local presentation types only; no public Payment DTO is implemented yet.
+// Preparation models below remain separate from the actual wire projection.
 export type PaymentState =
-  "CREATED" | "PENDING" | "PAID" | "FAILED" | "EXPIRED" | "REFUNDED";
+  "CREATED" | "PENDING" | "PAID" | "FAILED" | "EXPIRED" | "REFUNDED" | "REVIEW";
+export type PaymentCheckout = Readonly<{
+  providerStatus: "PENDING";
+  paymentLinkId: string;
+  orderCode: string;
+  qrCode: string;
+}>;
+// Backend projection: no response owner/scope/quoteId or preparation intent.
+export type PaymentProjection = Readonly<{
+  id: string;
+  gateway: string;
+  status: string;
+  paymentAmountVnd: VndAmount;
+  currency: "VND";
+  creditAmount: CreditAmount;
+  conversionRateVndPerCredit: number;
+  createdAt: string;
+  expiresAt: string | null;
+  paidAt: string | null;
+  version: number;
+  checkout: PaymentCheckout | null;
+}>;
 export type TopUpDraft = Readonly<{ amountText: string }>;
 export type PaymentObservationModel = Readonly<{
   paymentId: string;
