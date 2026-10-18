@@ -1,18 +1,29 @@
 # Feature Specification: Wallet, payment status and transaction history
 
+**QR implementation checkpoint — T089..T093**: I5 QR source/fixture/web is complete after accepted D3/workflow decisions.100 task IDs/68 completions; all25FR/7SC remain unchanged. UI uses local SVG and an independent labeled preview on the existing preview route; normal Payment/create/Confirm stays unavailable. Android/iOS Metro export is source/build proof, no device/native/bank/payOS acceptance. Full top-up/recovery still depends D1 and operational evidence; [validation](validation.md) records limits.
+
 **Feature Branch**: `feat/mobile-wallet-payment-history`
 
 **Feature Directory**: `specs/006-wallet-payment-history`
 
 **Created**: 2026-10-16
 
-**Status**: Draft — reviewed for planning; real integration awaits backend contracts.
+**Status**: Wallet/Home, History/detail, I1/I2 and I5 synthetic QR source/W complete;68/100 tasks. Native-first design and two-device workflow approved. Real create/recovery still D1-gated; operational binding and API/payOS/native evidence unverified.
 
-**Implementation design**: [plan.md](plan.md), with explicit capability gates and separate evidence layers. No implementation is claimed.
+**Implementation design**: [plan.md](plan.md), with explicit capability gates and separate evidence layers. Historical implementation evidence is in [validation.md](validation.md); this replan claims no new runtime acceptance.
 
-**Replanned**: 2026-10-16 against backend merge `17e3ac1`. Owner wallet/history reads now exist in source. payOS is QR-only inside SkillHub; payment creation/query/posting/recovery remain unimplemented. Requirement IDs and financial-authority rules are retained.
+**Replanned**: 2026-10-17 against checkout `4121c3f`, comparing Payment `081b3d2`/merge `f80ef7a` with baseline `17e3ac1`. Owner create/list/detail, durable payOS checkout and verified atomic posting now exist in source. Mobile Payment remains unavailable until create/recovery/QR integration and financial gates are satisfied. See [Payment HTTP](contracts/payment-http.md) and [decision record](contracts/completion-proposal.md). US/FR/SC IDs and100 task IDs/63 completions are preserved.
 
 **Input**: User description: "Tạo feature mobile Wallet, payment status and transaction history trong apps/mobile. Đọc AGENTS.md, constitution, docs mobile và SRS V1.6; kiểm tra source và API hiện có. Phạm vi gồm số dư ví, nạp Credit, trạng thái thanh toán và lịch sử giao dịch. Chỉ xác nhận thanh toán qua backend, không suy ra thành công từ redirect, không có rút tiền. Ghi rõ API còn thiếu và nghiệp vụ chưa rõ. Giữ nhánh hiện tại, không sửa backend."
+
+## Clarifications
+
+### Session 2026-10-17
+
+- Q: Đã có cam kết BE owner về retention, replay và mất toàn bộ correlation chưa? → A: Chưa có; giữ D1/GAP-06 BLOCKED và chuẩn bị phiếu xác nhận BE. Không đặt SLA hoặc đoán lookup API.
+- Q: Duyệt native-first, storage tài chính riêng và cleanup qua logout theo phương án D2 không? → A: Duyệt. Giữ encrypted unresolved correlation cho đúng owner sau reauthentication; xóa RAM/cache/QR ngay khi logout/đổi tài khoản, không cho B truy cập A; chưa bật web create. Cleanup/horizon cuối cùng vẫn chờ D1; không bảo đảm phục hồi khi mất hết dữ liệu thiết bị.
+- Q: Duyệt bộ QR và phạm vi dependency D3 cho lượt triển khai được cho phép sau không? → A: Duyệt qrcode1.5.4, SVG hiện có, jsqr1.4.0/pngjs7.0.0 dev-only và typings khi cần; phạm vi package mobile/root lockfile trong lượt được cho phép sau. License/dependency, native/web và rendered-pixel decode vẫn phải kiểm chứng; chưa cài dependency.
+- Q: Duyệt workflow hai thiết bị/QA entry và môi trường đã có chưa? → A: Duyệt workflow/QA entry. Sau lựa chọn ban đầu “môi trường còn chờ chuẩn bị”, người dùng đính chính “có rồi chỉnh lại đi”: môi trường được xác nhận đã có. Chưa kiểm chứng connection/build/channel/runbook hoặc có kết quả A/G/native; không suy ra quyền chạy thanh toán thật.
 
 ## User Scenarios & Testing _(mandatory)_
 
@@ -40,16 +51,17 @@ As a signed-in user, I can review a VND amount, payOS and the Credit conversion,
 
 **Why this priority**: Users must understand what they pay and avoid accidentally creating duplicate payment requests.
 
-**Independent Test**: Prepare a top-up with the approved policy and exercise creation plus locally rendered QR using isolated models. Real HTTP/financial acceptance waits for operational payment APIs. Rendering failure preserves the known payment and never creates another one.
+**Independent Test**: Prepare a top-up with the approved policy and exercise the immutable intent using isolated models. Real HTTP/financial acceptance waits for mobile integration, accepted recovery, QR-01 and approved environment evidence against the now-implemented backend. Rendering failure preserves the known payment and never creates another one.
 
 **Acceptance Scenarios**:
 
-1. **Given** the approved 1,000–2,000,000 VND policy in 1,000-VND steps, **When** the user enters a valid amount, **Then** review shows VND, payOS and the standard 1,000 VND per Credit rate; estimated Credit remains distinct from the backend-confirmed quote. Policy source alone does not enable a missing create API.
+1. **Given** the approved 1,000–2,000,000 VND policy in 1,000-VND steps, **When** the user enters a valid amount, **Then** review shows VND, payOS and the standard 1,000 VND per Credit rate; estimated Credit remains distinct from the confirmed quote returned by creation. There is no standalone public quote endpoint; source availability alone does not enable mobile creation.
 2. **Given** a blank, zero, negative, fractional-VND, unrepresentable or policy-disallowed amount, **When** the user continues, **Then** submission is blocked with a readable reason and the input remains available for correction.
 3. **Given** a valid review, **When** the user confirms repeatedly, **Then** only one creation attempt is active; a confirmed owner payment can display its exact backend-supplied QR payload encoded locally, without hosted checkout, browser/WebView or remote QR-image service.
 4. **Given** creation times out, QR preparation is incomplete or rendering fails, **When** the user retries or connectivity returns, **Then** the app retains its known identity/intent and retries only the appropriate read/render/reconciliation action; it never silently creates a new intent.
 5. **Given** a known payment and the user leaves/closes QR or returns manually from another app, **When** SkillHub resumes, **Then** the user can check that payment; closing QR does not cancel it or mark it failed, paid or expired.
 6. **Given** operational creation/status/recovery APIs are unavailable, **When** top-up opens, **Then** real confirmation is unavailable with an explanation and no simulated real-money success. No return/cancel screen, bank-app deep link or QR save/share action is required by this QR-only scope.
+7. **Given** the approved native-first scope, **When** a user opens top-up on web, **Then** real creation remains unavailable while owner reads/status and labeled preview remain supported. On native, the supported scan workflow displays QR for a second device; same-device bank navigation/save/share is not implicitly included. Actual use still requires satisfied financial gates and verified environment binding.
 
 ---
 
@@ -59,7 +71,7 @@ As the payment owner, I can check a known payment while viewing/leaving its in-a
 
 **Why this priority**: QR visibility, provider checkout metadata, manual return and waiting time must never be mistaken for a verified owner payment result.
 
-**Independent Test**: Read payment model observations in all defined states and exercise QR/providerStatus confusion, forged legacy links, delayed verification and read failures independently of QR rendering; real reads await the operational owner API.
+**Independent Test**: Read payment observations in all defined states and exercise QR/providerStatus confusion, forged legacy links, delayed verification and read failures independently of QR rendering or a US2 intent. The owner API now exists; mobile adapter/REVIEW/version behavior and real environment evidence remain future integration work.
 
 **Acceptance Scenarios**:
 
@@ -69,7 +81,7 @@ As the payment owner, I can check a known payment while viewing/leaving its in-a
 4. **Given** confirmed `PAID` and a failed or stale wallet/history refresh, **When** results are shown, **Then** payment remains successful, the refresh issue is separate and retry repeats reads only.
 5. **Given** backend `FAILED`, `EXPIRED` or `REFUNDED`, **When** status is shown, **Then** the exact outcome is explained without inferring cash-out or applying a local balance change; starting another top-up requires an explicit new intent.
 6. **Given** a missing, malformed, inaccessible or other-owner payment identifier, **When** status opens, **Then** no private payment details are disclosed and a safe return to wallet is available.
-7. **Given** a failed read or unfamiliar payment state, **When** status is checked, **Then** the result remains unavailable/unconfirmed with a retry rather than becoming a fabricated terminal state.
+7. **Given** backend `REVIEW`, a failed read or unfamiliar payment state, **When** status is checked, **Then** REVIEW is shown neutrally as needing checking/reconciliation, and an unknown result remains unconfirmed with a retry; neither becomes a fabricated failure, success or permission to create again. Only owner reads determine state; newer authoritative observations may replace older ones, including EXPIRED→PAID, while server-suppressed QR must not reappear from stale data.
 
 ---
 
@@ -101,29 +113,30 @@ As a signed-in user, I can browse recorded Credit movements and inspect an entry
 
 - QR/providerStatus or forged, repeated, out-of-order or post-logout legacy return information cannot override a fresh owner-authorized payment read.
 - Creation may time out before a payment identifier is received. Without an agreed way to reconcile or safely replay the same intent, show unknown outcome and block automatic resubmission.
+- Logout clears private runtime data but retains only encrypted unresolved correlation for the same owner after reauthentication; account B must not read or enumerate A's record. Detected corruption/read failure blocks creation. Undetectable total record loss remains an explicit BE/operator decision; storage alone cannot promise restart recovery. No record TTL or new intent is inferred.
 - A payment may succeed after the user leaves QR or stops waiting. Subsequent reads may show success; the approved 60-minute server quote TTL must not be restarted or converted into a client-decided financial status.
 - Network recovery and foreground resume refresh reads only. Automatic checking is bounded, pauses in the background and stops on departure, session end or a confirmed terminal status.
 - A confirmed successful payment may coexist with temporarily stale/unavailable wallet/history views. Keep those outcomes separate; never invent a corresponding ledger row or balance.
 - A hold may move Credit between Available and Held without changing total ownership. A fee entry may have separate recorded deltas. Do not interpret every `amount` as a signed Available-balance delta.
 - Fractional Credit, large values, equal timestamps, newly arriving entries and unfamiliar types/statuses must not cause precision loss, unstable order, duplicates or false financial labels.
-- payOS/policy and its pure adapter exist, but operational create/query/receipt/posting/recovery do not. Real continuation stays unavailable until those capabilities and provider proof exist.
+- Operational create/query/receipts/atomic posting and backend worker recovery now exist. Real mobile continuation stays unavailable until actual-contract integration, GAP-06 retention/mobile correlation, QR-01 and approved operational evidence are complete.
 - Missing, unauthorized or preview-only related records do not receive real financial identifiers or fabricated links.
 
 ## Requirements _(mandatory)_
 
 ### Functional Requirements
 
-- **FR-001**: Financial views MUST require the authenticated owner. Logout/account switch MUST clear financial views, drafts and checking state and ignore results from earlier sessions. (US1.5, US3.6, US4.7)
+- **FR-001**: Financial views MUST require the authenticated owner. Logout/account switch MUST clear financial views, drafts, QR and checking state and ignore results from earlier sessions. Only encrypted unresolved recovery correlation may remain, bound to its owner and accessible again only after that owner reauthenticates; another account MUST NOT read or enumerate it. Record cleanup remains subject to the confirmed recovery policy. (US1.5, US3.6, US4.7)
 - **FR-002**: Wallet MUST show separate confirmed Available/Held Credit exactly to two decimal places; unavailable data MUST NOT be displayed as zero. (US1.1–3)
 - **FR-003**: Home and own Profile MUST open the same wallet. Any Home balance presented as real MUST use the same authoritative account data, never a new/returning-user sample. Back MUST preserve origin when possible, with wallet/history fallbacks. (US1.1/4; shared scenario 1)
 - **FR-004**: Financial reads MUST distinguish loading, confirmed empty/zero, stale refresh, inaccessible and unavailable/error states, with applicable retries and no fixture fallback. (US1.2–4, US3.4/6/7, US4.6)
-- **FR-005**: Top-up MUST validate integer VND using the approved 1,000–2,000,000 VND range and 1,000-VND steps, tied to the server policy version/quote once available. Presets MUST NOT be inferred from the preview. (US2.1/2/6)
+- **FR-005**: Top-up MUST validate integer VND using the approved 1,000–2,000,000 VND range and 1,000-VND steps, then use the confirmed Payment quote. Public policyVersion/quoteId fields MUST NOT be invented. Presets MUST NOT be inferred from the preview. (US2.1/2/6)
 - **FR-006**: Before creation, the user MUST review VND amount, payOS, standard 1,000 VND per Credit rate and estimated/confirmed Credit; backend conversion and quote remain final. (US2.1)
 - **FR-007**: The user MUST explicitly confirm before creation. A confirmed owner payment identity MUST be established before QR presentation or status association. QR data MUST be encoded/rendered locally without normalization, remote QR service, hosted checkout, browser/WebView navigation or arbitrary URL/image interpretation. No provider secrets/card credentials enter mobile. (US2.3/6)
 - **FR-008**: One top-up intent MUST NOT create parallel attempts through repeated taps. Ambiguous retries MUST use confirmed recovery/deduplication behavior; absent that mechanism, automatic resubmission MUST remain blocked. (US2.3/4)
 - **FR-009**: A known payment identity MUST survive QR preparation/render failures and screen navigation in the active session. Reopening status MUST reauthorize/reread it; process-restart recovery requires an agreed mechanism. QR failure MUST NOT create another payment. (US2.4/5, US3.6)
 - **FR-010**: QR/providerStatus, redirect claims, timers, screen closure and local calculations MUST NOT mark payments paid/failed/expired, create top-up entries, cancel the payment or change balances. (US2.5, US3.1/2/5)
-- **FR-011**: Payment views MUST distinguish backend `CREATED`, `PENDING`, `PAID`, `FAILED`, `EXPIRED`, `REFUNDED` and unknown/unavailable outcomes. Payment and ledger statuses MUST remain separate. (US3.2/3/5/7, US4.4)
+- **FR-011**: Payment views MUST distinguish backend `CREATED`, `PENDING`, `PAID`, `FAILED`, `EXPIRED`, `REFUNDED`, `REVIEW` and unknown/unavailable outcomes. REVIEW MUST remain neutral without invented reason or financial action. Payment and ledger statuses MUST remain separate. (US3.2/3/5/7, US4.4)
 - **FR-012**: Manual Check again MUST be available for unresolved payments. Any automatic checking MUST have a finite wait/request budget documented during planning, pause in the background and stop on departure, session end or a confirmed terminal state. Exhaustion MUST NOT imply failure/expiry. (US3.2/7; edge cases)
 - **FR-013**: Verified success MUST trigger authoritative wallet/history refreshes. A failed refresh MUST NOT reverse success, increment balances locally or repeat creation. (US3.3/4)
 - **FR-014**: Failed, expired and refunded payment views MUST explain the confirmed outcome and allow return to wallet/history. A new top-up MUST always be a separate explicit intent. (US3.5, US2.4)
@@ -153,7 +166,7 @@ As a signed-in user, I can browse recorded Credit movements and inspect an entry
 
 - **SC-001**: In zero, positive, fractional and large-value acceptance examples, 100% of displayed wallet values match confirmed owner amounts to two decimal places; no unavailable wallet becomes zero/sample data.
 - **SC-002**: With approved rules loaded, a user can enter a valid amount, review and explicitly continue toward the in-app QR payment within 60 seconds, excluding server preparation, network and verification waits.
-- **SC-003**: QR/providerStatus, forged/legacy links and delayed/repeated observations produce zero false success displays or locally credited balances; all six defined payment states remain distinguishable.
+- **SC-003**: QR/providerStatus, forged/legacy links and delayed/repeated observations produce zero false success displays or locally credited balances; all seven defined payment states including REVIEW remain distinguishable.
 - **SC-004**: Repeated taps, interrupted creation, reconnect, checks and foreground resume cause zero unintended new payment intents or local double credits; ambiguous creation is reconciled or explicitly blocked until recoverable.
 - **SC-005**: With at least 200 entries across multiple pages, each loaded entry appears once in the agreed order; every offered filter returns only matching records and details match the selected entry.
 - **SC-006**: All account-switch, inaccessible-record and read-failure acceptance scenarios show zero other-owner/sample financial records and provide the applicable retry or safe return action.
@@ -164,8 +177,8 @@ As a signed-in user, I can browse recorded Credit movements and inspect an entry
 - Scope is the authenticated user's wallet, top-up, payment status and read-only history in `apps/mobile`. The Home balance and own-Profile wallet entry are included to prevent contradictory financial data/navigation; other Home/Profile features are outside scope.
 - Current SRS V1.6 is authoritative: FR-CR-01..09, BR-25..27, CR-001..010, PAY-001..005, UC-19 and AC-11. [contracts.md](contracts.md) records source evidence, missing capabilities and unresolved rules separately from behavioral requirements.
 - Existing authentication, Vietnamese presentation, navigation and app-wide connection behavior are reused. Financial data is private; recovery refreshes reads only.
-- Owner wallet/history reads are implemented at baseline 17e3ac1 and can be integrated against [wallet-http.md](contracts/wallet-http.md); deployment/migration and mobile runtime acceptance remain pending. Payment creation/query/posting/recovery are still unimplemented.
-- payOS QR-only, the amount/step policy and 60-minute immutable server quote TTL are settled in backend source/spec009. Public quote/readiness/QR projection and durable recovery remain blocked by GAP-03/05/06; mobile does not derive expiry from its clock or add a return/cancel flow.
+- Owner wallet/history reads are unchanged from baseline17e3ac1; P2/P3 and Payment I1/I2 have L/C/W evidence, while deployed/native acceptance remains separate. D2's native-first storage/logout design is approved, but GAP-06 still lacks BE retention/replay and total-loss guarantees; D2 approval does not close it.
+- payOS QR-only, amount/step policy and60-minute immutable server quote TTL are settled. Create returns confirmed quote/nullable QR projection; no standalone quote API exists. D3 selects local QR tooling and D4 selects a two-device QA workflow; implementation/security/import/byte/rendered-pixel/native/channel evidence remains open. Mobile does not derive expiry from its clock or add a return/cancel flow. Native-first creation excludes web create until separately designed; web owner reads/status and isolated preview remain supported. User reports the acceptance environment already exists; actual binding/runbook and results are unverified in this documentation-only session.
 - History contains records actually supplied by the backend. Type/referenceType filters are included in this replan; status/date/search, a unified payment-attempt list, export and held-allocation drill-down remain outside scope. A pending/failed payment need not have a ledger row.
 - Backend verification, webhook deduplication, atomic top-up, hold/release/settlement, refunds and administration are dependencies, not implementation authorized by this mobile feature. No backend files may be modified.
-- This specification does not claim implementation, passed application tests or financial acceptance. Usability/performance targets and real-backend/gateway/native outcomes require later validation.
+- Existing P1..P5 scoped evidence remains in validation; updating this specification does not rerun tests or close financial acceptance. Usability/performance targets and real-backend/gateway/native outcomes require separately recorded validation. A minimal owner payment-discovery read may support recovery; it is not a unified payment/ledger feed or automatic lost-intent matching.

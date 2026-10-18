@@ -1,5 +1,7 @@
 # Specification Quality Checklist: Wallet, payment status and transaction history
 
+**Replan checkpoint — 2026-10-17**: Requirements were aligned with actual BE Payment081b3d2/f80ef7a at4121c3f. US/FR/SC identities remain4/25/7; REVIEW is now explicit. Existing16 quality markers remain review-only. Historical specification/replan notes below describe their original scope; current integration/recovery/QR gates are in [integration-gates](../contracts/integration-gates.md). No runtime acceptance is implied.
+
 **Purpose**: Validate specification completeness and quality before planning.
 **Created**: 2026-10-16
 **Feature**: [spec.md](../spec.md)
