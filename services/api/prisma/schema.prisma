@@ -861,11 +861,15 @@ model Payment {
   createdAt                  DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
   conversionRateVndPerCredit Int           @default(1000) @map("conversion_rate_vnd_per_credit")
 
-  userIdRecord  User           @relation("Payment_user_id", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  payosCheckout PayosCheckout?
+  userIdRecord        User           @relation("Payment_user_id", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  payosCheckout       PayosCheckout?
+  creationKeyDigest   String?        @map("creation_key_digest") @db.Char(64)
+  creationFingerprint String?        @map("creation_fingerprint") @db.Char(64)
 
   @@unique([gateway, gatewayTransactionId])
+  @@unique([userId, creationKeyDigest])
   @@index([userId])
+  @@index([userId, status, createdAt, id])
   @@map("payments")
 }
 

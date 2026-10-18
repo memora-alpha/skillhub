@@ -93,6 +93,16 @@ test("approved top-up bounds, step and 60 minute expiry stay unchanged", () => {
 
 test("payOS is disabled by default and validates all channel credentials and HTTPS URLs", () => {
   assert.equal(paymentConfiguration({}).enabled, false);
+  assert.equal(paymentConfiguration({}).creationPaused, false);
+  assert.equal(
+    paymentConfiguration({ ...env, PAYMENT_CREATION_PAUSED: "true" })
+      .creationPaused,
+    true,
+  );
+  assert.throws(
+    () => paymentConfiguration({ PAYMENT_CREATION_PAUSED: "typo" }),
+    /PAYMENT_CREATION_PAUSED/,
+  );
   assert.throws(() => paymentConfiguration({ PAYMENTS_ENABLED: "typo" }));
   assert.throws(
     () =>

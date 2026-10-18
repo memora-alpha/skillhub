@@ -387,11 +387,20 @@ test("payOS durable orders, posting, conflicts, rollback and recovery on real Po
       },
     );
     await t.test(
-      "concurrent different payments serialize on one wallet and late replays survive HTTP record deletion",
+      "legacy concurrent payments serialize on one wallet and late webhooks survive HTTP record deletion",
       async () => {
         const account = await f.account(),
-          first = await f.order(account),
+          first = await f.order(account);
+        // Multiple pending intents may already exist before the creation guard rollout.
+        // Bypass only the fresh-create gate in this fixture to preserve that financial race regression.
+        const requireFresh = f.policy.requireFresh;
+        let second;
+        try {
+          f.policy.requireFresh = async () => {};
           second = await f.order(account);
+        } finally {
+          f.policy.requireFresh = requireFresh;
+        }
         const one = await f.webhook(first),
           two = await f.webhook(second);
         await Promise.all([f.receipts.webhook(one), f.receipts.webhook(two)]);
@@ -462,8 +471,10 @@ test("payOS durable orders, posting, conflicts, rollback and recovery on real Po
       "keyset cursor binds actor/status and excludes newly inserted orders",
       async () => {
         const account = await f.account();
-        await f.order(account);
-        await f.order(account);
+        const firstPaid = await f.order(account);
+        await f.receipts.webhook(await f.webhook(firstPaid));
+        const secondPaid = await f.order(account);
+        await f.receipts.webhook(await f.webhook(secondPaid));
         const first = await f.reads.list(account.principal, { limit: 1 });
         assert.equal(first.pagination.hasMore, true);
         const inserted = await f.order(account);

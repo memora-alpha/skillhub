@@ -1,5 +1,14 @@
 # Data Model — Credit & Payment
 
+Recovery amendment 2026-10-18: Payment bổ sung nullable `creationKeyDigest` và
+`creationFingerprint` (SHA256 hex); unique `(userId,creationKeyDigest)` và index
+owner/status/time/ID. Nullable chỉ để giữ legacy rows thiếu evidence. Migration
+backfill từ completed HTTP mappings còn giữ, fail nếu nhiều key cùng Payment;
+trigger giữ identity/owner/ID bất biến, ngăn xóa anchored Payment và TRUNCATE.
+Fallback từ Payment có thể phục hồi HTTP mapping, không tạo Payment/orderCode mới.
+Thiếu cả hai nguồn identity sau restore chưa tự phục hồi. Legacy thiếu identity
+bị chặn fresh create; không đoán key từ amount/time.
+
 Implementation amendment 2026-10-17: runtime bổ sung `PayosCheckout` (immutable
 quote digest/policy/URLs/expiry, sequence orderCode, QR/link, lease/retry, posting
 operation), `PaymentReceipt` (POSTED/REVIEW), `PaymentFinding` (conflicting

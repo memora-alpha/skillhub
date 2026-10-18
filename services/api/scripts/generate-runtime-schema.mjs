@@ -258,7 +258,16 @@ model("CreditTransaction", (block) =>
 schema = schema.replace(/enum PaymentStatus \{[\s\S]*?\n\}/, (block) =>
   fields(block, "  REVIEW"),
 );
-model("Payment", (block) => fields(block, "  payosCheckout PayosCheckout?"));
+model("Payment", (block) =>
+  fields(
+    block,
+    `  payosCheckout PayosCheckout?
+  creationKeyDigest String? @map("creation_key_digest") @db.Char(64)
+  creationFingerprint String? @map("creation_fingerprint") @db.Char(64)
+  @@unique([userId, creationKeyDigest])
+  @@index([userId, status, createdAt, id])`,
+  ),
+);
 model("CreditOperation", (block) =>
   fields(
     block,

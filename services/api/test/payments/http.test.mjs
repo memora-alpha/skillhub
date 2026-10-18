@@ -139,6 +139,9 @@ test("Payment module HTTP/Swagger, live ownership, disabled gate and real SSE fr
         );
         assert.ok(doc.paths["/api/v1/payments"].post.responses["201"]);
         assert.ok(doc.paths["/api/v1/payments"].get.responses["200"]);
+        assert.ok(
+          doc.paths["/api/v1/payments/creation-policy"].get.responses["200"],
+        );
         assert.ok(doc.paths["/api/v1/payments/{id}"].get);
         assert.ok(
           doc.paths["/api/v1/payments/webhooks/payos"].post.requestBody,
@@ -224,6 +227,92 @@ test("Payment module HTTP/Swagger, live ownership, disabled gate and real SSE fr
       404,
     );
     assert.equal((await request("/payments?limit=1")).body.data.length, 1);
+    await t.test(
+      "creation capability and conflicts expose only the owner's blocking payment",
+      async () => {
+        const gate = await request("/payments/creation-policy");
+        assert.equal(gate.status, 200);
+        assert.deepEqual(gate.body.data, {
+          canCreate: false,
+          reasonCode: "PAYMENT_UNRESOLVED",
+          existingPaymentId: payment.id,
+        });
+        assert.equal(
+          (await request("/payments/creation-policy", { account: other })).body
+            .data.canCreate,
+          true,
+        );
+        assert.equal(
+          (await request("/payments/creation-policy", { account: null }))
+            .status,
+          401,
+        );
+        const blocked = await request("/payments", {
+          method: "POST",
+          body,
+          key: randomUUID(),
+        });
+        assert.equal(blocked.status, 409);
+        assert.equal(blocked.body.message, "PAYMENT_UNRESOLVED");
+        assert.deepEqual(blocked.body.details, {
+          existingPaymentId: payment.id,
+        });
+      },
+    );
+    await t.test(
+      "pause and changed-channel errors remain machine-readable; replay never leaks an old QR",
+      async () => {
+        const saved = f.transport.config;
+        try {
+          f.transport.config = { ...saved, creationPaused: true };
+          const paused = await request("/payments", {
+            account: other,
+            method: "POST",
+            body,
+            key: randomUUID(),
+          });
+          assert.equal(paused.status, 503);
+          assert.equal(paused.body.message, "PAYMENT_CREATION_PAUSED");
+          const replay = await request("/payments", {
+            method: "POST",
+            body,
+            key,
+          });
+          assert.equal(replay.status, 200);
+          assert.equal(replay.body.data.checkout, null);
+          f.transport.config = {
+            ...saved,
+            PAYOS_CLIENT_ID: "replacement-channel",
+          };
+          const gate = await request("/payments/creation-policy", {
+            account: other,
+          });
+          assert.equal(
+            gate.body.data.reasonCode,
+            "PAYMENT_CHANNEL_RECONCILIATION_REQUIRED",
+          );
+          assert.equal(gate.body.data.existingPaymentId, null);
+          const channelBlocked = await request("/payments", {
+            account: other,
+            method: "POST",
+            body,
+            key: randomUUID(),
+          });
+          assert.equal(channelBlocked.status, 503);
+          assert.equal(
+            channelBlocked.body.message,
+            "PAYMENT_CHANNEL_RECONCILIATION_REQUIRED",
+          );
+          assert.equal(channelBlocked.body.details, undefined);
+          assert.equal(
+            (await request(`/payments/${payment.id}`)).body.data.recoveryReason,
+            "PAYMENT_CHANNEL_UNAVAILABLE",
+          );
+        } finally {
+          f.transport.config = saved;
+        }
+      },
+    );
     const webhook = await f.webhook(payment);
     await t.test(
       "public callback verifies HMAC and ACKs only committed posting; SSE contains no money or QR",
