@@ -189,7 +189,7 @@ export class ProposalsService {
         },
         async (tx) => {
           const now = await this.clock(tx);
-          const hints = normalizeProposal(input, this.config.policy, now);
+          const hints = normalizeProposal(input, this.config.policy);
           if (input.sourceType === "LEARNING_REQUEST") {
             const request = await this.requests.lockForProposal(
               tx,
@@ -387,13 +387,10 @@ export class ProposalsService {
               proposedCredit: formatCredit(row.proposedCredit),
               proposedDurationMinutes: row.proposedDurationMinutes,
               initialSessionCount: row.initialSessionCount,
-              candidateSlots: row.candidateSlots as {
-                startAt: string;
-                endAt: string;
-              }[],
+              candidateSlots: row.candidateSlots,
               ...input,
             };
-            data = normalizeProposal(merged, this.config.policy, now);
+            data = normalizeProposal(merged, this.config.policy);
           } else
             data = {
               status: resolveStatus(),

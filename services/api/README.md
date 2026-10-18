@@ -2,6 +2,14 @@
 
 NestJS backend in the SkillHub pnpm/Turborepo workspace.
 
+Proposal schedule amendment (2026-10-19): `candidateSlots` in create/update/read
+is now optional free-text schedule guidance (`string | null`), matching the mobile
+`schedule` input. Null/blank clears it; omitted PATCH preserves it. Migration
+`20261019000000_proposal_schedule_text` changes the runtime column to nullable TEXT,
+retains populated legacy arrays as JSON text and clears empty arrays. Coordinate
+migration, API restart and clients because old array payloads are rejected.
+See [the contract](specs/008-connections/contracts/http.md).
+
 Tag API có quản trị danh mục cho ADMIN và luồng USER đề xuất → ADMIN approve/reject.
 Xem [quickstart và rollout](specs/009-tags/quickstart.md),
 [contract](specs/009-tags/spec.md#api-contract) và

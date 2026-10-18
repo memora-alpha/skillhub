@@ -623,7 +623,7 @@ model Proposal {
   recipientId             String             @map("recipient_id") @db.Uuid
   skillId                 String             @map("skill_id") @db.Uuid
   message                 String             @map("message") @db.VarChar(1000)
-  candidateSlots          Json               @default("[]") @map("candidate_slots")
+  candidateSlots          String?            @map("candidate_slots") @db.Text
   proposedDurationMinutes Int?               @map("proposed_duration_minutes") @db.SmallInt
   proposedCredit          BigInt?            @map("proposed_credit")
   initialSessionCount     Int?               @map("initial_session_count") @db.SmallInt
