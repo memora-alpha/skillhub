@@ -256,9 +256,47 @@ model Tag {
   id String @id @default(uuid()) @map("tag_id") @db.Uuid
   label String @unique @db.VarChar(80)
   status CatalogStatus @map("status")
+  labelKey String @unique @map("label_key") @db.Text
+  createdByUserId String? @map("created_by_user_id") @db.Uuid
+  createdBy User? @relation("Tag_creator", fields: [createdByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "tags_creator_fkey")
+  createdAt DateTime? @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  version Int @default(1)
+  creationRequests TagCreationRequest[]
   learningRequests RequestTag[] @relation("RequestTag_tag")
 
+  @@index([createdByUserId])
   @@map("tags")
+}
+
+enum TagCreationRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model TagCreationRequest {
+  id String @id @default(uuid()) @map("tag_request_id") @db.Uuid
+  label String @db.VarChar(80)
+  labelKey String @map("label_key") @db.Text
+  requestedByUserId String @map("requested_by_user_id") @db.Uuid
+  requestedBy User @relation("TagRequest_owner", fields: [requestedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  status TagCreationRequestStatus @default(PENDING)
+  reviewedByUserId String? @map("reviewed_by_user_id") @db.Uuid
+  reviewedBy User? @relation("TagRequest_reviewer", fields: [reviewedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  reviewedAt DateTime? @map("reviewed_at") @db.Timestamptz(3)
+  resultTagId String? @map("result_tag_id") @db.Uuid
+  resultTag Tag? @relation(fields: [resultTagId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  rejectReason String? @map("reject_reason") @db.Text
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  version Int @default(1)
+
+  @@index([status, createdAt(sort: Desc), id(sort: Desc)], map: "tag_request_queue_idx")
+  @@index([requestedByUserId, createdAt(sort: Desc), id(sort: Desc)], map: "tag_request_owner_idx")
+  @@index([reviewedByUserId], map: "tag_request_reviewer_idx")
+  @@index([resultTagId], map: "tag_request_result_idx")
+  @@map("tag_creation_requests")
 }
 
 model RequestTag {

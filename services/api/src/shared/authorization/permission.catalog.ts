@@ -1,5 +1,13 @@
 // Codes are explicit actions. Role grants are stored separately by users.
 export const PERMISSION_CATALOG = [
+  { code: "tag:read", description: "Read the complete tag catalog" },
+  { code: "tag:create", description: "Create canonical tags" },
+  { code: "tag:update", description: "Update and hide canonical tags" },
+  { code: "tag-request:create:self", description: "Propose a new tag" },
+  { code: "tag-request:read:self", description: "Read own tag requests" },
+  { code: "tag-request:read", description: "Read all tag requests" },
+  { code: "tag-request:approve", description: "Approve tag requests" },
+  { code: "tag-request:reject", description: "Reject tag requests" },
   {
     code: "skill-level:manage",
     description: "Manage per-skill level catalogs",

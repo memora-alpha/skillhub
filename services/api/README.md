@@ -2,6 +2,13 @@
 
 NestJS backend in the SkillHub pnpm/Turborepo workspace.
 
+Tag API có quản trị danh mục cho ADMIN và luồng USER đề xuất → ADMIN approve/reject.
+Xem [quickstart và rollout](specs/009-tags/quickstart.md),
+[contract](specs/009-tags/spec.md#api-contract) và
+[validation](specs/009-tags/validation.md). `GET /api/v1/tags` giữ contract public
+ACTIVE; request chưa duyệt không phải tag sử dụng được. Trước rollout cần preflight,
+migrate và chạy lại identity seed để thêm grants mới.
+
 CD cho API và quy trình migrate/seed được mô tả trong
 [deployment guide](docs/deployment.md). Seed mặc định tắt; chỉ chạy request được
 khai báo hoặc lựa chọn thủ công. CD dev dùng GitHub checks → webhook → Coolify;
