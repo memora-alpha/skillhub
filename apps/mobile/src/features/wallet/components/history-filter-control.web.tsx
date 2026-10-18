@@ -1,36 +1,41 @@
-import { appColors, fonts } from "@/constants/theme";
-import type { FilterControlProps } from "./history-filter-control";
+import { useRef, useState } from "react";
+import type { View } from "react-native";
+import { appColors } from "@/constants/theme";
+import {
+  HistoryFilterCard,
+  type FilterControlProps,
+} from "./history-filter-card";
 
-// Installed universal web Picker does not forward an accessible name. Native
-// uses @expo/ui; the web adapter uses a labeled HTML select without new deps.
-export function HistoryFilterControl({
-  label,
-  value,
-  options,
-  onChange,
-}: FilterControlProps) {
+export function HistoryFilterControl(props: FilterControlProps) {
+  const [expanded, setExpanded] = useState(false);
+  const trigger = useRef<View>(null);
+  const close = () => {
+    setExpanded(false);
+    trigger.current?.focus();
+  };
   return (
-    <select
-      aria-label={label}
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-      style={{
-        width: "100%",
-        minWidth: 0,
-        padding: 12,
-        borderRadius: 8,
-        border: `1px solid ${appColors.muted}`,
-        backgroundColor: appColors.surface,
-        color: appColors.ink,
-        fontFamily: fonts.body,
-        fontSize: 14,
+    <div
+      className="wallet-history-filter-card"
+      onKeyDown={(event) => {
+        if (expanded && event.key === "Escape") {
+          event.preventDefault();
+          event.stopPropagation();
+          close();
+        }
+      }}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget))
+          setExpanded(false);
       }}
     >
-      {options.map((option) => (
-        <option key={option.value} value={option.value}>
-          {option.label}
-        </option>
-      ))}
-    </select>
+      <style>{`.wallet-history-filter-card [role=button]:focus-visible {outline:2px solid ${appColors.primary};outline-offset:-3px;} .wallet-history-filter-card [role=button]:focus:not(:focus-visible) {outline:none;}`}</style>
+      <HistoryFilterCard
+        {...props}
+        expanded={expanded}
+        triggerRef={trigger}
+        onToggle={() => setExpanded((open) => !open)}
+        onClose={close}
+      />
+    </div>
   );
 }

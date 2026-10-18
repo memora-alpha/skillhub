@@ -7,7 +7,8 @@ export type WalletSnapshot = Readonly<{
   heldCredit: CreditAmount;
   walletVersion: number;
 }>;
-export type WalletReadCapability = "wallet" | "history" | "transaction";
+export type WalletReadCapability =
+  "wallet" | "history" | "transaction" | "paymentStatus";
 export type WalletCapabilities = Readonly<
   Record<
     | WalletReadCapability

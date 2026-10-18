@@ -1,5 +1,5 @@
 import { Text } from "react-native";
-import { fonts, appColors } from "@/constants/theme";
+import { fonts, appColors, typography } from "@/constants/theme";
 import { useWallet } from "../hooks/use-wallet";
 import { formatCredit } from "../utils/amount";
 
@@ -27,8 +27,7 @@ export function HomeWalletBalance() {
       accessibilityLiveRegion="polite"
       style={{
         fontFamily: fonts.bold,
-        fontSize: 14,
-        lineHeight: 20,
+        ...typography.secondary,
         color: appColors.muted,
         flexShrink: 1,
       }}

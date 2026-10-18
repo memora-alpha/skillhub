@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
-import { ActivityIndicator, Text, View } from "react-native";
+import { ActivityIndicator, Platform, Text, View } from "react-native";
 import { Button } from "@/components/Button";
-import { Copy, ui } from "@/components/feature-page";
-import { colors } from "@/constants/theme";
+import { Copy, ui } from "./wallet-ui";
+import { appColors as colors } from "@/constants/theme";
 import type { FinancialRead } from "../types/wallet";
 
 const labels = {
@@ -23,46 +23,51 @@ export function FinancialReadState({
   onRetry,
   children,
   unavailableMessage,
+  refreshIndicator = "inline",
 }: {
   state: FinancialRead<unknown>;
   onRetry?: () => void;
   children?: ReactNode;
   unavailableMessage?: string;
+  refreshIndicator?: "inline" | "pull";
 }) {
   const busy = state.status === "loading" || state.status === "refreshing";
   const retained =
     ["ready", "refreshing", "refresh-error"].includes(state.status) &&
     state.data !== undefined;
   const retry = onRetry && ["error", "refresh-error"].includes(state.status);
+  // RefreshControl has no visible indicator on web; keep the inline fallback.
+  const externalRefresh = refreshIndicator === "pull" && Platform.OS !== "web";
   return (
     <View style={{ gap: 12 }}>
       {retained && children}
-      {state.status !== "ready" && (
-        <View accessibilityState={{ busy }} style={{ gap: 10 }}>
-          {busy && (
-            <ActivityIndicator
-              color={colors.brand}
-              accessibilityLabel={labels[state.status]}
-            />
-          )}
-          <Text
-            accessibilityLiveRegion={busy ? "none" : "polite"}
-            style={ui.copy}
-          >
-            {labels[state.status]}
-          </Text>
-          {state.status === "unavailable" && (
-            <Copy muted>
-              {unavailableMessage ?? "Bạn có thể quay lại kiểm tra sau."}
-            </Copy>
-          )}
-          {retry && (
-            <Button variant="paper" onPress={onRetry}>
-              Thử lại
-            </Button>
-          )}
-        </View>
-      )}
+      {state.status !== "ready" &&
+        !(state.status === "refreshing" && externalRefresh) && (
+          <View accessibilityState={{ busy }} style={{ gap: 10 }}>
+            {busy && (
+              <ActivityIndicator
+                color={colors.primary}
+                accessibilityLabel={labels[state.status]}
+              />
+            )}
+            <Text
+              accessibilityLiveRegion={busy ? "none" : "polite"}
+              style={ui.copy}
+            >
+              {labels[state.status]}
+            </Text>
+            {state.status === "unavailable" && (
+              <Copy muted>
+                {unavailableMessage ?? "Bạn có thể quay lại kiểm tra sau."}
+              </Copy>
+            )}
+            {retry && (
+              <Button variant="paper" onPress={onRetry}>
+                Thử lại
+              </Button>
+            )}
+          </View>
+        )}
     </View>
   );
 }

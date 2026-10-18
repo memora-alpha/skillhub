@@ -1,8 +1,8 @@
 import { useLocalSearchParams } from "expo-router";
 import { AppScreenLayout } from "@/features/shell";
 import { KeyboardFormScrollView } from "@/components/KeyboardFormScrollView";
-import { Button } from "@/components/Button";
-import { Copy, Panel, ui } from "@/components/feature-page";
+import { RefreshControl, Text, View } from "react-native";
+import { Copy, Panel, WalletField, ui } from "../components/wallet-ui";
 import { useTransaction } from "../hooks/use-transaction";
 import { useWalletBack } from "../hooks/use-wallet-back";
 import { RecordedMovement } from "../components/transaction-row";
@@ -11,7 +11,9 @@ import {
   transactionLabel,
   transactionStatus,
   transactionTime,
+  referenceLabel,
 } from "../utils/transaction-labels";
+import { formatCredit } from "../utils/amount";
 
 export function TransactionDetail() {
   const params = useLocalSearchParams(),
@@ -26,7 +28,15 @@ export function TransactionDetail() {
       back={{ href: "/wallet/history", label: "Quay lại", onPress: onBack }}
     >
       {() => (
-        <KeyboardFormScrollView contentContainerStyle={ui.page}>
+        <KeyboardFormScrollView
+          contentContainerStyle={ui.page}
+          refreshControl={
+            <RefreshControl
+              refreshing={state.status === "refreshing"}
+              onRefresh={() => void refresh()}
+            />
+          }
+        >
           {!valid ? (
             <Panel>
               <Copy>
@@ -34,33 +44,46 @@ export function TransactionDetail() {
               </Copy>
             </Panel>
           ) : (
-            <Panel title="Giao dịch đã ghi nhận">
-              <FinancialReadState state={state} onRetry={() => void refresh()}>
+            <Panel>
+              <FinancialReadState
+                state={state}
+                onRetry={() => void refresh()}
+                refreshIndicator="pull"
+              >
                 {row && (
                   <>
-                    <Copy>
-                      {transactionLabel(row.type)} ·{" "}
-                      {transactionStatus(row.status)}
-                    </Copy>
-                    <Copy>{transactionTime(row.createdAt)}</Copy>
+                    <View style={{ gap: 8 }}>
+                      <Text style={ui.heading}>
+                        {transactionLabel(row.type)}
+                      </Text>
+                      <Text selectable style={ui.number}>
+                        {formatCredit(row.amount)}
+                      </Text>
+                      <Copy>
+                        {transactionStatus(row.status)} ·{" "}
+                        {transactionTime(row.createdAt)}
+                      </Copy>
+                    </View>
                     <RecordedMovement row={row} />
-                    <Copy>Mã giao dịch: {row.id}</Copy>
-                    <Copy>Mã nghiệp vụ: {row.operationId}</Copy>
-                    <Copy>Loại tham chiếu: {row.referenceType}</Copy>
-                    <Copy>
-                      Tham chiếu: {row.referenceId || "Chưa có thông tin"}
-                    </Copy>
+                    <WalletField label="Mã giao dịch" value={row.id} />
+                    <WalletField label="Mã nghiệp vụ" value={row.operationId} />
+                    <WalletField
+                      label="Loại tham chiếu"
+                      value={referenceLabel(row.referenceType)}
+                    />
+                    <WalletField
+                      label="Tham chiếu"
+                      value={row.referenceId || "Chưa có thông tin"}
+                    />
                     {row.reversesTransactionId && (
-                      <Copy>Đảo giao dịch: {row.reversesTransactionId}</Copy>
+                      <WalletField
+                        label="Đảo giao dịch"
+                        value={row.reversesTransactionId}
+                      />
                     )}
                   </>
                 )}
               </FinancialReadState>
-              {state.status === "ready" && (
-                <Button variant="paper" onPress={() => void refresh()}>
-                  Cập nhật giao dịch
-                </Button>
-              )}
             </Panel>
           )}
         </KeyboardFormScrollView>

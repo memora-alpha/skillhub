@@ -14,8 +14,13 @@ const captions: Record<PaymentState | "UNKNOWN", string> = {
   FAILED: "Thanh toán thất bại",
   EXPIRED: "Yêu cầu thanh toán đã hết hạn",
   REFUNDED: "Giao dịch được ghi nhận đã hoàn",
+  REVIEW: "Thanh toán cần kiểm tra/đối soát",
   UNKNOWN: "Chưa thể xác nhận trạng thái",
 };
+export const paymentState = (value: string): PaymentState | "UNKNOWN" =>
+  Object.hasOwn(captions, value)
+    ? (value as PaymentState | "UNKNOWN")
+    : "UNKNOWN";
 export const paymentOutcome = (state: PaymentObservationModel["state"]) =>
   captions[state];
 export function validPaymentModelTarget(
@@ -62,9 +67,7 @@ export function observePaymentModel(
     typeof payment.state !== "string"
   )
     throw new AppError("protocol");
-  const state = Object.hasOwn(captions, payment.state)
-    ? (payment.state as PaymentObservationModel["state"])
-    : "UNKNOWN";
+  const state = paymentState(payment.state);
   return Object.freeze({
     paymentId: target.paymentId,
     state,

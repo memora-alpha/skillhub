@@ -1,4 +1,5 @@
 import type { WalletView } from "../utils/navigation";
+type PreviewView = WalletView | "qr";
 
 const views: readonly string[] = [
   "wallet",
@@ -7,6 +8,7 @@ const views: readonly string[] = [
   "status",
   "history",
   "transaction",
+  "qr",
 ];
 const states: readonly string[] = [
   "CREATED",
@@ -29,7 +31,7 @@ export function previewSelection(params: {
 }) {
   const view =
     typeof params.view === "string" && views.includes(params.view)
-      ? (params.view as WalletView)
+      ? (params.view as PreviewView)
       : "wallet";
   const raw = typeof params.state === "string" ? params.state : "PENDING";
   const state = states.includes(raw) ? raw : (legacy[raw] ?? "UNKNOWN");
@@ -39,7 +41,7 @@ export function previewSelection(params: {
       : undefined;
   return { view, state, id };
 }
-export function previewHref(view: WalletView, state?: string, id?: string) {
+export function previewHref(view: PreviewView, state?: string, id?: string) {
   const query = new URLSearchParams({ view });
   if (state) query.set("state", state);
   if (id) query.set("id", id);
