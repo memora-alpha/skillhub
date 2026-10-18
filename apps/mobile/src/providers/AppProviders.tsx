@@ -15,6 +15,7 @@ import { AuthSessionProvider, SessionGate } from "@/features/auth";
 import { MockMessagesProvider } from "@/features/messages";
 import { ProfilePreviewProvider, AvatarUploadToasts } from "@/features/profile";
 import { MockProposalsProvider } from "@/features/proposals";
+import { ConnectionsProvider } from "@/features/connections";
 import { UiPreviewProvider } from "@/features/ui-preview";
 import { SkillsProvider } from "@/features/skills";
 import { QueryProvider } from "./QueryProvider";
@@ -60,9 +61,11 @@ export function AppProviders({ children }: { children: ReactNode }) {
                   <SkillsProvider>
                     <ProfilePreviewProvider>
                       <MockMessagesProvider>
-                        <MockProposalsProvider>
-                          <UiPreviewProvider>{children}</UiPreviewProvider>
-                        </MockProposalsProvider>
+                        <ConnectionsProvider>
+                          <MockProposalsProvider>
+                            <UiPreviewProvider>{children}</UiPreviewProvider>
+                          </MockProposalsProvider>
+                        </ConnectionsProvider>
                       </MockMessagesProvider>
                     </ProfilePreviewProvider>
                   </SkillsProvider>
