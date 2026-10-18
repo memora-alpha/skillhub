@@ -1,6 +1,44 @@
 # Validation — Credit & Payment
 
-Updated: 2026-10-17. **Backend QR Payment implemented and locally verified; merchant/production and remaining spec009 work Pending.** Source đang ở working tree, chưa commit/push/deploy cho tranche này. Các phần 2026-10-15/16 phía dưới là lịch sử.
+Updated: 2026-10-18. **Backend QR Payment and recovery guards locally verified; merchant/production and remaining spec009 work Pending.** Recovery tranche đang ở working tree branch `fix/payment-recovery-guards`, chưa commit/push/deploy. Các phần ngày trước phía dưới là lịch sử.
+
+## Payment recovery guards — 2026-10-18
+
+- Payment retains owner/key digest/fingerprint with DB uniqueness and immutable
+  identity/delete/truncate guards. Missing HTTP mapping is reconstructed from
+  the existing Payment with 200 replay and unchanged orderCode/expiry; changed
+  body conflicts. Missing Payment behind a retained mapping fails closed.
+- Fresh keys are blocked for CREATED/PENDING/REVIEW and legacy payOS rows without
+  recoverable creation identity, including legacy PAID. Serializable live owner
+  lock prevents parallel fresh keys from making multiple pending intents.
+- Infrastructure creation pause leaves signed webhook/recovery active, hides QR
+  and still permits identity-backed replay. A stranded channel blocks global
+  fresh creates, hides old QR, and does not expose another owner's ID.
+- Authenticated creation-policy and safe recovery reason/detail projections are
+  covered by HTTP/Swagger/revocation tests. READ ONLY operator reports are
+  bounded, omit QR/credentials/raw provider payload and optionally verify lookup
+  evidence outside the snapshot transaction; no repair/posting occurs.
+- Migration backfill preserves identity/orderCode, rejects ambiguous retained
+  mappings and rolls back DDL on rejection. Runtime Payment identity mutation,
+  deletion and TRUNCATE are rejected in the isolated PostgreSQL fixture.
+
+Verification of final source: API `check-types` and `lint` passed; Nest build
+passed through `test:payments:integration`. Full payment PG/HTTP/provenance/recovery
+suite passed **36/36**, zero skipped. After retaining the legacy multiple-pending
+wallet-race fixture, focused persistence suite passed **14/14**. Payment protocol,
+transport, foundation idempotency/transaction/request-context, logging privacy,
+environment TLS/storage and BigInt regressions passed **22/22** on the built
+source. Initial integration attempt was sandbox-denied at 127.0.0.1:5432; reruns
+with local connection access passed. Every PG test used UUID disposable schemas;
+provider HTTP was mocked, no merchant call or money transfer occurred.
+
+Runbook: [restore/channel/support/report](../../docs/payment-recovery-operations.vi.md).
+Application database migration, real merchant activation, incident restore,
+multi-channel credential service, lost-all-identity reconstruction and audited
+REVIEW replacement approval remain unsupported or separate release gates.
+The diagnostic report does not complete full Credit reconciliation T023.
+First rollout requires exact create-route ingress blocking while old binaries
+still ignore PAYMENT_CREATION_PAUSED; see runbook. No production/remote changes.
 
 ## Backend QR payment completion — 2026-10-17
 

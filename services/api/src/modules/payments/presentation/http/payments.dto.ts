@@ -64,6 +64,43 @@ export class PaymentResponse {
   @ApiProperty({ type: String, format: "date-time", nullable: true })
   paidAt!: Date | null;
   @ApiProperty() version!: number;
+  @ApiProperty() recoveryRequired!: boolean;
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    enum: [
+      "PAYMENT_REVIEW_REQUIRED",
+      "PAYMENT_CHANNEL_UNAVAILABLE",
+      "PAYMENT_CHECKOUT_MISSING",
+    ],
+  })
+  recoveryReason!: string | null;
   @ApiProperty({ type: PaymentQrResponse, nullable: true })
   checkout!: PaymentQrResponse | null;
+}
+
+export class PaymentCreationPolicyResponse {
+  @ApiProperty({
+    description: "Advisory snapshot; POST rechecks under the owner lock",
+  })
+  canCreate!: boolean;
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    enum: [
+      "PAYMENT_PROVIDER_UNAVAILABLE",
+      "PAYMENT_CREATION_PAUSED",
+      "PAYMENT_CHANNEL_RECONCILIATION_REQUIRED",
+      "PAYMENT_UNRESOLVED",
+      "PAYMENT_RECONCILIATION_REQUIRED",
+    ],
+  })
+  reasonCode!: string | null;
+  @ApiProperty({
+    type: String,
+    format: "uuid",
+    nullable: true,
+    description: "Own blocking payment only; null for global operational gates",
+  })
+  existingPaymentId!: string | null;
 }

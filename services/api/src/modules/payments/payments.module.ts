@@ -9,6 +9,7 @@ import { IdentityConfig } from "../../configs/identity.config";
 import { PayosTransport } from "./infrastructure/payos-transport";
 import { PaymentCheckoutWorker } from "./application/services/payment-checkout.worker";
 import { PaymentReceiptsService } from "./application/services/payment-receipts.service";
+import { PaymentCreationPolicy } from "./application/services/payment-creation-policy";
 import { CreatePaymentUseCase } from "./application/use-cases/create-payment.use-case";
 import {
   PaymentCursor,
@@ -30,6 +31,7 @@ import {
   controllers: [PaymentsController, PayosWebhookController],
   providers: [
     PayosTransport,
+    PaymentCreationPolicy,
     PaymentCheckoutWorker,
     PaymentReceiptsService,
     CreatePaymentUseCase,

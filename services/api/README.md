@@ -17,6 +17,12 @@ và bằng chứng PostgreSQL ở [UTC validation](specs/006-system-configuratio
 
 ## Phạm vi và trạng thái
 
+Payment recovery hardening 2026-10-18 giữ identity tạo đơn trong Payment khi mất
+mapping HTTP, chặn key mới khi còn CREATED/PENDING/REVIEW và cung cấp
+`GET /api/v1/payments/creation-policy`. `PAYMENT_CREATION_PAUSED=true` khóa tạo
+mới/ẩn QR, giữ webhook và recovery. Xem [runbook restore/channel và report read-only](docs/payment-recovery-operations.vi.md).
+Migration mới `20261018000000_payment_recovery_guards` phải áp dụng trước code.
+
 Credit & Payment đang triển khai theo [spec009](specs/009-credit-payment/plan.md).
 Backend có `/api/v1/me/wallet`, history/detail, exact decimal-string DTO,
 ledger append-only và Payment create/list/detail/webhook qua payOS. Posting TOP_UP,
