@@ -3,7 +3,13 @@ import { z } from "zod";
 import type { Page } from "@/lib/http/response";
 import type { PaymentProjection } from "../types/payment";
 import { AppError } from "@/lib/http/errors";
-import { parsePayment, validPaymentId } from "../schemas/payment-contracts";
+import {
+  parsePayment,
+  parseCreationPolicy,
+  validPaymentId,
+} from "../schemas/payment-contracts";
+import { validateTopUp } from "../utils/topup-policy";
+import type { CreatePaymentBody } from "../utils/payment-recovery-record";
 
 export type PaymentFilters = {
   status?:
@@ -34,6 +40,37 @@ export type PaymentClient = Pick<HttpClient, "request"> &
   Partial<Pick<PaginatedHttpClient, "requestPage">>;
 export function createPaymentApi(client: PaymentClient) {
   return {
+    create: async (
+      body: CreatePaymentBody,
+      key: string,
+      signal: AbortSignal,
+    ) => {
+      if (
+        !/^[\x21-\x7e]{1,128}$/.test(key) ||
+        body.gateway !== "PAYOS" ||
+        Object.keys(body).length !== 2
+      )
+        throw new AppError("protocol");
+      validateTopUp(body.paymentAmountVnd);
+      return parsePayment(
+        await client.request("/payments", {
+          method: "POST",
+          authenticated: true,
+          body: Object.freeze({ ...body }),
+          idempotencyKey: key,
+          signal,
+          replayAfterRenewal: false,
+        }),
+      );
+    },
+    creationPolicy: async (signal: AbortSignal) =>
+      parseCreationPolicy(
+        await client.request("/payments/creation-policy", {
+          method: "GET",
+          authenticated: true,
+          signal,
+        }),
+      ),
     list: async (
       filters: PaymentFilters,
       cursor: string | undefined,

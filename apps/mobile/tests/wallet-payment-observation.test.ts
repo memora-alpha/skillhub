@@ -4,6 +4,7 @@ import { parsePayment } from "../src/features/wallet/schemas/payment-contracts";
 import {
   createPaymentObservation,
   reducePaymentObservation,
+  detachPaymentQr,
 } from "../src/features/wallet/utils/payment-observation";
 import {
   paymentOutcome,
@@ -39,6 +40,22 @@ function apply(
   });
 }
 const initial = () => createPaymentObservation(target);
+
+test("background detaches raw QR without removing suppression latch or accepting conflicting financial state", () => {
+  const old = apply(initial());
+  const paused = detachPaymentQr(old);
+  assert.equal(paused.data?.checkout, null);
+  assert(apply(paused, paymentWire(), 2).data?.checkout);
+  const hidden = apply(old, { ...paymentWire(), checkout: null }, 2);
+  assert.equal(
+    apply(detachPaymentQr(hidden), paymentWire(), 3).data?.checkout,
+    null,
+  );
+  const paid = apply(initial(), paymentWire("PAID"));
+  const conflict = apply(detachPaymentQr(paid), paymentWire("FAILED"), 2);
+  assert.equal(conflict.data?.status, "PAID");
+  assert.equal(conflict.stale, true);
+});
 
 test("known-ID first observation needs only captured scope/ID, never a US2 intent/amount", () => {
   const state = apply(initial());
@@ -206,4 +223,46 @@ test("REVIEW/unknown stay neutral and preparation seam retains conservative sema
     observePaymentModel(paymentReceipt("REVIEW"), paymentTarget).state,
     "REVIEW",
   );
+});
+
+test("equal-version operational metadata changes/clears without conflict, QR remains suppressed", () => {
+  const old = apply(initial());
+  const hidden = apply(
+    old,
+    {
+      ...paymentWire(),
+      checkout: null,
+      recoveryRequired: true,
+      recoveryReason: "PAYMENT_CHANNEL_UNAVAILABLE",
+    },
+    2,
+  );
+  assert.equal(hidden.stale, false);
+  assert.equal(hidden.data?.recoveryRequired, true);
+  const clear = apply(hidden, paymentWire(), 3);
+  assert.equal(clear.data?.recoveryRequired, false);
+  assert.equal(clear.data?.recoveryReason, null);
+  assert.equal(clear.data?.checkout, null);
+  assert.equal(clear.stale, false);
+  assert.equal(
+    apply(
+      clear,
+      { ...paymentWire(), recoveryRequired: true, recoveryReason: "OLD" },
+      2,
+      3,
+    ),
+    clear,
+  );
+  const paid = apply(initial(), paymentWire("PAID"));
+  const warning = apply(
+    paid,
+    {
+      ...paymentWire("PAID"),
+      recoveryRequired: true,
+      recoveryReason: "PAYMENT_CHECKOUT_MISSING",
+    },
+    2,
+  );
+  assert.equal(warning.data?.status, "PAID");
+  assert.equal(warning.data?.recoveryRequired, true);
 });

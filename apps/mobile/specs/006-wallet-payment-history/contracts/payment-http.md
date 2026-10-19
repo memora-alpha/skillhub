@@ -1,104 +1,89 @@
-# Payment HTTP contract — implemented backend source
+# Payment HTTP contract — backend 7fc0f83
 
-**Declared BE update — 2026-10-18:** User supplied [D1 confirmation](d1-backend-confirmation.md), including authenticated GET /payments/creation-policy and reconciliation/pause/channel/unresolved-owner semantics. These are BE-declared changes absent from the local source at4121c3f, not implemented APIs of this checkout. The source-backed wire inventory below still describes the checked-out revision; do not silently add the new route/fields/errors to existing adapters or assume nullability. Verify the actual fix source/migrations and deployment before contract integration. D1 policy is confirmed with limits; full GAP-06 remains open.
+**Ordinary integration — 2026-10-18:** The existing contract is now connected to ordinary native top-up/Payment routes and independent native/web owner status reads. [Current integration](normal-payment-integration.md) supersedes prior flags-off notes; wire contract unchanged, web create unavailable. Activation is source behavior, not actual API/payOS/native acceptance.
 
-**Recovery review supplement — 2026-10-17**: source unchanged. Foundation spec005 R-07 states no automatic TTL deletion; current helper/schema implement no expiry/delete. Retained same-key/body replay exists; missing mapping runs fresh work. Deployment exceptions/restore and total-loss handling remain D1, not a fabricated infinite/numeric horizon. Quote60min and webhook-after-prune tests are distinct. [D1..D4 record](completion-proposal.md) records approved D2/D3/workflow, environment user-reported available and source audits; no wire field/endpoint or live evidence is added.
+**Implementation checkpoint — 2026-10-18, BE7fc0f83 / HEAD5101aea + working tree:** Test-first eligible source batch is implemented. T043/T052/T076/T078..T088/T094 complete within DOC/L/C/W/source-check criteria;100 IDs,83 checked/17 unchecked, original68 completed task bodies preserved. Normal Payment/status/create/recovery/Confirm flags remain off. Private native QA read/financial entries are source-ready, not an activated or accepted deployment. Current fields, cleanup/store/claim/create/replay/QR/status replace earlier pending-source proposals below. D1/D2/D3/D4 are not reopened. Actual API/payOS/Android/iOS acceptance and full T100 stay gated; historical results keep their original scope.
 
-**Reviewed**: 2026-10-17. Original baseline `17e3ac1`; new Payment implementation `081b3d2`, merged by `f80ef7a`; inspected checkout `4121c3f`.
-**Evidence**: source inspection only in this replan. This is neither deployed API verification nor permission to enable mobile Payment. Paths are repository-relative; line anchors refer to this checkout.
+Reviewed2026-10-18 at HEAD5101aea, Payment hardening7fc0f83; prior081b3d2 and original17e3ac1. This replaces the previous source-missing contract. Source-only evidence, no deployed/API/payment execution. See [audit](backend-review-7fc0f83.md), [recovery](payment-recovery.md) and [gates](integration-gates.md).
+
+Let P = `services/api/src/modules/payments/`. Paths and anchors refer to the inspected source. No Payment capability is enabled.
 
 ## Wiring, ownership and envelope
 
-`services/api/src/app.module.ts:37,87` wires PaymentsModule; `services/api/src/modules/payments/payments.module.ts:21–43` registers controllers, use cases and worker. Prefix/version are supplied by `services/api/src/main.ts`. Let **P** below mean `services/api/src/modules/payments/`.
+| Endpoint                               | Authentication / request                                                                     | Response / source                                                                                                                                 |
+| -------------------------------------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| POST `/api/v1/payments`                | Current bearer owner; Idempotency-Key; exactly `{paymentAmountVnd:"100000",gateway:"PAYOS"}` | 201 fresh /200 retained or reconstructed replay; current Payment DTO. P`presentation/http/payments.controller.ts:63–85`, `payments.dto.ts:16–28`. |
+| GET `/api/v1/payments/creation-policy` | Current bearer owner; no query/body                                                          | Success data CreationPolicy. Controller:98–105, DTO:82–105.                                                                                       |
+| GET `/api/v1/payments`                 | Current bearer owner; limit20, optional status and opaque cursor                             | Payment array + pagination; controller:86–96, P`application/use-cases/read-payments.use-case.ts:101–151`.                                         |
+| GET `/api/v1/payments/:id`             | Current bearer owner and UUID path                                                           | Own Payment or404; controller:106–113, same use case:82–100.                                                                                      |
+| POST `/api/v1/payments/webhooks/payos` | Provider-signed callback; never mobile                                                       | Provider acknowledgement; signed verification/posting remains backend-owned.                                                                      |
 
-| Public operation                       | Implemented source                                                               | Request                                                                                     | Response                                                                |
-| -------------------------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| POST `/api/v1/payments`                | P`presentation/http/payments.controller.ts:60–83`                                | Bearer, mandatory `Idempotency-Key`; exactly `{paymentAmountVnd: string, gateway: "PAYOS"}` | 201 fresh / 200 replay; current Payment projection                      |
-| GET `/api/v1/payments/:id`             | Same controller:96–105; P`application/use-cases/read-payments.use-case.ts:49–61` | Bearer; UUID payment ID                                                                     | 200 current owner's Payment; missing/nonowner 404 `PAYMENT_NOT_FOUND`   |
-| GET `/api/v1/payments`                 | Same controller:84–95; read use case:62–108                                      | Bearer; `limit`, `cursor`, optional `status`                                                | Payment array + pagination                                              |
-| POST `/api/v1/payments/webhooks/payos` | Same controller:112–144                                                          | Provider-signed body, no bearer                                                             | Provider acknowledgement `{success:true}`; **never a mobile operation** |
+All public owner routes use IdentityGuard and no-store. Owner comes from authenticated principal, never request ownerId; DTO has no owner field. Bind mobile request/cache/ticket/result to owner/session generation and requested ID.
 
-Owner comes from the authenticated principal and current actor authorization, not a body/query owner. Responses have no owner field. Mobile must bind each request, cache and observation to captured owner/session generation and requested ID. No-store headers do not replace client cache cleanup.
+Success envelope is `{success:true,message,data}`; lists add `meta.pagination:{limit,hasMore,nextCursor}`. Errors use `{success:false,message,statusCode,details?}` (`services/api/src/shared/http/response.ts:3–18,38–79`). For PAYMENT_UNRESOLVED/PAYMENT_RECONCILIATION_REQUIRED409, an allowed own UUID is at `details.existingPaymentId`, not data or a top-level ID (`http-exception.filter.ts:83–95`). Global operational blocks never expose another owner's ID.
 
-Create/detail use `{success:true,message,data}`; list adds `meta.pagination:{limit,hasMore,nextCursor}`. Error envelope is `{success:false,message,statusCode,details?}`. Evidence: `services/api/src/shared/http/response.ts:3–18,45–73`. Do not require a fictional nested `payment`, `scope` or `quote` on the wire.
+## Creation-policy snapshot
+
+Required fields (P`presentation/http/payments.dto.ts:82–105`):
+
+| Field             | Actual contract                                                               |
+| ----------------- | ----------------------------------------------------------------------------- |
+| canCreate         | Boolean.                                                                      |
+| reasonCode        | String or null; known codes below.                                            |
+| existingPaymentId | Own blocking UUID or null; global/provider/pause/channel decisions have null. |
+
+Policy priority (`application/services/payment-creation-policy.ts:24–66`): provider disabled → PAYMENT_PROVIDER_UNAVAILABLE; pause → PAYMENT_CREATION_PAUSED; any owner's old-channel CREATED/PENDING/REVIEW → PAYMENT_CHANNEL_RECONCILIATION_REQUIRED; own oldest unresolved or legacy PAYOS identity-less Payment → PAYMENT_UNRESOLVED or PAYMENT_RECONCILIATION_REQUIRED with own ID; otherwise true/null/null. Legacy missing identity blocks even PAID. Own-ID blocks cause POST409; global/provider/pause/channel blocks503.
+
+GET has no version, as-of, validity duration or reservation token. It is not the amount/quote API. POST rechecks fresh eligibility under the current owner lock; canCreate=true never authorizes bypass of an existing local unknown outcome. Treat unknown/inconsistent policy safely as creation unavailable; preserve a valid supplied owner ID only through authenticated owner reads. No client availability TTL or background mutation queue.
 
 ## Create and confirmed quote
 
-P`presentation/http/payments.dto.ts:16–28` validates canonical positive integer VND text; domain `top-up-policy.ts:5–27` enforces 1,000–2,000,000 VND in steps of 1,000, conversion 1,000 VND/Credit, immutable server quote expiry of 60 minutes. Off-step input is rejected, not rounded.
+Two-field body only. Canonical VND integer text; policy1000..2000000 inclusive, step1000, conversion1000 VND/Credit and server quote60min (`domain/top-up-policy.ts:5–34`). No rounding, float money, owner/Credit/policyVersion/expiry/URLs in request. There is no standalone quote API; review is an estimate until the backend returns confirmed amount/Credit/rate/expiry. Stored policyVersion is internal, not a DTO field.
 
-Only two body fields are accepted. Do not send amount numbers, owner, Credit, policyVersion, expiry, providerStatus or return/cancel URLs. Global validation rejects extra fields. Local review is an **estimate** until create succeeds; there is no standalone public quote/policy endpoint. The successful Payment contains the confirmed amount/Credit/rate/expiry. The server stores policyVersion internally but does not expose quoteId or policyVersion in this response.
+Order is material (`application/use-cases/create-payment.use-case.ts:39–131`): provider enabled + current amount validation before any replay; authorize/live actor lock; retained HTTP mapping replay, or surviving owner/key Payment identity fallback; **only fresh** work checks policy and reserves Payment/checkout/quote in the idempotency transaction. Worker provider work runs after commit; then return the current owner read. Missing Payment behind retained mapping becomes409 reconciliation. Reconstructed replay returns200 and preserves orderCode/expiry. No assumption that201 has PENDING or a usable QR.
 
-P`application/use-cases/create-payment.use-case.ts:28–85` checks provider config and policy, then durably reserves Payment/checkout/quote and idempotency result in a transaction, calls the worker outside that transaction, then reads the current owner projection. Any create response can already be CREATED, PENDING, PAID or another supported state; do not assume every 201 has a QR. A response mismatch with the reviewed amount/currency/rate is a protocol/review problem on the **existing** payment, never permission to create a replacement.
+PAYMENT_CREATION_PAUSED with enabled provider still permits valid same-identity replay. PAYMENTS_ENABLED=false blocks all POST before replay. Any401/409/429/503/timeout after an earlier ambiguous attempt is not proof of no creation. Use the same owner/key/body; never new-key retry or quote renewal. Shared mobile HTTP must use AbortSignal, replayAfterRenewal:false, no mutation retry/reconnect/foreground replay.
 
 ## Actual Payment projection
 
-Source: P`presentation/http/payments.dto.ts:46–69` and P`application/use-cases/read-payments.use-case.ts:14–40`.
+P`presentation/http/payments.dto.ts:46–79`, `application/use-cases/read-payments.use-case.ts:17–68`.
 
-| Field                        | Wire value / mobile validation                                                                                            |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `id`                         | UUID; detail must equal requested ID                                                                                      |
-| `gateway`                    | String; new create supports PAYOS only. Unfamiliar legacy gateway is neutral/read-only, not a new provider flow           |
-| `status`                     | CREATED, PENDING, PAID, FAILED, EXPIRED, REFUNDED, **REVIEW**; unfamiliar future value is neutral, never success          |
-| `paymentAmountVnd`           | Exact positive integer string; preserve full value                                                                        |
-| `currency`                   | VND for this integration; reject unsupported monetary interpretation                                                      |
-| `creditAmount`               | Exact two-decimal Credit string; use existing decimal utilities, never floating-point money                               |
-| `conversionRateVndPerCredit` | Numeric metadata (current 1000); validate positive integer and consistency with supported quote; not a money-string field |
-| `createdAt`                  | ISO date-time string after JSON serialization                                                                             |
-| `expiresAt`, `paidAt`        | Required nullable ISO date-time strings; no invented value                                                                |
-| `version`                    | Numeric integer (checkout version, legacy fallback 1); reject invalid/unsafe values in mobile parser                      |
-| `checkout`                   | Required null or the descriptor below; null is a valid projection, not a failure or permission to create again            |
+| Required field             | Wire validation                                                                                                                                                                                                                     |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| id                         | UUID, exactly requested detail ID.                                                                                                                                                                                                  |
+| gateway                    | String; new create PAYOS; unknown legacy gateway is neutral/read-only.                                                                                                                                                              |
+| status                     | CREATED/PENDING/PAID/FAILED/EXPIRED/REFUNDED/REVIEW; unknown string remains unconfirmed.                                                                                                                                            |
+| paymentAmountVnd           | Exact positive integer string; no float conversion.                                                                                                                                                                                 |
+| currency                   | VND.                                                                                                                                                                                                                                |
+| creditAmount               | Exact two-decimal Credit string; compare quote with exact arithmetic, never credit locally.                                                                                                                                         |
+| conversionRateVndPerCredit | Number1000 for this source; no invented rate/rounding.                                                                                                                                                                              |
+| createdAt                  | ISO date-time.                                                                                                                                                                                                                      |
+| expiresAt / paidAt         | Each ISO date-time or null; do not omit missing fields into null defaults.                                                                                                                                                          |
+| version                    | Positive numeric checkout version, fallback1 when checkout missing. Numeric ordering; no status ranking.                                                                                                                            |
+| recoveryRequired           | **New required boolean**; true iff recoveryReason is nonnull in this source.                                                                                                                                                        |
+| recoveryReason             | **New required string or null**; PAYMENT_CHECKOUT_MISSING, PAYMENT_REVIEW_REQUIRED, PAYMENT_CHANNEL_UNAVAILABLE currently. Unknown reason is safely read-only/support context, never permission to create or infer payment failure. |
+| checkout                   | null or exact `{providerStatus:"PENDING",paymentLinkId,orderCode,qrCode}`; IDs/raw QR strings, orderCode exact decimal text. Provider status is not verified Payment outcome.                                                       |
 
-Non-null checkout fields: `providerStatus:"PENDING"`, `paymentLinkId:string`, `orderCode:digit string`, `qrCode:raw string`. Keep orderCode as text. Preserve QR text exactly; no trim, URL/image/XML interpretation, remote encoder, provider request, logging or credential use on mobile. A server descriptor is not QR-01 renderer acceptance.
+Recovery precedence: missing checkout, then REVIEW, then enabled + foreign-channel CREATED/PENDING; else null. Pause/preparation/expiry/provider-disabled may return checkout:null with recoveryRequired:false. Do not derive one from the other. PAID plus missing-checkout recovery remains PAID and separately requires support/read context.
 
 ## Freshness, QR suppression and observation rules
 
-The server returns checkout only if Payment is PENDING, checkout is READY, expiry is later than **server now**, and raw QR exists (read use case:15–19,31–39).
+Show QR only for enabled/not-paused/current-channel, no recovery reason, Payment PENDING, checkout READY, future server expiry and raw QR present (read use case:38–47). Operational config and server time can hide QR **without version increment**.
 
-- Same payment, higher version: accept the authoritative projection after identity/immutable quote validation. Lower version: discard. Do not compare versions between payments or against walletVersion.
-- **Equal version is not whole-response equality**: QR can become null as server read-time expiry passes, without a persisted version increment. A same-version response with checkout null suppresses the old QR; do not restore QR from a late equal/lower-version response. This local safety latch is cleared only by a valid newer owner projection, not a timer.
-- Conflicting same-version status or immutable quote remains stale/protocol error; keep Check again and do not invent an enum rank. Request tickets still reject obsolete responses.
-- EXPIRED → PAID can be valid at a newer version after delayed signed evidence whose transaction time precedes expiry (P`application/services/payment-receipts.service.ts:233–261`). Do not hard-code terminal states as permanently immutable.
-- REVIEW means “Cần kiểm tra/đối soát”, not FAILED/no-creation. Public DTO supplies no review reason or admin resolution action.
-- `providerStatus`, QR null/visibility, redirect/URL claims, foreground/closure and mobile time never establish Payment outcome. PAID and failed wallet/history refresh are separate results.
-- No mobile polling/SSE schedule is selected. Backend worker cadence is not a client interval. Existing server events are optional hints for later owner GET; SSE version is text, HTTP version is numeric.
+Preserve existing request tickets, owner/session checks and numeric version ordering. Immutable identity/quote conflicts stay stale. At the same version, current read-time recovery fields may change or clear; project them without treating all such changes as impossible financial transitions. Once checkout:null is accepted for that version, old QR must stay suppressed at the same version even after a reason clears. Older tickets/lower versions do not undo it. Metadata never upgrades/downgrades the payment status; newer authoritative EXPIRED→PAID remains valid. No client expiry, status ordering, guessed polling/SSE cadence or client settlement.
 
-## Pagination and filter compatibility
+Mobile currently drops the new recovery fields; schema/types/reducer/UI fixtures must be corrected before release. Completed source/W tests retain their original scope, not new-contract acceptance.
 
-P`presentation/http/payments.dto.ts:29–45` accepts limit1..100/default20, cursor length1..1024, optional Payment `status`. Mobile must send **limit=20 on every page**, using the existing parser max50 unchanged.
+## Pagination, filters and support discovery
 
-P`application/use-cases/read-payments.use-case.ts:62–108` sorts descending checkout orderCode. Signed opaque cursor binds owner/status/watermark/before, with a distinct payment signing scope in PaymentsModule. Do not decode, synthesize, timestamp-sort or reuse a ledger cursor. Refresh/status-filter change starts a new cursor-free chain; dedupe by Payment ID. Invalid cursor follows shared `INVALID_LEDGER_CURSOR` handling despite this being a Payment list.
+Payment list: limit1..100 BE, mobile20; optional status + cursor, descending immutable orderCode/watermark snapshot, owner/status-bound signed cursor. Existing shared parser max50 is compatible with20; do not widen it. Keep Payment pagination separate from ledger type/referenceType chains. Refresh/filter changes start fresh scoped chains; stale continuations never mix.
 
-Watermark excludes later order appends, **not subsequent status updates**: page membership can change under a status filter. Do not promise an immutable status snapshot or infer a missing payment did not exist. This is an owner payment-discovery capability, not a unified ledger; history continues to use type/referenceType only. A user may explicitly select an owner result and re-read its ID; never auto-match a lost intent by amount/time/status.
+List starts from PayosCheckout rows. A legacy Payment without checkout may be absent from every list page while policy reports its own blocking ID. Read that ID through owner detail where supplied. No GET-by-key, amount/time match, list absence or404 is a no-creation/replacement oracle.
 
-The list queries checkout rows, so it is not a guaranteed inventory of legacy Payments without checkout. Absence from a list is never proof that an unresolved create did not commit.
+Mobile shared AppError drops error details today. Recommended later implementation uses local known ID or explicit policy GET after409, then owner GET; failure/no ID retains unknown/support block. No shared transport expansion is implied by this plan. A future typed details change needs explicit ownership/consumer tests.
 
-## Idempotency, errors and recovery limits
+## Backend posting and unsupported operations
 
-Evidence: `services/api/src/infrastructure/idempotency/idempotency.service.ts:80–134`; P create use case:28–85; `services/api/prisma/runtime-support.prisma:114–125`.
+`application/services/payment-receipts.service.ts:97–171,238–242,264–288` verifies and atomically posts TOP_UP/wallet/ledger/lots/audit/events, closes QR/version; REVIEW does not automatically resolve from a late valid receipt. PAID cannot become REVIEW due to conflicting evidence. Wallet/history refresh failure never changes PAID in mobile; retries repeat reads only.
 
-- Visible ASCII key length1..128; backend scopes digest by owner + operation `payment:create`, fingerprints canonical JSON body and stores resource reference atomically. Same retained key/body reuses the same ID; changed body gives409. Replay returns **current** detail, not byte-identical original data, and does not renew persisted quote TTL.
-- Generic service can report incomplete/unavailable record as503. No retention/pruning SLA or GET-by-key endpoint is implemented/documented. Multiple distinct-key pending payments are supported.
-- Known ID: use owner GET, which remains readable when provider creation is disabled. Unknown result with retained key/body: only explicitly authorized same-intent replay under an accepted retention/recovery policy; no automatic renewal/reconnect/foreground replay.
-- Lost key/body/ID across process death: owner list supports discovery, not definitive intent correlation. Durable mobile correlation/security/logout/retention policy remains unapproved. Memory remount is not restart recovery. See [payment-recovery.md](payment-recovery.md).
-- Create must use the shared client with `replayAfterRenewal:false`, signal and mutation retry disabled; preserve a dispatched unknown result on timeout/abort/protocol failure.
-
-| Observed error                                                             | Source-backed meaning / mobile action                                                                                                              |
-| -------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Invalid body/key / unsupported policy                                      | Validation/preflight rejection for that request; correct only when no earlier dispatch is unresolved                                               |
-| 404 PAYMENT_NOT_FOUND on owner detail                                      | No accessible record; evict private projection and show safe Back, not “unpaid”                                                                    |
-| 409 idempotency body conflict                                              | Do not change key/body to bypass the unresolved intent                                                                                             |
-| 409 CREDIT_PROVENANCE_REVIEW_REQUIRED / CREDIT_PROVENANCE_BALANCE_MISMATCH | Wallet provenance eligibility blocked before new reservation; explain blocked top-up, preserve existing intent, no client repair                   |
-| 503 PAYMENT_PROVIDER_UNAVAILABLE                                           | Config disabled check occurs **before** replay lookup; an earlier committed payment can still exist. Prefer known-ID GET; do not infer no creation |
-| 401/403/429, transport error, generic409/5xx                               | Follow auth/denial handling; not blanket proof that an earlier attempt never committed                                                             |
-
-Provenance evidence: `services/api/src/modules/credit/application/services/credit-operations.service.ts:10–28`, `credit-provenance.service.ts:8–44`; migration `services/api/prisma/migrations/20261017000000_payos_payments/migration.sql:3–7` auto-tracks only empty legacy wallets. Eligibility/deployment data is a backend-owned acceptance prerequisite.
-
-Some idempotency errors use plain English message text rather than a dedicated uppercase business code. The shared mobile error parser does not turn that into a new confirmed code; do not invent one or classify every409 as a proven no-creation rejection. Test safe generic handling as well as actual named provenance codes.
-
-## Backend posting and remaining design-only capabilities
-
-P`application/services/payment-receipts.service.ts:62–172,233–289` verifies signatures/channel/immutable quote, deduplicates receipts, and commits PAID, one TOP_UP, wallet/lot update, audit and events atomically. `credit-operations.service.ts:31–109` uses permanent domain identity `payment-top-up:{paymentId}`. Worker persisted leases/reconciliation are implemented in P`application/services/payment-checkout.worker.ts:25–114,137–293`; ambiguous missing QR can enter REVIEW rather than recreate.
-
-These are implemented source, not evidence of an enabled merchant deployment. Backend spec009 validation reports mocked-provider PostgreSQL/HTTP tests; no real payOS/native run is claimed here. Feature config defaults disabled; channel credentials, migrations/grants, operational recovery and independent merchant sequence safety require backend-owner evidence (`services/api/docs/payos-qr-payments.vi.md:144–163`).
-
-No public standalone quote/policy, client reconcile/cancel/refund/mark-paid, or GET-by-idempotency-key operation exists. Spec009 administration/other Credit mutations remain design-only unless their actual source is separately established; this mobile feature introduces none.
+No mobile reconcile/cancel/refund/cash-out/mark-paid, total-identity reconstruction, owner REVIEW-clearance, QR regeneration or provider lookup endpoint. Read-only operator report/runbook are operations tools, not public recovery APIs. Source presence is separate from deployed migration/channel/native acceptance.

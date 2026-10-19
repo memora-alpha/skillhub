@@ -62,3 +62,18 @@ test("read errors/denial/unavailable/stale stay separate from accepted PAID", ()
   assert.equal(stale.issue, "conflict");
   assert(stale.stale);
 });
+
+test("operational warning is presented separately from a confirmed PAID outcome", () => {
+  const view = paymentStatusPresentation({
+    status: "ready",
+    stale: false,
+    data: parsePayment({
+      ...paymentWire("PAID"),
+      recoveryRequired: true,
+      recoveryReason: "PAYMENT_CHECKOUT_MISSING",
+    }),
+  });
+  assert.equal(view.data?.state, "PAID");
+  assert.equal(view.recoveryRequired, true);
+  assert.equal(view.recoveryReason, "PAYMENT_CHECKOUT_MISSING");
+});

@@ -1,11 +1,15 @@
 # Wallet and Payment contract checkpoint
 
+**Implementation checkpoint — 2026-10-18, BE7fc0f83 / HEAD5101aea + working tree:** Test-first eligible source batch is implemented. T043/T052/T076/T078..T088/T094 complete within DOC/L/C/W/source-check criteria;100 IDs,83 checked/17 unchecked, original68 completed task bodies preserved. Normal Payment/status/create/recovery/Confirm flags remain off. Private native QA read/financial entries are source-ready, not an activated or accepted deployment. Current fields, cleanup/store/claim/create/replay/QR/status replace earlier pending-source proposals below. D1/D2/D3/D4 are not reopened. Actual API/payOS/Android/iOS acceptance and full T100 stay gated; historical results keep their original scope.
+
+**Current backend replan — 2026-10-18:** [Audit7fc0f83](contracts/backend-review-7fc0f83.md) at HEAD5101aea replaces earlier source-missing/D1-unknown status. Creation-policy and identity fallback/pause/REVIEW guards are implemented. D1 is SOURCE_VERIFIED_WITH_LIMITATIONS; GAP-06 SOURCE_READY / MOBILE_AND_ACCEPTANCE_PENDING. Current HTTP/recovery/gates/plan define new required recovery metadata and equal-version correction, proposed native cleanup/claim/create/QA work and separate release evidence. Existing status/schema drops those metadata fields and needs tests-first extension. Total-loss/clearance remains unsupported support-stop. D2/D3/D4 and100 IDs/68 checked preserved; all previous snapshots below retain historical scope, no Payment activation.
+
 **QR implementation checkpoint — T089..T093**: local QR renderer and independent decoder are implemented with L/W evidence, T089..T093 complete;68/100. Payment create/recovery/QA host and actual API/G/native remain gated; no public API/payload/capability change. [QR validation](contracts/qr-validation.md) separates actual pixels from bank/native acceptance.
 
 **Current source review**: 2026-10-17 at `4121c3f`; new BE Payment `081b3d2` / merge `f80ef7a`, compared with `17e3ac1`.
 **Authority**: SRS V1.6 defines business requirements; source establishes implemented API; fixtures establish only controlled model/HTTP behavior. Backend spec009 design is not proof of execution.
 
-## Current implementation and evidence
+## Historical implementation snapshot — prior081b3d2
 
 | Capability                           | Backend source                                                                  | Mobile now                                                                                         | Acceptance                                                                    |
 | ------------------------------------ | ------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
@@ -39,3 +43,7 @@ Shared HTTP/auth/query/connection runtime and owner/session isolation remain man
 ## Outstanding decisions
 
 D2 native-first financial SecureStore/logout and D3 QR tooling/mobile-package/root-lockfile scope are approved for later authorized implementation; D4 two-device QA-entry workflow is approved and environment reported available. Actual binding/results are unverified. D1 retains BE-owner confirmation for no-TTL deployment exceptions/restore and total-loss handling. No new endpoint, numeric/infinite horizon, installed dependency or A/G/native acceptance is inferred. Later tasks synchronize accepted scope, preserving100 task blocks/63 completions here.
+
+## Implemented mobile contract boundary — current batch
+
+See [current readiness/stop record](contracts/integration-gates.md#current-source-readiness-and-activation-stop--t043t088). Payment DTO/status/policy, native correlation/claim, explicit create/replay and private QA review→QR→status are implemented at source/fixture level. Owner status stays independent of US2 intent/store/QR. Normal capabilities remain disabled; API/payOS/device evidence is separate. PAID and quote/QR/cleanup/Wallet/History outcomes remain distinct.

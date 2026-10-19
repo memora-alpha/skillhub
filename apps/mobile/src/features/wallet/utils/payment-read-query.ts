@@ -9,6 +9,7 @@ import { createPaymentApi } from "../api/payment-api";
 import {
   createPaymentObservation,
   reducePaymentObservation,
+  detachPaymentQr,
   type PaymentLiveObservation,
 } from "./payment-observation";
 import { paymentDetailKey } from "./payment-query-keys";
@@ -133,7 +134,11 @@ export async function pausePaymentRead(
   if (!runtime || !validPaymentId(id)) return;
   const state = runtime.sessionData.get(`payment-read:${id}`) as
     Entry | undefined;
-  if (state) state.ticket++;
+  if (state) {
+    state.ticket++;
+    if (state.observation)
+      state.observation = detachPaymentQr(state.observation);
+  }
   await queries.cancelQueries({
     queryKey: paymentDetailKey(runtime.scope, id),
     exact: true,
@@ -141,5 +146,9 @@ export async function pausePaymentRead(
   if (state?.denial)
     queries.setQueryData(paymentDetailKey(runtime.scope, id), {
       denial: state.denial,
+    });
+  else if (state?.observation)
+    queries.setQueryData(paymentDetailKey(runtime.scope, id), {
+      observation: state.observation,
     });
 }

@@ -27,7 +27,14 @@ export type PaymentProjection = Readonly<{
   expiresAt: string | null;
   paidAt: string | null;
   version: number;
+  recoveryRequired: boolean;
+  recoveryReason: string | null;
   checkout: PaymentCheckout | null;
+}>;
+export type PaymentCreationPolicy = Readonly<{
+  canCreate: boolean;
+  reasonCode: string | null;
+  existingPaymentId: string | null;
 }>;
 export type TopUpDraft = Readonly<{ amountText: string }>;
 export type PaymentObservationModel = Readonly<{
@@ -48,7 +55,11 @@ export type PaymentModelReader = (
   signal: AbortSignal,
 ) => Promise<unknown>;
 export type PaymentObservationRead = FinancialRead<PaymentObservationModel> &
-  Readonly<{ issue?: "conflict" }>;
+  Readonly<{
+    issue?: "conflict";
+    recoveryReason?: string | null;
+    recoveryRequired?: boolean;
+  }>;
 export type RelatedRead = Readonly<{
   status: "unavailable" | "idle" | "loading" | "success" | "error";
   stale: boolean;

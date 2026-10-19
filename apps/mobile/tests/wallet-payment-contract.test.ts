@@ -265,3 +265,36 @@ test("malformed standard/list envelopes remain rejected by unchanged shared pars
       protocol,
     );
 });
+
+test("recovery fields are required, nullable reason is preserved and malformed values fail", () => {
+  for (const change of [
+    { recoveryRequired: false, recoveryReason: "WARNING" },
+    { recoveryRequired: true, recoveryReason: null },
+  ])
+    assert.throws(
+      () => parsePayment({ ...paymentWire("PAID"), ...change }),
+      protocol,
+    );
+  for (const field of ["recoveryRequired", "recoveryReason"]) {
+    const wire: Record<string, unknown> = { ...paymentWire() };
+    delete wire[field];
+    assert.throws(() => parsePayment(wire), protocol);
+  }
+  for (const change of [
+    { recoveryRequired: null },
+    { recoveryRequired: 1 },
+    { recoveryReason: 7 },
+    { recoveryReason: "" },
+  ])
+    assert.throws(
+      () => parsePayment({ ...paymentWire(), ...change }),
+      protocol,
+    );
+  const unknown = parsePayment({
+    ...paymentWire("PAID"),
+    recoveryRequired: true,
+    recoveryReason: "FUTURE_REASON",
+  });
+  assert.equal(unknown.recoveryRequired, true);
+  assert.equal(unknown.recoveryReason, "FUTURE_REASON");
+});

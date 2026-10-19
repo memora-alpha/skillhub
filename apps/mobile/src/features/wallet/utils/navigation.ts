@@ -3,7 +3,7 @@ export type WalletView =
 const fallbacks = {
   wallet: "/profile",
   topup: "/wallet",
-  payment: "/wallet/topup",
+  payment: "/wallet",
   status: "/wallet",
   history: "/wallet",
   transaction: "/wallet/history",

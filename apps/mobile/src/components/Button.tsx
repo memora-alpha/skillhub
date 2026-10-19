@@ -7,6 +7,7 @@ import {
   type ViewStyle,
 } from "react-native";
 import { appColors, colors, fonts, layout } from "@/constants/theme";
+import { Icon, type IconName } from "./Icon";
 
 type ButtonVariant =
   "primary" | "secondary" | "ghost" | "white" | "craft" | "forest" | "paper";
@@ -19,6 +20,7 @@ type ButtonProps = Readonly<{
   style?: StyleProp<ViewStyle>;
   accessibilityLabel?: string;
   disabled?: boolean;
+  icon?: IconName;
 }>;
 
 const foregrounds: Record<ButtonVariant, string> = {
@@ -47,6 +49,7 @@ export function Button({
   style,
   accessibilityLabel,
   disabled = false,
+  icon,
 }: ButtonProps) {
   const foreground = foregrounds[variant];
   return (
@@ -73,6 +76,7 @@ export function Button({
       ) : (
         children
       )}
+      {icon && <Icon name={icon} size={18} color={foreground} />}
     </Pressable>
   );
 }

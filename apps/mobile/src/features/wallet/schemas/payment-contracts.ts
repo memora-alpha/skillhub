@@ -2,7 +2,11 @@ import { z } from "zod";
 import { AppError } from "@/lib/http/errors";
 import { isRecord } from "@/lib/http/response";
 import { creditAmount, vndAmount } from "../utils/amount";
-import type { PaymentCheckout, PaymentProjection } from "../types/payment";
+import type {
+  PaymentCheckout,
+  PaymentProjection,
+  PaymentCreationPolicy,
+} from "../types/payment";
 
 export const validPaymentId = (value: unknown): value is string =>
   z.uuid().safeParse(value).success;
@@ -47,6 +51,9 @@ export function parsePayment(
     !text(value.status) ||
     value.currency !== "VND" ||
     !positiveInteger(value.version) ||
+    typeof value.recoveryRequired !== "boolean" ||
+    !(value.recoveryReason === null || text(value.recoveryReason)) ||
+    value.recoveryRequired !== (value.recoveryReason !== null) ||
     !positiveInteger(value.conversionRateVndPerCredit) ||
     value.conversionRateVndPerCredit !== 1000 ||
     !date(value.createdAt) ||
@@ -77,9 +84,41 @@ export function parsePayment(
       expiresAt: value.expiresAt,
       paidAt: value.paidAt,
       version: value.version,
+      recoveryRequired: value.recoveryRequired,
+      recoveryReason: value.recoveryReason,
       checkout: parseCheckout(value.checkout, value.status),
     });
   } catch {
     throw new AppError("protocol");
   }
+}
+
+export function parseCreationPolicy(value: unknown): PaymentCreationPolicy {
+  if (
+    !isRecord(value) ||
+    typeof value.canCreate !== "boolean" ||
+    !(value.reasonCode === null || text(value.reasonCode)) ||
+    !(
+      value.existingPaymentId === null ||
+      validPaymentId(value.existingPaymentId)
+    )
+  )
+    throw new AppError("protocol");
+  const own =
+    value.reasonCode === "PAYMENT_UNRESOLVED" ||
+    value.reasonCode === "PAYMENT_RECONCILIATION_REQUIRED";
+  if (
+    value.canCreate
+      ? value.reasonCode !== null || value.existingPaymentId !== null
+      : value.reasonCode === null ||
+        (own
+          ? value.existingPaymentId === null
+          : value.existingPaymentId !== null)
+  )
+    throw new AppError("protocol");
+  return Object.freeze({
+    canCreate: value.canCreate,
+    reasonCode: value.reasonCode,
+    existingPaymentId: value.existingPaymentId,
+  });
 }

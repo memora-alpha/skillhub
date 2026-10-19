@@ -47,6 +47,7 @@ export const typography = {
   body: { fontSize: 15, lineHeight: 22 },
   heading: { fontSize: 17, lineHeight: 24 },
   title: { fontSize: 20, lineHeight: 28 },
+  amount: { fontSize: 32, lineHeight: 40 },
 } as const;
 
 export const iconSizes = {
