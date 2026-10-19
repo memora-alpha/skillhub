@@ -1,0 +1,40 @@
+name: skillhub-connections-test
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: connections_test
+      POSTGRES_PASSWORD: local_test_only
+      POSTGRES_DB: connections_test
+    ports: ["127.0.0.1:55433:5432"]
+    tmpfs: ["/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U connections_test -d connections_test"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+  mongo:
+    image: mongo:8.0
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
+    ports: ["127.0.0.1:27028:27017"]
+    tmpfs: ["/data/db"]
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "mongosh",
+          "--quiet",
+          "--eval",
+          "try { rs.status() } catch (e) { rs.initiate({_id:'rs0',members:[{_id:0,host:'localhost:27017'}]}) }; quit(db.hello().isWritablePrimary ? 0 : 1)",
+        ]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  redis:
+    image: redis:7-alpine
+    ports: ["127.0.0.1:6389:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 2s
+      retries: 30

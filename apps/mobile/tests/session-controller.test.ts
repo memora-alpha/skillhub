@@ -1,0 +1,283 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { AppError } from "../src/lib/http/errors";
+import type { AuthApi } from "../src/features/auth/api/auth-api";
+import type { TokenStore } from "../src/lib/storage/token-store";
+import { SessionController } from "../src/features/auth/context/session-controller";
+
+const pair = (suffix: string) => ({
+  accessToken: `access-${suffix}`,
+  refreshToken: `refresh-${suffix}`,
+  tokenType: "Bearer" as const,
+  expiresIn: 900,
+  refreshExpiresAt: "2030-01-01T00:00:00.000Z",
+});
+function memoryStore(): TokenStore & { value: string | null; writes: number } {
+  let credential: Awaited<ReturnType<TokenStore["read"]>> = null;
+  const store = {
+    value: null as string | null,
+    writes: 0,
+    read: async () => credential,
+    write: async (value: NonNullable<typeof credential>) => {
+      credential = value;
+      store.value = value.refreshToken;
+      store.writes += 1;
+    },
+    clear: async () => {
+      credential = null;
+      store.value = null;
+    },
+  };
+  return store;
+}
+function fakeApi(refresh: (token: string) => Promise<ReturnType<typeof pair>>) {
+  return {
+    login: async () => pair("login"),
+    refresh,
+    logout: async () => undefined,
+    logoutAll: async () => undefined,
+  } as unknown as AuthApi;
+}
+
+const resetInput = {
+  email: "user@example.com",
+  resetToken: "test-reset-proof",
+  newPassword: "NewPassword1!",
+  confirmNewPassword: "NewPassword1!",
+};
+
+test("signed-in password reset deduplicates pending submission and clears credentials after success", async () => {
+  const store = memoryStore();
+  const api = fakeApi(async () => pair("refresh"));
+  let release!: () => void;
+  let calls = 0;
+  api.reset = async () => {
+    calls++;
+    await new Promise<void>((resolve) => {
+      release = resolve;
+    });
+  };
+  const controller = new SessionController(api, store);
+  await controller.login({
+    email: resetInput.email,
+    password: "Password1!",
+    rememberMe: true,
+  });
+  const pending = controller.resetPassword(resetInput);
+  assert.equal(controller.resetPassword({ ...resetInput }), pending);
+  assert.equal(calls, 1);
+  assert.equal(controller.getSnapshot(), "ready");
+  release();
+  await pending;
+  assert.equal(controller.getSnapshot(), "guest");
+  assert.equal(store.value, null);
+});
+
+test("failed password reset retains the current session and allows retry", async () => {
+  const store = memoryStore();
+  const api = fakeApi(async () => pair("refresh"));
+  api.reset = async () => {
+    throw new AppError("http", 400, "RESET_TOKEN_INVALID_OR_EXPIRED");
+  };
+  const controller = new SessionController(api, store);
+  await controller.login({
+    email: resetInput.email,
+    password: "Password1!",
+    rememberMe: true,
+  });
+  await assert.rejects(controller.resetPassword(resetInput));
+  assert.equal(controller.getSnapshot(), "ready");
+  assert.equal(store.value, "refresh-login");
+  api.reset = async () => undefined;
+  await controller.resetPassword(resetInput);
+  assert.equal(controller.getSnapshot(), "guest");
+});
+
+test("late password reset from an old account cannot expire the new account", async () => {
+  const store = memoryStore();
+  const api = fakeApi(async () => pair("refresh"));
+  let release!: () => void;
+  api.reset = () =>
+    new Promise<void>((resolve) => {
+      release = resolve;
+    });
+  const controller = new SessionController(api, store);
+  await controller.login({
+    email: resetInput.email,
+    password: "Password1!",
+    rememberMe: true,
+  });
+  const pending = controller.resetPassword(resetInput);
+  const rejected = assert.rejects(
+    pending,
+    (error: unknown) => error instanceof AppError && error.kind === "session",
+  );
+  await controller.signOut();
+  api.login = async () => pair("account-b");
+  await controller.login({
+    email: "b@example.com",
+    password: "Password1!",
+    rememberMe: true,
+  });
+  release();
+  await rejected;
+  assert.equal(controller.getSnapshot(), "ready");
+  assert.equal(store.value, "refresh-account-b");
+});
+
+test("guest password recovery succeeds without creating or changing a session", async () => {
+  const store = memoryStore();
+  const api = fakeApi(async () => pair("refresh"));
+  api.reset = async () => undefined;
+  const controller = new SessionController(api, store);
+  await controller.bootstrap();
+  const generation = controller.generation;
+  await controller.resetPassword(resetInput);
+  assert.equal(controller.getSnapshot(), "guest");
+  assert.equal(controller.generation, generation);
+  assert.equal(store.value, null);
+});
+
+test("serializes refresh calls and gives all callers the rotated access token", async () => {
+  const store = memoryStore();
+  let calls = 0;
+  const controller = new SessionController(
+    fakeApi(async () => {
+      calls += 1;
+      return pair("rotated");
+    }),
+    store,
+    () => Date.parse("2029-01-01T00:00:00.000Z"),
+  );
+  await controller.login({
+    email: "user@example.com",
+    password: "Password1!",
+    rememberMe: true,
+  });
+  await Promise.all([
+    controller.renew(),
+    controller.renew(),
+    controller.renew(),
+  ]);
+  assert.equal(calls, 1);
+  assert.equal(await controller.getToken(), "access-rotated");
+  assert.equal(store.value, "refresh-rotated");
+});
+
+test("does not replay a refresh token after a network-ambiguous rotation", async () => {
+  const store = memoryStore();
+  const controller = new SessionController(
+    fakeApi(async () => {
+      throw new AppError("network");
+    }),
+    store,
+    () => Date.parse("2029-01-01T00:00:00.000Z"),
+  );
+  await controller.login({
+    email: "user@example.com",
+    password: "Password1!",
+    rememberMe: true,
+  });
+  await assert.rejects(controller.renew(), AppError);
+  assert.equal(controller.getSnapshot(), "reauth");
+  const restored = new SessionController(
+    fakeApi(async () => pair("unexpected")),
+    store,
+    () => Date.parse("2029-01-01T00:00:00.000Z"),
+  );
+  await restored.bootstrap();
+  assert.equal(restored.getSnapshot(), "reauth");
+});
+
+test("logout wins over a late login response", async () => {
+  const store = memoryStore();
+  let resolveLogin: ((value: ReturnType<typeof pair>) => void) | undefined;
+  const api = fakeApi(async () => pair("refresh"));
+  api.login = () =>
+    new Promise((resolve) => {
+      resolveLogin = resolve;
+    });
+  const controller = new SessionController(api, store, () =>
+    Date.parse("2029-01-01T00:00:00.000Z"),
+  );
+  const pending = controller.login({
+    email: "user@example.com",
+    password: "Password1!",
+    rememberMe: true,
+  });
+  await controller.signOut();
+  resolveLogin?.(pair("late"));
+  await assert.rejects(pending, AppError);
+  assert.equal(controller.getSnapshot(), "guest");
+  assert.equal(store.value, null);
+});
+
+test("logout-all deduplicates pending requests and clears credentials after success", async () => {
+  const store = memoryStore();
+  let calls = 0;
+  let complete!: () => void;
+  const api = fakeApi(async () => pair("refresh"));
+  api.logoutAll = () => {
+    calls++;
+    return new Promise<void>((resolve) => {
+      complete = resolve;
+    });
+  };
+  const controller = new SessionController(api, store);
+  await controller.login({
+    email: "a@example.com",
+    password: "Password1!",
+    rememberMe: true,
+  });
+  const pending = controller.signOutAll();
+  assert.equal(controller.signOutAll(), pending);
+  assert.equal(calls, 1);
+  assert.equal(controller.getSnapshot(), "ready");
+  complete();
+  await pending;
+  assert.equal(controller.getSnapshot(), "guest");
+  assert.equal(store.value, null);
+});
+
+test("failed logout-all retains the current session and permits an explicit retry", async () => {
+  const store = memoryStore();
+  let calls = 0;
+  const api = fakeApi(async () => pair("refresh"));
+  api.logoutAll = async () => {
+    if (++calls === 1) throw new AppError("network");
+  };
+  const controller = new SessionController(api, store);
+  await controller.login({
+    email: "a@example.com",
+    password: "Password1!",
+    rememberMe: true,
+  });
+  await assert.rejects(controller.signOutAll(), AppError);
+  assert.equal(controller.getSnapshot(), "ready");
+  assert.equal(store.value, "refresh-login");
+  await controller.signOutAll();
+  assert.equal(calls, 2);
+  assert.equal(controller.getSnapshot(), "guest");
+});
+
+test("a late logout-all success from account A cannot clear account B's session", async () => {
+  const store = memoryStore();
+  let complete!: () => void;
+  const api = fakeApi(async () => pair("refresh"));
+  api.login = async (input) => pair(input.email);
+  api.logoutAll = () =>
+    new Promise<void>((resolve) => {
+      complete = resolve;
+    });
+  const controller = new SessionController(api, store);
+  const login = (email: string) =>
+    controller.login({ email, password: "Password1!", rememberMe: true });
+  await login("a@example.com");
+  const rejected = assert.rejects(controller.signOutAll(), AppError);
+  await login("b@example.com");
+  complete();
+  await rejected;
+  assert.equal(controller.getSnapshot(), "ready");
+  assert.equal(store.value, "refresh-b@example.com");
+  assert.equal(await controller.getToken(), "access-b@example.com");
+});

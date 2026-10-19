@@ -2,19 +2,69 @@
 
 NestJS backend in the SkillHub pnpm/Turborepo workspace.
 
+CD cho API và quy trình migrate/seed được mô tả trong
+[deployment guide](docs/deployment.md). Seed mặc định tắt; chỉ chạy request được
+khai báo hoặc lựa chọn thủ công. CD dev dùng GitHub checks → webhook → Coolify;
+chỉ cần hai secrets, cấu hình runtime và volume seed-state trong Coolify.
+Learning Request FE extension (2026-10-12) bổ sung teachingOverview, kỹ năng có thể dạy chọn từ profile người đăng, lịch rảnh theo thứ/timezone và desiredCreditPerHour. API tag ACTIVE: `GET /api/v1/tags`; kỹ năng để chọn: `GET /api/v1/me/skills`. Xem [payload và migration](specs/007-learning-request/quickstart.md) cùng [contract](specs/007-learning-request/contracts/http.md). Field mới được trả ở feed/detail/mine/moderation; credit là mức mong muốn theo giờ, chưa Hold.
+
 ## Phạm vi và trạng thái
 
 Phạm vi phát triển hiện tại của dự án là **backend tại `services/api`**.
 Web/mobile chỉ được thay đổi khi có yêu cầu riêng. Git và pnpm workspace vẫn
 đặt tại root SkillHub; backend không có Git repository riêng.
 
-API đã có config validation, PostgreSQL/Prisma, MongoDB/Mongoose, Redis/BullMQ, logging, Swagger, health/readiness và migration nền tảng. Các module nghiệp vụ bên dưới vẫn là kế hoạch; chưa có login, chat hoặc giao dịch Credit.
+Luồng đăng ký/OTP đã chuyển sang Redis và BullMQ theo [Redis OTP amendment](specs/002-user-identity/redis-otp.md): chỉ lưu bản nháp mã hóa trong Redis khi gửi OTP; xác thực OTP thành công mới tạo tài khoản ACTIVE trong database. Không dùng bảng OTP trong runtime.
+
+Quên mật khẩu dùng ba API: `password/forgot` → `password/verify-otp` → `password/reset`. Xác thực OTP đúng mới nhận `resetToken` dùng một lần để đổi mật khẩu; bước verify không đổi mật khẩu hoặc thu hồi phiên. Xem [luồng khôi phục mật khẩu](specs/002-user-identity/password-recovery.md).
+
+API đã có nền tảng hạ tầng và phần Danh tính (spec 002): đăng ký/OTP/login, refresh/logout/reset, hồ sơ/avatar, quyền và quản trị tài khoản có audit. Phần Kỹ năng (spec 007) đã có catalog, quản lý Sharing Skill, search/profile công khai, evidence và Staff Verification; xem [quickstart](specs/007-skills/quickstart.md) và [validation](specs/007-skills/validation.md). Core Learning Request đã nối owner adapters cho catalog, eligibility, public owner và Sharing Skill matching, đồng thời giữ kiểm tra restriction tạo hoạt động từ reputation. Path/Schedule lock reader còn trả unavailable; cancellation phụ thuộc reader này vẫn bị chặn.
+
+Phần Kết nối đã có source cho Proposal từ Request/lời mời trực tiếp, accept mở Conversation, chat text/file, delivery receipt, read watermark và notification in-app. Chat, notification và application events dùng [SSE chung](specs/008-connections/contracts/sse.md) với reconnect/replay; commands/history vẫn qua HTTP. [Policy đã chốt](specs/008-connections/policies.md): proposal 7 ngày, 10/giờ và 50/ngày, direct cooldown 24 giờ; chat 30/phút/User và 120/phút/Conversation; 5 file/tin, 15 MB/file, 50 MB/tin. Xem [quickstart](specs/008-connections/quickstart.md), [tasks](specs/008-connections/tasks.md) và [validation](specs/008-connections/validation.md). Migration Connections và seed cấu hình đã áp dụng trên PostgreSQL local; journeys HTTP/SSE đã pass với PostgreSQL schema riêng và Mongo rs0 local. Mongo service/indexes đã cấu hình; storage local đã bật trên bucket chung `skillhub` và truy cập bucket trả HTTP 200. API local trả health/ready 200; luồng CHAT upload → scan READY/CLEAN → gửi file → download đã pass với R2/ClamAV thật trên dữ liệu test riêng. Moderation rules chưa chốt; SSE nhiều instance/proxy, recovery/cleanup races và load vẫn cần kiểm chứng. Retention, report/staff access và external notification chưa được mở.
+
+Các module từ `feat/learning-platform-modules` đã được gộp cùng Kết nối: source ban đầu cho LearningPath/Plan, scheduling, Session completion, Credit Hold/settlement, reviews, reputation, achievements và report/dispute. Các phần này vẫn cần áp dụng/kiểm tra migration và kiểm chứng tích hợp. Cancel/no-show policy, LiveKit, Gmail/FCM delivery và luồng Learning Materials đầy đủ còn thiếu hoặc chưa tích hợp. Conversations xuất cả lifecycle cho Proposal và membership reader cho LearningPath.
+
+Catalog Prisma theo logical v3 cộng hai model Achievement/UserAchievement: **50 model PostgreSQL và một document
+Message MongoDB** với attachments nhúng. Xem [schema catalog](prisma/README.md)
+để đối chiếu 51/51 định nghĩa logical. Tag và RequestTag được giữ theo SRS V1.6
+như phần mở rộng ngoài diagram; xem [LR ERD v3 alignment](specs/007-learning-request/erd-v3-alignment.md).
+Schema v3 ở `prisma/catalog.prisma` sinh client
+riêng `src/generated/prisma-catalog` để đối chiếu mô hình.
+API, generate mặc định và migration dùng `prisma/schema.prisma`: runtime v3 gồm
+50 model domain, 8 model kỹ thuật cho foundation/Kết nối và Tag/RequestTag.
+Learning Request giữ preferred slots JSONB và metadata moderation/expiry/version
+với tên application tương thích, ánh xạ sang cột v3. Profile nằm trong User,
+User có một roleId; các repository danh tính đã chuyển sang cấu trúc này.
+Migration `20261007000000_runtime_v3` backfill và giữ bản gốc profile/grant trong
+schema `<current_schema>_legacy_v3`. Migration chưa deploy vào database ứng dụng.
+Migration danh tính, seed/operator bootstrap,
+ràng buộc SQL và 21 endpoint `/api/v1/...` đã có; migration chỉ được kiểm thử
+trong schema tạm, chưa deploy vào database ứng dụng. Xem [hướng dẫn danh tính](specs/002-user-identity/quickstart.md) và [kết quả kiểm thử](specs/002-user-identity/validation.md).
 
 Nguồn nghiệp vụ:
 
-- [SRS SkillHub V1.3](../../docs/SRS_SkillHub_V1.3.docx): mục 6, 18 và phụ lục C.
-- [Danh mục entity/field](../../docs/SkillHub_Entities_Fields.md): có phân biệt yêu cầu SRS và đề xuất thiết kế.
-- [Logical Data Model](../../docs/SkillHub_Logical_Data_Model.md): quan hệ, ràng buộc và transaction boundaries.
+- [SRS SkillHub V1.6](../../docs/SRS_SkillHub_V1.6_VietLai_DongBoNghiepVu.docx): yêu cầu nghiệp vụ hiện hành, gồm Tag cho Learning Request.
+- [SRS SkillHub V1.4 tiếng Việt](../../docs/SRS_SkillHub_V1.4_BoSungQuyDinhNghiepVu_VI.docx): bản bổ sung nghiệp vụ; RBAC đối chiếu mục 3, NFR-SEC-03, BR-39/40 và mục 18.
+- [SRS SkillHub V1.3](../../docs/SRS_SkillHub_V1.3.docx): bản trước để đối chiếu lịch sử.
+- [SRS SkillHub V1.5](../../docs/SRS_SkillHub_V1.5.docx): bản trước để đối chiếu lịch sử; mô hình v3 có điều chỉnh phạm vi theo quyết định người dùng.
+- [Danh mục entity/field v3](../../docs/SkillHub_Entities_Fields_v3.md): có phân biệt yêu cầu SRS và đề xuất thiết kế.
+- [Logical Data Model v3](../../docs/SkillHub_Logical_Data_Model_v3.md): quan hệ, ràng buộc và transaction boundaries.
+
+[Thiết kế RBAC/ownership SH-002](specs/002-rbac-ownership/spec.md) và
+[kế hoạch triển khai](specs/002-rbac-ownership/plan.md) đang triển khai,
+do Long phụ trách theo backlog. Các mô hình và breakdown dưới đây có trước lần
+bổ sung v1.4; đối chiếu nghiệp vụ mới trong spec từng feature. Việc ghi nhận thiết
+kế chưa có nghĩa auth, RBAC hay các module nghiệp vụ đã được tích hợp vào
+production API; xem [kết quả kiểm chứng](specs/002-rbac-ownership/validation.md).
+
+[Roadmap foundation SH-003–006](specs/foundation-roadmap.md) tách các kế hoạch
+[audit/reason](specs/003-audit-reason/plan.md),
+[private file storage](specs/004-private-file-storage/plan.md),
+[transaction/idempotency/correlation](specs/005-transaction-idempotency/plan.md)
+và [configuration/UTC/secrets](specs/006-system-configuration-time/plan.md).
+Thứ tự kỹ thuật đề xuất: SH-005 → SH-003 → SH-006 → SH-004. Source, unit tests
+và integration suites trên PostgreSQL đã có; kiểm chứng Redis/BullMQ, S3 và
+ClamAV thật còn Pending — xem `validation.md` trong từng spec và roadmap.
 
 Ưu tiên nghiệp vụ Must/Should/Could theo SRS vẫn được giữ. Thứ tự triển khai
 bên dưới là đề xuất kỹ thuật, không nâng tính năng Should/Could thành Must.
@@ -22,6 +72,8 @@ Tên module, bảng và routes là định hướng thiết kế; contracts/sche
 sẽ được chốt trong spec và plan của từng feature.
 
 ## Breakdown backend thành module
+
+Skill catalog và Sharing Skill hỗ trợ [archive/restore](specs/007-skills/restore.md): catalog restore về ACTIVE/INACTIVE do operator chọn; owner restore Sharing Skill giữ history/visibility/badge hiện tại và chặn bản trùng. Routes `POST /api/v1/admin/skills/{skillId}/restore` và `POST /api/v1/me/skills/{sharingSkillId}/restore` yêu cầu permission riêng, expectedVersion và Idempotency-Key. Chạy identity seed khi rollout để bổ sung grants.
 
 Đề xuất dùng một ứng dụng NestJS với các module theo nghiệp vụ, cùng database
 và cơ chế transaction. Chưa cần tách microservices. Các routes trong bảng là
@@ -48,7 +100,17 @@ nhóm API dự kiến và đều nằm sau prefix `/api` hiện có.
 | `administration`    | API Staff/Admin, tổng hợp dashboard/báo cáo, quản lý cấu hình và phân quyền cho thao tác nhạy cảm; `/admin/*`.                              | SystemConfiguration và read models nếu cần. Dùng services của các module sở hữu nghiệp vụ; không tạo bản sao User/Skill/Session/ledger.                                     |
 | `audit`             | Ghi lịch sử bất biến của thao tác nhạy cảm, tra cứu theo quyền; `/admin/audit-logs/*`.                                                      | AuditLog. Không log password, OTP, token đầy đủ hay dữ liệu thanh toán nhạy cảm. Audit khác application logs.                                                               |
 
-GET /api/health là liveness; GET /api/health/ready kiểm tra PostgreSQL, MongoDB và Redis. Swagger ở /api/docs trong development/test, tắt trong production. Rate limit hiện tại là 120 requests/phút/IP trong một process; health được miễn. Cần shared throttle storage trước khi chạy nhiều instance.
+GET /api/health là liveness; GET /api/health/ready kiểm tra PostgreSQL, MongoDB và Redis; cả hai version-neutral. Swagger ở /api/docs trong development/test, tắt trong production. Rate limit chia sẻ qua Redis theo cấu hình, gồm IP toàn API và email/IP/device theo luồng danh tính; health được miễn. Cấu hình danh tính/provider trong `.env.example` bắt buộc có giá trị rõ ràng trước khi khởi động.
+
+Avatar, file CHAT và Evidence dùng chung bucket `skillhub`, cấu hình bằng `S3_BUCKET`. Avatar lưu dưới prefix `avatars/`, file CHAT/Evidence dưới `private/`; đọc qua quyền và URL ký có hạn. Avatar dùng provider `S3_*`; file CHAT/Evidence dùng `STORAGE_*` cho endpoint/region/credentials và cần `STORAGE_ENABLED=true`. Hai bộ provider phải trỏ cùng dịch vụ S3-compatible chứa bucket này. Khi đổi bucket của môi trường đã có dữ liệu, cần chuyển các object sang bucket mới, giữ nguyên object key để metadata hiện có tiếp tục đọc được.
+
+Response JSON theo chuẩn Memora: thành công `{success:true,message,data,meta?}`;
+lỗi `{success:false,message,statusCode}`. Payload nằm trong `data`, phân trang
+danh sách quản trị nằm trong `meta.pagination` (`nextCursor`, `hasMore`, `limit`).
+Đăng ký/gửi lại OTP/quên mật khẩu trả `data:null`; response 204 không có body.
+Controller dùng helper tại `src/shared/http/response.ts`, use case trả kết quả
+nghiệp vụ; Swagger mô tả đúng envelope. Đây là thay đổi contract v1 trước release
+theo yêu cầu ngày 2026-10-04; xem [HTTP contract](specs/002-user-identity/contracts/http.md).
 
 ## Hạ tầng và quy tắc phụ thuộc
 
@@ -116,6 +178,20 @@ src/
 
 Theo Memora, module dùng presentation/http (controller/DTO), application (use-cases/commands/results/ports), domain (policies/entities/repository interfaces) và infrastructure (persistence/providers). Chỉ tạo tầng có trách nhiệm thực tế.
 
+Danh tính đã được tổ chức thành 24 use case trong `application/use-cases/`,
+các service dùng chung trong `application/services/`, contract/port riêng và
+Prisma repository trong `infrastructure/persistence/` của module sở hữu dữ liệu.
+Controller gọi trực tiếp use case; `identity.module.ts` giữ vai trò composition
+root và chỉ export các contract cần dùng liên module. Danh sách quản trị dùng
+query nghiệp vụ, không truyền Prisma filter giữa application services.
+
+Use case điều phối một transaction PostgreSQL; service/repository tham gia dùng
+cùng context. Worker BullMQ và timer reconciliation nằm trong
+`infrastructure/jobs/`. Application nhận port storage/scanner/email/queue;
+HTTP chuyển Multer thành input bytes/MIME/size và Sharp nằm trong infrastructure.
+Refactor giữ 21 endpoint, OTP counter/replay commit, audit/outbox atomic và
+khôi phục delivery/avatar; xem [plan danh tính](specs/002-user-identity/plan.md).
+
 ## Thứ tự triển khai và phụ thuộc
 
 | Giai đoạn               | Phạm vi                                                                                                                | Kết quả cần kiểm chứng                                                                                               |
@@ -147,13 +223,26 @@ giá trị production hoặc coi bản breakdown này là database schema đã p
 
 ## Development
 
+Learning Request verification scripts (run from the repository root):
+
+```powershell
+pnpm --filter api test:learning-request
+pnpm --filter api test:learning-request:integration
+```
+
+The first command builds the API and runs the feature's non-database suites. The
+integration command requires `TEST_DATABASE_URL` to reference an isolated,
+migrated PostgreSQL database; it never falls back to `DATABASE_URL`.
+
 Stack đã chốt và giới hạn triển khai: [foundation plan](specs/001-backend-foundation/plan.md).
 Constitution: [.specify/memory/constitution.md](.specify/memory/constitution.md).
 Constitution v1.2.0 quy định module sở hữu dữ liệu và cung cấp contract cho module
 khác; jobs/webhooks phải xử lý trùng lặp, retry và khôi phục lỗi. Mỗi feature plan
 cần Constitution Check và bằng chứng kiểm chứng; ngoại lệ phải ghi rõ lý do,
 biện pháp giảm tác động, điều kiện gỡ bỏ và phê duyệt của người dùng. Đây là quy tắc
-cho các feature tiếp theo; outbox, webhook handlers và job processors chưa triển khai.
+cho các feature tiếp theo; outbox email và job processors danh tính đã triển khai,
+cùng outbox chung và file-scan processor của foundation (SH-005/004).
+Webhook handlers và các job nghiệp vụ khác vẫn thuộc feature tương ứng.
 
 Git workflow: branch `feat/user-auth`, `fix/refresh-revocation` hoặc
 `docs/backend-modules`; slug viết lowercase kebab-case, không kèm số spec.
@@ -183,7 +272,7 @@ Chạy pnpm infra:up từ services/api và dùng các giá trị development sau
 
 ```dotenv
 DATABASE_URL=postgresql://skillhub:skillhub_local@127.0.0.1:5433/skillhub
-MONGODB_URI=mongodb://127.0.0.1:27018/skillhub_chat
+MONGODB_URI=mongodb://127.0.0.1:27018/skillhub_chat?replicaSet=rs0&directConnection=true
 REDIS_URL=redis://127.0.0.1:6380/0
 ```
 
@@ -219,6 +308,24 @@ pnpm check-types
 pnpm build
 pnpm test:foundation
 ```
+
+Tests của foundation SH-002–006 build trước rồi chạy `node --test` trên `dist`:
+
+```powershell
+pnpm test:rbac
+pnpm test:consistency
+pnpm test:audit
+pnpm test:configuration
+pnpm test:files
+```
+
+Các suite `test:consistency:integration`, `test:audit:integration`,
+`test:configuration:integration` và `test:files:integration` cần
+`TEST_DATABASE_URL` trỏ tới một database PostgreSQL riêng cho test, đã
+`pnpm db:deploy`; chúng không đọc `DATABASE_URL` và không truncate bảng.
+`test:audit:integration` làm thay đổi `storage.downloadTtlSeconds` và để lại
+audit rows (append-only) trong database test. Kiểm tra quyền app-role cần thêm
+`TEST_AUDIT_APP_DATABASE_URL`. Chưa có suite cho S3/ClamAV/Redis thật.
 
 API mặc định chạy ở http://localhost:3001. GET /api/health kiểm tra liveness;
 GET /api/health/ready xác minh PostgreSQL, MongoDB và Redis; Swagger ở /api/docs.
@@ -295,3 +402,5 @@ prerequisite check expects a feature plan and should be run after planning.
 
 Upstream references: [Spec Kit integrations](https://github.github.com/spec-kit/reference/integrations.html)
 and [installation](https://github.github.com/spec-kit/installation.html).
+
+- [SRS SkillHub V1.6](../../docs/SRS_SkillHub_V1.6_VietLai_DongBoNghiepVu.docx): nguồn yêu cầu hiện hành; spec Kỹ năng giới hạn evidence 10 MB/file theo quyết định đã chốt.
