@@ -7,7 +7,7 @@ import '../../../components/app_button.dart';
 import '../../../components/app_checkbox.dart';
 import '../../../components/app_input.dart';
 import '../../../components/dialogs.dart';
-import '../api/auth_api.dart';
+import '../schema/auth_schema.dart';
 import '../session/auth_session.dart';
 import '../utils/auth_validation.dart';
 import '../utils/cooldown.dart';

@@ -31,6 +31,97 @@ Object? readPayload(int status, Object? payload) {
   return payload['data'];
 }
 
+class ApiEnvelope {
+  const ApiEnvelope(this.data, [this.meta = const {}]);
+
+  final Object? data;
+  final Map<String, dynamic> meta;
+}
+
+ApiEnvelope readEnvelope(int status, Object? payload) {
+  if (status == 204) return const ApiEnvelope(null);
+  if (status < 200 || status >= 300) {
+    readPayload(status, payload);
+  }
+  if (payload is! Map<String, dynamic> ||
+      payload['success'] != true ||
+      !payload.containsKey('data')) {
+    throw const AppError.protocol();
+  }
+  final meta = payload['meta'];
+  if (meta != null && meta is! Map<String, dynamic>) {
+    throw const AppError.protocol();
+  }
+  return ApiEnvelope(payload['data'], meta ?? const {});
+}
+
+Map<String, dynamic> asMap(Object? value) {
+  if (value is! Map<String, dynamic>) throw const AppError.protocol();
+  return value;
+}
+
+String asString(Object? value) {
+  if (value is! String || value.isEmpty) throw const AppError.protocol();
+  return value;
+}
+
+String asText(Object? value) {
+  if (value is! String) throw const AppError.protocol();
+  return value;
+}
+
+String? asOptionalString(Object? value) {
+  if (value == null) return null;
+  if (value is! String) throw const AppError.protocol();
+  return value;
+}
+
+int asInt(Object? value) {
+  if (value is! int) throw const AppError.protocol();
+  return value;
+}
+
+bool asBool(Object? value) {
+  if (value is! bool) throw const AppError.protocol();
+  return value;
+}
+
+List<T> asList<T>(Object? value, T Function(Object? item) parse) {
+  if (value is! List) throw const AppError.protocol();
+  return [for (final item in value) parse(item)];
+}
+
+String withQuery(String path, Map<String, Object?> query) {
+  final parts = [
+    for (final entry in query.entries)
+      if (entry.value != null)
+        '${entry.key}=${Uri.encodeQueryComponent('${entry.value}')}',
+  ];
+  return parts.isEmpty ? path : '$path?${parts.join('&')}';
+}
+
+class Page<T> {
+  const Page(this.items, {this.nextCursor});
+
+  final List<T> items;
+  final String? nextCursor;
+
+  static Page<T> parse<T>(ApiEnvelope envelope, T Function(Object?) parseItem) {
+    final pagination = envelope.meta['pagination'];
+    if (pagination != null && pagination is! Map<String, dynamic>) {
+      throw const AppError.protocol();
+    }
+    final cursor = pagination is Map<String, dynamic>
+        ? pagination['nextCursor']
+        : null;
+    if (cursor != null && cursor is! String) throw const AppError.protocol();
+    return Page(
+      asList(envelope.data, parseItem),
+      nextCursor: cursor as String?,
+    );
+  }
+}
+
 class HttpClient {
   HttpClient(this._baseUrl, {Dio? dio})
     : _dio =
@@ -51,12 +142,13 @@ class HttpClient {
 
   void bindSession(SessionTransport transport) => _session = transport;
 
-  Future<Object?> _send(
+  Future<ApiEnvelope> _send(
     String path,
     String method,
     Object? body,
-    String? token,
-  ) async {
+    String? token, [
+    Map<String, String> headers = const {},
+  ]) async {
     final Response<String> response;
     try {
       final data = body is FormData ? body.clone() : body;
@@ -68,6 +160,7 @@ class HttpClient {
           headers: {
             'Accept': 'application/json',
             if (token != null) 'Authorization': 'Bearer $token',
+            ...headers,
           },
           contentType: body == null || body is FormData
               ? null
@@ -88,7 +181,7 @@ class HttpClient {
         payload = null;
       }
     }
-    return readPayload(response.statusCode ?? 0, payload);
+    return readEnvelope(response.statusCode ?? 0, payload);
   }
 
   Future<Object?> request(
@@ -96,11 +189,27 @@ class HttpClient {
     String method = 'GET',
     Object? body,
     bool authenticated = false,
+    Map<String, String> headers = const {},
+  }) async =>
+      (await requestEnvelope(
+        path,
+        method: method,
+        body: body,
+        authenticated: authenticated,
+        headers: headers,
+      )).data;
+
+  Future<ApiEnvelope> requestEnvelope(
+    String path, {
+    String method = 'GET',
+    Object? body,
+    bool authenticated = false,
+    Map<String, String> headers = const {},
   }) async {
     if (!path.startsWith('/') || path.startsWith('//')) {
       throw const AppError(AppErrorKind.config);
     }
-    if (!authenticated) return _send(path, method, body, null);
+    if (!authenticated) return _send(path, method, body, null, headers);
     final transport = _session;
     if (transport == null) throw const AppError.session();
     final generation = transport.generation;
@@ -115,7 +224,7 @@ class HttpClient {
     assertCurrentSession();
     if (token == null) throw const AppError.session();
     try {
-      final result = await _send(path, method, body, token);
+      final result = await _send(path, method, body, token, headers);
       assertCurrentSession();
       return result;
     } on AppError catch (error) {
@@ -131,7 +240,7 @@ class HttpClient {
     assertCurrentSession();
     if (nextToken == null) throw const AppError.session();
     try {
-      final result = await _send(path, method, body, nextToken);
+      final result = await _send(path, method, body, nextToken, headers);
       assertCurrentSession();
       return result;
     } on AppError catch (error) {

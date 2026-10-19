@@ -6,6 +6,7 @@ import '../../../core/http/app_error.dart';
 import '../../../core/http/http_client.dart';
 import '../../../core/storage/token_store.dart';
 import '../api/auth_api.dart';
+import '../schema/auth_schema.dart';
 
 enum SessionPhase { bootstrapping, guest, ready, offline, reauth }
 
