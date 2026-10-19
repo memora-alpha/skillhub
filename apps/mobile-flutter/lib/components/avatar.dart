@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:flutter/painting.dart';
 import 'package:flutter/widgets.dart';
 
 import '../core/theme/tokens.dart';
@@ -84,6 +85,7 @@ class Avatar extends StatelessWidget {
         imageUrl!,
         fit: BoxFit.cover,
         gaplessPlayback: true,
+        webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
         errorBuilder: (_, _, _) => initials,
       );
     }
