@@ -41,6 +41,7 @@ test("approved defaults and mutability are explicit", () => {
     "credit.topUpVndPerCredit",
     "learningPath.minCreditPerUser",
     "learningRequest.moderationRuleSet",
+    "livekit.joinWindow",
     "schedule.rescheduleCutoffMinutes",
     "session.durationMinutes",
     "storage.downloadTtlSeconds",

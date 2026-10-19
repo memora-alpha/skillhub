@@ -90,8 +90,20 @@ export class UpdateConfigurationUseCase {
       for (const [index, change] of changes.entries()) {
         await this.applyChange(tx, change, audits[index], effectiveAt);
       }
+      const catalogKeys = Object.keys(
+        CONFIGURATION_DEFINITIONS,
+      ) as ConfigurationKey[];
+      const present = new Set(
+        (await this.repository.findCurrent(catalogKeys, tx)).map(
+          (row) => row.key,
+        ),
+      );
       return this.reader.getSnapshot(
-        Object.keys(CONFIGURATION_DEFINITIONS) as ConfigurationKey[],
+        catalogKeys.filter(
+          (key) =>
+            "defaultValue" in CONFIGURATION_DEFINITIONS[key] ||
+            present.has(key),
+        ),
         tx,
       );
     });

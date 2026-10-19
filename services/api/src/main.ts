@@ -1,5 +1,6 @@
 import "reflect-metadata";
 import { NestFactory } from "@nestjs/core";
+import type { NestExpressApplication } from "@nestjs/platform-express";
 import { ConfigService } from "@nestjs/config";
 import {
   Logger as NestLogger,
@@ -12,11 +13,15 @@ import { setupSwagger } from "./configs/swagger.config";
 import { AppModule } from "./app.module";
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, {
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     bufferLogs: true,
     rawBody: true,
   });
   const config = app.get(ConfigService);
+  app.useBodyParser("json", {
+    type: ["application/json", "application/webhook+json"],
+    limit: "100kb",
+  });
   app.useLogger(app.get(Logger));
   app.use(helmet());
   app.setGlobalPrefix("api");
