@@ -57,12 +57,12 @@ export function ApiSendProposalScreen({
     if (!allowed || query.isFetching || command.uncertain) return;
     const body: ProposalInput = direct
       ? {
-          message: hints.message,
+          ...hints,
           sourceType: "DIRECT_SEARCH",
           recipientSharingSkillId: sharingSkillId!,
         }
       : {
-          message: hints.message,
+          ...hints,
           sourceType: "LEARNING_REQUEST",
           learningRequestId: requestId!,
         };
@@ -75,6 +75,7 @@ export function ApiSendProposalScreen({
     <FeaturePage
       title={direct ? "Lời mời trao đổi" : "Gửi đề xuất"}
       demo={false}
+      keyboardDismissMode="none"
       back={
         requestId
           ? { pathname: "/request/[id]", params: { id: requestId } }

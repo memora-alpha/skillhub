@@ -48,10 +48,12 @@ export function ApiProposalSummary({
         <>
           {proposal.exchangeTypeHint && (
             <Copy>
-              Hình thức gợi ý:{" "}
+              Gợi ý:{" "}
               {proposal.exchangeTypeHint === "TWO_WAY"
-                ? "Trao đổi hai chiều"
-                : "Học một chiều"}
+                ? "Trao đổi"
+                : sent
+                  ? "Tôi muốn dạy bạn"
+                  : "Người gửi muốn dạy bạn"}
             </Copy>
           )}
           {proposal.proposedCredit !== null && (
@@ -65,12 +67,9 @@ export function ApiProposalSummary({
               Thời lượng gợi ý: {proposal.proposedDurationMinutes} phút
             </Copy>
           )}
-          {proposal.candidateSlots.map((slot) => (
-            <Copy key={`${slot.startAt}-${slot.endAt}`}>
-              {new Date(slot.startAt).toLocaleString("vi-VN")} —{" "}
-              {new Date(slot.endAt).toLocaleString("vi-VN")}
-            </Copy>
-          ))}
+          {proposal.candidateSlots && (
+            <Copy>Lịch rảnh gợi ý: {proposal.candidateSlots}</Copy>
+          )}
           <Copy muted>
             Hết hạn: {new Date(proposal.expiresAt).toLocaleString("vi-VN")}.
           </Copy>
