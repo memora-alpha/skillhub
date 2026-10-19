@@ -20,7 +20,6 @@ export function VerificationFields({
   let submitLabel = "Gửi yêu cầu xác minh";
   if (model.preparing) submitLabel = "Đang xử lý bằng chứng…";
   else if (model.waitingScan) submitLabel = "Kiểm tra và gửi yêu cầu";
-  else if (model.action.pending) submitLabel = "Đang gửi yêu cầu…";
   return (
     <View style={{ gap: 14 }}>
       <EvidencePicker

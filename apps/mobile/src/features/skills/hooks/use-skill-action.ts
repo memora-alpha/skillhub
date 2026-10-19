@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from "react";
-import { BackHandler } from "react-native";
+import { BackHandler, Platform } from "react-native";
 import { useFocusEffect } from "expo-router";
 import { randomUUID } from "expo-crypto";
 import { useToast } from "@/providers/ToastProvider";
@@ -7,7 +7,10 @@ import { useSkills } from "../context/SkillsProvider";
 import { createMutationIntent } from "../utils/mutation-intent";
 import { skillError } from "../utils/skill-errors";
 
-export function useSkillAction({ notifySuccess = true } = {}) {
+export function useSkillAction({
+  notifySuccess = true,
+  canAct = () => true,
+}: { notifySuccess?: boolean; canAct?: () => boolean } = {}) {
   const { isCurrent, refresh } = useSkills();
   const { showToast } = useToast();
   const focused = useRef(false);
@@ -19,17 +22,21 @@ export function useSkillAction({ notifySuccess = true } = {}) {
     useCallback(() => {
       focused.current = true;
       if (!lock.current) setPending(false);
-      const back = BackHandler.addEventListener(
-        "hardwareBackPress",
-        () => lock.current,
-      );
+      const back =
+        Platform.OS === "android"
+          ? BackHandler.addEventListener(
+              "hardwareBackPress",
+              () => lock.current,
+            )
+          : undefined;
       return () => {
         focused.current = false;
-        back.remove();
+        back?.remove();
       };
     }, []),
   );
-  const current = () => focused.current && isCurrent();
+  const visible = () => focused.current && isCurrent();
+  const current = () => visible() && canAct();
   function notifySaved(
     refreshed: boolean | undefined,
     successMessage?: string,
@@ -74,7 +81,7 @@ export function useSkillAction({ notifySuccess = true } = {}) {
       }
     } finally {
       lock.current = false;
-      if (current()) setPending(false);
+      if (visible()) setPending(false);
     }
   }
   return {

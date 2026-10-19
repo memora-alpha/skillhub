@@ -55,12 +55,6 @@ export function AuthNavigator() {
         <Stack.Screen name="account-details" />
         <Stack.Screen name="ui" />
         <Stack.Screen name="states/[state]" />
-        <Stack.Screen name="skills/index" />
-        <Stack.Screen name="skills/new" />
-        <Stack.Screen name="skills/[id]/index" />
-        <Stack.Screen name="skills/[id]/edit" />
-        <Stack.Screen name="skills/[id]/evidence" />
-        <Stack.Screen name="skills/history" />
         <Stack.Screen name="requests/index" />
         <Stack.Screen name="requests/new" />
         <Stack.Screen name="requests/[id]/index" />

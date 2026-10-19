@@ -1,10 +1,4 @@
 import type { ReactNode } from "react";
-import {
-  ProfileSkillSection,
-  SamplePublicSkillRow,
-  ProfileSkillMore,
-  useProfileSkillWindow,
-} from "@/features/skills";
 import { StyleSheet, Text, View } from "react-native";
 import { ProfileHero } from "./ProfileHero";
 import {
@@ -18,14 +12,7 @@ import {
   profileStatColors,
 } from "../constants/theme";
 import { fonts, typography } from "@/constants/theme";
-import type { PublicProfile, SkillLevel } from "../types/profile";
-
-const levels: Record<SkillLevel, string> = {
-  BEGINNER: "Cơ bản",
-  INTERMEDIATE: "Trung cấp",
-  ADVANCED: "Nâng cao",
-  EXPERT: "Chuyên gia",
-};
+import type { PublicProfile } from "../types/profile";
 
 export function ProfileSummary({
   profile,
@@ -84,52 +71,6 @@ export function ProfileAbout({ bio }: Readonly<{ bio: string }>) {
         {bio.trim() ? bio : "Chưa có giới thiệu."}
       </Text>
     </ProfileSection>
-  );
-}
-
-export function ProfileSkills({
-  profile,
-  onManage,
-  available = true,
-}: Readonly<{
-  profile: PublicProfile;
-  onManage?: () => void;
-  available?: boolean;
-}>) {
-  const preview = useProfileSkillWindow({
-    count: available ? profile.sharingSkills.length : 0,
-  });
-  let content: ReactNode;
-  if (!available)
-    content = (
-      <Text style={profileStyles.caption}>
-        Danh sách kỹ năng chưa được kết nối.
-      </Text>
-    );
-  else if (!profile.sharingSkills.length)
-    content = (
-      <Text style={profileStyles.caption}>Chưa có kỹ năng chia sẻ.</Text>
-    );
-  else
-    content = profile.sharingSkills
-      .slice(0, preview.visible)
-      .map((skill) => (
-        <SamplePublicSkillRow
-          key={skill.id}
-          name={skill.name}
-          level={levels[skill.level]}
-          status={skill.verificationStatus}
-          description={skill.description}
-          experienceYears={skill.experienceYears}
-        />
-      ));
-  return (
-    <ProfileSkillSection onManage={onManage}>
-      {content}
-      {preview.hasMore && (
-        <ProfileSkillMore onPress={() => void preview.showMore()} />
-      )}
-    </ProfileSkillSection>
   );
 }
 

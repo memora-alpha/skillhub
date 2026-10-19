@@ -66,7 +66,7 @@ export function OnboardingScreen() {
               Thêm kỹ năng và gửi bằng chứng nếu muốn xác minh. Kỹ năng chưa xác
               minh được ghi nhãn rõ ràng.
             </Copy>
-            <RouteButton href="/skills/new">Thêm kỹ năng mẫu</RouteButton>
+            <RouteButton href="/my-skills/new">Thêm kỹ năng</RouteButton>
           </>
         )}
         {step === 3 && (
@@ -188,7 +188,7 @@ export function PreferencesScreen() {
             Email đăng nhập, thông tin thanh toán, bằng chứng và tệp tài liệu
             riêng tư không được hiển thị trên hồ sơ công khai.
           </Copy>
-          <RouteButton href="/skills">Quản lý hiển thị kỹ năng mẫu</RouteButton>
+          <RouteButton href="/my-skills">Quản lý hiển thị kỹ năng</RouteButton>
           <RouteButton secondary href="/profile">
             Xem hồ sơ của tôi
           </RouteButton>

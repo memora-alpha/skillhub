@@ -31,10 +31,12 @@ export function VerificationHistory<T extends object>({
   const query = useVerificationHistory(id);
   const router = useRouter();
   const { submittedVerifications } = useSkills();
-  const items = verificationItems(
-    uniqueItems(query.data?.pages),
-    submittedVerifications.get(id),
-  );
+  const items = query.readDenied
+    ? []
+    : verificationItems(
+        uniqueItems(query.data?.pages),
+        submittedVerifications.get(id),
+      );
   return (
     <FlatList
       data={items}
@@ -44,10 +46,12 @@ export function VerificationHistory<T extends object>({
       onRefresh={onRefresh ?? (() => void query.refetch())}
       ListHeaderComponent={
         <View style={{ gap: 12, marginBottom: 16 }}>
-          <Header
-            {...headerProps}
-            waiting={items.some((item) => item.status === "PENDING")}
-          />
+          {!query.readDenied && (
+            <Header
+              {...headerProps}
+              waiting={items.some((item) => item.status === "PENDING")}
+            />
+          )}
           <Text style={skillStyles.heading}>Lịch sử xác minh</Text>
           <QueryFeedback
             query={query}
@@ -79,7 +83,7 @@ export function VerificationHistory<T extends object>({
             icon="arrow"
             disabled={pending}
             onPress={() => {
-              if (locked?.()) return;
+              if (locked?.() || !query.canRead()) return;
               router.push({
                 pathname:
                   "/my-skills/[sharingSkillId]/verifications/[verificationId]",

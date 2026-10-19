@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import { useAuthSession } from "@/features/auth";
-import { SkillsPreviewProvider } from "@/features/skills";
 import { RequestsProvider } from "@/features/learning-requests";
 import { PathsPreviewProvider } from "@/features/learning-paths";
 import { SessionsPreviewProvider } from "@/features/sessions";
@@ -11,20 +10,18 @@ import { ProductPreviewProvider } from "@/features/product-shell";
 export function UiPreviewProvider({ children }: { children: ReactNode }) {
   const { session } = useAuthSession();
   return (
-    <SkillsPreviewProvider key={session?.userId ?? "guest"}>
-      <RequestsProvider>
-        <PathsPreviewProvider>
-          <SessionsPreviewProvider>
-            <MaterialsPreviewProvider>
-              <ReportsPreviewProvider>
-                <CommunityPreviewProvider>
-                  <ProductPreviewProvider>{children}</ProductPreviewProvider>
-                </CommunityPreviewProvider>
-              </ReportsPreviewProvider>
-            </MaterialsPreviewProvider>
-          </SessionsPreviewProvider>
-        </PathsPreviewProvider>
-      </RequestsProvider>
-    </SkillsPreviewProvider>
+    <RequestsProvider key={session?.userId ?? "guest"}>
+      <PathsPreviewProvider>
+        <SessionsPreviewProvider>
+          <MaterialsPreviewProvider>
+            <ReportsPreviewProvider>
+              <CommunityPreviewProvider>
+                <ProductPreviewProvider>{children}</ProductPreviewProvider>
+              </CommunityPreviewProvider>
+            </ReportsPreviewProvider>
+          </MaterialsPreviewProvider>
+        </SessionsPreviewProvider>
+      </PathsPreviewProvider>
+    </RequestsProvider>
   );
 }

@@ -16,7 +16,7 @@ import {
 import { withSubmittedVerification } from "../utils/verification-state";
 import { useSkillReadFocus } from "./use-skill-read-focus";
 import { useEffect } from "react";
-import { AppError } from "@/lib/http/errors";
+import { usePrivateSkillQuery } from "./use-private-skill-query";
 
 export function validId(value?: string | string[]) {
   return typeof value === "string" && z.uuid().safeParse(value).success
@@ -32,7 +32,9 @@ export function useOwnSkills(filter: SkillFilter = "ALL") {
     deletedSkillIds,
     submittedVerifications,
     observeCreatedSkills,
+    privateReads,
   } = useSkills();
+  const key = [...scope, "own", false, filter];
   const query = useInfiniteQuery<
     Page<OwnSkill>,
     Error,
@@ -40,7 +42,7 @@ export function useOwnSkills(filter: SkillFilter = "ALL") {
     readonly unknown[],
     string | undefined
   >({
-    queryKey: [...scope, "own", false, filter],
+    queryKey: key,
     staleTime: 0,
     placeholderData: (previous) =>
       skillListPlaceholder(
@@ -55,103 +57,41 @@ export function useOwnSkills(filter: SkillFilter = "ALL") {
         submittedVerifications,
       ),
     initialPageParam: undefined as string | undefined,
-    queryFn: async ({ pageParam, signal }) => {
-      return filteredSkillPage(
-        async (cursor) => {
-          const result = await api.own(false, cursor, signal);
-          assertCurrent();
-          observeCreatedSkills(
-            result.data,
-            !cursor && !result.pagination.hasMore,
-          );
-          return {
-            ...result,
-            data: result.data
-              .map((skill) =>
-                withSubmittedVerification(skill, submittedVerifications),
-              )
-              .filter(
-                (skill) => !skill.archivedAt && !deletedSkillIds.has(skill.id),
-              ),
-          };
-        },
-        filter,
-        pageParam,
-      );
-    },
+    queryFn: ({ pageParam, signal }) =>
+      privateReads.read(key, async () => {
+        return filteredSkillPage(
+          async (cursor) => {
+            const result = await api.own(false, cursor, signal);
+            assertCurrent();
+            observeCreatedSkills(
+              result.data,
+              !cursor && !result.pagination.hasMore,
+            );
+            return {
+              ...result,
+              data: result.data
+                .map((skill) =>
+                  withSubmittedVerification(skill, submittedVerifications),
+                )
+                .filter(
+                  (skill) =>
+                    !skill.archivedAt && !deletedSkillIds.has(skill.id),
+                ),
+            };
+          },
+          filter,
+          pageParam,
+        );
+      }),
     getNextPageParam: (last) =>
       last.pagination.hasMore
         ? (last.pagination.nextCursor ?? undefined)
         : undefined,
   });
   useSkillReadFocus(query.refetch);
-  return query;
+  return usePrivateSkillQuery(key, query);
 }
-export function usePublicSkills(targetUserId?: string) {
-  const {
-    api,
-    scope,
-    userId: ownUserId,
-    assertCurrent,
-    deletedSkillIds,
-  } = useSkills();
-  const userId = targetUserId ?? ownUserId;
-  const query = useInfiniteQuery({
-    queryKey: [...scope, "public", userId],
-    staleTime: 0,
-    initialPageParam: undefined as string | undefined,
-    queryFn: async ({ pageParam, signal }) => {
-      let result;
-      try {
-        result = await api.publicSkills(userId, pageParam, signal);
-      } catch (error) {
-        assertCurrent();
-        if (
-          userId !== ownUserId &&
-          error instanceof AppError &&
-          (error.status === 403 || error.status === 404)
-        )
-          return {
-            data: [],
-            pagination: { limit: 20, hasMore: false, nextCursor: null },
-          };
-        throw error;
-      }
-      assertCurrent();
-      return {
-        ...result,
-        data: result.data.filter(
-          (skill) => userId !== ownUserId || !deletedSkillIds.has(skill.id),
-        ),
-      };
-    },
-    getNextPageParam: (last) =>
-      last.pagination.hasMore
-        ? (last.pagination.nextCursor ?? undefined)
-        : undefined,
-  });
-  useSkillReadFocus(query.refetch);
-  return query;
-}
-export function useCatalog(search: string, enabled = true) {
-  const { api, scope, assertCurrent } = useSkills();
-  const q = search.trim().normalize("NFC");
-  const length = [...q].length;
-  return useInfiniteQuery({
-    queryKey: [...scope, "catalog", q],
-    enabled: enabled && (!length || (length >= 2 && length <= 100)),
-    initialPageParam: undefined as string | undefined,
-    queryFn: async ({ pageParam, signal }) => {
-      const result = await api.catalog(q || undefined, pageParam, signal);
-      assertCurrent();
-      return result;
-    },
-    getNextPageParam: (last) =>
-      last.pagination.hasMore
-        ? (last.pagination.nextCursor ?? undefined)
-        : undefined,
-  });
-}
+export { usePublicSkills, useCatalog } from "./use-public-skill-queries";
 export function useOwnSkill(id: string | null) {
   const {
     api,
@@ -161,67 +101,78 @@ export function useOwnSkill(id: string | null) {
     submittedVerifications,
     observeCreatedSkills,
     recentlyCreatedSkills,
+    privateReads,
   } = useSkills();
+  const key = [...scope, "detail", id];
   const query = useQuery({
-    queryKey: [...scope, "detail", id],
+    queryKey: key,
     enabled: !!id && !deletedSkillIds.has(id),
     staleTime: 0,
-    queryFn: async ({ signal }) => {
-      const result = await api.findOwn(id!, signal);
-      assertCurrent();
-      if (result) observeCreatedSkills([result]);
-      else recentlyCreatedSkills.delete(id!);
-      return deletedSkillIds.has(id!) || !result
-        ? null
-        : withSubmittedVerification(result, submittedVerifications);
-    },
+    queryFn: ({ signal }) =>
+      privateReads.read(key, async () => {
+        const result = await api.findOwn(id!, signal);
+        assertCurrent();
+        if (result) observeCreatedSkills([result]);
+        else recentlyCreatedSkills.delete(id!);
+        return deletedSkillIds.has(id!) || !result
+          ? null
+          : withSubmittedVerification(result, submittedVerifications);
+      }),
   });
   useSkillReadFocus(query.refetch, !!id && !deletedSkillIds.has(id));
-  return query;
+  return usePrivateSkillQuery(key, query);
 }
 export function useVerificationHistory(id: string | null) {
-  const { api, scope, assertCurrent, observeVerifications } = useSkills();
+  const { api, scope, assertCurrent, observeVerifications, privateReads } =
+    useSkills();
+  const key = [...scope, "history", id];
   const query = useInfiniteQuery({
-    queryKey: [...scope, "history", id],
+    queryKey: key,
     enabled: !!id,
     staleTime: 0,
     initialPageParam: undefined as string | undefined,
-    queryFn: async ({ pageParam, signal }) => {
-      const result = await api.history(id!, pageParam, signal);
-      assertCurrent();
-      return result;
-    },
+    queryFn: ({ pageParam, signal }) =>
+      privateReads.read(key, async () => {
+        const result = await api.history(id!, pageParam, signal);
+        assertCurrent();
+        return result;
+      }),
     getNextPageParam: (last) =>
       last.pagination.hasMore
         ? (last.pagination.nextCursor ?? undefined)
         : undefined,
   });
+  const result = usePrivateSkillQuery(key, query);
   useEffect(() => {
-    observeVerifications(query.data?.pages.flatMap((page) => page.data) ?? []);
-  }, [query.data, observeVerifications]);
+    observeVerifications(result.data?.pages.flatMap((page) => page.data) ?? []);
+  }, [result.data, observeVerifications]);
   useSkillReadFocus(query.refetch, !!id);
-  return query;
+  return result;
 }
 export function useVerification(
   id: string | null,
   verificationId: string | null,
 ) {
-  const { api, scope, assertCurrent, observeVerifications } = useSkills();
+  const { api, scope, assertCurrent, observeVerifications, privateReads } =
+    useSkills();
+  const key = [...scope, "verification", id, verificationId];
   const query = useQuery({
-    queryKey: [...scope, "verification", id, verificationId],
+    queryKey: key,
     enabled: !!id && !!verificationId,
     staleTime: 0,
-    queryFn: async ({ signal }) => {
-      const result = await api.verification(id!, verificationId!, signal);
-      assertCurrent();
-      return result;
-    },
+    queryFn: ({ signal }) =>
+      privateReads.read(key, async () => {
+        const result = await api.verification(id!, verificationId!, signal);
+        assertCurrent();
+        return result;
+      }),
   });
+  const result = usePrivateSkillQuery(key, query);
   useEffect(() => {
-    if (query.data) observeVerifications([query.data]);
-  }, [query.data, observeVerifications]);
+    if (result.data) observeVerifications([result.data]);
+  }, [result.data, observeVerifications]);
   useSkillReadFocus(query.refetch, !!id && !!verificationId);
-  return query;
+  return result;
 }
 export function uniqueItems<T extends { id: string }>(pages?: { data: T[] }[]) {
   return [

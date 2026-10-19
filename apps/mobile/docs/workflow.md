@@ -1,6 +1,6 @@
 # Quy trình phát triển mobile
 
-Quy trình này thay Spec Kit mobile theo quyết định người dùng trong yêu cầu migration. Không khôi phục tooling từ archive để chọn việc. Backend có quy trình riêng.
+Quy trình này thay Spec Kit mobile. Không khôi phục tooling từ archive để chọn việc. Backend có quy trình riêng.
 
 Đọc theo [bản đồ docs](README.md), tiếp tục [work](work/README.md) được người dùng yêu cầu; [contributing](contributing.md) sở hữu setup/commands.
 
@@ -70,7 +70,7 @@ Những điểm nghiệp vụ cần đặc biệt bảo toàn, đối chiếu SR
 - `TWO_WAY` và `ONE_WAY` có cấu trúc LearningPlan và luồng Credit khác nhau.
 - Lịch xác nhận cùng version; completion và settlement theo quy tắc backend, không suy ra từ UI.
 - Credit/withdrawal, privacy hồ sơ và evidence, verification chuyên môn và malware scan có phạm vi/trạng thái khác nhau.
-- Không đưa Google Play billing, subscription hoặc activation code từ Memora vào SkillHub nếu sản phẩm không có yêu cầu tương ứng.
+- Chỉ triển khai billing, subscription hoặc activation code khi SRS và contract sản phẩm có yêu cầu tương ứng.
 
 ## 6. Kiểm tra và bằng chứng
 
@@ -108,8 +108,8 @@ Definition of Done cho từng phạm vi:
 - Không sửa lịch sử để làm mất giới hạn hoặc biến kết quả cũ thành kết quả mới. Ghi đính chính khi cần.
 - Thời điểm dùng múi giờ Việt Nam, ISO 8601 có offset `+07:00`. Lấy từ đồng hồ hệ thống/công cụ, không tự dựng thời gian.
 - Trên PowerShell có thể dùng `(Get-Date).ToUniversalTime().AddHours(7).ToString('yyyy-MM-ddTHH:mm:ss') + '+07:00'`.
-- Không bắt đăng nhập GitHub để viết docs hoặc làm việc cục bộ. Danh tính `gh` không tự chứng minh người trong chat đã phê duyệt.
-- Nếu có quyết định người dùng, ghi nguồn xác nhận thực tế và thời điểm biết được; không suy đoán login hoặc tự tạo lời duyệt.
+- Review và nghiệm thu được ghi theo kết quả kiểm chứng và nguồn quyết định phù hợp; trạng thái đăng nhập công cụ không thay kết quả review.
+- Ghi kết luận kỹ thuật/sản phẩm cùng tham chiếu issue, PR hoặc ADR khi có; không sao chép prompt hay lịch sử hội thoại vào tài liệu chia sẻ.
 
 ## 8. ADR và khi nào cần hỏi
 
