@@ -1,6 +1,35 @@
 # Validation — Credit & Payment
 
-Updated: 2026-10-18. **Backend QR Payment and recovery guards locally verified; merchant/production and remaining spec009 work Pending.** Recovery tranche đang ở working tree branch `fix/payment-recovery-guards`, chưa commit/push/deploy. Các phần ngày trước phía dưới là lịch sử.
+Updated: 2026-10-19. **Backend QR Payment, recovery guards and cancellation locally verified; merchant/production and remaining spec009 work Pending.** Cancellation changes are local, not pushed/deployed. Các phần ngày trước phía dưới là lịch sử.
+
+## Payment cancellation — 2026-10-19
+
+- Added POST /api/v1/payments/{paymentId}/cancel: live own-only authentication,
+  required Idempotency-Key, no body, standard PaymentResponse/no-store and Swagger.
+  Same key binds paymentId and revalidates live identity/resource on replay.
+- Signed payOS cancel runs outside PostgreSQL transactions, sharing the existing
+  fenced checkout lease with create/recovery. Matching unpaid provider evidence
+  closes CANCELLED/EXPIRED with QR removal, version and durable payment.updated in
+  one transaction. PAID is never downgraded; partial/missing/tampered evidence goes
+  to REVIEW. A new receipt after cancellation goes to REVIEW without Credit.
+- Additive migration `20261019010000_payment_cancellation` adds CANCELLED. Runtime
+  schema regeneration changes only this enum; public event validation accepts it.
+  No wallet/ledger operation is issued by cancellation.
+- **50/50 PostgreSQL integration cases pass, 0 skipped** across cancel, HTTP,
+  persistence, provenance and recovery-guards suites. Includes own-only access,
+  missing key/UUID/revoked session, stable replay, new-key create after cancel,
+  active/stale/concurrent leases, ambiguous CREATED intent, timeout recovery,
+  webhook race, signed PAID/partial evidence, late receipt and event-write rollback.
+  All migrations ran in disposable UUID schemas; fixture cleanup removes them.
+- **15/15 protocol/transport/SSE cases pass, 0 skipped** across payos, transport
+  and connections/events suites. Cancel transport checks fixed origin/POST/auth,
+  signature, quote mismatch, malformed evidence and non-success provider response.
+- API lint, Prisma generate + TypeScript check, Nest build, focused Prettier and
+  git diff --check pass. Initial sandbox integration attempts failed with local
+  PostgreSQL EACCES; rerun with local access passed the complete suite above.
+- Provider HTTP is mocked; no live merchant cancellation/payment, target database
+  migration, deployment or frontend changes. Apply the enum migration before the
+  new binary and coordinate clients to handle CANCELLED in reads/cancel/SSE.
 
 ## Payment recovery guards — 2026-10-18
 

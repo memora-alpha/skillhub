@@ -8,6 +8,7 @@ import { PaymentCheckoutWorker } from "../../dist/modules/payments/application/s
 import { PaymentReceiptsService } from "../../dist/modules/payments/application/services/payment-receipts.service.js";
 import { PaymentCreationPolicy } from "../../dist/modules/payments/application/services/payment-creation-policy.js";
 import { CreatePaymentUseCase } from "../../dist/modules/payments/application/use-cases/create-payment.use-case.js";
+import { CancelPaymentUseCase } from "../../dist/modules/payments/application/use-cases/cancel-payment.use-case.js";
 import {
   ReadPaymentsUseCase,
   PaymentCursor,
@@ -103,16 +104,29 @@ export async function createPaymentFixture() {
     reads,
     policy,
   );
+  const cancel = new CancelPaymentUseCase(f.commands, f.actors, worker, reads);
   const providerOrders = new Map();
   const requests = [];
   const originalFetch = globalThis.fetch;
   let failCreate = 0,
     failLookup = 0,
-    afterCreate;
+    failCancel = 0,
+    afterCreate,
+    beforeCancel;
   globalThis.fetch = async (url, options) => {
     if (!String(url).startsWith("https://api-merchant.payos.vn/"))
       return originalFetch(url, options);
     requests.push({ url: String(url), ...options });
+    if (String(url).endsWith("/cancel")) {
+      const orderCode = String(url).split("/").at(-2);
+      const order = providerOrders.get(orderCode);
+      if (!order) return Response.json({ code: "not-found" });
+      if (beforeCancel) await beforeCancel(order);
+      if (order.status === "PENDING" && order.amountPaid === 0)
+        order.status = "CANCELLED";
+      if (failCancel-- > 0) throw new Error("injected-after-provider-cancel");
+      return Response.json(sign(order));
+    }
     if (options.method === "POST") {
       const input = JSON.parse(options.body);
       const existing = providerOrders.get(String(input.orderCode));
@@ -188,6 +202,7 @@ export async function createPaymentFixture() {
     reads,
     policy,
     create,
+    cancel,
     order,
     webhook,
     due,
@@ -198,6 +213,12 @@ export async function createPaymentFixture() {
     },
     set failLookup(value) {
       failLookup = value;
+    },
+    set failCancel(value) {
+      failCancel = value;
+    },
+    set beforeCancel(value) {
+      beforeCancel = value;
     },
     set afterCreate(value) {
       afterCreate = value;

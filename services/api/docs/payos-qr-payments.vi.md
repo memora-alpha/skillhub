@@ -1,6 +1,6 @@
 # Nạp Credit bằng QR payOS
 
-Ngày cập nhật: 2026-10-18. Phạm vi: backend `services/api`.
+Ngày cập nhật: 2026-10-19. Phạm vi: backend `services/api`.
 Code có API/Swagger, transport payOS, lưu đơn/biên nhận, posting TOP_UP,
 nguồn Credit, recovery và event SSE. Web/mobile cần tích hợp UI riêng.
 Kiểm thử provider giả lập không thay thế giao dịch thật với merchant.
@@ -38,6 +38,7 @@ Swagger chỉ được bật khi `NODE_ENV` khác `production`; kiểm đúng m�
 | API | Xác thực | Mục đích |
 | --- | --- | --- |
 | `POST /api/v1/payments` | Bearer + Idempotency-Key | Tạo đơn own; 201 mới, 200 replay |
+| `POST /api/v1/payments/{paymentId}/cancel` | Bearer + Idempotency-Key | Không body; hủy own CREATED/PENDING sau signed provider confirmation |
 | `GET /api/v1/payments?limit=20&status=PENDING` | Bearer | Liệt kê own theo cursor |
 | `GET /api/v1/payments/{id}` | Bearer | Trạng thái/quote/QR còn hiệu lực |
 | `GET /api/v1/payments/creation-policy` | Bearer | Khả năng tạo mới và own blocking ID; không gọi provider |
@@ -90,6 +91,17 @@ không chen vào trang sau. Trạng thái đơn vẫn có thể thay đổi gi�
 Đọc đơn người khác trả 404, token bị thu hồi không được replay hoặc đọc tiếp.
 
 ## FE và SSE
+
+Hủy: gọi `POST /api/v1/payments/{paymentId}/cancel` không body. Trả200
+PaymentResponse với CANCELLED/checkout:null (hoặc EXPIRED nếu provider đã hết hạn).
+Gọi lại đơn CANCELLED an toàn. 409 PAYMENT_ALREADY_PAID/PAYMENT_REVIEW_REQUIRED:
+đọc detail và theo trạng thái backend; không hiển thị hủy thành công.
+409 PAYMENT_CHECKOUT_BUSY hoặc503 PAYMENT_CANCELLATION_UNCONFIRMED: đọc lại
+detail rồi retry cùng Idempotency-Key; timeout không là bằng chứng đã hủy.
+Sau hủy thành công có payment.updated; GET creation-policy trước khi tạo đơn mới.
+Biên nhận chuyển tiền mới sau CANCELLED đi REVIEW, không tự cộng/hoàn tiền.
+Deploy phải migrate `20261019010000_payment_cancellation` trước khi chạy code;
+client cần xử lý thêm status CANCELLED. Merchant cancel thật vẫn cần kiểm chứng.
 
 Render dữ liệu `checkout.qrCode` bằng QR renderer của client; không coi chuỗi này
 là URL ảnh, không mở checkout của payOS. Nếu mất kết nối, dùng GET detail để

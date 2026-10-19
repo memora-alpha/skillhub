@@ -262,7 +262,7 @@ model("CreditTransaction", (block) =>
   ),
 );
 schema = schema.replace(/enum PaymentStatus \{[\s\S]*?\n\}/, (block) =>
-  fields(block, "  REVIEW"),
+  fields(block, "  REVIEW\n  CANCELLED"),
 );
 model("Payment", (block) =>
   fields(

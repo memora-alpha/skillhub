@@ -227,7 +227,10 @@ export class PayosGateway extends PaymentGateway {
       )
     )
       throw new UnauthorizedException("PAYMENT_SIGNATURE_INVALID");
-    const data = lookupData.parse(envelope.data.data);
+    const parsed = lookupData.safeParse(envelope.data.data);
+    if (!parsed.success)
+      throw new BadRequestException("INVALID_PAYMENT_LOOKUP");
+    const data = parsed.data;
     if (
       envelope.data.code !== "00" ||
       String(data.orderCode) !== quote.orderCode ||
@@ -237,6 +240,10 @@ export class PayosGateway extends PaymentGateway {
     return {
       paymentLinkId: data.id,
       status: data.status,
+      hasPayment:
+        data.amountPaid !== 0 ||
+        data.amountRemaining !== data.amount ||
+        data.transactions.length > 0,
       exact:
         data.amountPaid === data.amount &&
         data.amountRemaining === 0 &&

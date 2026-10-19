@@ -239,6 +239,7 @@ export class PaymentReceiptsService {
       return "PAYMENT_ORDER_UNKNOWN";
     if (payment.status === "PAID") return "PAYMENT_ALREADY_PAID";
     if (payment.status === "REVIEW") return "PAYMENT_REVIEW_REQUIRED";
+    if (payment.status === "CANCELLED") return "PAYMENT_CANCELLED";
     if (event.outcome !== "PAID" || event.currency !== "VND")
       return "PAYMENT_OUTCOME_UNSUPPORTED";
     if (quoteDigest(payment, checkout) !== checkout.quoteDigest)

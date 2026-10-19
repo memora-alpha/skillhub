@@ -35,6 +35,7 @@ import {
 import { paginated, success } from "../../../../shared/http/response";
 import { skillCommand } from "../../../skills/presentation/http/skills.controller";
 import { CreatePaymentUseCase } from "../../application/use-cases/create-payment.use-case";
+import { CancelPaymentUseCase } from "../../application/use-cases/cancel-payment.use-case";
 import { ReadPaymentsUseCase } from "../../application/use-cases/read-payments.use-case";
 import { PaymentReceiptsService } from "../../application/services/payment-receipts.service";
 import {
@@ -59,6 +60,7 @@ export class PaymentsController {
   constructor(
     private readonly createPayment: CreatePaymentUseCase,
     private readonly reads: ReadPaymentsUseCase,
+    private readonly cancelPayment: CancelPaymentUseCase,
   ) {}
   @Post()
   @Header("Cache-Control", "no-store")
@@ -113,6 +115,30 @@ export class PaymentsController {
     @Param("id", ParseUUIDPipe) id: string,
   ) {
     return success(await this.reads.detail(principal, id));
+  }
+
+  @Post(":paymentId/cancel")
+  @HttpCode(200)
+  @Header("Cache-Control", "no-store")
+  @ApiHeader({ name: "Idempotency-Key", required: true })
+  @ApiSuccessResponse(200, PaymentResponse)
+  @ApiOperation({
+    summary: "Cancel own unpaid payOS top-up",
+    description:
+      "No body. Verifies the signed payOS response before confirming cancellation. PAID/REVIEW cannot be cancelled. A timeout is not cancellation proof; retry with the same key and read the payment status. An active checkout lease returns 409 PAYMENT_CHECKOUT_BUSY.",
+  })
+  async cancel(
+    @Req() req: IdentityRequest,
+    @Headers("idempotency-key") key: string | undefined,
+    @CurrentIdentity() principal: Principal,
+    @Param("paymentId", ParseUUIDPipe) paymentId: string,
+  ) {
+    return success(
+      await this.cancelPayment.execute(
+        skillCommand(req, key, principal),
+        paymentId,
+      ),
+    );
   }
 }
 @ApiTags("payments")

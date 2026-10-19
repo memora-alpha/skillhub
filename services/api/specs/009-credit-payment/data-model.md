@@ -1,5 +1,12 @@
 # Data Model — Credit & Payment
 
+Cancellation amendment 2026-10-19: additive migration
+`20261019010000_payment_cancellation` adds PaymentStatus.CANCELLED. Checkout
+continues to use CLOSED; no new table/column or wallet mutation is required.
+CREATED/PENDING -> CANCELLED requires signed matching provider evidence with no
+payment/transactions. CANCELLED -> REVIEW on a new bank receipt; no automatic
+Credit/refund. Same-state replay has no new event/version; PAID cannot downgrade.
+
 Recovery amendment 2026-10-18: Payment bổ sung nullable `creationKeyDigest` và
 `creationFingerprint` (SHA256 hex); unique `(userId,creationKeyDigest)` và index
 owner/status/time/ID. Nullable chỉ để giữ legacy rows thiếu evidence. Migration
@@ -61,7 +68,7 @@ Row SQL checks bảo vệ nonnegative balances/positive magnitude/allocation bou
 | PAID            | PAID     | Valid replay; stale failure/expiry không downgrade                                                            |
 | PAID            | REFUNDED | Không active MVP; G06 và compensating ledger, không chỉ đổi enum                                              |
 
-Receipt/intent trạng thái kỹ thuật khác Payment business status. REVIEW ở receipt/finding, không tự thêm vào Payment enum. payOS checkout dùng server-side REST create và verified response; UNKNOWN cần lookup/reconcile bằng cùng orderCode/paymentLinkId. Không cấp orderCode mới khi timeout hoặc coi request prepared là provider PENDING.
+Receipt/intent trạng thái kỹ thuật khác Payment business status. REVIEW có ở Payment và receipt/finding để giữ các đơn cần đối soát, không cho tạo đơn thay thế ngay. payOS checkout dùng server-side REST create và verified response; UNKNOWN cần lookup/reconcile bằng cùng orderCode/paymentLinkId. Không cấp orderCode mới khi timeout hoặc coi request prepared là provider PENDING.
 
 ## Financial transitions
 
