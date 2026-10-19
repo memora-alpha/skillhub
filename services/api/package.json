@@ -3,6 +3,9 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
+    "test:learning-sessions": "nest build && node --test test/learning-sessions/*.test.mjs",
+    "livekit:configure": "node scripts/configure-livekit.mjs",
+    "test:learning-sessions:integration": "node test/require-integration-env.mjs && nest build && node --test --test-concurrency=1 test/learning-sessions/integration/*.test.mjs",
     "predev": "prisma generate",
     "dev": "nest start --watch",
     "prebuild": "prisma generate",
@@ -89,6 +92,7 @@
     "helmet": "8.2.0",
     "html-entities": "2.6.0",
     "ioredis": "5.11.0",
+    "livekit-server-sdk": "^2.19.1",
     "mongoose": "8.19.0",
     "nestjs-pino": "4.6.0",
     "nodemailer": "^10.0.13",

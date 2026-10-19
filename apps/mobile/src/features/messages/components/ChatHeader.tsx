@@ -9,11 +9,18 @@ export function ChatHeader({
   conversation,
   onBack,
   onAgreement,
-}: {
+  live,
+}: Readonly<{
   conversation: Conversation;
   onBack: () => void;
   onAgreement: () => void;
-}) {
+  live?: boolean;
+}>) {
+  const liveStatus = live
+    ? "Đề xuất đã chấp nhận · Đang cập nhật"
+    : "Đề xuất đã chấp nhận";
+  const status =
+    live === undefined ? "Đang hoạt động · Proposal đã chấp nhận" : liveStatus;
   return (
     <View style={styles.header}>
       <Pressable
@@ -37,15 +44,15 @@ export function ChatHeader({
           {conversation.name}
         </Text>
         <View style={styles.status}>
-          <View style={styles.dot} />
-          <Text style={styles.statusText}>
-            Đang hoạt động · Proposal đã chấp nhận
-          </Text>
+          {live === undefined || live ? <View style={styles.dot} /> : null}
+          <Text style={styles.statusText}>{status}</Text>
         </View>
       </View>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Tạo thỏa thuận"
+        accessibilityLabel={
+          live === undefined ? "Tạo thỏa thuận" : "Lộ trình học"
+        }
         onPress={onAgreement}
         style={({ pressed }) => [styles.agreement, pressed && { opacity: 0.8 }]}
       >
@@ -54,7 +61,9 @@ export function ChatHeader({
           size={iconSizes.inline}
           color={colors.white}
         />
-        <Text style={styles.agreementLabel}>Tạo thỏa thuận</Text>
+        <Text style={styles.agreementLabel}>
+          {live === undefined ? "Tạo thỏa thuận" : "Lộ trình học"}
+        </Text>
       </Pressable>
     </View>
   );

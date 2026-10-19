@@ -2,7 +2,7 @@
 
 ## Hiện trạng
 
-- Cập nhật lúc: 2026-10-19T23:30:40+07:00.
+- Cập nhật lúc: 2026-10-19T23:55:00+07:00.
 - Trạng thái: Source và web fixture Skills đã kiểm tra trên fix/mobile-skills-read-denial; API/native acceptance còn mở. F02 ngoài phạm vi bản sửa.
 - Baseline: docs/mobile-workflow tại ed5a17dd9f1a6d5e45e1b6af33b17dd4518b46fd, source working tree không có diff trước review.
 - Kết luận: F01 đã sửa; lượt rà Skills bổ sung các sửa đổi về public denial, job bằng chứng, navigation, dọn code không dùng và loại Skills demo khỏi runtime ở cuối file. Kết quả không xác nhận toàn app/API/native hoàn chỉnh.
@@ -150,3 +150,10 @@ Không phát hiện nhu cầu tạo lại CRUD/catalog/evidence đã có. Đã b
 - Thêm cờ --experimental-test-module-mocks vào script test và cập nhật [testing guide](../../guides/testing.md). Không thêm dependencies/framework hoặc đổi source ứng dụng. Node22.19.0 là môi trường đã kiểm chứng; module mocking vẫn là API experimental của Node.
 - Giữ nguyên các regression denial/race/late-response/session/JSX. Bổ sung2 tests xác nhận module mỗi lượt giữ dependencies riêng và host imports được phục hồi sau nạp lỗi. Full suite329/329 PASS,0 failed/skipped/cancelled; typecheck, ESLint --max-warnings0 và structure451 source files PASS. Không chạy lại UI/API/native vì thay đổi chỉ thuộc harness, test command và docs.
 - Giới hạn VM của follow-up trước được thay bằng module loading trong source. Không suppress finding hoặc thay Quality Gate; SonarCloud cần analysis mới để xác nhận trạng thái PR41. Chưa chạy scanner hoặc cập nhật trạng thái finding trên server.
+
+## Tích hợp dev25c3334 — 2026-10-19T23:55:00+07:00
+
+- Conflict PublicProfileScreen giữ wrapper của nhánh Skills, chuyển vào màn public profile dùng account/API; không khôi phục màn hồ sơ/kỹ năng mẫu. Backend và lockfile giữ nguyên nội dung từ origin/dev25c3334.
+- Giữ public usePublicSkill export và nút gửi lời mời từ dev. Thêm canRead cho callback điều hướng: regression trước sửa tái hiện callback cũ vẫn chạy sau403; sau sửa bị chặn qua403→503 và chỉ mở lại sau200, self không có nút tự gửi lời mời. Mở rộng module list của harness cho public detail, hiện12 module.
+- dev xóa mock Proposal nhưng còn2 test files import helpers đã xóa, gây2 suite load failures và4 lỗi typecheck. Chuyển proposal-lifecycle sang adapter/form API, thay proposal-request-preview bằng [proposal-route](../../../tests/proposal-route.test.ts). Kiểm version/idempotency, resource/actor/conversation mismatch, server409 không replay, validation và UUID route; không khôi phục local mock transitions hoặc tự suy kết quả server.
+- Full suite332/332 PASS,0 failed/skipped/cancelled; typecheck, ESLint --max-warnings0, structure503 source files, format và diff whitespace PASS. Tests sử dụng fixture response với adapter/source thật; không xác nhận nghiệm thu Proposal/Chat/LiveKit hoặc API/native thật của các thay đổi từ dev.

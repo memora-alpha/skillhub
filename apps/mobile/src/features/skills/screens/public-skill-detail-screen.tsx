@@ -1,5 +1,8 @@
 import { Text } from "react-native";
 import type { ReactNode } from "react";
+import { useRouter } from "expo-router";
+import { Button } from "@/components/Button";
+import { useAuthSession } from "@/features/auth";
 import { FormNotice } from "@/components/FormNotice";
 import { SkillsLayout, skillStyles } from "../components/SkillsLayout";
 import { SkillCard } from "../components/SkillCard";
@@ -14,6 +17,8 @@ export function PublicSkillDetailScreen({
   userId?: string | string[];
   sharingSkillId?: string | string[];
 }>) {
+  const router = useRouter();
+  const { session } = useAuthSession();
   const profileId = validId(userId);
   const id = validId(sharingSkillId);
   const query = usePublicSkill(profileId, id);
@@ -31,6 +36,23 @@ export function PublicSkillDetailScreen({
         {!!query.error && <QueryFeedback query={query} />}
         <Text style={skillStyles.caption}>Thông tin kỹ năng công khai</Text>
         <SkillCard skill={query.data} detail />
+        {profileId !== session?.userId && (
+          <Button
+            variant="craft"
+            onPress={() => {
+              if (!query.canRead()) return;
+              router.push({
+                pathname: "/send-proposal",
+                params: {
+                  userId: profileId!,
+                  sharingSkillId: id!,
+                },
+              });
+            }}
+          >
+            Gửi lời mời trao đổi
+          </Button>
+        )}
       </>
     );
   return (

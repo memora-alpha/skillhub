@@ -19,6 +19,15 @@ const duration = z
 
 /** Only approved business values belong in this catalog. Provider secrets stay in env. */
 export const CONFIGURATION_DEFINITIONS = {
+  "livekit.joinWindow": {
+    schema: z
+      .object({
+        earlyMinutes: z.number().int().safe().nonnegative(),
+        lateMinutes: z.number().int().safe().nonnegative(),
+      })
+      .strict(),
+    mutable: true,
+  },
   "learningPath.minCreditPerUser": {
     schema: z.literal(20),
     mutable: false,
