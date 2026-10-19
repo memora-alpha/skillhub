@@ -48,6 +48,7 @@ Future<String?> showAccountMenu(BuildContext context, AccountSession session) {
             width: 224,
             child: Semantics(
               scopesRoute: true,
+              explicitChildNodes: true,
               namesRoute: true,
               label: 'Menu tài khoản',
               child: Material(
