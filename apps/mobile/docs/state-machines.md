@@ -1,155 +1,58 @@
-# Mobile state machines
+# Trạng thái và chuyển trạng thái cho mobile
 
-Mobile renders backend state. It must not invent transitions or silently infer final business outcomes.
+Đọc khi hiển thị state hoặc thêm command. Nghiệp vụ do [domain rules/SRS](domain-rules.md) quy định, wire enums theo [contracts](contracts/README.md). Mobile không tự infer quyền chuyển trạng thái hoặc financial outcome. Graph nghiệp vụ dự kiến không phải DTO đã tích hợp.
 
-## App connection
+## Đang có — connection và auth runtime
 
-This is client infrastructure state, independent of the business states below.
+[Connection store](../src/lib/network/connection-store.ts) dùng reason:null/offline/unreachable và retrying:boolean. Nhãn AVAILABLE/OFFLINE/UNREACHABLE/RETRYING dưới là diễn giải, không wire enum:
 
-```text
-AVAILABLE -> OFFLINE (device reports no connection)
-AVAILABLE -> UNREACHABLE (HTTP transport cannot reach the API)
-OFFLINE or UNREACHABLE -> RETRYING (manual retry, device reconnect or app resume)
-RETRYING -> AVAILABLE (API responds and read queries finish without a new network failure)
-RETRYING -> OFFLINE or UNREACHABLE (connection still fails)
-```
+    AVAILABLE → OFFLINE (device explicitly disconnected/unreachable)
+    AVAILABLE → UNREACHABLE (transport failure)
+    OFFLINE/UNREACHABLE → RETRYING → AVAILABLE hoặc giữ reason lỗi
 
-OFFLINE, UNREACHABLE and RETRYING use the same app-wide full-screen view. Reconnect
-does not replay mutations. HTTP business errors, cancelled requests and stale
-session responses do not change this state. See [connection behavior](network-state.md).
+Finish retry chỉ clear khi connected và không có failure mới trong ticket. [Network](network-state.md) sở hữu recovery; không replay mutation. SessionController dùng bootstrapping/guest/ready/offline/reauth, generation guards/single-flight tại [auth contract](contracts/auth-account.md); ready không phải AccountStatus.
 
-## Account
+AccountStatus thực tế theo [backend schema](../../../services/api/prisma/schema.prisma), không suy graph account bằng tên UI. PENDING_VERIFICATION là mô tả SRS; registration Redis draft backend chưa là account. Các suspended/deactivated transition trong tài liệu cũ không phải route mobile đã có; admin identity lock/unlock không thuộc scope app người dùng.
 
-```text
-PENDING_VERIFICATION -> ACTIVE
-ACTIVE -> SUSPENDED
-ACTIVE -> LOCKED
-ACTIVE -> DEACTIVATED
-```
+## Đang có — Sharing Skill và files
 
-## Skill Verification
+| Tài nguyên          | State / transition cần hiển thị                                                                                                                               | Nguồn                                                         |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| Badge Sharing Skill | UNVERIFIED/PENDING/VERIFIED/REJECTED; aggregate server                                                                                                        | [skills contract](contracts/skills-evidence.md)               |
+| Verification batch  | PENDING → APPROVED hoặc REJECTED                                                                                                                              | Cùng contract, không biến badge VERIFIED thành batch APPROVED |
+| Evidence approval   | PENDING → APPROVED/REJECTED; APPROVED → REVOKED                                                                                                               | REVOKED không phải badge skill                                |
+| Evidence storage    | UPLOADING → QUARANTINED → SCANNING → READY; retry SCANNING → QUARANTINED; terminal REJECTED/SCAN_FAILED và UPLOAD_FAILED/CLEANUP_PENDING/DELETED theo storage | Only READY submit, unknown không đủ điều kiện                 |
+| Avatar storage      | QUARANTINED → CLEAN hoặc rejected/deleted theo avatar contract                                                                                                | CLEAN công bố ảnh, không review chuyên môn                    |
+| Evidence job client | SENDING/WAITING_SCAN/FAILED/PENDING, chỉ trong session                                                                                                        | Không wire approval và không durable background queue         |
 
-Keep three independent server states; do not use a single linear state machine.
+Approved cũ còn có thể giữ badge VERIFIED khi batch mới PENDING hoặc một file bị revoke; không tính lại aggregate từ một trang history. Poll/cadence/lifecycle thuộc guide và source, không nghĩa là SLA storage.
 
-| Resource            | Current API states                                   |
-| ------------------- | ---------------------------------------------------- |
-| Sharing Skill badge | UNVERIFIED, PENDING, VERIFIED, REJECTED              |
-| Verification batch  | PENDING -> APPROVED or REJECTED                      |
-| Evidence approval   | PENDING -> APPROVED or REJECTED; APPROVED -> REVOKED |
+## Đang có — Learning Request
 
-Current aggregate policy prioritizes remaining APPROVED evidence, then PENDING
-requests, then REJECTED when a submitted batch exists, otherwise UNVERIFIED. Thus a skill
-may stay VERIFIED while a new batch is PENDING or after one file is revoked.
-Mobile reads the aggregate returned by the server; it must not calculate it from
-one page of history. REVOKED is not a Sharing Skill badge value.
+Wire enum mobile: DRAFT,PENDING_MODERATION,OPEN,REJECTED,NEGOTIATING,MATCHED,CLOSED,CANCELLED,EXPIRED từ [types](../src/features/learning-requests/types.ts). Các nhánh tiêu biểu:
 
-Approved evidence does not expire automatically. New batches/files need separate
-review; a malware scan does not approve expertise.
+    DRAFT → OPEN hoặc PENDING_MODERATION (publish/moderation)
+    PENDING_MODERATION → OPEN hoặc REJECTED (server decision)
+    OPEN → NEGOTIATING → MATCHED (workflow khác, không mobile tự set)
+    OPEN → EXPIRED hoặc CANCELLED (policy/command server)
 
-Evidence storage is separate from approval:
+Không phải bảng exhaustive commands cho mọi state. Cancel/edit/re-publish/version/lock/expiry dùng [LR contract](contracts/learning-requests.md) và server response; tồn tại enum CLOSED không chứng minh nút close đã tích hợp. GET effectiveStatus có thể khác persisted status khi expiry worker chậm. Không local-expire NEGOTIATING/MATCHED/CLOSED, không infer moderation reason mới từ last-read cũ.
 
-```text
-UPLOADING -> QUARANTINED -> SCANNING -> READY
-SCANNING -> QUARANTINED (server retry)
-SCANNING -> REJECTED or SCAN_FAILED
-```
+## Payment — contract backend, mobile chỉ preview
 
-UPLOAD_FAILED, CLEANUP_PENDING and DELETED also exist in storage. Only READY
-permits submission; unexpected states are unavailable for submission. Avatar
-CLEAN is a different contract. Follow [spec 004](../specs/004-skills-management/spec.md)
-for polling, retry and session boundaries.
+Backend enums/semantics cần tra [payment contract](contracts/wallet-payments.md); CREATED/PENDING/PAID/REVIEW và trạng thái cuối khác không được suy từ route state pending/success/failed/expired của fixture mobile. checkout:null/expiry/QR suppression không tự terminal. REVIEW không nghĩa failed và không cho tạo replacement an toàn; PAID không bị hạ chỉ vì related refresh lỗi. Chưa có mobile machine tích hợp/durable claim trong checkout này. Không lấy graph dự kiến làm bằng chứng source complete.
 
-## Learning Request
+## Nghiệp vụ đích — Proposal Plan Schedule Session Report
 
-```text
-DRAFT -> PENDING_MODERATION
-DRAFT -> OPEN
-PENDING_MODERATION -> OPEN
-PENDING_MODERATION -> REJECTED
-OPEN -> NEGOTIATING
-NEGOTIATING -> MATCHED
-OPEN -> CANCELLED
-OPEN -> EXPIRED
-```
+Các sơ đồ giữ từ SRS/tài liệu mobile cũ để tra ý nghĩa, chưa xác nhận là backend wire enums/graph đầy đủ. Phải chốt domain contract trước triển khai phase tương ứng:
 
-Rejected requests must display the backend reason.
+| Đối tượng           | Luồng khái niệm                                                                                               | Điều kiện cần bảo toàn                                                    |
+| ------------------- | ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| Proposal/invitation | PENDING → ACCEPTED/REJECTED/WITHDRAWN/EXPIRED                                                                 | Accept chỉ mở negotiation, không Hold/Session; hiện mobile mock           |
+| LearningPlan        | DRAFT → PROPOSED → CONFIRMED; revision → NEEDS_REVISION → PROPOSED version mới                                | Teacher/createdBy sửa, learner confirm đúng version, TWO_WAY2/ONE_WAY1    |
+| LearningPath        | DRAFT → PROPOSED → PARTIALLY_CONFIRMED → CONFIRMED → SCHEDULED → ACTIVE → COMPLETED; nhánh DISPUTED/CANCELLED | Đủ plan và agreement confirmations; completed cần settlement theo backend |
+| ScheduleProposal    | DRAFT → PROPOSED → PARTIALLY_CONFIRMED → LOCKED; NEEDS_REVISION/CANCELLED/EXPIRED                             | A+B cùng version, backend validation/Hold/LOCK nguyên tử                  |
+| Session             | CONFIRMED → READY → ONGOING → AWAITING_CONFIRMATION → COMPLETED; DISPUTED/CANCELLED                           | Cả hai xác nhận; không settle từng buổi; LiveKit join không đủ            |
+| Report/dispute      | OPEN → UNDER_REVIEW → RESOLVED/REJECTED/ESCALATED                                                             | Contract authority/eligibility, có thể block final settlement             |
 
-## Proposal or Invitation
-
-```text
-PENDING -> ACCEPTED
-PENDING -> REJECTED
-PENDING -> WITHDRAWN
-PENDING -> EXPIRED
-```
-
-`ACCEPTED` opens conversation or negotiation only. It does not hold Credit.
-
-## Learning Path
-
-```text
-DRAFT -> PROPOSED
-PROPOSED -> PARTIALLY_CONFIRMED
-PARTIALLY_CONFIRMED -> CONFIRMED
-CONFIRMED -> SCHEDULED
-SCHEDULED -> ACTIVE
-ACTIVE -> COMPLETED
-ACTIVE -> DISPUTED
-ACTIVE -> CANCELLED
-```
-
-`CONFIRMED` requires the correct LearningPlan count for the exchange type, current-version learner confirmations and agreement confirmation from both users.
-
-## Schedule Proposal
-
-```text
-DRAFT -> PROPOSED
-PROPOSED -> PARTIALLY_CONFIRMED
-PARTIALLY_CONFIRMED -> LOCKED
-PROPOSED -> NEEDS_REVISION
-PROPOSED -> CANCELLED
-PROPOSED -> EXPIRED
-```
-
-`LOCKED` requires both users to confirm the same version plus backend validation and Credit hold.
-
-## Session
-
-```text
-CONFIRMED -> READY
-READY -> ONGOING
-ONGOING -> AWAITING_CONFIRMATION
-AWAITING_CONFIRMATION -> COMPLETED
-AWAITING_CONFIRMATION -> DISPUTED
-CONFIRMED -> CANCELLED
-```
-
-`COMPLETED` requires both users to confirm. It does not settle Credit per session.
-
-## Credit Transaction
-
-Use backend transaction status and type as returned. Mobile must not rewrite ledger history or compute final settlement.
-
-Important transaction concepts:
-
-- `TOP_UP`
-- `HOLD`
-- `RELEASE`
-- `PATH_RETURN`
-- `TEACHING_PAYMENT`
-- `TEACHING_EARNING`
-- `PLATFORM_FEE`
-- `REFUND`
-- `PENALTY`
-- `ADJUSTMENT`
-
-## Report and Dispute
-
-```text
-OPEN -> UNDER_REVIEW
-UNDER_REVIEW -> RESOLVED
-UNDER_REVIEW -> REJECTED
-UNDER_REVIEW -> ESCALATED
-```
-
-A dispute can block final settlement until backend resolves it.
+CreditTransaction concepts TOP_UP/HOLD/RELEASE/PATH_RETURN/TEACHING_PAYMENT/TEACHING_EARNING/PLATFORM_FEE/REFUND/PENALTY/ADJUSTMENT không tự là enum đã dùng ở từng API. Render type/status/deltas server theo contract, không rewrite history hoặc tính settlement. Các gap chưa chốt nằm trong [roadmap](roadmap.md), không mở endpoint tưởng tượng.
