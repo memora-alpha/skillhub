@@ -5,14 +5,14 @@ and Turborepo. The repository root is also the workspace root.
 
 ## Repository structure
 
-| Directory                    | Purpose                                    | Workspace                     |
-| ---------------------------- | ------------------------------------------ | ----------------------------- |
-| `apps/web`                   | Next.js frontend                           | `web`                         |
-| `apps/mobile`                | Mobile foundation docs for future Expo app | —                             |
-| `services/api`               | NestJS backend                             | `api`                         |
-| `packages/eslint-config`     | Shared ESLint configuration                | `@skillhub/eslint-config`     |
-| `packages/typescript-config` | Shared TypeScript configuration            | `@skillhub/typescript-config` |
-| `docs`                       | Product requirements and data models       | —                             |
+| Directory                    | Purpose                              | Workspace                     |
+| ---------------------------- | ------------------------------------ | ----------------------------- |
+| `apps/web`                   | Next.js frontend                     | `web`                         |
+| `apps/mobile`                | React Native / Expo mobile app       | `mobile`                      |
+| `services/api`               | NestJS backend                       | `api`                         |
+| `packages/eslint-config`     | Shared ESLint configuration          | `@skillhub/eslint-config`     |
+| `packages/typescript-config` | Shared TypeScript configuration      | `@skillhub/typescript-config` |
+| `docs`                       | Product requirements and data models | —                             |
 
 Workspace-specific setup and architecture belong in each workspace's documentation.
 See the [API README](services/api/README.md) for backend dependencies, migrations
