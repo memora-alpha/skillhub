@@ -19,15 +19,20 @@ export function createSkillReadAccess(
   const approvals = new Map<string, number>();
   const listeners = new Set<() => void>();
   const relative = (key: QueryKey) => key.slice(scope.length);
-  const matches = (target: QueryKey, key: QueryKey) =>
-    (target[0] === "own" && privateKinds.has(String(key[0]))) ||
-    (target[0] === "public"
-      ? (key[0] === "public" || key[0] === "public-detail") &&
+  function matches(target: QueryKey, key: QueryKey) {
+    if (target[0] === "own") return privateKinds.has(String(key[0]));
+    if (target[0] === "public")
+      return (
+        (key[0] === "public" || key[0] === "public-detail") &&
         key[1] === target[1]
-      : target[0] === "history"
-        ? (key[0] === "history" || key[0] === "verification") &&
-          key[1] === target[1]
-        : target.every((part, index) => key[index] === part));
+      );
+    if (target[0] === "history")
+      return (
+        (key[0] === "history" || key[0] === "verification") &&
+        key[1] === target[1]
+      );
+    return target.every((part, index) => key[index] === part);
+  }
   function latest(key: QueryKey) {
     return [...denials.values()].reduce<Denial | undefined>(
       (last, denial) =>
@@ -49,14 +54,15 @@ export function createSkillReadAccess(
   }
   function reject(key: QueryKey, error: AppError) {
     const source = relative(key);
-    const target =
-      source[0] === "public" || source[0] === "public-detail"
-        ? ["public", source[1]]
-        : source[0] === "own" ||
-            source[0] === "detail" ||
-            error.code === "SKILL_PERMISSION_REQUIRED"
-          ? ["own"]
-          : source;
+    let target = source;
+    if (source[0] === "public" || source[0] === "public-detail")
+      target = ["public", source[1]];
+    else if (
+      source[0] === "own" ||
+      source[0] === "detail" ||
+      error.code === "SKILL_PERMISSION_REQUIRED"
+    )
+      target = ["own"];
     denials.set(JSON.stringify(target), { at: ++clock, error, target });
     onDenied(target);
     for (const query of client.getQueryCache().findAll({ queryKey: scope })) {

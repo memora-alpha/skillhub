@@ -2,7 +2,7 @@
 
 ## Hiện trạng
 
-- Cập nhật lúc: 2026-10-19T22:50:26+07:00.
+- Cập nhật lúc: 2026-10-19T23:15:21+07:00.
 - Trạng thái: Source và web fixture Skills đã kiểm tra trên fix/mobile-skills-read-denial; API/native acceptance còn mở. F02 ngoài phạm vi bản sửa.
 - Baseline: docs/mobile-workflow tại ed5a17dd9f1a6d5e45e1b6af33b17dd4518b46fd, source working tree không có diff trước review.
 - Kết luận: F01 đã sửa; lượt rà Skills bổ sung các sửa đổi về public denial, job bằng chứng, navigation, dọn code không dùng và loại Skills demo khỏi runtime ở cuối file. Kết quả không xác nhận toàn app/API/native hoàn chỉnh.
@@ -134,3 +134,11 @@ Không phát hiện nhu cầu tạo lại CRUD/catalog/evidence đã có. Đã b
 - Bỏ3 tests dành riêng cho profile fixture/helper đã xóa, giữ validation và privacy của API boundary trong public-profile-api.test.ts; bổ sung4 regressions entry point/other UUID/invalid target/self API list. Full suite325/325 PASS,0 failed/skipped/cancelled; typecheck, ESLint --max-warnings0 và structure451 source files PASS.
 - Web export PASS: node ../../node_modules/expo/bin/cli export --platform web --output-dir "$env:TEMP/skillhub-skills-api-export", chạy từ apps/mobile với EXPO_NO_DOTENV=1 và CI=true;1969 modules, artifact ở thư mục tạm ngoài repo. Không đọc .env hoặc gọi API khi export. Format,243 local doc links và diff whitespace PASS.
 - Không thực hiện lại API/native acceptance trong lượt dọn runtime; không dùng việc loại mocks làm bằng chứng API/storage/scanner đã nghiệm thu.
+
+## Sonar follow-up PR41 — 2026-10-19T23:15:21+07:00
+
+- Thay3 nested ternaries trong read-access và fixture payload bằng if/return; bỏ async không có await ở fetch helper. Giữ nguyên policy resource/session/denial và Promise trả về từ QueryClient.
+- Harness chỉ đọc11 module source được liệt kê cố định trong repo; từ chối path khác trước read/transpile. Thay createRequire/fallback host loader bằng static dependency imports và explicit mocks. Thêm timeout cho bước nạp module và tắt string/Wasm code generation trong VM context.
+- Giữ runInNewContext để thực thi hooks/JSX source với dependency giả lập. Input thực thi chỉ là source repo đã liệt kê, không phải API/route/form/file-picker data. Mocks do tests định nghĩa. VM dùng cô lập globals của test, không được coi là sandbox cho code không tin cậy, theo [Node22.19 VM](https://nodejs.org/download/release/v22.19.0/docs/api/vm.html).
+- [Loader regression](../../../tests/skills-source-loader.test.ts) kiểm path ngoài danh sách, URL/prototype names và import không được mock; các regression thực thi source thật vẫn giữ. Full suite327/327 PASS,0 failed/skipped/cancelled; typecheck, ESLint --max-warnings0, structure451 source files, format và diff whitespace PASS.
+- Dynamic execution vẫn là điểm cần review trên SonarCloud; không suppress rule, không exclude tests hoặc đổi Quality Gate. [Security hotspot review](https://docs.sonarsource.com/sonarqube-cloud/managing-your-projects/issues/reviewing-security-hotspots) là bước riêng trên server. Chưa chạy analysis mới hoặc cập nhật trạng thái finding trên SonarCloud, không xác nhận Quality Gate đã pass từ local checks.
