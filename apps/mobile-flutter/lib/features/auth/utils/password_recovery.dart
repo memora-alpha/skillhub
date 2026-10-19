@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../api/auth_api.dart';
+import '../schema/auth_schema.dart';
 import 'auth_validation.dart';
 
 class RecoveryDraft {

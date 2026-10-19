@@ -6,7 +6,7 @@ import '../../components/app_icon.dart';
 import '../../components/avatar.dart';
 import '../../components/tappable.dart';
 import '../../core/theme/tokens.dart';
-import '../account/account_api.dart';
+import '../account/schema/account_schema.dart';
 import '../auth/session/avatar_monitor.dart';
 
 const _statColors = [ProfileColors.accent, Color(0xFF2B9D91), Color(0xFFE66B4A)];
