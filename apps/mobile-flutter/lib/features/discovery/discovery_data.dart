@@ -1,6 +1,10 @@
 import 'dart:ui';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../core/theme/tokens.dart';
+import '../auth/session/auth_session.dart';
+import '../learning_requests/schema/learning_request_schema.dart';
 
 abstract final class DiscoveryColors {
   static const background = Chrome.background;
@@ -33,6 +37,7 @@ class LearningRequest {
     required this.sessions,
     required this.created,
     required this.category,
+    this.goal = '',
   });
 
   final String id;
@@ -44,64 +49,62 @@ class LearningRequest {
   final int sessions;
   final String created;
   final String category;
+  final String goal;
 
   int get budgetCredit => int.tryParse(budget.split(' ').first) ?? 0;
 }
 
-/// Sample requests from the Figma Make export. No remote data source.
-const learningRequests = [
-  LearningRequest(
-    id: 'react',
-    title: 'Muốn học React từ cơ bản đến nâng cao',
-    user: 'Lê Hồng Anh',
-    userId: 'demo-hong-anh',
-    budget: '50 CR/lộ trình',
-    tags: ['React', 'Frontend'],
-    sessions: 6,
-    created: '2 giờ trước',
-    category: 'Lập trình',
-  ),
-  LearningRequest(
-    id: 'ielts',
-    title: 'Cần người hướng dẫn IELTS từ 6.0 lên 7.0',
-    user: 'Vũ Thị Mai',
-    userId: 'demo-thi-mai',
-    budget: '70 CR/lộ trình',
-    tags: ['IELTS', 'Tiếng Anh'],
-    sessions: 8,
-    created: '5 giờ trước',
-    category: 'Ngoại ngữ',
-  ),
-  LearningRequest(
-    id: 'python',
-    title: 'Học Python để làm Data Science, cần mentor thực chiến',
-    user: 'Đỗ Quang Huy',
-    userId: 'demo-quang-huy',
-    budget: '60 CR/lộ trình',
-    tags: ['Python', 'Data Science'],
-    sessions: 6,
-    created: '1 ngày trước',
-    category: 'Lập trình',
-  ),
-  LearningRequest(
-    id: 'japanese',
-    title: 'Học tiếng Nhật từ N5 lên N3, cần người luyện hội thoại',
-    user: 'Nguyễn Thị Thu',
-    userId: 'demo-thi-thu',
-    budget: '65 CR/lộ trình',
-    tags: ['Tiếng Nhật', 'JLPT'],
-    sessions: 8,
-    created: '2 ngày trước',
-    category: 'Ngoại ngữ',
-  ),
-];
+LearningRequest learningRequestFromCard(LearningRequestCard card) => LearningRequest(
+  id: card.id,
+  title: card.title,
+  user: card.ownerName.isEmpty ? 'Người học' : card.ownerName,
+  userId: card.ownerId,
+  budget: card.desiredCreditPerHour == null
+      ? ''
+      : '${card.desiredCreditPerHour} CR/giờ',
+  tags: [card.skill.name, ...card.tagLabels],
+  sessions: 0,
+  created: _shortWhen(card.createdAt),
+  category: card.skill.name,
+  goal: card.learningGoal,
+);
 
-LearningRequest? findLearningRequest(String? id) {
-  for (final item in learningRequests) {
-    if (item.id == id) return item;
-  }
-  return null;
+String _shortWhen(String? value) {
+  final parsed = DateTime.tryParse(value ?? '');
+  if (parsed == null) return '';
+  final local = parsed.toLocal();
+  final month = local.month.toString().padLeft(2, '0');
+  final day = local.day.toString().padLeft(2, '0');
+  final hour = local.hour.toString().padLeft(2, '0');
+  final minute = local.minute.toString().padLeft(2, '0');
+  return '$day/$month $hour:$minute';
 }
+
+final learningRequestsProvider = FutureProvider<List<LearningRequest>>((
+  ref,
+) async {
+  final phase = ref.watch(sessionSnapshotProvider).phase;
+  if (phase != SessionPhase.ready) return const [];
+  final page = await ref
+      .read(authRuntimeProvider)
+      .services
+      .learningRequests
+      .feed(limit: 50);
+  return [for (final card in page.items) learningRequestFromCard(card)];
+});
+
+final recommendedRequestsProvider = FutureProvider<List<LearningRequest>>((
+  ref,
+) async {
+  final phase = ref.watch(sessionSnapshotProvider).phase;
+  if (phase != SessionPhase.ready) return const [];
+  final page = await ref
+      .read(authRuntimeProvider)
+      .services
+      .learningRequests
+      .recommended(limit: 20);
+  return [for (final card in page.items) learningRequestFromCard(card)];
+});
 
 class RequestDetailContent {
   const RequestDetailContent({
@@ -129,30 +132,4 @@ class RequestDetailContent {
   final String memberSince;
 }
 
-/// The export supplies a complete detail frame only for the React request.
-const requestDetails = {
-  'react': RequestDetailContent(
-    hashtags: ['#React', '#Frontend', '#JavaScript', '#Hooks', '#StateManagement'],
-    duration: '60–90 phút/buổi',
-    learning:
-        'React từ cơ bản đến nâng cao — hiểu rõ hooks (useState, useEffect, useContext), state management với Redux Toolkit, và cách tổ chức project thực tế. Mục tiêu cuối là tự xây được một ứng dụng web hoàn chỉnh.',
-    learningTags: ['React Hooks', 'Redux', 'Component Design', 'API Integration'],
-    sharing:
-        'Tiếng Anh IELTS — mình đang học luyện thi, có thể hỗ trợ luyện Speaking & Writing Band 6.0+. Hoặc JavaScript cơ bản nếu người dạy React chưa quen JS.',
-    sharingTags: [
-      'Tiếng Anh IELTS',
-      'IELTS Speaking',
-      'IELTS Writing',
-      'JavaScript cơ bản',
-    ],
-    schedule: [
-      (day: 'Thứ 5', slots: ['19:00 – 21:00']),
-      (day: 'Thứ 7', slots: ['08:00 – 10:00', '19:00 – 21:00']),
-      (day: 'Chủ nhật', slots: ['08:00 – 11:00']),
-    ],
-    scheduleNote:
-        'Ưu tiên học online qua video call · Có thể điều chỉnh lịch nếu cần',
-    reputation: 85,
-    memberSince: 'Thành viên 3 tháng',
-  ),
-};
+const requestDetails = <String, RequestDetailContent>{};

@@ -3,31 +3,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../components/app_button.dart';
+import '../../core/toast/toast.dart';
 import '../../components/feature_page.dart';
 import '../../components/misc.dart';
+import '../../core/http/app_error.dart';
 import '../auth/session/auth_session.dart';
+import '../remote/remote_load.dart';
+import 'schema/skill_schema.dart';
 
-const skillCatalog = [
-  'React',
-  'TypeScript',
-  'JavaScript',
-  'UI/UX',
-  'Tiếng Anh',
-  'Guitar',
-  'Nhiếp ảnh',
-];
-
-const _catalogIds = {
-  'React': 'catalog-react',
-  'TypeScript': 'catalog-typescript',
-  'JavaScript': 'catalog-javascript',
-  'UI/UX': 'catalog-ux',
-  'Tiếng Anh': 'catalog-english',
-  'Guitar': 'catalog-guitar',
-  'Nhiếp ảnh': 'catalog-photography',
-};
-
-String? previewSkillId(String name) => _catalogIds[name];
+final skillCatalogProvider = FutureProvider<List<SkillRecord>>((ref) async {
+  final phase = ref.watch(sessionSnapshotProvider).phase;
+  if (phase != SessionPhase.ready) return const [];
+  final skills = ref.read(authRuntimeProvider).services.skills;
+  return drainPages((cursor) => skills.catalog(cursor: cursor, limit: 100));
+});
 
 const _unset = Object();
 
@@ -44,6 +33,7 @@ class SharingSkill {
     this.reason,
     this.evidence,
     this.pendingEvidence,
+    this.version = 1,
   });
 
   final String id;
@@ -57,6 +47,7 @@ class SharingSkill {
   final String? reason;
   final List<String>? evidence;
   final List<String>? pendingEvidence;
+  final int version;
 
   SharingSkill copyWith({
     String? level,
@@ -80,53 +71,82 @@ class SharingSkill {
     reason: reason == _unset ? this.reason : reason as String?,
     evidence: evidence,
     pendingEvidence: pendingEvidence ?? this.pendingEvidence,
+    version: version,
   );
 }
 
-const _initialSkills = [
-  SharingSkill(
-    id: 'react',
-    skillId: 'catalog-react',
-    name: 'React',
-    level: 'ADVANCED',
-    description:
-        'Xây dựng ứng dụng React với component, hook và quản lý trạng thái.',
-    visible: true,
-    status: 'VERIFIED',
-  ),
-  SharingSkill(
-    id: 'english',
-    skillId: 'catalog-english',
-    name: 'Tiếng Anh',
-    level: 'INTERMEDIATE',
-    description: 'Luyện giao tiếp tiếng Anh trong công việc hằng ngày.',
-    visible: true,
-    status: 'UNVERIFIED',
-  ),
-  SharingSkill(
-    id: 'guitar',
-    skillId: 'catalog-guitar',
-    name: 'Guitar',
-    level: 'BEGINNER',
-    description: 'Hướng dẫn hợp âm cơ bản và nhịp điệu.',
-    visible: false,
-    status: 'REJECTED',
-    reason:
-        'Bằng chứng chưa thể hiện rõ tên người sở hữu và kỹ năng được xác minh.',
-  ),
-];
+SharingSkill sharingSkillFromRecord(SharingSkillRecord record) => SharingSkill(
+  id: record.id,
+  skillId: record.skill.id,
+  name: record.skill.name,
+  level: record.level,
+  description: record.description,
+  experienceYears: record.experienceYears,
+  visible: record.isVisible ?? record.archivedAt == null,
+  status: record.verificationStatus,
+  version: record.version ?? 1,
+);
 
 class SkillsNotifier extends Notifier<List<SharingSkill>> {
+  var _ticket = 0;
+
   @override
   List<SharingSkill> build() {
-    ref.watch(sessionSnapshotProvider.select((s) => s.generation));
-    return _initialSkills;
+    final phase = ref.watch(sessionSnapshotProvider).phase;
+    final userId = ref.watch(accountProvider).value?.userId;
+    if (phase == SessionPhase.ready && userId != null) {
+      _ticket++;
+      _reload(_ticket);
+    }
+    return const [];
+  }
+
+  Future<void> _reload(int ticket) async {
+    try {
+      final skills = ref.read(authRuntimeProvider).services.skills;
+      final records = await drainPages(
+        (cursor) => skills.mine(cursor: cursor, limit: 50),
+      );
+      if (!ref.mounted || ticket != _ticket) return;
+      state = [for (final record in records) sharingSkillFromRecord(record)];
+    } catch (_) {
+      if (!ref.mounted || ticket != _ticket) return;
+      state = const [];
+    }
   }
 
   SharingSkill? find(String? id) => state.where((s) => s.id == id).firstOrNull;
 
-  void save(SharingSkill skill) =>
-      state = [...state.where((s) => s.id != skill.id), skill];
+  Future<({String? id, String? error})> save(
+    SharingSkill skill, {
+    required bool creating,
+  }) async {
+    try {
+      final api = ref.read(authRuntimeProvider).services.skills;
+      final record = creating
+          ? await api.create(
+              SharingSkillInput(
+                skillId: skill.skillId,
+                level: skill.level,
+                description: skill.description,
+                experienceYears: skill.experienceYears,
+              ),
+            )
+          : await api.change(
+              skill.id,
+              expectedVersion: skill.version,
+              level: skill.level,
+              description: skill.description,
+              experienceYears: skill.experienceYears,
+              isVisible: skill.visible,
+            );
+      final ticket = ++_ticket;
+      await _reload(ticket);
+      return (id: record.id, error: null);
+    } catch (error) {
+      return (id: null, error: errorMessage(error));
+    }
+  }
 }
 
 final skillsProvider = NotifierProvider<SkillsNotifier, List<SharingSkill>>(
@@ -195,6 +215,8 @@ class SkillEditorScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final skills = ref.watch(skillsProvider);
+    final catalog = ref.watch(skillCatalogProvider).value ?? const <SkillRecord>[];
+    final catalogNames = [for (final item in catalog) item.name];
     final notifier = ref.read(skillsProvider.notifier);
     final skill = notifier.find(id);
     if (id != null && skill == null) {
@@ -229,10 +251,10 @@ class SkillEditorScreen extends ConsumerWidget {
                   DataField(
                     name: 'name',
                     label: 'Danh mục kỹ năng',
-                    rule: (v) => skillCatalog.contains(v)
+                    rule: (v) => catalogNames.contains(v)
                         ? null
                         : 'Chọn kỹ năng trong danh mục.',
-                    choices: skillCatalog,
+                    choices: catalogNames,
                   ),
                 DataField(
                   name: 'level',
@@ -265,32 +287,40 @@ class SkillEditorScreen extends ConsumerWidget {
                   },
                 ),
               ],
-              onSubmit: (v) {
+              onSubmit: (v) async {
                 if (skill == null && skills.any((s) => s.name == v['name'])) {
                   return 'Kỹ năng này đã có. Hãy chỉnh sửa kỹ năng hiện tại.';
                 }
-                final key =
-                    skill?.id ?? 'skill-${DateTime.now().millisecondsSinceEpoch}';
                 final years = v['experienceYears']!;
-                final base =
-                    skill ??
-                    SharingSkill(
-                      id: key,
-                      skillId: previewSkillId(v['name']!)!,
-                      name: v['name']!,
-                      level: v['level']!,
-                      description: v['description']!,
-                      visible: true,
-                      status: 'UNVERIFIED',
+                final catalogSkill = catalog
+                    .where((item) => item.name == v['name'])
+                    .firstOrNull;
+                if (skill == null && catalogSkill == null) {
+                  return 'Chọn kỹ năng trong danh mục.';
+                }
+                final draft = (skill ??
+                        SharingSkill(
+                          id: '',
+                          skillId: catalogSkill!.id,
+                          name: catalogSkill.name,
+                          level: v['level']!,
+                          description: v['description']!,
+                          visible: true,
+                          status: 'UNVERIFIED',
+                        ))
+                    .copyWith(
+                      description: v['description'],
+                      level: v['level'],
+                      experienceYears: years.isEmpty ? null : years,
                     );
-                notifier.save(
-                  base.copyWith(
-                    description: v['description'],
-                    level: v['level'],
-                    experienceYears: years.isEmpty ? null : years,
-                  ),
+                final result = await notifier.save(
+                  draft,
+                  creating: skill == null,
                 );
-                context.pushReplacement('/skills/$key');
+                if (result.error != null) return result.error;
+                if (context.mounted) {
+                  context.pushReplacement('/skills/${result.id}');
+                }
                 return null;
               },
             ),
@@ -332,8 +362,17 @@ class SkillDetailScreen extends ConsumerWidget {
                         ? 'Ẩn khỏi tìm kiếm'
                         : 'Hiển thị công khai',
                     variant: ButtonVariant.paper,
-                    onPressed: () =>
-                        notifier.save(skill.copyWith(visible: !skill.visible)),
+                    onPressed: () async {
+                      final result = await notifier.save(
+                        skill.copyWith(visible: !skill.visible),
+                        creating: false,
+                      );
+                      if (result.error != null) {
+                        ref
+                            .read(toastProvider.notifier)
+                            .show(result.error!, ToastTone.error);
+                      }
+                    },
                   ),
                 ],
               ),
@@ -367,15 +406,12 @@ class EvidenceScreen extends ConsumerStatefulWidget {
 }
 
 class _EvidenceScreenState extends ConsumerState<EvidenceScreen> {
-  List<String> _files = const [];
   String _error = '';
 
   @override
   Widget build(BuildContext context) {
     final id = widget.id;
-    ref.watch(skillsProvider);
-    final notifier = ref.read(skillsProvider.notifier);
-    final skill = notifier.find(id);
+    final skill = ref.watch(skillsProvider).where((item) => item.id == id).firstOrNull;
     return FeaturePage(
       title: 'Bằng chứng xác minh',
       back: '/skills/$id',
@@ -410,12 +446,8 @@ class _EvidenceScreenState extends ConsumerState<EvidenceScreen> {
                   tone: NoticeTone.error,
                   message: 'Lần gửi trước: ${skill.reason}',
                 ),
-              SampleFiles(
-                value: _files,
-                onChange: (files) => setState(() => _files = files),
-              ),
               const Copy(
-                '1–5 tệp. Giới hạn kích thước thực tế cần lấy từ cấu hình bằng chứng.',
+                'Gửi bằng chứng cần tệp từ máy. Màn này chưa mở bộ chọn tệp, nên chưa gọi API tải lên.',
                 muted: true,
               ),
               if (_error.isNotEmpty)
@@ -434,22 +466,11 @@ class _EvidenceScreenState extends ConsumerState<EvidenceScreen> {
                     multiline: true,
                   ),
                 ],
-                submitLabel: 'Gửi hồ sơ mẫu',
+                submitLabel: 'Gửi hồ sơ',
                 onSubmit: (_) {
-                  if (_files.isEmpty) {
-                    setState(
-                      () => _error = 'Chọn ít nhất một tệp bằng chứng.',
-                    );
-                    return null;
-                  }
-                  notifier.save(
-                    skill.copyWith(
-                      status: skill.status == 'VERIFIED'
-                          ? 'VERIFIED'
-                          : 'PENDING',
-                      reason: null,
-                      pendingEvidence: _files,
-                    ),
+                  setState(
+                    () => _error =
+                        'Chọn tệp từ máy để gửi bằng chứng. Danh sách tệp mẫu đã được bỏ.',
                   );
                   return null;
                 },
@@ -476,7 +497,7 @@ class VerificationHistoryScreen extends ConsumerWidget {
             title: s.name,
             children: [
               StatusBadge(s.status),
-              Copy(s.reason ?? 'Trạng thái hồ sơ mẫu hiện tại.'),
+              Copy(s.reason ?? 'Trạng thái xác minh hiện tại.'),
               RouteButton(
                 secondary: true,
                 href: '/skills/${s.id}/evidence',

@@ -1,7 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../auth/session/auth_session.dart';
-import '../messages/messages_data.dart';
+import '../remote/remote_load.dart';
+import '../skills/skills_feature.dart';
+import 'schema/proposal_schema.dart';
 
 const _unset = Object();
 
@@ -32,6 +34,8 @@ class DemoProposal {
     required this.status,
     this.requestId,
     this.localDecisionNote,
+    this.version = 1,
+    this.conversationId,
   });
 
   final String id;
@@ -51,6 +55,8 @@ class DemoProposal {
 
   /// UI-only note; no backend rejection DTO is defined yet.
   final String? localDecisionNote;
+  final int version;
+  final String? conversationId;
 
   bool get sent => direction == 'sent';
   bool get closed => closedProposalStatuses.contains(status);
@@ -81,112 +87,11 @@ class DemoProposal {
     localDecisionNote: localDecisionNote == _unset
         ? this.localDecisionNote
         : localDecisionNote as String?,
+    version: version,
+    conversationId: conversationId,
   );
 }
 
-const demoTeachingSkills = [
-  (id: 'react', name: 'React', verified: true),
-  (id: 'javascript', name: 'JavaScript', verified: true),
-  (id: 'typescript', name: 'TypeScript', verified: false),
-];
-
-final List<DemoProposal> initialProposals = [
-  for (final item in const [
-    (
-      id: 'DX-2410',
-      partnerId: 'demo-viet-anh',
-      partner: 'Trần Việt Anh',
-      credit: '50',
-      time: '2 giờ trước',
-      message:
-          'Mình có thể hướng dẫn React theo dự án thực tế, từ component và hooks đến một ứng dụng hoàn chỉnh.',
-    ),
-    (
-      id: 'DX-2411',
-      partnerId: 'demo-minh-khang',
-      partner: 'Nguyễn Minh Khang',
-      credit: '45',
-      time: '4 giờ trước',
-      message:
-          'Mình có kinh nghiệm React và TypeScript. Có thể giúp bạn xây dựng ứng dụng từ những kiến thức nền tảng.',
-    ),
-    (
-      id: 'DX-2412',
-      partnerId: 'demo-thu-ha',
-      partner: 'Phạm Thu Hà',
-      credit: '60',
-      time: 'Hôm qua',
-      message:
-          'Mình có thể hướng dẫn React vào cuối tuần, cùng thực hành và xem lại từng bài tập.',
-    ),
-  ])
-    DemoProposal(
-      id: item.id,
-      partnerId: item.partnerId,
-      partner: item.partner,
-      credit: item.credit,
-      time: item.time,
-      message: item.message,
-      direction: 'received',
-      sourceType: 'LEARNING_REQUEST',
-      requestId: 'my-react',
-      requestTitle: 'Muốn học React từ cơ bản đến nâng cao',
-      skill: 'React',
-      sessions: 6,
-      schedule: 'Tối Thứ 5 và Thứ 7',
-      status: 'PENDING',
-    ),
-  for (final item in conversations)
-    DemoProposal(
-      id: item.proposal,
-      direction: 'received',
-      sourceType: 'LEARNING_REQUEST',
-      requestId: 'accepted-${item.proposal}',
-      requestTitle: item.request,
-      partnerId: item.userId,
-      partner: item.name,
-      skill: item.skill,
-      message:
-          'Đề xuất đã được chấp nhận trong dữ liệu mẫu. Hai người tiếp tục trao đổi trong Chat.',
-      credit: '30',
-      sessions: 4,
-      schedule: 'Thương lượng trong Chat',
-      time: item.time,
-      status: 'ACCEPTED',
-    ),
-  const DemoProposal(
-    id: 'demo-direct-invitation',
-    direction: 'received',
-    sourceType: 'DIRECT_SEARCH',
-    requestTitle: 'Lời mời học React từ hồ sơ công khai',
-    partnerId: 'demo-hong-anh',
-    partner: 'Nguyễn Hồng Anh',
-    skill: 'React',
-    message:
-        'Mình muốn cùng bạn trao đổi cách xây dựng giao diện React và thực hành một dự án nhỏ vào cuối tuần.',
-    credit: '30',
-    sessions: 4,
-    schedule: 'Cuối tuần, trao đổi thêm sau khi kết nối',
-    time: 'Dữ liệu mẫu',
-    status: 'PENDING',
-  ),
-  const DemoProposal(
-    id: 'demo-expired-proposal',
-    direction: 'sent',
-    sourceType: 'DIRECT_SEARCH',
-    requestTitle: 'Lời mời trao đổi React',
-    partnerId: 'demo-thu-ha',
-    partner: 'Phạm Thu Hà',
-    skill: 'React',
-    message:
-        'Mình có thể chia sẻ React qua các bài tập thực hành, cùng xem lại kết quả sau mỗi buổi.',
-    credit: '40',
-    sessions: 4,
-    schedule: 'Chưa thống nhất',
-    time: 'Dữ liệu mẫu',
-    status: 'EXPIRED',
-  ),
-];
 
 String? validateProposalMessage(String value) {
   final length = value.trim().runes.length;
@@ -219,19 +124,96 @@ String? validateRejectionNote(String value) {
   return text.runes.length > 1000 ? 'Lý do không vượt quá 1.000 ký tự.' : null;
 }
 
+DemoProposal _proposalView(
+  ProposalRecord record,
+  String direction,
+  String me,
+  Map<String, String> skillNames,
+  Map<String, String> names,
+) {
+  final partnerId = record.proposerId == me
+      ? record.recipientId
+      : record.proposerId;
+  return DemoProposal(
+    id: record.id,
+    direction: direction,
+    sourceType: record.sourceType,
+    requestId: record.learningRequestId,
+    requestTitle: record.learningRequestId ?? record.sourceType,
+    partnerId: partnerId,
+    partner: names[partnerId] ?? partnerId,
+    skill: skillNames[record.skillId] ?? record.skillId,
+    message: record.message,
+    credit: record.proposedCredit ?? '',
+    sessions: 0,
+    schedule: record.expiresAt,
+    time: record.expiresAt,
+    status: record.status,
+    version: record.version,
+    conversationId: record.conversationId,
+  );
+}
+
 class ProposalsNotifier extends Notifier<List<DemoProposal>> {
-  int _sequence = 0;
+  var _ticket = 0;
 
   @override
   List<DemoProposal> build() {
-    ref.watch(sessionSnapshotProvider.select((s) => s.generation));
-    return initialProposals;
+    final phase = ref.watch(sessionSnapshotProvider).phase;
+    final userId = ref.watch(accountProvider).value?.userId;
+    if (phase == SessionPhase.ready && userId != null) {
+      _ticket++;
+      _reload(_ticket, userId);
+    }
+    return const [];
+  }
+
+  Future<void> _reload(int ticket, String me) async {
+    try {
+      final api = ref.read(authRuntimeProvider).services.proposals;
+      final received = await drainPages(
+        (cursor) => api.list(direction: 'received', cursor: cursor, limit: 50),
+      );
+      final sent = await drainPages(
+        (cursor) => api.list(direction: 'sent', cursor: cursor, limit: 50),
+      );
+      final catalog = await ref.read(skillCatalogProvider.future);
+      final skillNames = {for (final skill in catalog) skill.id: skill.name};
+      final partnerIds = {
+        for (final record in [...received, ...sent])
+          record.proposerId == me ? record.recipientId : record.proposerId,
+      };
+      final names = <String, String>{};
+      await Future.wait([
+        for (final id in partnerIds)
+          () async {
+            try {
+              final profile = await ref
+                  .read(authRuntimeProvider)
+                  .account
+                  .publicProfile(id);
+              final name = profile['fullName'];
+              if (name is String && name.isNotEmpty) names[id] = name;
+            } catch (_) {}
+          }(),
+      ]);
+      if (!ref.mounted || ticket != _ticket) return;
+      state = [
+        for (final record in received)
+          _proposalView(record, 'received', me, skillNames, names),
+        for (final record in sent)
+          _proposalView(record, 'sent', me, skillNames, names),
+      ];
+    } catch (_) {
+      if (!ref.mounted || ticket != _ticket) return;
+      state = const [];
+    }
   }
 
   DemoProposal? find(String? id) =>
       state.where((p) => p.id == id).firstOrNull;
 
-  bool submit({
+  Future<bool> submit({
     required String sourceType,
     required String? requestId,
     required String requestTitle,
@@ -242,47 +224,37 @@ class ProposalsNotifier extends Notifier<List<DemoProposal>> {
     required String credit,
     required int sessions,
     required String schedule,
-  }) {
-    if (ref.read(accountSessionProvider) == null ||
-        state.any(
-          (item) =>
-              item.sent &&
-              item.status == 'PENDING' &&
-              item.partnerId == partnerId &&
-              item.requestId == requestId &&
-              item.sourceType == sourceType,
-        )) {
+    String? recipientSharingSkillId,
+  }) async {
+    final me = ref.read(accountProvider).value?.userId;
+    if (me == null) return false;
+    try {
+      await ref.read(authRuntimeProvider).services.proposals.create(
+        ProposalDraft(
+          sourceType: sourceType,
+          message: message.trim(),
+          learningRequestId: requestId,
+          recipientSharingSkillId: recipientSharingSkillId,
+          proposedCredit: credit.trim(),
+          initialSessionCount: sessions,
+        ),
+        idempotencyKey: newUuid(),
+      );
+      final ticket = ++_ticket;
+      await _reload(ticket, me);
+      return true;
+    } catch (_) {
       return false;
     }
-    state = [
-      DemoProposal(
-        id: 'local-proposal-${DateTime.now().millisecondsSinceEpoch}-${++_sequence}',
-        direction: 'sent',
-        sourceType: sourceType,
-        requestId: requestId,
-        requestTitle: requestTitle,
-        partnerId: partnerId,
-        partner: partner,
-        skill: skill,
-        message: message,
-        credit: credit,
-        sessions: sessions,
-        schedule: schedule,
-        time: 'Vừa xong',
-        status: 'PENDING',
-      ),
-      ...state,
-    ];
-    return true;
   }
 
-  bool update(
+  Future<bool> update(
     String id, {
     required String message,
     required String credit,
     required String sessions,
     required String schedule,
-  }) {
+  }) async {
     final item = find(id);
     if (ref.read(accountSessionProvider) == null ||
         item == null ||
@@ -293,68 +265,64 @@ class ProposalsNotifier extends Notifier<List<DemoProposal>> {
         validateProposalSessions(sessions) != null) {
       return false;
     }
-    state = [
-      for (final p in state)
-        p.id == id
-            ? p.copyWith(
-                message: message.trim(),
-                credit: credit.trim(),
-                sessions: int.parse(sessions.trim()),
-                schedule: schedule.trim(),
-                time: 'Vừa cập nhật',
-              )
-            : p,
-    ];
-    return true;
+    try {
+      await ref.read(authRuntimeProvider).services.proposals.change(
+        id,
+        expectedVersion: item.version,
+        idempotencyKey: newUuid(),
+        message: message.trim(),
+        proposedCredit: credit.trim(),
+      );
+      final me = ref.read(accountProvider).value?.userId;
+      if (me == null) return false;
+      final ticket = ++_ticket;
+      await _reload(ticket, me);
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   /// [status] is `ACCEPTED`, `REJECTED` or `WITHDRAWN`.
-  bool decide(String id, String status, [String? localDecisionNote]) {
+  Future<bool> decide(String id, String status, [String? localDecisionNote]) async {
     final item = find(id);
-    if (ref.read(accountSessionProvider) == null ||
+    final me = ref.read(accountProvider).value?.userId;
+    if (me == null ||
         item == null ||
         item.status != 'PENDING' ||
         (status == 'WITHDRAWN' ? !item.sent : item.sent)) {
       return false;
     }
-    if (status == 'ACCEPTED' &&
-        item.requestId != null &&
-        state.any(
-          (other) =>
-              other.requestId == item.requestId && other.status == 'ACCEPTED',
-        )) {
+    try {
+      final api = ref.read(authRuntimeProvider).services.proposals;
+      final key = newUuid();
+      if (status == 'ACCEPTED') {
+        await api.accept(
+          id,
+          expectedVersion: item.version,
+          idempotencyKey: key,
+        );
+      } else if (status == 'REJECTED') {
+        await api.reject(
+          id,
+          expectedVersion: item.version,
+          idempotencyKey: key,
+        );
+      } else if (status == 'WITHDRAWN') {
+        await api.withdraw(
+          id,
+          expectedVersion: item.version,
+          idempotencyKey: key,
+        );
+      } else {
+        return false;
+      }
+      final ticket = ++_ticket;
+      await _reload(ticket, me);
+      return find(id)?.status == status;
+    } catch (_) {
       return false;
     }
-    state = [
-      for (final p in state)
-        p.id == id
-            ? p.copyWith(
-                status: status,
-                localDecisionNote: status == 'REJECTED'
-                    ? localDecisionNote?.trim()
-                    : null,
-              )
-            : p,
-    ];
-    if (status == 'ACCEPTED') {
-      ref
-          .read(messagesProvider.notifier)
-          .openConversation(
-            Conversation(
-              proposal: item.id,
-              name: item.partner,
-              userId: item.partnerId,
-              skill: item.skill,
-              request: item.requestTitle,
-              last:
-                  'Đề xuất đã chấp nhận. Bắt đầu trao đổi về lộ trình và lịch học.',
-              messages: 0,
-              unread: 0,
-              time: 'Vừa xong',
-            ),
-          );
-    }
-    return true;
   }
 }
 

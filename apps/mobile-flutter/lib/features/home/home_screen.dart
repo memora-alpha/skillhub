@@ -39,66 +39,10 @@ const _cardShadow = [
 ];
 
 const _onboardingTasks = [
-  (label: 'Hoàn thiện hồ sơ', done: true, icon: AppIcon.user),
-  (label: 'Thêm kỹ năng chia sẻ', done: true, icon: AppIcon.award),
+  (label: 'Hoàn thiện hồ sơ', done: false, icon: AppIcon.user),
+  (label: 'Thêm kỹ năng chia sẻ', done: false, icon: AppIcon.award),
   (label: 'Khám phá kỹ năng', done: false, icon: AppIcon.search),
   (label: 'Tạo yêu cầu học đầu tiên', done: false, icon: AppIcon.edit),
-];
-const _newUserSummary = (credit: 0, reputation: 50, learned: 0, taught: 0);
-const _returningSummary = (credit: 180, reputation: 85, learned: 8, taught: 12);
-const _nextSession = (
-  title: 'React Hooks & State Management',
-  mentor: 'Trần Việt Anh',
-  mentorId: 'demo-viet-anh',
-  schedule: 'Thứ 5, 20:00 – 21:30',
-);
-const _learningPath = (
-  title: 'React cho người mới bắt đầu',
-  completed: 3,
-  total: 6,
-  next: 'Thứ 5, 20:00',
-);
-const _matchingRequests = [
-  (
-    id: 'react',
-    title: 'Muốn học React từ cơ bản đến nâng cao',
-    name: 'Lê Hồng Anh',
-    userId: 'demo-hong-anh',
-    credit: 50,
-    match: 95,
-  ),
-  (
-    id: 'portfolio',
-    title: 'Cần mentor hướng dẫn xây dựng portfolio',
-    name: 'Vũ Minh Tuấn',
-    userId: 'demo-minh-tuan',
-    credit: 45,
-    match: 87,
-  ),
-];
-const _achievement = (
-  title: 'Người học chăm chỉ',
-  description: 'Hoàn thành 10 buổi học',
-  completed: 8,
-  total: 10,
-);
-const _recentMessages = [
-  (
-    id: 'viet-anh',
-    name: 'Trần Việt Anh',
-    userId: 'demo-viet-anh',
-    message: 'Xác nhận buổi học thứ 5 nhé bạn?',
-    time: '2 giờ trước',
-    unread: 2,
-  ),
-  (
-    id: 'bich',
-    name: 'Nguyễn Thị Bích',
-    userId: 'demo-thi-bich',
-    message: 'Mình muốn học Python cơ bản...',
-    time: '5 giờ trước',
-    unread: 0,
-  ),
 ];
 
 final _label = nunito(TypeScale.body, weight: FontWeight.w600, color: _C.ink);
@@ -114,6 +58,9 @@ class HomeScreen extends ConsumerWidget {
     final conversationList = ref.watch(
       messagesProvider.select((s) => s.conversations),
     );
+    final requests =
+        ref.watch(recommendedRequestsProvider).value ?? const <LearningRequest>[];
+    final profile = session.profile;
 
     void action(String label) {
       if (label == 'Hoàn thiện hồ sơ') {
@@ -124,11 +71,9 @@ class HomeScreen extends ConsumerWidget {
         if (label != 'Trang chủ') openAppAction(context, label);
         return;
       }
-      for (final request in _matchingRequests) {
+      for (final request in requests) {
         if (request.title == label) {
-          findLearningRequest(request.id) != null
-              ? context.push('/request/${request.id}')
-              : context.go('/discover');
+          context.push('/request/${request.id}');
           return;
         }
       }
@@ -138,7 +83,7 @@ class HomeScreen extends ConsumerWidget {
           return;
         }
       }
-      context.push('/ui');
+      context.push('/discover');
     }
 
     final words = session.name.trim().split(RegExp(r'\s+'));
@@ -160,13 +105,34 @@ class HomeScreen extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 spacing: 12,
                 children: [
-                  Text(
-                    'Hoạt động học tập bên dưới dùng dữ liệu mẫu. Hồ sơ và tài khoản dùng thông tin đã lưu.',
-                    style: nunito((12, 16), color: AppColors.muted),
-                  ),
                   _HomeContent(
                     name: name,
                     isNew: session.isNew,
+                    reputation: profile.reputationScore?.round() ?? 0,
+                    learned: profile.completedSessionCount,
+                    taught: profile.verifiedSkillCount,
+                    requests: [
+                      for (final request in requests.take(4))
+                        (
+                          id: request.id,
+                          title: request.title,
+                          name: request.user,
+                          userId: request.userId,
+                          credit: request.budget.isEmpty ? '—' : request.budget,
+                          match: 0,
+                        ),
+                    ],
+                    messages: [
+                      for (final item in conversationList.take(4))
+                        (
+                          id: item.proposal,
+                          name: item.name,
+                          userId: item.userId,
+                          message: item.last,
+                          time: item.time,
+                          unread: item.unread,
+                        ),
+                    ],
                     onAction: action,
                   ),
                 ],
@@ -183,43 +149,68 @@ class _HomeContent extends StatelessWidget {
   const _HomeContent({
     required this.name,
     required this.isNew,
+    required this.reputation,
+    required this.learned,
+    required this.taught,
+    required this.requests,
+    required this.messages,
     required this.onAction,
   });
 
   final String name;
   final bool isNew;
+  final int reputation;
+  final int learned;
+  final int taught;
+  final List<
+    ({
+      String id,
+      String title,
+      String name,
+      String userId,
+      String credit,
+      int match,
+    })
+  >
+  requests;
+  final List<
+    ({
+      String id,
+      String name,
+      String userId,
+      String message,
+      String time,
+      int unread,
+    })
+  >
+  messages;
   final ValueChanged<String> onAction;
 
   @override
   Widget build(BuildContext context) {
     final wide = MediaQuery.sizeOf(context).width >= 840;
-    final summary = isNew ? _newUserSummary : _returningSummary;
-    final achievementProgress = isNew ? 0 : _achievement.completed;
-    final achievementPercent =
-        (achievementProgress / _achievement.total * 100).round();
-    final messages = isNew ? const <Never>[] : _recentMessages;
     final stats = [
-      ('Reputation', summary.reputation, _C.orange),
-      ('Đã học', summary.learned, _C.ink),
-      ('Đã dạy', summary.taught, _C.ink),
+      ('Reputation', reputation, _C.orange),
+      ('Đã học', learned, _C.ink),
+      ('Đã dạy', taught, _C.ink),
     ];
 
     final primary = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       spacing: 28,
       children: [
-        _SessionCard(isNew: isNew, onAction: onAction),
+        _SessionCard(isNew: true, onAction: onAction),
         Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _SectionHeading(
               title: 'Lộ trình đang học',
-              action: isNew ? 'Khám phá' : 'Chi tiết',
-              onTap: () => onAction(isNew ? 'Khám phá' : 'Lộ trình đang học'),
+              action: 'Chi tiết',
+              onTap: () => onAction('Lộ trình của tôi'),
             ),
             Tappable(
-              semanticLabel: isNew ? 'Tìm lộ trình học' : _learningPath.title,
-              onTap: () => onAction(isNew ? 'Khám phá' : 'Lộ trình đang học'),
+              semanticLabel: 'Tìm lộ trình học',
+              onTap: () => onAction('Lộ trình của tôi'),
               child: _Card(
                 padding: const EdgeInsets.all(16),
                 child: Column(
@@ -240,51 +231,16 @@ class _HomeContent extends StatelessWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              Text('Chưa có lộ trình đang học', style: _label),
                               Text(
-                                isNew
-                                    ? 'Chưa có lộ trình đang học'
-                                    : _learningPath.title,
-                                style: _label,
-                              ),
-                              Text(
-                                isNew
-                                    ? 'Tìm kỹ năng để bắt đầu buổi đầu tiên.'
-                                    : 'Buổi tiếp: ${_learningPath.next}',
+                                'Lộ trình xuất hiện sau khi đề xuất được chấp nhận.',
                                 style: _caption,
                               ),
                             ],
                           ),
                         ),
-                        if (!isNew)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 7,
-                              vertical: 3,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF7F8FA),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              '${_learningPath.completed}/${_learningPath.total} buổi',
-                              style: nunito(
-                                TypeScale.caption,
-                                weight: FontWeight.w700,
-                                color: _C.ink,
-                              ),
-                            ),
-                          ),
                       ],
                     ),
-                    if (!isNew)
-                      AppProgressBar(
-                        value: _learningPath.completed,
-                        max: _learningPath.total,
-                        color: _C.orange,
-                        trackColor: _C.track,
-                        height: 6,
-                        label: _learningPath.title,
-                      ),
                   ],
                 ),
               ),
@@ -372,34 +328,23 @@ class _HomeContent extends StatelessWidget {
                               spacing: 8,
                               children: [
                                 Expanded(
-                                  child: Text(
-                                    _achievement.title,
-                                    style: _label,
-                                  ),
-                                ),
-                                Text(
-                                  '$achievementPercent%',
-                                  style: nunito(
-                                    TypeScale.secondary,
-                                    weight: FontWeight.w700,
-                                    color: _C.orange,
-                                  ),
+                                  child: Text('Chưa có thành tích', style: _label),
                                 ),
                               ],
                             ),
                             Text(
-                              '${_achievement.description} · $achievementProgress/${_achievement.total} buổi',
+                              'Danh hiệu mở khi bạn hoàn thành các mốc trên máy chủ.',
                               style: _caption,
                             ),
                           ],
                         ),
                         AppProgressBar(
-                          value: achievementProgress,
-                          max: _achievement.total,
+                          value: 0,
+                          max: 1,
                           color: _C.yellow,
                           trackColor: _C.track,
                           height: 6,
-                          label: _achievement.title,
+                          label: 'Chưa có thành tích',
                         ),
                       ],
                     ),
@@ -429,7 +374,7 @@ class _HomeContent extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               spacing: 12,
               children: [
-                for (final request in _matchingRequests)
+                for (final request in requests)
                   Tappable(
                     semanticLabel: request.title,
                     onTap: () => onAction(request.title),
@@ -451,7 +396,9 @@ class _HomeContent extends StatelessWidget {
                                     color: _C.green,
                                   ),
                                   Text(
-                                    '${request.match}% phù hợp',
+                                    request.match > 0
+                                        ? '${request.match}% phù hợp'
+                                        : 'Gợi ý',
                                     style: nunito(
                                       TypeScale.caption,
                                       weight: FontWeight.w700,
@@ -464,7 +411,7 @@ class _HomeContent extends StatelessWidget {
                                 background: _C.orangeSoft,
                                 children: [
                                   Text(
-                                    '${request.credit} CR/lộ trình',
+                                    request.credit,
                                     style: nunito(
                                       TypeScale.caption,
                                       weight: FontWeight.w600,
@@ -660,7 +607,7 @@ class _HomeContent extends StatelessWidget {
                         ),
                         Text.rich(
                           TextSpan(
-                            text: '${summary.credit} ',
+                            text: '0 ',
                             children: const [
                               TextSpan(
                                 text: 'CR',
@@ -772,7 +719,7 @@ class _SessionCard extends StatelessWidget {
             ],
           ),
           Text(
-            isNew ? 'Chưa có buổi học sắp tới' : _nextSession.title,
+            'Chưa có buổi học sắp tới',
             style: nunito((18, 25), weight: FontWeight.w700, color: _C.ink),
           ),
           if (isNew)
@@ -789,13 +736,13 @@ class _SessionCard extends StatelessWidget {
               spacing: 7,
               children: [
                 Avatar(
-                  name: _nextSession.mentor,
-                  userId: _nextSession.mentorId,
+                  name: '',
+                  userId: '',
                   size: AvatarSizes.compact,
                 ),
                 Flexible(
                   child: Text(
-                    _nextSession.mentor,
+                    '',
                     style: nunito(
                       TypeScale.secondary,
                       weight: FontWeight.w600,
@@ -842,7 +789,7 @@ class _SessionCard extends StatelessWidget {
                         color: _C.orangeDark,
                       ),
                       Text(
-                        _nextSession.schedule,
+                        '',
                         style: nunito(
                           TypeScale.secondary,
                           weight: FontWeight.w500,

@@ -33,8 +33,8 @@ const appRoutes = {
   'Đăng yêu cầu học': '/requests/new',
   'Tạo yêu cầu học đầu tiên': '/requests/new',
   'Yêu cầu học của tôi': '/requests',
-  'Lộ trình đang học': '/paths/path-active',
-  'Vào học': '/learning-sessions/active-react-1/room',
+  'Lộ trình đang học': '/paths',
+  'Vào học': '/calendar',
   'Lộ trình của tôi': '/paths',
   'Bộ giao diện mobile': '/ui',
 };
@@ -54,12 +54,6 @@ const accountItems = [
   (label: 'Cài đặt', icon: AppIcon.settings),
   (label: 'Trung tâm trợ giúp', icon: AppIcon.help),
   (label: 'Bộ giao diện mobile', icon: AppIcon.compass),
-];
-
-const demoNotifications = [
-  'Buổi học React với Trần Việt Anh sắp diễn ra.',
-  'Bạn có 2 tin nhắn mới từ Trần Việt Anh.',
-  'Có yêu cầu học phù hợp với kỹ năng của bạn.',
 ];
 
 bool isTabPath(String path) => appTabs.any((tab) => tab.path == path);
@@ -90,8 +84,7 @@ void openAppAction(
     title: label,
     content: Text(
       body ??
-          'Màn ${label.toLowerCase()} sẽ được triển khai ở bước tiếp theo. '
-              'Hiện tại bạn đang xem giao diện với dữ liệu mẫu.',
+          'Màn ${label.toLowerCase()} chưa có trên ứng dụng.',
       style: nunito(TypeScale.body, color: AppColors.body),
     ),
   );

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../components/app_button.dart';
@@ -17,16 +18,16 @@ const _cardShadow = [
   BoxShadow(color: Color(0x0A352B1F), offset: Offset(0, 3), blurRadius: 12),
 ];
 
-class DiscoverScreen extends StatefulWidget {
+class DiscoverScreen extends ConsumerStatefulWidget {
   const DiscoverScreen({super.key, this.query = ''});
 
   final String query;
 
   @override
-  State<DiscoverScreen> createState() => _DiscoverScreenState();
+  ConsumerState<DiscoverScreen> createState() => _DiscoverScreenState();
 }
 
-class _DiscoverScreenState extends State<DiscoverScreen> {
+class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
   late final _search = TextEditingController(text: widget.query);
   final _focus = FocusNode();
   String _filter = 'Tất cả';
@@ -64,7 +65,9 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
   @override
   Widget build(BuildContext context) {
     final search = _search.text.toLowerCase();
-    final requests = learningRequests.where(
+    final loaded = ref.watch(learningRequestsProvider).value ?? const <LearningRequest>[];
+    final filters = ['Tất cả', ...{for (final item in loaded) item.category}];
+    final requests = loaded.where(
       (item) =>
           (_filter == 'Tất cả' || item.category == _filter) &&
           (_advanced == 'all' ||
@@ -250,7 +253,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                             child: Row(
                               spacing: 4,
                               children: [
-                                for (final label in requestFilters)
+                                for (final label in filters)
                                   Expanded(
                                     child: Semantics(
                                       selected: _filter == label,
@@ -650,14 +653,16 @@ class _Pill extends StatelessWidget {
   }
 }
 
-class RequestDetailScreen extends StatelessWidget {
+class RequestDetailScreen extends ConsumerWidget {
   const RequestDetailScreen({super.key, required this.id});
 
   final String id;
 
   @override
-  Widget build(BuildContext context) {
-    final request = findLearningRequest(id);
+  Widget build(BuildContext context, WidgetRef ref) {
+    final request = (ref.watch(learningRequestsProvider).value ?? const <LearningRequest>[])
+        .where((item) => item.id == id)
+        .firstOrNull;
     final detail = request == null ? null : requestDetails[request.id];
     final caption = nunito(TypeScale.secondary, color: _C.muted);
     final card = BoxDecoration(
@@ -676,7 +681,7 @@ class RequestDetailScreen extends StatelessWidget {
       child: request == null
           ? EmptyState(
               title: 'Không tìm thấy yêu cầu học',
-              description: 'Yêu cầu này không có trong dữ liệu demo.',
+              description: 'Yêu cầu này không có trên máy chủ.',
               action: 'Quay lại khám phá',
               onAction: () => context.go('/discover'),
             )
@@ -778,7 +783,7 @@ class RequestDetailScreen extends StatelessWidget {
                               _SkillSection(
                                 title: 'Tôi muốn học',
                                 icon: AppIcon.book,
-                                text: detail?.learning,
+                                text: detail?.learning ?? request.goal,
                                 tags: detail?.learningTags,
                               ),
                               _SkillSection(

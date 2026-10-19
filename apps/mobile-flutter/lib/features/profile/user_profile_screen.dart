@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../components/app_button.dart';
@@ -10,17 +11,16 @@ import '../discovery/discovery_data.dart';
 import '../shell/app_screen_layout.dart';
 import 'public_profiles_data.dart';
 
-/// Sample public profile reached from requests and proposals (`/user/:id`).
-class UserProfileScreen extends StatelessWidget {
+class UserProfileScreen extends ConsumerWidget {
   const UserProfileScreen({super.key, required this.id, this.requestId});
 
   final String id;
   final String? requestId;
 
   @override
-  Widget build(BuildContext context) {
-    final profile = findDemoProfile(id);
-    final request = learningRequests
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profile = ref.watch(publicProfileProvider(id)).value;
+    final request = (ref.watch(learningRequestsProvider).value ?? const <LearningRequest>[])
         .where((r) => r.id == requestId && r.userId == profile?.id)
         .firstOrNull;
     final back = request != null ? '/request/${request.id}' : '/proposals';
@@ -70,7 +70,7 @@ class UserProfileScreen extends StatelessWidget {
       child: profile == null
           ? EmptyState(
               title: 'Không tìm thấy hồ sơ',
-              description: 'Hồ sơ này chưa có trong dữ liệu mẫu.',
+              description: 'Hồ sơ này không có trên máy chủ.',
               action: 'Quay lại khám phá',
               onAction: () => context.go('/discover'),
             )
