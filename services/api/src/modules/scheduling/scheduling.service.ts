@@ -126,7 +126,7 @@ async function applyReschedule(
       session.endAt.getTime() !== item.endAt.getTime();
     if (changed) {
       if (
-        session.status !== "CONFIRMED" ||
+        !["CONFIRMED", "READY"].includes(session.status) ||
         session.startAt.getTime() - now.getTime() <
           cutoffMinutes * millisecondsPerMinute
       ) {
@@ -145,7 +145,7 @@ async function applyReschedule(
     if (changed) {
       await tx.session.update({
         where: { id: session.id },
-        data: { startAt: item.startAt, endAt: item.endAt },
+        data: { startAt: item.startAt, endAt: item.endAt, status: "CONFIRMED" },
       });
     }
   }
@@ -471,7 +471,7 @@ export class SchedulingService {
       });
       if (
         (path.status !== "SCHEDULED" && path.status !== "ACTIVE") ||
-        lockedSession.status !== "CONFIRMED"
+        !["CONFIRMED", "READY"].includes(lockedSession.status)
       ) {
         throw new ConflictException("SESSION_CANNOT_BE_RESCHEDULED");
       }
