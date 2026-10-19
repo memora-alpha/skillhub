@@ -1,7 +1,10 @@
 import {
   Body,
+  BadRequestException,
   Controller,
   Get,
+  Header,
+  HttpCode,
   Param,
   ParseUUIDPipe,
   Post,
@@ -9,13 +12,18 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
+import { ApiSuccessResponse } from "../../shared/http/api-response.decorators";
 import {
   CurrentIdentity,
   IdentityGuard,
 } from "../../shared/auth/identity.guard";
 import type { Principal } from "../auth/application/services/sessions.service";
 import { success } from "../../shared/http/response";
-import { ConfirmSessionCompletionDto } from "./learning-sessions.dto";
+import {
+  ConfirmSessionCompletionDto,
+  LiveKitTokenRequestDto,
+} from "./learning-sessions.dto";
+import { LiveKitTokenResponse } from "./learning-sessions.responses";
 import { LearningSessionsService } from "./learning-sessions.service";
 
 @ApiTags("sessions")
@@ -24,6 +32,26 @@ import { LearningSessionsService } from "./learning-sessions.service";
 @Controller({ path: "sessions", version: "1" })
 export class LearningSessionsController {
   constructor(private readonly sessions: LearningSessionsService) {}
+
+  @Post(":sessionId/livekit-token")
+  @HttpCode(200)
+  @Header("Cache-Control", "no-store")
+  @ApiOperation({
+    summary: "Issue a short-lived LiveKit token for a Session participant",
+  })
+  @ApiSuccessResponse(200, LiveKitTokenResponse)
+  async livekitToken(
+    @CurrentIdentity() actor: Principal,
+    @Param("sessionId", ParseUUIDPipe) sessionId: string,
+    @Body() body: LiveKitTokenRequestDto,
+  ) {
+    if (Array.isArray(body) || Object.keys(body ?? {}).length)
+      throw new BadRequestException("EMPTY_BODY_REQUIRED");
+    return success(
+      await this.sessions.issueLiveKitToken(actor, sessionId),
+      "LiveKit token issued.",
+    );
+  }
 
   @Get("mine")
   @ApiOperation({ summary: "List the caller's sessions" })

@@ -15,6 +15,9 @@ function sessionsService({ tx = {}, db = {} }) {
     {},
     {},
     {},
+    { getSnapshot: async () => ({ values: {} }) },
+    { config: { enabled: false } },
+    { now: () => new Date("2026-11-02T00:00:00Z") },
   );
 }
 
@@ -23,11 +26,19 @@ test("session detail returns attendance seconds as strings", async () => {
     id: "session",
     teacherId: userA,
     learnerId: userB,
+    pathId: "path",
+    planId: "plan",
+    status: "CONFIRMED",
+    startAt: new Date("2026-11-02T03:00:00Z"),
+    endAt: new Date("2026-11-02T04:00:00Z"),
     teacherAttendanceSeconds: 3600n,
     learnerAttendanceSeconds: 0n,
   };
   const service = sessionsService({
-    db: { session: { findUnique: () => session } },
+    db: {
+      session: { findUnique: () => session, findMany: () => [] },
+      learningPath: { findUniqueOrThrow: () => ({ lockedVersion: null }) },
+    },
   });
   const result = await service.detail({ userId: userB }, "session");
 

@@ -2,6 +2,11 @@
 
 NestJS backend in the SkillHub pnpm/Turborepo workspace.
 
+Session/LiveKit: backend có token theo participant, lifecycle, signed webhook,
+progress và dual completion. Xem [setup, policy và contract](docs/livekit-sessions.vi.md).
+Join window chưa có mặc định; thêm env nhưng chưa cấu hình policy vẫn không cấp
+token. Video UI và tổng giây attendance cần triển khai riêng.
+
 Tag API có quản trị danh mục cho ADMIN và luồng USER đề xuất → ADMIN approve/reject.
 Xem [quickstart và rollout](specs/009-tags/quickstart.md),
 [contract](specs/009-tags/spec.md#api-contract) và
@@ -64,7 +69,7 @@ API đã có nền tảng hạ tầng và phần Danh tính (spec 002): đăng k
 
 Phần Kết nối đã có source cho Proposal từ Request/lời mời trực tiếp, accept mở Conversation, chat text/file, delivery receipt, read watermark và notification in-app. Chat, notification và application events dùng [SSE chung](specs/008-connections/contracts/sse.md) với reconnect/replay; commands/history vẫn qua HTTP. [Policy đã chốt](specs/008-connections/policies.md): proposal 7 ngày, 10/giờ và 50/ngày, direct cooldown 24 giờ; chat 30/phút/User và 120/phút/Conversation; 5 file/tin, 15 MB/file, 50 MB/tin. Xem [quickstart](specs/008-connections/quickstart.md), [tasks](specs/008-connections/tasks.md) và [validation](specs/008-connections/validation.md). Migration Connections và seed cấu hình đã áp dụng trên PostgreSQL local; journeys HTTP/SSE đã pass với PostgreSQL schema riêng và Mongo rs0 local. Mongo service/indexes đã cấu hình; storage local đã bật trên bucket chung `skillhub` và truy cập bucket trả HTTP 200. API local trả health/ready 200; luồng CHAT upload → scan READY/CLEAN → gửi file → download đã pass với R2/ClamAV thật trên dữ liệu test riêng. Moderation rules chưa chốt; SSE nhiều instance/proxy, recovery/cleanup races và load vẫn cần kiểm chứng. Retention, report/staff access và external notification chưa được mở.
 
-Các module từ `feat/learning-platform-modules` đã được gộp cùng Kết nối: source ban đầu cho LearningPath/Plan, scheduling, Session completion, Credit Hold/settlement, reviews, reputation, achievements và report/dispute. Các phần này vẫn cần áp dụng/kiểm tra migration và kiểm chứng tích hợp. Cancel/no-show policy, LiveKit, Gmail/FCM delivery và luồng Learning Materials đầy đủ còn thiếu hoặc chưa tích hợp. Conversations xuất cả lifecycle cho Proposal và membership reader cho LearningPath.
+Các module từ `feat/learning-platform-modules` đã được gộp cùng Kết nối: source ban đầu cho LearningPath/Plan, scheduling, Session completion, Credit Hold/settlement, reviews, reputation, achievements và report/dispute. Các phần này vẫn cần áp dụng/kiểm tra migration và kiểm chứng tích hợp. LiveKit backend được bổ sung trong spec010; Cloud smoke và video UI vẫn cần kiểm chứng/triển khai riêng. Cancel/no-show policy, Gmail/FCM delivery và luồng Learning Materials đầy đủ còn thiếu hoặc chưa tích hợp. Conversations xuất cả lifecycle cho Proposal và membership reader cho LearningPath.
 
 Catalog Prisma theo logical v3 cộng hai model Achievement/UserAchievement: **50 model PostgreSQL và một document
 Message MongoDB** với attachments nhúng. Xem [schema catalog](prisma/README.md)

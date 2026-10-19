@@ -129,6 +129,9 @@ export function setup({ wallets = {}, config = {} } = {}) {
     { applyPathCompletion: async () => {} },
     { evaluate: async () => {} },
     new ReportsService(runner(db), {}, {}, {}),
+    configuration,
+    { config: { enabled: false } },
+    { now: () => clock.now },
   );
   return { db, clock, configuration, wallet, paths, schedules, sessions };
 }
