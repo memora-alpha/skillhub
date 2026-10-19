@@ -12,6 +12,7 @@ import { FormNotice } from "@/components/FormNotice";
 import { FinancialReadState } from "./financial-read-state";
 import { formatCredit, formatVnd } from "../utils/amount";
 import { paymentOutcome } from "../utils/payment-outcome";
+import { SimplePaymentStatus } from "./simple-payment-status";
 import type {
   PaymentObservationRead,
   PaymentRefreshSnapshot,
@@ -31,13 +32,30 @@ export function PaymentStatusPanel({
   refresh,
   onRefresh,
   qrRenderError = false,
+  compact = false,
+  automatic = false,
+  watching = false,
 }: {
   state: PaymentObservationRead;
   onCheck?: () => void;
   refresh?: PaymentRefreshSnapshot;
   onRefresh?: (name: "wallet" | "history") => void;
   qrRenderError?: boolean;
+  compact?: boolean;
+  automatic?: boolean;
+  watching?: boolean;
 }) {
+  if (compact)
+    return (
+      <SimplePaymentStatus
+        automatic={automatic}
+        watching={watching}
+        state={state}
+        onCheck={onCheck}
+        refresh={refresh}
+        onRefresh={onRefresh}
+      />
+    );
   const data = state.data;
   const busy = state.status === "loading" || state.status === "refreshing";
   // Fresh confirmed outcomes need no redundant manual refresh action. Pending
@@ -117,6 +135,15 @@ export function PaymentStatusPanel({
               <FormNotice tone="info">
                 Đang hiển thị kết quả trước đó. Thông tin này chưa được cập
                 nhật.
+              </FormNotice>
+            )}
+            {state.recoveryRequired && (
+              <FormNotice tone="info">
+                Yêu cầu cần được kiểm tra hoặc đối soát. Không tạo yêu cầu nạp
+                mới.
+                {state.recoveryReason === "PAYMENT_CHANNEL_UNAVAILABLE"
+                  ? " Kênh thanh toán hiện chưa sẵn sàng."
+                  : " Vui lòng liên hệ hỗ trợ nếu tình trạng kéo dài."}
               </FormNotice>
             )}
             {state.issue === "conflict" && (

@@ -1,5 +1,11 @@
 # Mobile API contracts
 
+**Current Wallet/Payment source checkpoint — 2026-10-19:** Ordinary native Top-up/Payment routes now bind the shared authenticated client, durable recovery store, explicit create/same-key replay, QR presentation and bounded foreground status reads. Independent owner status reads are enabled on native/web; web create/recovery remains unavailable. Navigation and lifecycle do not create/replay payments. Confirmed PAID results refresh Wallet/History separately without client crediting. See [ordinary native integration](../specs/006-wallet-payment-history/contracts/normal-payment-integration.md) and [validation](../specs/006-wallet-payment-history/validation.md). Deployment/API/payOS and native-device acceptance remain unverified. Older checkpoints below describe their historical scope, not the current capability flags.
+
+**Historical QA checkpoint — 2026-10-18, BE7fc0f83 / HEAD5101aea + working tree:** Spec006 now integrates required payment recovery metadata, owner policy/status reads and native store/explicit create/replay/review/QR/status through a private QA entry. Normal Payment/Confirm stays disabled. Source/fixture/web and JS bundle checks are recorded in spec006/validation; actual deployment/API/payOS/Android/iOS acceptance remains unverified. Earlier source-missing notes are historical; no proposed API is treated as implemented.
+
+**Historical Wallet/Payment replan — 2026-10-18:** Source7fc0f83/HEAD5101aea now implements authenticated GET /payments/creation-policy, Payment creation-identity fallback, pause/channel/REVIEW guards and required recoveryRequired/recoveryReason DTO fields. See [source/contract audit](../specs/006-wallet-payment-history/contracts/backend-review-7fc0f83.md). D1 source-sync is cleared with explicit unsupported total-loss/support boundary. Mobile owner status/list transport and QR preview exist, but recovery fields are not yet projected and native durable create/store/QA binding remain pending; normal Payment/Confirm stay off. Older checkpoints below retain historical scope. No date filter, backend mutation or activation is added.
+
 ## Payment backend contract replan — 2026-10-17
 
 At checkout `4121c3f`, backend Payment `081b3d2` (merge `f80ef7a`) adds authenticated

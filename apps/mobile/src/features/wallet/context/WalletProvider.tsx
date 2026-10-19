@@ -8,13 +8,11 @@ import {
   type ReactNode,
 } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { Platform } from "react-native";
+import { accountWalletCapabilities } from "./account-capabilities";
 import { useAuthSession } from "@/features/auth";
 import type { PaginatedHttpClient } from "@/lib/http/client";
-import {
-  createWalletRuntime,
-  noWalletCapabilities,
-  type WalletRuntime,
-} from "./wallet-runtime";
+import { createWalletRuntime, type WalletRuntime } from "./wallet-runtime";
 import {
   attachPaymentPreparation,
   type PaymentPreparationSession,
@@ -74,12 +72,7 @@ function WalletSession({
       scope: { ownerId, generation },
       queries,
       current,
-      capabilities: {
-        ...noWalletCapabilities,
-        wallet: true,
-        history: true,
-        transaction: true,
-      },
+      capabilities: accountWalletCapabilities(Platform.OS),
     });
     return {
       ...runtime,

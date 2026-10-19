@@ -50,7 +50,11 @@ test("accepted PAID refreshes shared Wallet/history reads independently; retry s
         };
       },
     };
-    const payment = parsePayment(paymentWire("PAID", 2)),
+    const payment = parsePayment({
+        ...paymentWire("PAID", 2),
+        recoveryRequired: true,
+        recoveryReason: "PAYMENT_CHECKOUT_MISSING",
+      }),
       refresh = createOwnerPaymentRefresh(runtime, queries, client, payment);
     try {
       await refresh.refresh();

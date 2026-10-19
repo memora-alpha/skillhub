@@ -26,6 +26,8 @@ export function paymentWire(status = "PENDING", version = 1) {
     expiresAt: "2026-10-17T01:00:00.000Z",
     paidAt: null as string | null,
     version,
+    recoveryRequired: status === "REVIEW",
+    recoveryReason: status === "REVIEW" ? "PAYMENT_REVIEW_REQUIRED" : null,
     checkout:
       status === "PENDING"
         ? {

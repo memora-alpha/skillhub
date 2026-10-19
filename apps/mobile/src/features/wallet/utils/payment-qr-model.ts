@@ -28,6 +28,7 @@ export function paymentQrFromObservation(
     observation.issue ||
     data.id !== paymentId ||
     data.status !== "PENDING" ||
+    data.recoveryRequired ||
     !data.checkout ||
     (observation.suppressedVersion ?? 0) >= data.version
   )

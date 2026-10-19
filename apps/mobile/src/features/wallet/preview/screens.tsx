@@ -21,6 +21,7 @@ import { previewHref, previewSelection } from "./navigation";
 import { WalletPreparationPreview } from "./preparation";
 import { WalletStatusPreview } from "./status";
 import { WalletQrPreview } from "./qr";
+import { WalletCreatePreview } from "./create";
 
 // Intentionally no query/client/session runtime injection: this is inert UI.
 export function WalletPreviewContent() {
@@ -59,6 +60,7 @@ export function WalletPreviewContent() {
         <WalletPreparationPreview view={view} />
       )}
       {view === "qr" && <WalletQrPreview />}
+      {view === "create" && <WalletCreatePreview />}
       {view === "status" && (
         <>
           <WalletStatusPreview initialState={state} />
@@ -114,6 +116,11 @@ export function WalletPreviewContent() {
         </Panel>
       )}
       <Panel title="Điều hướng bản mẫu">
+        {view !== "create" && (
+          <RouteButton secondary href={previewHref("create")}>
+            Nạp Credit mẫu độc lập
+          </RouteButton>
+        )}
         <RouteButton secondary href={previewHref("wallet")}>
           Ví mẫu
         </RouteButton>

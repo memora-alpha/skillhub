@@ -54,6 +54,8 @@ export function createPreviewPaymentHost(status: string) {
         expiresAt: null,
         paidAt: null,
         version,
+        recoveryRequired: false,
+        recoveryReason: null,
         checkout:
           status === "PENDING" && qr && mode !== "paid" && mode !== "conflict"
             ? {

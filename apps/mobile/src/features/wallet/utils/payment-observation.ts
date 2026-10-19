@@ -13,6 +13,7 @@ export type PaymentLiveObservation = Readonly<{
   stale: boolean;
   issue?: "conflict";
   suppressedVersion?: number;
+  detached?: boolean;
 }>;
 type ObservationEvent = Readonly<{
   scope: WalletScope;
@@ -104,19 +105,43 @@ export function reducePaymentObservation(
   // Latch null for this session/payment/version; no local timer can reset it.
   const suppress =
     previous.suppressedVersion === old.version || incoming.checkout === null;
-  const data =
-    suppress && old.checkout !== null
-      ? Object.freeze({ ...old, checkout: null })
-      : old;
+  const accepted =
+    previous.detached && !suppress
+      ? { ...old, checkout: incoming.checkout }
+      : suppress && old.checkout !== null
+        ? Object.freeze({ ...old, checkout: null })
+        : old;
   const equal =
     old.status === incoming.status &&
     old.paidAt === incoming.paidAt &&
-    (suppress || sameCheckout(old.checkout, incoming.checkout));
+    (suppress ||
+      previous.detached ||
+      sameCheckout(old.checkout, incoming.checkout));
+  // Read-time operational metadata is not versioned financial state. It can
+  // change/clear while an equal-version QR suppression latch must remain set.
+  const data = Object.freeze({
+    ...accepted,
+    recoveryRequired: incoming.recoveryRequired,
+    recoveryReason: incoming.recoveryReason,
+  });
   return Object.freeze({
     target: previous.target,
     data,
     stale: !equal,
     ...(!equal ? { issue: "conflict" as const } : {}),
     ...(suppress ? { suppressedVersion: old.version } : {}),
+  });
+}
+
+export function detachPaymentQr(
+  previous: PaymentLiveObservation,
+): PaymentLiveObservation {
+  return Object.freeze({
+    ...previous,
+    detached: true,
+    ...(previous.data
+      ? { data: Object.freeze({ ...previous.data, checkout: null }) }
+      : {}),
+    stale: true,
   });
 }

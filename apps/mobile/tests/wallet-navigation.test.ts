@@ -25,7 +25,7 @@ test("Back uses actual Home/Profile history; direct links fall back without side
   assert.deepEqual(actions, ["back", "/wallet/history"]);
   assert.deepEqual(draft, { amount: "1000", selection: "HOLD" });
   assert.equal(walletFallback("wallet"), "/profile");
-  assert.equal(walletFallback("payment"), "/wallet/topup");
+  assert.equal(walletFallback("payment"), "/wallet");
 });
 test("preview identity/state selection never becomes a real financial route or destination", () => {
   assert.equal(

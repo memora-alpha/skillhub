@@ -1,6 +1,8 @@
 # D1 — BE owner confirmation relayed by the user
 
-**Received:** 2026-10-18. **Decision:** CONFIRMED_WITH_LIMITATIONS.
+**Received:** 2026-10-18. **Current decision after source review:** SOURCE_VERIFIED_WITH_LIMITATIONS at7fc0f83 / HEAD5101aea.
+
+[Current backend review](backend-review-7fc0f83.md) confirms that the declared creation-policy, Payment identity fallback, migration guards, pause/channel/REVIEW blocking and recovery projection now exist. The receipt-time source-sync finding below is historical and cleared. GAP-06 remains SOURCE_READY / MOBILE_AND_ACCEPTANCE_PENDING; no task checkbox or runtime flag changes. The new required recoveryRequired/recoveryReason fields must be integrated; total-loss/clearance remains an explicit unsupported support stop, not a missing promise to re-request.
 
 The user supplied the BE response in `Pasted text.txt` in this chat. This records that response as the D1 policy decision; it is not a source revision, deployment verification, API test or authorization to enable payments. D2 native-first storage and the approved D3/D4 choices remain valid. Do not ask for those choices again.
 
@@ -19,7 +21,7 @@ The user supplied the BE response in `Pasted text.txt` in this chat. This record
 
 For D2 cleanup, retain unresolved encrypted records across logout; clear RAM/cache/draft/QR immediately and isolate accounts. This response does not define a local resolved-record deletion schedule: do not invent one. T080 must record a conservative cleanup policy and its testable boundaries before full completion. Do not promise reliable detection of undetectable total storage loss or full SC-004 recovery.
 
-## Declared new API — not found in this checkout
+## API declaration at receipt — historical missing-source snapshot
 
 BE declares authenticated `GET /api/v1/payments/creation-policy`, with response.data containing `canCreate`, `reasonCode` and `existingPaymentId`. The provided example is `canCreate:false`, `reasonCode:PAYMENT_UNRESOLVED` and an own-payment UUID. It does not establish every field's nullability, complete schema, authorization errors or freshness/version contract; derive those from the updated source before writing adapters.
 
@@ -34,7 +36,7 @@ BE declares authenticated `GET /api/v1/payments/creation-policy`, with response.
 
 This policy is a snapshot, not a reservation or a guarantee of successful POST. Keep correlation when POST fails; an error for the current attempt does not prove an earlier dispatch never committed.
 
-## Source audit at the time of receipt
+## Historical source audit at the time of receipt
 
 Local HEAD remains `4121c3f1010d49bb99be023333e7de16092a1db1`, BE merge `f80ef7a` / Payment `081b3d2`. No pull/checkout/backend edit was performed.
 
@@ -43,11 +45,11 @@ Local HEAD remains `4121c3f1010d49bb99be023333e7de16092a1db1`, BE merge `f80ef7a
 - The Payment model in `services/api/prisma/schema.prisma:851` lacks the newly declared key-digest/body-fingerprint recovery identity. Generic mapping fields exist at1644–1650; `services/api/src/infrastructure/idempotency/idempotency.service.ts:97–133` implements retained-map replay, not the declared fallback lookup/reconstruction.
 - No creation-policy, PAYMENT_CREATION_PAUSED, PAYMENT_UNRESOLVED or reconciliation error implementation was found in the local Payment source search. Do not treat the supplied API as already integrated or fabricate fixtures as proof of the new BE implementation.
 
-**Integration status:** SOURCE_SYNC_REQUIRED. The unanswered BE-policy question is resolved; the declared fixes must be available in the working source and bound deployment before their guarantees can be relied upon. T079 confirmation subset is recorded, but its original full completion/oracle criteria are not met by a response alone. T079/T080 and full GAP-06 stay open for source/contract validation, remaining cleanup/total-loss limits and implementation evidence. Preserve all100 IDs/68 completed tasks; no checkbox is changed.
+**Receipt-time integration status (superseded by7fc0f83 review):** SOURCE_SYNC_REQUIRED. The unanswered BE-policy question is resolved; the declared fixes must be available in the working source and bound deployment before their guarantees can be relied upon. T079 confirmation subset is recorded, but its original full completion/oracle criteria are not met by a response alone. T079/T080 and full GAP-06 stay open for source/contract validation, remaining cleanup/total-loss limits and implementation evidence. Preserve all100 IDs/68 completed tasks; no checkbox is changed.
 
-## Next verification / implementation input
+## Follow-on implementation input (source review now complete)
 
-1. Obtain the actual BE fix revision in the current branch through an explicitly requested Git update; preserve current changes. Compare migrations, controller/DTO, create/replay order, Payment identity, pause/channel behavior, worker/webhook REVIEW rules and operator runbook/report source.
+1. Source comparison is complete at7fc0f83/HEAD5101aea; see the linked audit for migration/DTO/POST/worker/REVIEW/runbook anchors. Actual deployment/migration and operational bindings are still unverified; no Git update or financial action was run by this plan.
 2. Contract-first tests for policy/POST races, surviving-Payment mapping rebuild, missing-Payment409, changed-body409, unresolved-owner new-key rejection including REVIEW, channel/pause/provider503, and current-version QR suppression. Record declared schema versus confirmed schema separately.
 3. Finalize T080 correlation/cleanup and then implement the approved native storage/claim/create/QA binding tasks under a later implementation request. Persist before dispatch; failure/corruption blocks create; known ID resumes by owner GET; lost ID replay remains explicit and respects incident policy. No web-create fallback.
 4. Keep restore/total-loss/support cases fail-closed. Support discovery/report is not payment confirmation, financial repair, operator clearance API or replacement permission. No extra Product/BE policy is presumed to make full recovery possible.

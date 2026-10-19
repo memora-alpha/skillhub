@@ -9,6 +9,7 @@ import {
   projectPaymentRead,
   pausePaymentRead,
 } from "../utils/payment-read-query";
+import { usePaymentAutoRead } from "./use-payment-auto-read";
 
 export function usePaymentStatus(id: string) {
   const runtime = useOptionalWalletRuntime(),
@@ -37,6 +38,7 @@ export function usePaymentStatus(id: string) {
   useFocusEffect(
     useCallback(() => {
       if (AppState.currentState !== "background") void check();
+      setForeground(AppState.currentState !== "background");
       const listener = AppState.addEventListener("change", (next) => {
         active.current = next === "active";
         setForeground(next === "active");
@@ -55,8 +57,22 @@ export function usePaymentStatus(id: string) {
       };
     }, [runtime, queries, id, check]),
   );
+  const state = projectPaymentRead(runtime, id, query);
+  const watching = usePaymentAutoRead({
+    active: !!options.enabled && focused && foreground,
+    id,
+    current: () => active.current && !!runtime?.isCurrent(),
+    snapshot: () => ({
+      id,
+      status: state.data?.status,
+      stale: state.stale,
+      denied: ["denied", "not-found", "session-ended"].includes(state.status),
+    }),
+    read: async () => check(),
+  });
   return {
-    state: projectPaymentRead(runtime, id, query),
+    state,
+    watching,
     check: options.enabled ? check : undefined,
   };
 }
