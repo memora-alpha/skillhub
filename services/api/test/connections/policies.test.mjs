@@ -55,6 +55,23 @@ test("message canonicalization and file count reject malformed commands", () => 
     normalizeMessage({ attachmentFileIds: Array(6).fill("a") }),
   );
 });
+
+test("proposal schedule is optional normalized plain text and rejects structured slots", () => {
+  const normalize = (candidateSlots) =>
+    normalizeProposal(
+      { message: "A valid invitation", candidateSlots },
+      connectionSettings({}),
+    ).candidateSlots;
+  assert.equal(
+    normalize("  Tối <b>Thứ 5</b> và Thứ 7  "),
+    "Tối Thứ 5 và Thứ 7",
+  );
+  for (const value of [undefined, null, "", "  ", "<b></b>"])
+    assert.equal(normalize(value), null);
+  for (const value of [[], [{ startAt: "2030-01-01T00:00:00Z" }], {}, 5, true])
+    assert.throws(() => normalize(value), /INVALID_TEXT/);
+  assert.throws(() => normalize("Evening\u0000"), /INVALID_TEXT/);
+});
 test("SSE cursor is signed, recipient-scoped and separate from message sequence", () => {
   const secret = "a".repeat(32),
     userId = "viewer",
