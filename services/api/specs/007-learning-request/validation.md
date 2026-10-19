@@ -1,0 +1,104 @@
+# Learning Request validation
+
+## FE extension verification — 2026-10-12
+
+The approved [FE design](fe-extension-design.md) and [plan](fe-extension-plan.md) are implemented in services/api. No frontend edits, commit/push or migration deployment to the user's application database were performed.
+
+| Check                                                | Observed result                                                                                                                                                                                                         |
+| ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Existing Learning Request baseline                   | 93/93 passed before product changes.                                                                                                                                                                                    |
+| Test-first FE checks                                 | 7/7 failed for missing payload fields/validation/moderation, then passed. Review regressions for UUID canonicalization and fixed-offset zones each failed before their fixes and passed after.                          |
+| Complete focused Learning Request unit/Swagger suite | 102/102 passed on the final built source.                                                                                                                                                                               |
+| Real PostgreSQL + HTTP feature tests                 | 16/16 passed: FE create/publish/edit/get/feed/recommendation/cancel, owned skill links/privacy/current verification, ACTIVE Tag search/pagination/Swagger. Every fixture uses a unique disposable schema and cleans it. |
+| Existing Skills policy/integration                   | 26/26 passed; new Tag tests also had an observed missing-route/Swagger RED before implementation.                                                                                                                       |
+| Foundation/runtime checks                            | Foundation and runtime repositories passed; v3 migration passed on local PostgreSQL after rerunning with localhost access outside the sandbox.                                                                          |
+| API lint/typecheck/build                             | Installed ESLint, tsc --noEmit and Nest CLI each exited 0.                                                                                                                                                              |
+| Prisma                                               | Runtime generation, Prisma Client generation and schema validation passed. The new migration ran with all existing migrations in disposable schemas; constraints and persisted fields were exercised.                   |
+| Diff and formatting                                  | git diff --check passed; changed TS/MJS/JSON/Markdown formatted with installed Prettier; Prisma formatted via CLI.                                                                                                      |
+| Fresh review                                         | Two P2 input-contract findings (UUID case variants and native fixed-offset timezone acceptance) reproduced and fixed; reviewer reported no unresolved Critical/Important finding.                                       |
+
+Corepack attempted to download uncached pnpm10.24.0 but sandbox registry DNS was unavailable. Equivalent installed local CLIs were used for the checks above; no dependency changes or hook bypass. Local PostgreSQL/HTTP checks required sandbox escalation; this is not an application error.
+
+Deployment: apply `20261012000000_learning_request_fe_preferences` via `pnpm --filter api db:deploy`, then restart API. Swagger at `/api/docs` exposes the added schemas. The new payload fields remain optional and legacy preferredSlots continues to work.
+
+Date 2026-10-07. Core implementation through Task 6 and the user-requested ERD v3 corrections are present; Task 7 remains partial, with real-infrastructure and upstream owner gates remaining. [Alignment report](erd-v3-alignment.md) includes the SRS V1.6 Tag evidence and the exact storage mappings.
+
+## Planning evidence
+
+- Đọc metadata và bounded ranges của năm tab Summary/Backlog/BR Mapping/Open Decisions/Services; Learning Request ở Backlog rows23–27. Source snapshot link/date ghi trong spec.
+- Đọc SRS V1.4 6.4/8.2/18.10/18.31 và đối chiếu Entities/Logical Model cũ; không chuyển duration/budget/30-day expiry thành V1.4 requirement.
+- Đối chiếu SRS V1.5 user cung cấp với V1.4: cả 4 mục LR, BR-07–12 và AC-03/04 không đổi. Đọc các thay đổi Path/Plan/ONE_WAY/completion/OTP, cập nhật baseline/contracts/Task 2/5/7 và G3; chi tiết ở [change report](srs-v1.5-changes.md). Không resolve LR-D01–03 bằng suy đoán.
+- Sao nguyên V1.5 vào docs; file gốc và bản trong repo đều 107750 bytes, SHA-256 `14096c3fbc6915b155a5d04d802918bdd157d8beaadc0c1e106241876501fc36`. Bản DOCX không được chỉnh nội dung.
+- Kiểm tra source registrations, auth/permissions/config/audit/outbox/time và committed migrations; research có findings và existing signatures. Không truy cập live application DB.
+- Spec Kit setup-plan resolve đúng feature paths; script HAS_GIT=false vì API không có Git riêng. Git root branch thật feat/learning-request; đây là khác biệt tooling đã ghi, không đổi Git workflow.
+- Self-review requirements/plan/tasks signatures và focus cases; policy/dependency gaps vẫn visible trong spec/checklist/gates.
+
+| Planning check                                                                   | Result                                                                                                                                                                                                                                                        |
+| -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Local Prettier --check trên 10 Markdown artifacts, API AGENTS.md và feature.json | Pass: All matched files use Prettier code style. Dùng node_modules/.bin/prettier.cmd trực tiếp vì pnpm Corepack cần download bị lỗi DNS; không cần cài thêm tool.                                                                                             |
+| Inline Python document checks                                                    | Pass: đúng 10 documents, mọi local Markdown link tồn tại, SH-030–034 có trong spec/plan, đúng 7 task, đúng 3 nhóm decision chưa chốt, feature/context references khớp; không replacement character/trailing whitespace.                                       |
+| Inline Python SRS comparison/hash checks                                         | Pass: section text 6.4 (46 paragraphs), 8.2 (22), 18.10 (78), 18.31 (14) bằng nhau; BR-07–12 và AC-03/04 bằng nhau; bản sao V1.5 byte-for-byte và SHA-256 khớp file user cung cấp.                                                                            |
+| setup-plan.ps1 -Json và check-prerequisites.ps1 -Json từ API                     | Pass: FEATURE_SPEC/IMPL_PLAN/SPECS_DIR đúng 007-learning-request; research/data-model/contracts/quickstart được tìm thấy. SPECIFY_FEATURE process override giữ tên branch thật; HAS_GIT=false không phải runtime feature failure.                             |
+| Agent-context hook                                                               | Script skip vì thiếu PyYAML; managed reference cập nhật trực tiếp và readback đúng 007-learning-request/plan.md, không thay instruction khác.                                                                                                                 |
+| V1.5 check-prerequisites.ps1 -Json                                               | Pass: FEATURE_DIR đúng 007-learning-request, research/data-model/contracts/quickstart được tìm thấy. Chạy powershell.exe -NoProfile -ExecutionPolicy Bypass -File trong child process vì gọi script trực tiếp bị execution policy chặn; không đổi policy máy. |
+| git diff --check / status / tracked diff review                                  | Pass: không whitespace errors; thay đổi hiện có là feature documents, bản sao SRS V1.5 và hai active-feature references từ bản plan trước; không có product code hoặc staged commit.                                                                          |
+
+## Core implementation (Tasks 1-6)
+
+The API source now includes draft/create/publish, versioned moderation and in-app rejection delivery, edit/cancel/expiry lifecycle, scoped feed/mine/moderation/detail routes, literal keyword and ANY-tag filtering, stable cursors, and Sharing Skill-ranked recommendations. Unit tests cover allowlist projections and explicit access; missing Catalog, eligibility, owner-profile and Sharing Skill adapters fail closed with 503.
+
+The user selected option A for all eight reviewed decisions. Exact production moderation terms/categories still need Product Owner approval. The SRS V1.5 comparison found no Learning Request rule changes; the revised owner contracts and G3 integration gates are recorded in [srs-v1.5-changes.md](srs-v1.5-changes.md).
+
+## Verification evidence — 2026-10-07
+
+| Check                                                                                                                          | Result                                                                                                                                                                                                                                                                                                          |
+| ------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `..\..\node_modules\.bin\tsc.CMD --noEmit -p tsconfig.json` from `services/api`                                                | Pass, exit 0.                                                                                                                                                                                                                                                                                                   |
+| `..\..\node_modules\.bin\nest.CMD build` from `services/api`                                                                   | Pass, exit 0.                                                                                                                                                                                                                                                                                                   |
+| Focused ESLint over changed Learning Request source and tests, `--max-warnings 0`                                              | Pass, exit 0.                                                                                                                                                                                                                                                                                                   |
+| `npm.cmd run test:learning-request`                                                                                            | 90/90 passed, 0 failed; includes a fresh Nest build after ERD changes and formatting.                                                                                                                                                                                                                           |
+| Identity/RBAC/audit/configuration/consistency regression set                                                                   | 45 offline tests passed. Two loopback HTTP tests initially failed with sandbox EACCES and then passed with socket restrictions lifted; 47 verified cases in total.                                                                                                                                              |
+| Full and Identity Prisma schema validation                                                                                     | Both schemas valid.                                                                                                                                                                                                                                                                                             |
+| Prettier check for README, feature plan/validation, package and updated test files                                             | Pass, all matched files formatted.                                                                                                                                                                                                                                                                              |
+| `node --test test/learning-requests/persistence.integration.test.mjs test/learning-requests/notification.integration.test.mjs` | 3 tests skipped because `TEST_DATABASE_URL` is unset; test files load successfully.                                                                                                                                                                                                                             |
+| `npm.cmd run test:learning-request:integration` with no `TEST_DATABASE_URL`                                                    | Exits before build with the intended isolated-database requirement message.                                                                                                                                                                                                                                     |
+| `package.json` parse and runner presence                                                                                       | Both `test:learning-request` and `test:learning-request:integration` present.                                                                                                                                                                                                                                   |
+| Test-first ERD regression run before the production changes                                                                    | 37 focused cases: 26 passed and 11 failed for the old storage/mapping/missing preference; all are green in the complete runner above.                                                                                                                                                                           |
+| Focused generated OpenAPI preference test                                                                                      | Initially failed because no Swagger CLI plugin was enabled and the DTO had no property metadata. After explicit annotations, generated create/edit schemas expose optional boolean verifiedTeacherOnly and scoped responses expose it; included in the 90-case runner. No server or application DB was started. |
+| XML attribute inventory compared with the Prisma LearningRequest model                                                         | All 19 ERD attributes are mapped; the five retained physical metadata extensions are listed in the alignment report.                                                                                                                                                                                            |
+| `prisma migrate diff --from-empty --to-schema prisma/identity.prisma --script`                                                 | Generated SQL contains JSONB slots, boolean preference, mapped version/reviewer/moderation columns and required User/Skill FKs; no slot child table. SQL was generated only, never applied.                                                                                                                     |
+
+Local executables were used because Corepack's `pnpm` attempted to fetch its package manager and DNS resolution for `registry.npmjs.org` failed. The audit/RBAC HTTP server tests passed outside sandbox socket restrictions after the initial loopback `EACCES` failures. Learning Request controller route metadata, IdentityGuard, ValidationPipe DTO conversion, response envelope, scoped detail response references and generated OpenAPI schemas for the new preference are covered without opening a port. Full application Swagger generation with real runtime dependencies remains pending.
+
+The earlier broad Identity provider run had three environment-blocked cases: S3 and SMTP loopback connections returned `EACCES`; ClamAV surfaced `SCAN_UNAVAILABLE` after the socket was denied. That provider suite was not rerun for the ERD correction. The current offline Identity/RBAC/audit/configuration/consistency subset and the two targeted HTTP tests passed independently.
+
+## Remaining release gates
+
+- The scoped migration is not applied to any database. Reconcile the minimum Catalog tables in the migration with the SH-022 owner before rollout; the G1 Skill/Tag and Users eligibility adapters are not in this checkout.
+- Real PostgreSQL rollback, notification receipt dedupe, content query/ranking, tie-timestamp pagination and cancel-vs-proposal race tests are authored but unrun. Use only a migrated isolated database through `TEST_DATABASE_URL`; the integration runner never falls back to `DATABASE_URL`.
+- Redis-backed expiry recovery and performance EXPLAIN/P95 evidence remain unrun. Agree the benchmark dataset, concurrency and hardware first.
+- G4 Sharing Skill snapshot integration is missing. The recommended route returns 503 when that adapter is absent and never disguises the normal feed as recommendations.
+- Proposal/Verification consumers must enforce the requested skill's VERIFIED status when `verifiedTeacherOnly` is true (SRS V1.6 PP-001). The persisted flag and LR lifecycle contract are present; real consumer enforcement remains unverified.
+- SH-042/051/055 Path/Schedule/Session/Wallet consumers still own final lock, versioned confirmations, completion and settlement. TWO_WAY/ONE_WAY end-to-end flows remain pending. V1.5 downstream policy notes are historical; reconcile those owners with V1.6 before integration, including its explicit 4% ONE_WAY fee. Refund/cancel/no-show policy gates remain.
+- OTP cooldown does not become an account lock; BR-41 remains an Identity-owned regression requirement. Email/push rejection channels under OP-05 are outside this in-app slice.
+
+These gates separate implemented core behavior from downstream release evidence; do not mark SH-030–034 fully released based on unit tests or plans alone.
+
+## Swagger contract audit — 2026-10-12
+
+Scope confirmed by the user: Learning Request and its related moderation,
+rule configuration and notification APIs (15 HTTP operations across four controllers).
+
+- Added the missing approve/reject body fields, moderation rule inputs and nested
+  rule schema, and notification pagination query fields.
+- Documented UUID path parameters, input bounds/defaults, and the allowed status
+  filter for each list scope.
+- Corrected nullable response values that reflection had inferred as objects:
+  text, UUIDs, timestamps and reviewed versions now have explicit scalar types.
+  Fields always returned as null remain required; fields the API may omit remain optional.
+- The generated OpenAPI regression checks all 15 operations for bearer auth,
+  success status/envelope, UUID parameters, input schemas and nullable response fields.
+  It uses the real controllers with mocked application providers and no listening port.
+- API build and lint passed; the Learning Request suite passed 92/92 tests.
+  The existing bootstrap regression was aligned with the previously approved
+  Sharing Skill restore permission; runtime grants were not changed.

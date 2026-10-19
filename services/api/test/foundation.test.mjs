@@ -29,6 +29,18 @@ test("invalid config fails without exposing connection credentials", () => {
   assert.equal(validateEnvironment(valid).PORT, 3001);
 });
 
+test("environment validation preserves module configuration alongside storage settings", () => {
+  const config = validateEnvironment({
+    ...valid,
+    IDENTITY_JWT_KEY: "value",
+    IDENTITY_JWT_ISSUER: "skillhub-test",
+    STORAGE_ENABLED: "false",
+  });
+  assert.equal(config.IDENTITY_JWT_KEY, "value");
+  assert.equal(config.IDENTITY_JWT_ISSUER, "skillhub-test");
+  assert.equal(config.STORAGE_ENABLED, false);
+});
+
 function invokeFilter(error) {
   const result = {};
   const response = {
@@ -41,6 +53,7 @@ function invokeFilter(error) {
     },
   };
   new HttpExceptionFilter().catch(error, {
+    getType: () => "http",
     switchToHttp: () => ({ getResponse: () => response }),
   });
   return result;
@@ -49,16 +62,24 @@ function invokeFilter(error) {
 test("unexpected database errors do not expose secrets in HTTP responses", () => {
   const result = invokeFilter(new Error(valid.DATABASE_URL));
   assert.equal(result.code, 500);
-  assert.equal(result.body.error.message, "Service unavailable");
+  assert.deepEqual(result.body, {
+    success: false,
+    statusCode: 500,
+    message: "Internal server error",
+  });
   assert.doesNotMatch(JSON.stringify(result), /private-password/);
 });
 
 test("validation errors preserve field messages and HTTP status", () => {
   const result = invokeFilter(
-    new BadRequestException(["email must be an email"]),
+    new BadRequestException(["email must be an email", "password is invalid"]),
   );
   assert.equal(result.code, 400);
-  assert.deepEqual(result.body.error.message, ["email must be an email"]);
+  assert.deepEqual(result.body, {
+    success: false,
+    statusCode: 400,
+    message: "email must be an email; password is invalid",
+  });
 });
 
 test("readiness fails closed when document storage is unavailable", async () => {

@@ -1,7 +1,11 @@
 import "reflect-metadata";
 import { NestFactory } from "@nestjs/core";
 import { ConfigService } from "@nestjs/config";
-import { Logger as NestLogger, ValidationPipe } from "@nestjs/common";
+import {
+  Logger as NestLogger,
+  ValidationPipe,
+  VersioningType,
+} from "@nestjs/common";
 import { Logger } from "nestjs-pino";
 import helmet from "helmet";
 import { setupSwagger } from "./configs/swagger.config";
@@ -16,8 +20,10 @@ async function bootstrap() {
   app.useLogger(app.get(Logger));
   app.use(helmet());
   app.setGlobalPrefix("api");
+  app.enableVersioning({ type: VersioningType.URI });
   app.enableCors({
     origin: config.getOrThrow<string>("CORS_ORIGIN"),
+    exposedHeaders: ["x-request-id", "x-correlation-id"],
   });
   app.enableShutdownHooks();
   app.useGlobalPipes(

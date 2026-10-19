@@ -1,0 +1,184 @@
+enum OtpPurpose {
+  REGISTER
+  RESET_PASSWORD
+  CHANGE_EMAIL
+}
+
+enum IdentityEmailKind {
+  REGISTER_OTP
+  RESET_OTP
+  PASSWORD_CHANGED
+}
+
+model IdempotencyRecord {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  scope           String
+  operation       String
+  keyDigest       String    @map("key_digest")
+  fingerprint     String
+  resultReference Json?     @map("result_reference")
+  completedAt     DateTime? @map("completed_at") @db.Timestamptz(3)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@unique([scope, operation, keyDigest])
+  @@map("idempotency_records")
+}
+
+model OutboxConsumerReceipt {
+  consumer    String
+  eventId     String   @map("event_id") @db.Uuid
+  processedAt DateTime @default(now()) @map("processed_at") @db.Timestamptz(3)
+
+  @@id([consumer, eventId])
+  @@map("outbox_consumer_receipts")
+}
+
+model SystemConfigurationRevision {
+  id            String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  key           String
+  value         Json
+  version       Int
+  effectiveAt   DateTime            @map("effective_at") @db.Timestamptz(3)
+  createdAt     DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  actorSnapshot Json                @map("actor_snapshot")
+  auditId       String?             @map("audit_id") @db.Uuid
+  configuration SystemConfiguration @relation(fields: [key], references: [key], onDelete: Restrict)
+
+  @@unique([key, version])
+  @@index([key, createdAt(sort: Desc)])
+  @@map("system_configuration_revisions")
+}
+
+model StoredFile {
+  id                String                @id @db.Uuid
+  purpose           String
+  uploadedBy        String                @map("uploaded_by") @db.Uuid
+  objectKey         String                @unique @map("object_key")
+  generation        Int                   @default(1)
+  originalName      String                @map("original_name")
+  detectedMime      String?               @map("detected_mime")
+  sizeBytes         Int?                  @map("size_bytes")
+  sha256            String?
+  state             String
+  scanAttempts      Int                   @default(0) @map("scan_attempts")
+  scanVerdict       String?               @map("scan_verdict")
+  scannerVersion    String?               @map("scanner_version")
+  scannedAt         DateTime?             @map("scanned_at") @db.Timestamptz(3)
+  scanLeaseToken    String?               @map("scan_lease_token") @db.Uuid
+  scanLeaseUntil    DateTime?             @map("scan_lease_until") @db.Timestamptz(3)
+  providerVersionId String?               @map("provider_version_id")
+  failureCode       String?               @map("failure_code")
+  createdAt         DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime              @updatedAt @map("updated_at") @db.Timestamptz(3)
+  scanEvents        StoredFileScanEvent[]
+  attachedAt        DateTime? @map("attached_at") @db.Timestamptz(3)
+  resourceType      String? @map("resource_type")
+  resourceId        String? @map("resource_id") @db.Uuid
+  evidence          SkillEvidence?
+
+  @@index([state, createdAt])
+  @@index([scanLeaseUntil])
+  @@map("stored_files")
+}
+
+model StoredFileScanEvent {
+  id             String     @id @db.Uuid
+  fileId         String     @map("file_id") @db.Uuid
+  generation     Int
+  attempt        Int
+  leaseToken     String     @unique(map: "stored_file_scan_events_unique_lease") @map("lease_token") @db.Uuid
+  verdict        String
+  scannerVersion String     @map("scanner_version")
+  failureCode    String?    @map("failure_code")
+  createdAt      DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  file           StoredFile @relation(fields: [fileId], references: [id], onDelete: Restrict, onUpdate: NoAction, map: "stored_file_scan_events_file_fkey")
+
+  @@index([fileId, createdAt], map: "stored_file_scan_events_file_created_idx")
+  @@map("stored_file_scan_events")
+}
+
+// SRS V1.6 requires Learning Request tags beyond the logical v3 diagram.
+model ChatPublication {
+  id String @id @db.Uuid
+  conversationId String @map("conversation_id") @db.Uuid
+  senderId String @map("sender_id") @db.Uuid
+  clientMessageId String @map("client_message_id") @db.Uuid
+  commandDigest String @map("command_digest")
+  draftDigest String? @map("draft_digest")
+  draftFormatVersion Int @default(1) @map("draft_format_version")
+  deliveredEventId String @unique @map("delivered_event_id") @db.Uuid
+  status String @default("PREPARING")
+  messageSequence BigInt? @map("message_sequence")
+  failureCode String? @map("failure_code")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
+  @@unique([conversationId, senderId, clientMessageId])
+  @@index([status, createdAt])
+  @@index([senderId, createdAt])
+  @@map("chat_publications")
+}
+
+model UserEventStream {
+  userId String @id @map("user_id") @db.Uuid
+  epoch String @default(uuid()) @db.Uuid
+  lastSequence BigInt @default(0) @map("last_sequence")
+  firstRetainedSequence BigInt @default(1) @map("first_retained_sequence")
+  @@map("user_event_streams")
+}
+
+model UserEventDelivery {
+  userId String @map("user_id") @db.Uuid
+  sequence BigInt
+  eventId String @map("event_id") @db.Uuid
+  type String
+  version Int @default(1)
+  payload Json
+  occurredAt DateTime @default(now()) @map("occurred_at") @db.Timestamptz(3)
+  @@id([userId, sequence])
+  @@unique([userId, eventId])
+  @@map("user_event_deliveries")
+}
+
+enum RequestModerationStatus {
+  NOT_REQUIRED
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum RequestExpiryMode {
+  DEFAULT
+  CUSTOM
+}
+
+model Tag {
+  id String @id @default(uuid()) @map("tag_id") @db.Uuid
+  label String @unique @db.VarChar(80)
+  status CatalogStatus @map("status")
+  learningRequests RequestTag[] @relation("RequestTag_tag")
+
+  @@map("tags")
+}
+
+model RequestTag {
+  requestId String @map("request_id") @db.Uuid
+  tagId String @map("tag_id") @db.Uuid
+  request LearningRequest @relation("RequestTag_request", fields: [requestId], references: [id], onDelete: Restrict)
+  tag Tag @relation("RequestTag_tag", fields: [tagId], references: [id], onDelete: Restrict)
+
+  @@id([requestId, tagId])
+  @@index([tagId, requestId])
+  @@map("learning_request_tags")
+}
+
+// User-approved FE extension; offered skills remain owned by Sharing Skills.
+model RequestOffering {
+  requestId String @map("request_id") @db.Uuid
+  sharingSkillId String @map("sharing_skill_id") @db.Uuid
+  request LearningRequest @relation("RequestOffering_request", fields: [requestId], references: [id], onDelete: Restrict, map: "learning_request_offerings_request_fkey")
+  sharingSkill SharingSkill @relation("RequestOffering_sharing", fields: [sharingSkillId], references: [id], onDelete: Restrict, map: "learning_request_offerings_sharing_fkey")
+
+  @@id([requestId, sharingSkillId])
+  @@index([sharingSkillId, requestId], map: "learning_request_offerings_sharing_idx")
+  @@map("learning_request_offerings")
+}
