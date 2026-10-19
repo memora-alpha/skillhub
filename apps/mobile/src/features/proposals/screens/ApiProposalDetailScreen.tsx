@@ -1,12 +1,5 @@
-import { useState } from "react";
 import { useRouter } from "expo-router";
-import {
-  FeaturePage,
-  Copy,
-  RouteButton,
-  Panel,
-} from "@/components/feature-page";
-import { Button } from "@/components/Button";
+import { Copy, FeaturePage, RouteButton } from "@/components/feature-page";
 import { EmptyState } from "@/components/EmptyState";
 import {
   ConnectionFeedback,
@@ -16,6 +9,7 @@ import {
 import { useProposal, useProposalsApi } from "../hooks/use-proposals-api";
 import { ApiProposalSummary } from "../components/ApiProposalSummary";
 import { ProposalRecovery } from "../components/ProposalRecovery";
+import { ProposalAcceptActions } from "../components/ProposalAcceptActions";
 import type { ProposalDecisionResult } from "../api/proposals-api";
 
 export function ApiProposalDetailScreen({ id }: { id: string }) {
@@ -24,9 +18,6 @@ export function ApiProposalDetailScreen({ id }: { id: string }) {
   const api = useProposalsApi();
   const { userId, isCurrent } = useConnections();
   const command = useConnectionCommand<ProposalDecisionResult>();
-  const [confirmationVersion, setConfirmationVersion] = useState<number | null>(
-    null,
-  );
   const proposal = query.data;
   const openConversation = (result: ProposalDecisionResult) => {
     if (result.conversation && isCurrent())
@@ -35,19 +26,27 @@ export function ApiProposalDetailScreen({ id }: { id: string }) {
         params: { proposalId: result.conversation.id, mode: "api" },
       });
   };
-  const accept = async () => {
+  const accept = async (
+    proposalVersion: number,
+    expectedRequestVersion?: number,
+  ) => {
     if (
       !proposal ||
       proposal.status !== "PENDING" ||
       proposal.recipientId !== userId ||
       query.isFetching ||
       command.uncertain ||
-      confirmationVersion !== proposal.version
+      (proposal.sourceType === "LEARNING_REQUEST" &&
+        expectedRequestVersion === undefined) ||
+      (proposal.sourceType === "DIRECT_SEARCH" &&
+        expectedRequestVersion !== undefined) ||
+      proposalVersion !== proposal.version
     )
       return;
     const result = await command.run(
-      `accept:${id}:${proposal.version}`,
-      (key) => api.decide(id, "accept", proposal.version, key),
+      `accept:${id}:${proposal.version}:${expectedRequestVersion ?? "direct"}`,
+      (key) =>
+        api.decide(id, "accept", proposalVersion, key, expectedRequestVersion),
     );
     if (result) openConversation(result);
   };
@@ -62,43 +61,22 @@ export function ApiProposalDetailScreen({ id }: { id: string }) {
       {proposal && (
         <>
           <ApiProposalSummary proposal={proposal} />
+          {proposal.status === "PENDING" && (
+            <Copy muted>
+              Bước 1 · Kết nối. Đồng ý đề xuất sẽ mở Chat; nội dung học, lịch và
+              Credit được thống nhất sau.
+            </Copy>
+          )}
           {!command.uncertain && <ConnectionFeedback error={command.error} />}
           {!command.uncertain &&
             proposal.status === "PENDING" &&
             proposal.recipientId === userId && (
               <>
-                <Button
-                  variant="craft"
+                <ProposalAcceptActions
+                  proposal={proposal}
                   disabled={command.pending || query.isFetching}
-                  onPress={() => setConfirmationVersion(proposal.version)}
-                >
-                  Chấp nhận đề xuất
-                </Button>
-                {confirmationVersion === proposal.version && (
-                  <Panel title="Bắt đầu trao đổi với người gửi?">
-                    <Copy>
-                      Chấp nhận chỉ mở Chat để thương lượng lộ trình và lịch
-                      học, chưa giữ Credit.
-                    </Copy>
-                    <Button
-                      disabled={command.pending || query.isFetching}
-                      onPress={() => {
-                        void accept();
-                      }}
-                    >
-                      {command.pending
-                        ? "Đang chấp nhận..."
-                        : "Xác nhận chấp nhận"}
-                    </Button>
-                    <Button
-                      variant="secondary"
-                      disabled={command.pending}
-                      onPress={() => setConfirmationVersion(null)}
-                    >
-                      Quay lại
-                    </Button>
-                  </Panel>
-                )}
+                  onAccept={accept}
+                />
                 <RouteButton
                   secondary
                   href={{
