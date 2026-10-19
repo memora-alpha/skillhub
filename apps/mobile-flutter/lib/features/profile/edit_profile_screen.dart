@@ -15,7 +15,7 @@ import '../../components/misc.dart';
 import '../../core/http/app_error.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/toast/toast.dart';
-import '../account/account_api.dart';
+import '../account/schema/account_schema.dart';
 import '../auth/session/auth_session.dart';
 import '../auth/session/avatar_monitor.dart';
 import '../shell/app_screen_layout.dart';
@@ -299,7 +299,7 @@ class _ProfileFormState extends ConsumerState<_ProfileForm> {
     try {
       if (_profileChanged(values)) {
         try {
-          final profile = await runtime.accountApi.updateProfile(
+          final profile = await runtime.account.updateProfile(
             ProfilePatch(
               fullName: values.fullName,
               headline: values.headline,
@@ -327,11 +327,11 @@ class _ProfileFormState extends ConsumerState<_ProfileForm> {
       if (draft != null) {
         try {
           if (draft is AvatarUploadDraft) {
-            upload = await runtime.accountApi.uploadAvatar(
+            upload = await runtime.account.uploadAvatar(
               _avatarFormData(draft.image),
             );
           } else {
-            await runtime.accountApi.removeAvatar();
+            await runtime.account.removeAvatar();
           }
           if (generation != _generation) throw const AppError.session();
           ref.read(avatarMonitorProvider.notifier).track(upload);

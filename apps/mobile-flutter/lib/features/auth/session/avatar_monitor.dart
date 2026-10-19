@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/toast/toast.dart';
-import '../../account/account_api.dart';
+import '../../account/schema/account_schema.dart';
 import 'auth_session.dart';
 
 class AvatarMonitorState {
@@ -86,7 +86,7 @@ class AvatarMonitor extends Notifier<AvatarMonitorState?> {
     final assetId = current.upload.assetId;
     _update(current.copyWith(checking: true, clearError: true));
     try {
-      final upload = await runtime.accountApi.getAvatarUpload(assetId);
+      final upload = await runtime.account.getAvatarUpload(assetId);
       if (!_isCurrent(generation, assetId)) return;
       _update(state!.copyWith(upload: upload, checking: false));
       if (state!.settled) {

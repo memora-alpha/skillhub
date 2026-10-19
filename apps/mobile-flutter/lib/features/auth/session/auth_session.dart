@@ -6,24 +6,32 @@ import '../../../core/config/env.dart';
 import '../../../core/http/app_error.dart';
 import '../../../core/http/http_client.dart';
 import '../../../core/storage/token_store.dart';
-import '../../account/account_api.dart';
+import '../../account/schema/account_schema.dart';
+import '../../account/service/account_service.dart';
+import '../../remote/product_services.dart';
 import '../api/auth_api.dart';
 import 'session_controller.dart';
 
 class AuthRuntime {
-  AuthRuntime._(this.api, this.controller, this.accountApi);
+  AuthRuntime._(this.api, this.controller, this.account, this.services);
 
   factory AuthRuntime.create() {
     final client = HttpClient(getApiUrl);
     final api = AuthApi(client);
     final controller = SessionController(api, TokenStore.platform());
     client.bindSession(controller);
-    return AuthRuntime._(api, controller, AccountApi(client));
+    return AuthRuntime._(
+      api,
+      controller,
+      AccountService(client),
+      ProductServices(client),
+    );
   }
 
   final AuthApi api;
   final SessionController controller;
-  final AccountApi accountApi;
+  final AccountService account;
+  final ProductServices services;
 }
 
 final authRuntimeProvider = Provider<AuthRuntime>((ref) {
@@ -62,7 +70,7 @@ class AccountNotifier extends AsyncNotifier<OwnIdentity?> {
     final snapshot = ref.watch(sessionSnapshotProvider);
     if (snapshot.phase != SessionPhase.ready) return null;
     final runtime = ref.read(authRuntimeProvider);
-    final account = await runtime.accountApi.getMe();
+    final account = await runtime.account.getMe();
     if (account.accountStatus != 'ACTIVE') {
       await runtime.controller.expire();
       throw const AppError.session();
