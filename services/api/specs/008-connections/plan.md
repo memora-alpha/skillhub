@@ -16,6 +16,18 @@ Branch từ cached `origin/dev` tại `4596b79`, có OTP/password recovery fixes
 
 ## Technical Context
 
+2026-10-19 schedule amendment: user requested free-text storage for proposal
+`candidateSlots` to match the current mobile UI. API-only scope: DTO/response,
+domain normalization, runtime schema generator overlay and a new PostgreSQL
+migration; historical catalog/migrations and mobile stay unchanged. Nullable TEXT
+is authoritative; nonempty legacy JSON arrays remain serialized text, empty arrays
+become null through ALTER TYPE without invoking immutable proposal UPDATE guards.
+Create/read/PATCH, omitted/null/blank semantics, malformed payloads and migration
+preservation are verified in focused tests. Breaking client contract requires a
+coordinated migration/API/client release. Constitution check: architecture/store/
+ownership/atomicity/auth boundaries Pass by design; verification evidence is in
+validation.md. No exception or live deployment is needed for this change.
+
 **Language/Version**: TypeScript 6.0.3; Node 22.12+ trên 22.x hoặc 24+ theo README.
 
 **Primary Dependencies**: NestJS 11/Express/RxJS streaming HTTP SSE, Prisma 7.8/pg, Mongoose 8.19, Redis/BullMQ, Swagger và storage/scan hiện có. Fetch-compatible SSE with Bearer auth; không thêm socket service.
