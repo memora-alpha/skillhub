@@ -72,11 +72,11 @@ export function ConnectionFeedback({
   loading,
   error,
   retry,
-}: {
+}: Readonly<{
   loading?: boolean;
   error?: unknown;
   retry?: () => unknown;
-}) {
+}>) {
   return (
     <View style={{ gap: 10 }}>
       {loading && (

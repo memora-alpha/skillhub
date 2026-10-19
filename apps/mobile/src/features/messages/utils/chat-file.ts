@@ -30,9 +30,10 @@ export function validateChatFile(file: ChatFile) {
     !parts[0] ||
     file.name.length > 255 ||
     /[\\/]/.test(file.name) ||
-    [...file.name].some(
-      (char) => char.codePointAt(0)! <= 31 || char.codePointAt(0)! === 127,
-    ) ||
+    [...file.name].some((char) => {
+      const codePoint = char.codePointAt(0) ?? 0;
+      return codePoint <= 31 || codePoint === 127;
+    }) ||
     parts
       .slice(0, -1)
       .some((part) =>

@@ -2,11 +2,13 @@ import {
   createContext,
   useContext,
   useEffect,
+  useMemo,
   useState,
   type ReactNode,
 } from "react";
 import { AppState } from "react-native";
 import { fetch as streamFetch } from "expo/fetch";
+import { getRandomValues } from "expo-crypto";
 import { useQueryClient } from "@tanstack/react-query";
 import { getApiUrl } from "@/config/env";
 import { AppError } from "@/lib/http/errors";
@@ -119,7 +121,8 @@ export function ChatEventsProvider({
           () => {
             void connect();
           },
-          Math.min(30000, 3000 * 2 ** (failures - 1)) + Math.random() * 500,
+          Math.min(30000, 3000 * 2 ** (failures - 1)) +
+            (getRandomValues(new Uint16Array(1))[0]! / 65536) * 500,
         );
     };
     const connect = async () => {
@@ -170,13 +173,11 @@ export function ChatEventsProvider({
       listener.remove();
     };
   }, [runtime, cache, attempt]);
-  return (
-    <Context.Provider
-      value={{ connected, error, retry: () => setAttempt((v) => v + 1) }}
-    >
-      {children}
-    </Context.Provider>
+  const value = useMemo(
+    () => ({ connected, error, retry: () => setAttempt((v) => v + 1) }),
+    [connected, error],
   );
+  return <Context.Provider value={value}>{children}</Context.Provider>;
 }
 export function useChatEvents() {
   return useContext(Context);

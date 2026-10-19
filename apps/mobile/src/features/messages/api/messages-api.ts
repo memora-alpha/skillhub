@@ -63,13 +63,12 @@ export type MessageDraft = {
 export function mergeMessages(...groups: ApiMessage[][]) {
   return [
     ...new Map(groups.flat().map((message) => [message.id, message])).values(),
-  ].sort((a, b) =>
-    BigInt(a.sequence) < BigInt(b.sequence)
-      ? -1
-      : BigInt(a.sequence) > BigInt(b.sequence)
-        ? 1
-        : 0,
-  );
+  ].sort((a, b) => {
+    const first = BigInt(a.sequence),
+      second = BigInt(b.sequence);
+    if (first < second) return -1;
+    return first > second ? 1 : 0;
+  });
 }
 export function createMessagesApi(
   call: (path: string, options?: RequestOptions) => Promise<unknown>,
