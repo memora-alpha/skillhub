@@ -15,5 +15,11 @@ export function paymentStatusPresentation(
     stale: state.stale,
     ...(state.issue ? { issue: state.issue } : {}),
     ...(state.data ? { data: paymentModel(state.data) } : {}),
+    ...(state.data
+      ? {
+          recoveryRequired: state.data.recoveryRequired,
+          recoveryReason: state.data.recoveryReason,
+        }
+      : {}),
   };
 }

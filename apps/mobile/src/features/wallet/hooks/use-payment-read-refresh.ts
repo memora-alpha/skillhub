@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { AppState } from "react-native";
 import { useFocusEffect } from "expo-router";
 import { useIsFocused } from "expo-router/react-navigation";
@@ -19,6 +26,10 @@ export function usePaymentReadRefresh(payment?: PaymentProjection) {
   const runtime = useOptionalWalletRuntime(),
     queries = useQueryClient(),
     focused = useIsFocused();
+  const [foreground, setForeground] = useState(
+    AppState.currentState !== "background",
+  );
+  const retries = useRef(0);
   const coordinator = useMemo(
     () =>
       runtime?.capabilities.paymentStatus && payment
@@ -36,10 +47,41 @@ export function usePaymentReadRefresh(payment?: PaymentProjection) {
     if (coordinator && focused && AppState.currentState !== "background")
       void coordinator.refresh();
     return () => coordinator?.dispose();
-  }, [coordinator, focused]);
+  }, [coordinator, focused, foreground]);
+  useEffect(() => {
+    retries.current = 0;
+  }, [coordinator]);
+  useEffect(() => {
+    const failed = (["wallet", "history"] as const).filter(
+      (name) => state[name].status === "error",
+    );
+    if (
+      !coordinator ||
+      !focused ||
+      !foreground ||
+      !failed.length ||
+      retries.current >= 3
+    )
+      return;
+    const timer = setTimeout(() => {
+      if (AppState.currentState === "background" || !runtime?.isCurrent())
+        return;
+      retries.current++;
+      for (const name of failed) void coordinator.refresh(name);
+    }, 10000);
+    return () => clearTimeout(timer);
+  }, [
+    coordinator,
+    focused,
+    foreground,
+    runtime,
+    state.wallet.status,
+    state.history.status,
+  ]);
   useFocusEffect(
     useCallback(() => {
       const listener = AppState.addEventListener("change", (next) => {
+        setForeground(next === "active");
         if (next !== "active") coordinator?.pause();
       });
       return () => {

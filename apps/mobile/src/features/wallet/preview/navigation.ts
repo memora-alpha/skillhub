@@ -1,5 +1,5 @@
 import type { WalletView } from "../utils/navigation";
-type PreviewView = WalletView | "qr";
+type PreviewView = WalletView | "qr" | "create";
 
 const views: readonly string[] = [
   "wallet",
@@ -9,6 +9,7 @@ const views: readonly string[] = [
   "history",
   "transaction",
   "qr",
+  "create",
 ];
 const states: readonly string[] = [
   "CREATED",

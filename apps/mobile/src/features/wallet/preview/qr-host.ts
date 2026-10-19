@@ -90,6 +90,8 @@ export function createQrPreviewHost() {
         expiresAt: null,
         paidAt: null,
         version,
+        recoveryRequired: false,
+        recoveryReason: null,
         checkout:
           hidden || status !== "PENDING"
             ? null
@@ -185,6 +187,8 @@ export function createQrPreviewHost() {
           expiresAt: null,
           paidAt: null,
           version: 100,
+          recoveryRequired: false,
+          recoveryReason: null,
           checkout: {
             paymentLinkId: "synthetic-old",
             orderCode: "123",

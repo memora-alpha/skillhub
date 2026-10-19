@@ -18,12 +18,16 @@ export function WalletOverviewContent({
   onTopup,
   onHistory,
   refreshIndicator = "inline",
+  topupLabel = "Nạp Credit",
+  topupDisabled = false,
 }: {
   state: FinancialRead<WalletSnapshot>;
   onRetry?: () => void;
   onTopup: () => void;
   onHistory: () => void;
   refreshIndicator?: "inline" | "pull";
+  topupLabel?: string;
+  topupDisabled?: boolean;
 }) {
   return (
     <>
@@ -39,9 +43,11 @@ export function WalletOverviewContent({
         size="lg"
         style={styles.primary}
         onPress={onTopup}
+        disabled={topupDisabled}
+        accessibilityLabel={topupLabel}
       >
         <Icon name="plus" color={colors.white} size={18} />
-        <Text style={styles.primaryLabel}>Nạp Credit</Text>
+        <Text style={styles.primaryLabel}>{topupLabel}</Text>
       </Button>
       <Pressable
         accessibilityRole="button"

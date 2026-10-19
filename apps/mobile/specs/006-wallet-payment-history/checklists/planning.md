@@ -1,5 +1,7 @@
 # Planning Quality Checklist: Wallet, payment status and transaction history
 
+**Current replan review — 2026-10-18:** [7fc0f83 source audit](../contracts/backend-review-7fc0f83.md), [plan](../plan.md) and [gates](../contracts/integration-gates.md) supersede earlier D1 source-missing status. Reviewed identity/migration/policy/POST/recovery metadata/QR/null/REVIEW/runbook against source and recorded concrete mobile drift and test-first file ownership. D1 source verified with limits; no blanket source blocker or fabricated total-loss oracle. D2/D3/D4 approved,100 IDs/68 checked preserved, tasks untouched. Release remains gated by cleanup/store/create/QA implementation and actual deployed API/payOS/native evidence. Checklist marks below are design review only, not financial acceptance; no new marks changed.
+
 **Created**: 2026-10-16
 **Feature**: [spec](../spec.md) | **Plan**: [plan](../plan.md)
 **Meaning**: Checked items are reviewed design quality, not completed implementation, closed backend gaps or passed application acceptance.
