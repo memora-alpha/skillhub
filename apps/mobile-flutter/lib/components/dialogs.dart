@@ -52,6 +52,7 @@ class InfoModalCard extends StatelessWidget {
     final maxHeight = MediaQuery.sizeOf(context).height * 0.9;
     return Semantics(
       scopesRoute: true,
+      explicitChildNodes: true,
       namesRoute: true,
       label: title,
       child: Container(
@@ -146,6 +147,7 @@ Future<bool> showLogoutDialog(BuildContext context) async {
     barrierColor: const Color(0x6B1C1410),
     builder: (dialogContext) => Semantics(
       scopesRoute: true,
+      explicitChildNodes: true,
       namesRoute: true,
       label: 'Đăng xuất khỏi SkillHub?',
       child: Container(

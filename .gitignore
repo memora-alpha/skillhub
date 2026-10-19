@@ -8,6 +8,7 @@ coverage/
 services/api/src/generated/
 .env
 .env.*
+services/api/compose.override.yaml
 !.env.example
 !**/.env.example
 *.log
