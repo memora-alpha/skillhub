@@ -19,16 +19,12 @@ export class ProposalResponse {
   @ApiProperty({ type: Number, nullable: true }) initialSessionCount!:
     number | null;
   @ApiProperty({
-    type: "array",
-    items: {
-      type: "object",
-      properties: {
-        startAt: { type: "string", format: "date-time" },
-        endAt: { type: "string", format: "date-time" },
-      },
-    },
+    type: String,
+    nullable: true,
+    example: "Tối Thứ 5 và Thứ 7",
+    description: "Free-text schedule suggestion, not a confirmed schedule",
   })
-  candidateSlots!: unknown[];
+  candidateSlots!: string | null;
   @ApiProperty({
     enum: ["PENDING", "ACCEPTED", "REJECTED", "WITHDRAWN", "EXPIRED"],
   })

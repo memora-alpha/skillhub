@@ -92,3 +92,11 @@ examples, not instructions to start other agents.
 ## Remaining release verification
 
 T017 passed on installed local PostgreSQL on 2026-10-11. The configured Mongo replica-set suite and 13 full AppModule HTTP/SSE check groups also passed, including a harmless CHAT upload/scan/download journey against real R2/ClamAV; see [local validation](local-validation.md). T036 remains pending for broader source/revocation/recovery races, Redis multi-instance/proxy, storage cleanup races and load proof. Completed checkboxes do not establish production readiness.
+
+## 2026-10-19 proposal schedule text amendment
+
+- [x] Replace timestamp-array DTO/domain/response contracts with nullable schedule text; preserve omitted PATCH and null/blank clearing.
+- [x] Update the runtime generator overlay and add a separate migration preserving populated legacy values without proposal lifecycle updates.
+- [x] Verify lint, typecheck, build, Prisma validation, 15 focused tests and 2 real PostgreSQL tests in disposable schemas.
+- [x] Update contract, feature spec/model/plan and rollout documentation.
+- [ ] Apply the migration and release the API/client contract together in the target environment; no application migration or deployment performed in this change.

@@ -1,22 +1,14 @@
 import { Type } from "class-transformer";
 import {
-  ArrayMaxSize,
-  IsArray,
   IsIn,
   IsInt,
-  IsISO8601,
   IsOptional,
   IsString,
   IsUUID,
   Max,
   Min,
-  ValidateNested,
 } from "class-validator";
 import { ApiProperty, ApiPropertyOptional, PartialType } from "@nestjs/swagger";
-class CandidateSlotDto {
-  @ApiProperty() @IsISO8601() startAt!: string;
-  @ApiProperty() @IsISO8601() endAt!: string;
-}
 export class ProposalHintsDto {
   @ApiProperty({ minLength: 10, maxLength: 1000 }) @IsString() message!: string;
   @ApiPropertyOptional({ enum: ["ONE_WAY", "TWO_WAY"], nullable: true })
@@ -39,13 +31,15 @@ export class ProposalHintsDto {
   @Min(1)
   @Max(32767)
   initialSessionCount?: number | null;
-  @ApiPropertyOptional({ type: [CandidateSlotDto], maxItems: 5 })
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    example: "Tối Thứ 5 và Thứ 7",
+    description: "Free-text schedule suggestion; null or blank clears it",
+  })
   @IsOptional()
-  @IsArray()
-  @ArrayMaxSize(5)
-  @ValidateNested({ each: true })
-  @Type(() => CandidateSlotDto)
-  candidateSlots?: CandidateSlotDto[];
+  @IsString()
+  candidateSlots?: string | null;
 }
 export class CreateProposalDto extends ProposalHintsDto {
   @ApiProperty({ enum: ["LEARNING_REQUEST", "DIRECT_SEARCH"] })
