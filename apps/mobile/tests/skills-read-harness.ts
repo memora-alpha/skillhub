@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
-import { createRequire } from "node:module";
 import { runInNewContext } from "node:vm";
 import ts from "typescript";
+import * as zod from "zod";
 import {
   QueryClient,
   QueryObserver,
@@ -14,6 +14,13 @@ import type {
 } from "@tanstack/react-query";
 import { createSkillReadAccess } from "../src/features/skills/utils/skill-read-access";
 import { AppError } from "../src/lib/http/errors";
+import * as skillFilter from "../src/features/skills/utils/skill-filter";
+import * as verificationState from "../src/features/skills/utils/verification-state";
+import * as publicSkill from "../src/features/skills/utils/find-public-skill";
+import * as skillTypes from "../src/features/skills/types/skills";
+import * as evidenceTime from "../src/features/skills/utils/evidence-time";
+import * as ownSkillOrder from "../src/features/skills/utils/own-skill-order";
+import * as evidenceProgress from "../src/features/skills/utils/evidence-progress";
 import {
   batch,
   harness,
@@ -23,12 +30,39 @@ import {
   success,
 } from "./skills-fixtures";
 
-const local = createRequire(import.meta.url);
+const sourceModules = new Map(
+  [
+    "hooks/use-private-skill-query.ts",
+    "hooks/use-skill-queries.ts",
+    "hooks/use-public-skill-queries.ts",
+    "hooks/use-public-skill.ts",
+    "screens/SkillDetailScreen.tsx",
+    "screens/VerificationDetailScreen.tsx",
+    "screens/MySkillsScreen.tsx",
+    "components/VerificationHistory.tsx",
+    "components/VerificationForm.tsx",
+    "hooks/use-pending-back.ts",
+    "../profile/screens/public-profile-preview-screen.tsx",
+  ].map((path) => [
+    path,
+    new URL(`../src/features/skills/${path}`, import.meta.url),
+  ]),
+);
+const dependencies = new Map<string, unknown>([
+  ["zod", zod],
+  ["../utils/skill-filter", skillFilter],
+  ["../utils/verification-state", verificationState],
+  ["../utils/find-public-skill", publicSkill],
+  ["../types/skills", skillTypes],
+  ["../utils/evidence-time", evidenceTime],
+  ["../utils/own-skill-order", ownSkillOrder],
+  ["../utils/evidence-progress", evidenceProgress],
+]);
+
 export function sourceModule(relative: string, mocks: Record<string, unknown>) {
-  const source = readFileSync(
-    new URL(`../src/features/skills/${relative}`, import.meta.url),
-    "utf8",
-  );
+  const file = sourceModules.get(relative);
+  if (!file) throw new Error(`Source module is not allowed: ${relative}`);
+  const source = readFileSync(file, "utf8");
   const { outputText } = ts.transpileModule(source, {
     compilerOptions: {
       module: ts.ModuleKind.CommonJS,
@@ -37,24 +71,31 @@ export function sourceModule(relative: string, mocks: Record<string, unknown>) {
     },
   });
   const exports: Record<string, (...args: unknown[]) => unknown> = {};
-  runInNewContext(outputText, {
-    exports,
-    require: (name: string) => {
-      if (Object.hasOwn(mocks, name)) return mocks[name];
-      if (name === "react/jsx-runtime")
-        return {
-          jsx: (type: unknown, props: unknown) => ({ type, props }),
-          jsxs: (type: unknown, props: unknown) => ({ type, props }),
-        };
-      if (name === "./use-public-skill-queries")
-        return sourceModule("hooks/use-public-skill-queries.ts", mocks);
-      if (name.startsWith("../utils/"))
-        return local(`../src/features/skills/utils/${name.slice(9)}`);
-      if (name.startsWith("../types/"))
-        return local(`../src/features/skills/types/${name.slice(9)}`);
-      return local(name);
+  // Test-only: execute reviewed repository source, never API/file-picker input.
+  // VM isolates mock globals; it is not a sandbox for untrusted JavaScript.
+  runInNewContext(
+    outputText,
+    {
+      exports,
+      require: (name: string) => {
+        if (Object.hasOwn(mocks, name)) return mocks[name];
+        if (name === "react/jsx-runtime")
+          return {
+            jsx: (type: unknown, props: unknown) => ({ type, props }),
+            jsxs: (type: unknown, props: unknown) => ({ type, props }),
+          };
+        if (name === "./use-public-skill-queries")
+          return sourceModule("hooks/use-public-skill-queries.ts", mocks);
+        if (dependencies.has(name)) return dependencies.get(name);
+        throw new Error(`Dependency must be explicitly mocked: ${name}`);
+      },
     },
-  });
+    {
+      filename: file.href,
+      timeout: 1000,
+      contextCodeGeneration: { strings: false, wasm: false },
+    },
+  );
   return exports;
 }
 
@@ -67,22 +108,19 @@ export function readHarness() {
   const scope = ["skills", 1, ids.user] as const;
   const transport = harness((config) => {
     const path = config.url ?? "";
-    const payload = path.includes(`/verifications/${ids.verification}`)
-      ? success(batch)
-      : path.includes("/verifications")
-        ? paginated([batch])
-        : paginated([ownSkill]);
-    return status === 200
-      ? { payload }
-      : {
-          status,
-          payload: {
-            success: false,
-            statusCode: status,
-            message:
-              status === 403 ? "SKILL_PERMISSION_REQUIRED" : "Unavailable",
-          },
-        };
+    let payload: ReturnType<typeof success> = paginated([ownSkill]);
+    if (path.includes(`/verifications/${ids.verification}`))
+      payload = success(batch);
+    else if (path.includes("/verifications")) payload = paginated([batch]);
+    if (status === 200) return { payload };
+    return {
+      status,
+      payload: {
+        success: false,
+        statusCode: status,
+        message: status === 403 ? "SKILL_PERMISSION_REQUIRED" : "Unavailable",
+      },
+    };
   });
   const privateReads = createSkillReadAccess(client, scope, () => current);
   const runtime = {
@@ -138,7 +176,7 @@ export function readHarness() {
     endSession: () => {
       current = false;
     },
-    async fetch(key: QueryKey, infinite = false) {
+    fetch(key: QueryKey, infinite = false) {
       const o = options.get(JSON.stringify(key))!;
       if (infinite)
         return client.fetchInfiniteQuery(
