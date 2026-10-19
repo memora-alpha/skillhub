@@ -57,7 +57,8 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.sizeOf(context).width;
-    final buttonPadding = width < 360 ? 4.0 : (width < 400 ? 8.0 : 16.0);
+    final phone = width < 768;
+    final buttonPadding = phone ? 12.0 : 16.0;
     Widget headerButton(String label, bool primary, VoidCallback onTap) =>
         Tappable(
           onTap: onTap,
@@ -80,6 +81,15 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
             ),
           ),
         );
+    final brand = Tappable(
+      semanticLabel: 'SkillHub — về đầu trang',
+      onTap: () => _scroll.animateTo(
+        0,
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeInOut,
+      ),
+      child: BrandLogo(small: width < 480),
+    );
     return Scaffold(
       backgroundColor: Palette.cream,
       body: SafeArea(
@@ -97,22 +107,25 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                     height: 64,
                     child: Padding(
                       padding: EdgeInsets.symmetric(
-                        horizontal: width < 360 ? 12 : Layout.gutter,
+                        horizontal: phone ? 12 : Layout.gutter,
                       ),
                       child: Row(
                         spacing: 8,
                         children: [
-                          Tappable(
-                            semanticLabel: 'SkillHub — về đầu trang',
-                            onTap: () => _scroll.animateTo(
-                              0,
-                              duration: const Duration(milliseconds: 350),
-                              curve: Curves.easeInOut,
-                            ),
-                            child: const BrandLogo(),
-                          ),
-                          const Spacer(),
-                          if (width >= 768) ...[
+                          if (phone)
+                            Flexible(
+                              child: Align(
+                                alignment: Alignment.centerLeft,
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerLeft,
+                                  child: brand,
+                                ),
+                              ),
+                            )
+                          else ...[
+                            brand,
+                            const Spacer(),
                             Tappable(
                               onTap: () => _scrollTo(_categories),
                               child: _navText('Khám phá'),
