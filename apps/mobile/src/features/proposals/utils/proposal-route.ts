@@ -23,16 +23,24 @@ export function proposalSource(params: unknown) {
 }
 const listFilter = z
   .object({
-    tab: z.enum(["sent", "received"]).optional(),
+    tab: z.enum(["sent", "received", "all"]).optional(),
     status: z
       .enum(["PENDING", "ACCEPTED", "REJECTED", "WITHDRAWN", "EXPIRED"])
       .optional(),
     learningRequestId: uuid.optional(),
   })
-  .refine((value) => !value.learningRequestId || value.tab !== "sent");
+  .refine(
+    (value) =>
+      !value.learningRequestId || !value.tab || value.tab === "received",
+  );
 export function proposalListFilter(params: unknown) {
   const result = listFilter.safeParse(params);
   return result.success
-    ? { ...result.data, direction: result.data.tab ?? "received" }
+    ? {
+        ...result.data,
+        direction:
+          result.data.tab ??
+          (result.data.learningRequestId ? "received" : "all"),
+      }
     : null;
 }
