@@ -1,4 +1,5 @@
 import '../../../core/http/http_client.dart';
+import '../../remote/remote_load.dart';
 import '../api/skills_api.dart';
 import '../schema/skill_schema.dart';
 
@@ -15,11 +16,18 @@ class SkillsService {
 
   Future<SkillRecord> skill(String skillId) => _api.getSkill(skillId);
 
-  Future<Page<SharingSkillRecord>> mine({String? cursor, int? limit}) =>
-      _api.listMine(cursor: cursor, limit: limit);
+  Future<Page<SharingSkillRecord>> mine({
+    String? cursor,
+    int? limit,
+    bool includeArchived = false,
+  }) => _api.listMine(
+    cursor: cursor,
+    limit: limit,
+    includeArchived: includeArchived,
+  );
 
   Future<SharingSkillRecord> create(SharingSkillInput input) =>
-      _api.create(input);
+      _api.create(input, idempotencyKey: newUuid());
 
   Future<SharingSkillRecord> change(
     String sharingSkillId, {
@@ -31,6 +39,7 @@ class SkillsService {
   }) => _api.change(
     sharingSkillId,
     expectedVersion: expectedVersion,
+    idempotencyKey: newUuid(),
     level: level,
     description: description,
     experienceYears: experienceYears,
@@ -40,12 +49,20 @@ class SkillsService {
   Future<SharingSkillRecord> archive(
     String sharingSkillId, {
     required int expectedVersion,
-  }) => _api.archive(sharingSkillId, expectedVersion: expectedVersion);
+  }) => _api.archive(
+    sharingSkillId,
+    expectedVersion: expectedVersion,
+    idempotencyKey: newUuid(),
+  );
 
   Future<SharingSkillRecord> restore(
     String sharingSkillId, {
     required int expectedVersion,
-  }) => _api.restore(sharingSkillId, expectedVersion: expectedVersion);
+  }) => _api.restore(
+    sharingSkillId,
+    expectedVersion: expectedVersion,
+    idempotencyKey: newUuid(),
+  );
 
   Future<Page<SharingSkillRecord>> sharers(
     String skillId, {
