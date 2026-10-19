@@ -19,15 +19,27 @@ class VerificationsApi {
     ),
   );
 
+  Future<Map<String, dynamic>> fileStatus(
+    String sharingSkillId,
+    String fileId,
+  ) async => asMap(
+    await _client.request(
+      '/me/skills/$sharingSkillId/evidence-files/$fileId',
+      authenticated: true,
+    ),
+  );
+
   Future<Map<String, dynamic>> submit(
     String sharingSkillId,
-    Map<String, Object?> body,
-  ) async => asMap(
+    Map<String, Object?> body, {
+    required String idempotencyKey,
+  }) async => asMap(
     await _client.request(
       '/me/skills/$sharingSkillId/verifications',
       method: 'POST',
       body: body,
       authenticated: true,
+      headers: {'Idempotency-Key': idempotencyKey},
     ),
   );
 

@@ -34,27 +34,36 @@ class SkillsApi {
   Future<Page<SharingSkillRecord>> listMine({
     String? cursor,
     int? limit,
+    bool includeArchived = false,
   }) async => Page.parse(
     await _client.requestEnvelope(
-      withQuery('/me/skills', {'cursor': cursor, 'limit': limit}),
+      withQuery('/me/skills', {
+        'cursor': cursor,
+        'limit': limit,
+        if (includeArchived) 'includeArchived': true,
+      }),
       authenticated: true,
     ),
     SharingSkillRecord.parse,
   );
 
-  Future<SharingSkillRecord> create(SharingSkillInput input) async =>
-      SharingSkillRecord.parse(
-        await _client.request(
-          '/me/skills',
-          method: 'POST',
-          body: input.toJson(),
-          authenticated: true,
-        ),
-      );
+  Future<SharingSkillRecord> create(
+    SharingSkillInput input, {
+    required String idempotencyKey,
+  }) async => SharingSkillRecord.parse(
+    await _client.request(
+      '/me/skills',
+      method: 'POST',
+      body: input.toJson(),
+      authenticated: true,
+      headers: {'Idempotency-Key': idempotencyKey},
+    ),
+  );
 
   Future<SharingSkillRecord> change(
     String sharingSkillId, {
     required int expectedVersion,
+    required String idempotencyKey,
     String? level,
     String? description,
     String? experienceYears,
@@ -71,30 +80,35 @@ class SkillsApi {
         'isVisible': ?isVisible,
       },
       authenticated: true,
+      headers: {'Idempotency-Key': idempotencyKey},
     ),
   );
 
   Future<SharingSkillRecord> archive(
     String sharingSkillId, {
     required int expectedVersion,
+    required String idempotencyKey,
   }) async => SharingSkillRecord.parse(
     await _client.request(
       '/me/skills/$sharingSkillId/archive',
       method: 'POST',
       body: {'expectedVersion': expectedVersion},
       authenticated: true,
+      headers: {'Idempotency-Key': idempotencyKey},
     ),
   );
 
   Future<SharingSkillRecord> restore(
     String sharingSkillId, {
     required int expectedVersion,
+    required String idempotencyKey,
   }) async => SharingSkillRecord.parse(
     await _client.request(
       '/me/skills/$sharingSkillId/restore',
       method: 'POST',
       body: {'expectedVersion': expectedVersion},
       authenticated: true,
+      headers: {'Idempotency-Key': idempotencyKey},
     ),
   );
 
