@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useRouter } from "expo-router";
 import { Text, View } from "react-native";
 import { Icon } from "@/components/Icon";
 import { FormNotice } from "@/components/FormNotice";
@@ -30,10 +31,25 @@ export function RequestDetailActions({
   blocked,
   run,
 }: Readonly<RequestActionProps>) {
+  const router = useRouter();
   const [confirm, setConfirm] = useState(false);
   const disabled = pending || blocked;
   return (
     <>
+      {request.publishedAt && (
+        <Button
+          variant="secondary"
+          disabled={pending}
+          onPress={() =>
+            router.push({
+              pathname: "/proposals",
+              params: { tab: "received", learningRequestId: request.id },
+            })
+          }
+        >
+          Xem đề xuất nhận được
+        </Button>
+      )}
       {cancelableRequest(request) && (
         <Button
           variant="ghost"
