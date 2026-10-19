@@ -5,7 +5,17 @@ import { DataForm, creditRule } from "@/components/data-form";
 import { EmptyState } from "@/components/EmptyState";
 import { FeaturePage, Panel, Copy } from "@/components/feature-page";
 import { usePathsPreview } from "../context";
+import { uuid } from "@/lib/http/contracts";
+import { ApiTermsScreen } from "./ApiTermsScreen";
 export function TermsEditorScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  return uuid.safeParse(id).success ? (
+    <ApiTermsScreen />
+  ) : (
+    <PreviewTermsEditorScreen />
+  );
+}
+function PreviewTermsEditorScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { paths, save } = usePathsPreview();
   const path = paths.find((p) => p.id === id);

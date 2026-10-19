@@ -112,11 +112,6 @@ export function SearchScreen() {
               <RouteButton secondary href={`/user/${p.id}`}>
                 Xem hồ sơ
               </RouteButton>
-              <RouteButton
-                href={{ pathname: "/send-proposal", params: { userId: p.id } }}
-              >
-                Gửi lời mời trao đổi
-              </RouteButton>
             </Panel>
           ))}
           {!users.length && (
