@@ -27,12 +27,14 @@ class SkillsService {
     String? level,
     String? description,
     String? experienceYears,
+    bool? isVisible,
   }) => _api.change(
     sharingSkillId,
     expectedVersion: expectedVersion,
     level: level,
     description: description,
     experienceYears: experienceYears,
+    isVisible: isVisible,
   );
 
   Future<SharingSkillRecord> archive(

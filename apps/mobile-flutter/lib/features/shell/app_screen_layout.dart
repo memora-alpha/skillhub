@@ -10,6 +10,7 @@ import '../../components/tappable.dart';
 import '../../core/theme/tokens.dart';
 import '../auth/session/auth_session.dart';
 import 'account_menu.dart';
+import 'inbox_count.dart';
 import 'app_header.dart';
 import 'navigation.dart';
 
@@ -71,6 +72,7 @@ class AppScreenLayout extends ConsumerWidget {
           children: [
             AppHeader(
               session: session,
+              unreadCount: ref.watch(inboxCountProvider),
               title: title,
               onBack: back == null ? null : () => _goBack(context, back!.route),
               backLabel: back?.label ?? 'Quay lại hồ sơ',

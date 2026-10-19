@@ -92,66 +92,75 @@ class PreviewSession {
   );
 }
 
-final _anchorProvider = Provider<DateTime>((ref) {
-  ref.watch(sessionSnapshotProvider.select((s) => s.generation));
-  return DateTime.now();
-});
+class LiveSessionsNotifier extends Notifier<List<PreviewSession>> {
+  var _ticket = 0;
+
+  @override
+  List<PreviewSession> build() {
+    final phase = ref.watch(sessionSnapshotProvider).phase;
+    final userId = ref.watch(accountProvider).value?.userId;
+    if (phase == SessionPhase.ready && userId != null) {
+      _ticket++;
+      _load(_ticket, userId);
+    }
+    return const [];
+  }
+
+  Future<void> _load(int ticket, String me) async {
+    try {
+      final rows = await ref
+          .read(authRuntimeProvider)
+          .services
+          .study
+          .mySessions();
+      if (!ref.mounted || ticket != _ticket) return;
+      state = [
+        for (final row in rows)
+          if (row['id'] is String && row['startAt'] is String)
+            _session(row, me),
+      ];
+    } catch (_) {
+      if (!ref.mounted || ticket != _ticket) return;
+      state = const [];
+    }
+  }
+}
+
+final liveSessionsProvider =
+    NotifierProvider<LiveSessionsNotifier, List<PreviewSession>>(
+      LiveSessionsNotifier.new,
+    );
 
 final sessionsProvider = Provider<List<PreviewSession>>((ref) {
-  final paths = ref.watch(pathsProvider);
+  final live = ref.watch(liveSessionsProvider);
   final overrides = ref.watch(sessionOverridesProvider);
-  final anchor = ref.watch(_anchorProvider);
-  return [
-    for (final path in paths)
-      if (const ['ACTIVE', 'COMPLETED', 'DISPUTED'].contains(path.status))
-        for (final plan in path.plans)
-          for (final (i, slot) in (plan.schedule?.slots ?? const <Slot>[]).indexed)
-            overrides['${plan.id}-$i'] ??
-                _derive(path, plan, i, slot, anchor),
-  ];
+  return [for (final session in live) overrides[session.id] ?? session];
 });
 
-PreviewSession _derive(
-  LearningPath path,
-  Plan plan,
-  int i,
-  Slot slot,
-  DateTime anchor,
-) {
-  final endedFixture =
-      const ['path-active', 'path-awaiting'].contains(path.id) && i == 0;
+PreviewSession _session(Map<String, dynamic> row, String me) {
+  final start = DateTime.parse(row['startAt'] as String).toLocal();
+  final end = row['endAt'] is String
+      ? DateTime.parse(row['endAt'] as String).toLocal()
+      : start.add(const Duration(minutes: 60));
+  final teacher = row['teacherId'] == me;
+  final mineConfirmed = teacher
+      ? row['teacherConfirmationStatus'] == 'CONFIRMED'
+      : row['learnerConfirmationStatus'] == 'CONFIRMED';
+  final partnerConfirmed = teacher
+      ? row['learnerConfirmationStatus'] == 'CONFIRMED'
+      : row['teacherConfirmationStatus'] == 'CONFIRMED';
   return PreviewSession(
-    id: '${plan.id}-$i',
-    pathId: path.id,
-    planId: plan.id,
-    title: '${plan.skill} · Buổi ${i + 1}: ${plan.outline[i]}',
-    partner: path.partner,
-    startAt: endedFixture
-        ? anchor.subtract(const Duration(hours: 3))
-        : slot.startAt,
-    duration: slot.duration,
-    mine: plan.teacher == 'me',
-    status: switch (path.status) {
-      'COMPLETED' => 'COMPLETED',
-      'DISPUTED' => 'DISPUTED',
-      _ => endedFixture ? 'AWAITING_CONFIRMATION' : 'CONFIRMED',
-    },
-    partnerConfirmed:
-        (endedFixture && path.id == 'path-active') ||
-        path.status == 'COMPLETED',
-    meConfirmed: path.status == 'COMPLETED',
-    change: path.id == 'path-active' && i == 1
-        ? SessionChange(
-            startAt: slot.startAt.add(const Duration(days: 1)),
-            duration: 90,
-            reason:
-                'Đối tác đề nghị chuyển sang ngày kế tiếp trong kịch bản mẫu.',
-            version: 1,
-            meConfirmed: false,
-            partnerConfirmed: true,
-            requestedBy: 'partner',
-          )
-        : null,
+    id: row['id'] as String,
+    pathId: row['pathId']?.toString() ?? '',
+    planId: row['planId']?.toString() ?? '',
+    title: 'Buổi học',
+    partner: teacher ? 'Người học' : 'Người dạy',
+    startAt: start,
+    duration: end.difference(start).inMinutes.clamp(1, 24 * 60),
+    status: row['status']?.toString() ?? 'CONFIRMED',
+    mine: teacher,
+    meConfirmed: mineConfirmed,
+    partnerConfirmed: partnerConfirmed,
   );
 }
 

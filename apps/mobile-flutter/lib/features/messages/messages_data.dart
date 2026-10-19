@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/tokens.dart';
 import '../auth/session/auth_session.dart';
+import '../remote/remote_load.dart';
+import 'schema/conversation_schema.dart';
 
 abstract final class MessageColors {
   static const background = Chrome.background;
@@ -30,6 +32,7 @@ const messageCardShadow = [
 
 class Conversation {
   const Conversation({
+    required this.id,
     required this.proposal,
     required this.name,
     required this.userId,
@@ -41,6 +44,7 @@ class Conversation {
     required this.time,
   });
 
+  final String id;
   final String proposal;
   final String name;
   final String userId;
@@ -53,6 +57,7 @@ class Conversation {
 
   Conversation copyWith({String? last, String? time, int? messages}) =>
       Conversation(
+        id: id,
         proposal: proposal,
         name: name,
         userId: userId,
@@ -83,94 +88,8 @@ class ChatMessage {
   final SampleFile? file;
 }
 
-/// Only accepted proposals appear in the conversation list.
-const conversations = [
-  Conversation(
-    proposal: 'DX-2402',
-    name: 'Trần Việt Anh',
-    userId: 'demo-viet-anh',
-    skill: 'React',
-    request: 'Muốn học React từ cơ bản đến nâng cao',
-    last: '2 tháng là hoàn toàn khả thi!',
-    messages: 12,
-    unread: 2,
-    time: '14:26',
-  ),
-  Conversation(
-    proposal: 'DX-2388',
-    name: 'Nguyễn Minh Hà',
-    userId: 'demo-minh-ha',
-    skill: 'Tiếng Anh / IELTS',
-    request: 'Luyện IELTS Speaking lên 7.0',
-    last: 'Mình đã cập nhật lịch rồi nhé.',
-    messages: 28,
-    unread: 0,
-    time: '11:02',
-  ),
-  Conversation(
-    proposal: 'DX-2314',
-    name: 'Đỗ Quang Huy',
-    userId: 'demo-quang-huy',
-    skill: 'Python',
-    request: 'Python cho Data Science',
-    last: 'Bạn xem lộ trình Python giúp mình.',
-    messages: 9,
-    unread: 0,
-    time: 'Thứ 2',
-  ),
-];
-
 const conversationHint =
     'Mỗi Proposal được chấp nhận mở một cuộc trò chuyện riêng. Một cuộc trò chuyện có thể chứa nhiều tin nhắn và các thẻ xác nhận nghiệp vụ.';
-
-const _reactMessages = [
-  ChatMessage(
-    id: 'seed-1',
-    mine: false,
-    text: 'Chào bạn! Mình thấy yêu cầu học React của bạn rất thú vị.',
-    time: '14:20',
-  ),
-  ChatMessage(
-    id: 'seed-2',
-    mine: true,
-    text: 'Chào anh! Mình là người mới bắt đầu, chỉ biết HTML/CSS cơ bản.',
-    time: '14:22',
-  ),
-  ChatMessage(
-    id: 'seed-3',
-    mine: false,
-    text: 'Không sao, mình sẽ dạy từ đầu. Bạn có mục tiêu cụ thể không?',
-    time: '14:23',
-  ),
-  ChatMessage(
-    id: 'seed-4',
-    mine: true,
-    text:
-        'Mình muốn xây dựng được một ứng dụng web hoàn chỉnh bằng React trong 2 tháng.',
-    time: '14:25',
-  ),
-  ChatMessage(
-    id: 'seed-5',
-    mine: false,
-    text:
-        '2 tháng là hoàn toàn khả thi! Mình đề xuất 6 buổi, mỗi buổi 90 phút, tập trung vào dự án thực tế.',
-    time: '14:26',
-  ),
-];
-
-final Map<String, List<ChatMessage>> initialThreads = {
-  for (final item in conversations)
-    item.proposal: item.proposal == 'DX-2402'
-        ? _reactMessages
-        : [
-            ChatMessage(
-              id: 'seed-${item.proposal}',
-              mine: false,
-              text: item.last,
-              time: item.time,
-            ),
-          ],
-};
 
 abstract final class ChatCopy {
   static const acceptedTitle = 'ĐỀ XUẤT ĐÃ ĐƯỢC CHẤP NHẬN';
@@ -211,14 +130,13 @@ class MessagesState {
     for (final item in conversations)
       () {
         final thread = threads[item.proposal] ?? const [];
-        final added = thread.length - (initialThreads[item.proposal]?.length ?? 0);
-        return added > 0 && thread.isNotEmpty
-            ? item.copyWith(
+        return thread.isEmpty
+            ? item
+            : item.copyWith(
                 last: thread.last.text,
                 time: thread.last.time,
-                messages: item.messages + added,
-              )
-            : item;
+                messages: thread.length,
+              );
       }(),
   ];
 
@@ -233,16 +151,75 @@ class MessagesState {
   );
 }
 
-/// Local sample conversations; reset whenever the signed-in session changes.
 class MessagesNotifier extends Notifier<MessagesState> {
+  var _ticket = 0;
+
   @override
   MessagesState build() {
-    ref.watch(sessionSnapshotProvider.select((s) => s.generation));
+    final phase = ref.watch(sessionSnapshotProvider).phase;
+    final userId = ref.watch(accountProvider).value?.userId;
+    if (phase == SessionPhase.ready && userId != null) {
+      _ticket++;
+      _reload(_ticket, userId);
+    }
     return MessagesState(
-      conversations: conversations,
-      threads: initialThreads,
+      conversations: const [],
+      threads: const {},
       read: const {},
     );
+  }
+
+  Future<void> _reload(int ticket, String me) async {
+    try {
+      final api = ref.read(authRuntimeProvider).services.conversations;
+      final records = await drainPages(
+        (cursor) => api.list(cursor: cursor, limit: 30),
+      );
+      final conversations = <Conversation>[];
+      final threads = <String, List<ChatMessage>>{};
+      for (final record in records) {
+        final other = record.participantAId == me
+            ? record.participantBId
+            : record.participantAId;
+        var name = other;
+        try {
+          final profile = await ref
+              .read(authRuntimeProvider)
+              .account
+              .publicProfile(other);
+          final fullName = profile['fullName'];
+          if (fullName is String && fullName.isNotEmpty) name = fullName;
+        } catch (_) {}
+        final page = await api.messages(record.id, limit: 50);
+        final thread = [
+          for (final message in page.items) _chatMessage(message, me),
+        ];
+        threads[record.proposalId] = thread;
+        final unread = thread.where((message) => !message.mine).length;
+        conversations.add(
+          Conversation(
+            id: record.id,
+            proposal: record.proposalId,
+            name: name,
+            userId: other,
+            skill: '',
+            request: record.learningRequestId ?? '',
+            last: thread.isEmpty ? '' : thread.last.text,
+            messages: thread.length,
+            unread: unread,
+            time: thread.isEmpty ? '' : thread.last.time,
+          ),
+        );
+      }
+      if (!ref.mounted || ticket != _ticket) return;
+      state = MessagesState(
+        conversations: conversations,
+        threads: threads,
+        read: const {},
+      );
+    } catch (_) {
+      if (!ref.mounted || ticket != _ticket) return;
+    }
   }
 
   void openConversation(Conversation conversation) {
@@ -269,40 +246,36 @@ class MessagesNotifier extends Notifier<MessagesState> {
     );
   }
 
-  void send(String proposal, String text) {
-    if (text.trim().isEmpty || state.find(proposal) == null) return;
-    final count = state.threads[proposal]?.length ?? 0;
-    _append(
-      proposal,
-      ChatMessage(
-        id: 'local-${DateTime.now().millisecondsSinceEpoch}-$count',
-        mine: true,
-        text: text.trim(),
-        time: clockTime(),
-      ),
-    );
+  Future<void> send(String proposal, String text) async {
+    final conversation = state.find(proposal);
+    final body = text.trim();
+    if (body.isEmpty || conversation == null) return;
+    final clientMessageId = newUuid();
+    try {
+      final message = await ref
+          .read(authRuntimeProvider)
+          .services
+          .conversations
+          .send(
+            conversation.id,
+            clientMessageId: clientMessageId,
+            messageText: body,
+            idempotencyKey: clientMessageId,
+          );
+      final me = ref.read(accountProvider).value?.userId ?? '';
+      _append(proposal, _chatMessage(message, me));
+    } catch (_) {}
   }
 
-  bool sendFile(String proposal, SampleFile file) {
-    if (file.bytes > 15 * 1024 * 1024 ||
-        file.bytes <= 0 ||
-        state.find(proposal) == null) {
-      return false;
-    }
-    final count = state.threads[proposal]?.length ?? 0;
-    _append(
-      proposal,
-      ChatMessage(
-        id: 'file-${DateTime.now().millisecondsSinceEpoch}-$count',
-        mine: true,
-        text: 'Tệp mẫu: ${file.name}',
-        file: file,
-        time: clockTime(),
-      ),
-    );
-    return true;
-  }
+  bool sendFile(String proposal, SampleFile file) => false;
 }
+
+ChatMessage _chatMessage(MessageRecord message, String me) => ChatMessage(
+  id: message.id,
+  mine: message.senderId == me,
+  text: message.messageText,
+  time: clockTime(DateTime.tryParse(message.sentAt)?.toLocal()),
+);
 
 final messagesProvider = NotifierProvider<MessagesNotifier, MessagesState>(
   MessagesNotifier.new,

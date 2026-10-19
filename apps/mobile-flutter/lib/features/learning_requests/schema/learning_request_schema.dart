@@ -20,6 +20,12 @@ class LearningRequestCard {
     required this.learningGoal,
     required this.status,
     required this.verifiedTeacherOnly,
+    this.ownerId = '',
+    this.ownerName = '',
+    this.tagLabels = const [],
+    this.desiredCreditPerHour,
+    this.createdAt,
+    this.matchScore,
   });
 
   final String id;
@@ -28,9 +34,18 @@ class LearningRequestCard {
   final String learningGoal;
   final String status;
   final bool verifiedTeacherOnly;
+  final String ownerId;
+  final String ownerName;
+  final List<String> tagLabels;
+  final String? desiredCreditPerHour;
+  final String? createdAt;
+  final int? matchScore;
 
   static LearningRequestCard parse(Object? value) {
     final json = asMap(value);
+    final owner = json['owner'];
+    final ownerMap = owner is Map<String, dynamic> ? owner : null;
+    final tags = json['tags'];
     return LearningRequestCard(
       id: asString(json['id']),
       title: asString(json['title']),
@@ -38,6 +53,17 @@ class LearningRequestCard {
       learningGoal: asString(json['learningGoal']),
       status: asString(json['status']),
       verifiedTeacherOnly: asBool(json['verifiedTeacherOnly']),
+      ownerId: ownerMap == null ? '' : asText(ownerMap['id']),
+      ownerName: ownerMap == null ? '' : asText(ownerMap['displayName']),
+      tagLabels: tags is List
+          ? [
+              for (final tag in tags)
+                if (tag is Map && tag['label'] is String) tag['label'] as String,
+            ]
+          : const [],
+      desiredCreditPerHour: asOptionalString(json['desiredCreditPerHour']),
+      createdAt: asOptionalString(json['createdAt']),
+      matchScore: json['matchScore'] is int ? json['matchScore'] as int : null,
     );
   }
 }
@@ -51,6 +77,7 @@ class LearningRequestDraft {
     this.currentLevel,
     this.verifiedTeacherOnly = false,
     this.tagIds = const [],
+    this.preferredSlots = const [],
   });
 
   final String title;
@@ -60,6 +87,7 @@ class LearningRequestDraft {
   final String? currentLevel;
   final bool verifiedTeacherOnly;
   final List<String> tagIds;
+  final List<({DateTime startAt, DateTime endAt})> preferredSlots;
 
   Map<String, Object?> toJson({int? expectedVersion}) => {
     'title': title,
@@ -69,6 +97,14 @@ class LearningRequestDraft {
     'currentLevel': ?currentLevel,
     'verifiedTeacherOnly': verifiedTeacherOnly,
     if (tagIds.isNotEmpty) 'tagIds': tagIds,
+    if (preferredSlots.isNotEmpty)
+      'preferredSlots': [
+        for (final slot in preferredSlots)
+          {
+            'startAt': slot.startAt.toUtc().toIso8601String(),
+            'endAt': slot.endAt.toUtc().toIso8601String(),
+          },
+      ],
     'expectedVersion': ?expectedVersion,
   };
 }

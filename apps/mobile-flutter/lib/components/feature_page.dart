@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -147,7 +149,7 @@ class FeaturePage extends StatelessWidget {
     required this.children,
     this.subtitle,
     this.back = '/ui',
-    this.demo = true,
+    this.demo = false,
     this.selected = 'Hồ sơ',
   });
 
@@ -516,7 +518,7 @@ class DataForm extends StatefulWidget {
   final List<DataField> fields;
   final Map<String, String> defaults;
   final String submitLabel;
-  final String? Function(Map<String, String> values) onSubmit;
+  final FutureOr<String?> Function(Map<String, String> values) onSubmit;
 
   @override
   State<DataForm> createState() => _DataFormState();
@@ -543,7 +545,7 @@ class _DataFormState extends State<DataForm> {
     super.dispose();
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     var valid = validateFields(_inputs.values.toList());
     setState(() {
       for (final f in widget.fields.where((f) => f.choices != null)) {
@@ -556,7 +558,9 @@ class _DataFormState extends State<DataForm> {
       for (final entry in _inputs.entries) entry.key: entry.value.text.trim(),
       ..._choices,
     };
-    setState(() => _error = widget.onSubmit(values));
+    final error = await widget.onSubmit(values);
+    if (!mounted) return;
+    setState(() => _error = error);
   }
 
   @override

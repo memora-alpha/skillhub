@@ -44,4 +44,11 @@ class AccountApi {
 
   Future<void> removeAvatar() =>
       _client.request('/me/avatar', method: 'DELETE', authenticated: true);
+
+  Future<Map<String, dynamic>> publicProfile(String userId) async => asMap(
+    await _client.request(
+      '/profiles/${Uri.encodeComponent(userId)}',
+      authenticated: true,
+    ),
+  );
 }

@@ -10,6 +10,9 @@ import '../../core/theme/tokens.dart';
 import '../auth/session/auth_session.dart';
 import '../discovery/discovery_data.dart';
 import '../profile/public_profiles_data.dart';
+import '../remote/remote_load.dart';
+import '../shell/inbox_count.dart';
+import 'schema/notification_schema.dart';
 
 class PreviewNotification {
   const PreviewNotification({
@@ -40,37 +43,14 @@ class PreviewNotification {
 
 const _notificationGroups = ['Học tập', 'Credit', 'Cộng đồng'];
 
-const _initialNotifications = [
-  PreviewNotification(
-    id: 'n-proposal',
-    title: 'Bạn nhận được đề xuất mới',
-    body: 'Một người chia sẻ muốn trao đổi với bạn về React.',
-    group: 'Học tập',
-    href: '/proposals',
-  ),
-  PreviewNotification(
-    id: 'n-session',
-    title: 'Buổi học cần xác nhận',
-    body: 'Cùng đối tác xác nhận sau buổi học để cập nhật tiến độ.',
-    group: 'Học tập',
-    href: '/learning-sessions/active-react-0/completion',
-  ),
-  PreviewNotification(
-    id: 'n-credit',
-    title: 'Giao dịch Credit đã được ghi nhận',
-    body: 'Mở chi tiết để xem snapshot giao dịch mẫu.',
-    group: 'Credit',
-    href: '/wallet/transactions/tx-topup',
-  ),
-  PreviewNotification(
-    id: 'n-report',
-    title: 'Báo cáo cần thêm thông tin',
-    body: 'Bổ sung chi tiết để tiếp tục xem xét báo cáo.',
-    group: 'Cộng đồng',
-    href: '/reports/report-info',
-    read: true,
-  ),
-];
+PreviewNotification _notification(NotificationRecord record) => PreviewNotification(
+  id: record.id,
+  title: record.title,
+  body: record.body,
+  group: 'Học tập',
+  href: '/notifications',
+  read: record.readAt != null,
+);
 
 typedef ProductPreview = ({
   List<PreviewNotification> notifications,
@@ -81,16 +61,41 @@ typedef ProductPreview = ({
 });
 
 class ProductPreviewNotifier extends Notifier<ProductPreview> {
+  var _ticket = 0;
+
   @override
   ProductPreview build() {
-    ref.watch(sessionSnapshotProvider.select((s) => s.generation));
+    final phase = ref.watch(sessionSnapshotProvider).phase;
+    final userId = ref.watch(accountProvider).value?.userId;
+    if (phase == SessionPhase.ready && userId != null) {
+      _ticket++;
+      _loadNotifications(_ticket);
+    }
     return (
-      notifications: _initialNotifications,
+      notifications: const [],
       enabled: _notificationGroups,
       interests: const [],
       timezone: 'Asia/Ho_Chi_Minh',
       language: 'Tiếng Việt',
     );
+  }
+
+  Future<void> _loadNotifications(int ticket) async {
+    try {
+      final records = await drainPages(
+        (cursor) => ref
+            .read(authRuntimeProvider)
+            .services
+            .notifications
+            .list(cursor: cursor, limit: 50),
+      );
+      if (!ref.mounted || ticket != _ticket) return;
+      final items = [for (final record in records) _notification(record)];
+      _set(notifications: items);
+      ref.read(inboxCountProvider.notifier).setCount(
+        items.where((item) => !item.read).length,
+      );
+    } catch (_) {}
   }
 
   void _set({
@@ -107,12 +112,26 @@ class ProductPreviewNotifier extends Notifier<ProductPreview> {
     language: language ?? state.language,
   );
 
-  void read([String? id]) => _set(
-    notifications: [
+  Future<void> read([String? id]) async {
+    final targets = [
+      for (final item in state.notifications)
+        if (!item.read && (id == null || item.id == id)) item.id,
+    ];
+    final next = [
       for (final n in state.notifications)
         id == null || n.id == id ? n.markRead() : n,
-    ],
-  );
+    ];
+    _set(notifications: next);
+    ref
+        .read(inboxCountProvider.notifier)
+        .setCount(next.where((item) => !item.read).length);
+    final api = ref.read(authRuntimeProvider).services.notifications;
+    for (final notificationId in targets) {
+      try {
+        await api.markRead(notificationId);
+      } catch (_) {}
+    }
+  }
 
   void toggleGroup(String group) => _set(
     enabled: state.enabled.contains(group)
@@ -138,15 +157,10 @@ final productPreviewProvider =
 bool _matches(String text, String query) =>
     text.toLowerCase().contains(query.toLowerCase());
 
-Iterable<DemoPublicProfile> _searchProfiles(String query) =>
-    demoPublicProfiles.where(
-      (p) =>
-          p.skills.isNotEmpty &&
-          _matches('${p.name} ${p.skills.map((s) => s.name).join(' ')}', query),
-    );
-
-Iterable<LearningRequest> _searchRequests(String query) => learningRequests
-    .where((r) => _matches('${r.title} ${r.tags.join(' ')}', query));
+Iterable<LearningRequest> _searchRequests(
+  List<LearningRequest> requests,
+  String query,
+) => requests.where((r) => _matches('${r.title} ${r.tags.join(' ')}', query));
 
 class NotificationsScreen extends ConsumerStatefulWidget {
   const NotificationsScreen({super.key});
@@ -213,24 +227,25 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   }
 }
 
-class SearchScreen extends StatefulWidget {
+class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});
 
   @override
-  State<SearchScreen> createState() => _SearchScreenState();
+  ConsumerState<SearchScreen> createState() => _SearchScreenState();
 }
 
-class _SearchScreenState extends State<SearchScreen> {
+class _SearchScreenState extends ConsumerState<SearchScreen> {
   var _query = '';
   var _tab = 'Người chia sẻ';
   var _verified = false;
 
   @override
   Widget build(BuildContext context) {
-    final users = _searchProfiles(_query)
-        .where((p) => !_verified || p.skills.any((s) => s.verified))
-        .toList();
-    final requests = _searchRequests(_query).toList();
+    final users = const <DemoPublicProfile>[];
+    final requests = _searchRequests(
+      ref.watch(learningRequestsProvider).value ?? const [],
+      _query,
+    ).toList();
     return FeaturePage(
       title: 'Tìm kiếm',
       back: '/home',
@@ -738,7 +753,7 @@ class _PublicPage extends StatelessWidget {
                             ),
                           ),
                           const Copy(
-                            'Thông tin công khai mẫu. Đăng nhập để bắt đầu trao đổi.',
+                            'Đăng nhập để bắt đầu trao đổi.',
                             muted: true,
                           ),
                           ...children,
@@ -756,23 +771,27 @@ class _PublicPage extends StatelessWidget {
   }
 }
 
-class PublicExploreScreen extends StatefulWidget {
+class PublicExploreScreen extends ConsumerStatefulWidget {
   const PublicExploreScreen({super.key, this.query = ''});
 
   final String query;
 
   @override
-  State<PublicExploreScreen> createState() => _PublicExploreScreenState();
+  ConsumerState<PublicExploreScreen> createState() =>
+      _PublicExploreScreenState();
 }
 
-class _PublicExploreScreenState extends State<PublicExploreScreen> {
+class _PublicExploreScreenState extends ConsumerState<PublicExploreScreen> {
   late var _search = widget.query;
   var _tab = 'Người chia sẻ';
 
   @override
   Widget build(BuildContext context) {
-    final profiles = _searchProfiles(_search).toList();
-    final requests = _searchRequests(_search).toList();
+    final profiles = const <DemoPublicProfile>[];
+    final requests = _searchRequests(
+      ref.watch(learningRequestsProvider).value ?? const [],
+      _search,
+    ).toList();
     final sharers = _tab == 'Người chia sẻ';
     return _PublicPage(
       title: 'Khám phá cộng đồng',
@@ -833,7 +852,7 @@ class PublicGuestProfileScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final signedIn = ref.watch(accountSessionProvider) != null;
-    final profile = findDemoProfile(userId);
+    final profile = ref.watch(publicProfileProvider(userId)).value;
     return _PublicPage(
       title: 'Hồ sơ công khai',
       children: [
@@ -847,7 +866,7 @@ class PublicGuestProfileScreen extends ConsumerWidget {
             title: profile.name,
             children: [
               Copy(profile.bio ?? 'Người chia sẻ chưa thêm giới thiệu.'),
-              Copy('Uy tín mẫu: ${profile.reputation ?? 'Chưa có thông tin'}'),
+              Copy('Uy tín: ${profile.reputation ?? 'Chưa có thông tin'}'),
               for (final s in profile.skills)
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -878,14 +897,16 @@ class PublicGuestRequestScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final signedIn = ref.watch(accountSessionProvider) != null;
-    final request = learningRequests.where((r) => r.id == id).firstOrNull;
+    final request = (ref.watch(learningRequestsProvider).value ?? const [])
+        .where((r) => r.id == id)
+        .firstOrNull;
     return _PublicPage(
       title: 'Nhu cầu học tập',
       children: [
         if (request == null)
           const EmptyState(
             title: 'Yêu cầu không khả dụng',
-            description: 'Yêu cầu không có trong dữ liệu mẫu.',
+            description: 'Yêu cầu này không có trên máy chủ.',
           )
         else
           Panel(

@@ -21,6 +21,24 @@ final selectedBadgeProvider = NotifierProvider<SelectedBadgeNotifier, String>(
   SelectedBadgeNotifier.new,
 );
 
+final achievementsProvider =
+    FutureProvider<List<({String title, String description})>>((ref) async {
+      final phase = ref.watch(sessionSnapshotProvider).phase;
+      if (phase != SessionPhase.ready) return const [];
+      final data = await ref.read(authRuntimeProvider).services.study.achievements();
+      if (data is! Map) return const [];
+      final items = data['items'];
+      if (items is! List) return const [];
+      return [
+        for (final item in items)
+          if (item is Map)
+            (
+              title: item['title']?.toString() ?? '',
+              description: item['description']?.toString() ?? '',
+            ),
+      ];
+    });
+
 class ReviewEditorScreen extends ConsumerWidget {
   const ReviewEditorScreen({super.key, required this.id});
 
@@ -163,24 +181,6 @@ class _ReviewsScreenState extends ConsumerState<ReviewsScreen> {
   }
 }
 
-const _badges = [
-  ('Người mới gia nhập', 'Email đã xác minh và tài khoản ACTIVE.', true),
-  ('Bước đầu trao đổi', 'Hoàn thành lộ trình đầu tiên.', true),
-  ('Người học tích cực', 'Hoàn thành 5 lộ trình.', false),
-  (
-    'Người chia sẻ tích cực',
-    'Hoàn thành 10 lộ trình có vai trò chia sẻ.',
-    false,
-  ),
-  ('Thành viên uy tín', 'Uy tín ≥70 và ít nhất 5 lộ trình hoàn thành.', false),
-  (
-    'Người lâu năm',
-    'Tài khoản ≥180 ngày và ít nhất 10 lộ trình hoàn thành.',
-    false,
-  ),
-  ('Kỹ năng đã xác minh', 'Ít nhất 3 kỹ năng chia sẻ đã xác minh.', false),
-];
-
 class AchievementsScreen extends ConsumerStatefulWidget {
   const AchievementsScreen({super.key});
 
@@ -189,76 +189,63 @@ class AchievementsScreen extends ConsumerStatefulWidget {
 }
 
 class _AchievementsScreenState extends ConsumerState<AchievementsScreen> {
-  String? _detail;
-
   @override
   Widget build(BuildContext context) {
     final badge = ref.watch(selectedBadgeProvider);
     final notifier = ref.read(selectedBadgeProvider.notifier);
+    final unlocked = ref.watch(achievementsProvider).value ?? const [];
     return FeaturePage(
       title: 'Thành tích & danh hiệu',
       back: '/profile',
       children: [
         Panel(
-          title: 'Danh hiệu mẫu đang chọn',
+          title: 'Danh hiệu đang chọn',
           accent: true,
           children: [
             Copy(badge.isEmpty ? 'Không hiển thị danh hiệu' : badge),
             AppButton(
-              label: 'Ẩn danh hiệu mẫu',
+              label: 'Ẩn danh hiệu',
               variant: ButtonVariant.paper,
               onPressed: () => notifier.select(''),
             ),
           ],
         ),
-        for (final (name, condition, unlocked) in _badges)
+        for (final item in unlocked)
           Panel(
-            title: name,
+            title: item.title,
             children: [
-              StatusBadge(
-                unlocked ? 'Đã mở trong kịch bản mẫu' : 'Chưa đạt mốc',
-              ),
-              Copy(condition),
-              AppButton(
-                label: 'Xem điều kiện',
-                variant: ButtonVariant.paper,
-                onPressed: () =>
-                    setState(() => _detail = _detail == name ? null : name),
-              ),
-              if (_detail == name)
-                const Copy(
-                  'Tiến độ mẫu: đã hoàn thành 1 lộ trình, 1 kỹ năng xác minh và uy tín 50/100. Mốc chính thức lấy từ hồ sơ thành tích.',
-                  muted: true,
-                ),
-              AppButton(
-                label: badge == name ? 'Đang chọn' : 'Chọn danh hiệu mẫu',
-                disabled: !unlocked || badge == name,
-                onPressed: () => notifier.select(name),
-              ),
+              const StatusBadge('Đã mở'),
+              Copy(item.description),
             ],
+          ),
+        if (unlocked.isEmpty)
+          const EmptyState(
+            title: 'Chưa có thành tích',
+            description: 'Danh hiệu xuất hiện khi máy chủ ghi nhận mốc của bạn.',
           ),
       ],
     );
   }
 }
 
-class ReputationScreen extends StatelessWidget {
+class ReputationScreen extends ConsumerWidget {
   const ReputationScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return const FeaturePage(
+  Widget build(BuildContext context, WidgetRef ref) {
+    final score = ref.watch(accountProvider).value?.profile.reputationScore;
+    final label = score == null ? 'Chưa có' : '$score';
+    return FeaturePage(
       title: 'Điểm uy tín',
       back: '/profile',
       children: [
         Panel(
-          title: 'Uy tín tài khoản mẫu',
+          title: 'Uy tín tài khoản',
           accent: true,
           children: [
-            Metric(label: 'Điểm uy tín', value: '50 / 100'),
-            Copy('Bình thường · không hạn chế'),
-            Copy(
-              'Điểm khởi tạo là 50, luôn nằm trong 0–100. Điểm thực tế và hạn chế do hệ thống ghi nhận.',
+            Metric(label: 'Điểm uy tín', value: label),
+            const Copy(
+              'Điểm lấy từ hồ sơ đang đăng nhập.',
               muted: true,
             ),
           ],
@@ -291,15 +278,14 @@ class ReputationHistoryScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const FeaturePage(
+    return FeaturePage(
       title: 'Lịch sử uy tín',
       back: '/reputation',
       children: [
         Panel(
           title: 'Khởi tạo tài khoản',
           children: [
-            Copy('+50 · điểm khởi tạo trong kịch bản mẫu'),
-            Copy('Không có sự kiện vi phạm ở tài khoản mẫu này.', muted: true),
+            Copy('Lịch sử điểm tải từ máy chủ khi có sự kiện uy tín.'),
           ],
         ),
         Panel(
