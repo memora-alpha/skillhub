@@ -2,6 +2,34 @@
 
 **Date**: 2026-10-10. **Status**: Core API implementation and local checks complete; real-store/release proof pending. Branch `feat/connections`. Changes are limited to `services/api`; no dependency installation, commit, push or deployment.
 
+## Proposal schedule text amendment — 2026-10-19
+
+`candidateSlots` is now optional normalized text (`string | null`) throughout
+create/update/read and runtime PostgreSQL storage. Omitted PATCH preserves the
+stored suggestion; null, whitespace or HTML-only text clears it. Old arrays and
+other non-string inputs fail validation. The historical catalog is retained;
+the runtime generator overlays nullable TEXT and generates the checked schema.
+
+- `pnpm --filter api db:generate:runtime-schema`, `db:validate`, `check-types`,
+  `lint` and `build`: passed.
+- Focused Node suites `policies`, `proposals`, `bootstrap`, `notifications`:
+  **15 passed, 0 failed, 0 skipped**. Covered schedule normalization, old payload
+  rejection, create projection, omitted/null/blank PATCH and preserved expiry.
+- Real PostgreSQL `persistence` and `schedule-migration` suites:
+  **2 passed, 0 failed, 0 skipped**, using disposable schemas on the configured
+  local server. Covered the complete migration chain, persisted/read schedule
+  text through Prisma and acceptance, legacy array timestamp preservation,
+  nullable/default storage and absence of lifecycle UPDATE triggers during type
+  conversion. Local TCP initially returned sandbox EACCES; rerun with approved
+  localhost access passed. No application schema migration was applied.
+
+Constitution check after implementation: modular/API scope, PostgreSQL authority,
+owner boundaries, atomic migration, existing authorization/transaction rules,
+published Swagger contract and focused/runtime verification Pass for this change.
+Production migration, coordinated client/API rollout and device integration remain
+pending. This is a breaking payload/response change; populated old arrays are
+retained as JSON text, not guessed recurring availability. No commit/push/deploy.
+
 **Update 2026-10-11:** Native local runtime checks now passed: real PostgreSQL **1 pass / 0 skipped**, native Mongo replica-set **1 pass / 0 skipped**, and full AppModule HTTP/SSE **12 grouped checks pass**. No Docker was used. The configured application still lacks the Connections migration, Mongo replica-set/index setup, enabled storage and a nonempty LR moderation rule set. See [local validation](local-validation.md) for current findings and exact limits; the 2026-10-10 skipped-suite results below are historical.
 
 **Subsequent Mongo update 2026-10-11:** the configured Windows Mongo service is now writable `rs0` PRIMARY, its original dbPath retained, `.env` updated and all five chat indexes created in `skillhub_chat`. The same 12 HTTP/SSE groups and real Mongo suite passed against that service using disposable fixtures. Mongo topology/index gates are resolved locally; PostgreSQL application migration, storage, moderation and broader release proof remain pending. See the applied-update section in [local validation](local-validation.md).

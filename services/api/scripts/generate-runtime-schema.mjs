@@ -124,7 +124,10 @@ model("Notification", (block) =>
 );
 model("Proposal", (block) =>
   fields(
-    block,
+    block.replace(
+      /candidateSlots\s+Json\s+@default\("\[\]"\) @map\("candidate_slots"\)/,
+      'candidateSlots String? @map("candidate_slots") @db.Text',
+    ),
     `
   version Int @default(1)
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)

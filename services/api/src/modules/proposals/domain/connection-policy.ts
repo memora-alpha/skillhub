@@ -53,7 +53,7 @@ export type ProposalHints = {
   proposedCredit?: string | null;
   proposedDurationMinutes?: number | null;
   initialSessionCount?: number | null;
-  candidateSlots?: { startAt: string; endAt: string }[];
+  candidateSlots?: string | null;
 };
 export function plainText(value: string, min: number, max: number) {
   if (typeof value !== "string") throw new BadRequestException("INVALID_TEXT");
@@ -73,7 +73,6 @@ export function plainText(value: string, min: number, max: number) {
 export function normalizeProposal(
   input: ProposalHints,
   policy: ConnectionSettings,
-  now = new Date(),
 ) {
   const message = plainText(input.message, 10, 1000);
   const duration = input.proposedDurationMinutes ?? null;
@@ -130,20 +129,10 @@ export function normalizeProposal(
     }
   };
   validateCreditHint();
-  const candidateSlots = input.candidateSlots ?? [];
-  if (
-    candidateSlots.length > 5 ||
-    candidateSlots.some(
-      (slot) =>
-        !slot.startAt.endsWith("Z") ||
-        !slot.endAt.endsWith("Z") ||
-        !Number.isFinite(Date.parse(slot.startAt)) ||
-        !Number.isFinite(Date.parse(slot.endAt)) ||
-        Date.parse(slot.startAt) <= now.getTime() ||
-        Date.parse(slot.endAt) <= Date.parse(slot.startAt),
-    )
-  )
-    throw new BadRequestException("INVALID_CANDIDATE_SLOTS");
+  const candidateSlots =
+    input.candidateSlots == null
+      ? null
+      : plainText(input.candidateSlots, 0, Number.POSITIVE_INFINITY) || null;
   return {
     message,
     exchangeTypeHint,
