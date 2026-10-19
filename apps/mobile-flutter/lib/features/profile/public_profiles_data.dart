@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../auth/session/auth_session.dart';
+import '../remote/remote_load.dart';
 
 typedef DemoSkill = ({String id, String name, String level, bool verified});
 typedef DemoReview = ({String name, String text, int stars});
@@ -69,11 +70,40 @@ final publicProfileProvider = FutureProvider.family<DemoPublicProfile?, String>(
     final phase = ref.watch(sessionSnapshotProvider).phase;
     if (phase != SessionPhase.ready) return null;
     try {
-      final json = await ref
-          .read(authRuntimeProvider)
-          .account
-          .publicProfile(userId);
-      return parsePublicProfile(json);
+      final runtime = ref.read(authRuntimeProvider);
+      final json = await runtime.account.publicProfile(userId);
+      final parsed = parsePublicProfile(json);
+      if (parsed == null) return null;
+      try {
+        final records = await drainPages(
+          (cursor) => runtime.services.skills.profileSkills(
+            userId,
+            cursor: cursor,
+            limit: 20,
+          ),
+        );
+        return DemoPublicProfile(
+          id: parsed.id,
+          name: parsed.name,
+          headline: parsed.headline,
+          bio: parsed.bio,
+          reputation: parsed.reputation,
+          rating: parsed.rating,
+          stats: parsed.stats,
+          reviews: parsed.reviews,
+          skills: [
+            for (final record in records)
+              (
+                id: record.id,
+                name: record.skill.name,
+                level: record.level,
+                verified: record.verificationStatus == 'VERIFIED',
+              ),
+          ],
+        );
+      } catch (_) {
+        return parsed;
+      }
     } catch (_) {
       return null;
     }

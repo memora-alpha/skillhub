@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import '../../../core/http/http_client.dart';
+import '../../remote/remote_load.dart';
 import '../api/verifications_api.dart';
 
 class VerificationsService {
@@ -13,10 +14,19 @@ class VerificationsService {
     FormData body,
   ) => _api.uploadEvidence(sharingSkillId, body);
 
+  Future<Map<String, dynamic>> fileStatus(
+    String sharingSkillId,
+    String fileId,
+  ) => _api.fileStatus(sharingSkillId, fileId);
+
   Future<Map<String, dynamic>> submit(
     String sharingSkillId,
     Map<String, Object?> body,
-  ) => _api.submit(sharingSkillId, body);
+  ) => _api.submit(
+    sharingSkillId,
+    body,
+    idempotencyKey: newUuid(),
+  );
 
   Future<List<Map<String, dynamic>>> list(String sharingSkillId) =>
       _api.list(sharingSkillId);

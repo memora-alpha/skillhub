@@ -59,6 +59,8 @@ class SharingSkillRecord {
     this.isVisible,
     this.archivedAt,
     this.version,
+    this.ownerId,
+    this.ownerName,
   });
 
   final String id;
@@ -70,11 +72,14 @@ class SharingSkillRecord {
   final bool? isVisible;
   final String? archivedAt;
   final int? version;
+  final String? ownerId;
+  final String? ownerName;
 
   static SharingSkillRecord parse(Object? value) {
     final json = asMap(value);
     final version = json['version'];
     final visible = json['isVisible'];
+    final user = json['user'];
     return SharingSkillRecord(
       id: asString(json['id']),
       skill: SkillRecord.parse(json['skill']),
@@ -85,6 +90,8 @@ class SharingSkillRecord {
       isVisible: visible == null ? null : asBool(visible),
       archivedAt: asOptionalString(json['archivedAt']),
       version: version == null ? null : asInt(version),
+      ownerId: user is Map ? asOptionalString(user['userId']) : null,
+      ownerName: user is Map ? asOptionalString(user['fullName']) : null,
     );
   }
 }

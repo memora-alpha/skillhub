@@ -181,14 +181,14 @@ class UserProfileScreen extends ConsumerWidget {
                         section('Giới thiệu', [
                           SelectableText(
                             profile.bio ??
-                                'Người dùng chưa có phần giới thiệu trong dữ liệu mẫu.',
+                                'Người dùng chưa viết phần giới thiệu.',
                             style: body,
                           ),
                         ]),
                         section('Kỹ năng chia sẻ', [
                           if (profile.skills.isEmpty)
                             Text(
-                              'Chưa có kỹ năng chia sẻ trong dữ liệu mẫu.',
+                              'Chưa có kỹ năng chia sẻ.',
                               style: body,
                             ),
                           for (final skill in profile.skills)
@@ -228,7 +228,7 @@ class UserProfileScreen extends ConsumerWidget {
                         section('Đánh giá', [
                           if (profile.reviews?.isEmpty ?? true)
                             Text(
-                              'Chưa có đánh giá trong dữ liệu mẫu.',
+                              'Chưa có đánh giá.',
                               style: body,
                             ),
                           for (final review in profile.reviews ?? const <DemoReview>[])
