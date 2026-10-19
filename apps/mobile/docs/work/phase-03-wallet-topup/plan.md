@@ -2,13 +2,13 @@
 
 ## Phạm vi hiện tại
 
-Người dùng xác nhận Wallet/Payment đang được phát triển ở nhánh khác. Checkout migration chỉ có Wallet preview; spec006 và source tích hợp không có ở đây là khác biệt phạm vi nhánh, không phải lỗi hoặc yêu cầu xây lại luồng.
+Wallet/Payment được phát triển ở nhánh riêng. Checkout migration chỉ có Wallet preview; spec006 và source tích hợp không có ở đây là khác biệt phạm vi nhánh, không phải lỗi hoặc yêu cầu xây lại luồng.
 
-File này chỉ là điểm tham chiếu của [roadmap](../../roadmap.md), không là plan triển khai thay thế cho nhánh đang làm. Tên nhánh/commit chưa được cung cấp; không tự đặt tên, checkout, merge hoặc tạo task trùng. Các task P03 giả định được tạo lúc migration trước khi có thông tin liên nhánh đã được rút khỏi plan này; không phải task006 lịch sử và chưa có implementation nào được thực hiện từ chúng.
+File này chỉ là điểm tham chiếu của [roadmap](../../roadmap.md), không là plan triển khai thay thế cho nhánh đang làm. Revision tích hợp chưa được đối chiếu; không tạo task triển khai trùng. Các task P03 giả định được tạo lúc migration trước khi có thông tin liên nhánh đã được rút khỏi plan này; không phải task006 lịch sử và chưa có implementation nào được thực hiện từ chúng.
 
 ## Nguồn và nơi sở hữu
 
-- Người dùng trong chat xác nhận đang làm Wallet/Payment ở nhánh khác; ghi nhận tại [status](status.md).
+- [Status](status.md) ghi phạm vi phối hợp và giới hạn đối chiếu liên nhánh.
 - [Contract Wallet/Payment](../../contracts/wallet-payments.md) mô tả backend và source có trong checkout migration, kèm quy chuẩn cho thay đổi mới; chưa xác minh source/decisions/acceptance của nhánh phát triển đó.
 - Task, quyết định storage/recovery/native/web, thiết kế và bằng chứng nghiệm thu triển khai do hồ sơ ở nhánh đang làm sở hữu. Không suy tiến độ nhánh đó từ fixtures tại đây.
 - [Migration](../../migration.md) giữ baseline và đính chính, không cấp quyền bắt đầu phase sản phẩm.

@@ -20,11 +20,8 @@ const groups = [
   {
     title: "Kỹ năng & bằng chứng",
     items: [
-      ["Kỹ năng của tôi", "/skills"],
-      ["Thêm kỹ năng", "/skills/new"],
-      ["Bằng chứng chưa gửi", "/skills/english/evidence"],
-      ["Bằng chứng bị từ chối", "/skills/guitar/evidence"],
-      ["Lịch sử xác minh", "/skills/history"],
+      ["Kỹ năng của tôi", "/my-skills"],
+      ["Thêm kỹ năng", "/my-skills/new"],
     ],
   },
   {
@@ -174,7 +171,7 @@ export const systemStates = {
   "file-upload-failed": [
     "Tệp chưa được tải lên",
     "Kiểm tra định dạng, kích thước và kết nối. Tệp chưa được coi là bằng chứng đã gửi.",
-    "/skills",
+    "/my-skills",
   ],
   "file-too-large": [
     "Tệp vượt giới hạn chat",

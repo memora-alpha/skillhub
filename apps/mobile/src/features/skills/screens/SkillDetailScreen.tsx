@@ -19,7 +19,7 @@ export function SkillDetailScreen({
   const id = validId(sharingSkillId);
   const query = useOwnSkill(id);
   const { api, refresh, forgetSkill, rememberSkill } = useSkills();
-  const action = useSkillAction();
+  const action = useSkillAction({ canAct: query.canRead });
   const [confirm, setConfirm] = useState(false);
   const router = useRouter();
   const skill = query.data;
@@ -72,7 +72,7 @@ export function SkillDetailScreen({
             if (!action.locked()) void refresh();
           },
           onEdit: () => {
-            if (!action.locked())
+            if (!action.locked() && query.canRead())
               router.push({
                 pathname: "/my-skills/[sharingSkillId]/edit",
                 params: { sharingSkillId: id },
@@ -90,14 +90,14 @@ export function SkillDetailScreen({
             });
           },
           onVerify: (waiting: boolean) => {
-            if (!action.locked() && !waiting)
+            if (!action.locked() && query.canRead() && !waiting)
               router.push({
                 pathname: "/my-skills/[sharingSkillId]/verify",
                 params: { sharingSkillId: id },
               });
           },
           onDelete: () => {
-            if (!action.locked()) setConfirm(true);
+            if (!action.locked() && query.canRead()) setConfirm(true);
           },
         }}
       />

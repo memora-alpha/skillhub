@@ -43,6 +43,6 @@ Cached OPEN/PENDING qua deadline cần GET trước action, editor deep link và
 
 ## Boundary và việc tiếp tục
 
-Xem hồ sơ mở owner UUID qua [profile contract](profile.md). User đã cho phép mock-request Proposal context: /send-proposal?mode=mock-request dùng preview-prefixed local IDs, có nhãn preview; real ID chỉ dùng Back. Không HTTP Proposal/chat, không Hold/Path/Session. Notification inbox/mark-read/deep link không thuộc scope005; DEP-01 giữ rejection-notification requirement FR-LR-04, own reason không chứng minh đã gửi notification.
+Xem hồ sơ mở owner UUID qua [profile contract](profile.md). Proposal preview dùng mock-request context: /send-proposal?mode=mock-request dùng preview-prefixed local IDs, có nhãn preview; real ID chỉ dùng Back. Không HTTP Proposal/chat, không Hold/Path/Session. Notification inbox/mark-read/deep link không thuộc scope005; DEP-01 giữ rejection-notification requirement FR-LR-04, own reason không chứng minh đã gửi notification.
 
 [Plan chuyển tiếp](../work/phase-04-learning-request-discovery/plan.md) sở hữu T025..T032 và FR-35 nghiệm thu còn mở; [status](../work/phase-04-learning-request-discovery/status.md) sở hữu evidence/gates mới nhất. SRS nguồn: [domain rules](../domain-rules.md), FR-LR-01..08/LR-001..009. Migration backend20261012000000_learning_request_fe_preferences cần API owner apply/verify; mobile không sửa DB/grants/moderation config. Chưa có realtime subscription LR trong source được xác minh; không tự mở rộng notification.

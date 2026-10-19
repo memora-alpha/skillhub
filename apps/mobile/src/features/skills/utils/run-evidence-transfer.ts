@@ -13,6 +13,7 @@ export type EvidenceTransferDependencies = {
   drafts: Map<string, VerificationDraft>;
   intents: Map<string, ReturnType<typeof createMutationIntent>>;
   isCurrent: () => boolean;
+  canRead?: (id: string) => boolean;
   compress: (file: EvidenceDraft) => Promise<EvidenceDraft>;
   remember: (batch: Verification) => Promise<void>;
   refresh: () => Promise<unknown>;

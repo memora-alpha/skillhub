@@ -2,11 +2,11 @@
 
 ## Phạm vi nhánh và nguồn
 
-Người dùng xác nhận Wallet/Payment đang được phát triển ở nhánh khác. Tên nhánh/commit và mức hoàn thành chưa được cung cấp. Phần source mô tả dưới đây chỉ thuộc checkout migration; thiếu spec006/API adapter tại đây không phải lỗi hay backlog cần triển khai lại. Source/tasks/evidence của luồng tích hợp thuộc nhánh đang làm, sẽ đối chiếu khi có yêu cầu tích hợp/review.
+Wallet/Payment được phát triển ở nhánh riêng; revision và mức hoàn thành chưa được đối chiếu. Phần source mô tả dưới đây chỉ thuộc checkout migration; thiếu spec006/API adapter tại đây không phải lỗi hay backlog cần triển khai lại. Source/tasks/evidence của luồng tích hợp thuộc nhánh đang làm, sẽ đối chiếu khi có yêu cầu tích hợp/review.
 
 Working tree HEAD ed5a17dd9f1a6d5e45e1b6af33b17dd4518b46fd: [backend HTTP009](../../../../services/api/specs/009-credit-payment/contracts/http.md), [WalletController](../../../../services/api/src/modules/credit/presentation/http/wallet.controller.ts), [Wallet DTOs](../../../../services/api/src/modules/credit/presentation/http/wallet.responses.ts), [PaymentsController](../../../../services/api/src/modules/payments/presentation/http/payments.controller.ts), [Payment DTOs](../../../../services/api/src/modules/payments/presentation/http/payments.dto.ts), [recovery operations](../../../../services/api/docs/payment-recovery-operations.vi.md). Backend đã có source route; chưa xác minh deployment/provider.
 
-Mobile chỉ có [wallet screens](../../src/features/wallet/screens.tsx) và [fixtures](../../src/features/wallet/fixtures.ts). Wallet/history là dữ liệu mẫu; amount/state route params chỉ điều khiển preview. Chưa có API adapter, QR renderer, durable payment claim hoặc native-only create capability trong checkout này. .specify selector cũ trỏ specs/006-wallet-payment-history nhưng thư mục không tồn tại; normal-payment-integration.md và validation006 cũng không tìm thấy. Đây là khác biệt phạm vi checkout đã được người dùng giải thích, không phải khoảng trống triển khai cần xử lý ở nhánh này. Không ghi “Confirm disabled” như mô tả Normal Payment runtime có thật.
+Mobile chỉ có [wallet screens](../../src/features/wallet/screens.tsx) và [fixtures](../../src/features/wallet/fixtures.ts). Wallet/history là dữ liệu mẫu; amount/state route params chỉ điều khiển preview. Chưa có API adapter, QR renderer, durable payment claim hoặc native-only create capability trong checkout này. .specify selector cũ trỏ specs/006-wallet-payment-history nhưng thư mục không tồn tại; normal-payment-integration.md và validation006 cũng không tìm thấy. Đây là khác biệt phạm vi checkout, không phải khoảng trống triển khai cần xử lý ở nhánh này.
 
 ## Contract backend để tích hợp sau, base /api/v1
 
