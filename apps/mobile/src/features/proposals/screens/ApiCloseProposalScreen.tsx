@@ -15,16 +15,18 @@ import type { ProposalDecisionResult } from "../api/proposals-api";
 export function ApiCloseProposalScreen({
   id,
   action,
-}: {
+}: Readonly<{
   id: string;
   action?: string;
-}) {
+}>) {
   const query = useProposal(id),
     api = useProposalsApi(),
     command = useConnectionCommand<ProposalDecisionResult>();
   const runtime = useConnections(),
     router = useRouter();
   const proposal = query.data;
+  const confirmLabel =
+    action === "reject" ? "Xác nhận từ chối" : "Xác nhận rút đề xuất";
   const allowed =
     proposal?.status === "PENDING" &&
     (action === "reject"
@@ -79,11 +81,7 @@ export function ApiCloseProposalScreen({
               void close();
             }}
           >
-            {command.pending
-              ? "Đang xử lý..."
-              : action === "reject"
-                ? "Xác nhận từ chối"
-                : "Xác nhận rút đề xuất"}
+            {command.pending ? "Đang xử lý..." : confirmLabel}
           </Button>
           <Button
             variant="secondary"

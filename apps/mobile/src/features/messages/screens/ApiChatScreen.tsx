@@ -30,7 +30,7 @@ import { ApiMessageBubble } from "../components/ApiMessageBubble";
 import type { ApiMessage } from "../api/messages-api";
 import { messageColors as colors } from "../constants/theme";
 
-export function ApiChatScreen({ id }: { id: string }) {
+export function ApiChatScreen({ id }: Readonly<{ id: string }>) {
   const conversation = useConversation(id);
   if (!uuid.safeParse(id).success)
     return (
@@ -70,11 +70,11 @@ function ApiChatConversation({
   id,
   conversation,
   refreshConversation,
-}: {
+}: Readonly<{
   id: string;
   conversation: NonNullable<ReturnType<typeof useConversation>["data"]>;
   refreshConversation: () => unknown;
-}) {
+}>) {
   const router = useRouter(),
     runtime = useConnections(),
     api = useMessagesApi();
@@ -96,9 +96,8 @@ function ApiChatConversation({
       const viewed = viewableItems
         .filter((item) => item.isViewable)
         .map((item) => item.item);
-      const lastViewed = viewed
-        .sort((a, b) => (BigInt(a.sequence) < BigInt(b.sequence) ? -1 : 1))
-        .at(-1);
+      viewed.sort((a, b) => (BigInt(a.sequence) < BigInt(b.sequence) ? -1 : 1));
+      const lastViewed = viewed.at(-1);
       if (lastViewed)
         setVisible((previous) =>
           !previous || BigInt(previous.sequence) < BigInt(lastViewed.sequence)

@@ -25,9 +25,9 @@ import {
 
 export function LearningNegotiationScreen({
   conversationId,
-}: {
+}: Readonly<{
   conversationId: string;
-}) {
+}>) {
   const query = useConversation(conversationId);
   if (!uuid.safeParse(conversationId).success)
     return (
@@ -74,11 +74,11 @@ function NegotiationForm({
   conversationId,
   partnerId,
   participantAId,
-}: {
+}: Readonly<{
   conversationId: string;
   partnerId: string;
   participantAId: string;
-}) {
+}>) {
   const runtime = useConnections(),
     router = useRouter(),
     preview = usePathsPreview();

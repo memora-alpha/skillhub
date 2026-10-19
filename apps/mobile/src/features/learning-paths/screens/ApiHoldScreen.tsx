@@ -44,11 +44,11 @@ function HoldContent({
   path,
   blocked,
   refresh,
-}: {
+}: Readonly<{
   path: ApiLearningPath;
   blocked: boolean;
   refresh: () => unknown;
-}) {
+}>) {
   const api = useLearningPathsApi(),
     check = useConnectionCommand(),
     finalize = useConnectionCommand();

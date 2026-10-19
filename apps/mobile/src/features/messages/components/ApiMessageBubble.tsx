@@ -13,11 +13,11 @@ export function ApiMessageBubble({
   message,
   partner,
   partnerId,
-}: {
+}: Readonly<{
   message: ApiMessage;
   partner: string;
   partnerId: string;
-}) {
+}>) {
   const { userId, isCurrent } = useConnections(),
     api = useMessagesApi();
   const [error, setError] = useState<unknown>(),
@@ -34,8 +34,8 @@ export function ApiMessageBubble({
       );
       if (isCurrent() && Date.parse(result.expiresAt) > Date.now())
         await openURL(result.url);
-    } catch (caught) {
-      if (isCurrent()) setError(caught);
+    } catch (error_) {
+      if (isCurrent()) setError(error_);
     } finally {
       if (isCurrent()) setPending(false);
     }

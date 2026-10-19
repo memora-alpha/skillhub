@@ -5,10 +5,10 @@ import { appColors as colors, fonts, typography } from "@/constants/theme";
 export function ProposalSearchButton({
   expanded,
   onPress,
-}: {
+}: Readonly<{
   expanded: boolean;
   onPress: () => void;
-}) {
+}>) {
   return (
     <Pressable
       accessibilityRole="button"
@@ -32,10 +32,10 @@ export function ProposalSearchButton({
 export function ProposalSearchField({
   value,
   onChange,
-}: {
+}: Readonly<{
   value: string;
   onChange: (value: string) => void;
-}) {
+}>) {
   return (
     <View style={styles.search}>
       <View style={styles.field}>

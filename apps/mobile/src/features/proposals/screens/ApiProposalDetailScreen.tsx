@@ -12,7 +12,7 @@ import { ProposalRecovery } from "../components/ProposalRecovery";
 import { ProposalAcceptActions } from "../components/ProposalAcceptActions";
 import type { ProposalDecisionResult } from "../api/proposals-api";
 
-export function ApiProposalDetailScreen({ id }: { id: string }) {
+export function ApiProposalDetailScreen({ id }: Readonly<{ id: string }>) {
   const router = useRouter();
   const query = useProposal(id);
   const api = useProposalsApi();
@@ -31,8 +31,7 @@ export function ApiProposalDetailScreen({ id }: { id: string }) {
     expectedRequestVersion?: number,
   ) => {
     if (
-      !proposal ||
-      proposal.status !== "PENDING" ||
+      proposal?.status !== "PENDING" ||
       proposal.recipientId !== userId ||
       query.isFetching ||
       command.uncertain ||

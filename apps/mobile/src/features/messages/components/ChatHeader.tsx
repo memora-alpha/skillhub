@@ -10,12 +10,17 @@ export function ChatHeader({
   onBack,
   onAgreement,
   live,
-}: {
+}: Readonly<{
   conversation: Conversation;
   onBack: () => void;
   onAgreement: () => void;
   live?: boolean;
-}) {
+}>) {
+  const liveStatus = live
+    ? "Đề xuất đã chấp nhận · Đang cập nhật"
+    : "Đề xuất đã chấp nhận";
+  const status =
+    live === undefined ? "Đang hoạt động · Proposal đã chấp nhận" : liveStatus;
   return (
     <View style={styles.header}>
       <Pressable
@@ -40,13 +45,7 @@ export function ChatHeader({
         </Text>
         <View style={styles.status}>
           {live === undefined || live ? <View style={styles.dot} /> : null}
-          <Text style={styles.statusText}>
-            {live === undefined
-              ? "Đang hoạt động · Proposal đã chấp nhận"
-              : live
-                ? "Đề xuất đã chấp nhận · Đang cập nhật"
-                : "Đề xuất đã chấp nhận"}
-          </Text>
+          <Text style={styles.statusText}>{status}</Text>
         </View>
       </View>
       <Pressable

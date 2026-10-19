@@ -11,8 +11,13 @@ import {
 } from "@/features/connections";
 import { useConversations } from "../hooks/use-messages-api";
 import type { ApiConversation } from "../api/messages-api";
+function ConversationSeparator() {
+  return <View style={{ height: 12 }} />;
+}
 
-function ConversationRow({ conversation }: { conversation: ApiConversation }) {
+function ConversationRow({
+  conversation,
+}: Readonly<{ conversation: ApiConversation }>) {
   const router = useRouter(),
     { userId } = useConnections();
   const partnerId =
@@ -54,7 +59,7 @@ export function ApiMessagesScreen() {
           onRefresh={() => {
             void query.refetch();
           }}
-          ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+          ItemSeparatorComponent={ConversationSeparator}
           onEndReached={() => {
             if (query.hasNextPage && !query.isFetching)
               void query.fetchNextPage({ cancelRefetch: false });

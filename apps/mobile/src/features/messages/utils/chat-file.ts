@@ -31,7 +31,7 @@ export function validateChatFile(file: ChatFile) {
     file.name.length > 255 ||
     /[\\/]/.test(file.name) ||
     [...file.name].some(
-      (char) => char.charCodeAt(0) <= 31 || char.charCodeAt(0) === 127,
+      (char) => char.codePointAt(0)! <= 31 || char.codePointAt(0)! === 127,
     ) ||
     parts
       .slice(0, -1)

@@ -82,16 +82,20 @@ function SchedulePanel({
   path,
   plan,
   blocked,
-}: {
+}: Readonly<{
   path: ApiLearningPath;
   plan: ApiLearningPlan;
   blocked: boolean;
-}) {
+}>) {
   const api = useLearningPathsApi(),
     command = useConnectionCommand(),
     runtime = useConnections();
   const skill = useCatalogName(plan.skillId),
     schedule = plan.schedule;
+  const partnerConfirmedAt =
+    path.participantAId === runtime.userId
+      ? schedule?.participantBConfirmedAt
+      : schedule?.participantAConfirmedAt;
   return (
     <Panel title={skill.data ?? "Kế hoạch học"}>
       <Copy>
@@ -119,14 +123,7 @@ function SchedulePanel({
             {ownConfirmation(path, schedule, runtime.userId)
               ? "đã xác nhận"
               : "chưa xác nhận"}{" "}
-            · Đối tác:{" "}
-            {(
-              path.participantAId === runtime.userId
-                ? schedule.participantBConfirmedAt
-                : schedule.participantAConfirmedAt
-            )
-              ? "đã xác nhận"
-              : "chưa xác nhận"}
+            · Đối tác: {partnerConfirmedAt ? "đã xác nhận" : "chưa xác nhận"}
           </Copy>
           {canConfirmSchedule(path, plan, runtime.userId) && (
             <Button
@@ -201,11 +198,11 @@ function ScheduleForm({
   path,
   plan,
   blocked,
-}: {
+}: Readonly<{
   path: ApiLearningPath;
   plan: ApiLearningPlan;
   blocked: boolean;
-}) {
+}>) {
   const api = useLearningPathsApi(),
     command = useConnectionCommand(),
     router = useRouter();

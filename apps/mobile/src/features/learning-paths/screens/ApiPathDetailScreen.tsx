@@ -52,10 +52,10 @@ export function ApiPathDetailScreen() {
 function PathContent({
   path,
   blocked,
-}: {
+}: Readonly<{
   path: ApiLearningPath;
   blocked: boolean;
-}) {
+}>) {
   const runtime = useConnections(),
     api = useLearningPathsApi(),
     command = useConnectionCommand();
@@ -66,6 +66,10 @@ function PathContent({
   );
   const a = path.agreement,
     confirmed = !!ownConfirmation(path, a, runtime.userId);
+  const partnerConfirmedAt =
+    path.participantAId === runtime.userId
+      ? a.participantBConfirmedAt
+      : a.participantAConfirmedAt;
   return (
     <>
       <Panel title={`Cùng ${name.data ?? "đối tác"}`} accent>
@@ -98,13 +102,7 @@ function PathContent({
       <Panel title="Điều khoản chung">
         <Copy>
           Bạn: {confirmed ? "đã xác nhận" : "chưa xác nhận"} · Đối tác:{" "}
-          {(
-            path.participantAId === runtime.userId
-              ? a.participantBConfirmedAt
-              : a.participantAConfirmedAt
-          )
-            ? "đã xác nhận"
-            : "chưa xác nhận"}
+          {partnerConfirmedAt ? "đã xác nhận" : "chưa xác nhận"}
         </Copy>
         <Copy muted>
           Điều khoản và từng kế hoạch có xác nhận riêng. Tin nhắn không thay thế
@@ -150,11 +148,11 @@ export function ApiPlanPanel({
   path,
   plan,
   blocked = false,
-}: {
+}: Readonly<{
   path: ApiLearningPath;
   plan: ApiLearningPlan;
   blocked?: boolean;
-}) {
+}>) {
   const runtime = useConnections(),
     api = useLearningPathsApi(),
     command = useConnectionCommand();

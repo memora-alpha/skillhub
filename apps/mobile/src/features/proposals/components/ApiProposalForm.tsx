@@ -15,6 +15,11 @@ import {
 } from "../schemas/api-proposal-form";
 import type { ProposalHints, Proposal } from "../api/proposals-api";
 import { ProposalTemplateField } from "./proposal-template-field";
+function exchangeChoice(value: ApiProposalValues["type"]) {
+  if (value === "TWO_WAY") return "Trao đổi";
+  if (value === "ONE_WAY") return "Tôi muốn dạy bạn";
+  return "";
+}
 
 export function ApiProposalForm({
   proposal,
@@ -22,13 +27,13 @@ export function ApiProposalForm({
   disabled,
   locked = false,
   onSubmit,
-}: {
+}: Readonly<{
   proposal?: Proposal;
   pending: boolean;
   disabled?: boolean;
   locked?: boolean;
   onSubmit: (hints: ProposalHints) => Promise<unknown>;
-}) {
+}>) {
   const {
     control,
     handleSubmit,
@@ -47,6 +52,7 @@ export function ApiProposalForm({
   const availabilityInput = useRef<TextInput | null>(null);
   const outsideTouch = useRef<{ x: number; y: number } | null>(null);
   const detailErrors = !!(errors.credit || errors.sessions || errors.duration);
+  const submitLabel = proposal ? "Lưu thay đổi" : "Gửi đề xuất";
   return (
     <View
       style={{ gap: 12 }}
@@ -84,13 +90,7 @@ export function ApiProposalForm({
           <ChoiceGroup
             label="Bạn muốn đề xuất gì?"
             options={["Trao đổi", "Tôi muốn dạy bạn"]}
-            value={
-              field.value === "TWO_WAY"
-                ? "Trao đổi"
-                : field.value === "ONE_WAY"
-                  ? "Tôi muốn dạy bạn"
-                  : ""
-            }
+            value={exchangeChoice(field.value)}
             disabled={inactive}
             onChange={(value) => {
               if (!inactive)
@@ -164,7 +164,7 @@ export function ApiProposalForm({
             )();
         }}
       >
-        {pending ? "Đang gửi..." : proposal ? "Lưu thay đổi" : "Gửi đề xuất"}
+        {pending ? "Đang gửi..." : submitLabel}
       </Button>
     </View>
   );

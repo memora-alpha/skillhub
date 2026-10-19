@@ -15,6 +15,15 @@ import {
 } from "@/lib/http/command-intent";
 import { connectionReadAccess } from "@/lib/http/read-access";
 import { useConnections } from "./runtime";
+function logCommandFailure(error_: unknown) {
+  if (!__DEV__) return;
+  const failure = error_ instanceof AppError ? error_ : undefined;
+  console.warn("[connections] command failed", {
+    kind: failure?.kind ?? "unexpected",
+    status: failure?.status,
+    code: failure?.code,
+  });
+}
 
 export function useConnectionRefresh(refresh: () => unknown, enabled = true) {
   useFocusEffect(
@@ -124,14 +133,54 @@ export function useConnectionCommand<TResult = unknown>() {
   >(undefined);
   const [uncertain, setUncertain] = useState(false);
   const [originalError, setOriginalError] = useState<unknown>();
+  const clearRecovery = () => {
+    recovery.current = undefined;
+    setUncertain(false);
+    setOriginalError(undefined);
+  };
+  const retainRecovery = (
+    error_: unknown,
+    fingerprint: string,
+    send: (identity: string) => Promise<TResult>,
+  ) => {
+    if (!recovery.current) {
+      recovery.current = { fingerprint, send };
+      setOriginalError(error_);
+    }
+    setUncertain(true);
+  };
+  const failed = (
+    error_: unknown,
+    fingerprint: string,
+    send: (identity: string) => Promise<TResult>,
+  ) => {
+    if (!runtime.isCurrent()) return;
+    setError(error_);
+    logCommandFailure(error_);
+    // Completed idempotency records bypass policy checks; this rejection proves
+    // that the command did not commit, even during an exact-key replay.
+    const rejected =
+      isConnectionPolicyUnavailable(error_) ||
+      (!recovery.current && isRejectedCommand(error_));
+    if (rejected) {
+      intent.current.failed(error_);
+      clearRecovery();
+    } else {
+      retainRecovery(error_, fingerprint, send);
+    }
+    if (
+      error_ instanceof AppError &&
+      error_.kind === "http" &&
+      error_.status === 409
+    )
+      void cache.invalidateQueries({ queryKey: runtime.key });
+  };
   useEffect(() => {
     intent.current.clear();
     busy.current = false;
     setPending(false);
     setError(undefined);
-    recovery.current = undefined;
-    setUncertain(false);
-    setOriginalError(undefined);
+    clearRecovery();
   }, [runtime]);
   async function run<T extends TResult>(
     fingerprint: string,
@@ -141,8 +190,8 @@ export function useConnectionCommand<TResult = unknown>() {
     let identity: string;
     try {
       identity = intent.current.begin(fingerprint, randomUUID);
-    } catch (caught) {
-      setError(caught);
+    } catch (error_) {
+      setError(error_);
       return;
     }
     busy.current = true;
@@ -152,46 +201,11 @@ export function useConnectionCommand<TResult = unknown>() {
       const result = await send(identity);
       runtime.assertCurrent();
       intent.current.clear();
-      recovery.current = undefined;
-      setUncertain(false);
-      setOriginalError(undefined);
+      clearRecovery();
       void cache.invalidateQueries({ queryKey: runtime.key });
       return result;
-    } catch (caught) {
-      if (runtime.isCurrent()) {
-        setError(caught);
-        if (__DEV__)
-          console.warn("[connections] command failed", {
-            kind: caught instanceof AppError ? caught.kind : "unexpected",
-            status: caught instanceof AppError ? caught.status : undefined,
-            code: caught instanceof AppError ? caught.code : undefined,
-          });
-        // A policy failure occurs only for an uncommitted command, including on
-        // replay: completed idempotency records bypass proposal normalization.
-        if (
-          isConnectionPolicyUnavailable(caught) ||
-          (!recovery.current && isRejectedCommand(caught))
-        ) {
-          intent.current.failed(caught);
-          recovery.current = undefined;
-          setUncertain(false);
-          setOriginalError(undefined);
-        } else {
-          if (!recovery.current) {
-            recovery.current = { fingerprint, send };
-            setOriginalError(caught);
-          }
-          setUncertain(true);
-        }
-        if (
-          caught instanceof AppError &&
-          caught.kind === "http" &&
-          caught.status < 500
-        ) {
-          if (caught.status === 409)
-            void cache.invalidateQueries({ queryKey: runtime.key });
-        }
-      }
+    } catch (error_) {
+      failed(error_, fingerprint, send);
     } finally {
       if (runtime.isCurrent()) {
         busy.current = false;

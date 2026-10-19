@@ -18,8 +18,13 @@ import {
   chatFileFormData,
   type ChatFile,
 } from "../utils/chat-file";
+function fileStateLabel(state?: string) {
+  if (state === "READY") return "Sẵn sàng gửi";
+  if (state === "SCANNING" || state === "QUARANTINED") return "Đang kiểm tra";
+  return "Chưa sẵn sàng";
+}
 
-export function ApiAttachmentScreen({ id }: { id: string }) {
+export function ApiAttachmentScreen({ id }: Readonly<{ id: string }>) {
   const runtime = useConnections(),
     api = useMessagesApi(),
     router = useRouter();
@@ -54,8 +59,8 @@ export function ApiAttachmentScreen({ id }: { id: string }) {
       setFileId(undefined);
       setError(undefined);
       setSubmitted(false);
-    } catch (caught) {
-      if (runtime.isCurrent()) setError(caught);
+    } catch (error_) {
+      if (runtime.isCurrent()) setError(error_);
     } finally {
       busy.current = false;
     }
@@ -69,8 +74,8 @@ export function ApiAttachmentScreen({ id }: { id: string }) {
       const result = await api.upload(id, chatFileFormData(file));
       runtime.assertCurrent();
       setFileId(result.fileId);
-    } catch (caught) {
-      if (runtime.isCurrent()) setError(caught);
+    } catch (error_) {
+      if (runtime.isCurrent()) setError(error_);
     } finally {
       if (runtime.isCurrent()) {
         busy.current = false;
@@ -90,8 +95,8 @@ export function ApiAttachmentScreen({ id }: { id: string }) {
       return;
     const confirmed = await status
       .refetch({ throwOnError: true })
-      .catch((caught: unknown) => {
-        setError(caught);
+      .catch((error_: unknown) => {
+        setError(error_);
         return undefined;
       });
     if (confirmed?.data?.state !== "READY" || !runtime.isCurrent()) return;
@@ -147,15 +152,7 @@ export function ApiAttachmentScreen({ id }: { id: string }) {
               )}
               {fileId && (
                 <>
-                  <Copy>
-                    Trạng thái:{" "}
-                    {status.data?.state === "READY"
-                      ? "Sẵn sàng gửi"
-                      : status.data?.state === "SCANNING" ||
-                          status.data?.state === "QUARANTINED"
-                        ? "Đang kiểm tra"
-                        : "Chưa sẵn sàng"}
-                  </Copy>
+                  <Copy>Trạng thái: {fileStateLabel(status.data?.state)}</Copy>
                   <ConnectionFeedback
                     loading={status.isLoading}
                     error={status.error}

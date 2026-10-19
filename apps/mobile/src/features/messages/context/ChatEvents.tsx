@@ -16,13 +16,51 @@ import {
   createChatEventHydrator,
   reloadChatEventQueries,
 } from "../utils/event-hydration";
+type EventBody = NonNullable<Awaited<ReturnType<typeof streamFetch>>["body"]>;
+async function consumeEvents(
+  body: EventBody,
+  hydration: ReturnType<typeof createChatEventHydrator>,
+  control: AbortController,
+  disposed: () => boolean,
+) {
+  const reader = body.getReader(),
+    decoder = new TextDecoder(),
+    parser = createSseParser();
+  const stopped = () => disposed() || control.signal.aborted;
+  const chunks = {
+    [Symbol.asyncIterator]: () => ({
+      next: () =>
+        stopped()
+          ? Promise.resolve({ done: true as const, value: undefined })
+          : reader.read(),
+    }),
+  };
+  try {
+    for await (const chunk of chunks) {
+      // Each frame must finish reloading before the next can acknowledge a cursor.
+      // A finite promise chain preserves stream order and stops on hydration failure.
+      await parser.feed(decoder.decode(chunk, { stream: true })).reduce(
+        (previous, frame) =>
+          previous.then(async () => {
+            if (!stopped()) await hydration.handle(frame, control.signal);
+          }),
+        Promise.resolve(),
+      );
+    }
+  } finally {
+    await reader.cancel().catch(() => {});
+    reader.releaseLock();
+  }
+}
 
 const Context = createContext<{
   connected: boolean;
   error: unknown;
   retry: () => void;
 }>({ connected: false, error: undefined, retry: () => {} });
-export function ChatEventsProvider({ children }: { children: ReactNode }) {
+export function ChatEventsProvider({
+  children,
+}: Readonly<{ children: ReactNode }>) {
   const runtime = useConnections(),
     cache = useQueryClient();
   const [connected, setConnected] = useState(false);
@@ -47,6 +85,43 @@ export function ChatEventsProvider({ children }: { children: ReactNode }) {
         setError(undefined);
       },
     });
+    const responseBody = async (
+      response: Awaited<ReturnType<typeof streamFetch>>,
+      token: string,
+    ) => {
+      if (response.status !== 200) {
+        if (
+          response.status === 409 ||
+          (response.status === 400 && hydration.cursor)
+        )
+          hydration.reset();
+        if (response.status === 401) await runtime.controller.renew(token);
+        throw new AppError("http", response.status);
+      }
+      if (
+        !response.headers.get("content-type")?.includes("text/event-stream") ||
+        !response.body
+      )
+        throw new AppError("protocol");
+      return response.body;
+    };
+    const failed = (error_: unknown, control: AbortController) => {
+      if (disposed || control.signal.aborted || !runtime.isCurrent()) return;
+      setConnected(false);
+      setError(error_);
+      failures++;
+      // SSE reconnect only; history is hydrated by events or explicit refresh.
+      if (
+        failures <= 6 &&
+        !(error_ instanceof AppError && error_.status === 403)
+      )
+        timer = setTimeout(
+          () => {
+            void connect();
+          },
+          Math.min(30000, 3000 * 2 ** (failures - 1)) + Math.random() * 500,
+        );
+    };
     const connect = async () => {
       if (disposed || !active || !runtime.isCurrent()) return;
       const control = new AbortController();
@@ -66,57 +141,11 @@ export function ChatEventsProvider({ children }: { children: ReactNode }) {
           signal: control.signal,
         });
         runtime.assertCurrent();
-        if (response.status !== 200) {
-          if (
-            response.status === 409 ||
-            (response.status === 400 && hydration.cursor)
-          )
-            hydration.reset();
-          if (response.status === 401) await runtime.controller.renew(token);
-          throw new AppError("http", response.status);
-        }
-        if (
-          !response.headers
-            .get("content-type")
-            ?.includes("text/event-stream") ||
-          !response.body
-        )
-          throw new AppError("protocol");
-        const reader = response.body.getReader(),
-          decoder = new TextDecoder(),
-          parser = createSseParser();
-        try {
-          while (!disposed && !control.signal.aborted) {
-            const chunk = await reader.read();
-            if (chunk.done) break;
-            for (const frame of parser.feed(
-              decoder.decode(chunk.value, { stream: true }),
-            )) {
-              if (disposed || control.signal.aborted) break;
-              await hydration.handle(frame, control.signal);
-            }
-          }
-        } finally {
-          await reader.cancel().catch(() => {});
-          reader.releaseLock();
-        }
+        const body = await responseBody(response, token);
+        await consumeEvents(body, hydration, control, () => disposed);
         if (!control.signal.aborted) throw new AppError("network");
-      } catch (caught) {
-        if (disposed || control.signal.aborted || !runtime.isCurrent()) return;
-        setConnected(false);
-        setError(caught);
-        failures++;
-        // SSE reconnect only; history is hydrated by events or explicit refresh.
-        if (
-          failures <= 6 &&
-          !(caught instanceof AppError && caught.status === 403)
-        )
-          timer = setTimeout(
-            () => {
-              void connect();
-            },
-            Math.min(30000, 3000 * 2 ** (failures - 1)) + Math.random() * 500,
-          );
+      } catch (error_) {
+        failed(error_, control);
       } finally {
         control.abort();
       }
