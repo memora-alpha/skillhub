@@ -6,6 +6,16 @@
 
 ## Summary
 
+Recovery amendment 2026-10-19: preserve durable retries for transient failures,
+verify/cancel stranded unpaid QR intents and resume eligible historical technical
+reviews after signed lookup. Reuse Payment lock/fenced lease; all provider calls
+stay outside transactions. Review resume, audit PAYMENT_RECOVERY_RESUME and
+payment.updated commit together; receipt posting retains its existing atomicity.
+No shared/frontend changes or schema additions beyond the preceding cancellation
+enum migration. Constitution principles 1–8: Pass for local implementation;
+81/81 payment/audit regression cases, TypeScript and build pass in validation.md.
+Live merchant and deployment gates remain Pending; no constitutional exception.
+
 User amendment 2026-10-16: chỉ render QR payOS trực tiếp trong SkillHub; không mở hosted checkout. Owner projection không có checkout URL/method. Return/cancel HTTPS vẫn là fields bắt buộc của provider request/signature, chỉ giữ server-side; không cần trang redirect trong QR flow. Backend transport/posting/provenance triển khai ngày 2026-10-17; frontend integration và merchant proof vẫn riêng.
 
 Hoàn thiện Credit owner hiện có: lifecycle ví, wallet/history API, exact monetary DTO, invariants/immutable ledger, TOP_UP/Release/Adjustment contracts và đối soát. Bổ sung payments owner: quote/checkout intent, payOS adapter, verified durable receipts và atomic Payment PAID + TOP_UP. Kiểm chứng Hold/settlement đã có source trên PostgreSQL thật; giữ BigInt hundredths và fee floor đã được User xác nhận ngày 2026-10-15.

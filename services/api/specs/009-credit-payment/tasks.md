@@ -1,5 +1,14 @@
 # Tasks: Credit & Payment
 
+## Amendment 2026-10-19: technical recovery
+
+- [x] R01 Preserve bounded-backoff retries without exhausting into permanent REVIEW.
+- [x] R02 Verify unpaid PENDING and cancel the original QR-less/expired intent; require signed closure before fresh creation.
+- [x] R03 Resume allowlisted historical technical REVIEW after verified lookup, with identity/channel/quote/receipt/lease checks and atomic audit/event.
+- [x] R04 Expose PAYMENT_RECOVERY_PENDING and document FE polling/creation-policy and operations behavior.
+- [x] R05 Run payment and audit regressions, lint/types/build and record exact local evidence.
+- [ ] R06 Verify on a real merchant channel and roll out migrations/code to the target environment (outside this local task).
+
 ## Amendment 2026-10-19: cancel top-up
 
 - [x] C01 Add own POST /payments/{paymentId}/cancel, live auth/idempotency and Swagger.

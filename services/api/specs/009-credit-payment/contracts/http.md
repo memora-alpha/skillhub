@@ -56,6 +56,18 @@ payOS checkout chỉ dùng QR: `{paymentLinkId,qrCode,orderCode,providerStatus}`
 
 ## Hủy yêu cầu nạp — 2026-10-19
 
+Recovery amendment: PaymentResponse thêm recoveryReason PAYMENT_RECOVERY_PENDING
+cho CREATED/PENDING đang chờ recovery không có QR dùng được hoặc provider
+PROCESSING. GET chỉ đọc DB; worker lookup/cancel ngoài transaction. FE đọc lại/SSE
+và giữ chặn key mới cho đến creation-policy.canCreate=true. Missing QR không tự
+chuyển REVIEW; signed unpaid PENDING được hủy an toàn để user tạo intent mới.
+Timeout khi lookup/cancel tiếp tục retry; local expiry không đóng đơn.
+
+Technical REVIEW cũ chỉ tự phục hồi sau verified lookup, creation identity/quote
+còn nguyên, cùng channel và không có receipt/posting. Worker revalidate dưới lock,
+ghi audit PAYMENT_RECOVERY_RESUME + event rồi reconcile cùng orderCode. API cancel
+vẫn từ chối REVIEW; financial REVIEW không được tự mở lại hoặc cấp đơn thay thế.
+
 `POST /payments/{paymentId}/cancel` cho owner của đơn CREATED/PENDING. Gửi
 `Authorization: Bearer <token>` và `Idempotency-Key`, không cần body. Trả200
 envelope chuẩn với PaymentResponse, status CANCELLED và checkout:null sau khi

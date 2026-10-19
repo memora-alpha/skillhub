@@ -106,10 +106,13 @@ export class PayosTransport {
     return this.gateway.verifyLookupResponse(response, quote);
   }
 
-  async cancel(quote: CheckoutQuote) {
+  async cancel(
+    quote: CheckoutQuote,
+    cancellationReason = "User requested cancellation",
+  ) {
     const response = await this.request(
       `/${encodeURIComponent(quote.orderCode)}/cancel`,
-      { cancellationReason: "User requested cancellation" },
+      { cancellationReason },
     );
     if (
       !response ||

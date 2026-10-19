@@ -1,5 +1,14 @@
 # Data Model — Credit & Payment
 
+Recovery amendment 2026-10-19 adds no new database fields. PREPARING/READY retain
+retry scheduling through network failures. Historical REVIEW with last_error
+PAYMENT_QR_UNAVAILABLE/PAYMENT_PROVIDER_RETRY_EXHAUSTED may transition back to
+CREATED/PREPARING only after authenticated lookup and a locked recheck of stored
+creation identity, quote, channel, lease and absence of receipts/posting. This
+transition appends PAYMENT_RECOVERY_RESUME audit + payment.updated atomically.
+Only signed unpaid CANCELLED/EXPIRED closes a stranded intent. Original creation
+identity/orderCode/quote/history remain retained.
+
 Cancellation amendment 2026-10-19: additive migration
 `20261019010000_payment_cancellation` adds PaymentStatus.CANCELLED. Checkout
 continues to use CLOSED; no new table/column or wallet mutation is required.

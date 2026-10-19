@@ -92,6 +92,21 @@ không chen vào trang sau. Trạng thái đơn vẫn có thể thay đổi gi�
 
 ## FE và SSE
 
+Recovery lỗi mạng/mất QR: `recoveryRequired:true` với
+`recoveryReason:PAYMENT_RECOVERY_PENDING` nghĩa đang kiểm tra, chưa được tạo đơn
+mới. FE giữ key cũ, đọc detail/SSE và chờ creation-policy cho phép. Khi provider
+xác nhận PENDING chưa có tiền nhưng QR đã mất hoặc quote hết hạn, worker tự hủy
+cùng orderCode; chỉ signed CANCELLED/EXPIRED mới mở tạo mới. PROCESSING hoặc
+timeout tiếp tục retry; local expiry không đóng đơn. Backoff tối đa 5 phút;
+worker quét tối đa 20 đơn/lượt mỗi 15 giây. Không cam kết thời gian hoàn tất khi
+provider còn lỗi.
+
+REVIEW cũ do PAYMENT_QR_UNAVAILABLE/PAYMENT_PROVIDER_RETRY_EXHAUSTED được xét lại
+nếu còn creation identity, cùng channel, quote nguyên vẹn và không receipt/posting.
+Sau verified lookup, worker mở lại với audit PAYMENT_RECOVERY_RESUME rồi xử lý
+signed paid evidence hoặc hủy đơn chưa trả tiền. Financial REVIEW vẫn cần đối
+soát. Không xóa Payment, mapping hoặc receipt để gỡ chặn.
+
 Hủy: gọi `POST /api/v1/payments/{paymentId}/cancel` không body. Trả200
 PaymentResponse với CANCELLED/checkout:null (hoặc EXPIRED nếu provider đã hết hạn).
 Gọi lại đơn CANCELLED an toàn. 409 PAYMENT_ALREADY_PAID/PAYMENT_REVIEW_REQUIRED:

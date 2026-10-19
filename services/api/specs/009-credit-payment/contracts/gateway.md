@@ -35,7 +35,10 @@ mới đóng đơn; PAID/partial/missing evidence đi qua receipt/review pipelin
 Share fenced checkout lease với create/recovery và ghi trạng thái dưới Payment
 lock, không gọi provider trong transaction. Recovery giữ nguyên CANCELLED thay
 vì gộp với EXPIRED. Timeout không chứng minh hủy; không tạo mã đơn thay thế.
+Recovery dùng cùng API hủy khi verified PENDING không tiền nhưng thiếu QR hoặc
+quote đã hết hạn, với cancellationReason cố định cho checkout recovery. PROCESSING
+không tự hủy; signed closed evidence mới đóng. Không dùng local clock để mở key mới.
 
 PAYMENTS_ENABLED=false mặc định. Enabled yêu cầu PAYOS_CLIENT_ID, PAYOS_API_KEY, PAYOS_CHECKSUM_KEY, HTTPS PAYOS_RETURN_URL và PAYOS_CANCEL_URL. Không log headers/signatures/raw payload/checkout URL. Không sửa env thật, đăng ký webhook hoặc gọi gateway thật trong lần chuyển provider.
 
-Tests phải kiểm golden webhook vector chính thức, create canonical fields/expiry/safe integers, signed response quote/QR matching, projection không chứa hosted URL, tampered data/PII/missing signature, duplicate identity/digest và unknown outcomes. Full create→lookup→webhook→durable receipt→one TOP_UP, partial/late/crash recovery và channel readiness vẫn là activation gates trong tasks/validation. Trạng thái UI lấy từ Payment API/SSE/polling đã xác thực; đóng màn hình QR không tự hủy hay chứng minh chưa trả tiền. Cancellation chỉ chạy khi owner gọi API hủy theo yêu cầu ngày 2026-10-19.
+Tests phải kiểm golden webhook vector chính thức, create canonical fields/expiry/safe integers, signed response quote/QR matching, projection không chứa hosted URL, tampered data/PII/missing signature, duplicate identity/digest và unknown outcomes. Full create→lookup→webhook→durable receipt→one TOP_UP, partial/late/crash recovery và channel readiness vẫn là activation gates trong tasks/validation. Trạng thái UI lấy từ Payment API/SSE/polling đã xác thực; đóng màn hình QR không tự hủy hay chứng minh chưa trả tiền. Cancellation chạy khi owner gọi API hủy hoặc worker phục hồi lỗi kỹ thuật theo amendment ngày 2026-10-19.

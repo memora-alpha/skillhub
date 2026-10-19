@@ -72,6 +72,7 @@ export class PaymentResponse {
       "PAYMENT_REVIEW_REQUIRED",
       "PAYMENT_CHANNEL_UNAVAILABLE",
       "PAYMENT_CHECKOUT_MISSING",
+      "PAYMENT_RECOVERY_PENDING",
     ],
   })
   recoveryReason!: string | null;

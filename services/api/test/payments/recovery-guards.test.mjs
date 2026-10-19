@@ -89,15 +89,15 @@ test("payment creation recovery and operational gates on PostgreSQL", async (t) 
       },
     );
     await t.test(
-      "lost QR REVIEW blocks fresh keys and preserves the original key even after mapping loss",
+      "financial REVIEW blocks fresh keys and preserves the original key even after mapping loss",
       async () => {
         const account = await f.account(),
           key = randomUUID();
-        f.failCreate = 1;
         const pending = await f.order(account, "100000", key);
         await assert.rejects(f.order(account), /PAYMENT_UNRESOLVED/);
-        await f.due(pending.id);
-        await f.worker.process(pending.id);
+        await f.transactions.run((tx) =>
+          f.receipts.review(tx, pending.id, "PAYMENT_AMOUNT_MISMATCH"),
+        );
         const reviewed = await f.reads.detail(account.principal, pending.id);
         assert.equal(reviewed.status, "REVIEW");
         assert.equal(reviewed.recoveryRequired, true);
