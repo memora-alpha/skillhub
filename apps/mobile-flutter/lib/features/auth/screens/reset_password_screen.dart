@@ -6,7 +6,7 @@ import '../../../components/app_button.dart';
 import '../../../components/app_input.dart';
 import '../../../core/http/app_error.dart';
 import '../../../core/toast/toast.dart';
-import '../api/auth_api.dart';
+import '../schema/auth_schema.dart';
 import '../session/auth_session.dart';
 import '../utils/auth_validation.dart';
 import '../utils/otp_feedback.dart';
