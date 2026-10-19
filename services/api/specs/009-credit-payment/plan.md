@@ -133,6 +133,21 @@ Provider/DB runtime, live deployment SHA/readiness và vận hành thật vẫn 
 
 ## Complexity Tracking
 
+### Payment cancellation — 2026-10-19
+
+User yêu cầu POST /payments/{paymentId}/cancel. API-only, không shared/frontend
+changes. Reuse live identity/idempotency, immutable order identity và fenced
+checkout lease để gọi provider ngoài PG transaction. Signed cancellation/lookup
+evidence quyết định CANCELLED/EXPIRED hoặc receipt/review; state/QR/version và
+user event/outbox commit nguyên tử dưới Payment lock. Thêm enum value bằng
+additive migration, cập nhật schema generator và public event validation.
+Giữ PAID khi webhook race; receipt mới sau CANCELLED vào REVIEW không cấp Credit.
+
+Constitution check: architecture/scope, PostgreSQL authority, owner boundaries,
+live auth, safe projections và provider I/O boundary Pass by source. Storage,
+HTTP, retry/concurrency/rollback verification ghi trong validation.md; merchant
+và deployment riêng, không exception.
+
 ### Recovery hardening — 2026-10-18
 
 User authorized branch/fix after the restore/idempotency/REVIEW audit.

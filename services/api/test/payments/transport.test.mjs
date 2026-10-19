@@ -82,3 +82,61 @@ test("payOS transport fixes origin, bounds responses/deadlines and authenticates
     globalThis.fetch = original;
   }
 });
+
+test("payOS cancel uses fixed authenticated POST and verifies signature, quote and payment evidence", async () => {
+  const transport = new PayosTransport(new ConfigService(env));
+  const quote = {
+    orderCode: "123",
+    paymentAmountVnd: 1000n,
+    expiresAt: new Date(),
+  };
+  const data = {
+    id: "provider-link",
+    orderCode: 123,
+    amount: 1000,
+    amountPaid: 0,
+    amountRemaining: 1000,
+    status: "CANCELLED",
+    transactions: [],
+  };
+  const original = globalThis.fetch;
+  try {
+    globalThis.fetch = async (url, options) => {
+      assert.equal(
+        url,
+        "https://api-merchant.payos.vn/v2/payment-requests/123/cancel",
+      );
+      assert.equal(options.method, "POST");
+      assert.equal(options.redirect, "error");
+      assert.equal(options.headers["x-client-id"], env.PAYOS_CLIENT_ID);
+      assert.equal(options.headers["x-api-key"], env.PAYOS_API_KEY);
+      assert.deepEqual(JSON.parse(options.body), {
+        cancellationReason: "User requested cancellation",
+      });
+      return Response.json(sign(data));
+    };
+    assert.equal((await transport.cancel(quote)).status, "CANCELLED");
+    assert.equal((await transport.cancel(quote)).hasPayment, false);
+    const signed = sign(data);
+    globalThis.fetch = async () =>
+      Response.json({ ...signed, data: { ...data, status: "PAID" } });
+    await assert.rejects(transport.cancel(quote), /PAYMENT_SIGNATURE_INVALID/);
+    globalThis.fetch = async () =>
+      Response.json(sign({ ...data, orderCode: 124 }));
+    await assert.rejects(transport.cancel(quote), /PAYMENT_LOOKUP_MISMATCH/);
+    globalThis.fetch = async () =>
+      Response.json(sign({ ...data, amount: 2000 }));
+    await assert.rejects(transport.cancel(quote), /PAYMENT_LOOKUP_MISMATCH/);
+    globalThis.fetch = async () =>
+      Response.json(sign({ ...data, transactions: null }));
+    await assert.rejects(transport.cancel(quote), /INVALID_PAYMENT_LOOKUP/);
+    globalThis.fetch = async () =>
+      Response.json({ code: "payment-paid", desc: "private-provider-message" });
+    await assert.rejects(
+      transport.cancel(quote),
+      /PAYMENT_PROVIDER_UNAVAILABLE/,
+    );
+  } finally {
+    globalThis.fetch = original;
+  }
+});

@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   Logger,
   OnModuleDestroy,
@@ -78,23 +79,34 @@ export class PaymentCheckoutWorker implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  private claim(paymentId: string, leaseToken: string) {
+  private claim(paymentId: string, leaseToken: string, cancelling = false) {
     return this.transactions.run(async (tx) => {
       await tx.$queryRaw`SELECT payment_id FROM payments WHERE payment_id=${paymentId}::uuid FOR UPDATE`;
       const payment = await tx.payment.findUnique({ where: { id: paymentId } });
       const checkout = await tx.payosCheckout.findUnique({
         where: { paymentId },
       });
+      if (cancelling && !checkout)
+        throw new ConflictException("PAYMENT_RECONCILIATION_REQUIRED");
+      if (
+        cancelling &&
+        checkout?.channel !==
+          (this.transport.config.enabled
+            ? this.transport.config.PAYOS_CLIENT_ID
+            : "")
+      )
+        throw new ServiceUnavailableException("PAYMENT_CHANNEL_UNAVAILABLE");
       if (
         !payment ||
         !checkout ||
+        !["CREATED", "PENDING"].includes(payment.status) ||
         checkout.channel !==
           (this.transport.config.enabled
             ? this.transport.config.PAYOS_CLIENT_ID
             : "") ||
         !["PREPARING", "READY"].includes(checkout.state) ||
         (checkout.leaseUntil && checkout.leaseUntil > new Date()) ||
-        checkout.nextAttemptAt > new Date()
+        (!cancelling && checkout.nextAttemptAt > new Date())
       )
         return null;
       if (quoteDigest(payment, checkout) !== checkout.quoteDigest) {
@@ -134,6 +146,37 @@ export class PaymentCheckoutWorker implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  async cancel(paymentId: string) {
+    if (!this.transport.config.enabled)
+      throw new ServiceUnavailableException("PAYMENT_PROVIDER_UNAVAILABLE");
+    const leaseToken = randomUUID();
+    const claimed = await this.claim(paymentId, leaseToken, true);
+    if (!claimed) throw new ConflictException("PAYMENT_CHECKOUT_BUSY");
+    const { payment, checkout } = claimed;
+    try {
+      // The existing fenced checkout lease excludes create/recovery I/O. A crash
+      // after payOS cancellation is recovered by signed lookup of this same order.
+      const lookup = await this.transport.cancel({
+        orderCode: checkout.orderCode.toString(),
+        paymentAmountVnd: payment.paymentAmountVnd,
+        expiresAt: checkout.expiresAt,
+      });
+      await this.applyLookup(checkout, leaseToken, lookup, false);
+    } catch (error) {
+      const invalid =
+        error instanceof BadRequestException ||
+        error instanceof UnauthorizedException;
+      await this.finish(
+        paymentId,
+        leaseToken,
+        invalid
+          ? { review: "PAYMENT_PROVIDER_EVIDENCE_INVALID" }
+          : { retry: true },
+      );
+      throw new ServiceUnavailableException("PAYMENT_CANCELLATION_UNCONFIRMED");
+    }
+  }
+
   private async prepare(
     payment: Payment,
     checkout: PayosCheckout,
@@ -157,7 +200,7 @@ export class PaymentCheckoutWorker implements OnModuleInit, OnModuleDestroy {
       paymentLinkId: descriptor.paymentLinkId,
       qrCode:
         descriptor.providerStatus === "PENDING" ? descriptor.qrCode : undefined,
-      closed: ["CANCELLED", "EXPIRED"].includes(descriptor.providerStatus),
+      closed: this.closedStatus(descriptor.providerStatus),
     });
   }
 
@@ -180,6 +223,20 @@ export class PaymentCheckoutWorker implements OnModuleInit, OnModuleDestroy {
         throw error;
       return false;
     }
+    return this.applyLookup(checkout, leaseToken, lookup, true);
+  }
+
+  private closedStatus(status: string): "CANCELLED" | "EXPIRED" | undefined {
+    if (status === "CANCELLED" || status === "EXPIRED") return status;
+    return undefined;
+  }
+
+  private async applyLookup(
+    checkout: PayosCheckout,
+    leaseToken: string,
+    lookup: Awaited<ReturnType<PayosTransport["lookup"]>>,
+    allowLocalExpiry: boolean,
+  ) {
     const paymentId = checkout.paymentId;
     if (lookup.events.length) {
       if (!lookup.exact || lookup.status !== "PAID") {
@@ -199,15 +256,15 @@ export class PaymentCheckoutWorker implements OnModuleInit, OnModuleDestroy {
       );
       return true;
     }
-    if (lookup.status === "PAID") {
+    if (lookup.status === "PAID" || lookup.hasPayment) {
       await this.finish(paymentId, leaseToken, {
         review: "PAYMENT_TRANSACTION_EVIDENCE_MISSING",
       });
       return true;
     }
-    const closed =
-      ["CANCELLED", "EXPIRED"].includes(lookup.status) ||
-      checkout.expiresAt <= new Date();
+    let closed = this.closedStatus(lookup.status);
+    if (!closed && allowLocalExpiry && checkout.expiresAt <= new Date())
+      closed = "EXPIRED";
     if (!closed && !checkout.qrCode) {
       await this.finish(paymentId, leaseToken, {
         review: "PAYMENT_QR_UNAVAILABLE",
@@ -227,7 +284,7 @@ export class PaymentCheckoutWorker implements OnModuleInit, OnModuleDestroy {
     result: {
       paymentLinkId?: string;
       qrCode?: string;
-      closed?: boolean;
+      closed?: "CANCELLED" | "EXPIRED";
       retry?: boolean;
       review?: string;
     },
@@ -268,7 +325,7 @@ export class PaymentCheckoutWorker implements OnModuleInit, OnModuleDestroy {
         });
         return;
       }
-      const status = result.closed ? "EXPIRED" : "PENDING";
+      const status = result.closed ?? "PENDING";
       const changed = payment.status !== status || !!result.qrCode;
       await tx.payment.update({ where: { id: paymentId }, data: { status } });
       const updated = await tx.payosCheckout.update({

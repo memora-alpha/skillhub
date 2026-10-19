@@ -1,5 +1,13 @@
 # Tasks: Credit & Payment
 
+## Amendment 2026-10-19: cancel top-up
+
+- [x] C01 Add own POST /payments/{paymentId}/cancel, live auth/idempotency and Swagger.
+- [x] C02 Verify signed payOS cancel evidence outside PG tx, share fenced checkout lease, preserve PAID and recover CANCELLED by lookup.
+- [x] C03 Add PaymentStatus.CANCELLED migration/schema generator and payment.updated validation; route late receipts to REVIEW.
+- [x] C04 Add PostgreSQL/HTTP/protocol regression coverage for replay, ownership, concurrency, rollback and ambiguous provider results. Execution evidence in validation.md.
+- [ ] C05 Verify cancellation on a real merchant channel and deploy/migrate the target environment (outside this local task).
+
 **Input**: spec/plan/research/data-model/contracts tại `specs/009-credit-payment/`.
 **Branch**: `feat/credit-payment`. Spec baseline commit `e5dd088`.
 **Authorization**: User yêu cầu commit spec và bắt đầu implement ngày 2026-10-15. Checklist runtime/policy còn mở đã được công khai trước yêu cầu; tiếp tục các phần không phụ thuộc gate, không xin lại quyền implement. Không mở policy hoặc đánh dấu runtime pass từ việc này.
