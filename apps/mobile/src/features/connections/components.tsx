@@ -13,8 +13,10 @@ const errors: Record<string, string> = {
     "Mức Credit gợi ý chưa phù hợp với quy định hiện tại. Điều chỉnh hoặc bỏ trống mức gợi ý.",
   INVALID_SESSION_COUNT_HINT:
     "Số buổi dự kiến vượt giới hạn hiện tại của hệ thống. Điều chỉnh hoặc bỏ trống số buổi.",
+  INVALID_DURATION_HINT:
+    "Thời lượng gợi ý phải là số nguyên từ 60 đến 180 phút.",
   INVALID_CANDIDATE_SLOTS:
-    "Khung giờ gợi ý không còn hợp lệ hoặc đã qua. Khi sửa đề xuất, bạn có thể chọn bỏ các khung giờ đã lưu.",
+    "Lịch rảnh chưa hợp lệ. Hãy nhập gợi ý bằng văn bản để cùng trao đổi.",
   CONNECTION_POLICY_UNAVAILABLE:
     "Máy chủ chưa cấu hình giới hạn cho gợi ý này. Bạn có thể bỏ trống số buổi dự kiến; với học một chiều, bỏ trống cả Credit gợi ý rồi thử lại.",
   PATH_CREATE_RECONCILE_REQUIRED:

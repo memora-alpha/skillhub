@@ -45,6 +45,7 @@ export function ApiEditProposalScreen({ id }: { id: string }) {
   return (
     <FeaturePage
       title="Chỉnh sửa đề xuất"
+      keyboardDismissMode="none"
       demo={false}
       back={{ pathname: "/proposal/[id]", params: { id } }}
     >

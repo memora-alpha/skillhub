@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View, type ScrollViewProps } from "react-native";
 import { useRouter, type Href } from "expo-router";
 import { AppScreenLayout } from "@/features/shell";
 import { KeyboardFormScrollView } from "./KeyboardFormScrollView";
@@ -13,6 +13,7 @@ export function FeaturePage({
   back = "/ui",
   backBehavior = "destination",
   demo = true,
+  keyboardDismissMode,
 }: {
   title: string;
   subtitle?: string;
@@ -20,6 +21,7 @@ export function FeaturePage({
   back?: Href;
   backBehavior?: "destination" | "history";
   demo?: boolean;
+  keyboardDismissMode?: ScrollViewProps["keyboardDismissMode"];
 }) {
   return (
     <AppScreenLayout
@@ -28,7 +30,10 @@ export function FeaturePage({
       back={{ href: back, label: "Quay lại", behavior: backBehavior }}
     >
       {() => (
-        <KeyboardFormScrollView contentContainerStyle={ui.page}>
+        <KeyboardFormScrollView
+          contentContainerStyle={ui.page}
+          {...(keyboardDismissMode ? { keyboardDismissMode } : {})}
+        >
           {demo && <Text style={ui.demo}>BẢN XEM THỬ · DỮ LIỆU MẪU</Text>}
           {subtitle && <Text style={ui.subtitle}>{subtitle}</Text>}
           {children}

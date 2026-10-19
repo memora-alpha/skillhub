@@ -10,6 +10,13 @@ import {
   version,
   timestamp,
 } from "@/lib/http/contracts";
+import {
+  createInput,
+  updateInput,
+  type ProposalHints,
+  type ProposalInput,
+} from "./proposal-input";
+export type { ProposalHints, ProposalInput } from "./proposal-input";
 
 export const proposalSchema = z.object({
   id: uuid,
@@ -23,7 +30,7 @@ export const proposalSchema = z.object({
   proposedCredit: z.string().nullable(),
   proposedDurationMinutes: z.number().int().nullable(),
   initialSessionCount: z.number().int().nullable(),
-  candidateSlots: z.array(z.object({ startAt: timestamp, endAt: timestamp })),
+  candidateSlots: z.string().nullable(),
   status: z.enum(["PENDING", "ACCEPTED", "REJECTED", "WITHDRAWN", "EXPIRED"]),
   version,
   expiresAt: timestamp,
@@ -40,45 +47,6 @@ const acceptedConversation = z.object({
   createdAt: timestamp,
 });
 export type Proposal = z.infer<typeof proposalSchema>;
-export type ProposalHints = {
-  message: string;
-  candidateSlots?: [];
-};
-export type ProposalInput = { message: string } & (
-  | {
-      sourceType: "LEARNING_REQUEST";
-      learningRequestId: string;
-      recipientSharingSkillId?: never;
-    }
-  | {
-      sourceType: "DIRECT_SEARCH";
-      recipientSharingSkillId: string;
-      learningRequestId?: never;
-    }
-);
-const createInput = z.discriminatedUnion("sourceType", [
-  z
-    .object({
-      message: z.string(),
-      sourceType: z.literal("LEARNING_REQUEST"),
-      learningRequestId: uuid,
-    })
-    .strict(),
-  z
-    .object({
-      message: z.string(),
-      sourceType: z.literal("DIRECT_SEARCH"),
-      recipientSharingSkillId: uuid,
-    })
-    .strict(),
-]);
-const updateInput = z
-  .object({
-    message: z.string(),
-    expectedVersion: version,
-    candidateSlots: z.tuple([]).optional(),
-  })
-  .strict();
 export type ProposalDecisionResult = {
   proposal: Proposal;
   conversation?: z.infer<typeof acceptedConversation>;
@@ -185,12 +153,22 @@ export function createProposalsApi(
       action: "accept" | "reject" | "withdraw",
       expectedVersion: number,
       idempotencyKey: string,
+      expectedRequestVersion?: number,
     ): Promise<ProposalDecisionResult> {
       parse(version, expectedVersion);
       parse(z.enum(["accept", "reject", "withdraw"]), action);
+      if (expectedRequestVersion !== undefined) {
+        parse(version, expectedRequestVersion);
+        if (action !== "accept") throw new AppError("protocol");
+      }
       const result = await call(`${resourcePath("proposals", id)}/${action}`, {
         method: "POST",
-        body: { expectedVersion },
+        body: {
+          expectedVersion,
+          ...(expectedRequestVersion === undefined
+            ? {}
+            : { expectedRequestVersion }),
+        },
         idempotencyKey,
       });
       if (action !== "accept") {
