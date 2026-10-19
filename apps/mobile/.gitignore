@@ -78,3 +78,6 @@ SKILL.md
 **/.github/copilot-instructions.md
 **/.github/instructions/
 **/.github/prompts/
+
+# Retired mobile workflow tooling (local backup only)
+/.workflow-archive/

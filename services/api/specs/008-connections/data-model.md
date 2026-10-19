@@ -21,12 +21,12 @@ SSE amendment adds technical PG `UserEventStream`/`UserEventDelivery` owned by a
 
 ## Proposal (existing model + additive fields)
 
-- Existing: UUID id; sourceType LEARNING_REQUEST/DIRECT_SEARCH; nullable requestId; proposerId/recipientId/skillId; message VARCHAR(1000); candidateSlots JSONB default `[]`; optional duration SMALLINT, proposedCredit BIGINT units, initialSessionCount SMALLINT; expiresAt, status, createdAt.
+- Existing: UUID id; sourceType LEARNING_REQUEST/DIRECT_SEARCH; nullable requestId; proposerId/recipientId/skillId; message VARCHAR(1000); candidateSlots nullable TEXT (2026-10-19 amendment; originally JSONB default `[]`); optional duration SMALLINT, proposedCredit BIGINT units, initialSessionCount SMALLINT; expiresAt, status, createdAt.
 - Planned: version integer default 1, updatedAt; terminalAt nullable; exchangeTypeHint nullable TWO_WAY/ONE_WAY; immutable targetSharingSkillId nullable FK SharingSkill, required for DIRECT_SEARCH and null for LEARNING_REQUEST. Persist exact direct target so archive/recreate cannot silently retarget invitation.
 - New creations require nonnull expiresAt; legacy PENDING/null-expiry requires explicit migration policy, no invented backfill.
 - proposedCredit integer **hundredths** for this suggestion field only; public value canonical decimal string. `20.00` → `2000`; max `999999999999` units. Nonnull old values require preflight before enabling this interpretation.
 - Source checks: LEARNING_REQUEST requires requestId, DIRECT_SEARCH requires null requestId; proposer != recipient. Request owner/skill association validated via locked owner contract.
-- Message length 10–1000 after safe normalization; slots array count ≤5 with `{startAt,endAt}` UTC/start<end/future at write; duration null or 60–180; count null or ≥1/≤configured SMALLINT max. Supplied price requires hint and matching threshold; no floating point.
+- Message length 10–1000 after safe normalization; candidateSlots is optional free-text schedule guidance, plain text/NFC/trimmed, null for blank. No slot count, timestamp parsing or future-date validation applies. Existing nonempty arrays migrate to JSON text without lifecycle writes; empty arrays migrate to null. Duration null or 60–180; count null or ≥1/≤configured SMALLINT max. Supplied price requires hint and matching threshold; no floating point.
 - Partial unique PENDING `(request_id, proposer_id)` when request source; partial unique ACCEPTED `request_id` when nonnull; proposed direct PENDING `(proposer_id,recipient_id,skill_id)` when direct.
 - Indexes: recipient/status/createdAt/id, proposer/status/createdAt/id; expiry/status/id for bounded sweeper.
 

@@ -9,6 +9,12 @@ entities; its simplification does not remove logical join tables.
 
 ## Catalog and implemented runtime
 
+The 2026-10-19 Proposal amendment overlays catalog `candidateSlots` JSONB as
+nullable TEXT in the runtime generator. Migration
+`20261019000000_proposal_schedule_text` preserves populated arrays as JSON text,
+maps empty arrays to null and avoids lifecycle UPDATE triggers. Apply it together
+with the new API/client contract; the historical logical-v3 catalog stays intact.
+
 - `catalog.prisma` is the v3 PostgreSQL catalog plus the SH-083 achievement extension. Its client output is
   `src/generated/prisma-catalog`, separate from the running identity client.
 - `schema.prisma` is the runtime v3 schema, generated from the catalog by
