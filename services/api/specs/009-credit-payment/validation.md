@@ -1,6 +1,32 @@
 # Validation — Credit & Payment
 
-Updated: 2026-10-19. **Backend QR Payment, recovery guards and cancellation locally verified; merchant/production and remaining spec009 work Pending.** Cancellation changes are local, not pushed/deployed. Các phần ngày trước phía dưới là lịch sử.
+Updated: 2026-10-19. **Backend QR Payment, recovery guards, cancellation and technical recovery locally verified; merchant/production and remaining spec009 work Pending.** Changes are local, not pushed/deployed. Các phần ngày trước phía dưới là lịch sử.
+
+## Technical recovery — 2026-10-19
+
+- Transient failures keep the original durable intent and capped backoff instead
+  of exhausting into REVIEW. Verified unpaid PENDING without a usable QR (or past
+  the quote deadline) is cancelled with the same orderCode; only signed terminal
+  evidence reopens fresh creation. PROCESSING/timeouts/local expiry do not prove
+  closure. Owner reads expose PAYMENT_RECOVERY_PENDING where applicable.
+- Historical PAYMENT_QR_UNAVAILABLE/PAYMENT_PROVIDER_RETRY_EXHAUSTED reviews can
+  resume only after signed lookup and a locked recheck of creation identity,
+  channel, quote, lease and absence of receipts/posting. Audit
+  PAYMENT_RECOVERY_RESUME and payment.updated commit with the transition. Financial
+  reviews remain blocked; receipt races prevent reopening. No record deletion.
+- **81/81 Node cases pass, 0 skipped**: 64 PostgreSQL/HTTP payment cases across
+  persistence, provenance, recovery-guards, cancel, HTTP and new recovery suites;
+  10 payOS protocol/transport cases; 7 audit-policy cases. The new suite covers
+  lost responses, more than five network failures, restart, cancellation timeout,
+  historical reviews, exact/partial evidence, PROCESSING, local expiry, stale
+  leases, webhook/receipt races and audit rollback. PostgreSQL schemas are fresh
+  UUID test schemas, cleaned up by the fixtures; provider HTTP is mocked.
+- API lint, focused Prettier and git diff --check pass. TypeScript no-emit and
+  Nest build passed before this regression run. An initial
+  recursive-method return-type error was corrected before the passing run. No
+  live merchant proof, target DB data changes, push or deployment. Apply the
+  preceding cancellation enum migration before deploying this code; no additional
+  schema migration is introduced by technical recovery.
 
 ## Payment cancellation — 2026-10-19
 
