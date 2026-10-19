@@ -1,67 +1,20 @@
-# Mobile feature matrix
+# Bản đồ feature mobile
 
-| SRS module                                              | Mobile feature                          | Notes                                                                |
-| ------------------------------------------------------- | --------------------------------------- | -------------------------------------------------------------------- |
-| M01 Authentication & Account                            | `auth`                                  | Register, OTP, login, reset password, logout and account state.      |
-| M02 Profile & Skill                                     | `profile`, `skills`                     | Public profile must hide private fields and evidence files.          |
-| M03 Learning Request & Moderation                       | `learning-requests`                     | Publish, moderation state, reject reason and cancel before lock.     |
-| M04 Proposal / Direct Exchange & Matching               | `proposals`, `discovery`                | Accept opens negotiation; no Credit hold yet.                        |
-| M05 Chat, Learning Path, Scheduling & Dual Confirmation | `chat`, `learning-paths`, `scheduling`  | SRS 1.6 LearningPlan rules are central.                              |
-| M06 Credit & Transaction                                | `wallet`, `payments`                    | Show backend balances and ledger; no withdrawal.                     |
-| M07 1:1 Session                                         | `sessions`                              | Session list, detail, confirmation and report entry points.          |
-| M08 LiveKit Integration                                 | `livekit`                               | Token from backend; no secret in client.                             |
-| M09 Review, Reputation & Achievement                    | `reviews`, `reputation`, `achievements` | Review after completion only; reputation server controlled.          |
-| M10 Report & Dispute                                    | `reports`                               | Session reports and material reports have different required fields. |
-| M11 Notification                                        | `notifications`                         | Deep link to allowed resources and refetch state.                    |
-| Digital materials                                       | `materials`                             | Free and paid materials, entitlement, purchase, library and report.  |
+Bản đồ module → source/contract/work, không phải bảng checkpoint hoặc xác nhận deployment. Tên module theo SRS, feature theo source thực; chỉ review phần source được dẫn. Ba chiều backend/mobile/verification theo [contracts index](contracts/README.md), evidence chi tiết nằm tại status hoặc validation lịch sử.
 
-## First implementation order
+| Module/luồng                      | Feature/source mobile                                                                                                         | Contract/nguồn hiện trạng và nơi tiếp tục                                                                                                                                                                            |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| M01 Authentication & Account      | [auth](../src/features/auth), [account](../src/features/account), [settings](../src/features/settings)                        | [Auth contract](contracts/auth-account.md), [work index](work/README.md) giữ các acceptance/provider/native gaps                                                                                                     |
+| M02 Profile & Skill               | [profile](../src/features/profile), [skills](../src/features/skills)                                                          | [Profile](contracts/profile.md), [skills/evidence](contracts/skills-evidence.md): API source có; demo/public/owner riêng, live/native limits có nguồn                                                                |
+| M03 Learning Request & Moderation | [learning-requests](../src/features/learning-requests)                                                                        | [LR contract](contracts/learning-requests.md), [work status](work/phase-04-learning-request-discovery/status.md)                                                                                                     |
+| Discovery/search                  | [discovery](../src/features/discovery), [learning hub](../src/features/learning)                                              | Request API feed; /my-learning request tab thật, path tab preview; [LR status](work/phase-04-learning-request-discovery/status.md)                                                                                   |
+| M04 Proposal/Direct Exchange      | [MockProposals](../src/features/proposals/context/MockProposals.tsx)                                                          | Local-only request mock context; real contract chưa audit trong migration, [roadmap05](roadmap.md)                                                                                                                   |
+| M05 Chat/Plan/Schedule            | [MockMessages](../src/features/messages/context/MockMessages.tsx), [PathsPreview](../src/features/learning-paths/context.tsx) | Local state/fixtures; xem [domain](domain-rules.md), [roadmap05/06](roadmap.md), không coi preview là API                                                                                                            |
+| M06 Credit/Payment                | [wallet screens](../src/features/wallet/screens.tsx)                                                                          | [Wallet contract](contracts/wallet-payments.md), [work status](work/phase-03-wallet-topup/status.md); Wallet/Payment đang làm ở nhánh khác theo người dùng; fixture tại checkout này không đại diện tiến độ nhánh đó |
+| M07 Session / M08 LiveKit         | [SessionsPreview](../src/features/sessions/context.tsx)                                                                       | Source preview; chưa audit LiveKit API/native token/join; [roadmap07](roadmap.md)                                                                                                                                    |
+| M09 Review/Reputation/Achievement | [Profile](../src/features/profile), [product shell](../src/features/product-shell)                                            | Reputation/profile server fields khác review engine; phần reviews/title API chưa khảo sát đủ, [roadmap08](roadmap.md)                                                                                                |
+| M10 Report/Dispute                | [Reports context](../src/features/reports/context.tsx)                                                                        | PreviewReport local; [state machines](state-machines.md)/[roadmap08](roadmap.md), không giả submit API                                                                                                               |
+| M11 Notification                  | [notification/search screens](../src/features/product-shell/screens/notification-search-screens.tsx)                          | Chưa xác minh inbox/mark-read/realtime API; DEP-01 LR còn giới hạn, [LR contract](contracts/learning-requests.md)                                                                                                    |
+| Digital Materials                 | [Materials context](../src/features/materials/context.tsx)                                                                    | Initial sample records; [roadmap09](roadmap.md), chưa xác minh API entitlement/purchase                                                                                                                              |
 
-Spec 005 checkpoint (2026-10-11): Learning Request own list/detail, draft form,
-edit/publish/cancel and Discovery use the API. Profile links to My Requests;
-editor Back returns to its origin. Skill lookup is integrated; Tag selection
-and Proposal/public profile integration remain pending. Backend LR adapters still
-return 503 for their dependent flows. See [tasks](../specs/005-learning-request/tasks.md)
-and [validation](../specs/005-learning-request/validation.md).
-
-UI correction2026-10-12: weekday/time controls and smaller expiry-calendar font
-are implemented. Weekly choices remain a form draft; save awaits B08/T036.
-Resume from the [checkpoint](../specs/005-learning-request/resume.md).
-
-Spec 003 checkpoint (2026-10-09): own/edit profile uses the real account API;
-public self-preview uses saved data. Other public profiles remain fixtures, and
-avatar selection/upload/status/removal uses the existing API. Only CLEAN updates
-the published image; real scan completion needs a running ClamAV service.
-Title selection remains pending. Track profile work in
-[tasks](../specs/003-profile-public-profile/tasks.md) and acceptance in
-[checklist](../specs/003-profile-public-profile/checklist.md).
-
-Spec 004 checkpoint (2026-10-09): `skills` connects own management, catalog,
-evidence/verification history and public self skills to the existing API. Mobile
-checks and browser fixtures pass; real API/scanner and Android/iOS acceptance
-remain pending in [validation](../specs/004-skills-management/validation.md).
-
-Own profile shows action shortcuts before bio and skills. `settings` owns the
-account details, privacy/help/version and security entry points; `auth` owns
-OTP recovery and session revocation. Password recovery also opens from signed-in
-Settings, with no new endpoint or legal-policy content.
-
-The `learning` feature exposes the authenticated `/my-learning` hub from the
-profile's "Hành trình của tôi" shortcut. Its "Yêu cầu học" and "Lộ trình" tabs
-use the session-scoped Learning Request API list and the existing path preview
-list, with their detail/editor routes.
-The old `/requests` and `/paths` list URLs redirect to the matching hub tab;
-Profile and Calendar share these destinations. Path records remain explicitly
-labeled preview data; request acceptance gaps remain tracked in spec 005. Received reviews
-remain an unconnected "Đánh giá về tôi" shortcut.
-
-1. Mobile foundation.
-2. Auth and account shell.
-3. Profile and public profile.
-4. Sharing Skill management and owner verification
-5. Discovery, skill/tag sharer search and Learning Request read flows.
-6. Proposal and chat negotiation.
-7. Learning Path, LearningPlan and schedule confirmation.
-8. Sessions, LiveKit and completion confirmation.
-9. Wallet, payment status and transaction history.
-10. Review, reputation, reports and materials.
+Cấu trúc thực có messages thay tên thư mục chat, learning-paths bao plan/scheduling, wallet bao preview payment; không tạo các thư mục payments/livekit/reviews chỉ vì bảng SRS có module. Thông tin mới cần kiểm source/work hiện tại, không thêm một nhật ký thứ hai tại đây.

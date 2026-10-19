@@ -1,0 +1,87 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const { createRequire } = require('node:module');
+const { runInNewContext } = require('node:vm');
+const mobile = process.cwd();
+const local = createRequire(path.join(mobile, 'package.json'));
+const ts = local('typescript');
+const { QueryClient, QueryObserver } = local('@tanstack/react-query');
+const { AppError } = local('./src/lib/http/errors.ts');
+const { harness, ownSkill, ids, paginated } = local('./tests/skills-fixtures.ts');
+const { passwordRecoveryStore } = local('./src/features/auth/utils/password-recovery-flow.ts');
+function moduleFromSource(relative, mocks) {
+  const source = fs.readFileSync(path.join(mobile, relative), 'utf8');
+  const { outputText } = ts.transpileModule(source, { compilerOptions: {
+    module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX,
+  }});
+  const exports = {};
+  runInNewContext(outputText, { exports, require: name => {
+    if (Object.hasOwn(mocks,name)) return mocks[name];
+    if (name === 'react/jsx-runtime') return {jsx:(type,props)=>({type,props}),jsxs:(type,props)=>({type,props})};
+    return local(name);
+  }});
+  return exports;
+}
+(async () => {
+ const client = new QueryClient({defaultOptions:{queries:{retry:false,gcTime:Infinity}}});
+ let status = 200, options;
+ const transport = harness(() => status === 200 ? {payload:paginated([ownSkill])} : {status,payload:{success:false,statusCode:status,message:status===403?'SKILL_PERMISSION_REQUIRED':'Unavailable'}});
+ const scope=['skills',1,ids.user];
+ const runtime={api:transport.api,scope,assertCurrent(){},deletedSkillIds:new Set(),submittedVerifications:new Map(),recentlyCreatedSkills:new Map(),observeCreatedSkills(){}};
+ const hooks=moduleFromSource('src/features/skills/hooks/use-skill-queries.ts', {
+  '@tanstack/react-query':{useQuery:o=>{options=o;return new QueryObserver(client,o).getCurrentResult();}},
+  '../context/SkillsProvider':{useSkills:()=>runtime},
+  './use-skill-read-focus':{useSkillReadFocus(){}},
+  '../utils/skill-filter':local('./src/features/skills/utils/skill-filter.ts'),
+  '../utils/verification-state':local('./src/features/skills/utils/verification-state.ts'),
+  react:{useEffect(){}},
+ });
+ let result=hooks.useOwnSkill(ids.sharing);
+ await client.fetchQuery(options);
+ result=hooks.useOwnSkill(ids.sharing);
+ assert.equal(result.data.id,ids.sharing);
+ status=403;
+ await assert.rejects(client.fetchQuery({...options,staleTime:0}),e=>e instanceof AppError&&e.status===403);
+ result=hooks.useOwnSkill(ids.sharing);
+ assert.equal(result.error.status,403);
+ assert.equal(result.data.description,ownSkill.description);
+ const screen=moduleFromSource('src/features/skills/screens/SkillDetailScreen.tsx', {
+  react:{useState:v=>[v,()=>{}]},'react-native':{Text:'Text'},'expo-router':{useRouter:()=>({})},
+  '@/components/Button':{Button:'Button'},'@/components/InfoModal':{InfoModal:'InfoModal'},'@/components/FormNotice':{FormNotice:'FormNotice'},
+  '../components/SkillsLayout':{SkillsLayout:'SkillsLayout',skillStyles:{}},
+  '../components/SkillDetailHeader':{SkillDetailHeader:'SkillDetailHeader'},
+  '../components/QueryFeedback':{QueryFeedback:'QueryFeedback'},
+  '../components/VerificationHistory':{VerificationHistory:'VerificationHistory'},
+  '../hooks/use-skill-queries':{useOwnSkill:()=>result,validId:()=>ids.sharing},
+  '../hooks/use-skill-action':{useSkillAction:()=>({pending:false,locked:()=>false})},
+  '../context/SkillsProvider':{useSkills:()=>runtime},
+ });
+ const deniedTree=screen.SkillDetailScreen({sharingSkillId:ids.sharing});
+ const history=deniedTree.props.children.find(child=>child?.type==='VerificationHistory');
+ assert.equal(history.props.headerProps.skill.description,ownSkill.description);
+ assert.equal(history.props.headerProps.pending,false);
+ status=503;
+ await assert.rejects(client.fetchQuery({...options,staleTime:0}));
+ result=hooks.useOwnSkill(ids.sharing);
+ assert.equal(result.data.description,ownSkill.description);
+ console.log('F01 CONFIRMED: actual useOwnSkill retains owner DTO after 200 -> 403 -> 503; actual SkillDetailScreen still mounts history/header/actions after 403.');
+ client.clear();
+ const proof={resetToken:'a'.repeat(43),expiresAt:new Date(Date.now()+600000).toISOString()};
+ passwordRecoveryStore.getState().clear();
+ passwordRecoveryStore.getState().begin('audit@example.com');
+ assert.equal(passwordRecoveryStore.getState().authorize('audit@example.com',proof),true);
+ let auth={status:'authenticated',session:{email:'audit@example.com'},runtime:{controller:{generation:1}}};
+ const Stack=()=>{};Stack.Protected='Protected';
+ const navigator=moduleFromSource('src/features/auth/components/AuthNavigator.tsx', {
+  react:{useEffect:fn=>fn()},'expo-router':{Stack,usePathname:()=>'/reset-password'},
+  '@/constants/theme':{colors:{}},'../context/AuthSession':{useAuthSession:()=>auth},
+  '../utils/password-recovery-flow':{passwordRecoveryStore},
+ });
+ navigator.AuthNavigator();
+ auth={...auth,status:'guest',session:null,runtime:{controller:{generation:2}}};
+ navigator.AuthNavigator();
+ assert.equal(passwordRecoveryStore.getState().draft.proof.resetToken,proof.resetToken);
+ console.log('F02 CONFIRMED: actual AuthNavigator effect retains reset proof when generation changes and session becomes guest on /reset-password.');
+ passwordRecoveryStore.getState().clear();
+})().catch(error=>{console.error(error);process.exitCode=1;});

@@ -101,6 +101,7 @@ test(
               recipientId: ids[0],
               skillId: skill.id,
               message: "A suitable proposal",
+              candidateSlots: "Tối Thứ 5 và Thứ 7",
               status: "PENDING",
               expiresAt: new Date(Date.now() + 86400000),
             },
@@ -178,6 +179,18 @@ test(
       assert.equal(await db.creditTransaction.count(), 0);
       const winner = results.findIndex(
         (result) => result.status === "fulfilled",
+      );
+      assert.equal(
+        results[winner].value.proposal.candidateSlots,
+        "Tối Thứ 5 và Thứ 7",
+      );
+      assert.equal(
+        (
+          await db.proposal.findUniqueOrThrow({
+            where: { id: proposals[winner].id },
+          })
+        ).candidateSlots,
+        "Tối Thứ 5 và Thứ 7",
       );
       const replay = await service.mutate(
         { ...command, key: `accept-${winner}` },

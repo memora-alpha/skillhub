@@ -115,7 +115,7 @@ Thông báo proposal/chat theo kênh cấu hình; card Path/Schedule phản ánh
 - **FR-CN-003**: Nguồn Request OPEN/chưa hết hạn/không tự gửi; proposer có Sharing Skill cùng skill, VERIFIED nếu bài yêu cầu; kiểm lại khi accept.
 - **FR-CN-004**: Direct invitation tham chiếu Sharing Skill công khai hợp lệ của recipient, không cần Request; kiểm lại khi accept, không bắt người muốn học có sẵn skill đó.
 - **FR-CN-005**: Tối đa một PENDING cùng proposer/Request. Proposer sửa/withdraw PENDING đúng version; chỉ recipient reject/accept.
-- **FR-CN-006**: Gợi ý duration 60–180; slots 0–5 khoảng tương lai start < end; initialSessionCount ≥1 và ≤config. proposedCredit tùy chọn tối đa hai chữ số thập phân; nếu có phải có ngữ cảnh TWO_WAY (≥20) hoặc ONE_WAY (>0 và policy min/max); không là thỏa thuận đã Confirm.
+- **FR-CN-006**: Gợi ý duration 60–180; candidateSlots là chuỗi mô tả lịch tùy chọn hoặc null, chuẩn hóa plain text/NFC/trim; chuỗi rỗng xóa gợi ý. Theo yêu cầu người dùng ngày 2026-10-19, thay thế mảng khoảng thời gian để khớp UI mobile hiện tại; không tự diễn giải thành lịch được xác nhận. initialSessionCount ≥1 và ≤config. proposedCredit tùy chọn tối đa hai chữ số thập phân; nếu có phải có ngữ cảnh TWO_WAY (≥20) hoặc ONE_WAY (>0 và policy min/max); không là thỏa thuận đã Confirm.
 - **FR-CN-007**: Expiry hệ thống tính theo config, không do client; hết hạn không accept/update dù worker trễ.
 - **FR-CN-008**: Accept nguyên tử giữa Proposal, Request NEGOTIATING nếu có, Conversation và delivery bắt buộc; chống nhiều match đồng thời và retry trùng.
 - **FR-CN-009**: Một Proposal tối đa một Conversation. Accept không tạo tài chính/lộ trình/lịch/Session hoặc MATCHED.
