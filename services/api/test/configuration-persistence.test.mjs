@@ -38,8 +38,11 @@ test("seed inserts approved values and history, rerun preserves operator value",
   assert.equal(repo.rows.get("storage.evidenceMaxBytes").value, 10_000_000);
   assert.equal(
     repo.revisions.size,
-    Object.keys(CONFIGURATION_DEFINITIONS).length,
+    Object.values(CONFIGURATION_DEFINITIONS).filter(
+      (definition) => "defaultValue" in definition,
+    ).length,
   );
+  assert.equal(repo.rows.has("livekit.joinWindow"), false);
   repo.rows.set("storage.downloadTtlSeconds", {
     key: "storage.downloadTtlSeconds",
     value: 60,

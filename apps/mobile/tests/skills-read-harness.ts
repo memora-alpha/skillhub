@@ -41,6 +41,7 @@ const sourceModules = new Map(
     "screens/SkillDetailScreen.tsx",
     "screens/VerificationDetailScreen.tsx",
     "screens/MySkillsScreen.tsx",
+    "screens/public-skill-detail-screen.tsx",
     "components/VerificationHistory.tsx",
     "components/VerificationForm.tsx",
     "hooks/use-pending-back.ts",

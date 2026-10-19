@@ -24,11 +24,12 @@ export async function seedApprovedConfigurations(
   // Both loops stay sequential: the seed runs in one transaction, which is one
   // connection, and the driver does not allow concurrent queries on it.
   for (const key of keys) {
-    if (!existing.has(key)) {
+    const definition = CONFIGURATION_DEFINITIONS[key];
+    if (!existing.has(key) && "defaultValue" in definition) {
       await repository.insertMissing(
         tx,
         key,
-        CONFIGURATION_DEFINITIONS[key].defaultValue as Prisma.InputJsonValue,
+        definition.defaultValue as Prisma.InputJsonValue,
         effectiveAt,
       );
     }
@@ -38,6 +39,11 @@ export async function seedApprovedConfigurations(
     (await repository.findCurrent(keys, tx)).map((row) => [row.key, row]),
   );
   for (const key of keys) {
+    if (
+      !current.has(key) &&
+      !("defaultValue" in CONFIGURATION_DEFINITIONS[key])
+    )
+      continue;
     await ensureBaselineRevision(tx, repository, key, current.get(key));
   }
 }

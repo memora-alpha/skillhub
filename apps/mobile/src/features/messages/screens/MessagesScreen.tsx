@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
+import { ApiMessagesScreen } from "./ApiMessagesScreen";
 import {
   FlatList,
   Pressable,
@@ -22,6 +23,10 @@ function ConversationSeparator() {
 }
 
 export function MessagesScreen() {
+  const { mode } = useLocalSearchParams<{ mode?: string }>();
+  return mode === "preview" ? <PreviewMessagesScreen /> : <ApiMessagesScreen />;
+}
+function PreviewMessagesScreen() {
   const router = useRouter();
   const { threads, read, conversations } = useMockMessages();
   const [query, setQuery] = useState("");

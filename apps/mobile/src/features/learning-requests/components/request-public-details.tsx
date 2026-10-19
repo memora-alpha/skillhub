@@ -40,7 +40,7 @@ export function RequestPublicFooter({
     <View style={styles.footer}>
       <View style={styles.footerContent}>
         <Text style={styles.caption}>
-          Gửi đề xuất đang ở bản xem thử, chưa gửi tới người nhận.
+          Gửi đề xuất để trao đổi về cách học và lịch phù hợp.
         </Text>
         <View style={styles.footerRow}>
           <Button
@@ -59,17 +59,12 @@ export function RequestPublicFooter({
           <Button
             variant="craft"
             style={[styles.publish, styles.footerPrimary]}
-            accessibilityLabel="Gửi đề xuất — bản xem thử"
+            accessibilityLabel="Gửi đề xuất"
             onPress={() =>
               router.push({
                 pathname: "/send-proposal",
                 params: {
-                  mode: "mock-request",
                   requestId: request.id,
-                  previewTitle: request.title,
-                  previewOwnerId: request.owner.id,
-                  previewOwnerName: request.owner.displayName,
-                  previewSkillName: request.skill.name,
                 },
               })
             }

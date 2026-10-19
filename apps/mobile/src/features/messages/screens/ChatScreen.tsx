@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { uuid } from "@/lib/http/contracts";
+import { ApiChatScreen } from "./ApiChatScreen";
 import {
   FlatList,
   KeyboardAvoidingView,
@@ -12,7 +14,6 @@ import { Redirect, useLocalSearchParams, useRouter } from "expo-router";
 import { AppScreenLayout } from "@/features/shell";
 import { Avatar } from "@/components/Avatar";
 import { EmptyState } from "@/components/EmptyState";
-import { Button } from "@/components/Button";
 import { avatarSizes, typography, fonts } from "@/constants/theme";
 import { useAuthSession } from "@/features/auth";
 import { useMockMessages } from "../context/MockMessages";
@@ -34,6 +35,18 @@ function ChatMessageSeparator() {
 }
 
 export function ChatScreen() {
+  const params = useLocalSearchParams<{
+    proposalId?: string | string[];
+    mode?: string;
+  }>();
+  const id = Array.isArray(params.proposalId)
+    ? params.proposalId[0]
+    : params.proposalId;
+  if (id && (params.mode === "api" || uuid.safeParse(id).success))
+    return <ApiChatScreen id={id} />;
+  return <PreviewChatScreen />;
+}
+function PreviewChatScreen() {
   const router = useRouter();
   const { session } = useAuthSession();
   const { conversations } = useMockMessages();
@@ -120,17 +133,6 @@ function ChatConversation({
                   : "Bắt đầu cuộc trao đổi"}
               </Text>
               <AcceptedProposalNotice />
-              <Button
-                variant="secondary"
-                onPress={() =>
-                  router.push({
-                    pathname: "/proposal/[id]",
-                    params: { id: conversation.proposal },
-                  })
-                }
-              >
-                Xem đề xuất gốc
-              </Button>
             </View>
           }
           renderItem={({ item }) => (

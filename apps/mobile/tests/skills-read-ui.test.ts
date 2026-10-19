@@ -37,6 +37,10 @@ function view(h: ReturnType<typeof readHarness>) {
     },
     "../context/SkillsProvider": { useSkills: () => h.runtime },
     "../hooks/use-skill-queries": h.hooks,
+    "../hooks/use-public-skill": h.hooks,
+    "@/features/auth": {
+      useAuthSession: () => ({ session: { userId: ids.user } }),
+    },
     "../hooks/use-skill-action": {
       useSkillAction: () => ({ pending: false, locked: () => false }),
     },
@@ -197,6 +201,75 @@ test("own-list denial hides recently created skill overlays and disables creatio
       true,
     );
     assert.equal((h.hooks.useOwnSkills!() as ReadResult).canRead(), false);
+  } finally {
+    h.client.clear();
+  }
+});
+
+test("public proposal entry hides after denial and stale invitation callbacks stay blocked through 503", async () => {
+  const h = readHarness();
+  const ui = view(h);
+  const key = [...h.runtime.scope, "public-detail", ids.other, ids.sharing];
+  const render = () =>
+    ui.render(
+      "screens/public-skill-detail-screen.tsx",
+      "PublicSkillDetailScreen",
+      {
+        userId: ids.other,
+        sharingSkillId: ids.sharing,
+      },
+    );
+  try {
+    render();
+    await h.fetch(key);
+    const invite = children(render()).find((node) => node.type === "Button")!
+      .props.onPress as () => void;
+    invite();
+    assert.equal(ui.navigations(), 1);
+    for (const status of [403, 503]) {
+      h.status(status);
+      await assert.rejects(h.fetch(key));
+      assert.equal(
+        children(render()).some((node) => node.type === "Button"),
+        false,
+      );
+      invite();
+      assert.equal(ui.navigations(), 1);
+    }
+    h.status(200);
+    await h.fetch(key);
+    const restored = children(render()).find((node) => node.type === "Button")!;
+    (restored.props.onPress as () => void)();
+    assert.equal(ui.navigations(), 2);
+  } finally {
+    h.client.clear();
+  }
+});
+
+test("public self Skills do not offer a proposal to the same account", async () => {
+  const h = readHarness();
+  const ui = view(h);
+  const key = [...h.runtime.scope, "public-detail", ids.user, ids.sharing];
+  const render = () =>
+    ui.render(
+      "screens/public-skill-detail-screen.tsx",
+      "PublicSkillDetailScreen",
+      {
+        userId: ids.user,
+        sharingSkillId: ids.sharing,
+      },
+    );
+  try {
+    render();
+    await h.fetch(key);
+    assert.equal(
+      children(render()).some((node) => node.type === "SkillCard"),
+      true,
+    );
+    assert.equal(
+      children(render()).some((node) => node.type === "Button"),
+      false,
+    );
   } finally {
     h.client.clear();
   }

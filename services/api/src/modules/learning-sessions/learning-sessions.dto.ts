@@ -1,5 +1,7 @@
 import { IsOptional, IsString, MaxLength } from "class-validator";
 
+export class LiveKitTokenRequestDto {}
+
 export class ConfirmSessionCompletionDto {
   @IsOptional()
   @IsString()

@@ -1,4 +1,7 @@
 import { useState } from "react";
+import { uuid } from "@/lib/http/contracts";
+import { LearningNegotiationScreen } from "./learning-negotiation-screen";
+import { ApiPathDetailScreen } from "./ApiPathDetailScreen";
 import { learningRoutes } from "@/constants/navigation";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { View } from "react-native";
@@ -19,6 +22,17 @@ import {
 import { usePathsPreview } from "../context";
 import { plansConfirmed, agreementConfirmed } from "../rules";
 export function AgreementTypeScreen() {
+  const params = useLocalSearchParams<{
+    mode?: string;
+    conversationId?: string;
+    proposalId?: string;
+  }>();
+  const id = params.conversationId ?? params.proposalId;
+  if (params.mode === "api" || uuid.safeParse(id).success)
+    return <LearningNegotiationScreen conversationId={id ?? ""} />;
+  return <PreviewAgreementTypeScreen />;
+}
+function PreviewAgreementTypeScreen() {
   const { proposalId } = useLocalSearchParams<{ proposalId?: string }>();
   const { save } = usePathsPreview();
   const router = useRouter();
@@ -93,6 +107,14 @@ export function AgreementTypeScreen() {
   );
 }
 export function PathDetailScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  return uuid.safeParse(id).success ? (
+    <ApiPathDetailScreen />
+  ) : (
+    <PreviewPathDetailScreen />
+  );
+}
+function PreviewPathDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { paths, save } = usePathsPreview();
   const path = paths.find((p) => p.id === id);
