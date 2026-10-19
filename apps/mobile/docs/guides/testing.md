@@ -4,7 +4,9 @@
 
 ## Đang có và nguồn đối chiếu
 
-[package scripts](../../package.json), [checker](../../scripts/check-structure.mjs), [tests](../../tests), [profile tests](../../test/profile.test.mjs). test hiện dùng tsx --test tests/**/*.test.ts test/profile.test.mjs; test:profile dùng node --test.
+[package scripts](../../package.json), [checker](../../scripts/check-structure.mjs), [tests](../../tests), [profile tests](../../test/profile.test.mjs). test hiện dùng tsx --experimental-test-module-mocks --test tests/**/*.test.ts test/profile.test.mjs; test:profile dùng node --test.
+
+Skills hook/UI harness dùng module thật qua tsx và [module mocks của Node](https://nodejs.org/download/release/v22.19.0/docs/api/test.html#mockmodulespecifier-options), không tự thực thi chuỗi JavaScript. Cờ experimental-test-module-mocks đã có trong script test; lệnh focused gọi tsx trực tiếp cũng cần cờ này. Ví dụ từ apps/mobile: pnpm exec tsx --experimental-test-module-mocks --test tests/skills-source-loader.test.ts. API này còn experimental; kiểm chứng hiện tại trên Node22.19.0, không thêm test framework hoặc dependency.
 
 ## Quy chuẩn cho thay đổi mới
 

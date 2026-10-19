@@ -2,7 +2,7 @@
 
 ## Hiện trạng
 
-- Cập nhật lúc: 2026-10-19T23:15:21+07:00.
+- Cập nhật lúc: 2026-10-19T23:30:40+07:00.
 - Trạng thái: Source và web fixture Skills đã kiểm tra trên fix/mobile-skills-read-denial; API/native acceptance còn mở. F02 ngoài phạm vi bản sửa.
 - Baseline: docs/mobile-workflow tại ed5a17dd9f1a6d5e45e1b6af33b17dd4518b46fd, source working tree không có diff trước review.
 - Kết luận: F01 đã sửa; lượt rà Skills bổ sung các sửa đổi về public denial, job bằng chứng, navigation, dọn code không dùng và loại Skills demo khỏi runtime ở cuối file. Kết quả không xác nhận toàn app/API/native hoàn chỉnh.
@@ -142,3 +142,11 @@ Không phát hiện nhu cầu tạo lại CRUD/catalog/evidence đã có. Đã b
 - Giữ runInNewContext để thực thi hooks/JSX source với dependency giả lập. Input thực thi chỉ là source repo đã liệt kê, không phải API/route/form/file-picker data. Mocks do tests định nghĩa. VM dùng cô lập globals của test, không được coi là sandbox cho code không tin cậy, theo [Node22.19 VM](https://nodejs.org/download/release/v22.19.0/docs/api/vm.html).
 - [Loader regression](../../../tests/skills-source-loader.test.ts) kiểm path ngoài danh sách, URL/prototype names và import không được mock; các regression thực thi source thật vẫn giữ. Full suite327/327 PASS,0 failed/skipped/cancelled; typecheck, ESLint --max-warnings0, structure451 source files, format và diff whitespace PASS.
 - Dynamic execution vẫn là điểm cần review trên SonarCloud; không suppress rule, không exclude tests hoặc đổi Quality Gate. [Security hotspot review](https://docs.sonarsource.com/sonarqube-cloud/managing-your-projects/issues/reviewing-security-hotspots) là bước riêng trên server. Chưa chạy analysis mới hoặc cập nhật trạng thái finding trên SonarCloud, không xác nhận Quality Gate đã pass từ local checks.
+
+## Thay VM bằng Node module mocks — 2026-10-19T23:30:40+07:00
+
+- Bỏ runInNewContext và transpileModule khỏi skills-read-harness. Source được nạp như module thường qua tsx/Node; TypeScript AST chỉ đọc import/export để kiểm policy và đăng ký mocks, không tạo chuỗi JavaScript để thực thi.
+- Giữ danh sách11 module và dependency/mocks được chỉ định. Dùng node:test mock.module, cache của module đích được loại khi nạp lại; finally khôi phục mocks/cache sau cả success và failure. Dùng file URL khi đăng ký mock để tương thích Windows.
+- Thêm cờ --experimental-test-module-mocks vào script test và cập nhật [testing guide](../../guides/testing.md). Không thêm dependencies/framework hoặc đổi source ứng dụng. Node22.19.0 là môi trường đã kiểm chứng; module mocking vẫn là API experimental của Node.
+- Giữ nguyên các regression denial/race/late-response/session/JSX. Bổ sung2 tests xác nhận module mỗi lượt giữ dependencies riêng và host imports được phục hồi sau nạp lỗi. Full suite329/329 PASS,0 failed/skipped/cancelled; typecheck, ESLint --max-warnings0 và structure451 source files PASS. Không chạy lại UI/API/native vì thay đổi chỉ thuộc harness, test command và docs.
+- Giới hạn VM của follow-up trước được thay bằng module loading trong source. Không suppress finding hoặc thay Quality Gate; SonarCloud cần analysis mới để xác nhận trạng thái PR41. Chưa chạy scanner hoặc cập nhật trạng thái finding trên server.

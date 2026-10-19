@@ -1,5 +1,7 @@
 import { readFileSync } from "node:fs";
-import { runInNewContext } from "node:vm";
+import { createRequire } from "node:module";
+import { mock, type MockModuleContext } from "node:test";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import ts from "typescript";
 import * as zod from "zod";
 import {
@@ -62,41 +64,59 @@ const dependencies = new Map<string, unknown>([
 export function sourceModule(relative: string, mocks: Record<string, unknown>) {
   const file = sourceModules.get(relative);
   if (!file) throw new Error(`Source module is not allowed: ${relative}`);
-  const source = readFileSync(file, "utf8");
-  const { outputText } = ts.transpileModule(source, {
-    compilerOptions: {
-      module: ts.ModuleKind.CommonJS,
-      target: ts.ScriptTarget.ES2022,
-      jsx: ts.JsxEmit.ReactJSX,
-    },
-  });
-  const exports: Record<string, (...args: unknown[]) => unknown> = {};
-  // Test-only: execute reviewed repository source, never API/file-picker input.
-  // VM isolates mock globals; it is not a sandbox for untrusted JavaScript.
-  runInNewContext(
-    outputText,
-    {
-      exports,
-      require: (name: string) => {
-        if (Object.hasOwn(mocks, name)) return mocks[name];
-        if (name === "react/jsx-runtime")
-          return {
-            jsx: (type: unknown, props: unknown) => ({ type, props }),
-            jsxs: (type: unknown, props: unknown) => ({ type, props }),
-          };
-        if (name === "./use-public-skill-queries")
-          return sourceModule("hooks/use-public-skill-queries.ts", mocks);
-        if (dependencies.has(name)) return dependencies.get(name);
-        throw new Error(`Dependency must be explicitly mocked: ${name}`);
-      },
-    },
-    {
-      filename: file.href,
-      timeout: 1000,
-      contextCodeGeneration: { strings: false, wasm: false },
-    },
+  const local = createRequire(file);
+  const filename = fileURLToPath(file);
+  const source = ts.createSourceFile(
+    filename,
+    readFileSync(file, "utf8"),
+    ts.ScriptTarget.Latest,
+    true,
   );
-  return exports;
+  const imported = source.statements.flatMap((statement) => {
+    if (
+      ts.isImportDeclaration(statement) &&
+      !statement.importClause?.isTypeOnly &&
+      ts.isStringLiteral(statement.moduleSpecifier)
+    )
+      return [statement.moduleSpecifier.text];
+    if (
+      ts.isExportDeclaration(statement) &&
+      !statement.isTypeOnly &&
+      statement.moduleSpecifier &&
+      ts.isStringLiteral(statement.moduleSpecifier)
+    )
+      return [statement.moduleSpecifier.text];
+    return [];
+  });
+  const replacements = new Map<string, Record<string, unknown>>();
+  const jsx = (type: unknown, props: unknown) => ({ type, props });
+  replacements.set("react/jsx-runtime", {
+    jsx,
+    jsxs: jsx,
+    Fragment: "Fragment",
+  });
+  for (const name of imported) {
+    let value: unknown;
+    if (Object.hasOwn(mocks, name)) value = mocks[name];
+    else if (name === "./use-public-skill-queries")
+      value = sourceModule("hooks/use-public-skill-queries.ts", mocks);
+    else if (dependencies.has(name)) value = dependencies.get(name);
+    else throw new Error(`Dependency must be explicitly mocked: ${name}`);
+    replacements.set(name, value as Record<string, unknown>);
+  }
+  const contexts: MockModuleContext[] = [];
+  try {
+    for (const [name, namedExports] of replacements) {
+      contexts.push(
+        mock.module(pathToFileURL(local.resolve(name)), { namedExports }),
+      );
+    }
+    delete local.cache[filename];
+    return local(filename) as Record<string, (...args: unknown[]) => unknown>;
+  } finally {
+    delete local.cache[filename];
+    for (const context of contexts.reverse()) context.restore();
+  }
 }
 
 export function readHarness() {
