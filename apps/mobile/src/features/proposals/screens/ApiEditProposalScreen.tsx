@@ -13,7 +13,7 @@ import { ApiProposalForm } from "../components/ApiProposalForm";
 import { ProposalRecovery } from "../components/ProposalRecovery";
 import type { Proposal, ProposalHints } from "../api/proposals-api";
 
-export function ApiEditProposalScreen({ id }: { id: string }) {
+export function ApiEditProposalScreen({ id }: Readonly<{ id: string }>) {
   const query = useProposal(id),
     api = useProposalsApi(),
     command = useConnectionCommand<Proposal>();

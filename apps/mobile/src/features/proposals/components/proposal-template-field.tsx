@@ -44,12 +44,12 @@ export function ProposalTemplateField({
   name,
   disabled,
   inputRef,
-}: {
+}: Readonly<{
   control: Control<ApiProposalValues>;
   name: "message" | "candidateSlots";
   disabled: boolean;
   inputRef: RefObject<TextInput | null>;
-}) {
+}>) {
   const isMessage = name === "message";
   const templates = isMessage ? messageTemplates : availabilityTemplates;
   const [focused, setFocused] = useState(false);

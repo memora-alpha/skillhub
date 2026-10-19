@@ -19,10 +19,10 @@ const tabs = [
 export function ProposalListFilters({
   value,
   onChange,
-}: {
+}: Readonly<{
   value?: ProposalListTab;
   onChange: (value: ProposalListTab) => void;
-}) {
+}>) {
   return (
     <ScrollView
       horizontal

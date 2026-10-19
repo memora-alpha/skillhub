@@ -1,4 +1,4 @@
-import { useRouter } from "expo-router";
+import { useRouter, type Href } from "expo-router";
 import { FeaturePage, Copy, Panel } from "@/components/feature-page";
 import { EmptyState } from "@/components/EmptyState";
 import { Button } from "@/components/Button";
@@ -18,16 +18,39 @@ import type {
   ProposalHints,
   ProposalInput,
 } from "../api/proposals-api";
+function proposalBack(requestId?: string, userId?: string): Href {
+  if (requestId)
+    return { pathname: "/request/[id]", params: { id: requestId } };
+  if (userId) return { pathname: "/profiles/[userId]", params: { userId } };
+  return "/discover";
+}
+function proposalAccess(
+  request: ReturnType<typeof useRequestDetail>["data"],
+  direct: boolean,
+  hasSkill: boolean,
+  userId: string | undefined,
+  currentUserId: string | null | undefined,
+) {
+  const publicRequest = request && "owner" in request ? request : undefined;
+  const requestAllowed =
+    !!publicRequest &&
+    publicRequest.status === "OPEN" &&
+    publicRequest.owner.id !== currentUserId;
+  return {
+    publicRequest,
+    allowed: direct ? hasSkill && userId !== currentUserId : requestAllowed,
+  };
+}
 
 export function ApiSendProposalScreen({
   requestId,
   userId,
   sharingSkillId,
-}: {
+}: Readonly<{
   requestId?: string;
   userId?: string;
   sharingSkillId?: string;
-}) {
+}>) {
   const router = useRouter();
   const runtime = useConnections();
   const requestQuery = useRequestDetail(requestId);
@@ -37,14 +60,14 @@ export function ApiSendProposalScreen({
   );
   const api = useProposalsApi();
   const command = useConnectionCommand<Proposal>();
-  const request = requestQuery.data;
-  const publicRequest = request && "owner" in request ? request : undefined;
   const direct = !requestId;
-  const allowed = direct
-    ? !!skillQuery.data && userId !== runtime.userId
-    : !!publicRequest &&
-      publicRequest.status === "OPEN" &&
-      publicRequest.owner.id !== runtime.userId;
+  const { publicRequest, allowed } = proposalAccess(
+    requestQuery.data,
+    direct,
+    !!skillQuery.data,
+    userId,
+    runtime.userId,
+  );
   const query = direct ? skillQuery : requestQuery;
   const valid = direct
     ? uuid.safeParse(userId).success && uuid.safeParse(sharingSkillId).success
@@ -76,13 +99,7 @@ export function ApiSendProposalScreen({
       title={direct ? "Lời mời trao đổi" : "Gửi đề xuất"}
       demo={false}
       keyboardDismissMode="none"
-      back={
-        requestId
-          ? { pathname: "/request/[id]", params: { id: requestId } }
-          : userId
-            ? { pathname: "/profiles/[userId]", params: { userId } }
-            : "/discover"
-      }
+      back={proposalBack(requestId, userId)}
       backBehavior="history"
     >
       {valid && (

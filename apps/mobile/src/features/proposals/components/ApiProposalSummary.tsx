@@ -13,16 +13,20 @@ import { proposalStatusLabels } from "../constants/proposal-status";
 export function ApiProposalSummary({
   proposal,
   compact = false,
-}: {
+}: Readonly<{
   proposal: Proposal;
   compact?: boolean;
-}) {
+}>) {
   const router = useRouter();
   const { userId } = useConnections();
   const sent = proposal.proposerId === userId;
   const partnerId = sent ? proposal.recipientId : proposal.proposerId;
   const partner = useParticipantName(partnerId);
   const skill = useCatalogName(proposal.skillId);
+  const statusVariant = proposal.status === "PENDING" ? "warning" : "default";
+  const oneWayLabel = sent ? "Tôi muốn dạy bạn" : "Người gửi muốn dạy bạn";
+  const exchangeLabel =
+    proposal.exchangeTypeHint === "TWO_WAY" ? "Trao đổi" : oneWayLabel;
   return (
     <Panel title={skill.data ?? "Đề xuất trao đổi"}>
       <Copy>
@@ -30,13 +34,7 @@ export function ApiProposalSummary({
       </Copy>
       <Badge
         label={proposalStatusLabels[proposal.status]}
-        variant={
-          proposal.status === "ACCEPTED"
-            ? "success"
-            : proposal.status === "PENDING"
-              ? "warning"
-              : "default"
-        }
+        variant={proposal.status === "ACCEPTED" ? "success" : statusVariant}
       />
       <Copy>
         {proposal.sourceType === "DIRECT_SEARCH"
@@ -46,16 +44,7 @@ export function ApiProposalSummary({
       <Copy>{proposal.message}</Copy>
       {!compact && (
         <>
-          {proposal.exchangeTypeHint && (
-            <Copy>
-              Gợi ý:{" "}
-              {proposal.exchangeTypeHint === "TWO_WAY"
-                ? "Trao đổi"
-                : sent
-                  ? "Tôi muốn dạy bạn"
-                  : "Người gửi muốn dạy bạn"}
-            </Copy>
-          )}
+          {proposal.exchangeTypeHint && <Copy>Gợi ý: {exchangeLabel}</Copy>}
           {proposal.proposedCredit !== null && (
             <Copy>Credit gợi ý: {proposal.proposedCredit}</Copy>
           )}

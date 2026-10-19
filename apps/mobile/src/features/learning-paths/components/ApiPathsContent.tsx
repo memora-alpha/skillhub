@@ -6,20 +6,18 @@ import { useLearningPaths } from "../hooks/use-learning-paths-api";
 import { pathStatusLabel } from "../policy-api";
 import type { PathSummary } from "../api/learning-paths-contract";
 
-export function ApiPathCard({ path }: { path: PathSummary }) {
+export function ApiPathCard({ path }: Readonly<{ path: PathSummary }>) {
   const name = useParticipantName(path.counterpartId);
+  const oneWayLabel =
+    path.exchangeType === "ONE_WAY" ? "Học một chiều" : "Chưa có hình thức học";
+  const exchangeLabel =
+    path.exchangeType === "TWO_WAY" ? "Trao đổi hai chiều" : oneWayLabel;
   return (
     <Panel title={name.data ?? "Lộ trình cùng đối tác"}>
       <Copy>
         {pathStatusLabel[path.status]} · v{path.currentVersion}
       </Copy>
-      <Copy>
-        {path.exchangeType === "TWO_WAY"
-          ? "Trao đổi hai chiều"
-          : path.exchangeType === "ONE_WAY"
-            ? "Học một chiều"
-            : "Chưa có hình thức học"}
-      </Copy>
+      <Copy>{exchangeLabel}</Copy>
       <RouteButton secondary href={`/paths/${path.id}`}>
         Mở lộ trình
       </RouteButton>

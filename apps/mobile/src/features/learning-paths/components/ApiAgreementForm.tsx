@@ -17,14 +17,14 @@ export function ApiAgreementForm({
   conversationId,
   pending,
   onSubmit,
-}: {
+}: Readonly<{
   path?: ApiLearningPath;
   userId: string;
   otherId: string;
   conversationId: string;
   pending: boolean;
   onSubmit: (input: CreateLearningPathInput) => Promise<void>;
-}) {
+}>) {
   const { control, watch, setValue, handleSubmit } = useForm<AgreementInput>({
     resolver: zodResolver(agreementInputSchema),
     defaultValues: {
@@ -41,6 +41,7 @@ export function ApiAgreementForm({
   });
   const type = watch("type"),
     role = watch("role");
+  const submitLabel = path ? "Gửi điều khoản mới" : "Tạo lộ trình";
   return (
     <>
       <ChoiceGroup
@@ -91,8 +92,10 @@ export function ApiAgreementForm({
       <Button
         disabled={pending}
         onPress={() => {
-          void handleSubmit(async (v) =>
-            onSubmit(
+          void handleSubmit(async (v) => {
+            const teacherId = v.role === "teacher" ? userId : otherId;
+            const learnerId = v.role === "teacher" ? otherId : userId;
+            return onSubmit(
               v.type === "TWO_WAY"
                 ? {
                     conversationId,
@@ -102,15 +105,15 @@ export function ApiAgreementForm({
                 : {
                     conversationId,
                     exchangeType: "ONE_WAY",
-                    teacherId: v.role === "teacher" ? userId : otherId,
-                    learnerId: v.role === "teacher" ? otherId : userId,
+                    teacherId,
+                    learnerId,
                     negotiatedCredit: v.credit,
                   },
-            ),
-          )();
+            );
+          })();
         }}
       >
-        {pending ? "Đang gửi..." : path ? "Gửi điều khoản mới" : "Tạo lộ trình"}
+        {pending ? "Đang gửi..." : submitLabel}
       </Button>
     </>
   );

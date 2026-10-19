@@ -128,6 +128,22 @@ export function createChatEventHydrator(options: {
     cursor = undefined;
     processed.clear();
   };
+  const reloadReady = async (signal: AbortSignal) => {
+    await options.reload(recoveryPrefixes);
+    if (signal.aborted) return;
+    options.assertCurrent();
+    options.ready();
+  };
+  const reloadEvent = async (frame: SseFrame, signal: AbortSignal) => {
+    const event = reference(frame);
+    if (!event || processed.has(event.eventId)) return;
+    await options.reload(event.prefixes, event.receiptsFor);
+    if (signal.aborted) return;
+    options.assertCurrent();
+    processed.add(event.eventId);
+    if (processed.size > 500)
+      processed.delete(processed.values().next().value!);
+  };
   return {
     get cursor() {
       return cursor;
@@ -145,20 +161,9 @@ export function createChatEventHydrator(options: {
         throw new AppError("http", 409, "EVENT_CURSOR_EXPIRED");
       }
       if (frame.event === "stream.ready") {
-        await options.reload(recoveryPrefixes);
-        if (signal.aborted) return;
-        options.assertCurrent();
-        options.ready();
+        await reloadReady(signal);
       } else {
-        const event = reference(frame);
-        if (event && !processed.has(event.eventId)) {
-          await options.reload(event.prefixes, event.receiptsFor);
-          if (signal.aborted) return;
-          options.assertCurrent();
-          processed.add(event.eventId);
-          if (processed.size > 500)
-            processed.delete(processed.values().next().value!);
-        }
+        await reloadEvent(frame, signal);
       }
       if (!signal.aborted && frame.id !== undefined) cursor = frame.id;
     },

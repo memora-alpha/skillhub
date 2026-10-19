@@ -41,7 +41,9 @@ function useRuntimeValue() {
 }
 type Runtime = ReturnType<typeof useRuntimeValue>;
 const Context = createContext<Runtime | null>(null);
-export function ConnectionsProvider({ children }: { children: ReactNode }) {
+export function ConnectionsProvider({
+  children,
+}: Readonly<{ children: ReactNode }>) {
   const value = useRuntimeValue();
   const cache = useQueryClient();
   useEffect(() => {

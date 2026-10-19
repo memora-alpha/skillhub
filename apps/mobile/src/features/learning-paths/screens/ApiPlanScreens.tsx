@@ -107,11 +107,11 @@ function PlanForm({
   path,
   plan,
   blocked,
-}: {
+}: Readonly<{
   path: ApiLearningPath;
   plan?: ApiLearningPlan;
   blocked: boolean;
-}) {
+}>) {
   const api = useLearningPathsApi(),
     command = useConnectionCommand(),
     router = useRouter();

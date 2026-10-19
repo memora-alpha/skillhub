@@ -19,6 +19,15 @@ import {
 import { searchProposals } from "../utils/search-proposals";
 import { proposalListFilter } from "../utils/proposal-route";
 import { ProposalUnavailable } from "../components/ProposalUnavailable";
+function ProposalSeparator() {
+  return <View style={{ height: 12 }} />;
+}
+function emptyDescription(searching: boolean, hasMore: boolean) {
+  if (!searching) return "Đề xuất ở trạng thái này sẽ xuất hiện tại đây.";
+  return hasMore
+    ? "Thử từ khóa khác hoặc tải thêm đề xuất bên dưới."
+    : "Thử tìm bằng nội dung khác trong đề xuất.";
+}
 
 export function ApiProposalsScreen() {
   const router = useRouter();
@@ -76,7 +85,7 @@ export function ApiProposalsScreen() {
             if (query.hasNextPage && !query.isFetching)
               void query.fetchNextPage({ cancelRefetch: false });
           }}
-          ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+          ItemSeparatorComponent={ProposalSeparator}
           ListHeaderComponent={
             <View style={{ gap: 12, marginBottom: 16 }}>
               {searchOpen && (
@@ -111,13 +120,10 @@ export function ApiProposalsScreen() {
                     ? "Chưa thấy đề xuất phù hợp"
                     : "Chưa có đề xuất"
                 }
-                description={
-                  keyword.trim()
-                    ? query.hasNextPage
-                      ? "Thử từ khóa khác hoặc tải thêm đề xuất bên dưới."
-                      : "Thử tìm bằng nội dung khác trong đề xuất."
-                    : "Đề xuất ở trạng thái này sẽ xuất hiện tại đây."
-                }
+                description={emptyDescription(
+                  !!keyword.trim(),
+                  !!query.hasNextPage,
+                )}
                 action={keyword.trim() ? "Xóa tìm kiếm" : "Khám phá"}
                 onAction={() =>
                   keyword.trim() ? setKeyword("") : router.push("/discover")

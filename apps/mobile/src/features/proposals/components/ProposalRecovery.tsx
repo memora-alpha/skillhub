@@ -6,7 +6,7 @@ import { ConnectionFeedback } from "@/features/connections";
 export function ProposalRecovery<T>({
   command,
   onRecovered,
-}: {
+}: Readonly<{
   command: {
     uncertain: boolean;
     pending: boolean;
@@ -15,7 +15,7 @@ export function ProposalRecovery<T>({
     retry: () => Promise<T | undefined>;
   };
   onRecovered: (result: T) => void;
-}) {
+}>) {
   if (!command.uncertain) return null;
   return (
     <Panel title="Kiểm tra thao tác trước">
