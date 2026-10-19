@@ -10,10 +10,9 @@ const statuses = [
   "WITHDRAWN",
   "EXPIRED",
 ] as const;
-export type ProposalListTab = "sent" | "all" | Proposal["status"];
+export type ProposalListTab = "all" | Proposal["status"];
 const tabs = [
-  { value: "all", label: "Tất cả" },
-  { value: "sent", label: "Đã gửi" },
+  { value: "all", label: "Xem tất cả" },
   ...statuses.map((value) => ({ value, label: proposalStatusLabels[value] })),
 ] as const;
 
@@ -21,7 +20,7 @@ export function ProposalListFilters({
   value,
   onChange,
 }: {
-  value: ProposalListTab;
+  value?: ProposalListTab;
   onChange: (value: ProposalListTab) => void;
 }) {
   return (
@@ -37,11 +36,7 @@ export function ProposalListFilters({
         <Pressable
           key={item.value}
           accessibilityRole="tab"
-          accessibilityLabel={
-            item.value === "sent"
-              ? item.label
-              : `${item.label} — đề xuất đã nhận`
-          }
+          accessibilityLabel={item.label}
           accessibilityState={{ selected: value === item.value }}
           aria-selected={value === item.value}
           onPress={() => onChange(item.value)}

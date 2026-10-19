@@ -25,8 +25,8 @@ export function ApiProposalsScreen() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [keyword, setKeyword] = useState("");
   const filter = proposalListFilter(useLocalSearchParams());
-  const direction = filter?.direction ?? "received",
-    status = direction === "sent" ? undefined : filter?.status;
+  const direction = filter?.direction ?? "all",
+    status = filter?.status;
   const query = useProposalList(
     direction,
     status,
@@ -34,14 +34,17 @@ export function ApiProposalsScreen() {
     !!filter,
   );
   if (!filter) return <ProposalUnavailable />;
-  const selectedTab = direction === "sent" ? "sent" : (status ?? "all");
+  const selectedTab = status ?? (direction === "all" ? "all" : undefined);
   const selectTab = (value: ProposalListTab) => {
     router.setParams({
-      tab: value === "sent" ? "sent" : "received",
-      status: value === "sent" || value === "all" ? undefined : value,
-      learningRequestId:
-        value === "sent" ? undefined : filter.learningRequestId,
+      tab: value === "all" || !filter.learningRequestId ? "all" : "received",
+      status: value === "all" ? undefined : value,
+      learningRequestId: value === "all" ? undefined : filter.learningRequestId,
     });
+    if (value === "all") {
+      setKeyword("");
+      setSearchOpen(false);
+    }
   };
   return (
     <AppScreenLayout
