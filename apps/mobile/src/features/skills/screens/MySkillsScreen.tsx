@@ -26,13 +26,15 @@ export function MySkillsScreen() {
   const query = useOwnSkills(filter);
   const { recentlyCreatedSkills, deletedSkillIds, submittedVerifications } =
     useSkills();
-  const items = ownSkillItems(
-    uniqueItems(query.data?.pages),
-    recentlyCreatedSkills,
-    filter,
-    deletedSkillIds,
-    submittedVerifications,
-  );
+  const items = query.readDenied
+    ? []
+    : ownSkillItems(
+        uniqueItems(query.data?.pages),
+        recentlyCreatedSkills,
+        filter,
+        deletedSkillIds,
+        submittedVerifications,
+      );
   const router = useRouter();
   const refresh = async () => {
     setRefreshing(true);
@@ -56,7 +58,10 @@ export function MySkillsScreen() {
             label="Thêm kỹ năng"
             icon="plus"
             outlined
-            onPress={() => router.push("/my-skills/new")}
+            disabled={!!query.readDenied}
+            onPress={() => {
+              if (query.canRead()) router.push("/my-skills/new");
+            }}
           />
           <View style={{ width: 20, height: 20 }}>
             {query.isFetching && (

@@ -1,172 +1,238 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type {
-  DemoProposal,
-  ProposalStatus,
-} from "../src/features/proposals/mocks/proposals";
+import type { RequestOptions } from "../src/lib/http/client";
+import { AppError } from "../src/lib/http/errors";
 import {
-  proposalFormSchema,
-  rejectionFormSchema,
-} from "../src/features/proposals/schemas/proposal-form";
+  createProposalsApi,
+  type Proposal,
+} from "../src/features/proposals/api/proposals-api";
 import {
-  decidePendingProposal,
-  updatePendingProposal,
-} from "../src/features/proposals/utils/proposal-transitions";
+  apiProposalForm,
+  proposalHints,
+} from "../src/features/proposals/schemas/api-proposal-form";
+import { fixtureId } from "./fixtures/learning-requests-data";
 
-const fixture: DemoProposal = {
-  id: "proposal-1",
-  direction: "sent",
+const proposal: Proposal = {
+  id: fixtureId(101),
   sourceType: "LEARNING_REQUEST",
-  requestId: "request-1",
-  requestTitle: "Học React",
-  partnerId: "partner-1",
-  partner: "Người học",
-  skill: "React",
+  learningRequestId: fixtureId(201),
+  proposerId: fixtureId(1),
+  recipientId: fixtureId(2),
+  skillId: fixtureId(301),
   message: "Cùng thực hành React qua một dự án nhỏ.",
-  credit: "50",
-  sessions: 4,
-  schedule: "Cuối tuần",
-  time: "Dữ liệu mẫu",
+  exchangeTypeHint: "ONE_WAY",
+  proposedCredit: "50",
+  proposedDurationMinutes: 60,
+  initialSessionCount: 4,
+  candidateSlots: "Cuối tuần",
   status: "PENDING",
+  version: 1,
+  expiresAt: "2030-01-02T00:00:00Z",
+  createdAt: "2030-01-01T00:00:00Z",
+  updatedAt: "2030-01-01T00:00:00Z",
 };
-const changes = {
-  message: "  Nội dung đã cập nhật cho đề xuất.  ",
-  credit: "45.50",
-  sessions: 6,
-  schedule: " Tối Thứ 7 ",
-};
+function adapter(userId = proposal.proposerId) {
+  let response: unknown = proposal;
+  let failure: AppError | undefined;
+  const calls: { path: string; options?: RequestOptions }[] = [];
+  const api = createProposalsApi((path, options) => {
+    calls.push({ path, options });
+    return failure ? Promise.reject(failure) : Promise.resolve(response);
+  }, userId);
+  return {
+    api,
+    calls,
+    respond(value: unknown) {
+      response = value;
+    },
+    fail(error: AppError) {
+      failure = error;
+    },
+  };
+}
+function acceptance() {
+  return {
+    proposal: { ...proposal, status: "ACCEPTED", version: 2 },
+    conversation: {
+      id: fixtureId(401),
+      proposalId: proposal.id,
+      learningRequestId: proposal.learningRequestId,
+      participantAId: proposal.proposerId,
+      participantBId: proposal.recipientId,
+      createdAt: proposal.createdAt,
+    },
+  };
+}
 
-test("update preserves identity and pending state, normalizes suggestions", () => {
-  const unrelated = { ...fixture, id: "other" };
-  const result = updatePendingProposal(
-    [fixture, unrelated],
-    fixture.id,
-    changes,
-  )!;
-  assert.equal(result[0]!.id, fixture.id);
-  assert.equal(result[0]!.requestId, fixture.requestId);
-  assert.equal(result[0]!.partnerId, fixture.partnerId);
-  assert.equal(result[0]!.status, "PENDING");
-  assert.equal(result[0]!.message, changes.message.trim());
-  assert.equal(result[0]!.schedule, "Tối Thứ 7");
-  assert.equal(result[0]!.sessions, 6);
-  assert.equal(result[1], unrelated);
-  assert.equal(fixture.credit, "50");
+test("proposal edit normalizes form hints and sends version/idempotency without changing identity", async () => {
+  const h = adapter();
+  const values = apiProposalForm.parse({
+    message: "  Nội dung đã cập nhật cho đề xuất.  ",
+    type: "ONE_WAY",
+    credit: "45.50",
+    duration: "90",
+    sessions: "6",
+    candidateSlots: " Tối Thứ 7 ",
+  });
+  const hints = proposalHints(values, proposal);
+  h.respond({ ...proposal, ...hints, version: 2 });
+  const saved = await h.api.update(
+    proposal.id,
+    { ...hints, expectedVersion: 1 },
+    "edit-intent",
+  );
+  assert.equal(saved.id, proposal.id);
+  assert.equal(saved.proposerId, proposal.proposerId);
+  assert.equal(saved.learningRequestId, proposal.learningRequestId);
+  assert.equal(saved.message, values.message.trim());
+  assert.equal(saved.candidateSlots, "Tối Thứ 7");
+  assert.equal(saved.initialSessionCount, 6);
+  assert.equal(proposal.proposedCredit, "50");
+  assert.deepEqual(h.calls[0], {
+    path: "/proposals/" + proposal.id,
+    options: {
+      method: "PATCH",
+      body: { ...hints, expectedVersion: 1 },
+      idempotencyKey: "edit-intent",
+    },
+  });
 });
 
-test("update rejects received, missing, accepted and all closed proposals", () => {
-  assert.equal(
-    updatePendingProposal(
-      [{ ...fixture, direction: "received" }],
-      fixture.id,
-      changes,
-    ),
-    null,
-  );
-  assert.equal(updatePendingProposal([fixture], "missing", changes), null);
-  for (const status of [
-    "ACCEPTED",
-    "REJECTED",
-    "WITHDRAWN",
-    "EXPIRED",
-  ] as ProposalStatus[]) {
-    assert.equal(
-      updatePendingProposal([{ ...fixture, status }], fixture.id, changes),
-      null,
+test("proposal update rejects responses for another resource, the wrong actor or an unchanged version", async () => {
+  const h = adapter();
+  for (const invalid of [
+    { ...proposal, id: fixtureId(999), version: 2 },
+    {
+      ...proposal,
+      proposerId: proposal.recipientId,
+      recipientId: proposal.proposerId,
+      version: 2,
+    },
+    proposal,
+  ]) {
+    h.respond(invalid);
+    await assert.rejects(
+      h.api.update(
+        proposal.id,
+        { message: proposal.message, expectedVersion: 1 },
+        "edit-intent",
+      ),
+      AppError,
     );
   }
-  assert.equal(
-    updatePendingProposal([fixture], fixture.id, { ...changes, sessions: 1.5 }),
-    null,
-  );
-  assert.equal(
-    updatePendingProposal([fixture], fixture.id, {
-      ...changes,
-      message: "short",
-    }),
-    null,
-  );
 });
 
-test("only sender can withdraw and only receiver can accept/reject", () => {
-  assert.equal(decidePendingProposal([fixture], fixture.id, "ACCEPTED"), null);
-  assert.equal(decidePendingProposal([fixture], fixture.id, "REJECTED"), null);
+test("withdraw/reject outcomes must belong to the matching sender or receiver", async () => {
+  const sender = adapter();
+  const receiver = adapter(proposal.recipientId);
+  sender.respond({ ...proposal, status: "WITHDRAWN", version: 2 });
   assert.equal(
-    decidePendingProposal(
-      [{ ...fixture, direction: "received" }],
-      fixture.id,
-      "WITHDRAWN",
-    ),
-    null,
+    (await sender.api.decide(proposal.id, "withdraw", 1, "withdraw-intent"))
+      .proposal.status,
+    "WITHDRAWN",
   );
-  const result = decidePendingProposal([fixture], fixture.id, "WITHDRAWN")!;
-  assert.equal(result[0]!.status, "WITHDRAWN");
-  assert.equal(decidePendingProposal(result, fixture.id, "WITHDRAWN"), null);
-  assert.equal(updatePendingProposal(result, fixture.id, changes), null);
-});
-
-test("accept rejects another connection for same request but permits an independent direct invitation", () => {
-  const received = { ...fixture, direction: "received" as const };
-  const accepted = {
-    ...received,
-    id: "already-accepted",
-    status: "ACCEPTED" as const,
-  };
+  receiver.respond({ ...proposal, status: "REJECTED", version: 2 });
   assert.equal(
-    decidePendingProposal([received, accepted], received.id, "ACCEPTED"),
-    null,
-  );
-  const direct = {
-    ...received,
-    sourceType: "DIRECT_SEARCH" as const,
-    requestId: undefined,
-  };
-  assert.equal(
-    decidePendingProposal([direct, accepted], direct.id, "ACCEPTED")![0]!
-      .status,
-    "ACCEPTED",
-  );
-});
-
-test("reject stores local reason and preserves every other proposal", () => {
-  const received = { ...fixture, direction: "received" as const };
-  const other = { ...received, id: "other" };
-  const result = decidePendingProposal(
-    [received, other],
-    received.id,
+    (await receiver.api.decide(proposal.id, "reject", 1, "reject-intent"))
+      .proposal.status,
     "REJECTED",
-    "  Khung giờ chưa phù hợp  ",
-  )!;
-  assert.equal(result[0]!.localDecisionNote, "Khung giờ chưa phù hợp");
-  assert.equal(result[0]!.status, "REJECTED");
-  assert.equal(result[1], other);
+  );
+  assert.deepEqual(receiver.calls[0]?.options?.body, { expectedVersion: 1 });
+  sender.respond({ ...proposal, status: "REJECTED", version: 2 });
+  receiver.respond({ ...proposal, status: "WITHDRAWN", version: 2 });
+  await assert.rejects(
+    sender.api.decide(proposal.id, "reject", 1, "invalid-reject"),
+    AppError,
+  );
+  await assert.rejects(
+    receiver.api.decide(proposal.id, "withdraw", 1, "invalid-withdraw"),
+    AppError,
+  );
 });
 
-test("form rejects invalid decimal precision, unsafe or fractional session counts and message bounds", () => {
-  const valid = { ...changes, sessions: "6" };
-  assert.equal(proposalFormSchema.safeParse(valid).success, true);
-  for (const credit of ["0", "-1", "Infinity", "1.234", "10000000000", "1e2"]) {
+test("accept forwards both versions and validates the server conversation outcome", async () => {
+  const h = adapter(proposal.recipientId);
+  const accepted = acceptance();
+  h.respond(accepted);
+  const saved = await h.api.decide(
+    proposal.id,
+    "accept",
+    1,
+    "accept-intent",
+    3,
+  );
+  assert.equal(saved.conversation?.id, accepted.conversation.id);
+  assert.equal(saved.proposal.status, "ACCEPTED");
+  assert.deepEqual(h.calls[0]?.options, {
+    method: "POST",
+    body: { expectedVersion: 1, expectedRequestVersion: 3 },
+    idempotencyKey: "accept-intent",
+  });
+});
+
+test("accept rejects a conversation for another proposal, request or participant", async () => {
+  const h = adapter(proposal.recipientId);
+  const accepted = acceptance();
+  for (const changed of [
+    { proposalId: fixtureId(999) },
+    { learningRequestId: fixtureId(999) },
+    { participantAId: fixtureId(999) },
+  ]) {
+    h.respond({
+      ...accepted,
+      conversation: { ...accepted.conversation, ...changed },
+    });
+    await assert.rejects(
+      h.api.decide(proposal.id, "accept", 1, "accept-intent", 3),
+      AppError,
+    );
+  }
+});
+
+test("a server version conflict propagates without replay or a locally synthesized outcome", async () => {
+  const h = adapter();
+  const conflict = new AppError("http", 409);
+  h.fail(conflict);
+  await assert.rejects(
+    h.api.update(
+      proposal.id,
+      { message: proposal.message, expectedVersion: 1 },
+      "edit-intent",
+    ),
+    (error) => error === conflict,
+  );
+  assert.equal(h.calls.length, 1);
+  assert.equal(proposal.status, "PENDING");
+});
+
+test("API proposal form enforces decimal precision, session bounds and message validation", () => {
+  const valid = {
+    message: proposal.message,
+    type: "ONE_WAY",
+    credit: "45.50",
+    sessions: "6",
+    candidateSlots: "Tối Thứ 7",
+  };
+  assert.equal(apiProposalForm.safeParse(valid).success, true);
+  for (const credit of ["0", "-1", "Infinity", "1.234", "10000000000", "1e2"])
     assert.equal(
-      proposalFormSchema.safeParse({ ...valid, credit }).success,
+      apiProposalForm.safeParse({ ...valid, credit }).success,
       false,
       credit,
     );
-  }
-  for (const sessions of ["0", "-1", "1.5", "9007199254740992"]) {
+  for (const sessions of ["0", "-1", "1.5", "32768", "9007199254740992"])
     assert.equal(
-      proposalFormSchema.safeParse({ ...valid, sessions }).success,
+      apiProposalForm.safeParse({ ...valid, sessions }).success,
       false,
       sessions,
     );
-  }
-  assert.equal(
-    proposalFormSchema.safeParse({ ...valid, message: "a".repeat(1001) })
-      .success,
-    false,
-  );
-  assert.equal(rejectionFormSchema.safeParse({ note: "  " }).success, false);
-  assert.equal(
-    rejectionFormSchema.safeParse({ note: "Chưa phù hợp" }).success,
-    true,
-  );
+  for (const message of [
+    "short",
+    "a".repeat(1001),
+    "Nội dung có ký tự" + String.fromCodePoint(1),
+  ])
+    assert.equal(
+      apiProposalForm.safeParse({ ...valid, message }).success,
+      false,
+    );
 });

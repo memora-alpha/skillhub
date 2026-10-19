@@ -29,25 +29,26 @@ export function PublicSkillDetailScreen({
         Kỹ năng không hiển thị công khai hoặc không còn khả dụng.
       </FormNotice>
     );
-  else if (query.error || !query.data)
-    content = <QueryFeedback query={query} />;
+  else if (!query.data) content = <QueryFeedback query={query} />;
   else
     content = (
       <>
+        {!!query.error && <QueryFeedback query={query} />}
         <Text style={skillStyles.caption}>Thông tin kỹ năng công khai</Text>
         <SkillCard skill={query.data} detail />
         {profileId !== session?.userId && (
           <Button
             variant="craft"
-            onPress={() =>
+            onPress={() => {
+              if (!query.canRead()) return;
               router.push({
                 pathname: "/send-proposal",
                 params: {
                   userId: profileId!,
                   sharingSkillId: id!,
                 },
-              })
-            }
+              });
+            }}
           >
             Gửi lời mời trao đổi
           </Button>

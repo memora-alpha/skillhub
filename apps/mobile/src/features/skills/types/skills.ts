@@ -70,7 +70,6 @@ export type Verification = BatchSummary & {
   note: string | null;
   files: Evidence[];
 };
-export type FileStatus = { fileId: string; state: string };
 export type SkillInput = {
   skillId: string;
   levelId: string;

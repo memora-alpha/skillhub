@@ -8,13 +8,13 @@
 
 ## Quy chuẩn cho thay đổi mới
 
-- Điểm vào hiện tại nằm ở `src/lib/http/client.ts`, `response.ts`, `errors.ts`; không tạo một `services/api.ts` thứ hai vì prompt mẫu dùng tên đó.
+- Điểm vào hiện tại nằm ở `src/lib/http/client.ts`, `response.ts`, `errors.ts`; tái sử dụng các entry points này khi thêm API adapter.
 - Luồng trách nhiệm điển hình: route → feature screen/view → hook/controller/runtime → API adapter → shared HTTP client. Cho phép composition hiện có; không bắt thêm controller hook nếu chỉ chuyển tiếp không có logic.
 - API adapter chỉ nhận tham số, gọi đúng endpoint, parse response và trả dữ liệu/domain error. Feedback, navigation và text hiển thị thuộc tầng UI/runtime phù hợp.
 - Bóc envelope và pagination bằng helper hiện có. Giữ đúng `204` không có body, lỗi HTTP, protocol và metadata; không bọc thêm một envelope mới ở feature.
 - Dùng `AppError` hiện có và các field thực tế (`kind`, `status`, `code` tại baseline). Không đổi tên sang `ApiError`, không thêm `requestId` giả hoặc `NETWORK_ERROR` giả chỉ để giống dự án khác.
 - Quyết định UI theo error code/status/kind được contract/runtime cung cấp, có fallback an toàn. Không đưa thẳng arbitrary server message, stack trace hoặc response body lên màn hình.
-- Timeout mặc định source hiện tại là 20 giây; ghi là thực trạng. Timeout riêng cho upload/long operation phải có căn cứ và được xác nhận trong công việc liên quan, không thay bằng các con số của Memora.
+- Timeout mặc định source hiện tại là 20 giây. Timeout riêng cho upload/long operation phải dựa trên contract và đặc tính thao tác thực tế.
 - Truyền AbortSignal khi runtime hỗ trợ; phân biệt cancel với network failure. Abort không đủ để ngăn late response tác động phiên mới: vẫn cần scope/generation guards theo runtime.
 - Không bypass shared client hoặc gắn Authorization thủ công ở component. Presigned upload có thể dùng transport riêng theo contract, không gửi bearer tới host storage/provider.
 - `Idempotency-Key`, retry hoặc replay chỉ dùng nơi endpoint và workflow hỗ trợ. Không gắn một key ngẫu nhiên mới cho mỗi lần retry cùng một ý định.

@@ -21,7 +21,7 @@ Empty headline/bio clear; validation Unicode dùng [profile validation](../../sr
 
 ## Hiện trạng và khác biệt
 
-Self-preview lấy saved account allowlist; another UUID dùng public API/skills; demo targets vẫn explicit fixtures. GET403/404 loại snapshot cũ;503 retry không fallback mock. Request-context Back giữ history hoặc fallback theo request/Discover. Amendment2026-10-13/source thay mô tả fixture-only cũ; [spec003](../../specs/003-profile-public-profile/spec.md) giữ lịch sử.
+Self-preview lấy saved account allowlist và public Skills API; another UUID dùng public API/skills. ID demo/không hợp lệ hiển thị không khả dụng, không fallback hồ sơ hoặc kỹ năng mẫu. Route /user/:id dùng cùng màn hồ sơ với /profiles/:userId. GET403/404 loại snapshot cũ;503 retry không fallback mock. Request-context Back giữ history hoặc fallback theo request/Discover. Amendment2026-10-13/source thay mô tả fixture-only cũ; [spec003](../../specs/003-profile-public-profile/spec.md) giữ lịch sử.
 
 SRS PRO-001..004 có path count/title; completedSessionCount không thay completedLearningPathCount, UI không gán số buổi sang số lộ trình. Timezone/locale/title/notifications settings chưa đủ triển khai; website/rating/learned-taught counts chưa có contract dùng cho profile. Native Text không chứng minh backend đã sanitize bio. Privacy theo [security](../guides/security-and-privacy.md), không phát private evidence/download từ public UI kể cả self.
 

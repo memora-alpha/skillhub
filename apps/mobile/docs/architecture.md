@@ -43,6 +43,6 @@ Giữ source/UI/theme/routes/runtime hiện có; [guides](README.md) và [workfl
 | Public path-count/title/timezone và policy bio chưa đủ contract/evidence                   | Không bịa field hay label thay thế; xem gap theo domain            | [profile contract](contracts/profile.md)               |
 | Skills historical newest-first thiếu timestamp/sort; full scanner/native acceptance còn mở | Server ordering và bằng chứng còn thiếu; cao cho release luồng này | [skills contract](contracts/skills-evidence.md)        |
 
-Wallet/Payment đang phát triển ở nhánh khác theo xác nhận người dùng; fixtures/spec006 không có trong checkout này là khác biệt phạm vi nhánh, không phải nợ kỹ thuật cần sửa tại đây. [Điểm tham chiếu Wallet](work/phase-03-wallet-topup/status.md) giữ ranh giới và điều kiện đồng bộ khi tích hợp.
+Wallet/Payment đang phát triển ở nhánh riêng; fixtures/spec006 không có trong checkout này là khác biệt phạm vi nhánh, không phải nợ kỹ thuật cần sửa tại đây. [Điểm tham chiếu Wallet](work/phase-03-wallet-topup/status.md) giữ ranh giới và điều kiện đồng bộ khi tích hợp.
 
 Không thực hiện các khoản nợ này trong Phase 00. Đề xuất logger/UI test framework/automation mới chưa được chấp thuận hoặc cài đặt. Hiện trạng feature chi tiết tra [matrix](feature-matrix.md), status và source; architecture không lưu từng checkpoint/số tests.

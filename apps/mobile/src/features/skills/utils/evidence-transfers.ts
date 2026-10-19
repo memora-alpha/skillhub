@@ -19,7 +19,14 @@ export type EvidenceTransfer = {
 export function createEvidenceTransfers(
   dependencies: EvidenceTransferDependencies,
 ) {
-  const { drafts, intents, isCurrent, notify, refresh } = dependencies;
+  const {
+    drafts,
+    intents,
+    isCurrent,
+    notify,
+    refresh,
+    canRead = () => true,
+  } = dependencies;
   const listeners = new Set<() => void>();
   let tasks = new Map<string, EvidenceTransfer>();
   const controllers = new Map<string, AbortController>();
@@ -38,6 +45,7 @@ export function createEvidenceTransfers(
   function start(id: string, input = drafts.get(id)) {
     if (
       !current() ||
+      !canRead(id) ||
       forgotten.has(id) ||
       controllers.has(id) ||
       tasks.get(id)?.state === "PENDING"
@@ -71,6 +79,7 @@ export function createEvidenceTransfers(
     progress();
     const check = () => {
       if (!current()) throw new AppError("session");
+      if (!canRead(id)) throw new AppError("http", 403);
       if (abort.signal.aborted) throw paused();
     };
     void runEvidenceTransfer(
@@ -123,6 +132,7 @@ export function createEvidenceTransfers(
           state: "FAILED",
           error: abort.signal.aborted ? paused().message : skillError(error),
         });
+        if (!canRead(id)) return;
         if (!abort.signal.aborted)
           notify(`Gửi bằng chứng chưa hoàn tất. ${skillError(error)}`, "error");
         void refresh().catch(() => undefined);
@@ -178,6 +188,9 @@ export function createEvidenceTransfers(
     pause() {
       pausedInBackground = true;
       for (const abort of controllers.values()) abort.abort();
+    },
+    pauseDenied() {
+      for (const [id, abort] of controllers) if (!canRead(id)) abort.abort();
     },
     resume() {
       pausedInBackground = false;

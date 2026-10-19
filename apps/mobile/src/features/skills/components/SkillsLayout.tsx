@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Redirect, useRouter, type Href } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { AppHeader } from "@/features/shell";
 import { useAuthSession } from "@/features/auth";
 import { KeyboardFormScrollView } from "@/components/KeyboardFormScrollView";
@@ -86,7 +86,4 @@ export function SkillsLayout({
       )}
     </SafeAreaView>
   );
-}
-export function SkillText({ children }: Readonly<{ children: ReactNode }>) {
-  return <Text style={skillStyles.body}>{children}</Text>;
 }

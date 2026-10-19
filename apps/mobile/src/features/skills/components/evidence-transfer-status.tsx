@@ -12,7 +12,7 @@ export function EvidenceTransferStatus({
   skill,
 }: Readonly<{ skill: OwnSkill }>) {
   const task = useEvidenceTransfer(skill.id);
-  const { transfers, verificationDrafts } = useSkills();
+  const { transfers, verificationDrafts, privateReads, scope } = useSkills();
   const router = useRouter();
   const { showToast } = useToast();
   const waiting = task?.state === "PENDING" || hasPendingVerification(skill);
@@ -20,6 +20,11 @@ export function EvidenceTransferStatus({
   const checking = task?.state === "WAITING_SCAN" && !waiting;
   const failed = task?.state === "FAILED" && !waiting;
   const retry = () => {
+    if (
+      privateReads.denied([...scope, "detail", skill.id]) ||
+      privateReads.denied([...scope, "history", skill.id])
+    )
+      return;
     const edit = () =>
       router.push({
         pathname: "/my-skills/[sharingSkillId]/verify",
