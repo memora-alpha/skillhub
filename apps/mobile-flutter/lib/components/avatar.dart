@@ -1,6 +1,5 @@
 import 'dart:typed_data';
 
-import 'package:flutter/painting.dart';
 import 'package:flutter/widgets.dart';
 
 import '../core/theme/tokens.dart';

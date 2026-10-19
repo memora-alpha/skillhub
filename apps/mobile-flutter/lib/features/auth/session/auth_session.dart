@@ -12,6 +12,8 @@ import '../../remote/product_services.dart';
 import '../api/auth_api.dart';
 import 'session_controller.dart';
 
+export 'session_controller.dart' show SessionPhase;
+
 class AuthRuntime {
   AuthRuntime._(this.api, this.controller, this.account, this.services);
 

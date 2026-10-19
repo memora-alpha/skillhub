@@ -460,7 +460,7 @@ class SessionDetailScreen extends StatelessWidget {
           ? EmptyState(
               icon: AppIcon.calendar,
               title: 'Không tìm thấy buổi học',
-              description: 'Buổi học này không có trong dữ liệu demo.',
+              description: 'Buổi học này không có trên máy chủ.',
               action: 'Quay lại lịch học',
               onAction: openCalendar,
             )

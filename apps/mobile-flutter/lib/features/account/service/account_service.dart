@@ -21,4 +21,7 @@ class AccountService {
       _api.getAvatarUpload(assetId);
 
   Future<void> removeAvatar() => _api.removeAvatar();
+
+  Future<Map<String, dynamic>> publicProfile(String userId) =>
+      _api.publicProfile(userId);
 }

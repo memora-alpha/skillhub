@@ -58,6 +58,7 @@ class SkillsApi {
     String? level,
     String? description,
     String? experienceYears,
+    bool? isVisible,
   }) async => SharingSkillRecord.parse(
     await _client.request(
       '/me/skills/$sharingSkillId',
@@ -67,6 +68,7 @@ class SkillsApi {
         'level': ?level,
         'description': ?description,
         'experienceYears': ?experienceYears,
+        'isVisible': ?isVisible,
       },
       authenticated: true,
     ),

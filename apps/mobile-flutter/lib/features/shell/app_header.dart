@@ -7,7 +7,6 @@ import '../../components/misc.dart';
 import '../../components/tappable.dart';
 import '../../core/theme/tokens.dart';
 import '../auth/session/auth_session.dart';
-import 'navigation.dart';
 
 class AppHeader extends StatelessWidget {
   const AppHeader({
@@ -19,6 +18,7 @@ class AppHeader extends StatelessWidget {
     this.onBack,
     this.backLabel = 'Quay lại hồ sơ',
     this.rightAction,
+    this.unreadCount = 0,
   });
 
   final AccountSession session;
@@ -28,12 +28,13 @@ class AppHeader extends StatelessWidget {
   final VoidCallback? onBack;
   final String backLabel;
   final Widget? rightAction;
+  final int unreadCount;
 
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.sizeOf(context).width;
     final compact = !kIsWeb || width < 640;
-    final unread = demoNotifications.length;
+    final unread = unreadCount;
     final titled = title != null;
     return Container(
       constraints: const BoxConstraints(minHeight: 64),

@@ -6,6 +6,7 @@ import '../../components/app_button.dart';
 import '../../components/feature_page.dart';
 import '../../components/misc.dart';
 import '../auth/session/auth_session.dart';
+import '../skills/schema/skill_schema.dart';
 import '../skills/skills_feature.dart';
 
 class LearningMaterial {
@@ -53,83 +54,13 @@ class LearningMaterial {
   );
 }
 
-const _initialMaterials = [
-  LearningMaterial(
-    id: 'react-guide',
-    owner: 'partner',
-    title: 'React: từ component đến ứng dụng',
-    description:
-        'Tài liệu thực hành component, props, state và hook qua ví dụ dễ hiểu.',
-    skill: 'React',
-    access: 'FREE',
-    price: '0',
-    version: 1,
-    status: 'PUBLISHED',
-    file: 'react-guide.pdf',
-  ),
-  LearningMaterial(
-    id: 'ux-workbook',
-    owner: 'partner',
-    title: 'UX workbook: thiết kế từ vấn đề thật',
-    description:
-        'Bộ bài tập nghiên cứu người dùng và xây dựng prototype cho sản phẩm số.',
-    skill: 'UI/UX',
-    access: 'PAID',
-    price: '25',
-    version: 2,
-    status: 'PUBLISHED',
-    file: 'ux-workbook.pdf',
-  ),
-  LearningMaterial(
-    id: 'typescript-notes',
-    owner: 'partner',
-    title: 'TypeScript trong dự án thực tế',
-    description:
-        'Tổng hợp mẫu type, generic và cách đọc lỗi trình biên dịch TypeScript.',
-    skill: 'TypeScript',
-    access: 'PAID',
-    price: '15',
-    version: 1,
-    status: 'PUBLISHED',
-    file: 'typescript-notes.pdf',
-  ),
-  LearningMaterial(
-    id: 'my-guide',
-    owner: 'me',
-    title: 'Ghi chú JavaScript của tôi',
-    description:
-        'Ghi chú minh họa của người chia sẻ đang chờ xem xét trước khi công bố.',
-    skill: 'JavaScript',
-    access: 'FREE',
-    price: '0',
-    version: 1,
-    status: 'PENDING_REVIEW',
-    file: 'du-an.docx',
-  ),
-  LearningMaterial(
-    id: 'my-rejected',
-    owner: 'me',
-    title: 'Tài liệu thực hành giao diện',
-    description:
-        'Bộ bài tập minh họa trạng thái bị từ chối và cần bổ sung quyền phân phối.',
-    skill: 'UI/UX',
-    access: 'FREE',
-    price: '0',
-    version: 1,
-    status: 'REJECTED',
-    file: 'chung-chi.pdf',
-    reason:
-        'Vui lòng bổ sung xác nhận quyền phân phối nội dung trước khi gửi lại.',
-  ),
-];
-
 typedef MaterialsState = ({List<LearningMaterial> materials, Map<String, int> library});
 
 class MaterialsNotifier extends Notifier<MaterialsState> {
   @override
   MaterialsState build() {
     ref.watch(sessionSnapshotProvider.select((s) => s.generation));
-    return (materials: _initialMaterials, library: const {'typescript-notes': 1});
+    return (materials: const [], library: const {});
   }
 
   LearningMaterial? find(String? id) =>
@@ -475,6 +406,10 @@ class _MaterialEditorScreenState extends ConsumerState<MaterialEditorScreen> {
   Widget build(BuildContext context) {
     final id = widget.id;
     ref.watch(materialsProvider);
+    final catalogNames = [
+      for (final item in ref.watch(skillCatalogProvider).value ?? const <SkillRecord>[])
+        item.name,
+    ];
     final notifier = ref.read(materialsProvider.notifier);
     final m = notifier.find(id);
     return FeaturePage(
@@ -525,7 +460,7 @@ class _MaterialEditorScreenState extends ConsumerState<MaterialEditorScreen> {
                     name: 'skill',
                     label: 'Danh mục kỹ năng',
                     rule: textRule(1, 100),
-                    choices: skillCatalog,
+                    choices: catalogNames,
                   ),
                   DataField(
                     name: 'access',
