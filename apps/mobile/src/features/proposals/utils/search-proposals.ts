@@ -5,7 +5,7 @@ function normalize(value: string) {
     .toLocaleLowerCase("vi")
     .normalize("NFD")
     .replaceAll(/\p{M}/gu, "")
-    .replaceAll(/đ/g, "d")
+    .replaceAll("đ", "d")
     .trim();
 }
 

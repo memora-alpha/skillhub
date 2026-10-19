@@ -18,11 +18,11 @@ export function ApiAgreementEntry({
   conversationId,
   participantAId,
   participantBId,
-}: {
+}: Readonly<{
   conversationId: string;
   participantAId: string;
   participantBId: string;
-}) {
+}>) {
   const query = useLearningPaths(),
     api = useLearningPathsApi(),
     runtime = useConnections();

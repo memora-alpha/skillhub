@@ -10,11 +10,11 @@ export function ProposalAcceptActions({
   proposal,
   disabled,
   onAccept,
-}: {
+}: Readonly<{
   proposal: Proposal;
   disabled: boolean;
   onAccept: (proposalVersion: number, requestVersion?: number) => Promise<void>;
-}) {
+}>) {
   const [confirmation, setConfirmation] = useState<string | null>(null);
   const query = useRequestDetail(proposal.learningRequestId ?? undefined);
   const data = !query.error && !query.readDenied ? query.data : undefined;
