@@ -424,7 +424,7 @@ class ChatScreen extends ConsumerWidget {
         child: EmptyState(
           icon: AppIcon.message,
           title: 'Không tìm thấy cuộc trao đổi',
-          description: 'Cuộc trao đổi này không có trong dữ liệu demo.',
+          description: 'Cuộc trao đổi này không có trên máy chủ.',
           action: 'Quay lại tin nhắn',
           onAction: () => context.go('/messages'),
         ),
@@ -1095,7 +1095,6 @@ class AttachmentScreen extends ConsumerStatefulWidget {
 }
 
 class _AttachmentScreenState extends ConsumerState<AttachmentScreen> {
-  List<String> _files = [];
   String _error = '';
 
   @override
@@ -1115,32 +1114,20 @@ class _AttachmentScreenState extends ConsumerState<AttachmentScreen> {
           )
         else
           Panel(
-            title: 'Đính kèm tệp mẫu',
+            title: 'Đính kèm tệp',
             children: [
-              SampleFiles(
-                value: _files,
-                onChange: (files) => setState(() => _files = files),
-                maxCount: 1,
-                maxBytes: 15 * 1024 * 1024,
-              ),
               const Copy(
-                'Giới hạn chat 15 MB/tệp. Tệp thật cần được kiểm tra định dạng và quét an toàn.',
+                'Màn này chưa mở bộ chọn tệp, nên chưa gửi tệp lên máy chủ.',
                 muted: true,
               ),
               if (_error.isNotEmpty)
                 FormNotice(tone: NoticeTone.error, message: _error),
               AppButton(
-                label: 'Gửi tệp mẫu',
+                label: 'Gửi tệp',
                 onPressed: () {
-                  final file = sampleFiles
-                      .where((f) => _files.isNotEmpty && f.name == _files.first)
-                      .firstOrNull;
-                  if (file == null ||
-                      !ref.read(messagesProvider.notifier).sendFile(id!, file)) {
-                    setState(() => _error = 'Chọn tệp hợp lệ không vượt 15 MB.');
-                    return;
-                  }
-                  context.canPop() ? context.pop() : context.go('/chat/$id');
+                  setState(
+                    () => _error = 'Chọn tệp từ máy trước khi gửi.',
+                  );
                 },
               ),
             ],

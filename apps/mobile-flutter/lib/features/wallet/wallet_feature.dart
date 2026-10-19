@@ -4,56 +4,17 @@ import 'package:go_router/go_router.dart';
 import '../../components/feature_page.dart';
 import '../../components/misc.dart';
 
-const _transactions = [
-  (
-    id: 'tx-topup',
-    type: 'TOP_UP',
-    amount: '+200.00',
-    after: '200.00',
-    status: 'SUCCESS',
-    reference: 'PAY-DEMO-001',
-    description:
-        'Snapshot nạp Credit đã được backend xác minh trong dữ liệu mẫu.',
-  ),
-  (
-    id: 'tx-hold',
-    type: 'HOLD',
-    amount: '-100.00',
-    after: '100.00',
-    status: 'SUCCESS',
-    reference: 'path-active',
-    description: 'Tạm giữ toàn bộ giá dạy một chiều. Chỉ người học tạm giữ.',
-  ),
-  (
-    id: 'tx-teaching',
-    type: 'TEACHING_EARNING',
-    amount: '+96.00',
-    after: '196.00',
-    status: 'SUCCESS',
-    reference: 'path-completed',
-    description:
-        'Thu nhập người dạy ở cuối lộ trình; không phát sinh theo từng buổi.',
-  ),
-  (
-    id: 'tx-fee',
-    type: 'PLATFORM_FEE',
-    amount: '-4.00',
-    after: '196.00',
-    status: 'SUCCESS',
-    reference: 'path-completed',
-    description:
-        'Snapshot phí 4% của lộ trình. Giao dịch mẫu minh họa riêng; không dùng để cộng sổ cái của bạn.',
-  ),
-  (
-    id: 'tx-pending',
-    type: 'TOP_UP',
-    amount: '+100.00',
-    after: '—',
-    status: 'PENDING',
-    reference: 'PAY-DEMO-002',
-    description: 'Chờ cổng thanh toán xác minh. Chưa cộng số dư.',
-  ),
-];
+const _transactions = <
+  ({
+    String id,
+    String type,
+    String amount,
+    String after,
+    String status,
+    String reference,
+    String description,
+  })
+>[];
 
 /// Groups thousands with dots, like `Number.toLocaleString("vi-VN")`.
 String _viNumber(int value) => value.toString().replaceAllMapped(
@@ -77,17 +38,17 @@ class WalletScreen extends StatelessWidget {
       subtitle: 'Credit dùng để học và chia sẻ trên SkillHub.',
       children: [
         Panel(
-          title: 'Ví tài khoản mẫu',
+          title: 'Ví tài khoản',
           accent: true,
           children: [
             MetricRow(
               children: [
-                Metric(label: 'Khả dụng', value: '180.00 CR'),
-                Metric(label: 'Đang tạm giữ', value: '100.00 CR'),
+                Metric(label: 'Khả dụng', value: '0.00 CR'),
+                Metric(label: 'Đang tạm giữ', value: '0.00 CR'),
               ],
             ),
             Copy(
-              'Đây là số dư minh họa của kịch bản UI, không phản ánh tài khoản đang đăng nhập. Ví người mới bắt đầu từ 0.',
+              'Ứng dụng chưa có API ví. Số dư thật chưa được tải.',
               muted: true,
             ),
             RouteButton(href: '/wallet/topup', label: 'Nạp Credit'),
@@ -96,7 +57,7 @@ class WalletScreen extends StatelessWidget {
         Panel(
           title: 'Credit đang giữ',
           children: [
-            Copy('React thực hành · ONE_WAY · 100 CR từ người học'),
+            Copy('Chưa có Credit đang giữ.'),
             RouteButton(
               secondary: true,
               href: '/paths/path-active',

@@ -13,6 +13,7 @@ import '../auth/session/auth_session.dart';
 import '../discovery/discovery_data.dart';
 import '../messages/messages_data.dart';
 import '../profile/public_profiles_data.dart';
+import '../skills/skills_feature.dart';
 import '../shell/app_screen_layout.dart';
 import 'proposals_data.dart';
 
@@ -431,16 +432,20 @@ class _ProposalDetailScreenState extends ConsumerState<ProposalDetailScreen> {
               item.requestId == proposal!.requestId &&
               item.status == 'ACCEPTED',
         );
-    final request = findLearningRequest(proposal?.requestId);
+    final request = (ref.watch(learningRequestsProvider).value ?? const <LearningRequest>[])
+        .where((item) => item.id == proposal?.requestId)
+        .firstOrNull;
 
-    void accept() {
-      if (!ref.read(proposalsProvider.notifier).decide(id, 'ACCEPTED')) {
+    Future<void> accept() async {
+      if (!await ref.read(proposalsProvider.notifier).decide(id, 'ACCEPTED')) {
+        if (!mounted) return;
         setState(
           () => _error =
               'Đề xuất đã thay đổi hoặc yêu cầu đã có kết nối được chấp nhận. Hãy xem lại danh sách.',
         );
         return;
       }
+      if (!context.mounted) return;
       context.push('/chat/$id');
     }
 
@@ -561,7 +566,7 @@ class _ProposalDetailScreenState extends ConsumerState<ProposalDetailScreen> {
                     ),
                   ),
                 Text(
-                  'Dữ liệu mẫu trong phiên · Chấp nhận chưa tạo Session hoặc tạm giữ Credit.',
+                  'Chấp nhận mở cuộc trò chuyện. Lịch và Credit được chốt ở bước lộ trình.',
                   style: _caption,
                 ),
               ],
@@ -581,20 +586,7 @@ class SendProposalScreen extends ConsumerStatefulWidget {
 }
 
 class _SendProposalScreenState extends ConsumerState<SendProposalScreen> {
-  late final LearningRequest? _request = findLearningRequest(widget.requestId);
-  late final DemoPublicProfile? _profile = findDemoProfile(
-    _request?.userId ?? widget.userId,
-  );
-  late final _skills = _request == null
-      ? demoTeachingSkills
-      : demoTeachingSkills
-            .where(
-              (skill) => _request.tags.any(
-                (tag) => tag.toLowerCase() == skill.id,
-              ),
-            )
-            .toList();
-  late String _skillId = _skills.firstOrNull?.id ?? '';
+  String _skillId = '';
   late final _message = AppField(validator: validateProposalMessage);
   late final _credit = AppField(
     text: _request?.budget.split(' ').first ?? '50',
@@ -608,8 +600,31 @@ class _SendProposalScreenState extends ConsumerState<SendProposalScreen> {
   String? _formError;
   bool _sent = false;
 
+  LearningRequest? get _request =>
+      (ref.read(learningRequestsProvider).value ?? const <LearningRequest>[])
+          .where((item) => item.id == widget.requestId)
+          .firstOrNull;
+
+  DemoPublicProfile? get _profile {
+    final id = _request?.userId ?? widget.userId ?? '';
+    return ref.read(publicProfileProvider(id)).value;
+  }
+
   String? get _targetId => _request?.userId ?? _profile?.id;
   String? get _targetName => _request?.user ?? _profile?.name;
+
+  List<({String id, String name, bool verified})> get _skills {
+    if (_request == null) {
+      return [
+        for (final skill in _profile?.skills ?? const <DemoSkill>[])
+          (id: skill.id, name: skill.name, verified: skill.verified),
+      ];
+    }
+    return [
+      for (final skill in ref.read(skillsProvider))
+        (id: skill.id, name: skill.name, verified: skill.status == 'VERIFIED'),
+    ];
+  }
 
   @override
   void dispose() {
@@ -619,11 +634,12 @@ class _SendProposalScreenState extends ConsumerState<SendProposalScreen> {
     super.dispose();
   }
 
-  void _send() {
+  Future<void> _send() async {
     final valid = validateFields([_message, _credit, _sessions]);
     final userId = ref.read(accountSessionProvider)?.userId;
     String? formError;
-    if (!_skills.any((skill) => skill.id == _skillId)) {
+    final skills = _skills;
+    if (!skills.any((skill) => skill.id == _skillId)) {
       formError = 'Chọn kỹ năng phù hợp.';
     }
     if (_targetId == null || _targetId == userId) {
@@ -631,8 +647,8 @@ class _SendProposalScreenState extends ConsumerState<SendProposalScreen> {
     }
     setState(() => _formError = formError);
     if (!valid || formError != null || _targetName == null) return;
-    final chosen = _skills.firstWhere((skill) => skill.id == _skillId);
-    final saved = ref
+    final chosen = skills.firstWhere((skill) => skill.id == _skillId);
+    final saved = await ref
         .read(proposalsProvider.notifier)
         .submit(
           sourceType: _request != null ? 'LEARNING_REQUEST' : 'DIRECT_SEARCH',
@@ -646,7 +662,9 @@ class _SendProposalScreenState extends ConsumerState<SendProposalScreen> {
           credit: _credit.text.trim(),
           sessions: int.parse(_sessions.text.trim()),
           schedule: _schedule.text.trim(),
+          recipientSharingSkillId: _request == null ? chosen.id : null,
         );
+    if (!mounted) return;
     if (!saved) {
       setState(
         () => _formError =
@@ -660,7 +678,11 @@ class _SendProposalScreenState extends ConsumerState<SendProposalScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(learningRequestsProvider);
+    ref.watch(skillsProvider);
+    ref.watch(publicProfileProvider(widget.userId ?? ''));
     final request = _request;
+    ref.watch(publicProfileProvider(request?.userId ?? widget.userId ?? ''));
     final targetId = _targetId;
     final targetName = _targetName;
     final userId = ref.watch(accountSessionProvider)?.userId;
@@ -673,10 +695,11 @@ class _SendProposalScreenState extends ConsumerState<SendProposalScreen> {
               item.partnerId == targetId &&
               item.requestId == request?.id,
         );
+    final profile = _profile;
     final back = request != null
         ? '/request/${request.id}'
-        : _profile != null
-        ? '/user/${_profile.id}'
+        : profile != null
+        ? '/user/${profile.id}'
         : '/discover';
     return AppScreenLayout(
       title: request != null ? 'Gửi đề xuất' : 'Lời mời trao đổi',
@@ -949,9 +972,9 @@ class _EditProposalFormState extends ConsumerState<_EditProposalForm> {
     if (updated) router.pushReplacement('$detail?updated=1');
   }
 
-  void _save() {
+  Future<void> _save() async {
     if (!validateFields(_fields)) return;
-    final saved = ref
+    final saved = await ref
         .read(proposalsProvider.notifier)
         .update(
           widget.proposal.id,
@@ -960,6 +983,7 @@ class _EditProposalFormState extends ConsumerState<_EditProposalForm> {
           sessions: _sessions.text,
           schedule: _schedule.text,
         );
+    if (!mounted) return;
     if (!saved) {
       setState(
         () => _error =
@@ -1075,17 +1099,19 @@ class _CloseProposalScreenState extends ConsumerState<CloseProposalScreen> {
             ? !proposal.sent
             : widget.action == 'withdraw' && proposal.sent);
 
-    void close([String? note]) {
+    Future<void> close([String? note]) async {
       if (!allowed ||
-          !ref
+          !await ref
               .read(proposalsProvider.notifier)
               .decide(id, _rejecting ? 'REJECTED' : 'WITHDRAWN', note)) {
+        if (!mounted) return;
         setState(
           () => _error =
               'Đề xuất đã thay đổi. Hãy quay lại chi tiết để kiểm tra trạng thái.',
         );
         return;
       }
+      if (!context.mounted) return;
       FocusScope.of(context).unfocus();
       setState(() => _done = true);
     }
@@ -1156,7 +1182,10 @@ class _CloseProposalScreenState extends ConsumerState<CloseProposalScreen> {
                         ? 'Xác nhận từ chối'
                         : 'Xác nhận rút đề xuất',
                     onPressed: () {
-                      if (!_rejecting) return close();
+                      if (!_rejecting) {
+                        close();
+                        return;
+                      }
                       if (validateFields([_note])) close(_note.text);
                     },
                   ),

@@ -5,8 +5,15 @@ import 'package:go_router/go_router.dart';
 import '../../components/app_button.dart';
 import '../../components/feature_page.dart';
 import '../../components/misc.dart';
+import '../../core/http/app_error.dart';
+import '../../core/http/http_client.dart';
+import '../../core/toast/toast.dart';
 import '../auth/session/auth_session.dart';
+import '../remote/remote_load.dart';
+import '../skills/schema/skill_schema.dart';
 import '../skills/skills_feature.dart';
+import 'service/learning_requests_service.dart';
+import 'schema/learning_request_schema.dart';
 
 typedef PreferredSlot = ({DateTime startAt, DateTime endAt});
 
@@ -23,6 +30,7 @@ class OwnRequest {
     this.tags = const [],
     this.preferredSlots = const [],
     this.reason,
+    this.version = 1,
   });
 
   final String id;
@@ -36,6 +44,7 @@ class OwnRequest {
   final String level;
   final String status;
   final String? reason;
+  final int version;
 
   OwnRequest withStatus(String status) => OwnRequest(
     id: id,
@@ -49,54 +58,119 @@ class OwnRequest {
     level: level,
     status: status,
     reason: reason,
+    version: version,
   );
 }
 
-const _initialRequests = [
-  OwnRequest(
-    id: 'my-react',
-    title: 'Học React để xây dựng ứng dụng',
-    skill: 'React',
-    description:
-        'Tôi đã biết JavaScript cơ bản và muốn thực hành React qua một dự án nhỏ.',
-    goal: 'Tự xây dựng ứng dụng quản lý công việc với React.',
-    level: 'BEGINNER',
-    status: 'OPEN',
-  ),
-  OwnRequest(
-    id: 'request-rejected',
-    title: 'Tìm người hướng dẫn thiết kế',
-    skill: 'UI/UX',
-    description: 'Muốn cải thiện quy trình thiết kế giao diện sản phẩm.',
-    goal: 'Thiết kế một bộ giao diện mobile nhất quán.',
-    level: 'BEGINNER',
-    status: 'REJECTED',
-    reason:
-        'Vui lòng bỏ thông tin quảng cáo ngoài nền tảng và mô tả rõ mục tiêu học tập.',
-  ),
-  OwnRequest(
-    id: 'request-matched',
-    title: 'Luyện tiếng Anh giao tiếp',
-    skill: 'Tiếng Anh',
-    description:
-        'Luyện giao tiếp tiếng Anh cho các tình huống công việc thực tế.',
-    goal: 'Thuyết trình một dự án bằng tiếng Anh.',
-    level: 'INTERMEDIATE',
-    status: 'MATCHED',
-  ),
-];
+OwnRequest _ownRequest(Map<String, dynamic> json, Map<String, String> names) {
+  final skillId = asString(json['skillId']);
+  return OwnRequest(
+    id: asString(json['id']),
+    title: asString(json['title']),
+    skill: names[skillId] ?? skillId,
+    skillId: skillId,
+    description: asText(json['description']),
+    goal: asText(json['learningGoal']),
+    level: asOptionalString(json['currentLevel']) ?? 'NONE',
+    status: asString(json['status']),
+    reason: asOptionalString(json['moderationRejectReason']),
+    version: asInt(json['version']),
+    preferredSlots: [
+      for (final slot in asList(json['preferredSlots'], asMap))
+        (
+          startAt: DateTime.parse(asString(slot['startAt'])).toLocal(),
+          endAt: DateTime.parse(asString(slot['endAt'])).toLocal(),
+        ),
+    ],
+  );
+}
 
 class RequestsNotifier extends Notifier<List<OwnRequest>> {
+  var _ticket = 0;
+
   @override
   List<OwnRequest> build() {
-    ref.watch(sessionSnapshotProvider.select((s) => s.generation));
-    return _initialRequests;
+    final phase = ref.watch(sessionSnapshotProvider).phase;
+    final userId = ref.watch(accountProvider).value?.userId;
+    if (phase == SessionPhase.ready && userId != null) {
+      _ticket++;
+      _reload(_ticket);
+    }
+    return const [];
+  }
+
+  Future<void> _reload(int ticket) async {
+    try {
+      final services = ref.read(authRuntimeProvider).services;
+      final records = await drainPages(
+        (cursor) => services.learningRequests.mine(cursor: cursor, limit: 50),
+      );
+      final catalog = await ref.read(skillCatalogProvider.future);
+      final names = {for (final skill in catalog) skill.id: skill.name};
+      if (!ref.mounted || ticket != _ticket) return;
+      state = [for (final record in records) _ownRequest(record, names)];
+    } catch (_) {
+      if (!ref.mounted || ticket != _ticket) return;
+      state = const [];
+    }
   }
 
   OwnRequest? find(String? id) => state.where((r) => r.id == id).firstOrNull;
 
-  void save(OwnRequest request) =>
-      state = [request, ...state.where((r) => r.id != request.id)];
+  LearningRequestDraft _draft(OwnRequest request) => LearningRequestDraft(
+    title: request.title,
+    skillId: request.skillId ?? '',
+    description: request.description,
+    learningGoal: request.goal,
+    currentLevel: request.level,
+    preferredSlots: request.preferredSlots,
+  );
+
+  Future<({String? id, String? error})> save(
+    OwnRequest request, {
+    required bool creating,
+  }) async {
+    if (request.skillId == null || request.skillId!.isEmpty) {
+      return (id: null, error: 'Chọn kỹ năng trong danh mục.');
+    }
+    try {
+      final api = ref.read(authRuntimeProvider).services.learningRequests;
+      final saved = creating
+          ? await api.create(_draft(request))
+          : await api.edit(
+              request.id,
+              _draft(request),
+              expectedVersion: request.version,
+            );
+      final ticket = ++_ticket;
+      await _reload(ticket);
+      return (id: asString(saved['id']), error: null);
+    } catch (error) {
+      return (id: null, error: errorMessage(error));
+    }
+  }
+
+  Future<String?> publish(OwnRequest request) => _versioned(
+    (api) => api.publish(request.id, expectedVersion: request.version),
+  );
+
+  Future<String?> cancel(OwnRequest request) => _versioned(
+    (api) => api.cancel(request.id, expectedVersion: request.version),
+  );
+
+  Future<String?> _versioned(
+    Future<Map<String, dynamic>> Function(LearningRequestsService api) run,
+  ) async {
+    try {
+      final api = ref.read(authRuntimeProvider).services.learningRequests;
+      await run(api);
+      final ticket = ++_ticket;
+      await _reload(ticket);
+      return null;
+    } catch (error) {
+      return errorMessage(error);
+    }
+  }
 }
 
 final requestsProvider = NotifierProvider<RequestsNotifier, List<OwnRequest>>(
@@ -202,6 +276,9 @@ class RequestEditorScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     ref.watch(requestsProvider);
+    final catalog =
+        ref.watch(skillCatalogProvider).value ?? const <SkillRecord>[];
+    final catalogNames = [for (final item in catalog) item.name];
     final notifier = ref.read(requestsProvider.notifier);
     final request = notifier.find(id);
     return FeaturePage(
@@ -241,8 +318,10 @@ class RequestEditorScreen extends ConsumerWidget {
                   DataField(
                     name: 'skill',
                     label: 'Kỹ năng muốn học',
-                    rule: (v) => v.isEmpty ? 'Chọn một kỹ năng.' : null,
-                    choices: skillCatalog,
+                    rule: (v) => catalogNames.contains(v)
+                        ? null
+                        : 'Chọn một kỹ năng.',
+                    choices: catalogNames,
                   ),
                   DataField(
                     name: 'description',
@@ -272,21 +351,7 @@ class RequestEditorScreen extends ConsumerWidget {
                     label: 'Tag bổ sung (không bắt buộc)',
                     hint:
                         'Phân cách bằng dấu phẩy. Dùng tên kỹ năng trong danh mục phía trên.',
-                    rule: (value) {
-                      final v = value.trim();
-                      final tags = v.split(',');
-                      return v.isEmpty ||
-                              (tags.length <= 10 &&
-                                  tags.every(
-                                    (tag) => skillCatalog.any(
-                                      (name) =>
-                                          name.toLowerCase() ==
-                                          tag.trim().toLowerCase(),
-                                    ),
-                                  ))
-                          ? null
-                          : 'Tối đa 10 tag trong danh mục kỹ năng.';
-                    },
+                    rule: (_) => null,
                   ),
                   DataField(
                     name: 'preferredSlots',
@@ -299,30 +364,30 @@ class RequestEditorScreen extends ConsumerWidget {
                         : 'Nhập tối đa 5 khoảng tương lai, giờ kết thúc sau giờ bắt đầu, đúng mẫu hướng dẫn.',
                   ),
                 ],
-                submitLabel: 'Lưu bản nháp mẫu',
-                onSubmit: (v) {
-                  final key =
-                      request?.id ??
-                      'request-${DateTime.now().millisecondsSinceEpoch}';
-                  notifier.save(
+                submitLabel: 'Lưu bản nháp',
+                onSubmit: (v) async {
+                  final skill = catalog
+                      .where((item) => item.name == v['skill'])
+                      .firstOrNull;
+                  final result = await notifier.save(
                     OwnRequest(
-                      id: key,
+                      id: request?.id ?? '',
                       title: v['title']!,
                       skill: v['skill']!,
-                      skillId: previewSkillId(v['skill']!),
-                      tags: v['tags']!
-                          .split(',')
-                          .map((tag) => tag.trim())
-                          .where((tag) => tag.isNotEmpty)
-                          .toList(),
+                      skillId: skill?.id,
                       preferredSlots: parsePreferredSlots(v['preferredSlots']!)!,
                       description: v['description']!,
                       goal: v['goal']!,
                       level: v['level']!,
-                      status: 'DRAFT',
+                      status: request?.status ?? 'DRAFT',
+                      version: request?.version ?? 1,
                     ),
+                    creating: request == null,
                   );
-                  context.pushReplacement('/requests/$key');
+                  if (result.error != null) return result.error;
+                  if (context.mounted) {
+                    context.pushReplacement('/requests/${result.id}');
+                  }
                   return null;
                 },
               ),
@@ -382,7 +447,7 @@ class _OwnRequestScreenState extends ConsumerState<OwnRequestScreen> {
                   if (request.reason != null)
                     FormNotice(
                       tone: NoticeTone.error,
-                      message: 'Lý do từ chối mẫu: ${request.reason}',
+                      message: 'Lý do từ chối: ${request.reason}',
                     ),
                   if (request.status == 'PENDING_MODERATION')
                     const FormNotice(
@@ -405,10 +470,16 @@ class _OwnRequestScreenState extends ConsumerState<OwnRequestScreen> {
                 ),
               if (request.status == 'DRAFT')
                 AppButton(
-                  label: 'Đăng vào hàng chờ mẫu',
+                  label: 'Đăng yêu cầu',
                   variant: ButtonVariant.craft,
-                  onPressed: () =>
-                      notifier.save(request.withStatus('PENDING_MODERATION')),
+                  onPressed: () async {
+                    final error = await notifier.publish(request);
+                    if (error != null) {
+                      ref
+                          .read(toastProvider.notifier)
+                          .show(error, ToastTone.error);
+                    }
+                  },
                 ),
               if (request.status == 'OPEN')
                 const RouteButton(
@@ -429,9 +500,16 @@ class _OwnRequestScreenState extends ConsumerState<OwnRequestScreen> {
                       'Lịch sử đề xuất được giữ lại. Bài sẽ không nhận đề xuất mới.',
                     ),
                     AppButton(
-                      label: 'Xác nhận hủy bản mẫu',
-                      onPressed: () {
-                        notifier.save(request.withStatus('CANCELLED'));
+                      label: 'Xác nhận hủy',
+                      onPressed: () async {
+                        final error = await notifier.cancel(request);
+                        if (!mounted) return;
+                        if (error != null) {
+                          ref
+                              .read(toastProvider.notifier)
+                              .show(error, ToastTone.error);
+                          return;
+                        }
                         setState(() => _cancel = false);
                       },
                     ),

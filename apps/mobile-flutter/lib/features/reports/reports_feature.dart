@@ -34,37 +34,41 @@ class PreviewReport {
   final String? additional;
 }
 
-const _initialReports = [
-  PreviewReport(
-    id: 'report-info',
-    target: 'SESSION',
-    targetId: 'disputed-ts-0',
-    pathId: 'path-disputed',
-    description:
-        'Kịch bản mẫu: người tham gia cần bổ sung chi tiết về thời gian gặp vấn đề kết nối.',
-    reason: 'TECHNICAL_ISSUE',
-    files: [],
-    status: 'NEED_MORE_INFO',
-    note: 'Vui lòng bổ sung thời điểm và ảnh chụp thông báo lỗi nếu có.',
-  ),
-  PreviewReport(
-    id: 'report-resolved',
-    target: 'MATERIAL',
-    targetId: 'ux-workbook',
-    description:
-        'Kịch bản mẫu: yêu cầu xem xét mô tả tài liệu đã được giải quyết.',
-    reason: 'INAPPROPRIATE_CONTENT',
-    files: [],
-    status: 'RESOLVED',
-    note: 'Nội dung công khai đã được xem xét và điều chỉnh trong kịch bản mẫu.',
-  ),
-];
-
 class ReportsNotifier extends Notifier<List<PreviewReport>> {
+  var _ticket = 0;
+
   @override
   List<PreviewReport> build() {
-    ref.watch(sessionSnapshotProvider.select((s) => s.generation));
-    return _initialReports;
+    final phase = ref.watch(sessionSnapshotProvider).phase;
+    final userId = ref.watch(accountProvider).value?.userId;
+    if (phase == SessionPhase.ready && userId != null) {
+      _ticket++;
+      _load(_ticket);
+    }
+    return const [];
+  }
+
+  Future<void> _load(int ticket) async {
+    try {
+      final rows = await ref.read(authRuntimeProvider).services.study.myReports();
+      if (!ref.mounted || ticket != _ticket) return;
+      state = [
+        for (final row in rows)
+          PreviewReport(
+            id: row['id']?.toString() ?? '',
+            target: 'SESSION',
+            targetId: row['sessionId']?.toString() ?? '',
+            pathId: row['pathId']?.toString(),
+            description: row['description']?.toString() ?? '',
+            reason: row['reason']?.toString() ?? row['category']?.toString() ?? '',
+            files: const [],
+            status: row['status']?.toString() ?? '',
+          ),
+      ];
+    } catch (_) {
+      if (!ref.mounted || ticket != _ticket) return;
+      state = const [];
+    }
   }
 
   PreviewReport? find(String id) => state.where((r) => r.id == id).firstOrNull;
