@@ -39,9 +39,15 @@ Evidence PDF/DOC/DOCX/JPG/JPEG/PNG/WEBP,1–5 files. Hard ceiling hiện tại10
 
 ## Lifecycle hiện có
 
+Luồng quản lý dùng /my-skills và danh mục GET /skills qua API. Catalog/context/screens và routes /skills demo đã loại khỏi runtime; shortcut, onboarding và trợ giúp đi vào /my-skills. Hồ sơ công khai dùng owner/account projection hoặc public profile/Skills API theo UUID, không fallback dữ liệu Skills mẫu. Fixtures trong tests và evidence phục vụ regression, không được import vào app.
+
 Save xác nhận skill trước rồi queue evidence theo skillId/session, về list; Send queue rồi về detail. Draft/fileIds/submit intent chỉ trong session, tiếp tục qua navigation, pause background cho explicit retry, logout/archive loại job đúng scope; không phục hồi sau process kill. Không mutation tự resume. Hai worker prepare/upload, đợi in-flight upload settle trước unlock lỗi. Poll scan48 reads/file, báo chậm sau24; hết budget còn scan thì WAITING_SCAN/Check again giữ ID, chỉ READY submit. Thực thi chi tiết tại [upload guide](../guides/uploads-and-realtime.md) và source được dẫn, không biến cadence UI thành SLA scanner.
 
 Confirmed create/edit/visibility/submit lưu DTO vào scoped caches trước refetch, không rollback saved result khi đọc lỗi, không đè version mới. History decision chỉ gỡ snapshot đúng batch/version rồi refetch badge/account; decision riêng không đủ aggregate. Image preview xin URL mới, giữ component state đến blur/background/expiry, không public cache. UI delete là “Xóa kỹ năng” (archive); không archived toggle/detail, giữ history server.
+
+Follow-up F01: GET403/404 chặn projection private tương ứng, xóa cache/bản tạm bị ảnh hưởng và khóa actions;503 sau denial không hồi dữ liệu. Chỉ read mới của đúng query/session được khôi phục quyền đọc. Lỗi transient đơn thuần giữ snapshot hợp lệ; mutation403 không tự thu hồi quyền đọc. Scope/cache/race và giới hạn nghiệm thu tại [source audit](../work/source-audit/status.md).
+
+Public list/detail cũng giữ denial theo target profile, kể cả lỗi ở trang kế tiếp, và không làm mất owner cache/profile khác. Job bằng chứng dừng khi owner/history read bị denied; draft/fileIds được giữ cho explicit retry sau read hợp lệ. Header Back cho phép rời màn khi gửi nền, chỉ chặn picker/parent save; hardware Back chỉ đăng ký trên Android.
 
 ## Chênh lệch và việc cần xác minh
 

@@ -25,6 +25,7 @@ function deferred<T>() {
 function fixture(
   count = 1,
   sleep?: (ms: number, signal: AbortSignal) => Promise<void>,
+  canRead: (id: string) => boolean = () => true,
 ) {
   const drafts = new Map<string, VerificationDraft>();
   const intents = new Map<string, ReturnType<typeof createMutationIntent>>();
@@ -77,6 +78,7 @@ function fixture(
     drafts,
     intents,
     isCurrent: () => current,
+    canRead,
     compress: async (file) => file,
     remember: async (result) => {
       remembered.push(result.id);
@@ -106,6 +108,35 @@ function fixture(
     },
   };
 }
+
+test("read denial blocks new evidence work and stops a pending upload before submit", async () => {
+  let allowed = false;
+  const f = fixture(1, undefined, () => allowed);
+  assert.equal(f.transfers.start(ids.sharing, f.draft), false);
+  assert.equal(f.calls.length, 0);
+  allowed = true;
+  const gate = deferred<void>();
+  const upload = f.api.upload;
+  f.api.upload = async (...args) => {
+    const result = await upload(...args);
+    await gate.promise;
+    return result;
+  };
+  f.transfers.start(ids.sharing, f.draft);
+  await tick();
+  allowed = false;
+  gate.resolve();
+  await tick();
+  assert.equal(f.calls.filter((call) => call.kind === "submit").length, 0);
+  assert.equal(f.remembered.length, 0);
+  assert.equal(f.drafts.get(ids.sharing)?.files.length, 1);
+  assert.equal(f.transfers.start(ids.sharing), false);
+  allowed = true;
+  assert.equal(f.transfers.start(ids.sharing), true);
+  await tick();
+  assert.equal(f.calls.filter((call) => call.kind === "upload").length, 1);
+  assert.equal(f.calls.filter((call) => call.kind === "submit").length, 1);
+});
 
 test("transfer is session-owned, immediately observable, and rejects duplicate starts while upload is pending", async () => {
   const f = fixture();

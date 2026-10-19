@@ -26,7 +26,7 @@ function deferred<T>() {
 
 // Run the actual hook with controllable focus/session and synchronous state slots.
 // This exposes double taps before React renders and completions after navigation.
-function harness() {
+function harness(platform = "android") {
   const slots: unknown[] = [];
   let cursor = 0,
     keys = 0,
@@ -38,7 +38,10 @@ function harness() {
   let back!: () => boolean;
   const toasts: { message: string; tone: string }[] = [];
   const exports: {
-    useSkillAction?: (options?: { notifySuccess: boolean }) => Action;
+    useSkillAction?: (options?: {
+      notifySuccess?: boolean;
+      canAct?: () => boolean;
+    }) => Action;
   } = {};
   const source = readFileSync(
     new URL(
@@ -76,6 +79,7 @@ function harness() {
         };
       if (name === "react-native")
         return {
+          Platform: { OS: platform },
           BackHandler: {
             addEventListener: (_event: string, handler: () => boolean) => {
               back = handler;
@@ -113,7 +117,10 @@ function harness() {
       throw new Error(`Unexpected hook dependency: ${name}`);
     },
   });
-  const render = (options?: { notifySuccess: boolean }) => {
+  const render = (options?: {
+    notifySuccess?: boolean;
+    canAct?: () => boolean;
+  }) => {
     cursor = 0;
     return exports.useSkillAction!(options);
   };
@@ -133,7 +140,7 @@ function harness() {
       refresh = next;
     },
     refreshes: () => refreshes,
-    back: () => back(),
+    back: () => back?.() ?? false,
   };
 }
 
@@ -155,6 +162,15 @@ test("skill action synchronously locks double taps and Android back until comple
   await first;
   assert.equal(view.render().pending, false);
   assert.equal(view.back(), false);
+});
+
+test("web skill actions complete without registering unsupported hardware Back", async () => {
+  const view = harness("web");
+  assert.equal(view.back(), false);
+  assert.equal(
+    await view.render().run("read", null, async () => "ok", undefined, false),
+    "ok",
+  );
 });
 
 test("ambiguous retry retains key/body while changed payload starts a new intent", async () => {
@@ -278,6 +294,39 @@ test("late failure after leaving the screen cannot show a toast", async () => {
   write.resolve("done");
   await pending;
   assert.equal(view.toasts.length, 0);
+});
+
+test("read denial blocks stale action callbacks and unlocks a pending action without completion", async () => {
+  const view = harness(),
+    write = deferred<string>();
+  let allowed = true,
+    completions = 0,
+    executions = 0;
+  const options = { canAct: () => allowed };
+  const action = view.render(options);
+  const pending = action.run(
+    "download",
+    null,
+    () => write.promise,
+    () => {
+      completions++;
+    },
+    false,
+  );
+  allowed = false;
+  write.resolve("downloaded");
+  await pending;
+  assert.equal(completions, 0);
+  assert.equal(view.render(options).pending, false);
+  await action.run("update", {}, async () => {
+    executions++;
+  });
+  assert.equal(executions, 0);
+  allowed = true;
+  await view.render(options).run("update", {}, async () => {
+    executions++;
+  });
+  assert.equal(executions, 1);
 });
 
 test("confirmed save completes and unlocks while read refresh is still pending", async () => {

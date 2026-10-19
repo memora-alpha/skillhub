@@ -24,7 +24,7 @@ Expo Go/client phải tương thích SDK57. pnpm android mở Android; pnpm ios 
 | pnpm --filter mobile lint                | ESLint recommended, max-warnings0                                            |
 | pnpm --filter mobile check-types         | tsc --noEmit                                                                 |
 | pnpm --filter mobile check-structure     | Script cấu trúc; hard limits và giới hạn tại [architecture](architecture.md) |
-| pnpm --filter mobile test                | tsx/Node, gồm tests/**/*.test.ts và test/profile.test.mjs                    |
+| pnpm --filter mobile test                | tsx/Node với module-mocks flag; tests/**/*.test.ts và test/profile.test.mjs  |
 | pnpm --filter mobile test:profile        | Chỉ profile helper tests qua Node                                            |
 
 Không có mobile scripts build, test:e2e hoặc format:check. Root có Prettier và format:check nhưng docs/ bị ignore theo cấu hình hiện hành: kiểm chính xác file cần sửa, không dùng root format toàn repo. Migration tài liệu chỉ cần diff/link/ownership/tooling checks; không chạy app tests/build/export để hợp thức hóa docs.

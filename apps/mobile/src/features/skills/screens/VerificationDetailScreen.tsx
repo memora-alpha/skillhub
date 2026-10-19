@@ -27,7 +27,9 @@ export function VerificationDetailScreen({
   const available = !!owner.data && !owner.data.archivedAt;
   const query = useVerification(available ? id : null, batchId);
   const { api, refresh } = useSkills();
-  const action = useSkillAction();
+  const action = useSkillAction({
+    canAct: () => owner.canRead() && query.canRead(),
+  });
   if (!id || !batchId || owner.data === null || owner.data?.archivedAt)
     return (
       <SkillsLayout title="Yêu cầu xác minh">
@@ -115,13 +117,15 @@ export function VerificationDetailScreen({
           ))}
         </>
       )}
-      <Button
-        variant="secondary"
-        disabled={query.isFetching || action.pending}
-        onPress={() => void refresh()}
-      >
-        Kiểm tra kết quả mới nhất
-      </Button>
+      {!query.readDenied && (
+        <Button
+          variant="secondary"
+          disabled={query.isFetching || action.pending}
+          onPress={() => void refresh()}
+        >
+          Kiểm tra kết quả mới nhất
+        </Button>
+      )}
     </SkillsLayout>
   );
 }

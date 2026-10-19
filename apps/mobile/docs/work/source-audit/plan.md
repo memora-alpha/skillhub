@@ -2,9 +2,9 @@
 
 ## Mục tiêu và phạm vi
 
-Theo yêu cầu người dùng “rà lại đi”, rà code Auth/session/network, Learning Request và Profile/Skills trên working tree hiện tại; đối chiếu source/contract và kiểm chứng findings. Wallet/Payment đang làm ở nhánh khác, ngoài phạm vi. Đây là review, chưa sửa source hoặc tự mở rộng backend/shared/packages/dependencies.
+Rà code Auth/session/network, Learning Request và Profile/Skills; đối chiếu source/contract và kiểm chứng findings. Wallet/Payment ngoài phạm vi review. Các bản sửa được theo dõi riêng trong status.
 
-Baseline: branch docs/mobile-workflow, HEAD ed5a17dd9f1a6d5e45e1b6af33b17dd4518b46fd; các docs migration đang sửa/chưa commit được giữ nguyên. Quy trình theo [workflow](../../workflow.md); contract [auth](../../contracts/auth-account.md), [profile](../../contracts/profile.md), [skills](../../contracts/skills-evidence.md), [Learning Request](../../contracts/learning-requests.md), [network](../../network-state.md).
+Baseline review: HEAD ed5a17dd9f1a6d5e45e1b6af33b17dd4518b46fd. Quy trình theo [workflow](../../workflow.md); contract [auth](../../contracts/auth-account.md), [profile](../../contracts/profile.md), [skills](../../contracts/skills-evidence.md), [Learning Request](../../contracts/learning-requests.md), [network](../../network-state.md).
 
 ## Phần review đã thực hiện
 
@@ -16,8 +16,20 @@ Baseline: branch docs/mobile-workflow, HEAD ed5a17dd9f1a6d5e45e1b6af33b17dd4518b
 
 ## Điều kiện hoàn thành review
 
-Findings có bằng chứng tái hiện hoặc chuỗi source rõ; không gán lỗi cho khác biệt nhánh Wallet, không lấy suite xanh thay acceptance API/native. Không sửa runtime/tests/config, stage/commit hoặc thao tác dữ liệu thật trong review. Các đề xuất sửa nằm ở findings, không có checkbox implementation tự động.
+Findings có bằng chứng tái hiện hoặc chuỗi source rõ; không gán lỗi cho khác biệt nhánh Wallet, không lấy suite xanh thay acceptance API/native. Review không tác động dữ liệu thật. Các đề xuất sửa và kết quả follow-up nằm ở findings.
 
 ## Kiểm chứng
 
-Dùng các binary đã cài để thực hiện đúng nội dung scripts mobile, tránh pnpm exec tự chạy cài dependencies như lượt migration trước. Không thêm framework hoặc dependency. Reproduction dùng TypeScript transpilation/VM dependency injection như harness có sẵn, TanStack Query thật và Axios fixture trong tests; không gửi API thật. [Bằng chứng](evidence/reproduce.cjs.txt) là text để không thêm một script vào app lint/runtime.
+Checks sử dụng scripts mobile và dependencies hiện có. Reproduction dùng TypeScript transpilation/VM dependency injection, TanStack Query thật và Axios fixture trong tests; không gửi API thật. [Bằng chứng](evidence/reproduce.cjs.txt) là text để không thêm một script vào app lint/runtime.
+
+## Rà luồng Skills
+
+- [x] Đối chiếu FR-SK-01..04, SK-001..004 và AC-01..16 với source cùng bằng chứng hiện có.
+- [x] Kiểm owner/public cache, denial ở trang sau, race/session và callbacks quản lý/upload.
+- [x] Kiểm validation, catalog/level, version/idempotency, upload/scan/submit, history và archive bằng source/regression.
+- [x] Dọn helper polling cũ chỉ còn test gọi, nhánh UI không thể chạy và component/type không có consumer; giữ guards và routes còn sử dụng.
+- [x] Bỏ catalog/context/screens/routes Skills demo, chuyển entry points sang API và loại public Skills mẫu khỏi màn hồ sơ.
+- [x] Rà profile → list → edit/detail → verification và trạng thái lỗi trên web fixture; đối chiếu theme/shared components ở320/375/430px.
+- [x] Cập nhật findings, bằng chứng và acceptance còn mở trong [status](status.md).
+
+API/scanner/Staff và native acceptance tiếp tục theo checklist004. GAP-09 cần timestamp/sort pagination từ backend; material-change policy SK-002 cần contract cụ thể trước khi thay đổi badge. Restore UI, learned-skills/search/contact không được suy thành task còn thiếu của phạm vi quản lý Skills004.

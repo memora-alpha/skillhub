@@ -19,10 +19,14 @@ export function useSkillSave(
   evidenceRef: RefObject<VerificationFormHandle | null>,
   saveWithEvidence: boolean,
 ) {
-  const { api, rememberSkill } = useSkills();
+  const { api, rememberSkill, privateReads, scope } = useSkills();
   const { showToast } = useToast();
   const router = useRouter();
-  const action = useSkillAction({ notifySuccess: false });
+  const action = useSkillAction({
+    notifySuccess: false,
+    canAct: () =>
+      !privateReads.denied([...scope, "detail", baseline?.id ?? null]),
+  });
   const saved = useRef<OwnSkill | undefined>(undefined);
   const [created, setCreated] = useState(false);
   const save = async (values: SkillFormValues) => {
