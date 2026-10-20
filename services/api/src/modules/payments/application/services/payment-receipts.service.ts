@@ -236,7 +236,7 @@ export class PaymentReceiptsService {
     payment: Payment | null,
     checkout: PayosCheckout | null,
   ): string | null {
-    if (!payment || !checkout || checkout.channel !== event.channel)
+    if (!payment || checkout?.channel !== event.channel)
       return "PAYMENT_ORDER_UNKNOWN";
     if (payment.status === "PAID") return "PAYMENT_ALREADY_PAID";
     if (payment.status === "REVIEW") return "PAYMENT_REVIEW_REQUIRED";

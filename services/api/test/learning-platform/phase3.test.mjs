@@ -28,6 +28,7 @@ import {
   fakeOutboxConsumer,
   pathRow,
   pathStatus,
+  httpError,
   rejectsWith,
   settledOneWay,
   setup,
@@ -503,13 +504,12 @@ test("SH-093: until SH-068 ships, a credit outcome fails instead of being skippe
   const ctx = phase3({ adjustments: new UnavailableCreditAdjustmentAdapter() });
   const { caseId } = await openReport(ctx);
   await ctx.reports.updateCase(admin, caseId, "claim");
-  await rejectsWith(
+  await assert.rejects(
     ctx.reports.updateCase(admin, caseId, "resolve", {
       note: "Refund the learner.",
       creditAdjustments: [{ userId: B, amount: "5.00" }],
     }),
-    503,
-    "CREDIT_ADJUSTMENT_UNAVAILABLE",
+    httpError(503, "CREDIT_ADJUSTMENT_UNAVAILABLE"),
   );
 });
 

@@ -75,7 +75,7 @@ export class LiveKitService {
     );
   }
 
-  async issueParticipantToken(input: {
+  issueParticipantToken(input: {
     roomName: string;
     identity: string;
     expiresAt: Date;
