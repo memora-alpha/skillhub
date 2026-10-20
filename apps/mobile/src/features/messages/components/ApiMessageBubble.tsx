@@ -8,15 +8,18 @@ import { useConnections, connectionError } from "@/features/connections";
 import { useMessagesApi } from "../hooks/use-messages-api";
 import type { ApiMessage } from "../api/messages-api";
 import { MessageBubble } from "./MessageBubble";
+import { chatTime } from "../utils/chat-dates";
 
 export function ApiMessageBubble({
   message,
   partner,
   partnerId,
+  showTime = true,
 }: Readonly<{
   message: ApiMessage;
   partner: string;
   partnerId: string;
+  showTime?: boolean;
 }>) {
   const { userId, isCurrent } = useConnections(),
     api = useMessagesApi();
@@ -50,11 +53,12 @@ export function ApiMessageBubble({
         <MessageBubble
           partner={partner}
           partnerId={partnerId}
+          showTime={showTime}
           message={{
             id: message.id,
             from: message.senderId === userId ? "me" : "them",
             text: message.messageText,
-            time: new Date(message.sentAt).toLocaleString("vi-VN"),
+            time: chatTime(message.sentAt),
           }}
         />
       )}
@@ -71,9 +75,7 @@ export function ApiMessageBubble({
         </Button>
       ))}
       {message.senderId === userId && message.readAt && (
-        <Copy muted>
-          Đã đọc · {new Date(message.readAt).toLocaleString("vi-VN")}
-        </Copy>
+        <Copy muted>Đã đọc · {chatTime(message.readAt)}</Copy>
       )}
       {!!error && (
         <FormNotice tone="error">{connectionError(error)}</FormNotice>

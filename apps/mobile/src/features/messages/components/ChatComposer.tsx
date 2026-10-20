@@ -1,8 +1,7 @@
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, StyleSheet, TextInput, View } from "react-native";
 import { useState } from "react";
 import { Icon } from "@/components/Icon";
 import { iconSizes, typography, fonts } from "@/constants/theme";
-import { chatCopy } from "../mocks/chat";
 import { messageColors as colors } from "../constants/theme";
 
 export function ChatComposer({
@@ -64,7 +63,6 @@ export function ChatComposer({
           <Icon name="send" size={iconSizes.control} color={colors.white} />
         </Pressable>
       </View>
-      <Text style={styles.hint}>{chatCopy.footer}</Text>
     </View>
   );
 }
@@ -110,11 +108,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: colors.orange,
-  },
-  hint: {
-    fontFamily: fonts.body,
-    ...typography.caption,
-    textAlign: "center",
-    color: colors.mutedLight,
   },
 });

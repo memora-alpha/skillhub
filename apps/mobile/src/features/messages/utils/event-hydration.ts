@@ -7,6 +7,7 @@ import type { SseFrame } from "./sse-parser";
 type Prefix = readonly unknown[];
 const recoveryPrefixes: Prefix[] = [
   ["conversations"],
+  ["conversation-preview"],
   ["conversation"],
   ["thread"],
   ["delivery"],
@@ -72,7 +73,11 @@ function reference(
     receiptsFor = conversationId;
   } else {
     const { conversationId } = parse(message, value.data);
-    prefixes = [["thread", conversationId], ["conversations"]];
+    prefixes = [
+      ["thread", conversationId],
+      ["conversations"],
+      ["conversation-preview", conversationId],
+    ];
     if (frame.event === "chat.delivery.updated")
       prefixes.push(["delivery", conversationId]);
   }

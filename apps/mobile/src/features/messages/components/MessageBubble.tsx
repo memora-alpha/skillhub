@@ -14,10 +14,12 @@ export function MessageBubble({
   message,
   partner,
   partnerId,
+  showTime = true,
 }: {
   message: ChatMessage;
   partner: string;
   partnerId: string;
+  showTime?: boolean;
 }) {
   const { width } = useWindowDimensions();
   const mine = message.from === "me";
@@ -29,6 +31,7 @@ export function MessageBubble({
         {!mine && (
           <Avatar name={partner} userId={partnerId} size={avatarSizes.inline} />
         )}
+        {mine && showTime && <Text style={styles.time}>{message.time}</Text>}
         <View
           style={[
             styles.bubble,
@@ -46,10 +49,8 @@ export function MessageBubble({
               : ""}
           </Text>
         </View>
+        {!mine && showTime && <Text style={styles.time}>{message.time}</Text>}
       </View>
-      <Text style={[styles.time, mine ? styles.myTime : styles.theirTime]}>
-        {message.time}
-      </Text>
     </View>
   );
 }
@@ -58,6 +59,7 @@ const styles = StyleSheet.create({
   message: { gap: 2 },
   mineRow: { justifyContent: "flex-end" },
   bubble: {
+    flexShrink: 1,
     borderRadius: 10,
     paddingHorizontal: 10,
     paddingVertical: 7,
@@ -78,7 +80,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     ...typography.caption,
     color: colors.mutedLight,
+    flexShrink: 0,
+    alignSelf: "center",
   },
-  myTime: { color: colors.muted, textAlign: "right" },
-  theirTime: { marginLeft: avatarSizes.inline + 8 },
 });

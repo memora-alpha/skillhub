@@ -1,11 +1,15 @@
 import type { ReactNode } from "react";
 import { Modal, View } from "react-native";
+import { usePathname } from "expo-router";
 import { ConnectionScreen } from "@/components/ConnectionScreen";
 import { useAppConnection } from "./use-app-connection";
 
 export function ConnectionGate({ children }: { children: ReactNode }) {
   const state = useAppConnection();
-  const blocked = !!state.reason;
+  const pathname = usePathname();
+  // Cached chat keeps its composer usable for the explicit text outbox.
+  const chat = /^\/chat\/[^/]+\/?$/.test(pathname);
+  const blocked = !!state.reason && !chat;
   return (
     <View style={{ flex: 1 }}>
       <View

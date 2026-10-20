@@ -5,6 +5,8 @@ import { AppError, errorMessage } from "@/lib/http/errors";
 import { colors } from "@/constants/theme";
 
 const errors: Record<string, string> = {
+  CHAT_OUTBOX_STORAGE_UNAVAILABLE:
+    "Chưa tải được tin nhắn chờ gửi trên thiết bị. Thử lại.",
   INVALID_TEXT:
     "Nội dung chưa hợp lệ sau khi hệ thống xử lý văn bản thuần. Kiểm tra độ dài và ký tự trong nội dung.",
   INVALID_CREDIT_AMOUNT:

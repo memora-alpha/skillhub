@@ -22,12 +22,14 @@ import {
   useThread,
   useMessagesApi,
 } from "../hooks/use-messages-api";
-import { useMessageSend } from "../hooks/use-message-send";
+import { useChatOutbox } from "../context/ChatOutbox";
 import { useChatEvents } from "../context/ChatEvents";
 import { ChatComposer } from "../components/ChatComposer";
 import { ChatHeader } from "../components/ChatHeader";
-import { ApiMessageBubble } from "../components/ApiMessageBubble";
 import type { ApiMessage } from "../api/messages-api";
+import { chatTimeline } from "../utils/chat-timeline";
+import { groupChatDays, type DatedChatItem } from "../utils/chat-dates";
+import { ChatTimelineRow } from "../components/ChatTimelineRow";
 import { messageColors as colors } from "../constants/theme";
 
 export function ApiChatScreen({ id }: Readonly<{ id: string }>) {
@@ -79,7 +81,7 @@ function ApiChatConversation({
     runtime = useConnections(),
     api = useMessagesApi();
   const thread = useThread(id, true),
-    sender = useMessageSend(id),
+    sender = useChatOutbox(id),
     live = useChatEvents();
   const partnerId =
     conversation.participantAId === runtime.userId
@@ -88,14 +90,22 @@ function ApiChatConversation({
   const partner = useParticipantName(partnerId);
   const [draft, setDraft] = useState(""),
     [focused, setFocused] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
+  const draftRef = useRef("");
+  const updateDraft = (text: string) => {
+    draftRef.current = text;
+    setDraft(text);
+  };
   const [readError, setReadError] = useState<unknown>();
   const [visible, setVisible] = useState<ApiMessage>();
   const readWatermark = useRef<string | undefined>(undefined);
   const viewability = useRef(
-    ({ viewableItems }: { viewableItems: ViewToken<ApiMessage>[] }) => {
+    ({ viewableItems }: { viewableItems: ViewToken<DatedChatItem>[] }) => {
       const viewed = viewableItems
         .filter((item) => item.isViewable)
-        .map((item) => item.item);
+        .flatMap((item) =>
+          item.item.kind === "message" ? [item.item.message] : [],
+        );
       viewed.sort((a, b) => (BigInt(a.sequence) < BigInt(b.sequence) ? -1 : 1));
       const lastViewed = viewed.at(-1);
       if (lastViewed)
@@ -106,8 +116,9 @@ function ApiChatConversation({
         );
     },
   );
-  const list = useRef<FlatList<ApiMessage>>(null);
+  const list = useRef<FlatList<DatedChatItem>>(null);
   const scrollOnSend = useRef(false);
+  const lastScrollY = useRef(0);
   useFocusEffect(
     useCallback(() => {
       setFocused(true);
@@ -115,9 +126,19 @@ function ApiChatConversation({
     }, []),
   );
   const messages = thread.data?.messages ?? [];
+  const timeline = groupChatDays(chatTimeline(messages, sender.items));
+  useEffect(() => {
+    sender.reconcile(messages.map((message) => message.id));
+  }, [messages, sender.reconcile]);
   const last = visible;
   useEffect(() => {
-    if (!focused || !last || thread.error || readWatermark.current === last.id)
+    if (
+      sender.offline ||
+      !focused ||
+      !last ||
+      thread.error ||
+      readWatermark.current === last.id
+    )
       return;
     let current = true;
     const target = last.id;
@@ -135,19 +156,18 @@ function ApiChatConversation({
     return () => {
       current = false;
     };
-  }, [last?.id, focused, thread.error, api, id, runtime]);
+  }, [last?.id, focused, thread.error, api, id, runtime, sender.offline]);
   const agreement = () =>
     router.push({
       pathname: "/agreement-type",
       params: { conversationId: id, mode: "api" },
     });
-  const send = async (text: string) => {
-    if (!text.trim() || sender.pending || sender.processing) return;
-    if (await sender.send(text)) {
-      setDraft("");
-      scrollOnSend.current = true;
-      void thread.refetch();
-    }
+  const send = (text: string) => {
+    if (!text.trim() || text !== draftRef.current) return;
+    scrollOnSend.current = true;
+    if (sender.send(text)) {
+      updateDraft("");
+    } else scrollOnSend.current = false;
   };
   return (
     <SafeAreaView
@@ -172,11 +192,52 @@ function ApiChatConversation({
           }}
           onBack={() => router.dismissTo("/messages")}
           onAgreement={agreement}
-          live={live.connected}
+          onDetails={() => setShowDetails((value) => !value)}
+          detailsExpanded={showDetails}
         />
+        {showDetails && (
+          <View
+            style={{
+              padding: 12,
+              gap: 8,
+              borderBottomWidth: 1,
+              borderColor: colors.border,
+            }}
+          >
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+              <Button
+                variant="secondary"
+                size="sm"
+                onPress={() =>
+                  router.push({
+                    pathname: "/proposal/[id]",
+                    params: { id: conversation.proposalId },
+                  })
+                }
+              >
+                Xem đề xuất
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onPress={() =>
+                  router.push({
+                    pathname: "/agreement-type",
+                    params: { conversationId: id, mode: "api", draft: "1" },
+                  })
+                }
+              >
+                Gợi ý cách học
+              </Button>
+            </View>
+            <Copy muted>
+              Nội dung, lịch và Credit được xác nhận trong Lộ trình.
+            </Copy>
+          </View>
+        )}
         <FlatList
           ref={list}
-          data={messages}
+          data={timeline}
           keyExtractor={(item) => item.id}
           style={{ flex: 1, backgroundColor: colors.canvas }}
           onViewableItemsChanged={viewability.current}
@@ -189,6 +250,15 @@ function ApiChatConversation({
             gap: 10,
           }}
           keyboardShouldPersistTaps="handled"
+          scrollEventThrottle={16}
+          onScroll={({ nativeEvent: { contentOffset } }) => {
+            if (contentOffset.y < lastScrollY.current - 4)
+              scrollOnSend.current = false;
+            lastScrollY.current = contentOffset.y;
+          }}
+          onScrollBeginDrag={() => {
+            scrollOnSend.current = false;
+          }}
           refreshing={thread.isFetching}
           onRefresh={() => {
             refreshConversation();
@@ -196,24 +266,6 @@ function ApiChatConversation({
           }}
           ListHeaderComponent={
             <View style={{ gap: 10 }}>
-              <Copy muted>
-                Chat để thương lượng; xác nhận kế hoạch và lịch học cần thao tác
-                riêng.
-              </Copy>
-              <Button
-                variant="secondary"
-                onPress={() =>
-                  router.push({
-                    pathname: "/proposal/[id]",
-                    params: { id: conversation.proposalId },
-                  })
-                }
-              >
-                Xem đề xuất gốc
-              </Button>
-              <Button variant="craft" onPress={agreement}>
-                Lộ trình học
-              </Button>
               {thread.data?.nextCursor && (
                 <Button
                   variant="secondary"
@@ -227,36 +279,58 @@ function ApiChatConversation({
               )}
               <ConnectionFeedback
                 loading={thread.isLoading}
-                error={thread.error ?? thread.olderError}
+                error={
+                  sender.offline
+                    ? undefined
+                    : (thread.error ?? thread.olderError)
+                }
                 retry={thread.refetch}
               />
-              <ConnectionFeedback error={live.error} retry={live.retry} />
+              {!sender.offline && (
+                <ConnectionFeedback error={live.error} retry={live.retry} />
+              )}
             </View>
           }
           ListEmptyComponent={
             !thread.isPending && !thread.error ? (
-              <Copy muted>Bắt đầu trao đổi về mục tiêu và cách học.</Copy>
+              <Copy muted>Gửi lời chào để bắt đầu.</Copy>
             ) : null
           }
           renderItem={({ item }) => (
-            <ApiMessageBubble
-              message={item}
+            <ChatTimelineRow
+              item={item}
               partner={partner.data ?? "Thành viên SkillHub"}
               partnerId={partnerId}
+              offline={sender.offline}
+              retry={sender.retry}
             />
           )}
-          onContentSizeChange={() => {
+          onContentSizeChange={(_width, height) => {
             if (scrollOnSend.current) {
-              scrollOnSend.current = false;
-              list.current?.scrollToEnd({ animated: false });
+              // FlatList measures rows in multiple passes. Follow the new
+              // message through those passes until the user scrolls away.
+              requestAnimationFrame(() => {
+                if (scrollOnSend.current)
+                  list.current?.scrollToOffset({
+                    offset: height,
+                    animated: false,
+                  });
+              });
             }
           }}
         />
         <View style={{ paddingHorizontal: 12, gap: 8 }}>
           <ConnectionFeedback
-            error={sender.error ?? sender.delivery.error ?? readError}
+            error={sender.error ?? (sender.offline ? undefined : readError)}
+            retry={
+              sender.error
+                ? () => {
+                    void sender.store.start();
+                  }
+                : undefined
+            }
           />
-          {!!readError && (
+          {!!readError && !sender.offline && (
             <Button
               variant="secondary"
               onPress={() => {
@@ -270,40 +344,17 @@ function ApiChatConversation({
               Thử xác nhận đã đọc
             </Button>
           )}
-          {sender.processing && (
-            <>
-              <Copy muted>Tin nhắn đang được xử lý, chưa xác nhận đã gửi.</Copy>
-              <Button
-                variant="secondary"
-                disabled={sender.delivery.isFetching}
-                onPress={() => {
-                  void sender.delivery.refetch();
-                }}
-              >
-                Kiểm tra trạng thái gửi
-              </Button>
-              {sender.delivery.data?.deliveryStatus !== "DELIVERED" &&
-                sender.delivery.data?.failureCode && (
-                  <Button
-                    variant="secondary"
-                    disabled={sender.pending}
-                    onPress={() => {
-                      void sender.retryPublication();
-                    }}
-                  >
-                    Thử gửi lại tin đang xử lý
-                  </Button>
-                )}
-            </>
+          {sender.offline && (
+            <Copy muted>Đang ngoại tuyến · Tin nhắn sẽ gửi khi có mạng.</Copy>
           )}
         </View>
         <ChatComposer
           value={draft}
-          onChange={setDraft}
+          onChange={updateDraft}
           onSend={(text) => {
             void send(text);
           }}
-          pending={sender.pending || sender.processing}
+          pending={!sender.ready}
           onAttach={() =>
             router.push({
               pathname: "/chat-attachment",

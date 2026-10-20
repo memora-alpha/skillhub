@@ -9,18 +9,15 @@ export function ChatHeader({
   conversation,
   onBack,
   onAgreement,
-  live,
+  onDetails,
+  detailsExpanded = false,
 }: Readonly<{
   conversation: Conversation;
   onBack: () => void;
   onAgreement: () => void;
-  live?: boolean;
+  onDetails?: () => void;
+  detailsExpanded?: boolean;
 }>) {
-  const liveStatus = live
-    ? "Đề xuất đã chấp nhận · Đang cập nhật"
-    : "Đề xuất đã chấp nhận";
-  const status =
-    live === undefined ? "Đang hoạt động · Proposal đã chấp nhận" : liveStatus;
   return (
     <View style={styles.header}>
       <Pressable
@@ -40,19 +37,16 @@ export function ChatHeader({
         size={avatarSizes.compact}
       />
       <View style={styles.main}>
-        <Text accessibilityRole="header" style={styles.name}>
+        <Text numberOfLines={1} accessibilityRole="header" style={styles.name}>
           {conversation.name}
         </Text>
         <View style={styles.status}>
-          {live === undefined || live ? <View style={styles.dot} /> : null}
-          <Text style={styles.statusText}>{status}</Text>
+          <Text style={styles.statusText}>Trao đổi kỹ năng</Text>
         </View>
       </View>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={
-          live === undefined ? "Tạo thỏa thuận" : "Lộ trình học"
-        }
+        accessibilityLabel="Lộ trình học"
         onPress={onAgreement}
         style={({ pressed }) => [styles.agreement, pressed && { opacity: 0.8 }]}
       >
@@ -61,10 +55,23 @@ export function ChatHeader({
           size={iconSizes.inline}
           color={colors.white}
         />
-        <Text style={styles.agreementLabel}>
-          {live === undefined ? "Tạo thỏa thuận" : "Lộ trình học"}
-        </Text>
+        <Text style={styles.agreementLabel}>Lộ trình</Text>
       </Pressable>
+      {onDetails && (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Thông tin cuộc trao đổi"
+          accessibilityState={{ expanded: detailsExpanded }}
+          onPress={onDetails}
+          style={styles.details}
+        >
+          <Icon
+            name="clipboard"
+            size={iconSizes.control}
+            color={colors.inkSoft}
+          />
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -93,12 +100,6 @@ const styles = StyleSheet.create({
     color: colors.ink,
   },
   status: { flexDirection: "row", alignItems: "center", gap: 4 },
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "#30A876",
-  },
   statusText: {
     flex: 1,
     fontFamily: fonts.body,
@@ -106,7 +107,7 @@ const styles = StyleSheet.create({
     color: "#409678",
   },
   agreement: {
-    minHeight: 36,
+    minHeight: 44,
     paddingHorizontal: 9,
     borderRadius: 14,
     backgroundColor: colors.orange,
@@ -119,5 +120,11 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.white,
     includeFontPadding: false,
+  },
+  details: {
+    width: 44,
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

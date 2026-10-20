@@ -1,60 +1,26 @@
-import { FlatList, View } from "react-native";
+import { FlatList, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import { AppScreenLayout } from "@/features/shell";
-import { Panel, Copy, ui } from "@/components/feature-page";
 import { Button } from "@/components/Button";
 import { EmptyState } from "@/components/EmptyState";
-import {
-  ConnectionFeedback,
-  useConnections,
-  useParticipantName,
-} from "@/features/connections";
-import { useConversations } from "../hooks/use-messages-api";
-import type { ApiConversation } from "../api/messages-api";
+import { ConnectionFeedback } from "@/features/connections";
+import { useConversationInbox } from "../hooks/use-conversation-inbox";
+import { ConversationRow } from "../components/ConversationRow";
+import { messageColors as colors } from "../constants/theme";
 function ConversationSeparator() {
-  return <View style={{ height: 12 }} />;
+  return <View style={styles.separator} />;
 }
 
-function ConversationRow({
-  conversation,
-}: Readonly<{ conversation: ApiConversation }>) {
-  const router = useRouter(),
-    { userId } = useConnections();
-  const partnerId =
-    conversation.participantAId === userId
-      ? conversation.participantBId
-      : conversation.participantAId;
-  const name = useParticipantName(partnerId);
-  return (
-    <Panel title={name.data ?? "Thành viên SkillHub"}>
-      <Copy>
-        Đề xuất đã chấp nhận ·{" "}
-        {new Date(conversation.createdAt).toLocaleDateString("vi-VN")}
-      </Copy>
-      <Button
-        variant="craft"
-        onPress={() =>
-          router.push({
-            pathname: "/chat/[proposalId]",
-            params: { proposalId: conversation.id, mode: "api" },
-          })
-        }
-      >
-        Mở cuộc trao đổi
-      </Button>
-    </Panel>
-  );
-}
 export function ApiMessagesScreen() {
-  const query = useConversations(),
+  const query = useConversationInbox(),
     router = useRouter();
   return (
     <AppScreenLayout title="Tin nhắn" selected="Tin nhắn">
       {() => (
         <FlatList
           data={query.items}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={ui.page}
+          keyExtractor={(item) => item.conversation.id}
+          contentContainerStyle={styles.content}
           refreshing={query.isRefetching}
           onRefresh={() => {
             void query.refetch();
@@ -65,14 +31,15 @@ export function ApiMessagesScreen() {
               void query.fetchNextPage({ cancelRefetch: false });
           }}
           ListHeaderComponent={
-            <View style={{ gap: 12, marginBottom: 16 }}>
+            <View style={{ gap: 8, paddingHorizontal: 16, marginBottom: 8 }}>
               <Button
-                variant="secondary"
+                variant="ghost"
+                size="sm"
+                style={{ alignSelf: "flex-end" }}
                 onPress={() => router.push("/proposals")}
               >
-                Xem đề xuất đã nhận / đã gửi
+                Đề xuất
               </Button>
-              <Copy>Những đề xuất đã chấp nhận mở cuộc trao đổi tại đây.</Copy>
               <ConnectionFeedback
                 loading={query.isLoading}
                 error={query.error}
@@ -84,8 +51,8 @@ export function ApiMessagesScreen() {
             !query.isPending && !query.error ? (
               <EmptyState
                 icon="message"
-                title="Chưa có cuộc trao đổi"
-                description="Chat xuất hiện sau khi đề xuất được chấp nhận."
+                title="Chưa có tin nhắn"
+                description="Chấp nhận đề xuất để bắt đầu trao đổi."
                 action="Xem đề xuất"
                 onAction={() => router.push("/proposals")}
               />
@@ -100,13 +67,26 @@ export function ApiMessagesScreen() {
                   void query.fetchNextPage({ cancelRefetch: false });
                 }}
               >
-                Tải thêm cuộc trao đổi
+                Xem thêm
               </Button>
             ) : null
           }
-          renderItem={({ item }) => <ConversationRow conversation={item} />}
+          renderItem={({ item }) => <ConversationRow item={item} />}
         />
       )}
     </AppScreenLayout>
   );
 }
+const styles = StyleSheet.create({
+  content: {
+    width: "100%",
+    maxWidth: 860,
+    alignSelf: "center",
+    paddingVertical: 12,
+  },
+  separator: {
+    height: 1,
+    marginHorizontal: 16,
+    backgroundColor: colors.border,
+  },
+});
