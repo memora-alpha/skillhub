@@ -210,7 +210,8 @@ export function PoliciesScreen() {
       <Panel title="Trao đổi có trách nhiệm">
         <Copy>
           Thống nhất nội dung và lịch bằng các nút xác nhận đúng phiên bản. Tôn
-          trọng đối tác, quyền phân phối tài liệu và báo cáo vấn đề có căn cứ.
+          trọng người trao đổi, quyền phân phối tài liệu và báo cáo vấn đề có
+          căn cứ.
         </Copy>
       </Panel>
       <Panel title="Credit">

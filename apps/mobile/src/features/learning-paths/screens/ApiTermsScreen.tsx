@@ -24,13 +24,13 @@ export function ApiTermsScreen() {
     path = query.data;
   return (
     <FeaturePage
-      title="Điều chỉnh điều khoản"
+      title="Thay đổi hình thức và Credit"
       demo={false}
       back={`/paths/${id}`}
     >
       <PathReadFeedback query={query} />
       {path && editablePath(path) && !query.error && (
-        <Panel title={`Điều khoản v${path.currentVersion}`}>
+        <Panel title="Nội dung mới để hai bạn xem lại">
           <ApiAgreementForm
             key={path.currentVersion}
             path={path}

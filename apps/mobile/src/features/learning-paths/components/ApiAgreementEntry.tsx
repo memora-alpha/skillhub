@@ -13,6 +13,7 @@ import {
   useLearningPathsApi,
 } from "../hooks/use-learning-paths-api";
 import { createPathOnce } from "../api/creation-attempt";
+import { JourneyProgress } from "./LearningJourney";
 
 export function ApiAgreementEntry({
   conversationId,
@@ -31,12 +32,16 @@ export function ApiAgreementEntry({
   const paths = query.data?.filter((p) => p.conversationId === conversationId);
   return (
     <>
-      <PathReadFeedback query={query} />
       {paths?.map((path) => (
         <ApiPathCard key={path.id} path={path} />
       ))}
       {paths?.length === 0 && !query.error && (
-        <Panel title="Thống nhất lộ trình chính thức">
+        <Panel title="Bắt đầu thống nhất việc học">
+          <JourneyProgress step={2} />
+          <Copy>
+            Chọn cách học và khoản Credit trước. Tiếp theo hai bạn sẽ soạn nội
+            dung, chọn lịch và xem lại trước khi chốt.
+          </Copy>
           {query.data!.length < 100 ? (
             <>
               <ApiAgreementForm
@@ -68,6 +73,7 @@ export function ApiAgreementEntry({
           )}
         </Panel>
       )}
+      <PathReadFeedback query={query} />
     </>
   );
 }

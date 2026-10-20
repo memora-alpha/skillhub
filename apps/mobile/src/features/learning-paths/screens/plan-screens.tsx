@@ -242,8 +242,8 @@ function PreviewPlanEditorScreen() {
             }}
           />
           <Copy muted>
-            Kế hoạch chỉ gửi cho chiều bạn dạy. Đối tác tự xác nhận bằng tài
-            khoản của họ.
+            Kế hoạch chỉ gửi cho chiều bạn dạy. Người trao đổi tự xác nhận bằng
+            tài khoản của họ.
           </Copy>
         </Panel>
       )}

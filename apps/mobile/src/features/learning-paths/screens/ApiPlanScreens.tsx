@@ -23,7 +23,8 @@ import type {
   ApiLearningPlan,
 } from "../api/learning-paths-contract";
 import { canCreatePlan, editablePath } from "../policy-api";
-import { ApiPlanPanel } from "./ApiPathDetailScreen";
+import { ApiPlanPanel } from "../components/ApiPlanPanel";
+import { JourneyProgress } from "../components/LearningJourney";
 
 const schema = z.object({
   skillId: z.uuid("Chọn kỹ năng trong danh mục."),
@@ -46,7 +47,8 @@ export function ApiPlanDetailScreen() {
   const query = useLearningPath(id),
     plan = query.data?.plans.find((p) => p.id === planId);
   return (
-    <FeaturePage title="Kế hoạch học tập" demo={false} back={`/paths/${id}`}>
+    <FeaturePage title="Nội dung học" demo={false} back={`/paths/${id}`}>
+      <JourneyProgress step={2} />
       <PathReadFeedback query={query} />
       {query.data && plan && (
         <ApiPlanPanel
@@ -81,10 +83,11 @@ export function ApiPlanEditorScreen() {
       : canCreatePlan(path, runtime.userId));
   return (
     <FeaturePage
-      title={planId ? "Sửa kế hoạch tôi dạy" : "Tạo kế hoạch tôi dạy"}
+      title={planId ? "Chỉnh nội dung bạn dạy" : "Bạn sẽ dạy những gì?"}
       demo={false}
       back={`/paths/${id}`}
     >
+      <JourneyProgress step={2} />
       <PathReadFeedback query={query} />
       {allowed && path && (
         <PlanForm
@@ -130,7 +133,11 @@ function PlanForm({
   const skillId = watch("skillId"),
     pending = command.pending || blocked;
   return (
-    <Panel title="Thiết kế hành trình học">
+    <Panel title="Nội dung bạn gửi cho người trao đổi">
+      <Copy>
+        Chỉ soạn phần bạn dạy. Người trao đổi sẽ xem và đồng ý trước khi hai bạn
+        chọn lịch.
+      </Copy>
       <ConnectionFeedback
         loading={skills.isLoading}
         error={skills.error}
@@ -217,7 +224,7 @@ function PlanForm({
           })();
         }}
       >
-        {command.pending ? "Đang gửi..." : "Gửi kế hoạch"}
+        {command.pending ? "Đang gửi..." : "Gửi nội dung cho người trao đổi"}
       </Button>
     </Panel>
   );

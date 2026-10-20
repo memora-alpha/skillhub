@@ -80,7 +80,7 @@ function PreviewAgreementTypeScreen() {
             save({
               id,
               title: "Thỏa thuận học mới",
-              partner: "Đối tác trong cuộc trao đổi",
+              partner: "Người trao đổi",
               conversationId: proposalId,
               type: type as "TWO_WAY" | "ONE_WAY",
               teacher:
@@ -100,8 +100,8 @@ function PreviewAgreementTypeScreen() {
         />
       </Panel>
       <Copy muted>
-        Đây là đề xuất ban đầu. Không tự tạo kế hoạch của đối tác, không khóa
-        lịch và không tạm giữ Credit.
+        Đây là đề xuất ban đầu. Không tự tạo kế hoạch của người trao đổi, không
+        khóa lịch và không tạm giữ Credit.
       </Copy>
     </FeaturePage>
   );
@@ -151,8 +151,8 @@ function PreviewPathDetailScreen() {
             <Panel key={plan.id} title={plan.skill}>
               <Copy>
                 {plan.teacher === "me"
-                  ? "Bạn dạy → đối tác học"
-                  : "Đối tác dạy → bạn học"}{" "}
+                  ? "Bạn dạy → người trao đổi học"
+                  : "Người trao đổi dạy → bạn học"}{" "}
                 · v{plan.version}
               </Copy>
               <Copy>{plan.goal}</Copy>
@@ -177,7 +177,7 @@ function PreviewPathDetailScreen() {
             )}
           {path.plans.length < (path.type === "TWO_WAY" ? 2 : 1) && (
             <FormNotice tone="info">
-              Chờ đối tác tự tạo kế hoạch cho chiều họ dạy.
+              Chờ người trao đổi tự tạo kế hoạch cho chiều họ dạy.
             </FormNotice>
           )}
           <Panel title="Xác nhận điều khoản chung">
@@ -186,7 +186,7 @@ function PreviewPathDetailScreen() {
               {path.meVersion === path.version
                 ? "Đã xác nhận"
                 : "Chưa xác nhận"}{" "}
-              · Đối tác:{" "}
+              · Người trao đổi:{" "}
               {path.partnerVersion === path.version
                 ? "Đã xác nhận"
                 : "Chưa xác nhận"}

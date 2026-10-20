@@ -83,8 +83,8 @@ export function LearningSessionScreen() {
                 {s.change.applied
                   ? "Đã đủ hai bên xác nhận; lịch mới đã có hiệu lực."
                   : s.change.meConfirmed
-                    ? "Chờ đối tác xác nhận; lịch cũ vẫn có hiệu lực."
-                    : "Đối tác đã xác nhận. Chờ bạn xem và xác nhận trước hạn; lịch cũ vẫn có hiệu lực."}
+                    ? "Chờ người trao đổi xác nhận; lịch cũ vẫn có hiệu lực."
+                    : "Người trao đổi đã xác nhận. Chờ bạn xem và xác nhận trước hạn; lịch cũ vẫn có hiệu lực."}
               </FormNotice>
             )}
           </Panel>
@@ -244,8 +244,8 @@ export function CompletionScreen() {
         >
           <Copy>{s.title}</Copy>
           <Copy>
-            Bạn: {s.meConfirmed ? "Đã xác nhận" : "Chưa xác nhận"} · Đối tác:{" "}
-            {s.partnerConfirmed ? "Đã xác nhận" : "Chưa xác nhận"}
+            Bạn: {s.meConfirmed ? "Đã xác nhận" : "Chưa xác nhận"} · Người trao
+            đổi: {s.partnerConfirmed ? "Đã xác nhận" : "Chưa xác nhận"}
           </Copy>
           <Button
             disabled={

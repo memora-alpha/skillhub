@@ -45,7 +45,7 @@ export function SettlementScreen() {
             </Copy>
           </Panel>
           <RouteButton href={`/paths/${id}/review`}>
-            Đánh giá đối tác
+            Đánh giá người trao đổi
           </RouteButton>
           <RouteButton secondary href="/wallet/history">
             Xem giao dịch mẫu

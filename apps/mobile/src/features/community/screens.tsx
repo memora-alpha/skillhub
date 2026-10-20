@@ -32,7 +32,7 @@ export function ReviewEditorScreen() {
             {path.review?.rating}/5 sao · {path.review?.comment}
           </Copy>
           <Copy muted>
-            Mỗi người đánh giá đối tác một lần cho mỗi lộ trình.
+            Mỗi người đánh giá người trao đổi một lần cho mỗi lộ trình.
           </Copy>
         </Panel>
       ) : (
@@ -187,8 +187,8 @@ export function ReputationScreen() {
       </Panel>
       <Panel title="Cùng xây dựng sự tin cậy">
         <Copy>
-          Giữ đúng lịch hẹn, hoàn thành hành trình và tôn trọng đối tác khi trao
-          đổi.
+          Giữ đúng lịch hẹn, hoàn thành hành trình và tôn trọng người trao đổi
+          khi trao đổi.
         </Copy>
         <RouteButton secondary href="/reputation/history">
           Lịch sử điểm & vi phạm

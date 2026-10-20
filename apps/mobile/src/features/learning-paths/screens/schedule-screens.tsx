@@ -71,7 +71,7 @@ function PreviewSchedulesScreen() {
                     {plan.schedule.meVersion === plan.schedule.version
                       ? "Đã xác nhận"
                       : "Chưa xác nhận"}{" "}
-                    · Đối tác:{" "}
+                    · Người trao đổi:{" "}
                     {plan.schedule.partnerVersion === plan.schedule.version
                       ? "Đã xác nhận"
                       : "Chưa xác nhận"}

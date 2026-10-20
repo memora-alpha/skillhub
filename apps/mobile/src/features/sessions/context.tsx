@@ -83,7 +83,7 @@ export function SessionsPreviewProvider({ children }: { children: ReactNode }) {
                           ).toISOString(),
                           duration: 90,
                           reason:
-                            "Đối tác đề nghị chuyển sang ngày kế tiếp trong kịch bản mẫu.",
+                            "Người trao đổi đề nghị chuyển sang ngày kế tiếp trong kịch bản mẫu.",
                           version: 1,
                           meConfirmed: false,
                           partnerConfirmed: true,

@@ -1,172 +1,215 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type {
-  DemoProposal,
-  ProposalStatus,
-} from "../src/features/proposals/mocks/proposals";
+import { AppError } from "../src/lib/http/errors";
 import {
-  proposalFormSchema,
-  rejectionFormSchema,
-} from "../src/features/proposals/schemas/proposal-form";
+  createProposalsApi,
+  type ProposalInput,
+  type ProposalHints,
+} from "../src/features/proposals/api/proposals-api";
 import {
-  decidePendingProposal,
-  updatePendingProposal,
-} from "../src/features/proposals/utils/proposal-transitions";
-
-const fixture: DemoProposal = {
-  id: "proposal-1",
-  direction: "sent",
-  sourceType: "LEARNING_REQUEST",
-  requestId: "request-1",
-  requestTitle: "Học React",
-  partnerId: "partner-1",
-  partner: "Người học",
-  skill: "React",
-  message: "Cùng thực hành React qua một dự án nhỏ.",
-  credit: "50",
-  sessions: 4,
-  schedule: "Cuối tuần",
-  time: "Dữ liệu mẫu",
-  status: "PENDING",
-};
-const changes = {
-  message: "  Nội dung đã cập nhật cho đề xuất.  ",
-  credit: "45.50",
-  sessions: 6,
-  schedule: " Tối Thứ 7 ",
-};
-
-test("update preserves identity and pending state, normalizes suggestions", () => {
-  const unrelated = { ...fixture, id: "other" };
-  const result = updatePendingProposal(
-    [fixture, unrelated],
-    fixture.id,
-    changes,
-  )!;
-  assert.equal(result[0]!.id, fixture.id);
-  assert.equal(result[0]!.requestId, fixture.requestId);
-  assert.equal(result[0]!.partnerId, fixture.partnerId);
-  assert.equal(result[0]!.status, "PENDING");
-  assert.equal(result[0]!.message, changes.message.trim());
-  assert.equal(result[0]!.schedule, "Tối Thứ 7");
-  assert.equal(result[0]!.sessions, 6);
-  assert.equal(result[1], unrelated);
-  assert.equal(fixture.credit, "50");
-});
-
-test("update rejects received, missing, accepted and all closed proposals", () => {
-  assert.equal(
-    updatePendingProposal(
-      [{ ...fixture, direction: "received" }],
-      fixture.id,
-      changes,
-    ),
-    null,
-  );
-  assert.equal(updatePendingProposal([fixture], "missing", changes), null);
-  for (const status of [
-    "ACCEPTED",
-    "REJECTED",
-    "WITHDRAWN",
-    "EXPIRED",
-  ] as ProposalStatus[]) {
-    assert.equal(
-      updatePendingProposal([{ ...fixture, status }], fixture.id, changes),
-      null,
-    );
-  }
-  assert.equal(
-    updatePendingProposal([fixture], fixture.id, { ...changes, sessions: 1.5 }),
-    null,
-  );
-  assert.equal(
-    updatePendingProposal([fixture], fixture.id, {
-      ...changes,
-      message: "short",
-    }),
-    null,
-  );
-});
-
-test("only sender can withdraw and only receiver can accept/reject", () => {
-  assert.equal(decidePendingProposal([fixture], fixture.id, "ACCEPTED"), null);
-  assert.equal(decidePendingProposal([fixture], fixture.id, "REJECTED"), null);
-  assert.equal(
-    decidePendingProposal(
-      [{ ...fixture, direction: "received" }],
-      fixture.id,
-      "WITHDRAWN",
-    ),
-    null,
-  );
-  const result = decidePendingProposal([fixture], fixture.id, "WITHDRAWN")!;
-  assert.equal(result[0]!.status, "WITHDRAWN");
-  assert.equal(decidePendingProposal(result, fixture.id, "WITHDRAWN"), null);
-  assert.equal(updatePendingProposal(result, fixture.id, changes), null);
-});
-
-test("accept rejects another connection for same request but permits an independent direct invitation", () => {
-  const received = { ...fixture, direction: "received" as const };
-  const accepted = {
-    ...received,
-    id: "already-accepted",
-    status: "ACCEPTED" as const,
+  proposal,
+  conversation,
+  proposerId,
+  recipientId,
+} from "./fixtures/proposals-data";
+import { fixtureId } from "./fixtures/learning-requests-data";
+test("proposal edit sends only message/version; old server hints remain in its response", async () => {
+  const calls: unknown[] = [];
+  const updated = {
+    ...proposal,
+    message: "Nội dung đề xuất đã cập nhật.",
+    version: 2,
+    proposedCredit: "50.00",
+    initialSessionCount: 4,
   };
-  assert.equal(
-    decidePendingProposal([received, accepted], received.id, "ACCEPTED"),
-    null,
+  const api = createProposalsApi(async (path, options) => {
+    calls.push({ path, options });
+    return updated;
+  }, proposerId);
+  const result = await api.update(
+    proposal.id,
+    { message: updated.message, expectedVersion: 1 },
+    "edit-key",
   );
-  const direct = {
-    ...received,
-    sourceType: "DIRECT_SEARCH" as const,
-    requestId: undefined,
+  assert.deepEqual(calls, [
+    {
+      path: `/proposals/${proposal.id}`,
+      options: {
+        method: "PATCH",
+        body: { message: updated.message, expectedVersion: 1 },
+        idempotencyKey: "edit-key",
+      },
+    },
+  ]);
+  assert.equal(result.proposedCredit, "50.00");
+  assert.equal(result.initialSessionCount, 4);
+  assert.equal(proposal.version, 1);
+});
+test("strict create/edit input rejects FE-only fields, invalid hints and mixed source identifiers before HTTP", async () => {
+  let calls = 0;
+  const api = createProposalsApi(async () => {
+    calls++;
+    return proposal;
+  }, proposerId);
+  const source = {
+    message: proposal.message,
+    sourceType: "LEARNING_REQUEST",
+    learningRequestId: proposal.learningRequestId!,
   };
+  for (const extra of [
+    { credit: "50" },
+    { sessions: 4 },
+    { schedule: "Cuối tuần" },
+    { note: "Lý do" },
+    { recipientId },
+    { proposedCredit: "50.00" },
+    { initialSessionCount: 0 },
+    { initialSessionCount: 32768 },
+    { proposedDurationMinutes: 59 },
+    { recipientSharingSkillId: fixtureId(300) },
+  ])
+    await assert.rejects(
+      api.create({ ...source, ...extra } as ProposalInput, "create-key"),
+      AppError,
+    );
+  for (const extra of [
+    { note: "Lý do" },
+    { credit: "50" },
+    { learningRequestId: fixtureId(200) },
+    { candidateSlots: [{ startAt: "later", endAt: "later" }] },
+  ])
+    await assert.rejects(
+      api.update(
+        proposal.id,
+        {
+          message: proposal.message,
+          expectedVersion: 1,
+          ...extra,
+        } as ProposalHints & { expectedVersion: number },
+        "edit-key",
+      ),
+      AppError,
+    );
+  assert.equal(calls, 0);
+});
+for (const action of ["reject", "withdraw"] as const) {
+  test(`${action} sends only expectedVersion and accepts the matching party/status`, async () => {
+    const calls: unknown[] = [],
+      actor = action === "reject" ? recipientId : proposerId;
+    const row = {
+      ...proposal,
+      status: action === "reject" ? "REJECTED" : "WITHDRAWN",
+      version: 2,
+      localDecisionNote: "must not be displayed",
+    };
+    const api = createProposalsApi(async (path, options) => {
+      calls.push({ path, options });
+      return row;
+    }, actor);
+    const result = await api.decide(proposal.id, action, 1, "decision-key");
+    assert.deepEqual(calls, [
+      {
+        path: `/proposals/${proposal.id}/${action}`,
+        options: {
+          method: "POST",
+          body: { expectedVersion: 1 },
+          idempotencyKey: "decision-key",
+        },
+      },
+    ]);
+    assert.equal(result.proposal.status, row.status);
+    assert.equal("localDecisionNote" in result.proposal, false);
+    assert.equal(result.conversation, undefined);
+    await assert.rejects(
+      createProposalsApi(
+        async () => row,
+        action === "reject" ? proposerId : recipientId,
+      ).decide(proposal.id, action, 1, "bad-role"),
+      AppError,
+    );
+  });
+}
+test("accept returns the BE conversation identity and rejects wrong parties or nonadvancing versions", async () => {
+  const result = {
+    proposal: { ...proposal, status: "ACCEPTED", version: 2 },
+    conversation,
+  };
+  const api = createProposalsApi(async () => result, recipientId);
   assert.equal(
-    decidePendingProposal([direct, accepted], direct.id, "ACCEPTED")![0]!
-      .status,
-    "ACCEPTED",
+    (await api.decide(proposal.id, "accept", 1, "accept-key")).conversation?.id,
+    conversation.id,
+  );
+  await assert.rejects(
+    createProposalsApi(async () => result, proposerId).decide(
+      proposal.id,
+      "accept",
+      1,
+      "wrong-role",
+    ),
+    AppError,
+  );
+  await assert.rejects(
+    createProposalsApi(
+      async () => ({ ...result, proposal: { ...result.proposal, version: 1 } }),
+      recipientId,
+    ).decide(proposal.id, "accept", 1, "old-version"),
+    AppError,
+  );
+  await assert.rejects(
+    api.decide(proposal.id, "accept", 0, "invalid-version"),
+    AppError,
+  );
+  await assert.rejects(
+    createProposalsApi(async () => proposal, proposerId).update(
+      proposal.id,
+      { message: proposal.message, expectedVersion: 1 },
+      "unchanged-version",
+    ),
+    AppError,
   );
 });
-
-test("reject stores local reason and preserves every other proposal", () => {
-  const received = { ...fixture, direction: "received" as const };
-  const other = { ...received, id: "other" };
-  const result = decidePendingProposal(
-    [received, other],
-    received.id,
-    "REJECTED",
-    "  Khung giờ chưa phù hợp  ",
-  )!;
-  assert.equal(result[0]!.localDecisionNote, "Khung giờ chưa phù hợp");
-  assert.equal(result[0]!.status, "REJECTED");
-  assert.equal(result[1], other);
-});
-
-test("form rejects invalid decimal precision, unsafe or fractional session counts and message bounds", () => {
-  const valid = { ...changes, sessions: "6" };
-  assert.equal(proposalFormSchema.safeParse(valid).success, true);
-  for (const credit of ["0", "-1", "Infinity", "1.234", "10000000000", "1e2"]) {
-    assert.equal(
-      proposalFormSchema.safeParse({ ...valid, credit }).success,
-      false,
-      credit,
-    );
-  }
-  for (const sessions of ["0", "-1", "1.5", "9007199254740992"]) {
-    assert.equal(
-      proposalFormSchema.safeParse({ ...valid, sessions }).success,
-      false,
-      sessions,
-    );
-  }
+test("request-owner proposal list sends the BE filter and rejects mismatched request results", async () => {
+  const calls: string[] = [];
+  const page = {
+    data: [proposal],
+    meta: { pagination: { limit: 20, hasMore: false, nextCursor: null } },
+  };
+  const api = createProposalsApi(async (path) => {
+    calls.push(path);
+    return page;
+  }, recipientId);
   assert.equal(
-    proposalFormSchema.safeParse({ ...valid, message: "a".repeat(1001) })
-      .success,
-    false,
+    (
+      await api.list(
+        "received",
+        "PENDING",
+        undefined,
+        undefined,
+        proposal.learningRequestId!,
+      )
+    ).items.length,
+    1,
   );
-  assert.equal(rejectionFormSchema.safeParse({ note: "  " }).success, false);
   assert.equal(
-    rejectionFormSchema.safeParse({ note: "Chưa phù hợp" }).success,
-    true,
+    new URL(calls[0]!, "https://fixture.test").searchParams.get(
+      "learningRequestId",
+    ),
+    proposal.learningRequestId,
   );
+  await assert.rejects(
+    api.list("received", undefined, undefined, undefined, fixtureId(201)),
+    AppError,
+  );
+  const before = calls.length;
+  await assert.rejects(
+    api.list(
+      "sent",
+      undefined,
+      undefined,
+      undefined,
+      proposal.learningRequestId!,
+    ),
+    AppError,
+  );
+  assert.equal(calls.length, before);
 });

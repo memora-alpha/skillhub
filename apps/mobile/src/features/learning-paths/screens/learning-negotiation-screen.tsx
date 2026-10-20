@@ -3,7 +3,7 @@ import { uuid } from "@/lib/http/contracts";
 import { EmptyState } from "@/components/EmptyState";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { FeaturePage, Panel, Copy } from "@/components/feature-page";
 import { FormNotice } from "@/components/FormNotice";
 import { Button } from "@/components/Button";
@@ -29,6 +29,8 @@ export function LearningNegotiationScreen({
   conversationId: string;
 }>) {
   const query = useConversation(conversationId);
+  const { draft } = useLocalSearchParams<{ draft?: string }>();
+  const ideasOnly = draft === "1";
   if (!uuid.safeParse(conversationId).success)
     return (
       <FeaturePage title="Lộ trình học" demo={false} back="/messages">
@@ -40,7 +42,7 @@ export function LearningNegotiationScreen({
     );
   return (
     <FeaturePage
-      title="Lộ trình học"
+      title={ideasOnly ? "Gợi ý gửi qua Chat" : "Thống nhất việc học"}
       demo={false}
       back={{
         pathname: "/chat/[proposalId]",
@@ -52,14 +54,14 @@ export function LearningNegotiationScreen({
         error={query.error}
         retry={query.refetch}
       />
-      {query.data && (
+      {query.data && !ideasOnly && (
         <ApiAgreementEntry
           conversationId={conversationId}
           participantAId={query.data.participantAId}
           participantBId={query.data.participantBId}
         />
       )}
-      {query.data && (
+      {query.data && ideasOnly && (
         <NegotiationForm
           key={conversationId}
           conversationId={conversationId}
@@ -107,10 +109,10 @@ function NegotiationForm({
   };
   return (
     <>
-      <Panel title={`Cùng ${name.data ?? "đối tác"} thiết kế cách học`}>
+      <Panel title={`Cùng ${name.data ?? "người trao đổi"} thiết kế cách học`}>
         <FormNotice tone="info">
-          Bạn có thể lưu ý tưởng và gửi gợi ý qua Chat trước khi tạo hoặc sửa lộ
-          trình chính thức ở phía trên.
+          Gợi ý này được gửi như một tin nhắn. Hai bạn có thể trao đổi trước khi
+          mở phần Thống nhất việc học trong Chat.
         </FormNotice>
         <Copy muted>
           Gợi ý dưới đây chưa tạo kế hoạch chính thức, chưa xác nhận điều khoản
@@ -180,7 +182,7 @@ function NegotiationForm({
         />
         <Copy muted>
           {type === "TWO_WAY"
-            ? "Bạn đề xuất chiều mình dạy; đối tác tự tạo kế hoạch cho chiều họ dạy. Cả hai kế hoạch cần được người học xác nhận."
+            ? "Bạn đề xuất chiều mình dạy; người trao đổi tự tạo kế hoạch cho chiều họ dạy. Cả hai kế hoạch cần được người học xác nhận."
             : "Người dạy tạo kế hoạch; người học xác nhận đúng phiên bản. Cả hai cùng xác nhận lịch của kế hoạch đó."}
         </Copy>
         <ConnectionFeedback error={sender.error ?? sender.delivery.error} />
@@ -229,24 +231,6 @@ function NegotiationForm({
             Kiểm tra trạng thái gửi
           </Button>
         )}
-      </Panel>
-      <Panel title="Các bước để thống nhất lộ trình">
-        <Copy>1. Người dạy tạo kế hoạch theo chiều mình dạy.</Copy>
-        <Copy>
-          2. Người học xác nhận phiên bản hiện tại; sửa nội dung cần xác nhận
-          lại.
-        </Copy>
-        <Copy>
-          3. Hai người xác nhận điều khoản chung và lịch gắn từng kế hoạch.
-        </Copy>
-        <Copy>
-          4. Hệ thống kiểm tra lịch, số dư và quyền trước khi giữ Credit và tạo
-          buổi học.
-        </Copy>
-        <Copy muted>
-          Mở lộ trình chính thức ở phía trên để thực hiện từng bước. Trạng thái
-          xác nhận được tải từ hệ thống.
-        </Copy>
       </Panel>
       <Button
         variant="secondary"

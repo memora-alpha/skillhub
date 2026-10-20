@@ -41,18 +41,20 @@ export function ApiAgreementForm({
   });
   const type = watch("type"),
     role = watch("role");
-  const submitLabel = path ? "Gửi điều khoản mới" : "Tạo lộ trình";
+  const submitLabel = path
+    ? "Lưu thay đổi để cùng xem lại"
+    : "Tiếp tục: nội dung học";
   return (
     <>
       <ChoiceGroup
-        label="Hình thức"
-        options={["Trao đổi hai chiều", "Học một chiều"]}
-        value={type === "TWO_WAY" ? "Trao đổi hai chiều" : "Học một chiều"}
+        label="Hai bạn muốn học thế nào?"
+        options={["Hai người dạy cho nhau", "Một người dạy"]}
+        value={type === "TWO_WAY" ? "Hai người dạy cho nhau" : "Một người dạy"}
         onChange={(v) => {
           if (!pending)
             setValue(
               "type",
-              v === "Trao đổi hai chiều" ? "TWO_WAY" : "ONE_WAY",
+              v === "Hai người dạy cho nhau" ? "TWO_WAY" : "ONE_WAY",
             );
         }}
       />
@@ -72,16 +74,16 @@ export function ApiAgreementForm({
         name="credit"
         label={
           type === "TWO_WAY"
-            ? "Credit cam kết mỗi người"
-            : "Credit cho toàn lộ trình"
+            ? "Mỗi người cam kết bao nhiêu Credit?"
+            : "Tổng giá học (Credit)"
         }
         keyboardType="decimal-pad"
         editable={!pending}
       />
       <Copy muted>
         {type === "TWO_WAY"
-          ? "Mỗi người tự tạo kế hoạch mình dạy; người học xác nhận từng kế hoạch."
-          : "Người dạy tạo kế hoạch; chỉ người học tạm giữ Credit khi chốt lịch."}
+          ? "Tối thiểu 20 Credit/người. Hai bạn tự soạn phần mình dạy và đồng ý phần mình học. Credit chỉ tạm giữ ở bước chốt lịch."
+          : "Giá cho tất cả buổi học. Người dạy soạn nội dung; chỉ người học tạm giữ Credit ở bước chốt lịch."}
       </Copy>
       {path && (
         <Copy muted>
@@ -113,7 +115,7 @@ export function ApiAgreementForm({
           })();
         }}
       >
-        {pending ? "Đang gửi..." : submitLabel}
+        {pending ? "Đang lưu..." : submitLabel}
       </Button>
     </>
   );

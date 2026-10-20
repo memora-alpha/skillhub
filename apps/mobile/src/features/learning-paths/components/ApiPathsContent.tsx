@@ -13,13 +13,11 @@ export function ApiPathCard({ path }: Readonly<{ path: PathSummary }>) {
   const exchangeLabel =
     path.exchangeType === "TWO_WAY" ? "Trao đổi hai chiều" : oneWayLabel;
   return (
-    <Panel title={name.data ?? "Lộ trình cùng đối tác"}>
-      <Copy>
-        {pathStatusLabel[path.status]} · v{path.currentVersion}
-      </Copy>
+    <Panel title={name.data ?? "Lộ trình cùng người trao đổi"}>
+      <Copy>{pathStatusLabel[path.status]}</Copy>
       <Copy>{exchangeLabel}</Copy>
       <RouteButton secondary href={`/paths/${path.id}`}>
-        Mở lộ trình
+        Tiếp tục việc học
       </RouteButton>
     </Panel>
   );
