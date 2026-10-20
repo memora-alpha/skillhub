@@ -6,7 +6,8 @@ export function postgresConnectionString(
   let url: URL;
   try {
     url = new URL(connectionString);
-    if (!["postgres:", "postgresql:"].includes(url.protocol)) throw new Error();
+    if (!["postgres:", "postgresql:"].includes(url.protocol))
+      throw new Error("Unsupported PostgreSQL protocol");
   } catch {
     // A malformed connection string can contain credentials; never echo it.
     throw new Error("Invalid PostgreSQL connection configuration");

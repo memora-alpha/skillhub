@@ -5,5 +5,7 @@ export const technicalReviewReasons = [
 ] as const;
 
 export function isTechnicalReviewReason(reason: string | null) {
-  return technicalReviewReasons.some((candidate) => candidate === reason);
+  return (technicalReviewReasons as readonly (string | null)[]).includes(
+    reason,
+  );
 }

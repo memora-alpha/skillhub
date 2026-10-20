@@ -11,6 +11,7 @@ import {
 import { randomUUID } from "node:crypto";
 import { PrismaService } from "../../../../infrastructure/database/prisma.service";
 import { TransactionRunner } from "../../../../infrastructure/database/transaction-runner";
+import type { TransactionContext } from "../../../../infrastructure/database/transaction-context";
 import { PayosTransport } from "../../infrastructure/payos-transport";
 import {
   PaymentReceiptsService,
@@ -28,6 +29,15 @@ import {
 } from "../../domain/payment-recovery-policy";
 
 /** Durable checkout rows are the queue; a fenced lease permits multiple API instances. */
+type FinishResult = {
+  paymentLinkId?: string;
+  qrCode?: string;
+  closed?: "CANCELLED" | "EXPIRED";
+  retry?: boolean;
+  retryReason?: string;
+  review?: string;
+};
+
 @Injectable()
 export class PaymentCheckoutWorker implements OnModuleInit, OnModuleDestroy {
   private timer?: ReturnType<typeof setInterval>;
@@ -303,21 +313,7 @@ export class PaymentCheckoutWorker implements OnModuleInit, OnModuleDestroy {
     )
       throw new BadRequestException("PAYMENT_LINK_MISMATCH");
     if (lookup.events.length) {
-      if (!lookup.exact || lookup.status !== "PAID") {
-        // Retain every authenticated bank reference, but aggregate mismatches can never issue Credit.
-        for (const event of lookup.events)
-          await this.receipts.accept({ ...event, outcome: "REVIEW" });
-        await this.finish(paymentId, leaseToken, {
-          review: "PAYMENT_PARTIAL_OR_MULTIPLE_TRANSACTIONS",
-        });
-        return true;
-      }
-      const accepted = await this.receipts.accept(lookup.events[0]!);
-      await this.finish(
-        paymentId,
-        leaseToken,
-        accepted.posted ? {} : { review: "PAYMENT_RECEIPT_REVIEW_REQUIRED" },
-      );
+      await this.applyLookupEvents(paymentId, leaseToken, lookup);
       return true;
     }
     if (lookup.status === "PAID" || lookup.hasPayment) {
@@ -364,18 +360,29 @@ export class PaymentCheckoutWorker implements OnModuleInit, OnModuleDestroy {
     return true;
   }
 
-  private finish(
+  private async applyLookupEvents(
     paymentId: string,
     leaseToken: string,
-    result: {
-      paymentLinkId?: string;
-      qrCode?: string;
-      closed?: "CANCELLED" | "EXPIRED";
-      retry?: boolean;
-      retryReason?: string;
-      review?: string;
-    },
+    lookup: Awaited<ReturnType<PayosTransport["lookup"]>>,
   ) {
+    if (!lookup.exact || lookup.status !== "PAID") {
+      // Retain every authenticated bank reference, but aggregate mismatches can never issue Credit.
+      for (const event of lookup.events)
+        await this.receipts.accept({ ...event, outcome: "REVIEW" });
+      await this.finish(paymentId, leaseToken, {
+        review: "PAYMENT_PARTIAL_OR_MULTIPLE_TRANSACTIONS",
+      });
+      return;
+    }
+    const accepted = await this.receipts.accept(lookup.events[0]!);
+    await this.finish(
+      paymentId,
+      leaseToken,
+      accepted.posted ? {} : { review: "PAYMENT_RECEIPT_REVIEW_REQUIRED" },
+    );
+  }
+
+  private finish(paymentId: string, leaseToken: string, result: FinishResult) {
     return this.transactions.run(async (tx) => {
       await tx.$queryRaw`SELECT payment_id FROM payments WHERE payment_id=${paymentId}::uuid FOR UPDATE`;
       const payment = await tx.payment.findUniqueOrThrow({
@@ -390,15 +397,7 @@ export class PaymentCheckoutWorker implements OnModuleInit, OnModuleDestroy {
         data: { leaseToken: null, leaseUntil: null },
       });
       if (payment.status === "REVIEW") {
-        if (isTechnicalReviewReason(checkout.lastError)) {
-          if (result.review)
-            await this.receipts.review(tx, paymentId, result.review);
-          else if (result.retry)
-            await tx.payosCheckout.update({
-              where: { paymentId },
-              data: { nextAttemptAt: this.nextAttempt(checkout.attempts) },
-            });
-        }
+        await this.finishTechnicalReview(tx, checkout, result);
         return;
       }
       if (!["CREATED", "PENDING"].includes(payment.status)) return;
@@ -446,6 +445,22 @@ export class PaymentCheckoutWorker implements OnModuleInit, OnModuleDestroy {
           { paymentId, status, version: String(updated.version) },
         );
     });
+  }
+
+  /** A technical review may still be refined by its own checkout retry/review result. */
+  private async finishTechnicalReview(
+    tx: TransactionContext,
+    checkout: PayosCheckout,
+    result: FinishResult,
+  ) {
+    if (!isTechnicalReviewReason(checkout.lastError)) return;
+    const { paymentId } = checkout;
+    if (result.review) await this.receipts.review(tx, paymentId, result.review);
+    else if (result.retry)
+      await tx.payosCheckout.update({
+        where: { paymentId },
+        data: { nextAttemptAt: this.nextAttempt(checkout.attempts) },
+      });
   }
 
   private nextAttempt(attempts: number) {

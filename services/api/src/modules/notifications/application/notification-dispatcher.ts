@@ -13,11 +13,11 @@ export const ENABLED_NOTIFICATION_CHANNELS = Symbol(
   "ENABLED_NOTIFICATION_CHANNELS",
 );
 
-const channelCodes: readonly NotificationChannelCode[] = [
+const channelCodes: ReadonlySet<string> = new Set<NotificationChannelCode>([
   "IN_APP",
   "EMAIL",
   "PUSH",
-];
+]);
 
 /**
  * Event → channel policy. OP-05 (production channels) is still open, so a
@@ -38,11 +38,7 @@ export function enabledChannels(
   const codes = (value?.trim() || "IN_APP")
     .split(",")
     .map((code) => code.trim());
-  if (
-    codes.some(
-      (code) => !channelCodes.includes(code as NotificationChannelCode),
-    )
-  ) {
+  if (codes.some((code) => !channelCodes.has(code))) {
     throw new Error("Invalid NOTIFICATION_CHANNELS configuration");
   }
   if (codes.includes("PUSH") && !push.configured) {

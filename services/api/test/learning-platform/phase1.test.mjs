@@ -8,6 +8,7 @@ import {
   conversationId,
   pathStatus,
   plan,
+  httpError,
   rejectsWith,
   setup,
   slots,
@@ -49,20 +50,18 @@ test("SH-050: a teacher cannot add a second plan in the same direction", async (
     totalCreditPerUser: "20.00",
   });
   await ctx.paths.addPlan(user(A), path.id, plan());
-  await rejectsWith(
+  await assert.rejects(
     ctx.paths.addPlan(user(A), path.id, plan()),
-    409,
-    "LEARNING_PLAN_DIRECTION_ALREADY_EXISTS",
+    httpError(409, "LEARNING_PLAN_DIRECTION_ALREADY_EXISTS"),
   );
 });
 
 test("SH-050/051: only the plan's teacher may revise it; the learner may not", async () => {
   const ctx = setup();
   const { planAB } = await twoWayWithPlans(ctx);
-  await rejectsWith(
+  await assert.rejects(
     ctx.paths.revisePlan(user(B), planAB.id, 1, plan()),
-    403,
-    "ONLY_PLAN_TEACHER_CAN_REVISE",
+    httpError(403, "ONLY_PLAN_TEACHER_CAN_REVISE"),
   );
 });
 

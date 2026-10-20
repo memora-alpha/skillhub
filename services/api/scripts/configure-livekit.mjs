@@ -63,10 +63,12 @@ async function main() {
   }
 }
 
-void main().catch(() => {
+try {
+  await main();
+} catch {
   // Provider/DB exceptions can include credentials; print only safe operator guidance.
   process.stderr.write(
     "LiveKit configuration failed. Supply --early-minutes, --late-minutes, --expected-version and --reason; check DATABASE_URL, approved config seed and current version.\n",
   );
   process.exitCode = 1;
-});
+}

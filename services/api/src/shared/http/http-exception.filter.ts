@@ -17,6 +17,65 @@ import {
   type ContextualRequest,
 } from "./request-context";
 
+// Only public capability codes are safe to expose for service-unavailable errors.
+const publicUnavailableCodes = new Set([
+  "CONNECTION_POLICY_UNAVAILABLE",
+  "CHAT_REPLICA_SET_OR_INDEXES_UNAVAILABLE",
+  "CHAT_STORE_UNAVAILABLE",
+  "COMMITTED_DRAFT_MISSING",
+  "MESSAGE_NOT_READY",
+  "EVENT_CONNECTIONS_UNAVAILABLE",
+  "PAYMENT_PROVIDER_UNAVAILABLE",
+  "PAYMENT_CREATION_PAUSED",
+  "PAYMENT_CHANNEL_RECONCILIATION_REQUIRED",
+]);
+const paymentRecoveryCodes = [
+  "PAYMENT_UNRESOLVED",
+  "PAYMENT_RECONCILIATION_REQUIRED",
+];
+
+function clientMessage(
+  status: number,
+  exception: unknown,
+  detail: unknown,
+): unknown {
+  const detailMessage =
+    typeof detail === "string"
+      ? detail
+      : (detail as { message?: unknown } | undefined)?.message;
+  if (status < 500) {
+    const fallback =
+      exception instanceof HttpException
+        ? exception.message
+        : "Request failed.";
+    return detailMessage ?? fallback;
+  }
+  if (
+    status === 503 &&
+    typeof detailMessage === "string" &&
+    publicUnavailableCodes.has(detailMessage)
+  )
+    return detailMessage;
+  return "Internal server error";
+}
+
+function messageText(message: unknown): string {
+  if (Array.isArray(message)) return message.join("; ");
+  return typeof message === "string" ? message : "Request failed.";
+}
+
+// Only payment-owned UUIDs are exposed for these two explicit recovery errors.
+function paymentDetails(status: number, text: string, detail: unknown) {
+  const paymentId = (detail as { existingPaymentId?: unknown } | undefined)
+    ?.existingPaymentId;
+  return status === 409 &&
+    paymentRecoveryCodes.includes(text) &&
+    typeof paymentId === "string" &&
+    /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(paymentId)
+    ? { existingPaymentId: paymentId }
+    : undefined;
+}
+
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(HttpExceptionFilter.name);
@@ -42,56 +101,9 @@ export class HttpExceptionFilter implements ExceptionFilter {
     }
     const detail =
       exception instanceof HttpException ? exception.getResponse() : undefined;
-    let message: unknown = "Internal server error";
-    if (status < 500) {
-      if (typeof detail === "string") message = detail;
-      else {
-        const fallback =
-          exception instanceof HttpException
-            ? exception.message
-            : "Request failed.";
-        message =
-          (detail as { message?: unknown } | undefined)?.message ?? fallback;
-      }
-    }
-    // Only public capability codes are safe to expose for service-unavailable errors.
-    if (
-      status === 503 &&
-      new Set([
-        "CONNECTION_POLICY_UNAVAILABLE",
-        "CHAT_REPLICA_SET_OR_INDEXES_UNAVAILABLE",
-        "CHAT_STORE_UNAVAILABLE",
-        "COMMITTED_DRAFT_MISSING",
-        "MESSAGE_NOT_READY",
-        "EVENT_CONNECTIONS_UNAVAILABLE",
-        "PAYMENT_PROVIDER_UNAVAILABLE",
-        "PAYMENT_CREATION_PAUSED",
-        "PAYMENT_CHANNEL_RECONCILIATION_REQUIRED",
-      ]).has(
-        typeof detail === "string"
-          ? detail
-          : ((detail as { message?: string } | undefined)?.message ?? ""),
-      )
-    )
-      message =
-        typeof detail === "string"
-          ? detail
-          : (detail as { message: string }).message;
-    let text = "Request failed.";
-    if (Array.isArray(message)) text = message.join("; ");
-    else if (typeof message === "string") text = message;
-    // Only payment-owned UUIDs are exposed for these two explicit recovery errors.
-    const paymentId = (detail as { existingPaymentId?: unknown } | undefined)
-      ?.existingPaymentId;
-    const paymentDetails =
-      status === 409 &&
-      ["PAYMENT_UNRESOLVED", "PAYMENT_RECONCILIATION_REQUIRED"].includes(
-        text,
-      ) &&
-      typeof paymentId === "string" &&
-      /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(paymentId)
-        ? { existingPaymentId: paymentId }
-        : undefined;
-    response.status(status).json(failure(status, text, paymentDetails));
+    const text = messageText(clientMessage(status, exception, detail));
+    response
+      .status(status)
+      .json(failure(status, text, paymentDetails(status, text, detail)));
   }
 }
