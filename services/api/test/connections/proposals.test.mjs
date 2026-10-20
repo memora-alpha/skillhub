@@ -2,17 +2,17 @@ import "reflect-metadata";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { ProposalsService } from "../../dist/modules/proposals/application/proposals.service.js";
-import { ConversationLifecycleService } from "../../dist/modules/conversations/application/conversation-lifecycle.service.js";
+import { ProposalsService } from "../../dist/modules/proposals/application/services/proposals.service.js";
+import { ConversationLifecycleService } from "../../dist/modules/conversations/application/services/conversation-lifecycle.service.js";
 import { ConnectionNotificationService } from "../../dist/modules/notifications/application/services/connection-notification.service.js";
 import { connectionSettings } from "../../dist/modules/proposals/domain/connection-policy.js";
 import { plainToInstance } from "class-transformer";
 import { validate } from "class-validator";
-import { SendMessageDto } from "../../dist/modules/conversations/presentation/conversations.dto.js";
+import { SendMessageDto } from "../../dist/modules/conversations/presentation/http/conversations.dto.js";
 import {
   CreateProposalDto,
   ChangeProposalDto,
-} from "../../dist/modules/proposals/presentation/proposals.dto.js";
+} from "../../dist/modules/proposals/presentation/http/proposals.dto.js";
 
 function fixture() {
   const proposerId = randomUUID(),

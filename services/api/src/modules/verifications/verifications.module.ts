@@ -6,8 +6,8 @@ import { StorageModule } from "../../infrastructure/storage/storage.module";
 import { AuditModule } from "../audit/audit.module";
 import { IdentityModule } from "../identity.module";
 import { SharingSkillsModule } from "../sharing-skills/sharing-skills.module";
-import { VerificationsRepository } from "./infrastructure/verifications.repository";
-import { VerificationsService } from "./application/verifications.service";
+import { VerificationsRepository } from "./infrastructure/persistence/verifications.repository";
+import { VerificationsService } from "./application/services/verifications.service";
 import { VerificationsController } from "./presentation/http/verifications.controller";
 import { StaffVerificationsController } from "./presentation/http/staff-verifications.controller";
 @Module({

@@ -31,7 +31,7 @@ import {
   ApiSuccessResponse,
   ApiErrorResponse,
 } from "../../../../shared/http/api-response.decorators";
-import { SkillsService } from "../../application/skills.service";
+import { SkillsService } from "../../application/services/skills.service";
 import {
   SkillQueryDto,
   TagQueryDto,
@@ -42,7 +42,7 @@ import {
   RestoreSkillDto,
 } from "./skills.dto";
 import { SkillResponse, TagResponse } from "./skills.responses";
-import type { SkillCommand } from "../../application/skill-contracts";
+import type { SkillCommand } from "../../application/contracts/skill-contracts";
 export function skillCommand(
   request: IdentityRequest,
   key: string | undefined,

@@ -1,10 +1,10 @@
 import "reflect-metadata";
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { AuditWriter } from "../dist/modules/audit/application/audit-writer.js";
-import { AuditRepository } from "../dist/modules/audit/infrastructure/audit.repository.js";
-import { ReputationService } from "../dist/modules/reputation/reputation.service.js";
-import { SchedulingService } from "../dist/modules/scheduling/scheduling.service.js";
+import { AuditWriter } from "../dist/modules/audit/application/services/audit-writer.js";
+import { AuditRepository } from "../dist/modules/audit/infrastructure/persistence/audit.repository.js";
+import { ReputationService } from "../dist/modules/reputation/application/services/reputation.service.js";
+import { SchedulingService } from "../dist/modules/scheduling/application/services/scheduling.service.js";
 
 const userId = "8f6f1c52-5d0f-4a39-9d6b-0d8f0f5f2a11";
 const now = new Date("2026-10-20T00:00:00.000Z");

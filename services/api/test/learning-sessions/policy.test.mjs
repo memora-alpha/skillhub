@@ -4,7 +4,7 @@ import {
   sessionJoinWindow,
   sessionJoinAccess,
   sessionStatusAt,
-} from "../../dist/modules/learning-sessions/session.policy.js";
+} from "../../dist/modules/learning-sessions/domain/session.policy.js";
 
 const startAt = new Date("2026-11-02T03:00:00Z");
 const endAt = new Date("2026-11-02T04:00:00Z");

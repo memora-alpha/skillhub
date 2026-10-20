@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { ConfigService } from "@nestjs/config";
-import { PayosTransport } from "../../dist/modules/payments/infrastructure/payos-transport.js";
+import { PayosTransport } from "../../dist/modules/payments/infrastructure/gateway/payos-transport.js";
 import { env, sign } from "./fixture.mjs";
 
 test("payOS transport fixes origin, bounds responses/deadlines and authenticates nested lookup evidence", async () => {

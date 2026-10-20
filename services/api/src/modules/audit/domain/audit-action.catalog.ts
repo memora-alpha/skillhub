@@ -1,6 +1,9 @@
 import { BadRequestException } from "@nestjs/common";
 import { z } from "zod";
-import type { AuditInput, AuditSnapshot } from "../application/audit.types";
+import type {
+  AuditInput,
+  AuditSnapshot,
+} from "../application/contracts/audit.types";
 import {
   isConfigurationKey,
   parseConfigurationValue,

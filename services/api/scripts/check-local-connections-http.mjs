@@ -23,7 +23,7 @@ import { IdentityConfig } from "../dist/configs/identity.config.js";
 import { redisConnectionOptions } from "../dist/configs/redis.config.js";
 import { validateEnvironment } from "../dist/configs/environment.js";
 import { setupSwagger } from "../dist/configs/swagger.config.js";
-import { ConfigurationRepository } from "../dist/modules/system-configuration/infrastructure/configuration.repository.js";
+import { ConfigurationRepository } from "../dist/modules/system-configuration/infrastructure/persistence/configuration.repository.js";
 import { CONFIGURATION_DEFINITIONS } from "../dist/modules/system-configuration/domain/configuration.catalog.js";
 import { RedisService } from "../dist/infrastructure/cache/redis.service.js";
 import { OBJECT_STORAGE } from "../dist/infrastructure/storage/object-storage.port.js";

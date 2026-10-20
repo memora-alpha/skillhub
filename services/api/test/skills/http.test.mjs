@@ -6,9 +6,9 @@ import { Test } from "@nestjs/testing";
 import { ValidationPipe, VersioningType } from "@nestjs/common";
 import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
 import { createSkillFixture } from "./helpers.mjs";
-import { SkillsService } from "../../dist/modules/skills/application/skills.service.js";
-import { SharingSkillsService } from "../../dist/modules/sharing-skills/application/sharing-skills.service.js";
-import { VerificationsService } from "../../dist/modules/verifications/application/verifications.service.js";
+import { SkillsService } from "../../dist/modules/skills/application/services/skills.service.js";
+import { SharingSkillsService } from "../../dist/modules/sharing-skills/application/services/sharing-skills.service.js";
+import { VerificationsService } from "../../dist/modules/verifications/application/services/verifications.service.js";
 import {
   SkillsController,
   CatalogController,

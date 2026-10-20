@@ -9,7 +9,7 @@ import {
 import { UsersService } from "../../../users/application/services/users.service";
 import { SessionsService } from "../services/sessions.service";
 import { IdentityEmailIntentService } from "../../../notifications/application/services/identity-email-intent.service";
-import { AuditService } from "../../../audit/application/audit.service";
+import { AuditService } from "../../../audit/application/services/audit.service";
 
 import { normalizeEmail } from "../../../users/domain/profile-policy";
 import { OtpService } from "../services/otp.service";

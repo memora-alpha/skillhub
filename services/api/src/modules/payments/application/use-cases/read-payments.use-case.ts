@@ -9,7 +9,7 @@ import { SkillActorService } from "../../../users/application/services/skill-act
 import type { Principal } from "../../../auth/application/services/sessions.service";
 import { formatCredit } from "../../../credit/domain/money";
 import { LedgerCursor } from "../../../credit/domain/ledger-cursor";
-import { PayosTransport } from "../../infrastructure/payos-transport";
+import { PayosTransport } from "../../infrastructure/gateway/payos-transport";
 import type { PaymentConfiguration } from "../../domain/payment-config";
 import { PaymentCreationPolicy } from "../services/payment-creation-policy";
 

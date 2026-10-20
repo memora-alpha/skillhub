@@ -8,7 +8,7 @@ import type {
   CreditLot,
   IdempotencyRecord,
 } from "../../../../generated/prisma/client";
-import { PayosTransport } from "../../infrastructure/payos-transport";
+import { PayosTransport } from "../../infrastructure/gateway/payos-transport";
 import type { PaymentConfiguration } from "../../domain/payment-config";
 
 const selector = z

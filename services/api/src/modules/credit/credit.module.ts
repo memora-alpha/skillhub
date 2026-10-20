@@ -11,13 +11,13 @@ import { ListCreditTransactionsUseCase } from "./application/use-cases/list-cred
 import { GetCreditTransactionUseCase } from "./application/use-cases/get-credit-transaction.use-case";
 import { LedgerCursor } from "./domain/ledger-cursor";
 import { WalletController } from "./presentation/http/wallet.controller";
-import { CreditLedgerAdapter } from "./credit-ledger.adapter";
+import { CreditLedgerAdapter } from "./application/services/credit-ledger.adapter";
 import {
   CreditAdjustmentPort,
   PathSettlementPort,
   WalletPort,
-} from "./credit.ports";
-import { UnavailableCreditAdjustmentAdapter } from "./unavailable-credit-adjustment.adapter";
+} from "./application/ports/credit.ports";
+import { UnavailableCreditAdjustmentAdapter } from "./infrastructure/adapters/unavailable-credit-adjustment.adapter";
 import { CreditOperationsService } from "./application/services/credit-operations.service";
 import { CreditProvenanceService } from "./application/services/credit-provenance.service";
 

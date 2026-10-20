@@ -4,16 +4,16 @@ import { test } from "node:test";
 import { randomUUID } from "node:crypto";
 import { ConfigService } from "@nestjs/config";
 import { createSkillFixture } from "../../skills/helpers.mjs";
-import { LearningPathsService } from "../../../dist/modules/learning-paths/learning-paths.service.js";
-import { SchedulingService } from "../../../dist/modules/scheduling/scheduling.service.js";
-import { LearningSessionsService } from "../../../dist/modules/learning-sessions/learning-sessions.service.js";
-import { ConversationMembershipReader } from "../../../dist/modules/conversations/conversation-membership.reader.js";
-import { CreditLedgerAdapter } from "../../../dist/modules/credit/credit-ledger.adapter.js";
+import { LearningPathsService } from "../../../dist/modules/learning-paths/application/services/learning-paths.service.js";
+import { SchedulingService } from "../../../dist/modules/scheduling/application/services/scheduling.service.js";
+import { LearningSessionsService } from "../../../dist/modules/learning-sessions/application/services/learning-sessions.service.js";
+import { ConversationMembershipReader } from "../../../dist/modules/conversations/application/services/conversation-membership.reader.js";
+import { CreditLedgerAdapter } from "../../../dist/modules/credit/application/services/credit-ledger.adapter.js";
 import { CreditLedgerService } from "../../../dist/modules/credit/application/services/credit-ledger.service.js";
 import { CreditWalletReader } from "../../../dist/modules/credit/application/services/credit-wallet.reader.js";
 import { seedPathFeePolicies } from "../../../dist/modules/credit/application/seed-fee-policies.js";
-import { ReportsService } from "../../../dist/modules/reports/reports.service.js";
-import { LiveKitService } from "../../../dist/modules/learning-sessions/livekit.service.js";
+import { ReportsService } from "../../../dist/modules/reports/application/services/reports.service.js";
+import { LiveKitService } from "../../../dist/modules/learning-sessions/infrastructure/livekit/livekit.service.js";
 import { defaultConfiguration } from "../../learning-platform/fixtures.mjs";
 
 test(

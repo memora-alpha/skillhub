@@ -1,7 +1,7 @@
 import "reflect-metadata";
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { LearningPathsService } from "../dist/modules/learning-paths/learning-paths.service.js";
+import { LearningPathsService } from "../dist/modules/learning-paths/application/services/learning-paths.service.js";
 
 const userA = "0a0a0a0a-0000-4000-8000-00000000000a";
 const userB = "0b0b0b0b-0000-4000-8000-00000000000b";

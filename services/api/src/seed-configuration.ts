@@ -2,9 +2,9 @@ import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "./generated/prisma/client";
 import { seedApprovedConfigurations } from "./modules/system-configuration/application/seed-configuration";
-import { ConfigurationRepository } from "./modules/system-configuration/infrastructure/configuration.repository";
+import { ConfigurationRepository } from "./modules/system-configuration/infrastructure/persistence/configuration.repository";
 import { seedPathFeePolicies } from "./modules/credit/application/seed-fee-policies";
-import { seedAchievements } from "./modules/reputation/seed-achievements";
+import { seedAchievements } from "./modules/reputation/application/seed-achievements";
 import { postgresConnectionString } from "./infrastructure/database/postgres-connection";
 
 async function main(): Promise<void> {

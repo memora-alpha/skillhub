@@ -5,7 +5,7 @@ import {
   lockEmail,
   transaction,
 } from "../../../shared/database/identity-transactions";
-import { AuditService } from "../../audit/application/audit.service";
+import { AuditService } from "../../audit/application/services/audit.service";
 import {
   normalizeEmail,
   validFullName,

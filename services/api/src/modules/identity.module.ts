@@ -23,7 +23,7 @@ import { UsersService } from "./users/application/services/users.service";
 
 import { UsersController } from "./users/presentation/http/users.controller";
 import { AdministrationController } from "./users/presentation/http/administration.controller";
-import { AuditService } from "./audit/application/audit.service";
+import { AuditService } from "./audit/application/services/audit.service";
 import { SkillActorService } from "./users/application/services/skill-actor.service";
 import { PublicSkillReader } from "./users/application/services/public-skill-reader";
 import { ProfileReader } from "./users/application/services/profile-reader.service";

@@ -4,8 +4,8 @@ import { test } from "node:test";
 import { TransactionRunner } from "../dist/infrastructure/database/transaction-runner.js";
 import { OutboxWriter } from "../dist/infrastructure/events/outbox-writer.js";
 import { IdempotencyService } from "../dist/infrastructure/idempotency/idempotency.service.js";
-import { AuditWriter } from "../dist/modules/audit/application/audit-writer.js";
-import { AuditRepository } from "../dist/modules/audit/infrastructure/audit.repository.js";
+import { AuditWriter } from "../dist/modules/audit/application/services/audit-writer.js";
+import { AuditRepository } from "../dist/modules/audit/infrastructure/persistence/audit.repository.js";
 import { skip, withDatabase } from "./integration-db.mjs";
 
 // Fixture use case only: stands in for a credit adjustment until the credit module exists.
