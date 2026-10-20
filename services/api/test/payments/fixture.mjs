@@ -113,51 +113,53 @@ export async function createPaymentFixture() {
     failCancel = 0,
     afterCreate,
     beforeCancel;
-  globalThis.fetch = async (url, options) => {
-    if (!String(url).startsWith("https://api-merchant.payos.vn/"))
-      return originalFetch(url, options);
-    requests.push({ url: String(url), ...options });
-    if (String(url).endsWith("/cancel")) {
-      const orderCode = String(url).split("/").at(-2);
-      const order = providerOrders.get(orderCode);
-      if (!order) return Response.json({ code: "not-found" });
-      if (beforeCancel) await beforeCancel(order);
-      if (order.status === "PENDING" && order.amountPaid === 0)
-        order.status = "CANCELLED";
-      if (failCancel-- > 0) throw new Error("injected-after-provider-cancel");
-      return Response.json(sign(order));
-    }
-    if (options.method === "POST") {
-      const input = JSON.parse(options.body);
-      const existing = providerOrders.get(String(input.orderCode));
-      if (existing) return Response.json({ code: "duplicate-order" });
-      const order = {
-        id: randomUUID(),
-        orderCode: input.orderCode,
-        amount: input.amount,
-        amountPaid: 0,
-        amountRemaining: input.amount,
+  async function cancelProviderOrder(href) {
+    const order = providerOrders.get(href.split("/").at(-2));
+    if (!order) return Response.json({ code: "not-found" });
+    if (beforeCancel) await beforeCancel(order);
+    if (order.status === "PENDING" && order.amountPaid === 0)
+      order.status = "CANCELLED";
+    if (failCancel-- > 0) throw new Error("injected-after-provider-cancel");
+    return Response.json(sign(order));
+  }
+  async function createProviderOrder(options) {
+    const input = JSON.parse(options.body);
+    const existing = providerOrders.get(String(input.orderCode));
+    if (existing) return Response.json({ code: "duplicate-order" });
+    const order = {
+      id: randomUUID(),
+      orderCode: input.orderCode,
+      amount: input.amount,
+      amountPaid: 0,
+      amountRemaining: input.amount,
+      status: "PENDING",
+      transactions: [],
+    };
+    providerOrders.set(String(order.orderCode), order);
+    if (failCreate-- > 0) throw new Error("injected-after-provider-create");
+    if (afterCreate) await afterCreate(order);
+    return Response.json(
+      sign({
+        orderCode: order.orderCode,
+        amount: order.amount,
+        paymentLinkId: order.id,
+        currency: "VND",
         status: "PENDING",
-        transactions: [],
-      };
-      providerOrders.set(String(order.orderCode), order);
-      if (failCreate-- > 0) throw new Error("injected-after-provider-create");
-      if (afterCreate) await afterCreate(order);
-      return Response.json(
-        sign({
-          orderCode: order.orderCode,
-          amount: order.amount,
-          paymentLinkId: order.id,
-          currency: "VND",
-          status: "PENDING",
-          qrCode: `qr:${order.id}`,
-          checkoutUrl: `https://pay.payos.vn/web/${order.id}`,
-          accountNumber: "private-fixture",
-        }),
-      );
-    }
+        qrCode: `qr:${order.id}`,
+        checkoutUrl: `https://pay.payos.vn/web/${order.id}`,
+        accountNumber: "private-fixture",
+      }),
+    );
+  }
+  globalThis.fetch = async (url, options) => {
+    const href = typeof url === "string" ? url : (url.href ?? url.url);
+    if (!href.startsWith("https://api-merchant.payos.vn/"))
+      return originalFetch(url, options);
+    requests.push({ url: href, ...options });
+    if (href.endsWith("/cancel")) return cancelProviderOrder(href);
+    if (options.method === "POST") return createProviderOrder(options);
     if (failLookup-- > 0) throw new Error("lookup temporarily unavailable");
-    const order = providerOrders.get(String(url).split("/").at(-1));
+    const order = providerOrders.get(href.split("/").at(-1));
     return Response.json(order ? sign(order) : { code: "not-found" });
   };
   async function order(account, amount = "100000", key = randomUUID()) {

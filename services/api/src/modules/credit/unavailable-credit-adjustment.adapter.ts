@@ -11,8 +11,6 @@ export class UnavailableCreditAdjustmentAdapter implements CreditAdjustmentPort 
   }
 
   reverse(): Promise<{ operationId: string }> {
-    return Promise.reject(
-      new ServiceUnavailableException("CREDIT_ADJUSTMENT_UNAVAILABLE"),
-    );
+    return this.adjust();
   }
 }

@@ -49,6 +49,45 @@ async function lockPath(tx: TransactionContext, pathId: string) {
   if (rows.length === 0) throw new NotFoundException("LEARNING_PATH_NOT_FOUND");
 }
 
+/** First join moves earlier and last leave moves later; other activity is ignored. */
+function participantActivityData(
+  session: Pick<
+    Session,
+    | "teacherFirstJoinedAt"
+    | "learnerFirstJoinedAt"
+    | "teacherLastLeftAt"
+    | "learnerLastLeftAt"
+  >,
+  isTeacher: boolean,
+  joined: boolean,
+  occurredAt: Date,
+) {
+  if (joined) {
+    const key = isTeacher ? "teacherFirstJoinedAt" : "learnerFirstJoinedAt";
+    const firstJoined = session[key];
+    return !firstJoined || occurredAt < firstJoined
+      ? { [key]: occurredAt }
+      : {};
+  }
+  const key = isTeacher ? "teacherLastLeftAt" : "learnerLastLeftAt";
+  const lastLeft = session[key];
+  return !lastLeft || occurredAt > lastLeft ? { [key]: occurredAt } : {};
+}
+
+function confirmationData(isTeacher: boolean, now: Date, note: string) {
+  return isTeacher
+    ? {
+        teacherConfirmationStatus: "CONFIRMED" as const,
+        teacherConfirmedAt: now,
+        teacherConfirmationNote: note,
+      }
+    : {
+        learnerConfirmationStatus: "CONFIRMED" as const,
+        learnerConfirmedAt: now,
+        learnerConfirmationNote: note,
+      };
+}
+
 @Injectable()
 export class LearningSessionsService {
   constructor(
@@ -333,24 +372,11 @@ export class LearningSessionsService {
     let status = sessionStatusAt(session, clock.now, policy);
     if (joined && occurredAt >= session.startAt && clock.now < session.endAt)
       status = "ONGOING";
-    const timestamp = isTeacher
-      ? session.teacherFirstJoinedAt
-      : session.learnerFirstJoinedAt;
-    const lastLeft = isTeacher
-      ? session.teacherLastLeftAt
-      : session.learnerLastLeftAt;
     const data = {
       status,
       providerRoomId: event.room.sid,
+      ...participantActivityData(session, isTeacher, joined, occurredAt),
     } as import("../../generated/prisma/client").Prisma.SessionUpdateInput;
-    if (joined && (!timestamp || occurredAt < timestamp)) {
-      if (isTeacher) data.teacherFirstJoinedAt = occurredAt;
-      else data.learnerFirstJoinedAt = occurredAt;
-    }
-    if (!joined && (!lastLeft || occurredAt > lastLeft)) {
-      if (isTeacher) data.teacherLastLeftAt = occurredAt;
-      else data.learnerLastLeftAt = occurredAt;
-    }
     await tx.session.update({ where: { id: session.id }, data });
   }
 
@@ -451,7 +477,7 @@ export class LearningSessionsService {
       if (session.status === "COMPLETED") {
         return { id: sessionId, status: session.status };
       }
-      if (session.status === "CANCELLED" || session.status === "DISPUTED") {
+      if (["CANCELLED", "DISPUTED"].includes(session.status)) {
         throw new ConflictException("SESSION_CANNOT_BE_COMPLETED");
       }
       const [clock] = await tx.$queryRaw<{ now: Date }[]>`
@@ -475,28 +501,13 @@ export class LearningSessionsService {
       const completed =
         nextTeacherConfirmation === "CONFIRMED" &&
         nextLearnerConfirmation === "CONFIRMED";
+      const status = completed ? "COMPLETED" : "AWAITING_CONFIRMATION";
       await tx.session.update({
         where: { id: sessionId },
-        data: {
-          status: completed ? "COMPLETED" : "AWAITING_CONFIRMATION",
-          ...(isTeacher
-            ? {
-                teacherConfirmationStatus: "CONFIRMED",
-                teacherConfirmedAt: clock.now,
-                teacherConfirmationNote: note,
-              }
-            : {
-                learnerConfirmationStatus: "CONFIRMED",
-                learnerConfirmedAt: clock.now,
-                learnerConfirmationNote: note,
-              }),
-        },
+        data: { status, ...confirmationData(isTeacher, clock.now, note) },
       });
       if (completed) await this.refreshPathStatus(tx, session.pathId);
-      return {
-        id: sessionId,
-        status: completed ? "COMPLETED" : "AWAITING_CONFIRMATION",
-      };
+      return { id: sessionId, status };
     });
   }
 
