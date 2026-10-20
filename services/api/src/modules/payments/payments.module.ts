@@ -11,6 +11,7 @@ import { PaymentCheckoutWorker } from "./application/services/payment-checkout.w
 import { PaymentReceiptsService } from "./application/services/payment-receipts.service";
 import { PaymentCreationPolicy } from "./application/services/payment-creation-policy";
 import { CreatePaymentUseCase } from "./application/use-cases/create-payment.use-case";
+import { CancelPaymentUseCase } from "./application/use-cases/cancel-payment.use-case";
 import {
   PaymentCursor,
   ReadPaymentsUseCase,
@@ -35,6 +36,7 @@ import {
     PaymentCheckoutWorker,
     PaymentReceiptsService,
     CreatePaymentUseCase,
+    CancelPaymentUseCase,
     ReadPaymentsUseCase,
     {
       provide: PaymentCursor,

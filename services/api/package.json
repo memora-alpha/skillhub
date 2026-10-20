@@ -22,7 +22,7 @@
     "test:credit": "nest build && node --test test/credit/money.test.mjs test/credit/cursor.test.mjs",
     "test:credit:integration": "nest build && node --test --test-concurrency=1 test/credit/persistence.test.mjs test/credit/http.test.mjs",
     "test:payments": "nest build && node --test test/payments/payos.test.mjs test/payments/transport.test.mjs",
-    "test:payments:integration": "nest build && node --test --test-concurrency=1 test/payments/persistence.test.mjs test/payments/http.test.mjs test/payments/provenance.test.mjs test/payments/recovery-guards.test.mjs",
+    "test:payments:integration": "nest build && node --test --test-concurrency=1 test/payments/persistence.test.mjs test/payments/http.test.mjs test/payments/provenance.test.mjs test/payments/recovery-guards.test.mjs test/payments/cancel.test.mjs test/payments/recovery.test.mjs",
     "payments:report": "node scripts/reconcile-payments.mjs",
     "test:connections:regression": "nest build && node scripts/test-connections-regressions.mjs",
     "db:validate:runtime": "prisma validate --schema prisma/schema.prisma",

@@ -213,6 +213,7 @@ enum PaymentStatus {
   EXPIRED
   REFUNDED
   REVIEW
+  CANCELLED
 }
 
 enum MaterialAccessType {

@@ -28,11 +28,12 @@ Transaction projection: `id`, `operationId`, `type`, `amount`, `availableDelta`,
 
 ## Self payments
 
-| Method / path               | Contract                                                                                                        |
-| --------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| POST `/payments`            | Body `{paymentAmountVnd:"100000",gateway:"PAYOS"}`; không nhận creditAmount/userId/status/rate/return URL tùy ý |
-| GET `/payments`             | Own payments, optional status/cursor/limit                                                                      |
-| GET `/payments/{paymentId}` | Own safe status/quote/checkout projection; không gọi gateway chỉ vì client polling                              |
+| Method / path                       | Contract                                                                                                        |
+| ----------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| POST `/payments`                    | Body `{paymentAmountVnd:"100000",gateway:"PAYOS"}`; không nhận creditAmount/userId/status/rate/return URL tùy ý |
+| POST `/payments/{paymentId}/cancel` | Bearer + Idempotency-Key; no body; cancel own unpaid order, return 200 PaymentResponse                          |
+| GET `/payments`                     | Own payments, optional status/cursor/limit                                                                      |
+| GET `/payments/{paymentId}`         | Own safe status/quote/checkout projection; không gọi gateway chỉ vì client polling                              |
 
 Create reserve lần đầu trả201, replay200; resource `CREATED` với checkout nullable nếu external create còn xử lý. Status đơn là business status, không gán PENDING chỉ vì queue accepted. Projection:
 
@@ -52,6 +53,48 @@ Create reserve lần đầu trả201, replay200; resource `CREATED` với checko
 ```
 
 payOS checkout chỉ dùng QR: `{paymentLinkId,qrCode,orderCode,providerStatus}` sau server-side REST create và verify signed response theo [gateway contract](gateway.md). `qrCode` là dữ liệu QR để render trực tiếp trong SkillHub, không phải ảnh/URL; không điều hướng sang checkout payOS. `orderCode` là string trong public projection. Không trả hosted checkout URL, server-only create payload/signature/headers hoặc return/cancel URLs. Checkout:null nghĩa chưa hoàn tất preparation; status chưa PENDING chỉ vì đã queue. Owner GET dùng Cache-Control:no-store; không log QR. Expiry theo immutable quote 60 phút, không tự gia hạn khi retry. UI kiểm trạng thái từ backend bằng GET/SSE/polling; QR hay việc đóng màn hình không cấp Credit hoặc tự hủy đơn. Disabled/missing provider policy trả503 `PAYMENT_PROVIDER_UNAVAILABLE`/`PAYMENT_POLICY_UNAVAILABLE`.
+
+## Hủy yêu cầu nạp — 2026-10-19
+
+Recovery amendment: PaymentResponse thêm recoveryReason PAYMENT_RECOVERY_PENDING
+cho CREATED/PENDING đang chờ recovery không có QR dùng được hoặc provider
+PROCESSING. GET chỉ đọc DB; worker lookup/cancel ngoài transaction. FE đọc lại/SSE
+và giữ chặn key mới cho đến creation-policy.canCreate=true. Missing QR không tự
+chuyển REVIEW; signed unpaid PENDING được hủy an toàn để user tạo intent mới.
+Timeout khi lookup/cancel tiếp tục retry; local expiry không đóng đơn.
+
+Technical REVIEW cũ chỉ tự phục hồi sau verified lookup, creation identity/quote
+còn nguyên, cùng channel và không có receipt/posting. Worker revalidate dưới lock,
+ghi audit PAYMENT_RECOVERY_RESUME + event rồi reconcile cùng orderCode. API cancel
+vẫn từ chối REVIEW; financial REVIEW không được tự mở lại hoặc cấp đơn thay thế.
+
+`POST /payments/{paymentId}/cancel` cho owner của đơn CREATED/PENDING. Gửi
+`Authorization: Bearer <token>` và `Idempotency-Key`, không cần body. Trả200
+envelope chuẩn với PaymentResponse, status CANCELLED và checkout:null sau khi
+xác minh signed payOS cancellation; nếu provider đã EXPIRED thì trả EXPIRED.
+Đơn CANCELLED/EXPIRED gọi lại an toàn, không gọi provider hay phát event lần hai.
+Key bind paymentId; tái sử dụng key cho đơn khác trả409. Replay luôn kiểm live auth
+và trạng thái hiện tại; mapping HTTP không là bằng chứng đã hủy ở provider.
+
+Checkout lease đang được worker giữ trả409 PAYMENT_CHECKOUT_BUSY; FE đọc lại
+detail và retry cùng key. PAID trả409 PAYMENT_ALREADY_PAID, REVIEW trả409
+PAYMENT_REVIEW_REQUIRED; terminal khác trả409 PAYMENT_CANNOT_CANCEL.
+Nonowner/missing trả404. Disabled/channel khác trả503; thiếu checkout trả409
+PAYMENT_RECONCILIATION_REQUIRED. Pause creation vẫn cho phép hủy.
+
+Timeout/non-success/invalid evidence trả503 PAYMENT_CANCELLATION_UNCONFIRMED,
+không xác nhận hủy. CREATED chưa có provider order cũng không được suy ra đã hủy
+từ not-found; FE retry cùng key sau khi đọc detail. Recovery lookup cùng orderCode
+phục hồi CANCELLED nếu provider đã hủy trước khi response bị mất hoặc API crash.
+Nếu provider trả bằng chứng đã PAID thì reconcile theo receipt pipeline một lần,
+rồi từ chối hủy. Partial/missing/tampered evidence vào REVIEW, không cấp Credit.
+Biên nhận mới sau CANCELLED vào REVIEW với reason PAYMENT_CANCELLED; không tự
+cộng Credit/hoàn tiền. PAID không bị hủy/downgrade khi callback chạy đồng thời.
+Status/QR/version và payment.updated commit cùng PostgreSQL transaction;
+không provider I/O trong transaction và không thay đổi wallet khi hủy thành công.
+
+Migration `20261019010000_payment_cancellation` thêm PaymentStatus.CANCELLED;
+FE cần nhận status mới qua read/list/cancel/SSE và bỏ QR khi terminal.
 
 ## Provider callback
 

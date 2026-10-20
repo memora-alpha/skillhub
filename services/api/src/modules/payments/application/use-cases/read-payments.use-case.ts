@@ -27,6 +27,12 @@ function recoveryReason(
     ["CREATED", "PENDING"].includes(payment.status)
   )
     return "PAYMENT_CHANNEL_UNAVAILABLE";
+  if (
+    ["CREATED", "PENDING"].includes(payment.status) &&
+    checkout.lastError &&
+    (!checkout.qrCode || checkout.lastError === "PAYMENT_PROVIDER_PROCESSING")
+  )
+    return "PAYMENT_RECOVERY_PENDING";
   return null;
 }
 function view(

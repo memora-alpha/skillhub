@@ -1,5 +1,22 @@
 # Tasks: Credit & Payment
 
+## Amendment 2026-10-19: technical recovery
+
+- [x] R01 Preserve bounded-backoff retries without exhausting into permanent REVIEW.
+- [x] R02 Verify unpaid PENDING and cancel the original QR-less/expired intent; require signed closure before fresh creation.
+- [x] R03 Resume allowlisted historical technical REVIEW after verified lookup, with identity/channel/quote/receipt/lease checks and atomic audit/event.
+- [x] R04 Expose PAYMENT_RECOVERY_PENDING and document FE polling/creation-policy and operations behavior.
+- [x] R05 Run payment and audit regressions, lint/types/build and record exact local evidence.
+- [ ] R06 Verify on a real merchant channel and roll out migrations/code to the target environment (outside this local task).
+
+## Amendment 2026-10-19: cancel top-up
+
+- [x] C01 Add own POST /payments/{paymentId}/cancel, live auth/idempotency and Swagger.
+- [x] C02 Verify signed payOS cancel evidence outside PG tx, share fenced checkout lease, preserve PAID and recover CANCELLED by lookup.
+- [x] C03 Add PaymentStatus.CANCELLED migration/schema generator and payment.updated validation; route late receipts to REVIEW.
+- [x] C04 Add PostgreSQL/HTTP/protocol regression coverage for replay, ownership, concurrency, rollback and ambiguous provider results. Execution evidence in validation.md.
+- [ ] C05 Verify cancellation on a real merchant channel and deploy/migrate the target environment (outside this local task).
+
 **Input**: spec/plan/research/data-model/contracts tại `specs/009-credit-payment/`.
 **Branch**: `feat/credit-payment`. Spec baseline commit `e5dd088`.
 **Authorization**: User yêu cầu commit spec và bắt đầu implement ngày 2026-10-15. Checklist runtime/policy còn mở đã được công khai trước yêu cầu; tiếp tục các phần không phụ thuộc gate, không xin lại quyền implement. Không mở policy hoặc đánh dấu runtime pass từ việc này.

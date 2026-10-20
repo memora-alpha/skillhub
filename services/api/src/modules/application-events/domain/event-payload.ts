@@ -26,6 +26,7 @@ const schemas: Record<string, z.ZodType> = {
       "FAILED",
       "EXPIRED",
       "REFUNDED",
+      "CANCELLED",
       "REVIEW",
     ]),
     version: sequence,
