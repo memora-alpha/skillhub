@@ -110,9 +110,9 @@ for (const [, modelName, body] of schemaText.matchAll(
 )) {
   const columns = [];
   for (const line of body.split("\n")) {
-    const field = /^\s+(\w+)\s+(\w+)(\[\])?(\?)?(.*)$/.exec(line);
+    const field = /^\s+(\w+)\s+(\w+)(\[\])?(\?)?(\s.*)?$/.exec(line);
     if (!field || modelNames.has(field[2])) continue;
-    const [, name, type, isList, optional, attributes] = field;
+    const [, name, type, isList, optional, attributes = ""] = field;
     const explicit = /@default\((.*?)\)(?:\s|$)/.exec(attributes)?.[1];
     let value;
     if (attributes.includes("@updatedAt") || explicit === "now()") {

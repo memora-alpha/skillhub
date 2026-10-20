@@ -152,11 +152,11 @@ export const slots = (...ranges) =>
     endAt,
   }));
 
+export const httpError = (status, code) => (error) =>
+  error.getStatus?.() === status && error.message === code;
+
 export const rejectsWith = (promise, status, code) =>
-  assert.rejects(
-    promise,
-    (error) => error.getStatus?.() === status && error.message === code,
-  );
+  assert.rejects(promise, httpError(status, code));
 
 export async function twoWayWithPlans(ctx, totalCreditPerUser = "20.00") {
   const path = await ctx.paths.create(user(A), {
