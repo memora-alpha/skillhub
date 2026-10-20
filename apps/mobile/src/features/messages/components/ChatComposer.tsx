@@ -10,14 +10,16 @@ export function ChatComposer({
   onChange,
   onSend,
   onAttach,
+  pending = false,
 }: {
   value: string;
   onChange: (text: string) => void;
   onSend: (text: string) => void;
   onAttach: () => void;
+  pending?: boolean;
 }) {
   const [focused, setFocused] = useState(false);
-  const disabled = !value.trim();
+  const disabled = pending || !value.trim();
   return (
     <View style={styles.composer}>
       <View style={styles.row}>
@@ -25,6 +27,7 @@ export function ChatComposer({
           accessibilityRole="button"
           accessibilityLabel="Đính kèm tệp"
           onPress={onAttach}
+          disabled={pending}
           style={styles.attach}
         >
           <Icon
@@ -36,13 +39,17 @@ export function ChatComposer({
         <TextInput
           accessibilityLabel="Nhập tin nhắn"
           value={value}
+          maxLength={2000}
+          editable={!pending}
           onChangeText={onChange}
           placeholder="Nhập tin nhắn..."
           placeholderTextColor={colors.mutedLight}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
           returnKeyType="send"
-          onSubmitEditing={(event) => onSend(event.nativeEvent.text)}
+          onSubmitEditing={(event) => {
+            if (!disabled) onSend(event.nativeEvent.text);
+          }}
           submitBehavior="submit"
           style={[styles.input, focused && { borderColor: colors.brand }]}
         />

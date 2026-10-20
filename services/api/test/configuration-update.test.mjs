@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { validateAuditInput } from "../dist/modules/audit/domain/audit-action.catalog.js";
-import { SystemConfigurationService } from "../dist/modules/system-configuration/application/system-configuration.service.js";
-import { UpdateConfigurationUseCase } from "../dist/modules/system-configuration/application/update-configuration.use-case.js";
+import { SystemConfigurationService } from "../dist/modules/system-configuration/application/services/system-configuration.service.js";
+import { UpdateConfigurationUseCase } from "../dist/modules/system-configuration/application/use-cases/update-configuration.use-case.js";
 import { CONFIGURATION_DEFINITIONS } from "../dist/modules/system-configuration/domain/configuration.catalog.js";
 
 const now = new Date("2026-10-05T00:00:00.000Z");
@@ -14,15 +14,17 @@ const context = {
 function fixture() {
   let state = {
     rows: new Map(
-      Object.entries(CONFIGURATION_DEFINITIONS).map(([key, definition]) => [
-        key,
-        {
+      Object.entries(CONFIGURATION_DEFINITIONS)
+        .filter(([, definition]) => "defaultValue" in definition)
+        .map(([key, definition]) => [
           key,
-          value: structuredClone(definition.defaultValue),
-          version: 1,
-          effectiveAt: now,
-        },
-      ]),
+          {
+            key,
+            value: structuredClone(definition.defaultValue),
+            version: 1,
+            effectiveAt: now,
+          },
+        ]),
     ),
     revisions: [],
     audits: [],
@@ -103,6 +105,14 @@ test("audited update writes current, revision and audit atomically", async () =>
   );
   assert.equal(fx.state().audits[0].action, "SYSTEM_CONFIGURATION_UPDATE");
   assert.deepEqual(fx.state().audits[0].before, { value: 120, version: 1 });
+});
+
+test("unrelated updates work while the optional LiveKit policy remains absent", async () => {
+  const fx = fixture();
+  assert.equal(fx.state().rows.has("livekit.joinWindow"), false);
+  const snapshot = await fx.useCase.execute(command());
+  assert.equal(snapshot.values["storage.downloadTtlSeconds"], 60);
+  assert.equal("livekit.joinWindow" in snapshot.values, false);
 });
 
 test("stale version, invalid patch and audit failure preserve committed state", async () => {

@@ -20,6 +20,7 @@ export const SKILL_PERMISSIONS = {
     "skill-verification:reject",
   ],
   ADMIN: [
+    "skill-level:manage",
     "sharing-skill:create:self",
     "sharing-skill:update:self",
     "sharing-skill:archive:self",

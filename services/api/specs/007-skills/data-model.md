@@ -1,5 +1,10 @@
 # Phase 1 Data Model — Kỹ năng
 
+> [Per-skill level catalog amendment](skill-level-catalog.md): runtime `SkillLevel`
+> owns choices per Skill; SharingSkill.levelId references `(skillId, id)` through a
+> composite FK. Legacy enum remains nullable during rollout. Read the amendment
+> for backfill, inactive-history behavior, uniqueness and ownership constraints.
+
 Models hiện có trong `prisma/schema.prisma`; bổ sung ở runtime generator/additive migration. Không sửa migration v3 cũ hoặc regenerate toàn docs model. Catalog field changes chỉ đồng bộ khi thay đổi business field có chủ đích.
 
 ## Entities and ownership

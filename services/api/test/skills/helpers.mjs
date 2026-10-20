@@ -6,47 +6,59 @@ import pg from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { ConfigService } from "@nestjs/config";
 import { PrismaClient } from "../../dist/generated/prisma/client.js";
+import { postgresConnectionString } from "../../dist/infrastructure/database/postgres-connection.js";
 import { IdentityConfig } from "../../dist/configs/identity.config.js";
 import { createIdentityFixture } from "../identity/fixture.mjs";
 import { PrismaUsersRepository } from "../../dist/modules/users/infrastructure/persistence/prisma-users-repository.js";
 import { TransactionRunner } from "../../dist/infrastructure/database/transaction-runner.js";
 import { IdempotencyService } from "../../dist/infrastructure/idempotency/idempotency.service.js";
-import { AuditRepository } from "../../dist/modules/audit/infrastructure/audit.repository.js";
-import { AuditWriter } from "../../dist/modules/audit/application/audit-writer.js";
+import { AuditRepository } from "../../dist/modules/audit/infrastructure/persistence/audit.repository.js";
+import { AuditWriter } from "../../dist/modules/audit/application/services/audit-writer.js";
 import { OutboxWriter } from "../../dist/infrastructure/events/outbox-writer.js";
 import { OutboxConsumer } from "../../dist/infrastructure/events/outbox-consumer.js";
 import { OutboxPublisherRegistry } from "../../dist/infrastructure/events/outbox.types.js";
 import { SkillActorService } from "../../dist/modules/users/application/services/skill-actor.service.js";
 import { PublicSkillReader } from "../../dist/modules/users/application/services/public-skill-reader.js";
 import { ProfileReader } from "../../dist/modules/users/application/services/profile-reader.service.js";
-import { SkillsRepository } from "../../dist/modules/skills/infrastructure/skills.repository.js";
-import { SkillsService } from "../../dist/modules/skills/application/skills.service.js";
-import { SharingSkillsRepository } from "../../dist/modules/sharing-skills/infrastructure/sharing-skills.repository.js";
-import { SharingSkillsService } from "../../dist/modules/sharing-skills/application/sharing-skills.service.js";
-import { VerificationsRepository } from "../../dist/modules/verifications/infrastructure/verifications.repository.js";
-import { VerificationsService } from "../../dist/modules/verifications/application/verifications.service.js";
+import { SkillsRepository } from "../../dist/modules/skills/infrastructure/persistence/skills.repository.js";
+import { SkillsService } from "../../dist/modules/skills/application/services/skills.service.js";
+import { SkillLevelsService } from "../../dist/modules/skills/application/services/skill-levels.service.js";
+import { SharingSkillsRepository } from "../../dist/modules/sharing-skills/infrastructure/persistence/sharing-skills.repository.js";
+import { SharingSkillsService } from "../../dist/modules/sharing-skills/application/services/sharing-skills.service.js";
+import { VerificationsRepository } from "../../dist/modules/verifications/infrastructure/persistence/verifications.repository.js";
+import { VerificationsService } from "../../dist/modules/verifications/application/services/verifications.service.js";
 import { FileAttachmentService } from "../../dist/infrastructure/storage/file-attachment.service.js";
 import { PrismaStoredFileRepository } from "../../dist/infrastructure/storage/prisma-stored-file.repository.js";
 import { FileStorageService } from "../../dist/infrastructure/storage/file-storage.service.js";
-import { SkillNotificationHandler } from "../../dist/modules/notifications/application/skill-notification.handler.js";
+import { SkillNotificationHandler } from "../../dist/modules/notifications/infrastructure/events/skill-notification.handler.js";
 
-export async function createSkillFixture(beforeSkillsMigration) {
+export async function createSkillFixture(
+  beforeSkillsMigration,
+  beforeLevelMigration,
+  beforeTagMigration,
+) {
   const schema = `skills_test_${randomUUID().replaceAll("-", "")}`;
   if (!/^skills_test_[a-f0-9]{32}$/.test(schema))
     throw new Error("Invalid test schema");
   const url = process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL;
   if (!url) throw new Error("TEST_DATABASE_URL or DATABASE_URL required");
+  const utcUrl = new URL(postgresConnectionString(url));
+  // URL options override PoolConfig.options in pg. Keep schema isolation in the URL too.
+  const isolatedUrl = new URL(utcUrl);
+  isolatedUrl.searchParams.set(
+    "options",
+    `${utcUrl.searchParams.get("options")} -c search_path=${schema}`,
+  );
   const client = new pg.Client({
-    connectionString: url,
+    connectionString: utcUrl.toString(),
     connectionTimeoutMillis: 5000,
   });
   await client.connect();
   const db = new PrismaClient({
     adapter: new PrismaPg(
       {
-        connectionString: url,
+        connectionString: isolatedUrl.toString(),
         connectionTimeoutMillis: 5000,
-        options: `-c search_path=${schema}`,
       },
       { schema },
     ),
@@ -63,16 +75,28 @@ export async function createSkillFixture(beforeSkillsMigration) {
     await client.query(`CREATE SCHEMA "${schema}"`);
     await client.query(`SET search_path TO "${schema}"`);
     const migrations = new URL("../../prisma/migrations/", import.meta.url);
-    // Migrations and the pre-Skills hook must finish in chronological order.
-    for (const name of (await readdir(migrations))
+    const names = (await readdir(migrations))
       .filter((n) => n.startsWith("2026"))
-      .sort((left, right) => left.localeCompare(right))) {
-      if (name === "20261007010000_skills")
-        await beforeSkillsMigration?.(client);
-      await client.query(
-        await readFile(new URL(`${name}/migration.sql`, migrations), "utf8"),
-      );
-    }
+      .sort((left, right) => left.localeCompare(right));
+    // Each hook needs the preceding schema; a failure must stop later migrations.
+    await names.reduce(
+      (previous, name) =>
+        previous.then(async () => {
+          if (name === "20261007010000_skills")
+            await beforeSkillsMigration?.(client);
+          if (name === "20261014000000_skill_level_catalog")
+            await beforeLevelMigration?.(client);
+          if (name === "20261015000000_tag_creation_requests")
+            await beforeTagMigration?.(client);
+          await client.query(
+            await readFile(
+              new URL(`${name}/migration.sql`, migrations),
+              "utf8",
+            ),
+          );
+        }),
+      Promise.resolve(),
+    );
     await db.$connect();
     const usersRepository = new PrismaUsersRepository();
     await db.$transaction((tx) => usersRepository.seedRoles(tx));
@@ -102,6 +126,14 @@ export async function createSkillFixture(beforeSkillsMigration) {
       actors,
       commands,
       transactions,
+      audit,
+    );
+    const levels = new SkillLevelsService(
+      db,
+      new SkillsRepository(db),
+      actors,
+      transactions,
+      commands,
       audit,
     );
     const sharing = new SharingSkillsService(
@@ -216,6 +248,7 @@ export async function createSkillFixture(beforeSkillsMigration) {
       outbox,
       skills,
       sharing,
+      levels,
       profiles,
       verifications,
       attachments,

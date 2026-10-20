@@ -16,9 +16,9 @@ import { RequirePermissions } from "../dist/shared/authorization/access.decorato
 import { PermissionGuard } from "../dist/shared/authorization/permission.guard.js";
 import { HttpExceptionFilter } from "../dist/shared/http/http-exception.filter.js";
 import { getOrCreateRequestContext } from "../dist/shared/http/request-context.js";
-import { AuditWriter } from "../dist/modules/audit/application/audit-writer.js";
-import { auditActorFromActor } from "../dist/modules/audit/application/audit.types.js";
-import { AuditRepository } from "../dist/modules/audit/infrastructure/audit.repository.js";
+import { AuditWriter } from "../dist/modules/audit/application/services/audit-writer.js";
+import { auditActorFromActor } from "../dist/modules/audit/application/contracts/audit.types.js";
+import { AuditRepository } from "../dist/modules/audit/infrastructure/persistence/audit.repository.js";
 
 // Fixture consumer only: no production credit route or auth exists yet (SH-010/012).
 const admin = "11111111-1111-4111-8111-111111111111";

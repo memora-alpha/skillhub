@@ -2,13 +2,79 @@
 
 NestJS backend in the SkillHub pnpm/Turborepo workspace.
 
+Session/LiveKit: backend có token theo participant, lifecycle, signed webhook,
+progress và dual completion. Xem [setup, policy và contract](docs/livekit-sessions.vi.md).
+Join window chưa có mặc định; thêm env nhưng chưa cấu hình policy vẫn không cấp
+token. Video UI và tổng giây attendance cần triển khai riêng.
+Proposal schedule amendment (2026-10-19): `candidateSlots` in create/update/read
+is now optional free-text schedule guidance (`string | null`), matching the mobile
+`schedule` input. Null/blank clears it; omitted PATCH preserves it. Migration
+`20261019000000_proposal_schedule_text` changes the runtime column to nullable TEXT,
+retains populated legacy arrays as JSON text and clears empty arrays. Coordinate
+migration, API restart and clients because old array payloads are rejected.
+See [the contract](specs/008-connections/contracts/http.md).
+
+Tag API có quản trị danh mục cho ADMIN và luồng USER đề xuất → ADMIN approve/reject.
+Xem [quickstart và rollout](specs/009-tags/quickstart.md),
+[contract](specs/009-tags/spec.md#api-contract) và
+[validation](specs/009-tags/validation.md). `GET /api/v1/tags` giữ contract public
+ACTIVE; request chưa duyệt không phải tag sử dụng được. Trước rollout cần preflight,
+migrate và chạy lại identity seed để thêm grants mới.
+
 CD cho API và quy trình migrate/seed được mô tả trong
 [deployment guide](docs/deployment.md). Seed mặc định tắt; chỉ chạy request được
 khai báo hoặc lựa chọn thủ công. CD dev dùng GitHub checks → webhook → Coolify;
 chỉ cần hai secrets, cấu hình runtime và volume seed-state trong Coolify.
 Learning Request FE extension (2026-10-12) bổ sung teachingOverview, kỹ năng có thể dạy chọn từ profile người đăng, lịch rảnh theo thứ/timezone và desiredCreditPerHour. API tag ACTIVE: `GET /api/v1/tags`; kỹ năng để chọn: `GET /api/v1/me/skills`. Xem [payload và migration](specs/007-learning-request/quickstart.md) cùng [contract](specs/007-learning-request/contracts/http.md). Field mới được trả ở feed/detail/mine/moderation; credit là mức mong muốn theo giờ, chưa Hold.
 
+API và `db:seed-configuration` chuẩn hóa mỗi kết nối Prisma/PostgreSQL về UTC.
+Database/role có thể có timezone mặc định khác; helper thêm `-c timezone=UTC`
+sau các connection options hiện có, giữ nguyên TLS và các settings khác.
+Đây là cấu hình theo session, không sửa timezone toàn database hoặc dữ liệu.
+Sau thay đổi cần reload/restart API để pool mới nhận cấu hình. Xem regression
+và bằng chứng PostgreSQL ở [UTC validation](specs/006-system-configuration-time/validation.md).
+
 ## Phạm vi và trạng thái
+
+Technical payment recovery 2026-10-19: đơn payOS đang chờ nhưng mất QR được tra
+cứu và hủy bằng signed evidence trước khi mở tạo mới. Timeout tiếp tục retry,
+không tự chuyển REVIEW vì hết lượt. Worker kiểm tra lại REVIEW cũ do mất QR/hết
+retry khi còn identity, cùng channel và chưa có receipt/posting; mỗi lần mở lại
+có audit. Xem [runbook](docs/payment-recovery-operations.vi.md).
+
+Payment cancellation 2026-10-19: `POST /api/v1/payments/{paymentId}/cancel`
+(Bearer + Idempotency-Key, không body) hủy đơn own chưa trả tiền qua signed payOS
+response. Bổ sung status CANCELLED, retry/recovery giữ cùng orderCode và không
+downgrade PAID. Migration `20261019010000_payment_cancellation` phải chạy trước
+code. Xem [HTTP contract](specs/009-credit-payment/contracts/http.md).
+
+Payment recovery hardening 2026-10-18 giữ identity tạo đơn trong Payment khi mất
+mapping HTTP, chặn key mới khi còn CREATED/PENDING/REVIEW và cung cấp
+`GET /api/v1/payments/creation-policy`. `PAYMENT_CREATION_PAUSED=true` khóa tạo
+mới/ẩn QR, giữ webhook và recovery. Xem [runbook restore/channel và report read-only](docs/payment-recovery-operations.vi.md).
+Migration mới `20261018000000_payment_recovery_guards` phải áp dụng trước code.
+
+Credit & Payment đang triển khai theo [spec009](specs/009-credit-payment/plan.md).
+Backend có `/api/v1/me/wallet`, history/detail, exact decimal-string DTO,
+ledger append-only và Payment create/list/detail/webhook qua payOS. Posting TOP_UP,
+audit/user events/outbox cùng transaction PostgreSQL; có recovery qua signed lookup
+và source lots tích hợp Hold/settlement cho ví tracked. Ví legacy có tiền chưa rõ
+nguồn bị chặn tạo payment để đối soát. Xem [hướng dẫn QR payment](docs/payos-qr-payments.vi.md)
+cho env, API, FE/SSE, migration, recovery và các bước kiểm chứng merchant.
+Theo quyết định 2026-10-16,
+payOS chỉ cung cấp QR payload để hiển thị trực tiếp trong SkillHub; không trả hosted checkout URL.
+Return/cancel HTTPS vẫn bắt buộc trong server request/signature của payOS.
+Không coi chọn provider hoặc config bật
+là nạp đã hoạt động. Xem [tasks](specs/009-credit-payment/tasks.md) và
+[validation](specs/009-credit-payment/validation.md) cho trạng thái kiểm chứng.
+
+Credit application được tách thành `contracts/`, `ports/`, `services/`, `use-cases/` như auth/users. HTTP controller gọi từng use case; repository port được bind tới Prisma adapter trong `infrastructure/persistence/`. Payment gateway contracts/port nằm trong application; payOS adapter triển khai port ở infrastructure.
+
+Operator có thể [tạo tài khoản Admin từ env](specs/002-user-identity/admin-account-seed.md)
+bằng `pnpm --filter api identity:create-admin` sau build hoặc `node scripts/create-admin.mjs`
+trong Terminal container tại `/app/services/api`. Cấu hình runtime `BOOTSTRAP_ADMIN_EMAIL`
+và `BOOTSTRAP_ADMIN_PASSWORD`; tên/lý do tùy chọn. Command seed quyền hiện tại rồi tạo
+Admin ACTIVE có audit; email tồn tại sẽ bị từ chối. Không tự tạo Admin khi startup.
 
 Phạm vi phát triển hiện tại của dự án là **backend tại `services/api`**.
 Web/mobile chỉ được thay đổi khi có yêu cầu riêng. Git và pnpm workspace vẫn
@@ -22,7 +88,7 @@ API đã có nền tảng hạ tầng và phần Danh tính (spec 002): đăng k
 
 Phần Kết nối đã có source cho Proposal từ Request/lời mời trực tiếp, accept mở Conversation, chat text/file, delivery receipt, read watermark và notification in-app. Chat, notification và application events dùng [SSE chung](specs/008-connections/contracts/sse.md) với reconnect/replay; commands/history vẫn qua HTTP. [Policy đã chốt](specs/008-connections/policies.md): proposal 7 ngày, 10/giờ và 50/ngày, direct cooldown 24 giờ; chat 30/phút/User và 120/phút/Conversation; 5 file/tin, 15 MB/file, 50 MB/tin. Xem [quickstart](specs/008-connections/quickstart.md), [tasks](specs/008-connections/tasks.md) và [validation](specs/008-connections/validation.md). Migration Connections và seed cấu hình đã áp dụng trên PostgreSQL local; journeys HTTP/SSE đã pass với PostgreSQL schema riêng và Mongo rs0 local. Mongo service/indexes đã cấu hình; storage local đã bật trên bucket chung `skillhub` và truy cập bucket trả HTTP 200. API local trả health/ready 200; luồng CHAT upload → scan READY/CLEAN → gửi file → download đã pass với R2/ClamAV thật trên dữ liệu test riêng. Moderation rules chưa chốt; SSE nhiều instance/proxy, recovery/cleanup races và load vẫn cần kiểm chứng. Retention, report/staff access và external notification chưa được mở.
 
-Các module từ `feat/learning-platform-modules` đã được gộp cùng Kết nối: source ban đầu cho LearningPath/Plan, scheduling, Session completion, Credit Hold/settlement, reviews, reputation, achievements và report/dispute. Các phần này vẫn cần áp dụng/kiểm tra migration và kiểm chứng tích hợp. Cancel/no-show policy, LiveKit, Gmail/FCM delivery và luồng Learning Materials đầy đủ còn thiếu hoặc chưa tích hợp. Conversations xuất cả lifecycle cho Proposal và membership reader cho LearningPath.
+Các module từ `feat/learning-platform-modules` đã được gộp cùng Kết nối: source ban đầu cho LearningPath/Plan, scheduling, Session completion, Credit Hold/settlement, reviews, reputation, achievements và report/dispute. Các phần này vẫn cần áp dụng/kiểm tra migration và kiểm chứng tích hợp. LiveKit backend được bổ sung trong spec010; Cloud smoke và video UI vẫn cần kiểm chứng/triển khai riêng. Cancel/no-show policy, Gmail/FCM delivery và luồng Learning Materials đầy đủ còn thiếu hoặc chưa tích hợp. Conversations xuất cả lifecycle cho Proposal và membership reader cho LearningPath.
 
 Catalog Prisma theo logical v3 cộng hai model Achievement/UserAchievement: **50 model PostgreSQL và một document
 Message MongoDB** với attachments nhúng. Xem [schema catalog](prisma/README.md)
@@ -72,6 +138,14 @@ Tên module, bảng và routes là định hướng thiết kế; contracts/sche
 sẽ được chốt trong spec và plan của từng feature.
 
 ## Breakdown backend thành module
+
+Skills hỗ trợ [catalog level theo từng skill](specs/007-skills/skill-level-catalog.md):
+Admin quản lý qua `/api/v1/admin/skills/{skillId}/levels`; public lấy level ACTIVE
+qua `/api/v1/skills/{skillId}/levels`. Sharing Skill chọn bằng `levelId`; input enum
+`level` cũ vẫn được ánh xạ. Response `level` có thể là code tùy chỉnh như B2/N3,
+kèm `levelId` và `skillLevel`. Rollout cần migration skill_level_catalog, seed quyền
+`skill-level:manage`, và cập nhật client dùng danh sách level động. Learning Request
+`currentLevel` giữ nguyên. Xem amendment để biết tương thích và kiểm thử.
 
 Skill catalog và Sharing Skill hỗ trợ [archive/restore](specs/007-skills/restore.md): catalog restore về ACTIVE/INACTIVE do operator chọn; owner restore Sharing Skill giữ history/visibility/badge hiện tại và chặn bản trùng. Routes `POST /api/v1/admin/skills/{skillId}/restore` và `POST /api/v1/me/skills/{sharingSkillId}/restore` yêu cầu permission riêng, expectedVersion và Idempotency-Key. Chạy identity seed khi rollout để bổ sung grants.
 

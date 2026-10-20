@@ -39,22 +39,19 @@ Request owner lists received proposals via GET `/proposals?direction=received&le
   "proposedCredit": "100.00",
   "proposedDurationMinutes": 60,
   "initialSessionCount": 2,
-  "candidateSlots": [
-    {
-      "startAt": "2026-11-01T02:00:00.000Z",
-      "endAt": "2026-11-01T03:00:00.000Z"
-    }
-  ]
+  "candidateSlots": "Tối Thứ 5 và Thứ 7"
 }
 ```
 
-Example timestamps are illustrative and must be future relative to server clock at write. Message 10–1000; duration/credit/count/slots optional. Source Request forbids recipientId/skillId/sharingSkillId and derives those from locked Request; supplied extra fields 400.
+Message 10–1000; duration/credit/count/candidateSlots optional. `candidateSlots` is now free-text schedule guidance (`string | null`), sanitized as plain text, NFC-normalized and trimmed; null or blank clears it. It does not confirm a schedule and has no timestamp/range interpretation. Old array/object payloads are rejected with 400. Source Request forbids recipientId/skillId/sharingSkillId and derives those from locked Request; supplied extra fields 400.
 
 Direct variant requires `sourceType:DIRECT_SEARCH`, `recipientSharingSkillId:<uuid>` and message/suggestions; forbids learningRequestId/recipientId/skillId. Resolve recipient+skill via public owner contract, not arbitrary IDs. Direct initiator may be learner; no fixed teacher/exchangeType commitment.
 
 proposedCredit requires exchangeTypeHint; canonical positive decimal string ≤`9999999999.99`, at most 2 fractional digits, no exponent/sign/whitespace. TWO_WAY ≥`20.00`; ONE_WAY >0 plus configured min/max. Convert exactly to BIGINT hundredths. Optional hint is never negotiation confirmation.
 
-PATCH `{expectedVersion,...mutableFields}` permits message/slots/duration/credit/typeHint/count only. Explicit null clears optional hints; missing means unchanged; resulting full object must be valid. Source/parties/skill/expiresAt immutable. Expiry updates default proposal: keep original expiry, gated on G-01 decision. All terminal commands `{expectedVersion}`. accept may also include `expectedRequestVersion` when a Request snapshot was displayed; always recheck current source even when omitted.
+PATCH `{expectedVersion,...mutableFields}` permits message/candidateSlots/duration/credit/typeHint/count only. Explicit null clears optional hints; missing means unchanged; resulting full object must be valid. Source/parties/skill/expiresAt immutable. Expiry updates default proposal: keep original expiry, gated on G-01 decision. All terminal commands `{expectedVersion}`. accept may also include `expectedRequestVersion` when a Request snapshot was displayed; always recheck current source even when omitted.
+
+2026-10-19 breaking contract amendment: request and response `candidateSlots` changed from a timestamp array to nullable text to match the current mobile schedule input. Mobile integration maps `schedule` to `candidateSlots`. Migration `20261019000000_proposal_schedule_text` must precede this API version; coordinate client rollout and API restart in the same release window. Empty legacy arrays become null; populated arrays remain serialized JSON text, preserving every original timestamp. No proposal status, version, expiry or lifecycle event is changed. Older clients expecting arrays require an update.
 
 Proposal response: `id,sourceType,learningRequestId,proposerId,recipientId,skillId,message,exchangeTypeHint,proposedCredit,proposedDurationMinutes,initialSessionCount,candidateSlots,status,version,expiresAt,createdAt,updatedAt,conversationId?`. No email/auth/grants/private evidence/storage keys. ExpiresAt is server-owned.
 

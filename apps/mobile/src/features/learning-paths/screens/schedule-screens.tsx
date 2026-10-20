@@ -15,8 +15,22 @@ import { usePathsPreview } from "../context";
 import { agreementConfirmed, validSlots, finalValidation } from "../rules";
 import { futureSlot } from "../fixtures";
 import { parseLocalDateTime } from "@/utils/local-date-time";
-import { useSessionsPreview } from "@/features/sessions";
+import { useSessionsPreview } from "@/features/sessions/state";
+import { uuid } from "@/lib/http/contracts";
+import {
+  ApiSchedulesScreen,
+  ApiScheduleEditorScreen,
+} from "./ApiScheduleScreens";
+import { ApiHoldScreen } from "./ApiHoldScreen";
 export function SchedulesScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  return uuid.safeParse(id).success ? (
+    <ApiSchedulesScreen />
+  ) : (
+    <PreviewSchedulesScreen />
+  );
+}
+function PreviewSchedulesScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { paths, save } = usePathsPreview();
   const path = paths.find((p) => p.id === id);
@@ -118,6 +132,14 @@ function localDate(iso: string) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}T${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 export function ScheduleEditorScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  return uuid.safeParse(id).success ? (
+    <ApiScheduleEditorScreen />
+  ) : (
+    <PreviewScheduleEditorScreen />
+  );
+}
+function PreviewScheduleEditorScreen() {
   const { id, planId } = useLocalSearchParams<{ id: string; planId: string }>();
   const { paths, save } = usePathsPreview();
   const router = useRouter();
@@ -199,6 +221,10 @@ export function ScheduleEditorScreen() {
   );
 }
 export function HoldScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  return uuid.safeParse(id).success ? <ApiHoldScreen /> : <PreviewHoldScreen />;
+}
+function PreviewHoldScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { paths, save } = usePathsPreview();
   const { sessions } = useSessionsPreview();

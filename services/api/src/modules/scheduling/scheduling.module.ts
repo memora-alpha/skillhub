@@ -1,11 +1,18 @@
 import { Module } from "@nestjs/common";
 import { DatabaseModule } from "../../infrastructure/database/database.module";
+import { AuditModule } from "../audit/audit.module";
 import { IdentityModule } from "../identity.module";
-import { SchedulingController } from "./scheduling.controller";
-import { SchedulingService } from "./scheduling.service";
+import { SystemConfigurationModule } from "../system-configuration/system-configuration.module";
+import { SchedulingController } from "./presentation/http/scheduling.controller";
+import { SchedulingService } from "./application/services/scheduling.service";
 
 @Module({
-  imports: [DatabaseModule, IdentityModule],
+  imports: [
+    DatabaseModule,
+    IdentityModule,
+    AuditModule,
+    SystemConfigurationModule,
+  ],
   controllers: [SchedulingController],
   providers: [SchedulingService],
   exports: [SchedulingService],

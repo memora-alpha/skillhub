@@ -189,6 +189,10 @@ test("bootstrap grants only the chosen per-role actions and preserves existing g
   assert.deepEqual(
     [...grants.get("USER")],
     [
+      "tag-request:create:self",
+      "tag-request:read:self",
+      "session:read:participant",
+      "livekit-token:issue:participant",
       "proposal:create",
       "event:read:self",
       "proposal:read:party",

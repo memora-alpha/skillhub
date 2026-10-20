@@ -1,92 +1,48 @@
-# Mobile architecture
+# Kiến trúc mobile
 
-## Purpose
+## Đang có tại baseline migration
 
-The mobile app should follow the same disciplined sequence as the backend: agree on foundation, document contracts, then implement one verifiable feature at a time.
+Đọc [package.json](../package.json), [tsconfig](../tsconfig.json), [checker](../scripts/check-structure.mjs) và source working tree tại HEAD ed5a17dd9f1a6d5e45e1b6af33b17dd4518b46fd. Expo ~57.0.26, React Native 0.86.3, React 19.2.3, Router ~57.0.24, TypeScript ~6.0.3; TanStack Query, Axios, Zod, React Hook Form, Zustand đã có. Không nâng phiên bản trong migration.
 
-## Workspace boundary
+| Vùng source                                            | Trách nhiệm hiện tại / boundary cho thay đổi mới                                                               |
+| ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------- |
+| [app](../src/app)                                      | Route/layout, params, session/navigation guard, render feature; giữ mỏng, không Axios/ledger/workflow dài      |
+| [features](../src/features)                            | UI, hooks, schemas, API adapters và runtime theo feature; giữ screens/context/services/utils theo nhu cầu thật |
+| [components](../src/components)                        | UI tái sử dụng, không phụ thuộc private state feature hoặc gọi business API                                    |
+| [providers](../src/providers)                          | Runtime toàn app; thứ tự bên dưới có ý nghĩa lifecycle                                                         |
+| [lib](../src/lib)                                      | HTTP/storage/network; không import feature screen hoặc quyết định text UI                                      |
+| [config](../src/config), [constants](../src/constants) | Public config, theme, tokens; theme thật ở constants/theme.ts, không tạo src/theme theo cây dự kiến cũ         |
 
-- Mobile lives in `apps/mobile`.
-- Backend lives in `services/api`.
-- Mobile changes may touch shared packages only when a reusable contract, token or pure utility is genuinely shared.
-- Mobile changes must not modify backend source, migrations, specs or Prisma files unless the user explicitly requests backend work.
+Server state thuộc Query; client-only recovery/cooldown dùng Zustand hoặc context hiện hữu. Không mirror entity server sang một global store khác. Không tạo thư mục rỗng từ template.
 
-## Source layout
+[AppProviders](../src/providers/AppProviders.tsx) tải Nunito/Fraunces trước, rồi SafeAreaProvider → KeyboardProvider → ToastProvider → QueryProvider → AuthSessionProvider → ConnectionGate. AvatarUploadToasts nằm trong connection boundary, ngoài SessionGate; SessionGate → SkillsProvider → ProfilePreviewProvider → MockMessagesProvider → MockProposalsProvider → UiPreviewProvider → router children. Sự có mặt của mock providers không chứng minh Proposal/Chat API đã nối.
 
-```text
-apps/mobile/
-  src/
-    app/
-    features/
-    components/
-    providers/
-    lib/
-    store/
-    config/
-    theme/
-    types/
-    utils/
-    test/
-  assets/
-  docs/
-  specs/
-```
+## Imports và trách nhiệm
 
-## Layer responsibilities
+Feature dùng public index.ts; public subpaths được checker khai báo đúng bốn mục: product-shell/state, learning-paths/state, learning-paths/policy, sessions/state. Không deep import private feature khác; không tạo barrel gây vòng import để đạt hình thức. Route → screen/view → hook/runtime (khi cần logic) → API adapter → HTTP chung. Không bắt thêm controller rỗng.
 
-- `src/app`: Expo Router layouts and route files. Parse params, gate navigation and render feature views.
-- `src/features`: SRS-aligned business feature code. Each feature owns its API hooks, schemas, types, views and components.
-- `src/components`: Generic UI only. No SRS-specific business rules.
-- `src/providers`: App-level providers such as Query, Auth, Theme and Notification.
-- `src/lib`: Infrastructure adapters such as HTTP, storage, realtime, upload, notifications and LiveKit token usage.
-- `src/store`: Client-only global state. Do not mirror server entities here.
-- `src/config`: Runtime config, constants and feature flags.
-- `src/theme`: Colors, spacing, typography and platform presentation tokens.
-- `src/types`: Very small cross-feature mobile-only types.
-- `src/utils`: Pure generic helpers.
-- `src/test`: Test render helpers, fixtures and mocks.
+| Nhóm                                              | Mục tiêu thiết kế | Hard limit checker    |
+| ------------------------------------------------- | ----------------- | --------------------- |
+| Route/layout src/app                              | Khoảng 80 dòng    | 100                   |
+| Đường dẫn chứa /hooks/, /utils/, /api/, /schemas/ | Khoảng 180        | 250                   |
+| Feature view/component                            | Khoảng 220        | 400 theo nhóm còn lại |
+| Source nói chung                                  | Khoảng 250        | 400 theo nhóm còn lại |
 
-## Feature template
+Checker duyệt .ts/.tsx trong src, dùng số dòng split LF/CRLF; ưu tiên app trước regex nhóm. File hook nằm ngoài thư mục hooks không tự vào nhóm 250. Nó kiểm một số alias imports và index.ts của feature, không chứng minh không có cycle/private relative import. ESLint recommended và TypeScript không thực thi các mục tiêu thiết kế. Vượt mục tiêu: xem xét tách theo trách nhiệm; vượt hard limit: xử lý trong task được phép, không nâng limit che lỗi. Không tách abstraction vụn.
 
-`features/settings` owns the signed-in Settings/account screens and static help
-content. It consumes Auth through its public API; Auth does not import Settings
-or shell layouts. Shared grouped action rows live in `components/ActionGroup`.
-Password recovery remains inside Auth, available to guests and signed-in users.
+## Quy chuẩn cho thay đổi mới
 
-```text
-src/features/learning-paths/
-  api/
-  components/
-  hooks/
-  schemas/
-  types/
-  views/
-  utils/
-  index.ts
-```
+Giữ source/UI/theme/routes/runtime hiện có; [guides](README.md) và [workflow](workflow.md) hướng dẫn theo việc. Private cache/async effects cần owner/session guards; backend quyết định quyền, state và Credit. Shared mobile component thay đổi cần kiểm consumer thật. Shared packages chỉ sửa khi được biện minh trong scope; backend cần yêu cầu riêng. Fixture phải có nhãn, không thay real API lỗi.
 
-Create only folders that contain files. A feature does not need every folder on day one.
+## Nợ kỹ thuật và giới hạn
 
-## Import rules
+| Vấn đề                                                                                     | Tác động / ưu tiên                                                 | Nơi tiếp tục                                           |
+| ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------ | ------------------------------------------------------ |
+| Auth queries/profile mutation vẫn trong AuthSession; MockSession legacy còn file           | Khó review boundary; trung bình, không refactor trong migration    | [tasks auth](../specs/002-auth-account-shell/tasks.md) |
+| Checker chưa bắt đầy đủ dependency graph/relative import                                   | Review kiến trúc vẫn cần; trung bình, automation mới là đề xuất    | [testing](guides/testing.md)                           |
+| Public path-count/title/timezone và policy bio chưa đủ contract/evidence                   | Không bịa field hay label thay thế; xem gap theo domain            | [profile contract](contracts/profile.md)               |
+| Skills historical newest-first thiếu timestamp/sort; full scanner/native acceptance còn mở | Server ordering và bằng chứng còn thiếu; cao cho release luồng này | [skills contract](contracts/skills-evidence.md)        |
 
-- Outside code imports a feature through its `index.ts` when possible.
-- A feature must not import private files from another feature.
-- `src/lib` must not import UI feature components.
-- Route files must not call axios, fetch or business services directly.
+Wallet/Payment đang phát triển ở nhánh riêng; fixtures/spec006 không có trong checkout này là khác biệt phạm vi nhánh, không phải nợ kỹ thuật cần sửa tại đây. [Điểm tham chiếu Wallet](work/phase-03-wallet-topup/status.md) giữ ranh giới và điều kiện đồng bộ khi tích hợp.
 
-## File size rules
-
-- Mobile source files target 250 lines or fewer.
-- Route files target 80 lines or fewer.
-- Feature views and components target 220 lines or fewer.
-- Hooks, API adapters, schemas and utilities target 180 lines or fewer.
-- Split files by responsibility before adding broad abstractions.
-
-## Profile and proposal composition
-
-`/profiles/[userId]` uses `PublicProfilePreviewScreen` for saved own-profile
-projection and preview fixtures. `/user/[id]` uses `PublicProfileScreen` for the
-request/proposal public-profile flow. Both routes remain authenticated.
-`AppProviders` nests `MockProposalsProvider` inside `MockMessagesProvider` under
-`ProfilePreviewProvider` and the session gate. Avatar toasts remain under
-`AuthSessionProvider`, so upload feedback continues after leaving the editor.
+Không thực hiện các khoản nợ này trong Phase 00. Đề xuất logger/UI test framework/automation mới chưa được chấp thuận hoặc cài đặt. Hiện trạng feature chi tiết tra [matrix](feature-matrix.md), status và source; architecture không lưu từng checkpoint/số tests.

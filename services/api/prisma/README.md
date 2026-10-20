@@ -9,6 +9,12 @@ entities; its simplification does not remove logical join tables.
 
 ## Catalog and implemented runtime
 
+The 2026-10-19 Proposal amendment overlays catalog `candidateSlots` JSONB as
+nullable TEXT in the runtime generator. Migration
+`20261019000000_proposal_schedule_text` preserves populated arrays as JSON text,
+maps empty arrays to null and avoids lifecycle UPDATE triggers. Apply it together
+with the new API/client contract; the historical logical-v3 catalog stays intact.
+
 - `catalog.prisma` is the v3 PostgreSQL catalog plus the SH-083 achievement extension. Its client output is
   `src/generated/prisma-catalog`, separate from the running identity client.
 - `schema.prisma` is the runtime v3 schema, generated from the catalog by
@@ -19,6 +25,17 @@ entities; its simplification does not remove logical join tables.
   metadata and application aliases mapped to v3 columns.
   `prisma.config.ts`, default generate/build/typecheck and migrations use it.
   Profile fields live on User; User has one required roleId.
+- The [per-skill level catalog amendment](../specs/007-skills/skill-level-catalog.md)
+  adds runtime `SkillLevel` and SharingSkill.levelId through the runtime generator
+  and `runtime-support.prisma`; the historical logical-v3 catalog remains intact.
+  Migration `20261014000000_skill_level_catalog` backfills all old selections.
+- Tag/request amendment adds creator/version/normalized key to Tag and the
+  `TagCreationRequest` runtime model. Migration
+  `20261015000000_tag_creation_requests` retains existing IDs, labels, statuses
+  and RequestTag links; legacy creator/creation time remain null. Run tag
+  preflight before migration and `--verify` after it, then seed identity grants;
+  [rollout instructions](../specs/009-tags/quickstart.md#rollout-database-hiện-hữu)
+  describe collision/locale guards. The historical v3 catalog is unchanged.
 - `scripts/write-identity-schema.mjs` verifies the runtime scope without rewriting it.
   OTP authority is Redis; no PostgreSQL OTP models are generated.
   There is no separate `identity.prisma` deployment schema.
@@ -55,6 +72,13 @@ The Staff endpoint rejects replacing ADMIN with STAFF. Role arrays in existing
 HTTP contracts now contain one role. Reputation uses 50 when not initialized.
 
 ## Representation and unresolved constraints
+
+Credit foundation migration `20261015000000_credit_wallet_foundation` thêm per-wallet
+ledger sequence, nonnegative/allocation checks và append-only ledger guards. Preflight
+đòi lịch sử/Available/Held/allocations khớp; unexplained openings hoặc ambiguous order
+dừng migration, không tự bù số dư. Zero-wallet backfill không cấp tiền. Trigger cấp sequence
+trong wallet row lock và rollback cùng entry, dùng cho stable snapshot history pagination.
+Migration này chưa thêm Payment posting hoặc source provenance lots; không deploy tự động.
 
 Connections migration `20261009010000_connections` adds Proposal version/expiry/source
 constraints and partial uniqueness, immutable Conversation membership, ChatPublication

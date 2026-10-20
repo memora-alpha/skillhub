@@ -2,14 +2,17 @@ import "reflect-metadata";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { ProposalsService } from "../../dist/modules/proposals/application/proposals.service.js";
-import { ConversationLifecycleService } from "../../dist/modules/conversations/application/conversation-lifecycle.service.js";
+import { ProposalsService } from "../../dist/modules/proposals/application/services/proposals.service.js";
+import { ConversationLifecycleService } from "../../dist/modules/conversations/application/services/conversation-lifecycle.service.js";
 import { ConnectionNotificationService } from "../../dist/modules/notifications/application/services/connection-notification.service.js";
 import { connectionSettings } from "../../dist/modules/proposals/domain/connection-policy.js";
 import { plainToInstance } from "class-transformer";
 import { validate } from "class-validator";
-import { SendMessageDto } from "../../dist/modules/conversations/presentation/conversations.dto.js";
-import { CreateProposalDto } from "../../dist/modules/proposals/presentation/proposals.dto.js";
+import { SendMessageDto } from "../../dist/modules/conversations/presentation/http/conversations.dto.js";
+import {
+  CreateProposalDto,
+  ChangeProposalDto,
+} from "../../dist/modules/proposals/presentation/http/proposals.dto.js";
 
 function fixture() {
   const proposerId = randomUUID(),
@@ -26,7 +29,7 @@ function fixture() {
     sourceType: "LEARNING_REQUEST",
     targetSharingSkillId: null,
     message: "A suitable invitation",
-    candidateSlots: [],
+    candidateSlots: null,
     proposedCredit: null,
     exchangeTypeHint: null,
     proposedDurationMinutes: 60,
@@ -256,6 +259,69 @@ test("update preserves server expiry and null explicitly clears hints", async ()
   });
   assert.equal(result.proposal.proposedDurationMinutes, null);
   assert.equal(result.proposal.expiresAt, expiry);
+});
+
+test("create returns schedule text; update omission preserves it and null or blank clears it", async () => {
+  const f = fixture();
+  f.command.principal.userId = f.row.proposerId;
+  const created = await f.service.create(f.command, {
+    sourceType: "DIRECT_SEARCH",
+    recipientSharingSkillId: randomUUID(),
+    message: "A suitable invitation",
+    candidateSlots: "  Tối Thứ 5 và Thứ 7  ",
+  });
+  assert.equal(created.proposal.candidateSlots, "Tối Thứ 5 và Thứ 7");
+  const expiry = f.row.expiresAt;
+  for (const [changes, expected] of [
+    [{ message: "An updated invitation" }, "Tối Thứ 5 và Thứ 7"],
+    [{ candidateSlots: null }, null],
+    [{ candidateSlots: "Cuối tuần" }, "Cuối tuần"],
+    [{ candidateSlots: "  " }, null],
+  ]) {
+    const result = await f.service.mutate(f.command, f.id, "update", {
+      expectedVersion: f.row.version,
+      ...changes,
+    });
+    assert.equal(result.proposal.candidateSlots, expected);
+    assert.equal(result.proposal.expiresAt, expiry);
+  }
+});
+
+test("create and PATCH DTOs accept optional schedule text and reject old slot arrays", async () => {
+  for (const [Dto, base] of [
+    [
+      CreateProposalDto,
+      {
+        sourceType: "DIRECT_SEARCH",
+        recipientSharingSkillId: randomUUID(),
+        message: "A suitable invitation",
+      },
+    ],
+    [ChangeProposalDto, { expectedVersion: 1 }],
+  ]) {
+    for (const value of [
+      undefined,
+      null,
+      "",
+      "Tối Thứ 5 và Thứ 7",
+      [],
+      [{ startAt: "2030-01-01T00:00:00Z", endAt: "2030-01-01T01:00:00Z" }],
+      {},
+      5,
+    ]) {
+      const errors = await validate(
+        plainToInstance(Dto, { ...base, candidateSlots: value }),
+        {
+          whitelist: true,
+          forbidNonWhitelisted: true,
+        },
+      );
+      assert.equal(
+        errors.length === 0,
+        value == null || typeof value === "string",
+      );
+    }
+  }
 });
 test("HTTP command validation rejects injected system cards and actor metadata", async () => {
   for (const [Dto, body] of [

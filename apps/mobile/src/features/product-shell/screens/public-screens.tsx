@@ -137,14 +137,8 @@ export function PublicGuestProfileScreen() {
               <Badge label={s.verified ? "Đã xác minh" : "Chưa xác minh"} />
             </View>
           ))}
-          <RouteButton
-            href={
-              session
-                ? { pathname: "/send-proposal", params: { userId } }
-                : "/login"
-            }
-          >
-            {session ? "Gửi lời mời trao đổi" : "Đăng nhập để gửi lời mời"}
+          <RouteButton href={session ? "/discover" : "/login"}>
+            {session ? "Khám phá người chia sẻ" : "Đăng nhập để kết nối"}
           </RouteButton>
         </Panel>
       )}
@@ -178,14 +172,8 @@ export function PublicGuestRequestScreen() {
           <RouteButton secondary href={`/explore/profiles/${request.userId}`}>
             Xem người đăng
           </RouteButton>
-          <RouteButton
-            href={
-              session
-                ? { pathname: "/send-proposal", params: { requestId: id } }
-                : "/login"
-            }
-          >
-            {session ? "Gửi đề xuất" : "Đăng nhập để gửi đề xuất"}
+          <RouteButton href={session ? "/discover" : "/login"}>
+            {session ? "Tìm yêu cầu học" : "Đăng nhập để kết nối"}
           </RouteButton>
         </Panel>
       )}

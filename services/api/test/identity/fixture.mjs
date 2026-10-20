@@ -13,7 +13,7 @@ import { UsersService } from "../../dist/modules/users/application/services/user
 import { SessionsService } from "../../dist/modules/auth/application/services/sessions.service.js";
 import { ProfileReader } from "../../dist/modules/users/application/services/profile-reader.service.js";
 import { IdentityEmailIntentService } from "../../dist/modules/notifications/application/services/identity-email-intent.service.js";
-import { AuditService } from "../../dist/modules/audit/application/audit.service.js";
+import { AuditService } from "../../dist/modules/audit/application/services/audit.service.js";
 import { RegisterUseCase } from "../../dist/modules/auth/application/use-cases/register.use-case.js";
 import { ResendOtpUseCase } from "../../dist/modules/auth/application/use-cases/resend-otp.use-case.js";
 import { VerifyEmailUseCase } from "../../dist/modules/auth/application/use-cases/verify-email.use-case.js";

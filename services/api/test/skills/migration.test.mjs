@@ -3,6 +3,72 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { createSkillFixture } from "./helpers.mjs";
 
+test("migration hooks observe the preceding schema in order", async () => {
+  const hooks = [];
+  const id = randomUUID();
+  const f = await createSkillFixture(
+    async (client) => {
+      assert.deepEqual(hooks, []);
+      await client.query(
+        "INSERT INTO skills(skill_id,name,slug,status) VALUES($1,$2,$3,$4)",
+        [id, "Ordered migration", "ordered-migration", "ACTIVE"],
+      );
+      hooks.push("skills");
+    },
+    async (client) => {
+      assert.deepEqual(hooks, ["skills"]);
+      const { rows } = await client.query(
+        "SELECT name_key FROM skills WHERE skill_id=$1",
+        [id],
+      );
+      assert.equal(rows[0].name_key, "ordered migration");
+      const levels = await client.query(
+        "SELECT to_regclass('skill_levels') AS table_name",
+      );
+      assert.equal(levels.rows[0].table_name, null);
+      hooks.push("levels");
+    },
+    async (client) => {
+      assert.deepEqual(hooks, ["skills", "levels"]);
+      const { rows } = await client.query(
+        "SELECT count(*)::int AS count FROM skill_levels WHERE skill_id=$1",
+        [id],
+      );
+      assert.equal(rows[0].count, 4);
+      const requests = await client.query(
+        "SELECT to_regclass('tag_creation_requests') AS table_name",
+      );
+      assert.equal(requests.rows[0].table_name, null);
+      hooks.push("tags");
+    },
+  );
+  try {
+    assert.deepEqual(hooks, ["skills", "levels", "tags"]);
+    assert.equal(await f.db.tagCreationRequest.count(), 0);
+  } finally {
+    await f.dispose();
+  }
+});
+
+test("a failed migration hook prevents later hooks from running", async () => {
+  const failure = new Error("Stop before the level catalog migration");
+  let laterHookCalled = false;
+  await assert.rejects(
+    createSkillFixture(
+      undefined,
+      async (client) => {
+        await client.query("SELECT 1");
+        throw failure;
+      },
+      () => {
+        laterHookCalled = true;
+      },
+    ),
+    (error) => error === failure,
+  );
+  assert.equal(laterHookCalled, false);
+});
+
 test(
   "upgrade backfills normalized keys and reports colliding historical skill IDs",
   { timeout: 120000 },
@@ -18,6 +84,7 @@ test(
       const row = await f.db.skill.findUniqueOrThrow({ where: { id } });
       assert.equal(row.nameKey, "kỹ năng cũ");
       assert.equal(row.version, 1);
+      assert.equal(await f.db.skillLevel.count({ where: { skillId: id } }), 4);
       const owner = await f.account();
       await assert.rejects(
         f.db.sharingSkill.create({

@@ -41,8 +41,12 @@ test("environment validation preserves module configuration alongside storage se
   assert.equal(config.STORAGE_ENABLED, false);
 });
 
-function invokeFilter(error) {
+function invokeFilter(
+  error,
+  request = { headers: {}, method: "GET", url: "/test" },
+) {
   const result = {};
+  const logs = [];
   const response = {
     status(code) {
       result.code = code;
@@ -52,10 +56,16 @@ function invokeFilter(error) {
       result.body = body;
     },
   };
-  new HttpExceptionFilter().catch(error, {
+  const filter = new HttpExceptionFilter();
+  filter.logger.error = (entry) => logs.push(entry);
+  filter.catch(error, {
     getType: () => "http",
-    switchToHttp: () => ({ getResponse: () => response }),
+    switchToHttp: () => ({
+      getResponse: () => response,
+      getRequest: () => request,
+    }),
   });
+  result.logs = logs;
   return result;
 }
 
@@ -80,6 +90,43 @@ test("validation errors preserve field messages and HTTP status", () => {
     statusCode: 400,
     message: "email must be an email; password is invalid",
   });
+  assert.deepEqual(result.logs, []);
+});
+
+test("server errors retain correlation and missing-column diagnostics without request or exception secrets", () => {
+  const error = new Error("SQL with private-description and private-password");
+  error.code = "P2022";
+  error.meta = {
+    driverAdapterError: {
+      cause: {
+        originalCode: "42703",
+        originalMessage:
+          "column learning_requests.teaching_overview does not exist",
+        query: "private-description",
+      },
+    },
+  };
+  const result = invokeFilter(error, {
+    headers: {
+      authorization: "Bearer private-token",
+      "x-correlation-id": "123e4567-e89b-42d3-a456-426614174000",
+    },
+    method: "POST",
+    url: "/api/v1/learning-requests?token=private-token",
+    body: { description: "private-description" },
+  });
+  assert.equal(result.code, 500);
+  assert.equal(result.logs.length, 1);
+  const log = result.logs[0];
+  assert.equal(log.event, "http.server_error");
+  assert.equal(log.correlationId, "123e4567-e89b-42d3-a456-426614174000");
+  assert.match(log.requestId, /^[0-9a-f-]{36}$/);
+  assert.equal(log.path, "/api/v1/learning-requests");
+  assert.equal(log.errorCode, "P2022");
+  assert.equal(log.databaseCode, "42703");
+  assert.equal(log.missingColumn, "learning_requests.teaching_overview");
+  assert.doesNotMatch(JSON.stringify(result), /private-|SQL with/);
+  assert.equal(result.body.message, "Internal server error");
 });
 
 test("readiness fails closed when document storage is unavailable", async () => {

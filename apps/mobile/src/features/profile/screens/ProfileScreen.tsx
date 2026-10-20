@@ -2,13 +2,10 @@ import { StyleSheet, View } from "react-native";
 import { Redirect, useRouter } from "expo-router";
 import { Button } from "@/components/Button";
 import { useAuthSession } from "@/features/auth";
+import { OwnProfileSkillList } from "@/features/skills";
 import { ProfileLayout } from "../components/ProfileLayout";
 import { AvatarUploadNotice } from "../components/AvatarUploadNotice";
-import {
-  ProfileAbout,
-  ProfileSkills,
-  ProfileSummary,
-} from "../components/ProfileSummary";
+import { ProfileAbout, ProfileSummary } from "../components/ProfileSummary";
 import { useProfilePreview } from "../context/ProfilePreview";
 import { ProfileShortcuts } from "../components/ProfileShortcuts";
 
@@ -41,15 +38,11 @@ export function ProfileScreen() {
             onOpen={open}
             onSettings={() => router.push("/account-settings")}
           />
-          <Button variant="paper" onPress={() => router.push("/ui")}>
+          <ProfileAbout bio={profile.bio} />
+          <OwnProfileSkillList />
+          <Button variant="ghost" onPress={() => router.push("/ui")}>
             Bộ giao diện mobile
           </Button>
-          <ProfileAbout bio={profile.bio} />
-          <ProfileSkills
-            profile={profile}
-            available={false}
-            onManage={() => open("Kỹ năng")}
-          />
         </View>
       )}
     </ProfileLayout>

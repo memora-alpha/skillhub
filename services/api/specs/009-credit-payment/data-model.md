@@ -1,0 +1,101 @@
+# Data Model — Credit & Payment
+
+Recovery amendment 2026-10-19 adds no new database fields. PREPARING/READY retain
+retry scheduling through network failures. Historical REVIEW with last_error
+PAYMENT_QR_UNAVAILABLE/PAYMENT_PROVIDER_RETRY_EXHAUSTED may transition back to
+CREATED/PREPARING only after authenticated lookup and a locked recheck of stored
+creation identity, quote, channel, lease and absence of receipts/posting. This
+transition appends PAYMENT_RECOVERY_RESUME audit + payment.updated atomically.
+Only signed unpaid CANCELLED/EXPIRED closes a stranded intent. Original creation
+identity/orderCode/quote/history remain retained.
+
+Cancellation amendment 2026-10-19: additive migration
+`20261019010000_payment_cancellation` adds PaymentStatus.CANCELLED. Checkout
+continues to use CLOSED; no new table/column or wallet mutation is required.
+CREATED/PENDING -> CANCELLED requires signed matching provider evidence with no
+payment/transactions. CANCELLED -> REVIEW on a new bank receipt; no automatic
+Credit/refund. Same-state replay has no new event/version; PAID cannot downgrade.
+
+Recovery amendment 2026-10-18: Payment bổ sung nullable `creationKeyDigest` và
+`creationFingerprint` (SHA256 hex); unique `(userId,creationKeyDigest)` và index
+owner/status/time/ID. Nullable chỉ để giữ legacy rows thiếu evidence. Migration
+backfill từ completed HTTP mappings còn giữ, fail nếu nhiều key cùng Payment;
+trigger giữ identity/owner/ID bất biến, ngăn xóa anchored Payment và TRUNCATE.
+Fallback từ Payment có thể phục hồi HTTP mapping, không tạo Payment/orderCode mới.
+Thiếu cả hai nguồn identity sau restore chưa tự phục hồi. Legacy thiếu identity
+bị chặn fresh create; không đoán key từ amount/time.
+
+Implementation amendment 2026-10-17: runtime bổ sung `PayosCheckout` (immutable
+quote digest/policy/URLs/expiry, sequence orderCode, QR/link, lease/retry, posting
+operation), `PaymentReceipt` (POSTED/REVIEW), `PaymentFinding` (conflicting
+evidence), `CreditLot`, `CreditLotHold`, operation instruction digest và
+`CreditWallet.provenanceTracked`. Xem migration `20261017000000_payos_payments`.
+Legacy funded wallets không tự backfill; release/refund/adjustment trong thiết
+kế bên dưới vẫn Pending, không phải các API đã mở.
+
+Date: 2026-10-15. Proposed additions, chưa thay Prisma/SQL. Giữ BigInt hundredths; VND BigInt nguyên. Runtime additions phải qua generator/runtime-support và additive migration, không sửa riêng generated schema hoặc historical catalog.
+
+## Entities và ownership
+
+| Entity                       | Owner         | Existing / proposed                                                                                                                                                                                                                                                     |
+| ---------------------------- | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| CreditWallet                 | credit        | Existing user/balances/version; thêm `lastEntrySequence` BigInt cho watermark. Available/Held >=0, version tăng khi biến động                                                                                                                                           |
+| CreditOperation              | credit        | Existing type/reference/key/status; thêm immutable command digest/policy snapshot/correlation khi cần. Permanent business identity độc lập HTTP TTL                                                                                                                     |
+| CreditTransaction            | credit        | Existing magnitude/signed deltas/after/operation/entryNo/reverses link; thêm `entrySequence`, unique(userId,entrySequence). SUCCESS append-only                                                                                                                         |
+| HeldCreditAllocation         | credit        | Existing path/version/holder/beneficiary/purpose/amount/remaining/status; amount>0 và 0<=remaining<=amount. G05/G08 cho partial release/relock                                                                                                                          |
+| FeePolicyVersion             | credit policy | Existing APPROVED/effective/calc/rounding; 400 bps, floor fee; snapshot không đổi lịch sử                                                                                                                                                                               |
+| Payment                      | payments      | Existing owner/gateway/ref/provider txn/VND/Credit/rate/status; thêm version, quote digest, nonsecret merchant identity, expires/verified/paid/updated timestamps, unique nullable `topUpOperationId` FK và private checkout projection. Order ref bắt buộc với đơn mới |
+| PaymentCheckoutIntent        | payments      | One per Payment: immutable orderCode/request-input digest; PREPARING/READY/ISSUED/REVIEW, lease/retry; READY cần verified provider response, ISSUED chỉ là QR payload đã trả cho owner, chưa chứng minh đã thanh toán                                                   |
+| PaymentGatewayReceipt        | payments      | Gateway/channel/eventKey/business digest/delivery digest/claimed reference+orderCode+paymentLinkId, verified evidence tối thiểu, RECEIVED/PROCESSING/PROCESSED/REJECTED/REVIEW, lease/retry/timestamps/paymentId nullable; unique(gateway,channel,eventKey)             |
+| PaymentReconciliationFinding | payments      | Dedupe finding key/category/refs/evidence digest, OPEN/RESOLVED/timestamps/audit ref; không tự thay wallet                                                                                                                                                              |
+
+Quote snapshot: VND/currency/creditUnits/conversionRate/gateway/channel/orderCode/config version. QR payload chỉ expose cho owner theo provider contract; không expose hosted checkout URL, không đưa vào audit/event/log. Payment thêm payOS channel/orderCode/paymentLinkId; canonical orderCode là positive safe-integer decimal string, unique theo channel khi reserve, không random Date.now. Provider transaction identity là reference; unique gateway+channel+reference, migration không cho collision hoặc cùng giao dịch post hai lần. Không thay transaction uniqueness bằng event identity. Nhiều receipt cùng provider transaction vẫn chỉ một posting; cùng eventKey khác business digest không overwrite evidence cũ; delivery timestamp khác không phải business conflict.
+
+## Monetary invariants
+
+User amendment 2026-10-15: nguồn Credit là spendable provenance, không lifetime counters. Thiết kế kế tiếp cần `CreditLot` (source PURCHASED/BONUS/EARNED, grantedAt, available/held/consumed, source operation) và `CreditLotAllocation` cho Hold/chi tiêu/hoàn. BONUS trước, các nguồn còn lại FIFO(grantedAt, stable id); release/refund trả đúng lot gốc, không áp lại thứ tự tiêu tại thời điểm hoàn. `purchasedCredit`/`bonusCredit` là tổng chưa tiêu của source tương ứng, gồm Available và Held, không là tổng ví bổ sung. EARNED cần nguồn riêng để không giả mạo tiền nạp. Historical provenance không rõ phải preflight/manual reconciliation; không gán toàn bộ balance cũ thành PURCHASED. Phần lot chưa có trong initial wallet-read migration.
+
+- `creditUnits = VND×100/rate`; positive, chia hết, trong BigInt DB và business limits. Rate1000 nghĩa bước biểu diễn tối thiểu 10 VND; G02 có thể quy định bước chặt hơn, không tự coi bội1000 là bắt buộc.
+- HTTP Credit `100.00`, VND `100000`, đều string. Parse/format bằng integer; không Number/toFixed cho arithmetic.
+- Mỗi mutation có signed Available/Held deltas và after; wallet cuối bằng entry cuối. Sequence mỗi ví cấp dưới lock; nhiều entry trong cùng operation có thứ tự xác định.
+- `fee=floor(grossUnits×400/10000)`, `net=gross−fee`. TWO_WAY tính riêng mỗi holder; không làm tròn hai chân độc lập.
+- Sum user deltas: Hold/Release=0; TOP_UP=external issuance; settlement=−platform fee; adjustment=explicit issuance/burn. ONE_WAY net nội bộ triệt tiêu. Fee row là sink evidence, không fake User nền tảng và không double count magnitude.
+- Wallet = opening có chứng từ + summed deltas tại watermark. Held = tổng allocation remaining đã commit. Không thêm `Available+Held=purchased+bonus` trước G03.
+- PAID liên kết đúng một TOP_UP operation có cùng Payment/user/amount/evidence; commit atomically. Pending/failed receipts không tạo TOP_UP.
+
+Row SQL checks bảo vệ nonnegative balances/positive magnitude/allocation bounds/unique identities; cross-row tổng phải qua owner tx và reconciliation. Append-only guards bảo vệ successful ledger/immutable quote/posting identity. Không blanket sign rule làm sai HOLD hoặc zero fee.
+
+## Payment transitions
+
+| From            | To       | Điều kiện                                                                                                     |
+| --------------- | -------- | ------------------------------------------------------------------------------------------------------------- |
+| CREATED         | PENDING  | Provider order xác định; CAS không ghi đè PAID callback đến sớm                                               |
+| CREATED/PENDING | PAID     | Verified matched success + atomic TOP_UP                                                                      |
+| CREATED/PENDING | FAILED   | Definitive failure, chưa posted; timeout không phải failure                                                   |
+| CREATED/PENDING | EXPIRED  | Server/provider expiry policy G02, chưa posted; expiredAt gửi payOS; local TTL không chứng minh chưa thu tiền |
+| FAILED/EXPIRED  | PAID     | Chỉ trusted lookup/reconciliation + approved late-success mapping; trước đó REVIEW, không tự cộng             |
+| PAID            | PAID     | Valid replay; stale failure/expiry không downgrade                                                            |
+| PAID            | REFUNDED | Không active MVP; G06 và compensating ledger, không chỉ đổi enum                                              |
+
+Receipt/intent trạng thái kỹ thuật khác Payment business status. REVIEW có ở Payment và receipt/finding để giữ các đơn cần đối soát, không cho tạo đơn thay thế ngay. payOS checkout dùng server-side REST create và verified response; UNKNOWN cần lookup/reconcile bằng cùng orderCode/paymentLinkId. Không cấp orderCode mới khi timeout hoặc coi request prepared là provider PENDING.
+
+## Financial transitions
+
+- `ensureWallet`: zero only/idempotent; không monetary entry. Historical nonzero thiếu lịch sử bị G10 chặn.
+- TOP_UP: matched evidence→lock/create wallet→operation/entry→wallet→Payment PAID/link/receipt PROCESSED + audit/outbox cùng tx.
+- HOLD: owner prerequisites→locked path version→sorted wallets→Available−amount/Held+amount + ACTIVE allocations; rollback toàn owner workflow khi fail.
+- SETTLEMENT: path lock + all sessions/dispute gate→full active allocations→entries/consumed allocations/Path COMPLETED snapshot; replay dùng settled snapshot.
+- RELEASE: approved allocation/version/amount/policy/ref→remaining−amount, Held−amount/Available+amount; reject stale/over-release/settled, không đánh dấu terminal khi remaining>0.
+- ADJUSTMENT: live `credit:adjust`, expectedWalletVersion, signed Available delta/reason/ref→nonnegative wallet + ledger/audit. Không đụng Held.
+- REVERSAL: append compensations liên kết originals sau policy; không sửa SUCCESS cũ sang REVERSED. REVERSED có thể là public projection từ compensation. Gateway refund/material reversal chưa active.
+
+## Migration/preflight
+
+1. Inventory balances/ledger/allocations/payment/fee snapshots/FKs; detect negative/duplicates/unlinked/unknown units. Không xóa/rescale tự động.
+2. Controlled write window/locks khi backfill/checks; không cho financial writes chen vào sequence allocation.
+3. Backfill per-user sequence từ lịch sử chứng minh được; timestamp/UUID chỉ là tie-break kỹ thuật khi after/delta còn khớp. Không reconstruct được thì manual G10, không bịa opening/after/history.
+4. Link legacy PAID với operation bằng verified reference rõ; ambiguity chặn. Row PAID không tự chứng minh callback verified.
+5. Add fields/checks/indexes/append-only guards sau preflight; preserve originals; rebuild schema generator và check không mất module khác.
+6. Consistent snapshot reconciliation: wallet/sequence/deltas, Held/allocations, Payment/TOP_UP, fees/settlement snapshot; report findings, không auto-repair.
+
+Allocation unique(pathId,userId) giữ tới G08. Không xóa allocation cũ để relock hoặc reset settled history; mở multiple versions cần lifecycle/migration riêng và stale-release tests.

@@ -50,6 +50,9 @@ model("User", (block) =>
   fields(
     block,
     `
+  createdTags Tag[] @relation("Tag_creator")
+  tagCreationRequests TagCreationRequest[] @relation("TagRequest_owner")
+  reviewedTagCreationRequests TagCreationRequest[] @relation("TagRequest_reviewer")
   @@index([createdAt(sort: Desc), id(sort: Desc)])
   @@index([accountStatus, createdAt(sort: Desc), id(sort: Desc)])
 `,
@@ -108,16 +111,23 @@ model("LearningRequest", (block) =>
 );
 model("SharingSkill", (block) =>
   fields(
-    block,
-    '  requestOfferings RequestOffering[] @relation("RequestOffering_sharing")',
+    block.replace(/level(\s+)SharingSkillLevel\b/, "level$1SharingSkillLevel?"),
+    `  requestOfferings RequestOffering[] @relation("RequestOffering_sharing")
+  levelId String? @map("level_id") @db.Uuid
+  levelIdRecord SkillLevel? @relation(fields: [skillId, levelId], references: [skillId, id], onDelete: Restrict, onUpdate: Restrict)
+  @@index([skillId, levelId])`,
   ),
 );
+model("Skill", (block) => fields(block, "  levels SkillLevel[]"));
 model("Notification", (block) =>
   fields(block, "  @@index([userId, createdAt(sort: Desc), id(sort: Desc)])"),
 );
 model("Proposal", (block) =>
   fields(
-    block,
+    block.replace(
+      /candidateSlots\s+Json\s+@default\("\[\]"\) @map\("candidate_slots"\)/,
+      'candidateSlots String? @map("candidate_slots") @db.Text',
+    ),
     `
   version Int @default(1)
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -236,6 +246,40 @@ model("OutboxEvent", (block) =>
 schema +=
   "\n\n// Support retained for implemented foundation and Learning Request services.\n" +
   readFileSync(new URL("runtime-support.prisma", root), "utf8");
+// Financial entry order is assigned under the owning wallet lock by a DB trigger.
+model("CreditWallet", (block) =>
+  fields(
+    block,
+    `  lastEntrySequence BigInt @default(0) @map("last_entry_sequence")
+  provenanceTracked Boolean @default(false) @map("provenance_tracked")`,
+  ),
+);
+model("CreditTransaction", (block) =>
+  fields(
+    block,
+    `  entrySequence BigInt @default(0) @map("entry_sequence")
+  @@unique([userId, entrySequence])`,
+  ),
+);
+schema = schema.replace(/enum PaymentStatus \{[\s\S]*?\n\}/, (block) =>
+  fields(block, "  REVIEW\n  CANCELLED"),
+);
+model("Payment", (block) =>
+  fields(
+    block,
+    `  payosCheckout PayosCheckout?
+  creationKeyDigest String? @map("creation_key_digest") @db.Char(64)
+  creationFingerprint String? @map("creation_fingerprint") @db.Char(64)
+  @@unique([userId, creationKeyDigest])
+  @@index([userId, status, createdAt, id])`,
+  ),
+);
+model("CreditOperation", (block) =>
+  fields(
+    block,
+    '  instructionDigest String? @map("instruction_digest") @db.Char(64)',
+  ),
+);
 schema = schema.replace(
   /^\/\/ Logical v3[^\r\n]*\r?\n(?:\/\/[^\r\n]*\r?\n)*\r?\n/,
   "// Runtime: v3 domain models plus implemented foundation support.\n" +

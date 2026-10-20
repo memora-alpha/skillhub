@@ -4,8 +4,8 @@ import { IdempotencyModule } from "../../infrastructure/idempotency/idempotency.
 import { IdentityModule } from "../identity.module";
 import { SkillsModule } from "../skills/skills.module";
 import { AuditModule } from "../audit/audit.module";
-import { SharingSkillsRepository } from "./infrastructure/sharing-skills.repository";
-import { SharingSkillsService } from "./application/sharing-skills.service";
+import { SharingSkillsRepository } from "./infrastructure/persistence/sharing-skills.repository";
+import { SharingSkillsService } from "./application/services/sharing-skills.service";
 import {
   SharingSkillsController,
   SkillSearchController,

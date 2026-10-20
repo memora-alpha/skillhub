@@ -1,9 +1,7 @@
 export { PathsPreviewProvider, usePathsPreview } from "./context";
-export {
-  PathsScreen,
-  AgreementTypeScreen,
-  PathDetailScreen,
-} from "./screens/path-screens";
+export { AgreementTypeScreen, PathDetailScreen } from "./screens/path-screens";
+export { MyPathsContent } from "./components/my-paths-content";
+export { ApiPathsContent } from "./components/ApiPathsContent";
 export { PlanDetailScreen, PlanEditorScreen } from "./screens/plan-screens";
 export {
   SchedulesScreen,

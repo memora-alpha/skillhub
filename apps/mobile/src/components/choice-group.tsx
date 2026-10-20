@@ -6,11 +6,13 @@ export function ChoiceGroup({
   options,
   value,
   onChange,
+  disabled = false,
 }: {
   label: string;
   options: readonly string[];
   value: string;
   onChange: (value: string) => void;
+  disabled?: boolean;
 }) {
   return (
     <View style={{ gap: 8 }}>
@@ -22,7 +24,8 @@ export function ChoiceGroup({
           <Pressable
             key={option}
             accessibilityRole="radio"
-            accessibilityState={{ checked: value === option }}
+            accessibilityState={{ checked: value === option, disabled }}
+            disabled={disabled}
             aria-checked={value === option}
             onPress={() => onChange(option)}
             style={{

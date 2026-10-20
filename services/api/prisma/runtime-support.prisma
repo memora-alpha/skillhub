@@ -1,3 +1,104 @@
+// Payment technical records. SQL migration owns foreign keys to existing domain tables.
+model PayosCheckout {
+  paymentId String @id @map("payment_id") @db.Uuid
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  channel String @db.VarChar(100)
+  orderCode BigInt @unique @default(autoincrement()) @map("order_code")
+  paymentLinkId String? @map("payment_link_id") @db.VarChar(255)
+  qrCode String? @map("qr_code") @db.VarChar(4096)
+  state String @default("PREPARING") @db.VarChar(24)
+  version Int @default(1)
+  quoteDigest String @map("quote_digest") @db.Char(64)
+  policyVersion String @map("policy_version") @db.VarChar(40)
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(3)
+  paidAt DateTime? @map("paid_at") @db.Timestamptz(3)
+  topUpOperationId String? @unique @map("top_up_operation_id") @db.Uuid
+  lastError String? @map("last_error") @db.VarChar(80)
+  attempts Int @default(0)
+  nextAttemptAt DateTime @default(now()) @map("next_attempt_at") @db.Timestamptz(3)
+  leaseUntil DateTime? @map("lease_until") @db.Timestamptz(3)
+  leaseToken String? @map("lease_token") @db.Uuid
+  returnUrl String @map("return_url") @db.Text
+  cancelUrl String @map("cancel_url") @db.Text
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  @@unique([channel, paymentLinkId])
+  @@index([nextAttemptAt])
+  @@map("payos_checkouts")
+}
+
+model PaymentReceipt {
+  id String @id @default(uuid()) @db.Uuid
+  channel String @db.VarChar(100)
+  transactionId String @map("transaction_id") @db.VarChar(255)
+  digest String @db.Char(64)
+  evidence Json
+  paymentId String? @map("payment_id") @db.Uuid
+  state String @db.VarChar(24)
+  reason String? @db.VarChar(80)
+  conflict Boolean @default(false)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  @@unique([channel, transactionId])
+  @@index([paymentId])
+  @@map("payment_receipts")
+}
+
+model CreditLot {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @map("user_id") @db.Uuid
+  operationId String @unique @map("operation_id") @db.Uuid
+  source String @db.VarChar(20)
+  available BigInt
+  held BigInt @default(0)
+  consumed BigInt @default(0)
+  granted BigInt
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  @@index([userId, createdAt, id])
+  @@map("credit_lots")
+}
+
+model PaymentFinding {
+  id String @id @default(uuid()) @db.Uuid
+  receiptId String @map("receipt_id") @db.Uuid
+  digest String @db.Char(64)
+  evidence Json
+  reason String @db.VarChar(80)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  @@unique([receiptId,digest])
+  @@map("payment_findings")
+}
+
+model CreditLotHold {
+  allocationId String @map("allocation_id") @db.Uuid
+  lotId String @map("lot_id") @db.Uuid
+  amount BigInt
+  remaining BigInt
+  @@id([allocationId, lotId])
+  @@map("credit_lot_holds")
+}
+
+// Per-skill level catalog; legacy SharingSkill.level stays during client rollout.
+model SkillLevel {
+  id String @id @default(uuid()) @map("level_id") @db.Uuid
+  skillId String @map("skill_id") @db.Uuid
+  code String @db.VarChar(40)
+  name String @db.VarChar(100)
+  nameKey String @map("name_key") @db.Text
+  description String? @db.VarChar(500)
+  sortOrder Int @default(0) @map("sort_order")
+  status CatalogStatus @default(ACTIVE)
+  version Int @default(1)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  skill Skill @relation(fields: [skillId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  sharingSkills SharingSkill[]
+
+  @@unique([skillId, id])
+  @@unique([skillId, code])
+  @@unique([skillId, nameKey])
+  @@index([skillId, status, sortOrder, id])
+  @@map("skill_levels")
+}
+
 enum OtpPurpose {
   REGISTER
   RESET_PASSWORD
@@ -155,9 +256,47 @@ model Tag {
   id String @id @default(uuid()) @map("tag_id") @db.Uuid
   label String @unique @db.VarChar(80)
   status CatalogStatus @map("status")
+  labelKey String @unique @map("label_key") @db.Text
+  createdByUserId String? @map("created_by_user_id") @db.Uuid
+  createdBy User? @relation("Tag_creator", fields: [createdByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "tags_creator_fkey")
+  createdAt DateTime? @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  version Int @default(1)
+  creationRequests TagCreationRequest[]
   learningRequests RequestTag[] @relation("RequestTag_tag")
 
+  @@index([createdByUserId])
   @@map("tags")
+}
+
+enum TagCreationRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model TagCreationRequest {
+  id String @id @default(uuid()) @map("tag_request_id") @db.Uuid
+  label String @db.VarChar(80)
+  labelKey String @map("label_key") @db.Text
+  requestedByUserId String @map("requested_by_user_id") @db.Uuid
+  requestedBy User @relation("TagRequest_owner", fields: [requestedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  status TagCreationRequestStatus @default(PENDING)
+  reviewedByUserId String? @map("reviewed_by_user_id") @db.Uuid
+  reviewedBy User? @relation("TagRequest_reviewer", fields: [reviewedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  reviewedAt DateTime? @map("reviewed_at") @db.Timestamptz(3)
+  resultTagId String? @map("result_tag_id") @db.Uuid
+  resultTag Tag? @relation(fields: [resultTagId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  rejectReason String? @map("reject_reason") @db.Text
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  version Int @default(1)
+
+  @@index([status, createdAt(sort: Desc), id(sort: Desc)], map: "tag_request_queue_idx")
+  @@index([requestedByUserId, createdAt(sort: Desc), id(sort: Desc)], map: "tag_request_owner_idx")
+  @@index([reviewedByUserId], map: "tag_request_reviewer_idx")
+  @@index([resultTagId], map: "tag_request_result_idx")
+  @@map("tag_creation_requests")
 }
 
 model RequestTag {

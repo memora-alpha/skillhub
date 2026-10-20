@@ -33,6 +33,8 @@ import { SchedulingModule } from "./modules/scheduling/scheduling.module";
 import { LearningSessionsModule } from "./modules/learning-sessions/learning-sessions.module";
 import { ReviewsModule } from "./modules/reviews/reviews.module";
 import { ReportsModule } from "./modules/reports/reports.module";
+import { CreditModule } from "./modules/credit/credit.module";
+import { PaymentsModule } from "./modules/payments/payments.module";
 
 @Module({
   imports: [
@@ -81,6 +83,8 @@ import { ReportsModule } from "./modules/reports/reports.module";
     LearningSessionsModule,
     ReviewsModule,
     ReportsModule,
+    CreditModule,
+    PaymentsModule,
   ],
   controllers: [HealthController],
   providers: [

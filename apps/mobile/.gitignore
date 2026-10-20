@@ -1,11 +1,30 @@
-# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+# Mobile-only package-manager files (the monorepo keeps its root pnpm lockfile)
+package-lock.json
+npm-shrinkwrap.json
+yarn.lock
+bun.lock
+bun.lockb
+pnpm-lock.yaml
 
-# dependencies
-node_modules/
+# Mobile caches and test output
+.cache/
+.eslintcache
+.prettiercache
+.nyc_output/
+playwright-report/
+test-results/
+*.lcov
+
+# Mobile logs and editor files
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+Desktop.ini
+*.swp
+*.swo
+*~
 
 # Expo
-.expo/
-dist/
 web-build/
 expo-env.d.ts
 
@@ -13,30 +32,20 @@ expo-env.d.ts
 .kotlin/
 *.orig.*
 *.jks
+*.keystore
 *.p8
 *.p12
+*.pfx
 *.key
+*.pem
 *.mobileprovision
+*.apk
+*.aab
+*.ipa
+*.hprof
 
 # Metro
 .metro-health-check*
-
-# debug
-npm-debug.*
-yarn-debug.*
-yarn-error.*
-
-# macOS
-.DS_Store
-*.pem
-
-# local env files
-.env
-.env.*
-!.env.example
-
-# typescript
-*.tsbuildinfo
 
 # generated native folders
 /ios
@@ -69,3 +78,6 @@ SKILL.md
 **/.github/copilot-instructions.md
 **/.github/instructions/
 **/.github/prompts/
+
+# Retired mobile workflow tooling (local backup only)
+/.workflow-archive/

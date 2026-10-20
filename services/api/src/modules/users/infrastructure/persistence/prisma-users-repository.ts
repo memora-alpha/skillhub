@@ -8,6 +8,7 @@ import {
 import { UserListQuery } from "../../application/contracts/user-list-query";
 import { UsersRepository } from "../../application/ports/users-repository";
 import { SKILL_PERMISSIONS } from "../../../skills/domain/skill-policy";
+import { TAG_PERMISSIONS } from "../../../skills/domain/tag-policy";
 import type { PermissionCode } from "../../../../shared/authorization/permission.catalog";
 @Injectable()
 export class PrismaUsersRepository extends UsersRepository {
@@ -222,6 +223,8 @@ export class PrismaUsersRepository extends UsersRepository {
     ];
     const learningRequestGrants = {
       USER: [
+        "session:read:participant",
+        "livekit-token:issue:participant",
         "proposal:create",
         "event:read:self",
         "proposal:read:party",
@@ -270,6 +273,7 @@ export class PrismaUsersRepository extends UsersRepository {
         ...Object.values(learningRequestGrants).flat(),
         ...Object.values(reportGrants).flat(),
         ...Object.values(SKILL_PERMISSIONS).flat(),
+        ...Object.values(TAG_PERMISSIONS).flat(),
       ]),
     ];
     await tx.permission.createMany({
@@ -292,6 +296,12 @@ export class PrismaUsersRepository extends UsersRepository {
       ).map(({ code, id }) => [code, id]),
     );
     const assignments = [
+      ...Object.entries(TAG_PERMISSIONS).flatMap(([roleCode, grants]) =>
+        grants.map((permissionCode) => ({
+          roleCode: roleCode as RoleCode,
+          permissionCode,
+        })),
+      ),
       ...systemAdminPermissions.map((permissionCode) => ({
         roleCode: "ADMIN" as const,
         permissionCode,

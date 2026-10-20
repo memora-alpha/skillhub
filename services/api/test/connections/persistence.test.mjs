@@ -8,12 +8,12 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../../dist/generated/prisma/client.js";
 import { TransactionRunner } from "../../dist/infrastructure/database/transaction-runner.js";
 import { IdempotencyService } from "../../dist/infrastructure/idempotency/idempotency.service.js";
-import { ProposalsService } from "../../dist/modules/proposals/application/proposals.service.js";
+import { ProposalsService } from "../../dist/modules/proposals/application/services/proposals.service.js";
 import { LearningRequestLifecycleService } from "../../dist/modules/learning-requests/application/services/learning-request-lifecycle.service.js";
 import { PrismaLearningRequestRepository } from "../../dist/modules/learning-requests/infrastructure/persistence/prisma-learning-request.repository.js";
 import { connectionSettings } from "../../dist/modules/proposals/domain/connection-policy.js";
 import { lockUsers } from "../../dist/shared/database/identity-transactions.js";
-import { ConversationLifecycleService } from "../../dist/modules/conversations/application/conversation-lifecycle.service.js";
+import { ConversationLifecycleService } from "../../dist/modules/conversations/application/services/conversation-lifecycle.service.js";
 import { ConnectionNotificationService } from "../../dist/modules/notifications/application/services/connection-notification.service.js";
 
 // No fallback to application configuration. All migrations run in a disposable schema.
@@ -101,6 +101,7 @@ test(
               recipientId: ids[0],
               skillId: skill.id,
               message: "A suitable proposal",
+              candidateSlots: "Tối Thứ 5 và Thứ 7",
               status: "PENDING",
               expiresAt: new Date(Date.now() + 86400000),
             },
@@ -178,6 +179,18 @@ test(
       assert.equal(await db.creditTransaction.count(), 0);
       const winner = results.findIndex(
         (result) => result.status === "fulfilled",
+      );
+      assert.equal(
+        results[winner].value.proposal.candidateSlots,
+        "Tối Thứ 5 và Thứ 7",
+      );
+      assert.equal(
+        (
+          await db.proposal.findUniqueOrThrow({
+            where: { id: proposals[winner].id },
+          })
+        ).candidateSlots,
+        "Tối Thứ 5 và Thứ 7",
       );
       const replay = await service.mutate(
         { ...command, key: `accept-${winner}` },

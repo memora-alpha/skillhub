@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { SystemConfigurationService } from "../dist/modules/system-configuration/application/system-configuration.service.js";
+import { SystemConfigurationService } from "../dist/modules/system-configuration/application/services/system-configuration.service.js";
 import { seedApprovedConfigurations } from "../dist/modules/system-configuration/application/seed-configuration.js";
 import { CONFIGURATION_DEFINITIONS } from "../dist/modules/system-configuration/domain/configuration.catalog.js";
 
@@ -38,8 +38,11 @@ test("seed inserts approved values and history, rerun preserves operator value",
   assert.equal(repo.rows.get("storage.evidenceMaxBytes").value, 10_000_000);
   assert.equal(
     repo.revisions.size,
-    Object.keys(CONFIGURATION_DEFINITIONS).length,
+    Object.values(CONFIGURATION_DEFINITIONS).filter(
+      (definition) => "defaultValue" in definition,
+    ).length,
   );
+  assert.equal(repo.rows.has("livekit.joinWindow"), false);
   repo.rows.set("storage.downloadTtlSeconds", {
     key: "storage.downloadTtlSeconds",
     value: 60,

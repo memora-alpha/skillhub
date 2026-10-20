@@ -5,7 +5,7 @@ import { Test } from "@nestjs/testing";
 import { ValidationPipe, VersioningType } from "@nestjs/common";
 import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
 import { createSkillFixture } from "./helpers.mjs";
-import { SkillsService } from "../../dist/modules/skills/application/skills.service.js";
+import { SkillsService } from "../../dist/modules/skills/application/services/skills.service.js";
 import * as controllers from "../../dist/modules/skills/presentation/http/skills.controller.js";
 import { HttpExceptionFilter } from "../../dist/shared/http/http-exception.filter.js";
 
@@ -28,7 +28,7 @@ test(
           { label: "100plainXdone", status: "ACTIVE" },
           { label: "Tag inactive", status: "INACTIVE" },
           { label: "Tag archived", status: "ARCHIVED" },
-        ],
+        ].map((row) => ({ ...row, labelKey: row.label.toLowerCase() })),
       });
       const module = await Test.createTestingModule({
         controllers: [

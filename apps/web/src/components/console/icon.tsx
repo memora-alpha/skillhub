@@ -2,6 +2,12 @@ import type { ReactNode } from "react";
 
 // Stroke icons on a 24px grid (Feather geometry). Decorative by default: pair with visible text or aria-label on the parent.
 const PATHS = {
+  bell: (
+    <>
+      <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
+      <path d="M10 21h4" />
+    </>
+  ),
   grid: (
     <>
       <rect x="3" y="3" width="7" height="7" />

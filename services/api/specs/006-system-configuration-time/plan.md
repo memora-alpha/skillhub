@@ -10,6 +10,23 @@ use case; shared Clock chỉ cung cấp instants. Secrets nằm ngoài policy DB
 **Spec:** [spec.md](spec.md). **Date:** 2026-10-04. **Status:** Implemented 2026-10-05; đã kiểm chứng trên PostgreSQL, phần còn Pending xem [validation.md](validation.md).
 Paths tính từ `services/api`.
 
+## UTC connection regression fix — 2026-10-13
+
+PostgreSQL session `Asia/Bangkok` trả timestamptz có `+07`; parser hiện tại của
+Prisma pg thay offset thành `+00` mà không đổi giờ. Policy có hiệu lực có thể
+bị đọc thành tương lai và upload evidence trả 503. `postgres-connection.ts`
+chuẩn hóa URL options với timezone UTC ở cuối để pg không ghi đè bằng query
+options; API PrismaService và seed entry dùng cùng helper. Giữ TLS, credentials,
+database và các options khác, không chỉnh dữ liệu hoặc DB/role global timezone.
+
+Constitution Check: Pass — thực hiện quyết định UTC đã chấp thuận, phạm vi BE
+đã được user cho phép ngày 2026-10-13; không đổi schema/API/business policy,
+không bypass missing/invalid/future-effective checks. Affected consumers: mọi
+PrismaService repository và seed configuration. Verification: build/type/lint,
+UTC/foundation/config regression, SELECT read-only PostgreSQL với timezone +07
+và configuration snapshot. FE/mobile hiển thị timestamp server theo giờ VN;
+không sửa instant để bù lỗi BE. Native/full upload journey vẫn kiểm chứng riêng.
+
 ## Global Constraints
 
 - Constitution v1.2.0; UTC, integer financial units và audited sensitive changes.

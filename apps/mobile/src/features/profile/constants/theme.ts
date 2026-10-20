@@ -34,6 +34,7 @@ export const profileStatColors = [
 export const profileActionTints: Readonly<Record<string, string>> = {
   wallet: "#FFF1E9",
   book: "#EAF8F6",
+  clipboard: "#EAF8F6",
   award: "#FFF7DE",
   shield: "#F0EEFF",
   star: "#FFF7DE",

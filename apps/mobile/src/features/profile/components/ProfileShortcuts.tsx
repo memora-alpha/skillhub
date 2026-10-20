@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useState } from "react";
 import { Icon } from "@/components/Icon";
-import { iconSizes } from "@/constants/theme";
+import { fonts, iconSizes, typography } from "@/constants/theme";
 import { profileActions as shortcuts } from "../mocks/profile";
 import { profileStyles } from "./ProfilePrimitives";
 import {
@@ -61,20 +61,20 @@ export function ProfileShortcuts({
 }
 
 const styles = StyleSheet.create({
-  grid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  grid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   shortcut: {
     flexBasis: "47%",
     flexGrow: 1,
     minWidth: 0,
     flexDirection: "row",
     alignItems: "center",
-    gap: 7,
-    paddingHorizontal: 8,
-    paddingVertical: 10,
-    minHeight: 56,
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    minHeight: 64,
     borderWidth: 1,
     borderColor: profileColors.border,
-    borderRadius: 8,
+    borderRadius: 12,
     backgroundColor: profileColors.surface,
     boxShadow: profileShadows.action,
   },
@@ -90,5 +90,7 @@ const styles = StyleSheet.create({
   label: {
     flex: 1,
     minWidth: 0,
+    fontFamily: fonts.semibold,
+    ...typography.secondary,
   },
 });

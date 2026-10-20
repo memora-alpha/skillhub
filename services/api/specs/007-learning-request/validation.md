@@ -102,3 +102,25 @@ rule configuration and notification APIs (15 HTTP operations across four control
 - API build and lint passed; the Learning Request suite passed 92/92 tests.
   The existing bootstrap regression was aligned with the previously approved
   Sharing Skill restore permission; runtime grants were not changed.
+
+## Local migration repair — 2026-10-13
+
+Reproduced the reported create/mine failure against the configured local PostgreSQL
+skillhub/public: Prisma P2022, PostgreSQL 42703, missing
+learning_requests.teaching_overview. The three FE preference columns and
+learning_request_offerings table were absent. Prisma status showed two pending
+migrations: 20261009010000_connections and 20261012000000_learning_request_fe_preferences.
+Connections preflight found zero proposals and zero legacy credit/direct blockers.
+
+With explicit user approval, prisma migrate deploy applied both existing migrations;
+status now confirms all 14 migrations applied. Read-only verification confirms all
+three columns, the offerings table and a successful ORM read including tag/offering
+relations. Existing migration files/history were not rewritten.
+
+The real PostgreSQL FE extension suite passed 7/7 in disposable generated schemas,
+including authenticated HTTP POST create (201) and GET mine (200), linked offerings,
+weekly availability, hourly Credit, publish/edit/detail/cancel and owner/public
+projection checks. The HTTP fixture registers the application's exception filter.
+This is separate from creating a request under the user's real account. The user's
+configured API port3001 was not listening at the final runtime probe; starting the
+API is still required to retry the UI journey.
