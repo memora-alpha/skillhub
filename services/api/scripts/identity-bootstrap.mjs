@@ -6,7 +6,7 @@ import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../dist/infrastructure/database/prisma.service.js";
 import { IdentityConfig } from "../dist/configs/identity.config.js";
 import { UsersService } from "../dist/modules/users/application/services/users.service.js";
-import { AuditService } from "../dist/modules/audit/application/audit.service.js";
+import { AuditService } from "../dist/modules/audit/application/services/audit.service.js";
 import {
   seedIdentity,
   bootstrapAdmin,

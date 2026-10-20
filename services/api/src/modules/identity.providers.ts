@@ -8,7 +8,7 @@ import { ProfileReader } from "./users/application/services/profile-reader.servi
 import { AccountModerationService } from "./users/application/services/account-moderation.service";
 import { StaffRoleChangeService } from "./users/application/services/staff-role-change.service";
 import { IdentityEmailIntentService } from "./notifications/application/services/identity-email-intent.service";
-import { AuditService } from "./audit/application/audit.service";
+import { AuditService } from "./audit/application/services/audit.service";
 import { RegisterUseCase } from "./auth/application/use-cases/register.use-case";
 import { ResendOtpUseCase } from "./auth/application/use-cases/resend-otp.use-case";
 import { VerifyEmailUseCase } from "./auth/application/use-cases/verify-email.use-case";

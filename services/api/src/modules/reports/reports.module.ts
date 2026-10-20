@@ -5,8 +5,8 @@ import { CreditModule } from "../credit/credit.module";
 import { StorageModule } from "../../infrastructure/storage/storage.module";
 import { IdentityModule } from "../identity.module";
 import { ReputationModule } from "../reputation/reputation.module";
-import { ReportsController } from "./reports.controller";
-import { ReportsService } from "./reports.service";
+import { ReportsController } from "./presentation/http/reports.controller";
+import { ReportsService } from "./application/services/reports.service";
 
 @Module({
   imports: [

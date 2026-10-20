@@ -3,7 +3,7 @@ import "dotenv/config";
 import { ConfigService } from "@nestjs/config";
 import { PrismaService } from "../dist/infrastructure/database/prisma.service.js";
 import { TransactionRunner } from "../dist/infrastructure/database/transaction-runner.js";
-import { PayosTransport } from "../dist/modules/payments/infrastructure/payos-transport.js";
+import { PayosTransport } from "../dist/modules/payments/infrastructure/gateway/payos-transport.js";
 import { PaymentReconciliationReader } from "../dist/modules/payments/application/services/payment-reconciliation.reader.js";
 
 let db;

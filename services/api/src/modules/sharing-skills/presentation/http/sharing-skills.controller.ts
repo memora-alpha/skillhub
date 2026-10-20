@@ -39,7 +39,7 @@ import {
   SharingResponse,
   PublicSharingResponse,
 } from "../../../skills/presentation/http/skills.responses";
-import { SharingSkillsService } from "../../application/sharing-skills.service";
+import { SharingSkillsService } from "../../application/services/sharing-skills.service";
 import {
   CreateSharingDto,
   ChangeSharingDto,

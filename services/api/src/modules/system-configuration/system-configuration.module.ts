@@ -2,12 +2,12 @@ import { Module } from "@nestjs/common";
 import { DatabaseModule } from "../../infrastructure/database/database.module";
 import { CLOCK, ServerClock } from "../../shared/time/clock";
 import { AuditModule } from "../audit/audit.module";
-import { SystemConfigurationService } from "./application/system-configuration.service";
-import { UpdateConfigurationUseCase } from "./application/update-configuration.use-case";
-import { ConfigurationRepository } from "./infrastructure/configuration.repository";
+import { SystemConfigurationService } from "./application/services/system-configuration.service";
+import { UpdateConfigurationUseCase } from "./application/use-cases/update-configuration.use-case";
+import { ConfigurationRepository } from "./infrastructure/persistence/configuration.repository";
 import { IdentityModule } from "../identity.module";
 import { IdentityGuard } from "../../shared/auth/identity.guard";
-import { LearningRequestModerationRulesUseCase } from "./application/learning-request-moderation-rules.use-case";
+import { LearningRequestModerationRulesUseCase } from "./application/use-cases/learning-request-moderation-rules.use-case";
 import { LearningRequestModerationRulesController } from "./presentation/http/learning-request-moderation-rules.controller";
 
 @Module({

@@ -7,7 +7,7 @@ import {
 } from "../../../../shared/database/identity-transactions";
 import { UsersService } from "../../../users/application/services/users.service";
 
-import { AuditService } from "../../../audit/application/audit.service";
+import { AuditService } from "../../../audit/application/services/audit.service";
 
 import { normalizeEmail } from "../../../users/domain/profile-policy";
 import { OtpService } from "../services/otp.service";

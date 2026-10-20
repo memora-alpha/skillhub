@@ -13,8 +13,8 @@ import type { RequestContext } from "../../../../shared/http/request-context";
 import { TransactionRunner } from "../../../../infrastructure/database/transaction-runner";
 import { OutboxWriter } from "../../../../infrastructure/events/outbox-writer";
 import type { Principal } from "../../../auth/application/services/sessions.service";
-import { AuditWriter } from "../../../audit/application/audit-writer";
-import type { AuditActor } from "../../../audit/application/audit.types";
+import { AuditWriter } from "../../../audit/application/services/audit-writer";
+import type { AuditActor } from "../../../audit/application/contracts/audit.types";
 import { validateReason } from "../../../audit/domain/reason.policy";
 import { sanitizeLearningRequestText } from "../../domain/request-text.policy";
 import {

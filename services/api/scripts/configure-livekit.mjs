@@ -5,12 +5,12 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../dist/generated/prisma/client.js";
 import { postgresConnectionString } from "../dist/infrastructure/database/postgres-connection.js";
 import { TransactionRunner } from "../dist/infrastructure/database/transaction-runner.js";
-import { ConfigurationRepository } from "../dist/modules/system-configuration/infrastructure/configuration.repository.js";
-import { SystemConfigurationService } from "../dist/modules/system-configuration/application/system-configuration.service.js";
-import { UpdateConfigurationUseCase } from "../dist/modules/system-configuration/application/update-configuration.use-case.js";
+import { ConfigurationRepository } from "../dist/modules/system-configuration/infrastructure/persistence/configuration.repository.js";
+import { SystemConfigurationService } from "../dist/modules/system-configuration/application/services/system-configuration.service.js";
+import { UpdateConfigurationUseCase } from "../dist/modules/system-configuration/application/use-cases/update-configuration.use-case.js";
 import { parseConfigurationValue } from "../dist/modules/system-configuration/domain/configuration.catalog.js";
-import { AuditWriter } from "../dist/modules/audit/application/audit-writer.js";
-import { AuditRepository } from "../dist/modules/audit/infrastructure/audit.repository.js";
+import { AuditWriter } from "../dist/modules/audit/application/services/audit-writer.js";
+import { AuditRepository } from "../dist/modules/audit/infrastructure/persistence/audit.repository.js";
 
 async function main() {
   const { values } = parseArgs({

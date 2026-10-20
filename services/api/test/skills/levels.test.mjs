@@ -10,9 +10,9 @@ import {
   SkillLevelsController,
   AdminSkillLevelsController,
 } from "../../dist/modules/skills/presentation/http/skill-levels.controller.js";
-import { SkillLevelsService } from "../../dist/modules/skills/application/skill-levels.service.js";
+import { SkillLevelsService } from "../../dist/modules/skills/application/services/skill-levels.service.js";
 import { SharingSkillsController } from "../../dist/modules/sharing-skills/presentation/http/sharing-skills.controller.js";
-import { SharingSkillsService } from "../../dist/modules/sharing-skills/application/sharing-skills.service.js";
+import { SharingSkillsService } from "../../dist/modules/sharing-skills/application/services/sharing-skills.service.js";
 import { IdentityGuard } from "../../dist/shared/auth/identity.guard.js";
 import { SessionsService } from "../../dist/modules/auth/application/services/sessions.service.js";
 import { HttpExceptionFilter } from "../../dist/shared/http/http-exception.filter.js";

@@ -4,7 +4,7 @@ import {
   ServiceUnavailableException,
 } from "@nestjs/common";
 import type { TransactionContext } from "../../../../infrastructure/database/transaction-context";
-import { PayosTransport } from "../../infrastructure/payos-transport";
+import { PayosTransport } from "../../infrastructure/gateway/payos-transport";
 
 const unresolved = ["CREATED", "PENDING", "REVIEW"] as const;
 export type PaymentCreationDecision = {

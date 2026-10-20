@@ -13,10 +13,10 @@ import { AccessToken } from "livekit-server-sdk";
 import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
 import { SessionsService } from "../../dist/modules/auth/application/services/sessions.service.js";
 import { IdentityGuard } from "../../dist/shared/auth/identity.guard.js";
-import { LearningSessionsService } from "../../dist/modules/learning-sessions/learning-sessions.service.js";
-import { LearningSessionsController } from "../../dist/modules/learning-sessions/learning-sessions.controller.js";
-import { LiveKitWebhookController } from "../../dist/modules/learning-sessions/livekit-webhook.controller.js";
-import { LiveKitService } from "../../dist/modules/learning-sessions/livekit.service.js";
+import { LearningSessionsService } from "../../dist/modules/learning-sessions/application/services/learning-sessions.service.js";
+import { LearningSessionsController } from "../../dist/modules/learning-sessions/presentation/http/learning-sessions.controller.js";
+import { LiveKitWebhookController } from "../../dist/modules/learning-sessions/presentation/http/livekit-webhook.controller.js";
+import { LiveKitService } from "../../dist/modules/learning-sessions/infrastructure/livekit/livekit.service.js";
 import { OutboxConsumer } from "../../dist/infrastructure/events/outbox-consumer.js";
 import { HttpExceptionFilter } from "../../dist/shared/http/http-exception.filter.js";
 import {

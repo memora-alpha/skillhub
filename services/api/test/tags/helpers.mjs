@@ -1,7 +1,7 @@
 import { createSkillFixture } from "../skills/helpers.mjs";
-import { TagsService } from "../../dist/modules/skills/application/tags.service.js";
-import { TagRequestsService } from "../../dist/modules/skills/application/tag-requests.service.js";
-import { TagsRepository } from "../../dist/modules/skills/infrastructure/tags.repository.js";
+import { TagsService } from "../../dist/modules/skills/application/services/tags.service.js";
+import { TagRequestsService } from "../../dist/modules/skills/application/services/tag-requests.service.js";
+import { TagsRepository } from "../../dist/modules/skills/infrastructure/persistence/tags.repository.js";
 
 export const status = (code) => (error) => error.getStatus?.() === code;
 export async function createTagFixture() {

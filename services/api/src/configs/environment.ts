@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { paymentConfiguration } from "../modules/payments/domain/payment-config";
-import { liveKitConfiguration } from "../modules/learning-sessions/livekit.service";
+import { liveKitConfiguration } from "../modules/learning-sessions/infrastructure/livekit/livekit.service";
 
 // Loose: identity, SMTP and S3 keys are validated by their own providers and must survive.
 const environmentSchema = z.looseObject({

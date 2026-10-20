@@ -3,12 +3,12 @@ import { DatabaseModule } from "../../infrastructure/database/database.module";
 import { IdempotencyModule } from "../../infrastructure/idempotency/idempotency.module";
 import { AuditModule } from "../audit/audit.module";
 import { IdentityModule } from "../identity.module";
-import { SkillsRepository } from "./infrastructure/skills.repository";
-import { SkillsService } from "./application/skills.service";
-import { SkillLevelsService } from "./application/skill-levels.service";
-import { TagsService } from "./application/tags.service";
-import { TagRequestsService } from "./application/tag-requests.service";
-import { TagsRepository } from "./infrastructure/tags.repository";
+import { SkillsRepository } from "./infrastructure/persistence/skills.repository";
+import { SkillsService } from "./application/services/skills.service";
+import { SkillLevelsService } from "./application/services/skill-levels.service";
+import { TagsService } from "./application/services/tags.service";
+import { TagRequestsService } from "./application/services/tag-requests.service";
+import { TagsRepository } from "./infrastructure/persistence/tags.repository";
 import { AdminTagsController } from "./presentation/http/admin-tags.controller";
 import {
   TagRequestsController,

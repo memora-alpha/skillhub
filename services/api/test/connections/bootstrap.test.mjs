@@ -8,8 +8,8 @@ import { Test } from "@nestjs/testing";
 import { getConnectionToken } from "@nestjs/mongoose";
 import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
 import { ProposalsModule } from "../../dist/modules/proposals/proposals.module.js";
-import { ProposalsService } from "../../dist/modules/proposals/application/proposals.service.js";
-import { ConversationsService } from "../../dist/modules/conversations/application/conversations.service.js";
+import { ProposalsService } from "../../dist/modules/proposals/application/services/proposals.service.js";
+import { ConversationsService } from "../../dist/modules/conversations/application/services/conversations.service.js";
 import { DatabaseModule } from "../../dist/infrastructure/database/database.module.js";
 import { PrismaService } from "../../dist/infrastructure/database/prisma.service.js";
 import { TransactionRunner } from "../../dist/infrastructure/database/transaction-runner.js";
@@ -21,26 +21,26 @@ import { StorageModule } from "../../dist/infrastructure/storage/storage.module.
 import { FileStorageService } from "../../dist/infrastructure/storage/file-storage.service.js";
 import { FileAttachmentService } from "../../dist/infrastructure/storage/file-attachment.service.js";
 import { AuditModule } from "../../dist/modules/audit/audit.module.js";
-import { AuditWriter } from "../../dist/modules/audit/application/audit-writer.js";
+import { AuditWriter } from "../../dist/modules/audit/application/services/audit-writer.js";
 import { IdentityModule } from "../../dist/modules/identity.module.js";
 import { IdentityConfig } from "../../dist/configs/identity.config.js";
 import { IdentityGuard } from "../../dist/shared/auth/identity.guard.js";
 import { SessionsService } from "../../dist/modules/auth/application/services/sessions.service.js";
 import { SkillActorService } from "../../dist/modules/users/application/services/skill-actor.service.js";
 import { SharingSkillsModule } from "../../dist/modules/sharing-skills/sharing-skills.module.js";
-import { SharingSkillsService } from "../../dist/modules/sharing-skills/application/sharing-skills.service.js";
+import { SharingSkillsService } from "../../dist/modules/sharing-skills/application/services/sharing-skills.service.js";
 import { LearningRequestsModule } from "../../dist/modules/learning-requests/learning-requests.module.js";
 import { LearningRequestLifecycleService } from "../../dist/modules/learning-requests/application/services/learning-request-lifecycle.service.js";
 import { LearningPathsModule } from "../../dist/modules/learning-paths/learning-paths.module.js";
-import { LearningPathsService } from "../../dist/modules/learning-paths/learning-paths.service.js";
-import { ConversationMembershipReader } from "../../dist/modules/conversations/conversation-membership.reader.js";
+import { LearningPathsService } from "../../dist/modules/learning-paths/application/services/learning-paths.service.js";
+import { ConversationMembershipReader } from "../../dist/modules/conversations/application/services/conversation-membership.reader.js";
 import { ReputationModule } from "../../dist/modules/reputation/reputation.module.js";
-import { CreditLedgerAdapter } from "../../dist/modules/credit/credit-ledger.adapter.js";
+import { CreditLedgerAdapter } from "../../dist/modules/credit/application/services/credit-ledger.adapter.js";
 import {
   WalletPort,
   PathSettlementPort,
   CreditAdjustmentPort,
-} from "../../dist/modules/credit/credit.ports.js";
+} from "../../dist/modules/credit/application/ports/credit.ports.js";
 function fixtureModule(entries) {
   class Fixture {}
   Module({

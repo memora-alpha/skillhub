@@ -23,7 +23,7 @@ import {
   ApiErrorResponse,
   ApiSuccessResponse,
 } from "../../../../shared/http/api-response.decorators";
-import { SkillLevelsService } from "../../application/skill-levels.service";
+import { SkillLevelsService } from "../../application/services/skill-levels.service";
 import { skillCommand } from "./skills.controller";
 import {
   CreateSkillLevelDto,

@@ -12,25 +12,25 @@ import { createIdentityFixture } from "../identity/fixture.mjs";
 import { PrismaUsersRepository } from "../../dist/modules/users/infrastructure/persistence/prisma-users-repository.js";
 import { TransactionRunner } from "../../dist/infrastructure/database/transaction-runner.js";
 import { IdempotencyService } from "../../dist/infrastructure/idempotency/idempotency.service.js";
-import { AuditRepository } from "../../dist/modules/audit/infrastructure/audit.repository.js";
-import { AuditWriter } from "../../dist/modules/audit/application/audit-writer.js";
+import { AuditRepository } from "../../dist/modules/audit/infrastructure/persistence/audit.repository.js";
+import { AuditWriter } from "../../dist/modules/audit/application/services/audit-writer.js";
 import { OutboxWriter } from "../../dist/infrastructure/events/outbox-writer.js";
 import { OutboxConsumer } from "../../dist/infrastructure/events/outbox-consumer.js";
 import { OutboxPublisherRegistry } from "../../dist/infrastructure/events/outbox.types.js";
 import { SkillActorService } from "../../dist/modules/users/application/services/skill-actor.service.js";
 import { PublicSkillReader } from "../../dist/modules/users/application/services/public-skill-reader.js";
 import { ProfileReader } from "../../dist/modules/users/application/services/profile-reader.service.js";
-import { SkillsRepository } from "../../dist/modules/skills/infrastructure/skills.repository.js";
-import { SkillsService } from "../../dist/modules/skills/application/skills.service.js";
-import { SkillLevelsService } from "../../dist/modules/skills/application/skill-levels.service.js";
-import { SharingSkillsRepository } from "../../dist/modules/sharing-skills/infrastructure/sharing-skills.repository.js";
-import { SharingSkillsService } from "../../dist/modules/sharing-skills/application/sharing-skills.service.js";
-import { VerificationsRepository } from "../../dist/modules/verifications/infrastructure/verifications.repository.js";
-import { VerificationsService } from "../../dist/modules/verifications/application/verifications.service.js";
+import { SkillsRepository } from "../../dist/modules/skills/infrastructure/persistence/skills.repository.js";
+import { SkillsService } from "../../dist/modules/skills/application/services/skills.service.js";
+import { SkillLevelsService } from "../../dist/modules/skills/application/services/skill-levels.service.js";
+import { SharingSkillsRepository } from "../../dist/modules/sharing-skills/infrastructure/persistence/sharing-skills.repository.js";
+import { SharingSkillsService } from "../../dist/modules/sharing-skills/application/services/sharing-skills.service.js";
+import { VerificationsRepository } from "../../dist/modules/verifications/infrastructure/persistence/verifications.repository.js";
+import { VerificationsService } from "../../dist/modules/verifications/application/services/verifications.service.js";
 import { FileAttachmentService } from "../../dist/infrastructure/storage/file-attachment.service.js";
 import { PrismaStoredFileRepository } from "../../dist/infrastructure/storage/prisma-stored-file.repository.js";
 import { FileStorageService } from "../../dist/infrastructure/storage/file-storage.service.js";
-import { SkillNotificationHandler } from "../../dist/modules/notifications/application/skill-notification.handler.js";
+import { SkillNotificationHandler } from "../../dist/modules/notifications/infrastructure/events/skill-notification.handler.js";
 
 export async function createSkillFixture(
   beforeSkillsMigration,

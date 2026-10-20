@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
 import { randomUUID } from "node:crypto";
 import { setImmediate } from "node:timers/promises";
-import { EventsController } from "../../dist/modules/application-events/presentation/events.controller.js";
+import { EventsController } from "../../dist/modules/application-events/presentation/http/events.controller.js";
 import { encodeCursor } from "../../dist/modules/application-events/domain/event-cursor.js";
 import { eventSettings } from "../../dist/modules/application-events/domain/event-config.js";
 import { BadRequestException, ConflictException } from "@nestjs/common";

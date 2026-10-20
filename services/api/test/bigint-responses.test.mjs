@@ -1,8 +1,8 @@
 import "reflect-metadata";
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { LearningSessionsService } from "../dist/modules/learning-sessions/learning-sessions.service.js";
-import { ReportsService } from "../dist/modules/reports/reports.service.js";
+import { LearningSessionsService } from "../dist/modules/learning-sessions/application/services/learning-sessions.service.js";
+import { ReportsService } from "../dist/modules/reports/application/services/reports.service.js";
 
 const userA = "0a0a0a0a-0000-4000-8000-00000000000a";
 const userB = "0b0b0b0b-0000-4000-8000-00000000000b";
