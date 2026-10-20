@@ -6,6 +6,16 @@
 
 ## Summary
 
+Recovery amendment 2026-10-19: preserve durable retries for transient failures,
+verify/cancel stranded unpaid QR intents and resume eligible historical technical
+reviews after signed lookup. Reuse Payment lock/fenced lease; all provider calls
+stay outside transactions. Review resume, audit PAYMENT_RECOVERY_RESUME and
+payment.updated commit together; receipt posting retains its existing atomicity.
+No shared/frontend changes or schema additions beyond the preceding cancellation
+enum migration. Constitution principles 1–8: Pass for local implementation;
+81/81 payment/audit regression cases, TypeScript and build pass in validation.md.
+Live merchant and deployment gates remain Pending; no constitutional exception.
+
 User amendment 2026-10-16: chỉ render QR payOS trực tiếp trong SkillHub; không mở hosted checkout. Owner projection không có checkout URL/method. Return/cancel HTTPS vẫn là fields bắt buộc của provider request/signature, chỉ giữ server-side; không cần trang redirect trong QR flow. Backend transport/posting/provenance triển khai ngày 2026-10-17; frontend integration và merchant proof vẫn riêng.
 
 Hoàn thiện Credit owner hiện có: lifecycle ví, wallet/history API, exact monetary DTO, invariants/immutable ledger, TOP_UP/Release/Adjustment contracts và đối soát. Bổ sung payments owner: quote/checkout intent, payOS adapter, verified durable receipts và atomic Payment PAID + TOP_UP. Kiểm chứng Hold/settlement đã có source trên PostgreSQL thật; giữ BigInt hundredths và fee floor đã được User xác nhận ngày 2026-10-15.
@@ -132,6 +142,21 @@ Domain key/digest tồn tại độc lập HTTP TTL. Ledger sequence cấp dư�
 Provider/DB runtime, live deployment SHA/readiness và vận hành thật vẫn Pending. Chỉ tài liệu/pointer đổi trong lần plan nên không chạy lint/types/build; docs links/pointer/whitespace kiểm riêng.
 
 ## Complexity Tracking
+
+### Payment cancellation — 2026-10-19
+
+User yêu cầu POST /payments/{paymentId}/cancel. API-only, không shared/frontend
+changes. Reuse live identity/idempotency, immutable order identity và fenced
+checkout lease để gọi provider ngoài PG transaction. Signed cancellation/lookup
+evidence quyết định CANCELLED/EXPIRED hoặc receipt/review; state/QR/version và
+user event/outbox commit nguyên tử dưới Payment lock. Thêm enum value bằng
+additive migration, cập nhật schema generator và public event validation.
+Giữ PAID khi webhook race; receipt mới sau CANCELLED vào REVIEW không cấp Credit.
+
+Constitution check: architecture/scope, PostgreSQL authority, owner boundaries,
+live auth, safe projections và provider I/O boundary Pass by source. Storage,
+HTTP, retry/concurrency/rollback verification ghi trong validation.md; merchant
+và deployment riêng, không exception.
 
 ### Recovery hardening — 2026-10-18
 

@@ -223,6 +223,8 @@ export class PrismaUsersRepository extends UsersRepository {
     ];
     const learningRequestGrants = {
       USER: [
+        "session:read:participant",
+        "livekit-token:issue:participant",
         "proposal:create",
         "event:read:self",
         "proposal:read:party",

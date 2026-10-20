@@ -10,6 +10,17 @@
 
 ## User Scenarios & Testing _(mandatory)_
 
+Recovery amendment 2026-10-19 (User): fix mất response/QR làm kẹt REVIEW và chặn
+nạp mới. Timeout tiếp tục retry; verified unpaid PENDING mất QR/hết quote được
+hủy cùng orderCode trước khi mở tạo mới. Technical REVIEW cũ chỉ được mở lại sau
+verified lookup khi identity/quote hợp lệ và chưa có receipt/posting; có audit.
+Không mở tự động financial REVIEW, không xóa dữ liệu hoặc tự cấp Credit.
+
+Amendment 2026-10-19 (User): thêm POST /payments/{paymentId}/cancel cho owner
+hủy yêu cầu nạp chưa trả tiền. Confirm từ signed payOS response, idempotent retry,
+không downgrade PAID khi webhook race và không thay đổi ví khi hủy. Không phải
+cash refund hay cancellation/no-show của Learning Path. Xem HTTP/gateway contract.
+
 ### User Story 1 — Xem ví và lịch sử giải thích được (Priority: P1)
 
 User xem Credit khả dụng, đang giữ và giao dịch của chính mình; mỗi thay đổi có nguồn nghiệp vụ và số dư sau giao dịch.

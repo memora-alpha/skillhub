@@ -3,22 +3,22 @@ import { randomUUID } from "node:crypto";
 import { test } from "node:test";
 import { plainToInstance } from "class-transformer";
 import { validate } from "class-validator";
-import { AuditWriter } from "../../dist/modules/audit/application/audit-writer.js";
-import { AuditRepository } from "../../dist/modules/audit/infrastructure/audit.repository.js";
-import { UnavailableCreditAdjustmentAdapter } from "../../dist/modules/credit/unavailable-credit-adjustment.adapter.js";
-import { LearningPathNotificationHandler } from "../../dist/modules/notifications/application/learning-path-notification.handler.js";
-import { NotificationDispatcher } from "../../dist/modules/notifications/application/notification-dispatcher.js";
+import { AuditWriter } from "../../dist/modules/audit/application/services/audit-writer.js";
+import { AuditRepository } from "../../dist/modules/audit/infrastructure/persistence/audit.repository.js";
+import { UnavailableCreditAdjustmentAdapter } from "../../dist/modules/credit/infrastructure/adapters/unavailable-credit-adjustment.adapter.js";
+import { LearningPathNotificationHandler } from "../../dist/modules/notifications/infrastructure/events/learning-path-notification.handler.js";
+import { NotificationDispatcher } from "../../dist/modules/notifications/application/services/notification-dispatcher.js";
 import { PrismaInAppNotificationAdapter } from "../../dist/modules/notifications/infrastructure/channels/prisma-in-app-notification.adapter.js";
-import { AchievementsService } from "../../dist/modules/reputation/achievements.service.js";
-import { ReputationService } from "../../dist/modules/reputation/reputation.service.js";
-import { seedAchievements } from "../../dist/modules/reputation/seed-achievements.js";
+import { AchievementsService } from "../../dist/modules/reputation/application/services/achievements.service.js";
+import { ReputationService } from "../../dist/modules/reputation/application/services/reputation.service.js";
+import { seedAchievements } from "../../dist/modules/reputation/application/seed-achievements.js";
 import {
   CreateSessionReportDto,
   ReportCaseActionDto,
-} from "../../dist/modules/reports/reports.dto.js";
-import { ReportsService } from "../../dist/modules/reports/reports.service.js";
-import { CreateReviewDto } from "../../dist/modules/reviews/reviews.dto.js";
-import { ReviewsService } from "../../dist/modules/reviews/reviews.service.js";
+} from "../../dist/modules/reports/presentation/http/reports.dto.js";
+import { ReportsService } from "../../dist/modules/reports/application/services/reports.service.js";
+import { CreateReviewDto } from "../../dist/modules/reviews/presentation/http/reviews.dto.js";
+import { ReviewsService } from "../../dist/modules/reviews/application/services/reviews.service.js";
 import { runner } from "./fake-db.mjs";
 import {
   A,
@@ -28,6 +28,7 @@ import {
   fakeOutboxConsumer,
   pathRow,
   pathStatus,
+  httpError,
   rejectsWith,
   settledOneWay,
   setup,
@@ -503,13 +504,12 @@ test("SH-093: until SH-068 ships, a credit outcome fails instead of being skippe
   const ctx = phase3({ adjustments: new UnavailableCreditAdjustmentAdapter() });
   const { caseId } = await openReport(ctx);
   await ctx.reports.updateCase(admin, caseId, "claim");
-  await rejectsWith(
+  await assert.rejects(
     ctx.reports.updateCase(admin, caseId, "resolve", {
       note: "Refund the learner.",
       creditAdjustments: [{ userId: B, amount: "5.00" }],
     }),
-    503,
-    "CREDIT_ADJUSTMENT_UNAVAILABLE",
+    httpError(503, "CREDIT_ADJUSTMENT_UNAVAILABLE"),
   );
 });
 

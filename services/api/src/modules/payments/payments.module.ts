@@ -6,11 +6,12 @@ import { CreditModule } from "../credit/credit.module";
 import { AuditModule } from "../audit/audit.module";
 import { ApplicationEventsModule } from "../application-events/application-events.module";
 import { IdentityConfig } from "../../configs/identity.config";
-import { PayosTransport } from "./infrastructure/payos-transport";
-import { PaymentCheckoutWorker } from "./application/services/payment-checkout.worker";
+import { PayosTransport } from "./infrastructure/gateway/payos-transport";
+import { PaymentCheckoutWorker } from "./infrastructure/jobs/payment-checkout.worker";
 import { PaymentReceiptsService } from "./application/services/payment-receipts.service";
 import { PaymentCreationPolicy } from "./application/services/payment-creation-policy";
 import { CreatePaymentUseCase } from "./application/use-cases/create-payment.use-case";
+import { CancelPaymentUseCase } from "./application/use-cases/cancel-payment.use-case";
 import {
   PaymentCursor,
   ReadPaymentsUseCase,
@@ -35,6 +36,7 @@ import {
     PaymentCheckoutWorker,
     PaymentReceiptsService,
     CreatePaymentUseCase,
+    CancelPaymentUseCase,
     ReadPaymentsUseCase,
     {
       provide: PaymentCursor,

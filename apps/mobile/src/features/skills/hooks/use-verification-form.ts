@@ -17,12 +17,19 @@ export function useVerificationForm(
   blocked: boolean,
   disabled: boolean,
 ) {
-  const { verificationDrafts, isCurrent, transfers } = useSkills();
+  const { verificationDrafts, isCurrent, transfers, privateReads, scope } =
+    useSkills();
   const initial = useRef(id ? verificationDrafts.get(id) : undefined).current;
   const [files, setFiles] = useState(initial?.files ?? []);
   const [title, setTitle] = useState(initial?.title ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
-  const action = useSkillAction({ notifySuccess: false });
+  const canRead = (targetId = id) =>
+    !privateReads.denied([...scope, "detail", targetId ?? null]) &&
+    !privateReads.denied([...scope, "history", targetId ?? null]);
+  const action = useSkillAction({
+    notifySuccess: false,
+    canAct: () => canRead(),
+  });
   const mountedSession = useMountedSession();
   const router = useRouter();
   const { showToast } = useToast();
@@ -115,6 +122,7 @@ export function useVerificationForm(
   const queueForSkill = (targetId: string) => {
     if (
       selecting.current ||
+      !canRead(targetId) ||
       !action.current() ||
       !files.length ||
       titleInvalid ||
@@ -139,7 +147,6 @@ export function useVerificationForm(
   };
   return {
     draft: { files, setFiles },
-    action,
     title,
     setTitle,
     description,

@@ -59,7 +59,7 @@
     "lint": "eslint . --max-warnings 0",
     "check-types": "tsc --noEmit",
     "check-structure": "node scripts/check-structure.mjs",
-    "test": "tsx --test tests/**/*.test.ts test/profile.test.mjs",
+    "test": "tsx --experimental-test-module-mocks --test tests/**/*.test.ts test/profile.test.mjs",
     "test:profile": "node --test test/profile.test.mjs"
   },
   "private": true

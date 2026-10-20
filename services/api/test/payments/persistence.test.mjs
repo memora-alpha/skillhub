@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { test } from "node:test";
 import { PaymentReceiptsService } from "../../dist/modules/payments/application/services/payment-receipts.service.js";
-import { PaymentCheckoutWorker } from "../../dist/modules/payments/application/services/payment-checkout.worker.js";
+import { PaymentCheckoutWorker } from "../../dist/modules/payments/infrastructure/jobs/payment-checkout.worker.js";
 import { createPaymentFixture, sign } from "./fixture.mjs";
 
 test("payOS durable orders, posting, conflicts, rollback and recovery on real PostgreSQL", async (t) => {
@@ -319,7 +319,7 @@ test("payOS durable orders, posting, conflicts, rollback and recovery on real Po
       },
     );
     await t.test(
-      "lost QR response with a pending provider order enters explicit review",
+      "lost QR response closes the verified unpaid provider order and permits a fresh top-up",
       async () => {
         const account = await f.account();
         f.failCreate = 1;
@@ -328,7 +328,7 @@ test("payOS durable orders, posting, conflicts, rollback and recovery on real Po
         await f.worker.process(pending.id);
         assert.equal(
           (await f.reads.detail(account.principal, pending.id)).status,
-          "REVIEW",
+          "CANCELLED",
         );
         assert.equal(
           (
@@ -336,7 +336,18 @@ test("payOS durable orders, posting, conflicts, rollback and recovery on real Po
               where: { paymentId: pending.id },
             })
           ).lastError,
-          "PAYMENT_QR_UNAVAILABLE",
+          null,
+        );
+        assert.equal(
+          (await f.reads.creationPolicy(account.principal)).canCreate,
+          true,
+        );
+        assert.equal(f.providerOrders.size > 0, true);
+        assert.equal(
+          await f.db.creditTransaction.count({
+            where: { userId: account.user.id },
+          }),
+          0,
         );
       },
     );

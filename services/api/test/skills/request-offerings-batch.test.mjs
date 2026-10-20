@@ -1,10 +1,10 @@
 import "reflect-metadata";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { SkillsRepository } from "../../dist/modules/skills/infrastructure/skills.repository.js";
-import { SkillsService } from "../../dist/modules/skills/application/skills.service.js";
-import { SharingSkillsRepository } from "../../dist/modules/sharing-skills/infrastructure/sharing-skills.repository.js";
-import { SharingSkillsService } from "../../dist/modules/sharing-skills/application/sharing-skills.service.js";
+import { SkillsRepository } from "../../dist/modules/skills/infrastructure/persistence/skills.repository.js";
+import { SkillsService } from "../../dist/modules/skills/application/services/skills.service.js";
+import { SharingSkillsRepository } from "../../dist/modules/sharing-skills/infrastructure/persistence/sharing-skills.repository.js";
+import { SharingSkillsService } from "../../dist/modules/sharing-skills/application/services/sharing-skills.service.js";
 
 const owner = "00000000-0000-4000-8000-000000000001";
 const other = "00000000-0000-4000-8000-000000000002";

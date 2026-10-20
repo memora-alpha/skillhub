@@ -16,7 +16,6 @@ import { SkillConflict } from "./SkillConflict";
 import { useSkillSave } from "../hooks/use-skill-save";
 import { usePendingBack } from "../hooks/use-pending-back";
 import { useMountedSession } from "../hooks/use-mounted-session";
-import { useSkills } from "../context/SkillsProvider";
 import { useOwnSkill } from "../hooks/use-skill-queries";
 import { skillError } from "../utils/skill-errors";
 import { hasPendingVerification } from "../utils/verification-state";
@@ -31,7 +30,6 @@ import type { OwnSkill, CatalogSkill } from "../types/skills";
 import { useSkillLevelForm } from "../hooks/use-skill-levels";
 
 export function SkillForm({ initial }: Readonly<{ initial?: OwnSkill }>) {
-  const { api } = useSkills();
   const { showToast } = useToast();
   const mountedSession = useMountedSession();
   const router = useRouter();
@@ -43,7 +41,8 @@ export function SkillForm({ initial }: Readonly<{ initial?: OwnSkill }>) {
     save: saveConfirmed,
     created,
   } = useSkillSave(baseline, setBaseline, evidenceRef, saveWithEvidence);
-  const serverSnapshot = useOwnSkill(baseline?.id ?? null).data;
+  const query = useOwnSkill(baseline?.id ?? null);
+  const serverSnapshot = query.data;
   useEffect(() => {
     // A verification changes version/status, not the editable fields. Sync only
     // that case; conflicting content still requires explicit draft comparison.
@@ -105,10 +104,10 @@ export function SkillForm({ initial }: Readonly<{ initial?: OwnSkill }>) {
     if (!baseline || locked()) return;
     setChecking(true);
     try {
-      const result = await api.findOwn(baseline.id);
-      if (action.current()) {
-        setLatest(result);
-        if (!result) showToast("Kỹ năng không còn khả dụng.", "info");
+      const result = await query.refetch({ throwOnError: true });
+      if (action.current() && result.data !== undefined) {
+        setLatest(result.data);
+        if (!result.data) showToast("Kỹ năng không còn khả dụng.", "info");
       }
     } catch (error) {
       if (action.current()) showToast(skillError(error), "error");
@@ -180,6 +179,7 @@ export function SkillForm({ initial }: Readonly<{ initial?: OwnSkill }>) {
         />
       )}
       <Button
+        variant="craft"
         style={{ borderRadius: 12, minHeight: 48 }}
         disabled={
           pending ||

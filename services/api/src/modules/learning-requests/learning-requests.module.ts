@@ -8,9 +8,9 @@ import { IdentityGuard } from "../../shared/auth/identity.guard";
 import { IdentityModule } from "../identity.module";
 import { SkillActorService } from "../users/application/services/skill-actor.service";
 import { SkillsModule } from "../skills/skills.module";
-import { SkillsService } from "../skills/application/skills.service";
+import { SkillsService } from "../skills/application/services/skills.service";
 import { SharingSkillsModule } from "../sharing-skills/sharing-skills.module";
-import { SharingSkillsService } from "../sharing-skills/application/sharing-skills.service";
+import { SharingSkillsService } from "../sharing-skills/application/services/sharing-skills.service";
 import { LearningRequestAccessService } from "./application/services/learning-request-access.service";
 import { LEARNING_REQUEST_REPOSITORY } from "./application/ports/learning-request-repository";
 import { PrismaLearningRequestRepository } from "./infrastructure/persistence/prisma-learning-request.repository";
@@ -21,7 +21,7 @@ import {
   SHARING_SKILL_READER,
   SKILL_CATALOG_READER,
 } from "./application/ports/learning-request-dependencies";
-import { UnavailableLearningRequestDependencies } from "./infrastructure/unavailable-learning-request-dependencies";
+import { UnavailableLearningRequestDependencies } from "./infrastructure/adapters/unavailable-learning-request-dependencies";
 import { CreateLearningRequestUseCase } from "./application/use-cases/create-learning-request.use-case";
 import { PublishLearningRequestUseCase } from "./application/use-cases/publish-learning-request.use-case";
 import { LearningRequestsController } from "./presentation/http/learning-requests.controller";

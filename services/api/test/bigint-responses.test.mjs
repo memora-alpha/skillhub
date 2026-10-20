@@ -1,8 +1,8 @@
 import "reflect-metadata";
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { LearningSessionsService } from "../dist/modules/learning-sessions/learning-sessions.service.js";
-import { ReportsService } from "../dist/modules/reports/reports.service.js";
+import { LearningSessionsService } from "../dist/modules/learning-sessions/application/services/learning-sessions.service.js";
+import { ReportsService } from "../dist/modules/reports/application/services/reports.service.js";
 
 const userA = "0a0a0a0a-0000-4000-8000-00000000000a";
 const userB = "0b0b0b0b-0000-4000-8000-00000000000b";
@@ -15,6 +15,9 @@ function sessionsService({ tx = {}, db = {} }) {
     {},
     {},
     {},
+    { getSnapshot: async () => ({ values: {} }) },
+    { config: { enabled: false } },
+    { now: () => new Date("2026-11-02T00:00:00Z") },
   );
 }
 
@@ -23,11 +26,19 @@ test("session detail returns attendance seconds as strings", async () => {
     id: "session",
     teacherId: userA,
     learnerId: userB,
+    pathId: "path",
+    planId: "plan",
+    status: "CONFIRMED",
+    startAt: new Date("2026-11-02T03:00:00Z"),
+    endAt: new Date("2026-11-02T04:00:00Z"),
     teacherAttendanceSeconds: 3600n,
     learnerAttendanceSeconds: 0n,
   };
   const service = sessionsService({
-    db: { session: { findUnique: () => session } },
+    db: {
+      session: { findUnique: () => session, findMany: () => [] },
+      learningPath: { findUniqueOrThrow: () => ({ lockedVersion: null }) },
+    },
   });
   const result = await service.detail({ userId: userB }, "session");
 

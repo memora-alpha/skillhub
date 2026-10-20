@@ -8,12 +8,13 @@ import type {
   PayosCheckout,
 } from "../../../../generated/prisma/client";
 import { fingerprintCommand } from "../../../../infrastructure/idempotency/idempotency.service";
-import { AuditWriter } from "../../../audit/application/audit-writer";
+import { AuditWriter } from "../../../audit/application/services/audit-writer";
 import { CreditOperationsService } from "../../../credit/application/services/credit-operations.service";
-import { ApplicationEventsService } from "../../../application-events/application/application-events.service";
-import { PayosTransport } from "../../infrastructure/payos-transport";
+import { ApplicationEventsService } from "../../../application-events/application/services/application-events.service";
+import { PayosTransport } from "../../infrastructure/gateway/payos-transport";
 import type { GatewayPaymentEvent } from "../contracts/payment-gateway";
 import { paymentTime } from "../../domain/payment-time";
+import { isTechnicalReviewReason } from "../../domain/payment-recovery-policy";
 
 export function quoteDigest(
   payment: Pick<
@@ -235,10 +236,11 @@ export class PaymentReceiptsService {
     payment: Payment | null,
     checkout: PayosCheckout | null,
   ): string | null {
-    if (!payment || !checkout || checkout.channel !== event.channel)
+    if (!payment || checkout?.channel !== event.channel)
       return "PAYMENT_ORDER_UNKNOWN";
     if (payment.status === "PAID") return "PAYMENT_ALREADY_PAID";
     if (payment.status === "REVIEW") return "PAYMENT_REVIEW_REQUIRED";
+    if (payment.status === "CANCELLED") return "PAYMENT_CANCELLED";
     if (event.outcome !== "PAID" || event.currency !== "VND")
       return "PAYMENT_OUTCOME_UNSUPPORTED";
     if (quoteDigest(payment, checkout) !== checkout.quoteDigest)
@@ -261,12 +263,117 @@ export class PaymentReceiptsService {
     return null;
   }
 
+  async canRecoverReview(
+    tx: TransactionContext,
+    payment: Payment,
+    checkout: PayosCheckout,
+  ) {
+    if (
+      payment.gateway !== "PAYOS" ||
+      payment.status !== "REVIEW" ||
+      checkout.state !== "REVIEW" ||
+      !isTechnicalReviewReason(checkout.lastError) ||
+      !payment.creationKeyDigest ||
+      !payment.creationFingerprint ||
+      payment.gatewayTransactionId ||
+      checkout.paidAt ||
+      checkout.topUpOperationId
+    )
+      return false;
+    return !(await tx.paymentReceipt.findFirst({
+      where: { paymentId: payment.id },
+      select: { id: true },
+    }));
+  }
+
+  /** Called only after authenticated lookup of the original immutable quote. */
+  resumeTechnicalReview(
+    paymentId: string,
+    leaseToken: string,
+    paymentLinkId: string,
+  ) {
+    return this.transactions.run(async (tx) => {
+      await tx.$queryRaw`SELECT payment_id FROM payments WHERE payment_id=${paymentId}::uuid FOR UPDATE`;
+      const payment = await tx.payment.findUniqueOrThrow({
+        where: { id: paymentId },
+      });
+      const checkout = await tx.payosCheckout.findUniqueOrThrow({
+        where: { paymentId },
+      });
+      if (
+        checkout.leaseToken !== leaseToken ||
+        checkout.channel !==
+          (this.transport.config.enabled
+            ? this.transport.config.PAYOS_CLIENT_ID
+            : "") ||
+        quoteDigest(payment, checkout) !== checkout.quoteDigest ||
+        (checkout.paymentLinkId && checkout.paymentLinkId !== paymentLinkId) ||
+        !(await this.canRecoverReview(tx, payment, checkout))
+      )
+        return false;
+      await tx.payment.update({
+        where: { id: paymentId },
+        data: { status: "CREATED" },
+      });
+      const updated = await tx.payosCheckout.update({
+        where: { paymentId },
+        data: {
+          state: "PREPARING",
+          paymentLinkId,
+          lastError: "PAYMENT_RECOVERY_PENDING",
+          version: { increment: 1 },
+        },
+      });
+      const source = randomUUID();
+      await this.audit.append(tx, {
+        actor: { kind: "SYSTEM", name: "payos-recovery" },
+        action: "PAYMENT_RECOVERY_RESUME",
+        target: { type: "PAYMENT", id: paymentId },
+        reason: "Resume technical review after verified payOS lookup",
+        before: {
+          status: "REVIEW",
+          reasonCode: checkout.lastError,
+          version: checkout.version,
+        },
+        after: {
+          status: "CREATED",
+          reasonCode: updated.lastError,
+          version: updated.version,
+        },
+        context: { requestId: source, correlationId: source },
+      });
+      await this.events.append(
+        tx,
+        [payment.userId],
+        source,
+        "payment.updated",
+        {
+          paymentId,
+          status: "CREATED",
+          version: String(updated.version),
+        },
+      );
+      return true;
+    });
+  }
+
   async review(tx: TransactionContext, paymentId: string, reason: string) {
     await tx.$queryRaw`SELECT payment_id FROM payments WHERE payment_id=${paymentId}::uuid FOR UPDATE`;
     const payment = await tx.payment.findUniqueOrThrow({
       where: { id: paymentId },
     });
-    if (payment.status === "PAID" || payment.status === "REVIEW") return;
+    if (payment.status === "PAID") return;
+    if (payment.status === "REVIEW") {
+      const current = await tx.payosCheckout.findUniqueOrThrow({
+        where: { paymentId },
+      });
+      // Financial evidence must make an old technical review ineligible for automatic resume.
+      if (
+        !isTechnicalReviewReason(current.lastError) ||
+        current.lastError === reason
+      )
+        return;
+    }
     await tx.payment.update({
       where: { id: paymentId },
       data: { status: "REVIEW" },

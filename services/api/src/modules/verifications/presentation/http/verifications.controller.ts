@@ -37,7 +37,7 @@ import {
 } from "../../../../shared/http/api-response.decorators";
 import { skillCommand } from "../../../skills/presentation/http/skills.controller";
 import { PageDto } from "../../../skills/presentation/http/skills.dto";
-import { VerificationsService } from "../../application/verifications.service";
+import { VerificationsService } from "../../application/services/verifications.service";
 import { SubmitEvidenceDto } from "./verifications.dto";
 import {
   VerificationResponse,

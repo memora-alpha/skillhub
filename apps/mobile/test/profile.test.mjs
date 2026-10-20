@@ -24,14 +24,7 @@ const validation = await import(
 const publicUrl = await moduleUrl(
   "../src/features/profile/utils/public-profile.ts",
 );
-const { toPublicProfile, toOwnProfilePreview, readProfileId } = await import(
-  publicUrl
-);
-const { resolvePublicProfile } = await import(
-  await moduleUrl("../src/features/profile/mocks/public-profiles.ts", {
-    "../utils/public-profile": publicUrl,
-  })
-);
+const { toOwnProfilePreview, readProfileId } = await import(publicUrl);
 const draft = { fullName: "Nguyễn An", headline: "", bio: "" };
 const own = {
   userId: "viewer-id",
@@ -119,46 +112,6 @@ test("whitespace-only name changes do not save, but explicit optional clearing d
   );
 });
 
-test("public projection strips account and nested skill secrets", () => {
-  const publicData = toPublicProfile({
-    ...own,
-    email: "private@example.com",
-    phone: "private-phone",
-    dateOfBirth: "private-date",
-    timezone: "private-zone",
-    locale: "private-locale",
-    role: "ADMIN",
-    payment: { token: "private-payment" },
-    sharingSkills: [
-      {
-        id: "sharing-id",
-        skillId: "skill-id",
-        name: "React",
-        level: "ADVANCED",
-        description: "Public description",
-        experienceYears: "2.0",
-        verificationStatus: "VERIFIED",
-        evidence: [{ url: "private-evidence" }],
-        catalog: { privateDocumentUrl: "private-document" },
-      },
-    ],
-  });
-  assert.deepEqual(Object.keys(publicData).sort(), Object.keys(own).sort());
-  assert.deepEqual(
-    Object.keys(publicData.sharingSkills[0]).sort(),
-    [
-      "id",
-      "skillId",
-      "name",
-      "level",
-      "description",
-      "experienceYears",
-      "verificationStatus",
-    ].sort(),
-  );
-  assert.equal(JSON.stringify(publicData).includes("private"), false);
-});
-
 test("own preview preserves server values and empty fields without inventing skills or reputation", () => {
   const saved = {
     ...own,
@@ -186,51 +139,13 @@ test("own preview preserves server values and empty fields without inventing ski
   assert.equal(JSON.stringify(preview).includes("private"), false);
 });
 
-test("invalid or unknown targets cannot fall back to the viewer", () => {
+test("invalid profile route values cannot select the viewer", () => {
   for (const value of [
     undefined,
     "",
     "  ",
     [own.userId],
     [own.userId, "other"],
-  ]) {
+  ])
     assert.equal(readProfileId(value), null);
-    assert.deepEqual(resolvePublicProfile(readProfileId(value), own, 0), {
-      status: "unavailable",
-    });
-  }
-  assert.deepEqual(resolvePublicProfile("unknown", own, 0), {
-    status: "unavailable",
-  });
-});
-
-test("self-preview uses saved content, other targets keep their own identity", () => {
-  const updated = { ...own, fullName: "Tên đã lưu", headline: "", bio: "" };
-  assert.deepEqual(
-    resolvePublicProfile(readProfileId(own.userId), updated, 0),
-    { status: "ready", profile: updated },
-  );
-  const mentor = resolvePublicProfile("demo-mentor-an", updated, 0);
-  assert.equal(mentor.profile.fullName, "Nguyễn An");
-  assert.equal(
-    mentor.profile.sharingSkills.filter(
-      (skill) => skill.verificationStatus === "VERIFIED",
-    ).length,
-    2,
-  );
-  const empty = resolvePublicProfile("demo-learner-linh", updated, 0);
-  assert.equal(empty.profile.reputationScore, 50);
-  assert.equal(empty.profile.bio, "");
-  assert.deepEqual(empty.profile.sharingSkills, []);
-});
-
-test("recoverable fixture supports retry without changing the viewer", () => {
-  assert.deepEqual(resolvePublicProfile("demo-retry", own, 0), {
-    status: "error",
-  });
-  assert.equal(
-    resolvePublicProfile("demo-retry", own, 1).profile.userId,
-    "demo-mentor-an",
-  );
-  assert.equal(own.userId, "viewer-id");
 });

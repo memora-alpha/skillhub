@@ -7,7 +7,7 @@ import { ConfigModule } from "@nestjs/config";
 import { ValidationPipe, VersioningType } from "@nestjs/common";
 import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
 import { PaymentsModule } from "../../dist/modules/payments/payments.module.js";
-import { PayosTransport } from "../../dist/modules/payments/infrastructure/payos-transport.js";
+import { PayosTransport } from "../../dist/modules/payments/infrastructure/gateway/payos-transport.js";
 import { DatabaseModule } from "../../dist/infrastructure/database/database.module.js";
 import { PrismaService } from "../../dist/infrastructure/database/prisma.service.js";
 import { TransactionRunner } from "../../dist/infrastructure/database/transaction-runner.js";
@@ -17,9 +17,9 @@ import { SkillActorService } from "../../dist/modules/users/application/services
 import { IdentityGuard } from "../../dist/shared/auth/identity.guard.js";
 import { SessionsService } from "../../dist/modules/auth/application/services/sessions.service.js";
 import { ApplicationEventsModule } from "../../dist/modules/application-events/application-events.module.js";
-import { ApplicationEventsService } from "../../dist/modules/application-events/application/application-events.service.js";
-import { EventsController } from "../../dist/modules/application-events/presentation/events.controller.js";
-import { EventConnectionsService } from "../../dist/modules/application-events/application/event-connections.service.js";
+import { ApplicationEventsService } from "../../dist/modules/application-events/application/services/application-events.service.js";
+import { EventsController } from "../../dist/modules/application-events/presentation/http/events.controller.js";
+import { EventConnectionsService } from "../../dist/modules/application-events/application/services/event-connections.service.js";
 import {
   EventConfig,
   eventSettings,
@@ -143,6 +143,11 @@ test("Payment module HTTP/Swagger, live ownership, disabled gate and real SSE fr
           doc.paths["/api/v1/payments/creation-policy"].get.responses["200"],
         );
         assert.ok(doc.paths["/api/v1/payments/{id}"].get);
+        assert.ok(
+          doc.paths["/api/v1/payments/{paymentId}/cancel"].post.responses[
+            "200"
+          ],
+        );
         assert.ok(
           doc.paths["/api/v1/payments/webhooks/payos"].post.requestBody,
         );
@@ -358,6 +363,51 @@ test("Payment module HTTP/Swagger, live ownership, disabled gate and real SSE fr
     );
     stream.abort();
     await t.test(
+      "cancel validates identity, key, UUID and ownership and returns a no-store payment",
+      async () => {
+        const pending = await f.order(other);
+        const path = `/payments/${pending.id}/cancel`;
+        const options = { method: "POST", account: other, key: randomUUID() };
+        const before = f.requests.length;
+        assert.equal(
+          (await request(path, { ...options, account: null })).status,
+          401,
+        );
+        assert.equal(
+          (await request(path, { ...options, key: undefined })).status,
+          400,
+        );
+        assert.equal(
+          (await request("/payments/invalid/cancel", options)).status,
+          400,
+        );
+        assert.equal(
+          (await request(path, { ...options, account: owner })).status,
+          404,
+        );
+        assert.equal(f.requests.length, before);
+        const cancelled = await request(path, options);
+        assert.equal(cancelled.status, 200);
+        assert.equal(cancelled.body.data.status, "CANCELLED");
+        assert.equal(cancelled.body.data.checkout, null);
+        assert.equal(
+          (await request(path, options)).body.data.status,
+          "CANCELLED",
+        );
+        assert.equal(f.requests.length, before + 1);
+        assert.equal(
+          (
+            await request(`/payments/${payment.id}/cancel`, {
+              ...options,
+              account: owner,
+              key: randomUUID(),
+            })
+          ).body.message,
+          "PAYMENT_ALREADY_PAID",
+        );
+      },
+    );
+    await t.test(
       "revoked sessions cannot replay create or read existing orders",
       async () => {
         await f.db.refreshSession.update({
@@ -365,6 +415,15 @@ test("Payment module HTTP/Swagger, live ownership, disabled gate and real SSE fr
           data: { revokedAt: new Date(), revokedReason: "fixture-revoke" },
         });
         assert.equal((await request(`/payments/${payment.id}`)).status, 401);
+        assert.equal(
+          (
+            await request(`/payments/${payment.id}/cancel`, {
+              method: "POST",
+              key: randomUUID(),
+            })
+          ).status,
+          401,
+        );
         assert.equal(
           (await request("/payments", { method: "POST", body, key })).status,
           401,

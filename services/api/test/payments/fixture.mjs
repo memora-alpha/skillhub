@@ -3,18 +3,19 @@ import { createHmac, randomUUID } from "node:crypto";
 import { EventEmitter } from "node:events";
 import { ConfigService } from "@nestjs/config";
 import { createCreditFixture } from "../credit/fixture.mjs";
-import { PayosTransport } from "../../dist/modules/payments/infrastructure/payos-transport.js";
-import { PaymentCheckoutWorker } from "../../dist/modules/payments/application/services/payment-checkout.worker.js";
+import { PayosTransport } from "../../dist/modules/payments/infrastructure/gateway/payos-transport.js";
+import { PaymentCheckoutWorker } from "../../dist/modules/payments/infrastructure/jobs/payment-checkout.worker.js";
 import { PaymentReceiptsService } from "../../dist/modules/payments/application/services/payment-receipts.service.js";
 import { PaymentCreationPolicy } from "../../dist/modules/payments/application/services/payment-creation-policy.js";
 import { CreatePaymentUseCase } from "../../dist/modules/payments/application/use-cases/create-payment.use-case.js";
+import { CancelPaymentUseCase } from "../../dist/modules/payments/application/use-cases/cancel-payment.use-case.js";
 import {
   ReadPaymentsUseCase,
   PaymentCursor,
 } from "../../dist/modules/payments/application/use-cases/read-payments.use-case.js";
 import { CreditOperationsService } from "../../dist/modules/credit/application/services/credit-operations.service.js";
 import { CreditProvenanceService } from "../../dist/modules/credit/application/services/credit-provenance.service.js";
-import { ApplicationEventsService } from "../../dist/modules/application-events/application/application-events.service.js";
+import { ApplicationEventsService } from "../../dist/modules/application-events/application/services/application-events.service.js";
 import { eventSettings } from "../../dist/modules/application-events/domain/event-config.js";
 
 export const env = {
@@ -103,47 +104,62 @@ export async function createPaymentFixture() {
     reads,
     policy,
   );
+  const cancel = new CancelPaymentUseCase(f.commands, f.actors, worker, reads);
   const providerOrders = new Map();
   const requests = [];
   const originalFetch = globalThis.fetch;
   let failCreate = 0,
     failLookup = 0,
-    afterCreate;
-  globalThis.fetch = async (url, options) => {
-    if (!String(url).startsWith("https://api-merchant.payos.vn/"))
-      return originalFetch(url, options);
-    requests.push({ url: String(url), ...options });
-    if (options.method === "POST") {
-      const input = JSON.parse(options.body);
-      const existing = providerOrders.get(String(input.orderCode));
-      if (existing) return Response.json({ code: "duplicate-order" });
-      const order = {
-        id: randomUUID(),
-        orderCode: input.orderCode,
-        amount: input.amount,
-        amountPaid: 0,
-        amountRemaining: input.amount,
+    failCancel = 0,
+    afterCreate,
+    beforeCancel;
+  async function cancelProviderOrder(href) {
+    const order = providerOrders.get(href.split("/").at(-2));
+    if (!order) return Response.json({ code: "not-found" });
+    if (beforeCancel) await beforeCancel(order);
+    if (order.status === "PENDING" && order.amountPaid === 0)
+      order.status = "CANCELLED";
+    if (failCancel-- > 0) throw new Error("injected-after-provider-cancel");
+    return Response.json(sign(order));
+  }
+  async function createProviderOrder(options) {
+    const input = JSON.parse(options.body);
+    const existing = providerOrders.get(String(input.orderCode));
+    if (existing) return Response.json({ code: "duplicate-order" });
+    const order = {
+      id: randomUUID(),
+      orderCode: input.orderCode,
+      amount: input.amount,
+      amountPaid: 0,
+      amountRemaining: input.amount,
+      status: "PENDING",
+      transactions: [],
+    };
+    providerOrders.set(String(order.orderCode), order);
+    if (failCreate-- > 0) throw new Error("injected-after-provider-create");
+    if (afterCreate) await afterCreate(order);
+    return Response.json(
+      sign({
+        orderCode: order.orderCode,
+        amount: order.amount,
+        paymentLinkId: order.id,
+        currency: "VND",
         status: "PENDING",
-        transactions: [],
-      };
-      providerOrders.set(String(order.orderCode), order);
-      if (failCreate-- > 0) throw new Error("injected-after-provider-create");
-      if (afterCreate) await afterCreate(order);
-      return Response.json(
-        sign({
-          orderCode: order.orderCode,
-          amount: order.amount,
-          paymentLinkId: order.id,
-          currency: "VND",
-          status: "PENDING",
-          qrCode: `qr:${order.id}`,
-          checkoutUrl: `https://pay.payos.vn/web/${order.id}`,
-          accountNumber: "private-fixture",
-        }),
-      );
-    }
+        qrCode: `qr:${order.id}`,
+        checkoutUrl: `https://pay.payos.vn/web/${order.id}`,
+        accountNumber: "private-fixture",
+      }),
+    );
+  }
+  globalThis.fetch = async (url, options) => {
+    const href = typeof url === "string" ? url : (url.href ?? url.url);
+    if (!href.startsWith("https://api-merchant.payos.vn/"))
+      return originalFetch(url, options);
+    requests.push({ url: href, ...options });
+    if (href.endsWith("/cancel")) return cancelProviderOrder(href);
+    if (options.method === "POST") return createProviderOrder(options);
     if (failLookup-- > 0) throw new Error("lookup temporarily unavailable");
-    const order = providerOrders.get(String(url).split("/").at(-1));
+    const order = providerOrders.get(href.split("/").at(-1));
     return Response.json(order ? sign(order) : { code: "not-found" });
   };
   async function order(account, amount = "100000", key = randomUUID()) {
@@ -188,6 +204,7 @@ export async function createPaymentFixture() {
     reads,
     policy,
     create,
+    cancel,
     order,
     webhook,
     due,
@@ -198,6 +215,12 @@ export async function createPaymentFixture() {
     },
     set failLookup(value) {
       failLookup = value;
+    },
+    set failCancel(value) {
+      failCancel = value;
+    },
+    set beforeCancel(value) {
+      beforeCancel = value;
     },
     set afterCreate(value) {
       afterCreate = value;

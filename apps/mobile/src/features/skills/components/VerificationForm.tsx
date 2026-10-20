@@ -85,7 +85,10 @@ export function VerificationForm({
   return embedded ? (
     content
   ) : (
-    <SkillsLayout title="Gửi bằng chứng" locked={model.locked}>
+    <SkillsLayout
+      title="Gửi bằng chứng"
+      locked={() => disabled || model.localLocked()}
+    >
       {content}
     </SkillsLayout>
   );

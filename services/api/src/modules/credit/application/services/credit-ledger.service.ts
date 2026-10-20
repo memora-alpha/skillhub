@@ -258,8 +258,66 @@ export class CreditLedgerService {
       },
       select: { id: true },
     });
+    let entryNo = 0;
+    type SettlementResult = (typeof results)[number];
+    type SettlementWallet = NonNullable<ReturnType<typeof byUser.get>>;
+    // ONE_WAY: the learner's returned hold is paid to the teacher in the same operation.
+    const applyOneWayPayment = async (
+      result: SettlementResult,
+      wallet: SettlementWallet,
+    ) => {
+      const teacherWallet = byUser.get(result.item.beneficiaryId!)!;
+      const teacherAvailableAfter =
+        teacherWallet.availableCredit + result.returned;
+      if (teacherWallet.provenanceTracked)
+        await tx.creditLot.create({
+          data: {
+            userId: teacherWallet.userId,
+            operationId: operation.id,
+            source: "EARNED",
+            available: result.returned,
+            granted: result.returned,
+          },
+        });
+      await tx.creditWallet.update({
+        where: { userId: teacherWallet.userId },
+        data: {
+          availableCredit: teacherAvailableAfter,
+          walletVersion: { increment: 1 },
+        },
+      });
+      await tx.creditTransaction.create({
+        data: {
+          userId: result.item.userId,
+          operationId: operation.id,
+          entryNo: ++entryNo,
+          type: "TEACHING_PAYMENT",
+          amount: result.returned,
+          availableDelta: 0n,
+          heldDelta: -result.returned,
+          availableAfter: wallet.availableCredit,
+          heldAfter: wallet.heldCredit - result.returned,
+          status: "SUCCESS",
+          idempotencyKey: `${operationKey}:${result.item.userId}:payment`,
+        },
+      });
+      await tx.creditTransaction.create({
+        data: {
+          userId: teacherWallet.userId,
+          operationId: operation.id,
+          entryNo: ++entryNo,
+          type: "TEACHING_EARNING",
+          amount: result.returned,
+          availableDelta: result.returned,
+          heldDelta: 0n,
+          availableAfter: teacherAvailableAfter,
+          heldAfter: teacherWallet.heldCredit,
+          status: "SUCCESS",
+          idempotencyKey: `${operationKey}:${teacherWallet.userId}:earning`,
+        },
+      });
+    };
     const applySettlementEntries = async () => {
-      let entryNo = 0;
       let grossTotal = 0n;
       let feeTotal = 0n;
       for (const result of results) {
@@ -287,56 +345,7 @@ export class CreditLedgerService {
           },
         });
         if (oneWay) {
-          const teacherWallet = byUser.get(result.item.beneficiaryId!)!;
-          const teacherAvailableAfter =
-            teacherWallet.availableCredit + result.returned;
-          if (teacherWallet.provenanceTracked)
-            await tx.creditLot.create({
-              data: {
-                userId: teacherWallet.userId,
-                operationId: operation.id,
-                source: "EARNED",
-                available: result.returned,
-                granted: result.returned,
-              },
-            });
-          await tx.creditWallet.update({
-            where: { userId: teacherWallet.userId },
-            data: {
-              availableCredit: teacherAvailableAfter,
-              walletVersion: { increment: 1 },
-            },
-          });
-          await tx.creditTransaction.create({
-            data: {
-              userId: result.item.userId,
-              operationId: operation.id,
-              entryNo: ++entryNo,
-              type: "TEACHING_PAYMENT",
-              amount: result.returned,
-              availableDelta: 0n,
-              heldDelta: -result.returned,
-              availableAfter: wallet.availableCredit,
-              heldAfter: wallet.heldCredit - result.returned,
-              status: "SUCCESS",
-              idempotencyKey: `${operationKey}:${result.item.userId}:payment`,
-            },
-          });
-          await tx.creditTransaction.create({
-            data: {
-              userId: teacherWallet.userId,
-              operationId: operation.id,
-              entryNo: ++entryNo,
-              type: "TEACHING_EARNING",
-              amount: result.returned,
-              availableDelta: result.returned,
-              heldDelta: 0n,
-              availableAfter: teacherAvailableAfter,
-              heldAfter: teacherWallet.heldCredit,
-              status: "SUCCESS",
-              idempotencyKey: `${operationKey}:${teacherWallet.userId}:earning`,
-            },
-          });
+          await applyOneWayPayment(result, wallet);
         } else {
           await tx.creditTransaction.create({
             data: {

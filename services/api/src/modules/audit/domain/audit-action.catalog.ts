@@ -1,6 +1,9 @@
 import { BadRequestException } from "@nestjs/common";
 import { z } from "zod";
-import type { AuditInput, AuditSnapshot } from "../application/audit.types";
+import type {
+  AuditInput,
+  AuditSnapshot,
+} from "../application/contracts/audit.types";
 import {
   isConfigurationKey,
   parseConfigurationValue,
@@ -39,6 +42,7 @@ export const AUDIT_ACTIONS = [
   "SCHEDULE_RESCHEDULE",
   "CREDIT_ADJUST",
   "CREDIT_TOP_UP",
+  "PAYMENT_RECOVERY_RESUME",
   "CREDIT_REVERSE",
   "SYSTEM_CONFIGURATION_UPDATE",
 ] as const;
@@ -242,6 +246,11 @@ const projectionByAction: Record<
   SCHEDULE_RESCHEDULE: reschedule,
   CREDIT_ADJUST: credit,
   CREDIT_TOP_UP: credit,
+  PAYMENT_RECOVERY_RESUME: z.strictObject({
+    status: z.enum(["REVIEW", "CREATED"]),
+    reasonCode: z.string().max(80).nullable(),
+    version: z.number().int().positive(),
+  }),
   CREDIT_REVERSE: credit,
 };
 

@@ -5,7 +5,7 @@ import { DatabaseModule } from "../database/database.module";
 import { OutboxModule } from "../events/outbox.module";
 import { QueueModule } from "../queue/queue.module";
 import { SystemConfigurationModule } from "../../modules/system-configuration/system-configuration.module";
-import { SystemConfigurationService } from "../../modules/system-configuration/application/system-configuration.service";
+import { SystemConfigurationService } from "../../modules/system-configuration/application/services/system-configuration.service";
 import { ClamAvScanner } from "./clamav-scanner.adapter";
 import { FileScanProcessor } from "./file-scan.processor";
 import {

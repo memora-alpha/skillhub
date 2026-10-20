@@ -9,7 +9,7 @@ import { SkillActorService } from "../../../users/application/services/skill-act
 import type { Principal } from "../../../auth/application/services/sessions.service";
 import { formatCredit } from "../../../credit/domain/money";
 import { LedgerCursor } from "../../../credit/domain/ledger-cursor";
-import { PayosTransport } from "../../infrastructure/payos-transport";
+import { PayosTransport } from "../../infrastructure/gateway/payos-transport";
 import type { PaymentConfiguration } from "../../domain/payment-config";
 import { PaymentCreationPolicy } from "../services/payment-creation-policy";
 
@@ -27,6 +27,12 @@ function recoveryReason(
     ["CREATED", "PENDING"].includes(payment.status)
   )
     return "PAYMENT_CHANNEL_UNAVAILABLE";
+  if (
+    ["CREATED", "PENDING"].includes(payment.status) &&
+    checkout.lastError &&
+    (!checkout.qrCode || checkout.lastError === "PAYMENT_PROVIDER_PROCESSING")
+  )
+    return "PAYMENT_RECOVERY_PENDING";
   return null;
 }
 function view(

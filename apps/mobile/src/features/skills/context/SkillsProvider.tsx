@@ -22,6 +22,7 @@ import { compressEvidence } from "../api/evidence-compression";
 import { randomUUID } from "expo-crypto";
 import { useToast } from "@/providers/ToastProvider";
 import { AppState } from "react-native";
+import { createSkillReadAccess } from "../utils/skill-read-access";
 
 function useSkillsRuntime() {
   const { runtime, session } = useAuthSession();
@@ -42,12 +43,32 @@ function useSkillsRuntime() {
     const isCurrent = () =>
       runtime.controller.generation === generation &&
       runtime.controller.getSnapshot() === "ready";
+    const privateReads = createSkillReadAccess(
+      queryClient,
+      scope,
+      isCurrent,
+      (target) => {
+        if (target[0] === "own") {
+          submittedVerifications.clear();
+          recentlyCreatedSkills.clear();
+        } else {
+          const id = String(target[1]);
+          if (
+            target[0] === "history" ||
+            submittedVerifications.get(id)?.id === target[2]
+          )
+            submittedVerifications.delete(id);
+        }
+        transfers.pauseDenied();
+      },
+    );
     const core = {
       api: createSkillsApi(runtime.client),
       scope,
       generation,
       userId,
       isCurrent,
+      privateReads,
       deletedSkillIds,
       verificationDrafts,
       verificationIntents,
@@ -59,9 +80,18 @@ function useSkillsRuntime() {
         recordCreatedSkillReads(recentlyCreatedSkills, skills, complete);
       },
       async rememberSkill(skill: OwnSkill, created = false) {
-        if (!isCurrent() || deletedSkillIds.has(skill.id)) return;
+        if (
+          !isCurrent() ||
+          deletedSkillIds.has(skill.id) ||
+          privateReads.denied([...scope, "detail", skill.id])
+        )
+          return;
         await queryClient.cancelQueries({ queryKey: scope });
-        if (isCurrent() && !deletedSkillIds.has(skill.id)) {
+        if (
+          isCurrent() &&
+          !deletedSkillIds.has(skill.id) &&
+          !privateReads.denied([...scope, "detail", skill.id])
+        ) {
           if (created || recentlyCreatedSkills.has(skill.id))
             recentlyCreatedSkills.set(skill.id, skill);
           recordSkillQueries(queryClient, scope, skill);
@@ -86,7 +116,17 @@ function useSkillsRuntime() {
         ]);
       },
       async rememberVerification(batch: Verification) {
-        if (!isCurrent()) return;
+        if (
+          !isCurrent() ||
+          privateReads.denied([...scope, "history", batch.sharingSkillId]) ||
+          privateReads.denied([
+            ...scope,
+            "verification",
+            batch.sharingSkillId,
+            batch.id,
+          ])
+        )
+          return;
         submittedVerifications.set(batch.sharingSkillId, batch);
         await queryClient.cancelQueries({ queryKey: scope });
         if (isCurrent())
@@ -135,6 +175,9 @@ function useSkillsRuntime() {
         drafts: verificationDrafts,
         intents: verificationIntents,
         isCurrent,
+        canRead: (id) =>
+          !privateReads.denied([...scope, "detail", id]) &&
+          !privateReads.denied([...scope, "history", id]),
         compress: compressEvidence,
         remember: core.rememberVerification,
         refresh: core.refresh,

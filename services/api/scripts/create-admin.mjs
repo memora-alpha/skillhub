@@ -5,7 +5,7 @@ import { PrismaService } from "../dist/infrastructure/database/prisma.service.js
 import { IdentityConfig } from "../dist/configs/identity.config.js";
 import { UsersService } from "../dist/modules/users/application/services/users.service.js";
 import { PrismaUsersRepository } from "../dist/modules/users/infrastructure/persistence/prisma-users-repository.js";
-import { AuditService } from "../dist/modules/audit/application/audit.service.js";
+import { AuditService } from "../dist/modules/audit/application/services/audit.service.js";
 import { PrismaAuditRepository } from "../dist/modules/audit/infrastructure/persistence/prisma-audit-repository.js";
 import {
   createAdminAccount,

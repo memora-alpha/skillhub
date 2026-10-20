@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { AuditWriter } from "../dist/modules/audit/application/audit-writer.js";
-import { AuditRepository } from "../dist/modules/audit/infrastructure/audit.repository.js";
+import { AuditWriter } from "../dist/modules/audit/application/services/audit-writer.js";
+import { AuditRepository } from "../dist/modules/audit/infrastructure/persistence/audit.repository.js";
 
 const input = {
   actor: { kind: "SYSTEM", name: "configuration-seed" },

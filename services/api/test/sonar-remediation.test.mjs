@@ -2,7 +2,7 @@ import "reflect-metadata";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { CreditLedgerService } from "../dist/modules/credit/application/services/credit-ledger.service.js";
-import { draftDigest } from "../dist/modules/conversations/infrastructure/chat.repository.js";
+import { draftDigest } from "../dist/modules/conversations/infrastructure/persistence/chat.repository.js";
 import { FileStorageError } from "../dist/infrastructure/storage/file.types.js";
 import { normalizeMessage } from "../dist/modules/proposals/domain/connection-policy.js";
 

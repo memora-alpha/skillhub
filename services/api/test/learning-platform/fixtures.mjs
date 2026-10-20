@@ -1,15 +1,15 @@
 import "reflect-metadata";
 import assert from "node:assert/strict";
-import { AuditWriter } from "../../dist/modules/audit/application/audit-writer.js";
-import { AuditRepository } from "../../dist/modules/audit/infrastructure/audit.repository.js";
-import { ConversationMembershipReader } from "../../dist/modules/conversations/conversation-membership.reader.js";
-import { CreditLedgerAdapter } from "../../dist/modules/credit/credit-ledger.adapter.js";
+import { AuditWriter } from "../../dist/modules/audit/application/services/audit-writer.js";
+import { AuditRepository } from "../../dist/modules/audit/infrastructure/persistence/audit.repository.js";
+import { ConversationMembershipReader } from "../../dist/modules/conversations/application/services/conversation-membership.reader.js";
+import { CreditLedgerAdapter } from "../../dist/modules/credit/application/services/credit-ledger.adapter.js";
 import { CreditLedgerService } from "../../dist/modules/credit/application/services/credit-ledger.service.js";
 import { CreditWalletReader } from "../../dist/modules/credit/application/services/credit-wallet.reader.js";
-import { LearningPathsService } from "../../dist/modules/learning-paths/learning-paths.service.js";
-import { LearningSessionsService } from "../../dist/modules/learning-sessions/learning-sessions.service.js";
-import { ReportsService } from "../../dist/modules/reports/reports.service.js";
-import { SchedulingService } from "../../dist/modules/scheduling/scheduling.service.js";
+import { LearningPathsService } from "../../dist/modules/learning-paths/application/services/learning-paths.service.js";
+import { LearningSessionsService } from "../../dist/modules/learning-sessions/application/services/learning-sessions.service.js";
+import { ReportsService } from "../../dist/modules/reports/application/services/reports.service.js";
+import { SchedulingService } from "../../dist/modules/scheduling/application/services/scheduling.service.js";
 import { createFakeDb, runner } from "./fake-db.mjs";
 
 export const A = "0a0a0a0a-0000-4000-8000-00000000000a";
@@ -129,6 +129,9 @@ export function setup({ wallets = {}, config = {} } = {}) {
     { applyPathCompletion: async () => {} },
     { evaluate: async () => {} },
     new ReportsService(runner(db), {}, {}, {}),
+    configuration,
+    { config: { enabled: false } },
+    { now: () => clock.now },
   );
   return { db, clock, configuration, wallet, paths, schedules, sessions };
 }
@@ -149,11 +152,11 @@ export const slots = (...ranges) =>
     endAt,
   }));
 
+export const httpError = (status, code) => (error) =>
+  error.getStatus?.() === status && error.message === code;
+
 export const rejectsWith = (promise, status, code) =>
-  assert.rejects(
-    promise,
-    (error) => error.getStatus?.() === status && error.message === code,
-  );
+  assert.rejects(promise, httpError(status, code));
 
 export async function twoWayWithPlans(ctx, totalCreditPerUser = "20.00") {
   const path = await ctx.paths.create(user(A), {
