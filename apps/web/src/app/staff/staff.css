@@ -286,6 +286,36 @@ output.staff-success {
 .staff-notification p {
   margin: 0;
 }
+.staff-notification strong,
+.staff-notification .prose {
+  overflow-wrap: anywhere;
+}
+.staff-notification[data-unread="true"] {
+  background: var(--brand-soft);
+}
+.staff-notification-status {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+  color: var(--muted);
+}
+.staff-notification-status p {
+  margin: 0;
+}
+.staff-notification-bell {
+  position: relative;
+}
+.staff-notification-dot {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  right: 4px;
+  top: 4px;
+  background: var(--brand);
+}
 .staff-shell .topbar {
   justify-content: space-between;
 }

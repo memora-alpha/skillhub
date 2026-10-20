@@ -4,10 +4,7 @@ export {
   PublicGuestProfileScreen,
   PublicGuestRequestScreen,
 } from "./screens/public-screens";
-export {
-  NotificationsScreen,
-  SearchScreen,
-} from "./screens/notification-search-screens";
+export { SearchScreen } from "./screens/notification-search-screens";
 export {
   OnboardingScreen,
   HelpScreen,

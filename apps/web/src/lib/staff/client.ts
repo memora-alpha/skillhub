@@ -53,12 +53,26 @@ export type ApiOptions = {
   body?: Record<string, unknown>;
   key?: string;
   signal?: AbortSignal;
+  headers?: Record<string, string>;
 };
 export type PortalApi = <T>(
   path: string,
   options?: ApiOptions,
 ) => Promise<ApiEnvelope<T>>;
 const renewals: Partial<Record<Portal, Promise<void>>> = {};
+export function refreshStaffSession(portal: Portal) {
+  renewals[portal] ??= staffApi(
+    "session/refresh",
+    { method: "POST", body: {} },
+    portal,
+    false,
+  )
+    .then(() => undefined)
+    .finally(() => {
+      delete renewals[portal];
+    });
+  return renewals[portal];
+}
 async function portalResponse(
   path: string,
   options: ApiOptions = {},
@@ -73,6 +87,7 @@ async function portalResponse(
       cache: "no-store",
       signal: options.signal,
       headers: {
+        ...options.headers,
         ...(options.body ? { "Content-Type": "application/json" } : {}),
         ...(options.key ? { "Idempotency-Key": options.key } : {}),
       },
@@ -99,17 +114,7 @@ async function portalResponse(
       ? !options.method || options.method === "GET"
       : !path.startsWith("session/"))
   ) {
-    renewals[portal] ??= staffApi(
-      "session/refresh",
-      { method: "POST", body: {} },
-      portal,
-      false,
-    )
-      .then(() => undefined)
-      .finally(() => {
-        delete renewals[portal];
-      });
-    await renewals[portal];
+    await refreshStaffSession(portal);
     return portalResponse(path, options, portal, false);
   }
   throw new StaffApiError(
@@ -146,4 +151,30 @@ export async function staffFile(
   if (!allowedEvidenceMime(response.headers.get("content-type") ?? ""))
     throw new StaffApiError(502, "FILE_TYPE_NOT_SUPPORTED");
   return response.blob();
+}
+
+export async function staffEvents(
+  portal: Portal,
+  signal: AbortSignal,
+  cursor?: string,
+) {
+  const response = await portalResponse(
+    "events",
+    {
+      signal,
+      headers: {
+        Accept: "text/event-stream",
+        ...(cursor ? { "Last-Event-ID": cursor } : {}),
+      },
+    },
+    portal,
+  );
+  if (
+    !response.headers.get("content-type")?.includes("text/event-stream") ||
+    !response.body
+  ) {
+    await response.body?.cancel();
+    throw new StaffApiError(502, "API_RESPONSE_INVALID");
+  }
+  return response.body;
 }
