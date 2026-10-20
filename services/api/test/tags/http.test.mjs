@@ -9,7 +9,7 @@ import { createTagFixture } from "./helpers.mjs";
 import { IdentityGuard } from "../../dist/shared/auth/identity.guard.js";
 import { SessionsService } from "../../dist/modules/auth/application/services/sessions.service.js";
 import { HttpExceptionFilter } from "../../dist/shared/http/http-exception.filter.js";
-import { SkillsService } from "../../dist/modules/skills/application/skills.service.js";
+import { SkillsService } from "../../dist/modules/skills/application/services/skills.service.js";
 import { TagsController } from "../../dist/modules/skills/presentation/http/skills.controller.js";
 import { CreateLearningRequestUseCase } from "../../dist/modules/learning-requests/application/use-cases/create-learning-request.use-case.js";
 import { LearningRequestAccessService } from "../../dist/modules/learning-requests/application/services/learning-request-access.service.js";
@@ -23,9 +23,9 @@ test(
     let app;
     try {
       const { TagsService } =
-        await import("../../dist/modules/skills/application/tags.service.js");
+        await import("../../dist/modules/skills/application/services/tags.service.js");
       const { TagRequestsService } =
-        await import("../../dist/modules/skills/application/tag-requests.service.js");
+        await import("../../dist/modules/skills/application/services/tag-requests.service.js");
       const { AdminTagsController } =
         await import("../../dist/modules/skills/presentation/http/admin-tags.controller.js");
       const {

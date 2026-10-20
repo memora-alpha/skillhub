@@ -8,7 +8,7 @@ import {
 import { lockUsers } from "../../../../shared/database/identity-transactions";
 import { TransactionRunner } from "../../../../infrastructure/database/transaction-runner";
 import type { Principal } from "../../../auth/application/services/sessions.service";
-import { SystemConfigurationService } from "../../../system-configuration/application/system-configuration.service";
+import { SystemConfigurationService } from "../../../system-configuration/application/services/system-configuration.service";
 import {
   toLearningRequestOwnerDetail,
   type LearningRequestOwnerDetail,

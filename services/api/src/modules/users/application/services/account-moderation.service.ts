@@ -15,7 +15,7 @@ import {
   SessionsService,
 } from "../../../auth/application/services/sessions.service";
 
-import { AuditService } from "../../../audit/application/audit.service";
+import { AuditService } from "../../../audit/application/services/audit.service";
 
 @Injectable()
 export class AccountModerationService {

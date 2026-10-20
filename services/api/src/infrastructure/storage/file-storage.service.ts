@@ -1,7 +1,7 @@
 import { randomUUID, createHash } from "node:crypto";
 import { Readable, Transform } from "node:stream";
 import type { Actor } from "../../shared/authorization/authorization.types";
-import type { SystemConfigurationService } from "../../modules/system-configuration/application/system-configuration.service";
+import type { SystemConfigurationService } from "../../modules/system-configuration/application/services/system-configuration.service";
 import { FileFormatDetector } from "./file-format-detector";
 import { MATERIAL_MAX_BYTES, validateFile } from "./file-policy";
 import { FileStorageError, type FilePurpose } from "./file.types";

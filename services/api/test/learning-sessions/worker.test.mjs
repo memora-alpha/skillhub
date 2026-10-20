@@ -1,7 +1,7 @@
 import "reflect-metadata";
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { SessionLifecycleWorker } from "../../dist/modules/learning-sessions/session-lifecycle.worker.js";
+import { SessionLifecycleWorker } from "../../dist/modules/learning-sessions/infrastructure/jobs/session-lifecycle.worker.js";
 import { createFakeDb } from "../learning-platform/fake-db.mjs";
 
 test("sweep visits rows beyond its first page and serializes overlapping sweeps", async () => {

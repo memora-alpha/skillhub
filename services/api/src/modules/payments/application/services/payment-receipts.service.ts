@@ -8,10 +8,10 @@ import type {
   PayosCheckout,
 } from "../../../../generated/prisma/client";
 import { fingerprintCommand } from "../../../../infrastructure/idempotency/idempotency.service";
-import { AuditWriter } from "../../../audit/application/audit-writer";
+import { AuditWriter } from "../../../audit/application/services/audit-writer";
 import { CreditOperationsService } from "../../../credit/application/services/credit-operations.service";
-import { ApplicationEventsService } from "../../../application-events/application/application-events.service";
-import { PayosTransport } from "../../infrastructure/payos-transport";
+import { ApplicationEventsService } from "../../../application-events/application/services/application-events.service";
+import { PayosTransport } from "../../infrastructure/gateway/payos-transport";
 import type { GatewayPaymentEvent } from "../contracts/payment-gateway";
 import { paymentTime } from "../../domain/payment-time";
 import { isTechnicalReviewReason } from "../../domain/payment-recovery-policy";

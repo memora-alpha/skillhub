@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { liveKitConfiguration } from "../../dist/modules/learning-sessions/livekit.service.js";
+import { liveKitConfiguration } from "../../dist/modules/learning-sessions/infrastructure/livekit/livekit.service.js";
 import {
   CONFIGURATION_DEFINITIONS,
   parseConfigurationValue,

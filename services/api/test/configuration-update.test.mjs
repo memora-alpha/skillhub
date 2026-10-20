@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { validateAuditInput } from "../dist/modules/audit/domain/audit-action.catalog.js";
-import { SystemConfigurationService } from "../dist/modules/system-configuration/application/system-configuration.service.js";
-import { UpdateConfigurationUseCase } from "../dist/modules/system-configuration/application/update-configuration.use-case.js";
+import { SystemConfigurationService } from "../dist/modules/system-configuration/application/services/system-configuration.service.js";
+import { UpdateConfigurationUseCase } from "../dist/modules/system-configuration/application/use-cases/update-configuration.use-case.js";
 import { CONFIGURATION_DEFINITIONS } from "../dist/modules/system-configuration/domain/configuration.catalog.js";
 
 const now = new Date("2026-10-05T00:00:00.000Z");

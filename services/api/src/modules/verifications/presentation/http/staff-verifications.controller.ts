@@ -24,7 +24,7 @@ import {
   ApiErrorResponse,
 } from "../../../../shared/http/api-response.decorators";
 import { skillCommand } from "../../../skills/presentation/http/skills.controller";
-import { VerificationsService } from "../../application/verifications.service";
+import { VerificationsService } from "../../application/services/verifications.service";
 import {
   ApproveEvidenceDto,
   RejectEvidenceDto,

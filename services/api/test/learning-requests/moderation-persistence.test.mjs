@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { ModerateLearningRequestUseCase } from "../../dist/modules/learning-requests/application/use-cases/moderate-learning-request.use-case.js";
-import { AuditWriter } from "../../dist/modules/audit/application/audit-writer.js";
-import { AuditRepository } from "../../dist/modules/audit/infrastructure/audit.repository.js";
+import { AuditWriter } from "../../dist/modules/audit/application/services/audit-writer.js";
+import { AuditRepository } from "../../dist/modules/audit/infrastructure/persistence/audit.repository.js";
 import { OutboxWriter } from "../../dist/infrastructure/events/outbox-writer.js";
 
 const requestId = "22222222-2222-4222-8222-222222222222";

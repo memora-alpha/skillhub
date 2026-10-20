@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
 import { test } from "node:test";
 import { paymentConfiguration } from "../../dist/modules/payments/domain/payment-config.js";
-import { PayosGateway } from "../../dist/modules/payments/infrastructure/payos-gateway.js";
+import { PayosGateway } from "../../dist/modules/payments/infrastructure/gateway/payos-gateway.js";
 import { createTopUpQuote } from "../../dist/modules/payments/domain/top-up-policy.js";
 
 // Public payOS documentation vector, never merchant credentials:

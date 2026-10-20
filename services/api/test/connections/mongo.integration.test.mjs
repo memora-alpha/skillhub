@@ -3,7 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import mongoose from "mongoose";
-import { ChatRepository } from "../../dist/modules/conversations/infrastructure/chat.repository.js";
+import { ChatRepository } from "../../dist/modules/conversations/infrastructure/persistence/chat.repository.js";
 const uri = process.env.TEST_MONGODB_URI;
 test(
   "real replica set publishes each draft once and advances monotonic read with durable event intent",

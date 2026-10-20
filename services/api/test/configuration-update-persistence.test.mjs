@@ -2,12 +2,12 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { test } from "node:test";
 import { TransactionRunner } from "../dist/infrastructure/database/transaction-runner.js";
-import { AuditWriter } from "../dist/modules/audit/application/audit-writer.js";
-import { AuditRepository } from "../dist/modules/audit/infrastructure/audit.repository.js";
+import { AuditWriter } from "../dist/modules/audit/application/services/audit-writer.js";
+import { AuditRepository } from "../dist/modules/audit/infrastructure/persistence/audit.repository.js";
 import { seedApprovedConfigurations } from "../dist/modules/system-configuration/application/seed-configuration.js";
-import { SystemConfigurationService } from "../dist/modules/system-configuration/application/system-configuration.service.js";
-import { UpdateConfigurationUseCase } from "../dist/modules/system-configuration/application/update-configuration.use-case.js";
-import { ConfigurationRepository } from "../dist/modules/system-configuration/infrastructure/configuration.repository.js";
+import { SystemConfigurationService } from "../dist/modules/system-configuration/application/services/system-configuration.service.js";
+import { UpdateConfigurationUseCase } from "../dist/modules/system-configuration/application/use-cases/update-configuration.use-case.js";
+import { ConfigurationRepository } from "../dist/modules/system-configuration/infrastructure/persistence/configuration.repository.js";
 import { skip, withDatabase } from "./integration-db.mjs";
 
 // Mutates the mutable TTL policy of the isolated test database; every case starts from the current version.

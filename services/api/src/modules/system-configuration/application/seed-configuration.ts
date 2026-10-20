@@ -8,7 +8,7 @@ import {
 import {
   ConfigurationRepository,
   type CurrentConfigurationRow,
-} from "../infrastructure/configuration.repository";
+} from "../infrastructure/persistence/configuration.repository";
 
 /** Insert approved defaults only; an existing operator change is never reset. */
 export async function seedApprovedConfigurations(

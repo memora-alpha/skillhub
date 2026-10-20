@@ -22,9 +22,9 @@ import { PublicSkillReader } from "../../dist/modules/users/application/services
 import { IdentityGuard } from "../../dist/shared/auth/identity.guard.js";
 import { FileAttachmentService } from "../../dist/infrastructure/storage/file-attachment.service.js";
 import { FileStorageService } from "../../dist/infrastructure/storage/file-storage.service.js";
-import { SkillsService } from "../../dist/modules/skills/application/skills.service.js";
-import { SharingSkillsService } from "../../dist/modules/sharing-skills/application/sharing-skills.service.js";
-import { VerificationsService } from "../../dist/modules/verifications/application/verifications.service.js";
+import { SkillsService } from "../../dist/modules/skills/application/services/skills.service.js";
+import { SharingSkillsService } from "../../dist/modules/sharing-skills/application/services/sharing-skills.service.js";
+import { VerificationsService } from "../../dist/modules/verifications/application/services/verifications.service.js";
 
 function fixtureModule(providers) {
   class FixtureModule {}

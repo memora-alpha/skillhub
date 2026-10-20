@@ -23,7 +23,7 @@ import {
   ApiSuccessResponse,
 } from "../../../../shared/http/api-response.decorators";
 import { success, paginated } from "../../../../shared/http/response";
-import { TagsService } from "../../application/tags.service";
+import { TagsService } from "../../application/services/tags.service";
 import { skillCommand } from "./skills.controller";
 import {
   AdminTagQueryDto,

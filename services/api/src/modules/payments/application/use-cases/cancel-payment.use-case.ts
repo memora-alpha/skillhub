@@ -8,7 +8,7 @@ import { IdempotencyService } from "../../../../infrastructure/idempotency/idemp
 import { SkillActorService } from "../../../users/application/services/skill-actor.service";
 import type { Principal } from "../../../auth/application/services/sessions.service";
 import type { RequestContext } from "../../../../shared/http/request-context";
-import { PaymentCheckoutWorker } from "../services/payment-checkout.worker";
+import { PaymentCheckoutWorker } from "../../infrastructure/jobs/payment-checkout.worker";
 import { ReadPaymentsUseCase } from "./read-payments.use-case";
 
 @Injectable()

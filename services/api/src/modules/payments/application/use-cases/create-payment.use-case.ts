@@ -14,8 +14,8 @@ import type { Principal } from "../../../auth/application/services/sessions.serv
 import type { RequestContext } from "../../../../shared/http/request-context";
 import { CreditOperationsService } from "../../../credit/application/services/credit-operations.service";
 import { createTopUpQuote } from "../../domain/top-up-policy";
-import { PayosTransport } from "../../infrastructure/payos-transport";
-import { PaymentCheckoutWorker } from "../services/payment-checkout.worker";
+import { PayosTransport } from "../../infrastructure/gateway/payos-transport";
+import { PaymentCheckoutWorker } from "../../infrastructure/jobs/payment-checkout.worker";
 import { quoteDigest } from "../services/payment-receipts.service";
 import { ReadPaymentsUseCase } from "./read-payments.use-case";
 import { parseVnd } from "../../../credit/domain/money";

@@ -4,7 +4,7 @@ import { test } from "node:test";
 import { randomUUID, createHash } from "node:crypto";
 import { AccessToken } from "livekit-server-sdk";
 import { ConfigService } from "@nestjs/config";
-import { LiveKitService } from "../../dist/modules/learning-sessions/livekit.service.js";
+import { LiveKitService } from "../../dist/modules/learning-sessions/infrastructure/livekit/livekit.service.js";
 import {
   finalizedOneWay,
   setup,

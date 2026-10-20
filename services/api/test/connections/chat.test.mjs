@@ -3,12 +3,12 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { mongo } from "mongoose";
-import { ConversationsService } from "../../dist/modules/conversations/application/conversations.service.js";
-import { ChatPublicationService } from "../../dist/modules/conversations/application/chat-publication.service.js";
+import { ConversationsService } from "../../dist/modules/conversations/application/services/conversations.service.js";
+import { ChatPublicationService } from "../../dist/modules/conversations/application/services/chat-publication.service.js";
 import {
   draftDigest,
   publicMessage,
-} from "../../dist/modules/conversations/infrastructure/chat.repository.js";
+} from "../../dist/modules/conversations/infrastructure/persistence/chat.repository.js";
 import { connectionSettings } from "../../dist/modules/proposals/domain/connection-policy.js";
 function fixture() {
   const principal = { userId: randomUUID() },
