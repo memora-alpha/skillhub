@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
+import { proxyEvents } from "./event-proxy";
 import {
   sameOriginMutation,
   staffIdentity,
@@ -385,6 +386,11 @@ export async function staffGateway(
       const handler = sessionHandlers.get(request.method);
       if (!handler) throw new GatewayError(405, "METHOD_NOT_ALLOWED");
       return await handler(request, portal);
+    }
+    if (path === "events" && request.method === "GET") {
+      const token = accessToken(request, portal);
+      await identity(token, portal);
+      return await proxyEvents(request, new URL("events", baseUrl()), token);
     }
     return await forwardRequest(request, path, portal);
   } catch (error) {

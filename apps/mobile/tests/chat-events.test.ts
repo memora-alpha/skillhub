@@ -128,7 +128,7 @@ test("failed hydration retains the old cursor and retries the event; a successfu
   assert.equal(s.calls.length, 2);
   assert.equal(s.hydrator.cursor, "replayed");
 });
-test("invalid envelopes cannot advance the cursor; events outside chat/proposal are ignored", async () => {
+test("invalid envelopes cannot advance the cursor; unrelated events are ignored", async () => {
   const s = setup();
   for (const data of [
     "not-json",
@@ -146,7 +146,7 @@ test("invalid envelopes cannot advance the cursor; events outside chat/proposal 
     assert.equal(s.hydrator.cursor, undefined);
   }
   await s.hydrator.handle(
-    { event: "notification.created", id: "other-domain", data: "{}" },
+    { event: "unrelated.domain.updated", id: "other-domain", data: "{}" },
     s.signal,
   );
   assert.equal(s.calls.length, 0);

@@ -1,8 +1,6 @@
 import { useState } from "react";
-import { useRouter } from "expo-router";
 import { Input } from "@/components/Input";
 import { Button } from "@/components/Button";
-import { Badge } from "@/components/Badge";
 import { EmptyState } from "@/components/EmptyState";
 import { ChoiceGroup } from "@/components/choice-group";
 import { Avatar } from "@/components/Avatar";
@@ -13,52 +11,6 @@ import {
   RouteButton,
 } from "@/components/feature-page";
 import { publicProfiles } from "@/features/profile";
-import { useProductPreview } from "../context";
-export function NotificationsScreen() {
-  const { notifications, read, enabled } = useProductPreview();
-  const [filter, setFilter] = useState("Tất cả");
-  const router = useRouter();
-  const items = notifications.filter(
-    (n) => enabled.includes(n.group) && (filter === "Tất cả" || !n.read),
-  );
-  return (
-    <FeaturePage title="Thông báo" back="/home">
-      <ChoiceGroup
-        label="Hiển thị"
-        options={["Tất cả", "Chưa đọc"]}
-        value={filter}
-        onChange={setFilter}
-      />
-      <Button variant="paper" onPress={() => read()}>
-        Đánh dấu tất cả đã đọc
-      </Button>
-      {items.map((n) => (
-        <Panel key={n.id} title={n.title}>
-          <Badge label={n.read ? "Đã đọc" : "Mới"} />
-          <Copy>{n.body}</Copy>
-          <Button
-            variant="paper"
-            onPress={() => {
-              read(n.id);
-              router.push(n.href);
-            }}
-          >
-            Xem nội dung liên quan
-          </Button>
-        </Panel>
-      ))}
-      {!items.length && (
-        <EmptyState
-          title="Không có thông báo"
-          description="Bạn đã xem hết hoặc nhóm thông báo này đã tắt trong bản xem thử."
-        />
-      )}
-      <RouteButton secondary href="/preferences/notifications">
-        Tùy chỉnh thông báo mẫu
-      </RouteButton>
-    </FeaturePage>
-  );
-}
 export function SearchScreen() {
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState("Người chia sẻ");

@@ -10,7 +10,7 @@ import {
 import { BrandLogo } from "@/components/BrandLogo";
 import { Avatar } from "@/components/Avatar";
 import { Icon } from "@/components/Icon";
-import { useProductPreview } from "@/features/product-shell/state";
+import { useNotifications } from "@/features/notifications";
 import {
   appColors as colors,
   appRadius as radius,
@@ -48,8 +48,8 @@ export function AppHeader({
   navigationBlocked = false,
 }: AppHeaderProps) {
   const { width } = useWindowDimensions();
-  const { notifications } = useProductPreview();
-  const unread = notifications.filter((item) => !item.read).length;
+  const notifications = useNotifications();
+  const unread = notifications.items.some((item) => !item.readAt);
   const home = appearance === "home";
   const compact = Platform.OS !== "web" || width < 640;
   const navigationState = {
@@ -104,7 +104,11 @@ export function AppHeader({
           <Pressable
             style={[styles.iconButton, home && styles.homeNotification]}
             accessibilityRole="button"
-            accessibilityLabel={`Thông báo — ${unread} chưa đọc`}
+            accessibilityLabel={
+              unread
+                ? "Thông báo — có mục chưa đọc trong danh sách đã tải"
+                : "Mở thông báo"
+            }
             {...navigationState}
             onPress={() => onAction("Thông báo")}
             hitSlop={6}
@@ -114,9 +118,9 @@ export function AppHeader({
               size={iconSizes.control}
               color={home ? signedInChrome.accent : colors.muted}
             />
-            <View style={[styles.count, home && styles.homeCount]}>
-              <Text style={styles.countLabel}>{unread}</Text>
-            </View>
+            {unread && (
+              <View style={[styles.count, home && styles.homeCount]} />
+            )}
           </Pressable>
         )}
         {rightAction}
@@ -250,12 +254,5 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
-  },
-  countLabel: {
-    fontFamily: fonts.bold,
-    color: colors.white,
-    fontSize: 9,
-    lineHeight: 12,
-    includeFontPadding: false,
   },
 });

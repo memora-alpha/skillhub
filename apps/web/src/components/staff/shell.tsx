@@ -5,6 +5,10 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Icon, type IconName } from "@/components/console/icon";
 import { StaffSessionProvider, useStaffSession } from "./session";
 import { StaffLogin } from "./login";
+import {
+  NotificationsProvider,
+  useNotificationInbox,
+} from "./notification-session";
 import type { Portal } from "@/lib/staff/policy";
 const nav: { href: string; label: string; icon: IconName }[] = [
   { href: "/staff", label: "Tổng quan", icon: "inbox" },
@@ -140,13 +144,7 @@ function Frame({ children }: Readonly<{ children: ReactNode }>) {
             SkillHub <Icon name="right" size={14} />{" "}
             {current?.label ?? portalName}
           </span>
-          <Link
-            className="icon-btn"
-            href={`/${portal}/notifications`}
-            aria-label="Mở thông báo"
-          >
-            <Icon name="bell" />
-          </Link>
+          <NotificationBell portal={portal} />
         </header>
         <main id="main" className="content">
           {error && (
@@ -169,7 +167,27 @@ export function StaffShell({
 }>) {
   return (
     <StaffSessionProvider portal={portal}>
-      <Frame>{children}</Frame>
+      <NotificationsProvider>
+        <Frame>{children}</Frame>
+      </NotificationsProvider>
     </StaffSessionProvider>
+  );
+}
+function NotificationBell({ portal }: Readonly<{ portal: Portal }>) {
+  const { items } = useNotificationInbox();
+  const unread = items.some((item) => !item.readAt);
+  return (
+    <Link
+      className="icon-btn staff-notification-bell"
+      href={`/${portal}/notifications`}
+      aria-label={
+        unread
+          ? "Thông báo — có mục chưa đọc trong danh sách đã tải"
+          : "Mở thông báo"
+      }
+    >
+      <Icon name="bell" />
+      {unread && <span className="staff-notification-dot" aria-hidden="true" />}
+    </Link>
   );
 }

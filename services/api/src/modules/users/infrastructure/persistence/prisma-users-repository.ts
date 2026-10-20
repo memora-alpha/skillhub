@@ -246,11 +246,17 @@ export class PrismaUsersRepository extends UsersRepository {
         "notification:update:self",
       ],
       STAFF: [
+        "notification:read:self",
+        "notification:update:self",
+        "event:read:self",
         "learning-request:moderation:read",
         "learning-request:approve",
         "learning-request:reject",
       ],
       ADMIN: [
+        "notification:read:self",
+        "notification:update:self",
+        "event:read:self",
         "learning-request:moderation:read",
         "learning-request:approve",
         "learning-request:reject",
