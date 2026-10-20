@@ -1,6 +1,6 @@
 # Payment recovery và vận hành đối soát
 
-Cập nhật 2026-10-18. Backend-only; mobile/web phải tích hợp contract riêng.
+Cập nhật 2026-10-19. Backend-only; mobile/web phải tích hợp contract riêng.
 Không thực hiện chuyển tiền, tự restore Payment, tự gán receipt hoặc sửa ledger.
 
 ## Identity, replay và đơn chưa giải quyết
@@ -22,6 +22,26 @@ Payment payOS legacy thiếu identity tạo đơn, kể cả legacy PAID. Kiểm
 transaction serializable sau live actor/user lock; request bị chặn rollback
 cả claim idempotency. Không dùng cùng số tiền/thời điểm để đoán cùng intent.
 Review/timeout/mất QR/404/lịch sử trống không chứng minh chưa chuyển khoản.
+
+## Phục hồi lỗi kỹ thuật — 2026-10-19
+
+- Transport timeout tiếp tục retry theo fenced lease với backoff tối đa 5 phút;
+  không chuyển REVIEW chỉ vì đã retry 5 lần. Log payment.recovery.delayed báo
+  chậm khi lỗi kéo dài. Giữ Payment/key/orderCode/quote và chặn key mới.
+- Signed lookup PENDING, không tiền/transaction nhưng mất QR hoặc hết quote:
+  tự hủy cùng orderCode, verify signed cancellation rồi mới đóng CANCELLED/EXPIRED.
+  Nếu hủy timeout, chờ lookup xác nhận; không đóng chỉ vì hết hạn local.
+- PROCESSING giữ chờ kiểm tra; signed PAID exact đi qua receipt/posting pipeline
+  một lần. Partial/missing/invalid evidence tiếp tục financial REVIEW.
+- Worker xét lại REVIEW cũ có lastError PAYMENT_QR_UNAVAILABLE hoặc
+  PAYMENT_PROVIDER_RETRY_EXHAUSTED. Phải giữ creation identity/fingerprint, đúng
+  channel/quote, không gateway transaction, paidAt, TOP_UP link hoặc bất kỳ receipt
+  đã gắn đơn. Lookup phải được xác minh trước khi mở lại; kiểm lại eligibility và
+  lease dưới Payment lock. Audit PAYMENT_RECOVERY_RESUME và event được ghi cùng
+  transaction mở lại. Receipt xuất hiện đồng thời sẽ ngăn tự mở lại.
+- Evidence không đủ hoặc channel cũ không còn hoạt động vẫn chặn để đối soát.
+  Không xóa dữ liệu hoặc tự gán trạng thái đã trả tiền. Chưa sửa runtime DB trong
+  bước triển khai local này; worker chỉ có tác dụng sau rollout.
 
 Migration `20261018000000_payment_recovery_guards` backfill identity từ mapping
 completed còn giữ và đúng owner. Mapping mơ hồ khiến migration dừng; không chọn
@@ -57,7 +77,9 @@ của owner khác. Các kết quả:
 
 409 recovery có `details.existingPaymentId` chỉ của owner. Payment projection có
 `recoveryRequired` và nullable `recoveryReason`: PAYMENT_REVIEW_REQUIRED,
-PAYMENT_CHANNEL_UNAVAILABLE hoặc PAYMENT_CHECKOUT_MISSING. Không trả lastError
+PAYMENT_CHANNEL_UNAVAILABLE, PAYMENT_CHECKOUT_MISSING hoặc PAYMENT_RECOVERY_PENDING.
+Reason cuối nghĩa đang kiểm tra; FE đọc lại/SSE và chờ creation-policy, không tự
+đổi key hoặc thông báo đơn đã thất bại. Không trả lastError
 nội bộ/credential. QR chỉ hiển thị khi provider bật, creation không paused,
 checkout đúng channel hiện tại và PENDING/READY chưa hết hạn.
 
@@ -94,9 +116,10 @@ và restart/reload; không tự bật khi DB bị restore. Runbook:
 
 **Chưa hỗ trợ** tự khám phá/tái tạo Payment và mapping đã mất toàn bộ, import
 provider export, reassign receipt, audited financial repair hoặc public/admin API
-cho phép thay thế một đơn REVIEW. Không đánh PAID hay sửa số dư thủ công.
-Không có workflow trong sản phẩm để xác nhận một case REVIEW đã được giải quyết;
-case cần xử lý tài chính phải giữ chặn và phát triển instruction/audit riêng.
+cho phép thay thế tùy ý một đơn financial REVIEW. Không đánh PAID hay sửa số dư
+thủ công. Chỉ technical REVIEW đủ điều kiện ở trên được worker phục hồi với
+verified lookup và audit. Case cần xử lý tài chính phải giữ chặn và phát triển
+instruction/audit riêng.
 
 ## Đổi channel
 
@@ -146,4 +169,4 @@ Trách nhiệm: người hỗ trợ tiếp nhận evidence; operator có quyền
 đối chiếu; người chịu trách nhiệm vận hành xác nhận incident trước mở global
 pause. Team phải chỉ định tên/người thay thế trong hồ sơ vận hành trước activation.
 Repository không tự gán Staff/Admin quyền repair và hiện chưa có workflow duyệt
-cho từng owner được tạo lại sau REVIEW. Những case này tiếp tục **chưa hỗ trợ**.
+cho từng owner được tạo lại sau financial REVIEW. Những case này tiếp tục **chưa hỗ trợ**.

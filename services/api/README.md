@@ -36,6 +36,18 @@ và bằng chứng PostgreSQL ở [UTC validation](specs/006-system-configuratio
 
 ## Phạm vi và trạng thái
 
+Technical payment recovery 2026-10-19: đơn payOS đang chờ nhưng mất QR được tra
+cứu và hủy bằng signed evidence trước khi mở tạo mới. Timeout tiếp tục retry,
+không tự chuyển REVIEW vì hết lượt. Worker kiểm tra lại REVIEW cũ do mất QR/hết
+retry khi còn identity, cùng channel và chưa có receipt/posting; mỗi lần mở lại
+có audit. Xem [runbook](docs/payment-recovery-operations.vi.md).
+
+Payment cancellation 2026-10-19: `POST /api/v1/payments/{paymentId}/cancel`
+(Bearer + Idempotency-Key, không body) hủy đơn own chưa trả tiền qua signed payOS
+response. Bổ sung status CANCELLED, retry/recovery giữ cùng orderCode và không
+downgrade PAID. Migration `20261019010000_payment_cancellation` phải chạy trước
+code. Xem [HTTP contract](specs/009-credit-payment/contracts/http.md).
+
 Payment recovery hardening 2026-10-18 giữ identity tạo đơn trong Payment khi mất
 mapping HTTP, chặn key mới khi còn CREATED/PENDING/REVIEW và cung cấp
 `GET /api/v1/payments/creation-policy`. `PAYMENT_CREATION_PAUSED=true` khóa tạo

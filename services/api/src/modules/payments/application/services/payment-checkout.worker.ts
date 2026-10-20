@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   Logger,
   OnModuleDestroy,
@@ -21,6 +22,10 @@ import type {
   PayosCheckout,
 } from "../../../../generated/prisma/client";
 import type { CheckoutQuote } from "../contracts/payment-gateway";
+import {
+  isTechnicalReviewReason,
+  technicalReviewReasons,
+} from "../../domain/payment-recovery-policy";
 
 /** Durable checkout rows are the queue; a fenced lease permits multiple API instances. */
 @Injectable()
@@ -57,7 +62,21 @@ export class PaymentCheckoutWorker implements OnModuleInit, OnModuleDestroy {
       const due = await this.db.payosCheckout.findMany({
         where: {
           channel: this.transport.config.PAYOS_CLIENT_ID,
-          state: { in: ["PREPARING", "READY"] },
+          AND: [
+            {
+              OR: [
+                {
+                  state: { in: ["PREPARING", "READY"] },
+                  payment: { status: { in: ["CREATED", "PENDING"] } },
+                },
+                {
+                  state: "REVIEW",
+                  lastError: { in: [...technicalReviewReasons] },
+                  payment: { status: "REVIEW" },
+                },
+              ],
+            },
+          ],
           nextAttemptAt: { lte: new Date() },
           OR: [{ leaseUntil: null }, { leaseUntil: { lt: new Date() } }],
         },
@@ -78,25 +97,54 @@ export class PaymentCheckoutWorker implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  private claim(paymentId: string, leaseToken: string) {
+  private claim(paymentId: string, leaseToken: string, cancelling = false) {
     return this.transactions.run(async (tx) => {
       await tx.$queryRaw`SELECT payment_id FROM payments WHERE payment_id=${paymentId}::uuid FOR UPDATE`;
       const payment = await tx.payment.findUnique({ where: { id: paymentId } });
       const checkout = await tx.payosCheckout.findUnique({
         where: { paymentId },
       });
+      const technicalReview =
+        !cancelling &&
+        payment?.status === "REVIEW" &&
+        checkout?.state === "REVIEW" &&
+        isTechnicalReviewReason(checkout.lastError);
+      if (cancelling && !checkout)
+        throw new ConflictException("PAYMENT_RECONCILIATION_REQUIRED");
+      if (
+        cancelling &&
+        checkout?.channel !==
+          (this.transport.config.enabled
+            ? this.transport.config.PAYOS_CLIENT_ID
+            : "")
+      )
+        throw new ServiceUnavailableException("PAYMENT_CHANNEL_UNAVAILABLE");
       if (
         !payment ||
         !checkout ||
+        (!technicalReview &&
+          !["CREATED", "PENDING"].includes(payment.status)) ||
         checkout.channel !==
           (this.transport.config.enabled
             ? this.transport.config.PAYOS_CLIENT_ID
             : "") ||
-        !["PREPARING", "READY"].includes(checkout.state) ||
+        (!technicalReview &&
+          !["PREPARING", "READY"].includes(checkout.state)) ||
         (checkout.leaseUntil && checkout.leaseUntil > new Date()) ||
-        checkout.nextAttemptAt > new Date()
+        (!cancelling && checkout.nextAttemptAt > new Date())
       )
         return null;
+      if (
+        technicalReview &&
+        !(await this.receipts.canRecoverReview(tx, payment, checkout))
+      ) {
+        await this.receipts.review(
+          tx,
+          paymentId,
+          "PAYMENT_RECONCILIATION_REQUIRED",
+        );
+        return null;
+      }
       if (quoteDigest(payment, checkout) !== checkout.quoteDigest) {
         await this.receipts.review(tx, paymentId, "PAYMENT_QUOTE_MISMATCH");
         return null;
@@ -125,12 +173,47 @@ export class PaymentCheckoutWorker implements OnModuleInit, OnModuleDestroy {
       const invalid =
         error instanceof BadRequestException ||
         error instanceof UnauthorizedException;
-      if (invalid || checkout.attempts >= 5) {
-        const reason = invalid
-          ? "PAYMENT_PROVIDER_EVIDENCE_INVALID"
-          : "PAYMENT_PROVIDER_RETRY_EXHAUSTED";
-        await this.finish(paymentId, leaseToken, { review: reason });
-      } else await this.finish(paymentId, leaseToken, { retry: true });
+      if (invalid)
+        await this.finish(paymentId, leaseToken, {
+          review: "PAYMENT_PROVIDER_EVIDENCE_INVALID",
+        });
+      else {
+        await this.finish(paymentId, leaseToken, { retry: true });
+        if (checkout.attempts >= 5)
+          this.logger.warn({ event: "payment.recovery.delayed", paymentId });
+      }
+    }
+  }
+
+  async cancel(paymentId: string) {
+    if (!this.transport.config.enabled)
+      throw new ServiceUnavailableException("PAYMENT_PROVIDER_UNAVAILABLE");
+    const leaseToken = randomUUID();
+    const claimed = await this.claim(paymentId, leaseToken, true);
+    if (!claimed) throw new ConflictException("PAYMENT_CHECKOUT_BUSY");
+    const { payment, checkout } = claimed;
+    try {
+      // The existing fenced checkout lease excludes create/recovery I/O. A crash
+      // after payOS cancellation is recovered by signed lookup of this same order.
+      const quote = {
+        orderCode: checkout.orderCode.toString(),
+        paymentAmountVnd: payment.paymentAmountVnd,
+        expiresAt: checkout.expiresAt,
+      };
+      const lookup = await this.transport.cancel(quote);
+      await this.applyLookup(checkout, leaseToken, lookup, quote, false);
+    } catch (error) {
+      const invalid =
+        error instanceof BadRequestException ||
+        error instanceof UnauthorizedException;
+      await this.finish(
+        paymentId,
+        leaseToken,
+        invalid
+          ? { review: "PAYMENT_PROVIDER_EVIDENCE_INVALID" }
+          : { retry: true },
+      );
+      throw new ServiceUnavailableException("PAYMENT_CANCELLATION_UNCONFIRMED");
     }
   }
 
@@ -148,20 +231,22 @@ export class PaymentCheckoutWorker implements OnModuleInit, OnModuleDestroy {
     if (
       checkout.attempts > 0 ||
       checkout.state === "READY" ||
+      payment.status === "REVIEW" ||
       checkout.expiresAt <= new Date()
     ) {
-      if (await this.resume(checkout, leaseToken, quote)) return;
+      if (await this.resume(payment, checkout, leaseToken, quote)) return;
     }
     const descriptor = await this.transport.create(quote, checkout);
     await this.finish(paymentId, leaseToken, {
       paymentLinkId: descriptor.paymentLinkId,
       qrCode:
         descriptor.providerStatus === "PENDING" ? descriptor.qrCode : undefined,
-      closed: ["CANCELLED", "EXPIRED"].includes(descriptor.providerStatus),
+      closed: this.closedStatus(descriptor.providerStatus),
     });
   }
 
   private async resume(
+    payment: Payment,
     checkout: PayosCheckout,
     leaseToken: string,
     quote: CheckoutQuote,
@@ -174,13 +259,49 @@ export class PaymentCheckoutWorker implements OnModuleInit, OnModuleDestroy {
       // Established orders are only looked up. No provider I/O happens inside a DB transaction.
       if (
         !(error instanceof ServiceUnavailableException) ||
+        payment.status === "REVIEW" ||
+        checkout.paymentLinkId ||
         checkout.state === "READY" ||
         checkout.expiresAt <= new Date()
       )
         throw error;
       return false;
     }
+    if (
+      checkout.paymentLinkId &&
+      checkout.paymentLinkId !== lookup.paymentLinkId
+    )
+      throw new BadRequestException("PAYMENT_LINK_MISMATCH");
+    if (
+      payment.status === "REVIEW" &&
+      !(await this.receipts.resumeTechnicalReview(
+        payment.id,
+        leaseToken,
+        lookup.paymentLinkId,
+      ))
+    )
+      return true;
+    return this.applyLookup(checkout, leaseToken, lookup, quote, true);
+  }
+
+  private closedStatus(status: string): "CANCELLED" | "EXPIRED" | undefined {
+    if (status === "CANCELLED" || status === "EXPIRED") return status;
+    return undefined;
+  }
+
+  private async applyLookup(
+    checkout: PayosCheckout,
+    leaseToken: string,
+    lookup: Awaited<ReturnType<PayosTransport["lookup"]>>,
+    quote: CheckoutQuote,
+    allowAutomaticCancel: boolean,
+  ): Promise<boolean> {
     const paymentId = checkout.paymentId;
+    if (
+      checkout.paymentLinkId &&
+      checkout.paymentLinkId !== lookup.paymentLinkId
+    )
+      throw new BadRequestException("PAYMENT_LINK_MISMATCH");
     if (lookup.events.length) {
       if (!lookup.exact || lookup.status !== "PAID") {
         // Retain every authenticated bank reference, but aggregate mismatches can never issue Credit.
@@ -199,18 +320,40 @@ export class PaymentCheckoutWorker implements OnModuleInit, OnModuleDestroy {
       );
       return true;
     }
-    if (lookup.status === "PAID") {
+    if (lookup.status === "PAID" || lookup.hasPayment) {
       await this.finish(paymentId, leaseToken, {
         review: "PAYMENT_TRANSACTION_EVIDENCE_MISSING",
       });
       return true;
     }
-    const closed =
-      ["CANCELLED", "EXPIRED"].includes(lookup.status) ||
-      checkout.expiresAt <= new Date();
-    if (!closed && !checkout.qrCode) {
+    const closed = this.closedStatus(lookup.status);
+    if (
+      !closed &&
+      (!checkout.qrCode ||
+        checkout.expiresAt <= new Date() ||
+        lookup.status === "PROCESSING")
+    ) {
+      if (allowAutomaticCancel && lookup.status === "PENDING") {
+        // Lookup does not return QR. Close this same unpaid order before allowing
+        // a fresh key; a timeout or the local clock alone never proves closure.
+        const cancelled = await this.transport.cancel(
+          quote,
+          "Checkout recovery: QR unavailable or expired",
+        );
+        return this.applyLookup(
+          { ...checkout, paymentLinkId: lookup.paymentLinkId },
+          leaseToken,
+          cancelled,
+          quote,
+          false,
+        );
+      }
       await this.finish(paymentId, leaseToken, {
-        review: "PAYMENT_QR_UNAVAILABLE",
+        retry: true,
+        retryReason:
+          lookup.status === "PROCESSING"
+            ? "PAYMENT_PROVIDER_PROCESSING"
+            : "PAYMENT_PROVIDER_UNAVAILABLE",
       });
       return true;
     }
@@ -227,8 +370,9 @@ export class PaymentCheckoutWorker implements OnModuleInit, OnModuleDestroy {
     result: {
       paymentLinkId?: string;
       qrCode?: string;
-      closed?: boolean;
+      closed?: "CANCELLED" | "EXPIRED";
       retry?: boolean;
+      retryReason?: string;
       review?: string;
     },
   ) {
@@ -245,6 +389,18 @@ export class PaymentCheckoutWorker implements OnModuleInit, OnModuleDestroy {
         where: { paymentId },
         data: { leaseToken: null, leaseUntil: null },
       });
+      if (payment.status === "REVIEW") {
+        if (isTechnicalReviewReason(checkout.lastError)) {
+          if (result.review)
+            await this.receipts.review(tx, paymentId, result.review);
+          else if (result.retry)
+            await tx.payosCheckout.update({
+              where: { paymentId },
+              data: { nextAttemptAt: this.nextAttempt(checkout.attempts) },
+            });
+        }
+        return;
+      }
       if (!["CREATED", "PENDING"].includes(payment.status)) return;
       if (
         result.paymentLinkId &&
@@ -260,15 +416,13 @@ export class PaymentCheckoutWorker implements OnModuleInit, OnModuleDestroy {
         await tx.payosCheckout.update({
           where: { paymentId },
           data: {
-            lastError: "PAYMENT_PROVIDER_UNAVAILABLE",
-            nextAttemptAt: new Date(
-              Date.now() + Math.min(300000, 15000 * 2 ** checkout.attempts),
-            ),
+            lastError: result.retryReason ?? "PAYMENT_PROVIDER_UNAVAILABLE",
+            nextAttemptAt: this.nextAttempt(checkout.attempts),
           },
         });
         return;
       }
-      const status = result.closed ? "EXPIRED" : "PENDING";
+      const status = result.closed ?? "PENDING";
       const changed = payment.status !== status || !!result.qrCode;
       await tx.payment.update({ where: { id: paymentId }, data: { status } });
       const updated = await tx.payosCheckout.update({
@@ -292,5 +446,11 @@ export class PaymentCheckoutWorker implements OnModuleInit, OnModuleDestroy {
           { paymentId, status, version: String(updated.version) },
         );
     });
+  }
+
+  private nextAttempt(attempts: number) {
+    return new Date(
+      Date.now() + Math.min(300000, 15000 * 2 ** Math.min(attempts, 5)),
+    );
   }
 }

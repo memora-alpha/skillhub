@@ -105,4 +105,23 @@ export class PayosTransport {
       throw new ServiceUnavailableException("PAYMENT_PROVIDER_UNAVAILABLE");
     return this.gateway.verifyLookupResponse(response, quote);
   }
+
+  async cancel(
+    quote: CheckoutQuote,
+    cancellationReason = "User requested cancellation",
+  ) {
+    const response = await this.request(
+      `/${encodeURIComponent(quote.orderCode)}/cancel`,
+      { cancellationReason },
+    );
+    if (
+      !response ||
+      typeof response !== "object" ||
+      !("code" in response) ||
+      response.code !== "00"
+    )
+      throw new ServiceUnavailableException("PAYMENT_PROVIDER_UNAVAILABLE");
+    // Cancellation and lookup return the same signed payment-link evidence.
+    return this.gateway.verifyLookupResponse(response, quote);
+  }
 }
