@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { validateAuditInput } from "../dist/modules/audit/domain/audit-action.catalog.js";
 import { validateReason } from "../dist/modules/audit/domain/reason.policy.js";
-import { auditActorFromActor } from "../dist/modules/audit/application/audit.types.js";
+import { auditActorFromActor } from "../dist/modules/audit/application/contracts/audit.types.js";
 
 const userId = "11111111-1111-4111-8111-111111111111";
 const requestId = "22222222-2222-4222-8222-222222222222";

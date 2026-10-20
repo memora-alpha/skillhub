@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { SystemConfigurationService } from "../dist/modules/system-configuration/application/system-configuration.service.js";
+import { SystemConfigurationService } from "../dist/modules/system-configuration/application/services/system-configuration.service.js";
 import { seedApprovedConfigurations } from "../dist/modules/system-configuration/application/seed-configuration.js";
 import { CONFIGURATION_DEFINITIONS } from "../dist/modules/system-configuration/domain/configuration.catalog.js";
 

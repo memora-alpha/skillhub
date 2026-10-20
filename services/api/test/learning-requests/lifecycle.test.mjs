@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { CancelLearningRequestUseCase } from "../../dist/modules/learning-requests/application/use-cases/cancel-learning-request.use-case.js";
 import { LearningRequestLifecycleService } from "../../dist/modules/learning-requests/application/services/learning-request-lifecycle.service.js";
-import { UnavailableLearningRequestDependencies } from "../../dist/modules/learning-requests/infrastructure/unavailable-learning-request-dependencies.js";
+import { UnavailableLearningRequestDependencies } from "../../dist/modules/learning-requests/infrastructure/adapters/unavailable-learning-request-dependencies.js";
 
 const now = new Date("2026-10-06T00:00:00.000Z");
 const requestId = "22222222-2222-4222-8222-222222222222";

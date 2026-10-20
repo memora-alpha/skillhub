@@ -15,7 +15,7 @@ import {
   ApiErrorResponse,
   ApiSuccessResponse,
 } from "../../../../shared/http/api-response.decorators";
-import { LearningRequestModerationRulesUseCase } from "../../application/learning-request-moderation-rules.use-case";
+import { LearningRequestModerationRulesUseCase } from "../../application/use-cases/learning-request-moderation-rules.use-case";
 import { UpdateLearningRequestModerationRulesDto } from "./learning-request-moderation-rules.dto";
 import { LearningRequestModerationRulesResponse } from "./learning-request-moderation-rules.responses";
 

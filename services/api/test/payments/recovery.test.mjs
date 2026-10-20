@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { test } from "node:test";
 import { UnauthorizedException } from "@nestjs/common";
-import { PaymentCheckoutWorker } from "../../dist/modules/payments/application/services/payment-checkout.worker.js";
+import { PaymentCheckoutWorker } from "../../dist/modules/payments/infrastructure/jobs/payment-checkout.worker.js";
 import { quoteDigest } from "../../dist/modules/payments/application/services/payment-receipts.service.js";
 import { createPaymentFixture } from "./fixture.mjs";
 

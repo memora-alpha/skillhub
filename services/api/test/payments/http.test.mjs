@@ -7,7 +7,7 @@ import { ConfigModule } from "@nestjs/config";
 import { ValidationPipe, VersioningType } from "@nestjs/common";
 import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
 import { PaymentsModule } from "../../dist/modules/payments/payments.module.js";
-import { PayosTransport } from "../../dist/modules/payments/infrastructure/payos-transport.js";
+import { PayosTransport } from "../../dist/modules/payments/infrastructure/gateway/payos-transport.js";
 import { DatabaseModule } from "../../dist/infrastructure/database/database.module.js";
 import { PrismaService } from "../../dist/infrastructure/database/prisma.service.js";
 import { TransactionRunner } from "../../dist/infrastructure/database/transaction-runner.js";
@@ -17,9 +17,9 @@ import { SkillActorService } from "../../dist/modules/users/application/services
 import { IdentityGuard } from "../../dist/shared/auth/identity.guard.js";
 import { SessionsService } from "../../dist/modules/auth/application/services/sessions.service.js";
 import { ApplicationEventsModule } from "../../dist/modules/application-events/application-events.module.js";
-import { ApplicationEventsService } from "../../dist/modules/application-events/application/application-events.service.js";
-import { EventsController } from "../../dist/modules/application-events/presentation/events.controller.js";
-import { EventConnectionsService } from "../../dist/modules/application-events/application/event-connections.service.js";
+import { ApplicationEventsService } from "../../dist/modules/application-events/application/services/application-events.service.js";
+import { EventsController } from "../../dist/modules/application-events/presentation/http/events.controller.js";
+import { EventConnectionsService } from "../../dist/modules/application-events/application/services/event-connections.service.js";
 import {
   EventConfig,
   eventSettings,

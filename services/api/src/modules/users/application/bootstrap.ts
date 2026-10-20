@@ -5,7 +5,7 @@ import {
   transaction,
 } from "../../../shared/database/identity-transactions";
 import { UsersService } from "./services/users.service";
-import { AuditService } from "../../audit/application/audit.service";
+import { AuditService } from "../../audit/application/services/audit.service";
 
 export async function seedIdentity(
   db: PrismaService,

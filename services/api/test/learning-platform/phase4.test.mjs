@@ -8,7 +8,7 @@ import { FcmPushSender } from "../../dist/infrastructure/push/fcm-push-sender.ad
 import {
   NotificationDispatcher,
   enabledChannels,
-} from "../../dist/modules/notifications/application/notification-dispatcher.js";
+} from "../../dist/modules/notifications/application/services/notification-dispatcher.js";
 import { PushTokensUseCases } from "../../dist/modules/notifications/application/use-cases/push-tokens.use-cases.js";
 import { PrismaInAppNotificationAdapter } from "../../dist/modules/notifications/infrastructure/channels/prisma-in-app-notification.adapter.js";
 import { RegisterPushTokenDto } from "../../dist/modules/notifications/presentation/http/notifications.dto.js";

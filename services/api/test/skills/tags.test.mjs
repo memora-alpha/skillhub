@@ -5,7 +5,7 @@ import { Test } from "@nestjs/testing";
 import { ValidationPipe, VersioningType } from "@nestjs/common";
 import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
 import { createSkillFixture } from "./helpers.mjs";
-import { SkillsService } from "../../dist/modules/skills/application/skills.service.js";
+import { SkillsService } from "../../dist/modules/skills/application/services/skills.service.js";
 import * as controllers from "../../dist/modules/skills/presentation/http/skills.controller.js";
 import { HttpExceptionFilter } from "../../dist/shared/http/http-exception.filter.js";
 

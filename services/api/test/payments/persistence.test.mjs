@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { test } from "node:test";
 import { PaymentReceiptsService } from "../../dist/modules/payments/application/services/payment-receipts.service.js";
-import { PaymentCheckoutWorker } from "../../dist/modules/payments/application/services/payment-checkout.worker.js";
+import { PaymentCheckoutWorker } from "../../dist/modules/payments/infrastructure/jobs/payment-checkout.worker.js";
 import { createPaymentFixture, sign } from "./fixture.mjs";
 
 test("payOS durable orders, posting, conflicts, rollback and recovery on real PostgreSQL", async (t) => {

@@ -9,7 +9,7 @@ import {
   B,
   C,
 } from "../learning-platform/fixtures.mjs";
-import { LiveKitService } from "../../dist/modules/learning-sessions/livekit.service.js";
+import { LiveKitService } from "../../dist/modules/learning-sessions/infrastructure/livekit/livekit.service.js";
 import { ConfigService } from "@nestjs/config";
 import { TokenVerifier } from "livekit-server-sdk";
 import { ServiceUnavailableException } from "@nestjs/common";

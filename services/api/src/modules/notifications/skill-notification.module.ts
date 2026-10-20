@@ -5,13 +5,13 @@ import { SmtpTransactionalMailer } from "../../infrastructure/email/smtp-transac
 import { OutboxModule } from "../../infrastructure/events/outbox.module";
 import { FcmPushSender } from "../../infrastructure/push/fcm-push-sender.adapter";
 import { VerificationsModule } from "../verifications/verifications.module";
-import { SkillNotificationHandler } from "./application/skill-notification.handler";
-import { LearningPathNotificationHandler } from "./application/learning-path-notification.handler";
+import { SkillNotificationHandler } from "./infrastructure/events/skill-notification.handler";
+import { LearningPathNotificationHandler } from "./infrastructure/events/learning-path-notification.handler";
 import {
   ENABLED_NOTIFICATION_CHANNELS,
   NotificationDispatcher,
   enabledChannels,
-} from "./application/notification-dispatcher";
+} from "./application/services/notification-dispatcher";
 import {
   InAppNotificationPort,
   PushSender,

@@ -3,8 +3,8 @@ import { createHmac, randomUUID } from "node:crypto";
 import { EventEmitter } from "node:events";
 import { ConfigService } from "@nestjs/config";
 import { createCreditFixture } from "../credit/fixture.mjs";
-import { PayosTransport } from "../../dist/modules/payments/infrastructure/payos-transport.js";
-import { PaymentCheckoutWorker } from "../../dist/modules/payments/application/services/payment-checkout.worker.js";
+import { PayosTransport } from "../../dist/modules/payments/infrastructure/gateway/payos-transport.js";
+import { PaymentCheckoutWorker } from "../../dist/modules/payments/infrastructure/jobs/payment-checkout.worker.js";
 import { PaymentReceiptsService } from "../../dist/modules/payments/application/services/payment-receipts.service.js";
 import { PaymentCreationPolicy } from "../../dist/modules/payments/application/services/payment-creation-policy.js";
 import { CreatePaymentUseCase } from "../../dist/modules/payments/application/use-cases/create-payment.use-case.js";
@@ -15,7 +15,7 @@ import {
 } from "../../dist/modules/payments/application/use-cases/read-payments.use-case.js";
 import { CreditOperationsService } from "../../dist/modules/credit/application/services/credit-operations.service.js";
 import { CreditProvenanceService } from "../../dist/modules/credit/application/services/credit-provenance.service.js";
-import { ApplicationEventsService } from "../../dist/modules/application-events/application/application-events.service.js";
+import { ApplicationEventsService } from "../../dist/modules/application-events/application/services/application-events.service.js";
 import { eventSettings } from "../../dist/modules/application-events/domain/event-config.js";
 
 export const env = {

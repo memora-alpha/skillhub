@@ -9,7 +9,7 @@ import {
   VERSION_METADATA,
 } from "@nestjs/common/constants.js";
 import { validateAuditInput } from "../../dist/modules/audit/domain/audit-action.catalog.js";
-import { LearningRequestModerationRulesUseCase } from "../../dist/modules/system-configuration/application/learning-request-moderation-rules.use-case.js";
+import { LearningRequestModerationRulesUseCase } from "../../dist/modules/system-configuration/application/use-cases/learning-request-moderation-rules.use-case.js";
 import { LearningRequestModerationRulesController } from "../../dist/modules/system-configuration/presentation/http/learning-request-moderation-rules.controller.js";
 import { UpdateLearningRequestModerationRulesDto } from "../../dist/modules/system-configuration/presentation/http/learning-request-moderation-rules.dto.js";
 import { IdentityGuard } from "../../dist/shared/auth/identity.guard.js";

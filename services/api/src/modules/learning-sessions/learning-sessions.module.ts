@@ -4,14 +4,14 @@ import { IdentityModule } from "../identity.module";
 import { CreditModule } from "../credit/credit.module";
 import { ReputationModule } from "../reputation/reputation.module";
 import { ReportsModule } from "../reports/reports.module";
-import { LearningSessionsController } from "./learning-sessions.controller";
-import { LearningSessionsService } from "./learning-sessions.service";
+import { LearningSessionsController } from "./presentation/http/learning-sessions.controller";
+import { LearningSessionsService } from "./application/services/learning-sessions.service";
 import { SystemConfigurationModule } from "../system-configuration/system-configuration.module";
-import { LiveKitService } from "./livekit.service";
+import { LiveKitService } from "./infrastructure/livekit/livekit.service";
 import { OutboxModule } from "../../infrastructure/events/outbox.module";
-import { LiveKitWebhookController } from "./livekit-webhook.controller";
-import { SessionLifecycleWorker } from "./session-lifecycle.worker";
-import { SessionCompletionHandler } from "./session-completion.handler";
+import { LiveKitWebhookController } from "./presentation/http/livekit-webhook.controller";
+import { SessionLifecycleWorker } from "./infrastructure/jobs/session-lifecycle.worker";
+import { SessionCompletionHandler } from "./infrastructure/events/session-completion.handler";
 
 @Module({
   imports: [
