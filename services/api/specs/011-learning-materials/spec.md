@@ -6,17 +6,17 @@ logical ERD v3 (`docs/SkillHub_Logical_Data_Model_v3.md`) và schema runtime
 
 ## Quyết định đã chốt
 
-| #   | Nội dung                                                                                                                                                                                                             | Nguồn                   |
-| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- |
-| D1  | Mọi tài liệu submit vào `PENDING_REVIEW`; Staff/Admin duyệt tay → `PUBLISHED` hoặc `REJECTED` (bắt buộc reason).                                                                                                     | User 2026-10-21         |
-| D2  | Phí bán PAID = **5%** (`feeBps: 500`), seller nhận gross − fee, fee làm tròn xuống 0.01 Credit. Seed `FeePolicyVersion` MATERIAL_PAID v1 APPROVED; code đọc policy động.                                             | User 2026-10-21 (OP-14) |
-| D3  | Owner sửa tài liệu `PUBLISHED` (file/giá/nội dung) → tăng `listingVersion` và về `PENDING_REVIEW`. `REJECTED` sửa → `DRAFT`.                                                                                         | User 2026-10-21         |
-| D4  | `HIDDEN` chặn mua mới và chặn tải với mọi người trừ owner/moderator. Refund chưa làm; report case giữ `relatedOrderId` làm hook.                                                                                     | User 2026-10-21         |
-| D5  | Không có MaterialVersion. Material giữ file hiện tại; MaterialOrder lưu `purchasedFileSnapshot`. Buyer tải đúng file đã mua; object cũ không bị xóa.                                                                 | ERD v3                  |
-| D6  | Phân loại chỉ bằng `skillId`; không có tag cho material.                                                                                                                                                             | ERD v3 (bỏ MaterialTag) |
-| D7  | FREE không tạo entitlement/ledger; tải FREE chỉ cần đăng nhập + `PUBLISHED`.                                                                                                                                         | ERD v3, ponytail        |
-| D8  | Preview = metadata (title, description, skill, giá, MIME, size). Không sinh file preview.                                                                                                                            | FR-MAT-03 tối thiểu     |
-| D9  | `ARCHIVED` (owner ngừng phân phối) chặn mua mới và tải FREE; buyer đã mua (entitlement ACTIVE) vẫn tải file đã mua kể cả khi listing sau đó đổi sang FREE hoặc quay lại `PENDING_REVIEW`; chỉ `HIDDEN` chặn họ (D4). | Suy ra từ BR-43         |
+| #   | Nội dung                                                                                                                                                                                                                                                                           | Nguồn                   |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- |
+| D1  | Mọi tài liệu submit vào `PENDING_REVIEW`; Staff/Admin duyệt tay → `PUBLISHED` hoặc `REJECTED` (bắt buộc reason).                                                                                                                                                                   | User 2026-10-21         |
+| D2  | Phí bán PAID = **5%** (`feeBps: 500`), seller nhận gross − fee, fee làm tròn xuống 0.01 Credit. Seed `FeePolicyVersion` MATERIAL_PAID v1 APPROVED; code đọc policy động.                                                                                                           | User 2026-10-21 (OP-14) |
+| D3  | Owner sửa tài liệu `PUBLISHED` (file/giá/nội dung) → tăng `listingVersion` và về `PENDING_REVIEW`. `REJECTED` sửa → `DRAFT`.                                                                                                                                                       | User 2026-10-21         |
+| D4  | `HIDDEN` chặn mua mới và chặn tải với mọi người trừ owner/moderator. Buyer được refund gross trong 24 giờ sau purchase nếu chưa được cấp signed download URL; refund chỉ chạy tự động khi seller còn đủ net trong Available, thiếu thì cần Admin xử lý. Refund revoke entitlement. | User 2026-10-21         |
+| D5  | Không có MaterialVersion. Material giữ file hiện tại; MaterialOrder lưu `purchasedFileSnapshot`. Buyer tải đúng file đã mua; object cũ không bị xóa.                                                                                                                               | ERD v3                  |
+| D6  | Phân loại chỉ bằng `skillId`; không có tag cho material.                                                                                                                                                                                                                           | ERD v3 (bỏ MaterialTag) |
+| D7  | FREE không tạo entitlement/ledger; tải FREE chỉ cần đăng nhập + `PUBLISHED`.                                                                                                                                                                                                       | ERD v3, ponytail        |
+| D8  | Preview = metadata (title, description, skill, giá, MIME, size). Không sinh file preview.                                                                                                                                                                                          | FR-MAT-03 tối thiểu     |
+| D9  | `ARCHIVED` (owner ngừng phân phối) chặn mua mới và tải FREE; buyer đã mua (entitlement ACTIVE) vẫn tải file đã mua kể cả khi listing sau đó đổi sang FREE hoặc quay lại `PENDING_REVIEW`; chỉ `HIDDEN` chặn họ (D4).                                                               | Suy ra từ BR-43         |
 
 ## State machine
 
@@ -102,7 +102,7 @@ order: buyer ≠ seller, gross = fee + net, status SUCCESS; entitlement: status 
 
 ## Ngoài phạm vi / còn mở
 
-- Refund/dispute window cho đơn mua (OP-14). Hook: report case MATERIAL có `relatedOrderId`; `CreditAdjustmentPort` vẫn unavailable (SH-068).
+- Admin xử lý refund khi seller không còn đủ net trong Available vẫn đi qua dispute/Credit adjustment flow; tự động hoàn tiền không được phép tạo số dư âm.
 - Buyer có được nhận file mới khi owner thay file không (hiện tại: không).
 - Retention object đã bán sau khi ARCHIVED.
 - Tag cho material, file preview, giao diện cấu hình fee (SH-105), template notification (SH-110).

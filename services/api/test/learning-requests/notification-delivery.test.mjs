@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { OutboxConsumer } from "../../dist/infrastructure/events/outbox-consumer.js";
 import { OutboxPublisherRegistry } from "../../dist/infrastructure/events/outbox.types.js";
+import { NotificationDispatcher } from "../../dist/modules/notifications/application/services/notification-dispatcher.js";
 import { LearningRequestRejectionPublisher } from "../../dist/modules/notifications/infrastructure/events/learning-request-rejection.publisher.js";
 
 const eventId = "123e4567-e89b-42d3-a456-426614174000";
@@ -35,10 +36,10 @@ function deliveryHarness(failInsert = false) {
           return 1;
         },
         notification: {
-          create: async ({ data }) => {
+          createMany: async ({ data }) => {
             if (failInsert) throw new Error("notification insert failed");
-            notifications.set(data.id, structuredClone(data));
-            return data;
+            for (const item of data)
+              notifications.set(item.id, structuredClone(item));
           },
         },
       };
@@ -49,30 +50,28 @@ function deliveryHarness(failInsert = false) {
     },
   };
   const consumer = new OutboxConsumer(transactions);
-  const repository = {
-    createLearningRequestRejected: async (tx, id, payload) =>
-      tx.notification.create({
-        data: {
-          id,
-          userId: payload.ownerId,
-          type: "LEARNING_REQUEST_REJECTED",
-          title: "Learning request update",
-          body: `Your learning request was rejected: ${payload.rejectReason}`,
-          payload: {
-            requestId: payload.requestId,
-            reviewedVersion: payload.reviewedVersion,
-            decisionVersion: payload.decisionVersion,
-          },
-          channel: "IN_APP",
-        },
-      }),
-  };
-  const registry = new OutboxPublisherRegistry();
-  const publisher = new LearningRequestRejectionPublisher(
+  const dispatcher = new NotificationDispatcher(
     consumer,
-    repository,
-    registry,
+    {
+      notify: (tx, message) =>
+        tx.notification.createMany({
+          data: message.userIds.map((userId, index) => ({
+            id: index === 0 ? message.eventId : `${message.eventId}-${index}`,
+            userId,
+            type: message.type,
+            title: message.title,
+            body: message.body,
+            payload: message.payload,
+            channel: "IN_APP",
+          })),
+        }),
+    },
+    { send: async () => {} },
+    { configured: false, send: async () => ({ invalidTokens: [] }) },
+    new Set(["IN_APP"]),
   );
+  const registry = new OutboxPublisherRegistry();
+  const publisher = new LearningRequestRejectionPublisher(registry, dispatcher);
   return { publisher, registry, state };
 }
 
@@ -91,8 +90,8 @@ test("replay creates one owner notification from the original rejection snapshot
   assert.match(notification.body, /Please add a clearer learning goal/);
   assert.deepEqual(notification.payload, {
     requestId,
-    reviewedVersion: 3,
-    decisionVersion: 4,
+    reviewedVersion: "3",
+    decisionVersion: "4",
   });
 });
 

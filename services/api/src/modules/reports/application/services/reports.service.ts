@@ -521,7 +521,11 @@ export class ReportsService {
   private async applyResolution(
     tx: TransactionContext,
     actor: Principal,
-    item: { id: string; relatedPathId: string | null },
+    item: {
+      id: string;
+      relatedPathId: string | null;
+      relatedOrderId?: string | null;
+    },
     input: ReportCaseActionDto,
     now: Date,
   ) {
@@ -537,8 +541,17 @@ export class ReportsService {
     const path = item.relatedPathId
       ? await tx.learningPath.findUnique({ where: { id: item.relatedPathId } })
       : null;
-    if (!path) throw new ConflictException("REPORT_CASE_PATH_REQUIRED");
-    const participants = new Set([path.participantAId, path.participantBId]);
+    const order = item.relatedOrderId
+      ? await tx.materialOrder.findUnique({
+          where: { id: item.relatedOrderId },
+        })
+      : null;
+    if (!path && !order)
+      throw new ConflictException("REPORT_CASE_FINANCIAL_TARGET_REQUIRED");
+    const participants = new Set([
+      ...(path ? [path.participantAId, path.participantBId] : []),
+      ...(order ? [order.buyerId, order.sellerId] : []),
+    ]);
     if (targets.some(({ userId }) => !participants.has(userId))) {
       throw new BadRequestException("RESOLUTION_TARGET_NOT_PARTICIPANT");
     }
@@ -584,6 +597,7 @@ export class ReportsService {
       });
     }
     for (const reversal of reversals) {
+      if (!path) throw new ConflictException("REPORT_CASE_PATH_REQUIRED");
       const operation = await tx.creditOperation.findUnique({
         where: { id: reversal.operationId },
         select: { referenceId: true },
@@ -595,6 +609,7 @@ export class ReportsService {
         operationId: reversal.operationId,
         referenceType: "REPORT_CASE",
         referenceId: item.id,
+        sourceReferenceId: path.id,
         actorId: actor.userId,
         reason,
         idempotencyKey: `report-case:${item.id}:reverse:${reversal.operationId}`,

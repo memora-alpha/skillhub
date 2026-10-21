@@ -1,14 +1,11 @@
-import { Inject, Injectable, OnModuleInit } from "@nestjs/common";
+import { Injectable, OnModuleInit } from "@nestjs/common";
 import { z } from "zod";
-import { OutboxConsumer } from "../../../../infrastructure/events/outbox-consumer";
 import type { OutboxMessage } from "../../../../infrastructure/events/outbox.types";
 import { OutboxPublisherRegistry } from "../../../../infrastructure/events/outbox.types";
 import type { LearningRequestRejectionPayload } from "../../../learning-requests/application/contracts/learning-request-rejection.event";
-import type { NotificationRepository } from "../../application/ports/notification-repository";
-import { NOTIFICATION_REPOSITORY } from "../../application/ports/notification-repository";
+import { NotificationDispatcher } from "../../application/services/notification-dispatcher";
 
 const eventType = "learning-request.rejected";
-const consumerName = "learning-request-rejection-in-app-v1";
 const payloadSchema = z.strictObject({
   requestId: z.uuid(),
   ownerId: z.uuid(),
@@ -36,10 +33,8 @@ function validateEvent(event: OutboxMessage): LearningRequestRejectionPayload {
 @Injectable()
 export class LearningRequestRejectionPublisher implements OnModuleInit {
   constructor(
-    private readonly consumer: OutboxConsumer,
-    @Inject(NOTIFICATION_REPOSITORY)
-    private readonly repository: NotificationRepository,
     private readonly publishers: OutboxPublisherRegistry,
+    private readonly dispatcher: NotificationDispatcher,
   ) {}
 
   onModuleInit(): void {
@@ -48,8 +43,17 @@ export class LearningRequestRejectionPublisher implements OnModuleInit {
 
   async publish(event: OutboxMessage): Promise<void> {
     const payload = validateEvent(event);
-    await this.consumer.processOnce(consumerName, event.eventId, (tx) =>
-      this.repository.createLearningRequestRejected(tx, event.eventId, payload),
-    );
+    await this.dispatcher.dispatch({
+      eventId: event.eventId,
+      type: event.type,
+      userIds: [payload.ownerId],
+      title: "Learning request not approved",
+      body: payload.rejectReason,
+      payload: {
+        requestId: payload.requestId,
+        reviewedVersion: String(payload.reviewedVersion),
+        decisionVersion: String(payload.decisionVersion),
+      },
+    });
   }
 }

@@ -29,6 +29,8 @@ const eventChannels: Record<string, readonly NotificationChannelCode[]> = {
   "skill.evidence.revoked": ["IN_APP", "EMAIL", "PUSH"],
   "material.moderated": ["IN_APP", "EMAIL", "PUSH"],
   "material.purchased": ["IN_APP", "EMAIL", "PUSH"],
+  "material.refunded": ["IN_APP", "EMAIL", "PUSH"],
+  "learning-request.rejected": ["IN_APP", "EMAIL", "PUSH"],
 };
 
 /** NOTIFICATION_CHANNELS is a comma list of channel codes; in-app only by default. */

@@ -51,6 +51,7 @@ export class MaterialNotificationHandler
   onModuleInit(): void {
     this.registry.register("material.moderated", this);
     this.registry.register("material.purchased", this);
+    this.registry.register("material.refunded", this);
   }
 
   async publish(event: OutboxMessage): Promise<void> {
@@ -64,6 +65,32 @@ export class MaterialNotificationHandler
     )
       throw new Error("INVALID_MATERIAL_EVENT");
     const materialId = data.materialId;
+    if (event.type === "material.refunded") {
+      if (
+        typeof data.orderId !== "string" ||
+        typeof data.buyerId !== "string" ||
+        typeof data.sellerId !== "string"
+      )
+        throw new Error("INVALID_MATERIAL_EVENT");
+      const payload = { materialId, orderId: data.orderId };
+      await this.dispatcher.dispatch({
+        eventId: event.eventId,
+        type: event.type,
+        userIds: [data.buyerId],
+        title: "Material purchase refunded",
+        body: "Your material access was revoked and the Credit refund was completed.",
+        payload,
+      });
+      await this.dispatcher.dispatch({
+        eventId: sellerEventId(event.eventId),
+        type: event.type,
+        userIds: [data.sellerId],
+        title: "Material order refunded",
+        body: "A material purchase was refunded from your available Credit.",
+        payload,
+      });
+      return;
+    }
     if (event.type === "material.moderated") {
       const message =
         typeof data.action === "string" ? moderated.get(data.action) : null;

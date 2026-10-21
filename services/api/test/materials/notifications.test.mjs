@@ -25,8 +25,12 @@ const event = (type, payload, eventId = randomUUID()) => ({
   correlationId: randomUUID(),
 });
 
-test("registers both material events", () => {
-  assert.deepEqual(setup().types, ["material.moderated", "material.purchased"]);
+test("registers material moderation, purchase and refund events", () => {
+  assert.deepEqual(setup().types, [
+    "material.moderated",
+    "material.purchased",
+    "material.refunded",
+  ]);
 });
 
 test("material.moderated tells the owner the decision", async () => {
@@ -76,6 +80,31 @@ test("material.purchased tells buyer and seller under distinct, stable ids", asy
     materialId: payload.materialId,
     orderId: payload.orderId,
   });
+});
+
+test("material.refunded tells buyer and seller under distinct, stable ids", async () => {
+  const { handler, sent } = setup();
+  const buyerId = randomUUID();
+  const sellerId = randomUUID();
+  const materialId = randomUUID();
+  const orderId = randomUUID();
+  const eventId = randomUUID();
+  await handler.publish(
+    event(
+      "material.refunded",
+      { materialId, orderId, buyerId, sellerId },
+      eventId,
+    ),
+  );
+  assert.deepEqual(
+    sent.map(({ userIds, type }) => [userIds, type]),
+    [
+      [[buyerId], "material.refunded"],
+      [[sellerId], "material.refunded"],
+    ],
+  );
+  assert.notEqual(sent[0].eventId, sent[1].eventId);
+  assert.ok(UUID.test(sent[1].eventId));
 });
 
 test("invalid material payloads throw", async () => {
