@@ -18,7 +18,7 @@ SRS18.8–18.9/SK-001..004: chọn catalog, tự khai level/kinh nghiệm/mô t�
 
 SRS6.4,8.2,18.10; FR-LR-01..08/LR-001..009/BR-07..12: tạo nháp, publish qua moderation; flagged → PENDING_MODERATION, lý do từ chối chỉ owner theo contract; expiry/effectiveStatus theo server. FR-LR-04 có notification khi từ chối, DEP-01 vẫn phải theo dõi dù scope005 không triển khai inbox/mark-read/push. Bài thật và preview không được trộn.
 
-SRS PP-002: pending Proposal có thể cập nhật/rút; accept chỉ mở negotiation/chat, không tạo Path/Session/Hold. Expiry/anti-spam/verified-skill eligibility/giới hạn gợi ý và rejection reason DTO cần contract thật. Constraint reason max1000 trong mock UI không tự thành rule backend. [Contract LR](contracts/learning-requests.md) giữ boundary public profile/mock Proposal đã được ghi nhận; Proposal API còn là phase dự kiến.
+SRS PP-002: pending Proposal có thể cập nhật/rút; accept chỉ mở negotiation/chat, không tạo Path/Session/Hold. Expiry/anti-spam/verified-skill eligibility/giới hạn gợi ý và rejection reason DTO cần contract thật. Constraint reason max1000 trong mock UI không tự thành rule backend. [Contract LR](contracts/learning-requests.md) giữ lịch sử boundary ở phase trước; Proposal/Chat và Plan/Schedule đã có API adapters trong source, được đối chiếu tại [contract thỏa thuận](contracts/proposal-learning-agreement.md) và [work 05–06](work/phase-05-proposal-learning-agreement/status.md).
 
 ## LearningPath LearningPlan và lịch
 
@@ -28,6 +28,8 @@ SRS phần Learning Path/Scheduling, chi tiết18.13,18.32–18.33 và18.39:
 - Learner confirm đúng version từng plan, A+B confirm điều khoản chung cùng version. Confirmation chung không thay learner confirmation. Learner đề nghị sửa qua Chat/revision, chỉ teacher/createdBy sửa; version tăng, confirmation cũ reset, trở lại PROPOSED.
 - Chỉ khi đủ plan đã confirm mới tạo lịch; ScheduleProposal gắn learningPlanId, do teacher/creator đề xuất, số items bằng số buổi từng plan. TWO_WAY cần lịch cho cả hai plan, ONE_WAY cần một.
 - A+B confirm cùng version mỗi lịch. Backend final validation kiểm quyền/state, conflict toàn lịch và số dư payer trước Hold/LOCK/tạo Session nguyên tử; fail rollback. Chat text hoặc UI button không thay confirmation command.
+
+Dạy thử là tính năng tùy chọn dự kiến theo phạm vi người dùng giao cho work 05–06; chưa có API booking/session trước plan, không triển khai UI/mock trong phase này và không là blocker. Theo yêu cầu UX tiếp theo, mobile đi từ Chat → hai bên xác nhận cách học (hình thức, vai trò, Credit) → tạo/xác nhận LearningPlan → lịch học. Đây là thứ tự UI: API xác nhận terms hiện hành dùng chung, không có entity xác nhận hình thức riêng; đổi phiên bản cần xác nhận lại. Backend vẫn quyết định state và mọi validation/Hold.
 
 ## Session và settlement
 
