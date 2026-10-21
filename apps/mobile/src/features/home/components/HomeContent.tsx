@@ -344,7 +344,7 @@ export function HomeContent({
                   key={message.id}
                   accessibilityRole="button"
                   accessibilityLabel={`Tin nhắn từ ${message.name}`}
-                  onPress={() => onAction(message.name)}
+                  onPress={() => onAction("Tin nhắn")}
                   style={({ pressed }) => [
                     styles.message,
                     index > 0 && styles.messageDivider,

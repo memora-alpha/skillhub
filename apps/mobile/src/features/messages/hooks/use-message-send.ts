@@ -15,6 +15,11 @@ export function useMessageSend(id: string) {
   const command = useConnectionCommand();
   const draft = useRef<MessageDraft | undefined>(undefined);
   const [receipt, setReceipt] = useState<string>();
+  const refreshPreview = () => {
+    void cache.invalidateQueries({
+      queryKey: [...runtime.key, "conversations", "preview", id],
+    });
+  };
   const delivery = useConnectionQuery(
     ["delivery", id, receipt],
     () => api.delivery(id, receipt!),
@@ -24,6 +29,9 @@ export function useMessageSend(id: string) {
     if (delivery.data?.deliveryStatus === "DELIVERED" && runtime.isCurrent()) {
       draft.current = undefined;
       setReceipt(undefined);
+      void cache.invalidateQueries({
+        queryKey: [...runtime.key, "conversations", "preview", id],
+      });
       void cache.invalidateQueries({
         queryKey: [...runtime.key, "thread", id],
       });
@@ -43,7 +51,10 @@ export function useMessageSend(id: string) {
     if (!result || !runtime.isCurrent()) return false;
     if (result.deliveryStatus !== "DELIVERED")
       setReceipt(result.clientMessageId);
-    else draft.current = undefined;
+    else {
+      draft.current = undefined;
+      refreshPreview();
+    }
     return true;
   }
   async function retryPublication() {
@@ -55,6 +66,7 @@ export function useMessageSend(id: string) {
     if (result?.deliveryStatus === "DELIVERED" && runtime.isCurrent()) {
       setReceipt(undefined);
       draft.current = undefined;
+      refreshPreview();
       void cache.invalidateQueries({
         queryKey: [...runtime.key, "thread", id],
       });

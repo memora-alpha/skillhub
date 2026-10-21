@@ -1,10 +1,6 @@
-export { MockMessagesProvider } from "./context/MockMessages";
 export { ChatEventsProvider, useChatEvents } from "./context/ChatEvents";
 export { useConversation } from "./hooks/use-messages-api";
 export { useMessageSend } from "./hooks/use-message-send";
 export { ChatScreen } from "./screens/ChatScreen";
 export { MessagesScreen } from "./screens/MessagesScreen";
-export { useMockMessages } from "./context/MockMessages";
-export { conversations as demoConversations } from "./mocks/conversations";
-export type { Conversation } from "./mocks/conversations";
 export { AttachmentScreen } from "./screens/attachment-screen";
