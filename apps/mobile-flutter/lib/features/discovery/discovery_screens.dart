@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../components/app_button.dart';
 import '../../components/app_icon.dart';
-import '../../components/avatar.dart';
+import '../../components/user_avatar.dart';
 import '../../components/misc.dart';
 import '../../components/tappable.dart';
 import '../../core/theme/tokens.dart';
@@ -538,7 +538,7 @@ class LearningRequestRow extends StatelessWidget {
             Row(
               spacing: 8,
               children: [
-                Avatar(
+                UserAvatar(
                   name: request.user,
                   userId: request.userId,
                   size: AvatarSizes.list,
@@ -902,7 +902,7 @@ class RequestDetailScreen extends ConsumerWidget {
                                   child: Row(
                                     spacing: 10,
                                     children: [
-                                      Avatar(
+                                      UserAvatar(
                                         name: request.user,
                                         userId: request.userId,
                                         size: AvatarSizes.list,

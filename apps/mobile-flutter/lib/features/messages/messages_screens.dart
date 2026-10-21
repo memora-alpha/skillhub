@@ -6,7 +6,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../components/app_button.dart';
 import '../../components/app_icon.dart';
-import '../../components/avatar.dart';
+import '../../components/user_avatar.dart';
 import '../../components/feature_page.dart';
 import '../../components/misc.dart';
 import '../../components/tappable.dart';
@@ -305,7 +305,7 @@ class ConversationCard extends StatelessWidget {
             Stack(
               clipBehavior: Clip.none,
               children: [
-                Avatar(
+                UserAvatar(
                   name: conversation.name,
                   userId: conversation.userId,
                   size: AvatarSizes.list,
@@ -567,7 +567,7 @@ class _ChatConversationState extends ConsumerState<_ChatConversation> {
                                 crossAxisAlignment: CrossAxisAlignment.end,
                                 spacing: 8,
                                 children: [
-                                  Avatar(
+                                  UserAvatar(
                                     name: conversation.name,
                                     userId: conversation.userId,
                                     size: AvatarSizes.inline,
@@ -667,7 +667,7 @@ class _ChatHeader extends StatelessWidget {
               ),
             ),
           ),
-          Avatar(
+          UserAvatar(
             name: conversation.name,
             userId: conversation.userId,
             size: AvatarSizes.compact,
@@ -932,7 +932,7 @@ class _MessageBubble extends StatelessWidget {
               spacing: 8,
               children: [
                 if (!mine)
-                  Avatar(
+                  UserAvatar(
                     name: partner,
                     userId: partnerId,
                     size: AvatarSizes.inline,

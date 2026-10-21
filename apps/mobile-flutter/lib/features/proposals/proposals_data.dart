@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/http/app_error.dart';
 import '../auth/session/auth_session.dart';
 import '../remote/remote_load.dart';
 import '../skills/skills_feature.dart';
@@ -103,9 +104,9 @@ String? validateProposalMessage(String value) {
 String? validateProposalCredit(String value) {
   final text = value.trim();
   return RegExp(r'^\d{1,10}(?:\.\d{1,2})?$').hasMatch(text) &&
-          num.parse(text) > 0
+          num.parse(text) >= 20
       ? null
-      : 'Nhập Credit lớn hơn 0, tối đa 10 chữ số nguyên và 2 chữ số thập phân.';
+      : 'Nhập Credit từ 20, tối đa 10 chữ số nguyên và 2 chữ số thập phân.';
 }
 
 String? validateProposalSessions(String value) {
@@ -213,7 +214,7 @@ class ProposalsNotifier extends Notifier<List<DemoProposal>> {
   DemoProposal? find(String? id) =>
       state.where((p) => p.id == id).firstOrNull;
 
-  Future<bool> submit({
+  Future<String?> submit({
     required String sourceType,
     required String? requestId,
     required String requestTitle,
@@ -225,9 +226,10 @@ class ProposalsNotifier extends Notifier<List<DemoProposal>> {
     required int sessions,
     required String schedule,
     String? recipientSharingSkillId,
+    String? exchangeTypeHint,
   }) async {
     final me = ref.read(accountProvider).value?.userId;
-    if (me == null) return false;
+    if (me == null) return 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
     try {
       await ref.read(authRuntimeProvider).services.proposals.create(
         ProposalDraft(
@@ -235,6 +237,7 @@ class ProposalsNotifier extends Notifier<List<DemoProposal>> {
           message: message.trim(),
           learningRequestId: requestId,
           recipientSharingSkillId: recipientSharingSkillId,
+          exchangeTypeHint: exchangeTypeHint,
           proposedCredit: credit.trim(),
           initialSessionCount: sessions,
         ),
@@ -242,9 +245,18 @@ class ProposalsNotifier extends Notifier<List<DemoProposal>> {
       );
       final ticket = ++_ticket;
       await _reload(ticket, me);
-      return true;
-    } catch (_) {
-      return false;
+      return null;
+    } catch (error) {
+      if (error is AppError && error.code == 'PROPOSAL_ALREADY_PENDING') {
+        return 'Đã có đề xuất đang chờ phản hồi. Bạn có thể xem hoặc rút đề xuất trong danh sách Đã gửi.';
+      }
+      if (error is AppError && error.code == 'INVALID_CREDIT_HINT') {
+        return 'Credit gợi ý cho trao đổi hai chiều cần từ 20.';
+      }
+      if (error is AppError && error.code == 'TEACHER_SKILL_NOT_ELIGIBLE') {
+        return 'Bạn chưa có đúng kỹ năng của yêu cầu này trên hồ sơ, hoặc kỹ năng đang lưu trữ.';
+      }
+      return errorMessage(error);
     }
   }
 

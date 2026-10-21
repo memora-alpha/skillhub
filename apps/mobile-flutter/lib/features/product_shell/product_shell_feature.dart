@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../components/app_button.dart';
-import '../../components/avatar.dart';
+import '../../components/user_avatar.dart';
 import '../../components/feature_page.dart';
 import '../../components/misc.dart';
 import '../../core/theme/tokens.dart';
@@ -277,7 +277,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               children: [
                 Align(
                   alignment: Alignment.centerLeft,
-                  child: Avatar(name: p.name, userId: p.id, size: 48),
+                  child: UserAvatar(name: p.name, userId: p.id, size: 48),
                 ),
                 Copy(
                   p.skills

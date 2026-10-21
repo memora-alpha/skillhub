@@ -5,7 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../components/app_button.dart';
 import '../../components/app_icon.dart';
 import '../../components/app_input.dart';
-import '../../components/avatar.dart';
+import '../../components/user_avatar.dart';
 import '../../components/misc.dart';
 import '../../components/tappable.dart';
 import '../../core/theme/tokens.dart';
@@ -117,7 +117,7 @@ class ProposalCard extends StatelessWidget {
           Row(
             spacing: 8,
             children: [
-              Avatar(
+              UserAvatar(
                 name: proposal.partner,
                 userId: proposal.partnerId,
                 size: 40,
@@ -208,7 +208,7 @@ class ProposalSummary extends StatelessWidget {
         Row(
           spacing: 12,
           children: [
-            Avatar(
+            UserAvatar(
               name: proposal.partner,
               userId: proposal.partnerId,
               size: 48,
@@ -379,7 +379,7 @@ class _ProposalsScreenState extends ConsumerState<ProposalsScreen> {
                   ),
                 ),
               Text(
-                'Đề xuất mẫu · Chấp nhận chỉ mở Chat, chưa giữ Credit.',
+                'Chấp nhận chỉ mở Chat, chưa giữ Credit.',
                 style: _caption,
               ),
             ],
@@ -620,9 +620,15 @@ class _SendProposalScreenState extends ConsumerState<SendProposalScreen> {
           (id: skill.id, name: skill.name, verified: skill.verified),
       ];
     }
+    final needed = _request!.category.trim().toLowerCase();
     return [
       for (final skill in ref.read(skillsProvider))
-        (id: skill.id, name: skill.name, verified: skill.status == 'VERIFIED'),
+        if (!skill.archived && skill.name.trim().toLowerCase() == needed)
+          (
+            id: skill.id,
+            name: skill.name,
+            verified: skill.status == 'VERIFIED',
+          ),
     ];
   }
 
@@ -639,7 +645,11 @@ class _SendProposalScreenState extends ConsumerState<SendProposalScreen> {
     final userId = ref.read(accountSessionProvider)?.userId;
     String? formError;
     final skills = _skills;
-    if (!skills.any((skill) => skill.id == _skillId)) {
+    if (skills.isEmpty) {
+      formError = _request == null
+          ? 'Hồ sơ này chưa có kỹ năng đang mở để nhận lời mời.'
+          : 'Yêu cầu này cần kỹ năng "${_request!.category}" trên hồ sơ của bạn. Bạn chưa có kỹ năng đó nên không gửi được.';
+    } else if (!skills.any((skill) => skill.id == _skillId)) {
       formError = 'Chọn kỹ năng phù hợp.';
     }
     if (_targetId == null || _targetId == userId) {
@@ -648,7 +658,7 @@ class _SendProposalScreenState extends ConsumerState<SendProposalScreen> {
     setState(() => _formError = formError);
     if (!valid || formError != null || _targetName == null) return;
     final chosen = skills.firstWhere((skill) => skill.id == _skillId);
-    final saved = await ref
+    final error = await ref
         .read(proposalsProvider.notifier)
         .submit(
           sourceType: _request != null ? 'LEARNING_REQUEST' : 'DIRECT_SEARCH',
@@ -663,13 +673,11 @@ class _SendProposalScreenState extends ConsumerState<SendProposalScreen> {
           sessions: int.parse(_sessions.text.trim()),
           schedule: _schedule.text.trim(),
           recipientSharingSkillId: _request == null ? chosen.id : null,
+          exchangeTypeHint: 'TWO_WAY',
         );
     if (!mounted) return;
-    if (!saved) {
-      setState(
-        () => _formError =
-            'Đã có đề xuất đang chờ phản hồi. Bạn có thể xem hoặc rút đề xuất trong danh sách Đã gửi.',
-      );
+    if (error != null) {
+      setState(() => _formError = error);
       return;
     }
     FocusScope.of(context).unfocus();
@@ -758,7 +766,7 @@ class _SendProposalScreenState extends ConsumerState<SendProposalScreen> {
                           Row(
                             spacing: 8,
                             children: [
-                              Avatar(
+                              UserAvatar(
                                 name: targetName,
                                 userId: targetId,
                                 size: 28,
@@ -776,6 +784,13 @@ class _SendProposalScreenState extends ConsumerState<SendProposalScreen> {
                       _Card(
                         children: [
                           Text('Kỹ năng bạn có thể chia sẻ', style: _label),
+                          if (_skills.isEmpty)
+                            Text(
+                              request == null
+                                  ? 'Hồ sơ này chưa có kỹ năng đang mở.'
+                                  : 'Máy chủ chỉ nhận đề xuất khi hồ sơ của bạn có kỹ năng "${request.category}". Kỹ năng khác không dùng được cho yêu cầu này.',
+                              style: _caption,
+                            ),
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             spacing: 8,
@@ -851,7 +866,7 @@ class _SendProposalScreenState extends ConsumerState<SendProposalScreen> {
                               decimal: true,
                             ),
                             hint:
-                                'Mức gợi ý; loại thỏa thuận và Credit chính thức sẽ được chốt trong Chat.',
+                                'Trao đổi hai chiều, từ 20 Credit. Mức chính thức chốt trong Chat.',
                           ),
                           AppInput(
                             field: _sessions,
@@ -893,7 +908,7 @@ class _SendProposalScreenState extends ConsumerState<SendProposalScreen> {
                           onPressed: () => context.push('/proposals?tab=sent'),
                         ),
                       Text(
-                        'Bản mẫu · Đề xuất chỉ lưu trong phiên hiện tại.',
+                        'Gửi xong, đề xuất nằm ở tab Đã gửi cho đến khi đối phương phản hồi.',
                         style: _caption,
                       ),
                     ],

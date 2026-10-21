@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../components/app_button.dart';
 import '../../components/app_icon.dart';
-import '../../components/avatar.dart';
+import '../../components/user_avatar.dart';
 import '../../components/feature_page.dart';
 import '../../components/tappable.dart';
 import '../../core/theme/tokens.dart';
@@ -435,7 +435,7 @@ class _HomeContent extends StatelessWidget {
                           Row(
                             spacing: 6,
                             children: [
-                              Avatar(
+                              UserAvatar(
                                 name: request.name,
                                 userId: request.userId,
                                 size: AvatarSizes.inline,
@@ -735,7 +735,7 @@ class _SessionCard extends StatelessWidget {
             Row(
               spacing: 7,
               children: [
-                Avatar(
+                UserAvatar(
                   name: '',
                   userId: '',
                   size: AvatarSizes.compact,
@@ -866,7 +866,7 @@ class _MessageRow extends StatelessWidget {
           children: [
             Stack(
               children: [
-                Avatar(
+                UserAvatar(
                   name: message.name,
                   userId: message.userId,
                   size: AvatarSizes.list,

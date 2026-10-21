@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../components/app_button.dart';
 import '../../components/app_icon.dart';
-import '../../components/avatar.dart';
+import '../../components/user_avatar.dart';
 import '../../components/feature_page.dart';
 import '../../components/misc.dart';
 import '../../components/tappable.dart';
@@ -539,7 +539,7 @@ class SessionDetailScreen extends StatelessWidget {
                           Row(
                             spacing: 12,
                             children: [
-                              Avatar(
+                              UserAvatar(
                                 name: session.partner,
                                 userId: session.partnerId,
                                 size: AvatarSizes.list,
