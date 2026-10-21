@@ -12,7 +12,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { colors } from "@/constants/theme";
 import { AuthSessionProvider, SessionGate } from "@/features/auth";
-import { MockMessagesProvider, ChatEventsProvider } from "@/features/messages";
+import { ChatEventsProvider } from "@/features/messages";
 import { ProfilePreviewProvider, AvatarUploadToasts } from "@/features/profile";
 import { ConnectionsProvider } from "@/features/connections";
 import { UiPreviewProvider } from "@/features/ui-preview";
@@ -59,13 +59,11 @@ export function AppProviders({ children }: { children: ReactNode }) {
                 <SessionGate>
                   <SkillsProvider>
                     <ProfilePreviewProvider>
-                      <MockMessagesProvider>
-                        <ConnectionsProvider>
-                          <ChatEventsProvider>
-                            <UiPreviewProvider>{children}</UiPreviewProvider>
-                          </ChatEventsProvider>
-                        </ConnectionsProvider>
-                      </MockMessagesProvider>
+                      <ConnectionsProvider>
+                        <ChatEventsProvider>
+                          <UiPreviewProvider>{children}</UiPreviewProvider>
+                        </ChatEventsProvider>
+                      </ConnectionsProvider>
                     </ProfilePreviewProvider>
                   </SkillsProvider>
                 </SessionGate>

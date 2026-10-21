@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { uuid } from "@/lib/http/contracts";
 import {
   FlatList,
@@ -9,13 +9,14 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useRouter } from "expo-router";
+import { useAgreementNavigation } from "@/features/learning-paths/state";
 import { Button } from "@/components/Button";
 import { EmptyState } from "@/components/EmptyState";
 import { FeaturePage, Copy } from "@/components/feature-page";
 import {
   ConnectionFeedback,
   useConnections,
-  useParticipantName,
+  useParticipantProfile,
 } from "@/features/connections";
 import {
   useConversation,
@@ -27,9 +28,12 @@ import { useChatEvents } from "../context/ChatEvents";
 import { ChatComposer } from "../components/ChatComposer";
 import { ChatHeader } from "../components/ChatHeader";
 import { ApiMessageBubble } from "../components/ApiMessageBubble";
+import { lastSeenOutgoingId } from "../utils/seen-message";
+import { messageGrouping } from "../utils/message-grouping";
 import type { ApiMessage } from "../api/messages-api";
 import { messageColors as colors } from "../constants/theme";
-
+import { useConversationContext } from "../hooks/use-conversation-context";
+import { ConfirmedFormFeedback } from "../components/ConfirmedFormFeedback";
 export function ApiChatScreen({ id }: Readonly<{ id: string }>) {
   const conversation = useConversation(id);
   if (!uuid.safeParse(id).success)
@@ -85,7 +89,9 @@ function ApiChatConversation({
     conversation.participantAId === runtime.userId
       ? conversation.participantBId
       : conversation.participantAId;
-  const partner = useParticipantName(partnerId);
+  const partner = useParticipantProfile(partnerId);
+  const context = useConversationContext(conversation, true);
+  const agreement = useAgreementNavigation(id);
   const [draft, setDraft] = useState(""),
     [focused, setFocused] = useState(false);
   const [readError, setReadError] = useState<unknown>();
@@ -107,14 +113,39 @@ function ApiChatConversation({
     },
   );
   const list = useRef<FlatList<ApiMessage>>(null);
-  const scrollOnSend = useRef(false);
+  const atLatest = useRef(true),
+    hasScrolled = useRef(false);
+  const previousLatest = useRef<string | undefined>(undefined);
+  const [hasNewMessages, setHasNewMessages] = useState(false);
   useFocusEffect(
     useCallback(() => {
       setFocused(true);
+      atLatest.current = true;
+      hasScrolled.current = false;
+      setHasNewMessages(false);
+      list.current?.scrollToOffset({ offset: 0, animated: false });
       return () => setFocused(false);
     }, []),
   );
-  const messages = thread.data?.messages ?? [];
+  const messages = useMemo(
+    () => [...(thread.data?.messages ?? [])].reverse(),
+    [thread.data?.messages],
+  );
+  const seenMessageId = useMemo(
+    () => lastSeenOutgoingId(messages, runtime.userId),
+    [messages, runtime.userId],
+  );
+  useEffect(() => {
+    const latest = messages[0]?.id;
+    if (
+      latest &&
+      previousLatest.current &&
+      latest !== previousLatest.current &&
+      !atLatest.current
+    )
+      setHasNewMessages(true);
+    previousLatest.current = latest;
+  }, [messages]);
   const last = visible;
   useEffect(() => {
     if (!focused || !last || thread.error || readWatermark.current === last.id)
@@ -136,16 +167,13 @@ function ApiChatConversation({
       current = false;
     };
   }, [last?.id, focused, thread.error, api, id, runtime]);
-  const agreement = () =>
-    router.push({
-      pathname: "/agreement-type",
-      params: { conversationId: id, mode: "api" },
-    });
   const send = async (text: string) => {
     if (!text.trim() || sender.pending || sender.processing) return;
     if (await sender.send(text)) {
       setDraft("");
-      scrollOnSend.current = true;
+      atLatest.current = true;
+      setHasNewMessages(false);
+      list.current?.scrollToOffset({ offset: 0, animated: true });
       void thread.refetch();
     }
   };
@@ -161,23 +189,30 @@ function ApiChatConversation({
         <ChatHeader
           conversation={{
             proposal: id,
-            name: partner.data ?? "Thành viên SkillHub",
+            name: partner.data?.fullName ?? "Thành viên SkillHub",
             userId: partnerId,
             skill: "",
             request: "",
-            last: "",
-            messages: 0,
-            unread: 0,
-            time: "",
           }}
           onBack={() => router.dismissTo("/messages")}
-          onAgreement={agreement}
+          onAgreement={() => {
+            void agreement.open();
+          }}
+          agreementPending={agreement.pending}
+          topic={context.label}
+          reference={context.reference}
           live={live.connected}
+          avatarUrl={partner.data?.avatarUrl}
         />
         <FlatList
           ref={list}
           data={messages}
+          inverted
           keyExtractor={(item) => item.id}
+          maintainVisibleContentPosition={{
+            minIndexForVisible: 0,
+            autoscrollToTopThreshold: 60,
+          }}
           style={{ flex: 1, backgroundColor: colors.canvas }}
           onViewableItemsChanged={viewability.current}
           viewabilityConfig={{ itemVisiblePercentThreshold: 50 }}
@@ -186,35 +221,26 @@ function ApiChatConversation({
             width: "100%",
             alignSelf: "center",
             padding: 12,
-            gap: 10,
           }}
           keyboardShouldPersistTaps="handled"
-          refreshing={thread.isFetching}
-          onRefresh={() => {
-            refreshConversation();
-            void thread.refetch();
+          onScrollBeginDrag={() => {
+            hasScrolled.current = true;
           }}
-          ListHeaderComponent={
+          onScroll={({ nativeEvent }) => {
+            const offset = nativeEvent.contentOffset.y;
+            atLatest.current = offset < 60;
+            if (offset > 20) hasScrolled.current = true;
+            if (atLatest.current) setHasNewMessages(false);
+          }}
+          scrollEventThrottle={32}
+          onEndReachedThreshold={0.3}
+          onEndReached={() => {
+            if (hasScrolled.current && focused && !thread.error)
+              void thread.loadOlder();
+          }}
+          ListFooterComponent={
             <View style={{ gap: 10 }}>
-              <Copy muted>
-                Chat để thương lượng; xác nhận kế hoạch và lịch học cần thao tác
-                riêng.
-              </Copy>
-              <Button
-                variant="secondary"
-                onPress={() =>
-                  router.push({
-                    pathname: "/proposal/[id]",
-                    params: { id: conversation.proposalId },
-                  })
-                }
-              >
-                Xem đề xuất gốc
-              </Button>
-              <Button variant="craft" onPress={agreement}>
-                Lộ trình học
-              </Button>
-              {thread.data?.nextCursor && (
+              {thread.data?.nextCursor && !!thread.olderError && (
                 <Button
                   variant="secondary"
                   disabled={thread.olderPending || thread.isFetching}
@@ -222,37 +248,89 @@ function ApiChatConversation({
                     void thread.loadOlder();
                   }}
                 >
-                  Tin nhắn trước đó
+                  Thử tải tin nhắn cũ
                 </Button>
               )}
               <ConnectionFeedback
-                loading={thread.isLoading}
+                loading={thread.isLoading || thread.olderPending}
                 error={thread.error ?? thread.olderError}
-                retry={thread.refetch}
+                retry={() => {
+                  refreshConversation();
+                  void context.refetch();
+                  if (thread.olderError) void thread.loadOlder();
+                  else void thread.refetch();
+                }}
               />
               <ConnectionFeedback error={live.error} retry={live.retry} />
             </View>
           }
           ListEmptyComponent={
             !thread.isPending && !thread.error ? (
-              <Copy muted>Bắt đầu trao đổi về mục tiêu và cách học.</Copy>
+              <View style={{ transform: [{ scaleY: -1 }] }}>
+                <Copy muted>Bạn có thể bắt đầu trò chuyện tại đây.</Copy>
+              </View>
             ) : null
           }
-          renderItem={({ item }) => (
-            <ApiMessageBubble
-              message={item}
-              partner={partner.data ?? "Thành viên SkillHub"}
-              partnerId={partnerId}
-            />
-          )}
+          renderItem={({ item, index }) => {
+            const group = messageGrouping(
+              item,
+              messages[index + 1],
+              messages[index - 1],
+            );
+            const date = new Date(item.sentAt);
+            return (
+              <View style={{ gap: 8, paddingTop: group.startsGroup ? 12 : 3 }}>
+                {!!group.timestamp && (
+                  <View style={{ alignItems: "center", paddingVertical: 8 }}>
+                    <Copy muted>
+                      {group.timestamp === "day"
+                        ? `${date.toLocaleDateString("vi-VN", {
+                            weekday: "long",
+                            day: "numeric",
+                            month: "numeric",
+                          })} · `
+                        : ""}
+                      {date.toLocaleTimeString("vi-VN", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </Copy>
+                  </View>
+                )}
+                <ApiMessageBubble
+                  message={item}
+                  partner={partner.data?.fullName ?? "Thành viên SkillHub"}
+                  partnerId={partnerId}
+                  avatarUrl={partner.data?.avatarUrl}
+                  showReadReceipt={item.id === seenMessageId}
+                  showAvatar={group.showAvatar}
+                />
+              </View>
+            );
+          }}
           onContentSizeChange={() => {
-            if (scrollOnSend.current) {
-              scrollOnSend.current = false;
-              list.current?.scrollToEnd({ animated: false });
+            if (messages.length > 0 && atLatest.current) {
+              list.current?.scrollToOffset({ offset: 0, animated: false });
             }
           }}
         />
+        {hasNewMessages && (
+          <View style={{ alignItems: "center", padding: 6 }}>
+            <Button
+              variant="secondary"
+              onPress={() => {
+                atLatest.current = true;
+                setHasNewMessages(false);
+                list.current?.scrollToOffset({ offset: 0, animated: true });
+              }}
+            >
+              Tin nhắn mới ↓
+            </Button>
+          </View>
+        )}
         <View style={{ paddingHorizontal: 12, gap: 8 }}>
+          <ConfirmedFormFeedback conversationId={id} />
+          <ConnectionFeedback error={agreement.error} retry={agreement.open} />
           <ConnectionFeedback
             error={sender.error ?? sender.delivery.error ?? readError}
           />
