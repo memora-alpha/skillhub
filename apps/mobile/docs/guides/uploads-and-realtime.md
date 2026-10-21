@@ -37,4 +37,4 @@ Tiếp trong `guides/uploads-and-realtime.md`:
 
 ## Giới hạn và đề xuất
 
-Avatar CLEAN khác evidence READY. Chưa xác minh mobile SSE/WebSocket/push integration cho các domain; Message/Proposal runtime hiện dùng mock. Không tạo event schema từ màn mẫu. Quy chuẩn không tự cấp quyền sửa code cũ ngoài scope.
+Avatar CLEAN khác evidence READY. Chat/Proposal đã tích hợp HTTP/SSE trong source qua ChatEventsProvider, với session-scoped invalidation/reconnect; xem [contract](../contracts/proposal-learning-agreement.md). Nghiệm thu API triển khai/native/provider còn riêng. Các domain khác không tự kế thừa SSE/WebSocket/push; không tạo event schema từ màn mẫu. Quy chuẩn không tự cấp quyền sửa code cũ ngoài scope.

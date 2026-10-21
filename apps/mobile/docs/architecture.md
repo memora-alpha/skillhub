@@ -15,11 +15,13 @@
 
 Server state thuộc Query; client-only recovery/cooldown dùng Zustand hoặc context hiện hữu. Không mirror entity server sang một global store khác. Không tạo thư mục rỗng từ template.
 
-[AppProviders](../src/providers/AppProviders.tsx) tải Nunito/Fraunces trước, rồi SafeAreaProvider → KeyboardProvider → ToastProvider → QueryProvider → AuthSessionProvider → ConnectionGate. AvatarUploadToasts nằm trong connection boundary, ngoài SessionGate; SessionGate → SkillsProvider → ProfilePreviewProvider → MockMessagesProvider → MockProposalsProvider → UiPreviewProvider → router children. Sự có mặt của mock providers không chứng minh Proposal/Chat API đã nối.
+[AppProviders](../src/providers/AppProviders.tsx) tải Nunito/Fraunces trước, rồi SafeAreaProvider → KeyboardProvider → ToastProvider → QueryProvider → AuthSessionProvider → ConnectionGate. AvatarUploadToasts nằm trong connection boundary, ngoài SessionGate; SessionGate → SkillsProvider → ProfilePreviewProvider → ConnectionsProvider → ChatEventsProvider → UiPreviewProvider → router children. Chat/Proposal dùng API và SSE; các provider preview còn lại phục vụ các màn chưa tích hợp API.
 
 ## Imports và trách nhiệm
 
-Feature dùng public index.ts; public subpaths được checker khai báo đúng bốn mục: product-shell/state, learning-paths/state, learning-paths/policy, sessions/state. Không deep import private feature khác; không tạo barrel gây vòng import để đạt hình thức. Route → screen/view → hook/runtime (khi cần logic) → API adapter → HTTP chung. Không bắt thêm controller rỗng.
+Feature dùng public index.ts; public subpaths được checker khai báo cụ thể: product-shell/state, learning-paths/state, learning-paths/policy, sessions/state, messages/state, proposals/state. Không deep import private feature khác; không tạo barrel gây vòng import để đạt hình thức. Route → screen/view → hook/runtime (khi cần logic) → API adapter → HTTP chung. Không bắt thêm controller rỗng.
+
+`learning-paths` giữ `index.ts`, `state.ts`, `policy.ts` ở root làm public entry. `api/` chứa contract/adapters và submission recovery; `components/`, `screens/`, `hooks/` giữ UI/runtime; `schemas/` chứa validation input; `utils/` chứa xử lý dữ liệu, policy/progression từ snapshot API và định dạng form chat; `preview/` gom context, fixtures, types và rules chỉ còn phục vụ các consumer chưa tích hợp API. Di chuyển nội bộ không mở thêm public subpath hoặc đổi route/API.
 
 | Nhóm                                              | Mục tiêu thiết kế | Hard limit checker    |
 | ------------------------------------------------- | ----------------- | --------------------- |
