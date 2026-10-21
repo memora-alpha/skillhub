@@ -18,8 +18,11 @@ import { RequestListFooter } from "../components/request-list-footer";
 import { useRequestList } from "../hooks/use-requests";
 import { isOwnRequest } from "../utils/request-policy";
 import { RequestListSeparator } from "../components/request-list-separator";
+import { useSentRequestProposals } from "@/features/proposals/state";
+import { ConnectionFeedback } from "@/features/connections";
 export function RequestsFeedScreen() {
   const router = useRouter();
+  const proposals = useSentRequestProposals();
   const params = useLocalSearchParams<{ query?: string | string[] }>();
   const initial = typeof params.query === "string" ? params.query : "";
   const [search, setSearch] = useState(initial);
@@ -71,7 +74,10 @@ export function RequestsFeedScreen() {
           keyboardShouldPersistTaps="handled"
           ItemSeparatorComponent={RequestListSeparator}
           refreshing={query.isRefetching && !query.isFetchingNextPage}
-          onRefresh={() => void query.refetch()}
+          onRefresh={() => {
+            void query.refetch();
+            void proposals.refetch();
+          }}
           ListHeaderComponent={
             <View style={styles.header}>
               <RequestFeedFilters
@@ -87,6 +93,12 @@ export function RequestsFeedScreen() {
                   recommended={filters.scope === "recommended"}
                 />
               )}
+              {!!proposals.error && (
+                <ConnectionFeedback
+                  error={proposals.error}
+                  retry={proposals.refetch}
+                />
+              )}
               {query.error && !query.isFetchNextPageError && (
                 <RequestFailure
                   error={query.error}
@@ -98,6 +110,7 @@ export function RequestsFeedScreen() {
           renderItem={({ item }) => (
             <RequestCard
               request={item}
+              proposal={proposals.data?.[item.id]}
               onPress={() =>
                 router.navigate(
                   isOwnRequest(item)

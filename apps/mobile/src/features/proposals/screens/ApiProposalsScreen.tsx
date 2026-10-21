@@ -7,7 +7,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { Copy, ui } from "@/components/feature-page";
 import { ConnectionFeedback } from "@/features/connections";
 import { useProposalList } from "../hooks/use-proposals-api";
-import { ApiProposalSummary } from "../components/ApiProposalSummary";
+import { ProposalListCard } from "../components/ProposalListCard";
 import {
   ProposalListFilters,
   type ProposalListTab,
@@ -33,7 +33,11 @@ export function ApiProposalsScreen() {
   const router = useRouter();
   const [searchOpen, setSearchOpen] = useState(false);
   const [keyword, setKeyword] = useState("");
-  const filter = proposalListFilter(useLocalSearchParams());
+  const params = useLocalSearchParams();
+  const filter = proposalListFilter({
+    ...params,
+    tab: params.tab ?? "received",
+  });
   const direction = filter?.direction ?? "all",
     status = filter?.status;
   const query = useProposalList(
@@ -43,12 +47,10 @@ export function ApiProposalsScreen() {
     !!filter,
   );
   if (!filter) return <ProposalUnavailable />;
-  const selectedTab = status ?? (direction === "all" ? "all" : undefined);
+  const selectedTab = status ?? "all";
   const selectTab = (value: ProposalListTab) => {
     router.setParams({
-      tab: value === "all" || !filter.learningRequestId ? "all" : "received",
       status: value === "all" ? undefined : value,
-      learningRequestId: value === "all" ? undefined : filter.learningRequestId,
     });
     if (value === "all") {
       setKeyword("");
@@ -91,7 +93,15 @@ export function ApiProposalsScreen() {
               {searchOpen && (
                 <ProposalSearchField value={keyword} onChange={setKeyword} />
               )}
-              <ProposalListFilters value={selectedTab} onChange={selectTab} />
+              <ProposalListFilters
+                value={selectedTab}
+                onChange={selectTab}
+                direction={direction}
+                onDirectionChange={(tab) => {
+                  router.setParams({ tab, learningRequestId: undefined });
+                  setKeyword("");
+                }}
+              />
               {filter.learningRequestId && (
                 <>
                   <Copy>Đề xuất nhận được cho yêu cầu học đã chọn.</Copy>
@@ -144,22 +154,7 @@ export function ApiProposalsScreen() {
               </Button>
             ) : null
           }
-          renderItem={({ item }) => (
-            <View style={{ gap: 8 }}>
-              <ApiProposalSummary proposal={item} compact />
-              <Button
-                variant="secondary"
-                onPress={() =>
-                  router.push({
-                    pathname: "/proposal/[id]",
-                    params: { id: item.id },
-                  })
-                }
-              >
-                Xem đề xuất
-              </Button>
-            </View>
-          )}
+          renderItem={({ item }) => <ProposalListCard proposal={item} />}
         />
       )}
     </AppScreenLayout>
