@@ -35,6 +35,7 @@ import { ReviewsModule } from "./modules/reviews/reviews.module";
 import { ReportsModule } from "./modules/reports/reports.module";
 import { CreditModule } from "./modules/credit/credit.module";
 import { PaymentsModule } from "./modules/payments/payments.module";
+import { MaterialsModule } from "./modules/materials/materials.module";
 
 @Module({
   imports: [
@@ -85,6 +86,7 @@ import { PaymentsModule } from "./modules/payments/payments.module";
     ReportsModule,
     CreditModule,
     PaymentsModule,
+    MaterialsModule,
   ],
   controllers: [HealthController],
   providers: [

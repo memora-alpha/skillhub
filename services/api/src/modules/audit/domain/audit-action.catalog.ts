@@ -45,6 +45,8 @@ export const AUDIT_ACTIONS = [
   "PAYMENT_RECOVERY_RESUME",
   "CREDIT_REVERSE",
   "SYSTEM_CONFIGURATION_UPDATE",
+  "MATERIAL_MODERATE",
+  "MATERIAL_PURCHASE",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
@@ -193,6 +195,23 @@ const credit = z.strictObject({
   operationId: uuid.optional(),
   referenceId: z.string().max(128).optional(),
 });
+const material = z.strictObject({
+  status: z.enum([
+    "DRAFT",
+    "PENDING_REVIEW",
+    "PUBLISHED",
+    "REJECTED",
+    "HIDDEN",
+    "ARCHIVED",
+  ]),
+  listingVersion: z.number().int().positive(),
+});
+const materialOrder = z.strictObject({
+  materialId: uuid,
+  grossCredit: z.string().regex(/^[1-9]\d*$/),
+  feeAmount: z.string().regex(/^(0|[1-9]\d*)$/),
+  operationId: uuid,
+});
 
 const projectionByAction: Record<
   Exclude<AuditAction, "SYSTEM_CONFIGURATION_UPDATE">,
@@ -252,6 +271,8 @@ const projectionByAction: Record<
     version: z.number().int().positive(),
   }),
   CREDIT_REVERSE: credit,
+  MATERIAL_MODERATE: material,
+  MATERIAL_PURCHASE: materialOrder,
 };
 
 function validateProjection(

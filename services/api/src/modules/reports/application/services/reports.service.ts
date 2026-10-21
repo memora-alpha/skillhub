@@ -14,10 +14,8 @@ import type { TransactionContext } from "../../../../infrastructure/database/tra
 import type { Principal } from "../../../auth/application/services/sessions.service";
 import { AuditWriter } from "../../../audit/application/services/audit-writer";
 import type { AuditActor } from "../../../audit/application/contracts/audit.types";
-import type {
-  Actor,
-  RoleCode,
-} from "../../../../shared/authorization/authorization.types";
+import type { RoleCode } from "../../../../shared/authorization/authorization.types";
+import { storageActor } from "../../../../shared/authorization/principal-actor";
 import type { PermissionCode } from "../../../../shared/authorization/permission.catalog";
 import { CreditAdjustmentPort } from "../../../credit/application/ports/credit.ports";
 import { ReputationService } from "../../../reputation/application/services/reputation.service";
@@ -75,20 +73,6 @@ export class ReportsService {
     private readonly creditAdjustments: CreditAdjustmentPort,
   ) {}
 
-  private storageActor(principal: Principal): Actor {
-    const roles = principal.roles.filter(
-      (role): role is RoleCode =>
-        role === "USER" || role === "STAFF" || role === "ADMIN",
-    );
-    return {
-      userId: principal.userId,
-      accountStatus: "ACTIVE",
-      roles,
-      permissions: new Set(principal.permissions as PermissionCode[]),
-      blockedPermissions: new Set(),
-    };
-  }
-
   upload(
     principal: Principal,
     input: {
@@ -99,7 +83,7 @@ export class ReportsService {
     },
   ) {
     return this.storage.upload({
-      actor: this.storageActor(principal),
+      actor: storageActor(principal),
       purpose: "REPORT",
       name: input.name,
       claimedMime: input.claimedMime,
@@ -146,7 +130,7 @@ export class ReportsService {
     });
     return this.storage.issueDownload(
       {
-        actor: this.storageActor(actor),
+        actor: storageActor(actor),
         fileId: row.fileId,
         resource: { type: "REPORT_EVIDENCE", id: evidenceId },
       },

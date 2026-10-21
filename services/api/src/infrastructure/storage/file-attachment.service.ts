@@ -122,6 +122,7 @@ export class FileAttachmentService {
     return {
       id: row.id,
       key: row.objectKey,
+      originalName: row.originalName,
       mime: row.detectedMime,
       size: row.sizeBytes,
       checksum: row.sha256,
