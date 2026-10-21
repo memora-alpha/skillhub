@@ -1,4 +1,5 @@
 export { MyRequestsContent } from "./components/my-requests-content";
+export { RequestDateField as LearningDateTimeField } from "./components/request-date-field";
 export { RequestCreateButton } from "./components/request-list-controls";
 export { RequestsProvider } from "./context";
 export { useRequestDetail, useSkillOptions } from "./hooks/use-requests";

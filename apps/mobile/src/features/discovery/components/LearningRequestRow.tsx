@@ -1,7 +1,13 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Avatar } from "@/components/Avatar";
 import { Icon } from "@/components/Icon";
-import { avatarSizes, iconSizes, typography, fonts } from "@/constants/theme";
+import {
+  appRadius,
+  avatarSizes,
+  iconSizes,
+  typography,
+  fonts,
+} from "@/constants/theme";
 import { discoveryColors as colors } from "../constants/theme";
 import type { LearningRequest } from "../mocks/requests";
 
@@ -63,7 +69,7 @@ export function LearningRequestRow({
 }
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 8,
+    borderRadius: appRadius.card,
     padding: 16,
     gap: 12,
     backgroundColor: colors.surface,

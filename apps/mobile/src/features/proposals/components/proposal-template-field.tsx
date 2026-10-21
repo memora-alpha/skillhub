@@ -75,6 +75,16 @@ export function ProposalTemplateField({
           style={{ gap: 6 }}
           onTouchStart={(event) => event.stopPropagation()}
         >
+          {isMessage && (
+            <Text
+              style={{
+                ...typography.caption,
+                fontFamily: fonts.body,
+                color: appColors.muted,
+                textAlign: "right",
+              }}
+            >{`${[...(field.value ?? "")].length}/1.000`}</Text>
+          )}
           <Input
             ref={(node) => {
               inputRef.current = node;
@@ -82,7 +92,9 @@ export function ProposalTemplateField({
             }}
             label={isMessage ? "Lời nhắn" : "Lịch rảnh (tùy chọn)"}
             required={isMessage}
+            hint={isMessage ? "Từ 10 đến 1.000 ký tự." : undefined}
             multiline
+            style={{ minHeight: isMessage ? 112 : 56 }}
             maxLength={isMessage ? 2000 : undefined}
             placeholder={
               isMessage
@@ -113,7 +125,7 @@ export function ProposalTemplateField({
               <View
                 style={{
                   gap: 6,
-                  flexDirection: isMessage ? "column" : "row",
+                  flexDirection: "row",
                   flexWrap: "wrap",
                 }}
               >
@@ -157,18 +169,6 @@ export function ProposalTemplateField({
                     >
                       {template.title}
                     </Text>
-                    {isMessage && (
-                      <Text
-                        numberOfLines={2}
-                        style={{
-                          ...typography.secondary,
-                          fontFamily: fonts.body,
-                          color: appColors.muted,
-                        }}
-                      >
-                        {template.message}
-                      </Text>
-                    )}
                   </Pressable>
                 ))}
               </View>
