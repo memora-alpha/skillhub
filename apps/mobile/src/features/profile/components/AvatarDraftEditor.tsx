@@ -1,6 +1,6 @@
 import { Text, View, StyleSheet } from "react-native";
 import { Avatar } from "@/components/Avatar";
-import { Button } from "@/components/Button";
+import { ProfileButton as Button } from "./ProfileButton";
 import { FormNotice } from "@/components/FormNotice";
 import { avatarSizes } from "@/constants/theme";
 import type { AccountSession } from "@/features/auth";

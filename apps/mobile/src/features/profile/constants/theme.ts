@@ -1,11 +1,14 @@
-import { signedInChrome } from "@/constants/theme";
-
 export const profileColors = {
-  background: signedInChrome.background,
-  surface: signedInChrome.surface,
-  ink: signedInChrome.ink,
-  border: signedInChrome.border,
-  accent: signedInChrome.accent,
+  // Keep profile surfaces on their original palette while the signed-in app
+  // uses the newer shared palette.
+  background: "#FCFAF7",
+  surface: "#FFFFFF",
+  ink: "#202521",
+  border: "#F0ECE6",
+  accent: "#EF653D",
+  buttonPrimary: "#D4622A",
+  buttonSecondary: "#F7F1E9",
+  buttonText: "#3D2E24",
   body: "#5A5550",
   muted: "#8D8881",
   mutedStrong: "#77716B",

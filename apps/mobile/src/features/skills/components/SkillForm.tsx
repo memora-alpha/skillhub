@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "expo-router";
 import { Button } from "@/components/Button";
+import { appRadius } from "@/constants/theme";
 import { useToast } from "@/providers/ToastProvider";
 import { formValidationOptions } from "@/utils/form-validation";
 import { SkillsLayout } from "../components/SkillsLayout";
@@ -180,7 +181,7 @@ export function SkillForm({ initial }: Readonly<{ initial?: OwnSkill }>) {
       )}
       <Button
         variant="craft"
-        style={{ borderRadius: 12, minHeight: 48 }}
+        style={{ borderRadius: appRadius.button, minHeight: 48 }}
         disabled={
           pending ||
           !levelValid ||

@@ -1,8 +1,8 @@
 export const colors = {
-  brand: "#D4622A",
-  brandHover: "#B8521E",
-  brandLight: "#FEF0E8",
-  brandMuted: "#F5D4C0",
+  brand: "#C4512B",
+  brandHover: "#AD3F20",
+  brandLight: "#FFF1E8",
+  brandMuted: "#F8DAC8",
   brandSurface: "#F6D3BA",
   sage: "#3D6B5A",
   cream: "#FFFCF8",
@@ -12,9 +12,9 @@ export const colors = {
   body: "#5C4A3A",
   muted: "#8A7060",
   mutedLight: "#BCA99A",
-  border: "#E2D9CE",
+  border: "#EDDFD4",
   borderDark: "#C8BDB0",
-  sand: "#F7F1E9",
+  sand: "#F7F7F5",
   success: "#2E7D53",
   warning: "#D4901A",
   star: "#FBBF24",
@@ -57,6 +57,8 @@ export const iconSizes = {
   feature: 24,
 } as const;
 
+export const iconStrokeWidth = 1.8;
+
 export const avatarSizes = {
   inline: 24,
   compact: 32,
@@ -75,49 +77,52 @@ export const layout = {
 export const radius = {
   badge: 4,
   control: layout.radius,
-  card: 8,
+  card: 20,
 } as const;
 
 // Stitch "Crafted Exchange" tokens used by the signed-in product surfaces.
 // The public/auth experience keeps the original palette above.
 export const appColors = {
-  primary: "#BA4E36",
-  primaryDark: "#9A3721",
-  primaryPressed: "#832612",
-  primarySoft: "#FFF2F0",
-  primaryMuted: "#FFDAD2",
+  primary: colors.brand,
+  primaryDark: colors.brandHover,
+  primaryPressed: "#933019",
+  primarySoft: colors.brandLight,
+  primaryMuted: colors.brandMuted,
   forest: "#264E3F",
   forestSoft: "#E7F2EC",
   forestMuted: "#BDE9D5",
   amber: "#D97736",
   amberSoft: "#FFF1E7",
-  canvas: "#FCF9F3",
-  surface: "#FFFFFF",
-  surfaceLow: "#F6F3ED",
-  surfaceInset: "#EDE8DF",
-  surfaceHigh: "#E5E2DC",
+  canvas: "#FFFBF7",
+  surface: "#FFFEFC",
+  surfaceLow: "#F7F7F5",
+  surfaceInset: "#F0F1EE",
+  surfaceHigh: "#E8EAE6",
   ink: "#1C2520",
   body: "#57423D",
   muted: "#8A716C",
   mutedLight: "#A9958F",
-  border: "#E2DCD2",
-  borderStrong: "#D8CFC4",
+  border: "#E8E6E2",
+  borderStrong: "#D9DCD5",
   success: "#2D6A4F",
   successSoft: "#E7F3EC",
+  info: "#405F78",
+  infoSoft: "#EEF3F7",
+  infoBorder: "#D7E2EB",
   warning: "#C85A17",
   error: "#BA1A1A",
   white: "#FFFFFF",
   // Familiar aliases keep feature styles readable while using the Stitch palette.
-  brand: "#BA4E36",
-  brandHover: "#9A3721",
-  brandLight: "#FFF2F0",
-  brandMuted: "#FFDAD2",
-  brandSurface: "#FFDAD2",
+  brand: colors.brand,
+  brandHover: colors.brandHover,
+  brandLight: colors.brandLight,
+  brandMuted: colors.brandMuted,
+  brandSurface: colors.brandMuted,
   sage: "#264E3F",
   sageLight: "#E7F2EC",
-  cream: "#FCF9F3",
+  cream: "#FFFBF7",
   inkSoft: "#57423D",
-  sand: "#EDE8DF",
+  sand: "#F0F1EE",
   warningLight: "#FFF1E7",
   gold: "#D97736",
   star: "#D97736",
@@ -125,9 +130,10 @@ export const appColors = {
 } as const;
 
 export const appRadius = {
-  badge: 8,
-  control: 8,
-  card: 16,
+  badge: 10,
+  control: 12,
+  button: 10,
+  card: 20,
   feature: 24,
   full: 999,
 } as const;
@@ -151,11 +157,11 @@ export const appGradients = {
 
 // Shared chrome for every signed-in screen: header, logo and bottom navigation.
 export const signedInChrome = {
-  background: "#FCFAF7",
-  surface: "#FFFFFF",
+  background: appColors.canvas,
+  surface: appColors.surface,
   ink: "#202521",
   muted: "#AAA69F",
-  border: "#F0ECE6",
+  border: appColors.border,
   accent: "#EF653D",
 } as const;
 

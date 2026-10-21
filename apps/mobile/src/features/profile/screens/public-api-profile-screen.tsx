@@ -1,7 +1,7 @@
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { z } from "zod";
-import { Button } from "@/components/Button";
+import { ProfileButton as Button } from "../components/ProfileButton";
 import { EmptyState } from "@/components/EmptyState";
 import { FormNotice } from "@/components/FormNotice";
 import { useAuthSession } from "@/features/auth";

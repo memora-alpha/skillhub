@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { Button } from "@/components/Button";
+import { ProfileButton as Button } from "./ProfileButton";
 import { useAuthSession } from "@/features/auth";
 import { useToast } from "@/providers/ToastProvider";
 

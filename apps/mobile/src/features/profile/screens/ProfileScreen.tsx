@@ -1,6 +1,6 @@
 import { StyleSheet, View } from "react-native";
 import { Redirect, useRouter } from "expo-router";
-import { Button } from "@/components/Button";
+import { ProfileButton as Button } from "../components/ProfileButton";
 import { useAuthSession } from "@/features/auth";
 import { OwnProfileSkillList } from "@/features/skills";
 import { ProfileLayout } from "../components/ProfileLayout";
