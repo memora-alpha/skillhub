@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Icon } from "@/components/Icon";
-import { typography, fonts } from "@/constants/theme";
+import { appRadius, typography, fonts } from "@/constants/theme";
 import { homeColors as colors } from "../constants/theme";
 import { onboardingTasks } from "../mocks/home";
 import { homeStyles } from "./HomePrimitives";
@@ -64,7 +64,7 @@ export function NewUserGuide({
   );
 }
 const styles = StyleSheet.create({
-  guide: { backgroundColor: colors.orangeSoft, borderRadius: 16 },
+  guide: { backgroundColor: colors.orangeSoft, borderRadius: appRadius.card },
   heading: { flexDirection: "row", alignItems: "center", gap: 12, padding: 16 },
   tasks: { gap: 4, paddingHorizontal: 16, paddingBottom: 12 },
   task: {

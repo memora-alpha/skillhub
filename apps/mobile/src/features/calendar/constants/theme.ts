@@ -1,4 +1,4 @@
-import { signedInChrome } from "@/constants/theme";
+import { appColors, signedInChrome } from "@/constants/theme";
 
 export const calendarColors = {
   background: signedInChrome.background,
@@ -12,7 +12,7 @@ export const calendarColors = {
   orangeSoft: "#FFF2EC",
   green: "#27977B",
   greenSoft: "#EAF7F0",
-  segment: "#ECE9E3",
+  segment: appColors.surfaceInset,
   error: "#BA1A1A",
   errorLight: "#FFEFED",
   star: "#FFB800",
@@ -20,7 +20,7 @@ export const calendarColors = {
   brandLight: "#FFF2EC",
   sage: "#27977B",
   sageLight: "#EAF7F0",
-  sand: "#F6F4F0",
+  sand: appColors.surfaceLow,
 } as const;
 
 export const calendarCardShadow = "0 4px 16px rgba(53, 43, 31, 0.045)";

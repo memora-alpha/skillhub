@@ -1,6 +1,6 @@
 import { Pressable, Text } from "react-native";
 import { Icon, type IconName } from "@/components/Icon";
-import { appColors, fonts, typography } from "@/constants/theme";
+import { appColors, appRadius, fonts, typography } from "@/constants/theme";
 
 export function SkillAction({
   label,
@@ -29,10 +29,10 @@ export function SkillAction({
         gap: 6,
         paddingVertical: outlined ? 8 : 6,
         paddingHorizontal: outlined ? 12 : 0,
-        borderRadius: 12,
+        borderRadius: appRadius.button,
         borderWidth: outlined ? 1 : 0,
         borderColor: appColors.border,
-        backgroundColor: outlined ? appColors.surface : "transparent",
+        backgroundColor: outlined ? appColors.surfaceLow : "transparent",
         opacity: pressed || disabled ? 0.55 : 1,
       })}
     >

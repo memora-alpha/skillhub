@@ -1,5 +1,5 @@
 import { Pressable, Text, View } from "react-native";
-import { appColors as colors, fonts } from "@/constants/theme";
+import { appColors as colors, appRadius, fonts } from "@/constants/theme";
 import { uiLabel } from "@/constants/ui-copy";
 export function ChoiceGroup({
   label,
@@ -31,7 +31,7 @@ export function ChoiceGroup({
             style={{
               padding: 12,
               minHeight: 44,
-              borderRadius: 8,
+              borderRadius: appRadius.control,
               borderWidth: 1,
               borderColor: value === option ? colors.primary : colors.border,
               backgroundColor:

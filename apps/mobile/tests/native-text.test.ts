@@ -6,6 +6,7 @@ import * as React from "react";
 import * as jsxRuntime from "react/jsx-runtime";
 import ts from "typescript";
 import * as theme from "../src/constants/theme";
+import * as profileTheme from "../src/features/profile/constants/theme";
 import {
   demoNotifications,
   popularSkills,
@@ -84,6 +85,7 @@ function loadNotice(file: string, component: string) {
             StyleSheet: { create: (styles: unknown) => styles },
           };
         if (name === "@/constants/theme") return theme;
+        if (name === "../constants/theme") return profileTheme;
         if (name === "@/mocks/app")
           return { demoNotifications, popularSkills, recentMessages };
         if (name === "./ProfilePrimitives")

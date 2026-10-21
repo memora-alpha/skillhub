@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { Redirect, useFocusEffect, useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
-import { Button } from "@/components/Button";
+import { ProfileButton as Button } from "../components/ProfileButton";
 import { ControlledInput } from "@/components/ControlledInput";
 import { FormNotice } from "@/components/FormNotice";
 import {

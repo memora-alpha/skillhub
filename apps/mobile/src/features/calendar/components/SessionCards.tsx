@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Icon } from "@/components/Icon";
-import { iconSizes, typography, fonts } from "@/constants/theme";
+import { appRadius, iconSizes, typography, fonts } from "@/constants/theme";
 import {
   calendarCardShadow,
   calendarColors as colors,
@@ -170,7 +170,7 @@ const styles = StyleSheet.create({
   card: {
     padding: 12,
     backgroundColor: colors.surface,
-    borderRadius: 8,
+    borderRadius: appRadius.card,
     borderWidth: 1,
     borderColor: colors.border,
     boxShadow: calendarCardShadow,
@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
   historyCard: {
     padding: 16,
     backgroundColor: colors.surface,
-    borderRadius: 8,
+    borderRadius: appRadius.card,
     borderWidth: 1,
     borderColor: colors.border,
     gap: 12,

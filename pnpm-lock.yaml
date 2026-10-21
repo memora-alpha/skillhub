@@ -89,6 +89,9 @@ importers:
       expo-status-bar:
         specifier: ~57.0.1
         version: 57.0.1(expo@57.0.27)(react-native@0.86.3(@babel/core@7.29.7)(@react-native/metro-config@0.86.3(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)
+      lucide-react-native:
+        specifier: ^1.60.0
+        version: 1.60.0(@types/react@19.2.18)(react-native-svg@15.15.4(react-native@0.86.3(@babel/core@7.29.7)(@react-native/metro-config@0.86.3(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3))(react-native@0.86.3(@babel/core@7.29.7)(@react-native/metro-config@0.86.3(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)
       react:
         specifier: 19.2.3
         version: 19.2.3
@@ -5156,6 +5159,17 @@ packages:
   lru.min@1.1.5:
     resolution: {integrity: sha512-5J9ysMYUpYIg9RF2vJpy9SinEmSviFSe0GyPpCQ4L5QSkLAgeLXlTAOu2ZwWUU5m+0SBl6gUU1R1ZQB3aKypfA==}
     engines: {bun: '>=1.0.0', deno: '>=1.30.0', node: '>=8.0.0'}
+
+  lucide-react-native@1.60.0:
+    resolution: {integrity: sha512-lcoP/LP3To9LN53pzv7nkNmrh/embfrSootOHVcrHRnKpC4YJcwkN4ornFGVavAV9I4h7GLKj0KgUodweBAr8Q==}
+    peerDependencies:
+      '@types/react': '*'
+      react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
+      react-native: '*'
+      react-native-svg: ^12.0.0 || ^13.0.0 || ^14.0.0 || ^15.0.0
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
 
   luxon@3.7.2:
     resolution: {integrity: sha512-vtEhXh/gNjI9Yg1u4jX/0YVPMvxzHuGgCm6tC5kZyb08yjGWGnqAjGJvcXbqQR2P3MyMEFnRbpcdFS6PBcLqew==}
@@ -12512,6 +12526,14 @@ snapshots:
       yallist: 3.1.1
 
   lru.min@1.1.5: {}
+
+  lucide-react-native@1.60.0(@types/react@19.2.18)(react-native-svg@15.15.4(react-native@0.86.3(@babel/core@7.29.7)(@react-native/metro-config@0.86.3(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3))(react-native@0.86.3(@babel/core@7.29.7)(@react-native/metro-config@0.86.3(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3):
+    dependencies:
+      react: 19.2.3
+      react-native: 0.86.3(@babel/core@7.29.7)(@react-native/metro-config@0.86.3(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3)
+      react-native-svg: 15.15.4(react-native@0.86.3(@babel/core@7.29.7)(@react-native/metro-config@0.86.3(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)
+    optionalDependencies:
+      '@types/react': 19.2.18
 
   luxon@3.7.2: {}
 
