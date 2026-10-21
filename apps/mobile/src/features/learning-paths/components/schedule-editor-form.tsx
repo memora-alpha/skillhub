@@ -25,9 +25,9 @@ import type {
 } from "../api/learning-paths-contract";
 import {
   scheduleInputSchema,
-  scheduleItems,
   type ScheduleInput,
 } from "../schemas/schedule-input";
+import { scheduleDraft, scheduleDraftItems } from "../utils/schedule-draft";
 import { useLearningPathsApi } from "../hooks/use-learning-paths-api";
 import { PlanEditorFrame } from "./plan-editor-fields";
 import { ScheduleWeeklyGenerator } from "./schedule-weekly-generator";
@@ -47,14 +47,10 @@ export function ScheduleForm({
     router = useRouter();
   const [active, setActive] = useState<number | null>(null);
   const [applied, setApplied] = useState(false);
+  const schedule = plan.schedule;
   const { control, handleSubmit, setValue } = useForm<ScheduleInput>({
     resolver: zodResolver(scheduleInputSchema),
-    defaultValues: {
-      items: Array.from({ length: plan.totalSessions }, () => ({
-        local: "",
-        minutes: "60",
-      })),
-    },
+    defaultValues: scheduleDraft(plan),
   });
   const disabled = blocked || command.pending || command.uncertain;
   const action = (
@@ -64,10 +60,19 @@ export function ScheduleForm({
         if (disabled) return;
         void handleSubmit(
           async (input) => {
-            const items = scheduleItems(input);
+            const items = scheduleDraftItems(input, plan);
             const result = await command.run(
-              JSON.stringify({ id: plan.id, version: plan.version, items }),
-              () => api.schedule(plan.id, plan.version, items),
+              JSON.stringify({
+                id: plan.id,
+                version: plan.version,
+                scheduleId: schedule?.id,
+                scheduleVersion: schedule?.version,
+                items,
+              }),
+              () =>
+                schedule
+                  ? api.reviseSchedule(schedule.id, schedule.version, items)
+                  : api.schedule(plan.id, plan.version, items),
             );
             if (result) router.dismissTo(`/paths/${path.id}/schedules`);
           },
@@ -83,7 +88,7 @@ export function ScheduleForm({
     >
       {command.pending
         ? "Đang gửi…"
-        : `Gửi đề xuất lịch (${plan.totalSessions} buổi)`}
+        : `${schedule ? "Lưu thay đổi lịch" : "Gửi đề xuất lịch"} (${plan.totalSessions} buổi)`}
     </Button>
   );
   return (
@@ -102,6 +107,12 @@ export function ScheduleForm({
         <FormNotice tone="success">
           Đã điền lịch tuần. Xem lại hoặc sửa từng buổi trước khi gửi.
         </FormNotice>
+      )}
+      {schedule && (
+        <Copy muted>
+          Giữ nguyên giờ của các buổi chưa sửa. Nếu lịch thay đổi, hai bên cần
+          xác nhận phiên bản mới.
+        </Copy>
       )}
       <ScheduleSessionEditor
         plan={plan}

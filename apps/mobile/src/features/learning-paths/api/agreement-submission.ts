@@ -8,6 +8,7 @@ export function agreementSubmission<T extends SavedAgreement>(
   confirm: (id: string, version: number) => Promise<unknown>,
   isCurrent: () => boolean,
   onConfirmed?: (saved: T, clientMessageId: string) => void,
+  needsConfirmation: (saved: T) => boolean = () => true,
 ) {
   let saved: T | undefined;
   const assertCurrent = () => {
@@ -21,6 +22,7 @@ export function agreementSubmission<T extends SavedAgreement>(
       assertCurrent();
       saved ??= await save();
       assertCurrent();
+      if (!needsConfirmation(saved)) return saved;
       await confirm(saved.id, saved.version);
       assertCurrent();
       if (clientMessageId) onConfirmed?.(saved, clientMessageId);

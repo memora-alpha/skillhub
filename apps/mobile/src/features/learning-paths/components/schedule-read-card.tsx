@@ -14,12 +14,14 @@ import {
   ownConfirmation,
   scheduleStatusLabel,
   learningSessionLabel,
+  scheduleIsComplete,
 } from "../utils/policy-api";
 import { agreementProgress } from "../utils/progression";
 import { AgreementProgressPanel } from "./agreement-progress";
 import { sessionContentParts } from "../utils/session-content";
 import { ScheduleChatReminder } from "./schedule-chat-reminder";
 import { ScheduleTimelineItem } from "./schedule-timeline-item";
+import { ScheduleSlotRow } from "./schedule-slot-row";
 
 export function ScheduleExchangeContext({
   path,
@@ -122,7 +124,9 @@ export function ScheduleReadCard({
   const confirmed =
     !!schedule &&
     (schedule.status === "LOCKED" ||
-      (both && ["PROPOSED", "PARTIALLY_CONFIRMED"].includes(schedule.status)));
+      (both &&
+        scheduleIsComplete(plan) &&
+        ["PROPOSED", "PARTIALLY_CONFIRMED"].includes(schedule.status)));
   const partnerConfirmed =
     path.participantAId === userId
       ? schedule?.participantBConfirmedAt
@@ -200,23 +204,36 @@ export function ScheduleReadCard({
               {scheduledCount} / {plan.totalSessions} buổi sẵn sàng
             </Text>
           </View>
-          {schedule.items.map((slot, index) => (
-            <ScheduleTimelineItem
-              key={slot.sessionNo}
-              last={index === schedule.items.length - 1}
-            >
-              <ScheduleSlotRow
-                slot={slot}
-                title={
-                  sessionContentParts(
-                    plan.sessionOutline.find(
-                      (item) => item.sessionNo === slot.sessionNo,
-                    )?.content ?? "",
-                  ).title
-                }
-              />
-            </ScheduleTimelineItem>
-          ))}
+          {schedule.status === "NEEDS_REVISION" && (
+            <Text style={styles.secondary}>
+              {scheduleIsComplete(plan)
+                ? "Lịch đã điều chỉnh. Hai bên cần xem và xác nhận phiên bản này."
+                : "Lộ trình đã đổi số buổi. Người dạy cần bổ sung lịch còn thiếu trước khi hai bên xác nhận."}
+            </Text>
+          )}
+          {Array.from({ length: plan.totalSessions }, (_, index) => {
+            const sessionNo = index + 1;
+            const slot = schedule.items.find(
+              (item) => item.sessionNo === sessionNo,
+            );
+            return (
+              <ScheduleTimelineItem
+                key={sessionNo}
+                last={index === plan.totalSessions - 1}
+              >
+                <ScheduleSlotRow
+                  slot={slot ?? { sessionNo }}
+                  title={
+                    sessionContentParts(
+                      plan.sessionOutline.find(
+                        (item) => item.sessionNo === sessionNo,
+                      )?.content ?? "",
+                    ).title
+                  }
+                />
+              </ScheduleTimelineItem>
+            );
+          })}
         </View>
       ) : (
         <View style={styles.empty}>
@@ -292,54 +309,6 @@ export function ScheduleMissingPlanCard({
         Xem lộ trình
       </Button>
     </FlowSection>
-  );
-}
-function ScheduleSlotRow({
-  slot,
-  title,
-  status,
-}: Readonly<{
-  slot: { sessionNo: number; startAt: string; endAt: string };
-  title: string;
-  status?: string;
-}>) {
-  const start = new Date(slot.startAt),
-    end = new Date(slot.endAt);
-  const minutes = Math.round((end.getTime() - start.getTime()) / 60000);
-  const timeOptions = { hour: "2-digit", minute: "2-digit" } as const;
-  const endLabel =
-    start.toDateString() === end.toDateString()
-      ? end.toLocaleTimeString("vi-VN", timeOptions)
-      : end.toLocaleString("vi-VN", {
-          ...timeOptions,
-          day: "2-digit",
-          month: "2-digit",
-          year: "numeric",
-        });
-  return (
-    <View style={styles.slot}>
-      <Text style={styles.slotTitle}>
-        {`Buổi ${slot.sessionNo}${title.trim() ? ` · ${title.trim()}` : ""}`}
-      </Text>
-      <View style={styles.slotDetails}>
-        <View style={styles.dateTile}>
-          <Text style={styles.sessionNumber}>
-            {start.toLocaleDateString("vi-VN", { weekday: "short" })}
-          </Text>
-          <Text style={styles.day}>{start.getDate()}</Text>
-        </View>
-        <View style={styles.grow}>
-          <Text style={styles.date}>
-            {`Tháng ${start.getMonth() + 1}, ${start.getFullYear()}`}
-          </Text>
-          <Text style={styles.secondary}>
-            {start.toLocaleTimeString("vi-VN", timeOptions)} – {endLabel}
-          </Text>
-          {!!status && <Text style={styles.secondary}>{status}</Text>}
-        </View>
-        <Text style={styles.duration}>{minutes} phút</Text>
-      </View>
-    </View>
   );
 }
 function ScheduleConfirmation({

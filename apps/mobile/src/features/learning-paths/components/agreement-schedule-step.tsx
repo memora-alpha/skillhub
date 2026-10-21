@@ -17,7 +17,11 @@ import type {
 import { agreementProgress } from "../utils/progression";
 import { scheduleDirections } from "../utils/schedule-directions";
 import { ScheduleChatReminder } from "./schedule-chat-reminder";
-import { ownConfirmation, scheduleStatusLabel } from "../utils/policy-api";
+import {
+  ownConfirmation,
+  scheduleStatusLabel,
+  scheduleIsComplete,
+} from "../utils/policy-api";
 import { AgreementProgressPanel } from "./agreement-progress";
 import {
   AgreementFooter,
@@ -150,8 +154,11 @@ function ScheduleDirection({
     !!schedule.participantBConfirmedAt;
   const ready =
     !!schedule &&
-    ["PROPOSED", "PARTIALLY_CONFIRMED"].includes(schedule.status) &&
-    schedule.items.length === plan?.totalSessions;
+    ["PROPOSED", "PARTIALLY_CONFIRMED", "NEEDS_REVISION"].includes(
+      schedule.status,
+    ) &&
+    !!plan &&
+    scheduleIsComplete(plan);
   const mine = !!schedule && !!ownConfirmation(path, schedule, userId);
   const label = !plan
     ? "Chờ lộ trình"

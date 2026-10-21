@@ -63,3 +63,28 @@ test("failed saves never confirm, and an expired session cannot approve the save
   await assert.rejects(expired.send(), /session/);
   assert.equal(confirms, 0);
 });
+
+test("unchanged already-confirmed terms do not confirm or publish again; an unconfirmed caller still agrees", async () => {
+  for (const [unchanged, mine, expected] of [
+    [true, true, 0],
+    [true, false, 1],
+    [false, true, 1],
+  ] as const) {
+    let confirms = 0,
+      shares = 0;
+    const submission = agreementSubmission(
+      async () => ({ id: "path", version: 3, unchanged }),
+      async () => {
+        confirms++;
+      },
+      () => true,
+      () => {
+        shares++;
+      },
+      (saved) => !saved.unchanged || !mine,
+    );
+    await submission.send("same-intent");
+    assert.equal(confirms, expected);
+    assert.equal(shares, expected);
+  }
+});

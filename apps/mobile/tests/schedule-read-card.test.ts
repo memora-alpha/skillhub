@@ -52,6 +52,11 @@ test("schedule detail distinguishes exchange directions and maps session titles 
   const mocks = Object.entries(stubs).map(([name, namedExports]) =>
     mock.module(pathToFileURL(local.resolve(name)), { namedExports }),
   );
+  mocks.push(
+    mock.module(pathToFileURL(local.resolve("react-native-svg")), {
+      defaultExport: { __esModule: true, default: "Svg", Line: "Line" },
+    }),
+  );
   try {
     delete local.cache[filename];
     const { ScheduleExchangeContext, ScheduleReadCard } = local(
@@ -101,6 +106,16 @@ test("schedule detail distinguishes exchange directions and maps session titles 
     ];
     assert.match(render(teacherId), /Buổi học đã tạo.*Buổi 1 · Session đã tạo/);
     plan.sessions = [];
+    plan.totalSessions = 2;
+    plan.schedule!.status = "NEEDS_REVISION";
+    plan.schedule!.participantAConfirmedAt = null;
+    plan.schedule!.participantBConfirmedAt = null;
+    plan.sessionOutline.push({ sessionNo: 2, content: "Buổi mới" });
+    assert.match(
+      render(teacherId),
+      /Cần điều chỉnh.*1\s*\/\s*2\s+buổi sẵn sàng/,
+    );
+    assert.match(render(teacherId), /Buổi 2 · Buổi mới.*Chưa có ngày giờ/);
     plan.schedule = null;
     assert.match(
       render(learnerId),

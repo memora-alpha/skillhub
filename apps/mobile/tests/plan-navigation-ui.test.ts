@@ -197,6 +197,11 @@ function harness(detail: boolean) {
   const contexts = Object.entries(mocks).map(([name, namedExports]) =>
     mock.module(pathToFileURL(local.resolve(name)), { namedExports }),
   );
+  contexts.push(
+    mock.module(pathToFileURL(local.resolve("react-native-svg")), {
+      defaultExport: { __esModule: true, default: "Svg", Line: "Line" },
+    }),
+  );
   delete local.cache[filename];
   delete local.cache[methodFilename];
   delete local.cache[planFormFilename];

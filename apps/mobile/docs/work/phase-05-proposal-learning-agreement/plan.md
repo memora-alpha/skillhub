@@ -33,8 +33,21 @@ Luồng: Chat → Cách học → Lộ trình → Lịch học → server valida
 - [x] Hai bên xác nhận cùng version lịch; backend validation và finalize quyết định Hold/lock/tạo Session. Giữ recovery đúng intent khi mất phản hồi.
 - [x] Sau xác nhận nghiệp vụ thành công, gửi lại form vào Chat. Gửi chat lỗi chỉ retry form, không thực hiện lại xác nhận nghiệp vụ.
 - [x] Chuẩn hóa Back/footer, polling nền kết hợp kéo tải lại; bỏ fixture khỏi các route đã có API. Preview còn lại chỉ phục vụ các consumer chưa tích hợp ngoài luồng này.
+- [x] Chi tiết lộ trình dùng chung timeline với chi tiết lịch học: chấm cam có viền nhạt, đường nối nét đứt cam và nội dung buổi bên phải; giữ tiêu đề, mô tả và trạng thái, bỏ khung bao/số tròn lặp. Component dùng chung cũng đồng bộ phần lịch từng buổi trong editor.
 
 ## Tiêu chí nghiệm thu
+
+### Đồng bộ sửa đổi trước chốt theo BE `187beab`
+
+- [x] Nhận `unchanged: true` và version cũ khi lưu y nguyên; chỉ chấp nhận version tăng đúng một khi có thay đổi, vẫn kiểm resource identity.
+- [x] Sửa plan giữ thỏa thuận/xác nhận cách học và plan đối ứng; chỉ learner xác nhận lại plan sửa. Không gửi thêm form Chat khi lưu y nguyên phần đã xác nhận.
+- [x] Teacher sửa lịch chưa chốt qua PATCH cùng `expectedVersion`, điền sẵn lịch hiện có; giữ draft và chặn gửi mới khi kết quả chưa rõ.
+- [x] Đọc được lịch thiếu buổi ở `NEEDS_REVISION` sau đổi số buổi; chặn confirm/finalize đến khi đủ lịch hợp lệ. Lịch sửa đủ buổi cần hai bên confirm lại.
+- [x] Regression cho no-op, version/role, plan revision, lịch giữ/xóa xác nhận đúng phần và schedule editor; cập nhật contract/status theo kết quả thật.
+
+Các quy tắc chi tiết đối chiếu [BE amendments](../../../../../services/api/specs/008-connections/agreement-amendments.md). Backend chỉ đọc; không thay đổi nguồn BE hoặc tạo fixture thay API.
+
+### Điều kiện giữ xuyên suốt
 
 1. Accept proposal chỉ mở Chat, chưa Hold và chưa tạo Session.
 2. ONE_WAY có một plan; TWO_WAY có hai plan đối ứng. Người dùng không tạo/sửa thay teacher của chiều còn lại.
@@ -55,8 +68,7 @@ Luồng: Chat → Cách học → Lộ trình → Lịch học → server valida
 
 | Hạng mục | Hướng xử lý |
 | --- | --- |
-| **P05-API-DEP-T78:** phát hiện trùng lịch trước confirm và sửa lịch chưa khóa | Cần backend trả conflict sớm, chặn confirm khi xung đột, cho teacher sửa thành version mới/reset confirmations. Hiện mobile dùng final-validation/finalize theo API đang có. |
-| Reset xác nhận khi sửa plan | Backend hiện reset rộng, kể cả sửa nội dung/no-op. Cần quyết định và contract phân loại thay đổi; mobile chưa tự bỏ bước xác nhận. |
+| **P05-API-DEP-T78:** phát hiện trùng lịch giữa hai chiều trước confirm | BE đã có PATCH sửa lịch chưa khóa. Conflict sớm giữa hai chiều vẫn cần contract riêng; giữ final-validation/finalize authoritative. |
 | Tạo path/plan/lịch chưa có server idempotency; tìm path theo conversation bị giới hạn danh sách | Giữ draft/intent và đọc đối chiếu; chặn tạo mới khi kết quả chưa rõ hoặc danh sách đầy, không tự replay. |
 | Dạy thử tùy chọn | Backlog tương lai cùng dependency backend, không là blocker phase này. |
 | Hủy/quyết toán chưa có API mobile xác minh | Hiện unavailable, không đổi status/Credit bằng fixture; triển khai ở phạm vi riêng. |

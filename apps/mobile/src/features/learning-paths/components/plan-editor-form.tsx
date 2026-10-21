@@ -126,7 +126,12 @@ export function PlanForm({
           formState.errors.sessionOutline?.message
         }
       />
-      {plan && <Copy muted>Thay đổi lộ trình cần hai bên xác nhận lại.</Copy>}
+      {plan && (
+        <Copy muted>
+          Nếu nội dung thay đổi, người học cần xác nhận lại lộ trình. Cách học
+          đã thống nhất được giữ.
+        </Copy>
+      )}
       {!!command.error && <ConnectionFeedback error={command.error} />}
       {command.uncertain && (
         <Panel title="Kiểm tra kế hoạch vừa gửi">

@@ -2,7 +2,11 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { mock, test } from "node:test";
 import { pathToFileURL } from "node:url";
-import { agreementPath } from "./fixtures/learning-agreement";
+import {
+  agreementPath,
+  withConfirmedSchedules,
+} from "./fixtures/learning-agreement";
+import { scheduleDraft } from "../src/features/learning-paths/utils/schedule-draft";
 
 type Element = { type: unknown; props: Record<string, unknown> };
 function elements(value: unknown): Element[] {
@@ -28,6 +32,8 @@ test("schedule editor applies only to draft, submits exact plan version, and rem
   let items = [{ local: "2098-01-01T19:30", minutes: "60" }];
   const calls: unknown[] = [],
     routes: string[] = [];
+  const revisions: unknown[] = [];
+  let defaults: unknown;
   const command = {
     pending: false,
     uncertain: false,
@@ -46,14 +52,17 @@ test("schedule editor applies only to draft, submits exact plan version, and rem
       StyleSheet: { create: (value: unknown) => value },
     },
     "react-hook-form": {
-      useForm: () => ({
-        control: {},
-        setValue: (_name: string, value: typeof items) => {
-          items = value;
-        },
-        handleSubmit: (send: (value: unknown) => Promise<unknown>) => () =>
-          send({ items }),
-      }),
+      useForm: (options: { defaultValues: unknown }) => {
+        defaults = options.defaultValues;
+        return {
+          control: {},
+          setValue: (_name: string, value: typeof items) => {
+            items = value;
+          },
+          handleSubmit: (send: (value: unknown) => Promise<unknown>) => () =>
+            send({ items }),
+        };
+      },
     },
     "expo-router": {
       useRouter: () => ({ dismissTo: (href: string) => routes.push(href) }),
@@ -73,6 +82,10 @@ test("schedule editor applies only to draft, submits exact plan version, and rem
         schedule: async (...args: unknown[]) => {
           calls.push(args);
           return { id: "saved" };
+        },
+        reviseSchedule: async (...args: unknown[]) => {
+          revisions.push(args);
+          return { id: "saved", unchanged: true };
         },
       }),
     },
@@ -145,6 +158,36 @@ test("schedule editor applies only to draft, submits exact plan version, and rem
     (backgroundRefreshSave.props.onPress as () => void)();
     await new Promise((resolve) => setImmediate(resolve));
     assert.equal(calls.length, 2);
+    plan.schedule = withConfirmedSchedules().plans[0]!.schedule;
+    items = scheduleDraft(plan).items;
+    tree = elements(ScheduleForm(props));
+    assert.deepEqual(defaults, { items });
+    (
+      tree.find((item) => item.type === "Button")!.props.onPress as () => void
+    )();
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.deepEqual(revisions[0], [
+      plan.schedule!.id,
+      plan.schedule!.version,
+      plan.schedule!.items,
+    ]);
+    assert.equal(
+      calls.length,
+      2,
+      "Editing an existing schedule must never POST another proposal",
+    );
+    assert.equal(routes.at(-1), `/paths/${path.id}/schedules`);
+    command.uncertain = true;
+    tree = elements(ScheduleForm(props));
+    assert.equal(
+      tree.find((item) => item.type === "Button")!.props.disabled,
+      true,
+    );
+    (
+      tree.find((item) => item.type === "Button")!.props.onPress as () => void
+    )();
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(revisions.length, 1);
   } finally {
     delete local.cache[filename];
     mocks.reverse().forEach((item) => item.restore());
