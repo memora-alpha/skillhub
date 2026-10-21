@@ -36,6 +36,13 @@ và bằng chứng PostgreSQL ở [UTC validation](specs/006-system-configuratio
 
 ## Phạm vi và trạng thái
 
+Learning Materials (spec011, SH-115..119): owner upload/draft/submit, Staff review/hide,
+public search/preview, authorized short-lived download and atomic PAID purchase with a 5%
+MATERIAL_PAID fee. Rollout: migrations `20261021000000_material_constraints` then
+`20261021010000_stored_file_material_purpose` → `pnpm db:seed-configuration` →
+`pnpm identity:seed`. Refund/dispute window for material orders is still open (OP-14).
+See [spec](specs/011-learning-materials/spec.md).
+
 Technical payment recovery 2026-10-19: đơn payOS đang chờ nhưng mất QR được tra
 cứu và hủy bằng signed evidence trước khi mở tạo mới. Timeout tiếp tục retry,
 không tự chuyển REVIEW vì hết lượt. Worker kiểm tra lại REVIEW cũ do mất QR/hết
@@ -88,7 +95,7 @@ API đã có nền tảng hạ tầng và phần Danh tính (spec 002): đăng k
 
 Phần Kết nối đã có source cho Proposal từ Request/lời mời trực tiếp, accept mở Conversation, chat text/file, delivery receipt, read watermark và notification in-app. Chat, notification và application events dùng [SSE chung](specs/008-connections/contracts/sse.md) với reconnect/replay; commands/history vẫn qua HTTP. [Policy đã chốt](specs/008-connections/policies.md): proposal 7 ngày, 10/giờ và 50/ngày, direct cooldown 24 giờ; chat 30/phút/User và 120/phút/Conversation; 5 file/tin, 15 MB/file, 50 MB/tin. Xem [quickstart](specs/008-connections/quickstart.md), [tasks](specs/008-connections/tasks.md) và [validation](specs/008-connections/validation.md). Migration Connections và seed cấu hình đã áp dụng trên PostgreSQL local; journeys HTTP/SSE đã pass với PostgreSQL schema riêng và Mongo rs0 local. Mongo service/indexes đã cấu hình; storage local đã bật trên bucket chung `skillhub` và truy cập bucket trả HTTP 200. API local trả health/ready 200; luồng CHAT upload → scan READY/CLEAN → gửi file → download đã pass với R2/ClamAV thật trên dữ liệu test riêng. Moderation rules chưa chốt; SSE nhiều instance/proxy, recovery/cleanup races và load vẫn cần kiểm chứng. Retention, report/staff access và external notification chưa được mở.
 
-Các module từ `feat/learning-platform-modules` đã được gộp cùng Kết nối: source ban đầu cho LearningPath/Plan, scheduling, Session completion, Credit Hold/settlement, reviews, reputation, achievements và report/dispute. Các phần này vẫn cần áp dụng/kiểm tra migration và kiểm chứng tích hợp. LiveKit backend được bổ sung trong spec010; Cloud smoke và video UI vẫn cần kiểm chứng/triển khai riêng. Cancel/no-show policy, Gmail/FCM delivery và luồng Learning Materials đầy đủ còn thiếu hoặc chưa tích hợp. Conversations xuất cả lifecycle cho Proposal và membership reader cho LearningPath.
+Các module từ `feat/learning-platform-modules` đã được gộp cùng Kết nối: source ban đầu cho LearningPath/Plan, scheduling, Session completion, Credit Hold/settlement, reviews, reputation, achievements và report/dispute. Các phần này vẫn cần áp dụng/kiểm tra migration và kiểm chứng tích hợp. LiveKit backend được bổ sung trong spec010; Cloud smoke và video UI vẫn cần kiểm chứng/triển khai riêng. Cancel/no-show policy và Gmail/FCM delivery còn thiếu hoặc chưa tích hợp; Learning Materials xem đoạn spec011 ở đầu mục này. Conversations xuất cả lifecycle cho Proposal và membership reader cho LearningPath.
 
 Catalog Prisma theo logical v3 cộng hai model Achievement/UserAchievement: **50 model PostgreSQL và một document
 Message MongoDB** với attachments nhúng. Xem [schema catalog](prisma/README.md)

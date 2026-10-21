@@ -1,6 +1,10 @@
 import { ConflictException, Injectable } from "@nestjs/common";
 import type { TransactionContext } from "../../../../infrastructure/database/transaction-context";
-import { fingerprintCommand } from "../../../../infrastructure/idempotency/idempotency.service";
+import {
+  byCodeUnit,
+  fingerprintCommand,
+} from "../../../../infrastructure/idempotency/idempotency.service";
+import type { CreditWallet } from "../../../../generated/prisma/client";
 import { CreditProvenanceService } from "./credit-provenance.service";
 
 @Injectable()
@@ -107,5 +111,133 @@ export class CreditOperationsService {
       after,
       replayed: false,
     };
+  }
+
+  /**
+   * BR-43: the buyer pays gross from Available, the seller earns gross − fee.
+   * PLATFORM_FEE is the buyer's second debit entry of the same gross, never an extra charge.
+   */
+  async purchaseMaterial(
+    tx: TransactionContext,
+    input: {
+      orderId: string;
+      buyerId: string;
+      sellerId: string;
+      gross: bigint;
+      fee: bigint;
+    },
+  ): Promise<{ operationId: string }> {
+    const net = input.gross - input.fee;
+    if (
+      input.gross <= 0n ||
+      input.fee < 0n ||
+      net <= 0n ||
+      input.buyerId === input.sellerId
+    )
+      throw new ConflictException("INVALID_MATERIAL_PAYMENT");
+    const wallets = new Map<string, CreditWallet>();
+    // UUID lock order prevents deadlocks between concurrent purchases of the same pair.
+    for (const userId of [input.buyerId, input.sellerId].sort(byCodeUnit)) {
+      wallets.set(userId, await this.lockWallet(tx, userId));
+    }
+    const buyer = wallets.get(input.buyerId)!;
+    const seller = wallets.get(input.sellerId)!;
+    if (buyer.availableCredit < input.gross)
+      throw new ConflictException("INSUFFICIENT_AVAILABLE_CREDIT");
+    const key = `material-purchase:${input.orderId}`;
+    const operation = await tx.creditOperation.create({
+      data: {
+        operationType: "MATERIAL_PURCHASE",
+        referenceType: "MATERIAL_ORDER",
+        referenceId: input.orderId,
+        idempotencyKey: key,
+        status: "SUCCESS",
+      },
+    });
+    const spent = await this.provenance.spend(tx, buyer.userId, input.gross);
+    const buyerAfter = buyer.availableCredit - input.gross;
+    await tx.creditWallet.update({
+      where: { userId: buyer.userId },
+      data: {
+        availableCredit: buyerAfter,
+        purchasedCredit: { decrement: spent.purchased },
+        bonusCredit: { decrement: spent.bonus },
+        walletVersion: { increment: 1 },
+      },
+    });
+    const sellerAfter = seller.availableCredit + net;
+    await tx.creditLot.create({
+      data: {
+        userId: seller.userId,
+        operationId: operation.id,
+        source: "EARNED",
+        available: net,
+        granted: net,
+      },
+    });
+    await tx.creditWallet.update({
+      where: { userId: seller.userId },
+      data: { availableCredit: sellerAfter, walletVersion: { increment: 1 } },
+    });
+    const entries: {
+      userId: string;
+      type: "MATERIAL_PURCHASE" | "PLATFORM_FEE" | "MATERIAL_SALE";
+      amount: bigint;
+      availableDelta: bigint;
+      availableAfter: bigint;
+      heldAfter: bigint;
+      suffix: string;
+    }[] = [
+      {
+        userId: buyer.userId,
+        type: "MATERIAL_PURCHASE",
+        amount: net,
+        availableDelta: -net,
+        availableAfter: buyer.availableCredit - net,
+        heldAfter: buyer.heldCredit,
+        suffix: "purchase",
+      },
+      ...(input.fee > 0n
+        ? [
+            {
+              userId: buyer.userId,
+              type: "PLATFORM_FEE" as const,
+              amount: input.fee,
+              availableDelta: -input.fee,
+              availableAfter: buyerAfter,
+              heldAfter: buyer.heldCredit,
+              suffix: "fee",
+            },
+          ]
+        : []),
+      {
+        userId: seller.userId,
+        type: "MATERIAL_SALE",
+        amount: net,
+        availableDelta: net,
+        availableAfter: sellerAfter,
+        heldAfter: seller.heldCredit,
+        suffix: "sale",
+      },
+    ];
+    for (const [index, entry] of entries.entries()) {
+      // Sequential inserts keep entry_no aligned with each wallet's running balance.
+      await tx.creditTransaction.create({
+        data: {
+          userId: entry.userId,
+          operationId: operation.id,
+          entryNo: index + 1,
+          type: entry.type,
+          amount: entry.amount,
+          availableDelta: entry.availableDelta,
+          heldDelta: 0n,
+          availableAfter: entry.availableAfter,
+          heldAfter: entry.heldAfter,
+          status: "SUCCESS",
+          idempotencyKey: `${key}:${entry.suffix}`,
+        },
+      });
+    }
+    return { operationId: operation.id };
   }
 }
