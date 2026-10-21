@@ -63,8 +63,9 @@ class TagsScreen extends ConsumerWidget {
             children: [
               StatusBadge(request['status']?.toString() ?? ''),
               Copy(request['rejectReason']?.toString() ?? '', muted: true),
-              AppButton(
+              AsyncAppButton(
                 label: 'Xem chi tiết đề xuất',
+                busyLabel: 'Đang tải...',
                 variant: ButtonVariant.paper,
                 onPressed: () async {
                   try {
@@ -198,7 +199,17 @@ class VerificationDetailScreen extends ConsumerWidget {
       back: '/skills/history',
       children: [
         if (detail.isLoading && data.isEmpty)
-          const Copy('Đang tải hồ sơ.', muted: true)
+          const Row(
+            spacing: 10,
+            children: [
+              SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              Expanded(child: Copy('Đang tải hồ sơ xác minh.')),
+            ],
+          )
         else if (detail.hasError)
           Copy(errorMessage(detail.error))
         else
@@ -235,8 +246,9 @@ class _DownloadLink extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return AppButton(
+    return AsyncAppButton(
       label: label,
+      busyLabel: 'Đang tải...',
       variant: ButtonVariant.paper,
       onPressed: () async {
         try {

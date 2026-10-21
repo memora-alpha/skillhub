@@ -467,10 +467,11 @@ class SkillDetailScreen extends ConsumerWidget {
                   if (skill.reason != null)
                     FormNotice(tone: NoticeTone.error, message: skill.reason!),
                   if (!skill.archived)
-                    AppButton(
+                    AsyncAppButton(
                       label: skill.visible
                           ? 'Ẩn khỏi tìm kiếm'
                           : 'Hiển thị công khai',
+                      busyLabel: 'Đang cập nhật...',
                       variant: ButtonVariant.paper,
                       onPressed: () async {
                         final result = await notifier.save(
@@ -484,8 +485,9 @@ class SkillDetailScreen extends ConsumerWidget {
                         }
                       },
                     ),
-                  AppButton(
+                  AsyncAppButton(
                     label: skill.archived ? 'Khôi phục kỹ năng' : 'Lưu trữ kỹ năng',
+                    busyLabel: 'Đang cập nhật...',
                     variant: ButtonVariant.paper,
                     onPressed: () async {
                       final error = await notifier.setArchived(
@@ -550,6 +552,7 @@ class _EvidenceFile {
 
 class _EvidenceScreenState extends ConsumerState<EvidenceScreen> {
   String _error = '';
+  String _phase = '';
   _EvidenceFile? _file;
 
   Future<void> _pick() async {
@@ -595,7 +598,8 @@ class _EvidenceScreenState extends ConsumerState<EvidenceScreen> {
   Widget build(BuildContext context) {
     final id = widget.id;
     final skill = ref.watch(skillsProvider).where((item) => item.id == id).firstOrNull;
-    final history = ref.watch(verificationHistoryProvider).value ?? const [];
+    final historyState = ref.watch(verificationHistoryProvider);
+    final history = historyState.value ?? const <VerificationEntry>[];
     final pending = history
         .where((item) => item.sharingSkillId == id && item.status == 'PENDING')
         .firstOrNull;
@@ -613,10 +617,18 @@ class _EvidenceScreenState extends ConsumerState<EvidenceScreen> {
             title: 'Kỹ năng đã lưu trữ',
             description: 'Khôi phục kỹ năng trước khi gửi bằng chứng.',
           )
+        else if (historyState.isLoading && !historyState.hasValue)
+          Panel(
+            title: skill.name,
+            children: const [
+              _BusyNote('Đang tải trạng thái xác minh.'),
+            ],
+          )
         else if (skill.status == 'PENDING' || pending != null)
           Panel(
             title: 'Đang chờ xét duyệt',
             children: [
+              const _BusyNote('Đang chờ staff xét duyệt hồ sơ.'),
               const Copy(
                 'Staff sẽ kiểm tra hồ sơ trước khi xác minh kỹ năng. Xác minh đã duyệt trước đó vẫn giữ hiệu lực nếu chưa bị thu hồi.',
               ),
@@ -641,12 +653,14 @@ class _EvidenceScreenState extends ConsumerState<EvidenceScreen> {
                 'Chọn một ảnh làm bằng chứng. Tệp được kiểm tra trước khi gửi hồ sơ xác minh.',
                 muted: true,
               ),
+              if (_phase.isNotEmpty) _BusyNote(_phase),
               if (_file != null) Copy(_file!.name),
               if (_error.isNotEmpty)
                 FormNotice(tone: NoticeTone.error, message: _error),
               AppButton(
                 label: _file == null ? 'Chọn ảnh' : 'Chọn ảnh khác',
                 variant: ButtonVariant.paper,
+                disabled: _phase.isNotEmpty,
                 onPressed: _pick,
               ),
               DataForm(
@@ -667,7 +681,11 @@ class _EvidenceScreenState extends ConsumerState<EvidenceScreen> {
                 onSubmit: (values) async {
                   final file = _file;
                   if (file == null) return 'Chọn ảnh bằng chứng trước khi gửi.';
+                  void phase(String value) {
+                    if (mounted) setState(() => _phase = value);
+                  }
                   try {
+                    phase('Đang tải tệp lên...');
                     final api = ref.read(authRuntimeProvider).services.verifications;
                     final uploaded = await api.uploadEvidence(
                       id,
@@ -681,8 +699,10 @@ class _EvidenceScreenState extends ConsumerState<EvidenceScreen> {
                     );
                     final fileId = uploaded['fileId']?.toString() ?? '';
                     if (fileId.isEmpty) return 'Máy chủ không nhận tệp.';
+                    phase('Đang kiểm tra trạng thái tệp...');
                     final waitError = await _waitUntilReady(id, fileId);
                     if (waitError != null) return waitError;
+                    phase('Đang gửi hồ sơ xác minh...');
                     final title = values['title']?.trim() ?? '';
                     final description = values['description']?.trim() ?? '';
                     await api.submit(id, {
@@ -695,6 +715,8 @@ class _EvidenceScreenState extends ConsumerState<EvidenceScreen> {
                     return null;
                   } catch (error) {
                     return errorMessage(error);
+                  } finally {
+                    if (mounted) setState(() => _phase = '');
                   }
                 },
               ),
@@ -717,7 +739,7 @@ class VerificationHistoryScreen extends ConsumerWidget {
       back: '/skills',
       children: [
         if (history.isLoading && entries.isEmpty)
-          const Copy('Đang tải lịch sử xác minh.', muted: true)
+          const _BusyNote('Đang tải lịch sử xác minh.')
         else if (entries.isEmpty)
           const EmptyState(
             title: 'Chưa có hồ sơ xác minh',
@@ -739,6 +761,27 @@ class VerificationHistoryScreen extends ConsumerWidget {
                 ),
               ],
             ),
+      ],
+    );
+  }
+}
+
+class _BusyNote extends StatelessWidget {
+  const _BusyNote(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      spacing: 10,
+      children: [
+        const SizedBox(
+          width: 18,
+          height: 18,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+        Expanded(child: Copy(text)),
       ],
     );
   }

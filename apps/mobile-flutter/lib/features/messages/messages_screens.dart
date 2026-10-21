@@ -466,6 +466,7 @@ class _ChatConversationState extends ConsumerState<_ChatConversation> {
   final _draft = TextEditingController();
   final _focus = FocusNode();
   final _scroll = ScrollController();
+  var _sending = false;
 
   String get _proposal => widget.conversation.proposal;
 
@@ -487,14 +488,21 @@ class _ChatConversationState extends ConsumerState<_ChatConversation> {
     super.dispose();
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     final text = _draft.text;
-    if (text.trim().isEmpty) return;
-    ref.read(messagesProvider.notifier).send(_proposal, text);
+    if (_sending || text.trim().isEmpty) return;
+    setState(() => _sending = true);
     _draft.clear();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scroll.hasClients) _scroll.jumpTo(_scroll.position.maxScrollExtent);
-    });
+    try {
+      await ref.read(messagesProvider.notifier).send(_proposal, text);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_scroll.hasClients) {
+          _scroll.jumpTo(_scroll.position.maxScrollExtent);
+        }
+      });
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
   }
 
   void _agreement() => context.push('/agreement-type?proposalId=$_proposal');
@@ -615,6 +623,7 @@ class _ChatConversationState extends ConsumerState<_ChatConversation> {
             _ChatComposer(
               controller: _draft,
               focus: _focus,
+              sending: _sending,
               onSend: _submit,
               onAttach: () =>
                   context.push('/chat-attachment?proposalId=$_proposal'),
@@ -991,16 +1000,18 @@ class _ChatComposer extends StatelessWidget {
     required this.focus,
     required this.onSend,
     required this.onAttach,
+    this.sending = false,
   });
 
   final TextEditingController controller;
   final FocusNode focus;
   final VoidCallback onSend;
   final VoidCallback onAttach;
+  final bool sending;
 
   @override
   Widget build(BuildContext context) {
-    final disabled = controller.text.trim().isEmpty;
+    final disabled = sending || controller.text.trim().isEmpty;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: const BoxDecoration(
@@ -1017,7 +1028,7 @@ class _ChatComposer extends StatelessWidget {
               children: [
                 Tappable(
                   semanticLabel: 'Đính kèm tệp',
-                  onTap: onAttach,
+                  onTap: sending ? null : onAttach,
                   child: const SizedBox(
                     width: 44,
                     height: 44,
@@ -1048,7 +1059,7 @@ class _ChatComposer extends StatelessWidget {
                       controller: controller,
                       focusNode: focus,
                       textInputAction: TextInputAction.send,
-                      onSubmitted: (_) => onSend(),
+                      onSubmitted: sending ? null : (_) => onSend(),
                       style: nunito(TypeScale.body, color: MessageColors.ink),
                       decoration: InputDecoration(
                         isDense: true,
@@ -1065,7 +1076,7 @@ class _ChatComposer extends StatelessWidget {
                 Semantics(
                   button: true,
                   enabled: !disabled,
-                  label: 'Gửi tin nhắn',
+                  label: sending ? 'Đang gửi tin nhắn' : 'Gửi tin nhắn',
                   child: Opacity(
                     opacity: disabled ? 0.5 : 1,
                     child: GestureDetector(
@@ -1078,11 +1089,20 @@ class _ChatComposer extends StatelessWidget {
                           color: MessageColors.orange,
                           shape: BoxShape.circle,
                         ),
-                        child: const AppIcon(
-                          AppIcon.send,
-                          size: IconSizes.control,
-                          color: MessageColors.white,
-                        ),
+                        child: sending
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: MessageColors.white,
+                                ),
+                              )
+                            : const AppIcon(
+                                AppIcon.send,
+                                size: IconSizes.control,
+                                color: MessageColors.white,
+                              ),
                       ),
                     ),
                   ),
@@ -1113,14 +1133,17 @@ class AttachmentScreen extends ConsumerStatefulWidget {
 class _AttachmentScreenState extends ConsumerState<AttachmentScreen> {
   String _error = '';
   String _status = '';
+  var _sending = false;
 
   Future<void> _send() async {
+    if (_sending) return;
     final proposalId = widget.proposalId;
     final conversation = proposalId == null
         ? null
         : ref.read(messagesProvider).find(proposalId);
     if (conversation == null) return;
     setState(() {
+      _sending = true;
       _error = '';
       _status = '';
     });
@@ -1162,6 +1185,8 @@ class _AttachmentScreenState extends ConsumerState<AttachmentScreen> {
       setState(() => _status = status['state']?.toString() ?? 'Đã tải lên.');
     } catch (error) {
       if (mounted) setState(() => _error = errorMessage(error));
+    } finally {
+      if (mounted) setState(() => _sending = false);
     }
   }
 
@@ -1187,7 +1212,11 @@ class _AttachmentScreenState extends ConsumerState<AttachmentScreen> {
               if (_error.isNotEmpty)
                 FormNotice(tone: NoticeTone.error, message: _error),
               if (_status.isNotEmpty) Copy(_status),
-              AppButton(label: 'Chọn ảnh và gửi', onPressed: _send),
+              AppButton(
+                label: _sending ? 'Đang gửi...' : 'Chọn ảnh và gửi',
+                loading: _sending,
+                onPressed: _send,
+              ),
             ],
           ),
       ],

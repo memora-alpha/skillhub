@@ -87,8 +87,9 @@ class _LiveInboxState extends ConsumerState<LiveInbox> {
                 children: [
                   Copy(item.title.isEmpty ? item.body : item.title),
                   if (item.readAt == null)
-                    AppButton(
+                    AsyncAppButton(
                       label: 'Đánh dấu đã đọc',
+                      busyLabel: 'Đang cập nhật...',
                       variant: ButtonVariant.paper,
                       onPressed: () async {
                         await ref
@@ -139,8 +140,9 @@ class _LiveInboxState extends ConsumerState<LiveInbox> {
               },
             ),
             if (_tokenId.isNotEmpty)
-              AppButton(
+              AsyncAppButton(
                 label: 'Ngừng thông báo cho thiết bị này',
+                busyLabel: 'Đang gỡ...',
                 variant: ButtonVariant.paper,
                 onPressed: () async {
                   try {

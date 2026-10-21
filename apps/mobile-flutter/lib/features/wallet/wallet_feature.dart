@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../components/app_button.dart';
 import '../../components/feature_page.dart';
@@ -221,9 +224,9 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
               ),
               AppButton(
                 label: _busy ? 'Đang tạo lệnh' : 'Tạo mã QR',
-                onPressed: _busy
-                    ? null
-                    : () async {
+                loading: _busy,
+                onPressed: () async {
+                        if (_busy) return;
                         setState(() => _busy = true);
                         try {
                           final created = await ref
@@ -285,21 +288,47 @@ class PaymentStatusScreen extends ConsumerWidget {
           children: [
             if (payment.isLoading && data.isEmpty)
               const Copy('Đang đọc lệnh thanh toán.', muted: true)
-            else if (payment.hasError)
+            else if (payment.hasError && data.isEmpty)
               Copy(errorMessage(payment.error))
             else ...[
               Copy('${_text(data['paymentAmountVnd'])} VND'),
               Copy('${_text(data['creditAmount'])} CR'),
-              if (qr.isNotEmpty) Copy(qr),
+              if (qr.isNotEmpty) const Copy('Quét bằng ứng dụng ngân hàng.', muted: true),
+              if (qr.isNotEmpty)
+                Center(
+                  child: ColoredBox(
+                    color: const Color(0xFFFFFFFF),
+                    child: QrImageView(
+                      data: qr,
+                      size: 232,
+                      padding: const EdgeInsets.all(16),
+                      backgroundColor: const Color(0xFFFFFFFF),
+                      errorCorrectionLevel: QrErrorCorrectLevel.M,
+                      eyeStyle: const QrEyeStyle(
+                        eyeShape: QrEyeShape.square,
+                        color: Color(0xFF000000),
+                      ),
+                      dataModuleStyle: const QrDataModuleStyle(
+                        dataModuleShape: QrDataModuleShape.square,
+                        color: Color(0xFF000000),
+                      ),
+                      semanticsLabel: 'Mã QR thanh toán',
+                    ),
+                  ),
+                ),
               if (_text(data['recoveryReason']).isNotEmpty)
                 Copy(_text(data['recoveryReason'])),
+              if (data['status'] == 'PENDING' || data['status'] == 'CREATED')
+                const Copy('Đang kiểm tra thanh toán...', muted: true),
               AppButton(
-                label: 'Tải lại',
+                label: payment.isLoading && data.isEmpty ? 'Đang tải...' : 'Tải lại',
+                loading: payment.isLoading && data.isEmpty,
                 onPressed: () => ref.invalidate(_paymentProvider(id)),
               ),
               if (data['status'] == 'PENDING' || data['status'] == 'CREATED')
-                AppButton(
+                AsyncAppButton(
                   label: 'Hủy lệnh',
+                  busyLabel: 'Đang hủy...',
                   variant: ButtonVariant.paper,
                   onPressed: () async {
                     try {
@@ -325,13 +354,25 @@ class PaymentStatusScreen extends ConsumerWidget {
   }
 }
 
+const _openPaymentStatuses = {'PENDING', 'CREATED'};
+
 final _paymentProvider = FutureProvider.family<Map<String, dynamic>, String>((
   ref,
   id,
 ) async {
   final phase = ref.watch(sessionSnapshotProvider).phase;
   if (phase != SessionPhase.ready || id.isEmpty) return const {};
-  return ref.read(authRuntimeProvider).services.wallet.payment(id);
+  final payment = await ref.read(authRuntimeProvider).services.wallet.payment(id);
+  final status = payment['status']?.toString() ?? '';
+  if (_openPaymentStatuses.contains(status)) {
+    // Temporary until payOS webhook or SSE updates this screen.
+    final timer = Timer(const Duration(seconds: 5), ref.invalidateSelf);
+    ref.onDispose(timer.cancel);
+  } else if (status == 'PAID') {
+    ref.invalidate(walletProvider);
+    ref.invalidate(paymentsProvider);
+  }
+  return payment;
 });
 
 class TransactionsScreen extends ConsumerWidget {

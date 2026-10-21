@@ -26,33 +26,49 @@ class _StudyLiveScreenState extends ConsumerState<StudyLiveScreen> {
   List<Map<String, dynamic>> _reviews = const [];
   Map<String, dynamic>? _reputation;
   String _note = '';
-  var _loading = false;
+  String? _busy;
 
   StudyService get _api => ref.read(authRuntimeProvider).services.study;
 
-  Future<void> _run(Future<void> Function() action) async {
+  Future<void> _run(String action, Future<void> Function() work) async {
+    if (_busy != null) return;
     setState(() {
-      _loading = true;
+      _busy = action;
       _note = '';
     });
     try {
-      await action();
+      await work();
       if (mounted && _note.isEmpty) setState(() => _note = 'Máy chủ đã phản hồi.');
     } catch (error) {
       if (mounted) setState(() => _note = errorMessage(error));
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) setState(() => _busy = null);
     }
   }
 
-  Future<void> _openPath(String id) => _run(() async {
+  Future<void> _loadPath(String id) async {
     final detail = await _api.path(id);
     final reviews = await _api.reviews(id);
     setState(() {
       _path = detail;
       _reviews = reviews;
     });
-  });
+  }
+
+  AppButton _action({
+    required String action,
+    required String label,
+    required Future<void> Function() work,
+    ButtonVariant variant = ButtonVariant.primary,
+  }) {
+    return AppButton(
+      label: label,
+      variant: variant,
+      loading: _busy == action,
+      disabled: _busy != null,
+      onPressed: () => _run(action, work),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -63,7 +79,7 @@ class _StudyLiveScreenState extends ConsumerState<StudyLiveScreen> {
       back: '/calendar',
       subtitle: 'Dữ liệu và thao tác lấy từ máy chủ.',
       children: [
-        if (_loading) const Copy('Đang liên hệ máy chủ.', muted: true),
+        if (_busy != null) const Copy('Đang liên hệ máy chủ.', muted: true),
         if (_note.isNotEmpty) Copy(_note),
         DataForm(
           fields: [
@@ -129,12 +145,13 @@ class _StudyLiveScreenState extends ConsumerState<StudyLiveScreen> {
             }
           },
         ),
-        AppButton(
+        _action(
+          action: 'paths',
           label: 'Tải lộ trình của tôi',
-          onPressed: () => _run(() async {
+          work: () async {
             final rows = await _api.myPaths();
             setState(() => _paths = rows);
-          }),
+          },
         ),
         for (final item in _paths)
           Panel(
@@ -142,10 +159,11 @@ class _StudyLiveScreenState extends ConsumerState<StudyLiveScreen> {
             children: [
               Copy(_text(item['exchangeType'])),
               Copy(_text(item['id']), muted: true),
-              AppButton(
+              _action(
+                action: 'path-${_text(item['id'])}',
                 label: 'Xem thỏa thuận',
                 variant: ButtonVariant.paper,
-                onPressed: () => _openPath(_text(item['id'])),
+                work: () => _loadPath(_text(item['id'])),
               ),
             ],
           ),
@@ -155,30 +173,33 @@ class _StudyLiveScreenState extends ConsumerState<StudyLiveScreen> {
             children: [
               Copy('Phiên bản ${version ?? 'chưa rõ'}'),
               if (version != null) ...[
-                AppButton(
+                _action(
+                  action: 'confirm-path',
                   label: 'Xác nhận thỏa thuận',
                   variant: ButtonVariant.paper,
-                  onPressed: () => _run(() async {
+                  work: () async {
                     await _api.confirmPath(pathId, expectedVersion: version);
-                    await _openPath(pathId);
-                  }),
+                    await _loadPath(pathId);
+                  },
                 ),
-                AppButton(
+                _action(
+                  action: 'validate-path',
                   label: 'Kiểm tra trước khi khóa',
                   variant: ButtonVariant.paper,
-                  onPressed: () => _run(() async {
+                  work: () async {
                     final result = await _api.validatePath(pathId);
                     setState(() => _note = _text(result['message']).isEmpty
                         ? 'Thỏa thuận sẵn sàng để khóa.'
                         : _text(result));
-                  }),
+                  },
                 ),
-                AppButton(
+                _action(
+                  action: 'finalize-path',
                   label: 'Khóa lộ trình và giữ Credit',
-                  onPressed: () => _run(() async {
+                  work: () async {
                     await _api.finalizePath(pathId, expectedVersion: version);
-                    await _openPath(pathId);
-                  }),
+                    await _loadPath(pathId);
+                  },
                 ),
               ],
               DataForm(
@@ -245,7 +266,7 @@ class _StudyLiveScreenState extends ConsumerState<StudyLiveScreen> {
                         for (final line in lines) {'content': line},
                       ],
                     });
-                    await _openPath(pathId);
+                    await _loadPath(pathId);
                     return null;
                   } catch (error) {
                     return errorMessage(error);
@@ -289,7 +310,7 @@ class _StudyLiveScreenState extends ConsumerState<StudyLiveScreen> {
                       'rating': int.parse(values['rating']!.trim()),
                       'comment': values['comment']!.trim(),
                     });
-                    await _openPath(pathId);
+                    await _loadPath(pathId);
                     return null;
                   } catch (error) {
                     return errorMessage(error);
@@ -298,50 +319,54 @@ class _StudyLiveScreenState extends ConsumerState<StudyLiveScreen> {
               ),
             ],
           ),
-          AppButton(
+          _action(
+            action: 'settle',
             label: 'Quyết toán Credit',
             variant: ButtonVariant.paper,
-            onPressed: () => _run(() async {
+            work: () async {
               final result = await _api.settle(pathId);
               setState(() => _note = 'Đã gửi quyết toán. ${_text(result['status'])}');
-            }),
+            },
           ),
         ],
-        AppButton(
+        _action(
+          action: 'sessions',
           label: 'Tải buổi học của tôi',
           variant: ButtonVariant.paper,
-          onPressed: () => _run(() async {
+          work: () async {
             final now = DateTime.now().toUtc();
             final rows = await _api.mySessions(
               from: now.subtract(const Duration(days: 30)).toIso8601String(),
               to: now.add(const Duration(days: 60)).toIso8601String(),
             );
             setState(() => _sessions = rows);
-          }),
+          },
         ),
         for (final item in _sessions)
           Panel(
             title: _text(item['status']),
             children: [
               Copy(_text(item['id']), muted: true),
-              AppButton(
+              _action(
+                action: 'session-${_text(item['id'])}',
                 label: 'Mở buổi học',
                 variant: ButtonVariant.paper,
-                onPressed: () => _run(() async {
+                work: () async {
                   final detail = await _api.session(_text(item['id']));
                   setState(() => _session = detail);
-                }),
+                },
               ),
             ],
           ),
         if (_session != null) _sessionPanel(),
-        AppButton(
+        _action(
+          action: 'reputation',
           label: 'Tải lịch sử uy tín',
           variant: ButtonVariant.paper,
-          onPressed: () => _run(() async {
+          work: () async {
             final page = await _api.reputation();
             setState(() => _reputation = page);
-          }),
+          },
         ),
         if (_reputation != null)
           Panel(
@@ -368,15 +393,17 @@ class _StudyLiveScreenState extends ConsumerState<StudyLiveScreen> {
                 AppButton(
                   label: 'Xác nhận kế hoạch',
                   variant: ButtonVariant.paper,
+                  loading: _busy == 'plan-${_text(plan['id'])}',
+                  disabled: _busy != null,
                   onPressed: () {
                     final planVersion = _version(
                       plan['version'] ?? plan['currentVersion'],
                     );
                     final id = _text(plan['id']);
                     if (planVersion == null || id.isEmpty) return;
-                    _run(() async {
+                    _run('plan-$id', () async {
                       await _api.confirmPlan(id, expectedVersion: planVersion);
-                      await _openPath(pathId);
+                      await _loadPath(pathId);
                     });
                   },
                 ),
@@ -429,22 +456,24 @@ class _StudyLiveScreenState extends ConsumerState<StudyLiveScreen> {
       title: 'Buổi học $id',
       children: [
         Copy(_text(_session?['status'])),
-        AppButton(
+        _action(
+          action: 'livekit',
           label: 'Lấy mã vào phòng',
           variant: ButtonVariant.paper,
-          onPressed: () => _run(() async {
+          work: () async {
             final token = await _api.liveKitToken(id);
             setState(() => _note = 'Mã phòng: ${_text(token['token'] ?? token)}');
-          }),
+          },
         ),
-        AppButton(
+        _action(
+          action: 'complete',
           label: 'Xác nhận hoàn thành',
           variant: ButtonVariant.paper,
-          onPressed: () => _run(() async {
+          work: () async {
             await _api.confirmCompletion(id, {'note': ''});
             final detail = await _api.session(id);
             setState(() => _session = detail);
-          }),
+          },
         ),
         if (version != null)
           DataForm(
@@ -489,7 +518,7 @@ class _StudyLiveScreenState extends ConsumerState<StudyLiveScreen> {
     };
     try {
       await _api.revisePath(pathId, body);
-      await _openPath(pathId);
+      await _loadPath(pathId);
       return null;
     } catch (error) {
       return errorMessage(error);

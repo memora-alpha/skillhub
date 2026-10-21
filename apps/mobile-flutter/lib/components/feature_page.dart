@@ -538,6 +538,7 @@ class _DataFormState extends State<DataForm> {
   };
   final Map<String, String?> _choiceErrors = {};
   String? _error;
+  var _submitting = false;
 
   @override
   void dispose() {
@@ -548,6 +549,7 @@ class _DataFormState extends State<DataForm> {
   }
 
   Future<void> _submit() async {
+    if (_submitting) return;
     var valid = validateFields(_inputs.values.toList());
     setState(() {
       for (final f in widget.fields.where((f) => f.choices != null)) {
@@ -560,9 +562,14 @@ class _DataFormState extends State<DataForm> {
       for (final entry in _inputs.entries) entry.key: entry.value.text.trim(),
       ..._choices,
     };
-    final error = await widget.onSubmit(values);
-    if (!mounted) return;
-    setState(() => _error = error);
+    setState(() => _submitting = true);
+    try {
+      final error = await widget.onSubmit(values);
+      if (!mounted) return;
+      setState(() => _error = error);
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
   }
 
   @override
@@ -581,10 +588,13 @@ class _DataFormState extends State<DataForm> {
                   label: f.label,
                   options: f.choices!,
                   value: _choices[f.name]!,
-                  onChange: (value) => setState(() {
-                    _choices[f.name] = value;
-                    _choiceErrors[f.name] = f.rule(value);
-                  }),
+                  onChange: (value) {
+                    if (_submitting) return;
+                    setState(() {
+                      _choices[f.name] = value;
+                      _choiceErrors[f.name] = f.rule(value);
+                    });
+                  },
                 ),
                 if (_choiceErrors[f.name] != null)
                   FormNotice(
@@ -598,6 +608,7 @@ class _DataFormState extends State<DataForm> {
               field: _inputs[f.name]!,
               label: f.label,
               hint: f.hint,
+              editable: !_submitting,
               multiline: f.multiline,
               keyboardType: f.numeric
                   ? const TextInputType.numberWithOptions(decimal: true)
@@ -606,8 +617,9 @@ class _DataFormState extends State<DataForm> {
         ?widget.extra,
         if (_error != null) FormNotice(tone: NoticeTone.error, message: _error!),
         AppButton(
-          label: widget.submitLabel,
+          label: _submitting ? 'Đang gửi...' : widget.submitLabel,
           variant: ButtonVariant.craft,
+          loading: _submitting,
           onPressed: _submit,
         ),
       ],

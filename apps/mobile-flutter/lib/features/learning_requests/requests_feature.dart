@@ -621,8 +621,9 @@ class _OwnRequestScreenState extends ConsumerState<OwnRequestScreen> {
                   label: 'Chỉnh sửa yêu cầu',
                 ),
               if (request.status == 'DRAFT')
-                AppButton(
+                AsyncAppButton(
                   label: 'Đăng yêu cầu',
+                  busyLabel: 'Đang đăng...',
                   variant: ButtonVariant.craft,
                   onPressed: () async {
                     final error = await notifier.publish(request);
@@ -651,8 +652,9 @@ class _OwnRequestScreenState extends ConsumerState<OwnRequestScreen> {
                     const Copy(
                       'Lịch sử đề xuất được giữ lại. Bài sẽ không nhận đề xuất mới.',
                     ),
-                    AppButton(
+                    AsyncAppButton(
                       label: 'Xác nhận hủy',
+                      busyLabel: 'Đang hủy...',
                       onPressed: () async {
                         final error = await notifier.cancel(request);
                         if (!mounted) return;

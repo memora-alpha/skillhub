@@ -112,11 +112,13 @@ class MessagesState {
     required this.conversations,
     required this.threads,
     required this.read,
+    this.settled = false,
   });
 
   final List<Conversation> conversations;
   final Map<String, List<ChatMessage>> threads;
   final Set<String> read;
+  final bool settled;
 
   Conversation? find(String? proposal) {
     for (final item in conversations) {
@@ -144,10 +146,12 @@ class MessagesState {
     List<Conversation>? conversations,
     Map<String, List<ChatMessage>>? threads,
     Set<String>? read,
+    bool? settled,
   }) => MessagesState(
     conversations: conversations ?? this.conversations,
     threads: threads ?? this.threads,
     read: read ?? this.read,
+    settled: settled ?? this.settled,
   );
 }
 
@@ -216,9 +220,11 @@ class MessagesNotifier extends Notifier<MessagesState> {
         conversations: conversations,
         threads: threads,
         read: const {},
+        settled: true,
       );
     } catch (_) {
       if (!ref.mounted || ticket != _ticket) return;
+      state = state.copyWith(settled: true);
     }
   }
 

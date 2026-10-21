@@ -3,9 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../components/app_button.dart';
+import '../../components/app_input.dart';
 import '../../components/feature_page.dart';
 import '../../components/misc.dart';
+import '../messages/messages_data.dart';
 import '../sessions/sessions_data.dart';
+import 'live_paths.dart';
 import 'paths_data.dart';
 
 String _confirmed(bool value) => value ? 'Đã xác nhận' : 'Chưa xác nhận';
@@ -15,72 +18,11 @@ const _notFound = EmptyState(
   description: 'Lộ trình không có trong bản xem thử.',
 );
 
-class PathsScreen extends ConsumerStatefulWidget {
+class PathsScreen extends ConsumerWidget {
   const PathsScreen({super.key});
 
   @override
-  ConsumerState<PathsScreen> createState() => _PathsScreenState();
-}
-
-class _PathsScreenState extends ConsumerState<PathsScreen> {
-  String _filter = 'Tất cả';
-
-  @override
-  Widget build(BuildContext context) {
-    final items = ref
-        .watch(pathsProvider)
-        .where((p) => _filter == 'Tất cả' || p.status == _filter)
-        .toList();
-    return FeaturePage(
-      title: 'Lộ trình của tôi',
-      back: '/calendar',
-      subtitle: 'Mỗi lần học là một bước tiến cùng nhau.',
-      children: [
-        const RouteButton(
-          href: '/study',
-          label: 'Mở lộ trình, lịch và buổi học trên máy chủ',
-        ),
-        ChoiceGroup(
-          label: 'Trạng thái',
-          value: _filter,
-          options: const [
-            'Tất cả',
-            'PROPOSED',
-            'ACTIVE',
-            'COMPLETED',
-            'DISPUTED',
-          ],
-          onChange: (value) => setState(() => _filter = value),
-        ),
-        for (final path in items)
-          Panel(
-            title: path.title,
-            children: [
-              StatusBadge(path.status),
-              Copy(
-                '${path.partner} · ${path.type == 'TWO_WAY' ? 'Trao đổi hai chiều' : 'Dạy học một chiều'}',
-              ),
-              Copy(
-                '${path.completedSessions}/${path.totalSessions} buổi · phiên bản ${path.version}',
-                muted: true,
-              ),
-              RouteButton(href: '/paths/${path.id}', label: 'Mở lộ trình'),
-            ],
-          ),
-        if (items.isEmpty)
-          const EmptyState(
-            title: 'Chưa có lộ trình',
-            description:
-                'Chấp nhận đề xuất và thương lượng qua tin nhắn để bắt đầu.',
-          ),
-        const RouteButton(
-          secondary: true,
-          href: '/messages',
-          label: 'Đến cuộc trao đổi',
-        ),
-      ],
-    );
-  }
+  Widget build(BuildContext context, WidgetRef ref) => const LivePathsPage();
 }
 
 class AgreementTypeScreen extends ConsumerStatefulWidget {
@@ -99,6 +41,35 @@ class _AgreementTypeScreenState extends ConsumerState<AgreementTypeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final proposalId = widget.proposalId;
+    final messages = ref.watch(messagesProvider);
+    if (proposalId != null && isLiveId(proposalId)) {
+      if (!messages.settled) {
+        return const FeaturePage(
+          title: 'Lộ trình học',
+          back: '/messages',
+          children: [LiveBusyNote()],
+        );
+      }
+      final chat = messages.find(proposalId);
+      if (chat == null || !isLiveId(chat.id)) {
+        return const FeaturePage(
+          title: 'Lộ trình học',
+          back: '/messages',
+          children: [
+            EmptyState(
+              title: 'Chọn cuộc trao đổi',
+              description: 'Mở lộ trình từ một cuộc trao đổi đã được chấp nhận.',
+            ),
+          ],
+        );
+      }
+      return LiveAgreementScreen(
+        conversationId: chat.id,
+        partnerId: chat.userId,
+        partnerName: chat.name,
+      );
+    }
     final twoWay = _type == 'TWO_WAY';
     return FeaturePage(
       title: 'Chọn hình thức học',
@@ -182,6 +153,7 @@ class PathDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    if (isLiveId(id)) return LivePathDetail(id: id);
     ref.watch(pathsProvider);
     final notifier = ref.read(pathsProvider.notifier);
     final path = notifier.find(id);
@@ -336,6 +308,7 @@ class PlanDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    if (isLiveId(id)) return LivePlanPage(id: id, planId: planId);
     ref.watch(pathsProvider);
     final notifier = ref.read(pathsProvider.notifier);
     final path = notifier.find(id);
@@ -452,6 +425,7 @@ class PlanEditorScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    if (isLiveId(id)) return LivePlanEditor(id: id, planId: planId);
     ref.watch(pathsProvider);
     final notifier = ref.read(pathsProvider.notifier);
     final path = notifier.find(id);
@@ -477,61 +451,11 @@ class PlanEditorScreen extends ConsumerWidget {
               Panel(
                 title: 'Thiết kế hành trình học',
                 children: [
-                  DataForm(
-                    defaults: {
-                      'skill': plan?.skill ?? 'React',
-                      'goal': plan?.goal ?? '',
-                      'count': '${plan?.outline.length ?? 2}',
-                      'outline': plan?.outline.join('\n') ?? '',
-                    },
-                    fields: [
-                      DataField(
-                        name: 'skill',
-                        label: 'Kỹ năng bạn dạy',
-                        rule: textRule(1, 100),
-                        choices: const [
-                          'React',
-                          'TypeScript',
-                          'JavaScript',
-                          'UI/UX',
-                          'Tiếng Anh',
-                          'Guitar',
-                          'Nhiếp ảnh',
-                        ],
-                      ),
-                      DataField(
-                        name: 'goal',
-                        label: 'Mục tiêu kế hoạch',
-                        rule: textRule(10, 1500),
-                        multiline: true,
-                      ),
-                      DataField(
-                        name: 'count',
-                        label: 'Số buổi',
-                        rule: integerRule(1),
-                        numeric: true,
-                      ),
-                      DataField(
-                        name: 'outline',
-                        label: 'Nội dung từng buổi',
-                        rule: textRule(10, 3000),
-                        multiline: true,
-                        hint: 'Mỗi dòng là một buổi. Số dòng phải khớp số buổi.',
-                      ),
-                    ],
-                    submitLabel: 'Gửi kế hoạch mẫu',
-                    onSubmit: (values) {
-                      final outline = values['outline']!
-                          .split('\n')
-                          .map((s) => s.trim())
-                          .where((s) => s.isNotEmpty)
-                          .toList();
-                      if (outline.length != int.parse(values['count']!)) {
-                        return 'Số dòng nội dung phải khớp số buổi.';
-                      }
-                      if (outline.any((s) => s.runes.length < 5)) {
-                        return 'Mô tả rõ nội dung của từng buổi.';
-                      }
+                  _TeachPlanForm(
+                    initialSkill: plan?.skill ?? 'React',
+                    initialGoal: plan?.goal ?? '',
+                    initialOutline: plan?.outline ?? const [],
+                    onSubmit: (skill, goal, outline) {
                       final key =
                           plan?.id ??
                           'plan-${DateTime.now().millisecondsSinceEpoch}';
@@ -539,8 +463,8 @@ class PlanEditorScreen extends ConsumerWidget {
                         final next = editOwnPlan(
                           path,
                           key,
-                          skill: values['skill']!,
-                          goal: values['goal']!,
+                          skill: skill,
+                          goal: goal,
                           outline: outline,
                         );
                         if (next != null) notifier.save(next);
@@ -557,8 +481,8 @@ class PlanEditorScreen extends ConsumerWidget {
                                 id: key,
                                 teacher: 'me',
                                 learner: 'partner',
-                                skill: values['skill']!,
-                                goal: values['goal']!,
+                                skill: skill,
+                                goal: goal,
                                 outline: outline,
                                 version: 1,
                               ),
@@ -581,6 +505,153 @@ class PlanEditorScreen extends ConsumerWidget {
   }
 }
 
+const _planSkills = [
+  'React',
+  'TypeScript',
+  'JavaScript',
+  'UI/UX',
+  'Tiếng Anh',
+  'Guitar',
+  'Nhiếp ảnh',
+];
+
+class _TeachPlanForm extends StatefulWidget {
+  const _TeachPlanForm({
+    required this.initialSkill,
+    required this.initialGoal,
+    required this.initialOutline,
+    required this.onSubmit,
+  });
+
+  final String initialSkill;
+  final String initialGoal;
+  final List<String> initialOutline;
+  final String? Function(String skill, String goal, List<String> outline)
+  onSubmit;
+
+  @override
+  State<_TeachPlanForm> createState() => _TeachPlanFormState();
+}
+
+class _TeachPlanFormState extends State<_TeachPlanForm> {
+  static final _sessionRule = textRule(5, 300);
+  late final int _maxSessions = widget.initialOutline.length < 12
+      ? 12
+      : widget.initialOutline.length;
+  late String _skill = _planSkills.contains(widget.initialSkill)
+      ? widget.initialSkill
+      : _planSkills.first;
+  late final AppField _goal = AppField(
+    text: widget.initialGoal,
+    validator: textRule(10, 1500),
+  );
+  late final AppField _count = AppField(
+    text: '${widget.initialOutline.isEmpty ? 2 : widget.initialOutline.length}',
+    validator: integerRule(1, _maxSessions),
+  );
+  late final List<AppField> _sessions = [
+    for (var i = 0; i < (widget.initialOutline.isEmpty ? 2 : widget.initialOutline.length); i++)
+      AppField(
+        text: i < widget.initialOutline.length ? widget.initialOutline[i] : '',
+        validator: _sessionRule,
+      ),
+  ];
+  late int _visible = _sessions.length;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _count.controller.addListener(_syncSessions);
+  }
+
+  @override
+  void dispose() {
+    _count.controller.removeListener(_syncSessions);
+    _goal.dispose();
+    _count.dispose();
+    for (final field in _sessions) {
+      field.dispose();
+    }
+    super.dispose();
+  }
+
+  void _syncSessions() {
+    final parsed = int.tryParse(_count.text.trim());
+    final next = parsed != null && parsed >= 1 && parsed <= _maxSessions
+        ? parsed
+        : 0;
+    if (next == _visible && _sessions.length >= next) return;
+    setState(() {
+      while (_sessions.length < next) {
+        _sessions.add(AppField(validator: _sessionRule));
+      }
+      _visible = next;
+    });
+  }
+
+  void _submit() {
+    final fields = [_goal, _count, ..._sessions.take(_visible)];
+    if (!validateFields(fields) || _visible == 0) {
+      setState(() => _error = null);
+      return;
+    }
+    final outline = [
+      for (final field in _sessions.take(_visible)) field.text.trim(),
+    ];
+    setState(() => _error = widget.onSubmit(_skill, _goal.text.trim(), outline));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      spacing: 14,
+      children: [
+        ChoiceGroup(
+          label: 'Kỹ năng bạn dạy',
+          options: _planSkills,
+          value: _skill,
+          onChange: (value) => setState(() => _skill = value),
+        ),
+        AppInput(
+          field: _goal,
+          label: 'Mục tiêu kế hoạch',
+          multiline: true,
+        ),
+        AppInput(
+          field: _count,
+          label: 'Số buổi',
+          keyboardType: TextInputType.number,
+        ),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          spacing: 8,
+          children: [
+            Text('Nội dung từng buổi', style: FeatureStyles.strong),
+            const Copy(
+              'Một ô cho mỗi buổi. Mô tả ít nhất 5 ký tự.',
+              muted: true,
+            ),
+            for (var i = 0; i < _visible; i++)
+              AppInput(
+                field: _sessions[i],
+                label: 'Buổi ${i + 1}',
+                placeholder: 'Nội dung buổi ${i + 1}',
+              ),
+          ],
+        ),
+        if (_error != null) FormNotice(tone: NoticeTone.error, message: _error!),
+        AppButton(
+          label: 'Gửi kế hoạch mẫu',
+          variant: ButtonVariant.craft,
+          onPressed: _submit,
+        ),
+      ],
+    );
+  }
+}
+
 class SchedulesScreen extends ConsumerWidget {
   const SchedulesScreen({super.key, required this.id});
 
@@ -588,6 +659,7 @@ class SchedulesScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    if (isLiveId(id)) return LiveSchedulesPage(id: id);
     ref.watch(pathsProvider);
     final notifier = ref.read(pathsProvider.notifier);
     final path = notifier.find(id);
@@ -678,6 +750,7 @@ class ScheduleEditorScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    if (isLiveId(id)) return LiveScheduleEditor(id: id, planId: planId);
     ref.watch(pathsProvider);
     final notifier = ref.read(pathsProvider.notifier);
     final path = notifier.find(id);
@@ -791,6 +864,7 @@ class _HoldScreenState extends ConsumerState<HoldScreen> {
   @override
   Widget build(BuildContext context) {
     final id = widget.id;
+    if (isLiveId(id)) return LiveHoldPage(id: id);
     ref.watch(pathsProvider);
     final notifier = ref.read(pathsProvider.notifier);
     final path = notifier.find(id);
@@ -1076,6 +1150,7 @@ class _TermsEditorScreenState extends ConsumerState<TermsEditorScreen> {
   @override
   Widget build(BuildContext context) {
     final id = widget.id;
+    if (isLiveId(id)) return LiveTermsEditor(id: id);
     ref.watch(pathsProvider);
     final notifier = ref.read(pathsProvider.notifier);
     final path = notifier.find(id);

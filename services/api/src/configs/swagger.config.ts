@@ -8,6 +8,7 @@ export function setupSwagger(app: INestApplication) {
       "Backend API contracts. Business endpoints are added per feature.",
     )
     .setVersion("0.1.0")
+    .addServer("https://skillhub.memora.cam")
     .addBearerAuth()
     .build();
   SwaggerModule.setup(

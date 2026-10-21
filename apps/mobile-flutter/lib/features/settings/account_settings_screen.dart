@@ -219,6 +219,7 @@ class _SignOutAllDialogState extends ConsumerState<_SignOutAllDialog> {
             'Bạn sẽ được đăng xuất trên thiết bị này và các thiết bị khác. '
             'Cần đăng nhập lại để tiếp tục sử dụng SkillHub.',
         confirmLabel: _busy ? 'Đang đăng xuất...' : 'Đăng xuất tất cả',
+        confirmLoading: _busy,
         confirmDisabled: _busy,
         onConfirm: _confirm,
         onClose: () {

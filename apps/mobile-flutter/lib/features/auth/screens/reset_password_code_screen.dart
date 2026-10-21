@@ -122,7 +122,8 @@ class _ResetPasswordCodeScreenState
         AppButton(
           label: isPending('verifyRecovery') ? 'Đang xác minh...' : 'Tiếp tục',
           size: ButtonSize.lg,
-          disabled: busy,
+          loading: isPending('verifyRecovery'),
+          disabled: isPending('forgot'),
           onPressed: () => _submit(draft),
         ),
         CooldownBuilder(
@@ -135,7 +136,8 @@ class _ResetPasswordCodeScreenState
                 ? 'Gửi lại mã sau ${seconds}s'
                 : 'Gửi lại mã',
             variant: ButtonVariant.secondary,
-            disabled: busy || seconds > 0,
+            loading: isPending('forgot'),
+            disabled: isPending('verifyRecovery') || seconds > 0,
             onPressed: () => _resend(draft),
           ),
         ),

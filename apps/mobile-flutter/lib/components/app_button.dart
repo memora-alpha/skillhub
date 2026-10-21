@@ -1,4 +1,4 @@
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 
 import '../core/theme/tokens.dart';
 import 'tappable.dart';
@@ -50,6 +50,7 @@ class AppButton extends StatelessWidget {
     this.variant = ButtonVariant.primary,
     this.size = ButtonSize.md,
     this.disabled = false,
+    this.loading = false,
     this.backgroundColor,
     this.border,
     this.minHeight,
@@ -62,6 +63,7 @@ class AppButton extends StatelessWidget {
   final ButtonVariant variant;
   final ButtonSize size;
   final bool disabled;
+  final bool loading;
   final Color? backgroundColor;
   final BoxBorder? border;
   final double? minHeight;
@@ -76,21 +78,43 @@ class AppButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final content = child != null
-        ? Row(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            spacing: 8,
-            children: [child!],
-          )
+    final text = label == null
+        ? null
         : Text(
             label!,
             textAlign: TextAlign.center,
             style: labelStyle(variant, size),
           );
+    final body = child ?? text!;
+    final content = loading
+        ? Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            spacing: 8,
+            children: [
+              SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: _foregrounds[variant],
+                ),
+              ),
+              body,
+            ],
+          )
+        : child != null
+        ? Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            spacing: 8,
+            children: [body],
+          )
+        : text!;
     return Tappable(
       onTap: onPressed,
-      disabled: disabled,
+      disabled: disabled || loading,
+      disabledOpacity: loading ? 1 : null,
       semanticLabel: semanticLabel ?? label,
       child: Container(
         constraints: BoxConstraints(minHeight: minHeight ?? 0),
@@ -107,6 +131,56 @@ class AppButton extends StatelessWidget {
         ),
         child: content,
       ),
+    );
+  }
+}
+
+/// Runs [onPressed] once and shows a spinner until the future completes.
+class AsyncAppButton extends StatefulWidget {
+  const AsyncAppButton({
+    super.key,
+    required this.label,
+    required this.onPressed,
+    this.busyLabel = 'Đang xử lý...',
+    this.variant = ButtonVariant.primary,
+    this.size = ButtonSize.md,
+    this.disabled = false,
+  });
+
+  final String label;
+  final Future<void> Function() onPressed;
+  final String busyLabel;
+  final ButtonVariant variant;
+  final ButtonSize size;
+  final bool disabled;
+
+  @override
+  State<AsyncAppButton> createState() => _AsyncAppButtonState();
+}
+
+class _AsyncAppButtonState extends State<AsyncAppButton> {
+  var _busy = false;
+
+  Future<void> _tap() async {
+    if (_busy || widget.disabled) return;
+    setState(() => _busy = true);
+    try {
+      await widget.onPressed();
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final busy = _busy;
+    return AppButton(
+      label: busy ? widget.busyLabel : widget.label,
+      loading: busy,
+      disabled: widget.disabled || busy,
+      variant: widget.variant,
+      size: widget.size,
+      onPressed: _tap,
     );
   }
 }

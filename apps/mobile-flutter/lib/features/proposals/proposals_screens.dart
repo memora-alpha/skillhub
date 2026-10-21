@@ -418,6 +418,7 @@ class ProposalDetailScreen extends ConsumerStatefulWidget {
 
 class _ProposalDetailScreenState extends ConsumerState<ProposalDetailScreen> {
   String? _error;
+  var _accepting = false;
 
   @override
   Widget build(BuildContext context) {
@@ -437,16 +438,22 @@ class _ProposalDetailScreenState extends ConsumerState<ProposalDetailScreen> {
         .firstOrNull;
 
     Future<void> accept() async {
-      if (!await ref.read(proposalsProvider.notifier).decide(id, 'ACCEPTED')) {
-        if (!mounted) return;
-        setState(
-          () => _error =
-              'Đề xuất đã thay đổi hoặc yêu cầu đã có kết nối được chấp nhận. Hãy xem lại danh sách.',
-        );
-        return;
+      if (_accepting) return;
+      setState(() => _accepting = true);
+      try {
+        if (!await ref.read(proposalsProvider.notifier).decide(id, 'ACCEPTED')) {
+          if (!mounted) return;
+          setState(
+            () => _error =
+                'Đề xuất đã thay đổi hoặc yêu cầu đã có kết nối được chấp nhận. Hãy xem lại danh sách.',
+          );
+          return;
+        }
+        if (!context.mounted) return;
+        context.push('/chat/$id');
+      } finally {
+        if (mounted) setState(() => _accepting = false);
       }
-      if (!context.mounted) return;
-      context.push('/chat/$id');
     }
 
     return AppScreenLayout(
@@ -522,7 +529,8 @@ class _ProposalDetailScreenState extends ConsumerState<ProposalDetailScreen> {
                       style: _body,
                     ),
                   AppButton(
-                    label: 'Chấp nhận & mở Chat',
+                    label: _accepting ? 'Đang chấp nhận...' : 'Chấp nhận & mở Chat',
+                    loading: _accepting,
                     disabled: otherAccepted,
                     onPressed: accept,
                   ),
@@ -599,6 +607,7 @@ class _SendProposalScreenState extends ConsumerState<SendProposalScreen> {
   final _schedule = AppField(text: 'Tối Thứ 5 và Thứ 7');
   String? _formError;
   bool _sent = false;
+  var _sending = false;
 
   LearningRequest? get _request =>
       (ref.read(learningRequestsProvider).value ?? const <LearningRequest>[])
@@ -641,6 +650,7 @@ class _SendProposalScreenState extends ConsumerState<SendProposalScreen> {
   }
 
   Future<void> _send() async {
+    if (_sending) return;
     final valid = validateFields([_message, _credit, _sessions]);
     final userId = ref.read(accountSessionProvider)?.userId;
     String? formError;
@@ -658,6 +668,8 @@ class _SendProposalScreenState extends ConsumerState<SendProposalScreen> {
     setState(() => _formError = formError);
     if (!valid || formError != null || _targetName == null) return;
     final chosen = skills.firstWhere((skill) => skill.id == _skillId);
+    setState(() => _sending = true);
+    try {
     final error = await ref
         .read(proposalsProvider.notifier)
         .submit(
@@ -682,6 +694,9 @@ class _SendProposalScreenState extends ConsumerState<SendProposalScreen> {
     }
     FocusScope.of(context).unfocus();
     setState(() => _sent = true);
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
   }
 
   @override
@@ -896,7 +911,8 @@ class _SendProposalScreenState extends ConsumerState<SendProposalScreen> {
                           ),
                         ),
                       AppButton(
-                        label: 'Gửi đề xuất',
+                        label: _sending ? 'Đang gửi...' : 'Gửi đề xuất',
+                        loading: _sending,
                         disabled:
                             _skills.isEmpty || duplicate || targetId == userId,
                         onPressed: _send,
@@ -955,6 +971,7 @@ class _EditProposalForm extends ConsumerStatefulWidget {
 }
 
 class _EditProposalFormState extends ConsumerState<_EditProposalForm> {
+  var _saving = false;
   late final _message = AppField(
     text: widget.proposal.message,
     validator: validateProposalMessage,
@@ -988,26 +1005,31 @@ class _EditProposalFormState extends ConsumerState<_EditProposalForm> {
   }
 
   Future<void> _save() async {
-    if (!validateFields(_fields)) return;
-    final saved = await ref
-        .read(proposalsProvider.notifier)
-        .update(
-          widget.proposal.id,
-          message: _message.text,
-          credit: _credit.text,
-          sessions: _sessions.text,
-          schedule: _schedule.text,
+    if (_saving || !validateFields(_fields)) return;
+    setState(() => _saving = true);
+    try {
+      final saved = await ref
+          .read(proposalsProvider.notifier)
+          .update(
+            widget.proposal.id,
+            message: _message.text,
+            credit: _credit.text,
+            sessions: _sessions.text,
+            schedule: _schedule.text,
+          );
+      if (!mounted) return;
+      if (!saved) {
+        setState(
+          () => _error =
+              'Đề xuất đã thay đổi, không còn ở trạng thái chờ phản hồi. Hãy xem lại chi tiết.',
         );
-    if (!mounted) return;
-    if (!saved) {
-      setState(
-        () => _error =
-            'Đề xuất đã thay đổi, không còn ở trạng thái chờ phản hồi. Hãy xem lại chi tiết.',
-      );
-      return;
+        return;
+      }
+      FocusScope.of(context).unfocus();
+      _close(updated: true);
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
-    FocusScope.of(context).unfocus();
-    _close(updated: true);
   }
 
   @override
@@ -1047,7 +1069,8 @@ class _EditProposalFormState extends ConsumerState<_EditProposalForm> {
         ListenableBuilder(
           listenable: Listenable.merge(_fields),
           builder: (context, _) => AppButton(
-            label: 'Lưu thay đổi',
+            label: _saving ? 'Đang lưu...' : 'Lưu thay đổi',
+            loading: _saving,
             disabled: [
               for (final f in _fields) f.text,
             ].indexed.every((e) => e.$2 == _initial[e.$1]),
@@ -1082,6 +1105,7 @@ class CloseProposalScreen extends ConsumerStatefulWidget {
 class _CloseProposalScreenState extends ConsumerState<CloseProposalScreen> {
   final _note = AppField(validator: validateRejectionNote);
   bool _done = false;
+  var _closing = false;
   String? _error;
 
   bool get _rejecting => widget.action == 'reject';
@@ -1115,20 +1139,32 @@ class _CloseProposalScreenState extends ConsumerState<CloseProposalScreen> {
             : widget.action == 'withdraw' && proposal.sent);
 
     Future<void> close([String? note]) async {
-      if (!allowed ||
-          !await ref
-              .read(proposalsProvider.notifier)
-              .decide(id, _rejecting ? 'REJECTED' : 'WITHDRAWN', note)) {
-        if (!mounted) return;
+      if (_closing) return;
+      if (!allowed) {
         setState(
           () => _error =
               'Đề xuất đã thay đổi. Hãy quay lại chi tiết để kiểm tra trạng thái.',
         );
         return;
       }
-      if (!context.mounted) return;
-      FocusScope.of(context).unfocus();
-      setState(() => _done = true);
+      setState(() => _closing = true);
+      try {
+        if (!await ref
+            .read(proposalsProvider.notifier)
+            .decide(id, _rejecting ? 'REJECTED' : 'WITHDRAWN', note)) {
+          if (!mounted) return;
+          setState(
+            () => _error =
+                'Đề xuất đã thay đổi. Hãy quay lại chi tiết để kiểm tra trạng thái.',
+          );
+          return;
+        }
+        if (!context.mounted) return;
+        FocusScope.of(context).unfocus();
+        setState(() => _done = true);
+      } finally {
+        if (mounted) setState(() => _closing = false);
+      }
     }
 
     return AppScreenLayout(
@@ -1193,9 +1229,12 @@ class _CloseProposalScreenState extends ConsumerState<CloseProposalScreen> {
                   if (_error != null)
                     FormNotice(tone: NoticeTone.error, message: _error!),
                   AppButton(
-                    label: _rejecting
+                    label: _closing
+                        ? 'Đang đóng...'
+                        : _rejecting
                         ? 'Xác nhận từ chối'
                         : 'Xác nhận rút đề xuất',
+                    loading: _closing,
                     onPressed: () {
                       if (!_rejecting) {
                         close();

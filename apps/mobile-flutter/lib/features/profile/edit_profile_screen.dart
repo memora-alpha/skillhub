@@ -466,6 +466,7 @@ class _ProfileFormState extends ConsumerState<_ProfileForm> {
                                     ? 'Đang lưu...'
                                     : 'Lưu thay đổi',
                                 size: ButtonSize.lg,
+                                loading: _saving,
                                 disabled: _pending || !changed,
                                 onPressed: _save,
                               ),

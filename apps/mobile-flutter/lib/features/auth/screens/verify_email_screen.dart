@@ -104,7 +104,8 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen>
         AppButton(
           label: isPending('verify') ? 'Đang xác minh...' : 'Xác minh email',
           size: ButtonSize.lg,
-          disabled: busy,
+          loading: isPending('verify'),
+          disabled: isPending('resend'),
           onPressed: _submit,
         ),
         CooldownBuilder(
@@ -118,7 +119,8 @@ class _VerifyEmailScreenState extends ConsumerState<VerifyEmailScreen>
                 ? 'Gửi lại mã sau ${seconds}s'
                 : 'Gửi lại mã',
             variant: ButtonVariant.secondary,
-            disabled: seconds > 0 || busy,
+            loading: isPending('resend'),
+            disabled: seconds > 0 || isPending('verify'),
             onPressed: _resend,
           ),
         ),

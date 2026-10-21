@@ -37,6 +37,7 @@ class InfoModalCard extends StatelessWidget {
     this.confirmLabel = 'Đã hiểu',
     this.onConfirm,
     this.confirmDisabled = false,
+    this.confirmLoading = false,
   });
 
   final String title;
@@ -46,6 +47,7 @@ class InfoModalCard extends StatelessWidget {
   final String confirmLabel;
   final VoidCallback? onConfirm;
   final bool confirmDisabled;
+  final bool confirmLoading;
 
   @override
   Widget build(BuildContext context) {
@@ -112,6 +114,7 @@ class InfoModalCard extends StatelessWidget {
             AppButton(
               label: confirmLabel,
               onPressed: onConfirm ?? onClose,
+              loading: confirmLoading,
               disabled: confirmDisabled,
             ),
           ],

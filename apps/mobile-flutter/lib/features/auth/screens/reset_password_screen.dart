@@ -137,7 +137,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen>
         AppButton(
           label: pending ? 'Đang đặt lại...' : 'Đặt lại mật khẩu',
           size: ButtonSize.lg,
-          disabled: pending,
+          loading: pending,
           onPressed: () => _submit(draft),
         ),
         AuthFooterLink(

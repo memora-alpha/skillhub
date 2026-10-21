@@ -206,8 +206,9 @@ class _AchievementsScreenState extends ConsumerState<AchievementsScreen> {
           accent: true,
           children: [
             Copy(badge.isEmpty ? 'Không hiển thị danh hiệu' : badge),
-            AppButton(
+            AsyncAppButton(
               label: 'Ẩn danh hiệu',
+              busyLabel: 'Đang cập nhật...',
               variant: ButtonVariant.paper,
               onPressed: () async {
                 try {
@@ -232,8 +233,9 @@ class _AchievementsScreenState extends ConsumerState<AchievementsScreen> {
             children: [
               const StatusBadge('Đã mở'),
               Copy(item.description),
-              AppButton(
+              AsyncAppButton(
                 label: 'Chọn danh hiệu này',
+                busyLabel: 'Đang cập nhật...',
                 variant: ButtonVariant.paper,
                 onPressed: () async {
                   try {

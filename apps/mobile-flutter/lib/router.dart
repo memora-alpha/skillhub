@@ -1,4 +1,4 @@
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -50,7 +50,17 @@ bool _requiresAccount(String path) =>
     !path.startsWith('/explore/');
 
 GoRoute _route(String path, Widget Function(GoRouterState state) build) =>
-    GoRoute(path: path, builder: (_, state) => build(state));
+    GoRoute(
+      path: path,
+      pageBuilder: (_, state) {
+        final id = '${state.pageKey.value}|${state.uri}';
+        return MaterialPage<void>(
+          key: ValueKey<String>(id),
+          restorationId: id,
+          child: build(state),
+        );
+      },
+    );
 
 String _p(GoRouterState s, String name) => s.pathParameters[name]!;
 String? _q(GoRouterState s, String name) => s.uri.queryParameters[name];

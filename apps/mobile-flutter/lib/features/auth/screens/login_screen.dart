@@ -131,7 +131,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with AsyncActions {
         AppButton(
           label: pending ? 'Đang đăng nhập...' : 'Đăng nhập',
           size: ButtonSize.lg,
-          disabled: pending,
+          loading: pending,
           onPressed: _submit,
         ),
         if (error is AppError && error.code == 'ACCOUNT_NOT_ACTIVE')

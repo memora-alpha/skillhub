@@ -199,7 +199,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
         AppButton(
           label: pending ? 'Đang gửi...' : 'Tạo tài khoản',
           size: ButtonSize.lg,
-          disabled: pending,
+          loading: pending,
           onPressed: _submit,
         ),
         AuthFooterLink(

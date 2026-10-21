@@ -85,7 +85,8 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen>
                 ? 'Gửi lại mã sau ${seconds}s'
                 : 'Gửi mã xác minh',
             size: ButtonSize.lg,
-            disabled: pending || seconds > 0,
+            loading: pending,
+            disabled: seconds > 0,
             onPressed: _submit,
           ),
         ),
