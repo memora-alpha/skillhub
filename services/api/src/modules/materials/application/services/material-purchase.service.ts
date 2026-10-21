@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  NotFoundException,
 } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import type { Material } from "../../../../generated/prisma/client";
@@ -133,6 +134,86 @@ export class MaterialPurchaseService {
         },
       });
       return { order: orderView(order), replayed: false };
+    });
+  }
+
+  async refund(principal: Principal, orderId: string) {
+    requirePermission(principal, "material:access");
+    return this.transactions.run(async (tx) => {
+      await tx.$queryRaw`SELECT order_id FROM material_orders WHERE order_id = ${orderId}::uuid FOR UPDATE`;
+      const order = await tx.materialOrder.findUnique({
+        where: { id: orderId },
+      });
+      if (!order || order.buyerId !== principal.userId)
+        throw new NotFoundException("MATERIAL_ORDER_NOT_FOUND");
+      if (order.status === "REFUNDED")
+        return { order: orderView(order), replayed: true };
+      if (order.status !== "SUCCESS")
+        throw new ConflictException("MATERIAL_ORDER_NOT_REFUNDABLE");
+      const [clock] = await tx.$queryRaw<
+        { now: Date }[]
+      >`SELECT CURRENT_TIMESTAMP AS now`;
+      if (
+        !clock?.now ||
+        clock.now.getTime() > order.createdAt.getTime() + 24 * 60 * 60 * 1_000
+      )
+        throw new ConflictException("MATERIAL_REFUND_WINDOW_CLOSED");
+      if (order.consumedAt)
+        throw new ConflictException("MATERIAL_ALREADY_CONSUMED");
+      const entitlement = await tx.materialEntitlement.findUnique({
+        where: { sourceOrderId: order.id },
+      });
+      if (entitlement?.status !== "ACTIVE")
+        throw new ConflictException("MATERIAL_ENTITLEMENT_NOT_ACTIVE");
+      const { operationId } = await this.credit.refundMaterial(tx, {
+        orderId: order.id,
+        buyerId: order.buyerId,
+        sellerId: order.sellerId,
+        gross: order.grossCredit,
+        net: order.sellerNetCredit,
+      });
+      const refunded = await tx.materialOrder.update({
+        where: { id: order.id },
+        data: { status: "REFUNDED" },
+      });
+      await tx.materialEntitlement.update({
+        where: { id: entitlement.id },
+        data: {
+          status: "REVOKED",
+          revokedAt: clock.now,
+          revokedReason: "PURCHASE_REFUNDED",
+        },
+      });
+      await this.audit.append(tx, {
+        actor: {
+          kind: "HUMAN",
+          userId: principal.userId,
+          roles: roleCodes(principal),
+        },
+        action: "MATERIAL_REFUND",
+        target: { type: "MATERIAL_ORDER", id: order.id },
+        after: { grossCredit: order.grossCredit.toString(), operationId },
+        reason:
+          "Material purchase refunded within the unconsumed refund window",
+        context: auditContext(),
+      });
+      await tx.outboxEvent.create({
+        data: {
+          aggregateType: "MATERIAL_ORDER",
+          aggregateId: order.id,
+          version: 2,
+          type: "material.refunded",
+          payload: {
+            orderId: order.id,
+            materialId: order.materialId,
+            buyerId: order.buyerId,
+            sellerId: order.sellerId,
+          },
+          dedupeKey: `material-refunded:${order.id}`,
+          correlationId: randomUUID(),
+        },
+      });
+      return { order: orderView(refunded), replayed: false };
     });
   }
 

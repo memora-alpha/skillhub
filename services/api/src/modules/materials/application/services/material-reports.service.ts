@@ -14,7 +14,7 @@ const ACTIVE_CASE = ["OPEN", "UNDER_REVIEW", "NEED_MORE_INFO"] as const;
 /**
  * SRS 18.41: MATERIAL reports need no learningPathId/sessionId. Staff resolve them in the
  * existing /reports/staff queue, which reads the database, so no outbox event is written;
- * relatedOrderId is the refund hook for when OP-14 lands.
+ * relatedOrderId links an order report to the Admin dispute and Credit workflow.
  */
 @Injectable()
 export class MaterialReportsService {

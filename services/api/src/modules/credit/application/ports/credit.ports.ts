@@ -37,6 +37,7 @@ export abstract class CreditAdjustmentPort {
       operationId: string;
       referenceType: "REPORT_CASE";
       referenceId: string;
+      sourceReferenceId: string;
       actorId: string;
       reason: string;
       idempotencyKey: string;

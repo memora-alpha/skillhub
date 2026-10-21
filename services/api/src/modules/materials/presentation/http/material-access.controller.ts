@@ -63,6 +63,18 @@ export class MaterialAccessController {
     return success(result.order, "Material purchased.");
   }
 
+  @Post("me/material-orders/:orderId/refund")
+  @Header("Cache-Control", "no-store")
+  async refund(
+    @CurrentIdentity() actor: Principal,
+    @Param("orderId", ParseUUIDPipe) orderId: string,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const result = await this.purchases.refund(actor, orderId);
+    response.status(result.replayed ? 200 : 201);
+    return success(result.order, "Material purchase refunded.");
+  }
+
   @Post("materials/:materialId/reports")
   async report(
     @CurrentIdentity() actor: Principal,

@@ -86,6 +86,146 @@ async function refreshPathConfirmation(
   await tx.learningPath.update({ where: { id: pathId }, data: { status } });
 }
 
+async function copyPlanSchedules(
+  tx: TransactionContext,
+  input: {
+    pathId: string;
+    pathVersion: number;
+    planId: string;
+    fromPlanVersion: number;
+    toPlanVersion: number;
+    totalSessions: number;
+    actorId: string;
+  },
+): Promise<void> {
+  const schedules = await tx.scheduleVersion.findMany({
+    where: {
+      pathId: input.pathId,
+      pathVersion: input.pathVersion,
+      scheduleItemScheduleVersionRecords: {
+        some: {
+          planId: input.planId,
+          planVersion: input.fromPlanVersion,
+        },
+      },
+    },
+    include: {
+      proposalRecord: true,
+      scheduleItemScheduleVersionRecords: true,
+    },
+  });
+  for (const schedule of schedules) {
+    const proposal = schedule.proposalRecord;
+    if (
+      proposal.currentVersion !== schedule.versionNo ||
+      ["LOCKED", "CANCELLED", "EXPIRED"].includes(proposal.status)
+    ) {
+      continue;
+    }
+    const sameSessionCount =
+      schedule.scheduleItemScheduleVersionRecords.length ===
+      input.totalSessions;
+    const versionNo = proposal.currentVersion + 1;
+    await tx.scheduleVersion.create({
+      data: {
+        scheduleProposalId: proposal.id,
+        versionNo,
+        pathId: input.pathId,
+        pathVersion: input.pathVersion,
+        createdByUserId: input.actorId,
+        participantAConfirmedAt: sameSessionCount
+          ? schedule.participantAConfirmedAt
+          : null,
+        participantBConfirmedAt: sameSessionCount
+          ? schedule.participantBConfirmedAt
+          : null,
+        scheduleItemScheduleVersionRecords: {
+          create: schedule.scheduleItemScheduleVersionRecords
+            .filter((item) => item.sessionNo <= input.totalSessions)
+            .map((item) => ({
+              id: randomUUID(),
+              planId: input.planId,
+              planVersion: input.toPlanVersion,
+              sessionNo: item.sessionNo,
+              startAt: item.startAt,
+              endAt: item.endAt,
+            })),
+        },
+      },
+    });
+    await tx.scheduleProposal.update({
+      where: { id: proposal.id },
+      data: {
+        currentVersion: versionNo,
+        status: sameSessionCount ? proposal.status : "NEEDS_REVISION",
+      },
+    });
+  }
+}
+
+async function copyAgreementSchedules(
+  tx: TransactionContext,
+  input: {
+    pathId: string;
+    fromPathVersion: number;
+    toPathVersion: number;
+    planVersions: Map<string, number>;
+    actorId: string;
+  },
+): Promise<void> {
+  const schedules = await tx.scheduleVersion.findMany({
+    where: { pathId: input.pathId, pathVersion: input.fromPathVersion },
+    include: {
+      proposalRecord: true,
+      scheduleItemScheduleVersionRecords: true,
+    },
+  });
+  for (const schedule of schedules) {
+    const proposal = schedule.proposalRecord;
+    if (
+      proposal.currentVersion !== schedule.versionNo ||
+      ["LOCKED", "CANCELLED", "EXPIRED"].includes(proposal.status)
+    ) {
+      continue;
+    }
+    const planVersion = input.planVersions.get(
+      schedule.scheduleItemScheduleVersionRecords[0]?.planId ?? "",
+    );
+    if (planVersion === undefined) continue;
+    const items = schedule.scheduleItemScheduleVersionRecords.filter(
+      (item) => input.planVersions.get(item.planId) === item.planVersion,
+    );
+    if (items.length !== schedule.scheduleItemScheduleVersionRecords.length)
+      continue;
+    const versionNo = proposal.currentVersion + 1;
+    await tx.scheduleVersion.create({
+      data: {
+        scheduleProposalId: proposal.id,
+        versionNo,
+        pathId: input.pathId,
+        pathVersion: input.toPathVersion,
+        createdByUserId: input.actorId,
+        participantAConfirmedAt: schedule.participantAConfirmedAt,
+        participantBConfirmedAt: schedule.participantBConfirmedAt,
+        scheduleItemScheduleVersionRecords: {
+          create: items.map((item) => ({
+            id: randomUUID(),
+            planId: item.planId,
+            planVersion: item.planVersion,
+            sessionNo: item.sessionNo,
+            startAt: item.startAt,
+            endAt: item.endAt,
+          })),
+        },
+      },
+    });
+    await tx.scheduleProposal.update({
+      where: { id: proposal.id },
+      data: { currentVersion: versionNo },
+    });
+  }
+}
+
 @Injectable()
 export class LearningPathsService {
   constructor(
@@ -386,6 +526,26 @@ export class LearningPathsService {
           pathId_versionNo: { pathId, versionNo: path.currentVersion },
         },
       });
+      const sameAgreement =
+        previous.exchangeType === input.exchangeType &&
+        previous.totalCreditPerUser ===
+          (input.exchangeType === "TWO_WAY" ? amount : null) &&
+        previous.negotiatedCredit ===
+          (input.exchangeType === "ONE_WAY" ? amount : null) &&
+        previous.teacherId ===
+          (input.exchangeType === "ONE_WAY" ? input.teacherId : null) &&
+        previous.learnerId ===
+          (input.exchangeType === "ONE_WAY" ? input.learnerId : null);
+      if (sameAgreement) {
+        return {
+          id: pathId,
+          version: path.currentVersion,
+          previousExchangeType: previous.exchangeType,
+          exchangeType: previous.exchangeType,
+          status: path.status,
+          unchanged: true,
+        };
+      }
       const nextVersion = path.currentVersion + 1;
       await tx.learningPathVersion.create({
         data: {
@@ -423,6 +583,15 @@ export class LearningPathsService {
           })),
         });
       }
+      await copyAgreementSchedules(tx, {
+        pathId,
+        fromPathVersion: path.currentVersion,
+        toPathVersion: nextVersion,
+        planVersions: new Map(
+          matchingPlans.map((plan) => [plan.id, plan.currentVersion]),
+        ),
+        actorId: actor.userId,
+      });
       await refreshPathConfirmation(tx, pathId);
       return {
         id: pathId,
@@ -1049,7 +1218,7 @@ export class LearningPathsService {
       const path = await tx.learningPath.findUniqueOrThrow({
         where: { id: row.pathId },
       });
-      if (path.status !== "PROPOSED" && path.status !== "PARTIALLY_CONFIRMED") {
+      if (!editableBeforeLock.has(path.status)) {
         throw new ConflictException("LEARNING_PATH_NOT_EDITABLE");
       }
       if (expectedVersion !== row.currentVersion) {
@@ -1123,16 +1292,46 @@ export class LearningPathsService {
       if (!editableBeforeLock.has(path.status)) {
         throw new ConflictException("LEARNING_PATH_NOT_EDITABLE");
       }
-      const currentPathVersion = await tx.learningPathVersion.findUniqueOrThrow(
+      const currentPlanVersion = await tx.learningPlanVersion.findUniqueOrThrow(
         {
           where: {
-            pathId_versionNo: {
-              pathId: locked.pathId,
-              versionNo: path.currentVersion,
-            },
+            planId_versionNo: { planId, versionNo: expectedVersion },
           },
+          include: { planSessionOutlinePlanVersionRecords: true },
         },
       );
+      const agreementPlan = await tx.pathVersionPlan.findUnique({
+        where: {
+          pathId_pathVersion_planId: {
+            pathId: locked.pathId,
+            pathVersion: path.currentVersion,
+            planId,
+          },
+        },
+      });
+      if (agreementPlan?.planVersion !== expectedVersion) {
+        throw new ConflictException("PLAN_NOT_IN_CURRENT_AGREEMENT");
+      }
+      const samePlan =
+        currentPlanVersion.skillId === input.skillId &&
+        currentPlanVersion.learningGoal === input.learningGoal &&
+        currentPlanVersion.totalSessions === input.totalSessions &&
+        currentPlanVersion.planSessionOutlinePlanVersionRecords.length ===
+          input.sessionOutline.length &&
+        currentPlanVersion.planSessionOutlinePlanVersionRecords.every(
+          (outline, index) =>
+            outline.sessionNo === index + 1 &&
+            outline.content === input.sessionOutline[index]?.content,
+        );
+      if (samePlan) {
+        return {
+          id: planId,
+          version: expectedVersion,
+          agreementVersion: path.currentVersion,
+          status: locked.status,
+          unchanged: true,
+        };
+      }
       await tx.learningPlan.update({
         where: { id: planId },
         data: { currentVersion: nextVersion, status: "PROPOSED" },
@@ -1152,55 +1351,30 @@ export class LearningPathsService {
           },
         },
       });
-      const nextPathVersion = path.currentVersion + 1;
-      await tx.learningPathVersion.create({
-        data: {
-          pathId: locked.pathId,
-          versionNo: nextPathVersion,
-          exchangeType: currentPathVersion.exchangeType,
-          totalCreditPerUser: currentPathVersion.totalCreditPerUser,
-          negotiatedCredit: currentPathVersion.negotiatedCredit,
-          teacherId: currentPathVersion.teacherId,
-          learnerId: currentPathVersion.learnerId,
-          feePolicyId: currentPathVersion.feePolicyId,
-          feeRateSnapshot: currentPathVersion.feeRateSnapshot,
-          feeAmountSnapshot: currentPathVersion.feeAmountSnapshot,
-          roundingSnapshot: currentPathVersion.roundingSnapshot ?? undefined,
-          createdByUserId: actor.userId,
-        },
-      });
-      await tx.learningPath.update({
-        where: { id: locked.pathId },
-        data: { currentVersion: nextPathVersion, status: "PROPOSED" },
-      });
-      const plans = await tx.learningPlan.findMany({
-        where: { pathId: locked.pathId },
-      });
-      const matchingPlans = plans.filter((otherPlan) =>
-        currentPathVersion.exchangeType === "ONE_WAY"
-          ? otherPlan.teacherId === currentPathVersion.teacherId &&
-            otherPlan.learnerId === currentPathVersion.learnerId
-          : (otherPlan.teacherId === path.participantAId &&
-              otherPlan.learnerId === path.participantBId) ||
-            (otherPlan.teacherId === path.participantBId &&
-              otherPlan.learnerId === path.participantAId),
-      );
-      if (matchingPlans.length !== 0) {
-        await tx.pathVersionPlan.createMany({
-          data: matchingPlans.map((otherPlan) => ({
+      await tx.pathVersionPlan.update({
+        where: {
+          pathId_pathVersion_planId: {
             pathId: locked.pathId,
-            pathVersion: nextPathVersion,
-            planId: otherPlan.id,
-            planVersion:
-              otherPlan.id === planId ? nextVersion : otherPlan.currentVersion,
-          })),
-        });
-      }
+            pathVersion: path.currentVersion,
+            planId,
+          },
+        },
+        data: { planVersion: nextVersion },
+      });
+      await copyPlanSchedules(tx, {
+        pathId: locked.pathId,
+        pathVersion: path.currentVersion,
+        planId,
+        fromPlanVersion: expectedVersion,
+        toPlanVersion: nextVersion,
+        totalSessions: input.totalSessions,
+        actorId: actor.userId,
+      });
       await refreshPathConfirmation(tx, plan.pathId);
       return {
         id: planId,
         version: nextVersion,
-        agreementVersion: nextPathVersion,
+        agreementVersion: path.currentVersion,
         status: "PROPOSED" as const,
       };
     });

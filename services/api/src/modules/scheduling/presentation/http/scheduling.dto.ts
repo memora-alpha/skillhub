@@ -39,6 +39,20 @@ export class CreateScheduleProposalDto {
   items!: ScheduleItemDto[];
 }
 
+export class ReviseScheduleProposalDto {
+  @IsInt()
+  @Min(1)
+  @Max(Number.MAX_SAFE_INTEGER)
+  expectedVersion!: number;
+
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(100)
+  @ValidateNested({ each: true })
+  @Type(() => ScheduleItemDto)
+  items!: ScheduleItemDto[];
+}
+
 export class ConfirmScheduleDto {
   @IsInt()
   @Min(1)

@@ -47,6 +47,7 @@ export const AUDIT_ACTIONS = [
   "SYSTEM_CONFIGURATION_UPDATE",
   "MATERIAL_MODERATE",
   "MATERIAL_PURCHASE",
+  "MATERIAL_REFUND",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
@@ -212,6 +213,10 @@ const materialOrder = z.strictObject({
   feeAmount: z.string().regex(/^(0|[1-9]\d*)$/),
   operationId: uuid,
 });
+const materialRefund = z.strictObject({
+  grossCredit: z.string().regex(/^[1-9]\d*$/),
+  operationId: uuid,
+});
 
 const projectionByAction: Record<
   Exclude<AuditAction, "SYSTEM_CONFIGURATION_UPDATE">,
@@ -273,6 +278,7 @@ const projectionByAction: Record<
   CREDIT_REVERSE: credit,
   MATERIAL_MODERATE: material,
   MATERIAL_PURCHASE: materialOrder,
+  MATERIAL_REFUND: materialRefund,
 };
 
 function validateProjection(

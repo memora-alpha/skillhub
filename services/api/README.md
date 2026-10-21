@@ -39,9 +39,16 @@ và bằng chứng PostgreSQL ở [UTC validation](specs/006-system-configuratio
 Learning Materials (spec011, SH-115..119): owner upload/draft/submit, Staff review/hide,
 public search/preview, authorized short-lived download and atomic PAID purchase with a 5%
 MATERIAL_PAID fee. Rollout: migrations `20261021000000_material_constraints` then
-`20261021010000_stored_file_material_purpose` → `pnpm db:seed-configuration` →
-`pnpm identity:seed`. Refund/dispute window for material orders is still open (OP-14).
+`20261021010000_stored_file_material_purpose` then
+`20261021020000_material_refund_consumption` → `pnpm db:seed-configuration` →
+`pnpm identity:seed`. PAID orders support a gross refund within 24 hours if no signed download URL has been issued and the seller still has the full net in Available; insufficient seller balance requires Admin handling through the dispute/Credit workflow.
 See [spec](specs/011-learning-materials/spec.md).
+
+Pre-finalize LearningPath edits are scoped by component: unchanged saves do not
+create versions, plan edits retain the agreement and unchanged schedule
+confirmations, and schedule edits require bilateral confirmation. After finalize,
+use reschedule/cancellation flows. See
+[agreement amendments](specs/008-connections/agreement-amendments.md).
 
 Technical payment recovery 2026-10-19: đơn payOS đang chờ nhưng mất QR được tra
 cứu và hủy bằng signed evidence trước khi mở tạo mới. Timeout tiếp tục retry,

@@ -82,10 +82,14 @@ export class MaterialCatalogService {
 
   /** FR-MAT-04: authorize every download, then sign a short-lived URL. */
   async download(principal: Principal, id: string) {
-    const fileId = await this.transactions.run(async (tx) => {
+    const access = await this.transactions.run(async (tx) => {
       const material = await tx.material.findUnique({ where: { id } });
       if (!material) throw new NotFoundException("MATERIAL_NOT_FOUND");
-      const objectKey = await this.downloadKey(tx, principal, material);
+      const { objectKey, orderId } = await this.downloadKey(
+        tx,
+        principal,
+        material,
+      );
       const stored = await tx.storedFile.findFirst({
         where: {
           objectKey,
@@ -100,17 +104,57 @@ export class MaterialCatalogService {
         type: "MATERIAL",
         id,
       });
-      return stored.id;
+      if (orderId) {
+        const [clock] = await tx.$queryRaw<
+          { now: Date }[]
+        >`SELECT CURRENT_TIMESTAMP AS now`;
+        if (!(clock?.now instanceof Date))
+          throw new ConflictException("DATABASE_TIME_UNAVAILABLE");
+        const marked = await tx.materialOrder.updateMany({
+          where: { id: orderId, status: "SUCCESS", consumedAt: null },
+          data: { consumedAt: clock.now },
+        });
+        if (marked.count === 0) {
+          const order = await tx.materialOrder.findUnique({
+            where: { id: orderId },
+            select: { status: true, consumedAt: true },
+          });
+          if (order?.status !== "SUCCESS" || !order.consumedAt)
+            throw new ConflictException("MATERIAL_ACCESS_CHANGED");
+        }
+        const current = await tx.materialOrder.findUniqueOrThrow({
+          where: { id: orderId },
+          select: { consumedAt: true },
+        });
+        return {
+          fileId: stored.id,
+          orderId,
+          markAt: marked.count ? current.consumedAt : null,
+        };
+      }
+      return { fileId: stored.id, orderId: null, markAt: null };
     });
-    return this.storage.issueDownload(
-      {
-        actor: storageActor(principal),
-        fileId,
-        resource: { type: "MATERIAL", id },
-      },
-      // Authorization already ran inside the transaction above.
-      { assertRead: () => Promise.resolve() },
-    );
+    try {
+      return await this.storage.issueDownload(
+        {
+          actor: storageActor(principal),
+          fileId: access.fileId,
+          resource: { type: "MATERIAL", id },
+        },
+        // Authorization already ran inside the transaction above.
+        { assertRead: () => Promise.resolve() },
+      );
+    } catch (error) {
+      if (access.orderId && access.markAt) {
+        await this.transactions.run((tx) =>
+          tx.materialOrder.updateMany({
+            where: { id: access.orderId!, consumedAt: access.markAt },
+            data: { consumedAt: null },
+          }),
+        );
+      }
+      throw error;
+    }
   }
 
   /**
@@ -122,11 +166,11 @@ export class MaterialCatalogService {
     tx: TransactionContext,
     principal: Principal,
     material: Material,
-  ): Promise<string> {
+  ): Promise<{ objectKey: string; orderId: string | null }> {
     if (material.ownerId === principal.userId || isModerator(principal)) {
       if (!material.storageKey)
         throw new ConflictException("MATERIAL_FILE_REQUIRED");
-      return material.storageKey;
+      return { objectKey: material.storageKey, orderId: null };
     }
     requirePermission(principal, "material:access");
     const entitlement = await tx.materialEntitlement.findUnique({
@@ -143,12 +187,15 @@ export class MaterialCatalogService {
     if (order) {
       if (material.status === "HIDDEN")
         throw new ConflictException("MATERIAL_NOT_PUBLISHED");
-      return snapshotStorageKey(order.purchasedFileSnapshot);
+      return {
+        objectKey: snapshotStorageKey(order.purchasedFileSnapshot),
+        orderId: order.id,
+      };
     }
     if (material.accessType === "PAID")
       throw new ForbiddenException("MATERIAL_ACCESS_DENIED");
     if (material.status !== "PUBLISHED" || !material.storageKey)
       throw new ConflictException("MATERIAL_NOT_PUBLISHED");
-    return material.storageKey;
+    return { objectKey: material.storageKey, orderId: null };
   }
 }

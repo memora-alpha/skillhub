@@ -10,6 +10,7 @@ import {
   finalizedOneWay,
   pathRow,
   pathStatus,
+  plan,
   rejectsWith,
   scheduledOneWay,
   scheduledTwoWay,
@@ -18,6 +19,137 @@ import {
   user,
   wallet,
 } from "./fixtures.mjs";
+
+test("pre-lock schedule edits create a separately confirmed schedule version", async () => {
+  const ctx = setup();
+  const { scheduleId } = await scheduledOneWay(ctx);
+  const original = ctx.db
+    .rows("scheduleItem")
+    .find((item) => item.scheduleProposalId === scheduleId);
+  const same = await ctx.schedules.reviseProposal(user(A), scheduleId, {
+    expectedVersion: 1,
+    items: [
+      {
+        sessionNo: 1,
+        startAt: original.startAt.toISOString(),
+        endAt: original.endAt.toISOString(),
+      },
+    ],
+  });
+  assert.equal(same.unchanged, true);
+  assert.equal(ctx.db.rows("scheduleVersion").length, 1);
+
+  const changed = await ctx.schedules.reviseProposal(user(A), scheduleId, {
+    expectedVersion: 1,
+    items: slots(["2026-11-04T10:00:00Z", "2026-11-04T11:00:00Z"]),
+  });
+  assert.deepEqual([changed.version, changed.status], [2, "NEEDS_REVISION"]);
+  await ctx.schedules.confirmProposal(user(B), scheduleId, 2);
+  await ctx.schedules.confirmProposal(user(A), scheduleId, 2);
+
+  assert.equal(
+    ctx.db
+      .rows("scheduleItem")
+      .find(
+        (item) =>
+          item.scheduleProposalId === scheduleId && item.scheduleVersion === 1,
+      )
+      .startAt.toISOString(),
+    "2026-11-02T10:00:00.000Z",
+  );
+  assert.equal(
+    ctx.db
+      .rows("scheduleItem")
+      .find(
+        (item) =>
+          item.scheduleProposalId === scheduleId && item.scheduleVersion === 2,
+      )
+      .startAt.toISOString(),
+    "2026-11-04T10:00:00.000Z",
+  );
+  const current = ctx.db
+    .rows("scheduleVersion")
+    .find(
+      (row) => row.scheduleProposalId === scheduleId && row.versionNo === 2,
+    );
+  assert.ok(current.participantAConfirmedAt);
+  assert.ok(current.participantBConfirmedAt);
+});
+
+test("session-count amendment keeps existing times and requires a complete re-confirmed schedule", async () => {
+  const ctx = setup();
+  const { pathId, planId, scheduleId } = await scheduledOneWay(ctx);
+  await ctx.paths.revisePlan(user(A), planId, 1, plan(2));
+
+  const carried = ctx.db
+    .rows("scheduleItem")
+    .find(
+      (item) =>
+        item.scheduleProposalId === scheduleId && item.scheduleVersion === 2,
+    );
+  assert.equal(carried.planVersion, 2);
+  assert.equal(carried.startAt.toISOString(), "2026-11-02T10:00:00.000Z");
+  assert.equal(
+    ctx.db.rows("scheduleProposal").find((row) => row.id === scheduleId).status,
+    "NEEDS_REVISION",
+  );
+
+  await ctx.paths.confirmPlan(user(B), planId, 2);
+  const revised = await ctx.schedules.reviseProposal(user(A), scheduleId, {
+    expectedVersion: 2,
+    items: slots(
+      ["2026-11-02T10:00:00Z", "2026-11-02T11:00:00Z"],
+      ["2026-11-05T10:00:00Z", "2026-11-05T11:00:00Z"],
+    ),
+  });
+  assert.equal(revised.version, 3);
+  await ctx.schedules.confirmProposal(user(A), scheduleId, 3);
+  await ctx.schedules.confirmProposal(user(B), scheduleId, 3);
+
+  const currentItems = ctx.db
+    .rows("scheduleItem")
+    .filter(
+      (item) =>
+        item.scheduleProposalId === scheduleId && item.scheduleVersion === 3,
+    )
+    .sort((left, right) => left.sessionNo - right.sessionNo);
+  assert.deepEqual(
+    currentItems.map(({ sessionNo, planVersion, startAt }) => [
+      sessionNo,
+      planVersion,
+      startAt.toISOString(),
+    ]),
+    [
+      [1, 2, "2026-11-02T10:00:00.000Z"],
+      [2, 2, "2026-11-05T10:00:00.000Z"],
+    ],
+  );
+  assert.equal(pathStatus(ctx.db, pathId), "CONFIRMED");
+});
+
+test("Credit-only agreement amendment preserves confirmed plans and schedules", async () => {
+  const ctx = setup();
+  const { pathId } = await scheduledTwoWay(ctx);
+  const schedulesBefore = ctx.db
+    .rows("scheduleVersion")
+    .filter((row) => row.pathId === pathId && row.pathVersion === 1);
+
+  const revised = await ctx.paths.reviseAgreement(user(A), pathId, {
+    expectedVersion: 1,
+    exchangeType: "TWO_WAY",
+    totalCreditPerUser: "30.00",
+  });
+  assert.equal(revised.version, 2);
+  const schedulesAfter = ctx.db
+    .rows("scheduleVersion")
+    .filter((row) => row.pathId === pathId && row.pathVersion === 2);
+  assert.equal(schedulesAfter.length, schedulesBefore.length);
+  assert.ok(schedulesAfter.every((row) => row.participantAConfirmedAt));
+  assert.ok(schedulesAfter.every((row) => row.participantBConfirmedAt));
+  await ctx.paths.confirmAgreement(user(A), pathId, 2);
+  await ctx.paths.confirmAgreement(user(B), pathId, 2);
+  assert.equal(pathStatus(ctx.db, pathId), "CONFIRMED");
+});
 
 function assertNothingLocked(db, pathId) {
   assert.equal(pathStatus(db, pathId), "CONFIRMED");
@@ -356,9 +488,9 @@ test("SH-059: settlement never runs early or while a dispute blocks it", async (
   }
 });
 
-test("SH-057: terms stay editable after CONFIRMED until lock; old schedules stop counting", async () => {
+test("SH-057: Credit amendments preserve schedules and terms stay editable until lock", async () => {
   const ctx = setup({ wallets: { [A]: 5000n, [B]: 5000n } });
-  const { pathId, planAB } = await scheduledTwoWay(ctx);
+  const { pathId } = await scheduledTwoWay(ctx);
   assert.equal(pathStatus(ctx.db, pathId), "CONFIRMED");
 
   const revised = await ctx.paths.reviseAgreement(user(A), pathId, {
@@ -372,17 +504,22 @@ test("SH-057: terms stay editable after CONFIRMED until lock; old schedules stop
   await ctx.paths.confirmAgreement(user(A), pathId, 2);
   await ctx.paths.confirmAgreement(user(B), pathId, 2);
   assert.equal(pathStatus(ctx.db, pathId), "CONFIRMED");
-  await rejectsWith(
-    finalizeAs(ctx, A, pathId),
-    409,
-    "REQUIRED_SCHEDULE_PROPOSAL_MISSING",
+  const carriedSchedules = ctx.db
+    .rows("scheduleVersion")
+    .filter((row) => row.pathId === pathId && row.pathVersion === 2);
+  assert.equal(carriedSchedules.length, 2);
+  assert.ok(carriedSchedules.every((row) => row.participantAConfirmedAt));
+  assert.ok(carriedSchedules.every((row) => row.participantBConfirmedAt));
+  const finalized = await ctx.paths.finalize(
+    { principal: user(A), key: "finalize-v2" },
+    pathId,
+    2,
   );
-  const rescheduled = await ctx.schedules.createProposal(user(A), planAB.id, {
-    expectedPlanVersion: 1,
-    items: slots(["2026-11-06T10:00:00Z", "2026-11-06T11:00:00Z"]),
-  });
-  assert.equal(rescheduled.version, 1);
-  assertNothingLocked(ctx.db, pathId);
+  assert.equal(finalized.status, "SCHEDULED");
+  assert.equal(
+    ctx.db.rows("session").filter((row) => row.pathId === pathId).length,
+    2,
+  );
 
   const locked = setup({ wallets: { [A]: 5000n, [B]: 5000n } });
   const done = await scheduledTwoWay(locked);

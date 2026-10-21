@@ -1438,6 +1438,7 @@ model MaterialOrder {
   operationId           String   @unique @map("operation_id") @db.Uuid
   // Open vocabulary; owning feature must validate it before release.
   status                String   @map("status") @db.Text
+  consumedAt            DateTime? @map("consumed_at") @db.Timestamptz(3)
   idempotencyKey        String   @unique @map("idempotency_key") @db.VarChar(255)
   createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
 

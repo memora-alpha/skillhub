@@ -3,6 +3,7 @@ import {
   Controller,
   HttpCode,
   Param,
+  Patch,
   ParseUUIDPipe,
   Post,
   UseGuards,
@@ -17,6 +18,7 @@ import { success } from "../../../../shared/http/response";
 import {
   ConfirmScheduleDto,
   CreateScheduleProposalDto,
+  ReviseScheduleProposalDto,
   RescheduleSessionDto,
 } from "./scheduling.dto";
 import { SchedulingService } from "../../application/services/scheduling.service";
@@ -40,6 +42,21 @@ export class SchedulingController {
     return success(
       await this.scheduling.createProposal(actor, planId, body),
       "Schedule proposal created.",
+    );
+  }
+
+  @Patch("schedule-proposals/:scheduleId")
+  @ApiOperation({
+    summary: "Revise a schedule before the LearningPath is locked",
+  })
+  async revise(
+    @CurrentIdentity() actor: Principal,
+    @Param("scheduleId", ParseUUIDPipe) scheduleId: string,
+    @Body() body: ReviseScheduleProposalDto,
+  ) {
+    return success(
+      await this.scheduling.reviseProposal(actor, scheduleId, body),
+      "Schedule proposal revised.",
     );
   }
 

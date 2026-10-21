@@ -5,7 +5,6 @@ import { plainToInstance } from "class-transformer";
 import { validate } from "class-validator";
 import { AuditWriter } from "../../dist/modules/audit/application/services/audit-writer.js";
 import { AuditRepository } from "../../dist/modules/audit/infrastructure/persistence/audit.repository.js";
-import { UnavailableCreditAdjustmentAdapter } from "../../dist/modules/credit/infrastructure/adapters/unavailable-credit-adjustment.adapter.js";
 import { LearningPathNotificationHandler } from "../../dist/modules/notifications/infrastructure/events/learning-path-notification.handler.js";
 import { NotificationDispatcher } from "../../dist/modules/notifications/application/services/notification-dispatcher.js";
 import { PrismaInAppNotificationAdapter } from "../../dist/modules/notifications/infrastructure/channels/prisma-in-app-notification.adapter.js";
@@ -28,7 +27,6 @@ import {
   fakeOutboxConsumer,
   pathRow,
   pathStatus,
-  httpError,
   rejectsWith,
   settledOneWay,
   setup,
@@ -500,8 +498,17 @@ test("SH-082/093: an admin resolution adjusts credit, confirms a violation and l
   assert.equal(pathRow(ctx.db, pathId).status, "ACTIVE");
 });
 
-test("SH-093: until SH-068 ships, a credit outcome fails instead of being skipped", async () => {
-  const ctx = phase3({ adjustments: new UnavailableCreditAdjustmentAdapter() });
+test("SH-093: a failed Credit instruction prevents resolution from returning success", async () => {
+  const ctx = phase3({
+    adjustments: {
+      adjust: async () => {
+        throw new Error("CREDIT_WRITE_FAILED");
+      },
+      reverse: async () => {
+        throw new Error("CREDIT_WRITE_FAILED");
+      },
+    },
+  });
   const { caseId } = await openReport(ctx);
   await ctx.reports.updateCase(admin, caseId, "claim");
   await assert.rejects(
@@ -509,7 +516,7 @@ test("SH-093: until SH-068 ships, a credit outcome fails instead of being skippe
       note: "Refund the learner.",
       creditAdjustments: [{ userId: B, amount: "5.00" }],
     }),
-    httpError(503, "CREDIT_ADJUSTMENT_UNAVAILABLE"),
+    /CREDIT_WRITE_FAILED/,
   );
 });
 

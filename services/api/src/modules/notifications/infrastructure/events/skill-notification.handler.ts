@@ -1,17 +1,17 @@
 import { Injectable, OnModuleInit } from "@nestjs/common";
-import { OutboxConsumer } from "../../../../infrastructure/events/outbox-consumer";
 import {
   OutboxPublisherRegistry,
   type OutboxMessage,
   type OutboxPublisher,
 } from "../../../../infrastructure/events/outbox.types";
 import { VerificationsService } from "../../../verifications/application/services/verifications.service";
+import { NotificationDispatcher } from "../../application/services/notification-dispatcher";
 @Injectable()
 export class SkillNotificationHandler implements OnModuleInit, OutboxPublisher {
   constructor(
     private readonly registry: OutboxPublisherRegistry,
-    private readonly consumer: OutboxConsumer,
     private readonly verifications: VerificationsService,
+    private readonly dispatcher: NotificationDispatcher,
   ) {}
   onModuleInit(): void {
     this.registry.register("skill.verification.decided", this);
@@ -38,28 +38,19 @@ export class SkillNotificationHandler implements OnModuleInit, OutboxPublisher {
       payload.sharingSkillId !== summary.sharingSkillId
     )
       throw new Error("INVALID_VERIFICATION_EVENT");
-    await this.consumer.processOnce(
-      "skill.notifications",
-      event.eventId,
-      async (tx) => {
-        await tx.notification.create({
-          data: {
-            id: event.eventId,
-            userId: summary.ownerId,
-            type: event.type,
-            title:
-              event.type === "skill.evidence.revoked"
-                ? "Skill evidence revoked"
-                : "Skill verification reviewed",
-            body: "Your skill verification decision is available in its history.",
-            payload: {
-              verificationId: summary.verificationId,
-              sharingSkillId: summary.sharingSkillId,
-            },
-            channel: "IN_APP",
-          },
-        });
+    await this.dispatcher.dispatch({
+      eventId: event.eventId,
+      type: event.type,
+      userIds: [summary.ownerId],
+      title:
+        event.type === "skill.evidence.revoked"
+          ? "Skill evidence revoked"
+          : "Skill verification reviewed",
+      body: "Your skill verification decision is available in its history.",
+      payload: {
+        verificationId: summary.verificationId,
+        sharingSkillId: summary.sharingSkillId,
       },
-    );
+    });
   }
 }
