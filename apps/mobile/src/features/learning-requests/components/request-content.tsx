@@ -61,8 +61,8 @@ export function RequestContent({
       )}
       {state === "MATCHED" && (
         <FormNotice tone="info">
-          Lịch học đã khóa. Để dừng hoặc đổi lịch, sử dụng luồng trong lộ trình
-          đã liên kết.
+          Lịch học đã khóa. Để dừng hoặc đổi lịch, sử dụng luồng trong Learning
+          Path đã liên kết.
         </FormNotice>
       )}
     </>

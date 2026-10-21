@@ -71,7 +71,7 @@ export function SessionDetailScreen() {
             </View>
             <Text style={styles.caption}>
               Đây là dữ liệu minh họa của lịch cũ. Chọn buổi học trong lịch mới
-              để đổi lịch, vào phòng hoặc báo cáo đúng lộ trình.
+              để đổi lịch, vào phòng hoặc báo cáo đúng Learning Path.
             </Text>
             <Button onPress={() => router.dismissTo("/calendar")}>
               Mở lịch học

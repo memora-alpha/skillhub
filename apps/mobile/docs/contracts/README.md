@@ -9,7 +9,6 @@ Các file này sở hữu phần giao tiếp mobile cần dùng; backend sở h�
 | Skill catalog/sharing/evidence | [skills-evidence](skills-evidence.md)     |
 | Learning Request/Tag           | [learning-requests](learning-requests.md) |
 | Wallet/Payment                 | [wallet-payments](wallet-payments.md)     |
-| Notification inbox/SSE         | [notifications](notifications.md)        |
 
 ## Quy ước chung
 

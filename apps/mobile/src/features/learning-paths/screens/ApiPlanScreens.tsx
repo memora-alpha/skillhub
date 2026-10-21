@@ -60,7 +60,7 @@ export function ApiPlanDetailScreen() {
       {query.data && !plan && (
         <EmptyState
           title="Kế hoạch không thuộc phiên bản hiện tại"
-          description="Quay về lộ trình và chọn kế hoạch đang áp dụng."
+          description="Quay về Learning Path và chọn kế hoạch đang áp dụng."
         />
       )}
     </FeaturePage>
@@ -100,7 +100,7 @@ export function ApiPlanEditorScreen() {
       {path && !allowed && (
         <EmptyState
           title="Không thể sửa kế hoạch này"
-          description="Bạn chỉ tạo hoặc sửa kế hoạch mình dạy khi lộ trình chưa khóa."
+          description="Bạn chỉ tạo hoặc sửa kế hoạch mình dạy khi Learning Path chưa khóa."
         />
       )}
     </FeaturePage>

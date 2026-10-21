@@ -56,7 +56,7 @@ function PreviewTermsEditorScreen() {
                 label:
                   type === "TWO_WAY"
                     ? "Cam kết mỗi người (CR)"
-                    : "Giá dạy toàn lộ trình (CR)",
+                    : "Giá dạy toàn Learning Path (CR)",
                 rule: creditRule(
                   type === "TWO_WAY" ? 20 : 0,
                   type === "TWO_WAY",

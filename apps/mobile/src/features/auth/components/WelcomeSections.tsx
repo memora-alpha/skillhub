@@ -140,7 +140,7 @@ export function WelcomeSections({
             </Text>
             <Text style={styles.creditDescription}>
               Credit là đơn vị trao đổi trên SkillHub. Credit được tạm giữ và
-              chỉ quyết toán khi toàn bộ lộ trình hoàn thành.
+              chỉ quyết toán khi toàn bộ Learning Path hoàn thành.
             </Text>
             <View style={{ gap: 12 }}>
               {welcomeBenefits.map((benefit) => (

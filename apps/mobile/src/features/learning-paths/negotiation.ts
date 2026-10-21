@@ -68,7 +68,7 @@ function formatNegotiation(draft: NegotiationDraft) {
     .map((line) => line.trim())
     .filter(Boolean);
   return [
-    "GỢI Ý LỘ TRÌNH · CHƯA XÁC NHẬN",
+    "GỢI Ý LEARNING PATH · CHƯA XÁC NHẬN",
     `Hình thức: ${draft.type === "TWO_WAY" ? "Trao đổi hai chiều" : "Học một chiều"}`,
     `Chiều trao đổi: ${draft.type === "TWO_WAY" || draft.role === "teacher" ? "Tôi dạy → bạn học" : "Tôi mong muốn học từ bạn"}`,
     `Kỹ năng: ${draft.skill}`,

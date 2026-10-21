@@ -36,9 +36,9 @@ const groups = [
     ],
   },
   {
-    title: "Lộ trình & lịch học",
+    title: "Learning Path & lịch học",
     items: [
-      ["Tất cả lộ trình", "/paths"],
+      ["Tất cả Learning Path", "/paths"],
       ["Chọn hình thức / vai trò / Credit", "/agreement-type"],
       ["Thương lượng hai chiều", "/paths/path-draft"],
       ["Đủ xác nhận hai chiều", "/paths/path-ready"],
@@ -48,7 +48,7 @@ const groups = [
       ["Giữ Credit bị chặn: trùng lịch", "/paths/path-conflict/hold"],
       ["Lịch theo từng kế hoạch", "/paths/path-ready/schedules"],
       ["Kiểm tra & giữ Credit", "/paths/path-ready/hold"],
-      ["Lộ trình một chiều đang học", "/paths/path-active"],
+      ["Learning Path một chiều đang học", "/paths/path-active"],
       ["Tranh chấp giữ quyết toán", "/paths/path-disputed"],
       ["Hủy trước khi giữ Credit", "/paths/path-draft/cancel"],
       ["Dừng sau khi đã giữ Credit", "/paths/path-active/cancel"],
@@ -97,7 +97,7 @@ const groups = [
   {
     title: "Cộng đồng & hỗ trợ",
     items: [
-      ["Đánh giá cuối lộ trình", "/paths/path-completed/review"],
+      ["Đánh giá cuối Learning Path", "/paths/path-completed/review"],
       ["Đánh giá đã gửi", "/reviews"],
       ["Uy tín", "/reputation"],
       ["Thành tích", "/achievements"],
@@ -154,7 +154,7 @@ export const systemStates = {
     "/paths",
   ],
   "path-cancelled": [
-    "Lộ trình đã hủy",
+    "Learning Path đã hủy",
     "Hoàn trả và phí hủy, nếu có, phụ thuộc quyết định và chính sách hệ thống.",
     "/paths",
   ],

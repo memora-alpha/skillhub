@@ -32,12 +32,12 @@ export function MyPathsContent() {
             {path.plans.reduce((sum, p) => sum + p.outline.length, 0)} buổi ·
             phiên bản {path.version}
           </Copy>
-          <RouteButton href={`/paths/${path.id}`}>Mở lộ trình</RouteButton>
+          <RouteButton href={`/paths/${path.id}`}>Mở Learning Path</RouteButton>
         </Panel>
       ))}
       {!items.length && (
         <EmptyState
-          title="Chưa có lộ trình"
+          title="Chưa có Learning Path"
           description="Chấp nhận đề xuất và thương lượng qua tin nhắn để bắt đầu."
         />
       )}

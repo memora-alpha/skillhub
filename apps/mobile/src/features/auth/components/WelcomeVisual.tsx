@@ -50,7 +50,7 @@ export function WelcomeVisual() {
         <View style={styles.quote}>
           <Text style={styles.quoteText}>“Học cùng nhau, tiến bộ thật.”</Text>
           <Text style={styles.quoteCaption}>
-            Kết nối 1:1 theo lộ trình rõ ràng
+            Kết nối 1:1 theo Learning Path rõ ràng
           </Text>
         </View>
       </View>

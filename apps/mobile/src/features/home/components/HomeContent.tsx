@@ -142,16 +142,20 @@ export function HomeContent({
           </LinearGradient>
           <HomeSection>
             <SectionHeading
-              title="Lộ trình đang học"
+              title="Learning Path đang học"
               action={isNew ? "Khám phá" : "Chi tiết"}
-              onPress={() => onAction(isNew ? "Khám phá" : "Lộ trình đang học")}
+              onPress={() =>
+                onAction(isNew ? "Khám phá" : "Learning Path đang học")
+              }
             />
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={
-                isNew ? "Tìm lộ trình học" : learningPath.title
+                isNew ? "Tìm Learning Path" : learningPath.title
               }
-              onPress={() => onAction(isNew ? "Khám phá" : "Lộ trình đang học")}
+              onPress={() =>
+                onAction(isNew ? "Khám phá" : "Learning Path đang học")
+              }
               style={({ pressed }) => [
                 styles.card,
                 styles.course,
@@ -168,7 +172,9 @@ export function HomeContent({
                 </View>
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <Text style={homeStyles.label}>
-                    {isNew ? "Chưa có lộ trình đang học" : learningPath.title}
+                    {isNew
+                      ? "Chưa có Learning Path đang học"
+                      : learningPath.title}
                   </Text>
                   <Text style={homeStyles.caption}>
                     {isNew
@@ -287,7 +293,7 @@ export function HomeContent({
                     </View>
                     <View style={styles.budgetBadge}>
                       <Text style={styles.budget}>
-                        {request.credit} CR/lộ trình
+                        {request.credit} CR/Learning Path
                       </Text>
                     </View>
                   </View>

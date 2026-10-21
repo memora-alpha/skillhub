@@ -40,8 +40,8 @@ function PreviewSchedulesScreen() {
     <FeaturePage title="Lịch của từng kế hoạch" back={`/paths/${id}`}>
       {!path ? (
         <EmptyState
-          title="Không tìm thấy lộ trình"
-          description="Lộ trình không có trong bản xem thử."
+          title="Không tìm thấy Learning Path"
+          description="Learning Path không có trong bản xem thử."
         />
       ) : (
         <>
@@ -240,7 +240,7 @@ function PreviewHoldScreen() {
     <FeaturePage title="Kiểm tra & tạm giữ Credit" back={`/paths/${id}`}>
       {!path ? (
         <EmptyState
-          title="Không tìm thấy lộ trình"
+          title="Không tìm thấy Learning Path"
           description="Không thể kiểm tra thỏa thuận."
         />
       ) : path.status === "ACTIVE" ? (

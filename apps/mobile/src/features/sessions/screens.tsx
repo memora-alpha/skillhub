@@ -24,7 +24,7 @@ export function PathSessionsScreen() {
   const items = sessions.filter((s) => !id || s.pathId === id);
   return (
     <FeaturePage
-      title={id ? "Buổi học của lộ trình" : "Lịch sử học tập"}
+      title={id ? "Buổi học của Learning Path" : "Lịch sử học tập"}
       back={id ? `/paths/${id}` : "/calendar"}
     >
       {items.map((s) => (
@@ -74,7 +74,7 @@ export function LearningSessionScreen() {
               {new Date(s.startAt).toLocaleString("vi-VN")} · {s.duration} phút
             </Copy>
             <Copy muted>
-              Kế hoạch: {s.planId}. Lộ trình: {s.pathId}.
+              Kế hoạch: {s.planId}. Learning Path: {s.pathId}.
             </Copy>
             {s.change && (
               <FormNotice tone="info">
@@ -134,7 +134,7 @@ export function LearningSessionScreen() {
             Báo cáo vấn đề buổi học
           </RouteButton>
           <RouteButton secondary href={`/paths/${s.pathId}`}>
-            Xem tiến độ toàn lộ trình
+            Xem tiến độ toàn Learning Path
           </RouteButton>
         </>
       )}
@@ -259,10 +259,10 @@ export function CompletionScreen() {
           </Button>
           <Copy muted>
             Chỉ đủ xác nhận của hai người sau giờ kết thúc mới hoàn thành buổi
-            học. Credit tiếp tục được giữ đến cuối lộ trình.
+            học. Credit tiếp tục được giữ đến cuối Learning Path.
           </Copy>
           <RouteButton secondary href={`/paths/${s.pathId}`}>
-            Xem tiến độ lộ trình
+            Xem tiến độ Learning Path
           </RouteButton>
         </Panel>
       )}

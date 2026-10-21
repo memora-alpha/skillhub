@@ -12,7 +12,7 @@ export function SettlementScreen() {
   const { paths } = usePathsPreview();
   const path = paths.find((p) => p.id === id);
   return (
-    <FeaturePage title="Quyết toán cuối lộ trình" back={`/paths/${id}`}>
+    <FeaturePage title="Quyết toán cuối Learning Path" back={`/paths/${id}`}>
       {!path || path.status !== "COMPLETED" ? (
         <EmptyState
           title="Chưa có kết quả quyết toán"
@@ -25,7 +25,7 @@ export function SettlementScreen() {
             <Copy>
               {path.type === "TWO_WAY"
                 ? "Mỗi người nhận lại 96% khoản tạm giữ của chính mình. Phí nền tảng 4%."
-                : "Người dạy nhận 96% giá toàn lộ trình. Phí nền tảng 4%; người học không được hoàn lại giá dạy."}
+                : "Người dạy nhận 96% giá toàn Learning Path. Phí nền tảng 4%; người học không được hoàn lại giá dạy."}
             </Copy>
             {path.id === "path-completed" && (
               <Copy>

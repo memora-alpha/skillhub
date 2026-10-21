@@ -26,7 +26,7 @@ export const transactions = [
     status: "SUCCESS",
     reference: "path-completed",
     description:
-      "Thu nhập người dạy ở cuối lộ trình; không phát sinh theo từng buổi.",
+      "Thu nhập người dạy ở cuối Learning Path; không phát sinh theo từng buổi.",
   },
   {
     id: "tx-fee",
@@ -36,7 +36,7 @@ export const transactions = [
     status: "SUCCESS",
     reference: "path-completed",
     description:
-      "Snapshot phí 4% của lộ trình. Giao dịch mẫu minh họa riêng; không dùng để cộng sổ cái của bạn.",
+      "Snapshot phí 4% của Learning Path. Giao dịch mẫu minh họa riêng; không dùng để cộng sổ cái của bạn.",
   },
   {
     id: "tx-pending",

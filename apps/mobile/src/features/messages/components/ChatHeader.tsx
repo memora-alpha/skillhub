@@ -46,7 +46,7 @@ export function ChatHeader({
       </View>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Lộ trình học"
+        accessibilityLabel="Learning Path"
         onPress={onAgreement}
         style={({ pressed }) => [styles.agreement, pressed && { opacity: 0.8 }]}
       >
@@ -55,7 +55,7 @@ export function ChatHeader({
           size={iconSizes.inline}
           color={colors.white}
         />
-        <Text style={styles.agreementLabel}>Lộ trình</Text>
+        <Text style={styles.agreementLabel}>Learning Path</Text>
       </Pressable>
       {onDetails && (
         <Pressable

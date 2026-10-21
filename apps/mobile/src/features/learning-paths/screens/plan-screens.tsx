@@ -31,7 +31,7 @@ function PreviewPlanDetailScreen() {
       {!path || !plan ? (
         <EmptyState
           title="Không tìm thấy kế hoạch"
-          description="Kiểm tra lại lộ trình đã chọn."
+          description="Kiểm tra lại Learning Path đã chọn."
         />
       ) : (
         <>
@@ -155,7 +155,7 @@ function PreviewPlanEditorScreen() {
       {!path || !canEdit ? (
         <EmptyState
           title="Không thể sửa kế hoạch này"
-          description="Bạn chỉ tạo hoặc sửa kế hoạch mình dạy khi lộ trình còn thương lượng."
+          description="Bạn chỉ tạo hoặc sửa kế hoạch mình dạy khi Learning Path còn thương lượng."
         />
       ) : (
         <Panel title="Thiết kế hành trình học">

@@ -231,7 +231,7 @@ function ApiChatConversation({
               </Button>
             </View>
             <Copy muted>
-              Nội dung, lịch và Credit được xác nhận trong Lộ trình.
+              Nội dung, lịch và Credit được xác nhận trong Learning Path.
             </Copy>
           </View>
         )}

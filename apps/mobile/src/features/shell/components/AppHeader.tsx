@@ -10,7 +10,7 @@ import {
 import { BrandLogo } from "@/components/BrandLogo";
 import { Avatar } from "@/components/Avatar";
 import { Icon } from "@/components/Icon";
-import { useNotifications } from "@/features/notifications";
+import { useNotifications } from "@/features/notifications/state";
 import {
   appColors as colors,
   appRadius as radius,

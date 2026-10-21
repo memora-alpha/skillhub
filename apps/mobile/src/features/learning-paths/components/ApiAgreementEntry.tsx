@@ -68,7 +68,7 @@ export function ApiAgreementEntry({
           ) : (
             <Copy>
               Danh sách đã đạt giới hạn tải. Chưa thể xác định cuộc trao đổi này
-              có lộ trình hay chưa; không tạo thêm để tránh trùng.
+              có Learning Path hay chưa; không tạo thêm để tránh trùng.
             </Copy>
           )}
         </Panel>

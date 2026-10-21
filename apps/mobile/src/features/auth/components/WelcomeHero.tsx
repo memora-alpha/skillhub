@@ -31,8 +31,8 @@ export function WelcomeHero({
           {"\nbạn muốn."}
         </Text>
         <Text style={styles.description}>
-          Kết nối với những người có kỹ năng phù hợp, cùng tạo lộ trình và học
-          trực tiếp 1:1.
+          Kết nối với những người có kỹ năng phù hợp, cùng tạo Learning Path và
+          học trực tiếp 1:1.
         </Text>
         <View
           style={[styles.actions, width >= 640 && { flexDirection: "row" }]}

@@ -17,14 +17,14 @@ export function PathCancellationScreen() {
   const path = paths.find((p) => p.id === id);
   const [draft, setDraft] = useState<{ reason: string; at: string }>();
   return (
-    <FeaturePage title="Hủy / dừng lộ trình" back={`/paths/${id}`}>
+    <FeaturePage title="Hủy / dừng Learning Path" back={`/paths/${id}`}>
       {!path ? (
         <EmptyState
-          title="Không tìm thấy lộ trình"
-          description="Chọn một lộ trình của bạn."
+          title="Không tìm thấy Learning Path"
+          description="Chọn một Learning Path của bạn."
         />
       ) : path.status === "CANCELLED" ? (
-        <Panel title="Lộ trình mẫu đã hủy">
+        <Panel title="Learning Path mẫu đã hủy">
           <Copy>Hủy trước khi giữ Credit không tạo quyết toán hoàn thành.</Copy>
           {path.cancellation && (
             <>
@@ -36,13 +36,13 @@ export function PathCancellationScreen() {
             </>
           )}
           <RouteButton href={learningRoutes.paths}>
-            Danh sách lộ trình
+            Danh sách Learning Path
           </RouteButton>
         </Panel>
       ) : !["PROPOSED", "ACTIVE"].includes(path.status) ? (
         <EmptyState
           title="Không thể hủy ở trạng thái này"
-          description="Theo dõi xử lý tranh chấp hoặc kết quả lộ trình."
+          description="Theo dõi xử lý tranh chấp hoặc kết quả Learning Path."
         />
       ) : (
         <>
@@ -53,8 +53,8 @@ export function PathCancellationScreen() {
                 : "Thỏa thuận đã giữ Credit. Phí hủy, số tiền hoàn trả và thời hạn cần chính sách được cấu hình."}
             </Copy>
             <FormNotice tone="info">
-              Không dùng mức quyết toán 96%/4% của lộ trình hoàn thành để tính
-              tiền hủy. Bản xem thử không hoàn Credit hoặc trừ uy tín.
+              Không dùng mức quyết toán 96%/4% của Learning Path hoàn thành để
+              tính tiền hủy. Bản xem thử không hoàn Credit hoặc trừ uy tín.
             </FormNotice>
             {draft ? (
               <>
@@ -64,8 +64,8 @@ export function PathCancellationScreen() {
                 </Copy>
                 <Copy>Lý do: {draft.reason}</Copy>
                 <Copy muted>
-                  Nội dung chỉ được lưu tại màn hình xem thử này. Lộ trình và
-                  lịch học vẫn có hiệu lực; chưa gửi yêu cầu xử lý thật.
+                  Nội dung chỉ được lưu tại màn hình xem thử này. Learning Path
+                  và lịch học vẫn có hiệu lực; chưa gửi yêu cầu xử lý thật.
                 </Copy>
               </>
             ) : (
@@ -80,7 +80,7 @@ export function PathCancellationScreen() {
                 ]}
                 submitLabel={
                   path.status === "PROPOSED"
-                    ? "Xác nhận hủy lộ trình mẫu"
+                    ? "Xác nhận hủy Learning Path mẫu"
                     : "Xem thử nội dung đề nghị dừng"
                 }
                 onSubmit={(v) => {

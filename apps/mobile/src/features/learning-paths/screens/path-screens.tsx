@@ -69,7 +69,7 @@ function PreviewAgreementTypeScreen() {
               label:
                 type === "TWO_WAY"
                   ? "Cam kết mỗi người / toàn thỏa thuận"
-                  : "Giá dạy toàn lộ trình (Credit)",
+                  : "Giá dạy toàn Learning Path (Credit)",
               rule: creditRule(type === "TWO_WAY" ? 20 : 0, type === "TWO_WAY"),
               numeric: true,
             },
@@ -119,11 +119,11 @@ function PreviewPathDetailScreen() {
   const { paths, save } = usePathsPreview();
   const path = paths.find((p) => p.id === id);
   return (
-    <FeaturePage title="Không gian lộ trình" back={learningRoutes.paths}>
+    <FeaturePage title="Không gian Learning Path" back={learningRoutes.paths}>
       {!path ? (
         <EmptyState
-          title="Không tìm thấy lộ trình"
-          description="Lộ trình không có trong bản xem thử."
+          title="Không tìm thấy Learning Path"
+          description="Learning Path không có trong bản xem thử."
         />
       ) : (
         <>
@@ -137,7 +137,7 @@ function PreviewPathDetailScreen() {
                 label={
                   path.type === "TWO_WAY"
                     ? "Cam kết mỗi người"
-                    : "Giá toàn lộ trình"
+                    : "Giá toàn Learning Path"
                 }
                 value={`${path.credit} CR`}
               />
@@ -235,19 +235,19 @@ function PreviewPathDetailScreen() {
                 Kết quả quyết toán
               </RouteButton>
               <RouteButton secondary href={`/paths/${id}/review`}>
-                Đánh giá cuối lộ trình
+                Đánh giá cuối Learning Path
               </RouteButton>
             </>
           )}
           {path.status === "DISPUTED" && (
             <FormNotice tone="info">
-              Lộ trình đang có tranh chấp. Quyết toán cuối đang được giữ để xem
-              xét.
+              Learning Path đang có tranh chấp. Quyết toán cuối đang được giữ để
+              xem xét.
             </FormNotice>
           )}
           {["PROPOSED", "ACTIVE", "CANCELLED"].includes(path.status) && (
             <RouteButton secondary href={`/paths/${id}/cancel`}>
-              Hủy / dừng lộ trình
+              Hủy / dừng Learning Path
             </RouteButton>
           )}
           <RouteButton

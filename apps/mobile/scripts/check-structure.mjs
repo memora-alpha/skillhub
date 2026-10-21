@@ -12,6 +12,7 @@ const publicFeatureEntries = new Set([
   "learning-paths/state",
   "learning-paths/policy",
   "sessions/state",
+  "notifications/state",
 ]);
 
 function walk(directory) {

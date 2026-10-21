@@ -81,7 +81,7 @@ export function CalendarScreen() {
             variant="craft"
             onPress={() => router.push(learningRoutes.paths)}
           >
-            Lộ trình của tôi
+            Learning Path của tôi
           </Button>
           <RouteButton secondary href="/learning-history">
             Toàn bộ lịch sử học

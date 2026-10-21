@@ -20,11 +20,11 @@ export function ReviewEditorScreen() {
   const { paths, save } = usePathsPreview();
   const path = paths.find((p) => p.id === id);
   return (
-    <FeaturePage title="Đánh giá cuối lộ trình" back={`/paths/${id}`}>
+    <FeaturePage title="Đánh giá cuối Learning Path" back={`/paths/${id}`}>
       {!path || path.status !== "COMPLETED" ? (
         <EmptyState
           title="Chưa thể đánh giá"
-          description="Đánh giá chỉ mở sau khi toàn bộ lộ trình hoàn thành."
+          description="Đánh giá chỉ mở sau khi toàn bộ Learning Path hoàn thành."
         />
       ) : path.reviewed ? (
         <Panel title="Đã gửi đánh giá mẫu">
@@ -32,7 +32,7 @@ export function ReviewEditorScreen() {
             {path.review?.rating}/5 sao · {path.review?.comment}
           </Copy>
           <Copy muted>
-            Mỗi người đánh giá người trao đổi một lần cho mỗi lộ trình.
+            Mỗi người đánh giá người trao đổi một lần cho mỗi Learning Path.
           </Copy>
         </Panel>
       ) : (
@@ -79,13 +79,13 @@ export function ReviewsScreen() {
   return (
     <FeaturePage title="Đánh giá" back="/profile">
       <ChoiceGroup
-        label="Đánh giá lộ trình"
+        label="Đánh giá Learning Path"
         options={["Tôi đánh giá", "Đánh giá nhận được"]}
         value={tab}
         onChange={setTab}
       />
       {tab === "Đánh giá nhận được" ? (
-        <Panel title="Hồng Anh · lộ trình trao đổi đã hoàn tất">
+        <Panel title="Hồng Anh · Learning Path trao đổi đã hoàn tất">
           <Badge label="5/5 sao" variant="success" />
           <Copy>Bạn chuẩn bị nội dung rõ ràng và trao đổi rất dễ hiểu.</Copy>
           <Copy muted>
@@ -100,7 +100,7 @@ export function ReviewsScreen() {
             <Copy>
               {p.reviewed
                 ? `Bạn đã đánh giá ${p.review?.rating}/5 sao: ${p.review?.comment}`
-                : "Bạn chưa đánh giá lộ trình này."}
+                : "Bạn chưa đánh giá Learning Path này."}
             </Copy>
             <RouteButton secondary href={`/paths/${p.id}/review`}>
               {p.reviewed ? "Xem đánh giá" : "Viết đánh giá"}
@@ -110,8 +110,8 @@ export function ReviewsScreen() {
       )}
       {tab === "Tôi đánh giá" && !items.length && (
         <EmptyState
-          title="Chưa có lộ trình để đánh giá"
-          description="Hoàn thành lộ trình để chia sẻ trải nghiệm."
+          title="Chưa có Learning Path để đánh giá"
+          description="Hoàn thành Learning Path để chia sẻ trải nghiệm."
         />
       )}
     </FeaturePage>
@@ -119,17 +119,21 @@ export function ReviewsScreen() {
 }
 const badges = [
   ["Người mới gia nhập", "Email đã xác minh và tài khoản ACTIVE.", true],
-  ["Bước đầu trao đổi", "Hoàn thành lộ trình đầu tiên.", true],
-  ["Người học tích cực", "Hoàn thành 5 lộ trình.", false],
+  ["Bước đầu trao đổi", "Hoàn thành Learning Path đầu tiên.", true],
+  ["Người học tích cực", "Hoàn thành 5 Learning Path.", false],
   [
     "Người chia sẻ tích cực",
-    "Hoàn thành 10 lộ trình có vai trò chia sẻ.",
+    "Hoàn thành 10 Learning Path có vai trò chia sẻ.",
     false,
   ],
-  ["Thành viên uy tín", "Uy tín ≥70 và ít nhất 5 lộ trình hoàn thành.", false],
+  [
+    "Thành viên uy tín",
+    "Uy tín ≥70 và ít nhất 5 Learning Path hoàn thành.",
+    false,
+  ],
   [
     "Người lâu năm",
-    "Tài khoản ≥180 ngày và ít nhất 10 lộ trình hoàn thành.",
+    "Tài khoản ≥180 ngày và ít nhất 10 Learning Path hoàn thành.",
     false,
   ],
   ["Kỹ năng đã xác minh", "Ít nhất 3 kỹ năng chia sẻ đã xác minh.", false],
@@ -159,8 +163,8 @@ export function AchievementsScreen() {
           </Button>
           {detail === name && (
             <Copy muted>
-              Tiến độ mẫu: đã hoàn thành 1 lộ trình, 1 kỹ năng xác minh và uy
-              tín 50/100. Mốc chính thức lấy từ hồ sơ thành tích.
+              Tiến độ mẫu: đã hoàn thành 1 Learning Path, 1 kỹ năng xác minh và
+              uy tín 50/100. Mốc chính thức lấy từ hồ sơ thành tích.
             </Copy>
           )}
           <Button

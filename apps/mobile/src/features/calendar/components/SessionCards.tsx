@@ -87,7 +87,7 @@ export function HistoryPathCard({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`Xem lộ trình: ${path.name}`}
+      accessibilityLabel={`Xem Learning Path: ${path.name}`}
       onPress={onPress}
       style={({ pressed }) => [styles.historyCard, pressed && { opacity: 0.8 }]}
     >

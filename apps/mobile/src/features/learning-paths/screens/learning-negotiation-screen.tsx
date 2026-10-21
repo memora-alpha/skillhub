@@ -33,10 +33,10 @@ export function LearningNegotiationScreen({
   const ideasOnly = draft === "1";
   if (!uuid.safeParse(conversationId).success)
     return (
-      <FeaturePage title="Lộ trình học" demo={false} back="/messages">
+      <FeaturePage title="Learning Path" demo={false} back="/messages">
         <EmptyState
           title="Chọn cuộc trao đổi"
-          description="Mở lộ trình từ một cuộc trao đổi đã được chấp nhận."
+          description="Mở Learning Path từ một cuộc trao đổi đã được chấp nhận."
         />
       </FeaturePage>
     );
@@ -148,7 +148,7 @@ function NegotiationForm({
           label={
             type === "TWO_WAY"
               ? "Credit cam kết mỗi người"
-              : "Credit gợi ý toàn lộ trình"
+              : "Credit gợi ý toàn Learning Path"
           }
           keyboardType="decimal-pad"
           editable={!sender.pending && !sender.processing}
@@ -195,7 +195,7 @@ function NegotiationForm({
           <FormNotice tone={sender.processing ? "info" : "success"}>
             {sender.processing
               ? "Gợi ý đang được xử lý, chưa xác nhận đã gửi."
-              : "Gợi ý đã được gửi trong Chat; chưa phải xác nhận lộ trình."}
+              : "Gợi ý đã được gửi trong Chat; chưa phải xác nhận Learning Path."}
           </FormNotice>
         )}
         <Button

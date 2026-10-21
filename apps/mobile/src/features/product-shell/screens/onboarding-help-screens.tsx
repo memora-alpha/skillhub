@@ -216,8 +216,8 @@ export function PoliciesScreen() {
       </Panel>
       <Panel title="Credit">
         <Copy>
-          1.000 VND = 1 Credit. Không hỗ trợ rút tiền. Quyết toán cuối lộ trình
-          theo hình thức học; tranh chấp có thể giữ việc quyết toán.
+          1.000 VND = 1 Credit. Không hỗ trợ rút tiền. Quyết toán cuối Learning
+          Path theo hình thức học; tranh chấp có thể giữ việc quyết toán.
         </Copy>
       </Panel>
       <Copy muted>

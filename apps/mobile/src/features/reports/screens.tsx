@@ -104,7 +104,7 @@ export function ReportEditorScreen() {
         <Panel title="Mô tả điều đã xảy ra">
           <Copy>
             Đối tượng: {materialId ?? sessionId}
-            {pathId ? ` · lộ trình ${pathId}` : ""}
+            {pathId ? ` · Learning Path ${pathId}` : ""}
           </Copy>
           <SampleFiles value={files} onChange={setFiles} />
           <DataForm
@@ -141,8 +141,8 @@ export function ReportEditorScreen() {
             }}
           />
           <Copy muted>
-            Báo cáo tài liệu không cần lộ trình hoặc buổi học. Thời hạn tranh
-            chấp và giới hạn tệp phụ thuộc chính sách được cấu hình.
+            Báo cáo tài liệu không cần Learning Path hoặc buổi học. Thời hạn
+            tranh chấp và giới hạn tệp phụ thuộc chính sách được cấu hình.
           </Copy>
         </Panel>
       )}
@@ -203,7 +203,7 @@ export function ReportDetailScreen() {
           )}
           {r.pathId && (
             <RouteButton secondary href={`/paths/${r.pathId}`}>
-              Xem lộ trình liên quan
+              Xem Learning Path liên quan
             </RouteButton>
           )}
         </>

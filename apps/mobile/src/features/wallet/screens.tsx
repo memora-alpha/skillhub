@@ -36,7 +36,7 @@ export function WalletScreen() {
       <Panel title="Credit đang giữ">
         <Copy>React thực hành · ONE_WAY · 100 CR từ người học</Copy>
         <RouteButton secondary href="/paths/path-active">
-          Xem lộ trình
+          Xem Learning Path
         </RouteButton>
       </Panel>
       <RouteButton secondary href="/wallet/history">
@@ -239,7 +239,7 @@ export function TransactionDetailScreen() {
           <Copy>{t.description}</Copy>
           {t.reference.startsWith("path-") && (
             <RouteButton secondary href={`/paths/${t.reference}`}>
-              Xem lộ trình liên quan
+              Xem Learning Path liên quan
             </RouteButton>
           )}
         </Panel>

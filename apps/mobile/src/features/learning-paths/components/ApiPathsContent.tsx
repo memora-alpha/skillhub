@@ -13,7 +13,7 @@ export function ApiPathCard({ path }: Readonly<{ path: PathSummary }>) {
   const exchangeLabel =
     path.exchangeType === "TWO_WAY" ? "Trao đổi hai chiều" : oneWayLabel;
   return (
-    <Panel title={name.data ?? "Lộ trình cùng người trao đổi"}>
+    <Panel title={name.data ?? "Learning Path cùng người trao đổi"}>
       <Copy>{pathStatusLabel[path.status]}</Copy>
       <Copy>{exchangeLabel}</Copy>
       <RouteButton secondary href={`/paths/${path.id}`}>
@@ -32,13 +32,13 @@ export function ApiPathsContent() {
       ))}
       {query.data?.length === 0 && (
         <EmptyState
-          title="Chưa có lộ trình"
-          description="Mở cuộc trò chuyện sau khi đề xuất được chấp nhận để cùng tạo lộ trình học."
+          title="Chưa có Learning Path"
+          description="Mở cuộc trò chuyện sau khi đề xuất được chấp nhận để cùng tạo Learning Path."
         />
       )}
       {query.data?.length === 100 && (
         <Copy muted>
-          Đang hiển thị tối đa 100 lộ trình được cập nhật gần nhất.
+          Đang hiển thị tối đa 100 Learning Path được cập nhật gần nhất.
         </Copy>
       )}
     </>

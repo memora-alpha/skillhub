@@ -22,14 +22,14 @@ const errors: Record<string, string> = {
   CONNECTION_POLICY_UNAVAILABLE:
     "Máy chủ chưa cấu hình giới hạn cho gợi ý này. Bạn có thể bỏ trống số buổi dự kiến; với học một chiều, bỏ trống cả Credit gợi ý rồi thử lại.",
   PATH_CREATE_RECONCILE_REQUIRED:
-    "Lần tạo trước đã gửi nhưng chưa xác định được kết quả. Tải lại danh sách và mở lộ trình đã tạo; chưa thể gửi lại để tránh trùng.",
+    "Lần tạo trước đã gửi nhưng chưa xác định được kết quả. Tải lại danh sách và mở Learning Path đã tạo; chưa thể gửi lại để tránh trùng.",
   STALE_LEARNING_PATH_VERSION:
     "Điều khoản đã thay đổi. Tải lại và xem phiên bản mới trước khi xác nhận.",
   STALE_LEARNING_PLAN_VERSION:
     "Kế hoạch đã thay đổi. Tải lại nội dung mới trước khi xác nhận.",
   STALE_SCHEDULE_VERSION: "Lịch đã thay đổi. Tải lại và kiểm tra lịch mới.",
   INSUFFICIENT_AVAILABLE_CREDIT:
-    "Số dư khả dụng chưa đủ để tạm giữ Credit cho lộ trình.",
+    "Số dư khả dụng chưa đủ để tạm giữ Credit cho Learning Path.",
   SCHEDULE_CONFLICT:
     "Lịch học bị trùng. Kiểm tra lại các buổi học trước khi chốt.",
   SCHEDULE_PROPOSAL_ALREADY_EXISTS:
@@ -39,7 +39,7 @@ const errors: Record<string, string> = {
   LEARNING_PATH_NOT_CONFIRMED:
     "Hai bên cần xác nhận đầy đủ kế hoạch và điều khoản trước khi tạo lịch.",
   LEARNING_PATH_NOT_EDITABLE:
-    "Lộ trình không còn cho phép chỉnh sửa. Hãy tải lại trạng thái.",
+    "Learning Path không còn cho phép chỉnh sửa. Hãy tải lại trạng thái.",
   PROPOSAL_ALREADY_PENDING:
     "Bạn đã có đề xuất đang chờ. Mở danh sách đã gửi để kiểm tra.",
   PROPOSAL_EXPIRED: "Đề xuất đã hết hạn. Hãy tải lại trạng thái.",

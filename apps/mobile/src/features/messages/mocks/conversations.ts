@@ -39,7 +39,7 @@ export const conversations: Conversation[] = [
     userId: "demo-quang-huy",
     skill: "Python",
     request: "Python cho Data Science",
-    last: "Bạn xem lộ trình Python giúp mình.",
+    last: "Bạn xem Learning Path Python giúp mình.",
     messages: 9,
     unread: 0,
     time: "Thứ 2",
