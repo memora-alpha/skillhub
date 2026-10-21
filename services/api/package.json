@@ -37,6 +37,7 @@
     "infra:down": "docker compose down",
     "infra:logs": "docker compose logs -f",
     "test:foundation": "node --test test/foundation.test.mjs",
+    "test:path-scheduling-schema": "node --test test/path-scheduling-schema.test.mjs",
     "test:runtime-v3": "node --test test/runtime-v3-migration.test.mjs test/runtime-v3-repositories.test.mjs",
     "test:identity": "node --test test/identity/policies.test.mjs test/identity/providers.test.mjs test/identity/sonar-regressions.test.mjs",
     "test:identity:integration": "node --test test/identity/integration.test.mjs",
