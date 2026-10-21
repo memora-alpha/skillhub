@@ -14,6 +14,7 @@ import { SystemConfigurationService } from "../../../system-configuration/applic
 import type { RoleCode } from "../../../../shared/authorization/authorization.types";
 import type {
   CreateScheduleProposalDto,
+  ReviseScheduleProposalDto,
   RescheduleSessionDto,
 } from "../../presentation/http/scheduling.dto";
 
@@ -290,6 +291,158 @@ export class SchedulingService {
         },
       });
       return { id: scheduleId, version: 1, status: "PROPOSED" as const };
+    });
+  }
+
+  reviseProposal(
+    actor: Principal,
+    scheduleId: string,
+    input: ReviseScheduleProposalDto,
+  ) {
+    return this.transactions.run(async (tx) => {
+      const initial = await tx.scheduleProposal.findUnique({
+        where: { id: scheduleId },
+        select: { pathId: true },
+      });
+      if (!initial) throw new NotFoundException("SCHEDULE_NOT_FOUND");
+      await lockPath(tx, initial.pathId);
+      await lockScheduleProposal(tx, scheduleId);
+      const proposal = await tx.scheduleProposal.findUniqueOrThrow({
+        where: { id: scheduleId },
+        include: { pathIdRecord: true },
+      });
+      const path = proposal.pathIdRecord;
+      if (
+        actor.userId !== path.participantAId &&
+        actor.userId !== path.participantBId
+      ) {
+        throw new ForbiddenException("LEARNING_PATH_ACCESS_DENIED");
+      }
+      if (
+        ![
+          "DRAFT",
+          "PROPOSED",
+          "PARTIALLY_CONFIRMED",
+          "NEEDS_REVISION",
+        ].includes(proposal.status) ||
+        proposal.appliedVersion !== null
+      ) {
+        throw new ConflictException("SCHEDULE_NOT_EDITABLE");
+      }
+      if (proposal.currentVersion !== input.expectedVersion) {
+        throw new ConflictException("STALE_SCHEDULE_VERSION");
+      }
+      const current = await tx.scheduleVersion.findUniqueOrThrow({
+        where: {
+          scheduleProposalId_versionNo: {
+            scheduleProposalId: scheduleId,
+            versionNo: input.expectedVersion,
+          },
+        },
+        include: { scheduleItemScheduleVersionRecords: true },
+      });
+      const currentItem = current.scheduleItemScheduleVersionRecords[0];
+      if (!currentItem) throw new ConflictException("SCHEDULE_ITEMS_MISSING");
+      const plan = await tx.learningPlan.findUniqueOrThrow({
+        where: { id: currentItem.planId },
+        include: {
+          learningPlanVersionPlanIdRecords: {
+            where: { versionNo: currentItem.planVersion },
+          },
+        },
+      });
+      if (
+        actor.userId !== plan.teacherId ||
+        actor.userId !== plan.createdByUserId
+      ) {
+        throw new ForbiddenException("ONLY_PLAN_TEACHER_CAN_PROPOSE_SCHEDULE");
+      }
+      const planVersion = plan.learningPlanVersionPlanIdRecords[0];
+      const linkedPlan = await tx.pathVersionPlan.findUnique({
+        where: {
+          pathId_pathVersion_planId: {
+            pathId: path.id,
+            pathVersion: path.currentVersion,
+            planId: plan.id,
+          },
+        },
+      });
+      if (
+        path.status !== "CONFIRMED" ||
+        current.pathVersion !== path.currentVersion ||
+        plan.currentVersion !== currentItem.planVersion ||
+        plan.status !== "CONFIRMED" ||
+        !planVersion?.learnerConfirmedAt ||
+        linkedPlan?.planVersion !== plan.currentVersion
+      ) {
+        throw new ConflictException("SCHEDULE_REVISION_NOT_READY");
+      }
+      const sameItems =
+        input.items.length ===
+          current.scheduleItemScheduleVersionRecords.length &&
+        input.items.every((item) => {
+          const existing = current.scheduleItemScheduleVersionRecords.find(
+            (candidate) => candidate.sessionNo === item.sessionNo,
+          );
+          return (
+            existing?.startAt.getTime() === new Date(item.startAt).getTime() &&
+            existing?.endAt.getTime() === new Date(item.endAt).getTime()
+          );
+        });
+      if (sameItems) {
+        return {
+          id: scheduleId,
+          version: input.expectedVersion,
+          status: proposal.status,
+          unchanged: true,
+        };
+      }
+      const [clock] = await tx.$queryRaw<{ now: Date }[]>`
+        SELECT CURRENT_TIMESTAMP AS now
+      `;
+      if (!(clock?.now instanceof Date)) {
+        throw new ConflictException("DATABASE_TIME_UNAVAILABLE");
+      }
+      const { values } = await this.configuration.getSnapshot(
+        ["session.durationMinutes"],
+        tx,
+      );
+      validateItems(
+        input.items,
+        planVersion.totalSessions,
+        clock.now,
+        values["session.durationMinutes"],
+      );
+      const versionNo = input.expectedVersion + 1;
+      await tx.scheduleVersion.create({
+        data: {
+          scheduleProposalId: scheduleId,
+          versionNo,
+          pathId: path.id,
+          pathVersion: path.currentVersion,
+          createdByUserId: actor.userId,
+          scheduleItemScheduleVersionRecords: {
+            create: input.items.map((item) => ({
+              id: randomUUID(),
+              planId: plan.id,
+              planVersion: plan.currentVersion,
+              sessionNo: item.sessionNo,
+              startAt: new Date(item.startAt),
+              endAt: new Date(item.endAt),
+            })),
+          },
+        },
+      });
+      await tx.scheduleProposal.update({
+        where: { id: scheduleId },
+        data: { currentVersion: versionNo, status: "NEEDS_REVISION" },
+      });
+      return {
+        id: scheduleId,
+        version: versionNo,
+        status: "NEEDS_REVISION" as const,
+        unchanged: false,
+      };
     });
   }
 

@@ -44,6 +44,12 @@ MATERIAL_PAID fee. Rollout: migrations `20261021000000_material_constraints` the
 `pnpm identity:seed`. PAID orders support a gross refund within 24 hours if no signed download URL has been issued and the seller still has the full net in Available; insufficient seller balance requires Admin handling through the dispute/Credit workflow.
 See [spec](specs/011-learning-materials/spec.md).
 
+Pre-finalize LearningPath edits are scoped by component: unchanged saves do not
+create versions, plan edits retain the agreement and unchanged schedule
+confirmations, and schedule edits require bilateral confirmation. After finalize,
+use reschedule/cancellation flows. See
+[agreement amendments](specs/008-connections/agreement-amendments.md).
+
 Technical payment recovery 2026-10-19: đơn payOS đang chờ nhưng mất QR được tra
 cứu và hủy bằng signed evidence trước khi mở tạo mới. Timeout tiếp tục retry,
 không tự chuyển REVIEW vì hết lượt. Worker kiểm tra lại REVIEW cũ do mất QR/hết
