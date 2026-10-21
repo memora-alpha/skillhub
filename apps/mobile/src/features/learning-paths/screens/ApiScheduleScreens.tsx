@@ -6,7 +6,7 @@ import {
   ScheduleMissingPlanCard,
   ScheduleTimezoneNotice,
 } from "../components/schedule-read-card";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 
 import { ApiFinalizePanel } from "./ApiHoldScreen";
 
@@ -27,6 +27,7 @@ import {
 } from "../hooks/use-learning-paths-api";
 import {
   canSchedule,
+  canEditSchedule,
   canConfirmSchedule,
   canValidateForFinalize,
 } from "../utils/policy-api";
@@ -141,6 +142,7 @@ function SchedulePanel({
   const skill = useCatalogName(plan.skillId),
     schedule = plan.schedule;
   const share = useConfirmedFormShare();
+  const router = useRouter();
   return (
     <ScheduleReadCard
       path={path}
@@ -190,6 +192,16 @@ function SchedulePanel({
           Đề xuất lịch tôi dạy
         </RouteButton>
       )}
+      {canEditSchedule(path, plan, runtime.userId) && (
+        <Button
+          variant="secondary"
+          leadingIcon="edit"
+          disabled={blocked || command.pending || command.uncertain}
+          onPress={() => router.push(`/paths/${path.id}/schedules/${plan.id}`)}
+        >
+          Chỉnh sửa lịch tôi dạy
+        </Button>
+      )}
     </ScheduleReadCard>
   );
 }
@@ -201,16 +213,19 @@ export function ApiScheduleEditorScreen() {
   const plan = path?.plans.find((p) => p.id === planId);
   return (
     <FeaturePage
-      title="Đề xuất lịch tôi dạy"
+      title={plan?.schedule ? "Chỉnh sửa lịch tôi dạy" : "Đề xuất lịch tôi dạy"}
       scrollable={false}
       demo={false}
       backBehavior="history"
       back={`/paths/${id}/schedules`}
     >
       <PathReadFeedback query={query} />
-      {path && plan && canSchedule(path, plan, runtime.userId) ? (
+      {path &&
+      plan &&
+      (canSchedule(path, plan, runtime.userId) ||
+        canEditSchedule(path, plan, runtime.userId)) ? (
         <ScheduleForm
-          key={`${path.currentVersion}:${plan.version}`}
+          key={`${path.currentVersion}:${plan.version}:${plan.schedule?.version ?? "new"}`}
           path={path}
           plan={plan}
           blocked={!!query.error}
@@ -218,8 +233,8 @@ export function ApiScheduleEditorScreen() {
       ) : (
         path && (
           <EmptyState
-            title="Chưa thể đề xuất lịch"
-            description="Chỉ người dạy đề xuất lịch sau khi kế hoạch và điều khoản đã xác nhận. Mỗi kế hoạch có một đề xuất lịch cho phiên bản hiện tại."
+            title="Chưa thể chỉnh sửa lịch"
+            description="Chỉ người dạy tạo hoặc sửa lịch trước khi chốt, sau khi thỏa thuận và các lộ trình đủ xác nhận."
           />
         )
       )}

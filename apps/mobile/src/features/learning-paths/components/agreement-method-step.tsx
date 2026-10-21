@@ -81,6 +81,7 @@ export function AgreementMethodStep({
                     identity,
                   );
                 },
+                (saved) => !saved.unchanged || !mine,
               );
               const result = await command.run(
                 JSON.stringify({

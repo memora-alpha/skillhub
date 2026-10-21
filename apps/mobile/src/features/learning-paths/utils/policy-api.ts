@@ -60,7 +60,7 @@ export function ownConfirmation(
     ? value.participantAConfirmedAt
     : value.participantBConfirmedAt;
 }
-export function canSchedule(
+function schedulingReady(
   path: ApiLearningPath,
   plan: ApiLearningPlan,
   userId?: string,
@@ -69,12 +69,47 @@ export function canSchedule(
     editablePath(path) &&
     path.status === "CONFIRMED" &&
     plansConfirmed(path) &&
-    !!path.agreement.participantAConfirmedAt &&
-    !!path.agreement.participantBConfirmedAt &&
-    plan.teacherId === userId &&
+    agreementConfirmed(path) &&
+    [path.participantAId, path.participantBId].includes(userId ?? "") &&
     plan.status === "CONFIRMED" &&
-    !!plan.learnerConfirmedAt &&
+    !!plan.learnerConfirmedAt
+  );
+}
+export function scheduleIsComplete(plan: ApiLearningPlan) {
+  const items = plan.schedule?.items;
+  return (
+    !!items &&
+    items.length === plan.totalSessions &&
+    new Set(items.map((item) => item.sessionNo)).size === plan.totalSessions &&
+    items.every(
+      (item) => item.sessionNo > 0 && item.sessionNo <= plan.totalSessions,
+    )
+  );
+}
+export function canSchedule(
+  path: ApiLearningPath,
+  plan: ApiLearningPlan,
+  userId?: string,
+) {
+  return (
+    schedulingReady(path, plan, userId) &&
+    plan.teacherId === userId &&
     !plan.schedule
+  );
+}
+export function canEditSchedule(
+  path: ApiLearningPath,
+  plan: ApiLearningPlan,
+  userId?: string,
+) {
+  return (
+    schedulingReady(path, plan, userId) &&
+    plan.teacherId === userId &&
+    !!plan.schedule &&
+    plan.schedule.appliedVersion === null &&
+    ["DRAFT", "PROPOSED", "PARTIALLY_CONFIRMED", "NEEDS_REVISION"].includes(
+      plan.schedule.status,
+    )
   );
 }
 export function canConfirmSchedule(
@@ -83,22 +118,21 @@ export function canConfirmSchedule(
   userId?: string,
 ) {
   return (
-    !!userId &&
-    [path.participantAId, path.participantBId].includes(userId) &&
-    editablePath(path) &&
-    path.status === "CONFIRMED" &&
+    schedulingReady(path, plan, userId) &&
     !!plan.schedule &&
-    ["PROPOSED", "PARTIALLY_CONFIRMED"].includes(plan.schedule.status) &&
+    scheduleIsComplete(plan) &&
+    plan.schedule.appliedVersion === null &&
+    ["PROPOSED", "PARTIALLY_CONFIRMED", "NEEDS_REVISION"].includes(
+      plan.schedule.status,
+    ) &&
     !ownConfirmation(path, plan.schedule, userId)
   );
 }
 export function canValidateForFinalize(path: ApiLearningPath) {
-  const agreement = path.agreement;
   if (
     !editablePath(path) ||
     path.status !== "CONFIRMED" ||
-    !agreement.participantAConfirmedAt ||
-    !agreement.participantBConfirmedAt
+    !agreementConfirmed(path)
   )
     return false;
   return (
@@ -109,7 +143,7 @@ export function canValidateForFinalize(path: ApiLearningPath) {
         ["PROPOSED", "PARTIALLY_CONFIRMED"].includes(p.schedule.status) &&
         !!p.schedule.participantAConfirmedAt &&
         !!p.schedule.participantBConfirmedAt &&
-        p.schedule.items.length === p.totalSessions,
+        scheduleIsComplete(p),
     )
   );
 }

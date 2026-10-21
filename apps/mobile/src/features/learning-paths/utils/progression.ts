@@ -4,6 +4,8 @@ import {
   editablePath,
   ownConfirmation,
   plansConfirmed,
+  canEditSchedule,
+  scheduleIsComplete,
 } from "./policy-api";
 
 type NextAction = { label: string; href: `/paths/${string}` };
@@ -148,13 +150,23 @@ export function agreementProgress(
           href: `${base}/schedules/${plan.id}`,
         };
     } else if (
-      !["PROPOSED", "PARTIALLY_CONFIRMED"].includes(schedule.status) ||
-      schedule.items.length !== plan.totalSessions
+      !["PROPOSED", "PARTIALLY_CONFIRMED", "NEEDS_REVISION"].includes(
+        schedule.status,
+      ) ||
+      !scheduleIsComplete(plan)
     ) {
+      const editable = canEditSchedule(path, plan, userId);
       waiting.push(
-        "Lịch chưa sẵn sàng để chốt. Mở lịch và trao đổi lại với đối tác.",
+        editable
+          ? "Bạn cần điều chỉnh lịch đủ các buổi của lộ trình."
+          : "Lịch chưa đầy đủ hoặc cần điều chỉnh. Chờ người dạy cập nhật lịch.",
       );
-      action ??= { label: "Xem trạng thái lịch", href: `${base}/schedules` };
+      action ??= editable
+        ? {
+            label: "Điều chỉnh lịch tôi dạy",
+            href: `${base}/schedules/${plan.id}`,
+          }
+        : { label: "Xem trạng thái lịch", href: `${base}/schedules` };
     } else if (!ownConfirmation(path, schedule, userId)) {
       waiting.push("Bạn cần xem và xác nhận lịch của từng kế hoạch.");
       action ??= { label: "Xem và xác nhận lịch", href: `${base}/schedules` };

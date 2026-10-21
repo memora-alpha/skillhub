@@ -7,6 +7,7 @@ import type { ApiLearningPlan } from "../api/learning-paths-contract";
 import { learningSessionLabel } from "../utils/policy-api";
 import { sessionContentParts } from "../utils/session-content";
 import { planDetailStyles } from "./plan-detail-styles";
+import { ScheduleTimelineItem } from "./schedule-timeline-item";
 
 export function PlanDetailContent({
   plan,
@@ -103,102 +104,81 @@ export function PlanDetailContent({
           {plan.sessionOutline.length} buổi học
         </Text>
       </View>
-      <View style={planDetailStyles.timelineCard}>
-        <View pointerEvents="none" style={planDetailStyles.timelineTrack} />
-        <View style={planDetailStyles.timelineList}>
-          {plan.sessionOutline.map((session) => {
-            const { title, description } = sessionContentParts(session.content);
-            const scheduled =
-              plan.schedule?.items.find(
-                (item) => item.sessionNo === session.sessionNo,
-              ) ??
-              plan.sessions.find(
-                (item) => item.sessionNo === session.sessionNo,
-              );
-            const duration = scheduled
-              ? Math.round(
-                  (Date.parse(scheduled.endAt) -
-                    Date.parse(scheduled.startAt)) /
-                    60000,
-                )
-              : 0;
-            const actualSession = plan.sessions.find(
+      <View style={planDetailStyles.timelineList}>
+        {plan.sessionOutline.map((session, index) => {
+          const { title, description } = sessionContentParts(session.content);
+          const scheduled =
+            plan.schedule?.items.find(
               (item) => item.sessionNo === session.sessionNo,
-            );
-            const isOngoing = actualSession?.status === "ONGOING";
-            return (
-              <View key={session.sessionNo} style={planDetailStyles.stop}>
-                <View
-                  style={[
-                    planDetailStyles.stopNumber,
-                    isOngoing && planDetailStyles.stopNumberActive,
-                  ]}
-                >
+            ) ??
+            plan.sessions.find((item) => item.sessionNo === session.sessionNo);
+          const duration = scheduled
+            ? Math.round(
+                (Date.parse(scheduled.endAt) - Date.parse(scheduled.startAt)) /
+                  60000,
+              )
+            : 0;
+          const actualSession = plan.sessions.find(
+            (item) => item.sessionNo === session.sessionNo,
+          );
+          const isOngoing = actualSession?.status === "ONGOING";
+          return (
+            <ScheduleTimelineItem
+              key={session.sessionNo}
+              last={index === plan.sessionOutline.length - 1}
+            >
+              <View
+                style={[
+                  planDetailStyles.stopCard,
+                  isOngoing && planDetailStyles.stopCardActive,
+                ]}
+              >
+                <View style={planDetailStyles.stopTopline}>
                   <Text
                     style={[
-                      planDetailStyles.stopNumberText,
-                      isOngoing && planDetailStyles.stopNumberTextActive,
+                      planDetailStyles.stopLabel,
+                      isOngoing && planDetailStyles.stopLabelActive,
                     ]}
                   >
-                    {String(session.sessionNo).padStart(2, "0")}
+                    {isOngoing
+                      ? `ĐANG HỌC · BUỔI ${session.sessionNo}`
+                      : `BUỔI ${session.sessionNo}`}
                   </Text>
-                </View>
-                <View
-                  style={[
-                    planDetailStyles.stopCard,
-                    isOngoing && planDetailStyles.stopCardActive,
-                  ]}
-                >
-                  <View style={planDetailStyles.stopTopline}>
-                    <Text
-                      style={[
-                        planDetailStyles.stopLabel,
-                        isOngoing && planDetailStyles.stopLabelActive,
-                      ]}
-                    >
-                      {isOngoing
-                        ? `ĐANG HỌC · BUỔI ${session.sessionNo}`
-                        : `BUỔI ${session.sessionNo}`}
-                    </Text>
-                    {duration > 0 && Number.isFinite(duration) && (
-                      <View style={planDetailStyles.duration}>
-                        <Icon name="clock" size={12} color={colors.muted} />
-                        <Text style={planDetailStyles.durationText}>
-                          {duration} phút
-                        </Text>
-                      </View>
-                    )}
-                  </View>
-                  <Text selectable style={planDetailStyles.sessionTitle}>
-                    {title}
-                  </Text>
-                  {!!description && (
-                    <Text
-                      selectable
-                      style={planDetailStyles.sessionDescription}
-                    >
-                      {description}
-                    </Text>
-                  )}
-                  {actualSession && (
-                    <View style={planDetailStyles.sessionState}>
-                      <Text
-                        style={[
-                          planDetailStyles.sessionStateText,
-                          actualSession.status === "COMPLETED" &&
-                            planDetailStyles.sessionStateComplete,
-                          isOngoing && planDetailStyles.sessionStateActive,
-                        ]}
-                      >
-                        {learningSessionLabel[actualSession.status]}
+                  {duration > 0 && Number.isFinite(duration) && (
+                    <View style={planDetailStyles.duration}>
+                      <Icon name="clock" size={12} color={colors.muted} />
+                      <Text style={planDetailStyles.durationText}>
+                        {duration} phút
                       </Text>
                     </View>
                   )}
                 </View>
+                <Text selectable style={planDetailStyles.sessionTitle}>
+                  {title}
+                </Text>
+                {!!description && (
+                  <Text selectable style={planDetailStyles.sessionDescription}>
+                    {description}
+                  </Text>
+                )}
+                {actualSession && (
+                  <View style={planDetailStyles.sessionState}>
+                    <Text
+                      style={[
+                        planDetailStyles.sessionStateText,
+                        actualSession.status === "COMPLETED" &&
+                          planDetailStyles.sessionStateComplete,
+                        isOngoing && planDetailStyles.sessionStateActive,
+                      ]}
+                    >
+                      {learningSessionLabel[actualSession.status]}
+                    </Text>
+                  </View>
+                )}
               </View>
-            );
-          })}
-        </View>
+            </ScheduleTimelineItem>
+          );
+        })}
       </View>
 
       <View

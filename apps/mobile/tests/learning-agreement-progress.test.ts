@@ -50,16 +50,13 @@ test("TWO_WAY exposes the current learner's task while the other direction is mi
   assert.equal(canValidateForFinalize(path), false);
 });
 
-test("changing a plan version returns both parties to agreement confirmation before plan actions", () => {
+test("changing agreement terms returns both parties to method confirmation before plan actions", () => {
   const path = withConfirmedSchedules();
   path.status = "PROPOSED";
   path.currentVersion++;
   path.agreement.version++;
   path.agreement.participantAConfirmedAt = null;
   path.agreement.participantBConfirmedAt = null;
-  path.plans[0]!.version++;
-  path.plans[0]!.learnerConfirmedAt = null;
-  path.plans[0]!.status = "PROPOSED";
   assert.equal(agreementProgress(path, learnerId).stage, "terms");
   assert.equal(canConfirmPlan(path, path.plans[0]!, learnerId), false);
   assert.equal(canEditPlan(path, path.plans[0]!, teacherId), false);
