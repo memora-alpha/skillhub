@@ -1,5 +1,5 @@
 // Public policy entry point without screen dependencies.
-export { canReschedule } from "./rules";
+export { canReschedule } from "./preview/rules";
 export { readPlanShare } from "./utils/plan-share";
 export {
   readConfirmedForm,

@@ -4,7 +4,10 @@ import { ControlledInput } from "@/components/ControlledInput";
 import { ChoiceGroup } from "@/components/choice-group";
 import { Button } from "@/components/Button";
 import { Copy } from "@/components/feature-page";
-import { agreementInputSchema, type AgreementInput } from "../agreement-input";
+import {
+  agreementInputSchema,
+  type AgreementInput,
+} from "../schemas/agreement-input";
 import type {
   ApiLearningPath,
   CreateLearningPathInput,
@@ -41,7 +44,9 @@ export function ApiAgreementForm({
   });
   const type = watch("type"),
     role = watch("role");
-  const submitLabel = path ? "Gửi điều khoản mới" : "Tạo lộ trình";
+  const submitLabel = path
+    ? "Gửi và đồng ý thay đổi"
+    : "Gửi và đồng ý cách học";
   return (
     <>
       <ChoiceGroup
@@ -85,8 +90,8 @@ export function ApiAgreementForm({
       </Copy>
       {path && (
         <Copy muted>
-          Thay đổi điều khoản tạo phiên bản mới, cần xác nhận lại điều khoản và
-          đề xuất lại lịch.
+          Thay đổi sẽ gửi cho đối tác xác nhận lại. Lịch học cần được thống nhất
+          theo thỏa thuận mới.
         </Copy>
       )}
       <Button
