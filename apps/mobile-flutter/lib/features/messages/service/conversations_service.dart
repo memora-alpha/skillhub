@@ -37,4 +37,16 @@ class ConversationsService {
 
   Future<Map<String, dynamic>> upload(String id, FormData body) =>
       _api.upload(id, body);
+
+  Future<Map<String, dynamic>> delivery(String id, String clientMessageId) =>
+      _api.delivery(id, clientMessageId);
+
+  Future<Map<String, dynamic>> attachmentStatus(String id, String fileId) =>
+      _api.attachmentStatus(id, fileId);
+
+  Future<Map<String, dynamic>> attachmentDownload(
+    String id,
+    String messageId,
+    String attachmentId,
+  ) => _api.attachmentDownload(id, messageId, attachmentId);
 }

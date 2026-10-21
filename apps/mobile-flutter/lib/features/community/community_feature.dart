@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../components/app_button.dart';
 import '../../components/feature_page.dart';
 import '../../components/misc.dart';
+import '../../core/http/app_error.dart';
+import '../../core/toast/toast.dart';
 import '../auth/session/auth_session.dart';
 import '../learning_paths/paths_data.dart';
 
@@ -22,7 +24,7 @@ final selectedBadgeProvider = NotifierProvider<SelectedBadgeNotifier, String>(
 );
 
 final achievementsProvider =
-    FutureProvider<List<({String title, String description})>>((ref) async {
+    FutureProvider<List<({String title, String description, String code})>>((ref) async {
       final phase = ref.watch(sessionSnapshotProvider).phase;
       if (phase != SessionPhase.ready) return const [];
       final data = await ref.read(authRuntimeProvider).services.study.achievements();
@@ -35,6 +37,7 @@ final achievementsProvider =
             (
               title: item['title']?.toString() ?? '',
               description: item['description']?.toString() ?? '',
+              code: item['code']?.toString() ?? '',
             ),
       ];
     });
@@ -206,7 +209,20 @@ class _AchievementsScreenState extends ConsumerState<AchievementsScreen> {
             AppButton(
               label: 'Ẩn danh hiệu',
               variant: ButtonVariant.paper,
-              onPressed: () => notifier.select(''),
+              onPressed: () async {
+                try {
+                  await ref
+                      .read(authRuntimeProvider)
+                      .services
+                      .study
+                      .selectTitle(null);
+                  notifier.select('');
+                } catch (error) {
+                  ref
+                      .read(toastProvider.notifier)
+                      .show(errorMessage(error), ToastTone.error);
+                }
+              },
             ),
           ],
         ),
@@ -216,6 +232,24 @@ class _AchievementsScreenState extends ConsumerState<AchievementsScreen> {
             children: [
               const StatusBadge('Đã mở'),
               Copy(item.description),
+              AppButton(
+                label: 'Chọn danh hiệu này',
+                variant: ButtonVariant.paper,
+                onPressed: () async {
+                  try {
+                    await ref
+                        .read(authRuntimeProvider)
+                        .services
+                        .study
+                        .selectTitle(item.code.isEmpty ? null : item.code);
+                    notifier.select(item.title);
+                  } catch (error) {
+                    ref
+                        .read(toastProvider.notifier)
+                        .show(errorMessage(error), ToastTone.error);
+                  }
+                },
+              ),
             ],
           ),
         if (unlocked.isEmpty)
@@ -273,21 +307,37 @@ class ReputationScreen extends ConsumerWidget {
   }
 }
 
-class ReputationHistoryScreen extends StatelessWidget {
+class ReputationHistoryScreen extends ConsumerWidget {
   const ReputationHistoryScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final history = ref.watch(_reputationProvider);
+    final data = history.value;
+    final items = data?['items'] ?? data?['entries'];
     return FeaturePage(
       title: 'Lịch sử uy tín',
       back: '/reputation',
       children: [
-        Panel(
-          title: 'Khởi tạo tài khoản',
-          children: [
-            Copy('Lịch sử điểm tải từ máy chủ khi có sự kiện uy tín.'),
-          ],
-        ),
+        if (history.isLoading)
+          const Copy('Đang tải lịch sử uy tín.', muted: true)
+        else if (history.hasError)
+          Copy(errorMessage(history.error))
+        else if (items is List && items.isNotEmpty)
+          for (final item in items)
+            Panel(
+              title: item is Map ? item['reason']?.toString() ?? 'Sự kiện' : 'Sự kiện',
+              children: [
+                Copy(item.toString()),
+              ],
+            )
+        else
+          Panel(
+            title: 'Chưa có sự kiện uy tín',
+            children: [
+              Copy(data == null ? 'Máy chủ chưa trả lịch sử.' : data.toString()),
+            ],
+          ),
         Panel(
           title: 'Khi cần xem xét vi phạm',
           children: [
@@ -306,3 +356,9 @@ class ReputationHistoryScreen extends StatelessWidget {
     );
   }
 }
+
+final _reputationProvider = FutureProvider<Map<String, dynamic>>((ref) async {
+  final phase = ref.watch(sessionSnapshotProvider).phase;
+  if (phase != SessionPhase.ready) return const {};
+  return ref.read(authRuntimeProvider).services.study.reputation();
+});

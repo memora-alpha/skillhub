@@ -14,4 +14,9 @@ class NotificationsService {
   }) => _api.list(cursor: cursor, limit: limit, unread: unread);
 
   Future<void> markRead(String notificationId) => _api.markRead(notificationId);
+
+  Future<Map<String, dynamic>> registerPush(String token) =>
+      _api.registerPush(token);
+
+  Future<void> unregisterPush(String tokenId) => _api.unregisterPush(tokenId);
 }

@@ -1,6 +1,8 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../components/app_button.dart';
 import '../../components/app_icon.dart';
@@ -9,8 +11,19 @@ import '../../components/feature_page.dart';
 import '../../components/misc.dart';
 import '../../components/tappable.dart';
 import '../../core/theme/tokens.dart';
+import '../../core/http/app_error.dart';
+import '../auth/session/auth_session.dart';
 import '../shell/app_screen_layout.dart';
 import 'messages_data.dart';
+
+final _openedConversationProvider = FutureProvider.family<void, String>((
+  ref,
+  id,
+) async {
+  final phase = ref.watch(sessionSnapshotProvider).phase;
+  if (phase != SessionPhase.ready) return;
+  await ref.read(authRuntimeProvider).services.conversations.get(id);
+});
 
 class MessagesScreen extends ConsumerStatefulWidget {
   const MessagesScreen({super.key});
@@ -416,6 +429,9 @@ class ChatScreen extends ConsumerWidget {
     final conversation = ref.watch(
       messagesProvider.select((s) => s.find(proposalId)),
     );
+    if (conversation != null) {
+      ref.watch(_openedConversationProvider(conversation.id));
+    }
     if (conversation == null) {
       return AppScreenLayout(
         title: 'Tin nhắn',
@@ -1096,6 +1112,58 @@ class AttachmentScreen extends ConsumerStatefulWidget {
 
 class _AttachmentScreenState extends ConsumerState<AttachmentScreen> {
   String _error = '';
+  String _status = '';
+
+  Future<void> _send() async {
+    final proposalId = widget.proposalId;
+    final conversation = proposalId == null
+        ? null
+        : ref.read(messagesProvider).find(proposalId);
+    if (conversation == null) return;
+    setState(() {
+      _error = '';
+      _status = '';
+    });
+    try {
+      final picked = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        requestFullMetadata: false,
+      );
+      if (picked == null) return;
+      final bytes = await picked.readAsBytes();
+      final api = ref.read(authRuntimeProvider).services.conversations;
+      final uploaded = await api.upload(
+        conversation.id,
+        FormData.fromMap({
+          'file': MultipartFile.fromBytes(bytes, filename: picked.name),
+        }),
+      );
+      final fileId = uploaded['fileId']?.toString() ?? '';
+      if (fileId.isEmpty) {
+        setState(() => _status = 'Máy chủ đã nhận tệp.');
+        return;
+      }
+      final status = await api.attachmentStatus(conversation.id, fileId);
+      final deliveryId = uploaded['clientMessageId']?.toString() ?? '';
+      if (deliveryId.isNotEmpty) {
+        await api.delivery(conversation.id, deliveryId);
+      }
+      final messageId = uploaded['messageId']?.toString() ?? '';
+      final attachmentId = uploaded['attachmentId']?.toString() ?? fileId;
+      if (messageId.isNotEmpty) {
+        final link = await api.attachmentDownload(
+          conversation.id,
+          messageId,
+          attachmentId,
+        );
+        setState(() => _status = link['url']?.toString() ?? status.toString());
+        return;
+      }
+      setState(() => _status = status['state']?.toString() ?? 'Đã tải lên.');
+    } catch (error) {
+      if (mounted) setState(() => _error = errorMessage(error));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1114,22 +1182,12 @@ class _AttachmentScreenState extends ConsumerState<AttachmentScreen> {
           )
         else
           Panel(
-            title: 'Đính kèm tệp',
+            title: 'Đính kèm ảnh',
             children: [
-              const Copy(
-                'Màn này chưa mở bộ chọn tệp, nên chưa gửi tệp lên máy chủ.',
-                muted: true,
-              ),
               if (_error.isNotEmpty)
                 FormNotice(tone: NoticeTone.error, message: _error),
-              AppButton(
-                label: 'Gửi tệp',
-                onPressed: () {
-                  setState(
-                    () => _error = 'Chọn tệp từ máy trước khi gửi.',
-                  );
-                },
-              ),
+              if (_status.isNotEmpty) Copy(_status),
+              AppButton(label: 'Chọn ảnh và gửi', onPressed: _send),
             ],
           ),
       ],

@@ -31,6 +31,39 @@ class SkillsApi {
     await _client.request('/skills/$skillId', authenticated: true),
   );
 
+  Future<List<Map<String, dynamic>>> levels(String skillId) async => asList(
+    await _client.request('/skills/$skillId/levels', authenticated: true),
+    asMap,
+  );
+
+  Future<Map<String, dynamic>> requestTag(
+    String label, {
+    required String idempotencyKey,
+  }) async => asMap(
+    await _client.request(
+      '/tag-requests',
+      method: 'POST',
+      body: {'label': label},
+      headers: {'Idempotency-Key': idempotencyKey},
+      authenticated: true,
+    ),
+  );
+
+  Future<Page<Map<String, dynamic>>> myTagRequests({
+    String? cursor,
+    int? limit,
+  }) async => Page.parse(
+    await _client.requestEnvelope(
+      withQuery('/me/tag-requests', {'cursor': cursor, 'limit': limit}),
+      authenticated: true,
+    ),
+    asMap,
+  );
+
+  Future<Map<String, dynamic>> tagRequest(String requestId) async => asMap(
+    await _client.request('/me/tag-requests/$requestId', authenticated: true),
+  );
+
   Future<Page<SharingSkillRecord>> listMine({
     String? cursor,
     int? limit,

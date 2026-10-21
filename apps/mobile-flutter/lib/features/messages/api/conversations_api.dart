@@ -62,6 +62,37 @@ class ConversationsApi {
         authenticated: true,
       );
 
+  Future<Map<String, dynamic>> delivery(
+    String id,
+    String clientMessageId,
+  ) async => asMap(
+    await _client.request(
+      '/conversations/$id/message-deliveries/$clientMessageId',
+      authenticated: true,
+    ),
+  );
+
+  Future<Map<String, dynamic>> attachmentStatus(
+    String id,
+    String fileId,
+  ) async => asMap(
+    await _client.request(
+      '/conversations/$id/attachments/$fileId/status',
+      authenticated: true,
+    ),
+  );
+
+  Future<Map<String, dynamic>> attachmentDownload(
+    String id,
+    String messageId,
+    String attachmentId,
+  ) async => asMap(
+    await _client.request(
+      '/conversations/$id/messages/$messageId/attachments/$attachmentId/download',
+      authenticated: true,
+    ),
+  );
+
   Future<Map<String, dynamic>> upload(String id, FormData body) async =>
       asMap(
         await _client.request(

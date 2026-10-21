@@ -1,9 +1,12 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../components/feature_page.dart';
 import '../../components/misc.dart';
+import '../../core/http/app_error.dart';
 import '../auth/session/auth_session.dart';
 import '../materials/materials_feature.dart';
 import '../sessions/sessions_data.dart';
@@ -229,25 +232,59 @@ class _ReportEditorScreenState extends ConsumerState<ReportEditorScreen> {
                     multiline: true,
                   ),
                 ],
-                submitLabel: 'Gửi báo cáo mẫu',
-                onSubmit: (v) {
-                  final id = 'report-${DateTime.now().millisecondsSinceEpoch}';
-                  ref
-                      .read(reportsProvider.notifier)
-                      .save(
-                        PreviewReport(
-                          id: id,
-                          target: materialId != null ? 'MATERIAL' : 'SESSION',
-                          targetId: (materialId ?? sessionId)!,
-                          pathId: materialId != null ? null : pathId,
-                          reason: v['reason']!,
-                          description: v['description']!,
-                          files: _files,
-                          status: 'OPEN',
-                        ),
+                submitLabel: sessionId == null ? 'Gửi báo cáo mẫu' : 'Gửi báo cáo',
+                onSubmit: (v) async {
+                  if (sessionId == null) {
+                    final id = 'report-${DateTime.now().millisecondsSinceEpoch}';
+                    ref.read(reportsProvider.notifier).save(
+                      PreviewReport(
+                        id: id,
+                        target: 'MATERIAL',
+                        targetId: materialId!,
+                        description: v['description']!,
+                        reason: v['reason']!,
+                        files: _files,
+                        status: 'OPEN',
+                      ),
+                    );
+                    context.pushReplacement('/reports/$id');
+                    return null;
+                  }
+                  try {
+                    final study = ref.read(authRuntimeProvider).services.study;
+                    final fileIds = <String>[];
+                    final picked = await ImagePicker().pickImage(
+                      source: ImageSource.gallery,
+                      requestFullMetadata: false,
+                    );
+                    if (picked != null) {
+                      final bytes = await picked.readAsBytes();
+                      final uploaded = await study.uploadReportEvidence(
+                        FormData.fromMap({
+                          'file': MultipartFile.fromBytes(
+                            bytes,
+                            filename: picked.name,
+                          ),
+                        }),
                       );
-                  context.pushReplacement('/reports/$id');
-                  return null;
+                      final fileId = uploaded['fileId']?.toString() ?? '';
+                      if (fileId.isNotEmpty) {
+                        await study.reportEvidenceStatus(fileId);
+                        fileIds.add(fileId);
+                      }
+                    }
+                    final created = await study.reportSession(sessionId, {
+                      'reasonCode': v['reason'],
+                      'description': v['description'],
+                      'evidenceFileIds': fileIds,
+                    });
+                    if (context.mounted) {
+                      context.pushReplacement('/reports/${created['id']}');
+                    }
+                    return null;
+                  } catch (error) {
+                    return errorMessage(error);
+                  }
                 },
               ),
               const Copy(

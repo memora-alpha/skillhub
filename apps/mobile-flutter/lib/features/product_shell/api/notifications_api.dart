@@ -22,6 +22,21 @@ class NotificationsApi {
     NotificationRecord.parse,
   );
 
+  Future<Map<String, dynamic>> registerPush(String token) async => asMap(
+    await _client.request(
+      '/notifications/push-tokens',
+      method: 'POST',
+      body: {'token': token},
+      authenticated: true,
+    ),
+  );
+
+  Future<void> unregisterPush(String tokenId) => _client.request(
+    '/notifications/push-tokens/$tokenId',
+    method: 'DELETE',
+    authenticated: true,
+  );
+
   Future<void> markRead(String notificationId) => _client.request(
     '/notifications/$notificationId/read',
     method: 'PATCH',

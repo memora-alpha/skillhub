@@ -133,3 +133,12 @@ class RequestDetailContent {
 }
 
 const requestDetails = <String, RequestDetailContent>{};
+
+final serverRequestProvider = FutureProvider.family<Map<String, dynamic>, String>((
+  ref,
+  id,
+) async {
+  final phase = ref.watch(sessionSnapshotProvider).phase;
+  if (phase != SessionPhase.ready || id.isEmpty) return const {};
+  return ref.read(authRuntimeProvider).services.learningRequests.get(id);
+});

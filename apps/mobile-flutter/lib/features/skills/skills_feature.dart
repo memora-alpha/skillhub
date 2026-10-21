@@ -278,6 +278,7 @@ class SkillsScreen extends ConsumerWidget {
       back: '/profile',
       children: [
         const RouteButton(href: '/skills/new', label: 'Thêm kỹ năng'),
+        const RouteButton(secondary: true, href: '/tags', label: 'Thẻ và đề xuất thẻ'),
         for (final skill in skills)
           Panel(
             title: skill.name,
@@ -512,6 +513,11 @@ class SkillDetailScreen extends ConsumerWidget {
                       : 'Gửi bằng chứng xác minh',
                 ),
               _SharersPanel(skillId: skill.skillId),
+              RouteButton(
+                secondary: true,
+                href: '/catalog/skills/${skill.skillId}',
+                label: 'Xem danh mục và cấp độ',
+              ),
               const Copy(
                 'Bằng chứng chỉ dành cho chủ sở hữu và người duyệt có quyền. Xác minh không tự hết hạn.',
                 muted: true,
@@ -728,8 +734,8 @@ class VerificationHistoryScreen extends ConsumerWidget {
                 for (final file in entry.files) Copy(file, muted: true),
                 RouteButton(
                   secondary: true,
-                  href: '/skills/${entry.sharingSkillId}/evidence',
-                  label: 'Xem hồ sơ',
+                  href: '/skills/${entry.sharingSkillId}/verifications/${entry.id}',
+                  label: 'Xem hồ sơ và tải bằng chứng',
                 ),
               ],
             ),

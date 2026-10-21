@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useRef, useState } from "react";
 import {
   Badge,
@@ -168,6 +169,9 @@ export function CatalogScreen() {
                         >
                           {s.status === "ARCHIVED" ? "Khôi phục" : "Ẩn"}
                         </button>
+                        <Link className="btn btn-sm" href={`/admin/skills/${s.id}/levels`}>
+                          Cấp độ
+                        </Link>
                       </div>
                     </td>
                   </tr>

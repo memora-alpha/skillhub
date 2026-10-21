@@ -236,6 +236,16 @@ class MessagesNotifier extends Notifier<MessagesState> {
   void markRead(String proposal) {
     if (state.read.contains(proposal)) return;
     state = state.copyWith(read: {...state.read, proposal});
+    final conversation = state.find(proposal);
+    final thread = state.threads[proposal];
+    final incoming = thread?.where((message) => !message.mine).lastOrNull;
+    if (conversation == null || incoming == null) return;
+    ref
+        .read(authRuntimeProvider)
+        .services
+        .conversations
+        .markRead(conversation.id, messageId: incoming.id)
+        .then((_) {}, onError: (_, _) {});
   }
 
   void _append(String proposal, ChatMessage message) {
@@ -264,6 +274,11 @@ class MessagesNotifier extends Notifier<MessagesState> {
           );
       final me = ref.read(accountProvider).value?.userId ?? '';
       _append(proposal, _chatMessage(message, me));
+      await ref
+          .read(authRuntimeProvider)
+          .services
+          .conversations
+          .delivery(conversation.id, clientMessageId);
     } catch (_) {}
   }
 

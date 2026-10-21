@@ -1,3 +1,5 @@
+import 'package:dio/dio.dart';
+
 import '../../../core/http/http_client.dart';
 
 /// Learning paths, schedules, sessions, reviews and reports.
@@ -6,6 +8,15 @@ class StudyApi {
   StudyApi(this._client);
 
   final HttpClient _client;
+
+  Future<List<Map<String, dynamic>>> myPaths() async => asList(
+    await _client.request('/learning-paths/mine', authenticated: true),
+    asMap,
+  );
+
+  Future<Map<String, dynamic>> path(String pathId) async => asMap(
+    await _client.request('/learning-paths/$pathId', authenticated: true),
+  );
 
   Future<Map<String, dynamic>> createPath(Map<String, Object?> body) =>
       _json('/learning-paths', 'POST', body);
@@ -21,9 +32,13 @@ class StudyApi {
   Future<Map<String, dynamic>> finalizePath(
     String pathId, {
     required int expectedVersion,
-  }) => _json('/learning-paths/$pathId/finalize', 'POST', {
-    'expectedVersion': expectedVersion,
-  });
+    required String idempotencyKey,
+  }) => _json(
+    '/learning-paths/$pathId/finalize',
+    'POST',
+    {'expectedVersion': expectedVersion},
+    headers: {'Idempotency-Key': idempotencyKey},
+  );
 
   Future<Map<String, dynamic>> addPlan(
     String pathId,
@@ -123,15 +138,38 @@ class StudyApi {
     Map<String, Object?> body,
   ) => _json('/reports/sessions/$sessionId', 'POST', body);
 
+  Future<Map<String, dynamic>> uploadReportEvidence(FormData body) async =>
+      asMap(
+        await _client.request(
+          '/reports/evidence-files',
+          method: 'POST',
+          body: body,
+          authenticated: true,
+        ),
+      );
+
+  Future<Map<String, dynamic>> reportEvidenceStatus(String fileId) async =>
+      asMap(
+        await _client.request(
+          '/reports/evidence-files/$fileId',
+          authenticated: true,
+        ),
+      );
+
+  Future<Map<String, dynamic>> liveKitToken(String sessionId) =>
+      _json('/sessions/$sessionId/livekit-token', 'POST', const {});
+
   Future<Map<String, dynamic>> _json(
     String path,
     String method,
-    Map<String, Object?> body,
-  ) async => asMap(
+    Map<String, Object?> body, {
+    Map<String, String> headers = const {},
+  }) async => asMap(
     await _client.request(
       path,
       method: method,
       body: body,
+      headers: headers,
       authenticated: true,
     ),
   );

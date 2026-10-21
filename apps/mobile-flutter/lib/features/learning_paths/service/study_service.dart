@@ -1,10 +1,17 @@
+import 'package:dio/dio.dart';
+
 import '../../../core/http/http_client.dart';
+import '../../remote/remote_load.dart';
 import '../api/study_api.dart';
 
 class StudyService {
   StudyService(HttpClient client) : _api = StudyApi(client);
 
   final StudyApi _api;
+
+  Future<List<Map<String, dynamic>>> myPaths() => _api.myPaths();
+
+  Future<Map<String, dynamic>> path(String pathId) => _api.path(pathId);
 
   Future<Map<String, dynamic>> createPath(Map<String, Object?> body) =>
       _api.createPath(body);
@@ -20,7 +27,11 @@ class StudyService {
   Future<Map<String, dynamic>> finalizePath(
     String pathId, {
     required int expectedVersion,
-  }) => _api.finalizePath(pathId, expectedVersion: expectedVersion);
+  }) => _api.finalizePath(
+    pathId,
+    expectedVersion: expectedVersion,
+    idempotencyKey: newUuid(),
+  );
 
   Future<Map<String, dynamic>> addPlan(
     String pathId,
@@ -92,4 +103,13 @@ class StudyService {
     String sessionId,
     Map<String, Object?> body,
   ) => _api.reportSession(sessionId, body);
+
+  Future<Map<String, dynamic>> uploadReportEvidence(FormData body) =>
+      _api.uploadReportEvidence(body);
+
+  Future<Map<String, dynamic>> reportEvidenceStatus(String fileId) =>
+      _api.reportEvidenceStatus(fileId);
+
+  Future<Map<String, dynamic>> liveKitToken(String sessionId) =>
+      _api.liveKitToken(sessionId);
 }

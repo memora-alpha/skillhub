@@ -36,6 +36,10 @@ class _PathsScreenState extends ConsumerState<PathsScreen> {
       back: '/calendar',
       subtitle: 'Mỗi lần học là một bước tiến cùng nhau.',
       children: [
+        const RouteButton(
+          href: '/study',
+          label: 'Mở lộ trình, lịch và buổi học trên máy chủ',
+        ),
         ChoiceGroup(
           label: 'Trạng thái',
           value: _filter,

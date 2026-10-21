@@ -23,6 +23,8 @@ const appRoutes = {
   'Tài liệu học tập': '/materials',
   'Trung tâm trợ giúp': '/help',
   'Kỹ năng': '/skills',
+  'Thẻ kỹ năng': '/tags',
+  'Lộ trình và buổi học': '/study',
   'Thêm kỹ năng chia sẻ': '/skills/new',
   'Xác minh kỹ năng': '/skills',
   'Thành tích': '/achievements',

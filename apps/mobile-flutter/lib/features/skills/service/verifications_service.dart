@@ -35,4 +35,9 @@ class VerificationsService {
     String sharingSkillId,
     String verificationId,
   ) => _api.get(sharingSkillId, verificationId);
+
+  Future<Map<String, dynamic>> download(
+    String sharingSkillId,
+    String evidenceId,
+  ) => _api.download(sharingSkillId, evidenceId);
 }

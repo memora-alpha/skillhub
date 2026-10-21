@@ -698,6 +698,7 @@ class RequestDetailScreen extends ConsumerWidget {
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             spacing: 12,
                             children: [
+                              _ServerRequest(id: id),
                               Container(
                                 padding: const EdgeInsets.all(16),
                                 decoration: card,
@@ -1215,5 +1216,19 @@ class _ScheduleSection extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _ServerRequest extends ConsumerWidget {
+  const _ServerRequest({required this.id});
+
+  final String id;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final detail = ref.watch(serverRequestProvider(id));
+    final description = detail.value?['description']?.toString() ?? '';
+    if (detail.isLoading || description.isEmpty) return const SizedBox.shrink();
+    return Text(description, style: nunito(TypeScale.body, color: _C.body));
   }
 }

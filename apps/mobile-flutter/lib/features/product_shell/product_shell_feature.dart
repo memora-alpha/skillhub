@@ -8,6 +8,7 @@ import '../../components/feature_page.dart';
 import '../../components/misc.dart';
 import '../../core/theme/tokens.dart';
 import '../auth/session/auth_session.dart';
+import 'live_inbox.dart';
 import '../discovery/discovery_data.dart';
 import '../profile/public_profiles_data.dart';
 import '../remote/remote_load.dart';
@@ -185,6 +186,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
       title: 'Thông báo',
       back: '/home',
       children: [
+        const LiveInbox(),
         ChoiceGroup(
           label: 'Hiển thị',
           options: const ['Tất cả', 'Chưa đọc'],

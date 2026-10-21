@@ -29,6 +29,7 @@ const routes: [string, RegExp, (path: string) => string][] = [
     (p) => `staff/${p}`,
   ],
   ["GET", /^reports$/, () => "reports/staff/queue"],
+  ["GET", new RegExp(`^reports/${uuid}$`, "i"), (p) => `reports/staff/${p.slice("reports/".length)}`],
   [
     "POST",
     new RegExp(`^reports/${uuid}/(claim|need-more-info|resolve|reject)$`, "i"),
@@ -79,6 +80,35 @@ const adminRoutes: [string, RegExp, (path: string) => string][] = [
     "PUT",
     /^moderation-rules$/,
     () => "admin/learning-requests/moderation-rules",
+  ],
+  ["GET", /^tags$/, () => "admin/tags"],
+  ["POST", /^tags$/, () => "admin/tags"],
+  ["PATCH", new RegExp(`^tags/${uuid}$`, "i"), (p) => `admin/${p}`],
+  ["GET", /^tag-requests$/, () => "admin/tag-requests"],
+  [
+    "GET",
+    new RegExp(`^tag-requests/${uuid}$`, "i"),
+    (p) => `admin/${p}`,
+  ],
+  [
+    "POST",
+    new RegExp(`^tag-requests/${uuid}/(approve|reject)$`, "i"),
+    (p) => `admin/${p}`,
+  ],
+  [
+    "GET",
+    new RegExp(`^skills/${uuid}/levels$`, "i"),
+    (p) => `admin/${p}`,
+  ],
+  [
+    "POST",
+    new RegExp(`^skills/${uuid}/levels$`, "i"),
+    (p) => `admin/${p}`,
+  ],
+  [
+    "PATCH",
+    new RegExp(`^skills/${uuid}/levels/${uuid}$`, "i"),
+    (p) => `admin/${p}`,
   ],
 ];
 export type Portal = "admin" | "staff";

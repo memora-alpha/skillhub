@@ -16,6 +16,20 @@ class SkillsService {
 
   Future<SkillRecord> skill(String skillId) => _api.getSkill(skillId);
 
+  Future<List<Map<String, dynamic>>> levels(String skillId) =>
+      _api.levels(skillId);
+
+  Future<Map<String, dynamic>> requestTag(String label) =>
+      _api.requestTag(label, idempotencyKey: newUuid());
+
+  Future<Page<Map<String, dynamic>>> myTagRequests({
+    String? cursor,
+    int? limit,
+  }) => _api.myTagRequests(cursor: cursor, limit: limit);
+
+  Future<Map<String, dynamic>> tagRequest(String requestId) =>
+      _api.tagRequest(requestId);
+
   Future<Page<SharingSkillRecord>> mine({
     String? cursor,
     int? limit,

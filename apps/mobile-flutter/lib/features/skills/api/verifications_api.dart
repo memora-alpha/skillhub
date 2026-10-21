@@ -61,4 +61,14 @@ class VerificationsApi {
       authenticated: true,
     ),
   );
+
+  Future<Map<String, dynamic>> download(
+    String sharingSkillId,
+    String evidenceId,
+  ) async => asMap(
+    await _client.request(
+      '/me/skills/$sharingSkillId/evidence/$evidenceId/download',
+      authenticated: true,
+    ),
+  );
 }

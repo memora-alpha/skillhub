@@ -17,6 +17,7 @@ import 'features/community/community_feature.dart';
 import 'features/discovery/discovery_screens.dart';
 import 'features/home/home_screen.dart';
 import 'features/learning_paths/paths_screens.dart';
+import 'features/learning_paths/study_live_screen.dart';
 import 'features/learning_requests/requests_feature.dart';
 import 'features/materials/materials_feature.dart';
 import 'features/messages/messages_screens.dart';
@@ -30,6 +31,7 @@ import 'features/sessions/sessions_screens.dart';
 import 'features/settings/account_details_screen.dart';
 import 'features/settings/account_settings_screen.dart';
 import 'features/shell/app_screen_layout.dart';
+import 'features/skills/catalog_extra_screen.dart';
 import 'features/skills/skills_feature.dart';
 import 'features/ui_preview/ui_preview_screens.dart';
 import 'features/wallet/wallet_feature.dart';
@@ -93,6 +95,7 @@ final _featureRoutes = <GoRoute>[
     (s) => AgreementTypeScreen(proposalId: _q(s, 'proposalId')),
   ),
   _route('/paths', (_) => const PathsScreen()),
+  _route('/study', (_) => const StudyLiveScreen()),
   _route('/paths/:id', (s) => PathDetailScreen(id: _p(s, 'id'))),
   _route('/paths/:id/plans/new', (s) => PlanEditorScreen(id: _p(s, 'id'))),
   _route(
@@ -133,11 +136,20 @@ final _featureRoutes = <GoRoute>[
   _route('/requests/:id', (s) => OwnRequestScreen(id: _p(s, 'id'))),
   _route('/requests/:id/edit', (s) => RequestEditorScreen(id: _p(s, 'id'))),
   _route('/skills', (_) => const SkillsScreen()),
+  _route('/tags', (_) => const TagsScreen()),
+  _route('/catalog/skills/:skillId', (s) => CatalogSkillScreen(skillId: _p(s, 'skillId'))),
   _route('/skills/new', (_) => const SkillEditorScreen()),
   _route('/skills/history', (_) => const VerificationHistoryScreen()),
   _route('/skills/:id', (s) => SkillDetailScreen(id: _p(s, 'id'))),
   _route('/skills/:id/edit', (s) => SkillEditorScreen(id: _p(s, 'id'))),
   _route('/skills/:id/evidence', (s) => EvidenceScreen(id: _p(s, 'id'))),
+  _route(
+    '/skills/:id/verifications/:verificationId',
+    (s) => VerificationDetailScreen(
+      sharingSkillId: _p(s, 'id'),
+      verificationId: _p(s, 'verificationId'),
+    ),
+  ),
   _route('/wallet', (_) => const WalletScreen()),
   _route('/wallet/topup', (_) => const TopupScreen()),
   _route(
@@ -146,7 +158,7 @@ final _featureRoutes = <GoRoute>[
   ),
   _route(
     '/wallet/payment-status',
-    (s) => PaymentStatusScreen(state: _q(s, 'state') ?? 'pending'),
+    (s) => PaymentStatusScreen(id: _q(s, 'id') ?? ''),
   ),
   _route('/wallet/history', (_) => const TransactionsScreen()),
   _route(
