@@ -13,6 +13,7 @@ class DemoPublicProfile {
     this.headline,
     this.bio,
     this.reputation,
+    this.avatarUrl,
     this.rating,
     this.stats,
     this.skills = const [],
@@ -24,6 +25,7 @@ class DemoPublicProfile {
   final String? headline;
   final String? bio;
   final int? reputation;
+  final String? avatarUrl;
   final String? rating;
   final List<({String value, String label})>? stats;
   final List<DemoSkill> skills;
@@ -56,6 +58,9 @@ DemoPublicProfile? parsePublicProfile(Map<String, dynamic> json) {
     headline: json['headline']?.toString(),
     bio: json['bio']?.toString(),
     reputation: score is num ? score.round() : int.tryParse('$score'),
+    avatarUrl: json['avatarUrl'] is String && (json['avatarUrl'] as String).isNotEmpty
+        ? json['avatarUrl'] as String
+        : null,
     stats: [
       (value: '${json['completedSessionCount'] ?? 0}', label: 'Buổi học'),
       (value: '${json['verifiedSkillCount'] ?? 0}', label: 'Kỹ năng xác minh'),
@@ -88,6 +93,7 @@ final publicProfileProvider = FutureProvider.family<DemoPublicProfile?, String>(
           headline: parsed.headline,
           bio: parsed.bio,
           reputation: parsed.reputation,
+          avatarUrl: parsed.avatarUrl,
           rating: parsed.rating,
           stats: parsed.stats,
           reviews: parsed.reviews,

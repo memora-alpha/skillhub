@@ -512,11 +512,13 @@ class DataForm extends StatefulWidget {
     required this.fields,
     required this.onSubmit,
     this.defaults = const {},
+    this.extra,
     this.submitLabel = 'Lưu bản xem thử',
   });
 
   final List<DataField> fields;
   final Map<String, String> defaults;
+  final Widget? extra;
   final String submitLabel;
   final FutureOr<String?> Function(Map<String, String> values) onSubmit;
 
@@ -601,6 +603,7 @@ class _DataFormState extends State<DataForm> {
                   ? const TextInputType.numberWithOptions(decimal: true)
                   : null,
             ),
+        ?widget.extra,
         if (_error != null) FormNotice(tone: NoticeTone.error, message: _error!),
         AppButton(
           label: widget.submitLabel,

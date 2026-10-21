@@ -136,7 +136,11 @@ class _TopupScreenState extends ConsumerState<TopupScreen> {
           Panel(
             title: 'Chưa tạo được lệnh nạp',
             children: [
-              Copy(_text(gate['reasonCode'])),
+              Copy(
+                gate['reasonCode'] == 'PAYMENT_PROVIDER_UNAVAILABLE'
+                    ? 'Cổng payOS chưa được bật. API cần PAYMENTS_ENABLED=true và đủ khóa payOS trong cấu hình rồi khởi động lại.'
+                    : _text(gate['reasonCode']),
+              ),
               if (_text(gate['existingPaymentId']).isNotEmpty)
                 RouteButton(
                   href: '/wallet/payment-status?id=${gate['existingPaymentId']}',

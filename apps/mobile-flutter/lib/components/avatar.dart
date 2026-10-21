@@ -48,6 +48,7 @@ class Avatar extends StatelessWidget {
     this.size = AvatarSizes.list,
     this.imageUrl,
     this.imageBytes,
+    this.onImageError,
   });
 
   final String name;
@@ -55,6 +56,7 @@ class Avatar extends StatelessWidget {
   final double size;
   final String? imageUrl;
   final Uint8List? imageBytes;
+  final VoidCallback? onImageError;
 
   @override
   Widget build(BuildContext context) {
@@ -85,7 +87,12 @@ class Avatar extends StatelessWidget {
         fit: BoxFit.cover,
         gaplessPlayback: true,
         webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
-        errorBuilder: (_, _, _) => initials,
+        errorBuilder: (_, _, _) {
+          if (onImageError != null) {
+            WidgetsBinding.instance.addPostFrameCallback((_) => onImageError!());
+          }
+          return initials;
+        },
       );
     }
     return ClipOval(

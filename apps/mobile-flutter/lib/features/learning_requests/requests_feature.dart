@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../components/app_button.dart';
 import '../../components/feature_page.dart';
 import '../../components/misc.dart';
+import '../../core/theme/tokens.dart';
 import '../../core/http/app_error.dart';
 import '../../core/http/http_client.dart';
 import '../../core/toast/toast.dart';
@@ -177,37 +178,8 @@ final requestsProvider = NotifierProvider<RequestsNotifier, List<OwnRequest>>(
   RequestsNotifier.new,
 );
 
-/// Accepts `YYYY-MM-DD HH:mm` (the documented hint) as well as the `T` form.
-DateTime? _parseSlotTime(String value) =>
-    parseLocalDateTime(value.trim().replaceFirst(' ', 'T'));
-
-List<PreferredSlot>? parsePreferredSlots(String value, [DateTime? now]) {
-  final current = now ?? DateTime.now();
-  final text = value.trim();
-  final rows = text.isEmpty ? const <String>[] : text.split(RegExp(r'\n+'));
-  if (rows.length > 5) return null;
-  final slots = <PreferredSlot>[];
-  for (final row in rows) {
-    final parts = row.split('→').map((v) => v.trim()).toList();
-    if (parts.length != 2) return null;
-    final from = _parseSlotTime(parts[0]);
-    final to = _parseSlotTime(parts[1]);
-    if (from == null || to == null || !from.isAfter(current) || !to.isAfter(from)) {
-      return null;
-    }
-    slots.add((startAt: from, endAt: to));
-  }
-  return slots;
-}
-
-String formatPreferredSlots(List<PreferredSlot> slots) => slots
-    .map(
-      (s) =>
-          '${localDateInput(s.startAt).replaceFirst('T', ' ')} → ${localDateInput(s.endAt).replaceFirst('T', ' ')}',
-    )
-    .join('\n');
-
 const _editable = ['DRAFT', 'OPEN', 'PENDING_MODERATION', 'REJECTED'];
+const _maxPreferredSlots = 5;
 
 class MyRequestsScreen extends ConsumerStatefulWidget {
   const MyRequestsScreen({super.key});
@@ -268,24 +240,42 @@ class _MyRequestsScreenState extends ConsumerState<MyRequestsScreen> {
   }
 }
 
-class RequestEditorScreen extends ConsumerWidget {
+class RequestEditorScreen extends ConsumerStatefulWidget {
   const RequestEditorScreen({super.key, this.id});
 
   final String? id;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<RequestEditorScreen> createState() =>
+      _RequestEditorScreenState();
+}
+
+class _RequestEditorScreenState extends ConsumerState<RequestEditorScreen> {
+  String? _loadedKey;
+  List<PreferredSlot> _slots = const [];
+
+  void _sync(OwnRequest? request) {
+    if (widget.id != null && request == null) return;
+    final key = request == null ? 'new' : '${request.id}@${request.version}';
+    if (_loadedKey == key) return;
+    _loadedKey = key;
+    _slots = List<PreferredSlot>.of(request?.preferredSlots ?? const []);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     ref.watch(requestsProvider);
     final catalog =
         ref.watch(skillCatalogProvider).value ?? const <SkillRecord>[];
     final catalogNames = [for (final item in catalog) item.name];
     final notifier = ref.read(requestsProvider.notifier);
-    final request = notifier.find(id);
+    final request = notifier.find(widget.id);
+    _sync(request);
     return FeaturePage(
-      title: id != null ? 'Sửa yêu cầu học' : 'Tạo yêu cầu học',
+      title: widget.id != null ? 'Sửa yêu cầu học' : 'Tạo yêu cầu học',
       back: '/requests',
       children: [
-        if (id != null &&
+        if (widget.id != null &&
             (request == null || !_editable.contains(request.status)))
           const EmptyState(
             title: 'Không thể chỉnh sửa',
@@ -304,9 +294,6 @@ class RequestEditorScreen extends ConsumerWidget {
                         'goal': request.goal,
                         'level': request.level,
                         'tags': request.tags.join(', '),
-                        'preferredSlots': formatPreferredSlots(
-                          request.preferredSlots,
-                        ),
                       }
                     : const {'level': 'BEGINNER'},
                 fields: [
@@ -353,17 +340,11 @@ class RequestEditorScreen extends ConsumerWidget {
                         'Phân cách bằng dấu phẩy. Dùng tên kỹ năng trong danh mục phía trên.',
                     rule: (_) => null,
                   ),
-                  DataField(
-                    name: 'preferredSlots',
-                    label: 'Khoảng thời gian ưu tiên (không bắt buộc)',
-                    multiline: true,
-                    hint:
-                        'Mỗi dòng: 2026-12-01 19:00 → 2026-12-01 21:00. Tối đa 5 khoảng theo giờ thiết bị; chưa chốt lịch.',
-                    rule: (v) => parsePreferredSlots(v) != null
-                        ? null
-                        : 'Nhập tối đa 5 khoảng tương lai, giờ kết thúc sau giờ bắt đầu, đúng mẫu hướng dẫn.',
-                  ),
                 ],
+                extra: PreferredSlotsEditor(
+                  slots: _slots,
+                  onChanged: (slots) => setState(() => _slots = slots),
+                ),
                 submitLabel: 'Lưu bản nháp',
                 onSubmit: (v) async {
                   final skill = catalog
@@ -375,7 +356,7 @@ class RequestEditorScreen extends ConsumerWidget {
                       title: v['title']!,
                       skill: v['skill']!,
                       skillId: skill?.id,
-                      preferredSlots: parsePreferredSlots(v['preferredSlots']!)!,
+                      preferredSlots: _slots,
                       description: v['description']!,
                       goal: v['goal']!,
                       level: v['level']!,
@@ -400,6 +381,177 @@ class RequestEditorScreen extends ConsumerWidget {
       ],
     );
   }
+}
+
+class PreferredSlotsEditor extends StatefulWidget {
+  const PreferredSlotsEditor({
+    super.key,
+    required this.slots,
+    required this.onChanged,
+  });
+
+  final List<PreferredSlot> slots;
+  final ValueChanged<List<PreferredSlot>> onChanged;
+
+  @override
+  State<PreferredSlotsEditor> createState() => _PreferredSlotsEditorState();
+}
+
+class _PreferredSlotsEditorState extends State<PreferredSlotsEditor> {
+  String? _error;
+
+  Future<void> _add() async {
+    final now = DateTime.now();
+    final start = await _pickMoment(
+      context,
+      dateHelp: 'Ngày bắt đầu',
+      timeHelp: 'Giờ bắt đầu',
+      first: now,
+      initial: now.add(const Duration(hours: 1)),
+    );
+    if (start == null || !mounted) return;
+    if (!start.isAfter(DateTime.now())) {
+      setState(() => _error = 'Giờ bắt đầu phải ở tương lai.');
+      return;
+    }
+    final end = await _pickMoment(
+      context,
+      dateHelp: 'Ngày kết thúc',
+      timeHelp: 'Giờ kết thúc',
+      first: start,
+      initial: start.add(const Duration(hours: 2)),
+    );
+    if (end == null || !mounted) return;
+    if (!end.isAfter(start)) {
+      setState(() => _error = 'Giờ kết thúc phải sau giờ bắt đầu.');
+      return;
+    }
+    setState(() => _error = null);
+    widget.onChanged([
+      ...widget.slots,
+      (startAt: start, endAt: end),
+    ]);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final full = widget.slots.length >= _maxPreferredSlots;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      spacing: 8,
+      children: [
+        Text(
+          'Khoảng thời gian ưu tiên (không bắt buộc)',
+          style: nunito(
+            TypeScale.body,
+            weight: FontWeight.w600,
+            color: Palette.inkSoft,
+          ),
+        ),
+        if (widget.slots.isEmpty)
+          const Copy(
+            'Chưa chọn khoảng nào. Bấm thêm để chọn ngày và giờ.',
+            muted: true,
+          ),
+        for (var index = 0; index < widget.slots.length; index++)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: Palette.white,
+              border: Border.all(color: Palette.border),
+              borderRadius: BorderRadius.circular(Radii.control),
+            ),
+            child: Row(
+              spacing: 8,
+              children: [
+                Expanded(child: Text(_slotLabel(widget.slots[index]))),
+                AppButton(
+                  label: 'Xóa',
+                  size: ButtonSize.sm,
+                  variant: ButtonVariant.paper,
+                  onPressed: () {
+                    setState(() => _error = null);
+                    widget.onChanged([
+                      for (var i = 0; i < widget.slots.length; i++)
+                        if (i != index) widget.slots[i],
+                    ]);
+                  },
+                ),
+              ],
+            ),
+          ),
+        if (!full)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: AppButton(
+              label: 'Thêm khoảng',
+              size: ButtonSize.sm,
+              variant: ButtonVariant.paper,
+              onPressed: _add,
+            ),
+          ),
+        Copy(
+          full
+              ? 'Đã đủ $_maxPreferredSlots khoảng. Đây chỉ là giờ ưu tiên, chưa chốt lịch.'
+              : 'Tối đa $_maxPreferredSlots khoảng theo giờ thiết bị. Đây chỉ là giờ ưu tiên, chưa chốt lịch.',
+          muted: true,
+        ),
+        if (_error != null)
+          FormNotice(tone: NoticeTone.error, message: _error!),
+      ],
+    );
+  }
+}
+
+Future<DateTime?> _pickMoment(
+  BuildContext context, {
+  required String dateHelp,
+  required String timeHelp,
+  required DateTime first,
+  required DateTime initial,
+}) async {
+  final firstDay = DateTime(first.year, first.month, first.day);
+  final lastDate = firstDay.add(const Duration(days: 366));
+  final initialDay = DateTime(initial.year, initial.month, initial.day);
+  final initialDate = initialDay.isBefore(firstDay)
+      ? firstDay
+      : (initialDay.isAfter(lastDate) ? lastDate : initialDay);
+  final date = await showDatePicker(
+    context: context,
+    helpText: dateHelp,
+    cancelText: 'Hủy',
+    confirmText: 'Chọn',
+    initialDate: initialDate,
+    firstDate: firstDay,
+    lastDate: lastDate,
+  );
+  if (date == null || !context.mounted) return null;
+  final time = await showTimePicker(
+    context: context,
+    helpText: timeHelp,
+    cancelText: 'Hủy',
+    confirmText: 'Chọn',
+    initialTime: TimeOfDay.fromDateTime(initial),
+    builder: (context, child) => MediaQuery(
+      data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
+      child: child ?? const SizedBox.shrink(),
+    ),
+  );
+  if (time == null) return null;
+  return DateTime(date.year, date.month, date.day, time.hour, time.minute);
+}
+
+String _slotLabel(PreferredSlot slot) {
+  String one(DateTime value) {
+    final date = value.toLocal();
+    final day = date.day.toString().padLeft(2, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    final hour = date.hour.toString().padLeft(2, '0');
+    final minute = date.minute.toString().padLeft(2, '0');
+    return '$day/$month/${date.year} $hour:$minute';
+  }
+
+  return '${one(slot.startAt)} → ${one(slot.endAt)}';
 }
 
 class OwnRequestScreen extends ConsumerStatefulWidget {

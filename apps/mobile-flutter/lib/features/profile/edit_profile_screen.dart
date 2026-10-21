@@ -73,8 +73,8 @@ String avatarSaveErrorMessage(Object error) {
   return errorMessage(error);
 }
 
-class _SelectionError implements Exception {
-  const _SelectionError(this.message);
+class AvatarSelectionException implements Exception {
+  const AvatarSelectionException(this.message);
   final String message;
 }
 
@@ -110,36 +110,38 @@ String? _sniffMime(Uint8List bytes) {
   return null;
 }
 
-Future<AvatarImage> _avatarImage(XFile file) async {
+Future<AvatarImage> prepareAvatarImage(XFile file) async {
   final size = await file.length();
   if (size > _avatarMaxBytes) {
-    throw const _SelectionError('Ảnh đại diện tối đa 5MB.');
+    throw const AvatarSelectionException('Ảnh đại diện tối đa 5MB.');
   }
   if (size == 0) {
-    throw const _SelectionError('Ảnh không hợp lệ. Hãy chọn ảnh khác.');
+    throw const AvatarSelectionException('Ảnh không hợp lệ. Hãy chọn ảnh khác.');
   }
   final bytes = await file.readAsBytes();
   final mime = _sniffMime(bytes);
-  if (mime == null) throw const _SelectionError('Chọn ảnh JPG, PNG hoặc WebP.');
+  if (mime == null) {
+    throw const AvatarSelectionException('Chọn ảnh JPG, PNG hoặc WebP.');
+  }
   final ui.Codec codec;
   try {
     codec = await ui.instantiateImageCodec(bytes);
   } catch (_) {
-    throw const _SelectionError('Ảnh không hợp lệ. Hãy chọn ảnh khác.');
+    throw const AvatarSelectionException('Ảnh không hợp lệ. Hãy chọn ảnh khác.');
   }
   try {
     final frame = await codec.getNextFrame();
     final pixels = frame.image.width * frame.image.height;
     frame.image.dispose();
     if (pixels > 20000000) {
-      throw const _SelectionError(
+      throw const AvatarSelectionException(
         'Ảnh quá lớn. Chọn ảnh không quá 20 megapixel.',
       );
     }
-  } on _SelectionError {
+  } on AvatarSelectionException {
     rethrow;
   } catch (_) {
-    throw const _SelectionError('Ảnh không hợp lệ. Hãy chọn ảnh khác.');
+    throw const AvatarSelectionException('Ảnh không hợp lệ. Hãy chọn ảnh khác.');
   } finally {
     codec.dispose();
   }
@@ -150,7 +152,7 @@ Future<AvatarImage> _avatarImage(XFile file) async {
   );
 }
 
-FormData _avatarFormData(AvatarImage image) => FormData.fromMap({
+FormData avatarUploadBody(AvatarImage image) => FormData.fromMap({
   'image': MultipartFile.fromBytes(
     image.bytes,
     filename: image.name,
@@ -263,10 +265,10 @@ class _ProfileFormState extends ConsumerState<_ProfileForm> {
         requestFullMetadata: false,
       );
       if (file != null && isCurrent()) {
-        final image = await _avatarImage(file);
+        final image = await prepareAvatarImage(file);
         if (isCurrent()) _changeAvatar(AvatarUploadDraft(image));
       }
-    } on _SelectionError catch (error) {
+    } on AvatarSelectionException catch (error) {
       if (isCurrent()) setState(() => _pickerError = error.message);
     } catch (_) {
       if (isCurrent()) {
@@ -328,7 +330,7 @@ class _ProfileFormState extends ConsumerState<_ProfileForm> {
         try {
           if (draft is AvatarUploadDraft) {
             upload = await runtime.account.uploadAvatar(
-              _avatarFormData(draft.image),
+              avatarUploadBody(draft.image),
             );
           } else {
             await runtime.account.removeAvatar();

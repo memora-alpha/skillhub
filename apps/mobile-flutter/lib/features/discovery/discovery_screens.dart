@@ -336,6 +336,46 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
                         ],
                       ),
                     ),
+                  Tappable(
+                    semanticLabel: 'Yêu cầu học của tôi',
+                    onTap: () => openAppAction(context, 'Yêu cầu học của tôi'),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        color: _C.surface,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: _C.border),
+                      ),
+                      child: Row(
+                        spacing: 10,
+                        children: [
+                          const AppIcon(
+                            AppIcon.clipboard,
+                            size: IconSizes.control,
+                            color: _C.orange,
+                          ),
+                          Expanded(
+                            child: Text(
+                              'Yêu cầu học của tôi',
+                              style: nunito(
+                                TypeScale.secondary,
+                                weight: FontWeight.w700,
+                                color: _C.ink,
+                              ),
+                            ),
+                          ),
+                          const AppIcon(
+                            AppIcon.chevron,
+                            size: IconSizes.inline,
+                            color: _C.muted,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                   Wrap(
                     alignment: WrapAlignment.spaceBetween,
                     crossAxisAlignment: WrapCrossAlignment.center,
