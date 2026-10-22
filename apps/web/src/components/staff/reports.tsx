@@ -387,12 +387,14 @@ function ReportDecision({
 }
 export function ReportDetailScreen({ id }: Readonly<{ id: string }>) {
   const { actor, portal } = useStaffSession();
-  const resource = useStaffResource<ReportCase>(`reports/${id}`);
+  const resource = useStaffResource<ReportCase[]>("reports");
   const [receipt, setReceipt] = useState<ReportCase | null>(null);
   const [action, setAction] = useState<ReportAction | null>(null);
   const currentReceipt = receipt?.id === id ? receipt : null;
-  const loaded = resource.data?.id === id ? resource.data : null;
-  const item = currentReceipt ?? loaded;
+  const queueItem = Array.isArray(resource.data)
+    ? resource.data.find((report) => report.id === id)
+    : null;
+  const item = currentReceipt ?? queueItem;
   const reload = () => {
     setReceipt(null);
     void resource.reload();

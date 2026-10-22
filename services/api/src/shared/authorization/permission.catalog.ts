@@ -125,6 +125,18 @@ export const PERMISSION_CATALOG = [
     description: "Reverse a settled Credit operation",
   },
   { code: "dispute:override", description: "Override a dispute decision" },
+  {
+    code: "material:create:self",
+    description: "Create, edit and submit own learning materials",
+  },
+  {
+    code: "material:access",
+    description: "Download, purchase and report learning materials",
+  },
+  {
+    code: "material:moderate",
+    description: "Review, hide and restore learning materials",
+  },
 ] as const;
 
 export type PermissionCode = (typeof PERMISSION_CATALOG)[number]["code"];

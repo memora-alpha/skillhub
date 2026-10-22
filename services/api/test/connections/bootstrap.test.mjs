@@ -35,12 +35,18 @@ import { LearningPathsModule } from "../../dist/modules/learning-paths/learning-
 import { LearningPathsService } from "../../dist/modules/learning-paths/application/services/learning-paths.service.js";
 import { ConversationMembershipReader } from "../../dist/modules/conversations/application/services/conversation-membership.reader.js";
 import { ReputationModule } from "../../dist/modules/reputation/reputation.module.js";
+import { SkillNotificationModule } from "../../dist/modules/notifications/skill-notification.module.js";
 import { CreditLedgerAdapter } from "../../dist/modules/credit/application/services/credit-ledger.adapter.js";
 import {
   WalletPort,
   PathSettlementPort,
   CreditAdjustmentPort,
 } from "../../dist/modules/credit/application/ports/credit.ports.js";
+import { PrismaCreditAdjustmentAdapter } from "../../dist/modules/credit/infrastructure/adapters/prisma-credit-adjustment.adapter.js";
+import {
+  PushSender,
+  TransactionalMailer,
+} from "../../dist/modules/notifications/application/ports/notification-channels.js";
 function fixtureModule(entries) {
   class Fixture {}
   Module({
@@ -68,6 +74,7 @@ test("feature modules resolve owner contracts and register SSE/chat workers; HTT
       ProposalsModule,
       LearningPathsModule,
       ReputationModule,
+      SkillNotificationModule,
     ],
   })
     .overrideModule(DatabaseModule)
@@ -103,7 +110,11 @@ test("feature modules resolve owner contracts and register SSE/chat workers; HTT
     .overrideModule(LearningRequestsModule)
     .useModule(fixtureModule([[LearningRequestLifecycleService, {}]]))
     .overrideProvider(OutboxDispatcher)
-    .useValue({});
+    .useValue({})
+    .overrideProvider(TransactionalMailer)
+    .useValue({ send: async () => {} })
+    .overrideProvider(PushSender)
+    .useValue({ configured: false, send: async () => ({ invalidTokens: [] }) });
   const module = await builder.compile(),
     app = module.createNestApplication();
   try {
@@ -124,9 +135,8 @@ test("feature modules resolve owner contracts and register SSE/chat workers; HTT
     const ledgerAdapter = module.get(CreditLedgerAdapter);
     assert.equal(module.get(WalletPort), ledgerAdapter);
     assert.equal(module.get(PathSettlementPort), ledgerAdapter);
-    await assert.rejects(
-      module.get(CreditAdjustmentPort).adjust(),
-      /CREDIT_ADJUSTMENT_UNAVAILABLE/,
+    assert(
+      module.get(CreditAdjustmentPort) instanceof PrismaCreditAdjustmentAdapter,
     );
     const registry = module.get(OutboxPublisherRegistry);
     for (const type of [

@@ -34,7 +34,17 @@ jobs:
       - name: Install locked dependencies
         run: pnpm install --frozen-lockfile
       - name: Start disposable test stores
-        run: docker compose -f services/api/test/connections/compose.yaml up -d --wait --wait-timeout 120
+        run: |
+          set +e
+          docker compose -f services/api/test/connections/compose.yaml up -d --wait --wait-timeout 120
+          status=$?
+          if [ "$status" -ne 0 ]; then
+            echo "Test store startup failed; collecting service state and MongoDB logs."
+            docker compose -f services/api/test/connections/compose.yaml ps --all || true
+            docker compose -f services/api/test/connections/compose.yaml logs --no-color mongo || true
+            docker inspect skillhub-connections-test-mongo-1 --format '{{json .State}}' || true
+            exit "$status"
+          fi
       - name: Generate Prisma client
         run: pnpm --filter api db:generate
       - name: Lint API

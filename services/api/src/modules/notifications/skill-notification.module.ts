@@ -7,6 +7,8 @@ import { FcmPushSender } from "../../infrastructure/push/fcm-push-sender.adapter
 import { VerificationsModule } from "../verifications/verifications.module";
 import { SkillNotificationHandler } from "./infrastructure/events/skill-notification.handler";
 import { LearningPathNotificationHandler } from "./infrastructure/events/learning-path-notification.handler";
+import { MaterialNotificationHandler } from "./infrastructure/events/material-notification.handler";
+import { LearningRequestRejectionPublisher } from "./infrastructure/events/learning-request-rejection.publisher";
 import {
   ENABLED_NOTIFICATION_CHANNELS,
   NotificationDispatcher,
@@ -23,6 +25,8 @@ import { PrismaInAppNotificationAdapter } from "./infrastructure/channels/prisma
   providers: [
     SkillNotificationHandler,
     LearningPathNotificationHandler,
+    MaterialNotificationHandler,
+    LearningRequestRejectionPublisher,
     NotificationDispatcher,
     {
       provide: InAppNotificationPort,

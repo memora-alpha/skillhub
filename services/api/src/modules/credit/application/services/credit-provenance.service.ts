@@ -2,6 +2,14 @@ import { ConflictException, Injectable } from "@nestjs/common";
 import type { TransactionContext } from "../../../../infrastructure/database/transaction-context";
 import type { CreditWallet } from "../../../../generated/prisma/client";
 
+/** Stable partition: BONUS lots first, FIFO inside each group. */
+function bonusFirst<T extends { source: string }>(lots: T[]): T[] {
+  return [
+    ...lots.filter((lot) => lot.source === "BONUS"),
+    ...lots.filter((lot) => lot.source !== "BONUS"),
+  ];
+}
+
 /** All methods require the caller to hold the wallet lock. Amounts are hundredths of Credit. */
 @Injectable()
 export class CreditProvenanceService {
@@ -44,6 +52,31 @@ export class CreditProvenanceService {
       throw new ConflictException("CREDIT_PROVENANCE_BALANCE_MISMATCH");
   }
 
+  /** Direct spend from Available (material purchase). Returns the per-source split. */
+  async spend(tx: TransactionContext, userId: string, amount: bigint) {
+    const lots = await tx.creditLot.findMany({
+      where: { userId, available: { gt: 0n } },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    });
+    let left = amount;
+    let purchased = 0n;
+    let bonus = 0n;
+    for (const lot of bonusFirst(lots)) {
+      if (left === 0n) break;
+      const used = lot.available < left ? lot.available : left;
+      // Each write depends on the remaining amount, so consumption stays deterministic.
+      await tx.creditLot.update({
+        where: { id: lot.id },
+        data: { available: { decrement: used }, consumed: { increment: used } },
+      });
+      if (lot.source === "PURCHASED") purchased += used;
+      if (lot.source === "BONUS") bonus += used;
+      left -= used;
+    }
+    if (left) throw new ConflictException("CREDIT_PROVENANCE_BALANCE_MISMATCH");
+    return { purchased, bonus };
+  }
+
   async hold(
     tx: TransactionContext,
     userId: string,
@@ -54,11 +87,7 @@ export class CreditProvenanceService {
       where: { userId, available: { gt: 0n } },
       orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     });
-    // Stable partition preserves FIFO within BONUS and all other sources.
-    const ordered = [
-      ...lots.filter((lot) => lot.source === "BONUS"),
-      ...lots.filter((lot) => lot.source !== "BONUS"),
-    ];
+    const ordered = bonusFirst(lots);
     let remaining = amount;
     for (const lot of ordered) {
       if (remaining === 0n) break;
@@ -97,10 +126,7 @@ export class CreditProvenanceService {
       holds.reduce((sum, hold) => sum + hold.remaining, 0n) !== heldAmount
     )
       throw new ConflictException("CREDIT_PROVENANCE_HOLD_MISMATCH");
-    const ordered = [
-      ...lots.filter((lot) => lot.source === "BONUS"),
-      ...lots.filter((lot) => lot.source !== "BONUS"),
-    ];
+    const ordered = bonusFirst(lots);
     let left = consumed,
       purchased = 0n,
       bonus = 0n;

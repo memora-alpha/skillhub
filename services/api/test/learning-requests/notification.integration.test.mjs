@@ -4,8 +4,9 @@ import { test } from "node:test";
 import { OutboxConsumer } from "../../dist/infrastructure/events/outbox-consumer.js";
 import { OutboxPublisherRegistry } from "../../dist/infrastructure/events/outbox.types.js";
 import { TransactionRunner } from "../../dist/infrastructure/database/transaction-runner.js";
+import { NotificationDispatcher } from "../../dist/modules/notifications/application/services/notification-dispatcher.js";
+import { PrismaInAppNotificationAdapter } from "../../dist/modules/notifications/infrastructure/channels/prisma-in-app-notification.adapter.js";
 import { LearningRequestRejectionPublisher } from "../../dist/modules/notifications/infrastructure/events/learning-request-rejection.publisher.js";
-import { PrismaNotificationRepository } from "../../dist/modules/notifications/infrastructure/persistence/prisma-notification.repository.js";
 import { skip, withDatabase } from "../integration-db.mjs";
 
 async function createOwner(prisma, ownerId) {
@@ -37,7 +38,7 @@ test(
       const eventId = randomUUID();
       const requestId = randomUUID();
       const ownerId = randomUUID();
-      const consumerName = "learning-request-rejection-in-app-v1";
+      const consumerName = "notification.in-app";
       const event = {
         eventId,
         type: "learning-request.rejected",
@@ -51,10 +52,16 @@ test(
           rejectReason: "Please clarify your learning goal",
         },
       };
-      const publisher = new LearningRequestRejectionPublisher(
+      const dispatcher = new NotificationDispatcher(
         new OutboxConsumer(new TransactionRunner(prisma)),
-        new PrismaNotificationRepository(prisma),
+        new PrismaInAppNotificationAdapter(),
+        { send: async () => {} },
+        { configured: false, send: async () => ({ invalidTokens: [] }) },
+        new Set(["IN_APP"]),
+      );
+      const publisher = new LearningRequestRejectionPublisher(
         new OutboxPublisherRegistry(),
+        dispatcher,
       );
       try {
         await assert.rejects(() => publisher.publish(event));
@@ -76,8 +83,8 @@ test(
         assert.match(notification.body, /Please clarify your learning goal/);
         assert.deepEqual(notification.payload, {
           requestId,
-          reviewedVersion: 3,
-          decisionVersion: 4,
+          reviewedVersion: "3",
+          decisionVersion: "4",
         });
         assert.equal(
           await prisma.notification.count({ where: { id: eventId } }),

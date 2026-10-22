@@ -17,7 +17,7 @@ import {
   PathSettlementPort,
   WalletPort,
 } from "./application/ports/credit.ports";
-import { UnavailableCreditAdjustmentAdapter } from "./infrastructure/adapters/unavailable-credit-adjustment.adapter";
+import { PrismaCreditAdjustmentAdapter } from "./infrastructure/adapters/prisma-credit-adjustment.adapter";
 import { CreditOperationsService } from "./application/services/credit-operations.service";
 import { CreditProvenanceService } from "./application/services/credit-provenance.service";
 
@@ -34,7 +34,7 @@ import { CreditProvenanceService } from "./application/services/credit-provenanc
     { provide: PathSettlementPort, useExisting: CreditLedgerAdapter },
     {
       provide: CreditAdjustmentPort,
-      useClass: UnavailableCreditAdjustmentAdapter,
+      useClass: PrismaCreditAdjustmentAdapter,
     },
     { provide: WalletRepository, useClass: PrismaWalletRepository },
     GetWalletUseCase,

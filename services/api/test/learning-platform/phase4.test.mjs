@@ -11,6 +11,7 @@ import {
 } from "../../dist/modules/notifications/application/services/notification-dispatcher.js";
 import { PushTokensUseCases } from "../../dist/modules/notifications/application/use-cases/push-tokens.use-cases.js";
 import { PrismaInAppNotificationAdapter } from "../../dist/modules/notifications/infrastructure/channels/prisma-in-app-notification.adapter.js";
+import { SkillNotificationHandler } from "../../dist/modules/notifications/infrastructure/events/skill-notification.handler.js";
 import { RegisterPushTokenDto } from "../../dist/modules/notifications/presentation/http/notifications.dto.js";
 import { createFakeDb, runner } from "./fake-db.mjs";
 import { A, B, C, fakeOutboxConsumer, rejectsWith, user } from "./fixtures.mjs";
@@ -95,8 +96,26 @@ test("SH-113: channels follow the event policy and NOTIFICATION_CHANNELS", async
   assert.equal(inAppOnly.db.rows("notification").length, 2);
 
   const all = channels();
+  all.db.seed("pushDeviceToken", { userId: A, token: "report-token" });
   await all.dispatcher.dispatch(message({ type: "report.session.opened" }));
-  assert.deepEqual(all.sent.emails, []);
+  assert.equal(all.sent.emails.length, 1);
+  assert.equal(all.sent.pushes.length, 1);
+
+  const skill = channels();
+  skill.db.seed("pushDeviceToken", { userId: A, token: "skill-token" });
+  await skill.dispatcher.dispatch(
+    message({ type: "skill.verification.decided", userIds: [A] }),
+  );
+  assert.equal(skill.sent.emails.length, 1);
+  assert.equal(skill.sent.pushes.length, 1);
+
+  const material = channels();
+  material.db.seed("pushDeviceToken", { userId: A, token: "material-token" });
+  await material.dispatcher.dispatch(
+    message({ type: "material.purchased", userIds: [A] }),
+  );
+  assert.equal(material.sent.emails.length, 1);
+  assert.equal(material.sent.pushes.length, 1);
 
   const unconfigured = { configured: false };
   assert.deepEqual([...enabledChannels(undefined, unconfigured)], ["IN_APP"]);
@@ -106,6 +125,40 @@ test("SH-113: channels follow the event policy and NOTIFICATION_CHANNELS", async
   );
   assert.throws(() => enabledChannels("IN_APP,SMS", unconfigured), /Invalid/);
   assert.throws(() => enabledChannels("PUSH", unconfigured), /FCM_PROJECT_ID/);
+});
+
+test("SH-111/113: skill events use the shared multi-channel dispatcher", async () => {
+  const ctx = channels();
+  ctx.db.seed("pushDeviceToken", { userId: A, token: "skill-token" });
+  const registered = new Map();
+  const handler = new SkillNotificationHandler(
+    { register: (type, publisher) => registered.set(type, publisher) },
+    {
+      notificationSummary: async (verificationId) => ({
+        verificationId,
+        ownerId: A,
+        sharingSkillId: "sharing-skill-1",
+      }),
+    },
+    ctx.dispatcher,
+  );
+  handler.onModuleInit();
+  const eventId = randomUUID();
+  await registered.get("skill.verification.decided").publish({
+    eventId,
+    type: "skill.verification.decided",
+    version: 1,
+    payload: {
+      verificationId: "verification-1",
+      ownerId: A,
+      sharingSkillId: "sharing-skill-1",
+    },
+  });
+
+  assert.equal(ctx.db.rows("notification").length, 1);
+  assert.equal(ctx.sent.emails.length, 1);
+  assert.equal(ctx.sent.emails[0].messageId, `${eventId}.${A}@skillhub`);
+  assert.equal(ctx.sent.pushes.length, 1);
 });
 
 test("SH-113: a failed channel is retried alone without resending the others", async () => {
