@@ -206,9 +206,9 @@ export function TagRequestsScreen() {
   const [status, setStatus] = useState("PENDING");
   const [selected, setSelected] = useState<string | null>(null);
   const [success, setSuccess] = useState("");
-  const queue = useStaffList<TagRequest>(
-    `tag-requests?limit=20${status ? `&status=${status}` : ""}`,
-  );
+  const params = new URLSearchParams({ limit: "20" });
+  if (status) params.set("status", status);
+  const queue = useStaffList<TagRequest>(`tag-requests?${params}`);
   return (
     <>
       <PageHeader
