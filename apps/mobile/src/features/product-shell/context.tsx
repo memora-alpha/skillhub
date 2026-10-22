@@ -26,14 +26,6 @@ const initial: PreviewNotification[] = [
     read: false,
   },
   {
-    id: "n-credit",
-    title: "Giao dịch Credit đã được ghi nhận",
-    body: "Mở chi tiết để xem snapshot giao dịch mẫu.",
-    group: "Credit",
-    href: "/wallet/transactions/tx-topup",
-    read: false,
-  },
-  {
     id: "n-report",
     title: "Báo cáo cần thêm thông tin",
     body: "Bổ sung chi tiết để tiếp tục xem xét báo cáo.",

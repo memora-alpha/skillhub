@@ -1,6 +1,7 @@
 import {
   createContext,
   useContext,
+  useCallback,
   useEffect,
   useMemo,
   useState,
@@ -13,7 +14,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { getApiUrl } from "@/config/env";
 import { AppError } from "@/lib/http/errors";
 import { useConnections } from "@/features/connections";
-import { createSseParser } from "../utils/sse-parser";
+import { createSseParser, type SseFrame } from "../utils/sse-parser";
+import { createEventRetryBudget } from "../utils/event-retry-budget";
 import {
   createChatEventHydrator,
   reloadChatEventQueries,
@@ -55,11 +57,18 @@ async function consumeEvents(
   }
 }
 
+type EventListener = (frame: SseFrame, signal: AbortSignal) => Promise<unknown>;
 const Context = createContext<{
   connected: boolean;
   error: unknown;
   retry: () => void;
-}>({ connected: false, error: undefined, retry: () => {} });
+  subscribe: (listener: EventListener) => () => void;
+}>({
+  connected: false,
+  error: undefined,
+  retry: () => {},
+  subscribe: () => () => {},
+});
 export function ChatEventsProvider({
   children,
 }: Readonly<{ children: ReactNode }>) {
@@ -68,21 +77,38 @@ export function ChatEventsProvider({
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState<unknown>();
   const [attempt, setAttempt] = useState(0);
+  // Reuse the authenticated application stream; financial consumers never open
+  // a second socket or copy auth tokens into another transport.
+  const listeners = useMemo(() => new Set<EventListener>(), [runtime]);
+  const subscribe = useCallback(
+    (listener: EventListener) => {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+    [listeners],
+  );
   useEffect(() => {
     if (!runtime.enabled) return;
     let disposed = false,
       active = AppState.currentState !== "background";
     let abort: AbortController | undefined,
       timer: ReturnType<typeof setTimeout> | undefined;
-    let failures = 0;
+    const retryBudget = createEventRetryBudget();
     const hydration = createChatEventHydrator({
+      receive: async (frame, signal) => {
+        await Promise.all(
+          [...listeners].map((listener) => listener(frame, signal)),
+        );
+      },
       assertCurrent: runtime.assertCurrent,
       renew: () => runtime.controller.renew(),
       reload: (prefixes, receiptsFor) =>
         reloadChatEventQueries(cache, runtime.key, prefixes, receiptsFor),
       ready: () => {
         if (disposed) return;
-        failures = 0;
+        retryBudget.ready();
         setConnected(true);
         setError(undefined);
       },
@@ -111,18 +137,17 @@ export function ChatEventsProvider({
       if (disposed || control.signal.aborted || !runtime.isCurrent()) return;
       setConnected(false);
       setError(error_);
-      failures++;
+      const delay = retryBudget.failed();
       // SSE reconnect only; history is hydrated by events or explicit refresh.
       if (
-        failures <= 6 &&
+        delay !== undefined &&
         !(error_ instanceof AppError && error_.status === 403)
       )
         timer = setTimeout(
           () => {
             void connect();
           },
-          Math.min(30000, 3000 * 2 ** (failures - 1)) +
-            (getRandomValues(new Uint16Array(1))[0]! / 65536) * 500,
+          delay + (getRandomValues(new Uint16Array(1))[0]! / 65536) * 500,
         );
     };
     const connect = async () => {
@@ -159,7 +184,7 @@ export function ChatEventsProvider({
       clearTimeout(timer);
       setConnected(false);
       if (active) {
-        failures = 0;
+        retryBudget.reset();
         void connect();
       }
     });
@@ -172,10 +197,15 @@ export function ChatEventsProvider({
       clearTimeout(timer);
       listener.remove();
     };
-  }, [runtime, cache, attempt]);
+  }, [runtime, cache, attempt, listeners]);
   const value = useMemo(
-    () => ({ connected, error, retry: () => setAttempt((v) => v + 1) }),
-    [connected, error],
+    () => ({
+      connected,
+      error,
+      retry: () => setAttempt((v) => v + 1),
+      subscribe,
+    }),
+    [connected, error, subscribe],
   );
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }

@@ -29,6 +29,7 @@ type AppHeaderProps = Readonly<{
   onAction: (title: string) => void;
   onAccount: () => void;
   title?: string;
+  centeredTitle?: boolean;
   onBack?: () => void;
   rightAction?: ReactNode;
   backLabel?: string;
@@ -41,6 +42,7 @@ export function AppHeader({
   onAction,
   onAccount,
   title,
+  centeredTitle = false,
   onBack,
   rightAction,
   backLabel = "Quay lại hồ sơ",
@@ -63,6 +65,7 @@ export function AppHeader({
         home && styles.homeHeader,
         !!title && { gap: 8 },
         home && !!title && styles.homeTitledHeader,
+        centeredTitle && styles.centeredHeader,
       ]}
     >
       <HeaderLeading
@@ -75,7 +78,14 @@ export function AppHeader({
         home={home}
         width={width}
       />
-      {!!title && (
+      {!!title && centeredTitle && (
+        <View pointerEvents="none" style={styles.centerTitleBlock}>
+          <Text style={styles.centerTitle} numberOfLines={1}>
+            {title}
+          </Text>
+        </View>
+      )}
+      {!!title && !centeredTitle && (
         <Text
           style={[styles.title, home && styles.homeTitle, { flex: 1 }]}
           numberOfLines={width < 400 ? 2 : 1}
@@ -83,7 +93,7 @@ export function AppHeader({
           {title}
         </Text>
       )}
-      {!title && <View style={{ flex: 1 }} />}
+      {(centeredTitle || !title) && <View style={{ flex: 1 }} />}
       <View style={styles.headerActions}>
         {!compact && (
           <Pressable
@@ -200,6 +210,25 @@ const styles = StyleSheet.create({
     backgroundColor: signedInChrome.background,
   },
   homeTitledHeader: { paddingHorizontal: 16, gap: 6 },
+  centeredHeader: { minHeight: 64, paddingVertical: 6 },
+  centerTitleBlock: {
+    position: "absolute",
+    left: 52,
+    right: 52,
+    top: 0,
+    bottom: 0,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 1,
+  },
+  centerTitle: {
+    fontFamily: fonts.bold,
+    fontSize: 16,
+    lineHeight: 22,
+    color: colors.ink,
+    includeFontPadding: false,
+    textAlign: "center",
+  },
   homeTitle: { fontFamily: fonts.bold, fontSize: 18, lineHeight: 26 },
   homeNotification: {
     width: 36,

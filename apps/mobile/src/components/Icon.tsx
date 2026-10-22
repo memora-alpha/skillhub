@@ -32,6 +32,7 @@ export type IconName =
   | "book"
   | "close"
   | "wallet"
+  | "qr-code"
   | "settings"
   | "filter"
   | "clipboard"
@@ -212,6 +213,20 @@ export function Icon({
         <>
           <Path d="M20 12V22H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h16v4" />
           <Path d="M22 12a2 2 0 0 0-2-2h-2a2 2 0 0 0 0 4h2a2 2 0 0 0 2-2z" />
+        </>
+      )}
+      {name === "qr-code" && (
+        <>
+          <Rect x={3} y={3} width={7} height={7} rx={1} />
+          <Rect x={5} y={5} width={3} height={3} fill={color} />
+          <Rect x={14} y={3} width={7} height={7} rx={1} />
+          <Rect x={16} y={5} width={3} height={3} fill={color} />
+          <Rect x={3} y={14} width={7} height={7} rx={1} />
+          <Rect x={5} y={16} width={3} height={3} fill={color} />
+          <Rect x={14} y={14} width={3} height={3} fill={color} />
+          <Rect x={18} y={14} width={3} height={3} fill={color} />
+          <Rect x={14} y={18} width={3} height={3} fill={color} />
+          <Rect x={18} y={18} width={3} height={3} fill={color} />
         </>
       )}
       {name === "settings" && (

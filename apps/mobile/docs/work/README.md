@@ -6,10 +6,10 @@
 
 | Work tiếp nhận                                                                       | Plan                                                | Hiện trạng và bước tiếp                                 |
 | ------------------------------------------------------------------------------------ | --------------------------------------------------- | ------------------------------------------------------- |
-| Phase03 Wallet & Top-up — đang phát triển ở nhánh khác, ngoài công việc checkout này | [plan](phase-03-wallet-topup/plan.md)               | [status](phase-03-wallet-topup/status.md)               |
+| Phase03 Wallet & Top-up — tiếp tục review/fix trên nhánh Wallet hiện tại | [plan](phase-03-wallet-topup/plan.md)               | [status](phase-03-wallet-topup/status.md)               |
 | Phase04 Learning Request & Discovery, tiếp nhận acceptance đang mở từ spec005        | [plan](phase-04-learning-request-discovery/plan.md) | [status](phase-04-learning-request-discovery/status.md) |
 
-Wallet ở bảng trên chỉ là điểm tham chiếu liên nhánh; không phải hàng đợi task triển khai/rà code của nhánh hiện tại. Tên nhánh chưa được cung cấp, không tự checkout/merge hoặc lập checklist trùng với nhánh đang làm.
+Phase03 đã được giao tiếp tục trên `feat/mobile-wallet-payment-history`, bổ sung cancel/recovery theo BE `dev@1c8fb8d` ngày 2026-10-22. Plan/status tiếp nhận task mới; task IDs và evidence spec006 được giữ nguyên, không tạo checklist acceptance trùng. Không tự checkout/merge hoặc suy hiện trạng từ baseline migration.
 
 Phase00 có hồ sơ chính tại [migration](../migration.md), không tạo progress song song. [Roadmap](../roadmap.md) không phải bảng trạng thái thực hiện.
 

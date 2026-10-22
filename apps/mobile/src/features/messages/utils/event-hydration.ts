@@ -121,6 +121,7 @@ export function createChatEventHydrator(options: {
   assertCurrent: () => void;
   renew: () => Promise<unknown>;
   ready: () => void;
+  receive?: (frame: SseFrame, signal: AbortSignal) => Promise<unknown>;
 }) {
   let cursor: string | undefined;
   const processed = new Set<string>();
@@ -160,6 +161,9 @@ export function createChatEventHydrator(options: {
         reset();
         throw new AppError("http", 409, "EVENT_CURSOR_EXPIRED");
       }
+      await options.receive?.(frame, signal);
+      if (signal.aborted) return;
+      options.assertCurrent();
       if (frame.event === "stream.ready") {
         await reloadReady(signal);
       } else {

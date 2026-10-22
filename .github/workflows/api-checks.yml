@@ -12,7 +12,10 @@ permissions:
 
 jobs:
   checks:
-    runs-on: ubuntu-latest
+    # Temporary MongoDB 8.0 compatibility: SERVER-121912 rejects Linux 6.19+.
+    # The Ubuntu 24.04 run still failed; Ubuntu 22.04 publishes a 6.8 kernel.
+    # Migrate before the runner's retirement on 2027-04-17.
+    runs-on: ubuntu-22.04
     timeout-minutes: 30
     env:
       CI: true
@@ -21,6 +24,10 @@ jobs:
       TEST_DATABASE_URL: postgresql://connections_test:local_test_only@127.0.0.1:55433/connections_test
       TEST_MONGODB_URI: mongodb://127.0.0.1:27028/connections_test?replicaSet=rs0&directConnection=true
     steps:
+      - name: Report test-store host kernel
+        run: |
+          uname -r
+          docker info --format 'Docker server kernel: {{.KernelVersion}}'
       - uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0
         with:
           persist-credentials: false

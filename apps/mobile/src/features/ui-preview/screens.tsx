@@ -72,18 +72,6 @@ const groups = [
     ],
   },
   {
-    title: "Ví & thanh toán",
-    items: [
-      ["Ví Credit", "/wallet"],
-      ["Nạp Credit", "/wallet/topup"],
-      ["Lịch sử giao dịch", "/wallet/history"],
-      ["Thanh toán chờ xác minh", "/wallet/payment-status?state=pending"],
-      ["Thanh toán thành công mẫu", "/wallet/payment-status?state=success"],
-      ["Thanh toán thất bại", "/wallet/payment-status?state=failed"],
-      ["Thanh toán hết hạn", "/wallet/payment-status?state=expired"],
-    ],
-  },
-  {
     title: "Tài liệu",
     items: [
       ["Khám phá tài liệu", "/materials"],
