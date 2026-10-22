@@ -8,13 +8,8 @@ import { useWalletBack } from "../hooks/use-wallet-back";
 import { FinancialReadState } from "../components/financial-read-state";
 import { HistoryFilters } from "../components/history-filters";
 import { TransactionRow } from "../components/transaction-row";
-import { Icon } from "@/components/Icon";
-import {
-  appColors as colors,
-  appRadius,
-  fonts,
-  typography,
-} from "@/constants/theme";
+import { fonts, typography } from "@/constants/theme";
+import { paymentPalette as colors } from "../components/wallet-payment-palette";
 
 export function TransactionHistory() {
   const history = useTransactions(),
@@ -24,6 +19,8 @@ export function TransactionHistory() {
   return (
     <AppScreenLayout
       title="Lịch sử giao dịch"
+      centeredTitle
+      contentStyle={{ backgroundColor: colors.surface }}
       selected="Hồ sơ"
       back={{ href: "/wallet", label: "Quay lại", onPress: onBack }}
     >
@@ -31,7 +28,7 @@ export function TransactionHistory() {
         <FlatList
           data={state.data ?? []}
           keyExtractor={(row) => row.id}
-          contentContainerStyle={[ui.page, { gap: 0 }]}
+          contentContainerStyle={[ui.page, styles.page]}
           initialNumToRender={8}
           refreshControl={
             <RefreshControl
@@ -40,7 +37,7 @@ export function TransactionHistory() {
             />
           }
           ListHeaderComponent={
-            <View style={{ gap: 12, marginBottom: 12 }}>
+            <View style={styles.toolbar}>
               <HistoryFilters
                 filters={history.filters}
                 onChange={history.select}
@@ -54,48 +51,21 @@ export function TransactionHistory() {
               )}
               {state.status === "empty" && (
                 <View style={styles.empty}>
-                  <View style={styles.emptyIcon}>
-                    <Icon
-                      name="clipboard"
-                      size={24}
-                      color={colors.primaryDark}
-                    />
-                  </View>
                   <Text accessibilityRole="header" style={ui.heading}>
                     Chưa có giao dịch
                   </Text>
                   <Text style={styles.emptyCopy}>
                     {history.filters.type || history.filters.referenceType
-                      ? "Chưa có giao dịch trong nhóm này. Chọn Tất cả giao dịch để xem các nhóm khác."
+                      ? "Chưa có giao dịch trong nhóm này. Chọn Tất cả để xem các nhóm khác."
                       : "Lịch sử sẽ xuất hiện tại đây khi giao dịch được ghi nhận."}
                   </Text>
                 </View>
               )}
-              {!!state.data?.length && (
-                <View style={styles.listHeading}>
-                  <Text accessibilityRole="header" style={ui.heading}>
-                    Giao dịch
-                  </Text>
-                  <View style={styles.order}>
-                    <Icon name="clock" size={14} color={colors.muted} />
-                    <Text style={styles.caption}>Mới nhất trước</Text>
-                  </View>
-                </View>
-              )}
             </View>
           }
-          renderItem={({ item, index }) => (
+          renderItem={({ item }) => (
             <TransactionRow
               row={item}
-              position={
-                index === 0
-                  ? state.data?.length === 1
-                    ? "only"
-                    : "first"
-                  : index === (state.data?.length ?? 0) - 1
-                    ? "last"
-                    : "middle"
-              }
               onOpen={() =>
                 router.push({
                   pathname: "/wallet/transactions/[id]",
@@ -105,10 +75,7 @@ export function TransactionHistory() {
             />
           )}
           ListFooterComponent={
-            <View style={{ gap: 12, marginTop: 16 }}>
-              {!!state.data?.length && (
-                <Copy muted>Đang hiển thị {state.data.length} giao dịch</Copy>
-              )}
+            <View style={styles.footer}>
               {history.invalidCursor ? (
                 <>
                   <Copy>
@@ -150,33 +117,21 @@ export function TransactionHistory() {
   );
 }
 const styles = StyleSheet.create({
-  order: { flexDirection: "row", alignItems: "center", gap: 6 },
-  listHeading: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    alignItems: "baseline",
-    justifyContent: "space-between",
-    gap: 8,
-    paddingHorizontal: 4,
-    marginTop: 8,
+  page: {
+    maxWidth: 560,
+    paddingHorizontal: 0,
+    paddingTop: 0,
+    paddingBottom: 32,
+    gap: 0,
   },
-  caption: {
-    fontFamily: fonts.body,
-    ...typography.secondary,
-    color: colors.body,
-  },
+  toolbar: { padding: 16, gap: 12 },
+  footer: { paddingHorizontal: 16, marginTop: 16, gap: 12 },
   empty: {
     alignItems: "center",
     gap: 12,
     padding: 24,
-    borderRadius: appRadius.card,
     backgroundColor: colors.surface,
     marginTop: 4,
-  },
-  emptyIcon: {
-    padding: 14,
-    borderRadius: appRadius.full,
-    backgroundColor: colors.primarySoft,
   },
   emptyCopy: {
     fontFamily: fonts.body,
