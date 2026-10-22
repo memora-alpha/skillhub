@@ -15,11 +15,13 @@
 
 Server state thuộc Query; client-only recovery/cooldown dùng Zustand hoặc context hiện hữu. Không mirror entity server sang một global store khác. Không tạo thư mục rỗng từ template.
 
-[AppProviders](../src/providers/AppProviders.tsx) tải Nunito/Fraunces trước, rồi SafeAreaProvider → KeyboardProvider → ToastProvider → QueryProvider → AuthSessionProvider → ConnectionGate. AvatarUploadToasts nằm trong connection boundary, ngoài SessionGate; SessionGate → SkillsProvider → ProfilePreviewProvider → MockMessagesProvider → MockProposalsProvider → UiPreviewProvider → router children. Sự có mặt của mock providers không chứng minh Proposal/Chat API đã nối.
+[AppProviders](../src/providers/AppProviders.tsx) tải Nunito/Fraunces trước, rồi SafeAreaProvider → KeyboardProvider → ToastProvider → QueryProvider → AuthSessionProvider → ConnectionGate. AvatarUploadToasts nằm trong connection boundary, ngoài SessionGate; SessionGate → SkillsProvider → ProfilePreviewProvider → ConnectionsProvider → ChatEventsProvider → UiPreviewProvider → router children. Chat/Proposal dùng API và SSE; các provider preview còn lại phục vụ các màn chưa tích hợp API.
 
 ## Imports và trách nhiệm
 
-Feature dùng public index.ts; public subpaths được checker khai báo đúng bốn mục: product-shell/state, learning-paths/state, learning-paths/policy, sessions/state. Không deep import private feature khác; không tạo barrel gây vòng import để đạt hình thức. Route → screen/view → hook/runtime (khi cần logic) → API adapter → HTTP chung. Không bắt thêm controller rỗng.
+Feature dùng public index.ts; public subpaths được checker khai báo cụ thể: product-shell/state, learning-paths/state, learning-paths/policy, sessions/state, messages/state, proposals/state. Không deep import private feature khác; không tạo barrel gây vòng import để đạt hình thức. Route → screen/view → hook/runtime (khi cần logic) → API adapter → HTTP chung. Không bắt thêm controller rỗng.
+
+`learning-paths` giữ `index.ts`, `state.ts`, `policy.ts` ở root làm public entry. `api/` chứa contract/adapters và submission recovery; `components/`, `screens/`, `hooks/` giữ UI/runtime; `schemas/` chứa validation input; `utils/` chứa xử lý dữ liệu, policy/progression từ snapshot API và định dạng form chat; `preview/` gom context, fixtures, types và rules chỉ còn phục vụ các consumer chưa tích hợp API. Di chuyển nội bộ không mở thêm public subpath hoặc đổi route/API.
 
 | Nhóm                                              | Mục tiêu thiết kế | Hard limit checker    |
 | ------------------------------------------------- | ----------------- | --------------------- |
@@ -43,6 +45,10 @@ Giữ source/UI/theme/routes/runtime hiện có; [guides](README.md) và [workfl
 | Public path-count/title/timezone và policy bio chưa đủ contract/evidence                   | Không bịa field hay label thay thế; xem gap theo domain            | [profile contract](contracts/profile.md)               |
 | Skills historical newest-first thiếu timestamp/sort; full scanner/native acceptance còn mở | Server ordering và bằng chứng còn thiếu; cao cho release luồng này | [skills contract](contracts/skills-evidence.md)        |
 
-Wallet/Payment đang phát triển ở nhánh riêng; fixtures/spec006 không có trong checkout này là khác biệt phạm vi nhánh, không phải nợ kỹ thuật cần sửa tại đây. [Điểm tham chiếu Wallet](work/phase-03-wallet-topup/status.md) giữ ranh giới và điều kiện đồng bộ khi tích hợp.
+Wallet/Payment trên nhánh Wallet hiện tại có owner-scoped reads, native durable create/cancel/recovery; không còn Wallet preview UI/route. Checkout subscribe qua public `useChatEvents` để tái sử dụng SSE app; payment/wallet refs chỉ kích hoạt GET, consumer hoàn tất trước stream cursor acknowledgment, không thêm socket hoặc auth transport. Chat query hydration giữ nguyên; payment observation có polling dự phòng và focus/session guards. Spec006 giữ quyết định và bằng chứng lịch sử; [status Wallet](work/phase-03-wallet-topup/status.md) sở hữu review/fix hiện hành và giới hạn actual API/provider/native acceptance. Mô tả chỉ-preview lúc migration không đại diện revision này.
 
 Không thực hiện các khoản nợ này trong Phase 00. Đề xuất logger/UI test framework/automation mới chưa được chấp thuận hoặc cài đặt. Hiện trạng feature chi tiết tra [matrix](feature-matrix.md), status và source; architecture không lưu từng checkpoint/số tests.
+
+Audit Wallet đã bỏ inert preparation model khỏi account WalletProvider; helper cũ chỉ còn trong test fixtures. Đã xóa thư mục Wallet preview, route và entry/catalog/notification mẫu; hai host tạo đơn/QR còn dùng cho regression được chuyển sang tests/fixtures. Không thay account API bằng mock. Public event subscription giữ ack sau hydrate đạt version; reconnect chỉ reset budget sau kết nối ổn định, foreground hoặc explicit retry.
+
+Wallet giữ các lớp route → screens/views → hooks/context/utils → API, cùng components/schemas/types/storage theo trách nhiệm. Model intent/observer/quote/QR và helper không có application consumer đã chuyển sang tests/fixtures; production types/outcome/policy chỉ giữ phần dùng thật. Style riêng đặt cùng tên component. Source không import test; QA tiếp tục là công cụ gọi API nội bộ có binding owner/build/environment, không mock fallback cho account.

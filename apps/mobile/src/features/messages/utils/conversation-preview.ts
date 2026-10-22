@@ -1,6 +1,11 @@
 import type { QueryClient } from "@tanstack/react-query";
 import type { ApiConversation, ApiMessage } from "../api/messages-api";
 import type { QueuedText } from "../outbox/outbox-types";
+import {
+  readPlanShare,
+  readConfirmedForm,
+  confirmedFormLabels,
+} from "@/features/learning-paths/policy";
 
 export function knownInboxConversations(
   listed: ApiConversation[],
@@ -48,6 +53,7 @@ export type InboxConversation = {
   preview: string;
   activityAt: string;
   state?: "pending" | "failed";
+  unread?: boolean;
 };
 export function conversationInbox(
   conversations: ApiConversation[],
@@ -79,9 +85,13 @@ export function conversationInbox(
           activityAt: pending.createdAt,
           state: pending.state === "failed" ? "failed" : "pending",
         };
-      const text =
-        message?.messageText.trim() ||
-        (message?.messageType === "FILE" ? "Đã gửi một tệp" : "");
+      const form = readConfirmedForm(message?.messageText ?? "");
+      const text = form
+        ? `Đã xác nhận ${confirmedFormLabels[form.kind].toLowerCase()}`
+        : readPlanShare(message?.messageText ?? "")
+          ? "Lộ trình học được chia sẻ"
+          : message?.messageText.trim() ||
+            (message?.messageType === "FILE" ? "Đã gửi một tệp" : "");
       const sender = message?.senderId === userId ? "Bạn: " : "";
       return {
         conversation,

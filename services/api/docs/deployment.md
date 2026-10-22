@@ -6,6 +6,27 @@ This replaces the earlier GHCR/self-hosted-runner release plan. Scope is API and
 root CI tooling because pnpm, Git and Docker build context belong to the monorepo.
 Web/mobile and production deployment are outside scope.
 
+The reusable API checks temporarily use `ubuntu-22.04`. PR #52's run
+[39746954224](https://github.com/memora-alpha/skillhub/actions/runs/39746954224/job/119717691046?pr=52)
+failed at test-store startup because MongoDB 8.0 explicitly rejected the newer
+host kernel. Containers share that kernel; changing their base image or increasing
+the health-check timeout does not address this startup failure.
+[SERVER-121912](https://jira.mongodb.org/browse/SERVER-121912) documents the
+MongoDB/kernel incompatibility. Pinning Ubuntu 24.04 was insufficient: run
+[39748512756](https://github.com/memora-alpha/skillhub/actions/runs/39748512756)
+tested commit `6552d28` and still failed with MongoDB's kernel rejection. A runner
+OS label does not pin its kernel, and published image metadata is not proof of
+the kernel used by a specific job. The
+[Ubuntu 22.04 image](https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2204-Readme.md)
+currently publishes kernel 6.8. The workflow logs both `uname -r` and Docker's
+server kernel so the next run can verify the actual host. This is a temporary
+compatibility measure: the runner is
+[scheduled for retirement on 2027-04-17](https://github.com/actions/runner-images/issues/14254).
+Move to a newer runner after verifying MongoDB compatibility with its real kernel.
+The check workflow is shared by PR CI and dev deployment; the webhook-only
+deploy job does not start test stores. A fresh Actions run is still required to
+verify store startup and the remaining checks after this change.
+
 ## Flow
 
 1. PRs into `dev` run API lint, typecheck, build, CD/regression tests, real-store

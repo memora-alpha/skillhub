@@ -36,7 +36,7 @@ export function errorMessage(error: unknown): string {
   if (error.kind === "session")
     return "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.";
   if (error.status === 429)
-    return "Bạn đã thử quá nhiều lần. Vui lòng đợi trước khi thử lại.";
+    return "Tạm thời có nhiều yêu cầu. Vui lòng đợi một lát.";
   if (error.status === 400)
     return "Thông tin chưa hợp lệ. Kiểm tra lại và thử lại.";
   if (error.status === 403)

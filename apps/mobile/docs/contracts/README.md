@@ -1,14 +1,15 @@
 # Contracts mobile
 
-Các file này sở hữu phần giao tiếp mobile cần dùng; backend sở hữu wire contract. Đối chiếu working tree tại HEAD ed5a17dd9f1a6d5e45e1b6af33b17dd4518b46fd, không import backend types/source vào app. Chưa gọi deployed API trong migration.
+Các file này sở hữu phần giao tiếp mobile cần dùng; backend sở hữu wire contract. Baseline migration đối chiếu HEAD ed5a17dd9f1a6d5e45e1b6af33b17dd4518b46fd; các contract cập nhật ghi nguồn/evidence trong file và work tương ứng. Không import backend types/source vào app. Source audit không chứng minh deployed API.
 
-| Domain                         | Contract                                  |
-| ------------------------------ | ----------------------------------------- |
-| Auth/account                   | [auth-account](auth-account.md)           |
-| Profile/avatar                 | [profile](profile.md)                     |
-| Skill catalog/sharing/evidence | [skills-evidence](skills-evidence.md)     |
-| Learning Request/Tag           | [learning-requests](learning-requests.md) |
-| Wallet/Payment                 | [wallet-payments](wallet-payments.md)     |
+| Domain                         | Contract                                                      |
+| ------------------------------ | ------------------------------------------------------------- |
+| Auth/account                   | [auth-account](auth-account.md)                               |
+| Profile/avatar                 | [profile](profile.md)                                         |
+| Skill catalog/sharing/evidence | [skills-evidence](skills-evidence.md)                         |
+| Learning Request/Tag           | [learning-requests](learning-requests.md)                     |
+| Wallet/Payment                 | [wallet-payments](wallet-payments.md)                         |
+| Proposal/Chat/Plan/Schedule    | [proposal-learning-agreement](proposal-learning-agreement.md) |
 
 ## Quy ước chung
 

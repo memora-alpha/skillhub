@@ -78,14 +78,16 @@ function reference(
     prefixes = [["chat-file"]];
   } else if (frame.event === "chat.read.updated") {
     const { conversationId } = parse(read, value.data);
-    prefixes = [["thread", conversationId]];
+    prefixes = [
+      ["thread", conversationId],
+      ["conversations", "preview", conversationId],
+    ];
     receiptsFor = conversationId;
   } else {
     const { conversationId } = parse(message, value.data);
     prefixes = [
       ["thread", conversationId],
-      ["conversations"],
-      ["conversation-preview", conversationId],
+      ["conversations", "preview", conversationId],
     ];
     if (frame.event === "chat.delivery.updated")
       prefixes.push(["delivery", conversationId]);
@@ -121,7 +123,13 @@ export function reloadChatEventQueries(
   return Promise.all(
     prefixes.map((prefix) =>
       cache.invalidateQueries(
-        { queryKey: [...base, ...prefix] },
+        {
+          queryKey: [...base, ...prefix],
+          // A row may be offscreen. Refresh only this preview even when inactive.
+          ...(prefix[0] === "conversations" && prefix[1] === "preview"
+            ? { refetchType: "all" as const }
+            : {}),
+        },
         { throwOnError: true },
       ),
     ),
@@ -135,6 +143,7 @@ export function createChatEventHydrator(options: {
   assertCurrent: () => void;
   renew: () => Promise<unknown>;
   ready: () => void;
+  receive?: (frame: SseFrame, signal: AbortSignal) => Promise<unknown>;
 }) {
   let cursor: string | undefined;
   const processed = new Set<string>();
@@ -174,6 +183,9 @@ export function createChatEventHydrator(options: {
         reset();
         throw new AppError("http", 409, "EVENT_CURSOR_EXPIRED");
       }
+      await options.receive?.(frame, signal);
+      if (signal.aborted) return;
+      options.assertCurrent();
       if (frame.event === "stream.ready") {
         await reloadReady(signal);
       } else {

@@ -46,7 +46,9 @@ export function RequestContent({
       <RequestExchangeDetails request={request} />
       <RequestScheduleDetails request={request} />
       <RequestCreditDetails request={request} />
-      {!own && <RequestRequesterDetails owner={request.owner} />}
+      {!own && (
+        <RequestRequesterDetails owner={request.owner} requestId={request.id} />
+      )}
       {own &&
         request.moderationStatus === "REJECTED" &&
         request.moderationRejectReason && (

@@ -37,8 +37,10 @@ export const appRoutes: Record<string, Href | undefined> = {
   "Yêu cầu học của tôi": learningRoutes.requests,
   "Yêu cầu của tôi": learningRoutes.requests,
   "Learning Path đang học": "/paths/path-active",
+  "Lộ trình đang học": "/paths/path-active",
   "Vào học": "/learning-sessions/active-react-1/room",
   "Learning Path của tôi": learningRoutes.paths,
+  "Lộ trình của tôi": learningRoutes.paths,
   "Bộ giao diện mobile": "/ui",
 };
 

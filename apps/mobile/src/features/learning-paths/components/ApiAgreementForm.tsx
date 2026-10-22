@@ -4,7 +4,10 @@ import { ControlledInput } from "@/components/ControlledInput";
 import { ChoiceGroup } from "@/components/choice-group";
 import { Button } from "@/components/Button";
 import { Copy } from "@/components/feature-page";
-import { agreementInputSchema, type AgreementInput } from "../agreement-input";
+import {
+  agreementInputSchema,
+  type AgreementInput,
+} from "../schemas/agreement-input";
 import type {
   ApiLearningPath,
   CreateLearningPathInput,
@@ -42,19 +45,19 @@ export function ApiAgreementForm({
   const type = watch("type"),
     role = watch("role");
   const submitLabel = path
-    ? "Lưu thay đổi để cùng xem lại"
-    : "Tiếp tục: nội dung học";
+    ? "Gửi và đồng ý thay đổi"
+    : "Gửi và đồng ý cách học";
   return (
     <>
       <ChoiceGroup
-        label="Hai bạn muốn học thế nào?"
-        options={["Hai người dạy cho nhau", "Một người dạy"]}
-        value={type === "TWO_WAY" ? "Hai người dạy cho nhau" : "Một người dạy"}
+        label="Hình thức"
+        options={["Trao đổi hai chiều", "Học một chiều"]}
+        value={type === "TWO_WAY" ? "Trao đổi hai chiều" : "Học một chiều"}
         onChange={(v) => {
           if (!pending)
             setValue(
               "type",
-              v === "Hai người dạy cho nhau" ? "TWO_WAY" : "ONE_WAY",
+              v === "Trao đổi hai chiều" ? "TWO_WAY" : "ONE_WAY",
             );
         }}
       />
@@ -74,21 +77,21 @@ export function ApiAgreementForm({
         name="credit"
         label={
           type === "TWO_WAY"
-            ? "Mỗi người cam kết bao nhiêu Credit?"
-            : "Tổng giá học (Credit)"
+            ? "Credit cam kết mỗi người"
+            : "Credit cho toàn lộ trình"
         }
         keyboardType="decimal-pad"
         editable={!pending}
       />
       <Copy muted>
         {type === "TWO_WAY"
-          ? "Tối thiểu 20 Credit/người. Hai bạn tự soạn phần mình dạy và đồng ý phần mình học. Credit chỉ tạm giữ ở bước chốt lịch."
-          : "Giá cho tất cả buổi học. Người dạy soạn nội dung; chỉ người học tạm giữ Credit ở bước chốt lịch."}
+          ? "Mỗi người tự tạo kế hoạch mình dạy; người học xác nhận từng kế hoạch."
+          : "Người dạy tạo kế hoạch; chỉ người học tạm giữ Credit khi chốt lịch."}
       </Copy>
       {path && (
         <Copy muted>
-          Thay đổi điều khoản tạo phiên bản mới, cần xác nhận lại điều khoản và
-          đề xuất lại lịch.
+          Thay đổi sẽ gửi cho đối tác xác nhận lại. Lịch học cần được thống nhất
+          theo thỏa thuận mới.
         </Copy>
       )}
       <Button
@@ -115,7 +118,7 @@ export function ApiAgreementForm({
           })();
         }}
       >
-        {pending ? "Đang lưu..." : submitLabel}
+        {pending ? "Đang gửi..." : submitLabel}
       </Button>
     </>
   );

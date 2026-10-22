@@ -1,75 +1,83 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Avatar } from "@/components/Avatar";
-import { avatarSizes, typography, fonts } from "@/constants/theme";
-import type { Conversation } from "../mocks/conversations";
+import { appRadius, avatarSizes, typography, fonts } from "@/constants/theme";
 import { messageCardShadow, messageColors as colors } from "../constants/theme";
 
 export function ConversationCard({
-  conversation,
-  unread,
+  name,
+  userId,
+  avatarUrl,
+  preview,
+  time,
+  topic,
+  reference,
+  unread = false,
   onPress,
 }: {
-  conversation: Conversation;
-  unread: number;
+  name: string;
+  userId?: string;
+  avatarUrl?: string | null;
+  preview: string;
+  time: string;
+  topic: string;
+  reference: string;
+  unread?: boolean;
   onPress: () => void;
 }) {
-  const unreadLabel = unread > 0 ? `, ${unread} tin chưa đọc` : "";
-  const accessibilityLabel = `Xem trao đổi với ${conversation.name}${unreadLabel}`;
+  const unreadLabel = unread ? ", có tin nhắn chưa đọc" : "";
+  const accessibilityLabel = `Nhắn tin với ${name}, ${topic}, ${reference}${unreadLabel}`;
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       onPress={onPress}
-      style={({ pressed }) => [styles.card, pressed && { opacity: 0.72 }]}
+      style={({ pressed }) => [
+        styles.card,
+        unread && styles.cardUnread,
+        pressed && { opacity: 0.72 },
+      ]}
     >
       <View style={styles.row}>
-        {/* Avatar + unread badge */}
         <View style={styles.avatarWrap}>
           <Avatar
-            name={conversation.name}
-            userId={conversation.userId}
+            name={name}
+            userId={userId}
             size={avatarSizes.list}
+            shape="circle"
+            sourceUri={avatarUrl}
           />
-          {unread > 0 && (
-            <View style={styles.count}>
-              <Text style={styles.countText}>{unread}</Text>
-            </View>
-          )}
         </View>
 
-        {/* Content */}
         <View style={styles.main}>
-          {/* Name row */}
           <View style={styles.nameRow}>
-            <View style={styles.nameLeft}>
-              <Text
-                numberOfLines={1}
-                style={[styles.name, unread > 0 && styles.nameUnread]}
-              >
-                {conversation.name}
-              </Text>
-              {/* Skill badge */}
-              <View style={styles.skillBadge}>
-                <Text style={styles.skillText}>{conversation.skill}</Text>
-              </View>
-            </View>
-            <Text style={[styles.time, unread > 0 && styles.timeUnread]}>
-              {conversation.time}
+            <Text
+              numberOfLines={1}
+              style={[styles.name, unread && styles.nameUnread]}
+            >
+              {name}
+            </Text>
+            <Text
+              numberOfLines={1}
+              style={[styles.time, unread && styles.timeUnread]}
+            >
+              {time}
             </Text>
           </View>
 
-          {/* Preview message */}
-          <Text
-            numberOfLines={1}
-            style={[styles.preview, unread > 0 && styles.previewUnread]}
-          >
-            {conversation.last}
-          </Text>
-
-          {/* Course / request subtitle */}
-          <Text numberOfLines={1} style={styles.request}>
-            {conversation.request}
-          </Text>
+          <View style={styles.previewRow}>
+            <Text
+              numberOfLines={1}
+              style={[styles.preview, unread && styles.previewUnread]}
+            >
+              {preview}
+            </Text>
+            {unread && <View style={styles.unreadDot} />}
+          </View>
+          <View style={styles.topicRow}>
+            <Text numberOfLines={1} style={styles.topic}>
+              {topic}
+            </Text>
+          </View>
         </View>
       </View>
     </Pressable>
@@ -78,41 +86,33 @@ export function ConversationCard({
 
 const styles = StyleSheet.create({
   card: {
-    marginHorizontal: 12,
     paddingHorizontal: 12,
-    paddingVertical: 11,
+    paddingVertical: 12,
     backgroundColor: colors.surface,
-    borderRadius: 10,
+    borderRadius: appRadius.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
     boxShadow: messageCardShadow,
   },
   row: { flexDirection: "row", gap: 10, alignItems: "center" },
+  cardUnread: { backgroundColor: colors.orangePale },
   avatarWrap: { position: "relative", flexShrink: 0 },
-  main: { flex: 1, minWidth: 0, gap: 2 },
+  main: { flex: 1, minWidth: 0, gap: 4 },
 
   // Name row
   nameRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 5,
-  },
-  nameLeft: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    minWidth: 0,
-    flexShrink: 1,
   },
   name: {
-    fontFamily: fonts.bold,
+    fontFamily: fonts.semibold,
     ...typography.body,
     color: colors.ink,
-    flexShrink: 1,
+    flex: 1,
+    minWidth: 0,
   },
-  nameUnread: {
-    fontFamily: fonts.bold,
-  },
+  nameUnread: { fontFamily: fonts.bold },
   time: {
     fontFamily: fonts.body,
     ...typography.caption,
@@ -120,54 +120,37 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
 
-  skillBadge: {
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-    borderRadius: 4,
-    backgroundColor: colors.tag,
-    flexShrink: 0,
-  },
-  skillText: {
-    fontFamily: fonts.medium,
-    ...typography.caption,
-    color: colors.muted,
-  },
   preview: {
     fontFamily: fonts.body,
     ...typography.body,
     color: colors.body,
+    flex: 1,
+    minWidth: 0,
   },
   previewUnread: {
-    fontFamily: fonts.semibold,
+    fontFamily: fonts.bold,
     color: colors.ink,
   },
-
-  request: {
-    fontFamily: fonts.body,
-    ...typography.secondary,
-    color: colors.mutedLight,
-  },
-
-  count: {
-    position: "absolute",
-    top: -3,
-    right: -3,
-    minWidth: 18,
-    height: 18,
-    paddingHorizontal: 2,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: colors.surface,
+  previewRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  unreadDot: {
+    width: 8,
+    height: 8,
+    borderRadius: appRadius.full,
     backgroundColor: colors.orange,
-    justifyContent: "center",
-    alignItems: "center",
+    flexShrink: 0,
   },
-  countText: {
-    fontFamily: fonts.bold,
-    fontSize: 9,
-    lineHeight: 12,
-    includeFontPadding: false,
-    color: colors.white,
+  topicRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    marginTop: 2,
+  },
+  topic: {
+    ...typography.caption,
+    fontFamily: fonts.body,
+    color: colors.muted,
+    flex: 1,
+    minWidth: 0,
   },
   timeUnread: { color: colors.orange, fontFamily: fonts.bold },
 });

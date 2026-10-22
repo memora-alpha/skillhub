@@ -1,5 +1,3 @@
-import { Button } from "@/components/Button";
-import { Copy } from "@/components/feature-page";
 import { ConnectionFeedback } from "@/features/connections";
 
 // Learning-path and schedule updates currently have no public SSE event.
@@ -13,22 +11,12 @@ export function PathReadFeedback({
     refetch: () => unknown;
   };
 }>) {
+  if (!query.isLoading && !query.error) return null;
   return (
-    <>
-      <ConnectionFeedback loading={query.isLoading} error={query.error} />
-      <Button
-        variant="secondary"
-        disabled={query.isFetching}
-        onPress={() => {
-          void query.refetch();
-        }}
-      >
-        {query.isFetching ? "Đang tải trạng thái..." : "Tải lại trạng thái"}
-      </Button>
-      <Copy muted>
-        Trạng thái tự cập nhật khi bạn mở màn hình này. Có thể tải lại để kiểm
-        tra ngay xác nhận của người trao đổi.
-      </Copy>
-    </>
+    <ConnectionFeedback
+      loading={query.isLoading}
+      error={query.error}
+      retry={query.isFetching ? undefined : query.refetch}
+    />
   );
 }

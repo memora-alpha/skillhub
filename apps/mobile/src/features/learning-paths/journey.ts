@@ -8,7 +8,7 @@ import {
   editablePath,
   ownConfirmation,
   pathStatusLabel,
-} from "./policy-api";
+} from "./utils/policy-api";
 
 export type LearningJourney = {
   step: 2 | 3 | 4;

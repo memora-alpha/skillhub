@@ -1,6 +1,7 @@
 import { Pressable, Text, View, StyleSheet } from "react-native";
 import { Avatar } from "@/components/Avatar";
 import { Icon } from "@/components/Icon";
+import { useParticipantProfile } from "@/features/connections";
 import {
   appColors as colors,
   appRadius,
@@ -16,6 +17,10 @@ import {
   statusLabels,
 } from "../utils/request-policy";
 import type { RequestItem } from "../types";
+import {
+  sentRequestProposalLabels,
+  type SentRequestProposal,
+} from "@/features/proposals/state";
 
 function createdLabel(value: string) {
   const minutes = Math.max(
@@ -35,11 +40,14 @@ function createdLabel(value: string) {
 export function RequestCard({
   request,
   onPress,
+  proposal,
 }: Readonly<{
   request: RequestItem;
   onPress: () => void;
+  proposal?: SentRequestProposal;
 }>) {
   const own = isOwnRequest(request);
+  const profile = useParticipantProfile(own ? undefined : request.owner.id);
   const skill = useSkillName(own ? request.skillId : undefined);
   const state = requestState(request);
   const skillName = own ? skill.data?.name : request.skill.name;
@@ -69,6 +77,8 @@ export function RequestCard({
             <Avatar
               name={request.owner.displayName}
               userId={request.owner.id}
+              sourceUri={profile.data?.avatarUrl}
+              shape="circle"
               size={36}
             />
             <View style={styles.identityText}>
@@ -113,6 +123,18 @@ export function RequestCard({
           ))}
         </View>
       )}
+      {!own && proposal && (
+        <View style={[styles.row, styles.proposalStatus]}>
+          <Icon
+            name={proposal.status === "ACCEPTED" ? "check-circle" : "send"}
+            size={14}
+            color={colors.primary}
+          />
+          <Text style={styles.proposalLabel}>
+            {sentRequestProposalLabels[proposal.status]}
+          </Text>
+        </View>
+      )}
       <View style={[styles.between, styles.footer]}>
         <View style={styles.identity}>
           <Text style={styles.credit}>
@@ -138,6 +160,18 @@ export function RequestCard({
   );
 }
 const styles = StyleSheet.create({
+  proposalStatus: {
+    paddingVertical: 7,
+    paddingHorizontal: 9,
+    borderRadius: appRadius.control,
+    backgroundColor: colors.primarySoft,
+  },
+  proposalLabel: {
+    ...typography.secondary,
+    fontFamily: fonts.semibold,
+    color: colors.primary,
+    flex: 1,
+  },
   card: {
     padding: 14,
     borderRadius: appRadius.card,

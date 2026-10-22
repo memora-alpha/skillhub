@@ -15,9 +15,9 @@ import { LogoutDialog } from "@/components/LogoutDialog";
 import { KeyboardFormScrollView } from "@/components/KeyboardFormScrollView";
 import { useAuthSession, type AccountSession } from "@/features/auth";
 import { demoNotifications, recentMessages } from "@/mocks/app";
-import { signedInChrome } from "@/constants/theme";
 import { appRoutes } from "@/constants/navigation";
 import { profileStyles } from "./ProfilePrimitives";
+import { profileColors } from "../constants/theme";
 import { useProfilePreview } from "../context/ProfilePreview";
 import type { PublicProfile } from "../types/profile";
 
@@ -116,6 +116,11 @@ export function ProfileLayout({
     <SafeAreaView style={styles.screen} edges={edges}>
       <AppHeader
         appearance="home"
+        chromeColors={{
+          background: profileColors.background,
+          border: profileColors.border,
+          accent: profileColors.accent,
+        }}
         profile={session}
         title={title ?? "Hồ sơ"}
         onBack={onBack}
@@ -166,9 +171,9 @@ export function ProfileLayout({
   );
 }
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: signedInChrome.surface },
+  screen: { flex: 1, backgroundColor: profileColors.surface },
   keyboard: { flex: 1 },
-  scroll: { flex: 1, backgroundColor: signedInChrome.background },
+  scroll: { flex: 1, backgroundColor: profileColors.background },
   content: {
     paddingHorizontal: 12,
     paddingVertical: 10,

@@ -25,6 +25,7 @@ type OpenNotice = (label: string) => void;
 type AppScreenLayoutProps = Readonly<{
   title: string;
   titleContent?: ReactNode;
+  centeredTitle?: boolean;
   selected: string;
   rightAction?: ReactNode | ((openNotice: OpenNotice) => ReactNode);
   back?: Readonly<{
@@ -91,6 +92,7 @@ function ScreenNoticeContent({
 export function AppScreenLayout({
   title,
   titleContent,
+  centeredTitle,
   selected,
   rightAction,
   back,
@@ -135,6 +137,7 @@ export function AppScreenLayout({
         profile={session}
         title={title}
         titleContent={titleContent}
+        centeredTitle={centeredTitle}
         onBack={handleBack}
         backLabel={back?.label}
         navigationBlocked={navigationBlocked}

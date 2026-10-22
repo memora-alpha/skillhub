@@ -4,13 +4,10 @@ import { appColors, fonts } from "@/constants/theme";
 import { appRoutes } from "@/constants/navigation";
 import { useAuthSession } from "@/features/auth";
 import { AppScreenLayout } from "@/features/shell";
-import { useMockMessages } from "@/features/messages";
-import { learningRequests } from "@/features/discovery";
 import { HomeContent } from "../components/HomeContent";
 import { matchingRequests } from "../mocks/home";
 export function HomeScreen() {
   const { session } = useAuthSession();
-  const { conversations } = useMockMessages();
   const router = useRouter();
   if (!session) return <Redirect href="/login" />;
   return (
@@ -20,15 +17,9 @@ export function HomeScreen() {
           if (label === "Hoàn thiện hồ sơ") return router.push("/edit-profile");
           if (appRoutes[label]) return open(label);
           const matched = matchingRequests.find((r) => r.title === label);
-          if (matched)
-            return router.push(
-              learningRequests.some((r) => r.id === matched.id)
-                ? `/explore/requests/${matched.id}`
-                : "/discover",
-            );
-          const conversation = conversations.find((c) => c.name === label);
-          if (conversation)
-            return router.push(`/chat/${conversation.proposal}`);
+          if (matched) return router.push("/requests");
+          if (label.includes("tin nhắn") || label.includes("trao đổi"))
+            return router.push("/messages");
           router.push("/ui");
         };
         return (

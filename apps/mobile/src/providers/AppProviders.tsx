@@ -12,15 +12,12 @@ import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { colors } from "@/constants/theme";
 import { AuthSessionProvider, SessionGate } from "@/features/auth";
-import {
-  MockMessagesProvider,
-  ChatEventsProvider,
-  ChatOutboxProvider,
-} from "@/features/messages";
+import { ChatEventsProvider, ChatOutboxProvider } from "@/features/messages";
 import { ProfilePreviewProvider, AvatarUploadToasts } from "@/features/profile";
 import { ConnectionsProvider } from "@/features/connections";
 import { UiPreviewProvider } from "@/features/ui-preview";
 import { SkillsProvider } from "@/features/skills";
+import { WalletProvider } from "@/features/wallet";
 import { QueryProvider } from "./QueryProvider";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { ToastProvider } from "./ToastProvider";
@@ -58,12 +55,12 @@ export function AppProviders({ children }: { children: ReactNode }) {
         <ToastProvider>
           <QueryProvider>
             <AuthSessionProvider>
-              <ConnectionGate>
-                <AvatarUploadToasts />
-                <SessionGate>
-                  <SkillsProvider>
-                    <ProfilePreviewProvider>
-                      <MockMessagesProvider>
+              <WalletProvider>
+                <ConnectionGate>
+                  <AvatarUploadToasts />
+                  <SessionGate>
+                    <SkillsProvider>
+                      <ProfilePreviewProvider>
                         <ConnectionsProvider>
                           <ChatEventsProvider>
                             <ChatOutboxProvider>
@@ -71,11 +68,11 @@ export function AppProviders({ children }: { children: ReactNode }) {
                             </ChatOutboxProvider>
                           </ChatEventsProvider>
                         </ConnectionsProvider>
-                      </MockMessagesProvider>
-                    </ProfilePreviewProvider>
-                  </SkillsProvider>
-                </SessionGate>
-              </ConnectionGate>
+                      </ProfilePreviewProvider>
+                    </SkillsProvider>
+                  </SessionGate>
+                </ConnectionGate>
+              </WalletProvider>
             </AuthSessionProvider>
           </QueryProvider>
         </ToastProvider>

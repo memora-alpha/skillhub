@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import { Icon } from "@/components/Icon";
-import { typography, colors, fonts } from "@/constants/theme";
+import { appRadius, typography, colors, fonts } from "@/constants/theme";
 import { passwordRequirements } from "../utils/validateRegistration";
 
 export function GoogleButton({
@@ -110,7 +110,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.white,
-    borderRadius: 12,
+    borderRadius: appRadius.button,
   },
   googleLabel: {
     fontFamily: fonts.semibold,

@@ -8,8 +8,11 @@ import {
   hasConflict,
   plansConfirmed,
   validSlots,
-} from "../src/features/learning-paths/rules";
-import type { LearningPath, Plan } from "../src/features/learning-paths/types";
+} from "../src/features/learning-paths/preview/rules";
+import type {
+  LearningPath,
+  Plan,
+} from "../src/features/learning-paths/preview/types";
 const now = Date.parse("2026-10-10T00:00:00Z");
 function plan(id: string, mine: boolean, hour: number): Plan {
   return {

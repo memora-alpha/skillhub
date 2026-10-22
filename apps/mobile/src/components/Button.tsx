@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Icon, type IconName } from "./Icon";
 import {
   Pressable,
   StyleSheet,
@@ -6,7 +7,7 @@ import {
   type StyleProp,
   type ViewStyle,
 } from "react-native";
-import { appColors, colors, fonts, layout } from "@/constants/theme";
+import { appColors, appRadius, colors, fonts } from "@/constants/theme";
 
 type ButtonVariant =
   "primary" | "secondary" | "ghost" | "white" | "craft" | "forest" | "paper";
@@ -19,16 +20,18 @@ type ButtonProps = Readonly<{
   style?: StyleProp<ViewStyle>;
   accessibilityLabel?: string;
   disabled?: boolean;
+  leadingIcon?: IconName;
+  icon?: IconName;
 }>;
 
 const foregrounds: Record<ButtonVariant, string> = {
   primary: colors.white,
-  secondary: colors.inkSoft,
+  secondary: appColors.inkSoft,
   ghost: colors.inkSoft,
   white: colors.brand,
   craft: colors.white,
   forest: colors.white,
-  paper: appColors.forest,
+  paper: appColors.inkSoft,
 };
 
 const labelSizes: Record<ButtonSize, { fontSize: number; lineHeight: number }> =
@@ -47,6 +50,8 @@ export function Button({
   style,
   accessibilityLabel,
   disabled = false,
+  leadingIcon,
+  icon,
 }: ButtonProps) {
   const foreground = foregrounds[variant];
   return (
@@ -61,9 +66,13 @@ export function Button({
         styles[variant],
         sizes[size],
         style,
-        (pressed || disabled) && { opacity: 0.75 },
+        pressed && !disabled && { opacity: 0.86 },
+        disabled && { opacity: 0.45 },
       ]}
     >
+      {leadingIcon && (
+        <Icon name={leadingIcon} size={18} color={foreground} filled={false} />
+      )}
       {typeof children === "string" ? (
         <Text
           style={[styles.label, { color: foreground, ...labelSizes[size] }]}
@@ -73,12 +82,13 @@ export function Button({
       ) : (
         children
       )}
+      {icon && <Icon name={icon} size={18} color={foreground} />}
     </Pressable>
   );
 }
 const styles = StyleSheet.create({
   base: {
-    borderRadius: layout.radius,
+    borderRadius: appRadius.button,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -92,13 +102,17 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   primary: { backgroundColor: colors.brand },
-  secondary: { backgroundColor: colors.sand },
+  secondary: {
+    backgroundColor: appColors.surfaceLow,
+    borderWidth: 1,
+    borderColor: appColors.border,
+  },
   ghost: { backgroundColor: "transparent" },
   white: { backgroundColor: colors.white },
   craft: { backgroundColor: appColors.primary },
   forest: { backgroundColor: appColors.forest },
   paper: {
-    backgroundColor: appColors.surfaceInset,
+    backgroundColor: appColors.surfaceLow,
     borderWidth: 1,
     borderColor: appColors.border,
   },

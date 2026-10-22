@@ -42,6 +42,7 @@ export function ChatComposer({
           editable={!pending}
           onChangeText={onChange}
           placeholder="Nhập tin nhắn..."
+          multiline
           placeholderTextColor={colors.mutedLight}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
@@ -49,7 +50,7 @@ export function ChatComposer({
           onSubmitEditing={(event) => {
             if (!disabled) onSend(event.nativeEvent.text);
           }}
-          submitBehavior="submit"
+          submitBehavior="newline"
           style={[styles.input, focused && { borderColor: colors.brand }]}
         />
         <Pressable
@@ -93,9 +94,10 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     minHeight: 44,
+    maxHeight: 120,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    backgroundColor: "#F5F4F2",
+    backgroundColor: colors.tag,
     borderRadius: 16,
     fontFamily: fonts.body,
     ...typography.body,

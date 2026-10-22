@@ -17,6 +17,7 @@ import {
 import { HomeSection, SectionHeading, homeStyles } from "./HomePrimitives";
 import { styles } from "./HomeContent.styles";
 import { NewUserGuide } from "./NewUserGuide";
+import { HomeWalletBalance } from "@/features/wallet";
 
 export function HomeContent({
   name,
@@ -48,7 +49,11 @@ export function HomeContent({
           accessibilityRole="button"
           accessibilityLabel="Ví Credit"
           onPress={() => onAction("Ví Credit")}
-          style={({ pressed }) => [styles.wallet, pressed && styles.pressed]}
+          style={({ pressed }) => [
+            styles.wallet,
+            { maxWidth: "60%", flexShrink: 1 },
+            pressed && styles.pressed,
+          ]}
         >
           <View style={styles.walletIcon}>
             <Icon
@@ -57,11 +62,9 @@ export function HomeContent({
               color={colors.orange}
             />
           </View>
-          <View>
+          <View style={{ flexShrink: 1, minWidth: 0 }}>
             <Text style={styles.walletLabel}>SỐ DƯ</Text>
-            <Text style={styles.credit}>
-              {summary.credit} <Text style={{ color: colors.orange }}>CR</Text>
-            </Text>
+            <HomeWalletBalance />
           </View>
         </Pressable>
       </View>
@@ -332,7 +335,7 @@ export function HomeContent({
                   key={message.id}
                   accessibilityRole="button"
                   accessibilityLabel={`Tin nhắn từ ${message.name}`}
-                  onPress={() => onAction(message.name)}
+                  onPress={() => onAction("Tin nhắn")}
                   style={({ pressed }) => [
                     styles.message,
                     index > 0 && styles.messageDivider,

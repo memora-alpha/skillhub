@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from "react-native";
 import { Icon, type IconName } from "@/components/Icon";
-import { iconSizes, typography, fonts } from "@/constants/theme";
+import { appRadius, iconSizes, typography, fonts } from "@/constants/theme";
 import { discoveryColors as colors } from "../constants/theme";
 import type { RequestDetailContent } from "../mocks/requestDetails";
 
@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
     gap: 12,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 8,
+    borderRadius: appRadius.card,
     backgroundColor: colors.surface,
     boxShadow: "0 2px 8px rgba(53, 43, 31, 0.025)",
   },

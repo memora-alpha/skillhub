@@ -1,9 +1,9 @@
-import { useCallback, useMemo } from "react";
-import { AppState } from "react-native";
-import { useFocusEffect } from "expo-router";
+import { useMemo } from "react";
 import { useConnections, useConnectionQuery } from "@/features/connections";
 import { uuid } from "@/lib/http/contracts";
 import { createLearningPathsApi } from "../api/learning-paths-api";
+import { useAgreementRefresh } from "./use-agreement-refresh";
+import { editablePath } from "../utils/policy-api";
 
 export function useLearningPathsApi() {
   const runtime = useConnections();
@@ -14,42 +14,26 @@ export function useLearningPathsApi() {
 }
 export function useLearningPaths() {
   const api = useLearningPathsApi();
-  const query = useConnectionQuery(["learning-paths", "mine"], (signal) =>
+  return useConnectionQuery(["learning-paths", "mine"], (signal) =>
     api.mine(signal),
   );
-  useLearningRefresh(query.refetch, !query.denied);
-  return query;
 }
 export function useLearningPath(id: string) {
-  const api = useLearningPathsApi();
-  const valid = uuid.safeParse(id).success;
+  const api = useLearningPathsApi(),
+    runtime = useConnections();
   const query = useConnectionQuery(
     ["learning-paths", id],
     (signal) => api.detail(id, signal),
-    valid,
+    uuid.safeParse(id).success,
   );
-  useLearningRefresh(
+  useAgreementRefresh(
     query.refetch,
-    valid && !query.denied && query.data?.lockedVersion == null,
+    runtime.enabled &&
+      !!query.data &&
+      editablePath(query.data) &&
+      !query.error &&
+      !query.denied,
+    runtime.isCurrent,
   );
   return query;
-}
-
-// Plan/schedule confirmations have no public SSE event. Only refresh the visible
-// screen in the foreground; server state remains the source of truth for both users.
-function useLearningRefresh(
-  refresh: (options?: { cancelRefetch?: boolean }) => unknown,
-  enabled: boolean,
-) {
-  const runtime = useConnections();
-  useFocusEffect(
-    useCallback(() => {
-      if (!enabled || !runtime.enabled) return;
-      const timer = setInterval(() => {
-        if (AppState.currentState === "active" && runtime.isCurrent())
-          refresh({ cancelRefetch: false });
-      }, 5000);
-      return () => clearInterval(timer);
-    }, [enabled, refresh, runtime]),
-  );
 }

@@ -45,6 +45,7 @@ export function OnboardingScreen() {
                 <Button
                   key={skill}
                   variant={interests.includes(skill) ? "craft" : "paper"}
+                  leadingIcon={interests.includes(skill) ? "check" : undefined}
                   onPress={() =>
                     setInterests(
                       interests.includes(skill)
@@ -53,7 +54,6 @@ export function OnboardingScreen() {
                     )
                   }
                 >
-                  {interests.includes(skill) ? "✓ " : ""}
                   {skill}
                 </Button>
               ),

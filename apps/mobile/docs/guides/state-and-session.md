@@ -32,10 +32,10 @@
 - Giữ query pagination/cursor/order/filter theo server; refresh phải xử lý continuation snapshot đúng. Không ghép trang từ owner/filter khác.
 - `ConnectionGate` là boundary mạng toàn app hiện có. Không thêm mỗi feature một cơ chế full-screen offline cạnh tranh.
 - Network failure khác business HTTP error, protocol error, cancellation và stale session. Không biến mọi lỗi thành “mất mạng”.
-- Reconnect/app resume phục hồi auth bootstrap/read đang cần; không tự replay save, upload, submit, payment create hoặc mutation khác.
+- Reconnect/app resume phục hồi auth bootstrap/read đang cần; không tự replay save, upload, submit, payment create/cancel hoặc mutation khác. Cancel dùng identity riêng ổn định theo Payment ID và chỉ retry từ xác nhận người dùng; timeout không clear durable create correlation.
 - Màn bị che bởi connection boundary không nhận touch/accessibility focus. Router và draft có thể vẫn được giữ theo implementation hiện có; điều này không đồng nghĩa offline editing/queue.
 - Polling/realtime subscriptions tuân focus/foreground/session và có cleanup. Không để màn hidden hoặc preview tiếp tục đọc tài khoản thật ngoài thiết kế.
 
 ## Giới hạn và đề xuất
 
-Không có offline mutation queue hoặc durable evidence jobs; durable payment intent runtime chưa có trong checkout này, không được mô tả là đang hoạt động. Quy chuẩn không tự cấp quyền sửa code cũ ngoài scope.
+Không có offline mutation queue hoặc durable evidence jobs. Native durable payment correlation đã có source trong wallet; xem [contract](../contracts/wallet-payments.md) và [status](../work/phase-03-wallet-topup/status.md) để phân biệt synthetic tests với SecureStore/process-kill acceptance chưa được xác minh. Quy chuẩn không tự cấp quyền sửa code cũ ngoài scope.

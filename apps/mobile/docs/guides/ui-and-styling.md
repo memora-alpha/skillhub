@@ -24,6 +24,13 @@
 - Layout xét safe area, screen nhỏ, chữ lớn, keyboard, scroll và bottom navigation. Không buộc font scale nhỏ lại chỉ để khớp screenshot.
 - Không gọi UI “đúng thiết kế” chỉ vì render thành công; đối chiếu frame/pattern và ghi khác biệt được chấp nhận.
 
+## Icon dùng chung
+
+- Dùng `Icon` trong `src/components/Icon.tsx`; bộ hiện hành là [Lucide React Native](https://lucide.dev/guide/react-native/getting-started) (license ISC), render qua `react-native-svg` đã có.
+- Mapping semantic ở `src/components/icon-map.ts`, import từng icon từ entry point chính thức `lucide-react-native/icons/*`. Kiểm file runtime tồn tại khi thêm mapping vì alias type có thể khác tên file canonical.
+- Giữ tên icon theo ý nghĩa thao tác, màu theme, kích thước `iconSizes` và độ dày `iconStrokeWidth`; chỉ star dùng fill cho rating. Icon trang trí ẩn với accessibility, action vẫn cần label trên nút.
+- Không dùng glyph/emoji thay icon điều khiển. Logo thương hiệu (Google) và avatar vẫn giữ asset/renderer riêng. Không thay ký tự mũi tên trong nội dung nghiệp vụ.
+
 ## Giới hạn và đề xuất
 
-Nguồn được ghi nhận là Complete SkillHub Product Design/Figma Make; chưa xác minh frame mới hoặc pixel match trong migration. Không có quyết định thay styling/font/theme. Quy chuẩn không tự cấp quyền sửa code cũ ngoài scope.
+Nguồn được ghi nhận là Complete SkillHub Product Design/Figma Make; chưa xác minh frame mới hoặc pixel match trong migration. Quy chuẩn không tự cấp quyền sửa code cũ ngoài scope; thay đổi icon toàn mobile ngày 21/10 được người dùng yêu cầu riêng, giữ font/theme.

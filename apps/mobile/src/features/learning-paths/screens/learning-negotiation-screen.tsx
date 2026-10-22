@@ -1,248 +1,62 @@
-import { useState } from "react";
-import { uuid } from "@/lib/http/contracts";
+import { useConnections, ConnectionFeedback } from "@/features/connections";
+import { useConversation } from "@/features/messages";
+import { FlowPage } from "@/components/learning-flow";
+import { Copy } from "@/components/feature-page";
 import { EmptyState } from "@/components/EmptyState";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { FeaturePage, Panel, Copy } from "@/components/feature-page";
-import { FormNotice } from "@/components/FormNotice";
-import { Button } from "@/components/Button";
-import { ControlledInput } from "@/components/ControlledInput";
-import { ChoiceGroup } from "@/components/choice-group";
-import {
-  ConnectionFeedback,
-  useConnections,
-  useParticipantName,
-} from "@/features/connections";
-import { useConversation, useMessageSend } from "@/features/messages";
-import { usePathsPreview } from "../context";
+import { uuid } from "@/lib/http/contracts";
 import { ApiAgreementEntry } from "../components/ApiAgreementEntry";
-import {
-  negotiationSchema,
-  negotiationMessage,
-  type NegotiationDraft,
-} from "../negotiation";
+import { usePullRefresh } from "../hooks/use-pull-refresh";
 
 export function LearningNegotiationScreen({
   conversationId,
-}: Readonly<{
-  conversationId: string;
-}>) {
+}: Readonly<{ conversationId: string }>) {
   const query = useConversation(conversationId);
-  const { draft } = useLocalSearchParams<{ draft?: string }>();
-  const ideasOnly = draft === "1";
-  if (!uuid.safeParse(conversationId).success)
-    return (
-      <FeaturePage title="Learning Path" demo={false} back="/messages">
-        <EmptyState
-          title="Chọn cuộc trao đổi"
-          description="Mở Learning Path từ một cuộc trao đổi đã được chấp nhận."
-        />
-      </FeaturePage>
-    );
+  const pullRefresh = usePullRefresh(query.refetch);
+  const runtime = useConnections();
+  const valid = uuid.safeParse(conversationId).success;
   return (
-    <FeaturePage
-      title={ideasOnly ? "Gợi ý gửi qua Chat" : "Thống nhất việc học"}
-      demo={false}
-      back={{
-        pathname: "/chat/[proposalId]",
-        params: { proposalId: conversationId, mode: "api" },
-      }}
+    <FlowPage
+      title="Thỏa thuận học"
+      backBehavior="history"
+      back={
+        valid
+          ? {
+              pathname: "/chat/[proposalId]",
+              params: { proposalId: conversationId, mode: "api" },
+            }
+          : "/messages"
+      }
+      refreshing={pullRefresh.refreshing}
+      onRefresh={pullRefresh.onRefresh}
     >
-      <ConnectionFeedback
-        loading={query.isLoading}
-        error={query.error}
-        retry={query.refetch}
-      />
-      {query.data && !ideasOnly && (
-        <ApiAgreementEntry
-          conversationId={conversationId}
-          participantAId={query.data.participantAId}
-          participantBId={query.data.participantBId}
+      {!valid ? (
+        <EmptyState
+          title="Chọn cuộc trò chuyện"
+          description="Mở lộ trình từ cuộc trò chuyện của bạn."
         />
-      )}
-      {query.data && ideasOnly && (
-        <NegotiationForm
-          key={conversationId}
-          conversationId={conversationId}
-          partnerId={query.data.participantBId}
-          participantAId={query.data.participantAId}
-        />
-      )}
-    </FeaturePage>
-  );
-}
-function NegotiationForm({
-  conversationId,
-  partnerId,
-  participantAId,
-}: Readonly<{
-  conversationId: string;
-  partnerId: string;
-  participantAId: string;
-}>) {
-  const runtime = useConnections(),
-    router = useRouter(),
-    preview = usePathsPreview();
-  const other = participantAId === runtime.userId ? partnerId : participantAId;
-  const name = useParticipantName(other),
-    sender = useMessageSend(conversationId);
-  const [saved, setSaved] = useState(false),
-    [sent, setSent] = useState(false);
-  const { control, watch, setValue, handleSubmit, formState } =
-    useForm<NegotiationDraft>({
-      resolver: zodResolver(negotiationSchema),
-      defaultValues: preview.drafts[conversationId] ?? {
-        type: "TWO_WAY",
-        role: "teacher",
-        credit: "20",
-        skill: "",
-        goal: "",
-        outline: "",
-      },
-    });
-  const type = watch("type"),
-    role = watch("role");
-  const persist = (draft: NegotiationDraft) => {
-    preview.saveDraft(conversationId, draft);
-    setSaved(true);
-  };
-  return (
-    <>
-      <Panel title={`Cùng ${name.data ?? "người trao đổi"} thiết kế cách học`}>
-        <FormNotice tone="info">
-          Gợi ý này được gửi như một tin nhắn. Hai bạn có thể trao đổi trước khi
-          mở phần Thống nhất việc học trong Chat.
-        </FormNotice>
-        <Copy muted>
-          Gợi ý dưới đây chưa tạo kế hoạch chính thức, chưa xác nhận điều khoản
-          hoặc giữ Credit.
-        </Copy>
-        <ChoiceGroup
-          label="Hình thức mong muốn"
-          options={["Trao đổi hai chiều", "Học một chiều"]}
-          value={type === "TWO_WAY" ? "Trao đổi hai chiều" : "Học một chiều"}
-          onChange={(v) => {
-            if (!sender.pending && !sender.processing)
-              setValue(
-                "type",
-                v === "Trao đổi hai chiều" ? "TWO_WAY" : "ONE_WAY",
-                { shouldValidate: true },
-              );
-          }}
-        />
-        {type === "ONE_WAY" && (
-          <ChoiceGroup
-            label="Vai trò mong muốn"
-            options={["Tôi dạy", "Tôi học"]}
-            value={role === "teacher" ? "Tôi dạy" : "Tôi học"}
-            onChange={(v) => {
-              if (!sender.pending && !sender.processing)
-                setValue("role", v === "Tôi dạy" ? "teacher" : "learner");
-            }}
+      ) : (
+        <>
+          <ConnectionFeedback
+            loading={query.isLoading}
+            error={query.error}
+            retry={query.refetch}
           />
-        )}
-        <ControlledInput
-          control={control}
-          name="credit"
-          label={
-            type === "TWO_WAY"
-              ? "Credit cam kết mỗi người"
-              : "Credit gợi ý toàn Learning Path"
-          }
-          keyboardType="decimal-pad"
-          editable={!sender.pending && !sender.processing}
-        />
-        <ControlledInput
-          control={control}
-          name="skill"
-          label={
-            type === "ONE_WAY" && role === "learner"
-              ? "Kỹ năng muốn học"
-              : "Kỹ năng bạn muốn dạy"
-          }
-          editable={!sender.pending && !sender.processing}
-        />
-        <ControlledInput
-          control={control}
-          name="goal"
-          label="Mục tiêu học"
-          multiline
-          maxLength={500}
-          editable={!sender.pending && !sender.processing}
-        />
-        <ControlledInput
-          control={control}
-          name="outline"
-          label="Nội dung dự kiến từng buổi"
-          multiline
-          maxLength={1000}
-          hint="Mỗi dòng là một buổi. Nội dung này dùng để thương lượng."
-          editable={!sender.pending && !sender.processing}
-        />
-        <Copy muted>
-          {type === "TWO_WAY"
-            ? "Bạn đề xuất chiều mình dạy; người trao đổi tự tạo kế hoạch cho chiều họ dạy. Cả hai kế hoạch cần được người học xác nhận."
-            : "Người dạy tạo kế hoạch; người học xác nhận đúng phiên bản. Cả hai cùng xác nhận lịch của kế hoạch đó."}
-        </Copy>
-        <ConnectionFeedback error={sender.error ?? sender.delivery.error} />
-        {saved && (
-          <FormNotice tone="success">
-            Bản nháp đã lưu trong phiên này.
-          </FormNotice>
-        )}
-        {sent && (
-          <FormNotice tone={sender.processing ? "info" : "success"}>
-            {sender.processing
-              ? "Gợi ý đang được xử lý, chưa xác nhận đã gửi."
-              : "Gợi ý đã được gửi trong Chat; chưa phải xác nhận Learning Path."}
-          </FormNotice>
-        )}
-        <Button
-          variant="secondary"
-          disabled={sender.pending || sender.processing}
-          onPress={() => {
-            void handleSubmit(persist)();
-          }}
-        >
-          Lưu bản nháp
-        </Button>
-        <Button
-          variant="craft"
-          disabled={
-            sender.pending || sender.processing || !!formState.errors.root
-          }
-          onPress={() => {
-            void handleSubmit(async (draft) => {
-              persist(draft);
-              setSent(await sender.send(negotiationMessage(draft)));
-            })();
-          }}
-        >
-          {sender.pending ? "Đang gửi..." : "Gửi gợi ý qua Chat"}
-        </Button>
-        {sender.processing && (
-          <Button
-            variant="secondary"
-            onPress={() => {
-              void sender.delivery.refetch();
-            }}
-          >
-            Kiểm tra trạng thái gửi
-          </Button>
-        )}
-      </Panel>
-      <Button
-        variant="secondary"
-        onPress={() =>
-          router.dismissTo({
-            pathname: "/chat/[proposalId]",
-            params: { proposalId: conversationId, mode: "api" },
-          })
-        }
-      >
-        Trở lại chat
-      </Button>
-    </>
+          {query.data && (
+            <>
+              <Copy muted>
+                Cùng thống nhất nội dung học trước khi chọn lịch.
+              </Copy>
+              <ApiAgreementEntry
+                key={`${runtime.key.join(":")}:${conversationId}`}
+                conversationId={conversationId}
+                participantAId={query.data.participantAId}
+                participantBId={query.data.participantBId}
+                blocked={!!query.error}
+              />
+            </>
+          )}
+        </>
+      )}
+    </FlowPage>
   );
 }

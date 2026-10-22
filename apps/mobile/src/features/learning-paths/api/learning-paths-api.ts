@@ -9,7 +9,6 @@ import {
   timestamp,
 } from "@/lib/http/contracts";
 import {
-  learningPathSchema,
   pathSummarySchema,
   pathStatus,
   scheduleItem,
@@ -17,6 +16,8 @@ import {
   type CreateLearningPlanInput,
   type LearningAgreementInput,
 } from "./learning-paths-contract";
+import { readLearningPath } from "./learning-paths-read";
+import { readLearningRevision } from "./learning-revision";
 
 const command = z.object({ id: uuid, version, status: z.string() });
 export const validationSchema = z.object({
@@ -67,31 +68,7 @@ export function createLearningPathsApi(
       return result;
     },
     async detail(id: string, signal?: AbortSignal) {
-      const path = parse(
-        learningPathSchema,
-        await call(pathUrl(id), { signal }),
-      );
-      const participants = [path.participantAId, path.participantBId];
-      if (
-        path.id !== id ||
-        !participants.includes(userId) ||
-        participants[0] === participants[1] ||
-        path.agreement.version !== path.currentVersion ||
-        new Set(path.plans.map((p) => p.id)).size !== path.plans.length ||
-        path.plans.some(
-          (p) =>
-            !participants.includes(p.teacherId) ||
-            !participants.includes(p.learnerId) ||
-            p.teacherId === p.learnerId ||
-            p.sessionOutline.length !== p.totalSessions ||
-            p.sessionOutline.some((s, i) => s.sessionNo !== i + 1) ||
-            (p.schedule &&
-              (p.schedule.items.length !== p.totalSessions ||
-                p.schedule.items.some((s, i) => s.sessionNo !== i + 1))),
-        )
-      )
-        throw new AppError("protocol");
-      return path;
+      return readLearningPath(await call(pathUrl(id), { signal }), id, userId);
     },
     async create(input: CreateLearningPathInput) {
       return parse(command, await post("/learning-paths", input));
@@ -114,17 +91,15 @@ export function createLearningPathsApi(
               learnerId: input.learnerId,
               negotiatedCredit: input.negotiatedCredit,
             };
-      const result = parse(
-        command,
+      return readLearningRevision(
         await call(pathUrl(id), {
           method: "PATCH",
           body: { ...terms, expectedVersion },
           replayAfterRenewal: false,
         }),
+        id,
+        expectedVersion,
       );
-      if (result.id !== id || result.version !== expectedVersion + 1)
-        throw new AppError("protocol");
-      return result;
     },
     async addPlan(id: string, input: CreateLearningPlanInput) {
       return parse(command, await post(`${pathUrl(id)}/plans`, input));
@@ -134,17 +109,15 @@ export function createLearningPathsApi(
       input: CreateLearningPlanInput,
       expectedVersion: number,
     ) {
-      const result = parse(
-        command,
+      return readLearningRevision(
         await call(resourcePath("learning-paths/plans", id), {
           method: "PATCH",
           body: { ...input, expectedVersion },
           replayAfterRenewal: false,
         }),
+        id,
+        expectedVersion,
       );
-      if (result.id !== id || result.version !== expectedVersion + 1)
-        throw new AppError("protocol");
-      return result;
     },
     async confirm(id: string, expectedVersion: number) {
       const result = parse(
@@ -189,6 +162,21 @@ export function createLearningPathsApi(
       if (result.id !== id || result.version !== expectedVersion)
         throw new AppError("protocol");
       return result;
+    },
+    async reviseSchedule(
+      id: string,
+      expectedVersion: number,
+      items: z.infer<typeof scheduleItem>[],
+    ) {
+      return readLearningRevision(
+        await call(resourcePath("schedule-proposals", id), {
+          method: "PATCH",
+          body: { expectedVersion, items },
+          replayAfterRenewal: false,
+        }),
+        id,
+        expectedVersion,
+      );
     },
     async validate(id: string) {
       const result = parse(

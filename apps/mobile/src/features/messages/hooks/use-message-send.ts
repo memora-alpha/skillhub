@@ -16,6 +16,11 @@ export function useMessageSend(id: string) {
   const command = useConnectionCommand();
   const draft = useRef<MessageDraft | undefined>(undefined);
   const [receipt, setReceipt] = useState<string>();
+  const refreshPreview = () => {
+    void cache.invalidateQueries({
+      queryKey: [...runtime.key, "conversations", "preview", id],
+    });
+  };
   const delivery = useConnectionQuery(
     ["delivery", id, receipt],
     () => api.delivery(id, receipt!),
@@ -26,6 +31,9 @@ export function useMessageSend(id: string) {
       rememberLatestMessage(cache, runtime.key, delivery.data.message);
       draft.current = undefined;
       setReceipt(undefined);
+      void cache.invalidateQueries({
+        queryKey: [...runtime.key, "conversations", "preview", id],
+      });
       void cache.invalidateQueries({
         queryKey: [...runtime.key, "thread", id],
       });
@@ -48,6 +56,7 @@ export function useMessageSend(id: string) {
     else {
       rememberLatestMessage(cache, runtime.key, result.message);
       draft.current = undefined;
+      refreshPreview();
     }
     return true;
   }
@@ -61,6 +70,7 @@ export function useMessageSend(id: string) {
       rememberLatestMessage(cache, runtime.key, result.message);
       setReceipt(undefined);
       draft.current = undefined;
+      refreshPreview();
       void cache.invalidateQueries({
         queryKey: [...runtime.key, "thread", id],
       });

@@ -30,10 +30,16 @@ type AppHeaderProps = Readonly<{
   onAccount: () => void;
   title?: string;
   titleContent?: ReactNode;
+  centeredTitle?: boolean;
   onBack?: () => void;
   rightAction?: ReactNode;
   backLabel?: string;
   appearance?: "default" | "home";
+  chromeColors?: Readonly<{
+    background?: string;
+    border?: string;
+    accent?: string;
+  }>;
   navigationBlocked?: boolean;
 }>;
 
@@ -43,16 +49,19 @@ export function AppHeader({
   onAccount,
   title,
   titleContent,
+  centeredTitle = false,
   onBack,
   rightAction,
   backLabel = "Quay lại hồ sơ",
   appearance = "home",
+  chromeColors,
   navigationBlocked = false,
 }: AppHeaderProps) {
   const { width } = useWindowDimensions();
   const notifications = useNotifications();
   const unread = notifications.items.some((item) => !item.readAt);
   const home = appearance === "home";
+  const chrome = { ...signedInChrome, ...chromeColors };
   const compact = Platform.OS !== "web" || width < 640;
   const navigationState = {
     disabled: navigationBlocked,
@@ -63,8 +72,10 @@ export function AppHeader({
       style={[
         styles.header,
         home && styles.homeHeader,
+        home && { backgroundColor: chrome.background },
         !!title && { gap: 8 },
         home && !!title && styles.homeTitledHeader,
+        centeredTitle && styles.centeredHeader,
       ]}
     >
       <HeaderLeading
@@ -79,6 +90,12 @@ export function AppHeader({
       />
       {titleContent != null ? (
         <View style={styles.titleContent}>{titleContent}</View>
+      ) : title && centeredTitle ? (
+        <View pointerEvents="none" style={styles.centerTitleBlock}>
+          <Text style={styles.centerTitle} numberOfLines={1}>
+            {title}
+          </Text>
+        </View>
       ) : title ? (
         <Text
           style={[styles.title, home && styles.homeTitle, { flex: 1 }]}
@@ -87,6 +104,9 @@ export function AppHeader({
           {title}
         </Text>
       ) : (
+        <View style={{ flex: 1 }} />
+      )}
+      {centeredTitle && titleContent == null && !!title && (
         <View style={{ flex: 1 }} />
       )}
       <View style={styles.headerActions}>
@@ -107,7 +127,11 @@ export function AppHeader({
         )}
         {!onBack && (
           <Pressable
-            style={[styles.iconButton, home && styles.homeNotification]}
+            style={[
+              styles.iconButton,
+              home && styles.homeNotification,
+              home && { borderColor: chrome.border },
+            ]}
             accessibilityRole="button"
             accessibilityLabel={
               unread
@@ -121,7 +145,7 @@ export function AppHeader({
             <Icon
               name="bell"
               size={iconSizes.control}
-              color={home ? signedInChrome.accent : colors.muted}
+              color={home ? chrome.accent : colors.muted}
             />
             {unread && (
               <View style={[styles.count, home && styles.homeCount]} />
@@ -209,6 +233,25 @@ const styles = StyleSheet.create({
     backgroundColor: signedInChrome.background,
   },
   homeTitledHeader: { paddingHorizontal: 16, gap: 6 },
+  centeredHeader: { minHeight: 64, paddingVertical: 6 },
+  centerTitleBlock: {
+    position: "absolute",
+    left: 52,
+    right: 52,
+    top: 0,
+    bottom: 0,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 1,
+  },
+  centerTitle: {
+    fontFamily: fonts.bold,
+    fontSize: 16,
+    lineHeight: 22,
+    color: colors.ink,
+    includeFontPadding: false,
+    textAlign: "center",
+  },
   homeTitle: { fontFamily: fonts.bold, fontSize: 18, lineHeight: 26 },
   homeNotification: {
     width: 36,

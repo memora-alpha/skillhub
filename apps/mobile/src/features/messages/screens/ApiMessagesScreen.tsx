@@ -4,55 +4,50 @@ import { AppScreenLayout } from "@/features/shell";
 import { Button } from "@/components/Button";
 import { EmptyState } from "@/components/EmptyState";
 import { ConnectionFeedback } from "@/features/connections";
-import { useConversationInbox } from "../hooks/use-conversation-inbox";
+import { InboxHeader } from "../components/InboxHeader";
 import { ConversationRow } from "../components/ConversationRow";
+import { useConversationInbox } from "../hooks/use-conversation-inbox";
 import { messageColors as colors } from "../constants/theme";
-function ConversationSeparator() {
-  return <View style={styles.separator} />;
-}
 
 export function ApiMessagesScreen() {
   const query = useConversationInbox(),
     router = useRouter();
   return (
-    <AppScreenLayout title="Tin nhắn" selected="Tin nhắn">
+    <AppScreenLayout
+      title="Tin nhắn"
+      selected="Tin nhắn"
+      contentStyle={styles.background}
+    >
       {() => (
         <FlatList
           data={query.items}
           keyExtractor={(item) => item.conversation.id}
           contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          ItemSeparatorComponent={ConversationSeparator}
           refreshing={query.isRefetching}
           onRefresh={() => {
             void query.refetch();
           }}
-          ItemSeparatorComponent={ConversationSeparator}
           onEndReached={() => {
             if (query.hasNextPage && !query.isFetching)
               void query.fetchNextPage({ cancelRefetch: false });
           }}
           ListHeaderComponent={
-            <View style={{ gap: 8, paddingHorizontal: 16, marginBottom: 8 }}>
-              <Button
-                variant="ghost"
-                size="sm"
-                style={{ alignSelf: "flex-end" }}
-                onPress={() => router.push("/proposals")}
-              >
-                Đề xuất
-              </Button>
+            <InboxHeader onOpenProposals={() => router.push("/proposals")}>
               <ConnectionFeedback
                 loading={query.isLoading}
                 error={query.error}
                 retry={query.refetch}
               />
-            </View>
+            </InboxHeader>
           }
           ListEmptyComponent={
             !query.isPending && !query.error ? (
               <EmptyState
                 icon="message"
                 title="Chưa có tin nhắn"
-                description="Chấp nhận đề xuất để bắt đầu trao đổi."
+                description="Khi đề xuất được chấp nhận, bạn có thể bắt đầu trò chuyện tại đây."
                 action="Xem đề xuất"
                 onAction={() => router.push("/proposals")}
               />
@@ -77,16 +72,18 @@ export function ApiMessagesScreen() {
     </AppScreenLayout>
   );
 }
+
+function ConversationSeparator() {
+  return <View style={styles.separator} />;
+}
 const styles = StyleSheet.create({
+  background: { backgroundColor: colors.background },
   content: {
     width: "100%",
-    maxWidth: 860,
+    maxWidth: 640,
     alignSelf: "center",
-    paddingVertical: 12,
+    padding: 16,
+    paddingBottom: 24,
   },
-  separator: {
-    height: 1,
-    marginHorizontal: 16,
-    backgroundColor: colors.border,
-  },
+  separator: { height: 10 },
 });

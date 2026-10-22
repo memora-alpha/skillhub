@@ -10,6 +10,7 @@ import {
   newestMessage,
 } from "../utils/conversation-preview";
 import type { ApiConversation, ApiMessage } from "../api/messages-api";
+import { hasUnreadIncoming } from "../utils/inbox-unread";
 
 export function useConversationInbox() {
   const query = useConversations(),
@@ -43,7 +44,7 @@ export function useConversationInbox() {
       );
   const results = useQueries({
     queries: conversations.map((conversation) => {
-      const key = [...runtime.key, "conversation-preview", conversation.id];
+      const key = [...runtime.key, "conversations", "preview", conversation.id];
       const access = connectionReadAccess(cache, key);
       return {
         queryKey: key,
@@ -53,24 +54,27 @@ export function useConversationInbox() {
         initialData: () => {
           const threadKey = [...runtime.key, "thread", conversation.id];
           if (connectionReadAccess(cache, threadKey).denied) return undefined;
-          return cache
-            .getQueryData<{ messages: ApiMessage[] }>([
-              ...runtime.key,
-              "thread",
-              conversation.id,
-            ])
-            ?.messages.at(-1);
+          const messages = cache.getQueryData<{ messages: ApiMessage[] }>([
+            ...runtime.key,
+            "thread",
+            conversation.id,
+          ])?.messages;
+          return messages
+            ? {
+                message: newestMessage(...messages),
+                unread: hasUnreadIncoming(messages, runtime.userId),
+              }
+            : undefined;
         },
         queryFn: ({ signal }: { signal: AbortSignal }) =>
           access.read(async () => {
             const page = await api.history(conversation.id, {
-              limit: 1,
               signal,
             });
-            return newestMessage(
-              cache.getQueryData<ApiMessage | null>(key),
-              ...page.items,
-            );
+            return {
+              message: newestMessage(...page.items),
+              unread: hasUnreadIncoming(page.items, runtime.userId),
+            };
           }, runtime.isCurrent),
       };
     }),
@@ -78,7 +82,7 @@ export function useConversationInbox() {
   useConnectionRefresh(
     useCallback(() => {
       void cache.invalidateQueries(
-        { queryKey: [...runtime.key, "conversation-preview"] },
+        { queryKey: [...runtime.key, "conversations", "preview"] },
         { cancelRefetch: false },
       );
     }, [cache, runtime]),
@@ -86,10 +90,22 @@ export function useConversationInbox() {
   );
   const messages = new Map(
     conversations.map((conversation, index) => {
-      const key = [...runtime.key, "conversation-preview", conversation.id];
+      const key = [...runtime.key, "conversations", "preview", conversation.id];
       const result = results[index];
       const denied = connectionReadAccess(cache, key).denied;
-      return [conversation.id, denied ? null : (result?.data ?? null)] as const;
+      return [
+        conversation.id,
+        denied
+          ? null
+          : newestMessage(
+              result?.data?.message,
+              cache.getQueryData<ApiMessage | null>([
+                ...runtime.key,
+                "conversation-preview",
+                conversation.id,
+              ]),
+            ),
+      ] as const;
     }),
   );
   const items = conversationInbox(
@@ -102,7 +118,8 @@ export function useConversationInbox() {
     const result = results[index];
     const denied = connectionReadAccess(cache, [
       ...runtime.key,
-      "conversation-preview",
+      "conversations",
+      "preview",
       item.conversation.id,
     ]).denied;
     if (denied)
@@ -111,7 +128,13 @@ export function useConversationInbox() {
       messages.get(item.conversation.id) ||
       queued.some((entry) => entry.conversationId === item.conversation.id)
     )
-      return item;
+      return {
+        ...item,
+        unread:
+          !result?.error &&
+          !result?.isPending &&
+          (result?.data?.unread ?? false),
+      };
     let preview = item.preview;
     if (result?.error) preview = "Không tải được tin nhắn · Chạm để mở";
     else if (result?.isPending) preview = "Đang tải tin nhắn…";
@@ -124,7 +147,7 @@ export function useConversationInbox() {
       Promise.all([
         query.refetch(),
         cache.invalidateQueries(
-          { queryKey: [...runtime.key, "conversation-preview"] },
+          { queryKey: [...runtime.key, "conversations", "preview"] },
           { cancelRefetch: false },
         ),
       ]),

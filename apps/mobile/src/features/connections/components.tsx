@@ -1,8 +1,13 @@
-import { ActivityIndicator, View } from "react-native";
-import { Button } from "@/components/Button";
-import { FormNotice } from "@/components/FormNotice";
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { Icon } from "@/components/Icon";
 import { AppError, errorMessage } from "@/lib/http/errors";
-import { colors } from "@/constants/theme";
+import { appColors as colors, fonts, typography } from "@/constants/theme";
 
 const errors: Record<string, string> = {
   CHAT_OUTBOX_STORAGE_UNAVAILABLE:
@@ -79,27 +84,67 @@ export function ConnectionFeedback({
   error?: unknown;
   retry?: () => unknown;
 }>) {
+  if (!loading && !error) return null;
+  const limited = error instanceof AppError && error.status === 429;
   return (
-    <View style={{ gap: 10 }}>
+    <View style={styles.feedback}>
       {loading && (
         <ActivityIndicator
-          color={colors.brand}
+          color={colors.primary}
           accessibilityLabel="Đang tải dữ liệu"
         />
       )}
       {!!error && (
-        <FormNotice tone="error">{connectionError(error)}</FormNotice>
-      )}
-      {!!error && retry && (
-        <Button
-          variant="secondary"
-          onPress={() => {
-            retry();
-          }}
-        >
-          Thử tải lại
-        </Button>
+        <View accessibilityLiveRegion="polite" style={styles.row}>
+          <Icon
+            name={limited ? "clock" : "alert"}
+            size={16}
+            color={colors.muted}
+          />
+          <Text style={styles.message}>{connectionError(error)}</Text>
+          {!!retry && !limited && (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Thử tải lại"
+              disabled={loading}
+              hitSlop={6}
+              onPress={() => {
+                if (!loading) retry();
+              }}
+              style={styles.retry}
+            >
+              <Text style={styles.retryText}>Thử lại</Text>
+            </Pressable>
+          )}
+        </View>
       )}
     </View>
   );
 }
+const styles = StyleSheet.create({
+  feedback: { gap: 6 },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 6,
+  },
+  message: {
+    ...typography.secondary,
+    fontFamily: fonts.body,
+    color: colors.muted,
+    flex: 1,
+  },
+  retry: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    minHeight: 44,
+  },
+  retryText: {
+    ...typography.secondary,
+    fontFamily: fonts.semibold,
+    color: colors.primary,
+  },
+});

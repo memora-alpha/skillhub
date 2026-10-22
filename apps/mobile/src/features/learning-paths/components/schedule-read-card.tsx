@@ -1,0 +1,361 @@
+import { styles } from "./schedule-read-styles";
+import type { ReactNode } from "react";
+import { Text, View } from "react-native";
+import { useRouter } from "expo-router";
+import { FlowSection } from "@/components/learning-flow";
+import { Button } from "@/components/Button";
+import { Icon } from "@/components/Icon";
+import { appColors as colors } from "@/constants/theme";
+import type {
+  ApiLearningPath,
+  ApiLearningPlan,
+} from "../api/learning-paths-contract";
+import {
+  ownConfirmation,
+  scheduleStatusLabel,
+  learningSessionLabel,
+  scheduleIsComplete,
+} from "../utils/policy-api";
+import { agreementProgress } from "../utils/progression";
+import { AgreementProgressPanel } from "./agreement-progress";
+import { sessionContentParts } from "../utils/session-content";
+import { ScheduleChatReminder } from "./schedule-chat-reminder";
+import { ScheduleTimelineItem } from "./schedule-timeline-item";
+import { ScheduleSlotRow } from "./schedule-slot-row";
+
+export function ScheduleExchangeContext({
+  path,
+}: Readonly<{ path: ApiLearningPath }>) {
+  const twoWay = path.agreement.exchangeType === "TWO_WAY";
+  return (
+    <View style={styles.exchange}>
+      <View style={styles.exchangeIcon}>
+        <Icon
+          name={twoWay ? "users" : "book"}
+          size={18}
+          color={colors.primary}
+        />
+      </View>
+      <View style={styles.exchangeText}>
+        <Text style={styles.exchangeTitle}>
+          {twoWay ? "Trao đổi hai chiều" : "Học một chiều"}
+        </Text>
+        <Text style={styles.secondary}>
+          {twoWay
+            ? "Hai lịch riêng: bạn dạy và bạn học. Mỗi lịch cần cả hai xác nhận."
+            : "Một lịch cho lộ trình đã thống nhất. Cả hai cùng xác nhận lịch."}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+export function ScheduleTimezoneNotice() {
+  return (
+    <View style={styles.timezoneNotice}>
+      <Icon name="clock" size={13} color={colors.muted} />
+      <Text style={styles.timezoneNoticeText}>
+        Giờ theo múi giờ thiết bị. Lịch cần cả hai xác nhận; buổi học và Credit
+        chỉ được tạo, tạm giữ khi chốt lộ trình.
+      </Text>
+    </View>
+  );
+}
+
+function scheduleStatusText(
+  schedule: ApiLearningPlan["schedule"],
+  confirmed: boolean,
+) {
+  if (!schedule) return "Chờ xếp lịch";
+  if (confirmed && schedule.status !== "LOCKED") return "Đủ xác nhận";
+  return scheduleStatusLabel[schedule.status];
+}
+
+function ScheduleContents({
+  plan,
+  mine,
+}: Readonly<{
+  plan: ApiLearningPlan;
+  mine: boolean;
+}>) {
+  if (plan.sessions.length) return <CreatedSessionList plan={plan} />;
+  if (plan.schedule) return <ScheduledSessionList plan={plan} />;
+  return <EmptySchedule mine={mine} />;
+}
+
+function CreatedSessionList({ plan }: Readonly<{ plan: ApiLearningPlan }>) {
+  return (
+    <View style={styles.list}>
+      <View style={styles.listHeading}>
+        <Text style={styles.listHeadingText}>Buổi học đã tạo</Text>
+        <Text style={styles.listCount}>
+          {plan.sessions.length} / {plan.totalSessions} buổi
+        </Text>
+      </View>
+      {plan.sessions.map((session, index) => (
+        <ScheduleTimelineItem
+          key={session.id}
+          last={index === plan.sessions.length - 1}
+        >
+          <ScheduleSlotRow
+            slot={session}
+            title={
+              sessionContentParts(
+                plan.sessionOutline.find(
+                  (item) => item.sessionNo === session.sessionNo,
+                )?.content ?? "",
+              ).title
+            }
+            status={learningSessionLabel[session.status]}
+          />
+        </ScheduleTimelineItem>
+      ))}
+    </View>
+  );
+}
+
+function ScheduledSessionList({ plan }: Readonly<{ plan: ApiLearningPlan }>) {
+  const schedule = plan.schedule;
+  if (!schedule) return null;
+  const scheduledCount = schedule.items.length;
+  const complete = scheduleIsComplete(plan);
+  const revisionMessage = complete
+    ? "Lịch đã điều chỉnh. Hai bên cần xem và xác nhận phiên bản này."
+    : "Lộ trình đã đổi số buổi. Người dạy cần bổ sung lịch còn thiếu trước khi hai bên xác nhận.";
+  return (
+    <View style={styles.list}>
+      <View style={styles.listHeading}>
+        <Text style={styles.listHeadingText}>Lịch từng buổi</Text>
+        <Text style={styles.listCount}>
+          {scheduledCount} / {plan.totalSessions} buổi sẵn sàng
+        </Text>
+      </View>
+      {schedule.status === "NEEDS_REVISION" && (
+        <Text style={styles.secondary}>{revisionMessage}</Text>
+      )}
+      {Array.from({ length: plan.totalSessions }, (_, index) => {
+        const sessionNo = index + 1;
+        const slot = schedule.items.find(
+          (item) => item.sessionNo === sessionNo,
+        );
+        const title = sessionContentParts(
+          plan.sessionOutline.find((item) => item.sessionNo === sessionNo)
+            ?.content ?? "",
+        ).title;
+        return (
+          <ScheduleTimelineItem
+            key={sessionNo}
+            last={index === plan.totalSessions - 1}
+          >
+            <ScheduleSlotRow slot={slot ?? { sessionNo }} title={title} />
+          </ScheduleTimelineItem>
+        );
+      })}
+    </View>
+  );
+}
+
+function EmptySchedule({ mine }: Readonly<{ mine: boolean }>) {
+  const message = mine
+    ? "Chọn ngày giờ cho từng buổi trong lộ trình bạn dạy."
+    : "Chờ đối tác đề xuất lịch họ dạy để hai bạn cùng xem và xác nhận.";
+  return (
+    <View style={styles.empty}>
+      <View style={styles.emptyIcon}>
+        <Icon name="calendar" size={26} color={colors.muted} />
+      </View>
+      <Text style={styles.emptyTitle}>Chưa có đề xuất lịch</Text>
+      <Text style={styles.emptyText}>{message}</Text>
+    </View>
+  );
+}
+
+export function ScheduleListOverview({
+  path,
+  userId,
+  blocked,
+}: Readonly<{ path: ApiLearningPath; userId?: string; blocked: boolean }>) {
+  const progress = agreementProgress(path, userId);
+  if (!["schedules", "finalize"].includes(progress.stage))
+    return (
+      <AgreementProgressPanel
+        path={path}
+        blocked={blocked}
+        current={`/paths/${path.id}/schedules`}
+      />
+    );
+  const waiting = progress.waiting.length > 0;
+  return (
+    <View
+      style={[
+        styles.banner,
+        waiting ? styles.bannerWaiting : styles.bannerReady,
+      ]}
+    >
+      <Icon
+        name={progress.stage === "finalize" ? "check-circle" : "clock"}
+        size={22}
+        color={waiting ? colors.amber : colors.forest}
+      />
+      <View style={styles.grow}>
+        <Text style={styles.bannerTitle}>
+          {progress.title.replace(/^Bước \d+ · /, "")}
+        </Text>
+        <Text style={styles.bannerText}>
+          {progress.waiting.length
+            ? progress.waiting.join(" ")
+            : "Đã đủ xác nhận. Xem lại lịch trước khi kiểm tra và chốt."}
+        </Text>
+      </View>
+    </View>
+  );
+}
+export function ScheduleReadCard({
+  path,
+  plan,
+  skill,
+  userId,
+  children,
+  blocked = false,
+}: Readonly<{
+  path: ApiLearningPath;
+  plan: ApiLearningPlan;
+  skill: string;
+  userId?: string;
+  children: ReactNode;
+  blocked?: boolean;
+}>) {
+  const schedule = plan.schedule;
+  const mine = plan.teacherId === userId;
+  const both =
+    !!schedule?.participantAConfirmedAt && !!schedule?.participantBConfirmedAt;
+  const confirmed =
+    !!schedule &&
+    (schedule.status === "LOCKED" ||
+      (both &&
+        scheduleIsComplete(plan) &&
+        ["PROPOSED", "PARTIALLY_CONFIRMED"].includes(schedule.status)));
+  const partnerConfirmed =
+    path.participantAId === userId
+      ? schedule?.participantBConfirmedAt
+      : schedule?.participantAConfirmedAt;
+  const statusText = scheduleStatusText(schedule, confirmed);
+  return (
+    <FlowSection>
+      <View style={styles.header}>
+        <View style={styles.grow}>
+          <Text accessibilityRole="header" style={styles.title}>
+            {skill}
+          </Text>
+          <View style={styles.metadata}>
+            <Text style={[styles.role, !mine && styles.learningRole]}>
+              {mine ? "Bạn dạy" : "Bạn học"}
+            </Text>
+            <Text style={styles.secondary}>{plan.totalSessions} buổi</Text>
+          </View>
+        </View>
+        <View
+          style={[
+            styles.status,
+            confirmed && styles.successStatus,
+            !schedule && styles.emptyStatus,
+          ]}
+        >
+          <Text
+            style={[
+              styles.statusText,
+              confirmed && styles.successText,
+              !schedule && styles.secondary,
+            ]}
+          >
+            {statusText}
+          </Text>
+        </View>
+      </View>
+      <Text style={styles.goal}>{plan.learningGoal}</Text>
+      <ScheduleContents plan={plan} mine={mine} />
+      {schedule && (
+        <View style={styles.confirmations}>
+          <ScheduleConfirmation
+            label="Bạn"
+            confirmed={!!ownConfirmation(path, schedule, userId)}
+          />
+          <ScheduleConfirmation
+            label="Đối tác"
+            confirmed={!!partnerConfirmed}
+          />
+        </View>
+      )}
+      {children}
+      {!schedule && !mine && (
+        <ScheduleChatReminder
+          conversationId={path.conversationId}
+          blocked={blocked}
+        />
+      )}
+    </FlowSection>
+  );
+}
+export function ScheduleMissingPlanCard({
+  path,
+  mine,
+  blocked,
+}: Readonly<{
+  path: ApiLearningPath;
+  mine: boolean;
+  blocked: boolean;
+}>) {
+  const router = useRouter();
+  return (
+    <FlowSection>
+      <View style={styles.header}>
+        <Text style={styles.title}>
+          {mine ? "Lịch bạn dạy" : "Lịch bạn học"}
+        </Text>
+        <Text style={styles.secondary}>Chờ lộ trình</Text>
+      </View>
+      <View style={styles.empty}>
+        <View style={styles.emptyIcon}>
+          <Icon name="calendar" size={26} color={colors.muted} />
+        </View>
+        <Text style={styles.emptyText}>
+          {mine
+            ? "Bạn chưa tạo lộ trình mình dạy."
+            : "Đối tác chưa tạo lộ trình họ dạy."}
+          {" Cần hoàn thành và xác nhận cả hai lộ trình trước khi xếp lịch."}
+        </Text>
+      </View>
+      <Button
+        variant="secondary"
+        disabled={blocked}
+        onPress={() => {
+          if (!blocked) router.dismissTo(`/paths/${path.id}`);
+        }}
+      >
+        Xem lộ trình
+      </Button>
+    </FlowSection>
+  );
+}
+function ScheduleConfirmation({
+  label,
+  confirmed,
+}: Readonly<{ label: string; confirmed: boolean }>) {
+  return (
+    <View style={styles.confirmation}>
+      <Text style={styles.secondary}>{label}</Text>
+      <View style={styles.confirmationState}>
+        <Icon
+          name={confirmed ? "check-circle" : "clock"}
+          size={14}
+          color={confirmed ? colors.forest : colors.warning}
+        />
+        <Text
+          style={[styles.confirmationText, confirmed && styles.successText]}
+        >
+          {confirmed ? "Đã xác nhận" : "Chưa xác nhận"}
+        </Text>
+      </View>
+    </View>
+  );
+}

@@ -22,6 +22,8 @@
     "expo-router": "~57.0.24",
     "expo-secure-store": "~57.0.4",
     "expo-status-bar": "~57.0.1",
+    "lucide-react-native": "^1.60.0",
+    "qrcode": "1.5.4",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-hook-form": "^7.89.0",
@@ -46,6 +48,8 @@
     "eslint": "^9.39.1",
     "eslint-config-prettier": "^10.1.1",
     "globals": "^16.5.0",
+    "jsqr": "1.4.0",
+    "pngjs": "7.0.0",
     "tsx": "^4.23.15",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.50.0"

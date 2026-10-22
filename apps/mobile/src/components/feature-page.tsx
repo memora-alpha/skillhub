@@ -1,5 +1,11 @@
 import type { ReactNode } from "react";
-import { StyleSheet, Text, View, type ScrollViewProps } from "react-native";
+import {
+  RefreshControl,
+  StyleSheet,
+  Text,
+  View,
+  type ScrollViewProps,
+} from "react-native";
 import { useRouter, type Href } from "expo-router";
 import { AppScreenLayout } from "@/features/shell";
 import { KeyboardFormScrollView } from "./KeyboardFormScrollView";
@@ -14,6 +20,12 @@ export function FeaturePage({
   backBehavior = "destination",
   demo = true,
   keyboardDismissMode,
+  stickyFooter,
+  section = "Hồ sơ",
+  compact = false,
+  scrollable = true,
+  refreshing = false,
+  onRefresh,
 }: {
   title: string;
   subtitle?: string;
@@ -22,23 +34,60 @@ export function FeaturePage({
   backBehavior?: "destination" | "history";
   demo?: boolean;
   keyboardDismissMode?: ScrollViewProps["keyboardDismissMode"];
+  stickyFooter?: ReactNode;
+  section?: string;
+  compact?: boolean;
+  scrollable?: boolean;
+  refreshing?: boolean;
+  onRefresh?: () => void;
 }) {
+  const scrollStyle = stickyFooter ? ui.scrollWithFooter : undefined;
+  const content = (
+    <>
+      {demo && <Text style={ui.demo}>BẢN XEM THỬ · DỮ LIỆU MẪU</Text>}
+      {subtitle && <Text style={ui.subtitle}>{subtitle}</Text>}
+      {children}
+    </>
+  );
+  const page = scrollable ? (
+    <KeyboardFormScrollView
+      style={scrollStyle}
+      contentContainerStyle={[ui.page, compact && ui.compactPage]}
+      bounces={!compact || !!onRefresh}
+      {...(onRefresh
+        ? {
+            refreshControl: (
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor={colors.primary}
+                colors={[colors.primary]}
+              />
+            ),
+          }
+        : {})}
+      {...(keyboardDismissMode ? { keyboardDismissMode } : {})}
+    >
+      {content}
+    </KeyboardFormScrollView>
+  ) : (
+    <View style={[ui.fixedPage, scrollStyle]}>{content}</View>
+  );
+  const pageContent = stickyFooter ? (
+    <View style={ui.pageWithFooter}>
+      {page}
+      {stickyFooter}
+    </View>
+  ) : (
+    page
+  );
   return (
     <AppScreenLayout
       title={title}
-      selected="Hồ sơ"
+      selected={section}
       back={{ href: back, label: "Quay lại", behavior: backBehavior }}
     >
-      {() => (
-        <KeyboardFormScrollView
-          contentContainerStyle={ui.page}
-          {...(keyboardDismissMode ? { keyboardDismissMode } : {})}
-        >
-          {demo && <Text style={ui.demo}>BẢN XEM THỬ · DỮ LIỆU MẪU</Text>}
-          {subtitle && <Text style={ui.subtitle}>{subtitle}</Text>}
-          {children}
-        </KeyboardFormScrollView>
-      )}
+      {() => pageContent}
     </AppScreenLayout>
   );
 }
@@ -105,6 +154,10 @@ export function RouteButton({
   );
 }
 export const ui = StyleSheet.create({
+  pageWithFooter: { flex: 1, width: "100%" },
+  scrollWithFooter: { flex: 1 },
+  fixedPage: { flex: 1, width: "100%", maxWidth: 860, alignSelf: "center" },
+  compactPage: { padding: 12, paddingBottom: 12, gap: 8 },
   page: {
     width: "100%",
     maxWidth: 860,

@@ -7,7 +7,7 @@ import {
   useCatalogName,
 } from "@/features/connections";
 import { useLearningPathsApi } from "../hooks/use-learning-paths-api";
-import { canConfirmPlan, editablePath } from "../policy-api";
+import { canConfirmPlan, editablePath } from "../utils/policy-api";
 import type {
   ApiLearningPath,
   ApiLearningPlan,

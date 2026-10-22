@@ -1,7 +1,7 @@
 import { useConnectionQuery } from "@/features/connections";
 import { AppError } from "@/lib/http/errors";
 import type { ApiLearningPath } from "../api/learning-paths-contract";
-import { canValidateForFinalize } from "../policy-api";
+import { canValidateForFinalize } from "../utils/policy-api";
 import { useLearningPathsApi } from "./use-learning-paths-api";
 
 /** This existing POST only checks readiness; it never holds funds or creates sessions. */

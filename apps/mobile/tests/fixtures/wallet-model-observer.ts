@@ -1,0 +1,153 @@
+import { AppError } from "@/lib/http/errors";
+import type { WalletScope } from "../../src/features/wallet/types/wallet";
+import type {
+  PaymentModelTarget,
+  PaymentModelReader,
+} from "./wallet-model-types";
+import type { PaymentObservationRead } from "../../src/features/wallet/types/payment";
+import {
+  observePaymentModel,
+  reconcilePaymentModel,
+  validPaymentModelTarget,
+} from "./wallet-model-outcome";
+import { paymentModelStore } from "../../src/features/wallet/utils/payment-model-store";
+
+const unavailable: PaymentObservationRead = Object.freeze({
+  status: "unavailable",
+  stale: false,
+});
+const ended: PaymentObservationRead = Object.freeze({
+  status: "session-ended",
+  stale: false,
+});
+export function createPaymentObserver({
+  scope,
+  target,
+  current,
+  read,
+}: {
+  scope: WalletScope;
+  target?: unknown;
+  current: () => boolean;
+  read?: PaymentModelReader;
+}) {
+  const identity: PaymentModelTarget | undefined = validPaymentModelTarget(
+    target,
+    scope,
+  )
+    ? Object.freeze({ ...target, scope: Object.freeze({ ...scope }) })
+    : undefined;
+  const store = paymentModelStore<PaymentObservationRead>(unavailable);
+  let active = true,
+    focused = true,
+    ticket = 0;
+  let denial: "denied" | "not-found" | undefined;
+  let pending:
+    | {
+        controller: AbortController;
+        promise: Promise<void>;
+        finish: () => void;
+      }
+    | undefined;
+  const live = () => active && current();
+  const canCheck = () => live() && focused && !!identity && !!read;
+  const invalidate = () => {
+    ticket++;
+    const old = pending;
+    pending = undefined;
+    old?.controller.abort();
+    old?.finish();
+  };
+  const publishError = (error: unknown) => {
+    if (error instanceof AppError && [403, 404].includes(error.status)) {
+      denial = error.status === 403 ? "denied" : "not-found";
+      store.publish({ status: denial, stale: false });
+    } else if (denial) store.publish({ status: denial, stale: false });
+    else {
+      const data = store.getSnapshot().data;
+      store.publish({
+        status: data ? "refresh-error" : "error",
+        data,
+        stale: !!data,
+      });
+    }
+  };
+  function check(): Promise<void> {
+    if (!canCheck()) return Promise.resolve();
+    if (pending) return pending.promise;
+    let finish!: () => void;
+    const promise = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    const controller = new AbortController(),
+      started = ++ticket;
+    pending = { controller, promise, finish };
+    const previous = store.getSnapshot();
+    store.publish({
+      ...previous,
+      status: previous.data ? "refreshing" : "loading",
+      stale: !!previous.data,
+    });
+    const valid = () =>
+      canCheck() && ticket === started && !controller.signal.aborted;
+    void (async () => {
+      try {
+        if (!valid()) return;
+        const response = await read!(identity!, controller.signal);
+        if (!valid()) return;
+        const incoming = observePaymentModel(response, identity!);
+        const result = reconcilePaymentModel(
+          store.getSnapshot().data,
+          incoming,
+        );
+        denial = undefined;
+        store.publish({
+          status: result.conflict ? "refresh-error" : "ready",
+          data: result.data,
+          stale: result.conflict,
+          ...(result.conflict ? { issue: "conflict" as const } : {}),
+        });
+      } catch (error) {
+        if (!valid()) return;
+        publishError(error);
+      } finally {
+        if (pending?.controller === controller) pending = undefined;
+        finish();
+      }
+    })();
+    return promise;
+  }
+  return {
+    getSnapshot: () => (live() ? store.getSnapshot() : ended),
+    subscribe: store.subscribe,
+    canCheck,
+    check,
+    pause: () => {
+      focused = false;
+      invalidate();
+      if (!live()) return;
+      const data = store.getSnapshot().data;
+      let next: PaymentObservationRead = unavailable;
+      if (denial) next = { status: denial, stale: false };
+      else if (data) next = { status: "ready", data, stale: true };
+      store.publish(next);
+    },
+    resume: () => {
+      focused = true;
+    },
+    dispose: () => {
+      active = false;
+      invalidate();
+      denial = undefined;
+      store.publish(ended);
+    },
+    activate: () => {
+      if (!active && current()) {
+        active = true;
+        focused = true;
+        store.publish(unavailable);
+      }
+    },
+  };
+}
+export type PaymentObserver = ReturnType<typeof createPaymentObserver>;
