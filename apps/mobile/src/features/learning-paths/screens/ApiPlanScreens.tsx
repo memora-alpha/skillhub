@@ -131,7 +131,7 @@ function PlanForm({
     },
   );
   const skillId = watch("skillId"),
-    pending = command.pending || blocked;
+    pending = command.pending || command.uncertain || blocked;
   return (
     <Panel title="Nội dung bạn gửi cho người trao đổi">
       <Copy>
@@ -195,6 +195,19 @@ function PlanForm({
         </Copy>
       )}
       <ConnectionFeedback error={command.error} />
+      {command.uncertain && (
+        <Button
+          variant="paper"
+          disabled={blocked || command.pending}
+          onPress={() => {
+            void command.retry().then((result) => {
+              if (result) router.replace(`/paths/${path.id}`);
+            });
+          }}
+        >
+          Kiểm tra lại nội dung vừa gửi
+        </Button>
+      )}
       <Button
         disabled={pending}
         onPress={() => {

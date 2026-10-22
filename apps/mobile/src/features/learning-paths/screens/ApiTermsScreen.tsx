@@ -2,6 +2,7 @@ import { PathReadFeedback } from "../components/PathReadFeedback";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { FeaturePage, Panel } from "@/components/feature-page";
 import { EmptyState } from "@/components/EmptyState";
+import { Button } from "@/components/Button";
 import {
   ConnectionFeedback,
   useConnections,
@@ -41,7 +42,7 @@ export function ApiTermsScreen() {
                 ? path.participantBId
                 : path.participantAId
             }
-            pending={command.pending || query.isFetching}
+            pending={command.pending || command.uncertain || query.isFetching}
             onSubmit={async (input) => {
               const result = await command.run(
                 JSON.stringify({ id, input, version: path.currentVersion }),
@@ -51,6 +52,19 @@ export function ApiTermsScreen() {
             }}
           />
           <ConnectionFeedback error={command.error} />
+          {command.uncertain && (
+            <Button
+              variant="paper"
+              disabled={command.pending || query.isFetching}
+              onPress={() => {
+                void command.retry().then((result) => {
+                  if (result) router.replace(`/paths/${id}`);
+                });
+              }}
+            >
+              Kiểm tra lại điều khoản vừa gửi
+            </Button>
+          )}
         </Panel>
       )}
       {path && !editablePath(path) && (

@@ -25,7 +25,10 @@ export function PathReadFeedback({
       >
         {query.isFetching ? "Đang tải trạng thái..." : "Tải lại trạng thái"}
       </Button>
-      <Copy muted>Tải lại để xem cập nhật mới từ người trao đổi.</Copy>
+      <Copy muted>
+        Trạng thái tự cập nhật khi bạn mở màn hình này. Có thể tải lại để kiểm
+        tra ngay xác nhận của người trao đổi.
+      </Copy>
     </>
   );
 }
