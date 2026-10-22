@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from "react-native";
-import { appColors as colors, fonts, typography } from "@/constants/theme";
+import { fonts, typography } from "@/constants/theme";
 import { HistoryFilterControl } from "./history-filter-control";
+import { paymentPalette as colors } from "./wallet-payment-palette";
 import type { HistoryFilters as Selection } from "../types/transaction";
 import { referenceLabel, transactionLabel } from "../utils/transaction-labels";
 
@@ -10,25 +11,23 @@ import { referenceLabel, transactionLabel } from "../utils/transaction-labels";
 const categories: readonly {
   value: string;
   label: string;
-  hint: string;
+  hint?: string;
   filters: Selection;
 }[] = [
   {
     value: "all",
-    label: "Tất cả giao dịch",
-    hint: "Các giao dịch Credit đã được ghi nhận trong ví.",
+    label: "Tất cả",
     filters: {},
   },
   {
     value: "topup",
     label: "Nạp Credit",
-    hint: "Các khoản nạp Credit đã được ghi nhận vào ví.",
     filters: { type: "TOP_UP" },
   },
   {
     value: "learning",
-    label: "Giao dịch học tập",
-    hint: "Tạm giữ, thanh toán, thu nhập, hoàn Credit và phí của lộ trình học.",
+    label: "Học tập",
+    hint: "Các giao dịch trong lộ trình học.",
     filters: { referenceType: "LEARNING_PATH" },
   },
 ];
@@ -64,10 +63,12 @@ export function HistoryFilters({
           if (next && next !== selected) onChange({ ...next.filters });
         }}
       />
-      <Text accessibilityLiveRegion="polite" style={styles.hint}>
-        {selected?.hint ??
-          "Đang áp dụng bộ lọc trước đó. Chọn một nhóm để thay đổi."}
-      </Text>
+      {(!selected || selected.hint) && (
+        <Text accessibilityLiveRegion="polite" style={styles.hint}>
+          {selected?.hint ??
+            "Đang áp dụng bộ lọc trước đó. Chọn một nhóm để thay đổi."}
+        </Text>
+      )}
     </View>
   );
 }
