@@ -15,11 +15,11 @@ export function CompletionConfirmDialog({
   visible,
   onCancel,
   onConfirm,
-}: {
+}: Readonly<{
   visible: boolean;
   onCancel: () => void;
   onConfirm: () => void;
-}) {
+}>) {
   return (
     <Modal
       visible={visible}

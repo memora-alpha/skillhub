@@ -8,7 +8,9 @@ import {
   SessionRouteButton,
 } from "./session-page";
 
-export function SessionContextPanel({ session }: { session: LearningSession }) {
+export function SessionContextPanel({
+  session,
+}: Readonly<{ session: LearningSession }>) {
   const query = useSessionContext(session),
     context = query.context;
   return (

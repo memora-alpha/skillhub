@@ -10,12 +10,19 @@ type PreviewSession = {
 };
 const Context = createContext<{ sessions: PreviewSession[] } | null>(null);
 
+function previewStatus(status: string): PreviewSession["status"] {
+  if (status === "COMPLETED" || status === "DISPUTED") return status;
+  return "CONFIRMED";
+}
+
 // Read-only compatibility for the room and report previews.
-export function SessionsPreviewProvider({ children }: { children: ReactNode }) {
+export function SessionsPreviewProvider({
+  children,
+}: Readonly<{ children: ReactNode }>) {
   const { paths } = usePathsPreview();
-  const sessions = useMemo(
-    () =>
-      paths
+  const value = useMemo(
+    () => ({
+      sessions: paths
         .filter((path) =>
           ["ACTIVE", "COMPLETED", "DISPUTED"].includes(path.status),
         )
@@ -26,18 +33,14 @@ export function SessionsPreviewProvider({ children }: { children: ReactNode }) {
               pathId: path.id,
               title: `${plan.skill} · Buổi ${index + 1}: ${plan.outline[index]}`,
               partner: path.partner,
-              status:
-                path.status === "COMPLETED"
-                  ? "COMPLETED"
-                  : path.status === "DISPUTED"
-                    ? "DISPUTED"
-                    : "CONFIRMED",
+              status: previewStatus(path.status),
             })),
           ),
         ),
+    }),
     [paths],
   );
-  return <Context.Provider value={{ sessions }}>{children}</Context.Provider>;
+  return <Context.Provider value={value}>{children}</Context.Provider>;
 }
 
 export function useSessionsPreview() {

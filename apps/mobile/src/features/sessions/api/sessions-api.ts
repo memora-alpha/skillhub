@@ -7,6 +7,11 @@ import {
   type SessionRange,
 } from "../types";
 
+function sessionPath(id: string) {
+  if (!z.uuid().safeParse(id).success) throw new AppError("protocol");
+  return `/sessions/${encodeURIComponent(id)}`;
+}
+
 export function createSessionsApi(
   client: HttpClient,
   userId: string,
@@ -20,10 +25,6 @@ export function createSessionsApi(
     });
     if (!isCurrent()) throw new AppError("session");
     return result;
-  }
-  function path(id: string) {
-    if (!z.uuid().safeParse(id).success) throw new AppError("protocol");
-    return `/sessions/${encodeURIComponent(id)}`;
   }
   function parse(value: unknown, id?: string, list = false) {
     const result = sessionSchema.safeParse(value);
@@ -48,12 +49,12 @@ export function createSessionsApi(
       return result.map((value) => parse(value, undefined, true));
     },
     async detail(id: string, signal?: AbortSignal) {
-      return parse(await call(path(id), { signal }), id);
+      return parse(await call(sessionPath(id), { signal }), id);
     },
     async complete(id: string, note = "") {
       if (note.length > 1000) throw new AppError("protocol");
       const result = completionReceiptSchema.safeParse(
-        await call(`${path(id)}/confirm-completion`, {
+        await call(`${sessionPath(id)}/confirm-completion`, {
           method: "POST",
           body: note ? { note } : {},
           replayAfterRenewal: false,

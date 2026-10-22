@@ -26,7 +26,7 @@ export function SessionFeedback({
   refreshing,
   retry,
   children,
-}: Props) {
+}: Readonly<Props>) {
   if (invalid)
     return (
       <EmptyState

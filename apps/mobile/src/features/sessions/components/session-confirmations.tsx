@@ -5,13 +5,19 @@ import type { LearningSession } from "../types";
 import { confirmationLabel } from "../utils/session-policy";
 import { detailStyles as styles } from "./session-detail.styles";
 
+function confirmationIcon(value: string | null) {
+  if (value === "CONFIRMED") return "check-circle";
+  if (value === null) return "clock";
+  return "alert";
+}
+
 export function SessionConfirmations({
   session,
   userId,
-}: {
+}: Readonly<{
   session: LearningSession;
   userId: string;
-}) {
+}>) {
   const teacher = session.teacherId === userId;
   const confirmations = [
     {
@@ -38,13 +44,7 @@ export function SessionConfirmations({
       {confirmations.map(({ label, value }) => (
         <View key={label} style={styles.confirmationRow}>
           <Icon
-            name={
-              value === "CONFIRMED"
-                ? "check-circle"
-                : value === null
-                  ? "clock"
-                  : "alert"
-            }
+            name={confirmationIcon(value)}
             size={16}
             color={value === "CONFIRMED" ? colors.forest : colors.muted}
           />

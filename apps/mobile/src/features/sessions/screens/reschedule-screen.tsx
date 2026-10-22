@@ -72,12 +72,12 @@ function RescheduleDraft({
   duration,
   status,
   timezone,
-}: {
+}: Readonly<{
   startAt: string;
   duration: number;
   status: string;
   timezone: string;
-}) {
+}>) {
   const { control } = useForm<RescheduleForm>({
     resolver: zodResolver(rescheduleFormSchema),
     defaultValues: { start: "", duration: String(duration) },

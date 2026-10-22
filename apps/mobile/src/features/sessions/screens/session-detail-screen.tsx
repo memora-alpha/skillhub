@@ -54,11 +54,9 @@ export function LearningSessionScreen() {
     action.blocked ||
     !!action.receipt ||
     submit.confirmed;
-  const actionLabel = !ended
-    ? "Đề nghị đổi lịch"
-    : submit.confirmed || action.pending
-      ? submit.label
-      : "Xác nhận hoàn thành";
+  const completionActionLabel =
+    submit.confirmed || action.pending ? submit.label : "Xác nhận hoàn thành";
+  const actionLabel = ended ? completionActionLabel : "Đề nghị đổi lịch";
   useEffect(() => {
     if (disabled) setConfirmOpen(false);
   }, [disabled]);

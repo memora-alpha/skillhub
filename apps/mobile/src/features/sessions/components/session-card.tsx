@@ -12,10 +12,10 @@ import { formatSessionTime, sessionDuration } from "../utils/session-time";
 export function SessionCard({
   session,
   timezone,
-}: {
+}: Readonly<{
   session: SessionSummary;
   timezone: string;
-}) {
+}>) {
   const { userId } = useSessionsRuntime();
   const presentation = sessionPresentation(session);
   const label =

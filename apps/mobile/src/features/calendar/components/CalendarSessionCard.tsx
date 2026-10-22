@@ -18,10 +18,10 @@ import {
 export function CalendarSessionCard({
   session,
   timezone,
-}: {
+}: Readonly<{
   session: LearningSession;
   timezone: string;
-}) {
+}>) {
   const router = useRouter();
   const presentation = sessionPresentation(session);
   const label =

@@ -13,10 +13,9 @@ export function completionSubmitPresentation(
     (ownConfirmation(session, userId) === "CONFIRMED" ||
       session.status === "COMPLETED" ||
       receipt?.id === session.id);
-  const label = confirmed
-    ? "Đã xác nhận"
-    : pending
-      ? "Đang xử lý…"
-      : "Tôi xác nhận đã học buổi này";
+  const unconfirmedLabel = pending
+    ? "Đang xử lý…"
+    : "Tôi xác nhận đã học buổi này";
+  const label = confirmed ? "Đã xác nhận" : unconfirmedLabel;
   return { confirmed, label };
 }

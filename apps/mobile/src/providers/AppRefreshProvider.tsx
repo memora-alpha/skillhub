@@ -13,7 +13,9 @@ const Context = createContext<{
   refresh: () => Promise<void>;
 } | null>(null);
 
-export function AppRefreshProvider({ children }: { children: ReactNode }) {
+export function AppRefreshProvider({
+  children,
+}: Readonly<{ children: ReactNode }>) {
   const client = useQueryClient();
   const [refreshing, setRefreshing] = useState(false);
   const read = useMemo(() => createReadRefresh(client), [client]);

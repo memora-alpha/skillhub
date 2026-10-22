@@ -19,32 +19,27 @@ export function RoomScreen() {
   const [camera, setCamera] = useState(false);
   const [mic, setMic] = useState(false);
   const [leave, setLeave] = useState(false);
+  let title = s?.title;
+  let description = `Khung video mẫu · ${s?.partner}`;
+  if (stage === "waiting") {
+    title = "Chuẩn bị buổi học";
+    description =
+      "Kiểm tra thiết bị trước khi vào phòng. Giờ mở phòng thực tế do backend cấu hình.";
+  } else if (stage === "ended") {
+    title = "Bạn đã rời phòng mẫu";
+    description = "Rời phòng không xác nhận hoàn thành buổi học.";
+  }
   return (
     <FeaturePage title="Phòng học" demo back={`/learning-sessions/${id}`}>
-      {!s || s.status !== "CONFIRMED" ? (
+      {s?.status !== "CONFIRMED" ? (
         <EmptyState
           title="Phòng học không khả dụng"
           description="Buổi học đã kết thúc, đang có tranh chấp hoặc chưa đủ điều kiện vào phòng."
         />
       ) : (
         <>
-          <Panel
-            title={
-              stage === "ended"
-                ? "Bạn đã rời phòng mẫu"
-                : stage === "waiting"
-                  ? "Chuẩn bị buổi học"
-                  : s.title
-            }
-            accent
-          >
-            <Copy>
-              {stage === "waiting"
-                ? "Kiểm tra thiết bị trước khi vào phòng. Giờ mở phòng thực tế do backend cấu hình."
-                : stage === "ended"
-                  ? "Rời phòng không xác nhận hoàn thành buổi học."
-                  : `Khung video mẫu · ${s.partner}`}
-            </Copy>
+          <Panel title={title} accent>
+            <Copy>{description}</Copy>
             {stage !== "ended" && (
               <>
                 <View style={ui.row}>

@@ -13,13 +13,13 @@ export function SessionPage({
   backBehavior = "destination",
   demo = false,
   children,
-}: {
+}: Readonly<{
   title: string;
   back?: Href;
   backBehavior?: "destination" | "history";
   demo?: boolean;
   children: ReactNode;
-}) {
+}>) {
   return (
     <AppScreenLayout
       title={title}
@@ -42,11 +42,11 @@ export function SessionPanel({
   title,
   accent = false,
   children,
-}: {
+}: Readonly<{
   title?: string;
   accent?: boolean;
   children: ReactNode;
-}) {
+}>) {
   return (
     <View style={[styles.panel, accent && styles.accent]}>
       {title && (
@@ -61,10 +61,10 @@ export function SessionPanel({
 export function SessionCopy({
   children,
   muted = false,
-}: {
+}: Readonly<{
   children: ReactNode;
   muted?: boolean;
-}) {
+}>) {
   return (
     <Text selectable style={muted ? styles.secondary : styles.body}>
       {children}
@@ -76,12 +76,12 @@ export function SessionButton({
   variant = "craft",
   disabled = false,
   onPress,
-}: {
+}: Readonly<{
   children: string;
   variant?: "craft" | "paper" | "ghost";
   disabled?: boolean;
   onPress: () => void;
-}) {
+}>) {
   return (
     <Button
       accessibilityLabel={children}
@@ -105,11 +105,11 @@ export function SessionRouteButton({
   href,
   children,
   secondary = false,
-}: {
+}: Readonly<{
   href: Href;
   children: string;
   secondary?: boolean;
-}) {
+}>) {
   const router = useRouter();
   return (
     <SessionButton
@@ -120,7 +120,9 @@ export function SessionRouteButton({
     </SessionButton>
   );
 }
-export function SessionEmptyState(props: Parameters<typeof EmptyState>[0]) {
+export function SessionEmptyState(
+  props: Readonly<Parameters<typeof EmptyState>[0]>,
+) {
   return (
     <EmptyState {...props} titleStyle={[styles.heading, props.titleStyle]} />
   );

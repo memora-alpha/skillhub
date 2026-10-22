@@ -9,13 +9,13 @@ export function PullRefreshBoundary({
   refreshing,
   refresh,
   scrollY,
-}: {
+}: Readonly<{
   children: ReactNode;
   enabled: boolean;
   refreshing: boolean;
   refresh: () => void;
   scrollY: { current: number };
-}) {
+}>) {
   const frame = useRef<View>(null);
   const [pull, setPull] = useState(0);
   useEffect(() => {

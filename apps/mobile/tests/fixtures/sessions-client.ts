@@ -10,6 +10,11 @@ export const teacherId = "10000000-0000-4000-8000-000000000001";
 export const learnerId = "10000000-0000-4000-8000-000000000002";
 export const sessionId = "20000000-0000-4000-8000-000000000001";
 export const now = Date.parse("2026-10-14T06:00:00Z");
+type FixtureHandler = (
+  path: string,
+  method: string,
+  body: unknown,
+) => Promise<unknown>;
 export const sessionRecord = () => ({
   id: sessionId,
   pathId: "30000000-0000-4000-8000-000000000001",
@@ -28,6 +33,21 @@ export function sessionsFixture() {
   let generation = 1;
   let token = "fixture-access";
   const calls: { path: string; method: string; body: unknown }[] = [];
+  const handler: FixtureHandler = (path, method) => {
+    if (method === "GET")
+      return Promise.resolve(
+        path.startsWith("/sessions/mine") ? [fixture.record] : fixture.record,
+      );
+    fixture.record = {
+      ...fixture.record,
+      teacherConfirmationStatus: "CONFIRMED",
+      status:
+        fixture.record.learnerConfirmationStatus === "CONFIRMED"
+          ? "COMPLETED"
+          : "AWAITING_CONFIRMATION",
+    };
+    return Promise.resolve({ id: sessionId, status: fixture.record.status });
+  };
   const fixture = {
     record: sessionRecord(),
     calls,
@@ -37,26 +57,7 @@ export function sessionsFixture() {
     changeAccount() {
       generation++;
     },
-    handler: async (
-      path: string,
-      method: string,
-      body: unknown,
-    ): Promise<unknown> => {
-      void body;
-      if (method === "GET")
-        return path.startsWith("/sessions/mine")
-          ? [fixture.record]
-          : fixture.record;
-      fixture.record = {
-        ...fixture.record,
-        teacherConfirmationStatus: "CONFIRMED",
-        status:
-          fixture.record.learnerConfirmationStatus === "CONFIRMED"
-            ? "COMPLETED"
-            : "AWAITING_CONFIRMATION",
-      };
-      return { id: sessionId, status: fixture.record.status };
-    },
+    handler,
   };
   const client = createHttpClient(
     () => "https://fixture.invalid/api/v1",
@@ -81,12 +82,14 @@ export function sessionsFixture() {
     get generation() {
       return generation;
     },
-    getToken: async () => token,
-    renew: async () => {
+    getToken: () => Promise.resolve(token),
+    renew: () => {
       token = "fixture-renewed";
+      return Promise.resolve();
     },
-    expire: async () => {
+    expire: () => {
       generation++;
+      return Promise.resolve();
     },
   });
   const initial = generation;

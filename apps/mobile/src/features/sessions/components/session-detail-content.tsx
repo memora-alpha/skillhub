@@ -23,7 +23,7 @@ export function SessionDetailContent({
   timezone,
   partner,
   onOpenPartner,
-}: Props) {
+}: Readonly<Props>) {
   const teacher = session.teacherId === userId;
   const presentation = sessionPresentation(session);
   const schedule = sessionSchedule(session, timezone);
@@ -31,6 +31,8 @@ export function SessionDetailContent({
   const blocked = ["CANCELLED", "DISPUTED"].includes(session.status);
   const warning = presentation.variant === "warning";
   const neutral = session.status === "CANCELLED";
+  const activeStatusColor = warning ? colors.warning : colors.forest;
+  const statusDotColor = neutral ? colors.muted : activeStatusColor;
   const statusLabel =
     presentation.label === "Đã kết thúc · chờ xác nhận"
       ? "Chờ xác nhận"
@@ -51,16 +53,7 @@ export function SessionDetailContent({
               ]}
             >
               <View
-                style={[
-                  styles.statusDot,
-                  {
-                    backgroundColor: neutral
-                      ? colors.muted
-                      : warning
-                        ? colors.warning
-                        : colors.forest,
-                  },
-                ]}
+                style={[styles.statusDot, { backgroundColor: statusDotColor }]}
               />
               <Text
                 style={[
