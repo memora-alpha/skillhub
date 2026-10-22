@@ -5,6 +5,16 @@ type Skill = {
   skill: { id: string; status: string };
   verificationStatus: string;
 };
+
+function activeSkillFor(skills: Skill[], skillId: string) {
+  return skills.filter(
+    (skill) =>
+      skill.skill.id === skillId &&
+      !skill.archivedAt &&
+      skill.skill.status === "ACTIVE",
+  );
+}
+
 export async function readTeacherEligibility(
   read: (
     cursor?: string,
@@ -25,17 +35,13 @@ export async function readTeacherEligibility(
     if (signal.aborted) throw new AppError("session");
     const page = await read(cursor, signal);
     assertCurrent();
-    for (const skill of page.data) {
-      if (
-        skill.skill.id !== skillId ||
-        skill.archivedAt ||
-        skill.skill.status !== "ACTIVE"
-      )
-        continue;
-      if (!verifiedRequired || skill.verificationStatus === "VERIFIED")
-        return { state: "eligible" as const, sharingSkillId: skill.id };
-      unverified = skill.id;
-    }
+    const skills = activeSkillFor(page.data, skillId);
+    const eligible = skills.find(
+      (skill) => !verifiedRequired || skill.verificationStatus === "VERIFIED",
+    );
+    if (eligible)
+      return { state: "eligible" as const, sharingSkillId: eligible.id };
+    if (verifiedRequired) unverified = skills.at(-1)?.id ?? unverified;
     if (!page.pagination.hasMore)
       return unverified
         ? { state: "unverified" as const, sharingSkillId: unverified }

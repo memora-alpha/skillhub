@@ -22,6 +22,26 @@ import {
   type PathListFilter,
 } from "../utils/path-list-filter";
 
+function exchangeLabel(exchangeType: PathSummary["exchangeType"]) {
+  if (exchangeType === "TWO_WAY") return "Trao đổi hai chiều";
+  if (exchangeType === "ONE_WAY") return "Học một chiều";
+  return "Chưa có hình thức học";
+}
+
+function statusIcon(status: PathSummary["status"]) {
+  if (["CANCELLED", "DISPUTED"].includes(status)) return "alert" as const;
+  if (["CONFIRMED", "SCHEDULED", "ACTIVE", "COMPLETED"].includes(status))
+    return "check-circle" as const;
+  return "clock" as const;
+}
+
+function statusColor(status: PathSummary["status"]) {
+  if (["CANCELLED", "DISPUTED"].includes(status)) return colors.error;
+  if (["CONFIRMED", "SCHEDULED", "ACTIVE", "COMPLETED"].includes(status))
+    return colors.forest;
+  return colors.warning;
+}
+
 export function ApiPathCard({ path }: Readonly<{ path: PathSummary }>) {
   const profile = useParticipantProfile(path.counterpartId);
   const name = profile.data?.fullName ?? "Lộ trình cùng đối tác";
@@ -29,12 +49,7 @@ export function ApiPathCard({ path }: Readonly<{ path: PathSummary }>) {
     path.status,
   );
   const closed = ["CANCELLED", "DISPUTED"].includes(path.status);
-  const exchangeLabel =
-    path.exchangeType === "TWO_WAY"
-      ? "Trao đổi hai chiều"
-      : path.exchangeType === "ONE_WAY"
-        ? "Học một chiều"
-        : "Chưa có hình thức học";
+  const exchangeName = exchangeLabel(path.exchangeType);
   return (
     <View style={styles.card}>
       <View style={styles.header}>
@@ -72,7 +87,7 @@ export function ApiPathCard({ path }: Readonly<{ path: PathSummary }>) {
       <View style={styles.details}>
         <View style={styles.titleBlock}>
           <Text style={styles.eyebrow}>HÌNH THỨC HỌC</Text>
-          <Text style={styles.exchangeTitle}>{exchangeLabel}</Text>
+          <Text style={styles.exchangeTitle}>{exchangeName}</Text>
         </View>
         <View
           style={[
@@ -82,11 +97,9 @@ export function ApiPathCard({ path }: Readonly<{ path: PathSummary }>) {
           ]}
         >
           <Icon
-            name={closed ? "alert" : confirmed ? "check-circle" : "clock"}
+            name={statusIcon(path.status)}
             size={15}
-            color={
-              closed ? colors.error : confirmed ? colors.forest : colors.warning
-            }
+            color={statusColor(path.status)}
           />
           <Text
             style={[

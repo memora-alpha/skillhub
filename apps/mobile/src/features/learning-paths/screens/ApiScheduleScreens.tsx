@@ -46,6 +46,15 @@ import { FormNotice } from "@/components/FormNotice";
 import { scheduleDirections } from "../utils/schedule-directions";
 import { usePullRefresh } from "../hooks/use-pull-refresh";
 
+function scheduleSummary(
+  items: NonNullable<ApiLearningPlan["schedule"]>["items"],
+) {
+  const first = items[0];
+  if (!first) return `${items.length} buổi`;
+  const start = new Date(first.startAt).toLocaleString("vi-VN");
+  return `${items.length} buổi · Bắt đầu ${start}`;
+}
+
 export function ApiSchedulesScreen() {
   const { id, formPlanId, formScheduleId, formVersion } = useLocalSearchParams<{
     id: string;
@@ -171,7 +180,7 @@ function SchedulePanel({
                           scheduleId: schedule.id,
                           version: result.version,
                           title: plan.learningGoal,
-                          summary: `${schedule.items.length} buổi${schedule.items[0] ? ` · Bắt đầu ${new Date(schedule.items[0].startAt).toLocaleString("vi-VN")}` : ""}`,
+                          summary: scheduleSummary(schedule.items),
                         }),
                         identity,
                       );

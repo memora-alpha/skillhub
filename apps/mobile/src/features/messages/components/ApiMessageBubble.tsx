@@ -38,9 +38,6 @@ export function ApiMessageBubble({
   const [error, setError] = useState<unknown>(),
     [pending, setPending] = useState(false);
   const router = useRouter();
-  const share = readPlanShare(message.messageText);
-  const form = readConfirmedForm(message.messageText);
-  const legacy = readNegotiationMessage(message.messageText);
   const [expanded, setExpanded] = useState(false);
   const mine = message.senderId === userId;
   const download = async (attachmentId: string) => {
@@ -63,99 +60,17 @@ export function ApiMessageBubble({
   };
   return (
     <View style={{ gap: 6 }}>
-      {message.messageType === "SYSTEM" ? (
-        <FormNotice tone="info">
-          {message.messageText || "Cập nhật từ hệ thống"}
-        </FormNotice>
-      ) : legacy ? (
-        <>
-          <ChatWorkflowCard
-            mine={mine}
-            partner={partner}
-            partnerId={partnerId}
-            avatarUrl={avatarUrl}
-            showAvatar={showAvatar}
-            label="Gợi ý lộ trình"
-            title={legacy.goal}
-            summary={legacy.skill}
-            confirmed={false}
-            badgeLabel="Chưa xác nhận"
-            action="Xem nội dung gợi ý"
-            actionText={expanded ? "Thu gọn" : "Xem gợi ý"}
-            onPress={() => setExpanded(!expanded)}
-          />
-          {expanded && (
-            <FormNotice tone="info">{message.messageText}</FormNotice>
-          )}
-        </>
-      ) : share || form ? (
-        <ChatWorkflowCard
-          mine={mine}
-          partner={partner}
-          partnerId={partnerId}
-          avatarUrl={avatarUrl}
-          showAvatar={showAvatar}
-          label={form ? confirmedFormLabels[form.kind] : "Lộ trình học"}
-          title={form?.title ?? share!.title}
-          summary={form?.summary ?? message.messageText.split("\n")[1] ?? ""}
-          version={form?.version ?? share!.version}
-          action={
-            form
-              ? `Xem ${confirmedFormLabels[form.kind].toLowerCase()}`
-              : "Đọc lộ trình được chia sẻ"
-          }
-          confirmed={!!form}
-          onPress={() => {
-            const pathId = form?.pathId ?? share!.pathId;
-            const fromConversation = message.conversationId;
-            if (form?.kind === "method")
-              router.push({
-                pathname: "/paths/[id]",
-                params: {
-                  id: pathId,
-                  fromConversation,
-                  formVersion: String(form.version),
-                },
-              });
-            else if (form?.kind === "schedule")
-              router.push({
-                pathname: "/paths/[id]/schedules",
-                params: {
-                  id: pathId,
-                  formPlanId: form.planId!,
-                  formScheduleId: form.scheduleId!,
-                  formVersion: String(form.version),
-                },
-              });
-            else
-              router.push({
-                pathname: "/paths/[id]/plans/[planId]",
-                params: {
-                  id: pathId,
-                  planId: form?.planId ?? share!.planId,
-                  sharedVersion: String(form?.version ?? share!.version),
-                  fromConversation,
-                },
-              });
-          }}
-        />
-      ) : (
-        <MessageBubble
-          partner={partner}
-          partnerId={partnerId}
-          avatarUrl={avatarUrl}
-          showAvatar={showAvatar}
-          message={{
-            id: message.id,
-            from: message.senderId === userId ? "me" : "them",
-            text: message.messageText,
-            time: new Date(message.sentAt).toLocaleTimeString("vi-VN", {
-              hour: "2-digit",
-              minute: "2-digit",
-            }),
-          }}
-        />
-      )}
+      <ApiMessageContent
+        message={message}
+        partner={partner}
+        partnerId={partnerId}
+        avatarUrl={avatarUrl}
+        showAvatar={showAvatar}
+        mine={mine}
+        expanded={expanded}
+        onToggleExpanded={() => setExpanded((value) => !value)}
+        router={router}
+      />
       {message.attachments.map((file) => (
         <Button
           key={file.attachmentId}
@@ -187,4 +102,173 @@ export function ApiMessageBubble({
       )}
     </View>
   );
+}
+
+function ApiMessageContent({
+  message,
+  partner,
+  partnerId,
+  avatarUrl,
+  showAvatar,
+  mine,
+  expanded,
+  onToggleExpanded,
+  router,
+}: Readonly<{
+  message: ApiMessage;
+  partner: string;
+  partnerId: string;
+  avatarUrl?: string | null;
+  showAvatar: boolean;
+  mine: boolean;
+  expanded: boolean;
+  onToggleExpanded: () => void;
+  router: ReturnType<typeof useRouter>;
+}>) {
+  const share = readPlanShare(message.messageText);
+  const form = readConfirmedForm(message.messageText);
+  const legacy = readNegotiationMessage(message.messageText);
+  if (message.messageType === "SYSTEM")
+    return (
+      <FormNotice tone="info">
+        {message.messageText || "Cập nhật từ hệ thống"}
+      </FormNotice>
+    );
+  if (legacy)
+    return (
+      <>
+        <ChatWorkflowCard
+          mine={mine}
+          partner={partner}
+          partnerId={partnerId}
+          avatarUrl={avatarUrl}
+          showAvatar={showAvatar}
+          label="Gợi ý lộ trình"
+          title={legacy.goal}
+          summary={legacy.skill}
+          confirmed={false}
+          badgeLabel="Chưa xác nhận"
+          action="Xem nội dung gợi ý"
+          actionText={expanded ? "Thu gọn" : "Xem gợi ý"}
+          onPress={onToggleExpanded}
+        />
+        {expanded && <FormNotice tone="info">{message.messageText}</FormNotice>}
+      </>
+    );
+  if (share || form)
+    return (
+      <SharedWorkflowMessage
+        message={message}
+        share={share}
+        form={form}
+        partner={partner}
+        partnerId={partnerId}
+        avatarUrl={avatarUrl}
+        showAvatar={showAvatar}
+        mine={mine}
+        router={router}
+      />
+    );
+  return (
+    <MessageBubble
+      partner={partner}
+      partnerId={partnerId}
+      avatarUrl={avatarUrl}
+      showAvatar={showAvatar}
+      message={{
+        id: message.id,
+        from: mine ? "me" : "them",
+        text: message.messageText,
+        time: new Date(message.sentAt).toLocaleTimeString("vi-VN", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      }}
+    />
+  );
+}
+
+function SharedWorkflowMessage({
+  message,
+  share,
+  form,
+  router,
+  ...cardProps
+}: Readonly<{
+  message: ApiMessage;
+  share: ReturnType<typeof readPlanShare>;
+  form: ReturnType<typeof readConfirmedForm>;
+  router: ReturnType<typeof useRouter>;
+  partner: string;
+  partnerId: string;
+  avatarUrl?: string | null;
+  showAvatar: boolean;
+  mine: boolean;
+}>) {
+  const label = form ? confirmedFormLabels[form.kind] : "Lộ trình học";
+  const title = form?.title ?? share?.title ?? "Lộ trình học";
+  const summary = form?.summary ?? message.messageText.split("\n")[1] ?? "";
+  const version = form?.version ?? share?.version;
+  return (
+    <ChatWorkflowCard
+      {...cardProps}
+      label={label}
+      title={title}
+      summary={summary}
+      version={version}
+      action={
+        form
+          ? `Xem ${confirmedFormLabels[form.kind].toLowerCase()}`
+          : "Đọc lộ trình được chia sẻ"
+      }
+      confirmed={!!form}
+      onPress={() => openSharedWorkflow(router, message, form, share)}
+    />
+  );
+}
+
+function openSharedWorkflow(
+  router: ReturnType<typeof useRouter>,
+  message: ApiMessage,
+  form: ReturnType<typeof readConfirmedForm>,
+  share: ReturnType<typeof readPlanShare>,
+) {
+  const fromConversation = message.conversationId;
+  const pathId = form?.pathId ?? share?.pathId;
+  if (!pathId) return;
+  if (form?.kind === "method") {
+    router.push({
+      pathname: "/paths/[id]",
+      params: {
+        id: pathId,
+        fromConversation,
+        formVersion: String(form.version),
+      },
+    });
+    return;
+  }
+  if (form?.kind === "schedule") {
+    router.push({
+      pathname: "/paths/[id]/schedules",
+      params: {
+        id: pathId,
+        formPlanId: form.planId!,
+        formScheduleId: form.scheduleId!,
+        formVersion: String(form.version),
+      },
+    });
+    return;
+  }
+  const planId = form?.planId ?? share?.planId;
+  const sharedVersion = form?.version ?? share?.version;
+  if (!planId || !sharedVersion) return;
+  router.push({
+    pathname: "/paths/[id]/plans/[planId]",
+    params: {
+      id: pathId,
+      planId,
+      sharedVersion: String(sharedVersion),
+      fromConversation,
+    },
+  });
 }

@@ -62,6 +62,114 @@ export function ScheduleTimezoneNotice() {
   );
 }
 
+function scheduleStatusText(
+  schedule: ApiLearningPlan["schedule"],
+  confirmed: boolean,
+) {
+  if (!schedule) return "Chờ xếp lịch";
+  if (confirmed && schedule.status !== "LOCKED") return "Đủ xác nhận";
+  return scheduleStatusLabel[schedule.status];
+}
+
+function ScheduleContents({
+  plan,
+  mine,
+}: Readonly<{
+  plan: ApiLearningPlan;
+  mine: boolean;
+}>) {
+  if (plan.sessions.length) return <CreatedSessionList plan={plan} />;
+  if (plan.schedule) return <ScheduledSessionList plan={plan} />;
+  return <EmptySchedule mine={mine} />;
+}
+
+function CreatedSessionList({ plan }: Readonly<{ plan: ApiLearningPlan }>) {
+  return (
+    <View style={styles.list}>
+      <View style={styles.listHeading}>
+        <Text style={styles.listHeadingText}>Buổi học đã tạo</Text>
+        <Text style={styles.listCount}>
+          {plan.sessions.length} / {plan.totalSessions} buổi
+        </Text>
+      </View>
+      {plan.sessions.map((session, index) => (
+        <ScheduleTimelineItem
+          key={session.id}
+          last={index === plan.sessions.length - 1}
+        >
+          <ScheduleSlotRow
+            slot={session}
+            title={
+              sessionContentParts(
+                plan.sessionOutline.find(
+                  (item) => item.sessionNo === session.sessionNo,
+                )?.content ?? "",
+              ).title
+            }
+            status={learningSessionLabel[session.status]}
+          />
+        </ScheduleTimelineItem>
+      ))}
+    </View>
+  );
+}
+
+function ScheduledSessionList({ plan }: Readonly<{ plan: ApiLearningPlan }>) {
+  const schedule = plan.schedule;
+  if (!schedule) return null;
+  const scheduledCount = schedule.items.length;
+  const complete = scheduleIsComplete(plan);
+  const revisionMessage = complete
+    ? "Lịch đã điều chỉnh. Hai bên cần xem và xác nhận phiên bản này."
+    : "Lộ trình đã đổi số buổi. Người dạy cần bổ sung lịch còn thiếu trước khi hai bên xác nhận.";
+  return (
+    <View style={styles.list}>
+      <View style={styles.listHeading}>
+        <Text style={styles.listHeadingText}>Lịch từng buổi</Text>
+        <Text style={styles.listCount}>
+          {scheduledCount} / {plan.totalSessions} buổi sẵn sàng
+        </Text>
+      </View>
+      {schedule.status === "NEEDS_REVISION" && (
+        <Text style={styles.secondary}>{revisionMessage}</Text>
+      )}
+      {Array.from({ length: plan.totalSessions }, (_, index) => {
+        const sessionNo = index + 1;
+        const slot = schedule.items.find(
+          (item) => item.sessionNo === sessionNo,
+        );
+        const title = sessionContentParts(
+          plan.sessionOutline.find((item) => item.sessionNo === sessionNo)
+            ?.content ?? "",
+        ).title;
+        return (
+          <ScheduleTimelineItem
+            key={sessionNo}
+            last={index === plan.totalSessions - 1}
+          >
+            <ScheduleSlotRow slot={slot ?? { sessionNo }} title={title} />
+          </ScheduleTimelineItem>
+        );
+      })}
+    </View>
+  );
+}
+
+function EmptySchedule({ mine }: Readonly<{ mine: boolean }>) {
+  const message = mine
+    ? "Chọn ngày giờ cho từng buổi trong lộ trình bạn dạy."
+    : "Chờ đối tác đề xuất lịch họ dạy để hai bạn cùng xem và xác nhận.";
+  return (
+    <View style={styles.empty}>
+      <View style={styles.emptyIcon}>
+        <Icon name="calendar" size={26} color={colors.muted} />
+      </View>
+      <Text style={styles.emptyTitle}>Chưa có đề xuất lịch</Text>
+      <Text style={styles.emptyText}>{message}</Text>
+    </View>
+  );
+}
+
 export function ScheduleListOverview({
   path,
   userId,
@@ -131,7 +239,7 @@ export function ScheduleReadCard({
     path.participantAId === userId
       ? schedule?.participantBConfirmedAt
       : schedule?.participantAConfirmedAt;
-  const scheduledCount = schedule?.items.length ?? plan.sessions.length;
+  const statusText = scheduleStatusText(schedule, confirmed);
   return (
     <FlowSection>
       <View style={styles.header}>
@@ -160,94 +268,12 @@ export function ScheduleReadCard({
               !schedule && styles.secondary,
             ]}
           >
-            {schedule
-              ? confirmed && schedule.status !== "LOCKED"
-                ? "Đủ xác nhận"
-                : scheduleStatusLabel[schedule.status]
-              : "Chờ xếp lịch"}
+            {statusText}
           </Text>
         </View>
       </View>
       <Text style={styles.goal}>{plan.learningGoal}</Text>
-      {plan.sessions.length > 0 ? (
-        <View style={styles.list}>
-          <View style={styles.listHeading}>
-            <Text style={styles.listHeadingText}>Buổi học đã tạo</Text>
-            <Text style={styles.listCount}>
-              {plan.sessions.length} / {plan.totalSessions} buổi
-            </Text>
-          </View>
-          {plan.sessions.map((session, index) => (
-            <ScheduleTimelineItem
-              key={session.id}
-              last={index === plan.sessions.length - 1}
-            >
-              <ScheduleSlotRow
-                slot={session}
-                title={
-                  sessionContentParts(
-                    plan.sessionOutline.find(
-                      (item) => item.sessionNo === session.sessionNo,
-                    )?.content ?? "",
-                  ).title
-                }
-                status={learningSessionLabel[session.status]}
-              />
-            </ScheduleTimelineItem>
-          ))}
-        </View>
-      ) : schedule ? (
-        <View style={styles.list}>
-          <View style={styles.listHeading}>
-            <Text style={styles.listHeadingText}>Lịch từng buổi</Text>
-            <Text style={styles.listCount}>
-              {scheduledCount} / {plan.totalSessions} buổi sẵn sàng
-            </Text>
-          </View>
-          {schedule.status === "NEEDS_REVISION" && (
-            <Text style={styles.secondary}>
-              {scheduleIsComplete(plan)
-                ? "Lịch đã điều chỉnh. Hai bên cần xem và xác nhận phiên bản này."
-                : "Lộ trình đã đổi số buổi. Người dạy cần bổ sung lịch còn thiếu trước khi hai bên xác nhận."}
-            </Text>
-          )}
-          {Array.from({ length: plan.totalSessions }, (_, index) => {
-            const sessionNo = index + 1;
-            const slot = schedule.items.find(
-              (item) => item.sessionNo === sessionNo,
-            );
-            return (
-              <ScheduleTimelineItem
-                key={sessionNo}
-                last={index === plan.totalSessions - 1}
-              >
-                <ScheduleSlotRow
-                  slot={slot ?? { sessionNo }}
-                  title={
-                    sessionContentParts(
-                      plan.sessionOutline.find(
-                        (item) => item.sessionNo === sessionNo,
-                      )?.content ?? "",
-                    ).title
-                  }
-                />
-              </ScheduleTimelineItem>
-            );
-          })}
-        </View>
-      ) : (
-        <View style={styles.empty}>
-          <View style={styles.emptyIcon}>
-            <Icon name="calendar" size={26} color={colors.muted} />
-          </View>
-          <Text style={styles.emptyTitle}>Chưa có đề xuất lịch</Text>
-          <Text style={styles.emptyText}>
-            {mine
-              ? "Chọn ngày giờ cho từng buổi trong lộ trình bạn dạy."
-              : "Chờ đối tác đề xuất lịch họ dạy để hai bạn cùng xem và xác nhận."}
-          </Text>
-        </View>
-      )}
+      <ScheduleContents plan={plan} mine={mine} />
       {schedule && (
         <View style={styles.confirmations}>
           <ScheduleConfirmation

@@ -33,13 +33,17 @@ const form = z
     title: z.string().min(1).max(160),
     summary: z.string().max(600),
   })
-  .refine((v) =>
-    v.kind === "method"
-      ? !v.planId && !v.scheduleId
-      : v.kind === "plan"
-        ? !!v.planId && !v.scheduleId
-        : !!v.planId && !!v.scheduleId,
-  );
+  .refine(hasValidReferences);
+
+function hasValidReferences(value: {
+  kind: "method" | "plan" | "schedule";
+  planId?: string;
+  scheduleId?: string;
+}) {
+  if (value.kind === "method") return !value.planId && !value.scheduleId;
+  if (value.kind === "plan") return !!value.planId && !value.scheduleId;
+  return !!value.planId && !!value.scheduleId;
+}
 export type ConfirmedForm = z.infer<typeof form>;
 export const confirmedFormLabels = {
   method: "Cách học",
@@ -68,7 +72,7 @@ export function readConfirmedForm(text: string): ConfirmedForm | null {
   if (!match?.[7]) return null;
   // Chat history can return HTML-escaped query separators. Decode only the
   // workflow URL query, preserving the user's title and summary verbatim.
-  const params = new URLSearchParams(match[7].replace(/&amp;/g, "&"));
+  const params = new URLSearchParams(match[7].replaceAll("&amp;", "&"));
   const result = form.safeParse({
     kind: match[5],
     pathId: match[6],

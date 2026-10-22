@@ -12,6 +12,29 @@ export type ThreadSnapshot = {
   receiptRevision?: number;
 };
 
+async function readMissingMessages(
+  api: Pick<ReturnType<typeof createMessagesApi>, "history">,
+  id: string,
+  afterSequence: string,
+  firstTailSequence: string,
+  signal: AbortSignal,
+) {
+  let after = afterSequence;
+  let messages: ApiMessage[] = [];
+  const seen = new Set<string>();
+  while (true) {
+    if (signal.aborted || seen.has(after)) throw new AppError("protocol");
+    seen.add(after);
+    const page = await api.history(id, { afterSequence: after, signal });
+    messages = mergeMessages(messages, page.items);
+    const next = page.items.at(-1)?.sequence;
+    if (!page.hasMore || (next && BigInt(next) >= BigInt(firstTailSequence)))
+      return messages;
+    if (!next || BigInt(next) <= BigInt(after)) throw new AppError("protocol");
+    after = next;
+  }
+}
+
 export async function readThreadSnapshot(
   api: Pick<ReturnType<typeof createMessagesApi>, "history">,
   id: string,
@@ -39,19 +62,10 @@ export async function readThreadSnapshot(
   let messages = previous!.messages;
   const firstTail = tail.items[0]?.sequence;
   if (firstTail && BigInt(firstTail) > BigInt(last) + 1n) {
-    let after = last;
-    const seen = new Set<string>();
-    while (true) {
-      if (signal.aborted || seen.has(after)) throw new AppError("protocol");
-      seen.add(after);
-      const page = await api.history(id, { afterSequence: after, signal });
-      messages = mergeMessages(messages, page.items);
-      const next = page.items.at(-1)?.sequence;
-      if (!page.hasMore || (next && BigInt(next) >= BigInt(firstTail))) break;
-      if (!next || BigInt(next) <= BigInt(after))
-        throw new AppError("protocol");
-      after = next;
-    }
+    messages = mergeMessages(
+      messages,
+      await readMissingMessages(api, id, last, firstTail, signal),
+    );
   }
   messages = mergeMessages(
     options.current()?.messages ?? [],

@@ -52,6 +52,229 @@ function proposalAccess(
   };
 }
 
+type ProposalSourceSnapshot = {
+  status?: string;
+  expiresAt?: string | null;
+  verifiedTeacherOnly?: boolean;
+  owner?: { id?: string };
+  skill?: { id?: string; status?: string };
+};
+
+function sourceMatchesProposal(
+  source: unknown,
+  direct: boolean,
+  recipientId?: string,
+  targetSkillId?: string,
+  verifiedTeacherOnly?: boolean,
+) {
+  if (typeof source !== "object" || source === null) return false;
+  const snapshot = source as ProposalSourceSnapshot;
+  if (direct) return snapshot.skill?.status === "ACTIVE";
+  const currentAndOpen =
+    snapshot.status === "OPEN" &&
+    snapshot.owner?.id === recipientId &&
+    snapshot.skill?.id === targetSkillId &&
+    snapshot.verifiedTeacherOnly === verifiedTeacherOnly;
+  const notExpired =
+    !snapshot.expiresAt || Date.parse(snapshot.expiresAt) > Date.now();
+  return currentAndOpen && notExpired;
+}
+
+async function refetchValid(
+  refetch: () => Promise<{ data?: unknown; error: unknown }>,
+  isCurrent: () => boolean,
+  validate: (data: unknown) => boolean,
+) {
+  const result = await refetch();
+  return !!result.data && !result.error && isCurrent() && validate(result.data);
+}
+
+async function hasNoPendingProposal(
+  refetch: () => Promise<{
+    data: { id: string } | null | undefined;
+    error: unknown;
+  }>,
+  isCurrent: () => boolean,
+) {
+  const result = await refetch();
+  return !result.error && !result.data && isCurrent();
+}
+
+function proposalInput(
+  direct: boolean,
+  hints: ProposalHints,
+  sharingSkillId?: string,
+  requestId?: string,
+): ProposalInput {
+  if (direct)
+    return {
+      ...hints,
+      sourceType: "DIRECT_SEARCH",
+      recipientSharingSkillId: sharingSkillId!,
+    };
+  return {
+    ...hints,
+    sourceType: "LEARNING_REQUEST",
+    learningRequestId: requestId!,
+  };
+}
+
+function unavailableDescription(input: {
+  self: boolean;
+  expired: boolean;
+  closed: boolean;
+}) {
+  if (input.self) return "Bạn không thể gửi đề xuất cho chính mình.";
+  if (input.expired)
+    return "Yêu cầu học đã hết hạn, hiện không nhận thêm đề xuất.";
+  if (input.closed) return "Yêu cầu học hiện không nhận thêm đề xuất.";
+  return "Chọn yêu cầu đang mở hoặc kỹ năng công khai còn hoạt động của một người khác.";
+}
+
+function ProposalRecoveryPanel({
+  uncertain,
+  pending,
+  error,
+  originalError,
+  isCurrent,
+  retry,
+  onOpenSent,
+  openResult,
+}: Readonly<{
+  uncertain: boolean;
+  pending: boolean;
+  error: unknown;
+  originalError: unknown;
+  isCurrent: () => boolean;
+  retry: () => Promise<Proposal | undefined>;
+  onOpenSent: () => void;
+  openResult: (proposal: Proposal | undefined) => void;
+}>) {
+  if (!uncertain) return null;
+  return (
+    <Panel title="Kiểm tra lần gửi trước">
+      <FormNotice tone="info">
+        Chưa xác định được đề xuất đã gửi thành công hay chưa. Nội dung được giữ
+        nguyên để kiểm tra lại, tránh tạo đề xuất trùng.
+      </FormNotice>
+      <ConnectionFeedback error={originalError} />
+      {error !== originalError && <ConnectionFeedback error={error} />}
+      <Button
+        variant="craft"
+        disabled={pending || !isCurrent()}
+        onPress={() => {
+          void retry().then(openResult);
+        }}
+      >
+        {pending ? "Đang kiểm tra..." : "Kiểm tra lại lần gửi trước"}
+      </Button>
+      <Button variant="secondary" disabled={pending} onPress={onOpenSent}>
+        Xem đề xuất đã gửi
+      </Button>
+    </Panel>
+  );
+}
+
+function ProposalFormSection({
+  direct,
+  skillName,
+  requestTitle,
+  requestSkill,
+  recipientName,
+  recipientId,
+  avatarUrl,
+  teacher,
+  duplicate,
+  checking,
+  preflightError,
+  retry,
+  commandUncertain,
+  commandError,
+  pending,
+  disabled,
+  formKey,
+  onSubmit,
+}: Readonly<{
+  direct: boolean;
+  skillName?: string;
+  requestTitle?: string;
+  requestSkill?: string;
+  recipientName?: string;
+  recipientId: string;
+  avatarUrl?: string | null;
+  teacher?: {
+    state: "eligible" | "missing" | "unverified";
+    sharingSkillId?: string;
+  };
+  duplicate?: { id: string } | null;
+  checking: boolean;
+  preflightError: unknown;
+  retry: () => void;
+  commandUncertain: boolean;
+  commandError: unknown;
+  pending: boolean;
+  disabled: boolean;
+  formKey?: string;
+  onSubmit: (hints: ProposalHints) => Promise<unknown>;
+}>) {
+  const displayName = recipientName ?? "Đối tác";
+  const displaySkill = direct
+    ? (skillName ?? "Kỹ năng")
+    : (requestSkill ?? "Kỹ năng");
+  return (
+    <ApiProposalForm
+      framed
+      header={
+        <>
+          <ProposalSendContext
+            direct={direct}
+            title={
+              direct
+                ? (skillName ?? "Kỹ năng")
+                : (requestTitle ?? "Yêu cầu học")
+            }
+            skill={displaySkill}
+            name={displayName}
+            userId={recipientId}
+            avatarUrl={avatarUrl}
+          />
+          <ProposalReadiness
+            skill={displaySkill}
+            teacher={direct ? undefined : teacher}
+            duplicate={duplicate}
+            checking={checking}
+            error={preflightError}
+            retry={retry}
+          />
+          {!commandUncertain && <ConnectionFeedback error={commandError} />}
+        </>
+      }
+      oneWayLabel={direct ? "Tôi muốn học từ bạn" : "Tôi muốn dạy bạn"}
+      key={formKey}
+      pending={pending}
+      locked={commandUncertain}
+      disabled={disabled}
+      onSubmit={onSubmit}
+    />
+  );
+}
+
+function ProposalUnavailable({
+  visible,
+  description,
+  onAction,
+}: Readonly<{ visible: boolean; description: string; onAction: () => void }>) {
+  if (!visible) return null;
+  return (
+    <EmptyState
+      title="Không thể gửi đề xuất"
+      description={description}
+      action="Khám phá"
+      onAction={onAction}
+    />
+  );
+}
+
 export function ApiSendProposalScreen({
   requestId,
   userId,
@@ -129,29 +352,21 @@ export function ApiSendProposalScreen({
       !runtime.isCurrent()
     )
       return;
-    const source = await query.refetch();
-    if (source.error || !source.data || !runtime.isCurrent()) return;
-    if (
-      !direct &&
-      "owner" in source.data &&
-      (source.data.status !== "OPEN" ||
-        source.data.owner.id !== recipientId ||
-        source.data.skill.id !== targetSkillId ||
-        source.data.verifiedTeacherOnly !==
-          publicRequest?.verifiedTeacherOnly ||
-        (source.data.expiresAt &&
-          Date.parse(source.data.expiresAt) <= Date.now()))
-    )
+    const validSource = await refetchValid(
+      () => query.refetch(),
+      runtime.isCurrent,
+      (source) =>
+        sourceMatchesProposal(
+          source,
+          direct,
+          recipientId,
+          targetSkillId,
+          publicRequest?.verifiedTeacherOnly,
+        ),
+    );
+    if (!validSource) return;
+    if (!(await hasNoPendingProposal(pending.refetch, runtime.isCurrent)))
       return;
-    if (
-      direct &&
-      "skill" in source.data &&
-      "status" in source.data.skill &&
-      source.data.skill.status !== "ACTIVE"
-    )
-      return;
-    const duplicate = await pending.refetch();
-    if (duplicate.error || duplicate.data || !runtime.isCurrent()) return;
     if (!direct) {
       const eligibility = await teacher.refetch();
       if (
@@ -161,22 +376,23 @@ export function ApiSendProposalScreen({
       )
         return;
     }
-    const body: ProposalInput = direct
-      ? {
-          ...hints,
-          sourceType: "DIRECT_SEARCH",
-          recipientSharingSkillId: sharingSkillId!,
-        }
-      : {
-          ...hints,
-          sourceType: "LEARNING_REQUEST",
-          learningRequestId: requestId!,
-        };
+    const body = proposalInput(direct, hints, sharingSkillId, requestId);
     const result = await command.run(JSON.stringify(body), (key) =>
       api.create(body, key),
     );
     openResult(result);
   };
+  const showUnavailable =
+    !command.uncertain && (!valid || (!query.isPending && !query.error));
+  const unavailableText = unavailableDescription({
+    self:
+      userId === runtime.userId ||
+      (!!requestQuery.data && !("owner" in requestQuery.data)),
+    expired:
+      !!publicRequest?.expiresAt &&
+      Date.parse(publicRequest.expiresAt) <= Date.now(),
+    closed: !!publicRequest && publicRequest.status !== "OPEN",
+  });
   return (
     <FeaturePage
       title={direct ? "Lời mời trao đổi" : "Gửi đề xuất"}
@@ -193,117 +409,55 @@ export function ApiSendProposalScreen({
           retry={query.refetch}
         />
       )}
-      {command.uncertain && (
-        <Panel title="Kiểm tra lần gửi trước">
-          <FormNotice tone="info">
-            Chưa xác định được đề xuất đã gửi thành công hay chưa. Nội dung được
-            giữ nguyên để kiểm tra lại, tránh tạo đề xuất trùng.
-          </FormNotice>
-          <ConnectionFeedback error={command.originalError} />
-          {command.error !== command.originalError && (
-            <ConnectionFeedback error={command.error} />
-          )}
-          <Button
-            variant="craft"
-            disabled={command.pending || !runtime.isCurrent()}
-            onPress={() => {
-              void command.retry().then(openResult);
-            }}
-          >
-            {command.pending
-              ? "Đang kiểm tra..."
-              : "Kiểm tra lại lần gửi trước"}
-          </Button>
-          <Button
-            variant="secondary"
-            disabled={command.pending}
-            onPress={() =>
-              router.push({ pathname: "/proposals", params: { tab: "sent" } })
-            }
-          >
-            Xem đề xuất đã gửi
-          </Button>
-        </Panel>
-      )}
+      <ProposalRecoveryPanel
+        uncertain={command.uncertain}
+        pending={command.pending}
+        error={command.error}
+        originalError={command.originalError}
+        isCurrent={runtime.isCurrent}
+        retry={command.retry}
+        onOpenSent={() =>
+          router.push({ pathname: "/proposals", params: { tab: "sent" } })
+        }
+        openResult={openResult}
+      />
       {allowed ? (
-        <>
-          <ApiProposalForm
-            framed
-            header={
-              <>
-                <ProposalSendContext
-                  direct={direct}
-                  title={
-                    direct
-                      ? (skillQuery.data?.skill.name ?? "Kỹ năng")
-                      : (publicRequest?.title ?? "Yêu cầu học")
-                  }
-                  skill={
-                    direct
-                      ? (skillQuery.data?.skill.name ?? "Kỹ năng")
-                      : (publicRequest?.skill.name ?? "Kỹ năng")
-                  }
-                  name={
-                    profile.data?.fullName ??
-                    publicRequest?.owner.displayName ??
-                    "Đối tác"
-                  }
-                  userId={recipientId!}
-                  avatarUrl={profile.data?.avatarUrl}
-                />
-                <ProposalReadiness
-                  skill={
-                    direct
-                      ? (skillQuery.data?.skill.name ?? "Kỹ năng")
-                      : (publicRequest?.skill.name ?? "Kỹ năng")
-                  }
-                  teacher={direct ? undefined : teacher.data}
-                  duplicate={pending.data}
-                  checking={checking}
-                  error={preflightError}
-                  retry={() => {
-                    void pending.refetch();
-                    if (!direct) void teacher.refetch();
-                  }}
-                />
-                {!command.uncertain && (
-                  <ConnectionFeedback error={command.error} />
-                )}
-              </>
-            }
-            oneWayLabel={direct ? "Tôi muốn học từ bạn" : "Tôi muốn dạy bạn"}
-            key={requestId ?? sharingSkillId}
-            pending={command.pending}
-            locked={command.uncertain}
-            disabled={
-              !canCompose ||
-              !!query.error ||
-              query.isFetching ||
-              !runtime.isCurrent()
-            }
-            onSubmit={submit}
-          />
-        </>
+        <ProposalFormSection
+          direct={direct}
+          skillName={skillQuery.data?.skill.name}
+          requestTitle={publicRequest?.title}
+          requestSkill={publicRequest?.skill.name}
+          recipientName={
+            profile.data?.fullName ?? publicRequest?.owner.displayName
+          }
+          recipientId={recipientId!}
+          avatarUrl={profile.data?.avatarUrl}
+          teacher={teacher.data}
+          duplicate={pending.data}
+          checking={checking}
+          preflightError={preflightError}
+          retry={() => {
+            void pending.refetch();
+            if (!direct) void teacher.refetch();
+          }}
+          commandUncertain={command.uncertain}
+          commandError={command.error}
+          pending={command.pending}
+          disabled={
+            !canCompose ||
+            !!query.error ||
+            query.isFetching ||
+            !runtime.isCurrent()
+          }
+          formKey={requestId ?? sharingSkillId}
+          onSubmit={submit}
+        />
       ) : (
-        !command.uncertain &&
-        (!valid || (!query.isPending && !query.error)) && (
-          <EmptyState
-            title="Không thể gửi đề xuất"
-            description={
-              userId === runtime.userId ||
-              (requestQuery.data && !("owner" in requestQuery.data))
-                ? "Bạn không thể gửi đề xuất cho chính mình."
-                : publicRequest?.expiresAt &&
-                    Date.parse(publicRequest.expiresAt) <= Date.now()
-                  ? "Yêu cầu học đã hết hạn, hiện không nhận thêm đề xuất."
-                  : publicRequest && publicRequest.status !== "OPEN"
-                    ? "Yêu cầu học hiện không nhận thêm đề xuất."
-                    : "Chọn yêu cầu đang mở hoặc kỹ năng công khai còn hoạt động của một người khác."
-            }
-            action="Khám phá"
-            onAction={() => router.dismissTo("/discover")}
-          />
-        )
+        <ProposalUnavailable
+          visible={showUnavailable}
+          description={unavailableText}
+          onAction={() => router.dismissTo("/discover")}
+        />
       )}
     </FeaturePage>
   );

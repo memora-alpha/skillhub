@@ -160,21 +160,15 @@ function ScheduleDirection({
     !!plan &&
     scheduleIsComplete(plan);
   const mine = !!schedule && !!ownConfirmation(path, schedule, userId);
-  const label = !plan
-    ? "Chờ lộ trình"
-    : !schedule
-      ? teaching
-        ? "Bạn cần xếp lịch"
-        : "Chờ đối tác gửi lịch"
-      : schedule.status === "LOCKED"
-        ? "Đã chốt"
-        : !ready
-          ? scheduleStatusLabel[schedule.status]
-          : confirmed
-            ? "Đã xác nhận"
-            : mine
-              ? "Chờ đối tác"
-              : "Bạn cần xác nhận";
+  const label = scheduleDirectionLabel({
+    hasPlan: !!plan,
+    hasSchedule: !!schedule,
+    teaching,
+    status: schedule?.status,
+    ready,
+    confirmed,
+    mine,
+  });
   const done =
     !!schedule && (schedule.status === "LOCKED" || (ready && confirmed));
   return (
@@ -203,6 +197,25 @@ function ScheduleDirection({
       </View>
     </View>
   );
+}
+
+function scheduleDirectionLabel(input: {
+  hasPlan: boolean;
+  hasSchedule: boolean;
+  teaching: boolean;
+  status?: NonNullable<ApiLearningPlan["schedule"]>["status"];
+  ready: boolean;
+  confirmed: boolean;
+  mine: boolean;
+}) {
+  if (!input.hasPlan) return "Chờ lộ trình";
+  if (!input.hasSchedule)
+    return input.teaching ? "Bạn cần xếp lịch" : "Chờ đối tác gửi lịch";
+  if (input.status === "LOCKED") return "Đã chốt";
+  if (!input.ready && input.status) return scheduleStatusLabel[input.status];
+  if (input.confirmed) return "Đã xác nhận";
+  if (input.mine) return "Chờ đối tác";
+  return "Bạn cần xác nhận";
 }
 const styles = StyleSheet.create({
   heading: {

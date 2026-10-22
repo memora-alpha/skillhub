@@ -24,19 +24,13 @@ export function ProposalReadiness({
   retry: () => unknown;
 }>) {
   const router = useRouter();
-  const message = checking
-    ? "Đang kiểm tra điều kiện gửi đề xuất…"
-    : error
-      ? "Chưa kiểm tra được điều kiện. Nội dung bạn nhập vẫn được giữ."
-      : duplicate
-        ? "Bạn đã có đề xuất đang chờ cho kết nối này."
-        : teacher?.state === "missing"
-          ? `Bạn cần thêm kỹ năng ${skill} vào hồ sơ trước khi gửi.`
-          : teacher?.state === "unverified"
-            ? `Bài này chỉ nhận người dạy có kỹ năng ${skill} đã xác minh. Kỹ năng của bạn chưa đạt điều kiện này.`
-            : teacher
-              ? `Bạn đã có kỹ năng ${skill} phù hợp để phản hồi bài này.`
-              : "Bạn đang mời người có kỹ năng này trao đổi. Chưa cần kỹ năng đối ứng khi gửi lời mời.";
+  const message = readinessMessage({
+    checking,
+    error: !!error,
+    duplicate: !!duplicate,
+    teacher,
+    skill,
+  });
   const ready =
     !checking &&
     !error &&
@@ -105,4 +99,24 @@ export function ProposalReadiness({
         )}
     </View>
   );
+}
+
+function readinessMessage(input: {
+  checking: boolean;
+  error: boolean;
+  duplicate: boolean;
+  teacher?: { state: "eligible" | "missing" | "unverified" };
+  skill: string;
+}) {
+  if (input.checking) return "Đang kiểm tra điều kiện gửi đề xuất…";
+  if (input.error)
+    return "Chưa kiểm tra được điều kiện. Nội dung bạn nhập vẫn được giữ.";
+  if (input.duplicate) return "Bạn đã có đề xuất đang chờ cho kết nối này.";
+  if (input.teacher?.state === "missing")
+    return `Bạn cần thêm kỹ năng ${input.skill} vào hồ sơ trước khi gửi.`;
+  if (input.teacher?.state === "unverified")
+    return `Bài này chỉ nhận người dạy có kỹ năng ${input.skill} đã xác minh. Kỹ năng của bạn chưa đạt điều kiện này.`;
+  if (input.teacher)
+    return `Bạn đã có kỹ năng ${input.skill} phù hợp để phản hồi bài này.`;
+  return "Bạn đang mời người có kỹ năng này trao đổi. Chưa cần kỹ năng đối ứng khi gửi lời mời.";
 }

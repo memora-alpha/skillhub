@@ -11,6 +11,12 @@ export type AgreementStep = "method" | "plans" | "schedules";
 const steps: AgreementStep[] = ["method", "plans", "schedules"];
 const labels = ["Cách học", "Lộ trình", "Lịch học"];
 
+function stepDescription(index: number, currentIndex: number) {
+  if (index < currentIndex) return "Đã thống nhất";
+  if (index === currentIndex) return "Đang thống nhất";
+  return "Chưa bắt đầu";
+}
+
 export function AgreementSteps({
   value,
   current,
@@ -79,11 +85,7 @@ export function AgreementSteps({
               {labels[index]}
             </Text>
             <Text style={[styles.caption, selected && styles.active]}>
-              {index < currentIndex
-                ? "Đã thống nhất"
-                : index === currentIndex
-                  ? "Đang thống nhất"
-                  : "Chưa bắt đầu"}
+              {stepDescription(index, currentIndex)}
             </Text>
           </Pressable>
         );

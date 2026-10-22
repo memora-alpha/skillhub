@@ -10,12 +10,12 @@ export function ScheduleSlotRow({
   title: string;
   status?: string;
 }>) {
+  const titleSuffix = title.trim() ? ` · ${title.trim()}` : "";
+  const slotTitle = `Buổi ${slot.sessionNo}${titleSuffix}`;
   if (!slot.startAt || !slot.endAt)
     return (
       <View style={styles.slot}>
-        <Text style={styles.slotTitle}>
-          {`Buổi ${slot.sessionNo}${title.trim() ? ` · ${title.trim()}` : ""}`}
-        </Text>
+        <Text style={styles.slotTitle}>{slotTitle}</Text>
         <Text style={styles.secondary}>
           Chưa có ngày giờ · Cần bổ sung lịch
         </Text>
@@ -36,9 +36,7 @@ export function ScheduleSlotRow({
         });
   return (
     <View style={styles.slot}>
-      <Text style={styles.slotTitle}>
-        {`Buổi ${slot.sessionNo}${title.trim() ? ` · ${title.trim()}` : ""}`}
-      </Text>
+      <Text style={styles.slotTitle}>{slotTitle}</Text>
       <View style={styles.slotDetails}>
         <View style={styles.dateTile}>
           <Text style={styles.sessionNumber}>

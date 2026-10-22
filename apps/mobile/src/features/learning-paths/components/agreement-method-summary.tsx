@@ -30,6 +30,13 @@ export function AgreementMethodSummary({
 }>) {
   const twoWay = path.agreement.exchangeType === "TWO_WAY";
   const count = Number(mine) + Number(other);
+  const assignment =
+    path.agreement.teacherId === userId
+      ? "Bạn dạy · Đối tác học"
+      : "Đối tác dạy · Bạn học";
+  const assignmentDescription = twoWay
+    ? "Mỗi người tạo lộ trình mình dạy, xác nhận lộ trình mình học trước khi xếp lịch."
+    : `${assignment}. Người dạy tạo lộ trình, người học xác nhận trước khi xếp lịch.`;
   return (
     <>
       <View style={styles.heading}>
@@ -49,11 +56,7 @@ export function AgreementMethodSummary({
         </View>
         <View style={styles.grow}>
           <Text style={styles.ruleTitle}>Phân công lộ trình</Text>
-          <Text style={styles.small}>
-            {twoWay
-              ? "Mỗi người tạo lộ trình mình dạy, xác nhận lộ trình mình học trước khi xếp lịch."
-              : `${path.agreement.teacherId === userId ? "Bạn dạy · Đối tác học" : "Đối tác dạy · Bạn học"}. Người dạy tạo lộ trình, người học xác nhận trước khi xếp lịch.`}
-          </Text>
+          <Text style={styles.small}>{assignmentDescription}</Text>
         </View>
       </View>
       <View style={styles.credit}>

@@ -13,9 +13,9 @@ export function Icon({
   color?: string;
   filled?: boolean;
 }) {
-  const Symbol = iconComponents[name];
+  const IconComponent = iconComponents[name];
   return (
-    <Symbol
+    <IconComponent
       size={size}
       color={color}
       strokeWidth={iconStrokeWidth}

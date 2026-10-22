@@ -41,6 +41,7 @@ export function FeaturePage({
   refreshing?: boolean;
   onRefresh?: () => void;
 }) {
+  const scrollStyle = stickyFooter ? ui.scrollWithFooter : undefined;
   const content = (
     <>
       {demo && <Text style={ui.demo}>BẢN XEM THỬ · DỮ LIỆU MẪU</Text>}
@@ -50,7 +51,7 @@ export function FeaturePage({
   );
   const page = scrollable ? (
     <KeyboardFormScrollView
-      style={stickyFooter ? ui.scrollWithFooter : undefined}
+      style={scrollStyle}
       contentContainerStyle={[ui.page, compact && ui.compactPage]}
       bounces={!compact || !!onRefresh}
       {...(onRefresh
@@ -70,11 +71,15 @@ export function FeaturePage({
       {content}
     </KeyboardFormScrollView>
   ) : (
-    <View
-      style={[ui.fixedPage, stickyFooter ? ui.scrollWithFooter : undefined]}
-    >
-      {content}
+    <View style={[ui.fixedPage, scrollStyle]}>{content}</View>
+  );
+  const pageContent = stickyFooter ? (
+    <View style={ui.pageWithFooter}>
+      {page}
+      {stickyFooter}
     </View>
+  ) : (
+    page
   );
   return (
     <AppScreenLayout
@@ -82,16 +87,7 @@ export function FeaturePage({
       selected={section}
       back={{ href: back, label: "Quay lại", behavior: backBehavior }}
     >
-      {() =>
-        stickyFooter ? (
-          <View style={ui.pageWithFooter}>
-            {page}
-            {stickyFooter}
-          </View>
-        ) : (
-          page
-        )
-      }
+      {() => pageContent}
     </AppScreenLayout>
   );
 }

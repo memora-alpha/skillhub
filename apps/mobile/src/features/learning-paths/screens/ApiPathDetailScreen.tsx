@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { StyleSheet, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { uuid } from "@/lib/http/contracts";
@@ -47,6 +47,27 @@ import { AgreementPlansStep } from "../components/agreement-plans-step";
 import { PlanDetailContent } from "../components/plan-detail-content";
 import { usePullRefresh } from "../hooks/use-pull-refresh";
 
+function agreementBackTarget(
+  source: ReturnType<typeof uuid.safeParse>,
+  conversationId?: string,
+) {
+  const id = source.success ? source.data : conversationId;
+  if (id)
+    return {
+      pathname: "/chat/[proposalId]" as const,
+      params: { proposalId: id, mode: "api" as const },
+    };
+  return "/my-learning?tab=paths" as const;
+}
+
+function agreementStepFor(
+  stage: ReturnType<typeof agreementProgress>["stage"],
+): AgreementStep {
+  if (stage === "terms") return "method";
+  if (stage === "plans") return "plans";
+  return "schedules";
+}
+
 export function ApiPathDetailScreen() {
   const { id, fromConversation, formVersion } = useLocalSearchParams<{
     id: string;
@@ -60,19 +81,7 @@ export function ApiPathDetailScreen() {
     <FeaturePage
       title="Thỏa thuận học"
       backBehavior="history"
-      back={
-        source.success || query.data
-          ? {
-              pathname: "/chat/[proposalId]",
-              params: {
-                proposalId: source.success
-                  ? source.data
-                  : query.data!.conversationId,
-                mode: "api",
-              },
-            }
-          : "/my-learning?tab=paths"
-      }
+      back={agreementBackTarget(source, query.data?.conversationId)}
       refreshing={pullRefresh.refreshing}
       onRefresh={pullRefresh.onRefresh}
     >
@@ -122,12 +131,7 @@ function PathContent({
   const runtime = useConnections();
   const { editTerms } = useLocalSearchParams<{ editTerms?: string }>();
   const progress = agreementProgress(path, runtime.userId);
-  const current: AgreementStep =
-    progress.stage === "terms"
-      ? "method"
-      : progress.stage === "plans"
-        ? "plans"
-        : "schedules";
+  const current = agreementStepFor(progress.stage);
   const [reviewing, setReviewing] = useState<AgreementStep | undefined>(
     editTerms === "1" ? "method" : undefined,
   );
@@ -219,62 +223,70 @@ export function ApiPlanActions({
   const termsNeedConfirmation = editablePath(path) && !agreementConfirmed(path);
   const canContinue =
     plan.learnerConfirmedAt && plan.learnerId === runtime.userId;
-  const footerAction = canConfirm ? (
-    <Button
-      disabled={blocked || command.pending || command.uncertain}
-      leadingIcon="check-circle"
-      style={actionStyles.primary}
-      onPress={() => {
-        void command.run(
-          `plan:${plan.id}:${plan.version}`,
-          confirmAndShare(
-            () => api.confirmPlan(plan.id, plan.version),
-            (result, identity) => {
-              void share.publish(
-                path.conversationId,
-                confirmedFormMessage({
-                  kind: "plan",
-                  pathId: path.id,
-                  planId: plan.id,
-                  version: result.version,
-                  title: plan.learningGoal,
-                  summary: `${plan.totalSessions} buổi · Người học xác nhận lộ trình`,
-                }),
-                identity,
-              );
-            },
-            runtime.isCurrent,
-          ),
-        );
-      }}
-    >
-      Đồng ý lộ trình này
-    </Button>
-  ) : canContinue ? (
-    <Button
-      leadingIcon="arrow"
-      style={actionStyles.primary}
-      onPress={() => router.dismissTo(`/paths/${path.id}`)}
-    >
-      Tiếp tục thỏa thuận lịch học
-    </Button>
-  ) : canEdit ? (
-    <Button
-      leadingIcon="edit"
-      style={actionStyles.primary}
-      onPress={() => router.push(`/paths/${path.id}/plans/${plan.id}/edit`)}
-    >
-      Chỉnh sửa lộ trình
-    </Button>
-  ) : termsNeedConfirmation ? (
-    <Button
-      leadingIcon="arrow"
-      style={actionStyles.primary}
-      onPress={() => router.dismissTo(`/paths/${path.id}`)}
-    >
-      Xem cách học cần xác nhận
-    </Button>
-  ) : null;
+  let footerAction: ReactNode = null;
+  if (termsNeedConfirmation)
+    footerAction = (
+      <Button
+        leadingIcon="arrow"
+        style={actionStyles.primary}
+        onPress={() => router.dismissTo(`/paths/${path.id}`)}
+      >
+        Xem cách học cần xác nhận
+      </Button>
+    );
+  if (canEdit)
+    footerAction = (
+      <Button
+        leadingIcon="edit"
+        style={actionStyles.primary}
+        onPress={() => router.push(`/paths/${path.id}/plans/${plan.id}/edit`)}
+      >
+        Chỉnh sửa lộ trình
+      </Button>
+    );
+  if (canContinue)
+    footerAction = (
+      <Button
+        leadingIcon="arrow"
+        style={actionStyles.primary}
+        onPress={() => router.dismissTo(`/paths/${path.id}`)}
+      >
+        Tiếp tục thỏa thuận lịch học
+      </Button>
+    );
+  if (canConfirm)
+    footerAction = (
+      <Button
+        disabled={blocked || command.pending || command.uncertain}
+        leadingIcon="check-circle"
+        style={actionStyles.primary}
+        onPress={() => {
+          void command.run(
+            `plan:${plan.id}:${plan.version}`,
+            confirmAndShare(
+              () => api.confirmPlan(plan.id, plan.version),
+              (result, identity) => {
+                void share.publish(
+                  path.conversationId,
+                  confirmedFormMessage({
+                    kind: "plan",
+                    pathId: path.id,
+                    planId: plan.id,
+                    version: result.version,
+                    title: plan.learningGoal,
+                    summary: `${plan.totalSessions} buổi · Người học xác nhận lộ trình`,
+                  }),
+                  identity,
+                );
+              },
+              runtime.isCurrent,
+            ),
+          );
+        }}
+      >
+        Đồng ý lộ trình này
+      </Button>
+    );
 
   return (
     <View style={actionStyles.footer}>

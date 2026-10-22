@@ -112,21 +112,9 @@ function PlanDirectionCard({
   canEdit: boolean;
   blocked: boolean;
 }>) {
-  const router = useRouter();
-  const skill = useCatalogName(plan?.skillId);
   const confirmed = !!plan?.learnerConfirmedAt;
   const needsAction = canCreate || (!!plan && !mine && !confirmed);
-  const status = plan
-    ? confirmed
-      ? "Đã xác nhận"
-      : mine
-        ? "Chờ người học"
-        : "Bạn cần xác nhận"
-    : mine && canCreate
-      ? "Phần việc của bạn"
-      : mine
-        ? "Chưa có lộ trình"
-        : "Chờ đối tác tạo";
+  const status = planDirectionLabel(plan, mine, canCreate, confirmed);
   return (
     <View style={styles.card}>
       <View style={styles.heading}>
@@ -156,80 +144,145 @@ function PlanDirectionCard({
         </View>
       </View>
       {plan ? (
-        <>
-          <Text numberOfLines={3} style={styles.goal}>
-            {plan.learningGoal}
-          </Text>
-          <View style={styles.metadata}>
-            <Text style={[styles.skill, !mine && styles.learningSkill]}>
-              {skill.data ?? "Lộ trình học"}
-            </Text>
-            <View style={styles.sessionCount}>
-              <Icon name="calendar" size={12} color={colors.muted} />
-              <Text style={styles.secondary}>{plan.totalSessions} buổi</Text>
-            </View>
-            <Text style={styles.secondary}>· Bản {plan.version}</Text>
-          </View>
-          {confirmed && (
-            <View style={styles.confirmation}>
-              <Icon name="check-circle" size={14} color={colors.forest} />
-              <Text style={styles.confirmationText}>
-                Người học đã xác nhận lộ trình này
-              </Text>
-            </View>
-          )}
-          <View style={styles.actions}>
-            <Button
-              size="sm"
-              variant={!mine && !confirmed ? "craft" : "secondary"}
-              style={styles.action}
-              onPress={() => router.push(`/paths/${path.id}/plans/${plan.id}`)}
-            >
-              {!mine && !confirmed
-                ? "Xem và xác nhận lộ trình"
-                : "Xem chi tiết"}
-            </Button>
-            {canEdit && (
-              <Button
-                size="sm"
-                variant="paper"
-                leadingIcon="edit"
-                disabled={blocked}
-                style={styles.action}
-                onPress={() => {
-                  if (!blocked)
-                    router.push(`/paths/${path.id}/plans/${plan.id}/edit`);
-                }}
-              >
-                Chỉnh sửa
-              </Button>
-            )}
-          </View>
-        </>
+        <ExistingPlanContent
+          path={path}
+          plan={plan}
+          mine={mine}
+          confirmed={confirmed}
+          canEdit={canEdit}
+          blocked={blocked}
+        />
       ) : (
-        <>
-          <Text style={styles.goal}>
-            {mine ? "Thiết kế lộ trình bạn dạy" : "Chờ đối tác lên lộ trình"}
-          </Text>
-          <Text style={styles.secondary}>
-            {mine
-              ? "Thêm mục tiêu và nội dung cho từng buổi học."
-              : `${partnerName} sẽ chuẩn bị nội dung cho chiều bạn học.`}
-          </Text>
-          {canCreate && (
-            <Button
-              size="sm"
-              disabled={blocked}
-              onPress={() => {
-                if (!blocked) router.push(`/paths/${path.id}/plans/new`);
-              }}
-            >
-              Tạo lộ trình bạn dạy
-            </Button>
-          )}
-        </>
+        <MissingPlanContent
+          path={path}
+          mine={mine}
+          partnerName={partnerName}
+          canCreate={canCreate}
+          blocked={blocked}
+        />
       )}
     </View>
+  );
+}
+
+function planDirectionLabel(
+  plan: ApiLearningPlan | undefined,
+  mine: boolean,
+  canCreate: boolean,
+  confirmed: boolean,
+) {
+  if (plan && confirmed) return "Đã xác nhận";
+  if (plan && mine) return "Chờ người học";
+  if (plan) return "Bạn cần xác nhận";
+  if (mine && canCreate) return "Phần việc của bạn";
+  if (mine) return "Chưa có lộ trình";
+  return "Chờ đối tác tạo";
+}
+
+function ExistingPlanContent({
+  path,
+  plan,
+  mine,
+  confirmed,
+  canEdit,
+  blocked,
+}: Readonly<{
+  path: ApiLearningPath;
+  plan: ApiLearningPlan;
+  mine: boolean;
+  confirmed: boolean;
+  canEdit: boolean;
+  blocked: boolean;
+}>) {
+  const router = useRouter();
+  const skill = useCatalogName(plan.skillId);
+  const needsLearnerAction = !mine && !confirmed;
+  return (
+    <>
+      <Text numberOfLines={3} style={styles.goal}>
+        {plan.learningGoal}
+      </Text>
+      <View style={styles.metadata}>
+        <Text style={[styles.skill, !mine && styles.learningSkill]}>
+          {skill.data ?? "Lộ trình học"}
+        </Text>
+        <View style={styles.sessionCount}>
+          <Icon name="calendar" size={12} color={colors.muted} />
+          <Text style={styles.secondary}>{plan.totalSessions} buổi</Text>
+        </View>
+        <Text style={styles.secondary}>· Bản {plan.version}</Text>
+      </View>
+      {confirmed && (
+        <View style={styles.confirmation}>
+          <Icon name="check-circle" size={14} color={colors.forest} />
+          <Text style={styles.confirmationText}>
+            Người học đã xác nhận lộ trình này
+          </Text>
+        </View>
+      )}
+      <View style={styles.actions}>
+        <Button
+          size="sm"
+          variant={needsLearnerAction ? "craft" : "secondary"}
+          style={styles.action}
+          onPress={() => router.push(`/paths/${path.id}/plans/${plan.id}`)}
+        >
+          {needsLearnerAction ? "Xem và xác nhận lộ trình" : "Xem chi tiết"}
+        </Button>
+        {canEdit && (
+          <Button
+            size="sm"
+            variant="paper"
+            leadingIcon="edit"
+            disabled={blocked}
+            style={styles.action}
+            onPress={() => {
+              if (!blocked)
+                router.push(`/paths/${path.id}/plans/${plan.id}/edit`);
+            }}
+          >
+            Chỉnh sửa
+          </Button>
+        )}
+      </View>
+    </>
+  );
+}
+
+function MissingPlanContent({
+  path,
+  mine,
+  partnerName,
+  canCreate,
+  blocked,
+}: Readonly<{
+  path: ApiLearningPath;
+  mine: boolean;
+  partnerName: string;
+  canCreate: boolean;
+  blocked: boolean;
+}>) {
+  const router = useRouter();
+  const title = mine ? "Thiết kế lộ trình bạn dạy" : "Chờ đối tác lên lộ trình";
+  const description = mine
+    ? "Thêm mục tiêu và nội dung cho từng buổi học."
+    : `${partnerName} sẽ chuẩn bị nội dung cho chiều bạn học.`;
+  return (
+    <>
+      <Text style={styles.goal}>{title}</Text>
+      <Text style={styles.secondary}>{description}</Text>
+      {canCreate && (
+        <Button
+          size="sm"
+          disabled={blocked}
+          onPress={() => {
+            if (!blocked) router.push(`/paths/${path.id}/plans/new`);
+          }}
+        >
+          Tạo lộ trình bạn dạy
+        </Button>
+      )}
+    </>
   );
 }
 const styles = StyleSheet.create({

@@ -1,6 +1,11 @@
 import { PathReadFeedback } from "../components/PathReadFeedback";
 import { useCallback, useState } from "react";
-import { useLocalSearchParams, useRouter, useFocusEffect } from "expo-router";
+import {
+  useLocalSearchParams,
+  useRouter,
+  useFocusEffect,
+  type Href,
+} from "expo-router";
 
 import { Copy } from "@/components/feature-page";
 import { FlowPage as FeaturePage } from "@/components/learning-flow";
@@ -30,6 +35,30 @@ import { ConfirmedFormFeedback } from "@/features/messages/state";
 import { PlanForm } from "../components/plan-editor-form";
 import { PlanShareCard } from "../components/plan-detail-content";
 import { usePullRefresh } from "../hooks/use-pull-refresh";
+
+function conversationForPlan(
+  source: ReturnType<typeof uuid.safeParse>,
+  sharedVersion: string | undefined,
+  conversationId: string | undefined,
+) {
+  if (source.success) return source.data;
+  if (sharedVersion) return conversationId;
+  return undefined;
+}
+
+function planBackTarget(
+  conversationId: string | undefined,
+  sharedVersion: string | undefined,
+  pathId: string,
+): Href {
+  if (conversationId)
+    return {
+      pathname: "/chat/[proposalId]",
+      params: { proposalId: conversationId, mode: "api" },
+    };
+  if (sharedVersion) return "/messages";
+  return `/paths/${pathId}`;
+}
 export function ApiPlanDetailScreen() {
   const {
     id,
@@ -48,11 +77,11 @@ export function ApiPlanDetailScreen() {
   const query = useLearningPath(id),
     plan = query.data?.plans.find((p) => p.id === planId);
   const source = uuid.safeParse(fromConversation);
-  const conversationId = source.success
-    ? source.data
-    : sharedVersion
-      ? query.data?.conversationId
-      : undefined;
+  const conversationId = conversationForPlan(
+    source,
+    sharedVersion,
+    query.data?.conversationId,
+  );
   const matchesSource =
     !source.success || query.data?.conversationId === source.data;
   const pullRefresh = usePullRefresh(query.refetch);
@@ -70,16 +99,7 @@ export function ApiPlanDetailScreen() {
         ) : undefined
       }
       backBehavior="history"
-      back={
-        conversationId
-          ? {
-              pathname: "/chat/[proposalId]",
-              params: { proposalId: conversationId, mode: "api" },
-            }
-          : sharedVersion
-            ? "/messages"
-            : `/paths/${id}`
-      }
+      back={planBackTarget(conversationId, sharedVersion, id)}
       refreshing={pullRefresh.refreshing}
       onRefresh={pullRefresh.onRefresh}
     >

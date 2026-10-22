@@ -72,22 +72,13 @@ export function RequestPublicFooter({
   const disabled =
     !existing &&
     (proposals.isPending || proposals.isFetching || !!proposals.error || !open);
-  const label = existing
-    ? "Xem đề xuất"
-    : !open
-      ? "Không nhận đề xuất"
-      : proposal
-        ? "Gửi lại đề xuất"
-        : "Gửi đề xuất";
-  const description = proposal
-    ? sentRequestProposalLabels[proposal.status]
-    : proposals.isPending
-      ? "Đang kiểm tra đề xuất đã gửi…"
-      : proposals.error
-        ? "Chưa kiểm tra được đề xuất đã gửi."
-        : !open
-          ? "Yêu cầu hiện không nhận thêm đề xuất."
-          : "Gửi đề xuất để trao đổi về cách học và lịch phù hợp.";
+  const { label, description } = requestFooterText({
+    existing,
+    open,
+    proposalStatus: proposal?.status,
+    pending: proposals.isPending,
+    hasError: !!proposals.error,
+  });
   return (
     <View style={styles.footer}>
       <View style={styles.footerContent}>
@@ -140,4 +131,26 @@ export function RequestPublicFooter({
       </View>
     </View>
   );
+}
+
+function requestFooterText(input: {
+  existing: boolean;
+  open: boolean;
+  proposalStatus?: keyof typeof sentRequestProposalLabels;
+  pending: boolean;
+  hasError: boolean;
+}) {
+  let label = "Gửi đề xuất";
+  if (input.existing) label = "Xem đề xuất";
+  else if (!input.open) label = "Không nhận đề xuất";
+  else if (input.proposalStatus) label = "Gửi lại đề xuất";
+
+  let description = "Gửi đề xuất để trao đổi về cách học và lịch phù hợp.";
+  if (input.proposalStatus)
+    description = sentRequestProposalLabels[input.proposalStatus];
+  else if (input.pending) description = "Đang kiểm tra đề xuất đã gửi…";
+  else if (input.hasError) description = "Chưa kiểm tra được đề xuất đã gửi.";
+  else if (!input.open) description = "Yêu cầu hiện không nhận thêm đề xuất.";
+
+  return { label, description };
 }

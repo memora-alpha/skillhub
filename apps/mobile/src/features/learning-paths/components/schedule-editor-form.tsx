@@ -33,6 +33,16 @@ import { PlanEditorFrame } from "./plan-editor-fields";
 import { ScheduleWeeklyGenerator } from "./schedule-weekly-generator";
 import { ScheduleSessionEditor } from "./schedule-session-editor";
 
+function scheduleButtonLabel(
+  pending: boolean,
+  hasSchedule: boolean,
+  count: number,
+) {
+  if (pending) return "Đang gửi…";
+  const action = hasSchedule ? "Lưu thay đổi lịch" : "Gửi đề xuất lịch";
+  return `${action} (${count} buổi)`;
+}
+
 export function ScheduleForm({
   path,
   plan,
@@ -86,9 +96,7 @@ export function ScheduleForm({
         )();
       }}
     >
-      {command.pending
-        ? "Đang gửi…"
-        : `${schedule ? "Lưu thay đổi lịch" : "Gửi đề xuất lịch"} (${plan.totalSessions} buổi)`}
+      {scheduleButtonLabel(command.pending, !!schedule, plan.totalSessions)}
     </Button>
   );
   return (

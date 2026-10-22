@@ -22,6 +22,12 @@ import {
 } from "@/constants/theme";
 import type { PlanEditorValues } from "../schemas/plan-editor-input";
 
+function activeIndexAfterRemove(active: number | null, removed: number) {
+  if (active === removed) return null;
+  if (active !== null && active > removed) return active - 1;
+  return active;
+}
+
 export function PlanOutlineEditor({
   control,
   disabled,
@@ -85,13 +91,7 @@ export function PlanOutlineEditor({
               disabled={disabled}
               onPress={() => {
                 remove(index);
-                setActive(
-                  active === index
-                    ? null
-                    : active !== null && active > index
-                      ? active - 1
-                      : active,
-                );
+                setActive(activeIndexAfterRemove(active, index));
               }}
               style={styles.icon}
             >

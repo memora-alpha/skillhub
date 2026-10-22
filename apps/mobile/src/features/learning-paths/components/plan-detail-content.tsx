@@ -9,6 +9,127 @@ import { sessionContentParts } from "../utils/session-content";
 import { planDetailStyles } from "./plan-detail-styles";
 import { ScheduleTimelineItem } from "./schedule-timeline-item";
 
+function PlanTimeline({ plan }: Readonly<{ plan: ApiLearningPlan }>) {
+  return (
+    <>
+      <View style={planDetailStyles.timelineHeading}>
+        <View style={planDetailStyles.timelineTitleWrap}>
+          <View style={planDetailStyles.headingDot} />
+          <Text
+            accessibilityRole="header"
+            style={planDetailStyles.timelineTitle}
+          >
+            Lộ trình học
+          </Text>
+        </View>
+        <Text style={planDetailStyles.stopCount}>
+          {plan.sessionOutline.length} buổi học
+        </Text>
+      </View>
+      <View style={planDetailStyles.timelineList}>
+        {plan.sessionOutline.map((session, index) => (
+          <PlanTimelineRow
+            key={session.sessionNo}
+            plan={plan}
+            session={session}
+            last={index === plan.sessionOutline.length - 1}
+          />
+        ))}
+      </View>
+    </>
+  );
+}
+
+function PlanTimelineRow({
+  plan,
+  session,
+  last,
+}: Readonly<{
+  plan: ApiLearningPlan;
+  session: ApiLearningPlan["sessionOutline"][number];
+  last: boolean;
+}>) {
+  const { title, description } = sessionContentParts(session.content);
+  const scheduled =
+    plan.schedule?.items.find((item) => item.sessionNo === session.sessionNo) ??
+    plan.sessions.find((item) => item.sessionNo === session.sessionNo);
+  const duration = scheduled
+    ? Math.round(
+        (Date.parse(scheduled.endAt) - Date.parse(scheduled.startAt)) / 60000,
+      )
+    : 0;
+  const actualSession = plan.sessions.find(
+    (item) => item.sessionNo === session.sessionNo,
+  );
+  const isOngoing = actualSession?.status === "ONGOING";
+  const label = isOngoing
+    ? `ĐANG HỌC · BUỔI ${session.sessionNo}`
+    : `BUỔI ${session.sessionNo}`;
+  return (
+    <ScheduleTimelineItem last={last}>
+      <View
+        style={[
+          planDetailStyles.stopCard,
+          isOngoing && planDetailStyles.stopCardActive,
+        ]}
+      >
+        <View style={planDetailStyles.stopTopline}>
+          <Text
+            style={[
+              planDetailStyles.stopLabel,
+              isOngoing && planDetailStyles.stopLabelActive,
+            ]}
+          >
+            {label}
+          </Text>
+          {duration > 0 && Number.isFinite(duration) && (
+            <View style={planDetailStyles.duration}>
+              <Icon name="clock" size={12} color={colors.muted} />
+              <Text style={planDetailStyles.durationText}>{duration} phút</Text>
+            </View>
+          )}
+        </View>
+        <Text selectable style={planDetailStyles.sessionTitle}>
+          {title}
+        </Text>
+        {!!description && (
+          <Text selectable style={planDetailStyles.sessionDescription}>
+            {description}
+          </Text>
+        )}
+        {actualSession && (
+          <View style={planDetailStyles.sessionState}>
+            <Text
+              style={[
+                planDetailStyles.sessionStateText,
+                actualSession.status === "COMPLETED" &&
+                  planDetailStyles.sessionStateComplete,
+                isOngoing && planDetailStyles.sessionStateActive,
+              ]}
+            >
+              {learningSessionLabel[actualSession.status]}
+            </Text>
+          </View>
+        )}
+      </View>
+    </ScheduleTimelineItem>
+  );
+}
+
+function planConfirmationMessage(plan: ApiLearningPlan, mine: boolean) {
+  if (plan.learnerConfirmedAt) return "Người học đã xác nhận phiên bản này.";
+  if (plan.status === "DRAFT")
+    return mine
+      ? "Bản nháp chưa được gửi cho người học."
+      : "Lộ trình chưa được gửi để bạn xác nhận.";
+  if (plan.status === "NEEDS_REVISION")
+    return mine
+      ? "Người học đề nghị chỉnh sửa phiên bản này."
+      : "Lộ trình cần được người dạy chỉnh sửa.";
+  if (mine) return "Đã gửi lộ trình, chờ người học xác nhận.";
+  return "Xem nội dung từng buổi trước khi xác nhận.";
+}
+
 export function PlanDetailContent({
   plan,
   skill,
@@ -90,96 +211,7 @@ export function PlanDetailContent({
         </View>
       </FlowSection>
 
-      <View style={planDetailStyles.timelineHeading}>
-        <View style={planDetailStyles.timelineTitleWrap}>
-          <View style={planDetailStyles.headingDot} />
-          <Text
-            accessibilityRole="header"
-            style={planDetailStyles.timelineTitle}
-          >
-            Lộ trình học
-          </Text>
-        </View>
-        <Text style={planDetailStyles.stopCount}>
-          {plan.sessionOutline.length} buổi học
-        </Text>
-      </View>
-      <View style={planDetailStyles.timelineList}>
-        {plan.sessionOutline.map((session, index) => {
-          const { title, description } = sessionContentParts(session.content);
-          const scheduled =
-            plan.schedule?.items.find(
-              (item) => item.sessionNo === session.sessionNo,
-            ) ??
-            plan.sessions.find((item) => item.sessionNo === session.sessionNo);
-          const duration = scheduled
-            ? Math.round(
-                (Date.parse(scheduled.endAt) - Date.parse(scheduled.startAt)) /
-                  60000,
-              )
-            : 0;
-          const actualSession = plan.sessions.find(
-            (item) => item.sessionNo === session.sessionNo,
-          );
-          const isOngoing = actualSession?.status === "ONGOING";
-          return (
-            <ScheduleTimelineItem
-              key={session.sessionNo}
-              last={index === plan.sessionOutline.length - 1}
-            >
-              <View
-                style={[
-                  planDetailStyles.stopCard,
-                  isOngoing && planDetailStyles.stopCardActive,
-                ]}
-              >
-                <View style={planDetailStyles.stopTopline}>
-                  <Text
-                    style={[
-                      planDetailStyles.stopLabel,
-                      isOngoing && planDetailStyles.stopLabelActive,
-                    ]}
-                  >
-                    {isOngoing
-                      ? `ĐANG HỌC · BUỔI ${session.sessionNo}`
-                      : `BUỔI ${session.sessionNo}`}
-                  </Text>
-                  {duration > 0 && Number.isFinite(duration) && (
-                    <View style={planDetailStyles.duration}>
-                      <Icon name="clock" size={12} color={colors.muted} />
-                      <Text style={planDetailStyles.durationText}>
-                        {duration} phút
-                      </Text>
-                    </View>
-                  )}
-                </View>
-                <Text selectable style={planDetailStyles.sessionTitle}>
-                  {title}
-                </Text>
-                {!!description && (
-                  <Text selectable style={planDetailStyles.sessionDescription}>
-                    {description}
-                  </Text>
-                )}
-                {actualSession && (
-                  <View style={planDetailStyles.sessionState}>
-                    <Text
-                      style={[
-                        planDetailStyles.sessionStateText,
-                        actualSession.status === "COMPLETED" &&
-                          planDetailStyles.sessionStateComplete,
-                        isOngoing && planDetailStyles.sessionStateActive,
-                      ]}
-                    >
-                      {learningSessionLabel[actualSession.status]}
-                    </Text>
-                  </View>
-                )}
-              </View>
-            </ScheduleTimelineItem>
-          );
-        })}
-      </View>
+      <PlanTimeline plan={plan} />
 
       <View
         style={[
@@ -205,19 +237,7 @@ export function PlanDetailContent({
             confirmed && planDetailStyles.confirmationTextOk,
           ]}
         >
-          {confirmed
-            ? "Người học đã xác nhận phiên bản này."
-            : plan.status === "DRAFT"
-              ? mine
-                ? "Bản nháp chưa được gửi cho người học."
-                : "Lộ trình chưa được gửi để bạn xác nhận."
-              : plan.status === "NEEDS_REVISION"
-                ? mine
-                  ? "Người học đề nghị chỉnh sửa phiên bản này."
-                  : "Lộ trình cần được người dạy chỉnh sửa."
-                : mine
-                  ? "Đã gửi lộ trình, chờ người học xác nhận."
-                  : "Xem nội dung từng buổi trước khi xác nhận."}
+          {planConfirmationMessage(plan, mine)}
         </Text>
       </View>
     </View>
