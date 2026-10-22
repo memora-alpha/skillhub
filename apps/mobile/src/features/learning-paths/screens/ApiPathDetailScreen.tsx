@@ -163,6 +163,15 @@ function PathContent({
         current={current}
         onSelect={setReviewing}
       />
+      {path.lockedVersion &&
+      path.plans.some((plan) => plan.sessions.length > 0) ? (
+        <Button
+          variant="paper"
+          onPress={() => router.push(`/paths/${path.id}/sessions`)}
+        >
+          Xem tất cả buổi học
+        </Button>
+      ) : null}
       {selected === "method" && (
         <AgreementMethodStep
           path={path}

@@ -1,8 +1,8 @@
+import { RefreshableScrollView as ScrollView } from "@/components/RefreshableScrollView";
 import { useState, type ReactNode } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
   StyleSheet,
   Text,
   View,

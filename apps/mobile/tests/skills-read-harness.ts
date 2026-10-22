@@ -108,19 +108,8 @@ export function sourceModule(relative: string, mocks: Record<string, unknown>) {
   const contexts: MockModuleContext[] = [];
   try {
     for (const [name, namedExports] of replacements) {
-      const { default: defaultExport, ...exports } = namedExports;
       contexts.push(
-        mock.module(pathToFileURL(local.resolve(name)), {
-          namedExports: exports,
-          ...(Object.hasOwn(namedExports, "default")
-            ? {
-                defaultExport:
-                  defaultExport !== null && typeof defaultExport === "object"
-                    ? { ...defaultExport }
-                    : defaultExport,
-              }
-            : {}),
-        }),
+        mock.module(pathToFileURL(local.resolve(name)), { namedExports }),
       );
     }
     delete local.cache[filename];

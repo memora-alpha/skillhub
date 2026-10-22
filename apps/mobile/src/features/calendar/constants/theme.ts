@@ -13,14 +13,7 @@ export const calendarColors = {
   green: "#27977B",
   greenSoft: "#EAF7F0",
   segment: appColors.surfaceInset,
-  error: "#BA1A1A",
-  errorLight: "#FFEFED",
-  star: "#FFB800",
-  brand: signedInChrome.accent,
-  brandLight: "#FFF2EC",
-  sage: "#27977B",
-  sageLight: "#EAF7F0",
-  sand: appColors.surfaceLow,
 } as const;
 
-export const calendarCardShadow = "0 4px 16px rgba(53, 43, 31, 0.045)";
+export const calendarCardShadow = "0 4px 20px rgba(90, 60, 40, 0.06)";
+export const calendarButtonShadow = "0 4px 14px rgba(217, 83, 47, 0.25)";

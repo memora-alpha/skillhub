@@ -1,55 +1,55 @@
+import { RefreshableScrollView as ScrollView } from "@/components/RefreshableScrollView";
 import { useState } from "react";
-import { RefreshControl, ScrollView } from "react-native";
-import { useRouter } from "expo-router";
-import { learningRoutes } from "@/constants/navigation";
+import { StyleSheet, Text } from "react-native";
+
+import { fonts, typography } from "@/constants/theme";
 import { AppScreenLayout } from "@/features/shell";
 import {
-  useSessionsMonth,
-  ApiSessionCard,
-  SessionReadFeedback,
-  filterCalendarSessions,
+  useSessionList,
+  sessionRange,
+  deviceTimezone,
+  sessionDay,
+  listIsLimited,
+  SessionFeedback,
 } from "@/features/sessions";
-import { Button } from "@/components/Button";
 import { EmptyState } from "@/components/EmptyState";
-import { ChoiceGroup } from "@/components/choice-group";
-import { Copy, RouteButton, ui } from "@/components/feature-page";
+import { FormNotice } from "@/components/FormNotice";
 import { MonthCalendar } from "../components/MonthCalendar";
+import { CalendarSessionCard } from "../components/CalendarSessionCard";
+import { calendarColors as colors } from "../constants/theme";
+
 export function CalendarScreen() {
-  const router = useRouter();
   const [date, setDate] = useState(() => new Date());
-  const [day, setDay] = useState<number | null>(null);
-  const [tab, setTab] = useState("Sắp tới");
-  const month = date.getMonth();
-  const year = date.getFullYear();
-  const query = useSessionsMonth(year, month);
-  const monthSessions = query.data ?? [];
-  const visible = filterCalendarSessions(
-    monthSessions,
-    day,
-    tab !== "Sắp tới",
-    Date.now(),
+  const [day, setDay] = useState<number | null>(() => date.getDate());
+  const month = date.getMonth(),
+    year = date.getFullYear(),
+    timezone = deviceTimezone();
+  const query = useSessionList(
+    sessionRange(year, month, null, timezone),
+    timezone,
+  );
+  const sessions = query.data ?? [];
+  const visible = sessions.filter(
+    (s) => day === null || sessionDay(s.startAt, timezone) === day,
   );
   return (
-    <AppScreenLayout title="Lịch học" selected="Lịch học">
+    <AppScreenLayout
+      title="Lịch học"
+      selected="Lịch học"
+      contentStyle={styles.background}
+    >
       {() => (
         <ScrollView
-          contentContainerStyle={ui.page}
-          refreshControl={
-            <RefreshControl
-              refreshing={query.isFetching && !query.isLoading}
-              onRefresh={() => {
-                void query.refetch();
-              }}
-            />
-          }
+          style={styles.background}
+          contentContainerStyle={styles.page}
+          showsVerticalScrollIndicator={false}
         >
-          <SessionReadFeedback query={query} />
           <MonthCalendar
             month={month}
             year={year}
-            sessionDays={monthSessions.map((s) =>
-              new Date(s.startAt).getDate(),
-            )}
+            sessionDays={[
+              ...new Set(sessions.map((s) => sessionDay(s.startAt, timezone))),
+            ]}
             selectedDay={day}
             onDayPress={(value) => setDay(day === value ? null : value)}
             onMonthChange={(value) => {
@@ -57,43 +57,55 @@ export function CalendarScreen() {
               setDay(null);
             }}
           />
-          <ChoiceGroup
-            label="Buổi học"
-            options={["Sắp tới", "Đã kết thúc / lịch sử"]}
-            value={tab}
-            onChange={setTab}
-          />
-          {day !== null && (
-            <Button variant="paper" onPress={() => setDay(null)}>
-              Xem cả tháng
-            </Button>
-          )}
-          {visible.map((s) => (
-            <ApiSessionCard key={s.id} session={s} />
-          ))}
-          {monthSessions.length === 100 && (
-            <Copy muted>
-              Đang hiển thị tối đa 100 buổi trong tháng. Danh sách có thể chưa
-              đầy đủ.
-            </Copy>
-          )}
-          {query.data && !query.error && !visible.length && (
-            <EmptyState
-              title="Không có buổi học phù hợp"
-              description="Thử ngày, tháng hoặc nhóm buổi học khác."
-            />
-          )}
-          <Button
-            variant="craft"
-            onPress={() => router.push(learningRoutes.paths)}
+          <Text accessibilityRole="header" style={styles.heading}>
+            Buổi học
+          </Text>
+          <SessionFeedback
+            {...query}
+            refreshing={query.isFetching}
+            retry={() => query.refetch()}
           >
-            Learning Path của tôi
-          </Button>
-          <RouteButton secondary href="/learning-history">
-            Lịch sử học theo tháng
-          </RouteButton>
+            {listIsLimited(sessions) && (
+              <FormNotice tone="info">
+                Tháng này đang hiển thị tối đa 100 buổi. Dữ liệu có thể chưa đầy
+                đủ.
+              </FormNotice>
+            )}
+            {visible.map((s) => (
+              <CalendarSessionCard key={s.id} session={s} timezone={timezone} />
+            ))}
+            {!visible.length && (
+              <EmptyState
+                title={
+                  day === null
+                    ? "Chưa có buổi học trong tháng này"
+                    : "Chưa có buổi học trong ngày này"
+                }
+                description="Chọn ngày hoặc tháng khác để xem lịch học."
+                titleStyle={styles.heading}
+              />
+            )}
+          </SessionFeedback>
         </ScrollView>
       )}
     </AppScreenLayout>
   );
 }
+
+const styles = StyleSheet.create({
+  heading: {
+    fontFamily: fonts.bold,
+    ...typography.heading,
+    color: colors.ink,
+  },
+  background: { backgroundColor: colors.background },
+  page: {
+    width: "100%",
+    maxWidth: 640,
+    alignSelf: "center",
+    padding: 16,
+    paddingTop: 8,
+    paddingBottom: 28,
+    gap: 16,
+  },
+});

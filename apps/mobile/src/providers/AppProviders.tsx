@@ -18,10 +18,12 @@ import { ConnectionsProvider } from "@/features/connections";
 import { UiPreviewProvider } from "@/features/ui-preview";
 import { SkillsProvider } from "@/features/skills";
 import { WalletProvider } from "@/features/wallet";
+import { SessionsProvider } from "@/features/sessions";
 import { QueryProvider } from "./QueryProvider";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { ToastProvider } from "./ToastProvider";
 import { ConnectionGate } from "./ConnectionGate";
+import { AppRefreshProvider } from "./AppRefreshProvider";
 
 export function AppProviders({ children }: { children: ReactNode }) {
   const [loaded, error] = useFonts({
@@ -54,26 +56,32 @@ export function AppProviders({ children }: { children: ReactNode }) {
       <KeyboardProvider>
         <ToastProvider>
           <QueryProvider>
-            <AuthSessionProvider>
-              <WalletProvider>
-                <ConnectionGate>
-                  <AvatarUploadToasts />
-                  <SessionGate>
-                    <SkillsProvider>
-                      <ProfilePreviewProvider>
-                        <ConnectionsProvider>
-                          <ChatEventsProvider>
-                            <ChatOutboxProvider>
-                              <UiPreviewProvider>{children}</UiPreviewProvider>
-                            </ChatOutboxProvider>
-                          </ChatEventsProvider>
-                        </ConnectionsProvider>
-                      </ProfilePreviewProvider>
-                    </SkillsProvider>
-                  </SessionGate>
-                </ConnectionGate>
-              </WalletProvider>
-            </AuthSessionProvider>
+            <AppRefreshProvider>
+              <AuthSessionProvider>
+                <WalletProvider>
+                  <ConnectionGate>
+                    <AvatarUploadToasts />
+                    <SessionGate>
+                      <SessionsProvider>
+                        <SkillsProvider>
+                          <ProfilePreviewProvider>
+                            <ConnectionsProvider>
+                              <ChatEventsProvider>
+                                <ChatOutboxProvider>
+                                  <UiPreviewProvider>
+                                    {children}
+                                  </UiPreviewProvider>
+                                </ChatOutboxProvider>
+                              </ChatEventsProvider>
+                            </ConnectionsProvider>
+                          </ProfilePreviewProvider>
+                        </SkillsProvider>
+                      </SessionsProvider>
+                    </SessionGate>
+                  </ConnectionGate>
+                </WalletProvider>
+              </AuthSessionProvider>
+            </AppRefreshProvider>
           </QueryProvider>
         </ToastProvider>
       </KeyboardProvider>

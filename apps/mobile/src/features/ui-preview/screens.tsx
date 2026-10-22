@@ -7,6 +7,7 @@ import {
   RouteButton,
 } from "@/components/feature-page";
 import { appColors } from "@/constants/theme";
+import { Button } from "@/components/Button";
 const groups = [
   {
     title: "Bắt đầu & khám phá",
@@ -36,9 +37,9 @@ const groups = [
     ],
   },
   {
-    title: "Learning Path & lịch học",
+    title: "Lộ trình & lịch học",
     items: [
-      ["Tất cả Learning Path", "/paths"],
+      ["Tất cả lộ trình", "/paths"],
       ["Chọn hình thức / vai trò / Credit", "/agreement-type"],
       ["Thương lượng hai chiều", "/paths/path-draft"],
       ["Đủ xác nhận hai chiều", "/paths/path-ready"],
@@ -48,7 +49,7 @@ const groups = [
       ["Giữ Credit bị chặn: trùng lịch", "/paths/path-conflict/hold"],
       ["Lịch theo từng kế hoạch", "/paths/path-ready/schedules"],
       ["Kiểm tra & giữ Credit", "/paths/path-ready/hold"],
-      ["Learning Path một chiều đang học", "/paths/path-active"],
+      ["Lộ trình một chiều đang học", "/paths/path-active"],
       ["Tranh chấp giữ quyết toán", "/paths/path-disputed"],
       ["Hủy trước khi giữ Credit", "/paths/path-draft/cancel"],
       ["Dừng sau khi đã giữ Credit", "/paths/path-active/cancel"],
@@ -59,14 +60,13 @@ const groups = [
   {
     title: "Buổi học & LiveKit",
     items: [
-      ["Lịch sử học", "/learning-history"],
       ["Buổi đã kết thúc", "/learning-sessions/active-react-0"],
-      ["Xác nhận hoàn thành", "/learning-sessions/active-react-0/completion"],
+      ["Xác nhận hoàn thành", "/learning-sessions/active-react-0"],
       ["Đổi lịch", "/learning-sessions/active-react-1/reschedule"],
       ["Nhận đề nghị đổi lịch", "/learning-sessions/active-react-1"],
       [
         "Chờ người trao đổi xác nhận hoàn thành",
-        "/learning-sessions/awaiting-ux-0/completion",
+        "/learning-sessions/awaiting-ux-0",
       ],
       ["Phòng chờ / phòng mẫu", "/learning-sessions/active-react-1/room"],
     ],
@@ -85,7 +85,7 @@ const groups = [
   {
     title: "Cộng đồng & hỗ trợ",
     items: [
-      ["Đánh giá cuối Learning Path", "/paths/path-completed/review"],
+      ["Đánh giá cuối lộ trình", "/paths/path-completed/review"],
       ["Đánh giá đã gửi", "/reviews"],
       ["Uy tín", "/reputation"],
       ["Thành tích", "/achievements"],
@@ -142,7 +142,7 @@ export const systemStates = {
     "/paths",
   ],
   "path-cancelled": [
-    "Learning Path đã hủy",
+    "Lộ trình đã hủy",
     "Hoàn trả và phí hủy, nếu có, phụ thuộc quyết định và chính sách hệ thống.",
     "/paths",
   ],
@@ -169,17 +169,17 @@ export const systemStates = {
   "livekit-failed": [
     "Chưa thể vào phòng học",
     "Kiểm tra kết nối và điều kiện buổi học. Gặp lỗi kết nối không xác nhận buổi học hoàn thành.",
-    "/learning-history",
+    "/calendar",
   ],
   "camera-permission-denied": [
     "Chưa có quyền camera",
     "Bạn có thể bật quyền camera trong cài đặt thiết bị trước khi tham gia phòng thật.",
-    "/learning-history",
+    "/calendar",
   ],
   "mic-permission-denied": [
     "Chưa có quyền microphone",
     "Bật quyền microphone trong cài đặt thiết bị để trao đổi bằng âm thanh.",
-    "/learning-history",
+    "/calendar",
   ],
   "session-not-started": [
     "Buổi học chưa bắt đầu",
@@ -189,7 +189,7 @@ export const systemStates = {
   "session-already-ended": [
     "Buổi học đã kết thúc",
     "Xem chi tiết và xác nhận đã học nếu đã đủ điều kiện.",
-    "/learning-history",
+    "/calendar",
   ],
   "schedule-conflict": [
     "Lịch đang bị trùng",
@@ -217,11 +217,22 @@ export function UiCatalogScreen() {
     >
       {groups.map((group) => (
         <Panel key={group.title} title={group.title}>
-          {group.items.map(([label, href]) => (
-            <RouteButton key={href} secondary href={href}>
-              {label}
-            </RouteButton>
-          ))}
+          {group.items.map(([label, href]) =>
+            href.startsWith("/learning-sessions/") ? (
+              <Button
+                key={`${href}:${label}`}
+                variant="paper"
+                disabled
+                onPress={() => {}}
+              >
+                {label} · Chưa khả dụng
+              </Button>
+            ) : (
+              <RouteButton key={`${href}:${label}`} secondary href={href}>
+                {label}
+              </RouteButton>
+            ),
+          )}
         </Panel>
       ))}
       <Panel title="Hệ thống & tình huống biên">

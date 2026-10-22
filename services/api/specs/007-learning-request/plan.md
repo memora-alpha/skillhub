@@ -224,18 +224,3 @@ Không có constitution exception. Notification slice, permission additions, API
 ## Handoff
 
 Implement this approved plan inline in task order. Exact initial moderation rule content remains a pre-production owner input; publish stays closed without it. Catalog/Sharing Skill and Path/Schedule/Wallet are upstream owners; fakes prove only the LR protocol. No commit, push, sheet update, or deployment is authorized.
-
-## Notification frontend integration amendment — 2026-10-20
-
-The user requested notification integration for both web Admin/Staff and mobile. Web inspection found STAFF/ADMIN have one explicit role and cannot inherit the USER inbox/feed grants. Add exactly `notification:read:self`, `notification:update:self`, and `event:read:self` to their seed grants and an additive migration for existing databases. No moderation, participant, proposal or cross-user access is added. Existing recipient checks and per-domain SSE projection stay authoritative.
-
-Frontend work is authorized for this integration: web uses the existing HttpOnly session gateway plus a streaming proxy, one session-scoped inbox, seek pagination and SSE hydration/replay. Mobile reuses its existing HTTP/session/Query/SSE runtime. A web-only dev test runner reuses the workspace's locked tsx version; no shared runtime package or public API shape changes.
-
-| Constitution concern   | Check                                                                                                                                                                                   |
-| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Architecture/ownership | Pass: Users owns role grants; Notifications owns recipient inbox; Application Events owns its feed.                                                                                     |
-| Storage/transactions   | Pass in source: additive idempotent PostgreSQL grant inserts in one transaction; no schema/data-model, financial, MongoDB or provider changes.                                          |
-| Auth/privacy           | Pass in source: explicit self grants; recipient/live permission checks retained; web bearer remains server-side.                                                                        |
-| Verification           | Seed/access and notification/feed regressions plus web inbox/proxy tests; commands/results recorded in web README. Deployed migration/proxy/live API/native acceptance remains Pending. |
-
-No constitution exception. Migration deployment is outside this implementation turn; do not run application DB changes as part of frontend checks.

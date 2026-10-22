@@ -23,12 +23,6 @@ test("legacy negotiation stays unconfirmed and cannot be read as a schedule conf
     goal: "Xây dựng website",
   });
   assert.equal(readConfirmedForm(message), null);
-  assert.deepEqual(
-    readNegotiationMessage(
-      message.replace("GỢI Ý LỘ TRÌNH", "GỢI Ý LEARNING PATH"),
-    ),
-    { skill: "React", goal: "Xây dựng website" },
-  );
   assert.equal(
     readNegotiationMessage("GỢI Ý LỘ TRÌNH · CHƯA XÁC NHẬN\nNội dung thường"),
     null,

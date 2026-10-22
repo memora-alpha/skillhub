@@ -1,4 +1,5 @@
-import { FlatList, StyleSheet, View } from "react-native";
+import { RefreshableFlatList as FlatList } from "@/components/RefreshableFlatList";
+import { StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import { AppScreenLayout } from "@/features/shell";
 import { Button } from "@/components/Button";
