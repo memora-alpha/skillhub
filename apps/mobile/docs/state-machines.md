@@ -38,9 +38,11 @@ Wire enum mobile: DRAFT,PENDING_MODERATION,OPEN,REJECTED,NEGOTIATING,MATCHED,CLO
 
 Không phải bảng exhaustive commands cho mọi state. Cancel/edit/re-publish/version/lock/expiry dùng [LR contract](contracts/learning-requests.md) và server response; tồn tại enum CLOSED không chứng minh nút close đã tích hợp. GET effectiveStatus có thể khác persisted status khi expiry worker chậm. Không local-expire NEGOTIATING/MATCHED/CLOSED, không infer moderation reason mới từ last-read cũ.
 
-## Payment — contract backend, mobile chỉ preview
+## Payment — backend projection và mobile coordinator
 
-Backend enums/semantics cần tra [payment contract](contracts/wallet-payments.md); CREATED/PENDING/PAID/REVIEW và trạng thái cuối khác không được suy từ route state pending/success/failed/expired của fixture mobile. checkout:null/expiry/QR suppression không tự terminal. REVIEW không nghĩa failed và không cho tạo replacement an toàn; PAID không bị hạ chỉ vì related refresh lỗi. Chưa có mobile machine tích hợp/durable claim trong checkout này. Không lấy graph dự kiến làm bằng chứng source complete.
+Đối chiếu BE `dev@1c8fb8d` ngày 2026-10-22: CREATED/PENDING có explicit cancel, nhưng chỉ backend xác nhận CANCELLED/EXPIRED. PAID/REVIEW từ chối hủy. CANCELLED là terminal: QR off, dừng polling, resolve correlation đủ điều kiện; không cộng/hoàn Credit client. PAYMENT_RECOVERY_PENDING vẫn CREATED/PENDING đang khôi phục, không tự terminal theo clock. `cancelUnconfirmed`/`cancelNotice` chỉ là trạng thái UI; timeout/busy giữ identity, retry explicit cùng key, lifecycle chỉ đọc. Source checkout BE ở nhánh mobile cũ hơn ref đối chiếu.
+
+Backend enums/semantics cần tra [payment contract](contracts/wallet-payments.md); CREATED/PENDING/PAID/REVIEW và trạng thái cuối khác không được suy từ route state hoặc fixture. checkout:null/expiry/QR suppression không tự terminal. REVIEW không nghĩa failed và không cho tạo replacement an toàn; PAID không bị hạ chỉ vì related refresh lỗi. Mobile có create coordinator `loading/draft/review/claiming/unknown/known/blocked/ended`, durable claim native và owner status reads; stage UI không thay backend status. Explicit restore/check/replay tuân snapshot capabilities; lifecycle chỉ tự reads/restoration, không POST. [Status Phase03](work/phase-03-wallet-topup/status.md) ghi giới hạn kiểm chứng native/provider.
 
 ## Nghiệp vụ đích — Proposal Plan Schedule Session Report
 
