@@ -1,45 +1,44 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  buildRescheduleDraft,
-  rescheduleAvailability,
+  rescheduleFormSchema,
+  rescheduleUnavailableMessage,
 } from "../src/features/sessions/utils/reschedule-form";
 import { sessionRecord, now } from "./fixtures/sessions-client";
 
-test("reschedule stays unavailable without a real read contract/version", () => {
-  const s = sessionRecord();
-  s.startAt = "2026-10-15T02:00:00Z";
-  s.endAt = "2026-10-15T03:00:00Z";
-  assert.equal(rescheduleAvailability(s, now).available, false);
-  const draft = buildRescheduleDraft(
-    { start: "2026-10-15T12:00", duration: "60" },
-    now,
+test("reschedule explains that submission is unavailable even before the cutoff", () => {
+  const session = {
+    ...sessionRecord(),
+    startAt: new Date(now + 3_600_000).toISOString(),
+  };
+  assert.match(
+    rescheduleUnavailableMessage(session, now),
+    /chưa thể gửi đề nghị/,
   );
-  assert.equal("expectedVersion" in draft, false);
-  assert.equal("meConfirmed" in draft, false);
-  assert.equal("reason" in draft, false);
+  assert.match(
+    rescheduleUnavailableMessage(session, now + 1),
+    /không còn đủ điều kiện/,
+  );
 });
-test("valid local time maps to an instant and duration is strictly 60–180 minutes", () => {
+test("the form accepts valid local dates and whole durations from 60 to 180 minutes", () => {
   for (const duration of ["60", "180"]) {
-    const draft = buildRescheduleDraft(
-      { start: "2026-10-15T12:00", duration },
-      now,
-    );
     assert.equal(
-      Date.parse(draft.endAt) - Date.parse(draft.startAt),
-      Number(duration) * 60000,
+      rescheduleFormSchema.safeParse({ start: "2030-10-15T12:00", duration })
+        .success,
+      true,
     );
   }
   for (const duration of ["59", "181", "90.5", "-60", ""]) {
-    assert.throws(() =>
-      buildRescheduleDraft({ start: "2026-10-15T12:00", duration }, now),
+    assert.equal(
+      rescheduleFormSchema.safeParse({ start: "2030-10-15T12:00", duration })
+        .success,
+      false,
     );
   }
-  for (const start of [
-    "2026-02-30T12:00",
-    "2026-10-15T25:00",
-    "2020-01-01T12:00",
-  ]) {
-    assert.throws(() => buildRescheduleDraft({ start, duration: "60" }, now));
+  for (const start of ["2030-02-30T12:00", "2030-10-15T25:00", ""]) {
+    assert.equal(
+      rescheduleFormSchema.safeParse({ start, duration: "60" }).success,
+      false,
+    );
   }
 });

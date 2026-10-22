@@ -13,6 +13,7 @@ import { appColors as colors } from "@/constants/theme";
 import { pickerValue } from "@/utils/date-choice";
 import { useSessionDetail } from "../hooks/use-sessions";
 import { SessionFeedback } from "../components/session-feedback";
+import { RescheduleProposalPanel } from "../components/reschedule-proposal-panel";
 import { rescheduleStyles as styles } from "../components/reschedule.styles";
 import {
   deviceTimezone,
@@ -20,7 +21,7 @@ import {
   sessionDuration,
 } from "../utils/session-time";
 import {
-  rescheduleAvailability,
+  rescheduleUnavailableMessage,
   rescheduleFormSchema,
   type RescheduleForm,
 } from "../utils/reschedule-form";
@@ -53,6 +54,12 @@ export function RescheduleScreen() {
                 timezone={deviceTimezone()}
               />
             )}
+            {session && (
+              <RescheduleProposalPanel
+                session={session}
+                timezone={deviceTimezone()}
+              />
+            )}
           </SessionFeedback>
         </KeyboardFormScrollView>
       )}
@@ -76,7 +83,7 @@ function RescheduleDraft({
     defaultValues: { start: "", duration: String(duration) },
     mode: "onBlur",
   });
-  const availability = rescheduleAvailability({ startAt, status });
+  const unavailableMessage = rescheduleUnavailableMessage({ startAt, status });
   return (
     <>
       <View style={styles.card}>
@@ -130,7 +137,7 @@ function RescheduleDraft({
           keyboardType="number-pad"
           hint="Từ 60 đến 180 phút."
         />
-        <FormNotice tone="info">{availability.message}</FormNotice>
+        <FormNotice tone="info">{unavailableMessage}</FormNotice>
         <Button
           variant="craft"
           style={styles.action}

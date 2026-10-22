@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useSyncExternalStore } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useRefreshLearningPath } from "@/features/learning-paths";
 import { useSessionsRuntime } from "../runtime";
 import { createCompletionAction } from "../utils/completion-action";
 
 export function useSessionAction(sessionId: string) {
   const runtime = useSessionsRuntime(),
     client = useQueryClient();
+  const refreshPath = useRefreshLearningPath();
   const action = useMemo(
     () =>
       createCompletionAction({
@@ -18,12 +20,13 @@ export function useSessionAction(sessionId: string) {
           await client.cancelQueries({ queryKey: detailKey, exact: true });
           if (!runtime.isCurrent()) return;
           client.setQueryData(detailKey, detail);
-          await client.invalidateQueries({
-            queryKey: [...runtime.key, "list"],
-          });
+          await Promise.allSettled([
+            client.invalidateQueries({ queryKey: [...runtime.key, "list"] }),
+            refreshPath(detail.pathId),
+          ]);
         },
       }),
-    [runtime, client, sessionId],
+    [runtime, client, sessionId, refreshPath],
   );
   useEffect(() => {
     action.setActive(true);

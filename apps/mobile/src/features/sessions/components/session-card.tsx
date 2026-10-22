@@ -5,7 +5,7 @@ import { appColors as colors } from "@/constants/theme";
 import { SessionPanel, SessionCopy, SessionRouteButton } from "./session-page";
 import { sessionUi as styles } from "./session-page.styles";
 import { useSessionsRuntime } from "../runtime";
-import type { LearningSession } from "../types";
+import type { SessionSummary } from "../types";
 import { sessionPresentation } from "../utils/session-presentation";
 import { formatSessionTime, sessionDuration } from "../utils/session-time";
 
@@ -13,7 +13,7 @@ export function SessionCard({
   session,
   timezone,
 }: {
-  session: LearningSession;
+  session: SessionSummary;
   timezone: string;
 }) {
   const { userId } = useSessionsRuntime();

@@ -13,6 +13,7 @@ import { useSessionAction } from "../hooks/use-session-action";
 import { useSessionsRuntime } from "../runtime";
 import { SessionFeedback } from "../components/session-feedback";
 import { SessionDetailContent } from "../components/session-detail-content";
+import { SessionContextPanel } from "../components/session-context-panel";
 import { CompletionConfirmDialog } from "../components/completion-confirm-dialog";
 import { SessionButton } from "../components/session-page";
 import { detailStyles as styles } from "../components/session-detail.styles";
@@ -20,6 +21,7 @@ import { deviceTimezone } from "../utils/session-time";
 import { completionSubmitPresentation } from "../utils/completion-presentation";
 import { canConfirmSession } from "../utils/session-policy";
 import { sessionErrorMessage } from "../utils/session-read";
+import { isRescheduleEligible } from "../utils/reschedule-form";
 
 export function LearningSessionScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -106,6 +108,7 @@ export function LearningSessionScreen() {
                   }
                 />
               )}
+              {session && <SessionContextPanel session={session} />}
               {action.receipt && (
                 <FormNotice tone="info">
                   Hệ thống đã ghi nhận xác nhận của bạn.
@@ -133,41 +136,44 @@ export function LearningSessionScreen() {
               )}
             </SessionFeedback>
           </RefreshableScrollView>
-          {session && query.valid && !blocked && (
-            <View style={styles.footer}>
-              <View style={styles.footerInner}>
-                <Button
-                  accessibilityLabel={actionLabel}
-                  variant={submit.confirmed ? "paper" : "craft"}
-                  style={styles.action}
-                  disabled={
-                    ended ? disabled : query.isFetching || query.isError
-                  }
-                  onPress={() => {
-                    if (ended) {
-                      if (!disabled) setConfirmOpen(true);
-                    } else {
-                      router.push(
-                        `/learning-sessions/${session.id}/reschedule`,
-                      );
+          {session &&
+            query.valid &&
+            !blocked &&
+            (ended || isRescheduleEligible(session)) && (
+              <View style={styles.footer}>
+                <View style={styles.footerInner}>
+                  <Button
+                    accessibilityLabel={actionLabel}
+                    variant={submit.confirmed ? "paper" : "craft"}
+                    style={styles.action}
+                    disabled={
+                      ended ? disabled : query.isFetching || query.isError
                     }
-                  }}
-                >
-                  {!ended && (
-                    <Icon name="calendar" size={18} color={colors.white} />
-                  )}
-                  <Text
-                    style={[
-                      styles.actionText,
-                      submit.confirmed && styles.confirmedActionText,
-                    ]}
+                    onPress={() => {
+                      if (ended) {
+                        if (!disabled) setConfirmOpen(true);
+                      } else {
+                        router.push(
+                          `/learning-sessions/${session.id}/reschedule`,
+                        );
+                      }
+                    }}
                   >
-                    {actionLabel}
-                  </Text>
-                </Button>
+                    {!ended && (
+                      <Icon name="calendar" size={18} color={colors.white} />
+                    )}
+                    <Text
+                      style={[
+                        styles.actionText,
+                        submit.confirmed && styles.confirmedActionText,
+                      ]}
+                    >
+                      {actionLabel}
+                    </Text>
+                  </Button>
+                </View>
               </View>
-            </View>
-          )}
+            )}
           <CompletionConfirmDialog
             visible={confirmOpen && !disabled}
             onCancel={() => setConfirmOpen(false)}
