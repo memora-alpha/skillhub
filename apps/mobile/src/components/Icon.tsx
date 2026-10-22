@@ -16,6 +16,8 @@ export type IconName =
   | "arrow"
   | "star"
   | "check"
+  | "checks"
+  | "refresh"
   | "eye"
   | "eye-off"
   | "alert"
@@ -116,6 +118,17 @@ export function Icon({
         <Polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
       )}
       {name === "check" && <Polyline points="3 12 9 18 21 5" />}
+      {name === "checks" && (
+        <>
+          <Polyline points="2 12 7 17 18 6" />
+          <Polyline points="12 17 22 7" />
+        </>
+      )}
+      {name === "refresh" && (
+        <>
+          <Path d="M20 7a9 9 0 0 0-15-2L2 8m0-6v6h6M4 17a9 9 0 0 0 15 2l3-3m0 6v-6h-6" />
+        </>
+      )}
       {name === "eye" && (
         <>
           <Path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />

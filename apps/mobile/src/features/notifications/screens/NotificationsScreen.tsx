@@ -5,11 +5,15 @@ import { AppScreenLayout } from "@/features/shell";
 import { useChatEvents } from "@/features/messages";
 import { ConnectionFeedback, useConnections } from "@/features/connections";
 import { Button } from "@/components/Button";
-import { Badge } from "@/components/Badge";
-import { ChoiceGroup } from "@/components/choice-group";
 import { EmptyState } from "@/components/EmptyState";
 import { FormNotice } from "@/components/FormNotice";
-import { Panel, Copy, ui } from "@/components/feature-page";
+import { Copy } from "@/components/feature-page";
+import { NotificationActions } from "../components/notification-actions";
+import { NotificationRow } from "../components/notification-row";
+import {
+  NotificationTabs,
+  type NotificationFilter,
+} from "../components/notification-tabs";
 import {
   useNotifications,
   useMarkNotificationRead,
@@ -32,20 +36,20 @@ function NotificationsInbox() {
   const events = useChatEvents(),
     runtime = useConnections(),
     router = useRouter();
-  const [filter, setFilter] = useState("Tất cả");
+  const [filter, setFilter] = useState<NotificationFilter>("Tất cả");
   const [busy, setBusy] = useState<string>();
   const inFlight = useRef(false);
   const items = query.items.filter(
     (item) => filter === "Tất cả" || !item.readAt,
   );
-  const act = async (item: InboxNotification, open = false) => {
+  const act = async (item: InboxNotification) => {
     if (inFlight.current || !runtime.isCurrent()) return;
     inFlight.current = true;
     setBusy(item.id);
     try {
       if (!item.readAt) await mark.mutateAsync(item.id);
       runtime.assertCurrent();
-      const target = open && notificationTarget(item);
+      const target = notificationTarget(item);
       if (target) router.push(target);
     } catch {
       // Mutation feedback stays inline and the item remains available for retry.
@@ -57,14 +61,31 @@ function NotificationsInbox() {
   return (
     <AppScreenLayout
       title="Thông báo"
+      titleContent={
+        <NotificationTabs
+          value={filter}
+          onChange={setFilter}
+          unreadCount={query.items.filter((item) => !item.readAt).length}
+          hasMore={!!query.hasNextPage}
+        />
+      }
       selected="Thông báo"
       back={{ href: "/home", label: "Quay lại", behavior: "history" }}
+      rightAction={
+        <NotificationActions
+          refreshing={query.isRefetching && !query.isFetchingNextPage}
+          disabled={!runtime.enabled || query.isFetching || !!busy}
+          onRefresh={() => {
+            void query.refetch();
+          }}
+        />
+      }
     >
       {() => (
         <FlatList
           data={items}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={ui.page}
+          contentContainerStyle={styles.page}
           refreshing={query.isRefetching && !query.isFetchingNextPage}
           onRefresh={() => {
             void query.refetch();
@@ -72,30 +93,14 @@ function NotificationsInbox() {
           ItemSeparatorComponent={Separator}
           ListHeaderComponent={
             <View style={styles.header}>
-              <ChoiceGroup
-                label="Hiển thị"
-                options={["Tất cả", "Chưa đọc"]}
-                value={filter}
-                onChange={setFilter}
-              />
-              <Copy muted>
-                Thông báo của tài khoản đang đăng nhập, mới nhất trước.
-              </Copy>
-              <Button
-                variant="paper"
-                disabled={query.isFetching}
-                onPress={() => {
-                  void query.refetch();
-                }}
-              >
-                {query.isRefetching ? "Đang làm mới…" : "Làm mới thông báo"}
-              </Button>
-              <ConnectionFeedback
-                loading={query.isLoading}
-                error={query.error}
-                retry={query.refetch}
-              />
-              <ConnectionFeedback error={mark.error} />
+              {(query.isLoading || !!query.error) && (
+                <ConnectionFeedback
+                  loading={query.isLoading}
+                  error={query.error}
+                  retry={query.refetch}
+                />
+              )}
+              {!!mark.error && <ConnectionFeedback error={mark.error} />}
               {!!events.error && (
                 <>
                   <FormNotice tone="info">
@@ -116,7 +121,7 @@ function NotificationsInbox() {
                 icon="bell"
                 title={
                   filter === "Chưa đọc"
-                    ? "Không có thông báo chưa đọc trong các mục đã tải"
+                    ? "Đã đọc hết thông báo đã tải"
                     : "Chưa có thông báo"
                 }
                 description={
@@ -141,38 +146,14 @@ function NotificationsInbox() {
             ) : null
           }
           renderItem={({ item }) => (
-            <Panel title={item.title} accent={!item.readAt}>
-              <Badge
-                label={item.readAt ? "Đã đọc" : "Chưa đọc"}
-                variant={item.readAt ? "default" : "sage"}
-              />
-              <Copy>{item.body}</Copy>
-              <Copy muted>
-                {new Date(item.createdAt).toLocaleString("vi-VN")}
-              </Copy>
-              {!!notificationTarget(item) && (
-                <Button
-                  variant="paper"
-                  disabled={!!busy}
-                  onPress={() => {
-                    void act(item, true);
-                  }}
-                >
-                  Xem nội dung liên quan
-                </Button>
-              )}
-              {!item.readAt && (
-                <Button
-                  variant="ghost"
-                  disabled={!!busy}
-                  onPress={() => {
-                    void act(item);
-                  }}
-                >
-                  {busy === item.id ? "Đang lưu…" : "Đánh dấu đã đọc"}
-                </Button>
-              )}
-            </Panel>
+            <NotificationRow
+              item={item}
+              busy={busy === item.id}
+              disabled={!!busy || !runtime.enabled}
+              onPress={() => {
+                void act(item);
+              }}
+            />
           )}
         />
       )}
@@ -180,6 +161,14 @@ function NotificationsInbox() {
   );
 }
 const styles = StyleSheet.create({
-  separator: { height: 12 },
-  header: { gap: 12, marginBottom: 16 },
+  page: {
+    padding: 16,
+    paddingTop: 4,
+    paddingBottom: 24,
+    width: "100%",
+    maxWidth: 720,
+    alignSelf: "center",
+  },
+  separator: { height: 10 },
+  header: { gap: 12 },
 });

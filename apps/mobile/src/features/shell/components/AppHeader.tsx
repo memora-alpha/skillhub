@@ -29,6 +29,7 @@ type AppHeaderProps = Readonly<{
   onAction: (title: string) => void;
   onAccount: () => void;
   title?: string;
+  titleContent?: ReactNode;
   onBack?: () => void;
   rightAction?: ReactNode;
   backLabel?: string;
@@ -41,6 +42,7 @@ export function AppHeader({
   onAction,
   onAccount,
   title,
+  titleContent,
   onBack,
   rightAction,
   backLabel = "Quay lại hồ sơ",
@@ -75,15 +77,18 @@ export function AppHeader({
         home={home}
         width={width}
       />
-      {!!title && (
+      {titleContent != null ? (
+        <View style={styles.titleContent}>{titleContent}</View>
+      ) : title ? (
         <Text
           style={[styles.title, home && styles.homeTitle, { flex: 1 }]}
           numberOfLines={width < 400 ? 2 : 1}
         >
           {title}
         </Text>
+      ) : (
+        <View style={{ flex: 1 }} />
       )}
-      {!title && <View style={{ flex: 1 }} />}
       <View style={styles.headerActions}>
         {!compact && (
           <Pressable
@@ -242,6 +247,7 @@ const styles = StyleSheet.create({
     color: colors.ink,
     includeFontPadding: false,
   },
+  titleContent: { flex: 1, minWidth: 0 },
   headerActions: { flexDirection: "row", alignItems: "center", gap: 4 },
   iconButton: { padding: 9, borderRadius: radius.control },
   count: {
