@@ -70,6 +70,10 @@ function HoldContent({
     a.exchangeType === "TWO_WAY" ? a.totalCreditPerUser : a.negotiatedCredit;
   const holds = a.exchangeType === "TWO_WAY" || learner;
   const complete = path.lockedVersion !== null;
+  let finalizeLabel = holds
+    ? `Chốt lịch và tạm giữ ${amount} Credit`
+    : "Chốt lịch · bạn không giữ Credit";
+  if (finalize.pending) finalizeLabel = "Đang chốt lịch…";
   return (
     <>
       {finalize.uncertain && (
@@ -187,11 +191,7 @@ function HoldContent({
                   });
               }}
             >
-              {finalize.pending
-                ? "Đang chốt lịch…"
-                : holds
-                  ? `Chốt lịch và tạm giữ ${amount} Credit`
-                  : "Chốt lịch · bạn không giữ Credit"}
+              {finalizeLabel}
             </Button>
             <ConnectionFeedback error={finalize.error} />
           </Panel>

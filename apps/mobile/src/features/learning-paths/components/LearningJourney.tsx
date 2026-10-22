@@ -8,10 +8,10 @@ const steps = ["Kết nối", "Nội dung học", "Lịch học", "Chốt lịch
 export function JourneyProgress({
   step,
   done = false,
-}: {
+}: Readonly<{
   step: number;
   done?: boolean;
-}) {
+}>) {
   return (
     <View
       style={styles.steps}
@@ -45,10 +45,10 @@ export function JourneyProgress({
 export function JourneyNextStep({
   journey,
   blocked = false,
-}: {
+}: Readonly<{
   journey: Journey;
   blocked?: boolean;
-}) {
+}>) {
   return (
     <Panel title={journey.title} accent>
       <Copy>{journey.description}</Copy>

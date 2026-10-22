@@ -18,17 +18,22 @@ export function ApiPlanPanel({
   plan,
   blocked = false,
   compact = false,
-}: {
+}: Readonly<{
   path: ApiLearningPath;
   plan: ApiLearningPlan;
   blocked?: boolean;
   compact?: boolean;
-}) {
+}>) {
   const runtime = useConnections(),
     api = useLearningPathsApi(),
     command = useConnectionCommand();
   const skill = useCatalogName(plan.skillId);
   const teaches = plan.teacherId === runtime.userId;
+  let confirmation = teaches
+    ? "Đang chờ người trao đổi xem và đồng ý nội dung bạn dạy."
+    : "Bạn cần xem và đồng ý nội dung người trao đổi sẽ dạy.";
+  if (plan.learnerConfirmedAt)
+    confirmation = "Người học đã đồng ý nội dung này.";
   return (
     <Panel
       title={`${teaches ? "Bạn dạy" : "Bạn học"} · ${skill.data ?? "Kỹ năng"}`}
@@ -36,13 +41,7 @@ export function ApiPlanPanel({
       <Copy>
         {plan.totalSessions} buổi · {plan.learningGoal}
       </Copy>
-      <Copy muted>
-        {plan.learnerConfirmedAt
-          ? "Người học đã đồng ý nội dung này."
-          : teaches
-            ? "Đang chờ người trao đổi xem và đồng ý nội dung bạn dạy."
-            : "Bạn cần xem và đồng ý nội dung người trao đổi sẽ dạy."}
-      </Copy>
+      <Copy muted>{confirmation}</Copy>
       {compact ? (
         <RouteButton secondary href={`/paths/${path.id}/plans/${plan.id}`}>
           Xem nội dung từng buổi

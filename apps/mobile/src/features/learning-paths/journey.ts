@@ -36,23 +36,37 @@ export function learningJourney(
       title: "Không thể thao tác",
       description: "Mở việc học từ tài khoản tham gia.",
     };
-  if (!editablePath(path))
-    return {
-      ...result,
-      step: path.lockedVersion === null ? 2 : 4,
-      title: pathStatusLabel[path.status],
-      description:
-        path.lockedVersion === null
-          ? "Việc học hiện không ở bước thống nhất nội dung và lịch."
-          : "Lịch và Credit đã được ghi nhận. Xem các buổi học bên dưới.",
-      action:
-        path.lockedVersion === null
-          ? undefined
-          : {
-              label: "Xem lịch đã chốt",
-              href: `/paths/${path.id}/schedules`,
-            },
-    };
+  if (!editablePath(path)) return closedJourney(path, result);
+  result.waiting = planWaiting(path, userId);
+  return (
+    planJourney(path, userId, result) ?? scheduleJourney(path, userId, result)
+  );
+}
+
+function closedJourney(
+  path: ApiLearningPath,
+  result: LearningJourney,
+): LearningJourney {
+  return {
+    ...result,
+    step: path.lockedVersion === null ? 2 : 4,
+    title: pathStatusLabel[path.status],
+    description:
+      path.lockedVersion === null
+        ? "Việc học hiện không ở bước thống nhất nội dung và lịch."
+        : "Lịch và Credit đã được ghi nhận. Xem các buổi học bên dưới.",
+    action:
+      path.lockedVersion === null
+        ? undefined
+        : {
+            label: "Xem lịch đã chốt",
+            href: `/paths/${path.id}/schedules`,
+          },
+  };
+}
+
+function planWaiting(path: ApiLearningPath, userId: string) {
+  const waiting: string[] = [];
   const required = path.agreement.exchangeType === "TWO_WAY" ? 2 : 1;
   if (
     path.plans.length < required &&
@@ -60,15 +74,23 @@ export function learningJourney(
       path.agreement.teacherId !== userId) &&
     !path.plans.some((p) => p.teacherId !== userId)
   )
-    result.waiting.push("Người trao đổi tạo nội dung phần họ dạy.");
+    waiting.push("Người trao đổi tạo nội dung phần họ dạy.");
   if (path.plans.some((p) => p.teacherId === userId && !p.learnerConfirmedAt))
-    result.waiting.push("Người trao đổi đồng ý nội dung bạn dạy.");
+    waiting.push("Người trao đổi đồng ý nội dung bạn dạy.");
   const otherConfirmed =
     path.participantAId === userId
       ? path.agreement.participantBConfirmedAt
       : path.agreement.participantAConfirmedAt;
   if (!otherConfirmed)
-    result.waiting.push("Người trao đổi đồng ý hình thức và Credit.");
+    waiting.push("Người trao đổi đồng ý hình thức và Credit.");
+  return waiting;
+}
+
+function planJourney(
+  path: ApiLearningPath,
+  userId: string,
+  result: LearningJourney,
+): LearningJourney | undefined {
   if (canCreatePlan(path, userId))
     return {
       ...result,
@@ -100,6 +122,14 @@ export function learningJourney(
         "Đọc phần hình thức và Credit bên dưới rồi xác nhận riêng phần này.",
     };
   if (path.status !== "CONFIRMED") return result;
+  return undefined;
+}
+
+function scheduleJourney(
+  path: ApiLearningPath,
+  userId: string,
+  result: LearningJourney,
+): LearningJourney {
   result.step = 3;
   result.waiting = [];
   if (
@@ -119,21 +149,7 @@ export function learningJourney(
         href: `/chat/${path.conversationId}`,
       },
     };
-  for (const plan of path.plans) {
-    if (!plan.schedule && plan.teacherId !== userId)
-      result.waiting.push("Người trao đổi chọn lịch cho phần họ dạy.");
-    else if (
-      plan.schedule &&
-      !ownConfirmation(
-        path,
-        plan.schedule,
-        path.participantAId === userId
-          ? path.participantBId
-          : path.participantAId,
-      )
-    )
-      result.waiting.push("Người trao đổi đồng ý lịch học đã đề xuất.");
-  }
+  result.waiting = scheduleWaiting(path, userId);
   const toSchedule = path.plans.find((p) => canSchedule(path, p, userId));
   if (toSchedule)
     return {
@@ -175,4 +191,17 @@ export function learningJourney(
     description:
       "Lịch chỉ được chốt khi đủ xác nhận. Xem tình trạng từng phần hoặc tải cập nhật từ người trao đổi.",
   };
+}
+
+function scheduleWaiting(path: ApiLearningPath, userId: string) {
+  const waiting: string[] = [];
+  const partnerId =
+    path.participantAId === userId ? path.participantBId : path.participantAId;
+  for (const plan of path.plans) {
+    if (!plan.schedule && plan.teacherId !== userId)
+      waiting.push("Người trao đổi chọn lịch cho phần họ dạy.");
+    else if (plan.schedule && !ownConfirmation(path, plan.schedule, partnerId))
+      waiting.push("Người trao đổi đồng ý lịch học đã đề xuất.");
+  }
+  return waiting;
 }
