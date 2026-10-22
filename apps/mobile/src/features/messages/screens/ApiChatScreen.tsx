@@ -12,6 +12,7 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { Button } from "@/components/Button";
 import { EmptyState } from "@/components/EmptyState";
 import { FeaturePage, Copy } from "@/components/feature-page";
+import { ChatLearningPathEntry } from "../components/ChatLearningPathEntry";
 import {
   ConnectionFeedback,
   useConnections,
@@ -266,6 +267,7 @@ function ApiChatConversation({
           }}
           ListHeaderComponent={
             <View style={{ gap: 10 }}>
+              <ChatLearningPathEntry conversationId={id} />
               {thread.data?.nextCursor && (
                 <Button
                   variant="secondary"
