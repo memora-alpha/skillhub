@@ -41,8 +41,6 @@ function getProfileNoticeBody(
       return profile?.sharingSkills.length
         ? "Quản lý kỹ năng sẽ được bổ sung sau."
         : "Danh sách kỹ năng chưa được kết nối.";
-    case "Thành tích":
-      return "Quản lý danh hiệu sẽ được bổ sung sau.";
     case "Đánh giá về tôi":
       return "Đánh giá từ người học cùng chưa được kết nối.";
     default:

@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useLocalSearchParams } from "expo-router";
 import { z } from "zod";
 import { Badge } from "@/components/Badge";
-import { Button } from "@/components/Button";
 import { EmptyState } from "@/components/EmptyState";
 import { ChoiceGroup } from "@/components/choice-group";
 import { DataForm, textRule } from "@/components/data-form";
@@ -14,7 +13,6 @@ import {
   RouteButton,
 } from "@/components/feature-page";
 import { usePathsPreview } from "@/features/learning-paths";
-import { useCommunityPreview } from "./context";
 export function ReviewEditorScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { paths, save } = usePathsPreview();
@@ -114,67 +112,6 @@ export function ReviewsScreen() {
           description="Hoàn thành Learning Path để chia sẻ trải nghiệm."
         />
       )}
-    </FeaturePage>
-  );
-}
-const badges = [
-  ["Người mới gia nhập", "Email đã xác minh và tài khoản ACTIVE.", true],
-  ["Bước đầu trao đổi", "Hoàn thành Learning Path đầu tiên.", true],
-  ["Người học tích cực", "Hoàn thành 5 Learning Path.", false],
-  [
-    "Người chia sẻ tích cực",
-    "Hoàn thành 10 Learning Path có vai trò chia sẻ.",
-    false,
-  ],
-  [
-    "Thành viên uy tín",
-    "Uy tín ≥70 và ít nhất 5 Learning Path hoàn thành.",
-    false,
-  ],
-  [
-    "Người lâu năm",
-    "Tài khoản ≥180 ngày và ít nhất 10 Learning Path hoàn thành.",
-    false,
-  ],
-  ["Kỹ năng đã xác minh", "Ít nhất 3 kỹ năng chia sẻ đã xác minh.", false],
-] as const;
-export function AchievementsScreen() {
-  const { badge, setBadge } = useCommunityPreview();
-  const [detail, setDetail] = useState<string>();
-  return (
-    <FeaturePage title="Thành tích & danh hiệu" back="/profile">
-      <Panel title="Danh hiệu mẫu đang chọn" accent>
-        <Copy>{badge || "Không hiển thị danh hiệu"}</Copy>
-        <Button variant="paper" onPress={() => setBadge("")}>
-          Ẩn danh hiệu mẫu
-        </Button>
-      </Panel>
-      {badges.map(([name, condition, unlocked]) => (
-        <Panel key={name} title={name}>
-          <Badge
-            label={unlocked ? "Đã mở trong kịch bản mẫu" : "Chưa đạt mốc"}
-          />
-          <Copy>{condition}</Copy>
-          <Button
-            variant="paper"
-            onPress={() => setDetail(detail === name ? undefined : name)}
-          >
-            Xem điều kiện
-          </Button>
-          {detail === name && (
-            <Copy muted>
-              Tiến độ mẫu: đã hoàn thành 1 Learning Path, 1 kỹ năng xác minh và
-              uy tín 50/100. Mốc chính thức lấy từ hồ sơ thành tích.
-            </Copy>
-          )}
-          <Button
-            disabled={!unlocked || badge === name}
-            onPress={() => setBadge(name)}
-          >
-            {badge === name ? "Đang chọn" : "Chọn danh hiệu mẫu"}
-          </Button>
-        </Panel>
-      ))}
     </FeaturePage>
   );
 }

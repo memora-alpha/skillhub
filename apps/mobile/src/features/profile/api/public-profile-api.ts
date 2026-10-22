@@ -12,6 +12,7 @@ const profileSchema = z.object({
   reputationScore: z.number().finite().nullable(),
   verifiedSkillCount: z.number().int().nonnegative(),
   completedSessionCount: z.number().int().nonnegative(),
+  selectedTitle: z.string().nullable().optional().default(null),
 });
 
 export function createPublicProfileApi(

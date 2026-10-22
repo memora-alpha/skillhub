@@ -35,6 +35,7 @@ export function ProfileSummary({
         userId={profile.userId}
         headline={profile.headline}
         avatarUrl={profile.avatarUrl}
+        selectedTitle={profile.selectedTitle}
         onEdit={onEdit}
       />
       {avatarNotice}

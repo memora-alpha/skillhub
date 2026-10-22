@@ -55,6 +55,7 @@ export function HomeScreen() {
             <HomeContent
               name={session.name.split(/\s+/).slice(-2).join(" ")}
               isNew={session.isNew}
+              selectedTitle={session.selectedTitle}
               onAction={action}
             />
           </ScrollView>

@@ -25,6 +25,7 @@ const adminNav: typeof nav = [
   { href: "/admin/moderation", label: "Yêu cầu học chờ duyệt", icon: "flag" },
   { href: "/admin/disputes", label: "Báo cáo & tranh chấp", icon: "alert" },
   { href: "/admin/config", label: "Quy tắc kiểm duyệt", icon: "sliders" },
+  { href: "/admin/achievements", label: "Thành tích của tôi", icon: "star" },
   { href: "/admin/notifications", label: "Thông báo", icon: "bell" },
 ];
 function Frame({ children }: Readonly<{ children: ReactNode }>) {

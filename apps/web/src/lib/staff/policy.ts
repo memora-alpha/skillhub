@@ -49,6 +49,12 @@ const routes: [string, RegExp, (path: string) => string][] = [
   ["PATCH", new RegExp(`^notifications/${uuid}/read$`, "i"), (p) => p],
 ];
 const adminRoutes: [string, RegExp, (path: string) => string][] = [
+  ["GET", /^achievements$/, () => "me/achievements"],
+  [
+    "PATCH",
+    /^achievements\/selected-title$/,
+    () => "me/achievements/selected-title",
+  ],
   ["GET", /^users$/, (p) => `admin/${p}`],
   [
     "POST",

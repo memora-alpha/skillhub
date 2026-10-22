@@ -12,6 +12,7 @@ export type OwnProfile = {
   reputationScore: number | null;
   verifiedSkillCount: number;
   completedSessionCount: number;
+  selectedTitle?: string | null;
 };
 export type OwnIdentity = {
   userId: string;
@@ -39,6 +40,8 @@ export function parseProfile(value: unknown): OwnProfile {
     typeof value.bio !== "string" ||
     !nullableString(value.timezone) ||
     !nullableString(value.avatarUrl) ||
+    (value.selectedTitle !== undefined &&
+      !nullableString(value.selectedTitle)) ||
     !["vi", "en"].includes(String(value.locale)) ||
     !(
       value.reputationScore === null ||
@@ -49,7 +52,7 @@ export function parseProfile(value: unknown): OwnProfile {
     !count(value.completedSessionCount)
   )
     throw new AppError("protocol");
-  return value as OwnProfile;
+  return { ...value, selectedTitle: value.selectedTitle ?? null } as OwnProfile;
 }
 export function parseIdentity(value: unknown): OwnIdentity {
   if (

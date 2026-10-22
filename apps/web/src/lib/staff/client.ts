@@ -19,6 +19,8 @@ export function isSessionFailure(error: unknown): boolean {
   );
 }
 function messageFor(status: number, code: string) {
+  if (code === "TITLE_NOT_UNLOCKED")
+    return "Danh hiệu này chưa được mở khóa hoặc không còn khả dụng. Hãy làm mới thành tích.";
   if (code === "FILE_UNAVAILABLE" || code === "INVALID_DOWNLOAD_LINK")
     return "Không thể mở tệp hoặc liên kết đã hết hạn. Nhấn Thử lại để lấy liên kết mới.";
   if (code === "FILE_TYPE_NOT_SUPPORTED")
