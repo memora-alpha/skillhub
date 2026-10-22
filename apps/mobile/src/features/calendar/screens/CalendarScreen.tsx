@@ -1,40 +1,49 @@
 import { useState } from "react";
-import { ScrollView } from "react-native";
+import { RefreshControl, ScrollView } from "react-native";
 import { useRouter } from "expo-router";
 import { learningRoutes } from "@/constants/navigation";
 import { AppScreenLayout } from "@/features/shell";
-import { useSessionsPreview } from "@/features/sessions";
+import {
+  useSessionsMonth,
+  ApiSessionCard,
+  SessionReadFeedback,
+  filterCalendarSessions,
+} from "@/features/sessions";
 import { Button } from "@/components/Button";
-import { Badge } from "@/components/Badge";
 import { EmptyState } from "@/components/EmptyState";
 import { ChoiceGroup } from "@/components/choice-group";
-import { Panel, Copy, RouteButton, ui } from "@/components/feature-page";
+import { Copy, RouteButton, ui } from "@/components/feature-page";
 import { MonthCalendar } from "../components/MonthCalendar";
 export function CalendarScreen() {
   const router = useRouter();
-  const { sessions } = useSessionsPreview();
   const [date, setDate] = useState(() => new Date());
   const [day, setDay] = useState<number | null>(null);
   const [tab, setTab] = useState("Sắp tới");
   const month = date.getMonth();
   const year = date.getFullYear();
-  const monthSessions = sessions.filter((s) => {
-    const d = new Date(s.startAt);
-    return d.getMonth() === month && d.getFullYear() === year;
-  });
-  const visible = monthSessions.filter(
-    (s) =>
-      (day === null || new Date(s.startAt).getDate() === day) &&
-      (tab === "Sắp tới" ? s.status === "CONFIRMED" : s.status !== "CONFIRMED"),
+  const query = useSessionsMonth(year, month);
+  const monthSessions = query.data ?? [];
+  const visible = filterCalendarSessions(
+    monthSessions,
+    day,
+    tab !== "Sắp tới",
+    Date.now(),
   );
   return (
     <AppScreenLayout title="Lịch học" selected="Lịch học">
       {() => (
-        <ScrollView contentContainerStyle={ui.page}>
-          <Copy muted>
-            Lịch và buổi học trong bản xem thử. Không có lịch tài khoản thật
-            được tải tại đây.
-          </Copy>
+        <ScrollView
+          contentContainerStyle={ui.page}
+          refreshControl={
+            <RefreshControl
+              refreshing={query.isFetching && !query.isLoading}
+              onRefresh={() => {
+                void query.refetch();
+              }}
+            />
+          }
+        >
+          <SessionReadFeedback query={query} />
           <MonthCalendar
             month={month}
             year={year}
@@ -60,18 +69,15 @@ export function CalendarScreen() {
             </Button>
           )}
           {visible.map((s) => (
-            <Panel key={s.id} title={s.title}>
-              <Badge label={s.status} />
-              <Copy>
-                {s.partner} · {new Date(s.startAt).toLocaleString("vi-VN")} ·{" "}
-                {s.duration} phút
-              </Copy>
-              <RouteButton href={`/learning-sessions/${s.id}`}>
-                Mở buổi học
-              </RouteButton>
-            </Panel>
+            <ApiSessionCard key={s.id} session={s} />
           ))}
-          {!visible.length && (
+          {monthSessions.length === 100 && (
+            <Copy muted>
+              Đang hiển thị tối đa 100 buổi trong tháng. Danh sách có thể chưa
+              đầy đủ.
+            </Copy>
+          )}
+          {query.data && !query.error && !visible.length && (
             <EmptyState
               title="Không có buổi học phù hợp"
               description="Thử ngày, tháng hoặc nhóm buổi học khác."
@@ -84,7 +90,7 @@ export function CalendarScreen() {
             Learning Path của tôi
           </Button>
           <RouteButton secondary href="/learning-history">
-            Toàn bộ lịch sử học
+            Lịch sử học theo tháng
           </RouteButton>
         </ScrollView>
       )}

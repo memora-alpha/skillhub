@@ -1,12 +1,9 @@
 import { useState } from "react";
-import { learningRoutes } from "@/constants/navigation";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { View } from "react-native";
 import { z } from "zod";
-import { Badge } from "@/components/Badge";
 import { Button } from "@/components/Button";
 import { EmptyState } from "@/components/EmptyState";
-import { FormNotice } from "@/components/FormNotice";
 import { DataForm, textRule, integerRule } from "@/components/data-form";
 import {
   FeaturePage,
@@ -18,129 +15,6 @@ import {
 import { canReschedule } from "@/features/learning-paths/policy";
 import { useSessionsPreview } from "./context";
 import { parseLocalDateTime } from "@/utils/local-date-time";
-export function PathSessionsScreen() {
-  const { id } = useLocalSearchParams<{ id?: string }>();
-  const { sessions } = useSessionsPreview();
-  const items = sessions.filter((s) => !id || s.pathId === id);
-  return (
-    <FeaturePage
-      title={id ? "Buổi học của Learning Path" : "Lịch sử học tập"}
-      back={id ? `/paths/${id}` : "/calendar"}
-    >
-      {items.map((s) => (
-        <Panel key={s.id} title={s.title}>
-          <Badge label={s.status} />
-          <Copy>
-            {s.partner} · {new Date(s.startAt).toLocaleString("vi-VN")} ·{" "}
-            {s.duration} phút
-          </Copy>
-          <RouteButton href={`/learning-sessions/${s.id}`}>
-            Chi tiết buổi học
-          </RouteButton>
-        </Panel>
-      ))}
-      {!items.length && (
-        <EmptyState
-          title="Chưa có buổi học"
-          description="Các buổi học xuất hiện sau khi tất cả lịch được xác nhận và khóa."
-        />
-      )}
-    </FeaturePage>
-  );
-}
-export function LearningSessionScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const { sessions, save, confirmChange } = useSessionsPreview();
-  const [error, setError] = useState<string>();
-  const s = sessions.find((item) => item.id === id);
-  return (
-    <FeaturePage
-      title="Chi tiết buổi học"
-      back={s ? `/paths/${s.pathId}/sessions` : learningRoutes.paths}
-    >
-      {!s ? (
-        <EmptyState
-          title="Không tìm thấy buổi học"
-          description="Buổi học không có trong bản xem thử."
-        />
-      ) : (
-        <>
-          <Panel title={s.title}>
-            <Badge label={s.status} />
-            <Copy>
-              {s.partner} · Bạn {s.mine ? "dạy" : "học"}
-            </Copy>
-            <Copy>
-              {new Date(s.startAt).toLocaleString("vi-VN")} · {s.duration} phút
-            </Copy>
-            <Copy muted>
-              Kế hoạch: {s.planId}. Learning Path: {s.pathId}.
-            </Copy>
-            {s.change && (
-              <FormNotice tone="info">
-                Đề xuất đổi lịch v{s.change.version}:{" "}
-                {new Date(s.change.startAt).toLocaleString("vi-VN")}.{" "}
-                {s.change.applied
-                  ? "Đã đủ hai bên xác nhận; lịch mới đã có hiệu lực."
-                  : s.change.meConfirmed
-                    ? "Chờ người trao đổi xác nhận; lịch cũ vẫn có hiệu lực."
-                    : "Người trao đổi đã xác nhận. Chờ bạn xem và xác nhận trước hạn; lịch cũ vẫn có hiệu lực."}
-              </FormNotice>
-            )}
-          </Panel>
-          {error && <FormNotice tone="error">{error}</FormNotice>}
-          {s.change && !s.change.applied && !s.change.meConfirmed && (
-            <Panel title={`Đề nghị đổi lịch v${s.change.version}`}>
-              <Copy>{s.change.reason}</Copy>
-              <Button onPress={() => setError(confirmChange(id))}>
-                Xác nhận đề nghị đổi lịch này
-              </Button>
-              <Button
-                variant="paper"
-                onPress={() => {
-                  save({ ...s, change: undefined });
-                  setError(undefined);
-                }}
-              >
-                Giữ lịch cũ
-              </Button>
-            </Panel>
-          )}
-          {s.status === "CONFIRMED" && (
-            <>
-              <RouteButton href={`/learning-sessions/${id}/room`}>
-                Xem thử phòng học LiveKit
-              </RouteButton>
-              <RouteButton
-                secondary
-                href={`/learning-sessions/${id}/reschedule`}
-              >
-                Đề nghị đổi lịch
-              </RouteButton>
-            </>
-          )}
-          {["AWAITING_CONFIRMATION", "COMPLETED"].includes(s.status) && (
-            <RouteButton href={`/learning-sessions/${id}/completion`}>
-              Xác nhận & kết quả buổi học
-            </RouteButton>
-          )}
-          <RouteButton
-            secondary
-            href={{
-              pathname: "/reports/new",
-              params: { pathId: s.pathId, sessionId: s.id },
-            }}
-          >
-            Báo cáo vấn đề buổi học
-          </RouteButton>
-          <RouteButton secondary href={`/paths/${s.pathId}`}>
-            Xem tiến độ toàn Learning Path
-          </RouteButton>
-        </>
-      )}
-    </FeaturePage>
-  );
-}
 export function RescheduleScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { sessions, save } = useSessionsPreview();
@@ -218,52 +92,6 @@ export function RescheduleScreen() {
               router.replace(`/learning-sessions/${id}`);
             }}
           />
-        </Panel>
-      )}
-    </FeaturePage>
-  );
-}
-export function CompletionScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const { sessions, confirm } = useSessionsPreview();
-  const s = sessions.find((item) => item.id === id);
-  return (
-    <FeaturePage title="Xác nhận đã học" back={`/learning-sessions/${id}`}>
-      {!s ? (
-        <EmptyState
-          title="Không tìm thấy buổi học"
-          description="Không thể xác nhận."
-        />
-      ) : (
-        <Panel
-          title={
-            s.status === "COMPLETED"
-              ? "Buổi học đã hoàn thành"
-              : "Cùng xác nhận sau buổi học"
-          }
-        >
-          <Copy>{s.title}</Copy>
-          <Copy>
-            Bạn: {s.meConfirmed ? "Đã xác nhận" : "Chưa xác nhận"} · Người trao
-            đổi: {s.partnerConfirmed ? "Đã xác nhận" : "Chưa xác nhận"}
-          </Copy>
-          <Button
-            disabled={
-              s.status !== "AWAITING_CONFIRMATION" ||
-              !!s.meConfirmed ||
-              Date.now() < Date.parse(s.startAt) + s.duration * 60000
-            }
-            onPress={() => confirm(id)}
-          >
-            Tôi xác nhận đã học buổi này
-          </Button>
-          <Copy muted>
-            Chỉ đủ xác nhận của hai người sau giờ kết thúc mới hoàn thành buổi
-            học. Credit tiếp tục được giữ đến cuối Learning Path.
-          </Copy>
-          <RouteButton secondary href={`/paths/${s.pathId}`}>
-            Xem tiến độ Learning Path
-          </RouteButton>
         </Panel>
       )}
     </FeaturePage>
