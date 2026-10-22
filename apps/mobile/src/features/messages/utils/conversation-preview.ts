@@ -63,13 +63,11 @@ export function conversationInbox(
       );
       for (const entry of entries)
         message = newestMessage(message, entry.message);
-      const pending = entries
-        .filter(
-          (entry) =>
-            entry.state !== "sent" &&
-            (!entry.messageId || entry.messageId !== message?.id),
-        )
-        .at(-1);
+      const pending = entries.findLast(
+        (entry) =>
+          entry.state !== "sent" &&
+          (!entry.messageId || entry.messageId !== message?.id),
+      );
       if (
         pending &&
         (!message ||
@@ -84,10 +82,11 @@ export function conversationInbox(
       const text =
         message?.messageText.trim() ||
         (message?.messageType === "FILE" ? "Đã gửi một tệp" : "");
+      const sender = message?.senderId === userId ? "Bạn: " : "";
       return {
         conversation,
         preview: message
-          ? `${message.senderId === userId ? "Bạn: " : ""}${text || "Cập nhật cuộc trò chuyện"}`
+          ? `${sender}${text || "Cập nhật cuộc trò chuyện"}`
           : "Bắt đầu trò chuyện",
         activityAt: message?.sentAt ?? conversation.createdAt,
       };

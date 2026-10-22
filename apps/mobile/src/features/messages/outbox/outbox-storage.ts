@@ -11,23 +11,27 @@ export function createOutboxStorage(
   // Web preview follows the app's memory-only session policy.
   if (Platform.OS === "web")
     return {
-      read: async () => preview.get(key) ?? null,
-      write: async (value) => {
+      read: () => Promise.resolve(preview.get(key) ?? null),
+      write: (value) => {
         preview.set(key, value);
+        return Promise.resolve();
       },
     };
   let hash = 0;
+  // Keep the existing UTF-16 hash so saved outbox filenames remain stable.
   for (const char of scope)
-    hash = (Math.imul(hash, 31) + char.charCodeAt(0)) | 0;
+    hash = (Math.imul(hash, 31) + char.slice(0, 1).codePointAt(0)!) | 0;
   const directory = new Directory(Paths.document, "chat-outbox");
   const file = new File(directory, `${hash >>> 0}-${ownerId}.json`);
   return {
-    read: async () => (file.exists ? file.text() : null),
-    write: async (value) => {
-      directory.create({ intermediates: true, idempotent: true });
-      const temporary = new File(directory, `${hash >>> 0}-${ownerId}.tmp`);
-      temporary.write(value);
-      temporary.move(file, { overwrite: true });
-    },
+    read: () =>
+      Promise.resolve().then(() => (file.exists ? file.text() : null)),
+    write: (value) =>
+      Promise.resolve().then(() => {
+        directory.create({ intermediates: true, idempotent: true });
+        const temporary = new File(directory, `${hash >>> 0}-${ownerId}.tmp`);
+        temporary.write(value);
+        temporary.move(file, { overwrite: true });
+      }),
   };
 }

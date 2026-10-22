@@ -6,25 +6,39 @@ import { messageColors as colors } from "../constants/theme";
 import { MessageBubble } from "./MessageBubble";
 import { chatTime } from "../utils/chat-dates";
 
+function deliveryLabel(entry: QueuedText, offline: boolean) {
+  if (entry.state === "failed") return entry.failure ?? "Chưa gửi được";
+  if (offline) return "Chờ kết nối";
+  return entry.state === "queued" ? "Chờ gửi" : "Đang gửi";
+}
+function DeliveryIndicator({
+  failed,
+  offline,
+}: Readonly<{ failed: boolean; offline: boolean }>) {
+  if (failed) return <Icon name="alert" size={12} color={colors.brand} />;
+  if (offline) return <Icon name="clock" size={12} color={colors.muted} />;
+  return (
+    <ActivityIndicator
+      size="small"
+      color={colors.muted}
+      accessibilityLabel="Tin nhắn đang gửi"
+    />
+  );
+}
+
 export function QueuedMessageBubble({
   entry,
   offline,
   onRetry,
   showTime = true,
-}: {
+}: Readonly<{
   entry: QueuedText;
   offline: boolean;
   onRetry: () => void;
   showTime?: boolean;
-}) {
+}>) {
   const failed = entry.state === "failed";
-  const label = failed
-    ? (entry.failure ?? "Chưa gửi được")
-    : offline
-      ? "Chờ kết nối"
-      : entry.state === "queued"
-        ? "Chờ gửi"
-        : "Đang gửi";
+  const label = deliveryLabel(entry, offline);
   return (
     <View style={{ gap: 4 }}>
       <MessageBubble
@@ -47,17 +61,7 @@ export function QueuedMessageBubble({
           justifyContent: "flex-end",
         }}
       >
-        {failed ? (
-          <Icon name="alert" size={12} color={colors.brand} />
-        ) : offline ? (
-          <Icon name="clock" size={12} color={colors.muted} />
-        ) : (
-          <ActivityIndicator
-            size="small"
-            color={colors.muted}
-            accessibilityLabel="Tin nhắn đang gửi"
-          />
-        )}
+        <DeliveryIndicator failed={failed} offline={offline} />
         <Text
           style={{
             ...typography.caption,

@@ -353,9 +353,7 @@ function ApiChatConversation({
         <ChatComposer
           value={draft}
           onChange={updateDraft}
-          onSend={(text) => {
-            void send(text);
-          }}
+          onSend={send}
           pending={!sender.ready}
           onAttach={() =>
             router.push({

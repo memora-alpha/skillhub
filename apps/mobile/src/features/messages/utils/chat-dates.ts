@@ -19,12 +19,9 @@ export function chatDayLabel(value: string, now = new Date()) {
   const date = new Date(value);
   const yesterday = new Date(now);
   yesterday.setDate(now.getDate() - 1);
-  const prefix =
-    chatDayKey(date) === chatDayKey(now)
-      ? "Hôm nay · "
-      : chatDayKey(date) === chatDayKey(yesterday)
-        ? "Hôm qua · "
-        : "";
+  let prefix = "";
+  if (chatDayKey(date) === chatDayKey(now)) prefix = "Hôm nay · ";
+  else if (chatDayKey(date) === chatDayKey(yesterday)) prefix = "Hôm qua · ";
   return (
     prefix +
     date.toLocaleDateString("vi-VN", {

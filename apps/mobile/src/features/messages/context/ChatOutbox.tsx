@@ -23,7 +23,9 @@ import { rememberLatestMessage } from "../utils/conversation-preview";
 
 type ContextValue = OutboxSnapshot & { store: TextOutbox; offline: boolean };
 const Context = createContext<ContextValue | null>(null);
-export function ChatOutboxProvider({ children }: { children: ReactNode }) {
+export function ChatOutboxProvider({
+  children,
+}: Readonly<{ children: ReactNode }>) {
   const runtime = useConnections(),
     api = useMessagesApi(),
     cache = useQueryClient();
@@ -45,10 +47,8 @@ export function ChatOutboxProvider({ children }: { children: ReactNode }) {
         storage: scope
           ? createOutboxStorage(runtime.userId ?? "", scope)
           : {
-              read: async () => null,
-              write: async () => {
-                throw configuration.error;
-              },
+              read: () => Promise.resolve(null),
+              write: () => Promise.reject(configuration.error),
             },
         api,
         current: () => scope !== null && runtime.isCurrent(),
@@ -97,18 +97,16 @@ export function ChatOutboxProvider({ children }: { children: ReactNode }) {
     );
     return () => listener.remove();
   }, [store, offline]);
-  return (
-    <Context.Provider
-      value={{
-        ...snapshot,
-        error: configuration.error ?? snapshot.error,
-        store,
-        offline,
-      }}
-    >
-      {children}
-    </Context.Provider>
+  const value = useMemo(
+    () => ({
+      ...snapshot,
+      error: configuration.error ?? snapshot.error,
+      store,
+      offline,
+    }),
+    [snapshot, configuration.error, store, offline],
   );
+  return <Context.Provider value={value}>{children}</Context.Provider>;
 }
 function useOutboxContext() {
   const context = useContext(Context);

@@ -105,19 +105,17 @@ export function useConversationInbox() {
       "conversation-preview",
       item.conversation.id,
     ]).denied;
-    return denied
-      ? { ...item, preview: "Không tải được tin nhắn", state: undefined }
-      : !messages.get(item.conversation.id) &&
-          !queued.some((entry) => entry.conversationId === item.conversation.id)
-        ? {
-            ...item,
-            preview: result?.error
-              ? "Không tải được tin nhắn · Chạm để mở"
-              : result?.isPending
-                ? "Đang tải tin nhắn…"
-                : item.preview,
-          }
-        : item;
+    if (denied)
+      return { ...item, preview: "Không tải được tin nhắn", state: undefined };
+    if (
+      messages.get(item.conversation.id) ||
+      queued.some((entry) => entry.conversationId === item.conversation.id)
+    )
+      return item;
+    let preview = item.preview;
+    if (result?.error) preview = "Không tải được tin nhắn · Chạm để mở";
+    else if (result?.isPending) preview = "Đang tải tin nhắn…";
+    return { ...item, preview };
   });
   return {
     ...query,

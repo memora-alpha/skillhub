@@ -127,33 +127,44 @@ export class TextOutbox extends OutboxState {
       // persisted client ID can safely reconcile that delivery on next launch.
       await this.persist().catch(() => {});
     } catch (error) {
-      if (
-        !this.current(epoch) ||
-        this.snapshot.items.find((entry) => entry.clientMessageId === id)
-          ?.state === "sent"
-      )
-        return;
-      const retry = control.signal.aborted || retryableSend(error);
-      this.update(id, {
-        state: retry ? "queued" : "failed",
-        failure: retry
-          ? undefined
-          : error instanceof AppError && error.kind === "storage"
-            ? "Chưa lưu được tin nhắn. Thử lại."
-            : errorMessage(error),
-        retryAt:
-          this.now() + Math.min(30000, 1000 * 2 ** Math.min(item.attempts, 5)),
-      });
-      await this.persist().catch(() =>
-        this.update(id, {
-          state: "failed",
-          failure: "Chưa lưu được tin nhắn. Thử lại.",
-        }),
-      );
+      await this.failDelivery(item, control, epoch, error);
     } finally {
       this.busy = false;
       if (this.abort === control) this.abort = undefined;
       this.wake();
     }
+  }
+  private async failDelivery(
+    item: QueuedText,
+    control: AbortController,
+    epoch: number,
+    error: unknown,
+  ) {
+    const id = item.clientMessageId;
+    if (
+      !this.current(epoch) ||
+      this.snapshot.items.find((entry) => entry.clientMessageId === id)
+        ?.state === "sent"
+    )
+      return;
+    const retry = control.signal.aborted || retryableSend(error);
+    let failure: string | undefined;
+    if (!retry)
+      failure =
+        error instanceof AppError && error.kind === "storage"
+          ? "Chưa lưu được tin nhắn. Thử lại."
+          : errorMessage(error);
+    this.update(id, {
+      state: retry ? "queued" : "failed",
+      failure,
+      retryAt:
+        this.now() + Math.min(30000, 1000 * 2 ** Math.min(item.attempts, 5)),
+    });
+    await this.persist().catch(() =>
+      this.update(id, {
+        state: "failed",
+        failure: "Chưa lưu được tin nhắn. Thử lại.",
+      }),
+    );
   }
 }

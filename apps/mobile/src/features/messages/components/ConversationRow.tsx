@@ -14,7 +14,9 @@ import type { InboxConversation } from "../utils/conversation-preview";
 import { inboxTime } from "../utils/chat-dates";
 import { messageColors as colors } from "../constants/theme";
 
-export function ConversationRow({ item }: { item: InboxConversation }) {
+export function ConversationRow({
+  item,
+}: Readonly<{ item: InboxConversation }>) {
   const { conversation } = item;
   const router = useRouter(),
     { userId } = useConnections();

@@ -11,13 +11,13 @@ export function ChatTimelineRow({
   partnerId,
   offline,
   retry,
-}: {
+}: Readonly<{
   item: DatedChatItem;
   partner: string;
   partnerId: string;
   offline: boolean;
   retry(id: string): void;
-}) {
+}>) {
   if (item.kind === "day")
     return (
       <View style={{ alignItems: "center", paddingVertical: 10 }}>

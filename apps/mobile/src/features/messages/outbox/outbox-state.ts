@@ -23,10 +23,10 @@ export type OutboxOptions = {
 export abstract class OutboxState {
   protected snapshot: OutboxSnapshot = { ready: false, items: [] };
   protected stopped = true;
-  protected now: () => number;
-  private listeners = new Set<() => void>();
+  protected readonly now: () => number;
+  private readonly listeners = new Set<() => void>();
   private writes: Promise<void> = Promise.resolve();
-  constructor(protected options: OutboxOptions) {
+  constructor(protected readonly options: OutboxOptions) {
     this.now = options.now ?? Date.now;
   }
   abstract wake(): void;
@@ -107,12 +107,7 @@ export abstract class OutboxState {
     const item = this.snapshot.items.find(
       (entry) => entry.clientMessageId === id,
     );
-    if (
-      !item ||
-      item.state !== "failed" ||
-      !this.options.current() ||
-      this.stopped
-    )
+    if (item?.state !== "failed" || !this.options.current() || this.stopped)
       return;
     this.update(id, { state: "queued", retryAt: 0, failure: undefined });
     void this.persist()
