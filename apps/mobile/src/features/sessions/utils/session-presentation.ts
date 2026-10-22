@@ -1,39 +1,6 @@
 import type { LearningSession } from "../types";
 type SessionTimeState = Pick<LearningSession, "status" | "startAt" | "endAt">;
 
-export const sessionFilters = [
-  "Sắp tới",
-  "Đang học",
-  "Chờ xác nhận",
-  "Đã hoàn thành",
-  "Đã hủy / tranh chấp",
-];
-
-export function matchesSessionFilter(
-  session: SessionTimeState,
-  filter: string,
-  now = Date.now(),
-) {
-  if (filter === "Đã hoàn thành") return session.status === "COMPLETED";
-  if (filter === "Đã hủy / tranh chấp")
-    return ["CANCELLED", "DISPUTED"].includes(session.status);
-  if (["COMPLETED", "CANCELLED", "DISPUTED"].includes(session.status))
-    return false;
-  if (filter === "Chờ xác nhận")
-    return (
-      session.status === "AWAITING_CONFIRMATION" ||
-      Date.parse(session.endAt) <= now
-    );
-  if (filter === "Đang học")
-    return (
-      Date.parse(session.startAt) <= now && now < Date.parse(session.endAt)
-    );
-  return (
-    session.status !== "AWAITING_CONFIRMATION" &&
-    Date.parse(session.startAt) > now
-  );
-}
-
 export function sessionPresentation(
   session: SessionTimeState,
   now = Date.now(),

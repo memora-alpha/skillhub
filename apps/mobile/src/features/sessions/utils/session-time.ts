@@ -69,14 +69,4 @@ export function formatSessionTime(
 export function sessionDuration(s: Pick<LearningSession, "startAt" | "endAt">) {
   return (Date.parse(s.endAt) - Date.parse(s.startAt)) / 60_000;
 }
-export function sessionGroup(
-  s: Pick<LearningSession, "endAt"> & { status: string },
-  now = Date.now(),
-) {
-  return s.status === "COMPLETED" ||
-    s.status === "CANCELLED" ||
-    Date.parse(s.endAt) <= now
-    ? "history"
-    : "upcoming";
-}
 export const listIsLimited = (items: readonly unknown[]) => items.length >= 100;

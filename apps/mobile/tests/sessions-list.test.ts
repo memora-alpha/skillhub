@@ -1,10 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { sessionsFixture, now } from "./fixtures/sessions-client";
+import { sessionsFixture } from "./fixtures/sessions-client";
 import {
   sessionRange,
   sessionDay,
-  sessionGroup,
   listIsLimited,
 } from "../src/features/sessions/utils/session-time";
 import { sessionReadState } from "../src/features/sessions/utils/session-read";
@@ -42,10 +41,7 @@ test("month/day UTC boundaries stay inclusive and midnight follows display timez
   assert.equal(sessionDay("2026-10-13T18:00:00Z", "Asia/Ho_Chi_Minh"), 14);
   assert.equal(sessionDay("2026-10-13T18:00:00Z", "UTC"), 13);
 });
-test("display grouping does not invent a Session transition and cap is explicit", () => {
-  const f = sessionsFixture();
-  assert.equal(sessionGroup(f.record, now), "history");
-  assert.equal(f.record.status, "CONFIRMED");
+test("the list cap is explicit", () => {
   assert.equal(listIsLimited(Array(100)), true);
   assert.equal(listIsLimited(Array(99)), false);
 });

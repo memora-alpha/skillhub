@@ -58,12 +58,3 @@ export type SessionSummary = Pick<
 >;
 export type CompletionReceipt = z.infer<typeof completionReceiptSchema>;
 export type SessionRange = { from: string; to: string };
-export const sessionStatusLabels: Record<LearningSession["status"], string> = {
-  CONFIRMED: "Đã chốt lịch",
-  READY: "Sẵn sàng",
-  ONGOING: "Đang học",
-  AWAITING_CONFIRMATION: "Chờ xác nhận",
-  COMPLETED: "Đã hoàn thành",
-  CANCELLED: "Đã hủy",
-  DISPUTED: "Đang tranh chấp",
-};

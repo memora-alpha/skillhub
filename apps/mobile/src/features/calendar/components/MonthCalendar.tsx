@@ -2,10 +2,10 @@ import { styles } from "./MonthCalendar.styles";
 import { Pressable, Text, View } from "react-native";
 import { Icon } from "@/components/Icon";
 import { fonts } from "@/constants/theme";
-import { weekDays } from "../mocks/calendar";
 import { calendarColors as colors } from "../constants/theme";
 
 type CalendarCell = Readonly<{ key: string; day: number | null }>;
+const weekDays = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
 
 export function MonthCalendar({
   month,
