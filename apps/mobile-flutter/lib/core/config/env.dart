@@ -1,6 +1,9 @@
 import '../http/app_error.dart';
 
-const _rawApiUrl = String.fromEnvironment('API_URL');
+const _rawApiUrl = String.fromEnvironment(
+  'API_URL',
+  defaultValue: 'https://skillhub.memora.cam/api/v1',
+);
 
 String normalizeApiUrl(String value) {
   final Uri url;

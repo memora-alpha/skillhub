@@ -25,6 +25,19 @@ const _messages = {
   'RESET_TOKEN_INVALID_OR_EXPIRED':
       'Phiên đặt lại mật khẩu đã hết hạn. Vui lòng yêu cầu mã mới.',
   'INVALID_REFRESH_TOKEN': 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
+  'INSUFFICIENT_AVAILABLE_CREDIT':
+      'Một trong hai tài khoản không đủ Credit khả dụng để tạm giữ.',
+  'SCHEDULE_CONFLICT':
+      'Các buổi bị trùng giờ với nhau hoặc với một buổi học khác.',
+  'INVALID_SCHEDULE_ITEMS':
+      'Lịch chưa hợp lệ. Buổi học phải ở tương lai và dài từ 60 đến 180 phút.',
+  'SCHEDULE_NOT_CONFIRMED': 'Chưa đủ xác nhận lịch của cả hai bên.',
+  'REQUIRED_SCHEDULE_PROPOSAL_MISSING':
+      'Mỗi kế hoạch cần một đề xuất lịch của phiên bản hiện tại.',
+  'LEARNING_PATH_NOT_CONFIRMED':
+      'Chưa đủ xác nhận điều khoản của cả hai bên.',
+  'LEARNING_PLAN_NOT_CONFIRMED': 'Người học chưa xác nhận đủ kế hoạch.',
+  'REQUIRED_LEARNING_PLANS_MISSING': 'Chưa đủ kế hoạch cho hình thức học này.',
 };
 
 String errorMessage(Object? error) {

@@ -80,8 +80,11 @@ List<Map<String, dynamic>> _records(Object? value) => [
   for (final item in value is List ? value : const []) _record(item),
 ];
 
-int _version(Object? value) =>
-    value is int ? value : int.tryParse('$value') ?? 0;
+int _version(Object? value) {
+  if (value is int) return value;
+  if (value is num) return value.round();
+  return int.tryParse('$value') ?? 0;
+}
 
 String _text(Object? value) => value == null ? '' : '$value';
 
@@ -1452,7 +1455,8 @@ class _LiveHoldPageState extends ConsumerState<LiveHoldPage> {
       0,
       (sum, plan) => sum + _version(plan['totalSessions']),
     );
-    final blocked = query.isLoading || query.hasError;
+    final blocked = path.isEmpty && (query.isLoading || query.hasError);
+    final checked = _checked == signature;
     return FeaturePage(
       title: 'Kiểm tra và chốt lịch',
       back: '/paths/${widget.id}',
@@ -1503,17 +1507,22 @@ class _LiveHoldPageState extends ConsumerState<LiveHoldPage> {
                 ),
               if (_error != null)
                 FormNotice(tone: NoticeTone.error, message: _error!),
-              if (_checked == signature)
+              if (checked)
                 const FormNotice(
                   tone: NoticeTone.success,
                   message:
                       'Đủ điều kiện tại lần kiểm tra vừa rồi. Hệ thống sẽ kiểm tra lại khi bạn chốt lịch.',
+                )
+              else if (ready)
+                const Copy(
+                  'Bấm kiểm tra trước. Nút chốt chỉ mở sau khi kiểm tra thành công.',
+                  muted: true,
                 ),
               AppButton(
                 label: _busy == 'check'
                     ? 'Đang kiểm tra...'
                     : 'Kiểm tra điều kiện trên hệ thống',
-                variant: ButtonVariant.paper,
+                variant: checked ? ButtonVariant.paper : ButtonVariant.craft,
                 loading: _busy == 'check',
                 disabled: !ready || blocked || _busy != null,
                 onPressed: () async {
@@ -1552,10 +1561,9 @@ class _LiveHoldPageState extends ConsumerState<LiveHoldPage> {
                 label: _busy == 'finalize'
                     ? 'Đang chốt lịch...'
                     : 'Xác nhận chốt lịch và tạm giữ Credit',
-                variant: ButtonVariant.craft,
+                variant: checked ? ButtonVariant.craft : ButtonVariant.paper,
                 loading: _busy == 'finalize',
-                disabled:
-                    !ready || blocked || _checked != signature || _busy != null,
+                disabled: !ready || blocked || !checked || _busy != null,
                 onPressed: () async {
                   setState(() {
                     _busy = 'finalize';
