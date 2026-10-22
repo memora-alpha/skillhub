@@ -1,4 +1,4 @@
-import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { Icon } from "@/components/Icon";
 import { fonts, typography } from "@/constants/theme";
 import type { QueuedText } from "../outbox/outbox-types";
@@ -9,21 +9,7 @@ import { chatTime } from "../utils/chat-dates";
 function deliveryLabel(entry: QueuedText, offline: boolean) {
   if (entry.state === "failed") return entry.failure ?? "Chưa gửi được";
   if (offline) return "Chờ kết nối";
-  return entry.state === "queued" ? "Chờ gửi" : "Đang gửi";
-}
-function DeliveryIndicator({
-  failed,
-  offline,
-}: Readonly<{ failed: boolean; offline: boolean }>) {
-  if (failed) return <Icon name="alert" size={12} color={colors.brand} />;
-  if (offline) return <Icon name="clock" size={12} color={colors.muted} />;
-  return (
-    <ActivityIndicator
-      size="small"
-      color={colors.muted}
-      accessibilityLabel="Tin nhắn đang gửi"
-    />
-  );
+  return "";
 }
 
 export function QueuedMessageBubble({
@@ -52,49 +38,55 @@ export function QueuedMessageBubble({
           time: chatTime(entry.createdAt),
         }}
       />
-      <View
-        accessibilityLiveRegion="polite"
-        style={{
-          flexDirection: "row",
-          gap: 5,
-          alignItems: "center",
-          justifyContent: "flex-end",
-        }}
-      >
-        <DeliveryIndicator failed={failed} offline={offline} />
-        <Text
+      {(failed || offline) && (
+        <View
+          accessibilityLiveRegion="polite"
           style={{
-            ...typography.caption,
-            fontFamily: fonts.body,
-            color: colors.muted,
-            flexShrink: 1,
+            flexDirection: "row",
+            gap: 5,
+            alignItems: "center",
+            justifyContent: "flex-end",
           }}
         >
-          {label}
-        </Text>
-        {failed && (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Gửi lại tin nhắn"
-            onPress={onRetry}
+          <Icon
+            name={failed ? "alert" : "clock"}
+            size={12}
+            color={failed ? colors.brand : colors.muted}
+          />
+          <Text
             style={{
-              minHeight: 44,
-              justifyContent: "center",
-              paddingHorizontal: 6,
+              ...typography.caption,
+              fontFamily: fonts.body,
+              color: colors.muted,
+              flexShrink: 1,
             }}
           >
-            <Text
+            {label}
+          </Text>
+          {failed && (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Gửi lại tin nhắn"
+              onPress={onRetry}
               style={{
-                ...typography.caption,
-                fontFamily: fonts.semibold,
-                color: colors.brand,
+                minHeight: 44,
+                justifyContent: "center",
+                paddingHorizontal: 6,
               }}
             >
-              Thử lại
-            </Text>
-          </Pressable>
-        )}
-      </View>
+              <Text
+                style={{
+                  ...typography.caption,
+                  fontFamily: fonts.semibold,
+                  color: colors.brand,
+                }}
+              >
+                Thử lại
+              </Text>
+            </Pressable>
+          )}
+        </View>
+      )}
     </View>
   );
 }

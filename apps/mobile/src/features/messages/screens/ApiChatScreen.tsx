@@ -28,8 +28,7 @@ import { useChatEvents } from "../context/ChatEvents";
 import { ChatComposer } from "../components/ChatComposer";
 import { ChatHeader } from "../components/ChatHeader";
 import { ChatThreadMessage } from "../components/ChatThreadMessage";
-import { QueuedMessageBubble } from "../components/QueuedMessageBubble";
-import { chatTimeline } from "../utils/chat-timeline";
+import { chatTimeline, type ChatTimelineItem } from "../utils/chat-timeline";
 import { lastSeenOutgoingId } from "../utils/seen-message";
 import type { ApiMessage } from "../api/messages-api";
 import { messageColors as colors } from "../constants/theme";
@@ -104,10 +103,10 @@ function ApiChatConversation({
   const [visible, setVisible] = useState<ApiMessage>();
   const readWatermark = useRef<string | undefined>(undefined);
   const viewability = useRef(
-    ({ viewableItems }: { viewableItems: ViewToken<ApiMessage>[] }) => {
+    ({ viewableItems }: { viewableItems: ViewToken<ChatTimelineItem>[] }) => {
       const viewed = viewableItems
         .filter((item) => item.isViewable)
-        .map((item) => item.item);
+        .flatMap(({ item }) => (item.kind === "message" ? [item.message] : []));
       viewed.sort((a, b) => (BigInt(a.sequence) < BigInt(b.sequence) ? -1 : 1));
       const lastViewed = viewed.at(-1);
       if (lastViewed)
@@ -118,11 +117,12 @@ function ApiChatConversation({
         );
     },
   );
-  const list = useRef<FlatList<ApiMessage>>(null);
+  const list = useRef<FlatList<ChatTimelineItem>>(null);
   const atLatest = useRef(true),
     hasScrolled = useRef(false);
   const previousLatest = useRef<string | undefined>(undefined);
   const [hasNewMessages, setHasNewMessages] = useState(false);
+  const deliveryKeys = useRef(new Map<string, string>());
   useFocusEffect(
     useCallback(() => {
       setFocused(true);
@@ -133,15 +133,21 @@ function ApiChatConversation({
       return () => setFocused(false);
     }, []),
   );
-  const messages = useMemo(
+  const timeline = useMemo(
     () =>
-      chatTimeline(thread.data?.messages ?? [], sender.items)
-        .flatMap((item) => (item.kind === "message" ? [item.message] : []))
-        .reverse(),
+      chatTimeline(
+        thread.data?.messages ?? [],
+        sender.items,
+        deliveryKeys.current,
+      ).reverse(),
     [thread.data?.messages, sender.items],
   );
-  const queued = chatTimeline(thread.data?.messages ?? [], sender.items).filter(
-    (item) => item.kind === "queued",
+  const messages = useMemo(
+    () =>
+      timeline.flatMap((item) =>
+        item.kind === "message" ? [item.message] : [],
+      ),
+    [timeline],
   );
   useEffect(() => {
     sender.reconcile(
@@ -228,8 +234,8 @@ function ApiChatConversation({
         />
         <FlatList
           ref={list}
-          data={messages}
-          inverted
+          data={timeline}
+          inverted={timeline.length > 0}
           keyExtractor={(item) => item.id}
           maintainVisibleContentPosition={{
             minIndexForVisible: 0,
@@ -245,18 +251,6 @@ function ApiChatConversation({
             padding: 12,
           }}
           keyboardShouldPersistTaps="handled"
-          ListHeaderComponent={
-            <View style={{ gap: 8 }}>
-              {queued.map((item) => (
-                <QueuedMessageBubble
-                  key={item.id}
-                  entry={item.entry}
-                  offline={sender.offline}
-                  onRetry={() => sender.retry(item.entry.clientMessageId)}
-                />
-              ))}
-            </View>
-          }
           onScrollBeginDrag={() => {
             hasScrolled.current = true;
           }}
@@ -305,25 +299,30 @@ function ApiChatConversation({
             </View>
           }
           ListEmptyComponent={
-            !thread.isPending && !thread.error && !queued.length ? (
-              <View style={{ transform: [{ scaleY: -1 }] }}>
+            !thread.isPending && !thread.error ? (
+              <View>
                 <Copy muted>Bạn có thể bắt đầu trò chuyện tại đây.</Copy>
               </View>
             ) : null
           }
           renderItem={({ item, index }) => (
             <ChatThreadMessage
-              message={item}
-              older={messages[index + 1]}
-              newer={messages[index - 1]}
+              item={item}
+              older={timeline[index + 1]}
+              newer={timeline[index - 1]}
+              userId={runtime.userId ?? ""}
+              offline={sender.offline}
+              retry={sender.retry}
               partner={partner.data?.fullName ?? "Thành viên SkillHub"}
               partnerId={partnerId}
               avatarUrl={partner.data?.avatarUrl}
-              seen={item.id === seenMessageId}
+              seen={
+                item.kind === "message" && item.message.id === seenMessageId
+              }
             />
           )}
           onContentSizeChange={() => {
-            if (messages.length > 0 && atLatest.current) {
+            if (timeline.length > 0 && atLatest.current) {
               list.current?.scrollToOffset({ offset: 0, animated: false });
             }
           }}
