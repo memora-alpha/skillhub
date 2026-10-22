@@ -69,6 +69,10 @@ export function AchievementsScreen() {
               )}
               {data.items.map((item) => {
                 const selected = data.selectedTitle === item.title;
+                let label = "Chọn danh hiệu";
+                if (selected) label = "Đang chọn";
+                else if (saving && mutation.variables === item.code)
+                  label = "Đang lưu…";
                 return (
                   <Panel key={item.code} title={item.title}>
                     <Badge
@@ -86,11 +90,7 @@ export function AchievementsScreen() {
                       disabled={saving || selected || query.isFetching}
                       onPress={() => mutation.mutate(item.code)}
                     >
-                      {selected
-                        ? "Đang chọn"
-                        : saving && mutation.variables === item.code
-                          ? "Đang lưu…"
-                          : "Chọn danh hiệu"}
+                      {label}
                     </Button>
                   </Panel>
                 );
