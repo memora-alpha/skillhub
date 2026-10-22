@@ -24,6 +24,7 @@ import { useAuthSession } from "@/features/auth";
 type OpenNotice = (label: string) => void;
 type AppScreenLayoutProps = Readonly<{
   title: string;
+  centeredTitle?: boolean;
   selected: string;
   rightAction?: ReactNode | ((openNotice: OpenNotice) => ReactNode);
   back?: Readonly<{
@@ -89,6 +90,7 @@ function ScreenNoticeContent({
 // The feature owns its scroll container (FlatList or ScrollView).
 export function AppScreenLayout({
   title,
+  centeredTitle,
   selected,
   rightAction,
   back,
@@ -132,6 +134,7 @@ export function AppScreenLayout({
         appearance="home"
         profile={session}
         title={title}
+        centeredTitle={centeredTitle}
         onBack={handleBack}
         backLabel={back?.label}
         navigationBlocked={navigationBlocked}

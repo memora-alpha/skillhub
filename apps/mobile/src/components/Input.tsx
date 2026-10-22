@@ -1,11 +1,14 @@
-import { useState, type Ref } from "react";
+import { useState, type ReactNode, type Ref } from "react";
 import {
   Pressable,
   StyleSheet,
   Text,
   TextInput,
   View,
+  type StyleProp,
+  type TextStyle,
   type TextInputProps,
+  type ViewStyle,
 } from "react-native";
 import { typography, colors, fonts, radius } from "@/constants/theme";
 import { Icon } from "./Icon";
@@ -15,8 +18,11 @@ type InputProps = TextInputProps & {
   required?: boolean;
   error?: string;
   hint?: string;
+  labelStyle?: StyleProp<TextStyle>;
   password?: boolean;
   reserveMessageSpace?: boolean;
+  fieldStyle?: StyleProp<ViewStyle>;
+  rightAccessory?: ReactNode;
   ref?: Ref<TextInput>;
 };
 
@@ -25,8 +31,11 @@ export function Input({
   required,
   error,
   hint,
+  labelStyle,
   password,
   reserveMessageSpace,
+  fieldStyle,
+  rightAccessory,
   ref,
   ...props
 }: InputProps) {
@@ -34,13 +43,14 @@ export function Input({
   const [focused, setFocused] = useState(false);
   return (
     <View style={styles.group}>
-      <Text style={styles.label}>
+      <Text style={[styles.label, labelStyle]}>
         {label}
         {required && <Text style={styles.required}> *</Text>}
       </Text>
       <View
         style={[
           styles.field,
+          fieldStyle,
           props.editable === false && styles.readOnly,
           focused && props.editable !== false && !error && styles.focused,
           !!error && styles.invalid,
@@ -65,10 +75,15 @@ export function Input({
           style={[
             styles.input,
             props.multiline && styles.textarea,
-            password && { paddingRight: 48 },
+            (!!password || !!rightAccessory) && { paddingRight: 52 },
             props.style,
           ]}
         />
+        {!!rightAccessory && (
+          <View pointerEvents="none" style={styles.trailingAccessory}>
+            {rightAccessory}
+          </View>
+        )}
         {password && (
           <Pressable
             accessibilityRole="button"
@@ -141,6 +156,14 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     width: 48,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  trailingAccessory: {
+    position: "absolute",
+    right: 12,
+    top: 0,
+    bottom: 0,
     alignItems: "center",
     justifyContent: "center",
   },
