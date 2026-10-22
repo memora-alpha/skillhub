@@ -10,7 +10,7 @@ import {
   SessionEmptyState as EmptyState,
 } from "../components/session-page";
 import { sessionUi as ui } from "../components/session-page.styles";
-import { useSessionsPreview } from "../context";
+import { useSessionsPreview } from "../preview/context";
 export function RoomScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { sessions } = useSessionsPreview();

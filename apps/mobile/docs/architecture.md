@@ -19,7 +19,7 @@ Server state thuộc Query; client-only recovery/cooldown dùng Zustand hoặc c
 
 ## Imports và trách nhiệm
 
-Feature dùng public index.ts; public subpaths được checker khai báo cụ thể: product-shell/state, learning-paths/state, learning-paths/policy, sessions/state, messages/state, proposals/state. Không deep import private feature khác; không tạo barrel gây vòng import để đạt hình thức. Route → screen/view → hook/runtime (khi cần logic) → API adapter → HTTP chung. Không bắt thêm controller rỗng.
+Feature dùng public index.ts; public subpaths được checker khai báo cụ thể: product-shell/state, learning-paths/state, learning-paths/policy, messages/state, proposals/state. Không deep import private feature khác; không tạo barrel gây vòng import để đạt hình thức. Route → screen/view → hook/runtime (khi cần logic) → API adapter → HTTP chung. Không bắt thêm controller rỗng.
 
 `learning-paths` giữ `index.ts`, `state.ts`, `policy.ts` ở root làm public entry. `api/` chứa contract/adapters và submission recovery; `components/`, `screens/`, `hooks/` giữ UI/runtime; `schemas/` chứa validation input; `utils/` chứa xử lý dữ liệu, policy/progression từ snapshot API và định dạng form chat; `preview/` gom context, fixtures, types và rules chỉ còn phục vụ các consumer chưa tích hợp API. Di chuyển nội bộ không mở thêm public subpath hoặc đổi route/API.
 
@@ -53,4 +53,4 @@ Audit Wallet đã bỏ inert preparation model khỏi account WalletProvider; he
 
 Wallet giữ các lớp route → screens/views → hooks/context/utils → API, cùng components/schemas/types/storage theo trách nhiệm. Model intent/observer/quote/QR và helper không có application consumer đã chuyển sang tests/fixtures; production types/outcome/policy chỉ giữ phần dùng thật. Style riêng đặt cùng tên component. Source không import test; QA tiếp tục là công cụ gọi API nội bộ có binding owner/build/environment, không mock fallback cho account.
 
-Calendar/Session dùng `SessionsProvider` theo account và React Query cho danh sách tháng, chi tiết và xác nhận hoàn tất. Calendar lọc ngày trên dữ liệu của tháng hiện tại; không gửi thêm truy vấn ngày. Reschedule giữ draft cục bộ và chưa gửi khi thiếu contract đọc proposal/version từ backend.
+Calendar/Session dùng `SessionsProvider` theo account và React Query cho danh sách tháng, chi tiết và xác nhận hoàn tất. Calendar lọc ngày trên dữ liệu của tháng hiện tại; không gửi thêm truy vấn ngày. Session đọc context/outline và danh sách toàn Path qua public `useLearningPath`, lấy progress từ detail server; completion refresh Path và danh sách thỏa thuận đúng owner/generation qua public `useRefreshLearningPath`. Reschedule đọc proposal/version/appliedVersion/xác nhận từ Path, giữ draft cục bộ; gửi/xác nhận thật vẫn khóa bởi gate conflict ở confirm cuối. Xem [contract Session](contracts/sessions.md) và [Phase07](work/phase-07-session-api/status.md). LiveKit tích hợp ở nhánh khác, không thuộc thay đổi này.

@@ -25,12 +25,14 @@ export function readLearningPath(
 ) {
   const path = parse(learningPathSchema, response);
   const participants = [path.participantAId, path.participantBId];
+  const sessions = path.plans.flatMap((plan) => plan.sessions);
   if (
     path.id !== id ||
     !participants.includes(userId) ||
     participants[0] === participants[1] ||
     path.agreement.version !== path.currentVersion ||
     new Set(path.plans.map((plan) => plan.id)).size !== path.plans.length ||
+    new Set(sessions.map((session) => session.id)).size !== sessions.length ||
     path.plans.some(
       (plan) =>
         !participants.includes(plan.teacherId) ||
@@ -39,6 +41,13 @@ export function readLearningPath(
         plan.sessionOutline.length !== plan.totalSessions ||
         plan.sessionOutline.some(
           (item, index) => item.sessionNo !== index + 1,
+        ) ||
+        new Set(plan.sessions.map((session) => session.sessionNo)).size !==
+          plan.sessions.length ||
+        plan.sessions.some(
+          (session) =>
+            session.sessionNo > plan.totalSessions ||
+            Date.parse(session.endAt) <= Date.parse(session.startAt),
         ) ||
         !validSchedule(plan),
     )

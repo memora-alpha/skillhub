@@ -11,7 +11,6 @@ const publicFeatureEntries = new Set([
   "product-shell/state",
   "learning-paths/state",
   "learning-paths/policy",
-  "sessions/state",
   "messages/state",
   "proposals/state",
 ]);

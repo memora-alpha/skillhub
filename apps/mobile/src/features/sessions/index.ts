@@ -1,4 +1,4 @@
-export { SessionsPreviewProvider, useSessionsPreview } from "./context";
+export { SessionsPreviewProvider, useSessionsPreview } from "./preview/context";
 export { SessionsProvider } from "./runtime";
 export { useSessionList } from "./hooks/use-sessions";
 export { SessionCard } from "./components/session-card";

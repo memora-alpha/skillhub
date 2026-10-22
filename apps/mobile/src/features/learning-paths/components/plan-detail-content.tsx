@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 import { Text, View } from "react-native";
+import { Button } from "@/components/Button";
+import { useRouter } from "expo-router";
 import { FlowSection } from "@/components/learning-flow";
 import { Icon } from "@/components/Icon";
 import { appColors as colors } from "@/constants/theme";
@@ -49,18 +51,19 @@ function PlanTimelineRow({
   session: ApiLearningPlan["sessionOutline"][number];
   last: boolean;
 }>) {
+  const router = useRouter();
   const { title, description } = sessionContentParts(session.content);
+  const actualSession = plan.sessions.find(
+    (item) => item.sessionNo === session.sessionNo,
+  );
   const scheduled =
-    plan.schedule?.items.find((item) => item.sessionNo === session.sessionNo) ??
-    plan.sessions.find((item) => item.sessionNo === session.sessionNo);
+    actualSession ??
+    plan.schedule?.items.find((item) => item.sessionNo === session.sessionNo);
   const duration = scheduled
     ? Math.round(
         (Date.parse(scheduled.endAt) - Date.parse(scheduled.startAt)) / 60000,
       )
     : 0;
-  const actualSession = plan.sessions.find(
-    (item) => item.sessionNo === session.sessionNo,
-  );
   const isOngoing = actualSession?.status === "ONGOING";
   const label = isOngoing
     ? `ĐANG HỌC · BUỔI ${session.sessionNo}`
@@ -110,6 +113,17 @@ function PlanTimelineRow({
               {learningSessionLabel[actualSession.status]}
             </Text>
           </View>
+        )}
+        {actualSession && (
+          <Button
+            variant="paper"
+            accessibilityLabel={`Mở buổi học ${session.sessionNo}`}
+            onPress={() =>
+              router.push(`/learning-sessions/${actualSession.id}`)
+            }
+          >
+            Mở buổi học
+          </Button>
         )}
       </View>
     </ScheduleTimelineItem>

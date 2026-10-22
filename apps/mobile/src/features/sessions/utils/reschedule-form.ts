@@ -14,28 +14,20 @@ export const rescheduleFormSchema = z.object({
     ),
 });
 export type RescheduleForm = z.infer<typeof rescheduleFormSchema>;
-export function buildRescheduleDraft(input: RescheduleForm, now = Date.now()) {
-  const value = rescheduleFormSchema.parse(input);
-  const start = parseLocalDateTime(value.start)!;
-  if (start.getTime() <= now) throw new Error("Ngày giờ mới phải ở tương lai.");
-  return {
-    startAt: start.toISOString(),
-    endAt: new Date(
-      start.getTime() + Number(value.duration) * 60_000,
-    ).toISOString(),
-  };
-}
-export function rescheduleAvailability(
+export function rescheduleUnavailableMessage(
   session: Pick<LearningSession, "startAt"> & { status: string },
   now = Date.now(),
 ) {
-  const eligible =
-    session.status === "CONFIRMED" &&
-    Date.parse(session.startAt) - now >= 3_600_000;
-  return {
-    available: false,
-    message: eligible
-      ? "Đổi lịch chưa khả dụng. Bạn có thể chuẩn bị giờ mới, nhưng chưa thể gửi đề nghị."
-      : "Buổi học không còn đủ điều kiện đổi lịch; lịch cũ vẫn có hiệu lực.",
-  };
+  return isRescheduleEligible(session, now)
+    ? "Đổi lịch chưa khả dụng. Bạn có thể chuẩn bị giờ mới, nhưng chưa thể gửi đề nghị."
+    : "Buổi học không còn đủ điều kiện đổi lịch; lịch cũ vẫn có hiệu lực.";
+}
+export function isRescheduleEligible(
+  session: Pick<LearningSession, "startAt"> & { status: string },
+  now = Date.now(),
+) {
+  return (
+    ["CONFIRMED", "READY"].includes(session.status) &&
+    Date.parse(session.startAt) - now >= 3_600_000
+  );
 }
