@@ -1,6 +1,6 @@
 // Presentation only: the device clock never expires/cancels or renews a Payment.
 export function paymentDeadline(expiresAt: string | null, now: number) {
-  const deadline = expiresAt === null ? NaN : Date.parse(expiresAt);
+  const deadline = expiresAt === null ? Number.NaN : Date.parse(expiresAt);
   if (!Number.isFinite(deadline) || !Number.isFinite(now))
     return { kind: "unavailable" as const, label: "Đang cập nhật" };
   const remaining = Math.max(0, Math.ceil((deadline - now) / 1000));

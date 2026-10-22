@@ -22,6 +22,27 @@ test("Credit decimal text is already CR; preserve every digit without /100", () 
   assert.equal(formatCredit("0.01"), "0,01 CR");
   assert.equal(formatCredit("123.45"), "123,45 CR");
 });
+
+test("digit grouping preserves group boundaries and very large exact amounts", () => {
+  for (const [whole, grouped] of [
+    ["1", "1"],
+    ["12", "12"],
+    ["123", "123"],
+    ["1234", "1.234"],
+    ["12345", "12.345"],
+    ["123456", "123.456"],
+  ]) {
+    assert.equal(formatVnd(whole), `${grouped} VND`);
+    assert.equal(formatCredit(`${whole}.09`), `${grouped},09 CR`);
+  }
+  const whole = "123".repeat(10000);
+  const grouped = Array.from({ length: 10000 }, () => "123").join(".");
+  assert.equal(formatVnd(whole), `${grouped} VND`);
+  assert.equal(
+    formatCredit(`-${whole}.09`, { signed: true }),
+    `-${grouped},09 CR`,
+  );
+});
 test("reject coercion, whitespace, exponent and excess precision rather than rounding", () => {
   for (const value of malformedCreditExamples)
     assert.throws(() => creditAmount(value));

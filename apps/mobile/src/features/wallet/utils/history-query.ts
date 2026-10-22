@@ -103,6 +103,17 @@ export function historyOptions(
     },
   });
 }
+function retainedHistoryStatus(busy: boolean, failed: boolean, count: number) {
+  if (busy) return "refreshing";
+  if (failed) return "refresh-error";
+  return count ? "ready" : "empty";
+}
+
+function initialHistoryStatus(fetching: boolean, error: unknown) {
+  if (fetching) return "loading";
+  return error ? "error" : "unavailable";
+}
+
 export function projectHistory(
   runtime: WalletRuntime | null,
   query: {
@@ -123,23 +134,13 @@ export function projectHistory(
       busy = query.isFetching && !query.isFetchingNextPage,
       failed = !!query.error && !query.isFetchNextPageError;
     return {
-      status: busy
-        ? "refreshing"
-        : failed
-          ? "refresh-error"
-          : data.length
-            ? "ready"
-            : "empty",
+      status: retainedHistoryStatus(busy, failed, data.length),
       data,
       stale: busy || failed,
     };
   }
   return {
-    status: query.isFetching
-      ? "loading"
-      : query.error
-        ? "error"
-        : "unavailable",
+    status: initialHistoryStatus(query.isFetching, query.error),
     stale: false,
   };
 }

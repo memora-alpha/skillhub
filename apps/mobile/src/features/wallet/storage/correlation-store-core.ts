@@ -72,7 +72,7 @@ export function createCorrelationStore(
     const raw = await read();
     if (raw === null) return null;
     try {
-      if (raw.length >= 2048) throw Error();
+      if (raw.length >= 2048) throw new Error();
       const value: unknown = JSON.parse(raw);
       boundedJson(value);
       if (
@@ -92,7 +92,7 @@ export function createCorrelationStore(
             ].includes(k),
         )
       )
-        throw Error();
+        throw new Error();
       const record = parseRecoveryRecord(value.record, identity);
       if (value.cleanupPending) {
         await remove();

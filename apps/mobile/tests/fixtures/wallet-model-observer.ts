@@ -58,6 +58,20 @@ export function createPaymentObserver({
     old?.controller.abort();
     old?.finish();
   };
+  const publishError = (error: unknown) => {
+    if (error instanceof AppError && [403, 404].includes(error.status)) {
+      denial = error.status === 403 ? "denied" : "not-found";
+      store.publish({ status: denial, stale: false });
+    } else if (denial) store.publish({ status: denial, stale: false });
+    else {
+      const data = store.getSnapshot().data;
+      store.publish({
+        status: data ? "refresh-error" : "error",
+        data,
+        stale: !!data,
+      });
+    }
+  };
   function check(): Promise<void> {
     if (!canCheck()) return Promise.resolve();
     if (pending) return pending.promise;
@@ -95,18 +109,7 @@ export function createPaymentObserver({
         });
       } catch (error) {
         if (!valid()) return;
-        if (error instanceof AppError && [403, 404].includes(error.status)) {
-          denial = error.status === 403 ? "denied" : "not-found";
-          store.publish({ status: denial, stale: false });
-        } else if (denial) store.publish({ status: denial, stale: false });
-        else {
-          const data = store.getSnapshot().data;
-          store.publish({
-            status: data ? "refresh-error" : "error",
-            data,
-            stale: !!data,
-          });
-        }
+        publishError(error);
       } finally {
         if (pending?.controller === controller) pending = undefined;
         finish();
@@ -124,13 +127,10 @@ export function createPaymentObserver({
       invalidate();
       if (!live()) return;
       const data = store.getSnapshot().data;
-      store.publish(
-        denial
-          ? { status: denial, stale: false }
-          : data
-            ? { status: "ready", data, stale: true }
-            : unavailable,
-      );
+      let next: PaymentObservationRead = unavailable;
+      if (denial) next = { status: denial, stale: false };
+      else if (data) next = { status: "ready", data, stale: true };
+      store.publish(next);
     },
     resume: () => {
       focused = true;

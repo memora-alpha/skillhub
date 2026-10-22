@@ -19,6 +19,82 @@ type Boundary = {
   watermark: number;
   before: number;
 };
+function validHistoryQuery(
+  query: URLSearchParams,
+  limit: number,
+  type: string | null,
+  referenceType: string | null,
+) {
+  return (
+    ![...query.keys()].some(
+      (key) => !["limit", "cursor", "type", "referenceType"].includes(key),
+    ) &&
+    Number.isInteger(limit) &&
+    limit >= 1 &&
+    limit <= 100 &&
+    (!type || ledgerTypes.some((code) => code === type)) &&
+    (!referenceType || referenceTypes.some((code) => code === referenceType))
+  );
+}
+
+type LedgerEntry = { sequence: number; row: ReturnType<typeof ledgerModel> };
+type SendResponse = (
+  status: number,
+  data: unknown,
+  pagination?: object,
+) => void;
+
+function sendHistory(
+  url: URL,
+  actor: Actor,
+  owned: LedgerEntry[],
+  cursors: Map<string, Boundary>,
+  send: SendResponse,
+) {
+  const query = url.searchParams;
+  const limit = Number(query.get("limit") ?? 20);
+  const type = query.get("type"),
+    referenceType = query.get("referenceType");
+  if (!validHistoryQuery(query, limit, type, referenceType))
+    return send(400, "INVALID_QUERY");
+  const token = query.get("cursor");
+  const boundary = token
+    ? cursors.get(token)
+    : {
+        owner: actor,
+        type,
+        referenceType,
+        watermark: owned.at(-1)?.sequence ?? 0,
+        before: Infinity,
+      };
+  if (
+    !boundary ||
+    boundary.owner !== actor ||
+    boundary.type !== type ||
+    boundary.referenceType !== referenceType
+  )
+    return send(400, "INVALID_LEDGER_CURSOR");
+  const visible = owned
+    .filter(
+      (entry) =>
+        entry.sequence <= boundary.watermark &&
+        entry.sequence < boundary.before &&
+        (!type || entry.row.type === type) &&
+        (!referenceType || entry.row.referenceType === referenceType),
+    )
+    .toReversed();
+  const page = visible.slice(0, limit),
+    hasMore = visible.length > limit;
+  const nextCursor = hasMore ? randomUUID() : null;
+  if (nextCursor)
+    cursors.set(nextCursor, { ...boundary, before: page.at(-1)!.sequence });
+  send(
+    200,
+    page.map((entry) => entry.row),
+    { limit, hasMore, nextCursor },
+  );
+}
+
 export async function startWalletFixture() {
   const rows = Array.from({ length: 220 }, (_, i) => ({
     sequence: i + 1,
@@ -92,61 +168,7 @@ export async function startWalletFixture() {
         return row ? send(200, row) : send(404, "CREDIT_TRANSACTION_NOT_FOUND");
       }
       if (url.pathname !== prefix) return send(404, "NOT_FOUND");
-      const query = url.searchParams;
-      if (
-        [...query.keys()].some(
-          (key) => !["limit", "cursor", "type", "referenceType"].includes(key),
-        )
-      )
-        return send(400, "INVALID_QUERY");
-      const limit = Number(query.get("limit") ?? 20);
-      const type = query.get("type"),
-        referenceType = query.get("referenceType");
-      if (
-        !Number.isInteger(limit) ||
-        limit < 1 ||
-        limit > 100 ||
-        (type && !ledgerTypes.some((code) => code === type)) ||
-        (referenceType &&
-          !referenceTypes.some((code) => code === referenceType))
-      )
-        return send(400, "INVALID_QUERY");
-      const token = query.get("cursor");
-      const boundary = token
-        ? cursors.get(token)
-        : {
-            owner: actor,
-            type,
-            referenceType,
-            watermark: owned.at(-1)?.sequence ?? 0,
-            before: Infinity,
-          };
-      if (
-        !boundary ||
-        boundary.owner !== actor ||
-        boundary.type !== type ||
-        boundary.referenceType !== referenceType
-      )
-        return send(400, "INVALID_LEDGER_CURSOR");
-      const visible = owned
-        .filter(
-          (entry) =>
-            entry.sequence <= boundary.watermark &&
-            entry.sequence < boundary.before &&
-            (!type || entry.row.type === type) &&
-            (!referenceType || entry.row.referenceType === referenceType),
-        )
-        .toReversed();
-      const page = visible.slice(0, limit),
-        hasMore = visible.length > limit;
-      const nextCursor = hasMore ? randomUUID() : null;
-      if (nextCursor)
-        cursors.set(nextCursor, { ...boundary, before: page.at(-1)!.sequence });
-      send(
-        200,
-        page.map((entry) => entry.row),
-        { limit, hasMore, nextCursor },
-      );
+      sendHistory(url, actor, owned, cursors, send);
     }
   });
   server.listen(0, "127.0.0.1");

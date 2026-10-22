@@ -39,6 +39,38 @@ export function createPaymentCancellation(
     });
     return true;
   };
+  async function refreshBeforeCancel(
+    id: string,
+    signal: AbortSignal,
+    valid: () => void,
+  ) {
+    try {
+      await accept(await options.api.detail(id, signal), valid);
+      valid();
+    } catch (error) {
+      valid();
+      if (!deny(error))
+        publish({
+          cancelNotice:
+            "Chưa thể cập nhật thanh toán. Vui lòng thử hủy lại sau.",
+        });
+      return false;
+    }
+    const fresh = session.snapshot();
+    if (pendingPayment(fresh) && !fresh.observation?.stale) return true;
+    if (fresh.payment?.status === "REVIEW")
+      publish({
+        cancelNotice: cancelNotice(
+          new AppError("http", 409, "PAYMENT_REVIEW_REQUIRED"),
+        ),
+      });
+    else if (fresh.observation?.stale)
+      publish({
+        cancelNotice:
+          "Thông tin thanh toán chưa được xác nhận. Vui lòng thử lại sau.",
+      });
+    return false;
+  }
   return () => {
     const snapshot = session.snapshot();
     const needsFreshRead = !snapshot.canCancel && !!snapshot.observation?.stale;
@@ -56,35 +88,8 @@ export function createPaymentCancellation(
     // Stable across restart without storing another raw financial key/schema.
     const key = `payment-cancel:${id}`;
     return run(async (signal, valid) => {
-      if (needsFreshRead) {
-        try {
-          await accept(await options.api.detail(id, signal), valid);
-          valid();
-        } catch (error) {
-          valid();
-          if (!deny(error))
-            publish({
-              cancelNotice:
-                "Chưa thể cập nhật thanh toán. Vui lòng thử hủy lại sau.",
-            });
-          return;
-        }
-        const fresh = session.snapshot();
-        if (!pendingPayment(fresh) || fresh.observation?.stale) {
-          if (fresh.payment?.status === "REVIEW")
-            publish({
-              cancelNotice: cancelNotice(
-                new AppError("http", 409, "PAYMENT_REVIEW_REQUIRED"),
-              ),
-            });
-          else if (fresh.observation?.stale)
-            publish({
-              cancelNotice:
-                "Thông tin thanh toán chưa được xác nhận. Vui lòng thử lại sau.",
-            });
-          return;
-        }
-      }
+      if (needsFreshRead && !(await refreshBeforeCancel(id, signal, valid)))
+        return;
       valid();
       const current = session.snapshot();
       const observation = current.observation

@@ -68,7 +68,7 @@ export function usePaymentStatus(id: string) {
       stale: state.stale,
       denied: ["denied", "not-found", "session-ended"].includes(state.status),
     }),
-    read: async () => check(),
+    read: () => Promise.resolve(check()),
   });
   return {
     state,

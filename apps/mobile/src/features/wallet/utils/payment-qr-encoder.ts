@@ -16,12 +16,10 @@ export type QrEncoding =
 
 function validText(text: string) {
   if (!text.length) return false;
-  for (let i = 0; i < text.length; i++) {
-    const unit = text.charCodeAt(i);
-    if (unit >= 0xd800 && unit <= 0xdbff) {
-      const next = text.charCodeAt(++i);
-      if (!(next >= 0xdc00 && next <= 0xdfff)) return false;
-    } else if (unit >= 0xdc00 && unit <= 0xdfff) return false;
+  for (const character of text) {
+    const point = character.codePointAt(0)!;
+    // String iteration combines valid surrogate pairs into one code point.
+    if (point >= 0xd800 && point <= 0xdfff) return false;
   }
   return true;
 }

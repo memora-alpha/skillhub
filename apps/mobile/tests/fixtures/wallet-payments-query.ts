@@ -89,6 +89,17 @@ export function paymentsOptions(
     },
   });
 }
+function retainedPaymentStatus(busy: boolean, failed: boolean, count: number) {
+  if (busy) return "refreshing";
+  if (failed) return "refresh-error";
+  return count ? "ready" : "empty";
+}
+
+function initialPaymentStatus(fetching: boolean, error: unknown) {
+  if (fetching) return "loading";
+  return error ? "error" : "unavailable";
+}
+
 export function projectPayments(
   runtime: WalletRuntime | null,
   query: {
@@ -112,23 +123,13 @@ export function projectPayments(
       busy = query.isFetching && !query.isFetchingNextPage,
       failed = !!query.error && !query.isFetchNextPageError;
     return {
-      status: busy
-        ? "refreshing"
-        : failed
-          ? "refresh-error"
-          : data.length
-            ? "ready"
-            : "empty",
+      status: retainedPaymentStatus(busy, failed, data.length),
       data,
       stale: busy || failed,
     };
   }
   return {
-    status: query.isFetching
-      ? "loading"
-      : query.error
-        ? "error"
-        : "unavailable",
+    status: initialPaymentStatus(query.isFetching, query.error),
     stale: false,
   };
 }

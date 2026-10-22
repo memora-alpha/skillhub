@@ -22,6 +22,23 @@ function requireValue(value) {
   if (!value) throw new Error("Invalid QR validation input");
 }
 
+function validateQuietZone(png, width, height, modulePixels) {
+  const quiet = 4 * modulePixels;
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      if (x >= quiet && x < width - quiet && y >= quiet && y < height - quiet)
+        continue;
+      const at = (y * width + x) * 4;
+      requireValue(
+        png.data[at] >= 250 &&
+          png.data[at + 1] >= 250 &&
+          png.data[at + 2] >= 250 &&
+          png.data[at + 3] === 255,
+      );
+    }
+  }
+}
+
 export function validateQrScreenshot({
   imagePath,
   fixture,
@@ -90,19 +107,7 @@ export function validateQrScreenshot({
   const units = decoded.version * 4 + 17 + 2 * renderedQuietZoneModules;
   const modulePixels = width / units;
   requireValue(Number.isInteger(modulePixels) && modulePixels >= 2);
-  const quiet = 4 * modulePixels;
-  for (let y = 0; y < height; y++)
-    for (let x = 0; x < width; x++) {
-      if (x >= quiet && x < width - quiet && y >= quiet && y < height - quiet)
-        continue;
-      const at = (y * width + x) * 4;
-      requireValue(
-        png.data[at] >= 250 &&
-          png.data[at + 1] >= 250 &&
-          png.data[at + 2] >= 250 &&
-          png.data[at + 3] === 255,
-      );
-    }
+  validateQuietZone(png, width, height, modulePixels);
   return {
     fixture,
     layer,

@@ -101,16 +101,32 @@ export function reducePaymentObservation(
         : {}),
     });
 
+  return acceptEqualVersion(previous, old, incoming);
+}
+
+function acceptedCheckout(
+  previous: PaymentLiveObservation,
+  old: PaymentProjection,
+  incoming: PaymentProjection,
+  suppress: boolean,
+) {
+  if (previous.detached && !suppress)
+    return { ...old, checkout: incoming.checkout };
+  if (suppress && old.checkout !== null)
+    return Object.freeze({ ...old, checkout: null });
+  return old;
+}
+
+function acceptEqualVersion(
+  previous: PaymentLiveObservation,
+  old: PaymentProjection,
+  incoming: PaymentProjection,
+): PaymentLiveObservation {
   // Server read-time expiry can hide QR without a persisted version increment.
   // Latch null for this session/payment/version; no local timer can reset it.
   const suppress =
     previous.suppressedVersion === old.version || incoming.checkout === null;
-  const accepted =
-    previous.detached && !suppress
-      ? { ...old, checkout: incoming.checkout }
-      : suppress && old.checkout !== null
-        ? Object.freeze({ ...old, checkout: null })
-        : old;
+  const accepted = acceptedCheckout(previous, old, incoming, suppress);
   const equal =
     old.status === incoming.status &&
     old.paidAt === incoming.paidAt &&

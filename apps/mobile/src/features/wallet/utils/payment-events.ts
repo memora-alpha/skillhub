@@ -15,6 +15,46 @@ const paymentHint = z.object({
 });
 const walletHint = z.object({ walletUserId: uuid, operationId: uuid });
 
+type EventFrame = { event: string; data: string };
+type ReadHint = { eventId?: string; expectedVersion?: bigint };
+
+function parseEnvelope(text: string) {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text);
+  } catch {
+    throw new AppError("protocol");
+  }
+  return parse(envelope, raw);
+}
+
+function readHint(
+  frame: EventFrame,
+  snapshot: PaymentCreateSnapshot,
+  ownerId: string,
+  processed: Set<string>,
+): ReadHint | undefined {
+  if (frame.event === "stream.ready") return {};
+  if (!["payment.updated", "wallet.updated"].includes(frame.event)) return;
+  const value = parseEnvelope(frame.data);
+  if (processed.has(value.eventId)) return;
+  if (frame.event === "wallet.updated") {
+    const hint = parse(walletHint, value.data);
+    if (hint.walletUserId !== ownerId) return;
+    return { eventId: value.eventId };
+  }
+  const hint = parse(paymentHint, value.data);
+  if (hint.paymentId !== snapshot.readTargetId) return;
+  const expectedVersion = BigInt(hint.version);
+  if (
+    !snapshot.observation?.stale &&
+    snapshot.payment &&
+    expectedVersion <= BigInt(snapshot.payment.version)
+  )
+    return;
+  return { eventId: value.eventId, expectedVersion };
+}
+
 // Public events carry references, never a trusted financial projection. Only a
 // fresh authenticated GET may update the coordinator or complete a payment.
 export function createPaymentEventReader(options: {
@@ -24,42 +64,14 @@ export function createPaymentEventReader(options: {
   read: () => Promise<unknown>;
 }) {
   const processed = new Set<string>();
-  return async (
-    frame: { event: string; data: string },
-    signal: AbortSignal,
-  ) => {
+  return async (frame: EventFrame, signal: AbortSignal) => {
     const snapshot = options.snapshot();
     const id = snapshot.readTargetId;
     if (!options.current() || signal.aborted || !id || snapshot.readDenied)
       return;
-    let eventId: string | undefined;
-    let expectedVersion: bigint | undefined;
-    if (frame.event !== "stream.ready") {
-      if (!["payment.updated", "wallet.updated"].includes(frame.event)) return;
-      let raw: unknown;
-      try {
-        raw = JSON.parse(frame.data);
-      } catch {
-        throw new AppError("protocol");
-      }
-      const value = parse(envelope, raw);
-      eventId = value.eventId;
-      if (processed.has(eventId)) return;
-      if (frame.event === "payment.updated") {
-        const hint = parse(paymentHint, value.data);
-        if (hint.paymentId !== id) return;
-        expectedVersion = BigInt(hint.version);
-        if (
-          !snapshot.observation?.stale &&
-          snapshot.payment &&
-          BigInt(hint.version) <= BigInt(snapshot.payment.version)
-        )
-          return;
-      } else {
-        const hint = parse(walletHint, value.data);
-        if (hint.walletUserId !== options.ownerId) return;
-      }
-    }
+    const hint = readHint(frame, snapshot, options.ownerId, processed);
+    if (!hint) return;
+    const { eventId, expectedVersion } = hint;
     await options.read();
     if (
       !options.current() ||

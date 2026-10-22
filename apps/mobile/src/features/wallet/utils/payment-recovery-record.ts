@@ -30,12 +30,18 @@ const schema = z
   })
   .strict();
 export type RecoveryRecord = Readonly<z.infer<typeof schema>>;
+function utf8Width(point: number) {
+  if (point < 128) return 1;
+  if (point < 2048) return 2;
+  return point < 65536 ? 3 : 4;
+}
+
 export function boundedJson(value: unknown) {
   const text = JSON.stringify(value);
   let bytes = 0;
   for (const char of text) {
     const point = char.codePointAt(0)!;
-    bytes += point < 128 ? 1 : point < 2048 ? 2 : point < 65536 ? 3 : 4;
+    bytes += utf8Width(point);
   }
   if (bytes >= 2048) throw new AppError("storage");
   return text;
@@ -53,7 +59,7 @@ export function parseRecoveryRecord(
       r.ownerId !== identity.ownerId ||
       r.environment !== identity.environment
     )
-      throw Error();
+      throw new Error();
     return Object.freeze({ ...r, body: Object.freeze({ ...r.body }) });
   } catch {
     throw new AppError("storage");
