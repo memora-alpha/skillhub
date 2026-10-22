@@ -65,6 +65,13 @@ const adminRoutes: [string, RegExp, (path: string) => string][] = [
     new RegExp(`^tag-requests/${uuid}/(approve|reject)$`, "i"),
     (p) => `admin/${p}`,
   ],
+  ["GET", new RegExp(`^skills/${uuid}/levels$`, "i"), (p) => `admin/${p}`],
+  ["POST", new RegExp(`^skills/${uuid}/levels$`, "i"), (p) => `admin/${p}`],
+  [
+    "PATCH",
+    new RegExp(`^skills/${uuid}/levels/${uuid}$`, "i"),
+    (p) => `admin/${p}`,
+  ],
   ["GET", /^users$/, (p) => `admin/${p}`],
   [
     "POST",

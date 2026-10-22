@@ -19,6 +19,8 @@ export function isSessionFailure(error: unknown): boolean {
   );
 }
 function messageFor(status: number, code: string) {
+  if (code === "SKILL_LEVEL_DUPLICATE")
+    return "Mã hoặc tên cấp độ đã tồn tại trong kỹ năng này.";
   if (code === "TAG_ALREADY_EXISTS")
     return "Tên tag đã tồn tại. Chọn tên khác hoặc kiểm tra lại danh mục tag.";
   if (code === "TAG_REQUEST_NOT_PENDING")

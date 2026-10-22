@@ -42,3 +42,13 @@ export type TagRequest = {
   createdAt: string;
   version: number;
 };
+export type SkillLevel = {
+  id: string;
+  skillId: string;
+  code: string;
+  name: string;
+  description: string | null;
+  sortOrder: number;
+  status: "ACTIVE" | "INACTIVE";
+  version: number;
+};

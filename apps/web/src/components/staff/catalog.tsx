@@ -13,6 +13,7 @@ import type { CatalogSkill } from "@/lib/staff/admin-types";
 import { useStaffList } from "./hooks";
 import { useStaffSession } from "./session";
 import { DecisionDialog, Pager, QueueState } from "./common";
+import { SkillLevelsPanel } from "./skill-levels";
 type Editor = {
   skill?: CatalogSkill;
   name: string;
@@ -30,6 +31,7 @@ export function CatalogScreen() {
   const [status, setStatus] = useState("");
   const [editor, setEditor] = useState<Editor | null>(null);
   const [transition, setTransition] = useState<CatalogSkill | null>(null);
+  const [levels, setLevels] = useState<CatalogSkill | null>(null);
   const [restoreStatus, setRestoreStatus] = useState("ACTIVE");
   const [success, setSuccess] = useState<string | null>(null);
   const attempt = useRef<{ digest: string; key: string } | null>(null);
@@ -38,6 +40,7 @@ export function CatalogScreen() {
   if (status) params.set("status", status);
   const queue = useStaffList<CatalogSkill>(`skills?${params}`);
   const reload = async () => {
+    setLevels(null);
     setEditor(null);
     setTransition(null);
     await queue.reload();
@@ -149,6 +152,13 @@ export function CatalogScreen() {
                     <td>{fmtDateTime(s.updatedAt)}</td>
                     <td>
                       <div className="row">
+                        <button
+                          type="button"
+                          className="btn btn-sm"
+                          onClick={() => setLevels(s)}
+                        >
+                          Cấp độ
+                        </button>
                         {s.status !== "ARCHIVED" && (
                           <button
                             type="button"
@@ -183,6 +193,13 @@ export function CatalogScreen() {
           hasMore={queue.page?.hasMore}
         />
       </Card>
+      {levels && (
+        <SkillLevelsPanel
+          key={levels.id}
+          skill={levels}
+          onClose={() => setLevels(null)}
+        />
+      )}
       {editor && (
         <DecisionDialog
           title={editor.skill ? "Chỉnh sửa kỹ năng" : "Thêm kỹ năng"}
