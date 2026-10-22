@@ -13,10 +13,32 @@
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
 }
+.staff-demo-notice {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 16px;
+  margin-bottom: 24px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  background: var(--brand-soft);
+  color: var(--ink);
+}
+.staff-demo-notice p {
+  margin: 8px 0 0;
+  max-width: 68ch;
+}
+.staff-demo-notice button {
+  flex-shrink: 0;
+}
 .staff-ledger-details {
   margin-top: 24px;
 }
 @media (max-width: 640px) {
+  .staff-demo-notice {
+    flex-direction: column;
+  }
   .staff-material {
     padding: 16px;
   }

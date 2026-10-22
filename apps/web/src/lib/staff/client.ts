@@ -19,6 +19,14 @@ export function isSessionFailure(error: unknown): boolean {
   );
 }
 const errorMessages: Readonly<Record<string, string>> = {
+  DEMO_RESOLUTION_UNSUPPORTED:
+    "Dữ liệu thử chỉ hỗ trợ ghi chú và trạng thái báo cáo; chưa áp dụng thay đổi Credit hoặc uy tín.",
+  DEMO_DATA_INVALID:
+    "Dữ liệu thử bị lỗi. Chọn Đặt lại dữ liệu thử rồi bật lại để tiếp tục.",
+  DEMO_STORAGE_UNAVAILABLE:
+    "Trình duyệt chưa cho phép lưu dữ liệu thử. Kiểm tra quyền lưu trữ rồi thử lại.",
+  DEMO_ROUTE_UNAVAILABLE:
+    "Thao tác này chưa có trong dữ liệu thử. Chuyển sang dữ liệu thật để sử dụng.",
   MATERIAL_SELF_REVIEW_FORBIDDEN:
     "Tài liệu của bạn cần một nhân viên khác duyệt hoặc hiện lại.",
   MATERIAL_VERSION_CONFLICT:

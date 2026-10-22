@@ -10,6 +10,7 @@ import {
   useNotificationInbox,
 } from "./notification-session";
 import type { Portal } from "@/lib/staff/policy";
+import { resetDemoData } from "@/lib/staff/demo-api";
 const nav: { href: string; label: string; icon: IconName }[] = [
   { href: "/staff", label: "Tổng quan", icon: "inbox" },
   { href: "/staff/evidence", label: "Bằng chứng kỹ năng", icon: "shield" },
@@ -37,7 +38,8 @@ const adminNav: typeof nav = [
   { href: "/admin/notifications", label: "Thông báo", icon: "bell" },
 ];
 function Frame({ children }: Readonly<{ children: ReactNode }>) {
-  const { actor, loading, logout, busy, portal } = useStaffSession();
+  const { actor, loading, logout, busy, portal, demo, setDemo } =
+    useStaffSession();
   const links = portal === "admin" ? adminNav : nav;
   const portalName = portal === "admin" ? "Admin" : "Staff";
   const pathname = usePathname();
@@ -153,15 +155,58 @@ function Frame({ children }: Readonly<{ children: ReactNode }>) {
             SkillHub <Icon name="right" size={14} />{" "}
             {current?.label ?? portalName}
           </span>
-          <NotificationBell portal={portal} />
+          <div className="row">
+            {portal === "admin" && (
+              <button
+                type="button"
+                className="btn btn-sm"
+                disabled={busy}
+                onClick={() => setDemo(!demo)}
+              >
+                {demo ? "Dùng dữ liệu thật" : "Dùng dữ liệu thử"}
+              </button>
+            )}
+            <NotificationBell portal={portal} />
+          </div>
         </header>
         <main id="main" className="content">
+          {demo && (
+            <aside
+              className="staff-demo-notice"
+              aria-label="Chế độ dữ liệu thử"
+            >
+              <div>
+                <strong>Đang dùng dữ liệu thử</strong>
+                <p>
+                  Mỗi nhóm có ít nhất 5 mẫu. Thao tác chỉ lưu trên trình duyệt
+                  này, không thay đổi dữ liệu thật. Không cần nhập mật khẩu thật
+                  khi thử cấp quyền.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="btn btn-sm"
+                onClick={() => {
+                  try {
+                    resetDemoData(actor.userId, window.localStorage);
+                    setDemo(false);
+                  } catch {
+                    setError(
+                      "Không thể đặt lại dữ liệu thử. Kiểm tra quyền lưu dữ liệu của trình duyệt.",
+                    );
+                  }
+                }}
+              >
+                Đặt lại dữ liệu thử
+              </button>
+            </aside>
+          )}
           {error && (
             <p className="staff-error" role="alert">
               {error}
             </p>
           )}
-          {children}
+          <div key={demo ? "demo" : "live"}>{children}</div>
         </main>
       </div>
     </div>
