@@ -1,12 +1,16 @@
-import type { WalletScope } from "../types/wallet";
+import type { WalletScope } from "../../src/features/wallet/types/wallet";
 import type {
   ModelDispatch,
   PaymentIntent,
   PreparationSnapshot,
   QuoteModel,
-} from "../types/payment";
-import { amountHint, reviewTopUp } from "./topup-policy";
-import { resolveModelCreation, unknownCreation } from "./payment-intent-result";
+} from "./wallet-model-types";
+import { amountHint } from "../../src/features/wallet/utils/topup-policy";
+import { reviewTopUp } from "./wallet-model-policy";
+import {
+  resolveModelCreation,
+  unknownCreation,
+} from "./wallet-model-intent-result";
 
 const empty = (): PreparationSnapshot =>
   Object.freeze({ stage: "DRAFT", draft: Object.freeze({ amountText: "" }) });

@@ -1,7 +1,7 @@
-import { createPaymentCoordinator } from "../utils/payment-create-coordinator";
-import { createCorrelationStore } from "../storage/correlation-store-core";
+import { createPaymentCoordinator } from "../../src/features/wallet/utils/payment-create-coordinator";
+import { createCorrelationStore } from "../../src/features/wallet/storage/correlation-store-core";
 import { AppError } from "@/lib/http/errors";
-import { validateTopUp } from "../utils/topup-policy";
+import { validateTopUp } from "../../src/features/wallet/utils/topup-policy";
 
 // Synthetic in-memory boundary. No account/provider client, HTTP or SecureStore.
 export function createInertTopupHost() {

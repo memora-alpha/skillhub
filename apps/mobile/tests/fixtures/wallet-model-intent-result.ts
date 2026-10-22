@@ -1,5 +1,5 @@
-import type { PaymentIntent, PreparationSnapshot } from "../types/payment";
-import type { WalletScope } from "../types/wallet";
+import type { PaymentIntent, PreparationSnapshot } from "./wallet-model-types";
+import type { WalletScope } from "../../src/features/wallet/types/wallet";
 
 export const unknownCreation = Object.freeze({
   stage: "UNKNOWN_OUTCOME" as const,

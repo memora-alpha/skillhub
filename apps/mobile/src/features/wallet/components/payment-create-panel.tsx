@@ -17,6 +17,8 @@ export function PaymentCreatePanel({
   mode = "qa",
   onConfirm,
   onReplay,
+  stickyAction = false,
+  showStatusCheck = true,
 }: {
   model: PaymentCoordinator;
   active: boolean;
@@ -24,6 +26,8 @@ export function PaymentCreatePanel({
   mode?: "qa" | "account";
   onConfirm?: () => void;
   onReplay?: () => void;
+  stickyAction?: boolean;
+  showStatusCheck?: boolean;
 }) {
   const state = useSyncExternalStore(
     model.subscribe,
@@ -45,6 +49,8 @@ export function PaymentCreatePanel({
         active={active}
         onConfirm={onConfirm}
         onReplay={onReplay}
+        stickyAction={stickyAction}
+        showStatusCheck={showStatusCheck}
       />
     );
   return (
@@ -73,7 +79,7 @@ export function PaymentCreatePanel({
             editable={active && view.canEdit}
             inputMode="numeric"
             keyboardType="number-pad"
-            hint="1.000–2.000.000 VND · Bước 1.000 VND"
+            hint="2.000–2.000.000 VND · Bước 1.000 VND"
           />
           <TopupPresets
             value={state.draft}
@@ -184,9 +190,6 @@ export function PaymentCreatePanel({
           )}
         </>
       )}
-      <Button variant="ghost" disabled={state.busy} onPress={model.supportStop}>
-        Cần hỗ trợ khi mất toàn bộ mã yêu cầu
-      </Button>
     </Panel>
   );
 }

@@ -24,10 +24,17 @@ export type PaymentCreateSnapshot = Readonly<{
     | "ended";
   draft: string;
   busy: boolean;
+  // A replaceable status GET; it must not hide or disable the cancel action.
+  checking?: boolean;
+  // Explicit cancellation only, including its freshness preflight.
+  cancelling?: boolean;
   canReplay?: boolean;
   canReturnToDraft?: boolean;
   canStartNext?: boolean;
   canRestore?: boolean;
+  canCancel?: boolean;
+  cancelUnconfirmed?: boolean;
+  cancelNotice?: string;
   readDenied?: boolean;
   readTargetId?: string;
   review?: TopUpReview;
@@ -51,6 +58,7 @@ export type PaymentCoordinatorOptions = {
       signal: AbortSignal,
     ) => Promise<unknown>;
     detail: (id: string, signal: AbortSignal) => Promise<unknown>;
+    cancel?: (id: string, key: string, signal: AbortSignal) => Promise<unknown>;
   };
 };
 export type PaymentCreatePrivate = {

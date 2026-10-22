@@ -19,7 +19,7 @@ import {
 
 const protocol = (error: unknown) =>
   error instanceof AppError && error.kind === "protocol";
-test("flat Payment DTO: seven states and unfamiliar values, no invented wire fields", () => {
+test("flat Payment DTO: eight states and unfamiliar values, no invented wire fields", () => {
   for (const state of [...paymentStates, "FUTURE_STATE"]) {
     const data = parsePayment(paymentWire(state), paymentId);
     assert.equal(data.status, state);

@@ -1,14 +1,15 @@
+import { reviewTopUp } from "./fixtures/wallet-model-policy";
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
   validateTopUp,
-  reviewTopUp,
+  validateContractTopUp,
 } from "../src/features/wallet/utils/topup-policy";
-import { createPaymentPreparation } from "../src/features/wallet/utils/payment-intent";
+import { createPaymentPreparation } from "./fixtures/wallet-model-intent";
 import type {
   ModelDispatch,
   PaymentIntent,
-} from "../src/features/wallet/types/payment";
+} from "./fixtures/wallet-model-types";
 
 const scope = { ownerId: "synthetic-owner-a", generation: 1 };
 const setup = () => createPaymentPreparation({ scope, isCurrent: () => true });
@@ -26,15 +27,15 @@ const receipt = (intent: PaymentIntent) => ({
   review: intent.review,
   paymentId: "synthetic-payment-only",
 });
-function reviewed(model = setup(), amount = "1000") {
+function reviewed(model = setup(), amount = "2000") {
   model.edit(amount);
   model.review();
   return model;
 }
 
-test("approved exact policy rejects noncanonical/unsafe/off-step input without rounding", () => {
+test("app create floor is 2,000 VND while contract validation preserves 1,000 VND recovery", () => {
   for (const [amount, credit] of [
-    ["1000", "1.00"],
+    ["2000", "2.00"],
     ["2000000", "2000.00"],
     ["123000", "123.00"],
   ]) {
@@ -44,20 +45,23 @@ test("approved exact policy rejects noncanonical/unsafe/off-step input without r
     assert.equal(result.provenance, "estimate");
     assert.equal("expiresAt" in result, false);
   }
+  assert.equal(validateContractTopUp("1000").estimatedCredit, "1.00");
   for (const amount of [
     "",
     "0",
     "999",
+    "1000",
     "1001",
+    "1999",
     "2001000",
     "01000",
     "1.000",
-    "1000.00",
+    "2000.00",
     "1e3",
-    "+1000",
-    "-1000",
-    " 1000",
-    "1000\n",
+    "+2000",
+    "-2000",
+    " 2000",
+    "2000\n",
     "١٠٠٠",
     "9".repeat(1000),
   ])
@@ -71,8 +75,8 @@ test("review is immutable; changed confirmed-model quote requires explicit re-re
   assert.equal(first.provenance, "estimate");
   const quote = {
     quoteId: "synthetic-quote",
-    amountVnd: "1000",
-    credit: "1.00",
+    amountVnd: "2000",
+    credit: "2.00",
     policyVersion: "2026-10-15-v1",
     expiresAt: "2030-01-01T00:00:00.000Z",
   };
@@ -86,12 +90,12 @@ test("review is immutable; changed confirmed-model quote requires explicit re-re
   assert.equal(confirmed.quote?.expiresAt, "2030-01-01T00:00:00.000Z");
   model.setQuoteModel(quote);
   assert.equal(model.getSnapshot().review, undefined);
-  assert.throws(() => reviewTopUp("1000", { ...quote, credit: "2.00" }));
-  assert.throws(() => reviewTopUp("2000", quote));
+  assert.throws(() => reviewTopUp("2000", { ...quote, credit: "3.00" }));
+  assert.throws(() => reviewTopUp("3000", quote));
   assert.throws(() =>
-    reviewTopUp("1000", { ...quote, policyVersion: "unapproved" }),
+    reviewTopUp("2000", { ...quote, policyVersion: "unapproved" }),
   );
-  assert.throws(() => reviewTopUp("1000", { ...quote, expiresAt: "invalid" }));
+  assert.throws(() => reviewTopUp("2000", { ...quote, expiresAt: "invalid" }));
 });
 
 test("no explicit review means zero identities/dispatches; invalid draft/error and Back preserve text", async () => {
@@ -109,10 +113,10 @@ test("no explicit review means zero identities/dispatches; invalid draft/error a
   assert(model.getSnapshot().error);
   assert.equal(calls, 0);
   assert.equal(model.getSnapshot().intent, undefined);
-  model.edit("1000");
+  model.edit("2000");
   model.review();
   model.backToDraft();
-  assert.equal(model.getSnapshot().draft.amountText, "1000");
+  assert.equal(model.getSnapshot().draft.amountText, "2000");
   assert.equal(model.getSnapshot().intent, undefined);
 });
 
@@ -137,8 +141,8 @@ test("synchronous claim precedes await and reentrant/multiple callers; frozen su
   const second = model.confirmModel(dispatch);
   model.edit("2000");
   assert.equal(calls, 1);
-  assert.equal(model.getSnapshot().draft.amountText, "1000");
-  assert.equal(submitted.review.amountVnd, "1000");
+  assert.equal(model.getSnapshot().draft.amountText, "2000");
+  assert.equal(submitted.review.amountVnd, "2000");
   gate.resolve(receipt(submitted));
   await Promise.all([first, second]);
   assert.equal(model.getSnapshot().stage, "CREATED_WITH_ID");
@@ -158,7 +162,7 @@ test("timeout/disconnect/abort/malformed and mismatched receipt stay unknown wit
     async (i) => ({ ...receipt(i), paymentId: "" }),
     async (i) => ({ ...receipt(i), scope: { ...scope, ownerId: "b" } }),
     async (i) => ({ ...receipt(i), intentId: "different" }),
-    async (i) => ({ ...receipt(i), review: reviewTopUp("2000") }),
+    async (i) => ({ ...receipt(i), review: reviewTopUp("3000") }),
   ];
   for (const dispatch of failures) {
     const model = reviewed();
@@ -176,7 +180,7 @@ test("timeout/disconnect/abort/malformed and mismatched receipt stay unknown wit
     });
     assert.equal(calls, 0);
     assert.equal(model.getSnapshot().intent, intent);
-    assert.equal(model.getSnapshot().draft.amountText, "1000");
+    assert.equal(model.getSnapshot().draft.amountText, "2000");
     assert.equal(model.getSnapshot().stage, "UNKNOWN_OUTCOME");
   }
 });
@@ -223,7 +227,7 @@ test("only injected associated proven-no-creation permits correction; known iden
     review: i.review,
   }));
   assert.equal(model.getSnapshot().stage, "REJECTED_WITH_NO_CREATION");
-  assert.equal(model.getSnapshot().draft.amountText, "1000");
+  assert.equal(model.getSnapshot().draft.amountText, "2000");
   model.startNext();
   model.edit("2000");
   model.review();

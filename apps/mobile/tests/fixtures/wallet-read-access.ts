@@ -1,5 +1,5 @@
 import { AppError } from "@/lib/http/errors";
-import type { FinancialRead } from "../types/wallet";
+import type { FinancialRead } from "../../src/features/wallet/types/wallet";
 
 // A resource-local observation guard, not a second account-wide query cache.
 export function createReadAccess<T>({

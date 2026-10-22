@@ -1,16 +1,16 @@
 import { AppError } from "@/lib/http/errors";
-import type { WalletScope } from "../types/wallet";
+import type { WalletScope } from "../../src/features/wallet/types/wallet";
 import type {
   PaymentModelTarget,
   PaymentModelReader,
-  PaymentObservationRead,
-} from "../types/payment";
+} from "./wallet-model-types";
+import type { PaymentObservationRead } from "../../src/features/wallet/types/payment";
 import {
   observePaymentModel,
   reconcilePaymentModel,
   validPaymentModelTarget,
-} from "./payment-outcome";
-import { paymentModelStore } from "./payment-model-store";
+} from "./wallet-model-outcome";
+import { paymentModelStore } from "../../src/features/wallet/utils/payment-model-store";
 
 const unavailable: PaymentObservationRead = Object.freeze({
   status: "unavailable",
@@ -151,9 +151,3 @@ export function createPaymentObserver({
   };
 }
 export type PaymentObserver = ReturnType<typeof createPaymentObserver>;
-// Actual-contract read path is independent of the inert preparation reader.
-export {
-  paymentReadOptions,
-  projectPaymentRead,
-  pausePaymentRead,
-} from "./payment-read-query";

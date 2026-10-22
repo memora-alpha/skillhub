@@ -9,12 +9,12 @@ import {
   walletScopeKey,
   walletQueryKey,
 } from "../src/features/wallet/utils/wallet-query-keys";
-import { createReadAccess } from "../src/features/wallet/utils/read-access";
+import { createReadAccess } from "./fixtures/wallet-read-access";
 import { AppError } from "../src/lib/http/errors";
 import { createHttpClient } from "../src/lib/http/client";
 import { startWalletFixture } from "./fixtures/wallet-api";
 import { walletModels, walletOwners } from "./fixtures/wallet-model";
-import { attachPaymentPreparation } from "../src/features/wallet/context/payment-preparation";
+import { attachPaymentPreparation } from "./fixtures/wallet-preparation";
 
 const deferred = <T>() => {
   let resolve!: (value: T) => void;
@@ -48,7 +48,7 @@ function setup() {
 test("session-owned preparation survives screen remount and reconnect without dispatch; retirement clears private state", async () => {
   const { runtime, queries, end } = setup();
   const preparation = attachPaymentPreparation(runtime);
-  preparation.model.edit("1000");
+  preparation.model.edit("2000");
   preparation.model.review();
   let calls = 0,
     captured: unknown;
@@ -95,7 +95,7 @@ test("strict-effect activation starts a clean lifetime; uncooperative old create
   const { runtime } = setup(),
     preparation = attachPaymentPreparation(runtime),
     gate = deferred<unknown>();
-  preparation.model.edit("1000");
+  preparation.model.edit("2000");
   preparation.model.review();
   const pending = preparation.model.confirmModel(() => gate.promise);
   runtime.dispose();
@@ -114,7 +114,7 @@ test("keys bind owner and generation; cleanup only removes retired wallet scope"
   queries.setQueryData(walletQueryKey(scope, "wallet"), walletModels.a);
   queries.setQueryData(walletQueryKey(other, "wallet"), walletModels.b);
   queries.setQueryData(["learning-requests", walletOwners.a], "preserved");
-  runtime.sessionData.set("draft", "1000");
+  runtime.sessionData.set("draft", "2000");
   runtime.sessionData.set("intent", { id: "model-only" });
   runtime.sessionData.set("qr", "synthetic");
   let detached = 0;

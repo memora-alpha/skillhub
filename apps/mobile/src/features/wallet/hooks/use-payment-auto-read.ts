@@ -7,6 +7,7 @@ export function usePaymentAutoRead({
   current,
   snapshot,
   read,
+  realtime = false,
 }: {
   active: boolean;
   id?: string;
@@ -18,6 +19,7 @@ export function usePaymentAutoRead({
     stale?: boolean;
   };
   read: () => Promise<unknown>;
+  realtime?: boolean;
 }) {
   const latest = useRef({ current, snapshot, read });
   latest.current = { current, snapshot, read };
@@ -29,11 +31,12 @@ export function usePaymentAutoRead({
     }
     setWatching(true);
     return startPaymentReadLoop({
+      realtime: () => realtime,
       current: () => latest.current.current(),
       snapshot: () => latest.current.snapshot(),
       read: () => latest.current.read(),
       onStop: () => setWatching(false),
     });
-  }, [active, id]);
+  }, [active, id, realtime]);
   return watching;
 }

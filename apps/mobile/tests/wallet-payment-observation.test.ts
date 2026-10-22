@@ -10,7 +10,7 @@ import {
   paymentOutcome,
   paymentState,
 } from "../src/features/wallet/utils/payment-outcome";
-import { observePaymentModel } from "../src/features/wallet/utils/payment-outcome";
+import { observePaymentModel } from "./fixtures/wallet-model-outcome";
 import {
   paymentTarget,
   paymentReceipt,
@@ -212,7 +212,7 @@ test("REVIEW/unknown stay neutral and preparation seam retains conservative sema
   const labels = new Set(
     paymentStates.map((s) => paymentOutcome(paymentState(s))),
   );
-  assert.equal(labels.size, 7);
+  assert.equal(labels.size, paymentStates.length);
   assert.equal(paymentState("REVIEW"), "REVIEW");
   assert.match(paymentOutcome("REVIEW"), /kiểm tra|đối soát/);
   for (const raw of ["UNFAMILIAR", "SUCCESS", "paid", "toString", "__proto__"])

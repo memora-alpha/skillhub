@@ -1,12 +1,8 @@
 import type { ReactNode } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import {
-  appColors as colors,
-  appRadius,
-  fonts,
-  typography,
-} from "@/constants/theme";
+import { appRadius, fonts, typography } from "@/constants/theme";
 import { Icon } from "@/components/Icon";
+import { paymentPalette as colors } from "./wallet-payment-palette";
 
 export function PaymentSurface({
   children,
@@ -32,13 +28,13 @@ export function PaymentMethod() {
   return (
     <View style={styles.method}>
       <View style={styles.methodIcon}>
-        <Icon name="wallet" color={colors.primary} size={20} />
+        <Icon name="wallet" color={colors.brand} size={20} />
       </View>
       <View style={styles.methodCopy}>
         <Text style={styles.methodTitle}>QR ngân hàng</Text>
         <Text style={styles.caption}>Thanh toán qua payOS</Text>
       </View>
-      <Icon name="check-circle" color={colors.forest} size={20} />
+      <Icon name="check-circle" color={colors.success} size={20} />
     </View>
   );
 }
@@ -53,15 +49,15 @@ export const paymentSurfaceStyles = StyleSheet.create({
   amount: {
     fontFamily: fonts.bold,
     ...typography.amount,
-    color: colors.ink,
+    color: colors.brandDark,
     fontVariant: ["tabular-nums"],
     textAlign: "center",
   },
   credit: {
     fontFamily: fonts.semibold,
     ...typography.secondary,
-    color: colors.forest,
-    backgroundColor: colors.forestSoft,
+    color: colors.success,
+    backgroundColor: colors.successSoft,
     borderRadius: appRadius.full,
     paddingHorizontal: 14,
     paddingVertical: 6,
@@ -77,13 +73,22 @@ export const paymentSurfaceStyles = StyleSheet.create({
 const styles = StyleSheet.create({
   surface: {
     backgroundColor: colors.surface,
-    borderRadius: appRadius.feature,
+    borderRadius: appRadius.card,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: 20,
-    gap: 20,
+    padding: 18,
+    gap: 18,
+    shadowColor: colors.ink,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 2,
   },
-  title: { fontFamily: fonts.bold, ...typography.heading, color: colors.ink },
+  title: {
+    fontFamily: fonts.bold,
+    ...typography.heading,
+    color: colors.brandDark,
+  },
   method: {
     flexDirection: "row",
     gap: 12,
@@ -91,7 +96,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   methodIcon: {
-    backgroundColor: colors.primarySoft,
+    backgroundColor: colors.brandSoft,
     borderRadius: appRadius.card,
     padding: 12,
   },

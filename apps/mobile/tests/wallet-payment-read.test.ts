@@ -12,7 +12,7 @@ import {
   paymentReadOptions,
   projectPaymentRead,
   pausePaymentRead,
-} from "../src/features/wallet/utils/payment-observer";
+} from "../src/features/wallet/utils/payment-read-query";
 import {
   createWalletRuntime,
   noWalletCapabilities,

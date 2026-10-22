@@ -8,6 +8,5 @@ export {
 } from "./screens";
 export { WalletProvider } from "./context/WalletProvider";
 export { HomeWalletBalance } from "./components/home-wallet-balance";
-export { WalletPreviewScreen } from "./preview/entry";
 export { PaymentReadQaHost } from "./qa/payment-read-qa-host";
 export { PaymentFinancialQaHost } from "./qa/financial-entry";

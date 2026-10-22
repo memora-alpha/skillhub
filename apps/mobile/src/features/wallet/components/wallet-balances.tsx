@@ -23,7 +23,6 @@ export function WalletBalances({ snapshot }: { snapshot: WalletSnapshot }) {
       >
         {formatCredit(snapshot.availableCredit)}
       </Text>
-      <Text style={styles.caption}>Dùng để học và trao đổi kỹ năng</Text>
       <View style={styles.held}>
         <View style={styles.header}>
           <Icon name="lock" color={colors.primaryDark} size={16} />
@@ -63,11 +62,6 @@ const styles = StyleSheet.create({
     color: colors.primaryDark,
     fontVariant: ["tabular-nums"],
     flexShrink: 1,
-  },
-  caption: {
-    fontFamily: fonts.body,
-    ...typography.secondary,
-    color: colors.body,
   },
   held: {
     borderTopWidth: StyleSheet.hairlineWidth,

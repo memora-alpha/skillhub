@@ -11,6 +11,7 @@ export const paymentStates = [
   "FAILED",
   "EXPIRED",
   "REFUNDED",
+  "CANCELLED",
   "REVIEW",
 ] as const;
 export function paymentWire(status = "PENDING", version = 1) {

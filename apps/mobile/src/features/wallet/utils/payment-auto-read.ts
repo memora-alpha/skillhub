@@ -1,4 +1,5 @@
 import type { PaymentCreateSnapshot } from "./payment-create-state";
+import { isTerminalPaymentStatus } from "./payment-outcome";
 
 export function resumesPayment(state: PaymentCreateSnapshot) {
   return (
@@ -15,11 +16,13 @@ type ReadSnapshot = {
   stale?: boolean;
 };
 // UI observation cadence only: no provider SLA, expiry decision or mutation retry.
-// At most 120 GETs per focused foreground observation window, serialized.
+// Active checkout: 2s fallback / 300 reads, or a 30s safety read / 20 reads with
+// SSE connected (10 minutes of scheduled waits). REVIEW/UNKNOWN: 30s / 120 reads.
 export function startPaymentReadLoop(options: {
   current: () => boolean;
   snapshot: () => ReadSnapshot;
   read: () => Promise<unknown>;
+  realtime?: () => boolean;
   maxReads?: number;
   onStop?: () => void;
   schedule?: (work: () => void, delay: number) => () => void;
@@ -49,23 +52,24 @@ export function startPaymentReadLoop(options: {
       !!s.id &&
       s.id === identity &&
       !s.denied &&
-      !["PAID", "FAILED", "EXPIRED", "REFUNDED"].includes(s.status ?? "")
+      !isTerminalPaymentStatus(s.status ?? "")
     );
   };
   const plan = () => {
     if (!active) return;
-    if (!eligible() || reads >= (options.maxReads ?? 120)) {
-      stop();
-      return;
-    }
     const slow = ["REVIEW", "UNKNOWN"].includes(
       options.snapshot().status ?? "",
     );
+    const limit = slow ? 120 : options.realtime?.() ? 20 : 300;
+    if (!eligible() || reads >= (options.maxReads ?? limit)) {
+      stop();
+      return;
+    }
     const delay = errors
       ? Math.min(30000, 5000 * 2 ** Math.min(errors, 3))
-      : slow
+      : slow || options.realtime?.()
         ? 30000
-        : 5000;
+        : 2000;
     cancel = schedule(() => {
       cancel?.();
       cancel = undefined;

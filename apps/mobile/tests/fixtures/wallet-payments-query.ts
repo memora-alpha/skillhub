@@ -5,15 +5,15 @@ import {
 } from "@tanstack/react-query";
 import { AppError } from "@/lib/http/errors";
 import type { Page } from "@/lib/http/response";
-import type { PaymentProjection } from "../types/payment";
-import type { FinancialRead } from "../types/wallet";
-import type { WalletRuntime } from "../context/wallet-runtime";
+import type { PaymentProjection } from "../../src/features/wallet/types/payment";
+import type { FinancialRead } from "../../src/features/wallet/types/wallet";
+import type { WalletRuntime } from "../../src/features/wallet/context/wallet-runtime";
 import {
   createPaymentApi,
   type PaymentClient,
   type PaymentFilters,
-} from "../api/payment-api";
-import { paymentListKey } from "./payment-query-keys";
+} from "../../src/features/wallet/api/payment-api";
+import { paymentListKey } from "../../src/features/wallet/utils/payment-query-keys";
 
 type PaymentPage = Page<PaymentProjection>;
 export type PaymentsData = InfiniteData<PaymentPage> & {

@@ -26,8 +26,7 @@ export function simplePaymentCopy(
     description = "Bạn có thể xem số dư mới trong ví Credit.";
   } else if (outcome === "CREATED") {
     title = "Đang chuẩn bị mã QR";
-    description =
-      "Yêu cầu nạp đã được ghi nhận. Vui lòng kiểm tra lại sau ít phút.";
+    description = "Yêu cầu nạp đã được tạo. Mã QR sẽ hiển thị khi sẵn sàng.";
   } else if (outcome === "PENDING") {
     title = hasQr ? "Quét mã để thanh toán" : "Đang chờ thanh toán";
     description = hasQr
@@ -43,6 +42,9 @@ export function simplePaymentCopy(
   } else if (outcome === "EXPIRED") {
     title = "Yêu cầu đã hết hạn";
     description = "Quay lại ví để bắt đầu lần nạp khác.";
+  } else if (outcome === "CANCELLED") {
+    title = "Yêu cầu nạp đã hủy";
+    description = "Quay lại ví để bắt đầu lần nạp khác khi được phép.";
   } else if (outcome === "REFUNDED") {
     title = "Đã ghi nhận hoàn tiền";
     description = "Xem lịch sử để kiểm tra thông tin giao dịch.";
@@ -50,9 +52,14 @@ export function simplePaymentCopy(
     title = "Đang kiểm tra thanh toán";
     description = "Chưa có kết quả xác nhận. Vui lòng kiểm tra lại sau.";
   }
-  if (!success && state.recoveryRequired && outcome !== "REVIEW")
+  if (
+    state.recoveryReason === "PAYMENT_RECOVERY_PENDING" &&
+    ["CREATED", "PENDING"].includes(outcome ?? "")
+  )
+    description = "Yêu cầu nạp đang được khôi phục. Vui lòng chờ cập nhật.";
+  else if (!success && state.recoveryRequired && outcome !== "REVIEW")
     description =
-      "Thanh toán đang tạm gián đoạn. Vui lòng kiểm tra lại hoặc liên hệ hỗ trợ.";
+      "Thanh toán đang tạm gián đoạn. Vui lòng kiểm tra lại yêu cầu này sau.";
   return {
     title,
     description,

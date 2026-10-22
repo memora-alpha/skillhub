@@ -2,12 +2,7 @@ import type { ReactNode } from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { PaymentAction } from "./payment-action";
 import { Icon } from "@/components/Icon";
-import {
-  appColors as colors,
-  appRadius,
-  fonts,
-  typography,
-} from "@/constants/theme";
+import { appRadius, fonts, typography } from "@/constants/theme";
 import { Copy } from "./wallet-ui";
 import {
   PaymentSurface,
@@ -15,10 +10,12 @@ import {
 } from "./payment-surface";
 import { formatCredit, formatVnd } from "../utils/amount";
 import { simplePaymentCopy } from "../utils/payment-simple-copy";
+import { isTerminalPaymentStatus } from "../utils/payment-outcome";
 import type {
   PaymentObservationRead,
   PaymentRefreshSnapshot,
 } from "../types/payment";
+import { paymentPalette as colors } from "./wallet-payment-palette";
 
 export function SimplePaymentStatus({
   state,
@@ -46,11 +43,12 @@ export function SimplePaymentStatus({
   const failedReads = (["wallet", "history"] as const).filter(
     (name) => refresh?.[name].status === "error",
   );
-  const terminal = ["PAID", "FAILED", "EXPIRED", "REFUNDED"].includes(
-    state.data?.state ?? "",
-  );
+  const terminal = isTerminalPaymentStatus(state.data?.state ?? "");
   const description =
-    !automatic || terminal || (!view.showAmount && state.status !== "error")
+    !automatic ||
+    terminal ||
+    state.recoveryReason === "PAYMENT_RECOVERY_PENDING" ||
+    (!view.showAmount && state.status !== "error")
       ? view.description
       : state.status === "error"
         ? "Kết nối đang gián đoạn. App sẽ cập nhật khi kết nối trở lại."
@@ -82,7 +80,7 @@ export function SimplePaymentStatus({
             {pending && !view.showAmount ? (
               <ActivityIndicator
                 size="large"
-                color={colors.primary}
+                color={colors.brand}
                 accessibilityLabel="Đang cập nhật thanh toán"
               />
             ) : (
@@ -91,7 +89,7 @@ export function SimplePaymentStatus({
                   view.success ? "check-circle" : view.error ? "alert" : "clock"
                 }
                 size={32}
-                color={view.error ? colors.error : colors.forest}
+                color={view.error ? colors.error : colors.success}
               />
             )}
           </View>
@@ -129,17 +127,9 @@ export function SimplePaymentStatus({
         <View style={hasQr ? styles.qrFrame : undefined}>{children}</View>
       )}
       {hasQr && <Text style={styles.description}>{description}</Text>}
-      {automatic && watching && view.showAmount && (
-        <Text style={surface.caption}>Đang chờ xác nhận thanh toán…</Text>
-      )}
-      {!automatic && pending && hasQr && (
-        <Copy muted>Đang kiểm tra thanh toán…</Copy>
-      )}
       {view.success && failedReads.length > 0 && (
         <>
-          <Copy muted>
-            Thanh toán đã thành công. Số dư hoặc lịch sử chưa kịp cập nhật.
-          </Copy>
+          <Copy muted>Số dư hoặc lịch sử chưa kịp cập nhật.</Copy>
           {!automatic && onRefresh && (
             <PaymentAction
               variant="paper"
@@ -158,9 +148,7 @@ export function SimplePaymentStatus({
         </Copy>
       )}
       {view.success && state.recoveryRequired && (
-        <Copy muted>
-          Một số thông tin đang được kiểm tra thêm. Liên hệ hỗ trợ nếu cần.
-        </Copy>
+        <Copy muted>Một số thông tin đang được kiểm tra thêm.</Copy>
       )}
       {!automatic && view.canCheck && onCheck && (
         <PaymentAction
@@ -185,7 +173,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     padding: 12,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
   },
   icon: {
     padding: 20,
@@ -193,11 +181,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceLow,
   },
   success: { backgroundColor: colors.successSoft },
-  error: { backgroundColor: colors.errorLight },
+  error: { backgroundColor: colors.errorSoft },
   title: {
     fontFamily: fonts.bold,
     ...typography.heading,
-    color: colors.ink,
+    color: colors.brandDark,
     textAlign: "center",
   },
   description: {

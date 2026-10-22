@@ -10,14 +10,10 @@ import {
   paymentQrGeometry,
 } from "../src/features/wallet/utils/payment-qr-encoder";
 import { paymentQrFromObservation } from "../src/features/wallet/utils/payment-qr-model";
-import { createQrPresentation } from "../src/features/wallet/utils/payment-qr-model";
-import { createQrPreviewHost } from "../src/features/wallet/preview/qr-host";
-import { previewSelection } from "../src/features/wallet/preview/navigation";
+import { createQrPresentation } from "./fixtures/wallet-model-qr";
+import { createQrPreviewHost } from "./fixtures/wallet-qr-host";
 
-test("dedicated QR preview needs no intent and does not adopt URL payment identity", () => {
-  const chosen = previewSelection({ view: "qr", id: paymentId, state: "PAID" });
-  assert.equal(chosen.view, "qr");
-  assert.equal(chosen.id, undefined);
+test("the isolated QR fixture needs no account intent or real payment", () => {
   const host = createQrPreviewHost();
   host.load("ascii");
   assert.equal(host.getSnapshot().status, "PENDING");
@@ -260,7 +256,7 @@ test("isolated QR preview exercises null/version/owner/denial without US2/create
   host.dispose();
   assert.equal(host.getSnapshot().model.paymentId, undefined);
   const code = readFileSync(
-    new URL("../src/features/wallet/preview/qr-host.ts", import.meta.url),
+    new URL("./fixtures/wallet-qr-host.ts", import.meta.url),
     "utf8",
   );
   assert.doesNotMatch(

@@ -8,7 +8,7 @@ import {
   parseCreationPolicy,
   validPaymentId,
 } from "../schemas/payment-contracts";
-import { validateTopUp } from "../utils/topup-policy";
+import { validateContractTopUp } from "../utils/topup-policy";
 import type { CreatePaymentBody } from "../utils/payment-recovery-record";
 
 export type PaymentFilters = {
@@ -19,6 +19,7 @@ export type PaymentFilters = {
     | "FAILED"
     | "EXPIRED"
     | "REFUNDED"
+    | "CANCELLED"
     | "REVIEW";
 };
 const filterSchema = z
@@ -31,6 +32,7 @@ const filterSchema = z
         "FAILED",
         "EXPIRED",
         "REFUNDED",
+        "CANCELLED",
         "REVIEW",
       ])
       .optional(),
@@ -40,6 +42,20 @@ export type PaymentClient = Pick<HttpClient, "request"> &
   Partial<Pick<PaginatedHttpClient, "requestPage">>;
 export function createPaymentApi(client: PaymentClient) {
   return {
+    cancel: async (id: string, key: string, signal: AbortSignal) => {
+      if (!validPaymentId(id) || !/^[\x21-\x7e]{1,128}$/.test(key))
+        throw new AppError("protocol");
+      return parsePayment(
+        await client.request(`/payments/${encodeURIComponent(id)}/cancel`, {
+          method: "POST",
+          authenticated: true,
+          idempotencyKey: key,
+          signal,
+          replayAfterRenewal: false,
+        }),
+        id,
+      );
+    },
     create: async (
       body: CreatePaymentBody,
       key: string,
@@ -51,7 +67,8 @@ export function createPaymentApi(client: PaymentClient) {
         Object.keys(body).length !== 2
       )
         throw new AppError("protocol");
-      validateTopUp(body.paymentAmountVnd);
+      // Same-key recovery may replay an older request below today's app floor.
+      validateContractTopUp(body.paymentAmountVnd);
       return parsePayment(
         await client.request("/payments", {
           method: "POST",
