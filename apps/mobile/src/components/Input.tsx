@@ -23,6 +23,7 @@ type InputProps = TextInputProps & {
   reserveMessageSpace?: boolean;
   fieldStyle?: StyleProp<ViewStyle>;
   rightAccessory?: ReactNode;
+  hideLabel?: boolean;
   ref?: Ref<TextInput>;
 };
 
@@ -36,6 +37,7 @@ export function Input({
   reserveMessageSpace,
   fieldStyle,
   rightAccessory,
+  hideLabel = false,
   ref,
   ...props
 }: InputProps) {
@@ -43,10 +45,12 @@ export function Input({
   const [focused, setFocused] = useState(false);
   return (
     <View style={styles.group}>
-      <Text style={[styles.label, labelStyle]}>
-        {label}
-        {required && <Text style={styles.required}> *</Text>}
-      </Text>
+      {!hideLabel && (
+        <Text style={[styles.label, labelStyle]}>
+          {label}
+          {required && <Text style={styles.required}> *</Text>}
+        </Text>
+      )}
       <View
         style={[
           styles.field,

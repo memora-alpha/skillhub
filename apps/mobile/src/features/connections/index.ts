@@ -1,5 +1,9 @@
 export { ConnectionsProvider, useConnections } from "./runtime";
-export { useParticipantName, useCatalogName } from "./labels";
+export {
+  useParticipantName,
+  useParticipantProfile,
+  useCatalogName,
+} from "./labels";
 export {
   useConnectionQuery,
   useConnectionList,

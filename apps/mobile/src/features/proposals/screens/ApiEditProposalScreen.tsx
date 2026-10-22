@@ -1,6 +1,10 @@
 import { useRouter } from "expo-router";
 import { useRef, useState } from "react";
-import { FeaturePage, Panel, Copy } from "@/components/feature-page";
+import { Copy } from "@/components/feature-page";
+import {
+  FlowPage as FeaturePage,
+  FlowSection as Panel,
+} from "@/components/learning-flow";
 import { Button } from "@/components/Button";
 import { EmptyState } from "@/components/EmptyState";
 import {
@@ -45,6 +49,7 @@ export function ApiEditProposalScreen({ id }: Readonly<{ id: string }>) {
   return (
     <FeaturePage
       title="Chỉnh sửa đề xuất"
+      backBehavior="history"
       keyboardDismissMode="none"
       demo={false}
       back={{ pathname: "/proposal/[id]", params: { id } }}

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Icon } from "@/components/Icon";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { appColors as colors, fonts } from "@/constants/theme";
 
@@ -39,7 +40,9 @@ export function RequestCalendar({
           onPress={() => move(-1)}
           style={[styles.arrow, month <= firstMonth && { opacity: 0.4 }]}
         >
-          <Text style={styles.arrowText}>‹</Text>
+          <View style={{ transform: [{ rotate: "180deg" }] }}>
+            <Icon name="chevron" size={18} color={colors.ink} />
+          </View>
         </Pressable>
         <Text style={styles.month}>
           {month.toLocaleDateString("vi-VN", {
@@ -53,7 +56,7 @@ export function RequestCalendar({
           onPress={() => move(1)}
           style={styles.arrow}
         >
-          <Text style={styles.arrowText}>›</Text>
+          <Icon name="chevron" size={18} color={colors.ink} />
         </Pressable>
       </View>
       <View style={styles.grid}>
@@ -113,7 +116,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  arrowText: { fontFamily: fonts.body, fontSize: 18, color: colors.ink },
   month: {
     flex: 1,
     textAlign: "center",

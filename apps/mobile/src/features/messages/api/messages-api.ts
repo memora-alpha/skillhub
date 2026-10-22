@@ -55,6 +55,13 @@ export const deliverySchema = z.discriminatedUnion("deliveryStatus", [
 export type ApiConversation = z.infer<typeof conversationSchema>;
 export type ApiMessage = z.infer<typeof messageSchema>;
 export type Delivery = z.infer<typeof deliverySchema>;
+export type MessageBubbleModel = {
+  id: string;
+  from: "them" | "me";
+  text: string;
+  time: string;
+  file?: { name: string; bytes: number };
+};
 export type MessageDraft = {
   clientMessageId: string;
   messageText?: string;

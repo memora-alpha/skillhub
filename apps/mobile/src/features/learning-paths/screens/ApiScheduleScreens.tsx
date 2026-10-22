@@ -1,15 +1,19 @@
 import { PathReadFeedback } from "../components/PathReadFeedback";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import {
-  FeaturePage,
-  Panel,
-  Copy,
-  RouteButton,
-} from "@/components/feature-page";
+  ScheduleListOverview,
+  ScheduleReadCard,
+  ScheduleExchangeContext,
+  ScheduleMissingPlanCard,
+  ScheduleTimezoneNotice,
+} from "../components/schedule-read-card";
+import { useLocalSearchParams, useRouter } from "expo-router";
+
+import { ApiFinalizePanel } from "./ApiHoldScreen";
+
+import { Copy, RouteButton } from "@/components/feature-page";
+import { FlowPage as FeaturePage } from "@/components/learning-flow";
 import { Button } from "@/components/Button";
-import { ControlledInput } from "@/components/ControlledInput";
+
 import { EmptyState } from "@/components/EmptyState";
 import {
   ConnectionFeedback,
@@ -23,55 +27,109 @@ import {
 } from "../hooks/use-learning-paths-api";
 import {
   canSchedule,
+  canEditSchedule,
   canConfirmSchedule,
-  ownConfirmation,
-  scheduleStatusLabel,
-} from "../policy-api";
+  canValidateForFinalize,
+} from "../utils/policy-api";
 import type {
   ApiLearningPath,
   ApiLearningPlan,
 } from "../api/learning-paths-contract";
+import { ScheduleForm } from "../components/schedule-editor-form";
 import {
-  scheduleInputSchema,
-  scheduleItems,
-  type ScheduleInput,
-} from "../schedule-input";
+  useConfirmedFormShare,
+  ConfirmedFormFeedback,
+} from "@/features/messages/state";
+import { confirmedFormMessage } from "../utils/confirmed-form";
+import { confirmAndShare } from "../api/confirm-and-share";
+import { FormNotice } from "@/components/FormNotice";
+import { scheduleDirections } from "../utils/schedule-directions";
+import { usePullRefresh } from "../hooks/use-pull-refresh";
+
+function scheduleSummary(
+  items: NonNullable<ApiLearningPlan["schedule"]>["items"],
+) {
+  const first = items[0];
+  if (!first) return `${items.length} buổi`;
+  const start = new Date(first.startAt).toLocaleString("vi-VN");
+  return `${items.length} buổi · Bắt đầu ${start}`;
+}
 
 export function ApiSchedulesScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, formPlanId, formScheduleId, formVersion } = useLocalSearchParams<{
+    id: string;
+    formPlanId?: string;
+    formScheduleId?: string;
+    formVersion?: string;
+  }>();
   const query = useLearningPath(id),
     path = query.data;
+  const runtime = useConnections();
+  const pullRefresh = usePullRefresh(query.refetch);
   return (
     <FeaturePage
       title="Lịch của từng kế hoạch"
       demo={false}
+      backBehavior="history"
       back={`/paths/${id}`}
+      refreshing={pullRefresh.refreshing}
+      onRefresh={pullRefresh.onRefresh}
     >
       <PathReadFeedback query={query} />
       {path && (
         <>
-          <Copy muted>
-            Giờ hiển thị theo múi giờ thiết bị. Lịch cần cả hai xác nhận; chỉ
-            khi chốt lộ trình mới tạo buổi học và tạm giữ Credit.
-          </Copy>
+          {formVersion &&
+            (() => {
+              const current = path.plans.find(
+                (plan) => plan.id === formPlanId,
+              )?.schedule;
+              return !current ||
+                current.id !== formScheduleId ||
+                String(current.version) !== formVersion ? (
+                <FormNotice tone="info">
+                  Lịch đã thay đổi sau khi gửi form này. Hãy xem lịch hiện tại
+                  trước khi xác nhận.
+                </FormNotice>
+              ) : null;
+            })()}
+          <ConfirmedFormFeedback conversationId={path.conversationId} />
+          <ScheduleExchangeContext path={path} />
+          <ScheduleListOverview
+            path={path}
+            blocked={!!query.error}
+            userId={runtime.userId}
+          />
+          <ScheduleTimezoneNotice />
           {path.status !== "CONFIRMED" && path.lockedVersion === null && (
             <Copy>
               Cần đủ kế hoạch, xác nhận người học và xác nhận điều khoản của cả
               hai trước khi đề xuất lịch.
             </Copy>
           )}
-          {path.plans.map((plan) => (
-            <SchedulePanel
-              key={plan.id}
+          {scheduleDirections(path, runtime.userId).map(
+            ({ key, plan, mine }) =>
+              plan ? (
+                <SchedulePanel
+                  key={key}
+                  path={path}
+                  plan={plan}
+                  blocked={!!query.error}
+                />
+              ) : (
+                <ScheduleMissingPlanCard
+                  key={key}
+                  path={path}
+                  mine={mine}
+                  blocked={!!query.error}
+                />
+              ),
+          )}
+          {(canValidateForFinalize(path) || path.lockedVersion !== null) && (
+            <ApiFinalizePanel
               path={path}
-              plan={plan}
-              blocked={!!query.error || query.isFetching}
+              blocked={!!query.error}
+              refresh={query.refetch}
             />
-          ))}
-          {path.lockedVersion === null && (
-            <RouteButton href={`/paths/${id}/hold`}>
-              Kiểm tra trước khi chốt lịch
-            </RouteButton>
           )}
         </>
       )}
@@ -92,50 +150,47 @@ function SchedulePanel({
     runtime = useConnections();
   const skill = useCatalogName(plan.skillId),
     schedule = plan.schedule;
-  const partnerConfirmedAt =
-    path.participantAId === runtime.userId
-      ? schedule?.participantBConfirmedAt
-      : schedule?.participantAConfirmedAt;
+  const share = useConfirmedFormShare();
+  const router = useRouter();
   return (
-    <Panel title={skill.data ?? "Kế hoạch học"}>
-      <Copy>
-        {plan.teacherId === runtime.userId ? "Bạn dạy" : "Bạn học"} ·{" "}
-        {plan.totalSessions} buổi
-      </Copy>
-      {!schedule && (
-        <Copy muted>
-          Chưa có đề xuất lịch. Người dạy của kế hoạch này sẽ đề xuất lịch.
-        </Copy>
-      )}
+    <ScheduleReadCard
+      path={path}
+      plan={plan}
+      skill={skill.data ?? "Lộ trình học"}
+      userId={runtime.userId}
+      blocked={blocked}
+    >
       {schedule && (
         <>
-          <Copy>
-            Lịch v{schedule.version} · {scheduleStatusLabel[schedule.status]}
-          </Copy>
-          {schedule.items.map((s) => (
-            <Copy key={s.sessionNo}>
-              Buổi {s.sessionNo}: {new Date(s.startAt).toLocaleString("vi-VN")}{" "}
-              – {new Date(s.endAt).toLocaleString("vi-VN")}
-            </Copy>
-          ))}
-          <Copy>
-            Bạn:{" "}
-            {ownConfirmation(path, schedule, runtime.userId)
-              ? "đã xác nhận"
-              : "chưa xác nhận"}{" "}
-            · Đối tác: {partnerConfirmedAt ? "đã xác nhận" : "chưa xác nhận"}
-          </Copy>
           {canConfirmSchedule(path, plan, runtime.userId) && (
             <Button
               disabled={blocked || command.pending}
               onPress={() => {
                 void command.run(
                   `schedule:${schedule.id}:${schedule.version}`,
-                  () => api.confirmSchedule(schedule.id, schedule.version),
+                  confirmAndShare(
+                    () => api.confirmSchedule(schedule.id, schedule.version),
+                    (result, identity) => {
+                      void share.publish(
+                        path.conversationId,
+                        confirmedFormMessage({
+                          kind: "schedule",
+                          pathId: path.id,
+                          planId: plan.id,
+                          scheduleId: schedule.id,
+                          version: result.version,
+                          title: plan.learningGoal,
+                          summary: scheduleSummary(schedule.items),
+                        }),
+                        identity,
+                      );
+                    },
+                    runtime.isCurrent,
+                  ),
                 );
               }}
             >
-              Xác nhận lịch v{schedule.version}
+              Đồng ý lịch học
             </Button>
           )}
           <ConnectionFeedback error={command.error} />
@@ -146,18 +201,17 @@ function SchedulePanel({
           Đề xuất lịch tôi dạy
         </RouteButton>
       )}
-      {plan.sessions.length > 0 && (
-        <>
-          <Copy>Buổi học đã tạo:</Copy>
-          {plan.sessions.map((s) => (
-            <Copy key={s.id}>
-              Buổi {s.sessionNo}: {new Date(s.startAt).toLocaleString("vi-VN")}{" "}
-              · {s.status}
-            </Copy>
-          ))}
-        </>
+      {canEditSchedule(path, plan, runtime.userId) && (
+        <Button
+          variant="secondary"
+          leadingIcon="edit"
+          disabled={blocked || command.pending || command.uncertain}
+          onPress={() => router.push(`/paths/${path.id}/schedules/${plan.id}`)}
+        >
+          Chỉnh sửa lịch tôi dạy
+        </Button>
       )}
-    </Panel>
+    </ScheduleReadCard>
   );
 }
 export function ApiScheduleEditorScreen() {
@@ -168,94 +222,31 @@ export function ApiScheduleEditorScreen() {
   const plan = path?.plans.find((p) => p.id === planId);
   return (
     <FeaturePage
-      title="Đề xuất lịch tôi dạy"
+      title={plan?.schedule ? "Chỉnh sửa lịch tôi dạy" : "Đề xuất lịch tôi dạy"}
+      scrollable={false}
       demo={false}
+      backBehavior="history"
       back={`/paths/${id}/schedules`}
     >
       <PathReadFeedback query={query} />
       {path &&
       plan &&
-      canSchedule(path, plan, runtime.userId) &&
-      !query.error ? (
+      (canSchedule(path, plan, runtime.userId) ||
+        canEditSchedule(path, plan, runtime.userId)) ? (
         <ScheduleForm
-          key={`${path.currentVersion}:${plan.version}`}
+          key={`${path.currentVersion}:${plan.version}:${plan.schedule?.version ?? "new"}`}
           path={path}
           plan={plan}
-          blocked={query.isFetching}
+          blocked={!!query.error}
         />
       ) : (
         path && (
           <EmptyState
-            title="Chưa thể đề xuất lịch"
-            description="Chỉ người dạy đề xuất lịch sau khi kế hoạch và điều khoản đã xác nhận. Mỗi kế hoạch có một đề xuất lịch cho phiên bản hiện tại."
+            title="Chưa thể chỉnh sửa lịch"
+            description="Chỉ người dạy tạo hoặc sửa lịch trước khi chốt, sau khi thỏa thuận và các lộ trình đủ xác nhận."
           />
         )
       )}
     </FeaturePage>
-  );
-}
-function ScheduleForm({
-  path,
-  plan,
-  blocked,
-}: Readonly<{
-  path: ApiLearningPath;
-  plan: ApiLearningPlan;
-  blocked: boolean;
-}>) {
-  const api = useLearningPathsApi(),
-    command = useConnectionCommand(),
-    router = useRouter();
-  const { control, handleSubmit } = useForm<ScheduleInput>({
-    resolver: zodResolver(scheduleInputSchema),
-    defaultValues: {
-      items: Array.from({ length: plan.totalSessions }, () => ({
-        local: "",
-        minutes: "60",
-      })),
-    },
-  });
-  return (
-    <Panel title={`Lịch cho ${plan.totalSessions} buổi`}>
-      <Copy muted>
-        Nhập giờ theo múi giờ thiết bị:{" "}
-        {Intl.DateTimeFormat().resolvedOptions().timeZone}. Định dạng
-        2026-11-20T19:00. Lịch gửi đi chưa thể sửa trực tiếp.
-      </Copy>
-      {plan.sessionOutline.map((s, i) => (
-        <Panel key={s.sessionNo} title={`Buổi ${s.sessionNo}: ${s.content}`}>
-          <ControlledInput
-            control={control}
-            name={`items.${i}.local`}
-            label="Ngày giờ bắt đầu"
-            placeholder="YYYY-MM-DDTHH:mm"
-            editable={!blocked && !command.pending}
-          />
-          <ControlledInput
-            control={control}
-            name={`items.${i}.minutes`}
-            label="Thời lượng (phút)"
-            keyboardType="number-pad"
-            editable={!blocked && !command.pending}
-          />
-        </Panel>
-      ))}
-      <ConnectionFeedback error={command.error} />
-      <Button
-        disabled={blocked || command.pending}
-        onPress={() => {
-          void handleSubmit(async (input) => {
-            const items = scheduleItems(input);
-            const result = await command.run(
-              JSON.stringify({ id: plan.id, version: plan.version, items }),
-              () => api.schedule(plan.id, plan.version, items),
-            );
-            if (result) router.replace(`/paths/${path.id}/schedules`);
-          })();
-        }}
-      >
-        {command.pending ? "Đang gửi..." : "Gửi đề xuất lịch"}
-      </Button>
-    </Panel>
   );
 }

@@ -4,6 +4,26 @@ import { parse, resourcePath, uuid } from "@/lib/http/contracts";
 import { useConnections } from "./runtime";
 import { useConnectionQuery } from "./hooks";
 
+export function useParticipantProfile(id: string | undefined) {
+  const { call } = useConnections();
+  return useConnectionQuery(
+    ["participant-profile", id],
+    async (signal) => {
+      const profile = parse(
+        z.object({
+          userId: uuid,
+          fullName: z.string(),
+          avatarUrl: z.string().nullable(),
+        }),
+        await call(resourcePath("profiles", id!), { signal }),
+      );
+      if (profile.userId !== id) throw new AppError("protocol");
+      return profile;
+    },
+    uuid.safeParse(id).success,
+  );
+}
+
 export function useParticipantName(id: string | undefined) {
   const { call } = useConnections();
   return useConnectionQuery(

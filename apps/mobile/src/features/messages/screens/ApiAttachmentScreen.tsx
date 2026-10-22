@@ -1,6 +1,5 @@
 import { useRef, useState } from "react";
 import { getDocumentAsync } from "expo-document-picker";
-import { useRouter } from "expo-router";
 import { FeaturePage, Panel, Copy } from "@/components/feature-page";
 import { Button } from "@/components/Button";
 import { FormNotice } from "@/components/FormNotice";
@@ -26,8 +25,7 @@ function fileStateLabel(state?: string) {
 
 export function ApiAttachmentScreen({ id }: Readonly<{ id: string }>) {
   const runtime = useConnections(),
-    api = useMessagesApi(),
-    router = useRouter();
+    api = useMessagesApi();
   const conversation = useConversation(id),
     sender = useMessageSend(id);
   const [file, setFile] = useState<ChatFile>(),
@@ -110,6 +108,7 @@ export function ApiAttachmentScreen({ id }: Readonly<{ id: string }>) {
     <FeaturePage
       title="Gửi tệp trong chat"
       demo={false}
+      backBehavior="history"
       back={{
         pathname: "/chat/[proposalId]",
         params: { proposalId: id, mode: "api" },
@@ -222,17 +221,6 @@ export function ApiAttachmentScreen({ id }: Readonly<{ id: string }>) {
               </Button>
             </>
           )}
-          <Button
-            variant="secondary"
-            onPress={() =>
-              router.dismissTo({
-                pathname: "/chat/[proposalId]",
-                params: { proposalId: id, mode: "api" },
-              })
-            }
-          >
-            Trở lại chat
-          </Button>
         </Panel>
       )}
     </FeaturePage>

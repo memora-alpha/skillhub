@@ -2,25 +2,35 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Avatar } from "@/components/Avatar";
 import { Icon } from "@/components/Icon";
 import { avatarSizes, iconSizes, typography, fonts } from "@/constants/theme";
-import type { Conversation } from "../mocks/conversations";
 import { messageColors as colors } from "../constants/theme";
+
+type ChatHeaderConversation = {
+  proposal: string;
+  name: string;
+  userId: string;
+  skill: string;
+  request: string;
+};
 
 export function ChatHeader({
   conversation,
   onBack,
   onAgreement,
   live,
+  agreementPending = false,
+  topic,
+  reference,
+  avatarUrl,
 }: Readonly<{
-  conversation: Conversation;
+  conversation: ChatHeaderConversation;
   onBack: () => void;
   onAgreement: () => void;
   live?: boolean;
+  agreementPending?: boolean;
+  topic?: string;
+  reference?: string;
+  avatarUrl?: string | null;
 }>) {
-  const liveStatus = live
-    ? "Đề xuất đã chấp nhận · Đang cập nhật"
-    : "Đề xuất đã chấp nhận";
-  const status =
-    live === undefined ? "Đang hoạt động · Proposal đã chấp nhận" : liveStatus;
   return (
     <View style={styles.header}>
       <Pressable
@@ -37,32 +47,42 @@ export function ChatHeader({
       <Avatar
         name={conversation.name}
         userId={conversation.userId}
-        size={avatarSizes.compact}
+        size={avatarSizes.list}
+        sourceUri={avatarUrl}
       />
       <View style={styles.main}>
-        <Text accessibilityRole="header" style={styles.name}>
+        <Text accessibilityRole="header" numberOfLines={1} style={styles.name}>
           {conversation.name}
         </Text>
-        <View style={styles.status}>
-          {live === undefined || live ? <View style={styles.dot} /> : null}
-          <Text style={styles.statusText}>{status}</Text>
-        </View>
+        <Text
+          numberOfLines={1}
+          accessibilityLabel={`${topic ?? (conversation.request || conversation.skill)} · ${reference ?? conversation.proposal}`}
+          style={styles.topic}
+        >
+          {topic ?? (conversation.request || conversation.skill)}
+        </Text>
+        {live === false && (
+          <Text style={styles.statusText}>Đang kết nối lại…</Text>
+        )}
       </View>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={
-          live === undefined ? "Tạo thỏa thuận" : "Lộ trình học"
-        }
+        accessibilityLabel="Thỏa thuận học của hai bạn"
+        disabled={agreementPending}
+        accessibilityState={{
+          disabled: agreementPending,
+          busy: agreementPending,
+        }}
         onPress={onAgreement}
         style={({ pressed }) => [styles.agreement, pressed && { opacity: 0.8 }]}
       >
         <Icon
           name="check-circle"
           size={iconSizes.inline}
-          color={colors.white}
+          color={colors.orange}
         />
         <Text style={styles.agreementLabel}>
-          {live === undefined ? "Tạo thỏa thuận" : "Lộ trình học"}
+          {agreementPending ? "Đang mở…" : "Thỏa thuận"}
         </Text>
       </Pressable>
     </View>
@@ -70,14 +90,14 @@ export function ChatHeader({
 }
 const styles = StyleSheet.create({
   header: {
-    minHeight: 64,
-    paddingVertical: 8,
     flexDirection: "row",
     alignItems: "center",
     gap: 7,
-    paddingHorizontal: 12,
+    minHeight: 64,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
     backgroundColor: colors.surface,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
   },
   back: {
@@ -86,30 +106,25 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  main: { flex: 1, minWidth: 0 },
-  name: {
-    fontFamily: fonts.semibold,
-    ...typography.body,
-    color: colors.ink,
-  },
-  status: { flexDirection: "row", alignItems: "center", gap: 4 },
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "#30A876",
+  main: { flex: 1, minWidth: 0, gap: 2 },
+  name: { fontFamily: fonts.bold, ...typography.body, color: colors.ink },
+  topic: {
+    ...typography.secondary,
+    fontFamily: fonts.body,
+    color: colors.muted,
   },
   statusText: {
-    flex: 1,
     fontFamily: fonts.body,
     ...typography.caption,
-    color: "#409678",
+    color: colors.muted,
   },
   agreement: {
-    minHeight: 36,
-    paddingHorizontal: 9,
-    borderRadius: 14,
-    backgroundColor: colors.orange,
+    minHeight: 44,
+    paddingHorizontal: 8,
+    borderRadius: 20,
+    backgroundColor: colors.orangeSoft,
+    borderWidth: 1,
+    borderColor: colors.border,
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
@@ -117,7 +132,7 @@ const styles = StyleSheet.create({
   agreementLabel: {
     fontFamily: fonts.semibold,
     ...typography.caption,
-    color: colors.white,
+    color: colors.orange,
     includeFontPadding: false,
   },
 });

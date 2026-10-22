@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Icon } from "@/components/Icon";
-import { typography, fonts } from "@/constants/theme";
+import { appRadius, typography, fonts } from "@/constants/theme";
 import { weekDays } from "../mocks/calendar";
 import {
   calendarCardShadow,
@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
   card: {
     padding: 16,
     backgroundColor: colors.surface,
-    borderRadius: 16,
+    borderRadius: appRadius.card,
     boxShadow: calendarCardShadow,
   },
   heading: {

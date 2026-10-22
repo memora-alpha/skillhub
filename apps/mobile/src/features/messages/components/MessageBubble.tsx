@@ -7,17 +7,23 @@ import {
 } from "react-native";
 import { Avatar } from "@/components/Avatar";
 import { avatarSizes, typography, fonts } from "@/constants/theme";
-import type { ChatMessage } from "../mocks/chat";
+import type { MessageBubbleModel } from "../api/messages-api";
 import { messageCardShadow, messageColors as colors } from "../constants/theme";
 
 export function MessageBubble({
   message,
   partner,
   partnerId,
+  avatarUrl,
+  showTime = false,
+  showAvatar = true,
 }: {
-  message: ChatMessage;
+  message: MessageBubbleModel;
   partner: string;
   partnerId: string;
+  avatarUrl?: string | null;
+  showTime?: boolean;
+  showAvatar?: boolean;
 }) {
   const { width } = useWindowDimensions();
   const mine = message.from === "me";
@@ -26,9 +32,17 @@ export function MessageBubble({
   return (
     <View style={styles.message}>
       <View style={[styles.row, mine && styles.mineRow]}>
-        {!mine && (
-          <Avatar name={partner} userId={partnerId} size={avatarSizes.inline} />
-        )}
+        {!mine &&
+          (showAvatar ? (
+            <Avatar
+              name={partner}
+              userId={partnerId}
+              sourceUri={avatarUrl}
+              size={avatarSizes.inline}
+            />
+          ) : (
+            <View style={{ width: avatarSizes.inline }} />
+          ))}
         <View
           style={[
             styles.bubble,
@@ -38,6 +52,7 @@ export function MessageBubble({
         >
           <Text
             selectable
+            accessibilityHint={`Gửi lúc ${message.time}`}
             style={[styles.text, mine && { color: colors.white }]}
           >
             {message.text}
@@ -47,9 +62,11 @@ export function MessageBubble({
           </Text>
         </View>
       </View>
-      <Text style={[styles.time, mine ? styles.myTime : styles.theirTime]}>
-        {message.time}
-      </Text>
+      {showTime && (
+        <Text style={[styles.time, mine ? styles.myTime : styles.theirTime]}>
+          {message.time}
+        </Text>
+      )}
     </View>
   );
 }
