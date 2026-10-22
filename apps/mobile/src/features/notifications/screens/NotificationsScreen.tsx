@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { FlatList, StyleSheet, View } from "react-native";
+import { FlatList, StyleSheet, View, type ViewToken } from "react-native";
 import { useRouter } from "expo-router";
 import { AppScreenLayout } from "@/features/shell";
 import { useChatEvents } from "@/features/messages";
@@ -20,6 +20,7 @@ import {
 } from "../hooks/use-notifications";
 import { notificationTarget } from "../utils/notification-target";
 import type { InboxNotification } from "../api/notifications-api";
+import { useNotificationMotion } from "../hooks/use-notification-motion";
 
 function Separator() {
   return <View style={styles.separator} />;
@@ -38,6 +39,14 @@ function NotificationsInbox() {
     router = useRouter();
   const [filter, setFilter] = useState<NotificationFilter>("Tất cả");
   const [busy, setBusy] = useState<string>();
+  const motionEnabled = useNotificationMotion();
+  const [visibleIds, setVisibleIds] = useState<Set<string>>(() => new Set());
+  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 50 }).current;
+  const onViewableItemsChanged = useRef(
+    ({ viewableItems }: { viewableItems: ViewToken<InboxNotification>[] }) => {
+      setVisibleIds(new Set(viewableItems.map(({ item }) => item.id)));
+    },
+  ).current;
   const inFlight = useRef(false);
   const items = query.items.filter(
     (item) => filter === "Tất cả" || !item.readAt,
@@ -84,6 +93,9 @@ function NotificationsInbox() {
       {() => (
         <FlatList
           data={items}
+          extraData={{ visibleIds, motionEnabled, busy }}
+          viewabilityConfig={viewabilityConfig}
+          onViewableItemsChanged={onViewableItemsChanged}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.page}
           refreshing={query.isRefetching && !query.isFetchingNextPage}
@@ -150,6 +162,7 @@ function NotificationsInbox() {
               item={item}
               busy={busy === item.id}
               disabled={!!busy || !runtime.enabled}
+              animateTitle={motionEnabled && visibleIds.has(item.id)}
               onPress={() => {
                 void act(item);
               }}

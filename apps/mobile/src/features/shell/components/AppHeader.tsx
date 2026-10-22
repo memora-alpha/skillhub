@@ -10,7 +10,7 @@ import {
 import { BrandLogo } from "@/components/BrandLogo";
 import { Avatar } from "@/components/Avatar";
 import { Icon } from "@/components/Icon";
-import { useNotifications } from "@/features/notifications/state";
+import { useNotificationCount } from "@/features/notifications/state";
 import {
   appColors as colors,
   appRadius as radius,
@@ -58,8 +58,8 @@ export function AppHeader({
   navigationBlocked = false,
 }: AppHeaderProps) {
   const { width } = useWindowDimensions();
-  const notifications = useNotifications();
-  const unread = notifications.items.some((item) => !item.readAt);
+  const notifications = useNotificationCount();
+  const unread = notifications.data ?? 0;
   const home = appearance === "home";
   const chrome = { ...signedInChrome, ...chromeColors };
   const compact = Platform.OS !== "web" || width < 640;
@@ -135,7 +135,7 @@ export function AppHeader({
             accessibilityRole="button"
             accessibilityLabel={
               unread
-                ? "Thông báo — có mục chưa đọc trong danh sách đã tải"
+                ? `Thông báo — ${unread > 99 ? "hơn 99" : unread} thông báo chưa đọc`
                 : "Mở thông báo"
             }
             {...navigationState}
@@ -147,8 +147,12 @@ export function AppHeader({
               size={iconSizes.control}
               color={home ? chrome.accent : colors.muted}
             />
-            {unread && (
-              <View style={[styles.count, home && styles.homeCount]} />
+            {unread > 0 && (
+              <View style={styles.count}>
+                <Text style={styles.countText}>
+                  {unread > 99 ? "99+" : unread}
+                </Text>
+              </View>
             )}
           </Pressable>
         )}
@@ -264,14 +268,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: signedInChrome.border,
   },
-  homeCount: {
-    width: 14,
-    height: 14,
-    right: 2,
-    top: 1,
-    borderRadius: 7,
-    backgroundColor: signedInChrome.accent,
-  },
   header: {
     minHeight: 68,
     flexDirection: "row",
@@ -293,12 +289,20 @@ const styles = StyleSheet.create({
   titleContent: { flex: 1, minWidth: 0 },
   headerActions: { flexDirection: "row", alignItems: "center", gap: 4 },
   iconButton: { padding: 9, borderRadius: radius.control },
+  countText: {
+    fontFamily: fonts.bold,
+    fontSize: 10,
+    lineHeight: 12,
+    includeFontPadding: false,
+    color: colors.white,
+  },
   count: {
     position: "absolute",
-    right: 4,
-    top: 4,
-    width: 16,
+    right: -4,
+    top: -7,
+    minWidth: 16,
     height: 16,
+    paddingHorizontal: 3,
     borderRadius: 8,
     backgroundColor: colors.primary,
     alignItems: "center",

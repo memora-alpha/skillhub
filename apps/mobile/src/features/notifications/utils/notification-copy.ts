@@ -51,7 +51,7 @@ const bodies: Record<string, string> = {
     "Có người vừa mua tài liệu học tập của bạn.",
 };
 
-export function notificationCopy(item: InboxNotification) {
+export function notificationCopy(item: InboxNotification, sender?: string) {
   let body = bodies[item.body] ?? item.body;
   if (item.type === "learning-request.rejected") {
     body = item.body; // This publisher sends the staff's reason as the whole body.
@@ -77,6 +77,12 @@ export function notificationCopy(item: InboxNotification) {
     body = statuses[status]
       ? `Trạng thái báo cáo: ${statuses[status]}.`
       : item.body;
+  }
+  if (item.type === "chat.message.delivered" && sender) {
+    return {
+      title: `Tin nhắn mới từ ${sender}`,
+      body: `${sender} đã gửi tin nhắn cho bạn.`,
+    };
   }
   return { title: titles[item.title] ?? item.title, body };
 }

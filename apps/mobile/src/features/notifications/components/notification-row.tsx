@@ -14,7 +14,9 @@ import {
 } from "@/constants/theme";
 import type { InboxNotification } from "../api/notifications-api";
 import { notificationCopy, notificationTime } from "../utils/notification-copy";
+import { useNotificationSender } from "../hooks/use-notification-sender";
 import { notificationTarget } from "../utils/notification-target";
+import { NotificationTitle } from "./notification-title";
 
 function notificationIcon(type: string): IconName {
   if (type.startsWith("chat.")) return "message";
@@ -30,15 +32,18 @@ export function NotificationRow({
   item,
   busy,
   disabled,
+  animateTitle,
   onPress,
 }: {
   item: InboxNotification;
   busy: boolean;
   disabled: boolean;
+  animateTitle: boolean;
   onPress: () => void;
 }) {
   const unread = !item.readAt;
-  const copy = notificationCopy(item);
+  const sender = useNotificationSender(item);
+  const copy = notificationCopy(item, sender);
   const target = notificationTarget(item);
   const actionable = unread || !!target;
   return (
@@ -66,21 +71,25 @@ export function NotificationRow({
         <Icon
           name={notificationIcon(item.type)}
           size={20}
-          color={unread ? colors.forest : colors.body}
+          color={unread ? colors.primary : colors.body}
         />
       </View>
       <View style={styles.content}>
         <View style={styles.titleLine}>
-          <Text style={[styles.title, unread && styles.unreadTitle]}>
-            {copy.title}
-          </Text>
+          <NotificationTitle
+            text={copy.title}
+            style={[styles.title, unread && styles.unreadTitle]}
+            animate={animateTitle}
+          />
           {unread && <View style={styles.dot} />}
         </View>
-        <Text style={styles.body}>{copy.body}</Text>
+        <Text style={styles.body} numberOfLines={1} ellipsizeMode="tail">
+          {copy.body}
+        </Text>
         <Text style={styles.time}>{notificationTime(item.createdAt)}</Text>
       </View>
       {busy ? (
-        <ActivityIndicator size="small" color={colors.forest} />
+        <ActivityIndicator size="small" color={colors.primary} />
       ) : target ? (
         <Icon name="chevron" size={16} color={colors.body} />
       ) : null}
@@ -100,8 +109,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   unread: {
-    backgroundColor: colors.forestSoft,
-    borderColor: colors.forestMuted,
+    backgroundColor: colors.primarySoft,
+    borderColor: colors.primaryMuted,
   },
   pressed: { opacity: 0.75 },
   icon: {
@@ -112,21 +121,21 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  unreadIcon: { backgroundColor: colors.forestMuted },
-  content: { flex: 1, gap: 3 },
+  unreadIcon: { backgroundColor: colors.primaryMuted },
+  content: { flex: 1, minWidth: 0, gap: 3 },
   titleLine: { flexDirection: "row", alignItems: "center", gap: 6 },
   title: {
-    flexShrink: 1,
     fontFamily: fonts.semibold,
     ...typography.body,
     color: colors.ink,
   },
-  unreadTitle: { fontFamily: fonts.bold, color: colors.forest },
+  unreadTitle: { fontFamily: fonts.bold, color: colors.primary },
   dot: {
+    flexShrink: 0,
     width: 7,
     height: 7,
     borderRadius: appRadius.full,
-    backgroundColor: colors.success,
+    backgroundColor: colors.primary,
   },
   body: { fontFamily: fonts.body, ...typography.secondary, color: colors.body },
   time: {

@@ -25,9 +25,9 @@ export function NotificationActions({
         ]}
       >
         {refreshing ? (
-          <ActivityIndicator size="small" color={colors.forest} />
+          <ActivityIndicator size="small" color={colors.primary} />
         ) : (
-          <Icon name="refresh" size={18} color={colors.forest} />
+          <Icon name="refresh" size={18} color={colors.primary} />
         )}
       </Pressable>
       {/* TODO: Enable once the backend supports marking the entire inbox read.
@@ -40,7 +40,7 @@ export function NotificationActions({
         disabled
         style={[styles.button, styles.dimmed]}
       >
-        <Icon name="checks" size={18} color={colors.forest} />
+        <Icon name="checks" size={18} color={colors.primary} />
       </Pressable>
     </View>
   );
@@ -52,7 +52,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: appRadius.full,
-    backgroundColor: colors.surfaceInset,
+    backgroundColor: colors.primarySoft,
     alignItems: "center",
     justifyContent: "center",
   },

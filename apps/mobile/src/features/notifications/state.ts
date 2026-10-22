@@ -1,1 +1,4 @@
-export { useNotifications } from "./hooks/use-notifications";
+export {
+  useNotifications,
+  useNotificationCount,
+} from "./hooks/use-notifications";

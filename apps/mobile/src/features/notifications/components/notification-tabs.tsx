@@ -46,8 +46,9 @@ export function NotificationTabs({
             {unread && unreadCount > 0 && (
               <View style={styles.badge}>
                 <Text style={styles.count}>
-                  {unreadCount}
-                  {hasMore ? "+" : ""}
+                  {unreadCount > 99
+                    ? "99+"
+                    : `${unreadCount}${hasMore ? "+" : ""}`}
                 </Text>
               </View>
             )}
@@ -70,7 +71,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 2,
     borderBottomColor: "transparent",
   },
-  selected: { borderBottomColor: colors.success },
+  selected: { borderBottomColor: colors.primary },
   pressed: { opacity: 0.7 },
   label: {
     fontFamily: fonts.semibold,
@@ -85,7 +86,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.success,
+    backgroundColor: colors.primary,
   },
   count: { fontFamily: fonts.bold, ...typography.caption, color: colors.white },
 });
