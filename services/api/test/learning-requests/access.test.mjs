@@ -224,6 +224,9 @@ test("bootstrap grants only the chosen per-role actions and preserves existing g
   assert.deepEqual(
     [...grants.get("STAFF")],
     [
+      "notification:read:self",
+      "notification:update:self",
+      "event:read:self",
       "learning-request:moderation:read",
       "learning-request:approve",
       "learning-request:reject",
@@ -256,7 +259,7 @@ test("bootstrap grants only the chosen per-role actions and preserves existing g
   assert.equal(grants.get("USER").has("skill-catalog:create"), false);
   assert.equal(grants.get("STAFF").has("skill-verification:revoke"), false);
   for (const role of ["STAFF", "ADMIN"]) {
-    assert.equal(grants.get(role).has("event:read:self"), false);
+    assert.ok(grants.get(role).has("event:read:self"));
     assert.equal(grants.get(role).has("conversation:read:participant"), false);
   }
   assert.ok(grants.get("ADMIN").has("skill-catalog:create"));
