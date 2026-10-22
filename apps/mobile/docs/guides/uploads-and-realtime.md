@@ -37,4 +37,4 @@ Tiếp trong `guides/uploads-and-realtime.md`:
 
 ## Giới hạn và đề xuất
 
-Avatar CLEAN khác evidence READY. Chưa xác minh mobile SSE/WebSocket/push integration cho các domain; Message/Proposal runtime hiện dùng mock. Không tạo event schema từ màn mẫu. Quy chuẩn không tự cấp quyền sửa code cũ ngoài scope.
+Avatar CLEAN khác evidence READY. Source hiện có authenticated SSE `/events` trong ChatEventsProvider; public `useChatEvents().subscribe` cho màn thanh toán nhận payment/wallet refs cùng stream. Consumer xử lý trước cursor acknowledgment, cleanup theo focus/owner/session; payment chỉ GET hydrate, không áp payload event làm PAID. Chat query hydration/reconnect/auth/cursor hiện có được giữ. Chi tiết và giới hạn native/deployed SSE ở [Wallet contract](../contracts/wallet-payments.md) và [status](../work/phase-03-wallet-topup/status.md). Không tạo event schema từ màn mẫu hoặc suy đã nghiệm thu các domain khác từ source này.
