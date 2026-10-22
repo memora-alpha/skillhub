@@ -18,40 +18,43 @@ export function isSessionFailure(error: unknown): boolean {
       error.code === "ADMIN_PORTAL_ACCESS_REQUIRED")
   );
 }
+const errorMessages: Readonly<Record<string, string>> = {
+  SKILL_LEVEL_DUPLICATE: "Mã hoặc tên cấp độ đã tồn tại trong kỹ năng này.",
+  TAG_ALREADY_EXISTS:
+    "Tên tag đã tồn tại. Chọn tên khác hoặc kiểm tra lại danh mục tag.",
+  TAG_REQUEST_NOT_PENDING:
+    "Đề xuất tag đã được xử lý. Tải lại để xem quyết định mới nhất.",
+  TAG_UNAVAILABLE:
+    "Tag đang tạm ngưng hoặc đã được lưu trữ. Kiểm tra lại danh mục tag.",
+  TAG_ARCHIVED:
+    "Tag đang tạm ngưng hoặc đã được lưu trữ. Kiểm tra lại danh mục tag.",
+  REVERSAL_OPERATION_NOT_IN_PATH:
+    "Giao dịch cần đảo không thuộc lộ trình của vụ việc này.",
+  RESOLUTION_PERMISSION_REQUIRED:
+    "Bạn chưa có quyền áp dụng một hoặc nhiều biện pháp xử lý đã chọn.",
+  REPORT_CASE_NOT_ASSIGNED_TO_CALLER:
+    "Vụ việc chưa được giao cho bạn. Tải lại để kiểm tra người phụ trách.",
+  TITLE_NOT_UNLOCKED:
+    "Danh hiệu này chưa được mở khóa hoặc không còn khả dụng. Hãy làm mới thành tích.",
+  FILE_TYPE_NOT_SUPPORTED: "Định dạng tệp này chưa được hỗ trợ.",
+  INVALID_CREDENTIALS: "Email hoặc mật khẩu không đúng.",
+  ADMIN_PORTAL_ACCESS_REQUIRED:
+    "Cổng Admin chỉ dành cho tài khoản có quyền ADMIN.",
+  REAUTH_REQUIRED:
+    "Xác thực lại đã hết hạn hoặc đã được sử dụng. Vui lòng nhập lại mật khẩu Admin.",
+  ADMIN_ROLE_CANNOT_BE_REPLACED_BY_STAFF:
+    "Không thể chuyển tài khoản Admin sang Staff.",
+  LOGOUT_BEFORE_LOGIN:
+    "Phiên trước cần được đăng xuất. Chọn Kết thúc phiên cũ rồi đăng nhập lại.",
+  STAFF_PORTAL_ACCESS_REQUIRED:
+    "Tài khoản này chưa được phân quyền Staff hoặc Admin.",
+};
 function messageFor(status: number, code: string) {
-  if (code === "SKILL_LEVEL_DUPLICATE")
-    return "Mã hoặc tên cấp độ đã tồn tại trong kỹ năng này.";
-  if (code === "TAG_ALREADY_EXISTS")
-    return "Tên tag đã tồn tại. Chọn tên khác hoặc kiểm tra lại danh mục tag.";
-  if (code === "TAG_REQUEST_NOT_PENDING")
-    return "Đề xuất tag đã được xử lý. Tải lại để xem quyết định mới nhất.";
-  if (code === "TAG_UNAVAILABLE" || code === "TAG_ARCHIVED")
-    return "Tag đang tạm ngưng hoặc đã được lưu trữ. Kiểm tra lại danh mục tag.";
-  if (code === "REVERSAL_OPERATION_NOT_IN_PATH")
-    return "Giao dịch cần đảo không thuộc lộ trình của vụ việc này.";
-  if (code === "RESOLUTION_PERMISSION_REQUIRED")
-    return "Bạn chưa có quyền áp dụng một hoặc nhiều biện pháp xử lý đã chọn.";
-  if (code === "REPORT_CASE_NOT_ASSIGNED_TO_CALLER")
-    return "Vụ việc chưa được giao cho bạn. Tải lại để kiểm tra người phụ trách.";
-  if (code === "TITLE_NOT_UNLOCKED")
-    return "Danh hiệu này chưa được mở khóa hoặc không còn khả dụng. Hãy làm mới thành tích.";
+  if (Object.hasOwn(errorMessages, code)) return errorMessages[code];
   if (code === "FILE_UNAVAILABLE" || code === "INVALID_DOWNLOAD_LINK")
     return "Không thể mở tệp hoặc liên kết đã hết hạn. Nhấn Thử lại để lấy liên kết mới.";
-  if (code === "FILE_TYPE_NOT_SUPPORTED")
-    return "Định dạng tệp này chưa được hỗ trợ.";
-  if (code === "INVALID_CREDENTIALS") return "Email hoặc mật khẩu không đúng.";
-  if (code === "ADMIN_PORTAL_ACCESS_REQUIRED")
-    return "Cổng Admin chỉ dành cho tài khoản có quyền ADMIN.";
-  if (code === "REAUTH_REQUIRED")
-    return "Xác thực lại đã hết hạn hoặc đã được sử dụng. Vui lòng nhập lại mật khẩu Admin.";
-  if (code === "ADMIN_ROLE_CANNOT_BE_REPLACED_BY_STAFF")
-    return "Không thể chuyển tài khoản Admin sang Staff.";
   if (code === "API_UNAVAILABLE" || code === "API_RESPONSE_INVALID")
     return "Không thể kết nối backend. Kiểm tra dịch vụ API rồi thử lại.";
-  if (code === "LOGOUT_BEFORE_LOGIN")
-    return "Phiên trước cần được đăng xuất. Chọn Kết thúc phiên cũ rồi đăng nhập lại.";
-  if (code === "STAFF_PORTAL_ACCESS_REQUIRED")
-    return "Tài khoản này chưa được phân quyền Staff hoặc Admin.";
   if (status === 401) return "Phiên đã hết hạn. Vui lòng đăng nhập lại.";
   if (status === 403) return "Bạn không có quyền thực hiện thao tác này.";
   if (status === 409)
