@@ -1,8 +1,8 @@
 "use client";
+import "./user-management.css";
 import { useState } from "react";
 import {
   Avatar,
-  Badge,
   Card,
   Empty,
   PageHeader,
@@ -13,33 +13,24 @@ import { fmtDateTime } from "@/lib/console/format";
 import type { AdminUser } from "@/lib/staff/admin-types";
 import { useStaffList } from "./hooks";
 import { useStaffSession } from "./session";
-import { DecisionDialog, Pager, QueueState } from "./common";
-type Action = "lock" | "unlock" | "assign" | "remove";
-const labels: Record<Action, string> = {
-  lock: "Khóa tài khoản",
-  unlock: "Mở khóa tài khoản",
-  assign: "Cấp quyền Staff",
-  remove: "Gỡ quyền Staff",
-};
-function actionDescription(action: Action, selected: AdminUser): string {
-  if (action === "lock")
-    return "Tài khoản sẽ bị khóa và toàn bộ phiên đăng nhập bị thu hồi.";
-  if (action === "unlock")
-    return "Tài khoản đã xác minh sẽ hoạt động trở lại. Người dùng cần đăng nhập lại.";
-  return `Thay đổi vai trò của ${selected.fullName || selected.maskedEmail}. Nhập lại mật khẩu Admin để xác nhận.`;
-}
+import { Pager, QueueState } from "./common";
+import { Icon } from "@/components/console/icon";
+import { UserManagementDialog } from "./user-management-dialog";
+import {
+  allowedUserActions,
+  type UserAction,
+} from "@/lib/staff/user-management";
 export function UsersScreen({
   initialUserId,
 }: Readonly<{ initialUserId?: string }>) {
-  const { api, actor } = useStaffSession();
+  const { actor } = useStaffSession();
   const [status, setStatus] = useState("");
   const [role, setRole] = useState("");
   const [q, setQ] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(
     initialUserId ?? null,
   );
-  const [action, setAction] = useState<Action | null>(null);
-  const [password, setPassword] = useState("");
+  const [initialAction, setInitialAction] = useState<UserAction>();
   const [success, setSuccess] = useState<string | null>(null);
   const params = new URLSearchParams({ limit: "20" });
   if (status) params.set("status", status);
@@ -53,12 +44,12 @@ export function UsersScreen({
   );
   const reset = () => {
     setSelectedId(null);
-    setAction(null);
+    setInitialAction(undefined);
     setSuccess(null);
   };
   const reload = async () => {
-    setAction(null);
-    setPassword("");
+    setSelectedId(null);
+    setInitialAction(undefined);
     await queue.reload();
   };
   return (
@@ -154,16 +145,7 @@ export function UsersScreen({
                         <div className="cell-user">
                           <Avatar name={u.fullName || "Người dùng"} />
                           <div>
-                            <button
-                              type="button"
-                              className="link"
-                              onClick={() => {
-                                setSelectedId(u.userId);
-                                setSuccess(null);
-                              }}
-                            >
-                              {u.fullName || "Chưa có tên"}
-                            </button>
+                            <strong>{u.fullName || "Chưa có tên"}</strong>
                             <span>{u.maskedEmail}</span>
                           </div>
                         </div>
@@ -178,13 +160,91 @@ export function UsersScreen({
                       </td>
                       <td>{fmtDateTime(u.createdAt)}</td>
                       <td>
-                        <button
-                          type="button"
-                          className="btn btn-sm"
-                          onClick={() => setSelectedId(u.userId)}
-                        >
-                          Quản lý
-                        </button>
+                        <div className="user-row-actions">
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-ghost"
+                            aria-label={`Quản lý ${u.fullName || u.maskedEmail}`}
+                            onClick={() => {
+                              setSelectedId(u.userId);
+                              setInitialAction(undefined);
+                              setSuccess(null);
+                            }}
+                          >
+                            <Icon name="sliders" size={16} /> Quản lý
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-ghost"
+                            disabled={u.roles.includes("ADMIN")}
+                            title={
+                              u.roles.includes("ADMIN")
+                                ? "Không thể thay đổi quyền Staff của Admin"
+                                : undefined
+                            }
+                            aria-label={`${u.roles.includes("STAFF") ? "Gỡ" : "Cấp"} quyền Staff cho ${u.fullName || u.maskedEmail}`}
+                            onClick={() => {
+                              setSelectedId(u.userId);
+                              setInitialAction(
+                                u.roles.includes("STAFF") ? "remove" : "assign",
+                              );
+                              setSuccess(null);
+                            }}
+                          >
+                            <Icon name="shield" size={16} />{" "}
+                            {u.roles.includes("STAFF")
+                              ? "Gỡ quyền Staff"
+                              : "Cấp quyền Staff"}
+                          </button>
+                          {["ACTIVE", "LOCKED"].includes(u.accountStatus) && (
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-ghost"
+                              disabled={
+                                queue.loading ||
+                                !allowedUserActions(u, actor?.userId).includes(
+                                  u.accountStatus === "LOCKED"
+                                    ? "unlock"
+                                    : "lock",
+                                )
+                              }
+                              title={
+                                u.userId === actor?.userId
+                                  ? "Bạn không thể tự khóa tài khoản đang sử dụng"
+                                  : undefined
+                              }
+                              aria-label={`${u.accountStatus === "LOCKED" ? "Mở khóa" : "Khóa tài khoản"} ${u.fullName || u.maskedEmail}`}
+                              onClick={() => {
+                                const next =
+                                  u.accountStatus === "LOCKED"
+                                    ? "unlock"
+                                    : "lock";
+                                if (
+                                  !allowedUserActions(
+                                    u,
+                                    actor?.userId,
+                                  ).includes(next)
+                                )
+                                  return;
+                                setSelectedId(u.userId);
+                                setInitialAction(next);
+                                setSuccess(null);
+                              }}
+                            >
+                              <Icon
+                                name={
+                                  u.accountStatus === "LOCKED"
+                                    ? "unlock"
+                                    : "lock"
+                                }
+                                size={16}
+                              />
+                              {u.accountStatus === "LOCKED"
+                                ? "Mở khóa"
+                                : "Khóa tài khoản"}
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -216,135 +276,23 @@ export function UsersScreen({
           />
         </Card>
       )}
-      {selected && (
-        <Card
-          className="section"
-          title={selected.fullName || "Tài khoản"}
-          actions={
-            <button
-              type="button"
-              className="btn btn-sm"
-              onClick={() => setSelectedId(null)}
-            >
-              Đóng chi tiết
-            </button>
-          }
-        >
-          <div className="stack">
-            <div className="row">
-              <StatusBadge status={selected.accountStatus} />
-              {selected.roles.map((r) => (
-                <StatusBadge key={r} status={r} />
-              ))}
-              {selected.userId === actor?.userId && (
-                <Badge>Tài khoản của bạn</Badge>
-              )}
-            </div>
-            <dl className="kv staff-kv">
-              <dt>Mã tài khoản</dt>
-              <dd className="mono">{selected.userId}</dd>
-              <dt>Email</dt>
-              <dd>{selected.maskedEmail}</dd>
-              <dt>Ngày tạo</dt>
-              <dd>{fmtDateTime(selected.createdAt)}</dd>
-            </dl>
-            <div className="row">
-              {selected.accountStatus === "ACTIVE" && (
-                <button
-                  type="button"
-                  className="btn btn-danger"
-                  disabled={
-                    selected.userId === actor?.userId ||
-                    !!action ||
-                    queue.loading
-                  }
-                  onClick={() => setAction("lock")}
-                >
-                  Khóa tài khoản
-                </button>
-              )}
-              {selected.accountStatus === "LOCKED" && (
-                <button
-                  type="button"
-                  className="btn"
-                  disabled={!!action || queue.loading}
-                  onClick={() => setAction("unlock")}
-                >
-                  Mở khóa
-                </button>
-              )}
-              {!selected.roles.includes("ADMIN") && (
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  disabled={!!action || queue.loading}
-                  onClick={() => {
-                    setPassword("");
-                    setAction(
-                      selected.roles.includes("STAFF") ? "remove" : "assign",
-                    );
-                  }}
-                >
-                  {selected.roles.includes("STAFF")
-                    ? "Gỡ quyền Staff"
-                    : "Cấp quyền Staff"}
-                </button>
-              )}
-            </div>
-          </div>
-        </Card>
-      )}
-      {selected && action && (
-        <DecisionDialog
-          title={labels[action]}
-          description={actionDescription(action, selected)}
-          min={1}
-          max={1000}
-          confirmLabel={labels[action]}
-          danger={action === "lock" || action === "remove"}
+      {selected && !queue.error && (
+        <UserManagementDialog
+          key={`${actor?.userId}:${selected.userId}:${initialAction ?? "manage"}`}
+          user={selected}
+          initialAction={initialAction}
           onClose={() => {
-            setAction(null);
-            setPassword("");
+            setSelectedId(null);
+            setInitialAction(undefined);
           }}
-          onReload={reload}
-          onSubmit={async (reason) => {
-            if (action === "lock" || action === "unlock")
-              await api<null>(`users/${selected.userId}/${action}`, {
-                method: "POST",
-                body: { reason },
-              });
-            else {
-              const proof = await api<{ reauthToken: string }>(
-                "reauthenticate",
-                {
-                  method: "POST",
-                  body: { password, purpose: "STAFF_ROLE_CHANGE" },
-                },
-              );
-              setPassword("");
-              await api<null>(`users/${selected.userId}/roles/staff`, {
-                method: action === "assign" ? "PUT" : "DELETE",
-                body: { reason, reauthToken: proof.data.reauthToken },
-              });
-            }
-            setSuccess(`${labels[action]} thành công.`);
-            await reload();
+          onReload={() => {
+            void reload();
           }}
-        >
-          {(action === "assign" || action === "remove") && (
-            <label className="staff-field">
-              <span>Mật khẩu Admin</span>
-              <input
-                type="password"
-                required
-                autoComplete="current-password"
-                maxLength={64}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </label>
-          )}
-        </DecisionDialog>
+          onUpdated={(message) => {
+            setSuccess(message);
+            void reload();
+          }}
+        />
       )}
     </>
   );

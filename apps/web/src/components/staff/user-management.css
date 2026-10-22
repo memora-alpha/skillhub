@@ -1,0 +1,66 @@
+.user-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+.user-management-dialog {
+  width: min(600px, calc(100vw - 32px));
+  overscroll-behavior: contain;
+}
+.user-dialog-content {
+  display: grid;
+  gap: 20px;
+  padding: 24px;
+}
+.user-dialog-identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.user-dialog-identity > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.user-dialog-content h3 {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.5;
+}
+.user-dialog-details {
+  margin: 0;
+}
+.user-dialog-details dd {
+  overflow-wrap: anywhere;
+}
+.user-dialog-section,
+.user-action-form {
+  display: grid;
+  gap: 12px;
+  border-top: 1px solid var(--line);
+  padding-top: 20px;
+}
+.dialog .user-action-form {
+  padding: 20px 0 0;
+}
+.user-action-fields {
+  display: grid;
+  gap: 16px;
+}
+@media (max-width: 600px) {
+  .user-dialog-content {
+    gap: 16px;
+    padding: 16px;
+  }
+  .user-dialog-content .staff-dialog-actions {
+    flex-wrap: wrap;
+  }
+  .user-dialog-details {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+  .user-dialog-details dd + dt {
+    margin-top: 12px;
+  }
+}
