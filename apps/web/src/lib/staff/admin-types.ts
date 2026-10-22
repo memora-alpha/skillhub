@@ -22,3 +22,23 @@ export type ModerationRules = {
   version: number;
   readAt: string;
 };
+export type AdminTag = {
+  id: string;
+  label: string;
+  status: "ACTIVE" | "INACTIVE" | "ARCHIVED";
+  version: number;
+  createdAt: string | null;
+  updatedAt: string;
+};
+export type TagRequest = {
+  id: string;
+  label: string;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  requestedByUserId: string;
+  reviewedByUserId: string | null;
+  reviewedAt: string | null;
+  resultTagId: string | null;
+  rejectReason: string | null;
+  createdAt: string;
+  version: number;
+};

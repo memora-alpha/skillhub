@@ -4,6 +4,22 @@ import { StaffApiError, isSessionFailure } from "@/lib/staff/client";
 import { appendCursor, mergePage } from "@/lib/staff/pagination";
 import type { ApiEnvelope, Pagination } from "@/lib/staff/types";
 import { useStaffSession } from "./session";
+export function useStaffCommand() {
+  const { api } = useStaffSession();
+  const attempt = useRef<{ digest: string; key: string } | null>(null);
+  return async (
+    path: string,
+    method: string,
+    body: Record<string, unknown>,
+  ) => {
+    const digest = JSON.stringify({ path, method, body });
+    if (attempt.current?.digest !== digest)
+      attempt.current = { digest, key: crypto.randomUUID() };
+    const result = await api(path, { method, body, key: attempt.current.key });
+    attempt.current = null;
+    return result;
+  };
+}
 export function useStaffResource<T>(path: string) {
   const { expire, api } = useStaffSession();
   const [state, setState] = useState<{

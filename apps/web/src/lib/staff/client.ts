@@ -19,6 +19,12 @@ export function isSessionFailure(error: unknown): boolean {
   );
 }
 function messageFor(status: number, code: string) {
+  if (code === "TAG_ALREADY_EXISTS")
+    return "Tên tag đã tồn tại. Chọn tên khác hoặc kiểm tra lại danh mục tag.";
+  if (code === "TAG_REQUEST_NOT_PENDING")
+    return "Đề xuất tag đã được xử lý. Tải lại để xem quyết định mới nhất.";
+  if (code === "TAG_UNAVAILABLE" || code === "TAG_ARCHIVED")
+    return "Tag đang tạm ngưng hoặc đã được lưu trữ. Kiểm tra lại danh mục tag.";
   if (code === "TITLE_NOT_UNLOCKED")
     return "Danh hiệu này chưa được mở khóa hoặc không còn khả dụng. Hãy làm mới thành tích.";
   if (code === "FILE_UNAVAILABLE" || code === "INVALID_DOWNLOAD_LINK")

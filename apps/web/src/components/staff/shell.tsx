@@ -21,6 +21,8 @@ const adminNav: typeof nav = [
   { href: "/admin", label: "Tổng quan", icon: "grid" },
   { href: "/admin/users", label: "Người dùng", icon: "users" },
   { href: "/admin/skills", label: "Danh mục kỹ năng", icon: "tag" },
+  { href: "/admin/tags", label: "Danh mục tag", icon: "tag" },
+  { href: "/admin/tag-requests", label: "Đề xuất tag", icon: "inbox" },
   { href: "/admin/evidence", label: "Bằng chứng kỹ năng", icon: "shield" },
   { href: "/admin/moderation", label: "Yêu cầu học chờ duyệt", icon: "flag" },
   { href: "/admin/disputes", label: "Báo cáo & tranh chấp", icon: "alert" },

@@ -5,7 +5,7 @@ export function AdminOverviewScreen() {
   return (
     <>
       <OverviewScreen />
-      <div className="grid grid-3 section">
+      <div className="grid grid-2 section">
         <Card title="Quản lý tài khoản">
           <p>Kiểm tra tài khoản, khóa hoặc mở khóa và cấp quyền Staff.</p>
           <Link className="link" href="/admin/users">
@@ -23,6 +23,17 @@ export function AdminOverviewScreen() {
           <Link className="link" href="/admin/config">
             Mở cấu hình →
           </Link>
+        </Card>
+        <Card title="Tag cộng đồng">
+          <p>Quản lý tag và xem xét đề xuất mới từ người dùng.</p>
+          <div className="stack">
+            <Link className="link" href="/admin/tags">
+              Mở danh mục tag →
+            </Link>
+            <Link className="link" href="/admin/tag-requests">
+              Duyệt đề xuất tag →
+            </Link>
+          </div>
         </Card>
       </div>
     </>

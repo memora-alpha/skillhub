@@ -55,6 +55,16 @@ const adminRoutes: [string, RegExp, (path: string) => string][] = [
     /^achievements\/selected-title$/,
     () => "me/achievements/selected-title",
   ],
+  ["GET", /^tags$/, (p) => `admin/${p}`],
+  ["POST", /^tags$/, (p) => `admin/${p}`],
+  ["PATCH", new RegExp(`^tags/${uuid}$`, "i"), (p) => `admin/${p}`],
+  ["GET", /^tag-requests$/, (p) => `admin/${p}`],
+  ["GET", new RegExp(`^tag-requests/${uuid}$`, "i"), (p) => `admin/${p}`],
+  [
+    "POST",
+    new RegExp(`^tag-requests/${uuid}/(approve|reject)$`, "i"),
+    (p) => `admin/${p}`,
+  ],
   ["GET", /^users$/, (p) => `admin/${p}`],
   [
     "POST",
