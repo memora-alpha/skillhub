@@ -8,6 +8,7 @@ export function StaffLogin() {
   const isAdmin = session.portal === "admin";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   return (
     <main className="staff-login">
@@ -84,18 +85,32 @@ export function StaffLogin() {
                 }
               />
             </label>
-            <label className="staff-field">
-              <span>Mật khẩu</span>
-              <input
-                type="password"
-                required
-                maxLength={1024}
-                autoComplete="current-password"
-                value={password}
-                disabled={session.busy}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </label>
+            <div className="staff-field">
+              <label htmlFor="staff-login-password">Mật khẩu</label>
+              <div className="staff-password">
+                <input
+                  id="staff-login-password"
+                  type={showPassword ? "text" : "password"}
+                  required
+                  maxLength={1024}
+                  autoComplete="current-password"
+                  value={password}
+                  disabled={session.busy}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+                <button
+                  type="button"
+                  className="icon-btn"
+                  aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+                  title={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+                  aria-controls="staff-login-password"
+                  disabled={session.busy}
+                  onClick={() => setShowPassword((visible) => !visible)}
+                >
+                  <Icon name={showPassword ? "eyeOff" : "eye"} />
+                </button>
+              </div>
+            </div>
             <button
               type="submit"
               className="btn btn-primary"

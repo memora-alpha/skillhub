@@ -10,3 +10,4 @@ export {
   RequestDetailScreen,
 } from "./screens/request-detail-screen";
 export { RequestsFeedScreen } from "./screens/requests-feed-screen";
+export { RequestDateField } from "./components/request-date-field";

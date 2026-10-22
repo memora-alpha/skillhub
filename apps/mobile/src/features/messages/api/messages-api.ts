@@ -126,12 +126,18 @@ export function createMessagesApi(
       options: {
         cursor?: string;
         afterSequence?: string;
+        limit?: number;
         signal?: AbortSignal;
       } = {},
     ) {
       if (options.cursor && options.afterSequence)
         throw new AppError("protocol");
       const query = pageQuery(options.cursor);
+      if (options.limit !== undefined)
+        query.set(
+          "limit",
+          String(parse(z.number().int().min(1).max(100), options.limit)),
+        );
       if (options.afterSequence)
         query.set("afterSequence", parse(sequence, options.afterSequence));
       const page = parsePage(
@@ -152,18 +158,25 @@ export function createMessagesApi(
       });
       return page;
     },
-    async send(id: string, body: MessageDraft) {
+    async send(id: string, body: MessageDraft, signal?: AbortSignal) {
       parse(uuid, body.clientMessageId);
       return delivery(
-        await call(`${root(id)}/messages`, { method: "POST", body }),
+        await call(`${root(id)}/messages`, {
+          method: "POST",
+          body,
+          ...(signal ? { signal } : {}),
+        }),
         id,
         body.clientMessageId,
       );
     },
-    async delivery(id: string, clientMessageId: string) {
+    async delivery(id: string, clientMessageId: string, signal?: AbortSignal) {
       parse(uuid, clientMessageId);
       return delivery(
-        await call(`${root(id)}/message-deliveries/${clientMessageId}`),
+        await call(
+          `${root(id)}/message-deliveries/${clientMessageId}`,
+          ...(signal ? [{ signal }] : []),
+        ),
         id,
         clientMessageId,
       );

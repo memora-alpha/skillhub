@@ -81,6 +81,8 @@ export type ReportCase = {
   targetId: string;
   relatedSessionId: string | null;
   relatedPathId: string | null;
+  relatedMaterialId?: string | null;
+  relatedOrderId?: string | null;
   reasonCode: string;
   description: string;
   status: "OPEN" | "UNDER_REVIEW" | "NEED_MORE_INFO" | "RESOLVED" | "REJECTED";
@@ -98,5 +100,26 @@ export type InboxNotification = {
   type: string;
   readAt: string | null;
   createdAt: string;
+};
+export type ReportCaseDetail = ReportCase & {
+  session: {
+    id: string;
+    planId: string;
+    teacherId: string;
+    learnerId: string;
+    startAt: string;
+    endAt: string;
+    status: string;
+    teacherConfirmationStatus: string;
+    learnerConfirmationStatus: string;
+  } | null;
+  path: {
+    id: string;
+    status: string;
+    participantAId: string;
+    participantBId: string;
+    lockedVersion: number | null;
+    settledAt: string | null;
+  } | null;
 };
 export type DownloadLink = { url: string; expiresAt: string };

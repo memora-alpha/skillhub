@@ -11,11 +11,23 @@ import {
   StatusBadge,
 } from "@/components/console/ui";
 import { fmtDateTime, fmtSize } from "@/lib/console/format";
-import type { ReportCase } from "@/lib/staff/types";
+import type { ReportCase, ReportCaseDetail } from "@/lib/staff/types";
+import {
+  reportResolutionBody,
+  type ResolutionDraft,
+} from "@/lib/staff/report-resolution";
+import { ReportResolutionFields } from "./report-resolution";
 import { useStaffList, useStaffResource } from "./hooks";
 import { useStaffSession } from "./session";
 import { DecisionDialog, DownloadButton, QueueState } from "./common";
 const reasons: Record<string, string> = {
+  NO_SHOW_LATE: "Vắng mặt hoặc đến muộn",
+  INAPPROPRIATE_BEHAVIOR: "Hành vi không phù hợp",
+  SKILL_MISMATCH: "Kỹ năng không đúng thỏa thuận",
+  FALSE_INFORMATION: "Thông tin sai lệch",
+  CREDIT_ISSUE: "Vấn đề Credit",
+  SPAM_SCAM: "Spam hoặc lừa đảo",
+  OTHER: "Lý do khác",
   NO_SHOW: "Không tham gia buổi học",
   LATE_CANCELLATION: "Hủy muộn",
   TECHNICAL_ISSUE: "Vấn đề kỹ thuật",
@@ -39,7 +51,7 @@ export function ReportsScreen() {
     <>
       <PageHeader
         title="Báo cáo & tranh chấp"
-        desc="Tiếp nhận báo cáo Session, xem bằng chứng và ghi nhận kết quả xử lý."
+        desc="Xem báo cáo buổi học, tài liệu và ghi nhận kết quả xử lý."
         actions={
           <button
             type="button"
@@ -155,8 +167,7 @@ const actions: Record<
   resolve: {
     title: "Hoàn tất xử lý báo cáo",
     label: "Xác nhận đã xử lý",
-    description:
-      "Ghi lại kết quả xem xét. Thao tác này ghi nhận trạng thái vụ việc, không tạo giao dịch Credit.",
+    description: "Ghi lại kết quả xem xét và các biện pháp xử lý đã chọn.",
   },
   reject: {
     title: "Bác bỏ báo cáo",
@@ -185,8 +196,34 @@ function ReportOverview({ item }: Readonly<{ item: ReportCase }>) {
           <dd className="mono">{item.id}</dd>
           <dt>Người gửi</dt>
           <dd className="mono">{item.reporterId}</dd>
-          <dt>Session liên quan</dt>
-          <dd className="mono">{item.relatedSessionId ?? item.targetId}</dd>
+          <dt>Đối tượng báo cáo</dt>
+          <dd>
+            {item.targetType === "MATERIAL"
+              ? "Tài liệu"
+              : item.targetType === "SESSION"
+                ? "Buổi học"
+                : item.targetType}
+          </dd>
+          <dt>Mã đối tượng</dt>
+          <dd className="mono">{item.targetId}</dd>
+          {item.relatedSessionId && (
+            <>
+              <dt>Buổi học liên quan</dt>
+              <dd className="mono">{item.relatedSessionId}</dd>
+            </>
+          )}
+          {item.relatedMaterialId && (
+            <>
+              <dt>Tài liệu liên quan</dt>
+              <dd className="mono">{item.relatedMaterialId}</dd>
+            </>
+          )}
+          {item.relatedOrderId && (
+            <>
+              <dt>Đơn mua tài liệu</dt>
+              <dd className="mono">{item.relatedOrderId}</dd>
+            </>
+          )}
           <dt>Learning Path</dt>
           <dd className="mono">{item.relatedPathId ?? "Không có"}</dd>
           <dt>Ngày gửi</dt>
@@ -289,7 +326,7 @@ function ReportDetailContent({
   reload,
   onAction,
 }: Readonly<{
-  item: ReportCase | null | undefined;
+  item: ReportCaseDetail | null | undefined;
   loading: boolean;
   error?: string;
   confirmed: boolean;
@@ -305,14 +342,14 @@ function ReportDetailContent({
         {null}
       </QueueState>
     );
-  if (loading && !confirmed)
+  if (loading && !item)
     return <output className="staff-state">Đang tải vụ việc…</output>;
   if (!item)
     return (
       <Card>
         <Empty
-          title="Báo cáo không còn trong hàng đợi"
-          desc="Vụ việc có thể đã được xử lý hoặc không nằm trong 100 báo cáo đang mở được trả về."
+          title="Không tìm thấy báo cáo"
+          desc="Vụ việc không tồn tại hoặc bạn không có quyền truy cập."
         />
         <Link className="link" href={"/" + portal + "/disputes"}>
           Quay lại hàng đợi
@@ -323,6 +360,48 @@ function ReportDetailContent({
     <div className="grid grid-2 staff-report-grid">
       <div className="stack">
         <ReportOverview item={item} />
+        {item.session && (
+          <Card title="Phiên học liên quan">
+            <dl className="kv staff-kv">
+              <dt>Trạng thái</dt>
+              <dd>
+                <StatusBadge status={item.session.status} />
+              </dd>
+              <dt>Người dạy</dt>
+              <dd className="mono">{item.session.teacherId}</dd>
+              <dt>Người học</dt>
+              <dd className="mono">{item.session.learnerId}</dd>
+              <dt>Bắt đầu</dt>
+              <dd>{fmtDateTime(item.session.startAt)}</dd>
+              <dt>Kết thúc</dt>
+              <dd>{fmtDateTime(item.session.endAt)}</dd>
+              <dt>Xác nhận người dạy</dt>
+              <dd>{item.session.teacherConfirmationStatus}</dd>
+              <dt>Xác nhận người học</dt>
+              <dd>{item.session.learnerConfirmationStatus}</dd>
+            </dl>
+          </Card>
+        )}
+        {item.path && (
+          <Card title="Lộ trình liên quan">
+            <dl className="kv staff-kv">
+              <dt>Trạng thái</dt>
+              <dd>
+                <StatusBadge status={item.path.status} />
+              </dd>
+              <dt>Người tham gia 1</dt>
+              <dd className="mono">{item.path.participantAId}</dd>
+              <dt>Người tham gia 2</dt>
+              <dd className="mono">{item.path.participantBId}</dd>
+              <dt>Quyết toán</dt>
+              <dd>
+                {item.path.settledAt
+                  ? fmtDateTime(item.path.settledAt)
+                  : "Chưa quyết toán"}
+              </dd>
+            </dl>
+          </Card>
+        )}
         <Card title="Bằng chứng">
           <ReportFiles files={item.reportEvidenceCaseIdRecords} />
         </Card>
@@ -358,45 +437,76 @@ function ReportDecision({
   reload,
   onComplete,
 }: Readonly<{
-  item: ReportCase;
+  item: ReportCaseDetail;
   action: ReportAction;
   onClose: () => void;
   reload: () => void;
-  onComplete: (item: ReportCase) => void;
+  onComplete: () => void;
 }>) {
-  const { api } = useStaffSession();
+  const { api, actor, demo } = useStaffSession();
+  const admin = actor?.roles.includes("ADMIN") ?? false;
+  const [draft, setDraft] = useState<ResolutionDraft>({
+    participants: item.path
+      ? [item.path.participantAId, item.path.participantBId].map((userId) => ({
+          userId,
+          violation: "",
+          delta: "",
+          amount: "",
+        }))
+      : [],
+    restrictedUserId: "",
+    days: "1",
+    reversals: "",
+  });
   return (
     <DecisionDialog
       title={actions[action].title}
       description={actions[action].description}
       label={action === "claim" ? "Ghi chú" : "Nội dung xử lý"}
       min={action === "claim" ? 0 : 1}
+      max={2000}
       confirmLabel={actions[action].label}
       danger={action === "reject"}
       onClose={onClose}
       onReload={reload}
       onSubmit={async (note) => {
-        const result = await api<ReportCase>(
-          "reports/" + item.id + "/" + action,
-          { method: "POST", body: note ? { note } : {} },
-        );
-        onComplete({ ...item, ...result.data });
+        await api<ReportCase>("reports/" + item.id + "/" + action, {
+          method: "POST",
+          body: {
+            ...(note ? { note } : {}),
+            ...(action === "resolve" && item.path && !demo
+              ? reportResolutionBody(draft, admin)
+              : {}),
+          },
+        });
+        onComplete();
       }}
-    />
+    >
+      {action === "resolve" && demo && (
+        <p className="muted">
+          Trong dữ liệu thử, bạn có thể ghi chú và đóng báo cáo. Các thay đổi
+          Credit, uy tín và hạn chế tài khoản cần được kiểm tra trên hệ thống
+          thật.
+        </p>
+      )}
+      {action === "resolve" && item.path && !demo && (
+        <ReportResolutionFields
+          value={draft}
+          admin={admin}
+          onChange={setDraft}
+        />
+      )}
+    </DecisionDialog>
   );
 }
 export function ReportDetailScreen({ id }: Readonly<{ id: string }>) {
   const { actor, portal } = useStaffSession();
-  const resource = useStaffResource<ReportCase[]>("reports");
-  const [receipt, setReceipt] = useState<ReportCase | null>(null);
+  const resource = useStaffResource<ReportCaseDetail>(`reports/${id}`);
+  const [confirmedId, setConfirmedId] = useState<string | null>(null);
   const [action, setAction] = useState<ReportAction | null>(null);
-  const currentReceipt = receipt?.id === id ? receipt : null;
-  const queueItem = Array.isArray(resource.data)
-    ? resource.data.find((report) => report.id === id)
-    : null;
-  const item = currentReceipt ?? queueItem;
+  const item = resource.data;
   const reload = () => {
-    setReceipt(null);
+    setConfirmedId(null);
     void resource.reload();
   };
   return (
@@ -424,7 +534,7 @@ export function ReportDetailScreen({ id }: Readonly<{ id: string }>) {
         item={item}
         loading={resource.loading}
         error={resource.error}
-        confirmed={currentReceipt !== null}
+        confirmed={confirmedId === id}
         owns={item?.handlerId === actor?.userId}
         busy={action !== null}
         reload={reload}
@@ -437,7 +547,10 @@ export function ReportDetailScreen({ id }: Readonly<{ id: string }>) {
           action={action}
           onClose={() => setAction(null)}
           reload={reload}
-          onComplete={setReceipt}
+          onComplete={() => {
+            setConfirmedId(id);
+            void resource.reload();
+          }}
         />
       )}
     </>

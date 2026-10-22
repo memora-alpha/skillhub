@@ -90,7 +90,7 @@ export function finalValidation(
   occupied: Slot[] = [],
 ): string | undefined {
   if (path.status !== "PROPOSED")
-    return "Lộ trình không còn ở trạng thái thương lượng.";
+    return "Learning Path không còn ở trạng thái thương lượng.";
   if (!agreementConfirmed(path))
     return "Chưa đủ xác nhận kế hoạch và điều khoản cùng phiên bản.";
   if (
@@ -124,7 +124,7 @@ export function finalValidation(
       ),
     )
   )
-    return "Lịch bị trùng với buổi học đã khóa của lộ trình khác.";
+    return "Lịch bị trùng với buổi học đã khóa của Learning Path khác.";
   const payers =
     path.type === "TWO_WAY"
       ? (["me", "partner"] as const)

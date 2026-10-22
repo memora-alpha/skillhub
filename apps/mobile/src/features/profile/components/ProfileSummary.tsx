@@ -26,7 +26,7 @@ export function ProfileSummary({
   const stats = [
     { value: profile.reputationScore, label: "Điểm uy tín" },
     { value: profile.verifiedSkillCount, label: "Kỹ năng đã xác minh" },
-    { value: null, label: "Lộ trình hoàn thành", pending: true },
+    { value: null, label: "Learning Path hoàn thành", pending: true },
   ];
   return (
     <View style={styles.heroCard}>
@@ -35,6 +35,7 @@ export function ProfileSummary({
         userId={profile.userId}
         headline={profile.headline}
         avatarUrl={profile.avatarUrl}
+        selectedTitle={profile.selectedTitle}
         onEdit={onEdit}
       />
       {avatarNotice}

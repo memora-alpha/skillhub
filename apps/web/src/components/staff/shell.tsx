@@ -5,26 +5,41 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Icon, type IconName } from "@/components/console/icon";
 import { StaffSessionProvider, useStaffSession } from "./session";
 import { StaffLogin } from "./login";
+import {
+  NotificationsProvider,
+  useNotificationInbox,
+} from "./notification-session";
 import type { Portal } from "@/lib/staff/policy";
+import { resetDemoData } from "@/lib/staff/demo-api";
 const nav: { href: string; label: string; icon: IconName }[] = [
   { href: "/staff", label: "Tổng quan", icon: "inbox" },
   { href: "/staff/evidence", label: "Bằng chứng kỹ năng", icon: "shield" },
   { href: "/staff/moderation", label: "Yêu cầu học chờ duyệt", icon: "flag" },
+  { href: "/staff/content", label: "Duyệt tài liệu", icon: "file" },
   { href: "/staff/disputes", label: "Báo cáo & tranh chấp", icon: "alert" },
   { href: "/staff/notifications", label: "Thông báo", icon: "bell" },
+  { href: "/staff/wallet", label: "Ví của tôi", icon: "card" },
+  { href: "/staff/reputation", label: "Uy tín của tôi", icon: "star" },
 ];
 const adminNav: typeof nav = [
   { href: "/admin", label: "Tổng quan", icon: "grid" },
   { href: "/admin/users", label: "Người dùng", icon: "users" },
   { href: "/admin/skills", label: "Danh mục kỹ năng", icon: "tag" },
+  { href: "/admin/tags", label: "Danh mục tag", icon: "tag" },
+  { href: "/admin/tag-requests", label: "Đề xuất tag", icon: "inbox" },
   { href: "/admin/evidence", label: "Bằng chứng kỹ năng", icon: "shield" },
   { href: "/admin/moderation", label: "Yêu cầu học chờ duyệt", icon: "flag" },
+  { href: "/admin/content", label: "Duyệt tài liệu", icon: "file" },
   { href: "/admin/disputes", label: "Báo cáo & tranh chấp", icon: "alert" },
   { href: "/admin/config", label: "Quy tắc kiểm duyệt", icon: "sliders" },
+  { href: "/admin/achievements", label: "Thành tích của tôi", icon: "star" },
+  { href: "/admin/wallet", label: "Ví của tôi", icon: "card" },
+  { href: "/admin/my-reputation", label: "Uy tín của tôi", icon: "star" },
   { href: "/admin/notifications", label: "Thông báo", icon: "bell" },
 ];
 function Frame({ children }: Readonly<{ children: ReactNode }>) {
-  const { actor, loading, logout, busy, portal } = useStaffSession();
+  const { actor, loading, logout, busy, portal, demo, setDemo } =
+    useStaffSession();
   const links = portal === "admin" ? adminNav : nav;
   const portalName = portal === "admin" ? "Admin" : "Staff";
   const pathname = usePathname();
@@ -140,21 +155,58 @@ function Frame({ children }: Readonly<{ children: ReactNode }>) {
             SkillHub <Icon name="right" size={14} />{" "}
             {current?.label ?? portalName}
           </span>
-          <Link
-            className="icon-btn"
-            href={`/${portal}/notifications`}
-            aria-label="Mở thông báo"
-          >
-            <Icon name="bell" />
-          </Link>
+          <div className="row">
+            {portal === "admin" && (
+              <button
+                type="button"
+                className="btn btn-sm"
+                disabled={busy}
+                onClick={() => setDemo(!demo)}
+              >
+                {demo ? "Dùng dữ liệu thật" : "Dùng dữ liệu thử"}
+              </button>
+            )}
+            <NotificationBell portal={portal} />
+          </div>
         </header>
         <main id="main" className="content">
+          {demo && (
+            <aside
+              className="staff-demo-notice"
+              aria-label="Chế độ dữ liệu thử"
+            >
+              <div>
+                <strong>Đang dùng dữ liệu thử</strong>
+                <p>
+                  Mỗi nhóm có ít nhất 5 mẫu. Thao tác chỉ lưu trên trình duyệt
+                  này, không thay đổi dữ liệu thật. Không cần nhập mật khẩu thật
+                  khi thử cấp quyền.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="btn btn-sm"
+                onClick={() => {
+                  try {
+                    resetDemoData(actor.userId, window.localStorage);
+                    setDemo(false);
+                  } catch {
+                    setError(
+                      "Không thể đặt lại dữ liệu thử. Kiểm tra quyền lưu dữ liệu của trình duyệt.",
+                    );
+                  }
+                }}
+              >
+                Đặt lại dữ liệu thử
+              </button>
+            </aside>
+          )}
           {error && (
             <p className="staff-error" role="alert">
               {error}
             </p>
           )}
-          {children}
+          <div key={demo ? "demo" : "live"}>{children}</div>
         </main>
       </div>
     </div>
@@ -169,7 +221,31 @@ export function StaffShell({
 }>) {
   return (
     <StaffSessionProvider portal={portal}>
-      <Frame>{children}</Frame>
+      <NotificationsProvider>
+        <Frame>{children}</Frame>
+      </NotificationsProvider>
     </StaffSessionProvider>
+  );
+}
+function NotificationBell({ portal }: Readonly<{ portal: Portal }>) {
+  const { unreadCount } = useNotificationInbox();
+  const unread = unreadCount ?? 0;
+  return (
+    <Link
+      className="icon-btn staff-notification-bell"
+      href={`/${portal}/notifications`}
+      aria-label={
+        unread
+          ? `Thông báo — ${unread > 99 ? "hơn 99" : unread} thông báo chưa đọc`
+          : "Mở thông báo"
+      }
+    >
+      <Icon name="bell" />
+      {unread > 0 && (
+        <span className="staff-notification-count" aria-hidden="true">
+          {unread > 99 ? "99+" : unread}
+        </span>
+      )}
+    </Link>
   );
 }

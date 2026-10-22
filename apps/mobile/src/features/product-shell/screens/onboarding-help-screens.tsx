@@ -210,13 +210,14 @@ export function PoliciesScreen() {
       <Panel title="Trao đổi có trách nhiệm">
         <Copy>
           Thống nhất nội dung và lịch bằng các nút xác nhận đúng phiên bản. Tôn
-          trọng đối tác, quyền phân phối tài liệu và báo cáo vấn đề có căn cứ.
+          trọng người trao đổi, quyền phân phối tài liệu và báo cáo vấn đề có
+          căn cứ.
         </Copy>
       </Panel>
       <Panel title="Credit">
         <Copy>
-          1.000 VND = 1 Credit. Không hỗ trợ rút tiền. Quyết toán cuối lộ trình
-          theo hình thức học; tranh chấp có thể giữ việc quyết toán.
+          1.000 VND = 1 Credit. Không hỗ trợ rút tiền. Quyết toán cuối Learning
+          Path theo hình thức học; tranh chấp có thể giữ việc quyết toán.
         </Copy>
       </Panel>
       <Copy muted>

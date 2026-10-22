@@ -87,6 +87,24 @@
   resize: vertical;
   min-height: 110px;
 }
+.staff-password {
+  position: relative;
+}
+.staff-password input {
+  padding-right: 52px;
+}
+.staff-password .icon-btn {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  transform: translateY(-50%);
+  width: 40px;
+  height: 40px;
+}
+.staff-password .icon-btn:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
 .staff-login-tools {
   display: flex;
   gap: 18px;
@@ -286,6 +304,43 @@ output.staff-success {
 .staff-notification p {
   margin: 0;
 }
+.staff-notification strong,
+.staff-notification .prose {
+  overflow-wrap: anywhere;
+}
+.staff-notification[data-unread="true"] {
+  background: var(--notification-soft);
+}
+.staff-notification-status {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+  color: var(--muted);
+}
+.staff-notification-status p {
+  margin: 0;
+}
+.staff-notification-bell {
+  position: relative;
+}
+.staff-notification-count {
+  position: absolute;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 3px;
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  line-height: 12px;
+  font-weight: 700;
+  border-radius: 8px;
+  right: -4px;
+  top: -7px;
+  background: var(--notification);
+  color: var(--surface);
+}
 .staff-shell .topbar {
   justify-content: space-between;
 }
@@ -362,4 +417,15 @@ output.staff-success {
     padding-block: 12px;
     border-bottom: 1px solid var(--border);
   }
+}
+
+.staff-notification[data-unread="true"] .badge-brand {
+  color: var(--notification);
+  background: var(--notification-soft);
+}
+
+.staff-notifications {
+  --brand: var(--notification);
+  --brand-soft: var(--notification-soft);
+  --brand-strong: var(--notification);
 }

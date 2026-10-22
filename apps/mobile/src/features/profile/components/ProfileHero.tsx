@@ -9,12 +9,14 @@ export function ProfileHero({
   userId,
   headline,
   avatarUrl = null,
+  selectedTitle,
   onEdit,
 }: {
   name: string;
   userId: string;
   headline: string;
   avatarUrl?: string | null;
+  selectedTitle?: string | null;
   onEdit?: () => void;
 }) {
   return (
@@ -53,14 +55,16 @@ export function ProfileHero({
             {headline}
           </Text>
         )}
-        {onEdit && (
-          <View style={styles.titlePlaceholder}>
+        {!!selectedTitle && (
+          <View style={styles.titleBadge}>
             <Icon
               name="award"
               size={iconSizes.inline}
               color={profileColors.muted}
             />
-            <Text style={styles.tagline}>Danh hiệu · Sắp có</Text>
+            <Text style={[styles.tagline, { flexShrink: 1 }]}>
+              {selectedTitle}
+            </Text>
           </View>
         )}
       </View>
@@ -97,7 +101,7 @@ const styles = StyleSheet.create({
     includeFontPadding: false,
   },
   info: { marginTop: 8 },
-  titlePlaceholder: {
+  titleBadge: {
     flexDirection: "row",
     alignItems: "center",
     gap: 5,

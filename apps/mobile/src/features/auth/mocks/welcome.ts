@@ -28,7 +28,7 @@ export const welcomeSteps: {
     step: "03",
     icon: "zap",
     title: "Học & Chia sẻ",
-    description: "Học 1:1 qua video call, hoàn thành lộ trình cùng nhau.",
+    description: "Học 1:1 qua video call, hoàn thành Learning Path cùng nhau.",
   },
 ];
 export const welcomeCategories: {
@@ -96,7 +96,11 @@ export const welcomeWallet = {
   balance: "250 CR",
   transactions: [
     { label: "Đã nạp", amount: "+500 CR", color: colors.sage },
-    { label: "Đang giữ (lộ trình)", amount: "-200 CR", color: colors.warning },
+    {
+      label: "Đang giữ (Learning Path)",
+      amount: "-200 CR",
+      color: colors.warning,
+    },
     { label: "Thưởng đăng ký", amount: "+50 CR", color: colors.sage },
   ],
 };

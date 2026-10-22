@@ -7,12 +7,14 @@ import type { SseFrame } from "./sse-parser";
 type Prefix = readonly unknown[];
 const recoveryPrefixes: Prefix[] = [
   ["conversations"],
+  ["conversation-preview"],
   ["conversation"],
   ["thread"],
   ["delivery"],
   ["chat-file"],
   ["proposals"],
   ["proposal"],
+  ["notifications"],
 ];
 const envelope = z.object({
   eventId: uuid,
@@ -48,6 +50,8 @@ function reference(
       "chat.delivery.updated",
       "chat.read.updated",
       "chat.attachment.updated",
+      "notification.created",
+      "notification.read",
     ].includes(frame.event);
   if (!known) return;
   let json: unknown;
@@ -59,7 +63,13 @@ function reference(
   const value = parse(envelope, json);
   let prefixes: Prefix[];
   let receiptsFor: string | undefined;
-  if (proposalEvents.has(frame.event)) {
+  if (
+    frame.event === "notification.created" ||
+    frame.event === "notification.read"
+  ) {
+    parse(z.object({ notificationId: uuid }), value.data);
+    prefixes = [["notifications"]];
+  } else if (proposalEvents.has(frame.event)) {
     const { proposalId } = parse(z.object({ proposalId: uuid }), value.data);
     prefixes = [["proposals"], ["proposal", proposalId]];
     if (frame.event === "proposal.accepted") prefixes.push(["conversations"]);

@@ -10,7 +10,7 @@ export const scheduleInputSchema = z
             .string()
             .refine(
               (v) => !!parseLocalDateTime(v),
-              "Nhập ngày giờ theo YYYY-MM-DDTHH:mm.",
+              "Chọn ngày và giờ bắt đầu buổi học.",
             ),
           minutes: z
             .string()

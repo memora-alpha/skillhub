@@ -8,7 +8,6 @@ import { recentMessages } from "@/mocks/app";
 import { avatarSizes, iconSizes } from "@/constants/theme";
 import { homeColors as colors } from "../constants/theme";
 import {
-  achievement,
   learningPath,
   matchingRequests,
   newUserSummary,
@@ -23,18 +22,16 @@ import { HomeWalletBalance } from "@/features/wallet";
 export function HomeContent({
   name,
   isNew,
+  selectedTitle,
   onAction,
 }: {
   name: string;
   isNew: boolean;
+  selectedTitle?: string | null;
   onAction: (title: string) => void;
 }) {
   const wide = useWindowDimensions().width >= 840;
   const summary = isNew ? newUserSummary : returningSummary;
-  const achievementProgress = isNew ? 0 : achievement.completed;
-  const achievementPercent = Math.round(
-    (achievementProgress / achievement.total) * 100,
-  );
   const messages = isNew ? [] : recentMessages;
   const stats = [
     { label: "Reputation", value: summary.reputation, color: colors.orange },
@@ -145,16 +142,20 @@ export function HomeContent({
           </LinearGradient>
           <HomeSection>
             <SectionHeading
-              title="Lộ trình đang học"
+              title="Learning Path đang học"
               action={isNew ? "Khám phá" : "Chi tiết"}
-              onPress={() => onAction(isNew ? "Khám phá" : "Lộ trình đang học")}
+              onPress={() =>
+                onAction(isNew ? "Khám phá" : "Learning Path đang học")
+              }
             />
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={
-                isNew ? "Tìm lộ trình học" : learningPath.title
+                isNew ? "Tìm Learning Path" : learningPath.title
               }
-              onPress={() => onAction(isNew ? "Khám phá" : "Lộ trình đang học")}
+              onPress={() =>
+                onAction(isNew ? "Khám phá" : "Learning Path đang học")
+              }
               style={({ pressed }) => [
                 styles.card,
                 styles.course,
@@ -171,7 +172,9 @@ export function HomeContent({
                 </View>
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <Text style={homeStyles.label}>
-                    {isNew ? "Chưa có lộ trình đang học" : learningPath.title}
+                    {isNew
+                      ? "Chưa có Learning Path đang học"
+                      : learningPath.title}
                   </Text>
                   <Text style={homeStyles.caption}>
                     {isNew
@@ -218,7 +221,7 @@ export function HomeContent({
           </View>
           <HomeSection>
             <SectionHeading
-              title="Tiến trình huy hiệu"
+              title="Thành tích & danh hiệu"
               action="Xem tất cả"
               accent={colors.yellow}
               onPress={() => onAction("Tiến trình huy hiệu")}
@@ -235,26 +238,14 @@ export function HomeContent({
                 <View>
                   <View style={[homeStyles.row, { gap: 8 }]}>
                     <Text style={[homeStyles.label, { flex: 1 }]}>
-                      {achievement.title}
-                    </Text>
-                    <Text style={styles.achievementPercent}>
-                      {achievementPercent}%
+                      {selectedTitle ?? "Khám phá thành tích của bạn"}
                     </Text>
                   </View>
                   <Text style={homeStyles.caption}>
-                    {achievement.description} · {achievementProgress}/
-                    {achievement.total} buổi
+                    {selectedTitle
+                      ? "Danh hiệu đang hiển thị trên hồ sơ"
+                      : "Xem thành tích đã mở khóa và chọn danh hiệu cho hồ sơ."}
                   </Text>
-                </View>
-                <View style={styles.progress}>
-                  <ProgressBar
-                    value={achievementProgress}
-                    max={achievement.total}
-                    color={colors.yellow}
-                    trackColor={colors.track}
-                    height={6}
-                    label={achievement.title}
-                  />
                 </View>
               </View>
             </View>
@@ -290,7 +281,7 @@ export function HomeContent({
                     </View>
                     <View style={styles.budgetBadge}>
                       <Text style={styles.budget}>
-                        {request.credit} CR/lộ trình
+                        {request.credit} CR/Learning Path
                       </Text>
                     </View>
                   </View>

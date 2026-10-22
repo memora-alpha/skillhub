@@ -20,7 +20,7 @@ const initial: PreviewNotification[] = [
   {
     id: "n-session",
     title: "Buổi học cần xác nhận",
-    body: "Cùng đối tác xác nhận sau buổi học để cập nhật tiến độ.",
+    body: "Cùng người trao đổi xác nhận sau buổi học để cập nhật tiến độ.",
     group: "Học tập",
     href: "/learning-sessions/active-react-0",
     read: false,

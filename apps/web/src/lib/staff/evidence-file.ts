@@ -7,6 +7,15 @@ const extensions: Record<string, string> = {
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
     "docx",
 };
+const materialExtensions: Record<string, string> = {
+  ...extensions,
+  "application/vnd.ms-excel": "xls",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "xlsx",
+  "application/vnd.ms-powerpoint": "ppt",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation":
+    "pptx",
+  "text/plain": "txt",
+};
 export function evidenceMime(type: string): string {
   return type.split(";")[0]!.trim().toLowerCase();
 }
@@ -20,8 +29,11 @@ export function evidencePreviewKind(
 export function allowedEvidenceMime(type: string): boolean {
   return Object.hasOwn(extensions, evidenceMime(type));
 }
+export function allowedMaterialMime(type: string): boolean {
+  return Object.hasOwn(materialExtensions, evidenceMime(type));
+}
 export function evidenceFilename(name: string, mime: string): string {
-  const extension = extensions[evidenceMime(mime)] ?? "bin";
+  const extension = materialExtensions[evidenceMime(mime)] ?? "bin";
   const cleaned =
     [...name]
       .map((char) => {

@@ -111,10 +111,4 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: colors.orange,
   },
-  hint: {
-    fontFamily: fonts.body,
-    ...typography.caption,
-    textAlign: "center",
-    color: colors.mutedLight,
-  },
 });

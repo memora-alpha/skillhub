@@ -2,7 +2,9 @@
 export function readNegotiationMessage(text: string) {
   if (
     text.length > 2000 ||
-    !text.startsWith("GỢI Ý LỘ TRÌNH · CHƯA XÁC NHẬN\n")
+    !["GỢI Ý LỘ TRÌNH", "GỢI Ý LEARNING PATH"].some((heading) =>
+      text.startsWith(`${heading} · CHƯA XÁC NHẬN\n`),
+    )
   )
     return null;
   const lines = text.split("\n");

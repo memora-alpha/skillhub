@@ -7,6 +7,7 @@ import {
 } from "@/features/connections";
 import { useMessagesApi } from "./use-messages-api";
 import type { MessageDraft } from "../api/messages-api";
+import { rememberLatestMessage } from "../utils/conversation-preview";
 
 export function useMessageSend(id: string) {
   const api = useMessagesApi(),
@@ -27,6 +28,7 @@ export function useMessageSend(id: string) {
   );
   useEffect(() => {
     if (delivery.data?.deliveryStatus === "DELIVERED" && runtime.isCurrent()) {
+      rememberLatestMessage(cache, runtime.key, delivery.data.message);
       draft.current = undefined;
       setReceipt(undefined);
       void cache.invalidateQueries({
@@ -52,6 +54,7 @@ export function useMessageSend(id: string) {
     if (result.deliveryStatus !== "DELIVERED")
       setReceipt(result.clientMessageId);
     else {
+      rememberLatestMessage(cache, runtime.key, result.message);
       draft.current = undefined;
       refreshPreview();
     }
@@ -64,6 +67,7 @@ export function useMessageSend(id: string) {
       api.send(id, body),
     );
     if (result?.deliveryStatus === "DELIVERED" && runtime.isCurrent()) {
+      rememberLatestMessage(cache, runtime.key, result.message);
       setReceipt(undefined);
       draft.current = undefined;
       refreshPreview();

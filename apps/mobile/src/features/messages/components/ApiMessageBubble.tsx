@@ -23,6 +23,7 @@ export function ApiMessageBubble({
   partner,
   partnerId,
   avatarUrl,
+  showTime = false,
   showReadReceipt = false,
   showAvatar = true,
 }: Readonly<{
@@ -30,6 +31,7 @@ export function ApiMessageBubble({
   partner: string;
   partnerId: string;
   avatarUrl?: string | null;
+  showTime?: boolean;
   showReadReceipt?: boolean;
   showAvatar?: boolean;
 }>) {
@@ -65,6 +67,7 @@ export function ApiMessageBubble({
         partner={partner}
         partnerId={partnerId}
         avatarUrl={avatarUrl}
+        showTime={showTime}
         showAvatar={showAvatar}
         mine={mine}
         expanded={expanded}
@@ -109,6 +112,7 @@ function ApiMessageContent({
   partner,
   partnerId,
   avatarUrl,
+  showTime,
   showAvatar,
   mine,
   expanded,
@@ -119,6 +123,7 @@ function ApiMessageContent({
   partner: string;
   partnerId: string;
   avatarUrl?: string | null;
+  showTime: boolean;
   showAvatar: boolean;
   mine: boolean;
   expanded: boolean;
@@ -174,6 +179,7 @@ function ApiMessageContent({
       partner={partner}
       partnerId={partnerId}
       avatarUrl={avatarUrl}
+      showTime={showTime}
       showAvatar={showAvatar}
       message={{
         id: message.id,

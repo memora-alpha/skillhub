@@ -218,7 +218,7 @@ initialPaths.push(
   },
   {
     id: "path-awaiting",
-    title: "Buổi học chờ đối tác xác nhận",
+    title: "Buổi học chờ người trao đổi xác nhận",
     partner: "Hồng Anh",
     type: "ONE_WAY",
     teacher: "partner",

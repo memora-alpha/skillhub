@@ -12,6 +12,7 @@ import {
 import { staffApi, StaffApiError, type PortalApi } from "@/lib/staff/client";
 import type { Portal } from "@/lib/staff/policy";
 import type { StaffIdentity } from "@/lib/staff/types";
+import { createDemoApi } from "@/lib/staff/demo-api";
 type Session = {
   portal: Portal;
   api: PortalApi;
@@ -23,6 +24,8 @@ type Session = {
   logout: () => Promise<void>;
   refresh: () => void;
   expire: () => void;
+  demo: boolean;
+  setDemo: (enabled: boolean) => void;
 };
 const Context = createContext<Session | null>(null);
 function sessionError(error: unknown): string | null {
@@ -43,11 +46,31 @@ export function StaffSessionProvider({
   children: ReactNode;
   portal?: Portal;
 }>) {
-  const api: PortalApi = useCallback(
-    (path, options) => staffApi(path, options, portal),
-    [portal],
-  );
   const [actor, setActor] = useState<StaffIdentity | null>(null);
+  const [demoEnabled, setDemoEnabled] = useState(false);
+  const demo =
+    demoEnabled && portal === "admin" && !!actor?.roles.includes("ADMIN");
+  const actorId = actor?.userId;
+  const api: PortalApi = useCallback(
+    (path, options) => {
+      if (
+        demo &&
+        actorId &&
+        path !== "session" &&
+        !path.startsWith("session/")
+      ) {
+        try {
+          return createDemoApi(actorId, window.localStorage)(path, options);
+        } catch {
+          return Promise.reject(
+            new StaffApiError(400, "DEMO_STORAGE_UNAVAILABLE"),
+          );
+        }
+      }
+      return staffApi(path, options, portal);
+    },
+    [portal, demo, actorId],
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -59,7 +82,7 @@ export function StaffSessionProvider({
   }, []);
   useEffect(() => {
     const controller = new AbortController();
-    api<StaffIdentity>("session", { signal: controller.signal })
+    staffApi<StaffIdentity>("session", { signal: controller.signal }, portal)
       .then((result) => {
         if (controller.signal.aborted) return;
         setActor(result.data);
@@ -74,7 +97,7 @@ export function StaffSessionProvider({
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [revision, api]);
+  }, [revision, portal]);
   const perform = useCallback(async (fn: () => Promise<void>) => {
     if (action.current) return;
     action.current = true;
@@ -104,6 +127,7 @@ export function StaffSessionProvider({
       await api<null>("session", { method: "DELETE" });
       setActor(null);
       setError(null);
+      setDemoEnabled(false);
     });
   }, [api, perform]);
   const refresh = useCallback(() => {
@@ -122,8 +146,22 @@ export function StaffSessionProvider({
       logout,
       expire,
       refresh,
+      demo,
+      setDemo: setDemoEnabled,
     }),
-    [portal, api, actor, loading, error, busy, login, logout, expire, refresh],
+    [
+      portal,
+      api,
+      actor,
+      loading,
+      error,
+      busy,
+      login,
+      logout,
+      expire,
+      refresh,
+      demo,
+    ],
   );
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }

@@ -10,7 +10,7 @@ import {
 import { BrandLogo } from "@/components/BrandLogo";
 import { Avatar } from "@/components/Avatar";
 import { Icon } from "@/components/Icon";
-import { useProductPreview } from "@/features/product-shell/state";
+import { useNotificationCount } from "@/features/notifications/state";
 import {
   appColors as colors,
   appRadius as radius,
@@ -29,6 +29,7 @@ type AppHeaderProps = Readonly<{
   onAction: (title: string) => void;
   onAccount: () => void;
   title?: string;
+  titleContent?: ReactNode;
   centeredTitle?: boolean;
   onBack?: () => void;
   rightAction?: ReactNode;
@@ -47,6 +48,7 @@ export function AppHeader({
   onAction,
   onAccount,
   title,
+  titleContent,
   centeredTitle = false,
   onBack,
   rightAction,
@@ -56,8 +58,8 @@ export function AppHeader({
   navigationBlocked = false,
 }: AppHeaderProps) {
   const { width } = useWindowDimensions();
-  const { notifications } = useProductPreview();
-  const unread = notifications.filter((item) => !item.read).length;
+  const notifications = useNotificationCount();
+  const unread = notifications.data ?? 0;
   const home = appearance === "home";
   const chrome = { ...signedInChrome, ...chromeColors };
   const compact = Platform.OS !== "web" || width < 640;
@@ -86,22 +88,27 @@ export function AppHeader({
         home={home}
         width={width}
       />
-      {!!title && centeredTitle && (
+      {titleContent != null ? (
+        <View style={styles.titleContent}>{titleContent}</View>
+      ) : title && centeredTitle ? (
         <View pointerEvents="none" style={styles.centerTitleBlock}>
           <Text style={styles.centerTitle} numberOfLines={1}>
             {title}
           </Text>
         </View>
-      )}
-      {!!title && !centeredTitle && (
+      ) : title ? (
         <Text
           style={[styles.title, home && styles.homeTitle, { flex: 1 }]}
           numberOfLines={width < 400 ? 2 : 1}
         >
           {title}
         </Text>
+      ) : (
+        <View style={{ flex: 1 }} />
       )}
-      {(centeredTitle || !title) && <View style={{ flex: 1 }} />}
+      {centeredTitle && titleContent == null && !!title && (
+        <View style={{ flex: 1 }} />
+      )}
       <View style={styles.headerActions}>
         {!compact && (
           <Pressable
@@ -126,7 +133,11 @@ export function AppHeader({
               home && { borderColor: chrome.border },
             ]}
             accessibilityRole="button"
-            accessibilityLabel={`Thông báo — ${unread} chưa đọc`}
+            accessibilityLabel={
+              unread
+                ? `Thông báo — ${unread > 99 ? "hơn 99" : unread} thông báo chưa đọc`
+                : "Mở thông báo"
+            }
             {...navigationState}
             onPress={() => onAction("Thông báo")}
             hitSlop={6}
@@ -136,9 +147,13 @@ export function AppHeader({
               size={iconSizes.control}
               color={home ? chrome.accent : colors.muted}
             />
-            <View style={[styles.count, home && styles.homeCount]}>
-              <Text style={styles.countLabel}>{unread}</Text>
-            </View>
+            {unread > 0 && (
+              <View style={styles.count}>
+                <Text style={styles.countText}>
+                  {unread > 99 ? "99+" : unread}
+                </Text>
+              </View>
+            )}
           </Pressable>
         )}
         {rightAction}
@@ -253,14 +268,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: signedInChrome.border,
   },
-  homeCount: {
-    width: 14,
-    height: 14,
-    right: 2,
-    top: 1,
-    borderRadius: 7,
-    backgroundColor: signedInChrome.accent,
-  },
   header: {
     minHeight: 68,
     flexDirection: "row",
@@ -279,24 +286,26 @@ const styles = StyleSheet.create({
     color: colors.ink,
     includeFontPadding: false,
   },
+  titleContent: { flex: 1, minWidth: 0 },
   headerActions: { flexDirection: "row", alignItems: "center", gap: 4 },
   iconButton: { padding: 9, borderRadius: radius.control },
+  countText: {
+    fontFamily: fonts.bold,
+    fontSize: 10,
+    lineHeight: 12,
+    includeFontPadding: false,
+    color: colors.white,
+  },
   count: {
     position: "absolute",
-    right: 4,
-    top: 4,
-    width: 16,
+    right: -4,
+    top: -7,
+    minWidth: 16,
     height: 16,
+    paddingHorizontal: 3,
     borderRadius: 8,
     backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
-  },
-  countLabel: {
-    fontFamily: fonts.bold,
-    color: colors.white,
-    fontSize: 9,
-    lineHeight: 12,
-    includeFontPadding: false,
   },
 });

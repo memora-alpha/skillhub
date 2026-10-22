@@ -21,7 +21,7 @@ const tabs = [
   },
   {
     value: "paths",
-    label: "Lộ trình",
+    label: "Learning Path",
   },
 ] as const;
 
@@ -43,7 +43,7 @@ export function MyLearningScreen() {
           <View
             style={styles.tabs}
             accessibilityRole="tablist"
-            accessibilityLabel="Yêu cầu học và lộ trình"
+            accessibilityLabel="Yêu cầu học và Learning Path"
           >
             {tabs.map((item) => {
               const selected = item.value === tab;

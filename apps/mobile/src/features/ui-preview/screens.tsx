@@ -64,7 +64,10 @@ const groups = [
       ["Xác nhận hoàn thành", "/learning-sessions/active-react-0"],
       ["Đổi lịch", "/learning-sessions/active-react-1/reschedule"],
       ["Nhận đề nghị đổi lịch", "/learning-sessions/active-react-1"],
-      ["Chờ đối tác xác nhận hoàn thành", "/learning-sessions/awaiting-ux-0"],
+      [
+        "Chờ người trao đổi xác nhận hoàn thành",
+        "/learning-sessions/awaiting-ux-0",
+      ],
       ["Phòng chờ / phòng mẫu", "/learning-sessions/active-react-1/room"],
     ],
   },

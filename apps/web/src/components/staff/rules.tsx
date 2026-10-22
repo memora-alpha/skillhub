@@ -53,7 +53,7 @@ function RulesEditor({
                 <input
                   required
                   maxLength={64}
-                  pattern="[A-Za-z][A-Za-z0-9_-]*"
+                  pattern="[A-Za-z][A-Za-z0-9_\-]*"
                   value={rule.category}
                   onChange={(e) =>
                     setRules(

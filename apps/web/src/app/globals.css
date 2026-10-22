@@ -13,6 +13,8 @@
   --brand-ink: #ffffff;
   --brand-soft: #e3f1ed;
   --brand-strong: #0f5242;
+  --notification: #ad3f20;
+  --notification-soft: #fff1e8;
   --ok: #067647;
   --ok-soft: #e3f5ec;
   --warn: #93370d;
@@ -44,6 +46,8 @@
     --brand-ink: #06251c;
     --brand-soft: #12342b;
     --brand-strong: #6fe0bd;
+    --notification: #ffb68f;
+    --notification-soft: #42271b;
     --ok: #4ade80;
     --ok-soft: #0f2e22;
     --warn: #fbbf24;

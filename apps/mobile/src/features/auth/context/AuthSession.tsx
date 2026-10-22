@@ -36,6 +36,7 @@ export type AccountSession = {
   reputationScore: number | null;
   verifiedSkillCount: number;
   completedSessionCount: number;
+  selectedTitle?: string | null;
 };
 function displayAccount(account: OwnIdentity): AccountSession {
   return {

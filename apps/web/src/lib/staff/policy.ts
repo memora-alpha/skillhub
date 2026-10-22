@@ -1,5 +1,21 @@
 const uuid = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 const routes: [string, RegExp, (path: string) => string][] = [
+  ["GET", /^materials$/, () => "staff/materials"],
+  ["GET", new RegExp(`^materials/${uuid}/download$`, "i"), (p) => p],
+  [
+    "GET",
+    new RegExp(`^materials/${uuid}/content$`, "i"),
+    (p) => p.replace(/content$/, "download"),
+  ],
+  [
+    "POST",
+    new RegExp(`^materials/${uuid}/(approve|reject|hide|unhide)$`, "i"),
+    (p) => `staff/${p}`,
+  ],
+  ["GET", /^wallet$/, () => "me/wallet"],
+  ["GET", /^wallet\/transactions$/, () => "me/wallet/transactions"],
+  ["GET", new RegExp(`^wallet/transactions/${uuid}$`, "i"), (p) => `me/${p}`],
+  ["GET", /^reputation$/, () => "reputation/me"],
   ["GET", /^verifications$/, () => "staff/verifications"],
   ["GET", new RegExp(`^verifications/${uuid}$`, "i"), (p) => `staff/${p}`],
   [
@@ -30,6 +46,11 @@ const routes: [string, RegExp, (path: string) => string][] = [
   ],
   ["GET", /^reports$/, () => "reports/staff/queue"],
   [
+    "GET",
+    new RegExp(`^reports/${uuid}$`, "i"),
+    (p) => p.replace("reports/", "reports/staff/"),
+  ],
+  [
     "POST",
     new RegExp(`^reports/${uuid}/(claim|need-more-info|resolve|reject)$`, "i"),
     (p) => p.replace("reports/", "reports/staff/"),
@@ -49,6 +70,29 @@ const routes: [string, RegExp, (path: string) => string][] = [
   ["PATCH", new RegExp(`^notifications/${uuid}/read$`, "i"), (p) => p],
 ];
 const adminRoutes: [string, RegExp, (path: string) => string][] = [
+  ["GET", /^achievements$/, () => "me/achievements"],
+  [
+    "PATCH",
+    /^achievements\/selected-title$/,
+    () => "me/achievements/selected-title",
+  ],
+  ["GET", /^tags$/, (p) => `admin/${p}`],
+  ["POST", /^tags$/, (p) => `admin/${p}`],
+  ["PATCH", new RegExp(`^tags/${uuid}$`, "i"), (p) => `admin/${p}`],
+  ["GET", /^tag-requests$/, (p) => `admin/${p}`],
+  ["GET", new RegExp(`^tag-requests/${uuid}$`, "i"), (p) => `admin/${p}`],
+  [
+    "POST",
+    new RegExp(`^tag-requests/${uuid}/(approve|reject)$`, "i"),
+    (p) => `admin/${p}`,
+  ],
+  ["GET", new RegExp(`^skills/${uuid}/levels$`, "i"), (p) => `admin/${p}`],
+  ["POST", new RegExp(`^skills/${uuid}/levels$`, "i"), (p) => `admin/${p}`],
+  [
+    "PATCH",
+    new RegExp(`^skills/${uuid}/levels/${uuid}$`, "i"),
+    (p) => `admin/${p}`,
+  ],
   ["GET", /^users$/, (p) => `admin/${p}`],
   [
     "POST",

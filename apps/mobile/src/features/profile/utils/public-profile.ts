@@ -11,6 +11,7 @@ export function toOwnProfilePreview(source: OwnProfile): PublicProfile {
     reputationScore: source.reputationScore,
     verifiedSkillCount: source.verifiedSkillCount,
     completedSessionCount: source.completedSessionCount,
+    selectedTitle: source.selectedTitle ?? null,
     sharingSkills: [],
   };
 }

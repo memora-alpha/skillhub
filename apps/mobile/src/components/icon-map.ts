@@ -37,6 +37,8 @@ import Paperclip from "lucide-react-native/icons/paperclip";
 import Image from "lucide-react-native/icons/image";
 import Video from "lucide-react-native/icons/video";
 import WifiOff from "lucide-react-native/icons/wifi-off";
+import RefreshCw from "lucide-react-native/icons/refresh-cw";
+import CheckCheck from "lucide-react-native/icons/check-check";
 
 // Keep semantic names stable for every screen. Per-icon imports avoid loading the catalog.
 export const iconComponents = {
@@ -79,5 +81,7 @@ export const iconComponents = {
   image: Image,
   video: Video,
   "wifi-off": WifiOff,
+  refresh: RefreshCw,
+  checks: CheckCheck,
 } as const;
 export type IconName = keyof typeof iconComponents;

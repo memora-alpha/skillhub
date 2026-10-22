@@ -1,4 +1,4 @@
-import { NotificationsScreen } from "@/features/product-shell";
+import { NotificationsScreen } from "@/features/notifications";
 export default function Screen() {
   return <NotificationsScreen />;
 }
