@@ -2,7 +2,7 @@ import {
   creditAmount,
   vndAmount,
 } from "../../src/features/wallet/utils/amount";
-import type { PaymentModelTarget } from "../../src/features/wallet/types/payment";
+import type { PaymentModelTarget } from "./wallet-model-types";
 
 // Independent US3 fixtures. No US2 intent, Payment HTTP or provider data.
 export const paymentTarget: PaymentModelTarget = {

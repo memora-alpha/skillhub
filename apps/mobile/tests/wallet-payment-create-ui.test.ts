@@ -71,7 +71,7 @@ test("missing/suppressed/REVIEW/stale QR never becomes a replacement or client r
 
 test("synthetic create preview supports effect cleanup/reactivation without account state", async () => {
   const { createInertTopupHost } =
-    await import("../src/features/wallet/preview/create-host");
+    await import("./fixtures/wallet-create-host");
   const host = createInertTopupHost(),
     session = host.createModel();
   session.dispose();

@@ -1,23 +1,25 @@
 import { creditAmount, vndAmount } from "./amount";
-import type { QuoteModel, TopUpReview } from "../types/payment";
+import type { TopUpReview } from "../types/payment";
 
-// Approved policy, mirrored from BE domain/top-up-policy.ts at 17e3ac1.
-// No quote endpoint, local expiry or authoritative Credit calculation.
-// Presentation shortcuts pass canonical text through this same validation.
+// BE currently accepts 1,000–2,000,000 VND in 1,000 VND steps. The app's
+// create flow uses a 2,000 VND floor for bank minimums; keep BE validation
+// separately so already-dispatched 1,000 VND requests can still be recovered
+// or retried with their existing idempotency key.
 export const topUpPolicy = Object.freeze({
   version: "2026-10-15-v1",
-  minimum: "1000",
+  minimum: "2000",
+  contractMinimum: "1000",
   maximum: "2000000",
   step: "1000",
   vndPerCredit: "1000",
 });
 export const amountHint =
-  "Nhập số nguyên từ 1.000 đến 2.000.000 VND, bội số 1.000; không dùng dấu phân cách.";
-export function validateTopUp(text: string): TopUpReview {
+  "Nhập số nguyên từ 2.000 đến 2.000.000 VND, bội số 1.000; không dùng dấu phân cách.";
+function validateAmount(text: string, minimum: bigint): TopUpReview {
   const amount = vndAmount(text);
   if (
     amount.length > 7 ||
-    BigInt(amount) < 1000n ||
+    BigInt(amount) < minimum ||
     BigInt(amount) > 2000000n ||
     !amount.endsWith("000")
   )
@@ -30,24 +32,9 @@ export function validateTopUp(text: string): TopUpReview {
     provenance: "estimate",
   });
 }
-export function reviewTopUp(text: string, quote?: QuoteModel): TopUpReview {
-  const review = validateTopUp(text);
-  if (!quote) return review;
-  if (
-    !quote.quoteId ||
-    quote.amountVnd !== review.amountVnd ||
-    creditAmount(quote.credit) !== review.estimatedCredit ||
-    quote.policyVersion !== review.policyVersion ||
-    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(quote.expiresAt) ||
-    !Number.isFinite(Date.parse(quote.expiresAt)) ||
-    new Date(quote.expiresAt).toISOString() !== quote.expiresAt
-  )
-    throw new TypeError(
-      "Thông tin xác nhận đã thay đổi. Vui lòng xem lại số tiền.",
-    );
-  return Object.freeze({
-    ...review,
-    provenance: "confirmed-model",
-    quote: Object.freeze({ ...quote }),
-  });
+export function validateTopUp(text: string): TopUpReview {
+  return validateAmount(text, BigInt(topUpPolicy.minimum));
+}
+export function validateContractTopUp(text: string): TopUpReview {
+  return validateAmount(text, BigInt(topUpPolicy.contractMinimum));
 }

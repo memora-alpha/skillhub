@@ -7,9 +7,11 @@ import {
   fonts,
   typography,
 } from "@/constants/theme";
-import { Copy, Panel } from "./wallet-ui";
 import { FinancialReadState } from "./financial-read-state";
 import { WalletBalances } from "./wallet-balances";
+import { Copy, Panel } from "./wallet-ui";
+import { formatVnd } from "../utils/amount";
+import { topUpPolicy } from "../utils/topup-policy";
 import type { FinancialRead, WalletSnapshot } from "../types/wallet";
 
 export function WalletOverviewContent({
@@ -60,14 +62,13 @@ export function WalletOverviewContent({
         </View>
         <View style={styles.grow}>
           <Text style={styles.title}>Lịch sử giao dịch</Text>
-          <Text style={styles.caption}>Xem biến động Credit trong ví</Text>
         </View>
         <Icon name="chevron" color={colors.muted} size={18} />
       </Pressable>
       <Panel title="Credit đồng hành cùng bạn">
         <Copy muted>
-          1.000 VND = 1 Credit. Credit được dùng cho các hoạt động trên
-          SkillHub.
+          {formatVnd(topUpPolicy.vndPerCredit)} = 1 Credit. Credit được dùng cho
+          các hoạt động trên SkillHub.
         </Copy>
         <Copy muted>
           Credit tạm giữ được dành cho các hoạt động đã xác nhận và chưa thể sử
@@ -101,10 +102,5 @@ const styles = StyleSheet.create({
   },
   grow: { flex: 1, minWidth: 0, gap: 4 },
   title: { fontFamily: fonts.bold, ...typography.body, color: colors.ink },
-  caption: {
-    fontFamily: fonts.body,
-    ...typography.secondary,
-    color: colors.body,
-  },
   pressed: { opacity: 0.7 },
 });

@@ -1,6 +1,7 @@
 import { AppError } from "@/lib/http/errors";
 import { parseCreationPolicy } from "../schemas/payment-contracts";
 import { detachPaymentQr } from "./payment-observation";
+import { isTerminalPaymentStatus } from "./payment-outcome";
 import type {
   PaymentCoordinatorOptions,
   PaymentCreateSnapshot,
@@ -24,6 +25,8 @@ export function createPaymentCreateRuntime(input: PaymentCoordinatorOptions) {
   let active = true,
     ticket = 0,
     pending: Promise<void> | undefined,
+    pendingKind: "command" | "read" | "cancel" | undefined,
+    finishPending: (() => void) | undefined,
     controller: AbortController | undefined;
   const listeners = new Set<() => void>();
   const current = () => active && options.current();
@@ -52,7 +55,16 @@ export function createPaymentCreateRuntime(input: PaymentCoordinatorOptions) {
         !next.observation?.stale &&
         !next.payment.recoveryRequired &&
         next.payment.recoveryReason === null &&
-        ["PAID", "REFUNDED", "FAILED", "EXPIRED"].includes(next.payment.status),
+        isTerminalPaymentStatus(next.payment.status),
+      canCancel:
+        (!pending || pendingKind === "read") &&
+        !!options.api.cancel &&
+        !state.incident &&
+        !next.readDenied &&
+        next.stage === "known" &&
+        next.payment?.gateway === "PAYOS" &&
+        ["CREATED", "PENDING"].includes(next.payment.status) &&
+        (!next.observation?.stale || !!next.cancelUnconfirmed),
       canReplay:
         !pending &&
         state.storeVerified &&
@@ -71,9 +83,24 @@ export function createPaymentCreateRuntime(input: PaymentCoordinatorOptions) {
   };
   function run(
     work: (signal: AbortSignal, valid: () => void) => Promise<void>,
-  ) {
+    kind: "command" | "read" | "cancel" = "command",
+    afterCurrent = false,
+  ): Promise<void> {
     if (!current()) return Promise.resolve();
-    if (pending) return pending;
+    if (pending) {
+      if (kind === "read" && afterCurrent) {
+        const started = ticket;
+        return pending.then(() => {
+          if (current() && started === ticket) return run(work, "read");
+        });
+      }
+      if (kind === "read" || pendingKind !== "read") return pending;
+      // An explicit command takes priority over a replaceable GET. Do not use
+      // pause(): it detaches the QR and would make a read look like a reload.
+      ticket++;
+      controller?.abort();
+      finishPending?.();
+    }
     const started = ++ticket,
       abort = new AbortController();
     controller = abort;
@@ -87,7 +114,13 @@ export function createPaymentCreateRuntime(input: PaymentCoordinatorOptions) {
     });
     // Publish only after synchronously claiming the shared lease.
     pending = lease;
-    publish({ busy: true });
+    pendingKind = kind;
+    finishPending = finish;
+    publish({
+      busy: true,
+      checking: kind === "read",
+      cancelling: kind === "cancel",
+    });
     void (async () => {
       try {
         valid();
@@ -96,12 +129,18 @@ export function createPaymentCreateRuntime(input: PaymentCoordinatorOptions) {
         if (current() && started === ticket)
           publish({
             stage: "blocked",
-            notice: "Chưa thể khôi phục an toàn. Vui lòng liên hệ hỗ trợ.",
+            notice:
+              "Chưa thể khôi phục yêu cầu. Vui lòng thử lại sau; không tạo yêu cầu mới.",
           });
       } finally {
-        if (pending === lease) pending = undefined;
+        if (pending === lease) {
+          pending = undefined;
+          pendingKind = undefined;
+          finishPending = undefined;
+        }
         if (controller === abort) controller = undefined;
-        if (current() && started === ticket) publish({ busy: false });
+        if (current() && started === ticket)
+          publish({ busy: false, checking: false, cancelling: false });
         finish();
       }
     })();
@@ -135,12 +174,17 @@ export function createPaymentCreateRuntime(input: PaymentCoordinatorOptions) {
       ticket++;
       controller?.abort();
       controller = undefined;
+      finishPending?.();
+      finishPending = undefined;
       pending = undefined;
+      pendingKind = undefined;
       const observation = snapshot.observation
         ? detachPaymentQr(snapshot.observation)
         : undefined;
       publish({
         busy: false,
+        checking: false,
+        cancelling: false,
         stage: state.record && !snapshot.paymentId ? "unknown" : snapshot.stage,
         observation,
         payment: observation?.data,
@@ -151,7 +195,10 @@ export function createPaymentCreateRuntime(input: PaymentCoordinatorOptions) {
       ticket++;
       controller?.abort();
       controller = undefined;
+      finishPending?.();
+      finishPending = undefined;
       pending = undefined;
+      pendingKind = undefined;
       state.record = undefined;
       state.store = undefined;
       snapshot = Object.freeze({ stage: "ended", draft: "", busy: false });

@@ -6,7 +6,14 @@ import {
 } from "../src/features/wallet/utils/payment-auto-read";
 
 test("automatic reads are sequential, stop on backend final/denial, never replace an unknown intent", async () => {
-  for (const final of ["PAID", "FAILED", "EXPIRED", "REFUNDED", "denied"]) {
+  for (const final of [
+    "PAID",
+    "FAILED",
+    "EXPIRED",
+    "REFUNDED",
+    "CANCELLED",
+    "denied",
+  ]) {
     let status = "CREATED",
       reads = 0,
       current = true;
@@ -45,6 +52,132 @@ test("automatic reads are sequential, stop on backend final/denial, never replac
     },
   });
   assert.equal(reads, 0);
+});
+
+test("a newly paid checkout is observed within two seconds plus the API response", async () => {
+  for (const initial of ["CREATED", "PENDING"]) {
+    let status = initial,
+      elapsed = 0,
+      checks = 0,
+      tick: (() => void) | undefined;
+    startPaymentReadLoop({
+      current: () => true,
+      snapshot: () => ({ id: "id", status }),
+      read: async () => {
+        checks++;
+        elapsed += 750; // Synthetic API latency after the backend confirms PAID.
+        status = "PAID";
+      },
+      schedule: (work, delay) => {
+        tick = () => {
+          elapsed += delay;
+          work();
+        };
+        return () => {
+          tick = undefined;
+        };
+      },
+    });
+    tick!();
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(status, "PAID");
+    assert.equal(checks, 1);
+    assert(elapsed <= 2750, `confirmation took ${elapsed}ms for ${initial}`);
+    assert.equal(tick, undefined);
+  }
+});
+
+test("pending reads stay quick for a later bank transfer and preserve ten minutes of scheduled observation", async () => {
+  const delays: number[] = [];
+  let tick: (() => void) | undefined,
+    reads = 0,
+    stopped = 0;
+  startPaymentReadLoop({
+    current: () => true,
+    snapshot: () => ({ id: "id", status: "PENDING" }),
+    read: async () => {
+      reads++;
+    },
+    onStop: () => stopped++,
+    schedule: (work, delay) => {
+      delays.push(delay);
+      tick = work;
+      return () => {
+        tick = undefined;
+      };
+    },
+  });
+  while (tick) {
+    tick();
+    await new Promise((resolve) => setImmediate(resolve));
+    assert(reads <= 300, "observation must remain bounded");
+  }
+  assert.equal(reads, 300);
+  assert(delays.every((delay) => delay === 2000));
+  assert.equal(
+    delays.reduce((sum, delay) => sum + delay, 0),
+    600000,
+  );
+  assert.equal(stopped, 1);
+});
+
+test("a recovered read returns to quick checks and stops immediately on PAID", async () => {
+  const delays: number[] = [];
+  let status = "PENDING",
+    stale = false,
+    tick: (() => void) | undefined,
+    reads = 0;
+  startPaymentReadLoop({
+    current: () => true,
+    snapshot: () => ({ id: "id", status, stale }),
+    read: async () => {
+      reads++;
+      stale = reads === 1;
+      if (stale) throw Error("offline");
+      if (reads === 3) status = "PAID";
+    },
+    schedule: (work, delay) => {
+      delays.push(delay);
+      tick = work;
+      return () => {
+        tick = undefined;
+      };
+    },
+  });
+  for (let attempt = 0; attempt < 3; attempt++) {
+    tick!();
+    await new Promise((resolve) => setImmediate(resolve));
+  }
+  assert.deepEqual(delays, [2000, 10000, 2000]);
+  assert.equal(status, "PAID");
+  assert.equal(tick, undefined);
+});
+
+test("review and unknown states keep their slower cadence and original read limit", async () => {
+  for (const status of ["REVIEW", "UNKNOWN"]) {
+    let tick: (() => void) | undefined,
+      reads = 0;
+    startPaymentReadLoop({
+      current: () => true,
+      snapshot: () => ({ id: "id", status }),
+      read: async () => {
+        reads++;
+      },
+      schedule: (work, delay) => {
+        assert.equal(delay, 30000);
+        tick = work;
+        return () => {
+          tick = undefined;
+        };
+      },
+    });
+    while (tick) {
+      tick();
+      await new Promise((resolve) => setImmediate(resolve));
+      assert(reads <= 120, "slow observation must remain bounded");
+    }
+    assert.equal(reads, 120);
+  }
 });
 test("blur/logout cancels timer and an in-flight read cannot reschedule in a new focus", async () => {
   let current = true,

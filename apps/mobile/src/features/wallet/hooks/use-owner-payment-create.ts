@@ -19,6 +19,7 @@ import { createPaymentApi } from "../api/payment-api";
 import { openPaymentStore } from "../storage/payment-correlation-store";
 import type { PaymentCreateSnapshot } from "../utils/payment-create-state";
 import { usePaymentAutoRead } from "./use-payment-auto-read";
+import { usePaymentEvents } from "./use-payment-events";
 
 const unavailable: PaymentCreateSnapshot = Object.freeze({
   stage: "ended",
@@ -98,7 +99,15 @@ export function useOwnerPaymentCreate({
       };
     }, [model, runtime, environment]),
   );
+  const realtime = usePaymentEvents({
+    active: active && observe,
+    ownerId: runtime?.scope.ownerId,
+    id: state.readTargetId,
+    model,
+    current: isActive,
+  });
   const watching = usePaymentAutoRead({
+    realtime,
     active: active && observe,
     id: state.readTargetId,
     current: isActive,
@@ -113,5 +122,12 @@ export function useOwnerPaymentCreate({
     },
     read: () => model?.check() ?? Promise.resolve(),
   });
-  return { model, state, active, isActive, navigationEpoch, watching };
+  return {
+    model,
+    state,
+    active,
+    isActive,
+    navigationEpoch,
+    watching: watching || (active && observe && realtime),
+  };
 }

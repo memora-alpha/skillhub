@@ -8,7 +8,7 @@ import {
   paymentsOptions,
   paymentItems,
   projectPayments,
-} from "../src/features/wallet/utils/payments-query";
+} from "./fixtures/wallet-payments-query";
 import {
   createWalletRuntime,
   noWalletCapabilities,

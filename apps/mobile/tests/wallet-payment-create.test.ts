@@ -134,7 +134,7 @@ test("timeout and every ambiguous rejection retain identity; only explicit repla
 test("policy→POST race, pause/disabled and reported total loss never allow fresh replacement", async () => {
   const f = coordinatorFixture();
   await f.model.bootstrap();
-  f.model.edit("1000");
+  f.model.edit("2000");
   await f.model.review();
   f.policy("PAYMENT_CREATION_PAUSED");
   await f.model.confirm();
@@ -143,7 +143,7 @@ test("policy→POST race, pause/disabled and reported total loss never allow fre
   const lost = coordinatorFixture();
   await lost.model.bootstrap();
   lost.model.supportStop();
-  lost.model.edit("1000");
+  lost.model.edit("2000");
   await lost.model.review();
   await lost.model.confirm();
   assert.equal(lost.counts().posts, 0);

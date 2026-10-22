@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { QueryClient } from "@tanstack/react-query";
 import { createWalletRuntime } from "../src/features/wallet/context/wallet-runtime";
-import { createPaymentObserver } from "../src/features/wallet/utils/payment-observer";
+import { createPaymentObserver } from "./fixtures/wallet-model-observer";
 import {
   deferred,
   paymentReceipt,

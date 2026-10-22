@@ -1,13 +1,14 @@
-import type {
-  CreditAmount,
-  VndAmount,
-  WalletScope,
-  FinancialRead,
-} from "./wallet";
+import type { CreditAmount, VndAmount, FinancialRead } from "./wallet";
 
-// Preparation models below remain separate from the actual wire projection.
 export type PaymentState =
-  "CREATED" | "PENDING" | "PAID" | "FAILED" | "EXPIRED" | "REFUNDED" | "REVIEW";
+  | "CREATED"
+  | "PENDING"
+  | "PAID"
+  | "FAILED"
+  | "EXPIRED"
+  | "REFUNDED"
+  | "REVIEW"
+  | "CANCELLED";
 export type PaymentCheckout = Readonly<{
   providerStatus: "PENDING";
   paymentLinkId: string;
@@ -36,24 +37,12 @@ export type PaymentCreationPolicy = Readonly<{
   reasonCode: string | null;
   existingPaymentId: string | null;
 }>;
-export type TopUpDraft = Readonly<{ amountText: string }>;
 export type PaymentObservationModel = Readonly<{
   paymentId: string;
   state: PaymentState | "UNKNOWN";
   amountVnd: VndAmount;
   credit: CreditAmount;
 }>;
-// US3 injected-model boundary only, independent of US2 creation and HTTP DTOs.
-export type PaymentModelTarget = Readonly<{
-  scope: WalletScope;
-  paymentId: string;
-  amountVnd: VndAmount;
-  credit: CreditAmount;
-}>;
-export type PaymentModelReader = (
-  target: PaymentModelTarget,
-  signal: AbortSignal,
-) => Promise<unknown>;
 export type PaymentObservationRead = FinancialRead<PaymentObservationModel> &
   Readonly<{
     issue?: "conflict";
@@ -70,48 +59,10 @@ export type PaymentRefreshSnapshot = Readonly<{
   history: RelatedRead;
 }>;
 
-// Inert preparation boundary only. These are NOT Payment HTTP DTOs or keys.
-export type QuoteModel = Readonly<{
-  quoteId: string;
-  amountVnd: string;
-  credit: string;
-  policyVersion: string;
-  expiresAt: string;
-}>;
 export type TopUpReview = Readonly<{
   amountVnd: VndAmount;
   estimatedCredit: CreditAmount;
   method: "PAYOS";
   policyVersion: "2026-10-15-v1";
-  provenance: "estimate" | "confirmed-model";
-  quote?: QuoteModel;
+  provenance: "estimate";
 }>;
-export type PaymentIntent = Readonly<{
-  localId: string;
-  scope: WalletScope;
-  review: TopUpReview;
-}>;
-export type PreparationStage =
-  | "DRAFT"
-  | "REVIEW"
-  | "CREATING"
-  | "CREATED_WITH_ID"
-  | "REJECTED_WITH_NO_CREATION"
-  | "UNKNOWN_OUTCOME"
-  | "SESSION_ENDED";
-export type PreparationSnapshot = Readonly<{
-  stage: PreparationStage;
-  draft: TopUpDraft;
-  review?: TopUpReview;
-  intent?: PaymentIntent;
-  paymentId?: string;
-  error?: string;
-}>;
-export type ModelDispatch = (
-  intent: PaymentIntent,
-  options: Readonly<{
-    signal: AbortSignal;
-    retry: false;
-    replayAfterRenewal: false;
-  }>,
-) => Promise<unknown>;

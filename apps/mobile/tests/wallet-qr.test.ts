@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createQrPresentation } from "../src/features/wallet/utils/payment-qr-model";
+import { createQrPresentation } from "./fixtures/wallet-model-qr";
 
 // QR-01 renderer/independent decoder cases are BLOCKED, specified in qr-validation.md.
 // These executable tests assert only presentation state; there are no skipped/fake decode assertions.

@@ -9,8 +9,9 @@ export function createPaymentUi(state: PaymentCreateSnapshot) {
     quoteLabel: state.payment
       ? "Credit được máy chủ xác nhận"
       : "Credit ước tính",
-    qr: observation
-      ? paymentQrFromObservation(observation, observation.target.scope)
-      : { stage: "unavailable" as const },
+    qr:
+      observation && !state.cancelUnconfirmed
+        ? paymentQrFromObservation(observation, observation.target.scope)
+        : { stage: "unavailable" as const },
   };
 }

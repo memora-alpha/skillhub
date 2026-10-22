@@ -29,6 +29,12 @@ export function createOwnerPaymentRefresh(
     load: () => Promise<T>,
   ) => {
     if (!runtime.isCurrent() || signal.aborted) throw new AppError("session");
+    // A request begun before PAID may still contain the old balance/snapshot.
+    // Retire it before fetching; Query would otherwise coalesce with that read.
+    if (queries.getQueryState(key)?.fetchStatus === "fetching") {
+      await queries.cancelQueries({ queryKey: key, exact: true });
+      if (!runtime.isCurrent() || signal.aborted) throw new AppError("session");
+    }
     const cancel = () => {
       void queries.cancelQueries({ queryKey: key, exact: true });
     };

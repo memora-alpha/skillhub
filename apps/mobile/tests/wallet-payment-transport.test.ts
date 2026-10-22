@@ -3,7 +3,7 @@ import test from "node:test";
 import axios from "axios";
 import { createHttpClient } from "../src/lib/http/client";
 import { AppError } from "../src/lib/http/errors";
-import { createPaymentPreparation } from "../src/features/wallet/utils/payment-intent";
+import { createPaymentPreparation } from "./fixtures/wallet-model-intent";
 
 // In-memory Axios adapter, existing /me read path: NOT a Payment endpoint/DTO fixture.
 test("inert boundary forwards immutable intent and replay opt-out; shared 401 renews once without resend", async () => {
@@ -41,7 +41,7 @@ test("inert boundary forwards immutable intent and replay opt-out; shared 401 re
     scope: { ownerId: "synthetic-a", generation: 1 },
     isCurrent: () => true,
   });
-  model.edit("1000");
+  model.edit("2000");
   model.review();
   await model.confirmModel(async (intent, options) => {
     dispatches++;
@@ -78,7 +78,7 @@ test("HTTP codes and malformed 2xx are never proof of no creation; no implicit r
       scope: { ownerId: "a", generation: 1 },
       isCurrent: () => true,
     });
-    model.edit("1000");
+    model.edit("2000");
     model.review();
     let calls = 0;
     await model.confirmModel(async () => {
@@ -87,7 +87,7 @@ test("HTTP codes and malformed 2xx are never proof of no creation; no implicit r
     });
     const intent = model.getSnapshot().intent;
     model.startNext();
-    model.edit("1000");
+    model.edit("2000");
     model.review();
     await model.confirmModel(async () => {
       calls++;

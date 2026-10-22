@@ -13,14 +13,9 @@ import { accountWalletCapabilities } from "./account-capabilities";
 import { useAuthSession } from "@/features/auth";
 import type { PaginatedHttpClient } from "@/lib/http/client";
 import { createWalletRuntime, type WalletRuntime } from "./wallet-runtime";
-import {
-  attachPaymentPreparation,
-  type PaymentPreparationSession,
-} from "./payment-preparation";
 
 type Value = WalletRuntime & {
   client: PaginatedHttpClient;
-  preparation: PaymentPreparationSession;
 };
 const Context = createContext<Value | null>(null);
 
@@ -77,13 +72,11 @@ function WalletSession({
     return {
       ...runtime,
       client: auth.client,
-      preparation: attachPaymentPreparation(runtime),
     };
   }, [ownerId, generation, queries, current, auth]);
   useLayoutEffect(() => {
     // React Strict effects reactivate before child passive query subscriptions.
     value.activate();
-    value.preparation.activate();
     // Controller subscription invalidates synchronously, before React cleanup.
     const unsubscribe = auth.controller.subscribe(() => {
       if (!value.isCurrent()) value.dispose();

@@ -1,7 +1,7 @@
-import type { WalletRuntime } from "./wallet-runtime";
-import { createPaymentPreparation } from "../utils/payment-intent";
+import type { WalletRuntime } from "../../src/features/wallet/context/wallet-runtime";
+import { createPaymentPreparation } from "./wallet-model-intent";
 
-// One session-owned model, no HTTP client or lifecycle dispatch callback.
+// Historical inert-model fixture, never attached to the account WalletProvider.
 export function attachPaymentPreparation(runtime: WalletRuntime) {
   const existing = runtime.sessionData.get("payment-preparation");
   if (existing) return existing as PaymentPreparationSession;

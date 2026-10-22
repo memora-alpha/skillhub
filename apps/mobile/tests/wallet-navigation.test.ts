@@ -1,14 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { readFileSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import {
   walletBack,
   walletFallback,
 } from "../src/features/wallet/utils/navigation";
-import {
-  previewSelection,
-  previewHref,
-} from "../src/features/wallet/preview/navigation";
 const source = (file: string) =>
   readFileSync(new URL("../src/" + file, import.meta.url), "utf8");
 test("Back uses actual Home/Profile history; direct links fall back without side effects", () => {
@@ -26,26 +22,6 @@ test("Back uses actual Home/Profile history; direct links fall back without side
   assert.deepEqual(draft, { amount: "1000", selection: "HOLD" });
   assert.equal(walletFallback("wallet"), "/profile");
   assert.equal(walletFallback("payment"), "/wallet");
-});
-test("preview identity/state selection never becomes a real financial route or destination", () => {
-  assert.equal(
-    previewSelection({
-      view: "https://evil.test",
-      id: "real-id",
-      state: "success",
-    }).view,
-    "wallet",
-  );
-  assert.equal(
-    previewSelection({ view: "transaction", id: "real-id" }).id,
-    undefined,
-  );
-  assert.equal(
-    previewSelection({ view: "status", state: "success" }).state,
-    "PAID",
-  );
-  assert.match(previewHref("status", "PAID"), /^\/ui\/wallet-preview\?/);
-  assert.equal(previewSelection({ view: ["status", "wallet"] }).view, "wallet");
 });
 test("all six normal routes still use public Wallet exports and never read URL outcomes", () => {
   for (const file of [
@@ -70,32 +46,26 @@ test("all six normal routes still use public Wallet exports and never read URL o
     /HomeWalletBalance/,
   );
 });
-test("preview is separately routed, labeled, inert and never imports a live financial runtime", () => {
-  const preview = source("features/wallet/preview/screens.tsx");
-  assert.match(preview, /DỮ LIỆU MẪU|Dữ liệu mẫu/);
-  assert.doesNotMatch(
-    preview,
-    /useWalletRuntime|useAuthSession|useQuery|fetch\(|axios|runtime\.client/,
+test("wallet demo screens, routes and entry links are absent from the application", () => {
+  assert.equal(
+    existsSync(new URL("../src/features/wallet/preview", import.meta.url)),
+    false,
   );
-  assert.doesNotMatch(
-    source("features/wallet/preview/fixtures.ts"),
-    /https?:\/\//,
+  assert.equal(
+    existsSync(new URL("../src/app/ui/wallet-preview.tsx", import.meta.url)),
+    false,
   );
-  assert.match(
-    source("features/ui-preview/screens.tsx"),
-    /\/ui\/wallet-preview/,
-  );
-  assert.doesNotMatch(
-    source("features/product-shell/context.tsx"),
-    /\/wallet\/transactions\/tx-topup/,
-  );
-  assert.match(
-    source("features/auth/components/AuthNavigator.tsx"),
-    /name="ui"/,
-  );
+  for (const file of [
+    "features/wallet/index.ts",
+    "features/ui-preview/screens.tsx",
+    "features/auth/components/AuthNavigator.tsx",
+    "features/product-shell/context.tsx",
+  ]) {
+    assert.doesNotMatch(source(file), /WalletPreview|wallet-preview/);
+  }
 });
 
-test("P4 public wrappers bind preparation only; normal form cannot dispatch or trust route payment data", () => {
+test("normal payment screens use their coordinator and never adopt URL financial outcomes", () => {
   const screens = source("features/wallet/screens.tsx");
   assert.match(screens, /TopupPreparationScreen/);
   assert.match(screens, /PaymentPreparationScreen/);
@@ -104,9 +74,14 @@ test("P4 public wrappers bind preparation only; normal form cannot dispatch or t
     normal,
     /useLocalSearchParams|confirmModel|previewDispatch|\.request|fetch\(/,
   );
-  assert.match(
-    source("features/wallet/components/topup-form.tsx"),
-    /disabled=\{!previewDispatch/,
+  assert.equal(
+    existsSync(
+      new URL(
+        "../src/features/wallet/components/topup-form.tsx",
+        import.meta.url,
+      ),
+    ),
+    false,
   );
   assert.doesNotMatch(
     source("features/wallet/views/payment-screen.tsx"),
@@ -140,9 +115,8 @@ test("status accepts only a validated ID through the gated read hook; preview re
   );
   for (const file of [
     "utils/payment-outcome.ts",
-    "utils/payment-observer.ts",
+    "utils/payment-observation.ts",
     "utils/payment-refresh.ts",
-    "preview/status.tsx",
   ]) {
     assert.doesNotMatch(
       source("features/wallet/" + file),

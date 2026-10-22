@@ -1,5 +1,6 @@
 import { parsePayment } from "../schemas/payment-contracts";
 import { correlationResolved } from "./payment-recovery-record";
+import { isTerminalPaymentStatus } from "./payment-outcome";
 import {
   createPaymentObservation,
   reducePaymentObservation,
@@ -22,7 +23,7 @@ export function createPaymentAccept(session: PaymentCreateRuntime) {
         paymentId: payment.id,
         payment: undefined,
         observation: undefined,
-        notice: "Thông tin số tiền chưa thể đối chiếu. Liên hệ hỗ trợ.",
+        notice: "Thông tin số tiền chưa khớp. Vui lòng kiểm tra lại yêu cầu.",
       });
       return;
     }
@@ -46,6 +47,11 @@ export function createPaymentAccept(session: PaymentCreateRuntime) {
       payment: observation.data,
       observation,
       readDenied: false,
+      ...(observation.data &&
+      !observation.stale &&
+      isTerminalPaymentStatus(observation.data.status)
+        ? { cancelUnconfirmed: false, cancelNotice: undefined }
+        : {}),
       notice: observation.stale
         ? "Thông tin trước đó cần được kiểm tra lại."
         : state.record && !state.storeVerified

@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { paymentOutcome } from "../src/features/wallet/utils/payment-outcome";
 import {
   observePaymentModel,
-  paymentOutcome,
   reconcilePaymentModel,
-} from "../src/features/wallet/utils/payment-outcome";
+} from "./fixtures/wallet-model-outcome";
 import {
   paymentReceipt,
   paymentTarget,

@@ -1,5 +1,11 @@
 import type { ReactNode } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import {
+  StyleSheet,
+  Text,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from "react-native";
 import {
   appColors as colors,
   appRadius,
@@ -15,14 +21,16 @@ export function Panel({
   children,
   accent = false,
   testID,
+  style,
 }: {
   title?: string;
   children: ReactNode;
   accent?: boolean;
   testID?: string;
+  style?: StyleProp<ViewStyle>;
 }) {
   return (
-    <View testID={testID} style={[ui.panel, accent && ui.accent]}>
+    <View testID={testID} style={[ui.panel, accent && ui.accent, style]}>
       {title && (
         <Text accessibilityRole="header" style={ui.heading}>
           {title}

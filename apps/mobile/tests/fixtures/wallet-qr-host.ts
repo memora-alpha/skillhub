@@ -1,13 +1,13 @@
-import { parsePayment } from "../schemas/payment-contracts";
+import { parsePayment } from "../../src/features/wallet/schemas/payment-contracts";
 import {
   createPaymentObservation,
   reducePaymentObservation,
   type PaymentLiveObservation,
-} from "../utils/payment-observation";
+} from "../../src/features/wallet/utils/payment-observation";
 import {
   paymentQrFromObservation,
   type QrPresentation,
-} from "../utils/payment-qr-model";
+} from "../../src/features/wallet/utils/payment-qr-model";
 
 // Independent synthetic data, never a payOS/VietQR payload or account client/cache.
 export const previewQrPayloads = {

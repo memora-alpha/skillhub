@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createPaymentRefresh } from "../src/features/wallet/utils/payment-refresh";
-import { observePaymentModel } from "../src/features/wallet/utils/payment-outcome";
+import { observePaymentModel } from "./fixtures/wallet-model-outcome";
 import {
   deferred,
   paymentReceipt,

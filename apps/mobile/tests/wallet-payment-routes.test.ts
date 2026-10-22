@@ -7,7 +7,7 @@ import {
   noWalletCapabilities,
 } from "../src/features/wallet/context/wallet-runtime";
 import { focusPaymentCreate } from "../src/features/wallet/context/payment-create-session";
-import { explicitPaymentNavigation } from "../src/features/wallet/utils/payment-route-action";
+import { explicitPaymentNavigation } from "./fixtures/wallet-route-action";
 
 test("ordinary native payment uses durable creation; web only enables independent owner reads", () => {
   for (const platform of ["ios", "android"]) {

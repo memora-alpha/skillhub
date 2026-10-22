@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { QueryClient } from "@tanstack/react-query";
 import { AppError } from "../src/lib/http/errors";
-import { createPaymentObserver } from "../src/features/wallet/utils/payment-observer";
+import { createPaymentObserver } from "./fixtures/wallet-model-observer";
 import {
   deferred,
   paymentReceipt,
@@ -10,7 +10,7 @@ import {
 } from "./fixtures/payment-observation-model";
 import { createWalletRuntime } from "../src/features/wallet/context/wallet-runtime";
 import { createPaymentRefresh } from "../src/features/wallet/utils/payment-refresh";
-import { observePaymentModel } from "../src/features/wallet/utils/payment-outcome";
+import { observePaymentModel } from "./fixtures/wallet-model-outcome";
 
 const setup = (read?: (signal: AbortSignal) => Promise<unknown>) =>
   createPaymentObserver({

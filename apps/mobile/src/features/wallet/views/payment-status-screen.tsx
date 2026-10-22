@@ -11,6 +11,7 @@ import {
   paymentStatusId,
   paymentStatusPresentation,
 } from "../utils/payment-status-presentation";
+import { paymentPalette } from "../components/wallet-payment-palette";
 
 export function PaymentStatusPreparationScreen() {
   const back = useWalletBack("status");
@@ -20,6 +21,7 @@ export function PaymentStatusPreparationScreen() {
   return (
     <AppScreenLayout
       title="Trạng thái thanh toán"
+      contentStyle={{ backgroundColor: paymentPalette.background }}
       selected="Hồ sơ"
       back={{ href: "/wallet", label: "Quay lại", onPress: back }}
     >

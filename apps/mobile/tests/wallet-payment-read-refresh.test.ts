@@ -15,7 +15,86 @@ import {
 } from "../src/features/wallet/utils/wallet-query";
 import { paymentWire } from "./fixtures/payment-api";
 import { deferred } from "./fixtures/payment-observation-model";
-import { walletModels } from "./fixtures/wallet-model";
+import { walletModels, ledgerModel } from "./fixtures/wallet-model";
+import {
+  historyOptions,
+  historyItems,
+} from "../src/features/wallet/utils/history-query";
+import type { HistoryData } from "../src/features/wallet/types/transaction";
+
+test("PAID refresh replaces reads started before payment and rejects their late results", async () => {
+  const queries = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: Infinity } },
+  });
+  const runtime = createWalletRuntime({
+    scope: { ownerId: "a", generation: 1 },
+    queries,
+    current: () => true,
+    capabilities: { ...noWalletCapabilities, wallet: true, history: true },
+  });
+  const oldWallet = deferred<unknown>();
+  const oldHistory = deferred<{
+    data: unknown[];
+    pagination: { limit: number; hasMore: boolean; nextCursor: null };
+  }>();
+  const freshWallet = {
+    ...walletModels.a,
+    availableCredit: "246.45",
+    walletVersion: 8,
+  };
+  let walletCalls = 0,
+    historyCalls = 0;
+  const client = {
+    request: async () =>
+      ++walletCalls === 1 ? oldWallet.promise : freshWallet,
+    requestPage: async () =>
+      ++historyCalls === 1
+        ? oldHistory.promise
+        : {
+            data: [ledgerModel(1)],
+            pagination: { limit: 20, hasMore: false, nextCursor: null },
+          },
+  };
+  const wallet = walletReadOptions(runtime, client);
+  const history = historyOptions(runtime, client, queries, {}, 0);
+  const beforeWallet = queries.fetchQuery(wallet).catch(() => undefined);
+  const beforeHistory = queries
+    .fetchInfiniteQuery(history)
+    .catch(() => undefined);
+  const refresh = createOwnerPaymentRefresh(
+    runtime,
+    queries,
+    client,
+    parsePayment(paymentWire("PAID", 2)),
+  );
+  try {
+    const after = refresh.refresh();
+    // Release an uncooperative pre-payment transport after the refresh starts.
+    oldWallet.resolve(walletModels.a);
+    oldHistory.resolve({
+      data: [],
+      pagination: { limit: 20, hasMore: false, nextCursor: null },
+    });
+    await Promise.all([beforeWallet, beforeHistory, after]);
+    assert.equal(walletCalls, 2, "Wallet must be read after PAID");
+    assert.equal(historyCalls, 2, "History must be read after PAID");
+    assert.deepEqual(queries.getQueryData(wallet.queryKey), {
+      kind: "snapshot",
+      snapshot: freshWallet,
+    });
+    assert.equal(
+      historyItems(queries.getQueryData<HistoryData>(history.queryKey)?.pages)
+        .length,
+      1,
+    );
+    assert.equal(refresh.getSnapshot().wallet.status, "success");
+    assert.equal(refresh.getSnapshot().history.status, "success");
+  } finally {
+    refresh.dispose();
+    runtime.dispose();
+    queries.clear();
+  }
+});
 
 test("accepted PAID refreshes shared Wallet/history reads independently; retry sends only GETs", async () => {
   for (const failures of [

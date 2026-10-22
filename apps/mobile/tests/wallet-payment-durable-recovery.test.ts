@@ -79,6 +79,15 @@ test("record is immutable, exact, bounded and rejects wrong identity/unknown sec
       }),
     );
 });
+test("previously dispatched 1,000 VND requests remain recoverable", () => {
+  const r = makeRecoveryRecord({
+    ...identity,
+    key: "legacy-key",
+    localIntentId: "legacy-local-1",
+    body: { paymentAmountVnd: "1000", gateway: "PAYOS" },
+  });
+  assert.equal(parseRecoveryRecord(r, identity).body.paymentAmountVnd, "1000");
+});
 test("durable claim/read-back precedes dispatch, repeated claim same identity; capacity blocks replacement", async () => {
   const f = fixture();
   await f.store.claim(record());

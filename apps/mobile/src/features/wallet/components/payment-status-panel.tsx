@@ -2,12 +2,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { Button } from "@/components/Button";
 import { Copy, Panel, WalletField } from "./wallet-ui";
 import { Icon, type IconName } from "@/components/Icon";
-import {
-  appColors as colors,
-  appRadius,
-  fonts,
-  typography,
-} from "@/constants/theme";
+import { appRadius, fonts, typography } from "@/constants/theme";
 import { FormNotice } from "@/components/FormNotice";
 import { FinancialReadState } from "./financial-read-state";
 import { formatCredit, formatVnd } from "../utils/amount";
@@ -16,16 +11,9 @@ import { SimplePaymentStatus } from "./simple-payment-status";
 import type {
   PaymentObservationRead,
   PaymentRefreshSnapshot,
-  RelatedRead,
 } from "../types/payment";
+import { paymentPalette as colors } from "./wallet-payment-palette";
 
-const refreshCaption: Record<RelatedRead["status"], string> = {
-  unavailable: "Chưa sẵn sàng",
-  idle: "Chưa cập nhật",
-  loading: "Đang cập nhật…",
-  success: "Đã cập nhật",
-  error: "Chưa cập nhật được",
-};
 export function PaymentStatusPanel({
   state,
   onCheck,
@@ -76,10 +64,10 @@ export function PaymentStatusPanel({
   const icon: IconName =
     tone === "success" ? "check-circle" : tone === "error" ? "alert" : "clock";
   return (
-    <Panel testID="wallet-payment-status">
+    <Panel testID="wallet-payment-status" style={styles.panel}>
       <FinancialReadState
         state={state}
-        unavailableMessage="Chưa thể kiểm tra thanh toán. Thông tin từ liên kết, mã QR hoặc việc quay lại ứng dụng không xác nhận giao dịch."
+        unavailableMessage="Bạn có thể quay lại ví và thử sau."
       >
         {data && (
           <View style={{ gap: 12 }}>
@@ -93,7 +81,7 @@ export function PaymentStatusPanel({
               >
                 <Icon
                   name={icon}
-                  color={tone === "error" ? colors.error : colors.forest}
+                  color={tone === "error" ? colors.error : colors.success}
                   size={28}
                 />
               </View>
@@ -108,42 +96,34 @@ export function PaymentStatusPanel({
                 {formatVnd(data.amountVnd)}
               </Text>
             </View>
-            <WalletField
-              label="Credit theo thanh toán"
-              value={formatCredit(data.credit)}
-            />
+            <WalletField label="Credit" value={formatCredit(data.credit)} />
             <WalletField label="Mã yêu cầu" value={data.paymentId} />
-            {["CREATED", "PENDING"].includes(data.state) && (
-              <Copy muted>
-                Đang chờ kết quả xác minh. Thời gian chờ không quyết định thất
-                bại hoặc hết hạn.
-              </Copy>
-            )}
             {data.state === "REFUNDED" && (
+              <Copy muted>Xem lịch sử để kiểm tra giao dịch hoàn tiền.</Copy>
+            )}
+            {data.state === "REVIEW" && !state.recoveryRequired && (
               <Copy muted>
-                Chỉ hiển thị thông tin đã được ghi nhận; không xác định số tiền
-                hoàn hoặc thao tác rút tiền.
+                Yêu cầu đang được đối soát. Vui lòng kiểm tra lại sau.
               </Copy>
             )}
-            {data.state === "REVIEW" && (
-              <Copy muted>
-                Vui lòng kiểm tra lại sau. Trạng thái cần đối soát không xác
-                nhận thất bại và không tạo yêu cầu nạp mới.
-              </Copy>
-            )}
-            {state.stale && (
+            {state.stale && state.status !== "refresh-error" && (
               <FormNotice tone="info">
-                Đang hiển thị kết quả trước đó. Thông tin này chưa được cập
-                nhật.
+                Đang hiển thị kết quả gần nhất. Kiểm tra lại để cập nhật.
               </FormNotice>
             )}
             {state.recoveryRequired && (
               <FormNotice tone="info">
-                Yêu cầu cần được kiểm tra hoặc đối soát. Không tạo yêu cầu nạp
-                mới.
-                {state.recoveryReason === "PAYMENT_CHANNEL_UNAVAILABLE"
-                  ? " Kênh thanh toán hiện chưa sẵn sàng."
-                  : " Vui lòng liên hệ hỗ trợ nếu tình trạng kéo dài."}
+                {state.recoveryReason === "PAYMENT_RECOVERY_PENDING" ? (
+                  "Yêu cầu đang được khôi phục. Tiếp tục kiểm tra trạng thái trước khi nạp lại."
+                ) : (
+                  <>
+                    Yêu cầu cần được kiểm tra hoặc đối soát. Không tạo yêu cầu
+                    nạp mới.
+                    {state.recoveryReason === "PAYMENT_CHANNEL_UNAVAILABLE"
+                      ? " Kênh thanh toán hiện chưa sẵn sàng."
+                      : " Vui lòng kiểm tra lại sau."}
+                  </>
+                )}
               </FormNotice>
             )}
             {state.issue === "conflict" && (
@@ -152,20 +132,15 @@ export function PaymentStatusPanel({
                 để kiểm tra tiếp.
               </Copy>
             )}
-            {data.state === "PAID" && refresh && (
-              <>
-                <Copy muted>
-                  Thanh toán đã được xác nhận. Số dư và lịch sử được cập nhật
-                  riêng.
-                </Copy>
-                {(["wallet", "history"] as const).map((name) => (
+            {data.state === "PAID" &&
+              refresh &&
+              (["wallet", "history"] as const)
+                .filter((name) => refresh[name].status === "error")
+                .map((name) => (
                   <View key={name} style={{ gap: 8 }}>
                     <Copy>
-                      {name === "wallet" ? "Số dư" : "Lịch sử"}:{" "}
-                      {refreshCaption[refresh[name].status]}
-                      {refresh[name].stale
-                        ? " · dữ liệu trước đó có thể đã cũ"
-                        : ""}
+                      {name === "wallet" ? "Số dư" : "Lịch sử"}: chưa cập nhật
+                      được.
                     </Copy>
                     {onRefresh && refresh[name].status === "error" && (
                       <Button variant="paper" onPress={() => onRefresh(name)}>
@@ -176,8 +151,6 @@ export function PaymentStatusPanel({
                     )}
                   </View>
                 ))}
-              </>
-            )}
           </View>
         )}
       </FinancialReadState>
@@ -196,18 +169,36 @@ export function PaymentStatusPanel({
   );
 }
 const styles = StyleSheet.create({
-  summary: { alignItems: "center", gap: 12, paddingVertical: 12 },
+  panel: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: appRadius.card,
+    shadowColor: colors.ink,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 2,
+  },
+  summary: {
+    alignItems: "center",
+    gap: 12,
+    padding: 18,
+    borderRadius: appRadius.control,
+    borderWidth: 1,
+    borderColor: colors.brandBorder,
+    backgroundColor: colors.brandWash,
+  },
   icon: {
     padding: 16,
     borderRadius: appRadius.full,
-    backgroundColor: colors.surfaceLow,
+    backgroundColor: colors.brandSoft,
   },
   success: { backgroundColor: colors.successSoft },
-  error: { backgroundColor: colors.errorLight },
+  error: { backgroundColor: colors.errorSoft },
   title: {
     fontFamily: fonts.bold,
     ...typography.heading,
-    color: colors.ink,
+    color: colors.brandDark,
     textAlign: "center",
   },
   amount: {

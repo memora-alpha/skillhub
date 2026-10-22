@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { AppError } from "@/lib/http/errors";
-import { validateTopUp } from "./topup-policy";
+import { isTerminalPaymentStatus } from "./payment-outcome";
+import { validateContractTopUp } from "./topup-policy";
 import type { PaymentProjection } from "../types/payment";
 
 export type PaymentIdentity = Readonly<{
@@ -46,7 +47,8 @@ export function parseRecoveryRecord(
   try {
     boundedJson(value);
     const r = schema.parse(value);
-    validateTopUp(r.body.paymentAmountVnd);
+    // Preserve recovery for requests dispatched under the prior BE minimum.
+    validateContractTopUp(r.body.paymentAmountVnd);
     if (
       r.ownerId !== identity.ownerId ||
       r.environment !== identity.environment
@@ -90,6 +92,6 @@ export function correlationResolved(
     record.body.paymentAmountVnd === payment.paymentAmountVnd &&
     !payment.recoveryRequired &&
     payment.recoveryReason === null &&
-    ["PAID", "REFUNDED", "FAILED", "EXPIRED"].includes(payment.status)
+    isTerminalPaymentStatus(payment.status)
   );
 }

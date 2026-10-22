@@ -3,6 +3,7 @@ import { validateTopUp } from "./topup-policy";
 import { createPaymentCreateRuntime } from "./payment-create-runtime";
 import { createPaymentAccept } from "./payment-create-observe";
 import { createPaymentDispatch } from "./payment-create-dispatch";
+import { createPaymentCancellation } from "./payment-create-cancel";
 import type { PaymentCoordinatorOptions } from "./payment-create-state";
 export function createPaymentCoordinator(input: PaymentCoordinatorOptions) {
   const session = createPaymentCreateRuntime(input);
@@ -12,6 +13,7 @@ export function createPaymentCoordinator(input: PaymentCoordinatorOptions) {
     getSnapshot: session.snapshot,
     subscribe: session.subscribe,
     ...createPaymentDispatch(session, accept),
+    cancel: createPaymentCancellation(session, accept),
     pause: session.pause,
     dispose: session.dispose,
     activate: session.activate,
@@ -20,7 +22,8 @@ export function createPaymentCoordinator(input: PaymentCoordinatorOptions) {
         if (state.incident) {
           publish({
             stage: "blocked",
-            notice: "Định danh đã mất hoặc có sự cố khôi phục. Liên hệ hỗ trợ.",
+            notice:
+              "Chưa thể khôi phục thông tin yêu cầu. Tạm thời chưa thể nạp tiếp.",
           });
           return;
         }
@@ -55,7 +58,7 @@ export function createPaymentCoordinator(input: PaymentCoordinatorOptions) {
               readDenied:
                 error instanceof AppError && [403, 404].includes(error.status),
               notice:
-                "Chưa thể đọc yêu cầu đã lưu. Liên hệ hỗ trợ; không tạo lại.",
+                "Chưa thể đọc yêu cầu đã lưu. Thử khôi phục lại; không tạo yêu cầu mới.",
             });
           }
         }
@@ -89,7 +92,7 @@ export function createPaymentCoordinator(input: PaymentCoordinatorOptions) {
         } catch {
           publish({
             stage: "draft",
-            notice: "Nhập số nguyên từ 1.000 đến 2.000.000 VND, bước 1.000.",
+            notice: "Nhập số nguyên từ 2.000 đến 2.000.000 VND, bước 1.000.",
           });
           return;
         }
@@ -100,7 +103,7 @@ export function createPaymentCoordinator(input: PaymentCoordinatorOptions) {
             : {
                 stage: "blocked",
                 notice:
-                  "Hiện chưa thể tạo yêu cầu nạp. Kiểm tra yêu cầu đang mở hoặc liên hệ hỗ trợ.",
+                  "Hiện chưa thể tạo yêu cầu nạp. Vui lòng kiểm tra yêu cầu đang mở.",
               },
         );
       });
@@ -116,40 +119,44 @@ export function createPaymentCoordinator(input: PaymentCoordinatorOptions) {
       )
         publish({ stage: "draft", review: undefined });
     },
-    check: () =>
-      run(async (signal, valid) => {
-        const id =
-          session.snapshot().paymentId ??
-          (!state.record
-            ? session.snapshot().policy?.existingPaymentId
-            : undefined);
-        if (!id) {
-          await policy(signal, valid);
-          return;
-        }
-        try {
-          await accept(await options.api.detail(id, signal), valid);
-        } catch (error) {
-          valid();
-          const observation = session.snapshot().observation;
-          if (error instanceof AppError && [403, 404].includes(error.status))
-            publish({
-              stage: "blocked",
-              payment: undefined,
-              observation: undefined,
-              readDenied: true,
-              notice:
-                "Không thể truy cập yêu cầu. Giữ định danh và liên hệ hỗ trợ.",
-            });
-          else
-            publish({
-              notice: "Chưa cập nhật được. Kết quả trước đó được giữ lại.",
-              observation: observation
-                ? { ...observation, stale: true }
-                : undefined,
-            });
-        }
-      }),
+    check: (afterCurrent = false) =>
+      run(
+        async (signal, valid) => {
+          const id =
+            session.snapshot().paymentId ??
+            (!state.record
+              ? session.snapshot().policy?.existingPaymentId
+              : undefined);
+          if (!id) {
+            await policy(signal, valid);
+            return;
+          }
+          try {
+            await accept(await options.api.detail(id, signal), valid);
+          } catch (error) {
+            valid();
+            const observation = session.snapshot().observation;
+            if (error instanceof AppError && [403, 404].includes(error.status))
+              publish({
+                stage: "blocked",
+                payment: undefined,
+                observation: undefined,
+                readDenied: true,
+                notice:
+                  "Không thể truy cập yêu cầu. Giữ mã yêu cầu để kiểm tra lại.",
+              });
+            else
+              publish({
+                notice: "Chưa cập nhật được. Kết quả trước đó được giữ lại.",
+                observation: observation
+                  ? { ...observation, stale: true }
+                  : undefined,
+              });
+          }
+        },
+        "read",
+        afterCurrent,
+      ),
     startNext: () => {
       if (current() && session.snapshot().canStartNext)
         publish({
@@ -159,6 +166,8 @@ export function createPaymentCoordinator(input: PaymentCoordinatorOptions) {
           paymentId: undefined,
           observation: undefined,
           notice: undefined,
+          cancelUnconfirmed: false,
+          cancelNotice: undefined,
         });
     },
 
@@ -169,7 +178,7 @@ export function createPaymentCoordinator(input: PaymentCoordinatorOptions) {
       publish({
         stage: "blocked",
         notice:
-          "Đã mất định danh hoặc có sự cố khôi phục. Liên hệ hỗ trợ; không tạo lại.",
+          "Chưa thể khôi phục yêu cầu. Không tạo yêu cầu mới khi chưa xác định kết quả.",
       });
     },
   };

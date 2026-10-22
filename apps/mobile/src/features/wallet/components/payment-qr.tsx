@@ -70,7 +70,7 @@ export function PaymentQr({
         <>
           <Copy>
             {minimal
-              ? "Chưa hiển thị được mã. Vui lòng thử lại hoặc kiểm tra thanh toán."
+              ? "Chưa hiển thị được mã. Vui lòng thử lại."
               : "Chưa thể dựng mã QR với dữ liệu hoặc kích thước này. Yêu cầu vẫn được giữ; có thể kiểm tra trạng thái thanh toán."}
           </Copy>
           <RetryAction variant="paper" onPress={retry}>
