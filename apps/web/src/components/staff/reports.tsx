@@ -51,7 +51,7 @@ export function ReportsScreen() {
     <>
       <PageHeader
         title="Báo cáo & tranh chấp"
-        desc="Tiếp nhận báo cáo Session, xem bằng chứng và ghi nhận kết quả xử lý."
+        desc="Xem báo cáo buổi học, tài liệu và ghi nhận kết quả xử lý."
         actions={
           <button
             type="button"
@@ -196,8 +196,34 @@ function ReportOverview({ item }: Readonly<{ item: ReportCase }>) {
           <dd className="mono">{item.id}</dd>
           <dt>Người gửi</dt>
           <dd className="mono">{item.reporterId}</dd>
-          <dt>Session liên quan</dt>
-          <dd className="mono">{item.relatedSessionId ?? item.targetId}</dd>
+          <dt>Đối tượng báo cáo</dt>
+          <dd>
+            {item.targetType === "MATERIAL"
+              ? "Tài liệu"
+              : item.targetType === "SESSION"
+                ? "Buổi học"
+                : item.targetType}
+          </dd>
+          <dt>Mã đối tượng</dt>
+          <dd className="mono">{item.targetId}</dd>
+          {item.relatedSessionId && (
+            <>
+              <dt>Buổi học liên quan</dt>
+              <dd className="mono">{item.relatedSessionId}</dd>
+            </>
+          )}
+          {item.relatedMaterialId && (
+            <>
+              <dt>Tài liệu liên quan</dt>
+              <dd className="mono">{item.relatedMaterialId}</dd>
+            </>
+          )}
+          {item.relatedOrderId && (
+            <>
+              <dt>Đơn mua tài liệu</dt>
+              <dd className="mono">{item.relatedOrderId}</dd>
+            </>
+          )}
           <dt>Learning Path</dt>
           <dd className="mono">{item.relatedPathId ?? "Không có"}</dd>
           <dt>Ngày gửi</dt>

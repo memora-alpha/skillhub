@@ -10,6 +10,7 @@ import {
 } from "./policy";
 import {
   allowedEvidenceMime,
+  allowedMaterialMime,
   evidenceMime,
   evidencePreviewKind,
 } from "./evidence-file";
@@ -179,7 +180,11 @@ async function fetchEvidence(
   }
 }
 const evidenceMaximum = 10_000_000; // Existing evidence/report upload cap.
-async function validateEvidenceResponse(file: Response): Promise<string> {
+async function validateEvidenceResponse(
+  file: Response,
+  maximum: number,
+  material: boolean,
+): Promise<string> {
   if (!file.ok) {
     await file.body?.cancel();
     throw new GatewayError(
@@ -188,23 +193,28 @@ async function validateEvidenceResponse(file: Response): Promise<string> {
     );
   }
   const mime = evidenceMime(file.headers.get("content-type") ?? "");
-  if (!allowedEvidenceMime(mime)) {
+  if (!(material ? allowedMaterialMime(mime) : allowedEvidenceMime(mime))) {
     await file.body?.cancel();
     throw new GatewayError(415, "FILE_TYPE_NOT_SUPPORTED");
   }
-  if (Number(file.headers.get("content-length")) > evidenceMaximum) {
+  if (Number(file.headers.get("content-length")) > maximum) {
     await file.body?.cancel();
     throw new GatewayError(413, "FILE_TOO_LARGE");
   }
   return mime;
 }
-async function evidenceContent(link: unknown, signal: AbortSignal) {
+async function evidenceContent(
+  link: unknown,
+  signal: AbortSignal,
+  material = false,
+) {
+  const maximum = material ? 20_000_000 : evidenceMaximum;
   const file = await fetchEvidence(link, signal);
-  const mime = await validateEvidenceResponse(file);
+  const mime = await validateEvidenceResponse(file, maximum, material);
   if (!file.body) throw new GatewayError(502, "FILE_UNAVAILABLE");
   let bytes: Buffer;
   try {
-    bytes = await readLimitedBody(file.body, evidenceMaximum, "FILE_TOO_LARGE");
+    bytes = await readLimitedBody(file.body, maximum, "FILE_TOO_LARGE");
   } catch (error) {
     if (error instanceof GatewayError) throw error;
     throw new GatewayError(504, "FILE_UNAVAILABLE");
@@ -335,6 +345,8 @@ function querySuffix(request: NextRequest): string {
     "categoryId",
     "q",
     "unreadOnly",
+    "type",
+    "referenceType",
   ])
     if (query.has(name)) accepted.set(name, query.get(name)!);
   return accepted.size ? "?" + accepted : "";
@@ -366,7 +378,11 @@ async function forwardRequest(
     result.status === 200 &&
     result.value?.success
   )
-    return evidenceContent(result.value.data, request.signal);
+    return evidenceContent(
+      result.value.data,
+      request.signal,
+      path.startsWith("materials/"),
+    );
   if (result.status === 204)
     return new NextResponse(null, { status: 204, headers });
   return reply(result.value, result.status);

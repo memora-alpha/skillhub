@@ -14,8 +14,11 @@ const nav: { href: string; label: string; icon: IconName }[] = [
   { href: "/staff", label: "Tổng quan", icon: "inbox" },
   { href: "/staff/evidence", label: "Bằng chứng kỹ năng", icon: "shield" },
   { href: "/staff/moderation", label: "Yêu cầu học chờ duyệt", icon: "flag" },
+  { href: "/staff/content", label: "Duyệt tài liệu", icon: "file" },
   { href: "/staff/disputes", label: "Báo cáo & tranh chấp", icon: "alert" },
   { href: "/staff/notifications", label: "Thông báo", icon: "bell" },
+  { href: "/staff/wallet", label: "Ví của tôi", icon: "card" },
+  { href: "/staff/reputation", label: "Uy tín của tôi", icon: "star" },
 ];
 const adminNav: typeof nav = [
   { href: "/admin", label: "Tổng quan", icon: "grid" },
@@ -25,9 +28,12 @@ const adminNav: typeof nav = [
   { href: "/admin/tag-requests", label: "Đề xuất tag", icon: "inbox" },
   { href: "/admin/evidence", label: "Bằng chứng kỹ năng", icon: "shield" },
   { href: "/admin/moderation", label: "Yêu cầu học chờ duyệt", icon: "flag" },
+  { href: "/admin/content", label: "Duyệt tài liệu", icon: "file" },
   { href: "/admin/disputes", label: "Báo cáo & tranh chấp", icon: "alert" },
   { href: "/admin/config", label: "Quy tắc kiểm duyệt", icon: "sliders" },
   { href: "/admin/achievements", label: "Thành tích của tôi", icon: "star" },
+  { href: "/admin/wallet", label: "Ví của tôi", icon: "card" },
+  { href: "/admin/my-reputation", label: "Uy tín của tôi", icon: "star" },
   { href: "/admin/notifications", label: "Thông báo", icon: "bell" },
 ];
 function Frame({ children }: Readonly<{ children: ReactNode }>) {

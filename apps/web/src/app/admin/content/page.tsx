@@ -1,4 +1,4 @@
-import { UnavailableScreen } from "@/components/staff/unavailable";
+import { MaterialsScreen } from "@/components/staff/materials";
 export default function Page() {
-  return <UnavailableScreen title="Quản lý tài liệu" />;
+  return <MaterialsScreen />;
 }

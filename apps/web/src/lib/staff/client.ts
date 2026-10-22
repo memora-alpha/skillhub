@@ -1,6 +1,6 @@
 import type { ApiEnvelope } from "./types";
 import type { Portal } from "./policy";
-import { allowedEvidenceMime } from "./evidence-file";
+import { allowedEvidenceMime, allowedMaterialMime } from "./evidence-file";
 export class StaffApiError extends Error {
   constructor(
     public status: number,
@@ -19,6 +19,16 @@ export function isSessionFailure(error: unknown): boolean {
   );
 }
 const errorMessages: Readonly<Record<string, string>> = {
+  MATERIAL_SELF_REVIEW_FORBIDDEN:
+    "Tài liệu của bạn cần một nhân viên khác duyệt hoặc hiện lại.",
+  MATERIAL_VERSION_CONFLICT:
+    "Tài liệu đã thay đổi. Tải lại để xem phiên bản mới nhất trước khi xử lý.",
+  MATERIAL_TRANSITION_INVALID:
+    "Trạng thái tài liệu đã thay đổi. Tải lại rồi chọn thao tác phù hợp.",
+  MATERIAL_PERMISSION_REQUIRED:
+    "Tài khoản chưa được cấp quyền thao tác với tài liệu. Cần người quản lý server đồng bộ quyền.",
+  STAFF_ACCESS_REQUIRED:
+    "Tài khoản chưa được cấp quyền duyệt tài liệu. Cần người quản lý server đồng bộ quyền.",
   SKILL_LEVEL_DUPLICATE: "Mã hoặc tên cấp độ đã tồn tại trong kỹ năng này.",
   TAG_ALREADY_EXISTS:
     "Tên tag đã tồn tại. Chọn tên khác hoặc kiểm tra lại danh mục tag.",
@@ -167,7 +177,10 @@ export async function staffFile(
   signal?: AbortSignal,
 ): Promise<Blob> {
   const response = await portalResponse(path, { signal }, portal);
-  if (!allowedEvidenceMime(response.headers.get("content-type") ?? ""))
+  const allowedMime = path.startsWith("materials/")
+    ? allowedMaterialMime
+    : allowedEvidenceMime;
+  if (!allowedMime(response.headers.get("content-type") ?? ""))
     throw new StaffApiError(502, "FILE_TYPE_NOT_SUPPORTED");
   return response.blob();
 }

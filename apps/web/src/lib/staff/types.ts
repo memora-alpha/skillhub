@@ -81,6 +81,8 @@ export type ReportCase = {
   targetId: string;
   relatedSessionId: string | null;
   relatedPathId: string | null;
+  relatedMaterialId?: string | null;
+  relatedOrderId?: string | null;
   reasonCode: string;
   description: string;
   status: "OPEN" | "UNDER_REVIEW" | "NEED_MORE_INFO" | "RESOLVED" | "REJECTED";
