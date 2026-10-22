@@ -99,4 +99,25 @@ export type InboxNotification = {
   readAt: string | null;
   createdAt: string;
 };
+export type ReportCaseDetail = ReportCase & {
+  session: {
+    id: string;
+    planId: string;
+    teacherId: string;
+    learnerId: string;
+    startAt: string;
+    endAt: string;
+    status: string;
+    teacherConfirmationStatus: string;
+    learnerConfirmationStatus: string;
+  } | null;
+  path: {
+    id: string;
+    status: string;
+    participantAId: string;
+    participantBId: string;
+    lockedVersion: number | null;
+    settledAt: string | null;
+  } | null;
+};
 export type DownloadLink = { url: string; expiresAt: string };

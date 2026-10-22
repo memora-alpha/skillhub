@@ -27,6 +27,12 @@ function messageFor(status: number, code: string) {
     return "Đề xuất tag đã được xử lý. Tải lại để xem quyết định mới nhất.";
   if (code === "TAG_UNAVAILABLE" || code === "TAG_ARCHIVED")
     return "Tag đang tạm ngưng hoặc đã được lưu trữ. Kiểm tra lại danh mục tag.";
+  if (code === "REVERSAL_OPERATION_NOT_IN_PATH")
+    return "Giao dịch cần đảo không thuộc lộ trình của vụ việc này.";
+  if (code === "RESOLUTION_PERMISSION_REQUIRED")
+    return "Bạn chưa có quyền áp dụng một hoặc nhiều biện pháp xử lý đã chọn.";
+  if (code === "REPORT_CASE_NOT_ASSIGNED_TO_CALLER")
+    return "Vụ việc chưa được giao cho bạn. Tải lại để kiểm tra người phụ trách.";
   if (code === "TITLE_NOT_UNLOCKED")
     return "Danh hiệu này chưa được mở khóa hoặc không còn khả dụng. Hãy làm mới thành tích.";
   if (code === "FILE_UNAVAILABLE" || code === "INVALID_DOWNLOAD_LINK")

@@ -30,6 +30,11 @@ const routes: [string, RegExp, (path: string) => string][] = [
   ],
   ["GET", /^reports$/, () => "reports/staff/queue"],
   [
+    "GET",
+    new RegExp(`^reports/${uuid}$`, "i"),
+    (p) => p.replace("reports/", "reports/staff/"),
+  ],
+  [
     "POST",
     new RegExp(`^reports/${uuid}/(claim|need-more-info|resolve|reject)$`, "i"),
     (p) => p.replace("reports/", "reports/staff/"),
