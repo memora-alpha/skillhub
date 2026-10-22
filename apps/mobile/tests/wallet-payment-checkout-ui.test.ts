@@ -51,6 +51,12 @@ function elements(node: unknown): Node[] {
   if (Array.isArray(node)) return node.flatMap(elements);
   if (!node || typeof node !== "object" || !("props" in node)) return [];
   const element = node as Node;
+  if (
+    typeof element.type === "function" &&
+    element.type !== leaf &&
+    element.type !== qrLeaf
+  )
+    return elements(element.type(element.props));
   return [element, ...elements(element.props?.children)];
 }
 const text = (tree: unknown) =>

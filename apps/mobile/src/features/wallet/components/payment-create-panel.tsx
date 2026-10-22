@@ -10,6 +10,26 @@ import { validateTopUp } from "../utils/topup-policy";
 import { TopupPresets } from "./topup-presets";
 import { AccountTopupPanel } from "./account-topup-panel";
 
+function panelCopy(synthetic: boolean, mode: "qa" | "account") {
+  if (synthetic)
+    return {
+      title: "Nạp Credit · mẫu",
+      description:
+        "Mô phỏng độc lập, không gửi yêu cầu tài chính hoặc ghi storage thật.",
+    };
+  if (mode === "account")
+    return {
+      title: "Nạp Credit",
+      description:
+        "Chọn số tiền nạp, xác nhận thông tin và quét mã QR bằng ứng dụng ngân hàng trên thiết bị khác.",
+    };
+  return {
+    title: "Nạp Credit · QA",
+    description:
+      "Chỉ dùng trong phiên QA được cấp quyền. Thanh toán qua payOS bằng thiết bị thứ hai.",
+  };
+}
+
 export function PaymentCreatePanel({
   model,
   active,
@@ -35,6 +55,7 @@ export function PaymentCreatePanel({
     model.getSnapshot,
   );
   const view = createPaymentUi(state);
+  const copy = panelCopy(synthetic, mode);
   let estimate: string | undefined;
   try {
     estimate = formatCredit(validateTopUp(state.draft).estimatedCredit);
@@ -54,22 +75,8 @@ export function PaymentCreatePanel({
       />
     );
   return (
-    <Panel
-      title={
-        synthetic
-          ? "Nạp Credit · mẫu"
-          : mode === "account"
-            ? "Nạp Credit"
-            : "Nạp Credit · QA"
-      }
-    >
-      <Copy muted>
-        {synthetic
-          ? "Mô phỏng độc lập, không gửi yêu cầu tài chính hoặc ghi storage thật."
-          : mode === "account"
-            ? "Chọn số tiền nạp, xác nhận thông tin và quét mã QR bằng ứng dụng ngân hàng trên thiết bị khác."
-            : "Chỉ dùng trong phiên QA được cấp quyền. Thanh toán qua payOS bằng thiết bị thứ hai."}
-      </Copy>
+    <Panel title={copy.title}>
+      <Copy muted>{copy.description}</Copy>
       {state.stage === "draft" && (
         <>
           <Input

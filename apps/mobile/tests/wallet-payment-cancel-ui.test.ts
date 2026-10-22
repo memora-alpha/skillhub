@@ -91,6 +91,12 @@ function elements(node: unknown): Element[] {
       dialog(value.props as Parameters<typeof PaymentCancelDialog>[0]),
     );
   if (value.type === modalLeaf && !value.props?.visible) return [value];
+  if (
+    typeof value.type === "function" &&
+    value.type !== leaf &&
+    value.type !== modalLeaf
+  )
+    return elements(value.type(value.props));
   return [value, ...elements(value.props?.children)];
 }
 const button = (tree: unknown, caption: string) =>

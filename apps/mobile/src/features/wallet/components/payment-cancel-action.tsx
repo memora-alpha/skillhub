@@ -8,6 +8,12 @@ import type { PaymentCreateSnapshot } from "../utils/payment-create-state";
 import { appRadius, fonts, typography } from "@/constants/theme";
 import { paymentPalette as colors } from "./wallet-payment-palette";
 
+function cancelLabel(cancelling: boolean, unconfirmed: boolean) {
+  if (cancelling)
+    return unconfirmed ? "Đang hủy thanh toán…" : "Đang xử lý yêu cầu hủy…";
+  return unconfirmed ? "Thử hủy lại" : "Hủy thanh toán";
+}
+
 export function PaymentCancelAction({
   state,
   active,
@@ -30,14 +36,7 @@ export function PaymentCancelAction({
         ["CREATED", "PENDING"].includes(state.payment.status)
       : state.canCancel || cancelling);
   const disabled = !active || busy;
-  const label =
-    cancelling && state.cancelUnconfirmed
-      ? "Đang hủy thanh toán…"
-      : cancelling
-        ? "Đang xử lý yêu cầu hủy…"
-        : state.cancelUnconfirmed
-          ? "Thử hủy lại"
-          : "Hủy thanh toán";
+  const label = cancelLabel(cancelling, !!state.cancelUnconfirmed);
   const visible = !!state.cancelNotice || showAction;
   useEffect(() => {
     if (!active || !showAction) setConfirming(false);

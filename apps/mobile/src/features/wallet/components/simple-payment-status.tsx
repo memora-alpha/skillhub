@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { PaymentAction } from "./payment-action";
-import { Icon } from "@/components/Icon";
+import { Icon, type IconName } from "@/components/Icon";
 import { appRadius, fonts, typography } from "@/constants/theme";
 import { Copy } from "./wallet-ui";
 import {
@@ -17,17 +17,7 @@ import type {
 } from "../types/payment";
 import { paymentPalette as colors } from "./wallet-payment-palette";
 
-export function SimplePaymentStatus({
-  state,
-  onCheck,
-  refresh,
-  onRefresh,
-  busy = false,
-  hasQr = false,
-  children,
-  automatic = false,
-  watching = false,
-}: {
+type StatusProps = {
   state: PaymentObservationRead;
   onCheck?: () => void;
   refresh?: PaymentRefreshSnapshot;
@@ -37,96 +27,120 @@ export function SimplePaymentStatus({
   children?: ReactNode;
   automatic?: boolean;
   watching?: boolean;
+};
+type StatusCopy = ReturnType<typeof simplePaymentCopy>;
+
+function statusDescription(
+  { state, automatic, watching, hasQr }: StatusProps,
+  view: StatusCopy,
+) {
+  if (
+    !automatic ||
+    isTerminalPaymentStatus(state.data?.state ?? "") ||
+    state.recoveryReason === "PAYMENT_RECOVERY_PENDING" ||
+    (!view.showAmount && state.status !== "error")
+  )
+    return view.description;
+  if (state.status === "error")
+    return "Kết nối đang gián đoạn. App sẽ cập nhật khi kết nối trở lại.";
+  if (state.data?.state === "CREATED")
+    return watching
+      ? "Mã QR sẽ xuất hiện khi sẵn sàng."
+      : "Yêu cầu vẫn đang xử lý. Bạn có thể quay lại ví.";
+  if (hasQr) return "Dùng ứng dụng ngân hàng trên thiết bị khác để quét mã.";
+  if (state.data?.state === "REVIEW")
+    return "Yêu cầu đang được đối soát. Bạn có thể quay lại ví.";
+  if (view.error) return view.description;
+  return watching
+    ? "Thông tin thanh toán đang được cập nhật tự động."
+    : "Chưa có kết quả mới. Bạn có thể quay lại ví và mở thanh toán sau.";
+}
+
+function StatusIcon({ pending, view }: { pending: boolean; view: StatusCopy }) {
+  let name: IconName = "clock";
+  if (view.success) name = "check-circle";
+  else if (view.error) name = "alert";
+  return (
+    <View
+      style={[
+        styles.icon,
+        view.success && styles.success,
+        view.error && styles.error,
+      ]}
+    >
+      {pending && !view.showAmount ? (
+        <ActivityIndicator
+          size="large"
+          color={colors.brand}
+          accessibilityLabel="Đang cập nhật thanh toán"
+        />
+      ) : (
+        <Icon
+          name={name}
+          size={32}
+          color={view.error ? colors.error : colors.success}
+        />
+      )}
+    </View>
+  );
+}
+
+function StatusSummary({
+  state,
+  hasQr,
+  pending,
+  view,
+  description,
+}: {
+  state: PaymentObservationRead;
+  hasQr: boolean;
+  pending: boolean;
+  view: StatusCopy;
+  description: string;
 }) {
-  const view = simplePaymentCopy(state, hasQr),
-    pending = busy || ["loading", "refreshing"].includes(state.status);
+  return (
+    <View style={styles.summary}>
+      {hasQr && <Text style={surface.caption}>NẠP VÀO VÍ CREDIT</Text>}
+      {!hasQr && <StatusIcon pending={pending} view={view} />}
+      {!hasQr && (
+        <Text
+          accessibilityRole="header"
+          accessibilityLiveRegion="polite"
+          style={styles.title}
+        >
+          {view.title}
+        </Text>
+      )}
+      {view.showAmount && (
+        <>
+          <Text selectable style={surface.amount}>
+            {formatVnd(state.data!.amountVnd)}
+          </Text>
+          <Text style={surface.credit}>{formatCredit(state.data!.credit)}</Text>
+        </>
+      )}
+      {!hasQr && <Text style={styles.description}>{description}</Text>}
+    </View>
+  );
+}
+
+function StatusActions({
+  state,
+  view,
+  automatic,
+  onRefresh,
+  refresh,
+  hasQr,
+  pending,
+  onCheck,
+}: StatusProps & { view: StatusCopy; pending: boolean }) {
   const failedReads = (["wallet", "history"] as const).filter(
     (name) => refresh?.[name].status === "error",
   );
-  const terminal = isTerminalPaymentStatus(state.data?.state ?? "");
-  const description =
-    !automatic ||
-    terminal ||
-    state.recoveryReason === "PAYMENT_RECOVERY_PENDING" ||
-    (!view.showAmount && state.status !== "error")
-      ? view.description
-      : state.status === "error"
-        ? "Kết nối đang gián đoạn. App sẽ cập nhật khi kết nối trở lại."
-        : state.data?.state === "CREATED"
-          ? watching
-            ? "Mã QR sẽ xuất hiện khi sẵn sàng."
-            : "Yêu cầu vẫn đang xử lý. Bạn có thể quay lại ví."
-          : hasQr
-            ? "Dùng ứng dụng ngân hàng trên thiết bị khác để quét mã."
-            : state.data?.state === "REVIEW"
-              ? "Yêu cầu đang được đối soát. Bạn có thể quay lại ví."
-              : view.error
-                ? view.description
-                : watching
-                  ? "Thông tin thanh toán đang được cập nhật tự động."
-                  : "Chưa có kết quả mới. Bạn có thể quay lại ví và mở thanh toán sau.";
+  let checkLabel = hasQr ? "Kiểm tra thanh toán" : "Kiểm tra lại";
+  if (pending) checkLabel = "Đang kiểm tra…";
   return (
-    <PaymentSurface testID="wallet-payment-status">
-      <View style={styles.summary}>
-        {hasQr && <Text style={surface.caption}>NẠP VÀO VÍ CREDIT</Text>}
-        {!hasQr && (
-          <View
-            style={[
-              styles.icon,
-              view.success && styles.success,
-              view.error && styles.error,
-            ]}
-          >
-            {pending && !view.showAmount ? (
-              <ActivityIndicator
-                size="large"
-                color={colors.brand}
-                accessibilityLabel="Đang cập nhật thanh toán"
-              />
-            ) : (
-              <Icon
-                name={
-                  view.success ? "check-circle" : view.error ? "alert" : "clock"
-                }
-                size={32}
-                color={view.error ? colors.error : colors.success}
-              />
-            )}
-          </View>
-        )}
-        {!hasQr && (
-          <Text
-            accessibilityRole="header"
-            accessibilityLiveRegion="polite"
-            style={styles.title}
-          >
-            {view.title}
-          </Text>
-        )}
-        {view.showAmount && (
-          <>
-            <Text selectable style={surface.amount}>
-              {formatVnd(state.data!.amountVnd)}
-            </Text>
-            <Text style={surface.credit}>
-              {formatCredit(state.data!.credit)}
-            </Text>
-          </>
-        )}
-        {!hasQr && <Text style={styles.description}>{description}</Text>}
-      </View>
-      {hasQr && (
-        <>
-          <View style={surface.divider} />
-          <Text accessibilityRole="header" style={styles.title}>
-            {view.title}
-          </Text>
-        </>
-      )}
-      {children && (
-        <View style={hasQr ? styles.qrFrame : undefined}>{children}</View>
-      )}
-      {hasQr && <Text style={styles.description}>{description}</Text>}
+    <>
       {view.success && failedReads.length > 0 && (
         <>
           <Copy muted>Số dư hoặc lịch sử chưa kịp cập nhật.</Copy>
@@ -156,13 +170,61 @@ export function SimplePaymentStatus({
           disabled={pending}
           onPress={onCheck}
         >
-          {pending
-            ? "Đang kiểm tra…"
-            : hasQr
-              ? "Kiểm tra thanh toán"
-              : "Kiểm tra lại"}
+          {checkLabel}
         </PaymentAction>
       )}
+    </>
+  );
+}
+
+export function SimplePaymentStatus({
+  state,
+  onCheck,
+  refresh,
+  onRefresh,
+  busy = false,
+  hasQr = false,
+  children,
+  automatic = false,
+  watching = false,
+}: StatusProps) {
+  const view = simplePaymentCopy(state, hasQr),
+    pending = busy || ["loading", "refreshing"].includes(state.status);
+  const description = statusDescription(
+    { state, automatic, watching, hasQr },
+    view,
+  );
+  return (
+    <PaymentSurface testID="wallet-payment-status">
+      <StatusSummary
+        state={state}
+        hasQr={hasQr}
+        pending={pending}
+        view={view}
+        description={description}
+      />
+      {hasQr && (
+        <>
+          <View style={surface.divider} />
+          <Text accessibilityRole="header" style={styles.title}>
+            {view.title}
+          </Text>
+        </>
+      )}
+      {children && (
+        <View style={hasQr ? styles.qrFrame : undefined}>{children}</View>
+      )}
+      {hasQr && <Text style={styles.description}>{description}</Text>}
+      <StatusActions
+        state={state}
+        view={view}
+        automatic={automatic}
+        onRefresh={onRefresh}
+        refresh={refresh}
+        hasQr={hasQr}
+        pending={pending}
+        onCheck={onCheck}
+      />
     </PaymentSurface>
   );
 }

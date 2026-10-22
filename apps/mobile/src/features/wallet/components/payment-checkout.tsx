@@ -10,15 +10,7 @@ import { PaymentQr } from "./payment-qr";
 import { checkoutStyles as styles } from "./payment-checkout.styles";
 import { paymentPalette as colors } from "./wallet-payment-palette";
 
-export function PaymentCheckout({
-  payment,
-  qr,
-  active,
-  watching,
-  stale = false,
-  cancelUnconfirmed = false,
-  synthetic = false,
-}: {
+type CheckoutProps = {
   payment: PaymentProjection;
   qr: QrPresentation;
   active: boolean;
@@ -26,8 +18,16 @@ export function PaymentCheckout({
   stale?: boolean;
   cancelUnconfirmed?: boolean;
   synthetic?: boolean;
-}) {
-  const hasQr =
+};
+
+function canShowQr({
+  payment,
+  qr,
+  active,
+  stale,
+  cancelUnconfirmed,
+}: CheckoutProps) {
+  return (
     active &&
     !stale &&
     !cancelUnconfirmed &&
@@ -36,7 +36,61 @@ export function PaymentCheckout({
     !!payment.checkout &&
     qr.stage === "ready-model" &&
     qr.paymentId === payment.id &&
-    qr.raw === payment.checkout.qrCode;
+    qr.raw === payment.checkout.qrCode
+  );
+}
+
+function checkoutDescription(props: CheckoutProps, fallback: string) {
+  if (props.cancelUnconfirmed)
+    return "Chưa có kết quả hủy. Vui lòng chờ cập nhật.";
+  if (!props.active || !props.watching)
+    return "Bạn có thể quay lại ví và mở lại thanh toán để cập nhật.";
+  if (props.stale)
+    return "Kết nối đang gián đoạn. Ứng dụng đang thử kết nối lại.";
+  if (props.payment.status === "PENDING" && !props.payment.recoveryRequired)
+    return "Mã QR tạm thời chưa hiển thị. Vui lòng chờ cập nhật.";
+  return fallback;
+}
+
+function QrFrame({
+  qr,
+  synthetic,
+}: {
+  qr: QrPresentation;
+  synthetic: boolean;
+}) {
+  const corners = [
+    { id: "top-left", style: styles.topLeft },
+    { id: "top-right", style: styles.topRight },
+    { id: "bottom-left", style: styles.bottomLeft },
+    { id: "bottom-right", style: styles.bottomRight },
+  ];
+  return (
+    <View style={styles.qrFrame}>
+      <PaymentQr model={qr} minimal synthetic={synthetic} />
+      {corners.map((corner) => (
+        <View
+          key={corner.id}
+          pointerEvents="none"
+          accessible={false}
+          style={[styles.corner, corner.style]}
+        />
+      ))}
+    </View>
+  );
+}
+
+export function PaymentCheckout({
+  payment,
+  qr,
+  active,
+  watching,
+  stale = false,
+  cancelUnconfirmed = false,
+  synthetic = false,
+}: CheckoutProps) {
+  const props = { payment, qr, active, watching, stale, cancelUnconfirmed };
+  const hasQr = canShowQr(props);
   const copy = simplePaymentCopy(
     {
       status: stale ? "refresh-error" : "ready",
@@ -53,20 +107,10 @@ export function PaymentCheckout({
     hasQr,
   );
   const checking = active && watching;
-  const title = cancelUnconfirmed
-    ? "Đang xác nhận hủy thanh toán"
-    : stale
-      ? "Chưa cập nhật được thanh toán"
-      : copy.title;
-  const description = cancelUnconfirmed
-    ? "Chưa có kết quả hủy. Vui lòng chờ cập nhật."
-    : !active || !watching
-      ? "Bạn có thể quay lại ví và mở lại thanh toán để cập nhật."
-      : stale
-        ? "Kết nối đang gián đoạn. Ứng dụng đang thử kết nối lại."
-        : payment.status === "PENDING" && !payment.recoveryRequired
-          ? "Mã QR tạm thời chưa hiển thị. Vui lòng chờ cập nhật."
-          : copy.description;
+  let title = copy.title;
+  if (cancelUnconfirmed) title = "Đang xác nhận hủy thanh toán";
+  else if (stale) title = "Chưa cập nhật được thanh toán";
+  const description = checkoutDescription(props, copy.description);
   return (
     <View style={styles.stack} testID="payment-checkout">
       <View style={styles.card}>
@@ -89,22 +133,7 @@ export function PaymentCheckout({
         </View>
         <View style={styles.qrArea}>
           {hasQr ? (
-            <View style={styles.qrFrame}>
-              <PaymentQr model={qr} minimal synthetic={synthetic} />
-              {[
-                styles.topLeft,
-                styles.topRight,
-                styles.bottomLeft,
-                styles.bottomRight,
-              ].map((corner, index) => (
-                <View
-                  key={index}
-                  pointerEvents="none"
-                  accessible={false}
-                  style={[styles.corner, corner]}
-                />
-              ))}
-            </View>
+            <QrFrame qr={qr} synthetic={synthetic} />
           ) : (
             <View style={styles.placeholder}>
               {checking && !cancelUnconfirmed ? (

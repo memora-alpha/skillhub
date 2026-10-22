@@ -14,6 +14,16 @@ import type {
 } from "../types/payment";
 import { paymentPalette as colors } from "./wallet-payment-palette";
 
+function statusAppearance(state: string | undefined): {
+  tone: "success" | "error" | "neutral";
+  icon: IconName;
+} {
+  if (state === "PAID") return { tone: "success", icon: "check-circle" };
+  if (["FAILED", "EXPIRED"].includes(state ?? ""))
+    return { tone: "error", icon: "alert" };
+  return { tone: "neutral", icon: "clock" };
+}
+
 export function PaymentStatusPanel({
   state,
   onCheck,
@@ -55,14 +65,7 @@ export function PaymentStatusPanel({
       (data &&
         (state.stale ||
           ["CREATED", "PENDING", "REVIEW", "UNKNOWN"].includes(data.state))));
-  const tone =
-    data?.state === "PAID"
-      ? "success"
-      : ["FAILED", "EXPIRED"].includes(data?.state ?? "")
-        ? "error"
-        : "neutral";
-  const icon: IconName =
-    tone === "success" ? "check-circle" : tone === "error" ? "alert" : "clock";
+  const { tone, icon } = statusAppearance(data?.state);
   return (
     <Panel testID="wallet-payment-status" style={styles.panel}>
       <FinancialReadState
