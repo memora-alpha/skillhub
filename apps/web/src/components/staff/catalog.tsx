@@ -248,7 +248,7 @@ export function CatalogScreen() {
             <label className="staff-field">
               <span>Slug (không bắt buộc)</span>
               <input
-                pattern="[a-z0-9][a-z0-9-]*[a-z0-9]"
+                pattern="[a-z0-9][a-z0-9\-]*[a-z0-9]"
                 minLength={2}
                 maxLength={120}
                 value={editor.slug}

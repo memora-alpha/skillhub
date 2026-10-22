@@ -138,7 +138,7 @@ export function SkillLevelsPanel({
                 required
                 disabled={!!editor.level}
                 maxLength={40}
-                pattern="[A-Z0-9][A-Z0-9_-]{0,39}"
+                pattern="[A-Z0-9][A-Z0-9_\-]{0,39}"
                 placeholder="Ví dụ: B2"
                 value={editor.code}
                 onChange={(e) => setEditor({ ...editor, code: e.target.value })}
