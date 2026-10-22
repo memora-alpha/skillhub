@@ -6,6 +6,20 @@ This replaces the earlier GHCR/self-hosted-runner release plan. Scope is API and
 root CI tooling because pnpm, Git and Docker build context belong to the monorepo.
 Web/mobile and production deployment are outside scope.
 
+The reusable API checks use `ubuntu-24.04`. PR #52's run
+[39746954224](https://github.com/memora-alpha/skillhub/actions/runs/39746954224/job/119717691046?pr=52)
+failed at test-store startup because MongoDB 8.0 explicitly rejected the newer
+host kernel. Containers share that kernel; changing their base image or increasing
+the health-check timeout does not address this startup failure.
+[SERVER-121912](https://jira.mongodb.org/browse/SERVER-121912) documents the
+MongoDB/kernel incompatibility. The
+[Ubuntu 24.04 runner](https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2404-Readme.md)
+currently reports kernel 6.17, while `ubuntu-latest` is migrating to Ubuntu 26.04.
+Recheck MongoDB compatibility and the actual runner kernel before updating this
+label. The check workflow is shared by PR CI and dev deployment; the webhook-only
+deploy job does not start test stores. A fresh Actions run is still required to
+verify store startup and the remaining checks after this change.
+
 ## Flow
 
 1. PRs into `dev` run API lint, typecheck, build, CD/regression tests, real-store
