@@ -19,7 +19,7 @@ export function NotificationsScreen() {
     void queue.inbox.reload().catch(() => {});
   };
   return (
-    <>
+    <section className="staff-notifications">
       <PageHeader
         title="Thông báo"
         desc="Thông báo của tài khoản đang đăng nhập, mới nhất trước."
@@ -149,6 +149,6 @@ export function NotificationsScreen() {
           }}
         />
       </Card>
-    </>
+    </section>
   );
 }

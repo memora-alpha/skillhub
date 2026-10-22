@@ -183,20 +183,24 @@ export function StaffShell({
   );
 }
 function NotificationBell({ portal }: Readonly<{ portal: Portal }>) {
-  const { items } = useNotificationInbox();
-  const unread = items.some((item) => !item.readAt);
+  const { unreadCount } = useNotificationInbox();
+  const unread = unreadCount ?? 0;
   return (
     <Link
       className="icon-btn staff-notification-bell"
       href={`/${portal}/notifications`}
       aria-label={
         unread
-          ? "Thông báo — có mục chưa đọc trong danh sách đã tải"
+          ? `Thông báo — ${unread > 99 ? "hơn 99" : unread} thông báo chưa đọc`
           : "Mở thông báo"
       }
     >
       <Icon name="bell" />
-      {unread && <span className="staff-notification-dot" aria-hidden="true" />}
+      {unread > 0 && (
+        <span className="staff-notification-count" aria-hidden="true">
+          {unread > 99 ? "99+" : unread}
+        </span>
+      )}
     </Link>
   );
 }

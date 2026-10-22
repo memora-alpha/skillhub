@@ -44,6 +44,7 @@ function validatePage(
 }
 export type InboxState = {
   items: InboxNotification[];
+  unreadCount?: number;
   page?: Pagination;
   loading: boolean;
   error?: string;
@@ -69,7 +70,7 @@ export function createNotificationInbox(api: PortalApi, expire: () => void) {
     const denied =
       error instanceof StaffApiError && [401, 403, 404].includes(error.status);
     update({
-      ...(denied ? { items: [], page: undefined } : {}),
+      ...(denied ? { items: [], page: undefined, unreadCount: undefined } : {}),
       ...(action
         ? {
             actionError:
@@ -130,6 +131,23 @@ export function createNotificationInbox(api: PortalApi, expire: () => void) {
     }
     return { items, page, loaded, seen };
   }
+  async function countUnread(signal: AbortSignal) {
+    let cursor: string | undefined;
+    let count = 0;
+    const seen = new Set<string>();
+    const ids = new Set<string>();
+    do {
+      const result = await readPage(cursor, seen, signal);
+      if (!result) return;
+      for (const item of result.items) {
+        if (!ids.has(item.id) && !item.readAt) count++;
+        ids.add(item.id);
+      }
+      if (count > 99) return 100;
+      cursor = result.page.nextCursor ?? undefined;
+    } while (cursor);
+    return count;
+  }
   async function load(more = false) {
     if (disposed || (more && (state.loading || !state.page?.nextCursor)))
       return;
@@ -138,11 +156,19 @@ export function createNotificationInbox(api: PortalApi, expire: () => void) {
     current = control;
     update({ loading: true, error: undefined });
     try {
-      const result = await readPages(more, control.signal);
+      const [result, unreadCount] = await Promise.all([
+        readPages(more, control.signal),
+        countUnread(control.signal),
+      ]);
       if (!result) return;
       pages = more ? pages + result.loaded : result.loaded;
       visited = result.seen;
-      update({ items: result.items, page: result.page, loading: false });
+      update({
+        items: result.items,
+        page: result.page,
+        unreadCount,
+        loading: false,
+      });
     } catch (error) {
       if (control.signal.aborted || disposed) return;
       failed(error);

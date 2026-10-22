@@ -309,7 +309,7 @@ output.staff-success {
   overflow-wrap: anywhere;
 }
 .staff-notification[data-unread="true"] {
-  background: var(--brand-soft);
+  background: var(--notification-soft);
 }
 .staff-notification-status {
   display: flex;
@@ -325,14 +325,21 @@ output.staff-success {
 .staff-notification-bell {
   position: relative;
 }
-.staff-notification-dot {
+.staff-notification-count {
   position: absolute;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  right: 4px;
-  top: 4px;
-  background: var(--brand);
+  min-width: 16px;
+  height: 16px;
+  padding: 0 3px;
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  line-height: 12px;
+  font-weight: 700;
+  border-radius: 8px;
+  right: -4px;
+  top: -7px;
+  background: var(--notification);
+  color: var(--surface);
 }
 .staff-shell .topbar {
   justify-content: space-between;
@@ -410,4 +417,15 @@ output.staff-success {
     padding-block: 12px;
     border-bottom: 1px solid var(--border);
   }
+}
+
+.staff-notification[data-unread="true"] .badge-brand {
+  color: var(--notification);
+  background: var(--notification-soft);
+}
+
+.staff-notifications {
+  --brand: var(--notification);
+  --brand-soft: var(--notification-soft);
+  --brand-strong: var(--notification);
 }
