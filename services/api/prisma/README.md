@@ -148,12 +148,18 @@ Migration tests use disposable schemas and do not deploy the application databas
 - Known SRS vocabularies are enums; open status/reason/config/provider vocabularies
   use String and require owner validation before release. Identity email kind is
   open in v3; no PostgreSQL OTP challenge is introduced through delivery metadata.
-- SQL CHECKs/partial indexes/cross-row rules are not expressible by plain Prisma
-  validation: positive amounts/nonnegative balances, reputation/rating ranges,
-  TWO_WAY/ONE_WAY field exclusivity, settlement group all-null/all-present,
-  content moderation binding, 1/2 reciprocal plans and 60–180 minute sessions,
-  slot/evidence limits, distinct/eligible participants, entitlement source/buyer
-  consistency, immutable snapshots/ledger/audit and dispute blocking remain required.
+- SH-050..056 Path, Plan, Schedule, Session and Credit models already exist in the
+  runtime schema and `20261007000000_runtime_v3`. Migration
+  `20261020000000_sh050_056_path_scheduling_constraints` adds SQL-only checks for
+  distinct participants, version/amount bounds, TWO_WAY/ONE_WAY terms, complete
+  settlement snapshots, 60–180 minute schedule/session intervals, nonnegative
+  wallet/attendance balances, and one current schedule-history row per session.
+- Remaining cross-row/business rules need owner-level transaction checks: exactly
+  one or two reciprocal plans, path/plan participant eligibility, contiguous
+  outlines, schedule overlap and confirmation cutoff, content moderation binding,
+  slot/evidence limits, entitlement source/buyer consistency, immutable snapshots/
+  ledger/audit and dispute blocking. Prisma schema validation alone does not
+  establish these behaviors.
 - Partial uniqueness is required for active SharingSkill, PENDING verification/
   proposal and current SessionScheduleHistory. No blanket unique forbids history.
 - Atomic workflows and locks are required for Hold, settlement, material purchase,

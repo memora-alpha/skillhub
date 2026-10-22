@@ -14,10 +14,8 @@ import type { TransactionContext } from "../../../../infrastructure/database/tra
 import type { Principal } from "../../../auth/application/services/sessions.service";
 import { AuditWriter } from "../../../audit/application/services/audit-writer";
 import type { AuditActor } from "../../../audit/application/contracts/audit.types";
-import type {
-  Actor,
-  RoleCode,
-} from "../../../../shared/authorization/authorization.types";
+import type { RoleCode } from "../../../../shared/authorization/authorization.types";
+import { storageActor } from "../../../../shared/authorization/principal-actor";
 import type { PermissionCode } from "../../../../shared/authorization/permission.catalog";
 import { CreditAdjustmentPort } from "../../../credit/application/ports/credit.ports";
 import { ReputationService } from "../../../reputation/application/services/reputation.service";
@@ -75,20 +73,6 @@ export class ReportsService {
     private readonly creditAdjustments: CreditAdjustmentPort,
   ) {}
 
-  private storageActor(principal: Principal): Actor {
-    const roles = principal.roles.filter(
-      (role): role is RoleCode =>
-        role === "USER" || role === "STAFF" || role === "ADMIN",
-    );
-    return {
-      userId: principal.userId,
-      accountStatus: "ACTIVE",
-      roles,
-      permissions: new Set(principal.permissions as PermissionCode[]),
-      blockedPermissions: new Set(),
-    };
-  }
-
   upload(
     principal: Principal,
     input: {
@@ -99,7 +83,7 @@ export class ReportsService {
     },
   ) {
     return this.storage.upload({
-      actor: this.storageActor(principal),
+      actor: storageActor(principal),
       purpose: "REPORT",
       name: input.name,
       claimedMime: input.claimedMime,
@@ -146,7 +130,7 @@ export class ReportsService {
     });
     return this.storage.issueDownload(
       {
-        actor: this.storageActor(actor),
+        actor: storageActor(actor),
         fileId: row.fileId,
         resource: { type: "REPORT_EVIDENCE", id: evidenceId },
       },
@@ -537,7 +521,11 @@ export class ReportsService {
   private async applyResolution(
     tx: TransactionContext,
     actor: Principal,
-    item: { id: string; relatedPathId: string | null },
+    item: {
+      id: string;
+      relatedPathId: string | null;
+      relatedOrderId?: string | null;
+    },
     input: ReportCaseActionDto,
     now: Date,
   ) {
@@ -553,8 +541,17 @@ export class ReportsService {
     const path = item.relatedPathId
       ? await tx.learningPath.findUnique({ where: { id: item.relatedPathId } })
       : null;
-    if (!path) throw new ConflictException("REPORT_CASE_PATH_REQUIRED");
-    const participants = new Set([path.participantAId, path.participantBId]);
+    const order = item.relatedOrderId
+      ? await tx.materialOrder.findUnique({
+          where: { id: item.relatedOrderId },
+        })
+      : null;
+    if (!path && !order)
+      throw new ConflictException("REPORT_CASE_FINANCIAL_TARGET_REQUIRED");
+    const participants = new Set([
+      ...(path ? [path.participantAId, path.participantBId] : []),
+      ...(order ? [order.buyerId, order.sellerId] : []),
+    ]);
     if (targets.some(({ userId }) => !participants.has(userId))) {
       throw new BadRequestException("RESOLUTION_TARGET_NOT_PARTICIPANT");
     }
@@ -600,6 +597,7 @@ export class ReportsService {
       });
     }
     for (const reversal of reversals) {
+      if (!path) throw new ConflictException("REPORT_CASE_PATH_REQUIRED");
       const operation = await tx.creditOperation.findUnique({
         where: { id: reversal.operationId },
         select: { referenceId: true },
@@ -611,6 +609,7 @@ export class ReportsService {
         operationId: reversal.operationId,
         referenceType: "REPORT_CASE",
         referenceId: item.id,
+        sourceReferenceId: path.id,
         actorId: actor.userId,
         reason,
         idempotencyKey: `report-case:${item.id}:reverse:${reversal.operationId}`,

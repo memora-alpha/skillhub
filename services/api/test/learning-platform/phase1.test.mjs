@@ -6,6 +6,7 @@ import {
   C,
   confirmedTwoWay,
   conversationId,
+  pathRow,
   pathStatus,
   plan,
   httpError,
@@ -103,31 +104,69 @@ test("SH-051: the path is CONFIRMED only with every plan and both agreement conf
   );
 });
 
-test("SH-051: revising a plan bumps both versions and resets confirmations", async () => {
+test("SH-051: plan edits reset only plan confirmation and preserve agreement", async () => {
   const ctx = setup();
   const { pathId, planAB } = await twoWayWithPlans(ctx);
   await ctx.paths.confirmPlan(user(B), planAB.id, 1);
+  const planBA = ctx.db
+    .rows("learningPlan")
+    .find((row) => row.pathId === pathId && row.teacherId === B);
+  await ctx.paths.confirmPlan(user(A), planBA.id, 1);
   await ctx.paths.confirmAgreement(user(A), pathId, 1);
   await ctx.paths.confirmAgreement(user(B), pathId, 1);
 
-  const revised = await ctx.paths.revisePlan(user(A), planAB.id, 1, plan(2));
+  const noOp = await ctx.paths.revisePlan(user(A), planAB.id, 1, plan());
+  assert.equal(noOp.unchanged, true);
+  assert.equal(pathRow(ctx.db, pathId).currentVersion, 1);
+  assert.equal(pathStatus(ctx.db, pathId), "CONFIRMED");
 
-  assert.deepEqual([revised.version, revised.agreementVersion], [2, 2]);
+  const changedPlan = plan();
+  changedPlan.sessionOutline[0].content = "Updated outline";
+  const revised = await ctx.paths.revisePlan(
+    user(A),
+    planAB.id,
+    1,
+    changedPlan,
+  );
+
+  assert.deepEqual([revised.version, revised.agreementVersion], [2, 1]);
   const planVersion = ctx.db
     .rows("learningPlanVersion")
     .find((row) => row.planId === planAB.id && row.versionNo === 2);
   assert.equal(planVersion.learnerConfirmedAt ?? null, null);
-  const agreement = ctx.db
-    .rows("learningPathVersion")
-    .find((row) => row.pathId === pathId && row.versionNo === 2);
-  assert.equal(agreement.participantAConfirmedAt ?? null, null);
-  assert.equal(agreement.participantBConfirmedAt ?? null, null);
-  assert.equal(pathStatus(ctx.db, pathId), "PROPOSED");
+  const agreement = ctx.db.rows("learningPathVersion")[0];
+  assert.ok(agreement.participantAConfirmedAt);
+  assert.ok(agreement.participantBConfirmedAt);
+  assert.equal(pathRow(ctx.db, pathId).currentVersion, 1);
+  assert.equal(pathStatus(ctx.db, pathId), "PARTIALLY_CONFIRMED");
+  assert.equal(
+    ctx.db.rows("pathVersionPlan").find((link) => link.planId === planBA.id)
+      .planVersion,
+    1,
+  );
+  await ctx.paths.confirmPlan(user(B), planAB.id, 2);
+  assert.equal(pathStatus(ctx.db, pathId), "CONFIRMED");
   await rejectsWith(
     ctx.paths.confirmPlan(user(B), planAB.id, 1),
     409,
     "STALE_LEARNING_PLAN_VERSION",
   );
+});
+
+test("SH-050: saving unchanged agreement terms preserves version and confirmations", async () => {
+  const ctx = setup();
+  const { pathId } = await confirmedTwoWay(ctx);
+
+  const result = await ctx.paths.reviseAgreement(user(A), pathId, {
+    expectedVersion: 1,
+    exchangeType: "TWO_WAY",
+    totalCreditPerUser: "20.00",
+  });
+
+  assert.equal(result.unchanged, true);
+  assert.equal(result.version, 1);
+  assert.equal(pathStatus(ctx.db, pathId), "CONFIRMED");
+  assert.equal(ctx.db.rows("learningPathVersion").length, 1);
 });
 
 test("SH-052: schedules need a CONFIRMED path and come from the plan's teacher", async () => {

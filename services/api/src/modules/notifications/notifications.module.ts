@@ -9,7 +9,6 @@ import {
   MarkNotificationReadUseCase,
 } from "./application/use-cases/notification-inbox.use-cases";
 import { NotificationAccessService } from "./application/services/notification-access.service";
-import { LearningRequestRejectionPublisher } from "./infrastructure/events/learning-request-rejection.publisher";
 import { PrismaNotificationRepository } from "./infrastructure/persistence/prisma-notification.repository";
 import { NotificationsController } from "./presentation/http/notifications.controller";
 import { PushTokensController } from "./presentation/http/push-tokens.controller";
@@ -26,7 +25,6 @@ import { ConnectionNotificationService } from "./application/services/connection
     ListNotificationsUseCase,
     MarkNotificationReadUseCase,
     PushTokensUseCases,
-    LearningRequestRejectionPublisher,
     {
       provide: NOTIFICATION_REPOSITORY,
       useClass: PrismaNotificationRepository,

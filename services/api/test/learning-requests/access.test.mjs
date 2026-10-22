@@ -217,6 +217,8 @@ test("bootstrap grants only the chosen per-role actions and preserves existing g
       "sharing-skill:archive:self",
       "sharing-skill:restore:self",
       "skill-verification:submit:self",
+      "material:create:self",
+      "material:access",
     ],
   );
   assert.deepEqual(
@@ -237,6 +239,9 @@ test("bootstrap grants only the chosen per-role actions and preserves existing g
       "skill-verification:read",
       "skill-verification:approve",
       "skill-verification:reject",
+      "material:create:self",
+      "material:access",
+      "material:moderate",
     ],
   );
   for (const permission of [
