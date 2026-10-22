@@ -85,50 +85,64 @@ export function createNotificationInbox(api: PortalApi, expire: () => void) {
           }),
     });
   };
-  async function load(more = false) {
-    if (disposed || (more && (state.loading || !state.page?.nextCursor)))
-      return;
-    current?.abort();
-    const control = new AbortController();
-    current = control;
+  async function readPage(
+    cursor: string | undefined,
+    seen: Set<string>,
+    signal: AbortSignal,
+  ) {
+    if (cursor && seen.has(cursor))
+      throw new StaffApiError(502, "API_RESPONSE_INVALID");
+    if (cursor) seen.add(cursor);
+    const result = await api<unknown>(
+      appendCursor("notifications?limit=20", cursor),
+      { signal },
+    );
+    if (signal.aborted || disposed) return;
+    validatePage(result.data, result.meta?.pagination);
+    const page = result.meta!.pagination!;
+    if (
+      page.nextCursor &&
+      (page.nextCursor === cursor || seen.has(page.nextCursor))
+    )
+      throw new StaffApiError(502, "API_RESPONSE_INVALID");
+    return { items: result.data, page };
+  }
+  async function readPages(more: boolean, signal: AbortSignal) {
     const count = more ? 1 : pages;
     let cursor = more ? (state.page?.nextCursor ?? undefined) : undefined;
     let items = more ? state.items : [];
     let page: Pagination | undefined,
       loaded = 0;
     const seen = new Set(more ? visited : []);
+    // Reload all visible pages with fresh cursors to preserve older items.
+    for (let index = 0; index < count; index++) {
+      const result = await readPage(cursor, seen, signal);
+      if (!result) return;
+      page = result.page;
+      items = [
+        ...new Map(
+          [...items, ...result.items].map((item) => [item.id, item]),
+        ).values(),
+      ];
+      loaded++;
+      cursor = page.nextCursor ?? undefined;
+      if (!cursor) break;
+    }
+    return { items, page, loaded, seen };
+  }
+  async function load(more = false) {
+    if (disposed || (more && (state.loading || !state.page?.nextCursor)))
+      return;
+    current?.abort();
+    const control = new AbortController();
+    current = control;
     update({ loading: true, error: undefined });
     try {
-      // Reload each previously loaded page using new cursors, so reads/live updates
-      // never drop older pages or mix a fresh head with an outdated continuation.
-      for (let index = 0; index < count; index++) {
-        if (cursor && seen.has(cursor))
-          throw new StaffApiError(502, "API_RESPONSE_INVALID");
-        if (cursor) seen.add(cursor);
-        const result = await api<unknown>(
-          appendCursor("notifications?limit=20", cursor),
-          { signal: control.signal },
-        );
-        if (control.signal.aborted || disposed) return;
-        validatePage(result.data, result.meta?.pagination);
-        page = result.meta!.pagination!;
-        if (
-          page.nextCursor &&
-          (page.nextCursor === cursor || seen.has(page.nextCursor))
-        )
-          throw new StaffApiError(502, "API_RESPONSE_INVALID");
-        items = [
-          ...new Map(
-            [...items, ...result.data].map((item) => [item.id, item]),
-          ).values(),
-        ];
-        loaded++;
-        cursor = page.nextCursor ?? undefined;
-        if (!cursor) break;
-      }
-      pages = more ? pages + loaded : loaded;
-      visited = seen;
-      update({ items, page, loading: false });
+      const result = await readPages(more, control.signal);
+      if (!result) return;
+      pages = more ? pages + result.loaded : result.loaded;
+      visited = result.seen;
+      update({ items: result.items, page: result.page, loading: false });
     } catch (error) {
       if (control.signal.aborted || disposed) return;
       failed(error);

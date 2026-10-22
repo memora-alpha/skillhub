@@ -45,7 +45,7 @@ export function NotificationsScreen() {
           ]}
         />
       </div>
-      <div className="staff-notification-status" role="status">
+      <output className="staff-notification-status">
         {queue.live === "connected" && "Đang nhận cập nhật trực tiếp"}
         {queue.live === "connecting" && "Đang kết nối cập nhật trực tiếp…"}
         {queue.live === "paused" && "Tạm dừng cập nhật khi tab ở nền."}
@@ -60,7 +60,7 @@ export function NotificationsScreen() {
             </button>
           </>
         )}
-      </div>
+      </output>
       {queue.error && (
         <div className="staff-notification-status">
           <p className="staff-error" role="alert">

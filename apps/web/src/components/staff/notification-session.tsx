@@ -3,6 +3,7 @@ import {
   createContext,
   useContext,
   useEffect,
+  useMemo,
   useState,
   useSyncExternalStore,
   type ReactNode,
@@ -27,6 +28,10 @@ type ContextValue = {
   retry: () => void;
 };
 const Context = createContext<ContextValue | null>(null);
+function reconnectDelay(failures: number) {
+  const jitter = crypto.getRandomValues(new Uint32Array(1))[0]! % 500;
+  return Math.min(30000, 3000 * 2 ** (failures - 1)) + jitter;
+}
 export function NotificationsProvider({
   children,
 }: Readonly<{ children: ReactNode }>) {
@@ -93,12 +98,9 @@ function NotificationSession({ children }: Readonly<{ children: ReactNode }>) {
           failures <= 6 &&
           !(error instanceof StaffApiError && error.status === 403)
         )
-          timer = setTimeout(
-            () => {
-              void connect();
-            },
-            Math.min(30000, 3000 * 2 ** (failures - 1)) + Math.random() * 500,
-          );
+          timer = setTimeout(() => {
+            void connect();
+          }, reconnectDelay(failures));
       } finally {
         control.abort();
       }
@@ -125,13 +127,11 @@ function NotificationSession({ children }: Readonly<{ children: ReactNode }>) {
       document.removeEventListener("visibilitychange", visibility);
     };
   }, [inbox, portal, expire, attempt]);
-  return (
-    <Context.Provider
-      value={{ inbox, live, retry: () => setAttempt((value) => value + 1) }}
-    >
-      {children}
-    </Context.Provider>
+  const value = useMemo(
+    () => ({ inbox, live, retry: () => setAttempt((attempt) => attempt + 1) }),
+    [inbox, live],
   );
+  return <Context.Provider value={value}>{children}</Context.Provider>;
 }
 export function useNotificationInbox() {
   const context = useContext(Context);
