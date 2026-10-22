@@ -19,6 +19,10 @@ Manual retry, reconnect hoặc foreground khi đang blocked cùng đi qua retry 
 
 Không replay save/upload/verification/payment create hay mutation khác. Retry/read/paging policy từng domain tại [state/session](guides/state-and-session.md); ConnectionGate không thay denied/error/unknown-outcome UI. Thay provider/lifecycle cần kiểm consumer app-wide.
 
+## Pull-to-refresh
+
+Màn cuộn dọc dùng `RefreshableScrollView`, `RefreshableFlatList` hoặc `KeyboardFormScrollView`; native dùng `RefreshControl`, web nhận thao tác kéo chuột/chạm ở đầu danh sách. `AppRefreshProvider` nằm dưới QueryProvider, mặc định refetch các read query đang active và gộp các lần kéo chồng nhau. List có callback refresh riêng vẫn dùng callback đó. Không chạy lại mutation hay query disabled/inactive; form và draft tiếp tục được giữ nguyên. Lỗi vẫn do feature hoặc ConnectionGate xử lý.
+
 ## Bằng chứng và giới hạn
 
 [Validation2026-10-10](archive/network-validation-2026-10-10.md) giữ số tests/browser/evidence local được ghi nhận ở lần chạy trước; migration chỉ review source, không chạy lại. Evidence .expo ignored không phải artifact chia sẻ qua Git và chưa xác minh toàn bộ còn tồn tại. Android/iOS airplane mode, modal stacking, hardware Back/foreground resume còn cần thiết bị; web fixture không chứng minh native. Không thêm một offline fullscreen boundary khác cạnh tranh trong feature mới.

@@ -430,6 +430,35 @@ test("ONE_WAY learner sees only the teaching direction and opens its exact plan 
   }
 });
 
+test("a locked agreement opens its complete Session list without dispatching a command", () => {
+  const h = harness(false);
+  try {
+    h.path.status = "SCHEDULED";
+    h.path.lockedVersion = h.path.currentVersion;
+    h.path.plans[0]!.sessions = [
+      {
+        id: fixtureId(80),
+        sessionNo: 1,
+        startAt: "2030-01-02T10:00:00Z",
+        endAt: "2030-01-02T11:00:00Z",
+        status: "CONFIRMED",
+      },
+    ];
+    const tree = h.expand(h.render());
+    const button = elements(tree).find(
+      (element) =>
+        element.type === "Button" &&
+        element.props.children === "Xem tất cả buổi học",
+    )!;
+    assert.ok(button);
+    (button.props.onPress as () => void)();
+    assert.deepEqual(h.routes, [`/paths/${h.path.id}/sessions`]);
+    assert.equal(h.calls.length, 0);
+  } finally {
+    h.cleanup();
+  }
+});
+
 test("learner confirms the current version without being redirected away from detail", async () => {
   const h = harness(false);
   try {

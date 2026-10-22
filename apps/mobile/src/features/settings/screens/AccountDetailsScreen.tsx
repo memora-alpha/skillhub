@@ -1,4 +1,5 @@
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { RefreshableScrollView as ScrollView } from "@/components/RefreshableScrollView";
+import { StyleSheet, Text, View } from "react-native";
 import { Redirect } from "expo-router";
 import { AppScreenLayout } from "@/features/shell";
 import { Badge } from "@/components/Badge";

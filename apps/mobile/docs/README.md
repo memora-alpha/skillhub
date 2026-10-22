@@ -11,6 +11,7 @@ Mobile tiếp tục từ ứng dụng và source đang có. Quy trình phát tri
 | Sửa auth/session         | [auth](contracts/auth-account.md) → [state/session](guides/state-and-session.md) + [security](guides/security-and-privacy.md) → runtime hiện hành                                        |
 | Upload/evidence/realtime | [skills/evidence](contracts/skills-evidence.md) hoặc contract liên quan → [upload/realtime](guides/uploads-and-realtime.md) → [privacy](guides/security-and-privacy.md)                  |
 | Wallet/Payment           | [contract tài chính](contracts/wallet-payments.md) + [work Wallet](work/phase-03-wallet-topup/plan.md) → [state/session](guides/state-and-session.md) → matrix kiểm chứng trong contract |
+| Session/đổi lịch         | [contract Session](contracts/sessions.md) → [work Phase07](work/phase-07-session-api/plan.md) → [status](work/phase-07-session-api/status.md); LiveKit do nhánh khác sở hữu |
 | Xác định nghiệp vụ       | [domain rules](domain-rules.md) / [state machines](state-machines.md) → SRS mục liên quan → chênh lệch contract                                                                          |
 | Tra quyết định/lịch sử   | [ADR](adr/README.md) hoặc [archive](archive/README.md); quay lại tài liệu hiện hành trước khi sửa                                                                                        |
 
