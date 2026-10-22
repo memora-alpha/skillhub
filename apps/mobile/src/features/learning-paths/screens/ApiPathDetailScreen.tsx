@@ -128,6 +128,7 @@ function PathContent({
   blocked: boolean;
   onRefresh: () => unknown;
 }>) {
+  const router = useRouter();
   const runtime = useConnections();
   const { editTerms } = useLocalSearchParams<{ editTerms?: string }>();
   const progress = agreementProgress(path, runtime.userId);
@@ -152,6 +153,11 @@ function PathContent({
         pathId={path.id}
         partnerId={otherId}
       />
+      {path.status === "COMPLETED" && path.settledAt !== null && (
+        <Button onPress={() => router.push(`/paths/${path.id}/review`)}>
+          Xem / viết đánh giá
+        </Button>
+      )}
       <AgreementSteps
         value={selected}
         current={current}

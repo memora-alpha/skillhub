@@ -11,3 +11,7 @@ export { SettlementScreen } from "./screens/settlement-screen";
 export { TermsEditorScreen } from "./screens/terms-screen";
 export { canReschedule } from "./preview/rules";
 export { PathCancellationScreen } from "./screens/cancellation-screen";
+export {
+  useLearningPath,
+  useLearningPaths,
+} from "./hooks/use-learning-paths-api";

@@ -1,6 +1,7 @@
 export { SkillsProvider } from "./context/SkillsProvider";
 export { usePublicSkill } from "./hooks/use-public-skill";
 export { useTeacherEligibility } from "./hooks/use-teacher-eligibility";
+export { SkillSharersSearch } from "./components/SkillSharersSearch";
 export {
   ProfileSkillSection,
   ProfileSkillRow,
