@@ -80,7 +80,7 @@ export function LoginScreen() {
           autoComplete="current-password"
           textContentType="password"
           returnKeyType="go"
-          onSubmitEditing={submit}
+          onSubmitEditing={() => submit()}
         />
         <View style={styles.options}>
           <Controller

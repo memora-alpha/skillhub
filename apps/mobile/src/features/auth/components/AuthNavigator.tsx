@@ -30,8 +30,8 @@ export function AuthNavigator() {
         contentStyle: { backgroundColor: colors.cream },
       }}
     >
+      <Stack.Screen name="index" />
       <Stack.Protected guard={!authenticated}>
-        <Stack.Screen name="index" />
         <Stack.Screen name="login" />
         <Stack.Screen name="register" />
         <Stack.Screen name="verify-email" />

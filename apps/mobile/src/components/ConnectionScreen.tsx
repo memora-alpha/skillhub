@@ -1,5 +1,5 @@
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView } from "@/components/SafeArea";
 import { Button } from "./Button";
 import { BrandLogo } from "./BrandLogo";
 import { Icon } from "./Icon";

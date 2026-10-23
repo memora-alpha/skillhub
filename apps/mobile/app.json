@@ -20,12 +20,14 @@
     },
     "web": {
       "favicon": "./assets/favicon.png",
-      "bundler": "metro"
+      "bundler": "metro",
+      "output": "single"
     },
     "scheme": "skillhub",
     "plugins": [
       "expo-router",
       "expo-font",
+      "expo-status-bar",
       "expo-secure-store",
       [
         "expo-image-picker",

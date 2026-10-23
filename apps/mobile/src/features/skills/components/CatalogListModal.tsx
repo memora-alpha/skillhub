@@ -1,6 +1,6 @@
 import { RefreshableFlatList as FlatList } from "@/components/RefreshableFlatList";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView } from "@/components/SafeArea";
 import { Input } from "@/components/Input";
 import { Icon } from "@/components/Icon";
 import { appColors as colors, fonts, typography } from "@/constants/theme";
@@ -116,7 +116,7 @@ export function CatalogListModal({
               );
             }}
             ListFooterComponent={
-              query.data ? <PageFooter query={query} /> : null
+              query.data ? <PageFooter query={query} /> : undefined
             }
           />
         )}

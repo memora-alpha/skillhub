@@ -8,7 +8,7 @@ import {
   type StyleProp,
   type ViewStyle,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView } from "@/components/SafeArea";
 import { Redirect, useRouter, type Href } from "expo-router";
 import { AccountMenu } from "./AccountMenu";
 import { AppHeader } from "./AppHeader";

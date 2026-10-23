@@ -1,7 +1,7 @@
 import { RefreshableScrollView as ScrollView } from "@/components/RefreshableScrollView";
 import { useState, type ReactNode } from "react";
 import { View, Text } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView } from "@/components/SafeArea";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { BrandLogo } from "@/components/BrandLogo";
 import { Input } from "@/components/Input";

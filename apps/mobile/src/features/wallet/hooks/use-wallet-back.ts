@@ -1,5 +1,4 @@
-import { useRouter } from "expo-router";
-import { usePreventRemove } from "expo-router/react-navigation";
+import { useRouter, usePreventRemove } from "expo-router";
 import { walletBack, type WalletView } from "../utils/navigation";
 
 export function useWalletBack(view: WalletView, pending = false) {

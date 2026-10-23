@@ -9,7 +9,7 @@ import {
   type ViewStyle,
 } from "react-native";
 import type { ReactNode } from "react";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView } from "@/components/SafeArea";
 import { typography, colors, fonts, radius } from "@/constants/theme";
 import { Icon } from "./Icon";
 import { Button } from "./Button";

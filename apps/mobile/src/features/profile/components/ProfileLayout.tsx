@@ -7,7 +7,7 @@ import {
   Text,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView } from "@/components/SafeArea";
 import { useRouter } from "expo-router";
 import { AccountMenu, AppHeader } from "@/features/shell";
 import { InfoModal } from "@/components/InfoModal";

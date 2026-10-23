@@ -1,5 +1,7 @@
 # Kiến trúc mobile
 
+Hiện tại: Expo SDK58, React Native0.88.0, React19.3.0 và Router58; web preview giữ SPA (`web.output: single`). [Hồ sơ nâng SDK58](work/expo-sdk-58/status.md) sở hữu kiểm chứng. Các phiên bản trong baseline migration bên dưới mô tả lịch sử.
+
 ## Đang có tại baseline migration
 
 Đọc [package.json](../package.json), [tsconfig](../tsconfig.json), [checker](../scripts/check-structure.mjs) và source working tree tại HEAD ed5a17dd9f1a6d5e45e1b6af33b17dd4518b46fd. Expo ~57.0.26, React Native 0.86.3, React 19.2.3, Router ~57.0.24, TypeScript ~6.0.3; TanStack Query, Axios, Zod, React Hook Form, Zustand đã có. Không nâng phiên bản trong migration.

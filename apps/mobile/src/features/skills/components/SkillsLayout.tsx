@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Redirect, useRouter, type Href } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView } from "@/components/SafeArea";
 import { StyleSheet, View } from "react-native";
 import { AppHeader } from "@/features/shell";
 import { useAuthSession } from "@/features/auth";

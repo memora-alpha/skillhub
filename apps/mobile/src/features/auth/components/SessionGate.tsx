@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView } from "@/components/SafeArea";
 import { Button } from "@/components/Button";
 import { BrandLogo } from "@/components/BrandLogo";
 import { colors, fonts, typography } from "@/constants/theme";

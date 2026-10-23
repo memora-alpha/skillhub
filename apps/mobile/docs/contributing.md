@@ -2,7 +2,7 @@
 
 ## Setup đang dùng
 
-Nguồn: [root package](../../../package.json), [mobile package](../package.json), [env parser](../src/config/env.ts), [env example](../.env.example). Root engines: Node >=22.12.0 <23 hoặc >=24.0.0; README mobile cũ khuyến nghị 22.13+ hoặc24.3+, có thể tiếp tục dùng các bản này. pnpm10.24.0 được pin ở root.
+Nguồn: [root package](../../../package.json), [mobile package](../package.json), [env parser](../src/config/env.ts), [env example](../.env.example). Mobile SDK58 cần Node22.13+ trên nhánh22, Node24.3+ trên nhánh24 hoặc Node26+; không dùng Node23/25. Yêu cầu này chặt hơn engines chung ở root. pnpm10.24.0 được pin ở root.
 
 Từ root repository:
 
@@ -13,7 +13,9 @@ Từ root repository:
 
 Đặt EXPO_PUBLIC_API_URL trong .env cục bộ, ví dụ http://localhost:3001/api/v1. Parser chấp nhận server root hoặc /api/v1; thiết bị thật dùng LAN IP của máy chạy API và mạng có thể truy cập. EXPO_PUBLIC_* là public config, không chứa secrets. Không in .env/credentials vào báo cáo.
 
-Expo Go/client phải tương thích SDK57. pnpm android mở Android; pnpm ios cần macOS/Xcode cho local simulator; pnpm web là mobile web preview, khác apps/web. CORS web cần API cho đúng origin; native không dùng browser CORS. Backend setup thuộc [API README](../../../services/api/README.md), không cấp quyền sửa backend.
+Expo Go/client phải tương thích SDK58. Nếu Expo Go đang cài chỉ hỗ trợ SDK57, dùng client SDK58 hoặc development build mới; nâng JavaScript không nâng native binary cũ. pnpm android mở Android; pnpm ios cần macOS/Xcode cho local simulator; pnpm web là mobile web preview dạng SPA (`web.output: single`), khác apps/web. CORS web cần API cho đúng origin; native không dùng browser CORS. Backend setup thuộc [API README](../../../services/api/README.md), không cấp quyền sửa backend.
+
+Repo dùng `node-linker=hoisted`. Cài dependencies từ root bằng đúng pnpm10.24.0. Nếu sau khi cài SDK58, `expo install --fix` vẫn nhận SDK57, kiểm tra từ mobile bằng `node -p "require.resolve('expo/package.json')"` và `node -p "require('expo/package.json').version"`. Bản node_modules cũ trong apps/mobile có thể che bản mới ở root; cần loại bản cài cũ và cài lại từ root trước khi --fix. [Hồ sơ SDK58](work/expo-sdk-58/status.md) ghi kiểm chứng và giới hạn.
 
 ## Commands thực tế
 

@@ -1,9 +1,9 @@
 import { createContext, useContext, type ReactNode } from "react";
 import { AccessibilityInfo, Platform } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useReducedMotion } from "react-native-reanimated";
 import Toast, { type ToastConfig } from "react-native-toast-message";
 import { ToastContent, type ToastTone } from "@/components/Toast";
+import { SafeAreaToast } from "@/components/SafeAreaToast";
 
 const actions = {
   showToast(message: string, tone: ToastTone = "info") {
@@ -47,15 +47,13 @@ const config: ToastConfig = {
 };
 
 export function ToastProvider({ children }: { children: ReactNode }) {
-  const insets = useSafeAreaInsets();
   const reducedMotion = useReducedMotion();
   return (
     <ToastContext.Provider value={actions}>
       {children}
-      <Toast
+      <SafeAreaToast
         config={config}
         position="top"
-        topOffset={insets.top + 12}
         animationConfig={{ type: "timing", duration: reducedMotion ? 0 : 200 }}
         onShow={({ text1 }) => {
           if (text1 && Platform.OS !== "web")

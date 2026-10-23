@@ -73,6 +73,7 @@ export function ToastContent({
 }
 const styles = StyleSheet.create({
   toast: {
+    maxWidth: "100%",
     minHeight: toastTheme.minHeight,
     flexDirection: "row",
     alignItems: "center",

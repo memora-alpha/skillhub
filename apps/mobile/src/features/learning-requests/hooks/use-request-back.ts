@@ -1,5 +1,4 @@
-import { useRouter, type Href } from "expo-router";
-import { usePreventRemove } from "expo-router/react-navigation";
+import { useRouter, usePreventRemove, type Href } from "expo-router";
 export function useRequestBack(fallback: Href, pending = false) {
   const router = useRouter();
   usePreventRemove(pending, () => {

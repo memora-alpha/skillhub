@@ -92,7 +92,7 @@ export function ResetPasswordCodeScreen() {
                 field.onChange(value);
                 verifyRecovery.reset();
               }}
-              onSubmitEditing={submit}
+              onSubmitEditing={() => submit()}
             />
           )}
         />

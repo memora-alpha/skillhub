@@ -5,9 +5,9 @@ import {
   KeyboardAvoidingView,
   Platform,
   View,
-  type ViewToken,
+  type FlatListProps,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView } from "@/components/SafeArea";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useAgreementNavigation } from "@/features/learning-paths/state";
 import { Button } from "@/components/Button";
@@ -102,21 +102,21 @@ function ApiChatConversation({
   const [readError, setReadError] = useState<unknown>();
   const [visible, setVisible] = useState<ApiMessage>();
   const readWatermark = useRef<string | undefined>(undefined);
-  const viewability = useRef(
-    ({ viewableItems }: { viewableItems: ViewToken<ChatTimelineItem>[] }) => {
-      const viewed = viewableItems
-        .filter((item) => item.isViewable)
-        .flatMap(({ item }) => (item.kind === "message" ? [item.message] : []));
-      viewed.sort((a, b) => (BigInt(a.sequence) < BigInt(b.sequence) ? -1 : 1));
-      const lastViewed = viewed.at(-1);
-      if (lastViewed)
-        setVisible((previous) =>
-          !previous || BigInt(previous.sequence) < BigInt(lastViewed.sequence)
-            ? lastViewed
-            : previous,
-        );
-    },
-  );
+  const viewability = useRef<
+    NonNullable<FlatListProps<ChatTimelineItem>["onViewableItemsChanged"]>
+  >(({ viewableItems }) => {
+    const viewed = viewableItems
+      .filter((item) => item.isViewable)
+      .flatMap(({ item }) => (item.kind === "message" ? [item.message] : []));
+    viewed.sort((a, b) => (BigInt(a.sequence) < BigInt(b.sequence) ? -1 : 1));
+    const lastViewed = viewed.at(-1);
+    if (lastViewed)
+      setVisible((previous) =>
+        !previous || BigInt(previous.sequence) < BigInt(lastViewed.sequence)
+          ? lastViewed
+          : previous,
+      );
+  });
   const list = useRef<FlatList<ChatTimelineItem>>(null);
   const atLatest = useRef(true),
     hasScrolled = useRef(false);
