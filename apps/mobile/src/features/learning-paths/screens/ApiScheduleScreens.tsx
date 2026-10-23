@@ -146,7 +146,10 @@ function SchedulePanel({
   blocked: boolean;
 }>) {
   const api = useLearningPathsApi(),
-    command = useConnectionCommand(),
+    command = useConnectionCommand([
+      ["learning-paths", path.id],
+      ["learning-paths", "mine"],
+    ]),
     runtime = useConnections();
   const skill = useCatalogName(plan.skillId),
     schedule = plan.schedule;

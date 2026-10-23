@@ -41,7 +41,10 @@ export function AgreementMethodStep({
 }>) {
   const runtime = useConnections(),
     api = useLearningPathsApi(),
-    command = useConnectionCommand();
+    command = useConnectionCommand([
+      ["learning-paths", path.id],
+      ["learning-paths", "mine"],
+    ]);
   const [editing, setEditing] = useState(initiallyEditing);
   const share = useConfirmedFormShare();
   const otherId =

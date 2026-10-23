@@ -34,7 +34,7 @@ export function ApiAgreementEntry({
   const query = useLearningPaths(),
     api = useLearningPathsApi(),
     runtime = useConnections();
-  const command = useConnectionCommand(),
+  const command = useConnectionCommand([["learning-paths", "mine"]]),
     router = useRouter();
   const paths = query.data?.filter((p) => p.conversationId === conversationId);
   const creating = useRef(false);

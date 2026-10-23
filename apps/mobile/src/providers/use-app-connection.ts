@@ -5,6 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useAuthSession } from "@/features/auth";
 import { connectionStore, deviceOffline } from "@/lib/network/connection-store";
 import { probeConnection } from "@/lib/network/probe-connection";
+import { createReadRefresh } from "@/lib/query/refresh-active-reads";
 
 export function useAppConnection() {
   const state = useSyncExternalStore(
@@ -37,10 +38,7 @@ export function useAppConnection() {
       if (runtime.controller.getSnapshot() === "offline")
         await runtime.controller.bootstrap();
       // Refetch read queries only. Never replay a save, upload or submission.
-      await queryClient.refetchQueries(
-        { type: "active" },
-        { throwOnError: false },
-      );
+      await createReadRefresh(queryClient)();
       connected = !deviceOffline(await getNetworkStateAsync());
     } catch {
       if (mounted.current) connectionStore.unavailable();

@@ -94,14 +94,15 @@ test("a correct target with an unsafe response version is still a protocol failu
 test("403/429/503 remain explicit errors and do not silently resend a mutation", async (t) => {
   const fixture = await startLearningRequestsFixture();
   t.after(fixture.stop);
-  const api = fixtureClient(fixture.url),
-    id = fixtureId(100);
+  const id = fixtureId(100);
   for (const [status, code] of [
     [403, "FORBIDDEN"],
     [403, "NEW_ACTIVITY_RESTRICTED"],
     [429, "TOO_MANY_REQUESTS"],
     [503, "DEPENDENCY_UNAVAILABLE"],
   ] as const) {
+    // These are independent server failures; a 429 intentionally cools down its client.
+    const api = fixtureClient(fixture.url);
     const before = fixture.events.length;
     await fixture.control({
       rules: [{ kind: "http", method: "PATCH", status, code }],

@@ -47,6 +47,13 @@ export function rememberLatestMessage(
     [...base, "conversation-preview", message.conversationId],
     (previous) => newestMessage(previous, message),
   );
+  cache.setQueryData<{ message: ApiMessage | null; unread: boolean }>(
+    [...base, "conversations", "preview", message.conversationId],
+    (previous) =>
+      previous
+        ? { ...previous, message: newestMessage(previous.message, message) }
+        : undefined,
+  );
 }
 export type InboxConversation = {
   conversation: ApiConversation;

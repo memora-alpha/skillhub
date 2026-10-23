@@ -27,6 +27,7 @@ function useRuntimeValue() {
       isCurrent,
       assertCurrent,
       controller: runtime.controller,
+      requests: runtime.client.requestPolicy(),
       call: async (path: string, options: RequestOptions = {}) => {
         assertCurrent();
         const result = await runtime.client.request(path, {

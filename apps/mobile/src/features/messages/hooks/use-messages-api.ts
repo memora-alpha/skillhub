@@ -21,8 +21,11 @@ export function useMessagesApi() {
 }
 export function useConversations() {
   const api = useMessagesApi();
-  return useConnectionList(["conversations"], (cursor, signal) =>
-    api.list(cursor, signal),
+  return useConnectionList(
+    ["conversations"],
+    (cursor, signal) => api.list(cursor, signal),
+    true,
+    { refreshOnFocus: "stale" },
   );
 }
 export function useConversation(id: string) {
@@ -31,6 +34,7 @@ export function useConversation(id: string) {
     ["conversation", id],
     (signal) => api.detail(id, signal),
     uuid.safeParse(id).success,
+    { refreshOnFocus: "stale" },
   );
 }
 export function useThread(id: string, enabled: boolean) {
@@ -43,14 +47,16 @@ export function useThread(id: string, enabled: boolean) {
   const olderRequest = useRef<AbortController | undefined>(undefined);
   useFocusEffect(
     useCallback(() => {
-      fresh.current = true;
+      fresh.current =
+        cache.getQueryCache().find({ queryKey: key, exact: true })?.isStale() ??
+        true;
       loadingOlder.current = false;
       setOlderPending(false);
       return () => {
         fresh.current = true;
         olderRequest.current?.abort();
       };
-    }, [id]),
+    }, [id, cache, runtime.key]),
   );
   const [olderPending, setOlderPending] = useState(false);
   const [olderError, setOlderError] = useState<unknown>();
@@ -74,6 +80,7 @@ export function useThread(id: string, enabled: boolean) {
       });
     },
     enabled && uuid.safeParse(id).success,
+    { refreshOnFocus: "stale" },
   );
   const loadOlder = async () => {
     const previous = query.data;

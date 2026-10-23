@@ -69,10 +69,8 @@ export function ChatOutboxProvider({
                 }
               : undefined,
           );
-          void cache.invalidateQueries({
-            queryKey: [...runtime.key, "conversations"],
-          });
-          void cache.invalidateQueries({ queryKey: key });
+          // The confirmed message already updates the thread and its preview.
+          // SSE owns subsequent peer changes; do not reload every inbox row.
           if (connectionStore.getSnapshot().reason === "unreachable") {
             const ticket = connectionStore.beginRetry();
             if (ticket !== null) connectionStore.finishRetry(ticket, true);

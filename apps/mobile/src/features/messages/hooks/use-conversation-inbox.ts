@@ -81,8 +81,12 @@ export function useConversationInbox() {
   });
   useConnectionRefresh(
     useCallback(() => {
-      void cache.invalidateQueries(
-        { queryKey: [...runtime.key, "conversations", "preview"] },
+      void cache.refetchQueries(
+        {
+          queryKey: [...runtime.key, "conversations", "preview"],
+          type: "active",
+          stale: true,
+        },
         { cancelRefetch: false },
       );
     }, [cache, runtime]),

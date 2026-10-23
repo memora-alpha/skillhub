@@ -1,4 +1,5 @@
 import { AppError } from "./errors";
+import { RATE_LIMIT_BACKOFF_MS } from "./rate-limit";
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -8,6 +9,7 @@ export function readPayload(
   status: number,
   payload: unknown,
   includeMeta = false,
+  retryAt = 0,
 ): unknown {
   if (status === 204) return undefined;
   if (status < 200 || status >= 300) {
@@ -18,7 +20,12 @@ export function readPayload(
       /^[A-Z_]+$/.test(payload.message)
         ? payload.message
         : "";
-    throw new AppError("http", status, code);
+    throw new AppError(
+      "http",
+      status,
+      code,
+      status === 429 ? retryAt || Date.now() + RATE_LIMIT_BACKOFF_MS : 0,
+    );
   }
   if (!isRecord(payload) || payload.success !== true || !("data" in payload))
     throw new AppError("protocol");
@@ -35,8 +42,9 @@ export type Page<T> = {
 export function readPagePayload(
   status: number,
   payload: unknown,
+  retryAt = 0,
 ): Page<unknown> {
-  const data = readPayload(status, payload);
+  const data = readPayload(status, payload, false, retryAt);
   const meta = isRecord(payload) ? payload.meta : null;
   const page = isRecord(meta) ? meta.pagination : null;
   if (

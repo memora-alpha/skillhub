@@ -26,7 +26,10 @@ export function ApiPlanPanel({
 }>) {
   const runtime = useConnections(),
     api = useLearningPathsApi(),
-    command = useConnectionCommand();
+    command = useConnectionCommand([
+      ["learning-paths", path.id],
+      ["learning-paths", "mine"],
+    ]);
   const skill = useCatalogName(plan.skillId);
   const teaches = plan.teacherId === runtime.userId;
   let confirmation = teaches

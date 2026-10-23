@@ -53,7 +53,10 @@ export function ScheduleForm({
   blocked: boolean;
 }>) {
   const api = useLearningPathsApi(),
-    command = useConnectionCommand(),
+    command = useConnectionCommand([
+      ["learning-paths", path.id],
+      ["learning-paths", "mine"],
+    ]),
     router = useRouter();
   const [active, setActive] = useState<number | null>(null);
   const [applied, setApplied] = useState(false);

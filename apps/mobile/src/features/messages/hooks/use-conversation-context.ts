@@ -1,4 +1,6 @@
 import { useConnections, useConnectionQuery } from "@/features/connections";
+import { useQueryClient } from "@tanstack/react-query";
+import { readConversationResource } from "../utils/conversation-resource";
 import type { ApiConversation } from "../api/messages-api";
 import {
   conversationReference,
@@ -10,6 +12,7 @@ export function useConversationContext(
   compact = false,
 ) {
   const runtime = useConnections();
+  const cache = useQueryClient();
   const query = useConnectionQuery(
     [
       "conversations",
@@ -21,15 +24,31 @@ export function useConversationContext(
     ],
     (signal) =>
       readConversationContext(
-        runtime.call,
+        (path, options) =>
+          readConversationResource(
+            cache,
+            runtime.key,
+            runtime.call,
+            path,
+            options,
+          ),
         conversation,
         runtime.userId ?? "",
         signal,
         compact,
       ),
+    true,
+    { refreshOnFocus: "stale" },
   );
   return {
     ...query,
+    refetch: async () => {
+      await cache.invalidateQueries({
+        queryKey: [...runtime.key, "conversation-resource"],
+        refetchType: "none",
+      });
+      return query.refetch({ cancelRefetch: false });
+    },
     label: query.data ?? (query.isLoading ? "Đang tải chủ đề…" : "Đề xuất học"),
     reference: conversationReference(conversation.proposalId),
   };

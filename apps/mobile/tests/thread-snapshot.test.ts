@@ -31,6 +31,34 @@ const options = (previous?: ThreadSnapshot) => ({
   current: () => previous,
   assertCurrent: () => {},
 });
+
+test("read receipts reuse the fetched tail instead of requesting the first page twice", async () => {
+  const previous = {
+    messages: [1, 2, 3, 4].map(message),
+    nextCursor: null,
+    receiptRevision: 0,
+  };
+  const calls: (string | undefined)[] = [];
+  const result = await readThreadSnapshot(
+    {
+      history: async (_, opts) => {
+        calls.push(opts?.cursor);
+        const result = opts?.cursor ? page([1, 2]) : page([3, 4], "older-3");
+        return {
+          ...result,
+          items: result.items.map((item) => ({
+            ...item,
+            readAt: "2026-10-23T10:00:00Z",
+          })),
+        };
+      },
+    },
+    fixtureId(40),
+    { ...options(previous), receiptRevision: 1, userId: fixtureId(1) },
+  );
+  assert.deepEqual(calls, [undefined, "older-3"]);
+  assert.ok(result.messages.every((item) => item.readAt));
+});
 test("entering chat reads only newest page despite a large cached offline gap", async () => {
   const calls: unknown[] = [];
   const result = await readThreadSnapshot(

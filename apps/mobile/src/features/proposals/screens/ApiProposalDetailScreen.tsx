@@ -21,7 +21,12 @@ export function ApiProposalDetailScreen({ id }: Readonly<{ id: string }>) {
   const query = useProposal(id);
   const api = useProposalsApi();
   const { userId, isCurrent } = useConnections();
-  const command = useConnectionCommand<ProposalDecisionResult>();
+  const command = useConnectionCommand<ProposalDecisionResult>([
+    ["proposals"],
+    ["proposal", id],
+    ["conversation-resource"],
+    { key: ["conversations"], exact: true },
+  ]);
   const proposal = query.data;
   const { closeAction } = useLocalSearchParams<{ closeAction?: string }>();
   const [closing, setClosing] = useState<"reject" | "withdraw" | undefined>(

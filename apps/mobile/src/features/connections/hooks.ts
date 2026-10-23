@@ -15,6 +15,28 @@ import {
 } from "@/lib/http/command-intent";
 import { connectionReadAccess } from "@/lib/http/read-access";
 import { useConnections } from "./runtime";
+import {
+  refreshConnectionReads,
+  invalidateConnectionReads,
+  type ConnectionReadTarget,
+} from "./read-refresh";
+
+type ReadOptions = { refreshOnFocus?: "always" | "stale" };
+
+function useReadRefresh(
+  key: readonly unknown[],
+  enabled: boolean,
+  staleOnly: boolean,
+) {
+  const cache = useQueryClient();
+  useConnectionRefresh(
+    useCallback(
+      () => refreshConnectionReads(cache, key, staleOnly),
+      [cache, key, staleOnly],
+    ),
+    enabled,
+  );
+}
 function logCommandFailure(error_: unknown) {
   if (!__DEV__) return;
   const failure = error_ instanceof AppError ? error_ : undefined;
@@ -41,6 +63,7 @@ export function useConnectionQuery<T>(
   key: readonly unknown[],
   read: (signal: AbortSignal) => Promise<T>,
   valid = true,
+  options: ReadOptions = {},
 ) {
   const runtime = useConnections();
   const cache = useQueryClient();
@@ -60,7 +83,11 @@ export function useConnectionQuery<T>(
     queryFn: ({ signal }) => access.read(() => read(signal), runtime.isCurrent),
     retry: false,
   });
-  useConnectionRefresh(query.refetch, runtime.enabled && valid);
+  useReadRefresh(
+    queryKey,
+    runtime.enabled && valid,
+    options.refreshOnFocus === "stale",
+  );
   return {
     ...query,
     data: access.denied ? undefined : query.data,
@@ -74,6 +101,7 @@ export function useConnectionList<T>(
     signal?: AbortSignal,
   ) => Promise<{ items: T[]; nextCursor: string | null }>,
   valid = true,
+  options: ReadOptions = {},
 ) {
   const runtime = useConnections();
   const cache = useQueryClient();
@@ -100,7 +128,11 @@ export function useConnectionList<T>(
     },
     retry: false,
   });
-  useConnectionRefresh(query.refetch, runtime.enabled && valid);
+  useReadRefresh(
+    queryKey,
+    runtime.enabled && valid,
+    options.refreshOnFocus === "stale",
+  );
   const items = [
     ...new Map(
       query.data?.pages
@@ -117,10 +149,14 @@ export function useConnectionList<T>(
 }
 
 // Keep the identity and immutable intent on uncertain failure, including manual retry.
-export function useConnectionCommand<TResult = unknown>() {
+export function useConnectionCommand<TResult = unknown>(
+  affectedKeys: readonly ConnectionReadTarget[] = [[]],
+) {
   const runtime = useConnections();
   const cache = useQueryClient();
   const intent = useRef(new CommandIntent());
+  const invalidate = () =>
+    invalidateConnectionReads(cache, runtime.key, affectedKeys);
   const busy = useRef(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<unknown>();
@@ -173,7 +209,7 @@ export function useConnectionCommand<TResult = unknown>() {
       error_.kind === "http" &&
       error_.status === 409
     )
-      void cache.invalidateQueries({ queryKey: runtime.key });
+      void invalidate();
   };
   useEffect(() => {
     intent.current.clear();
@@ -202,7 +238,7 @@ export function useConnectionCommand<TResult = unknown>() {
       runtime.assertCurrent();
       intent.current.clear();
       clearRecovery();
-      void cache.invalidateQueries({ queryKey: runtime.key });
+      void invalidate();
       return result;
     } catch (error_) {
       failed(error_, fingerprint, send);

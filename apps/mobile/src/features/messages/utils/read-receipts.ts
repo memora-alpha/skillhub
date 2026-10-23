@@ -13,6 +13,9 @@ export async function refreshLoadedReadReceipts(
   messages: ApiMessage[],
   userId: string | undefined,
   signal: AbortSignal,
+  firstPage?: Awaited<
+    ReturnType<ReturnType<typeof createMessagesApi>["history"]>
+  >,
 ) {
   const unread = messages.filter(
     (message) => message.senderId === userId && !message.readAt,
@@ -28,7 +31,8 @@ export async function refreshLoadedReadReceipts(
   let result = messages;
   while (true) {
     if (signal.aborted) throw new AppError("network");
-    const page = await api.history(id, { cursor, signal });
+    const page = firstPage ?? (await api.history(id, { cursor, signal }));
+    firstPage = undefined;
     result = mergeMessages(result, page.items);
     if (
       !page.hasMore ||
