@@ -1,5 +1,5 @@
 import type { ViewStyle } from "react-native";
-import type { Edge, Edges } from "react-native-safe-area-context";
+import type { Edge, EdgeMode, Edges } from "react-native-safe-area-context";
 
 const sides = {
   top: "Top",
@@ -10,6 +10,14 @@ const sides = {
 export const safeAreaInset = (edge: Edge) =>
   `env(safe-area-inset-${edge}, 0px)`;
 
+function resolveEdgeBehavior(edge: Edge, edges?: Edges): EdgeMode | undefined {
+  if (edges == null) return "additive";
+  if (Array.isArray(edges)) {
+    return edges.includes(edge) ? "additive" : "off";
+  }
+  return (edges as Partial<Record<Edge, EdgeMode>>)[edge];
+}
+
 export function webSafeAreaSpacing(
   style: ViewStyle = {},
   edges?: Edges,
@@ -17,14 +25,7 @@ export function webSafeAreaSpacing(
 ): ViewStyle {
   const result: Record<string, string> = {};
   for (const edge of Object.keys(sides) as Edge[]) {
-    const behavior =
-      edges == null
-        ? "additive"
-        : Array.isArray(edges)
-          ? edges.includes(edge)
-            ? "additive"
-            : "off"
-          : (edges as Partial<Record<Edge, string>>)[edge];
+    const behavior = resolveEdgeBehavior(edge, edges);
     if (!behavior || behavior === "off") continue;
     const property = `${mode}${sides[edge]}` as keyof ViewStyle;
     const axis =

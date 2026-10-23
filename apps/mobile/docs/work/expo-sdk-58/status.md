@@ -44,6 +44,8 @@ Môi trường: Windows, Node22.19.0, pnpm10.24.0. Lệnh script chạy bằng �
 
 Logs local ignored: .expo/sdk-58-tests.log, .expo/sdk-58-audit-tests.log, .expo/sdk-58-export.log. Lần rà soát trước commit tiếp tục đạt types/lint/structure/dependency và Doctor20/20; full tests vẫn744/748, đúng4 lỗi baseline. Export chỉ chứng minh bundle; không thay native build hoặc kiểm thử trên thiết bị/API thật.
 
+Sau commit nâng SDK, xử lý cảnh báo Sonar ở web-safe-area.ts: tách resolveEdgeBehavior để bỏ ternary lồng nhau và giảm complexity của webSafeAreaSpacing, giữ nguyên quy tắc edges. Kiểm tra lại:5/5 safe-area tests, TypeScript, ESLint và Prettier đạt. Chưa chạy lại SonarCloud.
+
 Safe-area checks mới chạy trực tiếp bằng binaries hiện có (tsc/eslint/tsx và script check-structure) cùng phiên bản trong package scripts. Fixture browser local ignored tại .expo/safe-area-browser; dùng component menu/modal/toast thật và stub icon để cô lập spacing. result.log và ảnh portrait.png/landscape.png lưu kết quả. Đây là kiểm chứng CSS bằng inset giả lập qua CDP, không phải Safari hay thiết bị có notch thật, không chạy account/API flows.
 
 ## Test lỗi có sẵn
