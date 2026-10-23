@@ -7,8 +7,9 @@ import {
   useWindowDimensions,
   View,
   type LayoutChangeEvent,
+  type ScrollViewInstance,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView } from "@/components/SafeArea";
 import { BrandLogo } from "@/components/BrandLogo";
 import { useRouter } from "expo-router";
 import { typography, colors, fonts, layout } from "@/constants/theme";
@@ -19,7 +20,7 @@ import { WelcomeSections } from "../components/WelcomeSections";
 export function WelcomeScreen() {
   const router = useRouter();
   const [notice, setNotice] = useState<string | null>(null);
-  const scroll = useRef<ScrollView>(null);
+  const scroll = useRef<ScrollViewInstance>(null);
   const sections = useRef({ how: 0, categories: 0, credit: 0 });
   const { width } = useWindowDimensions();
   const scrollTo = (section: keyof typeof sections.current) =>

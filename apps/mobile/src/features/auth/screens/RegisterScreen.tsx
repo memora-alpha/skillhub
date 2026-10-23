@@ -146,7 +146,7 @@ export function RegisterScreen() {
           autoComplete="new-password"
           textContentType="newPassword"
           returnKeyType="done"
-          onSubmitEditing={submit}
+          onSubmitEditing={() => submit()}
         />
         <Controller
           control={form.control}

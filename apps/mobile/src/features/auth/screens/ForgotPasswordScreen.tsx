@@ -68,7 +68,7 @@ export function ForgotPasswordScreen() {
           textContentType="emailAddress"
           onChangeText={forgot.reset}
           returnKeyType="go"
-          onSubmitEditing={submit}
+          onSubmitEditing={() => submit()}
         />
         <Button
           size="lg"

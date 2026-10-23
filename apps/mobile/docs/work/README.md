@@ -1,5 +1,7 @@
 # Chỉ mục công việc mobile
 
+[Nâng Expo SDK 58](expo-sdk-58/plan.md): [trạng thái và kiểm chứng](expo-sdk-58/status.md).
+
 [Review source sau migration](source-audit/status.md) có findings, checks và bằng chứng; [phạm vi review](source-audit/plan.md). Đây là hồ sơ review, không thay acceptance của phase sản phẩm.
 
 Đọc plan rồi status của công việc được người dùng yêu cầu; không tự chọn từ feature.json, không chạy phase sản phẩm sau migration. Index chỉ trỏ đến nơi sở hữu trạng thái, không lặp checkpoint/số tests.

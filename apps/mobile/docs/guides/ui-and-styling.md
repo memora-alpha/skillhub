@@ -22,6 +22,7 @@
 - Ảnh có kích thước/aspect ratio hợp lý, placeholder khi phù hợp và semantics accessible đúng; không bắt đổi toàn bộ thư viện ảnh cũ trong migration.
 - Assets sản phẩm có nguồn/license rõ; không tải asset từ một dự án khác để điền chỗ thiết kế thiếu.
 - Layout xét safe area, screen nhỏ, chữ lớn, keyboard, scroll và bottom navigation. Không buộc font scale nhỏ lại chỉ để khớp screenshot.
+- Từ SDK58, dùng SafeAreaView/SafeAreaProvider qua `@/components/SafeArea`: native dùng react-native-safe-area-context; web dùng CSS env(safe-area-inset-*) và không đo inset vào React. Với phần tử absolute cần offset như menu, dùng `@/components/use-safe-area-position`. Web SPA giữ viewport-fit=cover trong public/index.html. Giữ edges của màn để không cộng bottom inset lần nữa khi đã có tab bar.
 - Không gọi UI “đúng thiết kế” chỉ vì render thành công; đối chiếu frame/pattern và ghi khác biệt được chấp nhận.
 
 ## Icon dùng chung

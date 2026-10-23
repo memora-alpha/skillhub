@@ -1,6 +1,6 @@
 # SkillHub Mobile
 
-Ứng dụng React Native/Expo đang có cho Android, iOS và web preview trong monorepo SkillHub. Stack thực tế: Expo SDK57, React Native0.86.3, Expo Router và TypeScript; chi tiết tại [architecture](docs/architecture.md).
+Ứng dụng React Native/Expo đang có cho Android, iOS và web preview trong monorepo SkillHub. Stack thực tế: Expo SDK58, React Native0.88.0, React19.3.0, Expo Router và TypeScript; chi tiết tại [architecture](docs/architecture.md) và [nâng SDK58](docs/work/expo-sdk-58/status.md).
 
 ## Bắt đầu nhanh
 

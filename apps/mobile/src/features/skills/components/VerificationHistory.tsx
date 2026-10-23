@@ -94,7 +94,9 @@ export function VerificationHistory<T extends object>({
           />
         </View>
       )}
-      ListFooterComponent={query.data ? <PageFooter query={query} /> : null}
+      ListFooterComponent={
+        query.data ? <PageFooter query={query} /> : undefined
+      }
     />
   );
 }

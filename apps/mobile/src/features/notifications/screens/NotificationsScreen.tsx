@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { FlatList, StyleSheet, View, type ViewToken } from "react-native";
+import { FlatList, StyleSheet, View, type FlatListProps } from "react-native";
 import { useRouter } from "expo-router";
 import { AppScreenLayout } from "@/features/shell";
 import { useChatEvents } from "@/features/messages";
@@ -42,11 +42,11 @@ function NotificationsInbox() {
   const motionEnabled = useNotificationMotion();
   const [visibleIds, setVisibleIds] = useState<Set<string>>(() => new Set());
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 50 }).current;
-  const onViewableItemsChanged = useRef(
-    ({ viewableItems }: { viewableItems: ViewToken<InboxNotification>[] }) => {
-      setVisibleIds(new Set(viewableItems.map(({ item }) => item.id)));
-    },
-  ).current;
+  const onViewableItemsChanged = useRef<
+    NonNullable<FlatListProps<InboxNotification>["onViewableItemsChanged"]>
+  >(({ viewableItems }) => {
+    setVisibleIds(new Set(viewableItems.map(({ item }) => item.id)));
+  }).current;
   const inFlight = useRef(false);
   const items = query.items.filter(
     (item) => filter === "Tất cả" || !item.readAt,
@@ -142,7 +142,7 @@ function NotificationsInbox() {
                     : "Thông báo mới sẽ xuất hiện tại đây khi có cập nhật."
                 }
               />
-            ) : null
+            ) : undefined
           }
           ListFooterComponent={
             query.hasNextPage ? (
@@ -155,7 +155,7 @@ function NotificationsInbox() {
               >
                 {query.isFetchingNextPage ? "Đang tải…" : "Tải thêm thông báo"}
               </Button>
-            ) : null
+            ) : undefined
           }
           renderItem={({ item }) => (
             <NotificationRow

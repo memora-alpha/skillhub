@@ -1,5 +1,11 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { ActivityIndicator, Platform, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Platform,
+  Text,
+  View,
+  type ViewInstance,
+} from "react-native";
 import { appColors, fonts } from "@/constants/theme";
 import { pullDistance, pullThreshold } from "@/utils/pull-refresh";
 
@@ -16,7 +22,7 @@ export function PullRefreshBoundary({
   refresh: () => void;
   scrollY: { current: number };
 }>) {
-  const frame = useRef<View>(null);
+  const frame = useRef<ViewInstance>(null);
   const [pull, setPull] = useState(0);
   useEffect(() => {
     if (Platform.OS !== "web" || !enabled) return;

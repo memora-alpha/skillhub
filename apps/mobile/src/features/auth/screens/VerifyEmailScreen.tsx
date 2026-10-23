@@ -81,7 +81,7 @@ export function VerifyEmailScreen() {
                 field.onChange(value);
                 verify.reset();
               }}
-              onSubmitEditing={submit}
+              onSubmitEditing={() => submit()}
             />
           )}
         />

@@ -6,7 +6,7 @@ import {
   Text,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView } from "@/components/SafeArea";
 import { Button } from "@/components/Button";
 import { Icon } from "@/components/Icon";
 import { appRadius, fonts, typography } from "@/constants/theme";

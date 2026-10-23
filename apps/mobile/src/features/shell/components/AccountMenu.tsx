@@ -7,7 +7,7 @@ import {
   Text,
   View,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useSafeAreaPosition } from "@/components/use-safe-area-position";
 import { Icon } from "@/components/Icon";
 import { accountItems } from "@/constants/navigation";
 import {
@@ -30,7 +30,7 @@ export function AccountMenu({
   onAction: (title: string) => void;
   onLogout: () => void;
 }>) {
-  const insets = useSafeAreaInsets();
+  const position = useSafeAreaPosition({ top: 56, right: 16 });
   useEffect(() => {
     if (!visible || Platform.OS !== "android") return;
     const subscription = BackHandler.addEventListener(
@@ -57,7 +57,7 @@ export function AccountMenu({
         role="dialog"
         aria-modal
         accessibilityLabel="Menu tài khoản"
-        style={[styles.menu, { top: insets.top + 56 }]}
+        style={[styles.menu, position]}
       >
         <View style={styles.profile}>
           <Text style={styles.name}>{profile.name}</Text>

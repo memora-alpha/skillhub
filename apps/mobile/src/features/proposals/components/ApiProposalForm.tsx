@@ -1,5 +1,5 @@
 import { useRef, useState, type ReactNode } from "react";
-import { View, Pressable, Text, type TextInput } from "react-native";
+import { View, Pressable, Text, type TextInputInstance } from "react-native";
 import { Icon } from "@/components/Icon";
 import {
   appColors as colors,
@@ -73,8 +73,8 @@ export function ApiProposalForm({
   });
   const inactive = pending || !!disabled || locked;
   const [showDetails, setShowDetails] = useState(false);
-  const messageInput = useRef<TextInput | null>(null);
-  const availabilityInput = useRef<TextInput | null>(null);
+  const messageInput = useRef<TextInputInstance | null>(null);
+  const availabilityInput = useRef<TextInputInstance | null>(null);
   const outsideTouch = useRef<{ x: number; y: number } | null>(null);
   const detailErrors = !!(errors.credit || errors.sessions || errors.duration);
   const submitLabel = proposal ? "Lưu thay đổi" : "Gửi đề xuất";

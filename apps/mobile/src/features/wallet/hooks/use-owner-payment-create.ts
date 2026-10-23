@@ -6,8 +6,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import { AppState } from "react-native";
-import { useFocusEffect } from "expo-router";
-import { useIsFocused } from "expo-router/react-navigation";
+import { useFocusEffect, useIsFocused } from "expo-router";
 import { randomUUID } from "expo-crypto";
 import { getApiUrl } from "@/config/env";
 import { useOptionalWalletRuntime } from "../context/WalletProvider";

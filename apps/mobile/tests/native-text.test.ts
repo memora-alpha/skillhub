@@ -59,7 +59,7 @@ function loadNotice(file: string, component: string) {
   });
   const exports: Record<string, (props: NoticeProps) => React.ReactNode> = {};
   const unusedImports = new Set([
-    "react-native-safe-area-context",
+    "@/components/SafeArea",
     "expo-router",
     "@/features/auth",
     "@/features/shell",

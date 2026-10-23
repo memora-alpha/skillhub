@@ -113,7 +113,7 @@ export function ResetPasswordScreen() {
           textContentType="newPassword"
           onChangeText={reset.reset}
           returnKeyType="go"
-          onSubmitEditing={submit}
+          onSubmitEditing={() => submit()}
         />
         <Button size="lg" onPress={submit} disabled={reset.isPending}>
           {reset.isPending ? "Đang đặt lại..." : "Đặt lại mật khẩu"}

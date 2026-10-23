@@ -45,7 +45,7 @@ const replacements = {
     View: leaf,
     StyleSheet: { create: (value: unknown) => value, absoluteFill: {} },
   },
-  "react-native-safe-area-context": { SafeAreaView: leaf },
+  "@/components/SafeArea": { SafeAreaView: leaf },
   "@/components/Icon": { Icon: leaf },
   "@/constants/theme": {
     appColors: {},

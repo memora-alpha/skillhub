@@ -27,10 +27,10 @@ export function createOutboxStorage(
     read: () =>
       Promise.resolve().then(() => (file.exists ? file.text() : null)),
     write: (value) =>
-      Promise.resolve().then(() => {
+      Promise.resolve().then(async () => {
         directory.create({ intermediates: true, idempotent: true });
         const temporary = new File(directory, `${hash >>> 0}-${ownerId}.tmp`);
-        temporary.write(value);
+        await temporary.write(value);
         temporary.move(file, { overwrite: true });
       }),
   };

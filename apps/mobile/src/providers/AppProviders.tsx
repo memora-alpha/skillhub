@@ -9,7 +9,7 @@ import frauncesBold from "../../assets/fonts/Fraunces-700.ttf";
 import type { ReactNode } from "react";
 import { useFonts } from "expo-font";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
-import { SafeAreaProvider } from "react-native-safe-area-context";
+import { SafeAreaProvider } from "@/components/SafeArea";
 import { colors } from "@/constants/theme";
 import { AuthSessionProvider, SessionGate } from "@/features/auth";
 import { ChatEventsProvider, ChatOutboxProvider } from "@/features/messages";

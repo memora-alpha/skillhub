@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
-import { Pressable, Text, View, type TextInput } from "react-native";
+import { Pressable, Text, View, type TextInputInstance } from "react-native";
 import { Controller, type Control } from "react-hook-form";
 import { Input } from "@/components/Input";
 import { appColors, fonts, typography } from "@/constants/theme";
@@ -48,7 +48,7 @@ export function ProposalTemplateField({
   control: Control<ApiProposalValues>;
   name: "message" | "candidateSlots";
   disabled: boolean;
-  inputRef: RefObject<TextInput | null>;
+  inputRef: RefObject<TextInputInstance | null>;
 }>) {
   const isMessage = name === "message";
   const templates = isMessage ? messageTemplates : availabilityTemplates;

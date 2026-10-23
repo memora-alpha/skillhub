@@ -8,6 +8,7 @@ import {
   type StyleProp,
   type TextStyle,
   type TextInputProps,
+  type TextInputInstance,
   type ViewStyle,
 } from "react-native";
 import { typography, colors, fonts, radius } from "@/constants/theme";
@@ -24,7 +25,7 @@ type InputProps = TextInputProps & {
   fieldStyle?: StyleProp<ViewStyle>;
   rightAccessory?: ReactNode;
   hideLabel?: boolean;
-  ref?: Ref<TextInput>;
+  ref?: Ref<TextInputInstance>;
 };
 
 export function Input({

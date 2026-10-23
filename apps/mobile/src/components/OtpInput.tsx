@@ -5,6 +5,7 @@ import {
   TextInput,
   View,
   type TextInputProps,
+  type TextInputInstance,
 } from "react-native";
 import { colors, fonts, radius, typography } from "@/constants/theme";
 import { Icon } from "./Icon";
@@ -16,7 +17,7 @@ type OtpInputProps = Pick<
   value: string;
   onChangeText: (value: string) => void;
   error?: string;
-  ref?: Ref<TextInput>;
+  ref?: Ref<TextInputInstance>;
 };
 
 export function OtpInput({

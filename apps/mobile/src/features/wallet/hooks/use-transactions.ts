@@ -1,7 +1,6 @@
 import { useCallback, useState } from "react";
 import { AppState } from "react-native";
-import { useFocusEffect } from "expo-router";
-import { useIsFocused } from "expo-router/react-navigation";
+import { useFocusEffect, useIsFocused } from "expo-router";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { useOptionalWalletRuntime } from "../context/WalletProvider";
 import {

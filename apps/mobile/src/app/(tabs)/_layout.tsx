@@ -1,16 +1,22 @@
 import type { ComponentProps } from "react";
 import { Redirect, Tabs } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView } from "@/components/SafeArea";
 import { AppNavigation } from "@/features/shell";
 import { appTabs } from "@/constants/navigation";
 import { colors, signedInChrome } from "@/constants/theme";
 import { useAuthSession } from "@/features/auth";
 
+export const unstable_settings = { anchor: "home" };
+
 type TabBarProps = Parameters<
   NonNullable<ComponentProps<typeof Tabs>["tabBar"]>
 >[0];
 
-function MobileTabBar({ state, navigation }: Readonly<TabBarProps>) {
+function MobileTabBar({
+  state,
+  emitter,
+  navigateToTab,
+}: Readonly<TabBarProps>) {
   const selected = appTabs.find(
     (tab) => tab.name === state.routes[state.index]?.name,
   )?.label;
@@ -18,12 +24,12 @@ function MobileTabBar({ state, navigation }: Readonly<TabBarProps>) {
     const tab = appTabs.find((item) => item.label === label);
     const route = state.routes.find((item) => item.name === tab?.name);
     if (!route) return;
-    const event = navigation.emit({
+    const event = emitter.emit({
       type: "tabPress",
       target: route.key,
       canPreventDefault: true,
     });
-    if (!event.defaultPrevented) navigation.navigate(route.name);
+    if (!event.defaultPrevented) navigateToTab(route.key);
   };
   return (
     <SafeAreaView
