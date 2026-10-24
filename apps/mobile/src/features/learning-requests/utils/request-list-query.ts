@@ -17,10 +17,25 @@ export function requestListOptions(
     queryKey: [...key, "list", scope, filters],
     retry: false,
     initialPageParam: undefined as string | undefined,
-    queryFn: ({ pageParam }): Promise<Page<RequestItem>> =>
-      api.list(scope, filters, pageParam),
+    queryFn: ({ pageParam, signal }): Promise<Page<RequestItem>> =>
+      api.list(scope, filters, pageParam, signal),
     getNextPageParam: (page) => page.nextCursor ?? undefined,
   });
+}
+export function refreshRequestList(
+  client: QueryClient,
+  queryKey: QueryKey,
+  staleOnly: boolean,
+) {
+  return client.refetchQueries(
+    {
+      queryKey,
+      exact: true,
+      type: "active",
+      ...(staleOnly ? { stale: true } : {}),
+    },
+    { cancelRefetch: false },
+  );
 }
 export function requestListItems(pages?: Page<RequestItem>[]) {
   return [

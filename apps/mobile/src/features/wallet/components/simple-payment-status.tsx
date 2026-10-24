@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import { LoadingIndicator as ActivityIndicator } from "@/components/LoadingIndicator";
 import { PaymentAction } from "./payment-action";
 import { Icon, type IconName } from "@/components/Icon";
 import { appRadius, fonts, typography } from "@/constants/theme";
@@ -71,7 +72,6 @@ function StatusIcon({ pending, view }: { pending: boolean; view: StatusCopy }) {
       {pending && !view.showAmount ? (
         <ActivityIndicator
           size="large"
-          color={colors.brand}
           accessibilityLabel="Đang cập nhật thanh toán"
         />
       ) : (

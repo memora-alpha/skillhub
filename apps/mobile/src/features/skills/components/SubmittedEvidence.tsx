@@ -1,10 +1,5 @@
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import { LoadingIndicator as ActivityIndicator } from "@/components/LoadingIndicator";
 import { Image } from "expo-image";
 import { appColors as colors } from "@/constants/theme";
 import type { Evidence } from "../types/skills";
@@ -108,12 +103,7 @@ function SubmittedImageFallback({
   onRetry: () => void;
 }>) {
   if (loading)
-    return (
-      <ActivityIndicator
-        color={colors.primary}
-        accessibilityLabel="Đang tải ảnh bằng chứng"
-      />
-    );
+    return <ActivityIndicator accessibilityLabel="Đang tải ảnh bằng chứng" />;
   if (compact)
     return (
       <Pressable

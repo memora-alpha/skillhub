@@ -65,11 +65,12 @@ export function createRequestsApi(client: HttpClient, isCurrent = () => true) {
       scope: "mine" | "feed" | "recommended",
       filters: RequestFilters = {},
       cursor?: string,
+      signal?: AbortSignal,
     ) {
       const suffix = scope === "feed" ? "" : `/${scope}`;
       const result = await call(
         `/learning-requests${suffix}?${queryString({ ...filters, cursor })}`,
-        { includeMeta: true },
+        { includeMeta: true, signal },
       );
       return scope === "mine"
         ? parsePage(ownerSchema, result)
@@ -112,19 +113,21 @@ export function createRequestsApi(client: HttpClient, isCurrent = () => true) {
       if (result.id !== id) throw new AppError("protocol");
       return result;
     },
-    async skills(cursor?: string, q?: string) {
+    async skills(cursor?: string, q?: string, signal?: AbortSignal) {
       return parsePage(
         skillSchema,
         await call(`/skills?${queryString({ cursor, q })}`, {
           includeMeta: true,
+          signal,
         }),
       );
     },
-    async tags(cursor?: string, q?: string) {
+    async tags(cursor?: string, q?: string, signal?: AbortSignal) {
       return parsePage(
         tagSchema,
         await call(`/tags?${queryString({ cursor, q })}`, {
           includeMeta: true,
+          signal,
         }),
       );
     },
@@ -136,11 +139,11 @@ export function createRequestsApi(client: HttpClient, isCurrent = () => true) {
         }),
       );
     },
-    async skill(id: string) {
+    async skill(id: string, signal?: AbortSignal) {
       if (!z.uuid().safeParse(id).success) throw new AppError("protocol");
       const result = parse(
         skillSchema,
-        await call(`/skills/${encodeURIComponent(id)}`),
+        await call(`/skills/${encodeURIComponent(id)}`, { signal }),
       );
       if (result.id !== id) throw new AppError("protocol");
       return result;

@@ -1,6 +1,22 @@
 import { AppError, errorMessage } from "@/lib/http/errors";
 import type { QueryClient, QueryKey } from "@tanstack/react-query";
 
+export function refreshSessionRead(
+  client: QueryClient,
+  queryKey: QueryKey,
+  staleOnly: boolean,
+) {
+  return client.refetchQueries(
+    {
+      queryKey,
+      exact: true,
+      type: "active",
+      ...(staleOnly ? { stale: true } : {}),
+    },
+    { cancelRefetch: false },
+  );
+}
+
 export class SessionReadGuard {
   denial: "forbidden" | "unavailable" | undefined;
   private sequence = 0;

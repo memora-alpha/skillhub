@@ -1,50 +1,43 @@
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "@/components/SafeArea";
-import { Button } from "./Button";
+import { StyleSheet, Text, View } from "react-native";
+import { LoadingIndicator } from "./LoadingIndicator";
+import { SafeAreaView } from "./SafeArea";
 import { BrandLogo } from "./BrandLogo";
-import { Icon } from "./Icon";
 import { appColors as colors, fonts, typography } from "@/constants/theme";
-import type { ConnectionState } from "@/lib/network/connection-store";
 
-export function ConnectionScreen({
-  reason,
-  retrying,
-  onRetry,
-}: Readonly<ConnectionState & { onRetry: () => void }>) {
-  let title = "Kết nối bị gián đoạn";
-  let description = "Chưa thể kết nối tới SkillHub. Vui lòng thử lại.";
-  if (reason === "offline") {
-    title = "Bạn đang ngoại tuyến";
-    description = "Kiểm tra Wi-Fi hoặc dữ liệu di động rồi thử lại.";
-  }
-  if (retrying) {
-    title = "Đang kết nối lại…";
-    description = "Chờ một chút, SkillHub đang tải lại dữ liệu.";
-  }
+export function ConnectionScreen() {
   return (
     <SafeAreaView style={styles.screen}>
       <View style={styles.brand}>
         <BrandLogo />
       </View>
-      <View style={styles.center}>
-        <View style={styles.illustration}>
-          {retrying ? (
-            <ActivityIndicator
-              color={colors.forest}
-              size="large"
-              accessibilityLabel="Đang kết nối lại"
-            />
-          ) : (
-            <Icon name="wifi-off" size={44} color={colors.forest} />
-          )}
+      <View style={styles.content}>
+        <View style={styles.status}>
+          <LoadingIndicator
+            size="large"
+            accessibilityLabel="Đang tải nội dung"
+          />
+          <Text style={styles.label}>Đang tải nội dung…</Text>
         </View>
-        <Text accessibilityRole="header" style={styles.title}>
-          {title}
-        </Text>
-        <Text style={styles.body}>{description}</Text>
-        <Button disabled={retrying} onPress={onRetry} style={styles.button}>
-          {retrying ? "Đang tải lại…" : "Thử lại"}
-        </Button>
+        <View
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          aria-hidden
+          style={styles.placeholders}
+        >
+          {[0, 1, 2].map((item) => (
+            <View key={item} style={styles.card}>
+              <View style={styles.row}>
+                <View style={styles.avatar} />
+                <View style={styles.lines}>
+                  <View style={[styles.line, styles.short]} />
+                  <View style={[styles.line, styles.medium]} />
+                </View>
+              </View>
+              <View style={styles.line} />
+              <View style={[styles.line, styles.medium]} />
+            </View>
+          ))}
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -52,36 +45,35 @@ export function ConnectionScreen({
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.canvas, padding: 24 },
   brand: { alignSelf: "flex-start", paddingTop: 12 },
-  center: {
+  content: {
     flex: 1,
-    alignItems: "center",
     justifyContent: "center",
-    gap: 16,
     width: "100%",
-    maxWidth: 380,
+    maxWidth: 420,
     alignSelf: "center",
-    paddingBottom: 64,
+    paddingVertical: 24,
+    gap: 32,
   },
-  illustration: {
-    width: 112,
-    height: 112,
-    borderRadius: 56,
-    backgroundColor: colors.forestSoft,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 8,
+  status: { alignItems: "center", gap: 12 },
+  label: { ...typography.body, fontFamily: fonts.medium, color: colors.muted },
+  placeholders: { gap: 16, flexShrink: 1, overflow: "hidden" },
+  card: {
+    borderRadius: 20,
+    padding: 20,
+    gap: 12,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  title: {
-    ...typography.title,
-    fontFamily: fonts.bold,
-    color: colors.ink,
-    textAlign: "center",
+  row: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 8 },
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.surfaceInset,
   },
-  body: {
-    ...typography.body,
-    fontFamily: fonts.body,
-    color: colors.muted,
-    textAlign: "center",
-  },
-  button: { minWidth: 160, minHeight: 48, borderRadius: 14, marginTop: 8 },
+  lines: { flex: 1, gap: 8 },
+  line: { height: 10, borderRadius: 5, backgroundColor: colors.surfaceInset },
+  short: { width: "45%" },
+  medium: { width: "70%" },
 });

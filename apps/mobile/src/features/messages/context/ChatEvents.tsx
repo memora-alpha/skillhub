@@ -13,6 +13,10 @@ import { getRandomValues } from "expo-crypto";
 import { useQueryClient } from "@tanstack/react-query";
 import { getApiUrl } from "@/config/env";
 import { AppError } from "@/lib/http/errors";
+import { readPayload } from "@/lib/http/response";
+import { rateLimitUntil, retryAfterAt } from "@/lib/http/rate-limit";
+import { requestDiagnostics } from "@/lib/http/request-diagnostics";
+import { hydrateWithRateLimit } from "../utils/rate-limited-event";
 import { useConnections } from "@/features/connections";
 import { createSseParser, type SseFrame } from "../utils/sse-parser";
 import { createEventRetryBudget } from "../utils/event-retry-budget";
@@ -46,7 +50,11 @@ async function consumeEvents(
       await parser.feed(decoder.decode(chunk, { stream: true })).reduce(
         (previous, frame) =>
           previous.then(async () => {
-            if (!stopped()) await hydration.handle(frame, control.signal);
+            if (!stopped())
+              await hydrateWithRateLimit(
+                () => hydration.handle(frame, control.signal),
+                control.signal,
+              );
           }),
         Promise.resolve(),
       );
@@ -105,7 +113,13 @@ export function ChatEventsProvider({
       assertCurrent: runtime.assertCurrent,
       renew: () => runtime.controller.renew(),
       reload: (prefixes, receiptsFor) =>
-        reloadChatEventQueries(cache, runtime.key, prefixes, receiptsFor),
+        reloadChatEventQueries(
+          cache,
+          runtime.key,
+          prefixes,
+          receiptsFor,
+          runtime.assertCurrent,
+        ),
       ready: () => {
         if (disposed) return;
         retryBudget.ready();
@@ -124,6 +138,25 @@ export function ChatEventsProvider({
         )
           hydration.reset();
         if (response.status === 401) await runtime.controller.renew(token);
+        let payload: unknown;
+        try {
+          payload = await response.json();
+        } catch {
+          payload = undefined;
+        }
+        try {
+          readPayload(
+            response.status,
+            payload,
+            false,
+            response.status === 429
+              ? retryAfterAt(response.headers.get("retry-after"))
+              : 0,
+          );
+        } catch (responseError) {
+          requestDiagnostics.failed("/events", "GET", responseError, "server");
+          throw responseError;
+        }
         throw new AppError("http", response.status);
       }
       if (
@@ -137,6 +170,7 @@ export function ChatEventsProvider({
       if (disposed || control.signal.aborted || !runtime.isCurrent()) return;
       setConnected(false);
       setError(error_);
+      runtime.requests.record("/events", "GET", error_);
       const delay = retryBudget.failed();
       // SSE reconnect only; history is hydrated by events or explicit refresh.
       if (
@@ -147,7 +181,8 @@ export function ChatEventsProvider({
           () => {
             void connect();
           },
-          delay + (getRandomValues(new Uint16Array(1))[0]! / 65536) * 500,
+          Math.max(delay, rateLimitUntil(error_) - Date.now()) +
+            (getRandomValues(new Uint16Array(1))[0]! / 65536) * 500,
         );
     };
     const connect = async () => {
@@ -156,6 +191,7 @@ export function ChatEventsProvider({
       abort = control;
       let token: string | null = null;
       try {
+        runtime.requests.check("/events");
         token = await runtime.controller.getToken();
         runtime.assertCurrent();
         if (!token || disposed || control.signal.aborted) return;

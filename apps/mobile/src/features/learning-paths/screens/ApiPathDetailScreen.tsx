@@ -230,7 +230,10 @@ export function ApiPlanActions({
 }>) {
   const runtime = useConnections(),
     api = useLearningPathsApi(),
-    command = useConnectionCommand();
+    command = useConnectionCommand([
+      ["learning-paths", path.id],
+      ["learning-paths", "mine"],
+    ]);
   const router = useRouter();
   const share = useConfirmedFormShare();
   const canConfirm = canConfirmPlan(path, plan, runtime.userId);

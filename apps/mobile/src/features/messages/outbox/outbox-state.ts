@@ -74,7 +74,7 @@ export abstract class OutboxState {
     return (saved?.items ?? []).map((item): QueuedText => ({
       ...item,
       state: item.state === "failed" ? "failed" : "queued",
-      retryAt: 0,
+      retryAt: item.rateLimitedUntil ?? 0,
     }));
   }
   enqueue(conversationId: string, messageText: string) {

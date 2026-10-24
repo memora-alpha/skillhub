@@ -1,4 +1,4 @@
-import { ActivityIndicator } from "react-native";
+import { LoadingIndicator as ActivityIndicator } from "@/components/LoadingIndicator";
 import { Badge } from "@/components/Badge";
 import { Button } from "@/components/Button";
 import { EmptyState } from "@/components/EmptyState";

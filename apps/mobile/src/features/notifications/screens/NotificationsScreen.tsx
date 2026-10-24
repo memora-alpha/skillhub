@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
-import { FlatList, StyleSheet, View, type FlatListProps } from "react-native";
+import { StyleSheet, View, type FlatListProps } from "react-native";
+import { RefreshableFlatList as FlatList } from "@/components/RefreshableFlatList";
 import { useRouter } from "expo-router";
 import { AppScreenLayout } from "@/features/shell";
 import { useChatEvents } from "@/features/messages";

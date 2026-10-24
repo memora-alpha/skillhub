@@ -4,6 +4,7 @@ export class AppError extends Error {
       "network" | "http" | "protocol" | "config" | "storage" | "session",
     public readonly status = 0,
     public readonly code = "",
+    public readonly retryAt = 0,
   ) {
     super(kind);
     this.name = "AppError";
@@ -14,6 +15,13 @@ export const OTP_ERROR_MESSAGE =
   "Mã không đúng hoặc đã hết hạn. Nếu sai 5 lần, hãy thử lại sau 24 giờ.";
 
 const messages: Record<string, string> = {
+  CHAT_RATE_LIMIT:
+    "Bạn đang gửi tin nhắn quá nhanh. Vui lòng đợi trước khi gửi tiếp.",
+  PROPOSAL_RATE_LIMIT: "Bạn đã đạt giới hạn gửi đề xuất. Vui lòng thử lại sau.",
+  DIRECT_INVITATION_COOLDOWN:
+    "Bạn đã gửi lời mời cho người này với kỹ năng này gần đây. Vui lòng thử lại sau.",
+  EVENT_CONNECTION_LIMIT:
+    "Đã đạt giới hạn kết nối cập nhật. Đóng bớt phiên đang mở và đợi kết nối lại.",
   INVALID_CREDENTIALS: "Email hoặc mật khẩu chưa đúng.",
   ACCOUNT_NOT_ACTIVE:
     "Tài khoản chưa thể đăng nhập. Nếu chưa xác minh email, hãy xác minh trước.",

@@ -114,6 +114,9 @@ test("successful Request and direct proposals land in Sent; failed sends stay in
         onSubmit: (input: unknown) => Promise<void>;
       };
     };
+    if (typeof element.type === "function") {
+      return forms(element.type(element.props));
+    }
     return element.type === "Form"
       ? [element.props]
       : forms(element.props.children);

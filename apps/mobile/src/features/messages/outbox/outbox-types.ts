@@ -14,6 +14,7 @@ export const queuedTextSchema = z.object({
   phase: z.enum(["send", "check"]),
   attempts: z.number().int().nonnegative(),
   retryAt: z.number().nonnegative(),
+  rateLimitedUntil: z.number().nonnegative().optional(),
   messageId: uuid.optional(),
   message: messageSchema.optional(),
   failure: z.string().optional(),

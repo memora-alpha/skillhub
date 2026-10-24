@@ -1,19 +1,16 @@
-import { ActivityIndicator, View } from "react-native";
+import { View } from "react-native";
+import { LoadingIndicator as ActivityIndicator } from "@/components/LoadingIndicator";
 import { EmptyState } from "@/components/EmptyState";
 import { Button } from "@/components/Button";
 import { FormNotice } from "@/components/FormNotice";
 import { Copy } from "@/components/feature-page";
-import { appColors } from "@/constants/theme";
 import { requestError } from "../utils/request-policy";
 import { requestListStyles } from "./request-list.styles";
 import type { ReadDenial } from "../utils/request-read";
 export function RequestLoading() {
   return (
     <View style={{ gap: 12, padding: 24, alignItems: "center" }}>
-      <ActivityIndicator
-        color={appColors.primary}
-        accessibilityLabel="Đang tải yêu cầu học"
-      />
+      <ActivityIndicator accessibilityLabel="Đang tải yêu cầu học" />
       <Copy muted>Đang tải...</Copy>
     </View>
   );

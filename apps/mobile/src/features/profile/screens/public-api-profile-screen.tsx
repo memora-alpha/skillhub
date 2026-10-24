@@ -1,4 +1,5 @@
-import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { LoadingIndicator as ActivityIndicator } from "@/components/LoadingIndicator";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { z } from "zod";
 import { ProfileButton as Button } from "../components/ProfileButton";
@@ -10,7 +11,6 @@ import { errorMessage } from "@/lib/http/errors";
 import { ProfileLayout } from "../components/ProfileLayout";
 import { ProfileAbout, ProfileSummary } from "../components/ProfileSummary";
 import { usePublicProfile } from "../hooks/use-public-profile";
-import { profileColors } from "../constants/theme";
 
 export function PublicApiProfileScreen({
   userId,
@@ -92,12 +92,7 @@ function PublicProfileReadState({
         onAction={() => void query.refetch()}
       />
     );
-  return (
-    <ActivityIndicator
-      color={profileColors.accent}
-      accessibilityLabel="Đang tải hồ sơ công khai"
-    />
-  );
+  return <ActivityIndicator accessibilityLabel="Đang tải hồ sơ công khai" />;
 }
 
 const styles = StyleSheet.create({

@@ -47,6 +47,13 @@ export function rememberLatestMessage(
     [...base, "conversation-preview", message.conversationId],
     (previous) => newestMessage(previous, message),
   );
+  cache.setQueryData<{ message: ApiMessage | null; unread: boolean }>(
+    [...base, "conversations", "preview", message.conversationId],
+    (previous) =>
+      previous
+        ? { ...previous, message: newestMessage(previous.message, message) }
+        : undefined,
+  );
 }
 export type InboxConversation = {
   conversation: ApiConversation;
@@ -61,12 +68,16 @@ export function conversationInbox(
   queued: QueuedText[],
   userId: string,
 ): InboxConversation[] {
+  const queuedByConversation = new Map<string, QueuedText[]>();
+  for (const entry of queued) {
+    const entries = queuedByConversation.get(entry.conversationId);
+    if (entries) entries.push(entry);
+    else queuedByConversation.set(entry.conversationId, [entry]);
+  }
   return conversations
     .map((conversation): InboxConversation => {
       let message = messages.get(conversation.id) ?? null;
-      const entries = queued.filter(
-        (entry) => entry.conversationId === conversation.id,
-      );
+      const entries = queuedByConversation.get(conversation.id) ?? [];
       for (const entry of entries)
         message = newestMessage(message, entry.message);
       const pending = entries.findLast(

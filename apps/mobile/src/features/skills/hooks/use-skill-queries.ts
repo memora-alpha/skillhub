@@ -15,7 +15,7 @@ import {
 } from "../utils/skill-filter";
 import { withSubmittedVerification } from "../utils/verification-state";
 import { useSkillReadFocus } from "./use-skill-read-focus";
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import { usePrivateSkillQuery } from "./use-private-skill-query";
 
 export function validId(value?: string | string[]) {
@@ -23,7 +23,10 @@ export function validId(value?: string | string[]) {
     ? value
     : null;
 }
-export function useOwnSkills(filter: SkillFilter = "ALL") {
+export function useOwnSkills(
+  filter: SkillFilter = "ALL",
+  options: { preview?: boolean; enabled?: boolean } = {},
+) {
   const client = useQueryClient();
   const {
     api,
@@ -35,6 +38,8 @@ export function useOwnSkills(filter: SkillFilter = "ALL") {
     privateReads,
   } = useSkills();
   const key = [...scope, "own", false, filter];
+  const signature = JSON.stringify(key);
+  const enabled = options.enabled ?? true;
   const query = useInfiniteQuery<
     Page<OwnSkill>,
     Error,
@@ -43,7 +48,8 @@ export function useOwnSkills(filter: SkillFilter = "ALL") {
     string | undefined
   >({
     queryKey: key,
-    staleTime: 0,
+    enabled,
+    staleTime: options.preview ? 30_000 : 0,
     placeholderData: (previous) =>
       skillListPlaceholder(
         client.getQueryData<InfiniteData<Page<OwnSkill>, string | undefined>>([
@@ -88,7 +94,20 @@ export function useOwnSkills(filter: SkillFilter = "ALL") {
         ? (last.pagination.nextCursor ?? undefined)
         : undefined,
   });
-  useSkillReadFocus(query.refetch);
+  const refresh = useCallback(
+    () =>
+      client.refetchQueries(
+        {
+          queryKey: JSON.parse(signature),
+          exact: true,
+          type: "active",
+          ...(options.preview ? { stale: true } : {}),
+        },
+        { cancelRefetch: false },
+      ),
+    [client, signature, options.preview],
+  );
+  useSkillReadFocus(refresh, enabled);
   return usePrivateSkillQuery(key, query);
 }
 export { usePublicSkills, useCatalog } from "./use-public-skill-queries";

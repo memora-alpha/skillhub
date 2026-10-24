@@ -1,16 +1,17 @@
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { AppState } from "react-native";
 import { useFocusEffect } from "expo-router";
 import { useQuery, useQueryClient, type QueryKey } from "@tanstack/react-query";
 import { z } from "zod";
 import { useSessionsRuntime } from "../runtime";
 import type { SessionRange } from "../types";
-import { sessionReadGuard } from "../utils/session-read";
+import { sessionReadGuard, refreshSessionRead } from "../utils/session-read";
 
 function useSessionRead<T>(
   key: QueryKey,
   load: (signal: AbortSignal) => Promise<T>,
   enabled: boolean,
+  staleTime = 0,
 ) {
   const runtime = useSessionsRuntime(),
     client = useQueryClient();
@@ -18,23 +19,31 @@ function useSessionRead<T>(
   const query = useQuery({
     queryKey: key,
     enabled,
-    staleTime: 0,
+    staleTime,
     retry: false,
     meta: { sessionReadGuard: guard },
     queryFn: ({ signal }) => guard.read(() => load(signal), runtime.isCurrent),
   });
+  useEffect(() => {
+    if (!enabled && staleTime > 0)
+      void client.cancelQueries({
+        queryKey: key,
+        exact: true,
+        type: "inactive",
+      });
+  }, [client, enabled, key, staleTime]);
   const visited = useRef(false);
   useFocusEffect(
     useCallback(() => {
       if (!enabled) return;
-      if (visited.current) void query.refetch({ cancelRefetch: false });
+      const refresh = () => refreshSessionRead(client, key, staleTime > 0);
+      if (visited.current) void refresh();
       visited.current = true;
       const subscription = AppState.addEventListener("change", (state) => {
-        if (state === "active" && runtime.isCurrent())
-          void query.refetch({ cancelRefetch: false });
+        if (state === "active" && runtime.isCurrent()) void refresh();
       });
       return () => subscription.remove();
-    }, [enabled, query.refetch, runtime.isCurrent]),
+    }, [enabled, client, key, runtime.isCurrent, staleTime]),
   );
   return {
     ...query,
@@ -57,6 +66,7 @@ export function useSessionList(
     key,
     (signal) => runtime.api.list(range, signal),
     runtime.enabled && allowed,
+    30_000,
   );
 }
 export function useSessionDetail(id: string | undefined) {

@@ -14,17 +14,48 @@ import {
   createNotificationsApi,
   type InboxNotification,
 } from "../api/notifications-api";
+import { notificationPageReader } from "../utils/page-reader";
 
 function useNotificationsApi() {
-  const { call } = useConnections();
-  return useMemo(() => createNotificationsApi(call), [call]);
+  const runtime = useConnections();
+  const cache = useQueryClient();
+  return useMemo(() => {
+    const api = createNotificationsApi(runtime.call);
+    return { ...api, list: notificationPageReader(cache, runtime.key, api) };
+  }, [runtime, cache]);
 }
 
 export function useNotifications() {
   const api = useNotificationsApi();
-  return useConnectionList(["notifications"], (cursor, signal) =>
-    api.list(cursor, signal),
+  const cache = useQueryClient(),
+    runtime = useConnections();
+  const query = useConnectionList(
+    ["notifications"],
+    (cursor, signal) => api.list(cursor, signal),
+    true,
+    { refreshOnFocus: "stale" },
   );
+  return {
+    ...query,
+    refetch: async () => {
+      await cache.invalidateQueries({
+        queryKey: [...runtime.key, "notifications"],
+        refetchType: "none",
+      });
+      const [result] = await Promise.all([
+        query.refetch({ cancelRefetch: false }),
+        cache.refetchQueries(
+          {
+            queryKey: [...runtime.key, "notifications", "unread-count"],
+            exact: true,
+            type: "active",
+          },
+          { cancelRefetch: false },
+        ),
+      ]);
+      return result;
+    },
+  };
 }
 
 // Count across pages, stopping as soon as the capped badge is known.
@@ -50,6 +81,8 @@ export function useNotificationCount() {
       } while (cursor);
       return count;
     },
+    true,
+    { refreshOnFocus: "stale" },
   );
 }
 

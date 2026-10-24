@@ -1,4 +1,4 @@
-import { useRouter } from "expo-router";
+import { useIsFocused, useRouter } from "expo-router";
 import { skillLevelLabel } from "../utils/skill-level";
 import {
   useOwnSkills,
@@ -15,7 +15,8 @@ import { useProfileSkillWindow } from "../hooks/use-profile-skill-window";
 import { useSkills } from "../context/SkillsProvider";
 
 export function OwnProfileSkillList() {
-  const query = useOwnSkills();
+  const focused = useIsFocused();
+  const query = useOwnSkills("ALL", { preview: true, enabled: focused });
   const router = useRouter();
   const items = uniqueItems(query.data?.pages);
   const preview = useProfileSkillWindow({

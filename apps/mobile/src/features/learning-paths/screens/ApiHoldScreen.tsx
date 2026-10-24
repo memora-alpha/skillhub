@@ -77,8 +77,11 @@ function HoldContent({
 }>) {
   const api = useLearningPathsApi(),
     runtime = useConnections(),
-    check = useConnectionCommand(),
-    finalize = useConnectionCommand();
+    check = useConnectionCommand([["learning-paths", path.id]]),
+    finalize = useConnectionCommand([
+      ["learning-paths", path.id],
+      ["learning-paths", "mine"],
+    ]);
   const [checked, setChecked] = useState<string>();
   const signature = JSON.stringify(path),
     agreement = path.agreement;

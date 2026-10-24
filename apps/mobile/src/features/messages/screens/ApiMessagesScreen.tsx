@@ -1,6 +1,11 @@
 import { RefreshableFlatList as FlatList } from "@/components/RefreshableFlatList";
 import { StyleSheet, View } from "react-native";
-import { useRouter } from "expo-router";
+import { LoadingIndicator as ActivityIndicator } from "@/components/LoadingIndicator";
+import { useIsFocused, useRouter } from "expo-router";
+import {
+  isTransientReadError,
+  useQuietReadRecovery,
+} from "@/lib/query/use-quiet-read-recovery";
 import { AppScreenLayout } from "@/features/shell";
 import { Button } from "@/components/Button";
 import { EmptyState } from "@/components/EmptyState";
@@ -13,6 +18,32 @@ import { messageColors as colors } from "../constants/theme";
 export function ApiMessagesScreen() {
   const query = useConversationInbox(),
     router = useRouter();
+  const focused = useIsFocused();
+  const quietError = isTransientReadError(query.error);
+  useQuietReadRecovery({
+    error: query.error,
+    fetching: query.isFetching,
+    enabled: focused,
+    retry: () =>
+      query.isFetchNextPageError
+        ? query.fetchNextPage({ cancelRefetch: false })
+        : query.refetch(),
+  });
+  let footer = null;
+  if (quietError && query.isFetchNextPageError)
+    footer = <ActivityIndicator accessibilityLabel="Đang tải thêm hội thoại" />;
+  else if (query.hasNextPage)
+    footer = (
+      <Button
+        variant="secondary"
+        disabled={query.isFetching}
+        onPress={() => {
+          void query.fetchNextPage({ cancelRefetch: false });
+        }}
+      >
+        Xem thêm
+      </Button>
+    );
   return (
     <AppScreenLayout
       title="Tin nhắn"
@@ -37,14 +68,14 @@ export function ApiMessagesScreen() {
           ListHeaderComponent={
             <InboxHeader onOpenProposals={() => router.push("/proposals")}>
               <ConnectionFeedback
-                loading={query.isLoading}
-                error={query.error}
+                loading={!query.data && (query.isPending || quietError)}
+                error={quietError ? undefined : query.error}
                 retry={query.refetch}
               />
             </InboxHeader>
           }
           ListEmptyComponent={
-            !query.isPending && !query.error ? (
+            !query.isPending && (!query.error || (query.data && quietError)) ? (
               <EmptyState
                 icon="message"
                 title="Chưa có tin nhắn"
@@ -54,19 +85,7 @@ export function ApiMessagesScreen() {
               />
             ) : null
           }
-          ListFooterComponent={
-            query.hasNextPage ? (
-              <Button
-                variant="secondary"
-                disabled={query.isFetching}
-                onPress={() => {
-                  void query.fetchNextPage({ cancelRefetch: false });
-                }}
-              >
-                Xem thêm
-              </Button>
-            ) : null
-          }
+          ListFooterComponent={footer}
           renderItem={({ item }) => <ConversationRow item={item} />}
         />
       )}

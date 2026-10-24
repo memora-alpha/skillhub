@@ -1,13 +1,42 @@
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import { LoadingIndicator as ActivityIndicator } from "@/components/LoadingIndicator";
 import { Icon } from "@/components/Icon";
 import { AppError, errorMessage } from "@/lib/http/errors";
 import { appColors as colors, fonts, typography } from "@/constants/theme";
+import { useEffect, useState } from "react";
+import { RATE_LIMIT_BACKOFF_MS } from "@/lib/http/rate-limit";
+
+function RateLimitRetry({
+  error,
+  retry,
+  loading,
+}: Readonly<{ error: AppError; retry: () => unknown; loading?: boolean }>) {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    setReady(false);
+    const delay = Math.max(
+      0,
+      (error.retryAt || Date.now() + RATE_LIMIT_BACKOFF_MS) - Date.now(),
+    );
+    const timer = setTimeout(() => setReady(true), delay);
+    return () => clearTimeout(timer);
+  }, [error]);
+  if (!ready) return null;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="Thử tải lại"
+      disabled={loading}
+      hitSlop={6}
+      onPress={() => {
+        if (!loading) retry();
+      }}
+      style={styles.retry}
+    >
+      <Text style={styles.retryText}>Thử lại</Text>
+    </Pressable>
+  );
+}
 
 const errors: Record<string, string> = {
   CHAT_OUTBOX_STORAGE_UNAVAILABLE:
@@ -88,12 +117,7 @@ export function ConnectionFeedback({
   const limited = error instanceof AppError && error.status === 429;
   return (
     <View style={styles.feedback}>
-      {loading && (
-        <ActivityIndicator
-          color={colors.primary}
-          accessibilityLabel="Đang tải dữ liệu"
-        />
-      )}
+      {loading && <ActivityIndicator accessibilityLabel="Đang tải dữ liệu" />}
       {!!error && (
         <View accessibilityLiveRegion="polite" style={styles.row}>
           <Icon
@@ -102,6 +126,9 @@ export function ConnectionFeedback({
             color={colors.muted}
           />
           <Text style={styles.message}>{connectionError(error)}</Text>
+          {!!retry && limited && (
+            <RateLimitRetry error={error} retry={retry} loading={loading} />
+          )}
           {!!retry && !limited && (
             <Pressable
               accessibilityRole="button"

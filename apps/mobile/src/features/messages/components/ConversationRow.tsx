@@ -1,4 +1,4 @@
-import { useRouter } from "expo-router";
+import { useIsFocused, useRouter } from "expo-router";
 import { useConnections, useParticipantProfile } from "@/features/connections";
 import type { InboxConversation } from "../utils/conversation-preview";
 import { inboxTime } from "../utils/chat-dates";
@@ -9,14 +9,15 @@ export function ConversationRow({
   item,
 }: Readonly<{ item: InboxConversation }>) {
   const { conversation } = item;
+  const focused = useIsFocused();
   const router = useRouter(),
     { userId } = useConnections();
   const partnerId =
     conversation.participantAId === userId
       ? conversation.participantBId
       : conversation.participantAId;
-  const profile = useParticipantProfile(partnerId);
-  const context = useConversationContext(conversation);
+  const profile = useParticipantProfile(partnerId, focused);
+  const context = useConversationContext(conversation, false, focused);
   const state =
     item.state === "failed"
       ? "Chưa gửi · "

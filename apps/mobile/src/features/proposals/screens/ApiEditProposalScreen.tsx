@@ -20,7 +20,11 @@ import type { Proposal, ProposalHints } from "../api/proposals-api";
 export function ApiEditProposalScreen({ id }: Readonly<{ id: string }>) {
   const query = useProposal(id),
     api = useProposalsApi(),
-    command = useConnectionCommand<Proposal>();
+    command = useConnectionCommand<Proposal>([
+      ["proposals"],
+      ["proposal", id],
+      ["conversation-resource"],
+    ]);
   const runtime = useConnections(),
     router = useRouter();
   const proposal = query.data;

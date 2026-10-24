@@ -1,11 +1,5 @@
 import type { ReactNode } from "react";
-import {
-  RefreshControl,
-  StyleSheet,
-  Text,
-  View,
-  type ScrollViewProps,
-} from "react-native";
+import { StyleSheet, Text, View, type ScrollViewProps } from "react-native";
 import { useRouter, type Href } from "expo-router";
 import { AppScreenLayout } from "@/features/shell";
 import { KeyboardFormScrollView } from "./KeyboardFormScrollView";
@@ -56,14 +50,8 @@ export function FeaturePage({
       bounces={!compact || !!onRefresh}
       {...(onRefresh
         ? {
-            refreshControl: (
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={onRefresh}
-                tintColor={colors.primary}
-                colors={[colors.primary]}
-              />
-            ),
+            refreshing,
+            onRefresh,
           }
         : {})}
       {...(keyboardDismissMode ? { keyboardDismissMode } : {})}

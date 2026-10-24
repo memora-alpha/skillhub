@@ -3,6 +3,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import { AppError } from "@/lib/http/errors";
 import { parse, uuid, sequence } from "@/lib/http/contracts";
 import type { SseFrame } from "./sse-parser";
+import { cancelMessageTail } from "./message-tail";
 
 type Prefix = readonly unknown[];
 const recoveryPrefixes: Prefix[] = [
@@ -95,12 +96,23 @@ function reference(
   return { eventId: value.eventId, prefixes, receiptsFor };
 }
 
-export function reloadChatEventQueries(
+export async function reloadChatEventQueries(
   cache: QueryClient,
   base: Prefix,
   prefixes: readonly Prefix[],
   receiptsFor?: string,
+  assertCurrent: () => void = () => {},
 ) {
+  assertCurrent();
+  // A request started before this event cannot confirm its new state.
+  await Promise.all(
+    prefixes
+      .filter((prefix) => prefix[0] === "thread")
+      .map((prefix) =>
+        cancelMessageTail(cache, base, prefix[1] as string | undefined),
+      ),
+  );
+  assertCurrent();
   const markReceipts = (id: string) =>
     cache.setQueryData<number>(
       [...base, "thread-receipts", id],
@@ -146,15 +158,18 @@ export function createChatEventHydrator(options: {
   receive?: (frame: SseFrame, signal: AbortSignal) => Promise<unknown>;
 }) {
   let cursor: string | undefined;
+  let snapshotReady = false;
   const processed = new Set<string>();
   const reset = () => {
     cursor = undefined;
+    snapshotReady = false;
     processed.clear();
   };
   const reloadReady = async (signal: AbortSignal) => {
-    await options.reload(recoveryPrefixes);
+    if (!snapshotReady || !cursor) await options.reload(recoveryPrefixes);
     if (signal.aborted) return;
     options.assertCurrent();
+    snapshotReady = true;
     options.ready();
   };
   const reloadEvent = async (frame: SseFrame, signal: AbortSignal) => {

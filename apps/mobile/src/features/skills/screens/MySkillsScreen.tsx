@@ -1,8 +1,8 @@
 import { RefreshableFlatList as FlatList } from "@/components/RefreshableFlatList";
 import { useRef, useState } from "react";
-import { ActivityIndicator, View } from "react-native";
+import { View } from "react-native";
+import { LoadingIndicator as ActivityIndicator } from "@/components/LoadingIndicator";
 import { useRouter } from "expo-router";
-import { appColors } from "@/constants/theme";
 import { SkillAction } from "../components/SkillAction";
 import { useOwnSkills, uniqueItems } from "../hooks/use-skill-queries";
 import { SkillsLayout, skillStyles } from "../components/SkillsLayout";
@@ -68,7 +68,6 @@ export function MySkillsScreen() {
             {query.isFetching && (
               <ActivityIndicator
                 size="small"
-                color={appColors.primary}
                 accessibilityLabel="Đang cập nhật kỹ năng"
               />
             )}

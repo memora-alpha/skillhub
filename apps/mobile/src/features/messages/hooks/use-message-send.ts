@@ -13,7 +13,11 @@ export function useMessageSend(id: string) {
   const api = useMessagesApi(),
     runtime = useConnections(),
     cache = useQueryClient();
-  const command = useConnectionCommand();
+  const command = useConnectionCommand([
+    ["thread", id],
+    ["conversations", "preview", id],
+    ["delivery", id],
+  ]);
   const draft = useRef<MessageDraft | undefined>(undefined);
   const [receipt, setReceipt] = useState<string>();
   const refreshPreview = () => {

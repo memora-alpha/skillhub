@@ -23,6 +23,7 @@ function view(h: ReturnType<typeof readHarness>) {
       useRef: () => ({ current: null }),
     },
     "react-native": { Text: "Text", View: "View", FlatList: "FlatList" },
+    "@/components/RefreshableFlatList": { RefreshableFlatList: "FlatList" },
     "expo-router": {
       useRouter: () => ({
         push() {

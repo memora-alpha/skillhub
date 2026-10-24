@@ -30,6 +30,7 @@ test("rate limits have calm inline feedback without retry; other failures keep a
       StyleSheet: { create: (value: unknown) => value },
     },
     "@/components/Icon": { Icon: "Icon" },
+    "@/components/LoadingIndicator": { LoadingIndicator: "Spinner" },
   };
   const mocks = Object.entries(stubs).map(([name, namedExports]) =>
     mock.module(pathToFileURL(local.resolve(name)), { namedExports }),

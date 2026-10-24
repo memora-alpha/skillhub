@@ -144,7 +144,7 @@ export function ApiSendProposalScreen({
     uuid.safeParse(sharingSkillId).success ? sharingSkillId! : null,
   );
   const api = useProposalsApi();
-  const command = useConnectionCommand<Proposal>();
+  const command = useConnectionCommand<Proposal>([["proposals"]]);
   const direct = !requestId;
   const { publicRequest, allowed } = proposalAccess(
     requestQuery.data,

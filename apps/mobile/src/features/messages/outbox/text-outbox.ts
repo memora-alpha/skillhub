@@ -2,6 +2,7 @@ import { AppError, errorMessage } from "@/lib/http/errors";
 import { deliverQueuedText, retryableSend } from "./outbox-delivery";
 import { OutboxState } from "./outbox-state";
 import type { QueuedText } from "./outbox-types";
+import { rateLimitUntil } from "@/lib/http/rate-limit";
 
 export class TextOutbox extends OutboxState {
   private timer?: ReturnType<typeof setTimeout>;
@@ -10,6 +11,7 @@ export class TextOutbox extends OutboxState {
   private active = true;
   private busy = false;
   private epoch = 0;
+  private limitedUntil = 0;
   async start() {
     this.stopped = false;
     const epoch = ++this.epoch;
@@ -17,6 +19,10 @@ export class TextOutbox extends OutboxState {
       const items = await this.restore();
       if (!this.current(epoch)) return;
       this.snapshot = { ready: true, items };
+      this.limitedUntil = Math.max(
+        0,
+        ...items.map((item) => item.rateLimitedUntil ?? 0),
+      );
       this.publish(items);
       this.wake();
     } catch {
@@ -43,7 +49,9 @@ export class TextOutbox extends OutboxState {
     if (reconnected)
       this.publish(
         this.snapshot.items.map((item) =>
-          item.state === "queued" ? { ...item, retryAt: 0 } : item,
+          item.state === "queued"
+            ? { ...item, retryAt: item.rateLimitedUntil ?? 0 }
+            : item,
         ),
       );
     if (!online || !active) this.abort?.abort();
@@ -69,6 +77,10 @@ export class TextOutbox extends OutboxState {
     )
       return;
     const heads = this.eligible();
+    if (heads.length && this.limitedUntil > this.now()) {
+      this.timer = setTimeout(this.wake, this.limitedUntil - this.now());
+      return;
+    }
     const item = heads.find((entry) => entry.retryAt <= this.now());
     if (item) {
       void this.run(item);
@@ -121,7 +133,9 @@ export class TextOutbox extends OutboxState {
         this.update(id, {
           state: "processing",
           messageId: result.messageId,
-          retryAt: this.now() + 2000,
+          retryAt:
+            this.now() +
+            Math.min(30000, 2000 * 2 ** Math.min(item.attempts, 4)),
         });
       // A failed cleanup write must not undo a server-confirmed delivery. The
       // persisted client ID can safely reconcile that delivery on next launch.
@@ -148,6 +162,9 @@ export class TextOutbox extends OutboxState {
     )
       return;
     const retry = control.signal.aborted || retryableSend(error);
+    const rateLimitedUntil = rateLimitUntil(error, this.now());
+    if (rateLimitedUntil)
+      this.limitedUntil = Math.max(this.limitedUntil, rateLimitedUntil);
     let failure: string | undefined;
     if (!retry)
       failure =
@@ -157,8 +174,11 @@ export class TextOutbox extends OutboxState {
     this.update(id, {
       state: retry ? "queued" : "failed",
       failure,
-      retryAt:
+      rateLimitedUntil: rateLimitedUntil || item.rateLimitedUntil,
+      retryAt: Math.max(
+        rateLimitedUntil,
         this.now() + Math.min(30000, 1000 * 2 ** Math.min(item.attempts, 5)),
+      ),
     });
     await this.persist().catch(() =>
       this.update(id, {

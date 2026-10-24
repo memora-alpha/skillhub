@@ -1,4 +1,5 @@
-import { ActivityIndicator, Text, View } from "react-native";
+import { Text, View } from "react-native";
+import { LoadingIndicator as ActivityIndicator } from "@/components/LoadingIndicator";
 import { Icon } from "@/components/Icon";
 import type { PaymentProjection } from "../types/payment";
 import type { QrPresentation } from "../utils/payment-qr-model";
@@ -137,7 +138,7 @@ export function PaymentCheckout({
           ) : (
             <View style={styles.placeholder}>
               {checking && !cancelUnconfirmed ? (
-                <ActivityIndicator color={colors.brand} />
+                <ActivityIndicator />
               ) : (
                 <Icon name="clock" size={32} color={colors.brand} />
               )}

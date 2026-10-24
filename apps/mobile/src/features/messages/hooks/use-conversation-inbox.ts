@@ -1,4 +1,5 @@
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
+import { useIsFocused } from "expo-router";
 import { useQueries, useQueryClient } from "@tanstack/react-query";
 import { useConnections, useConnectionRefresh } from "@/features/connections";
 import { connectionReadAccess } from "@/lib/http/read-access";
@@ -11,15 +12,21 @@ import {
 } from "../utils/conversation-preview";
 import type { ApiConversation, ApiMessage } from "../api/messages-api";
 import { hasUnreadIncoming } from "../utils/inbox-unread";
+import {
+  isTransientReadError,
+  useQuietReadRecovery,
+} from "@/lib/query/use-quiet-read-recovery";
 
 export function useConversationInbox() {
-  const query = useConversations(),
+  const focused = useIsFocused();
+  const query = useConversations(focused),
     api = useMessagesApi(),
     runtime = useConnections(),
     cache = useQueryClient();
   const queued = useChatOutboxEntries();
+  const queuedIds = new Set(queued.map((entry) => entry.conversationId));
   const activityIds = new Set([
-    ...queued.map((entry) => entry.conversationId),
+    ...queuedIds,
     ...cache
       .getQueriesData<ApiMessage | null>({
         queryKey: [...runtime.key, "conversation-preview"],
@@ -49,7 +56,7 @@ export function useConversationInbox() {
       return {
         queryKey: key,
         meta: { connectionReadAccess: access },
-        enabled: runtime.enabled && !query.denied,
+        enabled: runtime.enabled && focused && !query.denied,
         retry: false,
         initialData: () => {
           const threadKey = [...runtime.key, "thread", conversation.id];
@@ -79,14 +86,39 @@ export function useConversationInbox() {
       };
     }),
   });
+  useEffect(() => {
+    if (!focused)
+      void cache.cancelQueries({
+        queryKey: [...runtime.key, "conversations", "preview"],
+        type: "inactive",
+      });
+  }, [cache, focused, runtime.key]);
+  useQuietReadRecovery({
+    error: results.find((result) => isTransientReadError(result.error))?.error,
+    fetching: results.some((result) => result.isFetching),
+    enabled: focused && runtime.enabled,
+    retry: () =>
+      cache.refetchQueries(
+        {
+          queryKey: [...runtime.key, "conversations", "preview"],
+          type: "active",
+          predicate: (query) => isTransientReadError(query.state.error),
+        },
+        { cancelRefetch: false },
+      ),
+  });
   useConnectionRefresh(
     useCallback(() => {
-      void cache.invalidateQueries(
-        { queryKey: [...runtime.key, "conversations", "preview"] },
+      void cache.refetchQueries(
+        {
+          queryKey: [...runtime.key, "conversations", "preview"],
+          type: "active",
+          stale: true,
+        },
         { cancelRefetch: false },
       );
     }, [cache, runtime]),
-    runtime.enabled,
+    runtime.enabled && focused,
   );
   const messages = new Map(
     conversations.map((conversation, index) => {
@@ -108,14 +140,19 @@ export function useConversationInbox() {
       ] as const;
     }),
   );
+  const resultsById = new Map(
+    conversations.map((conversation, index) => [
+      conversation.id,
+      results[index],
+    ]),
+  );
   const items = conversationInbox(
     conversations,
     messages,
     queued,
     runtime.userId ?? "",
   ).map((item) => {
-    const index = conversations.findIndex((c) => c.id === item.conversation.id);
-    const result = results[index];
+    const result = resultsById.get(item.conversation.id);
     const denied = connectionReadAccess(cache, [
       ...runtime.key,
       "conversations",
@@ -126,17 +163,18 @@ export function useConversationInbox() {
       return { ...item, preview: "Không tải được tin nhắn", state: undefined };
     if (
       messages.get(item.conversation.id) ||
-      queued.some((entry) => entry.conversationId === item.conversation.id)
+      queuedIds.has(item.conversation.id)
     )
       return {
         ...item,
         unread:
-          !result?.error &&
+          (!result?.error || isTransientReadError(result.error)) &&
           !result?.isPending &&
           (result?.data?.unread ?? false),
       };
     let preview = item.preview;
-    if (result?.error) preview = "Không tải được tin nhắn · Chạm để mở";
+    if (isTransientReadError(result?.error)) preview = "Đang tải tin nhắn…";
+    else if (result?.error) preview = "Không tải được tin nhắn · Chạm để mở";
     else if (result?.isPending) preview = "Đang tải tin nhắn…";
     return { ...item, preview };
   });
@@ -145,7 +183,7 @@ export function useConversationInbox() {
     items,
     refetch: () =>
       Promise.all([
-        query.refetch(),
+        query.refetch({ cancelRefetch: false }),
         cache.invalidateQueries(
           { queryKey: [...runtime.key, "conversations", "preview"] },
           { cancelRefetch: false },

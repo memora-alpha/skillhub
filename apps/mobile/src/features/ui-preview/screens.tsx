@@ -1,4 +1,5 @@
-import { ActivityIndicator } from "react-native";
+import { LoadingIndicator as ActivityIndicator } from "@/components/LoadingIndicator";
+import { ConnectionScreen } from "@/components/ConnectionScreen";
 import { useLocalSearchParams } from "expo-router";
 import {
   FeaturePage,
@@ -6,7 +7,6 @@ import {
   Copy,
   RouteButton,
 } from "@/components/feature-page";
-import { appColors } from "@/constants/theme";
 import { Button } from "@/components/Button";
 const groups = [
   {
@@ -117,8 +117,8 @@ export const systemStates = {
     "/home",
   ],
   offline: [
-    "Bạn đang ngoại tuyến",
-    "Kiểm tra kết nối và mở lại nội dung. Những thay đổi chưa gửi cần được giữ trong bản nháp.",
+    "Đang tải nội dung",
+    "Nội dung sẽ tiếp tục tải khi kết nối sẵn sàng.",
     "/home",
   ],
   maintenance: [
@@ -247,16 +247,14 @@ export function UiCatalogScreen() {
 }
 export function SystemStateScreen() {
   const { state = "404" } = useLocalSearchParams<{ state: string }>();
+  if (state === "offline") return <ConnectionScreen />;
   const item =
     systemStates[state as keyof typeof systemStates] ?? systemStates["404"];
   return (
     <FeaturePage title="Trạng thái hệ thống" back="/ui">
       <Panel title={item[0]}>
         {state === "loading" && (
-          <ActivityIndicator
-            accessibilityLabel="Đang tải"
-            color={appColors.primary}
-          />
+          <ActivityIndicator accessibilityLabel="Đang tải" />
         )}
         <Copy>{item[1]}</Copy>
         <RouteButton href={item[2]}>Quay lại nội dung liên quan</RouteButton>

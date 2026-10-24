@@ -71,6 +71,7 @@ function loadNotice(file: string, component: string) {
     "../context/ProfilePreview",
     "./AccountMenu",
     "./AppHeader",
+    "@/components/LoadingScreenBoundary",
   ]);
   runInNewContext(
     `${outputText}\nexports.Notice = ${component};`,

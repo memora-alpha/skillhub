@@ -10,19 +10,27 @@ import {
   useConnectionQuery,
 } from "@/features/connections";
 import { createMessagesApi, mergeMessages } from "../api/messages-api";
+import { shareMessageTail } from "../utils/message-tail";
 import {
   readThreadSnapshot,
   type ThreadSnapshot as Thread,
 } from "../utils/thread-snapshot";
 
 export function useMessagesApi() {
-  const { call, userId } = useConnections();
-  return useMemo(() => createMessagesApi(call, userId ?? ""), [call, userId]);
+  const { call, userId, key } = useConnections();
+  const cache = useQueryClient();
+  return useMemo(
+    () => shareMessageTail(cache, key, createMessagesApi(call, userId ?? "")),
+    [call, userId, key, cache],
+  );
 }
-export function useConversations() {
+export function useConversations(enabled = true) {
   const api = useMessagesApi();
-  return useConnectionList(["conversations"], (cursor, signal) =>
-    api.list(cursor, signal),
+  return useConnectionList(
+    ["conversations"],
+    (cursor, signal) => api.list(cursor, signal),
+    enabled,
+    { refreshOnFocus: "stale", cancelOnDisable: true },
   );
 }
 export function useConversation(id: string) {
@@ -31,6 +39,7 @@ export function useConversation(id: string) {
     ["conversation", id],
     (signal) => api.detail(id, signal),
     uuid.safeParse(id).success,
+    { refreshOnFocus: "stale" },
   );
 }
 export function useThread(id: string, enabled: boolean) {
@@ -43,14 +52,16 @@ export function useThread(id: string, enabled: boolean) {
   const olderRequest = useRef<AbortController | undefined>(undefined);
   useFocusEffect(
     useCallback(() => {
-      fresh.current = true;
+      fresh.current =
+        cache.getQueryCache().find({ queryKey: key, exact: true })?.isStale() ??
+        true;
       loadingOlder.current = false;
       setOlderPending(false);
       return () => {
         fresh.current = true;
         olderRequest.current?.abort();
       };
-    }, [id]),
+    }, [id, cache, runtime.key]),
   );
   const [olderPending, setOlderPending] = useState(false);
   const [olderError, setOlderError] = useState<unknown>();
@@ -74,6 +85,7 @@ export function useThread(id: string, enabled: boolean) {
       });
     },
     enabled && uuid.safeParse(id).success,
+    { refreshOnFocus: "stale" },
   );
   const loadOlder = async () => {
     const previous = query.data;

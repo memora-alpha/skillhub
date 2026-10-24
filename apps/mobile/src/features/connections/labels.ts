@@ -4,7 +4,7 @@ import { parse, resourcePath, uuid } from "@/lib/http/contracts";
 import { useConnections } from "./runtime";
 import { useConnectionQuery } from "./hooks";
 
-export function useParticipantProfile(id: string | undefined) {
+export function useParticipantProfile(id: string | undefined, enabled = true) {
   const { call } = useConnections();
   return useConnectionQuery(
     ["participant-profile", id],
@@ -20,24 +20,14 @@ export function useParticipantProfile(id: string | undefined) {
       if (profile.userId !== id) throw new AppError("protocol");
       return profile;
     },
-    uuid.safeParse(id).success,
+    enabled && uuid.safeParse(id).success,
+    { refreshOnFocus: "stale", cancelOnDisable: true },
   );
 }
 
 export function useParticipantName(id: string | undefined) {
-  const { call } = useConnections();
-  return useConnectionQuery(
-    ["participant", id],
-    async (signal) => {
-      const profile = parse(
-        z.object({ userId: uuid, fullName: z.string() }),
-        await call(resourcePath("profiles", id!), { signal }),
-      );
-      if (profile.userId !== id) throw new AppError("protocol");
-      return profile.fullName;
-    },
-    uuid.safeParse(id).success,
-  );
+  const query = useParticipantProfile(id);
+  return { ...query, data: query.data?.fullName };
 }
 export function useCatalogName(id: string | undefined) {
   const { call } = useConnections();
@@ -52,5 +42,6 @@ export function useCatalogName(id: string | undefined) {
       return skill.name;
     },
     uuid.safeParse(id).success,
+    { refreshOnFocus: "stale" },
   );
 }

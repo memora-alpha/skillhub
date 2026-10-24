@@ -1,4 +1,5 @@
-import { ActivityIndicator, Text, View } from "react-native";
+import { Text, View } from "react-native";
+import { LoadingIndicator as ActivityIndicator } from "@/components/LoadingIndicator";
 import { FormNotice } from "@/components/FormNotice";
 import { Button } from "@/components/Button";
 import { skillError } from "../utils/skill-errors";

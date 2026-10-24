@@ -15,6 +15,7 @@ const local = createRequire(
 const leaf = () => null;
 const jsx = (type: unknown, props: unknown) => ({ type, props });
 const replacements = {
+  "@/components/LoadingIndicator": { LoadingIndicator: leaf },
   "react/jsx-runtime": { jsx, jsxs: jsx, Fragment: "Fragment" },
   "react-native": {
     ActivityIndicator: leaf,

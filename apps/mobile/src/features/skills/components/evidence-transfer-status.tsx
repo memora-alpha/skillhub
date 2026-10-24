@@ -1,4 +1,5 @@
-import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
+import { LoadingIndicator as ActivityIndicator } from "@/components/LoadingIndicator";
 import { appColors, fonts } from "@/constants/theme";
 import type { OwnSkill } from "../types/skills";
 import { useEvidenceTransfer } from "../hooks/use-evidence-transfer";
@@ -64,13 +65,7 @@ export function EvidenceTransferStatus({
         gap: 8,
       }}
     >
-      {sending && (
-        <ActivityIndicator
-          size="small"
-          color={appColors.primary}
-          accessibilityLabel={label}
-        />
-      )}
+      {sending && <ActivityIndicator size="small" accessibilityLabel={label} />}
       <Text
         accessibilityLiveRegion="polite"
         style={[

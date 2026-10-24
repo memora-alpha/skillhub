@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import { LoadingIndicator as ActivityIndicator } from "@/components/LoadingIndicator";
 import { SafeAreaView } from "@/components/SafeArea";
 import { Button } from "@/components/Button";
 import { BrandLogo } from "@/components/BrandLogo";
@@ -16,10 +17,7 @@ export function SessionGate({ children }: { children: ReactNode }) {
       <View style={styles.content}>
         <BrandLogo />
         {loading ? (
-          <ActivityIndicator
-            color={colors.brand}
-            accessibilityLabel="Đang khôi phục phiên đăng nhập"
-          />
+          <ActivityIndicator accessibilityLabel="Đang khôi phục phiên đăng nhập" />
         ) : (
           <>
             <Text accessibilityRole="header" style={styles.title}>

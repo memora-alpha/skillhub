@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
-import { ActivityIndicator, Platform, Text, View } from "react-native";
+import { Text, View } from "react-native";
+import { LoadingIndicator as ActivityIndicator } from "@/components/LoadingIndicator";
 import { Button } from "@/components/Button";
 import { Copy, ui } from "./wallet-ui";
-import { appColors as colors } from "@/constants/theme";
 import type { FinancialRead } from "../types/wallet";
 
 const labels = {
@@ -36,8 +36,7 @@ export function FinancialReadState({
     ["ready", "refreshing", "refresh-error"].includes(state.status) &&
     state.data !== undefined;
   const retry = onRetry && ["error", "refresh-error"].includes(state.status);
-  // RefreshControl has no visible indicator on web; keep the inline fallback.
-  const externalRefresh = refreshIndicator === "pull" && Platform.OS !== "web";
+  const externalRefresh = refreshIndicator === "pull";
   return (
     <View style={{ gap: 12 }}>
       {retained && children}
@@ -45,10 +44,7 @@ export function FinancialReadState({
         !(state.status === "refreshing" && externalRefresh) && (
           <View accessibilityState={{ busy }} style={{ gap: 10 }}>
             {busy && (
-              <ActivityIndicator
-                color={colors.primary}
-                accessibilityLabel={labels[state.status]}
-              />
+              <ActivityIndicator accessibilityLabel={labels[state.status]} />
             )}
             <Text
               accessibilityLiveRegion={busy ? "none" : "polite"}

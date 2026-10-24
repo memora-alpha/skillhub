@@ -8,7 +8,8 @@ import frauncesSemibold from "../../assets/fonts/Fraunces-600.ttf";
 import frauncesBold from "../../assets/fonts/Fraunces-700.ttf";
 import type { ReactNode } from "react";
 import { useFonts } from "expo-font";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import { LoadingIndicator as ActivityIndicator } from "@/components/LoadingIndicator";
 import { SafeAreaProvider } from "@/components/SafeArea";
 import { colors } from "@/constants/theme";
 import { AuthSessionProvider, SessionGate } from "@/features/auth";
@@ -45,10 +46,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
   if (!loaded)
     return (
       <View style={styles.loading}>
-        <ActivityIndicator
-          color={colors.brand}
-          accessibilityLabel="Đang mở SkillHub"
-        />
+        <ActivityIndicator accessibilityLabel="Đang mở SkillHub" />
       </View>
     );
   return (

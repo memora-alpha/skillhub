@@ -1,6 +1,5 @@
 import { AppScreenLayout } from "@/features/shell";
 import { KeyboardFormScrollView } from "@/components/KeyboardFormScrollView";
-import { RefreshControl } from "react-native";
 import { useRouter } from "expo-router";
 import { ui } from "../components/wallet-ui";
 import { useWallet } from "../hooks/use-wallet";
@@ -23,12 +22,8 @@ export function WalletOverview() {
       {() => (
         <KeyboardFormScrollView
           contentContainerStyle={ui.page}
-          refreshControl={
-            <RefreshControl
-              refreshing={state.status === "refreshing"}
-              onRefresh={() => void refresh()}
-            />
-          }
+          refreshing={state.status === "refreshing"}
+          onRefresh={() => void refresh()}
         >
           <WalletOverviewContent
             refreshIndicator="pull"

@@ -1,4 +1,5 @@
-import { ActivityIndicator, Text, View } from "react-native";
+import { Text, View } from "react-native";
+import { LoadingIndicator as ActivityIndicator } from "@/components/LoadingIndicator";
 import { PaymentAction as Button } from "./payment-action";
 import { Input } from "@/components/Input";
 import { Icon } from "@/components/Icon";
@@ -219,7 +220,7 @@ export function AccountTopupPanel({
       )}
       {state.busy && (
         <View style={styles.loading}>
-          <ActivityIndicator color={colors.brand} />
+          <ActivityIndicator />
           <Copy muted>Đang xử lý…</Copy>
         </View>
       )}

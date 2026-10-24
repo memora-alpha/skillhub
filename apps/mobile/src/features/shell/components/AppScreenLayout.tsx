@@ -20,6 +20,7 @@ import { demoNotifications, popularSkills } from "@/mocks/app";
 import { appRoutes } from "@/constants/navigation";
 import { typography, appColors as colors, fonts } from "@/constants/theme";
 import { useAuthSession } from "@/features/auth";
+import { LoadingScreenBoundary } from "@/components/LoadingScreenBoundary";
 
 type OpenNotice = (label: string) => void;
 type AppScreenLayoutProps = Readonly<{
@@ -131,62 +132,64 @@ export function AppScreenLayout({
   const headerAction =
     typeof rightAction === "function" ? rightAction(action) : rightAction;
   return (
-    <SafeAreaView edges={edges} style={styles.screen}>
-      <AppHeader
-        appearance="home"
-        profile={session}
-        title={title}
-        titleContent={titleContent}
-        centeredTitle={centeredTitle}
-        onBack={handleBack}
-        backLabel={back?.label}
-        navigationBlocked={navigationBlocked}
-        rightAction={headerAction}
-        onAction={action}
-        onAccount={() => {
-          if (!navigationBlocked) setMenu(true);
-        }}
-      />
-      <KeyboardAvoidingView
-        style={[styles.content, contentStyle]}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
-        {children(action)}
-      </KeyboardAvoidingView>
-      <AccountMenu
-        visible={menu}
-        profile={session}
-        onClose={() => setMenu(false)}
-        onAction={action}
-        onLogout={() => {
-          setMenu(false);
-          setLogout(true);
-        }}
-      />
-      <InfoModal title={notice} onClose={() => setNotice(null)}>
-        <ScreenNoticeContent
-          notice={notice}
-          query={query}
-          onQueryChange={setQuery}
-          onSkillPress={(skill) => {
-            setNotice(null);
-            router.navigate({
-              pathname: "/discover",
-              params: { query: skill },
-            });
+    <LoadingScreenBoundary>
+      <SafeAreaView edges={edges} style={styles.screen}>
+        <AppHeader
+          appearance="home"
+          profile={session}
+          title={title}
+          titleContent={titleContent}
+          centeredTitle={centeredTitle}
+          onBack={handleBack}
+          backLabel={back?.label}
+          navigationBlocked={navigationBlocked}
+          rightAction={headerAction}
+          onAction={action}
+          onAccount={() => {
+            if (!navigationBlocked) setMenu(true);
           }}
         />
-      </InfoModal>
-      <LogoutDialog
-        visible={logout}
-        onClose={() => setLogout(false)}
-        onConfirm={() => {
-          void signOut();
-          setLogout(false);
-          router.replace("/");
-        }}
-      />
-    </SafeAreaView>
+        <KeyboardAvoidingView
+          style={[styles.content, contentStyle]}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        >
+          {children(action)}
+        </KeyboardAvoidingView>
+        <AccountMenu
+          visible={menu}
+          profile={session}
+          onClose={() => setMenu(false)}
+          onAction={action}
+          onLogout={() => {
+            setMenu(false);
+            setLogout(true);
+          }}
+        />
+        <InfoModal title={notice} onClose={() => setNotice(null)}>
+          <ScreenNoticeContent
+            notice={notice}
+            query={query}
+            onQueryChange={setQuery}
+            onSkillPress={(skill) => {
+              setNotice(null);
+              router.navigate({
+                pathname: "/discover",
+                params: { query: skill },
+              });
+            }}
+          />
+        </InfoModal>
+        <LogoutDialog
+          visible={logout}
+          onClose={() => setLogout(false)}
+          onConfirm={() => {
+            void signOut();
+            setLogout(false);
+            router.replace("/");
+          }}
+        />
+      </SafeAreaView>
+    </LoadingScreenBoundary>
   );
 }
 const styles = StyleSheet.create({

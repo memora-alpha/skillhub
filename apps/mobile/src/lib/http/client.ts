@@ -1,7 +1,9 @@
-import axios, { type AxiosInstance } from "axios";
+import axios, { type AxiosInstance, type AxiosResponse } from "axios";
 import { AppError } from "./errors";
 import { readPayload, readPagePayload, type Page } from "./response";
 import { connectionStore } from "../network/connection-store";
+import { RequestCoordinator, retryAfterAt } from "./rate-limit";
+import { requestDiagnostics } from "./request-diagnostics";
 
 export type RequestOptions = {
   method?: "GET" | "POST" | "PATCH" | "DELETE";
@@ -33,6 +35,31 @@ function requestHeaders(options: RequestOptions, token: string | null) {
   return headers;
 }
 
+function validateRequestOptions(options: RequestOptions) {
+  if (options.signal?.aborted) throw new AppError("session");
+  if (
+    options.idempotencyKey &&
+    (options.multipart || !["POST", "PATCH"].includes(options.method ?? "GET"))
+  )
+    throw new AppError("config");
+}
+
+function readResponse(
+  options: RequestOptions,
+  response: Pick<AxiosResponse<unknown>, "status" | "data" | "headers">,
+) {
+  const retryAt =
+    response.status === 429 ? retryAfterAt(response.headers["retry-after"]) : 0;
+  if (options.paginated)
+    return readPagePayload(response.status, response.data, retryAt);
+  return readPayload(
+    response.status,
+    response.data,
+    options.includeMeta,
+    retryAt,
+  );
+}
+
 export function createHttpClient(
   baseUrl: () => string,
   http: AxiosInstance = axios.create({
@@ -41,55 +68,93 @@ export function createHttpClient(
   }),
 ) {
   let session: SessionTransport | undefined;
+  const guestRequests = new RequestCoordinator();
+  let authenticatedRequests = new RequestCoordinator();
+  let requestsGeneration = -1;
+  const requestPolicy = () => {
+    if (requestsGeneration !== session?.generation) {
+      requestsGeneration = session?.generation ?? -1;
+      authenticatedRequests = new RequestCoordinator();
+    }
+    return authenticatedRequests;
+  };
   async function send(
     path: string,
     options: RequestOptions,
     token: string | null,
+    policy: RequestCoordinator,
+    assertCurrent: () => void = () => {},
   ) {
-    const read = (status: number, payload: unknown) =>
-      options.paginated
-        ? readPagePayload(status, payload)
-        : readPayload(status, payload, options.includeMeta);
-    if (options.signal?.aborted) throw new AppError("session");
-    if (
-      options.idempotencyKey &&
-      (options.multipart ||
-        !["POST", "PATCH"].includes(options.method ?? "GET"))
-    )
-      throw new AppError("config");
+    let source: "server" | "client-cooldown" = "client-cooldown";
+    validateRequestOptions(options);
     try {
-      const response = await http.request({
-        baseURL: baseUrl(),
-        url: path,
-        method: options.method ?? "GET",
-        headers: requestHeaders(options, token),
-        data: options.body,
-        signal: options.signal,
-      });
-      return read(response.status, response.data);
+      return await policy.run(
+        path,
+        options.method ?? "GET",
+        options.signal,
+        async () => {
+          assertCurrent();
+          source = "server";
+          const response = await http.request({
+            baseURL: baseUrl(),
+            url: path,
+            method: options.method ?? "GET",
+            headers: requestHeaders(options, token),
+            data: options.body,
+            signal: options.signal,
+          });
+          return readResponse(options, response);
+        },
+      );
     } catch (error) {
       if (options.signal?.aborted || axios.isCancel(error))
         throw new AppError("session");
-      if (error instanceof AppError) throw error;
-      if (axios.isAxiosError(error) && error.response)
-        return read(error.response.status, error.response.data);
-      throw new AppError("network");
+      if (error instanceof AppError) {
+        requestDiagnostics.failed(path, options.method ?? "GET", error, source);
+        throw error;
+      }
+      if (axios.isAxiosError(error) && error.response) {
+        try {
+          return readResponse(options, error.response);
+        } catch (responseError) {
+          requestDiagnostics.failed(
+            path,
+            options.method ?? "GET",
+            responseError,
+            "server",
+          );
+          policy.record(path, options.method ?? "GET", responseError);
+          throw responseError;
+        }
+      }
+      const failure = new AppError("network");
+      requestDiagnostics.failed(
+        path,
+        options.method ?? "GET",
+        failure,
+        "server",
+      );
+      throw failure;
     }
   }
   const client = {
     bindSession(transport: SessionTransport) {
       session = transport;
+      requestsGeneration = -1;
     },
+    requestPolicy,
     async request(
       path: string,
       options: RequestOptions = {},
     ): Promise<unknown> {
       if (!path.startsWith("/") || path.startsWith("//"))
         throw new AppError("config");
-      if (!options.authenticated) return send(path, options, null);
+      if (!options.authenticated)
+        return send(path, options, null, guestRequests);
       const transport = session;
       if (!transport) throw new AppError("session");
       const generation = transport.generation;
+      const policy = requestPolicy();
       const assertCurrentSession = () => {
         if (session !== transport || transport.generation !== generation)
           throw new AppError("session");
@@ -98,7 +163,13 @@ export function createHttpClient(
       assertCurrentSession();
       if (!token) throw new AppError("session");
       try {
-        const result = await send(path, options, token);
+        const result = await send(
+          path,
+          options,
+          token,
+          policy,
+          assertCurrentSession,
+        );
         assertCurrentSession();
         return result;
       } catch (error) {
@@ -116,7 +187,13 @@ export function createHttpClient(
         assertCurrentSession();
         if (!nextToken) throw new AppError("session");
         try {
-          const result = await send(path, options, nextToken);
+          const result = await send(
+            path,
+            options,
+            nextToken,
+            policy,
+            assertCurrentSession,
+          );
           assertCurrentSession();
           return result;
         } catch (retryError) {

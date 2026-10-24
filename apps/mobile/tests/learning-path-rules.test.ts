@@ -146,7 +146,7 @@ test("hold checks other locked sessions and allows adjacent slots", () => {
   const slot = p.plans[0]!.schedule!.slots[0]!;
   assert.match(
     finalValidation(p, { me: 100, partner: 100 }, now, [slot])!,
-    /lộ trình khác/,
+    /Learning Path khác/,
   );
   assert.equal(
     finalValidation(p, { me: 100, partner: 100 }, now, [

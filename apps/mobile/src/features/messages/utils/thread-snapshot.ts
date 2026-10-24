@@ -79,6 +79,7 @@ export async function readThreadSnapshot(
       messages,
       options.userId,
       signal,
+      tail,
     );
   }
   options.assertCurrent();
