@@ -17,6 +17,9 @@ export function RequestMultiSelect({
   showOptions = true,
   selectionLabels = options,
   showSelection = true,
+  maxSelections = 10,
+  showCount = true,
+  showClear = true,
 }: Readonly<{
   value: string[];
   options: { id: string; label: string }[];
@@ -26,6 +29,9 @@ export function RequestMultiSelect({
   showOptions?: boolean;
   selectionLabels?: { id: string; label: string }[];
   showSelection?: boolean;
+  maxSelections?: number;
+  showCount?: boolean;
+  showClear?: boolean;
 }>) {
   const names = new Map(
     selectionLabels.map((option) => [option.id, option.label]),
@@ -55,7 +61,11 @@ export function RequestMultiSelect({
           ))}
         </View>
       )}
-      {showSelection && <Copy muted>{value.length}/10 đã chọn</Copy>}
+      {showSelection && showCount && (
+        <Copy muted>
+          {value.length}/{maxSelections} đã chọn
+        </Copy>
+      )}
       {showOptions && (
         <View style={styles.badgeList}>
           {options
@@ -68,13 +78,15 @@ export function RequestMultiSelect({
                 accessibilityLabel={option.label}
                 accessibilityState={{
                   checked: false,
-                  disabled: disabled || value.length >= 10,
+                  disabled: disabled || value.length >= maxSelections,
                 }}
-                disabled={disabled || value.length >= 10}
+                disabled={disabled || value.length >= maxSelections}
                 onPress={() => onChange([...value, option.id])}
                 style={[
                   styles.choiceBadge,
-                  (disabled || value.length >= 10) && { opacity: 0.5 },
+                  (disabled || value.length >= maxSelections) && {
+                    opacity: 0.5,
+                  },
                 ]}
               >
                 <Text style={styles.choiceLabel}>{option.label}</Text>
@@ -83,7 +95,7 @@ export function RequestMultiSelect({
             ))}
         </View>
       )}
-      {showSelection && !!value.length && (
+      {showSelection && showClear && !!value.length && (
         <Button
           variant="ghost"
           disabled={disabled}

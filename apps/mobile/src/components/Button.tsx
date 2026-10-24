@@ -6,6 +6,7 @@ import {
   Text,
   type StyleProp,
   type ViewStyle,
+  type AccessibilityState,
 } from "react-native";
 import { appColors, appRadius, colors, fonts } from "@/constants/theme";
 
@@ -19,6 +20,7 @@ type ButtonProps = Readonly<{
   size?: ButtonSize;
   style?: StyleProp<ViewStyle>;
   accessibilityLabel?: string;
+  accessibilityState?: AccessibilityState;
   disabled?: boolean;
   leadingIcon?: IconName;
   icon?: IconName;
@@ -49,6 +51,7 @@ export function Button({
   size = "md",
   style,
   accessibilityLabel,
+  accessibilityState,
   disabled = false,
   leadingIcon,
   icon,
@@ -59,7 +62,7 @@ export function Button({
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       disabled={disabled}
-      accessibilityState={{ disabled }}
+      accessibilityState={{ ...accessibilityState, disabled }}
       onPress={onPress}
       style={({ pressed }) => [
         styles.base,
