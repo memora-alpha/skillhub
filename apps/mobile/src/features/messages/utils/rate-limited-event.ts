@@ -24,14 +24,13 @@ export async function hydrateWithRateLimit(
   handle: () => Promise<void>,
   signal: AbortSignal,
   pause = waitForRetry,
-) {
-  while (!signal.aborted) {
-    try {
-      await handle();
-      return;
-    } catch (error) {
-      if (!(error instanceof AppError && error.status === 429)) throw error;
-      await pause(Math.max(1, rateLimitUntil(error) - Date.now()), signal);
-    }
+): Promise<void> {
+  if (signal.aborted) return;
+  try {
+    await handle();
+  } catch (error) {
+    if (!(error instanceof AppError && error.status === 429)) throw error;
+    await pause(Math.max(1, rateLimitUntil(error) - Date.now()), signal);
+    return hydrateWithRateLimit(handle, signal, pause);
   }
 }

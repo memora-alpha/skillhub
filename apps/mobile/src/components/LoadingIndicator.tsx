@@ -31,13 +31,13 @@ export function LoadingIndicator({
   size,
   animating = true,
   busy = true,
-}: {
+}: Readonly<{
   accessibilityLabel?: string;
   style?: StyleProp<ViewStyle>;
   size?: "small" | "large" | number;
   animating?: boolean;
   busy?: boolean;
-}) {
+}>) {
   const focused = useLoadingVisible();
   const [foreground, setForeground] = useState(
     AppState.currentState === "active",

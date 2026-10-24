@@ -1,9 +1,8 @@
-import { useConnectionQuery } from "@/features/connections";
+import { useConnectionQuery, useConnections } from "@/features/connections";
 import { useProposalsApi } from "./use-proposals-api";
 import { readSentRequestProposals } from "../api/sent-request-proposals";
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useConnections } from "@/features/connections";
 export function useSentRequestProposals(
   options: {
     enabled?: boolean;

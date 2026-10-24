@@ -29,6 +29,21 @@ export function ApiMessagesScreen() {
         ? query.fetchNextPage({ cancelRefetch: false })
         : query.refetch(),
   });
+  let footer = null;
+  if (quietError && query.isFetchNextPageError)
+    footer = <ActivityIndicator accessibilityLabel="Đang tải thêm hội thoại" />;
+  else if (query.hasNextPage)
+    footer = (
+      <Button
+        variant="secondary"
+        disabled={query.isFetching}
+        onPress={() => {
+          void query.fetchNextPage({ cancelRefetch: false });
+        }}
+      >
+        Xem thêm
+      </Button>
+    );
   return (
     <AppScreenLayout
       title="Tin nhắn"
@@ -70,21 +85,7 @@ export function ApiMessagesScreen() {
               />
             ) : null
           }
-          ListFooterComponent={
-            quietError && query.isFetchNextPageError ? (
-              <ActivityIndicator accessibilityLabel="Đang tải thêm hội thoại" />
-            ) : query.hasNextPage ? (
-              <Button
-                variant="secondary"
-                disabled={query.isFetching}
-                onPress={() => {
-                  void query.fetchNextPage({ cancelRefetch: false });
-                }}
-              >
-                Xem thêm
-              </Button>
-            ) : null
-          }
+          ListFooterComponent={footer}
           renderItem={({ item }) => <ConversationRow item={item} />}
         />
       )}

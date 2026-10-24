@@ -58,6 +58,12 @@ Nhánh `fix/mobile-chat-rate-limit`, bắt đầu từ `dev`. Chỉ thay đổi 
 - [x] UX-07: Đổi offline/unreachable thành màn loading với skeleton, bỏ thông báo mất mạng và nút thử lại; tự phục hồi qua retry lock/backoff có giới hạn, background dừng timer, không replay mutation. Chat giữ text outbox hiện hữu.
 - [x] UX-08: Rà lại sau đổi màu; sửa web pull mất gesture khi parent cập nhật callback giữa lúc kéo, thêm regression và chạy lại full mobile checks.
 
+## Sonar follow-up sau commit ffa118c7
+
+- [x] QA-01: Tách nhãn lỗi SessionFeedback và validation/response của HTTP send để giảm complexity; bỏ footer ternary lồng nhau, readonly props loading, gộp connections import.
+- [x] QA-02: Thay await trong retry loop bằng retry tuần tự sau pause, giữ signal/frame/deadline; regression repeated429/cancel/non429 và Axios rejected response, full mobile checks.
+- [ ] QA-03: SonarCloud phân tích lại sau commit/push để xác nhận issue status và complexity bằng analyzer của CI.
+
 ## Tiêu chí nghiệm thu
 
 - Mở Inbox → Chat → quay lại trong freshness window không ép tải lại dữ liệu đã mới; explicit refresh vẫn đọc server.

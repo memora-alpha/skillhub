@@ -1,6 +1,6 @@
 # Trạng thái giảm HTTP 429 mobile
 
-- Cập nhật: 2026-10-24T14:03:51+07:00.
+- Cập nhật: 2026-10-24T14:22:54+07:00.
 - Trạng thái: Ready for review — loading đồng bộ, pull refresh và màn chờ mất mạng hoàn tất source/host checks/export Android/iOS/web; native UX/motion/gesture chưa nghiệm thu.
 - Nghiệm thu người dùng: xác nhận “ổn hơn rồi” sau TRACE, chưa xác nhận hết429; yêu cầu bỏ log dư và đổi UX loading. Chưa nghiệm thu native UX mới.
 - Nhánh: `fix/mobile-chat-rate-limit`.
@@ -147,6 +147,10 @@ Full801/801 tests đạt (bao gồm4 regression mới: scheduler backoff/backgro
 Sau sửa: focused6/6 và full802/802 đạt. TypeScript, ESLint max-warnings0, structure767, Prettier và diff check đạt. Export Android/iOS/web trước sửa web effect đạt; export web sau sửa đạt. Evidence ignored `.expo/loading-audit-fixed.log`, `.expo/loading-audit-full-final.log`, `.expo/loading-audit-types-final.log`, `.expo/loading-audit-lint-final.log`, `.expo/loading-audit-export.log`, `.expo/loading-audit-web-final.log`. Chưa phát hiện lỗi khác qua source/host checks trong phạm vi rà lại; chưa chạy native/API acceptance hoặc khẳng định hết mọi429. Không commit/push.
 
 ## Giới hạn và bước tiếp theo
+
+2026-10-24T14:22:54+07:00 — QA-01–03: Theo danh sách Sonar người dùng gửi sau commit ffa118c7, tách helper nhãn lỗi SessionFeedback, helper validateRequestOptions/readResponse của HTTP send và thay cờ attempted bằng nguồn diagnostics trực tiếp. Footer Inbox dùng if/else độc lập; props LoadingIndicator/LoadingScreenBoundary dùng Readonly; gộp import connections. Hydration429 dùng async retry tuần tự sau pause thay await trong loop, giữ cùng handler/signal và không chuyển sang xử lý frame song song.
+
+Focused39/39 trước3 regression mới, full805/805 sau bổ sung đạt. Tests mới kiểm repeated429 không overlap/dừng sau cancel, aborted/non429 không retry, Axios rejected429 giữ Retry-After và cooldown. TypeScript, ESLint toàn mobile, rule no-await-in-loop/no-duplicate-imports trên file ảnh hưởng, structure767, Prettier/diff đạt. Logs ignored `.expo/sonar-cleanup-focused.log`, `.expo/sonar-cleanup-full.log`, `.expo/sonar-cleanup-types.log`, `.expo/sonar-cleanup-lint.log`, `.expo/sonar-cleanup-rules.log`. Không cài Sonar analyzer/package mới; local ESLint không có cognitive-complexity của Sonar, nên chưa ghi nhận analyzer score hoặc khẳng định remote issues đã đóng. Cần CI phân tích lại; chưa commit/push follow-up. Không đổi SDK/dependency/API/BE; không chạy lại native/export cho refactor này.
 
 1. Nghiệm thu API/native với dữ liệu test: Inbox nhiều hội thoại, chuyển Inbox/Chat liên tục, foreground/reconnect và server 429; đo request thực tế. Host tests không thay nghiệm thu này.
 2. BE chưa có summary/batch nên lần tải lạnh vẫn cần request theo từng conversation và quét trang để xác định unread; thay đổi hiện tại giảm số lần lặp và giới hạn đồng thời, không tạo contract mới.

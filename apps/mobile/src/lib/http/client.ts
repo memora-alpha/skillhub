@@ -1,4 +1,4 @@
-import axios, { type AxiosInstance } from "axios";
+import axios, { type AxiosInstance, type AxiosResponse } from "axios";
 import { AppError } from "./errors";
 import { readPayload, readPagePayload, type Page } from "./response";
 import { connectionStore } from "../network/connection-store";
@@ -35,6 +35,31 @@ function requestHeaders(options: RequestOptions, token: string | null) {
   return headers;
 }
 
+function validateRequestOptions(options: RequestOptions) {
+  if (options.signal?.aborted) throw new AppError("session");
+  if (
+    options.idempotencyKey &&
+    (options.multipart || !["POST", "PATCH"].includes(options.method ?? "GET"))
+  )
+    throw new AppError("config");
+}
+
+function readResponse(
+  options: RequestOptions,
+  response: Pick<AxiosResponse<unknown>, "status" | "data" | "headers">,
+) {
+  const retryAt =
+    response.status === 429 ? retryAfterAt(response.headers["retry-after"]) : 0;
+  if (options.paginated)
+    return readPagePayload(response.status, response.data, retryAt);
+  return readPayload(
+    response.status,
+    response.data,
+    options.includeMeta,
+    retryAt,
+  );
+}
+
 export function createHttpClient(
   baseUrl: () => string,
   http: AxiosInstance = axios.create({
@@ -60,18 +85,8 @@ export function createHttpClient(
     policy: RequestCoordinator,
     assertCurrent: () => void = () => {},
   ) {
-    let attempted = false;
-    const read = (status: number, payload: unknown, retryAt = 0) =>
-      options.paginated
-        ? readPagePayload(status, payload, retryAt)
-        : readPayload(status, payload, options.includeMeta, retryAt);
-    if (options.signal?.aborted) throw new AppError("session");
-    if (
-      options.idempotencyKey &&
-      (options.multipart ||
-        !["POST", "PATCH"].includes(options.method ?? "GET"))
-    )
-      throw new AppError("config");
+    let source: "server" | "client-cooldown" = "client-cooldown";
+    validateRequestOptions(options);
     try {
       return await policy.run(
         path,
@@ -79,7 +94,7 @@ export function createHttpClient(
         options.signal,
         async () => {
           assertCurrent();
-          attempted = true;
+          source = "server";
           const response = await http.request({
             baseURL: baseUrl(),
             url: path,
@@ -88,36 +103,19 @@ export function createHttpClient(
             data: options.body,
             signal: options.signal,
           });
-          return read(
-            response.status,
-            response.data,
-            response.status === 429
-              ? retryAfterAt(response.headers["retry-after"])
-              : 0,
-          );
+          return readResponse(options, response);
         },
       );
     } catch (error) {
       if (options.signal?.aborted || axios.isCancel(error))
         throw new AppError("session");
       if (error instanceof AppError) {
-        requestDiagnostics.failed(
-          path,
-          options.method ?? "GET",
-          error,
-          attempted ? "server" : "client-cooldown",
-        );
+        requestDiagnostics.failed(path, options.method ?? "GET", error, source);
         throw error;
       }
       if (axios.isAxiosError(error) && error.response) {
         try {
-          return read(
-            error.response.status,
-            error.response.data,
-            error.response.status === 429
-              ? retryAfterAt(error.response.headers["retry-after"])
-              : 0,
-          );
+          return readResponse(options, error.response);
         } catch (responseError) {
           requestDiagnostics.failed(
             path,

@@ -3,7 +3,9 @@ import { useIsFocused } from "expo-router";
 
 const Visibility = createContext(true);
 
-export function LoadingScreenBoundary({ children }: { children: ReactNode }) {
+export function LoadingScreenBoundary({
+  children,
+}: Readonly<{ children: ReactNode }>) {
   const focused = useIsFocused();
   return <Visibility.Provider value={focused}>{children}</Visibility.Provider>;
 }

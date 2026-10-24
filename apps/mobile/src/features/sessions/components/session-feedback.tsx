@@ -21,6 +21,20 @@ type Props = {
   children: ReactNode;
   quietTransient?: boolean;
 };
+
+function sessionFailureLabels(denial: string | undefined, error: unknown) {
+  return {
+    title:
+      denial === "forbidden"
+        ? "Không có quyền xem buổi học"
+        : "Không tải được buổi học",
+    description:
+      denial === "unavailable"
+        ? "Buổi học không còn khả dụng."
+        : sessionErrorMessage(error),
+  };
+}
+
 export function SessionFeedback({
   data,
   enabled,
@@ -54,20 +68,10 @@ export function SessionFeedback({
       return (
         <ConnectionFeedback error={error} loading={refreshing} retry={retry} />
       );
+    const labels = sessionFailureLabels(denial, error);
     return (
       <>
-        <EmptyState
-          title={
-            denial === "forbidden"
-              ? "Không có quyền xem buổi học"
-              : "Không tải được buổi học"
-          }
-          description={
-            denial === "unavailable"
-              ? "Buổi học không còn khả dụng."
-              : sessionErrorMessage(error)
-          }
-        />
+        <EmptyState title={labels.title} description={labels.description} />
         <Button
           variant="paper"
           disabled={refreshing}

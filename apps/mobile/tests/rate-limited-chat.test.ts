@@ -53,6 +53,61 @@ test("background/logout abort cancels a pending retry timer", async (t) => {
   await rejected;
 });
 
+test("repeated hydration limits stay sequential and stop when canceled after a pause", async () => {
+  const control = new AbortController();
+  let reads = 0,
+    pauses = 0,
+    active = 0;
+  await hydrateWithRateLimit(
+    async () => {
+      assert.equal(active++, 0);
+      reads++;
+      await Promise.resolve();
+      active--;
+      throw new AppError("http", 429, "RATE_LIMITED", Date.now() + 60000);
+    },
+    control.signal,
+    async () => {
+      assert.equal(active, 0);
+      if (++pauses === 3) control.abort();
+    },
+  );
+  assert.equal(reads, 3);
+  assert.equal(pauses, 3);
+});
+
+test("hydration skips an aborted signal and does not retry non-429 errors", async () => {
+  const control = new AbortController();
+  control.abort();
+  let reads = 0,
+    pauses = 0;
+  const pause = async () => {
+    pauses++;
+  };
+  await hydrateWithRateLimit(
+    async () => {
+      reads++;
+    },
+    control.signal,
+    pause,
+  );
+  assert.equal(reads, 0);
+  const denied = new AppError("http", 403);
+  await assert.rejects(
+    hydrateWithRateLimit(
+      async () => {
+        reads++;
+        throw denied;
+      },
+      new AbortController().signal,
+      pause,
+    ),
+    (error) => error === denied,
+  );
+  assert.equal(reads, 1);
+  assert.equal(pauses, 0);
+});
+
 test("outbox rate-limit deadline survives reconnect and restart without replaying a new message", async (t) => {
   t.mock.timers.enable({ apis: ["setTimeout"] });
   let now = 1000,
