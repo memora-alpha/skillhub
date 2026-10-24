@@ -5,7 +5,7 @@ import { ChoiceGroup } from "@/components/choice-group";
 import { RequestSection as Panel } from "./request-section";
 import { SkillSelector } from "./skill-selector";
 import { RequestTimeFields } from "./request-time-fields";
-import { TagSelector } from "./tag-selector";
+import { RequestTagFields } from "./request-tag-fields";
 import { RequestOfferingFields } from "./request-offering-fields";
 import { requestLevels, type OwnerRequest } from "../types";
 import type { RequestDraft } from "../schemas/request-form";
@@ -97,18 +97,7 @@ export function RequestFields({
             />
           )}
         />
-        <Controller
-          control={form.control}
-          name="tagIds"
-          render={({ field, fieldState }) => (
-            <TagSelector
-              value={field.value}
-              onChange={field.onChange}
-              disabled={pending}
-              error={fieldState.error?.message}
-            />
-          )}
-        />
+        <RequestTagFields form={form} disabled={pending} />
         <RequestTextField
           form={form}
           name="desiredCreditPerHour"

@@ -127,6 +127,11 @@ export function RequestCard({
           ))}
         </View>
       )}
+      {own && !!request.proposedTags?.length && (
+        <Text style={styles.caption}>
+          {request.proposedTags.length} tag đề xuất · Chưa duyệt
+        </Text>
+      )}
       {!own && proposal && (
         <View style={[styles.row, styles.proposalStatus]}>
           <Icon
