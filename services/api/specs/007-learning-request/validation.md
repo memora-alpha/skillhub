@@ -1,5 +1,13 @@
 # Learning Request validation
 
+## Inline proposed tags — 2026-10-24
+
+Implemented the user-requested proposal field and atomic Staff/Admin post/tag
+approval. See [contract, rollout, Constitution check and verification](proposed-tags.md).
+Feature/unit/regression checks and disposable PostgreSQL integration passed;
+the wider SMTP bootstrap fixture limitation is recorded there. No migration was
+applied to the application's normal schema.
+
 ## FE extension verification — 2026-10-12
 
 The approved [FE design](fe-extension-design.md) and [plan](fe-extension-plan.md) are implemented in services/api. No frontend edits, commit/push or migration deployment to the user's application database were performed.

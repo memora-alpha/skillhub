@@ -59,6 +59,7 @@ type EditInput = {
   currentLevel?: "NONE" | "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | null;
   verifiedTeacherOnly?: boolean;
   tagIds?: string[];
+  proposedTags?: string[];
   preferredSlots?: { startAt: string; endAt: string }[];
   expiresAt?: string | null;
 };
@@ -162,6 +163,10 @@ function mergedInput(
     verifiedTeacherOnly:
       input.verifiedTeacherOnly ?? request.verifiedTeacherOnly,
     tagIds: input.tagIds ?? request.tagLinks.map(({ tagId }) => tagId),
+    proposedTags:
+      input.proposedTags === undefined
+        ? (request.proposedTags ?? [])
+        : input.proposedTags,
     preferredSlots:
       input.preferredSlots ??
       (input.preferredAvailability?.weeklySlots.length
@@ -228,6 +233,8 @@ function changed(
     request.currentLevel !== content.currentLevel ||
     request.verifiedTeacherOnly !== content.verifiedTeacherOnly ||
     requestTags.join("|") !== contentTags.join("|") ||
+    JSON.stringify(request.proposedTags ?? []) !==
+      JSON.stringify(content.proposedTags) ||
     requestSlots.join("|") !== contentSlots.join("|") ||
     request.expiryMode !==
       (content.requestedExpiresAt ? "CUSTOM" : "DEFAULT") ||
@@ -314,6 +321,7 @@ export class EditLearningRequestUseCase {
             learningGoal: snapshot.content.learningGoal,
             teachingOverview: snapshot.content.teachingOverview,
             tags: snapshot.tags.map(({ label }) => label),
+            proposedTags: snapshot.content.proposedTags,
           },
           { ruleSet: snapshot.ruleSet, version: snapshot.configVersion! },
         )
@@ -382,6 +390,7 @@ export class EditLearningRequestUseCase {
         moderatedByUserId: null,
         moderatedAt: null,
         tagIds: snapshot.content.tagIds,
+        proposedTags: snapshot.content.proposedTags,
         preferredSlots: snapshot.content.preferredSlots,
       } as const;
       if (

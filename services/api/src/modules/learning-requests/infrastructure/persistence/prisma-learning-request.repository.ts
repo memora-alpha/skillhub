@@ -140,6 +140,7 @@ export class PrismaLearningRequestRepository implements LearningRequestRepositor
         },
         currentLevel: input.currentLevel,
         verifiedTeacherOnly: input.verifiedTeacherOnly,
+        proposedTags: [...(input.proposedTags ?? [])],
         requestedExpiresAt: input.requestedExpiresAt,
         expiryMode: input.expiryMode,
         preferredSlots: serializeSlots(input.preferredSlots),
@@ -193,14 +194,7 @@ export class PrismaLearningRequestRepository implements LearningRequestRepositor
         });
     }
 
-    if (tagIds !== undefined) {
-      await tx.requestTag.deleteMany({ where: { requestId } });
-      if (tagIds.length > 0) {
-        await tx.requestTag.createMany({
-          data: tagIds.map((tagId) => ({ requestId, tagId })),
-        });
-      }
-    }
+    if (tagIds !== undefined) await this.replaceTags(tx, requestId, tagIds);
     return true;
   }
 
@@ -212,15 +206,31 @@ export class PrismaLearningRequestRepository implements LearningRequestRepositor
     transition: LearningRequestTransition,
   ): Promise<boolean> {
     if (from.length === 0) throw new TypeError("transition source is required");
+    const { tagIds, ...fields } = transition;
     const result = await tx.learningRequest.updateMany({
       where: {
         id: requestId,
         version: expectedVersion,
         status: { in: [...from] },
       },
-      data: { ...transition, version: { increment: 1 } },
+      data: { ...fields, version: { increment: 1 } },
     });
-    return result.count === 1;
+    if (result.count !== 1) return false;
+    if (tagIds !== undefined) await this.replaceTags(tx, requestId, tagIds);
+    return true;
+  }
+
+  private async replaceTags(
+    tx: TransactionContext,
+    requestId: string,
+    tagIds: readonly string[],
+  ) {
+    await tx.requestTag.deleteMany({ where: { requestId } });
+    if (tagIds.length > 0) {
+      await tx.requestTag.createMany({
+        data: tagIds.map((tagId) => ({ requestId, tagId })),
+      });
+    }
   }
 
   findExpired(

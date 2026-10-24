@@ -1,5 +1,12 @@
 # Learning Request HTTP contract
 
+## Inline tag proposals — 2026-10-24
+
+Create/PATCH accept optional `proposedTags: string[]`; owner/moderation responses
+include this field. Proposed labels force Staff/Admin review on publish. Approval
+promotes/reuses ACTIVE canonical Tags and attaches them to the post atomically.
+See [validation, permissions, examples and rollout](../proposed-tags.md).
+
 ## FE extension — 2026-10-12
 
 User approved [the extension design](../fe-extension-design.md). Create and PATCH accept optional `teachingOverview`, `offeredSharingSkillIds`, `preferredAvailability`, and `desiredCreditPerHour`. Omission on PATCH keeps values; null clears nullable text/availability/credit; [] clears selected offerings. The existing expectedVersion/status/auth requirements still apply.

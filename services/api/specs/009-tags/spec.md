@@ -1,5 +1,10 @@
 # Đặc tả API Tag và đề xuất tạo tag
 
+Amendment 2026-10-24: [đề xuất tag kèm Learning Request](../007-learning-request/proposed-tags.md)
+cho phép Staff/Admin duyệt tag trong cùng quyết định duyệt bài. Ngoại lệ này chỉ
+áp dụng tag gắn với bài đang chờ duyệt; các endpoint quản trị/đề xuất độc lập dưới
+đây vẫn ADMIN-only.
+
 Ngày lập: 2026-10-15. Plan/brief được duyệt trong chat; triển khai và kiểm chứng
 local ngày 2026-10-16. [Bằng chứng và giới hạn rollout](validation.md).
 

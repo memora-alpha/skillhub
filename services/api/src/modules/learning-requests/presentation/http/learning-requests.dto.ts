@@ -163,6 +163,20 @@ export class PreferredAvailabilityDto {
 
 class LearningRequestOfferingDto {
   @ApiPropertyOptional({
+    type: [String],
+    maxItems: 10,
+    uniqueItems: true,
+    description:
+      "New tag labels to review with the post. Combined with tagIds: at most 10. Forces Staff/Admin moderation on publish. Omit on PATCH to preserve; [] clears.",
+  })
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsArray()
+  @ArrayMaxSize(10)
+  @ArrayUnique()
+  @IsString({ each: true })
+  proposedTags?: string[];
+
+  @ApiPropertyOptional({
     type: String,
     nullable: true,
     minLength: 20,

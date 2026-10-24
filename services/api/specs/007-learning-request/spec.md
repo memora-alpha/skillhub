@@ -1,5 +1,9 @@
 # Feature Specification: Learning Request
 
+**User amendment (2026-10-24):** [Proposed tags reviewed with the post](proposed-tags.md)
+adds inline label proposals and atomic Staff/Admin approval into the shared Tag
+catalog. This supersedes canonical-ID-only input for this new optional field.
+
 **User-approved FE amendment (2026-10-12):** [fe-extension-design.md](fe-extension-design.md) extends LR with request-specific teaching overview, selected owner's Sharing Skills, recurring weekly availability, hourly desired Credit and canonical Tag lookup. These additions supersede older planning exclusions for those exact hints, while retaining legacy slots and existing lifecycle/moderation rules.
 
 **Feature Branch**: `feat/learning-request`

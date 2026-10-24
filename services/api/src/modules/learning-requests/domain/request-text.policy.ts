@@ -2,6 +2,7 @@ import { BadRequestException } from "@nestjs/common";
 import { decode } from "html-entities";
 import sanitizeHtml from "sanitize-html";
 import { z } from "zod";
+import { normalizeTagLabel } from "../../skills/domain/tag-policy";
 import {
   preferredAvailabilitySchema,
   hourlyCreditSchema,
@@ -35,6 +36,15 @@ const requestShape = z.strictObject({
     .max(10)
     .refine((ids) => new Set(ids).size === ids.length)
     .optional(),
+  proposedTags: z
+    .array(z.string().transform((value) => normalizeTagLabel(value).label))
+    .max(10)
+    .refine(
+      (labels) =>
+        new Set(labels.map((label) => normalizeTagLabel(label).labelKey))
+          .size === labels.length,
+    )
+    .optional(),
   preferredSlots: z.array(slotInputSchema).max(5).optional(),
   expiresAt: z.iso.datetime({ offset: true }).nullable().optional(),
 });
@@ -52,6 +62,7 @@ export type PreparedLearningRequestContent = {
   currentLevel: "NONE" | "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | null;
   verifiedTeacherOnly: boolean;
   tagIds: string[];
+  proposedTags: string[];
   preferredSlots: { startAt: Date; endAt: Date }[];
   requestedExpiresAt: Date | null;
 };
@@ -118,6 +129,12 @@ export function prepareLearningRequestContent(
     assertLength(parsed.title, 10, 120);
     assertLength(parsed.description, 20, 3000);
     assertLength(parsed.learningGoal, 10, 1000);
+    if (
+      (parsed.tagIds?.length ?? 0) + (parsed.proposedTags?.length ?? 0) >
+      10
+    ) {
+      throw new BadRequestException("INVALID_REQUEST_INPUT");
+    }
     if (parsed.teachingOverview != null)
       assertLength(parsed.teachingOverview, 20, 3000);
     if (
@@ -155,6 +172,7 @@ export function prepareLearningRequestContent(
       currentLevel: parsed.currentLevel ?? null,
       verifiedTeacherOnly: parsed.verifiedTeacherOnly ?? false,
       tagIds: parsed.tagIds ?? [],
+      proposedTags: parsed.proposedTags ?? [],
       preferredSlots,
       requestedExpiresAt,
     };

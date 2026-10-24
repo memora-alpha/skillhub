@@ -8,6 +8,7 @@ import { SkillsService } from "./application/services/skills.service";
 import { SkillLevelsService } from "./application/services/skill-levels.service";
 import { TagsService } from "./application/services/tags.service";
 import { TagRequestsService } from "./application/services/tag-requests.service";
+import { LearningRequestTagsService } from "./application/services/learning-request-tags.service";
 import { TagsRepository } from "./infrastructure/persistence/tags.repository";
 import { AdminTagsController } from "./presentation/http/admin-tags.controller";
 import {
@@ -33,6 +34,7 @@ import {
     TagsRepository,
     TagsService,
     TagRequestsService,
+    LearningRequestTagsService,
   ],
   controllers: [
     AdminTagsController,
@@ -45,6 +47,6 @@ import {
     SkillLevelsController,
     AdminSkillLevelsController,
   ],
-  exports: [SkillsService],
+  exports: [SkillsService, LearningRequestTagsService],
 })
 export class SkillsModule {}
