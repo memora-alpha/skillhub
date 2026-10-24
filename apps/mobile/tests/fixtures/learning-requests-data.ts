@@ -40,6 +40,7 @@ export function fixtureRequest(
     currentLevel: null,
     verifiedTeacherOnly: false,
     tagIds: [fixtureId(20)],
+    proposedTags: [],
     teachingOverview: null,
     desiredCreditPerHour: null,
     preferredAvailability: null,
