@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
 import { Icon } from "@/components/Icon";
 import { Button } from "@/components/Button";
@@ -8,6 +8,8 @@ import { SkillSelector } from "./skill-selector";
 import { TagSelector } from "./tag-selector";
 import { RequestTabs } from "./request-list-controls";
 import { requestListStyles as styles } from "./request-list.styles";
+import { RequestPickerSheet } from "./request-picker-sheet";
+import type { TagOption } from "../types";
 
 export type FeedFilters = {
   skillId: string;
@@ -30,6 +32,17 @@ export function RequestFeedFilters({
   const [open, setOpen] = useState(false);
   const [focused, setFocused] = useState(false);
   const [draft, setDraft] = useState(filters);
+  const [tagLabels, setTagLabels] = useState<Record<string, string>>({});
+  const rememberTags = useCallback((options: TagOption[]) => {
+    setTagLabels((previous) => {
+      if (options.every((tag) => previous[tag.id] === tag.label))
+        return previous;
+      return {
+        ...previous,
+        ...Object.fromEntries(options.map((tag) => [tag.id, tag.label])),
+      };
+    });
+  }, []);
   const skill = useSkillName(filters.skillId || undefined);
   const active =
     Number(!!filters.skillId) +
@@ -88,78 +101,93 @@ export function RequestFeedFilters({
           </Text>
         </Pressable>
       </View>
-      {open && (
-        <View style={styles.filterPanel}>
-          <View style={styles.between}>
-            <Text style={styles.heading}>Bộ lọc</Text>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() =>
-                setDraft({ skillId: "", scope: "feed", tagIds: [] })
-              }
-              style={styles.reset}
-            >
-              <Text style={styles.resetText}>Đặt lại</Text>
-            </Pressable>
-          </View>
-          <View style={{ gap: 8 }}>
-            <Text style={styles.label}>Hiển thị</Text>
-            <RequestTabs
-              label="Loại yêu cầu"
-              options={["Tất cả yêu cầu", "Phù hợp với tôi"]}
-              value={
-                draft.scope === "feed" ? "Tất cả yêu cầu" : "Phù hợp với tôi"
-              }
-              onChange={(value) =>
-                setDraft({
-                  ...draft,
-                  scope: value === "Tất cả yêu cầu" ? "feed" : "recommended",
-                })
-              }
-            />
-          </View>
-          <View style={{ gap: 8 }}>
-            <Text style={styles.label}>Kỹ năng</Text>
-            <SkillSelector
-              allowAll
-              value={draft.skillId}
-              onChange={(skillId) => setDraft({ ...draft, skillId })}
-            />
-          </View>
-          <TagSelector
-            value={draft.tagIds}
-            onChange={(tagIds) => setDraft({ ...draft, tagIds })}
-          />
-          <View style={styles.row}>
-            <Button variant="ghost" onPress={() => setOpen(false)}>
-              Đóng
-            </Button>
-            <Button
-              variant="craft"
-              style={styles.apply}
-              onPress={() => {
-                onApply(draft);
-                setOpen(false);
-              }}
-            >
-              Áp dụng
-            </Button>
-          </View>
+      <RequestPickerSheet
+        title="Bộ lọc yêu cầu học"
+        open={open}
+        onClose={() => setOpen(false)}
+        closeLabel="Đóng bộ lọc yêu cầu học"
+        closeIcon
+      >
+        <View style={styles.between}>
+          <Text style={styles.label}>Tùy chọn hiển thị</Text>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => setDraft({ skillId: "", scope: "feed", tagIds: [] })}
+            style={styles.reset}
+          >
+            <Text style={styles.resetText}>Đặt lại</Text>
+          </Pressable>
         </View>
-      )}
+        <View style={{ gap: 8 }}>
+          <Text style={styles.label}>Hiển thị</Text>
+          <RequestTabs
+            label="Loại yêu cầu"
+            options={["Tất cả yêu cầu", "Phù hợp với tôi"]}
+            value={
+              draft.scope === "feed" ? "Tất cả yêu cầu" : "Phù hợp với tôi"
+            }
+            onChange={(value) =>
+              setDraft({
+                ...draft,
+                scope: value === "Tất cả yêu cầu" ? "feed" : "recommended",
+              })
+            }
+          />
+        </View>
+        <View style={{ gap: 8 }}>
+          <Text style={styles.label}>Kỹ năng</Text>
+          <SkillSelector
+            allowAll
+            active={open}
+            value={draft.skillId}
+            onChange={(skillId) => setDraft({ ...draft, skillId })}
+          />
+        </View>
+        <TagSelector
+          active={open}
+          value={draft.tagIds}
+          onChange={(tagIds) => setDraft({ ...draft, tagIds })}
+          onOptions={rememberTags}
+          selectedOptions={Object.entries(tagLabels).map(([id, label]) => ({
+            id,
+            label,
+          }))}
+        />
+        <View style={styles.row}>
+          <Button
+            variant="craft"
+            style={styles.apply}
+            onPress={() => {
+              if (!open) return;
+              onApply(draft);
+              setOpen(false);
+            }}
+          >
+            Áp dụng
+          </Button>
+        </View>
+      </RequestPickerSheet>
       {!!active && (
         <View style={styles.chips}>
-          {!!filters.tagIds.length && (
+          {filters.tagIds.map((id, index) => (
             <Pressable
+              key={id}
               accessibilityRole="button"
-              accessibilityLabel="Xóa lọc tag"
-              onPress={() => onApply({ ...filters, tagIds: [] })}
+              accessibilityLabel={`Xóa lọc tag ${tagLabels[id] ?? index + 1}`}
+              onPress={() =>
+                onApply({
+                  ...filters,
+                  tagIds: filters.tagIds.filter((tagId) => tagId !== id),
+                })
+              }
               style={styles.chip}
             >
-              <Text style={styles.chipText}>{filters.tagIds.length} tag</Text>
+              <Text numberOfLines={1} style={styles.chipText}>
+                {tagLabels[id] ?? `Tag đã chọn ${index + 1}`}
+              </Text>
               <Icon name="close" size={14} color={appColors.primaryDark} />
             </Pressable>
-          )}
+          ))}
           {!!filters.skillId && (
             <Pressable
               accessibilityRole="button"

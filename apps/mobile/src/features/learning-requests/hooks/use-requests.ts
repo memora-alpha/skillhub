@@ -10,13 +10,16 @@ import {
 import { z } from "zod";
 import { useRequestsRuntime } from "../context";
 import type { RequestFilters, OwnerRequest } from "../types";
-import { requestReadGuard } from "../utils/request-read";
+import { readDenial, requestReadGuard } from "../utils/request-read";
 import {
   requestListOptions,
   requestListItems,
   fetchRequestNextPage,
   refreshRequestList,
+  canAutoLoadRequestPage,
+  evictDeniedRequestList,
 } from "../utils/request-list-query";
+import { requestSkillOptions } from "../utils/request-skill-query";
 export function useRefreshOnFocus(refetch: () => unknown) {
   useFocusEffect(
     useCallback(() => {
@@ -41,6 +44,10 @@ export function useRequestList(
     ...options,
     enabled: enabled && active,
   });
+  const denied = readDenial(query.error);
+  useEffect(() => {
+    evictDeniedRequestList(client, JSON.parse(signature));
+  }, [client, signature, query.error]);
   useEffect(() => {
     if (!active)
       void client.cancelQueries({
@@ -51,11 +58,11 @@ export function useRequestList(
   }, [active, client, signature]);
   const refresh = useCallback(() => {
     if (enabled && active && isCurrent())
-      void refreshRequestList(client, JSON.parse(signature), scope !== "mine");
-  }, [enabled, active, isCurrent, client, signature, scope]);
+      void refreshRequestList(client, JSON.parse(signature), true);
+  }, [enabled, active, isCurrent, client, signature]);
   useRefreshOnFocus(refresh);
   const loadMore = () => {
-    if (enabled && active && query.hasNextPage)
+    if (enabled && active && !denied && query.hasNextPage)
       return fetchRequestNextPage(
         client,
         options.queryKey,
@@ -63,11 +70,29 @@ export function useRequestList(
         isCurrent,
       );
   };
+  const items = denied ? [] : requestListItems(query.data?.pages);
+  const autoLoadMore = () => {
+    const current = client.getQueryState(options.queryKey);
+    if (
+      canAutoLoadRequestPage({
+        active: enabled && active && isCurrent(),
+        hasNextPage: query.hasNextPage,
+        fetching: current?.fetchStatus === "fetching",
+        error: current?.error,
+        count: items.length,
+      })
+    )
+      return loadMore();
+  };
   return {
     ...query,
+    data: denied ? undefined : query.data,
+    hasNextPage: !denied && query.hasNextPage,
+    isFetchNextPageError: !denied && query.isFetchNextPageError,
     refetch: () => query.refetch({ cancelRefetch: false }),
-    items: requestListItems(query.data?.pages),
+    items,
     loadMore,
+    autoLoadMore,
   };
 }
 export function useRequestDetail(id: string | undefined) {
@@ -105,11 +130,10 @@ export function useSkillOptions(q?: string, active = true) {
 }
 export function useSkillName(id: string | undefined) {
   const { api, key, enabled } = useRequestsRuntime();
+  const cache = useQueryClient();
   return useQuery({
-    queryKey: [...key, "skill", id],
+    ...requestSkillOptions(api, key, id, cache),
     enabled: enabled && !!id,
-    queryFn: ({ signal }) => api.skill(id!, signal),
-    retry: false,
   });
 }
 export function useRequestSync() {

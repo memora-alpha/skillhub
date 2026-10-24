@@ -8,8 +8,10 @@ export function useOfferingPicker(
   disabled: boolean,
   initial?: OwnerRequest,
 ) {
-  const query = useOfferingOptions();
   const [expanded, setExpanded] = useState(false);
+  const query = useOfferingOptions(
+    (expanded && !disabled) || selected.length > 0,
+  );
   const [search, setSearch] = useState("");
   const [visibleCount, setVisibleCount] = useState(6);
   // The own-skills endpoint has no search query. Search loads subsequent pages

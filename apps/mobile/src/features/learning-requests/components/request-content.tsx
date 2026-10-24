@@ -3,6 +3,7 @@ import { Icon } from "@/components/Icon";
 import { FormNotice } from "@/components/FormNotice";
 import { RequestDetailSection as Panel } from "./request-detail-section";
 import { RequestDetailSummary } from "./request-detail-summary";
+import { RequestProposedTags } from "./request-proposed-tags";
 import { RequestExchangeDetails } from "./request-exchange-details";
 import { RequestScheduleDetails } from "./request-schedule-details";
 import { RequestCreditDetails } from "./request-credit-details";
@@ -24,6 +25,7 @@ export function RequestContent({
   return (
     <>
       <RequestDetailSummary request={request} />
+      {own && <RequestProposedTags labels={request.proposedTags} />}
       <Panel title={own ? "Tôi muốn học" : "Nhu cầu học tập"} icon="book">
         <Text selectable style={styles.body}>
           {request.description}

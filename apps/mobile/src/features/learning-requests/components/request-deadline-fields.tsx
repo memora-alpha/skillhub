@@ -6,6 +6,7 @@ import { FormNotice } from "@/components/FormNotice";
 import { RequestSection } from "./request-section";
 import { RequestDateField } from "./request-date-field";
 import type { RequestDraft } from "../schemas/request-form";
+import { parseLocalDateTime } from "@/utils/local-date-time";
 
 export function RequestDeadlineFields({
   form,
@@ -14,11 +15,26 @@ export function RequestDeadlineFields({
   form: UseFormReturn<RequestDraft>;
   disabled: boolean;
 }>) {
+  const date = parseLocalDateTime(form.watch("expiresAt"));
+  const summary = date
+    ? date.toLocaleString("vi-VN", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      })
+    : "Dùng thời hạn mặc định";
   return (
     <RequestSection
       title="Hạn đăng bài"
       icon="calendar"
-      subtitle="Không bắt buộc"
+      compact
+      collapsible
+      summary={summary}
+      hasError={!!form.formState.errors.expiresAt}
+      disabled={disabled}
     >
       <Controller
         control={form.control}
@@ -35,7 +51,9 @@ export function RequestDeadlineFields({
                 field.onBlur();
               }}
             />
-            {!field.value && <Copy muted>Để trống để dùng hạn mặc định.</Copy>}
+            {!field.value && (
+              <Copy muted>Dùng thời hạn mặc định nếu không chọn.</Copy>
+            )}
             {!!field.value && (
               <Button
                 variant="ghost"
