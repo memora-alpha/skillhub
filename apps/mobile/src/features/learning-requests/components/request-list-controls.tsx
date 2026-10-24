@@ -19,7 +19,7 @@ export function RequestCreateButton({
         size={compact ? 14 : 16}
         color={signedInChrome.surface}
       />
-      <Text style={styles.publishText}>Đăng</Text>
+      <Text style={styles.publishText}>Tạo yêu cầu</Text>
     </>
   );
   if (compact) {

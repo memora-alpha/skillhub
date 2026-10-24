@@ -4,6 +4,7 @@ import { View, type FlatListProps } from "react-native";
 import { useIsFocused, useLocalSearchParams, useRouter } from "expo-router";
 import { AppScreenLayout } from "@/features/shell";
 import { EmptyState } from "@/components/EmptyState";
+import { LoadingIndicator } from "@/components/LoadingIndicator";
 import { RequestCard } from "../components/request-card";
 import {
   RequestFeedFilters,
@@ -93,7 +94,7 @@ export function RequestsFeedScreen() {
   });
   const quietError = isTransientReadError(query.error);
   let emptyContent: ReactNode = null;
-  if (query.isPending || (!query.data && quietError))
+  if (query.isPending || (!query.items.length && quietError))
     emptyContent = <RequestLoading />;
   else if (!query.error || (query.data && quietError))
     emptyContent = (
@@ -121,10 +122,12 @@ export function RequestsFeedScreen() {
           viewabilityConfig={viewabilityConfig}
           onViewableItemsChanged={onViewableItemsChanged}
           ItemSeparatorComponent={RequestListSeparator}
+          onEndReached={() => void query.autoLoadMore()}
+          onEndReachedThreshold={0.4}
           refreshing={query.isRefetching && !query.isFetchingNextPage}
           onRefresh={() => {
             void query.refetch();
-            void proposals.refetch({ cancelRefetch: false });
+            void proposals.refreshIfStale();
           }}
           ListHeaderComponent={
             <View style={styles.header}>
@@ -147,6 +150,11 @@ export function RequestsFeedScreen() {
                   retry={() => void proposals.refetch({ cancelRefetch: false })}
                 />
               )}
+              {quietError &&
+                !!query.items.length &&
+                !query.isFetchNextPageError && (
+                  <LoadingIndicator accessibilityLabel="Đang cập nhật yêu cầu học" />
+                )}
               {query.error && !quietError && !query.isFetchNextPageError && (
                 <RequestFailure
                   error={query.error}

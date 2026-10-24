@@ -30,5 +30,17 @@ export function useSentRequestProposals(
         type: "inactive",
       });
   }, [cache, runtime.key, options.enabled]);
-  return query;
+  return {
+    ...query,
+    refreshIfStale: () =>
+      cache.refetchQueries(
+        {
+          queryKey: [...runtime.key, "proposals", "sent-request-status"],
+          exact: true,
+          type: "active",
+          stale: true,
+        },
+        { cancelRefetch: false },
+      ),
+  };
 }
