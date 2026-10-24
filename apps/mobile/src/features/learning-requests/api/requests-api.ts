@@ -131,11 +131,12 @@ export function createRequestsApi(client: HttpClient, isCurrent = () => true) {
         }),
       );
     },
-    async offerings(cursor?: string) {
+    async offerings(cursor?: string, signal?: AbortSignal) {
       return parsePage(
         ownOfferingSchema,
         await call(`/me/skills?${queryString({ cursor })}`, {
           includeMeta: true,
+          signal,
         }),
       );
     },

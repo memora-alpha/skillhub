@@ -30,6 +30,7 @@ export function RequestTextField({
   disabled: boolean;
 }) {
   const [focused, setFocused] = useState(false);
+  const [contentHeight, setContentHeight] = useState(80);
   return (
     <Controller
       control={form.control}
@@ -50,6 +51,13 @@ export function RequestTextField({
               setFocused(false);
             }}
             onFocus={() => setFocused(true)}
+            onContentSizeChange={(event) => {
+              if (multiline)
+                setContentHeight(
+                  Math.max(80, event.nativeEvent.contentSize.height),
+                );
+              props.onContentSizeChange?.(event);
+            }}
             editable={!disabled}
             multiline={multiline}
             accessibilityLabel={label}
@@ -58,7 +66,7 @@ export function RequestTextField({
             placeholderTextColor={colors.mutedLight}
             style={[
               styles.input,
-              multiline && { minHeight: name === "description" ? 128 : 104 },
+              multiline && { minHeight: 80, height: contentHeight },
               focused && {
                 borderColor: colors.accent,
                 backgroundColor: colors.surface,
@@ -76,7 +84,7 @@ export function RequestTextField({
               {fieldState.error.message}
             </Text>
           )}
-          {!fieldState.error && !!hint && (
+          {!fieldState.error && !!hint && focused && (
             <Text
               style={[styles.hint, { textAlign: multiline ? "right" : "left" }]}
             >
