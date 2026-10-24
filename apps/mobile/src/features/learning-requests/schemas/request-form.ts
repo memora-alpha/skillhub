@@ -15,7 +15,6 @@ import {
   validTimeZone,
 } from "./request-preferences";
 import { requestLevels, type OwnerRequest, type RequestInput } from "../types";
-import { MAX_REQUEST_TAGS, proposedTagsSchema } from "./request-tags";
 const text = (min: number, max: number) =>
   z
     .string()
@@ -35,62 +34,45 @@ export function requestFormSchema(
   clock: number | (() => number) = () => Date.now(),
 ) {
   const now = () => (typeof clock === "number" ? clock : clock());
-  return z
-    .object({
-      teachingOverview: text(0, 3000).refine(
-        (value) => !value || [...value].length >= 20,
-        "Nhập từ 20 đến 3000 ký tự khi điền.",
+  return z.object({
+    teachingOverview: text(0, 3000).refine(
+      (value) => !value || [...value].length >= 20,
+      "Nhập từ 20 đến 3000 ký tự khi điền.",
+    ),
+    desiredCreditPerHour: z.union([z.literal(""), creditSchema]),
+    tagIds: idsSchema,
+    offeredSharingSkillIds: idsSchema,
+    timeZone: z.string().refine(validTimeZone, "Nhập múi giờ IANA hợp lệ."),
+    title: text(10, 120),
+    skillId: z.uuid("Chọn một kỹ năng trong danh mục."),
+    description: text(20, 3000),
+    learningGoal: text(10, 1000),
+    currentLevel: z.union([z.enum(requestLevels), z.literal("")]),
+    verifiedTeacherOnly: z.enum(["Không", "Có"]),
+    preferredSlots: z
+      .string()
+      .refine(
+        (value) =>
+          (initial && value === formatPreferredSlots(initial.preferredSlots)) ||
+          parsePreferredSlots(value, now()) !== undefined,
+        "Khoảng đã lưu không còn hợp lệ.",
       ),
-      desiredCreditPerHour: z.union([z.literal(""), creditSchema]),
-      tagIds: idsSchema,
-      proposedTags: proposedTagsSchema,
-      tagSearch: z
-        .string()
-        .refine(
-          (value) => !value.trim(),
-          "Chọn tag bên dưới hoặc bấm Thêm tag mới trước khi lưu.",
-        ),
-      offeredSharingSkillIds: idsSchema,
-      timeZone: z.string().refine(validTimeZone, "Nhập múi giờ IANA hợp lệ."),
-      title: text(10, 120),
-      skillId: z.uuid("Chọn một kỹ năng trong danh mục."),
-      description: text(20, 3000),
-      learningGoal: text(10, 1000),
-      currentLevel: z.union([z.enum(requestLevels), z.literal("")]),
-      verifiedTeacherOnly: z.enum(["Không", "Có"]),
-      preferredSlots: z
-        .string()
-        .refine(
-          (value) =>
-            (initial &&
-              value === formatPreferredSlots(initial.preferredSlots)) ||
-            parsePreferredSlots(value, now()) !== undefined,
-          "Khoảng đã lưu không còn hợp lệ.",
-        ),
-      weeklyAvailability: z
-        .string()
-        .refine(
-          validWeeklyRows,
-          "Chọn thứ và hai giờ hợp lệ, không chồng nhau. Tối đa 5 khoảng.",
-        ),
-      expiresAt: z.string().refine((value) => {
-        if (
-          !value ||
-          (initial && value === localTimestamp(initial.requestedExpiresAt))
-        )
-          return true;
-        const date = parseLocalDateTime(value.replace(" ", "T"));
-        return !!date && date.getTime() > now();
-      }, "Chọn ngày và giờ trong tương lai cho hạn yêu cầu."),
-    })
-    .refine(
-      (draft) =>
-        draft.tagIds.length + draft.proposedTags.length <= MAX_REQUEST_TAGS,
-      {
-        message: "Chỉ được chọn và đề xuất tổng cộng tối đa 10 tag.",
-        path: ["proposedTags"],
-      },
-    );
+    weeklyAvailability: z
+      .string()
+      .refine(
+        validWeeklyRows,
+        "Chọn thứ và hai giờ hợp lệ, không chồng nhau. Tối đa 5 khoảng.",
+      ),
+    expiresAt: z.string().refine((value) => {
+      if (
+        !value ||
+        (initial && value === localTimestamp(initial.requestedExpiresAt))
+      )
+        return true;
+      const date = parseLocalDateTime(value.replace(" ", "T"));
+      return !!date && date.getTime() > now();
+    }, "Chọn ngày và giờ trong tương lai cho hạn yêu cầu."),
+  });
 }
 export type RequestDraft = z.infer<ReturnType<typeof requestFormSchema>>;
 export function requestDefaults(initial?: OwnerRequest): RequestDraft {
@@ -98,8 +80,6 @@ export function requestDefaults(initial?: OwnerRequest): RequestDraft {
     teachingOverview: initial?.teachingOverview ?? "",
     desiredCreditPerHour: initial?.desiredCreditPerHour ?? "",
     tagIds: initial?.tagIds ?? [],
-    proposedTags: initial?.proposedTags ?? [],
-    tagSearch: "",
     offeredSharingSkillIds: initial?.offeredSharingSkillIds ?? [],
     timeZone: initial?.preferredAvailability?.timeZone ?? deviceTimeZone(),
     title: initial?.title ?? "",
@@ -174,7 +154,6 @@ export function draftToInput(
       ? normalizeCredit(parsed.desiredCreditPerHour)
       : null,
     tagIds: parsed.tagIds,
-    proposedTags: parsed.proposedTags,
     offeredSharingSkillIds: parsed.offeredSharingSkillIds,
     preferredAvailability,
     title: parsed.title,

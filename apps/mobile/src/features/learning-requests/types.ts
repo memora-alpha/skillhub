@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { proposedTagsSchema } from "./schemas/request-tags";
 import {
   cardPreferences,
   idsSchema,
@@ -42,7 +41,6 @@ export const ownerSchema = z.object({
   skillId: z.uuid(),
   description: z.string(),
   tagIds: z.array(z.uuid()),
-  proposedTags: proposedTagsSchema.default([]),
   offeredSharingSkillIds: idsSchema.default([]),
   preferredSlots: z.array(slotSchema),
   version: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
@@ -91,7 +89,6 @@ export type RequestInput = {
   preferredAvailability?: OwnerRequest["preferredAvailability"];
   desiredCreditPerHour?: string | null;
   tagIds?: string[];
-  proposedTags?: string[];
   title: string;
   skillId: string;
   description: string;

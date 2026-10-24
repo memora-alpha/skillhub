@@ -26,8 +26,6 @@ export const requestDraftLabels: Record<keyof RequestDraft, string> = {
   teachingOverview: "Nội dung có thể dạy",
   desiredCreditPerHour: "Credit mong muốn mỗi giờ",
   tagIds: "Tag",
-  proposedTags: "Tag đề xuất",
-  tagSearch: "Tag đang nhập",
   offeredSharingSkillIds: "Kỹ năng có thể dạy",
 };
 export function compareRequestDraft(

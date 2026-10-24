@@ -21,24 +21,6 @@ S02 không cần setup lại design system; S03 implementation đã có, chỉ s
 
 ## Task còn mở, giữ ID gốc
 
-### Tích hợp proposedTags theo BE dev ngày 24/10/2026
-
-Nhánh `fix/mobile-learning-request-proposed-tags` từ origin/dev0318bf7e. Nguồn contract: BE commit9d356167 và amendment `services/api/specs/007-learning-request/proposed-tags.md`; chỉ sửa mobile, không chạy migration/seed hoặc sửa BE.
-
-- [x] PT-01: Owner schema/input/form/PATCH/recovery giữ proposedTags; normalize NFC/whitespace,1–80 code points, không control/duplicate keys, tổng tagIds+proposedTags<=10; omission giữ và[] clear.
-- [x] PT-02: Form chọn tag có sẵn hoặc thêm/xóa tag đề xuất; giới hạn chung, pending disabled, giải thích duyệt cùng bài. Owner detail/mine thấy trạng thái chưa duyệt; public projection không lộ proposedTags.
-- [x] PT-03: Regression form/API serialization/owner-public boundaries/conflict-rebase và UI combined limit; focused/full tests, types/lint/structure/export. Native/API acceptance riêng tại PT-04.
-- [ ] PT-04: Real API/native acceptance khi BE đã deploy migration20261024000000: create/edit/reopen, publish chờ duyệt, Staff duyệt/từ chối và owner reload; không suy host tests thành nghiệm thu này.
-- [x] PT-05: Theo yêu cầu thu gọn giao diện, dùng một nhãn/bộ đếm, input+nút thêm cùng hàng, chip xóa từng tag và chú thích duyệt ngắn có điều kiện; giữ giới hạn/validation và kiểm các consumer selector dùng chung.
-- [x] PT-06: Theo yêu cầu đồng bộ cả form, dùng bảng chọn kỹ năng, thu gọn các mục tùy chọn với tóm tắt/tự mở khi có lỗi, ô nhiều dòng theo nội dung và lịch tuần dạng dòng sửa được; gộp tìm/thêm tag, phân biệt chip Mới và giữ phần tag đang nhập khi Save/conflict. Kiểm host regression, web tương tác dữ liệu mẫu, types/lint/structure/export; native/API vẫn thuộc PT-04 và acceptance gốc.
-- [x] PT-07: Khắc phục ba lỗi tìm thấy khi review PT-06: xóa row lịch đang mở picker không giữ draft giờ sang row khác; query tag đồng nhất normalization với exact-match/giới hạn catalog; cho phép thay proposed tag bằng canonical ở tổng10 nếu không tăng số lượng. Đã bổ sung regression và kiểm web fixture; native/API acceptance vẫn thuộc PT-04.
-- [x] PT-08: Theo yêu cầu tối ưu list mobile, đồng bộ quiet loading/cached content và focus, giảm lookup kỹ năng/refresh lịch sử đề xuất, thu gọn card/tag+N, đưa filter vào sheet/chip tên tag xóa từng mục, auto-pagination có guard/error recovery và đổi Đăng thành Tạo yêu cầu. Full830/830, focused4/4 sau bổ sung giữ tên tag khi mở lại sheet, types/lint/structure777/export Android/iOS/web và preview fixture đạt; không sửa BE/avatar contract. Native/API acceptance vẫn mở.
-
-- [x] PT-09: Đã sửa GET403/404 sau cache: ẩn list ngay và evict data mà giữ lỗi, refetch/next-page denial chuyển recovery về full read;503 sau denial không hồi sinh cache. Cache rỗng gặp429/network hiện loading. Optional offering chỉ GET khi mở picker hoặc cần resolve selected labels, có AbortSignal. Regression actual hook/TanStack và UI đạt; API/native acceptance vẫn mở.
-- [x] PT-10: Theo yêu cầu, nút đóng bộ lọc là icon X có accessible label/vùng chạm44; sheet giữ mounted, giữ chiều cao/snap trong lúc đóng và thay đổi bàn phím, không đổi disabled presentation khi thoát. Gate catalog theo active, đóng không apply draft và không nhận Apply muộn. Host regression + web tương tác/đo geometry đạt; cần người dùng kiểm motion trên thiết bị.
-
-### Acceptance Phase04 còn mở
-
 Mỗi task tham chiếu [tasks gốc](../../../specs/005-learning-request/tasks.md), bảng Gates bên ngoài workspace mobile. Evidence mới chỉ cập nhật [status](status.md); không tạo validation/progress khác để lặp.
 
 - [ ] spec005/T025 — sau B06 và read-denial source T010/T013: kiểm AC-01/14 bằng hai accounts, own/private/public, invalid UUID/deep link, GET403/404 sau cache phải ẩn content/reason và khóa actions, Auth401/inactive/missing-grant, logout/switch trong read/mutation. Đạt khi không có dữ liệu/callback phiên cũ, ghi môi trường/actor role không credentials và kết quả từng nhóm.

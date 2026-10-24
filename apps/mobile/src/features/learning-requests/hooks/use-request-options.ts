@@ -12,14 +12,14 @@ export function useTagOptions(q?: string, active = true) {
     getNextPageParam: (page) => page.nextCursor ?? undefined,
   });
 }
-export function useOfferingOptions(active = true) {
+export function useOfferingOptions() {
   const { api, key, enabled } = useRequestsRuntime();
   return useInfiniteQuery({
     queryKey: [...key, "offerings"],
-    enabled: enabled && active,
+    enabled,
     retry: false,
     initialPageParam: undefined as string | undefined,
-    queryFn: ({ pageParam, signal }) => api.offerings(pageParam, signal),
+    queryFn: ({ pageParam }) => api.offerings(pageParam),
     getNextPageParam: (page) => page.nextCursor ?? undefined,
   });
 }

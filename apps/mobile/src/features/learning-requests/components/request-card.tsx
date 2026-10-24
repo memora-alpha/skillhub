@@ -55,7 +55,7 @@ export function RequestCard({
   const skill = useSkillName(own ? request.skillId : undefined);
   const state = requestState(request);
   const skillName = own ? skill.data?.name : request.skill.name;
-  const allTags = [
+  const tags = [
     ...new Set(
       [
         skillName,
@@ -63,9 +63,7 @@ export function RequestCard({
         ...(!own ? request.tags.map((tag) => tag.label) : []),
       ].filter((label): label is string => !!label),
     ),
-  ];
-  const tags = allTags.slice(0, 3);
-  const hiddenTags = allTags.length - tags.length;
+  ].slice(0, 3);
   return (
     <Pressable
       accessibilityRole="button"
@@ -127,22 +125,7 @@ export function RequestCard({
               </Text>
             </View>
           ))}
-          {hiddenTags > 0 && (
-            <View style={styles.tag}>
-              <Text
-                accessibilityLabel={`Còn ${hiddenTags} tag`}
-                style={styles.tagText}
-              >
-                +{hiddenTags}
-              </Text>
-            </View>
-          )}
         </View>
-      )}
-      {own && !!request.proposedTags?.length && (
-        <Text style={styles.caption}>
-          {request.proposedTags.length} tag đề xuất · Chưa duyệt
-        </Text>
       )}
       {!own && proposal && (
         <View style={[styles.row, styles.proposalStatus]}>
@@ -172,7 +155,10 @@ export function RequestCard({
             )}
           </Text>
         </View>
-        <Icon name="chevron" size={16} color={colors.muted} />
+        <View style={styles.detailLink}>
+          <Text style={styles.link}>Xem chi tiết</Text>
+          <Icon name="chevron" size={14} color={signedInChrome.accent} />
+        </View>
       </View>
     </Pressable>
   );
@@ -259,6 +245,22 @@ const styles = StyleSheet.create({
   },
   credit: {
     fontFamily: fonts.bold,
+    ...typography.secondary,
+    color: signedInChrome.accent,
+  },
+  detailLink: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: appRadius.control,
+    borderWidth: 1,
+    borderColor: colors.primaryMuted,
+    backgroundColor: colors.primarySoft,
+  },
+  link: {
+    fontFamily: fonts.semibold,
     ...typography.secondary,
     color: signedInChrome.accent,
   },

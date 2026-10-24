@@ -25,11 +25,10 @@ export function RequestListFooter({
 }>) {
   if (quietTransient && isTransientReadError(nextError))
     return <ActivityIndicator accessibilityLabel="Đang tải thêm yêu cầu học" />;
-  if (fetchingNext)
-    return <ActivityIndicator accessibilityLabel="Đang tải thêm yêu cầu học" />;
   const invalidCursor = isInvalidRequestCursor(nextError);
   let buttonLabel = "Xem thêm yêu cầu";
-  if (invalidCursor) buttonLabel = "Tải lại danh sách";
+  if (fetchingNext) buttonLabel = "Đang tải...";
+  else if (invalidCursor) buttonLabel = "Tải lại danh sách";
   else if (nextError) buttonLabel = "Thử lại trang tiếp theo";
   if (!hasNextPage && !nextError) return null;
   return (

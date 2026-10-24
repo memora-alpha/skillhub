@@ -67,13 +67,11 @@ test("Discovery enables reads only while focused and requests avatars only for v
           data: {},
           error: proposalError,
           refetch: (opts: unknown) => proposalRefreshes.push(opts),
-          refreshIfStale: () => proposalRefreshes.push("stale"),
         };
       },
     },
     "@/components/RefreshableFlatList": { RefreshableFlatList: "FlatList" },
     "@/components/EmptyState": { EmptyState: "EmptyState" },
-    "@/components/LoadingIndicator": { LoadingIndicator: "Indicator" },
     "../components/request-card": { RequestCard: "Card" },
     "../components/request-feed-filters": { RequestFeedFilters: "Filters" },
     "../components/request-list-controls": {
@@ -137,7 +135,7 @@ test("Discovery enables reads only while focused and requests avatars only for v
     );
     (visible.props.onRefresh as () => void)();
     assert.equal(feedRefreshes, 1);
-    assert.deepEqual(proposalRefreshes, ["stale"]);
+    assert.deepEqual(proposalRefreshes, [{ cancelRefetch: false }]);
     focused = false;
     const hidden = render();
     assert.equal(feedCalls.at(-1)?.[2], false);

@@ -48,7 +48,6 @@ test("closed, locked or disabled catalog selectors do not enable background read
     "./request-state": { RequestFailure: "Failure", RequestLoading: "Loading" },
     "./request-form.styles": { requestFormColors: {}, requestFormStyles: {} },
     "./request-multi-select": { RequestMultiSelect: "MultiSelect" },
-    "./request-picker-sheet": { RequestPickerSheet: "PickerSheet" },
   };
   const contexts = Object.entries(mocks).map(([name, namedExports]) =>
     mock.module(pathToFileURL(local.resolve(name)), { namedExports }),
@@ -79,10 +78,6 @@ test("closed, locked or disabled catalog selectors do not enable background read
     render(false, true);
     assert.equal(skills.at(-1)?.[1], false);
     expanded = false;
-    SkillSelector({ value: "", onChange() {}, active: false });
-    TagSelector({ value: ["selected-tag"], onChange() {}, active: false });
-    assert.equal(skills.at(-1)?.[1], false);
-    assert.equal(tags.at(-1)?.[1], false);
     TagSelector({ value: ["selected-tag"], disabled: true, onChange() {} });
     assert.equal(
       tags.at(-1)?.[1],

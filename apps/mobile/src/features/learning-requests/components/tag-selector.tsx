@@ -13,25 +13,16 @@ export function TagSelector({
   onChange,
   disabled = false,
   error,
-  maxSelections = 10,
-  onOptions,
-  selectedOptions = [],
-  active = true,
 }: Readonly<{
   value: string[];
   onChange: (ids: string[]) => void;
   disabled?: boolean;
   error?: string;
-  maxSelections?: number;
-  onOptions?: (options: TagOption[]) => void;
-  selectedOptions?: TagOption[];
-  active?: boolean;
 }>) {
   const [expanded, setExpanded] = useState(false);
   const [search, setSearch] = useState("");
   const [keyword, setKeyword] = useState("");
   const labels = useRef(new Map<string, TagOption>());
-  selectedOptions.forEach((tag) => labels.current.set(tag.id, tag));
   useEffect(() => {
     const timer = setTimeout(
       () => setKeyword(search.normalize("NFC").trim()),
@@ -41,11 +32,8 @@ export function TagSelector({
   }, [search]);
   const query = useTagOptions(
     keyword || undefined,
-    active && ((expanded && !disabled) || value.length > 0),
+    (expanded && !disabled) || value.length > 0,
   );
-  useEffect(() => {
-    if (query.data) onOptions?.(query.data.pages.flatMap((page) => page.items));
-  }, [query.data, onOptions]);
   const options = [
     ...new Map(
       query.data?.pages
@@ -74,7 +62,6 @@ export function TagSelector({
         <>
           <Input
             label="Tìm tag"
-            placeholder="Tìm trong danh mục"
             value={search}
             onChangeText={setSearch}
             maxLength={120}
@@ -98,7 +85,6 @@ export function TagSelector({
         onChange={onChange}
         disabled={disabled}
         error={error}
-        maxSelections={maxSelections}
       />
       {expanded && query.hasNextPage && (
         <Button
