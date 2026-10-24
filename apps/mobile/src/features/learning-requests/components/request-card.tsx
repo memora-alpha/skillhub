@@ -41,13 +41,17 @@ export function RequestCard({
   request,
   onPress,
   proposal,
+  loadAvatar = true,
 }: Readonly<{
   request: RequestItem;
   onPress: () => void;
   proposal?: SentRequestProposal;
+  loadAvatar?: boolean;
 }>) {
   const own = isOwnRequest(request);
-  const profile = useParticipantProfile(own ? undefined : request.owner.id);
+  const profile = useParticipantProfile(
+    own || !loadAvatar ? undefined : request.owner.id,
+  );
   const skill = useSkillName(own ? request.skillId : undefined);
   const state = requestState(request);
   const skillName = own ? skill.data?.name : request.skill.name;

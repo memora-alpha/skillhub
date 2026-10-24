@@ -4,7 +4,7 @@ import { parse, resourcePath, uuid } from "@/lib/http/contracts";
 import { useConnections } from "./runtime";
 import { useConnectionQuery } from "./hooks";
 
-export function useParticipantProfile(id: string | undefined) {
+export function useParticipantProfile(id: string | undefined, enabled = true) {
   const { call } = useConnections();
   return useConnectionQuery(
     ["participant-profile", id],
@@ -20,8 +20,8 @@ export function useParticipantProfile(id: string | undefined) {
       if (profile.userId !== id) throw new AppError("protocol");
       return profile;
     },
-    uuid.safeParse(id).success,
-    { refreshOnFocus: "stale" },
+    enabled && uuid.safeParse(id).success,
+    { refreshOnFocus: "stale", cancelOnDisable: true },
   );
 }
 

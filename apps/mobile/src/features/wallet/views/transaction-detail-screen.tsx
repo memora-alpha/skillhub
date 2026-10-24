@@ -1,5 +1,5 @@
 import { useLocalSearchParams } from "expo-router";
-import { RefreshControl, StyleSheet } from "react-native";
+import { StyleSheet } from "react-native";
 import { AppScreenLayout } from "@/features/shell";
 import { KeyboardFormScrollView } from "@/components/KeyboardFormScrollView";
 import { Copy, Panel, ui } from "../components/wallet-ui";
@@ -25,12 +25,8 @@ export function TransactionDetail() {
       {() => (
         <KeyboardFormScrollView
           contentContainerStyle={[ui.page, styles.page]}
-          refreshControl={
-            <RefreshControl
-              refreshing={state.status === "refreshing"}
-              onRefresh={() => void refresh()}
-            />
-          }
+          refreshing={state.status === "refreshing"}
+          onRefresh={() => void refresh()}
         >
           {!valid ? (
             <Panel>

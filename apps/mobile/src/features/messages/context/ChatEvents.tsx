@@ -15,6 +15,7 @@ import { getApiUrl } from "@/config/env";
 import { AppError } from "@/lib/http/errors";
 import { readPayload } from "@/lib/http/response";
 import { rateLimitUntil, retryAfterAt } from "@/lib/http/rate-limit";
+import { requestDiagnostics } from "@/lib/http/request-diagnostics";
 import { hydrateWithRateLimit } from "../utils/rate-limited-event";
 import { useConnections } from "@/features/connections";
 import { createSseParser, type SseFrame } from "../utils/sse-parser";
@@ -112,7 +113,13 @@ export function ChatEventsProvider({
       assertCurrent: runtime.assertCurrent,
       renew: () => runtime.controller.renew(),
       reload: (prefixes, receiptsFor) =>
-        reloadChatEventQueries(cache, runtime.key, prefixes, receiptsFor),
+        reloadChatEventQueries(
+          cache,
+          runtime.key,
+          prefixes,
+          receiptsFor,
+          runtime.assertCurrent,
+        ),
       ready: () => {
         if (disposed) return;
         retryBudget.ready();
@@ -137,14 +144,19 @@ export function ChatEventsProvider({
         } catch {
           payload = undefined;
         }
-        readPayload(
-          response.status,
-          payload,
-          false,
-          response.status === 429
-            ? retryAfterAt(response.headers.get("retry-after"))
-            : 0,
-        );
+        try {
+          readPayload(
+            response.status,
+            payload,
+            false,
+            response.status === 429
+              ? retryAfterAt(response.headers.get("retry-after"))
+              : 0,
+          );
+        } catch (responseError) {
+          requestDiagnostics.failed("/events", "GET", responseError, "server");
+          throw responseError;
+        }
         throw new AppError("http", response.status);
       }
       if (

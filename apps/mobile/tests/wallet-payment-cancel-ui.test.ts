@@ -20,6 +20,7 @@ const leaf = () => null;
 const modalLeaf = () => null;
 const jsx = (type: unknown, props: unknown) => ({ type, props });
 const replacements = {
+  "@/components/LoadingIndicator": { LoadingIndicator: leaf },
   "react/jsx-runtime": { jsx, jsxs: jsx, Fragment: "Fragment" },
   react: {
     useEffect: (work: () => unknown) => {

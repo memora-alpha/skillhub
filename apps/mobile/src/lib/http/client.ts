@@ -3,6 +3,7 @@ import { AppError } from "./errors";
 import { readPayload, readPagePayload, type Page } from "./response";
 import { connectionStore } from "../network/connection-store";
 import { RequestCoordinator, retryAfterAt } from "./rate-limit";
+import { requestDiagnostics } from "./request-diagnostics";
 
 export type RequestOptions = {
   method?: "GET" | "POST" | "PATCH" | "DELETE";
@@ -59,6 +60,7 @@ export function createHttpClient(
     policy: RequestCoordinator,
     assertCurrent: () => void = () => {},
   ) {
+    let attempted = false;
     const read = (status: number, payload: unknown, retryAt = 0) =>
       options.paginated
         ? readPagePayload(status, payload, retryAt)
@@ -77,6 +79,7 @@ export function createHttpClient(
         options.signal,
         async () => {
           assertCurrent();
+          attempted = true;
           const response = await http.request({
             baseURL: baseUrl(),
             url: path,
@@ -97,7 +100,15 @@ export function createHttpClient(
     } catch (error) {
       if (options.signal?.aborted || axios.isCancel(error))
         throw new AppError("session");
-      if (error instanceof AppError) throw error;
+      if (error instanceof AppError) {
+        requestDiagnostics.failed(
+          path,
+          options.method ?? "GET",
+          error,
+          attempted ? "server" : "client-cooldown",
+        );
+        throw error;
+      }
       if (axios.isAxiosError(error) && error.response) {
         try {
           return read(
@@ -108,11 +119,24 @@ export function createHttpClient(
               : 0,
           );
         } catch (responseError) {
+          requestDiagnostics.failed(
+            path,
+            options.method ?? "GET",
+            responseError,
+            "server",
+          );
           policy.record(path, options.method ?? "GET", responseError);
           throw responseError;
         }
       }
-      throw new AppError("network");
+      const failure = new AppError("network");
+      requestDiagnostics.failed(
+        path,
+        options.method ?? "GET",
+        failure,
+        "server",
+      );
+      throw failure;
     }
   }
   const client = {

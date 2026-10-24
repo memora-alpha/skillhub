@@ -1,5 +1,6 @@
 import { RefreshableScrollView as ScrollView } from "@/components/RefreshableScrollView";
 import { useState } from "react";
+import { useIsFocused } from "expo-router";
 import { StyleSheet, Text } from "react-native";
 
 import { fonts, typography } from "@/constants/theme";
@@ -14,11 +15,13 @@ import {
 } from "@/features/sessions";
 import { EmptyState } from "@/components/EmptyState";
 import { FormNotice } from "@/components/FormNotice";
+import { useQuietReadRecovery } from "@/lib/query/use-quiet-read-recovery";
 import { MonthCalendar } from "../components/MonthCalendar";
 import { CalendarSessionCard } from "../components/CalendarSessionCard";
 import { calendarColors as colors } from "../constants/theme";
 
 export function CalendarScreen() {
+  const focused = useIsFocused();
   const [date, setDate] = useState(() => new Date());
   const [day, setDay] = useState<number | null>(() => date.getDate());
   const month = date.getMonth(),
@@ -27,7 +30,14 @@ export function CalendarScreen() {
   const query = useSessionList(
     sessionRange(year, month, null, timezone),
     timezone,
+    focused,
   );
+  useQuietReadRecovery({
+    error: query.error,
+    fetching: query.isFetching,
+    enabled: query.enabled,
+    retry: () => query.refetch({ cancelRefetch: false }),
+  });
   const sessions = query.data ?? [];
   const visible = sessions.filter(
     (s) => day === null || sessionDay(s.startAt, timezone) === day,
@@ -62,8 +72,9 @@ export function CalendarScreen() {
           </Text>
           <SessionFeedback
             {...query}
+            quietTransient
             refreshing={query.isFetching}
-            retry={() => query.refetch()}
+            retry={() => query.refetch({ cancelRefetch: false })}
           >
             {listIsLimited(sessions) && (
               <FormNotice tone="info">

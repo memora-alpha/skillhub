@@ -1,10 +1,5 @@
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import { LoadingIndicator as ActivityIndicator } from "@/components/LoadingIndicator";
 import { Icon } from "@/components/Icon";
 import { AppError, errorMessage } from "@/lib/http/errors";
 import { appColors as colors, fonts, typography } from "@/constants/theme";
@@ -122,12 +117,7 @@ export function ConnectionFeedback({
   const limited = error instanceof AppError && error.status === 429;
   return (
     <View style={styles.feedback}>
-      {loading && (
-        <ActivityIndicator
-          color={colors.primary}
-          accessibilityLabel="Đang tải dữ liệu"
-        />
-      )}
+      {loading && <ActivityIndicator accessibilityLabel="Đang tải dữ liệu" />}
       {!!error && (
         <View accessibilityLiveRegion="polite" style={styles.row}>
           <Icon

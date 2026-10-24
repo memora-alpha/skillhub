@@ -1,10 +1,5 @@
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import { LoadingIndicator as ActivityIndicator } from "@/components/LoadingIndicator";
 import { Icon, type IconName } from "@/components/Icon";
 import {
   appColors as colors,
@@ -89,7 +84,7 @@ export function NotificationRow({
         <Text style={styles.time}>{notificationTime(item.createdAt)}</Text>
       </View>
       {busy ? (
-        <ActivityIndicator size="small" color={colors.primary} />
+        <ActivityIndicator size="small" />
       ) : target ? (
         <Icon name="chevron" size={16} color={colors.body} />
       ) : null}

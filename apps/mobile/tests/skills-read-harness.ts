@@ -52,6 +52,7 @@ const sourceModules = new Map(
   ]),
 );
 const dependencies = new Map<string, unknown>([
+  ["@/components/LoadingIndicator", { LoadingIndicator: "ActivityIndicator" }],
   ["zod", zod],
   ["../utils/skill-filter", skillFilter],
   ["../utils/verification-state", verificationState],
@@ -121,6 +122,8 @@ export function sourceModule(relative: string, mocks: Record<string, unknown>) {
 }
 
 export function readHarness() {
+  const focusReads: { refresh: () => Promise<unknown>; enabled: boolean }[] =
+    [];
   let status = 200,
     current = true;
   const client = new QueryClient({
@@ -177,8 +180,13 @@ export function readHarness() {
       useQueryClient: () => client,
     },
     "../context/SkillsProvider": { useSkills: () => runtime },
-    "./use-skill-read-focus": { useSkillReadFocus() {} },
+    "./use-skill-read-focus": {
+      useSkillReadFocus(refresh: () => Promise<unknown>, enabled = true) {
+        focusReads.push({ refresh, enabled });
+      },
+    },
     react: {
+      useCallback: (fn: unknown) => fn,
       useEffect() {},
       useSyncExternalStore: (_subscribe: unknown, get: () => unknown) => get(),
     },
@@ -191,6 +199,8 @@ export function readHarness() {
     client,
     runtime,
     hooks,
+    focusReads,
+    options: (key: QueryKey) => options.get(JSON.stringify(key))!,
     status: (next: number) => {
       status = next;
     },

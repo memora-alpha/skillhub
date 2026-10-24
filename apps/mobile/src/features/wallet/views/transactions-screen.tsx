@@ -1,4 +1,5 @@
-import { FlatList, RefreshControl, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import { RefreshableFlatList as FlatList } from "@/components/RefreshableFlatList";
 import { useRouter } from "expo-router";
 import { AppScreenLayout } from "@/features/shell";
 import { Button } from "@/components/Button";
@@ -30,12 +31,8 @@ export function TransactionHistory() {
           keyExtractor={(row) => row.id}
           contentContainerStyle={[ui.page, styles.page]}
           initialNumToRender={8}
-          refreshControl={
-            <RefreshControl
-              refreshing={state.status === "refreshing"}
-              onRefresh={() => void history.refresh()}
-            />
-          }
+          refreshing={state.status === "refreshing"}
+          onRefresh={() => void history.refresh()}
           ListHeaderComponent={
             <View style={styles.toolbar}>
               <HistoryFilters

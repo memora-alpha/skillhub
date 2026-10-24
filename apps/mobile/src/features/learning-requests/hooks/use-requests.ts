@@ -1,10 +1,11 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { AppState } from "react-native";
 import { useFocusEffect } from "expo-router";
 import {
   useInfiniteQuery,
   useQuery,
   useQueryClient,
+  hashKey,
 } from "@tanstack/react-query";
 import { z } from "zod";
 import { useRequestsRuntime } from "../context";
@@ -14,6 +15,7 @@ import {
   requestListOptions,
   requestListItems,
   fetchRequestNextPage,
+  refreshRequestList,
 } from "../utils/request-list-query";
 export function useRefreshOnFocus(refetch: () => unknown) {
   useFocusEffect(
@@ -29,20 +31,31 @@ export function useRefreshOnFocus(refetch: () => unknown) {
 export function useRequestList(
   scope: "mine" | "feed" | "recommended",
   filters: RequestFilters = {},
+  active = true,
 ) {
   const { api, key, enabled, isCurrent } = useRequestsRuntime();
   const client = useQueryClient();
   const options = requestListOptions(api, key, scope, filters);
+  const signature = hashKey(options.queryKey);
   const query = useInfiniteQuery({
     ...options,
-    enabled,
+    enabled: enabled && active,
   });
+  useEffect(() => {
+    if (!active)
+      void client.cancelQueries({
+        queryKey: JSON.parse(signature),
+        exact: true,
+        type: "inactive",
+      });
+  }, [active, client, signature]);
   const refresh = useCallback(() => {
-    if (enabled && isCurrent()) void query.refetch();
-  }, [enabled, isCurrent, query.refetch]);
+    if (enabled && active && isCurrent())
+      void refreshRequestList(client, JSON.parse(signature), scope !== "mine");
+  }, [enabled, active, isCurrent, client, signature, scope]);
   useRefreshOnFocus(refresh);
   const loadMore = () => {
-    if (enabled && query.hasNextPage)
+    if (enabled && active && query.hasNextPage)
       return fetchRequestNextPage(
         client,
         options.queryKey,
@@ -50,7 +63,12 @@ export function useRequestList(
         isCurrent,
       );
   };
-  return { ...query, items: requestListItems(query.data?.pages), loadMore };
+  return {
+    ...query,
+    refetch: () => query.refetch({ cancelRefetch: false }),
+    items: requestListItems(query.data?.pages),
+    loadMore,
+  };
 }
 export function useRequestDetail(id: string | undefined) {
   const { api, key, enabled, isCurrent } = useRequestsRuntime();
@@ -74,14 +92,14 @@ export function useRequestDetail(id: string | undefined) {
   if (query.error) access.fail(query.error);
   return { ...query, valid, readDenied: access.denial };
 }
-export function useSkillOptions(q?: string) {
+export function useSkillOptions(q?: string, active = true) {
   const { api, key, enabled } = useRequestsRuntime();
   return useInfiniteQuery({
     queryKey: [...key, "skills", q],
-    enabled,
+    enabled: enabled && active,
     retry: false,
     initialPageParam: undefined as string | undefined,
-    queryFn: ({ pageParam }) => api.skills(pageParam, q),
+    queryFn: ({ pageParam, signal }) => api.skills(pageParam, q, signal),
     getNextPageParam: (page) => page.nextCursor ?? undefined,
   });
 }
@@ -90,7 +108,7 @@ export function useSkillName(id: string | undefined) {
   return useQuery({
     queryKey: [...key, "skill", id],
     enabled: enabled && !!id,
-    queryFn: () => api.skill(id!),
+    queryFn: ({ signal }) => api.skill(id!, signal),
     retry: false,
   });
 }

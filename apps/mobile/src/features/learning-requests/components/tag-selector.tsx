@@ -30,7 +30,10 @@ export function TagSelector({
     );
     return () => clearTimeout(timer);
   }, [search]);
-  const query = useTagOptions(keyword || undefined);
+  const query = useTagOptions(
+    keyword || undefined,
+    (expanded && !disabled) || value.length > 0,
+  );
   const options = [
     ...new Map(
       query.data?.pages

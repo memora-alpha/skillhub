@@ -5,6 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useAuthSession } from "@/features/auth";
 import { connectionStore, deviceOffline } from "@/lib/network/connection-store";
 import { probeConnection } from "@/lib/network/probe-connection";
+import { startConnectionRecovery } from "@/lib/network/connection-recovery";
 import { createReadRefresh } from "@/lib/query/refresh-active-reads";
 
 export function useAppConnection() {
@@ -56,11 +57,18 @@ export function useAppConnection() {
     previousOffline.current = offline;
   }, [network.isConnected, network.isInternetReachable, retry]);
   useEffect(() => {
+    const recovery = startConnectionRecovery(
+      connectionStore,
+      retry,
+      AppState.currentState === "active",
+    );
     const listener = AppState.addEventListener("change", (next) => {
-      if (next === "active" && connectionStore.getSnapshot().reason)
-        void retry();
+      recovery.setActive(next === "active");
     });
-    return () => listener.remove();
+    return () => {
+      recovery.dispose();
+      listener.remove();
+    };
   }, [retry]);
   return { ...state, retry };
 }

@@ -10,22 +10,27 @@ import {
   useConnectionQuery,
 } from "@/features/connections";
 import { createMessagesApi, mergeMessages } from "../api/messages-api";
+import { shareMessageTail } from "../utils/message-tail";
 import {
   readThreadSnapshot,
   type ThreadSnapshot as Thread,
 } from "../utils/thread-snapshot";
 
 export function useMessagesApi() {
-  const { call, userId } = useConnections();
-  return useMemo(() => createMessagesApi(call, userId ?? ""), [call, userId]);
+  const { call, userId, key } = useConnections();
+  const cache = useQueryClient();
+  return useMemo(
+    () => shareMessageTail(cache, key, createMessagesApi(call, userId ?? "")),
+    [call, userId, key, cache],
+  );
 }
-export function useConversations() {
+export function useConversations(enabled = true) {
   const api = useMessagesApi();
   return useConnectionList(
     ["conversations"],
     (cursor, signal) => api.list(cursor, signal),
-    true,
-    { refreshOnFocus: "stale" },
+    enabled,
+    { refreshOnFocus: "stale", cancelOnDisable: true },
   );
 }
 export function useConversation(id: string) {

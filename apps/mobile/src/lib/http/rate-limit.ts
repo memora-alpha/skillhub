@@ -24,12 +24,19 @@ export function rateLimitUntil(error: unknown, now = Date.now()) {
     : 0;
 }
 
-type Job = { start(): void };
+// Smooth bursts across screens, independently of how fast the server responds.
+// These are client scheduling values, not the server's quota.
+const READ_START_LIMIT = 4;
+const READ_WINDOW_MS = 1000;
+
+type Job = { start(): void; rejectIfBlocked(): boolean };
 
 export class RequestCoordinator {
   private active = 0;
   private readonly queue: Job[] = [];
   private readonly limits = new Map<string, AppError>();
+  private readonly started: number[] = [];
+  private timer: ReturnType<typeof setTimeout> | undefined;
   constructor(
     private readonly now = Date.now,
     private readonly concurrency = 4,
@@ -68,6 +75,7 @@ export class RequestCoordinator {
     );
     if ((this.limits.get(key)?.retryAt ?? 0) < next.retryAt)
       this.limits.set(key, next);
+    this.pump();
   }
 
   async run<T>(
@@ -93,8 +101,19 @@ export class RequestCoordinator {
         const index = this.queue.indexOf(job);
         if (index >= 0) this.queue.splice(index, 1);
         reject(new AppError("session"));
+        this.pump();
       };
       const job: Job = {
+        rejectIfBlocked: () => {
+          try {
+            this.check(path, method);
+            return false;
+          } catch (error) {
+            signal?.removeEventListener("abort", abort);
+            reject(error);
+            return true;
+          }
+        },
         start: () => {
           signal?.removeEventListener("abort", abort);
           this.active++;
@@ -117,7 +136,26 @@ export class RequestCoordinator {
   }
 
   private pump() {
-    while (this.active < this.concurrency && this.queue.length)
+    clearTimeout(this.timer);
+    this.timer = undefined;
+    const now = this.now();
+    while (this.started.length && now - this.started[0]! >= READ_WINDOW_MS)
+      this.started.shift();
+    while (this.queue.length) {
+      if (this.queue[0]!.rejectIfBlocked()) {
+        this.queue.shift();
+        continue;
+      }
+      if (this.active >= this.concurrency) return;
+      if (this.started.length >= READ_START_LIMIT) {
+        this.timer = setTimeout(
+          () => this.pump(),
+          Math.max(1, this.started[0]! + READ_WINDOW_MS - now),
+        );
+        return;
+      }
+      this.started.push(now);
       this.queue.shift()!.start();
+    }
   }
 }

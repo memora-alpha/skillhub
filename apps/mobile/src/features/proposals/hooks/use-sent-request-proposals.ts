@@ -1,12 +1,35 @@
 import { useConnectionQuery } from "@/features/connections";
 import { useProposalsApi } from "./use-proposals-api";
 import { readSentRequestProposals } from "../api/sent-request-proposals";
-export function useSentRequestProposals() {
+import { useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useConnections } from "@/features/connections";
+export function useSentRequestProposals(
+  options: {
+    enabled?: boolean;
+    refreshOnFocus?: "always" | "stale";
+  } = {},
+) {
   const api = useProposalsApi();
-  return useConnectionQuery(["proposals", "sent-request-status"], (signal) =>
-    readSentRequestProposals(
-      (cursor, s) => api.list("sent", undefined, cursor, s),
-      signal,
-    ),
+  const cache = useQueryClient(),
+    runtime = useConnections();
+  const query = useConnectionQuery(
+    ["proposals", "sent-request-status"],
+    (signal) =>
+      readSentRequestProposals(
+        (cursor, s) => api.list("sent", undefined, cursor, s),
+        signal,
+      ),
+    options.enabled ?? true,
+    options,
   );
+  useEffect(() => {
+    if (options.enabled === false)
+      void cache.cancelQueries({
+        queryKey: [...runtime.key, "proposals", "sent-request-status"],
+        exact: true,
+        type: "inactive",
+      });
+  }, [cache, runtime.key, options.enabled]);
+  return query;
 }

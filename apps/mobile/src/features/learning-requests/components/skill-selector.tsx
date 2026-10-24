@@ -37,7 +37,10 @@ export function SkillSelector({
     return () => clearTimeout(timer);
   }, [search]);
   const keywordLength = [...keyword].length;
-  const query = useSkillOptions(keywordLength >= 2 ? keyword : undefined);
+  const query = useSkillOptions(
+    keywordLength >= 2 ? keyword : undefined,
+    expanded && !locked && !disabled,
+  );
   const selected = useSkillName(value || undefined);
   const all =
     query.data?.pages
@@ -149,8 +152,8 @@ export function SkillSelector({
           {expanded && query.hasNextPage && (
             <Button
               variant="paper"
-              disabled={disabled || query.isFetchingNextPage}
-              onPress={() => void query.fetchNextPage()}
+              disabled={disabled || query.isFetching}
+              onPress={() => void query.fetchNextPage({ cancelRefetch: false })}
             >
               {query.isFetchingNextPage ? "Đang tải..." : "Tải thêm kỹ năng"}
             </Button>

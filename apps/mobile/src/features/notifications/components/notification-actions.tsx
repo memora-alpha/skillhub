@@ -1,4 +1,5 @@
-import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
+import { LoadingIndicator as ActivityIndicator } from "@/components/LoadingIndicator";
 import { Icon } from "@/components/Icon";
 import { appColors as colors, appRadius } from "@/constants/theme";
 
@@ -25,7 +26,7 @@ export function NotificationActions({
         ]}
       >
         {refreshing ? (
-          <ActivityIndicator size="small" color={colors.primary} />
+          <ActivityIndicator size="small" />
         ) : (
           <Icon name="refresh" size={18} color={colors.primary} />
         )}

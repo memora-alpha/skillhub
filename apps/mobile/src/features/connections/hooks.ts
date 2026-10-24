@@ -21,7 +21,26 @@ import {
   type ConnectionReadTarget,
 } from "./read-refresh";
 
-type ReadOptions = { refreshOnFocus?: "always" | "stale" };
+type ReadOptions = {
+  refreshOnFocus?: "always" | "stale";
+  cancelOnDisable?: boolean;
+};
+
+function useCancelDisabledRead(
+  key: readonly unknown[],
+  valid: boolean,
+  cancelOnDisable = false,
+) {
+  const cache = useQueryClient();
+  useEffect(() => {
+    if (cancelOnDisable && !valid)
+      void cache.cancelQueries({
+        queryKey: key,
+        exact: true,
+        type: "inactive",
+      });
+  }, [cache, key, valid, cancelOnDisable]);
+}
 
 function useReadRefresh(
   key: readonly unknown[],
@@ -83,6 +102,7 @@ export function useConnectionQuery<T>(
     queryFn: ({ signal }) => access.read(() => read(signal), runtime.isCurrent),
     retry: false,
   });
+  useCancelDisabledRead(queryKey, valid, options.cancelOnDisable);
   useReadRefresh(
     queryKey,
     runtime.enabled && valid,
@@ -128,6 +148,7 @@ export function useConnectionList<T>(
     },
     retry: false,
   });
+  useCancelDisabledRead(queryKey, valid, options.cancelOnDisable);
   useReadRefresh(
     queryKey,
     runtime.enabled && valid,

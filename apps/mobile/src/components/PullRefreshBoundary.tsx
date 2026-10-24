@@ -1,13 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import {
-  ActivityIndicator,
-  Platform,
-  Text,
-  View,
-  type ViewInstance,
-} from "react-native";
+import { Platform, Text, View, type ViewInstance } from "react-native";
 import { appColors, fonts } from "@/constants/theme";
 import { pullDistance, pullThreshold } from "@/utils/pull-refresh";
+import { LoadingIndicator } from "./LoadingIndicator";
 
 export function PullRefreshBoundary({
   children,
@@ -15,14 +10,18 @@ export function PullRefreshBoundary({
   refreshing,
   refresh,
   scrollY,
+  pulling = false,
 }: Readonly<{
   children: ReactNode;
   enabled: boolean;
   refreshing: boolean;
   refresh: () => void;
   scrollY: { current: number };
+  pulling?: boolean;
 }>) {
   const frame = useRef<ViewInstance>(null);
+  const latestRefresh = useRef(refresh);
+  latestRefresh.current = refresh;
   const [pull, setPull] = useState(0);
   useEffect(() => {
     if (Platform.OS !== "web" || !enabled) return;
@@ -30,6 +29,7 @@ export function PullRefreshBoundary({
     if (!node) return;
     let start: { x: number; y: number } | undefined;
     let distance = 0;
+    let stage = 0;
     const begin = (x: number, y: number, target: EventTarget | null) => {
       const input =
         target instanceof Element &&
@@ -41,19 +41,30 @@ export function PullRefreshBoundary({
     const move = (x: number, y: number) => {
       if (!start || refreshing) return false;
       distance = pullDistance(x - start.x, y - start.y, scrollY.current);
-      if (distance <= 12) return false;
-      setPull(distance);
+      if (distance <= 12) {
+        if (stage !== 0) {
+          stage = 0;
+          setPull(0);
+        }
+        return false;
+      }
+      const nextStage = distance >= pullThreshold ? pullThreshold : 13;
+      if (stage !== nextStage) {
+        stage = nextStage;
+        setPull(nextStage);
+      }
       return true;
     };
     const cancel = () => {
       start = undefined;
       distance = 0;
+      stage = 0;
       setPull(0);
     };
     const end = () => {
       const ready = distance >= pullThreshold;
       cancel();
-      if (ready && !refreshing) refresh();
+      if (ready && !refreshing) latestRefresh.current();
     };
     const down = (event: PointerEvent) => {
       if (event.pointerType !== "touch" && event.button === 0)
@@ -99,8 +110,34 @@ export function PullRefreshBoundary({
       node.removeEventListener("touchend", end, options);
       node.removeEventListener("touchcancel", cancel, options);
     };
-  }, [enabled, refreshing, refresh, scrollY]);
-  if (Platform.OS !== "web" || !enabled) return children;
+  }, [enabled, refreshing, scrollY]);
+  if (Platform.OS !== "web")
+    return (
+      <View style={{ flex: 1, minHeight: 0 }}>
+        {children}
+        {enabled && (refreshing || pulling) && (
+          <View
+            pointerEvents="none"
+            style={{
+              position: "absolute",
+              top: 8,
+              left: 0,
+              right: 0,
+              alignItems: "center",
+            }}
+          >
+            <LoadingIndicator
+              accessibilityLabel={
+                refreshing ? "Đang làm mới dữ liệu" : "Kéo xuống để làm mới"
+              }
+              animating={refreshing}
+              busy={refreshing}
+            />
+          </View>
+        )}
+      </View>
+    );
+  if (!enabled) return children;
   let label = "Kéo xuống để làm mới";
   if (refreshing) label = "Đang làm mới…";
   else if (pull >= pullThreshold) label = "Thả để làm mới";
@@ -111,7 +148,11 @@ export function PullRefreshBoundary({
           accessibilityLiveRegion="polite"
           style={{ alignItems: "center", padding: 10, gap: 4 }}
         >
-          {refreshing && <ActivityIndicator color={appColors.primary} />}
+          <LoadingIndicator
+            accessibilityLabel={label}
+            animating={refreshing}
+            busy={refreshing}
+          />
           <Text style={{ fontFamily: fonts.body, color: appColors.muted }}>
             {label}
           </Text>

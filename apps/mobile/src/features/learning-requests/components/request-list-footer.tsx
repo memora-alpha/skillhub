@@ -3,6 +3,8 @@ import { Button } from "@/components/Button";
 import { FormNotice } from "@/components/FormNotice";
 import { isInvalidRequestCursor } from "../utils/request-list-query";
 import { requestError } from "../utils/request-policy";
+import { LoadingIndicator as ActivityIndicator } from "@/components/LoadingIndicator";
+import { isTransientReadError } from "@/lib/query/use-quiet-read-recovery";
 
 export function RequestListFooter({
   hasNextPage,
@@ -11,6 +13,7 @@ export function RequestListFooter({
   nextError,
   loadMore,
   reload,
+  quietTransient = false,
 }: Readonly<{
   hasNextPage: boolean;
   fetching: boolean;
@@ -18,7 +21,10 @@ export function RequestListFooter({
   nextError?: unknown;
   loadMore: () => void;
   reload: () => void;
+  quietTransient?: boolean;
 }>) {
+  if (quietTransient && isTransientReadError(nextError))
+    return <ActivityIndicator accessibilityLabel="Đang tải thêm yêu cầu học" />;
   const invalidCursor = isInvalidRequestCursor(nextError);
   let buttonLabel = "Xem thêm yêu cầu";
   if (fetchingNext) buttonLabel = "Đang tải...";
