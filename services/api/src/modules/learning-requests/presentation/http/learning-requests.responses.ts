@@ -76,6 +76,13 @@ class LearningRequestCardResponse {
 }
 
 class LearningRequestContentResponse extends LearningRequestCardResponse {
+  @ApiProperty({
+    type: [String],
+    description:
+      "Pending tag labels visible to the owner and reviewers. Empty after approval; approved IDs are in tagIds.",
+  })
+  proposedTags!: string[];
+
   @ApiProperty({ type: [String], format: "uuid" })
   offeredSharingSkillIds!: string[];
   @ApiProperty({ format: "uuid" })

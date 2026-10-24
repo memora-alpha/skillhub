@@ -9,6 +9,7 @@ import { IdentityModule } from "../identity.module";
 import { SkillActorService } from "../users/application/services/skill-actor.service";
 import { SkillsModule } from "../skills/skills.module";
 import { SkillsService } from "../skills/application/services/skills.service";
+import { LearningRequestTagsService } from "../skills/application/services/learning-request-tags.service";
 import { SharingSkillsModule } from "../sharing-skills/sharing-skills.module";
 import { SharingSkillsService } from "../sharing-skills/application/services/sharing-skills.service";
 import { LearningRequestAccessService } from "./application/services/learning-request-access.service";
@@ -20,6 +21,7 @@ import {
   REQUEST_LOCK_READER,
   SHARING_SKILL_READER,
   SKILL_CATALOG_READER,
+  REQUEST_TAG_APPROVER,
 } from "./application/ports/learning-request-dependencies";
 import { UnavailableLearningRequestDependencies } from "./infrastructure/adapters/unavailable-learning-request-dependencies";
 import { CreateLearningRequestUseCase } from "./application/use-cases/create-learning-request.use-case";
@@ -58,6 +60,10 @@ import { ReputationModule } from "../reputation/reputation.module";
     LearningRequestExpiryWorker,
     LearningRequestAccessService,
     UnavailableLearningRequestDependencies,
+    {
+      provide: REQUEST_TAG_APPROVER,
+      useExisting: LearningRequestTagsService,
+    },
     {
       provide: NEW_ACTIVITY_ELIGIBILITY_READER,
       useExisting: SkillActorService,

@@ -76,7 +76,9 @@ export class RequestModerationController {
   @Post(":requestId/approve")
   @ApiParam({ name: "requestId", format: "uuid" })
   @HttpCode(200)
-  @ApiOperation({ summary: "Approve a pending Learning Request" })
+  @ApiOperation({
+    summary: "Approve a pending Learning Request and its proposed tags",
+  })
   @ApiSuccessResponse(200, LearningRequestModerationResponse)
   async approve(
     @CurrentIdentity() actor: Principal,

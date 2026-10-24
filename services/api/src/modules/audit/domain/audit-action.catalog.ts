@@ -131,6 +131,8 @@ const sharingSkill = z.strictObject({
 const learningRequest = z.strictObject({
   status: z.enum(["PENDING", "APPROVED", "REJECTED"]),
   requestVersion: z.number().int().positive(),
+  proposedTags: z.array(tagLabel).max(10).optional(),
+  tagIds: z.array(uuid).max(10).optional(),
 });
 const rolePermission = z.strictObject({
   roles: z.array(role).optional(),

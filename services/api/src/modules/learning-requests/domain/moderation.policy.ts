@@ -10,6 +10,7 @@ export type ModerationContent = {
   description: string;
   learningGoal: string;
   tags: readonly string[];
+  proposedTags?: readonly string[];
 };
 
 export type ModerationRuleSnapshot = {
@@ -62,8 +63,10 @@ export function evaluateModeration(
     content.learningGoal,
     content.teachingOverview ?? "",
     ...content.tags,
+    ...(content.proposedTags ?? []),
   ].map(normalizeRequestText);
   const categories = new Set<string>();
+  if (content.proposedTags?.length) categories.add("PROPOSED_TAGS");
   for (const rule of parsed.rules) {
     if (texts.some((text) => matches(text, rule.pattern))) {
       categories.add(rule.category);

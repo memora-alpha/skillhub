@@ -53,6 +53,7 @@ function signature(request: LearningRequestRecord): string {
       .sort((left, right) => left.localeCompare(right)),
     currentLevel: request.currentLevel,
     verifiedTeacherOnly: request.verifiedTeacherOnly,
+    proposedTags: request.proposedTags ?? [],
     tagIds: request.tagLinks
       .map(({ tagId }) => tagId)
       .sort((left, right) => left.localeCompare(right)),
@@ -151,6 +152,7 @@ export class PublishLearningRequestUseCase {
         learningGoal: snapshot.request.learningGoal,
         teachingOverview: snapshot.request.teachingOverview,
         tags: snapshot.tags.map(({ label }) => label),
+        proposedTags: snapshot.request.proposedTags,
       },
       { ruleSet: snapshot.ruleSet, version: snapshot.configVersion },
     );

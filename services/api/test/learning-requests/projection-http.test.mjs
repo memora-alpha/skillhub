@@ -530,6 +530,7 @@ test("OpenAPI documents complete Learning Request inputs and scoped responses", 
       "currentLevel",
       "verifiedTeacherOnly",
       "tagIds",
+      "proposedTags",
       "preferredSlots",
       "expiresAt",
     ];
@@ -559,6 +560,8 @@ test("OpenAPI documents complete Learning Request inputs and scoped responses", 
     assert.equal(create.skillId.format, "uuid");
     assert.equal(create.tagIds.items.format, "uuid");
     assert.equal(create.tagIds.maxItems, 10);
+    assert.equal(create.proposedTags.maxItems, 10);
+    assert.equal(create.proposedTags.items.type, "string");
     assert.equal(create.preferredSlots.maxItems, 5);
     assert.equal(create.offeredSharingSkillIds.maxItems, 10);
     assert.equal(create.offeredSharingSkillIds.items.format, "uuid");
@@ -636,6 +639,16 @@ test("OpenAPI documents complete Learning Request inputs and scoped responses", 
         assert.ok(schemas[name].properties[field], `${name}.${field}`);
       }
     }
+    for (const name of [
+      "LearningRequestOwnerResponse",
+      "LearningRequestModerationResponse",
+    ]) {
+      assert.equal(schemas[name].properties.proposedTags.items.type, "string");
+    }
+    assert.equal(
+      schemas.LearningRequestSummaryResponse.properties.proposedTags,
+      undefined,
+    );
   } finally {
     await app.close();
   }

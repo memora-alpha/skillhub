@@ -72,6 +72,7 @@ export type LearningRequestOwnerDetail = LearningRequestCardContent & {
   currentLevel: LearningRequestRecord["currentLevel"];
   verifiedTeacherOnly: boolean;
   tagIds: string[];
+  proposedTags: string[];
   preferredSlots: PreferredSlotRecord[];
   status: LearningRequestRecord["status"];
   moderationStatus: LearningRequestRecord["moderationStatus"];
@@ -95,6 +96,7 @@ export type LearningRequestModerationDetail = LearningRequestCardContent & {
   currentLevel: LearningRequestRecord["currentLevel"];
   verifiedTeacherOnly: boolean;
   tagIds: string[];
+  proposedTags: string[];
   preferredSlots: PreferredSlotRecord[];
   status: LearningRequestRecord["status"];
   moderationStatus: LearningRequestRecord["moderationStatus"];
@@ -168,6 +170,7 @@ export function toLearningRequestOwnerDetail(
     learningGoal: record.learningGoal,
     currentLevel: record.currentLevel,
     verifiedTeacherOnly: record.verifiedTeacherOnly,
+    proposedTags: [...(record.proposedTags ?? [])],
     tagIds: record.tagLinks
       .map((link) => link.tagId)
       .sort((left, right) => left.localeCompare(right)),
@@ -203,6 +206,7 @@ export function toLearningRequestModerationDetail(
     learningGoal: record.learningGoal,
     currentLevel: record.currentLevel,
     verifiedTeacherOnly: record.verifiedTeacherOnly,
+    proposedTags: [...(record.proposedTags ?? [])],
     tagIds: record.tagLinks
       .map((link) => link.tagId)
       .sort((left, right) => left.localeCompare(right)),
@@ -229,6 +233,7 @@ export type PreferredSlotRecord = {
 };
 
 export type CreateLearningRequestRecord = {
+  proposedTags?: readonly string[];
   teachingOverview?: string | null;
   preferredAvailability?: PreferredAvailability | null;
   desiredCreditPerHour?: bigint | null;
@@ -259,6 +264,7 @@ export type ReplaceLearningRequestContent = Partial<
     | "desiredCreditPerHour"
     | "currentLevel"
     | "verifiedTeacherOnly"
+    | "proposedTags"
     | "requestedExpiresAt"
     | "expiresAt"
     | "expiryMode"
@@ -292,5 +298,6 @@ export type LearningRequestTransition = Partial<
     | "requestedExpiresAt"
     | "expiryMode"
     | "publishedAt"
+    | "proposedTags"
   >
->;
+> & { tagIds?: readonly string[] };

@@ -1,9 +1,22 @@
 import type { TransactionContext } from "../../../../infrastructure/database/transaction-context";
+import type { Principal } from "../../../auth/application/services/sessions.service";
+import type { RequestContext } from "../../../../shared/http/request-context";
 
 export const NEW_ACTIVITY_ELIGIBILITY_READER = Symbol(
   "NEW_ACTIVITY_ELIGIBILITY_READER",
 );
 export const SKILL_CATALOG_READER = Symbol("SKILL_CATALOG_READER");
+export const REQUEST_TAG_APPROVER = Symbol("REQUEST_TAG_APPROVER");
+
+export interface RequestTagApprover {
+  approveForRequest(
+    tx: TransactionContext,
+    actor: Principal,
+    labels: readonly string[],
+    requestId: string,
+    context: RequestContext,
+  ): Promise<string[]>;
+}
 export const REQUEST_LOCK_READER = Symbol("REQUEST_LOCK_READER");
 export const REQUEST_OWNER_READER = Symbol("REQUEST_OWNER_READER");
 export const SHARING_SKILL_READER = Symbol("SHARING_SKILL_READER");

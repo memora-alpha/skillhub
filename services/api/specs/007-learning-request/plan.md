@@ -1,5 +1,9 @@
 # Learning Request Implementation Plan
 
+**Inline tag amendment — 2026-10-24:** [Design, contract, transaction boundary and
+Constitution check](proposed-tags.md) cover inline tag proposals reviewed with the
+post. Only backend Request, Skills, audit snapshots and runtime storage change.
+
 **FE amendment — 2026-10-12:** User approved [design](fe-extension-design.md) and requested immediate implementation. [Extension plan](fe-extension-plan.md) covers teaching overview, owner's offered Sharing Skills, weekly availability, desired hourly Credit, ACTIVE Tag lookup and additive migration. Retain existing lifecycle/permission/moderation/legacy slots.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans or superpowers:subagent-driven-development to implement this plan task-by-task. User approved options A for all eight reviewed decisions and requested implementation. Core implementation is in progress; upstream and real-infrastructure gates remain open. No commit/push is authorized.

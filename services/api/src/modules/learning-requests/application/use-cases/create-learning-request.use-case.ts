@@ -118,6 +118,7 @@ export class CreateLearningRequestUseCase {
         currentLevel: content.currentLevel,
         verifiedTeacherOnly: content.verifiedTeacherOnly,
         tagIds: content.tagIds,
+        proposedTags: content.proposedTags,
         preferredSlots: content.preferredSlots,
         requestedExpiresAt: content.requestedExpiresAt,
         expiryMode: content.requestedExpiresAt ? "CUSTOM" : "DEFAULT",

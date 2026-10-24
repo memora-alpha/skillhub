@@ -15,6 +15,11 @@ migration, API restart and clients because old array payloads are rejected.
 See [the contract](specs/008-connections/contracts/http.md).
 
 Tag API có quản trị danh mục cho ADMIN và luồng USER đề xuất → ADMIN approve/reject.
+Learning Request hỗ trợ `proposedTags: string[]` khi tạo/sửa bài. Bài có tag mới
+luôn chờ Staff/Admin duyệt chung; approve tạo/dùng lại tag ACTIVE và gắn vào bài
+cùng transaction. Tag chưa duyệt chưa vào kho. Chạy migration
+`20261024000000_learning_request_proposed_tags` trước khi khởi động code mới;
+xem [contract và rollout](specs/007-learning-request/proposed-tags.md).
 Xem [quickstart và rollout](specs/009-tags/quickstart.md),
 [contract](specs/009-tags/spec.md#api-contract) và
 [validation](specs/009-tags/validation.md). `GET /api/v1/tags` giữ contract public

@@ -29,6 +29,8 @@ import {
 import { LearningRequestAccessService } from "../services/learning-request-access.service";
 import {
   SHARING_SKILL_READER,
+  REQUEST_TAG_APPROVER,
+  type RequestTagApprover,
   type SharingSkillReader,
 } from "../ports/learning-request-dependencies";
 
@@ -72,6 +74,7 @@ export class ModerateLearningRequestUseCase {
     private readonly audit: AuditWriter,
     private readonly outbox: OutboxWriter,
     @Inject(SHARING_SKILL_READER) private readonly sharing: SharingSkillReader,
+    @Inject(REQUEST_TAG_APPROVER) private readonly tags: RequestTagApprover,
   ) {}
 
   async execute(
@@ -112,6 +115,23 @@ export class ModerateLearningRequestUseCase {
         throw new ConflictException("REQUEST_VERSION_CONFLICT");
       }
       const reviewed = { ...request };
+      const proposedTags = reviewed.proposedTags ?? [];
+      let approvedTagIds: string[] | undefined;
+      if (decision === "APPROVE" && proposedTags.length > 0) {
+        const newTagIds = await this.tags.approveForRequest(
+          tx,
+          live,
+          proposedTags,
+          request.id,
+          context,
+        );
+        approvedTagIds = [
+          ...new Set([
+            ...reviewed.tagLinks.map(({ tagId }) => tagId),
+            ...newTagIds,
+          ]),
+        ].sort((left, right) => left.localeCompare(right));
+      }
 
       const moderationStatus = decision === "APPROVE" ? "APPROVED" : "REJECTED";
       const transition = {
@@ -121,15 +141,21 @@ export class ModerateLearningRequestUseCase {
         moderationReviewedVersion: input.expectedVersion,
         moderatedByUserId: live.userId,
         moderatedAt: now,
+        ...(approvedTagIds ? { tagIds: approvedTagIds, proposedTags: [] } : {}),
       } as const;
       const auditInput = this.audit.validate({
         actor: auditActor(live),
         action: "LEARNING_REQUEST_MODERATE",
         target: { type: "LEARNING_REQUEST", id: request.id },
-        before: { status: "PENDING", requestVersion: request.version },
+        before: {
+          status: "PENDING",
+          requestVersion: request.version,
+          ...(proposedTags.length ? { proposedTags } : {}),
+        },
         after: {
           status: moderationStatus,
           requestVersion: request.version + 1,
+          ...(approvedTagIds ? { tagIds: approvedTagIds } : {}),
         },
         reason,
         context,
@@ -169,6 +195,9 @@ export class ModerateLearningRequestUseCase {
         {
           ...reviewed,
           ...transition,
+          ...(approvedTagIds
+            ? { tagLinks: approvedTagIds.map((tagId) => ({ tagId })) }
+            : {}),
           version: reviewed.version + 1,
           updatedAt: now,
         },
