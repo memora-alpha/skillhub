@@ -2,6 +2,10 @@
 
 NestJS backend in the SkillHub pnpm/Turborepo workspace.
 
+Learning Request public feed/recommended/detail include `owner.avatarUrl`
+(`string | null`), signed for 60 seconds only for the selected CLEAN avatar.
+No migration is needed; see [contract and cache guidance](specs/007-learning-request/contracts/http.md).
+
 Session/LiveKit: backend có token theo participant, lifecycle, signed webhook,
 progress và dual completion. Xem [setup, policy và contract](docs/livekit-sessions.vi.md).
 Join window chưa có mặc định; thêm env nhưng chưa cấu hình policy vẫn không cấp

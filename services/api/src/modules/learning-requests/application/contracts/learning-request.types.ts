@@ -111,6 +111,12 @@ export type LearningRequestModerationDetail = LearningRequestCardContent & {
   updatedAt: Date;
 };
 
+export type LearningRequestPublicOwner = {
+  id: string;
+  displayName: string;
+  avatarUrl: string | null;
+};
+
 export type LearningRequestSummary = LearningRequestCardContent & {
   description: string;
   preferredSlots: PreferredSlotRecord[];
@@ -122,7 +128,7 @@ export type LearningRequestSummary = LearningRequestCardContent & {
   currentLevel: LearningRequestRecord["currentLevel"];
   verifiedTeacherOnly: boolean;
   status: LearningRequestRecord["status"];
-  owner: { id: string; displayName: string };
+  owner: LearningRequestPublicOwner;
   createdAt: Date;
   expiresAt: Date | null;
 };

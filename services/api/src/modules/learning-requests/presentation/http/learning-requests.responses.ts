@@ -20,6 +20,22 @@ export class PreferredSlotResponse {
   endAt!: Date;
 }
 
+export class LearningRequestPublicOwnerResponse {
+  @ApiProperty({ format: "uuid" })
+  id!: string;
+
+  @ApiProperty()
+  displayName!: string;
+
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    description:
+      "Signed avatar URL valid for 60 seconds; null without a CLEAN selected avatar.",
+  })
+  avatarUrl!: string | null;
+}
+
 export class OfferedSharingSkillResponse {
   @ApiProperty({ format: "uuid" })
   id!: string;
@@ -181,15 +197,8 @@ export class LearningRequestSummaryResponse extends LearningRequestCardResponse 
   @ApiProperty({ enum: ["OPEN"] })
   status!: string;
 
-  @ApiProperty({
-    type: "object",
-    required: ["id", "displayName"],
-    properties: {
-      id: { type: "string", format: "uuid" },
-      displayName: { type: "string" },
-    },
-  })
-  owner!: { id: string; displayName: string };
+  @ApiProperty({ type: LearningRequestPublicOwnerResponse })
+  owner!: LearningRequestPublicOwnerResponse;
 
   @ApiProperty({ format: "date-time" })
   createdAt!: Date;

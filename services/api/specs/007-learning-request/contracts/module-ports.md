@@ -10,6 +10,12 @@ Baseline downstream được phân tích trong [SRS V1.5 / change report](../srs
 
 ```ts
 type RequestVersion = number; // safe positive integer
+
+type LearningRequestPublicOwner = {
+  id: string;
+  displayName: string;
+  avatarUrl: string | null; // current selected CLEAN avatar, signed for 60s
+};
 type SlotInput = { startAt: string; endAt: string }; // absolute RFC3339
 type LearningRequestInput = {
   title: string;
@@ -109,7 +115,7 @@ interface RequestOwnerReader {
   readPublicOwners(
     tx: TransactionContext,
     userIds: readonly string[],
-  ): Promise<{ id: string; displayName: string }[]>;
+  ): Promise<LearningRequestPublicOwner[]>;
 }
 interface SharingSkillReader {
   getMatchingSnapshot(

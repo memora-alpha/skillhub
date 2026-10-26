@@ -113,7 +113,9 @@ export async function createSkillFixture(
       commands = new IdempotencyService(transactions),
       audit = new AuditWriter(new AuditRepository()),
       outbox = new OutboxWriter();
-    const actors = new SkillActorService(identity.sessions),
+    const actors = new SkillActorService(identity.sessions, {
+        url: async (key) => `https://avatar.test/${key}`,
+      }),
       publicReader = new PublicSkillReader();
     const profiles = new ProfileReader(
       db,

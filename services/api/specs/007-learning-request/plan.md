@@ -1,5 +1,10 @@
 # Learning Request Implementation Plan
 
+**Owner avatar amendment — 2026-10-26:** User approved implementation of
+[the owner avatar plan](owner-avatar-plan.md): required nullable signed avatar in
+feed, recommended and public detail, preserving batch owner reads and the existing
+CLEAN-only/60-second policy. Backend-only; no migration or mobile change.
+
 **Inline tag amendment — 2026-10-24:** [Design, contract, transaction boundary and
 Constitution check](proposed-tags.md) cover inline tag proposals reviewed with the
 post. Only backend Request, Skills, audit snapshots and runtime storage change.

@@ -15,6 +15,7 @@ import {
 } from "@nestjs/common/constants.js";
 import { IdentityGuard } from "../../dist/shared/auth/identity.guard.js";
 import { GetLearningRequestUseCase } from "../../dist/modules/learning-requests/application/use-cases/get-learning-request.use-case.js";
+import { ListLearningRequestsUseCase } from "../../dist/modules/learning-requests/application/use-cases/list-learning-requests.use-case.js";
 import { LearningRequestsController } from "../../dist/modules/learning-requests/presentation/http/learning-requests.controller.js";
 import { RequestModerationController } from "../../dist/modules/learning-requests/presentation/http/request-moderation.controller.js";
 import { LearningRequestModerationRulesController } from "../../dist/modules/system-configuration/presentation/http/learning-request-moderation-rules.controller.js";
@@ -78,7 +79,11 @@ const reviewer = {
   permissions: ["learning-request:moderation:read"],
 };
 
-function detailHarness(item, principal = user) {
+function detailHarness(
+  item,
+  principal = user,
+  ownerProjection = { id: otherId, displayName: "Learner", avatarUrl: null },
+) {
   const calls = { permission: [], catalogs: [], owners: [] };
   const tx = { $queryRaw: async () => [] };
   const access = {
@@ -97,6 +102,8 @@ function detailHarness(item, principal = user) {
   const repository = {
     databaseNow: async () => now,
     get: async (_tx, id) => (id === requestId ? item : null),
+    findPage: async () => [item],
+    findRecommended: async () => [{ request: item, matchScore: 2 }],
   };
   const catalog = {
     readSelections: async (_tx, selection) => {
@@ -110,7 +117,7 @@ function detailHarness(item, principal = user) {
   const owners = {
     readPublicOwners: async (_tx, ids) => {
       calls.owners.push(ids);
-      return [{ id: otherId, displayName: "Learner" }];
+      return ownerProjection ? [ownerProjection] : [];
     },
   };
   return {
@@ -123,6 +130,20 @@ function detailHarness(item, principal = user) {
       owners,
     ),
     principal,
+    listUseCase: new ListLearningRequestsUseCase(
+      { run: (work) => work(tx) },
+      { assertAction: async (_tx, actor) => actor },
+      repository,
+      catalog,
+      owners,
+      {
+        getMatchingSnapshot: async () => ({
+          skillIds: [skillId],
+          tagIds: [tagId],
+          version: "matching-1",
+        }),
+      },
+    ),
   };
 }
 
@@ -138,6 +159,7 @@ test("detail projection selects owner, public, or moderation scope without leaki
   assert.equal(ownerDetail.moderationRejectReason, "Please clarify the goal");
   assert.equal(ownerDetail.effectiveStatus, "REJECTED");
   assert.equal("flaggedCategories" in ownerDetail, false);
+  assert.equal("owner" in ownerDetail, false);
   assert.equal(ownerFx.calls.catalogs.length, 0);
 
   const publicFx = detailHarness(record());
@@ -147,6 +169,7 @@ test("detail projection selects owner, public, or moderation scope without leaki
     "Detailed description that must stay within its scope.",
   );
   assert.equal(publicDetail.owner.displayName, "Learner");
+  assert.equal(publicDetail.owner.avatarUrl, null);
   assert.equal("ownerId" in publicDetail, false);
   assert.equal("flaggedCategories" in publicDetail, false);
   assert.equal("moderationRuleSetVersion" in publicDetail, false);
@@ -158,6 +181,7 @@ test("detail projection selects owner, public, or moderation scope without leaki
   const reviewerDetail = await pendingFx.useCase.execute(reviewer, requestId);
   assert.deepEqual(reviewerDetail.flaggedCategories, ["INTERNAL_ONLY"]);
   assert.equal("moderationRuleSetVersion" in reviewerDetail, false);
+  assert.equal("owner" in reviewerDetail, false);
   await assert.rejects(
     () =>
       detailHarness(
@@ -186,6 +210,80 @@ test("private and expired records return 404 to outsiders; owners see effective 
       ),
     (error) => error.getStatus?.() === 404,
   );
+});
+
+test("public detail keeps missing owner projection errors", async () => {
+  const f = detailHarness(record(), user, null);
+  await assert.rejects(
+    () => f.useCase.execute(user, requestId),
+    (error) => error.getStatus() === 503,
+  );
+});
+
+test("public feed, recommended and detail serialize required signed/null owner avatars over HTTP", async () => {
+  let active;
+  const dependencies = Reflect.getMetadata(
+    "design:paramtypes",
+    LearningRequestsController,
+  );
+  const module = await Test.createTestingModule({
+    controllers: [LearningRequestsController],
+    providers: dependencies.map((token) => ({
+      provide: token,
+      useValue:
+        token === GetLearningRequestUseCase
+          ? { execute: (...args) => active.useCase.execute(...args) }
+          : token === ListLearningRequestsUseCase
+            ? { execute: (...args) => active.listUseCase.execute(...args) }
+            : {},
+    })),
+  })
+    .overrideGuard(IdentityGuard)
+    .useValue({
+      canActivate: (context) => {
+        const req = context.switchToHttp().getRequest();
+        if (!req.headers.authorization) throw new UnauthorizedException();
+        req.principal = user;
+        return true;
+      },
+    })
+    .compile();
+  const app = module.createNestApplication();
+  app.setGlobalPrefix("api");
+  app.enableVersioning({ type: VersioningType.URI });
+  try {
+    await app.listen(0, "127.0.0.1");
+    const base = `${await app.getUrl()}/api/v1/learning-requests`;
+    for (const avatarUrl of ["https://avatar.test/clean?signed=true", null]) {
+      active = detailHarness(record(), user, {
+        id: otherId,
+        displayName: "Learner",
+        avatarUrl,
+        email: "private@example.test",
+        storageKey: "private-avatar-key",
+      });
+      for (const path of ["", "/recommended", `/${requestId}`]) {
+        const response = await fetch(`${base}${path}`, {
+          headers: { authorization: "Bearer test" },
+        });
+        assert.equal(response.status, 200);
+        const body = await response.json();
+        assert.equal(body.success, true);
+        const card = Array.isArray(body.data) ? body.data[0] : body.data;
+        assert.deepEqual(card.owner, {
+          id: otherId,
+          displayName: "Learner",
+          avatarUrl,
+        });
+        if (Array.isArray(body.data))
+          assert.equal(body.meta.pagination.hasMore, false);
+        if (path === "/recommended") assert.equal(card.matchScore, 2);
+        assert.equal((await fetch(`${base}${path}`)).status, 401);
+      }
+    }
+  } finally {
+    await app.close();
+  }
 });
 
 test("detail requires an explicit current read permission before revealing resource scope", async () => {
@@ -372,6 +470,21 @@ test("OpenAPI documents complete Learning Request inputs and scoped responses", 
       new DocumentBuilder().addBearerAuth().build(),
     );
     const schemas = document.components.schemas;
+    for (const name of [
+      "LearningRequestSummaryResponse",
+      "LearningRequestDetailResponse",
+      "LearningRequestRecommendationResponse",
+    ]) {
+      assert.equal(
+        schemas[name].properties.owner.$ref,
+        "#/components/schemas/LearningRequestPublicOwnerResponse",
+      );
+      const owner = schemas.LearningRequestPublicOwnerResponse;
+      assert.deepEqual(owner.required, ["id", "displayName", "avatarUrl"]);
+      assert.equal(owner.properties.avatarUrl.type, "string");
+      assert.equal(owner.properties.avatarUrl.nullable, true);
+      assert.ok(schemas[name].required.includes("owner"));
+    }
     for (const [name, fields] of [
       [
         "LearningRequestOwnerResponse",

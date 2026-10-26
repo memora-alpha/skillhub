@@ -93,7 +93,16 @@ function harness(options = {}) {
   const owners = {
     readPublicOwners: async (_tx, ids) => {
       calls.owners.push(ids);
-      return ids.map((id) => ({ id, displayName: "Learner" }));
+      if (options.ownerError) throw options.ownerError;
+      return ids
+        .filter((id) => id !== options.missingOwnerId)
+        .map((id) => ({
+          id,
+          displayName: "Learner",
+          avatarUrl: options.avatarUrl ?? null,
+          email: "must-not-project@example.test",
+          storageKey: "must-not-project",
+        }));
     },
   };
   const sharing = {
@@ -122,6 +131,58 @@ function harness(options = {}) {
   };
 }
 
+for (const scope of ["FEED", "RECOMMENDED"]) {
+  test(`${scope} batches unique owners and keeps signed/null avatars on public cards`, async () => {
+    const thirdOwner = "99999999-9999-4999-8999-999999999999";
+    const rows = [
+      record(),
+      record({ id: "77777777-7777-4777-8777-777777777777" }),
+      record({
+        id: "88888888-8888-4888-8888-888888888888",
+        ownerId: thirdOwner,
+      }),
+    ];
+    for (const avatarUrl of ["https://avatar.test/clean?signed=true", null]) {
+      const f = harness({
+        pages: [[...rows]],
+        recommended: rows.map((request) => ({ request, matchScore: 2 })),
+        avatarUrl,
+      });
+      const page = await f.useCase.execute(actor, scope, {});
+      assert.deepEqual(f.calls.owners, [[otherOwnerId, thirdOwner]]);
+      assert.equal(page.items.length, rows.length);
+      for (const [index, item] of page.items.entries()) {
+        assert.deepEqual(item.owner, {
+          id: rows[index].ownerId,
+          displayName: "Learner",
+          avatarUrl,
+        });
+        if (scope === "RECOMMENDED") assert.equal(item.matchScore, 2);
+      }
+    }
+  });
+
+  test(`${scope} empty pages do not fetch owners`, async () => {
+    const f = harness({ pages: [[]], recommended: [] });
+    assert.deepEqual((await f.useCase.execute(actor, scope, {})).items, []);
+    assert.deepEqual(f.calls.owners, []);
+  });
+
+  test(`${scope} missing owners and signing failures remain errors`, async () => {
+    const missing = harness({ missingOwnerId: otherOwnerId });
+    await assert.rejects(
+      () => missing.useCase.execute(actor, scope, {}),
+      (error) => error.getStatus() === 503,
+    );
+    const failure = new Error("Avatar signing unavailable");
+    const broken = harness({ ownerError: failure });
+    await assert.rejects(
+      () => broken.useCase.execute(actor, scope, {}),
+      (error) => error === failure,
+    );
+  });
+}
+
 test("FEED is OPEN/unexpired and returns only the public allowlist projection", async () => {
   const { calls, useCase } = harness();
   const page = await useCase.execute(actor, "FEED", {});
@@ -132,6 +193,11 @@ test("FEED is OPEN/unexpired and returns only the public allowlist projection", 
   assert.equal(page.items[0].skill.name, "Backend engineering");
   assert.equal(page.items[0].tags[0].label, "API design");
   assert.equal(page.items[0].owner.displayName, "Learner");
+  assert.deepEqual(page.items[0].owner, {
+    id: otherOwnerId,
+    displayName: "Learner",
+    avatarUrl: null,
+  });
   assert.equal("description" in page.items[0], true);
   assert.equal("offeredSharingSkillIds" in page.items[0], false);
   assert.equal("passwordHash" in page.items[0], false);

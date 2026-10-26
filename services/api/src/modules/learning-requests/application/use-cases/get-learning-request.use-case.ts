@@ -145,7 +145,11 @@ export class GetLearningRequestUseCase {
       currentLevel: request.currentLevel,
       verifiedTeacherOnly: request.verifiedTeacherOnly,
       status: request.status,
-      owner,
+      owner: {
+        id: owner.id,
+        displayName: owner.displayName,
+        avatarUrl: owner.avatarUrl,
+      },
       createdAt: request.createdAt,
       expiresAt: request.expiresAt,
       description: request.description,
