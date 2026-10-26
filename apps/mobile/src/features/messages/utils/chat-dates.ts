@@ -32,15 +32,20 @@ export function chatDayLabel(value: string, now = new Date()) {
   );
 }
 export function inboxTime(value: string, now = new Date()) {
-  return chatDayKey(value) === chatDayKey(now)
-    ? chatTime(value)
-    : new Date(value).toLocaleDateString("vi-VN", {
-        day: "2-digit",
-        month: "2-digit",
-        ...(new Date(value).getFullYear() !== now.getFullYear()
-          ? { year: "numeric" as const }
-          : {}),
-      });
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "";
+  if (chatDayKey(date) === chatDayKey(now)) return chatTime(value);
+  const today = new Date(now);
+  today.setHours(0, 0, 0, 0);
+  const weekStart = new Date(today);
+  weekStart.setDate(today.getDate() - ((today.getDay() + 6) % 7));
+  if (date >= weekStart && date < today)
+    return ["CN", "Th 2", "Th 3", "Th 4", "Th 5", "Th 6", "Th 7"][
+      date.getDay()
+    ]!;
+  const year =
+    date.getFullYear() !== now.getFullYear() ? `, ${date.getFullYear()}` : "";
+  return `${date.getDate()} thg ${date.getMonth() + 1}${year}`;
 }
 export type DatedChatItem =
   | (ChatTimelineItem & { showTime: boolean })

@@ -1,12 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { uuid } from "@/lib/http/contracts";
 import { RefreshableFlatList as FlatList } from "@/components/RefreshableFlatList";
-import {
-  KeyboardAvoidingView,
-  Platform,
-  View,
-  type FlatListProps,
-} from "react-native";
+import { KeyboardAvoidingView, Platform, View } from "react-native";
+import type { FlatListProps } from "react-native";
 import { SafeAreaView } from "@/components/SafeArea";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useAgreementNavigation } from "@/features/learning-paths/state";
@@ -34,6 +30,10 @@ import type { ApiMessage } from "../api/messages-api";
 import { messageColors as colors } from "../constants/theme";
 import { useConversationContext } from "../hooks/use-conversation-context";
 import { ConfirmedFormFeedback } from "../components/ConfirmedFormFeedback";
+import { useChatAttachment } from "../hooks/use-chat-attachment";
+import { ChatAttachmentPreview } from "../components/ChatAttachmentPreview";
+import { ChatSendFeedback } from "../components/ChatSendFeedback";
+import { ScreenLoadingBoundary } from "@/components/ScreenLoadingBoundary";
 export function ApiChatScreen({ id }: Readonly<{ id: string }>) {
   const conversation = useConversation(id);
   if (!uuid.safeParse(id).success)
@@ -94,13 +94,15 @@ function ApiChatConversation({
   const agreement = useAgreementNavigation(id);
   const [draft, setDraft] = useState(""),
     [focused, setFocused] = useState(false);
+  const attachment = useChatAttachment(id);
   const draftRef = useRef("");
+  const sending = useRef(false);
   const updateDraft = (text: string) => {
     draftRef.current = text;
     setDraft(text);
   };
   const [readError, setReadError] = useState<unknown>();
-  const [visible, setVisible] = useState<ApiMessage>();
+  const [last, setVisible] = useState<ApiMessage>();
   const readWatermark = useRef<string | undefined>(undefined);
   const viewability = useRef<
     NonNullable<FlatListProps<ChatTimelineItem>["onViewableItemsChanged"]>
@@ -142,22 +144,15 @@ function ApiChatConversation({
       ).reverse(),
     [thread.data?.messages, sender.items],
   );
-  const messages = useMemo(
-    () =>
-      timeline.flatMap((item) =>
-        item.kind === "message" ? [item.message] : [],
-      ),
-    [timeline],
+  const messages = timeline.flatMap((item) =>
+    item.kind === "message" ? [item.message] : [],
   );
   useEffect(() => {
     sender.reconcile(
       (thread.data?.messages ?? []).map((message) => message.id),
     );
   }, [thread.data?.messages, sender.reconcile]);
-  const seenMessageId = useMemo(
-    () => lastSeenOutgoingId(messages, runtime.userId),
-    [messages, runtime.userId],
-  );
+  const seenMessageId = lastSeenOutgoingId(messages, runtime.userId);
   useEffect(() => {
     const latest = messages[0]?.id;
     if (
@@ -169,7 +164,6 @@ function ApiChatConversation({
       setHasNewMessages(true);
     previousLatest.current = latest;
   }, [messages]);
-  const last = visible;
   useEffect(() => {
     if (
       sender.offline ||
@@ -197,12 +191,25 @@ function ApiChatConversation({
     };
   }, [last?.id, focused, thread.error, api, id, runtime, sender.offline]);
   const send = async (text: string) => {
-    if (!text.trim() || !sender.ready) return;
-    if (await sender.send(text)) {
-      if (draftRef.current === text) updateDraft("");
-      atLatest.current = true;
-      setHasNewMessages(false);
-      list.current?.scrollToOffset({ offset: 0, animated: true });
+    if (
+      sending.current ||
+      draftRef.current !== text ||
+      (!text.trim() && !attachment.file) ||
+      !sender.ready
+    )
+      return;
+    sending.current = true;
+    try {
+      if (
+        attachment.file ? await attachment.send(text) : await sender.send(text)
+      ) {
+        if (draftRef.current === text) updateDraft("");
+        atLatest.current = true;
+        setHasNewMessages(false);
+        list.current?.scrollToOffset({ offset: 0, animated: true });
+      }
+    } finally {
+      sending.current = false;
     }
   };
   return (
@@ -232,101 +239,106 @@ function ApiChatConversation({
           live={live.connected}
           avatarUrl={partner.data?.avatarUrl}
         />
-        <FlatList
-          ref={list}
-          data={timeline}
-          inverted={timeline.length > 0}
-          keyExtractor={(item) => item.id}
-          maintainVisibleContentPosition={{
-            minIndexForVisible: 0,
-            autoscrollToTopThreshold: 60,
-          }}
-          style={{ flex: 1, backgroundColor: colors.canvas }}
-          onViewableItemsChanged={viewability.current}
-          viewabilityConfig={{ itemVisiblePercentThreshold: 50 }}
-          contentContainerStyle={{
-            maxWidth: 640,
-            width: "100%",
-            alignSelf: "center",
-            padding: 12,
-          }}
-          keyboardShouldPersistTaps="handled"
-          onScrollBeginDrag={() => {
-            hasScrolled.current = true;
-          }}
-          onScroll={({ nativeEvent }) => {
-            const offset = nativeEvent.contentOffset.y;
-            atLatest.current = offset < 60;
-            if (offset > 20) hasScrolled.current = true;
-            if (atLatest.current) setHasNewMessages(false);
-          }}
-          scrollEventThrottle={32}
-          onEndReachedThreshold={0.3}
-          onEndReached={() => {
-            if (hasScrolled.current && focused && !thread.error)
-              void thread.loadOlder();
-          }}
-          ListFooterComponent={
-            <View style={{ gap: 10 }}>
-              {thread.data?.nextCursor && !!thread.olderError && (
-                <Button
-                  variant="secondary"
-                  disabled={thread.olderPending || thread.isFetching}
-                  onPress={() => {
-                    void thread.loadOlder();
+        <ScreenLoadingBoundary>
+          <FlatList
+            ref={list}
+            data={timeline}
+            inverted={timeline.length > 0}
+            keyExtractor={(item) => item.id}
+            maintainVisibleContentPosition={{
+              minIndexForVisible: 0,
+              autoscrollToTopThreshold: 60,
+            }}
+            style={{ flex: 1, backgroundColor: colors.canvas }}
+            onViewableItemsChanged={viewability.current}
+            viewabilityConfig={{ itemVisiblePercentThreshold: 50 }}
+            contentContainerStyle={{
+              maxWidth: 640,
+              width: "100%",
+              alignSelf: "center",
+              padding: 12,
+            }}
+            keyboardShouldPersistTaps="handled"
+            onScrollBeginDrag={() => {
+              hasScrolled.current = true;
+            }}
+            onScroll={({ nativeEvent }) => {
+              const offset = nativeEvent.contentOffset.y;
+              atLatest.current = offset < 60;
+              if (offset > 20) hasScrolled.current = true;
+              if (atLatest.current) setHasNewMessages(false);
+            }}
+            scrollEventThrottle={32}
+            onEndReachedThreshold={0.3}
+            onEndReached={() => {
+              if (hasScrolled.current && focused && !thread.error)
+                void thread.loadOlder();
+            }}
+            ListFooterComponent={
+              <View style={{ gap: 10 }}>
+                {thread.data?.nextCursor && !!thread.olderError && (
+                  <Button
+                    variant="secondary"
+                    disabled={thread.olderPending || thread.isFetching}
+                    onPress={() => {
+                      void thread.loadOlder();
+                    }}
+                  >
+                    Thử tải tin nhắn cũ
+                  </Button>
+                )}
+                <ConnectionFeedback
+                  loading={thread.isLoading || thread.olderPending}
+                  loadingPresentation={
+                    thread.isLoading ? "screen" : "placeholder"
+                  }
+                  error={
+                    sender.offline
+                      ? undefined
+                      : (thread.error ?? thread.olderError)
+                  }
+                  retry={() => {
+                    refreshConversation();
+                    void context.refetch();
+                    if (thread.olderError) void thread.loadOlder();
+                    else void thread.refetch();
                   }}
-                >
-                  Thử tải tin nhắn cũ
-                </Button>
-              )}
-              <ConnectionFeedback
-                loading={thread.isLoading || thread.olderPending}
-                error={
-                  sender.offline
-                    ? undefined
-                    : (thread.error ?? thread.olderError)
-                }
-                retry={() => {
-                  refreshConversation();
-                  void context.refetch();
-                  if (thread.olderError) void thread.loadOlder();
-                  else void thread.refetch();
-                }}
-              />
-              {!sender.offline && (
-                <ConnectionFeedback error={live.error} retry={live.retry} />
-              )}
-            </View>
-          }
-          ListEmptyComponent={
-            !thread.isPending && !thread.error ? (
-              <View>
-                <Copy muted>Bạn có thể bắt đầu trò chuyện tại đây.</Copy>
+                />
+                {!sender.offline && (
+                  <ConnectionFeedback error={live.error} retry={live.retry} />
+                )}
               </View>
-            ) : null
-          }
-          renderItem={({ item, index }) => (
-            <ChatThreadMessage
-              item={item}
-              older={timeline[index + 1]}
-              newer={timeline[index - 1]}
-              userId={runtime.userId ?? ""}
-              offline={sender.offline}
-              retry={sender.retry}
-              partner={partner.data?.fullName ?? "Thành viên SkillHub"}
-              partnerId={partnerId}
-              avatarUrl={partner.data?.avatarUrl}
-              seen={
-                item.kind === "message" && item.message.id === seenMessageId
-              }
-            />
-          )}
-          onContentSizeChange={() => {
-            if (timeline.length > 0 && atLatest.current) {
-              list.current?.scrollToOffset({ offset: 0, animated: false });
             }
-          }}
-        />
+            ListEmptyComponent={
+              !thread.isPending && !thread.error ? (
+                <View>
+                  <Copy muted>Bạn có thể bắt đầu trò chuyện tại đây.</Copy>
+                </View>
+              ) : null
+            }
+            renderItem={({ item, index }) => (
+              <ChatThreadMessage
+                item={item}
+                older={timeline[index + 1]}
+                newer={timeline[index - 1]}
+                userId={runtime.userId ?? ""}
+                offline={sender.offline}
+                retry={sender.retry}
+                partner={partner.data?.fullName ?? "Thành viên SkillHub"}
+                partnerId={partnerId}
+                avatarUrl={partner.data?.avatarUrl}
+                seen={
+                  item.kind === "message" && item.message.id === seenMessageId
+                }
+              />
+            )}
+            onContentSizeChange={() => {
+              if (timeline.length > 0 && atLatest.current) {
+                list.current?.scrollToOffset({ offset: 0, animated: false });
+              }
+            }}
+          />
+        </ScreenLoadingBoundary>
         {hasNewMessages && (
           <View style={{ alignItems: "center", padding: 6 }}>
             <Button
@@ -344,47 +356,41 @@ function ApiChatConversation({
         <View style={{ paddingHorizontal: 12, gap: 8 }}>
           <ConfirmedFormFeedback conversationId={id} />
           <ConnectionFeedback error={agreement.error} retry={agreement.open} />
-          <ConnectionFeedback
-            error={sender.error ?? (sender.offline ? undefined : readError)}
-            retry={
-              sender.error
-                ? () => {
-                    void sender.store.start();
-                  }
-                : undefined
-            }
+          <ChatSendFeedback
+            id={id}
+            messageId={last?.id}
+            sender={sender}
+            readError={readError}
+            onReadError={setReadError}
           />
-          {!!readError && !sender.offline && (
-            <Button
-              variant="secondary"
-              onPress={() => {
-                if (last)
-                  void api
-                    .read(id, last.id)
-                    .then(() => setReadError(undefined))
-                    .catch(setReadError);
-              }}
-            >
-              Thử xác nhận đã đọc
-            </Button>
-          )}
-          {sender.offline && (
-            <Copy muted>Đang ngoại tuyến · Tin nhắn sẽ gửi khi có mạng.</Copy>
-          )}
         </View>
         <ChatComposer
+          attachmentPreview={
+            <ChatAttachmentPreview
+              inComposer
+              attachment={attachment}
+              onRecovered={(text) => {
+                if (draftRef.current === text && runtime.isCurrent())
+                  updateDraft("");
+              }}
+            />
+          }
           value={draft}
           onChange={updateDraft}
           onSend={(text) => {
             void send(text);
           }}
-          pending={!sender.ready}
-          onAttach={() =>
-            router.push({
-              pathname: "/chat-attachment",
-              params: { proposalId: id, mode: "api" },
-            })
+          pending={
+            !sender.ready || attachment.uncertain || attachment.processing
           }
+          hasAttachment={!!attachment.file}
+          sendDisabled={
+            attachment.pending || (!!attachment.file && !attachment.ready)
+          }
+          attachmentDisabled={attachment.locked}
+          onAttach={() => {
+            void attachment.choose();
+          }}
         />
       </KeyboardAvoidingView>
     </SafeAreaView>

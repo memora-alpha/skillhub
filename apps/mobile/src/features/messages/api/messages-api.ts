@@ -203,7 +203,7 @@ export function createMessagesApi(
         }),
       );
     },
-    async fileStatus(id: string, fileId: string) {
+    async fileStatus(id: string, fileId: string, signal?: AbortSignal) {
       parse(uuid, fileId);
       const result = parse(
         z.object({
@@ -211,7 +211,10 @@ export function createMessagesApi(
           state: z.string(),
           generation: z.number().int(),
         }),
-        await call(`${root(id)}/attachments/${fileId}/status`),
+        await call(
+          `${root(id)}/attachments/${fileId}/status`,
+          ...(signal ? [{ signal }] : []),
+        ),
       );
       if (result.fileId !== fileId) throw new AppError("protocol");
       return result;

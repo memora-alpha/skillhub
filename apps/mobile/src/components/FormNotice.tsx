@@ -6,9 +6,11 @@ import { Icon } from "./Icon";
 export function FormNotice({
   tone,
   children,
+  compact = false,
 }: {
   tone: "error" | "success" | "info";
   children: ReactNode;
+  compact?: boolean;
 }) {
   const success = tone === "success";
   const info = tone === "info";
@@ -23,6 +25,7 @@ export function FormNotice({
       accessibilityLiveRegion="polite"
       style={[
         styles.notice,
+        compact && styles.compact,
         success ? styles.success : info ? styles.info : styles.error,
       ]}
     >
@@ -31,7 +34,11 @@ export function FormNotice({
         size={16}
         color={foreground}
       />
-      <Text style={[styles.label, { color: foreground }]}>{children}</Text>
+      <Text
+        style={[styles.label, compact && styles.hint, { color: foreground }]}
+      >
+        {children}
+      </Text>
     </View>
   );
 }
@@ -46,6 +53,8 @@ const styles = StyleSheet.create({
     borderRadius: radius.control,
   },
   error: { borderColor: "#F0A0A0", backgroundColor: colors.errorLight },
+  compact: { padding: 10, gap: 8 },
+  hint: { ...typography.secondary },
   success: { borderColor: "#A3D4B9", backgroundColor: colors.successLight },
   info: { borderColor: colors.border, backgroundColor: colors.sand },
   label: {
