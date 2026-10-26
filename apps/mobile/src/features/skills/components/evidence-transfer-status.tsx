@@ -65,7 +65,13 @@ export function EvidenceTransferStatus({
         gap: 8,
       }}
     >
-      {sending && <ActivityIndicator size="small" accessibilityLabel={label} />}
+      {sending && (
+        <ActivityIndicator
+          presentation="silent"
+          size="small"
+          accessibilityLabel={label}
+        />
+      )}
       <Text
         accessibilityLiveRegion="polite"
         style={[

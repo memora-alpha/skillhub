@@ -127,6 +127,7 @@ export function PullRefreshBoundary({
             }}
           >
             <LoadingIndicator
+              presentation="inline"
               accessibilityLabel={
                 refreshing ? "Đang làm mới dữ liệu" : "Kéo xuống để làm mới"
               }
@@ -149,6 +150,7 @@ export function PullRefreshBoundary({
           style={{ alignItems: "center", padding: 10, gap: 4 }}
         >
           <LoadingIndicator
+            presentation="inline"
             accessibilityLabel={label}
             animating={refreshing}
             busy={refreshing}

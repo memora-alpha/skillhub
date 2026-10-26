@@ -13,6 +13,7 @@ export function ConnectionScreen() {
       <View style={styles.content}>
         <View style={styles.status}>
           <LoadingIndicator
+            presentation="inline"
             size="large"
             accessibilityLabel="Đang tải nội dung"
           />

@@ -84,7 +84,7 @@ export function NotificationRow({
         <Text style={styles.time}>{notificationTime(item.createdAt)}</Text>
       </View>
       {busy ? (
-        <ActivityIndicator size="small" />
+        <ActivityIndicator presentation="inline" size="small" />
       ) : target ? (
         <Icon name="chevron" size={16} color={colors.body} />
       ) : null}

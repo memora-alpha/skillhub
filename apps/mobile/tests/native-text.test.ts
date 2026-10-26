@@ -72,6 +72,7 @@ function loadNotice(file: string, component: string) {
     "./AccountMenu",
     "./AppHeader",
     "@/components/LoadingScreenBoundary",
+    "@/components/ScreenLoadingBoundary",
   ]);
   runInNewContext(
     `${outputText}\nexports.Notice = ${component};`,

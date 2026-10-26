@@ -1,5 +1,6 @@
 import { Text, View } from "react-native";
 import { LoadingIndicator as ActivityIndicator } from "@/components/LoadingIndicator";
+import type { LoadingPresentation } from "@/components/LoadingIndicator";
 import { FormNotice } from "@/components/FormNotice";
 import { Button } from "@/components/Button";
 import { skillError } from "../utils/skill-errors";
@@ -14,10 +15,12 @@ export function QueryFeedback({
   query,
   empty = false,
   emptyText = "Chưa có dữ liệu.",
+  loadingPresentation = "screen",
 }: Readonly<{
   query: FeedbackQuery;
   empty?: boolean;
   emptyText?: string;
+  loadingPresentation?: LoadingPresentation;
 }>) {
   return (
     <View style={{ gap: 8 }}>
@@ -35,8 +38,10 @@ export function QueryFeedback({
       ) : (
         !query.data && (
           <>
-            <ActivityIndicator accessibilityLabel="Đang tải dữ liệu" />
-            <Text style={skillStyles.caption}>Đang tải…</Text>
+            <ActivityIndicator
+              presentation={loadingPresentation}
+              accessibilityLabel="Đang tải dữ liệu"
+            />
           </>
         )
       )}

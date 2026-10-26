@@ -5,6 +5,7 @@ import { StyleSheet, View } from "react-native";
 import { AppHeader } from "@/features/shell";
 import { useAuthSession } from "@/features/auth";
 import { KeyboardFormScrollView } from "@/components/KeyboardFormScrollView";
+import { ScreenLoadingBoundary } from "@/components/ScreenLoadingBoundary";
 import {
   appColors as colors,
   fonts,
@@ -77,13 +78,15 @@ export function SkillsLayout({
           navigate(label === "Trang chủ" ? "/home" : "/profile")
         }
       />
-      {scroll ? (
-        <KeyboardFormScrollView contentContainerStyle={skillStyles.content}>
-          {children}
-        </KeyboardFormScrollView>
-      ) : (
-        <View style={{ flex: 1 }}>{children}</View>
-      )}
+      <ScreenLoadingBoundary>
+        {scroll ? (
+          <KeyboardFormScrollView contentContainerStyle={skillStyles.content}>
+            {children}
+          </KeyboardFormScrollView>
+        ) : (
+          <View style={{ flex: 1 }}>{children}</View>
+        )}
+      </ScreenLoadingBoundary>
     </SafeAreaView>
   );
 }

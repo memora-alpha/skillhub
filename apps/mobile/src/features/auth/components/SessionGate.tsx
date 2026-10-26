@@ -17,7 +17,10 @@ export function SessionGate({ children }: { children: ReactNode }) {
       <View style={styles.content}>
         <BrandLogo />
         {loading ? (
-          <ActivityIndicator accessibilityLabel="Đang khôi phục phiên đăng nhập" />
+          <ActivityIndicator
+            presentation="inline"
+            accessibilityLabel="Đang khôi phục phiên đăng nhập"
+          />
         ) : (
           <>
             <Text accessibilityRole="header" style={styles.title}>

@@ -138,7 +138,7 @@ export function PaymentCheckout({
           ) : (
             <View style={styles.placeholder}>
               {checking && !cancelUnconfirmed ? (
-                <ActivityIndicator />
+                <ActivityIndicator presentation="placeholder" />
               ) : (
                 <Icon name="clock" size={32} color={colors.brand} />
               )}

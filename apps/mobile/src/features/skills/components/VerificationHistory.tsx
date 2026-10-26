@@ -55,6 +55,7 @@ export function VerificationHistory<T extends object>({
           )}
           <Text style={skillStyles.heading}>Lịch sử xác minh</Text>
           <QueryFeedback
+            loadingPresentation="placeholder"
             query={query}
             empty={!items.length}
             emptyText="Chưa gửi yêu cầu xác minh."

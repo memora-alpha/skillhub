@@ -71,6 +71,7 @@ function StatusIcon({ pending, view }: { pending: boolean; view: StatusCopy }) {
     >
       {pending && !view.showAmount ? (
         <ActivityIndicator
+          presentation="placeholder"
           size="large"
           accessibilityLabel="Đang cập nhật thanh toán"
         />

@@ -20,6 +20,7 @@ import { profileStyles } from "./ProfilePrimitives";
 import { profileColors } from "../constants/theme";
 import { useProfilePreview } from "../context/ProfilePreview";
 import type { PublicProfile } from "../types/profile";
+import { ScreenLoadingBoundary } from "@/components/ScreenLoadingBoundary";
 
 type ProfileLayoutProps = Readonly<{
   session: AccountSession;
@@ -133,17 +134,19 @@ export function ProfileLayout({
         style={styles.keyboard}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <ScrollContainer
-          style={styles.scroll}
-          contentContainerStyle={styles.content}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode={
-            keyboardAware && Platform.OS === "ios" ? "interactive" : "on-drag"
-          }
-        >
-          {children(action)}
-        </ScrollContainer>
+        <ScreenLoadingBoundary>
+          <ScrollContainer
+            style={styles.scroll}
+            contentContainerStyle={styles.content}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode={
+              keyboardAware && Platform.OS === "ios" ? "interactive" : "on-drag"
+            }
+          >
+            {children(action)}
+          </ScrollContainer>
+        </ScreenLoadingBoundary>
       </KeyboardAvoidingView>
       <AccountMenu
         visible={menu}

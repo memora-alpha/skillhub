@@ -21,6 +21,7 @@ import { appRoutes } from "@/constants/navigation";
 import { typography, appColors as colors, fonts } from "@/constants/theme";
 import { useAuthSession } from "@/features/auth";
 import { LoadingScreenBoundary } from "@/components/LoadingScreenBoundary";
+import { ScreenLoadingBoundary } from "@/components/ScreenLoadingBoundary";
 
 type OpenNotice = (label: string) => void;
 type AppScreenLayoutProps = Readonly<{
@@ -153,7 +154,7 @@ export function AppScreenLayout({
           style={[styles.content, contentStyle]}
           behavior={Platform.OS === "ios" ? "padding" : undefined}
         >
-          {children(action)}
+          <ScreenLoadingBoundary>{children(action)}</ScreenLoadingBoundary>
         </KeyboardAvoidingView>
         <AccountMenu
           visible={menu}

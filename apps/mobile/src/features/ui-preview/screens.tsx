@@ -254,7 +254,10 @@ export function SystemStateScreen() {
     <FeaturePage title="Trạng thái hệ thống" back="/ui">
       <Panel title={item[0]}>
         {state === "loading" && (
-          <ActivityIndicator accessibilityLabel="Đang tải" />
+          <ActivityIndicator
+            presentation="inline"
+            accessibilityLabel="Đang tải"
+          />
         )}
         <Copy>{item[1]}</Copy>
         <RouteButton href={item[2]}>Quay lại nội dung liên quan</RouteButton>

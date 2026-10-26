@@ -6,6 +6,7 @@ import { Icon } from "@/components/Icon";
 import { appColors as colors, fonts, typography } from "@/constants/theme";
 import { useCatalog, uniqueItems } from "../hooks/use-skill-queries";
 import { QueryFeedback, PageFooter } from "./QueryFeedback";
+import { ScreenLoadingBoundary } from "@/components/ScreenLoadingBoundary";
 import { skillStyles } from "./SkillsLayout";
 import type { CatalogSkill } from "../types/skills";
 
@@ -62,64 +63,66 @@ export function CatalogListModal({
             error={invalid ? "Nhập từ 2 đến 100 ký tự để tìm kiếm." : undefined}
           />
         </View>
-        {!invalid && (
-          <FlatList
-            data={items}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={[
-              skillStyles.content,
-              { paddingTop: 0, gap: 10 },
-            ]}
-            keyboardShouldPersistTaps="handled"
-            ListHeaderComponent={
-              <QueryFeedback
-                query={query}
-                empty={items.length === 0}
-                emptyText="Không tìm thấy kỹ năng. Thử từ khóa khác."
-              />
-            }
-            renderItem={({ item }) => {
-              const checked = selected?.id === item.id;
-              return (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={item.name}
-                  accessibilityState={{
-                    selected: checked,
-                    disabled: disabled || item.status !== "ACTIVE",
-                  }}
-                  disabled={disabled || item.status !== "ACTIVE"}
-                  onPress={() => {
-                    onSelect(item);
-                    onClose();
-                  }}
-                  style={({ pressed }) => [
-                    styles.item,
-                    checked && styles.selected,
-                    pressed && { opacity: 0.7 },
-                  ]}
-                >
-                  <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
-                    <Text style={styles.name}>{item.name}</Text>
-                    {!!item.description && (
-                      <Text numberOfLines={2} style={skillStyles.caption}>
-                        {item.description}
-                      </Text>
-                    )}
-                  </View>
-                  <Icon
-                    name={checked ? "check-circle" : "plus"}
-                    size={20}
-                    color={checked ? colors.primary : colors.muted}
-                  />
-                </Pressable>
-              );
-            }}
-            ListFooterComponent={
-              query.data ? <PageFooter query={query} /> : undefined
-            }
-          />
-        )}
+        <ScreenLoadingBoundary>
+          {!invalid && (
+            <FlatList
+              data={items}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={[
+                skillStyles.content,
+                { paddingTop: 0, gap: 10 },
+              ]}
+              keyboardShouldPersistTaps="handled"
+              ListHeaderComponent={
+                <QueryFeedback
+                  query={query}
+                  empty={items.length === 0}
+                  emptyText="Không tìm thấy kỹ năng. Thử từ khóa khác."
+                />
+              }
+              renderItem={({ item }) => {
+                const checked = selected?.id === item.id;
+                return (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={item.name}
+                    accessibilityState={{
+                      selected: checked,
+                      disabled: disabled || item.status !== "ACTIVE",
+                    }}
+                    disabled={disabled || item.status !== "ACTIVE"}
+                    onPress={() => {
+                      onSelect(item);
+                      onClose();
+                    }}
+                    style={({ pressed }) => [
+                      styles.item,
+                      checked && styles.selected,
+                      pressed && { opacity: 0.7 },
+                    ]}
+                  >
+                    <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
+                      <Text style={styles.name}>{item.name}</Text>
+                      {!!item.description && (
+                        <Text numberOfLines={2} style={skillStyles.caption}>
+                          {item.description}
+                        </Text>
+                      )}
+                    </View>
+                    <Icon
+                      name={checked ? "check-circle" : "plus"}
+                      size={20}
+                      color={checked ? colors.primary : colors.muted}
+                    />
+                  </Pressable>
+                );
+              }}
+              ListFooterComponent={
+                query.data ? <PageFooter query={query} /> : undefined
+              }
+            />
+          )}
+        </ScreenLoadingBoundary>
       </SafeAreaView>
     </Modal>
   );

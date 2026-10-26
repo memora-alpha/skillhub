@@ -10,6 +10,7 @@ test("loading dots expose a single accessible busy state and stop for blur, back
   const filename = local.resolve("./LoadingIndicator.tsx");
   let focused = true,
     slot = 0;
+  let grouped = false;
   const states: unknown[] = [];
   let cleanup: (() => void) | undefined;
   let preference!: (value: boolean) => void, appState!: (state: string) => void;
@@ -34,6 +35,12 @@ test("loading dots expose a single accessible busy state and stop for blur, back
     }),
     mock.module(pathToFileURL(local.resolve("./LoadingScreenBoundary")), {
       namedExports: { useLoadingVisible: () => focused },
+    }),
+    mock.module(pathToFileURL(local.resolve("./use-screen-loading")), {
+      namedExports: {
+        useScreenLoading: (presentation: string) =>
+          grouped && presentation === "screen",
+      },
     }),
     mock.module(pathToFileURL(local.resolve("react-native-reanimated")), {
       defaultExport: { View: "Dot" },
@@ -63,9 +70,12 @@ test("loading dots expose a single accessible busy state and stop for blur, back
   try {
     delete local.cache[filename];
     const { LoadingIndicator } = local(filename);
-    const render = () => {
+    const render = (presentation = "screen") => {
       slot = 0;
-      return LoadingIndicator({ accessibilityLabel: "Đang tải lịch học" });
+      return LoadingIndicator({
+        accessibilityLabel: "Đang tải lịch học",
+        presentation,
+      });
     };
     const dots = (tree: ReturnType<typeof render>) =>
       tree.props.children.props.children;
@@ -78,6 +88,11 @@ test("loading dots expose a single accessible busy state and stop for blur, back
     assert.equal(initial.props.accessibilityRole, "progressbar");
     assert.deepEqual(initial.props.accessibilityState, { busy: true });
     assert.equal(initial.props.accessibilityLabel, "Đang tải lịch học");
+    assert.equal(
+      initial.props.style[0].alignSelf,
+      "center",
+      "standalone loading cannot hug the left edge",
+    );
     assert.equal(
       moving(initial),
       false,
@@ -97,6 +112,23 @@ test("loading dots expose a single accessible busy state and stop for blur, back
     assert.equal(moving(render()), false);
     preference(false);
     assert.equal(moving(render()), true);
+    grouped = true;
+    assert.equal(
+      render(),
+      null,
+      "screen reads register without drawing a local loader",
+    );
+    assert.equal(render("silent"), null, "background refresh draws nothing");
+    assert.ok(
+      render("inline").props.children,
+      "the central indicator and explicit action feedback still render",
+    );
+    const placeholder = render("placeholder");
+    assert.equal(
+      placeholder.props.children,
+      undefined,
+      "secondary content has a static placeholder, no animated dots",
+    );
     cleanup?.();
     assert.equal(removed, 2);
   } finally {

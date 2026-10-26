@@ -67,6 +67,7 @@ export function MySkillsScreen() {
           <View style={{ width: 20, height: 20 }}>
             {query.isFetching && (
               <ActivityIndicator
+                presentation="silent"
                 size="small"
                 accessibilityLabel="Đang cập nhật kỹ năng"
               />

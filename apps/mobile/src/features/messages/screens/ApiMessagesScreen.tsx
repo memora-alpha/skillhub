@@ -31,7 +31,12 @@ export function ApiMessagesScreen() {
   });
   let footer = null;
   if (quietError && query.isFetchNextPageError)
-    footer = <ActivityIndicator accessibilityLabel="Đang tải thêm hội thoại" />;
+    footer = (
+      <ActivityIndicator
+        presentation="placeholder"
+        accessibilityLabel="Đang tải thêm hội thoại"
+      />
+    );
   else if (query.hasNextPage)
     footer = (
       <Button

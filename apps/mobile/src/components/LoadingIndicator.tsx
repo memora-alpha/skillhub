@@ -1,6 +1,12 @@
 import { useEffect, useState } from "react";
 import { useLoadingVisible } from "./LoadingScreenBoundary";
 import {
+  useScreenLoading,
+  type LoadingPresentation,
+} from "./use-screen-loading";
+import { appColors } from "@/constants/theme";
+export type { LoadingPresentation } from "./use-screen-loading";
+import {
   AccessibilityInfo,
   AppState,
   StyleSheet,
@@ -31,14 +37,17 @@ export function LoadingIndicator({
   size,
   animating = true,
   busy = true,
+  presentation = "screen",
 }: Readonly<{
   accessibilityLabel?: string;
   style?: StyleProp<ViewStyle>;
   size?: "small" | "large" | number;
   animating?: boolean;
   busy?: boolean;
+  presentation?: LoadingPresentation;
 }>) {
   const focused = useLoadingVisible();
+  const grouped = useScreenLoading(presentation, busy, accessibilityLabel);
   const [foreground, setForeground] = useState(
     AppState.currentState === "active",
   );
@@ -67,6 +76,15 @@ export function LoadingIndicator({
       app.remove();
     };
   }, []);
+  if (grouped || presentation === "silent") return null;
+  if (presentation === "placeholder")
+    return (
+      <View
+        accessibilityLabel={accessibilityLabel}
+        accessibilityState={{ busy }}
+        style={[styles.placeholder, style]}
+      />
+    );
   const moving = animating && focused && foreground && !reducedMotion;
   let scale = 1;
   if (size === "small") scale = 0.7;
@@ -124,7 +142,18 @@ export function LoadingIndicator({
 }
 
 const styles = StyleSheet.create({
-  container: { alignItems: "center", justifyContent: "center", minHeight: 28 },
+  container: {
+    alignSelf: "center",
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 28,
+  },
+  placeholder: {
+    minHeight: 28,
+    width: "100%",
+    borderRadius: 8,
+    backgroundColor: appColors.surfaceInset,
+  },
   track: { width: 48, height: 24 },
   dot: {
     position: "absolute",
