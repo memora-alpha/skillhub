@@ -18,6 +18,8 @@ test("successful Request and direct proposals land in Sent; failed sends stay in
   let duplicate: { id: string } | null = null;
   let preflightError: unknown;
   let createCount = 0;
+  let readSource: () => Promise<unknown> = async () => request;
+  let pendingResult: { id: string } | null | undefined = null;
   const request = {
     status: "OPEN",
     expiresAt: null,
@@ -26,6 +28,10 @@ test("successful Request and direct proposals land in Sent; failed sends stay in
   };
   const jsx = (type: unknown, props: unknown) => ({ type, props });
   const mocks = {
+    react: {
+      useRef: (current: unknown) => ({ current }),
+      useState: (value: unknown) => [value, () => {}],
+    },
     "react/jsx-runtime": { jsx, jsxs: jsx, Fragment: "Fragment" },
     "expo-router": {
       useRouter: () => ({ dismissTo: (route: unknown) => routes.push(route) }),
@@ -39,7 +45,7 @@ test("successful Request and direct proposals land in Sent; failed sends stay in
       useRequestDetail: () => ({
         data: request,
         isFetching: false,
-        refetch: async () => ({ data: request }),
+        refetch: async () => ({ data: await readSource() }),
       }),
     },
     "@/features/skills": {
@@ -68,7 +74,10 @@ test("successful Request and direct proposals land in Sent; failed sends stay in
         error: preflightError,
         isPending: false,
         isFetching: false,
-        refetch: async () => ({ data: duplicate, error: preflightError }),
+        refetch: async () => ({
+          data: duplicate ?? pendingResult,
+          error: preflightError,
+        }),
       }),
       useConnectionCommand: () => ({
         pending: false,
@@ -182,6 +191,41 @@ test("successful Request and direct proposals land in Sent; failed sends stay in
     assert.equal(directForm.disabled, false);
     await directForm.onSubmit({ message: "Mình muốn học từ bạn" });
     assert.equal(createCount, before + 1);
+    eligibility = "eligible";
+    const guarded = forms(
+      ApiSendProposalScreen({ requestId: fixtureId(4) }),
+    )[0]!;
+    let release: (data: unknown) => void = () => {};
+    readSource = () =>
+      new Promise((resolve) => {
+        release = resolve;
+      });
+    const first = guarded.onSubmit({ message: "Only send once" });
+    await guarded.onSubmit({ message: "Only send once" });
+    release(request);
+    await first;
+    assert.equal(
+      createCount,
+      before + 2,
+      "preflight and POST share one submission lock",
+    );
+    readSource = async () => request;
+    pendingResult = undefined;
+    await guarded.onSubmit({ message: "No completed pending-proposal read" });
+    assert.equal(
+      createCount,
+      before + 2,
+      "missing preflight result is not proof of no duplicate",
+    );
+    pendingResult = null;
+    readSource = async () => {
+      throw new Error("read failed");
+    };
+    await guarded.onSubmit({ message: "Keep draft on rejected read" });
+    assert.equal(createCount, before + 2);
+    readSource = async () => request;
+    await guarded.onSubmit({ message: "Retry after a failed preflight" });
+    assert.equal(createCount, before + 3, "failed preflight releases the lock");
   } finally {
     delete local.cache[filename];
     for (const context of contexts.reverse()) context.restore();

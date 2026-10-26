@@ -3,6 +3,7 @@ import {
   ProposalFormSection,
   ProposalUnavailable,
 } from "../components/proposal-send-content";
+import { useRef, useState } from "react";
 import { useRouter, type Href } from "expo-router";
 import { FlowPage as FeaturePage } from "@/components/learning-flow";
 import { useRequestDetail } from "@/features/learning-requests";
@@ -93,7 +94,7 @@ async function hasNoPendingProposal(
   isCurrent: () => boolean,
 ) {
   const result = await refetch();
-  return !result.error && !result.data && isCurrent();
+  return !result.error && result.data === null && isCurrent();
 }
 
 function proposalInput(
@@ -145,6 +146,9 @@ export function ApiSendProposalScreen({
   );
   const api = useProposalsApi();
   const command = useConnectionCommand<Proposal>([["proposals"]]);
+  const submitting = useRef(false);
+  const [preparing, setPreparing] = useState(false);
+  const [preparationError, setPreparationError] = useState<unknown>();
   const direct = !requestId;
   const { publicRequest, allowed } = proposalAccess(
     requestQuery.data,
@@ -193,7 +197,7 @@ export function ApiSendProposalScreen({
         params: { tab: "sent", status: "PENDING" },
       });
   };
-  const submit = async (hints: ProposalHints) => {
+  const submitPrepared = async (hints: ProposalHints) => {
     if (
       !allowed ||
       !canCompose ||
@@ -234,6 +238,20 @@ export function ApiSendProposalScreen({
     );
     openResult(result);
   };
+  const submit = async (hints: ProposalHints) => {
+    if (submitting.current || command.pending || command.uncertain) return;
+    submitting.current = true;
+    setPreparing(true);
+    setPreparationError(undefined);
+    try {
+      await submitPrepared(hints);
+    } catch (error) {
+      if (runtime.isCurrent()) setPreparationError(error);
+    } finally {
+      submitting.current = false;
+      if (runtime.isCurrent()) setPreparing(false);
+    }
+  };
   const showUnavailable =
     !command.uncertain && (!valid || (!query.isPending && !query.error));
   const unavailableText = unavailableDescription({
@@ -261,6 +279,7 @@ export function ApiSendProposalScreen({
           retry={query.refetch}
         />
       )}
+      <ConnectionFeedback error={preparationError} />
       <ProposalRecoveryPanel
         uncertain={command.uncertain}
         pending={command.pending}
@@ -294,7 +313,7 @@ export function ApiSendProposalScreen({
           }}
           commandUncertain={command.uncertain}
           commandError={command.error}
-          pending={command.pending}
+          pending={command.pending || preparing}
           disabled={
             !canCompose ||
             !!query.error ||

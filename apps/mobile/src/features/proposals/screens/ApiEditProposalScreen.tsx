@@ -43,7 +43,14 @@ export function ApiEditProposalScreen({ id }: Readonly<{ id: string }>) {
       });
   };
   const submit = async (hints: ProposalHints) => {
-    if (!allowed || query.isFetching || changed || command.uncertain) return;
+    if (
+      !allowed ||
+      query.error ||
+      query.isFetching ||
+      changed ||
+      command.uncertain
+    )
+      return;
     const body = { ...hints, expectedVersion: original.current! };
     const result = await command.run(JSON.stringify({ id, ...body }), (key) =>
       api.update(id, body, key),
@@ -90,7 +97,7 @@ export function ApiEditProposalScreen({ id }: Readonly<{ id: string }>) {
             proposal={proposal}
             pending={command.pending}
             locked={command.uncertain}
-            disabled={query.isFetching || changed}
+            disabled={!!query.error || query.isFetching || changed}
             onSubmit={submit}
           />
         </Panel>
