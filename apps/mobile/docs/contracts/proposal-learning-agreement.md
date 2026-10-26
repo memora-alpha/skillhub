@@ -4,9 +4,9 @@
 
 Đối chiếu source working tree cho [work Phase 05–06](../work/phase-05-proposal-learning-agreement/plan.md), không phải bằng chứng deployed API. Prefix HTTP `/api/v1`, auth/session/envelope theo [contracts index](README.md).
 
-- Proposal/Chat: [HTTP contract](../../../../services/api/specs/008-connections/contracts/http.md), [proposal controller](../../../../services/api/src/modules/proposals/presentation/proposals.controller.ts), [DTO](../../../../services/api/src/modules/proposals/presentation/proposals.dto.ts), [conversations](../../../../services/api/src/modules/conversations/presentation/conversations.controller.ts).
-- Plan/terms: [controller](../../../../services/api/src/modules/learning-paths/learning-paths.controller.ts), [DTO](../../../../services/api/src/modules/learning-paths/learning-paths.dto.ts), [service](../../../../services/api/src/modules/learning-paths/learning-paths.service.ts).
-- Schedule: [controller](../../../../services/api/src/modules/scheduling/scheduling.controller.ts), [service](../../../../services/api/src/modules/scheduling/scheduling.service.ts).
+- Proposal/Chat: [HTTP contract](../../../../services/api/specs/008-connections/contracts/http.md), [proposal controller](../../../../services/api/src/modules/proposals/presentation/http/proposals.controller.ts), [DTO](../../../../services/api/src/modules/proposals/presentation/http/proposals.dto.ts), [conversations](../../../../services/api/src/modules/conversations/presentation/http/conversations.controller.ts).
+- Plan/terms: [controller](../../../../services/api/src/modules/learning-paths/presentation/http/learning-paths.controller.ts), [DTO](../../../../services/api/src/modules/learning-paths/presentation/http/learning-paths.dto.ts), [service](../../../../services/api/src/modules/learning-paths/application/services/learning-paths.service.ts).
+- Schedule: [controller](../../../../services/api/src/modules/scheduling/presentation/http/scheduling.controller.ts), [service](../../../../services/api/src/modules/scheduling/application/services/scheduling.service.ts).
 - Mobile boundaries: [proposals-api](../../src/features/proposals/api/proposals-api.ts), [messages-api](../../src/features/messages/api/messages-api.ts), [learning-paths-api](../../src/features/learning-paths/api/learning-paths-api.ts), [schemas](../../src/features/learning-paths/api/learning-paths-contract.ts).
 - Yêu cầu: SRS 1.6 BR-12..22, 18.13, 18.32–33, 18.39; [domain rules](../domain-rules.md).
 
@@ -24,36 +24,46 @@
 
 Nguồn LEARNING_REQUEST dùng learningRequestId; server suy parties/skill. DIRECT_SEARCH dùng recipientSharingSkillId; người gửi muốn học từ chủ Sharing Skill và không cần sở hữu kỹ năng đó. ExchangeType/credit/count/duration/candidateSlots chỉ là hints. `candidateSlots` hiện là nullable text, không phải timestamp array. Terminal proposal giữ lịch sử; accept trả proposal + conversation, chưa tạo Path/Session/Hold. Mobile hiển thị Request hiện hành và gửi expectedRequestVersion khi accept nguồn Request.
 
-Chat attachment upload/status/private download hiện có adapter và scanner state; giữ giới hạn theo backend policy. SSE chỉ chứa references, hydrate qua authorized HTTP. Chat text hoặc gợi ý lộ trình không tạo confirmation. Không có public SSE event cho thay đổi plan/terms/schedule: detail đọc lại mỗi 8 giây khi focus/app active, dừng khi blur/background/error/terminal/session cũ; còn refresh focus/foreground và invalidation sau command. Chỉ GET, không replay mutation.
+Chat attachment upload/status/private download hiện có adapter và scanner state; giữ giới hạn theo backend policy. SRS 1.6 mục 18.12/CHAT-002 cho phép gửi tệp tối đa 15 MB, kiểm định dạng/kích thước/malware. Nút đính kèm trong Chat mở document picker thiết bị trực tiếp; file được upload và hiển thị trạng thái tại Chat, chỉ gửi sau khi đọc lại trạng thái READY. Hủy chọn giữ lựa chọn cũ; lỗi upload/send giữ tệp và caption để thao tác lại. Kết quả 202 chưa phải đã xuất bản; recovery giữ clientMessageId và payload gốc, chỉ do người dùng kích hoạt. Route đính kèm cũ dùng chung controller để giữ deep link tương thích.
+
+Thẻ tệp hiển thị trong bubble theo phía gửi/nhận, có tên, loại và dung lượng; không tạo bubble chữ rỗng khi gửi không caption. Tải tệp vẫn qua API riêng theo conversation/message/attachment, chỉ mở URL còn hạn và phiên hiện tại; chặn nhấn tải lặp khi đang xử lý. Inbox hiển thị giờ cho hôm nay, `Th 2`…`Th 7` cho những ngày trước trong tuần lịch hiện tại (bắt đầu thứ Hai), và `25 thg 10` cho các tuần trước; thêm năm khi khác năm. Mốc ngày tính theo múi giờ thiết bị.
+
+Tệp đã chọn nằm trong thanh soạn Chat dưới dạng tile gọn có ×; caption và tệp dùng chung nút Gửi. × tuân theo khóa upload/delivery hiện có, không bỏ intent đang gửi hoặc chưa rõ kết quả. Không thay giới hạn một tệp mỗi lần chọn, 15 MB, scan READY, refetch trước send hoặc cơ chế recovery của controller.
+
+Nếu GET download trả URL đã hết hạn, không mở link và hiện thông báo nhấn lại tệp để lấy URL mới; không tự retry request hoặc gửi lại message. Lượt nhấn mới xóa cảnh báo cũ; kiểm phiên và chống nhấn tải lặp vẫn giữ.
+
+SSE chỉ chứa references, hydrate qua authorized HTTP. Chat text hoặc gợi ý lộ trình không tạo confirmation. Không có public SSE event cho thay đổi plan/terms/schedule: detail đọc lại mỗi 30 giây khi focus/app active, dừng khi blur/background/error/terminal/session cũ; còn refresh focus/foreground và invalidation sau command. Chỉ GET, không replay mutation.
 
 ## LearningPath và LearningPlan
 
-| Method / endpoint                            | Payload dùng                                         | Kết quả / ràng buộc                                                         |
-| -------------------------------------------- | ---------------------------------------------------- | --------------------------------------------------------------------------- |
-| GET `/learning-paths/mine`                   | Không body                                           | Tối đa 100 summaries theo updatedAt; không cursor/filter conversation       |
-| GET `/learning-paths/:id`                    | Không body                                           | Current agreement, plans, schedules, sessions; chỉ participant              |
-| POST `/learning-paths`                       | conversationId, exchangeType, các terms theo loại    | `{id,version,status}`; chưa Hold, không server idempotency                  |
-| PATCH `/learning-paths/:id`                  | expectedVersion và terms, không conversationId       | Đổi terms tăng agreement version; no-op giữ version, `unchanged: true`       |
-| POST `/learning-paths/:id/plans`             | skillId, learningGoal, totalSessions, sessionOutline | Teacher tạo chiều của mình; không server idempotency                        |
+| Method / endpoint                            | Payload dùng                                         | Kết quả / ràng buộc                                                           |
+| -------------------------------------------- | ---------------------------------------------------- | ----------------------------------------------------------------------------- |
+| GET `/learning-paths/mine`                   | Không body                                           | Tối đa 100 summaries theo updatedAt; không cursor/filter conversation         |
+| GET `/learning-paths/:id`                    | Không body                                           | Current agreement, plans, schedules, sessions; chỉ participant                |
+| POST `/learning-paths`                       | conversationId, exchangeType, các terms theo loại    | `{id,version,status}`; chưa Hold, không server idempotency                    |
+| PATCH `/learning-paths/:id`                  | expectedVersion và terms, không conversationId       | Đổi terms tăng agreement version; no-op giữ version, `unchanged: true`        |
+| POST `/learning-paths/:id/plans`             | skillId, learningGoal, totalSessions, sessionOutline | Teacher tạo chiều của mình; không server idempotency                          |
 | PATCH `/learning-paths/plans/:planId`        | expectedVersion và nội dung                          | Chỉ teacher; đổi nội dung tăng plan version, giữ agreement; no-op giữ version |
-| POST `/learning-paths/plans/:planId/confirm` | expectedVersion                                      | Learner xác nhận current linked plan version                                |
-| POST `/learning-paths/:id/confirm`           | expectedVersion                                      | Xác nhận terms của chính caller; đủ plans + hai confirmations mới CONFIRMED |
+| POST `/learning-paths/plans/:planId/confirm` | expectedVersion                                      | Learner xác nhận current linked plan version                                  |
+| POST `/learning-paths/:id/confirm`           | expectedVersion                                      | Xác nhận terms của chính caller; đủ plans + hai confirmations mới CONFIRMED   |
 
 ONE_WAY: teacherId/learnerId là hai participants, negotiatedCredit >0, tối đa 2 chữ số thập phân; một plan. TWO_WAY: totalCreditPerUser >=20; hai plan đối ứng do hai teacher tạo. Role không suy từ proposer/recipient. Outline phải đủ đúng số buổi (1–100); mobile kiểm schema và server là thẩm quyền cuối cùng.
 
 Detail schema giữ version, learnerConfirmedAt trên plan hiện hành; confirmation timestamps của agreement/schedule thuộc version được trả. Khi version đổi, mobile dùng snapshot mới, không giữ confirmation của bản cũ. Các ID/participant/outline/schedule shape được kiểm tại adapter.
+
+Editor plan/schedule giữ snapshot đã mở và draft riêng khi polling có revision mới, không remount theo version hoặc tự reset nội dung đang nhập. Gửi bị khóa đến khi người dùng mở bản mới; callback của bản cũ và validation đang chạy cũng kiểm lại revision trước command. Nút mở bản mới reset draft theo snapshot mới nhất, không khả dụng khi command pending/unknown hoặc read đang lỗi. Thỏa thuận tạm chưa cho sửa giữ draft chỉ đọc; mất authorized data/đổi resource vẫn unmount, không giữ nội dung riêng tư qua denial.
 
 ## Schedule và finalization
 
 | Method / endpoint                                 | Payload dùng                                           | Ràng buộc                                                                     |
 | ------------------------------------------------- | ------------------------------------------------------ | ----------------------------------------------------------------------------- |
 | POST `/learning-plans/:planId/schedule-proposals` | expectedPlanVersion, items `{sessionNo,startAt,endAt}` | Teacher; path/plan đã CONFIRMED; số items khớp outline                        |
-| PATCH `/schedule-proposals/:id`                  | expectedVersion, items `{sessionNo,startAt,endAt}`     | Teacher sửa trước khóa; gửi đủ buổi; đổi lịch cần hai bên xác nhận lại          |
+| PATCH `/schedule-proposals/:id`                   | expectedVersion, items `{sessionNo,startAt,endAt}`     | Teacher sửa trước khóa; gửi đủ buổi; đổi lịch cần hai bên xác nhận lại        |
 | POST `/schedule-proposals/:id/confirm`            | expectedVersion                                        | Hai participants xác nhận cùng version; response có bothConfirmed             |
 | POST `/learning-paths/:id/final-validation`       | Không body                                             | `{pathId,version,exchangeType,planCount,scheduleCount,ready:true}`; chưa Hold |
 | POST `/learning-paths/:id/finalize`               | expectedVersion, header Idempotency-Key                | Server kiểm lại toàn bộ, Hold/lock/create Session nguyên tử                   |
 
-Mobile nhập giờ địa phương rồi chuyển timestamp có timezone; mỗi buổi 60–180 phút. Trùng lịch, số dư, quyền và trạng thái do server quyết định. Không đọc ví fixture để giả quyết định validation. Finalize thành công trả pathId/version/status/sessions; đọc lại path để hiển thị trạng thái mới. ONE_WAY chỉ Hold learner; TWO_WAY Hold cả hai. Không settlement theo session.
+Mobile nhập ngày/giờ bắt đầu qua DateTimeField dùng chung với Learning Request, nhập trực tiếp số phút nguyên từ 60–180 bằng bàn phím số; lịch tuần và từng buổi dùng cùng control. Có thể xóa giá trị rồi nhập lại; không tự kẹp số hoặc sửa giờ bắt đầu. Picker ngày/giờ vẫn giữ wheel trên iOS và control tương ứng trên Android/web. Giờ địa phương được chuyển sang timestamp có timezone, không thay payload hoặc giới hạn mỗi buổi. Trùng lịch, số dư, quyền và trạng thái do server quyết định. Không đọc ví fixture để giả quyết định validation. Finalize thành công trả pathId/version/status/sessions; đọc lại path để hiển thị trạng thái mới. ONE_WAY chỉ Hold learner; TWO_WAY Hold cả hai. Không settlement theo session.
 
 ## Khoảng trống API và fixture
 
@@ -110,6 +120,8 @@ Editor lịch có bộ điền theo tuần ở client: chọn thứ, ngày/giờ
 - Receipt Chat chỉ hiển thị một avatar ở outgoing non-SYSTEM có sequence lớn nhất với readAt trong thread đã tải; readAt của incoming là trạng thái đọc của chính viewer nên không dùng làm receipt đối tác. Queue confirmed-form-deliveries dùng queryFn: skipToken vì chỉ subscribe query cache, không có GET endpoint và không expose refetch. Invalidation/focus không được gửi lại form.
 
 ## Editor LearningPlan
+
+- Save plan/lịch kiểm lại trạng thái cho phép lưu mới nhất sau async form validation, ngoài revision snapshot. Nếu refresh báo lỗi hoặc command đang pending/unknown trong lúc validate, không gửi API và không reset draft. Schedule kiểm trùng lại trên timestamp cuối cùng sau khi khôi phục phần giây của lịch cũ; lỗi mở đúng buổi cần sửa và hiện tại field, không để Promise rejection hoặc gửi payload trùng lên server.
 
 - UI nhập từng buổi bằng field array; POST/PATCH vẫn gửi `skillId`, `learningGoal`, `totalSessions`, `sessionOutline: [{content}]`, PATCH kèm expectedVersion. Đếm buổi theo số item, không theo newline. Newline trong cùng nội dung được giữ nguyên. Giới hạn hiện hành: mục tiêu 1–1.500 ký tự, 1–100 buổi, 1–2.000 ký tự/buổi.
 - Chọn kỹ năng theo UUID. Mặc định chỉ hiện lựa chọn hiện tại; Xem thêm mở catalog từ API, có load-more theo cursor. Khi kỹ năng đã lưu chưa nằm trong trang catalog đã tải, dùng public GET skill hiện có để đọc tên, không giả tên hoặc tự thay ID.

@@ -22,6 +22,7 @@ Luồng: Learning Request hoặc Sharing Skill → gửi proposal → Đã gửi
 - [x] Quản lý Nhận được/Đã gửi; hiển thị proposal đã gửi trên Request; accept/reject/edit/withdraw theo quyền và version.
 - [x] Accept mở đúng conversation. Inbox/chat dùng API, avatar thật, tải tin mới nhất trước, phân trang tin cũ và đồng bộ read/delivery/SSE.
 - [x] Chat có một entry mở thỏa thuận, giữ ngữ cảnh bài/kỹ năng để phân biệt các cuộc trò chuyện cùng người. Thẻ lộ trình/form xác nhận mở đúng resource và version.
+- [x] Chỉnh thẻ tệp trong hàng tin nhắn và ô tệp đã chọn có × trong composer theo hướng Messenger, dùng chung nút Gửi; giờ Inbox theo hôm nay/tuần lịch/ngày tháng. Rút chú thích thỏa thuận/lộ trình/lịch, dùng font nhỏ hơn nội dung chính; kiểm bố cục component thực ở 320/390px và regression.
 
 ## Mốc 2 — Plan & Schedule
 
@@ -60,17 +61,22 @@ Các quy tắc chi tiết đối chiếu [BE amendments](../../../../../services
 
 ## Kiểm chứng và việc còn lại
 
+- [x] Rà và sửa tiếp trên `fix/mobile-proposal-chat-learning-path` từ `dev`: khóa gửi proposal xuyên suốt preflight/POST, yêu cầu pending read hoàn tất và chặn edit/accept sau lỗi refresh.
+- [x] Theo SRS 1.6 mục 18.12/CHAT-002, mở bộ chọn tệp thiết bị trực tiếp từ Chat, upload/scan và gửi ngay tại Chat; giữ caption, file và clientMessageId khi recovery, không tự replay mutation. Giữ route đính kèm cũ tương thích bằng cùng controller.
+- [x] Giữ cách nhập lịch “ngày/giờ bắt đầu + học trong bao lâu”; dùng DateTimeField chung với Learning Request và ô nhập số phút 60–180 trực tiếp cho lịch tuần/từng buổi, giữ validation và payload hiện hành.
+- [x] Review polling: editor lộ trình/lịch giữ key theo resource, snapshot và draft của bản đã mở; revision mới khóa gửi kể cả callback cũ/validation đang chạy. Chỉ nút mở bản mới reset form; pending/unknown không được bỏ intent để reload. Khi thỏa thuận tạm chưa cho sửa, giữ editor cũ ở chế độ chỉ đọc; khi mất dữ liệu được cấp quyền thì unmount draft.
 - [x] Audit source, route, API contract và SRS; ghi dependency thay vì tự sửa backend.
+- [x] Review lại toàn luồng: chặn save plan/lịch khi read lỗi giữa lúc validate, kiểm trùng theo timestamp sau giữ phần giây, báo link tệp hết hạn thay vì im lặng; có ca tái hiện và regression giữ draft.
 - [x] Regression cho quyền/version, ONE_WAY/TWO_WAY, proposal preflight, chat/form, pagination, read receipts, recovery và navigation; chạy lint, typecheck, structure, tests và web export.
 - [ ] **P05-S99-T02 — Nghiệm thu API/native:** hai tài khoản test, cả nguồn Request/direct và ONE_WAY/TWO_WAY; kiểm accept → Chat → plan → lịch → finalize, concurrent edits/version conflict, thiếu Credit/trùng lịch, mất phản hồi, logout/focus, keyboard/picker/Back trên Android và iOS. Chỉ thao tác tài khoản/ví test được cho phép.
 
 ## Dependency và ranh giới xử lý
 
-| Hạng mục | Hướng xử lý |
-| --- | --- |
-| **P05-API-DEP-T78:** phát hiện trùng lịch giữa hai chiều trước confirm | BE đã có PATCH sửa lịch chưa khóa. Conflict sớm giữa hai chiều vẫn cần contract riêng; giữ final-validation/finalize authoritative. |
-| Tạo path/plan/lịch chưa có server idempotency; tìm path theo conversation bị giới hạn danh sách | Giữ draft/intent và đọc đối chiếu; chặn tạo mới khi kết quả chưa rõ hoặc danh sách đầy, không tự replay. |
-| Dạy thử tùy chọn | Backlog tương lai cùng dependency backend, không là blocker phase này. |
-| Hủy/quyết toán chưa có API mobile xác minh | Hiện unavailable, không đổi status/Credit bằng fixture; triển khai ở phạm vi riêng. |
+| Hạng mục                                                                                        | Hướng xử lý                                                                                                                         |
+| ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| **P05-API-DEP-T78:** phát hiện trùng lịch giữa hai chiều trước confirm                          | BE đã có PATCH sửa lịch chưa khóa. Conflict sớm giữa hai chiều vẫn cần contract riêng; giữ final-validation/finalize authoritative. |
+| Tạo path/plan/lịch chưa có server idempotency; tìm path theo conversation bị giới hạn danh sách | Giữ draft/intent và đọc đối chiếu; chặn tạo mới khi kết quả chưa rõ hoặc danh sách đầy, không tự replay.                            |
+| Dạy thử tùy chọn                                                                                | Backlog tương lai cùng dependency backend, không là blocker phase này.                                                              |
+| Hủy/quyết toán chưa có API mobile xác minh                                                      | Hiện unavailable, không đổi status/Credit bằng fixture; triển khai ở phạm vi riêng.                                                 |
 
 Kết quả kiểm tra và bước bàn giao ở [status](status.md). Các task ID, thiết kế trung gian và bằng chứng cũ được giữ trong [history](history.md); không tiếp tục thêm nhật ký lượt sửa vào plan này.

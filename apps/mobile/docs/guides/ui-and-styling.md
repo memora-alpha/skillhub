@@ -25,6 +25,21 @@
 - Từ SDK58, dùng SafeAreaView/SafeAreaProvider qua `@/components/SafeArea`: native dùng react-native-safe-area-context; web dùng CSS env(safe-area-inset-*) và không đo inset vào React. Với phần tử absolute cần offset như menu, dùng `@/components/use-safe-area-position`. Web SPA giữ viewport-fit=cover trong public/index.html. Giữ edges của màn để không cộng bottom inset lần nữa khi đã có tab bar.
 - Không gọi UI “đúng thiết kế” chỉ vì render thành công; đối chiếu frame/pattern và ghi khác biệt được chấp nhận.
 
+## Loading theo màn hình
+
+- `ScreenLoadingBoundary` gom các lần đọc dữ liệu chính trong vùng nội dung về một loader căn giữa. Layout AppScreen/Profile/Skills/Auth, thread Chat và modal danh mục đã gắn boundary; header/Back ở ngoài vùng chờ.
+- `LoadingIndicator` mặc định `presentation="screen"`: đăng ký vào boundary gần nhất và không vẽ icon riêng. Giữ children mounted khi đang chờ để request phụ thuộc tiếp tục và không mất draft; content tạm ẩn khỏi thao tác/accessibility. Khi mọi read đã xong hoặc báo lỗi/unmount, nội dung xuất hiện lại. Mỗi screen/modal có store riêng; blur không hiện loader của màn cũ.
+- `ScreenLoadingContent.web` dùng `inert` và `visibility:hidden`, giữ geometry/children nhưng chặn Tab, focus và thao tác trên controls đang bị che. Native bỏ focus bàn phím khi bắt đầu chờ; không tự focus lại hoặc mở bàn phím khi tải xong. `opacity`/`pointerEvents` riêng lẻ không chặn bàn phím trên web.
+- Dữ liệu phụ như ảnh bằng chứng, kỹ năng trong hồ sơ, danh mục trình độ hoặc trang tiếp theo dùng `presentation="placeholder"`. Refresh đã có cache dùng `"silent"` hoặc giữ content mà không mount indicator. Không dùng `isFetching` chung để che lại cả màn khi vẫn có dữ liệu.
+- `presentation="inline"` dành cho loader trung tâm, startup/session, pull refresh và phản hồi ngay trên nút/action đang xử lý. Trạng thái upload, gửi, đối soát/thanh toán vẫn giữ label/progress và disabled/recovery theo domain; đổi cách vẽ không suy ra thao tác thành công.
+- `ConnectionFeedback`/`QueryFeedback` có `loadingPresentation` để chọn placeholder khi đọc dữ liệu phụ. Lỗi và quyền 403/404 vẫn hiển thị theo contract, không bị loader che; cached data bị denied vẫn phải purge theo runtime hiện hành.
+
+## Chú thích và thẻ tệp trong Chat
+
+- `Copy size="hint"` dùng `typography.secondary` (13/18), nhỏ hơn nội dung chính 15px. `FormNotice compact` giảm padding và dùng cùng cỡ chú thích; mặc định của hai component không đổi cho các màn khác. Các màn thỏa thuận/lộ trình/lịch dùng biến thể này cho hướng dẫn phụ; thông tin mục tiêu, nội dung buổi học và hành động chính vẫn nổi bật.
+- Chú thích cần ngắn, giữ các điều kiện xác nhận lại phiên bản và thời điểm tạm giữ Credit. Không thu nhỏ nhãn xuống 9px; metadata tối thiểu theo token caption 11/15.
+- `ChatAttachmentTile` là ô tệp đã chọn nằm trong `ChatComposer`, trên hàng nhập tin, có nút × với vùng chạm 44px. Tệp sẵn sàng chỉ hiện tên/loại/dung lượng, không thêm hướng dẫn/nút gửi riêng. Trạng thái upload/kiểm tra hoặc recovery vẫn hiện khi cần; khóa bỏ tệp theo controller để giữ intent đang gửi. `ChatFileCard` dành cho tin tệp đã gửi, có biểu tượng tài liệu/ảnh và tải tệp; giữ phía gửi/nhận cùng avatar/giờ, tên tối đa hai dòng. Nút mở tệp có accessibility label đầy đủ; khi tải chỉ đổi trạng thái trên thẻ, chặn nhấn lặp, vẫn lấy URL riêng qua API có quyền.
+
 ## Icon dùng chung
 
 - Dùng `Icon` trong `src/components/Icon.tsx`; bộ hiện hành là [Lucide React Native](https://lucide.dev/guide/react-native/getting-started) (license ISC), render qua `react-native-svg` đã có.

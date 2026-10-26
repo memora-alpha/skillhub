@@ -1,13 +1,18 @@
 # Trạng thái giảm HTTP 429 mobile
 
-- Cập nhật: 2026-10-24T14:22:54+07:00.
-- Trạng thái: Ready for review — loading đồng bộ, pull refresh và màn chờ mất mạng hoàn tất source/host checks/export Android/iOS/web; native UX/motion/gesture chưa nghiệm thu.
+- Cập nhật: 2026-10-26T22:07:17+07:00.
+- Trạng thái: Ready for review — toàn mobile đã gom loading theo màn hình, dữ liệu phụ dùng placeholder và refresh có cache giữ content; host checks/export Android/iOS/web đạt. Native UX/motion/gesture chưa nghiệm thu.
 - Nghiệm thu người dùng: xác nhận “ổn hơn rồi” sau TRACE, chưa xác nhận hết429; yêu cầu bỏ log dư và đổi UX loading. Chưa nghiệm thu native UX mới.
-- Nhánh: `fix/mobile-chat-rate-limit`.
+- Nhánh hiện tại cho follow-up toàn app: `fix/mobile-proposal-chat-learning-path`; các mốc giảm429 trước đó thuộc `fix/mobile-chat-rate-limit`.
 - Task RL-01 đến RL-08 ở [plan](plan.md) đã thực hiện. Chỉ thay đổi mobile, không sửa BE, web, dependencies hoặc contract API. Không có thay đổi SDK 58; chưa push.
+
+Phần gom loading đã commit tại `36a91c19` trên nhánh hiện tại. Các nhóm Proposal/Chat/Learning Path và bằng chứng kiểm từng staged snapshot được ghi tại [status thỏa thuận](../phase-05-proposal-learning-agreement/status.md). Chưa push; ghi chú chưa commit ở checkpoint cũ giữ theo lịch sử.
 
 ## Source hiện tại
 
+- Review tiếp nối đã sửa vùng chờ còn nhận focus bàn phím: web dùng inert/visibility để chặn Tab/focus mà không bỏ layout; native bỏ focus bàn phím khi bắt đầu chờ và không tự focus lại. Children giữ mounted và header/Back còn ngoài vùng chờ.
+- `ScreenLoadingBoundary` có store riêng cho screen/modal, gom các read chính vào một loader giữa vùng content; header/Back còn dùng được. Children giữ mounted, tạm ẩn khỏi chạm/accessibility khi chờ để không mất draft và không chặn request phụ thuộc. Cleanup theo loader, không tắt sớm khi read khác vẫn đang chạy; blur không hiện loader của màn cũ.
+- AppScreen/Profile/Skills/Auth, thread Chat và modal danh mục đã gắn boundary. Shared LoadingIndicator mặc định đăng ký vào boundary; fallback ngoài scope căn giữa. Dữ liệu phụ/trang tiếp theo dùng placeholder; header refresh nền không vẽ icon. Wallet refresh có data giữ content; lỗi/denial vẫn theo contract. Startup/session, pull refresh và action trên nút giữ feedback riêng.
 - Inbox/Chat/profile chỉ tự refetch khi stale; explicit refresh vẫn đọc mới. Snapshot nghiệp vụ Proposal/Learning Path giữ chính sách freshness hiện có.
 - Metadata proposal/request/skill dùng chung cache theo owner/session giữa nhãn Inbox/compact Chat; tên và profile dùng cùng query. Không tăng TTL avatar hoặc giả thêm field Conversation.
 - HTTP tối đa4 GET đồng thời và4 lượt bắt đầu GET trong mỗi cửa sổ trượt1 giây cho mỗi coordinator/session; request đang chờ bị abort hoặc thuộc session cũ không gửi đến transport. Mutation không được xếp hàng để tự phát lại.
@@ -23,15 +28,22 @@
 
 Môi trường Node v22.19.0, binary đã có trong workspace. `pnpm --filter mobile exec ...` bị wrapper yêu cầu install rồi dừng ở no-TTY; không purge/cài lại dependencies. Đã chạy trực tiếp cùng công cụ của package scripts từ `apps/mobile`.
 
-| Kiểm tra                 | Kết quả và giới hạn                                                                                                                                                                                                                 |
-| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Full mobile tests        | **797/797 PASS, 0 FAIL/skipped/cancelled** sau loading hai chấm. Log ignored `.expo/loading-dots-full.log`. |
-| Regression mới           | 14 test mới (đã nằm trong tổng trên): cache/in-flight, exact invalidation, metadata/page reuse, Retry-After, GET concurrency/abort, session switch, SSE cursor/cancel, outbox reconnect/restart, read-receipt tail reuse. Đều PASS. |
-| ESLint                   | PASS `node node_modules/eslint/bin/eslint.js . --max-warnings 0`.                                                                                                                                                                   |
-| TypeScript               | PASS `node node_modules/typescript/bin/tsc --noEmit`.                                                                                                                                                                               |
-| Structure                | PASS `node scripts/check-structure.mjs`, 765 source files. |
-| Formatting/diff          | Prettier cho TS/TSX thay đổi và `git diff --check` PASS; diff chỉ thuộc `apps/mobile`.                                                                                                                                              |
-| Real API / Android / iOS | Agent chưa chạy nghiệm thu toàn bộ API/native hoặc đo request production. Người dùng xác nhận riêng mở/quay lại Khám phá không còn thấy lỗi sau Reload; xem DISC bên dưới. |
+| Kiểm tra                 | Kết quả và giới hạn                                                                                                                                                                                                                                                                                                                      |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Full mobile tests        | **855/855 PASS, 0 FAIL/skipped/cancelled** sau review loading/editor; baseline trước review 847/847. Log ignored `.expo/review-full-final.log`.                                                                                                                                                                                          |
+| Regression mới           | 4 test mới trong `screen-loading.test.ts`: gom nhiều read/scope độc lập, cleanup hook/unmount, giữ children và một loader ở giữa/focus, Wallet cache/denial. Mở rộng `loading-indicator.test.ts` để kiểm grouped/inline/placeholder/silent và fallback căn giữa. Các regression HTTP/SSE/owner/session hiện có vẫn nằm trong full suite. |
+| ESLint                   | PASS `node node_modules/eslint/bin/eslint.js . --max-warnings 0`.                                                                                                                                                                                                                                                                        |
+| TypeScript               | PASS `node node_modules/typescript/bin/tsc --noEmit`.                                                                                                                                                                                                                                                                                    |
+| Structure                | PASS `node scripts/check-structure.mjs`, 788 source files.                                                                                                                                                                                                                                                                               |
+| Android/iOS/web export   | PASS `.expo/review-export-final`; log ignored `.expo/review-export-final.log`. Chỉ chứng minh bundle.                                                                                                                                                                                                                                    |
+| Formatting/diff          | Prettier cho TS/TSX thay đổi và `git diff --check` PASS; diff chỉ thuộc `apps/mobile`.                                                                                                                                                                                                                                                   |
+| Real API / Android / iOS | Agent chưa chạy nghiệm thu toàn bộ API/native hoặc đo request production. Người dùng xác nhận riêng mở/quay lại Khám phá không còn thấy lỗi sau Reload; xem DISC bên dưới.                                                                                                                                                               |
+
+Follow-up gom loading kiểm chứng tại 2026-10-25T19:55:46+07:00: logs types/lint `.expo/screen-loading-types.log`, `.expo/screen-loading-lint.log`; focused `.expo/screen-loading-focused.log`. Chỉ sửa mobile, không thêm dependency hoặc đổi HTTP/auth/cache/retry/mutation semantics. Không stage/commit/push; không suy ra đã nghiệm thu thiết bị hoặc hết mọi429 từ các kết quả này. Cần kiểm mở lạnh/cached, chuyển tab/modal, Back, keyboard/draft, pull refresh và thanh toán đang xử lý trên điện thoại.
+
+### Review focus và editor sau gom loading
+
+Review 2026-10-25T20:19:39+07:00: full855/855, focused32/32, TypeScript/ESLint/structure788/format/diff và export Android/iOS/web đạt. Logs ignored `.expo/review-full-final.log`, `.expo/review-focused-final.log`, `.expo/review-types-final.log`, `.expo/review-lint-final.log`, `.expo/review-export-final.log`. Regression focus kiểm React DOM markup inert/visibility và Keyboard.dismiss qua host mock, chưa thao tác Tab/bàn phím trên browser/điện thoại thật. Review cũng sửa mất draft editor khi polling; chi tiết thuộc [work thỏa thuận](../phase-05-proposal-learning-agreement/status.md). Không stage/commit/push.
 
 ### Bốn lỗi baseline đã xác minh riêng
 
