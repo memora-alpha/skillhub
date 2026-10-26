@@ -1,5 +1,45 @@
 # Learning Request validation
 
+## Public owner avatar — 2026-10-26
+
+Implemented the user-approved [owner avatar amendment](owner-avatar-plan.md).
+Feed/recommended/public detail now return required nullable `owner.avatarUrl`.
+The Users reader selects current avatar metadata in one batch, signs only CLEAN
+assets and returns an allowlist. Public mappers also allowlist owner fields.
+Empty pages do not fetch owners; non-public detail projections are unchanged.
+
+| Check                                                     | Result                                                                                                                                                                                          |
+| --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| API lint, TypeScript noEmit, Nest build                   | Passed using installed local CLIs.                                                                                                                                                              |
+| Complete Learning Request unit/HTTP/OpenAPI suite         | 126/126 passed, including required nullable string/URL serialization on all three routes, batching, missing owner/signing errors, empty pages, asset states, privacy, DI and generated Swagger. |
+| Identity unit/provider regression                         | 12/12 passed, including existing S3 signed-URL provider behavior.                                                                                                                               |
+| Skills policy/selection regression                        | 13/13 passed.                                                                                                                                                                                   |
+| PostgreSQL/HTTP FE extension and proposed-tag integration | 15/15 passed. Real PostgreSQL nested selection verified selected avatar replacement/removal and all non-CLEAN states; existing HTTP/auth/card and moderation transaction regressions passed.    |
+
+Corepack could not download uncached pnpm10.24.0 because registry DNS was
+unavailable. Executed the same installed Nest/ESLint/TypeScript CLIs and script
+test file lists directly with Node, without changing dependencies or hooks.
+The first sandbox HTTP/PostgreSQL attempts failed with localhost EACCES; reruns
+with elevated localhost access passed. PostgreSQL used only the two disposable
+schema fixtures (`fe-extension.integration` and `proposed-tags.integration`),
+with a loopback-only guard and UUID schema cleanup. Their signer is a test double;
+these tests establish database/HTTP behavior, not live S3 downloads.
+
+The full `test:learning-request:integration` command was not run because no
+dedicated migrated `TEST_DATABASE_URL` is configured. Its persistence and
+notification tests use that database directly, unlike the two isolated fixtures;
+they were not pointed at the normal local database. No production migration,
+seed, environment, TTL, mobile or web changes are required for this amendment.
+
+Remaining rollout checks: staging signed URL image download, mobile consuming
+the new field without avatar-only profile lookups, and cached-list rendering
+after the existing 60-second URL expiry. No deployment was performed.
+
+Constitution recheck: scope, PostgreSQL authority, existing transaction context,
+auth/privacy, explicit API schema and Users ownership pass local source/tests;
+no jobs, cross-store transaction or exception was introduced. Live S3/mobile
+verification remains Pending as above.
+
 ## Inline proposed tags — 2026-10-24
 
 Implemented the user-requested proposal field and atomic Staff/Admin post/tag

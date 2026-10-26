@@ -18,7 +18,7 @@ const status = (error) => error?.getStatus?.();
 
 for (const scope of ["learning-request:create", "CREATE_NEW_ACTIVITY"]) {
   test(`create and publish respect the ${scope} restriction after owner integration`, async () => {
-    const eligibility = new SkillActorService({});
+    const eligibility = new SkillActorService({}, {});
     const tx = {
       user: {
         findUnique: async () => ({

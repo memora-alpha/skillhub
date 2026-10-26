@@ -15,6 +15,7 @@ import type {
   LearningRequestListScope,
   LearningRequestModerationDetail,
   LearningRequestOwnerSummary,
+  LearningRequestPublicOwner,
   LearningRequestRecord,
   LearningRequestSummary,
 } from "../contracts/learning-request.types";
@@ -212,7 +213,7 @@ function projectSummary(
   record: LearningRequestRecord,
   skill: { id: string; name: string },
   tags: { id: string; label: string }[],
-  owner: { id: string; displayName: string },
+  owner: LearningRequestPublicOwner,
   offerings: readonly OfferedSharingSkill[],
 ): LearningRequestSummary {
   return {
@@ -227,7 +228,11 @@ function projectSummary(
     currentLevel: record.currentLevel,
     verifiedTeacherOnly: record.verifiedTeacherOnly,
     status: record.status,
-    owner,
+    owner: {
+      id: owner.id,
+      displayName: owner.displayName,
+      avatarUrl: owner.avatarUrl,
+    },
     createdAt: record.createdAt,
     expiresAt: record.expiresAt,
   };

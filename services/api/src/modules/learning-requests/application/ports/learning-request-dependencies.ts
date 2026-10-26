@@ -1,6 +1,7 @@
 import type { TransactionContext } from "../../../../infrastructure/database/transaction-context";
 import type { Principal } from "../../../auth/application/services/sessions.service";
 import type { RequestContext } from "../../../../shared/http/request-context";
+import type { LearningRequestPublicOwner } from "../contracts/learning-request.types";
 
 export const NEW_ACTIVITY_ELIGIBILITY_READER = Symbol(
   "NEW_ACTIVITY_ELIGIBILITY_READER",
@@ -62,7 +63,7 @@ export interface RequestOwnerReader {
   readPublicOwners(
     tx: TransactionContext,
     userIds: readonly string[],
-  ): Promise<{ id: string; displayName: string }[]>;
+  ): Promise<LearningRequestPublicOwner[]>;
 }
 
 export interface SharingSkillReader {

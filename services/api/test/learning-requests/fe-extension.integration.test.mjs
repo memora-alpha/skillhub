@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import { test } from "node:test";
 import { createSkillFixture } from "../skills/helpers.mjs";
 import { LearningRequestAccessService } from "../../dist/modules/learning-requests/application/services/learning-request-access.service.js";
@@ -166,6 +167,67 @@ test(
             assert.equal("offeredSharingSkillIds" in card, false);
             assert.equal("ownerId" in card.offeredSharingSkills[0], false);
           }
+        },
+      );
+      await t.test(
+        "public owner avatar reads the selected asset and its current state from PostgreSQL",
+        async () => {
+          const userId = owner.principal.userId;
+          const first = await f.db.avatarAsset.create({
+            data: {
+              userId,
+              storageKey: `avatars/${userId}/${randomUUID()}`,
+              state: "CLEAN",
+              mime: "image/png",
+              byteSize: 1n,
+            },
+          });
+          const second = await f.db.avatarAsset.create({
+            data: {
+              userId,
+              storageKey: `avatars/${userId}/${randomUUID()}`,
+              state: "CLEAN",
+              mime: "image/png",
+              byteSize: 1n,
+            },
+          });
+          const readCards = async () => [
+            await get.execute(viewer.principal, request.id),
+            ...(await list.execute(viewer.principal, "FEED", {})).items,
+            ...(await list.execute(viewer.principal, "RECOMMENDED", {})).items,
+          ];
+          for (const card of await readCards())
+            assert.equal(card.owner.avatarUrl, null);
+          for (const asset of [first, second]) {
+            await f.db.user.update({
+              where: { id: userId },
+              data: { avatarAssetId: asset.id },
+            });
+            for (const card of await readCards()) {
+              assert.equal(
+                card.owner.avatarUrl,
+                `https://avatar.test/${asset.storageKey}`,
+              );
+              assert.deepEqual(
+                Object.keys(card.owner).sort((a, b) => a.localeCompare(b)),
+                ["avatarUrl", "displayName", "id"],
+              );
+            }
+          }
+          for (const state of ["QUARANTINED", "REJECTED", "DELETED"]) {
+            await f.db.avatarAsset.update({
+              where: { id: second.id },
+              data: { state },
+            });
+            for (const card of await readCards())
+              assert.equal(card.owner.avatarUrl, null);
+          }
+          await f.db.user.update({
+            where: { id: userId },
+            data: { avatarAssetId: null },
+          });
+          for (const card of await readCards())
+            assert.equal(card.owner.avatarUrl, null);
         },
       );
       await t.test(

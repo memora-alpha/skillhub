@@ -1,5 +1,20 @@
 # Learning Request quickstart
 
+## Public owner avatar — 2026-10-26
+
+Feed, recommended and public detail now include `owner.avatarUrl: string | null`.
+Use that value directly for avatars instead of a separate profile API call. Null
+means no selected CLEAN avatar; show the client placeholder. URLs use the existing
+60-second signing policy. Cached lists must handle expired URLs before loading
+images that have not been cached. Backend rollout requires a normal build/restart,
+without migration, seed or new environment variables. Smoke with an authenticated
+non-owner on all three routes, with/without a CLEAN avatar. Verify the signed URL
+loads an image in staging, and mobile rendering immediately and from a list cache
+older than 60 seconds. Owner/moderation projections retain their existing fields.
+
+See [plan](owner-avatar-plan.md) and [validation](validation.md) for evidence and
+the separate mobile consumption follow-up.
+
 ## FE payload after the 2026-10-12 extension
 
 Use `GET /api/v1/skills`, `GET /api/v1/me/skills`, and `GET /api/v1/tags?q=react` to obtain actual catalog/profile IDs. The offered sharing IDs belong to the request owner. Create example (replace illustrative UUIDs):

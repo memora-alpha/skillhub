@@ -1,5 +1,18 @@
 # Learning Request HTTP contract
 
+## Public owner avatar — 2026-10-26
+
+Feed (`GET /api/v1/learning-requests`), recommended and the public projection of
+`GET /api/v1/learning-requests/:id` return `owner: {id,displayName,avatarUrl}`.
+`avatarUrl` is required but nullable: a signed URL valid for 60 seconds for the
+currently selected CLEAN avatar, otherwise `null`. It uses the same avatar
+storage policy as public profiles. No profile lookup is needed just to obtain
+the avatar. Image downloads still use the URL; consumers caching responses must
+handle its expiry before loading uncached images. No raw asset/storage metadata
+is exposed. Owner and moderation projections, authorization and pagination stay
+unchanged. No migration, new permission or environment setting is required.
+See [the implementation plan](../owner-avatar-plan.md).
+
 ## Inline tag proposals — 2026-10-24
 
 Create/PATCH accept optional `proposedTags: string[]`; owner/moderation responses
@@ -69,7 +82,7 @@ Publish/cancel body `{expectedVersion}`. Approve/reject `{expectedVersion,reason
 
 | Type                            | Fields được trả                                                                                                                                                     |
 | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| RequestSummary                  | id,title,skill{id,name},tags{id,label},learningGoal,currentLevel,verifiedTeacherOnly,status hiệu lực,owner{id,displayName},createdAt,expiresAt.                     |
+| RequestSummary                  | id,title,skill{id,name},tags{id,label},learningGoal,currentLevel,verifiedTeacherOnly,status hiệu lực,owner{id,displayName,avatarUrl},createdAt,expiresAt.           |
 | RequestDetail                   | Summary + description,preferredSlots,version khi ở feed scope.                                                                                                      |
 | OwnerRequestSummary/Detail      | Own fields + persisted status,effectiveStatus,version,moderationStatus,moderationRejectReason của quyết định hiện tại,updatedAt; không flaggedCategories/rule list. |
 | ModerationRequestSummary/Detail | Nội dung cần review,version,moderationStatus,category summary nội bộ tối thiểu,reason/reviewer metadata; không auth/email/payment/private profile.                  |

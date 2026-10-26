@@ -11,10 +11,14 @@ import { lockUsers } from "../../../../shared/database/identity-transactions";
 import type { TransactionContext } from "../../../../infrastructure/database/transaction-context";
 import type { Actor } from "../../../../shared/authorization/authorization.types";
 import type { PermissionCode } from "../../../../shared/authorization/permission.catalog";
+import { AvatarStorage } from "../../../../infrastructure/storage/avatar-storage";
 
 @Injectable()
 export class SkillActorService {
-  constructor(private readonly sessions: SessionsService) {}
+  constructor(
+    private readonly sessions: SessionsService,
+    private readonly storage: AvatarStorage,
+  ) {}
   async assertConnectionParty(tx: TransactionContext, userId: string) {
     const user = await tx.user.findUnique({ where: { id: userId } });
     const now = new Date();
@@ -47,11 +51,25 @@ export class SkillActorService {
       throw new ForbiddenException("NEW_ACTIVITY_RESTRICTED");
   }
   async readPublicOwners(tx: TransactionContext, userIds: readonly string[]) {
+    if (userIds.length === 0) return [];
     const rows = await tx.user.findMany({
-      where: { id: { in: [...userIds] } },
-      select: { id: true, fullName: true },
+      where: { id: { in: [...new Set(userIds)] } },
+      select: {
+        id: true,
+        fullName: true,
+        selectedAvatarRecord: { select: { state: true, storageKey: true } },
+      },
     });
-    return rows.map((row) => ({ id: row.id, displayName: row.fullName }));
+    return Promise.all(
+      rows.map(async (row) => ({
+        id: row.id,
+        displayName: row.fullName,
+        avatarUrl:
+          row.selectedAvatarRecord?.state === "CLEAN"
+            ? await this.storage.url(row.selectedAvatarRecord.storageKey)
+            : null,
+      })),
+    );
   }
   async require(
     tx: TransactionContext,
