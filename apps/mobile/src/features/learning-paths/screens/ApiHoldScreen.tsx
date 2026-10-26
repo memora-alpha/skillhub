@@ -89,7 +89,7 @@ function HoldContent({
   if (path.lockedVersion !== null)
     return (
       <Panel title="Lịch đã chốt">
-        <FormNotice tone="success">
+        <FormNotice tone="success" compact>
           Lịch học đã được chốt. Các buổi học của bạn đã sẵn sàng.
         </FormNotice>
         {!embedded && (
@@ -146,7 +146,7 @@ function HoldContent({
           </Text>
         </View>
         {!ready && (
-          <FormNotice tone="info">
+          <FormNotice tone="info" compact>
             Cần đủ kế hoạch và xác nhận của người học, điều khoản chung và lịch
             của cả hai trước khi kiểm tra.
           </FormNotice>
@@ -181,7 +181,7 @@ function HoldContent({
         </Button>
         <ConnectionFeedback error={check.error} />
         {checked === signature && (
-          <FormNotice tone="success">
+          <FormNotice tone="success" compact>
             Đủ điều kiện tại lần kiểm tra vừa rồi. Hệ thống sẽ kiểm tra lại khi
             bạn chốt lịch.
           </FormNotice>
@@ -215,10 +215,9 @@ function HoldContent({
         <ConnectionFeedback error={finalize.error} />
         {finalize.uncertain && (
           <Panel title="Kiểm tra lần chốt vừa gửi">
-            <Copy>
-              Chưa xác định được lần chốt trước đã hoàn tất hay chưa. Tải lại
-              trạng thái; nếu vẫn chưa rõ, kiểm tra lại đúng lần gửi trước để
-              tránh tạm giữ Credit hai lần.
+            <Copy size="hint">
+              Chưa rõ kết quả chốt. Tải lại trạng thái hoặc kiểm tra đúng lần
+              gửi trước để tránh tạm giữ Credit hai lần.
             </Copy>
             <Button
               variant="secondary"

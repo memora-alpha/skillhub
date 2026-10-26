@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { LearningDateTimeField } from "@/features/learning-requests";
-import { Input } from "@/components/Input";
+import { ScheduleTimeFields } from "./schedule-time-fields";
 import { Button } from "@/components/Button";
 import { FlowSection } from "@/components/learning-flow";
 import { Icon } from "@/components/Icon";
@@ -103,11 +102,15 @@ export function ScheduleWeeklyGenerator({
           </Text>
         </View>
       )}
-      <LearningDateTimeField
-        label="Ngày và giờ bắt đầu"
-        value={start}
-        onChange={(value) => {
+      <ScheduleTimeFields
+        local={start}
+        minutes={minutes}
+        onLocalChange={(value) => {
           setStart(value);
+          setError(undefined);
+        }}
+        onMinutesChange={(value) => {
+          setMinutes(value);
           setError(undefined);
         }}
         disabled={disabled}
@@ -117,17 +120,6 @@ export function ScheduleWeeklyGenerator({
           {error}
         </Text>
       )}
-      <Input
-        label="Thời lượng mỗi buổi (phút)"
-        value={minutes}
-        onChangeText={(value) => {
-          setMinutes(value);
-          setError(undefined);
-        }}
-        keyboardType="number-pad"
-        editable={!disabled}
-        reserveMessageSpace={false}
-      />
       <View style={styles.presets}>
         {[60, 90, 120, 180].map((value) => (
           <Pressable

@@ -83,15 +83,14 @@ export function ApiAgreementForm({
         keyboardType="decimal-pad"
         editable={!pending}
       />
-      <Copy muted>
+      <Copy muted size="hint">
         {type === "TWO_WAY"
-          ? "Mỗi người tự tạo kế hoạch mình dạy; người học xác nhận từng kế hoạch."
-          : "Người dạy tạo kế hoạch; chỉ người học tạm giữ Credit khi chốt lịch."}
+          ? "Mỗi người tạo lộ trình mình dạy; đối tác xác nhận."
+          : "Người dạy tạo lộ trình. Chỉ người học tạm giữ Credit khi chốt lịch."}
       </Copy>
       {path && (
-        <Copy muted>
-          Thay đổi sẽ gửi cho đối tác xác nhận lại. Lịch học cần được thống nhất
-          theo thỏa thuận mới.
+        <Copy muted size="hint">
+          Đối tác cần xác nhận lại thay đổi và lịch học theo thỏa thuận mới.
         </Copy>
       )}
       <Button

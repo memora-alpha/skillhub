@@ -9,7 +9,7 @@ export function PathCancellationScreen() {
       demo={false}
       back="/my-learning?tab=paths"
     >
-      <FormNotice tone="info">
+      <FormNotice tone="info" compact>
         Mobile chưa có API yêu cầu hủy hoặc dừng lộ trình. Màn này không gửi yêu
         cầu và không thay đổi trạng thái lộ trình.
       </FormNotice>

@@ -51,7 +51,7 @@ export function JourneyNextStep({
 }>) {
   return (
     <Panel title={journey.title} accent>
-      <Copy>{journey.description}</Copy>
+      <Copy size="hint">{journey.description}</Copy>
       {journey.action && !blocked && (
         <RouteButton href={journey.action.href}>
           {journey.action.label}

@@ -19,7 +19,7 @@ export const styles = StyleSheet.create({
   },
   guideText: {
     flex: 1,
-    ...typography.body,
+    ...typography.secondary,
     fontFamily: fonts.body,
     color: colors.body,
   },

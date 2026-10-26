@@ -9,7 +9,7 @@ export function SettlementScreen() {
       demo={false}
       back="/my-learning?tab=paths"
     >
-      <FormNotice tone="info">
+      <FormNotice tone="info" compact>
         Mobile chưa có API quyết toán lộ trình. Chưa có giao dịch hay khoản tiền
         nào được tính hoặc cập nhật từ màn này.
       </FormNotice>

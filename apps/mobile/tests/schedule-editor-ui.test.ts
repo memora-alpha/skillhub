@@ -45,7 +45,10 @@ test("schedule editor applies only to draft, submits exact plan version, and rem
   });
   const stubs: Record<string, Record<string, unknown>> = {
     "react/jsx-runtime": { jsx, jsxs: jsx },
-    react: { useState: (value: unknown) => [value, () => {}] },
+    react: {
+      useState: (value: unknown) => [value, () => {}],
+      useRef: (current: unknown) => ({ current }),
+    },
     "react-native": {
       View: "View",
       Text: "Text",

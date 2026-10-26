@@ -43,7 +43,7 @@ export function LearningNegotiationScreen({
           />
           {query.data && (
             <>
-              <Copy muted>
+              <Copy muted size="hint">
                 Cùng thống nhất nội dung học trước khi chọn lịch.
               </Copy>
               <ApiAgreementEntry

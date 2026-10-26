@@ -4,7 +4,12 @@ import { useRouter, type Href } from "expo-router";
 import { AppScreenLayout } from "@/features/shell";
 import { KeyboardFormScrollView } from "./KeyboardFormScrollView";
 import { Button } from "./Button";
-import { appColors as colors, appRadius, fonts } from "@/constants/theme";
+import {
+  appColors as colors,
+  appRadius,
+  fonts,
+  typography,
+} from "@/constants/theme";
 
 export function FeaturePage({
   title,
@@ -102,12 +107,21 @@ export function Panel({
 export function Copy({
   children,
   muted = false,
+  size = "body",
 }: {
   children: ReactNode;
   muted?: boolean;
+  size?: "body" | "hint";
 }) {
   return (
-    <Text selectable style={[ui.copy, muted && { color: colors.muted }]}>
+    <Text
+      selectable
+      style={[
+        ui.copy,
+        size === "hint" && ui.hint,
+        muted && { color: colors.muted },
+      ]}
+    >
       {children}
     </Text>
   );
@@ -191,6 +205,7 @@ export const ui = StyleSheet.create({
     lineHeight: 24,
     color: colors.body,
   },
+  hint: { ...typography.secondary },
   label: {
     fontFamily: fonts.bold,
     fontSize: 13,

@@ -5,8 +5,7 @@ import {
   useFormState,
   type Control,
 } from "react-hook-form";
-import { LearningDateTimeField } from "@/features/learning-requests";
-import { ControlledInput } from "@/components/ControlledInput";
+import { ScheduleTimeFields } from "./schedule-time-fields";
 import { Button } from "@/components/Button";
 import { Icon } from "@/components/Icon";
 import { FlowSection } from "@/components/learning-flow";
@@ -100,11 +99,31 @@ export function ScheduleSessionEditor({
                     name={`items.${index}.local`}
                     render={({ field, fieldState }) => (
                       <>
-                        <LearningDateTimeField
-                          label={`Ngày giờ buổi ${session.sessionNo}`}
-                          value={field.value}
-                          onChange={field.onChange}
-                          disabled={disabled}
+                        <Controller
+                          control={control}
+                          name={`items.${index}.minutes`}
+                          render={({
+                            field: duration,
+                            fieldState: durationState,
+                          }) => (
+                            <>
+                              <ScheduleTimeFields
+                                local={field.value}
+                                minutes={duration.value}
+                                onLocalChange={field.onChange}
+                                onMinutesChange={duration.onChange}
+                                disabled={disabled}
+                              />
+                              {!!durationState.error && (
+                                <Text
+                                  accessibilityRole="alert"
+                                  style={styles.error}
+                                >
+                                  {durationState.error.message}
+                                </Text>
+                              )}
+                            </>
+                          )}
                         />
                         {!!fieldState.error && (
                           <Text accessibilityRole="alert" style={styles.error}>
@@ -113,14 +132,6 @@ export function ScheduleSessionEditor({
                         )}
                       </>
                     )}
-                  />
-                  <ControlledInput
-                    control={control}
-                    name={`items.${index}.minutes`}
-                    label={`Thời lượng buổi ${session.sessionNo} (phút)`}
-                    keyboardType="number-pad"
-                    editable={!disabled}
-                    reserveMessageSpace={false}
                   />
                   <Button
                     variant="secondary"

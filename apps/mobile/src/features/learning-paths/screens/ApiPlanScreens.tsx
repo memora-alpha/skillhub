@@ -1,5 +1,5 @@
 import { PathReadFeedback } from "../components/PathReadFeedback";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   useLocalSearchParams,
   useRouter,
@@ -107,7 +107,7 @@ export function ApiPlanDetailScreen() {
       {query.data && plan && matchesSource && (
         <>
           {sharedVersion && sharedVersion !== String(plan.version) && (
-            <FormNotice tone="info">
+            <FormNotice tone="info" compact>
               Lộ trình đã được cập nhật. Bạn đang đọc bản mới nhất (
               {plan.version}); hãy xem lại nội dung trước khi xác nhận.
             </FormNotice>
@@ -143,6 +143,11 @@ export function ApiPlanEditorScreen() {
     (planId
       ? plan && canEditPlan(path, plan, runtime.userId)
       : canCreatePlan(path, runtime.userId));
+  const resource = `${id}:${planId ?? "new"}`;
+  const opened = useRef<string | undefined>(undefined);
+  if (allowed) opened.current = resource;
+  const showEditor =
+    allowed || (opened.current === resource && (!planId || !!plan));
   return (
     <FeaturePage
       title={planId ? "Chỉnh sửa lộ trình" : "Tạo lộ trình"}
@@ -152,12 +157,12 @@ export function ApiPlanEditorScreen() {
       back={planId ? `/paths/${id}/plans/${planId}` : `/paths/${id}`}
     >
       <PathReadFeedback query={query} />
-      {allowed && path && (
+      {showEditor && path && (
         <PlanForm
-          key={`${path.currentVersion}:${plan?.version ?? "new"}`}
+          key={`${path.id}:${plan?.id ?? "new"}`}
           path={path}
           plan={plan}
-          blocked={!!query.error}
+          blocked={!!query.error || !allowed}
         />
       )}
       {path && !allowed && (
@@ -224,7 +229,9 @@ function SharePlan({
     <PlanShareCard>
       <ConnectionFeedback error={sender.error ?? sender.delivery.error} />
       <Button
-        disabled={blocked || sender.pending || sender.processing}
+        disabled={
+          blocked || sender.pending || sender.processing || sender.uncertain
+        }
         onPress={() => {
           const text = planShareMessage(
             path.id,
@@ -240,9 +247,22 @@ function SharePlan({
       >
         {sender.pending ? "Đang gửi…" : "Gửi lộ trình qua Chat"}
       </Button>
+      {sender.uncertain && (
+        <Button
+          variant="secondary"
+          disabled={blocked || sender.pending}
+          onPress={() => {
+            void sender.retryPrevious().then((sent) => {
+              if (sent && runtime.isCurrent()) setShared(true);
+            });
+          }}
+        >
+          Kiểm tra lại lần chia sẻ trước
+        </Button>
+      )}
       {sender.processing && (
         <>
-          <Copy muted>
+          <Copy muted size="hint">
             Lộ trình đang được gửi. Kiểm tra trước khi rời màn hình.
           </Copy>
           <Button

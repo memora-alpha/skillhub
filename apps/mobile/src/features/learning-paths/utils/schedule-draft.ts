@@ -1,4 +1,5 @@
 import type { ApiLearningPlan } from "../api/learning-paths-contract";
+import { ZodError } from "zod";
 import { scheduleItems, type ScheduleInput } from "../schemas/schedule-input";
 
 function slotDraft(slot: { startAt: string; endAt: string }) {
@@ -25,7 +26,7 @@ export function scheduleDraftItems(
   input: ScheduleInput,
   plan: ApiLearningPlan,
 ) {
-  return scheduleItems(input).map((item, index) => {
+  const items = scheduleItems(input).map((item, index) => {
     const previous = plan.schedule?.items.find(
       (slot) => slot.sessionNo === item.sessionNo,
     );
@@ -45,4 +46,17 @@ export function scheduleDraftItems(
             ).toISOString(),
     };
   });
+  // Restoring retained seconds can introduce an overlap hidden by minute fields.
+  for (let index = 1; index < items.length; index++) {
+    if (Date.parse(items[index]!.startAt) < Date.parse(items[index - 1]!.endAt))
+      throw new ZodError([
+        {
+          code: "custom",
+          path: ["items", index, "local"],
+          message:
+            "Các buổi phải theo thứ tự và không trùng nhau. Giờ cũ có phần giây; hãy điều chỉnh giờ hoặc thời lượng.",
+        },
+      ]);
+  }
+  return items;
 }

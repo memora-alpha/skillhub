@@ -44,7 +44,9 @@ export function ApiPlanPanel({
       <Copy>
         {plan.totalSessions} buổi · {plan.learningGoal}
       </Copy>
-      <Copy muted>{confirmation}</Copy>
+      <Copy muted size="hint">
+        {confirmation}
+      </Copy>
       {compact ? (
         <RouteButton secondary href={`/paths/${path.id}/plans/${plan.id}`}>
           Xem nội dung từng buổi

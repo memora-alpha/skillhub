@@ -1,4 +1,5 @@
 import { PathReadFeedback } from "../components/PathReadFeedback";
+import { useRef } from "react";
 import {
   ScheduleListOverview,
   ScheduleReadCard,
@@ -86,7 +87,7 @@ export function ApiSchedulesScreen() {
               return !current ||
                 current.id !== formScheduleId ||
                 String(current.version) !== formVersion ? (
-                <FormNotice tone="info">
+                <FormNotice tone="info" compact>
                   Lịch đã thay đổi sau khi gửi form này. Hãy xem lịch hiện tại
                   trước khi xác nhận.
                 </FormNotice>
@@ -101,9 +102,9 @@ export function ApiSchedulesScreen() {
           />
           <ScheduleTimezoneNotice />
           {path.status !== "CONFIRMED" && path.lockedVersion === null && (
-            <Copy>
-              Cần đủ kế hoạch, xác nhận người học và xác nhận điều khoản của cả
-              hai trước khi đề xuất lịch.
+            <Copy size="hint">
+              Đủ lộ trình, xác nhận của người học và cách học đã thống nhất mới
+              được đề xuất lịch.
             </Copy>
           )}
           {scheduleDirections(path, runtime.userId).map(
@@ -223,6 +224,15 @@ export function ApiScheduleEditorScreen() {
     runtime = useConnections(),
     path = query.data;
   const plan = path?.plans.find((p) => p.id === planId);
+  const allowed =
+    !!path &&
+    !!plan &&
+    (canSchedule(path, plan, runtime.userId) ||
+      canEditSchedule(path, plan, runtime.userId));
+  const resource = `${id}:${planId}`;
+  const opened = useRef<string | undefined>(undefined);
+  if (allowed) opened.current = resource;
+  const showEditor = allowed || opened.current === resource;
   return (
     <FeaturePage
       title={plan?.schedule ? "Chỉnh sửa lịch tôi dạy" : "Đề xuất lịch tôi dạy"}
@@ -232,15 +242,18 @@ export function ApiScheduleEditorScreen() {
       back={`/paths/${id}/schedules`}
     >
       <PathReadFeedback query={query} />
-      {path &&
-      plan &&
-      (canSchedule(path, plan, runtime.userId) ||
-        canEditSchedule(path, plan, runtime.userId)) ? (
+      {path && plan && showEditor && !allowed && (
+        <FormNotice tone="info" compact>
+          Thỏa thuận hiện chưa cho phép chỉnh sửa lịch. Bản đang nhập được giữ
+          lại.
+        </FormNotice>
+      )}
+      {path && plan && showEditor ? (
         <ScheduleForm
-          key={`${path.currentVersion}:${plan.version}:${plan.schedule?.version ?? "new"}`}
+          key={`${path.id}:${plan.id}`}
           path={path}
           plan={plan}
-          blocked={!!query.error}
+          blocked={!!query.error || !allowed}
         />
       ) : (
         path && (
