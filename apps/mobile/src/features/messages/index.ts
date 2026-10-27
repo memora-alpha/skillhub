@@ -1,5 +1,8 @@
 export { ChatEventsProvider, useChatEvents } from "./context/ChatEvents";
 export { useConversation } from "./hooks/use-messages-api";
+export { useConversationInbox } from "./hooks/use-conversation-inbox";
+export { ConversationRow } from "./components/ConversationRow";
+export type { InboxConversation } from "./utils/conversation-preview";
 export { useMessageSend } from "./hooks/use-message-send";
 export { ChatOutboxProvider } from "./context/ChatOutbox";
 export { ChatScreen } from "./screens/ChatScreen";

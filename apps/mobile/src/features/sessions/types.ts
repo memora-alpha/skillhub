@@ -25,6 +25,21 @@ const progress = z
       value.plan.total <= value.agreement.total &&
       value.plan.completed <= value.agreement.completed,
   );
+export const sessionJoinSchema = z
+  .object({
+    canJoin: z.boolean(),
+    opensAt: timestamp.nullable(),
+    closesAt: timestamp.nullable(),
+    reason: z.string().nullable(),
+  })
+  .refine(
+    (value) =>
+      !value.canJoin ||
+      (value.reason === null &&
+        value.opensAt !== null &&
+        value.closesAt !== null &&
+        Date.parse(value.opensAt) < Date.parse(value.closesAt)),
+  );
 export const sessionSchema = z
   .object({
     id: z.uuid(),
@@ -45,6 +60,7 @@ export const sessionSchema = z
     cancelledAt: timestamp.nullable().optional(),
     cancelReason: z.string().nullable().optional(),
     role: z.enum(["TEACHER", "LEARNER"]).optional(),
+    join: sessionJoinSchema.optional(),
   })
   .refine((s) => Date.parse(s.endAt) > Date.parse(s.startAt));
 export const completionReceiptSchema = z.object({

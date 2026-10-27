@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useState } from "react";
 import {
   Card,
@@ -10,6 +11,27 @@ import { fmtDateTime } from "@/lib/console/format";
 import type { AdminTag, TagRequest } from "@/lib/staff/admin-types";
 import { useStaffCommand, useStaffList, useStaffResource } from "./hooks";
 import { DecisionDialog, Pager, QueueState } from "./common";
+
+function TagNavigation({ page }: Readonly<{ page: "catalog" | "requests" }>) {
+  return (
+    <nav className="toolbar" aria-label="Quản lý tag cộng đồng">
+      <Link
+        className={`btn ${page === "catalog" ? "btn-primary" : ""}`}
+        href="/admin/tags"
+        aria-current={page === "catalog" ? "page" : undefined}
+      >
+        Danh mục tag
+      </Link>
+      <Link
+        className={`btn ${page === "requests" ? "btn-primary" : ""}`}
+        href="/admin/tag-requests"
+        aria-current={page === "requests" ? "page" : undefined}
+      >
+        Đề xuất tag
+      </Link>
+    </nav>
+  );
+}
 
 export function TagsScreen() {
   const command = useStaffCommand();
@@ -49,6 +71,7 @@ export function TagsScreen() {
           </div>
         }
       />
+      <TagNavigation page="catalog" />
       <form
         className="toolbar"
         onSubmit={(e) => {
@@ -213,7 +236,7 @@ export function TagRequestsScreen() {
     <>
       <PageHeader
         title="Đề xuất tag"
-        desc="Xem xét tag do người dùng đề xuất."
+        desc="Duyệt đề xuất tag gửi riêng. Tag đi kèm yêu cầu học được duyệt ngay trong yêu cầu đó."
         actions={
           <button
             className="btn"
@@ -224,6 +247,7 @@ export function TagRequestsScreen() {
           </button>
         }
       />
+      <TagNavigation page="requests" />
       <label className="toolbar">
         <span>Trạng thái</span>
         <select

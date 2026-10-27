@@ -1,39 +1,51 @@
 import { FormNotice } from "@/components/FormNotice";
-import { useSessionContext } from "../hooks/use-session-context";
-import { useSessionsRuntime } from "../runtime";
-import type { LearningSession } from "../types";
-import { rescheduleSnapshot } from "../utils/reschedule-snapshot";
+import type { rescheduleSnapshot } from "../utils/reschedule-snapshot";
 import { formatSessionTime } from "../utils/session-time";
-import { SessionPanel, SessionCopy } from "./session-page";
+import { SessionPanel, SessionCopy, SessionButton } from "./session-page";
+
+type Snapshot = ReturnType<typeof rescheduleSnapshot>;
 
 export function RescheduleProposalPanel({
-  session,
+  snapshot,
   timezone,
+  loading,
+  error,
+  disabled,
+  pending,
+  onConfirm,
 }: Readonly<{
-  session: LearningSession;
+  snapshot: Snapshot;
   timezone: string;
+  loading: boolean;
+  error: unknown;
+  disabled: boolean;
+  pending: boolean;
+  onConfirm: () => void;
 }>) {
-  const query = useSessionContext(session),
-    { userId } = useSessionsRuntime();
-  const snapshot = query.context
-    ? rescheduleSnapshot(session, query.context, userId)
-    : undefined;
   return (
     <SessionPanel title="Đề nghị đổi lịch hiện tại">
       <ProposalContent
         snapshot={snapshot}
         timezone={timezone}
-        loading={query.isLoading}
+        loading={loading}
       />
-      {!!query.error && (
+      {!!error && (
         <FormNotice tone="error">
           Chưa tải lại được đề nghị. Thông tin đang hiển thị có thể chưa cập
           nhật. Kéo xuống để thử lại.
         </FormNotice>
       )}
-      <FormNotice tone="info">
-        Gửi và xác nhận đổi lịch chưa khả dụng. Lịch hiện tại vẫn có hiệu lực.
-      </FormNotice>
+      {snapshot?.pending && !snapshot.ownConfirmed && (
+        <SessionButton disabled={disabled} onPress={onConfirm}>
+          {pending ? "Đang xử lý…" : "Xác nhận lịch mới"}
+        </SessionButton>
+      )}
+      {snapshot?.pending && snapshot.ownConfirmed && (
+        <FormNotice tone="info">
+          Bạn đã xác nhận đề nghị này. Lịch mới chỉ có hiệu lực khi cả hai bên
+          xác nhận và hệ thống chốt lịch.
+        </FormNotice>
+      )}
     </SessionPanel>
   );
 }
@@ -43,7 +55,7 @@ function ProposalContent({
   timezone,
   loading,
 }: Readonly<{
-  snapshot: ReturnType<typeof rescheduleSnapshot>;
+  snapshot: Snapshot;
   timezone: string;
   loading: boolean;
 }>) {
@@ -58,8 +70,9 @@ function ProposalContent({
   if (!snapshot.pending)
     return (
       <SessionCopy muted>
-        Buổi học này chưa có lịch mới đang chờ xác nhận. Lịch bản{" "}
-        {snapshot.appliedVersion} đang có hiệu lực.
+        {snapshot.hasPending
+          ? "Có đề nghị đổi lịch ở buổi khác trong cùng kế hoạch. Mở buổi đó để xem và xác nhận trước khi gửi đề nghị mới."
+          : `Buổi học này chưa có lịch mới đang chờ xác nhận. Lịch bản ${snapshot.appliedVersion} đang có hiệu lực.`}
       </SessionCopy>
     );
   return (

@@ -28,13 +28,18 @@ export function rescheduleSnapshot(
     Date.parse(item.endAt) !== Date.parse(actual.endAt);
   if (schedule.version === schedule.appliedVersion && changed) return;
   const isA = userId === path.participantAId;
+  const hasPending =
+    schedule.version > schedule.appliedVersion &&
+    ["PROPOSED", "NEEDS_REVISION", "PARTIALLY_CONFIRMED"].includes(
+      schedule.status,
+    );
   return {
+    scheduleId: schedule.id,
+    status: schedule.status,
     version: schedule.version,
     appliedVersion: schedule.appliedVersion,
-    pending:
-      schedule.version > schedule.appliedVersion &&
-      changed &&
-      !["CANCELLED", "EXPIRED"].includes(schedule.status),
+    hasPending,
+    pending: hasPending && changed,
     item,
     ownConfirmed: !!(isA
       ? schedule.participantAConfirmedAt

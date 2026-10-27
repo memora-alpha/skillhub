@@ -1,15 +1,17 @@
 {
   "expo": {
     "name": "SkillHub",
-    "slug": "skillhub-mobile",
+    "slug": "skillhub",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.skillhub.mobile"
     },
     "android": {
+      "package": "com.skillhub.mobile",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -33,11 +35,31 @@
         "expo-image-picker",
         {
           "photosPermission": "SkillHub dùng ảnh bạn chọn làm ảnh đại diện hoặc bằng chứng xác minh kỹ năng.",
-          "cameraPermission": false,
-          "microphonePermission": false
+          "cameraPermission": "Cho phép SkillHub dùng camera trong buổi học video.",
+          "microphonePermission": "Cho phép SkillHub dùng micro để trao đổi trong buổi học."
         }
       ],
-      "expo-image"
-    ]
+      "expo-image",
+      "@livekit/react-native-expo-plugin",
+      [
+        "@config-plugins/react-native-webrtc",
+        {
+          "cameraPermission": "Cho phép SkillHub dùng camera trong buổi học video.",
+          "microphonePermission": "Cho phép SkillHub dùng micro để trao đổi trong buổi học."
+        }
+      ]
+    ],
+    "extra": {
+      "paymentQa": {},
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "80bdc249-c5ed-48e6-af14-8e8bd0df13fe"
+      }
+    },
+    "owner": "elwyn.tl"
   }
 }

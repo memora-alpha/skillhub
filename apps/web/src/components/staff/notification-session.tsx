@@ -21,8 +21,7 @@ import {
 } from "@/lib/staff/notification-events";
 import { useStaffSession } from "./session";
 
-type LiveStatus =
-  "connecting" | "connected" | "paused" | "unavailable" | "demo";
+type LiveStatus = "connecting" | "connected" | "paused" | "unavailable";
 type ContextValue = {
   inbox: ReturnType<typeof createNotificationInbox>;
   live: LiveStatus;
@@ -36,28 +35,24 @@ function reconnectDelay(failures: number) {
 export function NotificationsProvider({
   children,
 }: Readonly<{ children: ReactNode }>) {
-  const { actor, portal, demo } = useStaffSession();
+  const { actor, portal } = useStaffSession();
   if (!actor) return children;
   return (
-    <NotificationSession key={`${portal}:${actor.userId}:${demo}`}>
+    <NotificationSession key={`${portal}:${actor.userId}`}>
       {children}
     </NotificationSession>
   );
 }
 function NotificationSession({ children }: Readonly<{ children: ReactNode }>) {
-  const { api, expire, portal, demo } = useStaffSession();
+  const { api, expire, portal } = useStaffSession();
   const [inbox] = useState(() => createNotificationInbox(api, expire));
-  const [live, setLive] = useState<LiveStatus>(demo ? "demo" : "connecting");
+  const [live, setLive] = useState<LiveStatus>("connecting");
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     inbox.activate();
     return () => inbox.dispose();
   }, [inbox]);
   useEffect(() => {
-    if (demo) {
-      void inbox.reload().catch(() => {});
-      return;
-    }
     let disposed = false,
       failures = 0;
     let abort: AbortController | undefined,
@@ -131,7 +126,7 @@ function NotificationSession({ children }: Readonly<{ children: ReactNode }>) {
       clearTimeout(timer);
       document.removeEventListener("visibilitychange", visibility);
     };
-  }, [inbox, portal, expire, attempt, demo]);
+  }, [inbox, portal, expire, attempt]);
   const value = useMemo(
     () => ({ inbox, live, retry: () => setAttempt((attempt) => attempt + 1) }),
     [inbox, live],

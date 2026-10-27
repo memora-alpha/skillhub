@@ -1,6 +1,8 @@
 import { z } from "zod";
 import type { HttpClient, RequestOptions } from "@/lib/http/client";
 import { AppError } from "@/lib/http/errors";
+import { liveKitTokenSchema } from "./livekit-contract";
+import { createRescheduleApi } from "./reschedule-api";
 import {
   sessionSchema,
   completionReceiptSchema,
@@ -40,6 +42,7 @@ export function createSessionsApi(
     return { ...s, role };
   }
   return {
+    ...createRescheduleApi(call),
     async list(range: SessionRange, signal?: AbortSignal) {
       const result = await call(
         `/sessions/mine?${new URLSearchParams(range)}`,
@@ -50,6 +53,22 @@ export function createSessionsApi(
     },
     async detail(id: string, signal?: AbortSignal) {
       return parse(await call(sessionPath(id), { signal }), id);
+    },
+    async liveKitToken(id: string, signal?: AbortSignal) {
+      const result = liveKitTokenSchema.safeParse(
+        await call(`${sessionPath(id)}/livekit-token`, {
+          method: "POST",
+          body: {},
+          signal,
+          replayAfterRenewal: false,
+        }),
+      );
+      if (
+        !result.success ||
+        result.data.participantIdentity !== `${id}:${userId}`
+      )
+        throw new AppError("protocol");
+      return result.data;
     },
     async complete(id: string, note = "") {
       if (note.length > 1000) throw new AppError("protocol");

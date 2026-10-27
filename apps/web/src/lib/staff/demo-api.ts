@@ -441,10 +441,47 @@ export function createDemoApi(actorId: string, storage: Storage): PortalApi {
       if (method === "POST" && (action === "approve" || action === "reject")) {
         const item = required(data.requests, (row) => row.id === id);
         expectVersion(item, body);
+        if (
+          item.status !== "PENDING_MODERATION" ||
+          item.moderationStatus !== "PENDING"
+        )
+          throw new StaffApiError(409, "DEMO_VERSION_CONFLICT");
+        const reason = text(body.reason, action === "reject" ? 10 : 1);
+        if (action === "approve") {
+          for (const label of item.proposedTags ?? []) {
+            const normalized = label
+              .trim()
+              .normalize("NFC")
+              .replace(/\s+/gu, " ")
+              .toLowerCase();
+            const existing = data.tags.find(
+              (tag) =>
+                tag.label
+                  .trim()
+                  .normalize("NFC")
+                  .replace(/\s+/gu, " ")
+                  .toLowerCase() === normalized,
+            );
+            if (existing && existing.status !== "ACTIVE")
+              throw new StaffApiError(409, "TAG_UNAVAILABLE");
+            const tag = existing ?? {
+              id: crypto.randomUUID(),
+              label,
+              status: "ACTIVE" as const,
+              version: 1,
+              createdAt: now,
+              updatedAt: now,
+            };
+            if (!existing) data.tags.push(tag);
+            if (!item.tagIds.includes(tag.id)) item.tagIds.push(tag.id);
+          }
+          item.proposedTags = [];
+        }
         item.status = action === "approve" ? "OPEN" : "REJECTED";
         item.moderationStatus = action === "approve" ? "APPROVED" : "REJECTED";
-        item.moderationRejectReason =
-          action === "reject" ? text(body.reason ?? body.note) : null;
+        item.moderationRejectReason = action === "reject" ? reason : null;
+        item.moderatedAt = now;
+        item.moderatedByUserId = actorId;
         item.version++;
         return save(item);
       }

@@ -22,6 +22,18 @@ const weekdays: Record<string, string> = {
   SAT: "Thứ bảy",
   SUN: "Chủ nhật",
 };
+const levels: Record<string, string> = {
+  NONE: "Chưa có kinh nghiệm",
+  BEGINNER: "Cơ bản",
+  INTERMEDIATE: "Trung cấp",
+  ADVANCED: "Nâng cao",
+  EXPERT: "Chuyên gia",
+};
+function categoryLabel(category: string) {
+  return category === "PROPOSED_TAGS"
+    ? "Có tag mới cần duyệt"
+    : `Khớp nhóm quy tắc: ${category}`;
+}
 function RequestAvailability({
   request,
 }: Readonly<{ request: LearningRequest }>) {
@@ -55,12 +67,12 @@ function RequestAvailability({
 function RequestFacts({ request }: Readonly<{ request: LearningRequest }>) {
   return (
     <dl className="kv staff-kv">
-      <dt>Người đăng</dt>
-      <dd className="mono">{request.ownerId}</dd>
-      <dt>Mã kỹ năng muốn học</dt>
-      <dd className="mono">{request.skillId}</dd>
       <dt>Trình độ hiện tại</dt>
-      <dd>{request.currentLevel ?? "Chưa cung cấp"}</dd>
+      <dd>
+        {request.currentLevel
+          ? (levels[request.currentLevel] ?? request.currentLevel)
+          : "Chưa cung cấp"}
+      </dd>
       <dt>Người dạy đã xác minh</dt>
       <dd>{request.verifiedTeacherOnly ? "Bắt buộc" : "Không bắt buộc"}</dd>
       <dt>Credit mong muốn / giờ</dt>
@@ -69,6 +81,12 @@ function RequestFacts({ request }: Readonly<{ request: LearningRequest }>) {
           ? `${request.desiredCreditPerHour} CR`
           : "Chưa cung cấp"}
       </dd>
+      {request.moderatedAt && (
+        <>
+          <dt>Thời điểm xử lý</dt>
+          <dd>{fmtDateTime(request.moderatedAt)}</dd>
+        </>
+      )}
       {request.moderationRejectReason && (
         <>
           <dt>Lý do từ chối</dt>
@@ -78,6 +96,28 @@ function RequestFacts({ request }: Readonly<{ request: LearningRequest }>) {
     </dl>
   );
 }
+
+function selectedRequest(
+  items: readonly LearningRequest[],
+  selectedId: string | null,
+  receipt: LearningRequest | null,
+) {
+  return (
+    items.find((item) => item.id === selectedId) ??
+    (receipt?.id === selectedId ? receipt : null)
+  );
+}
+
+function decisionDescription(
+  request: LearningRequest,
+  decision: "approve" | "reject",
+) {
+  const proposedTags = request.proposedTags ?? [];
+  if (decision === "approve" && proposedTags.length > 0)
+    return `${request.title}. Yêu cầu sẽ được công khai; các tag ${proposedTags.join(", ")} cũng được duyệt vào danh mục và gắn vào bài.`;
+  return request.title;
+}
+
 export function ModerationScreen() {
   const { api } = useStaffSession();
   const [q, setQ] = useState("");
@@ -85,19 +125,18 @@ export function ModerationScreen() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<LearningRequest | null>(null);
   const [decision, setDecision] = useState<"approve" | "reject" | null>(null);
-  const selected =
-    queue.items.find((item) => item.id === selectedId) ??
-    (receipt?.id === selectedId ? receipt : null);
+  const selected = selectedRequest(queue.items, selectedId, receipt);
+  const proposedTags = selected?.proposedTags ?? [];
   const visible = queue.items.filter((item) =>
-    `${item.title} ${item.description} ${item.id}`
+    `${item.title} ${item.description} ${item.id} ${(item.proposedTags ?? []).join(" ")}`
       .toLocaleLowerCase("vi")
       .includes(q.trim().toLocaleLowerCase("vi")),
   );
   return (
     <>
       <PageHeader
-        title="Yêu cầu học chờ duyệt"
-        desc="Xem nội dung bị gắn cờ, kiểm tra nhu cầu học và lý do trước khi duyệt."
+        title="Kiểm duyệt yêu cầu học"
+        desc="Yêu cầu có tag mới hoặc khớp bộ lọc sẽ chờ duyệt trước khi được công khai."
         actions={
           <button
             type="button"
@@ -153,8 +192,9 @@ export function ModerationScreen() {
                         {fmtDateTime(item.createdAt)}
                       </span>
                       <span className="q-meta">
-                        {item.flaggedCategories.join(" · ") ||
-                          "Chờ nhân viên xem xét"}
+                        {item.flaggedCategories
+                          .map(categoryLabel)
+                          .join(" · ") || "Chờ nhân viên xem xét"}
                       </span>
                     </button>
                   </li>
@@ -173,14 +213,28 @@ export function ModerationScreen() {
             <Card>
               <Empty
                 title="Chọn một yêu cầu học"
-                desc="Nội dung và nhóm gắn cờ sẽ hiển thị ở đây."
+                desc="Xem nội dung, tag đề xuất và lý do cần duyệt trước khi quyết định."
               />
             </Card>
           ) : (
-            <Card title={selected.title}>
+            <Card
+              title={selected.title}
+              actions={
+                <button
+                  type="button"
+                  className="btn btn-sm"
+                  onClick={() => {
+                    setSelectedId(null);
+                    setReceipt(null);
+                  }}
+                >
+                  Về danh sách
+                </button>
+              }
+            >
               <div className="stack">
                 <div className="row">
-                  <StatusBadge status={selected.status} />
+                  <StatusBadge status={selected.moderationStatus} />
                   <Badge>Phiên bản {selected.version}</Badge>
                 </div>
                 {receipt?.id === selected.id && (
@@ -190,15 +244,32 @@ export function ModerationScreen() {
                 )}
                 {selected.flaggedCategories.length > 0 && (
                   <div className="staff-flag">
-                    <strong>Nhóm bị gắn cờ</strong>
+                    <strong>Lý do cần xem xét</strong>
                     <div className="row">
                       {selected.flaggedCategories.map((category) => (
                         <Badge key={category} tone="warn">
-                          {category}
+                          {categoryLabel(category)}
                         </Badge>
                       ))}
                     </div>
                   </div>
+                )}
+                {proposedTags.length > 0 && (
+                  <section>
+                    <h3 className="sub-title">Tag đề xuất trong yêu cầu</h3>
+                    <div className="row staff-request-tags">
+                      {proposedTags.map((tag) => (
+                        <Badge key={tag}>{tag}</Badge>
+                      ))}
+                    </div>
+                    {selected.status === "PENDING_MODERATION" && (
+                      <p className="muted">
+                        Duyệt yêu cầu sẽ duyệt luôn các tag này vào danh mục
+                        chung và gắn vào bài. Không cần duyệt lại ở mục Đề xuất
+                        tag.
+                      </p>
+                    )}
+                  </section>
                 )}
                 <section>
                   <h3 className="sub-title">Nội dung yêu cầu</h3>
@@ -218,13 +289,31 @@ export function ModerationScreen() {
                   <div className="row">
                     {selected.offeredSharingSkills.map((skill) => (
                       <Badge key={skill.id} tone="brand">
-                        {skill.skill.name} · {skill.level}
+                        {skill.skill.name} ·{" "}
+                        {levels[skill.level] ?? skill.level}
                       </Badge>
                     ))}
                   </div>
                 )}
                 <RequestFacts request={selected} />
                 <RequestAvailability request={selected} />
+                <details>
+                  <summary>Thông tin đối chiếu</summary>
+                  <dl className="kv staff-kv">
+                    <dt>Mã yêu cầu</dt>
+                    <dd className="mono">{selected.id}</dd>
+                    <dt>Mã người đăng</dt>
+                    <dd className="mono">{selected.ownerId}</dd>
+                    <dt>Mã kỹ năng muốn học</dt>
+                    <dd className="mono">{selected.skillId}</dd>
+                    {selected.moderatedByUserId && (
+                      <>
+                        <dt>Mã người xử lý</dt>
+                        <dd className="mono">{selected.moderatedByUserId}</dd>
+                      </>
+                    )}
+                  </dl>
+                </details>
 
                 {selected.status === "PENDING_MODERATION" && (
                   <div className="staff-detail-actions">
@@ -254,7 +343,7 @@ export function ModerationScreen() {
                         ? "Duyệt yêu cầu học"
                         : "Từ chối yêu cầu học"
                     }
-                    description={selected.title}
+                    description={decisionDescription(selected, decision)}
                     label={
                       decision === "approve"
                         ? "Lý do duyệt"

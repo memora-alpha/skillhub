@@ -16,4 +16,7 @@ export {
   useLearningPaths,
 } from "./hooks/use-learning-paths-api";
 export { useRefreshLearningPath } from "./hooks/use-refresh-learning-path";
-export type { ApiLearningPath } from "./api/learning-paths-contract";
+export type {
+  ApiLearningPath,
+  PathSummary,
+} from "./api/learning-paths-contract";

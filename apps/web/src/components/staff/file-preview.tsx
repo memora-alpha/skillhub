@@ -97,7 +97,7 @@ function FileViewer({
   name: string;
   onClose: () => void;
 }>) {
-  const { portal, expire, demo } = useStaffSession();
+  const { portal, expire } = useStaffSession();
   const dialog = useRef<HTMLDialogElement>(null);
   const [file, setFile] = useState<{ url: string; mime: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -111,14 +111,7 @@ function FileViewer({
     const controller = new AbortController();
     let objectUrl: string | undefined;
     const contentPath = path.replace(/\/download$/, "/content");
-    const request = demo
-      ? Promise.reject(
-          new Error(
-            "Tệp mẫu chỉ có thông tin minh họa. Không có tệp thật để mở.",
-          ),
-        )
-      : staffFile(contentPath, portal, controller.signal);
-    request
+    staffFile(contentPath, portal, controller.signal)
       .then((blob) => {
         if (controller.signal.aborted) return;
         objectUrl = URL.createObjectURL(blob);
@@ -133,7 +126,7 @@ function FileViewer({
       controller.abort();
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [path, portal, expire, revision, demo]);
+  }, [path, portal, expire, revision]);
   const kind = file ? evidencePreviewKind(file.mime) : null;
   return (
     <dialog

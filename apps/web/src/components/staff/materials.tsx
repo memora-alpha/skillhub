@@ -34,7 +34,7 @@ const labels: Record<Action, string> = {
 };
 
 export function MaterialsScreen() {
-  const { api, actor, demo } = useStaffSession();
+  const { api, actor } = useStaffSession();
   const [status, setStatus] = useState<MaterialState>("PENDING_REVIEW");
   const [query, setQuery] = useState("");
   const [decision, setDecision] = useState<{
@@ -151,17 +151,11 @@ export function MaterialsScreen() {
                               : item.scanStatus}
                         </dd>
                       </dl>
-                      {item.file && !demo && (
+                      {item.file && (
                         <DownloadButton
                           path={`materials/${item.id}/download`}
                           name={item.file.originalFilename ?? item.title}
                         />
-                      )}
-                      {demo && (
-                        <p className="muted">
-                          Tệp mẫu chỉ có thông tin minh họa. Chuyển sang dữ liệu
-                          thật để mở tệp.
-                        </p>
                       )}
                       {item.rejectReason && (
                         <p className="staff-error">

@@ -1,10 +1,17 @@
+"use client";
+
 import Link from "next/link";
 import { Card } from "@/components/console/ui";
 import { OverviewScreen } from "./overview";
+import { useStaffList } from "./hooks";
+import type { TagRequest } from "@/lib/staff/admin-types";
 export function AdminOverviewScreen() {
+  const tagRequests = useStaffList<TagRequest>(
+    "tag-requests?status=PENDING&limit=20",
+  );
   return (
     <>
-      <OverviewScreen />
+      <OverviewScreen tagRequests={tagRequests} />
       <div className="grid grid-2 section">
         <Card title="Quản lý tài khoản">
           <p>Kiểm tra tài khoản, khóa hoặc mở khóa và cấp quyền Staff.</p>
@@ -26,14 +33,9 @@ export function AdminOverviewScreen() {
         </Card>
         <Card title="Tag cộng đồng">
           <p>Quản lý tag và xem xét đề xuất mới từ người dùng.</p>
-          <div className="stack">
-            <Link className="link" href="/admin/tags">
-              Mở danh mục tag →
-            </Link>
-            <Link className="link" href="/admin/tag-requests">
-              Duyệt đề xuất tag →
-            </Link>
-          </div>
+          <Link className="link" href="/admin/tags">
+            Quản lý tag →
+          </Link>
         </Card>
       </div>
     </>

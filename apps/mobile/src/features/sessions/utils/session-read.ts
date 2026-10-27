@@ -58,6 +58,14 @@ export function sessionReadState(
   return error ? "error" : "loading";
 }
 const messages: Record<string, string> = {
+  LIVEKIT_DISABLED: "Phòng học chưa được máy chủ kích hoạt.",
+  LIVEKIT_POLICY_NOT_READY: "Máy chủ chưa cấu hình thời gian mở phòng học.",
+  JOIN_WINDOW_NOT_OPEN:
+    "Chưa đến thời gian vào phòng học. Hãy tải lại khi đến giờ.",
+  JOIN_WINDOW_CLOSED: "Đã hết thời gian vào phòng học.",
+  SESSION_NOT_JOINABLE: "Buổi học hiện không cho phép vào phòng.",
+  SESSION_ENDED:
+    "Buổi học đã kết thúc. Phòng học đã đóng và không thể vào hoặc kết nối lại.",
   SESSION_NOT_ENDED: "Buổi học chưa kết thúc. Hãy xác nhận sau giờ kết thúc.",
   SESSION_ACCESS_DENIED: "Bạn không có quyền truy cập buổi học này.",
   SESSION_BLOCKED_BY_DISPUTE: "Buổi học đang bị chặn bởi tranh chấp.",
@@ -70,6 +78,18 @@ const messages: Record<string, string> = {
     "Đề xuất không còn đủ điều kiện; lịch cũ vẫn có hiệu lực.",
   SCHEDULE_CONFLICT:
     "Thời gian đề xuất bị trùng lịch; lịch cũ vẫn có hiệu lực.",
+  RESCHEDULE_ALREADY_PENDING:
+    "Lịch học đang có đề nghị chờ xác nhận. Hãy xem đề nghị hiện tại trước khi gửi lịch khác.",
+  RESCHEDULE_START_NOT_FUTURE: "Chọn thời gian bắt đầu trong tương lai.",
+  RESCHEDULE_UNCHANGED: "Chọn ngày giờ hoặc thời lượng khác lịch hiện tại.",
+  RESCHEDULE_NOT_CONFIRMABLE:
+    "Đề nghị này đã được xác nhận hoặc không còn chờ xác nhận. Hãy kiểm tra lịch hiện tại.",
+  SCHEDULE_ALREADY_LOCKED:
+    "Lịch đã được chốt. Hãy tải lại để xem giờ học đang có hiệu lực.",
+  APPLIED_SCHEDULE_VERSION_MISMATCH:
+    "Lịch hiện hành chưa khớp đề nghị. Hãy tải lại trước khi thao tác.",
+  SESSION_SCHEDULE_HISTORY_MISSING:
+    "Chưa đọc được lịch hiện hành của buổi học. Hãy tải lại trước khi đổi lịch.",
 };
 export function sessionErrorMessage(error: unknown) {
   return error instanceof AppError && messages[error.code]

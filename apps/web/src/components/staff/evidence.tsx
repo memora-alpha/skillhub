@@ -49,7 +49,7 @@ function VerificationDetail({
   id: string;
   onQueueReload: () => void;
 }>) {
-  const { api } = useStaffSession();
+  const { api, actor } = useStaffSession();
   const detail = useStaffResource<Verification>(`verifications/${id}`);
   const [decision, setDecision] = useState<Decision | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -119,18 +119,20 @@ function VerificationDetail({
                     path={`verifications/${id}/evidence/${file.id}/download`}
                     name={file.title || `Bằng chứng ${index + 1}`}
                   />
-                  {file.approvalStatus === "APPROVED" && !file.revokedAt && (
-                    <button
-                      type="button"
-                      className="btn btn-danger btn-sm"
-                      disabled={!!decision || detail.loading}
-                      onClick={() =>
-                        setDecision({ action: "revoke", evidenceId: file.id })
-                      }
-                    >
-                      Thu hồi phê duyệt
-                    </button>
-                  )}
+                  {actor?.roles.includes("ADMIN") &&
+                    file.approvalStatus === "APPROVED" &&
+                    !file.revokedAt && (
+                      <button
+                        type="button"
+                        className="btn btn-danger btn-sm"
+                        disabled={!!decision || detail.loading}
+                        onClick={() =>
+                          setDecision({ action: "revoke", evidenceId: file.id })
+                        }
+                      >
+                        Thu hồi phê duyệt
+                      </button>
+                    )}
                 </div>
               </section>
             ))}

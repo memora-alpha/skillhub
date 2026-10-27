@@ -1,3 +1,9 @@
 {
-  "requests": []
+  "requests": [
+    {
+      "id": "admin-staff-tag-material-grants",
+      "seeds": ["identity"],
+      "reason": "Synchronize existing role grants for tag administration, tag requests and material moderation after authenticated Admin requests were denied."
+    }
+  ]
 }

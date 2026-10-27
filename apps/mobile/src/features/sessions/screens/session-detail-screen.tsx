@@ -10,6 +10,7 @@ import { AppScreenLayout } from "@/features/shell";
 import { useSessionDetail } from "../hooks/use-sessions";
 import { useSessionPartner } from "../hooks/use-session-partner";
 import { useSessionAction } from "../hooks/use-session-action";
+import { useSessionClock } from "../hooks/use-session-clock";
 import { useSessionsRuntime } from "../runtime";
 import { SessionFeedback } from "../components/session-feedback";
 import { SessionDetailContent } from "../components/session-detail-content";
@@ -29,9 +30,14 @@ export function LearningSessionScreen() {
   const query = useSessionDetail(id),
     partner = useSessionPartner(query.data),
     action = useSessionAction(id);
-  const { userId } = useSessionsRuntime();
+  const runtime = useSessionsRuntime();
+  const { userId } = runtime;
   const session = query.data,
     timezone = deviceTimezone();
+  const now = useSessionClock(session, () => {
+    if (runtime.isCurrent() && query.enabled)
+      void query.refetch({ cancelRefetch: false });
+  });
   const [confirmOpen, setConfirmOpen] = useState(false);
   const submit = completionSubmitPresentation(
     session,
@@ -41,13 +47,13 @@ export function LearningSessionScreen() {
   );
   const ended =
     session &&
-    (Date.parse(session.endAt) <= Date.now() ||
+    (Date.parse(session.endAt) <= now ||
       session.status === "COMPLETED" ||
       submit.confirmed);
   const blocked = session && ["CANCELLED", "DISPUTED"].includes(session.status);
   const disabled =
     !session ||
-    !canConfirmSession(session, userId) ||
+    !canConfirmSession(session, userId, now) ||
     query.isFetching ||
     query.isError ||
     action.pending ||
@@ -92,7 +98,11 @@ export function LearningSessionScreen() {
                   session={session}
                   userId={userId}
                   timezone={timezone}
+                  now={now}
                   partner={partner.data ?? undefined}
+                  onJoinRoom={() =>
+                    router.push(`/learning-sessions/${session.id}/room`)
+                  }
                   onOpenPartner={() =>
                     router.push({
                       pathname: "/profiles/[userId]",
@@ -137,7 +147,7 @@ export function LearningSessionScreen() {
           {session &&
             query.valid &&
             !blocked &&
-            (ended || isRescheduleEligible(session)) && (
+            (ended || isRescheduleEligible(session, now)) && (
               <View style={styles.footer}>
                 <View style={styles.footerInner}>
                   <Button
@@ -151,6 +161,7 @@ export function LearningSessionScreen() {
                       if (ended) {
                         if (!disabled) setConfirmOpen(true);
                       } else {
+                        if (!isRescheduleEligible(session)) return;
                         router.push(
                           `/learning-sessions/${session.id}/reschedule`,
                         );
