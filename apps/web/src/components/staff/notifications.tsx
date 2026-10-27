@@ -46,8 +46,6 @@ export function NotificationsScreen() {
         />
       </div>
       <output className="staff-notification-status">
-        {queue.live === "demo" &&
-          "Đang xem 5 thông báo mẫu. Bạn có thể thử đánh dấu đã đọc."}
         {queue.live === "connected" && "Đang nhận cập nhật trực tiếp"}
         {queue.live === "connecting" && "Đang kết nối cập nhật trực tiếp…"}
         {queue.live === "paused" && "Tạm dừng cập nhật khi tab ở nền."}

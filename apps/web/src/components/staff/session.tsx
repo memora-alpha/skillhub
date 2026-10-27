@@ -12,7 +12,6 @@ import {
 import { staffApi, StaffApiError, type PortalApi } from "@/lib/staff/client";
 import type { Portal } from "@/lib/staff/policy";
 import type { StaffIdentity } from "@/lib/staff/types";
-import { createDemoApi } from "@/lib/staff/demo-api";
 type Session = {
   portal: Portal;
   api: PortalApi;
@@ -24,8 +23,6 @@ type Session = {
   logout: () => Promise<void>;
   refresh: () => void;
   expire: () => void;
-  demo: boolean;
-  setDemo: (enabled: boolean) => void;
 };
 const Context = createContext<Session | null>(null);
 function sessionError(error: unknown): string | null {
@@ -47,29 +44,9 @@ export function StaffSessionProvider({
   portal?: Portal;
 }>) {
   const [actor, setActor] = useState<StaffIdentity | null>(null);
-  const [demoEnabled, setDemoEnabled] = useState(false);
-  const demo =
-    demoEnabled && portal === "admin" && !!actor?.roles.includes("ADMIN");
-  const actorId = actor?.userId;
   const api: PortalApi = useCallback(
-    (path, options) => {
-      if (
-        demo &&
-        actorId &&
-        path !== "session" &&
-        !path.startsWith("session/")
-      ) {
-        try {
-          return createDemoApi(actorId, window.localStorage)(path, options);
-        } catch {
-          return Promise.reject(
-            new StaffApiError(400, "DEMO_STORAGE_UNAVAILABLE"),
-          );
-        }
-      }
-      return staffApi(path, options, portal);
-    },
-    [portal, demo, actorId],
+    (path, options) => staffApi(path, options, portal),
+    [portal],
   );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -127,7 +104,6 @@ export function StaffSessionProvider({
       await api<null>("session", { method: "DELETE" });
       setActor(null);
       setError(null);
-      setDemoEnabled(false);
     });
   }, [api, perform]);
   const refresh = useCallback(() => {
@@ -146,22 +122,8 @@ export function StaffSessionProvider({
       logout,
       expire,
       refresh,
-      demo,
-      setDemo: setDemoEnabled,
     }),
-    [
-      portal,
-      api,
-      actor,
-      loading,
-      error,
-      busy,
-      login,
-      logout,
-      expire,
-      refresh,
-      demo,
-    ],
+    [portal, api, actor, loading, error, busy, login, logout, expire, refresh],
   );
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }

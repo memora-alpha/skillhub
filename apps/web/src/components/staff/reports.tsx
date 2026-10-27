@@ -443,7 +443,7 @@ function ReportDecision({
   reload: () => void;
   onComplete: () => void;
 }>) {
-  const { api, actor, demo } = useStaffSession();
+  const { api, actor } = useStaffSession();
   const admin = actor?.roles.includes("ADMIN") ?? false;
   const [draft, setDraft] = useState<ResolutionDraft>({
     participants: item.path
@@ -474,7 +474,7 @@ function ReportDecision({
           method: "POST",
           body: {
             ...(note ? { note } : {}),
-            ...(action === "resolve" && item.path && !demo
+            ...(action === "resolve" && item.path
               ? reportResolutionBody(draft, admin)
               : {}),
           },
@@ -482,14 +482,7 @@ function ReportDecision({
         onComplete();
       }}
     >
-      {action === "resolve" && demo && (
-        <p className="muted">
-          Trong dữ liệu thử, bạn có thể ghi chú và đóng báo cáo. Các thay đổi
-          Credit, uy tín và hạn chế tài khoản cần được kiểm tra trên hệ thống
-          thật.
-        </p>
-      )}
-      {action === "resolve" && item.path && !demo && (
+      {action === "resolve" && item.path && (
         <ReportResolutionFields
           value={draft}
           admin={admin}
