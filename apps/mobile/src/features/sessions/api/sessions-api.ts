@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { HttpClient, RequestOptions } from "@/lib/http/client";
 import { AppError } from "@/lib/http/errors";
 import { liveKitTokenSchema } from "./livekit-contract";
+import { createRescheduleApi } from "./reschedule-api";
 import {
   sessionSchema,
   completionReceiptSchema,
@@ -41,6 +42,7 @@ export function createSessionsApi(
     return { ...s, role };
   }
   return {
+    ...createRescheduleApi(call),
     async list(range: SessionRange, signal?: AbortSignal) {
       const result = await call(
         `/sessions/mine?${new URLSearchParams(range)}`,

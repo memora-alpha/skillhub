@@ -78,6 +78,18 @@ const messages: Record<string, string> = {
     "Đề xuất không còn đủ điều kiện; lịch cũ vẫn có hiệu lực.",
   SCHEDULE_CONFLICT:
     "Thời gian đề xuất bị trùng lịch; lịch cũ vẫn có hiệu lực.",
+  RESCHEDULE_ALREADY_PENDING:
+    "Lịch học đang có đề nghị chờ xác nhận. Hãy xem đề nghị hiện tại trước khi gửi lịch khác.",
+  RESCHEDULE_START_NOT_FUTURE: "Chọn thời gian bắt đầu trong tương lai.",
+  RESCHEDULE_UNCHANGED: "Chọn ngày giờ hoặc thời lượng khác lịch hiện tại.",
+  RESCHEDULE_NOT_CONFIRMABLE:
+    "Đề nghị này đã được xác nhận hoặc không còn chờ xác nhận. Hãy kiểm tra lịch hiện tại.",
+  SCHEDULE_ALREADY_LOCKED:
+    "Lịch đã được chốt. Hãy tải lại để xem giờ học đang có hiệu lực.",
+  APPLIED_SCHEDULE_VERSION_MISMATCH:
+    "Lịch hiện hành chưa khớp đề nghị. Hãy tải lại trước khi thao tác.",
+  SESSION_SCHEDULE_HISTORY_MISSING:
+    "Chưa đọc được lịch hiện hành của buổi học. Hãy tải lại trước khi đổi lịch.",
 };
 export function sessionErrorMessage(error: unknown) {
   return error instanceof AppError && messages[error.code]
