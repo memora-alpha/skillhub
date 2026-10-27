@@ -24,7 +24,11 @@ export function UnavailableScreen({
   const previewId = useId();
   const search = query.trim().toLocaleLowerCase("vi");
   const rows = content.rows.filter((row) =>
-    row.cells.join(" ").toLocaleLowerCase("vi").includes(search),
+    row.cells
+      .map((cell) => cell.value)
+      .join(" ")
+      .toLocaleLowerCase("vi")
+      .includes(search),
   );
 
   return (
@@ -98,8 +102,8 @@ export function UnavailableScreen({
                   <tbody>
                     {rows.map((row) => (
                       <tr key={row.id}>
-                        {row.cells.map((cell, index) => (
-                          <td key={index}>{cell}</td>
+                        {row.cells.map((cell) => (
+                          <td key={cell.id}>{cell.value}</td>
                         ))}
                       </tr>
                     ))}

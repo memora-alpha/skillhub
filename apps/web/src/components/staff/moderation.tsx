@@ -96,6 +96,28 @@ function RequestFacts({ request }: Readonly<{ request: LearningRequest }>) {
     </dl>
   );
 }
+
+function selectedRequest(
+  items: readonly LearningRequest[],
+  selectedId: string | null,
+  receipt: LearningRequest | null,
+) {
+  return (
+    items.find((item) => item.id === selectedId) ??
+    (receipt?.id === selectedId ? receipt : null)
+  );
+}
+
+function decisionDescription(
+  request: LearningRequest,
+  decision: "approve" | "reject",
+) {
+  const proposedTags = request.proposedTags ?? [];
+  if (decision === "approve" && proposedTags.length > 0)
+    return `${request.title}. Yêu cầu sẽ được công khai; các tag ${proposedTags.join(", ")} cũng được duyệt vào danh mục và gắn vào bài.`;
+  return request.title;
+}
+
 export function ModerationScreen() {
   const { api } = useStaffSession();
   const [q, setQ] = useState("");
@@ -103,9 +125,7 @@ export function ModerationScreen() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<LearningRequest | null>(null);
   const [decision, setDecision] = useState<"approve" | "reject" | null>(null);
-  const selected =
-    queue.items.find((item) => item.id === selectedId) ??
-    (receipt?.id === selectedId ? receipt : null);
+  const selected = selectedRequest(queue.items, selectedId, receipt);
   const proposedTags = selected?.proposedTags ?? [];
   const visible = queue.items.filter((item) =>
     `${item.title} ${item.description} ${item.id} ${(item.proposedTags ?? []).join(" ")}`
@@ -323,11 +343,7 @@ export function ModerationScreen() {
                         ? "Duyệt yêu cầu học"
                         : "Từ chối yêu cầu học"
                     }
-                    description={
-                      decision === "approve" && proposedTags.length > 0
-                        ? `${selected.title}. Yêu cầu sẽ được công khai; các tag ${proposedTags.join(", ")} cũng được duyệt vào danh mục và gắn vào bài.`
-                        : selected.title
-                    }
+                    description={decisionDescription(selected, decision)}
                     label={
                       decision === "approve"
                         ? "Lý do duyệt"

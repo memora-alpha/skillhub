@@ -141,7 +141,7 @@ export function OverviewScreen({
             className="btn"
             disabled={groups.some((g) => g.source.loading)}
             onClick={() => {
-              for (const group of groups) void group.source.reload();
+              for (const group of groups) group.source.reload();
             }}
           >
             Làm mới hàng đợi
