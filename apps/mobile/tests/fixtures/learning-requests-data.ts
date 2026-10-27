@@ -112,7 +112,7 @@ export function publicFixture(entry: FixtureRequest): PublicRequestDetail {
     offeredSharingSkills: request.offeredSharingSkills,
     version: request.version,
     skill: { id: skill.id, name: skill.name },
-    owner: { id: user.id, displayName: user.name },
+    owner: { id: user.id, displayName: user.name, avatarUrl: null },
     tags: request.tagIds.map((id) => ({ id, label: "Thực hành" })),
   };
 }

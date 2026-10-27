@@ -23,7 +23,7 @@ test("successful Request and direct proposals land in Sent; failed sends stay in
   const request = {
     status: "OPEN",
     expiresAt: null,
-    owner: { id: fixtureId(2), displayName: "Partner" },
+    owner: { id: fixtureId(2), displayName: "Partner", avatarUrl: null },
     skill: { id: fixtureId(6), name: "React" },
   };
   const jsx = (type: unknown, props: unknown) => ({ type, props });

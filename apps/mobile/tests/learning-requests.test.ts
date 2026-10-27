@@ -93,6 +93,7 @@ test("public projections strip private fields and targeted reads reject mismatch
     owner: {
       id: request.id,
       displayName: "Người học",
+      avatarUrl: null,
       email: "private@example.test",
     },
     skill: { id: request.skillId, name: "React" },

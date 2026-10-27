@@ -59,7 +59,14 @@ export const publicSchema = z.object({
   preferredSlots: z.array(slotSchema).default([]),
   skill: z.object({ id: z.uuid(), name: z.string() }),
   tags: z.array(z.object({ id: z.uuid(), label: z.string() })),
-  owner: z.object({ id: z.uuid(), displayName: z.string() }),
+  owner: z.object({
+    id: z.uuid(),
+    displayName: z.string(),
+    avatarUrl: z
+      .url()
+      .refine((value) => /^https?:\/\//.test(value))
+      .nullable(),
+  }),
   matchScore: z.number().optional(),
 });
 export const publicDetailSchema = publicSchema.extend({

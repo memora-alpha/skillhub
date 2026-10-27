@@ -7,10 +7,8 @@ import {
   useSentRequestProposals,
   sentRequestProposalLabels,
 } from "@/features/proposals/state";
-import {
-  ConnectionFeedback,
-  useParticipantProfile,
-} from "@/features/connections";
+import { ConnectionFeedback } from "@/features/connections";
+import { useRequestOwnerAvatar } from "../hooks/use-request-owner-avatar";
 import type { PublicRequest } from "../types";
 import {
   requestDetailColors as colors,
@@ -25,7 +23,7 @@ export function RequestRequesterDetails({
   requestId: string;
 }>) {
   const router = useRouter();
-  const profile = useParticipantProfile(owner.id);
+  const avatar = useRequestOwnerAvatar(owner);
   return (
     <Pressable
       accessibilityRole="button"
@@ -46,7 +44,8 @@ export function RequestRequesterDetails({
         name={owner.displayName}
         userId={owner.id}
         size={44}
-        sourceUri={profile.data?.avatarUrl}
+        sourceUri={avatar.sourceUri}
+        onImageError={avatar.onImageError}
         shape="circle"
       />
       <View style={{ flex: 1, gap: 4 }}>
