@@ -61,10 +61,13 @@ export type LearningRequest = {
   } | null;
   preferredSlots: { startAt: string; endAt: string }[];
   tagIds: string[];
+  proposedTags: string[];
   status: string;
   moderationStatus: string;
   flaggedCategories: string[];
   moderationRejectReason: string | null;
+  moderatedByUserId: string | null;
+  moderatedAt: string | null;
   version: number;
   createdAt: string;
 };

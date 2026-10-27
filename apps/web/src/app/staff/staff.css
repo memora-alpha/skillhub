@@ -253,6 +253,12 @@ output.staff-success {
 .staff-flag > .row {
   margin-top: 10px;
 }
+.staff-flag .badge,
+.staff-request-tags .badge {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
 .staff-slots {
   margin: 0;
   padding-left: 20px;
@@ -261,28 +267,8 @@ output.staff-success {
   align-items: start;
   grid-template-columns: minmax(0, 1.8fr) minmax(240px, 1fr);
 }
-.staff-overview-intro {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 24px;
-  padding: 28px;
-  border: 1px solid var(--line);
-  border-radius: var(--r);
-  background: var(--brand-soft);
-  margin-bottom: 24px;
-}
-.staff-overview-intro h2 {
-  margin: 10px 0;
-  font-size: 26px;
-  letter-spacing: -0.025em;
-}
-.staff-overview-intro p {
-  margin: 0;
-  color: var(--ink-2);
-}
 .staff-queue-cards {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
 }
 .staff-queue-cards .stat {
   padding: 0;
@@ -379,10 +365,6 @@ output.staff-success {
   }
   .staff-report-grid {
     grid-template-columns: 1fr;
-  }
-  .staff-overview-intro {
-    padding: 20px;
-    flex-wrap: wrap;
   }
   .staff-notification {
     flex-wrap: wrap;
