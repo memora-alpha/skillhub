@@ -1,10 +1,19 @@
 # Trạng thái Phase 05–06
 
-Cập nhật: 2026-10-26T22:07:17+07:00.
+Cập nhật: 2026-10-27T09:48:54+07:00.
 
 **Ready for review — source complete; acceptance pending.** Đã sửa tiếp Proposal/Chat và chọn thời gian LearningPath trên nhánh `fix/mobile-proposal-chat-learning-path`, tạo từ `dev` trùng `origin/dev` ở `5fbc5ae2`. Checks source đạt; chưa đóng phase sản phẩm hoặc nghiệm thu API/native.
 
 ## Bàn giao Git
+
+Follow-up ngày2026-10-27 đã chia hai commit source/tests theo yêu cầu:
+
+- `0c533023` — `fix(mobile): use learning request owner avatars`.
+- `c788942a` — `fix(mobile): explain failed chat attachments`.
+
+Cả hai qua lint-staged/commitlint; tài liệu contract/plan/status trong commit riêng. Source không đổi so với bản đã đạt869/869 và bundle ba nền tảng ở checkpoint dưới. Chưa push.
+
+Checkpoint chia commit trước đó:
 
 Source đã chia thành 4 commit theo nhóm; tài liệu ghi nhận trong commit riêng, chưa push.
 
@@ -18,6 +27,14 @@ Mỗi mốc source được kiểm TypeScript trên bản chụp Git index để
 Follow-up loading toàn mobile dùng cùng nhánh: Proposal/LearningPath gom loader ở vùng content, Chat gom lần tải thread đầu; dữ liệu phụ/trang cũ dùng placeholder và refresh có cache giữ content. Checkpoint loading trước chỉnh thẻ tệp là 855/855 cùng types/lint/structure788/export ba platform đạt; evidence và giới hạn chính ở [status loading](../mobile-chat-rate-limit/status.md). Bảng bên dưới giữ checkpoint 843/843 của lần sửa Proposal/Chat trước khi gom loading; checkpoint UI mới nhất ở ngay dưới.
 
 ## Kết quả hiện tại
+
+### Rà sau đồng bộ BE — 2026-10-27T08:43:56+07:00
+
+Rà phần owner avatar theo BE232cb6ba cùng Proposal/Chat/Plan/Schedule trên working tree hiện tại. Phát hiện và tái hiện một lỗi trình bày: GET status tệp trả REJECTED/SCAN_FAILED/UPLOAD_FAILED/CLEANUP_PENDING/DELETED nhưng preview vẫn ghi “Chờ kiểm tra tệp…” và cho kiểm tra lại như đang quét. Regression trước sửa fail đúng nhánh REJECTED (`.expo/post-be-audit-repro.log`). Đã phân biệt nhãn/lý do và hướng dẫn bỏ/chọn lại; QUARANTINED/SCANNING vẫn cho đọc status, chỉ READY mới gửi. Không tự upload/retry mutation, không thay endpoint/BE; processing/uncertain tiếp tục recovery cùng intent. Có regression UI cho cả năm trạng thái và kiểm không gửi ở mọi trạng thái ngoài READY, gồm trạng thái chưa biết.
+
+Baseline audit **868/868 PASS**; sau sửa **869/869 full tests, 12/12 focused PASS**, TypeScript, toàn mobile ESLint và structure **792 source files PASS**. Logs ignored `.expo/post-be-audit-tests.log`, `.expo/post-be-audit-full-final.log`, `.expo/post-be-audit-focused.log`, `.expo/post-be-audit-types-final.log`, `.expo/post-be-audit-lint-final.log`, `.expo/post-be-audit-structure-final.log`. Export Android/iOS/web PASS tại `.expo/post-be-audit-export`, log `.expo/post-be-audit-export.log`; dùng override ignored loại artifact `.expo` như checkpoint trước, không sửa cấu hình sản phẩm. Prettier/diff PASS. Chưa phát hiện thêm lỗi trong phạm vi source đã rà; chưa nghiệm thu BE thật/hai tài khoản/Android/iOS. Source/tests đồng bộ avatar và sửa lỗi scan đã commit tại `0c533023`/`c788942a` như phần bàn giao; chưa push.
+
+### Checkpoint trước đồng bộ BE
 
 Review toàn luồng 2026-10-26 đã tái hiện và sửa ba nhóm lỗi (4 ca fail ở `.expo/flow-audit-before.log`):
 

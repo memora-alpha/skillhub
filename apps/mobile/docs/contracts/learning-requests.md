@@ -1,5 +1,16 @@
 # Learning Request Discovery và Tag
 
+## Public owner avatar — đồng bộ BE 232cb6ba
+
+Mobile đã đối chiếu `origin/dev` 79d4bb1f ngày 2026-10-27; BE mới nhất thêm `owner.avatarUrl: string | null` trong feed, recommended và public detail. Field bắt buộc, nullable; không đổi projection owner/moderation, endpoint, permission hoặc migration. Nguồn: [BE HTTP contract](../../../../services/api/specs/007-learning-request/contracts/http.md), `SkillActorService.readPublicOwners` và `AvatarStorage.url` (URL avatar CLEAN có hạn 60 giây).
+
+- `publicSchema` giữ avatar URL HTTP(S), từ chối field thiếu hoặc URL không hợp lệ; không lấy storage key/private metadata vào model. Fixture public phản ánh field nullable mới, không thêm field vào owner projection.
+- RequestCard và RequestRequesterDetails dùng URL từ response; `null` hiển thị initials và không gọi profile, kể cả cache profile còn avatar cũ. Card không hiển thị không tải ảnh hoặc kích hoạt profile read.
+- `useRequestOwnerAvatar` nhận biết hạn URL S3 từ `X-Amz-Date`/`X-Amz-Expires` trước khi đưa ảnh hết hạn vào Image. Chỉ khi URL hết hạn hoặc tải ảnh lỗi mới bật `useParticipantProfile` hiện có để nhận URL mới/cache còn hạn. URL không có thông tin hạn vẫn được xử lý qua callback lỗi ảnh; URL profile cache đã hết hạn không đưa trở lại Image.
+- Fallback giữ query owner/session, ReadAccess/denial, cancel-on-disable, dedup và freshness 30 giây hiện có. Không refresh cả feed chỉ để ký lại ảnh, không polling/timer hoặc replay mutation. URL thay đổi loại trạng thái lỗi của URL cũ. `Avatar` chung chỉ thêm callback `onImageError` tùy chọn, các consumer khác giữ fallback initials hiện hành.
+
+Đây là đồng bộ source với contract mới, chưa xác minh deployment BE hoặc nghiệm thu ảnh trên thiết bị/API thật.
+
 ## Nguồn đối chiếu
 
 Baseline migration HEAD ed5a17dd9f1a6d5e45e1b6af33b17dd4518b46fd: [backend HTTP](../../../../services/api/specs/007-learning-request/contracts/http.md), [controller](../../../../services/api/src/modules/learning-requests/presentation/http/learning-requests.controller.ts), [DTO](../../../../services/api/src/modules/learning-requests/presentation/http/learning-requests.dto.ts), [module wiring](../../../../services/api/src/modules/learning-requests/learning-requests.module.ts), [backend Tag](../../../../services/api/specs/009-tags/spec.md); mobile [requests-api](../../src/features/learning-requests/api/requests-api.ts), [types](../../src/features/learning-requests/types.ts), [preferences](../../src/features/learning-requests/schemas/request-preferences.ts), [form](../../src/features/learning-requests/schemas/request-form.ts).
@@ -37,7 +48,7 @@ Không DELETE, client ownerId/status/moderation/version tự đặt, hoặc endp
 - teachingOverview nullable20–3000 code points, server sanitize/moderate. offeredSharingSkillIds max10 distinct UUID own active/public; [] clear; server recheck ownership. Public offeredSharingSkills chỉ id/skill{id,name}/level/verificationStatus và metadata level đã allowlist nếu có; owner giữ selected IDs cũ để sửa.
 - desiredCreditPerHour nullable exact decimal string >0, tối đa10 integer/2 decimal digits, output2 decimals; là ngân sách mong muốn, không Hold/quote/thỏa thuận.
 - expectedVersion safe positive integer từ server; không tự tăng. skillId bất biến sau publishedAt; PATCH field unchanged omission. Requested expiry nullable; output expiresAt là effective deadline. Policy backend default30 ngày/custom<=90 là source policy, không quy tắc mặc định của SRS.
-- Public summary/detail dùng id,title,skill{id,name},tags{id,label},learningGoal,currentLevel,verifiedTeacherOnly,status,owner{id,displayName},createdAt,expiresAt, description/preferredSlots/preferences theo projection mới; detail có version. Owner dùng skillId/tagIds,moderationStatus/moderationRejectReason,requestedExpiresAt,publishedAt,updatedAt/version và preferences, không parse như public. GET/mine thêm effectiveStatus; mutation không nhất thiết có nên refetch khi cần.
+- Public summary/detail dùng id,title,skill{id,name},tags{id,label},learningGoal,currentLevel,verifiedTeacherOnly,status,owner{id,displayName,avatarUrl},createdAt,expiresAt, description/preferredSlots/preferences theo projection mới; detail có version. avatarUrl bắt buộc nullable theo BE232cb6ba. Owner dùng skillId/tagIds,moderationStatus/moderationRejectReason,requestedExpiresAt,publishedAt,updatedAt/version và preferences, không parse như public. GET/mine thêm effectiveStatus; mutation không nhất thiết có nên refetch khi cần.
 
 List data[] + meta.pagination; LR limit1–100/default20, Skill max50, Tag max100/default20. Skill q NFC/trim2–100; Tag q NFC/trim0–120, literal case-insensitive; LR keyword sanitize/NFKC max120 code points. Feed/mine createdAt DESC/id DESC, recommended matchScore DESC rồi createdAt/id. Cursor opaque bind owner/filter/snapshot. Không sort query hay filter ngân sách/số buổi/verifiedTeacherOnly tự thêm. Snapshot invalid cursor cần explicit recovery chain mới, không mọi400 đều reset.
 

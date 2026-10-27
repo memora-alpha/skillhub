@@ -67,6 +67,7 @@ Các quy tắc chi tiết đối chiếu [BE amendments](../../../../../services
 - [x] Review polling: editor lộ trình/lịch giữ key theo resource, snapshot và draft của bản đã mở; revision mới khóa gửi kể cả callback cũ/validation đang chạy. Chỉ nút mở bản mới reset form; pending/unknown không được bỏ intent để reload. Khi thỏa thuận tạm chưa cho sửa, giữ editor cũ ở chế độ chỉ đọc; khi mất dữ liệu được cấp quyền thì unmount draft.
 - [x] Audit source, route, API contract và SRS; ghi dependency thay vì tự sửa backend.
 - [x] Review lại toàn luồng: chặn save plan/lịch khi read lỗi giữa lúc validate, kiểm trùng theo timestamp sau giữ phần giây, báo link tệp hết hạn thay vì im lặng; có ca tái hiện và regression giữ draft.
+- [x] Rà sau đồng bộ BE avatar: phân biệt trạng thái tệp REJECTED/SCAN_FAILED/UPLOAD_FAILED/CLEANUP_PENDING/DELETED với đang quét; hiện lý do, giữ thao tác bỏ/chọn lại và không gợi ý GET status có thể khởi động lại scan. Giữ recovery cho tin đã được nhận và chặn gửi mọi trạng thái khác READY.
 - [x] Regression cho quyền/version, ONE_WAY/TWO_WAY, proposal preflight, chat/form, pagination, read receipts, recovery và navigation; chạy lint, typecheck, structure, tests và web export.
 - [ ] **P05-S99-T02 — Nghiệm thu API/native:** hai tài khoản test, cả nguồn Request/direct và ONE_WAY/TWO_WAY; kiểm accept → Chat → plan → lịch → finalize, concurrent edits/version conflict, thiếu Credit/trùng lịch, mất phản hồi, logout/focus, keyboard/picker/Back trên Android và iOS. Chỉ thao tác tài khoản/ví test được cho phép.
 
