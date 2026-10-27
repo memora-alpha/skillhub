@@ -55,7 +55,8 @@ function baseUrl() {
   let u: URL;
   try {
     u = new URL(
-      process.env.SKILLHUB_API_URL ??
+      process.env.NEXT_PUBLIC_API_URL ??
+        process.env.SKILLHUB_API_URL ??
         process.env.EXPO_PUBLIC_API_URL ??
         "http://localhost:3001/api/v1",
     );
