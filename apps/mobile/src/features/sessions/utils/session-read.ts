@@ -58,6 +58,14 @@ export function sessionReadState(
   return error ? "error" : "loading";
 }
 const messages: Record<string, string> = {
+  LIVEKIT_DISABLED: "Phòng học chưa được máy chủ kích hoạt.",
+  LIVEKIT_POLICY_NOT_READY: "Máy chủ chưa cấu hình thời gian mở phòng học.",
+  JOIN_WINDOW_NOT_OPEN:
+    "Chưa đến thời gian vào phòng học. Hãy tải lại khi đến giờ.",
+  JOIN_WINDOW_CLOSED: "Đã hết thời gian vào phòng học.",
+  SESSION_NOT_JOINABLE: "Buổi học hiện không cho phép vào phòng.",
+  SESSION_ENDED:
+    "Buổi học đã kết thúc. Phòng học đã đóng và không thể vào hoặc kết nối lại.",
   SESSION_NOT_ENDED: "Buổi học chưa kết thúc. Hãy xác nhận sau giờ kết thúc.",
   SESSION_ACCESS_DENIED: "Bạn không có quyền truy cập buổi học này.",
   SESSION_BLOCKED_BY_DISPUTE: "Buổi học đang bị chặn bởi tranh chấp.",

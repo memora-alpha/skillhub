@@ -12,6 +12,7 @@ function useSessionRead<T>(
   load: (signal: AbortSignal) => Promise<T>,
   enabled: boolean,
   staleTime = 0,
+  watch = false,
 ) {
   const runtime = useSessionsRuntime(),
     client = useQueryClient();
@@ -21,6 +22,8 @@ function useSessionRead<T>(
     enabled,
     staleTime,
     retry: false,
+    refetchInterval: watch ? 30_000 : false,
+    refetchIntervalInBackground: false,
     meta: { sessionReadGuard: guard },
     queryFn: ({ signal }) => guard.read(() => load(signal), runtime.isCurrent),
   });
@@ -69,7 +72,7 @@ export function useSessionList(
     30_000,
   );
 }
-export function useSessionDetail(id: string | undefined) {
+export function useSessionDetail(id: string | undefined, watch = false) {
   const runtime = useSessionsRuntime();
   const valid = z.uuid().safeParse(id).success;
   const key = useMemo(() => [...runtime.key, "detail", id], [runtime.key, id]);
@@ -77,6 +80,8 @@ export function useSessionDetail(id: string | undefined) {
     key,
     (signal) => runtime.api.detail(id!, signal),
     runtime.enabled && valid,
+    0,
+    watch,
   );
   return { ...query, valid };
 }

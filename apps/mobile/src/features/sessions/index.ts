@@ -3,6 +3,7 @@ export { SessionsProvider } from "./runtime";
 export { useSessionList } from "./hooks/use-sessions";
 export { SessionFeedback } from "./components/session-feedback";
 export { sessionPresentation } from "./utils/session-presentation";
+export { canJoinSession } from "./utils/session-join";
 export type { LearningSession } from "./types";
 export {
   deviceTimezone,
@@ -15,4 +16,4 @@ export {
 export { PathSessionsScreen } from "./screens/session-list-screen";
 export { LearningSessionScreen } from "./screens/session-detail-screen";
 export { RescheduleScreen } from "./screens/reschedule-screen";
-export { RoomScreen } from "./screens/preview-room-screen";
+export { RoomScreen } from "./screens/room-screen";

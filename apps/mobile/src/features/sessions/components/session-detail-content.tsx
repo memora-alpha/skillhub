@@ -7,14 +7,17 @@ import { sessionPresentation } from "../utils/session-presentation";
 import { sessionDuration, formatSessionTime } from "../utils/session-time";
 import { sessionSchedule } from "../utils/session-schedule";
 import { SessionConfirmations } from "./session-confirmations";
+import { SessionRoomEntry } from "./session-room-entry";
 import { detailStyles as styles } from "./session-detail.styles";
 
 type Props = {
   session: LearningSession;
   userId: string;
   timezone: string;
+  now?: number;
   partner?: { fullName: string; avatarUrl: string | null };
   onOpenPartner: () => void;
+  onJoinRoom: () => void;
 };
 
 export function SessionDetailContent({
@@ -23,11 +26,13 @@ export function SessionDetailContent({
   timezone,
   partner,
   onOpenPartner,
+  onJoinRoom,
+  now = Date.now(),
 }: Readonly<Props>) {
   const teacher = session.teacherId === userId;
-  const presentation = sessionPresentation(session);
+  const presentation = sessionPresentation(session, now);
   const schedule = sessionSchedule(session, timezone);
-  const ended = Date.parse(session.endAt) <= Date.now();
+  const ended = Date.parse(session.endAt) <= now;
   const blocked = ["CANCELLED", "DISPUTED"].includes(session.status);
   const warning = presentation.variant === "warning";
   const neutral = session.status === "CANCELLED";
@@ -147,18 +152,7 @@ export function SessionDetailContent({
           <Text style={styles.guidance}>{presentation.description}</Text>
         </View>
       </View>
-      {!ended && !blocked && (
-        <View style={styles.room}>
-          <View style={styles.roomIcon}>
-            <Icon name="video" size={20} color={colors.white} />
-          </View>
-          <View style={styles.grow}>
-            <Text style={styles.roomLabel}>Phòng học trực tuyến</Text>
-            <Text style={styles.roomDescription}>Chưa khả dụng</Text>
-          </View>
-          <Icon name="lock" size={16} color={colors.error} />
-        </View>
-      )}
+      <SessionRoomEntry session={session} onJoin={onJoinRoom} />
     </>
   );
 }
