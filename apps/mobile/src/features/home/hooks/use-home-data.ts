@@ -16,6 +16,7 @@ import {
 import { useQuietReadRecovery } from "@/lib/query/use-quiet-read-recovery";
 import {
   homePathProgress,
+  homeReadValue,
   homeSessionRange,
   selectHomePathId,
   selectUpcomingSession,
@@ -55,17 +56,18 @@ export function useHomeData(focused: boolean) {
     deviceTimezone(),
     active,
   );
-  const nextSession =
-    active && !sessions.error
-      ? selectUpcomingSession(sessions.data ?? [], now)
-      : undefined;
+  const nextSession = selectUpcomingSession(
+    homeReadValue(sessions.data, active, sessions.error) ?? [],
+    now,
+  );
   const paths = useLearningPaths(active);
   const pathId = selectHomePathId(
     nextSession,
-    !sessions.isPending && !paths.error && active ? (paths.data ?? []) : [],
+    homeReadValue(paths.data, active && !sessions.isPending, paths.error) ?? [],
   );
   const path = useLearningPath(pathId ?? "", active && !!pathId);
-  const currentPath = active && !path.error ? path.data : undefined;
+  const currentPath = homeReadValue(path.data, active, path.error);
+  const selectedPathRead = pathId ? path : paths;
   const requests = useRequestList("recommended", {}, active);
   const messages = useConversationInbox({ enabled: active, previewLimit: 3 });
   const isCurrent = () =>
@@ -133,27 +135,22 @@ export function useHomeData(focused: boolean) {
     path: {
       item: currentPath,
       ...homePathProgress(currentPath, session?.userId ?? ""),
-      loading:
-        active &&
-        (sessions.isPending ||
-          (!pathId && paths.isPending) ||
-          (!!pathId && path.isPending)),
-      error: pathId ? path.error : paths.error,
+      loading: active && (sessions.isPending || selectedPathRead.isPending),
+      error: selectedPathRead.error,
       refetch: refreshPath,
     },
     requests: {
-      items:
-        active && !requests.error
-          ? requests.items
-              .filter((item): item is PublicRequest => "owner" in item)
-              .slice(0, 2)
-          : [],
+      items: (homeReadValue(requests.items, active, requests.error) ?? [])
+        .filter((item): item is PublicRequest => "owner" in item)
+        .slice(0, 2),
       loading: active && requests.isPending,
       error: requests.error,
       refetch: refreshRequests,
     },
     messages: {
-      items: active && !messages.error ? messages.items.slice(0, 3) : [],
+      items: (
+        homeReadValue(messages.items, active, messages.error) ?? []
+      ).slice(0, 3),
       loading: active && messages.isPending,
       error: messages.error,
       refetch: refreshMessages,

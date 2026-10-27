@@ -25,11 +25,9 @@ export function HomeSessionCard({ data, onNavigate }: Props) {
   const { sessions, path } = data;
   const item = sessions.item;
   const focused = useIsFocused();
-  const partnerId = item
-    ? item.role === "TEACHER"
-      ? item.learnerId
-      : item.teacherId
-    : undefined;
+  let partnerId: string | undefined;
+  if (item)
+    partnerId = item.role === "TEACHER" ? item.learnerId : item.teacherId;
   const partner = useParticipantProfile(partnerId, focused);
   const plan = path.item?.plans.find((plan) => plan.id === item?.planId);
   const sessionNo = plan?.sessions.find(

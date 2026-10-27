@@ -4,6 +4,11 @@ import type { LearningSession } from "@/features/sessions";
 const hour = 60 * 60 * 1000;
 const upcomingStatuses = new Set(["CONFIRMED", "READY", "ONGOING"]);
 
+export function homeReadValue<T>(value: T, active: boolean, error: unknown) {
+  if (!active || error) return;
+  return value;
+}
+
 export function homeSessionRange(now: number) {
   return {
     from: new Date(now - 3 * hour).toISOString(),

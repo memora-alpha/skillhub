@@ -3,9 +3,13 @@ import { AppError } from "@/lib/http/errors";
 import type { SessionsApi } from "../api/sessions-api";
 import type { RescheduleInput } from "../api/reschedule-api";
 import type { LearningSession } from "../types";
-import { isRescheduleEligible } from "./reschedule-form";
 import { rescheduleSnapshot } from "./reschedule-snapshot";
 import { resolveSessionContext } from "./session-context";
+import {
+  assertRescheduleRequest,
+  isUncertainRescheduleError,
+  type RescheduleIntent as Intent,
+} from "./reschedule-action-policy";
 
 type State = {
   pending: boolean;
@@ -24,10 +28,11 @@ type Options = {
   onRead: (detail: LearningSession) => Promise<void>;
   now?: () => number;
 };
-type Intent = {
-  kind: "propose" | "confirm";
-  scheduleId: string;
-  version: number;
+const successMessages: Record<Intent["kind"], string> = {
+  propose:
+    "Đã gửi đề nghị. Cả bạn và đối tác cần xác nhận lịch mới; lịch cũ vẫn có hiệu lực.",
+  confirm:
+    "Đã ghi nhận xác nhận của bạn. Giờ học có hiệu lực được cập nhật từ máy chủ.",
 };
 
 export function createRescheduleAction(options: Options) {
@@ -92,6 +97,31 @@ export function createRescheduleAction(options: Options) {
         "Đã đọc lại lịch từ máy chủ. Hãy xem đề nghị và trạng thái xác nhận hiện tại.",
     });
   }
+  function dispatch(request: Intent, input?: RescheduleInput) {
+    if (request.kind === "propose")
+      return options.api.proposeReschedule(options.sessionId, input!);
+    return options.api.confirmReschedule(request.scheduleId, request.version);
+  }
+  async function recoverFailure(
+    error: unknown,
+    dispatched: boolean,
+    acknowledged: boolean,
+    ticket: number,
+    live: () => boolean,
+  ) {
+    if (!live()) return;
+    const uncertain =
+      dispatched && !acknowledged && isUncertainRescheduleError(error);
+    if (!uncertain) intent = undefined;
+    update({ error, blocked: dispatched, uncertain });
+    if (!dispatched) return;
+    try {
+      const fresh = await read(ticket);
+      if (live()) reconcile(fresh);
+    } catch {
+      if (live()) update({ blocked: true });
+    }
+  }
   async function run(request: Intent, input?: RescheduleInput) {
     if (!current() || state.pending || state.blocked) return;
     const ticket = epoch;
@@ -102,39 +132,10 @@ export function createRescheduleAction(options: Options) {
     try {
       const fresh = await read(ticket);
       if (!live()) return;
-      const snapshot = fresh.snapshot;
-      if (
-        snapshot.scheduleId !== request.scheduleId ||
-        snapshot.version !== request.version
-      )
-        throw new AppError("http", 409, "STALE_SCHEDULE_VERSION");
-      if (
-        !isRescheduleEligible(fresh.detail, (options.now ?? Date.now)()) ||
-        !["SCHEDULED", "ACTIVE"].includes(fresh.path.status)
-      )
-        throw new AppError("http", 409, "SESSION_CANNOT_BE_RESCHEDULED");
-      if (request.kind === "propose") {
-        if (snapshot.hasPending)
-          throw new AppError("http", 409, "RESCHEDULE_ALREADY_PENDING");
-        if (!input || Date.parse(input.startAt) <= (options.now ?? Date.now)())
-          throw new AppError("http", 400, "RESCHEDULE_START_NOT_FUTURE");
-        if (
-          Date.parse(input.startAt) === Date.parse(fresh.detail.startAt) &&
-          Date.parse(input.endAt) === Date.parse(fresh.detail.endAt)
-        )
-          throw new AppError("http", 400, "RESCHEDULE_UNCHANGED");
-      } else if (!snapshot.pending || snapshot.ownConfirmed) {
-        throw new AppError("http", 409, "RESCHEDULE_NOT_CONFIRMABLE");
-      }
+      assertRescheduleRequest(fresh, request, input, options.now ?? Date.now);
       intent = request;
       dispatched = true;
-      const receipt =
-        request.kind === "propose"
-          ? await options.api.proposeReschedule(options.sessionId, input!)
-          : await options.api.confirmReschedule(
-              request.scheduleId,
-              request.version,
-            );
+      const receipt = await dispatch(request, input);
       if (!live()) return;
       if (receipt.id !== request.scheduleId) throw new AppError("protocol");
       acknowledged = true;
@@ -142,34 +143,14 @@ export function createRescheduleAction(options: Options) {
       update({
         blocked: true,
         uncertain: false,
-        message:
-          request.kind === "propose"
-            ? "Đã gửi đề nghị. Cả bạn và đối tác cần xác nhận lịch mới; lịch cũ vẫn có hiệu lực."
-            : "Đã ghi nhận xác nhận của bạn. Giờ học có hiệu lực được cập nhật từ máy chủ.",
+        message: successMessages[request.kind],
       });
       await read(ticket);
       if (!live()) return;
       update({ blocked: false });
     } catch (error) {
       if (!live()) return;
-      const uncertain =
-        dispatched &&
-        !acknowledged &&
-        (!(error instanceof AppError) ||
-          error.kind === "network" ||
-          error.kind === "protocol" ||
-          error.status === 408 ||
-          error.status >= 500);
-      if (!uncertain) intent = undefined;
-      update({ error, blocked: dispatched, uncertain });
-      if (dispatched) {
-        try {
-          const fresh = await read(ticket);
-          if (live()) reconcile(fresh);
-        } catch {
-          if (live()) update({ blocked: true });
-        }
-      }
+      await recoverFailure(error, dispatched, acknowledged, ticket, live);
     } finally {
       if (live()) update({ pending: false });
     }
