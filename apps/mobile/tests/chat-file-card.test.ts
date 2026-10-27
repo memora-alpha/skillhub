@@ -3,6 +3,106 @@ import { createRequire } from "node:module";
 import { mock, test } from "node:test";
 import { pathToFileURL } from "node:url";
 
+test("attachment preview explains terminal storage failures instead of waiting for another scan", () => {
+  const local = createRequire(
+    new URL(
+      "../src/features/messages/components/ChatAttachmentPreview.tsx",
+      import.meta.url,
+    ),
+  );
+  const filename = local.resolve("./ChatAttachmentPreview.tsx");
+  const jsx = (type: unknown, props: unknown) => ({ type, props });
+  const mocks = {
+    "react/jsx-runtime": { jsx, jsxs: jsx },
+    "react-native": {
+      View: "View",
+      StyleSheet: { create: (value: unknown) => value },
+    },
+    "@/components/Button": { Button: "Button" },
+    "@/components/FormNotice": { FormNotice: "Notice" },
+    "@/features/connections": { ConnectionFeedback: "Feedback" },
+    "./ChatAttachmentTile": { ChatAttachmentTile: "Tile" },
+  };
+  const contexts = Object.entries(mocks).map(([name, namedExports]) =>
+    mock.module(pathToFileURL(local.resolve(name)), { namedExports }),
+  );
+  try {
+    delete local.cache[filename];
+    const { ChatAttachmentPreview } = local(
+      filename,
+    ) as typeof import("../src/features/messages/components/ChatAttachmentPreview");
+    const remove = () => {};
+    const render = (state: string, processing = false) =>
+      elements(
+        ChatAttachmentPreview({
+          attachment: {
+            file: { name: "lesson.pdf", uri: "file:///lesson.pdf", size: 100 },
+            status: { data: { state }, isFetching: false },
+            uploaded: true,
+            ready: false,
+            locked: processing,
+            processing,
+            remove,
+          } as unknown as Parameters<
+            typeof ChatAttachmentPreview
+          >[0]["attachment"],
+          onRecovered() {},
+        }),
+      );
+    for (const state of [
+      "REJECTED",
+      "SCAN_FAILED",
+      "UPLOAD_FAILED",
+      "CLEANUP_PENDING",
+      "DELETED",
+    ]) {
+      const tree = render(state);
+      const tile = tree.find((el) => el.type === "Tile")!;
+      assert.notEqual(tile.props.status, "Chờ kiểm tra tệp…", state);
+      assert.equal(
+        tile.props.onRemove,
+        remove,
+        "the user can discard the failed file",
+      );
+      assert.ok(
+        tree.some((el) => el.type === "Notice" && el.props.tone === "error"),
+        state,
+      );
+      assert.equal(
+        tree.some((el) => el.type === "Button"),
+        false,
+        "reading status cannot restart a failed scan",
+      );
+    }
+    for (const state of ["QUARANTINED", "SCANNING"]) {
+      const tree = render(state);
+      assert.equal(
+        tree.find((el) => el.type === "Tile")!.props.status,
+        "Chờ kiểm tra tệp…",
+      );
+      assert.ok(tree.some((el) => el.type === "Button"));
+      assert.equal(
+        tree.some((el) => el.type === "Notice"),
+        false,
+      );
+    }
+    const delivery = render("DELETED", true);
+    assert.equal(
+      delivery.find((el) => el.type === "Tile")!.props.status,
+      "Đang gửi…",
+    );
+    assert.equal(
+      delivery.some((el) => el.type === "Notice" && el.props.tone === "error"),
+      false,
+      "an accepted message keeps delivery recovery instead of suggesting a new upload",
+    );
+    assert.ok(delivery.some((el) => el.type === "Button"));
+  } finally {
+    delete local.cache[filename];
+    contexts.reverse().forEach((context) => context.restore());
+  }
+});
+
 type Element = { type: unknown; props: Record<string, unknown> };
 function elements(tree: unknown): Element[] {
   if (Array.isArray(tree)) return tree.flatMap(elements);

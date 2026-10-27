@@ -5,6 +5,31 @@ import { ConnectionFeedback } from "@/features/connections";
 import type { useChatAttachment } from "../hooks/use-chat-attachment";
 import { ChatAttachmentTile } from "./ChatAttachmentTile";
 
+const fileProblems: Readonly<
+  Record<string, { label: string; message: string }>
+> = {
+  REJECTED: {
+    label: "Tệp bị từ chối",
+    message: "Tệp không vượt qua kiểm tra. Hãy bỏ tệp và chọn tệp khác.",
+  },
+  SCAN_FAILED: {
+    label: "Kiểm tra tệp thất bại",
+    message: "Không thể kiểm tra tệp. Hãy bỏ tệp và chọn lại.",
+  },
+  UPLOAD_FAILED: {
+    label: "Tải tệp lên thất bại",
+    message: "Tải tệp lên không thành công. Hãy bỏ tệp và chọn lại.",
+  },
+  CLEANUP_PENDING: {
+    label: "Tệp không còn khả dụng",
+    message: "Tệp không còn khả dụng. Hãy bỏ tệp và chọn lại.",
+  },
+  DELETED: {
+    label: "Tệp đã bị xóa",
+    message: "Tệp đã bị xóa. Hãy bỏ tệp và chọn lại.",
+  },
+};
+
 export function ChatAttachmentPreview({
   attachment,
   onRecovered,
@@ -15,6 +40,10 @@ export function ChatAttachmentPreview({
   inComposer?: boolean;
 }>) {
   const { file, status, error, locked } = attachment;
+  const problem =
+    attachment.uploaded && !attachment.processing && !attachment.uncertain
+      ? fileProblems[status.data?.state ?? ""]
+      : undefined;
   if (
     !file &&
     !error &&
@@ -40,10 +69,16 @@ export function ChatAttachmentPreview({
                     ? "Chưa rõ kết quả gửi"
                     : attachment.ready
                       ? undefined
-                      : "Chờ kiểm tra tệp…"
+                      : (problem?.label ?? "Chờ kiểm tra tệp…")
             }
           />
+          {problem && (
+            <FormNotice tone="error" compact>
+              {problem.message}
+            </FormNotice>
+          )}
           {!attachment.ready &&
+            !problem &&
             !attachment.processing &&
             !attachment.pending &&
             !attachment.uncertain && (

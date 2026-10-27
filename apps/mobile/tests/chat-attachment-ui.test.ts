@@ -236,7 +236,16 @@ test("fresh scanner denial or read error retains the file and never publishes", 
   const h = harness();
   try {
     await h.render().choose();
-    for (const state of ["QUARANTINED", "BLOCKED"]) {
+    for (const state of [
+      "QUARANTINED",
+      "SCANNING",
+      "REJECTED",
+      "SCAN_FAILED",
+      "UPLOAD_FAILED",
+      "CLEANUP_PENDING",
+      "DELETED",
+      "UNKNOWN_FUTURE_STATE",
+    ]) {
       h.setLatest(async () => ({ data: { state }, error: undefined }));
       assert.equal(await h.render().send("draft"), false);
       assert.ok(h.render().file);
