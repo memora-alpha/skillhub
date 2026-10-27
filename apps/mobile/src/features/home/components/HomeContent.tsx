@@ -1,42 +1,44 @@
 import { Pressable, Text, View, useWindowDimensions } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
-import { Avatar } from "@/components/Avatar";
-import { Button } from "@/components/Button";
+import type { Href } from "expo-router";
 import { Icon } from "@/components/Icon";
-import { ProgressBar } from "@/components/ProgressBar";
-import { recentMessages } from "@/mocks/app";
-import { avatarSizes, iconSizes } from "@/constants/theme";
+import { iconSizes } from "@/constants/theme";
+import type { AccountSession } from "@/features/auth";
+import { HomeWalletBalance } from "@/features/wallet";
 import { homeColors as colors } from "../constants/theme";
-import {
-  learningPath,
-  matchingRequests,
-  newUserSummary,
-  nextSession,
-  returningSummary,
-} from "../mocks/home";
+import type { HomeData } from "../hooks/use-home-data";
 import { HomeSection, SectionHeading, homeStyles } from "./HomePrimitives";
 import { styles } from "./HomeContent.styles";
 import { NewUserGuide } from "./NewUserGuide";
-import { HomeWalletBalance } from "@/features/wallet";
+import { HomePathCard, HomeSessionCard } from "./HomeLearningCards";
+import { HomeMessages, HomeRequests } from "./HomeFeed";
 
 export function HomeContent({
-  name,
-  isNew,
-  selectedTitle,
-  onAction,
-}: {
-  name: string;
-  isNew: boolean;
-  selectedTitle?: string | null;
-  onAction: (title: string) => void;
-}) {
+  session,
+  data,
+  onNavigate,
+}: Readonly<{
+  session: AccountSession;
+  data: HomeData;
+  onNavigate: (href: Href) => void;
+}>) {
   const wide = useWindowDimensions().width >= 840;
-  const summary = isNew ? newUserSummary : returningSummary;
-  const messages = isNew ? [] : recentMessages;
+  const name = session.name.trim().split(/\s+/).slice(-2).join(" ");
   const stats = [
-    { label: "Reputation", value: summary.reputation, color: colors.orange },
-    { label: "Đã học", value: summary.learned, color: colors.ink },
-    { label: "Đã dạy", value: summary.taught, color: colors.ink },
+    {
+      label: "Reputation",
+      value: session.reputationScore ?? "—",
+      color: colors.orange,
+    },
+    {
+      label: "Buổi hoàn tất",
+      value: session.completedSessionCount,
+      color: colors.ink,
+    },
+    {
+      label: "Kỹ năng xác minh",
+      value: session.verifiedSkillCount,
+      color: colors.ink,
+    },
   ];
   return (
     <View style={homeStyles.stack}>
@@ -48,7 +50,7 @@ export function HomeContent({
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Ví Credit"
-          onPress={() => onAction("Ví Credit")}
+          onPress={() => onNavigate("/wallet")}
           style={({ pressed }) => [
             styles.wallet,
             { maxWidth: "60%", flexShrink: 1 },
@@ -68,142 +70,11 @@ export function HomeContent({
           </View>
         </Pressable>
       </View>
-      {isNew && <NewUserGuide onAction={onAction} />}
+      {session.isNew && <NewUserGuide onNavigate={onNavigate} />}
       <View style={[styles.columns, wide && styles.wideColumns]}>
         <View style={[styles.primary, wide && styles.wideColumn]}>
-          <LinearGradient
-            colors={[colors.sessionStart, colors.sessionEnd]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.session}
-          >
-            <View style={homeStyles.row}>
-              <View style={styles.sessionStatus}>
-                <View style={styles.statusDot} />
-                <Text style={styles.statusLabel}>
-                  {isNew ? "Buổi học tiếp theo" : "Sắp diễn ra"}
-                </Text>
-              </View>
-              {!isNew && (
-                <View style={styles.meetingBadge}>
-                  <Icon
-                    name="video"
-                    size={iconSizes.inline}
-                    color={colors.body}
-                  />
-                  <Text style={styles.meetingLabel}>Google Meet</Text>
-                </View>
-              )}
-            </View>
-            <Text style={styles.sessionTitle}>
-              {isNew ? "Chưa có buổi học sắp tới" : nextSession.title}
-            </Text>
-            {isNew ? (
-              <Text style={styles.sessionCaption}>
-                Tìm kỹ năng bạn muốn học và kết nối với người hướng dẫn.
-              </Text>
-            ) : (
-              <View style={styles.partner}>
-                <Avatar
-                  name={nextSession.mentor}
-                  userId={nextSession.mentorId}
-                  size={avatarSizes.compact}
-                  shape="circle"
-                />
-                <Text style={styles.mentorName}>{nextSession.mentor}</Text>
-                <View style={styles.mentorBadge}>
-                  <Text style={styles.mentorBadgeLabel}>Mentor</Text>
-                </View>
-              </View>
-            )}
-            <View style={styles.sessionFooter}>
-              {!isNew && (
-                <View style={styles.sessionSchedule}>
-                  <Icon name="clock" size={14} color={colors.orangeDark} />
-                  <Text style={styles.sessionTime}>{nextSession.schedule}</Text>
-                </View>
-              )}
-              <Button
-                size="sm"
-                variant="white"
-                style={styles.sessionButton}
-                onPress={() => onAction(isNew ? "Khám phá" : "Vào học")}
-              >
-                <Text style={styles.sessionButtonLabel}>
-                  {isNew ? "Khám phá kỹ năng" : "Vào học"}
-                </Text>
-                <Icon
-                  name="arrow"
-                  size={iconSizes.inline}
-                  color={colors.orange}
-                />
-              </Button>
-            </View>
-          </LinearGradient>
-          <HomeSection>
-            <SectionHeading
-              title="Learning Path đang học"
-              action={isNew ? "Khám phá" : "Chi tiết"}
-              onPress={() =>
-                onAction(isNew ? "Khám phá" : "Learning Path đang học")
-              }
-            />
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={
-                isNew ? "Tìm Learning Path" : learningPath.title
-              }
-              onPress={() =>
-                onAction(isNew ? "Khám phá" : "Learning Path đang học")
-              }
-              style={({ pressed }) => [
-                styles.card,
-                styles.course,
-                pressed && styles.pressed,
-              ]}
-            >
-              <View style={[homeStyles.row, { gap: 10 }]}>
-                <View style={styles.courseIcon}>
-                  <Icon
-                    name="book"
-                    size={iconSizes.feature}
-                    color={colors.orange}
-                  />
-                </View>
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text style={homeStyles.label}>
-                    {isNew
-                      ? "Chưa có Learning Path đang học"
-                      : learningPath.title}
-                  </Text>
-                  <Text style={homeStyles.caption}>
-                    {isNew
-                      ? "Tìm kỹ năng để bắt đầu buổi đầu tiên."
-                      : `Buổi tiếp: ${learningPath.next}`}
-                  </Text>
-                </View>
-                {!isNew && (
-                  <View style={styles.courseCount}>
-                    <Text style={styles.courseCountLabel}>
-                      {learningPath.completed}/{learningPath.total} buổi
-                    </Text>
-                  </View>
-                )}
-              </View>
-              {!isNew && (
-                <View style={styles.progress}>
-                  <ProgressBar
-                    value={learningPath.completed}
-                    max={learningPath.total}
-                    color={colors.orange}
-                    trackColor={colors.track}
-                    height={6}
-                    label={learningPath.title}
-                  />
-                </View>
-              )}
-            </Pressable>
-          </HomeSection>
+          <HomeSessionCard data={data} onNavigate={onNavigate} />
+          <HomePathCard data={data} onNavigate={onNavigate} />
           <View style={styles.stats}>
             {stats.map((stat, index) => (
               <View key={stat.label} style={[styles.card, styles.stat]}>
@@ -211,7 +82,11 @@ export function HomeContent({
                   {index === 0 && (
                     <Icon name="star" size={14} color={colors.yellow} />
                   )}
-                  <Text style={[styles.statValue, { color: stat.color }]}>
+                  <Text
+                    style={[styles.statValue, { color: stat.color }]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                  >
                     {stat.value}
                   </Text>
                 </View>
@@ -224,9 +99,18 @@ export function HomeContent({
               title="Thành tích & danh hiệu"
               action="Xem tất cả"
               accent={colors.yellow}
-              onPress={() => onAction("Tiến trình huy hiệu")}
+              onPress={() => onNavigate("/achievements")}
             />
-            <View style={[styles.card, styles.achievement]}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Xem thành tích và danh hiệu"
+              onPress={() => onNavigate("/achievements")}
+              style={({ pressed }) => [
+                styles.card,
+                styles.achievement,
+                pressed && styles.pressed,
+              ]}
+            >
               <View style={styles.award}>
                 <Icon
                   name="award"
@@ -234,152 +118,23 @@ export function HomeContent({
                   color={colors.yellow}
                 />
               </View>
-              <View style={{ flex: 1, minWidth: 0, gap: 8 }}>
-                <View>
-                  <View style={[homeStyles.row, { gap: 8 }]}>
-                    <Text style={[homeStyles.label, { flex: 1 }]}>
-                      {selectedTitle ?? "Khám phá thành tích của bạn"}
-                    </Text>
-                  </View>
-                  <Text style={homeStyles.caption}>
-                    {selectedTitle
-                      ? "Danh hiệu đang hiển thị trên hồ sơ"
-                      : "Xem thành tích đã mở khóa và chọn danh hiệu cho hồ sơ."}
-                  </Text>
-                </View>
+              <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
+                <Text style={homeStyles.label}>
+                  {session.selectedTitle ?? "Thành tích của bạn"}
+                </Text>
+                <Text style={homeStyles.caption}>
+                  {session.selectedTitle
+                    ? "Danh hiệu đang hiển thị trên hồ sơ"
+                    : "Xem thành tích đã mở khóa và chọn danh hiệu cho hồ sơ."}
+                </Text>
               </View>
-            </View>
+              <Icon name="chevron" size={16} color={colors.orange} />
+            </Pressable>
           </HomeSection>
         </View>
         <View style={[styles.secondary, wide && styles.wideColumn]}>
-          <HomeSection>
-            <SectionHeading
-              title="Yêu cầu học phù hợp"
-              action="Xem thêm"
-              accent={colors.green}
-              onPress={() => onAction("Yêu cầu học phù hợp")}
-            />
-            <View style={{ gap: 12 }}>
-              {matchingRequests.map((request) => (
-                <Pressable
-                  key={request.id}
-                  accessibilityRole="button"
-                  accessibilityLabel={request.title}
-                  onPress={() => onAction(request.title)}
-                  style={({ pressed }) => [
-                    styles.card,
-                    styles.request,
-                    pressed && styles.pressed,
-                  ]}
-                >
-                  <View style={[homeStyles.row, { gap: 10 }]}>
-                    <View style={styles.match}>
-                      <Icon name="check" size={11} color={colors.green} />
-                      <Text style={styles.matchLabel}>
-                        {request.match}% phù hợp
-                      </Text>
-                    </View>
-                    <View style={styles.budgetBadge}>
-                      <Text style={styles.budget}>
-                        {request.credit} CR/Learning Path
-                      </Text>
-                    </View>
-                  </View>
-                  <Text style={styles.requestTitle} numberOfLines={2}>
-                    {request.title}
-                  </Text>
-                  <View style={styles.requestPerson}>
-                    <Avatar
-                      name={request.name}
-                      userId={request.userId}
-                      size={avatarSizes.inline}
-                      shape="circle"
-                    />
-                    <Text style={[homeStyles.caption, { flex: 1 }]}>
-                      {request.name}
-                    </Text>
-                    <View style={styles.connectButton}>
-                      <Text style={styles.connectLabel}>Xem chi tiết</Text>
-                      <Icon
-                        name="chevron"
-                        size={iconSizes.inline}
-                        color={colors.orange}
-                      />
-                    </View>
-                  </View>
-                </Pressable>
-              ))}
-            </View>
-          </HomeSection>
-          <HomeSection>
-            <SectionHeading
-              title="Tin nhắn mới"
-              action="Tất cả"
-              accent={colors.blue}
-              onPress={() => onAction("Tin nhắn")}
-            />
-            <View style={[styles.card, styles.messages]}>
-              {messages.length === 0 && (
-                <View style={styles.emptyMessages}>
-                  <Icon name="message" size={24} color={colors.muted} />
-                  <View style={{ flex: 1, gap: 4 }}>
-                    <Text style={homeStyles.label}>Chưa có tin nhắn mới</Text>
-                    <Text style={homeStyles.caption}>
-                      Các cuộc trò chuyện của bạn sẽ xuất hiện ở đây.
-                    </Text>
-                  </View>
-                </View>
-              )}
-              {messages.map((message, index) => (
-                <Pressable
-                  key={message.id}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Tin nhắn từ ${message.name}`}
-                  onPress={() => onAction("Tin nhắn")}
-                  style={({ pressed }) => [
-                    styles.message,
-                    index > 0 && styles.messageDivider,
-                    pressed && styles.pressed,
-                  ]}
-                >
-                  <View style={styles.messageAvatar}>
-                    <Avatar
-                      name={message.name}
-                      userId={message.userId}
-                      size={avatarSizes.list}
-                      shape="circle"
-                    />
-                    {index === 0 && <View style={styles.onlineDot} />}
-                  </View>
-                  <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
-                    <View style={[homeStyles.row, { gap: 6 }]}>
-                      <Text
-                        style={[homeStyles.label, { flex: 1 }]}
-                        numberOfLines={1}
-                      >
-                        {message.name}
-                      </Text>
-                      <Text style={styles.time}>{message.time}</Text>
-                    </View>
-                    <Text
-                      style={[
-                        homeStyles.caption,
-                        message.unread > 0 && { color: colors.body },
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {message.message}
-                    </Text>
-                  </View>
-                  {message.unread > 0 && (
-                    <View style={styles.unread}>
-                      <Text style={styles.unreadLabel}>{message.unread}</Text>
-                    </View>
-                  )}
-                </Pressable>
-              ))}
-            </View>
-          </HomeSection>
+          <HomeRequests data={data} onNavigate={onNavigate} />
+          <HomeMessages data={data} onNavigate={onNavigate} />
         </View>
       </View>
     </View>

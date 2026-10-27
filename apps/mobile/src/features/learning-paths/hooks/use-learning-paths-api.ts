@@ -12,23 +12,28 @@ export function useLearningPathsApi() {
     [runtime],
   );
 }
-export function useLearningPaths() {
+export function useLearningPaths(allowed = true) {
   const api = useLearningPathsApi();
-  return useConnectionQuery(["learning-paths", "mine"], (signal) =>
-    api.mine(signal),
+  return useConnectionQuery(
+    ["learning-paths", "mine"],
+    (signal) => api.mine(signal),
+    allowed,
+    { cancelOnDisable: true },
   );
 }
-export function useLearningPath(id: string) {
+export function useLearningPath(id: string, allowed = true) {
   const api = useLearningPathsApi(),
     runtime = useConnections();
   const query = useConnectionQuery(
     ["learning-paths", id],
     (signal) => api.detail(id, signal),
-    uuid.safeParse(id).success,
+    allowed && uuid.safeParse(id).success,
+    { cancelOnDisable: true },
   );
   useAgreementRefresh(
     query.refetch,
-    runtime.enabled &&
+    allowed &&
+      runtime.enabled &&
       !!query.data &&
       editablePath(query.data) &&
       !query.error &&

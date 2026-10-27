@@ -1,18 +1,24 @@
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { Icon } from "@/components/Icon";
+import type { Href } from "expo-router";
+import { Icon, type IconName } from "@/components/Icon";
 import { appRadius, typography, fonts } from "@/constants/theme";
 import { homeColors as colors } from "../constants/theme";
-import { onboardingTasks } from "../mocks/home";
 import { homeStyles } from "./HomePrimitives";
 
+const shortcuts: { label: string; icon: IconName; href: Href }[] = [
+  { label: "Hoàn thiện hồ sơ", icon: "user", href: "/edit-profile" },
+  { label: "Thêm kỹ năng chia sẻ", icon: "award", href: "/my-skills/new" },
+  { label: "Khám phá kỹ năng", icon: "search", href: "/search" },
+  { label: "Tạo yêu cầu học", icon: "edit", href: "/requests/new" },
+];
+
 export function NewUserGuide({
-  onAction,
+  onNavigate,
 }: {
-  onAction: (title: string) => void;
+  onNavigate: (href: Href) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const completed = onboardingTasks.filter((task) => task.done).length;
   return (
     <View style={styles.guide}>
       <Pressable
@@ -24,9 +30,9 @@ export function NewUserGuide({
       >
         <Icon name="book" size={22} color={colors.orange} />
         <View style={{ flex: 1, gap: 2 }}>
-          <Text style={homeStyles.label}>Hướng dẫn người mới</Text>
+          <Text style={homeStyles.label}>Bắt đầu cùng SkillHub</Text>
           <Text style={homeStyles.caption}>
-            {completed}/{onboardingTasks.length} bước đã hoàn thành
+            Chuẩn bị hồ sơ và tìm cơ hội học tập.
           </Text>
         </View>
         <View style={{ transform: [{ rotate: expanded ? "45deg" : "0deg" }] }}>
@@ -35,27 +41,19 @@ export function NewUserGuide({
       </Pressable>
       {expanded && (
         <View style={styles.tasks}>
-          {onboardingTasks.map((task) => (
+          {shortcuts.map((task) => (
             <Pressable
               key={task.label}
               accessibilityRole="button"
-              accessibilityLabel={`${task.label}${task.done ? ", đã hoàn thành" : ""}`}
-              onPress={() => onAction(task.label)}
+              accessibilityLabel={task.label}
+              onPress={() => onNavigate(task.href)}
               style={({ pressed }) => [
                 styles.task,
                 pressed && { opacity: 0.7 },
               ]}
             >
-              <Icon
-                name={task.done ? "check-circle" : task.icon}
-                size={20}
-                color={task.done ? colors.green : colors.orange}
-              />
-              <Text
-                style={[styles.taskLabel, task.done && { color: colors.muted }]}
-              >
-                {task.label}
-              </Text>
+              <Icon name={task.icon} size={20} color={colors.orange} />
+              <Text style={styles.taskLabel}>{task.label}</Text>
             </Pressable>
           ))}
         </View>

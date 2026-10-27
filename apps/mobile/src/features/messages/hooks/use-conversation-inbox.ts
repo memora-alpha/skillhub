@@ -12,13 +12,17 @@ import {
 } from "../utils/conversation-preview";
 import type { ApiConversation, ApiMessage } from "../api/messages-api";
 import { hasUnreadIncoming } from "../utils/inbox-unread";
+import { orderConversations } from "../utils/inbox-order";
 import {
   isTransientReadError,
   useQuietReadRecovery,
 } from "@/lib/query/use-quiet-read-recovery";
 
-export function useConversationInbox() {
-  const focused = useIsFocused();
+export function useConversationInbox(
+  options: { enabled?: boolean; previewLimit?: number } = {},
+) {
+  const screenFocused = useIsFocused();
+  const focused = screenFocused && options.enabled !== false;
   const query = useConversations(focused),
     api = useMessagesApi(),
     runtime = useConnections(),
@@ -33,7 +37,7 @@ export function useConversationInbox() {
       })
       .flatMap(([, message]) => (message ? [message.conversationId] : [])),
   ]);
-  const conversations = query.denied
+  const knownConversations = query.denied
     ? []
     : knownInboxConversations(
         query.items,
@@ -49,6 +53,31 @@ export function useConversationInbox() {
         activityIds,
         runtime.userId ?? "",
       );
+  const ordered = orderConversations(knownConversations, (id) => {
+    const key = [...runtime.key, "conversations", "preview", id];
+    if (connectionReadAccess(cache, key).denied) return;
+    const message = newestMessage(
+      cache.getQueryData<{ message: ApiMessage | null }>(key)?.message,
+      cache.getQueryData<ApiMessage>([
+        ...runtime.key,
+        "conversation-preview",
+        id,
+      ]),
+    );
+    return queued
+      .filter((entry) => entry.conversationId === id)
+      .reduce(
+        (latest, entry) =>
+          !latest || Date.parse(entry.createdAt) > Date.parse(latest)
+            ? entry.createdAt
+            : latest,
+        message?.sentAt,
+      );
+  });
+  const conversations =
+    options.previewLimit === undefined
+      ? knownConversations
+      : ordered.slice(0, options.previewLimit);
   const results = useQueries({
     queries: conversations.map((conversation) => {
       const key = [...runtime.key, "conversations", "preview", conversation.id];
