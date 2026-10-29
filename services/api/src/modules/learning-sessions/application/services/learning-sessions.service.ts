@@ -8,7 +8,6 @@ import {
   ServiceUnavailableException,
 } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
-import { isDeepStrictEqual } from "node:util";
 import { CLOCK, type Clock } from "../../../../shared/time/clock";
 import { parseAbsoluteTimestamp } from "../../../../shared/time/timestamp.policy";
 import { SystemConfigurationService } from "../../../system-configuration/application/services/system-configuration.service";
@@ -23,7 +22,10 @@ import {
   sessionReadSelect,
   type LiveKitTokenResponse,
 } from "../../presentation/http/learning-sessions.responses";
-import type { Session } from "../../../../generated/prisma/client";
+import type {
+  Session,
+  LearningPath,
+} from "../../../../generated/prisma/client";
 import type { WebhookEvent } from "livekit-server-sdk";
 import { PrismaService } from "../../../../infrastructure/database/prisma.service";
 import { TransactionRunner } from "../../../../infrastructure/database/transaction-runner";
@@ -35,10 +37,12 @@ import { formatCredit as creditText } from "../../../credit/domain/money";
 import { ReputationService } from "../../../reputation/application/services/reputation.service";
 import { AchievementsService } from "../../../reputation/application/services/achievements.service";
 import { ReportsService } from "../../../reports/application/services/reports.service";
-import { lockUsers } from "../../../../shared/database/identity-transactions";
 import { LearningRequestLifecycleService } from "../../../learning-requests/application/services/learning-request-lifecycle.service";
 import { LearningRequestPathReader } from "../../../learning-paths/application/services/learning-request-path.reader";
-import { lockLearningPath as lockPath } from "../../../learning-paths/application/services/learning-path-lock";
+import {
+  lockLearningPath as lockPath,
+  lockLearningPathLifecycle,
+} from "../../../learning-paths/application/services/learning-path-lock";
 
 async function lockSession(tx: TransactionContext, sessionId: string) {
   const rows = await tx.$queryRaw<{ id: string }[]>`
@@ -536,7 +540,13 @@ export class LearningSessionsService {
 
   private settle(pathId: string, actor?: Principal) {
     return this.transactions.run(async (tx) => {
-      const request = await this.lockSettlementContext(tx, pathId, actor);
+      const request = await lockLearningPathLifecycle(
+        tx,
+        pathId,
+        this.requestPaths,
+        this.requests,
+        actor,
+      );
       const path = await tx.learningPath.findUniqueOrThrow({
         where: { id: pathId },
       });
@@ -549,20 +559,7 @@ export class LearningSessionsService {
       }
       if (!path.settledAt && path.status !== "ACTIVE")
         throw new ConflictException("LEARNING_PATH_NOT_SETTLEABLE");
-      if (request !== null) {
-        const committed = await this.requestPaths.readCommittedPathIds(
-          tx,
-          request.id,
-        );
-        const expectedStatus = path.settledAt ? "CLOSED" : "MATCHED";
-        if (
-          request.status !== expectedStatus ||
-          committed.length !== 1 ||
-          committed[0] !== pathId ||
-          path.lockedVersion === null
-        )
-          throw new ConflictException("REQUEST_LIFECYCLE_INCONSISTENT");
-      }
+      await this.assertSettlementRequest(tx, request, path);
       if (path.settledAt) {
         return {
           pathId,
@@ -636,30 +633,27 @@ export class LearningSessionsService {
     });
   }
 
-  private async lockSettlementContext(
+  private async assertSettlementRequest(
     tx: TransactionContext,
-    pathId: string,
-    actor?: Principal,
+    request: Awaited<
+      ReturnType<LearningRequestLifecycleService["lockForPath"]>
+    > | null,
+    path: LearningPath,
   ) {
-    const path = await tx.learningPath.findUnique({ where: { id: pathId } });
-    if (!path) throw new NotFoundException("LEARNING_PATH_NOT_FOUND");
-    if (
-      actor &&
-      actor.userId !== path.participantAId &&
-      actor.userId !== path.participantBId
-    )
-      throw new ForbiddenException("LEARNING_PATH_ACCESS_DENIED");
-    const source = await this.requestPaths.readPathSource(tx, pathId);
-    await lockUsers(tx, [source.participantAId, source.participantBId]);
-    const request =
-      source.requestId === null
-        ? null
-        : await this.requests.lockForPath(tx, source.requestId);
-    await lockPath(tx, pathId);
-    const lockedSource = await this.requestPaths.readPathSource(tx, pathId);
-    if (!isDeepStrictEqual(source, lockedSource))
-      throw new ConflictException("REQUEST_LIFECYCLE_INCONSISTENT");
-    return request;
+    if (request !== null) {
+      const committed = await this.requestPaths.readCommittedPathIds(
+        tx,
+        request.id,
+      );
+      const expectedStatus = path.settledAt ? "CLOSED" : "MATCHED";
+      if (
+        request.status !== expectedStatus ||
+        committed.length !== 1 ||
+        committed[0] !== path.id ||
+        path.lockedVersion === null
+      )
+        throw new ConflictException("REQUEST_LIFECYCLE_INCONSISTENT");
+    }
   }
 
   private async refreshPathStatus(tx: TransactionContext, pathId: string) {

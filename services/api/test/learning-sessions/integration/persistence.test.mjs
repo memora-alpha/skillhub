@@ -1,3 +1,4 @@
+import { fundedLearningParticipants } from "../../learning-platform/persistence-fixtures.mjs";
 import "reflect-metadata";
 import assert from "node:assert/strict";
 import { test } from "node:test";
@@ -27,27 +28,11 @@ test(
     assert.ok(process.env.TEST_DATABASE_URL);
     const f = await createSkillFixture();
     try {
-      const teacher = await f.account(),
-        learner = await f.account();
-      for (const account of [teacher, learner])
-        await f.db.creditWallet.create({
-          data: {
-            userId: account.user.id,
-            availableCredit: 10000n,
-            heldCredit: 0n,
-            purchasedCredit: 10000n,
-            bonusCredit: 0n,
-            walletVersion: 0,
-          },
-        });
-      const skill = await f.db.skill.create({
-        data: {
-          name: "Session test",
-          nameKey: randomUUID(),
-          slug: randomUUID(),
-          status: "ACTIVE",
-        },
-      });
+      const { teacher, learner, skill } = await fundedLearningParticipants(
+        f,
+        10000n,
+        "Session test",
+      );
       const request = await f.db.learningRequest.create({
         data: {
           ownerId: learner.user.id,

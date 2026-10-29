@@ -29,8 +29,7 @@ export class LearningRequestPathReader implements RequestLockReader {
     });
     const requestId = conversation.requestId;
     if (
-      !proposal ||
-      proposal.status !== "ACCEPTED" ||
+      proposal?.status !== "ACCEPTED" ||
       proposal.requestId !== requestId ||
       proposal.proposerId === proposal.recipientId ||
       conversation.participantAId !== proposal.proposerId ||

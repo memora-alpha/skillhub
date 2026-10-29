@@ -1,3 +1,4 @@
+import { fundedLearningParticipants } from "../learning-platform/persistence-fixtures.mjs";
 import "reflect-metadata";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
@@ -38,17 +39,8 @@ test(
   { skip },
   async () => {
     const f = await fixture();
-    let deadlocks = 0;
-    const observed = new TransactionRunner({
-      $transaction: async (...args) => {
-        try {
-          return await f.db.$transaction(...args);
-        } catch (error) {
-          if (JSON.stringify(error).includes("40P01")) deadlocks++;
-          throw error;
-        }
-      },
-    });
+    const deadlocks = observeDeadlocks(f.db);
+    const observed = deadlocks.runner;
     const gate = requestGate(observed, "learning_paths");
     try {
       const pathId = await f.draft();
@@ -74,7 +66,7 @@ test(
       await waitForBlock(f.client, await observer.started);
       gate.release();
       const [a, b] = await Promise.all([first, second]);
-      assert.equal(deadlocks, 0);
+      assert.equal(deadlocks.count, 0);
       assert.equal(a.error, undefined);
       assert.equal(b.error, undefined);
       assert.equal(await f.db.review.count(), 1);
@@ -86,31 +78,35 @@ test(
   },
 );
 
+function observeDeadlocks(db) {
+  let count = 0;
+  const runner = new TransactionRunner({
+    $transaction: async (...args) => {
+      try {
+        return await db.$transaction(...args);
+      } catch (error) {
+        if (JSON.stringify(error).includes("40P01")) count++;
+        throw error;
+      }
+    },
+  });
+  return {
+    runner,
+    get count() {
+      return count;
+    },
+  };
+}
+
 async function fixture({ direct = false } = {}) {
   assert.ok(process.env.TEST_DATABASE_URL);
   const f = await createSkillFixture();
   try {
-    const teacher = await f.account(),
-      learner = await f.account();
-    for (const account of [teacher, learner])
-      await f.db.creditWallet.create({
-        data: {
-          userId: account.user.id,
-          availableCredit: 100000n,
-          heldCredit: 0n,
-          purchasedCredit: 100000n,
-          bonusCredit: 0n,
-          walletVersion: 0,
-        },
-      });
-    const skill = await f.db.skill.create({
-      data: {
-        name: "Lifecycle integration",
-        nameKey: randomUUID(),
-        slug: randomUUID(),
-        status: "ACTIVE",
-      },
-    });
+    const { teacher, learner, skill } = await fundedLearningParticipants(
+      f,
+      100000n,
+      "Lifecycle integration",
+    );
     const request = await f.db.learningRequest.create({
       data: {
         ownerId: learner.user.id,
@@ -684,17 +680,8 @@ test(
   { skip },
   async () => {
     const f = await fixture();
-    let deadlocks = 0;
-    const observed = new TransactionRunner({
-      $transaction: async (...args) => {
-        try {
-          return await f.db.$transaction(...args);
-        } catch (error) {
-          if (JSON.stringify(error).includes("40P01")) deadlocks++;
-          throw error;
-        }
-      },
-    });
+    const deadlocks = observeDeadlocks(f.db);
+    const observed = deadlocks.runner;
     const gate = requestGate(observed, "learning_paths");
     try {
       const pathId = await f.draft();
@@ -716,7 +703,7 @@ test(
       gate.release();
       const [a, b] = await Promise.all([edit, finalize]);
       assert.equal(
-        deadlocks,
+        deadlocks.count,
         0,
         "Participant locks must precede Path, including user FK KEY SHARE acquisitions",
       );

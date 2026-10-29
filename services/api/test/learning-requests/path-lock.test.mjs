@@ -129,12 +129,14 @@ test("source mismatch and missing negotiation source fail closed", async () => {
     ctx.cancel(),
     conflict("REQUEST_LIFECYCLE_INCONSISTENT"),
   );
-  const missing = setup();
-  missing.db.rows("conversation").length = 0;
-  await assert.rejects(
-    missing.cancel(),
-    conflict("REQUEST_LIFECYCLE_INCONSISTENT"),
-  );
+  for (const table of ["conversation", "proposal"]) {
+    const missing = setup();
+    missing.db.rows(table).length = 0;
+    await assert.rejects(
+      missing.cancel(),
+      conflict("REQUEST_LIFECYCLE_INCONSISTENT"),
+    );
+  }
 });
 
 test("direct exchange requires both request IDs null and accepted participants", async () => {

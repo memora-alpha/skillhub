@@ -15,7 +15,11 @@ import { ConversationMembershipReader } from "../../../conversations/application
 import { lockUsers } from "../../../../shared/database/identity-transactions";
 import { LearningRequestLifecycleService } from "../../../learning-requests/application/services/learning-request-lifecycle.service";
 import { LearningRequestPathReader } from "./learning-request-path.reader";
-import { lockLearningPath as lockPath } from "./learning-path-lock";
+import {
+  lockLearningPath as lockPath,
+  lockLearningPathLifecycle,
+} from "./learning-path-lock";
+import type { LearningPathVersion } from "../../../../generated/prisma/client";
 import {
   parseCredit as creditUnits,
   formatCredit as creditText,
@@ -786,15 +790,7 @@ export class LearningPathsService {
     ) {
       throw new ForbiddenException("LEARNING_PATH_ACCESS_DENIED");
     }
-    const source = await this.requestPaths.readPathSource(tx, pathId);
-    if (source.requestId !== null) {
-      const request = await tx.learningRequest.findUnique({
-        where: { id: source.requestId },
-        select: { status: true },
-      });
-      if (request?.status !== "NEGOTIATING")
-        throw new ConflictException("REQUEST_NOT_AVAILABLE");
-    }
+    await this.assertNegotiatingSource(tx, pathId);
     const agreement = await tx.learningPathVersion.findUnique({
       where: {
         pathId_versionNo: { pathId, versionNo: path.currentVersion },
@@ -997,6 +993,21 @@ export class LearningPathsService {
     };
   }
 
+  private async assertNegotiatingSource(
+    tx: TransactionContext,
+    pathId: string,
+  ) {
+    const source = await this.requestPaths.readPathSource(tx, pathId);
+    if (source.requestId !== null) {
+      const request = await tx.learningRequest.findUnique({
+        where: { id: source.requestId },
+        select: { status: true },
+      });
+      if (request?.status !== "NEGOTIATING")
+        throw new ConflictException("REQUEST_NOT_AVAILABLE");
+    }
+  }
+
   async finalize(
     command: { principal: Principal; key: string },
     pathId: string,
@@ -1023,13 +1034,54 @@ export class LearningPathsService {
     );
   }
 
+  private async assertRequestCanFinalize(
+    tx: TransactionContext,
+    request: Awaited<
+      ReturnType<LearningRequestLifecycleService["lockForPath"]>
+    > | null,
+    pathId: string,
+    pathStatus: string,
+    replay: boolean,
+  ) {
+    if (request === null) return;
+    const committed = await this.requestPaths.readCommittedPathIds(
+      tx,
+      request.id,
+    );
+    if (replay) {
+      const expectedStatus = pathStatus === "COMPLETED" ? "CLOSED" : "MATCHED";
+      if (
+        request.status !== expectedStatus ||
+        committed.length !== 1 ||
+        committed[0] !== pathId
+      )
+        throw new ConflictException("REQUEST_LIFECYCLE_INCONSISTENT");
+      return;
+    }
+    if (request.status === "MATCHED" || request.status === "CLOSED") {
+      if (committed.length === 1 && committed[0] !== pathId)
+        throw new ConflictException("REQUEST_ALREADY_MATCHED");
+      throw new ConflictException("REQUEST_LIFECYCLE_INCONSISTENT");
+    }
+    if (request.status !== "NEGOTIATING")
+      throw new ConflictException("REQUEST_NOT_AVAILABLE");
+    if (committed.length)
+      throw new ConflictException("REQUEST_LIFECYCLE_INCONSISTENT");
+  }
+
   private async finalizeTx(
     tx: TransactionContext,
     actor: Principal,
     pathId: string,
     expectedVersion: number,
   ) {
-    const request = await this.lockLifecycleContext(tx, actor, pathId);
+    const request = await lockLearningPathLifecycle(
+      tx,
+      pathId,
+      this.requestPaths,
+      this.requests,
+      actor,
+    );
     const path = await tx.learningPath.findUniqueOrThrow({
       where: { id: pathId },
     });
@@ -1040,32 +1092,13 @@ export class LearningPathsService {
       throw new ForbiddenException("LEARNING_PATH_ACCESS_DENIED");
     }
     const replay = ["SCHEDULED", "ACTIVE", "COMPLETED"].includes(path.status);
-    if (request !== null) {
-      const committed = await this.requestPaths.readCommittedPathIds(
-        tx,
-        request.id,
-      );
-      if (replay) {
-        const expectedStatus =
-          path.status === "COMPLETED" ? "CLOSED" : "MATCHED";
-        if (
-          request.status !== expectedStatus ||
-          committed.length !== 1 ||
-          committed[0] !== pathId
-        )
-          throw new ConflictException("REQUEST_LIFECYCLE_INCONSISTENT");
-      } else {
-        if (request.status === "MATCHED" || request.status === "CLOSED") {
-          if (committed.length === 1 && committed[0] !== pathId)
-            throw new ConflictException("REQUEST_ALREADY_MATCHED");
-          throw new ConflictException("REQUEST_LIFECYCLE_INCONSISTENT");
-        }
-        if (request.status !== "NEGOTIATING")
-          throw new ConflictException("REQUEST_NOT_AVAILABLE");
-        if (committed.length)
-          throw new ConflictException("REQUEST_LIFECYCLE_INCONSISTENT");
-      }
-    }
+    await this.assertRequestCanFinalize(
+      tx,
+      request,
+      pathId,
+      path.status,
+      replay,
+    );
     if (
       path.status === "SCHEDULED" ||
       path.status === "ACTIVE" ||
@@ -1147,53 +1180,13 @@ export class LearningPathsService {
     if (!(clock?.now instanceof Date)) {
       throw new ConflictException("DATABASE_TIME_UNAVAILABLE");
     }
-    const feePolicy = await tx.feePolicyVersion.findFirst({
-      where: {
-        policyCode: agreement.exchangeType,
-        status: "APPROVED",
-        approvedAt: { not: null },
-        effectiveAt: { lte: clock.now },
-      },
-      orderBy: [{ effectiveAt: "desc" }, { versionNo: "desc" }],
-    });
-    if (!feePolicy) throw new ConflictException("APPROVED_FEE_POLICY_REQUIRED");
-    const feeRule = feePolicy.calculationRule as {
-      returnedBps?: unknown;
-      feeBps?: unknown;
-    };
-    const roundingRule = feePolicy.roundingRule as {
-      mode?: unknown;
-      precision?: unknown;
-    };
-    const { values } = await this.configuration.getSnapshot(
-      ["credit.pathSettlementBps"],
+    await this.pinSettlementFee(
       tx,
+      pathId,
+      expectedVersion,
+      agreement,
+      clock.now,
     );
-    const settlementBps = values["credit.pathSettlementBps"];
-    if (
-      feeRule.returnedBps !== settlementBps.returned ||
-      feeRule.feeBps !== settlementBps.fee ||
-      roundingRule.mode !== "DOWN" ||
-      roundingRule.precision !== 2
-    ) {
-      throw new ConflictException("UNSUPPORTED_FEE_POLICY");
-    }
-    const payerCount = agreement.exchangeType === "TWO_WAY" ? 2n : 1n;
-    const grossPerPayer =
-      agreement.exchangeType === "TWO_WAY"
-        ? agreement.totalCreditPerUser!
-        : agreement.negotiatedCredit!;
-    const feeSnapshot =
-      ((grossPerPayer * BigInt(settlementBps.fee)) / 10_000n) * payerCount;
-    await tx.learningPathVersion.update({
-      where: { pathId_versionNo: { pathId, versionNo: expectedVersion } },
-      data: {
-        feePolicyId: feePolicy.id,
-        feeRateSnapshot: String(settlementBps.fee / 10_000),
-        feeAmountSnapshot: feeSnapshot,
-        roundingSnapshot: { mode: "DOWN", precision: 2 },
-      },
-    });
     await this.wallet.holdForPath(tx, {
       pathId,
       pathVersion: expectedVersion,
@@ -1263,29 +1256,60 @@ export class LearningPathsService {
     };
   }
 
-  private async lockLifecycleContext(
+  private async pinSettlementFee(
     tx: TransactionContext,
-    actor: Principal,
     pathId: string,
+    expectedVersion: number,
+    agreement: LearningPathVersion,
+    now: Date,
   ) {
-    const path = await tx.learningPath.findUnique({ where: { id: pathId } });
-    if (!path) throw new NotFoundException("LEARNING_PATH_NOT_FOUND");
+    const feePolicy = await tx.feePolicyVersion.findFirst({
+      where: {
+        policyCode: agreement.exchangeType,
+        status: "APPROVED",
+        approvedAt: { not: null },
+        effectiveAt: { lte: now },
+      },
+      orderBy: [{ effectiveAt: "desc" }, { versionNo: "desc" }],
+    });
+    if (!feePolicy) throw new ConflictException("APPROVED_FEE_POLICY_REQUIRED");
+    const feeRule = feePolicy.calculationRule as {
+      returnedBps?: unknown;
+      feeBps?: unknown;
+    };
+    const roundingRule = feePolicy.roundingRule as {
+      mode?: unknown;
+      precision?: unknown;
+    };
+    const { values } = await this.configuration.getSnapshot(
+      ["credit.pathSettlementBps"],
+      tx,
+    );
+    const settlementBps = values["credit.pathSettlementBps"];
     if (
-      actor.userId !== path.participantAId &&
-      actor.userId !== path.participantBId
-    )
-      throw new ForbiddenException("LEARNING_PATH_ACCESS_DENIED");
-    const source = await this.requestPaths.readPathSource(tx, pathId);
-    await lockUsers(tx, [source.participantAId, source.participantBId]);
-    const request =
-      source.requestId === null
-        ? null
-        : await this.requests.lockForPath(tx, source.requestId);
-    await lockPath(tx, pathId);
-    const lockedSource = await this.requestPaths.readPathSource(tx, pathId);
-    if (!isDeepStrictEqual(source, lockedSource))
-      throw new ConflictException("REQUEST_LIFECYCLE_INCONSISTENT");
-    return request;
+      feeRule.returnedBps !== settlementBps.returned ||
+      feeRule.feeBps !== settlementBps.fee ||
+      roundingRule.mode !== "DOWN" ||
+      roundingRule.precision !== 2
+    ) {
+      throw new ConflictException("UNSUPPORTED_FEE_POLICY");
+    }
+    const payerCount = agreement.exchangeType === "TWO_WAY" ? 2n : 1n;
+    const grossPerPayer =
+      agreement.exchangeType === "TWO_WAY"
+        ? agreement.totalCreditPerUser!
+        : agreement.negotiatedCredit!;
+    const feeSnapshot =
+      ((grossPerPayer * BigInt(settlementBps.fee)) / 10_000n) * payerCount;
+    await tx.learningPathVersion.update({
+      where: { pathId_versionNo: { pathId, versionNo: expectedVersion } },
+      data: {
+        feePolicyId: feePolicy.id,
+        feeRateSnapshot: String(settlementBps.fee / 10_000),
+        feeAmountSnapshot: feeSnapshot,
+        roundingSnapshot: { mode: "DOWN", precision: 2 },
+      },
+    });
   }
 
   async confirmPlan(actor: Principal, planId: string, expectedVersion: number) {

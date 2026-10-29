@@ -1,4 +1,51 @@
-# SonarCloud PR #6 remediation
+# SonarCloud Learning Request remediation
+
+## PR #61 — lifecycle refactor, 2026-10-29
+
+Verified the [live analysis](https://sonarcloud.io/dashboard?id=memora-alpha_skillhub&pullRequest=61)
+against `92a099c2318ae75f16bb64fac38a03a837467c79`, analyzed at 19:12:17 Asia/Saigon.
+Analysis ID: `6b75bd34-c6ca-48cc-9ddf-2c2f1c735ad3`. Four open code smells;
+zero bugs/vulnerabilities. Quality Gate failed only on new-code duplication,
+3.9% versus the 3% maximum; other gate conditions passed.
+
+| Issue                         | Baseline finding                          | Local change                                                                                                           |
+| ----------------------------- | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `AaGHlAKfYG0AycJckQFp`, S3776 | `validateForFinalizeTx`, complexity 17/15 | Extract the advisory source-Request status check, preserving its position before agreement validation.                 |
+| `AaGHlAKfYG0AycJckQFq`, S3776 | `finalizeTx`, complexity 39/15            | Extract Request commitment/replay validation and fee-policy snapshot writes; retain their transaction and write order. |
+| `AaGHk__eYG0AycJckQFn`, S3776 | Settlement callback, complexity 16/15     | Extract the source Request consistency guard; worker/manual settlement still share the same transaction.               |
+| `AaGHlAIIYG0AycJckQFo`, S6582 | Missing/accepted Proposal check           | Use `proposal?.status`; missing Proposal still produces the business conflict.                                         |
+
+The duplication API reported Path/Session lifecycle-lock blocks (16 lines each),
+the repeated deadlock observer (19 lines twice), and wallet/Skill fixture setup
+(25 lines across two integration files). Reuse `lockLearningPathLifecycle` in the
+existing concrete Path lock helper, one deadlock observer, and a test-only funded
+participant fixture. Participant → Request → Path locking, full source revalidation,
+post-lock membership guards, CAS, fee arithmetic and financial writes remain intact.
+No dependency, schema, suppression, exclusion or Quality Gate change.
+
+Ponytail review: share only these repeated operations; no new DI provider or
+framework. Existing regression assertions remain; missing Proposal coverage was
+added to the existing source-failure test. Before refactoring, the 27 focused
+lifecycle/reader/phase2 tests passed against the baseline build.
+
+Fresh local verification after refactoring:
+
+- API ESLint (`--max-warnings 0`), TypeScript `--noEmit` and Nest build: exit 0,
+  using installed root CLIs because Corepack cannot download pnpm.
+- Learning Request / platform / sessions / Path reads / bigint suites:
+  145 + 50 + 22 + 4 + 3 = 224 passed, no failures or skips.
+- Complete Learning Request integration: 28 passed; existing finalize, Session
+  persistence and Credit HTTP integration: 8 passed; no failures or skips.
+- All 260 final tests used freshly built output. PostgreSQL ran only against a
+  newly created disposable database with per-fixture schemas, never the application
+  database. Both real deadlock regressions and lifecycle rollback tests passed.
+
+These are local fixes and regression evidence. A fresh cloud analysis of the fix
+revision is still required to verify issue closure and the duplication threshold;
+the 3.9% value describes the baseline, not the unpushed working tree. No commit,
+push, Sonar disposition or deployment was performed.
+
+## PR #6 remediation
 
 Reviewed against the 59 Open/Confirmed new-code issues reported for
 [PR #6](https://sonarcloud.io/project/issues?id=memora-alpha_skillhub&pullRequest=6&issueStatuses=OPEN%2CCONFIRMED)
