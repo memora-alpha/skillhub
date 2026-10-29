@@ -32,9 +32,17 @@ Luồng: Chat → Cách học → Lộ trình → Lịch học → server valida
 - [x] Teacher tạo/sửa lộ trình của mình; learner đọc chi tiết và xác nhận version. Mỗi buổi có tiêu đề và mô tả tùy chọn.
 - [x] Chỉ mở đề xuất lịch khi thỏa thuận và các plan đủ xác nhận. Lịch gắn với plan; hai chiều có lịch riêng và trạng thái chờ riêng.
 - [x] Hai bên xác nhận cùng version lịch; backend validation và finalize quyết định Hold/lock/tạo Session. Giữ recovery đúng intent khi mất phản hồi.
-- [x] Sau xác nhận nghiệp vụ thành công, gửi lại form vào Chat. Gửi chat lỗi chỉ retry form, không thực hiện lại xác nhận nghiệp vụ.
+- [x] Khi kiểm tra điều kiện hoặc chốt lịch báo thiếu Credit, hiển thị nút Nạp Credit mở màn `/wallet/topup` hiện có.
+- [x] Cách học/lộ trình xác nhận thành công vẫn gửi form vào Chat; đồng ý từng lịch không gửi thêm card. Chốt lịch thành công gửi một thông báo tổng số Session của cả lộ trình, có nút Xem lịch học. Gửi chat lỗi chỉ retry tin, không thực hiện lại xác nhận/chốt lịch.
+- [x] Gộp các card lịch cùng conversation/path thành một thông báo gọn trong history; giữ tin thường/tệp và sequence mới nhất cho read watermark. Card cũ chỉ báo đã xác nhận, không suy ra chốt lịch hoặc tổng buổi từ history chưa đầy đủ.
+- [x] Card lịch dùng chung ChatWorkflowCard với card cách học/lộ trình: bố cục, avatar, căn phía người gửi, badge và link Xem lịch học thống nhất; giữ nội dung lịch đã gộp.
 - [x] Chuẩn hóa Back/footer, polling nền kết hợp kéo tải lại; bỏ fixture khỏi các route đã có API. Preview còn lại chỉ phục vụ các consumer chưa tích hợp ngoài luồng này.
-- [x] Chi tiết lộ trình dùng chung timeline với chi tiết lịch học: chấm cam có viền nhạt, đường nối nét đứt cam và nội dung buổi bên phải; giữ tiêu đề, mô tả và trạng thái, bỏ khung bao/số tròn lặp. Component dùng chung cũng đồng bộ phần lịch từng buổi trong editor.
+- [x] Chi tiết lộ trình dùng chung timeline với chi tiết lịch học: chấm cam có viền nhạt, đường nối nét đứt cam và nội dung buổi bên phải; giữ tiêu đề, mô tả và trạng thái, bỏ khung bao/số tròn lặp. Component dùng chung cũng đồng bộ phần lịch từng buổi trong editor. Dây nối đo chiều cao thực tế khi cảnh báo/editor đổi kích thước và dùng đúng gap của từng consumer để nối tới chấm tiếp theo.
+- [x] Editor React mobile cảnh báo trực tiếp ngày, số buổi, hai khung giờ và khoảng trùng trong draft/chiều đối ứng. Tự đối chiếu toàn bộ draft với lịch đã chốt ở Path khác của chính người dùng qua Sessions API, kể cả các thẻ thu gọn/sau Áp dụng lịch tuần; chặn submit khi phát hiện trùng. Mở Sửa để xem riêng ngày đó. Giữ draft khi lỗi và nêu rõ giới hạn lịch riêng của người còn lại.
+- [x] Làm mới dữ liệu Session khi áp dụng lại cùng ngày/giờ và trước khi gửi; chặn read lỗi/denied/chưa đầy đủ. Kiểm lại scope/draft sau await, hiển thị số Session đã đối chiếu và kiểm consumer Calendar/Session list.
+- [x] Gộp cảnh báo thành một khối ở buổi cần sửa, loại lý do trùng lặp và tránh lặp cùng lỗi ở banner tổng/panel lịch bận; hiển thị khung giờ xung đột và hướng sửa.
+- [x] Disable nút Gửi/Lưu ngay khi có xung đột đã biết trong draft, chiều đối ứng hoặc Session ở Path khác; vẫn cho sửa giờ/áp dụng lịch tuần và chỉ mở lại nút khi hết trùng cùng các guard khác hợp lệ.
+- [x] Đối chiếu chiều đối ứng theo Path mới nhất mà không reset draft; chặn validation/navigation muộn sau rời editor và vô hiệu hóa callback cũ khi quay lại. Đồng bộ hai test helper đổi lịch với export/thông báo cutoff 60 phút hiện hành.
 
 ## Tiêu chí nghiệm thu
 
@@ -73,11 +81,11 @@ Các quy tắc chi tiết đối chiếu [BE amendments](../../../../../services
 
 ## Dependency và ranh giới xử lý
 
-| Hạng mục                                                                                        | Hướng xử lý                                                                                                                         |
-| ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| **P05-API-DEP-T78:** phát hiện trùng lịch giữa hai chiều trước confirm                          | BE đã có PATCH sửa lịch chưa khóa. Conflict sớm giữa hai chiều vẫn cần contract riêng; giữ final-validation/finalize authoritative. |
-| Tạo path/plan/lịch chưa có server idempotency; tìm path theo conversation bị giới hạn danh sách | Giữ draft/intent và đọc đối chiếu; chặn tạo mới khi kết quả chưa rõ hoặc danh sách đầy, không tự replay.                            |
-| Dạy thử tùy chọn                                                                                | Backlog tương lai cùng dependency backend, không là blocker phase này.                                                              |
-| Hủy/quyết toán chưa có API mobile xác minh                                                      | Hiện unavailable, không đổi status/Credit bằng fixture; triển khai ở phạm vi riêng.                                                 |
+| Hạng mục                                                                                        | Hướng xử lý                                                                                                                                                                                                                                                                                 |
+| ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **P05-API-DEP-T78:** phát hiện trùng lịch giữa hai chiều trước confirm                          | Mobile đã cảnh báo/chặn gửi overlap đã biết trong Path và tự đối chiếu toàn bộ draft với lịch đã chốt của chính mình ở Path khác. Lịch riêng của người đối diện, conflict phát sinh đồng thời và lỗi BE chi tiết vẫn cần contract/evidence BE; giữ final-validation/finalize authoritative. |
+| Tạo path/plan/lịch chưa có server idempotency; tìm path theo conversation bị giới hạn danh sách | Giữ draft/intent và đọc đối chiếu; chặn tạo mới khi kết quả chưa rõ hoặc danh sách đầy, không tự replay.                                                                                                                                                                                    |
+| Dạy thử tùy chọn                                                                                | Backlog tương lai cùng dependency backend, không là blocker phase này.                                                                                                                                                                                                                      |
+| Hủy/quyết toán chưa có API mobile xác minh                                                      | Hiện unavailable, không đổi status/Credit bằng fixture; triển khai ở phạm vi riêng.                                                                                                                                                                                                         |
 
 Kết quả kiểm tra và bước bàn giao ở [status](status.md). Các task ID, thiết kế trung gian và bằng chứng cũ được giữ trong [history](history.md); không tiếp tục thêm nhật ký lượt sửa vào plan này.

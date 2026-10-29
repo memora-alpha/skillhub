@@ -1,12 +1,47 @@
 # Trạng thái Phase 05–06
 
-Cập nhật: 2026-10-27T09:48:54+07:00.
+Cập nhật tài liệu: 2026-10-29T21:08:08+07:00.
 
-**Ready for review — source complete; acceptance pending.** Đã sửa tiếp Proposal/Chat và chọn thời gian LearningPath trên nhánh `fix/mobile-proposal-chat-learning-path`, tạo từ `dev` trùng `origin/dev` ở `5fbc5ae2`. Checks source đạt; chưa đóng phase sản phẩm hoặc nghiệm thu API/native.
+**Ready for review — source complete; acceptance pending.** Source và regression đã hoàn tất trên nhánh `fix/mobile-proposal-chat-learning-path`; nghiệm thu API thật và Android/iOS còn mở.
+
+## Kiểm tra xung đột lịch
+
+- Editor đối chiếu draft nội bộ, lịch chiều đối ứng trong Path và Session đã chốt của tài khoản hiện tại ở Path khác. `useExistingScheduleCheck` đọc GET `/sessions/mine` trên toàn dải ngày của draft, kể cả các thẻ thu gọn và lịch điền theo tuần.
+- Nút Gửi đề xuất/Lưu thay đổi bị khóa khi có xung đột. Input, Sửa từng buổi và Áp dụng lịch tuần vẫn hoạt động. Sửa hết trùng mở lại nút khi các điều kiện version/read/pending hợp lệ.
+- Áp dụng lại cùng template và preflight trước POST/PATCH buộc đọc Session mới. Loading, read lỗi, denied hoặc response đạt giới hạn 100 buổi chặn gửi và giữ draft. Sau await kiểm lại user/generation/range/timestamp draft; chặn preflight trùng và callback cũ.
+- Draft và plan đang sửa giữ snapshot; lịch chiều đối ứng lấy từ projection Path mới nhất. Focus epoch vô hiệu hóa callback sau khi rời editor, chặn gửi tiếp sau validation muộn và chặn điều hướng từ response cũ khi quay lại.
+- Timestamp giữ phần giây; hai buổi chỉ tiếp giáp không bị coi là trùng. Regression múi giờ đối chiếu 21:00–22:00 UTC+07 với 14:00–15:00 UTC.
+- Mỗi buổi cần sửa có một khối cảnh báo, gộp lý do trùng lặp. Trùng nội bộ hiển thị ở buổi sau; panel lịch bận loại Session đã cảnh báo trên thẻ. `ScheduleTimelineItem` đo chiều cao thực tế bằng `onLayout`, nối tới tâm chấm tiếp theo theo gap của consumer.
+
+Giới hạn: endpoint hiện tại chỉ cung cấp Session riêng của tài khoản đang đăng nhập; response 100 buổi có thể chưa đầy đủ. Chưa có draft-validation và details lỗi cho lịch ở Path khác của bên đối ứng. Backend final-validation/finalize vẫn kiểm tra xung đột, số dư và quyết định chốt lịch.
+
+## Credit và thông báo lịch trong Chat
+
+`ApiHoldScreen` hiển thị nút **Nạp Credit** mở `/wallet/topup` khi final-validation/finalize trả `INSUFFICIENT_AVAILABLE_CREDIT`.
+
+Xác nhận từng schedule không gửi card vào Chat. Finalize thành công gửi một tin tổng hợp từ receipt, gồm tổng Session của hai chiều, khoảng ngày và nút Xem lịch học. Gửi Chat lỗi giữ đúng intent để retry, không lặp nghiệp vụ finalize.
+
+History gộp thông báo lịch theo conversation/path, dùng sequence mới nhất cho read watermark và ưu tiên receipt chốt lịch mới nhất. Card legacy chỉ thể hiện đã xác nhận. `ChatScheduleNotice` dùng chung `ChatWorkflowCard`, sender/avatar/group props và badge với các card nghiệp vụ khác. Tin nhắn lưu tại backend giữ nguyên; bảo đảm gửi duy nhất và không mất thông báo giữa finalize và POST message vẫn cần cơ chế backend.
+
+## Kết quả kiểm tra gần nhất
+
+Kết quả của các thay đổi code trước lần biên tập tài liệu này:
+
+- 64/64 focused tests đạt trong 16 suite: `schedule-conflicts`, `schedule-existing-conflicts`, `schedule-existing-fresh`, `schedule-busy-day`, `schedule-timeline`, `schedule-editor-ui`, `schedule-read-card`, `editor-draft-revision`, `learning-amendments`, `learning-agreement-hold-ui`, `chat-schedule-notice`, `chat-file-card`, `chat-timeline`, `message-grouping`, `sessions-context`, `sessions-reschedule-availability`.
+- Sau dọn code thừa, 14/14 tests liên quan đạt: `chat-schedule-notice`, `chat-file-card`, `weekly-schedule`, `schedule-time-fields`, `schedule-editor-ui`. Nhóm này có giao với 64 tests trên.
+- Mobile lint, check-types, structure check (822 source files), format và diff check đạt. Hai test Session đã đồng bộ import `rescheduleAvailabilityMessage` và quy tắc xác nhận hai bên trước cutoff 60 phút.
+- Các commit code/test đã qua lint-staged và commitlint. Chưa nghiệm thu trực tiếp API thật, Android hoặc iOS.
+
+## Các commit lịch học và Chat
+
+- `2a685d4e` — đồng bộ test điều kiện đổi lịch.
+- `a45177a3` — kiểm tra xung đột, làm mới Session và vô hiệu hóa callback editor cũ.
+- `4f8a9423` — điều hướng nạp Credit từ lỗi thiếu số dư.
+- `6e9f4539` — gộp và thống nhất card thông báo lịch trong Chat.
 
 ## Bàn giao Git
 
-Follow-up ngày2026-10-27 đã chia hai commit source/tests theo yêu cầu:
+Các commit source/tests ngày 2026-10-27:
 
 - `0c533023` — `fix(mobile): use learning request owner avatars`.
 - `c788942a` — `fix(mobile): explain failed chat attachments`.
@@ -26,7 +61,7 @@ Mỗi mốc source được kiểm TypeScript trên bản chụp Git index để
 
 Follow-up loading toàn mobile dùng cùng nhánh: Proposal/LearningPath gom loader ở vùng content, Chat gom lần tải thread đầu; dữ liệu phụ/trang cũ dùng placeholder và refresh có cache giữ content. Checkpoint loading trước chỉnh thẻ tệp là 855/855 cùng types/lint/structure788/export ba platform đạt; evidence và giới hạn chính ở [status loading](../mobile-chat-rate-limit/status.md). Bảng bên dưới giữ checkpoint 843/843 của lần sửa Proposal/Chat trước khi gom loading; checkpoint UI mới nhất ở ngay dưới.
 
-## Kết quả hiện tại
+## Kết quả kiểm tra trước thay đổi lịch và Chat
 
 ### Rà sau đồng bộ BE — 2026-10-27T08:43:56+07:00
 
@@ -87,7 +122,7 @@ Follow-up 2026-10-25 đã đối chiếu SRS 1.6 mục 18.12/CHAT-002: Chat cho 
 
 ## Giới hạn và dependency còn mở
 
-- **P05-API-DEP-T78:** Chưa có conflict state/validation giữa hai chiều trước confirm. Final-validation/finalize vẫn kiểm trùng; teacher có thể dùng PATCH sửa lịch chưa khóa sau lỗi kiểm tra. Hủy schedule riêng chưa có API mobile xác minh.
+- **P05-API-DEP-T78:** Mobile chặn các xung đột đã đọc trong Path và Session riêng; chưa có API kiểm lịch nháp của cả hai người trên mọi Path. Final-validation/finalize vẫn kiểm trùng; teacher có thể dùng PATCH sửa lịch chưa khóa sau lỗi kiểm tra. Hủy schedule riêng chưa có API mobile xác minh.
 - Theo BE mới: sửa plan không reset cách học; cùng số buổi giữ xác nhận lịch, đổi số buổi cần sửa/xác nhận lịch lại. Sửa terms cần xác nhận lại terms, phần tương thích được BE giữ. Mobile luôn đọc projection server; chưa xác minh deployment BE.
 - Create path/plan/schedule thiếu server idempotency; lookup path theo conversation bị giới hạn danh sách tối đa 100. Khi unknown hoặc chưa đủ bằng chứng, mobile chặn gửi mới và yêu cầu đối chiếu.
 - Inbox sắp xếp theo activity của các conversation đã tải; chưa có last-message/unread summary hoặc batch context từ backend. Không khẳng định thứ tự/tổng unread của các trang chưa tải.
@@ -97,6 +132,6 @@ Follow-up 2026-10-25 đã đối chiếu SRS 1.6 mục 18.12/CHAT-002: Chat cho 
 
 1. Thực hiện **P05-S99-T02** theo [plan](plan.md) trên môi trường API và hai tài khoản/ví test được cho phép.
 2. Kiểm Android/iOS: picker ngày/giờ và thời lượng, đính kèm trực tiếp từ Chat (hủy/đổi file, 15 MB, scanner READY/blocked, caption, 202/mất phản hồi), keyboard, Back/gesture và foreground/background; đối chiếu trạng thái server khi confirm/finalize.
-3. Ghi kết quả nghiệm thu cùng phần cần sửa; chỉ đổi trạng thái phase khi đạt các tiêu chí, không tự ghi người dùng đã chấp thuận.
+3. Đối chiếu kết quả với tiêu chí nghiệm thu, ghi lỗi còn lại và cập nhật trạng thái phase theo bằng chứng API/native.
 
 [Contract](../../contracts/proposal-learning-agreement.md) sở hữu chi tiết nghiệp vụ/API. [History](history.md) giữ các checkpoint và task ID cũ để tra cứu; status này chỉ cập nhật hiện trạng và bằng chứng còn hiệu lực.
