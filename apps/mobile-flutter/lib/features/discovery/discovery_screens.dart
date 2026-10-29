@@ -10,6 +10,7 @@ import '../../components/tappable.dart';
 import '../../core/theme/tokens.dart';
 import '../shell/app_screen_layout.dart';
 import '../shell/navigation.dart';
+import '../remote/refresh_signal.dart';
 import 'discovery_data.dart';
 
 typedef _C = DiscoveryColors;
@@ -113,8 +114,11 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
           ],
         ),
       ),
-      child: ListView(
+      child: RefreshIndicator(
+        onRefresh: () => pullRefresh(ref, const {RefreshScope.discover}),
+        child: ListView(
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(24, 4, 24, 24),
         children: [
           Center(
@@ -501,6 +505,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
             ),
           ),
         ],
+        ),
       ),
     );
   }

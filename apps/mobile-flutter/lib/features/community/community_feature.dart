@@ -8,6 +8,7 @@ import '../../core/http/app_error.dart';
 import '../../core/toast/toast.dart';
 import '../auth/session/auth_session.dart';
 import '../learning_paths/paths_data.dart';
+import '../remote/refresh_signal.dart';
 
 class SelectedBadgeNotifier extends Notifier<String> {
   @override
@@ -272,6 +273,10 @@ class ReputationScreen extends ConsumerWidget {
     final score = ref.watch(accountProvider).value?.profile.reputationScore;
     final label = score == null ? 'Chưa có' : '$score';
     return FeaturePage(
+      onRefresh: () async {
+        ref.read(refreshTicksProvider.notifier).bump(const {RefreshScope.profile});
+        await ref.read(accountProvider.notifier).reload();
+      },
       title: 'Điểm uy tín',
       back: '/profile',
       children: [
@@ -318,10 +323,11 @@ class ReputationHistoryScreen extends ConsumerWidget {
     final data = history.value;
     final items = data?['items'] ?? data?['entries'];
     return FeaturePage(
+      onRefresh: () => pullRefresh(ref, const {RefreshScope.profile}),
       title: 'Lịch sử uy tín',
       back: '/reputation',
       children: [
-        if (history.isLoading)
+        if (history.isLoading && history.value == null)
           const Copy('Đang tải lịch sử uy tín.', muted: true)
         else if (history.hasError)
           Copy(errorMessage(history.error))
@@ -360,6 +366,7 @@ class ReputationHistoryScreen extends ConsumerWidget {
 }
 
 final _reputationProvider = FutureProvider<Map<String, dynamic>>((ref) async {
+  watchRefresh(ref, RefreshScope.profile);
   final phase = ref.watch(sessionSnapshotProvider).phase;
   if (phase != SessionPhase.ready) return const {};
   return ref.read(authRuntimeProvider).services.study.reputation();

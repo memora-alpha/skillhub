@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/http/app_error.dart';
 import '../auth/session/auth_session.dart';
+import '../remote/refresh_signal.dart';
 import '../remote/remote_load.dart';
 import '../skills/skills_feature.dart';
 import 'schema/proposal_schema.dart';
@@ -160,6 +161,12 @@ class ProposalsNotifier extends Notifier<List<DemoProposal>> {
 
   @override
   List<DemoProposal> build() {
+    listenForRefresh(ref, RefreshScope.proposals, () {
+      final me = ref.read(accountProvider).value?.userId;
+      if (ref.read(sessionSnapshotProvider).phase != SessionPhase.ready) return;
+      if (me == null) return;
+      _reload(++_ticket, me);
+    });
     final phase = ref.watch(sessionSnapshotProvider).phase;
     final userId = ref.watch(accountProvider).value?.userId;
     if (phase == SessionPhase.ready && userId != null) {

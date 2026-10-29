@@ -11,6 +11,7 @@ import '../../components/misc.dart';
 import '../../core/http/app_error.dart';
 import '../../core/toast/toast.dart';
 import '../auth/session/auth_session.dart';
+import '../remote/refresh_signal.dart';
 import '../remote/remote_load.dart';
 
 String _text(Object? value) => value?.toString() ?? '';
@@ -29,12 +30,14 @@ bool _validAmount(String value) {
 }
 
 final walletProvider = FutureProvider<Map<String, dynamic>>((ref) async {
+  watchRefresh(ref, RefreshScope.study);
   final phase = ref.watch(sessionSnapshotProvider).phase;
   if (phase != SessionPhase.ready) return const {};
   return ref.read(authRuntimeProvider).services.wallet.wallet();
 });
 
 final ledgerProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  watchRefresh(ref, RefreshScope.study);
   final phase = ref.watch(sessionSnapshotProvider).phase;
   if (phase != SessionPhase.ready) return const [];
   return drainPages(
@@ -47,6 +50,7 @@ final ledgerProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
 });
 
 final paymentsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  watchRefresh(ref, RefreshScope.study);
   final phase = ref.watch(sessionSnapshotProvider).phase;
   if (phase != SessionPhase.ready) return const [];
   return drainPages(
@@ -75,6 +79,7 @@ class WalletScreen extends ConsumerWidget {
       title: 'Ví Credit',
       back: '/profile',
       subtitle: 'Credit dùng để học và chia sẻ trên SkillHub.',
+      onRefresh: () => pullRefresh(ref, const {RefreshScope.study}),
       children: [
         Panel(
           title: 'Ví tài khoản',

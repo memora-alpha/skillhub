@@ -1,8 +1,8 @@
 import 'package:dio/dio.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:image_picker/image_picker.dart';
 
 import '../../components/app_button.dart';
 import '../../components/app_icon.dart';
@@ -14,7 +14,25 @@ import '../../core/theme/tokens.dart';
 import '../../core/http/app_error.dart';
 import '../auth/session/auth_session.dart';
 import '../shell/app_screen_layout.dart';
+import '../remote/refresh_signal.dart';
 import 'messages_data.dart';
+
+const _chatMimes = {
+  'pdf': 'application/pdf',
+  'doc': 'application/msword',
+  'docx':
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'xls': 'application/vnd.ms-excel',
+  'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'ppt': 'application/vnd.ms-powerpoint',
+  'pptx':
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'txt': 'text/plain',
+  'jpg': 'image/jpeg',
+  'jpeg': 'image/jpeg',
+  'png': 'image/png',
+  'webp': 'image/webp',
+};
 
 final _openedConversationProvider = FutureProvider.family<void, String>((
   ref,
@@ -25,394 +43,83 @@ final _openedConversationProvider = FutureProvider.family<void, String>((
   await ref.read(authRuntimeProvider).services.conversations.get(id);
 });
 
-class MessagesScreen extends ConsumerStatefulWidget {
+class MessagesScreen extends ConsumerWidget {
   const MessagesScreen({super.key});
 
   @override
-  ConsumerState<MessagesScreen> createState() => _MessagesScreenState();
-}
-
-class _MessagesScreenState extends ConsumerState<MessagesScreen> {
-  final _query = TextEditingController();
-  final _focus = FocusNode();
-
-  @override
-  void initState() {
-    super.initState();
-    _query.addListener(() => setState(() {}));
-    _focus.addListener(() => setState(() {}));
-  }
-
-  @override
-  void dispose() {
-    _query.dispose();
-    _focus.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(messagesProvider);
-    final normalized = _query.text.trim().toLowerCase();
-    final filtered = state.previews
-        .where(
-          (item) => '${item.name} ${item.skill} ${item.request} ${item.proposal}'
-              .toLowerCase()
-              .contains(normalized),
-        )
-        .toList();
-    final caption = nunito(TypeScale.caption, color: MessageColors.muted);
     return AppScreenLayout(
       title: 'Tin nhắn',
       selected: 'Tin nhắn',
       background: MessageColors.background,
-      child: ListView(
+      child: RefreshIndicator(
+        onRefresh: () => pullRefresh(ref, const {RefreshScope.messages}),
+        child: ListView(
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-        padding: const EdgeInsets.only(bottom: 24),
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
         children: [
           Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 640),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
+                spacing: 12,
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 14, 12, 10),
-                    child: Tappable(
-                      semanticLabel: 'Xem các proposal hiện có',
-                      onTap: () => context.push('/proposals'),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 9,
-                        ),
-                        decoration: BoxDecoration(
-                          color: MessageColors.orangePale,
-                          borderRadius: BorderRadius.circular(9),
-                          border: Border.all(color: const Color(0xFFFFE6D9)),
-                        ),
-                        child: Row(
-                          spacing: 8,
-                          children: [
-                            Container(
-                              width: 32,
-                              height: 32,
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                color: MessageColors.orangeSoft,
-                                borderRadius: BorderRadius.circular(7),
-                              ),
-                              child: const AppIcon(
-                                AppIcon.clipboard,
-                                size: IconSizes.control,
-                                color: MessageColors.orange,
-                              ),
-                            ),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Các proposal hiện có',
-                                    style: nunito(
-                                      TypeScale.body,
-                                      weight: FontWeight.w700,
-                                      color: MessageColors.ink,
-                                    ),
-                                  ),
-                                  Text(
-                                    'Đang chờ duyệt hoặc phản hồi',
-                                    style: caption,
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 9,
-                                vertical: 5,
-                              ),
-                              decoration: BoxDecoration(
-                                color: MessageColors.orangeSoft,
-                                borderRadius: BorderRadius.circular(5),
-                              ),
-                              child: Row(
-                                spacing: 2,
-                                children: [
-                                  Text(
-                                    'Xem',
-                                    style: nunito(
-                                      TypeScale.caption,
-                                      weight: FontWeight.w700,
-                                      color: MessageColors.orange,
-                                    ),
-                                  ),
-                                  const AppIcon(
-                                    AppIcon.chevron,
-                                    size: IconSizes.inline,
-                                    color: MessageColors.orange,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
+                  WaitingRefresh(
+                    scopes: const {RefreshScope.messages},
+                    enabled: true,
+                    shellIndex: 3,
+                    child: const SizedBox.shrink(),
+                  ),
+                  const RouteButton(
+                    secondary: true,
+                    href: '/proposals',
+                    label: 'Xem đề xuất đã nhận / đã gửi',
+                  ),
+                  const Copy(
+                    'Những đề xuất đã chấp nhận mở cuộc trao đổi tại đây.',
+                  ),
+                  if (!state.settled && state.conversations.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 28),
+                      child: Center(
+                        child: CircularProgressIndicator(strokeWidth: 2),
                       ),
-                    ),
-                  ),
-                  Container(
-                    margin: const EdgeInsets.fromLTRB(12, 0, 12, 2),
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    decoration: BoxDecoration(
-                      color: MessageColors.surface,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: _focus.hasFocus
-                            ? MessageColors.orange
-                            : MessageColors.border,
-                      ),
-                    ),
-                    child: Row(
-                      spacing: 8,
-                      children: [
-                        const AppIcon(
-                          AppIcon.search,
-                          size: IconSizes.control,
-                          color: MessageColors.muted,
-                        ),
-                        Expanded(
-                          child: TextField(
-                            controller: _query,
-                            focusNode: _focus,
-                            autocorrect: false,
-                            textInputAction: TextInputAction.search,
-                            style: nunito(
-                              TypeScale.secondary,
-                              color: MessageColors.ink,
-                            ),
-                            decoration: InputDecoration(
-                              isDense: true,
-                              border: InputBorder.none,
-                              contentPadding: const EdgeInsets.symmetric(
-                                vertical: 10,
-                              ),
-                              hintText:
-                                  'Tìm theo người, kỹ năng hoặc bài đăng...',
-                              hintStyle: nunito(
-                                TypeScale.secondary,
-                                color: MessageColors.mutedLight,
-                              ),
-                            ),
-                          ),
-                        ),
-                        if (_query.text.isNotEmpty)
-                          Tappable(
-                            semanticLabel: 'Xóa tìm kiếm',
-                            onTap: _query.clear,
-                            child: const AppIcon(
-                              AppIcon.close,
-                              size: IconSizes.control,
-                              color: MessageColors.muted,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 14, 12, 8),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text.rich(
-                          TextSpan(
-                            text: 'CÁC PROPOSAL ĐÃ CHẤP NHẬN  ',
-                            children: [
-                              TextSpan(
-                                text: '${filtered.length}',
-                                style: const TextStyle(
-                                  color: MessageColors.orange,
-                                ),
-                              ),
-                            ],
-                          ),
-                          style: caption.copyWith(fontWeight: FontWeight.w700),
-                        ),
-                        Text('Đang trao đổi', style: caption),
-                      ],
-                    ),
-                  ),
-                  if (filtered.isEmpty)
+                    )
+                  else if (state.conversations.isEmpty)
                     EmptyState(
                       icon: AppIcon.message,
-                      title: 'Không tìm thấy cuộc trao đổi',
+                      title: 'Chưa có cuộc trao đổi',
                       description:
-                          'Thử tên người, kỹ năng hoặc nội dung bài đăng khác.',
-                      action: 'Xóa tìm kiếm',
-                      onAction: _query.clear,
+                          'Chat xuất hiện sau khi đề xuất được chấp nhận.',
+                      action: 'Xem đề xuất',
+                      onAction: () => context.push('/proposals'),
                     ),
-                  for (final item in filtered)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: ConversationCard(
-                        conversation: item,
-                        unread: state.read.contains(item.proposal)
-                            ? 0
-                            : item.unread,
-                        onTap: () => context.push('/chat/${item.proposal}'),
-                      ),
+                  for (final item in state.conversations)
+                    Panel(
+                      title: item.name.isEmpty
+                          ? 'Thành viên SkillHub'
+                          : item.name,
+                      children: [
+                        Copy(
+                          item.createdLabel.isEmpty
+                              ? 'Đề xuất đã chấp nhận'
+                              : 'Đề xuất đã chấp nhận · ${item.createdLabel}',
+                        ),
+                        AppButton(
+                          label: 'Mở cuộc trao đổi',
+                          onPressed: () =>
+                              context.push('/chat/${item.proposal}'),
+                        ),
+                      ],
                     ),
                 ],
               ),
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class ConversationCard extends StatelessWidget {
-  const ConversationCard({
-    super.key,
-    required this.conversation,
-    required this.unread,
-    required this.onTap,
-  });
-
-  final Conversation conversation;
-  final int unread;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final hasUnread = unread > 0;
-    return Tappable(
-      pressedOpacity: 0.72,
-      semanticLabel:
-          'Xem trao đổi với ${conversation.name}${hasUnread ? ', $unread tin chưa đọc' : ''}',
-      onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 12),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-        decoration: BoxDecoration(
-          color: MessageColors.surface,
-          borderRadius: BorderRadius.circular(10),
-          boxShadow: messageCardShadow,
-        ),
-        child: Row(
-          spacing: 10,
-          children: [
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                UserAvatar(
-                  name: conversation.name,
-                  userId: conversation.userId,
-                  size: AvatarSizes.list,
-                ),
-                if (hasUnread)
-                  Positioned(
-                    top: -3,
-                    right: -3,
-                    child: Container(
-                      constraints: const BoxConstraints(minWidth: 18),
-                      height: 18,
-                      padding: const EdgeInsets.symmetric(horizontal: 2),
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: MessageColors.orange,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: MessageColors.surface,
-                          width: 2,
-                        ),
-                      ),
-                      child: Text(
-                        '$unread',
-                        style: nunito(
-                          (9, 12),
-                          weight: FontWeight.w700,
-                          color: MessageColors.white,
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                spacing: 2,
-                children: [
-                  Row(
-                    spacing: 5,
-                    children: [
-                      Flexible(
-                        child: Text(
-                          conversation.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: nunito(
-                            TypeScale.body,
-                            weight: FontWeight.w700,
-                            color: MessageColors.ink,
-                          ),
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 5,
-                          vertical: 1,
-                        ),
-                        decoration: BoxDecoration(
-                          color: MessageColors.tag,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          conversation.skill,
-                          style: nunito(
-                            TypeScale.caption,
-                            weight: FontWeight.w500,
-                            color: MessageColors.muted,
-                          ),
-                        ),
-                      ),
-                      const Spacer(),
-                      Text(
-                        conversation.time,
-                        style: nunito(
-                          TypeScale.caption,
-                          weight: hasUnread ? FontWeight.w700 : FontWeight.w400,
-                          color: hasUnread
-                              ? MessageColors.orange
-                              : MessageColors.mutedLight,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Text(
-                    conversation.last,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: nunito(
-                      TypeScale.body,
-                      weight: hasUnread ? FontWeight.w600 : FontWeight.w400,
-                      color: hasUnread ? MessageColors.ink : MessageColors.body,
-                    ),
-                  ),
-                  Text(
-                    conversation.request,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: nunito(
-                      TypeScale.secondary,
-                      color: MessageColors.mutedLight,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
         ),
       ),
     );
@@ -426,9 +133,8 @@ class ChatScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final conversation = ref.watch(
-      messagesProvider.select((s) => s.find(proposalId)),
-    );
+    final messages = ref.watch(messagesProvider);
+    final conversation = messages.find(proposalId);
     if (conversation != null) {
       ref.watch(_openedConversationProvider(conversation.id));
     }
@@ -437,13 +143,17 @@ class ChatScreen extends ConsumerWidget {
         title: 'Tin nhắn',
         selected: 'Tin nhắn',
         back: (route: '/messages', label: 'Quay lại tin nhắn'),
-        child: EmptyState(
-          icon: AppIcon.message,
-          title: 'Không tìm thấy cuộc trao đổi',
-          description: 'Cuộc trao đổi này không có trên máy chủ.',
-          action: 'Quay lại tin nhắn',
-          onAction: () => context.go('/messages'),
-        ),
+        child: messages.settled
+            ? EmptyState(
+                icon: AppIcon.message,
+                title: 'Không tìm thấy cuộc trao đổi',
+                description: 'Cuộc trao đổi này không có trên máy chủ.',
+                action: 'Quay lại tin nhắn',
+                onAction: () => context.go('/messages'),
+              )
+            : const Center(
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
       );
     }
     return _ChatConversation(
@@ -475,9 +185,10 @@ class _ChatConversationState extends ConsumerState<_ChatConversation> {
     super.initState();
     _draft.addListener(() => setState(() {}));
     _focus.addListener(() => setState(() {}));
-    Future.microtask(
-      () => ref.read(messagesProvider.notifier).markRead(_proposal),
-    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(messagesProvider.notifier).markRead(_proposal);
+    });
   }
 
   @override
@@ -513,7 +224,13 @@ class _ChatConversationState extends ConsumerState<_ChatConversation> {
     final messages = ref.watch(
       messagesProvider.select((s) => s.threads[_proposal] ?? const []),
     );
-    return Scaffold(
+    final olderCursor = ref.watch(
+      messagesProvider.select((s) => s.olderCursors[_proposal]),
+    );
+    return WaitingRefresh(
+      scopes: const {RefreshScope.messages},
+      enabled: true,
+      child: Scaffold(
       backgroundColor: MessageColors.surface,
       body: SafeArea(
         child: Column(
@@ -540,78 +257,39 @@ class _ChatConversationState extends ConsumerState<_ChatConversation> {
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           spacing: 8,
                           children: [
-                            Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 2),
-                              child: Text(
-                                messages.isNotEmpty
-                                    ? 'Hôm nay, ${messages.first.time}'
-                                    : 'Bắt đầu cuộc trao đổi',
-                                textAlign: TextAlign.center,
-                                style: nunito(
-                                  TypeScale.caption,
-                                  color: MessageColors.mutedLight,
-                                ),
-                              ),
+                            const Copy(
+                              'Chat để thương lượng; xác nhận kế hoạch và lịch học cần thao tác riêng.',
+                              muted: true,
                             ),
-                            const _AcceptedProposalNotice(),
                             AppButton(
                               label: 'Xem đề xuất gốc',
                               variant: ButtonVariant.secondary,
                               onPressed: () =>
                                   context.push('/proposal/$_proposal'),
                             ),
-                            const SizedBox(height: 8),
+                            AppButton(
+                              label: 'Lộ trình học',
+                              onPressed: _agreement,
+                            ),
+                            if (olderCursor != null && olderCursor.isNotEmpty)
+                              AppButton(
+                                label: 'Tin nhắn trước đó',
+                                variant: ButtonVariant.secondary,
+                                onPressed: () => ref
+                                    .read(messagesProvider.notifier)
+                                    .loadOlder(_proposal),
+                              ),
+                            if (messages.isEmpty)
+                              const Copy(
+                                'Bắt đầu trao đổi về mục tiêu và cách học.',
+                                muted: true,
+                              ),
                             for (final message in messages)
                               _MessageBubble(
                                 message: message,
                                 partner: conversation.name,
                                 partnerId: conversation.userId,
                               ),
-                            const SizedBox(height: 10),
-                            _ChatNextStep(onPressed: _agreement),
-                            Semantics(
-                              label: 'Trạng thái đang nhập mẫu',
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                spacing: 8,
-                                children: [
-                                  UserAvatar(
-                                    name: conversation.name,
-                                    userId: conversation.userId,
-                                    size: AvatarSizes.inline,
-                                  ),
-                                  Container(
-                                    constraints: const BoxConstraints(
-                                      minHeight: 24,
-                                    ),
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                      vertical: 7,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: MessageColors.surface,
-                                      borderRadius: BorderRadius.circular(10),
-                                      boxShadow: messageCardShadow,
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      spacing: 4,
-                                      children: List.generate(
-                                        3,
-                                        (_) => Container(
-                                          width: 4,
-                                          height: 4,
-                                          decoration: const BoxDecoration(
-                                            color: MessageColors.mutedLight,
-                                            shape: BoxShape.circle,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
                           ],
                         ),
                       ),
@@ -630,6 +308,7 @@ class _ChatConversationState extends ConsumerState<_ChatConversation> {
             ),
           ],
         ),
+      ),
       ),
     );
   }
@@ -696,33 +375,18 @@ class _ChatHeader extends StatelessWidget {
                     ),
                   ),
                 ),
-                Row(
-                  spacing: 4,
-                  children: [
-                    Container(
-                      width: 6,
-                      height: 6,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFF30A876),
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    Expanded(
-                      child: Text(
-                        'Đang hoạt động · Proposal đã chấp nhận',
-                        style: nunito(
-                          TypeScale.caption,
-                          color: const Color(0xFF409678),
-                        ),
-                      ),
-                    ),
-                  ],
+                Text(
+                  'Đề xuất đã chấp nhận',
+                  style: nunito(
+                    TypeScale.caption,
+                    color: MessageColors.muted,
+                  ),
                 ),
               ],
             ),
           ),
           Tappable(
-            semanticLabel: 'Tạo thỏa thuận',
+            semanticLabel: 'Lộ trình học',
             pressedOpacity: 0.8,
             onTap: onAgreement,
             child: Container(
@@ -742,7 +406,7 @@ class _ChatHeader extends StatelessWidget {
                     color: MessageColors.white,
                   ),
                   Text(
-                    'Tạo thỏa thuận',
+                    'Lộ trình học',
                     style: nunito(
                       TypeScale.caption,
                       weight: FontWeight.w600,
@@ -754,154 +418,6 @@ class _ChatHeader extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _AcceptedProposalNotice extends StatelessWidget {
-  const _AcceptedProposalNotice();
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 512),
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: MessageColors.sageLight,
-          borderRadius: BorderRadius.circular(AppRadii.card),
-          border: Border.all(color: const Color(0xFFBDEFD6)),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          spacing: 12,
-          children: [
-            const AppIcon(
-              AppIcon.checkCircle,
-              size: IconSizes.control,
-              color: MessageColors.sage,
-            ),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                spacing: 4,
-                children: [
-                  Text(
-                    ChatCopy.acceptedTitle,
-                    style: nunito(
-                      TypeScale.secondary,
-                      weight: FontWeight.w700,
-                      color: MessageColors.sage,
-                    ),
-                  ),
-                  Text(
-                    ChatCopy.acceptedBody,
-                    style: nunito(
-                      TypeScale.secondary,
-                      color: MessageColors.body,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ChatNextStep extends StatelessWidget {
-  const _ChatNextStep({required this.onPressed});
-
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 512),
-        clipBehavior: Clip.antiAlias,
-        decoration: BoxDecoration(
-          color: MessageColors.surface,
-          borderRadius: BorderRadius.circular(AppRadii.card),
-          border: Border.all(color: const Color(0xFFD8CCBE)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Container(height: 4, color: MessageColors.brand),
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                spacing: 3,
-                children: [
-                  Wrap(
-                    alignment: WrapAlignment.spaceBetween,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    spacing: 8,
-                    runSpacing: 4,
-                    children: [
-                      Text(
-                        'BƯỚC TIẾP THEO',
-                        style: nunito(
-                          TypeScale.caption,
-                          weight: FontWeight.w700,
-                          color: MessageColors.brand,
-                        ),
-                      ),
-                      const AppBadge(
-                        label: 'Chưa chọn',
-                        variant: BadgeVariant.warning,
-                      ),
-                    ],
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Text(
-                      ChatCopy.nextStepTitle,
-                      style: nunito(
-                        TypeScale.body,
-                        weight: FontWeight.w700,
-                        color: MessageColors.ink,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    ChatCopy.nextStepBody,
-                    style: nunito(TypeScale.caption, color: MessageColors.muted),
-                  ),
-                  const SizedBox(height: 10),
-                  AppButton(
-                    variant: ButtonVariant.craft,
-                    onPressed: onPressed,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      spacing: 6,
-                      children: [
-                        Text(
-                          'Chọn hình thức học',
-                          style: nunito(
-                            TypeScale.secondary,
-                            weight: FontWeight.w600,
-                            color: MessageColors.white,
-                          ),
-                        ),
-                        const AppIcon(
-                          AppIcon.arrow,
-                          size: IconSizes.inline,
-                          color: MessageColors.white,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -1148,17 +664,40 @@ class _AttachmentScreenState extends ConsumerState<AttachmentScreen> {
       _status = '';
     });
     try {
-      final picked = await ImagePicker().pickImage(
-        source: ImageSource.gallery,
-        requestFullMetadata: false,
+      final picked = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: _chatMimes.keys.toList(),
       );
-      if (picked == null) return;
-      final bytes = await picked.readAsBytes();
+      if (picked.isEmpty) return;
+      final file = picked.single;
+      final bytes = await file.readAsBytes();
+      final mime = _chatMimes[file.name.split('.').last.toLowerCase()];
+      if (mime == null) {
+        setState(
+          () => _error =
+              'Chọn PDF, Word, Excel, PowerPoint, TXT hoặc ảnh JPG/PNG/WebP hợp lệ.',
+        );
+        return;
+      }
+      if (bytes.isEmpty) {
+        setState(() => _error = 'Không đọc được kích thước tệp hoặc tệp rỗng.');
+        return;
+      }
+      if (bytes.length > 15000000) {
+        setState(
+          () => _error = 'Tệp vượt giới hạn 15 MB (15.000.000 byte).',
+        );
+        return;
+      }
       final api = ref.read(authRuntimeProvider).services.conversations;
       final uploaded = await api.upload(
         conversation.id,
         FormData.fromMap({
-          'file': MultipartFile.fromBytes(bytes, filename: picked.name),
+          'file': MultipartFile.fromBytes(
+            bytes,
+            filename: file.name,
+            contentType: DioMediaType.parse(mime),
+          ),
         }),
       );
       final fileId = uploaded['fileId']?.toString() ?? '';
@@ -1193,27 +732,35 @@ class _AttachmentScreenState extends ConsumerState<AttachmentScreen> {
   @override
   Widget build(BuildContext context) {
     final id = widget.proposalId;
-    final exists = ref.watch(
-      messagesProvider.select((s) => s.find(id) != null),
-    );
+    final messages = ref.watch(messagesProvider);
+    final exists = messages.find(id) != null;
     return FeaturePage(
       title: 'Gửi tệp trong chat',
       back: id != null ? '/chat/$id' : '/messages',
       children: [
-        if (!exists)
+        if (!exists && !messages.settled)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 28),
+            child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+          )
+        else if (!exists)
           const EmptyState(
             title: 'Không tìm thấy cuộc trao đổi',
             description: 'Không thể gửi tệp vào cuộc trao đổi này.',
           )
         else
           Panel(
-            title: 'Đính kèm ảnh',
+            title: 'Gửi tệp trong chat',
             children: [
+              const Copy(
+                'Tối đa 15 MB mỗi tệp. Tệp cần hoàn tất kiểm tra trước khi gửi.',
+                muted: true,
+              ),
               if (_error.isNotEmpty)
                 FormNotice(tone: NoticeTone.error, message: _error),
               if (_status.isNotEmpty) Copy(_status),
               AppButton(
-                label: _sending ? 'Đang gửi...' : 'Chọn ảnh và gửi',
+                label: _sending ? 'Đang gửi...' : 'Chọn tệp',
                 loading: _sending,
                 onPressed: _send,
               ),

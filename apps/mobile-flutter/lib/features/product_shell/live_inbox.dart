@@ -8,9 +8,11 @@ import '../../core/config/env.dart';
 import '../../core/http/app_error.dart';
 import '../../core/toast/toast.dart';
 import '../auth/session/auth_session.dart';
+import '../remote/refresh_signal.dart';
 import 'schema/notification_schema.dart';
 
 final inboxProvider = FutureProvider<List<NotificationRecord>>((ref) async {
+  watchRefresh(ref, RefreshScope.inbox);
   final phase = ref.watch(sessionSnapshotProvider).phase;
   if (phase != SessionPhase.ready) return const [];
   final page = await ref

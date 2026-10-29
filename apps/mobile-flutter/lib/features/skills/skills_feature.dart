@@ -12,6 +12,7 @@ import '../../components/feature_page.dart';
 import '../../components/misc.dart';
 import '../../core/http/app_error.dart';
 import '../auth/session/auth_session.dart';
+import '../remote/refresh_signal.dart';
 import '../remote/remote_load.dart';
 import 'schema/skill_schema.dart';
 
@@ -101,6 +102,11 @@ class SkillsNotifier extends Notifier<List<SharingSkill>> {
 
   @override
   List<SharingSkill> build() {
+    listenForRefresh(ref, RefreshScope.skills, () {
+      if (ref.read(sessionSnapshotProvider).phase != SessionPhase.ready) return;
+      if (ref.read(accountProvider).value?.userId == null) return;
+      reload();
+    });
     final phase = ref.watch(sessionSnapshotProvider).phase;
     final userId = ref.watch(accountProvider).value?.userId;
     if (phase == SessionPhase.ready && userId != null) {
@@ -206,6 +212,7 @@ class VerificationEntry {
 final verificationHistoryProvider = FutureProvider<List<VerificationEntry>>((
   ref,
 ) async {
+  watchRefresh(ref, RefreshScope.skills);
   final skills = ref.watch(skillsProvider);
   final phase = ref.watch(sessionSnapshotProvider).phase;
   if (phase != SessionPhase.ready || skills.isEmpty) return const [];
@@ -273,10 +280,16 @@ class SkillsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final skills = ref.watch(skillsProvider);
     return FeaturePage(
+      onRefresh: () => pullRefresh(ref, const {RefreshScope.skills}),
       title: 'Kỹ năng chia sẻ',
       subtitle: 'Những điều bạn biết có thể là điều người khác đang cần.',
       back: '/profile',
       children: [
+        WaitingRefresh(
+          scopes: const {RefreshScope.skills},
+          enabled: skills.any((skill) => skill.status == 'PENDING'),
+          child: const SizedBox.shrink(),
+        ),
         const RouteButton(href: '/skills/new', label: 'Thêm kỹ năng'),
         const RouteButton(secondary: true, href: '/tags', label: 'Thẻ và đề xuất thẻ'),
         for (final skill in skills)
@@ -341,6 +354,7 @@ class SkillEditorScreen extends ConsumerWidget {
       );
     }
     return FeaturePage(
+      onRefresh: () => pullRefresh(ref, const {RefreshScope.skills}),
       title: skill != null ? 'Chỉnh sửa kỹ năng' : 'Thêm kỹ năng',
       back: '/skills',
       children: [
@@ -451,6 +465,7 @@ class SkillDetailScreen extends ConsumerWidget {
     final notifier = ref.read(skillsProvider.notifier);
     final skill = notifier.find(id);
     return FeaturePage(
+      onRefresh: () => pullRefresh(ref, const {RefreshScope.skills}),
       title: 'Chi tiết kỹ năng',
       back: '/skills',
       children: skill == null
@@ -604,6 +619,7 @@ class _EvidenceScreenState extends ConsumerState<EvidenceScreen> {
         .where((item) => item.sharingSkillId == id && item.status == 'PENDING')
         .firstOrNull;
     return FeaturePage(
+      onRefresh: () => pullRefresh(ref, const {RefreshScope.skills}),
       title: 'Bằng chứng xác minh',
       back: '/skills/$id',
       children: [
@@ -735,9 +751,15 @@ class VerificationHistoryScreen extends ConsumerWidget {
     final history = ref.watch(verificationHistoryProvider);
     final entries = history.value ?? const <VerificationEntry>[];
     return FeaturePage(
+      onRefresh: () => pullRefresh(ref, const {RefreshScope.skills}),
       title: 'Lịch sử xác minh',
       back: '/skills',
       children: [
+        WaitingRefresh(
+          scopes: const {RefreshScope.skills},
+          enabled: entries.any((entry) => entry.status == 'PENDING'),
+          child: const SizedBox.shrink(),
+        ),
         if (history.isLoading && entries.isEmpty)
           const _BusyNote('Đang tải lịch sử xác minh.')
         else if (entries.isEmpty)

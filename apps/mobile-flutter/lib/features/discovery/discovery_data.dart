@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/tokens.dart';
 import '../auth/session/auth_session.dart';
 import '../learning_requests/schema/learning_request_schema.dart';
+import '../remote/refresh_signal.dart';
 
 abstract final class DiscoveryColors {
   static const background = Chrome.background;
@@ -83,6 +84,7 @@ String _shortWhen(String? value) {
 final learningRequestsProvider = FutureProvider<List<LearningRequest>>((
   ref,
 ) async {
+  watchRefresh(ref, RefreshScope.discover);
   final phase = ref.watch(sessionSnapshotProvider).phase;
   if (phase != SessionPhase.ready) return const [];
   final page = await ref
@@ -96,6 +98,7 @@ final learningRequestsProvider = FutureProvider<List<LearningRequest>>((
 final recommendedRequestsProvider = FutureProvider<List<LearningRequest>>((
   ref,
 ) async {
+  watchRefresh(ref, RefreshScope.discover);
   final phase = ref.watch(sessionSnapshotProvider).phase;
   if (phase != SessionPhase.ready) return const [];
   final page = await ref
@@ -138,6 +141,7 @@ final serverRequestProvider = FutureProvider.family<Map<String, dynamic>, String
   ref,
   id,
 ) async {
+  watchRefresh(ref, RefreshScope.discover);
   final phase = ref.watch(sessionSnapshotProvider).phase;
   if (phase != SessionPhase.ready || id.isEmpty) return const {};
   return ref.read(authRuntimeProvider).services.learningRequests.get(id);

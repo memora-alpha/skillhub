@@ -8,8 +8,10 @@ import '../../components/user_avatar.dart';
 import '../../components/feature_page.dart';
 import '../../components/misc.dart';
 import '../../components/tappable.dart';
+import '../../core/http/app_error.dart';
 import '../../core/theme/tokens.dart';
-import '../sessions/sessions_data.dart';
+import '../sessions/live_sessions.dart';
+import '../remote/refresh_signal.dart';
 import '../shell/app_screen_layout.dart';
 
 abstract final class _C {
@@ -252,24 +254,25 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   Widget build(BuildContext context) {
     final month = _date.month;
     final year = _date.year;
-    final monthSessions = ref.watch(sessionsProvider).where((s) {
-      final d = s.startAt.toLocal();
-      return d.month == month && d.year == year;
-    }).toList();
-    final visible = monthSessions
-        .where(
-          (s) =>
-              (_day == null || s.startAt.toLocal().day == _day) &&
-              (_tab == 'Sắp tới'
-                  ? s.status == 'CONFIRMED'
-                  : s.status != 'CONFIRMED'),
-        )
-        .toList();
+    final query = ref.watch(monthSessionsProvider(monthSessionKey(year, month)));
+    final monthSessions = query.value ?? const <Map<String, dynamic>>[];
+    final visible = [
+      for (final session in monthSessions)
+        if ((_day == null ||
+                sessionInstant(session['startAt'])?.toLocal().day == _day) &&
+            (_tab == 'Sắp tới'
+                ? sessionIsUpcoming(session)
+                : !sessionIsUpcoming(session)))
+          session,
+    ];
     return AppScreenLayout(
       title: 'Lịch học',
       selected: 'Lịch học',
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 36),
+      child: RefreshIndicator(
+        onRefresh: () => pullRefresh(ref, const {RefreshScope.study}),
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 36),
         children: [
           Center(
             child: ConstrainedBox(
@@ -278,15 +281,38 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 spacing: 16,
                 children: [
-                  const Copy(
-                    'Lịch và buổi học trong bản xem thử. Không có lịch tài khoản thật được tải tại đây.',
-                    muted: true,
+                  WaitingRefresh(
+                    scopes: const {RefreshScope.study},
+                    enabled: monthSessions.any(
+                      (session) => !const {
+                        'COMPLETED',
+                        'CANCELLED',
+                        'DISPUTED',
+                      }.contains(session['status']),
+                    ),
+                    shellIndex: 2,
+                    child: const SizedBox.shrink(),
                   ),
+                  if (query.isLoading && !query.hasValue)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 8),
+                      child: Center(
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                  if (query.hasError)
+                    FormNotice(
+                      tone: NoticeTone.error,
+                      message: errorMessage(query.error),
+                    ),
                   MonthCalendar(
                     month: month,
                     year: year,
                     sessionDays: {
-                      for (final s in monthSessions) s.startAt.toLocal().day,
+                      for (final session in monthSessions)
+                        if (sessionInstant(session['startAt'])
+                            case final DateTime start)
+                          start.toLocal().day,
                     },
                     selectedDay: _day,
                     onDayPress: (value) =>
@@ -308,16 +334,18 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                       variant: ButtonVariant.paper,
                       onPressed: () => setState(() => _day = null),
                     ),
-                  for (final s in visible)
+                  for (final session in visible)
                     Panel(
-                      title: s.title,
+                      title: sessionRoleLabel(session),
                       children: [
-                        StatusBadge(s.status),
-                        Copy(
-                          '${s.partner} · ${viDateTime(s.startAt)} · ${s.duration} phút',
-                        ),
+                        Copy(sessionStatusLabel(session['status'])),
+                        if (sessionInstant(session['startAt'])
+                            case final DateTime start)
+                          Copy(
+                            '${viDateTime(start)} · ${sessionMinutes(session)} phút',
+                          ),
                         RouteButton(
-                          href: '/learning-sessions/${s.id}',
+                          href: '/learning-sessions/${session['id']}',
                           label: 'Mở buổi học',
                         ),
                       ],
@@ -342,6 +370,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
             ),
           ),
         ],
+        ),
       ),
     );
   }

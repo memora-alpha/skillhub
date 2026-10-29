@@ -5,7 +5,10 @@ import 'package:go_router/go_router.dart';
 import '../../components/app_button.dart';
 import '../../components/feature_page.dart';
 import '../../components/misc.dart';
+import '../learning_paths/live_paths.dart';
 import '../learning_paths/paths_data.dart';
+import 'live_room.dart';
+import 'live_sessions.dart';
 import 'sessions_data.dart';
 
 PreviewSession? _find(WidgetRef ref, String id) =>
@@ -68,6 +71,7 @@ class _LearningSessionScreenState extends ConsumerState<LearningSessionScreen> {
   @override
   Widget build(BuildContext context) {
     final id = widget.id;
+    if (isLiveId(id)) return LiveSessionPage(id: id);
     final s = _find(ref, id);
     final overrides = ref.read(sessionOverridesProvider.notifier);
     final change = s?.change;
@@ -322,6 +326,7 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
   @override
   Widget build(BuildContext context) {
     final id = widget.id;
+    if (isLiveId(id)) return LiveRoomPage(id: id);
     final s = _find(ref, id);
     return FeaturePage(
       title: 'Phòng học LiveKit',

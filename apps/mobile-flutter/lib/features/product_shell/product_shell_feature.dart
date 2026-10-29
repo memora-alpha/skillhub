@@ -11,6 +11,7 @@ import '../auth/session/auth_session.dart';
 import 'live_inbox.dart';
 import '../discovery/discovery_data.dart';
 import '../profile/public_profiles_data.dart';
+import '../remote/refresh_signal.dart';
 import '../remote/remote_load.dart';
 import '../shell/inbox_count.dart';
 import 'schema/notification_schema.dart';
@@ -182,7 +183,11 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
       (n) =>
           preview.enabled.contains(n.group) && (_filter == 'Tất cả' || !n.read),
     );
-    return FeaturePage(
+    return WaitingRefresh(
+      scopes: const {RefreshScope.inbox},
+      enabled: true,
+      child: FeaturePage(
+      onRefresh: () => pullRefresh(ref, const {RefreshScope.inbox}),
       title: 'Thông báo',
       back: '/home',
       children: [
@@ -225,6 +230,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
           label: 'Tùy chỉnh thông báo mẫu',
         ),
       ],
+      ),
     );
   }
 }
