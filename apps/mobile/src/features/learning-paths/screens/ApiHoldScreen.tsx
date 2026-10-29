@@ -12,6 +12,7 @@ import {
 } from "@/components/learning-flow";
 import { Button } from "@/components/Button";
 import { FormNotice } from "@/components/FormNotice";
+import { AppError } from "@/lib/http/errors";
 import {
   ConnectionFeedback,
   useConnectionCommand,
@@ -180,6 +181,11 @@ function HoldContent({
             : "Kiểm tra điều kiện trên hệ thống"}
         </Button>
         <ConnectionFeedback error={check.error} />
+        {[check.error, finalize.error].some(
+          (error) =>
+            error instanceof AppError &&
+            error.code === "INSUFFICIENT_AVAILABLE_CREDIT",
+        ) && <RouteButton href="/wallet/topup">Nạp Credit</RouteButton>}
         {checked === signature && (
           <FormNotice tone="success" compact>
             Đủ điều kiện tại lần kiểm tra vừa rồi. Hệ thống sẽ kiểm tra lại khi
