@@ -1,5 +1,14 @@
 # Pre-lock LearningPath amendments
 
+## Request lifecycle integration — 2026-10-29
+
+The [Request lifecycle amendment](../007-learning-request/lifecycle-fix-design.md)
+adds source revalidation to Path create/final-validation/finalize. A cancelled
+Request retains Conversation and drafts, but cannot create a new commitment.
+One Path per Request may finalize, atomically with Request MATCHED. Direct exchange
+has no Request transition. This does not change amendment confirmation/version
+semantics or implement the separately tracked post-lock confirmation regression.
+
 ## Behavior
 
 These rules apply only while the LearningPath is editable before finalize. Once

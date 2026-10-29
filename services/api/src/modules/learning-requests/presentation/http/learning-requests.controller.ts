@@ -153,6 +153,8 @@ export class LearningRequestsController {
   @HttpCode(200)
   @ApiOperation({
     summary: "Cancel an owned Learning Request before Schedule lock",
+    description:
+      "409 REQUEST_LOCKED after a path/schedule commitment; REQUEST_VERSION_CONFLICT for a stale version; REQUEST_LIFECYCLE_INCONSISTENT for contradictory source state. CONFIRMED without a lock remains cancellable.",
   })
   @ApiSuccessResponse(200, LearningRequestOwnerResponse)
   async cancel(

@@ -24,6 +24,7 @@ import {
 } from "../../../../shared/auth/identity.guard";
 import type { Principal } from "../../../auth/application/services/sessions.service";
 import { success } from "../../../../shared/http/response";
+import { ApiErrorResponse } from "../../../../shared/http/api-response.decorators";
 import { skillCommand } from "../../../skills/presentation/http/skills.controller";
 import { LearningPathsService } from "../../application/services/learning-paths.service";
 import {
@@ -92,7 +93,12 @@ export class LearningPathsController {
 
   @Post(":pathId/final-validation")
   @HttpCode(200)
-  @ApiOperation({ summary: "Validate the complete agreement before lock" })
+  @ApiOperation({
+    summary: "Validate the complete agreement before lock",
+    description:
+      "Request sources must still be NEGOTIATING; REQUEST_NOT_AVAILABLE or REQUEST_LIFECYCLE_INCONSISTENT return 409. Validation does not reserve a commitment.",
+  })
+  @ApiErrorResponse(409)
   async validateForFinalize(
     @CurrentIdentity() actor: Principal,
     @Param("pathId", ParseUUIDPipe) pathId: string,
@@ -107,7 +113,10 @@ export class LearningPathsController {
   @HttpCode(200)
   @ApiOperation({
     summary: "Atomically Hold Credit, lock schedules and create sessions",
+    description:
+      "Also marks the source Request MATCHED in the same transaction. Only one Path per Request may finalize. REQUEST_ALREADY_MATCHED, REQUEST_NOT_AVAILABLE or REQUEST_LIFECYCLE_INCONSISTENT return 409; replay of the same consistent Path creates no additional Hold or Session.",
   })
+  @ApiErrorResponse(409)
   @ApiHeader({ name: "Idempotency-Key", required: true })
   async finalize(
     @Req() req: IdentityRequest,

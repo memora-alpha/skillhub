@@ -23,7 +23,6 @@ import {
   SKILL_CATALOG_READER,
   REQUEST_TAG_APPROVER,
 } from "./application/ports/learning-request-dependencies";
-import { UnavailableLearningRequestDependencies } from "./infrastructure/adapters/unavailable-learning-request-dependencies";
 import { CreateLearningRequestUseCase } from "./application/use-cases/create-learning-request.use-case";
 import { PublishLearningRequestUseCase } from "./application/use-cases/publish-learning-request.use-case";
 import { LearningRequestsController } from "./presentation/http/learning-requests.controller";
@@ -38,15 +37,16 @@ import { LearningRequestExpiryWorker } from "./infrastructure/jobs/learning-requ
 import { EditLearningRequestUseCase } from "./application/use-cases/edit-learning-request.use-case";
 import { ListLearningRequestsUseCase } from "./application/use-cases/list-learning-requests.use-case";
 import { GetLearningRequestUseCase } from "./application/use-cases/get-learning-request.use-case";
-import { ReputationModule } from "../reputation/reputation.module";
+import { LearningPathRequestStateModule } from "../learning-paths/learning-path-request-state.module";
+import { LearningRequestPathReader } from "../learning-paths/application/services/learning-request-path.reader";
 
 @Module({
   imports: [
     DatabaseModule,
+    LearningPathRequestStateModule,
     IdentityModule,
     SkillsModule,
     SharingSkillsModule,
-    ReputationModule,
     SystemConfigurationModule,
     AuditModule,
     OutboxModule,
@@ -59,7 +59,6 @@ import { ReputationModule } from "../reputation/reputation.module";
     LearningRequestExpiryScheduler,
     LearningRequestExpiryWorker,
     LearningRequestAccessService,
-    UnavailableLearningRequestDependencies,
     {
       provide: REQUEST_TAG_APPROVER,
       useExisting: LearningRequestTagsService,
@@ -74,7 +73,7 @@ import { ReputationModule } from "../reputation/reputation.module";
     },
     {
       provide: REQUEST_LOCK_READER,
-      useExisting: UnavailableLearningRequestDependencies,
+      useExisting: LearningRequestPathReader,
     },
     {
       provide: REQUEST_OWNER_READER,

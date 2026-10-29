@@ -1,5 +1,28 @@
 # Learning Request HTTP contract
 
+## Lifecycle integration — 2026-10-29
+
+`POST /api/v1/learning-requests/:requestId/cancel` now uses the real Path reader,
+including for NEGOTIATING. Owner and expectedVersion remain mandatory. An unlocked
+CONFIRMED agreement can still be cancelled. Existing lockedVersion, a LOCKED
+schedule, Session, Hold allocation or settlement blocks cancellation even if a
+legacy Path status regressed. Proposal/Conversation/Path history is retained.
+
+Errors use the existing `{success:false,statusCode:409,message}` envelope:
+
+- `REQUEST_VERSION_CONFLICT`: stale Request version (checked before lock state).
+- `REQUEST_LOCKED`: cancellation after commitment, including MATCHED/CLOSED.
+- `REQUEST_NOT_AVAILABLE`: creating/finalizing from a cancelled/unavailable source.
+- `REQUEST_ALREADY_MATCHED`: another draft Path attempts to finalize the Request.
+- `REQUEST_LIFECYCLE_INCONSISTENT`: source identity or legacy commitment evidence
+  contradicts the Request. Do not retry a mutation automatically to repair it.
+
+Finalize success also transitions NEGOTIATING → MATCHED in its existing atomic
+Hold/schedule/Session transaction. Settlement closes MATCHED only after successful
+full settlement; no new Request endpoint or success payload was added. See
+[the lifecycle design](../lifecycle-fix-design.md) and
+[preview/rollout instructions](../quickstart.md#lifecycle-preview-and-rollout--2026-10-29).
+
 ## Public owner avatar — 2026-10-26
 
 Feed (`GET /api/v1/learning-requests`), recommended and the public projection of

@@ -1,6 +1,39 @@
 # Learning Request application contracts
 
-Các contracts LR đã được export trong source; concrete upstream adapters và downstream consumers vẫn là integration gates. `TransactionContext` và `Principal` tái sử dụng từ foundation/Identity. Các exported port không tự mở transaction. Composition root cung cấp adapter; dependency thiếu trả lỗi dịch vụ, không cấp quyền mặc định. [ERD v3 alignment](../erd-v3-alignment.md) ghi các thay đổi storage và preference mới.
+## Lifecycle owner integration — 2026-10-29
+
+This amendment supersedes the historical missing Path/Schedule-adapter gate below.
+`REQUEST_LOCK_READER` uses `LearningRequestPathReader` from the small acyclic
+`LearningPathRequestStateModule`; the unused unavailable adapter was removed
+after checking all source/test callers. `lockForPath(tx, requestId)` exports a
+locked `{id,ownerId,status,version}` snapshot; markMatched/markClosed retain their
+existing CAS signatures. Consumers use the Request's version, not Path version.
+
+Path create/finalize and the common Session settlement flow resolve and recheck
+Path → Conversation → accepted Proposal → Request. Both null source IDs mean
+direct exchange; mismatched/null-on-one-side IDs fail closed. All context IDs and
+participants are rechecked after sorted User → Request → Path locks. Cancellation
+keeps its owner-first User/Request locks and reads commitment evidence without
+acquiring an earlier lock afterward.
+
+`lockLearningPath(tx, pathId)` is the concrete shared owner helper for existing
+Path/Scheduling/Session/report-creation/review-creation writers. It locks sorted participants
+before Path, including before implicit User FK KEY SHARE locks on version/report/review
+inserts. Lifecycle callers already hold those participants before Request, so the
+helper only reacquires already-held User locks. Unrelated report-resolution rules
+are unchanged.
+
+Only one Path can win under the Request row lock. Existing links plus lock/CAS
+enforce this without a schema change. The same finalized Path replays without a
+new Request version, Hold or Session; other drafts are retained but cannot lock.
+Finalize and successful full settlement call lifecycle owner transitions in the
+same transaction as existing owner financial/state/outbox writes. HTTP and worker
+settlement share that flow. Legacy mismatch is not silently repaired on replay.
+
+The read-only reconciliation command and old-writer drain gate are described in
+[quickstart](../quickstart.md#lifecycle-preview-and-rollout--2026-10-29).
+
+Các contracts LR đã được export trong source; trạng thái integration hiện hành nằm trong amendment ở trên và validation.md. `TransactionContext` và `Principal` tái sử dụng từ foundation/Identity. Các exported port không tự mở transaction. Composition root cung cấp adapter; dependency thiếu trả lỗi dịch vụ, không cấp quyền mặc định. [ERD v3 alignment](../erd-v3-alignment.md) ghi các thay đổi storage và preference mới.
 
 Baseline downstream được phân tích trong [SRS V1.5 / change report](../srs-v1.5-changes.md); cập nhật LR theo ERD v3 và Tag của V1.6 ở alignment report. exchangeType, teacher/learner và negotiatedCredit được chọn/chốt trong Chat/thỏa thuận; LearningPath là agreement tổng, LearningPlan là lộ trình của learner. Không đưa các field này vào DTO LR hoặc sửa signatures chỉ để sao chép dữ liệu downstream.
 

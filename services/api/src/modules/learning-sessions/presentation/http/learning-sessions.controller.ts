@@ -12,7 +12,10 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
-import { ApiSuccessResponse } from "../../../../shared/http/api-response.decorators";
+import {
+  ApiErrorResponse,
+  ApiSuccessResponse,
+} from "../../../../shared/http/api-response.decorators";
 import {
   CurrentIdentity,
   IdentityGuard,
@@ -79,7 +82,12 @@ export class LearningSessionsController {
   }
 
   @Post("paths/:pathId/settlement")
-  @ApiOperation({ summary: "Settle a completed learning path" })
+  @ApiOperation({
+    summary: "Settle a completed learning path",
+    description:
+      "Successful full settlement also closes the source Request atomically. Inconsistent legacy source state returns 409 REQUEST_LIFECYCLE_INCONSISTENT; replay does not settle or transition again.",
+  })
+  @ApiErrorResponse(409)
   async settlePath(
     @CurrentIdentity() actor: Principal,
     @Param("pathId", ParseUUIDPipe) pathId: string,

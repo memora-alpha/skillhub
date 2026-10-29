@@ -137,6 +137,12 @@ test("an applied reschedule is audited with old and new session times", async ()
   const audits = [];
   const sessionUpdates = [];
   const tx = {
+    learningPath: {
+      findUnique: () => ({
+        participantAId: userId,
+        participantBId: participantB,
+      }),
+    },
     $queryRaw: (strings) =>
       strings.join("").includes("CURRENT_TIMESTAMP")
         ? [{ now }]

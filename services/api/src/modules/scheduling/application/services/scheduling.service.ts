@@ -6,6 +6,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
+import { lockLearningPath as lockPath } from "../../../learning-paths/application/services/learning-path-lock";
 import type { TransactionContext } from "../../../../infrastructure/database/transaction-context";
 import { TransactionRunner } from "../../../../infrastructure/database/transaction-runner";
 import type { Principal } from "../../../auth/application/services/sessions.service";
@@ -66,13 +67,6 @@ async function lockScheduleProposal(
     FOR UPDATE
   `;
   if (rows.length === 0) throw new NotFoundException("SCHEDULE_NOT_FOUND");
-}
-
-async function lockPath(tx: TransactionContext, pathId: string) {
-  const rows = await tx.$queryRaw<{ id: string }[]>`
-    SELECT path_id AS id FROM learning_paths WHERE path_id = ${pathId}::uuid FOR UPDATE
-  `;
-  if (rows.length === 0) throw new NotFoundException("LEARNING_PATH_NOT_FOUND");
 }
 
 async function lockSession(tx: TransactionContext, sessionId: string) {

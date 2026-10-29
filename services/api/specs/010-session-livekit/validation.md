@@ -1,5 +1,15 @@
 # Session / LiveKit execution ledger
 
+## Request lifecycle integration — 2026-10-29
+
+The common manual/worker settlement flow now closes its source Request in the
+same transaction after successful full completion/settlement. Session mutation
+locks use the shared concrete Path helper (sorted participants before Path) to
+avoid inversions with finalize and user-reference inserts. No join/media policy,
+settlement rate, refund/no-show rule or configuration changed. Current tests and
+the separate legacy-preview/rollout gate are recorded in
+[Learning Request validation](../007-learning-request/validation.md).
+
 Plan: `services/api/specs/010-session-livekit/plan.md`.
 
 - 2026-10-19: User approved implementation using Ponytail. Execute in current

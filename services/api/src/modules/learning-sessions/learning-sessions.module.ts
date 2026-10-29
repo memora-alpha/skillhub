@@ -12,10 +12,14 @@ import { OutboxModule } from "../../infrastructure/events/outbox.module";
 import { LiveKitWebhookController } from "./presentation/http/livekit-webhook.controller";
 import { SessionLifecycleWorker } from "./infrastructure/jobs/session-lifecycle.worker";
 import { SessionCompletionHandler } from "./infrastructure/events/session-completion.handler";
+import { LearningRequestsModule } from "../learning-requests/learning-requests.module";
+import { LearningPathRequestStateModule } from "../learning-paths/learning-path-request-state.module";
 
 @Module({
   imports: [
     DatabaseModule,
+    LearningRequestsModule,
+    LearningPathRequestStateModule,
     IdentityModule,
     CreditModule,
     ReputationModule,

@@ -1,5 +1,47 @@
 # Learning Request quickstart
 
+## Lifecycle preview and rollout — 2026-10-29
+
+STT 10/17 integration uses existing foreign keys and requires no migration, seed,
+new runtime configuration or mobile/web changes. NEGOTIATING cancellation uses a
+real owner reader; finalize atomically marks MATCHED and full successful settlement
+atomically marks CLOSED. One finalized Path per Request; other drafts remain.
+
+Build the API, then run the **read-only** operator command from the repository root:
+
+```powershell
+pnpm --filter api build
+$env:LEARNING_REQUEST_RECONCILIATION_DATABASE_URL = '<explicit read-only PostgreSQL connection>'
+pnpm --filter api run learning-requests:reconcile --limit 200
+# Pass the report's nextCursor unchanged to continue:
+pnpm --filter api run learning-requests:reconcile --limit 200 --after '<nextCursor UUID>'
+```
+
+The command never reads DATABASE_URL, never bootstraps Nest/workers and has no
+--apply mode. Each page uses REPEATABLE READ READ ONLY with UTC and a 30-second
+statement timeout. Pages are separate snapshots; changes between invocations are
+possible. A database role with only read access is sufficient.
+
+JSON includes mode=dry-run, scannedAt, nextCursor and items with requestId,
+expectedRequestVersion, currentStatus, candidatePathId, evidence and
+proposedTransitions. It contains no credentials, chat text, personal profile or
+wallet balances. NO_CHANGE is consistent; NEEDS_REPAIR proposes MATCHED and/or
+CLOSED; MANUAL_REVIEW never selects a winner or proposes writes. Missing lock,
+Session, Hold, ledger/snapshot evidence, mismatched sources, a cancelled source
+with a commitment, or multiple finalized Paths require manual review. CLOSED
+requires all plan sessions completed and consistent successful settlement.
+Applied schedule versions/items and the single current Session history must also
+match. A LOCKED schedule with missing appliedVersion is MANUAL_REVIEW, never an
+uncommitted NO_CHANGE. Pending reschedule continues to use the old applied history.
+
+Before an authorized rollout: preview/review first, then stop and drain old
+lifecycle HTTP writers and settlement workers. Wait for their transactions to
+finish, run the final preview and separately approved repair, verify, and start
+only new-version writers. Do not run mixed versions. Strict new guards can block
+legacy settlement until inconsistent records are resolved. This change provides
+no data-repair executor and does not authorize deployment or application-data
+writes. Any later repair must re-lock and revalidate the reported version/evidence.
+
 ## Public owner avatar — 2026-10-26
 
 Feed, recommended and public detail now include `owner.avatarUrl: string | null`.

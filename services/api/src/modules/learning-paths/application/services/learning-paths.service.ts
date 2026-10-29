@@ -6,11 +6,16 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
+import { isDeepStrictEqual } from "node:util";
 import { TransactionRunner } from "../../../../infrastructure/database/transaction-runner";
 import type { TransactionContext } from "../../../../infrastructure/database/transaction-context";
 import type { Principal } from "../../../auth/application/services/sessions.service";
 import { IdempotencyService } from "../../../../infrastructure/idempotency/idempotency.service";
 import { ConversationMembershipReader } from "../../../conversations/application/services/conversation-membership.reader";
+import { lockUsers } from "../../../../shared/database/identity-transactions";
+import { LearningRequestLifecycleService } from "../../../learning-requests/application/services/learning-request-lifecycle.service";
+import { LearningRequestPathReader } from "./learning-request-path.reader";
+import { lockLearningPath as lockPath } from "./learning-path-lock";
 import {
   parseCredit as creditUnits,
   formatCredit as creditText,
@@ -32,13 +37,6 @@ const editableBeforeLock = new Set([
   "PARTIALLY_CONFIRMED",
   "CONFIRMED",
 ]);
-
-async function lockPath(tx: TransactionContext, pathId: string): Promise<void> {
-  const rows = await tx.$queryRaw<{ id: string }[]>`
-    SELECT path_id AS id FROM learning_paths WHERE path_id = ${pathId}::uuid FOR UPDATE
-  `;
-  if (rows.length === 0) throw new NotFoundException("LEARNING_PATH_NOT_FOUND");
-}
 
 async function refreshPathConfirmation(
   tx: TransactionContext,
@@ -234,6 +232,8 @@ export class LearningPathsService {
     private readonly wallet: WalletPort,
     private readonly configuration: SystemConfigurationService,
     private readonly commands: IdempotencyService,
+    private readonly requests: LearningRequestLifecycleService,
+    private readonly requestPaths: LearningRequestPathReader,
   ) {}
 
   listMine(actor: Principal) {
@@ -434,6 +434,29 @@ export class LearningPathsService {
       ]);
       if (!participants.has(actor.userId)) {
         throw new ForbiddenException("CONVERSATION_ACCESS_DENIED");
+      }
+      const source = await this.requestPaths.readConversationSource(
+        tx,
+        input.conversationId,
+      );
+      await lockUsers(tx, [source.participantAId, source.participantBId]);
+      const request =
+        source.requestId === null
+          ? null
+          : await this.requests.lockForPath(tx, source.requestId);
+      const lockedSource = await this.requestPaths.readConversationSource(
+        tx,
+        input.conversationId,
+      );
+      if (!isDeepStrictEqual(source, lockedSource))
+        throw new ConflictException("REQUEST_LIFECYCLE_INCONSISTENT");
+      if (request !== null) {
+        if (request.status !== "NEGOTIATING")
+          throw new ConflictException("REQUEST_NOT_AVAILABLE");
+        if (
+          (await this.requestPaths.readCommittedPathIds(tx, request.id)).length
+        )
+          throw new ConflictException("REQUEST_LIFECYCLE_INCONSISTENT");
       }
       if (
         input.exchangeType === "ONE_WAY" &&
@@ -763,6 +786,15 @@ export class LearningPathsService {
     ) {
       throw new ForbiddenException("LEARNING_PATH_ACCESS_DENIED");
     }
+    const source = await this.requestPaths.readPathSource(tx, pathId);
+    if (source.requestId !== null) {
+      const request = await tx.learningRequest.findUnique({
+        where: { id: source.requestId },
+        select: { status: true },
+      });
+      if (request?.status !== "NEGOTIATING")
+        throw new ConflictException("REQUEST_NOT_AVAILABLE");
+    }
     const agreement = await tx.learningPathVersion.findUnique({
       where: {
         pathId_versionNo: { pathId, versionNo: path.currentVersion },
@@ -997,7 +1029,7 @@ export class LearningPathsService {
     pathId: string,
     expectedVersion: number,
   ) {
-    await lockPath(tx, pathId);
+    const request = await this.lockLifecycleContext(tx, actor, pathId);
     const path = await tx.learningPath.findUniqueOrThrow({
       where: { id: pathId },
     });
@@ -1006,6 +1038,33 @@ export class LearningPathsService {
       actor.userId !== path.participantBId
     ) {
       throw new ForbiddenException("LEARNING_PATH_ACCESS_DENIED");
+    }
+    const replay = ["SCHEDULED", "ACTIVE", "COMPLETED"].includes(path.status);
+    if (request !== null) {
+      const committed = await this.requestPaths.readCommittedPathIds(
+        tx,
+        request.id,
+      );
+      if (replay) {
+        const expectedStatus =
+          path.status === "COMPLETED" ? "CLOSED" : "MATCHED";
+        if (
+          request.status !== expectedStatus ||
+          committed.length !== 1 ||
+          committed[0] !== pathId
+        )
+          throw new ConflictException("REQUEST_LIFECYCLE_INCONSISTENT");
+      } else {
+        if (request.status === "MATCHED" || request.status === "CLOSED") {
+          if (committed.length === 1 && committed[0] !== pathId)
+            throw new ConflictException("REQUEST_ALREADY_MATCHED");
+          throw new ConflictException("REQUEST_LIFECYCLE_INCONSISTENT");
+        }
+        if (request.status !== "NEGOTIATING")
+          throw new ConflictException("REQUEST_NOT_AVAILABLE");
+        if (committed.length)
+          throw new ConflictException("REQUEST_LIFECYCLE_INCONSISTENT");
+      }
     }
     if (
       path.status === "SCHEDULED" ||
@@ -1178,6 +1237,8 @@ export class LearningPathsService {
       where: { id: pathId },
       data: { status: "SCHEDULED", lockedVersion: expectedVersion },
     });
+    if (request !== null)
+      await this.requests.markMatched(tx, request.id, request.version);
     await tx.outboxEvent.create({
       data: {
         aggregateType: "LEARNING_PATH",
@@ -1200,6 +1261,31 @@ export class LearningPathsService {
       })),
       status: "SCHEDULED" as const,
     };
+  }
+
+  private async lockLifecycleContext(
+    tx: TransactionContext,
+    actor: Principal,
+    pathId: string,
+  ) {
+    const path = await tx.learningPath.findUnique({ where: { id: pathId } });
+    if (!path) throw new NotFoundException("LEARNING_PATH_NOT_FOUND");
+    if (
+      actor.userId !== path.participantAId &&
+      actor.userId !== path.participantBId
+    )
+      throw new ForbiddenException("LEARNING_PATH_ACCESS_DENIED");
+    const source = await this.requestPaths.readPathSource(tx, pathId);
+    await lockUsers(tx, [source.participantAId, source.participantBId]);
+    const request =
+      source.requestId === null
+        ? null
+        : await this.requests.lockForPath(tx, source.requestId);
+    await lockPath(tx, pathId);
+    const lockedSource = await this.requestPaths.readPathSource(tx, pathId);
+    if (!isDeepStrictEqual(source, lockedSource))
+      throw new ConflictException("REQUEST_LIFECYCLE_INCONSISTENT");
+    return request;
   }
 
   async confirmPlan(actor: Principal, planId: string, expectedVersion: number) {
