@@ -1,8 +1,8 @@
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { ZodError } from "zod";
 import { StyleSheet, Text, View } from "react-native";
-import { useForm } from "react-hook-form";
-import { useRouter } from "expo-router";
+import { useForm, useWatch } from "react-hook-form";
+import { useFocusEffect, useRouter } from "expo-router";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Copy, RouteButton } from "@/components/feature-page";
 import { FlowSection } from "@/components/learning-flow";
@@ -35,6 +35,14 @@ import { ScheduleWeeklyGenerator } from "./schedule-weekly-generator";
 import { ScheduleSessionEditor } from "./schedule-session-editor";
 import { useEditorSnapshot } from "../hooks/use-editor-snapshot";
 import { EditorRevisionNotice } from "./editor-revision-notice";
+import {
+  previewScheduleItems,
+  scheduleConflicts,
+  scheduleConflictMessage,
+} from "../utils/schedule-conflicts";
+import { useExistingScheduleCheck } from "../hooks/use-existing-schedule-check";
+import { existingScheduleConflictMessage } from "../utils/schedule-existing-conflicts";
+import { ScheduleExistingFeedback } from "./schedule-existing-feedback";
 
 function scheduleButtonLabel(
   pending: boolean,
@@ -67,7 +75,20 @@ export function ScheduleForm({
     ]),
     router = useRouter();
   const [active, setActive] = useState<number | null>(null);
-  const [applied, setApplied] = useState(false);
+  const [applied, setApplied] = useState(0);
+  const focus = useRef({ active: false, epoch: 0 });
+  useFocusEffect(
+    useCallback(() => {
+      focus.current.active = true;
+      focus.current.epoch++;
+      return () => {
+        focus.current.active = false;
+        focus.current.epoch++;
+      };
+    }, []),
+  );
+  const otherPlans = useRef(latestPath.plans);
+  otherPlans.current = latestPath.plans.filter((other) => other.id !== plan.id);
   const schedule = plan.schedule;
   const { control, handleSubmit, setValue, reset, setError } =
     useForm<ScheduleInput>({
@@ -76,16 +97,41 @@ export function ScheduleForm({
     });
   const disabled =
     blocked || command.pending || command.uncertain || snapshot.changed;
+  const existing = useExistingScheduleCheck(
+    control,
+    plan,
+    path.id,
+    !blocked && !snapshot.changed,
+    applied,
+  );
+  const draftItems = useWatch({ control, name: "items" });
+  const hasConflicts =
+    existing.conflicts.length > 0 ||
+    scheduleConflicts(
+      previewScheduleItems(draftItems ?? [], schedule?.items),
+      otherPlans.current,
+    ).length > 0;
   const canSubmit = useRef(false);
   canSubmit.current = !disabled;
+  const canSave = useRef(false);
+  canSave.current = !disabled && !hasConflicts;
   const action = (
     <Button
-      disabled={disabled}
+      disabled={!canSave.current || existing.blocked}
       onPress={() => {
-        if (!canSubmit.current || !snapshot.isCurrent()) return;
+        const epoch = focus.current.epoch;
+        const current = () =>
+          focus.current.active && focus.current.epoch === epoch;
+        if (
+          !current() ||
+          !canSave.current ||
+          existing.blocked ||
+          !snapshot.isCurrent()
+        )
+          return;
         void handleSubmit(
           async (input) => {
-            if (!canSubmit.current || !snapshot.isCurrent()) return;
+            if (!current() || !canSave.current || !snapshot.isCurrent()) return;
             let items: ReturnType<typeof scheduleDraftItems>;
             try {
               items = scheduleDraftItems(input, plan);
@@ -104,6 +150,36 @@ export function ScheduleForm({
               setActive(typeof first === "number" ? first : 0);
               return;
             }
+            const conflicts = scheduleConflicts(items, otherPlans.current);
+            if (conflicts.length) {
+              for (const conflict of conflicts) {
+                setError(`items.${conflict.slot.sessionNo - 1}.local`, {
+                  type: "validate",
+                  message: scheduleConflictMessage(conflict),
+                });
+              }
+              setActive(conflicts[0]!.slot.sessionNo - 1);
+              return;
+            }
+            const checked = await existing.validate(items);
+            if (
+              !current() ||
+              !canSave.current ||
+              !snapshot.isCurrent() ||
+              checked.pending ||
+              checked.unavailable
+            )
+              return;
+            if (checked.conflicts.length) {
+              for (const conflict of checked.conflicts) {
+                setError(`items.${conflict.slot.sessionNo - 1}.local`, {
+                  type: "validate",
+                  message: existingScheduleConflictMessage(conflict),
+                });
+              }
+              setActive(checked.conflicts[0]!.slot.sessionNo - 1);
+              return;
+            }
             const result = await command.run(
               JSON.stringify({
                 id: plan.id,
@@ -117,7 +193,8 @@ export function ScheduleForm({
                   ? api.reviseSchedule(schedule.id, schedule.version, items)
                   : api.schedule(plan.id, plan.version, items),
             );
-            if (result) router.dismissTo(`/paths/${path.id}/schedules`);
+            if (result && current())
+              router.dismissTo(`/paths/${path.id}/schedules`);
           },
           (errors) => {
             const index = Array.from(
@@ -141,20 +218,25 @@ export function ScheduleForm({
           const current = snapshot.reload();
           reset(scheduleDraft(current.plan));
           setActive(null);
-          setApplied(false);
+          setApplied(0);
         }}
       />
       <ScheduleWeeklyGenerator
         count={plan.totalSessions}
         disabled={disabled}
         onApply={(items) => {
-          if (!canSubmit.current || !snapshot.isCurrent()) return;
+          if (
+            !focus.current.active ||
+            !canSubmit.current ||
+            !snapshot.isCurrent()
+          )
+            return;
           setValue("items", items, { shouldDirty: true, shouldValidate: true });
           setActive(null);
-          setApplied(true);
+          setApplied((version) => version + 1);
         }}
       />
-      {applied && (
+      {applied > 0 && (
         <FormNotice tone="success" compact>
           Đã điền lịch tuần. Xem lại hoặc sửa từng buổi trước khi gửi.
         </FormNotice>
@@ -164,11 +246,14 @@ export function ScheduleForm({
           Lịch thay đổi cần cả hai xác nhận lại.
         </Copy>
       )}
+      <ScheduleExistingFeedback check={existing} />
       <ScheduleSessionEditor
+        path={latestPath}
         plan={plan}
         control={control}
         disabled={disabled}
         active={active}
+        existingConflicts={existing.conflicts}
         onEdit={setActive}
       />
       <Text style={styles.note}>

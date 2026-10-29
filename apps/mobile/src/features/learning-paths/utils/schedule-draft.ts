@@ -1,15 +1,15 @@
 import type { ApiLearningPlan } from "../api/learning-paths-contract";
 import { ZodError } from "zod";
-import { scheduleItems, type ScheduleInput } from "../schemas/schedule-input";
-
-function slotDraft(slot: { startAt: string; endAt: string }) {
-  const start = new Date(slot.startAt);
-  const pad = (value: number) => String(value).padStart(2, "0");
-  return {
-    local: `${start.getFullYear()}-${pad(start.getMonth() + 1)}-${pad(start.getDate())}T${pad(start.getHours())}:${pad(start.getMinutes())}`,
-    minutes: String((Date.parse(slot.endAt) - start.getTime()) / 60000),
-  };
-}
+import {
+  scheduleInputSchema,
+  type ScheduleInput,
+} from "../schemas/schedule-input";
+import {
+  previewScheduleItems,
+  scheduleSlotDraft,
+  scheduleConflicts,
+  scheduleConflictMessage,
+} from "./schedule-conflicts";
 
 export function scheduleDraft(plan: ApiLearningPlan): ScheduleInput {
   return {
@@ -17,7 +17,7 @@ export function scheduleDraft(plan: ApiLearningPlan): ScheduleInput {
       const slot = plan.schedule?.items.find(
         (item) => item.sessionNo === index + 1,
       );
-      return slot ? slotDraft(slot) : { local: "", minutes: "60" };
+      return slot ? scheduleSlotDraft(slot) : { local: "", minutes: "60" };
     }),
   };
 }
@@ -26,37 +26,17 @@ export function scheduleDraftItems(
   input: ScheduleInput,
   plan: ApiLearningPlan,
 ) {
-  const items = scheduleItems(input).map((item, index) => {
-    const previous = plan.schedule?.items.find(
-      (slot) => slot.sessionNo === item.sessionNo,
-    );
-    if (!previous) return item;
-    const original = slotDraft(previous);
-    if (input.items[index]?.local !== original.local) return item;
-    // A minute-based picker must not silently discard seconds from an existing slot.
-    return {
-      sessionNo: item.sessionNo,
-      startAt: previous.startAt,
-      endAt:
-        input.items[index]?.minutes === original.minutes
-          ? previous.endAt
-          : new Date(
-              Date.parse(previous.startAt) +
-                Number(input.items[index]!.minutes) * 60000,
-            ).toISOString(),
-    };
-  });
+  const values = scheduleInputSchema.parse(input);
+  const items = previewScheduleItems(values.items, plan.schedule?.items);
   // Restoring retained seconds can introduce an overlap hidden by minute fields.
-  for (let index = 1; index < items.length; index++) {
-    if (Date.parse(items[index]!.startAt) < Date.parse(items[index - 1]!.endAt))
-      throw new ZodError([
-        {
-          code: "custom",
-          path: ["items", index, "local"],
-          message:
-            "Các buổi phải theo thứ tự và không trùng nhau. Giờ cũ có phần giây; hãy điều chỉnh giờ hoặc thời lượng.",
-        },
-      ]);
-  }
+  const conflicts = scheduleConflicts(items);
+  if (conflicts.length)
+    throw new ZodError(
+      conflicts.map((conflict) => ({
+        code: "custom",
+        path: ["items", conflict.other.sessionNo - 1, "local"],
+        message: scheduleConflictMessage(conflict),
+      })),
+    );
   return items;
 }

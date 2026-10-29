@@ -242,5 +242,5 @@ test("edited schedules reject overlap hidden by retained timestamp seconds", () 
   const overlap = new Date("2098-01-01T20:30:00Z");
   const pad = (n: number) => String(n).padStart(2, "0");
   input.items[1]!.local = `${overlap.getFullYear()}-${pad(overlap.getMonth() + 1)}-${pad(overlap.getDate())}T${pad(overlap.getHours())}:${pad(overlap.getMinutes())}`;
-  assert.throws(() => scheduleDraftItems(input, plan), /không trùng/);
+  assert.throws(() => scheduleDraftItems(input, plan), /trùng với buổi/);
 });

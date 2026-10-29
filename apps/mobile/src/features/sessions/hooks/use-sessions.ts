@@ -50,6 +50,7 @@ function useSessionRead<T>(
   );
   return {
     ...query,
+    queryKey: key,
     data: enabled && !guard.denial ? query.data : undefined,
     enabled,
     denial: guard.denial,

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { mock, test } from "node:test";
+import { previewScheduleItems } from "../src/features/learning-paths/utils/schedule-conflicts";
 import { pathToFileURL } from "node:url";
 import {
   agreementPath,
@@ -38,6 +39,10 @@ function harness(schedule: boolean) {
   let cursor = 0;
   let draft: Record<string, unknown> | undefined;
   const calls: unknown[][] = [];
+  const routes: string[] = [];
+  let saveGate: Promise<void> | undefined;
+  let focusSetup: (() => void | (() => void)) | undefined;
+  let focusCleanup: (() => void) | undefined;
   const errors: { field: string; message: string }[] = [];
   let resets = 0;
   let validate: (send: () => Promise<void>) => Promise<void> = async (send) =>
@@ -51,6 +56,7 @@ function harness(schedule: boolean) {
   const mocks = {
     "react/jsx-runtime": { jsx, jsxs: jsx },
     react: {
+      useCallback: (callback: unknown) => callback,
       useRef: (current: unknown) => {
         const index = cursor++;
         slots[index] ??= { current };
@@ -74,6 +80,7 @@ function harness(schedule: boolean) {
       StyleSheet: { create: (value: unknown) => value },
     },
     "react-hook-form": {
+      useWatch: ({ name }: { name: string }) => draft?.[name],
       useForm: ({
         defaultValues,
       }: {
@@ -97,7 +104,13 @@ function harness(schedule: boolean) {
         };
       },
     },
-    "expo-router": { useRouter: () => ({ dismissTo: () => {} }) },
+    "expo-router": {
+      useRouter: () => ({ dismissTo: (href: string) => routes.push(href) }),
+      useFocusEffect: (setup: () => void | (() => void)) => {
+        if (!focusSetup) focusCleanup = setup() || undefined;
+        focusSetup = setup;
+      },
+    },
     "@hookform/resolvers/zod": { zodResolver: () => ({}) },
     "@/components/feature-page": { Copy: "Copy", RouteButton: "RouteButton" },
     "@/components/learning-flow": { FlowSection: "Panel" },
@@ -118,6 +131,7 @@ function harness(schedule: boolean) {
         },
         reviseSchedule: async (...args: unknown[]) => {
           calls.push(args);
+          await saveGate;
           return { id: "saved" };
         },
       }),
@@ -130,6 +144,14 @@ function harness(schedule: boolean) {
     "./plan-outline-editor": { PlanOutlineEditor: "Outline" },
     "./schedule-weekly-generator": { ScheduleWeeklyGenerator: "Generator" },
     "./schedule-session-editor": { ScheduleSessionEditor: "Sessions" },
+    "../hooks/use-existing-schedule-check": {
+      useExistingScheduleCheck: () => ({
+        pending: false,
+        blocked: false,
+        conflicts: [],
+        validate: () => ({ pending: false, conflicts: [] }),
+      }),
+    },
     "./editor-revision-notice": { EditorRevisionNotice: "Revision" },
   };
   const contexts = Object.entries(mocks).map(([name, namedExports]) =>
@@ -146,6 +168,17 @@ function harness(schedule: boolean) {
     path,
     command,
     calls,
+    routes,
+    setSaveGate(gate: Promise<void>) {
+      saveGate = gate;
+    },
+    blur() {
+      focusCleanup?.();
+      focusCleanup = undefined;
+    },
+    focus() {
+      focusCleanup = focusSetup?.() || undefined;
+    },
     errors,
     render: (
       currentPath = path,
@@ -178,6 +211,63 @@ const save = (tree: Element[]) =>
 const revision = (tree: Element[]) =>
   tree.find((node) => node.type === "Revision")!;
 const tick = () => new Promise<void>((resolve) => setImmediate(resolve));
+
+test("schedule conflicts use the latest counterpart schedule without resetting the local draft", async () => {
+  const h = harness(true);
+  try {
+    const path = withConfirmedSchedules(agreementPath(true));
+    h.render(path);
+    h.draft().items = [{ local: "2098-01-01T19:30", minutes: "60" }];
+    const original = h.render(path);
+    const draft = h.draft();
+    const updated = structuredClone(path);
+    updated.plans[1]!.schedule!.version++;
+    updated.plans[1]!.schedule!.items = previewScheduleItems(
+      draft.items as { local: string; minutes: string }[],
+    );
+    const conflict = h.render(updated);
+    assert.equal(save(conflict).props.disabled, true);
+    assert.equal(revision(conflict).props.visible, false);
+    assert.equal(h.draft(), draft);
+    assert.equal(h.resets(), 0);
+    assert.equal(
+      conflict.find((item) => item.type === "Sessions")!.props.path,
+      updated,
+      "the session warnings receive the newly read counterpart schedule",
+    );
+    (save(original).props.onPress as () => void)();
+    await tick();
+    assert.equal(h.calls.length, 0);
+    const resolved = structuredClone(updated);
+    resolved.plans[1]!.schedule!.items = previewScheduleItems([
+      { local: "2098-01-02T19:30", minutes: "60" },
+    ]);
+    assert.equal(save(h.render(resolved)).props.disabled, false);
+    assert.equal(h.draft(), draft);
+  } finally {
+    h.cleanup();
+  }
+});
+
+test("a late schedule-save response does not navigate after blur, even after returning to the editor", async () => {
+  const h = harness(true);
+  try {
+    h.render();
+    h.draft().items = [{ local: "2098-01-01T19:30", minutes: "60" }];
+    let release = () => {};
+    h.setSaveGate(new Promise<void>((resolve) => (release = resolve)));
+    (save(h.render()).props.onPress as () => void)();
+    await tick();
+    assert.equal(h.calls.length, 1);
+    h.blur();
+    h.focus();
+    release();
+    await tick();
+    assert.deepEqual(h.routes, []);
+  } finally {
+    h.cleanup();
+  }
+});
 
 for (const schedule of [false, true])
   test(`${schedule ? "schedule" : "plan"} revision preserves the local draft, blocks stale callbacks, and reloads only on request`, async () => {
@@ -263,7 +353,7 @@ test("schedule precision errors open the affected session without sending or los
     await tick();
     assert.equal(h.calls.length, 0);
     assert.equal(h.errors[0]!.field, "items.1.local");
-    assert.match(h.errors[0]!.message, /không trùng/);
+    assert.match(h.errors[0]!.message, /trùng với buổi/);
     assert.equal(items[0]!.minutes, "61");
     assert.equal(h.resets(), 0);
     assert.equal(
