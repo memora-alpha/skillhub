@@ -1,8 +1,17 @@
 import type { ApiMessage } from "../api/messages-api";
 import type { QueuedText } from "../outbox/outbox-types";
+import {
+  scheduleMessageGroups,
+  type ChatScheduleNotice,
+} from "./schedule-notice";
 
 export type ChatTimelineItem =
-  | { id: string; kind: "message"; message: ApiMessage }
+  | {
+      id: string;
+      kind: "message";
+      message: ApiMessage;
+      scheduleNotice?: ChatScheduleNotice;
+    }
   | { id: string; kind: "queued"; entry: QueuedText };
 export function chatTimeline(
   messages: ApiMessage[],
@@ -15,7 +24,7 @@ export function chatTimeline(
       deliveryKeys?.set(entry.messageId, entry.clientMessageId);
   }
   const known = new Set(messages.map((item) => item.id));
-  return [
+  const items: ChatTimelineItem[] = [
     ...messages.map((message): ChatTimelineItem => ({
       id: deliveryKeys?.get(message.id) ?? message.id,
       kind: "message",
@@ -34,4 +43,15 @@ export function chatTimeline(
       return [{ id: entry.clientMessageId, kind: "queued", entry }];
     }),
   ];
+  const schedules = scheduleMessageGroups(
+    items.flatMap((item) => (item.kind === "message" ? [item.message] : [])),
+  );
+  return items.flatMap<ChatTimelineItem>((item) => {
+    if (item.kind !== "message") return [item];
+    const schedule = schedules.get(item.message.id);
+    if (!schedule) return [item];
+    return schedule.visible
+      ? [{ ...item, id: schedule.id, scheduleNotice: schedule.notice }]
+      : [];
+  });
 }

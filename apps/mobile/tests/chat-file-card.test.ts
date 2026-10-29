@@ -168,6 +168,7 @@ test("file messages stay in the message row and only open the authorized current
     "@/features/learning-paths/policy": {
       readPlanShare: () => null,
       readConfirmedForm: () => null,
+      readScheduledMessage: () => null,
       readNegotiationMessage: () => null,
       confirmedFormLabels: {},
     },

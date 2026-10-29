@@ -1,6 +1,7 @@
 import type { QueryClient } from "@tanstack/react-query";
 import type { ApiConversation, ApiMessage } from "../api/messages-api";
 import type { QueuedText } from "../outbox/outbox-types";
+import { readChatSchedule } from "./schedule-notice";
 import {
   readPlanShare,
   readConfirmedForm,
@@ -97,12 +98,15 @@ export function conversationInbox(
           state: pending.state === "failed" ? "failed" : "pending",
         };
       const form = readConfirmedForm(message?.messageText ?? "");
-      const text = form
-        ? `Đã xác nhận ${confirmedFormLabels[form.kind].toLowerCase()}`
-        : readPlanShare(message?.messageText ?? "")
-          ? "Lộ trình học được chia sẻ"
-          : message?.messageText.trim() ||
-            (message?.messageType === "FILE" ? "Đã gửi một tệp" : "");
+      const schedule = message ? readChatSchedule(message) : null;
+      const text = schedule?.locked
+        ? "Lịch học đã chốt"
+        : form
+          ? `Đã xác nhận ${confirmedFormLabels[form.kind].toLowerCase()}`
+          : readPlanShare(message?.messageText ?? "")
+            ? "Lộ trình học được chia sẻ"
+            : message?.messageText.trim() ||
+              (message?.messageType === "FILE" ? "Đã gửi một tệp" : "");
       const sender = message?.senderId === userId ? "Bạn: " : "";
       return {
         conversation,

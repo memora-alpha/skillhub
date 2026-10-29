@@ -43,6 +43,7 @@ export function ChatTimelineRow({
   ) : (
     <ApiMessageBubble
       message={item.message}
+      scheduleNotice={item.scheduleNotice}
       showTime={item.showTime}
       partner={partner}
       partnerId={partnerId}

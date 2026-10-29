@@ -24,6 +24,12 @@ import {
 } from "../hooks/use-learning-paths-api";
 import type { ApiLearningPath } from "../api/learning-paths-contract";
 import { canValidateForFinalize } from "../utils/policy-api";
+import {
+  useConfirmedFormShare,
+  ConfirmedFormFeedback,
+} from "@/features/messages/state";
+import { confirmAndShare } from "../api/confirm-and-share";
+import { scheduledMessage } from "../utils/scheduled-message";
 import { usePullRefresh } from "../hooks/use-pull-refresh";
 import {
   appColors as colors,
@@ -84,6 +90,7 @@ function HoldContent({
       ["learning-paths", "mine"],
     ]);
   const [checked, setChecked] = useState<string>();
+  const share = useConfirmedFormShare();
   const signature = JSON.stringify(path),
     agreement = path.agreement;
   const ready = canValidateForFinalize(path);
@@ -97,6 +104,9 @@ function HoldContent({
           <RouteButton href={`/paths/${path.id}/schedules`}>
             Xem các buổi học
           </RouteButton>
+        )}
+        {!embedded && (
+          <ConfirmedFormFeedback conversationId={path.conversationId} />
         )}
       </Panel>
     );
@@ -204,7 +214,17 @@ function HoldContent({
           onPress={() => {
             void finalize
               .run(`finalize:${path.id}:${path.currentVersion}`, (identity) =>
-                api.finalize(path.id, path.currentVersion, identity),
+                confirmAndShare(
+                  () => api.finalize(path.id, path.currentVersion, identity),
+                  (result, messageIdentity) => {
+                    void share.publish(
+                      path.conversationId,
+                      scheduledMessage(result),
+                      messageIdentity,
+                    );
+                  },
+                  runtime.isCurrent,
+                )(identity),
               )
               .then((result) => {
                 if (result && runtime.isCurrent()) {
@@ -219,6 +239,9 @@ function HoldContent({
             : "Xác nhận chốt lịch và tạm giữ Credit"}
         </Button>
         <ConnectionFeedback error={finalize.error} />
+        {!embedded && (
+          <ConfirmedFormFeedback conversationId={path.conversationId} />
+        )}
         {finalize.uncertain && (
           <Panel title="Kiểm tra lần chốt vừa gửi">
             <Copy size="hint">

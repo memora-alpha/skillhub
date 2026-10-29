@@ -37,24 +37,10 @@ import type {
   ApiLearningPlan,
 } from "../api/learning-paths-contract";
 import { ScheduleForm } from "../components/schedule-editor-form";
-import {
-  useConfirmedFormShare,
-  ConfirmedFormFeedback,
-} from "@/features/messages/state";
-import { confirmedFormMessage } from "../utils/confirmed-form";
-import { confirmAndShare } from "../api/confirm-and-share";
+import { ConfirmedFormFeedback } from "@/features/messages/state";
 import { FormNotice } from "@/components/FormNotice";
 import { scheduleDirections } from "../utils/schedule-directions";
 import { usePullRefresh } from "../hooks/use-pull-refresh";
-
-function scheduleSummary(
-  items: NonNullable<ApiLearningPlan["schedule"]>["items"],
-) {
-  const first = items[0];
-  if (!first) return `${items.length} buổi`;
-  const start = new Date(first.startAt).toLocaleString("vi-VN");
-  return `${items.length} buổi · Bắt đầu ${start}`;
-}
 
 export function ApiSchedulesScreen() {
   const { id, formPlanId, formScheduleId, formVersion } = useLocalSearchParams<{
@@ -154,7 +140,6 @@ function SchedulePanel({
     runtime = useConnections();
   const skill = useCatalogName(plan.skillId),
     schedule = plan.schedule;
-  const share = useConfirmedFormShare();
   const router = useRouter();
   return (
     <ScheduleReadCard
@@ -172,25 +157,7 @@ function SchedulePanel({
               onPress={() => {
                 void command.run(
                   `schedule:${schedule.id}:${schedule.version}`,
-                  confirmAndShare(
-                    () => api.confirmSchedule(schedule.id, schedule.version),
-                    (result, identity) => {
-                      void share.publish(
-                        path.conversationId,
-                        confirmedFormMessage({
-                          kind: "schedule",
-                          pathId: path.id,
-                          planId: plan.id,
-                          scheduleId: schedule.id,
-                          version: result.version,
-                          title: plan.learningGoal,
-                          summary: scheduleSummary(schedule.items),
-                        }),
-                        identity,
-                      );
-                    },
-                    runtime.isCurrent,
-                  ),
+                  () => api.confirmSchedule(schedule.id, schedule.version),
                 );
               }}
             >

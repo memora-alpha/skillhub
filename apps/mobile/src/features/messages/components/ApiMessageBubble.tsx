@@ -17,6 +17,11 @@ import type { ApiMessage } from "../api/messages-api";
 import { MessageBubble } from "./MessageBubble";
 import { ChatWorkflowCard } from "./ChatWorkflowCard";
 import { ChatFileCard } from "./ChatFileCard";
+import { ChatScheduleNotice } from "./ChatScheduleNotice";
+import {
+  readChatSchedule,
+  type ChatScheduleNotice as ScheduleNotice,
+} from "../utils/schedule-notice";
 
 export function ApiMessageBubble({
   message,
@@ -26,6 +31,7 @@ export function ApiMessageBubble({
   showTime = false,
   showReadReceipt = false,
   showAvatar = true,
+  scheduleNotice,
 }: Readonly<{
   message: ApiMessage;
   partner: string;
@@ -34,6 +40,7 @@ export function ApiMessageBubble({
   showTime?: boolean;
   showReadReceipt?: boolean;
   showAvatar?: boolean;
+  scheduleNotice?: ScheduleNotice;
 }>) {
   const { userId, isCurrent } = useConnections(),
     api = useMessagesApi();
@@ -73,6 +80,7 @@ export function ApiMessageBubble({
     <View style={{ gap: 6 }}>
       <ApiMessageContent
         message={message}
+        scheduleNotice={scheduleNotice}
         partner={partner}
         partnerId={partnerId}
         avatarUrl={avatarUrl}
@@ -128,6 +136,7 @@ export function ApiMessageBubble({
 
 function ApiMessageContent({
   message,
+  scheduleNotice,
   partner,
   partnerId,
   avatarUrl,
@@ -140,6 +149,7 @@ function ApiMessageContent({
   attachmentContent,
 }: Readonly<{
   message: ApiMessage;
+  scheduleNotice?: ScheduleNotice;
   partner: string;
   partnerId: string;
   avatarUrl?: string | null;
@@ -158,6 +168,24 @@ function ApiMessageContent({
   const legacy = attachmentContent
     ? null
     : readNegotiationMessage(message.messageText);
+  const schedule = scheduleNotice ?? readChatSchedule(message);
+  if (schedule)
+    return (
+      <ChatScheduleNotice
+        notice={schedule}
+        mine={mine}
+        partner={partner}
+        partnerId={partnerId}
+        avatarUrl={avatarUrl}
+        showAvatar={showAvatar}
+        onPress={() =>
+          router.push({
+            pathname: "/paths/[id]/schedules",
+            params: { id: schedule.pathId },
+          })
+        }
+      />
+    );
   if (message.messageType === "SYSTEM")
     return (
       <FormNotice tone="info">
@@ -275,18 +303,6 @@ function openSharedWorkflow(
       params: {
         id: pathId,
         fromConversation,
-        formVersion: String(form.version),
-      },
-    });
-    return;
-  }
-  if (form?.kind === "schedule") {
-    router.push({
-      pathname: "/paths/[id]/schedules",
-      params: {
-        id: pathId,
-        formPlanId: form.planId!,
-        formScheduleId: form.scheduleId!,
         formVersion: String(form.version),
       },
     });
