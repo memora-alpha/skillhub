@@ -19,18 +19,19 @@ export function ChatScheduleNotice({
     });
   const start = notice.startAt ? date(notice.startAt) : undefined;
   const end = notice.endAt ? date(notice.endAt) : undefined;
+  let title = "Đã xác nhận lịch học";
+  if (notice.sessionCount !== undefined) {
+    const readiness = notice.locked ? " đã sẵn sàng" : "";
+    title = `${notice.sessionCount} buổi học${readiness}.`;
+  }
+  let summary = "";
+  if (start) summary = start === end ? `Ngày ${start}` : `${start} – ${end}`;
   return (
     <ChatWorkflowCard
       {...cardProps}
       label="Lịch học"
-      title={
-        notice.sessionCount !== undefined
-          ? `${notice.sessionCount} buổi học${notice.locked ? " đã sẵn sàng" : ""}.`
-          : "Đã xác nhận lịch học"
-      }
-      summary={
-        start ? (start === end ? `Ngày ${start}` : `${start} – ${end}`) : ""
-      }
+      title={title}
+      summary={summary}
       confirmed
       badgeLabel={notice.locked ? "Đã chốt" : "Đã xác nhận"}
       action="Xem lịch học"

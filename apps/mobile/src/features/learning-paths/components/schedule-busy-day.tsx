@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useIsFocused } from "expo-router";
 import { FormNotice } from "@/components/FormNotice";
@@ -51,30 +52,34 @@ export function ScheduleBusyDay({
     visibleSessions.length === 0
   )
     return null;
+  let feedback: ReactNode = null;
+  if (!query.enabled)
+    feedback = <Text style={styles.note}>Chưa đối chiếu lịch đã chốt.</Text>;
+  else if (query.error || query.denial)
+    feedback = (
+      <>
+        <FormNotice tone="info" compact>
+          Chưa đối chiếu được lịch đã chốt của bạn. Lịch đang nhập vẫn được giữ.
+        </FormNotice>
+        <ConnectionFeedback
+          error={query.error}
+          retry={() => query.refetch({ cancelRefetch: false })}
+        />
+      </>
+    );
+  else if (query.isFetching)
+    feedback = (
+      <Text accessibilityLiveRegion="polite" style={styles.note}>
+        Đang đối chiếu lịch đã chốt…
+      </Text>
+    );
   return (
     <View style={styles.group}>
       <Text accessibilityRole="header" style={styles.heading}>
         Lịch đã chốt của bạn ·{" "}
         {new Date(slot.startAt).toLocaleDateString("vi-VN")}
       </Text>
-      {!query.enabled ? (
-        <Text style={styles.note}>Chưa đối chiếu lịch đã chốt.</Text>
-      ) : query.error || query.denial ? (
-        <>
-          <FormNotice tone="info" compact>
-            Chưa đối chiếu được lịch đã chốt của bạn. Lịch đang nhập vẫn được
-            giữ.
-          </FormNotice>
-          <ConnectionFeedback
-            error={query.error}
-            retry={() => query.refetch({ cancelRefetch: false })}
-          />
-        </>
-      ) : query.isFetching ? (
-        <Text accessibilityLiveRegion="polite" style={styles.note}>
-          Đang đối chiếu lịch đã chốt…
-        </Text>
-      ) : null}
+      {feedback}
       {available && (
         <>
           {listIsLimited(query.data!) && (

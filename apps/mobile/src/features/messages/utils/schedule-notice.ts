@@ -11,6 +11,17 @@ export type ChatScheduleNotice = {
   startAt?: string;
   endAt?: string;
 };
+type ScheduleMessage = { message: ApiMessage; notice: ChatScheduleNotice };
+
+function latestScheduleMessage(messages: readonly ScheduleMessage[]) {
+  return messages.reduce<ScheduleMessage | undefined>(
+    (latest, item) =>
+      !latest || BigInt(item.message.sequence) > BigInt(latest.message.sequence)
+        ? item
+        : latest,
+    undefined,
+  );
+}
 export function readChatSchedule(
   message: ApiMessage,
 ): ChatScheduleNotice | null {
@@ -27,10 +38,7 @@ export function readChatSchedule(
 }
 
 export function scheduleMessageGroups(messages: readonly ApiMessage[]) {
-  const groups = new Map<
-    string,
-    { message: ApiMessage; notice: ChatScheduleNotice }[]
-  >();
+  const groups = new Map<string, ScheduleMessage[]>();
   for (const message of messages) {
     const notice = readChatSchedule(message);
     if (!notice) continue;
@@ -44,21 +52,11 @@ export function scheduleMessageGroups(messages: readonly ApiMessage[]) {
     { visible: boolean; id: string; notice: ChatScheduleNotice }
   >();
   for (const [key, group] of groups) {
-    const latest = group.reduce((current, item) =>
-      BigInt(item.message.sequence) > BigInt(current.message.sequence)
-        ? item
-        : current,
+    const latest = latestScheduleMessage(group);
+    if (!latest) continue;
+    const locked = latestScheduleMessage(
+      group.filter((item) => item.notice.locked),
     );
-    const locked = group
-      .filter((item) => item.notice.locked)
-      .reduce<typeof latest | undefined>(
-        (current, item) =>
-          !current ||
-          BigInt(item.message.sequence) > BigInt(current.message.sequence)
-            ? item
-            : current,
-        undefined,
-      );
     const notice = locked?.notice ?? {
       pathId: latest.notice.pathId,
       locked: false,

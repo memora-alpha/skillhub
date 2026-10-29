@@ -70,8 +70,8 @@ export function useChatAttachment(id: string) {
       setFile(selected);
       setFileId(undefined);
       await uploadFile(selected);
-    } catch (failure) {
-      if (runtime.isCurrent()) setError(failure);
+    } catch (error_) {
+      if (runtime.isCurrent()) setError(error_);
     } finally {
       busy.current = false;
       if (runtime.isCurrent()) setPending(false);
@@ -85,8 +85,8 @@ export function useChatAttachment(id: string) {
     setError(undefined);
     try {
       await uploadFile(file);
-    } catch (failure) {
-      if (runtime.isCurrent()) setError(failure);
+    } catch (error_) {
+      if (runtime.isCurrent()) setError(error_);
     } finally {
       busy.current = false;
       if (runtime.isCurrent()) setPending(false);
@@ -123,8 +123,8 @@ export function useChatAttachment(id: string) {
         setSubmitted(true);
       }
       return sent;
-    } catch (failure) {
-      if (runtime.isCurrent()) setError(failure);
+    } catch (error_) {
+      if (runtime.isCurrent()) setError(error_);
       return false;
     } finally {
       busy.current = false;
@@ -135,19 +135,20 @@ export function useChatAttachment(id: string) {
     if (busy.current || sender.pending || !runtime.isCurrent()) return;
     busy.current = true;
     try {
-      const sent = sender.uncertain
-        ? await sender.retryPrevious()
-        : publicationFailed
-          ? await sender.retryPublication()
-          : (await sender.delivery.refetch()).data?.deliveryStatus ===
-            "DELIVERED";
+      let sent;
+      if (sender.uncertain) sent = await sender.retryPrevious();
+      else if (publicationFailed) sent = await sender.retryPublication();
+      else
+        sent =
+          (await sender.delivery.refetch()).data?.deliveryStatus ===
+          "DELIVERED";
       if (sent && runtime.isCurrent()) {
         accepted.current = true;
         setSubmitted(true);
         return caption.current;
       }
-    } catch (failure) {
-      if (runtime.isCurrent()) setError(failure);
+    } catch (error_) {
+      if (runtime.isCurrent()) setError(error_);
     } finally {
       busy.current = false;
     }

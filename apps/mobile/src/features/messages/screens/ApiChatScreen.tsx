@@ -102,7 +102,7 @@ function ApiChatConversation({
     setDraft(text);
   };
   const [readError, setReadError] = useState<unknown>();
-  const [last, setVisible] = useState<ApiMessage>();
+  const [last, setLast] = useState<ApiMessage>();
   const readWatermark = useRef<string | undefined>(undefined);
   const viewability = useRef<
     NonNullable<FlatListProps<ChatTimelineItem>["onViewableItemsChanged"]>
@@ -113,7 +113,7 @@ function ApiChatConversation({
     viewed.sort((a, b) => (BigInt(a.sequence) < BigInt(b.sequence) ? -1 : 1));
     const lastViewed = viewed.at(-1);
     if (lastViewed)
-      setVisible((previous) =>
+      setLast((previous) =>
         !previous || BigInt(previous.sequence) < BigInt(lastViewed.sequence)
           ? lastViewed
           : previous,

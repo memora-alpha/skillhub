@@ -30,6 +30,17 @@ const fileProblems: Readonly<
   },
 };
 
+function attachmentStatus(
+  attachment: ReturnType<typeof useChatAttachment>,
+  problemLabel?: string,
+) {
+  if (attachment.processing) return "Đang gửi…";
+  if (attachment.pending) return "Đang tải lên…";
+  if (attachment.uncertain) return "Chưa rõ kết quả gửi";
+  if (attachment.ready) return undefined;
+  return problemLabel ?? "Chờ kiểm tra tệp…";
+}
+
 export function ChatAttachmentPreview({
   attachment,
   onRecovered,
@@ -60,17 +71,7 @@ export function ChatAttachmentPreview({
             file={file}
             locked={locked}
             onRemove={attachment.remove}
-            status={
-              attachment.processing
-                ? "Đang gửi…"
-                : attachment.pending
-                  ? "Đang tải lên…"
-                  : attachment.uncertain
-                    ? "Chưa rõ kết quả gửi"
-                    : attachment.ready
-                      ? undefined
-                      : (problem?.label ?? "Chờ kiểm tra tệp…")
-            }
+            status={attachmentStatus(attachment, problem?.label)}
           />
           {problem && (
             <FormNotice tone="error" compact>

@@ -5,8 +5,7 @@ export function useEditorSnapshot<T>(revision: string, value: T) {
   const baseline = useRef({ revision, value });
   const latest = useRef({ revision, value });
   latest.current = { revision, value };
-  const [, render] = useState(0);
-  const captured = baseline.current;
+  const [captured, setCaptured] = useState(baseline.current);
   return {
     value: captured.value,
     changed: captured.revision !== revision,
@@ -15,7 +14,7 @@ export function useEditorSnapshot<T>(revision: string, value: T) {
       captured.revision === latest.current.revision,
     reload: () => {
       baseline.current = latest.current;
-      render((previous) => previous + 1);
+      setCaptured(baseline.current);
       return baseline.current.value;
     },
   };

@@ -37,12 +37,10 @@ export function QueryFeedback({
         </>
       ) : (
         !query.data && (
-          <>
-            <ActivityIndicator
-              presentation={loadingPresentation}
-              accessibilityLabel="Đang tải dữ liệu"
-            />
-          </>
+          <ActivityIndicator
+            presentation={loadingPresentation}
+            accessibilityLabel="Đang tải dữ liệu"
+          />
         )
       )}
       {!!query.data && empty && (

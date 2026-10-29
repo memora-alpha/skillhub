@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 import { ZodError } from "zod";
 import { StyleSheet, Text, View } from "react-native";
-import { useForm, useWatch } from "react-hook-form";
+import { useForm, useWatch, type UseFormSetError } from "react-hook-form";
 import { useFocusEffect, useRouter } from "expo-router";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Copy, RouteButton } from "@/components/feature-page";
@@ -52,6 +52,30 @@ function scheduleButtonLabel(
   if (pending) return "Đang gửi…";
   const action = hasSchedule ? "Lưu thay đổi lịch" : "Gửi đề xuất lịch";
   return `${action} (${count} buổi)`;
+}
+
+function scheduleSubmissionItems(
+  input: ScheduleInput,
+  plan: ApiLearningPlan,
+  setError: UseFormSetError<ScheduleInput>,
+  onEdit: (index: number) => void,
+) {
+  try {
+    return scheduleDraftItems(input, plan);
+  } catch (error) {
+    if (!(error instanceof ZodError)) throw error;
+    for (const issue of error.issues) {
+      const index = typeof issue.path[1] === "number" ? issue.path[1] : 0;
+      const field = issue.path[2] === "minutes" ? "minutes" : "local";
+      setError(`items.${index}.${field}`, {
+        type: "validate",
+        message: issue.message,
+      });
+    }
+    const first = error.issues[0]?.path[1];
+    onEdit(typeof first === "number" ? first : 0);
+    return undefined;
+  }
 }
 
 export function ScheduleForm({
@@ -132,24 +156,13 @@ export function ScheduleForm({
         void handleSubmit(
           async (input) => {
             if (!current() || !canSave.current || !snapshot.isCurrent()) return;
-            let items: ReturnType<typeof scheduleDraftItems>;
-            try {
-              items = scheduleDraftItems(input, plan);
-            } catch (error) {
-              if (!(error instanceof ZodError)) throw error;
-              for (const issue of error.issues) {
-                const index =
-                  typeof issue.path[1] === "number" ? issue.path[1] : 0;
-                const field = issue.path[2] === "minutes" ? "minutes" : "local";
-                setError(`items.${index}.${field}`, {
-                  type: "validate",
-                  message: issue.message,
-                });
-              }
-              const first = error.issues[0]?.path[1];
-              setActive(typeof first === "number" ? first : 0);
-              return;
-            }
+            const items = scheduleSubmissionItems(
+              input,
+              plan,
+              setError,
+              setActive,
+            );
+            if (!items) return;
             const conflicts = scheduleConflicts(items, otherPlans.current);
             if (conflicts.length) {
               for (const conflict of conflicts) {
