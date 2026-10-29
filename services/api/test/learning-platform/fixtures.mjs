@@ -11,6 +11,8 @@ import { LearningSessionsService } from "../../dist/modules/learning-sessions/ap
 import { ReportsService } from "../../dist/modules/reports/application/services/reports.service.js";
 import { SchedulingService } from "../../dist/modules/scheduling/application/services/scheduling.service.js";
 import { createFakeDb, runner } from "./fake-db.mjs";
+import { LearningRequestPathReader } from "../../dist/modules/learning-paths/application/services/learning-request-path.reader.js";
+import { LearningRequestLifecycleService } from "../../dist/modules/learning-requests/application/services/learning-request-lifecycle.service.js";
 
 export const A = "0a0a0a0a-0000-4000-8000-00000000000a";
 export const B = "0b0b0b0b-0000-4000-8000-00000000000b";
@@ -56,15 +58,42 @@ export function fakeOutboxConsumer(db) {
   };
 }
 
-export function setup({ wallets = {}, config = {} } = {}) {
+export function setup({ wallets = {}, config = {}, requestId = null } = {}) {
   const clock = { now: new Date("2026-10-20T00:00:00.000Z") };
   const db = createFakeDb({ now: () => clock.now });
   db.seed("conversation", {
     id: conversationId,
     proposalId: "proposal",
+    requestId,
     participantAId: A,
     participantBId: B,
   });
+  db.seed("proposal", {
+    id: "proposal",
+    requestId,
+    sourceType: requestId ? "LEARNING_REQUEST" : "DIRECT_SEARCH",
+    status: "ACCEPTED",
+    proposerId: A,
+    recipientId: B,
+  });
+  if (requestId)
+    db.seed("learningRequest", {
+      id: requestId,
+      ownerId: B,
+      status: "NEGOTIATING",
+      version: 2,
+    });
+  const requests = new LearningRequestLifecycleService({
+    lock: async (_tx, id) => db.learningRequest.findUnique({ where: { id } }),
+    transition: async (_tx, id, version, from, data) =>
+      (
+        await db.learningRequest.updateMany({
+          where: { id, version, status: { in: from } },
+          data: { ...data, version: { increment: 1 } },
+        })
+      ).count === 1,
+  });
+  const requestPaths = new LearningRequestPathReader();
   for (const id of [A, B, C]) {
     db.seed("user", {
       id,
@@ -116,6 +145,8 @@ export function setup({ wallets = {}, config = {} } = {}) {
     wallet,
     configuration,
     fakeIdempotency(db),
+    requests,
+    requestPaths,
   );
   const schedules = new SchedulingService(
     runner(db),
@@ -132,8 +163,20 @@ export function setup({ wallets = {}, config = {} } = {}) {
     configuration,
     { config: { enabled: false } },
     { now: () => clock.now },
+    requests,
+    requestPaths,
   );
-  return { db, clock, configuration, wallet, paths, schedules, sessions };
+  return {
+    db,
+    clock,
+    configuration,
+    wallet,
+    paths,
+    schedules,
+    sessions,
+    requests,
+    requestPaths,
+  };
 }
 
 export const plan = (totalSessions = 1) => ({

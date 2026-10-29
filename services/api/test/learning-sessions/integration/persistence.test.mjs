@@ -1,3 +1,4 @@
+import { fundedLearningParticipants } from "../../learning-platform/persistence-fixtures.mjs";
 import "reflect-metadata";
 import assert from "node:assert/strict";
 import { test } from "node:test";
@@ -13,6 +14,9 @@ import { CreditLedgerService } from "../../../dist/modules/credit/application/se
 import { CreditWalletReader } from "../../../dist/modules/credit/application/services/credit-wallet.reader.js";
 import { seedPathFeePolicies } from "../../../dist/modules/credit/application/seed-fee-policies.js";
 import { ReportsService } from "../../../dist/modules/reports/application/services/reports.service.js";
+import { LearningRequestLifecycleService } from "../../../dist/modules/learning-requests/application/services/learning-request-lifecycle.service.js";
+import { PrismaLearningRequestRepository } from "../../../dist/modules/learning-requests/infrastructure/persistence/prisma-learning-request.repository.js";
+import { LearningRequestPathReader } from "../../../dist/modules/learning-paths/application/services/learning-request-path.reader.js";
 import { LiveKitService } from "../../../dist/modules/learning-sessions/infrastructure/livekit/livekit.service.js";
 import { defaultConfiguration } from "../../learning-platform/fixtures.mjs";
 
@@ -24,27 +28,11 @@ test(
     assert.ok(process.env.TEST_DATABASE_URL);
     const f = await createSkillFixture();
     try {
-      const teacher = await f.account(),
-        learner = await f.account();
-      for (const account of [teacher, learner])
-        await f.db.creditWallet.create({
-          data: {
-            userId: account.user.id,
-            availableCredit: 10000n,
-            heldCredit: 0n,
-            purchasedCredit: 10000n,
-            bonusCredit: 0n,
-            walletVersion: 0,
-          },
-        });
-      const skill = await f.db.skill.create({
-        data: {
-          name: "Session test",
-          nameKey: randomUUID(),
-          slug: randomUUID(),
-          status: "ACTIVE",
-        },
-      });
+      const { teacher, learner, skill } = await fundedLearningParticipants(
+        f,
+        10000n,
+        "Session test",
+      );
       const request = await f.db.learningRequest.create({
         data: {
           ownerId: learner.user.id,
@@ -53,7 +41,7 @@ test(
           description: "A learning request for a session integration test",
           learningGoal: "A test goal",
           currentLevel: "BEGINNER",
-          status: "OPEN",
+          status: "NEGOTIATING",
           publishedAt: new Date(),
           expiresAt: new Date(Date.now() + 86400000),
         },
@@ -101,6 +89,10 @@ test(
         wallet,
         configuration,
         f.commands,
+        new LearningRequestLifecycleService(
+          new PrismaLearningRequestRepository(f.db),
+        ),
+        new LearningRequestPathReader(),
       );
       const schedules = new SchedulingService(
         f.transactions,
@@ -125,6 +117,10 @@ test(
         configuration,
         livekit,
         { now: () => new Date() },
+        new LearningRequestLifecycleService(
+          new PrismaLearningRequestRepository(f.db),
+        ),
+        new LearningRequestPathReader(),
       );
       const path = await paths.create(learner.principal, {
         conversationId: conversation.id,

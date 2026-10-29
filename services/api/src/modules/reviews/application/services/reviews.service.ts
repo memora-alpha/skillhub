@@ -6,7 +6,7 @@ import {
 } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import { TransactionRunner } from "../../../../infrastructure/database/transaction-runner";
-import type { TransactionContext } from "../../../../infrastructure/database/transaction-context";
+import { lockLearningPath as lockPath } from "../../../learning-paths/application/services/learning-path-lock";
 import type { Principal } from "../../../auth/application/services/sessions.service";
 import {
   ReputationService,
@@ -14,13 +14,6 @@ import {
 } from "../../../reputation/application/services/reputation.service";
 import { AchievementsService } from "../../../reputation/application/services/achievements.service";
 import type { CreateReviewDto } from "../../presentation/http/reviews.dto";
-
-async function lockPath(tx: TransactionContext, pathId: string) {
-  const rows = await tx.$queryRaw<{ id: string }[]>`
-    SELECT path_id AS id FROM learning_paths WHERE path_id = ${pathId}::uuid FOR UPDATE
-  `;
-  if (rows.length === 0) throw new NotFoundException("LEARNING_PATH_NOT_FOUND");
-}
 
 const ratingDelta: Record<number, number> = { 1: -5, 2: -2, 3: 0, 4: 1, 5: 2 };
 

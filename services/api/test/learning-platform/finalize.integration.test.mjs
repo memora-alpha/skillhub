@@ -17,6 +17,9 @@ import { CreditWalletReader } from "../../dist/modules/credit/application/servic
 import { seedPathFeePolicies } from "../../dist/modules/credit/application/seed-fee-policies.js";
 import { LearningPathsService } from "../../dist/modules/learning-paths/application/services/learning-paths.service.js";
 import { SchedulingService } from "../../dist/modules/scheduling/application/services/scheduling.service.js";
+import { LearningRequestLifecycleService } from "../../dist/modules/learning-requests/application/services/learning-request-lifecycle.service.js";
+import { PrismaLearningRequestRepository } from "../../dist/modules/learning-requests/infrastructure/persistence/prisma-learning-request.repository.js";
+import { LearningRequestPathReader } from "../../dist/modules/learning-paths/application/services/learning-request-path.reader.js";
 import { defaultConfiguration, plan, slots, user } from "./fixtures.mjs";
 
 const url = process.env.TEST_DATABASE_URL;
@@ -91,7 +94,7 @@ async function seedParticipants(db) {
       description: "Description for a learning path request",
       learningGoal: "A suitable learning goal",
       currentLevel: "BEGINNER",
-      status: "OPEN",
+      status: "NEGOTIATING",
       publishedAt: new Date(),
       expiresAt: new Date(Date.now() + 86_400_000),
     },
@@ -122,6 +125,7 @@ async function seedParticipants(db) {
     B: learner,
     skillId: skill.id,
     conversationId: conversation.id,
+    requestId: request.id,
   };
 }
 
@@ -152,7 +156,8 @@ test(
         ),
       });
       await db.$connect();
-      const { A, B, skillId, conversationId } = await seedParticipants(db);
+      const { A, B, skillId, conversationId, requestId } =
+        await seedParticipants(db);
 
       const transactions = new TransactionRunner(db);
       const configuration = {
@@ -173,6 +178,10 @@ test(
           wallet,
           configuration,
           new IdempotencyService(runner),
+          new LearningRequestLifecycleService(
+            new PrismaLearningRequestRepository(db),
+          ),
+          new LearningRequestPathReader(),
         );
       const paths = pathsWith(transactions);
       const schedules = new SchedulingService(
@@ -226,6 +235,14 @@ test(
         where: { id: pathId },
       });
       assert.deepEqual([path.status, path.lockedVersion], ["CONFIRMED", null]);
+      assert.equal(
+        (
+          await db.learningRequest.findUniqueOrThrow({
+            where: { id: requestId },
+          })
+        ).status,
+        "NEGOTIATING",
+      );
       assert.equal(await db.session.count({ where: { pathId } }), 0);
       assert.equal(await db.sessionScheduleHistory.count(), 0);
       assert.equal(await db.heldCreditAllocation.count(), 0);
@@ -253,6 +270,14 @@ test(
         1,
       );
       assert.equal(result.status, "SCHEDULED");
+      assert.equal(
+        (
+          await db.learningRequest.findUniqueOrThrow({
+            where: { id: requestId },
+          })
+        ).status,
+        "MATCHED",
+      );
       assert.equal(await db.session.count({ where: { pathId } }), 2);
       await paths.finalize(
         { principal: user(B), key: "finalize-attempt-3" },

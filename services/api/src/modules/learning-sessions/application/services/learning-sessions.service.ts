@@ -22,7 +22,10 @@ import {
   sessionReadSelect,
   type LiveKitTokenResponse,
 } from "../../presentation/http/learning-sessions.responses";
-import type { Session } from "../../../../generated/prisma/client";
+import type {
+  Session,
+  LearningPath,
+} from "../../../../generated/prisma/client";
 import type { WebhookEvent } from "livekit-server-sdk";
 import { PrismaService } from "../../../../infrastructure/database/prisma.service";
 import { TransactionRunner } from "../../../../infrastructure/database/transaction-runner";
@@ -34,19 +37,18 @@ import { formatCredit as creditText } from "../../../credit/domain/money";
 import { ReputationService } from "../../../reputation/application/services/reputation.service";
 import { AchievementsService } from "../../../reputation/application/services/achievements.service";
 import { ReportsService } from "../../../reports/application/services/reports.service";
+import { LearningRequestLifecycleService } from "../../../learning-requests/application/services/learning-request-lifecycle.service";
+import { LearningRequestPathReader } from "../../../learning-paths/application/services/learning-request-path.reader";
+import {
+  lockLearningPath as lockPath,
+  lockLearningPathLifecycle,
+} from "../../../learning-paths/application/services/learning-path-lock";
 
 async function lockSession(tx: TransactionContext, sessionId: string) {
   const rows = await tx.$queryRaw<{ id: string }[]>`
     SELECT session_id AS id FROM sessions WHERE session_id = ${sessionId}::uuid FOR UPDATE
   `;
   if (rows.length === 0) throw new NotFoundException("SESSION_NOT_FOUND");
-}
-
-async function lockPath(tx: TransactionContext, pathId: string) {
-  const rows = await tx.$queryRaw<{ id: string }[]>`
-    SELECT path_id AS id FROM learning_paths WHERE path_id = ${pathId}::uuid FOR UPDATE
-  `;
-  if (rows.length === 0) throw new NotFoundException("LEARNING_PATH_NOT_FOUND");
 }
 
 /** First join moves earlier and last leave moves later; other activity is ignored. */
@@ -100,6 +102,8 @@ export class LearningSessionsService {
     private readonly configuration: SystemConfigurationService,
     private readonly livekit: LiveKitService,
     @Inject(CLOCK) private readonly clock: Clock,
+    private readonly requests: LearningRequestLifecycleService,
+    private readonly requestPaths: LearningRequestPathReader,
   ) {}
 
   private async joinPolicy(
@@ -536,7 +540,13 @@ export class LearningSessionsService {
 
   private settle(pathId: string, actor?: Principal) {
     return this.transactions.run(async (tx) => {
-      await lockPath(tx, pathId);
+      const request = await lockLearningPathLifecycle(
+        tx,
+        pathId,
+        this.requestPaths,
+        this.requests,
+        actor,
+      );
       const path = await tx.learningPath.findUniqueOrThrow({
         where: { id: pathId },
       });
@@ -547,6 +557,9 @@ export class LearningSessionsService {
       ) {
         throw new ForbiddenException("LEARNING_PATH_ACCESS_DENIED");
       }
+      if (!path.settledAt && path.status !== "ACTIVE")
+        throw new ConflictException("LEARNING_PATH_NOT_SETTLEABLE");
+      await this.assertSettlementRequest(tx, request, path);
       if (path.settledAt) {
         return {
           pathId,
@@ -556,8 +569,6 @@ export class LearningSessionsService {
           fee: creditText(path.settlementFeeAmount),
         };
       }
-      if (path.status !== "ACTIVE")
-        throw new ConflictException("LEARNING_PATH_NOT_SETTLEABLE");
       const incomplete = await tx.session.count({
         where: { pathId, status: { not: "COMPLETED" } },
       });
@@ -610,6 +621,8 @@ export class LearningSessionsService {
         );
         await this.achievements.evaluate(tx, userId, clock.now);
       }
+      if (request !== null)
+        await this.requests.markClosed(tx, request.id, request.version);
       return {
         pathId,
         status: "COMPLETED" as const,
@@ -618,6 +631,29 @@ export class LearningSessionsService {
         fee: creditText(result.fee),
       };
     });
+  }
+
+  private async assertSettlementRequest(
+    tx: TransactionContext,
+    request: Awaited<
+      ReturnType<LearningRequestLifecycleService["lockForPath"]>
+    > | null,
+    path: LearningPath,
+  ) {
+    if (request !== null) {
+      const committed = await this.requestPaths.readCommittedPathIds(
+        tx,
+        request.id,
+      );
+      const expectedStatus = path.settledAt ? "CLOSED" : "MATCHED";
+      if (
+        request.status !== expectedStatus ||
+        committed.length !== 1 ||
+        committed[0] !== path.id ||
+        path.lockedVersion === null
+      )
+        throw new ConflictException("REQUEST_LIFECYCLE_INCONSISTENT");
+    }
   }
 
   private async refreshPathStatus(tx: TransactionContext, pathId: string) {

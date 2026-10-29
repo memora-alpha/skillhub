@@ -1,5 +1,13 @@
 # Learning Request Implementation Plan
 
+**Lifecycle fix — 2026-10-29:** [Design](lifecycle-fix-design.md) and
+[implementation plan](lifecycle-fix-plan.md) address issue-list STT 10/17,
+one finalized Path per Request, and read-only legacy reconciliation preview.
+User approved inline implementation. Source integration and read-only preview
+are present; current verification/review evidence is in validation.md. Use
+Superpowers and Ponytail full throughout the work. No deployment or data repair
+is authorized.
+
 **Owner avatar amendment — 2026-10-26:** User approved implementation of
 [the owner avatar plan](owner-avatar-plan.md): required nullable signed avatar in
 feed, recommended and public detail, preserving batch owner reads and the existing

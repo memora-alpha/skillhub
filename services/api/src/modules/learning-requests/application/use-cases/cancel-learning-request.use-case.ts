@@ -66,8 +66,13 @@ export class CancelLearningRequestUseCase {
       if (request?.ownerId !== live.userId) throw new NotFoundException();
       const snapshot = { ...request };
       const now = await this.repository.databaseNow(tx);
+      if (request.version !== input.expectedVersion) {
+        throw new ConflictException("REQUEST_VERSION_CONFLICT");
+      }
+      if (request.status === "MATCHED" || request.status === "CLOSED") {
+        throw new ConflictException("REQUEST_LOCKED");
+      }
       if (
-        request.version !== input.expectedVersion ||
         !cancelableStatuses.includes(
           request.status as (typeof cancelableStatuses)[number],
         )

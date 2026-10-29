@@ -1,5 +1,38 @@
 # Learning Request validation
 
+## Lifecycle fix execution — 2026-10-29
+
+Plan: [lifecycle-fix-plan.md](lifecycle-fix-plan.md). User approved inline implementation; Superpowers and Ponytail full remain active.
+
+- Ruling: reuse the current `fix/learning-request-service` checkout, which contains the approved uncommitted planning documents; no worktree/branch change or commit is needed. This preserves the user's environment and plan.
+- Ruling: keep the durable execution ledger in this existing validation document and logs in temporary storage rather than adding shell-specific workspace tooling; no commits are authorized, so the ledger must remain available in the working tree.
+- Preflight: Task 1 owns source/commit evidence reader and Request lock snapshot; Tasks 2/3 consume the same signatures. Task 4 is read-only. Task 5 verifies all transactional consumers. No unresolved interface conflict.
+- Tooling: direct installed Nest CLI is available at root node_modules; use it for build checks when Corepack/.bin resolution fails. No dependency changes required.
+- Task 1: reader/cancel RED→GREEN; 10 lifecycle/reader tests passed plus the loopback HTTP/Swagger regression passed with network permission. Status regression, locked schedule/Session/Hold evidence, source mismatch, owner and version checks covered.
+- Task 2: four source/finalize tests failed against old behavior, then passed after integration; existing phase2 regressions also passed (17/17 in the focused run).
+- Task 3: three closure/legacy tests failed against old settlement, then all seven initial lifecycle-flow tests passed. Task 5 now verifies real transactional rollback/races and full ONE_WAY/TWO_WAY settlement.
+- Task 4: classifier/CLI-argument tests RED→GREEN, 4/4; Task 5 verifies PostgreSQL read-only preview, pagination, actual CLI invocation and unchanged business/audit/outbox rows.
+- Local integration setup: an explicitly named temporary PostgreSQL database was created and migrated for this run. The application database was not used by test suites; each fixture used a disposable schema. The temporary database was successfully dropped after all checks.
+- Final review: a fresh independent reviewer found two P2 issues. Both were reproduced: a real edit/finalize deadlock (40P01), and false healthy/repair preview classification for incomplete schedule evidence.
+- Ruling: share a concrete Path-owner lock helper across existing Path, Scheduling, Session, report-creation and review-creation writers, so sorted participant locks precede Path and implicit User FK KEY SHARE locks. This necessary scope extension removes the introduced inversion; unrelated report-resolution policy/locking is not changed. Cost if wrong: contention/deadlock, covered by deterministic PostgreSQL regressions for edit/finalize and review/settlement replay. Both produced 40P01 before the fix and zero deadlocks after it.
+- Ruling: preview must treat every LOCKED/applied schedule marker as commitment, validate applied versions/items and the one effective Session history, and fail closed on incomplete evidence. Pending reschedule retains the old applied schedule until both confirm. Cost if wrong: unsafe repair suggestions, covered by read-only PostgreSQL corruption/valid-reschedule tests.
+- Final fix pass: all 10 PostgreSQL lifecycle regressions passed with zero skips, including TWO_WAY settlement, direct exchange, a status-regressed locked Path, readonly role, full ledger/row rollback, missing schedule evidence and valid pending rescheduling. The existing reschedule audit mock was aligned with the participant read required by the shared helper; production guards were preserved. Final regression gates below passed on the resulting source.
+- Declined-to-judge rulings: STT 16 edit semantics and pre-existing report-resolution locking remain separate work; this change only protects cancellation/finalize and removes its introduced ordering inversion. Fee/refund/no-show policy stays unchanged. Production data repair/deployment are not authorized and have not run. No deferred review minors were reported.
+
+Final verification uses installed root Node CLIs because Corepack attempts an unavailable pnpm download; no dependency or lockfile change was needed. Tests run against fresh Nest output, with no concurrent build deleting dist. Loopback HTTP/PostgreSQL checks used the isolated test database with the sandbox network restriction lifted.
+
+| Final check                                                                                                      | Result                                                                                                      |
+| ---------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `node ../../node_modules/eslint/bin/eslint.js . --max-warnings 0` from API                                       | Pass, exit 0.                                                                                               |
+| `node ../../node_modules/typescript/bin/tsc -p tsconfig.json --noEmit`                                           | Pass, exit 0.                                                                                               |
+| `node ../../node_modules/@nestjs/cli/bin/nest.js build`                                                          | Pass, exit 0; build includes all final production changes.                                                  |
+| `test:learning-request` test file list, direct `node --test`                                                     | 145 passed, 0 failed, 0 skipped. Includes real cancellation HTTP/Swagger and lifecycle/scanner regressions. |
+| `test:learning-platform` / `test:learning-sessions` / `test:learning-paths` / `test:bigint-responses` lists      | 50 / 22 / 4 / 3 passed; 79 total, 0 failed, 0 skipped.                                                      |
+| `test:learning-request:integration` file list, `node --test --test-concurrency=1`                                | 28 passed, 0 failed, 0 skipped. Includes all 10 new lifecycle PostgreSQL tests.                             |
+| Existing finalize integration, Session persistence integration and Credit HTTP test files, sequential Node tests | 8 passed, 0 failed, 0 skipped.                                                                              |
+
+Total final regression evidence: **260 passing tests** (224 unit/HTTP + 36 integration), without counting the separate repeated focused lifecycle run. The two reproduced final-review findings are resolved; no outstanding material finding was reported. Operator preview and strict rollout/data-repair gates remain documented in [quickstart](quickstart.md#lifecycle-preview-and-rollout--2026-10-29). No production repair or rollout claim follows from these local tests.
+
 ## Public owner avatar — 2026-10-26
 
 Implemented the user-approved [owner avatar amendment](owner-avatar-plan.md).

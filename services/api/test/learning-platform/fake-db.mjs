@@ -367,6 +367,37 @@ export function createFakeDb({ now = () => new Date() } = {}) {
     $queryRaw(strings, ...values) {
       const sql = strings.join("?");
       if (sql.includes("CURRENT_TIMESTAMP")) return [{ now: now() }];
+      if (sql.includes("SELECT DISTINCT p.path_id")) {
+        return rows("learningPath")
+          .filter((path) => {
+            const conversation = rows("conversation").find(
+              (c) => c.id === path.conversationId,
+            );
+            const proposal = rows("proposal").find(
+              (p) => p.id === conversation?.proposalId,
+            );
+            if (
+              conversation?.requestId !== values[0] &&
+              proposal?.requestId !== values[0]
+            )
+              return false;
+            return (
+              path.lockedVersion != null ||
+              path.settledAt != null ||
+              ["SCHEDULED", "ACTIVE", "COMPLETED"].includes(path.status) ||
+              rows("scheduleProposal").some(
+                (s) =>
+                  s.pathId === path.id &&
+                  (s.status === "LOCKED" || s.appliedVersion != null),
+              ) ||
+              rows("session").some((s) => s.pathId === path.id) ||
+              rows("heldCreditAllocation").some((h) => h.pathId === path.id)
+            );
+          })
+          .sort((a, b) => a.id.localeCompare(b.id))
+          .slice(0, 2)
+          .map(({ id }) => ({ id }));
+      }
       const table = Object.keys(lockTables).find((candidate) =>
         sql.includes(`FROM ${candidate}`),
       );

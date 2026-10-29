@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { CancelLearningRequestUseCase } from "../../dist/modules/learning-requests/application/use-cases/cancel-learning-request.use-case.js";
 import { LearningRequestLifecycleService } from "../../dist/modules/learning-requests/application/services/learning-request-lifecycle.service.js";
-import { UnavailableLearningRequestDependencies } from "../../dist/modules/learning-requests/infrastructure/adapters/unavailable-learning-request-dependencies.js";
+import { LearningRequestsModule } from "../../dist/modules/learning-requests/learning-requests.module.js";
+import { REQUEST_LOCK_READER } from "../../dist/modules/learning-requests/application/ports/learning-request-dependencies.js";
+import { LearningRequestPathReader } from "../../dist/modules/learning-paths/application/services/learning-request-path.reader.js";
 
 const now = new Date("2026-10-06T00:00:00.000Z");
 const requestId = "22222222-2222-4222-8222-222222222222";
@@ -180,14 +182,10 @@ test("Path/Schedule owner contracts move only NEGOTIATING to MATCHED to CLOSED",
   await assert.rejects(() => service.markClosed({}, requestId, 4));
 });
 
-test("missing Path/Schedule lock adapter fails closed for Negotiating cancellation", async () => {
-  const current = record("NEGOTIATING");
-  const { useCase } = cancelHarness(current);
-  const unavailable = new UnavailableLearningRequestDependencies();
-  useCase.requestLock = unavailable;
-  await assert.rejects(
-    () => useCase.execute(owner, requestId, { expectedVersion: 2 }),
-    (error) => error.getStatus?.() === 503,
+test("real DI uses the Path owner reader for Negotiating cancellation", () => {
+  const providers = Reflect.getMetadata("providers", LearningRequestsModule);
+  assert.equal(
+    providers.find((p) => p.provide === REQUEST_LOCK_READER).useExisting,
+    LearningRequestPathReader,
   );
-  assert.equal(current.status, "NEGOTIATING");
 });

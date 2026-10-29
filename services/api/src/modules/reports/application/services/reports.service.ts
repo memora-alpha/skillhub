@@ -6,6 +6,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
+import { lockLearningPath as lockPath } from "../../../learning-paths/application/services/learning-path-lock";
 import type { Readable } from "node:stream";
 import { FileAttachmentService } from "../../../../infrastructure/storage/file-attachment.service";
 import { FileStorageService } from "../../../../infrastructure/storage/file-storage.service";
@@ -32,13 +33,6 @@ function signedCreditUnits(value: string): bigint {
   ).split(".");
   const units = BigInt(whole) * 100n + BigInt(fraction.padEnd(2, "0"));
   return negative ? -units : units;
-}
-
-async function lockPath(tx: TransactionContext, pathId: string) {
-  const rows = await tx.$queryRaw<
-    { id: string }[]
-  >`SELECT path_id AS id FROM learning_paths WHERE path_id = ${pathId}::uuid FOR UPDATE`;
-  if (!rows.length) throw new NotFoundException("LEARNING_PATH_NOT_FOUND");
 }
 
 const evidenceSummary = {

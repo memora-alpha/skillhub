@@ -24,6 +24,15 @@ test("wallet HTTP uses live identity, exact strings, snapshot cursors and own-on
   try {
     const owner = await f.account(),
       other = await f.account();
+    const settledPath = {
+      participantAId: owner.user.id,
+      participantBId: other.user.id,
+      settledAt: new Date(),
+      settlementOperationId: randomUUID(),
+      settlementGrossAmount: 1001n,
+      settlementFeeAmount: 40n,
+      status: "COMPLETED",
+    };
     const module = await Test.createTestingModule({
       imports: [CreditModule, IdentityModule],
       controllers: [LearningSessionsController],
@@ -37,15 +46,8 @@ test("wallet HTTP uses live identity, exact strings, snapshot cursors and own-on
                 work({
                   $queryRaw: async () => [{ id: "settled-path" }],
                   learningPath: {
-                    findUniqueOrThrow: async () => ({
-                      participantAId: owner.user.id,
-                      participantBId: other.user.id,
-                      settledAt: new Date(),
-                      settlementOperationId: randomUUID(),
-                      settlementGrossAmount: 1001n,
-                      settlementFeeAmount: 40n,
-                      status: "COMPLETED",
-                    }),
+                    findUnique: async () => settledPath,
+                    findUniqueOrThrow: async () => settledPath,
                   },
                 }),
             },
@@ -54,6 +56,18 @@ test("wallet HTTP uses live identity, exact strings, snapshot cursors and own-on
             {},
             {},
             {},
+            {},
+            {},
+            {},
+            {},
+            {
+              readPathSource: async () => ({
+                requestId: null,
+                conversationId: "conversation",
+                participantAId: owner.user.id,
+                participantBId: other.user.id,
+              }),
+            },
           ),
         },
       ],

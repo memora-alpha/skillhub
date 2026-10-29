@@ -94,6 +94,22 @@ export class LearningRequestLifecycleService {
     });
   }
 
+  async lockForPath(
+    tx: TransactionContext,
+    requestId: string,
+  ): Promise<
+    Pick<LearningRequestRecord, "id" | "ownerId" | "status" | "version">
+  > {
+    const request = await this.repository.lock(tx, requestId);
+    if (!request) throw new NotFoundException();
+    return {
+      id: request.id,
+      ownerId: request.ownerId,
+      status: request.status,
+      version: request.version,
+    };
+  }
+
   async markClosed(
     tx: TransactionContext,
     requestId: string,

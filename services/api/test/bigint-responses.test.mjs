@@ -8,6 +8,8 @@ const userA = "0a0a0a0a-0000-4000-8000-00000000000a";
 const userB = "0b0b0b0b-0000-4000-8000-00000000000b";
 
 function sessionsService({ tx = {}, db = {} }) {
+  if (tx.learningPath?.findUniqueOrThrow)
+    tx.learningPath.findUnique = tx.learningPath.findUniqueOrThrow;
   return new LearningSessionsService(
     { run: (work) => work(tx) },
     db,
@@ -18,6 +20,15 @@ function sessionsService({ tx = {}, db = {} }) {
     { getSnapshot: async () => ({ values: {} }) },
     { config: { enabled: false } },
     { now: () => new Date("2026-11-02T00:00:00Z") },
+    {},
+    {
+      readPathSource: async () => ({
+        requestId: null,
+        conversationId: "conversation",
+        participantAId: userA,
+        participantBId: userB,
+      }),
+    },
   );
 }
 
