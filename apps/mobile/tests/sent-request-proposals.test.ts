@@ -105,7 +105,7 @@ test("Request detail opens existing pending/accepted proposals, allows terminal 
     pending = false,
     error: unknown;
   const routes: unknown[] = [];
-  const profileReads: (string | undefined)[] = [];
+  const avatarReads: (string | undefined)[] = [];
   const jsx = (type: unknown, props: unknown) => ({ type, props });
   const mocks = {
     "react/jsx-runtime": { jsx, jsxs: jsx },
@@ -123,12 +123,16 @@ test("Request detail opens existing pending/accepted proposals, allows terminal 
     "@/components/Button": { Button: "Button" },
     "@/features/connections": {
       ConnectionFeedback: "Feedback",
-      useParticipantProfile: (id: string | undefined) => {
-        profileReads.push(id);
+    },
+    "../hooks/use-request-owner-avatar": {
+      useRequestOwnerAvatar: (
+        owner: { id: string; avatarUrl: string | null } | undefined,
+        enabled = true,
+      ) => {
+        avatarReads.push(enabled ? owner?.id : undefined);
         return {
-          data: id
-            ? { avatarUrl: "https://example.test/avatar.png" }
-            : undefined,
+          sourceUri: enabled ? owner?.avatarUrl : undefined,
+          onImageError() {},
         };
       },
     },
@@ -164,6 +168,7 @@ test("Request detail opens existing pending/accepted proposals, allows terminal 
       actor: fixtureId(1),
       request: fixtureRequest(),
     });
+    request.owner.avatarUrl = "https://example.test/avatar.png";
     const primary = () =>
       elements(RequestPublicFooter({ request }))
         .filter((item) => item.type === "Button")
@@ -216,7 +221,7 @@ test("Request detail opens existing pending/accepted proposals, allows terminal 
     const offscreen = elements(
       RequestCard({ request, proposal, onPress: () => {}, loadAvatar: false }),
     );
-    assert.equal(profileReads.at(-1), undefined);
+    assert.equal(avatarReads.at(-1), undefined);
     assert.equal(
       offscreen.find((item) => item.type === "Avatar")?.props.sourceUri,
       undefined,

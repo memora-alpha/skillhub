@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { View } from "react-native";
 import { openURL } from "expo-linking";
 import { useRouter } from "expo-router";
@@ -10,13 +10,18 @@ import {
   confirmedFormLabels,
   readNegotiationMessage,
 } from "@/features/learning-paths/policy";
-import { Button } from "@/components/Button";
 import { FormNotice } from "@/components/FormNotice";
 import { useConnections, connectionError } from "@/features/connections";
 import { useMessagesApi } from "../hooks/use-messages-api";
 import type { ApiMessage } from "../api/messages-api";
 import { MessageBubble } from "./MessageBubble";
 import { ChatWorkflowCard } from "./ChatWorkflowCard";
+import { ChatFileCard } from "./ChatFileCard";
+import { ChatScheduleNotice } from "./ChatScheduleNotice";
+import {
+  readChatSchedule,
+  type ChatScheduleNotice as ScheduleNotice,
+} from "../utils/schedule-notice";
 
 export function ApiMessageBubble({
   message,
@@ -26,6 +31,7 @@ export function ApiMessageBubble({
   showTime = false,
   showReadReceipt = false,
   showAvatar = true,
+  scheduleNotice,
 }: Readonly<{
   message: ApiMessage;
   partner: string;
@@ -34,36 +40,47 @@ export function ApiMessageBubble({
   showTime?: boolean;
   showReadReceipt?: boolean;
   showAvatar?: boolean;
+  scheduleNotice?: ScheduleNotice;
 }>) {
   const { userId, isCurrent } = useConnections(),
     api = useMessagesApi();
   const [error, setError] = useState<unknown>(),
-    [pending, setPending] = useState(false);
+    [pending, setPending] = useState<string>();
+  const downloading = useRef(false);
+  const [expired, setExpired] = useState(false);
   const router = useRouter();
   const [expanded, setExpanded] = useState(false);
   const mine = message.senderId === userId;
   const download = async (attachmentId: string) => {
-    if (pending) return;
-    setPending(true);
+    if (downloading.current) return;
+    downloading.current = true;
+    setPending(attachmentId);
     setError(undefined);
+    setExpired(false);
     try {
       const result = await api.download(
         message.conversationId,
         message.id,
         attachmentId,
       );
-      if (isCurrent() && Date.parse(result.expiresAt) > Date.now())
-        await openURL(result.url);
+      if (!isCurrent()) return;
+      if (Date.parse(result.expiresAt) <= Date.now()) {
+        setExpired(true);
+        return;
+      }
+      await openURL(result.url);
     } catch (error_) {
       if (isCurrent()) setError(error_);
     } finally {
-      if (isCurrent()) setPending(false);
+      downloading.current = false;
+      if (isCurrent()) setPending(undefined);
     }
   };
   return (
     <View style={{ gap: 6 }}>
       <ApiMessageContent
         message={message}
+        scheduleNotice={scheduleNotice}
         partner={partner}
         partnerId={partnerId}
         avatarUrl={avatarUrl}
@@ -73,19 +90,24 @@ export function ApiMessageBubble({
         expanded={expanded}
         onToggleExpanded={() => setExpanded((value) => !value)}
         router={router}
+        attachmentContent={
+          message.attachments.length
+            ? message.attachments.map((file) => (
+                <ChatFileCard
+                  key={file.attachmentId}
+                  filename={file.filename}
+                  bytes={file.fileSizeBytes}
+                  mine={mine}
+                  disabled={!!pending}
+                  pending={pending === file.attachmentId}
+                  onPress={() => {
+                    void download(file.attachmentId);
+                  }}
+                />
+              ))
+            : undefined
+        }
       />
-      {message.attachments.map((file) => (
-        <Button
-          key={file.attachmentId}
-          variant="secondary"
-          disabled={pending}
-          onPress={() => {
-            void download(file.attachmentId);
-          }}
-        >
-          {`${file.filename} · ${(file.fileSizeBytes / 1000000).toFixed(1)} MB`}
-        </Button>
-      ))}
       {showReadReceipt && mine && message.readAt && (
         <View
           accessible
@@ -100,6 +122,11 @@ export function ApiMessageBubble({
           />
         </View>
       )}
+      {expired && (
+        <FormNotice tone="info" compact>
+          Liên kết tải đã hết hạn. Nhấn vào tệp để thử lại.
+        </FormNotice>
+      )}
       {!!error && (
         <FormNotice tone="error">{connectionError(error)}</FormNotice>
       )}
@@ -109,6 +136,7 @@ export function ApiMessageBubble({
 
 function ApiMessageContent({
   message,
+  scheduleNotice,
   partner,
   partnerId,
   avatarUrl,
@@ -118,8 +146,10 @@ function ApiMessageContent({
   expanded,
   onToggleExpanded,
   router,
+  attachmentContent,
 }: Readonly<{
   message: ApiMessage;
+  scheduleNotice?: ScheduleNotice;
   partner: string;
   partnerId: string;
   avatarUrl?: string | null;
@@ -129,10 +159,33 @@ function ApiMessageContent({
   expanded: boolean;
   onToggleExpanded: () => void;
   router: ReturnType<typeof useRouter>;
+  attachmentContent?: ReactNode;
 }>) {
-  const share = readPlanShare(message.messageText);
-  const form = readConfirmedForm(message.messageText);
-  const legacy = readNegotiationMessage(message.messageText);
+  const share = attachmentContent ? null : readPlanShare(message.messageText);
+  const form = attachmentContent
+    ? null
+    : readConfirmedForm(message.messageText);
+  const legacy = attachmentContent
+    ? null
+    : readNegotiationMessage(message.messageText);
+  const schedule = scheduleNotice ?? readChatSchedule(message);
+  if (schedule)
+    return (
+      <ChatScheduleNotice
+        notice={schedule}
+        mine={mine}
+        partner={partner}
+        partnerId={partnerId}
+        avatarUrl={avatarUrl}
+        showAvatar={showAvatar}
+        onPress={() =>
+          router.push({
+            pathname: "/paths/[id]/schedules",
+            params: { id: schedule.pathId },
+          })
+        }
+      />
+    );
   if (message.messageType === "SYSTEM")
     return (
       <FormNotice tone="info">
@@ -190,7 +243,9 @@ function ApiMessageContent({
           minute: "2-digit",
         }),
       }}
-    />
+    >
+      {attachmentContent}
+    </MessageBubble>
   );
 }
 
@@ -248,18 +303,6 @@ function openSharedWorkflow(
       params: {
         id: pathId,
         fromConversation,
-        formVersion: String(form.version),
-      },
-    });
-    return;
-  }
-  if (form?.kind === "schedule") {
-    router.push({
-      pathname: "/paths/[id]/schedules",
-      params: {
-        id: pathId,
-        formPlanId: form.planId!,
-        formScheduleId: form.scheduleId!,
         formVersion: String(form.version),
       },
     });

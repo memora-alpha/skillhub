@@ -48,6 +48,7 @@ test("schedule detail distinguishes exchange directions and maps session titles 
     "@/components/Button": { Button: "Button" },
     "@/components/Icon": { Icon: "Icon" },
     "./agreement-progress": { AgreementProgressPanel: "Progress" },
+    "./schedule-timeline-item": { ScheduleTimelineItem: "TimelineItem" },
   };
   const mocks = Object.entries(stubs).map(([name, namedExports]) =>
     mock.module(pathToFileURL(local.resolve(name)), { namedExports }),

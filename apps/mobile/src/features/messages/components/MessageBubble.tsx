@@ -5,6 +5,7 @@ import {
   useWindowDimensions,
   type ViewStyle,
 } from "react-native";
+import type { ReactNode } from "react";
 import { Avatar } from "@/components/Avatar";
 import { avatarSizes, typography, fonts } from "@/constants/theme";
 import type { MessageBubbleModel } from "../api/messages-api";
@@ -17,6 +18,7 @@ export function MessageBubble({
   avatarUrl,
   showTime = false,
   showAvatar = true,
+  children,
 }: {
   message: MessageBubbleModel;
   partner: string;
@@ -24,6 +26,7 @@ export function MessageBubble({
   avatarUrl?: string | null;
   showTime?: boolean;
   showAvatar?: boolean;
+  children?: ReactNode;
 }) {
   const { width } = useWindowDimensions();
   const mine = message.from === "me";
@@ -48,18 +51,24 @@ export function MessageBubble({
             styles.bubble,
             { maxWidth: bubbleWidth },
             mine ? styles.mine : styles.theirs,
+            !!children && styles.withFile,
+            !!children && { minWidth: Math.min(240, Math.max(0, width - 80)) },
+            !!children && !message.text.trim() && styles.fileOnly,
           ]}
         >
-          <Text
-            selectable
-            accessibilityHint={`Gửi lúc ${message.time}`}
-            style={[styles.text, mine && { color: colors.white }]}
-          >
-            {message.text}
-            {message.file
-              ? `\n${(message.file.bytes / 1024 / 1024).toFixed(1)} MB · tệp mẫu, không có đường dẫn tải`
-              : ""}
-          </Text>
+          {(!!message.text.trim() || !!message.file) && (
+            <Text
+              selectable
+              accessibilityHint={`Gửi lúc ${message.time}`}
+              style={[styles.text, mine && { color: colors.white }]}
+            >
+              {message.text}
+              {message.file
+                ? `\n${(message.file.bytes / 1024 / 1024).toFixed(1)} MB · tệp mẫu, không có đường dẫn tải`
+                : ""}
+            </Text>
+          )}
+          {children}
         </View>
       </View>
       {showTime && (
@@ -85,6 +94,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderBottomLeftRadius: 3,
     boxShadow: messageCardShadow,
+  },
+  withFile: { gap: 8 },
+  fileOnly: {
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+    backgroundColor: "transparent",
+    boxShadow: "none",
   },
   text: {
     fontFamily: fonts.body,

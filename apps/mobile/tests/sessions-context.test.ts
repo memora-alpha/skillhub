@@ -8,7 +8,7 @@ import {
 import { rescheduleSnapshot } from "../src/features/sessions/utils/reschedule-snapshot";
 import {
   isRescheduleEligible,
-  rescheduleUnavailableMessage,
+  rescheduleAvailabilityMessage,
 } from "../src/features/sessions/utils/reschedule-form";
 import { readLearningPath } from "../src/features/learning-paths/api/learning-paths-read";
 import { sessionPath } from "./fixtures/session-path";
@@ -196,8 +196,8 @@ test("CONFIRMED/READY use the 60-minute cutoff; ONGOING and terminal states cann
     assert.equal(isRescheduleEligible({ ...session, status }, now), true);
     assert.equal(isRescheduleEligible({ ...session, status }, now + 1), false);
     assert.match(
-      rescheduleUnavailableMessage({ ...session, status }, now),
-      /chưa thể gửi đề nghị/,
+      rescheduleAvailabilityMessage({ ...session, status }, now),
+      /Hai bên cần xác nhận/,
     );
   }
   for (const status of [

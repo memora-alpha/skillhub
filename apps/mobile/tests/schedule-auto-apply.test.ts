@@ -34,8 +34,7 @@ test("weekly template applies only on button press and preserves individual chan
       Pressable: "Pressable",
       StyleSheet: { create: (v: unknown) => v },
     },
-    "@/features/learning-requests": { LearningDateTimeField: "DateField" },
-    "@/components/Input": { Input: "Input" },
+    "./schedule-time-fields": { ScheduleTimeFields: "TimeFields" },
     "@/components/Button": { Button: "Button" },
     "@/components/learning-flow": { FlowSection: "Section" },
     "@/components/Icon": { Icon: "Icon" },
@@ -49,8 +48,8 @@ test("weekly template applies only on button press and preserves individual chan
       children?: unknown;
       accessibilityLabel?: string;
       onPress: () => void;
-      onChange: (value: string) => void;
-      onChangeText: (value: string) => void;
+      onLocalChange: (value: string) => void;
+      onMinutesChange: (value: string) => void;
     };
   };
   const nodes = (tree: unknown): Element[] => {
@@ -78,8 +77,8 @@ test("weekly template applies only on button press and preserves individual chan
     assert.equal(calls.length, 0);
     tree = render();
     tree
-      .find((e) => e.type === "DateField")!
-      .props.onChange("2098-02-01T15:00");
+      .find((e) => e.type === "TimeFields")!
+      .props.onLocalChange("2098-02-01T15:00");
     assert.equal(calls.length, 0);
     tree = render();
     const apply = () =>
@@ -98,8 +97,8 @@ test("weekly template applies only on button press and preserves individual chan
     tree.find((e) => e.props.accessibilityLabel === "90 phút")!.props.onPress();
     tree = render();
     tree
-      .find((e) => e.type === "DateField")!
-      .props.onChange("2098-02-05T15:00");
+      .find((e) => e.type === "TimeFields")!
+      .props.onLocalChange("2098-02-05T15:00");
     render();
     render();
     assert.equal(calls.length, 1);
@@ -108,11 +107,11 @@ test("weekly template applies only on button press and preserves individual chan
     assert.equal(calls.length, 2);
     assert.equal(calls[1]![0]!.minutes, "90");
     tree = render();
-    tree.find((e) => e.type === "Input")!.props.onChangeText("45");
+    tree.find((e) => e.type === "TimeFields")!.props.onMinutesChange("45");
     apply();
     assert.equal(calls.length, 2);
     tree = render();
-    tree.find((e) => e.type === "Input")!.props.onChangeText("60");
+    tree.find((e) => e.type === "TimeFields")!.props.onMinutesChange("60");
     render(true)
       .find((e) => e.type === "Button")!
       .props.onPress();

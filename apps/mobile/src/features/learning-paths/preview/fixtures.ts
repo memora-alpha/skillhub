@@ -1,5 +1,5 @@
 import type { LearningPath, Plan } from "./types";
-export function futureSlot(days: number, hour = 19) {
+function futureSlot(days: number, hour = 19) {
   const d = new Date();
   d.setDate(d.getDate() + days);
   d.setHours(hour, 0, 0, 0);

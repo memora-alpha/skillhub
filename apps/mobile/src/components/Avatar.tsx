@@ -25,6 +25,7 @@ export function Avatar({
   style,
   textStyle,
   sourceUri,
+  onImageError,
 }: {
   name: string;
   userId?: string;
@@ -34,6 +35,7 @@ export function Avatar({
   style?: StyleProp<ViewStyle>;
   textStyle?: StyleProp<TextStyle>;
   sourceUri?: string | null;
+  onImageError?: () => void;
 }) {
   const [imageFailed, setImageFailed] = useState(false);
   useEffect(() => setImageFailed(false), [sourceUri]);
@@ -65,7 +67,10 @@ export function Avatar({
       {sourceUri && !imageFailed ? (
         <Image
           source={{ uri: sourceUri }}
-          onError={() => setImageFailed(true)}
+          onError={() => {
+            setImageFailed(true);
+            onImageError?.();
+          }}
           style={styles.image}
         />
       ) : (

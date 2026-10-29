@@ -36,7 +36,7 @@ export function AgreementMethodSummary({
       : "Đối tác dạy · Bạn học";
   const assignmentDescription = twoWay
     ? "Mỗi người tạo lộ trình mình dạy, xác nhận lộ trình mình học trước khi xếp lịch."
-    : `${assignment}. Người dạy tạo lộ trình, người học xác nhận trước khi xếp lịch.`;
+    : `${assignment}. Người học xác nhận lộ trình trước khi xếp lịch.`;
   return (
     <>
       <View style={styles.heading}>

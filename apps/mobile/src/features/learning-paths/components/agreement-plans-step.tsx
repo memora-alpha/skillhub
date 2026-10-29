@@ -43,8 +43,8 @@ export function AgreementPlansStep({
         <Icon name="users" size={22} color={colors.primary} />
         <Text style={styles.guideText}>
           {twoWay
-            ? "Mỗi người tạo lộ trình mình dạy. Hai bạn có thể chuẩn bị và chỉnh sửa cùng lúc."
-            : "Người dạy tạo lộ trình, người học xem chi tiết và xác nhận trước khi xếp lịch."}
+            ? "Mỗi người tạo lộ trình mình dạy; có thể cùng chuẩn bị."
+            : "Người dạy tạo lộ trình, người học xác nhận trước khi xếp lịch."}
         </Text>
       </View>
       {teachers
@@ -211,9 +211,7 @@ function ExistingPlanContent({
       {confirmed && (
         <View style={styles.confirmation}>
           <Icon name="check-circle" size={14} color={colors.forest} />
-          <Text style={styles.confirmationText}>
-            Người học đã xác nhận lộ trình này
-          </Text>
+          <Text style={styles.confirmationText}>Người học đã xác nhận</Text>
         </View>
       )}
       <View style={styles.actions}>

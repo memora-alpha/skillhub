@@ -21,6 +21,17 @@ S02 không cần setup lại design system; S03 implementation đã có, chỉ s
 
 ## Task còn mở, giữ ID gốc
 
+### Đồng bộ owner avatar theo BE 232cb6ba
+
+Follow-up ngày 2026-10-27 trên `fix/mobile-proposal-chat-learning-path`, sau khi fetch/đối chiếu `origin/dev` 79d4bb1f; không merge hoặc sửa BE/shared/dependencies. Tái sử dụng Avatar và profile read/cache/session hiện có, giữ thiết kế card/detail.
+
+- [x] AV-01: Đồng bộ field bắt buộc nullable `owner.avatarUrl` ở public feed/recommended/detail và fixture; giữ validation HTTP(S)/private stripping.
+- [x] AV-02: Hiển thị URL response trực tiếp, không gọi profile khi URL còn hạn hoặc null; giữ viewability của card và profile navigation/context.
+- [x] AV-03: Xử lý hạn 60 giây/lỗi Image bằng profile query hiện có, bỏ URL cached đã hết hạn; không timer/polling/replay hoặc tăng cache TTL. Callback Avatar tùy chọn giữ behavior các consumer khác.
+- [x] AV-04: Regression schema/expiry/hook/card/detail/initials và compatibility Proposal; chạy checks mobile, ghi evidence trong status.
+
+Real API/native acceptance tiếp tục thuộc T025..T032, chưa tự ghi hoàn thành từ host tests/export.
+
 ### Tích hợp proposedTags theo BE dev ngày 24/10/2026
 
 Nhánh `fix/mobile-learning-request-proposed-tags` từ origin/dev0318bf7e. Nguồn contract: BE commit9d356167 và amendment `services/api/specs/007-learning-request/proposed-tags.md`; chỉ sửa mobile, không chạy migration/seed hoặc sửa BE.

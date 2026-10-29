@@ -46,7 +46,10 @@ export function AppProviders({ children }: { children: ReactNode }) {
   if (!loaded)
     return (
       <View style={styles.loading}>
-        <ActivityIndicator accessibilityLabel="Đang mở SkillHub" />
+        <ActivityIndicator
+          presentation="inline"
+          accessibilityLabel="Đang mở SkillHub"
+        />
       </View>
     );
   return (

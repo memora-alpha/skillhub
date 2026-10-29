@@ -103,7 +103,12 @@ function SubmittedImageFallback({
   onRetry: () => void;
 }>) {
   if (loading)
-    return <ActivityIndicator accessibilityLabel="Đang tải ảnh bằng chứng" />;
+    return (
+      <ActivityIndicator
+        presentation="placeholder"
+        accessibilityLabel="Đang tải ảnh bằng chứng"
+      />
+    );
   if (compact)
     return (
       <Pressable

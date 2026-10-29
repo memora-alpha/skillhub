@@ -3,6 +3,8 @@ import { createRequire } from "node:module";
 import { mock, test } from "node:test";
 import { pathToFileURL } from "node:url";
 import { canValidateForFinalize } from "../src/features/learning-paths/utils/policy-api";
+import { readScheduledMessage } from "../src/features/learning-paths/utils/scheduled-message";
+import { fixtureId } from "./fixtures/learning-requests-data";
 import {
   agreementPath,
   withConfirmedSchedules,
@@ -65,6 +67,12 @@ function holdHarness() {
   let finalizations = 0;
   let retries = 0;
   let current = true;
+  let executeFinalize = false;
+  const notices: {
+    conversationId: string;
+    messageText: string;
+    identity: string;
+  }[] = [];
   const path = withConfirmedSchedules();
   const query = {
     data: path,
@@ -84,8 +92,12 @@ function holdHarness() {
     pending: false,
     error: undefined,
     uncertain: false,
-    run: async () => {
+    run: async (
+      _fingerprint: string,
+      send: (identity: string) => Promise<unknown>,
+    ) => {
       finalizations++;
+      if (executeFinalize) return send(fixtureId(99));
       finalize.uncertain = true;
       return undefined;
     },
@@ -135,6 +147,18 @@ function holdHarness() {
       useConnections: () => ({ isCurrent: () => current }),
       useConnectionCommand: () => (commands++ === 0 ? check : finalize),
     },
+    "@/features/messages/state": {
+      useConfirmedFormShare: () => ({
+        publish: async (
+          conversationId: string,
+          messageText: string,
+          identity: string,
+        ) => {
+          notices.push({ conversationId, messageText, identity });
+        },
+      }),
+      ConfirmedFormFeedback: "ConfirmedFormFeedback",
+    },
     "../components/PathReadFeedback": { PathReadFeedback: "PathReadFeedback" },
     "../components/agreement-progress": {
       AgreementChatLink: "AgreementChatLink",
@@ -142,7 +166,15 @@ function holdHarness() {
     },
     "../hooks/use-learning-paths-api": {
       useLearningPath: () => query,
-      useLearningPathsApi: () => ({ validate: async () => validation }),
+      useLearningPathsApi: () => ({
+        validate: async () => validation,
+        finalize: async () => ({
+          pathId: query.data.id,
+          version: query.data.currentVersion,
+          status: "SCHEDULED",
+          sessions: query.data.plans.flatMap((plan) => plan.schedule!.items),
+        }),
+      }),
     },
     "../utils/policy-api": { canValidateForFinalize },
   };
@@ -154,6 +186,10 @@ function holdHarness() {
   const screen = loaded.module;
   return {
     query,
+    notices,
+    finalizeSuccessfully: () => {
+      executeFinalize = true;
+    },
     validateAs(value: typeof validation) {
       validation = value;
     },
@@ -181,6 +217,46 @@ function holdHarness() {
   };
 }
 const flush = () => new Promise<void>((resolve) => setImmediate(resolve));
+
+test("finalizing a two-way schedule publishes one notification for all six sessions", async () => {
+  const h = holdHarness();
+  try {
+    h.query.data = withConfirmedSchedules(agreementPath(true));
+    for (const plan of h.query.data.plans) {
+      plan.totalSessions = 3;
+      plan.sessionOutline = [1, 2, 3].map((sessionNo) => ({
+        sessionNo,
+        content: `Buổi ${sessionNo}`,
+      }));
+      const first = plan.schedule!.items[0]!;
+      plan.schedule!.items = [0, 1, 2].map((index) => ({
+        sessionNo: index + 1,
+        startAt: new Date(
+          Date.parse(first.startAt) + index * 86_400_000,
+        ).toISOString(),
+        endAt: new Date(
+          Date.parse(first.endAt) + index * 86_400_000,
+        ).toISOString(),
+      }));
+    }
+    h.validateAs({ version: 3, planCount: 2, scheduleCount: 2 });
+    h.finalizeSuccessfully();
+    h.button(h.render(), "Kiểm tra điều kiện trên hệ thống").onPress();
+    await flush();
+    assert.equal(h.notices.length, 0);
+    h.button(h.render(), "Xác nhận chốt lịch và tạm giữ Credit").onPress();
+    await flush();
+    assert.equal(h.notices.length, 1);
+    assert.equal(
+      readScheduledMessage(h.notices[0]!.messageText)!.sessionCount,
+      6,
+    );
+    assert.equal(h.notices[0]!.identity, fixtureId(99));
+    assert.equal(h.notices[0]!.conversationId, h.query.data.conversationId);
+  } finally {
+    h.cleanup();
+  }
+});
 
 test("Hold UI requires a matching server validation, then invalidates it when the snapshot changes", async () => {
   const h = holdHarness();

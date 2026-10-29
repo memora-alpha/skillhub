@@ -1,4 +1,5 @@
 import { useForm } from "react-hook-form";
+import { useRef } from "react";
 import { useRouter } from "expo-router";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Copy } from "@/components/feature-page";
@@ -26,16 +27,33 @@ import {
   PlanGoalField,
 } from "./plan-editor-fields";
 import { PlanOutlineEditor } from "./plan-outline-editor";
+import { useEditorSnapshot } from "../hooks/use-editor-snapshot";
+import { EditorRevisionNotice } from "./editor-revision-notice";
+
+function planDefaults(plan?: ApiLearningPlan): PlanEditorValues {
+  return {
+    skillId: plan?.skillId ?? "",
+    learningGoal: plan?.learningGoal ?? "",
+    sessionOutline: plan?.sessionOutline.map(({ content }) => ({
+      content,
+    })) ?? [{ content: "" }],
+  };
+}
 
 export function PlanForm({
-  path,
-  plan,
+  path: latestPath,
+  plan: latestPlan,
   blocked,
 }: Readonly<{
   path: ApiLearningPath;
   plan?: ApiLearningPlan;
   blocked: boolean;
 }>) {
+  const snapshot = useEditorSnapshot(
+    `${latestPath.currentVersion}:${latestPlan?.version ?? "new"}`,
+    { path: latestPath, plan: latestPlan },
+  );
+  const { path, plan } = snapshot.value;
   const api = useLearningPathsApi(),
     command = useConnectionCommand([
       ["learning-paths", path.id],
@@ -44,19 +62,16 @@ export function PlanForm({
     router = useRouter();
   const skills = useSkillOptions();
   const options = skills.data?.pages.flatMap((page) => page.items) ?? [];
-  const { control, watch, setValue, handleSubmit, formState } =
+  const { control, watch, setValue, handleSubmit, formState, reset } =
     useForm<PlanEditorValues>({
       resolver: zodResolver(planEditorSchema),
-      defaultValues: {
-        skillId: plan?.skillId ?? "",
-        learningGoal: plan?.learningGoal ?? "",
-        sessionOutline: plan?.sessionOutline.map(({ content }) => ({
-          content,
-        })) ?? [{ content: "" }],
-      },
+      defaultValues: planDefaults(plan),
     });
   const skillId = watch("skillId");
-  const pending = command.pending || command.uncertain || blocked;
+  const pending =
+    command.pending || command.uncertain || blocked || snapshot.changed;
+  const canSubmit = useRef(false);
+  canSubmit.current = !pending;
   const selectedSkill = useCatalogName(
     options.some((option) => option.id === skillId) ? undefined : skillId,
   );
@@ -65,8 +80,9 @@ export function PlanForm({
       variant="craft"
       disabled={pending}
       onPress={() => {
-        if (pending) return;
+        if (!canSubmit.current || !snapshot.isCurrent()) return;
         void handleSubmit(async (values) => {
+          if (!canSubmit.current || !snapshot.isCurrent()) return;
           const input = planEditorInput(values);
           const result = await command.run(
             JSON.stringify({
@@ -89,9 +105,18 @@ export function PlanForm({
   );
   return (
     <PlanEditorFrame action={saveAction}>
+      <EditorRevisionNotice
+        visible={snapshot.changed}
+        disabled={command.pending || command.uncertain || blocked}
+        onReload={() => {
+          const current = snapshot.reload();
+          reset(planDefaults(current.plan));
+        }}
+      />
       {(skills.isLoading || skills.error) && (
         <ConnectionFeedback
           loading={skills.isLoading}
+          loadingPresentation="placeholder"
           error={skills.error}
           retry={skills.refetch}
         />
@@ -118,7 +143,9 @@ export function PlanForm({
         <Copy>{formState.errors.skillId.message}</Copy>
       )}
       {!skills.isLoading && !skills.error && !options.length && (
-        <Copy muted>Chưa có kỹ năng trong danh mục.</Copy>
+        <Copy muted size="hint">
+          Chưa có kỹ năng trong danh mục.
+        </Copy>
       )}
       <PlanGoalField control={control} disabled={pending} />
       <PlanOutlineEditor
@@ -130,15 +157,14 @@ export function PlanForm({
         }
       />
       {plan && (
-        <Copy muted>
-          Nếu nội dung thay đổi, người học cần xác nhận lại lộ trình. Cách học
-          đã thống nhất được giữ.
+        <Copy muted size="hint">
+          Sửa nội dung cần người học xác nhận lại.
         </Copy>
       )}
       {!!command.error && <ConnectionFeedback error={command.error} />}
       {command.uncertain && (
         <Panel title="Kiểm tra kế hoạch vừa gửi">
-          <Copy>
+          <Copy size="hint">
             Chưa xác định được kết quả. Nội dung được giữ lại; mở lộ trình để
             xem kế hoạch và phiên bản mới nhất trước khi gửi thêm.
           </Copy>

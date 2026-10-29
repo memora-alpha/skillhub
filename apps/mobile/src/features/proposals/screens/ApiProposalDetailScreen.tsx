@@ -48,6 +48,7 @@ export function ApiProposalDetailScreen({ id }: Readonly<{ id: string }>) {
     if (
       proposal?.status !== "PENDING" ||
       proposal.recipientId !== userId ||
+      query.error ||
       query.isFetching ||
       command.uncertain ||
       (proposal.sourceType === "LEARNING_REQUEST" &&
@@ -96,12 +97,16 @@ export function ApiProposalDetailScreen({ id }: Readonly<{ id: string }>) {
               <>
                 <ProposalAcceptActions
                   proposal={proposal}
-                  disabled={command.pending || query.isFetching}
+                  disabled={
+                    command.pending || query.isFetching || !!query.error
+                  }
                   onAccept={accept}
                 />
                 <Button
                   variant="secondary"
-                  disabled={command.pending || query.isFetching}
+                  disabled={
+                    command.pending || query.isFetching || !!query.error
+                  }
                   onPress={() => setClosing("reject")}
                 >
                   Từ chối đề xuất

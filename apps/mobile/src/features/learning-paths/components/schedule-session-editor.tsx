@@ -5,9 +5,9 @@ import {
   useFormState,
   type Control,
 } from "react-hook-form";
-import { LearningDateTimeField } from "@/features/learning-requests";
-import { ControlledInput } from "@/components/ControlledInput";
+import { ScheduleTimeFields } from "./schedule-time-fields";
 import { Button } from "@/components/Button";
+import { FormNotice } from "@/components/FormNotice";
 import { Icon } from "@/components/Icon";
 import { FlowSection } from "@/components/learning-flow";
 import {
@@ -16,27 +16,49 @@ import {
   fonts,
   typography,
 } from "@/constants/theme";
-import type { ApiLearningPlan } from "../api/learning-paths-contract";
+import type {
+  ApiLearningPath,
+  ApiLearningPlan,
+} from "../api/learning-paths-contract";
 import type { ScheduleInput } from "../schemas/schedule-input";
 import { scheduleSlotLabel } from "../utils/weekly-schedule";
 import { sessionContentParts } from "../utils/session-content";
 import { ScheduleTimelineItem } from "./schedule-timeline-item";
+import { ScheduleBusyDay } from "./schedule-busy-day";
+import {
+  previewScheduleItems,
+  scheduleConflicts,
+  scheduleConflictMessage,
+} from "../utils/schedule-conflicts";
+import {
+  existingScheduleConflictMessage,
+  type ExistingScheduleConflict,
+} from "../utils/schedule-existing-conflicts";
 
 export function ScheduleSessionEditor({
+  path,
   plan,
   control,
   disabled,
   active,
   onEdit,
+  existingConflicts = [],
 }: Readonly<{
+  path: ApiLearningPath;
   plan: ApiLearningPlan;
   control: Control<ScheduleInput>;
   disabled: boolean;
   active: number | null;
   onEdit: (index: number | null) => void;
+  existingConflicts?: readonly ExistingScheduleConflict[];
 }>) {
   const items = useWatch({ control, name: "items" });
   const { errors } = useFormState({ control });
+  const slots = previewScheduleItems(items ?? [], plan.schedule?.items);
+  const conflicts = scheduleConflicts(
+    slots,
+    path.plans.filter((other) => other.id !== plan.id),
+  );
   const completed = (items ?? []).filter(
     (item) => item.local && item.minutes,
   ).length;
@@ -51,14 +73,34 @@ export function ScheduleSessionEditor({
           {completed}/{plan.totalSessions} buổi đã điền
         </Text>
       </View>
+      <Text style={styles.hint}>
+        Chọn Sửa ở từng buổi để xem các khung giờ bạn đã có lịch trong ngày đó.
+      </Text>
       {plan.sessionOutline.map((session, index) => {
         const open = active === index;
         const error = errors.items?.[index];
         const topic = sessionContentParts(session.content);
+        const slot = slots.find((item) => item.sessionNo === session.sessionNo);
+        const overlaps = conflicts.filter((conflict) =>
+          conflict.source === "draft"
+            ? conflict.other.sessionNo === session.sessionNo
+            : conflict.slot.sessionNo === session.sessionNo,
+        );
+        const existingOverlaps = existingConflicts.filter(
+          (conflict) => conflict.slot.sessionNo === session.sessionNo,
+        );
+        const warnings = [
+          ...new Set([
+            ...overlaps.map(scheduleConflictMessage),
+            ...existingOverlaps.map(existingScheduleConflictMessage),
+          ]),
+        ];
+        const fieldError = error?.minutes?.message ?? error?.local?.message;
         return (
           <ScheduleTimelineItem
             key={session.sessionNo}
             last={index === plan.sessionOutline.length - 1}
+            gap={12}
           >
             <FlowSection>
               <View style={[styles.heading, styles.cardHeading]}>
@@ -88,9 +130,14 @@ export function ScheduleSessionEditor({
                   <Text style={styles.topic}>{topic.description}</Text>
                 )}
               </View>
-              {!open && !!error && (
+              {!!warnings.length && (
+                <FormNotice tone="error" compact>
+                  {`${warnings.join("\n")}\nHãy chọn giờ khác.`}
+                </FormNotice>
+              )}
+              {!open && !!fieldError && !warnings.includes(fieldError) && (
                 <Text accessibilityRole="alert" style={styles.error}>
-                  {error.local?.message ?? error.minutes?.message}
+                  {fieldError}
                 </Text>
               )}
               {open && (
@@ -100,28 +147,55 @@ export function ScheduleSessionEditor({
                     name={`items.${index}.local`}
                     render={({ field, fieldState }) => (
                       <>
-                        <LearningDateTimeField
-                          label={`Ngày giờ buổi ${session.sessionNo}`}
-                          value={field.value}
-                          onChange={field.onChange}
-                          disabled={disabled}
+                        <Controller
+                          control={control}
+                          name={`items.${index}.minutes`}
+                          render={({
+                            field: duration,
+                            fieldState: durationState,
+                          }) => (
+                            <>
+                              <ScheduleTimeFields
+                                local={field.value}
+                                minutes={duration.value}
+                                onLocalChange={field.onChange}
+                                onMinutesChange={duration.onChange}
+                                disabled={disabled}
+                              />
+                              {!!durationState.error && (
+                                <Text
+                                  accessibilityRole="alert"
+                                  style={styles.error}
+                                >
+                                  {durationState.error.message}
+                                </Text>
+                              )}
+                            </>
+                          )}
                         />
-                        {!!fieldState.error && (
-                          <Text accessibilityRole="alert" style={styles.error}>
-                            {fieldState.error.message}
-                          </Text>
-                        )}
+                        {!!fieldState.error &&
+                          !warnings.includes(
+                            fieldState.error.message ?? "",
+                          ) && (
+                            <Text
+                              accessibilityRole="alert"
+                              style={styles.error}
+                            >
+                              {fieldState.error.message}
+                            </Text>
+                          )}
                       </>
                     )}
                   />
-                  <ControlledInput
-                    control={control}
-                    name={`items.${index}.minutes`}
-                    label={`Thời lượng buổi ${session.sessionNo} (phút)`}
-                    keyboardType="number-pad"
-                    editable={!disabled}
-                    reserveMessageSpace={false}
-                  />
+                  {slot && (
+                    <ScheduleBusyDay
+                      slot={slot}
+                      allowed={!disabled}
+                      warnedSessionIds={existingOverlaps.map(
+                        (conflict) => conflict.session.id,
+                      )}
+                    />
+                  )}
                   <Button
                     variant="secondary"
                     size="sm"
@@ -174,6 +248,11 @@ const styles = StyleSheet.create({
     color: colors.ink,
   },
   group: { gap: 12 },
+  hint: {
+    ...typography.secondary,
+    fontFamily: fonts.body,
+    color: colors.muted,
+  },
   heading: {
     flexDirection: "row",
     alignItems: "center",

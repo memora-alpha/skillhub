@@ -28,6 +28,7 @@ export function OwnProfileSkillList() {
     <ProfileSkillSection onManage={() => router.push("/my-skills")}>
       {(!query.data || !!query.error || !items.length) && (
         <QueryFeedback
+          loadingPresentation="placeholder"
           query={query}
           empty={!items.length}
           emptyText="Chưa có kỹ năng chia sẻ."
@@ -76,6 +77,7 @@ export function PublicProfileSkillList({
     <ProfileSkillSection>
       {(!query.data || !!query.error || !items.length) && (
         <QueryFeedback
+          loadingPresentation="placeholder"
           query={query}
           empty={!items.length}
           emptyText="Chưa có kỹ năng hiển thị công khai."

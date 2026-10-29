@@ -9,7 +9,7 @@ import {
 } from "./fixtures/learning-agreement";
 import { fixtureId } from "./fixtures/learning-requests-data";
 
-type Element = { type: unknown; props: Record<string, unknown> };
+type Element = { type: unknown; props: Record<string, unknown>; key?: string };
 function elements(tree: unknown): Element[] {
   if (Array.isArray(tree)) return tree.flatMap(elements);
   if (!tree || typeof tree !== "object" || !("props" in tree)) return [];
@@ -75,9 +75,14 @@ function harness(detail: boolean) {
       send: (identity: string) => Promise<unknown>,
     ) => send(fixtureId(90)),
   };
-  const jsx = (type: unknown, props: Record<string, unknown>) => ({
+  const jsx = (
+    type: unknown,
+    props: Record<string, unknown>,
+    key?: string,
+  ) => ({
     type,
     props,
+    key,
   });
   const mocks: Record<string, Record<string, unknown>> = {
     "react/jsx-runtime": { jsx, jsxs: jsx, Fragment: "Fragment" },
@@ -454,6 +459,30 @@ test("a locked agreement opens its complete Session list without dispatching a c
     (button.props.onPress as () => void)();
     assert.deepEqual(h.routes, [`/paths/${h.path.id}/sessions`]);
     assert.equal(h.calls.length, 0);
+  } finally {
+    h.cleanup();
+  }
+});
+
+test("polling a new plan version keeps the editor mounted so its draft can be reviewed", () => {
+  const h = harness(true);
+  try {
+    const plan = h.path.plans.find((item) => item.teacherId === learnerId)!;
+    h.params.planId = plan.id;
+    const editor = () =>
+      elements(h.screen.ApiPlanEditorScreen()).find(
+        (item) =>
+          typeof item.type === "function" && item.type.name === "PlanForm",
+      )!;
+    const original = editor();
+    assert.ok(original);
+    plan.version++;
+    const updated = editor();
+    assert.equal(
+      updated.key,
+      original.key,
+      "a remote revision must not remount and reset the editor",
+    );
   } finally {
     h.cleanup();
   }

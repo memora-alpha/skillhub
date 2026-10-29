@@ -13,6 +13,7 @@ import { BrandLogo } from "@/components/BrandLogo";
 import { KeyboardFormScrollView } from "@/components/KeyboardFormScrollView";
 import { typography, colors, fonts, layout } from "@/constants/theme";
 import { authCommunity } from "../mocks/auth";
+import { ScreenLoadingBoundary } from "@/components/ScreenLoadingBoundary";
 
 export function AuthLayout({
   title,
@@ -66,27 +67,29 @@ export function AuthLayout({
           </Text>
         </View>
       )}
-      <KeyboardFormScrollView
-        style={styles.keyboard}
-        contentContainerStyle={[
-          styles.scrollContent,
-          Platform.OS === "web" && wide && { justifyContent: "center" },
-          wide && { padding: 48 },
-        ]}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View style={styles.form}>
-          {!wide && <View style={styles.logo}>{logo}</View>}
-          <View style={styles.heading}>
-            <Text accessibilityRole="header" style={styles.title}>
-              {title}
-            </Text>
-            <Text style={styles.subtitle}>{subtitle}</Text>
+      <ScreenLoadingBoundary>
+        <KeyboardFormScrollView
+          style={styles.keyboard}
+          contentContainerStyle={[
+            styles.scrollContent,
+            Platform.OS === "web" && wide && { justifyContent: "center" },
+            wide && { padding: 48 },
+          ]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.form}>
+            {!wide && <View style={styles.logo}>{logo}</View>}
+            <View style={styles.heading}>
+              <Text accessibilityRole="header" style={styles.title}>
+                {title}
+              </Text>
+              <Text style={styles.subtitle}>{subtitle}</Text>
+            </View>
+            {children}
           </View>
-          {children}
-        </View>
-      </KeyboardFormScrollView>
+        </KeyboardFormScrollView>
+      </ScreenLoadingBoundary>
     </SafeAreaView>
   );
 }

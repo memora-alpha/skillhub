@@ -26,7 +26,7 @@ export function NotificationActions({
         ]}
       >
         {refreshing ? (
-          <ActivityIndicator size="small" />
+          <ActivityIndicator presentation="inline" size="small" />
         ) : (
           <Icon name="refresh" size={18} color={colors.primary} />
         )}

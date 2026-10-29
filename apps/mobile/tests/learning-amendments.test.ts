@@ -222,3 +222,25 @@ test("schedule editing preloads retained local times, leaves new sessions blank 
   assert.deepEqual(incomplete.items[1], { local: "", minutes: "60" });
   assert.throws(() => scheduleDraftItems(incomplete, plan));
 });
+
+test("edited schedules reject overlap hidden by retained timestamp seconds", () => {
+  const plan = withConfirmedSchedules().plans[0]!;
+  plan.totalSessions = 2;
+  plan.schedule!.items = [
+    {
+      sessionNo: 1,
+      startAt: "2098-01-01T19:30:27Z",
+      endAt: "2098-01-01T20:30:27Z",
+    },
+    {
+      sessionNo: 2,
+      startAt: "2098-01-01T21:00:00Z",
+      endAt: "2098-01-01T22:00:00Z",
+    },
+  ];
+  const input = scheduleDraft(plan);
+  const overlap = new Date("2098-01-01T20:30:00Z");
+  const pad = (n: number) => String(n).padStart(2, "0");
+  input.items[1]!.local = `${overlap.getFullYear()}-${pad(overlap.getMonth() + 1)}-${pad(overlap.getDate())}T${pad(overlap.getHours())}:${pad(overlap.getMinutes())}`;
+  assert.throws(() => scheduleDraftItems(input, plan), /trùng với buổi/);
+});

@@ -33,6 +33,7 @@ export function SkillLevelField({
       ) : (
         <>
           <QueryFeedback
+            loadingPresentation="placeholder"
             query={query}
             empty={query.data?.length === 0}
             emptyText="Kỹ năng chưa có trình độ để chọn."

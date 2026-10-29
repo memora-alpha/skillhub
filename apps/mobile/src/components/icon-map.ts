@@ -34,6 +34,8 @@ import Lock from "lucide-react-native/icons/lock-keyhole";
 import Flag from "lucide-react-native/icons/flag";
 import Send from "lucide-react-native/icons/send";
 import Paperclip from "lucide-react-native/icons/paperclip";
+import FileText from "lucide-react-native/icons/file-text";
+import Download from "lucide-react-native/icons/download";
 import Image from "lucide-react-native/icons/image";
 import Video from "lucide-react-native/icons/video";
 import WifiOff from "lucide-react-native/icons/wifi-off";
@@ -78,6 +80,8 @@ export const iconComponents = {
   flag: Flag,
   send: Send,
   paperclip: Paperclip,
+  file: FileText,
+  download: Download,
   image: Image,
   video: Video,
   "wifi-off": WifiOff,

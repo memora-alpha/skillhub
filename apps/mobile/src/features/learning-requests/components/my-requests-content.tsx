@@ -84,7 +84,10 @@ export function MyRequestsContent({
           {quietError &&
             !!query.items.length &&
             !query.isFetchNextPageError && (
-              <LoadingIndicator accessibilityLabel="Đang cập nhật yêu cầu học" />
+              <LoadingIndicator
+                presentation="silent"
+                accessibilityLabel="Đang cập nhật yêu cầu học"
+              />
             )}
           {query.error && !quietError && !query.isFetchNextPageError && (
             <RequestFailure

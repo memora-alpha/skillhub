@@ -186,7 +186,7 @@ export function ApiPathsContent() {
         />
       )}
       {query.data?.length === 100 && (
-        <Copy muted>
+        <Copy muted size="hint">
           Đang hiển thị tối đa 100 lộ trình được cập nhật gần nhất. Số lượng bộ
           lọc tính trong danh sách đã tải.
         </Copy>

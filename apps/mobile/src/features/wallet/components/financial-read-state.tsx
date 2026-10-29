@@ -41,7 +41,7 @@ export function FinancialReadState({
     <View style={{ gap: 12 }}>
       {retained && children}
       {state.status !== "ready" &&
-        !(state.status === "refreshing" && externalRefresh) && (
+        !(state.status === "refreshing" && (externalRefresh || retained)) && (
           <View accessibilityState={{ busy }} style={{ gap: 10 }}>
             {busy && (
               <ActivityIndicator accessibilityLabel={labels[state.status]} />

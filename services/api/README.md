@@ -2,6 +2,9 @@
 
 NestJS backend in the SkillHub pnpm/Turborepo workspace.
 
+Đối chiếu source backend ngày 2026-10-27 và các thay đổi cần triển khai:
+[đổi lịch, no-show Credit và thứ tự danh sách](docs/mobile-backend-followups.md).
+
 Learning Request public feed/recommended/detail include `owner.avatarUrl`
 (`string | null`), signed for 60 seconds only for the selected CLEAN avatar.
 No migration is needed; see [contract and cache guidance](specs/007-learning-request/contracts/http.md).
@@ -206,8 +209,8 @@ lỗi `{success:false,message,statusCode}`. Payload nằm trong `data`, phân tr
 danh sách quản trị nằm trong `meta.pagination` (`nextCursor`, `hasMore`, `limit`).
 Đăng ký/gửi lại OTP/quên mật khẩu trả `data:null`; response 204 không có body.
 Controller dùng helper tại `src/shared/http/response.ts`, use case trả kết quả
-nghiệp vụ; Swagger mô tả đúng envelope. Đây là thay đổi contract v1 trước release
-theo yêu cầu ngày 2026-10-04; xem [HTTP contract](specs/002-user-identity/contracts/http.md).
+nghiệp vụ; Swagger mô tả đúng envelope. Envelope áp dụng cho contract v1 trước release;
+xem [HTTP contract](specs/002-user-identity/contracts/http.md).
 
 ## Hạ tầng và quy tắc phụ thuộc
 

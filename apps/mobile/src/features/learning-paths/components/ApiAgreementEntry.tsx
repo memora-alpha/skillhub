@@ -55,7 +55,11 @@ export function ApiAgreementEntry({
             }}
           />
         ) : (
-          !query.error && <Copy muted>Đang mở thỏa thuận…</Copy>
+          !query.error && (
+            <Copy muted size="hint">
+              Đang mở thỏa thuận…
+            </Copy>
+          )
         )}
       </>
     );
@@ -71,9 +75,9 @@ export function ApiAgreementEntry({
           <Panel title="Đề xuất cách học">
             {query.data!.length < 100 ? (
               <>
-                <Copy>
-                  Chọn hình thức, vai trò và Credit. Hai bên cần đồng ý cách học
-                  trước khi người dạy tạo lộ trình.
+                <Copy size="hint">
+                  Chọn hình thức, vai trò và Credit. Cả hai đồng ý trước khi tạo
+                  lộ trình.
                 </Copy>
                 <ApiAgreementForm
                   userId={runtime.userId ?? ""}

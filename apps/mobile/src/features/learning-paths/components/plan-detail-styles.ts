@@ -67,8 +67,6 @@ export const planDetailStyles = StyleSheet.create({
   roleCopyRight: { alignItems: "flex-end" },
   roleCaption: {
     ...typography.caption,
-    fontSize: 9,
-    lineHeight: 12,
     fontFamily: fonts.medium,
     color: colors.muted,
   },
@@ -81,8 +79,6 @@ export const planDetailStyles = StyleSheet.create({
   exchange: { alignItems: "center", justifyContent: "center", gap: 1 },
   exchangeText: {
     ...typography.caption,
-    fontSize: 9,
-    lineHeight: 12,
     fontFamily: fonts.bold,
     color: colors.primary,
   },
@@ -96,10 +92,9 @@ export const planDetailStyles = StyleSheet.create({
     letterSpacing: 0.25,
   },
   goal: {
-    ...typography.secondary,
+    ...typography.body,
     fontFamily: fonts.body,
     color: colors.body,
-    lineHeight: 20,
     padding: 10,
     borderWidth: 1,
     borderColor: "#EDE2D4",

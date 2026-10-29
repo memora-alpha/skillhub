@@ -220,7 +220,7 @@ export function AccountTopupPanel({
       )}
       {state.busy && (
         <View style={styles.loading}>
-          <ActivityIndicator />
+          <ActivityIndicator presentation="silent" />
           <Copy muted>Đang xử lý…</Copy>
         </View>
       )}

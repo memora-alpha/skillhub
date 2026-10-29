@@ -1,10 +1,22 @@
 # Trạng thái Phase04 Learning Request và Discovery
 
+## Đồng bộ owner avatar theo BE 232cb6ba
+
+Follow-up trên `fix/mobile-proposal-chat-learning-path`; fetch ngày 2026-10-27 xác nhận `origin/dev` 79d4bb1f đã có trong nhánh hiện tại, không có commit BE mới khác. Chỉ sửa `apps/mobile`; source/tests đã commit tại `0c533023` (`fix(mobile): use learning request owner avatars`) theo yêu cầu ngày2026-10-27, tài liệu bàn giao trong commit riêng. Lint-staged/commitlint đạt, chưa push.
+
+- Schema public feed/recommended/detail nhận bắt buộc nullable `owner.avatarUrl`, validate HTTP(S) và giữ loại bỏ metadata riêng tư. Fixture public đã theo contract mới; projection owner/moderation giữ nguyên.
+- Card và chi tiết dùng URL response trực tiếp; null dùng initials, offscreen không kích hoạt tải ảnh hoặc profile. Không lookup profile chỉ để hiển thị avatar còn hạn.
+- Hạn URL S3 được tính từ server signing time/lifetime. URL hết hạn hoặc Image lỗi chuyển sang profile query hiện có, không dùng lại URL profile cache hết hạn; lỗi URL cũ không chặn URL response mới. Giữ cache/session/denial/dedup/freshness30s, không thêm polling/timer/replay hoặc tăng TTL. Avatar dùng chung thêm callback lỗi tùy chọn, fallback initials không đổi.
+
+Kiểm chứng: **868/868 full tests PASS**, TypeScript, ESLint toàn mobile, structure **792 source files** và export Android/iOS/web PASS. **19/19 focused** cho LR/API/Discovery/Proposal và **8/8 focused cuối** cho owner avatar/UI/Proposal navigation; 5 regression mới, cập nhật mock UI cũ theo hook mới. Logs ignored `.expo/be-owner-avatar-full-final.log`, `.expo/be-owner-avatar-types-final.log`, `.expo/be-owner-avatar-lint-final.log`, `.expo/be-owner-avatar-focused.log`, `.expo/be-owner-avatar-focused-final.log`, `.expo/be-owner-avatar-export.log`; bundle `.expo/be-owner-avatar-export`. Export dùng default Expo config cùng override tạm loại artifact `.expo` khỏi scan, không sửa config app.
+
+Không sửa BE/shared/dependencies, không chạy migration/seed hoặc gọi API thật bằng tài khoản người dùng. Chưa nghiệm thu deployment BE hoặc tải ảnh trên điện thoại thật; acceptance gốc bên dưới vẫn mở.
+
 ## Hiện trạng
 
-- Cập nhật lúc: 2026-10-24T23:37:14+07:00.
-- Trạng thái: In progress — PT-09 đã sửa3 điểm review và PT-10 đã đổi X/ổn định lifecycle bộ lọc; host/web checks đạt, real API/native acceptance và motion trên thiết bị vẫn mở.
-- Nhánh hiện tại: `fix/mobile-learning-request-proposed-tags`, khởi tạo từ dev0318bf7e, hiện đặt trên dev6a847121 sau hoàn tác push nhầm. Source được đưa lại thành3 commit d0661167/450cffc7/7d79d058, tài liệu đi riêng; upstream đúng `origin/fix/mobile-learning-request-proposed-tags`.
+- Cập nhật lúc: 2026-10-27T09:48:54+07:00.
+- Trạng thái: In progress — đồng bộ owner avatar theo BE232cb6ba đã hoàn tất source và automated checks; real API/native acceptance và motion trên thiết bị vẫn mở. PT-09/PT-10 giữ checkpoint bên dưới.
+- Nhánh proposedTags trước đó: `fix/mobile-learning-request-proposed-tags`, khởi tạo từ dev0318bf7e, hiện đặt trên dev6a847121 sau hoàn tác push nhầm. Source được đưa lại thành3 commit d0661167/450cffc7/7d79d058, tài liệu đi riêng; upstream đúng `origin/fix/mobile-learning-request-proposed-tags`.
 - Đã có trong source: phần CRUD/list/detail/discovery, Tag/weekly/FR-35 và profile kế thừa baseline; mới tích hợp proposedTags theo BE commit9d356167. Bảng baseline phía dưới giữ evidence theo thời điểm, không suy toàn bộ nghiệp vụ từ thay đổi này.
 - Nghiệm thu người dùng: Chưa thực hiện trong migration; không giả nhận từ checkbox lịch sử.
 - Chưa hoàn tất: T025..T029 real API theo từng gate và T030..T032 Android/iOS/native fixes khi có lỗi thật; FR-35/weekly/catalog mobile User acceptance cùng các task đó.

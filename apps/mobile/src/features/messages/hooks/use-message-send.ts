@@ -6,14 +6,14 @@ import {
   useConnectionQuery,
 } from "@/features/connections";
 import { useMessagesApi } from "./use-messages-api";
-import type { MessageDraft } from "../api/messages-api";
+import type { Delivery, MessageDraft } from "../api/messages-api";
 import { rememberLatestMessage } from "../utils/conversation-preview";
 
 export function useMessageSend(id: string) {
   const api = useMessagesApi(),
     runtime = useConnections(),
     cache = useQueryClient();
-  const command = useConnectionCommand([
+  const command = useConnectionCommand<Delivery>([
     ["thread", id],
     ["conversations", "preview", id],
     ["delivery", id],
@@ -44,9 +44,16 @@ export function useMessageSend(id: string) {
     }
   }, [delivery.data, runtime, cache, id]);
   async function send(messageText: string, attachmentFileIds: string[] = []) {
-    if (receipt || (!messageText.trim() && !attachmentFileIds.length))
+    if (
+      receipt ||
+      command.uncertain ||
+      (!messageText.trim() && !attachmentFileIds.length)
+    )
       return false;
-    const body = { messageText: messageText.trim(), attachmentFileIds };
+    const body = {
+      messageText: messageText.trim(),
+      attachmentFileIds: [...attachmentFileIds],
+    };
     const result = await command.run(
       JSON.stringify({ id, ...body }),
       (clientMessageId) => {
@@ -54,6 +61,9 @@ export function useMessageSend(id: string) {
         return api.send(id, draft.current);
       },
     );
+    return acceptDelivery(result);
+  }
+  function acceptDelivery(result: Delivery | undefined) {
     if (!result || !runtime.isCurrent()) return false;
     if (result.deliveryStatus !== "DELIVERED")
       setReceipt(result.clientMessageId);
@@ -63,6 +73,9 @@ export function useMessageSend(id: string) {
       refreshPreview();
     }
     return true;
+  }
+  async function retryPrevious() {
+    return acceptDelivery(await command.retry());
   }
   async function retryPublication() {
     const body = draft.current;
@@ -78,11 +91,15 @@ export function useMessageSend(id: string) {
       void cache.invalidateQueries({
         queryKey: [...runtime.key, "thread", id],
       });
+      return true;
     }
+    return false;
   }
   return {
     send,
     pending: command.pending,
+    uncertain: command.uncertain,
+    retryPrevious,
     processing: !!receipt,
     error: command.error,
     delivery,

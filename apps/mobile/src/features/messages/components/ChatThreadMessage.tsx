@@ -74,6 +74,7 @@ export function ChatThreadMessage({
       ) : (
         <ApiMessageBubble
           message={item.message}
+          scheduleNotice={item.scheduleNotice}
           partner={partner}
           partnerId={partnerId}
           avatarUrl={avatarUrl}

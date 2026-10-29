@@ -2,21 +2,21 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   rescheduleFormSchema,
-  rescheduleUnavailableMessage,
+  rescheduleAvailabilityMessage,
 } from "../src/features/sessions/utils/reschedule-form";
 import { sessionRecord, now } from "./fixtures/sessions-client";
 
-test("reschedule explains that submission is unavailable even before the cutoff", () => {
+test("reschedule explains bilateral confirmation before the cutoff and unavailability after it", () => {
   const session = {
     ...sessionRecord(),
     startAt: new Date(now + 3_600_000).toISOString(),
   };
   assert.match(
-    rescheduleUnavailableMessage(session, now),
-    /chưa thể gửi đề nghị/,
+    rescheduleAvailabilityMessage(session, now),
+    /Hai bên cần xác nhận/,
   );
   assert.match(
-    rescheduleUnavailableMessage(session, now + 1),
+    rescheduleAvailabilityMessage(session, now + 1),
     /không còn đủ điều kiện/,
   );
 });

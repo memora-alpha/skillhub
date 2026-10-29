@@ -110,7 +110,7 @@ export function AgreementMethodStep({
             other={!!other}
           >
             {path.currentVersion > 1 && !both && !mine && (
-              <Copy muted>
+              <Copy muted size="hint">
                 Thỏa thuận đã thay đổi. Bạn cần xem lại trước khi đồng ý.
               </Copy>
             )}
@@ -128,7 +128,7 @@ export function AgreementMethodStep({
         {!!command.error && <ConnectionFeedback error={command.error} />}
         {command.uncertain && (
           <>
-            <Copy muted>
+            <Copy muted size="hint">
               Chưa rõ kết quả lần gửi. Kiểm tra trạng thái trước khi gửi tiếp.
             </Copy>
             {!mine && (

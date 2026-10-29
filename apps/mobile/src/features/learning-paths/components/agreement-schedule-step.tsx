@@ -72,7 +72,7 @@ export function AgreementScheduleStep({
         <Text style={styles.description}>
           {progress.stage === "finalize"
             ? "Hai bên đã xác nhận lịch. Kiểm tra và chốt để bắt đầu học."
-            : "Xem và xác nhận lịch của từng lộ trình. Hai bên cần đồng ý cùng một phiên bản."}
+            : "Hai bên xem và xác nhận cùng phiên bản lịch."}
         </Text>
         {path.agreement.exchangeType === "TWO_WAY" && (
           <Text style={styles.metadata}>
@@ -259,7 +259,7 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
   },
   description: {
-    ...typography.body,
+    ...typography.secondary,
     fontFamily: fonts.body,
     color: colors.body,
   },

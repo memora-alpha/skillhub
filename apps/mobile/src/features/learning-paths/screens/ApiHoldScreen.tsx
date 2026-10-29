@@ -12,6 +12,7 @@ import {
 } from "@/components/learning-flow";
 import { Button } from "@/components/Button";
 import { FormNotice } from "@/components/FormNotice";
+import { AppError } from "@/lib/http/errors";
 import {
   ConnectionFeedback,
   useConnectionCommand,
@@ -23,6 +24,12 @@ import {
 } from "../hooks/use-learning-paths-api";
 import type { ApiLearningPath } from "../api/learning-paths-contract";
 import { canValidateForFinalize } from "../utils/policy-api";
+import {
+  useConfirmedFormShare,
+  ConfirmedFormFeedback,
+} from "@/features/messages/state";
+import { confirmAndShare } from "../api/confirm-and-share";
+import { scheduledMessage } from "../utils/scheduled-message";
 import { usePullRefresh } from "../hooks/use-pull-refresh";
 import {
   appColors as colors,
@@ -83,19 +90,23 @@ function HoldContent({
       ["learning-paths", "mine"],
     ]);
   const [checked, setChecked] = useState<string>();
+  const share = useConfirmedFormShare();
   const signature = JSON.stringify(path),
     agreement = path.agreement;
   const ready = canValidateForFinalize(path);
   if (path.lockedVersion !== null)
     return (
       <Panel title="Lịch đã chốt">
-        <FormNotice tone="success">
+        <FormNotice tone="success" compact>
           Lịch học đã được chốt. Các buổi học của bạn đã sẵn sàng.
         </FormNotice>
         {!embedded && (
           <RouteButton href={`/paths/${path.id}/schedules`}>
             Xem các buổi học
           </RouteButton>
+        )}
+        {!embedded && (
+          <ConfirmedFormFeedback conversationId={path.conversationId} />
         )}
       </Panel>
     );
@@ -146,7 +157,7 @@ function HoldContent({
           </Text>
         </View>
         {!ready && (
-          <FormNotice tone="info">
+          <FormNotice tone="info" compact>
             Cần đủ kế hoạch và xác nhận của người học, điều khoản chung và lịch
             của cả hai trước khi kiểm tra.
           </FormNotice>
@@ -180,8 +191,13 @@ function HoldContent({
             : "Kiểm tra điều kiện trên hệ thống"}
         </Button>
         <ConnectionFeedback error={check.error} />
+        {[check.error, finalize.error].some(
+          (error) =>
+            error instanceof AppError &&
+            error.code === "INSUFFICIENT_AVAILABLE_CREDIT",
+        ) && <RouteButton href="/wallet/topup">Nạp Credit</RouteButton>}
         {checked === signature && (
-          <FormNotice tone="success">
+          <FormNotice tone="success" compact>
             Đủ điều kiện tại lần kiểm tra vừa rồi. Hệ thống sẽ kiểm tra lại khi
             bạn chốt lịch.
           </FormNotice>
@@ -198,7 +214,17 @@ function HoldContent({
           onPress={() => {
             void finalize
               .run(`finalize:${path.id}:${path.currentVersion}`, (identity) =>
-                api.finalize(path.id, path.currentVersion, identity),
+                confirmAndShare(
+                  () => api.finalize(path.id, path.currentVersion, identity),
+                  (result, messageIdentity) => {
+                    void share.publish(
+                      path.conversationId,
+                      scheduledMessage(result),
+                      messageIdentity,
+                    );
+                  },
+                  runtime.isCurrent,
+                )(identity),
               )
               .then((result) => {
                 if (result && runtime.isCurrent()) {
@@ -213,12 +239,14 @@ function HoldContent({
             : "Xác nhận chốt lịch và tạm giữ Credit"}
         </Button>
         <ConnectionFeedback error={finalize.error} />
+        {!embedded && (
+          <ConfirmedFormFeedback conversationId={path.conversationId} />
+        )}
         {finalize.uncertain && (
           <Panel title="Kiểm tra lần chốt vừa gửi">
-            <Copy>
-              Chưa xác định được lần chốt trước đã hoàn tất hay chưa. Tải lại
-              trạng thái; nếu vẫn chưa rõ, kiểm tra lại đúng lần gửi trước để
-              tránh tạm giữ Credit hai lần.
+            <Copy size="hint">
+              Chưa rõ kết quả chốt. Tải lại trạng thái hoặc kiểm tra đúng lần
+              gửi trước để tránh tạm giữ Credit hai lần.
             </Copy>
             <Button
               variant="secondary"

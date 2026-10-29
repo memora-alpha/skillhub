@@ -92,7 +92,7 @@ export function ApiPathDetailScreen() {
             <ConfirmedFormFeedback conversationId={query.data.conversationId} />
             {formVersion &&
               formVersion !== String(query.data.currentVersion) && (
-                <FormNotice tone="info">
+                <FormNotice tone="info" compact>
                   Thỏa thuận đã đổi phiên bản sau khi gửi form này. Bạn đang xem
                   bản hiện tại.
                 </FormNotice>
@@ -312,7 +312,7 @@ export function ApiPlanActions({
         <View style={actionStyles.feedback}>
           <ConnectionFeedback error={command.error} />
           {command.uncertain && (
-            <Copy muted>
+            <Copy muted size="hint">
               Chưa rõ kết quả xác nhận. Tải lại trạng thái để kiểm tra.
             </Copy>
           )}

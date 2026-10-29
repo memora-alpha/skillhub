@@ -24,9 +24,19 @@ export function RequestListFooter({
   quietTransient?: boolean;
 }>) {
   if (quietTransient && isTransientReadError(nextError))
-    return <ActivityIndicator accessibilityLabel="Đang tải thêm yêu cầu học" />;
+    return (
+      <ActivityIndicator
+        presentation="placeholder"
+        accessibilityLabel="Đang tải thêm yêu cầu học"
+      />
+    );
   if (fetchingNext)
-    return <ActivityIndicator accessibilityLabel="Đang tải thêm yêu cầu học" />;
+    return (
+      <ActivityIndicator
+        presentation="placeholder"
+        accessibilityLabel="Đang tải thêm yêu cầu học"
+      />
+    );
   const invalidCursor = isInvalidRequestCursor(nextError);
   let buttonLabel = "Xem thêm yêu cầu";
   if (invalidCursor) buttonLabel = "Tải lại danh sách";

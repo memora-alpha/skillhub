@@ -57,6 +57,10 @@ Nhánh `fix/mobile-chat-rate-limit`, bắt đầu từ `dev`. Chỉ thay đổi 
 - [x] UX-06: Regression wrapper/native gesture, caller callbacks, loading accessibility/focus và kiểm các consumer toàn mobile; native feel/gesture còn cần nghiệm thu thiết bị.
 - [x] UX-07: Đổi offline/unreachable thành màn loading với skeleton, bỏ thông báo mất mạng và nút thử lại; tự phục hồi qua retry lock/backoff có giới hạn, background dừng timer, không replay mutation. Chat giữ text outbox hiện hữu.
 - [x] UX-08: Rà lại sau đổi màu; sửa web pull mất gesture khi parent cập nhật callback giữa lúc kéo, thêm regression và chạy lại full mobile checks.
+- [x] UX-09: Theo yêu cầu áp dụng toàn mobile trên nhánh `fix/mobile-proposal-chat-learning-path`, gom loading dữ liệu chính theo từng screen/modal, chỉ một loader giữa vùng nội dung; giữ header/Back và children mounted.
+- [x] UX-10: Dữ liệu phụ/trang tiếp theo dùng placeholder; refresh có cache không thêm icon loading. Giữ feedback của action, startup/session và pull refresh, không đổi API/retry/payment outcome.
+- [x] UX-11: Regression nhiều read, cleanup/scope/unmount/focus, giữ draft/children, placeholder/action không khóa màn và Wallet refresh/denial; full mobile checks/export đạt. Native UX còn cần nghiệm thu.
+- [x] UX-12: Review sau gom loading: chặn focus/Tab trong content web đang chờ bằng inert, bỏ focus bàn phím native khi bắt đầu chờ; giữ children/layout/draft và kiểm regression markup/native effect.
 
 ## Sonar follow-up sau commit ffa118c7
 

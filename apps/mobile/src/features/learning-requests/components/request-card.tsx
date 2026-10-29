@@ -1,7 +1,7 @@
 import { Pressable, Text, View, StyleSheet } from "react-native";
 import { Avatar } from "@/components/Avatar";
 import { Icon } from "@/components/Icon";
-import { useParticipantProfile } from "@/features/connections";
+import { useRequestOwnerAvatar } from "../hooks/use-request-owner-avatar";
 import {
   appColors as colors,
   appRadius,
@@ -49,8 +49,9 @@ export function RequestCard({
   loadAvatar?: boolean;
 }>) {
   const own = isOwnRequest(request);
-  const profile = useParticipantProfile(
-    own || !loadAvatar ? undefined : request.owner.id,
+  const avatar = useRequestOwnerAvatar(
+    own ? undefined : request.owner,
+    loadAvatar,
   );
   const skill = useSkillName(own ? request.skillId : undefined);
   const state = requestState(request);
@@ -83,7 +84,8 @@ export function RequestCard({
             <Avatar
               name={request.owner.displayName}
               userId={request.owner.id}
-              sourceUri={profile.data?.avatarUrl}
+              sourceUri={avatar.sourceUri}
+              onImageError={avatar.onImageError}
               shape="circle"
               size={36}
             />

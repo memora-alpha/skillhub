@@ -1,6 +1,7 @@
 import type { QueryClient } from "@tanstack/react-query";
 import type { ApiConversation, ApiMessage } from "../api/messages-api";
 import type { QueuedText } from "../outbox/outbox-types";
+import { readChatSchedule } from "./schedule-notice";
 import {
   readPlanShare,
   readConfirmedForm,
@@ -62,6 +63,15 @@ export type InboxConversation = {
   state?: "pending" | "failed";
   unread?: boolean;
 };
+function inboxMessageText(message: ApiMessage) {
+  if (readChatSchedule(message)?.locked) return "Lịch học đã chốt";
+  const form = readConfirmedForm(message.messageText);
+  if (form)
+    return `Đã xác nhận ${confirmedFormLabels[form.kind].toLowerCase()}`;
+  if (readPlanShare(message.messageText)) return "Lộ trình học được chia sẻ";
+  if (message.messageText.trim()) return message.messageText.trim();
+  return message.messageType === "FILE" ? "Đã gửi một tệp" : "";
+}
 export function conversationInbox(
   conversations: ApiConversation[],
   messages: ReadonlyMap<string, ApiMessage | null>,
@@ -96,13 +106,7 @@ export function conversationInbox(
           activityAt: pending.createdAt,
           state: pending.state === "failed" ? "failed" : "pending",
         };
-      const form = readConfirmedForm(message?.messageText ?? "");
-      const text = form
-        ? `Đã xác nhận ${confirmedFormLabels[form.kind].toLowerCase()}`
-        : readPlanShare(message?.messageText ?? "")
-          ? "Lộ trình học được chia sẻ"
-          : message?.messageText.trim() ||
-            (message?.messageType === "FILE" ? "Đã gửi một tệp" : "");
+      const text = message ? inboxMessageText(message) : "";
       const sender = message?.senderId === userId ? "Bạn: " : "";
       return {
         conversation,

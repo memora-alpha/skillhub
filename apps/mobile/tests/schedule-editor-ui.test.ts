@@ -7,6 +7,8 @@ import {
   withConfirmedSchedules,
 } from "./fixtures/learning-agreement";
 import { scheduleDraft } from "../src/features/learning-paths/utils/schedule-draft";
+import { sessionRecord } from "./fixtures/sessions-client";
+import type { ExistingScheduleConflict } from "../src/features/learning-paths/utils/schedule-existing-conflicts";
 
 type Element = { type: unknown; props: Record<string, unknown> };
 function elements(value: unknown): Element[] {
@@ -33,6 +35,8 @@ test("schedule editor applies only to draft, submits exact plan version, and rem
   const calls: unknown[] = [],
     routes: string[] = [];
   const revisions: unknown[] = [];
+  let existingConflicts: ExistingScheduleConflict[] = [];
+  let existingPending = false;
   let defaults: unknown;
   const command = {
     pending: false,
@@ -45,17 +49,23 @@ test("schedule editor applies only to draft, submits exact plan version, and rem
   });
   const stubs: Record<string, Record<string, unknown>> = {
     "react/jsx-runtime": { jsx, jsxs: jsx },
-    react: { useState: (value: unknown) => [value, () => {}] },
+    react: {
+      useCallback: (callback: unknown) => callback,
+      useState: (value: unknown) => [value, () => {}],
+      useRef: (current: unknown) => ({ current }),
+    },
     "react-native": {
       View: "View",
       Text: "Text",
       StyleSheet: { create: (value: unknown) => value },
     },
     "react-hook-form": {
+      useWatch: () => items,
       useForm: (options: { defaultValues: unknown }) => {
         defaults = options.defaultValues;
         return {
           control: {},
+          setError: () => {},
           setValue: (_name: string, value: typeof items) => {
             items = value;
           },
@@ -65,6 +75,7 @@ test("schedule editor applies only to draft, submits exact plan version, and rem
       },
     },
     "expo-router": {
+      useFocusEffect: (setup: () => unknown) => setup(),
       useRouter: () => ({ dismissTo: (href: string) => routes.push(href) }),
     },
     "@hookform/resolvers/zod": { zodResolver: () => ({}) },
@@ -92,6 +103,17 @@ test("schedule editor applies only to draft, submits exact plan version, and rem
     "./plan-editor-fields": { PlanEditorFrame: "Frame" },
     "./schedule-weekly-generator": { ScheduleWeeklyGenerator: "Generator" },
     "./schedule-session-editor": { ScheduleSessionEditor: "Sessions" },
+    "../hooks/use-existing-schedule-check": {
+      useExistingScheduleCheck: () => ({
+        pending: existingPending,
+        blocked: existingPending,
+        conflicts: existingConflicts,
+        validate: () => ({
+          pending: existingPending,
+          conflicts: existingConflicts,
+        }),
+      }),
+    },
   };
   const mocks = Object.entries(stubs).map(([name, namedExports]) =>
     mock.module(pathToFileURL(local.resolve(name)), { namedExports }),
@@ -182,6 +204,109 @@ test("schedule editor applies only to draft, submits exact plan version, and rem
     assert.equal(
       tree.find((item) => item.type === "Button")!.props.disabled,
       true,
+    );
+    (
+      tree.find((item) => item.type === "Button")!.props.onPress as () => void
+    )();
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(revisions.length, 1);
+    command.uncertain = false;
+    const other = withConfirmedSchedules(agreementPath(true)).plans[1]!;
+    other.schedule!.items = structuredClone(plan.schedule!.items);
+    path.plans.push(other);
+    tree = elements(ScheduleForm(props));
+    assert.equal(
+      tree.find((item) => item.type === "Button")!.props.disabled,
+      true,
+      "opposite-direction conflicts disable saving before a tap",
+    );
+    assert.equal(
+      tree.find((item) => item.type === "Sessions")!.props.disabled,
+      false,
+      "conflicting slots remain editable",
+    );
+    (
+      tree.find((item) => item.type === "Button")!.props.onPress as () => void
+    )();
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(
+      revisions.length,
+      1,
+      "known opposite-direction overlap cannot be submitted",
+    );
+    assert.deepEqual(
+      items,
+      scheduleDraft(plan).items,
+      "conflict keeps the draft",
+    );
+    path.plans.pop();
+    existingConflicts = [
+      {
+        slot: plan.schedule!.items[0]!,
+        session: {
+          ...sessionRecord(),
+          status: "CONFIRMED",
+          pathId: "other-path",
+          ...plan.schedule!.items[0]!,
+          role: "TEACHER",
+        },
+      },
+    ];
+    tree = elements(ScheduleForm(props));
+    assert.equal(
+      tree.find((item) => item.type === "Button")!.props.disabled,
+      true,
+      "an existing-session conflict disables saving",
+    );
+    assert.equal(
+      tree.find((item) => item.type === "Sessions")!.props.active,
+      null,
+    );
+    assert.equal(
+      tree.find((item) => item.type === "Sessions")!.props.existingConflicts,
+      existingConflicts,
+      "collapsed rows still receive existing-session conflicts",
+    );
+    (
+      tree.find((item) => item.type === "Button")!.props.onPress as () => void
+    )();
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(
+      revisions.length,
+      1,
+      "existing sessions from another path block sending",
+    );
+    existingConflicts = [];
+    tree = elements(ScheduleForm(props));
+    assert.equal(
+      tree.find((item) => item.type === "Button")!.props.disabled,
+      false,
+      "saving is enabled again after conflicts are corrected",
+    );
+    const originalItems = items;
+    plan.totalSessions = 2;
+    items = [originalItems[0]!, { ...originalItems[0]! }];
+    tree = elements(ScheduleForm(props));
+    assert.equal(
+      tree.find((item) => item.type === "Button")!.props.disabled,
+      true,
+      "overlapping slots within the draft disable saving",
+    );
+    items = [originalItems[0]!, { local: "2098-01-02T19:30", minutes: "60" }];
+    tree = elements(ScheduleForm(props));
+    assert.equal(
+      tree.find((item) => item.type === "Button")!.props.disabled,
+      false,
+      "fixing the conflicting draft slot unlocks saving",
+    );
+    items = originalItems;
+    plan.totalSessions = 1;
+    existingPending = true;
+    tree = elements(ScheduleForm(props));
+    assert.equal(
+      tree.find((item) => item.type === "Button")!.props.disabled,
+      true,
+      "wait for the first existing-schedule read",
     );
     (
       tree.find((item) => item.type === "Button")!.props.onPress as () => void

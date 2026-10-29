@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, TextInput, View } from "react-native";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Icon } from "@/components/Icon";
 import { iconSizes, typography, fonts } from "@/constants/theme";
 import { messageColors as colors } from "../constants/theme";
@@ -10,59 +10,70 @@ export function ChatComposer({
   onSend,
   onAttach,
   pending = false,
+  hasAttachment = false,
+  sendDisabled = false,
+  attachmentDisabled = false,
+  attachmentPreview,
 }: {
   value: string;
   onChange: (text: string) => void;
   onSend: (text: string) => void;
   onAttach: () => void;
   pending?: boolean;
+  hasAttachment?: boolean;
+  sendDisabled?: boolean;
+  attachmentDisabled?: boolean;
+  attachmentPreview?: ReactNode;
 }) {
   const [focused, setFocused] = useState(false);
-  const disabled = pending || !value.trim();
+  const disabled = pending || sendDisabled || (!value.trim() && !hasAttachment);
   return (
     <View style={styles.composer}>
-      <View style={styles.row}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Đính kèm tệp"
-          onPress={onAttach}
-          disabled={pending}
-          style={styles.attach}
-        >
-          <Icon
-            name="paperclip"
-            size={iconSizes.control}
-            color={colors.muted}
+      <View style={styles.content}>
+        {attachmentPreview}
+        <View style={styles.row}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Đính kèm tệp"
+            onPress={onAttach}
+            disabled={pending || attachmentDisabled}
+            style={styles.attach}
+          >
+            <Icon
+              name="paperclip"
+              size={iconSizes.control}
+              color={colors.muted}
+            />
+          </Pressable>
+          <TextInput
+            accessibilityLabel="Nhập tin nhắn"
+            value={value}
+            maxLength={2000}
+            editable={!pending}
+            onChangeText={onChange}
+            placeholder="Nhập tin nhắn..."
+            multiline
+            placeholderTextColor={colors.mutedLight}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            returnKeyType="send"
+            onSubmitEditing={(event) => {
+              if (!disabled) onSend(event.nativeEvent.text);
+            }}
+            submitBehavior="newline"
+            style={[styles.input, focused && { borderColor: colors.brand }]}
           />
-        </Pressable>
-        <TextInput
-          accessibilityLabel="Nhập tin nhắn"
-          value={value}
-          maxLength={2000}
-          editable={!pending}
-          onChangeText={onChange}
-          placeholder="Nhập tin nhắn..."
-          multiline
-          placeholderTextColor={colors.mutedLight}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
-          returnKeyType="send"
-          onSubmitEditing={(event) => {
-            if (!disabled) onSend(event.nativeEvent.text);
-          }}
-          submitBehavior="newline"
-          style={[styles.input, focused && { borderColor: colors.brand }]}
-        />
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Gửi tin nhắn"
-          accessibilityState={{ disabled }}
-          disabled={disabled}
-          onPress={() => onSend(value)}
-          style={[styles.send, disabled && { opacity: 0.5 }]}
-        >
-          <Icon name="send" size={iconSizes.control} color={colors.white} />
-        </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Gửi tin nhắn"
+            accessibilityState={{ disabled }}
+            disabled={disabled}
+            onPress={() => onSend(value)}
+            style={[styles.send, disabled && { opacity: 0.5 }]}
+          >
+            <Icon name="send" size={iconSizes.control} color={colors.white} />
+          </Pressable>
+        </View>
       </View>
     </View>
   );
@@ -84,6 +95,7 @@ const styles = StyleSheet.create({
     maxWidth: 768,
     alignSelf: "center",
   },
+  content: { width: "100%", maxWidth: 768, alignSelf: "center", gap: 8 },
   attach: {
     width: 44,
     height: 44,
