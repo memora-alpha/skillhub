@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readNegotiationMessage } from "../src/features/learning-paths/utils/negotiation-reader";
-import { negotiationMessage } from "../src/features/learning-paths/utils/negotiation";
 import {
   confirmedFormMessage,
   readConfirmedForm,
@@ -10,14 +9,16 @@ import { confirmAndShare } from "../src/features/learning-paths/api/confirm-and-
 import { fixtureId } from "./fixtures/learning-requests-data";
 
 test("legacy negotiation stays unconfirmed and cannot be read as a schedule confirmation", () => {
-  const message = negotiationMessage({
-    type: "TWO_WAY",
-    role: "teacher",
-    skill: "React",
-    goal: "Xây dựng website",
-    credit: "20",
-    outline: "Thực hành React",
-  });
+  const message = [
+    "GỢI Ý LỘ TRÌNH · CHƯA XÁC NHẬN",
+    "Hình thức: Trao đổi hai chiều",
+    "Chiều trao đổi: Tôi dạy → bạn học",
+    "Kỹ năng: React",
+    "Mục tiêu: Xây dựng website",
+    "Credit gợi ý cho toàn thỏa thuận: 20 mỗi người",
+    "Buổi 1: Thực hành React",
+    "Đây là nội dung thương lượng trong Chat. Người dạy tự tạo kế hoạch; kế hoạch và lịch cần xác nhận riêng. Chưa giữ Credit.",
+  ].join("\n");
   assert.deepEqual(readNegotiationMessage(message), {
     skill: "React",
     goal: "Xây dựng website",
