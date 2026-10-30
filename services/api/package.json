@@ -39,6 +39,7 @@
     "test:foundation": "node --test test/foundation.test.mjs",
     "test:path-scheduling-schema": "node --test test/path-scheduling-schema.test.mjs",
     "test:runtime-v3": "node --test test/runtime-v3-migration.test.mjs test/runtime-v3-repositories.test.mjs",
+    "test:backend-limits-inbox": "nest build && node --test test/identity/rate-limits.test.mjs test/identity/rate-limits.integration.test.mjs test/connections/inbox.test.mjs",
     "test:identity": "node --test test/identity/policies.test.mjs test/identity/providers.test.mjs test/identity/sonar-regressions.test.mjs",
     "test:identity:integration": "node --test test/identity/integration.test.mjs",
     "identity:seed": "node scripts/identity-bootstrap.mjs seed",
@@ -69,7 +70,9 @@
     "test:materials:integration": "node test/require-integration-env.mjs && nest build && node --test --test-concurrency=1 test/materials/schema.test.mjs test/materials/ledger.test.mjs test/materials/lifecycle.test.mjs test/materials/access.test.mjs test/materials/purchase.test.mjs test/materials/reports.test.mjs",
     "test:learning-request": "nest build && node --test test/learning-requests/proposed-tags.test.mjs test/learning-requests/fe-extension.test.mjs test/learning-requests/access.test.mjs test/learning-requests/create-publish.test.mjs test/learning-requests/edit.test.mjs test/learning-requests/expiry-recovery.test.mjs test/learning-requests/expiry.test.mjs test/learning-requests/input-policy.test.mjs test/learning-requests/lifecycle.test.mjs test/learning-requests/migration.test.mjs test/learning-requests/moderation-persistence.test.mjs test/learning-requests/moderation-policy.test.mjs test/learning-requests/moderation-rules-http.test.mjs test/learning-requests/moderation.test.mjs test/learning-requests/notification-delivery.test.mjs test/learning-requests/notification-inbox.test.mjs test/learning-requests/notification-repository.test.mjs test/learning-requests/persistence.test.mjs test/learning-requests/owner-avatar.test.mjs test/learning-requests/projection-http.test.mjs test/learning-requests/query.test.mjs test/learning-requests/query-persistence.test.mjs test/learning-requests/schema.test.mjs test/learning-requests/path-lock.test.mjs test/learning-requests/lifecycle-flow.test.mjs test/learning-requests/lifecycle-http.test.mjs test/learning-requests/reconciliation.test.mjs",
     "test:learning-request:integration": "node test/require-integration-env.mjs && nest build && node --test --test-concurrency=1 test/learning-requests/proposed-tags.integration.test.mjs test/learning-requests/persistence.integration.test.mjs test/learning-requests/notification.integration.test.mjs test/learning-requests/fe-extension.integration.test.mjs test/learning-requests/lifecycle.integration.test.mjs",
-    "learning-requests:reconcile": "node scripts/reconcile-learning-requests.mjs"
+    "learning-requests:reconcile": "node scripts/reconcile-learning-requests.mjs",
+    "chat:backfill-activity": "nest build && node scripts/backfill-chat-activity.mjs",
+    "test:mobile-list-contracts": "nest build && node --test test/connections/list-ordering.test.mjs test/connections/list-ordering.integration.test.mjs test/connections/inbox.test.mjs test/connections/chat.test.mjs test/connections/bootstrap.test.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1146.0",

@@ -287,6 +287,143 @@ export class ChatRepository {
     if (!after) selected.reverse();
     return { rows: selected, more };
   }
+  async inboxSummaries(conversationIds: string[], userId: string) {
+    const summaries = new Map<
+      string,
+      {
+        lastMessage: {
+          id: string;
+          senderId: string;
+          messageText: string;
+          messageType: string;
+          sequence: string;
+          sentAt: Date | null;
+          attachmentCount: number;
+        } | null;
+        unreadCount: number;
+      }
+    >();
+    if (!conversationIds.length) return summaries;
+    await this.ready();
+    const reads = await this.reads
+      .find(
+        { conversationId: { $in: conversationIds }, userId },
+        { readConcern: { level: "majority" }, maxTimeMS: 5000 },
+      )
+      .toArray();
+    const watermarks = new Map(
+      reads.map((row) => [row.conversationId, row.lastReadSequence]),
+    );
+    // One page-wide aggregation; indexed lookups read only each latest message
+    // and messages beyond its read watermark, rather than scanning all history.
+    const rows = await this.db
+      .aggregate<{
+        _id: string;
+        last: (Pick<
+          ChatMessage,
+          | "_id"
+          | "senderId"
+          | "messageText"
+          | "messageType"
+          | "sequence"
+          | "sentAt"
+        > & { attachmentCount: number })[];
+        unread: { count: number }[];
+      }>(
+        [
+          {
+            $documents: conversationIds.map((id) => ({
+              _id: id,
+              watermark: watermarks.get(id) ?? mongo.Long.ZERO,
+            })),
+          },
+          {
+            $lookup: {
+              from: "chat_messages",
+              let: { conversation: "$_id" },
+              as: "last",
+              pipeline: [
+                {
+                  $match: {
+                    status: "PUBLISHED",
+                    $expr: { $eq: ["$conversationId", "$$conversation"] },
+                  },
+                },
+                { $sort: { sequence: -1 } },
+                { $limit: 1 },
+                {
+                  $project: {
+                    _id: 1,
+                    senderId: 1,
+                    messageText: 1,
+                    messageType: 1,
+                    sequence: 1,
+                    sentAt: 1,
+                    attachmentCount: { $size: "$attachments" },
+                  },
+                },
+              ],
+            },
+          },
+          {
+            $lookup: {
+              from: "chat_messages",
+              let: {
+                conversation: "$_id",
+                watermark: "$watermark",
+                latest: {
+                  $ifNull: [
+                    { $arrayElemAt: ["$last.sequence", 0] },
+                    mongo.Long.ZERO,
+                  ],
+                },
+              },
+              as: "unread",
+              pipeline: [
+                {
+                  $match: {
+                    status: "PUBLISHED",
+                    senderId: { $ne: userId },
+                    $expr: {
+                      $and: [
+                        { $eq: ["$conversationId", "$$conversation"] },
+                        { $gt: ["$sequence", "$$watermark"] },
+                        { $lte: ["$sequence", "$$latest"] },
+                      ],
+                    },
+                  },
+                },
+                { $count: "count" },
+              ],
+            },
+          },
+        ],
+        {
+          readConcern: { level: "majority" },
+          maxTimeMS: 5000,
+          promoteLongs: false,
+        },
+      )
+      .toArray();
+    for (const row of rows) {
+      const last = row.last[0];
+      summaries.set(row._id, {
+        unreadCount: row.unread[0]?.count ?? 0,
+        lastMessage: last
+          ? {
+              id: last._id,
+              senderId: last.senderId,
+              messageText: last.messageText,
+              messageType: last.messageType,
+              sequence: last.sequence!.toString(),
+              sentAt: last.sentAt,
+              attachmentCount: last.attachmentCount,
+            }
+          : null,
+      });
+    }
+    return summaries;
+  }
   async readState(conversationId: string, userId: string) {
     await this.ready();
     return this.reads.findOne({ _id: `${conversationId}:${userId}` });

@@ -24,6 +24,7 @@ import { AuditModule } from "../../dist/modules/audit/audit.module.js";
 import { AuditWriter } from "../../dist/modules/audit/application/services/audit-writer.js";
 import { IdentityModule } from "../../dist/modules/identity.module.js";
 import { IdentityConfig } from "../../dist/configs/identity.config.js";
+import { ProfileReader } from "../../dist/modules/users/application/services/profile-reader.service.js";
 import { IdentityGuard } from "../../dist/shared/auth/identity.guard.js";
 import { SessionsService } from "../../dist/modules/auth/application/services/sessions.service.js";
 import { SkillActorService } from "../../dist/modules/users/application/services/skill-actor.service.js";
@@ -93,6 +94,7 @@ test("feature modules resolve owner contracts and register SSE/chat workers; HTT
         [SessionsService, {}],
         [IdentityConfig, { jwtKey: "fixture-ledger-cursor-key" }],
         [SkillActorService, {}],
+        [ProfileReader, {}],
         [IdentityGuard, { canActivate: () => true }],
       ]),
     )
@@ -150,6 +152,8 @@ test("feature modules resolve owner contracts and register SSE/chat workers; HTT
       new DocumentBuilder().addBearerAuth().build(),
     );
     for (const route of [
+      "/api/v1/conversations",
+      "/api/v1/conversations/{id}",
       "/api/v1/proposals",
       "/api/v1/proposals/{id}/accept",
       "/api/v1/conversations/{id}/messages",
@@ -161,6 +165,17 @@ test("feature modules resolve owner contracts and register SSE/chat workers; HTT
       "/api/v1/learning-paths/{pathId}/finalize",
     ])
       assert(doc.paths[route], route);
+    for (const name of ["ConversationResponse", "ConversationInboxResponse"]) {
+      const schema = doc.components.schemas[name];
+      assert.equal(schema.properties.learningRequestId.type, "string");
+      assert.equal(schema.properties.learningRequestId.nullable, true);
+      assert(schema.required.includes("learningRequestId"));
+    }
+    const listSchema =
+      doc.paths["/api/v1/conversations"].get.responses["200"].content[
+        "application/json"
+      ].schema;
+    assert.match(JSON.stringify(listSchema), /ConversationInboxResponse/);
     assert(
       doc.paths[
         "/api/v1/learning-paths/{pathId}/finalize"

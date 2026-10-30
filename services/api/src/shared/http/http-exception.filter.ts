@@ -7,6 +7,7 @@ import {
   Logger,
 } from "@nestjs/common";
 import type { Response } from "express";
+import { RateLimitException } from "./rate-limit.exception";
 import { failure } from "./response";
 import {
   safeRequestLog,
@@ -99,11 +100,40 @@ export class HttpExceptionFilter implements ExceptionFilter {
         ...safeServerErrorLog(exception),
       });
     }
+    if (exception instanceof RateLimitException) {
+      const request = host.switchToHttp().getRequest<
+        ContextualRequest & {
+          method?: string;
+          url?: string;
+          ip?: string;
+          socket?: { remoteAddress?: string };
+          headers?: Record<string, unknown>;
+        }
+      >();
+      response.setHeader("Retry-After", exception.details.retryAfterSeconds);
+      this.logger.warn({
+        event: "http.rate_limited",
+        statusCode: 429,
+        ...getOrCreateRequestContext(request),
+        ...safeRequestLog(request),
+        ...exception.details,
+        clientIpMatchesPeer: request.ip === request.socket?.remoteAddress,
+        forwardedForPresent: Boolean(request.headers?.["x-forwarded-for"]),
+      });
+    }
     const detail =
       exception instanceof HttpException ? exception.getResponse() : undefined;
     const text = messageText(clientMessage(status, exception, detail));
     response
       .status(status)
-      .json(failure(status, text, paymentDetails(status, text, detail)));
+      .json(
+        failure(
+          status,
+          text,
+          exception instanceof RateLimitException
+            ? exception.details
+            : paymentDetails(status, text, detail),
+        ),
+      );
   }
 }

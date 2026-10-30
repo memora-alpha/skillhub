@@ -102,6 +102,16 @@ export function readCursor(
     throw new BadRequestException("INVALID_CURSOR");
   }
 }
+/** Time cursors are scoped separately from legacy ID-only ordering. */
+export function readTimeCursor(value: string | undefined, scope: string) {
+  const cursor = readCursor(value, scope);
+  if (!cursor) return;
+  const date = new Date(cursor.value);
+  if (!Number.isFinite(date.getTime()) || date.toISOString() !== cursor.value)
+    throw new BadRequestException("INVALID_CURSOR");
+  return { ...cursor, date };
+}
+
 export function page<T extends { id: string }>(
   rows: T[],
   limit: number,

@@ -16,17 +16,19 @@ Live updates for chat, notification and application events use `GET /api/v1/even
 
 ## Proposal routes
 
-| Method/path                                          | Action                      | Result                              |
-| ---------------------------------------------------- | --------------------------- | ----------------------------------- |
-| POST `/proposals`                                    | `proposal:create`           | 201 Proposal, idempotent replay 200 |
-| GET `/proposals?direction=received\|sent&status=...` | `proposal:read:party`       | 200 cursor page, actor-scoped       |
-| GET `/proposals/{id}`                                | `proposal:read:party`       | 200 party-only detail               |
-| PATCH `/proposals/{id}`                              | `proposal:update:self`      | 200, proposer/PENDING/CAS           |
-| POST `/proposals/{id}/accept`                        | `proposal:accept:recipient` | 200 `{proposal,conversation}`       |
-| POST `/proposals/{id}/reject`                        | `proposal:reject:recipient` | 200 terminal Proposal               |
-| POST `/proposals/{id}/withdraw`                      | `proposal:withdraw:self`    | 200 terminal Proposal               |
+| Method/path                                               | Action                      | Result                              |
+| --------------------------------------------------------- | --------------------------- | ----------------------------------- |
+| POST `/proposals`                                         | `proposal:create`           | 201 Proposal, idempotent replay 200 |
+| GET `/proposals?direction=received\|sent\|all&status=...` | `proposal:read:party`       | 200 cursor page, actor-scoped       |
+| GET `/proposals/{id}`                                     | `proposal:read:party`       | 200 party-only detail               |
+| PATCH `/proposals/{id}`                                   | `proposal:update:self`      | 200, proposer/PENDING/CAS           |
+| POST `/proposals/{id}/accept`                             | `proposal:accept:recipient` | 200 `{proposal,conversation}`       |
+| POST `/proposals/{id}/reject`                             | `proposal:reject:recipient` | 200 terminal Proposal               |
+| POST `/proposals/{id}/withdraw`                           | `proposal:withdraw:self`    | 200 terminal Proposal               |
 
 Request owner lists received proposals via GET `/proposals?direction=received&learningRequestId=...`; server verifies ownership of the filter and does not expose competitors' proposal details to another proposer. Status filter is allowlisted. No arbitrary `userId` scope query.
+
+Proposal lists use `createdAt DESC, id DESC` and a scoped `(createdAt,id)` cursor. `direction=all` combines only the viewer's sent/received proposals before filtering and pagination; omitted direction remains `received`. Status/request filters retain their existing authorization. Old ID-only or cross-filter/order cursors return 400 `INVALID_CURSOR`.
 
 ### Create body (discriminated by sourceType)
 
@@ -68,7 +70,7 @@ Accept response contains same stable Conversation on replay; no wallet/session/p
 | GET `/conversations/{id}/message-deliveries/{clientMessageId}` | `message:delivery:read:self`          | 200 sender-only status/reference             |
 | POST `/conversations/{id}/read`                                | `conversation:read-state:update:self` | 200 own watermark                            |
 
-Conversation metadata `{id,proposalId,learningRequestId,participantAId,participantBId,createdAt}` with public participant projection if needed via users owner reader. No arbitrary membership management. Mongo-derived summary/unread may be nullable during outage; never hide successful PG accept because a preview is unavailable.
+Conversation metadata `{id,proposalId,learningRequestId,participantAId,participantBId,createdAt}` remains unchanged for detail and accept responses. List adds `partner:{userId,fullName,avatarUrl}|null`, `topic:string|null`, `summaryAvailable:boolean`, `lastActivityAt:date-time`, `lastMessage:{id,senderId,sender,messageText,messageType,sequence,sentAt,attachmentCount}|null`, `unreadCount:number|null`. Partner uses the users owner's ACTIVE/CLEAN public projection; no email, storage key, credential, or evidence. Topic is the source request title, falling back to skill name, through the proposal owner reader. Profile DB reads and Mongo summary reads are batched over the authorized page. Unread counts only PUBLISHED messages sent by someone else whose sequence exceeds the viewer watermark; own messages are excluded. Empty healthy chat returns count 0 and lastMessage null. Mongo outage returns summaryAvailable false, count null and lastMessage null, without hiding committed PG Conversations. After external I/O, recheck live identity/restrictions before returning private previews. List ordering is `lastActivityAt DESC, id DESC`, using a scoped `(lastActivityAt,id)` cursor. PostgreSQL keeps a derived lastActivityAt updated atomically with published-message delivery acknowledgement; empty conversations use their creation timestamp. Historical messages require the migration/backfill in [mobile list rollout](../../../docs/mobile-list-contracts.md). Refresh page one on new activity; cursors are live keysets, not a frozen snapshot. No arbitrary membership management.
 
 Send body:
 
@@ -113,3 +115,5 @@ Upload multipart one file per request with stream cap 15.000.000 bytes; unbound 
 ## Excluded routes
 
 No generic create-conversation, staff chat browser, user-injected system message, message edit/delete, end/reopen negotiation, Confirm Path/Schedule, Credit, Session or realtime socket route. Future card actions call owner APIs with object/version and their own authorization.
+
+Message history, send/delivery results and Inbox previews include `sender:{id,fullName,avatarUrl}` while retaining `senderId`. Names and avatar URLs are current public ACTIVE/CLEAN projections, fetched in batches through Users; unavailable profiles retain sender ID with null name/avatar. Signed avatar URLs are generated on read, not stored in messages/events. SSE remains reference-only; hydrate messages through the existing APIs to obtain sender data without a separate profile request.

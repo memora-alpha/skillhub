@@ -116,7 +116,8 @@ model("SharingSkill", (block) =>
     `  requestOfferings RequestOffering[] @relation("RequestOffering_sharing")
   levelId String? @map("level_id") @db.Uuid
   levelIdRecord SkillLevel? @relation(fields: [skillId, levelId], references: [skillId, id], onDelete: Restrict, onUpdate: Restrict)
-  @@index([skillId, levelId])`,
+  @@index([skillId, levelId])
+  @@index([userId, createdAt(sort: Desc), id(sort: Desc)], map: "sharing_skills_user_created_idx")`,
   ),
 );
 model("Skill", (block) => fields(block, "  levels SkillLevel[]"));
@@ -138,6 +139,16 @@ model("Proposal", (block) =>
   @@index([status, expiresAt])
   @@index([proposerId, createdAt(sort: Desc), id(sort: Desc)])
   @@index([recipientId, createdAt(sort: Desc), id(sort: Desc)])
+`,
+  ),
+);
+model("Conversation", (block) =>
+  fields(
+    block,
+    `
+  lastActivityAt DateTime @default(now()) @map("last_activity_at") @db.Timestamptz(3)
+  @@index([participantAId, lastActivityAt(sort: Desc), id(sort: Desc)], map: "conversations_participant_a_activity_idx")
+  @@index([participantBId, lastActivityAt(sort: Desc), id(sort: Desc)], map: "conversations_participant_b_activity_idx")
 `,
   ),
 );

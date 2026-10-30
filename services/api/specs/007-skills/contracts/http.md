@@ -70,3 +70,12 @@ Restore là command riêng, không cho PATCH bỏ qua archive. Catalog giữ ngu
 400 invalid/unknown input;401 invalid/revoked session;403 missing permission;404 wrong owner/resource/file binding hoặc hidden profile;409 duplicate active/pending/name/slug,stale version,terminal decision,file not READY hoặc pending archive. Restore conflicts: SKILL_NOT_ARCHIVED, SHARING_SKILL_NOT_ARCHIVED, SKILL_NOT_ACTIVE, SKILL_DUPLICATE, STALE_VERSION. 413 bytes>10.000.000;415 MIME/format;429 throttle hiện có;503 storage/scan/policy unavailable. All use error envelope hiện hành, không expose raw provider exception.
 
 Signed URL TTL từ `storage.downloadTtlSeconds` (default120,max300 hiện có); permission được check mỗi lần cấp. Link đã cấp có hiệu lực đến TTL dù quyền bị thu hồi sau đó; feature không hứa thu hồi immediate S3 URL.
+
+## List chronology amendment (2026-10-30)
+
+`GET /me/skills` and `GET /profiles/{id}/skills` order Sharing Skills by
+`createdAt DESC, id DESC`. Each own/public projection includes the Sharing Skill's
+`createdAt` (not the catalog Skill creation time). The scoped cursor carries
+`(createdAt,id)`; invalid dates, old ID-only cursors and mismatched filters return
+400 `INVALID_CURSOR`. Public visibility and active account/catalog rules remain.
+Reset cached pagination on rollout; see [mobile list contracts](../../../docs/mobile-list-contracts.md).

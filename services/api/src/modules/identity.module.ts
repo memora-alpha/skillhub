@@ -59,6 +59,7 @@ import { ProfileReader } from "./users/application/services/profile-reader.servi
     ProfileReader,
     UsersService,
     IdentityGuard,
+    IdentityThrottle,
     SkillActorService,
     PublicSkillReader,
     SessionsService,

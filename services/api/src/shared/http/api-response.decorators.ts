@@ -71,6 +71,17 @@ export function ApiErrorResponse(status: number, description?: string) {
   return ApiResponse({
     status,
     description,
+    ...(status === 429
+      ? {
+          headers: {
+            "Retry-After": {
+              description:
+                "Advisory seconds before retry; concurrent traffic or SSE lease renewals may extend the wait.",
+              schema: { type: "integer", minimum: 1 },
+            },
+          },
+        }
+      : {}),
     schema: {
       type: "object",
       required: ["success", "message", "statusCode"],
@@ -78,6 +89,27 @@ export function ApiErrorResponse(status: number, description?: string) {
         success: { type: "boolean", enum: [false] },
         message: { type: "string" },
         statusCode: { type: "integer", enum: [status] },
+        ...(status === 429
+          ? {
+              details: {
+                type: "object",
+                required: [
+                  "limiter",
+                  "scope",
+                  "dimension",
+                  "retryAfterSeconds",
+                  "resetAt",
+                ],
+                properties: {
+                  limiter: { type: "string" },
+                  scope: { type: "string" },
+                  dimension: { type: "string" },
+                  retryAfterSeconds: { type: "integer", minimum: 1 },
+                  resetAt: { type: "string", format: "date-time" },
+                },
+              },
+            }
+          : {}),
       },
     },
   });

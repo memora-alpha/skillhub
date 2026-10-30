@@ -38,6 +38,7 @@ import {
 } from "../../../../shared/http/api-response.decorators";
 import {
   ConversationResponse,
+  ConversationInboxResponse,
   MessageResponse,
   DeliveredMessageResponse,
   PendingMessageResponse,
@@ -66,7 +67,7 @@ import {
 export class ConversationsController {
   constructor(private readonly conversations: ConversationsService) {}
   @Get()
-  @ApiSuccessResponse(200, ConversationResponse, { paginated: true })
+  @ApiSuccessResponse(200, ConversationInboxResponse, { paginated: true })
   @ApiOperation({ summary: "List participant Conversations" })
   async list(
     @CurrentIdentity() actor: Principal,

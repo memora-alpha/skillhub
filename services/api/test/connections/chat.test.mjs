@@ -31,7 +31,18 @@ function fixture() {
   const tx = {
     $queryRaw: async (strings) =>
       strings.join("").includes("clock_timestamp") ? [{ now: new Date() }] : [],
-    conversation: { findUniqueOrThrow: async () => conversation },
+    conversation: {
+      findUniqueOrThrow: async () => conversation,
+      updateMany: async ({ where, data }) => {
+        if (
+          conversation.lastActivityAt &&
+          conversation.lastActivityAt >= where.lastActivityAt.lt
+        )
+          return { count: 0 };
+        Object.assign(conversation, data);
+        return { count: 1 };
+      },
+    },
     chatPublication: {
       findUnique: async ({ where }) =>
         where.id
@@ -128,6 +139,11 @@ function fixture() {
       return published;
     },
     pendingIntents: async () => [],
+    history: async () => ({
+      rows: [...messages.values()].filter((row) => row.status === "PUBLISHED"),
+      more: false,
+    }),
+    readState: async () => null,
   };
   const eventsService = {
     lockRecipients: async () => {},
@@ -159,6 +175,15 @@ function fixture() {
     { chatManifest: async () => [] },
     {},
     { append: async (_tx, event) => outbox.push(event) },
+    {
+      summaries: async (ids) =>
+        new Map(
+          ids.map((id) => [
+            id,
+            { fullName: "Sender", avatarUrl: "https://example.test/avatar" },
+          ]),
+        ),
+    },
   );
   const input = { clientMessageId: randomUUID(), messageText: "Hello" },
     context = { correlationId: randomUUID() };
@@ -224,6 +249,17 @@ test("durable PREPARING identity survives missing draft and same-body retry; con
   assert.equal(f.sequence, 1n);
   assert.equal(f.notifications.length, 1);
   assert.equal(f.notifications[0].userId, f.conversation.participantBId);
+  assert.deepEqual(result.message.sender, {
+    id: f.principal.userId,
+    fullName: "Sender",
+    avatarUrl: "https://example.test/avatar",
+  });
+  const history = await f.service.history(f.principal, f.conversation.id, {});
+  assert.deepEqual(history.data[0].sender, result.message.sender);
+  assert.equal(
+    f.conversation.lastActivityAt,
+    f.messages.get(result.message.id).sentAt,
+  );
 });
 test("COMMITTED worker retry after Mongo publication keeps original sequence and emits once", async () => {
   const f = fixture();
@@ -250,6 +286,7 @@ test("COMMITTED worker retry after Mongo publication keeps original sequence and
   assert.equal(recovered.sequence.toString(), first.sequence.toString());
   assert.equal(recovered.sentAt, first.sentAt);
   await f.publisher.deliver(pending.messageId);
+  assert.equal(f.conversation.lastActivityAt, first.sentAt);
   assert.equal(f.sequence, 1n);
   assert.equal(
     f.events.filter((event) => event.type === "chat.message.created").length,
@@ -268,6 +305,41 @@ test("delivery rechecks live access after Mongo I/O before returning private con
     f.service.delivery(f.principal, f.conversation.id, f.input.clientMessageId),
     /session revoked/,
   );
+});
+
+test("replaying an older published message cannot move activity backwards", async () => {
+  const f = fixture();
+  const delivered = await f.service.send(
+    f.principal,
+    f.conversation.id,
+    f.input,
+    f.context,
+  );
+  const published = f.messages.get(delivered.message.id);
+  const latest = new Date(published.sentAt.getTime() + 60000);
+  f.conversation.lastActivityAt = latest;
+  await f.publisher.deliver(delivered.message.id);
+  assert.equal(f.conversation.lastActivityAt, latest);
+  assert.equal(f.notifications.length, 1);
+});
+
+test("unavailable sender profile keeps senderId and returns a nullable public sender", async () => {
+  const f = fixture();
+  f.service.profiles = { summaries: async () => new Map() };
+  const delivered = await f.service.send(
+    f.principal,
+    f.conversation.id,
+    f.input,
+    f.context,
+  );
+  assert.equal(delivered.message.senderId, f.principal.userId);
+  assert.deepEqual(delivered.message.sender, {
+    id: f.principal.userId,
+    fullName: null,
+    avatarUrl: null,
+  });
+  const history = await f.service.history(f.principal, f.conversation.id, {});
+  assert.deepEqual(history.data[0].sender, delivered.message.sender);
 });
 test("missing committed draft never fabricates content or marks delivery", async () => {
   const f = fixture();
@@ -315,4 +387,28 @@ test("public messages expose string Long and remove internal file metadata", () 
     JSON.stringify(view),
     /must not leak|checksum|storageKey|generation/,
   );
+});
+
+test("chat 429 reports the longest remaining rolling window without allocating a receipt", async () => {
+  const f = fixture();
+  const now = new Date();
+  const tx = f.service.db;
+  tx.$queryRaw = async () => [{ now }];
+  tx.chatPublication.count = async () => 200;
+  tx.chatPublication.findMany = async ({ where, skip }) => {
+    assert.equal(skip, where.senderId ? 29 : 119);
+    return [
+      { createdAt: new Date(now.getTime() - (where.senderId ? 45000 : 10000)) },
+    ];
+  };
+  await assert.rejects(
+    f.service.send(f.principal, f.conversation.id, f.input, f.context),
+    (error) => {
+      assert.equal(error.message, "CHAT_RATE_LIMIT");
+      assert.equal(error.details.dimension, "conversation");
+      assert.equal(error.details.retryAfterSeconds, 50);
+      return true;
+    },
+  );
+  assert.equal(f.receipts.size, 0);
 });

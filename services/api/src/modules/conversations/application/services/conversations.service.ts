@@ -1,11 +1,13 @@
 import {
   BadRequestException,
   ConflictException,
-  HttpException,
   Injectable,
+  Logger,
   NotFoundException,
   ServiceUnavailableException,
 } from "@nestjs/common";
+import { RateLimitException } from "../../../../shared/http/rate-limit.exception";
+import { safeServerErrorLog } from "../../../../configs/logging.config";
 import { randomUUID } from "node:crypto";
 import { Readable } from "node:stream";
 import { PrismaService } from "../../../../infrastructure/database/prisma.service";
@@ -18,9 +20,10 @@ import type { Principal } from "../../../auth/application/services/sessions.serv
 import { SkillActorService } from "../../../users/application/services/skill-actor.service";
 import { ConnectionConfig } from "../../../proposals/domain/connection-config";
 import { normalizeMessage } from "../../../proposals/domain/connection-policy";
+import type { TransactionContext } from "../../../../infrastructure/database/transaction-context";
 import {
   cursorScope,
-  readCursor,
+  readTimeCursor,
   page,
 } from "../../../skills/domain/skill-policy";
 import {
@@ -31,10 +34,14 @@ import {
 import { ConversationAccessService } from "./conversation-access.service";
 import { ChatPublicationService } from "./chat-publication.service";
 import type { RequestContext } from "../../../../shared/http/request-context";
+import { messageSender } from "../../domain/message-sender";
 import { conversationView } from "../../domain/conversation-view";
+import { ProfileReader } from "../../../users/application/services/profile-reader.service";
+import { ConversationTopicReader } from "../../../proposals/application/services/conversation-topic.reader";
 
 @Injectable()
 export class ConversationsService {
+  private readonly logger = new Logger(ConversationsService.name);
   constructor(
     private readonly db: PrismaService,
     private readonly transactions: TransactionRunner,
@@ -46,6 +53,8 @@ export class ConversationsService {
     private readonly files: FileAttachmentService,
     private readonly storage: FileStorageService,
     private readonly outbox: OutboxWriter,
+    private readonly profiles: ProfileReader,
+    private readonly topics: ConversationTopicReader,
   ) {}
   async get(principal: Principal, id: string) {
     return this.transactions.run(async (tx) =>
@@ -56,9 +65,13 @@ export class ConversationsService {
   }
   async list(principal: Principal, query: { limit?: number; cursor?: string }) {
     const limit = query.limit ?? 20,
-      scope = cursorScope({ type: "conversations", viewer: principal.userId }),
-      cursor = readCursor(query.cursor, scope);
-    return this.transactions.run(async (tx) => {
+      scope = cursorScope({
+        type: "conversations",
+        viewer: principal.userId,
+        order: "activity-desc-v1",
+      }),
+      cursor = readTimeCursor(query.cursor, scope);
+    const result = await this.transactions.run(async (tx) => {
       await this.actors.require(tx, principal, "conversation:read:participant");
       const result = page(
         await tx.conversation.findMany({
@@ -67,17 +80,143 @@ export class ConversationsService {
               { participantAId: principal.userId },
               { participantBId: principal.userId },
             ],
-            ...(cursor ? { id: { gt: cursor.id } } : {}),
+            ...(cursor
+              ? {
+                  AND: [
+                    {
+                      OR: [
+                        { lastActivityAt: { lt: cursor.date } },
+                        { lastActivityAt: cursor.date, id: { lt: cursor.id } },
+                      ],
+                    },
+                  ],
+                }
+              : {}),
           },
-          orderBy: { id: "asc" },
+          orderBy: [{ lastActivityAt: "desc" }, { id: "desc" }],
           take: limit + 1,
         }),
         limit,
         scope,
-        (row) => row.id,
+        (row) => row.lastActivityAt.toISOString(),
       );
-      return { ...result, data: result.data.map(conversationView) };
+      const topics = await this.topics.read(
+        tx,
+        result.data.map((row) => row.proposalId),
+      );
+      return { ...result, topics };
     });
+    const partnerId = (row: (typeof result.data)[number]) =>
+      row.participantAId === principal.userId
+        ? row.participantBId
+        : row.participantAId;
+    const [partners, summary] = await Promise.all([
+      this.profiles.summaries([
+        principal.userId,
+        ...result.data.map(partnerId),
+      ]),
+      this.chat
+        .inboxSummaries(
+          result.data.map((row) => row.id),
+          principal.userId,
+        )
+        .catch((error: unknown) => {
+          this.logger.warn({
+            event: "inbox.summary_unavailable",
+            ...safeServerErrorLog(error),
+          });
+          return null; // Chat outages must not hide committed PG Conversations.
+        }),
+    ]);
+    // Recheck live identity/restrictions after external I/O before exposing private previews.
+    await this.transactions.run((tx) =>
+      this.actors.require(tx, principal, "conversation:read:participant"),
+    );
+    return {
+      pagination: result.pagination,
+      data: result.data.map((row) => ({
+        ...conversationView(row),
+        lastActivityAt: row.lastActivityAt,
+        partner: partners.get(partnerId(row)) ?? null,
+        topic: result.topics.get(row.proposalId) ?? null,
+        summaryAvailable: summary !== null,
+        lastMessage: this.preview(summary?.get(row.id)?.lastMessage, partners),
+        unreadCount: summary?.get(row.id)?.unreadCount ?? (summary ? 0 : null),
+      })),
+    };
+  }
+  private preview<T extends { senderId: string }>(
+    message: T | null | undefined,
+    profiles: Map<string, { fullName: string; avatarUrl: string | null }>,
+  ) {
+    return message
+      ? {
+          ...message,
+          sender: messageSender(
+            message.senderId,
+            profiles.get(message.senderId),
+          ),
+        }
+      : null;
+  }
+  private async messageProfiles(messages: { senderId: string }[]) {
+    return this.profiles.summaries(messages.map((message) => message.senderId));
+  }
+  private async enforceSendRate(
+    tx: TransactionContext,
+    userId: string,
+    id: string,
+  ) {
+    const clocks = await tx.$queryRaw<
+        { now: Date }[]
+      >`SELECT clock_timestamp() AS now`,
+      since = new Date(clocks[0]!.now.getTime() - 60000);
+    const userCount = await tx.chatPublication.count({
+      where: { senderId: userId, createdAt: { gt: since } },
+    });
+    const conversationCount = await tx.chatPublication.count({
+      where: { conversationId: id, createdAt: { gt: since } },
+    });
+    const windows = [
+      {
+        dimension: "user",
+        count: userCount,
+        limit: this.config.policy.messagesPerMinuteUser,
+        where: { senderId: userId },
+      },
+      {
+        dimension: "conversation",
+        count: conversationCount,
+        limit: this.config.policy.messagesPerMinuteConversation,
+        where: { conversationId: id },
+      },
+    ];
+    let blocked: { dimension: string; wait: number } | undefined;
+    for (const window of windows) {
+      if (window.count < window.limit) continue;
+      // The limit-th newest receipt must leave the rolling window before a new send fits.
+      const [boundary] = await tx.chatPublication.findMany({
+        where: { ...window.where, createdAt: { gt: since } },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        skip: window.limit - 1,
+        take: 1,
+        select: { createdAt: true },
+      });
+      const wait =
+        (boundary?.createdAt.getTime() ?? clocks[0]!.now.getTime()) +
+        60000 -
+        clocks[0]!.now.getTime();
+      if (!blocked || wait > blocked.wait)
+        blocked = { dimension: window.dimension, wait };
+    }
+    if (blocked)
+      throw new RateLimitException(
+        "CHAT_RATE_LIMIT",
+        "chat",
+        "send",
+        blocked.dimension,
+        blocked.wait,
+      );
   }
   async send(
     principal: Principal,
@@ -116,21 +255,7 @@ export class ConversationsService {
           throw new ConflictException("MESSAGE_CANCELLED");
         return existing;
       }
-      const clocks = await tx.$queryRaw<
-          { now: Date }[]
-        >`SELECT clock_timestamp() AS now`,
-        since = new Date(clocks[0]!.now.getTime() - 60000);
-      const userCount = await tx.chatPublication.count({
-        where: { senderId: principal.userId, createdAt: { gt: since } },
-      });
-      const conversationCount = await tx.chatPublication.count({
-        where: { conversationId: id, createdAt: { gt: since } },
-      });
-      if (
-        userCount >= this.config.policy.messagesPerMinuteUser ||
-        conversationCount >= this.config.policy.messagesPerMinuteConversation
-      )
-        throw new HttpException("CHAT_RATE_LIMIT", 429);
+      await this.enforceSendRate(tx, principal.userId, id);
       return tx.chatPublication.create({
         data: {
           id: randomUUID(),
@@ -278,13 +403,20 @@ export class ConversationsService {
         message.sequence?.toString() !== receipt.messageSequence?.toString()
       )
         throw new ServiceUnavailableException("MESSAGE_NOT_READY");
-      // Mongo I/O must not carry authorization across a concurrent session/account change.
+      const profiles = await this.messageProfiles([message]);
+      // Mongo/profile I/O must not carry authorization across a concurrent session/account change.
       await this.transactions.run((tx) =>
         this.access.require(tx, principal, id, "message:delivery:read:self"),
       );
       return {
         deliveryStatus: "DELIVERED" as const,
-        message: publicMessage(message),
+        message: {
+          ...publicMessage(message),
+          sender: messageSender(
+            message.senderId,
+            profiles.get(message.senderId),
+          ),
+        },
       };
     }
     return {
@@ -355,11 +487,13 @@ export class ConversationsService {
       this.chat.readState(id, principal.userId),
       this.chat.readState(id, other),
     ]);
+    const profiles = await this.messageProfiles(rows.rows);
     // Recheck authorization after external I/O before returning private content.
     await this.get(principal, id);
-    const data = rows.rows.map((row) =>
-      publicMessage(row, row.senderId === principal.userId ? readB : readA),
-    );
+    const data = rows.rows.map((row) => ({
+      ...publicMessage(row, row.senderId === principal.userId ? readB : readA),
+      sender: messageSender(row.senderId, profiles.get(row.senderId)),
+    }));
     const next =
       rows.more && !query.afterSequence
         ? Buffer.from(

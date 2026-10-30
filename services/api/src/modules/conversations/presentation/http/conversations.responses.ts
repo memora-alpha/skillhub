@@ -8,6 +8,37 @@ export class ConversationResponse {
   @ApiProperty({ format: "uuid" }) participantBId!: string;
   @ApiProperty({ type: String, format: "date-time" }) createdAt!: Date;
 }
+export class ConversationPartnerResponse {
+  @ApiProperty({ format: "uuid" }) userId!: string;
+  @ApiProperty() fullName!: string;
+  @ApiProperty({ type: String, nullable: true }) avatarUrl!: string | null;
+}
+export class MessageSenderResponse {
+  @ApiProperty({ format: "uuid" }) id!: string;
+  @ApiProperty({ type: String, nullable: true }) fullName!: string | null;
+  @ApiProperty({ type: String, nullable: true }) avatarUrl!: string | null;
+}
+export class ConversationPreviewResponse {
+  @ApiProperty({ type: MessageSenderResponse }) sender!: MessageSenderResponse;
+  @ApiProperty({ format: "uuid" }) id!: string;
+  @ApiProperty({ format: "uuid" }) senderId!: string;
+  @ApiProperty() messageText!: string;
+  @ApiProperty({ enum: ["TEXT", "FILE", "SYSTEM"] }) messageType!: string;
+  @ApiProperty() sequence!: string;
+  @ApiProperty({ type: String, nullable: true, format: "date-time" })
+  sentAt!: Date | null;
+  @ApiProperty() attachmentCount!: number;
+}
+export class ConversationInboxResponse extends ConversationResponse {
+  @ApiProperty({ type: String, format: "date-time" }) lastActivityAt!: Date;
+  @ApiProperty({ type: ConversationPartnerResponse, nullable: true })
+  partner!: ConversationPartnerResponse | null;
+  @ApiProperty({ type: String, nullable: true }) topic!: string | null;
+  @ApiProperty() summaryAvailable!: boolean;
+  @ApiProperty({ type: ConversationPreviewResponse, nullable: true })
+  lastMessage!: ConversationPreviewResponse | null;
+  @ApiProperty({ type: Number, nullable: true }) unreadCount!: number | null;
+}
 export class MessageAttachmentResponse {
   @ApiProperty({ format: "uuid" }) attachmentId!: string;
   @ApiProperty({ format: "uuid" }) fileId!: string;
@@ -17,6 +48,7 @@ export class MessageAttachmentResponse {
   @ApiProperty() downloadUrlEndpoint!: string;
 }
 export class MessageResponse {
+  @ApiProperty({ type: MessageSenderResponse }) sender!: MessageSenderResponse;
   @ApiProperty({ format: "uuid" }) id!: string;
   @ApiProperty({ format: "uuid" }) conversationId!: string;
   @ApiProperty({ format: "uuid" }) senderId!: string;

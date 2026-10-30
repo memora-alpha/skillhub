@@ -130,7 +130,8 @@ export class AuthController {
   @ApiErrorResponse(401)
   @Header("Cache-Control", "no-store")
   async refresh(@Body() body: RefreshDto, @Req() req: Request) {
-    await this.rate(req, "refresh", "credential");
+    // The limiter HMACs this opaque credential; never use a shared literal subject.
+    await this.rate(req, "refresh", body.refreshToken);
     return success(
       await this.refreshToken.execute(body.refreshToken),
       "Tokens refreshed.",

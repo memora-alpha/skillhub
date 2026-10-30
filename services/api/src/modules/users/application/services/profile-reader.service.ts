@@ -13,6 +13,26 @@ export class ProfileReader {
     private readonly storage: AvatarStorage,
     @Optional() private readonly skills?: PublicSkillReader,
   ) {}
+  async summaries(userIds: string[]) {
+    const ids = [...new Set(userIds)];
+    if (!ids.length)
+      return new Map<
+        string,
+        { userId: string; fullName: string; avatarUrl: string | null }
+      >();
+    const rows = await this.repository.publicSummaries(this.db, ids);
+    const summaries = await Promise.all(
+      rows.map(async (row) => ({
+        userId: row.id,
+        fullName: row.fullName,
+        avatarUrl:
+          row.selectedAvatarRecord?.state === "CLEAN"
+            ? await this.storage.url(row.selectedAvatarRecord.storageKey)
+            : null,
+      })),
+    );
+    return new Map(summaries.map((row) => [row.userId, row]));
+  }
   async profile(userId: string, publicOnly = false) {
     const row = await this.repository.profile(this.db, userId);
     if (!row || (publicOnly && row.user.accountStatus !== "ACTIVE"))

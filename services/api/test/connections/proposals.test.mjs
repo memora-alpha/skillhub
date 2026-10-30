@@ -65,6 +65,7 @@ function fixture() {
           ? dayCount
           : hourCount,
       findFirst: async () => (cooldown ? row : null),
+      findMany: async () => [{ createdAt: new Date(Date.now() - 30000) }],
       create: async ({ data }) => {
         row = { ...row, ...data, createdAt: new Date() };
         return row;
@@ -189,7 +190,16 @@ test("proposal rolling quotas and direct cooldown reject before creating another
         recipientSharingSkillId: randomUUID(),
         message: "A suitable invitation",
       }),
-      new RegExp(expected),
+      (error) => {
+        assert.match(error.message, new RegExp(expected));
+        assert.equal(error.details.limiter, "proposal");
+        assert.equal(
+          error.details.dimension,
+          cooldown ? "parties-skill" : day ? "user-day" : "user-hour",
+        );
+        assert(error.details.retryAfterSeconds > 0);
+        return true;
+      },
     );
     assert.equal(f.row.targetSharingSkillId, null);
   }

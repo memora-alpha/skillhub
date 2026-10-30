@@ -13,6 +13,16 @@ import { MATERIAL_PERMISSIONS } from "../../../materials/domain/material.policy"
 import type { PermissionCode } from "../../../../shared/authorization/permission.catalog";
 @Injectable()
 export class PrismaUsersRepository extends UsersRepository {
+  publicSummaries(tx: IdentityTx, userIds: string[]) {
+    return tx.user.findMany({
+      where: { id: { in: userIds }, accountStatus: "ACTIVE" },
+      select: {
+        id: true,
+        fullName: true,
+        selectedAvatarRecord: { select: { state: true, storageKey: true } },
+      },
+    });
+  }
   byEmail(tx: IdentityTx, normalizedEmail: string): Promise<User | null> {
     return tx.user.findUnique({ where: { normalizedEmail } });
   }

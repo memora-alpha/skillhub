@@ -5,6 +5,7 @@ import { Prisma } from "../../../../generated/prisma/client";
 import {
   cursorScope,
   readCursor,
+  readTimeCursor,
   page,
 } from "../../../skills/domain/skill-policy";
 export type SharingQuery = {
@@ -25,6 +26,7 @@ type SharingRow = Prisma.SharingSkillGetPayload<{ include: typeof include }>;
 export function publicSharing(row: SharingRow) {
   return {
     id: row.id,
+    createdAt: row.createdAt,
     skill: row.skillIdRecord,
     level: row.levelIdRecord?.code ?? row.level!,
     levelId: row.levelId,
@@ -147,11 +149,12 @@ export class SharingSkillsRepository {
   async list(userId: string, query: SharingQuery, publicOnly = false) {
     const scope = cursorScope({
       type: "sharing",
+      order: "createdAt-desc-v1",
       userId,
       publicOnly,
       archived: query.includeArchived ?? false,
     });
-    const cursor = readCursor(query.cursor, scope);
+    const cursor = readTimeCursor(query.cursor, scope);
     let visibility: Prisma.SharingSkillWhereInput = query.includeArchived
       ? {}
       : { archivedAt: null };
@@ -167,13 +170,22 @@ export class SharingSkillsRepository {
       where: {
         userId,
         ...visibility,
-        ...(cursor ? { id: { gt: cursor.id } } : {}),
+        ...(cursor
+          ? {
+              OR: [
+                { createdAt: { lt: cursor.date } },
+                { createdAt: cursor.date, id: { lt: cursor.id } },
+              ],
+            }
+          : {}),
       },
       include,
-      orderBy: { id: "asc" },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: query.limit + 1,
     });
-    const result = page(rows, query.limit, scope, (row) => row.id);
+    const result = page(rows, query.limit, scope, (row) =>
+      row.createdAt.toISOString(),
+    );
     return {
       ...result,
       data: result.data.map(publicOnly ? publicSharing : ownSharing),

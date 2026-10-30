@@ -5,7 +5,16 @@ import {
   RoleCode,
 } from "../../../../generated/prisma/client";
 import { UserListQuery } from "../../application/contracts/user-list-query";
+export type PublicProfileSummaryRow = {
+  id: string;
+  fullName: string;
+  selectedAvatarRecord: { state: string; storageKey: string } | null;
+};
 export abstract class UsersRepository {
+  abstract publicSummaries(
+    tx: IdentityTx,
+    userIds: string[],
+  ): Promise<PublicProfileSummaryRow[]>;
   abstract byEmail(
     tx: IdentityTx,
     normalizedEmail: string,

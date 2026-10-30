@@ -24,6 +24,8 @@ export class IdentityConfig {
   readonly ipLimit: number;
   readonly deviceLimit: number;
   readonly requestLimit: number;
+  readonly userRequestLimit: number;
+  readonly sessionRequestLimit: number;
   readonly deliveryAttempts: number;
   readonly deliveryRetentionSeconds: number;
   readonly notificationSeconds: number;
@@ -74,6 +76,16 @@ export class IdentityConfig {
     this.ipLimit = seconds("IDENTITY_IP_RATE_LIMIT");
     this.deviceLimit = seconds("IDENTITY_DEVICE_RATE_LIMIT");
     this.requestLimit = seconds("IDENTITY_REQUEST_RATE_LIMIT");
+    this.userRequestLimit = env
+      .get<string>("IDENTITY_USER_REQUEST_RATE_LIMIT")
+      ?.trim()
+      ? seconds("IDENTITY_USER_REQUEST_RATE_LIMIT")
+      : this.requestLimit;
+    this.sessionRequestLimit = env
+      .get<string>("IDENTITY_SESSION_REQUEST_RATE_LIMIT")
+      ?.trim()
+      ? seconds("IDENTITY_SESSION_REQUEST_RATE_LIMIT")
+      : this.userRequestLimit;
     this.deliveryAttempts = seconds("IDENTITY_DELIVERY_ATTEMPTS");
     this.deliveryRetentionSeconds = seconds(
       "IDENTITY_DELIVERY_RETENTION_SECONDS",

@@ -75,7 +75,46 @@ test(
       assert.deepEqual(retry.sentAt, first.sentAt);
       const ordered = (await repository.history(conversationId, 20)).rows;
       const latest = ordered.at(-1);
+      const emptyId = randomUUID();
+      const preview = await repository.inboxSummaries(
+        [conversationId, emptyId],
+        readerId,
+      );
+      assert.equal(preview.get(conversationId).unreadCount, 5);
+      assert.equal(preview.get(conversationId).lastMessage.id, latest._id);
+      assert.equal(preview.get(emptyId).lastMessage, null);
+      assert.equal(preview.get(emptyId).unreadCount, 0);
+      const own = await repository.draft({
+        _id: randomUUID(),
+        conversationId,
+        senderId: readerId,
+        clientMessageId: randomUUID(),
+        messageText: "own message",
+        messageType: "TEXT",
+        attachments: [],
+        commandDigest: randomUUID(),
+        draftFormatVersion: 1,
+      });
+      assert.equal(
+        (await repository.inboxSummaries([conversationId], readerId)).get(
+          conversationId,
+        ).unreadCount,
+        5,
+      );
+      await repository.publish(own._id, own.draftDigest);
+      const ownPreview = (
+        await repository.inboxSummaries([conversationId], readerId)
+      ).get(conversationId);
+      assert.equal(ownPreview.unreadCount, 5);
+      assert.equal(ownPreview.lastMessage.id, own._id);
+      assert(!("attachments" in ownPreview.lastMessage));
       await repository.advanceRead(conversationId, readerId, latest._id);
+      assert.equal(
+        (await repository.inboxSummaries([conversationId], readerId)).get(
+          conversationId,
+        ).unreadCount,
+        0,
+      );
       await repository.advanceRead(conversationId, readerId, ordered[0]._id);
       assert.equal(
         (

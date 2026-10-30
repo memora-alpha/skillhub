@@ -100,7 +100,7 @@ test("dimension throttle stops before advancing later counters and fails closed 
     {
       eval: async () => {
         calls++;
-        return 2;
+        return [2, 1000];
       },
     },
     config,

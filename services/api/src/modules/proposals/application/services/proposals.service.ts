@@ -1,10 +1,10 @@
 import {
   BadRequestException,
   ConflictException,
-  HttpException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
+import { RateLimitException } from "../../../../shared/http/rate-limit.exception";
 import { randomUUID } from "node:crypto";
 import { PrismaService } from "../../../../infrastructure/database/prisma.service";
 import { TransactionRunner } from "../../../../infrastructure/database/transaction-runner";
@@ -32,7 +32,7 @@ import {
 } from "../../domain/connection-policy";
 import {
   cursorScope,
-  readCursor,
+  readTimeCursor,
   page,
 } from "../../../skills/domain/skill-policy";
 import { AuditWriter } from "../../../audit/application/services/audit-writer";
@@ -74,6 +74,96 @@ export class ProposalsService {
     private readonly conversations: ConversationLifecycleService,
     private readonly notifications: ConnectionNotificationService,
   ) {}
+  private async enforceCreateRate(
+    tx: TransactionContext,
+    userId: string,
+    sourceType: string,
+    recipientId: string,
+    skillId: string,
+    now: Date,
+  ) {
+    const day = await tx.proposal.count({
+      where: {
+        proposerId: userId,
+        createdAt: { gt: new Date(now.getTime() - 86400000) },
+      },
+    });
+    const hour = await tx.proposal.count({
+      where: {
+        proposerId: userId,
+        createdAt: { gt: new Date(now.getTime() - 3600000) },
+      },
+    });
+    let blocked: { dimension: string; wait: number } | undefined;
+    // Each rolling window can block independently; use the longest required wait.
+    for (const window of [
+      {
+        dimension: "user-day",
+        count: day,
+        limit: this.config.policy.proposalsPerDay,
+        ms: 86400000,
+      },
+      {
+        dimension: "user-hour",
+        count: hour,
+        limit: this.config.policy.proposalsPerHour,
+        ms: 3600000,
+      },
+    ]) {
+      if (window.count < window.limit) continue;
+      const [boundary] = await tx.proposal.findMany({
+        where: {
+          proposerId: userId,
+          createdAt: { gt: new Date(now.getTime() - window.ms) },
+        },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        skip: window.limit - 1,
+        take: 1,
+        select: { createdAt: true },
+      });
+      const wait =
+        (boundary?.createdAt.getTime() ?? now.getTime()) +
+        window.ms -
+        now.getTime();
+      if (!blocked || wait > blocked.wait)
+        blocked = { dimension: window.dimension, wait };
+    }
+    if (blocked)
+      throw new RateLimitException(
+        "PROPOSAL_RATE_LIMIT",
+        "proposal",
+        "create",
+        blocked.dimension,
+        blocked.wait,
+      );
+    if (sourceType === "DIRECT_SEARCH") {
+      const previous = await tx.proposal.findFirst({
+        where: {
+          proposerId: userId,
+          recipientId,
+          skillId,
+          sourceType: "DIRECT_SEARCH",
+          createdAt: {
+            gt: new Date(
+              now.getTime() - this.config.policy.directCooldownHours * 3600000,
+            ),
+          },
+        },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        select: { createdAt: true },
+      });
+      if (previous)
+        throw new RateLimitException(
+          "DIRECT_INVITATION_COOLDOWN",
+          "proposal",
+          "direct-invitation",
+          "parties-skill",
+          previous.createdAt.getTime() +
+            this.config.policy.directCooldownHours * 3600000 -
+            now.getTime(),
+        );
+    }
+  }
   private async parties(
     tx: TransactionContext,
     principal: Principal,
@@ -111,7 +201,7 @@ export class ProposalsService {
   async list(
     principal: Principal,
     query: {
-      direction?: "sent" | "received";
+      direction?: "sent" | "received" | "all";
       status?: ProposalStatus;
       learningRequestId?: string;
       cursor?: string;
@@ -121,12 +211,13 @@ export class ProposalsService {
     const limit = query.limit ?? 20,
       scope = cursorScope({
         type: "proposals",
+        order: "createdAt-desc-v1",
         viewer: principal.userId,
         direction: query.direction ?? "received",
         status: query.status ?? null,
         requestId: query.learningRequestId ?? null,
       }),
-      cursor = readCursor(query.cursor, scope);
+      cursor = readTimeCursor(query.cursor, scope);
     return this.transactions.run(async (tx) => {
       await this.actors.require(tx, principal, "proposal:read:party");
       if (query.learningRequestId) {
@@ -138,19 +229,39 @@ export class ProposalsService {
       }
       const rows = await tx.proposal.findMany({
         where: {
-          ...(query.direction === "sent"
-            ? { proposerId: principal.userId }
-            : { recipientId: principal.userId }),
+          AND: [
+            query.direction === "all"
+              ? {
+                  OR: [
+                    { proposerId: principal.userId },
+                    { recipientId: principal.userId },
+                  ],
+                }
+              : query.direction === "sent"
+                ? { proposerId: principal.userId }
+                : { recipientId: principal.userId },
+            ...(cursor
+              ? [
+                  {
+                    OR: [
+                      { createdAt: { lt: cursor.date } },
+                      { createdAt: cursor.date, id: { lt: cursor.id } },
+                    ],
+                  },
+                ]
+              : []),
+          ],
           ...(query.status ? { status: query.status } : {}),
           ...(query.learningRequestId
             ? { requestId: query.learningRequestId }
             : {}),
-          ...(cursor ? { id: { gt: cursor.id } } : {}),
         },
-        orderBy: { id: "asc" },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         take: limit + 1,
       });
-      const result = page(rows, limit, scope, (row) => row.id);
+      const result = page(rows, limit, scope, (row) =>
+        row.createdAt.toISOString(),
+      );
       return { ...result, data: result.data.map((row) => proposalView(row)) };
     });
   }
@@ -217,41 +328,14 @@ export class ProposalsService {
             )
               throw new ConflictException("DIRECT_TARGET_UNAVAILABLE");
           }
-          const day = await tx.proposal.count({
-            where: {
-              proposerId: command.principal.userId,
-              createdAt: { gt: new Date(now.getTime() - 86400000) },
-            },
-          });
-          const hour = await tx.proposal.count({
-            where: {
-              proposerId: command.principal.userId,
-              createdAt: { gt: new Date(now.getTime() - 3600000) },
-            },
-          });
-          if (
-            day >= this.config.policy.proposalsPerDay ||
-            hour >= this.config.policy.proposalsPerHour
-          )
-            throw new HttpException("PROPOSAL_RATE_LIMIT", 429);
-          if (
-            input.sourceType === "DIRECT_SEARCH" &&
-            (await tx.proposal.findFirst({
-              where: {
-                proposerId: command.principal.userId,
-                recipientId,
-                skillId: source.skillId,
-                sourceType: "DIRECT_SEARCH",
-                createdAt: {
-                  gt: new Date(
-                    now.getTime() -
-                      this.config.policy.directCooldownHours * 3600000,
-                  ),
-                },
-              },
-            }))
-          )
-            throw new HttpException("DIRECT_INVITATION_COOLDOWN", 429);
+          await this.enforceCreateRate(
+            tx,
+            command.principal.userId,
+            input.sourceType,
+            recipientId,
+            source.skillId,
+            now,
+          );
           const row = await tx.proposal.create({
             data: {
               ...hints,

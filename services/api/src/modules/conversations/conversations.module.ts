@@ -3,6 +3,7 @@ import { DatabaseModule } from "../../infrastructure/database/database.module";
 import { OutboxModule } from "../../infrastructure/events/outbox.module";
 import { StorageModule } from "../../infrastructure/storage/storage.module";
 import { IdentityModule } from "../identity.module";
+import { ConversationTopicsModule } from "../proposals/conversation-topics.module";
 import { ConnectionConfig } from "../proposals/domain/connection-config";
 import { ConversationLifecycleService } from "./application/services/conversation-lifecycle.service";
 import { NotificationsModule } from "../notifications/notifications.module";
@@ -16,6 +17,7 @@ import { ConversationMembershipReader } from "./application/services/conversatio
 @Module({
   imports: [
     DatabaseModule,
+    ConversationTopicsModule,
     OutboxModule,
     StorageModule,
     IdentityModule,
