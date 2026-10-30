@@ -2,11 +2,14 @@ import "reflect-metadata";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Module } from "@nestjs/common";
+import { ConfigModule } from "@nestjs/config";
 import { Test } from "@nestjs/testing";
 import { createSkillFixture } from "./helpers.mjs";
 import { SkillsModule } from "../../dist/modules/skills/skills.module.js";
 import { SharingSkillsModule } from "../../dist/modules/sharing-skills/sharing-skills.module.js";
 import { VerificationsModule } from "../../dist/modules/verifications/verifications.module.js";
+import { VerificationAiModule } from "../../dist/modules/verifications/verification-ai.module.js";
+import { VerificationAiService } from "../../dist/modules/verifications/application/services/verification-ai.service.js";
 import { SkillNotificationModule } from "../../dist/modules/notifications/skill-notification.module.js";
 import { IdentityModule } from "../../dist/modules/identity.module.js";
 import { DatabaseModule } from "../../dist/infrastructure/database/database.module.js";
@@ -43,12 +46,34 @@ test(
       const publicReader = new PublicSkillReader();
       module = await Test.createTestingModule({
         imports: [
+          ConfigModule.forRoot({
+            isGlobal: true,
+            ignoreEnvFile: true,
+            ignoreEnvVars: true,
+            load: [
+              () => ({
+                SMTP_HOST: "fixture.invalid",
+                SMTP_PORT: 1025,
+                SMTP_FROM: "fixture@example.invalid",
+                NOTIFICATION_CHANNELS: "IN_APP",
+              }),
+            ],
+          }),
           SkillsModule,
           SharingSkillsModule,
           VerificationsModule,
           SkillNotificationModule,
         ],
       })
+        .overrideModule(VerificationAiModule)
+        .useModule(
+          fixtureModule([
+            {
+              provide: VerificationAiService,
+              useValue: { schedule: async () => null },
+            },
+          ]),
+        )
         .overrideModule(DatabaseModule)
         .useModule(
           fixtureModule([

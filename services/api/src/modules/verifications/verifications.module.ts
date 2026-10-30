@@ -10,8 +10,10 @@ import { VerificationsRepository } from "./infrastructure/persistence/verificati
 import { VerificationsService } from "./application/services/verifications.service";
 import { VerificationsController } from "./presentation/http/verifications.controller";
 import { StaffVerificationsController } from "./presentation/http/staff-verifications.controller";
+import { VerificationAiModule } from "./verification-ai.module";
 @Module({
   imports: [
+    VerificationAiModule,
     DatabaseModule,
     IdempotencyModule,
     OutboxModule,

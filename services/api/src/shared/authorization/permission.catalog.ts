@@ -42,6 +42,10 @@ export const PERMISSION_CATALOG = [
     description: "Update own sharing skill",
   },
   { code: "skill-verification:read", description: "Read verification queue" },
+  {
+    code: "skill-verification:analyze",
+    description: "Request AI analysis of private skill evidence",
+  },
   { code: "skill-verification:approve", description: "Approve skill evidence" },
   { code: "skill-verification:reject", description: "Reject skill evidence" },
   {

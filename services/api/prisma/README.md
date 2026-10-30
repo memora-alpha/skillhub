@@ -9,6 +9,11 @@ entities; its simplification does not remove logical join tables.
 
 ## Catalog and implemented runtime
 
+Advisory Verification AI adds the runtime-only `VerificationAiAnalysis` model via
+`runtime-support.prisma` and the generator. Migration `20261023000000_verification_ai`
+adds private snapshots/results, fenced leases and one active run per verification;
+it does not modify approval state. See [rollout and contract](../specs/007-skills/verification-ai.md).
+
 The 2026-10-19 Proposal amendment overlays catalog `candidateSlots` JSONB as
 nullable TEXT in the runtime generator. Migration
 `20261019000000_proposal_schedule_text` preserves populated arrays as JSON text,

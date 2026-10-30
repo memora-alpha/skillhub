@@ -1,5 +1,8 @@
 # Feature Specification: Kỹ năng và xác minh bằng chứng
 
+> 2026-10-23: [Advisory Verification AI](verification-ai.md) adds backend-only
+> image/PDF analysis for Staff while preserving manual decisions and private evidence.
+
 > 2026-10-14: [Per-skill level catalog amendment](skill-level-catalog.md) replaces
 > the fixed Sharing Skill level selection with Admin-managed choices. It includes
 > compatibility, API contract, rollout and verification requirements.

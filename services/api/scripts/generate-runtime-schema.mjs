@@ -34,7 +34,10 @@ for (const name of ["Skill", "SharingSkill"]) {
   );
 }
 model("SkillVerification", (block) =>
-  fields(block, "  version Int @default(1)"),
+  fields(
+    block,
+    "  version Int @default(1)\n  aiAnalyses VerificationAiAnalysis[]",
+  ),
 );
 model("SkillEvidence", (block) =>
   fields(
@@ -51,6 +54,7 @@ model("User", (block) =>
     block,
     `
   createdTags Tag[] @relation("Tag_creator")
+  requestedVerificationAiAnalyses VerificationAiAnalysis[] @relation("VerificationAi_requester")
   tagCreationRequests TagCreationRequest[] @relation("TagRequest_owner")
   reviewedTagCreationRequests TagCreationRequest[] @relation("TagRequest_reviewer")
   @@index([createdAt(sort: Desc), id(sort: Desc)])

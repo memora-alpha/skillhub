@@ -3,6 +3,7 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  Optional,
 } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import type { Readable } from "node:stream";
@@ -28,6 +29,7 @@ import {
   verificationView,
 } from "../../infrastructure/persistence/verifications.repository";
 import type { VerificationRequestStatus } from "../../../../generated/prisma/client";
+import { VerificationAiService } from "./verification-ai.service";
 
 export type SubmitEvidence = {
   fileIds: string[];
@@ -46,6 +48,7 @@ export class VerificationsService {
     private readonly attachments: FileAttachmentService,
     private readonly audit: AuditWriter,
     private readonly outbox: OutboxWriter,
+    @Optional() private readonly ai?: VerificationAiService,
   ) {}
   private async own(
     tx: TransactionContext,
@@ -159,6 +162,7 @@ export class VerificationsService {
             });
           }
           await this.aggregate(tx, id, command.principal.userId);
+          await this.ai?.schedule(tx, request.id, null, command.context);
           return {
             id: request.id,
             status: "PENDING",

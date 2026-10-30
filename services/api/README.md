@@ -62,6 +62,12 @@ confirmations, and schedule edits require bilateral confirmation. After finalize
 use reschedule/cancellation flows. See
 [agreement amendments](specs/008-connections/agreement-amendments.md).
 
+AI hỗ trợ xác minh minh chứng (2026-10-23): backend nhận ảnh/PDF, đối chiếu tên/kỹ
+năng và đưa nhận xét kèm dẫn chứng cho Staff. Không tự duyệt/badge hoặc xác nhận
+bằng thật. Mặc định tắt; cần migration, identity seed và runtime Gemini key trước
+khi bật. API đọc/yêu cầu chạy lại, cấu hình, recovery và giới hạn tại
+[Verification AI](specs/007-skills/verification-ai.md).
+
 Technical payment recovery 2026-10-19: đơn payOS đang chờ nhưng mất QR được tra
 cứu và hủy bằng signed evidence trước khi mở tạo mới. Timeout tiếp tục retry,
 không tự chuyển REVIEW vì hết lượt. Worker kiểm tra lại REVIEW cũ do mất QR/hết

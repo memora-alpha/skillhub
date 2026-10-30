@@ -8,6 +8,8 @@ import { Test } from "@nestjs/testing";
 import { getConnectionToken } from "@nestjs/mongoose";
 import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
 import { ProposalsModule } from "../../dist/modules/proposals/proposals.module.js";
+import { VerificationAiModule } from "../../dist/modules/verifications/verification-ai.module.js";
+import { VerificationAiService } from "../../dist/modules/verifications/application/services/verification-ai.service.js";
 import { ProposalsService } from "../../dist/modules/proposals/application/services/proposals.service.js";
 import { ConversationsService } from "../../dist/modules/conversations/application/services/conversations.service.js";
 import { DatabaseModule } from "../../dist/infrastructure/database/database.module.js";
@@ -78,6 +80,10 @@ test("feature modules resolve owner contracts and register SSE/chat workers; HTT
       SkillNotificationModule,
     ],
   })
+    .overrideModule(VerificationAiModule)
+    .useModule(
+      fixtureModule([[VerificationAiService, { schedule: async () => null }]]),
+    )
     .overrideModule(DatabaseModule)
     .useModule(
       fixtureModule([

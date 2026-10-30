@@ -121,6 +121,49 @@ export class FileStorageService {
     }
   }
 
+  /** Internal, policy-checked byte access for evidence analysis; never exposes signed URLs. */
+  async readEvidenceForAnalysis(
+    fileId: string,
+    assertRead: () => Promise<void>,
+  ): Promise<Buffer> {
+    await assertRead();
+    const row = await this.repository.find(fileId);
+    if (
+      row?.purpose !== "EVIDENCE" ||
+      row.state !== "READY" ||
+      !row.sizeBytes ||
+      !row.sha256 ||
+      row.sizeBytes > 10000000
+    )
+      throw new FileStorageError("FILE_NOT_READY", 409);
+    const chunks: Buffer[] = [];
+    const hash = createHash("sha256");
+    let size = 0;
+    const body = await this.objects.read(row.objectKey);
+    const timer = setTimeout(
+      () => body.destroy(new Error("AI_FILE_READ_TIMEOUT")),
+      15000,
+    );
+    try {
+      for await (const chunk of body) {
+        const bytes = Buffer.isBuffer(chunk)
+          ? chunk
+          : Buffer.from(chunk as Uint8Array);
+        size += bytes.length;
+        if (size > row.sizeBytes)
+          throw new FileStorageError("FILE_OBJECT_MISMATCH", 503);
+        hash.update(bytes);
+        chunks.push(bytes);
+      }
+      if (size !== row.sizeBytes || hash.digest("hex") !== row.sha256)
+        throw new FileStorageError("FILE_OBJECT_MISMATCH", 503);
+      return Buffer.concat(chunks);
+    } finally {
+      clearTimeout(timer);
+      body.destroy();
+    }
+  }
+
   async issueDownload(
     input: {
       actor: Actor;

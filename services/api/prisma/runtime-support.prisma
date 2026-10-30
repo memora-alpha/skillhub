@@ -310,6 +310,32 @@ model RequestTag {
   @@map("learning_request_tags")
 }
 
+// Advisory analysis; verification decisions remain owned by Verifications.
+model VerificationAiAnalysis {
+  id String @id @default(uuid()) @db.Uuid
+  verificationId String @map("verification_id") @db.Uuid
+  verification SkillVerification @relation(fields: [verificationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  status String @db.VarChar(20)
+  inputHash String @map("input_hash") @db.Char(64)
+  input Json
+  result Json?
+  model String @db.VarChar(128)
+  promptVersion String @map("prompt_version") @db.VarChar(40)
+  requestedByUserId String? @map("requested_by_user_id") @db.Uuid
+  requestedBy User? @relation("VerificationAi_requester", fields: [requestedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  attempts Int @default(0)
+  leaseToken String? @map("lease_token") @db.Uuid
+  leaseUntil DateTime? @map("lease_until") @db.Timestamptz(3)
+  errorCode String? @map("error_code") @db.VarChar(80)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  completedAt DateTime? @map("completed_at") @db.Timestamptz(3)
+
+  @@index([verificationId, createdAt(sort: Desc), id(sort: Desc)], map: "verification_ai_history_idx")
+  @@index([status, leaseUntil], map: "verification_ai_recovery_idx")
+  @@map("verification_ai_analyses")
+}
+
 // User-approved FE extension; offered skills remain owned by Sharing Skills.
 model RequestOffering {
   requestId String @map("request_id") @db.Uuid

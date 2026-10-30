@@ -338,9 +338,10 @@ model User {
   userRestrictionUserIdRecords              UserRestriction[]       @relation("UserRestriction_user_id")
   userRestrictionAppliedByUserIdRecords     UserRestriction[]       @relation("UserRestriction_applied_by_user_id")
 
-  createdTags                 Tag[]                @relation("Tag_creator")
-  tagCreationRequests         TagCreationRequest[] @relation("TagRequest_owner")
-  reviewedTagCreationRequests TagCreationRequest[] @relation("TagRequest_reviewer")
+  createdTags                     Tag[]                    @relation("Tag_creator")
+  requestedVerificationAiAnalyses VerificationAiAnalysis[] @relation("VerificationAi_requester")
+  tagCreationRequests             TagCreationRequest[]     @relation("TagRequest_owner")
+  reviewedTagCreationRequests     TagCreationRequest[]     @relation("TagRequest_reviewer")
 
   @@unique([id, avatarAssetId])
   @@index([roleId])
@@ -503,10 +504,11 @@ model SkillVerification {
   rejectReason   String?                   @map("reject_reason") @db.VarChar(500)
   submittedAt    DateTime                  @map("submitted_at") @db.Timestamptz(3)
 
-  skillEvidenceSubmissionRecords SkillEvidence[] @relation("SkillEvidence_submission")
-  sharingSkillIdRecord           SharingSkill    @relation("SkillVerification_sharing_skill_id", fields: [sharingSkillId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  reviewerIdRecord               User?           @relation("SkillVerification_reviewer_id", fields: [reviewerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  version                        Int             @default(1)
+  skillEvidenceSubmissionRecords SkillEvidence[]          @relation("SkillEvidence_submission")
+  sharingSkillIdRecord           SharingSkill             @relation("SkillVerification_sharing_skill_id", fields: [sharingSkillId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  reviewerIdRecord               User?                    @relation("SkillVerification_reviewer_id", fields: [reviewerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  version                        Int                      @default(1)
+  aiAnalyses                     VerificationAiAnalysis[]
 
   @@unique([id, sharingSkillId])
   @@index([sharingSkillId])
@@ -1430,23 +1432,23 @@ model Material {
 }
 
 model MaterialOrder {
-  id                    String   @id @default(uuid()) @map("order_id") @db.Uuid
-  buyerId               String   @map("buyer_id") @db.Uuid
-  sellerId              String   @map("seller_id") @db.Uuid
-  materialId            String   @map("material_id") @db.Uuid
-  purchasedFileSnapshot Json     @map("purchased_file_snapshot")
-  listingVersion        Int      @map("listing_version")
-  grossCredit           BigInt   @map("gross_credit")
-  feeAmount             BigInt   @map("fee_amount")
-  sellerNetCredit       BigInt   @map("seller_net_credit")
-  feePolicyId           String   @map("fee_policy_id") @db.Uuid
-  feeSnapshot           Json     @map("fee_snapshot")
-  operationId           String   @unique @map("operation_id") @db.Uuid
+  id                    String    @id @default(uuid()) @map("order_id") @db.Uuid
+  buyerId               String    @map("buyer_id") @db.Uuid
+  sellerId              String    @map("seller_id") @db.Uuid
+  materialId            String    @map("material_id") @db.Uuid
+  purchasedFileSnapshot Json      @map("purchased_file_snapshot")
+  listingVersion        Int       @map("listing_version")
+  grossCredit           BigInt    @map("gross_credit")
+  feeAmount             BigInt    @map("fee_amount")
+  sellerNetCredit       BigInt    @map("seller_net_credit")
+  feePolicyId           String    @map("fee_policy_id") @db.Uuid
+  feeSnapshot           Json      @map("fee_snapshot")
+  operationId           String    @unique @map("operation_id") @db.Uuid
   // Open vocabulary; owning feature must validate it before release.
-  status                String   @map("status") @db.Text
+  status                String    @map("status") @db.Text
   consumedAt            DateTime? @map("consumed_at") @db.Timestamptz(3)
-  idempotencyKey        String   @unique @map("idempotency_key") @db.VarChar(255)
-  createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  idempotencyKey        String    @unique @map("idempotency_key") @db.VarChar(255)
+  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
 
   reportCaseRelatedOrderIdRecords         ReportCase[]         @relation("ReportCase_related_order_id")
   buyerIdRecord                           User                 @relation("MaterialOrder_buyer_id", fields: [buyerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
@@ -1853,6 +1855,32 @@ model RequestTag {
   @@id([requestId, tagId])
   @@index([tagId, requestId])
   @@map("learning_request_tags")
+}
+
+// Advisory analysis; verification decisions remain owned by Verifications.
+model VerificationAiAnalysis {
+  id                String            @id @default(uuid()) @db.Uuid
+  verificationId    String            @map("verification_id") @db.Uuid
+  verification      SkillVerification @relation(fields: [verificationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  status            String            @db.VarChar(20)
+  inputHash         String            @map("input_hash") @db.Char(64)
+  input             Json
+  result            Json?
+  model             String            @db.VarChar(128)
+  promptVersion     String            @map("prompt_version") @db.VarChar(40)
+  requestedByUserId String?           @map("requested_by_user_id") @db.Uuid
+  requestedBy       User?             @relation("VerificationAi_requester", fields: [requestedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  attempts          Int               @default(0)
+  leaseToken        String?           @map("lease_token") @db.Uuid
+  leaseUntil        DateTime?         @map("lease_until") @db.Timestamptz(3)
+  errorCode         String?           @map("error_code") @db.VarChar(80)
+  createdAt         DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+  completedAt       DateTime?         @map("completed_at") @db.Timestamptz(3)
+
+  @@index([verificationId, createdAt(sort: Desc), id(sort: Desc)], map: "verification_ai_history_idx")
+  @@index([status, leaseUntil], map: "verification_ai_recovery_idx")
+  @@map("verification_ai_analyses")
 }
 
 // User-approved FE extension; offered skills remain owned by Sharing Skills.
