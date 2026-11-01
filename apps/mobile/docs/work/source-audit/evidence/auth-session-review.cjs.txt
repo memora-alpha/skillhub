@@ -1,0 +1,187 @@
+// Historical reproduction on d2d30f01 before the Auth fixes; not a regression check for current source.
+// Run from apps/mobile at that baseline after copying this file to .expo/auth-session-review.test.cjs:
+// node --import tsx --experimental-test-module-mocks --test .expo/auth-session-review.test.cjs
+// Reproduction assertions describe observed defects, not desired fixed behavior.
+// Only repository source, fake tokens and in-memory adapters are used; no network/storage driver.
+const assert = require("node:assert/strict");
+const { test, mock } = require("node:test");
+const { createRequire } = require("node:module");
+const { resolve } = require("node:path");
+const { pathToFileURL } = require("node:url");
+const local = createRequire(
+  resolve("src/features/auth/components/AuthNavigator.tsx"),
+);
+const { SessionController } = local("../context/session-controller.ts");
+const { AppError } = local("@/lib/http/errors");
+const { passwordRecoveryStore } = local("../utils/password-recovery-flow.ts");
+
+const pair = (suffix) => ({
+  accessToken: `fake-access-${suffix}`,
+  refreshToken: `fake-refresh-${suffix}`,
+  tokenType: "Bearer",
+  expiresIn: 900,
+  refreshExpiresAt: "2035-01-01T00:00:00.000Z",
+});
+const input = (email = "a@example.test") => ({
+  email,
+  password: "FakePassword1!",
+  rememberMe: true,
+});
+function fixture() {
+  let value = null;
+  let failClear = false;
+  const store = {
+    read: async () => value,
+    write: async (next) => {
+      value = next;
+    },
+    clear: async () => {
+      if (failClear) {
+        failClear = false;
+        throw new AppError("storage");
+      }
+      value = null;
+    },
+  };
+  const api = {
+    login: async ({ email }) => pair(email),
+    refresh: async () => pair("restored"),
+    logout: async () => undefined,
+    logoutAll: async () => undefined,
+  };
+  const controller = new SessionController(api, store);
+  return {
+    controller,
+    api,
+    store,
+    failNextClear: () => {
+      failClear = true;
+    },
+  };
+}
+function deferred() {
+  let resolvePromise;
+  const promise = new Promise((resolve) => {
+    resolvePromise = resolve;
+  });
+  return { promise, resolve: resolvePromise };
+}
+
+test("F02 CONFIRMED: recovery proof survives authenticated -> guest on the same recovery route", () => {
+  const filename = local.resolve("./AuthNavigator.tsx");
+  const contexts = [];
+  let effect;
+  let auth = {
+    status: "authenticated",
+    session: { email: "a@example.test" },
+    runtime: { controller: { generation: 1 } },
+  };
+  const jsx = (type, props) => ({ type, props });
+  const replacements = [
+    [
+      "react",
+      {
+        useEffect: (fn) => {
+          effect = fn;
+        },
+      },
+    ],
+    ["react/jsx-runtime", { jsx, jsxs: jsx, Fragment: "Fragment" }],
+    [
+      "expo-router",
+      {
+        Stack: { Screen: "Screen", Protected: "Protected" },
+        usePathname: () => "/reset-password",
+      },
+    ],
+    ["@/constants/theme", { colors: { cream: "fake-color" } }],
+    ["../context/AuthSession", { useAuthSession: () => auth }],
+  ];
+  try {
+    for (const [name, namedExports] of replacements)
+      contexts.push(
+        mock.module(pathToFileURL(local.resolve(name)), { namedExports }),
+      );
+    delete local.cache[filename];
+    const { AuthNavigator } = local(filename);
+    const proof = {
+      resetToken: "a".repeat(43),
+      expiresAt: new Date(Date.now() + 300000).toISOString(),
+    };
+    passwordRecoveryStore.getState().begin("a@example.test");
+    passwordRecoveryStore.getState().authorize("a@example.test", proof);
+    AuthNavigator();
+    effect();
+    auth = {
+      status: "guest",
+      session: null,
+      runtime: { controller: { generation: 2 } },
+    };
+    AuthNavigator();
+    effect();
+    assert.deepEqual(passwordRecoveryStore.getState().draft.proof, proof);
+  } finally {
+    passwordRecoveryStore.getState().clear();
+    delete local.cache[filename];
+    for (const context of contexts.reverse()) context.restore();
+  }
+});
+
+test("AUTH-02 CONFIRMED: failed local clear + failed remote logout allows retry bootstrap to restore the signed-out session", async () => {
+  const f = fixture();
+  await f.controller.login(input());
+  f.failNextClear();
+  f.api.logout = async () => {
+    throw new AppError("network");
+  };
+  await f.controller.signOut();
+  assert.equal(f.controller.getSnapshot(), "offline");
+  assert.equal(
+    (await f.store.read()).refreshToken,
+    pair("a@example.test").refreshToken,
+  );
+  let refreshCalls = 0;
+  f.api.refresh = async () => {
+    refreshCalls++;
+    return pair("revived-a");
+  };
+  await f.controller.bootstrap();
+  assert.equal(refreshCalls, 1);
+  assert.equal(f.controller.getSnapshot(), "ready");
+  assert.equal(await f.controller.getToken(), pair("revived-a").accessToken);
+});
+
+test("AUTH-03 CONFIRMED: rotation from A is reused for B renewal until the old response settles", async () => {
+  const f = fixture();
+  const started = deferred();
+  const response = deferred();
+  const refreshTokens = [];
+  f.api.refresh = async (token) => {
+    refreshTokens.push(token);
+    started.resolve();
+    return response.promise;
+  };
+  await f.controller.login(input());
+  const oldRotation = f.controller.renew();
+  const oldRejected = assert.rejects(
+    oldRotation,
+    (e) => e instanceof AppError && e.kind === "session",
+  );
+  await started.promise;
+  await f.controller.signOut();
+  await f.controller.login(input("b@example.test"));
+  const newRotation = f.controller.renew(pair("b@example.test").accessToken);
+  assert.equal(newRotation, oldRotation);
+  const newRejected = assert.rejects(
+    newRotation,
+    (e) => e instanceof AppError && e.kind === "session",
+  );
+  response.resolve(pair("old-a"));
+  await Promise.all([oldRejected, newRejected]);
+  assert.deepEqual(refreshTokens, [pair("a@example.test").refreshToken]);
+  assert.equal(f.controller.getSnapshot(), "ready");
+  assert.equal(
+    await f.controller.getToken(),
+    pair("b@example.test").accessToken,
+  );
+});

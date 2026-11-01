@@ -30,6 +30,12 @@ Register stage draft mã hóa Redis, TTL5 phút; chỉ verify thành công mới
 
 Reset proof một lần, memory-only, expiresAt phải kiểm; OTP replacement vô hiệu proof cũ. Reset network/5xx có thể xảy ra sau commit: giữ input, gợi ý login; không khẳng định password chưa đổi và không retry tự động. Signed-in reset thành công clear session; completion cũ không expire phiên mới.
 
+Follow-up 2026-10-31: signed-in recovery gắn generation, clear draft/proof khi generation đổi hoặc controller rời ready, kể cả khi màn hình unmount; guest recovery không bị áp owner signed-in. Logout xóa storage lỗi giữ cleanup pending trong runtime và chỉ retry deletion trước khi về guest, không restore token vừa logout. Refresh single-flight riêng từng generation. ACCOUNT_NOT_ACTIVE không xác định được lý do khóa/chưa verified nên không tự đưa người dùng sang verification; xem [bản sửa và giới hạn](../work/source-audit/auth-review-2026-10-31.md#bản-sửa-từ-dev).
+
+Login ghi nhớ email hợp lệ gần nhất được nhập, chuẩn hóa trim/lowercase và tự điền lần mở sau. Email từ route xác minh/reset được ưu tiên; đọc preference trễ không ghi đè nội dung đã sửa hoặc đã xóa. Preference chỉ lưu email riêng ở SecureStore native/localStorage web, giữ sau logout; không lưu password/token và không thay rememberMe hoặc cơ chế web session memory-only. Nút logout nằm cuối Hồ sơ, giữ LogoutDialog; đã bỏ nút logout riêng trong Cài đặt. Mục Đăng xuất tất cả thiết bị trong Cài đặt vẫn giữ.
+
+Follow-up 2026-11-01: cleanup logout theo intent riêng, không bị hủy bởi login attempt thất bại; credential của generation hiện tại chỉ thay intent sau khi write thành công trong storage queue. Cleanup retry cũ không xóa credential mới hoặc đưa phiên mới về guest. Email preference phân biệt email đã lưu và request pending, cho retry cùng email sau write failure mà không ghi trùng lúc pending/đã lưu. Read preference ban đầu bị lỗi không được cache vĩnh viễn thành rỗng; lần load sau thử lại storage.
+
 Auth renewal single-flight, access RAM, native refresh SecureStore, web memory-only; ambiguous rotation không replay token có thể đã consume. Ownership/generation và cache cleanup chuẩn nằm tại [state/session](../guides/state-and-session.md). Current SessionController states: bootstrapping,guest,ready,offline,reauth; ready không phải wire account status.
 
 ## Yêu cầu / chênh lệch / evidence

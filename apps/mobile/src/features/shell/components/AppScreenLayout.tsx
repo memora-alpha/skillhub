@@ -4,7 +4,6 @@ import {
   Platform,
   StyleSheet,
   Text,
-  View,
   type StyleProp,
   type ViewStyle,
 } from "react-native";
@@ -12,11 +11,7 @@ import { SafeAreaView } from "@/components/SafeArea";
 import { Redirect, useRouter, type Href } from "expo-router";
 import { AccountMenu } from "./AccountMenu";
 import { AppHeader } from "./AppHeader";
-import { HomeSearch } from "./HomeSearch";
 import { InfoModal } from "@/components/InfoModal";
-import { LogoutDialog } from "@/components/LogoutDialog";
-import { Tag } from "@/components/Tag";
-import { demoNotifications, popularSkills } from "@/mocks/app";
 import { appRoutes } from "@/constants/navigation";
 import { typography, appColors as colors, fonts } from "@/constants/theme";
 import { useAuthSession } from "@/features/auth";
@@ -43,49 +38,12 @@ type AppScreenLayoutProps = Readonly<{
 
 function ScreenNoticeContent({
   notice,
-  query,
-  onQueryChange,
-  onSkillPress,
 }: Readonly<{
   notice: string | null;
-  query: string;
-  onQueryChange: (value: string) => void;
-  onSkillPress: (skill: string) => void;
 }>) {
-  if (notice === "Thông báo") {
-    return (
-      <View style={{ gap: 12 }}>
-        {demoNotifications.map((item) => (
-          <Text key={item} style={styles.body}>
-            {item}
-          </Text>
-        ))}
-      </View>
-    );
-  }
-  if (notice === "Tìm kiếm") {
-    const normalizedQuery = query.trim().toLowerCase();
-    const skills = popularSkills.filter((skill) =>
-      skill.toLowerCase().includes(normalizedQuery),
-    );
-    return (
-      <View style={{ gap: 12 }}>
-        <HomeSearch value={query} onChange={onQueryChange} />
-        {skills.map((skill) => (
-          <Tag key={skill} label={skill} onPress={() => onSkillPress(skill)} />
-        ))}
-        {skills.length === 0 && (
-          <Text style={styles.body}>
-            Không tìm thấy kỹ năng trong dữ liệu mẫu.
-          </Text>
-        )}
-      </View>
-    );
-  }
   return (
     <Text style={styles.body}>
-      Màn {notice?.toLowerCase() ?? ""} sẽ được triển khai ở bước tiếp theo.
-      Hiện tại bạn đang xem giao diện với dữ liệu mẫu.
+      Nội dung {notice?.toLowerCase() ?? "này"} hiện chưa khả dụng.
     </Text>
   );
 }
@@ -103,11 +61,9 @@ export function AppScreenLayout({
   children,
 }: AppScreenLayoutProps) {
   const router = useRouter();
-  const { session, signOut } = useAuthSession();
+  const { session } = useAuthSession();
   const [menu, setMenu] = useState(false);
-  const [logout, setLogout] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
-  const [query, setQuery] = useState("");
   if (!session) return <Redirect href="/login" />;
   const action = (label: string) => {
     if (navigationBlocked) return;
@@ -117,7 +73,6 @@ export function AppScreenLayout({
       else if (label !== selected) router.navigate(route);
       return;
     }
-    setQuery("");
     setNotice(label);
   };
   const edges = back
@@ -161,34 +116,10 @@ export function AppScreenLayout({
           profile={session}
           onClose={() => setMenu(false)}
           onAction={action}
-          onLogout={() => {
-            setMenu(false);
-            setLogout(true);
-          }}
         />
         <InfoModal title={notice} onClose={() => setNotice(null)}>
-          <ScreenNoticeContent
-            notice={notice}
-            query={query}
-            onQueryChange={setQuery}
-            onSkillPress={(skill) => {
-              setNotice(null);
-              router.navigate({
-                pathname: "/discover",
-                params: { query: skill },
-              });
-            }}
-          />
+          <ScreenNoticeContent notice={notice} />
         </InfoModal>
-        <LogoutDialog
-          visible={logout}
-          onClose={() => setLogout(false)}
-          onConfirm={() => {
-            void signOut();
-            setLogout(false);
-            router.replace("/");
-          }}
-        />
       </SafeAreaView>
     </LoadingScreenBoundary>
   );

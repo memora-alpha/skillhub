@@ -30,6 +30,7 @@ export const appRoutes: Record<string, Href | undefined> = {
   "Thành tích": "/achievements",
   "Tiến trình huy hiệu": "/achievements",
   "Đánh giá": "/reviews",
+  "Đánh giá về tôi": "/reviews",
   "Uy tín": "/reputation",
   "Báo cáo của tôi": "/reports",
   "Đăng yêu cầu học": "/requests/new",
@@ -41,7 +42,6 @@ export const appRoutes: Record<string, Href | undefined> = {
   "Vào học": "/calendar",
   "Learning Path của tôi": learningRoutes.paths,
   "Lộ trình của tôi": learningRoutes.paths,
-  "Bộ giao diện mobile": "/ui",
 };
 
 export const appTabs: { name: string; label: string; icon: IconName }[] = [
@@ -57,5 +57,4 @@ export const accountItems: { label: string; icon: IconName }[] = [
   { label: "Tài liệu của tôi", icon: "book" },
   { label: "Cài đặt", icon: "settings" },
   { label: "Trung tâm trợ giúp", icon: "help" },
-  { label: "Bộ giao diện mobile", icon: "compass" },
 ];

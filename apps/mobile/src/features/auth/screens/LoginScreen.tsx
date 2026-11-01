@@ -4,13 +4,13 @@ import { Keyboard, Pressable, StyleSheet, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Button } from "@/components/Button";
 import { Checkbox } from "@/components/Checkbox";
-import { AppError } from "@/lib/http/errors";
 import { formValidationOptions } from "@/utils/form-validation";
 import { useAuthFeedback } from "../hooks/use-auth-feedback";
 import { AuthLayout } from "../components/AuthLayout";
 import { authStyles } from "../components/AuthControls";
 import { AuthFormInput } from "../components/AuthFormInput";
 import { useAuthActions } from "../hooks/use-auth-actions";
+import { useRememberedLoginEmail } from "../hooks/use-remembered-login-email";
 import { loginSchema, type LoginFormValues } from "../schemas/auth-schemas";
 
 export function LoginScreen() {
@@ -33,8 +33,13 @@ export function LoginScreen() {
       rememberMe: false,
     },
   });
+  const rememberEmail = useRememberedLoginEmail(
+    form,
+    typeof params.email === "string" ? params.email : undefined,
+  );
   const submit = form.handleSubmit((values) => {
     if (login.isPending) return;
+    rememberEmail(values.email);
     Keyboard.dismiss();
     login.mutate(
       { ...values, email: values.email.toLowerCase() },
@@ -56,7 +61,10 @@ export function LoginScreen() {
           required
           placeholder="email@gmail.com"
           editable={!login.isPending}
-          onChangeText={login.reset}
+          onChangeText={(email) => {
+            rememberEmail(email);
+            login.reset();
+          }}
           keyboardType="email-address"
           autoCapitalize="none"
           autoCorrect={false}
@@ -109,22 +117,6 @@ export function LoginScreen() {
         <Button size="lg" onPress={submit} disabled={login.isPending}>
           {login.isPending ? "Đang đăng nhập..." : "Đăng nhập"}
         </Button>
-        {login.error instanceof AppError &&
-          login.error.code === "ACCOUNT_NOT_ACTIVE" && (
-            <Button
-              variant="secondary"
-              onPress={() =>
-                router.push({
-                  pathname: "/verify-email",
-                  params: {
-                    email: form.getValues("email").trim().toLowerCase(),
-                  },
-                })
-              }
-            >
-              Xác minh email
-            </Button>
-          )}
         <Text style={authStyles.footer}>
           Chưa có tài khoản?{" "}
           <Text

@@ -20,6 +20,7 @@ import { AppError } from "@/lib/http/errors";
 import { createAuthTokenStore } from "@/lib/storage/auth-token-store";
 import { createAuthApi } from "../api/auth-api";
 import { SessionController } from "./session-controller";
+import { bindPasswordRecoverySession } from "../utils/password-recovery-flow";
 import {
   useAvatarMonitor,
   type TrackedAvatarUpload,
@@ -107,7 +108,9 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
     query.refetch,
   );
   useEffect(() => {
+    const stopRecoverySession = bindPasswordRecoverySession(controller);
     void controller.bootstrap();
+    return stopRecoverySession;
   }, [controller]);
   useEffect(() => {
     if (phase !== "ready") {

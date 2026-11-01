@@ -12,7 +12,6 @@ export { ForgotPasswordScreen } from "./screens/ForgotPasswordScreen";
 export { ResetPasswordScreen } from "./screens/ResetPasswordScreen";
 export { ResetPasswordCodeScreen } from "./screens/ResetPasswordCodeScreen";
 export { useAuthActions } from "./hooks/use-auth-actions";
-export { validateName } from "./utils/validateRegistration";
 export type {
   ForgotPasswordFormValues,
   LoginFormValues,

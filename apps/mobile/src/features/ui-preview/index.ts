@@ -1,2 +1,2 @@
 export { UiPreviewProvider } from "./provider";
-export { UiCatalogScreen, SystemStateScreen } from "./screens";
+export { SystemStateScreen } from "./screens";

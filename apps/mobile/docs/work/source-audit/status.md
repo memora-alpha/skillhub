@@ -2,12 +2,19 @@
 
 ## Hiện trạng
 
-- Cập nhật lúc: 2026-10-19T23:55:00+07:00.
-- Trạng thái: Source và web fixture Skills đã kiểm tra trên fix/mobile-skills-read-denial; API/native acceptance còn mở. F02 ngoài phạm vi bản sửa.
-- Baseline: docs/mobile-workflow tại ed5a17dd9f1a6d5e45e1b6af33b17dd4518b46fd, source working tree không có diff trước review.
-- Kết luận: F01 đã sửa; lượt rà Skills bổ sung các sửa đổi về public denial, job bằng chứng, navigation, dọn code không dùng và loại Skills demo khỏi runtime ở cuối file. Kết quả không xác nhận toàn app/API/native hoàn chỉnh.
-- Nghiệm thu: Lượt rà này chưa kiểm chứng API thật và Android/iOS. Phạm vi bản sửa hiện tại là F01 và luồng mobile Skills; recovery và Wallet/Payment ngoài phạm vi.
-- Bước tiếp theo: review thay đổi F01; F02 xử lý ở nhánh riêng. Kết quả follow-up ở cuối file; mô tả source và reproduction ban đầu bên dưới thuộc baseline trước fix.
+- Cập nhật lúc: 2026-11-01T07:48:21+07:00.
+- Trạng thái: **đã dọn source không còn dùng**, giữ các màn xem thử theo lựa chọn người dùng; xóa ròng16 file ngoài catalog đã bỏ trước đó và chuyển2 cấu hình/helper. Sửa retry đọc email sau lỗi storage ban đầu và shortcut Đánh giá về tôi. Chi tiết tại [hồ sơ dọn source](cleanup-2026-11-01.md). AUTH-01..06 giữ bản sửa trên `fix/mobile-auth-session`; lịch sử tại [review Auth](auth-review-2026-10-31.md). CORS/deployment và API/native acceptance chưa xác minh.
+- Baseline: review ban đầu 19/10 tại ed5a17dd; review Auth trước sửa tại d2d30f01. Nhánh sửa Auth tạo từ origin/dev tại `0825a5d3ca0c1ce10a204a29c74634290244ca43`, mang theo các thay đổi tài liệu chưa commit từ nhánh cũ.
+- Kết luận: F01 đã sửa ở lượt Skills trước; lượt Auth mới sửa lifecycle recovery, cleanup logout, refresh theo generation và hướng dẫn ACCOUNT_NOT_ACTIVE. Không xác nhận toàn app/API/native hoàn chỉnh.
+- Mốc full suite UX trước các lượt gỡ nút/màn: **909/909 tests PASS**,0 failed/skipped/cancelled; TypeScript, ESLint --max-warnings0 và structure815 source files PASS. Có17 regression Auth và6 regression preference/hydration mới. Log local ignored: `.expo/auth-login-preferences-tests.log`; log trước UX903 tests ở `.expo/auth-session-full-tests.log`, không cộng hai suite. Các log không phải artifact chia sẻ qua Git.
+- Follow-up Cài đặt: bỏ nút logout riêng cùng state/dialog/styles không còn dùng; logout ở cuối Hồ sơ và Đăng xuất tất cả thiết bị trong Cài đặt vẫn giữ. TypeScript, focused ESLint màn Cài đặt và structure815 files PASS; không thêm test hoặc chạy lại full suite cho việc gỡ nút này.
+- Follow-up gỡ màn catalog: xóa route /ui và UiCatalogScreen, gỡ entry point Hồ sơ/menu/Stack; đổi các đường Back tới catalog sang /profile. TypeScript, focused lint, structure814 source files và34 tests startup/điều hướng/consumer PASS (9 trong `.expo/ui-catalog-removal-tests.log`,25 trong `.expo/ui-catalog-consumers-tests.log`). Không còn tham chiếu catalog hoặc /ui trong source runtime; không chạy lại full suite/native/browser visual ở lượt này.
+- Rà lại toàn nhánh: full **909/909 tests PASS**,0 failed/skipped/cancelled; TypeScript, full ESLint --max-warnings0 và structure814 source files PASS. Lệnh full suite có `--test-concurrency=4`, log ignored `.expo/auth-final-review-tests.log`. Ngoài suite, **2/2 reproduction xác nhận lỗi** AUTH-05/06 bằng [source evidence](evidence/auth-followup-review.cjs.txt); không cộng reproduction vào909 và không coi suite xanh là finding đã đóng.
+- Bản sửa ngày01/11: full **914/914 tests PASS**,0 failed/skipped/cancelled; TypeScript, full ESLint --max-warnings0 và structure814 source files PASS. Log ignored `.expo/auth-cleanup-preference-fixes-tests.log`. Có5 tests mới so với909: queued logout + login fail/success, cleanup retry xếp sau write B, cùng email retry sau lỗi và pending latest write không bị older failure dọn nhầm. Trước sửa3 cases fail; sau sửa focused42/42 và full914/914 pass. Lượt này không sửa UI/backend/storage schema/dependencies.
+- Lượt dọn code ngày01/11: full **915/915 tests PASS**,0 failed/skipped/cancelled; thêm1 regression đọc email ban đầu lỗi rồi storage phục hồi. TypeScript, full ESLint --max-warnings0 và structure798 source files PASS. Graph từ routes, có platform siblings, không tìm thấy orphan ngoài2 global declaration. Web export PASS tại `.expo/cleanup-web-export`, tắt dotenv/telemetry; log ignored `.expo/cleanup-web-export.log`. Không dùng export làm nghiệm thu UI/API/native. Full suite log ignored `.expo/auth-cleanup-unused-tests.log`.
+- Nghiệm thu: chưa chạy SecureStore/Android/iOS, API/email/Redis thật hoặc process kill trong lúc cleanup storage lỗi. Pending cleanup hiện giữ trong RAM; giới hạn restart khi cả local deletion và remote revoke thất bại được ghi trong review Auth. Preference email chỉ lưu email riêng ở native SecureStore/web localStorage; credential web vẫn memory-only. Không sửa backend, root tooling hoặc dependencies.
+- Rà trước commit lúc2026-11-01T07:48:21+07:00: chưa phát hiện blocker mới trong diff Auth/UX/dọn source. Chạy lại32/32 tests trọng tâm (session/screens/email/native text/entry points), format toàn bộ code thay đổi,6/6 tests quy tắc commit và diff whitespace PASS; log ignored `.expo/precommit-focused-review.log`. Full915, TypeScript/lint/structure/export là kết quả ngay trước lượt rà, source không đổi nên không chạy lặp toàn suite. Corepack pnpm10.24.0 đã cache chạy workspace bình thường; fallback pnpm11.25.0 của môi trường từng tự yêu cầu install và dừng vì no TTY, không đổi dependencies/lockfile. Chưa chạy hook trên staged files vì chưa stage/commit.
+- Bước tiếp theo: có thể commit phần source đã kiểm tra; nghiệm thu thiết bị/API và kiểm CORS khi endpoint truy cập được vẫn còn mở. Chưa stage/commit/push. Reproduction AUTH-05/06 và các findings ban đầu giữ làm lịch sử trước fix, không chạy để nghiệm thu source mới; dùng regression trong tests. Kết quả Skills riêng ở cuối file.
 
 ## F01 — P2 — Dữ liệu Skills riêng tư vẫn hiển thị sau khi server từ chối đọc
 
@@ -24,6 +31,8 @@
 **Regression cần:**200→403→503→200 cho owner detail/history/verification; denial không mount private files/actions, lỗi transient đơn thuần vẫn giữ last-read khi policy cho phép, session switch không hồi dữ liệu cũ.
 
 ## F02 — P2 — Reset token sống qua thời điểm phiên signed-in kết thúc
+
+**Follow-up 2026-10-31:** đã sửa trong source và regression trên nhánh `fix/mobile-auth-session`; xem [bản sửa Auth](auth-review-2026-10-31.md#bản-sửa-từ-dev). Trigger/source/reproduction dưới đây mô tả baseline trước sửa.
 
 **Trigger:** user signed-in đã verify recovery OTP, đang ở /reset-password với proof memory-only; session hết hạn/bị revoke khiến generation đổi và session thành guest trong khi vẫn ở route recovery.
 

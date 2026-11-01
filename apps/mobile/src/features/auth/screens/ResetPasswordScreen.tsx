@@ -4,6 +4,7 @@ import { Keyboard, Text, View } from "react-native";
 import { Redirect, useRouter } from "expo-router";
 import { useStore } from "zustand";
 import { Button } from "@/components/Button";
+import { LoadingIndicator } from "@/components/LoadingIndicator";
 import { formValidationOptions } from "@/utils/form-validation";
 import { AppError, errorMessage } from "@/lib/http/errors";
 import { useToast } from "@/providers/ToastProvider";
@@ -43,8 +44,22 @@ export function ResetPasswordScreen() {
         }}
       />
     );
-  if (!draft) return <Redirect href="/forgot-password" />;
-  if (!draft.proof) return <Redirect href="/forgot-password" />;
+  if (!draft?.proof) {
+    // Session cleanup can clear the proof before the successful reset mutation settles.
+    if (reset.isPending)
+      return (
+        <AuthLayout
+          title="Đang đặt lại mật khẩu"
+          subtitle="Vui lòng đợi một lát."
+        >
+          <LoadingIndicator
+            presentation="inline"
+            accessibilityLabel="Đang hoàn tất đặt lại mật khẩu"
+          />
+        </AuthLayout>
+      );
+    return <Redirect href="/forgot-password" />;
+  }
   const submit = form.handleSubmit((values) => {
     if (reset.isPending || !draft.proof) return;
     if (Date.parse(draft.proof.expiresAt) <= Date.now()) {

@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useState } from "react";
 import { Icon } from "@/components/Icon";
 import { fonts, iconSizes, typography } from "@/constants/theme";
-import { profileActions as shortcuts } from "../mocks/profile";
+import { profileActions as shortcuts } from "../constants/profile-actions";
 import { profileStyles } from "./ProfilePrimitives";
 import {
   profileActionTints,

@@ -8,7 +8,6 @@ const errors = [];
 // These declared public entry points expose state/policy without importing screens.
 // Keep the list explicit so feature-private imports remain disallowed.
 const publicFeatureEntries = new Set([
-  "product-shell/state",
   "learning-paths/state",
   "learning-paths/policy",
   "notifications/state",

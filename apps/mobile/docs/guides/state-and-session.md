@@ -6,10 +6,14 @@
 
 [SessionController](../../src/features/auth/context/session-controller.ts), [AuthSession](../../src/features/auth/context/AuthSession.tsx), [auth-token-store](../../src/lib/storage/auth-token-store.ts), [token-store](../../src/lib/storage/token-store.ts), [QueryProvider](../../src/providers/QueryProvider.tsx), [network boundary](../network-state.md). Native refresh dùng SecureStore; web chủ ý memory-only, access trong controller RAM. Query retry:false, staleTime:30_000, refetchOnWindowFocus:false, networkMode:always; mutation retry:false/networkMode:always.
 
+Follow-up Auth 2026-10-31: cleanup credential lỗi sau logout được retry riêng trong runtime, không bootstrap lại credential chưa xóa; refresh flight gắn generation và finally chỉ dọn đúng flight. Signed-in recovery gắn owner generation và cleanup qua subscription của AuthSessionProvider ngoài SessionGate. Trạng thái, regression và giới hạn restart/storage thật xem [review Auth](../work/source-audit/auth-review-2026-10-31.md#bản-sửa-từ-dev).
+
+Follow-up 2026-11-01: cleanup có intent độc lập với login attempt generation, chỉ được thay bởi credential hiện tại đã ghi thành công trong queue. Cleanup bị skip không publish guest; queued refresh writes/rollback kiểm generation. Email preference giữ trạng thái persisted/pending để retry cùng email sau write failure; read ban đầu lỗi cho phép load sau thử lại. Không suy việc có email trong RAM là đã lưu bền vững.
+
 ## Quy chuẩn cho thay đổi mới
 
 - Tái sử dụng auth session/controller và token store hiện có. Đọc source trước khi mô tả access token/refresh token nằm ở đâu, refresh single-flight và logout thực hiện như thế nào.
-- Native refresh-token storage hiện dùng SecureStore; web preview auth hiện có chủ ý memory-only. Không thêm localStorage/cookie persistence hoặc fallback web từ giả định “phải giống native”.
+- Native refresh-token storage hiện dùng SecureStore; web preview auth hiện có chủ ý memory-only. Không thêm localStorage/cookie persistence cho credential hoặc fallback web từ giả định “phải giống native”. Preference email gần nhất đã được người dùng yêu cầu riêng: key `skillhub.auth.last-email.v1`, native SecureStore/web localStorage, chỉ email và không bị clear khi logout. Lỗi preference không chặn login.
 - Web mất session sau full reload có thể là giới hạn đã biết; không sửa bảo mật/lưu trữ chỉ để browser harness chạy qua.
 - Bắt scope owner/session trước async operation và kiểm tra scope còn hiện hành trước cập nhật state/cache/navigation. Logout/account switch/expiry phải vô hiệu hóa kết quả của phiên cũ.
 - Một response 401 đến muộn không được làm hết hạn phiên mới. Refresh concurrent không được tạo nhiều chuỗi renewal ngoài thiết kế runtime.

@@ -40,7 +40,9 @@ export function ForgotPasswordScreen() {
     forgot.mutate(values.email.toLowerCase(), {
       onSuccess: () => {
         if (generation !== runtime.controller.generation) return;
-        passwordRecoveryStore.getState().begin(values.email);
+        passwordRecoveryStore
+          .getState()
+          .begin(values.email, session ? generation : null);
         router.replace({
           pathname: "/reset-password-code",
           params: { sent: "true" },

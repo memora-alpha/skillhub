@@ -8,6 +8,7 @@ import { AvatarUploadNotice } from "../components/AvatarUploadNotice";
 import { ProfileAbout, ProfileSummary } from "../components/ProfileSummary";
 import { useProfilePreview } from "../context/ProfilePreview";
 import { ProfileShortcuts } from "../components/ProfileShortcuts";
+import { ProfileLogout } from "../components/ProfileLogout";
 
 export function ProfileScreen() {
   const { session } = useAuthSession();
@@ -40,9 +41,7 @@ export function ProfileScreen() {
           />
           <ProfileAbout bio={profile.bio} />
           <OwnProfileSkillList />
-          <Button variant="ghost" onPress={() => router.push("/ui")}>
-            Bộ giao diện mobile
-          </Button>
+          <ProfileLogout />
         </View>
       )}
     </ProfileLayout>

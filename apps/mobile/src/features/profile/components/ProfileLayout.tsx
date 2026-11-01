@@ -1,25 +1,15 @@
 import { RefreshableScrollView as ScrollView } from "@/components/RefreshableScrollView";
 import { useState, type ReactNode } from "react";
-import {
-  KeyboardAvoidingView,
-  Platform,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { KeyboardAvoidingView, Platform, StyleSheet, Text } from "react-native";
 import { SafeAreaView } from "@/components/SafeArea";
 import { useRouter } from "expo-router";
 import { AccountMenu, AppHeader } from "@/features/shell";
 import { InfoModal } from "@/components/InfoModal";
-import { LogoutDialog } from "@/components/LogoutDialog";
 import { KeyboardFormScrollView } from "@/components/KeyboardFormScrollView";
-import { useAuthSession, type AccountSession } from "@/features/auth";
-import { demoNotifications, recentMessages } from "@/mocks/app";
+import type { AccountSession } from "@/features/auth";
 import { appRoutes } from "@/constants/navigation";
 import { profileStyles } from "./ProfilePrimitives";
 import { profileColors } from "../constants/theme";
-import { useProfilePreview } from "../context/ProfilePreview";
-import type { PublicProfile } from "../types/profile";
 import { ScreenLoadingBoundary } from "@/components/ScreenLoadingBoundary";
 
 type ProfileLayoutProps = Readonly<{
@@ -31,51 +21,7 @@ type ProfileLayoutProps = Readonly<{
   children: (open: (label: string) => void) => ReactNode;
 }>;
 
-function getProfileNoticeBody(
-  notice: string | null,
-  profile: PublicProfile | null,
-) {
-  switch (notice) {
-    case "Ví Credit":
-      return "Chức năng ví và giao dịch Credit chưa được kết nối.";
-    case "Kỹ năng":
-      return profile?.sharingSkills.length
-        ? "Quản lý kỹ năng sẽ được bổ sung sau."
-        : "Danh sách kỹ năng chưa được kết nối.";
-    case "Đánh giá về tôi":
-      return "Đánh giá từ người học cùng chưa được kết nối.";
-    default:
-      return `Màn ${notice?.toLowerCase() ?? ""} sẽ được triển khai ở bước tiếp theo.`;
-  }
-}
-
-function ProfileNoticeContent({
-  notice,
-  body,
-}: Readonly<{ notice: string | null; body: string }>) {
-  if (notice === "Thông báo") {
-    return (
-      <View style={{ gap: 12 }}>
-        {demoNotifications.map((item) => (
-          <Text key={item} style={profileStyles.body}>
-            {item}
-          </Text>
-        ))}
-      </View>
-    );
-  }
-  if (notice === "Tin nhắn") {
-    return (
-      <View style={{ gap: 12 }}>
-        {recentMessages.map((item) => (
-          <View key={item.id}>
-            <Text style={profileStyles.label}>{item.name}</Text>
-            <Text style={profileStyles.caption}>{item.message}</Text>
-          </View>
-        ))}
-      </View>
-    );
-  }
+function ProfileNoticeContent({ body }: Readonly<{ body: string }>) {
   return <Text style={profileStyles.body}>{body}</Text>;
 }
 
@@ -88,10 +34,7 @@ export function ProfileLayout({
   children,
 }: ProfileLayoutProps) {
   const router = useRouter();
-  const { signOut } = useAuthSession();
-  const { profile } = useProfilePreview();
   const [menu, setMenu] = useState(false);
-  const [logout, setLogout] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const action = (label: string) => {
     if (label === "Kỹ năng") return router.push("/my-skills");
@@ -108,7 +51,7 @@ export function ProfileLayout({
     if (route) return router.navigate(route);
     setNotice(label);
   };
-  const body = getProfileNoticeBody(notice, profile);
+  const body = `Nội dung ${notice?.toLowerCase() ?? "này"} hiện chưa khả dụng.`;
   const ScrollContainer = keyboardAware ? KeyboardFormScrollView : ScrollView;
   const edges = title
     ? (["top", "left", "right", "bottom"] as const)
@@ -153,23 +96,10 @@ export function ProfileLayout({
         profile={session}
         onClose={() => setMenu(false)}
         onAction={action}
-        onLogout={() => {
-          setMenu(false);
-          setLogout(true);
-        }}
       />
       <InfoModal title={notice} onClose={() => setNotice(null)}>
-        <ProfileNoticeContent notice={notice} body={body} />
+        <ProfileNoticeContent body={body} />
       </InfoModal>
-      <LogoutDialog
-        visible={logout}
-        onClose={() => setLogout(false)}
-        onConfirm={() => {
-          setLogout(false);
-          void signOut();
-          router.replace("/");
-        }}
-      />
     </SafeAreaView>
   );
 }

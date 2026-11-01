@@ -1,0 +1,121 @@
+// Historical reproduction from 2026-10-31, before the AUTH-05/06 fixes on 2026-11-01.
+// Use the pre-fix source described in the review; this is not acceptance for current source.
+// From apps/mobile, copy to .expo/auth-followup-review.test.cjs and run:
+// node --import tsx --test .expo/auth-followup-review.test.cjs
+// Assertions describe observed bugs, not fixed behavior. Fake tokens and memory adapters only.
+const assert = require("node:assert/strict");
+const { test } = require("node:test");
+const { createRequire } = require("node:module");
+const { resolve } = require("node:path");
+const { setImmediate: nextTurn } = require("node:timers/promises");
+const local = createRequire(
+  resolve("src/features/auth/context/session-controller.ts"),
+);
+const { SessionController } = local("./session-controller.ts");
+const { AppError } = local("@/lib/http/errors");
+const { createLoginEmailPreference } = local(
+  "../utils/login-email-preference.ts",
+);
+const pair = (id) => ({
+  accessToken: `fake-access-${id}`,
+  refreshToken: `fake-refresh-${id}`,
+  tokenType: "Bearer",
+  expiresIn: 900,
+  refreshExpiresAt: "2035-01-01T00:00:00.000Z",
+});
+const input = (email) => ({
+  email,
+  password: "FakePassword1!",
+  rememberMe: true,
+});
+function deferred() {
+  let resolvePromise;
+  const promise = new Promise((resolve) => {
+    resolvePromise = resolve;
+  });
+  return { promise, resolve: resolvePromise };
+}
+
+test("AUTH-05 CONFIRMED: failed login invalidates queued logout deletion; restart restores the previous account", async () => {
+  let stored = null;
+  let clears = 0;
+  const writeStarted = deferred();
+  const releaseWrite = deferred();
+  const store = {
+    read: async () => stored,
+    write: async (value) => {
+      if (
+        value.refreshToken === pair("rotated-a").refreshToken &&
+        !value.rotationPending
+      ) {
+        writeStarted.resolve();
+        await releaseWrite.promise;
+      }
+      stored = value;
+    },
+    clear: async () => {
+      clears++;
+      stored = null;
+    },
+  };
+  const api = {
+    login: async ({ email }) => {
+      if (email === "b@example.test")
+        throw new AppError("http", 401, "INVALID_CREDENTIALS");
+      return pair("a");
+    },
+    refresh: async (token) =>
+      token === pair("a").refreshToken ? pair("rotated-a") : pair("restored-a"),
+    logout: async () => {
+      throw new AppError("network");
+    },
+  };
+  const controller = new SessionController(api, store);
+  await controller.login(input("a@example.test"));
+  const rotation = controller.renew();
+  const rejectedRotation = assert.rejects(
+    rotation,
+    (error) => error instanceof AppError && error.kind === "session",
+  );
+  await writeStarted.promise;
+  const logout = controller.signOut();
+  assert.equal(controller.getSnapshot(), "guest");
+  await assert.rejects(
+    controller.login(input("b@example.test")),
+    (error) => error.code === "INVALID_CREDENTIALS",
+  );
+  releaseWrite.resolve();
+  await Promise.all([logout, rejectedRotation]);
+  assert.equal(clears, 0);
+  assert.equal(stored.refreshToken, pair("rotated-a").refreshToken);
+  assert.equal(stored.rotationPending, undefined);
+  const restarted = new SessionController(api, store);
+  await restarted.bootstrap();
+  assert.equal(restarted.getSnapshot(), "ready");
+  assert.equal(await restarted.getToken(), pair("restored-a").accessToken);
+});
+
+test("AUTH-06 CONFIRMED: after one failed preference write the same email is never retried", async () => {
+  let stored = "old@example.com";
+  let calls = 0;
+  const storage = {
+    read: async () => stored,
+    write: async (value) => {
+      if (++calls === 1)
+        throw new Error("temporary preference storage failure");
+      stored = value;
+    },
+  };
+  const preference = createLoginEmailPreference(storage);
+  preference.remember("new@example.com");
+  await nextTurn();
+  // Storage is now writable; submitting the same email should be able to persist it.
+  preference.remember("new@example.com");
+  await nextTurn();
+  assert.equal(calls, 1);
+  assert.equal(await preference.load(), "new@example.com");
+  assert.equal(
+    await createLoginEmailPreference(storage).load(),
+    "old@example.com",
+  );
+});

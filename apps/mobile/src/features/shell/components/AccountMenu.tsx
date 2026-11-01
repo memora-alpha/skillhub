@@ -22,13 +22,11 @@ export function AccountMenu({
   profile,
   onClose,
   onAction,
-  onLogout,
 }: Readonly<{
   visible: boolean;
   profile: Readonly<{ name: string; email: string }>;
   onClose: () => void;
   onAction: (title: string) => void;
-  onLogout: () => void;
 }>) {
   const position = useSafeAreaPosition({ top: 56, right: 16 });
   useEffect(() => {
@@ -86,18 +84,6 @@ export function AccountMenu({
             <Text style={styles.menuLabel}>{item.label}</Text>
           </Pressable>
         ))}
-        <View style={styles.logout}>
-          <Pressable
-            accessibilityRole="button"
-            onPress={onLogout}
-            style={styles.menuItem}
-          >
-            <Icon name="logout" size={iconSizes.control} color={colors.error} />
-            <Text style={[styles.menuLabel, { color: colors.error }]}>
-              Đăng xuất
-            </Text>
-          </Pressable>
-        </View>
       </View>
     </View>
   );
@@ -153,11 +139,5 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     color: colors.body,
     includeFontPadding: false,
-  },
-  logout: {
-    borderTopWidth: 1,
-    borderColor: colors.border,
-    marginTop: 4,
-    paddingTop: 4,
   },
 });

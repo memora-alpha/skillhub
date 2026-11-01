@@ -15,7 +15,7 @@ export function FeaturePage({
   title,
   subtitle,
   children,
-  back = "/ui",
+  back = "/profile",
   backBehavior = "destination",
   demo = true,
   keyboardDismissMode,
