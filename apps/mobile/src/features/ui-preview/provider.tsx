@@ -5,7 +5,6 @@ import { PathsPreviewProvider } from "@/features/learning-paths";
 import { SessionsPreviewProvider } from "@/features/sessions";
 import { MaterialsPreviewProvider } from "@/features/materials";
 import { ReportsPreviewProvider } from "@/features/reports";
-import { CommunityPreviewProvider } from "@/features/community";
 import { ProductPreviewProvider } from "@/features/product-shell";
 export function UiPreviewProvider({ children }: { children: ReactNode }) {
   const { session } = useAuthSession();
@@ -15,9 +14,7 @@ export function UiPreviewProvider({ children }: { children: ReactNode }) {
         <SessionsPreviewProvider>
           <MaterialsPreviewProvider>
             <ReportsPreviewProvider>
-              <CommunityPreviewProvider>
-                <ProductPreviewProvider>{children}</ProductPreviewProvider>
-              </CommunityPreviewProvider>
+              <ProductPreviewProvider>{children}</ProductPreviewProvider>
             </ReportsPreviewProvider>
           </MaterialsPreviewProvider>
         </SessionsPreviewProvider>

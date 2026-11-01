@@ -33,3 +33,48 @@ Checks sử dụng scripts mobile và dependencies hiện có. Reproduction dùn
 - [x] Cập nhật findings, bằng chứng và acceptance còn mở trong [status](status.md).
 
 API/scanner/Staff và native acceptance tiếp tục theo checklist004. GAP-09 cần timestamp/sort pagination từ backend; material-change policy SK-002 cần contract cụ thể trước khi thay đổi badge. Restore UI, learned-skills/search/contact không được suy thành task còn thiếu của phạm vi quản lý Skills004.
+
+## Rà lại Auth/session — 2026-10-31
+
+- [x] Đối chiếu các lỗi đăng nhập/phiên đã ghi với source hiện tại, gồm login, bootstrap/refresh/storage, logout/logout-all, đăng ký/OTP và recovery.
+- [x] Tái hiện F02 và các ca logout/refresh khác generation bằng source thật với adapter cô lập; chạy focused regression hiện có.
+- [x] Ghi lỗi còn mở, lỗi cũ đã sửa và phần chưa xác minh tại [review Auth](auth-review-2026-10-31.md).
+
+Lượt review ban đầu chỉ thay tài liệu/evidence. Bản sửa tiếp nhận trên nhánh từ dev:
+
+- [x] Tạo `fix/mobile-auth-session` từ `origin/dev@0825a5d3` và mang các thay đổi tài liệu sang nhánh mới.
+- [x] AUTH-01/F02: gắn owner generation cho signed-in recovery, cleanup độc lập với màn hình; giữ guest recovery và điều hướng khi reset thành công.
+- [x] AUTH-02: retry cleanup sau logout thay vì restore credential; bảo vệ phiên mới khỏi completion cũ.
+- [x] AUTH-03: refresh single-flight theo generation, cleanup đúng Promise.
+- [x] AUTH-04: bỏ hướng xác minh email khi API chỉ trả ACCOUNT_NOT_ACTIVE chung.
+- [x] Bổ sung regression controller/store/screens; kiểm TypeScript, lint, structure và toàn bộ suite; cập nhật bằng chứng tại status.
+
+Kết quả local không nghiệm thu backend/deployment hoặc native. Không đổi backend CORS hoặc thêm web credential persistence.
+
+## Tiếp nhận UX đăng nhập và đăng xuất
+
+- [x] Ghi nhớ email hợp lệ gần nhất trên thiết bị/web, tự điền ở Login, giữ sau logout; ưu tiên route email và không ghi đè input đã sửa khi hydration trễ.
+- [x] Theo lựa chọn người dùng, chuyển logout khỏi menu tài khoản xuống cuối Hồ sơ; giữ dialog xác nhận. Follow-up bỏ nút logout riêng trong Cài đặt, giữ Đăng xuất tất cả thiết bị.
+- [x] Kiểm regression preference/hydration và các consumer của AccountMenu qua checks mobile; bằng chứng ở status.
+- [x] Bỏ màn Bộ giao diện mobile: xóa route /ui, catalog và entry point ở Hồ sơ/menu/Stack; đổi Back mặc định liên quan sang Hồ sơ và kiểm consumer điều hướng.
+
+## Rà lại thay đổi Auth và UX
+
+- [x] Rà working tree mới nhất và tái hiện các race cleanup cùng lỗi persistence của email bằng source thật.
+- [x] Ghi AUTH-05/P2 và AUTH-06/P3 cùng trigger/evidence/hướng sửa trong review Auth tại lượt31/10; bản sửa tiếp nhận ngày01/11 bên dưới.
+- [x] Chạy lại full suite và checks workspace, ghi kết quả tại status; không dùng suite xanh để đóng finding ngoài coverage.
+
+## Sửa AUTH-05/06 — 2026-11-01
+
+- [x] Regression trước sửa cho queued logout + login fail/success, cleanup retry sau write phiên mới và retry email sau storage failure.
+- [x] Cleanup theo intent, chỉ bị thay thế bởi credential hiện tại đã lưu thành công; ngăn cleanup cũ xóa B hoặc publish guest cho B.
+- [x] Tách email đã persist với email trong RAM/pending write, cho retry cùng email sau lỗi mà không ghi trùng.
+- [x] Chạy focused suite và checks toàn mobile, cập nhật source/contract/evidence/status; giữ giới hạn native/API rõ ràng.
+
+## Dọn source và rà logic — 2026-11-01
+
+- [x] Theo lựa chọn người dùng, giữ các màn có nhãn xem thử và dependencies còn được dùng; chỉ xóa mock/code không còn consumer.
+- [x] Rà import graph từ routes, kể cả platform siblings; đọc consumer trước khi bỏ16 file, chuyển2 cấu hình/helper sang vị trí đúng trách nhiệm và gỡ exports/state/nhánh mock không thể truy cập.
+- [x] Sửa read preference email có thể retry sau lỗi bộ nhớ ban đầu, xác nhận regression thất bại trước sửa và đạt sau sửa; nối shortcut Đánh giá về tôi tới route hiện có.
+- [x] Chạy full suite, TypeScript, lint, structure và export web; cập nhật [hồ sơ dọn source](cleanup-2026-11-01.md) và [status](status.md) với kết quả và giới hạn.
+- [x] Rà toàn bộ diff trước commit, chạy lại tests trọng tâm/format/quy tắc commit và kiểm toolchain pnpm đúng phiên bản; ghi kết luận source ready cùng acceptance còn mở trong status. Chưa stage/commit/push.

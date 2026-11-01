@@ -7,11 +7,6 @@ import * as jsxRuntime from "react/jsx-runtime";
 import ts from "typescript";
 import * as theme from "../src/constants/theme";
 import * as profileTheme from "../src/features/profile/constants/theme";
-import {
-  demoNotifications,
-  popularSkills,
-  recentMessages,
-} from "../src/mocks/app";
 
 // Web permits raw text in containers. Validate the native host-tree constraint
 // against the real notice components, including text returned by a component.
@@ -44,9 +39,6 @@ function assertNativeText(node: React.ReactNode, insideText = false): void {
 type NoticeProps = {
   notice: string | null;
   body: string;
-  query: string;
-  onQueryChange: () => void;
-  onSkillPress: () => void;
 };
 function loadNotice(file: string, component: string) {
   const source = readFileSync(new URL(file, import.meta.url), "utf8");
@@ -89,17 +81,8 @@ function loadNotice(file: string, component: string) {
           };
         if (name === "@/constants/theme") return theme;
         if (name === "../constants/theme") return profileTheme;
-        if (name === "@/mocks/app")
-          return { demoNotifications, popularSkills, recentMessages };
         if (name === "./ProfilePrimitives")
           return { profileStyles: { body: {}, label: {}, caption: {} } };
-        if (name === "./HomeSearch")
-          return { HomeSearch: () => React.createElement("View") };
-        if (name === "@/components/Tag")
-          return {
-            Tag: ({ label }: { label: string }) =>
-              React.createElement("Text", null, label),
-          };
         if (unusedImports.has(name)) return {};
         throw new Error(`Unexpected notice dependency: ${name}`);
       },
@@ -121,9 +104,6 @@ const ScreenNotice = loadNotice(
 const props = {
   notice: null,
   body: "Chức năng chưa được kết nối.",
-  query: "React",
-  onQueryChange: () => {},
-  onSkillPress: () => {},
 };
 
 test("native text validator detects raw strings returned by nested components", () => {
@@ -137,7 +117,7 @@ test("native text validator detects raw strings returned by nested components", 
   );
 });
 
-test("profile notices render their fallback body and structured branches inside Text", () => {
+test("profile fallback notices render their body inside Text", () => {
   for (const notice of [
     null,
     "Ví Credit",
@@ -154,7 +134,7 @@ test("profile notices render their fallback body and structured branches inside 
     );
 });
 
-test("shared screen notices render fallback, notifications and search without raw native text", () => {
+test("shared fallback notices render without raw native text", () => {
   for (const notice of [null, "Trợ giúp", "Thông báo", "Tìm kiếm"])
     assertNativeText(
       React.createElement(

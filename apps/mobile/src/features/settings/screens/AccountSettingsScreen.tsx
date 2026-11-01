@@ -4,10 +4,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { Redirect, useRouter } from "expo-router";
 import Constants from "expo-constants";
 import { ActionGroup, ActionRow } from "@/components/ActionGroup";
-import { Button } from "@/components/Button";
-import { Icon } from "@/components/Icon";
 import { InfoModal } from "@/components/InfoModal";
-import { LogoutDialog } from "@/components/LogoutDialog";
 import { AppScreenLayout } from "@/features/shell";
 import { appColors as colors, fonts, typography } from "@/constants/theme";
 import { useAuthSession, useAuthActions } from "@/features/auth";
@@ -16,10 +13,9 @@ import { settingsInformation } from "../components/SettingsInformation";
 type SettingsNotice = keyof typeof settingsInformation;
 export function AccountSettingsScreen() {
   const router = useRouter();
-  const { session, signOut } = useAuthSession();
+  const { session } = useAuthSession();
   const { logoutAll } = useAuthActions();
   const [notice, setNotice] = useState<SettingsNotice | null>(null);
-  const [logout, setLogout] = useState(false);
   if (!session) return <Redirect href="/login" />;
   const busy = logoutAll.isPending;
   const information = notice ? settingsInformation[notice] : null;
@@ -101,16 +97,6 @@ export function AccountSettingsScreen() {
               />
             </ActionGroup>
             <View style={styles.footer}>
-              <Button
-                variant="ghost"
-                style={styles.logoutButton}
-                accessibilityLabel="Đăng xuất"
-                disabled={busy}
-                onPress={() => setLogout(true)}
-              >
-                <Icon name="logout" size={20} color={colors.error} />
-                <Text style={styles.logoutLabel}>Đăng xuất</Text>
-              </Button>
               <Text style={styles.version}>
                 SkillHub {Constants.expoConfig?.version ?? ""}
               </Text>
@@ -136,15 +122,6 @@ export function AccountSettingsScreen() {
           >
             {information?.body}
           </InfoModal>
-          <LogoutDialog
-            visible={logout}
-            onClose={() => setLogout(false)}
-            onConfirm={() => {
-              setLogout(false);
-              void signOut();
-              router.replace("/login");
-            }}
-          />
         </>
       )}
     </AppScreenLayout>
@@ -159,19 +136,6 @@ const styles = StyleSheet.create({
     alignSelf: "center",
   },
   footer: { alignItems: "center", gap: 8, paddingBottom: 8 },
-  logoutButton: {
-    width: "100%",
-    minHeight: 48,
-    borderWidth: 1,
-    borderColor: colors.error,
-    backgroundColor: colors.errorLight,
-  },
-  logoutLabel: {
-    ...typography.body,
-    fontFamily: fonts.bold,
-    color: colors.error,
-    includeFontPadding: false,
-  },
   version: {
     ...typography.caption,
     fontFamily: fonts.body,

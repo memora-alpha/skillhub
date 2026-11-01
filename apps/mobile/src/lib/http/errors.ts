@@ -24,7 +24,7 @@ const messages: Record<string, string> = {
     "Đã đạt giới hạn kết nối cập nhật. Đóng bớt phiên đang mở và đợi kết nối lại.",
   INVALID_CREDENTIALS: "Email hoặc mật khẩu chưa đúng.",
   ACCOUNT_NOT_ACTIVE:
-    "Tài khoản chưa thể đăng nhập. Nếu chưa xác minh email, hãy xác minh trước.",
+    "Tài khoản hiện chưa thể đăng nhập. Vui lòng liên hệ hỗ trợ SkillHub để kiểm tra trạng thái tài khoản.",
   OTP_INVALID_OR_EXPIRED: OTP_ERROR_MESSAGE,
   RESET_TOKEN_INVALID_OR_EXPIRED:
     "Phiên đặt lại mật khẩu đã hết hạn. Vui lòng yêu cầu mã mới.",

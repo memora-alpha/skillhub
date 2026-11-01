@@ -13,7 +13,8 @@ export class SessionController {
   private expiresAt = 0;
   private epoch = 0;
   private listeners = new Set<() => void>();
-  private rotation: Promise<void> | null = null;
+  private rotation: { epoch: number; promise: Promise<void> } | null = null;
+  private cleanupIntent: symbol | null = null;
   private bootstrapTask: Promise<void> | null = null;
   private logoutAllTask: { epoch: number; promise: Promise<void> } | null =
     null;
@@ -46,10 +47,21 @@ export class SessionController {
     this.error = error;
     this.listeners.forEach((listener) => listener());
   }
-  private persist(action: () => Promise<void>) {
+  private persist<T>(action: () => Promise<T>) {
     const next = this.writes.then(action, action);
-    this.writes = next.catch(() => {});
+    this.writes = next.then(
+      () => undefined,
+      () => undefined,
+    );
     return next;
+  }
+  private clearCredential(intent: symbol) {
+    return this.persist(async () => {
+      if (this.cleanupIntent !== intent) return false;
+      await this.store.clear();
+      if (this.cleanupIntent === intent) this.cleanupIntent = null;
+      return true;
+    });
   }
   private async accept(pair: TokenPair, epoch: number) {
     if (epoch !== this.epoch) {
@@ -61,7 +73,12 @@ export class SessionController {
       refreshExpiresAt: pair.refreshExpiresAt,
     };
     try {
-      await this.persist(() => this.store.write(credential));
+      await this.persist(async () => {
+        if (epoch !== this.epoch) throw new AppError("session");
+        await this.store.write(credential);
+        // Only a current, durable credential supersedes a pending logout.
+        if (epoch === this.epoch) this.cleanupIntent = null;
+      });
     } catch (error) {
       await this.api.logout(pair.refreshToken).catch(() => {});
       throw error;
@@ -87,6 +104,14 @@ export class SessionController {
     const epoch = this.epoch;
     this.publish("bootstrapping");
     try {
+      // A failed logout cleanup must retry deletion, never restore its old token.
+      const intent = this.cleanupIntent;
+      if (intent) {
+        const cleared = await this.clearCredential(intent);
+        if (cleared && epoch === this.epoch && this.status === "bootstrapping")
+          this.publish("guest");
+        return;
+      }
       const stored = await this.store.read();
       if (epoch !== this.epoch) return;
       if (!stored || Date.parse(stored.refreshExpiresAt) <= this.now()) {
@@ -122,11 +147,13 @@ export class SessionController {
   renew = (staleToken?: string): Promise<void> => {
     if (staleToken && this.accessToken && staleToken !== this.accessToken)
       return Promise.resolve();
-    if (this.rotation) return this.rotation;
-    this.rotation = this.rotate().finally(() => {
-      this.rotation = null;
+    const epoch = this.epoch;
+    if (this.rotation?.epoch === epoch) return this.rotation.promise;
+    const promise = this.rotate().finally(() => {
+      if (this.rotation?.promise === promise) this.rotation = null;
     });
-    return this.rotation;
+    this.rotation = { epoch, promise };
+    return promise;
   };
   private async rotate() {
     const credential = this.credential;
@@ -142,9 +169,10 @@ export class SessionController {
     let sent = false;
     try {
       // Persist the in-flight marker before sending. A lost response must never replay a consumed token after restart.
-      await this.persist(() =>
-        this.store.write({ ...credential, rotationPending: true }),
-      );
+      await this.persist(async () => {
+        if (epoch !== this.epoch) throw new AppError("session");
+        await this.store.write({ ...credential, rotationPending: true });
+      });
       if (epoch !== this.epoch) throw new AppError("session");
       this.credential = { ...credential, rotationPending: true };
       sent = true;
@@ -160,7 +188,10 @@ export class SessionController {
         (error instanceof AppError && error.kind === "config")
       ) {
         this.credential = credential;
-        await this.persist(() => this.store.write(credential)).catch(() => {});
+        await this.persist(async () => {
+          if (epoch === this.epoch) await this.store.write(credential);
+        }).catch(() => {});
+        if (epoch !== this.epoch) throw error;
         this.publish("offline", error);
       } else {
         await this.expire();
@@ -170,13 +201,15 @@ export class SessionController {
   }
   expire = async () => {
     ++this.epoch;
+    const intent = Symbol("credential-cleanup");
+    this.cleanupIntent = intent;
     this.accessToken = null;
     this.credential = null;
     this.publish("guest");
     try {
-      await this.persist(() => this.store.clear());
+      await this.clearCredential(intent);
     } catch (error) {
-      this.publish("offline", error);
+      if (this.cleanupIntent === intent) this.publish("offline", error);
     }
   };
   signOut = async () => {

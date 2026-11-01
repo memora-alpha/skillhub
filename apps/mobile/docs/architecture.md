@@ -21,7 +21,7 @@ Server state thuộc Query; client-only recovery/cooldown dùng Zustand hoặc c
 
 ## Imports và trách nhiệm
 
-Feature dùng public index.ts; public subpaths được checker khai báo cụ thể: product-shell/state, learning-paths/state, learning-paths/policy, messages/state, proposals/state. Không deep import private feature khác; không tạo barrel gây vòng import để đạt hình thức. Route → screen/view → hook/runtime (khi cần logic) → API adapter → HTTP chung. Không bắt thêm controller rỗng.
+Feature dùng public index.ts; public subpaths được checker khai báo cụ thể: learning-paths/state, learning-paths/policy, notifications/state, messages/state, proposals/state. Facade product-shell/state không có consumer đã được bỏ trong [lượt dọn source](work/source-audit/cleanup-2026-11-01.md). Không deep import private feature khác; không tạo barrel gây vòng import để đạt hình thức. Route → screen/view → hook/runtime (khi cần logic) → API adapter → HTTP chung. Không bắt thêm controller rỗng.
 
 `learning-paths` giữ `index.ts`, `state.ts`, `policy.ts` ở root làm public entry. `api/` chứa contract/adapters và submission recovery; `components/`, `screens/`, `hooks/` giữ UI/runtime; `schemas/` chứa validation input; `utils/` chứa xử lý dữ liệu, policy/progression từ snapshot API và định dạng form chat; `preview/` gom context, fixtures, types và rules chỉ còn phục vụ các consumer chưa tích hợp API. Di chuyển nội bộ không mở thêm public subpath hoặc đổi route/API.
 
@@ -42,7 +42,7 @@ Giữ source/UI/theme/routes/runtime hiện có; [guides](README.md) và [workfl
 
 | Vấn đề                                                                                     | Tác động / ưu tiên                                                 | Nơi tiếp tục                                           |
 | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------ | ------------------------------------------------------ |
-| Auth queries/profile mutation vẫn trong AuthSession; MockSession legacy còn file           | Khó review boundary; trung bình, không refactor trong migration    | [tasks auth](../specs/002-auth-account-shell/tasks.md) |
+| Auth queries/profile mutation vẫn trong AuthSession; MockSession legacy đã bỏ ngày01/11    | Boundary còn cần review; trung bình, không tách account hooks trong lượt dọn | [tasks auth](../specs/002-auth-account-shell/tasks.md) |
 | Checker chưa bắt đầy đủ dependency graph/relative import                                   | Review kiến trúc vẫn cần; trung bình, automation mới là đề xuất    | [testing](guides/testing.md)                           |
 | Public path-count/title/timezone và policy bio chưa đủ contract/evidence                   | Không bịa field hay label thay thế; xem gap theo domain            | [profile contract](contracts/profile.md)               |
 | Skills historical newest-first thiếu timestamp/sort; full scanner/native acceptance còn mở | Server ordering và bằng chứng còn thiếu; cao cho release luồng này | [skills contract](contracts/skills-evidence.md)        |
