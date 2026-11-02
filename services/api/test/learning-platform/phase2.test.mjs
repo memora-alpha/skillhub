@@ -5,6 +5,7 @@ import {
   B,
   C,
   completedOneWay,
+  conversationId,
   confirmedTwoWay,
   finalizeAs,
   finalizedOneWay,
@@ -354,6 +355,160 @@ test("SH-055: finalize never holds twice, whatever the idempotency key", async (
   assert.equal(wallet(ctx.db, B).heldCredit, 10000n);
 });
 
+test("locked path confirmation replays without downgrading or reopening its plan", async () => {
+  const ctx = setup({ wallets: { [A]: 5000n, [B]: 5000n } });
+  const { pathId, planAB } = await scheduledTwoWay(ctx);
+  await finalizeAs(ctx, A, pathId);
+  const before = pathRow(ctx.db, pathId);
+  const replay = await ctx.paths.confirmAgreement(user(A), pathId, 1);
+  assert.equal(replay.status, "SCHEDULED");
+  assert.equal(pathStatus(ctx.db, pathId), "SCHEDULED");
+  assert.equal(pathRow(ctx.db, pathId).lockedVersion, before.lockedVersion);
+  await rejectsWith(
+    ctx.paths.revisePlan(user(A), planAB.id, 1, {
+      skillId: ctx.db
+        .rows("learningPlanVersion")
+        .find((row) => row.planId === planAB.id).skillId,
+      learningGoal: "changed after lock",
+      totalSessions: 1,
+      sessionOutline: [{ content: "changed" }],
+    }),
+    409,
+    "LEARNING_PATH_NOT_EDITABLE",
+  );
+});
+
+test("mine lists newest created paths first and paginates beyond the first page", async () => {
+  const ctx = setup();
+  const rows = [
+    [
+      "10101010-0000-4000-8000-000000000001",
+      "2026-11-01T10:00:00Z",
+      "2026-11-02T10:00:00Z",
+    ],
+    [
+      "10101010-0000-4000-8000-000000000002",
+      "2026-11-02T10:00:00Z",
+      "2026-11-02T10:00:00Z",
+    ],
+    [
+      "10101010-0000-4000-8000-000000000003",
+      "2026-11-02T10:00:00Z",
+      "2026-11-01T10:00:00Z",
+    ],
+  ];
+  for (const [id, createdAt, updatedAt] of rows) {
+    ctx.db.seed("learningPath", {
+      id,
+      conversationId,
+      participantAId: A,
+      participantBId: B,
+      currentVersion: 1,
+      lockedVersion: null,
+      status: "PROPOSED",
+      createdAt: new Date(createdAt),
+      updatedAt: new Date(updatedAt),
+    });
+    ctx.db.seed("learningPathVersion", {
+      pathId: id,
+      versionNo: 1,
+      exchangeType: "TWO_WAY",
+    });
+  }
+  const first = await ctx.paths.listMinePage(user(A), { limit: "2" });
+  assert.deepEqual(
+    first.data.map(({ id }) => id),
+    [rows[2][0], rows[1][0]],
+  );
+  assert.equal(first.pagination.hasMore, true);
+  const second = await ctx.paths.listMinePage(user(A), {
+    limit: "2",
+    cursor: first.pagination.nextCursor,
+  });
+  assert.deepEqual(
+    second.data.map(({ id }) => id),
+    [rows[0][0]],
+  );
+  assert.equal(second.pagination.hasMore, false);
+  assert.throws(
+    () =>
+      ctx.paths.listMinePage(user(B), {
+        limit: "2",
+        cursor: first.pagination.nextCursor,
+      }),
+    (error) =>
+      error.getStatus?.() === 400 &&
+      error.message === "INVALID_LEARNING_PATH_CURSOR",
+  );
+});
+
+test("final validation and finalize name every participant short of Credit", async () => {
+  const ctx = setup({ wallets: { [A]: 0n, [B]: 0n } });
+  const { pathId } = await scheduledTwoWay(ctx);
+  const hasBothPayers = (error) =>
+    error.getStatus?.() === 409 &&
+    error.message === "INSUFFICIENT_AVAILABLE_CREDIT" &&
+    JSON.stringify(error.getResponse().userIds) === JSON.stringify([A, B]);
+  await assert.rejects(
+    ctx.paths.validateForFinalize(user(A), pathId),
+    hasBothPayers,
+  );
+  await assert.rejects(finalizeAs(ctx, A, pathId), hasBothPayers);
+});
+
+test("final validation reports internal and booked Session overlap details", async () => {
+  const internal = setup({ wallets: { [A]: 5000n, [B]: 5000n } });
+  const ids = await confirmedTwoWay(internal);
+  for (const [teacher, planId] of [
+    [A, ids.planAB.id],
+    [B, ids.planBA.id],
+  ]) {
+    const schedule = await internal.schedules.createProposal(
+      user(teacher),
+      planId,
+      {
+        expectedPlanVersion: 1,
+        items: slots(["2026-11-02T10:00:00Z", "2026-11-02T11:00:00Z"]),
+      },
+    );
+    await internal.schedules.confirmProposal(user(A), schedule.id, 1);
+    await internal.schedules.confirmProposal(user(B), schedule.id, 1);
+  }
+  await assert.rejects(
+    internal.paths.validateForFinalize(user(A), ids.pathId),
+    (error) => {
+      const [conflict] = error.getResponse().conflicts;
+      assert.equal(conflict.type, "INTERNAL");
+      assert.deepEqual(conflict.affectedUserIds, [A, B]);
+      assert.equal(conflict.overlapStartAt, "2026-11-02T10:00:00.000Z");
+      return true;
+    },
+  );
+
+  const booked = setup({ wallets: { [A]: 5000n, [B]: 5000n } });
+  const scheduled = await scheduledTwoWay(booked);
+  const other = booked.db.seed("session", {
+    pathId: "another-path",
+    planId: "another-plan",
+    planVersion: 1,
+    outlineSessionNo: 1,
+    teacherId: A,
+    learnerId: C,
+    startAt: new Date("2026-11-02T10:30:00Z"),
+    endAt: new Date("2026-11-02T11:30:00Z"),
+    status: "CONFIRMED",
+  });
+  await assert.rejects(finalizeAs(booked, A, scheduled.pathId), (error) => {
+    const [conflict] = error.getResponse().conflicts;
+    assert.equal(conflict.type, "SESSION");
+    assert.deepEqual(conflict.affectedUserIds, [A]);
+    assert.equal(conflict.compared.sessionId, other.id);
+    assert.equal(conflict.overlapStartAt, "2026-11-02T10:30:00.000Z");
+    assert.equal(conflict.overlapEndAt, "2026-11-02T11:00:00.000Z");
+    return true;
+  });
+});
+
 test("SH-056: a reschedule applies only after both confirm; until then the old time stands", async () => {
   const ctx = setup({ wallets: { [B]: 10000n } });
   const { scheduleId, session } = await finalizedOneWay(ctx);
@@ -413,6 +568,117 @@ test("SH-056: the reschedule cutoff comes from configuration and keeps the old t
     ctx.db.rows("session")[0].startAt.toISOString(),
     "2026-11-02T10:00:00.000Z",
   );
+});
+
+test("schedule create and revision reject an existing participant Session", async () => {
+  const ctx = setup();
+  const { planAB } = await confirmedTwoWay(ctx);
+  ctx.db.seed("session", {
+    pathId: "another-path",
+    planId: "another-plan",
+    planVersion: 1,
+    outlineSessionNo: 1,
+    teacherId: A,
+    learnerId: C,
+    startAt: new Date("2026-11-02T10:30:00Z"),
+    endAt: new Date("2026-11-02T11:30:00Z"),
+    status: "CONFIRMED",
+  });
+  await assert.rejects(
+    ctx.schedules.createProposal(user(A), planAB.id, {
+      expectedPlanVersion: 1,
+      items: slots(["2026-11-02T10:00:00Z", "2026-11-02T11:00:00Z"]),
+    }),
+    (error) => {
+      assert.equal(error.message, "SCHEDULE_CONFLICT");
+      const [conflict] = error.getResponse().conflicts;
+      assert.deepEqual(conflict.affectedUserIds, [A]);
+      assert.equal(conflict.overlapStartAt, "2026-11-02T10:30:00.000Z");
+      return true;
+    },
+  );
+  const schedule = await ctx.schedules.createProposal(user(A), planAB.id, {
+    expectedPlanVersion: 1,
+    items: slots(["2026-11-03T10:00:00Z", "2026-11-03T11:00:00Z"]),
+  });
+  await rejectsWith(
+    ctx.schedules.reviseProposal(user(A), schedule.id, {
+      expectedVersion: 1,
+      items: slots(["2026-11-02T10:00:00Z", "2026-11-02T11:00:00Z"]),
+    }),
+    409,
+    "SCHEDULE_CONFLICT",
+  );
+});
+
+test("multi-Session reschedule excludes unchanged Sessions and rechecks at apply", async () => {
+  const ctx = setup({ wallets: { [B]: 10000n } });
+  const path = await ctx.paths.create(user(B), {
+    conversationId,
+    exchangeType: "ONE_WAY",
+    teacherId: A,
+    learnerId: B,
+    negotiatedCredit: "100.00",
+  });
+  const learningPlan = await ctx.paths.addPlan(user(A), path.id, plan(2));
+  await ctx.paths.confirmPlan(user(B), learningPlan.id, 1);
+  await ctx.paths.confirmAgreement(user(A), path.id, 1);
+  await ctx.paths.confirmAgreement(user(B), path.id, 1);
+  await assert.rejects(
+    ctx.schedules.createProposal(user(A), learningPlan.id, {
+      expectedPlanVersion: 1,
+      items: slots(
+        ["2026-11-02T10:00:00Z", "2026-11-02T11:00:00Z"],
+        ["2026-11-02T10:30:00Z", "2026-11-02T11:30:00Z"],
+      ),
+    }),
+    (error) => {
+      assert.equal(error.message, "SCHEDULE_CONFLICT");
+      assert.equal(error.getResponse().conflicts[0].type, "INTERNAL");
+      return true;
+    },
+  );
+  const schedule = await ctx.schedules.createProposal(
+    user(A),
+    learningPlan.id,
+    {
+      expectedPlanVersion: 1,
+      items: slots(
+        ["2026-11-02T10:00:00Z", "2026-11-02T11:00:00Z"],
+        ["2026-11-02T11:00:00Z", "2026-11-02T12:00:00Z"],
+      ),
+    },
+  );
+  await ctx.schedules.confirmProposal(user(A), schedule.id, 1);
+  await ctx.schedules.confirmProposal(user(B), schedule.id, 1);
+  await finalizeAs(ctx, A, path.id);
+  const first = ctx.db
+    .rows("session")
+    .find((row) => row.outlineSessionNo === 1);
+  const proposal = await ctx.schedules.proposeReschedule(user(B), first.id, {
+    expectedVersion: 1,
+    startAt: "2026-11-04T10:00:00Z",
+    endAt: "2026-11-04T11:00:00Z",
+  });
+  assert.equal(proposal.version, 2);
+  await ctx.schedules.confirmProposal(user(A), schedule.id, 2);
+  ctx.db.seed("session", {
+    pathId: "another-path",
+    planId: "another-plan",
+    planVersion: 1,
+    outlineSessionNo: 1,
+    teacherId: C,
+    learnerId: B,
+    startAt: new Date("2026-11-04T10:30:00Z"),
+    endAt: new Date("2026-11-04T11:30:00Z"),
+    status: "CONFIRMED",
+  });
+  await rejectsWith(
+    ctx.schedules.confirmProposal(user(B), schedule.id, 2),
+    409,
+    "SCHEDULE_CONFLICT",
+  );
+  assert.equal(first.startAt.toISOString(), "2026-11-02T10:00:00.000Z");
 });
 
 test("SH-059: ONE_WAY 100 Credit settles 96 to the teacher and 4 as fee, exactly once", async () => {

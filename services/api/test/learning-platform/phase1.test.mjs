@@ -236,8 +236,8 @@ test("SH-052: item count follows totalSessions and duration bounds come from con
         ["2026-11-02T11:00:00Z", "2026-11-02T12:30:00Z"],
       ),
     ),
-    400,
-    "SCHEDULE_ITEMS_OVERLAP",
+    409,
+    "SCHEDULE_CONFLICT",
   );
   const created = await propose(
     slots(

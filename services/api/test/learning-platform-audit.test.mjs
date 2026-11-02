@@ -177,7 +177,10 @@ test("an applied reschedule is audited with old and new session times", async ()
       updateMany: () => ({}),
       createMany: () => ({}),
     },
-    session: { update: ({ data }) => sessionUpdates.push(data) },
+    session: {
+      findMany: () => [],
+      update: ({ data }) => sessionUpdates.push(data),
+    },
     auditLog: { create: ({ data }) => audits.push(data) },
   };
   const service = new SchedulingService(

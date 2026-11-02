@@ -33,6 +33,7 @@ const paymentRecoveryCodes = [
   "PAYMENT_UNRESOLVED",
   "PAYMENT_RECONCILIATION_REQUIRED",
 ];
+const uuidPattern = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
 
 function clientMessage(
   status: number,
@@ -71,9 +72,119 @@ function paymentDetails(status: number, text: string, detail: unknown) {
   return status === 409 &&
     paymentRecoveryCodes.includes(text) &&
     typeof paymentId === "string" &&
-    /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(paymentId)
+    uuidPattern.test(paymentId)
     ? { existingPaymentId: paymentId }
     : undefined;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isTimestamp(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value) &&
+    Number.isFinite(Date.parse(value))
+  );
+}
+
+function safeScheduleWindow(value: unknown, requireSessionId: boolean) {
+  if (
+    !isRecord(value) ||
+    typeof value.planId !== "string" ||
+    !uuidPattern.test(value.planId) ||
+    !Number.isSafeInteger(value.sessionNo) ||
+    (value.sessionNo as number) < 1 ||
+    !isTimestamp(value.startAt) ||
+    !isTimestamp(value.endAt) ||
+    value.startAt >= value.endAt ||
+    (requireSessionId &&
+      (typeof value.sessionId !== "string" ||
+        !uuidPattern.test(value.sessionId)))
+  ) {
+    return undefined;
+  }
+  return {
+    ...(requireSessionId ? { sessionId: value.sessionId as string } : {}),
+    planId: value.planId,
+    sessionNo: value.sessionNo as number,
+    startAt: value.startAt,
+    endAt: value.endAt,
+  };
+}
+
+function scheduleDetails(status: number, text: string, detail: unknown) {
+  if (status !== 409 || text !== "SCHEDULE_CONFLICT" || !isRecord(detail))
+    return undefined;
+  const raw = detail.conflicts;
+  if (!Array.isArray(raw) || raw.length === 0 || raw.length > 100)
+    return undefined;
+  const conflicts = raw.map((conflict) => {
+    if (!isRecord(conflict)) return undefined;
+    const type = conflict.type;
+    const affectedUserIds = conflict.affectedUserIds;
+    if (
+      (type !== "INTERNAL" && type !== "SESSION") ||
+      !Array.isArray(affectedUserIds) ||
+      affectedUserIds.length < 1 ||
+      affectedUserIds.length > 2 ||
+      !affectedUserIds.every(
+        (id) => typeof id === "string" && uuidPattern.test(id),
+      ) ||
+      new Set(affectedUserIds).size !== affectedUserIds.length ||
+      !isTimestamp(conflict.overlapStartAt) ||
+      !isTimestamp(conflict.overlapEndAt)
+    ) {
+      return undefined;
+    }
+    const proposed = safeScheduleWindow(conflict.proposed, false);
+    const compared = safeScheduleWindow(conflict.compared, type === "SESSION");
+    if (
+      !proposed ||
+      !compared ||
+      conflict.overlapStartAt >= conflict.overlapEndAt ||
+      conflict.overlapStartAt !==
+        new Date(
+          Math.max(Date.parse(proposed.startAt), Date.parse(compared.startAt)),
+        ).toISOString() ||
+      conflict.overlapEndAt !==
+        new Date(
+          Math.min(Date.parse(proposed.endAt), Date.parse(compared.endAt)),
+        ).toISOString()
+    ) {
+      return undefined;
+    }
+    return {
+      type,
+      affectedUserIds,
+      proposed,
+      compared,
+      overlapStartAt: conflict.overlapStartAt,
+      overlapEndAt: conflict.overlapEndAt,
+    };
+  });
+  return conflicts.every((conflict) => conflict !== undefined)
+    ? { conflicts }
+    : undefined;
+}
+
+function publicErrorDetails(status: number, text: string, detail: unknown) {
+  const schedule = scheduleDetails(status, text, detail);
+  if (schedule) return schedule;
+  if (status === 409 && text === "INSUFFICIENT_AVAILABLE_CREDIT") {
+    const userIds = (detail as { userIds?: unknown } | undefined)?.userIds;
+    if (
+      Array.isArray(userIds) &&
+      userIds.length > 0 &&
+      userIds.length <= 2 &&
+      userIds.every((id) => typeof id === "string" && uuidPattern.test(id)) &&
+      new Set(userIds).size === userIds.length
+    ) {
+      return { userIds };
+    }
+  }
+  return paymentDetails(status, text, detail);
 }
 
 @Catch()
@@ -104,6 +215,6 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const text = messageText(clientMessage(status, exception, detail));
     response
       .status(status)
-      .json(failure(status, text, paymentDetails(status, text, detail)));
+      .json(failure(status, text, publicErrorDetails(status, text, detail)));
   }
 }

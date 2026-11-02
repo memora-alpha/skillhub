@@ -23,6 +23,8 @@ const millisecondsPerMinute = 60_000;
 
 function validateItems(
   items: CreateScheduleProposalDto["items"],
+  planId: string,
+  participantIds: string[],
   expectedSessions: number,
   now: Date,
   durationMinutes: { min: number; max: number },
@@ -49,10 +51,118 @@ function validateItems(
     ) {
       throw new BadRequestException("INVALID_SCHEDULE_ITEMS");
     }
-    const previous = sorted[index - 1];
-    if (previous && start < new Date(previous.endAt)) {
-      throw new BadRequestException("SCHEDULE_ITEMS_OVERLAP");
-    }
+  }
+  const conflicts = sorted.flatMap((item, index) =>
+    sorted.slice(index + 1).flatMap((other) => {
+      const startAt = new Date(item.startAt);
+      const endAt = new Date(item.endAt);
+      const otherStartAt = new Date(other.startAt);
+      const otherEndAt = new Date(other.endAt);
+      if (otherStartAt >= endAt || otherEndAt <= startAt) return [];
+      return [
+        {
+          type: "INTERNAL" as const,
+          affectedUserIds: participantIds,
+          proposed: {
+            planId,
+            sessionNo: item.sessionNo,
+            startAt: startAt.toISOString(),
+            endAt: endAt.toISOString(),
+          },
+          compared: {
+            planId,
+            sessionNo: other.sessionNo,
+            startAt: otherStartAt.toISOString(),
+            endAt: otherEndAt.toISOString(),
+          },
+          overlapStartAt: new Date(
+            Math.max(startAt.getTime(), otherStartAt.getTime()),
+          ).toISOString(),
+          overlapEndAt: new Date(
+            Math.min(endAt.getTime(), otherEndAt.getTime()),
+          ).toISOString(),
+        },
+      ];
+    }),
+  );
+  if (conflicts.length > 0) {
+    throw new ConflictException({
+      message: "SCHEDULE_CONFLICT",
+      conflicts: conflicts.slice(0, 100),
+    });
+  }
+}
+
+type ScheduleWindow = {
+  planId: string;
+  sessionNo: number;
+  startAt: Date;
+  endAt: Date;
+};
+
+async function assertNoSessionConflicts(
+  tx: TransactionContext,
+  participantIds: string[],
+  items: ScheduleWindow[],
+  excludedSessionIds: string[] = [],
+): Promise<void> {
+  const sessions = await tx.session.findMany({
+    where: {
+      id: { notIn: excludedSessionIds },
+      status: { not: "CANCELLED" },
+      OR: [
+        { teacherId: { in: participantIds } },
+        { learnerId: { in: participantIds } },
+      ],
+    },
+    select: {
+      id: true,
+      planId: true,
+      outlineSessionNo: true,
+      teacherId: true,
+      learnerId: true,
+      startAt: true,
+      endAt: true,
+    },
+  });
+  const conflicts = items.flatMap((item) =>
+    sessions.flatMap((session) => {
+      if (session.startAt >= item.endAt || session.endAt <= item.startAt)
+        return [];
+      return [
+        {
+          type: "SESSION" as const,
+          affectedUserIds: participantIds.filter(
+            (id) => id === session.teacherId || id === session.learnerId,
+          ),
+          proposed: {
+            planId: item.planId,
+            sessionNo: item.sessionNo,
+            startAt: item.startAt.toISOString(),
+            endAt: item.endAt.toISOString(),
+          },
+          compared: {
+            sessionId: session.id,
+            planId: session.planId,
+            sessionNo: session.outlineSessionNo,
+            startAt: session.startAt.toISOString(),
+            endAt: session.endAt.toISOString(),
+          },
+          overlapStartAt: new Date(
+            Math.max(item.startAt.getTime(), session.startAt.getTime()),
+          ).toISOString(),
+          overlapEndAt: new Date(
+            Math.min(item.endAt.getTime(), session.endAt.getTime()),
+          ).toISOString(),
+        },
+      ];
+    }),
+  );
+  if (conflicts.length > 0) {
+    throw new ConflictException({
+      message: "SCHEDULE_CONFLICT",
+      conflicts: conflicts.slice(0, 100),
+    });
   }
 }
 
@@ -79,6 +189,7 @@ async function lockSession(tx: TransactionContext, sessionId: string) {
 async function applyReschedule(
   tx: TransactionContext,
   scheduleId: string,
+  participantIds: string[],
   versionNo: number,
   appliedVersion: number,
   now: Date,
@@ -130,6 +241,24 @@ async function applyReschedule(
     }
     return { item, previousHistory: history, session, changed };
   });
+  if (
+    updates.some(({ item }, index) =>
+      updates.some(
+        ({ item: other }, otherIndex) =>
+          otherIndex > index &&
+          other.startAt < item.endAt &&
+          other.endAt > item.startAt,
+      ),
+    )
+  ) {
+    throw new ConflictException("SCHEDULE_CONFLICT");
+  }
+  await assertNoSessionConflicts(
+    tx,
+    participantIds,
+    nextItems,
+    updates.map(({ session }) => session.id),
+  );
   await tx.sessionScheduleHistory.updateMany({
     where: {
       id: { in: updates.map(({ previousHistory }) => previousHistory.id) },
@@ -254,9 +383,21 @@ export class SchedulingService {
       );
       validateItems(
         input.items,
+        planId,
+        [path.participantAId, path.participantBId],
         planVersion.totalSessions,
         clock.now,
         values["session.durationMinutes"],
+      );
+      await assertNoSessionConflicts(
+        tx,
+        [path.participantAId, path.participantBId],
+        input.items.map((item) => ({
+          planId,
+          sessionNo: item.sessionNo,
+          startAt: new Date(item.startAt),
+          endAt: new Date(item.endAt),
+        })),
       );
       const scheduleId = randomUUID();
       await tx.scheduleProposal.create({
@@ -403,9 +544,21 @@ export class SchedulingService {
       );
       validateItems(
         input.items,
+        plan.id,
+        [path.participantAId, path.participantBId],
         planVersion.totalSessions,
         clock.now,
         values["session.durationMinutes"],
+      );
+      await assertNoSessionConflicts(
+        tx,
+        [path.participantAId, path.participantBId],
+        input.items.map((item) => ({
+          planId: plan.id,
+          sessionNo: item.sessionNo,
+          startAt: new Date(item.startAt),
+          endAt: new Date(item.endAt),
+        })),
       );
       const versionNo = input.expectedVersion + 1;
       await tx.scheduleVersion.create({
@@ -536,6 +689,7 @@ export class SchedulingService {
           const changes = await applyReschedule(
             tx,
             scheduleId,
+            [path.participantAId, path.participantBId],
             expectedVersion,
             proposal.appliedVersion,
             clock.now,
@@ -686,23 +840,14 @@ export class SchedulingService {
         startAt: item.id === history.scheduleItemId ? startAt : item.startAt,
         endAt: item.id === history.scheduleItemId ? endAt : item.endAt,
       }));
-      const otherSessions = await tx.session.findMany({
+      const currentHistories = await tx.sessionScheduleHistory.findMany({
         where: {
-          id: { not: sessionId },
-          status: { not: "CANCELLED" },
-          OR: [
-            { teacherId: { in: [path.participantAId, path.participantBId] } },
-            { learnerId: { in: [path.participantAId, path.participantBId] } },
-          ],
+          scheduleItemId: { in: currentItems.map((item) => item.id) },
+          supersededAt: null,
         },
-        select: { startAt: true, endAt: true },
+        select: { sessionId: true },
       });
       if (
-        candidateItems.some((item) =>
-          otherSessions.some(
-            (other) => other.startAt < item.endAt && other.endAt > item.startAt,
-          ),
-        ) ||
         candidateItems.some((item, index) =>
           candidateItems.some(
             (other, otherIndex) =>
@@ -714,6 +859,12 @@ export class SchedulingService {
       ) {
         throw new ConflictException("SCHEDULE_CONFLICT");
       }
+      await assertNoSessionConflicts(
+        tx,
+        [path.participantAId, path.participantBId],
+        candidateItems,
+        currentHistories.map((item) => item.sessionId),
+      );
       const nextVersion = proposal.currentVersion + 1;
       await tx.scheduleVersion.create({
         data: {
