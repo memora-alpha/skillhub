@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { validateEnvironment } from "../dist/configs/environment.js";
 import { HttpExceptionFilter } from "../dist/shared/http/http-exception.filter.js";
-import { BadRequestException } from "@nestjs/common";
+import { BadRequestException, ConflictException } from "@nestjs/common";
 import { HealthController } from "../dist/health.controller.js";
 
 const valid = {
@@ -91,6 +91,66 @@ test("validation errors preserve field messages and HTTP status", () => {
     message: "email must be an email; password is invalid",
   });
   assert.deepEqual(result.logs, []);
+});
+
+test("Credit error exposes only validated payer IDs", () => {
+  const userIds = [
+    "0a0a0a0a-0000-4000-8000-00000000000a",
+    "0b0b0b0b-0000-4000-8000-00000000000b",
+  ];
+  const safe = invokeFilter(
+    new ConflictException({
+      message: "INSUFFICIENT_AVAILABLE_CREDIT",
+      userIds,
+    }),
+  );
+  assert.deepEqual(safe.body.details, { userIds });
+  const unsafe = invokeFilter(
+    new ConflictException({
+      message: "INSUFFICIENT_AVAILABLE_CREDIT",
+      userIds: ["secret"],
+    }),
+  );
+  assert.equal(unsafe.body.details, undefined);
+});
+
+test("schedule error exposes validated overlap details only", () => {
+  const a = "0a0a0a0a-0000-4000-8000-00000000000a";
+  const planId = "0d0d0d0d-0000-4000-8000-00000000000d";
+  const comparedPlanId = "0e0e0e0e-0000-4000-8000-00000000000e";
+  const conflict = {
+    type: "SESSION",
+    affectedUserIds: [a],
+    proposed: {
+      planId,
+      sessionNo: 1,
+      startAt: "2026-11-02T10:00:00.000Z",
+      endAt: "2026-11-02T11:00:00.000Z",
+    },
+    compared: {
+      sessionId: "0f0f0f0f-0000-4000-8000-00000000000f",
+      planId: comparedPlanId,
+      sessionNo: 2,
+      startAt: "2026-11-02T10:30:00.000Z",
+      endAt: "2026-11-02T11:30:00.000Z",
+    },
+    overlapStartAt: "2026-11-02T10:30:00.000Z",
+    overlapEndAt: "2026-11-02T11:00:00.000Z",
+  };
+  const safe = invokeFilter(
+    new ConflictException({
+      message: "SCHEDULE_CONFLICT",
+      conflicts: [conflict],
+    }),
+  );
+  assert.deepEqual(safe.body.details, { conflicts: [conflict] });
+  const unsafe = invokeFilter(
+    new ConflictException({
+      message: "SCHEDULE_CONFLICT",
+      conflicts: [{ ...conflict, overlapEndAt: "secret" }],
+    }),
+  );
+  assert.equal(unsafe.body.details, undefined);
 });
 
 test("server errors retain correlation and missing-column diagnostics without request or exception secrets", () => {

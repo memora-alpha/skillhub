@@ -42,12 +42,81 @@ const editableBeforeLock = new Set([
   "CONFIRMED",
 ]);
 
+type ConflictWindow = {
+  planId: string;
+  sessionNo: number;
+  startAt: Date;
+  endAt: Date;
+};
+
+const uuidPattern = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i;
+
+function decodeMineCursor(value: string | undefined, actorId: string) {
+  if (!value) return null;
+  try {
+    if (value.length > 2048) throw new Error("cursor too long");
+    const cursor = JSON.parse(
+      Buffer.from(value, "base64url").toString("utf8"),
+    ) as {
+      actorId: string;
+      createdAt: string;
+      id: string;
+    };
+    const createdAt = new Date(cursor.createdAt);
+    if (
+      cursor.actorId !== actorId ||
+      !uuidPattern.test(cursor.id) ||
+      !Number.isFinite(createdAt.getTime()) ||
+      createdAt.toISOString() !== cursor.createdAt
+    ) {
+      throw new Error("cursor mismatch");
+    }
+    return { createdAt, id: cursor.id };
+  } catch {
+    throw new BadRequestException("INVALID_LEARNING_PATH_CURSOR");
+  }
+}
+
+function scheduleConflict(
+  proposed: ConflictWindow,
+  compared: ConflictWindow & { sessionId?: string },
+  affectedUserIds: string[],
+  type: "INTERNAL" | "SESSION",
+) {
+  return {
+    type,
+    affectedUserIds,
+    proposed: {
+      planId: proposed.planId,
+      sessionNo: proposed.sessionNo,
+      startAt: proposed.startAt.toISOString(),
+      endAt: proposed.endAt.toISOString(),
+    },
+    compared: {
+      ...(compared.sessionId ? { sessionId: compared.sessionId } : {}),
+      planId: compared.planId,
+      sessionNo: compared.sessionNo,
+      startAt: compared.startAt.toISOString(),
+      endAt: compared.endAt.toISOString(),
+    },
+    overlapStartAt: new Date(
+      Math.max(proposed.startAt.getTime(), compared.startAt.getTime()),
+    ).toISOString(),
+    overlapEndAt: new Date(
+      Math.min(proposed.endAt.getTime(), compared.endAt.getTime()),
+    ).toISOString(),
+  };
+}
+
 async function refreshPathConfirmation(
   tx: TransactionContext,
   pathId: string,
 ): Promise<void> {
   const path = await tx.learningPath.findUnique({ where: { id: pathId } });
   if (!path) throw new NotFoundException("LEARNING_PATH_NOT_FOUND");
+  if (path.lockedVersion !== null || !editableBeforeLock.has(path.status)) {
+    throw new ConflictException("LEARNING_PATH_NOT_EDITABLE");
+  }
   const version = await tx.learningPathVersion.findUnique({
     where: { pathId_versionNo: { pathId, versionNo: path.currentVersion } },
   });
@@ -240,22 +309,59 @@ export class LearningPathsService {
     private readonly requestPaths: LearningRequestPathReader,
   ) {}
 
-  listMine(actor: Principal) {
+  async listMine(actor: Principal) {
+    return (await this.listMinePage(actor)).data;
+  }
+
+  listMinePage(
+    actor: Principal,
+    query: { cursor?: string; limit?: string } = {},
+  ) {
+    const limit = query.limit === undefined ? 100 : Number(query.limit);
+    if (
+      (query.limit !== undefined && !/^[1-9]\d*$/.test(query.limit)) ||
+      !Number.isSafeInteger(limit) ||
+      limit < 1 ||
+      limit > 100
+    ) {
+      throw new BadRequestException("INVALID_LEARNING_PATH_LIMIT");
+    }
+    const cursor = decodeMineCursor(query.cursor, actor.userId);
     return this.transactions.run(async (tx) => {
       const paths = await tx.learningPath.findMany({
         where: {
-          OR: [
-            { participantAId: actor.userId },
-            { participantBId: actor.userId },
+          AND: [
+            {
+              OR: [
+                { participantAId: actor.userId },
+                { participantBId: actor.userId },
+              ],
+            },
+            ...(cursor
+              ? [
+                  {
+                    OR: [
+                      { createdAt: { lt: cursor.createdAt } },
+                      { createdAt: cursor.createdAt, id: { lt: cursor.id } },
+                    ],
+                  },
+                ]
+              : []),
           ],
         },
-        orderBy: [{ updatedAt: "desc" }, { id: "asc" }],
-        take: 100,
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        take: limit + 1,
       });
-      if (paths.length === 0) return [];
+      const hasMore = paths.length > limit;
+      const page = paths.slice(0, limit);
+      if (page.length === 0)
+        return {
+          data: [],
+          pagination: { limit, hasMore: false, nextCursor: null },
+        };
       const agreements = await tx.learningPathVersion.findMany({
         where: {
-          OR: paths.map(({ id, currentVersion }) => ({
+          OR: page.map(({ id, currentVersion }) => ({
             pathId: id,
             versionNo: currentVersion,
           })),
@@ -265,7 +371,7 @@ export class LearningPathsService {
       const exchangeTypes = new Map(
         agreements.map(({ pathId, exchangeType }) => [pathId, exchangeType]),
       );
-      return paths.map((path) => ({
+      const data = page.map((path) => ({
         id: path.id,
         conversationId: path.conversationId,
         status: path.status,
@@ -279,6 +385,23 @@ export class LearningPathsService {
         createdAt: path.createdAt,
         updatedAt: path.updatedAt,
       }));
+      const last = page.at(-1)!;
+      return {
+        data,
+        pagination: {
+          limit,
+          hasMore,
+          nextCursor: hasMore
+            ? Buffer.from(
+                JSON.stringify({
+                  actorId: actor.userId,
+                  createdAt: last.createdAt.toISOString(),
+                  id: last.id,
+                }),
+              ).toString("base64url")
+            : null,
+        },
+      };
     });
   }
 
@@ -531,7 +654,7 @@ export class LearningPathsService {
       ) {
         throw new ForbiddenException("LEARNING_PATH_ACCESS_DENIED");
       }
-      if (!editableBeforeLock.has(path.status)) {
+      if (path.lockedVersion !== null || !editableBeforeLock.has(path.status)) {
         throw new ConflictException("LEARNING_PATH_NOT_EDITABLE");
       }
       if (path.currentVersion !== input.expectedVersion) {
@@ -641,7 +764,11 @@ export class LearningPathsService {
     return this.transactions.run(async (tx) => {
       await lockPath(tx, pathId);
       const path = await tx.learningPath.findUnique({ where: { id: pathId } });
-      if (!path || !editableBeforeLock.has(path.status)) {
+      if (
+        !path ||
+        path.lockedVersion !== null ||
+        !editableBeforeLock.has(path.status)
+      ) {
         throw new ConflictException("LEARNING_PATH_NOT_EDITABLE");
       }
       const version = await tx.learningPathVersion.findUnique({
@@ -754,6 +881,16 @@ export class LearningPathsService {
         actor.userId === path.participantAId
           ? currentVersion.participantAConfirmedAt
           : currentVersion.participantBConfirmedAt;
+      if (path.lockedVersion !== null || !editableBeforeLock.has(path.status)) {
+        if (!confirmationField) {
+          throw new ConflictException("LEARNING_PATH_NOT_EDITABLE");
+        }
+        return {
+          id: path.id,
+          currentVersion: path.currentVersion,
+          status: path.status,
+        };
+      }
       if (!confirmationField) {
         await tx.learningPathVersion.update({
           where,
@@ -933,16 +1070,6 @@ export class LearningPathsService {
       ) {
         throw new ConflictException("INVALID_SCHEDULE_ITEMS");
       }
-      for (let index = 1; index < orderedItems.length; index += 1) {
-        const current = orderedItems[index];
-        const previous = orderedItems[index - 1];
-        if (!current || !previous) {
-          throw new ConflictException("INVALID_SCHEDULE_ITEMS");
-        }
-        if (current.startAt < previous.endAt) {
-          throw new ConflictException("SCHEDULE_CONFLICT");
-        }
-      }
     };
     validateScheduleTimes();
     const existingSessions = await tx.session.findMany({
@@ -954,17 +1081,53 @@ export class LearningPathsService {
           { learnerId: { in: [path.participantAId, path.participantBId] } },
         ],
       },
-      select: { startAt: true, endAt: true },
+      select: {
+        id: true,
+        planId: true,
+        outlineSessionNo: true,
+        teacherId: true,
+        learnerId: true,
+        startAt: true,
+        endAt: true,
+      },
     });
-    if (
-      orderedItems.some((item) =>
-        existingSessions.some(
-          (session) =>
-            session.startAt < item.endAt && session.endAt > item.startAt,
-        ),
-      )
-    ) {
-      throw new ConflictException("SCHEDULE_CONFLICT");
+    const participantIds = [path.participantAId, path.participantBId];
+    const conflicts = orderedItems.flatMap((item, index) => {
+      const internal = orderedItems
+        .slice(index + 1)
+        .flatMap((other) =>
+          other.startAt < item.endAt && other.endAt > item.startAt
+            ? [scheduleConflict(item, other, participantIds, "INTERNAL")]
+            : [],
+        );
+      const booked = existingSessions.flatMap((session) => {
+        if (session.startAt >= item.endAt || session.endAt <= item.startAt)
+          return [];
+        const affectedUserIds = participantIds.filter(
+          (id) => id === session.teacherId || id === session.learnerId,
+        );
+        return [
+          scheduleConflict(
+            item,
+            {
+              sessionId: session.id,
+              planId: session.planId,
+              sessionNo: session.outlineSessionNo,
+              startAt: session.startAt,
+              endAt: session.endAt,
+            },
+            affectedUserIds,
+            "SESSION",
+          ),
+        ];
+      });
+      return [...internal, ...booked];
+    });
+    if (conflicts.length > 0) {
+      throw new ConflictException({
+        message: "SCHEDULE_CONFLICT",
+        conflicts: conflicts.slice(0, 100),
+      });
     }
     const payerIds =
       agreement.exchangeType === "TWO_WAY"
@@ -975,13 +1138,15 @@ export class LearningPathsService {
       agreement.exchangeType === "TWO_WAY"
         ? agreement.totalCreditPerUser!
         : agreement.negotiatedCredit!;
-    if (
-      payerIds.some((userId) => {
-        const balance = balances.find((entry) => entry.userId === userId);
-        return !balance || balance.availableCredit < required;
-      })
-    ) {
-      throw new ConflictException("INSUFFICIENT_AVAILABLE_CREDIT");
+    const insufficientUserIds = payerIds.filter((userId) => {
+      const balance = balances.find((entry) => entry.userId === userId);
+      return !balance || balance.availableCredit < required;
+    });
+    if (insufficientUserIds.length > 0) {
+      throw new ConflictException({
+        message: "INSUFFICIENT_AVAILABLE_CREDIT",
+        userIds: insufficientUserIds,
+      });
     }
     return {
       pathId,
@@ -1328,7 +1493,7 @@ export class LearningPathsService {
       const path = await tx.learningPath.findUniqueOrThrow({
         where: { id: row.pathId },
       });
-      if (!editableBeforeLock.has(path.status)) {
+      if (path.lockedVersion !== null || !editableBeforeLock.has(path.status)) {
         throw new ConflictException("LEARNING_PATH_NOT_EDITABLE");
       }
       if (expectedVersion !== row.currentVersion) {
@@ -1399,7 +1564,7 @@ export class LearningPathsService {
       const path = await tx.learningPath.findUniqueOrThrow({
         where: { id: locked.pathId },
       });
-      if (!editableBeforeLock.has(path.status)) {
+      if (path.lockedVersion !== null || !editableBeforeLock.has(path.status)) {
         throw new ConflictException("LEARNING_PATH_NOT_EDITABLE");
       }
       const currentPlanVersion = await tx.learningPlanVersion.findUniqueOrThrow(
