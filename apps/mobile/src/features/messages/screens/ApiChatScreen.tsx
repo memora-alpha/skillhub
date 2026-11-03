@@ -28,6 +28,7 @@ import { chatTimeline, type ChatTimelineItem } from "../utils/chat-timeline";
 import { lastSeenOutgoingId } from "../utils/seen-message";
 import type { ApiMessage } from "../api/messages-api";
 import { messageColors as colors } from "../constants/theme";
+import { chatInboxRoute } from "../utils/inbox-groups";
 import { useConversationContext } from "../hooks/use-conversation-context";
 import { ConfirmedFormFeedback } from "../components/ConfirmedFormFeedback";
 import { useChatAttachment } from "../hooks/use-chat-attachment";
@@ -229,7 +230,7 @@ function ApiChatConversation({
             skill: "",
             request: "",
           }}
-          onBack={() => router.dismissTo("/messages")}
+          onBack={() => router.dismissTo(chatInboxRoute(conversation))}
           onAgreement={() => {
             void agreement.open();
           }}

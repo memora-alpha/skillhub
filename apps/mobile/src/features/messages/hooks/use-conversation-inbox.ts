@@ -19,7 +19,11 @@ import {
 } from "@/lib/query/use-quiet-read-recovery";
 
 export function useConversationInbox(
-  options: { enabled?: boolean; previewLimit?: number } = {},
+  options: {
+    enabled?: boolean;
+    previewLimit?: number;
+    learningRequestId?: string;
+  } = {},
 ) {
   const screenFocused = useIsFocused();
   const focused = screenFocused && options.enabled !== false;
@@ -52,6 +56,10 @@ export function useConversationInbox(
           ),
         activityIds,
         runtime.userId ?? "",
+      ).filter(
+        (conversation) =>
+          !options.learningRequestId ||
+          conversation.learningRequestId === options.learningRequestId,
       );
   const ordered = orderConversations(knownConversations, (id) => {
     const key = [...runtime.key, "conversations", "preview", id];
@@ -189,7 +197,12 @@ export function useConversationInbox(
       item.conversation.id,
     ]).denied;
     if (denied)
-      return { ...item, preview: "Không tải được tin nhắn", state: undefined };
+      return {
+        ...item,
+        preview: "Không tải được tin nhắn",
+        state: undefined,
+        previewSenderId: undefined,
+      };
     if (
       messages.get(item.conversation.id) ||
       queuedIds.has(item.conversation.id)

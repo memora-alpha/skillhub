@@ -29,42 +29,55 @@ export function ProposalListFilters({
   onChange,
   direction,
   onDirectionChange,
+  statusOnly = false,
 }: Readonly<{
   value?: ProposalListTab;
   onChange: (value: ProposalListTab) => void;
   direction: "sent" | "received" | "all";
   onDirectionChange: (value: "sent" | "received" | "all") => void;
+  statusOnly?: boolean;
 }>) {
   const [expanded, setExpanded] = useState(false);
   return (
     <View style={styles.container}>
-      <Text style={styles.eyebrow}>Đề xuất của bạn</Text>
+      {!statusOnly && <Text style={styles.eyebrow}>Đề xuất của bạn</Text>}
       <View style={styles.row}>
-        <View
-          accessibilityRole="tablist"
-          accessibilityLabel="Chiều đề xuất"
-          style={styles.tabs}
-        >
-          {directions.map((item) => (
-            <Pressable
-              key={item.value}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: direction === item.value }}
-              aria-selected={direction === item.value}
-              onPress={() => onDirectionChange(item.value)}
-              style={[styles.tab, direction === item.value && styles.selected]}
-            >
-              <Text
+        {statusOnly ? (
+          <Text style={[styles.caption, { flex: 1 }]}>
+            {value === "all"
+              ? "Tất cả trạng thái"
+              : proposalStatusLabels[value]}
+          </Text>
+        ) : (
+          <View
+            accessibilityRole="tablist"
+            accessibilityLabel="Chiều đề xuất"
+            style={styles.tabs}
+          >
+            {directions.map((item) => (
+              <Pressable
+                key={item.value}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: direction === item.value }}
+                aria-selected={direction === item.value}
+                onPress={() => onDirectionChange(item.value)}
                 style={[
-                  styles.label,
-                  direction === item.value && styles.active,
+                  styles.tab,
+                  direction === item.value && styles.selected,
                 ]}
               >
-                {item.label}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
+                <Text
+                  style={[
+                    styles.label,
+                    direction === item.value && styles.active,
+                  ]}
+                >
+                  {item.label}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        )}
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Lọc theo trạng thái"
@@ -84,7 +97,7 @@ export function ProposalListFilters({
           {value !== "all" && <View style={styles.dot} />}
         </Pressable>
       </View>
-      {!expanded && value !== "all" && (
+      {!statusOnly && !expanded && value !== "all" && (
         <Text style={styles.caption}>
           Trạng thái: {proposalStatusLabels[value]}
         </Text>

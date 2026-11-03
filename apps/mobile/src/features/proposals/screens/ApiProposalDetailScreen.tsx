@@ -15,6 +15,7 @@ import { ApiProposalSummary } from "../components/ApiProposalSummary";
 import { ProposalRecovery } from "../components/ProposalRecovery";
 import { ProposalAcceptActions } from "../components/ProposalAcceptActions";
 import type { ProposalDecisionResult } from "../api/proposals-api";
+import { proposalId } from "../utils/proposal-route";
 
 export function ApiProposalDetailScreen({ id }: Readonly<{ id: string }>) {
   const router = useRouter();
@@ -28,7 +29,11 @@ export function ApiProposalDetailScreen({ id }: Readonly<{ id: string }>) {
     { key: ["conversations"], exact: true },
   ]);
   const proposal = query.data;
-  const { closeAction } = useLocalSearchParams<{ closeAction?: string }>();
+  const { closeAction, returnRequestId } = useLocalSearchParams<{
+    closeAction?: string;
+    returnRequestId?: string;
+  }>();
+  const requestBack = proposalId(returnRequestId);
   const [closing, setClosing] = useState<"reject" | "withdraw" | undefined>(
     closeAction === "reject" || closeAction === "withdraw"
       ? closeAction
@@ -69,10 +74,23 @@ export function ApiProposalDetailScreen({ id }: Readonly<{ id: string }>) {
     <FeaturePage
       title="Chi tiết đề xuất"
       backBehavior="history"
-      back={{
-        pathname: "/proposals",
-        params: { tab: proposal?.proposerId === userId ? "sent" : "received" },
-      }}
+      back={
+        requestBack && requestBack === proposal?.learningRequestId
+          ? {
+              pathname: "/messages/request/[id]",
+              params: {
+                id: requestBack,
+                view: "received",
+                proposalId: proposal.id,
+              },
+            }
+          : {
+              pathname: "/proposals",
+              params: {
+                tab: proposal?.proposerId === userId ? "sent" : "received",
+              },
+            }
+      }
       demo={false}
     >
       <ConnectionFeedback

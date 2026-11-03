@@ -39,6 +39,7 @@ export function AuthNavigator() {
       <Stack.Protected guard={authenticated}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="chat/[proposalId]" />
+        <Stack.Screen name="messages/request/[id]" />
         <Stack.Screen name="chat-attachment" />
         <Stack.Screen name="request/[id]" />
         <Stack.Screen name="session/[id]" />

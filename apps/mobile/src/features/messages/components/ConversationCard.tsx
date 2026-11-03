@@ -12,6 +12,7 @@ export function ConversationCard({
   topic,
   reference,
   unread = false,
+  showTopic = true,
   onPress,
 }: {
   name: string;
@@ -22,6 +23,7 @@ export function ConversationCard({
   topic: string;
   reference: string;
   unread?: boolean;
+  showTopic?: boolean;
   onPress: () => void;
 }) {
   const unreadLabel = unread ? ", có tin nhắn chưa đọc" : "";
@@ -73,11 +75,13 @@ export function ConversationCard({
             </Text>
             {unread && <View style={styles.unreadDot} />}
           </View>
-          <View style={styles.topicRow}>
-            <Text numberOfLines={1} style={styles.topic}>
-              {topic}
-            </Text>
-          </View>
+          {showTopic && (
+            <View style={styles.topicRow}>
+              <Text numberOfLines={1} style={styles.topic}>
+                {topic}
+              </Text>
+            </View>
+          )}
         </View>
       </View>
     </Pressable>

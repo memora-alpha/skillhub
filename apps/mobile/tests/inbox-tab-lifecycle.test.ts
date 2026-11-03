@@ -25,18 +25,26 @@ test("Inbox shows loading for a transient first read, preserves cached empty/con
     error: new AppError("http", 429) as unknown,
     isPending: false,
     isFetching: false,
+    hasNextPage: false,
     refetch() {},
+    loadMore() {
+      loadedPages++;
+    },
   };
+  let loadedPages = 0;
+  const routes: string[] = [];
   const jsx = (type: unknown, props: unknown) => ({ type, props });
   const mocks = {
+    react: { useEffect: (effect: () => void) => effect() },
     "react/jsx-runtime": { jsx, jsxs: jsx },
     "react-native": {
       View: "View",
+      Text: "Text",
       ActivityIndicator: "Loading",
       StyleSheet: { create: (styles: unknown) => styles },
     },
     "expo-router": {
-      useRouter: () => ({ push() {} }),
+      useRouter: () => ({ push: (path: string) => routes.push(path) }),
       useIsFocused: () => true,
     },
     "@/features/shell": { AppScreenLayout: "Layout" },
@@ -45,9 +53,9 @@ test("Inbox shows loading for a transient first read, preserves cached empty/con
     "@/components/Button": { Button: "Button" },
     "@/components/EmptyState": { EmptyState: "Empty" },
     "@/components/LoadingIndicator": { LoadingIndicator: "Loading" },
-    "../components/InboxHeader": { InboxHeader: "Header" },
     "../components/ConversationRow": { ConversationRow: "Row" },
-    "../hooks/use-conversation-inbox": { useConversationInbox: () => state },
+    "../components/RequestInboxCard": { RequestInboxCard: "RequestCard" },
+    "../hooks/use-inbox-groups": { useInboxGroups: () => state },
     "@/lib/query/use-quiet-read-recovery": {
       isTransientReadError,
       useQuietReadRecovery() {},
@@ -59,31 +67,34 @@ test("Inbox shows loading for a transient first read, preserves cached empty/con
   try {
     delete local.cache[filename];
     const { ApiMessagesScreen } = local(filename);
+    const action = ApiMessagesScreen().props.rightAction;
+    assert.equal(action.props.children.props.children, "Đề xuất");
+    action.props.onPress();
+    assert.deepEqual(routes, ["/proposals"]);
     const render = () => ApiMessagesScreen().props.children();
     const loading = render();
-    assert.equal(
-      loading.props.ListHeaderComponent.props.children.props.loading,
-      true,
-    );
-    assert.equal(
-      loading.props.ListHeaderComponent.props.children.props.error,
-      undefined,
-    );
+    assert.equal(loading.props.ListHeaderComponent.props.loading, true);
+    assert.equal(loading.props.ListHeaderComponent.props.error, undefined);
     assert.equal(loading.props.ListEmptyComponent, null);
     state.data = { pages: [] };
     const cachedEmpty = render();
-    assert.equal(
-      cachedEmpty.props.ListHeaderComponent.props.children.props.loading,
-      false,
-    );
+    assert.equal(cachedEmpty.props.ListHeaderComponent.props.loading, false);
     assert.equal(cachedEmpty.props.ListEmptyComponent.type, "Empty");
+    state.error = undefined;
+    state.hasNextPage = true;
+    const scanning = render();
+    assert.equal(scanning.props.ListEmptyComponent, null);
+    assert.equal(scanning.props.ListHeaderComponent.props.loading, true);
+    assert.equal(
+      loadedPages,
+      1,
+      "skip pages without request groups before claiming the inbox is empty",
+    );
+    state.hasNextPage = false;
     state.items = [{ conversation: { id: fixtureId(1) } }];
     assert.equal(render().props.data, state.items);
     state.error = new AppError("http", 403);
-    assert.equal(
-      render().props.ListHeaderComponent.props.children.props.error,
-      state.error,
-    );
+    assert.equal(render().props.ListHeaderComponent.props.error, state.error);
   } finally {
     delete local.cache[filename];
     contexts.reverse().forEach((context) => context.restore());
