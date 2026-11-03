@@ -6,11 +6,23 @@ export function sessionPresentation(
   now = Date.now(),
 ) {
   const end = Date.parse(session.endAt);
+  if (session.status === "NO_SHOW")
+    return {
+      label: "Có người vắng học",
+      variant: "warning" as const,
+      description: "Xem kết quả điểm danh và thời hạn giải trình hoặc báo cáo.",
+    };
+  if (session.status === "MAKEUP_REQUIRED")
+    return {
+      label: "Cần học bù",
+      variant: "warning" as const,
+      description: "Hai bên cần thống nhất và xác nhận lịch học bù trước hạn.",
+    };
   if (session.status === "COMPLETED")
     return {
       label: "Đã hoàn thành",
       variant: "success" as const,
-      description: "Cả hai bên đã xác nhận hoàn thành buổi học.",
+      description: "Hệ thống đã ghi nhận buổi học hoàn thành.",
     };
   if (session.status === "CANCELLED")
     return {

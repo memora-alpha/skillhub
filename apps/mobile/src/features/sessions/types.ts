@@ -1,4 +1,10 @@
 import { z } from "zod";
+import {
+  attendanceSchema,
+  deadlinesSchema,
+  excuseSchema,
+  sessionAction,
+} from "./api/attendance-contract";
 
 export const sessionStatuses = [
   "CONFIRMED",
@@ -8,6 +14,8 @@ export const sessionStatuses = [
   "COMPLETED",
   "CANCELLED",
   "DISPUTED",
+  "NO_SHOW",
+  "MAKEUP_REQUIRED",
 ] as const;
 const timestamp = z.iso
   .datetime({ offset: true })
@@ -61,6 +69,10 @@ export const sessionSchema = z
     cancelReason: z.string().nullable().optional(),
     role: z.enum(["TEACHER", "LEARNER"]).optional(),
     join: sessionJoinSchema.optional(),
+    attendance: attendanceSchema.optional(),
+    deadlines: deadlinesSchema.optional(),
+    excuse: excuseSchema.nullable().optional(),
+    allowedActions: z.array(sessionAction).optional(),
   })
   .refine((s) => Date.parse(s.endAt) > Date.parse(s.startAt));
 export const completionReceiptSchema = z.object({

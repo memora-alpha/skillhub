@@ -204,4 +204,6 @@ export const learningSessionLabel: Record<
   COMPLETED: "Đã hoàn thành",
   CANCELLED: "Đã hủy",
   DISPUTED: "Đang xem xét phản ánh",
+  NO_SHOW: "Có người vắng học",
+  MAKEUP_REQUIRED: "Cần học bù",
 };
