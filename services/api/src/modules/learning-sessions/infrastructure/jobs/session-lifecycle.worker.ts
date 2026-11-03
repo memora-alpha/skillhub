@@ -10,6 +10,12 @@ import { CLOCK, type Clock } from "../../../../shared/time/clock";
 import { LiveKitService } from "../livekit/livekit.service";
 import { LearningSessionsService } from "../../application/services/learning-sessions.service";
 
+import {
+  SessionOutcomeService,
+  type ObservationResult,
+} from "../../application/services/session-outcome.service";
+import { byCodeUnit } from "../../../../infrastructure/idempotency/idempotency.service";
+
 @Injectable()
 export class SessionLifecycleWorker implements OnModuleInit, OnModuleDestroy {
   private timer?: ReturnType<typeof setInterval>;
@@ -21,6 +27,7 @@ export class SessionLifecycleWorker implements OnModuleInit, OnModuleDestroy {
     private readonly sessions: LearningSessionsService,
     private readonly livekit: LiveKitService,
     @Inject(CLOCK) private readonly clock: Clock,
+    private readonly outcomes: SessionOutcomeService,
   ) {}
 
   onModuleInit() {
@@ -43,6 +50,8 @@ export class SessionLifecycleWorker implements OnModuleInit, OnModuleDestroy {
     this.running = true;
     try {
       await this.advanceActiveSessions(now, limit);
+      await this.determineEndedSessions(now, limit);
+      await this.finalizeDueSessions(now, limit);
       await this.settleCompletedPaths(limit);
     } finally {
       this.running = false;
@@ -70,9 +79,16 @@ export class SessionLifecycleWorker implements OnModuleInit, OnModuleDestroy {
       });
       for (const row of rows) {
         if (this.stopped) break;
-        const observation = await this.observeLiveRoom(row, now);
+        const result = await this.observeLiveRoom(row, now);
+        if (result)
+          await this.outcomes
+            .recordObservation(row, result, now)
+            .catch(() => this.logger.error("SESSION_ATTENDANCE_DEFERRED"));
         await this.sessions
-          .advanceLifecycle(row, observation)
+          .advanceLifecycle(
+            row,
+            result?.status === "OK" ? result.observation : null,
+          )
           .catch(() => this.logger.error("SESSION_LIFECYCLE_DEFERRED"));
       }
       if (rows.length < limit) break;
@@ -83,7 +99,7 @@ export class SessionLifecycleWorker implements OnModuleInit, OnModuleDestroy {
   private async observeLiveRoom(
     row: { roomName: string | null; startAt: Date; endAt: Date },
     now: Date,
-  ) {
+  ): Promise<ObservationResult | null> {
     if (
       !row.roomName ||
       row.startAt > now ||
@@ -92,10 +108,77 @@ export class SessionLifecycleWorker implements OnModuleInit, OnModuleDestroy {
     )
       return null;
     try {
-      return await this.livekit.listActiveParticipants(row.roomName);
+      return {
+        status: "OK",
+        observation: await this.livekit.listActiveParticipants(row.roomName),
+      };
     } catch {
       this.logger.warn("LIVEKIT_OBSERVATION_UNAVAILABLE");
-      return null;
+      return { status: "FAILED" };
+    }
+  }
+
+  private async determineEndedSessions(now: Date, limit: number) {
+    let cursor: string | undefined;
+    while (!this.stopped) {
+      const rows: { id: string }[] = await this.db.session.findMany({
+        where: {
+          status: {
+            in: ["CONFIRMED", "READY", "ONGOING", "AWAITING_CONFIRMATION"],
+          },
+          endAt: { lte: now },
+          confirmDeadlineAt: null,
+          ...(cursor ? { id: { gt: cursor } } : {}),
+        },
+        orderBy: { id: "asc" },
+        take: limit,
+        select: { id: true },
+      });
+      for (const row of rows) {
+        if (this.stopped) break;
+        await this.sessions
+          .ensureDetermined(row.id)
+          .catch(() => this.logger.error("SESSION_ATTENDANCE_DEFERRED"));
+      }
+      if (rows.length < limit) break;
+      cursor = rows.at(-1)!.id;
+    }
+  }
+
+  // ponytail: three bounded queries per sweep; page them when due rows exceed `limit`.
+  private async finalizeDueSessions(now: Date, limit: number) {
+    const [timeouts, makeups, noShows] = await Promise.all([
+      this.db.session.findMany({
+        where: {
+          status: "AWAITING_CONFIRMATION",
+          confirmDeadlineAt: { lte: now },
+        },
+        take: limit,
+        select: { id: true },
+      }),
+      this.db.session.findMany({
+        where: { status: "MAKEUP_REQUIRED", makeupDeadlineAt: { lte: now } },
+        take: limit,
+        select: { id: true },
+      }),
+      this.db.sessionAttendanceOutcome.findMany({
+        where: { status: "PROVISIONAL", finalizesAt: { lte: now } },
+        take: limit,
+        select: { sessionId: true },
+      }),
+    ]);
+    const ids = [
+      ...new Set([
+        ...timeouts.map(({ id }) => id),
+        ...makeups.map(({ id }) => id),
+        ...noShows.map(({ sessionId }) => sessionId),
+      ]),
+    ].sort(byCodeUnit);
+    for (const id of ids) {
+      if (this.stopped) break;
+      await this.outcomes
+        .finalizeDue(id)
+        .catch(() => this.logger.error("SESSION_FINALIZATION_DEFERRED"));
     }
   }
 

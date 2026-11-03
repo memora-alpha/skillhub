@@ -21,10 +21,10 @@ export const sessionReadSelect = {
   learnerConfirmationNote: true,
   teacherFirstJoinedAt: true,
   teacherLastLeftAt: true,
-  teacherAttendanceSeconds: true,
   learnerFirstJoinedAt: true,
   learnerLastLeftAt: true,
-  learnerAttendanceSeconds: true,
+  confirmDeadlineAt: true,
+  makeupDeadlineAt: true,
 } satisfies Prisma.SessionSelect;
 
 export class LiveKitTokenResponse {

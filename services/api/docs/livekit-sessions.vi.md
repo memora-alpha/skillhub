@@ -1,8 +1,9 @@
 # Session và LiveKit
 
 Backend đã tích hợp room/token, UTC lifecycle, signed webhook, progress và dual
-completion trên model Session hiện hữu. Không cần thêm bảng LiveKitRoom hoặc
-SessionAttendance. Video UI SH-074 và tính tổng giây attendance là bước riêng.
+completion trên model Session hiện hữu. Spec 012 bổ sung interval theo participant
+SID, outcome theo lần diễn ra, no-show, excuse và học bù. Video UI SH-074 do client
+triển khai; xem [contract attendance](../specs/012-session-no-show/contracts.md).
 
 ## Cấu hình và quyền
 
@@ -57,13 +58,17 @@ restart sau khi đổi policy DB.
   `roomName`, `participantIdentity`, `expiresAt`, `joinOpensAt`, `joinClosesAt`.
   Header `Cache-Control: no-store`. Frontend dùng serverUrl + participantToken
   với LiveKit client SDK; không tự chọn userId/roomName.
-- `POST /api/v1/sessions/:id/confirm-completion`: sau endAt, note tối đa 1000 ký
-  tự; retry giữ nguyên timestamp/note lần đầu. Chỉ cả hai confirm mới COMPLETED.
+- `POST /api/v1/sessions/:id/confirm-completion`: sau khi có outcome cho phép,
+  trước confirm deadline; note tối đa 1000 ký tự. Retry giữ timestamp/note lần đầu.
+  Hai bên confirm hoàn tất buổi; worker cũng có thể hoàn tất theo timeout policy.
+- `POST /api/v1/sessions/:id/absence-excuse`: bên vắng gửi `{reason}`.
+- `POST /api/v1/sessions/:id/absence-excuse/decision`: đối phương quyết định
+  `{accept,note?}` trong dispute window. Chấp nhận chuyển sang học bù.
 
 Room name ổn định theo Session, identity opaque theo Session + User. Token TTL
 tối đa 120 giây và không vượt closesAt. Cửa sổ `[startAt-early, endAt+late)` cho
 phép token renewal khi ONGOING hoặc AWAITING_CONFIRMATION trong late grace;
-COMPLETED/CANCELLED/DISPUTED bị chặn. TTL không tự ngắt media đang kết nối.
+COMPLETED/CANCELLED/DISPUTED/NO_SHOW/MAKEUP_REQUIRED bị chặn. TTL không tự ngắt media đang kết nối.
 
 `join.canJoin=false` kèm reason cho disabled/policy/state/window; backend vẫn
 recheck khi cấp token, client không tự quyết định theo đồng hồ thiết bị. Error
@@ -96,12 +101,11 @@ cùng độ chính xác đó, worker phục hồi trạng thái từ current pro
 
 Worker mỗi 30 giây và lúc startup quét theo batch, không chạy chồng lấn. ONGOING
 cần media participant do provider xác minh; endAt chuyển AWAITING_CONFIRMATION
-kể cả mất webhook. Không tự suy ra no-show, completion, penalty từ attendance.
-READY vẫn reschedule được nếu hai bên xác nhận trước cutoff 60 phút.
-
-Hai counter attendance vẫn trả string và `attendanceStatus=UNAVAILABLE`: 0 chưa
-phải bằng chứng không tham gia. firstJoined/lastLeft chỉ là observation; không
-lấy hiệu để tính duration. Không ghi âm/ghi hình trong feature này.
+kể cả mất webhook. Heartbeat bổ sung interval và đóng connection mất dấu sau 90s.
+Sau join grace + 10 phút chờ dữ liệu, outcome dùng union interval cắt theo lịch:
+80% thời lượng là có mặt; vào sau 10 phút đánh dấu trễ. Lỗi quan sát hoặc provider
+disabled/thiếu join window không dẫn tới phạt vắng. READY vẫn đổi lịch theo cutoff
+60 phút; MAKEUP_REQUIRED dùng hạn học bù. Không ghi âm/ghi hình.
 
 ## Completion và các giới hạn còn mở
 
@@ -110,16 +114,22 @@ toàn bộ Session hoàn tất, outbox signal và recovery worker thử settleme
 application core hiện hữu; check dispute/deadline và transaction/idempotency
 vẫn được giữ. ONE_WAY/TWO_WAY và 96/4 không thay đổi.
 
-Reports hiện có guard dispute 48 giờ trong source. Feature này giữ nguyên guard,
-không coi con số đó là policy production mới đã được PO duyệt. Completion timeout,
-dispute policy, no-show/cancellation và cưỡng chế ngắt media khi đóng window vẫn
-cần chốt riêng; không auto-confirm hoặc tự seed các policy đó.
+`session.attendancePolicy` có default đã duyệt: trễ 10 phút, tối thiểu 80%, chờ dữ
+liệu 10 phút, confirm 24h kể từ kết luận, dispute 48h sau endAt, học bù 7 ngày.
+Outcome giữ policy snapshot; sửa config chỉ ảnh hưởng occurrence mới. Uy tín −8
+chỉ khi chốt no-show hoặc Staff UPHOLD, đúng một lần cho mỗi outcome/user.
+Tỷ lệ Credit penalty/refund theo trường hợp vắng thuộc phần C, chưa triển khai.
+Thiếu xác nhận ở buổi UNVERIFIABLE và học bù quá hạn tạo case hệ thống cho Staff.
+
+Rollout: áp migration `20261029000000_session_no_show` cùng code, chạy
+`pnpm --filter api db:seed-configuration`, rồi cập nhật client theo contract mới.
+Backfill bảo vệ cả buổi đã bắt đầu và buổi tương lai đã có room/token trước rollout.
 
 ## Kiểm chứng
 
 ```powershell
 pnpm --filter api test:learning-sessions
-# TEST_DATABASE_URL phải là PostgreSQL test riêng, đã migrate.
+# TEST_DATABASE_URL phải trỏ PostgreSQL dùng cho test; harness tự migrate schema riêng.
 pnpm --filter api test:learning-sessions:integration
 ```
 
@@ -128,4 +138,5 @@ schema khi xong. Không fallback DATABASE_URL. Cloud smoke cần hai participant
 thật lấy token qua API rồi join bằng LiveKit Meet/client, thử reconnect và quan
 sát webhook. Token tạo bằng CLI LiveKit không kiểm chứng được membership của API.
 
-Evidence của lần triển khai: [validation](../specs/010-session-livekit/validation.md).
+Evidence: [Session/LiveKit](../specs/010-session-livekit/validation.md),
+[attendance/no-show](../specs/012-session-no-show/validation.md).

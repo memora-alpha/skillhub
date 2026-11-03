@@ -56,3 +56,32 @@ test("join policy is mutable, strict and has no production default", () => {
     assert.throws(() => parseConfigurationValue("livekit.joinWindow", value));
   }
 });
+
+test("attendance policy is mutable, defaulted and strict", () => {
+  const definition = CONFIGURATION_DEFINITIONS["session.attendancePolicy"];
+  assert.equal(definition.mutable, true);
+  const value = {
+    lateGraceMinutes: 10,
+    minAttendancePercent: 80,
+    dataSettleMinutes: 10,
+    confirmWindowHours: 24,
+    disputeWindowHours: 48,
+    makeupWindowDays: 7,
+  };
+  assert.deepEqual(definition.defaultValue, value);
+  assert.deepEqual(
+    parseConfigurationValue("session.attendancePolicy", value),
+    value,
+  );
+  for (const bad of [
+    { ...value, minAttendancePercent: 0 },
+    { ...value, minAttendancePercent: 101 },
+    { ...value, confirmWindowHours: 48 },
+    { ...value, lateGraceMinutes: 1.5 },
+    { ...value, extra: 1 },
+  ]) {
+    assert.throws(() =>
+      parseConfigurationValue("session.attendancePolicy", bad),
+    );
+  }
+});

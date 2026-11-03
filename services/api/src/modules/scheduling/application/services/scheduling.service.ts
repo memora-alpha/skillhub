@@ -231,10 +231,13 @@ async function applyReschedule(
       session.startAt.getTime() !== item.startAt.getTime() ||
       session.endAt.getTime() !== item.endAt.getTime();
     if (changed) {
+      const makeup = session.status === "MAKEUP_REQUIRED";
       if (
-        !["CONFIRMED", "READY"].includes(session.status) ||
-        session.startAt.getTime() - now.getTime() <
-          cutoffMinutes * millisecondsPerMinute
+        makeup
+          ? session.makeupDeadlineAt !== null && now >= session.makeupDeadlineAt
+          : !["CONFIRMED", "READY"].includes(session.status) ||
+            session.startAt.getTime() - now.getTime() <
+              cutoffMinutes * millisecondsPerMinute
       ) {
         throw new ConflictException("RESCHEDULE_CUTOFF_OR_STATE_VIOLATION");
       }
@@ -269,7 +272,31 @@ async function applyReschedule(
     if (changed) {
       await tx.session.update({
         where: { id: session.id },
-        data: { startAt: item.startAt, endAt: item.endAt, status: "CONFIRMED" },
+        data: {
+          startAt: item.startAt,
+          endAt: item.endAt,
+          status: "CONFIRMED",
+          // A new occurrence: confirmations, attendance evidence and deadlines start over.
+          teacherConfirmationStatus: null,
+          teacherConfirmedAt: null,
+          teacherConfirmationNote: null,
+          learnerConfirmationStatus: null,
+          learnerConfirmedAt: null,
+          learnerConfirmationNote: null,
+          teacherTokenIssuedAt: null,
+          learnerTokenIssuedAt: null,
+          teacherFirstJoinedAt: null,
+          learnerFirstJoinedAt: null,
+          teacherLastLeftAt: null,
+          learnerLastLeftAt: null,
+          teacherAttendanceSeconds: 0n,
+          learnerAttendanceSeconds: 0n,
+          lastObservedAt: null,
+          observationFailedAt: null,
+          confirmDeadlineAt: null,
+          makeupDeadlineAt: null,
+          providerRoomId: null,
+        },
       });
     }
   }
@@ -770,9 +797,10 @@ export class SchedulingService {
       const path = await tx.learningPath.findUniqueOrThrow({
         where: { id: lockedSession.pathId },
       });
+      const makeup = lockedSession.status === "MAKEUP_REQUIRED";
       if (
         (path.status !== "SCHEDULED" && path.status !== "ACTIVE") ||
-        !["CONFIRMED", "READY"].includes(lockedSession.status)
+        (!makeup && !["CONFIRMED", "READY"].includes(lockedSession.status))
       ) {
         throw new ConflictException("SESSION_CANNOT_BE_RESCHEDULED");
       }
@@ -805,8 +833,16 @@ export class SchedulingService {
         tx,
       );
       if (
+        makeup &&
+        lockedSession.makeupDeadlineAt &&
+        clock.now >= lockedSession.makeupDeadlineAt
+      )
+        throw new ConflictException("MAKEUP_WINDOW_CLOSED");
+      // A makeup replaces an occurrence already in the past, so the old start has no cutoff.
+      if (
+        !makeup &&
         lockedSession.startAt.getTime() - clock.now.getTime() <
-        values["schedule.rescheduleCutoffMinutes"] * millisecondsPerMinute
+          values["schedule.rescheduleCutoffMinutes"] * millisecondsPerMinute
       ) {
         throw new ConflictException("RESCHEDULE_CUTOFF_VIOLATION");
       }

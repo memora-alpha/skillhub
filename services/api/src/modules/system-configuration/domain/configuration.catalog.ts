@@ -50,6 +50,29 @@ export const CONFIGURATION_DEFINITIONS = {
     mutable: false,
     defaultValue: { min: 60, max: 180 },
   },
+  "session.attendancePolicy": {
+    schema: z
+      .object({
+        lateGraceMinutes: z.number().int().min(0).max(180),
+        minAttendancePercent: z.number().int().min(1).max(100),
+        dataSettleMinutes: z.number().int().min(0).max(120),
+        confirmWindowHours: z.number().int().min(1).max(720),
+        disputeWindowHours: z.number().int().min(1).max(720),
+        makeupWindowDays: z.number().int().min(1).max(90),
+      })
+      .strict()
+      // Absent parties must still be able to dispute after the confirm timeout.
+      .refine((value) => value.confirmWindowHours < value.disputeWindowHours),
+    mutable: true,
+    defaultValue: {
+      lateGraceMinutes: 10,
+      minAttendancePercent: 80,
+      dataSettleMinutes: 10,
+      confirmWindowHours: 24,
+      disputeWindowHours: 48,
+      makeupWindowDays: 7,
+    },
+  },
   "schedule.rescheduleCutoffMinutes": {
     schema: z.literal(60),
     mutable: false,

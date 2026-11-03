@@ -22,12 +22,14 @@ test("sweep visits rows beyond its first page and serializes overlapping sweeps"
       await Promise.resolve();
     },
     trySettleCompletedPath: async () => {},
+    ensureDetermined: async () => {},
   };
   const worker = new SessionLifecycleWorker(
     db,
     sessions,
     { config: { enabled: false } },
     { now: () => now },
+    { recordObservation: async () => {}, finalizeDue: async () => {} },
   );
   await Promise.all([worker.sweep(now, 100), worker.sweep(now, 100)]);
   assert.equal(seen.length, 205);
@@ -57,9 +59,11 @@ test("one failed row does not starve later session recovery", async () => {
         if (row.id === "a") throw new Error("unavailable");
       },
       trySettleCompletedPath: async () => {},
+      ensureDetermined: async () => {},
     },
     { config: { enabled: false } },
     { now: () => now },
+    { recordObservation: async () => {}, finalizeDue: async () => {} },
   );
   await worker.sweep(now, 100);
   assert.deepEqual(seen, ["a", "b"]);

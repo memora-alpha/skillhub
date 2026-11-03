@@ -23,6 +23,14 @@ export const user = (userId) => ({ userId, roles: ["USER"], permissions: [] });
 /** Values pinned by the system configuration catalog. */
 export const defaultConfiguration = {
   "session.durationMinutes": { min: 60, max: 180 },
+  "session.attendancePolicy": {
+    lateGraceMinutes: 10,
+    minAttendancePercent: 80,
+    dataSettleMinutes: 10,
+    confirmWindowHours: 24,
+    disputeWindowHours: 48,
+    makeupWindowDays: 7,
+  },
   "schedule.rescheduleCutoffMinutes": 60,
   "credit.pathSettlementBps": { returned: 9600, fee: 400 },
 };
@@ -159,7 +167,15 @@ export function setup({ wallets = {}, config = {}, requestId = null } = {}) {
     wallet,
     { applyPathCompletion: async () => {} },
     { evaluate: async () => {} },
-    new ReportsService(runner(db), {}, {}, {}),
+    new ReportsService(
+      runner(db),
+      {},
+      {},
+      {},
+      undefined,
+      undefined,
+      configuration,
+    ),
     configuration,
     { config: { enabled: false } },
     { now: () => clock.now },

@@ -96,6 +96,10 @@ export class ReportReversalDto {
 
 export class ReportCaseActionDto {
   @IsOptional()
+  @IsIn(["UPHOLD", "EXCUSE", "COMPLETE"])
+  noShowRuling?: "UPHOLD" | "EXCUSE" | "COMPLETE";
+
+  @IsOptional()
   @IsString()
   @MaxLength(2000)
   note?: string;

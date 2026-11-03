@@ -46,7 +46,7 @@ export class LearningPathNotificationHandler
     const resolveSessionNotification = async () => {
       if (
         typeof data.sessionId !== "string" ||
-        typeof data.reporterId !== "string"
+        (data.reporterId !== null && typeof data.reporterId !== "string")
       ) {
         throw new TypeError("INVALID_LEARNING_PATH_EVENT");
       }
@@ -86,7 +86,7 @@ export class LearningPathNotificationHandler
         await resolveSessionNotification();
       } else {
         if (
-          typeof data.reporterId !== "string" ||
+          (data.reporterId !== null && typeof data.reporterId !== "string") ||
           typeof data.status !== "string" ||
           typeof data.caseId !== "string"
         ) {
@@ -120,26 +120,25 @@ export class LearningPathNotificationHandler
 
   /** A final decision reaches both path participants; other updates only the reporter. */
   private async caseRecipients(
-    reporterId: string,
+    reporterId: string | null,
     status: string,
     pathId: unknown,
   ): Promise<string[]> {
+    const reporter = reporterId ? [reporterId] : [];
     if (
       typeof pathId !== "string" ||
-      (status !== "RESOLVED" && status !== "REJECTED")
-    ) {
-      return [reporterId];
-    }
+      (reporterId && status !== "RESOLVED" && status !== "REJECTED")
+    )
+      return reporter;
     const path = await this.db.learningPath.findUnique({
       where: { id: pathId },
       select: { participantAId: true, participantBId: true },
     });
     return [
-      ...new Set(
-        path
-          ? [reporterId, path.participantAId, path.participantBId]
-          : [reporterId],
-      ),
+      ...new Set([
+        ...reporter,
+        ...(path ? [path.participantAId, path.participantBId] : []),
+      ]),
     ];
   }
 }

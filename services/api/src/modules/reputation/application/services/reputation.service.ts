@@ -201,16 +201,16 @@ export class ReputationService {
     });
   }
 
-  /** Hook for session lifecycle (SH-070/072) once a no-show is confirmed. */
+  /** Hook for session lifecycle once a no-show is final; one penalty per occurrence outcome. */
   applyNoShow(
     tx: TransactionContext,
-    input: { userId: string; sessionId: string; now: Date },
+    input: { userId: string; sessionId: string; outcomeId: string; now: Date },
   ): Promise<void> {
     return this.applyViolation(tx, {
       userId: input.userId,
       reasonCode: "NO_SHOW",
       sourceId: input.sessionId,
-      eventKey: `no-show:${input.sessionId}:${input.userId}`,
+      eventKey: `no-show:${input.outcomeId}:${input.userId}`,
       now: input.now,
     });
   }

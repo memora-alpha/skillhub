@@ -43,6 +43,7 @@ test("approved defaults and mutability are explicit", () => {
     "learningRequest.moderationRuleSet",
     "livekit.joinWindow",
     "schedule.rescheduleCutoffMinutes",
+    "session.attendancePolicy",
     "session.durationMinutes",
     "storage.downloadTtlSeconds",
     "storage.evidenceMaxBytes",

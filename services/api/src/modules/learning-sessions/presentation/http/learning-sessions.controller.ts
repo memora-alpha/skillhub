@@ -24,9 +24,12 @@ import type { Principal } from "../../../auth/application/services/sessions.serv
 import { success } from "../../../../shared/http/response";
 import {
   ConfirmSessionCompletionDto,
+  SubmitAbsenceExcuseDto,
+  DecideAbsenceExcuseDto,
   LiveKitTokenRequestDto,
 } from "./learning-sessions.dto";
 import { LiveKitTokenResponse } from "./learning-sessions.responses";
+import { SessionOutcomeService } from "../../application/services/session-outcome.service";
 import { LearningSessionsService } from "../../application/services/learning-sessions.service";
 
 @ApiTags("sessions")
@@ -34,7 +37,10 @@ import { LearningSessionsService } from "../../application/services/learning-ses
 @UseGuards(IdentityGuard)
 @Controller({ path: "sessions", version: "1" })
 export class LearningSessionsController {
-  constructor(private readonly sessions: LearningSessionsService) {}
+  constructor(
+    private readonly sessions: LearningSessionsService,
+    private readonly outcomes: SessionOutcomeService,
+  ) {}
 
   @Post(":sessionId/livekit-token")
   @HttpCode(200)
@@ -95,6 +101,42 @@ export class LearningSessionsController {
     return success(
       await this.sessions.settlePath(actor, pathId),
       "Path settlement processed.",
+    );
+  }
+
+  @Post(":sessionId/absence-excuse")
+  @ApiOperation({
+    summary: "Explain an absence; the present participant decides",
+  })
+  @ApiErrorResponse(409)
+  async submitExcuse(
+    @CurrentIdentity() actor: Principal,
+    @Param("sessionId", ParseUUIDPipe) sessionId: string,
+    @Body() body: SubmitAbsenceExcuseDto,
+  ) {
+    return success(
+      await this.outcomes.submitExcuse(actor, sessionId, body.reason),
+      "Absence excuse submitted.",
+    );
+  }
+
+  @Post(":sessionId/absence-excuse/decision")
+  @HttpCode(200)
+  @ApiOperation({ summary: "Accept or reject the partner's absence excuse" })
+  @ApiErrorResponse(409)
+  async decideExcuse(
+    @CurrentIdentity() actor: Principal,
+    @Param("sessionId", ParseUUIDPipe) sessionId: string,
+    @Body() body: DecideAbsenceExcuseDto,
+  ) {
+    return success(
+      await this.outcomes.decideExcuse(
+        actor,
+        sessionId,
+        body.accept,
+        body.note,
+      ),
+      "Absence excuse decided.",
     );
   }
 

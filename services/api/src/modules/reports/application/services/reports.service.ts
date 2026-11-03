@@ -1,12 +1,21 @@
 import {
   BadRequestException,
+  ServiceUnavailableException,
   ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { randomUUID } from "node:crypto";
+import { SystemConfigurationService } from "../../../system-configuration/application/services/system-configuration.service";
+import {
+  applyNoShowRuling,
+  currentOutcome,
+  releaseDisputedOutcome,
+} from "../../../learning-sessions/application/services/session-transitions";
 import { lockLearningPath as lockPath } from "../../../learning-paths/application/services/learning-path-lock";
+import { hoursAfter } from "../../../learning-sessions/domain/attendance.policy";
+import { lockedSession } from "../../../learning-sessions/application/services/session-tx";
+import { randomUUID } from "node:crypto";
 import type { Readable } from "node:stream";
 import { FileAttachmentService } from "../../../../infrastructure/storage/file-attachment.service";
 import { FileStorageService } from "../../../../infrastructure/storage/file-storage.service";
@@ -65,7 +74,79 @@ export class ReportsService {
     private readonly audit: AuditWriter,
     private readonly reputation: ReputationService,
     private readonly creditAdjustments: CreditAdjustmentPort,
+    private readonly configuration: SystemConfigurationService,
   ) {}
+
+  /** Case opened by the Session lifecycle itself; holds settlement like a user report. */
+  async openSystemSessionCase(
+    tx: TransactionContext,
+    input: {
+      sessionId: string;
+      pathId: string;
+      reasonCode: "MAKEUP_EXPIRED" | "ATTENDANCE_UNVERIFIABLE";
+      description: string;
+    },
+  ): Promise<string> {
+    const open = await tx.reportCase.findFirst({
+      where: {
+        relatedSessionId: input.sessionId,
+        reasonCode: input.reasonCode,
+        status: { in: ["OPEN", "UNDER_REVIEW", "NEED_MORE_INFO"] },
+      },
+      select: { id: true },
+    });
+    if (open) return open.id;
+    const path = await tx.learningPath.findUniqueOrThrow({
+      where: { id: input.pathId },
+    });
+    const caseId = randomUUID();
+    const blocksSettlement = path.settledAt === null;
+    await tx.reportCase.create({
+      data: {
+        id: caseId,
+        reporterId: null,
+        targetType: "SESSION",
+        targetId: input.sessionId,
+        relatedSessionId: input.sessionId,
+        relatedPathId: path.id,
+        reasonCode: input.reasonCode,
+        description: input.description,
+        status: "OPEN",
+        blocksSettlement,
+      },
+    });
+    if (blocksSettlement && path.status !== "DISPUTED")
+      await tx.learningPath.update({
+        where: { id: path.id },
+        data: { status: "DISPUTED" },
+      });
+    await this.audit.append(tx, {
+      actor: { kind: "SYSTEM", name: "session-lifecycle" },
+      action: "REPORT_CASE_UPDATE",
+      target: { type: "REPORT_CASE", id: caseId },
+      after: { status: "OPEN" },
+      reason: input.description,
+      context: { requestId: randomUUID(), correlationId: randomUUID() },
+    });
+    await tx.outboxEvent.create({
+      data: {
+        aggregateType: "REPORT_CASE",
+        aggregateId: caseId,
+        version: 1,
+        type: "report.session.opened",
+        payload: {
+          caseId,
+          pathId: path.id,
+          sessionId: input.sessionId,
+          reporterId: null,
+          blocksSettlement,
+        },
+        dedupeKey: `report-session-opened:${caseId}`,
+        correlationId: randomUUID(),
+      },
+    });
+    return caseId;
+  }
 
   upload(
     principal: Principal,
@@ -146,9 +227,7 @@ export class ReportsService {
       throw new ConflictException("DUPLICATE_REPORT_EVIDENCE");
     }
     return this.transactions.run(async (tx) => {
-      const session = await tx.session.findUnique({ where: { id: sessionId } });
-      if (!session) throw new NotFoundException("SESSION_NOT_FOUND");
-      await lockPath(tx, session.pathId);
+      const session = await lockedSession(tx, sessionId);
       const path = await tx.learningPath.findUniqueOrThrow({
         where: { id: session.pathId },
       });
@@ -175,7 +254,10 @@ export class ReportsService {
       >`SELECT CURRENT_TIMESTAMP AS now`;
       if (!(clock?.now instanceof Date))
         throw new ConflictException("DATABASE_TIME_UNAVAILABLE");
-      if (clock.now >= this.disputeDeadline(session.endAt))
+      const outcome = await currentOutcome(tx, session);
+      const disputeBy =
+        outcome?.finalizesAt ?? (await this.disputeDeadline(tx, session.endAt));
+      if (clock.now >= disputeBy)
         throw new ConflictException("DISPUTE_WINDOW_CLOSED");
       const caseId = randomUUID();
       const blocksSettlement = path.settledAt === null;
@@ -193,6 +275,11 @@ export class ReportsService {
           blocksSettlement,
         },
       });
+      if (session.status === "NO_SHOW")
+        await tx.sessionAttendanceOutcome.updateMany({
+          where: { sessionId, status: "PROVISIONAL" },
+          data: { status: "DISPUTED" },
+        });
       for (const fileId of input.evidenceFileIds) {
         const file = await this.attachments.attachReady(tx, actor, fileId, {
           type: "REPORT_EVIDENCE",
@@ -290,13 +377,24 @@ export class ReportsService {
       throw new ConflictException("SETTLEMENT_BLOCKED_BY_DISPUTE");
     const sessions = await tx.session.findMany({
       where: { pathId },
-      select: { endAt: true },
+      select: { id: true, startAt: true, endAt: true },
     });
     if (!sessions.length) throw new ConflictException("PATH_SESSIONS_MISSING");
-    const latestEnd = new Date(
-      Math.max(...sessions.map(({ endAt }) => endAt.getTime())),
+    const outcomes = await tx.sessionAttendanceOutcome.findMany({
+      where: { sessionId: { in: sessions.map(({ id }) => id) } },
+      select: { sessionId: true, occurrenceStartAt: true, finalizesAt: true },
+    });
+    const deadlines = await Promise.all(
+      sessions.map(async (session) => {
+        const outcome = outcomes.find(
+          (row) =>
+            row.sessionId === session.id &&
+            +row.occurrenceStartAt === +session.startAt,
+        );
+        return outcome?.finalizesAt ?? this.disputeDeadline(tx, session.endAt);
+      }),
     );
-    const deadline = this.disputeDeadline(latestEnd);
+    const deadline = new Date(Math.max(...deadlines.map((at) => +at)));
     if (now < deadline) throw new ConflictException("DISPUTE_WINDOW_OPEN");
   }
 
@@ -310,8 +408,22 @@ export class ReportsService {
     const note = input.note;
     this.assertResolutionAllowed(actor, action, input);
     return this.transactions.run(async (tx) => {
-      const item = await tx.reportCase.findUnique({ where: { id: caseId } });
-      if (!item) throw new NotFoundException("REPORT_CASE_NOT_FOUND");
+      const initial = await tx.reportCase.findUnique({ where: { id: caseId } });
+      if (!initial) throw new NotFoundException("REPORT_CASE_NOT_FOUND");
+      // Case effects share the same Path -> Session locks as lifecycle writers.
+      if (initial.relatedSessionId)
+        await lockedSession(tx, initial.relatedSessionId);
+      else if (initial.relatedPathId) await lockPath(tx, initial.relatedPathId);
+      const item = await tx.reportCase.findUniqueOrThrow({
+        where: { id: caseId },
+      });
+      if (item.status === "RESOLVED" || item.status === "REJECTED") {
+        const replay =
+          (action === "resolve" && item.status === "RESOLVED") ||
+          (action === "reject" && item.status === "REJECTED");
+        if (replay) return item;
+        throw new ConflictException("REPORT_CASE_CLOSED");
+      }
       const [clock] = await tx.$queryRaw<
         { now: Date }[]
       >`SELECT CURRENT_TIMESTAMP AS now`;
@@ -369,6 +481,7 @@ export class ReportsService {
       }
       if (!note?.trim())
         throw new ConflictException("RESOLUTION_NOTE_REQUIRED");
+      await this.settleSessionRuling(tx, item, action, input, clock.now);
       const resolved = await tx.reportCase.update({
         where: { id: caseId },
         data: {
@@ -385,6 +498,7 @@ export class ReportsService {
       if (action === "resolve") {
         await this.applyResolution(tx, actor, item, input, clock.now);
       }
+
       await this.emitCaseUpdated(
         tx,
         resolved.id,
@@ -424,6 +538,40 @@ export class ReportsService {
       await reconcilePathAfterReport();
       return resolved;
     });
+  }
+
+  private async settleSessionRuling(
+    tx: TransactionContext,
+    item: { id: string; relatedSessionId: string | null },
+    action: "resolve" | "reject",
+    input: ReportCaseActionDto,
+    now: Date,
+  ) {
+    if (!item.relatedSessionId) {
+      if (input.noShowRuling)
+        throw new ConflictException("NO_SHOW_RULING_NOT_APPLICABLE");
+      return;
+    }
+    const session = await tx.session.findUniqueOrThrow({
+      where: { id: item.relatedSessionId },
+      select: { id: true, startAt: true, status: true },
+    });
+    if (
+      input.violations?.some((violation) => violation.reasonCode === "NO_SHOW")
+    )
+      throw new BadRequestException("NO_SHOW_REQUIRES_ATTENDANCE_RULING");
+    if (action === "resolve" && input.noShowRuling) {
+      await applyNoShowRuling(tx, this.reputation, {
+        sessionId: item.relatedSessionId,
+        ruling: input.noShowRuling,
+        now,
+      });
+      return;
+    }
+    // Only a ruling can move a Session the lifecycle handed to Staff.
+    if (session.status === "DISPUTED")
+      throw new ConflictException("NO_SHOW_RULING_REQUIRED");
+    await releaseDisputedOutcome(tx, item.relatedSessionId, item.id);
   }
 
   private requireStaff(actor: Principal) {
@@ -472,8 +620,26 @@ export class ReportsService {
             },
           })
         : null;
+      const outcome = session
+        ? await tx.sessionAttendanceOutcome.findFirst({
+            where: {
+              sessionId: session.id,
+              occurrenceStartAt: session.startAt,
+            },
+          })
+        : null;
       const [withSizes] = withEvidenceSizeText([item]);
-      return { ...withSizes, session, path };
+      return {
+        ...withSizes,
+        session,
+        path,
+        // Attendance evidence lets Staff reconcile a no-show report without uploads.
+        attendanceOutcome: outcome && {
+          ...outcome,
+          teacherSeconds: outcome.teacherSeconds.toString(),
+          learnerSeconds: outcome.learnerSeconds.toString(),
+        },
+      };
     });
   }
 
@@ -488,6 +654,7 @@ export class ReportsService {
       restriction: input.restriction !== undefined,
       creditAdjustments: (input.creditAdjustments?.length ?? 0) > 0,
       reversals: (input.reversals?.length ?? 0) > 0,
+      noShowRuling: input.noShowRuling !== undefined,
     };
     if (action !== "resolve" && Object.values(requested).some(Boolean)) {
       throw new BadRequestException("RESOLUTION_OPTIONS_REQUIRE_RESOLVE");
@@ -630,8 +797,24 @@ export class ReportsService {
     };
   }
 
-  private disputeDeadline(sessionEndAt: Date): Date {
-    return new Date(sessionEndAt.getTime() + 48 * 60 * 60 * 1_000);
+  private async attendancePolicy(tx: TransactionContext) {
+    const { values } = await this.configuration.getSnapshot(
+      ["session.attendancePolicy"],
+      tx,
+    );
+    const policy = values["session.attendancePolicy"];
+    if (!policy)
+      throw new ServiceUnavailableException(
+        "Configuration not ready: session.attendancePolicy",
+      );
+    return policy;
+  }
+
+  private async disputeDeadline(tx: TransactionContext, sessionEndAt: Date) {
+    return hoursAfter(
+      sessionEndAt,
+      (await this.attendancePolicy(tx)).disputeWindowHours,
+    );
   }
 
   private async auditCaseAction(
@@ -655,7 +838,7 @@ export class ReportsService {
   private async emitCaseUpdated(
     tx: TransactionContext,
     caseId: string,
-    reporterId: string,
+    reporterId: string | null,
     status: string,
     pathId?: string | null,
   ) {
