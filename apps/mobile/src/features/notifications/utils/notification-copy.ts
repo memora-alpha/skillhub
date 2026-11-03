@@ -4,6 +4,12 @@ import type { InboxNotification } from "../api/notifications-api";
 // time so existing inbox entries also follow the app language. Never translate
 // user-authored reasons or replace unfamiliar content with a generic message.
 const titles: Record<string, string> = {
+  "Session attendance recorded": "Đã có kết quả điểm danh",
+  "Absence explanation received": "Có giải trình vắng học",
+  "Absence explanation decided": "Giải trình đã được phản hồi",
+  "Session no-show finalized": "Đã chốt kết quả vắng học",
+  "Session completed": "Buổi học đã hoàn thành",
+  "Makeup session overdue": "Đã quá hạn học bù",
   "New message": "Tin nhắn mới",
   "Connection update": "Cập nhật kết nối",
   "Learning request update": "Cập nhật yêu cầu học",
@@ -24,6 +30,18 @@ const titles: Record<string, string> = {
 };
 
 const bodies: Record<string, string> = {
+  "Attendance for your session has been determined. Check the session for next steps.":
+    "Xem chi tiết buổi học để kiểm tra điểm danh và thao tác tiếp theo.",
+  "Your partner explained their absence. Please accept or reject it.":
+    "Đối tác đã giải trình việc vắng học. Hãy xem và phản hồi.",
+  "Your partner responded to your absence explanation.":
+    "Đối tác đã phản hồi giải trình vắng học của bạn.",
+  "The no-show result for your session is now final.":
+    "Kết quả vắng học của buổi học đã được chốt.",
+  "The confirmation window ended and the session was completed.":
+    "Đã hết thời hạn xác nhận. Hệ thống đã ghi nhận buổi học hoàn thành.",
+  "No makeup time was agreed in time; staff will review the session.":
+    "Chưa chốt được lịch học bù trước hạn. Nhân viên sẽ xem xét buổi học.",
   "A participant sent a message.": "Một người tham gia đã gửi tin nhắn.",
   "A connection proposal has an update.":
     "Một đề nghị kết nối có cập nhật mới.",

@@ -21,6 +21,21 @@ export function notificationTarget(item: InboxNotification): Href | undefined {
     return;
   const payload = item.payload as Record<string, unknown>;
   const valid = (field: string) => uuid.safeParse(payload[field]).success;
+  if (
+    [
+      "session.attendance.determined",
+      "session.absence-excuse.submitted",
+      "session.absence-excuse.decided",
+      "session.no-show.finalized",
+      "session.completed.timeout",
+      "session.makeup.expired",
+    ].includes(item.type) &&
+    valid("sessionId")
+  )
+    return {
+      pathname: "/learning-sessions/[id]",
+      params: { id: payload.sessionId as string },
+    };
   if (item.type === "chat.message.delivered" && valid("conversationId"))
     return {
       pathname: "/chat/[proposalId]",
