@@ -14,7 +14,15 @@ export function SessionRoomEntry({
   onJoin,
 }: Readonly<{ session: LearningSession; onJoin: () => void }>) {
   const now = useSessionClock(session);
-  if (["CANCELLED", "COMPLETED", "DISPUTED"].includes(session.status))
+  if (
+    [
+      "CANCELLED",
+      "COMPLETED",
+      "DISPUTED",
+      "NO_SHOW",
+      "MAKEUP_REQUIRED",
+    ].includes(session.status)
+  )
     return null;
   const allowed = canJoinSession(session, now);
   return (

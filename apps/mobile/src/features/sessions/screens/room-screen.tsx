@@ -151,9 +151,10 @@ function SessionRoom({ id }: Readonly<{ id: string }>) {
                 {partner.data?.fullName ?? "Người trao đổi"}
               </SessionCopy>
               <SessionCopy muted>
-                Bạn có thể vào sớm tối đa 15 phút và vào lại khi mất kết nối
-                trong giờ học. Camera và micro chỉ bật khi bạn vào phòng. Cả hai
-                người vẫn cần xác nhận hoàn thành sau buổi học.
+                Bạn có thể vào phòng trong thời gian hệ thống cho phép và vào
+                lại khi mất kết nối trong giờ học. Camera và micro chỉ bật khi
+                bạn vào phòng. Cả hai người vẫn cần xác nhận hoàn thành sau buổi
+                học.
               </SessionCopy>
             </SessionPanel>
             {(ended || !!notice) && (
