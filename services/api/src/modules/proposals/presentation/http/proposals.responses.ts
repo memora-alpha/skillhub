@@ -6,6 +6,13 @@ export class ProposalResponse {
   sourceType!: string;
   @ApiProperty({ type: String, nullable: true, format: "uuid" })
   learningRequestId!: string | null;
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    description:
+      "Title retained for historical proposal parties, including closed Requests",
+  })
+  learningRequestTitle!: string | null;
   @ApiProperty({ format: "uuid" }) proposerId!: string;
   @ApiProperty({ format: "uuid" }) recipientId!: string;
   @ApiProperty({ format: "uuid" }) skillId!: string;

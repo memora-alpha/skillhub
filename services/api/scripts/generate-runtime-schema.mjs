@@ -141,6 +141,16 @@ model("Proposal", (block) =>
 `,
   ),
 );
+model("Conversation", (block) =>
+  fields(
+    block,
+    `
+  lastActivityAt DateTime @default(now()) @map("last_activity_at") @db.Timestamptz(3)
+  @@index([participantAId, lastActivityAt(sort: Desc), id(sort: Desc)], map: "conversations_participant_a_activity_idx")
+  @@index([participantBId, lastActivityAt(sort: Desc), id(sort: Desc)], map: "conversations_participant_b_activity_idx")
+`,
+  ),
+);
 // Preserve the physical enum order established by the Learning Request migration.
 schema = schema.replace(/enum LearningRequestStatus \{[\s\S]*?\n\}/, (block) =>
   block.replace(/ {2}REJECTED\r?\n {2}OPEN/, "  OPEN\n  REJECTED"),

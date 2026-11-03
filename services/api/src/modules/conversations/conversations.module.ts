@@ -1,3 +1,7 @@
+import { InboxGroupsService } from "./application/services/inbox-groups.service";
+import { InboxGroupsRepository } from "./infrastructure/persistence/inbox-groups.repository";
+import { LearningRequestInboxModule } from "../learning-requests/learning-request-inbox.module";
+import { ConversationTopicsModule } from "../proposals/conversation-topics.module";
 import { Module } from "@nestjs/common";
 import { DatabaseModule } from "../../infrastructure/database/database.module";
 import { OutboxModule } from "../../infrastructure/events/outbox.module";
@@ -15,6 +19,8 @@ import { ConversationsController } from "./presentation/http/conversations.contr
 import { ConversationMembershipReader } from "./application/services/conversation-membership.reader";
 @Module({
   imports: [
+    LearningRequestInboxModule,
+    ConversationTopicsModule,
     DatabaseModule,
     OutboxModule,
     StorageModule,
@@ -23,6 +29,8 @@ import { ConversationMembershipReader } from "./application/services/conversatio
     NotificationsModule,
   ],
   providers: [
+    InboxGroupsService,
+    InboxGroupsRepository,
     ConnectionConfig,
     ConversationLifecycleService,
     ChatRepository,

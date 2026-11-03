@@ -10,6 +10,7 @@ import {
   LEARNING_REQUEST_REPOSITORY,
   type LearningRequestRepository,
 } from "../ports/learning-request-repository";
+import { readLearningRequestInboxMetadata } from "./learning-request-inbox.reader";
 
 const startableStatuses = ["OPEN"] as const;
 
@@ -19,6 +20,13 @@ export class LearningRequestLifecycleService {
     @Inject(LEARNING_REQUEST_REPOSITORY)
     private readonly repository: LearningRequestRepository,
   ) {}
+  inboxMetadata(
+    tx: TransactionContext,
+    viewerId: string,
+    requestIds: string[],
+  ) {
+    return readLearningRequestInboxMetadata(tx, viewerId, requestIds);
+  }
   async proposalSource(tx: TransactionContext, id: string) {
     const row = await this.repository.get(tx, id);
     if (!row) throw new NotFoundException();

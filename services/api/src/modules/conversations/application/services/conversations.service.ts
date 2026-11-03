@@ -54,15 +54,27 @@ export class ConversationsService {
       ),
     );
   }
-  async list(principal: Principal, query: { limit?: number; cursor?: string }) {
+  async list(
+    principal: Principal,
+    query: { limit?: number; cursor?: string; learningRequestId?: string },
+  ) {
     const limit = query.limit ?? 20,
-      scope = cursorScope({ type: "conversations", viewer: principal.userId }),
+      scope = cursorScope({
+        type: "conversations",
+        viewer: principal.userId,
+        ...(query.learningRequestId
+          ? { requestId: query.learningRequestId }
+          : {}),
+      }),
       cursor = readCursor(query.cursor, scope);
     return this.transactions.run(async (tx) => {
       await this.actors.require(tx, principal, "conversation:read:participant");
       const result = page(
         await tx.conversation.findMany({
           where: {
+            ...(query.learningRequestId
+              ? { requestId: query.learningRequestId }
+              : {}),
             OR: [
               { participantAId: principal.userId },
               { participantBId: principal.userId },

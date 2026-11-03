@@ -675,10 +675,14 @@ model Conversation {
   participantBIdRecord              User             @relation("Conversation_participant_b_id", fields: [participantBId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   learningPathConversationIdRecords LearningPath[]   @relation("LearningPath_conversation_id")
 
+  lastActivityAt DateTime @default(now()) @map("last_activity_at") @db.Timestamptz(3)
+
   @@index([proposalId])
   @@index([requestId])
   @@index([participantAId])
   @@index([participantBId])
+  @@index([participantAId, lastActivityAt(sort: Desc), id(sort: Desc)], map: "conversations_participant_a_activity_idx")
+  @@index([participantBId, lastActivityAt(sort: Desc), id(sort: Desc)], map: "conversations_participant_b_activity_idx")
   @@map("conversations")
 }
 

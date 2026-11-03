@@ -88,6 +88,10 @@ function fixture() {
     assertConnectionParty: async () => {},
   };
   const requests = {
+    inboxMetadata: async (_tx, _viewer, ids) =>
+      new Map(
+        ids.map((id) => [id, { title: "Request title", ownerId: recipientId }]),
+      ),
     proposalSource: async () => ({ requestId, ownerId: recipientId, skillId }),
     lockForProposal: async () => ({
       requestId,
