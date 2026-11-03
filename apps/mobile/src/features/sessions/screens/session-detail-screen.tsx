@@ -23,6 +23,7 @@ import { completionSubmitPresentation } from "../utils/completion-presentation";
 import { canConfirmSession } from "../utils/session-policy";
 import { sessionErrorMessage } from "../utils/session-read";
 import { isRescheduleEligible } from "../utils/reschedule-form";
+import { SessionAttendancePanel } from "../components/session-attendance-panel";
 
 export function LearningSessionScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -117,6 +118,14 @@ export function LearningSessionScreen() {
                 />
               )}
               {session && <SessionContextPanel session={session} />}
+              {session && (
+                <SessionAttendancePanel
+                  key={session.id}
+                  session={session}
+                  now={now}
+                  disabled={query.isFetching || query.isError}
+                />
+              )}
               {action.receipt && (
                 <FormNotice tone="info">
                   Hệ thống đã ghi nhận xác nhận của bạn.
@@ -147,6 +156,8 @@ export function LearningSessionScreen() {
           {session &&
             query.valid &&
             !blocked &&
+            session.status !== "NO_SHOW" &&
+            session.status !== "MAKEUP_REQUIRED" &&
             (ended || isRescheduleEligible(session, now)) && (
               <View style={styles.footer}>
                 <View style={styles.footerInner}>

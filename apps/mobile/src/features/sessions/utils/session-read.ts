@@ -59,6 +59,16 @@ export function sessionReadState(
   return error ? "error" : "loading";
 }
 const messages: Record<string, string> = {
+  ATTENDANCE_PENDING: "Điểm danh đang được tổng hợp. Hãy tải lại sau.",
+  SESSION_ATTENDANCE_NOT_MET:
+    "Kết quả điểm danh chưa đủ điều kiện xác nhận hoàn thành.",
+  CONFIRM_WINDOW_CLOSED: "Đã hết thời hạn xác nhận hoàn thành.",
+  ABSENCE_EXCUSE_NOT_ALLOWED:
+    "Hiện không thể gửi hoặc phản hồi giải trình. Hãy tải lại trạng thái buổi học.",
+  ABSENCE_EXCUSE_EXISTS: "Giải trình đã được gửi. Tải lại để xem kết quả.",
+  ABSENCE_EXCUSE_NOT_PENDING:
+    "Giải trình đã được xử lý hoặc không còn chờ phản hồi.",
+  MAKEUP_WINDOW_CLOSED: "Đã hết hạn chốt lịch học bù.",
   LIVEKIT_DISABLED: "Phòng học chưa được máy chủ kích hoạt.",
   LIVEKIT_POLICY_NOT_READY: "Máy chủ chưa cấu hình thời gian mở phòng học.",
   JOIN_WINDOW_NOT_OPEN:
