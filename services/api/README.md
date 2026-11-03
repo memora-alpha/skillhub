@@ -9,7 +9,10 @@ No migration is needed; see [contract and cache guidance](specs/007-learning-req
 Session/LiveKit: backend có token theo participant, lifecycle, signed webhook,
 progress và dual completion. Xem [setup, policy và contract](docs/livekit-sessions.vi.md).
 Join window chưa có mặc định; thêm env nhưng chưa cấu hình policy vẫn không cấp
-token. Video UI và tổng giây attendance cần triển khai riêng.
+token. Backend ghi interval attendance, xác định no-show, timeout, excuse và học bù
+theo [spec 012](specs/012-session-no-show/spec.md). Trước rollout áp migration
+`20261029000000_session_no_show` và seed configuration. Detail chuyển sang
+`attendance`, `deadlines`, `excuse`, `allowedActions`; mobile cần cập nhật contract.
 Proposal schedule amendment (2026-10-19): `candidateSlots` in create/update/read
 is now optional free-text schedule guidance (`string | null`), matching the mobile
 `schedule` input. Null/blank clears it; omitted PATCH preserves it. Migration

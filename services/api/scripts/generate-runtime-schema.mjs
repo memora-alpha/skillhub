@@ -281,6 +281,44 @@ model("CreditOperation", (block) =>
     '  instructionDigest String? @map("instruction_digest") @db.Char(64)',
   ),
 );
+// Session no-show (spec 012): attendance evidence, deadlines and two outcome states.
+schema = schema.replace(/enum SessionStatus \{[\s\S]*?\n\}/, (block) =>
+  fields(block, "  NO_SHOW\n  MAKEUP_REQUIRED"),
+);
+model("Session", (block) =>
+  fields(
+    block,
+    `
+  teacherTokenIssuedAt DateTime? @map("teacher_token_issued_at") @db.Timestamptz(3)
+  learnerTokenIssuedAt DateTime? @map("learner_token_issued_at") @db.Timestamptz(3)
+  lastObservedAt DateTime? @map("last_observed_at") @db.Timestamptz(3)
+  observationFailedAt DateTime? @map("observation_failed_at") @db.Timestamptz(3)
+  confirmDeadlineAt DateTime? @map("confirm_deadline_at") @db.Timestamptz(3)
+  makeupDeadlineAt DateTime? @map("makeup_deadline_at") @db.Timestamptz(3)
+  attendanceIntervals SessionAttendanceInterval[] @relation("AttendanceInterval_session")
+  attendanceOutcomes SessionAttendanceOutcome[] @relation("AttendanceOutcome_session")
+  @@index([status, confirmDeadlineAt])
+  @@index([status, makeupDeadlineAt])
+`,
+  ),
+);
+model("User", (block) =>
+  fields(
+    block,
+    `
+  attendanceIntervals SessionAttendanceInterval[] @relation("AttendanceInterval_user")
+  absenceExcuses SessionAbsenceExcuse[] @relation("AbsenceExcuse_absent_user")
+  decidedAbsenceExcuses SessionAbsenceExcuse[] @relation("AbsenceExcuse_decider")
+`,
+  ),
+);
+// System-opened cases (no-show timeouts) have no human reporter.
+model("ReportCase", (block) =>
+  block
+    .replace(/\breporterId(\s+)String\b/, "reporterId$1String?")
+    .replace(/\breporterIdRecord(\s+)User\b/, "reporterIdRecord$1User?"),
+);
+
 schema = schema.replace(
   /^\/\/ Logical v3[^\r\n]*\r?\n(?:\/\/[^\r\n]*\r?\n)*\r?\n/,
   "// Runtime: v3 domain models plus implemented foundation support.\n" +

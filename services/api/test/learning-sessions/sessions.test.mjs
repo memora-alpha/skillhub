@@ -36,6 +36,12 @@ async function ready() {
 
 test("token is scoped to authenticated participant and room with bounded expiry", async () => {
   const ctx = await ready();
+  // The SDK verifies JWT expiry against wall time; keep this fixture current.
+  ctx.clock.now = new Date();
+  await ctx.db.session.update({
+    where: { id: ctx.session.id },
+    data: { startAt: ctx.clock.now, endAt: new Date(+ctx.clock.now + 3600000) },
+  });
   const one = await ctx.sessions.issueLiveKitToken(
     participant(A),
     ctx.session.id,
@@ -84,15 +90,16 @@ test("missing policy blocks token but does not break Session reads", async () =>
   );
   const detail = await ctx.sessions.detail(user(A), ctx.session.id);
   assert.equal(detail.join.reason, "LIVEKIT_POLICY_NOT_READY");
-  assert.equal(detail.attendanceStatus, "UNAVAILABLE");
+  assert.equal(detail.attendance.state, null);
   assert.equal("roomMetadata" in detail, false);
   assert.equal("participantToken" in detail, false);
-  assert.equal(detail.teacherAttendanceSeconds, "0");
+  assert.equal(detail.attendance.teacher.seconds, "0");
 });
 
 test("repeated completion preserves the first note and timestamp", async () => {
   const ctx = await ready();
-  ctx.clock.now = new Date(+ctx.session.endAt + 1000);
+  ctx.sessions.livekit = { config: { enabled: false } };
+  ctx.clock.now = new Date(+ctx.session.endAt + 11 * 60000);
   await ctx.sessions.complete(user(A), ctx.session.id, "first");
   const first = ctx.db.rows("session")[0].teacherConfirmedAt;
   ctx.clock.now = new Date(+ctx.clock.now + 10000);
@@ -163,4 +170,17 @@ test("READY does not shorten the approved 60-minute reschedule cutoff", async ()
     ctx.db.rows("session")[0].startAt.toISOString(),
     "2026-11-04T10:00:00.000Z",
   );
+});
+
+test("first token per participant stamps issuance once per occurrence", async () => {
+  const ctx = await ready();
+  await ctx.sessions.issueLiveKitToken(participant(A), ctx.session.id);
+  const first = ctx.db.rows("session")[0].teacherTokenIssuedAt;
+  assert.ok(first instanceof Date);
+  assert.equal(ctx.db.rows("session")[0].learnerTokenIssuedAt ?? null, null);
+  ctx.clock.now = new Date(+ctx.clock.now + 30000);
+  await ctx.sessions.issueLiveKitToken(participant(A), ctx.session.id);
+  assert.equal(+ctx.db.rows("session")[0].teacherTokenIssuedAt, +first);
+  await ctx.sessions.issueLiveKitToken(participant(B), ctx.session.id);
+  assert.ok(ctx.db.rows("session")[0].learnerTokenIssuedAt instanceof Date);
 });

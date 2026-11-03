@@ -6,6 +6,7 @@ import { OutboxModule } from "../../infrastructure/events/outbox.module";
 import { FcmPushSender } from "../../infrastructure/push/fcm-push-sender.adapter";
 import { VerificationsModule } from "../verifications/verifications.module";
 import { SkillNotificationHandler } from "./infrastructure/events/skill-notification.handler";
+import { SessionNotificationHandler } from "./infrastructure/events/session-notification.handler";
 import { LearningPathNotificationHandler } from "./infrastructure/events/learning-path-notification.handler";
 import { MaterialNotificationHandler } from "./infrastructure/events/material-notification.handler";
 import { LearningRequestRejectionPublisher } from "./infrastructure/events/learning-request-rejection.publisher";
@@ -25,6 +26,7 @@ import { PrismaInAppNotificationAdapter } from "./infrastructure/channels/prisma
   providers: [
     SkillNotificationHandler,
     LearningPathNotificationHandler,
+    SessionNotificationHandler,
     MaterialNotificationHandler,
     LearningRequestRejectionPublisher,
     NotificationDispatcher,

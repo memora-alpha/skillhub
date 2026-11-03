@@ -71,6 +71,7 @@ function phase3(options = {}) {
     audit,
     reputation,
     adjustments,
+    ctx.configuration,
   );
   const reviews = new ReviewsService(runner(ctx.db), reputation, achievements);
   return { ...ctx, reputation, achievements, adjustments, reports, reviews };
@@ -169,7 +170,12 @@ test("SH-081: reputation starts at 50, stays within 0-100 and every change is tr
     ],
   );
 
-  const noShow = { userId: B, sessionId: "session-1", now: ctx.clock.now };
+  const noShow = {
+    userId: B,
+    sessionId: "session-1",
+    outcomeId: "outcome-1",
+    now: ctx.clock.now,
+  };
   await ctx.reputation.applyNoShow(tx, noShow);
   await ctx.reputation.applyNoShow(tx, noShow);
   assert.equal(score(ctx.db, B), 42);

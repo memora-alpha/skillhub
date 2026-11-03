@@ -321,3 +321,121 @@ model RequestOffering {
   @@index([sharingSkillId, requestId], map: "learning_request_offerings_sharing_idx")
   @@map("learning_request_offerings")
 }
+
+enum AttendanceRole {
+  TEACHER
+  LEARNER
+}
+
+enum AttendanceCloseSource {
+  WEBHOOK
+  HEARTBEAT
+  ROOM_FINISHED
+}
+
+enum AttendanceVerdict {
+  PRESENT
+  ABSENT
+  UNVERIFIABLE
+}
+
+enum AttendanceCase {
+  BOTH_PRESENT
+  TEACHER_ABSENT
+  LEARNER_ABSENT
+  BOTH_ABSENT
+  UNVERIFIABLE
+}
+
+enum AttendanceOutcomeStatus {
+  PROVISIONAL
+  FINAL
+  EXCUSED
+  DISPUTED
+  OVERTURNED
+}
+
+enum SessionResolution {
+  COMPLETED_MUTUAL
+  COMPLETED_TIMEOUT
+  COMPLETED_LEARNER_NO_SHOW
+  COMPLETED_STAFF
+  MAKEUP_REQUIRED
+  STAFF_REVIEW
+}
+
+enum AbsenceExcuseStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  EXPIRED
+}
+
+/// One LiveKit connection (participant SID) of a Session participant.
+model SessionAttendanceInterval {
+  id             String                 @id @default(uuid()) @map("interval_id") @db.Uuid
+  sessionId      String                 @map("session_id") @db.Uuid
+  session        Session                @relation("AttendanceInterval_session", fields: [sessionId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  userId         String                 @map("user_id") @db.Uuid
+  user           User                   @relation("AttendanceInterval_user", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  role           AttendanceRole
+  roomSid        String                 @map("room_sid") @db.Text
+  participantSid String                 @map("participant_sid") @db.Text
+  joinedAt       DateTime               @map("joined_at") @db.Timestamptz(3)
+  leftAt         DateTime?              @map("left_at") @db.Timestamptz(3)
+  lastSeenAt     DateTime               @map("last_seen_at") @db.Timestamptz(3)
+  closeSource    AttendanceCloseSource? @map("close_source")
+
+  @@unique([sessionId, participantSid])
+  @@index([sessionId, userId])
+  @@index([userId])
+  @@map("session_attendance_intervals")
+}
+
+/// Attendance decision for one occurrence (startAt) of a Session; a makeup creates a new row.
+model SessionAttendanceOutcome {
+  id                   String                  @id @default(uuid()) @map("outcome_id") @db.Uuid
+  sessionId            String                  @map("session_id") @db.Uuid
+  session              Session                 @relation("AttendanceOutcome_session", fields: [sessionId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  occurrenceStartAt    DateTime                @map("occurrence_start_at") @db.Timestamptz(3)
+  occurrenceEndAt      DateTime                @map("occurrence_end_at") @db.Timestamptz(3)
+  teacherVerdict       AttendanceVerdict       @map("teacher_verdict")
+  learnerVerdict       AttendanceVerdict       @map("learner_verdict")
+  teacherLate          Boolean                 @map("teacher_late")
+  learnerLate          Boolean                 @map("learner_late")
+  teacherSeconds       BigInt                  @map("teacher_seconds")
+  learnerSeconds       BigInt                  @map("learner_seconds")
+  teacherFirstJoinedAt DateTime?               @map("teacher_first_joined_at") @db.Timestamptz(3)
+  learnerFirstJoinedAt DateTime?               @map("learner_first_joined_at") @db.Timestamptz(3)
+  attendanceCase       AttendanceCase          @map("attendance_case")
+  status               AttendanceOutcomeStatus
+  resolution           SessionResolution?
+  determinedAt         DateTime                @map("determined_at") @db.Timestamptz(3)
+  finalizesAt          DateTime                @map("finalizes_at") @db.Timestamptz(3)
+  finalizedAt          DateTime?               @map("finalized_at") @db.Timestamptz(3)
+  evidence             Json
+  excuse               SessionAbsenceExcuse?
+
+  @@unique([sessionId, occurrenceStartAt])
+  @@index([status, finalizesAt])
+  @@map("session_attendance_outcomes")
+}
+
+model SessionAbsenceExcuse {
+  id              String                   @id @default(uuid()) @map("excuse_id") @db.Uuid
+  outcomeId       String                   @unique @map("outcome_id") @db.Uuid
+  outcome         SessionAttendanceOutcome @relation(fields: [outcomeId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  absentUserId    String                   @map("absent_user_id") @db.Uuid
+  absentUser      User                     @relation("AbsenceExcuse_absent_user", fields: [absentUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  reason          String                   @db.VarChar(1000)
+  status          AbsenceExcuseStatus      @default(PENDING)
+  decidedByUserId String?                  @map("decided_by_user_id") @db.Uuid
+  decidedBy       User?                    @relation("AbsenceExcuse_decider", fields: [decidedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  decidedAt       DateTime?                @map("decided_at") @db.Timestamptz(3)
+  decisionNote    String?                  @map("decision_note") @db.VarChar(1000)
+  createdAt       DateTime                 @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([absentUserId])
+  @@index([decidedByUserId])
+  @@map("session_absence_excuses")
+}

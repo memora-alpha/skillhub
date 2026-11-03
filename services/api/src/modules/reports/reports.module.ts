@@ -1,3 +1,4 @@
+import { SystemConfigurationModule } from "../system-configuration/system-configuration.module";
 import { Module } from "@nestjs/common";
 import { DatabaseModule } from "../../infrastructure/database/database.module";
 import { AuditModule } from "../audit/audit.module";
@@ -16,6 +17,7 @@ import { ReportsService } from "./application/services/reports.service";
     AuditModule,
     ReputationModule,
     CreditModule,
+    SystemConfigurationModule,
   ],
   controllers: [ReportsController],
   providers: [ReportsService],

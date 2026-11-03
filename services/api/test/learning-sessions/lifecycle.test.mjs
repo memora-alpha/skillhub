@@ -44,8 +44,8 @@ test("verified participant observation advances lifecycle, duplicates do not con
   assert.equal(row.teacherConfirmationStatus, null);
   assert.equal(row.providerRoomId, "RM_test");
   assert.equal(
-    (await ctx.sessions.detail(user(B), row.id)).attendanceStatus,
-    "UNAVAILABLE",
+    (await ctx.sessions.detail(user(B), row.id)).attendance.state,
+    null,
   );
 });
 
@@ -172,4 +172,54 @@ test("delayed activity from before an overlapping reschedule is ignored", async 
     createdAt: BigInt(Math.floor(+occurred / 1000)),
   });
   assert.equal(ctx.db.rows("session")[0].providerRoomId, null);
+});
+
+const withSid = (event, sid, createdAt = event.createdAt) => ({
+  ...event,
+  createdAt,
+  participant: { ...event.participant, sid },
+});
+
+test("webhook intervals: duplicates, reconnects and out-of-order left", async () => {
+  const ctx = await activeSession();
+  const t0 = ctx.event.createdAt;
+  const joined = withSid(ctx.event, "PA_1");
+  await ctx.sessions.applyLiveKitActivity(ctx.db, joined);
+  await ctx.sessions.applyLiveKitActivity(ctx.db, joined);
+  ctx.clock.now = new Date(+ctx.clock.now + 600000);
+  await ctx.sessions.applyLiveKitActivity(ctx.db, {
+    ...withSid(ctx.event, "PA_1", t0 + 300n),
+    event: "participant_left",
+  });
+  // Reconnect: left arrives before its joined.
+  await ctx.sessions.applyLiveKitActivity(ctx.db, {
+    ...withSid(ctx.event, "PA_2", t0 + 500n),
+    event: "participant_left",
+  });
+  await ctx.sessions.applyLiveKitActivity(
+    ctx.db,
+    withSid(ctx.event, "PA_2", t0 + 360n),
+  );
+  const rows = ctx.db.rows("sessionAttendanceInterval");
+  assert.equal(rows.length, 2);
+  const [first, second] = rows;
+  assert.equal(first.role, "TEACHER");
+  assert.equal((+first.leftAt - +first.joinedAt) / 1000, 300);
+  assert.equal((+second.leftAt - +second.joinedAt) / 1000, 140);
+});
+
+test("room_finished closes open intervals without changing status", async () => {
+  const ctx = await activeSession();
+  await ctx.sessions.applyLiveKitActivity(ctx.db, withSid(ctx.event, "PA_1"));
+  ctx.clock.now = new Date(+ctx.clock.now + 60000);
+  await ctx.sessions.applyLiveKitActivity(ctx.db, {
+    ...ctx.event,
+    event: "room_finished",
+    participant: undefined,
+    createdAt: ctx.event.createdAt + 60n,
+  });
+  const [interval] = ctx.db.rows("sessionAttendanceInterval");
+  assert.equal(interval.closeSource, "ROOM_FINISHED");
+  assert.equal((+interval.leftAt - +interval.joinedAt) / 1000, 60);
+  assert.equal(ctx.db.rows("session")[0].status, "ONGOING");
 });

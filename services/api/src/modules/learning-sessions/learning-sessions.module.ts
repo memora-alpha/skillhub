@@ -1,3 +1,4 @@
+import { SessionOutcomeService } from "./application/services/session-outcome.service";
 import { Module } from "@nestjs/common";
 import { DatabaseModule } from "../../infrastructure/database/database.module";
 import { IdentityModule } from "../identity.module";
@@ -30,6 +31,7 @@ import { LearningPathRequestStateModule } from "../learning-paths/learning-path-
   controllers: [LearningSessionsController, LiveKitWebhookController],
   providers: [
     LearningSessionsService,
+    SessionOutcomeService,
     LiveKitService,
     SessionLifecycleWorker,
     SessionCompletionHandler,

@@ -4,6 +4,14 @@ import { test } from "node:test";
 import { LearningSessionsService } from "../dist/modules/learning-sessions/application/services/learning-sessions.service.js";
 import { ReportsService } from "../dist/modules/reports/application/services/reports.service.js";
 
+import {
+  setup,
+  finalizedOneWay,
+  user,
+  A,
+  B,
+} from "./learning-platform/fixtures.mjs";
+
 const userA = "0a0a0a0a-0000-4000-8000-00000000000a";
 const userB = "0b0b0b0b-0000-4000-8000-00000000000b";
 
@@ -33,28 +41,31 @@ function sessionsService({ tx = {}, db = {} }) {
 }
 
 test("session detail returns attendance seconds as strings", async () => {
-  const session = {
-    id: "session",
-    teacherId: userA,
-    learnerId: userB,
-    pathId: "path",
-    planId: "plan",
-    status: "CONFIRMED",
-    startAt: new Date("2026-11-02T03:00:00Z"),
-    endAt: new Date("2026-11-02T04:00:00Z"),
-    teacherAttendanceSeconds: 3600n,
-    learnerAttendanceSeconds: 0n,
-  };
-  const service = sessionsService({
-    db: {
-      session: { findUnique: () => session, findMany: () => [] },
-      learningPath: { findUniqueOrThrow: () => ({ lockedVersion: null }) },
-    },
+  const ctx = setup({ wallets: { [B]: 10000n } });
+  const { session } = await finalizedOneWay(ctx);
+  ctx.db.seed("sessionAttendanceOutcome", {
+    sessionId: session.id,
+    occurrenceStartAt: session.startAt,
+    occurrenceEndAt: session.endAt,
+    attendanceCase: "BOTH_PRESENT",
+    status: "FINAL",
+    resolution: null,
+    teacherVerdict: "PRESENT",
+    learnerVerdict: "PRESENT",
+    teacherLate: false,
+    learnerLate: false,
+    teacherSeconds: 3600n,
+    learnerSeconds: 3600n,
+    teacherFirstJoinedAt: session.startAt,
+    learnerFirstJoinedAt: session.startAt,
+    determinedAt: new Date(+session.endAt + 600000),
+    finalizesAt: new Date(+session.endAt + 48 * 3600000),
+    evidence: {},
   });
-  const result = await service.detail({ userId: userB }, "session");
-
-  assert.equal(result.teacherAttendanceSeconds, "3600");
-  assert.equal(result.learnerAttendanceSeconds, "0");
+  const result = await ctx.sessions.detail(user(A), session.id);
+  assert.equal(result.attendance.teacher.seconds, "3600");
+  assert.equal(result.attendance.learner.seconds, "3600");
+  assert.equal("teacherAttendanceSeconds" in result, false);
   assert.doesNotThrow(() => JSON.stringify(result));
 });
 
@@ -98,7 +109,19 @@ test("report lists return evidence sizes as strings", async () => {
     },
   ];
   const tx = { reportCase: { findMany: () => cases } };
-  const service = new ReportsService({ run: (work) => work(tx) }, {}, {}, {});
+  const service = new ReportsService(
+    { run: (work) => work(tx) },
+    {},
+    {},
+    {},
+    undefined,
+    undefined,
+    {
+      getSnapshot: async () => ({
+        values: { "session.attendancePolicy": { disputeWindowHours: 48 } },
+      }),
+    },
+  );
   const staff = {
     userId: userA,
     roles: ["STAFF"],

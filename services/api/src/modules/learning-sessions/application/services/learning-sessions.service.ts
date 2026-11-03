@@ -7,7 +7,23 @@ import {
   NotFoundException,
   ServiceUnavailableException,
 } from "@nestjs/common";
-import { randomUUID } from "node:crypto";
+import {
+  databaseNow,
+  loadAttendanceContext,
+  lockedSession,
+} from "./session-tx";
+import {
+  completeSession,
+  currentOutcome,
+  determineOutcome,
+} from "./session-transitions";
+import { sessionAttendanceView } from "../../domain/attendance-view";
+import { isAbsentCase } from "../../domain/attendance.policy";
+import {
+  INACTIVE_SESSION_STATUSES,
+  closeOpenIntervals,
+  recordParticipantEvent,
+} from "./session-attendance";
 import { CLOCK, type Clock } from "../../../../shared/time/clock";
 import { parseAbsoluteTimestamp } from "../../../../shared/time/timestamp.policy";
 import { SystemConfigurationService } from "../../../system-configuration/application/services/system-configuration.service";
@@ -25,6 +41,7 @@ import {
 import type {
   Session,
   LearningPath,
+  Prisma,
 } from "../../../../generated/prisma/client";
 import type { WebhookEvent } from "livekit-server-sdk";
 import { PrismaService } from "../../../../infrastructure/database/prisma.service";
@@ -39,17 +56,7 @@ import { AchievementsService } from "../../../reputation/application/services/ac
 import { ReportsService } from "../../../reports/application/services/reports.service";
 import { LearningRequestLifecycleService } from "../../../learning-requests/application/services/learning-request-lifecycle.service";
 import { LearningRequestPathReader } from "../../../learning-paths/application/services/learning-request-path.reader";
-import {
-  lockLearningPath as lockPath,
-  lockLearningPathLifecycle,
-} from "../../../learning-paths/application/services/learning-path-lock";
-
-async function lockSession(tx: TransactionContext, sessionId: string) {
-  const rows = await tx.$queryRaw<{ id: string }[]>`
-    SELECT session_id AS id FROM sessions WHERE session_id = ${sessionId}::uuid FOR UPDATE
-  `;
-  if (rows.length === 0) throw new NotFoundException("SESSION_NOT_FOUND");
-}
+import { lockLearningPathLifecycle } from "../../../learning-paths/application/services/learning-path-lock";
 
 /** First join moves earlier and last leave moves later; other activity is ignored. */
 function participantActivityData(
@@ -89,6 +96,12 @@ function confirmationData(isTeacher: boolean, now: Date, note: string) {
         learnerConfirmationNote: note,
       };
 }
+
+const TRACKED_LIVEKIT_EVENTS = new Set([
+  "participant_joined",
+  "participant_left",
+  "room_finished",
+]);
 
 @Injectable()
 export class LearningSessionsService {
@@ -132,12 +145,13 @@ export class LearningSessionsService {
       throw new ForbiddenException("SESSION_ACCESS_DENIED");
   }
 
-  private async lockedSession(tx: TransactionContext, sessionId: string) {
-    const initial = await tx.session.findUnique({ where: { id: sessionId } });
-    if (!initial) throw new NotFoundException("SESSION_NOT_FOUND");
-    await lockPath(tx, initial.pathId);
-    await lockSession(tx, sessionId);
-    return tx.session.findUniqueOrThrow({ where: { id: sessionId } });
+  private async authorizeSession(actor: Principal, sessionId: string) {
+    const session = await this.db.session.findUnique({
+      where: { id: sessionId },
+      select: { teacherId: true, learnerId: true },
+    });
+    if (!session) throw new NotFoundException("SESSION_NOT_FOUND");
+    this.assertParticipant(actor, session);
   }
 
   async issueLiveKitToken(
@@ -147,7 +161,7 @@ export class LearningSessionsService {
     if (!actor.permissions.includes("livekit-token:issue:participant"))
       throw new ForbiddenException("SESSION_ACCESS_DENIED");
     return this.transactions.run(async (tx) => {
-      const session = await this.lockedSession(tx, sessionId);
+      const session = await lockedSession(tx, sessionId);
       this.assertParticipant(actor, session);
       const path = await tx.learningPath.findUniqueOrThrow({
         where: { id: session.pathId },
@@ -188,11 +202,17 @@ export class LearningSessionsService {
       );
       if (+expiresAt <= +clock.now)
         throw new ConflictException("JOIN_WINDOW_CLOSED");
-      if (!session.roomName)
-        await tx.session.update({
-          where: { id: session.id },
-          data: { roomName },
-        });
+      // First issuance per occurrence is the server-side proof a participant could join.
+      const data: Prisma.SessionUpdateInput = {};
+      if (!session.roomName) data.roomName = roomName;
+      if (actor.userId === session.teacherId) {
+        if (!session.teacherTokenIssuedAt)
+          data.teacherTokenIssuedAt = clock.now;
+      } else if (!session.learnerTokenIssuedAt) {
+        data.learnerTokenIssuedAt = clock.now;
+      }
+      if (Object.keys(data).length)
+        await tx.session.update({ where: { id: session.id }, data });
       const participantToken = await this.livekit.issueParticipantToken({
         roomName,
         identity: participantIdentity,
@@ -208,6 +228,66 @@ export class LearningSessionsService {
         joinClosesAt: access.closesAt,
       };
     });
+  }
+
+  private async attendanceInputs(
+    actorId: string,
+    sessions: { id: string; startAt: Date; pathId: string }[],
+  ) {
+    const ids = sessions.map(({ id }) => id);
+    const paths = await this.db.learningPath.findMany({
+      where: { id: { in: [...new Set(sessions.map(({ pathId }) => pathId))] } },
+      select: { id: true, status: true },
+    });
+    const outcomes = (
+      await this.db.sessionAttendanceOutcome.findMany({
+        where: { sessionId: { in: ids } },
+      })
+    ).filter((row) =>
+      sessions.some(
+        (s) => s.id === row.sessionId && +s.startAt === +row.occurrenceStartAt,
+      ),
+    );
+    const excuses = await this.db.sessionAbsenceExcuse.findMany({
+      where: { outcomeId: { in: outcomes.map(({ id }) => id) } },
+      select: {
+        outcomeId: true,
+        status: true,
+        reason: true,
+        absentUserId: true,
+      },
+    });
+    const reports = await this.db.reportCase.findMany({
+      where: {
+        reporterId: actorId,
+        relatedSessionId: { in: ids },
+        status: { in: ["OPEN", "UNDER_REVIEW", "NEED_MORE_INFO"] },
+      },
+      select: { relatedSessionId: true },
+    });
+    return (sessionId: string) => {
+      const outcome =
+        outcomes.find((row) => row.sessionId === sessionId) ?? null;
+      const excuse = outcome
+        ? excuses.find((row) => row.outcomeId === outcome.id)
+        : undefined;
+      return {
+        outcome,
+        excuse: excuse
+          ? {
+              status: excuse.status,
+              reason: excuse.reason,
+              absentUserId: excuse.absentUserId,
+            }
+          : null,
+        reportOpen: reports.some((row) => row.relatedSessionId === sessionId),
+        pathBlocked: !paths.some(
+          (path) =>
+            path.id === sessions.find((row) => row.id === sessionId)?.pathId &&
+            ["SCHEDULED", "ACTIVE"].includes(path.status),
+        ),
+      };
+    };
   }
 
   async mine(actor: Principal, from?: string, to?: string) {
@@ -245,46 +325,86 @@ export class LearningSessionsService {
         status: true,
         teacherConfirmationStatus: true,
         learnerConfirmationStatus: true,
+        teacherFirstJoinedAt: true,
+        learnerFirstJoinedAt: true,
+        confirmDeadlineAt: true,
+        makeupDeadlineAt: true,
       },
     });
     const policy = await this.joinPolicy();
     const now = this.clock.now();
-    return sessions.map((session) => ({
-      ...session,
-      status: sessionStatusAt(session, now, policy),
-      join: sessionJoinAccess(
-        session,
-        now,
-        policy,
-        this.livekit.config.enabled,
-      ),
-      role: actor.userId === session.teacherId ? "TEACHER" : "LEARNER",
-    }));
+    const inputsFor = await this.attendanceInputs(actor.userId, sessions);
+    return sessions.map(
+      ({
+        teacherFirstJoinedAt,
+        learnerFirstJoinedAt,
+        confirmDeadlineAt,
+        makeupDeadlineAt,
+        ...session
+      }) => {
+        const status = sessionStatusAt(session, now, policy);
+        const join = sessionJoinAccess(
+          session,
+          now,
+          policy,
+          this.livekit.config.enabled,
+        );
+        const view = sessionAttendanceView({
+          actorId: actor.userId,
+          now,
+          canJoin: join.canJoin,
+          session: {
+            ...session,
+            status,
+            teacherFirstJoinedAt,
+            learnerFirstJoinedAt,
+            confirmDeadlineAt,
+            makeupDeadlineAt,
+          },
+          ...inputsFor(session.id),
+        });
+        return {
+          ...session,
+          status,
+          join,
+          role: actor.userId === session.teacherId ? "TEACHER" : "LEARNER",
+          attendance: { state: view.attendance.state },
+          allowedActions: view.allowedActions,
+        };
+      },
+    );
   }
 
   async detail(actor: Principal, sessionId: string) {
-    const session = await this.db.session.findUnique({
+    await this.authorizeSession(actor, sessionId);
+    // Reads may materialise a due outcome so clients never wait for the worker.
+    await this.ensureDetermined(sessionId);
+    const session = await this.db.session.findUniqueOrThrow({
       where: { id: sessionId },
       select: sessionReadSelect,
     });
-    if (!session) throw new NotFoundException("SESSION_NOT_FOUND");
-    this.assertParticipant(actor, session);
     const policy = await this.joinPolicy();
     const now = this.clock.now();
+    const join = sessionJoinAccess(
+      session,
+      now,
+      policy,
+      this.livekit.config.enabled,
+    );
+    const status = sessionStatusAt(session, now, policy);
     return {
       ...session,
-      status: sessionStatusAt(session, now, policy),
+      status,
       role: actor.userId === session.teacherId ? "TEACHER" : "LEARNER",
-      join: sessionJoinAccess(
-        session,
-        now,
-        policy,
-        this.livekit.config.enabled,
-      ),
+      join,
       progress: await this.progress(session.pathId, session.planId),
-      attendanceStatus: "UNAVAILABLE" as const,
-      teacherAttendanceSeconds: session.teacherAttendanceSeconds.toString(),
-      learnerAttendanceSeconds: session.learnerAttendanceSeconds.toString(),
+      ...sessionAttendanceView({
+        actorId: actor.userId,
+        now,
+        canJoin: join.canJoin,
+        session: { ...session, status },
+        ...(await this.attendanceInputs(actor.userId, [session]))(session.id),
+      }),
     };
   }
 
@@ -320,22 +440,18 @@ export class LearningSessionsService {
   }
 
   async applyLiveKitActivity(tx: TransactionContext, event: WebhookEvent) {
-    if (
-      !event.room?.name ||
-      !["participant_joined", "participant_left"].includes(event.event)
-    )
-      return;
+    if (!event.room?.name || !TRACKED_LIVEKIT_EVENTS.has(event.event)) return;
     const initial = await tx.session.findUnique({
       where: { roomName: event.room.name },
     });
     if (!initial) return;
-    const session = await this.lockedSession(tx, initial.id);
+    const session = await lockedSession(tx, initial.id);
     const path = await tx.learningPath.findUniqueOrThrow({
       where: { id: session.pathId },
     });
     if (
       !["SCHEDULED", "ACTIVE"].includes(path.status) ||
-      ["CANCELLED", "COMPLETED", "DISPUTED"].includes(session.status)
+      INACTIVE_SESSION_STATUSES.includes(session.status)
     )
       return;
     if (
@@ -343,23 +459,13 @@ export class LearningSessionsService {
       (session.providerRoomId && session.providerRoomId !== event.room.sid)
     )
       return;
-    const isTeacher =
-      event.participant?.identity ===
-      sessionParticipantIdentity(session.id, session.teacherId);
-    const isLearner =
-      event.participant?.identity ===
-      sessionParticipantIdentity(session.id, session.learnerId);
-    if (!isTeacher && !isLearner) return;
-    const [clock] = await tx.$queryRaw<
-      { now: Date }[]
-    >`SELECT CURRENT_TIMESTAMP AS now`;
-    if (!(clock?.now instanceof Date))
-      throw new ServiceUnavailableException("DATABASE_TIME_UNAVAILABLE");
+    const now = await databaseNow(tx);
     const policy = await this.joinPolicy(tx);
     if (!policy) return;
     const providerAt = new Date(Number(event.createdAt) * 1000);
     // Bound provider clock skew; join windows and state transitions still use DB time.
-    const occurredAt = new Date(Math.min(+providerAt, +clock.now));
+    const occurredAt = new Date(Math.min(+providerAt, +now));
+    if (!Number.isFinite(+occurredAt)) return;
     const schedule = await tx.sessionScheduleHistory.findFirst({
       where: { sessionId: session.id, supersededAt: null },
       orderBy: { appliedAt: "desc" },
@@ -367,21 +473,42 @@ export class LearningSessionsService {
     // Provider createdAt has whole-second precision, including events in the apply second.
     if (schedule && +providerAt < Math.floor(+schedule.appliedAt / 1000) * 1000)
       return;
-    const window = sessionJoinAccess(session, occurredAt, policy, true);
-    if (!Number.isFinite(+occurredAt) || !window.canJoin) return;
     // Roll back the receipt so provider clock skew cannot permanently discard activity.
-    if (+providerAt - +clock.now > 5000)
+    if (+providerAt - +now > 5000)
       throw new ServiceUnavailableException("LIVEKIT_EVENT_NOT_YET_CURRENT");
+    if (event.event === "room_finished") {
+      await closeOpenIntervals(tx, session.id, occurredAt, "ROOM_FINISHED");
+      return;
+    }
+    const identity = event.participant?.identity;
+    const isTeacher =
+      identity === sessionParticipantIdentity(session.id, session.teacherId);
+    const isLearner =
+      identity === sessionParticipantIdentity(session.id, session.learnerId);
+    if (!isTeacher && !isLearner) return;
+    if (!sessionJoinAccess(session, occurredAt, policy, true).canJoin) return;
     const joined = event.event === "participant_joined";
-    let status = sessionStatusAt(session, clock.now, policy);
-    if (joined && occurredAt >= session.startAt && clock.now < session.endAt)
+    let status = sessionStatusAt(session, now, policy);
+    if (joined && occurredAt >= session.startAt && now < session.endAt)
       status = "ONGOING";
-    const data = {
-      status,
-      providerRoomId: event.room.sid,
-      ...participantActivityData(session, isTeacher, joined, occurredAt),
-    } as import("../../../../generated/prisma/client").Prisma.SessionUpdateInput;
-    await tx.session.update({ where: { id: session.id }, data });
+    await tx.session.update({
+      where: { id: session.id },
+      data: {
+        status,
+        providerRoomId: event.room.sid,
+        ...participantActivityData(session, isTeacher, joined, occurredAt),
+      },
+    });
+    if (event.participant?.sid)
+      await recordParticipantEvent(tx, {
+        sessionId: session.id,
+        userId: isTeacher ? session.teacherId : session.learnerId,
+        role: isTeacher ? "TEACHER" : "LEARNER",
+        roomSid: event.room.sid,
+        participantSid: event.participant.sid,
+        joined,
+        occurredAt,
+      });
   }
 
   async reconcileLiveKitRoom(event: WebhookEvent) {
@@ -414,7 +541,7 @@ export class LearningSessionsService {
     observation: { roomSid: string; identities: string[] } | null,
   ) {
     return this.transactions.run(async (tx) => {
-      const session = await this.lockedSession(tx, expected.id);
+      const session = await lockedSession(tx, expected.id);
       // A provider response fetched outside the transaction may belong to the old schedule.
       if (
         +session.startAt !== +expected.startAt ||
@@ -428,7 +555,7 @@ export class LearningSessionsService {
       });
       if (
         !["SCHEDULED", "ACTIVE"].includes(path.status) ||
-        ["CANCELLED", "COMPLETED", "DISPUTED"].includes(session.status)
+        INACTIVE_SESSION_STATUSES.includes(session.status)
       )
         return;
       const [clock] = await tx.$queryRaw<
@@ -460,58 +587,67 @@ export class LearningSessionsService {
     });
   }
 
-  complete(actor: Principal, sessionId: string, note: string) {
+  /** Materialises the occurrence outcome when due; a no-op before Td or without policy. */
+  async ensureDetermined(sessionId: string) {
+    await this.transactions.run(async (tx) => {
+      const session = await lockedSession(tx, sessionId);
+      const context = await loadAttendanceContext(
+        this.configuration,
+        this.livekit.config.enabled,
+        tx,
+      );
+      if (context)
+        await determineOutcome(tx, session, await databaseNow(tx), context);
+    });
+  }
+
+  async complete(actor: Principal, sessionId: string, note: string) {
+    await this.authorizeSession(actor, sessionId);
+    // Own transaction: a rejected confirm must not roll the determination back.
+    await this.ensureDetermined(sessionId);
     return this.transactions.run(async (tx) => {
-      const initial = await tx.session.findUnique({ where: { id: sessionId } });
-      if (!initial) throw new NotFoundException("SESSION_NOT_FOUND");
-      await lockPath(tx, initial.pathId);
-      await lockSession(tx, sessionId);
-      const session = await tx.session.findUniqueOrThrow({
-        where: { id: sessionId },
-      });
+      const session = await lockedSession(tx, sessionId);
       const path = await tx.learningPath.findUniqueOrThrow({
         where: { id: session.pathId },
       });
       if (path.status === "DISPUTED")
         throw new ConflictException("SESSION_BLOCKED_BY_DISPUTE");
       const isTeacher = actor.userId === session.teacherId;
-      if (!isTeacher && actor.userId !== session.learnerId) {
+      if (!isTeacher && actor.userId !== session.learnerId)
         throw new ForbiddenException("SESSION_ACCESS_DENIED");
-      }
-      if (session.status === "COMPLETED") {
+      if (session.status === "COMPLETED")
         return { id: sessionId, status: session.status };
-      }
-      if (["CANCELLED", "DISPUTED"].includes(session.status)) {
+      if (["CANCELLED", "DISPUTED", "MAKEUP_REQUIRED"].includes(session.status))
         throw new ConflictException("SESSION_CANNOT_BE_COMPLETED");
-      }
-      const [clock] = await tx.$queryRaw<{ now: Date }[]>`
-        SELECT CURRENT_TIMESTAMP AS now
-      `;
-      if (!(clock?.now instanceof Date) || session.endAt > clock.now) {
-        throw new ConflictException("SESSION_NOT_ENDED");
-      }
+      const now = await databaseNow(tx);
+      if (session.endAt > now) throw new ConflictException("SESSION_NOT_ENDED");
+      const outcome = await currentOutcome(tx, session);
+      if (!outcome) throw new ConflictException("ATTENDANCE_PENDING");
+      if (isAbsentCase(outcome.attendanceCase))
+        throw new ConflictException("SESSION_ATTENDANCE_NOT_MET");
       if (
         (isTeacher
           ? session.teacherConfirmationStatus
           : session.learnerConfirmationStatus) === "CONFIRMED"
       )
         return { id: sessionId, status: session.status };
-      const nextTeacherConfirmation = isTeacher
-        ? "CONFIRMED"
-        : session.teacherConfirmationStatus;
-      const nextLearnerConfirmation = isTeacher
-        ? session.learnerConfirmationStatus
-        : "CONFIRMED";
-      const completed =
-        nextTeacherConfirmation === "CONFIRMED" &&
-        nextLearnerConfirmation === "CONFIRMED";
-      const status = completed ? "COMPLETED" : "AWAITING_CONFIRMATION";
+      if (session.confirmDeadlineAt && now >= session.confirmDeadlineAt)
+        throw new ConflictException("CONFIRM_WINDOW_CLOSED");
+      const otherConfirmed =
+        (isTeacher
+          ? session.learnerConfirmationStatus
+          : session.teacherConfirmationStatus) === "CONFIRMED";
       await tx.session.update({
         where: { id: sessionId },
-        data: { status, ...confirmationData(isTeacher, clock.now, note) },
+        data: {
+          status: "AWAITING_CONFIRMATION",
+          ...confirmationData(isTeacher, now, note),
+        },
       });
-      if (completed) await this.refreshPathStatus(tx, session.pathId);
-      return { id: sessionId, status };
+      if (!otherConfirmed)
+        return { id: sessionId, status: "AWAITING_CONFIRMATION" as const };
+      await completeSession(tx, session, outcome, "COMPLETED_MUTUAL", now);
+      return { id: sessionId, status: "COMPLETED" as const };
     });
   }
 
@@ -653,30 +789,6 @@ export class LearningSessionsService {
         path.lockedVersion === null
       )
         throw new ConflictException("REQUEST_LIFECYCLE_INCONSISTENT");
-    }
-  }
-
-  private async refreshPathStatus(tx: TransactionContext, pathId: string) {
-    const remaining = await tx.session.count({
-      where: { pathId, status: { not: "COMPLETED" } },
-    });
-    if (remaining === 0) {
-      const path = await tx.learningPath.update({
-        where: { id: pathId },
-        data: { status: "ACTIVE" },
-      });
-      await tx.outboxEvent.create({
-        data: {
-          eventId: randomUUID(),
-          correlationId: randomUUID(),
-          aggregateType: "LEARNING_PATH",
-          aggregateId: pathId,
-          type: "learning-path.sessions-completed",
-          version: 1,
-          dedupeKey: `path.sessions-completed:${pathId}:${path.lockedVersion}`,
-          payload: { pathId, lockedVersion: path.lockedVersion },
-        },
-      });
     }
   }
 }

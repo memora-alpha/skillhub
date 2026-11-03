@@ -13,11 +13,14 @@ import { AccessToken } from "livekit-server-sdk";
 import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
 import { SessionsService } from "../../dist/modules/auth/application/services/sessions.service.js";
 import { IdentityGuard } from "../../dist/shared/auth/identity.guard.js";
+import { SessionOutcomeService } from "../../dist/modules/learning-sessions/application/services/session-outcome.service.js";
 import { LearningSessionsService } from "../../dist/modules/learning-sessions/application/services/learning-sessions.service.js";
 import { LearningSessionsController } from "../../dist/modules/learning-sessions/presentation/http/learning-sessions.controller.js";
 import { LiveKitWebhookController } from "../../dist/modules/learning-sessions/presentation/http/livekit-webhook.controller.js";
 import { LiveKitService } from "../../dist/modules/learning-sessions/infrastructure/livekit/livekit.service.js";
 import { OutboxConsumer } from "../../dist/infrastructure/events/outbox-consumer.js";
+import { ReportsService } from "../../dist/modules/reports/application/services/reports.service.js";
+import { runner } from "../learning-platform/fake-db.mjs";
 import { HttpExceptionFilter } from "../../dist/shared/http/http-exception.filter.js";
 import {
   finalizedOneWay,
@@ -47,9 +50,23 @@ test("HTTP token auth/validation/no-store and raw signed webhook ingress", async
   );
   ctx.sessions.livekit = livekit;
   const consumer = fakeOutboxConsumer(ctx.db);
+  const outcomes = new SessionOutcomeService(
+    runner(ctx.db),
+    {},
+    new ReportsService(
+      runner(ctx.db),
+      {},
+      {},
+      { append: async () => {} },
+      {},
+      {},
+      ctx.configuration,
+    ),
+  );
   const module = await Test.createTestingModule({
     controllers: [LearningSessionsController, LiveKitWebhookController],
     providers: [
+      { provide: SessionOutcomeService, useValue: outcomes },
       IdentityGuard,
       {
         provide: SessionsService,
@@ -182,6 +199,62 @@ test("HTTP token auth/validation/no-store and raw signed webhook ingress", async
     assert.equal((await deliver(future, farFutureAuth)).status, 204);
     assert.equal(consumer.receipts.size, 4);
     assert.equal((await deliver("{", auth)).status, 400);
+
+    // Exercise both excuse routes through the real controller, validator and services.
+    await ctx.db.session.update({
+      where: { id: session.id },
+      data: { lastObservedAt: new Date(+session.startAt + 30 * 60000) },
+    });
+    ctx.db.seed("sessionAttendanceInterval", {
+      sessionId: session.id,
+      userId: A,
+      role: "TEACHER",
+      roomSid: "RM_http",
+      participantSid: "PA_http_teacher",
+      joinedAt: session.startAt,
+      leftAt: session.endAt,
+      lastSeenAt: session.endAt,
+    });
+    ctx.clock.now = new Date(+session.endAt + 21 * 60000);
+    await ctx.sessions.ensureDetermined(session.id);
+    const excuse = (token, body, suffix = "") =>
+      fetch(`${base}/api/v1/sessions/${session.id}/absence-excuse${suffix}`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          ...(token ? { authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(body),
+      });
+    assert.equal(
+      (await excuse(null, { reason: "A valid absence explanation" })).status,
+      401,
+    );
+    assert.equal(
+      (await excuse(C, { reason: "A valid absence explanation" })).status,
+      403,
+    );
+    assert.equal(
+      (await excuse(A, { reason: "I was present throughout" })).status,
+      409,
+    );
+    assert.equal((await excuse(B, { reason: "          " })).status, 400);
+    const submitted = await excuse(B, { reason: "An unexpected power outage" });
+    assert.equal(submitted.status, 201);
+    assert.equal((await submitted.json()).data.status, "PENDING");
+    assert.equal((await excuse(B, { accept: true }, "/decision")).status, 409);
+    assert.equal(
+      (await excuse(A, { accept: "true" }, "/decision")).status,
+      400,
+    );
+    const accepted = await excuse(
+      A,
+      { accept: true, note: "Let's arrange a makeup" },
+      "/decision",
+    );
+    assert.equal(accepted.status, 200);
+    assert.equal((await accepted.json()).data.status, "ACCEPTED");
+    assert.equal(ctx.db.rows("session")[0].status, "MAKEUP_REQUIRED");
   } finally {
     await app.close();
   }

@@ -59,6 +59,12 @@ export function liveKitConfiguration(
   };
 }
 
+export type LiveObservation = {
+  roomSid: string;
+  identities: string[];
+  participants: { identity: string; sid: string }[];
+};
+
 @Injectable()
 export class LiveKitService {
   readonly config: LiveKitConfiguration;
@@ -108,7 +114,9 @@ export class LiveKitService {
     }
   }
 
-  async listActiveParticipants(roomName: string) {
+  async listActiveParticipants(
+    roomName: string,
+  ): Promise<LiveObservation | null> {
     const config = this.requireEnabled();
     const client = new RoomServiceClient(
       config.url.replace(/^ws/, "http"),
@@ -119,11 +127,11 @@ export class LiveKitService {
     const rooms = await client.listRooms([roomName]);
     if (!rooms.length) return null;
     const participants = await client.listParticipants(roomName);
+    const active = participants.filter((p) => p.state === 2);
     return {
       roomSid: rooms[0]!.sid,
-      identities: participants
-        .filter((p) => p.state === 2)
-        .map((p) => p.identity),
+      identities: active.map((p) => p.identity),
+      participants: active.map((p) => ({ identity: p.identity, sid: p.sid })),
     };
   }
 

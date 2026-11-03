@@ -3,11 +3,14 @@ import "reflect-metadata";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { randomUUID } from "node:crypto";
+import { readFile } from "node:fs/promises";
 import { ConfigService } from "@nestjs/config";
 import { createSkillFixture } from "../../skills/helpers.mjs";
 import { LearningPathsService } from "../../../dist/modules/learning-paths/application/services/learning-paths.service.js";
 import { SchedulingService } from "../../../dist/modules/scheduling/application/services/scheduling.service.js";
 import { LearningSessionsService } from "../../../dist/modules/learning-sessions/application/services/learning-sessions.service.js";
+import { SessionOutcomeService } from "../../../dist/modules/learning-sessions/application/services/session-outcome.service.js";
+import { ReputationService } from "../../../dist/modules/reputation/application/services/reputation.service.js";
 import { ConversationMembershipReader } from "../../../dist/modules/conversations/application/services/conversation-membership.reader.js";
 import { CreditLedgerAdapter } from "../../../dist/modules/credit/application/services/credit-ledger.adapter.js";
 import { CreditLedgerService } from "../../../dist/modules/credit/application/services/credit-ledger.service.js";
@@ -106,7 +109,21 @@ test(
           LIVEKIT_API_SECRET: "test-secret-integration",
         }),
       );
-      const reports = new ReportsService(f.transactions, {}, {}, f.audit);
+      const reputation = new ReputationService(f.audit);
+      const reports = new ReportsService(
+        f.transactions,
+        {},
+        {},
+        f.audit,
+        reputation,
+        undefined,
+        configuration,
+      );
+      const outcomes = new SessionOutcomeService(
+        f.transactions,
+        reputation,
+        reports,
+      );
       const sessions = new LearningSessionsService(
         f.transactions,
         f.db,
@@ -163,12 +180,35 @@ test(
       let session = await f.db.session.findFirstOrThrow({
         where: { pathId: path.id },
       });
+      // Legacy tokens may already be issued in the early join window at rollout.
+      await f.db.session.update({
+        where: { id: session.id },
+        data: { roomName: `skillhub-session-${session.id}` },
+      });
+      const migration = await readFile(
+        new URL(
+          "../../../prisma/migrations/20261029000000_session_no_show/migration.sql",
+          import.meta.url,
+        ),
+        "utf8",
+      );
+      await f.client.query(
+        migration.slice(migration.lastIndexOf('UPDATE "sessions"')),
+      );
+      const protectedLegacy = await f.db.session.findUniqueOrThrow({
+        where: { id: session.id },
+      });
+      assert.equal(+protectedLegacy.teacherTokenIssuedAt, +session.startAt);
+      assert.equal(+protectedLegacy.observationFailedAt, +session.startAt);
       const now = Date.now();
       session = await f.db.session.update({
         where: { id: session.id },
         data: {
           startAt: new Date(now - 60000),
           endAt: new Date(now + 3540000),
+          teacherTokenIssuedAt: null,
+          learnerTokenIssuedAt: null,
+          observationFailedAt: null,
         },
       });
       const tokens = await Promise.all(
@@ -246,16 +286,160 @@ test(
       );
       assert.equal(duplicate.filter((result) => result.processed).length, 1);
 
+      // A real no-show is frozen by a report, then adjudicated exactly once under contention.
+      const noShowEnd = new Date(Date.now() - 90 * 60000);
+      const noShowStart = new Date(+noShowEnd - 3600000);
+      session = await f.db.session.update({
+        where: { id: session.id },
+        data: {
+          startAt: noShowStart,
+          endAt: noShowEnd,
+          status: "CONFIRMED",
+          teacherTokenIssuedAt: null,
+          learnerTokenIssuedAt: noShowStart,
+          lastObservedAt: noShowEnd,
+          observationFailedAt: null,
+        },
+      });
+      await f.db.sessionAttendanceInterval.create({
+        data: {
+          sessionId: session.id,
+          userId: learner.user.id,
+          role: "LEARNER",
+          roomSid: "RM_pg",
+          participantSid: "PA_pg_present",
+          joinedAt: noShowStart,
+          leftAt: noShowEnd,
+          lastSeenAt: noShowEnd,
+          closeSource: "WEBHOOK",
+        },
+      });
+      await sessions.ensureDetermined(session.id);
+      const noShow = await f.db.sessionAttendanceOutcome.findUniqueOrThrow({
+        where: {
+          sessionId_occurrenceStartAt: {
+            sessionId: session.id,
+            occurrenceStartAt: noShowStart,
+          },
+        },
+      });
+      assert.equal(noShow.attendanceCase, "TEACHER_ABSENT");
+      const absenceReport = await reports.createSessionReport(
+        teacher.principal,
+        session.id,
+        {
+          reasonCode: "NO_SHOW_LATE",
+          description: "Please review my absence evidence",
+          evidenceFileIds: [],
+        },
+      );
+      await f.db.sessionAttendanceOutcome.update({
+        where: { id: noShow.id },
+        data: { finalizesAt: new Date(Date.now() - 60000) },
+      });
+      await outcomes.finalizeDue(session.id);
+      assert.equal(
+        (await f.db.session.findUniqueOrThrow({ where: { id: session.id } }))
+          .status,
+        "NO_SHOW",
+      );
+      assert.equal(
+        await f.db.reputationHistory.count({
+          where: { sourceId: session.id, reasonCode: "NO_SHOW" },
+        }),
+        0,
+      );
+      const moderator = await f.account("STAFF");
+      await reports.updateCase(moderator.principal, absenceReport.id, "claim");
+      await Promise.all(
+        [1, 2].map(() =>
+          reports.updateCase(moderator.principal, absenceReport.id, "resolve", {
+            note: "Verified teacher absence",
+            noShowRuling: "UPHOLD",
+          }),
+        ),
+      );
+      assert.equal(
+        await f.db.reputationHistory.count({
+          where: { eventKey: `no-show:${noShow.id}:${teacher.user.id}` },
+        }),
+        1,
+      );
+      assert.equal(
+        (await f.db.user.findUniqueOrThrow({ where: { id: teacher.user.id } }))
+          .reputationScore,
+        42,
+      );
+      const makeup = await f.db.session.findUniqueOrThrow({
+        where: { id: session.id },
+      });
+      assert.equal(makeup.status, "MAKEUP_REQUIRED");
+      await reports.updateCase(
+        moderator.principal,
+        absenceReport.id,
+        "resolve",
+        {
+          note: "A delayed replay with a different ruling",
+          noShowRuling: "EXCUSE",
+        },
+      );
+      assert.equal(
+        +(await f.db.session.findUniqueOrThrow({ where: { id: session.id } }))
+          .makeupDeadlineAt,
+        +makeup.makeupDeadlineAt,
+      );
+      const scheduledMakeup = await schedules.proposeReschedule(
+        teacher.principal,
+        session.id,
+        {
+          expectedVersion: 1,
+          startAt: new Date(future + 86400000).toISOString(),
+          endAt: new Date(future + 86400000 + 3600000).toISOString(),
+        },
+      );
+      await schedules.confirmProposal(
+        teacher.principal,
+        scheduledMakeup.id,
+        scheduledMakeup.version,
+      );
+      await schedules.confirmProposal(
+        learner.principal,
+        scheduledMakeup.id,
+        scheduledMakeup.version,
+      );
+      session = await f.db.session.findUniqueOrThrow({
+        where: { id: session.id },
+      });
+      assert.equal(session.teacherTokenIssuedAt, null);
+      assert.equal(session.makeupDeadlineAt, null);
+
       const expected = session;
-      const endedAt = new Date(Date.now() - 60000);
+      const endedAt = new Date(Date.now() - 30 * 60000);
       await f.db.session.update({
         where: { id: session.id },
         data: {
           startAt: new Date(+endedAt - 3600000),
           endAt: endedAt,
           status: "CONFIRMED",
+          // Tokens were issued but LiveKit never observed the room: unverifiable, confirm allowed.
+          teacherTokenIssuedAt: new Date(+endedAt - 3600000),
+          learnerTokenIssuedAt: new Date(+endedAt - 3600000),
         },
       });
+      // Concurrent determinations serialize on the Session lock and the unique key.
+      await Promise.all([
+        sessions.ensureDetermined(session.id),
+        sessions.ensureDetermined(session.id),
+      ]);
+      const decided = await f.db.sessionAttendanceOutcome.findMany({
+        where: { sessionId: session.id },
+      });
+      assert.equal(decided.length, 2);
+      assert.equal(
+        decided.find((row) => +row.occurrenceStartAt === +endedAt - 3600000)
+          .attendanceCase,
+        "UNVERIFIABLE",
+      );
       await sessions.advanceLifecycle(expected, {
         roomSid: "RM_stale",
         identities: [`${session.id}:${teacher.user.id}`],
