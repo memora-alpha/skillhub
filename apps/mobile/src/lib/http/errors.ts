@@ -1,5 +1,5 @@
 import type { SchedulingErrorDetails } from "./scheduling-error";
-
+import { scheduleConflictMessage } from "./scheduling-error";
 export class AppError extends Error {
   constructor(
     public readonly kind:
@@ -37,6 +37,11 @@ const messages: Record<string, string> = {
 export function errorMessage(error: unknown): string {
   if (!(error instanceof AppError))
     return "Không thể hoàn tất. Vui lòng thử lại.";
+  if (error.code === "SCHEDULE_CONFLICT")
+    return (
+      scheduleConflictMessage(error) ??
+      "Thời gian đề xuất bị trùng lịch. Hãy chọn giờ khác."
+    );
   const message = messages[error.code];
   if (message) return message;
   if (error.kind === "network")
