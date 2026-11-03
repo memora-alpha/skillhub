@@ -12,6 +12,9 @@ export default function HomePage() {
       </h1>
       <p>Kết nối những người cùng mong muốn phát triển kỹ năng.</p>
       <div className="portal-links">
+        <Link className="btn btn-primary" href="/learn">
+          Đăng nhập người dùng · Bắt đầu học
+        </Link>
         <Link className="btn btn-primary" href="/admin">
           Cổng Admin
         </Link>
