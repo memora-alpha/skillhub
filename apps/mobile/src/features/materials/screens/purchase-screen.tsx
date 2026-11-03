@@ -1,70 +1,119 @@
-import { useState } from "react";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/Button";
-import { EmptyState } from "@/components/EmptyState";
 import { FormNotice } from "@/components/FormNotice";
 import {
   FeaturePage,
   Panel,
   Copy,
-  Metric,
   RouteButton,
 } from "@/components/feature-page";
-import { useMaterialsPreview } from "../context";
+import {
+  useConnections,
+  useConnectionCommand,
+  ConnectionFeedback,
+  connectionError,
+} from "@/features/connections";
+import {
+  useMaterial,
+  useMaterialOrders,
+  useMaterialsApi,
+} from "../hooks/use-materials";
+import type { MaterialOrder } from "../api/material-contracts";
+
 export function MaterialPurchaseScreen() {
-  const { id, changed } = useLocalSearchParams<{
-    id: string;
-    changed?: string;
-  }>();
-  const { materials, library } = useMaterialsPreview();
-  const m = materials.find((i) => i.id === id);
-  const [acceptedSnapshot, setAcceptedSnapshot] = useState(changed !== "1");
+  const { id } = useLocalSearchParams<{ id: string }>(),
+    query = useMaterial(id),
+    orders = useMaterialOrders();
+  const runtime = useConnections(),
+    api = useMaterialsApi(),
+    cache = useQueryClient(),
+    router = useRouter();
+  const command = useConnectionCommand<MaterialOrder>([["materials"]]);
+  const material = query.data;
+  const purchased = orders.data?.some(
+    (order) => order.materialId === id && order.status === "SUCCESS",
+  );
+  async function finish(order: MaterialOrder | undefined) {
+    if (!order || !runtime.isCurrent()) return;
+    await cache.invalidateQueries({ queryKey: ["wallet", runtime.userId] });
+    router.replace("/materials/library");
+  }
   return (
-    <FeaturePage title="Xác nhận mua tài liệu" back={`/materials/${id}`}>
-      {!m ||
-      m.status !== "PUBLISHED" ||
-      m.access !== "PAID" ||
-      m.owner === "me" ? (
-        <EmptyState
-          title="Không thể mua tài liệu này"
-          description="Chỉ mua tài liệu trả phí đã công bố của người khác."
-        />
-      ) : library[id] ? (
-        <Panel title="Bạn đã có quyền truy cập">
-          <Copy>Không thu tiền lần thứ hai cho tài liệu đã mua.</Copy>
-          <RouteButton href={`/materials/${id}/access`}>
-            Mở tài liệu mẫu
-          </RouteButton>
-        </Panel>
-      ) : (
-        <Panel title={m.title}>
-          {!acceptedSnapshot && (
+    <FeaturePage
+      demo={false}
+      title="Xác nhận mua tài liệu"
+      back={`/materials/${id}`}
+    >
+      <ConnectionFeedback
+        loading={query.isLoading || orders.isLoading}
+        error={query.error || orders.error}
+        retry={() => {
+          void query.refetch();
+          void orders.refetch();
+        }}
+      />
+      {material && (
+        <Panel title={material.title}>
+          <Copy>
+            Giá: {material.priceCredit} CR · Phiên bản {material.listingVersion}
+          </Copy>
+          <Copy>
+            Thanh toán bằng Credit khả dụng. Kiểm tra giá và phiên bản trước khi
+            xác nhận mua.
+          </Copy>
+          {purchased ? (
+            <RouteButton href={`/materials/${id}/access`}>
+              Bạn đã mua · Mở tài liệu
+            </RouteButton>
+          ) : (
+            <Button
+              disabled={
+                query.isFetching ||
+                !!query.error ||
+                orders.isFetching ||
+                !!orders.error ||
+                command.pending ||
+                command.uncertain ||
+                material.ownerId === runtime.userId ||
+                material.status !== "PUBLISHED" ||
+                material.accessType !== "PAID"
+              }
+              onPress={() => {
+                void command
+                  .run(
+                    JSON.stringify({ id, version: material.listingVersion }),
+                    (key) => api.purchase(id, material.listingVersion, key),
+                  )
+                  .then(finish);
+              }}
+            >
+              Xác nhận mua với giá {material.priceCredit} CR
+            </Button>
+          )}
+          {!!command.error && (
+            <FormNotice tone="error">
+              {connectionError(command.error)}
+            </FormNotice>
+          )}
+          {command.uncertain && (
             <>
-              <FormNotice tone="info">
-                Giá hoặc phiên bản đã thay đổi. Kiểm tra snapshot hiện tại trước
-                khi tiếp tục.
-              </FormNotice>
-              <Button variant="paper" onPress={() => setAcceptedSnapshot(true)}>
-                Tôi đã xem giá & phiên bản mới
+              <Copy>
+                Chưa xác định kết quả thanh toán. Kiểm tra lại bằng cùng yêu cầu
+                để tránh thu hai lần.
+              </Copy>
+              <Button
+                disabled={command.pending}
+                onPress={() => {
+                  void command.retry().then(finish);
+                }}
+              >
+                Kiểm tra giao dịch mua
               </Button>
             </>
           )}
-          <Metric label="Giá hiện tại" value={`${m.price} CR`} />
-          <Copy>Phiên bản sẽ mua: {m.version}</Copy>
-          <Copy>
-            Credit dùng từ số dư khả dụng, riêng với thỏa thuận học. Quyền truy
-            cập gắn phiên bản đã mua.
-          </Copy>
-          <Button disabled onPress={() => undefined}>
-            Xác nhận mua
-          </Button>
-          <FormNotice tone="info">
-            Luồng mua chưa được bật: cần chính sách phí tài liệu được chốt và
-            dịch vụ thanh toán Credit. Bản xem thử không thu tiền hoặc tạo quyền
-            mua.
-          </FormNotice>
-          <RouteButton secondary href="/materials/library">
-            Xem thư viện có quyền mẫu
+          <RouteButton secondary href="/wallet">
+            Xem ví Credit
           </RouteButton>
         </Panel>
       )}
