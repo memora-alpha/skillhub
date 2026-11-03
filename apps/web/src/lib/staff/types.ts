@@ -79,7 +79,7 @@ export type ReportEvidence = {
 };
 export type ReportCase = {
   id: string;
-  reporterId: string;
+  reporterId: string | null;
   targetType: string;
   targetId: string;
   relatedSessionId: string | null;
@@ -105,6 +105,19 @@ export type InboxNotification = {
   createdAt: string;
 };
 export type ReportCaseDetail = ReportCase & {
+  attendanceOutcome?: {
+    attendanceCase: string;
+    status: string;
+    resolution: string | null;
+    teacherVerdict: string;
+    learnerVerdict: string;
+    teacherSeconds: string;
+    learnerSeconds: string;
+    teacherLate: boolean;
+    learnerLate: boolean;
+    determinedAt: string;
+    finalizesAt: string;
+  } | null;
   session: {
     id: string;
     planId: string;
