@@ -67,7 +67,8 @@ export class ChatPublicationService implements OnModuleInit, OnModuleDestroy {
       });
       throw error;
     }
-    if (!published?.sequence) throw new Error("MESSAGE_NOT_PUBLISHED");
+    if (!published?.sequence || !published.sentAt)
+      throw new Error("MESSAGE_NOT_PUBLISHED");
     await this.transactions.run(async (tx) => {
       const conversation = await tx.conversation.findUniqueOrThrow({
         where: { id: receipt.conversationId },
@@ -85,6 +86,15 @@ export class ChatPublicationService implements OnModuleInit, OnModuleDestroy {
           messageSequence: BigInt(published.sequence!.toString()),
           failureCode: null,
         },
+      });
+      // Projection and delivery/outbox acknowledgement commit together. A delayed or
+      // duplicate publication never moves a conversation backwards in the Inbox.
+      await tx.conversation.updateMany({
+        where: {
+          id: conversation.id,
+          lastActivityAt: { lt: published.sentAt! },
+        },
+        data: { lastActivityAt: published.sentAt! },
       });
       if (!won.count) return;
       await this.events.lockRecipients(tx, [

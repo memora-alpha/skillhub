@@ -2,6 +2,10 @@
 
 NestJS backend in the SkillHub pnpm/Turborepo workspace.
 
+Inbox theo bài học: `GET /api/v1/conversations/inbox`, số đếm toàn bộ theo quyền,
+filter chat/đề xuất đã gửi theo bài và giữ tiêu đề lịch sử; xem
+[contract và triển khai](docs/request-grouped-inbox.md).
+
 Đối chiếu source backend ngày 2026-10-27 và các thay đổi cần triển khai:
 [đổi lịch, no-show Credit và thứ tự danh sách](docs/mobile-backend-followups.md).
 

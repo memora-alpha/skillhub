@@ -60,3 +60,38 @@ export class ChatDownloadResponse {
   @ApiProperty() url!: string;
   @ApiProperty({ type: String, format: "date-time" }) expiresAt!: Date;
 }
+
+export class InboxGroupResponse {
+  @ApiProperty({
+    description: "Stable request:<uuid> or conversation:<uuid> group key",
+  })
+  id!: string;
+  @ApiProperty({ enum: ["LEARNING_REQUEST", "DIRECT_CONVERSATION"] })
+  groupType!: string;
+  @ApiProperty({ type: String, format: "uuid", nullable: true })
+  learningRequestId!: string | null;
+  @ApiProperty({ type: String, format: "uuid", nullable: true })
+  conversationId!: string | null;
+  @ApiProperty({ type: String, nullable: true }) title!: string | null;
+  @ApiProperty({ enum: ["OWNER", "PROPOSER", "PARTICIPANT"] })
+  viewerRole!: string;
+  @ApiProperty({
+    type: Number,
+    nullable: true,
+    description: "All received proposal history; owner only, otherwise null",
+  })
+  receivedProposalCount!: number | null;
+  @ApiProperty({
+    type: Number,
+    nullable: true,
+    description:
+      "Only the viewer's sent history; null for direct conversations",
+  })
+  sentProposalCount!: number | null;
+  @ApiProperty({
+    description:
+      "Total conversations accessible to the viewer, independent of chat pagination",
+  })
+  conversationCount!: number;
+  @ApiProperty({ type: String, format: "date-time" }) lastActivityAt!: Date;
+}

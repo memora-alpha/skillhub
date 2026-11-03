@@ -64,7 +64,11 @@ export class ProposalsController {
   constructor(private readonly proposals: ProposalsService) {}
   @Get()
   @ApiSuccessResponse(200, ProposalResponse, { paginated: true })
-  @ApiOperation({ summary: "List sent or received proposals" })
+  @ApiOperation({
+    summary: "List sent or received proposals",
+    description:
+      "learningRequestId with direction=sent returns only the viewer's own history. Received lists filtered by Request remain owner-only.",
+  })
   async list(
     @CurrentIdentity() actor: Principal,
     @Query() query: ProposalQueryDto,
