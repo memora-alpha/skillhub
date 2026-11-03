@@ -18,6 +18,11 @@ export const OTP_ERROR_MESSAGE =
   "Mã không đúng hoặc đã hết hạn. Nếu sai 5 lần, hãy thử lại sau 24 giờ.";
 
 const messages: Record<string, string> = {
+  ACTIVE_SESSION_REPORT_EXISTS:
+    "Bạn đã có báo cáo đang xử lý cho buổi này. Mở danh sách báo cáo để theo dõi.",
+  ACTIVE_MATERIAL_REPORT_EXISTS:
+    "Bạn đã có báo cáo đang xử lý cho tài liệu này.",
+  DISPUTE_WINDOW_CLOSED: "Đã hết thời hạn gửi báo cáo buổi học.",
   MATERIAL_VERSION_CONFLICT:
     "Giá hoặc phiên bản tài liệu đã đổi. Tải lại và kiểm tra trước khi xác nhận.",
   MATERIAL_PRICE_CHANGED:
