@@ -1,4 +1,5 @@
 import { AppError, errorMessage } from "@/lib/http/errors";
+import { scheduleConflictMessage } from "@/lib/http/scheduling-error";
 import type { QueryClient, QueryKey } from "@tanstack/react-query";
 
 export function refreshSessionRead(
@@ -92,7 +93,10 @@ const messages: Record<string, string> = {
     "Chưa đọc được lịch hiện hành của buổi học. Hãy tải lại trước khi đổi lịch.",
 };
 export function sessionErrorMessage(error: unknown) {
-  return error instanceof AppError && messages[error.code]
-    ? messages[error.code]!
-    : errorMessage(error);
+  return (
+    scheduleConflictMessage(error) ??
+    (error instanceof AppError && messages[error.code]
+      ? messages[error.code]!
+      : errorMessage(error))
+  );
 }

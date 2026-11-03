@@ -1,5 +1,6 @@
 import { AppError } from "./errors";
 import { RATE_LIMIT_BACKOFF_MS } from "./rate-limit";
+import { readSchedulingError } from "./scheduling-error";
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -13,7 +14,7 @@ export function readPayload(
 ): unknown {
   if (status === 204) return undefined;
   if (status < 200 || status >= 300) {
-    // Only accept known-shaped codes, never display arbitrary server text or details.
+    // Only accept known codes and explicitly validated scheduling details.
     const code =
       isRecord(payload) &&
       typeof payload.message === "string" &&
@@ -25,6 +26,11 @@ export function readPayload(
       status,
       code,
       status === 429 ? retryAt || Date.now() + RATE_LIMIT_BACKOFF_MS : 0,
+      readSchedulingError(
+        status,
+        code,
+        isRecord(payload) ? payload.details : undefined,
+      ),
     );
   }
   if (!isRecord(payload) || payload.success !== true || !("data" in payload))

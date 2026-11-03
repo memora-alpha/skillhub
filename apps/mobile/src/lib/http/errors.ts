@@ -1,3 +1,5 @@
+import type { SchedulingErrorDetails } from "./scheduling-error";
+
 export class AppError extends Error {
   constructor(
     public readonly kind:
@@ -5,6 +7,7 @@ export class AppError extends Error {
     public readonly status = 0,
     public readonly code = "",
     public readonly retryAt = 0,
+    public readonly details?: SchedulingErrorDetails,
   ) {
     super(kind);
     this.name = "AppError";

@@ -3,6 +3,63 @@ import test from "node:test";
 import axios, { AxiosError, type InternalAxiosRequestConfig } from "axios";
 import { createHttpClient } from "../src/lib/http/client";
 import { AppError } from "../src/lib/http/errors";
+import { readPayload } from "../src/lib/http/response";
+import {
+  creditShortfall,
+  scheduleConflictMessage,
+} from "../src/lib/http/scheduling-error";
+
+test("retains validated scheduling details and ignores malformed or unrelated details", () => {
+  const conflict = {
+    type: "SESSION",
+    overlapStartAt: "2026-11-03T14:00:00.000Z",
+    overlapEndAt: "2026-11-03T15:00:00.000Z",
+  };
+  const readError = (message: string, details: unknown) => {
+    try {
+      readPayload(409, { success: false, message, details });
+    } catch (error) {
+      assert.ok(error instanceof AppError);
+      return error;
+    }
+    assert.fail("Expected an HTTP error");
+  };
+  const error = readError("SCHEDULE_CONFLICT", {
+    conflicts: [{ ...conflict, internalNote: "hidden" }],
+  });
+  assert.deepEqual(error.details, { conflicts: [conflict] });
+  assert.match(
+    scheduleConflictMessage(error) ?? "",
+    /Trùng với một buổi đã đặt/,
+  );
+  assert.equal(
+    readError("SCHEDULE_CONFLICT", {
+      conflicts: [{ ...conflict, overlapEndAt: conflict.overlapStartAt }],
+    }).details,
+    undefined,
+  );
+  assert.equal(
+    readError("UNRELATED", { conflicts: [conflict] }).details,
+    undefined,
+  );
+
+  const viewer = "550e8400-e29b-41d4-a716-446655440000";
+  const credit = readError("INSUFFICIENT_AVAILABLE_CREDIT", {
+    userIds: [viewer],
+  });
+  assert.equal(creditShortfall(credit, viewer), "viewer");
+  assert.equal(
+    creditShortfall(credit, "550e8400-e29b-41d4-a716-446655440001"),
+    "other",
+  );
+  assert.equal(
+    creditShortfall(
+      readError("INSUFFICIENT_AVAILABLE_CREDIT", undefined),
+      viewer,
+    ),
+    "unknown",
+  );
+});
 
 function response(
   config: InternalAxiosRequestConfig,

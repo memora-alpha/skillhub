@@ -1,6 +1,6 @@
 # Trạng thái Phase 05–06
 
-Cập nhật tài liệu: 2026-10-29T21:08:08+07:00.
+Cập nhật tài liệu: 2026-11-03T15:52:11+07:00.
 
 **Ready for review — source complete; acceptance pending.** Source và regression đã hoàn tất trên nhánh `fix/mobile-proposal-chat-learning-path`; nghiệm thu API thật và Android/iOS còn mở.
 
@@ -13,11 +13,13 @@ Cập nhật tài liệu: 2026-10-29T21:08:08+07:00.
 - Timestamp giữ phần giây; hai buổi chỉ tiếp giáp không bị coi là trùng. Regression múi giờ đối chiếu 21:00–22:00 UTC+07 với 14:00–15:00 UTC.
 - Mỗi buổi cần sửa có một khối cảnh báo, gộp lý do trùng lặp. Trùng nội bộ hiển thị ở buổi sau; panel lịch bận loại Session đã cảnh báo trên thẻ. `ScheduleTimelineItem` đo chiều cao thực tế bằng `onLayout`, nối tới tâm chấm tiếp theo theo gap của consumer.
 
-Giới hạn: endpoint hiện tại chỉ cung cấp Session riêng của tài khoản đang đăng nhập; response 100 buổi có thể chưa đầy đủ. Chưa có draft-validation và details lỗi cho lịch ở Path khác của bên đối ứng. Backend final-validation/finalize vẫn kiểm tra xung đột, số dư và quyết định chốt lịch.
+Giới hạn: preflight mobile chỉ đọc Session của tài khoản đang đăng nhập. Backend kiểm tra lịch của cả hai ở các thao tác lưu và chốt lịch.
+
+Trên `fix/learning-path`, mobile đọc chi tiết 409 từ API để hiển thị khoảng trùng theo giờ thiết bị và phân biệt tài khoản thiếu Credit. Đã chạy 16 test HTTP/Hold, gồm ca kiểm tra lại sau lỗi chốt lịch và API thiếu chi tiết người trả Credit. Còn kiểm tra với API thật trên thiết bị.
 
 ## Credit và thông báo lịch trong Chat
 
-`ApiHoldScreen` hiển thị nút **Nạp Credit** mở `/wallet/topup` khi final-validation/finalize trả `INSUFFICIENT_AVAILABLE_CREDIT`.
+`ApiHoldScreen` hiển thị lỗi từ thao tác kiểm tra hoặc chốt lịch gần nhất. Nút **Nạp Credit** mở `/wallet/topup` khi lỗi đó báo tài khoản hiện tại thiếu Credit. Nếu API thiếu chi tiết người trả, nút hiện cho người học của lộ trình một chiều và cho cả hai bên của lộ trình hai chiều.
 
 Xác nhận từng schedule không gửi card vào Chat. Finalize thành công gửi một tin tổng hợp từ receipt, gồm tổng Session của hai chiều, khoảng ngày và nút Xem lịch học. Gửi Chat lỗi giữ đúng intent để retry, không lặp nghiệp vụ finalize.
 

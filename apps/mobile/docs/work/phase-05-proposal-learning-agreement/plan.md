@@ -33,6 +33,7 @@ Luồng: Chat → Cách học → Lộ trình → Lịch học → server valida
 - [x] Chỉ mở đề xuất lịch khi thỏa thuận và các plan đủ xác nhận. Lịch gắn với plan; hai chiều có lịch riêng và trạng thái chờ riêng.
 - [x] Hai bên xác nhận cùng version lịch; backend validation và finalize quyết định Hold/lock/tạo Session. Giữ recovery đúng intent khi mất phản hồi.
 - [x] Khi kiểm tra điều kiện hoặc chốt lịch báo thiếu Credit, hiển thị nút Nạp Credit mở màn `/wallet/topup` hiện có.
+- [x] Đọc chi tiết xung đột lịch và người thiếu Credit từ response 409. Giữ thông báo dự phòng cho API cũ.
 - [x] Cách học/lộ trình xác nhận thành công vẫn gửi form vào Chat; đồng ý từng lịch không gửi thêm card. Chốt lịch thành công gửi một thông báo tổng số Session của cả lộ trình, có nút Xem lịch học. Gửi chat lỗi chỉ retry tin, không thực hiện lại xác nhận/chốt lịch.
 - [x] Gộp các card lịch cùng conversation/path thành một thông báo gọn trong history; giữ tin thường/tệp và sequence mới nhất cho read watermark. Card cũ chỉ báo đã xác nhận, không suy ra chốt lịch hoặc tổng buổi từ history chưa đầy đủ.
 - [x] Card lịch dùng chung ChatWorkflowCard với card cách học/lộ trình: bố cục, avatar, căn phía người gửi, badge và link Xem lịch học thống nhất; giữ nội dung lịch đã gộp.
