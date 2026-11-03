@@ -133,3 +133,44 @@ Verified on 2026-11-03 against dev `6414a82c`:
   including the new PostgreSQL service test. WASM verification does not establish
   service integration, production query plans or load performance.
 - No mobile code, production migration, seed or deployment has been executed.
+
+## PR 68 Sonar remediation (2026-11-03)
+
+The published baseline `c73bb88a` had five open findings: one Blocker
+`plsql:DeleteOrUpdateWithoutWhereCheck` and four Minor `javascript:S9382`.
+Reliability E was the only failing gate condition; Security/Maintainability were
+A and duplication was 0%.
+
+- `AaGh09DJ0fcjwubeKPmJ`: the new Inbox migration initializes only NULL activity
+  values with creation time. This migration belongs to the unmerged PR and is
+  absent from dev; no deployed migration was changed or executed by this task.
+- `AaGh09DI0fcjwubeKPmI`: replace per-Conversation awaits with one parameterized
+  `UPDATE ... FROM (VALUES ...)` per page. Validate the complete Mongo page before
+  writing. Keep the newer-than-current predicate so live deliveries win races.
+- The page unit reads PostgreSQL IDs, reads their Mongo summaries, validates and
+  writes its bounded SQL batch before returning the next keyset ID. The outer
+  page chain remains sequential and keeps at most one page in memory.
+- Baseline `AaGh09DI0fcjwubeKPmH`, `AaGh084C0fcjwubeKPmF` and
+  `AaGh084C0fcjwubeKPmG` concern dependent cursor iteration. Proposed disposition:
+  Accepted. Pagination requires the previous response/cursor, including the test
+  that verifies timestamp ties. These operations cannot be parallelized correctly.
+  Source comments document the dependency; no rule suppression or NOSONAR was added.
+
+Sequential dependent operations are an explicit exception in
+[Sonar's S9382 rule](https://rules.sonarsource.com/javascript/RSPEC-9382/).
+The page-processing refactor may relocate the remaining S9382 finding; use the
+fresh issue key/line from the next analysis, not only this historical baseline.
+Cloud dispositions have not been applied: the browser automation runtime is
+unavailable in this session. This report does not claim those findings closed.
+
+Validation for this revision includes actual bulk SQL, migration timestamp/default
+preservation, monotonic/rerunnable backfill, all-or-nothing validation of each page,
+and stopping before the next page after a write failure. The isolated PostgreSQL
+WASM harness passed; real test-store execution remains separately gated by
+TEST_DATABASE_URL/TEST_MONGODB_URI.
+
+Local remediation checks passed: API typecheck, Nest build, ESLint and
+`git diff --check`; Connections reports 40 tests, 36 passed, 0 failed and 4 skipped
+without isolated test-store URLs. The actual migration, bulk UPDATE, rerun and
+newer-activity preservation also passed on PostgreSQL 18.6 WASM. A fresh published
+Sonar analysis is still required after the remediation commit is pushed.

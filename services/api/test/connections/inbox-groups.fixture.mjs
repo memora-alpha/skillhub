@@ -1,6 +1,7 @@
 import "reflect-metadata";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { backfillChatActivity } from "../../scripts/lib/chat-activity-backfill.mjs";
 import { InboxGroupsRepository } from "../../dist/modules/conversations/infrastructure/persistence/inbox-groups.repository.js";
 import { ProposalInboxReader } from "../../dist/modules/proposals/application/services/proposal-inbox.reader.js";
 import { InboxGroupsService } from "../../dist/modules/conversations/application/services/inbox-groups.service.js";
@@ -58,6 +59,54 @@ export async function checkInboxActivityMigration(client) {
     "conversations_participant_b_activity_idx",
   ])
     assert(indexes.some((row) => row.indexname === name));
+  // Run the production parameterized bulk update against the actual SQL engine.
+  const newest = new Date("2026-12-01T00:00:00.000Z");
+  await client.query(
+    "UPDATE conversations SET last_activity_at=$1 WHERE conversation_id=$2",
+    [newest, inboxId(2)],
+  );
+  const db = {
+    conversation: {
+      findMany: async ({ where, take }) =>
+        (
+          await client.query(
+            "SELECT conversation_id AS id FROM conversations WHERE ($1::uuid IS NULL OR conversation_id>$1::uuid) ORDER BY conversation_id LIMIT $2",
+            [where.id?.gt ?? null, take],
+          )
+        ).rows,
+    },
+    $executeRaw: async (sql) => {
+      const result = await client.query(sql.text, sql.values);
+      return result.rowCount ?? result.affectedRows;
+    },
+  };
+  const mongo = {
+    aggregate: (pipeline) => ({
+      toArray: async () =>
+        pipeline[0].$documents.map(({ _id }) => ({
+          _id,
+          last: [{ sentAt: new Date("2026-11-01T00:00:00.000Z") }],
+        })),
+    }),
+  };
+  assert.deepEqual(await backfillChatActivity(db, mongo, 2), {
+    scanned: 2,
+    updated: 1,
+  });
+  assert.deepEqual(await backfillChatActivity(db, mongo, 2), {
+    scanned: 2,
+    updated: 0,
+  });
+  const preserved = (
+    await client.query(
+      "SELECT last_activity_at FROM conversations WHERE conversation_id=$1",
+      [inboxId(2)],
+    )
+  ).rows[0];
+  assert.equal(
+    new Date(preserved.last_activity_at).getTime(),
+    newest.getTime(),
+  );
   await client.query("DROP TABLE conversations");
 }
 
@@ -134,6 +183,8 @@ export async function checkInboxGroupQueries(client) {
   assert.equal(owner.data[0].title, "Closed Request");
   const keys = [];
   let cursor;
+  // Each request consumes the previous response's cursor; parallel requests
+  // would stop testing the pagination chain.
   do {
     const page = await service.list({ userId: ownerId }, { limit: 1, cursor });
     keys.push(page.data[0].id);
@@ -185,6 +236,7 @@ export async function checkInboxGroupQueries(client) {
   ]);
   const tied = [];
   cursor = undefined;
+  // Recheck the same dependent cursor chain with timestamp ties.
   do {
     const page = await service.list({ userId: ownerId }, { limit: 1, cursor });
     tied.push(page.data[0].id);
