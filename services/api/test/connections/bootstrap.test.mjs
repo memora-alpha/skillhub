@@ -150,6 +150,7 @@ test("feature modules resolve owner contracts and register SSE/chat workers; HTT
       new DocumentBuilder().addBearerAuth().build(),
     );
     for (const route of [
+      "/api/v1/conversations/inbox",
       "/api/v1/proposals",
       "/api/v1/proposals/{id}/accept",
       "/api/v1/conversations/{id}/messages",

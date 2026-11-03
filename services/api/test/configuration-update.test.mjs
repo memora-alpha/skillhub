@@ -107,12 +107,17 @@ test("audited update writes current, revision and audit atomically", async () =>
   assert.deepEqual(fx.state().audits[0].before, { value: 120, version: 1 });
 });
 
-test("unrelated updates work while the optional LiveKit policy remains absent", async () => {
+test("updates roll back until the newly defaulted LiveKit policy has been seeded", async () => {
   const fx = fixture();
+  fx.state().rows.delete("livekit.joinWindow");
   assert.equal(fx.state().rows.has("livekit.joinWindow"), false);
-  const snapshot = await fx.useCase.execute(command());
-  assert.equal(snapshot.values["storage.downloadTtlSeconds"], 60);
-  assert.equal("livekit.joinWindow" in snapshot.values, false);
+  await assert.rejects(
+    fx.useCase.execute(command()),
+    /Configuration not ready: livekit.joinWindow/,
+  );
+  assert.equal(fx.state().rows.get("storage.downloadTtlSeconds").value, 120);
+  assert.equal(fx.state().rows.get("storage.downloadTtlSeconds").version, 1);
+  assert.equal(fx.state().audits.length, 0);
 });
 
 test("stale version, invalid patch and audit failure preserve committed state", async () => {

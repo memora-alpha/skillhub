@@ -14,7 +14,7 @@ import {
   Min,
   ValidateIf,
 } from "class-validator";
-export class ConversationQueryDto {
+export class InboxGroupQueryDto {
   @ApiPropertyOptional({ default: 20, maximum: 100 })
   @IsOptional()
   @Type(() => Number)
@@ -28,7 +28,13 @@ export class ConversationQueryDto {
   @MaxLength(1024)
   cursor?: string;
 }
-export class MessageQueryDto extends ConversationQueryDto {
+export class ConversationQueryDto extends InboxGroupQueryDto {
+  @ApiPropertyOptional({ format: "uuid" })
+  @IsOptional()
+  @IsUUID()
+  learningRequestId?: string;
+}
+export class MessageQueryDto extends InboxGroupQueryDto {
   @ApiPropertyOptional({ type: String })
   @IsOptional()
   @Matches(/^(?:0|[1-9]\d{0,18})$/)

@@ -28,11 +28,29 @@ pnpm --filter api identity:seed
 pnpm --filter api db:seed-configuration
 ```
 
-**Join window chưa có mặc định theo lựa chọn của người dùng.** Chỉ thêm env chưa
-đủ để vào học: missing policy trả `503 LIVEKIT_POLICY_NOT_READY`, list/detail
-vẫn hoạt động. Không seed 10/10 phút hoặc policy production khác.
+**Join window đã chốt ngày 2026-11-03: trước startAt 10 phút, sau endAt 10 phút.**
+Configuration seed thêm `livekit.joinWindow = { earlyMinutes: 10, lateMinutes: 10 }`
+khi key chưa tồn tại, giữ nguyên giá trị/version operator đã lưu. Chỉ thêm env
+chưa đủ để vào học: missing/invalid/future-effective policy vẫn trả
+`503 LIVEKIT_POLICY_NOT_READY`; list/detail vẫn hoạt động. Không fallback để bỏ
+qua policy DB chưa hợp lệ.
 
-Sau khi PO chốt giá trị, operator chạy CLI này với số phút đã được duyệt. Command
+Để cấu hình riêng key này trên API đang deploy, operator đọc version từ DB:
+
+```sql
+SELECT config_key, value, version, effective_at, CURRENT_TIMESTAMP
+FROM system_configurations
+WHERE config_key = 'livekit.joinWindow';
+```
+
+Trong terminal container API, thư mục `/app/services/api`, chạy (version 0 nếu
+chưa có row; nếu đã có thì thay bằng version vừa đọc):
+
+```sh
+node scripts/configure-livekit.mjs --early-minutes 10 --late-minutes 10 --expected-version 0 --reason "Approved 10-minute early and late LiveKit join window on 2026-11-03"
+```
+
+Command
 dùng UpdateConfigurationUseCase hiện hữu, ghi current/history/audit cùng một
 transaction; expected-version=0 khi key chưa có. Các placeholder dưới đây phải
 thay bằng giá trị thật, không chạy nguyên mẫu:
@@ -42,7 +60,8 @@ pnpm --filter api build
 pnpm --filter api livekit:configure --early-minutes <approved-early> --late-minutes <approved-late> --expected-version <current-version-or-0> --reason "<approval reference>"
 ```
 
-CLI chỉ dùng quyền vận hành qua DATABASE_URL, không mở endpoint cấu hình public.
+CLI chỉ dùng quyền vận hành qua DATABASE_URL, chỉ cập nhật key LiveKit này,
+không mở endpoint cấu hình public.
 Chạy từ workspace API/pnpm filter để đọc đúng `.env`. Để thay policy lần sau cần
 version hiện tại; version mismatch rollback, không tự overwrite. Không yêu cầu
 restart sau khi đổi policy DB.

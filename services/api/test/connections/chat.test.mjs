@@ -14,6 +14,7 @@ function fixture() {
   const principal = { userId: randomUUID() },
     conversation = {
       id: randomUUID(),
+      lastActivityAt: new Date("2026-01-01T00:00:00.000Z"),
       participantAId: principal.userId,
       participantBId: randomUUID(),
     };
@@ -31,7 +32,17 @@ function fixture() {
   const tx = {
     $queryRaw: async (strings) =>
       strings.join("").includes("clock_timestamp") ? [{ now: new Date() }] : [],
-    conversation: { findUniqueOrThrow: async () => conversation },
+    conversation: {
+      findUniqueOrThrow: async () => conversation,
+      updateMany: async ({ where, data }) => {
+        assert.equal(where.id, conversation.id);
+        if (conversation.lastActivityAt < where.lastActivityAt.lt) {
+          conversation.lastActivityAt = data.lastActivityAt;
+          return { count: 1 };
+        }
+        return { count: 0 };
+      },
+    },
     chatPublication: {
       findUnique: async ({ where }) =>
         where.id
@@ -249,7 +260,11 @@ test("COMMITTED worker retry after Mongo publication keeps original sequence and
   const recovered = await f.publisher.deliver(pending.messageId);
   assert.equal(recovered.sequence.toString(), first.sequence.toString());
   assert.equal(recovered.sentAt, first.sentAt);
+  assert.equal(f.conversation.lastActivityAt, first.sentAt);
+  const newer = new Date(first.sentAt.getTime() + 60000);
+  f.conversation.lastActivityAt = newer;
   await f.publisher.deliver(pending.messageId);
+  assert.equal(f.conversation.lastActivityAt, newer);
   assert.equal(f.sequence, 1n);
   assert.equal(
     f.events.filter((event) => event.type === "chat.message.created").length,

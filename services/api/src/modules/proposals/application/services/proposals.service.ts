@@ -105,7 +105,17 @@ export class ProposalsService {
       const row = await this.raw(tx, id);
       await this.parties(tx, principal, row, "proposal:read:party");
       const conversation = await this.conversations.readForProposal(tx, id);
-      return proposalView(row, conversation?.id);
+      const metadata = await this.requests.inboxMetadata(
+        tx,
+        principal.userId,
+        row.requestId ? [row.requestId] : [],
+      );
+      return {
+        ...proposalView(row, conversation?.id),
+        learningRequestTitle: row.requestId
+          ? (metadata.get(row.requestId)?.title ?? null)
+          : null,
+      };
     });
   }
   async list(
@@ -129,7 +139,7 @@ export class ProposalsService {
       cursor = readCursor(query.cursor, scope);
     return this.transactions.run(async (tx) => {
       await this.actors.require(tx, principal, "proposal:read:party");
-      if (query.learningRequestId) {
+      if (query.learningRequestId && query.direction !== "sent") {
         const request = await this.requests.proposalSource(
           tx,
           query.learningRequestId,
@@ -151,7 +161,20 @@ export class ProposalsService {
         take: limit + 1,
       });
       const result = page(rows, limit, scope, (row) => row.id);
-      return { ...result, data: result.data.map((row) => proposalView(row)) };
+      const metadata = await this.requests.inboxMetadata(
+        tx,
+        principal.userId,
+        result.data.flatMap((row) => (row.requestId ? [row.requestId] : [])),
+      );
+      return {
+        ...result,
+        data: result.data.map((row) => ({
+          ...proposalView(row),
+          learningRequestTitle: row.requestId
+            ? (metadata.get(row.requestId)?.title ?? null)
+            : null,
+        })),
+      };
     });
   }
   async create(command: SkillCommand, input: CreateProposal) {

@@ -113,3 +113,12 @@ Upload multipart one file per request with stream cap 15.000.000 bytes; unbound 
 ## Excluded routes
 
 No generic create-conversation, staff chat browser, user-injected system message, message edit/delete, end/reopen negotiation, Confirm Path/Schedule, Credit, Session or realtime socket route. Future card actions call owner APIs with object/version and their own authorization.
+
+## Request-grouped Inbox amendment (2026-11-03)
+
+`GET /conversations/inbox` groups by Learning Request with historical title, viewer
+role, complete received proposal totals and viewer-accessible chat totals. Owner
+groups with proposals but no chat are included. `GET /conversations` adds the
+`learningRequestId` filter; sent proposals can be filtered by Request without
+ownership. Proposal responses add `learningRequestTitle`. Existing list ordering
+and cursors are preserved. See [contract, access rules and rollout](../../../docs/request-grouped-inbox.md).

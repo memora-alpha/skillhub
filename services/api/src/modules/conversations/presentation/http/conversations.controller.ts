@@ -31,12 +31,14 @@ import {
 import { getOrCreateRequestContext } from "../../../../shared/http/request-context";
 import { success, paginated } from "../../../../shared/http/response";
 import type { Principal } from "../../../auth/application/services/sessions.service";
+import { InboxGroupsService } from "../../application/services/inbox-groups.service";
 import { ConversationsService } from "../../application/services/conversations.service";
 import {
   ApiSuccessResponse,
   ApiErrorResponse,
 } from "../../../../shared/http/api-response.decorators";
 import {
+  InboxGroupResponse,
   ConversationResponse,
   MessageResponse,
   DeliveredMessageResponse,
@@ -47,6 +49,7 @@ import {
   ChatDownloadResponse,
 } from "./conversations.responses";
 import {
+  InboxGroupQueryDto,
   ConversationQueryDto,
   MessageQueryDto,
   ReadConversationDto,
@@ -64,7 +67,10 @@ import {
 @ApiErrorResponse(503)
 @Controller({ path: "conversations", version: "1" })
 export class ConversationsController {
-  constructor(private readonly conversations: ConversationsService) {}
+  constructor(
+    private readonly conversations: ConversationsService,
+    private readonly inboxGroups: InboxGroupsService,
+  ) {}
   @Get()
   @ApiSuccessResponse(200, ConversationResponse, { paginated: true })
   @ApiOperation({ summary: "List participant Conversations" })
@@ -73,6 +79,19 @@ export class ConversationsController {
     @Query() query: ConversationQueryDto,
   ) {
     const result = await this.conversations.list(actor, query);
+    return paginated(result.data, result.pagination);
+  }
+  @Get("inbox")
+  @ApiSuccessResponse(200, InboxGroupResponse, { paginated: true })
+  @ApiOperation({
+    summary:
+      "List Inbox groups, including received proposals without a Conversation",
+  })
+  async groups(
+    @CurrentIdentity() actor: Principal,
+    @Query() query: InboxGroupQueryDto,
+  ) {
+    const result = await this.inboxGroups.list(actor, query);
     return paginated(result.data, result.pagination);
   }
   @Get(":id")

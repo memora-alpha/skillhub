@@ -30,8 +30,10 @@ rename branch hoặc sửa phần `.env.example` người dùng đang thay đổ
 
 - Giữ `Session` và enum hiện có; không tạo lại LiveKitRoom/SessionAttendance.
 - Chỉ sửa backend; frontend/mobile chỉ có contract handoff và smoke bằng Meet.
-- Người dùng chọn giữ early/late grace mở; không seed default production hoặc
-  lấy fixture 10/10 phút làm policy. Task 1 phải hỗ trợ config thiếu an toàn.
+- Cập nhật được người dùng duyệt ngày 2026-11-03: early/late grace là 10/10 phút.
+  Catalog có default để seed khi thiếu; giữ nguyên policy operator đã lưu và
+  tiếp tục fail-closed nếu DB thiếu/invalid/future-effective. Nội dung Task 1 bên
+  dưới lưu kế hoạch ban đầu; amendment này thay thế quyết định để ngỏ trước đó.
 - Không tự chốt completion timeout, dispute window, no-show/cancellation policy.
 - Secret ở env; token chỉ trả qua endpoint có auth + membership và no-store.
 - Không dùng client clock/userId/roomName tùy ý; không coi cấp token là đã vào học.
