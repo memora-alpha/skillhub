@@ -3,6 +3,7 @@ import { test } from "node:test";
 import { SystemConfigurationService } from "../dist/modules/system-configuration/application/services/system-configuration.service.js";
 import { seedApprovedConfigurations } from "../dist/modules/system-configuration/application/seed-configuration.js";
 import { CONFIGURATION_DEFINITIONS } from "../dist/modules/system-configuration/domain/configuration.catalog.js";
+import { sessionJoinAccess } from "../dist/modules/learning-sessions/domain/session.policy.js";
 
 const now = new Date("2026-10-05T00:00:00.000Z");
 
@@ -42,7 +43,16 @@ test("seed inserts approved values and history, rerun preserves operator value",
       (definition) => "defaultValue" in definition,
     ).length,
   );
-  assert.equal(repo.rows.has("livekit.joinWindow"), false);
+  assert.deepEqual(repo.rows.get("livekit.joinWindow").value, {
+    earlyMinutes: 10,
+    lateMinutes: 10,
+  });
+  repo.rows.set("livekit.joinWindow", {
+    key: "livekit.joinWindow",
+    value: { earlyMinutes: 5, lateMinutes: 0 },
+    version: 2,
+    effectiveAt: now,
+  });
   repo.rows.set("storage.downloadTtlSeconds", {
     key: "storage.downloadTtlSeconds",
     value: 60,
@@ -53,6 +63,30 @@ test("seed inserts approved values and history, rerun preserves operator value",
   assert.equal(repo.rows.get("storage.downloadTtlSeconds").value, 60);
   assert.equal(repo.rows.get("storage.downloadTtlSeconds").version, 2);
   assert.equal(repo.revisions.get("storage.downloadTtlSeconds:2").value, 60);
+  assert.deepEqual(repo.rows.get("livekit.joinWindow").value, {
+    earlyMinutes: 5,
+    lateMinutes: 0,
+  });
+  assert.equal(repo.rows.get("livekit.joinWindow").version, 2);
+});
+
+test("fresh configuration seed enables the approved inclusive-open/exclusive-close LiveKit window", async () => {
+  const repo = fakeRepository();
+  await seedApprovedConfigurations({}, repo);
+  const service = new SystemConfigurationService(repo, { now: () => now });
+  const { values } = await service.getSnapshot(["livekit.joinWindow"]);
+  const policy = values["livekit.joinWindow"];
+  const session = {
+    status: "CONFIRMED",
+    startAt: new Date("2026-10-05T01:00:00Z"),
+    endAt: new Date("2026-10-05T02:00:00Z"),
+  };
+  const at = (value) =>
+    sessionJoinAccess(session, new Date(value), policy, true);
+  assert.equal(at("2026-10-05T00:49:59.999Z").canJoin, false);
+  assert.equal(at("2026-10-05T00:50:00Z").canJoin, true);
+  assert.equal(at("2026-10-05T02:09:59.999Z").canJoin, true);
+  assert.equal(at("2026-10-05T02:10:00Z").canJoin, false);
 });
 
 test("reader returns value/version snapshot and fails closed for missing/future policy", async () => {
