@@ -23,6 +23,12 @@ const messages: Record<string, string> = {
   ACTIVE_MATERIAL_REPORT_EXISTS:
     "Bạn đã có báo cáo đang xử lý cho tài liệu này.",
   DISPUTE_WINDOW_CLOSED: "Đã hết thời hạn gửi báo cáo buổi học.",
+  DISPUTE_WINDOW_OPEN:
+    "Chưa hết thời hạn khiếu nại. Hãy kiểm tra quyết toán sau thời hạn này.",
+  SETTLEMENT_BLOCKED_BY_DISPUTE:
+    "Lộ trình đang có tranh chấp cần xử lý trước khi quyết toán.",
+  PATH_SESSIONS_INCOMPLETE:
+    "Cần hoàn thành tất cả buổi học trước khi quyết toán.",
   MATERIAL_VERSION_CONFLICT:
     "Giá hoặc phiên bản tài liệu đã đổi. Tải lại và kiểm tra trước khi xác nhận.",
   MATERIAL_PRICE_CHANGED:
