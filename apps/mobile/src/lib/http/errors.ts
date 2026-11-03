@@ -18,6 +18,24 @@ export const OTP_ERROR_MESSAGE =
   "Mã không đúng hoặc đã hết hạn. Nếu sai 5 lần, hãy thử lại sau 24 giờ.";
 
 const messages: Record<string, string> = {
+  MATERIAL_VERSION_CONFLICT:
+    "Giá hoặc phiên bản tài liệu đã đổi. Tải lại và kiểm tra trước khi xác nhận.",
+  MATERIAL_PRICE_CHANGED:
+    "Giá hoặc phiên bản tài liệu đã đổi. Tải lại và kiểm tra trước khi xác nhận mua.",
+  MATERIAL_ORDER_NOT_REFUNDABLE: "Đơn mua hiện không đủ điều kiện hoàn tiền.",
+  INSUFFICIENT_AVAILABLE_CREDIT:
+    "Số dư Credit khả dụng chưa đủ. Kiểm tra ví trước khi tiếp tục.",
+  MATERIAL_ALREADY_OWNED: "Bạn đã có quyền truy cập tài liệu này.",
+  MATERIAL_TRANSITION_INVALID:
+    "Tài liệu đã đổi trạng thái. Tải lại danh sách trước khi thao tác.",
+  MATERIAL_NOT_PURCHASABLE: "Tài liệu hiện không đủ điều kiện mua.",
+  MATERIAL_FILE_REQUIRED: "Tài liệu cần có tệp hợp lệ trước khi gửi duyệt.",
+  MATERIAL_REFUND_WINDOW_CLOSED:
+    "Đã hết thời hạn hoàn tiền tự động cho đơn mua này.",
+  MATERIAL_ALREADY_CONSUMED:
+    "Tài liệu đã được cấp đường dẫn tải nên không thể hoàn tiền tự động.",
+  FILE_NOT_READY:
+    "Tệp chưa được quét an toàn xong. Kiểm tra trạng thái tệp trước khi gửi.",
   CHAT_RATE_LIMIT:
     "Bạn đang gửi tin nhắn quá nhanh. Vui lòng đợi trước khi gửi tiếp.",
   PROPOSAL_RATE_LIMIT: "Bạn đã đạt giới hạn gửi đề xuất. Vui lòng thử lại sau.",

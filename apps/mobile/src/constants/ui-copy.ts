@@ -38,6 +38,7 @@ const labels: Record<string, string> = {
   FREE: "Miễn phí",
   PAID: "Trả phí bằng Credit",
   NO_SHOW_LATE: "Vắng mặt / trễ nghiêm trọng",
+  REFUNDED: "Đã hoàn tiền",
   INAPPROPRIATE_BEHAVIOR: "Hành vi không phù hợp",
   HARASSMENT: "Quấy rối / xúc phạm",
   SKILL_MISMATCH: "Nội dung học khác thỏa thuận",

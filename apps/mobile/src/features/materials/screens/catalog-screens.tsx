@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useLocalSearchParams } from "expo-router";
+import { Linking } from "react-native";
+import { useQueryClient } from "@tanstack/react-query";
 import { Input } from "@/components/Input";
 import { Badge } from "@/components/Badge";
 import { Button } from "@/components/Button";
@@ -11,42 +13,47 @@ import {
   Copy,
   RouteButton,
 } from "@/components/feature-page";
-import { useMaterialsPreview, type Material } from "../context";
-function MaterialCard({ material: m }: { material: Material }) {
-  return (
-    <Panel title={m.title}>
-      <Badge label={m.access === "FREE" ? "Miễn phí" : `${m.price} CR`} />
-      <Copy>{m.description}</Copy>
-      <Copy muted>
-        {m.skill} · phiên bản {m.version}
-      </Copy>
-      <RouteButton secondary href={`/materials/${m.id}`}>
-        Xem tài liệu
-      </RouteButton>
-    </Panel>
-  );
-}
+import {
+  useConnections,
+  useConnectionCommand,
+  ConnectionFeedback,
+  connectionError,
+} from "@/features/connections";
+import { FormNotice } from "@/components/FormNotice";
+import {
+  useMaterial,
+  useMaterialSearch,
+  useMaterialOrders,
+  useMaterialsApi,
+} from "../hooks/use-materials";
+
 export function MaterialsScreen() {
-  const { materials } = useMaterialsPreview();
-  const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState("Tất cả");
-  const items = materials.filter(
-    (m) =>
-      m.status === "PUBLISHED" &&
-      (filter === "Tất cả" || m.access === filter) &&
-      `${m.title} ${m.skill}`.toLowerCase().includes(search.toLowerCase()),
+  const [search, setSearch] = useState(""),
+    [term, setTerm] = useState(""),
+    [filter, setFilter] = useState("Tất cả");
+  const query = useMaterialSearch(
+    term,
+    filter === "Tất cả" ? undefined : (filter as "FREE" | "PAID"),
   );
   return (
     <FeaturePage
+      demo={false}
       title="Tài liệu học tập"
       back="/home"
-      subtitle="Tìm tài liệu hữu ích, do cộng đồng chia sẻ."
+      refreshing={query.isRefetching}
+      onRefresh={() => {
+        void query.refetch();
+      }}
     >
       <Input
-        label="Tìm tài liệu hoặc kỹ năng"
+        label="Tìm tài liệu"
         value={search}
         onChangeText={setSearch}
+        maxLength={100}
       />
+      <Button variant="paper" onPress={() => setTerm(search.trim())}>
+        Tìm kiếm
+      </Button>
       <ChoiceGroup
         label="Loại tài liệu"
         options={["Tất cả", "FREE", "PAID"]}
@@ -54,68 +61,110 @@ export function MaterialsScreen() {
         onChange={setFilter}
       />
       <RouteButton secondary href="/materials/library">
-        Thư viện của tôi
+        Tài liệu đã mua
       </RouteButton>
-      {items.map((m) => (
-        <MaterialCard key={m.id} material={m} />
+      <RouteButton secondary href="/materials/mine">
+        Tài liệu tôi chia sẻ
+      </RouteButton>
+      <ConnectionFeedback
+        loading={query.isLoading}
+        error={query.error}
+        retry={query.refetch}
+      />
+      {query.items.map((material) => (
+        <Panel key={material.id} title={material.title}>
+          <Badge
+            label={
+              material.accessType === "FREE"
+                ? "Miễn phí"
+                : material.priceCredit + " CR"
+            }
+          />
+          <Copy>{material.description}</Copy>
+          <Copy muted>Phiên bản {material.listingVersion}</Copy>
+          <RouteButton secondary href={`/materials/${material.id}`}>
+            Xem tài liệu
+          </RouteButton>
+        </Panel>
       ))}
-      {!items.length && (
+      {query.data && !query.items.length && (
         <EmptyState
           title="Không tìm thấy tài liệu"
           description="Thử từ khóa hoặc bộ lọc khác."
         />
       )}
+      {query.hasNextPage && (
+        <Button
+          disabled={query.isFetchingNextPage}
+          onPress={() => {
+            void query.fetchNextPage();
+          }}
+        >
+          Xem thêm tài liệu
+        </Button>
+      )}
     </FeaturePage>
   );
 }
 export function MaterialDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const { materials, library, grantFree } = useMaterialsPreview();
-  const m = materials.find((i) => i.id === id);
+  const { id } = useLocalSearchParams<{ id: string }>(),
+    query = useMaterial(id),
+    runtime = useConnections();
+  const orders = useMaterialOrders();
+  const material = query.data,
+    owned = material?.ownerId === runtime.userId;
+  const purchased = orders.data?.some(
+    (order) => order.materialId === id && order.status === "SUCCESS",
+  );
   return (
-    <FeaturePage title="Chi tiết tài liệu" back="/materials">
-      {!m ? (
-        <EmptyState
-          title="Không tìm thấy tài liệu"
-          description="Tài liệu không có trong bản xem thử."
-        />
-      ) : (
+    <FeaturePage
+      demo={false}
+      title="Chi tiết tài liệu"
+      back="/materials"
+      refreshing={query.isFetching}
+      onRefresh={() => {
+        void query.refetch();
+      }}
+    >
+      <ConnectionFeedback
+        loading={query.isLoading}
+        error={query.error}
+        retry={query.refetch}
+      />
+      {material && (
         <>
-          <Panel title={m.title}>
-            <Badge label={m.status} />
-            <Copy>{m.description}</Copy>
+          <Panel title={material.title}>
+            <Badge label={material.status} />
+            <Copy>{material.description}</Copy>
             <Copy>
-              {m.skill} · v{m.version} ·{" "}
-              {m.access === "FREE" ? "Miễn phí" : `${m.price} CR`}
+              Phiên bản {material.listingVersion} ·{" "}
+              {material.accessType === "FREE"
+                ? "Miễn phí"
+                : material.priceCredit + " CR"}
             </Copy>
-            {m.reason && <Copy>Lý do từ chối: {m.reason}</Copy>}
-            <Copy muted>
-              Chỉ hiển thị mô tả công khai. Tệp gốc cần quyền truy cập riêng.
-            </Copy>
+            {material.rejectReason && (
+              <Copy>Lý do từ chối: {material.rejectReason}</Copy>
+            )}
+            {material.file && (
+              <Copy>
+                Tệp: {material.file.originalFilename} ·{" "}
+                {material.file.sizeBytes} byte
+              </Copy>
+            )}
           </Panel>
-          {m.status === "PUBLISHED" &&
-            (library[id] || m.owner === "me" ? (
-              <RouteButton href={`/materials/${id}/access`}>
-                Mở tài liệu mẫu
-              </RouteButton>
-            ) : m.access === "FREE" ? (
-              <Button variant="craft" onPress={() => grantFree(id)}>
-                Nhận tài liệu miễn phí vào thư viện mẫu
-              </Button>
-            ) : (
-              <RouteButton href={`/materials/${id}/purchase`}>
-                Xem xác nhận mua
-              </RouteButton>
-            ))}
-          {m.owner === "me" && (
-            <>
-              <RouteButton secondary href={`/materials/${id}/edit`}>
-                Sửa thông tin / tạo phiên bản
-              </RouteButton>
-              <RouteButton secondary href="/materials/mine">
-                Quản lý tài liệu tôi chia sẻ
-              </RouteButton>
-            </>
+          {owned || purchased || material.accessType === "FREE" ? (
+            <RouteButton href={`/materials/${id}/access`}>
+              Mở tài liệu
+            </RouteButton>
+          ) : (
+            <RouteButton href={`/materials/${id}/purchase`}>
+              Xem xác nhận mua
+            </RouteButton>
+          )}
+          {owned && (
+            <RouteButton secondary href={`/materials/${id}/edit`}>
+              Chỉnh sửa tài liệu
+            </RouteButton>
           )}
           <RouteButton
             secondary
@@ -129,59 +178,141 @@ export function MaterialDetailScreen() {
   );
 }
 export function MaterialLibraryScreen() {
-  const { materials, library } = useMaterialsPreview();
-  const items = materials.filter((m) => library[m.id]);
+  const query = useMaterialOrders(),
+    api = useMaterialsApi(),
+    runtime = useConnections(),
+    cache = useQueryClient();
+  const [confirm, setConfirm] = useState<string>();
+  const command = useConnectionCommand([["materials"]]);
+  async function finishRefund(result: unknown) {
+    if (result && runtime.isCurrent()) {
+      setConfirm(undefined);
+      await cache.invalidateQueries({ queryKey: ["wallet", runtime.userId] });
+    }
+  }
   return (
-    <FeaturePage title="Thư viện của tôi" back="/materials">
-      {items.map((m) => (
-        <Panel key={m.id} title={m.title}>
-          <Copy>Quyền truy cập mẫu · phiên bản đã nhận {library[m.id]}</Copy>
-          <RouteButton href={`/materials/${m.id}/access`}>
-            Mở tài liệu
-          </RouteButton>
+    <FeaturePage
+      demo={false}
+      title="Tài liệu đã mua"
+      back="/materials"
+      refreshing={query.isFetching}
+      onRefresh={() => {
+        void query.refetch();
+      }}
+    >
+      <ConnectionFeedback
+        loading={query.isLoading}
+        error={query.error}
+        retry={query.refetch}
+      />
+      {!!command.error && (
+        <FormNotice tone="error">{connectionError(command.error)}</FormNotice>
+      )}
+      <Copy muted>
+        Hoàn tiền trong 24 giờ nếu chưa được cấp đường dẫn tải. Hệ thống sẽ kiểm
+        tra điều kiện và số dư người bán.
+      </Copy>
+      {query.data?.map((order) => (
+        <Panel key={order.id} title={`Đơn mua ${order.id}`}>
+          <Badge label={order.status} />
+          <Copy>
+            {order.grossCredit} CR · phiên bản {order.listingVersion}
+          </Copy>
+          <Copy>{new Date(order.createdAt).toLocaleString("vi-VN")}</Copy>
+          {order.status === "SUCCESS" && (
+            <>
+              <RouteButton href={`/materials/${order.materialId}/access`}>
+                Mở tài liệu đã mua
+              </RouteButton>
+              <Button
+                variant="paper"
+                disabled={command.pending || command.uncertain}
+                onPress={() => setConfirm(order.id)}
+              >
+                Yêu cầu hoàn tiền
+              </Button>
+              {confirm === order.id && (
+                <>
+                  <Copy>
+                    Xác nhận hoàn tiền đơn này và thu hồi quyền truy cập?
+                  </Copy>
+                  <Button
+                    disabled={command.pending}
+                    onPress={() => {
+                      void command
+                        .run("refund:" + order.id, () => api.refund(order.id))
+                        .then(finishRefund);
+                    }}
+                  >
+                    Xác nhận hoàn tiền
+                  </Button>
+                  <Button variant="ghost" onPress={() => setConfirm(undefined)}>
+                    Giữ đơn mua
+                  </Button>
+                </>
+              )}
+            </>
+          )}
         </Panel>
       ))}
-      {!items.length && (
+      {query.data?.length === 0 && (
         <EmptyState
-          title="Thư viện đang trống"
-          description="Nhận tài liệu miễn phí hoặc xem tài liệu bạn đã mua."
+          title="Chưa có đơn mua"
+          description="Các tài liệu miễn phí có thể mở trực tiếp từ trang khám phá."
         />
       )}
-      <RouteButton secondary href="/materials">
-        Khám phá tài liệu
-      </RouteButton>
+      {command.uncertain && (
+        <Button
+          disabled={command.pending}
+          onPress={() => {
+            void command.retry().then(finishRefund);
+          }}
+        >
+          Kiểm tra lại yêu cầu hoàn tiền
+        </Button>
+      )}
     </FeaturePage>
   );
 }
 export function MaterialAccessScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const { materials, library } = useMaterialsPreview();
-  const m = materials.find((i) => i.id === id);
-  const allowed =
-    m && m.status === "PUBLISHED" && (m.owner === "me" || library[id]);
+  const { id } = useLocalSearchParams<{ id: string }>(),
+    api = useMaterialsApi(),
+    runtime = useConnections();
+  const [pending, setPending] = useState(false),
+    [error, setError] = useState<unknown>();
   return (
-    <FeaturePage title="Đọc tài liệu" back={`/materials/${id}`}>
-      {!allowed ? (
-        <EmptyState
-          title="Chưa có quyền truy cập"
-          description="Nhận tài liệu hoặc kiểm tra quyền mua trước khi mở tệp."
-        />
-      ) : (
-        <Panel title={m.title}>
-          <Copy>
-            Tệp mẫu: {m.file} · phiên bản quyền truy cập{" "}
-            {library[id] ?? m.version}
-          </Copy>
-          <Copy>
-            Nội dung minh họa: chia một bài thực hành lớn thành từng bước nhỏ.
-            Sau mỗi bước, hãy ghi lại điều đã hiểu và một câu hỏi cần trao đổi.
-          </Copy>
-          <Copy muted>
-            Đây là bản đọc mẫu trong ứng dụng. Không có tệp gốc hoặc đường dẫn
-            riêng tư được công khai.
-          </Copy>
-        </Panel>
-      )}
+    <FeaturePage demo={false} title="Mở tài liệu" back="/materials/library">
+      <Panel title="Tệp tài liệu">
+        <Copy>Hệ thống kiểm tra quyền truy cập trước mỗi lần mở tệp.</Copy>
+        <Copy>
+          Mở tệp đã mua sẽ ghi nhận bạn đã sử dụng tài liệu và không còn đủ điều
+          kiện hoàn tiền tự động.
+        </Copy>
+        {!!error && (
+          <FormNotice tone="error">{connectionError(error)}</FormNotice>
+        )}
+        <Button
+          disabled={pending}
+          onPress={() => {
+            if (pending) return;
+            setPending(true);
+            setError(undefined);
+            void api
+              .download(id)
+              .then(async (file) => {
+                if (runtime.isCurrent()) await Linking.openURL(file.url);
+              })
+              .catch((cause: unknown) => {
+                if (runtime.isCurrent()) setError(cause);
+              })
+              .finally(() => {
+                if (runtime.isCurrent()) setPending(false);
+              });
+          }}
+        >
+          {pending ? "Đang mở…" : "Mở / tải tệp tài liệu"}
+        </Button>
+      </Panel>
     </FeaturePage>
   );
 }
