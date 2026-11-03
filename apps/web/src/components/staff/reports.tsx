@@ -461,6 +461,7 @@ function ReportDecision({
     restrictedUserId: "",
     days: "1",
     reversals: "",
+    noShowRuling: "",
   });
   return (
     <DecisionDialog
@@ -474,6 +475,18 @@ function ReportDecision({
       onClose={onClose}
       onReload={reload}
       onSubmit={async (note) => {
+        if (
+          action === "resolve" &&
+          item.session?.status === "DISPUTED" &&
+          !draft.noShowRuling
+        )
+          throw new Error(
+            "Chọn phán quyết điểm danh trước khi giải quyết vụ việc.",
+          );
+        if (action === "reject" && item.session?.status === "DISPUTED")
+          throw new Error(
+            "Vụ việc này cần phán quyết điểm danh. Hãy chọn Giải quyết vụ việc.",
+          );
         await api<ReportCase>("reports/" + item.id + "/" + action, {
           method: "POST",
           body: {
@@ -490,6 +503,21 @@ function ReportDecision({
         <ReportResolutionFields
           value={draft}
           admin={admin}
+          sessionCase={!!item.session}
+          attendanceManaged={
+            !!item.attendanceOutcome &&
+            !!item.session &&
+            ["NO_SHOW", "DISPUTED", "MAKEUP_REQUIRED"].includes(
+              item.session.status,
+            )
+          }
+          rulingRequired={item.session?.status === "DISPUTED"}
+          allowUphold={
+            item.session?.status === "NO_SHOW" &&
+            ["TEACHER_ABSENT", "LEARNER_ABSENT", "BOTH_ABSENT"].includes(
+              item.attendanceOutcome?.attendanceCase ?? "",
+            )
+          }
           onChange={setDraft}
         />
       )}

@@ -13,6 +13,7 @@ export type ParticipantOutcome = {
   amount: string;
 };
 export type ResolutionDraft = {
+  noShowRuling?: "" | "UPHOLD" | "EXCUSE" | "COMPLETE";
   participants: ParticipantOutcome[];
   restrictedUserId: string;
   days: string;
@@ -41,6 +42,15 @@ export function reportResolutionBody(
       return { userId: p.userId, reasonCode: p.violation };
     });
   const body: Record<string, unknown> = {};
+  if (draft.noShowRuling) {
+    if (!["UPHOLD", "EXCUSE", "COMPLETE"].includes(draft.noShowRuling))
+      throw new Error("Chọn phán quyết điểm danh hợp lệ.");
+    if (violations.some((v) => v.reasonCode === "NO_SHOW"))
+      throw new Error(
+        "Dùng phán quyết điểm danh để xử lý vắng học; không ghi thêm vi phạm NO_SHOW.",
+      );
+    body.noShowRuling = draft.noShowRuling;
+  }
   if (violations.length) body.violations = violations;
   if (!admin) return body;
   const adjustments = draft.participants
