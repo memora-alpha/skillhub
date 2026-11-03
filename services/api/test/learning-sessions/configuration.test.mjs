@@ -35,10 +35,13 @@ test("provider is optional but partial or unsafe configuration fails without sec
   );
 });
 
-test("join policy is mutable, strict and has no production default", () => {
+test("join policy is mutable, strict and defaults to the approved 10-minute window", () => {
   const definition = CONFIGURATION_DEFINITIONS["livekit.joinWindow"];
   assert.equal(definition.mutable, true);
-  assert.equal(Object.hasOwn(definition, "defaultValue"), false);
+  assert.deepEqual(definition.defaultValue, {
+    earlyMinutes: 10,
+    lateMinutes: 10,
+  });
   assert.deepEqual(
     parseConfigurationValue("livekit.joinWindow", {
       earlyMinutes: 0,

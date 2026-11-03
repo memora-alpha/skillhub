@@ -11,7 +11,9 @@ No migration is needed; see [contract and cache guidance](specs/007-learning-req
 
 Session/LiveKit: backend có token theo participant, lifecycle, signed webhook,
 progress và dual completion. Xem [setup, policy và contract](docs/livekit-sessions.vi.md).
-Join window chưa có mặc định; thêm env nhưng chưa cấu hình policy vẫn không cấp
+Join window đã chốt mặc định 10 phút trước startAt và 10 phút sau endAt
+(2026-11-03). Configuration seed thêm `livekit.joinWindow` nếu thiếu; giữ nguyên
+policy operator đã lưu. Thêm env nhưng DB chưa có policy hợp lệ vẫn không cấp
 token. Backend ghi interval attendance, xác định no-show, timeout, excuse và học bù
 theo [spec 012](specs/012-session-no-show/spec.md). Trước rollout áp migration
 `20261029000000_session_no_show` và seed configuration. Detail chuyển sang

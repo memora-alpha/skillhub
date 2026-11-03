@@ -27,6 +27,7 @@ export const CONFIGURATION_DEFINITIONS = {
       })
       .strict(),
     mutable: true,
+    defaultValue: { earlyMinutes: 10, lateMinutes: 10 },
   },
   "learningPath.minCreditPerUser": {
     schema: z.literal(20),

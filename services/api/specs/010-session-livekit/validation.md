@@ -183,3 +183,32 @@ node --test --test-concurrency=1 test/learning-sessions/integration/*.test.mjs t
 
 Join-window values used by the isolated fixture are test inputs only. Production
 policy, forced media disconnect, quality/load testing and SH-074 remain open.
+
+## Approved join window — 2026-11-03
+
+The user superseded the open join-window decision with **10 minutes before
+startAt and 10 minutes after endAt**, and explicitly restricted this change to
+Session/LiveKit. No Report source, contract or test was modified.
+
+- Added the approved default to `livekit.joinWindow` in the configuration catalog.
+  The existing configuration seed inserts a missing key with its baseline revision
+  and preserves any existing operator value/version. No schema migration or new
+  dependency is needed.
+- Kept fail-closed reads for missing, invalid or future-effective DB policy. A
+  default in source does not bypass a missing DB row. Apply the configuration seed
+  on the deployed API, or use the audited LiveKit CLI with the current version;
+  see the updated API guide. No remote DB update or deployment was executed here.
+- RED: three tests failed before implementation: no seeded key, configuration not
+  ready after fresh seed, and missing catalog default.
+- GREEN: Session/LiveKit plus configuration/time/provider/log suites passed
+  **83 tests, zero failures, one skipped PostgreSQL timezone test** (no
+  `TEST_POSTGRES_URL` supplied). Coverage includes exact inclusive-open and
+  exclusive-close boundaries, preservation of operator policy, and strict values.
+- The configuration-update missing-policy fixture was adjusted to remove the now
+  defaulted key explicitly. It confirms the existing transaction rolls back rather
+  than returning a snapshot missing a required default; seed before other config
+  updates during rollout.
+- Nest build, API lint (zero warnings), typecheck and `git diff --check` passed.
+  Scope review confirms the only production-code change is the LiveKit default.
+- This window controls token issuance/admission. Existing connected media is not
+  forcibly disconnected at endAt + 10 minutes.

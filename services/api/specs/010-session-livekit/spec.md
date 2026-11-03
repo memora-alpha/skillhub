@@ -9,7 +9,9 @@ Hoàn thiện Session đang có để hai participant hợp lệ nhận token, v
 LiveKit, xem trạng thái/tiến độ và xác nhận hoàn thành mà không thay đổi quy tắc
 Hold/settlement hiện hữu. Người dùng đã thêm env, duyệt plan và yêu cầu triển khai
 với Ponytail. Ngày 2026-10-19, người dùng chọn **giữ join window là quyết định
-còn mở, chưa đặt mặc định production**.
+còn mở, chưa đặt mặc định production**. Quyết định được cập nhật ngày 2026-11-03:
+người dùng chốt **trước startAt 10 phút, sau endAt 10 phút**; configuration seed
+được phép thêm default 10/10 khi thiếu, không ghi đè cấu hình hiện có.
 
 Nguồn đã đối chiếu:
 
@@ -84,16 +86,16 @@ ngoài thay đổi chính. Việc nối settlement chỉ sử dụng contract hi
 ## 5. Join policy và lifecycle
 
 Thêm config versioned `livekit.joinWindow = { earlyMinutes, lateMinutes }`, hai
-số nguyên không âm an toàn và kết quả tính thời gian phải hữu hạn. **Không có
-defaultValue, không seed giá trị khi thiếu.** Config do luồng update có audit
-hiện hữu quản lý; bổ sung seed hỗ trợ key không có mặc định mà không đổi các
-default đã chốt. Thiếu/invalid/future-effective policy: canJoin=false và token
+số nguyên không âm an toàn và kết quả tính thời gian phải hữu hạn. **Default đã
+duyệt ngày 2026-11-03: `{ earlyMinutes: 10, lateMinutes: 10 }`; seed khi thiếu,
+giữ nguyên policy operator đã lưu.** Config do luồng update có audit hiện hữu
+quản lý. Thiếu/invalid/future-effective policy: canJoin=false và token
 endpoint trả 503 `LIVEKIT_POLICY_NOT_READY`; Session list/detail vẫn dùng được.
 
 Quy tắc tính đề xuất: `opensAt = startAt - earlyMinutes`,
 `closesAt = endAt + lateMinutes`, cửa sổ `[opensAt, closesAt)`. Mọi quyết định
 dùng DB UTC ở transaction ghi; projection dùng Clock phía server, không dùng
-clientNow. Các số 10/10 phút trong test chỉ là fixture.
+clientNow. Mốc mở bao gồm startAt − 10 phút; mốc đóng không bao gồm endAt + 10 phút.
 
 | Transition đề xuất                              | Trigger và giới hạn                                                               |
 | ----------------------------------------------- | --------------------------------------------------------------------------------- |
