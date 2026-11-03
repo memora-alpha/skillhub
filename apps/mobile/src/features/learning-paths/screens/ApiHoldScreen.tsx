@@ -12,7 +12,7 @@ import {
 } from "@/components/learning-flow";
 import { Button } from "@/components/Button";
 import { FormNotice } from "@/components/FormNotice";
-import { AppError } from "@/lib/http/errors";
+import { creditShortfall } from "@/lib/http/scheduling-error";
 import {
   ConnectionFeedback,
   useConnectionCommand,
@@ -90,10 +90,20 @@ function HoldContent({
       ["learning-paths", "mine"],
     ]);
   const [checked, setChecked] = useState<string>();
+  const [latestAction, setLatestAction] = useState<"check" | "finalize">(
+    "check",
+  );
   const share = useConfirmedFormShare();
   const signature = JSON.stringify(path),
     agreement = path.agreement;
   const ready = canValidateForFinalize(path);
+  const latestError = latestAction === "check" ? check.error : finalize.error;
+  const shortfall = creditShortfall(latestError, runtime.userId);
+  const canTopUp =
+    shortfall === "viewer" ||
+    (shortfall === "unknown" &&
+      (agreement.exchangeType === "TWO_WAY" ||
+        agreement.learnerId === runtime.userId));
   if (path.lockedVersion !== null)
     return (
       <Panel title="Lịch đã chốt">
@@ -172,6 +182,7 @@ function HoldContent({
             finalize.uncertain
           }
           onPress={() => {
+            setLatestAction("check");
             setChecked(undefined);
             void check
               .run(`validate:${path.id}`, () => api.validate(path.id))
@@ -190,12 +201,14 @@ function HoldContent({
             ? "Đang kiểm tra..."
             : "Kiểm tra điều kiện trên hệ thống"}
         </Button>
-        <ConnectionFeedback error={check.error} />
-        {[check.error, finalize.error].some(
-          (error) =>
-            error instanceof AppError &&
-            error.code === "INSUFFICIENT_AVAILABLE_CREDIT",
-        ) && <RouteButton href="/wallet/topup">Nạp Credit</RouteButton>}
+        {latestAction === "check" && (
+          <ConnectionFeedback
+            error={latestError}
+            viewerId={runtime.userId}
+            errorTone="error"
+          />
+        )}
+        {canTopUp && <RouteButton href="/wallet/topup">Nạp Credit</RouteButton>}
         {checked === signature && (
           <FormNotice tone="success" compact>
             Đủ điều kiện tại lần kiểm tra vừa rồi. Hệ thống sẽ kiểm tra lại khi
@@ -212,6 +225,7 @@ function HoldContent({
             finalize.uncertain
           }
           onPress={() => {
+            setLatestAction("finalize");
             void finalize
               .run(`finalize:${path.id}:${path.currentVersion}`, (identity) =>
                 confirmAndShare(
@@ -238,7 +252,13 @@ function HoldContent({
             ? "Đang chốt lịch..."
             : "Xác nhận chốt lịch và tạm giữ Credit"}
         </Button>
-        <ConnectionFeedback error={finalize.error} />
+        {latestAction === "finalize" && (
+          <ConnectionFeedback
+            error={latestError}
+            viewerId={runtime.userId}
+            errorTone="error"
+          />
+        )}
         {!embedded && (
           <ConfirmedFormFeedback conversationId={path.conversationId} />
         )}

@@ -4,9 +4,12 @@ import { mock, test } from "node:test";
 import { pathToFileURL } from "node:url";
 import { canValidateForFinalize } from "../src/features/learning-paths/utils/policy-api";
 import { readScheduledMessage } from "../src/features/learning-paths/utils/scheduled-message";
+import { AppError } from "../src/lib/http/errors";
 import { fixtureId } from "./fixtures/learning-requests-data";
 import {
   agreementPath,
+  learnerId,
+  teacherId,
   withConfirmedSchedules,
 } from "./fixtures/learning-agreement";
 
@@ -53,7 +56,7 @@ function loadMocked<T>(
 
 // Execute the real screen with host components and controlled hook results.
 // This checks UI actions, not native rendering or a deployed financial transaction.
-function holdHarness() {
+function holdHarness(viewerId = teacherId) {
   const local = createRequire(
     new URL(
       "../src/features/learning-paths/screens/ApiHoldScreen.tsx",
@@ -61,7 +64,8 @@ function holdHarness() {
     ),
   );
   const filename = local.resolve("./ApiHoldScreen.tsx");
-  let checked: unknown;
+  const state: unknown[] = [];
+  let stateIndex = 0;
   let commands = 0;
   let refreshes = 0;
   let finalizations = 0;
@@ -85,18 +89,20 @@ function holdHarness() {
   let validation = { version: 3, planCount: 1, scheduleCount: 1 };
   const check = {
     pending: false,
-    error: undefined,
-    run: async (_fingerprint: string, send: () => Promise<unknown>) => send(),
+    error: undefined as unknown,
+    run: async (_fingerprint: string, send: () => Promise<unknown>) =>
+      check.error ? undefined : send(),
   };
   const finalize = {
     pending: false,
-    error: undefined,
+    error: undefined as unknown,
     uncertain: false,
     run: async (
       _fingerprint: string,
       send: (identity: string) => Promise<unknown>,
     ) => {
       finalizations++;
+      if (finalize.error) return undefined;
       if (executeFinalize) return send(fixtureId(99));
       finalize.uncertain = true;
       return undefined;
@@ -113,12 +119,16 @@ function holdHarness() {
   const mocks = {
     "react/jsx-runtime": { jsx, jsxs: jsx, Fragment: "Fragment" },
     react: {
-      useState: () => [
-        checked,
-        (value: unknown) => {
-          checked = value;
-        },
-      ],
+      useState: (initial: unknown) => {
+        const index = stateIndex++;
+        if (!(index in state)) state[index] = initial;
+        return [
+          state[index],
+          (value: unknown) => {
+            state[index] = value;
+          },
+        ];
+      },
     },
     "expo-router": { useLocalSearchParams: () => ({ id: path.id }) },
     "react-native": {
@@ -144,7 +154,7 @@ function holdHarness() {
     "@/components/FormNotice": { FormNotice: "FormNotice" },
     "@/features/connections": {
       ConnectionFeedback: "ConnectionFeedback",
-      useConnections: () => ({ isCurrent: () => current }),
+      useConnections: () => ({ isCurrent: () => current, userId: viewerId }),
       useConnectionCommand: () => (commands++ === 0 ? check : finalize),
     },
     "@/features/messages/state": {
@@ -187,6 +197,9 @@ function holdHarness() {
   return {
     query,
     notices,
+    viewerId,
+    check,
+    finalize,
     finalizeSuccessfully: () => {
       executeFinalize = true;
     },
@@ -198,6 +211,7 @@ function holdHarness() {
     },
     render() {
       commands = 0;
+      stateIndex = 0;
       const content = elements(screen.ApiHoldScreen()).find(
         (e) => typeof e.type === "function" && e.type.name === "HoldContent",
       )!;
@@ -217,6 +231,77 @@ function holdHarness() {
   };
 }
 const flush = () => new Promise<void>((resolve) => setImmediate(resolve));
+
+test("a new Hold check replaces stale finalize feedback and its top-up action", async () => {
+  const h = holdHarness(learnerId);
+  try {
+    h.query.data = withConfirmedSchedules(agreementPath(true));
+    h.validateAs({ version: 3, planCount: 2, scheduleCount: 2 });
+    const checkLabel = "Kiểm tra điều kiện trên hệ thống";
+    h.button(h.render(), checkLabel).onPress();
+    await flush();
+    h.finalize.error = new AppError(
+      "http",
+      409,
+      "INSUFFICIENT_AVAILABLE_CREDIT",
+      0,
+      { userIds: [h.viewerId] },
+    );
+    h.button(h.render(), "Xác nhận chốt lịch và tạm giữ Credit").onPress();
+    await flush();
+    const hasTopUp = (tree: Element) =>
+      elements(tree).some((element) => element.props.href === "/wallet/topup");
+    assert.ok(hasTopUp(h.render()));
+
+    const checkAgain = h.button(h.render(), checkLabel);
+    h.check.error = new AppError(
+      "http",
+      409,
+      "INSUFFICIENT_AVAILABLE_CREDIT",
+      0,
+      { userIds: [teacherId] },
+    );
+    checkAgain.onPress();
+    await flush();
+    const tree = h.render();
+    assert.equal(hasTopUp(tree), false);
+    assert.deepEqual(
+      elements(tree)
+        .filter((element) => element.type === "ConnectionFeedback")
+        .map((element) => element.props.error),
+      [h.check.error],
+    );
+  } finally {
+    h.cleanup();
+  }
+});
+
+test("a one-way Hold check without payer details offers top-up only to the learner", async () => {
+  for (const viewerId of [teacherId, learnerId]) {
+    const h = holdHarness(viewerId);
+    try {
+      h.check.error = new AppError(
+        "http",
+        409,
+        "INSUFFICIENT_AVAILABLE_CREDIT",
+      );
+      h.button(h.render(), "Kiểm tra điều kiện trên hệ thống").onPress();
+      await flush();
+      const feedback = elements(h.render());
+      assert.equal(
+        feedback.some((element) => element.props.href === "/wallet/topup"),
+        viewerId === learnerId,
+      );
+      const notice = feedback.find(
+        (element) => element.type === "ConnectionFeedback",
+      );
+      assert.equal(notice?.props.error, h.check.error);
+      assert.equal(notice?.props.errorTone, "error");
+    } finally {
+      h.cleanup();
+    }
+  }
+});
 
 test("finalizing a two-way schedule publishes one notification for all six sessions", async () => {
   const h = holdHarness();

@@ -81,7 +81,7 @@ Mở Sửa vẫn có đối chiếu riêng ngày đó (cả hai ngày nếu qua 
 
 `sessions.useSessionList` bổ sung metadata `queryKey` để guard lần kiểm tra đang chờ theo đúng user/generation/range; không đổi wire API hoặc chính sách cache/refresh của Calendar/Session list. Sau await, hook kiểm lại scope và timestamp draft; callback cũ hoặc duplicate preflight không được gửi tiếp. Regression múi giờ kiểm `2026-10-28T21:00:00+07:00`–`22:00:00+07:00` khớp Session `2026-10-28T14:00:00Z`–`15:00:00Z`.
 
-Đây là hỗ trợ xếp lịch theo dữ liệu đã đọc, không bảo đảm khả dụng của cả hai. Không có dữ liệu lịch riêng ở các Path khác của người đối diện; không có contract chi tiết cho `SCHEDULE_CONFLICT`/`INSUFFICIENT_AVAILABLE_CREDIT`. Final-validation/finalize vẫn là quyết định nghiệp vụ của BE. Chưa sửa API hay suy số dư của người còn lại.
+Preflight mobile chỉ đọc lịch của tài khoản hiện tại. Backend kiểm tra lịch cả hai khi lưu và chốt. Mobile đọc khoảng trùng từ `details.conflicts` của `SCHEDULE_CONFLICT` và đối chiếu `details.userIds` của `INSUFFICIENT_AVAILABLE_CREDIT` với tài khoản hiện tại. Khi API không trả chi tiết hợp lệ, mobile dùng thông báo chung.
 
 ## Khoảng trống API và fixture
 

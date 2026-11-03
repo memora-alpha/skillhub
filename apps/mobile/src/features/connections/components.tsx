@@ -3,6 +3,10 @@ import { LoadingIndicator as ActivityIndicator } from "@/components/LoadingIndic
 import type { LoadingPresentation } from "@/components/LoadingIndicator";
 import { Icon } from "@/components/Icon";
 import { AppError, errorMessage } from "@/lib/http/errors";
+import {
+  creditShortfall,
+  scheduleConflictMessage,
+} from "@/lib/http/scheduling-error";
 import { appColors as colors, fonts, typography } from "@/constants/theme";
 import { useEffect, useState } from "react";
 import { RATE_LIMIT_BACKOFF_MS } from "@/lib/http/rate-limit";
@@ -73,6 +77,24 @@ const errors: Record<string, string> = {
     "Đã có kế hoạch cho chiều dạy này. Tải lại để kiểm tra.",
   LEARNING_PATH_NOT_CONFIRMED:
     "Hai bên cần xác nhận đầy đủ kế hoạch và điều khoản trước khi tạo lịch.",
+  LEARNING_PATH_VERSION_MISSING:
+    "Không tìm thấy phiên bản điều khoản hiện tại. Hãy tải lại lộ trình.",
+  REQUIRED_LEARNING_PLANS_MISSING:
+    "Lộ trình chưa có đủ kế hoạch cho các chiều học. Hãy kiểm tra lại kế hoạch.",
+  LEARNING_PLAN_NOT_CONFIRMED:
+    "Có kế hoạch chưa được người học xác nhận. Hãy kiểm tra lại kế hoạch.",
+  INVALID_ONE_WAY_AGREEMENT:
+    "Điều khoản học một chiều chưa hợp lệ. Hãy kiểm tra vai trò và mức Credit đã thỏa thuận.",
+  INVALID_TWO_WAY_AGREEMENT:
+    "Điều khoản trao đổi hai chiều chưa hợp lệ. Hãy kiểm tra các chiều dạy và mức Credit.",
+  REQUIRED_SCHEDULE_PROPOSAL_MISSING:
+    "Phiên bản hiện tại chưa có đủ đề xuất lịch. Hãy kiểm tra lịch của từng kế hoạch.",
+  SCHEDULE_NOT_CONFIRMED:
+    "Có lịch chưa được cả hai xác nhận hoặc chưa đủ số buổi theo kế hoạch.",
+  INVALID_SCHEDULE_ITEMS:
+    "Có buổi học có thời gian không hợp lệ. Hãy kiểm tra giờ bắt đầu và thời lượng từng buổi.",
+  DATABASE_TIME_UNAVAILABLE:
+    "Hệ thống chưa kiểm tra được thời gian. Vui lòng thử lại.",
   LEARNING_PATH_NOT_EDITABLE:
     "Learning Path không còn cho phép chỉnh sửa. Hãy tải lại trạng thái.",
   PROPOSAL_ALREADY_PENDING:
@@ -91,7 +113,11 @@ const errors: Record<string, string> = {
   COMMAND_RECONCILE_REQUIRED:
     "Chưa xác định được kết quả lần gửi trước. Giữ nguyên nội dung và thử lại để tránh gửi trùng.",
 };
-export function connectionError(error: unknown) {
+export function connectionError(error: unknown, viewerId?: string) {
+  const scheduleMessage = scheduleConflictMessage(error);
+  if (scheduleMessage) return scheduleMessage;
+  if (creditShortfall(error, viewerId) === "other")
+    return "Người còn lại chưa đủ Credit khả dụng để chốt lịch.";
   if (error instanceof AppError) {
     if (errors[error.code]) return errors[error.code];
     if (error.status === 503)
@@ -109,11 +135,15 @@ export function ConnectionFeedback({
   loading,
   error,
   retry,
+  viewerId,
+  errorTone = "muted",
   loadingPresentation = "screen",
 }: Readonly<{
   loading?: boolean;
   error?: unknown;
   retry?: () => unknown;
+  viewerId?: string;
+  errorTone?: "muted" | "error";
   loadingPresentation?: LoadingPresentation;
 }>) {
   if (!loading && !error) return null;
@@ -131,9 +161,11 @@ export function ConnectionFeedback({
           <Icon
             name={limited ? "clock" : "alert"}
             size={16}
-            color={colors.muted}
+            color={colors[errorTone]}
           />
-          <Text style={styles.message}>{connectionError(error)}</Text>
+          <Text style={[styles.message, { color: colors[errorTone] }]}>
+            {connectionError(error, viewerId)}
+          </Text>
           {!!retry && limited && (
             <RateLimitRetry error={error} retry={retry} loading={loading} />
           )}
@@ -167,7 +199,6 @@ const styles = StyleSheet.create({
   message: {
     ...typography.secondary,
     fontFamily: fonts.body,
-    color: colors.muted,
     flex: 1,
   },
   retry: {
