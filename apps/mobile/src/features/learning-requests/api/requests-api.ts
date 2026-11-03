@@ -76,10 +76,10 @@ export function createRequestsApi(client: HttpClient, isCurrent = () => true) {
         ? parsePage(ownerSchema, result)
         : parsePage(publicSchema, result);
     },
-    async detail(id: string) {
+    async detail(id: string, signal?: AbortSignal) {
       const result = parse(
         z.union([ownerSchema, publicDetailSchema]),
-        await call(path(id)),
+        await call(path(id), { signal }),
       );
       if (result.id !== id) throw new AppError("protocol");
       return result;

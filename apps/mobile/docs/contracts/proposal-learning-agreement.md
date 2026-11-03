@@ -52,6 +52,45 @@ Nếu GET download trả URL đã hết hạn, không mở link và hiện thôn
 
 SSE chỉ chứa references, hydrate qua authorized HTTP. Chat text hoặc gợi ý lộ trình không tạo confirmation. Không có public SSE event cho thay đổi plan/terms/schedule: detail đọc lại mỗi 30 giây khi focus/app active, dừng khi blur/background/error/terminal/session cũ; còn refresh focus/foreground và invalidation sau command. Chỉ GET, không replay mutation.
 
+## Điều hướng Inbox theo Yêu cầu học — 2026-11-02
+
+Inbox gom theo `learningRequestId` của các Conversation và Proposal nhận được đã
+tải; cùng đối tác ở hai bài vẫn là hai nhóm. Mỗi Proposal/Conversation giữ nguyên
+quan hệ, participant và quyền server. Bài chỉ có Proposal bị từ chối vẫn giữ entry
+lịch sử. Proposal trực tiếp/đã gửi còn trong màn Đề xuất; direct Conversation giữ
+entry chat hiện tại.
+
+Màn `/messages/request/[id]` có hai tab không số: Đề xuất nhận được/Đoạn chat.
+Chỉ owner projection của Request được mở list received với `learningRequestId`;
+`PENDING` là mặc định, bộ lọc hỗ trợ `REJECTED` và Tất cả. Denied không sử dụng
+owner/title cũ từ cache. Tab chat lọc Conversations theo ID bài trước khi đọc
+history/preview; Back từ Chat dùng `learningRequestId` từ conversation đã authorize.
+List còn trang chưa được coi là rỗng. Thẻ Inbox hiển thị số Proposal nhận được
+ở mọi trạng thái và số Conversation riêng biệt theo bài. Khi còn trang/lỗi đọc,
+số đã biết dùng dấu `+` (cận dưới), chưa biết số dùng `…`; chỉ bỏ dấu `+` khi nguồn
+đã đọc đủ và không lỗi. Không giả total unread. Backend chưa có group/batch/filter
+conversation. Preview dùng tin gần nhất của các chat đã tải, tách khỏi updatedAt
+của Proposal để sự kiện đề xuất mới không thay nội dung tin nhắn. Chỉ prefix tên
+người gửi khi metadata message và authorized profile khớp; outgoing giữ “Bạn:”.
+
+Nhãn nhóm ưu tiên tiêu đề Request được phép đọc. Khi Request detail denied/missing,
+mobile chỉ đọc skill của Proposal liên kết có cùng request ID và đúng participant,
+rồi hiển thị kỹ năng + mã Request; không dùng lại tiêu đề riêng tư từ cache. Trên
+thẻ, mã là phần tử riêng không shrink để không bị cắt theo tên dài. Chưa có skill
+thì báo chưa đọc được tên kèm mã; header cũng có mã fallback. Pull refresh tải lại
+Request detail đang active theo key owner/session, không tải lại toàn bộ feed.
+Không có thay đổi quyền backend để đọc tiêu đề gốc của bài không còn công khai.
+
+Inbox khởi tạo trang `/learning-requests/mine` trước khi đọc các preview và dùng
+owner projection đúng key user/session để hiển thị tên ngay. Detail mode của thẻ
+opt-in cache mine: bản có version mới hơn không bị ghi đè bởi snapshot cũ; known
+detail/list denial luôn chặn reuse. Cache còn mới không phát GET detail bổ sung,
+thẻ readonly giữ snapshot own còn được phép đọc kể cả khi stale và để query mine
+làm mới khi focus/pull/invalidation, tránh bật N GET khi qua TTL. Bài không có trong trang
+mine tiếp tục GET detail. `AbortSignal` được truyền đến API để hủy queued GET khi
+blur. Pull refresh cập nhật mine trước, rồi chỉ retry active detail chưa có snapshot
+mine mới đủ version. Không tăng concurrency hoặc sửa chính sách quyền backend.
+
 ## LearningPath và LearningPlan
 
 | Method / endpoint                            | Payload dùng                                         | Kết quả / ràng buộc                                                           |

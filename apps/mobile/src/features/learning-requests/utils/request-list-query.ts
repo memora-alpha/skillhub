@@ -23,14 +23,22 @@ export function requestListOptions(
   key: QueryKey,
   scope: "mine" | "feed" | "recommended",
   filters: RequestFilters,
+  firstPageOnly = false,
 ) {
   return infiniteQueryOptions({
-    queryKey: [...key, "list", scope, filters],
+    queryKey: [
+      ...key,
+      "list",
+      scope,
+      filters,
+      ...(firstPageOnly ? ["first-page"] : []),
+    ],
     retry: false,
     initialPageParam: undefined as string | undefined,
     queryFn: ({ pageParam, signal }): Promise<Page<RequestItem>> =>
       api.list(scope, filters, pageParam, signal),
     getNextPageParam: (page, _pages, _last, cursors) => {
+      if (firstPageOnly) return undefined;
       if (page.nextCursor && cursors.includes(page.nextCursor))
         return undefined;
       return page.nextCursor ?? undefined;

@@ -7,7 +7,9 @@ import { ConversationCard } from "./ConversationCard";
 
 export function ConversationRow({
   item,
-}: Readonly<{ item: InboxConversation }>) {
+  compact = false,
+  topic,
+}: Readonly<{ item: InboxConversation; compact?: boolean; topic?: string }>) {
   const { conversation } = item;
   const focused = useIsFocused();
   const router = useRouter(),
@@ -17,7 +19,11 @@ export function ConversationRow({
       ? conversation.participantBId
       : conversation.participantAId;
   const profile = useParticipantProfile(partnerId, focused);
-  const context = useConversationContext(conversation, false, focused);
+  const context = useConversationContext(
+    conversation,
+    false,
+    focused && !topic,
+  );
   const state =
     item.state === "failed"
       ? "Chưa gửi · "
@@ -31,7 +37,8 @@ export function ConversationRow({
       userId={partnerId}
       preview={`${state}${item.preview}`}
       time={inboxTime(item.activityAt)}
-      topic={context.label}
+      topic={topic ?? context.label}
+      showTopic={!compact}
       reference={context.reference}
       unread={item.unread ?? false}
       onPress={() =>

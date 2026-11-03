@@ -8,3 +8,4 @@ export { ChatOutboxProvider } from "./context/ChatOutbox";
 export { ChatScreen } from "./screens/ChatScreen";
 export { MessagesScreen } from "./screens/MessagesScreen";
 export { AttachmentScreen } from "./screens/attachment-screen";
+export { RequestMessagesScreen } from "./screens/RequestMessagesScreen";

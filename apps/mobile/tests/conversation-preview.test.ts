@@ -103,3 +103,42 @@ test("interleaved outbox entries preserve per-conversation draft order, failed s
   );
   assert.equal(JSON.stringify(outbox), before);
 });
+
+test("preview sender is the actual message author and system messages are never attributed to the partner", () => {
+  const conversation = {
+    id: fixtureId(1),
+    proposalId: fixtureId(11),
+    learningRequestId: fixtureId(21),
+    participantAId: "me",
+    participantBId: "peer",
+    createdAt: "2030-01-01T00:00:00Z",
+  };
+  const message: ApiMessage = {
+    id: fixtureId(50),
+    conversationId: conversation.id,
+    senderId: "peer",
+    sequence: "10",
+    messageText: "Latest incoming",
+    messageType: "TEXT",
+    attachments: [],
+    readAt: null,
+    sentAt: "2030-01-04T00:00:00Z",
+  };
+  const rows = (item: ApiMessage) =>
+    conversationInbox(
+      [conversation],
+      new Map([[conversation.id, item]]),
+      [],
+      "me",
+    );
+  assert.equal(rows(message)[0]?.previewSenderId, "peer");
+  assert.equal(
+    rows({ ...message, senderId: "me" })[0]?.preview,
+    "Bạn: Latest incoming",
+  );
+  assert.equal(rows({ ...message, senderId: "me" })[0]?.previewSenderId, "me");
+  assert.equal(
+    rows({ ...message, messageType: "SYSTEM" })[0]?.previewSenderId,
+    undefined,
+  );
+});
