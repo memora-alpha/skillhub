@@ -5,6 +5,10 @@ import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 import pg from "pg";
+import {
+  recoverInboxActivity,
+  inboxActivityMigration,
+} from "./lib/recover-inbox-activity.mjs";
 
 const require = createRequire(import.meta.url);
 const selections = {
@@ -126,6 +130,7 @@ export async function runRelease({
   seed = "none",
   operation = "deploy",
   run,
+  preparePostgres = async () => {},
   log = console.log,
 }) {
   const requests = validateSeedPlan(plan);
@@ -142,6 +147,7 @@ export async function runRelease({
 
   if (operation === "deploy") {
     log("Applying PostgreSQL migrations");
+    await preparePostgres();
     await run("postgres");
     log("Applying MongoDB indexes");
     await run("mongo");
@@ -159,6 +165,13 @@ export async function runRelease({
 function execute(kind) {
   const commands = {
     postgres: [require.resolve("prisma/build/index.js"), "migrate", "deploy"],
+    "inbox-recovery-resolve": [
+      require.resolve("prisma/build/index.js"),
+      "migrate",
+      "resolve",
+      "--applied",
+      inboxActivityMigration,
+    ],
     mongo: ["scripts/migrate-chat.mjs"],
     identity: ["scripts/identity-bootstrap.mjs", "seed"],
     configuration: ["dist/seed-configuration.js"],
@@ -194,7 +207,7 @@ export async function withReleaseLock(
     await client.query("SELECT pg_advisory_lock(hashtextextended($1, 0))", [
       `skillhub-dev-bootstrap:${database.searchParams.get("schema") ?? "public"}`,
     ]);
-    return await task();
+    return await task(client);
   } finally {
     // Closing the dedicated session releases its advisory lock even after a failure.
     await client.end();
@@ -205,7 +218,7 @@ export async function runConfiguredRelease({ env = process.env } = {}) {
   const plan = JSON.parse(
     await readFile(new URL("../release-seeds.json", import.meta.url), "utf8"),
   );
-  return withReleaseLock(env.DATABASE_URL, () =>
+  return withReleaseLock(env.DATABASE_URL, (client) =>
     runRelease({
       plan,
       stateDirectory: env.RELEASE_STATE_DIRECTORY ?? "/release-state",
@@ -213,6 +226,12 @@ export async function runConfiguredRelease({ env = process.env } = {}) {
       seed: env.RELEASE_SEED ?? "none",
       operation: env.RELEASE_OPERATION ?? "deploy",
       run: execute,
+      preparePostgres: () =>
+        recoverInboxActivity(client, {
+          schema:
+            new URL(env.DATABASE_URL).searchParams.get("schema") ?? "public",
+          resolve: () => execute("inbox-recovery-resolve"),
+        }),
     }),
   );
 }
