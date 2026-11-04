@@ -58,12 +58,14 @@ export function scheduleConflictMessage(error: unknown) {
   const descriptions = visible.map((conflict) => {
     const start = format.format(new Date(conflict.overlapStartAt));
     const end = format.format(new Date(conflict.overlapEndAt));
-    const reason =
-      conflict.proposed && conflict.compared
-        ? `Buổi ${conflict.proposed.sessionNo} trùng ${conflict.type === "INTERNAL" ? "buổi" : "buổi đã chốt"} ${conflict.compared.sessionNo}`
-        : conflict.type === "INTERNAL"
-          ? "Các buổi đề xuất bị trùng"
-          : "Trùng với một buổi đã đặt";
+    const comparedLabel =
+      conflict.type === "INTERNAL" ? "buổi" : "buổi đã chốt";
+    let reason =
+      conflict.type === "INTERNAL"
+        ? "Các buổi đề xuất bị trùng"
+        : "Trùng với một buổi đã đặt";
+    if (conflict.proposed && conflict.compared)
+      reason = `Buổi ${conflict.proposed.sessionNo} trùng ${comparedLabel} ${conflict.compared.sessionNo}`;
     return `${reason} từ ${start} đến ${end} (giờ thiết bị).`;
   });
   const remainingCount = conflicts.length - visible.length;
