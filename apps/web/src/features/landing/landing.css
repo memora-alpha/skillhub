@@ -155,9 +155,6 @@
   font-size: 14px;
   font-weight: 800;
   box-shadow: 0 9px 22px rgba(196, 81, 43, 0.18);
-  transition:
-    background 0.2s,
-    box-shadow 0.2s;
 }
 .skillhub-public .button:hover {
   background: var(--orange-dark);
