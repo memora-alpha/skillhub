@@ -6,6 +6,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { Button } from "@/components/Button";
 import { Checkbox } from "@/components/Checkbox";
 import { InfoModal } from "@/components/InfoModal";
+import { legalPolicies, PolicyContent } from "@/features/legal";
 import { AuthLayout } from "../components/AuthLayout";
 import { PasswordRequirements, authStyles } from "../components/AuthControls";
 import { AuthFormInput } from "../components/AuthFormInput";
@@ -17,19 +18,6 @@ import {
 } from "../schemas/auth-schemas";
 
 type RegisterNotice = "terms" | "privacy";
-const registerNoticeCopy: Record<
-  RegisterNotice,
-  Readonly<{ title: string; body: string }>
-> = {
-  terms: {
-    title: "Điều khoản sử dụng",
-    body: "Nội dung điều khoản chính thức chưa được cung cấp. Vui lòng liên hệ SkillHub để được hỗ trợ trước khi đăng ký.",
-  },
-  privacy: {
-    title: "Chính sách bảo mật",
-    body: "Nội dung chính sách chính thức chưa được cung cấp. Vui lòng liên hệ SkillHub để được hỗ trợ trước khi đăng ký.",
-  },
-};
 
 export function RegisterScreen() {
   const router = useRouter();
@@ -71,7 +59,7 @@ export function RegisterScreen() {
       },
     );
   });
-  const noticeCopy = notice ? registerNoticeCopy[notice] : null;
+  const noticeCopy = notice ? legalPolicies[notice] : null;
   return (
     <AuthLayout
       title="Tạo tài khoản"
@@ -203,7 +191,7 @@ export function RegisterScreen() {
         onClose={() => setNotice(null)}
         confirmLabel="Đã hiểu"
       >
-        {noticeCopy?.body ?? ""}
+        {notice && <PolicyContent type={notice} />}
       </InfoModal>
     </AuthLayout>
   );
