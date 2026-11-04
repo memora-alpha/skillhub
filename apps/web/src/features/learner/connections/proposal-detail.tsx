@@ -9,7 +9,7 @@ import {
 } from "../components/common";
 import { ProposalCard } from "./connections-screen";
 import type { Proposal } from "../types";
-export function ProposalDetail({ id }: { id: string }) {
+export function ProposalDetail({ id }: Readonly<{ id: string }>) {
   const query = useUserResource<Proposal>("proposals/" + id);
   const proposal = query.data;
   return (
@@ -33,11 +33,7 @@ export function ProposalDetail({ id }: { id: string }) {
             <p>Phiên bản: {proposal.version}</p>
             <p>
               Hình thức:{" "}
-              {proposal.exchangeTypeHint === "TWO_WAY"
-                ? "Trao đổi hai chiều"
-                : proposal.exchangeTypeHint === "ONE_WAY"
-                  ? "Hướng dẫn một chiều"
-                  : "Chưa chọn"}
+              {exchangeLabels[proposal.exchangeTypeHint ?? ""] ?? "Chưa chọn"}
             </p>
             <p className="muted">
               Đề nghị là bước kết nối. Credit và lịch học sẽ được hai bên xác
@@ -49,3 +45,8 @@ export function ProposalDetail({ id }: { id: string }) {
     </>
   );
 }
+
+const exchangeLabels: Record<string, string> = {
+  TWO_WAY: "Trao đổi hai chiều",
+  ONE_WAY: "Hướng dẫn một chiều",
+};

@@ -8,13 +8,13 @@ export function UploadControl({
   accept,
   onUploaded,
   disabled = false,
-}: {
+}: Readonly<{
   endpoint: string;
   maxBytes: number;
   accept: string;
   onUploaded: (id: string) => void;
   disabled?: boolean;
-}) {
+}>) {
   const { request } = useUserSession(),
     busy = useRef(false);
   const [uploading, setUploading] = useState(false),
@@ -22,7 +22,7 @@ export function UploadControl({
   return (
     <div>
       <label>
-        Tệp tài liệu
+        <span>Tệp tài liệu</span>
         <input
           aria-label="Chọn tệp tải lên"
           type="file"

@@ -54,7 +54,7 @@ export function LearnerShell({
     show,
     close,
     trigger: menuButton,
-    panel: sidebar,
+    panel: sidebarRef,
   } = useNavigationDrawer("(min-width: 761px)");
   useEffect(() => {
     let source: EventSource | undefined;
@@ -133,6 +133,7 @@ export function LearnerShell({
     };
   }, [request, refresh, streamAttempt, cache, actor.userId]);
 
+  const Sidebar = open ? "dialog" : "aside";
   return (
     <div className="learner-root workspace">
       <a className="product-skip" href="#learning-content" inert={open}>
@@ -147,11 +148,18 @@ export function LearnerShell({
           tabIndex={-1}
         />
       )}
-      <aside
-        ref={sidebar}
+      <Sidebar
+        open={open || undefined}
+        style={
+          open
+            ? { margin: 0, maxWidth: "none", maxHeight: "none", border: 0 }
+            : undefined
+        }
+        ref={(element: HTMLElement | null) => {
+          sidebarRef.current = element;
+        }}
         id="learning-sidebar"
         className={"app-sidebar" + (open ? " open" : "")}
-        role={open ? "dialog" : undefined}
         aria-modal={open || undefined}
         aria-label="Điều hướng học tập"
       >
@@ -225,7 +233,7 @@ export function LearnerShell({
         >
           Đăng xuất
         </button>
-      </aside>
+      </Sidebar>
       <div className="workspace-main" inert={open}>
         <header className="app-header">
           <button

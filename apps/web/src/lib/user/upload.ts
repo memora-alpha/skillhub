@@ -1,3 +1,4 @@
+import { readBoundedBody } from "./request-body";
 import { randomUUID } from "node:crypto";
 import { apiBase, UserGatewayError } from "./backend";
 export function uploadLimit(path: string) {
@@ -19,26 +20,14 @@ export async function userUpload(
   if (Number(request.headers.get("content-length")) > cap)
     throw new UserGatewayError(413, "FILE_TOO_LARGE");
   if (!request.body) throw new UserGatewayError(400, "FILE_REQUIRED");
-  const chunks: Uint8Array[] = [];
-  let size = 0;
-  const reader = request.body.getReader();
-  try {
-    for (;;) {
-      const chunk = await reader.read();
-      if (chunk.done) break;
-      size += chunk.value.byteLength;
-      if (size > cap) {
-        await reader.cancel();
-        throw new UserGatewayError(413, "FILE_TOO_LARGE");
-      }
-      chunks.push(chunk.value);
-    }
-  } finally {
-    reader.releaseLock();
-  }
+  const bodyBytes = await readBoundedBody(
+    request.body,
+    cap,
+    () => new UserGatewayError(413, "FILE_TOO_LARGE"),
+  );
   let form: FormData;
   try {
-    form = await new Response(Buffer.concat(chunks), {
+    form = await new Response(bodyBytes, {
       headers: { "Content-Type": contentType },
     }).formData();
   } catch {

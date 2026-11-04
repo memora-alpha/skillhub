@@ -290,8 +290,6 @@
   border-radius: 16px;
   background: white;
   box-shadow: 0 8px 25px rgba(70, 45, 30, 0.035);
-}
-.learner-root .panel {
   padding: 23px;
 }
 .learner-root .panel h2 {
@@ -344,7 +342,7 @@
   background: var(--app-orange-pale);
 }
 .learner-root .stat-icon.cream {
-  color: #a8783d;
+  color: #805f32;
   background: #fff5dc;
 }
 .learner-root .stat-grid article > div {

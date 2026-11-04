@@ -1,5 +1,12 @@
 "use client";
-import { useEffect, useId, useRef, useState, type FormEvent } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useId,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 import type { useRoomChat } from "./use-room-chat";
 import { roomChatTextLimit } from "./ephemeral-chat";
 import { RoomIcon } from "./room-icon";
@@ -15,13 +22,13 @@ export function RoomChat({
   open,
   peer,
   self,
-}: {
+}: Readonly<{
   chat: ReturnType<typeof useRoomChat>;
   close: () => void;
   open: boolean;
   peer: RoomPerson;
   self: RoomPerson;
-}) {
+}>) {
   const [draft, setDraft] = useState("");
   const [mode, setMode] = useState<WindowMode>("floating");
   const [restoreMode, setRestoreMode] = useState<"floating" | "maximized">(
@@ -30,6 +37,22 @@ export function RoomChat({
   const [lastReadId, setLastReadId] = useState<string>();
   const log = useRef<HTMLDivElement>(null);
   const bodyId = useId();
+  const windowRef = useRef<HTMLElement>(null);
+  const previousMode = useRef<WindowMode>("floating");
+  const floatingSize = useRef({ width: "", height: "" });
+  useLayoutEffect(() => {
+    const style = windowRef.current?.style;
+    if (!style) return;
+    if (previousMode.current === "floating" && mode !== "floating") {
+      floatingSize.current = { width: style.width, height: style.height };
+      style.removeProperty("width");
+      style.removeProperty("height");
+    } else if (mode === "floating" && previousMode.current !== "floating") {
+      style.width = floatingSize.current.width;
+      style.height = floatingSize.current.height;
+    }
+    previousMode.current = mode;
+  }, [mode]);
   const minimized = mode === "minimized";
   const seen = chat.messages.findIndex((message) => message.id === lastReadId);
   const unread = minimized
@@ -53,8 +76,14 @@ export function RoomChat({
     if (await chat.send(text))
       setDraft((value) => (value === text ? "" : value));
   }
+  let connectionLabel: string;
+  if (chat.ready) connectionLabel = "Trực tiếp";
+  else if (chat.status === "not-permitted")
+    connectionLabel = "Chat chưa được cấp quyền";
+  else connectionLabel = "Đang chờ kết nối";
   return (
     <aside
+      ref={windowRef}
       className={styles.chat}
       hidden={!open}
       data-mode={mode}
@@ -129,14 +158,10 @@ export function RoomChat({
           Tin nhắn chỉ ở phiên này, mất khi rời phòng. Người vào sau không xem
           được tin trước đó.
         </p>
-        <div className={styles.status} data-ready={chat.ready} role="status">
+        <output className={styles.status} data-ready={chat.ready}>
           <i />
-          {chat.ready
-            ? "Trực tiếp"
-            : chat.status === "not-permitted"
-              ? "Chat chưa được cấp quyền"
-              : "Đang chờ kết nối"}
-        </div>
+          {connectionLabel}
+        </output>
         <div
           ref={log}
           className={styles.log}
@@ -175,8 +200,8 @@ export function RoomChat({
           })}
         </div>
         {!chat.ready && (
-          <p className={styles.feedback} role="status">
-            {chat.statusMessage}
+          <p className={styles.feedback}>
+            <output>{chat.statusMessage}</output>
           </p>
         )}
         {chat.error && (

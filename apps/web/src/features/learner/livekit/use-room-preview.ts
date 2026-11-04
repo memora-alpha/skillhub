@@ -51,6 +51,39 @@ export function useRoomPreview(
     };
   }, [stop]);
 
+  async function prepareTrack(
+    kind: DeviceKind,
+    track: LocalTrack,
+    current: () => boolean,
+    settings: MicrophoneSettings,
+  ) {
+    if (kind === "camera")
+      await background.prepare(track as LocalVideoTrack, current);
+    else
+      await audio.prepare(
+        track as LocalAudioTrack,
+        current,
+        undefined,
+        settings,
+      );
+  }
+  function captureFailed(
+    kind: DeviceKind,
+    captured: LocalTrack | undefined,
+    cause: unknown,
+    current: () => boolean,
+  ) {
+    captured?.stop();
+    if (owned.current[kind] === captured) delete owned.current[kind];
+    if (current()) {
+      setTracks({ ...owned.current });
+      setError(
+        kind === "camera" && background.enabled
+          ? "Chưa làm mờ được nền nên camera vẫn tắt. Kiểm tra mạng rồi bật lại camera, hoặc tắt mờ nền để tiếp tục."
+          : mediaErrorMessage(cause),
+      );
+    }
+  }
   async function capture(
     kind: DeviceKind,
     deviceId: string,
@@ -61,6 +94,7 @@ export function useRoomPreview(
       return;
     locked.current = true;
     const ticket = ++operation.current;
+    const current = () => alive.current && ticket === operation.current;
     setBusy(true);
     setError(undefined);
     owned.current[kind]?.stop();
@@ -69,7 +103,7 @@ export function useRoomPreview(
     let captured: LocalTrack | undefined;
     try {
       const sdk = await import("livekit-client");
-      if (!alive.current || ticket !== operation.current) return;
+      if (!current()) return;
       const options = deviceId ? { deviceId: { exact: deviceId } } : {};
       const track =
         kind === "camera"
@@ -78,31 +112,15 @@ export function useRoomPreview(
               microphoneCaptureOptions(micSettings, deviceId),
             );
       captured = track;
-      if (!alive.current || ticket !== operation.current) {
+      if (!current()) {
         track.stop();
         return;
       }
       owned.current[kind] = track;
-      if (kind === "camera") {
-        await background.prepare(
-          track as LocalVideoTrack,
-          () => alive.current && ticket === operation.current,
-        );
-        if (!alive.current || ticket !== operation.current) {
-          track.stop();
-          return;
-        }
-      } else {
-        await audio.prepare(
-          track as LocalAudioTrack,
-          () => alive.current && ticket === operation.current,
-          undefined,
-          micSettings,
-        );
-        if (!alive.current || ticket !== operation.current) {
-          track.stop();
-          return;
-        }
+      await prepareTrack(kind, track, current, micSettings);
+      if (!current()) {
+        track.stop();
+        return;
       }
       track.mediaStreamTrack.addEventListener(
         "ended",
@@ -119,19 +137,10 @@ export function useRoomPreview(
       setTracks({ ...owned.current });
       await roomDevices.refresh();
     } catch (cause) {
-      captured?.stop();
-      if (owned.current[kind] === captured) delete owned.current[kind];
-      if (alive.current && ticket === operation.current) {
-        setTracks({ ...owned.current });
-        setError(
-          kind === "camera" && background.enabled
-            ? "Chưa làm mờ được nền nên camera vẫn tắt. Kiểm tra mạng rồi bật lại camera, hoặc tắt mờ nền để tiếp tục."
-            : mediaErrorMessage(cause),
-        );
-      }
+      captureFailed(kind, captured, cause, current);
       if (fromSettings) throw cause;
     } finally {
-      if (alive.current && ticket === operation.current) {
+      if (current()) {
         locked.current = false;
         setBusy(false);
       }

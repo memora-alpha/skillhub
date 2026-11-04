@@ -14,10 +14,10 @@ import {
 export function SettlementPanel({
   path,
   blocked,
-}: {
+}: Readonly<{
   path: LearningPath;
   blocked: boolean;
-}) {
+}>) {
   const { actor, request } = useUserSession();
   const command = useUserCommand(true);
   const [receipt, setReceipt] = useState<SettlementReceipt>();
@@ -27,12 +27,7 @@ export function SettlementPanel({
     !!path.lockedVersion &&
     ["ACTIVE", "COMPLETED"].includes(path.status) &&
     (settled || completed);
-  const ownOutcome =
-    path.agreement.exchangeType === "TWO_WAY"
-      ? "Mỗi người được hoàn 96% Credit đã giữ của chính mình; 4% là phí nền tảng."
-      : path.agreement.teacherId === actor.userId
-        ? "Bạn là người dạy: nhận 96% Credit thỏa thuận; 4% là phí nền tảng."
-        : "Học một chiều: 96% Credit đã giữ được trả cho người dạy; 4% là phí nền tảng.";
+  const ownOutcome = settlementOutcome(path, actor.userId);
   async function check() {
     const result = await command.run("settlement:" + path.id, async () => {
       const value = await request<unknown>(
@@ -43,6 +38,18 @@ export function SettlementPanel({
     });
     if (result) setReceipt(result);
   }
+  let settlementNotice: string;
+  if (settled) settlementNotice = "Đã quyết toán theo kết quả máy chủ.";
+  else if (completed)
+    settlementNotice =
+      "Các buổi đã hoàn tất. Chờ hệ thống kiểm tra điều kiện quyết toán.";
+  else
+    settlementNotice =
+      "Credit tiếp tục được giữ đến khi lộ trình đủ điều kiện.";
+  let settlementButton: string;
+  if (command.pending) settlementButton = "Đang kiểm tra…";
+  else if (settled) settlementButton = "Xem kết quả quyết toán";
+  else settlementButton = "Kiểm tra / yêu cầu quyết toán";
   return (
     <Panel title="Hoàn Credit & quyết toán lộ trình">
       <p>{ownOutcome}</p>
@@ -51,12 +58,8 @@ export function SettlementPanel({
         còn tranh chấp giữ Credit. Hệ thống tự kiểm tra; bạn cũng có thể yêu cầu
         kiểm tra kết quả.
       </p>
-      <p role="status">
-        {settled
-          ? "Đã quyết toán theo kết quả máy chủ."
-          : completed
-            ? "Các buổi đã hoàn tất. Chờ hệ thống kiểm tra điều kiện quyết toán."
-            : "Credit tiếp tục được giữ đến khi lộ trình đủ điều kiện."}
+      <p>
+        <output>{settlementNotice}</output>
       </p>
       {path.settledAt && <p>Thời điểm: {formatTime(path.settledAt)}</p>}
       {receipt && (
@@ -84,11 +87,7 @@ export function SettlementPanel({
           }
           onClick={() => void check()}
         >
-          {command.pending
-            ? "Đang kiểm tra…"
-            : settled
-              ? "Xem kết quả quyết toán"
-              : "Kiểm tra / yêu cầu quyết toán"}
+          {settlementButton}
         </button>
         <Link className="btn" href="/learn/wallet">
           Xem ví & lịch sử Credit
@@ -96,4 +95,12 @@ export function SettlementPanel({
       </div>
     </Panel>
   );
+}
+
+function settlementOutcome(path: LearningPath, userId: string) {
+  if (path.agreement.exchangeType === "TWO_WAY")
+    return "Mỗi người được hoàn 96% Credit đã giữ của chính mình; 4% là phí nền tảng.";
+  if (path.agreement.teacherId === userId)
+    return "Bạn là người dạy: nhận 96% Credit thỏa thuận; 4% là phí nền tảng.";
+  return "Học một chiều: 96% Credit đã giữ được trả cho người dạy; 4% là phí nền tảng.";
 }

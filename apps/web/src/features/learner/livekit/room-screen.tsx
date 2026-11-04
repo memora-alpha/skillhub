@@ -254,8 +254,8 @@ function RoomNotices({
   const hasError = !!(query.error || room.error || displayError);
   return (
     <div className={styles.messages} role={hasError ? "alert" : undefined}>
-      {messages.map((message, index) => (
-        <p key={index}>{hasError ? message : <output>{message}</output>}</p>
+      {[...new Set(messages)].map((message) => (
+        <p key={message}>{hasError ? message : <output>{message}</output>}</p>
       ))}
       {query.error && (
         <button type="button" onClick={query.reload}>

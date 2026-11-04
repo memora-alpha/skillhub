@@ -1,9 +1,9 @@
 import { ReportForm } from "@/features/learner/account/reports-screen";
 export default async function Page({
   searchParams,
-}: {
+}: Readonly<{
   searchParams: Promise<{ sessionId?: string; materialId?: string }>;
-}) {
+}>) {
   const p = await searchParams;
   const valid = (v: unknown): v is string =>
     typeof v === "string" && /^[0-9a-f-]{36}$/i.test(v);

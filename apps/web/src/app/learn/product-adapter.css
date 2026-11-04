@@ -120,12 +120,14 @@
 }
 .learner-root .header-wallet {
   text-decoration: none;
+  flex-shrink: 0;
 }
 .learner-root .header-wallet b {
   font-size: 14px;
 }
 .learner-root .header-wallet small {
   font-size: 11px;
+  white-space: nowrap;
 }
 .learner-root .app-content {
   width: 100%;
@@ -956,12 +958,6 @@
   width: auto;
   max-width: 410px;
   min-width: 0;
-}
-.learner-root .header-wallet {
-  flex-shrink: 0;
-}
-.learner-root .header-wallet small {
-  white-space: nowrap;
 }
 @media (min-width: 761px) and (max-width: 1100px) {
   .learner-root .product-plans {

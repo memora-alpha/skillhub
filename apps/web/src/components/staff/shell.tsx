@@ -55,7 +55,7 @@ function Frame({ children }: Readonly<{ children: ReactNode }>) {
     show,
     close,
     trigger: menuButton,
-    panel: sidebar,
+    panel: sidebarRef,
   } = useNavigationDrawer("(min-width: 1024px)");
   const [error, setError] = useState<string | null>(null);
   if (loading)
@@ -78,17 +78,25 @@ function Frame({ children }: Readonly<{ children: ReactNode }>) {
       ? pathname === item.href
       : pathname.startsWith(item.href) || item.aliases?.includes(pathname),
   );
+  const Sidebar = open ? "dialog" : "aside";
   return (
     <div className="shell staff-shell" key={actor.userId}>
       <a className="skip-link" href="#main" inert={open}>
         Bỏ qua điều hướng
       </a>
-      <aside
-        ref={sidebar}
+      <Sidebar
+        open={open || undefined}
+        style={
+          open
+            ? { margin: 0, maxWidth: "none", maxHeight: "none", border: 0 }
+            : undefined
+        }
+        ref={(element: HTMLElement | null) => {
+          sidebarRef.current = element;
+        }}
         id="staff-side"
         className="side"
         data-open={open}
-        role={open ? "dialog" : undefined}
         aria-modal={open || undefined}
         aria-label={`Điều hướng ${portalName}`}
       >
@@ -172,7 +180,7 @@ function Frame({ children }: Readonly<{ children: ReactNode }>) {
             {busy ? "Đang đăng xuất…" : "Đăng xuất"}
           </button>
         </div>
-      </aside>
+      </Sidebar>
       {open && (
         <button
           type="button"
@@ -233,13 +241,14 @@ export function StaffShell({
 function NotificationBell({ portal }: Readonly<{ portal: Portal }>) {
   const { unreadCount } = useNotificationInbox();
   const unread = unreadCount ?? 0;
+  const unreadDescription = unread > 99 ? "hơn 99" : unread;
   return (
     <Link
       className="icon-btn staff-notification-bell"
       href={`/${portal}/notifications`}
       aria-label={
         unread
-          ? `Thông báo — ${unread > 99 ? "hơn 99" : unread} thông báo chưa đọc`
+          ? `Thông báo — ${unreadDescription} thông báo chưa đọc`
           : "Mở thông báo"
       }
     >

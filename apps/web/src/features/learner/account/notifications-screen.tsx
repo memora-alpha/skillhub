@@ -50,8 +50,8 @@ export function NotificationsScreen() {
           </button>
         }
       />
-      <p className="learner-notice" role="status">
-        {summary}
+      <p className="learner-notice">
+        <output>{summary}</output>
       </p>
       <Feedback
         loading={query.loading}

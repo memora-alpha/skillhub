@@ -22,9 +22,9 @@ export class MicrophoneProcessor implements TrackProcessor<
   private generation = 0;
   private noise?: KrispNoiseFilterProcessor;
   constructor(
-    private gain: GainAudioProcessor,
-    private noiseFactory?: () => KrispNoiseFilterProcessor,
-    private room?: Room,
+    private readonly gain: GainAudioProcessor,
+    private readonly noiseFactory?: () => KrispNoiseFilterProcessor,
+    private readonly room?: Room,
   ) {}
 
   async init(options: AudioProcessorOptions) {
@@ -81,7 +81,7 @@ export async function createMicrophoneProcessor(
     );
   let noiseFactory: (() => KrispNoiseFilterProcessor) | undefined;
   if (settings.filter !== "standard") {
-    if (!room || room.state !== "connected")
+    if (room?.state !== "connected")
       throw new MicrophoneEffectError(
         "Vào phòng để kiểm tra và bật Krisp. Lọc cơ bản vẫn dùng được ở màn xem trước.",
       );

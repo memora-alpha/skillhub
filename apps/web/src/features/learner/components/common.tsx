@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { formatVietnamDateTime } from "@/lib/vietnam-time";
+export { formatVietnamDateTime as formatTime } from "@/lib/vietnam-time";
 const labels: Record<string, string> = {
   FREE: "Miễn phí",
   PAID: "Đã thanh toán",
@@ -131,7 +131,6 @@ export function PageHeading({
 export function Empty({ children }: Readonly<{ children: ReactNode }>) {
   return <div className="learner-empty">{children}</div>;
 }
-export const formatTime = formatVietnamDateTime;
 export function More({
   cursor,
   loading,

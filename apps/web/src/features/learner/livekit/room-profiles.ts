@@ -39,11 +39,8 @@ export function safeRoomAvatar(value: string | null | undefined) {
 }
 
 export function roomInitials(name: string) {
-  const words = name
-    .replace(/\s*\(Bạn\)$/, "")
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean);
+  const label = name.endsWith("(Bạn)") ? name.slice(0, -5) : name;
+  const words = label.trim().split(/\s+/).filter(Boolean);
   return (
     words.length > 1
       ? (words[0]?.[0] ?? "") + (words.at(-1)?.[0] ?? "")

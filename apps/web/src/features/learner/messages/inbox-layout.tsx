@@ -7,7 +7,7 @@ import { useUserList } from "../hooks/use-user-resource";
 import type { Conversation } from "../types";
 import { Empty, Feedback, More, PageHeading } from "../components/common";
 import { ProfileName } from "../components/profile-name";
-export function InboxLayout({ children }: { children: ReactNode }) {
+export function InboxLayout({ children }: Readonly<{ children: ReactNode }>) {
   const { actor } = useUserSession(),
     pathname = usePathname(),
     query = useUserList<Conversation>("conversations?limit=20");

@@ -31,14 +31,17 @@ export async function accountRequest<T = unknown>(
         "Phiên đặt lại mật khẩu đã hết hạn. Vui lòng xác minh lại OTP.",
     };
     throw new Error(
-      messages[value?.message] ??
-        (response.status === 429
-          ? "Bạn gửi yêu cầu quá nhanh. Vui lòng chờ rồi thử lại."
-          : response.status >= 500
-            ? "Máy chủ tạm thời không khả dụng. Vui lòng thử lại sau."
-            : "Thông tin chưa hợp lệ hoặc mã đã hết hạn. Kiểm tra lại và thử lại."),
+      messages[value?.message] ?? accountFailureMessage(response.status),
     );
   }
   if (value?.success !== true) throw new Error("Phản hồi máy chủ chưa hợp lệ.");
   return value.data as T;
+}
+
+function accountFailureMessage(status: number) {
+  if (status === 429)
+    return "Bạn gửi yêu cầu quá nhanh. Vui lòng chờ rồi thử lại.";
+  if (status >= 500)
+    return "Máy chủ tạm thời không khả dụng. Vui lòng thử lại sau.";
+  return "Thông tin chưa hợp lệ hoặc mã đã hết hạn. Kiểm tra lại và thử lại.";
 }

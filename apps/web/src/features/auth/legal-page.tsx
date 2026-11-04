@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { legalPolicies } from "./legal-content";
 
-export function LegalPage({ type }: { type: "terms" | "privacy" }) {
+export function LegalPage({ type }: Readonly<{ type: "terms" | "privacy" }>) {
   const policy = legalPolicies[type];
   return (
     <main className="auth-page legal-page">

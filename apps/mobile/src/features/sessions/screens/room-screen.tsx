@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AppState } from "react-native";
+import { AppState, Switch, View } from "react-native";
 import { useFocusEffect, useLocalSearchParams } from "expo-router";
 import { FormNotice } from "@/components/FormNotice";
-import { Switch, View } from "react-native";
 import { useSessionDetail } from "../hooks/use-sessions";
 import { useSessionPartner } from "../hooks/use-session-partner";
 import { useSessionClock } from "../hooks/use-session-clock";

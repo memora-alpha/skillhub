@@ -12,7 +12,7 @@ export function sessionRefreshInterval(session: LearningSession | undefined) {
 export function attendanceSideText(
   side: NonNullable<LearningSession["attendance"]>["teacher"],
 ) {
-  if (!side || !side.verdict) return "Đang chờ số liệu điểm danh";
+  if (!side?.verdict) return "Đang chờ số liệu điểm danh";
   if (side.verdict === "UNVERIFIABLE")
     return "Chưa đủ dữ liệu để xác minh thời lượng";
   let label = "Chưa có kết luận";

@@ -1,3 +1,4 @@
+import { readBoundedBody } from "./request-body";
 import { randomUUID } from "node:crypto";
 export class UserGatewayError extends Error {
   constructor(
@@ -79,26 +80,14 @@ export async function userJson(request: Request) {
   if (!request.headers.get("content-type")?.startsWith("application/json"))
     throw new UserGatewayError(415, "JSON_REQUIRED");
   if (!request.body) throw new UserGatewayError(400, "BODY_REQUIRED");
-  const reader = request.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let length = 0;
-  try {
-    while (true) {
-      const item = await reader.read();
-      if (item.done) break;
-      length += item.value.byteLength;
-      if (length > 262144) {
-        await reader.cancel();
-        throw new UserGatewayError(413, "BODY_TOO_LARGE");
-      }
-      chunks.push(item.value);
-    }
-  } finally {
-    reader.releaseLock();
-  }
+  const bodyBytes = await readBoundedBody(
+    request.body,
+    262144,
+    () => new UserGatewayError(413, "BODY_TOO_LARGE"),
+  );
   let value: unknown;
   try {
-    value = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+    value = JSON.parse(bodyBytes.toString("utf8"));
   } catch {
     throw new UserGatewayError(400, "INVALID_JSON");
   }

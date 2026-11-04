@@ -105,7 +105,10 @@ const icons: Record<IconName, ReactNode> = {
   x: <path d="m6 6 12 12M18 6 6 18" />,
 };
 
-export function Icon({ name, size = 22 }: { name: IconName; size?: number }) {
+export function Icon({
+  name,
+  size = 22,
+}: Readonly<{ name: IconName; size?: number }>) {
   return (
     <svg
       aria-hidden="true"

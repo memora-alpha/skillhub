@@ -32,11 +32,8 @@ export function PathsScreen() {
               Học cùng <ProfileName id={path.counterpartId} />
             </h2>
             <p>
-              {path.exchangeType === "TWO_WAY"
-                ? "Trao đổi kỹ năng hai chiều"
-                : path.exchangeType === "ONE_WAY"
-                  ? "Hướng dẫn một chiều"
-                  : "Đang thống nhất hình thức"}
+              {exchangeLabels[path.exchangeType ?? ""] ??
+                "Đang thống nhất hình thức"}
             </p>
             <Link className="btn btn-primary" href={"/learn/paths/" + path.id}>
               Xem kế hoạch và lịch học
@@ -59,3 +56,8 @@ export function PathsScreen() {
     </>
   );
 }
+
+const exchangeLabels: Record<string, string> = {
+  TWO_WAY: "Trao đổi kỹ năng hai chiều",
+  ONE_WAY: "Hướng dẫn một chiều",
+};

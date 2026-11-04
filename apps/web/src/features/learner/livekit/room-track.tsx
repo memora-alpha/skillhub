@@ -8,12 +8,12 @@ export function RoomTrack({
   local = false,
   label,
   className,
-}: {
+}: Readonly<{
   track: Track;
   local?: boolean;
   label: string;
   className?: string;
-}) {
+}>) {
   const container = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const element = track.attach();

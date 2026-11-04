@@ -1,4 +1,5 @@
 "use client";
+import { formText } from "../components/form-data";
 import Link from "next/link";
 import { useState } from "react";
 import type { Skill } from "../types";
@@ -42,7 +43,7 @@ export function MaterialsScreen() {
         className="product-material-filters"
         onSubmit={(e) => {
           e.preventDefault();
-          setQ(String(new FormData(e.currentTarget).get("q") ?? "").trim());
+          setQ(formText(new FormData(e.currentTarget), "q").trim());
           setPage(1);
         }}
       >
@@ -53,7 +54,9 @@ export function MaterialsScreen() {
             placeholder="Tìm tài liệu…"
             maxLength={100}
           />
-          <button className="btn">Tìm</button>
+          <button type="submit" className="btn">
+            Tìm
+          </button>
         </div>
         <select
           aria-label="Kỹ năng của tài liệu"
@@ -86,6 +89,7 @@ export function MaterialsScreen() {
       <Feedback error={skills.error} reload={skills.reload} />
       {skills.cursor && (
         <button
+          type="button"
           className="btn"
           disabled={skills.loading}
           onClick={() => {
@@ -142,6 +146,7 @@ export function MaterialsScreen() {
       )}
       <div className="learner-actions">
         <button
+          type="button"
           className="btn"
           disabled={page === 1 || query.loading}
           onClick={() => setPage((v) => Math.max(1, v - 1))}
@@ -153,6 +158,7 @@ export function MaterialsScreen() {
           {typeof total === "number" ? " · " + total + " tài liệu" : ""}
         </span>
         <button
+          type="button"
           className="btn"
           disabled={
             query.loading ||

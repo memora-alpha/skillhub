@@ -36,9 +36,7 @@ const paths = {
     </>
   ),
   microphoneOff: (
-    <>
-      <path d="m3 3 18 18M9 9v3a3 3 0 0 0 5 2m1-4V5a3 3 0 0 0-6 0M5 10v2a7 7 0 0 0 12 5m2-5v-2M12 19v3m-4 0h8" />
-    </>
+    <path d="m3 3 18 18M9 9v3a3 3 0 0 0 5 2m1-4V5a3 3 0 0 0-6 0M5 10v2a7 7 0 0 0 12 5m2-5v-2M12 19v3m-4 0h8" />
   ),
   camera: (
     <>
@@ -47,9 +45,7 @@ const paths = {
     </>
   ),
   cameraOff: (
-    <>
-      <path d="m3 3 18 18M7 5h6a3 3 0 0 1 3 3v2l5-3v10l-5-3M3 8v8a3 3 0 0 0 3 3h7" />
-    </>
+    <path d="m3 3 18 18M7 5h6a3 3 0 0 1 3 3v2l5-3v10l-5-3M3 8v8a3 3 0 0 0 3 3h7" />
   ),
   screen: (
     <>
@@ -83,9 +79,7 @@ const paths = {
     </>
   ),
   hidePeople: (
-    <>
-      <path d="m3 3 18 18M7 5a3 3 0 0 1 5 3m-6 0a3 3 0 0 0 5 2M3 21v-3a6 6 0 0 1 10-4M16 5a3 3 0 0 1 0 6m3 10v-3" />
-    </>
+    <path d="m3 3 18 18M7 5a3 3 0 0 1 5 3m-6 0a3 3 0 0 0 5 2M3 21v-3a6 6 0 0 1 10-4M16 5a3 3 0 0 1 0 6m3 10v-3" />
   ),
   pin: <path d="m15 3 6 6-4 1-4 4v4l-7-7h4l4-4 1-4ZM9 15l-6 6" />,
   automatic: (
@@ -96,9 +90,7 @@ const paths = {
   ),
   phone: <path d="M3 16v-4c5-5 13-5 18 0v4l-5-1v-3a14 14 0 0 0-8 0v3l-5 1Z" />,
   volume: (
-    <>
-      <path d="m11 4-6 5H2v6h3l6 5V4Zm4 4a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14" />
-    </>
+    <path d="m11 4-6 5H2v6h3l6 5V4Zm4 4a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14" />
   ),
   refresh: <path d="M20 8a8 8 0 1 0 0 8M20 3v5h-5" />,
   back: <path d="m14 5-7 7 7 7M7 12h14" />,
@@ -106,7 +98,7 @@ const paths = {
 } satisfies Record<string, ReactNode>;
 
 export type RoomIconName = keyof typeof paths;
-export function RoomIcon({ name }: { name: RoomIconName }) {
+export function RoomIcon({ name }: Readonly<{ name: RoomIconName }>) {
   return (
     <svg
       aria-hidden="true"

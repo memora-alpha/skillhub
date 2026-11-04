@@ -8,7 +8,7 @@ export function sameOriginMutation(request: Request): boolean {
     const host = request.headers.get("host");
     if (host) {
       // Do not consume X-Forwarded-Host: only the request's actual Host is relevant here.
-      if (/[\s\/@\\?#]/.test(host)) return false;
+      if (/[\s/@\\?#]/.test(host)) return false;
       target.host = host;
     }
     return origin === target.origin;

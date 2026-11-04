@@ -21,11 +21,11 @@ export function NativeRoomStage({
   partnerName,
   partnerAvatarUrl,
   expanded,
-}: {
+}: Readonly<{
   partnerName: string;
   partnerAvatarUrl?: string | null;
   expanded: boolean;
-}) {
+}>) {
   const tracks = useTracks(
     [
       { source: Track.Source.Camera, withPlaceholder: true },
@@ -51,64 +51,24 @@ export function NativeRoomStage({
   const stageHeight = expanded
     ? Math.max(180, Math.min(height * 0.5, width * 0.65))
     : Math.min(320, width * 0.7);
-  function tile(track: (typeof tracks)[number], primary: boolean) {
-    const screen = track.source === Track.Source.ScreenShare;
-    return (
-      <View style={[styles.tile, !primary && styles.thumbnail]}>
-        {isTrackReference(track) && !track.publication.isMuted ? (
-          <VideoTrack
-            trackRef={track}
-            style={{ width: "100%", height: primary ? stageHeight : 92 }}
-            objectFit={screen ? "contain" : "cover"}
-          />
-        ) : (
-          <View
-            style={[
-              styles.placeholder,
-              { minHeight: primary ? stageHeight : 92 },
-            ]}
-          >
-            <Avatar
-              name={track.participant.isLocal ? "Bạn" : partnerName}
-              sourceUri={
-                track.participant.isLocal ? undefined : partnerAvatarUrl
-              }
-              size={primary ? 72 : 36}
-            />
-            <Text style={styles.placeholderText}>Camera đang tắt</Text>
-          </View>
-        )}
-        <View
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            paddingLeft: 10,
-          }}
-        >
-          <Avatar
-            name={track.participant.isLocal ? "Bạn" : partnerName}
-            sourceUri={track.participant.isLocal ? undefined : partnerAvatarUrl}
-            size={24}
-          />
-          <Text numberOfLines={2} style={[styles.name, { flex: 1 }]}>
-            {track.participant.isLocal ? "Bạn" : partnerName}
-            {screen ? " · Màn hình" : ""}
-            {track.participant.isMicrophoneEnabled ? "" : " · Tắt micro"}
-          </Text>
-        </View>
-      </View>
-    );
-  }
+
+  let stageLabel: string;
+  if (main?.source === Track.Source.ScreenShare)
+    stageLabel = "Đang chia sẻ màn hình";
+  else if (remote.length) stageLabel = "Học cùng nhau";
+  else stageLabel = "Đang chờ " + partnerName + " vào phòng";
   return (
     <View style={styles.grid}>
-      <Text style={styles.status}>
-        {main?.source === Track.Source.ScreenShare
-          ? "Đang chia sẻ màn hình"
-          : remote.length
-            ? "Học cùng nhau"
-            : "Đang chờ " + partnerName + " vào phòng"}
-      </Text>
-      {main && tile(main, true)}
+      <Text style={styles.status}>{stageLabel}</Text>
+      {main && (
+        <NativeRoomTile
+          track={main}
+          primary
+          stageHeight={stageHeight}
+          partnerName={partnerName}
+          partnerAvatarUrl={partnerAvatarUrl}
+        />
+      )}
       {tracks.length > 1 && (
         <View style={styles.controlRow}>
           <Pressable
@@ -159,11 +119,72 @@ export function NativeRoomStage({
               accessibilityState={{ selected: main && id(main) === id(track) }}
               onPress={() => setPinned(id(track))}
             >
-              {tile(track, false)}
+              {
+                <NativeRoomTile
+                  track={track}
+                  primary={false}
+                  stageHeight={stageHeight}
+                  partnerName={partnerName}
+                  partnerAvatarUrl={partnerAvatarUrl}
+                />
+              }
             </Pressable>
           ))}
         </ScrollView>
       )}
+    </View>
+  );
+}
+
+function NativeRoomTile({
+  track,
+  primary,
+  stageHeight,
+  partnerName,
+  partnerAvatarUrl,
+}: Readonly<{
+  track: ReturnType<typeof useTracks>[number];
+  primary: boolean;
+  stageHeight: number;
+  partnerName: string;
+  partnerAvatarUrl?: string | null;
+}>) {
+  const name = track.participant.isLocal ? "Bạn" : partnerName;
+  const avatar = track.participant.isLocal ? undefined : partnerAvatarUrl;
+  const screen = track.source === Track.Source.ScreenShare;
+  return (
+    <View style={[styles.tile, !primary && styles.thumbnail]}>
+      {isTrackReference(track) && !track.publication.isMuted ? (
+        <VideoTrack
+          trackRef={track}
+          style={{ width: "100%", height: primary ? stageHeight : 92 }}
+          objectFit={screen ? "contain" : "cover"}
+        />
+      ) : (
+        <View
+          style={[
+            styles.placeholder,
+            { minHeight: primary ? stageHeight : 92 },
+          ]}
+        >
+          <Avatar name={name} sourceUri={avatar} size={primary ? 72 : 36} />
+          <Text style={styles.placeholderText}>Camera đang tắt</Text>
+        </View>
+      )}
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          paddingLeft: 10,
+        }}
+      >
+        <Avatar name={name} sourceUri={avatar} size={24} />
+        <Text numberOfLines={2} style={[styles.name, { flex: 1 }]}>
+          {name}
+          {screen ? " · Màn hình" : ""}
+          {track.participant.isMicrophoneEnabled ? "" : " · Tắt micro"}
+        </Text>
+      </View>
     </View>
   );
 }

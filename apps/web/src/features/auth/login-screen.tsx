@@ -1,4 +1,5 @@
 "use client";
+import { formText } from "../learner/components/form-data";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type { SessionDestination } from "@/lib/auth/session";
@@ -52,6 +53,10 @@ export function LoginScreen() {
     };
   }, []);
 
+  let submitLabel: string;
+  if (checking) submitLabel = "Đang kiểm tra phiên…";
+  else if (pending) submitLabel = "Đang đăng nhập…";
+  else submitLabel = "Đăng nhập";
   return (
     <main className="auth-page">
       <Link href="/" className="auth-brand">
@@ -91,8 +96,8 @@ export function LoginScreen() {
               try {
                 enter(
                   await signIn(
-                    String(data.get("email")).trim(),
-                    String(data.get("password")),
+                    formText(data, "email").trim(),
+                    formText(data, "password"),
                   ),
                   true,
                 );
@@ -148,12 +153,12 @@ export function LoginScreen() {
                 </p>
               )}
             </div>
-            <button className="auth-submit" disabled={checking || pending}>
-              {checking
-                ? "Đang kiểm tra phiên…"
-                : pending
-                  ? "Đang đăng nhập…"
-                  : "Đăng nhập"}
+            <button
+              type="submit"
+              className="auth-submit"
+              disabled={checking || pending}
+            >
+              {submitLabel}
               <span aria-hidden="true">→</span>
             </button>
           </form>

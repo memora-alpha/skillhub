@@ -1,4 +1,5 @@
 "use client";
+import { formText } from "../components/form-data";
 import Link from "next/link";
 import { useState } from "react";
 import type { SharingSkill } from "../types";
@@ -64,10 +65,10 @@ export function ProfileScreen() {
                   setSaved(false);
                   const data = new FormData(e.currentTarget);
                   const body = {
-                    fullName: String(data.get("fullName")).trim(),
-                    headline: String(data.get("headline")).trim(),
-                    bio: String(data.get("bio")).trim(),
-                    timezone: String(data.get("timezone")),
+                    fullName: formText(data, "fullName").trim(),
+                    headline: formText(data, "headline").trim(),
+                    bio: formText(data, "bio").trim(),
+                    timezone: formText(data, "timezone"),
                     locale: me.profile.locale,
                   };
                   const result = await command.run(JSON.stringify(body), () =>
@@ -127,11 +128,12 @@ export function ProfileScreen() {
                 </label>
                 <CommandFeedback command={command} />
                 {saved && (
-                  <p role="status" className="learner-notice">
-                    Đã lưu hồ sơ.
+                  <p className="learner-notice">
+                    <output>Đã lưu hồ sơ.</output>
                   </p>
                 )}
                 <button
+                  type="submit"
                   className="btn btn-primary"
                   disabled={command.pending || command.uncertain}
                 >

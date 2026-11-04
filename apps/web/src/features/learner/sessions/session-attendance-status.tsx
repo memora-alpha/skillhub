@@ -7,12 +7,12 @@ export function SessionAttendanceStatus({
   userId,
   loading,
   refresh,
-}: {
+}: Readonly<{
   session: LearningSession;
   userId: string;
   loading: boolean;
   refresh: () => void;
-}) {
+}>) {
   const pending = session.attendance?.state === "PENDING_DATA";
   const ownConfirmed =
     (userId === session.teacherId
@@ -21,10 +21,12 @@ export function SessionAttendanceStatus({
   return (
     <>
       {pending && (
-        <p className="learner-notice" role="status">
-          Máy chủ đang tổng hợp điểm danh. Chưa có số liệu không có nghĩa là bạn
-          đã học 0 giây hoặc vắng mặt. Chức năng xác nhận sẽ xuất hiện khi máy
-          chủ cho phép. Trang tự kiểm tra lại mỗi 30 giây khi đang mở.
+        <p className="learner-notice">
+          <output>
+            Máy chủ đang tổng hợp điểm danh. Chưa có số liệu không có nghĩa là
+            bạn đã học 0 giây hoặc vắng mặt. Chức năng xác nhận sẽ xuất hiện khi
+            máy chủ cho phép. Trang tự kiểm tra lại mỗi 30 giây khi đang mở.
+          </output>
         </p>
       )}
       {session.attendance?.state === "UNVERIFIABLE" && (
@@ -39,6 +41,12 @@ export function SessionAttendanceStatus({
           (side === "teacher"
             ? session.teacherConfirmationStatus
             : session.learnerConfirmationStatus) === "CONFIRMED";
+        let joinedLabel: string;
+        if (value?.firstJoinedAt)
+          joinedLabel = ` · Vào phòng lần đầu: ${formatTime(value.firstJoinedAt)}`;
+        else if (pending)
+          joinedLabel = " · Máy chủ chưa trả thời điểm vào phòng";
+        else joinedLabel = "";
         return (
           <div key={side}>
             <p>
@@ -47,11 +55,7 @@ export function SessionAttendanceStatus({
             </p>
             <p className="muted">
               {confirmed ? "Đã xác nhận hoàn tất" : "Chưa xác nhận hoàn tất"}
-              {value?.firstJoinedAt
-                ? ` · Vào phòng lần đầu: ${formatTime(value.firstJoinedAt)}`
-                : pending
-                  ? " · Máy chủ chưa trả thời điểm vào phòng"
-                  : ""}
+              {joinedLabel}
             </p>
           </div>
         );

@@ -1,4 +1,5 @@
 "use client";
+import { formText } from "../components/form-data";
 import Link from "next/link";
 import { useState } from "react";
 import { useUserSession } from "../auth/session";
@@ -42,6 +43,7 @@ export function MaterialShare() {
                 <output>Đã lưu bản nháp: {created.title}.</output>
               </p>
               <button
+                type="button"
                 className="btn btn-primary"
                 disabled={
                   submit.pending ||
@@ -83,11 +85,11 @@ export function MaterialShare() {
                 const data = new FormData(e.currentTarget);
                 const body = {
                   skillId,
-                  title: String(data.get("title")).trim(),
-                  description: String(data.get("description")).trim(),
+                  title: formText(data, "title").trim(),
+                  description: formText(data, "description").trim(),
                   accessType: access,
                   priceCredit:
-                    access === "FREE" ? "0" : String(data.get("priceCredit")),
+                    access === "FREE" ? "0" : formText(data, "priceCredit"),
                   distributionRightsConfirmed: data.get("rights") === "on",
                   fileId,
                 };
@@ -103,7 +105,7 @@ export function MaterialShare() {
                 disabled={command.pending || command.uncertain}
               />
               <label>
-                Tiêu đề
+                <span>Tiêu đề</span>
                 <input
                   name="title"
                   minLength={5}
@@ -113,7 +115,7 @@ export function MaterialShare() {
                 />
               </label>
               <label>
-                Mô tả
+                <span>Mô tả</span>
                 <textarea
                   name="description"
                   minLength={10}
@@ -124,7 +126,7 @@ export function MaterialShare() {
                 />
               </label>
               <label>
-                Hình thức chia sẻ
+                <span>Hình thức chia sẻ</span>
                 <select
                   value={access}
                   onChange={(e) => setAccess(e.target.value)}
@@ -136,7 +138,7 @@ export function MaterialShare() {
               </label>
               {access === "PAID" && (
                 <label>
-                  Giá (Credit)
+                  <span>Giá (Credit)</span>
                   <input
                     type="number"
                     name="priceCredit"
@@ -191,6 +193,7 @@ export function MaterialShare() {
               </label>
               <CommandFeedback command={command} />
               <button
+                type="submit"
                 className="btn btn-primary"
                 disabled={
                   !skillId ||
@@ -259,6 +262,7 @@ export function MyMaterials() {
             </p>
             {material.status === "DRAFT" && (
               <button
+                type="button"
                 className="btn btn-primary"
                 disabled={command.pending || command.uncertain}
                 onClick={() => {

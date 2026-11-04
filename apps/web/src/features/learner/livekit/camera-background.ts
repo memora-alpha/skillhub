@@ -29,31 +29,20 @@ export async function setCameraBackground(
   isCurrent: () => boolean,
   load: LoadBackground = loadBackground,
 ) {
-  const next: BackgroundSettings =
-    typeof settings === "boolean"
-      ? settings
-        ? { mode: "blur", blurRadius: 12 }
-        : { mode: "off" }
-      : settings;
-  const options =
-    next.mode === "image"
-      ? { mode: "virtual-background" as const, imagePath: next.imagePath }
-      : next.mode === "blur"
-        ? {
-            mode: "background-blur" as const,
-            blurRadius: Math.max(1, Math.min(30, next.blurRadius)),
-          }
-        : { mode: "disabled" as const };
+  const options = backgroundOptions(settings);
   const key = JSON.stringify(options);
   const current = () =>
     isCurrent() && track.mediaStreamTrack.readyState !== "ended";
-  if (!current()) {
-    track.stop();
-    throw new BackgroundCancelledError();
-  }
+  const requireCurrent = () => {
+    if (!current()) {
+      track.stop();
+      throw new BackgroundCancelledError();
+    }
+  };
+  requireCurrent();
   let processor = processors.get(track);
   if (processor !== track.getProcessor()) processor = undefined;
-  if (!processor && next.mode === "off") return;
+  if (!processor && options.mode === "disabled") return;
   if (processor && configurations.get(track) === key) return;
 
   // Loading/support errors leave an already-running, unprocessed camera intact.
@@ -80,4 +69,18 @@ export async function setCameraBackground(
     configurations.delete(track);
     throw cause;
   }
+}
+
+function backgroundOptions(settings: BackgroundSettings | boolean) {
+  let next: BackgroundSettings =
+    settings === true ? { mode: "blur", blurRadius: 12 } : { mode: "off" };
+  if (typeof settings !== "boolean") next = settings;
+  if (next.mode === "image")
+    return { mode: "virtual-background" as const, imagePath: next.imagePath };
+  if (next.mode === "blur")
+    return {
+      mode: "background-blur" as const,
+      blurRadius: Math.max(1, Math.min(30, next.blurRadius)),
+    };
+  return { mode: "disabled" as const };
 }

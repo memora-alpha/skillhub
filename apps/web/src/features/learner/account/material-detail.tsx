@@ -58,6 +58,14 @@ export function MaterialDetail({ id }: Readonly<{ id: string }>) {
       setDownloading(false);
     }
   }
+  let accessDescription: string;
+  if (owned) accessDescription = "Tài liệu của bạn.";
+  else if (purchased) accessDescription = "Bạn đã mua tài liệu này.";
+  else accessDescription = "Tài liệu được chia sẻ miễn phí.";
+  let purchaseLabel: string;
+  if (command.pending) purchaseLabel = "Đang xử lý…";
+  else if (command.canRetry) purchaseLabel = "Kiểm tra lại yêu cầu mua";
+  else purchaseLabel = "Mua tài liệu";
   return (
     <>
       <Back href="/learn/materials" />
@@ -109,13 +117,7 @@ export function MaterialDetail({ id }: Readonly<{ id: string }>) {
               />
               {owned || purchased || material.accessType === "FREE" ? (
                 <>
-                  <p>
-                    {owned
-                      ? "Tài liệu của bạn."
-                      : purchased
-                        ? "Bạn đã mua tài liệu này."
-                        : "Tài liệu được chia sẻ miễn phí."}
-                  </p>
+                  <p>{accessDescription}</p>
                   {purchased && (
                     <p className="muted">
                       Lấy liên kết tải sẽ ghi nhận tài liệu đã được sử dụng.
@@ -185,11 +187,7 @@ export function MaterialDetail({ id }: Readonly<{ id: string }>) {
                         });
                     }}
                   >
-                    {command.pending
-                      ? "Đang xử lý…"
-                      : command.canRetry
-                        ? "Kiểm tra lại yêu cầu mua"
-                        : "Mua tài liệu"}
+                    {purchaseLabel}
                   </button>
                   <CommandFeedback command={command} />
                 </>

@@ -1,3 +1,4 @@
+import { pageUrl } from "./page-url";
 import type { Reply } from "../types";
 import type { UserRequestOptions } from "./client";
 import { UserApiError } from "./client";
@@ -13,12 +14,7 @@ export async function findInPages<T>(
   let cursor: string | undefined;
   const seen = new Set<string>();
   do {
-    const reply = await request<T[]>(
-      path +
-        (cursor
-          ? (path.includes("?") ? "&" : "?") + new URLSearchParams({ cursor })
-          : ""),
-    );
+    const reply = await request<T[]>(pageUrl(path, cursor));
     if (!Array.isArray(reply.data))
       throw new UserApiError(502, "API_RESPONSE_INVALID");
     const item = reply.data.find(predicate);

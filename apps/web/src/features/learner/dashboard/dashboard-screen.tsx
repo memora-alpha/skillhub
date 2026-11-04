@@ -208,11 +208,8 @@ export function DashboardScreen() {
                 Học cùng <ProfileName id={p.counterpartId} />
               </h3>
               <p>
-                {p.exchangeType === "TWO_WAY"
-                  ? "Trao đổi kỹ năng hai chiều"
-                  : p.exchangeType === "ONE_WAY"
-                    ? "Hướng dẫn một chiều"
-                    : "Đang thống nhất hình thức học"}
+                {exchangeLabels[p.exchangeType ?? ""] ??
+                  "Đang thống nhất hình thức học"}
               </p>
               <Link className="learner-card-link" href={"/learn/paths/" + p.id}>
                 Xem kế hoạch và lịch học →
@@ -230,3 +227,8 @@ export function DashboardScreen() {
     </>
   );
 }
+
+const exchangeLabels: Record<string, string> = {
+  TWO_WAY: "Trao đổi kỹ năng hai chiều",
+  ONE_WAY: "Hướng dẫn một chiều",
+};

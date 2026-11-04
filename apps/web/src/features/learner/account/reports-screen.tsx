@@ -49,7 +49,7 @@ export function ReportsScreen() {
       />
       <div className="learner-form">
         <label>
-          Trạng thái báo cáo
+          <span>Trạng thái báo cáo</span>
           <select
             value={filter}
             onChange={(event) => setFilter(event.target.value)}

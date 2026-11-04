@@ -5,6 +5,7 @@ import {
   useContext,
   useEffect,
   useRef,
+  useMemo,
   useState,
   type ReactNode,
 } from "react";
@@ -64,7 +65,7 @@ function UserSessionLifecycle({ children }: Readonly<{ children: ReactNode }>) {
   const refresh = useCallback(() => {
     void cache.invalidateQueries({ queryKey: ["learner", actor?.userId] });
   }, [cache, actor?.userId]);
-  const renew = useCallback(async () => {
+  const renew = useCallback(() => {
     if (renewing.current) return renewing.current;
     const work = async () => {
       // Another tab may already have rotated the cookie while this tab waited.
@@ -166,6 +167,10 @@ function UserSessionLifecycle({ children }: Readonly<{ children: ReactNode }>) {
       if (key.startsWith("skillhub-user-draft:"))
         sessionStorage.removeItem(key);
   }, [cache]);
+  const context = useMemo(
+    () => (actor ? { actor, request, refresh, logout } : null),
+    [actor, request, refresh, logout],
+  );
   if (loading)
     return (
       <main className="learner-loading">
@@ -174,7 +179,7 @@ function UserSessionLifecycle({ children }: Readonly<{ children: ReactNode }>) {
     );
   if (!actor) return <SignInRedirect message={error} />;
   return (
-    <SessionContext.Provider value={{ actor, request, refresh, logout }}>
+    <SessionContext.Provider value={context}>
       <LearnerShell key={actor.userId}>{children}</LearnerShell>
     </SessionContext.Provider>
   );

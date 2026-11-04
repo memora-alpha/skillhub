@@ -18,20 +18,25 @@ export function RoomStage({
   if (!primary) return null;
   const hasSecondary = tiles.length > 1;
   const pinnedTile = tiles.some((tile) => tile.id === pinned);
+  let stageLabel: "screen" | "camera";
+  if (primary.source === "screen_share") stageLabel = "screen";
+  else stageLabel = "camera";
+  let participantStatus: string;
+  if (primary.source === "screen_share") {
+    participantStatus = `${primary.name} đang chia sẻ màn hình`;
+  } else {
+    if (participants) {
+      participantStatus = "Học cùng nhau";
+    } else {
+      participantStatus = `Đang chờ ${peerName} vào phòng`;
+    }
+  }
   return (
     <div className={styles.stage}>
       <div className={styles.stageBar}>
         <div>
-          <RoomIcon
-            name={primary.source === "screen_share" ? "screen" : "camera"}
-          />
-          <span>
-            {primary.source === "screen_share"
-              ? `${primary.name} đang chia sẻ màn hình`
-              : participants
-                ? "Học cùng nhau"
-                : `Đang chờ ${peerName} vào phòng`}
-          </span>
+          <RoomIcon name={stageLabel} />
+          <span>{participantStatus}</span>
         </div>
         {pinnedTile && (
           <button
@@ -50,91 +55,16 @@ export function RoomStage({
         className={styles.tiles}
         data-hide-secondary={collapsed || !hasSecondary}
       >
-        {tiles.map((tile) => {
-          const main = tile.id === primary.id;
-          const screen = tile.source === "screen_share";
-          return (
-            <article
-              key={tile.id}
-              className={styles.tile}
-              data-primary={main}
-              data-screen={screen}
-              data-speaking={tile.speaking}
-              data-local={tile.local}
-              hidden={!main && collapsed}
-            >
-              {tile.track ? (
-                <RoomTrack
-                  track={tile.track}
-                  local={tile.local}
-                  label={
-                    screen
-                      ? `Màn hình chia sẻ của ${tile.name}`
-                      : `Video ${tile.name}`
-                  }
-                  className={styles.media}
-                />
-              ) : (
-                <div className={styles.placeholder}>
-                  {screen ? (
-                    <span className={styles.avatar}>
-                      <RoomIcon name="screen" />
-                    </span>
-                  ) : (
-                    <RoomAvatar
-                      name={tile.name}
-                      avatarUrl={tile.avatarUrl}
-                      className={styles.avatar}
-                    />
-                  )}
-                  <span>
-                    {screen ? "Đang tải màn hình chia sẻ…" : tile.name}
-                  </span>
-                  {main && (
-                    <small>
-                      {screen
-                        ? "Nội dung sẽ xuất hiện khi kết nối sẵn sàng"
-                        : "Camera đang tắt"}
-                    </small>
-                  )}
-                </div>
-              )}
-              <div className={styles.tileLabel}>
-                <span>
-                  <RoomAvatar
-                    name={tile.name}
-                    avatarUrl={tile.avatarUrl}
-                    className={styles.labelAvatar}
-                  />
-                  {screen && <RoomIcon name="screen" />}
-                  {tile.name}
-                  {screen ? " · Màn hình" : ""}
-                </span>
-                {!screen && (
-                  <RoomIcon
-                    name={tile.microphone ? "microphone" : "microphoneOff"}
-                  />
-                )}
-              </div>
-              <button
-                type="button"
-                className={styles.pin}
-                aria-label={
-                  main && pinnedTile
-                    ? `Bỏ ghim ${tile.name}${screen ? " chia sẻ màn hình" : ""}`
-                    : `Chọn ${tile.name}${screen ? " chia sẻ màn hình" : " camera"} làm màn hình chính`
-                }
-                title={
-                  main && pinnedTile ? "Bỏ ghim" : "Đặt làm màn hình chính"
-                }
-                aria-pressed={main && pinnedTile}
-                onClick={() => setPinned(main && pinnedTile ? null : tile.id)}
-              >
-                <RoomIcon name="pin" />
-              </button>
-            </article>
-          );
-        })}
+        {tiles.map((tile) => (
+          <RoomStageTile
+            key={tile.id}
+            tile={tile}
+            primaryId={primary.id}
+            pinnedTile={pinnedTile}
+            collapsed={collapsed}
+            setPinned={setPinned}
+          />
+        ))}
       </div>
       {hasSecondary && (
         <button
@@ -154,6 +84,108 @@ export function RoomStage({
               : "Thu gọn người tham gia"}
           </span>
         </button>
+      )}
+    </div>
+  );
+}
+
+function RoomStageTile({
+  tile,
+  primaryId,
+  pinnedTile,
+  collapsed,
+  setPinned,
+}: Readonly<{
+  tile: RoomTile;
+  primaryId: string;
+  pinnedTile: boolean;
+  collapsed: boolean;
+  setPinned: (id: string | null) => void;
+}>) {
+  const main = tile.id === primaryId;
+  const screen = tile.source === "screen_share";
+  const screenSuffix = screen ? " chia sẻ màn hình" : "";
+  const selectedSuffix = screen ? " chia sẻ màn hình" : " camera";
+  return (
+    <article
+      key={tile.id}
+      className={styles.tile}
+      data-primary={main}
+      data-screen={screen}
+      data-speaking={tile.speaking}
+      data-local={tile.local}
+      hidden={!main && collapsed}
+    >
+      {tile.track ? (
+        <RoomTrack
+          track={tile.track}
+          local={tile.local}
+          label={
+            screen ? `Màn hình chia sẻ của ${tile.name}` : `Video ${tile.name}`
+          }
+          className={styles.media}
+        />
+      ) : (
+        <RoomTilePlaceholder tile={tile} main={main} screen={screen} />
+      )}
+      <div className={styles.tileLabel}>
+        <span>
+          <RoomAvatar
+            name={tile.name}
+            avatarUrl={tile.avatarUrl}
+            className={styles.labelAvatar}
+          />
+          {screen && <RoomIcon name="screen" />}
+          {tile.name}
+          {screen ? " · Màn hình" : ""}
+        </span>
+        {!screen && (
+          <RoomIcon name={tile.microphone ? "microphone" : "microphoneOff"} />
+        )}
+      </div>
+      <button
+        type="button"
+        className={styles.pin}
+        aria-label={
+          main && pinnedTile
+            ? `Bỏ ghim ${tile.name}${screenSuffix}`
+            : `Chọn ${tile.name}${selectedSuffix} làm màn hình chính`
+        }
+        title={main && pinnedTile ? "Bỏ ghim" : "Đặt làm màn hình chính"}
+        aria-pressed={main && pinnedTile}
+        onClick={() => setPinned(main && pinnedTile ? null : tile.id)}
+      >
+        <RoomIcon name="pin" />
+      </button>
+    </article>
+  );
+}
+
+function RoomTilePlaceholder({
+  tile,
+  main,
+  screen,
+}: Readonly<{ tile: RoomTile; main: boolean; screen: boolean }>) {
+  return (
+    <div className={styles.placeholder}>
+      {screen ? (
+        <span className={styles.avatar}>
+          <RoomIcon name="screen" />
+        </span>
+      ) : (
+        <RoomAvatar
+          name={tile.name}
+          avatarUrl={tile.avatarUrl}
+          className={styles.avatar}
+        />
+      )}
+      <span>{screen ? "Đang tải màn hình chia sẻ…" : tile.name}</span>
+      {main && (
+        <small>
+          {screen
+            ? "Nội dung sẽ xuất hiện khi kết nối sẵn sàng"
+            : "Camera đang tắt"}
+        </small>
       )}
     </div>
   );

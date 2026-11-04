@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useUserSession } from "../auth/session";
 import { useUserResource, useUserList } from "../hooks/use-user-resource";
@@ -29,19 +30,21 @@ const paymentLabels: Record<string, string> = {
   CANCELLED: "Yêu cầu nạp đã hủy",
   REFUNDED: "Đã ghi nhận hoàn tiền",
 };
-function PaymentQr({ payload }: { payload: string }) {
-  const canvas = useRef<HTMLCanvasElement>(null);
+function PaymentQr({ payload }: Readonly<{ payload: string }>) {
+  const [source, setSource] = useState<string>();
   const [error, setError] = useState<string>();
   useEffect(() => {
     let active = true;
     void import("qrcode")
-      .then((qr) => {
-        if (active && canvas.current)
-          return qr.toCanvas(canvas.current, payload, {
-            width: 260,
-            margin: 4,
-            errorCorrectionLevel: "M",
-          });
+      .then((qr) =>
+        qr.toDataURL(payload, {
+          width: 260,
+          margin: 4,
+          errorCorrectionLevel: "M",
+        }),
+      )
+      .then((value) => {
+        if (active) setSource(value);
       })
       .catch(() => {
         if (active) setError("Chưa tạo được ảnh QR. Hãy tải lại trạng thái.");
@@ -50,22 +53,20 @@ function PaymentQr({ payload }: { payload: string }) {
       active = false;
     };
   }, [payload]);
+  if (error) return <p className="learner-error">{error}</p>;
+  if (!source) return <output>Đang tạo mã QR…</output>;
   return (
-    <>
-      {error ? (
-        <p className="learner-error">{error}</p>
-      ) : (
-        <canvas
-          ref={canvas}
-          role="img"
-          aria-label="Mã QR thanh toán do payOS cung cấp"
-          style={{ maxWidth: "100%", height: "auto", background: "white" }}
-        />
-      )}
-    </>
+    <Image
+      src={source}
+      width={260}
+      height={260}
+      unoptimized
+      alt="Mã QR thanh toán do payOS cung cấp"
+      style={{ maxWidth: "100%", height: "auto", background: "white" }}
+    />
   );
 }
-export function TopupScreen({ paymentId }: { paymentId?: string }) {
+export function TopupScreen({ paymentId }: Readonly<{ paymentId?: string }>) {
   const { request } = useUserSession(),
     router = useRouter(),
     command = useUserCommand(true),
@@ -78,8 +79,11 @@ export function TopupScreen({ paymentId }: { paymentId?: string }) {
     history = useUserList<Payment>("payments?limit=10");
   const [amount, setAmount] = useState("100000");
   const payment = current.data;
-  const pending = payment && ["CREATED", "PENDING"].includes(payment.status),
-    expired = !!payment?.expiresAt && Date.parse(payment.expiresAt) <= now;
+  const pending = payment && ["CREATED", "PENDING"].includes(payment.status);
+  let createLabel: string;
+  if (command.pending) createLabel = "Đang tạo lệnh…";
+  else if (command.canRetry) createLabel = "Kiểm tra lại cùng yêu cầu";
+  else createLabel = "Tạo mã QR thanh toán";
   return (
     <>
       <Back href="/learn/wallet" />
@@ -148,7 +152,7 @@ export function TopupScreen({ paymentId }: { paymentId?: string }) {
               ))}
             </div>
             <label>
-              Số tiền (VND)
+              <span>Số tiền (VND)</span>
               <input
                 type="number"
                 min={1000}
@@ -162,17 +166,14 @@ export function TopupScreen({ paymentId }: { paymentId?: string }) {
               <small>Từ 1.000 đến 2.000.000 VND, bội số của 1.000.</small>
             </label>
             <button
+              type="submit"
               className="btn btn-primary"
               disabled={
                 command.pending ||
                 (!command.canRetry && !policy.data?.canCreate)
               }
             >
-              {command.pending
-                ? "Đang tạo lệnh…"
-                : command.canRetry
-                  ? "Kiểm tra lại cùng yêu cầu"
-                  : "Tạo mã QR thanh toán"}
+              {createLabel}
             </button>
           </form>
           <CommandFeedback command={command} />
@@ -193,38 +194,10 @@ export function TopupScreen({ paymentId }: { paymentId?: string }) {
                 {Number(payment.paymentAmountVnd).toLocaleString("vi-VN")} VND ·{" "}
                 {payment.creditAmount} CR
               </h3>
-              {payment.status === "PAID" ? (
-                <p className="learner-notice">
-                  Máy chủ đã xác nhận thanh toán.{" "}
-                  <Link href="/learn/wallet">Xem số dư ví</Link>
-                </p>
-              ) : payment.recoveryRequired ? (
-                <p className="learner-notice">
-                  Lệnh nạp đang cần đối soát. Vui lòng kiểm tra lại trạng thái,
-                  tránh chuyển khoản thêm.
-                </p>
-              ) : canShowPaymentQr(payment, now) && payment.checkout ? (
-                <>
-                  <PaymentQr
-                    key={payment.checkout.qrCode}
-                    payload={payment.checkout.qrCode}
-                  />
-                  <p>Mã lệnh: {payment.checkout.orderCode}</p>
-                  {payment.expiresAt && (
-                    <p>Hết hạn: {formatTime(payment.expiresAt)}</p>
-                  )}
-                </>
-              ) : (
-                <p className="learner-notice">
-                  {expired
-                    ? "Mã QR đã hết thời gian thanh toán. Kiểm tra lại trạng thái lệnh."
-                    : pending
-                      ? "Đang chuẩn bị thông tin thanh toán. Kiểm tra lại sau ít giây."
-                      : "Lệnh này hiện không có mã QR để thanh toán."}
-                </p>
-              )}
+              <PaymentCheckout payment={payment} now={now} />
               <div className="learner-actions">
                 <button
+                  type="button"
                   className="btn"
                   onClick={() => {
                     current.reload();
@@ -237,6 +210,7 @@ export function TopupScreen({ paymentId }: { paymentId?: string }) {
                 </button>
                 {pending && !payment.recoveryRequired && (
                   <button
+                    type="button"
                     className="btn"
                     disabled={cancel.pending}
                     onClick={() => {
@@ -299,4 +273,45 @@ export function TopupScreen({ paymentId }: { paymentId?: string }) {
       </div>
     </>
   );
+}
+
+function PaymentCheckout({
+  payment,
+  now,
+}: Readonly<{ payment: Payment; now: number }>) {
+  const pending = ["CREATED", "PENDING"].includes(payment.status);
+  const expired = !!payment.expiresAt && Date.parse(payment.expiresAt) <= now;
+  let unavailable = "Lệnh này hiện không có mã QR để thanh toán.";
+  if (expired)
+    unavailable =
+      "Mã QR đã hết thời gian thanh toán. Kiểm tra lại trạng thái lệnh.";
+  else if (pending)
+    unavailable =
+      "Đang chuẩn bị thông tin thanh toán. Kiểm tra lại sau ít giây.";
+  if (payment.status === "PAID")
+    return (
+      <p className="learner-notice">
+        Máy chủ đã xác nhận thanh toán.{" "}
+        <Link href="/learn/wallet">Xem số dư ví</Link>
+      </p>
+    );
+  if (payment.recoveryRequired)
+    return (
+      <p className="learner-notice">
+        Lệnh nạp đang cần đối soát. Vui lòng kiểm tra lại trạng thái, tránh
+        chuyển khoản thêm.
+      </p>
+    );
+  if (canShowPaymentQr(payment, now) && payment.checkout)
+    return (
+      <>
+        <PaymentQr
+          key={payment.checkout.qrCode}
+          payload={payment.checkout.qrCode}
+        />
+        <p>Mã lệnh: {payment.checkout.orderCode}</p>
+        {payment.expiresAt && <p>Hết hạn: {formatTime(payment.expiresAt)}</p>}
+      </>
+    );
+  return <p className="learner-notice">{unavailable}</p>;
 }

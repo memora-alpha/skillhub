@@ -1,4 +1,5 @@
 "use client";
+import { formText } from "../components/form-data";
 import { useState } from "react";
 import { useUserSession } from "../auth/session";
 import { useUserList, useUserResource } from "../hooks/use-user-resource";
@@ -24,7 +25,7 @@ type Verification = {
   note: string | null;
   files: { id: string; title: string | null; approvalStatus: string }[];
 };
-export function VerificationScreen({ id }: { id: string }) {
+export function VerificationScreen({ id }: Readonly<{ id: string }>) {
   const [fileId, setFileId] = useState(""),
     [sent, setSent] = useState(false),
     { request } = useUserSession(),
@@ -35,6 +36,10 @@ export function VerificationScreen({ id }: { id: string }) {
     history = useUserList<Verification>(
       "me/skills/" + id + "/verifications?limit=20",
     );
+  let submitLabel: string;
+  if (command.pending) submitLabel = "Đang gửi…";
+  else if (command.canRetry) submitLabel = "Kiểm tra lại cùng yêu cầu";
+  else submitLabel = "Gửi yêu cầu xác minh";
   return (
     <>
       <Back href="/learn/skills" />
@@ -46,8 +51,11 @@ export function VerificationScreen({ id }: { id: string }) {
       <div className="learner-two-columns">
         <Panel title="Bằng chứng kỹ năng">
           {sent ? (
-            <p className="learner-notice" role="status">
-              Đã gửi yêu cầu xác minh. Bạn có thể theo dõi trạng thái bên cạnh.
+            <p className="learner-notice">
+              <output>
+                Đã gửi yêu cầu xác minh. Bạn có thể theo dõi trạng thái bên
+                cạnh.
+              </output>
             </p>
           ) : (
             <form
@@ -57,8 +65,8 @@ export function VerificationScreen({ id }: { id: string }) {
                 const data = new FormData(e.currentTarget);
                 const body = {
                   fileIds: [fileId],
-                  title: String(data.get("title")).trim(),
-                  description: String(data.get("description")).trim(),
+                  title: formText(data, "title").trim(),
+                  description: formText(data, "description").trim(),
                 };
                 const result = await command.run(JSON.stringify(body), (key) =>
                   request("me/skills/" + id + "/verifications", {
@@ -74,7 +82,7 @@ export function VerificationScreen({ id }: { id: string }) {
               }}
             >
               <label>
-                Tiêu đề bằng chứng
+                <span>Tiêu đề bằng chứng</span>
                 <input
                   name="title"
                   maxLength={120}
@@ -82,7 +90,7 @@ export function VerificationScreen({ id }: { id: string }) {
                 />
               </label>
               <label>
-                Mô tả
+                <span>Mô tả</span>
                 <textarea
                   name="description"
                   rows={4}
@@ -121,6 +129,7 @@ export function VerificationScreen({ id }: { id: string }) {
               )}
               <CommandFeedback command={command} />
               <button
+                type="submit"
                 className="btn btn-primary"
                 disabled={
                   file.data?.state !== "READY" ||
@@ -128,11 +137,7 @@ export function VerificationScreen({ id }: { id: string }) {
                   (command.uncertain && !command.canRetry)
                 }
               >
-                {command.pending
-                  ? "Đang gửi…"
-                  : command.canRetry
-                    ? "Kiểm tra lại cùng yêu cầu"
-                    : "Gửi yêu cầu xác minh"}
+                {submitLabel}
               </button>
             </form>
           )}

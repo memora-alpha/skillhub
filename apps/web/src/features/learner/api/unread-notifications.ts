@@ -33,26 +33,8 @@ export async function countUnreadNotifications(
     if (cursor) query.set("cursor", cursor);
     const reply = await readPage("notifications?" + query, signal);
     signal.throwIfAborted();
-    const page = reply.meta?.pagination;
-    if (
-      !Array.isArray(reply.data) ||
-      !reply.data.every(isNotification) ||
-      !page ||
-      !Number.isInteger(page.limit) ||
-      page.limit < 1 ||
-      page.limit > 100 ||
-      typeof page.hasMore !== "boolean" ||
-      !(
-        page.nextCursor === null ||
-        (typeof page.nextCursor === "string" && page.nextCursor.length > 0)
-      ) ||
-      page.hasMore !== (page.nextCursor !== null) ||
-      (page.hasMore && reply.data.length === 0) ||
-      (page.nextCursor !== null && cursors.has(page.nextCursor))
-    ) {
-      throw new UserApiError(502, "API_RESPONSE_INVALID");
-    }
-    for (const item of reply.data) {
+    const { items, page } = notificationPage(reply, cursors);
+    for (const item of items) {
       if (!ids.has(item.id) && item.readAt === null) count++;
       ids.add(item.id);
     }
@@ -61,4 +43,27 @@ export async function countUnreadNotifications(
     if (cursor) cursors.add(cursor);
   } while (cursor);
   return count;
+}
+
+function notificationPage(reply: Reply<unknown>, cursors: Set<string>) {
+  const page = reply.meta?.pagination;
+  if (
+    !Array.isArray(reply.data) ||
+    !reply.data.every(isNotification) ||
+    !page ||
+    !Number.isInteger(page.limit) ||
+    page.limit < 1 ||
+    page.limit > 100 ||
+    typeof page.hasMore !== "boolean" ||
+    !(
+      page.nextCursor === null ||
+      (typeof page.nextCursor === "string" && page.nextCursor.length > 0)
+    ) ||
+    page.hasMore !== (page.nextCursor !== null) ||
+    (page.hasMore && reply.data.length === 0) ||
+    (page.nextCursor !== null && cursors.has(page.nextCursor))
+  ) {
+    throw new UserApiError(502, "API_RESPONSE_INVALID");
+  }
+  return { items: reply.data, page };
 }

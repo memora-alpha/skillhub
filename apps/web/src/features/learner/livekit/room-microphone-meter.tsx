@@ -6,10 +6,10 @@ import type { RoomAudio } from "./use-room-audio";
 export function RoomMicrophoneMeter({
   track,
   audio,
-}: {
+}: Readonly<{
   track?: LocalTrack;
   audio: RoomAudio;
-}) {
+}>) {
   const meter = useRef<HTMLMeterElement>(null);
   const { getContext } = audio;
   useEffect(() => {

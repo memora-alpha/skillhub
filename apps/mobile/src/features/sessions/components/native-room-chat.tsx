@@ -11,12 +11,12 @@ export function NativeRoomChat({
   partnerName,
   partnerAvatarUrl,
   hidden = false,
-}: {
+}: Readonly<{
   chat: ReturnType<typeof useRoomChat>;
   partnerName: string;
   partnerAvatarUrl?: string | null;
   hidden?: boolean;
-}) {
+}>) {
   const [draft, setDraft] = useState("");
   const log = useRef<ComponentRef<typeof ScrollView>>(null);
   return (

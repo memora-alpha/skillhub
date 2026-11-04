@@ -60,7 +60,7 @@ export function createLearningPathsApi(
       const result: z.infer<typeof pathSummarySchema>[] = [];
       const cursors = new Set<string>();
       let cursor: string | null = null;
-      do {
+      async function loadNextPage() {
         if (signal?.aborted) throw new AppError("session");
         const query: string = cursor
           ? `?${new URLSearchParams({ cursor })}`
@@ -79,7 +79,11 @@ export function createLearningPathsApi(
         cursor = page.nextCursor;
         if (cursor && cursors.has(cursor)) throw new AppError("protocol");
         if (cursor) cursors.add(cursor);
-      } while (cursor);
+
+        if (cursor) await loadNextPage();
+      }
+      await loadNextPage();
+
       if (
         new Set(result.map((p) => p.id)).size !== result.length ||
         result.some((p) => p.counterpartId === userId)

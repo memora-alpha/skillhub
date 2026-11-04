@@ -270,51 +270,31 @@ export function useLearningRoom(
     )
       return;
     const ticket = attempt.current;
+    const active = () => alive.current && attempt.current === ticket;
     mediaLock.current = true;
     setMediaBusy(true);
     setNotice(undefined);
     try {
       let publication: LocalTrackPublication | undefined;
-      if (kind === "camera" || kind === "microphone") {
-        const { Track } = await import("livekit-client");
-        if (!alive.current || attempt.current !== ticket) return;
-        const current = room.localParticipant.getTrackPublication(
-          kind === "camera" ? Track.Source.Camera : Track.Source.Microphone,
-        );
-        const enabled =
-          kind === "camera"
-            ? room.localParticipant.isCameraEnabled
-            : room.localParticipant.isMicrophoneEnabled;
-        if (current?.track && enabled) {
-          await room.localParticipant.unpublishTrack(current.track, true);
-        } else {
-          if (current?.track)
-            await room.localParticipant.unpublishTrack(current.track, true);
-          publication = await captureAndPublish(
-            room,
-            kind,
-            devices.selected[kind],
-            ticket,
-          );
-        }
-      }
+      if (kind !== "screen")
+        publication = await toggleCapture(room, kind, ticket);
       if (kind === "screen")
         publication = await room.localParticipant.setScreenShareEnabled(
           !room.localParticipant.isScreenShareEnabled,
           { audio: true, contentHint: "detail", surfaceSwitching: "include" },
         );
-      if (!alive.current || attempt.current !== ticket) {
+      if (!active()) {
         publication?.track?.stop();
         await room.disconnect(true).catch(() => undefined);
         return;
       }
-      if (alive.current && attempt.current === ticket) {
+      if (active()) {
         setCamera(room.localParticipant.isCameraEnabled);
         setMicrophone(room.localParticipant.isMicrophoneEnabled);
         setScreen(room.localParticipant.isScreenShareEnabled);
       }
     } catch (cause) {
-      if (alive.current && attempt.current === ticket) {
+      if (active()) {
         let message = mediaErrorMessage(cause);
         if (kind === "camera" && background.enabled)
           message =
@@ -324,10 +304,29 @@ export function useLearningRoom(
         setNotice(message);
       }
     } finally {
-      if (alive.current && attempt.current === ticket) {
+      if (active()) {
         mediaLock.current = false;
         setMediaBusy(false);
       }
+    }
+  }
+  async function toggleCapture(room: Room, kind: DeviceKind, ticket: number) {
+    const active = () => alive.current && attempt.current === ticket;
+    const { Track } = await import("livekit-client");
+    if (!active()) return;
+    const current = room.localParticipant.getTrackPublication(
+      kind === "camera" ? Track.Source.Camera : Track.Source.Microphone,
+    );
+    const enabled =
+      kind === "camera"
+        ? room.localParticipant.isCameraEnabled
+        : room.localParticipant.isMicrophoneEnabled;
+    if (current?.track && enabled) {
+      await room.localParticipant.unpublishTrack(current.track, true);
+    } else {
+      if (current?.track)
+        await room.localParticipant.unpublishTrack(current.track, true);
+      return captureAndPublish(room, kind, devices.selected[kind], ticket);
     }
   }
   async function captureAndPublish(
@@ -341,11 +340,10 @@ export function useLearningRoom(
     if (!active()) throw new MicrophoneCancelledError();
     const sdk = await import("livekit-client");
     if (!active()) throw new MicrophoneCancelledError();
+    const captureOptions = deviceId ? { deviceId: { exact: deviceId } } : {};
     const track =
       kind === "camera"
-        ? await sdk.createLocalVideoTrack(
-            deviceId ? { deviceId: { exact: deviceId } } : {},
-          )
+        ? await sdk.createLocalVideoTrack(captureOptions)
         : await sdk.createLocalAudioTrack(
             microphoneCaptureOptions(micSettings, deviceId),
           );
@@ -399,12 +397,13 @@ export function useLearningRoom(
     )
       return;
     const ticket = attempt.current;
+    const active = () => alive.current && attempt.current === ticket;
     mediaLock.current = true;
     setMediaBusy(true);
     setNotice(undefined);
     try {
       const { Track } = await import("livekit-client");
-      if (!alive.current || attempt.current !== ticket) return;
+      if (!active()) return;
       const current = room.localParticipant.getTrackPublication(
         kind === "camera" ? Track.Source.Camera : Track.Source.Microphone,
       );
@@ -416,14 +415,12 @@ export function useLearningRoom(
         await room.localParticipant.unpublishTrack(current.track, true);
         await captureAndPublish(room, kind, deviceId, ticket, micSettings);
       }
-      if (alive.current && attempt.current === ticket)
-        devices.select(kind, deviceId);
+      if (active()) devices.select(kind, deviceId);
     } catch (cause) {
       if (fromSettings) throw cause;
-      if (alive.current && attempt.current === ticket)
-        setNotice(mediaErrorMessage(cause));
+      if (active()) setNotice(mediaErrorMessage(cause));
     } finally {
-      if (alive.current && attempt.current === ticket) {
+      if (active()) {
         mediaLock.current = false;
         setMediaBusy(false);
         setCamera(room.localParticipant.isCameraEnabled);

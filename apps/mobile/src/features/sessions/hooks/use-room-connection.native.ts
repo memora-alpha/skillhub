@@ -76,26 +76,30 @@ export function useRoomConnection({
       },
     });
     connectionRef.current = connection;
+    async function publishDevice(source: "microphone" | "camera") {
+      try {
+        const publication =
+          source === "microphone"
+            ? await room.localParticipant.setMicrophoneEnabled(true)
+            : await room.localParticipant.setCameraEnabled(true);
+        if (!connection.active()) {
+          publication?.track?.stop();
+          return false;
+        }
+      } catch {
+        if (connection.active())
+          setMediaNotice(
+            "Chưa bật được camera hoặc micro. Bạn vẫn có thể nghe và xem; hãy kiểm tra quyền rồi bật lại bằng nút bên dưới.",
+          );
+      }
+      return true;
+    }
     async function publish() {
       for (const source of ["microphone", "camera"] as const) {
         if (source === "microphone" ? !startMicrophone : !startCamera) continue;
         if (!connection.active() || room.state !== ConnectionState.Connected)
           break;
-        try {
-          const publication =
-            source === "microphone"
-              ? await room.localParticipant.setMicrophoneEnabled(true)
-              : await room.localParticipant.setCameraEnabled(true);
-          if (!connection.active()) {
-            publication?.track?.stop();
-            return;
-          }
-        } catch {
-          if (connection.active())
-            setMediaNotice(
-              "Chưa bật được camera hoặc micro. Bạn vẫn có thể nghe và xem; hãy kiểm tra quyền rồi bật lại bằng nút bên dưới.",
-            );
-        }
+        if (!(await publishDevice(source))) return;
       }
       if (connection.active()) setMediaPending(false);
     }

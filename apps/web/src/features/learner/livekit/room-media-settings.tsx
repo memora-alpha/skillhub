@@ -55,7 +55,7 @@ function AudioForm({
       <fieldset disabled={disabled}>
         <legend>Chất lượng âm thanh</legend>
         <label>
-          Mức thu mic: {Math.round(draft.gain * 100)}%
+          <span>Mức thu mic: {Math.round(draft.gain * 100)}%</span>
           <input
             type="range"
             min="0"
@@ -95,7 +95,7 @@ function AudioForm({
           <small>Krisp sẽ xử lý tiếng ồn thay cho bộ lọc cơ bản.</small>
         )}
         <label>
-          Bộ lọc nâng cao
+          <span>Bộ lọc nâng cao</span>
           <select
             value={draft.filter}
             onChange={(event) =>
@@ -134,6 +134,24 @@ export function RoomMediaSettings(props: Readonly<SettingsProps>) {
   const [open, setOpen] = useState(false);
   const [radius, setRadius] = useState(12);
   const busy = disabled || background.busy || audio.busy;
+  const backgroundLabel = selectedBackground(background.settings);
+  let microphoneNotice: string;
+  if (props.microphone) microphoneNotice = "Tắt mic";
+  else microphoneNotice = "Bật mic để kiểm tra";
+  let filterLabel: string;
+  if (audio.settings.filter === "standard") filterLabel = "Lọc cơ bản";
+  else if (audio.settings.filter === "krisp") filterLabel = "Krisp";
+  else filterLabel = "Krisp giảm giọng nền";
+  let microphoneStatus: string;
+  if (props.microphone) {
+    if (connected) {
+      microphoneStatus = "Nói thử để xem mức thu. Mic đang được gửi vào phòng.";
+    } else {
+      microphoneStatus = "Nói thử để xem mức thu; chưa gửi vào phòng.";
+    }
+  } else {
+    microphoneStatus = "Micro đang tắt.";
+  }
   return (
     <>
       <button
@@ -178,14 +196,7 @@ export function RoomMediaSettings(props: Readonly<SettingsProps>) {
                 <span>Bật camera để xem hiệu ứng nền</span>
               )}
             </div>
-            <p>
-              Hình nền đã chọn:{" "}
-              {background.settings.mode === "off"
-                ? "Không hiệu ứng"
-                : background.settings.mode === "blur"
-                  ? `Mờ nền (${background.settings.blurRadius})`
-                  : "Ảnh nền"}
-            </p>
+            <p>Hình nền đã chọn: {backgroundLabel}</p>
             <div className={styles.actions}>
               <button
                 type="button"
@@ -210,7 +221,7 @@ export function RoomMediaSettings(props: Readonly<SettingsProps>) {
               </button>
             </div>
             <label>
-              Độ mờ: {radius}
+              <span>Độ mờ: {radius}</span>
               <input
                 type="range"
                 min="1"
@@ -257,7 +268,7 @@ export function RoomMediaSettings(props: Readonly<SettingsProps>) {
               ))}
             </div>
             <label>
-              Chọn ảnh từ máy
+              <span>Chọn ảnh từ máy</span>
               <input
                 type="file"
                 accept="image/jpeg,image/png,image/webp"
@@ -313,7 +324,7 @@ export function RoomMediaSettings(props: Readonly<SettingsProps>) {
                 disabled={busy}
                 onClick={props.toggleMicrophone}
               >
-                {props.microphone ? "Tắt mic" : "Bật mic để kiểm tra"}
+                {microphoneNotice}
               </button>
               {open && (
                 <RoomMicrophoneMeter
@@ -321,13 +332,7 @@ export function RoomMediaSettings(props: Readonly<SettingsProps>) {
                   audio={audio}
                 />
               )}
-              <small>
-                {props.microphone
-                  ? connected
-                    ? "Nói thử để xem mức thu. Mic đang được gửi vào phòng."
-                    : "Nói thử để xem mức thu; chưa gửi vào phòng."
-                  : "Micro đang tắt."}
-              </small>
+              <small>{microphoneStatus}</small>
             </div>
             {open && (
               <AudioForm
@@ -340,11 +345,7 @@ export function RoomMediaSettings(props: Readonly<SettingsProps>) {
             )}
             <p>
               Cấu hình mic đã chọn: {Math.round(audio.settings.gain * 100)}% ·{" "}
-              {audio.settings.filter === "standard"
-                ? "Lọc cơ bản"
-                : audio.settings.filter === "krisp"
-                  ? "Krisp"
-                  : "Krisp giảm giọng nền"}
+              {filterLabel}
             </p>
             {!props.microphone && (
               <small>Cấu hình âm thanh sẽ áp dụng khi bạn bật mic.</small>
@@ -352,11 +353,19 @@ export function RoomMediaSettings(props: Readonly<SettingsProps>) {
           </section>
         </div>
         {(background.busy || audio.busy) && (
-          <p role="status">Đang chuẩn bị hiệu ứng…</p>
+          <p>
+            <output>Đang chuẩn bị hiệu ứng…</output>
+          </p>
         )}
         {background.error && <p role="alert">{background.error}</p>}
         {audio.error && <p role="alert">{audio.error}</p>}
       </dialog>
     </>
   );
+}
+
+function selectedBackground(settings: BackgroundSettings) {
+  if (settings.mode === "off") return "Không hiệu ứng";
+  if (settings.mode === "blur") return `Mờ nền (${settings.blurRadius})`;
+  return "Ảnh nền";
 }

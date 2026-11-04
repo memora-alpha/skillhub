@@ -1,8 +1,11 @@
 "use client";
+import { formText } from "../learner/components/form-data";
 import Link from "next/link";
 import { useRef, useState } from "react";
 import { accountRequest } from "./account-client";
-export function AccountScreen({ mode }: { mode: "register" | "forgot" }) {
+export function AccountScreen({
+  mode,
+}: Readonly<{ mode: "register" | "forgot" }>) {
   const [step, setStep] = useState<"start" | "otp" | "reset" | "done">("start"),
     [email, setEmail] = useState(""),
     [proof, setProof] = useState<{ resetToken: string; expiresAt: string }>(),
@@ -33,65 +36,67 @@ export function AccountScreen({ mode }: { mode: "register" | "forgot" }) {
     reset: "Lưu mật khẩu mới",
     done: "",
   };
-  async function submit(fields: FormData) {
-    if (step === "start") {
-      const address = String(fields.get("email")).trim();
-      if (
-        registering &&
-        fields.get("password") !== fields.get("confirmPassword")
-      )
-        throw new Error("Hai mật khẩu chưa trùng khớp.");
-      await accountRequest(
-        registering ? "register" : "password/forgot",
-        registering
-          ? {
-              email: address,
-              fullName: String(fields.get("fullName")).trim(),
-              password: String(fields.get("password")),
-              confirmPassword: String(fields.get("confirmPassword")),
-              agreeTerms: fields.get("agreeTerms") === "on",
-              timezone: "Asia/Ho_Chi_Minh",
-              locale: "vi",
-            }
-          : { email: address },
-      );
-      setEmail(address);
-      setStep("otp");
-      setNotice("Nếu yêu cầu hợp lệ, email hướng dẫn sẽ được gửi đến bạn.");
-    } else if (step === "otp") {
-      const body = { email, otpCode: String(fields.get("otpCode")) };
-      if (registering) {
-        await accountRequest("verification/verify", body);
-        setStep("done");
-      } else {
-        const result = await accountRequest<{
-          resetToken: string;
-          expiresAt: string;
-        }>("password/verify-otp", body);
-        if (
-          !result ||
-          !/^[A-Za-z0-9_-]{43}$/.test(result.resetToken) ||
-          !Number.isFinite(Date.parse(result.expiresAt))
-        )
-          throw new Error("Chưa xác minh được yêu cầu. Vui lòng thử lại.");
-        setProof(result);
-        setStep("reset");
-      }
-      setNotice(undefined);
-    } else if (step === "reset") {
-      if (!proof || Date.parse(proof.expiresAt) <= Date.now())
-        throw new Error("Phiên đặt lại đã hết hạn. Hãy bắt đầu lại.");
-      if (fields.get("newPassword") !== fields.get("confirmNewPassword"))
-        throw new Error("Hai mật khẩu chưa trùng khớp.");
-      await accountRequest("password/reset", {
-        email,
-        resetToken: proof.resetToken,
-        newPassword: String(fields.get("newPassword")),
-        confirmNewPassword: String(fields.get("confirmNewPassword")),
-      });
-      setProof(undefined);
+  async function submitStart(fields: FormData) {
+    const address = formText(fields, "email").trim();
+    if (registering && fields.get("password") !== fields.get("confirmPassword"))
+      throw new Error("Hai mật khẩu chưa trùng khớp.");
+    await accountRequest(
+      registering ? "register" : "password/forgot",
+      registering
+        ? {
+            email: address,
+            fullName: formText(fields, "fullName").trim(),
+            password: formText(fields, "password"),
+            confirmPassword: formText(fields, "confirmPassword"),
+            agreeTerms: fields.get("agreeTerms") === "on",
+            timezone: "Asia/Ho_Chi_Minh",
+            locale: "vi",
+          }
+        : { email: address },
+    );
+    setEmail(address);
+    setStep("otp");
+    setNotice("Nếu yêu cầu hợp lệ, email hướng dẫn sẽ được gửi đến bạn.");
+  }
+  async function submitOtp(fields: FormData) {
+    const body = { email, otpCode: formText(fields, "otpCode") };
+    if (registering) {
+      await accountRequest("verification/verify", body);
       setStep("done");
+    } else {
+      const result = await accountRequest<{
+        resetToken: string;
+        expiresAt: string;
+      }>("password/verify-otp", body);
+      if (
+        !result ||
+        !/^[A-Za-z0-9_-]{43}$/.test(result.resetToken) ||
+        !Number.isFinite(Date.parse(result.expiresAt))
+      )
+        throw new Error("Chưa xác minh được yêu cầu. Vui lòng thử lại.");
+      setProof(result);
+      setStep("reset");
     }
+    setNotice(undefined);
+  }
+  async function submitReset(fields: FormData) {
+    if (!proof || Date.parse(proof.expiresAt) <= Date.now())
+      throw new Error("Phiên đặt lại đã hết hạn. Hãy bắt đầu lại.");
+    if (fields.get("newPassword") !== fields.get("confirmNewPassword"))
+      throw new Error("Hai mật khẩu chưa trùng khớp.");
+    await accountRequest("password/reset", {
+      email,
+      resetToken: proof.resetToken,
+      newPassword: formText(fields, "newPassword"),
+      confirmNewPassword: formText(fields, "confirmNewPassword"),
+    });
+    setProof(undefined);
+    setStep("done");
+  }
+  async function submit(fields: FormData) {
+    if (step === "start") return submitStart(fields);
+    if (step === "otp") return submitOtp(fields);
+    if (step === "reset") return submitReset(fields);
   }
   async function run(work: () => Promise<void>) {
     if (busy.current) return;
@@ -152,135 +157,11 @@ export function AccountScreen({ mode }: { mode: "register" | "forgot" }) {
                 void run(() => submit(fields));
               }}
             >
-              {step === "start" ? (
-                <>
-                  {registering && (
-                    <>
-                      <label htmlFor="account-name">Họ và tên</label>
-                      <input
-                        id="account-name"
-                        name="fullName"
-                        autoComplete="name"
-                        required
-                        minLength={2}
-                        maxLength={100}
-                        disabled={pending}
-                      />
-                    </>
-                  )}
-                  <label htmlFor="account-email">Email</label>
-                  <input
-                    id="account-email"
-                    name="email"
-                    type="email"
-                    autoComplete="email"
-                    required
-                    maxLength={254}
-                    disabled={pending}
-                  />
-                  {registering && (
-                    <>
-                      <label htmlFor="account-password">Mật khẩu</label>
-                      <input
-                        id="account-password"
-                        name="password"
-                        type="password"
-                        autoComplete="new-password"
-                        minLength={8}
-                        maxLength={64}
-                        required
-                        disabled={pending}
-                      />
-                      <small>
-                        8–64 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc
-                        biệt.
-                      </small>
-                      <label htmlFor="account-confirm">Nhập lại mật khẩu</label>
-                      <input
-                        id="account-confirm"
-                        name="confirmPassword"
-                        type="password"
-                        autoComplete="new-password"
-                        minLength={8}
-                        maxLength={64}
-                        required
-                        disabled={pending}
-                      />
-                      <label className="auth-consent">
-                        <input
-                          type="checkbox"
-                          name="agreeTerms"
-                          required
-                          disabled={pending}
-                        />{" "}
-                        <span>
-                          Tôi đồng ý với{" "}
-                          <Link
-                            href="/terms"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            điều khoản sử dụng
-                          </Link>{" "}
-                          và{" "}
-                          <Link
-                            href="/privacy"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            chính sách bảo mật
-                          </Link>{" "}
-                          của SkillHub.
-                        </span>
-                      </label>
-                    </>
-                  )}
-                </>
-              ) : step === "otp" ? (
-                <>
-                  <label htmlFor="account-otp">Mã xác nhận</label>
-                  <input
-                    id="account-otp"
-                    name="otpCode"
-                    inputMode="numeric"
-                    autoComplete="one-time-code"
-                    pattern="[0-9]{6}"
-                    minLength={6}
-                    maxLength={6}
-                    required
-                    disabled={pending}
-                    placeholder="000000"
-                  />
-                </>
-              ) : (
-                <>
-                  <label htmlFor="new-password">Mật khẩu mới</label>
-                  <input
-                    id="new-password"
-                    name="newPassword"
-                    type="password"
-                    autoComplete="new-password"
-                    minLength={8}
-                    maxLength={64}
-                    required
-                    disabled={pending}
-                  />
-                  <small>Gồm chữ hoa, chữ thường, số và ký tự đặc biệt.</small>
-                  <label htmlFor="new-password-confirm">
-                    Nhập lại mật khẩu mới
-                  </label>
-                  <input
-                    id="new-password-confirm"
-                    name="confirmNewPassword"
-                    type="password"
-                    autoComplete="new-password"
-                    minLength={8}
-                    maxLength={64}
-                    required
-                    disabled={pending}
-                  />
-                </>
-              )}
+              <AccountFields
+                step={step}
+                registering={registering}
+                pending={pending}
+              />
               {error && (
                 <p className="auth-error" role="alert">
                   {error}
@@ -338,5 +219,134 @@ export function AccountScreen({ mode }: { mode: "register" | "forgot" }) {
         </section>
       </div>
     </main>
+  );
+}
+
+function AccountFields({
+  step,
+  registering,
+  pending,
+}: Readonly<{ step: string; registering: boolean; pending: boolean }>) {
+  if (step === "start")
+    return (
+      <>
+        {registering && (
+          <>
+            <label htmlFor="account-name">Họ và tên</label>
+            <input
+              id="account-name"
+              name="fullName"
+              autoComplete="name"
+              required
+              minLength={2}
+              maxLength={100}
+              disabled={pending}
+            />
+          </>
+        )}
+        <label htmlFor="account-email">Email</label>
+        <input
+          id="account-email"
+          name="email"
+          type="email"
+          autoComplete="email"
+          required
+          maxLength={254}
+          disabled={pending}
+        />
+        {registering && (
+          <>
+            <label htmlFor="account-password">Mật khẩu</label>
+            <input
+              id="account-password"
+              name="password"
+              type="password"
+              autoComplete="new-password"
+              minLength={8}
+              maxLength={64}
+              required
+              disabled={pending}
+            />
+            <small>
+              8–64 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt.
+            </small>
+            <label htmlFor="account-confirm">Nhập lại mật khẩu</label>
+            <input
+              id="account-confirm"
+              name="confirmPassword"
+              type="password"
+              autoComplete="new-password"
+              minLength={8}
+              maxLength={64}
+              required
+              disabled={pending}
+            />
+            <label className="auth-consent">
+              <input
+                type="checkbox"
+                name="agreeTerms"
+                required
+                disabled={pending}
+              />{" "}
+              <span>
+                Tôi đồng ý với{" "}
+                <Link href="/terms" target="_blank" rel="noopener noreferrer">
+                  điều khoản sử dụng
+                </Link>{" "}
+                và{" "}
+                <Link href="/privacy" target="_blank" rel="noopener noreferrer">
+                  chính sách bảo mật
+                </Link>{" "}
+                của SkillHub.
+              </span>
+            </label>
+          </>
+        )}
+      </>
+    );
+  if (step === "otp")
+    return (
+      <>
+        <label htmlFor="account-otp">Mã xác nhận</label>
+        <input
+          id="account-otp"
+          name="otpCode"
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          pattern="[0-9]{6}"
+          minLength={6}
+          maxLength={6}
+          required
+          disabled={pending}
+          placeholder="000000"
+        />
+      </>
+    );
+  return (
+    <>
+      <label htmlFor="new-password">Mật khẩu mới</label>
+      <input
+        id="new-password"
+        name="newPassword"
+        type="password"
+        autoComplete="new-password"
+        minLength={8}
+        maxLength={64}
+        required
+        disabled={pending}
+      />
+      <small>Gồm chữ hoa, chữ thường, số và ký tự đặc biệt.</small>
+      <label htmlFor="new-password-confirm">Nhập lại mật khẩu mới</label>
+      <input
+        id="new-password-confirm"
+        name="confirmNewPassword"
+        type="password"
+        autoComplete="new-password"
+        minLength={8}
+        maxLength={64}
+        required
+        disabled={pending}
+      />
+    </>
   );
 }

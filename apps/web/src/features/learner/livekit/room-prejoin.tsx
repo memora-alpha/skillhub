@@ -19,7 +19,7 @@ export function RoomPrejoin({
   canJoin,
   onJoin,
   onCancel,
-}: {
+}: Readonly<{
   name: string;
   avatarUrl?: string | null;
   preview: ReturnType<typeof useRoomPreview>;
@@ -29,7 +29,7 @@ export function RoomPrejoin({
   canJoin: boolean;
   onJoin: () => void;
   onCancel: () => void;
-}) {
+}>) {
   const camera = !!preview.tracks.camera;
   const microphone = !!preview.tracks.microphone;
   return (
@@ -145,8 +145,11 @@ export function RoomPrejoin({
           />
         </div>
         {preview.busy && (
-          <p className={styles.previewHint} role="status">
-            Đang mở thiết bị… Nếu được hỏi, hãy chọn cho phép trong trình duyệt.
+          <p className={styles.previewHint}>
+            <output>
+              Đang mở thiết bị… Nếu được hỏi, hãy chọn cho phép trong trình
+              duyệt.
+            </output>
           </p>
         )}
         {preview.error && (

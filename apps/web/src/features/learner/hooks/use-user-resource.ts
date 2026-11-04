@@ -1,4 +1,5 @@
 "use client";
+import { pageUrl } from "../api/page-url";
 import { useMemo } from "react";
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import { useUserSession } from "../auth/session";
@@ -46,14 +47,7 @@ export function useUserList<T extends { id: string }>(path: string) {
     queryKey: ["learner", actor.userId, path],
     initialPageParam: undefined as string | undefined,
     queryFn: async ({ pageParam, signal }) => {
-      const reply = await request<T[]>(
-        path +
-          (pageParam
-            ? (path.includes("?") ? "&" : "?") +
-              new URLSearchParams({ cursor: pageParam })
-            : ""),
-        { signal },
-      );
+      const reply = await request<T[]>(pageUrl(path, pageParam), { signal });
       if (
         !Array.isArray(reply.data) ||
         (pageParam && reply.meta?.pagination?.nextCursor === pageParam)
@@ -84,14 +78,12 @@ export function useUserList<T extends { id: string }>(path: string) {
   // A failed next page must not erase the pages already being read. Permission
   // and missing-resource responses still hide cached content immediately.
   const showItems = !query.error || isTemporaryFailure(query.error);
+  const staleNotice =
+    showItems && items.length ? "Đang hiển thị dữ liệu đã tải trước đó. " : "";
   return {
     items: showItems ? items : [],
     loading: query.isPending || query.isFetching,
-    error: query.error
-      ? (showItems && items.length
-          ? "Đang hiển thị dữ liệu đã tải trước đó. "
-          : "") + query.error.message
-      : undefined,
+    error: query.error ? staleNotice + query.error.message : undefined,
     cursor: query.hasNextPage
       ? (query.data?.pages.at(-1)?.meta?.pagination?.nextCursor ?? null)
       : null,
