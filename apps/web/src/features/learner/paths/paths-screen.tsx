@@ -34,7 +34,9 @@ export function PathsScreen() {
             <p>
               {path.exchangeType === "TWO_WAY"
                 ? "Trao đổi kỹ năng hai chiều"
-                : "Hướng dẫn một chiều"}
+                : path.exchangeType === "ONE_WAY"
+                  ? "Hướng dẫn một chiều"
+                  : "Đang thống nhất hình thức"}
             </p>
             <Link className="btn btn-primary" href={"/learn/paths/" + path.id}>
               Xem kế hoạch và lịch học

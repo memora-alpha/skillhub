@@ -17,11 +17,13 @@ import {
 import { PlanPanel } from "./plan-panel";
 import { PlanEditor } from "./plan-editor";
 import { AgreementCreator } from "./agreement-creator";
+import { SettlementPanel } from "./settlement-panel";
 export function PathDetail({ id }: Readonly<{ id: string }>) {
   const query = useUserResource<LearningPath>("learning-paths/" + id),
     { actor, request } = useUserSession(),
     command = useUserCommand(true),
     router = useRouter();
+  const [tab, setTab] = useState("plans");
   const [editing, setEditing] = useState(false),
     [reviewed, setReviewed] = useState(false);
   const path = query.data,
@@ -68,80 +70,130 @@ export function PathDetail({ id }: Readonly<{ id: string }>) {
             description={"Phiên bản thỏa thuận " + path.currentVersion}
             action={<Status value={path.status} />}
           />
-          <div className="learner-two-columns">
-            <div className="learner-stack">
-              <Panel title="1. Điều khoản chung">
-                <p>
-                  {path.agreement.exchangeType === "ONE_WAY"
-                    ? "Hướng dẫn một chiều"
-                    : "Trao đổi kỹ năng hai chiều"}
-                </p>
-                <p>
-                  <strong>
-                    {path.agreement.negotiatedCredit ??
-                      path.agreement.totalCreditPerUser}{" "}
-                    Credit
-                  </strong>
-                  {path.agreement.exchangeType === "TWO_WAY"
-                    ? " mỗi người tạm giữ"
-                    : " cho cả lộ trình"}
-                </p>
-                <p>
-                  {path.agreement.exchangeType === "ONE_WAY"
-                    ? path.agreement.teacherId === actor.userId
-                      ? "Bạn hướng dẫn, đối tác học."
-                      : "Đối tác hướng dẫn, bạn học."
-                    : "Mỗi người tự tạo kế hoạch cho chiều mình hướng dẫn."}
-                </p>
-                {editable && (
-                  <div className="learner-actions">
-                    <button
-                      className="btn btn-primary"
-                      disabled={
-                        !!ownConfirmed || command.pending || command.uncertain
-                      }
-                      onClick={() => {
-                        void command.run(
-                          "terms:" + id + ":" + path.currentVersion,
-                          () =>
-                            request("learning-paths/" + id + "/confirm", {
-                              method: "POST",
-                              body: { expectedVersion: path.currentVersion },
-                            }),
-                        );
-                      }}
-                    >
-                      {ownConfirmed
-                        ? "Bạn đã xác nhận điều khoản"
-                        : "Tôi xác nhận điều khoản phiên bản này"}
-                    </button>
-                    <button
-                      className="btn"
-                      onClick={() => setEditing(!editing)}
-                    >
-                      {editing ? "Đóng" : "Điều chỉnh thỏa thuận"}
-                    </button>
-                  </div>
+          <div className="path-tabs" aria-label="Các phần của lộ trình">
+            {[
+              ["overview", "Tổng quan"],
+              [
+                "plans",
+                path.agreement.exchangeType === "TWO_WAY"
+                  ? "Hai kế hoạch"
+                  : "Kế hoạch học",
+              ],
+              ["schedule", "Lịch học"],
+              ["finalize", "Kiểm tra cuối"],
+            ].map(([value, label]) => (
+              <button
+                key={value}
+                className={tab === value ? "active" : ""}
+                aria-pressed={tab === value}
+                onClick={() => setTab(value!)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {!!path.lockedVersion && (
+            <SettlementPanel
+              key={path.id}
+              path={path}
+              blocked={query.loading || !!query.error}
+            />
+          )}
+          {tab === "overview" && (
+            <div className="learner-two-columns">
+              <div className="learner-stack">
+                {" "}
+                <Panel title="1. Điều khoản chung">
+                  <p>
+                    {path.agreement.exchangeType === "ONE_WAY"
+                      ? "Hướng dẫn một chiều"
+                      : "Trao đổi kỹ năng hai chiều"}
+                  </p>
+                  <p>
+                    <strong>
+                      {path.agreement.negotiatedCredit ??
+                        path.agreement.totalCreditPerUser}{" "}
+                      Credit
+                    </strong>
+                    {path.agreement.exchangeType === "TWO_WAY"
+                      ? " mỗi người tạm giữ"
+                      : " cho cả lộ trình"}
+                  </p>
+                  <p>
+                    {path.agreement.exchangeType === "ONE_WAY"
+                      ? path.agreement.teacherId === actor.userId
+                        ? "Bạn hướng dẫn, đối tác học."
+                        : "Đối tác hướng dẫn, bạn học."
+                      : "Mỗi người tự tạo kế hoạch cho chiều mình hướng dẫn."}
+                  </p>
+                  {editable && (
+                    <div className="learner-actions">
+                      <button
+                        className="btn btn-primary"
+                        disabled={
+                          !!ownConfirmed || command.pending || command.uncertain
+                        }
+                        onClick={() => {
+                          void command.run(
+                            "terms:" + id + ":" + path.currentVersion,
+                            () =>
+                              request("learning-paths/" + id + "/confirm", {
+                                method: "POST",
+                                body: { expectedVersion: path.currentVersion },
+                              }),
+                          );
+                        }}
+                      >
+                        {ownConfirmed
+                          ? "Bạn đã xác nhận điều khoản"
+                          : "Tôi xác nhận điều khoản phiên bản này"}
+                      </button>
+                      <button
+                        className="btn"
+                        onClick={() => setEditing(!editing)}
+                      >
+                        {editing ? "Đóng" : "Điều chỉnh thỏa thuận"}
+                      </button>
+                    </div>
+                  )}
+                  <p className="muted">
+                    {ready
+                      ? "Hai bên đã xác nhận điều khoản."
+                      : "Chờ cả hai xác nhận điều khoản trước khi hoàn thiện kế hoạch."}
+                  </p>
+                </Panel>
+                {editing && editable && conversation && (
+                  <AgreementCreator
+                    key={path.currentVersion}
+                    path={path}
+                    conversation={conversation}
+                  />
                 )}
-                <p className="muted">
-                  {ready
-                    ? "Hai bên đã xác nhận điều khoản."
-                    : "Chờ cả hai xác nhận điều khoản trước khi hoàn thiện kế hoạch."}
+              </div>{" "}
+              <Panel title="Tiếp tục trao đổi">
+                <p>
+                  Chưa thống nhất? Quay lại trao đổi với đối tác trước khi xác
+                  nhận.
                 </p>
+                <Link
+                  className="btn"
+                  href={"/learn/messages/" + path.conversationId}
+                >
+                  Mở cuộc trò chuyện
+                </Link>
               </Panel>
-              {editing && editable && conversation && (
-                <AgreementCreator
-                  key={path.currentVersion}
-                  path={path}
-                  conversation={conversation}
-                />
-              )}
+            </div>
+          )}
+          {tab === "plans" && (
+            <div className="plans-grid product-plans">
+              {" "}
               {path.plans.map((plan) => (
                 <PlanPanel
                   key={plan.id + ":" + plan.version}
                   path={path}
                   plan={plan}
                   agreementReady={ready}
+                  mode="plan"
                 />
               ))}
               {canAdd && (
@@ -158,7 +210,28 @@ export function PathDetail({ id }: Readonly<{ id: string }>) {
                 </Panel>
               )}
             </div>
+          )}
+          {tab === "schedule" && (
             <div className="learner-stack">
+              {path.plans.map((plan) => (
+                <PlanPanel
+                  key={plan.id + ":" + plan.version}
+                  path={path}
+                  plan={plan}
+                  agreementReady={ready}
+                  mode="schedule"
+                />
+              ))}
+              {!path.plans.length && (
+                <Panel title="Lịch học">
+                  <p>Chưa có kế hoạch để xếp lịch học.</p>
+                </Panel>
+              )}
+            </div>
+          )}
+          {tab === "finalize" && (
+            <div className="learner-two-columns">
+              {" "}
               <Panel title="3. Chốt lịch và bắt đầu học">
                 {path.lockedVersion ? (
                   <>
@@ -239,20 +312,30 @@ export function PathDetail({ id }: Readonly<{ id: string }>) {
                 )}
                 <CommandFeedback command={command} />
               </Panel>
-              <Panel title="Tiếp tục trao đổi">
+              <Panel title="Tình trạng thỏa thuận">
                 <p>
-                  Chưa thống nhất? Quay lại trao đổi với đối tác trước khi xác
-                  nhận.
+                  Điều khoản:{" "}
+                  {ready ? "Hai bên đã xác nhận" : "Chưa đủ xác nhận"}
                 </p>
-                <Link
-                  className="btn"
-                  href={"/learn/messages/" + path.conversationId}
-                >
-                  Mở cuộc trò chuyện
-                </Link>
+                <p>Số kế hoạch: {path.plans.length}</p>
+                <p>
+                  Kế hoạch được người học xác nhận:{" "}
+                  {path.plans.filter((plan) => plan.learnerConfirmedAt).length}
+                </p>
+                <p>
+                  Lịch học:{" "}
+                  {path.lockedVersion ? "Đã khóa theo thỏa thuận" : "Chưa khóa"}
+                </p>
+                <p className="muted">
+                  Điều kiện số dư, trùng lịch và trạng thái hiện tại được máy
+                  chủ kiểm tra khi chốt.
+                </p>
+                <button className="btn" onClick={() => setTab("overview")}>
+                  Xem lại điều khoản
+                </button>
               </Panel>
             </div>
-          </div>
+          )}
         </>
       )}
     </>
