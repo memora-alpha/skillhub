@@ -97,7 +97,7 @@ export class LiveKitService {
       room: input.roomName,
       canPublish: true,
       canSubscribe: true,
-      canPublishData: false,
+      canPublishData: true,
     });
     return token.toJwt();
   }
