@@ -1,4 +1,6 @@
 "use client";
+import { formText } from "../components/form-data";
+
 import Link from "next/link";
 import { useState } from "react";
 import { useUserSession } from "../auth/session";
@@ -21,6 +23,18 @@ import { useClock } from "../hooks/use-clock";
 import { AttendanceRules } from "./attendance-rules";
 import { sessionRefreshInterval } from "./attendance-presentation";
 import { SessionAttendanceStatus } from "./session-attendance-status";
+function excuseStatusLabel(status: string) {
+  switch (status) {
+    case "PENDING":
+      return "Chờ phản hồi";
+    case "ACCEPTED":
+      return "Đã chấp nhận";
+    case "EXPIRED":
+      return "Đã hết hạn phản hồi";
+    default:
+      return "Không chấp nhận";
+  }
+}
 export function SessionDetail({ id }: Readonly<{ id: string }>) {
   const now = useClock();
   const query = useUserResource<LearningSession>("sessions/" + id, {
@@ -112,6 +126,7 @@ export function SessionDetail({ id }: Readonly<{ id: string }>) {
                       Tôi xác nhận đã tham gia buổi học này.
                     </label>
                     <button
+                      type="button"
                       className="btn btn-primary"
                       disabled={
                         !confirm ||
@@ -151,13 +166,7 @@ export function SessionDetail({ id }: Readonly<{ id: string }>) {
                 {session.excuse && (
                   <p>
                     Giải trình: {session.excuse.reason} ·{" "}
-                    {session.excuse.status === "PENDING"
-                      ? "Chờ phản hồi"
-                      : session.excuse.status === "ACCEPTED"
-                        ? "Đã chấp nhận"
-                        : session.excuse.status === "EXPIRED"
-                          ? "Đã hết hạn phản hồi"
-                          : "Không chấp nhận"}
+                    {excuseStatusLabel(session.excuse.status)}
                   </p>
                 )}
                 {allowed.includes("SUBMIT_EXCUSE") && (
@@ -165,8 +174,9 @@ export function SessionDetail({ id }: Readonly<{ id: string }>) {
                     className="learner-form"
                     onSubmit={(event) => {
                       event.preventDefault();
-                      const reason = String(
-                        new FormData(event.currentTarget).get("reason"),
+                      const reason = formText(
+                        new FormData(event.currentTarget),
+                        "reason",
                       ).trim();
                       void command.run("excuse:" + id + ":" + reason, () =>
                         request("sessions/" + id + "/absence-excuse", {
@@ -177,7 +187,7 @@ export function SessionDetail({ id }: Readonly<{ id: string }>) {
                     }}
                   >
                     <label>
-                      Lý do vắng học
+                      <span>Lý do vắng học</span>
                       <textarea
                         name="reason"
                         minLength={10}
@@ -187,6 +197,7 @@ export function SessionDetail({ id }: Readonly<{ id: string }>) {
                       />
                     </label>
                     <button
+                      type="submit"
                       className="btn"
                       disabled={command.pending || command.uncertain}
                     >
@@ -198,6 +209,7 @@ export function SessionDetail({ id }: Readonly<{ id: string }>) {
                   <div className="learner-actions">
                     {[true, false].map((accept) => (
                       <button
+                        type="button"
                         className="btn"
                         key={String(accept)}
                         disabled={command.pending || command.uncertain}
@@ -253,6 +265,7 @@ export function SessionDetail({ id }: Readonly<{ id: string }>) {
                   <p>Mở phòng: {formatTime(session.join.opensAt)}</p>
                 )}
                 <button
+                  type="button"
                   className="btn"
                   disabled={query.loading}
                   onClick={query.reload}
@@ -276,6 +289,7 @@ export function SessionDetail({ id }: Readonly<{ id: string }>) {
                     dụng khi máy chủ chấp nhận.
                   </p>
                   <button
+                    type="button"
                     className="btn"
                     onClick={() => setReschedule(!reschedule)}
                   >

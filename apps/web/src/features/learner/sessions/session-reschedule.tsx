@@ -1,4 +1,6 @@
 "use client";
+import { formText } from "../components/form-data";
+
 import { useState } from "react";
 import type { LearningPath, LearningSession } from "../types";
 import { useUserSession } from "../auth/session";
@@ -15,7 +17,7 @@ export function SessionReschedule({
   const schedule = path.plans.find(
     (plan) => plan.id === session.planId,
   )?.schedule;
-  if (!schedule || schedule.appliedVersion === null)
+  if (schedule?.appliedVersion == null)
     return (
       <p className="learner-notice">
         Chưa đọc được phiên bản lịch hiện tại. Tải lại lộ trình trước khi thao
@@ -36,6 +38,7 @@ export function SessionReschedule({
             {schedule.items.map((item) => formatTime(item.startAt)).join(", ")}
           </p>
           <button
+            type="button"
             className="btn btn-primary"
             disabled={!!ownConfirmed || command.pending || command.uncertain}
             onClick={() => {
@@ -62,7 +65,7 @@ export function SessionReschedule({
             setError(undefined);
             const values = new FormData(event.currentTarget);
             try {
-              const startAt = vietnamInstant(String(values.get("start"))),
+              const startAt = vietnamInstant(formText(values, "start")),
                 duration = Number(values.get("duration"));
               if (
                 Date.parse(startAt) <= Date.now() ||
@@ -93,11 +96,11 @@ export function SessionReschedule({
           }}
         >
           <label>
-            Giờ mới (giờ Việt Nam)
+            <span>Giờ mới (giờ Việt Nam)</span>
             <input name="start" type="datetime-local" required />
           </label>
           <label>
-            Thời lượng (phút)
+            <span>Thời lượng (phút)</span>
             <input
               name="duration"
               type="number"
@@ -108,6 +111,7 @@ export function SessionReschedule({
             />
           </label>
           <button
+            type="submit"
             className="btn"
             disabled={command.pending || command.uncertain}
           >
