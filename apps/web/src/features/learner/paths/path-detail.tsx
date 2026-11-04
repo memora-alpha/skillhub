@@ -18,6 +18,32 @@ import { PlanPanel } from "./plan-panel";
 import { PlanEditor } from "./plan-editor";
 import { AgreementCreator } from "./agreement-creator";
 import { SettlementPanel } from "./settlement-panel";
+function pathPermissions(path: LearningPath | undefined, userId: string) {
+  if (!path)
+    return {
+      ready: false,
+      ownConfirmed: undefined,
+      editable: false,
+      canAdd: false,
+    };
+  const ready =
+    !!path.agreement.participantAConfirmedAt &&
+    !!path.agreement.participantBConfirmedAt;
+  const ownConfirmed =
+    userId === path.participantAId
+      ? path.agreement.participantAConfirmedAt
+      : path.agreement.participantBConfirmedAt;
+  const editable =
+    path.lockedVersion === null &&
+    ["PROPOSED", "PARTIALLY_CONFIRMED", "CONFIRMED"].includes(path.status);
+  const canAdd =
+    editable &&
+    ready &&
+    !path.plans.some((plan) => plan.teacherId === userId) &&
+    (path.agreement.exchangeType === "TWO_WAY" ||
+      path.agreement.teacherId === userId);
+  return { ready, ownConfirmed, editable, canAdd };
+}
 export function PathDetail({ id }: Readonly<{ id: string }>) {
   const query = useUserResource<LearningPath>("learning-paths/" + id),
     { actor, request } = useUserSession(),
@@ -26,25 +52,19 @@ export function PathDetail({ id }: Readonly<{ id: string }>) {
   const [tab, setTab] = useState("plans");
   const [editing, setEditing] = useState(false),
     [reviewed, setReviewed] = useState(false);
-  const path = query.data,
-    ready =
-      !!path?.agreement.participantAConfirmedAt &&
-      !!path?.agreement.participantBConfirmedAt;
-  const ownConfirmed =
-    path &&
-    (actor.userId === path.participantAId
-      ? path.agreement.participantAConfirmedAt
-      : path.agreement.participantBConfirmedAt);
-  const editable =
-    !!path &&
-    path.lockedVersion === null &&
-    ["PROPOSED", "PARTIALLY_CONFIRMED", "CONFIRMED"].includes(path.status);
-  const canAdd =
-    editable &&
-    ready &&
-    !path.plans.some((plan) => plan.teacherId === actor.userId) &&
-    (path.agreement.exchangeType === "TWO_WAY" ||
-      path.agreement.teacherId === actor.userId);
+  const path = query.data;
+  const { ready, ownConfirmed, editable, canAdd } = pathPermissions(
+    path,
+    actor.userId,
+  );
+  const oneWayRole =
+    path?.agreement.teacherId === actor.userId
+      ? "Bạn hướng dẫn, đối tác học."
+      : "Đối tác hướng dẫn, bạn học.";
+  const roleDescription =
+    path?.agreement.exchangeType === "ONE_WAY"
+      ? oneWayRole
+      : "Mỗi người tự tạo kế hoạch cho chiều mình hướng dẫn.";
   const conversation: Conversation | undefined = path
     ? {
         id: path.conversationId,
@@ -83,6 +103,7 @@ export function PathDetail({ id }: Readonly<{ id: string }>) {
               ["finalize", "Kiểm tra cuối"],
             ].map(([value, label]) => (
               <button
+                type="button"
                 key={value}
                 className={tab === value ? "active" : ""}
                 aria-pressed={tab === value}
@@ -119,16 +140,11 @@ export function PathDetail({ id }: Readonly<{ id: string }>) {
                       ? " mỗi người tạm giữ"
                       : " cho cả lộ trình"}
                   </p>
-                  <p>
-                    {path.agreement.exchangeType === "ONE_WAY"
-                      ? path.agreement.teacherId === actor.userId
-                        ? "Bạn hướng dẫn, đối tác học."
-                        : "Đối tác hướng dẫn, bạn học."
-                      : "Mỗi người tự tạo kế hoạch cho chiều mình hướng dẫn."}
-                  </p>
+                  <p>{roleDescription}</p>
                   {editable && (
                     <div className="learner-actions">
                       <button
+                        type="button"
                         className="btn btn-primary"
                         disabled={
                           !!ownConfirmed || command.pending || command.uncertain
@@ -149,6 +165,7 @@ export function PathDetail({ id }: Readonly<{ id: string }>) {
                           : "Tôi xác nhận điều khoản phiên bản này"}
                       </button>
                       <button
+                        type="button"
                         className="btn"
                         onClick={() => setEditing(!editing)}
                       >
@@ -268,6 +285,7 @@ export function PathDetail({ id }: Readonly<{ id: string }>) {
                       Tôi đã kiểm tra nội dung, Credit và giờ học.
                     </label>
                     <button
+                      type="button"
                       className="btn btn-primary"
                       disabled={
                         !reviewed ||
@@ -330,7 +348,11 @@ export function PathDetail({ id }: Readonly<{ id: string }>) {
                   Điều kiện số dư, trùng lịch và trạng thái hiện tại được máy
                   chủ kiểm tra khi chốt.
                 </p>
-                <button className="btn" onClick={() => setTab("overview")}>
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => setTab("overview")}
+                >
                   Xem lại điều khoản
                 </button>
               </Panel>

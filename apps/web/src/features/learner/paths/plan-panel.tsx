@@ -36,6 +36,12 @@ export function PlanPanel({
     actor.userId === path.participantAId
       ? plan.schedule?.participantAConfirmedAt
       : plan.schedule?.participantBConfirmedAt;
+  const proposeScheduleLabel = plan.schedule
+    ? "Điều chỉnh lịch dự kiến"
+    : "Đề nghị lịch học";
+  const scheduleLabel = editSchedule
+    ? "Đóng đề nghị lịch"
+    : proposeScheduleLabel;
   return (
     <Panel title={teacher ? "Kế hoạch bạn hướng dẫn" : "Kế hoạch bạn học"}>
       <p className="panel-kicker">
@@ -58,6 +64,7 @@ export function PlanPanel({
           </p>
           {editable && !teacher && !plan.learnerConfirmedAt && (
             <button
+              type="button"
               className="btn btn-primary"
               disabled={command.pending || command.uncertain}
               onClick={() => {
@@ -73,7 +80,11 @@ export function PlanPanel({
             </button>
           )}
           {editable && teacher && (
-            <button className="btn" onClick={() => setEdit(!edit)}>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => setEdit(!edit)}
+            >
               {edit ? "Đóng chỉnh sửa" : "Chỉnh sửa kế hoạch"}
             </button>
           )}
@@ -104,6 +115,7 @@ export function PlanPanel({
               </ul>
               {editable && plan.schedule.appliedVersion === null && (
                 <button
+                  type="button"
                   className="btn btn-primary"
                   disabled={
                     !!ownScheduleConfirmed ||
@@ -145,14 +157,11 @@ export function PlanPanel({
             path.status === "CONFIRMED" &&
             plan.learnerConfirmedAt && (
               <button
+                type="button"
                 className="btn"
                 onClick={() => setEditSchedule(!editSchedule)}
               >
-                {editSchedule
-                  ? "Đóng đề nghị lịch"
-                  : plan.schedule
-                    ? "Điều chỉnh lịch dự kiến"
-                    : "Đề nghị lịch học"}
+                {scheduleLabel}
               </button>
             )}
           {editSchedule && editable && teacher && (

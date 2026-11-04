@@ -1,4 +1,6 @@
 "use client";
+import { formText } from "../components/form-data";
+
 import { useState } from "react";
 import type { Plan, ScheduleItem } from "../types";
 import { useUserSession } from "../auth/session";
@@ -25,7 +27,7 @@ export function ScheduleEditor({
           const items: ScheduleItem[] = Array.from(
             { length: plan.totalSessions },
             (_, index) => {
-              const start = String(values.get("start-" + index)),
+              const start = formText(values, "start-" + index),
                 duration = Number(values.get("duration-" + index)),
                 old = plan.schedule?.items.find(
                   (item) => item.sessionNo === index + 1,
@@ -44,8 +46,7 @@ export function ScheduleEditor({
                   "Mỗi buổi cần ở tương lai, dài từ 60 đến 180 phút.",
                 );
               const endAt =
-                old &&
-                startAt === old.startAt &&
+                old?.startAt === startAt &&
                 (Date.parse(old.endAt) - Date.parse(old.startAt)) / 60000 ===
                   duration
                   ? old.endAt
@@ -98,7 +99,7 @@ export function ScheduleEditor({
             <legend>Buổi {index + 1}</legend>
             <div className="learner-form-grid">
               <label>
-                Bắt đầu
+                <span>Bắt đầu</span>
                 <input
                   type="datetime-local"
                   name={"start-" + index}
@@ -108,7 +109,7 @@ export function ScheduleEditor({
                 />
               </label>
               <label>
-                Thời lượng (phút)
+                <span>Thời lượng (phút)</span>
                 <input
                   type="number"
                   name={"duration-" + index}
@@ -136,6 +137,7 @@ export function ScheduleEditor({
       )}
       <CommandFeedback command={command} />
       <button
+        type="submit"
         className="btn btn-primary"
         disabled={command.pending || command.uncertain}
       >

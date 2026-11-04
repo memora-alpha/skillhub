@@ -1,4 +1,6 @@
 "use client";
+import { formText } from "../components/form-data";
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Conversation, Proposal, LearningPath } from "../types";
@@ -24,14 +26,21 @@ export function AgreementCreator({
     actor.userId === conversation.participantAId
       ? conversation.participantBId
       : conversation.participantAId;
+  const proposedTeacher =
+    proposal?.sourceType === "LEARNING_REQUEST"
+      ? proposal.proposerId
+      : proposal?.recipientId;
   const teacherId =
-    path?.agreement.teacherId ??
-    (proposal
-      ? proposal.sourceType === "LEARNING_REQUEST"
-        ? proposal.proposerId
-        : proposal.recipientId
-      : actor.userId);
+    path?.agreement.teacherId ?? proposedTeacher ?? actor.userId;
   const learnerId = teacherId === actor.userId ? counterpart : actor.userId;
+  const oneWayRole =
+    teacherId === actor.userId
+      ? "Bạn hướng dẫn, đối tác học."
+      : "Đối tác hướng dẫn, bạn học.";
+  const roleDescription =
+    exchangeType === "ONE_WAY"
+      ? oneWayRole
+      : "Mỗi người tạo và giảng dạy kế hoạch riêng; cả hai cùng xác nhận lịch.";
   return (
     <Panel title={path ? "Điều chỉnh thỏa thuận" : "Thỏa thuận học tập"}>
       <form
@@ -45,11 +54,11 @@ export function AgreementCreator({
                   exchangeType,
                   teacherId,
                   learnerId,
-                  negotiatedCredit: String(values.get("credit")),
+                  negotiatedCredit: formText(values, "credit"),
                 }
               : {
                   exchangeType,
-                  totalCreditPerUser: String(values.get("credit")),
+                  totalCreditPerUser: formText(values, "credit"),
                 };
           const body = path
             ? { ...terms, expectedVersion: path.currentVersion }
@@ -64,7 +73,7 @@ export function AgreementCreator({
         }}
       >
         <label>
-          Hình thức học
+          <span>Hình thức học</span>
           <select
             value={exchangeType}
             onChange={(event) =>
@@ -76,17 +85,13 @@ export function AgreementCreator({
             <option value="TWO_WAY">Hai chiều · cùng trao đổi kỹ năng</option>
           </select>
         </label>
-        <p>
-          {exchangeType === "ONE_WAY"
-            ? teacherId === actor.userId
-              ? "Bạn hướng dẫn, đối tác học."
-              : "Đối tác hướng dẫn, bạn học."
-            : "Mỗi người tạo và giảng dạy kế hoạch riêng; cả hai cùng xác nhận lịch."}
-        </p>
+        <p>{roleDescription}</p>
         <label>
-          {exchangeType === "ONE_WAY"
-            ? "Credit cho cả lộ trình"
-            : "Credit mỗi người tạm giữ"}
+          <span>
+            {exchangeType === "ONE_WAY"
+              ? "Credit cho cả lộ trình"
+              : "Credit mỗi người tạm giữ"}
+          </span>
           <input
             name="credit"
             type="number"
@@ -108,6 +113,7 @@ export function AgreementCreator({
         </p>
         <CommandFeedback command={command} />
         <button
+          type="submit"
           className="btn btn-primary"
           disabled={command.pending || command.uncertain}
         >

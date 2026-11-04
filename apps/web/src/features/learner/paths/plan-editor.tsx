@@ -1,4 +1,6 @@
 "use client";
+import { formText } from "../components/form-data";
+
 import { useState } from "react";
 import type { LearningPath, Plan, SharingSkill } from "../types";
 import { useUserSession } from "../auth/session";
@@ -28,11 +30,11 @@ export function PlanEditor({
         event.preventDefault();
         const fields = new FormData(event.currentTarget);
         const body = {
-          skillId: String(fields.get("skill")),
-          learningGoal: String(fields.get("goal")).trim(),
+          skillId: formText(fields, "skill"),
+          learningGoal: formText(fields, "goal").trim(),
           totalSessions: count,
           sessionOutline: Array.from({ length: count }, (_, index) => ({
-            content: String(fields.get("outline-" + index)).trim(),
+            content: formText(fields, "outline-" + index).trim(),
           })),
           ...(plan ? { expectedVersion: plan.version } : {}),
         };
@@ -53,7 +55,7 @@ export function PlanEditor({
         reload={skills.reload}
       />
       <label>
-        Kỹ năng bạn hướng dẫn
+        <span>Kỹ năng bạn hướng dẫn</span>
         <select
           name="skill"
           defaultValue={plan?.skillId ?? ""}
@@ -76,7 +78,7 @@ export function PlanEditor({
         }}
       />
       <label>
-        Mục tiêu của kế hoạch
+        <span>Mục tiêu của kế hoạch</span>
         <textarea
           name="goal"
           defaultValue={plan?.learningGoal}
@@ -87,7 +89,7 @@ export function PlanEditor({
         />
       </label>
       <label>
-        Số buổi
+        <span>Số buổi</span>
         <input
           type="number"
           min={1}
@@ -104,7 +106,7 @@ export function PlanEditor({
       </label>
       {Array.from({ length: count }, (_, index) => (
         <label key={index}>
-          Nội dung buổi {index + 1}
+          <span>Nội dung buổi {index + 1}</span>
           <textarea
             name={"outline-" + index}
             defaultValue={plan?.sessionOutline[index]?.content}
@@ -118,6 +120,7 @@ export function PlanEditor({
       ))}
       <CommandFeedback command={command} />
       <button
+        type="submit"
         className="btn btn-primary"
         disabled={command.pending || command.uncertain || !choices.length}
       >
