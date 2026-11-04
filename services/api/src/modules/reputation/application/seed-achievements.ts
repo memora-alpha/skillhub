@@ -43,6 +43,36 @@ const definitions = [
     description: "Have three verified skills.",
     criteria: { verifiedSkillCount: 3 },
   },
+  {
+    code: "FIRST_VERIFIED_SKILL",
+    title: "Kỹ năng được công nhận",
+    description: "Có kỹ năng đầu tiên được xác minh.",
+    criteria: { verifiedSkillCount: 1 },
+  },
+  {
+    code: "FIVE_VERIFIED_SKILLS",
+    title: "Đa tài",
+    description: "Có năm kỹ năng được xác minh.",
+    criteria: { verifiedSkillCount: 5 },
+  },
+  {
+    code: "FIRST_TEACHING_PATH",
+    title: "Người dẫn đường",
+    description: "Dạy trong lộ trình đầu tiên đã hoàn tất.",
+    criteria: { teachingPaths: 1 },
+  },
+  {
+    code: "FIVE_TEACHING_PATHS",
+    title: "Người truyền cảm hứng",
+    description: "Dạy trong năm lộ trình đã hoàn tất.",
+    criteria: { teachingPaths: 5 },
+  },
+  {
+    code: "TEN_PATHS",
+    title: "Học không ngừng",
+    description: "Hoàn tất mười lộ trình học tập.",
+    criteria: { completedPaths: 10 },
+  },
 ] as const;
 
 export async function seedAchievements(tx: TransactionContext): Promise<void> {
