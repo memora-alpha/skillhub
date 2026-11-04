@@ -8,6 +8,14 @@ export class UserApiError extends Error {
   }
 }
 const messages: Record<string, string> = {
+  DISPUTE_WINDOW_OPEN:
+    "Chưa hết thời hạn khiếu nại. Hãy kiểm tra quyết toán sau thời hạn này.",
+  PATH_SESSIONS_INCOMPLETE:
+    "Cần hoàn thành tất cả buổi học trước khi quyết toán.",
+  SETTLEMENT_BLOCKED_BY_DISPUTE:
+    "Lộ trình đang có tranh chấp cần xử lý trước khi quyết toán.",
+  LEARNING_PATH_NOT_SETTLEABLE:
+    "Lộ trình hiện chưa đủ điều kiện quyết toán. Tải lại trạng thái để kiểm tra.",
   INVALID_CREDENTIALS: "Email hoặc mật khẩu chưa đúng.",
   USER_PORTAL_ACCESS_REQUIRED:
     "Dùng tài khoản người dùng để vào khu học tập. Admin/Staff có cổng riêng.",
@@ -66,6 +74,8 @@ export async function userFetch<T>(
   path: string,
   options: UserRequestOptions = {},
 ): Promise<Reply<T>> {
+  const multipart =
+    typeof FormData !== "undefined" && options.body instanceof FormData;
   let response: Response;
   try {
     response = await fetch("/api/user/" + path, {
@@ -75,13 +85,17 @@ export async function userFetch<T>(
       signal: options.signal,
       headers: {
         Accept: "application/json",
-        ...(options.body !== undefined
+        ...(options.body !== undefined && !multipart
           ? { "Content-Type": "application/json" }
           : {}),
         ...(options.key ? { "Idempotency-Key": options.key } : {}),
       },
       ...(options.body !== undefined
-        ? { body: JSON.stringify(options.body) }
+        ? {
+            body: multipart
+              ? (options.body as FormData)
+              : JSON.stringify(options.body),
+          }
         : {}),
     });
   } catch (cause) {

@@ -5,6 +5,7 @@ import { apiBase } from "./backend";
 import { proxyEvents } from "../staff/event-proxy";
 import { sessionCookies } from "../auth/session";
 import { sameOriginMutation } from "../auth/origin";
+import { userUpload, uploadLimit } from "./upload";
 import { authGateway } from "../auth/server";
 const ACCESS = sessionCookies.access,
   REFRESH = sessionCookies.refresh;
@@ -123,12 +124,25 @@ export async function userGateway(request: NextRequest, segments: string[]) {
     if (!target) throw new UserGatewayError(404, "ROUTE_NOT_AVAILABLE");
     const token = request.cookies.get(ACCESS)?.value;
     if (!token) throw new UserGatewayError(401, "SESSION_EXPIRED");
+    const cap = request.method === "POST" ? uploadLimit(target) : null;
+    if (cap) {
+      const result = await userUpload(request, target, token, cap);
+      return reply(result.value, result.status);
+    }
     const key = request.headers.get("idempotency-key") ?? undefined;
     if (key && (key.length > 200 || /[\r\n]/.test(key)))
       throw new UserGatewayError(400, "INVALID_IDEMPOTENCY_KEY");
-    const body = ["POST", "PATCH"].includes(request.method)
-      ? await userJson(request)
-      : undefined;
+    const bodyless =
+      (request.method === "PATCH" &&
+        /^notifications\/[0-9a-f-]+\/read$/i.test(target)) ||
+      (request.method === "POST" &&
+        /^(payments\/[0-9a-f-]+\/cancel|me\/materials\/[0-9a-f-]+\/(submit|archive))$/i.test(
+          target,
+        ));
+    const body =
+      !bodyless && ["POST", "PATCH"].includes(request.method)
+        ? await userJson(request)
+        : undefined;
     const result = await userBackend(
       target + userQuery(request.nextUrl.searchParams),
       token,

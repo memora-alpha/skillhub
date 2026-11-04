@@ -3,7 +3,23 @@ const route = (pattern: string) => new RegExp("^" + pattern + "$", "i");
 const allowed: Record<string, RegExp[]> = {
   GET: [
     route("me"),
-    route("me/(skills|wallet)"),
+    route("me/(skills|wallet|achievements)"),
+    route("me/wallet/transactions(/" + uuid + ")?"),
+    route("payments(/(creation-policy|" + uuid + "))?"),
+    route("materials(/" + uuid + "(/download)?)?"),
+    route("me/material-orders"),
+    route("me/materials(/files/" + uuid + ")?"),
+    route(
+      "me/skills/" +
+        uuid +
+        "/(verifications(/" +
+        uuid +
+        ")?|evidence-files/" +
+        uuid +
+        ")",
+    ),
+    route("notifications"),
+    route("reports/mine(/" + uuid + ")?"),
     route("skills"),
     route("skills/" + uuid + "(/levels)?"),
     route("profiles/" + uuid),
@@ -20,6 +36,12 @@ const allowed: Record<string, RegExp[]> = {
     route("sessions/(mine|" + uuid + ")"),
   ],
   POST: [
+    route("sessions/paths/" + uuid + "/settlement"),
+    route("me/materials(/files|/" + uuid + "/(submit|archive))?"),
+    route("me/skills/" + uuid + "/(evidence-files|verifications)"),
+    route("payments(/" + uuid + "/cancel)?"),
+    route("materials/" + uuid + "/(purchase|reports)"),
+    route("reports/sessions/" + uuid),
     route("me/skills"),
     route("learning-requests(/" + uuid + "/(publish|cancel))?"),
     route("proposals(/" + uuid + "/(accept|reject|withdraw))?"),
@@ -38,6 +60,9 @@ const allowed: Record<string, RegExp[]> = {
     ),
   ],
   PATCH: [
+    route("me/achievements/selected-title"),
+    route("me/profile"),
+    route("notifications/" + uuid + "/read"),
     route("learning-requests/" + uuid),
     route("proposals/" + uuid),
     route("learning-paths/" + uuid),
@@ -67,6 +92,9 @@ export function userQuery(search: URLSearchParams) {
     "afterSequence",
     "learningRequestId",
     "includeArchived",
+    "page",
+    "accessType",
+    "unreadOnly",
   ]) {
     for (const value of search.getAll(name)) result.append(name, value);
   }

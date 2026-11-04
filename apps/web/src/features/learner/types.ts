@@ -5,6 +5,8 @@ export type Identity = {
   profile: { fullName: string; avatarUrl: string | null };
 };
 export type Pagination = {
+  page?: number;
+  total?: number;
   limit: number;
   hasMore: boolean;
   nextCursor: string | null;
@@ -16,6 +18,7 @@ export type Reply<T> = {
 };
 export type Skill = { id: string; name: string };
 export type SharingSkill = {
+  verificationStatus?: string;
   id: string;
   skill: Skill;
   level: string;
@@ -155,8 +158,20 @@ export type LearningSession = {
   allowedActions?: SessionAction[];
   attendance?: {
     state: string | null;
-    teacher?: { verdict: string | null; seconds: string };
-    learner?: { verdict: string | null; seconds: string };
+    teacher?: {
+      verdict: string | null;
+      seconds: string;
+      late?: boolean;
+      firstJoinedAt?: string | null;
+    };
+    learner?: {
+      verdict: string | null;
+      seconds: string;
+      late?: boolean;
+      firstJoinedAt?: string | null;
+    };
+    determinedAt?: string | null;
+    case?: string | null;
   };
   deadlines?: {
     confirmBy: string | null;
