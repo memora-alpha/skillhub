@@ -168,7 +168,9 @@ function PathContent({
           variant="paper"
           onPress={() => router.push(`/paths/${path.id}/settlement`)}
         >
-          Quyết toán lộ trình
+          {path.settledAt
+            ? "Đã quyết toán · Xem kết quả Credit"
+            : "Hoàn Credit / quyết toán lộ trình"}
         </Button>
       )}
       {path.lockedVersion &&
