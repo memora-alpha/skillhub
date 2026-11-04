@@ -1,7 +1,6 @@
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { Button } from "@/components/Button";
-import { FormNotice } from "@/components/FormNotice";
 import { Copy, RouteButton } from "@/components/feature-page";
 import { FlowPage as FeaturePage } from "@/components/learning-flow";
 import { EmptyState } from "@/components/EmptyState";
@@ -27,6 +26,8 @@ export function ApiProposalDetailScreen({ id }: Readonly<{ id: string }>) {
     ["proposal", id],
     ["conversation-resource"],
     { key: ["conversations", "activity-order-v1"], exact: true },
+    ["conversations", "inbox"],
+    ["conversations", "request"],
   ]);
   const proposal = query.data;
   const { closeAction, returnRequestId } = useLocalSearchParams<{
@@ -39,6 +40,14 @@ export function ApiProposalDetailScreen({ id }: Readonly<{ id: string }>) {
       ? closeAction
       : undefined,
   );
+  const closeConfirmation =
+    closing &&
+    proposal?.status === "PENDING" &&
+    (closing === "reject" ? proposal.recipientId : proposal.proposerId) ===
+      userId &&
+    !command.uncertain
+      ? closing
+      : undefined;
   const openConversation = (result: ProposalDecisionResult) => {
     if (result.conversation && isCurrent())
       router.replace({
@@ -102,14 +111,9 @@ export function ApiProposalDetailScreen({ id }: Readonly<{ id: string }>) {
       {proposal && (
         <>
           <ApiProposalSummary proposal={proposal} />
-          {proposal.status === "PENDING" && (
-            <FormNotice tone="info">
-              Chấp nhận để trò chuyện và cùng xây dựng lộ trình. Bạn chưa cần
-              đặt lịch hoặc tạm giữ Credit.
-            </FormNotice>
-          )}
           {!command.uncertain && <ConnectionFeedback error={command.error} />}
           {!command.uncertain &&
+            !closeConfirmation &&
             proposal.status === "PENDING" &&
             proposal.recipientId === userId && (
               <>
@@ -132,6 +136,7 @@ export function ApiProposalDetailScreen({ id }: Readonly<{ id: string }>) {
               </>
             )}
           {!command.uncertain &&
+            !closeConfirmation &&
             proposal.status === "PENDING" &&
             proposal.proposerId === userId && (
               <>
@@ -164,44 +169,38 @@ export function ApiProposalDetailScreen({ id }: Readonly<{ id: string }>) {
                 Tìm cuộc trao đổi trong Tin nhắn
               </RouteButton>
             ))}
-          {closing &&
-            (closing === "reject"
-              ? proposal.recipientId === userId
-              : proposal.proposerId === userId) &&
-            proposal.status === "PENDING" &&
-            !command.uncertain && (
-              <>
-                <Copy>
-                  {closing === "reject"
-                    ? "Từ chối đề xuất này?"
-                    : "Rút đề xuất này? Người nhận sẽ không thể chấp nhận sau khi bạn rút."}
-                </Copy>
-                <Button
-                  disabled={
-                    command.pending || query.isFetching || !!query.error
-                  }
-                  onPress={() => {
-                    const action = closing;
-                    void command
-                      .run(`${action}:${id}:${proposal.version}`, (key) =>
-                        api.decide(id, action, proposal.version, key),
-                      )
-                      .then((result) => {
-                        if (result) setClosing(undefined);
-                      });
-                  }}
-                >
-                  Xác nhận {closing === "reject" ? "từ chối" : "rút đề xuất"}
-                </Button>
-                <Button
-                  variant="secondary"
-                  disabled={command.pending}
-                  onPress={() => setClosing(undefined)}
-                >
-                  Giữ đề xuất
-                </Button>
-              </>
-            )}
+          {closeConfirmation && (
+            <>
+              <Copy>
+                {closeConfirmation === "reject"
+                  ? "Từ chối đề xuất này?"
+                  : "Rút đề xuất này? Người nhận sẽ không thể chấp nhận sau khi bạn rút."}
+              </Copy>
+              <Button
+                disabled={command.pending || query.isFetching || !!query.error}
+                onPress={() => {
+                  const action = closeConfirmation;
+                  void command
+                    .run(`${action}:${id}:${proposal.version}`, (key) =>
+                      api.decide(id, action, proposal.version, key),
+                    )
+                    .then((result) => {
+                      if (result) setClosing(undefined);
+                    });
+                }}
+              >
+                Xác nhận{" "}
+                {closeConfirmation === "reject" ? "từ chối" : "rút đề xuất"}
+              </Button>
+              <Button
+                variant="secondary"
+                disabled={command.pending}
+                onPress={() => setClosing(undefined)}
+              >
+                Giữ đề xuất
+              </Button>
+            </>
+          )}
         </>
       )}
       {!query.isPending && !proposal && !query.error && (

@@ -4,6 +4,7 @@ import { mock, test } from "node:test";
 import { pathToFileURL } from "node:url";
 import { fixtureId } from "./fixtures/learning-requests-data";
 import type { RequestInboxGroup } from "../src/features/messages/utils/inbox-groups";
+import type { ApiInboxGroup } from "../src/features/messages/api/messages-api";
 import { AppError } from "../src/lib/http/errors";
 
 type Node = {
@@ -31,7 +32,9 @@ test("request tabs use the viewer's proposal role even when the title is unavail
   );
   const filename = local.resolve("./RequestMessagesScreen.tsx");
   let params: Record<string, unknown> = { id: fixtureId(20) };
+  let groups: ApiInboxGroup[] = [];
   let readDenied: string | undefined;
+  let requestPending = true;
   let linked: Record<string, unknown> | undefined;
   let request: Record<string, unknown> = {
     id: fixtureId(20),
@@ -54,15 +57,16 @@ test("request tabs use the viewer's proposal role even when the title is unavail
     },
     "@/features/shell": { AppScreenLayout: "Layout" },
     "@/features/learning-requests": {
-      useRequestDetail: () => ({ data: request, readDenied, isPending: false }),
+      useRequestDetail: () => ({
+        data: requestPending ? undefined : request,
+        readDenied,
+        isPending: requestPending,
+      }),
     },
-    "@/features/proposals": {
-      ReceivedRequestProposals: "Received",
-      ProposalListCard: "Sent",
-    },
+    "@/features/proposals": { ReceivedRequestProposals: "Received" },
+    "../hooks/use-messages-api": { useGroupedInbox: () => ({ items: groups }) },
     "@/features/proposals/state": {
       useProposal: (id: string) => ({ data: id ? linked : undefined }),
-      useSentRequestProposals: () => ({}),
     },
     "@/features/connections": {
       useConnections: () => ({ userId: fixtureId(1) }),
@@ -82,6 +86,13 @@ test("request tabs use the viewer's proposal role even when the title is unavail
     ) as typeof import("../src/features/messages/screens/RequestMessagesScreen");
     const render = () => nodes(RequestMessagesScreen());
     let tree = render();
+    assert.equal(
+      tree.some((n) => n.type === "Received"),
+      false,
+    );
+    assert.equal(tree.find((n) => n.type === "Feedback")?.props.loading, true);
+    requestPending = false;
+    tree = render();
     const received = tree.find((n) => n.type === "Received")!;
     assert.equal(received.props.requestId, fixtureId(20));
     assert.equal(received.props.status, "PENDING");
@@ -113,8 +124,12 @@ test("request tabs use the viewer's proposal role even when the title is unavail
     readDenied = "forbidden";
     tree = render();
     assert.equal(
-      tree.find((n) => n.type === "Received")?.props.requestId,
-      fixtureId(20),
+      tree.some((n) => n.type === "Received"),
+      false,
+    );
+    assert.equal(
+      tree.find((n) => n.type === "Empty")?.props.action,
+      "Mở đoạn chat",
     );
     assert.equal(
       tree.find((n) => n.type === "Layout")?.props.title,
@@ -123,8 +138,8 @@ test("request tabs use the viewer's proposal role even when the title is unavail
     readDenied = undefined;
     request = { ...request, owner: { id: fixtureId(2) } };
     assert.equal(
-      render().some((n) => n.type === "Received"),
-      false,
+      render().find((n) => n.type === "Received")?.props.direction,
+      "sent",
     );
     assert.equal(
       render().find((n) => n.type === "Tabs")?.props.direction,
@@ -137,14 +152,32 @@ test("request tabs use the viewer's proposal role even when the title is unavail
       render().find((n) => n.type === "Tabs")?.props.direction,
       "sent",
     );
+    params = { id: fixtureId(20) };
+    groups = [
+      {
+        id: "request:" + fixtureId(20),
+        groupType: "LEARNING_REQUEST",
+        learningRequestId: fixtureId(20),
+        conversationId: null,
+        title: "Tên bài đã đóng",
+        viewerRole: "PROPOSER",
+        receivedProposalCount: null,
+        sentProposalCount: 2,
+        conversationCount: 1,
+        lastActivityAt: "2030-01-01T00:00:00Z",
+      },
+    ];
     assert.equal(
-      render().find((n) => n.type === "Sent")?.props.proposal,
-      linked,
+      render().find((n) => n.type === "Layout")?.props.title,
+      "Tên bài đã đóng",
     );
-    linked = { ...linked, learningRequestId: fixtureId(21) };
     assert.equal(
-      render().some((n) => n.type === "Sent"),
-      false,
+      render().find((n) => n.type === "Received")?.props.direction,
+      "sent",
+    );
+    assert.equal(
+      render().find((n) => n.type === "Received")?.props.status,
+      "all",
     );
     params = { id: [fixtureId(20)] };
     assert.equal(
@@ -291,7 +324,7 @@ test("rejected proposal history uses the server request filter and keeps the req
   }
 });
 
-test("request card matches the three-line design, counts all proposal history, attributes incoming previews and opens the request screen", () => {
+test("request card shows counts and highlights unread groups without a message preview", () => {
   const local = createRequire(
     new URL(
       "../src/features/messages/components/RequestInboxCard.tsx",
@@ -303,18 +336,19 @@ test("request card matches the three-line design, counts all proposal history, a
     peerId = fixtureId(2),
     requestId = fixtureId(20);
   const routes: unknown[] = [];
-  const skillId = fixtureId(30);
-  let requestRead: {
-    data?: { title: string; owner?: { id: string } };
-    readDenied?: string;
-    isPending: boolean;
-  } = {
-    data: { title: "Học React cơ bản" },
-    isPending: false,
+  const group: Extract<ApiInboxGroup, { groupType: "LEARNING_REQUEST" }> = {
+    id: "request:" + requestId,
+    groupType: "LEARNING_REQUEST",
+    learningRequestId: requestId,
+    conversationId: null,
+    title: "Học React cơ bản",
+    viewerRole: "OWNER",
+    receivedProposalCount: 5,
+    sentProposalCount: 0,
+    conversationCount: 3,
+    lastActivityAt: "2030-01-01T00:00:00Z",
   };
-  let contextRequestId = requestId;
-  let contextProposerId = peerId;
-  const group: RequestInboxGroup = {
+  const previewGroup: RequestInboxGroup = {
     kind: "request",
     id: requestId,
     activityAt: "2030-01-01T00:00:00Z",
@@ -352,31 +386,7 @@ test("request card matches the three-line design, counts all proposal history, a
       StyleSheet: { create: (v: unknown) => v },
     },
     "expo-router": {
-      useIsFocused: () => true,
       useRouter: () => ({ push: (route: unknown) => routes.push(route) }),
-    },
-    "@/features/learning-requests": {
-      useRequestDetail: () => requestRead,
-    },
-    "@/features/connections": {
-      useConnections: () => ({ userId }),
-      useCatalogName: (id: string | undefined) => ({
-        data: id === skillId ? "React" : undefined,
-      }),
-      useParticipantProfile: () => ({
-        data: { userId: peerId, fullName: "Nguyễn Minh An" },
-      }),
-    },
-    "@/features/proposals/state": {
-      useProposal: (id: string) => ({
-        data: id
-          ? {
-              learningRequestId: contextRequestId,
-              skillId,
-              proposerId: contextProposerId,
-            }
-          : undefined,
-      }),
     },
     "@/components/Icon": { Icon: "Icon" },
   };
@@ -388,71 +398,38 @@ test("request card matches the three-line design, counts all proposal history, a
     const { RequestInboxCard } = local(
       filename,
     ) as typeof import("../src/features/messages/components/RequestInboxCard");
-    const render = () => nodes(RequestInboxCard({ group }));
-    let tree = render();
+    const render = () => nodes(RequestInboxCard({ group, previewGroup }));
+    const tree = render();
     assert.deepEqual(
       tree.filter((n) => n.type === "Text").map((n) => n.props.children),
-      [
-        "Học React cơ bản",
-        "5 đề xuất nhận được · 3 đoạn chat",
-        "An: Mình gửi lộ trình rồi nhé!",
-      ],
+      ["Học React cơ bản", "5 đề xuất nhận được · 3 đoạn chat"],
     );
-    (tree.find((n) => n.type === "Card")!.props.onPress as () => void)();
+    const card = tree.find((n) => n.type === "Card")!.props;
+    assert.match(String(card.accessibilityLabel), /có tin nhắn chưa đọc/);
+    const style = card.style as (state: { pressed: boolean }) => unknown[];
+    assert.ok(style({ pressed: false })[1]);
+    assert.ok(
+      tree.some((n) => (n.props.style as { width?: number })?.width === 7),
+    );
+    (card.onPress as () => void)();
     assert.deepEqual(routes, [
       {
         pathname: "/messages/request/[id]",
-        params: { id: requestId, view: "received", proposalId: fixtureId(70) },
+        params: { id: requestId, view: "chats", proposalId: fixtureId(70) },
       },
     ]);
-    group.latestConversation!.previewSenderId = userId;
-    group.preview = "Bạn: Mình rảnh tối thứ Tư.";
-    tree = render();
-    assert.equal(
-      tree.filter((n) => n.type === "Text").at(-1)?.props.children,
-      "Bạn: Mình rảnh tối thứ Tư.",
-    );
-    group.receivedCountExact = false;
-    assert.equal(
-      render().filter((n) => n.type === "Text")[1]?.props.children,
-      "5+ đề xuất nhận được · 3 đoạn chat",
-    );
-    requestRead = {
-      data: { title: "Học React cơ bản" },
-      readDenied: "forbidden",
-      isPending: false,
-    };
-    assert.equal(
-      render().filter((n) => n.type === "Text")[0]?.props.children,
-      "React",
+    previewGroup.unread = false;
+    const read = render();
+    assert.doesNotMatch(
+      String(read.find((n) => n.type === "Card")?.props.accessibilityLabel),
+      /chưa đọc/,
     );
     assert.equal(
-      render().filter((n) => n.type === "Text")[1]?.props.children,
-      `#${requestId.slice(-8).toUpperCase()}`,
+      read.some((n) => (n.props.style as { width?: number })?.width === 7),
+      false,
     );
-    contextRequestId = fixtureId(21);
-    assert.equal(
-      render().filter((n) => n.type === "Text")[0]?.props.children,
-      "Chưa đọc được tên bài",
-    );
-    requestRead = { isPending: false };
-    assert.equal(
-      render().filter((n) => n.type === "Text")[0]?.props.children,
-      "Chưa đọc được tên bài",
-    );
-    group.receivedCount = 0;
-    group.receivedCountExact = true;
-    assert.ok(render().some((n) => n.props.children === "3 đoạn chat"));
-    requestRead = {
-      data: { title: "Bài của người khác", owner: { id: peerId } },
-      isPending: false,
-    };
-    assert.ok(
-      render().some((n) => n.props.children === "Đã gửi đề xuất · 3 đoạn chat"),
-    );
-    requestRead = { readDenied: "missing", isPending: false };
-    contextRequestId = requestId;
-    contextProposerId = userId;
+    group.viewerRole = "PROPOSER";
+    group.receivedProposalCount = null;
     assert.ok(
       render().some((n) => n.props.children === "Đã gửi đề xuất · 3 đoạn chat"),
     );

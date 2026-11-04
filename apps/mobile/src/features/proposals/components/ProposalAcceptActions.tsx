@@ -1,5 +1,4 @@
 import { Button } from "@/components/Button";
-import { Copy, Panel } from "@/components/feature-page";
 import { FormNotice } from "@/components/FormNotice";
 import { useRequestDetail } from "@/features/learning-requests";
 import { ConnectionFeedback } from "@/features/connections";
@@ -32,40 +31,30 @@ export function ProposalAcceptActions({
   return (
     <>
       {needsRequest && (
-        <Panel title="Yêu cầu học hiện tại">
+        <>
           <ConnectionFeedback
             loading={query.isLoading}
             error={query.error}
             retry={query.refetch}
           />
-          {request && (
-            <>
-              <Copy>{request.title}</Copy>
-              <Copy>{request.description}</Copy>
-              <Copy>Mục tiêu: {request.learningGoal}</Copy>
-              <Copy muted>
-                {request.verifiedTeacherOnly
-                  ? "Chỉ nhận người dạy đã xác minh kỹ năng."
-                  : "Không yêu cầu xác minh kỹ năng người dạy."}
-              </Copy>
-            </>
-          )}
-          {!query.isPending && !query.error && !available && (
-            <FormNotice tone="info">
-              Yêu cầu học không còn nhận đề xuất hoặc không thể đọc nội dung
-              hiện tại.
-            </FormNotice>
-          )}
-          <Button
-            variant="secondary"
-            disabled={disabled || query.isFetching}
-            onPress={() => {
-              void query.refetch();
-            }}
-          >
-            Tải lại yêu cầu học
-          </Button>
-        </Panel>
+          {!query.isPending &&
+            !query.isFetching &&
+            !query.error &&
+            !available && (
+              <>
+                <FormNotice tone="info" compact>
+                  Yêu cầu học hiện không nhận thêm đề xuất.
+                </FormNotice>
+                <Button
+                  variant="secondary"
+                  disabled={disabled}
+                  onPress={() => void query.refetch()}
+                >
+                  Tải lại yêu cầu học
+                </Button>
+              </>
+            )}
+        </>
       )}
       <Button
         variant="craft"

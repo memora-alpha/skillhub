@@ -54,6 +54,7 @@ test("Inbox shows loading for a transient first read, preserves cached empty/con
     "@/components/EmptyState": { EmptyState: "Empty" },
     "@/components/LoadingIndicator": { LoadingIndicator: "Loading" },
     "../components/ConversationRow": { ConversationRow: "Row" },
+    "../components/ConversationCard": { ConversationCard: "Card" },
     "../components/RequestInboxCard": { RequestInboxCard: "RequestCard" },
     "../hooks/use-inbox-groups": { useInboxGroups: () => state },
     "@/lib/query/use-quiet-read-recovery": {

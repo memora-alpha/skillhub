@@ -70,6 +70,7 @@ export function ApiProposalsScreen() {
         <ProposalList
           query={query}
           keyword={keyword}
+          compactHeader={direction === "sent"}
           header={
             <>
               {searchOpen && (

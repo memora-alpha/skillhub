@@ -15,6 +15,7 @@ export function ProposalList({
   keyword = "",
   requestId,
   quiet = false,
+  compactHeader = false,
 }: Readonly<{
   query: ReturnType<typeof useProposalList>;
   header: ReactElement;
@@ -22,6 +23,7 @@ export function ProposalList({
   keyword?: string;
   requestId?: string;
   quiet?: boolean;
+  compactHeader?: boolean;
 }>) {
   const hasMore = query.hasNextPage && !query.denied;
   const loadMore = () => void query.fetchNextPage({ cancelRefetch: false });
@@ -39,7 +41,7 @@ export function ProposalList({
       }}
       ItemSeparatorComponent={ProposalSeparator}
       ListHeaderComponent={
-        <View style={{ gap: 12, marginBottom: 16 }}>
+        <View style={{ gap: 12, marginBottom: compactHeader ? 8 : 16 }}>
           {header}
           <ConnectionFeedback
             loading={query.isLoading || (!query.data && quiet)}

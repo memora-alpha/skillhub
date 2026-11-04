@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { createMessagesApi } from "../src/features/messages/api/messages-api";
+import { createProposalsApi } from "../src/features/proposals/api/proposals-api";
 import test from "node:test";
 import {
   inboxGroups,
@@ -56,6 +58,62 @@ function proposal(
     expiresAt: "2030-02-01T00:00:00Z",
   };
 }
+
+test("grouped Inbox and its child lists use the backend scopes and reject mismatched rows", async () => {
+  const page = (data: unknown[]) => ({
+    data,
+    meta: { pagination: { limit: 20, hasMore: false, nextCursor: null } },
+  });
+  const group = {
+    id: `request:${request}`,
+    groupType: "LEARNING_REQUEST",
+    learningRequestId: request,
+    conversationId: null,
+    title: "Bài đã đóng",
+    viewerRole: "PROPOSER",
+    receivedProposalCount: null,
+    sentProposalCount: 2,
+    conversationCount: 1,
+    lastActivityAt: "2030-01-01T00:00:00Z",
+  };
+  let path = "";
+  let data: unknown[] = [group];
+  const call = async (url: string) => {
+    path = url;
+    return page(data);
+  };
+  const messages = createMessagesApi(call, viewer);
+  const proposals = createProposalsApi(call, viewer);
+  assert.deepEqual((await messages.inbox("opaque")).items, [group]);
+  assert.equal(path, "/conversations/inbox?limit=20&cursor=opaque");
+  data = [{ ...group, receivedProposalCount: 8 }];
+  await assert.rejects(messages.inbox(), /protocol/);
+  data = [conversation(40, request).conversation];
+  await messages.list(undefined, undefined, request);
+  assert.match(path, /learningRequestId=/);
+  await assert.rejects(
+    messages.list(undefined, undefined, otherRequest),
+    /protocol/,
+  );
+  data = [
+    {
+      ...proposal(50, request),
+      proposerId: viewer,
+      recipientId: fixtureId(2),
+      learningRequestTitle: group.title,
+    },
+  ];
+  assert.equal(
+    (await proposals.list("sent", "PENDING", undefined, undefined, request))
+      .items[0]?.learningRequestTitle,
+    group.title,
+  );
+  assert.match(path, /direction=sent.*status=PENDING.*learningRequestId=/);
+  await assert.rejects(
+    proposals.list("sent", "PENDING", undefined, undefined, otherRequest),
+    /protocol/,
+  );
+});
 
 test("groups different participants by request UUID, keeping the same partner in different requests separate", () => {
   const input = [

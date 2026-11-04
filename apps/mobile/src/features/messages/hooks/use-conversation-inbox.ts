@@ -27,7 +27,7 @@ export function useConversationInbox(
 ) {
   const screenFocused = useIsFocused();
   const focused = screenFocused && options.enabled !== false;
-  const query = useConversations(focused),
+  const query = useConversations(focused, options.learningRequestId),
     api = useMessagesApi(),
     runtime = useConnections(),
     cache = useQueryClient();

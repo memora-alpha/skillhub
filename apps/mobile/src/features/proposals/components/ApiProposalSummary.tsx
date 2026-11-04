@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Avatar } from "@/components/Avatar";
 import { Badge } from "@/components/Badge";
 import { Button } from "@/components/Button";
@@ -48,13 +48,16 @@ export function ApiProposalSummary({
   const sent = proposal.proposerId === userId;
   const partnerId = sent ? proposal.recipientId : proposal.proposerId;
   const partner = useParticipantProfile(partnerId);
-  const skill = useCatalogName(proposal.skillId);
+  const partnerName = partner.data?.fullName ?? "Thành viên SkillHub";
+  const requestTitle = proposal.learningRequestTitle?.trim();
+  const skill = useCatalogName(requestTitle ? undefined : proposal.skillId);
+  const requestId = proposal.learningRequestId;
   const exchangeLabel =
     proposal.exchangeTypeHint === "TWO_WAY"
       ? "Trao đổi hai chiều"
       : proposal.exchangeTypeHint === "ONE_WAY"
         ? "Học một chiều"
-        : "Chưa gợi ý hình thức";
+        : undefined;
   const statusVariant =
     proposal.status === "ACCEPTED"
       ? "success"
@@ -65,50 +68,56 @@ export function ApiProposalSummary({
     ? `${proposal.proposedCredit} Credit`
     : undefined;
   const expiresAt = new Date(proposal.expiresAt);
+  const hasDetails =
+    exchangeLabel ||
+    credit ||
+    proposal.initialSessionCount !== null ||
+    proposal.proposedDurationMinutes !== null;
 
   return (
     <View style={styles.card}>
       <View style={styles.topline}>
-        <View style={styles.skillLine}>
-          <View style={styles.skillBadge}>
-            <Text numberOfLines={1} style={styles.skillText}>
-              {skill.data ?? "Đề xuất trao đổi"}
-            </Text>
-          </View>
-          <Text style={styles.reference}>
-            #{proposal.id.slice(0, 8).toUpperCase()}
-          </Text>
-        </View>
+        <Text accessibilityRole="header" style={styles.subject}>
+          {requestTitle || skill.data || "Đề xuất trao đổi"}
+        </Text>
         <Badge
           label={proposalStatusLabels[proposal.status]}
           variant={statusVariant}
         />
       </View>
 
-      <View style={styles.separator} />
-
-      <View style={styles.personRow}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Xem hồ sơ ${partnerName}`}
+        onPress={() =>
+          router.push({
+            pathname: "/profiles/[userId]",
+            params: { userId: partnerId },
+          })
+        }
+        style={({ pressed }) => [styles.personRow, pressed && styles.pressed]}
+      >
         <Avatar
-          name={partner.data?.fullName ?? "Thành viên SkillHub"}
+          name={partnerName}
           userId={partnerId}
           sourceUri={partner.data?.avatarUrl}
-          size={48}
+          size={40}
           shape="circle"
         />
         <View style={styles.personText}>
           <Text numberOfLines={1} style={styles.personName}>
-            {partner.data?.fullName ?? "Thành viên SkillHub"}
+            {partnerName}
           </Text>
           <Text style={styles.caption}>
-            {sent ? "Bạn đã gửi đề xuất" : "Đề xuất gửi cho bạn"} ·{" "}
+            {sent ? "Người nhận" : "Người gửi"} ·{" "}
             {new Date(proposal.createdAt).toLocaleDateString("vi-VN")}
           </Text>
         </View>
         <Icon name="chevron" size={18} color={colors.muted} />
-      </View>
+      </Pressable>
 
       <View style={styles.messageSection}>
-        <Text style={styles.sectionLabel}>NỘI DUNG PHẢN HỒI</Text>
+        <Text style={styles.sectionLabel}>Lời nhắn</Text>
         <View style={styles.messageBox}>
           <View style={styles.messageAccent} />
           <Text selectable style={styles.message}>
@@ -117,26 +126,30 @@ export function ApiProposalSummary({
         </View>
       </View>
 
-      <View style={styles.details}>
-        <DetailRow icon="book" label="Hình thức gợi ý" value={exchangeLabel} />
-        {credit && (
-          <DetailRow icon="wallet" label="Credit gợi ý" value={credit} />
-        )}
-        {proposal.initialSessionCount !== null && (
-          <DetailRow
-            icon="calendar"
-            label="Số buổi dự kiến"
-            value={`${proposal.initialSessionCount} buổi`}
-          />
-        )}
-        {proposal.proposedDurationMinutes !== null && (
-          <DetailRow
-            icon="clock"
-            label="Thời lượng mỗi buổi"
-            value={`${proposal.proposedDurationMinutes} phút`}
-          />
-        )}
-      </View>
+      {hasDetails && (
+        <View style={styles.details}>
+          {exchangeLabel && (
+            <DetailRow icon="book" label="Hình thức" value={exchangeLabel} />
+          )}
+          {credit && (
+            <DetailRow icon="wallet" label="Credit gợi ý" value={credit} />
+          )}
+          {proposal.initialSessionCount !== null && (
+            <DetailRow
+              icon="calendar"
+              label="Số buổi dự kiến"
+              value={`${proposal.initialSessionCount} buổi`}
+            />
+          )}
+          {proposal.proposedDurationMinutes !== null && (
+            <DetailRow
+              icon="clock"
+              label="Thời lượng"
+              value={`${proposal.proposedDurationMinutes} phút`}
+            />
+          )}
+        </View>
+      )}
 
       {!!proposal.candidateSlots && (
         <View style={styles.availability}>
@@ -150,43 +163,25 @@ export function ApiProposalSummary({
         </View>
       )}
 
-      <View style={styles.expiry}>
-        <Icon name="clock" size={15} color={colors.amber} />
-        <Text style={styles.expiryText}>
+      {proposal.status === "PENDING" && (
+        <Text style={styles.caption}>
           Hết hạn {expiresAt.toLocaleString("vi-VN")}
         </Text>
-      </View>
-
-      <View style={styles.links}>
-        {proposal.learningRequestId && (
-          <Button
-            variant="paper"
-            style={styles.linkButton}
-            onPress={() =>
-              router.push({
-                pathname: "/request/[id]",
-                params: { id: proposal.learningRequestId! },
-              })
-            }
-          >
-            <Icon name="book" size={16} color={colors.body} />
-            <Text style={styles.linkText}>Xem yêu cầu học</Text>
-          </Button>
-        )}
+      )}
+      {requestId && (
         <Button
           variant="paper"
-          style={styles.linkButton}
+          size="sm"
           onPress={() =>
             router.push({
-              pathname: "/profiles/[userId]",
-              params: { userId: partnerId },
+              pathname: "/request/[id]",
+              params: { id: requestId },
             })
           }
         >
-          <Icon name="user" size={16} color={colors.body} />
-          <Text style={styles.linkText}>Xem hồ sơ</Text>
+          Xem yêu cầu học
         </Button>
-      </View>
+      )}
     </View>
   );
 }
@@ -194,7 +189,7 @@ export function ApiProposalSummary({
 const styles = StyleSheet.create({
   card: {
     padding: 16,
-    gap: 16,
+    gap: 12,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
@@ -202,33 +197,21 @@ const styles = StyleSheet.create({
   },
   topline: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "space-between",
     gap: 8,
   },
-  skillLine: { flexDirection: "row", alignItems: "center", gap: 9, flex: 1 },
-  skillBadge: {
-    maxWidth: "70%",
-    borderRadius: appRadius.full,
-    paddingHorizontal: 11,
-    paddingVertical: 5,
-    backgroundColor: colors.primarySoft,
-  },
-  skillText: {
-    ...typography.secondary,
+  subject: {
+    flex: 1,
+    ...typography.heading,
     fontFamily: fonts.bold,
-    color: colors.primaryDark,
+    color: colors.ink,
   },
-  reference: {
-    ...typography.caption,
-    fontFamily: fonts.medium,
-    color: colors.muted,
-  },
-  separator: { height: 1, backgroundColor: colors.border },
+  pressed: { opacity: 0.72 },
   personRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   personText: { flex: 1, minWidth: 0, gap: 3 },
   personName: {
-    ...typography.heading,
+    ...typography.body,
     fontFamily: fonts.bold,
     color: colors.ink,
   },
@@ -239,9 +222,8 @@ const styles = StyleSheet.create({
   },
   messageSection: { gap: 8 },
   sectionLabel: {
-    ...typography.caption,
-    fontFamily: fonts.bold,
-    letterSpacing: 0.7,
+    ...typography.secondary,
+    fontFamily: fonts.semibold,
     color: colors.muted,
   },
   messageBox: {
@@ -267,7 +249,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 11,
-    paddingVertical: 8,
+    paddingVertical: 5,
   },
   detailIcon: {
     width: 32,
@@ -303,38 +285,6 @@ const styles = StyleSheet.create({
   availabilityText: {
     ...typography.secondary,
     fontFamily: fonts.body,
-    color: colors.body,
-  },
-  expiry: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 11,
-    paddingVertical: 10,
-    borderRadius: appRadius.control,
-    backgroundColor: colors.amberSoft,
-  },
-  expiryText: {
-    flex: 1,
-    ...typography.caption,
-    fontFamily: fonts.semibold,
-    color: colors.body,
-  },
-  links: {
-    gap: 8,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  linkButton: {
-    justifyContent: "center",
-    minHeight: 42,
-    borderColor: colors.border,
-    backgroundColor: colors.surfaceLow,
-  },
-  linkText: {
-    ...typography.secondary,
-    fontFamily: fonts.semibold,
     color: colors.body,
   },
 });

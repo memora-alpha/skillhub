@@ -80,7 +80,7 @@ test("request inbox loads previews only for that request, keeps each participant
     const result = useConversationInbox({ learningRequestId: request });
     assert.deepEqual(
       result.items.map((i) => i.conversation.id),
-      [fixtureId(40), fixtureId(42)],
+      [fixtureId(42), fixtureId(40)],
     );
     assert.equal(queries.length, 2);
     await Promise.all(

@@ -1,59 +1,49 @@
 import { useIsFocused } from "expo-router";
 import { useConnections } from "@/features/connections";
-import { useProposalList } from "@/features/proposals/state";
-import {
-  useRequestList,
-  useRefreshRequestDetails,
-} from "@/features/learning-requests";
 import { useConversationInbox } from "./use-conversation-inbox";
+import { useGroupedInbox } from "./use-messages-api";
 import { inboxGroups } from "../utils/inbox-groups";
+import { orderInboxGroups } from "../utils/inbox-order";
+import type { ApiInboxGroup } from "../api/messages-api";
 
 export function useInboxGroups() {
   const focused = useIsFocused();
   const { userId } = useConnections();
-  const refreshTitles = useRefreshRequestDetails({ preferOwnList: true });
-  const ownRequests = useRequestList("mine", {}, focused, {
-    firstPageOnly: true,
+  const inbox = useGroupedInbox(focused);
+  const previews = useConversationInbox({
+    enabled: inbox.items.length > 0,
+    previewLimit: 20,
   });
-  const inbox = useConversationInbox();
-  const proposals = useProposalList("received", undefined, undefined, focused);
-  const moreInbox = !!inbox.hasNextPage && !inbox.denied;
-  const moreProposals = !!proposals.hasNextPage && !proposals.denied;
+  const byId = new Map(
+    inboxGroups(previews.items, [], userId ?? "").map((group) => [
+      `${group.kind}:${group.id}`,
+      group,
+    ]),
+  );
+  const previewFor = (group: ApiInboxGroup) =>
+    byId.get(
+      group.groupType === "LEARNING_REQUEST"
+        ? group.id
+        : `direct:${group.conversationId}`,
+    );
+  const groups = orderInboxGroups(inbox.items, (group) => {
+    const preview = previewFor(group);
+    const latest =
+      preview?.kind === "request" ? preview.latestConversation : preview?.item;
+    return latest?.state ? undefined : latest?.activityAt;
+  });
   return {
-    items: inboxGroups(inbox.items, proposals.items, userId ?? "", {
-      received:
-        !!proposals.data &&
-        !proposals.error &&
-        !proposals.denied &&
-        !moreProposals,
-      chats: !!inbox.data && !inbox.error && !inbox.denied && !moreInbox,
-    }),
-    data: inbox.data && proposals.data,
-    error: inbox.error ?? proposals.error,
-    isPending: inbox.isPending || proposals.isPending,
-    isFetching:
-      inbox.isFetching || proposals.isFetching || ownRequests.isFetching,
-    isRefetching:
-      inbox.isRefetching || proposals.isRefetching || ownRequests.isRefetching,
-    titlesPending:
-      ownRequests.isFetching || (ownRequests.isPending && !ownRequests.error),
-    hasNextPage: moreInbox || moreProposals,
-    refetch: async () => {
-      await Promise.all([
-        inbox.refetch(),
-        proposals.refetch({ cancelRefetch: false }),
-        ownRequests.refetch(),
-      ]);
-      await refreshTitles();
-    },
-    loadMore: () =>
+    ...inbox,
+    items: groups.map((group) => ({
+      group,
+      preview: previewFor(group),
+    })),
+    hasNextPage: inbox.hasNextPage && !inbox.denied,
+    refetch: () =>
       Promise.all([
-        moreInbox && !inbox.isFetching
-          ? inbox.fetchNextPage({ cancelRefetch: false })
-          : undefined,
-        moreProposals && !proposals.isFetching
-          ? proposals.fetchNextPage({ cancelRefetch: false })
-          : undefined,
+        inbox.refetch(),
+        inbox.items.length ? previews.refetch() : undefined,
       ]),
+    loadMore: () => inbox.fetchNextPage({ cancelRefetch: false }),
   };
 }

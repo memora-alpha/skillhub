@@ -24,6 +24,7 @@ export function ApiEditProposalScreen({ id }: Readonly<{ id: string }>) {
       ["proposals"],
       ["proposal", id],
       ["conversation-resource"],
+      ["conversations", "inbox"],
     ]);
   const runtime = useConnections(),
     router = useRouter();
