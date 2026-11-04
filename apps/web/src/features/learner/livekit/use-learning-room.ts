@@ -1,12 +1,26 @@
 "use client";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type {
+  Room,
+  LocalTrack,
+  LocalTrackPublication,
+  LocalVideoTrack,
+  LocalAudioTrack,
+} from "livekit-client";
+import type { CameraBackground } from "./use-camera-background";
+import type { RoomAudio } from "./use-room-audio";
+import type { RoomDevices, DeviceKind } from "./use-room-devices";
 import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type RefObject,
-} from "react";
-import type { Room, Track, LocalTrackPublication } from "livekit-client";
+  microphoneCaptureOptions,
+  type BackgroundSettings,
+  type MicrophoneSettings,
+} from "./media-settings";
+import {
+  MicrophoneCancelledError,
+  MicrophoneEffectError,
+} from "./microphone-processor";
+import { roomMedia } from "./room-media";
+import { publishRoomTrack } from "./publish-room-track";
 import { useUserSession } from "../auth/session";
 import type { LearningSession, LiveKitCredentials } from "../types";
 import { UserApiError } from "../api/client";
@@ -17,12 +31,14 @@ import {
 } from "../sessions/session-policy";
 export function useLearningRoom(
   sessionId: string,
-  videoRef: RefObject<HTMLDivElement | null>,
-  audioRef: RefObject<HTMLDivElement | null>,
+  background: CameraBackground,
+  audio: RoomAudio,
+  devices: RoomDevices,
 ) {
   const { actor, request } = useUserSession();
   const roomRef = useRef<Room | null>(null),
-    tracks = useRef(new Set<Track>()),
+    pendingTracks = useRef(new Set<LocalTrack>()),
+    mediaLock = useRef(false),
     joining = useRef(false),
     attempt = useRef(0),
     alive = useRef(false),
@@ -30,20 +46,25 @@ export function useLearningRoom(
   const [status, setStatus] = useState("disconnected"),
     [error, setError] = useState<string>(),
     [notice, setNotice] = useState<string>();
+  const [connectedRoom, setConnectedRoom] = useState<Room | null>(null);
+  const [microphoneTrack, setMicrophoneTrack] = useState<LocalAudioTrack>();
   const [camera, setCamera] = useState(false),
     [microphone, setMicrophone] = useState(false),
     [screen, setScreen] = useState(false),
     [audioBlocked, setAudioBlocked] = useState(false),
     [mediaBusy, setMediaBusy] = useState(false),
     [participants, setParticipants] = useState(0);
+  const [media, setMedia] = useState<ReturnType<typeof roomMedia>>({
+    tiles: [],
+    audio: [],
+  });
   const close = useCallback(() => {
     attempt.current++;
     joining.current = false;
+    mediaLock.current = false;
     if (timer.current) clearTimeout(timer.current);
-    tracks.current.forEach((track) =>
-      track.detach().forEach((element) => element.remove()),
-    );
-    tracks.current.clear();
+    pendingTracks.current.forEach((track) => track.stop());
+    pendingTracks.current.clear();
     const room = roomRef.current;
     roomRef.current = null;
     if (room) {
@@ -51,13 +72,16 @@ export function useLearningRoom(
       void room.disconnect(true).catch(() => undefined);
     }
     if (alive.current) {
+      setConnectedRoom(null);
       setStatus("disconnected");
       setCamera(false);
       setMicrophone(false);
+      setMicrophoneTrack(undefined);
       setScreen(false);
       setParticipants(0);
       setMediaBusy(false);
       setAudioBlocked(false);
+      setMedia({ tiles: [], audio: [] });
     }
   }, []);
   useEffect(() => {
@@ -70,12 +94,17 @@ export function useLearningRoom(
       close();
     };
   }, [close, sessionId]);
-  async function join() {
-    if (roomRef.current || joining.current) return;
+  async function join(previewTracks: LocalTrack[] = []) {
+    if (roomRef.current || joining.current) {
+      previewTracks.forEach((track) => track.stop());
+      return;
+    }
+    previewTracks.forEach((track) => pendingTracks.current.add(track));
     joining.current = true;
     const ticket = ++attempt.current,
       active = () => alive.current && attempt.current === ticket;
     setStatus("connecting");
+    setMediaBusy(true);
     setError(undefined);
     setNotice(undefined);
     try {
@@ -99,60 +128,43 @@ export function useLearningRoom(
       const {
         Room: LiveRoom,
         RoomEvent,
-        Track: LiveTrack,
+        Track,
       } = await import("livekit-client");
       if (!active()) return;
-      const room = new LiveRoom({ adaptiveStream: true, dynacast: true });
+      const audioContext = audio.getContext();
+      const room = new LiveRoom({
+        adaptiveStream: true,
+        dynacast: true,
+        webAudioMix: audioContext ? { audioContext } : false,
+      });
       roomRef.current = room;
-      const detach = (track: Track) => {
-        track.detach().forEach((element) => element.remove());
-        tracks.current.delete(track);
-      };
-      const attach = (track: Track, local = false) => {
-        if (
-          !active() ||
-          tracks.current.has(track) ||
-          (local && track.kind === LiveTrack.Kind.Audio)
-        )
-          return;
-        tracks.current.add(track);
-        const element = track.attach();
-        element.autoplay = true;
-        if (element instanceof HTMLVideoElement) {
-          element.playsInline = true;
-          element.muted = local;
-          element.setAttribute(
-            "aria-label",
-            local ? "Video của bạn" : "Video đối tác",
-          );
-          videoRef.current?.appendChild(element);
-        } else audioRef.current?.appendChild(element);
-      };
+      setConnectedRoom(room);
       const mediaChanged = () => {
         if (active()) {
           setCamera(room.localParticipant.isCameraEnabled);
           setMicrophone(room.localParticipant.isMicrophoneEnabled);
+          setMicrophoneTrack(
+            room.localParticipant.getTrackPublication(Track.Source.Microphone)
+              ?.track as LocalAudioTrack | undefined,
+          );
           setScreen(room.localParticipant.isScreenShareEnabled);
+          setParticipants(room.remoteParticipants.size);
+          setMedia(roomMedia(room, actor.profile.fullName));
         }
       };
-      room.on(RoomEvent.TrackSubscribed, (track) => attach(track));
-      room.on(RoomEvent.TrackUnsubscribed, detach);
-      room.on(RoomEvent.LocalTrackPublished, (publication) => {
-        if (publication.track) attach(publication.track, true);
-        mediaChanged();
-      });
-      room.on(RoomEvent.LocalTrackUnpublished, (publication) => {
-        if (publication.track) detach(publication.track);
-        mediaChanged();
-      });
+      room.on(RoomEvent.TrackSubscribed, mediaChanged);
+      room.on(RoomEvent.TrackUnsubscribed, mediaChanged);
+      room.on(RoomEvent.TrackPublished, mediaChanged);
+      room.on(RoomEvent.TrackUnpublished, mediaChanged);
+      room.on(RoomEvent.LocalTrackPublished, mediaChanged);
+      room.on(RoomEvent.LocalTrackUnpublished, mediaChanged);
       room.on(RoomEvent.TrackMuted, mediaChanged);
       room.on(RoomEvent.TrackUnmuted, mediaChanged);
-      room.on(RoomEvent.ParticipantConnected, () => {
-        if (active()) setParticipants(room.remoteParticipants.size);
-      });
-      room.on(RoomEvent.ParticipantDisconnected, () => {
-        if (active()) setParticipants(room.remoteParticipants.size);
-      });
+      room.on(RoomEvent.ParticipantConnected, mediaChanged);
+      room.on(RoomEvent.ParticipantDisconnected, mediaChanged);
+      room.on(RoomEvent.ParticipantNameChanged, mediaChanged);
+      room.on(RoomEvent.ActiveSpeakersChanged, mediaChanged);
+      room.on(RoomEvent.Reconnected, mediaChanged);
       room.on(RoomEvent.ConnectionStateChanged, (value) => {
         if (active()) setStatus(value);
       });
@@ -190,14 +202,40 @@ export function useLearningRoom(
         await room.disconnect(true);
         return;
       }
+      for (const track of previewTracks) {
+        if (!active()) {
+          track.stop();
+          continue;
+        }
+        try {
+          await publishRoomTrack(
+            room,
+            track,
+            active,
+            track.kind === "audio" && audio.settings.filter !== "standard"
+              ? () => audio.prepare(track as LocalAudioTrack, active, room)
+              : undefined,
+          );
+        } catch (cause) {
+          track.stop();
+          if (active())
+            setNotice(
+              cause instanceof MicrophoneEffectError
+                ? cause.message
+                : mediaErrorMessage(cause),
+            );
+        } finally {
+          pendingTracks.current.delete(track);
+        }
+      }
+      if (!active()) {
+        await room.disconnect(true);
+        return;
+      }
       setStatus("connected");
-      setParticipants(room.remoteParticipants.size);
+      setMediaBusy(false);
+      mediaChanged();
       setAudioBlocked(!room.canPlaybackAudio);
-      room.remoteParticipants.forEach((participant) =>
-        participant.trackPublications.forEach((publication) => {
-          if (publication.track) attach(publication.track);
-        }),
-      );
     } catch (cause) {
       if (!active()) return;
       close();
@@ -212,23 +250,48 @@ export function useLearningRoom(
   }
   async function toggle(kind: "camera" | "microphone" | "screen") {
     const room = roomRef.current;
-    if (!room || mediaBusy || room.state !== "connected") return;
+    if (
+      !room ||
+      mediaBusy ||
+      mediaLock.current ||
+      background.busy ||
+      audio.busy ||
+      room.state !== "connected"
+    )
+      return;
     const ticket = attempt.current;
+    mediaLock.current = true;
     setMediaBusy(true);
     setNotice(undefined);
     try {
       let publication: LocalTrackPublication | undefined;
-      if (kind === "camera")
-        publication = await room.localParticipant.setCameraEnabled(
-          !room.localParticipant.isCameraEnabled,
+      if (kind === "camera" || kind === "microphone") {
+        const { Track } = await import("livekit-client");
+        if (!alive.current || attempt.current !== ticket) return;
+        const current = room.localParticipant.getTrackPublication(
+          kind === "camera" ? Track.Source.Camera : Track.Source.Microphone,
         );
-      if (kind === "microphone")
-        publication = await room.localParticipant.setMicrophoneEnabled(
-          !room.localParticipant.isMicrophoneEnabled,
-        );
+        const enabled =
+          kind === "camera"
+            ? room.localParticipant.isCameraEnabled
+            : room.localParticipant.isMicrophoneEnabled;
+        if (current?.track && enabled) {
+          await room.localParticipant.unpublishTrack(current.track, true);
+        } else {
+          if (current?.track)
+            await room.localParticipant.unpublishTrack(current.track, true);
+          publication = await captureAndPublish(
+            room,
+            kind,
+            devices.selected[kind],
+            ticket,
+          );
+        }
+      }
       if (kind === "screen")
         publication = await room.localParticipant.setScreenShareEnabled(
           !room.localParticipant.isScreenShareEnabled,
+          { audio: true, contentHint: "detail", surfaceSwitching: "include" },
         );
       if (!alive.current || attempt.current !== ticket) {
         publication?.track?.stop();
@@ -242,9 +305,191 @@ export function useLearningRoom(
       }
     } catch (cause) {
       if (alive.current && attempt.current === ticket)
+        setNotice(
+          kind === "camera" && background.enabled
+            ? "Chưa bật được camera với nền mờ. Kiểm tra mạng rồi thử lại, hoặc tắt mờ nền để bật camera."
+            : cause instanceof MicrophoneEffectError
+              ? cause.message
+              : mediaErrorMessage(cause),
+        );
+    } finally {
+      if (alive.current && attempt.current === ticket) {
+        mediaLock.current = false;
+        setMediaBusy(false);
+      }
+    }
+  }
+  async function captureAndPublish(
+    room: Room,
+    kind: DeviceKind,
+    deviceId: string,
+    ticket: number,
+    micSettings = audio.settings,
+  ) {
+    const active = () => alive.current && attempt.current === ticket;
+    if (!active()) throw new MicrophoneCancelledError();
+    const sdk = await import("livekit-client");
+    if (!active()) throw new MicrophoneCancelledError();
+    const track =
+      kind === "camera"
+        ? await sdk.createLocalVideoTrack(
+            deviceId ? { deviceId: { exact: deviceId } } : {},
+          )
+        : await sdk.createLocalAudioTrack(
+            microphoneCaptureOptions(micSettings, deviceId),
+          );
+    pendingTracks.current.add(track);
+    try {
+      if (!active()) throw new MicrophoneCancelledError();
+      if (kind === "camera")
+        await background.prepare(track as LocalVideoTrack, active);
+      else if (micSettings.filter === "standard")
+        await audio.prepare(
+          track as LocalAudioTrack,
+          active,
+          room,
+          micSettings,
+        );
+      if (!active()) throw new MicrophoneCancelledError();
+      const publication = await publishRoomTrack(
+        room,
+        track,
+        active,
+        kind === "microphone" && micSettings.filter !== "standard"
+          ? () =>
+              audio.prepare(track as LocalAudioTrack, active, room, micSettings)
+          : undefined,
+      );
+      if (!active()) throw new MicrophoneCancelledError();
+      await devices.refresh();
+      return publication;
+    } catch (cause) {
+      track.stop();
+      throw cause;
+    } finally {
+      pendingTracks.current.delete(track);
+    }
+  }
+
+  async function switchDevice(
+    kind: DeviceKind,
+    deviceId: string,
+    micSettings = audio.settings,
+    fromSettings = false,
+  ) {
+    const room = roomRef.current;
+    if (
+      !room ||
+      mediaBusy ||
+      mediaLock.current ||
+      background.busy ||
+      (audio.busy && !fromSettings) ||
+      room.state !== "connected"
+    )
+      return;
+    const ticket = attempt.current;
+    mediaLock.current = true;
+    setMediaBusy(true);
+    setNotice(undefined);
+    try {
+      const { Track } = await import("livekit-client");
+      if (!alive.current || attempt.current !== ticket) return;
+      const current = room.localParticipant.getTrackPublication(
+        kind === "camera" ? Track.Source.Camera : Track.Source.Microphone,
+      );
+      const enabled =
+        kind === "camera"
+          ? room.localParticipant.isCameraEnabled
+          : room.localParticipant.isMicrophoneEnabled;
+      if (current?.track && enabled) {
+        await room.localParticipant.unpublishTrack(current.track, true);
+        await captureAndPublish(room, kind, deviceId, ticket, micSettings);
+      }
+      if (alive.current && attempt.current === ticket)
+        devices.select(kind, deviceId);
+    } catch (cause) {
+      if (fromSettings) throw cause;
+      if (alive.current && attempt.current === ticket)
         setNotice(mediaErrorMessage(cause));
     } finally {
-      if (alive.current && attempt.current === ticket) setMediaBusy(false);
+      if (alive.current && attempt.current === ticket) {
+        mediaLock.current = false;
+        setMediaBusy(false);
+        setCamera(room.localParticipant.isCameraEnabled);
+        setMicrophone(room.localParticipant.isMicrophoneEnabled);
+      }
+    }
+  }
+
+  async function changeAudio(next: MicrophoneSettings) {
+    const room = roomRef.current;
+    if (
+      !room ||
+      mediaBusy ||
+      mediaLock.current ||
+      background.busy ||
+      audio.busy ||
+      room.state !== "connected"
+    )
+      return;
+    const ticket = attempt.current;
+    await audio.change(
+      next,
+      async (settings) => {
+        await switchDevice(
+          "microphone",
+          devices.selected.microphone,
+          settings,
+          true,
+        );
+      },
+      () => alive.current && attempt.current === ticket,
+    );
+  }
+
+  async function changeBackground(next: BackgroundSettings) {
+    const room = roomRef.current;
+    if (
+      !room ||
+      mediaBusy ||
+      mediaLock.current ||
+      background.busy ||
+      audio.busy ||
+      room.state !== "connected"
+    )
+      return;
+    const ticket = attempt.current;
+    mediaLock.current = true;
+    setMediaBusy(true);
+    try {
+      const { Track } = await import("livekit-client");
+      if (!alive.current || attempt.current !== ticket) return;
+      const track = room.localParticipant.getTrackPublication(
+        Track.Source.Camera,
+      )?.track as LocalVideoTrack | undefined;
+      await background.change(
+        next,
+        track,
+        () => alive.current && attempt.current === ticket,
+      );
+      if (
+        alive.current &&
+        attempt.current === ticket &&
+        track?.mediaStreamTrack.readyState === "ended"
+      ) {
+        await room.localParticipant
+          .unpublishTrack(track, true)
+          .catch(() => undefined);
+        if (alive.current && attempt.current === ticket) setCamera(false);
+      }
+    } catch (cause) {
+      if (alive.current && attempt.current === ticket)
+        setNotice(mediaErrorMessage(cause));
+    } finally {
+      if (alive.current && attempt.current === ticket) {
+        mediaLock.current = false;
+        setMediaBusy(false);
+      }
     }
   }
   function startAudio() {
@@ -263,18 +508,25 @@ export function useLearningRoom(
       });
   }
   return {
+    room: connectedRoom,
     status,
     error,
     notice,
     camera,
     microphone,
+    microphoneTrack,
     screen,
     audioBlocked,
     mediaBusy,
     participants,
+    tiles: media.tiles,
+    audio: media.audio,
     join,
     close,
     toggle,
+    changeBackground,
+    changeAudio,
+    switchDevice,
     startAudio,
   };
 }
