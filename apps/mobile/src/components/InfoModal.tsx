@@ -5,6 +5,7 @@ import {
   StyleSheet,
   Text,
   View,
+  useWindowDimensions,
   type StyleProp,
   type ViewStyle,
 } from "react-native";
@@ -29,6 +30,8 @@ export function InfoModal({
   onConfirm?: () => void;
   style?: StyleProp<ViewStyle>;
 }) {
+  const { width, height } = useWindowDimensions();
+  const compact = width < 380 || height < 500;
   return (
     <Modal
       visible={title !== null}
@@ -36,7 +39,7 @@ export function InfoModal({
       animationType="none"
       onRequestClose={onClose}
     >
-      <SafeAreaView style={styles.overlay}>
+      <SafeAreaView style={[styles.overlay, compact && { padding: 12 }]}>
         <Pressable
           style={StyleSheet.absoluteFill}
           onPress={onClose}
@@ -48,7 +51,7 @@ export function InfoModal({
           role="dialog"
           aria-modal
           accessibilityLabel={title ?? undefined}
-          style={[styles.card, style]}
+          style={[styles.card, compact && { padding: 16, gap: 12 }, style]}
         >
           <View style={styles.heading}>
             <Text accessibilityRole="header" style={styles.title}>

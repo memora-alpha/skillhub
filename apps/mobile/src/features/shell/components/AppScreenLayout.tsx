@@ -126,7 +126,13 @@ export function AppScreenLayout({
 }
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.surface },
-  content: { flex: 1, backgroundColor: colors.canvas },
+  content: {
+    flex: 1,
+    minWidth: 0,
+    minHeight: 0,
+    width: "100%",
+    backgroundColor: colors.canvas,
+  },
   body: {
     fontFamily: fonts.body,
     ...typography.body,

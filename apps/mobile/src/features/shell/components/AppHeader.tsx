@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import {
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -57,12 +56,12 @@ export function AppHeader({
   chromeColors,
   navigationBlocked = false,
 }: AppHeaderProps) {
-  const { width } = useWindowDimensions();
+  const { width, fontScale } = useWindowDimensions();
   const notifications = useNotificationCount();
   const unread = notifications.data ?? 0;
   const home = appearance === "home";
   const chrome = { ...signedInChrome, ...chromeColors };
-  const compact = Platform.OS !== "web" || width < 640;
+  const compact = width / fontScale < 640;
   const navigationState = {
     disabled: navigationBlocked,
     accessibilityState: { disabled: navigationBlocked },
@@ -76,6 +75,7 @@ export function AppHeader({
         !!title && { gap: 8 },
         home && !!title && styles.homeTitledHeader,
         centeredTitle && styles.centeredHeader,
+        width < 380 && { paddingHorizontal: 12 },
       ]}
     >
       <HeaderLeading
@@ -99,7 +99,7 @@ export function AppHeader({
       ) : title ? (
         <Text
           style={[styles.title, home && styles.homeTitle, { flex: 1 }]}
-          numberOfLines={width < 400 ? 2 : 1}
+          numberOfLines={width / fontScale < 400 ? 2 : 1}
         >
           {title}
         </Text>
@@ -287,7 +287,16 @@ const styles = StyleSheet.create({
     includeFontPadding: false,
   },
   titleContent: { flex: 1, minWidth: 0 },
-  headerActions: { flexDirection: "row", alignItems: "center", gap: 4 },
+  headerActions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    flexShrink: 1,
+    minWidth: 0,
+    maxWidth: "60%",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    gap: 4,
+  },
   iconButton: { padding: 9, borderRadius: radius.control },
   countText: {
     fontFamily: fonts.bold,

@@ -61,6 +61,8 @@ const styles = StyleSheet.create({
   },
   tab: {
     flex: 1,
+    minWidth: 0,
+    paddingHorizontal: 4,
     minHeight: 64,
     alignItems: "center",
     justifyContent: "center",
@@ -75,6 +77,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   tabLabel: {
+    flexShrink: 1,
+    textAlign: "center",
     fontFamily: fonts.semibold,
     fontSize: 12,
     lineHeight: 16,

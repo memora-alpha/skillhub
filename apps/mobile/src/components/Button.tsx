@@ -91,6 +91,10 @@ export function Button({
 }
 const styles = StyleSheet.create({
   base: {
+    minWidth: 0,
+    maxWidth: "100%",
+    minHeight: 44,
+    flexShrink: 1,
     borderRadius: appRadius.button,
     flexDirection: "row",
     alignItems: "center",

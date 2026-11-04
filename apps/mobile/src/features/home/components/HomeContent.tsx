@@ -21,7 +21,8 @@ export function HomeContent({
   data: HomeData;
   onNavigate: (href: Href) => void;
 }>) {
-  const wide = useWindowDimensions().width >= 840;
+  const { width, fontScale } = useWindowDimensions();
+  const wide = width / fontScale >= 840;
   const name = session.name.trim().split(/\s+/).slice(-2).join(" ");
   const stats = [
     {
@@ -75,7 +76,12 @@ export function HomeContent({
         <View style={[styles.primary, wide && styles.wideColumn]}>
           <HomeSessionCard data={data} onNavigate={onNavigate} />
           <HomePathCard data={data} onNavigate={onNavigate} />
-          <View style={styles.stats}>
+          <View
+            style={[
+              styles.stats,
+              width / fontScale < 340 && { flexDirection: "column" },
+            ]}
+          >
             {stats.map((stat, index) => (
               <View key={stat.label} style={[styles.card, styles.stat]}>
                 <View style={styles.statValueRow}>
