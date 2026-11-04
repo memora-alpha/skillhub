@@ -40,10 +40,18 @@ export function PostFeed({
             <Link className="btn btn-primary" href="/learn/posts/new">
               + Đăng nhu cầu học
             </Link>
-            <button aria-pressed={!mine} onClick={() => setMine(false)}>
+            <button
+              type="button"
+              aria-pressed={!mine}
+              onClick={() => setMine(false)}
+            >
               Khám phá
             </button>
-            <button aria-pressed={mine} onClick={() => setMine(true)}>
+            <button
+              type="button"
+              aria-pressed={mine}
+              onClick={() => setMine(true)}
+            >
               Bài của tôi
             </button>
           </div>
@@ -53,6 +61,7 @@ export function PostFeed({
         <aside className="category-panel">
           <h3>Kỹ năng</h3>
           <button
+            type="button"
             aria-pressed={!skillId}
             className={!skillId ? "active" : ""}
             onClick={() => setSkillId("")}
@@ -61,6 +70,7 @@ export function PostFeed({
           </button>
           {skills.items.map((skill) => (
             <button
+              type="button"
               key={skill.id}
               aria-pressed={skillId === skill.id}
               className={skillId === skill.id ? "active" : ""}
@@ -97,7 +107,9 @@ export function PostFeed({
               maxLength={120}
               onChange={(e) => setSearch(e.target.value)}
             />
-            <button className="btn">Tìm bài đăng</button>
+            <button type="submit" className="btn">
+              Tìm bài đăng
+            </button>
           </form>
           <Feedback
             loading={query.loading}

@@ -1,4 +1,6 @@
 "use client";
+import { formText } from "../components/form-data";
+
 import Link from "next/link";
 import { useState } from "react";
 import { useUserSession } from "../auth/session";
@@ -83,8 +85,8 @@ export function SkillsScreen() {
               const data = new FormData(event.currentTarget);
               const body = {
                 skillId,
-                levelId: String(data.get("levelId")),
-                description: String(data.get("description")).trim(),
+                levelId: formText(data, "levelId"),
+                description: formText(data, "description").trim(),
                 isVisible: true,
               };
               const result = await command.run(JSON.stringify(body), (key) =>
@@ -107,7 +109,7 @@ export function SkillsScreen() {
               reload={levels.reload}
             />
             <label>
-              Trình độ
+              <span>Trình độ</span>
               <select
                 name="levelId"
                 key={skillId}
@@ -130,7 +132,7 @@ export function SkillsScreen() {
               </select>
             </label>
             <label>
-              Kinh nghiệm và điều bạn có thể hướng dẫn
+              <span>Kinh nghiệm và điều bạn có thể hướng dẫn</span>
               <textarea
                 name="description"
                 rows={5}
@@ -143,6 +145,7 @@ export function SkillsScreen() {
             <CommandFeedback command={command} />
             {message && <p className="learner-notice">{message}</p>}
             <button
+              type="submit"
               className="btn btn-primary"
               disabled={
                 !skillId ||

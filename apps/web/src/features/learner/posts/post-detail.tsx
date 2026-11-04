@@ -1,4 +1,6 @@
 "use client";
+import { formText } from "../components/form-data";
+
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useUserSession } from "../auth/session";
@@ -60,6 +62,7 @@ export function PostDetail({ id }: Readonly<{ id: string }>) {
                   )}
                   {["DRAFT", "REJECTED"].includes(post.status) && (
                     <button
+                      type="button"
                       className="btn btn-primary"
                       disabled={command.pending || command.uncertain}
                       onClick={() => {
@@ -135,9 +138,9 @@ function ProposalForm({ post }: Readonly<{ post: Post }>) {
             const body = {
               sourceType: "LEARNING_REQUEST",
               learningRequestId: post.id,
-              message: String(data.get("message")).trim(),
+              message: formText(data, "message").trim(),
               exchangeTypeHint: "ONE_WAY",
-              candidateSlots: String(data.get("schedule")).trim() || null,
+              candidateSlots: formText(data, "schedule").trim() || null,
             };
             const result = await command.run(JSON.stringify(body), (key) =>
               request<Proposal>("proposals", { method: "POST", body, key }),
@@ -150,7 +153,7 @@ function ProposalForm({ post }: Readonly<{ post: Post }>) {
             dẫn nhé.
           </p>
           <label>
-            Lời nhắn
+            <span>Lời nhắn</span>
             <textarea
               name="message"
               rows={5}
@@ -161,7 +164,7 @@ function ProposalForm({ post }: Readonly<{ post: Post }>) {
             />
           </label>
           <label>
-            Gợi ý thời gian
+            <span>Gợi ý thời gian</span>
             <input
               name="schedule"
               maxLength={1000}
@@ -171,6 +174,7 @@ function ProposalForm({ post }: Readonly<{ post: Post }>) {
           </label>
           <CommandFeedback command={command} />
           <button
+            type="submit"
             className="btn btn-primary"
             disabled={
               command.pending || (command.uncertain && !command.canRetry)

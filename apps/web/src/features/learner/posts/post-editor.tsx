@@ -1,4 +1,6 @@
 "use client";
+import { formText } from "../components/form-data";
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useUserSession } from "../auth/session";
@@ -63,6 +65,7 @@ function PostForm({ post }: Readonly<{ post?: Post }>) {
     command.uncertain ||
     !!post?.owner ||
     (!!post && !["DRAFT", "OPEN", "REJECTED"].includes(post.status));
+  const saveLabel = post ? "Lưu thay đổi" : "Lưu bài đăng";
   return (
     <Panel>
       <form
@@ -78,12 +81,12 @@ function PostForm({ post }: Readonly<{ post?: Post }>) {
           const fields = new FormData(event.currentTarget);
           const body = {
             skillId: skill,
-            title: String(fields.get("title")).trim(),
-            description: String(fields.get("description")).trim(),
-            learningGoal: String(fields.get("goal")).trim(),
-            currentLevel: String(fields.get("level")),
+            title: formText(fields, "title").trim(),
+            description: formText(fields, "description").trim(),
+            learningGoal: formText(fields, "goal").trim(),
+            currentLevel: formText(fields, "level"),
             desiredCreditPerHour: fields.get("credit")
-              ? String(fields.get("credit"))
+              ? formText(fields, "credit")
               : null,
             ...(!post
               ? {
@@ -107,7 +110,7 @@ function PostForm({ post }: Readonly<{ post?: Post }>) {
       >
         <SkillPicker value={skill} onChange={setSkill} disabled={blocked} />
         <label>
-          Tiêu đề
+          <span>Tiêu đề</span>
           <input
             name="title"
             defaultValue={post?.title}
@@ -119,7 +122,7 @@ function PostForm({ post }: Readonly<{ post?: Post }>) {
           />
         </label>
         <label>
-          Mô tả
+          <span>Mô tả</span>
           <textarea
             name="description"
             defaultValue={post?.description}
@@ -132,7 +135,7 @@ function PostForm({ post }: Readonly<{ post?: Post }>) {
           />
         </label>
         <label>
-          Mục tiêu sau khi học
+          <span>Mục tiêu sau khi học</span>
           <textarea
             name="goal"
             defaultValue={post?.learningGoal}
@@ -145,7 +148,7 @@ function PostForm({ post }: Readonly<{ post?: Post }>) {
         </label>
         <div className="learner-form-grid">
           <label>
-            Trình độ hiện tại
+            <span>Trình độ hiện tại</span>
             <select
               name="level"
               defaultValue={post?.currentLevel ?? "BEGINNER"}
@@ -158,7 +161,7 @@ function PostForm({ post }: Readonly<{ post?: Post }>) {
             </select>
           </label>
           <label>
-            Credit mong muốn / giờ
+            <span>Credit mong muốn / giờ</span>
             <input
               name="credit"
               type="number"
@@ -177,12 +180,8 @@ function PostForm({ post }: Readonly<{ post?: Post }>) {
           </p>
         )}
         <CommandFeedback command={command} />
-        <button className="btn btn-primary" disabled={blocked}>
-          {command.pending
-            ? "Đang lưu…"
-            : post
-              ? "Lưu thay đổi"
-              : "Lưu bài đăng"}
+        <button type="submit" className="btn btn-primary" disabled={blocked}>
+          {command.pending ? "Đang lưu…" : saveLabel}
         </button>
         <p className="muted">
           Bài mới được lưu nháp trước để bạn xem lại và xuất bản.
