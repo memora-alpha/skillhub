@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useState } from "react";
 import { useUserSession } from "../auth/session";
 import { useUserList, useUserResource } from "../hooks/use-user-resource";
@@ -12,6 +13,7 @@ import {
   More,
   PageHeading,
   Panel,
+  Status,
 } from "../components/common";
 type Level = {
   id: string;
@@ -45,6 +47,17 @@ export function SkillsScreen() {
           {query.items.map((skill) => (
             <Panel key={skill.id} title={skill.skill.name}>
               <p>{skill.description}</p>
+              {skill.verificationStatus && (
+                <p>
+                  <Status value={skill.verificationStatus} />
+                </p>
+              )}
+              <Link
+                className="learner-card-link"
+                href={"/learn/skills/" + skill.id + "/verification"}
+              >
+                Chi tiết xác minh kỹ năng →
+              </Link>
               <p className="muted">
                 Trình độ: {skill.level} ·{" "}
                 {skill.isVisible ? "Đang hiển thị" : "Đang ẩn"}
