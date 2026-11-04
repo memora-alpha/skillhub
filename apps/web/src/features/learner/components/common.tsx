@@ -1,8 +1,32 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { formatVietnamDateTime } from "@/lib/vietnam-time";
 const labels: Record<string, string> = {
+  FREE: "Miễn phí",
+  PAID: "Đã thanh toán",
+  SUCCESS: "Thành công",
+  FAILED: "Không thành công",
+  REVERSED: "Đã được đảo",
+  REFUNDED: "Đã hoàn Credit",
+  REVIEW: "Đang đối soát",
+  CREATED: "Đang chuẩn bị",
+  PENDING_REVIEW: "Chờ duyệt",
+  PUBLISHED: "Đã xuất bản",
+  HIDDEN: "Đã ẩn",
+  ARCHIVED: "Đã lưu trữ",
+  VERIFIED: "Đã xác minh",
+  UNVERIFIED: "Chưa xác minh",
+  APPROVED: "Đã duyệt",
+  REVOKED: "Đã thu hồi",
+  QUARANTINED: "Đang kiểm tra",
+  SCANNING: "Đang quét tệp",
+  SCAN_FAILED: "Lỗi kiểm tra tệp",
+  UPLOAD_FAILED: "Tải tệp thất bại",
+  UNDER_REVIEW: "Đang xem xét",
+  NEED_MORE_INFO: "Cần bổ sung thông tin",
+  RESOLVED: "Đã xử lý",
   DRAFT: "Bản nháp",
-  OPEN: "Đang tìm người học",
+  OPEN: "Đang tìm người hướng dẫn",
   PENDING_MODERATION: "Chờ duyệt",
   REJECTED: "Đã từ chối",
   NEGOTIATING: "Đang trao đổi",
@@ -31,10 +55,13 @@ const labels: Record<string, string> = {
 export function statusText(status: string) {
   return labels[status] ?? status;
 }
-export function Status({ value }: Readonly<{ value: string }>) {
+export function Status({
+  value,
+  label,
+}: Readonly<{ value: string; label?: string }>) {
   return (
     <span className={"learner-status learner-status-" + value.toLowerCase()}>
-      {statusText(value)}
+      {label ?? statusText(value)}
     </span>
   );
 }
@@ -44,7 +71,7 @@ export function Panel({
   className = "",
 }: Readonly<{ title?: string; children: ReactNode; className?: string }>) {
   return (
-    <section className={"learner-card " + className}>
+    <section className={"learner-card panel " + className}>
       {title && <h2>{title}</h2>}
       {children}
     </section>
@@ -87,7 +114,7 @@ export function PageHeading({
   action?: ReactNode;
 }>) {
   return (
-    <header className="learner-page-heading">
+    <header className="learner-page-heading page-header">
       <div>
         {eyebrow && <p className="eyebrow">{eyebrow}</p>}
         <h1>{title}</h1>
@@ -100,12 +127,7 @@ export function PageHeading({
 export function Empty({ children }: Readonly<{ children: ReactNode }>) {
   return <div className="learner-empty">{children}</div>;
 }
-export const formatTime = (date: string) =>
-  new Intl.DateTimeFormat("vi-VN", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: "Asia/Ho_Chi_Minh",
-  }).format(new Date(date));
+export const formatTime = formatVietnamDateTime;
 export function More({
   cursor,
   loading,
