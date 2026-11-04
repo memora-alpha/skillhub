@@ -1,3 +1,4 @@
+import '../../../core/http/app_error.dart';
 import '../../../core/http/http_client.dart';
 
 class TagRecord {
@@ -35,15 +36,16 @@ class SkillRecord {
 
   static SkillRecord parse(Object? value) {
     final json = asMap(value);
+    final name = asString(json['name']);
     return SkillRecord(
       id: asString(json['id']),
-      name: asString(json['name']),
-      nameKey: asString(json['nameKey']),
-      slug: asString(json['slug']),
+      name: name,
+      nameKey: asOptionalString(json['nameKey']) ?? name,
+      slug: asOptionalString(json['slug']) ?? '',
       categoryId: asOptionalString(json['categoryId']),
       description: asOptionalString(json['description']),
-      status: asString(json['status']),
-      version: asInt(json['version']),
+      status: asOptionalString(json['status']) ?? 'ACTIVE',
+      version: json['version'] == null ? 1 : asInt(json['version']),
     );
   }
 }
@@ -80,12 +82,23 @@ class SharingSkillRecord {
     final version = json['version'];
     final visible = json['isVisible'];
     final user = json['user'];
+    final skillLevel = json['skillLevel'];
+    final levelFromCatalog = skillLevel is Map
+        ? asOptionalString(skillLevel['code'])
+        : null;
+    final years = json['experienceYears'];
     return SharingSkillRecord(
       id: asString(json['id']),
       skill: SkillRecord.parse(json['skill']),
-      level: asString(json['level']),
+      level: asOptionalString(json['level']) ??
+          levelFromCatalog ??
+          (throw const AppError.protocol()),
       description: asString(json['description']),
-      experienceYears: asOptionalString(json['experienceYears']),
+      experienceYears: years == null
+          ? null
+          : years is num
+          ? years.toString()
+          : asOptionalString(years),
       verificationStatus: asString(json['verificationStatus']),
       isVisible: visible == null ? null : asBool(visible),
       archivedAt: asOptionalString(json['archivedAt']),

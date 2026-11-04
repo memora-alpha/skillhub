@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 enum RefreshScope {
   study,
   skills,
+  materials,
   requests,
   discover,
   proposals,
@@ -76,6 +77,7 @@ class WaitingRefresh extends ConsumerStatefulWidget {
     required this.scopes,
     required this.child,
     this.shellIndex,
+    this.interval = const Duration(seconds: 20),
   });
 
   final bool enabled;
@@ -85,23 +87,49 @@ class WaitingRefresh extends ConsumerStatefulWidget {
   /// When set, polling runs only while the bottom tab with this index is open.
   final int? shellIndex;
 
+  /// How often to reload while [enabled]. Path confirmation uses a shorter gap.
+  final Duration interval;
+
   @override
   ConsumerState<WaitingRefresh> createState() => _WaitingRefreshState();
 }
 
 class _WaitingRefreshState extends ConsumerState<WaitingRefresh> {
   Timer? _timer;
+  AppLifecycleListener? _life;
 
   @override
   void initState() {
     super.initState();
-    _timer = Timer.periodic(const Duration(seconds: 20), (_) => _tick());
+    _arm();
+    _life = AppLifecycleListener(onResume: _tick);
+    if (widget.enabled) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _tick());
+    }
+  }
+
+  @override
+  void didUpdateWidget(WaitingRefresh oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.enabled != widget.enabled ||
+        oldWidget.interval != widget.interval) {
+      _arm();
+      if (widget.enabled && !oldWidget.enabled) _tick();
+    }
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    _life?.dispose();
     super.dispose();
+  }
+
+  void _arm() {
+    _timer?.cancel();
+    _timer = null;
+    if (!widget.enabled) return;
+    _timer = Timer.periodic(widget.interval, (_) => _tick());
   }
 
   void _tick() {
@@ -110,8 +138,10 @@ class _WaitingRefreshState extends ConsumerState<WaitingRefresh> {
         ref.read(shellIndexProvider) != widget.shellIndex) {
       return;
     }
+    // DevicePreview / nested hosts often report isCurrent=false while the user
+    // is still looking at this screen. Only skip a route that is not active.
     final route = ModalRoute.of(context);
-    if (route != null && !route.isCurrent) return;
+    if (route != null && !route.isActive) return;
     ref.read(refreshTicksProvider.notifier).bump(widget.scopes);
   }
 

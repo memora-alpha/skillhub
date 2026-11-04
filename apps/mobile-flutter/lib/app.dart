@@ -5,6 +5,8 @@ import 'core/theme/tokens.dart';
 import 'core/toast/toast.dart';
 import 'features/auth/session/avatar_monitor.dart';
 import 'features/auth/widgets/session_gate.dart';
+import 'features/materials/material_decision_poll.dart';
+import 'features/skills/skill_decision_poll.dart';
 import 'router.dart';
 
 class SkillHubApp extends ConsumerWidget {
@@ -14,6 +16,8 @@ class SkillHubApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
     ref.listen(avatarMonitorProvider, (_, _) {});
+    ref.listen(skillDecisionPollProvider, (_, _) {});
+    ref.listen(materialDecisionPollProvider, (_, _) {});
     return MaterialApp.router(
       title: 'SkillHub',
       debugShowCheckedModeBanner: false,

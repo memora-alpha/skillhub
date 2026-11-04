@@ -5,8 +5,10 @@ import 'package:go_router/go_router.dart';
 import '../../components/app_button.dart';
 import '../../components/feature_page.dart';
 import '../../components/misc.dart';
+import '../../core/http/app_error.dart';
 import '../learning_paths/live_paths.dart';
 import '../learning_paths/paths_data.dart';
+import '../remote/refresh_signal.dart';
 import 'live_room.dart';
 import 'live_sessions.dart';
 import 'sessions_data.dart';
@@ -22,13 +24,14 @@ class PathSessionsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    if (id == null) return const _LiveLearningHistoryPage();
     final items = ref
         .watch(sessionsProvider)
-        .where((s) => id == null || s.pathId == id)
+        .where((s) => s.pathId == id)
         .toList();
     return FeaturePage(
-      title: id != null ? 'Buổi học của lộ trình' : 'Lịch sử học tập',
-      back: id != null ? '/paths/$id' : '/calendar',
+      title: 'Buổi học của lộ trình',
+      back: '/paths/$id',
       children: [
         for (final s in items)
           Panel(
@@ -50,6 +53,79 @@ class PathSessionsScreen extends ConsumerWidget {
             description:
                 'Các buổi học xuất hiện sau khi tất cả lịch được xác nhận và khóa.',
           ),
+      ],
+    );
+  }
+}
+
+class _LiveLearningHistoryPage extends ConsumerWidget {
+  const _LiveLearningHistoryPage();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final query = ref.watch(pastSessionsProvider);
+    final rows = query.value ?? const <Map<String, dynamic>>[];
+    final missed = [for (final row in rows) if (sessionMissedJoin(row)) row];
+    final other = [for (final row in rows) if (!sessionMissedJoin(row)) row];
+    return FeaturePage(
+      onRefresh: () => pullRefresh(ref, const {RefreshScope.study}),
+      title: 'Lịch sử học tập',
+      back: '/calendar',
+      children: [
+        if (query.isLoading && !query.hasValue)
+          const LiveBusyNote(label: 'Đang tải lịch sử buổi học.'),
+        if (query.hasError && !query.hasValue)
+          FormNotice(
+            tone: NoticeTone.error,
+            message: errorMessage(query.error),
+          ),
+        if (query.hasValue) ...[
+          const FormNotice(
+            tone: NoticeTone.info,
+            message:
+                'Hiển thị buổi trong khoảng 120 ngày gần đây. Buổi lố giờ / không vào được được gom riêng.',
+          ),
+          if (missed.isNotEmpty) ...[
+            const Copy('Không vào được · lố giờ / vắng'),
+            for (final session in missed) _HistorySessionCard(session: session),
+          ],
+          if (other.isNotEmpty) ...[
+            const Copy('Buổi đã kết thúc khác'),
+            for (final session in other) _HistorySessionCard(session: session),
+          ],
+          if (rows.isEmpty)
+            const EmptyState(
+              title: 'Chưa có buổi trong lịch sử',
+              description:
+                  'Khi buổi học kết thúc hoặc không vào được vì lố giờ, chúng sẽ xuất hiện tại đây.',
+            ),
+        ],
+      ],
+    );
+  }
+}
+
+class _HistorySessionCard extends StatelessWidget {
+  const _HistorySessionCard({required this.session});
+
+  final Map<String, dynamic> session;
+
+  @override
+  Widget build(BuildContext context) {
+    final missed = sessionMissedJoin(session);
+    final note = sessionHistoryNote(session);
+    final start = sessionInstant(session['startAt']);
+    return Panel(
+      title: sessionRoleLabel(session),
+      children: [
+        Copy(sessionStatusLabel(session['status'])),
+        if (start != null)
+          Copy('${viDateTime(start)} · ${sessionMinutes(session)} phút'),
+        if (note.isNotEmpty) Copy(note, muted: true),
+        RouteButton(
+          href: '/learning-sessions/${session['id']}',
+          label: missed ? 'Xem buổi đã lố giờ' : 'Chi tiết buổi học',
+        ),
       ],
     );
   }

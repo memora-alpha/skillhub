@@ -10,6 +10,7 @@ import '../../components/feature_page.dart';
 import '../../components/misc.dart';
 import '../../core/http/app_error.dart';
 import '../auth/session/auth_session.dart';
+import '../remote/refresh_signal.dart';
 import '../skills/schema/skill_schema.dart';
 import '../skills/skills_feature.dart';
 
@@ -45,6 +46,7 @@ const _statusLabel = {
 final myMaterialsProvider = FutureProvider<List<Map<String, dynamic>>>((
   ref,
 ) async {
+  watchRefresh(ref, RefreshScope.materials);
   if (ref.watch(sessionSnapshotProvider).phase != SessionPhase.ready) {
     return const [];
   }
@@ -209,6 +211,11 @@ class _LiveMyMaterialsPageState extends ConsumerState<LiveMyMaterialsPage> {
       back: '/profile',
       onRefresh: () async => ref.invalidate(myMaterialsProvider),
       children: [
+        WaitingRefresh(
+          scopes: const {RefreshScope.materials},
+          enabled: items.any((item) => item['status'] == 'PENDING_REVIEW'),
+          child: const SizedBox.shrink(),
+        ),
         const RouteButton(href: '/materials/new', label: 'Đăng tài liệu'),
         if (query.isLoading && items.isEmpty)
           const Padding(
@@ -561,6 +568,11 @@ class LiveMaterialDetail extends ConsumerWidget {
         ref.invalidate(_publicMaterialProvider(id));
       },
       children: [
+        WaitingRefresh(
+          scopes: const {RefreshScope.materials},
+          enabled: owned?['status'] == 'PENDING_REVIEW',
+          child: const SizedBox.shrink(),
+        ),
         if ((mine.isLoading || query.isLoading) && material == null)
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 24),

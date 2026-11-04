@@ -3,16 +3,27 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../components/app_button.dart';
+import '../../components/app_icon.dart';
 import '../../components/app_input.dart';
 import '../../components/feature_page.dart';
 import '../../components/misc.dart';
+import '../../components/tappable.dart';
 import '../../core/http/app_error.dart';
+import '../../core/theme/tokens.dart';
 import '../auth/session/auth_session.dart';
 import '../remote/refresh_signal.dart';
 import '../remote/remote_load.dart';
 import '../messages/messages_data.dart';
 import '../skills/schema/skill_schema.dart';
 import '../skills/skills_feature.dart';
+import 'negotiation_card.dart';
+import 'negotiation_message.dart';
+import 'plan_suggestion_draft.dart';
+import 'schedule_slot_row.dart';
+import 'schedule_timeline.dart';
+import 'schedule_weekly_generator.dart';
+import 'session_outline_editor.dart';
+import 'weekly_schedule.dart';
 
 final _uuid = RegExp(
   r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
@@ -55,6 +66,9 @@ const _sessionStatusLabel = {
   'DISPUTED': 'Đang tranh chấp',
 };
 
+List<Map<String, dynamic>> _lastLivePaths = const [];
+final Map<String, Map<String, dynamic>> _lastLivePathById = {};
+
 final livePathsProvider = FutureProvider<List<Map<String, dynamic>>>((
   ref,
 ) async {
@@ -62,7 +76,14 @@ final livePathsProvider = FutureProvider<List<Map<String, dynamic>>>((
   if (ref.watch(sessionSnapshotProvider).phase != SessionPhase.ready) {
     return const [];
   }
-  return ref.read(authRuntimeProvider).services.study.myPaths();
+  try {
+    final next = await ref.read(authRuntimeProvider).services.study.myPaths();
+    _lastLivePaths = next;
+    return next;
+  } catch (error) {
+    if (isTransientReadError(error)) return _lastLivePaths;
+    rethrow;
+  }
 });
 
 final livePathProvider = FutureProvider.family<Map<String, dynamic>, String>((
@@ -74,7 +95,16 @@ final livePathProvider = FutureProvider.family<Map<String, dynamic>, String>((
       !isLiveId(id)) {
     return const {};
   }
-  return ref.read(authRuntimeProvider).services.study.path(id);
+  try {
+    final next = await ref.read(authRuntimeProvider).services.study.path(id);
+    _lastLivePathById[id] = next;
+    return next;
+  } catch (error) {
+    if (isTransientReadError(error)) {
+      return _lastLivePathById[id] ?? const {};
+    }
+    rethrow;
+  }
 });
 
 Map<String, dynamic> _record(Object? value) =>
@@ -91,14 +121,6 @@ int _version(Object? value) {
 }
 
 String _text(Object? value) => value == null ? '' : '$value';
-
-String? _proposalFor(WidgetRef ref, String conversationId) {
-  if (conversationId.isEmpty) return null;
-  for (final item in ref.watch(messagesProvider).conversations) {
-    if (item.id == conversationId) return item.proposal;
-  }
-  return null;
-}
 
 String _partnerName(WidgetRef ref, String userId) {
   for (final item in ref.watch(messagesProvider).conversations) {
@@ -134,13 +156,35 @@ bool _confirmedBy(Map<String, dynamic> path, Map<String, dynamic> value, String 
   return value[field] != null;
 }
 
-bool _canSchedule(Map<String, dynamic> path, Map<String, dynamic> plan, String me) =>
+bool _schedulingReady(
+  Map<String, dynamic> path,
+  Map<String, dynamic> plan,
+  String me,
+) =>
     _editablePath(path) &&
     path['status'] == 'CONFIRMED' &&
     plan['teacherId'] == me &&
     plan['status'] == 'CONFIRMED' &&
-    plan['learnerConfirmedAt'] != null &&
-    plan['schedule'] == null;
+    plan['learnerConfirmedAt'] != null;
+
+bool _canSchedule(
+  Map<String, dynamic> path,
+  Map<String, dynamic> plan,
+  String me,
+) => _schedulingReady(path, plan, me) && plan['schedule'] == null;
+
+bool _canEditSchedule(
+  Map<String, dynamic> path,
+  Map<String, dynamic> plan,
+  String me,
+) {
+  final schedule = _scheduleOf(plan);
+  if (schedule == null) return false;
+  return _schedulingReady(path, plan, me) &&
+      schedule['appliedVersion'] == null &&
+      const {'DRAFT', 'PROPOSED', 'PARTIALLY_CONFIRMED', 'NEEDS_REVISION'}
+          .contains(schedule['status']);
+}
 
 bool _canConfirmSchedule(
   Map<String, dynamic> path,
@@ -193,16 +237,90 @@ bool _canFinalize(Map<String, dynamic> path) {
   });
 }
 
-String? scheduleSlotError(List<DateTime> starts, List<int> minutes) {
-  var previousEnd = DateTime.fromMillisecondsSinceEpoch(0);
+bool _rangesOverlap(DateTime aStart, DateTime aEnd, DateTime bStart, DateTime bEnd) =>
+    aStart.isBefore(bEnd) && bStart.isBefore(aEnd);
+
+/// Same rules as API `validateItems` + optional sibling proposal busy ranges.
+String? scheduleSlotError(
+  List<DateTime> starts,
+  List<int> minutes, {
+  List<({DateTime start, DateTime end, String label})> external = const [],
+}) {
   final now = DateTime.now();
+  DateTime? previousEnd;
   for (var i = 0; i < starts.length; i++) {
     final start = starts[i];
+    final end = start.add(Duration(minutes: minutes[i]));
     if (!start.isAfter(now)) return 'Buổi ${i + 1} phải ở tương lai.';
-    if (start.isBefore(previousEnd)) {
-      return 'Các buổi phải theo thứ tự và không trùng nhau.';
+    if (previousEnd != null && start.isBefore(previousEnd)) {
+      return 'Buổi ${i + 1} trùng hoặc trước khi buổi $i kết thúc.';
     }
-    previousEnd = start.add(Duration(minutes: minutes[i]));
+    previousEnd = end;
+  }
+  for (var i = 0; i < starts.length; i++) {
+    final aStart = starts[i];
+    final aEnd = aStart.add(Duration(minutes: minutes[i]));
+    for (var j = i + 1; j < starts.length; j++) {
+      final bStart = starts[j];
+      final bEnd = bStart.add(Duration(minutes: minutes[j]));
+      if (_rangesOverlap(aStart, aEnd, bStart, bEnd)) {
+        return 'Buổi ${i + 1} trùng giờ với buổi ${j + 1}.';
+      }
+    }
+    for (final busy in external) {
+      if (_rangesOverlap(aStart, aEnd, busy.start, busy.end)) {
+        return 'Buổi ${i + 1} trùng với ${busy.label}.';
+      }
+    }
+  }
+  return null;
+}
+
+/// Overlap message for one slot against the rest (and external busy ranges).
+String? scheduleSlotConflictAt(
+  int index,
+  List<DateTime?> starts,
+  List<int?> minutes, {
+  List<({DateTime start, DateTime end, String label})> external = const [],
+}) {
+  final start = starts[index];
+  final minute = minutes[index];
+  if (start == null || minute == null) return null;
+  final end = start.add(Duration(minutes: minute));
+  if (!start.isAfter(DateTime.now())) return 'Buổi ${index + 1} phải ở tương lai.';
+  for (var j = 0; j < starts.length; j++) {
+    if (j == index) continue;
+    final otherStart = starts[j];
+    final otherMinutes = minutes[j];
+    if (otherStart == null || otherMinutes == null) continue;
+    final otherEnd = otherStart.add(Duration(minutes: otherMinutes));
+    if (_rangesOverlap(start, end, otherStart, otherEnd)) {
+      return 'Trùng giờ với buổi ${j + 1}.';
+    }
+  }
+  for (final busy in external) {
+    if (_rangesOverlap(start, end, busy.start, busy.end)) {
+      return 'Trùng với ${busy.label}.';
+    }
+  }
+  for (var j = index - 1; j >= 0; j--) {
+    final prevStart = starts[j];
+    final prevMinutes = minutes[j];
+    if (prevStart == null || prevMinutes == null) continue;
+    final prevEnd = prevStart.add(Duration(minutes: prevMinutes));
+    if (start.isBefore(prevEnd)) {
+      return 'Phải bắt đầu từ lúc buổi ${j + 1} kết thúc trở đi.';
+    }
+    break;
+  }
+  for (var j = index + 1; j < starts.length; j++) {
+    final nextStart = starts[j];
+    final nextMinutes = minutes[j];
+    if (nextStart == null || nextMinutes == null) continue;
+    if (nextStart.isBefore(end)) {
+      return 'Kết thúc sau giờ bắt đầu buổi ${j + 1}.';
+    }
+    break;
   }
   return null;
 }
@@ -210,9 +328,35 @@ String? scheduleSlotError(List<DateTime> starts, List<int> minutes) {
 bool _pathStillOpen(Object? status) =>
     status != 'COMPLETED' && status != 'CANCELLED';
 
-DateTime? _parsedDate(Object? value) {
-  if (value is! String || value.isEmpty) return null;
-  return DateTime.tryParse(value);
+/// True while a peer confirmation can still change the path detail status.
+bool _awaitingPeerConfirmation(
+  Map<String, dynamic> path,
+  String me,
+) {
+  if (path.isEmpty || !_isParticipant(path, me) || !_pathStillOpen(path['status'])) {
+    return false;
+  }
+  final agreement = _record(path['agreement']);
+  if (_editablePath(path) &&
+      agreement.isNotEmpty &&
+      (agreement['participantAConfirmedAt'] == null ||
+          agreement['participantBConfirmedAt'] == null)) {
+    return true;
+  }
+  final plans = _records(path['plans']);
+  if (_editablePath(path) &&
+      plans.any((plan) => plan['learnerConfirmedAt'] == null)) {
+    return true;
+  }
+  for (final plan in plans) {
+    final schedule = _scheduleOf(plan);
+    if (schedule == null) continue;
+    if (schedule['participantAConfirmedAt'] == null ||
+        schedule['participantBConfirmedAt'] == null) {
+      return true;
+    }
+  }
+  return false;
 }
 
 class LivePathsPage extends ConsumerWidget {
@@ -293,11 +437,55 @@ class LiveAgreementScreen extends ConsumerStatefulWidget {
 class _LiveAgreementScreenState extends ConsumerState<LiveAgreementScreen> {
   String _type = 'TWO_WAY';
   String _role = 'Tôi dạy';
+  String _credit = '20';
+  var _appliedSuggestion = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(messagesProvider.notifier).ensureOpen(widget.conversationId);
+      final draft = ref.read(planSuggestionDraftProvider);
+      if (draft != null && draft.conversationId == widget.conversationId) {
+        setState(() {
+          _type = draft.twoWay ? 'TWO_WAY' : 'ONE_WAY';
+          _role = draft.teach ? 'Tôi dạy' : 'Tôi học';
+          _credit = draft.credit;
+          _appliedSuggestion = true;
+        });
+      }
+    });
+  }
+
+  PathNegotiationSuggestion? _latestSuggestion() {
+    final messages = ref.watch(messagesProvider);
+    final thread = messages.threads[widget.conversationId] ?? const [];
+    for (final message in thread.reversed) {
+      final parsed = readNegotiationMessage(message.text);
+      if (parsed != null) return parsed;
+    }
+    for (final item in messages.previews) {
+      if (item.id != widget.conversationId) continue;
+      return readNegotiationMessage(item.last);
+    }
+    return null;
+  }
+
+  void _applySuggestion(PathNegotiationSuggestion suggestion) {
+    setState(() {
+      _type = suggestion.twoWay ? 'TWO_WAY' : 'ONE_WAY';
+      _role = suggestion.teach ? 'Tôi dạy' : 'Tôi học';
+      _credit = suggestion.credit.isEmpty ? '20' : suggestion.credit;
+      _appliedSuggestion = true;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final me = ref.watch(accountSessionProvider)?.userId ?? '';
     final paths = ref.watch(livePathsProvider);
+    final suggestion = _latestSuggestion();
     final mine = [
       for (final path in paths.value ?? const <Map<String, dynamic>>[])
         if (path['conversationId'] == widget.conversationId) path,
@@ -310,7 +498,7 @@ class _LiveAgreementScreenState extends ConsumerState<LiveAgreementScreen> {
       children: [
         if (paths.isLoading && !paths.hasValue)
           const LiveBusyNote(label: 'Đang tải lộ trình của cuộc trao đổi này.'),
-        if (paths.hasError)
+        if (paths.hasError && !isTransientReadError(paths.error))
           FormNotice(
             tone: NoticeTone.error,
             message: errorMessage(paths.error),
@@ -329,10 +517,22 @@ class _LiveAgreementScreenState extends ConsumerState<LiveAgreementScreen> {
               ),
             ],
           ),
+        if (paths.hasValue && mine.isEmpty && suggestion != null)
+          NegotiationInboxPanel(
+            suggestion: suggestion,
+            onApply: () => _applySuggestion(suggestion),
+            onOpenChat: () => context.push('/chat/${widget.conversationId}'),
+          ),
         if (paths.hasValue && mine.isEmpty)
           Panel(
             title: 'Thống nhất lộ trình chính thức',
             children: [
+              if (_appliedSuggestion)
+                const FormNotice(
+                  tone: NoticeTone.success,
+                  message:
+                      'Đã áp dụng gợi ý từ Chat. Kiểm tra rồi bấm Tạo lộ trình.',
+                ),
               ChoiceGroup(
                 label: 'Hình thức',
                 value: twoWay ? 'Trao đổi hai chiều' : 'Học một chiều',
@@ -351,8 +551,8 @@ class _LiveAgreementScreenState extends ConsumerState<LiveAgreementScreen> {
                   onChange: (value) => setState(() => _role = value),
                 ),
               DataForm(
-                key: ValueKey(_type),
-                defaults: const {'credit': '20'},
+                key: ValueKey('$_type$_credit$_appliedSuggestion'),
+                defaults: {'credit': _credit},
                 fields: [
                   DataField(
                     name: 'credit',
@@ -391,7 +591,14 @@ class _LiveAgreementScreenState extends ConsumerState<LiveAgreementScreen> {
                     ref.read(refreshTicksProvider.notifier).bump(const {RefreshScope.study});
                     final id = created['id']?.toString() ?? '';
                     if (id.isNotEmpty && context.mounted) {
-                      context.go('/paths/$id');
+                      final draft = ref.read(planSuggestionDraftProvider);
+                      final openPlan = draft != null &&
+                          draft.conversationId == widget.conversationId &&
+                          draft.sessions.isNotEmpty &&
+                          (twoWay || _role == 'Tôi dạy');
+                      context.go(
+                        openPlan ? '/paths/$id/plans/new' : '/paths/$id',
+                      );
                     }
                     return null;
                   } catch (error) {
@@ -410,6 +617,10 @@ class _LiveAgreementScreenState extends ConsumerState<LiveAgreementScreen> {
         _PathSuggestionPanel(
           conversationId: widget.conversationId,
           partnerName: widget.partnerName,
+          twoWay: twoWay,
+          role: _role,
+          credit: _credit,
+          termsEditableAbove: paths.hasValue && mine.isEmpty,
         ),
       ],
     );
@@ -420,10 +631,20 @@ class _PathSuggestionPanel extends ConsumerStatefulWidget {
   const _PathSuggestionPanel({
     required this.conversationId,
     required this.partnerName,
+    required this.twoWay,
+    required this.role,
+    required this.credit,
+    required this.termsEditableAbove,
   });
 
   final String conversationId;
   final String partnerName;
+  /// Exchange / role / credit come from the official form above (or parent
+  /// defaults) so this panel does not duplicate those controls.
+  final bool twoWay;
+  final String role;
+  final String credit;
+  final bool termsEditableAbove;
 
   @override
   ConsumerState<_PathSuggestionPanel> createState() =>
@@ -431,172 +652,174 @@ class _PathSuggestionPanel extends ConsumerStatefulWidget {
 }
 
 class _PathSuggestionPanelState extends ConsumerState<_PathSuggestionPanel> {
-  String _type = 'TWO_WAY';
-  String _role = 'Tôi dạy';
   var _saved = false;
   var _sent = false;
   var _busy = false;
   String? _error;
+  final _outline = SessionOutlineController(minTitleLength: 5);
+
+  @override
+  void dispose() {
+    _outline.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final twoWay = _type == 'TWO_WAY';
+    final twoWay = widget.twoWay;
+    final role = widget.role;
+    final credit = widget.credit.isEmpty ? '20' : widget.credit;
+    final exchangeLabel = twoWay ? 'Trao đổi hai chiều' : 'Học một chiều';
     return Panel(
       title: 'Cùng ${widget.partnerName} thiết kế cách học',
       children: [
-        const FormNotice(
+        FormNotice(
           tone: NoticeTone.info,
-          message:
-              'Bạn có thể lưu ý tưởng và gửi gợi ý qua Chat trước khi tạo hoặc sửa lộ trình chính thức ở phía trên.',
+          message: widget.termsEditableAbove
+              ? 'Hình thức và Credit chỉnh ở phần “Thống nhất lộ trình chính thức” phía trên. Tại đây chỉ soạn kỹ năng, mục tiêu và buổi học rồi gửi Chat.'
+              : 'Bạn có thể lưu ý tưởng và gửi gợi ý qua Chat. Hình thức/Credit lấy theo lựa chọn hiện tại của bạn.',
         ),
         const Copy(
           'Gợi ý dưới đây chưa tạo kế hoạch chính thức, chưa xác nhận điều khoản hoặc giữ Credit.',
           muted: true,
         ),
-        ChoiceGroup(
-          label: 'Hình thức mong muốn',
-          options: const ['Trao đổi hai chiều', 'Học một chiều'],
-          value: twoWay ? 'Trao đổi hai chiều' : 'Học một chiều',
-          onChange: (value) => setState(
-            () => _type = value == 'Trao đổi hai chiều' ? 'TWO_WAY' : 'ONE_WAY',
-          ),
+        Copy(
+          twoWay
+              ? '$exchangeLabel · $credit CR mỗi người'
+              : '$exchangeLabel · $credit CR · $role',
+          muted: true,
         ),
-        if (!twoWay)
-          ChoiceGroup(
-            label: 'Vai trò mong muốn',
-            options: const ['Tôi dạy', 'Tôi học'],
-            value: _role,
-            onChange: (value) => setState(() => _role = value),
+        if (_sent) ...[
+          const FormNotice(
+            tone: NoticeTone.success,
+            message:
+                'Đã gửi gợi ý vào Chat. Đây mới là thương lượng — chưa tạo lộ trình và chưa giữ Credit.',
           ),
-        DataForm(
-          key: ValueKey('$_type$_role'),
-          defaults: const {
-            'credit': '20',
-            'skill': '',
-            'goal': '',
-            'outline': '',
-          },
-          fields: [
-            DataField(
-              name: 'credit',
-              label: twoWay
-                  ? 'Credit cam kết mỗi người'
-                  : 'Credit gợi ý toàn lộ trình',
-              rule: creditRule(twoWay ? 20 : 0, twoWay),
-              numeric: true,
-            ),
-            DataField(
-              name: 'skill',
-              label: twoWay || _role == 'Tôi dạy'
-                  ? 'Kỹ năng bạn muốn dạy'
-                  : 'Kỹ năng muốn học',
-              rule: textRule(1, 100),
-            ),
-            DataField(
-              name: 'goal',
-              label: 'Mục tiêu học',
-              rule: textRule(10, 500),
-              multiline: true,
-            ),
-            DataField(
-              name: 'outline',
-              label: 'Nội dung dự kiến từng buổi',
-              rule: (value) {
-                final lines = [
-                  for (final line in value.split('\n'))
-                    if (line.trim().isNotEmpty) line.trim(),
-                ];
-                if (lines.isEmpty ||
-                    lines.length > 100 ||
-                    lines.any((line) => line.length < 5)) {
-                  return 'Mỗi dòng là một buổi, mô tả ít nhất 5 ký tự; tối đa 100 buổi.';
-                }
-                return null;
-              },
-              multiline: true,
-              hint: 'Mỗi dòng là một buổi. Nội dung này dùng để thương lượng.',
-            ),
-          ],
-          submitLabel: _busy ? 'Đang gửi...' : 'Gửi gợi ý qua Chat',
-          extra: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            spacing: 8,
-            children: [
-              if (_saved)
-                const FormNotice(
-                  tone: NoticeTone.success,
-                  message: 'Bản nháp đã lưu trong phiên này.',
-                ),
-              if (_sent)
-                const FormNotice(
-                  tone: NoticeTone.success,
-                  message:
-                      'Gợi ý đã được gửi trong Chat; chưa phải xác nhận lộ trình.',
-                ),
-              if (_error != null)
-                FormNotice(tone: NoticeTone.error, message: _error!),
-              AppButton(
-                label: 'Lưu bản nháp',
-                variant: ButtonVariant.paper,
-                disabled: _busy,
-                onPressed: () => setState(() {
-                  _saved = true;
-                  _error = null;
-                }),
+          const Copy(
+            'Bước tiếp theo: mở Chat để đối phương xem, rồi tạo lộ trình chính thức ở phần phía trên.',
+            muted: true,
+          ),
+          AppButton(
+            label: 'Mở Chat xem gợi ý',
+            variant: ButtonVariant.craft,
+            onPressed: () => context.push('/chat/${widget.conversationId}'),
+          ),
+          AppButton(
+            label: 'Chỉnh và gửi lại',
+            variant: ButtonVariant.paper,
+            onPressed: () => setState(() {
+              _sent = false;
+              _error = null;
+            }),
+          ),
+        ] else
+          DataForm(
+            key: ValueKey('$twoWay$role$credit'),
+            defaults: const {
+              'skill': '',
+              'goal': '',
+            },
+            fields: [
+              DataField(
+                name: 'skill',
+                label: twoWay || role == 'Tôi dạy'
+                    ? 'Kỹ năng bạn muốn dạy'
+                    : 'Kỹ năng muốn học',
+                rule: textRule(1, 100),
+              ),
+              DataField(
+                name: 'goal',
+                label: 'Mục tiêu học',
+                rule: textRule(10, 500),
+                multiline: true,
               ),
             ],
+            submitLabel: _busy ? 'Đang gửi...' : 'Gửi gợi ý qua Chat',
+            extra: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              spacing: 16,
+              children: [
+                SessionOutlineEditor(
+                  controller: _outline,
+                  label: 'Nội dung dự kiến từng buổi',
+                  enabled: !_busy,
+                  helper:
+                      'Mỗi mốc là một buổi. Dùng để thương lượng, chưa tạo lộ trình chính thức.',
+                ),
+                if (_saved)
+                  const FormNotice(
+                    tone: NoticeTone.success,
+                    message:
+                        'Đã lưu bản nháp trong phiên này. Tiếp theo hãy gửi gợi ý qua Chat.',
+                  ),
+                if (_error != null)
+                  FormNotice(tone: NoticeTone.error, message: _error!),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: AppButton(
+                    label: 'Lưu bản nháp',
+                    variant: ButtonVariant.ghost,
+                    size: ButtonSize.sm,
+                    disabled: _busy,
+                    onPressed: () => setState(() {
+                      _saved = true;
+                      _error = null;
+                    }),
+                  ),
+                ),
+              ],
+            ),
+            onSubmit: (values) async {
+              final outlineError = _outline.validate();
+              if (outlineError != null) {
+                setState(() => _error = outlineError);
+                return outlineError;
+              }
+              final payload = {
+                ...values,
+                'outline': [
+                  for (final content in _outline.contents)
+                    sessionContentParts(content).title,
+                ].join('\n'),
+              };
+              setState(() {
+                _busy = true;
+                _error = null;
+                _saved = true;
+              });
+              try {
+                final id = newUuid();
+                await ref.read(authRuntimeProvider).services.conversations.send(
+                  widget.conversationId,
+                  clientMessageId: id,
+                  messageText: formatNegotiationMessage(
+                    twoWay: twoWay,
+                    role: role,
+                    skill: payload['skill'] ?? '',
+                    goal: payload['goal'] ?? '',
+                    credit: credit,
+                    lessons: [
+                      for (final line in (payload['outline'] ?? '').split('\n'))
+                        if (line.trim().isNotEmpty) line.trim(),
+                    ],
+                  ),
+                  idempotencyKey: id,
+                );
+                ref
+                    .read(refreshTicksProvider.notifier)
+                    .bump(const {RefreshScope.messages});
+                if (mounted) setState(() => _sent = true);
+                return null;
+              } catch (error) {
+                return errorMessage(error);
+              } finally {
+                if (mounted) setState(() => _busy = false);
+              }
+            },
           ),
-          onSubmit: (values) async {
-            setState(() {
-              _busy = true;
-              _error = null;
-              _saved = true;
-            });
-            try {
-              final id = newUuid();
-              await ref.read(authRuntimeProvider).services.conversations.send(
-                widget.conversationId,
-                clientMessageId: id,
-                messageText: _suggestionMessage(values, twoWay, _role),
-                idempotencyKey: id,
-              );
-              ref
-                  .read(refreshTicksProvider.notifier)
-                  .bump(const {RefreshScope.messages});
-              if (mounted) setState(() => _sent = true);
-              return null;
-            } catch (error) {
-              return errorMessage(error);
-            } finally {
-              if (mounted) setState(() => _busy = false);
-            }
-          },
-        ),
       ],
     );
   }
-}
-
-String _suggestionMessage(
-  Map<String, String> values,
-  bool twoWay,
-  String role,
-) {
-  final lessons = [
-    for (final line in (values['outline'] ?? '').split('\n'))
-      if (line.trim().isNotEmpty) line.trim(),
-  ];
-  final teach = twoWay || role == 'Tôi dạy';
-  return [
-    'GỢI Ý LỘ TRÌNH · CHƯA XÁC NHẬN',
-    'Hình thức: ${twoWay ? 'Trao đổi hai chiều' : 'Học một chiều'}',
-    'Chiều trao đổi: ${teach ? 'Tôi dạy → bạn học' : 'Tôi mong muốn học từ bạn'}',
-    'Kỹ năng: ${values['skill']}',
-    'Mục tiêu: ${values['goal']}',
-    'Credit gợi ý cho toàn thỏa thuận: ${values['credit']}${twoWay ? ' mỗi người' : ''}',
-    for (var i = 0; i < lessons.length; i++) 'Buổi ${i + 1}: ${lessons[i]}',
-    'Đây là nội dung thương lượng trong Chat. Người dạy tự tạo kế hoạch; kế hoạch và lịch cần xác nhận riêng. Chưa giữ Credit.',
-  ].join('\n');
 }
 
 class LivePathDetail extends ConsumerStatefulWidget {
@@ -646,7 +869,7 @@ class _LivePathDetailState extends ConsumerState<LivePathDetail> {
             ? agreement['participantBConfirmedAt']
             : agreement['participantAConfirmedAt']) !=
         null;
-    final proposal = _proposalFor(ref, _text(path['conversationId']));
+    final conversationId = _text(path['conversationId']);
     final canConfirm =
         editable &&
         me.isNotEmpty &&
@@ -672,7 +895,8 @@ class _LivePathDetailState extends ConsumerState<LivePathDetail> {
       children: [
         WaitingRefresh(
           scopes: const {RefreshScope.study},
-          enabled: path.isNotEmpty && _pathStillOpen(path['status']),
+          interval: const Duration(seconds: 5),
+          enabled: _awaitingPeerConfirmation(path, me),
           child: const SizedBox.shrink(),
         ),
         if (query.isLoading && path.isEmpty)
@@ -837,7 +1061,7 @@ class _LivePathDetailState extends ConsumerState<LivePathDetail> {
             label: 'Trao đổi qua Chat',
             variant: ButtonVariant.paper,
             onPressed: () => context.go(
-              proposal == null ? '/messages' : '/chat/$proposal',
+              conversationId.isEmpty ? '/messages' : '/chat/$conversationId',
             ),
           ),
         ],
@@ -894,7 +1118,7 @@ class _LivePlanPageState extends ConsumerState<LivePlanPage> {
             title: 'Không tìm thấy kế hoạch',
             description: 'Kế hoạch không còn trên phiên bản lộ trình này.',
           ),
-        if (plan != null)
+        if (plan != null) ...[
           Panel(
             title:
                 '${_skillName(catalog, _text(plan['skillId']))} · v${plan['version']}',
@@ -905,8 +1129,6 @@ class _LivePlanPageState extends ConsumerState<LivePlanPage> {
                     : 'Bạn là người học của kế hoạch này.',
               ),
               Copy(_text(plan['learningGoal'])),
-              for (final item in outline)
-                Copy('${item['sessionNo']}. ${item['content']}'),
               Copy(
                 plan['learnerConfirmedAt'] == null
                     ? 'Người học chưa xác nhận.'
@@ -935,7 +1157,9 @@ class _LivePlanPageState extends ConsumerState<LivePlanPage> {
                             widget.planId,
                             expectedVersion: _version(plan['version']),
                           );
-                      ref.read(refreshTicksProvider.notifier).bump(const {RefreshScope.study});
+                      ref
+                          .read(refreshTicksProvider.notifier)
+                          .bump(const {RefreshScope.study});
                     } catch (error) {
                       setState(() => _error = errorMessage(error));
                     } finally {
@@ -953,7 +1177,146 @@ class _LivePlanPageState extends ConsumerState<LivePlanPage> {
                 ),
             ],
           ),
+          if (outline.isNotEmpty)
+            Panel(
+              title: 'Lộ trình học',
+              children: [
+                _ScheduleListHeading(
+                  label: 'Các buổi trong kế hoạch',
+                  count: '${outline.length} buổi học',
+                ),
+                for (var i = 0; i < outline.length; i++)
+                  ScheduleTimelineItem(
+                    last: i == outline.length - 1,
+                    child: _PlanTimelineStop(
+                      sessionNo: _version(outline[i]['sessionNo']) == 0
+                          ? i + 1
+                          : _version(outline[i]['sessionNo']),
+                      content: _text(outline[i]['content']),
+                      session: _sessionForOutline(
+                        _records(plan['sessions']),
+                        _records(plan['schedule'] is Map
+                            ? (plan['schedule'] as Map)['items']
+                            : null),
+                        _version(outline[i]['sessionNo']) == 0
+                            ? i + 1
+                            : _version(outline[i]['sessionNo']),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+        ],
       ],
+    );
+  }
+}
+
+Map<String, dynamic>? _sessionForOutline(
+  List<Map<String, dynamic>> sessions,
+  List<Map<String, dynamic>> scheduleItems,
+  int sessionNo,
+) {
+  for (final item in sessions) {
+    if (_version(item['sessionNo']) == sessionNo) return item;
+  }
+  for (final item in scheduleItems) {
+    if (_version(item['sessionNo']) == sessionNo) return item;
+  }
+  return null;
+}
+
+/// RN `PlanTimelineRow` — stop card on the plan-detail rail.
+class _PlanTimelineStop extends StatelessWidget {
+  const _PlanTimelineStop({
+    required this.sessionNo,
+    required this.content,
+    this.session,
+  });
+
+  final int sessionNo;
+  final String content;
+  final Map<String, dynamic>? session;
+
+  @override
+  Widget build(BuildContext context) {
+    final parts = sessionContentParts(content);
+    final start = DateTime.tryParse(_text(session?['startAt']));
+    final end = DateTime.tryParse(_text(session?['endAt']));
+    final duration = start != null && end != null
+        ? end.difference(start).inMinutes
+        : 0;
+    final status = session?['status']?.toString();
+    final ongoing = status == 'ONGOING';
+    final sessionId = _text(session?['id']);
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: ongoing ? AppColors.primarySoft : AppColors.surfaceLow,
+        borderRadius: BorderRadius.circular(AppRadii.control),
+        border: Border.all(
+          color: ongoing ? AppColors.primary : AppColors.border,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        spacing: 8,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  ongoing
+                      ? 'ĐANG HỌC · BUỔI $sessionNo'
+                      : 'BUỔI $sessionNo',
+                  style: nunito(
+                    TypeScale.caption,
+                    weight: FontWeight.w700,
+                    color: ongoing ? AppColors.primary : AppColors.muted,
+                  ),
+                ),
+              ),
+              if (duration > 0)
+                Text(
+                  '$duration phút',
+                  style: nunito(TypeScale.caption, color: AppColors.muted),
+                ),
+            ],
+          ),
+          Text(
+            parts.title.trim().isEmpty ? 'Buổi $sessionNo' : parts.title.trim(),
+            style: nunito(
+              TypeScale.body,
+              weight: FontWeight.w600,
+              color: AppColors.ink,
+            ),
+          ),
+          if (parts.description.trim().isNotEmpty)
+            Text(
+              parts.description.trim(),
+              style: nunito(TypeScale.secondary, color: AppColors.body),
+            ),
+          if (status != null && _sessionStatusLabel.containsKey(status))
+            Text(
+              _sessionStatusLabel[status]!,
+              style: nunito(
+                TypeScale.secondary,
+                weight: FontWeight.w600,
+                color: ongoing
+                    ? AppColors.primary
+                    : status == 'COMPLETED'
+                    ? AppColors.forest
+                    : AppColors.muted,
+              ),
+            ),
+          if (isLiveId(sessionId))
+            AppButton(
+              label: 'Mở buổi học',
+              variant: ButtonVariant.paper,
+              onPressed: () => context.go('/learning-sessions/$sessionId'),
+            ),
+        ],
+      ),
     );
   }
 }
@@ -971,38 +1334,47 @@ class LivePlanEditor extends ConsumerStatefulWidget {
 class _LivePlanEditorState extends ConsumerState<LivePlanEditor> {
   String? _skillId;
   final _goal = AppField(validator: _goalRule);
-  final _outline = AppField(validator: _outlineRule);
+  SessionOutlineController? _outline;
   var _seeded = false;
   var _submitting = false;
   String? _formError;
 
-  void _onOutlineChanged() {
-    if (mounted) setState(() {});
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _outline.addListener(_onOutlineChanged);
-  }
-
   @override
   void dispose() {
-    _outline.removeListener(_onOutlineChanged);
     _goal.dispose();
-    _outline.dispose();
+    _outline?.dispose();
     super.dispose();
   }
 
-  void _seed(Map<String, dynamic>? plan) {
+  void _seed(
+    Map<String, dynamic>? plan, {
+    required List<({String id, String name})> options,
+  }) {
     if (_seeded) return;
     _seeded = true;
+    final draft = ref.read(planSuggestionDraftProvider);
+    final fromDraft = draft != null && draft.sessions.isNotEmpty;
+    if (fromDraft) {
+      _goal.text = draft.goal;
+      _outline = SessionOutlineController(initial: draft.sessions);
+      final skillKey = draft.skill.toLowerCase();
+      for (final skill in options) {
+        final name = skill.name.toLowerCase();
+        if (name == skillKey ||
+            name.contains(skillKey) ||
+            skillKey.contains(name)) {
+          _skillId = skill.id;
+          break;
+        }
+      }
+      return;
+    }
     _goal.text = plan?['learningGoal']?.toString() ?? '';
     final lines = [
       for (final item in _records(plan?['sessionOutline']))
         _text(item['content']).trim(),
-    ].where((line) => line.isNotEmpty);
-    _outline.text = lines.join('\n');
+    ].where((line) => line.isNotEmpty).toList();
+    _outline = SessionOutlineController(initial: lines);
   }
 
   Future<void> _submitPlan({
@@ -1010,13 +1382,17 @@ class _LivePlanEditorState extends ConsumerState<LivePlanEditor> {
     required Map<String, dynamic>? plan,
   }) async {
     if (_submitting) return;
-    if (!validateFields([_goal, _outline])) {
-      setState(() => _formError = null);
+    final outline = _outline;
+    if (outline == null) return;
+    final goalOk = validateFields([_goal]);
+    final outlineError = outline.validate();
+    if (!goalOk || outlineError != null) {
+      setState(() => _formError = outlineError);
       return;
     }
     final lines = [
-      for (final line in _outline.text.split('\n'))
-        if (line.trim().isNotEmpty) line.trim(),
+      for (final content in outline.contents)
+        if (content.trim().isNotEmpty) content.trim(),
     ];
     setState(() {
       _submitting = true;
@@ -1038,6 +1414,7 @@ class _LivePlanEditorState extends ConsumerState<LivePlanEditor> {
       } else {
         await study.revisePlan(_text(plan['id']), body);
       }
+      ref.read(planSuggestionDraftProvider.notifier).clear();
       ref.read(refreshTicksProvider.notifier).bump(const {RefreshScope.study});
       if (mounted) context.go('/paths/${widget.id}');
     } catch (error) {
@@ -1057,7 +1434,32 @@ class _LivePlanEditorState extends ConsumerState<LivePlanEditor> {
     final plan = widget.planId == null
         ? null
         : plans.where((item) => item['id'] == widget.planId).firstOrNull;
-    final catalog = ref.watch(skillCatalogProvider).value ?? const <SkillRecord>[];
+    final catalogAsync = ref.watch(skillCatalogProvider);
+    final catalog = catalogAsync.value ?? const <SkillRecord>[];
+    final mineSkills = [
+      for (final skill in ref.watch(skillsProvider))
+        if (!skill.archived) skill,
+    ];
+    final skillsReady = ref.watch(skillsProvider.notifier).ready;
+    // Prefer skills the user already teaches; fall back to catalog ids.
+    final options = <({String id, String name})>[];
+    final seen = <String>{};
+    for (final skill in mineSkills) {
+      if (seen.add(skill.skillId)) {
+        options.add((id: skill.skillId, name: skill.name));
+      }
+    }
+    if (options.isEmpty) {
+      for (final skill in catalog) {
+        if (seen.add(skill.id)) {
+          options.add((id: skill.id, name: skill.name));
+        }
+      }
+    }
+    final optionsLoading =
+        options.isEmpty &&
+        ((!skillsReady && mineSkills.isEmpty) ||
+            (catalogAsync.isLoading && catalog.isEmpty));
     final editable = _editablePath(path);
     final canEdit =
         path.isNotEmpty &&
@@ -1068,11 +1470,18 @@ class _LivePlanEditorState extends ConsumerState<LivePlanEditor> {
             : !plans.any((item) => item['teacherId'] == me) &&
                   (agreement['exchangeType'] == 'TWO_WAY' ||
                       agreement['teacherId'] == me));
+    final names = {for (final skill in options) skill.id: skill.name};
+    final draft = ref.watch(planSuggestionDraftProvider);
+    final draftReady = draft != null && draft.sessions.isNotEmpty;
+    if (canEdit && options.isNotEmpty) {
+      _seed(plan, options: options);
+    }
     final selected = _skillId ?? plan?['skillId']?.toString();
-    final names = {for (final skill in catalog) skill.id: skill.name};
-    if (canEdit && catalog.isNotEmpty) _seed(plan);
     return FeaturePage(
-      onRefresh: () => pullRefresh(ref, const {RefreshScope.study}),
+      onRefresh: () => pullRefresh(ref, const {
+        RefreshScope.study,
+        RefreshScope.skills,
+      }),
       title: plan != null ? 'Sửa kế hoạch tôi dạy' : 'Tạo kế hoạch tôi dạy',
       back: '/paths/${widget.id}',
       children: [
@@ -1084,21 +1493,46 @@ class _LivePlanEditorState extends ConsumerState<LivePlanEditor> {
             description:
                 'Bạn chỉ tạo hoặc sửa kế hoạch mình dạy khi lộ trình còn thương lượng.',
           ),
-        if (canEdit && catalog.isEmpty)
-          const EmptyState(
-            title: 'Chưa có kỹ năng trong danh mục',
-            description: 'Kế hoạch cần một kỹ năng đã có trên máy chủ.',
+        if (canEdit && optionsLoading)
+          const LiveBusyNote(label: 'Đang tải kỹ năng của bạn.'),
+        if (canEdit &&
+            !optionsLoading &&
+            catalogAsync.hasError &&
+            options.isEmpty &&
+            !isTransientReadError(catalogAsync.error))
+          FormNotice(
+            tone: NoticeTone.error,
+            message: errorMessage(catalogAsync.error),
           ),
-        if (canEdit && catalog.isNotEmpty)
+        if (canEdit && !optionsLoading && options.isEmpty)
+          EmptyState(
+            title: mineSkills.isEmpty && skillsReady
+                ? 'Bạn chưa có kỹ năng để dạy'
+                : 'Chưa có kỹ năng trong danh mục',
+            description: mineSkills.isEmpty && skillsReady
+                ? 'Thêm kỹ năng trong hồ sơ dạy học trước khi tạo kế hoạch.'
+                : 'Kế hoạch cần một kỹ năng đã có trên máy chủ.',
+            action: mineSkills.isEmpty && skillsReady ? 'Quản lý kỹ năng' : null,
+            onAction: mineSkills.isEmpty && skillsReady
+                ? () => context.push('/skills')
+                : null,
+          ),
+        if (canEdit && options.isNotEmpty)
           Panel(
             title: 'Thiết kế hành trình học',
             children: [
+              if (draftReady)
+                const FormNotice(
+                  tone: NoticeTone.success,
+                  message:
+                      'Đã điền mục tiêu và các buổi từ gợi ý Chat. Kiểm tra rồi lưu kế hoạch.',
+                ),
               ChoiceGroup(
                 label: 'Kỹ năng bạn dạy',
-                value: names[selected] ?? catalog.first.name,
-                options: [for (final skill in catalog) skill.name],
+                value: names[selected] ?? options.first.name,
+                options: [for (final skill in options) skill.name],
                 onChange: (value) {
-                  final match = catalog.where((skill) => skill.name == value);
+                  final match = options.where((skill) => skill.name == value);
                   if (match.isNotEmpty) {
                     setState(() => _skillId = match.first.id);
                   }
@@ -1110,20 +1544,12 @@ class _LivePlanEditorState extends ConsumerState<LivePlanEditor> {
                 multiline: true,
                 editable: !_submitting,
               ),
-              AppInput(
-                field: _outline,
-                label: 'Nội dung từng buổi',
-                multiline: true,
-                hint: 'Mỗi dòng là một buổi, tối đa 100 buổi.',
-                editable: !_submitting,
-              ),
-              Copy(
-                '${[
-                  for (final line in _outline.text.split('\n'))
-                    if (line.trim().isNotEmpty) line,
-                ].length} buổi',
-                muted: true,
-              ),
+              if (_outline != null)
+                SessionOutlineEditor(
+                  controller: _outline!,
+                  enabled: !_submitting,
+                  helper: 'Mỗi thẻ là một buổi. Thêm tiêu đề và mô tả tùy chọn.',
+                ),
               if (_formError != null)
                 FormNotice(tone: NoticeTone.error, message: _formError!),
               AppButton(
@@ -1131,7 +1557,7 @@ class _LivePlanEditorState extends ConsumerState<LivePlanEditor> {
                 variant: ButtonVariant.craft,
                 loading: _submitting,
                 onPressed: () => _submitPlan(
-                  skillId: selected ?? catalog.first.id,
+                  skillId: selected ?? options.first.id,
                   plan: plan,
                 ),
               ),
@@ -1284,18 +1710,6 @@ String? _goalRule(String value) {
   return null;
 }
 
-String? _outlineRule(String value) {
-  final lines = [
-    for (final line in value.split('\n'))
-      if (line.trim().isNotEmpty) line.trim(),
-  ];
-  if (lines.isEmpty) return 'Nhập nội dung từng buổi.';
-  if (lines.length > 100 || lines.any((line) => line.length > 2000)) {
-    return 'Mỗi dòng là một buổi, không để trống, tối đa 100 buổi và 2.000 ký tự/buổi.';
-  }
-  return null;
-}
-
 class LiveSchedulesPage extends ConsumerStatefulWidget {
   const LiveSchedulesPage({super.key, required this.id});
 
@@ -1342,7 +1756,8 @@ class _LiveSchedulesPageState extends ConsumerState<LiveSchedulesPage> {
       children: [
         WaitingRefresh(
           scopes: const {RefreshScope.study},
-          enabled: path.isNotEmpty && _pathStillOpen(path['status']),
+          interval: const Duration(seconds: 5),
+          enabled: _awaitingPeerConfirmation(path, me),
           child: const SizedBox.shrink(),
         ),
         if (query.isLoading && path.isEmpty)
@@ -1355,10 +1770,8 @@ class _LiveSchedulesPageState extends ConsumerState<LiveSchedulesPage> {
             description: 'Lộ trình không còn trên máy chủ hoặc bạn không tham gia.',
           ),
         if (path.isNotEmpty) ...[
-          const Copy(
-            'Giờ hiển thị theo múi giờ thiết bị. Lịch cần cả hai xác nhận; chỉ khi chốt lộ trình mới tạo buổi học và tạm giữ Credit.',
-            muted: true,
-          ),
+          _ScheduleExchangeBanner(path: path),
+          const _ScheduleTimezoneNotice(),
           if (path['status'] != 'CONFIRMED' && path['lockedVersion'] == null)
             const Copy(
               'Cần đủ kế hoạch, xác nhận người học và xác nhận điều khoản của cả hai trước khi đề xuất lịch.',
@@ -1386,6 +1799,91 @@ class _LiveSchedulesPageState extends ConsumerState<LiveSchedulesPage> {
   }
 }
 
+class _ScheduleExchangeBanner extends StatelessWidget {
+  const _ScheduleExchangeBanner({required this.path});
+
+  final Map<String, dynamic> path;
+
+  @override
+  Widget build(BuildContext context) {
+    final agreement = _record(path['agreement']);
+    final twoWay = agreement['exchangeType'] == 'TWO_WAY';
+    return Container(
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadii.card),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        spacing: 11,
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: AppColors.primarySoft,
+              borderRadius: BorderRadius.circular(AppRadii.control),
+            ),
+            child: AppIcon(
+              twoWay ? AppIcon.users : AppIcon.book,
+              size: 18,
+              color: AppColors.primary,
+            ),
+          ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              spacing: 3,
+              children: [
+                Text(
+                  twoWay ? 'Trao đổi hai chiều' : 'Học một chiều',
+                  style: nunito(
+                    TypeScale.body,
+                    weight: FontWeight.w700,
+                    color: AppColors.ink,
+                  ),
+                ),
+                Text(
+                  twoWay
+                      ? 'Hai lịch riêng: bạn dạy và bạn học. Mỗi lịch cần cả hai xác nhận.'
+                      : 'Một lịch cho lộ trình đã thống nhất. Cả hai cùng xác nhận lịch.',
+                  style: nunito(TypeScale.secondary, color: AppColors.muted),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ScheduleTimezoneNotice extends StatelessWidget {
+  const _ScheduleTimezoneNotice();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      spacing: 7,
+      children: [
+        const Padding(
+          padding: EdgeInsets.only(top: 1),
+          child: AppIcon(AppIcon.clock, size: 13, color: AppColors.muted),
+        ),
+        Expanded(
+          child: Text(
+            'Giờ theo múi giờ thiết bị. Lịch cần cả hai xác nhận; buổi học và Credit chỉ được tạo, tạm giữ khi chốt lộ trình.',
+            style: nunito(TypeScale.caption, color: AppColors.muted),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _SchedulePanel extends StatelessWidget {
   const _SchedulePanel({
     required this.pathId,
@@ -1408,6 +1906,7 @@ class _SchedulePanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final schedule = _scheduleOf(plan);
+    final mine = plan['teacherId'] == me;
     final partnerConfirmed = schedule == null
         ? false
         : (path['participantAId'] == me
@@ -1415,27 +1914,171 @@ class _SchedulePanel extends StatelessWidget {
               : schedule['participantAConfirmedAt']) !=
           null;
     final sessions = _records(plan['sessions']);
+    final total = _version(plan['totalSessions']);
+    final outline = _records(plan['sessionOutline']);
+    final scheduleItems = _records(schedule?['items']);
     return Panel(
-      title: title,
       children: [
-        Copy(
-          '${plan['teacherId'] == me ? 'Bạn dạy' : 'Bạn học'} · ${_version(plan['totalSessions'])} buổi',
-        ),
-        if (schedule == null)
-          const Copy(
-            'Chưa có đề xuất lịch. Người dạy của kế hoạch này sẽ đề xuất lịch.',
-            muted: true,
-          ),
-        if (schedule != null) ...[
-          Copy(
-            'Lịch v${schedule['version']} · ${_scheduleStatusLabel[schedule['status']] ?? schedule['status']}',
-          ),
-          for (final item in _records(schedule['items']))
-            Copy(
-              'Buổi ${item['sessionNo']}: ${_when(item['startAt'])} – ${_when(item['endAt'])}',
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                spacing: 8,
+                children: [
+                  Text(
+                    title,
+                    style: nunito(
+                      TypeScale.heading,
+                      weight: FontWeight.w700,
+                      color: AppColors.ink,
+                    ),
+                  ),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 9,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: mine
+                              ? AppColors.primarySoft
+                              : AppColors.forestSoft,
+                          borderRadius: BorderRadius.circular(AppRadii.badge),
+                        ),
+                        child: Text(
+                          mine ? 'Bạn dạy' : 'Bạn học',
+                          style: nunito(
+                            TypeScale.secondary,
+                            weight: FontWeight.w600,
+                            color: mine ? AppColors.primary : AppColors.forest,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        '$total buổi',
+                        style: nunito(
+                          TypeScale.secondary,
+                          color: AppColors.muted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          Copy(
-            'Bạn: ${_confirmedBy(path, schedule, me) ? 'đã xác nhận' : 'chưa xác nhận'} · Đối tác: ${partnerConfirmed ? 'đã xác nhận' : 'chưa xác nhận'}',
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+              decoration: BoxDecoration(
+                color: schedule == null
+                    ? AppColors.surfaceLow
+                    : AppColors.amberSoft,
+                borderRadius: BorderRadius.circular(AppRadii.badge),
+              ),
+              child: Text(
+                schedule == null
+                    ? 'Chờ xếp lịch'
+                    : (_scheduleStatusLabel[schedule['status']] ??
+                          '${schedule['status']}'),
+                style: nunito(
+                  TypeScale.secondary,
+                  weight: FontWeight.w600,
+                  color: schedule == null
+                      ? AppColors.muted
+                      : AppColors.amber,
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (_text(plan['learningGoal']).isNotEmpty)
+          Text(
+            _text(plan['learningGoal']),
+            style: nunito(
+              TypeScale.body,
+              weight: FontWeight.w600,
+              color: AppColors.body,
+            ),
+          ),
+        if (sessions.isNotEmpty) ...[
+          _ScheduleListHeading(
+            label: 'Buổi học đã tạo',
+            count: '${sessions.length} / $total buổi',
+          ),
+          for (var i = 0; i < sessions.length; i++)
+            ScheduleTimelineItem(
+              last: i == sessions.length - 1,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                spacing: 8,
+                children: [
+                  ScheduleSlotRow(
+                    sessionNo: _version(sessions[i]['sessionNo']) == 0
+                        ? i + 1
+                        : _version(sessions[i]['sessionNo']),
+                    title: sessionContentParts(
+                      _outlineContent(
+                        outline,
+                        _version(sessions[i]['sessionNo']) == 0
+                            ? i + 1
+                            : _version(sessions[i]['sessionNo']),
+                      ),
+                    ).title,
+                    startAt: DateTime.tryParse(_text(sessions[i]['startAt'])),
+                    endAt: DateTime.tryParse(_text(sessions[i]['endAt'])),
+                    status: _sessionStatusLabel[sessions[i]['status']],
+                  ),
+                  if (isLiveId(_text(sessions[i]['id'])))
+                    AppButton(
+                      label: 'Mở buổi ${_version(sessions[i]['sessionNo']) == 0 ? i + 1 : _version(sessions[i]['sessionNo'])}',
+                      variant: ButtonVariant.paper,
+                      onPressed: () =>
+                          context.go('/learning-sessions/${sessions[i]['id']}'),
+                    ),
+                ],
+              ),
+            ),
+        ] else if (schedule != null) ...[
+          _ScheduleListHeading(
+            label: 'Lịch từng buổi',
+            count: '${scheduleItems.length} / $total buổi sẵn sàng',
+          ),
+          if (schedule['status'] == 'NEEDS_REVISION')
+            Copy(
+              scheduleItems.length == total
+                  ? 'Lịch đã điều chỉnh. Hai bên cần xem và xác nhận phiên bản này.'
+                  : 'Lộ trình đã đổi số buổi. Người dạy cần bổ sung lịch còn thiếu trước khi hai bên xác nhận.',
+              muted: true,
+            ),
+          for (var i = 0; i < total; i++)
+            ScheduleTimelineItem(
+              last: i == total - 1,
+              child: ScheduleSlotRow(
+                sessionNo: i + 1,
+                title: sessionContentParts(
+                  _outlineContent(outline, i + 1),
+                ).title,
+                startAt: DateTime.tryParse(
+                  _text(_itemForSession(scheduleItems, i + 1)?['startAt']),
+                ),
+                endAt: DateTime.tryParse(
+                  _text(_itemForSession(scheduleItems, i + 1)?['endAt']),
+                ),
+              ),
+            ),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceLow,
+              borderRadius: BorderRadius.circular(AppRadii.control),
+            ),
+            child: Copy(
+              'Bạn: ${_confirmedBy(path, schedule, me) ? 'đã xác nhận' : 'chưa xác nhận'} · Đối tác: ${partnerConfirmed ? 'đã xác nhận' : 'chưa xác nhận'}',
+            ),
           ),
           if (_canConfirmSchedule(path, plan, me))
             AppButton(
@@ -1444,31 +2087,143 @@ class _SchedulePanel extends StatelessWidget {
               disabled: busy != null,
               onPressed: () => onConfirm(schedule),
             ),
-        ],
+        ] else if (outline.isNotEmpty) ...[
+          _ScheduleListHeading(
+            label: 'Buổi theo kế hoạch',
+            count: '${outline.length} buổi · chưa xếp lịch',
+          ),
+          for (var i = 0; i < outline.length; i++)
+            ScheduleTimelineItem(
+              last: i == outline.length - 1,
+              child: ScheduleSlotRow(
+                sessionNo: _version(outline[i]['sessionNo']) == 0
+                    ? i + 1
+                    : _version(outline[i]['sessionNo']),
+                title: sessionContentParts(_text(outline[i]['content'])).title,
+              ),
+            ),
+          _EmptyScheduleHint(mine: mine),
+        ] else
+          _EmptyScheduleHint(mine: mine),
         if (_canSchedule(path, plan, me))
           AppButton(
             label: 'Đề xuất lịch tôi dạy',
             variant: ButtonVariant.paper,
-            onPressed: () => context.go('/paths/$pathId/schedules/${plan['id']}'),
+            onPressed: () =>
+                context.go('/paths/$pathId/schedules/${plan['id']}'),
           ),
-        if (sessions.isNotEmpty) ...[
-          const Copy('Buổi học đã tạo:'),
-          for (final session in sessions) ...[
-            Copy(
-              'Buổi ${session['sessionNo']}: ${_when(session['startAt'])} · ${_sessionStatusLabel[session['status']] ?? session['status']}',
-            ),
-            if (isLiveId(_text(session['id'])))
-              AppButton(
-                label: 'Mở buổi ${session['sessionNo']}',
-                variant: ButtonVariant.paper,
-                onPressed: () =>
-                    context.go('/learning-sessions/${session['id']}'),
-              ),
-          ],
-        ],
+        if (_canEditSchedule(path, plan, me))
+          AppButton(
+            label: 'Chỉnh sửa lịch tôi dạy',
+            variant: ButtonVariant.paper,
+            onPressed: () =>
+                context.go('/paths/$pathId/schedules/${plan['id']}'),
+          ),
       ],
     );
   }
+}
+
+class _ScheduleListHeading extends StatelessWidget {
+  const _ScheduleListHeading({required this.label, required this.count});
+
+  final String label;
+  final String count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            label.toUpperCase(),
+            style: nunito(
+              TypeScale.caption,
+              weight: FontWeight.w700,
+              color: AppColors.muted,
+            ),
+          ),
+        ),
+        Text(
+          count,
+          style: nunito(
+            TypeScale.caption,
+            weight: FontWeight.w600,
+            color: AppColors.primary,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _EmptyScheduleHint extends StatelessWidget {
+  const _EmptyScheduleHint({required this.mine});
+
+  final bool mine;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Column(
+        spacing: 8,
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: AppColors.surfaceLow,
+              borderRadius: BorderRadius.circular(AppRadii.control),
+            ),
+            child: const AppIcon(
+              AppIcon.calendar,
+              size: 26,
+              color: AppColors.muted,
+            ),
+          ),
+          Text(
+            'Chưa có đề xuất lịch',
+            style: nunito(
+              TypeScale.body,
+              weight: FontWeight.w600,
+              color: AppColors.ink,
+            ),
+          ),
+          Text(
+            mine
+                ? 'Chọn ngày giờ cho từng buổi trong lộ trình bạn dạy.'
+                : 'Chờ đối tác đề xuất lịch họ dạy để hai bạn cùng xem và xác nhận.',
+            textAlign: TextAlign.center,
+            style: nunito(TypeScale.secondary, color: AppColors.muted),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String _outlineContent(List<Map<String, dynamic>> outline, int sessionNo) {
+  for (final item in outline) {
+    if (_version(item['sessionNo']) == sessionNo) {
+      return _text(item['content']);
+    }
+  }
+  if (sessionNo > 0 && sessionNo <= outline.length) {
+    return _text(outline[sessionNo - 1]['content']);
+  }
+  return '';
+}
+
+Map<String, dynamic>? _itemForSession(
+  List<Map<String, dynamic>> items,
+  int sessionNo,
+) {
+  for (final item in items) {
+    if (_version(item['sessionNo']) == sessionNo) return item;
+  }
+  return null;
 }
 
 class LiveScheduleEditor extends ConsumerWidget {
@@ -1486,10 +2241,14 @@ class LiveScheduleEditor extends ConsumerWidget {
       return item['id'] == planId;
     }).firstOrNull;
     final outline = _records(plan?['sessionOutline']);
-    final ready = path.isNotEmpty && plan != null && _canSchedule(path, plan, me);
+    final schedule = plan == null ? null : _scheduleOf(plan);
+    final ready =
+        path.isNotEmpty &&
+        plan != null &&
+        (_canSchedule(path, plan, me) || _canEditSchedule(path, plan, me));
     return FeaturePage(
       onRefresh: () => pullRefresh(ref, const {RefreshScope.study}),
-      title: 'Đề xuất lịch tôi dạy',
+      title: schedule == null ? 'Đề xuất lịch tôi dạy' : 'Chỉnh sửa lịch tôi dạy',
       back: '/paths/$id/schedules',
       children: [
         if (query.isLoading && plan == null)
@@ -1498,25 +2257,32 @@ class LiveScheduleEditor extends ConsumerWidget {
           FormNotice(tone: NoticeTone.error, message: errorMessage(query.error)),
         if (!query.isLoading && !ready)
           const EmptyState(
-            title: 'Chưa thể đề xuất lịch',
+            title: 'Chưa thể chỉnh sửa lịch',
             description:
-                'Chỉ người dạy đề xuất lịch sau khi kế hoạch và điều khoản đã xác nhận. Mỗi kế hoạch có một đề xuất lịch cho phiên bản hiện tại.',
+                'Chỉ người dạy tạo hoặc sửa lịch trước khi chốt, sau khi thỏa thuận và các lộ trình đủ xác nhận.',
           ),
         if (ready)
-          Panel(
-            title: 'Lịch cho ${_version(plan['totalSessions'])} buổi',
-            children: [
-              Copy(
-                'Nhập giờ theo múi giờ thiết bị: ${_deviceZone()}. Định dạng 2026-11-20T19:00. Lịch gửi đi chưa thể sửa trực tiếp.',
-                muted: true,
-              ),
-              _ScheduleProposalForm(
-                key: ValueKey('${path['currentVersion']}:${plan['version']}'),
-                pathId: id,
-                planId: planId,
-                planVersion: _version(plan['version']),
-                outline: outline,
-              ),
+          _ScheduleProposalForm(
+            key: ValueKey(
+              '${path['currentVersion']}:${plan['version']}:${schedule?['version'] ?? 'new'}',
+            ),
+            pathId: id,
+            planId: planId,
+            planVersion: _version(plan['version']),
+            outline: outline,
+            schedule: schedule,
+            externalBusy: [
+              for (final other in _records(path['plans']))
+                if (other['id'] != planId)
+                  for (final item in _records(_scheduleOf(other)?['items']))
+                    if (DateTime.tryParse(_text(item['startAt'])) != null &&
+                        DateTime.tryParse(_text(item['endAt'])) != null)
+                      (
+                        start: DateTime.parse(_text(item['startAt'])).toLocal(),
+                        end: DateTime.parse(_text(item['endAt'])).toLocal(),
+                        label:
+                            'lịch đề xuất khác (buổi ${_version(item['sessionNo'])})',
+                      ),
             ],
           ),
       ],
@@ -1531,12 +2297,16 @@ class _ScheduleProposalForm extends ConsumerStatefulWidget {
     required this.planId,
     required this.planVersion,
     required this.outline,
+    this.schedule,
+    this.externalBusy = const [],
   });
 
   final String pathId;
   final String planId;
   final int planVersion;
   final List<Map<String, dynamic>> outline;
+  final Map<String, dynamic>? schedule;
+  final List<({DateTime start, DateTime end, String label})> externalBusy;
 
   @override
   ConsumerState<_ScheduleProposalForm> createState() =>
@@ -1546,14 +2316,80 @@ class _ScheduleProposalForm extends ConsumerStatefulWidget {
 class _ScheduleProposalFormState extends ConsumerState<_ScheduleProposalForm> {
   late final List<AppField> _starts = [
     for (var i = 0; i < widget.outline.length; i++)
-      AppField(validator: _localStartRule),
+      AppField(text: _slotStart(widget.schedule, i), validator: _localStartRule),
   ];
   late final List<AppField> _minutes = [
     for (var i = 0; i < widget.outline.length; i++)
-      AppField(text: '60', validator: integerRule(60, 180)),
+      AppField(
+        text: _slotMinutes(widget.schedule, i),
+        validator: integerRule(60, 180),
+      ),
   ];
   String? _error;
+  final Map<int, String> _slotErrors = {};
   var _submitting = false;
+  var _applied = false;
+  int? _active;
+
+  int get _filledCount {
+    var count = 0;
+    for (var i = 0; i < _starts.length; i++) {
+      if (parseLocalDateTime(_starts[i].text.trim()) != null &&
+          RegExp(r'^\d+$').hasMatch(_minutes[i].text.trim())) {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  List<DateTime?> get _parsedStarts => [
+    for (final field in _starts) parseLocalDateTime(field.text.trim()),
+  ];
+
+  List<int?> get _parsedMinutes => [
+    for (final field in _minutes)
+      RegExp(r'^\d+$').hasMatch(field.text.trim())
+          ? int.parse(field.text.trim())
+          : null,
+  ];
+
+  void _recheckOverlaps({int? focus}) {
+    _slotErrors.clear();
+    final starts = _parsedStarts;
+    final minutes = _parsedMinutes;
+    for (var i = 0; i < starts.length; i++) {
+      final message = scheduleSlotConflictAt(
+        i,
+        starts,
+        minutes,
+        external: widget.externalBusy,
+      );
+      if (message != null) _slotErrors[i] = message;
+    }
+    final filledStarts = <DateTime>[];
+    final filledMinutes = <int>[];
+    for (var i = 0; i < starts.length; i++) {
+      final start = starts[i];
+      final minute = minutes[i];
+      if (start == null || minute == null) continue;
+      filledStarts.add(start);
+      filledMinutes.add(minute);
+    }
+    if (filledStarts.length == starts.length) {
+      _error = scheduleSlotError(
+        filledStarts,
+        filledMinutes,
+        external: widget.externalBusy,
+      );
+    } else if (focus != null && _slotErrors[focus] != null) {
+      _error = 'Buổi ${focus + 1}: ${_slotErrors[focus]}';
+    } else if (_slotErrors.isNotEmpty) {
+      final first = _slotErrors.entries.first;
+      _error = 'Buổi ${first.key + 1}: ${first.value}';
+    } else {
+      _error = null;
+    }
+  }
 
   @override
   void dispose() {
@@ -1566,17 +2402,66 @@ class _ScheduleProposalFormState extends ConsumerState<_ScheduleProposalForm> {
     super.dispose();
   }
 
+  void _applyWeekly(List<WeeklyScheduleSlot> items) {
+    setState(() {
+      for (var i = 0; i < items.length && i < _starts.length; i++) {
+        _starts[i].text = items[i].local;
+        _starts[i].touched = false;
+        _minutes[i].text = items[i].minutes;
+        _minutes[i].touched = false;
+      }
+      _active = null;
+      _applied = true;
+      _recheckOverlaps();
+    });
+  }
+
+  Future<void> _pickStart(int index) async {
+    if (_submitting) return;
+    final current = parseLocalDateTime(_starts[index].text.trim());
+    final now = DateTime.now();
+    final fallback = DateTime(now.year, now.month, now.day + 1, 19);
+    final picked = await pickScheduleDateTime(context, current ?? fallback);
+    if (picked == null || !mounted) return;
+    setState(() {
+      _starts[index].text = localDateInput(picked);
+      _starts[index].touched = true;
+      _recheckOverlaps(focus: index);
+    });
+  }
+
+  void _setMinutes(int index, String value) {
+    setState(() {
+      _minutes[index].text = value;
+      _minutes[index].touched = true;
+      _recheckOverlaps(focus: index);
+    });
+  }
+
   Future<void> _submit() async {
     if (_submitting) return;
     final valid = validateFields([..._starts, ..._minutes]);
-    if (!valid) return;
+    if (!valid) {
+      final index = List.generate(_starts.length, (i) => i).indexWhere(
+        (i) => _starts[i].error != null || _minutes[i].error != null,
+      );
+      setState(() => _active = index < 0 ? _active : index);
+      return;
+    }
     final starts = [
       for (final field in _starts) parseLocalDateTime(field.text.trim())!,
     ];
     final minutes = [for (final field in _minutes) int.parse(field.text.trim())];
-    final invalid = scheduleSlotError(starts, minutes);
+    final invalid = scheduleSlotError(
+      starts,
+      minutes,
+      external: widget.externalBusy,
+    );
     if (invalid != null) {
-      setState(() => _error = invalid);
+      setState(() {
+        _error = invalid;
+        _recheckOverlaps();
+      });
       return;
     }
     setState(() {
@@ -1584,23 +2469,30 @@ class _ScheduleProposalFormState extends ConsumerState<_ScheduleProposalForm> {
       _error = null;
     });
     try {
-      await ref.read(authRuntimeProvider).services.study.proposeSchedule(
-        widget.planId,
-        {
+      final items = [
+        for (var i = 0; i < starts.length; i++)
+          {
+            'sessionNo': i + 1,
+            'startAt': starts[i].toUtc().toIso8601String(),
+            'endAt': starts[i]
+                .add(Duration(minutes: minutes[i]))
+                .toUtc()
+                .toIso8601String(),
+          },
+      ];
+      final schedule = widget.schedule;
+      final study = ref.read(authRuntimeProvider).services.study;
+      if (schedule == null) {
+        await study.proposeSchedule(widget.planId, {
           'expectedPlanVersion': widget.planVersion,
-          'items': [
-            for (var i = 0; i < starts.length; i++)
-              {
-                'sessionNo': i + 1,
-                'startAt': starts[i].toUtc().toIso8601String(),
-                'endAt': starts[i]
-                    .add(Duration(minutes: minutes[i]))
-                    .toUtc()
-                    .toIso8601String(),
-              },
-          ],
-        },
-      );
+          'items': items,
+        });
+      } else {
+        await study.reviseSchedule(_text(schedule['id']), {
+          'expectedVersion': _version(schedule['version']),
+          'items': items,
+        });
+      }
       ref.read(refreshTicksProvider.notifier).bump(const {RefreshScope.study});
       if (mounted) context.go('/paths/${widget.pathId}/schedules');
     } catch (error) {
@@ -1610,33 +2502,154 @@ class _ScheduleProposalFormState extends ConsumerState<_ScheduleProposalForm> {
     }
   }
 
+  String _submitLabel() {
+    final count = widget.outline.length;
+    if (_submitting) return 'Đang gửi...';
+    final action = widget.schedule == null
+        ? 'Gửi đề xuất lịch'
+        : 'Lưu thay đổi lịch';
+    return '$action ($count buổi)';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      spacing: 14,
+      spacing: 16,
       children: [
-        for (final (index, lesson) in widget.outline.indexed) ...[
-          Text(_lessonLabel(lesson, index), style: FeatureStyles.strong),
-          AppInput(
-            field: _starts[index],
-            label: 'Ngày giờ bắt đầu',
-            placeholder: 'YYYY-MM-DDTHH:mm',
-            hint: 'Ví dụ 2026-11-20T19:00',
-            editable: !_submitting,
+        ScheduleWeeklyGenerator(
+          count: widget.outline.length,
+          disabled: _submitting,
+          onApply: _applyWeekly,
+        ),
+        if (_applied)
+          const FormNotice(
+            tone: NoticeTone.success,
+            message:
+                'Đã điền lịch tuần. Xem lại hoặc sửa từng buổi trước khi gửi.',
           ),
-          AppInput(
-            field: _minutes[index],
-            label: 'Thời lượng (phút)',
-            editable: !_submitting,
-            keyboardType: TextInputType.number,
+        if (widget.schedule != null)
+          const Copy(
+            'Giữ nguyên giờ của các buổi chưa sửa. Nếu lịch thay đổi, hai bên cần xác nhận phiên bản mới.',
+            muted: true,
           ),
-        ],
+        Panel(
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceInset,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    '2',
+                    style: nunito(
+                      TypeScale.secondary,
+                      weight: FontWeight.w700,
+                      color: AppColors.ink,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Lịch từng buổi',
+                    style: nunito(
+                      TypeScale.heading,
+                      weight: FontWeight.w700,
+                      color: AppColors.ink,
+                    ),
+                  ),
+                ),
+                Text(
+                  '$_filledCount/${widget.outline.length} buổi đã điền',
+                  style: nunito(
+                    TypeScale.secondary,
+                    weight: FontWeight.w600,
+                    color: AppColors.muted,
+                  ),
+                ),
+              ],
+            ),
+            for (final (index, lesson) in widget.outline.indexed)
+              ScheduleTimelineItem(
+                last: index == widget.outline.length - 1,
+                child: _ScheduleSessionCard(
+                  sessionNo: _version(lesson['sessionNo']) == 0
+                      ? index + 1
+                      : _version(lesson['sessionNo']),
+                  content: _text(lesson['content']),
+                  startField: _starts[index],
+                  minutesField: _minutes[index],
+                  open: _active == index,
+                  disabled: _submitting,
+                  overlapError: _slotErrors[index],
+                  onToggle: () => setState(
+                    () => _active = _active == index ? null : index,
+                  ),
+                  onDone: () => setState(() {
+                    _recheckOverlaps(focus: index);
+                    if (_slotErrors[index] == null) _active = null;
+                  }),
+                  onPickStart: () => _pickStart(index),
+                  onSelectMinutes: (value) => _setMinutes(index, value),
+                ),
+              ),
+          ],
+        ),
+        Copy(
+          'Giờ theo thiết bị · ${_deviceZone()}',
+          muted: true,
+        ),
+        Panel(
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              spacing: 10,
+              children: [
+                const AppIcon(
+                  AppIcon.checkCircle,
+                  size: 20,
+                  color: AppColors.forest,
+                ),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    spacing: 4,
+                    children: [
+                      Text(
+                        'Trước khi chốt lịch',
+                        style: nunito(
+                          TypeScale.body,
+                          weight: FontWeight.w700,
+                          color: AppColors.ink,
+                        ),
+                      ),
+                      Text(
+                        'Hai bên cần xác nhận cùng phiên bản lịch. Credit chỉ tạm giữ và buổi học chỉ được tạo khi chốt thỏa thuận.',
+                        style: nunito(
+                          TypeScale.secondary,
+                          color: AppColors.muted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
         if (_error != null) FormNotice(tone: NoticeTone.error, message: _error!),
         AppButton(
-          label: _submitting ? 'Đang gửi...' : 'Gửi đề xuất lịch',
+          label: _submitLabel(),
           variant: ButtonVariant.craft,
           loading: _submitting,
+          disabled: _submitting || _slotErrors.isNotEmpty,
           onPressed: _submit,
         ),
       ],
@@ -1644,9 +2657,261 @@ class _ScheduleProposalFormState extends ConsumerState<_ScheduleProposalForm> {
   }
 }
 
+class _ScheduleSessionCard extends StatelessWidget {
+  const _ScheduleSessionCard({
+    required this.sessionNo,
+    required this.content,
+    required this.startField,
+    required this.minutesField,
+    required this.open,
+    required this.disabled,
+    required this.onToggle,
+    required this.onDone,
+    required this.onPickStart,
+    required this.onSelectMinutes,
+    this.overlapError,
+  });
+
+  final int sessionNo;
+  final String content;
+  final AppField startField;
+  final AppField minutesField;
+  final bool open;
+  final bool disabled;
+  final String? overlapError;
+  final VoidCallback onToggle;
+  final VoidCallback onDone;
+  final VoidCallback onPickStart;
+  final ValueChanged<String> onSelectMinutes;
+
+  @override
+  Widget build(BuildContext context) {
+    final topic = sessionContentParts(content);
+    return ListenableBuilder(
+      listenable: Listenable.merge([startField, minutesField]),
+      builder: (context, _) {
+        final local = startField.text.trim();
+        final minutes = minutesField.text.trim().isEmpty
+            ? '60'
+            : minutesField.text.trim();
+        final collapsedError = !open
+            ? (overlapError ?? startField.error ?? minutesField.error)
+            : null;
+        final hasOverlap = overlapError != null;
+        return Container(
+          margin: EdgeInsets.only(bottom: open ? 8 : 8),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(AppRadii.card),
+            border: Border.all(
+              color: hasOverlap
+                  ? AppColors.error
+                  : open
+                  ? AppColors.primaryMuted
+                  : AppColors.border,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            spacing: 10,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceLow,
+                      borderRadius: BorderRadius.circular(AppRadii.badge),
+                    ),
+                    child: Text(
+                      'Buổi $sessionNo',
+                      style: nunito(
+                        TypeScale.secondary,
+                        weight: FontWeight.w700,
+                        color: AppColors.body,
+                      ),
+                    ),
+                  ),
+                  const Spacer(),
+                  AppButton(
+                    label: open ? 'Thu gọn' : 'Sửa',
+                    variant: ButtonVariant.paper,
+                    size: ButtonSize.sm,
+                    disabled: disabled,
+                    semanticLabel: 'Sửa lịch buổi $sessionNo',
+                    onPressed: onToggle,
+                  ),
+                ],
+              ),
+              Row(
+                spacing: 8,
+                children: [
+                  const AppIcon(
+                    AppIcon.clock,
+                    size: 18,
+                    color: AppColors.muted,
+                  ),
+                  Expanded(
+                    child: Text(
+                      scheduleSlotLabel(local, minutes),
+                      style: nunito(
+                        TypeScale.body,
+                        weight: FontWeight.w600,
+                        color: AppColors.ink,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.only(left: 10),
+                decoration: const BoxDecoration(
+                  border: Border(
+                    left: BorderSide(color: AppColors.border, width: 2),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  spacing: 4,
+                  children: [
+                    Text(
+                      topic.title.isEmpty
+                          ? 'Buổi $sessionNo'
+                          : topic.title,
+                      style: nunito(
+                        TypeScale.secondary,
+                        weight: FontWeight.w600,
+                        color: AppColors.ink,
+                      ),
+                    ),
+                    if (topic.description.trim().isNotEmpty)
+                      Text(
+                        topic.description.trim(),
+                        style: nunito(
+                          TypeScale.secondary,
+                          color: AppColors.muted,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              if (collapsedError != null) FieldError(collapsedError),
+              if (open) ...[
+                const Divider(height: 1, color: AppColors.border),
+                Text(
+                  'Ngày giờ buổi $sessionNo',
+                  style: FeatureStyles.label,
+                ),
+                AppButton(
+                  label: local.isEmpty
+                      ? 'Chọn ngày và giờ'
+                      : scheduleSlotLabel(local, minutes).split(' – ').first,
+                  variant: ButtonVariant.paper,
+                  disabled: disabled,
+                  onPressed: onPickStart,
+                ),
+                if (startField.error != null) FieldError(startField.error!),
+                if (overlapError != null) FieldError(overlapError!),
+                AppInput(
+                  field: minutesField,
+                  label: 'Thời lượng buổi $sessionNo (phút)',
+                  editable: !disabled,
+                  keyboardType: TextInputType.number,
+                ),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    for (final value in const [60, 90, 120, 180])
+                      Tappable(
+                        semanticLabel: '$value phút',
+                        disabled: disabled,
+                        onTap: () => onSelectMinutes('$value'),
+                        child: Container(
+                          constraints: const BoxConstraints(
+                            minHeight: 40,
+                            minWidth: 54,
+                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: minutes == '$value'
+                                ? AppColors.surfaceInset
+                                : AppColors.surfaceLow,
+                            borderRadius: BorderRadius.circular(
+                              AppRadii.control,
+                            ),
+                            border: Border.all(
+                              color: AppColors.border,
+                              width: minutes == '$value' ? 1.5 : 1,
+                            ),
+                          ),
+                          child: Text(
+                            '$value phút',
+                            style: nunito(
+                              TypeScale.secondary,
+                              weight: minutes == '$value'
+                                  ? FontWeight.w700
+                                  : FontWeight.w600,
+                              color: AppColors.body,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: AppButton(
+                    label: 'Xong',
+                    variant: ButtonVariant.paper,
+                    size: ButtonSize.sm,
+                    disabled: disabled,
+                    onPressed: onDone,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+String _slotStart(Map<String, dynamic>? schedule, int index) {
+  final item = _slotItem(schedule, index);
+  final start = DateTime.tryParse(_text(item?['startAt']));
+  return start == null ? '' : localDateInput(start);
+}
+
+String _slotMinutes(Map<String, dynamic>? schedule, int index) {
+  final item = _slotItem(schedule, index);
+  final start = DateTime.tryParse(_text(item?['startAt']));
+  final end = DateTime.tryParse(_text(item?['endAt']));
+  if (start == null || end == null) return '60';
+  final minutes = end.difference(start).inMinutes;
+  if (minutes < 60) return '60';
+  if (minutes > 180) return '180';
+  return '$minutes';
+}
+
+Map<String, dynamic>? _slotItem(Map<String, dynamic>? schedule, int index) {
+  final items = [..._records(schedule?['items'])]
+    ..sort(
+      (a, b) => _version(a['sessionNo']).compareTo(_version(b['sessionNo'])),
+    );
+  if (index < 0 || index >= items.length) return null;
+  return items[index];
+}
+
 String? _localStartRule(String value) {
   final date = parseLocalDateTime(value.trim());
-  if (date == null) return 'Nhập ngày giờ theo YYYY-MM-DDTHH:mm.';
+  if (date == null) return 'Chọn ngày và giờ bắt đầu.';
   if (!date.isAfter(DateTime.now())) return 'Buổi học phải ở tương lai.';
   return null;
 }
@@ -1654,16 +2919,6 @@ String? _localStartRule(String value) {
 String _deviceZone() => DateTime.now().timeZoneOffset.inHours == 7
     ? 'Asia/Ho_Chi_Minh'
     : 'Asia/Ho_Chi_Minh';
-
-String _lessonLabel(Map<String, dynamic> lesson, int index) {
-  final number = _version(lesson['sessionNo']);
-  final no = number == 0 ? index + 1 : number;
-  final content = _text(lesson['content']).trim().replaceFirst(
-    RegExp('^buổi\\s*$no\\s*[:.\\-]\\s*', caseSensitive: false),
-    '',
-  );
-  return content.isEmpty ? 'Buổi $no' : 'Buổi $no: $content';
-}
 
 class LiveHoldPage extends ConsumerStatefulWidget {
   const LiveHoldPage({super.key, required this.id});
@@ -1695,6 +2950,7 @@ class _LiveHoldPageState extends ConsumerState<LiveHoldPage> {
   Widget build(BuildContext context) {
     final query = ref.watch(livePathProvider(widget.id));
     final path = query.value ?? const <String, dynamic>{};
+    final me = ref.watch(accountSessionProvider)?.userId ?? '';
     final agreement = _record(path['agreement']);
     final plans = _records(path['plans']);
     final ready = path.isNotEmpty && _canFinalize(path);
@@ -1712,7 +2968,8 @@ class _LiveHoldPageState extends ConsumerState<LiveHoldPage> {
       children: [
         WaitingRefresh(
           scopes: const {RefreshScope.study},
-          enabled: path.isNotEmpty && _pathStillOpen(path['status']),
+          interval: const Duration(seconds: 5),
+          enabled: _awaitingPeerConfirmation(path, me),
           child: const SizedBox.shrink(),
         ),
         if (query.isLoading && path.isEmpty)
@@ -1847,11 +3104,6 @@ class _LiveHoldPageState extends ConsumerState<LiveHoldPage> {
       ],
     );
   }
-}
-
-String _when(Object? value) {
-  final date = _parsedDate(value);
-  return date == null ? '' : viDateTime(date);
 }
 
 class LiveBusyNote extends StatelessWidget {

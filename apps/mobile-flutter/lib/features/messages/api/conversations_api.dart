@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 
+import '../../../core/http/app_error.dart';
 import '../../../core/http/http_client.dart';
 import '../schema/conversation_schema.dart';
 
@@ -24,17 +25,24 @@ class ConversationsApi {
   Future<Page<MessageRecord>> messages(
     String id, {
     String? cursor,
+    String? afterSequence,
     int? limit,
-  }) async => Page.parse(
-    await _client.requestEnvelope(
-      withQuery('/conversations/$id/messages', {
-        'cursor': cursor,
-        'limit': limit,
-      }),
-      authenticated: true,
-    ),
-    MessageRecord.parse,
-  );
+  }) async {
+    if (cursor != null && afterSequence != null) {
+      throw const AppError.protocol();
+    }
+    return Page.parse(
+      await _client.requestEnvelope(
+        withQuery('/conversations/$id/messages', {
+          'cursor': cursor,
+          'afterSequence': afterSequence,
+          'limit': limit,
+        }),
+        authenticated: true,
+      ),
+      MessageRecord.parse,
+    );
+  }
 
   Future<MessageRecord> send(
     String id, {

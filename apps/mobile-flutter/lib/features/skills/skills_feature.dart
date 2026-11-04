@@ -17,6 +17,7 @@ import '../remote/remote_load.dart';
 import 'schema/skill_schema.dart';
 
 final skillCatalogProvider = FutureProvider<List<SkillRecord>>((ref) async {
+  watchRefresh(ref, RefreshScope.skills);
   final phase = ref.watch(sessionSnapshotProvider).phase;
   if (phase != SessionPhase.ready) return const [];
   final skills = ref.read(authRuntimeProvider).services.skills;
@@ -99,6 +100,8 @@ SharingSkill sharingSkillFromRecord(SharingSkillRecord record) => SharingSkill(
 
 class SkillsNotifier extends Notifier<List<SharingSkill>> {
   var _ticket = 0;
+  var ready = false;
+  String? _userId;
 
   @override
   List<SharingSkill> build() {
@@ -107,12 +110,19 @@ class SkillsNotifier extends Notifier<List<SharingSkill>> {
       if (ref.read(accountProvider).value?.userId == null) return;
       reload();
     });
-    final phase = ref.watch(sessionSnapshotProvider).phase;
-    final userId = ref.watch(accountProvider).value?.userId;
-    if (phase == SessionPhase.ready && userId != null) {
-      _ticket++;
-      _reload(_ticket);
+    final phase = ref.watch(sessionSnapshotProvider.select((s) => s.phase));
+    if (phase != SessionPhase.ready) {
+      _userId = null;
+      ready = true;
+      return const [];
     }
+    ready = false;
+    ref.listen(accountProvider, (previous, next) {
+      final id = next.value?.userId;
+      if (id == null || id == _userId) return;
+      _userId = id;
+      reload();
+    }, fireImmediately: true);
     return const [];
   }
 
@@ -127,14 +137,24 @@ class SkillsNotifier extends Notifier<List<SharingSkill>> {
         ),
       );
       if (!ref.mounted || ticket != _ticket) return;
+      ready = true;
       state = [for (final record in records) sharingSkillFromRecord(record)];
     } catch (_) {
       if (!ref.mounted || ticket != _ticket) return;
-      state = const [];
+      ready = true;
+      if (state.isEmpty) {
+        state = <SharingSkill>[];
+      } else {
+        state = [...state];
+      }
     }
   }
 
   SharingSkill? find(String? id) => state.where((s) => s.id == id).firstOrNull;
+
+  SharingSkill? findByCatalogId(String skillId) => state
+      .where((item) => item.skillId == skillId && !item.archived)
+      .firstOrNull;
 
   Future<({String? id, String? error})> save(
     SharingSkill skill, {
@@ -163,6 +183,11 @@ class SkillsNotifier extends Notifier<List<SharingSkill>> {
       await _reload(ticket);
       return (id: record.id, error: null);
     } catch (error) {
+      if (creating && error is AppError && error.code == 'SKILL_DUPLICATE') {
+        await _reload(++_ticket);
+        final existing = findByCatalogId(skill.skillId);
+        if (existing != null) return (id: existing.id, error: null);
+      }
       return (id: null, error: errorMessage(error));
     }
   }
@@ -188,6 +213,11 @@ class SkillsNotifier extends Notifier<List<SharingSkill>> {
 final skillsProvider = NotifierProvider<SkillsNotifier, List<SharingSkill>>(
   SkillsNotifier.new,
 );
+
+final skillsReadyProvider = Provider<bool>((ref) {
+  ref.watch(skillsProvider);
+  return ref.read(skillsProvider.notifier).ready;
+});
 
 class VerificationEntry {
   const VerificationEntry({
@@ -255,16 +285,26 @@ final verificationHistoryProvider = FutureProvider<List<VerificationEntry>>((
   return entries;
 });
 
+typedef SkillSharersQuery = ({String skillId, bool verifiedOnly});
+
 final skillSharersProvider =
-    FutureProvider.family<List<SharingSkillRecord>, String>((ref, skillId) async {
+    FutureProvider.family<List<SharingSkillRecord>, SkillSharersQuery>((
+      ref,
+      query,
+    ) async {
       final phase = ref.watch(sessionSnapshotProvider).phase;
-      if (phase != SessionPhase.ready || skillId.isEmpty) return const [];
+      if (phase != SessionPhase.ready || query.skillId.isEmpty) return const [];
       return drainPages(
         (cursor) => ref
             .read(authRuntimeProvider)
             .services
             .skills
-            .sharers(skillId, cursor: cursor, limit: 20),
+            .sharers(
+              query.skillId,
+              cursor: cursor,
+              limit: 20,
+              verifiedOnly: query.verifiedOnly,
+            ),
       );
     });
 
@@ -314,7 +354,9 @@ class SkillsScreen extends ConsumerWidget {
               ),
             ],
           ),
-        if (skills.isEmpty)
+        if (!ref.watch(skillsReadyProvider))
+          const Copy('Đang tải kỹ năng trên hồ sơ.', muted: true)
+        else if (skills.isEmpty)
           const EmptyState(
             title: 'Chưa có kỹ năng',
             description: 'Thêm kỹ năng đầu tiên để bắt đầu chia sẻ.',
@@ -337,8 +379,16 @@ class SkillEditorScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final skills = ref.watch(skillsProvider);
-    final catalog = ref.watch(skillCatalogProvider).value ?? const <SkillRecord>[];
-    final catalogNames = [for (final item in catalog) item.name];
+    final skillsReady = ref.watch(skillsReadyProvider);
+    final catalogAsync = ref.watch(skillCatalogProvider);
+    final catalog = catalogAsync.value ?? const <SkillRecord>[];
+    final ownedSkillIds = {for (final item in skills) item.skillId};
+    final availableCatalog = [
+      if (skillsReady)
+        for (final item in catalog)
+          if (item.status == 'ACTIVE' && !ownedSkillIds.contains(item.id)) item,
+    ];
+    final catalogNames = [for (final item in availableCatalog) item.name];
     final notifier = ref.read(skillsProvider.notifier);
     final skill = notifier.find(id);
     if (id != null && skill == null) {
@@ -361,7 +411,21 @@ class SkillEditorScreen extends ConsumerWidget {
         Panel(
           title: 'Chia sẻ thế mạnh của bạn',
           children: [
+            if (skill == null &&
+                (!skillsReady ||
+                    (catalogAsync.isLoading && catalog.isEmpty)))
+              const Copy('Đang tải danh mục kỹ năng.', muted: true)
+            else if (skill == null && catalogNames.isEmpty)
+              const Copy(
+                'Bạn đã thêm mọi kỹ năng trong danh mục. Hãy chỉnh sửa kỹ năng hiện có.',
+                muted: true,
+              ),
             DataForm(
+              key: ValueKey(
+                skill == null
+                    ? 'new-skill:${catalogNames.join('|')}'
+                    : 'edit-skill:${skill.id}',
+              ),
               defaults: skill != null
                   ? {
                       'description': skill.description,
@@ -370,7 +434,7 @@ class SkillEditorScreen extends ConsumerWidget {
                     }
                   : const {'level': 'BEGINNER'},
               fields: [
-                if (skill == null)
+                if (skill == null && catalogNames.isNotEmpty)
                   DataField(
                     name: 'name',
                     label: 'Danh mục kỹ năng',
@@ -411,11 +475,13 @@ class SkillEditorScreen extends ConsumerWidget {
                 ),
               ],
               onSubmit: (v) async {
-                if (skill == null && skills.any((s) => s.name == v['name'])) {
-                  return 'Kỹ năng này đã có. Hãy chỉnh sửa kỹ năng hiện tại.';
+                if (skill == null && (!skillsReady || catalogNames.isEmpty)) {
+                  return !skillsReady || catalogAsync.isLoading
+                      ? 'Đang tải danh mục kỹ năng.'
+                      : 'Bạn đã thêm mọi kỹ năng trong danh mục. Hãy chỉnh sửa kỹ năng hiện có.';
                 }
                 final years = v['experienceYears']!;
-                final catalogSkill = catalog
+                final catalogSkill = availableCatalog
                     .where((item) => item.name == v['name'])
                     .firstOrNull;
                 if (skill == null && catalogSkill == null) {
@@ -471,6 +537,11 @@ class SkillDetailScreen extends ConsumerWidget {
       children: skill == null
           ? const [_missing]
           : [
+              WaitingRefresh(
+                scopes: const {RefreshScope.skills},
+                enabled: skill.status == 'PENDING',
+                child: const SizedBox.shrink(),
+              ),
               Panel(
                 title: skill.name,
                 children: [
@@ -623,6 +694,11 @@ class _EvidenceScreenState extends ConsumerState<EvidenceScreen> {
       title: 'Bằng chứng xác minh',
       back: '/skills/$id',
       children: [
+        WaitingRefresh(
+          scopes: const {RefreshScope.skills},
+          enabled: skill?.status == 'PENDING' || pending != null,
+          child: const SizedBox.shrink(),
+        ),
         if (skill == null)
           const EmptyState(
             title: 'Không tìm thấy kỹ năng',
@@ -640,7 +716,8 @@ class _EvidenceScreenState extends ConsumerState<EvidenceScreen> {
               _BusyNote('Đang tải trạng thái xác minh.'),
             ],
           )
-        else if (skill.status == 'PENDING' || pending != null)
+        else if (skill.status == 'PENDING' ||
+            (pending != null && skill.status != 'VERIFIED'))
           Panel(
             title: 'Đang chờ xét duyệt',
             children: [
@@ -822,28 +899,57 @@ String _visibilityLabel(SharingSkill skill) {
   return 'Đã ẩn khỏi tìm kiếm';
 }
 
-class _SharersPanel extends ConsumerWidget {
+class _SharersPanel extends ConsumerStatefulWidget {
   const _SharersPanel({required this.skillId});
 
   final String skillId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final sharers = ref.watch(skillSharersProvider(skillId)).value ?? const [];
+  ConsumerState<_SharersPanel> createState() => _SharersPanelState();
+}
+
+class _SharersPanelState extends ConsumerState<_SharersPanel> {
+  var _verifiedOnly = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final sharers =
+        ref
+            .watch(
+              skillSharersProvider((
+                skillId: widget.skillId,
+                verifiedOnly: _verifiedOnly,
+              )),
+            )
+            .value ??
+        const [];
     final mine = ref.watch(accountProvider).value?.userId;
     final others = [
       for (final sharer in sharers)
         if (sharer.ownerId != null && sharer.ownerId != mine) sharer,
     ];
-    if (others.isEmpty) return const SizedBox.shrink();
     return Panel(
       title: 'Người đang chia sẻ',
       children: [
+        AppButton(
+          label: _verifiedOnly
+              ? 'Đang lọc: đã xác minh'
+              : 'Chỉ kỹ năng đã xác minh',
+          variant: ButtonVariant.paper,
+          onPressed: () => setState(() => _verifiedOnly = !_verifiedOnly),
+        ),
         for (final sharer in others)
           RouteButton(
             secondary: true,
             href: '/user/${sharer.ownerId}',
             label: '${sharer.ownerName ?? 'Người dùng'} · ${uiLabel(sharer.level)}',
+          ),
+        if (others.isEmpty)
+          Copy(
+            _verifiedOnly
+                ? 'Không có người chia sẻ đã xác minh.'
+                : 'Chưa có người khác đang chia sẻ kỹ năng này.',
+            muted: true,
           ),
       ],
     );

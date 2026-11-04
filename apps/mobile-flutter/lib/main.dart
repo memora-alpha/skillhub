@@ -6,18 +6,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app.dart';
 
-/// Phone frame in debug and profile builds. Pass
-/// `--dart-define=DEVICE_PREVIEW=false` to turn it off.
-const _devicePreview = bool.fromEnvironment(
-  'DEVICE_PREVIEW',
-  defaultValue: true,
-);
+/// Phone frame in debug and profile builds.
+/// `--dart-define=MOBILEPREVIEW=true` (alias: `DEVICE_PREVIEW`).
+const _devicePreview = bool.hasEnvironment('MOBILEPREVIEW')
+    ? bool.fromEnvironment('MOBILEPREVIEW')
+    : bool.fromEnvironment('DEVICE_PREVIEW', defaultValue: true);
 
 Future<void> main() async {
   if (_devicePreview && !kReleaseMode) {
+    // Replaces WidgetsFlutterBinding. Do not call ensureInitialized after this.
     DevicePreview.enable();
     await DevicePreview.maybeController?.applyPreset(DevicePresets.pixel9);
+  } else {
+    WidgetsFlutterBinding.ensureInitialized();
   }
-  WidgetsFlutterBinding.ensureInitialized();
   runApp(ProviderScope(retry: (_, _) => null, child: const SkillHubApp()));
 }

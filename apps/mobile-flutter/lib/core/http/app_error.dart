@@ -28,7 +28,9 @@ const _messages = {
   'INSUFFICIENT_AVAILABLE_CREDIT':
       'Một trong hai tài khoản không đủ Credit khả dụng để tạm giữ.',
   'SCHEDULE_CONFLICT':
-      'Các buổi bị trùng giờ với nhau hoặc với một buổi học khác.',
+      'Các buổi bị trùng giờ với nhau hoặc với lịch đề xuất / buổi học khác.',
+  'SCHEDULE_ITEMS_OVERLAP':
+      'Các buổi trong đề xuất trùng giờ hoặc không đúng thứ tự thời gian.',
   'INVALID_SCHEDULE_ITEMS':
       'Lịch chưa hợp lệ. Buổi học phải ở tương lai và dài từ 60 đến 180 phút.',
   'SCHEDULE_NOT_CONFIRMED': 'Chưa đủ xác nhận lịch của cả hai bên.',
@@ -39,6 +41,8 @@ const _messages = {
   'LEARNING_PLAN_NOT_CONFIRMED': 'Người học chưa xác nhận đủ kế hoạch.',
   'REQUIRED_LEARNING_PLANS_MISSING': 'Chưa đủ kế hoạch cho hình thức học này.',
   'SESSION_NOT_ENDED': 'Chỉ xác nhận hoàn thành sau giờ kết thúc buổi học.',
+  'SESSION_NOT_FOUND': 'Không tìm thấy buổi học. Tải lại rồi thử lại.',
+  'SESSION_ACCESS_DENIED': 'Bạn không phải người tham gia buổi học này.',
   'SESSION_NOT_JOINABLE': 'Buổi học này không vào phòng được.',
   'SESSION_CANNOT_BE_COMPLETED': 'Buổi học đã hủy hoặc đang tranh chấp.',
   'SESSION_BLOCKED_BY_DISPUTE':
@@ -47,6 +51,12 @@ const _messages = {
   'JOIN_WINDOW_CLOSED': 'Đã hết giờ vào phòng.',
   'LIVEKIT_DISABLED': 'Phòng học chưa được bật trên hệ thống.',
   'LIVEKIT_POLICY_NOT_READY': 'Chưa có cấu hình giờ mở phòng.',
+  'CHAT_RATE_LIMIT':
+      'Bạn gửi tin nhắn hơi nhanh. Đợi một chút rồi gửi lại.',
+  'PROPOSAL_RATE_LIMIT':
+      'Bạn đã đạt giới hạn gửi đề xuất. Vui lòng thử lại sau.',
+  'RATE_LIMITED':
+      'Máy chủ đang giới hạn tạm thời. Đợi một chút rồi thử lại.',
   'PATH_SESSIONS_INCOMPLETE': 'Còn buổi học chưa hoàn thành.',
   'DISPUTE_WINDOW_OPEN':
       'Chưa hết thời gian khiếu nại sau buổi cuối. Hãy quyết toán sau.',
@@ -55,6 +65,11 @@ const _messages = {
   'LEARNING_PATH_NOT_SETTLEABLE':
       'Lộ trình chưa đủ điều kiện quyết toán.',
   'INVALID_SESSION_DATE_RANGE': 'Khoảng ngày buổi học không hợp lệ.',
+  'SKILL_DUPLICATE':
+      'Kỹ năng này đã có trong hồ sơ. Hãy kiểm tra danh sách.',
+  'SKILL_NOT_ACTIVE': 'Kỹ năng này không còn trong danh mục.',
+  'SKILL_LEVEL_NOT_ACTIVE':
+      'Trình độ này không còn dùng cho kỹ năng đã chọn. Hãy chọn trình độ khác.',
   'FILE_REQUIRED': 'Chọn một tệp trước khi gửi.',
   'FILE_FORMAT_UNSUPPORTED':
       'Chỉ nhận tệp pdf, docx, pptx hoặc xlsx.',
@@ -88,6 +103,14 @@ const _messages = {
 String knownMessage(String? code, String fallback) =>
     code == null ? fallback : _messages[code] ?? fallback;
 
+/// Background GET failures that should not replace the screen with an error card.
+bool isTransientReadError(Object? error) {
+  if (error is! AppError) return false;
+  if (error.kind == AppErrorKind.network) return true;
+  if (error.kind != AppErrorKind.http) return false;
+  return error.status == 429 || error.status == 502 || error.status == 503;
+}
+
 String errorMessage(Object? error) {
   if (error is! AppError) return 'Không thể hoàn tất. Vui lòng thử lại.';
   final message = _messages[error.code];
@@ -106,13 +129,19 @@ String errorMessage(Object? error) {
       break;
   }
   if (error.status == 429) {
-    return 'Bạn đã thử quá nhiều lần. Vui lòng đợi trước khi thử lại.';
+    return knownMessage(error.code, 'Máy chủ đang giới hạn tạm thời. Đợi một chút rồi thử lại.');
   }
   if (error.status == 400) {
     return 'Thông tin chưa hợp lệ. Kiểm tra lại và thử lại.';
   }
   if (error.status == 403) {
     return 'Tài khoản hiện không có quyền thực hiện thao tác này.';
+  }
+  if (error.status == 404) {
+    return knownMessage(
+      error.code,
+      'Không tìm thấy buổi học hoặc API không còn endpoint này.',
+    );
   }
   return 'Không thể hoàn tất. Vui lòng thử lại.';
 }

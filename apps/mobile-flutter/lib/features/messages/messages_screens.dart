@@ -13,6 +13,10 @@ import '../../components/tappable.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/http/app_error.dart';
 import '../auth/session/auth_session.dart';
+import '../learning_paths/live_paths.dart';
+import '../learning_paths/negotiation_card.dart';
+import '../learning_paths/negotiation_message.dart';
+import '../learning_paths/plan_suggestion_draft.dart';
 import '../shell/app_screen_layout.dart';
 import '../remote/refresh_signal.dart';
 import 'messages_data.dart';
@@ -33,15 +37,6 @@ const _chatMimes = {
   'png': 'image/png',
   'webp': 'image/webp',
 };
-
-final _openedConversationProvider = FutureProvider.family<void, String>((
-  ref,
-  id,
-) async {
-  final phase = ref.watch(sessionSnapshotProvider).phase;
-  if (phase != SessionPhase.ready) return;
-  await ref.read(authRuntimeProvider).services.conversations.get(id);
-});
 
 class MessagesScreen extends ConsumerWidget {
   const MessagesScreen({super.key});
@@ -97,21 +92,30 @@ class MessagesScreen extends ConsumerWidget {
                       action: 'Xem đề xuất',
                       onAction: () => context.push('/proposals'),
                     ),
-                  for (final item in state.conversations)
+                  for (final item in state.previews)
                     Panel(
-                      title: item.name.isEmpty
-                          ? 'Thành viên SkillHub'
-                          : item.name,
+                      key: ValueKey(item.id),
+                      title: item.inboxTitle,
                       children: [
                         Copy(
-                          item.createdLabel.isEmpty
-                              ? 'Đề xuất đã chấp nhận'
-                              : 'Đề xuất đã chấp nhận · ${item.createdLabel}',
+                          item.name.isEmpty
+                              ? 'Thành viên SkillHub'
+                              : item.name,
+                        ),
+                        Copy(
+                          item.last.isEmpty
+                              ? (item.createdLabel.isEmpty
+                                    ? 'Đề xuất đã chấp nhận'
+                                    : 'Đề xuất đã chấp nhận · ${item.createdLabel}')
+                              : conversationMessagePreview(item.last),
+                        ),
+                        Copy(
+                          conversationReference(item.proposal),
+                          muted: true,
                         ),
                         AppButton(
                           label: 'Mở cuộc trao đổi',
-                          onPressed: () =>
-                              context.push('/chat/${item.proposal}'),
+                          onPressed: () => context.push('/chat/${item.id}'),
                         ),
                       ],
                     ),
@@ -127,37 +131,44 @@ class MessagesScreen extends ConsumerWidget {
 }
 
 class ChatScreen extends ConsumerWidget {
-  const ChatScreen({super.key, required this.proposalId});
+  const ChatScreen({super.key, required this.conversationId});
 
-  final String proposalId;
+  final String conversationId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final id =
+        GoRouterState.of(context).pathParameters['proposalId'] ?? conversationId;
+    final opening = ref.watch(openChatProvider(id));
     final messages = ref.watch(messagesProvider);
-    final conversation = messages.find(proposalId);
-    if (conversation != null) {
-      ref.watch(_openedConversationProvider(conversation.id));
+    Conversation? conversation;
+    for (final item in messages.conversations) {
+      if (item.id == id) {
+        conversation = item;
+        break;
+      }
     }
     if (conversation == null) {
+      final pending = opening.isLoading || !messages.settled;
       return AppScreenLayout(
         title: 'Tin nhắn',
         selected: 'Tin nhắn',
         back: (route: '/messages', label: 'Quay lại tin nhắn'),
-        child: messages.settled
-            ? EmptyState(
+        child: pending
+            ? const Center(
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : EmptyState(
                 icon: AppIcon.message,
                 title: 'Không tìm thấy cuộc trao đổi',
                 description: 'Cuộc trao đổi này không có trên máy chủ.',
                 action: 'Quay lại tin nhắn',
                 onAction: () => context.go('/messages'),
-              )
-            : const Center(
-                child: CircularProgressIndicator(strokeWidth: 2),
               ),
       );
     }
     return _ChatConversation(
-      key: ValueKey(conversation.proposal),
+      key: ValueKey(conversation.id),
       conversation: conversation,
     );
   }
@@ -178,6 +189,7 @@ class _ChatConversationState extends ConsumerState<_ChatConversation> {
   final _scroll = ScrollController();
   var _sending = false;
 
+  String get _id => widget.conversation.id;
   String get _proposal => widget.conversation.proposal;
 
   @override
@@ -187,7 +199,7 @@ class _ChatConversationState extends ConsumerState<_ChatConversation> {
     _focus.addListener(() => setState(() {}));
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      ref.read(messagesProvider.notifier).markRead(_proposal);
+      ref.read(messagesProvider.notifier).markRead(_id);
     });
   }
 
@@ -205,7 +217,7 @@ class _ChatConversationState extends ConsumerState<_ChatConversation> {
     setState(() => _sending = true);
     _draft.clear();
     try {
-      await ref.read(messagesProvider.notifier).send(_proposal, text);
+      await ref.read(messagesProvider.notifier).send(_id, text);
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (_scroll.hasClients) {
           _scroll.jumpTo(_scroll.position.maxScrollExtent);
@@ -216,21 +228,61 @@ class _ChatConversationState extends ConsumerState<_ChatConversation> {
     }
   }
 
-  void _agreement() => context.push('/agreement-type?proposalId=$_proposal');
+  void _agreement() => context.push('/agreement-type?proposalId=$_id');
+
+  void _applySuggestion(PathNegotiationSuggestion suggestion) {
+    ref
+        .read(planSuggestionDraftProvider.notifier)
+        .setDraft(
+          PlanSuggestionDraft.fromSuggestion(
+            conversationId: _id,
+            suggestion: suggestion,
+          ),
+        );
+    final me = ref.read(accountSessionProvider)?.userId ?? '';
+    final paths = ref.read(livePathsProvider).value ?? const <Map<String, dynamic>>[];
+    Map<String, dynamic>? path;
+    for (final item in paths) {
+      if (item['conversationId']?.toString() == _id) {
+        path = item;
+        break;
+      }
+    }
+    if (path == null) {
+      context.push('/agreement-type?proposalId=$_id');
+      return;
+    }
+    final pathId = path['id']?.toString() ?? '';
+    if (pathId.isEmpty) {
+      context.push('/agreement-type?proposalId=$_id');
+      return;
+    }
+    final plans = path['plans'];
+    final planList = plans is List ? plans : const [];
+    String? myPlanId;
+    for (final item in planList) {
+      if (item is Map && item['teacherId']?.toString() == me) {
+        myPlanId = item['id']?.toString();
+        break;
+      }
+    }
+    if (myPlanId != null && myPlanId.isNotEmpty) {
+      context.push('/paths/$pathId/plans/$myPlanId/edit');
+    } else {
+      context.push('/paths/$pathId/plans/new');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final conversation = widget.conversation;
     final messages = ref.watch(
-      messagesProvider.select((s) => s.threads[_proposal] ?? const []),
+      messagesProvider.select((s) => s.threads[_id] ?? const []),
     );
     final olderCursor = ref.watch(
-      messagesProvider.select((s) => s.olderCursors[_proposal]),
+      messagesProvider.select((s) => s.olderCursors[_id]),
     );
-    return WaitingRefresh(
-      scopes: const {RefreshScope.messages},
-      enabled: true,
-      child: Scaffold(
+    return Scaffold(
       backgroundColor: MessageColors.surface,
       body: SafeArea(
         child: Column(
@@ -277,7 +329,7 @@ class _ChatConversationState extends ConsumerState<_ChatConversation> {
                                 variant: ButtonVariant.secondary,
                                 onPressed: () => ref
                                     .read(messagesProvider.notifier)
-                                    .loadOlder(_proposal),
+                                    .loadOlder(_id),
                               ),
                             if (messages.isEmpty)
                               const Copy(
@@ -289,6 +341,8 @@ class _ChatConversationState extends ConsumerState<_ChatConversation> {
                                 message: message,
                                 partner: conversation.name,
                                 partnerId: conversation.userId,
+                                onOpenAgreement: _agreement,
+                                onApplySuggestion: _applySuggestion,
                               ),
                           ],
                         ),
@@ -304,11 +358,10 @@ class _ChatConversationState extends ConsumerState<_ChatConversation> {
               sending: _sending,
               onSend: _submit,
               onAttach: () =>
-                  context.push('/chat-attachment?proposalId=$_proposal'),
+                  context.push('/chat-attachment?proposalId=$_id'),
             ),
           ],
         ),
-      ),
       ),
     );
   }
@@ -358,6 +411,7 @@ class _ChatHeader extends StatelessWidget {
           UserAvatar(
             name: conversation.name,
             userId: conversation.userId,
+            imageUrl: conversation.avatarUrl,
             size: AvatarSizes.compact,
           ),
           Expanded(
@@ -367,7 +421,9 @@ class _ChatHeader extends StatelessWidget {
                 Semantics(
                   header: true,
                   child: Text(
-                    conversation.name,
+                    conversation.inboxTitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: nunito(
                       TypeScale.body,
                       weight: FontWeight.w600,
@@ -376,7 +432,9 @@ class _ChatHeader extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  'Đề xuất đã chấp nhận',
+                  conversation.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: nunito(
                     TypeScale.caption,
                     color: MessageColors.muted,
@@ -428,15 +486,20 @@ class _MessageBubble extends StatelessWidget {
     required this.message,
     required this.partner,
     required this.partnerId,
+    this.onOpenAgreement,
+    this.onApplySuggestion,
   });
 
   final ChatMessage message;
   final String partner;
   final String partnerId;
+  final VoidCallback? onOpenAgreement;
+  final void Function(PathNegotiationSuggestion suggestion)? onApplySuggestion;
 
   @override
   Widget build(BuildContext context) {
     final mine = message.mine;
+    final negotiation = readNegotiationMessage(message.text);
     final width = MediaQuery.sizeOf(context).width;
     final factor = width >= 768 ? 0.62 : (mine ? 0.82 : 0.70);
     final file = message.file;
@@ -448,52 +511,67 @@ class _MessageBubble extends StatelessWidget {
             : CrossAxisAlignment.start,
         spacing: 2,
         children: [
-          LayoutBuilder(
-            builder: (context, constraints) => Row(
-              mainAxisAlignment: mine
-                  ? MainAxisAlignment.end
-                  : MainAxisAlignment.start,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              spacing: 8,
-              children: [
-                if (!mine)
-                  UserAvatar(
-                    name: partner,
-                    userId: partnerId,
-                    size: AvatarSizes.inline,
-                  ),
-                ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxWidth: constraints.maxWidth * factor,
-                  ),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 7,
+          if (negotiation != null)
+            NegotiationSuggestionCard(
+              suggestion: negotiation,
+              mine: mine,
+              expandedByDefault: !mine,
+              onOpenPath: onOpenAgreement,
+              onApply: onApplySuggestion == null
+                  ? null
+                  : () => onApplySuggestion!(negotiation),
+            )
+          else
+            LayoutBuilder(
+              builder: (context, constraints) => Row(
+                mainAxisAlignment: mine
+                    ? MainAxisAlignment.end
+                    : MainAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                spacing: 8,
+                children: [
+                  if (!mine)
+                    UserAvatar(
+                      name: partner,
+                      userId: partnerId,
+                      size: AvatarSizes.inline,
                     ),
-                    decoration: BoxDecoration(
-                      color: mine ? MessageColors.orange : MessageColors.surface,
-                      borderRadius: BorderRadius.only(
-                        topLeft: const Radius.circular(10),
-                        topRight: const Radius.circular(10),
-                        bottomLeft: Radius.circular(mine ? 10 : 3),
-                        bottomRight: Radius.circular(mine ? 3 : 10),
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: constraints.maxWidth * factor,
+                    ),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 7,
                       ),
-                      boxShadow: mine ? null : messageCardShadow,
-                    ),
-                    child: SelectableText(
-                      '${message.text}'
-                      '${file != null ? '\n${(file.bytes / 1024 / 1024).toStringAsFixed(1)} MB · tệp mẫu, không có đường dẫn tải' : ''}',
-                      style: nunito(
-                        TypeScale.body,
-                        color: mine ? MessageColors.white : MessageColors.ink,
+                      decoration: BoxDecoration(
+                        color: mine
+                            ? MessageColors.orange
+                            : MessageColors.surface,
+                        borderRadius: BorderRadius.only(
+                          topLeft: const Radius.circular(10),
+                          topRight: const Radius.circular(10),
+                          bottomLeft: Radius.circular(mine ? 10 : 3),
+                          bottomRight: Radius.circular(mine ? 3 : 10),
+                        ),
+                        boxShadow: mine ? null : messageCardShadow,
+                      ),
+                      child: SelectableText(
+                        '${message.text}'
+                        '${file != null ? '\n${(file.bytes / 1024 / 1024).toStringAsFixed(1)} MB · tệp mẫu, không có đường dẫn tải' : ''}',
+                        style: nunito(
+                          TypeScale.body,
+                          color: mine
+                              ? MessageColors.white
+                              : MessageColors.ink,
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
           Padding(
             padding: EdgeInsets.only(left: mine ? 0 : AvatarSizes.inline + 8),
             child: Text(

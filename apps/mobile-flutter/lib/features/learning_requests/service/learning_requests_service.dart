@@ -7,14 +7,23 @@ class LearningRequestsService {
 
   final LearningRequestsApi _api;
 
-  Future<Page<LearningRequestCard>> feed({String? cursor, int? limit}) =>
-      _api.feed(cursor: cursor, limit: limit);
+  Future<Page<LearningRequestCard>> feed({
+    String? cursor,
+    int? limit,
+    RequestQuery query = const RequestQuery(),
+  }) => _api.feed(cursor: cursor, limit: limit, query: query);
 
-  Future<Page<Map<String, dynamic>>> mine({String? cursor, int? limit}) =>
-      _api.mine(cursor: cursor, limit: limit);
+  Future<Page<Map<String, dynamic>>> mine({
+    String? cursor,
+    int? limit,
+    RequestQuery query = const RequestQuery(),
+  }) => _api.mine(cursor: cursor, limit: limit, query: query);
 
-  Future<Page<LearningRequestCard>> recommended({String? cursor, int? limit}) =>
-      _api.recommended(cursor: cursor, limit: limit);
+  Future<Page<LearningRequestCard>> recommended({
+    String? cursor,
+    int? limit,
+    RequestQuery query = const RequestQuery(),
+  }) => _api.recommended(cursor: cursor, limit: limit, query: query);
 
   Future<Map<String, dynamic>> get(String requestId) => _api.get(requestId);
 

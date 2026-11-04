@@ -17,8 +17,14 @@ class ConversationsService {
   Future<Page<MessageRecord>> messages(
     String id, {
     String? cursor,
+    String? afterSequence,
     int? limit,
-  }) => _api.messages(id, cursor: cursor, limit: limit);
+  }) => _api.messages(
+    id,
+    cursor: cursor,
+    afterSequence: afterSequence,
+    limit: limit,
+  );
 
   Future<MessageRecord> send(
     String id, {

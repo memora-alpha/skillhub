@@ -443,6 +443,53 @@ class _StudyLiveScreenState extends ConsumerState<StudyLiveScreen> {
                     }
                   },
                 ),
+                DataForm(
+                  fields: [
+                    DataField(
+                      name: 'scheduleId',
+                      label: 'Mã đề xuất lịch',
+                      rule: _uuid,
+                    ),
+                    DataField(
+                      name: 'expectedVersion',
+                      label: 'Phiên bản lịch',
+                      rule: (value) => int.tryParse(value.trim()) == null
+                          ? 'Nhập phiên bản.'
+                          : null,
+                      numeric: true,
+                    ),
+                    DataField(
+                      name: 'startAt',
+                      label: 'Bắt đầu, dạng 2026-10-22T12:00:00Z',
+                      rule: _instant,
+                    ),
+                    DataField(
+                      name: 'endAt',
+                      label: 'Kết thúc, dạng 2026-10-22T13:00:00Z',
+                      rule: _instant,
+                    ),
+                  ],
+                  submitLabel: 'Sửa đề xuất lịch buổi 1',
+                  onSubmit: (values) async {
+                    try {
+                      await _api.reviseSchedule(values['scheduleId']!, {
+                        'expectedVersion': int.parse(
+                          values['expectedVersion']!.trim(),
+                        ),
+                        'items': [
+                          {
+                            'sessionNo': 1,
+                            'startAt': values['startAt'],
+                            'endAt': values['endAt'],
+                          },
+                        ],
+                      });
+                      return null;
+                    } catch (error) {
+                      return errorMessage(error);
+                    }
+                  },
+                ),
               ],
             ),
       ],
@@ -470,7 +517,7 @@ class _StudyLiveScreenState extends ConsumerState<StudyLiveScreen> {
           label: 'Xác nhận hoàn thành',
           variant: ButtonVariant.paper,
           work: () async {
-            await _api.confirmCompletion(id, {'note': ''});
+            await _api.confirmCompletion(id);
             final detail = await _api.session(id);
             setState(() => _session = detail);
           },

@@ -71,6 +71,7 @@ class DemoProposal {
     String? time,
     String? status,
     Object? localDecisionNote = _unset,
+    String? conversationId,
   }) => DemoProposal(
     id: id,
     direction: direction,
@@ -90,7 +91,7 @@ class DemoProposal {
         ? this.localDecisionNote
         : localDecisionNote as String?,
     version: version,
-    conversationId: conversationId,
+    conversationId: conversationId ?? this.conversationId,
   );
 }
 
@@ -316,11 +317,21 @@ class ProposalsNotifier extends Notifier<List<DemoProposal>> {
       final api = ref.read(authRuntimeProvider).services.proposals;
       final key = newUuid();
       if (status == 'ACCEPTED') {
-        await api.accept(
+        final accepted = await api.accept(
           id,
           expectedVersion: item.version,
           idempotencyKey: key,
         );
+        state = [
+          for (final proposal in state)
+            if (proposal.id == id)
+              proposal.copyWith(
+                status: 'ACCEPTED',
+                conversationId: accepted.conversation.id,
+              )
+            else
+              proposal,
+        ];
       } else if (status == 'REJECTED') {
         await api.reject(
           id,

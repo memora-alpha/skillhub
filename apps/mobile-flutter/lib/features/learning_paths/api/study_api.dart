@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 
+import '../../../core/http/app_error.dart';
 import '../../../core/http/http_client.dart';
 
 /// Learning paths, schedules, sessions, reviews and reports.
@@ -74,6 +75,11 @@ class StudyApi {
     Map<String, Object?> body,
   ) => _json('/schedule-proposals/$scheduleId/confirm', 'POST', body);
 
+  Future<Map<String, dynamic>> reviseSchedule(
+    String scheduleId,
+    Map<String, Object?> body,
+  ) => _json('/schedule-proposals/$scheduleId', 'PATCH', body);
+
   Future<Map<String, dynamic>> reschedule(
     String sessionId,
     Map<String, Object?> body,
@@ -82,13 +88,14 @@ class StudyApi {
   Future<List<Map<String, dynamic>>> mySessions({
     String? from,
     String? to,
-  }) async => asList(
-    await _client.request(
+  }) async {
+    final data = await _client.request(
       withQuery('/sessions/mine', {'from': from, 'to': to}),
       authenticated: true,
-    ),
-    asMap,
-  );
+    );
+    if (data is! List) throw const AppError.protocol();
+    return [for (final item in data) asMap(item)];
+  }
 
   Future<Map<String, dynamic>> session(String sessionId) async => asMap(
     await _client.request('/sessions/$sessionId', authenticated: true),
@@ -97,10 +104,22 @@ class StudyApi {
   Future<Map<String, dynamic>> settle(String pathId) =>
       _json('/sessions/paths/$pathId/settlement', 'POST', const {});
 
+  /// Public API: `POST /api/v1/sessions/{sessionId}/confirm-completion`.
+  /// Body is `{}` or `{note}` (≤1000). Empty note must omit the field — prod
+  /// DTO exposes no properties and rejects unknown keys.
   Future<Map<String, dynamic>> confirmCompletion(
-    String sessionId,
-    Map<String, Object?> body,
-  ) => _json('/sessions/$sessionId/confirm-completion', 'POST', body);
+    String sessionId, {
+    String note = '',
+  }) {
+    final trimmed = note.trim();
+    if (trimmed.length > 1000) throw const AppError.protocol();
+    final id = Uri.encodeComponent(sessionId);
+    return _json(
+      '/sessions/$id/confirm-completion',
+      'POST',
+      trimmed.isEmpty ? const <String, Object?>{} : {'note': trimmed},
+    );
+  }
 
   Future<Map<String, dynamic>> createReview(
     String pathId,

@@ -11,6 +11,7 @@ import '../../core/http/app_error.dart';
 import '../../core/theme/tokens.dart';
 import '../auth/session/auth_session.dart';
 import '../discovery/discovery_data.dart';
+import '../learning_paths/negotiation_message.dart';
 import '../messages/messages_data.dart';
 import '../shell/app_screen_layout.dart';
 import '../sessions/live_sessions.dart';
@@ -66,7 +67,7 @@ class HomeScreen extends ConsumerWidget {
     final session = ref.watch(accountSessionProvider);
     if (session == null) return const SizedBox.shrink();
     final conversationList = ref.watch(
-      messagesProvider.select((s) => s.conversations),
+      messagesProvider.select((s) => s.previews),
     );
     final requests =
         ref.watch(recommendedRequestsProvider).value ?? const <LearningRequest>[];
@@ -84,12 +85,6 @@ class HomeScreen extends ConsumerWidget {
       for (final request in requests) {
         if (request.title == label) {
           context.push('/request/${request.id}');
-          return;
-        }
-      }
-      for (final conversation in conversationList) {
-        if (conversation.name == label) {
-          context.push('/chat/${conversation.proposal}');
           return;
         }
       }
@@ -150,10 +145,17 @@ class HomeScreen extends ConsumerWidget {
                     messages: [
                       for (final item in conversationList.take(4))
                         (
-                          id: item.proposal,
-                          name: item.name,
+                          id: item.id,
+                          name: item.name.isEmpty
+                              ? 'Thành viên SkillHub'
+                              : item.name,
                           userId: item.userId,
-                          message: item.last,
+                          avatarUrl: item.avatarUrl,
+                          message: item.last.isEmpty
+                              ? 'Đề xuất đã chấp nhận'
+                              : conversationMessagePreview(item.last),
+                          topic: item.inboxTitle,
+                          reference: conversationReference(item.proposal),
                           time: item.time,
                           unread: item.unread,
                         ),
@@ -212,7 +214,10 @@ class _HomeContent extends StatelessWidget {
       String id,
       String name,
       String userId,
+      String? avatarUrl,
       String message,
+      String topic,
+      String reference,
       String time,
       int unread,
     })
@@ -565,11 +570,15 @@ class _HomeContent extends StatelessWidget {
                         ],
                       ),
                     ),
-                  for (var i = 0; i < messages.length; i++)
+                  for (final message in messages)
                     _MessageRow(
-                      message: messages[i],
-                      first: i == 0,
-                      onTap: () => onAction(messages[i].name),
+                      key: ValueKey(message.id),
+                      message: message,
+                      first: message.id == messages.first.id,
+                      onTap: () {
+                        final id = message.id;
+                        GoRouter.of(context).push('/chat/$id');
+                      },
                     ),
                 ],
               ),
@@ -815,6 +824,7 @@ class _SessionCard extends StatelessWidget {
 
 class _MessageRow extends StatelessWidget {
   const _MessageRow({
+    super.key,
     required this.message,
     required this.first,
     required this.onTap,
@@ -824,7 +834,10 @@ class _MessageRow extends StatelessWidget {
     String id,
     String name,
     String userId,
+    String? avatarUrl,
     String message,
+    String topic,
+    String reference,
     String time,
     int unread,
   })
@@ -835,7 +848,8 @@ class _MessageRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Tappable(
-      semanticLabel: 'Tin nhắn từ ${message.name}',
+      semanticLabel:
+          'Tin nhắn về ${message.topic}, với ${message.name}, ${message.message}',
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 14),
@@ -850,6 +864,7 @@ class _MessageRow extends StatelessWidget {
                 UserAvatar(
                   name: message.name,
                   userId: message.userId,
+                  imageUrl: message.avatarUrl,
                   size: AvatarSizes.list,
                 ),
                 if (first)
@@ -878,7 +893,7 @@ class _MessageRow extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          message.name,
+                          message.topic,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: _label,
@@ -900,6 +915,16 @@ class _MessageRow extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: _caption.copyWith(
                       color: message.unread > 0 ? _C.body : null,
+                    ),
+                  ),
+                  Text(
+                    '${message.name} · ${message.reference}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: nunito(
+                      TypeScale.caption,
+                      weight: FontWeight.w500,
+                      color: _C.muted,
                     ),
                   ),
                 ],

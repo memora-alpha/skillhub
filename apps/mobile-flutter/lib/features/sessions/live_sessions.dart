@@ -12,8 +12,24 @@ import '../remote/refresh_signal.dart';
 
 const _upcomingStatuses = {'CONFIRMED', 'READY', 'ONGOING'};
 
+String sessionStatusOf(Map<String, dynamic> session) =>
+    session['status']?.toString() ?? '';
+
+/// Sắp tới — CONFIRMED / READY / ONGOING.
 bool sessionIsUpcoming(Map<String, dynamic> session) =>
-    _upcomingStatuses.contains(session['status']);
+    _upcomingStatuses.contains(sessionStatusOf(session));
+
+/// Đã kết thúc / lịch sử — mọi status không còn sắp tới (kể cả DISPUTED, NO_SHOW).
+/// Không whitelist status: whitelist đã làm tab lịch sử trống dù API trả đủ buổi.
+bool sessionIsHistory(Map<String, dynamic> session) =>
+    !sessionIsUpcoming(session);
+
+/// Quá hạn — no-show.
+bool sessionMissedJoin(Map<String, dynamic> session) =>
+    sessionStatusOf(session) == 'NO_SHOW';
+
+bool sessionAwaitingConfirmation(Map<String, dynamic> session) =>
+    sessionStatusOf(session) == 'AWAITING_CONFIRMATION';
 
 const _sessionStatusLabel = {
   'CONFIRMED': 'Đã lên lịch',
@@ -23,6 +39,7 @@ const _sessionStatusLabel = {
   'COMPLETED': 'Đã hoàn thành',
   'CANCELLED': 'Đã hủy',
   'DISPUTED': 'Đang tranh chấp',
+  'NO_SHOW': 'Không vào được · lố giờ / vắng',
 };
 
 String monthSessionKey(int year, int month) =>
@@ -33,6 +50,11 @@ String sessionRoleLabel(Map<String, dynamic> session) =>
 
 String sessionStatusLabel(Object? status) =>
     _sessionStatusLabel[status] ?? '$status';
+
+String sessionHistoryNote(Map<String, dynamic> session) {
+  if (!sessionMissedJoin(session)) return '';
+  return 'Buổi đã ghi nhận không vào được (lố giờ / vắng mặt).';
+}
 
 int sessionMinutes(Map<String, dynamic> session) {
   final start = sessionInstant(session['startAt']);
@@ -46,7 +68,25 @@ DateTime? sessionInstant(Object? value) {
   return DateTime.tryParse(value);
 }
 
-String _absolute(DateTime value) => value.toUtc().toIso8601String();
+/// RFC3339 with millisecond precision — API rejects 6-digit Dart micros.
+String _absolute(DateTime value) {
+  final utc = value.toUtc();
+  String two(int n) => n.toString().padLeft(2, '0');
+  String three(int n) => n.toString().padLeft(3, '0');
+  return '${utc.year}-${two(utc.month)}-${two(utc.day)}'
+      'T${two(utc.hour)}:${two(utc.minute)}:${two(utc.second)}'
+      '.${three(utc.millisecond)}Z';
+}
+
+void _sortByStartDesc(List<Map<String, dynamic>> rows) {
+  rows.sort((a, b) {
+    final left =
+        sessionInstant(a['startAt']) ?? DateTime.fromMillisecondsSinceEpoch(0);
+    final right =
+        sessionInstant(b['startAt']) ?? DateTime.fromMillisecondsSinceEpoch(0);
+    return right.compareTo(left);
+  });
+}
 
 final monthSessionsProvider =
     FutureProvider.family<List<Map<String, dynamic>>, String>((ref, key) async {
@@ -58,12 +98,42 @@ final monthSessionsProvider =
       final year = int.parse(parts[0]);
       final month = int.parse(parts[1]);
       final start = DateTime(year, month);
-      final end = DateTime(year, month + 1).subtract(const Duration(milliseconds: 1));
+      final end = DateTime(
+        year,
+        month + 1,
+      ).subtract(const Duration(milliseconds: 1));
       return ref.read(authRuntimeProvider).services.study.mySessions(
         from: _absolute(start),
         to: _absolute(end),
       );
     });
+
+/// Past sessions for history. `/sessions/mine` without `to` only returns
+/// `endAt >= now`, so past rows need an explicit range.
+final pastSessionsProvider = FutureProvider<List<Map<String, dynamic>>>((
+  ref,
+) async {
+  watchRefresh(ref, RefreshScope.study);
+  if (ref.watch(sessionSnapshotProvider).phase != SessionPhase.ready) {
+    return const [];
+  }
+  final now = DateTime.now();
+  final from = now.subtract(const Duration(days: 120));
+  final rows = await ref.read(authRuntimeProvider).services.study.mySessions(
+    from: _absolute(from),
+    to: _absolute(now),
+  );
+  final past = [for (final row in rows) if (sessionIsHistory(row)) row];
+  _sortByStartDesc(past);
+  return past;
+});
+
+final missedJoinSessionsProvider = FutureProvider<List<Map<String, dynamic>>>((
+  ref,
+) async {
+  final past = await ref.watch(pastSessionsProvider.future);
+  return [for (final row in past) if (sessionMissedJoin(row)) row];
+});
 
 final upcomingSessionProvider = FutureProvider<Map<String, dynamic>?>((ref) async {
   watchRefresh(ref, RefreshScope.study);
@@ -167,7 +237,12 @@ class _LiveSessionPageState extends ConsumerState<LiveSessionPage> {
         ? 'Phòng mở ${viDateTime(opens)}.'
         : 'Phòng mở ${viDateTime(opens)}, đóng ${viDateTime(closes)}.';
     final waiting = session.isNotEmpty &&
-        !const {'COMPLETED', 'CANCELLED', 'DISPUTED'}.contains(status);
+        !const {
+          'COMPLETED',
+          'CANCELLED',
+          'DISPUTED',
+          'NO_SHOW',
+        }.contains(status);
     return WaitingRefresh(
       enabled: waiting,
       scopes: const {RefreshScope.study},
@@ -193,9 +268,12 @@ class _LiveSessionPageState extends ConsumerState<LiveSessionPage> {
           Panel(
             title: sessionRoleLabel(session),
             children: [
-              Copy(_sessionStatusLabel[status] ?? status),
+              Copy(sessionStatusLabel(status)),
               if (start != null)
                 Copy('$when${minutes == null ? '' : ' · $minutes phút'}'),
+              if (sessionHistoryNote(session) case final String note
+                  when note.isNotEmpty)
+                Copy(note, muted: true),
               if (ended ||
                   status == 'AWAITING_CONFIRMATION' ||
                   mineStatus == 'CONFIRMED' ||
@@ -219,7 +297,12 @@ class _LiveSessionPageState extends ConsumerState<LiveSessionPage> {
               onPressed: () => context.push('/learning-sessions/${widget.id}/room'),
             )
           else if (join.isNotEmpty)
-            FormNotice(tone: NoticeTone.info, message: joinReason!),
+            FormNotice(
+              tone: sessionMissedJoin(session)
+                  ? NoticeTone.error
+                  : NoticeTone.info,
+              message: joinReason!,
+            ),
           if (canConfirm) ...[
             AppInput(
               field: _note,
@@ -242,11 +325,13 @@ class _LiveSessionPageState extends ConsumerState<LiveSessionPage> {
                   _error = null;
                 });
                 try {
+                  final sessionId =
+                      session['id']?.toString() ?? widget.id;
                   await ref
                       .read(authRuntimeProvider)
                       .services
                       .study
-                      .confirmCompletion(widget.id, {'note': _note.text.trim()});
+                      .confirmCompletion(sessionId, note: _note.text);
                   await _reload();
                 } catch (error) {
                   if (mounted) setState(() => _error = errorMessage(error));

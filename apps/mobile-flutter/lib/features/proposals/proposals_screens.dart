@@ -462,8 +462,22 @@ class _ProposalDetailScreenState extends ConsumerState<ProposalDetailScreen> {
           );
           return;
         }
+        final conversationId = ref
+            .read(proposalsProvider)
+            .where((item) => item.id == id)
+            .firstOrNull
+            ?.conversationId;
+        ref
+            .read(refreshTicksProvider.notifier)
+            .bump(const {RefreshScope.messages});
         if (!context.mounted) return;
-        context.push('/chat/$id');
+        if (conversationId == null || conversationId.isEmpty) {
+          context.push('/messages');
+          return;
+        }
+        await ref.read(messagesProvider.notifier).ensureOpen(conversationId);
+        if (!context.mounted) return;
+        context.push('/chat/$conversationId');
       } finally {
         if (mounted) setState(() => _accepting = false);
       }
@@ -578,7 +592,14 @@ class _ProposalDetailScreenState extends ConsumerState<ProposalDetailScreen> {
                   ),
                   AppButton(
                     label: 'Tiếp tục trao đổi',
-                    onPressed: () => context.push('/chat/$id'),
+                    onPressed: () {
+                      final conversationId = proposal.conversationId;
+                      if (conversationId == null || conversationId.isEmpty) {
+                        context.push('/messages');
+                        return;
+                      }
+                      context.push('/chat/$conversationId');
+                    },
                   ),
                 ],
                 if (proposal.closed && proposal.sent)

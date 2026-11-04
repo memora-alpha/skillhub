@@ -63,6 +63,11 @@ class StudyService {
     Map<String, Object?> body,
   ) => _api.confirmSchedule(scheduleId, body);
 
+  Future<Map<String, dynamic>> reviseSchedule(
+    String scheduleId,
+    Map<String, Object?> body,
+  ) => _api.reviseSchedule(scheduleId, body);
+
   Future<Map<String, dynamic>> reschedule(
     String sessionId,
     Map<String, Object?> body,
@@ -77,9 +82,9 @@ class StudyService {
   Future<Map<String, dynamic>> settle(String pathId) => _api.settle(pathId);
 
   Future<Map<String, dynamic>> confirmCompletion(
-    String sessionId,
-    Map<String, Object?> body,
-  ) => _api.confirmCompletion(sessionId, body);
+    String sessionId, {
+    String note = '',
+  }) => _api.confirmCompletion(sessionId, note: note);
 
   Future<Map<String, dynamic>> createReview(
     String pathId,
