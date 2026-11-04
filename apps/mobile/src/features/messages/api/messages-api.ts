@@ -20,6 +20,42 @@ export const conversationSchema = z.object({
   participantBId: uuid,
   createdAt: timestamp,
 });
+const inboxCount = z.number().int().nonnegative();
+const inboxGroupSchema = z
+  .discriminatedUnion("groupType", [
+    z.object({
+      groupType: z.literal("LEARNING_REQUEST"),
+      id: z.string(),
+      learningRequestId: uuid,
+      conversationId: z.null(),
+      title: z.string().nullable(),
+      viewerRole: z.enum(["OWNER", "PROPOSER", "PARTICIPANT"]),
+      receivedProposalCount: inboxCount.nullable(),
+      sentProposalCount: inboxCount,
+      conversationCount: inboxCount,
+      lastActivityAt: timestamp,
+    }),
+    z.object({
+      groupType: z.literal("DIRECT_CONVERSATION"),
+      id: z.string(),
+      learningRequestId: z.null(),
+      conversationId: uuid,
+      title: z.string().nullable(),
+      viewerRole: z.literal("PARTICIPANT"),
+      receivedProposalCount: z.null(),
+      sentProposalCount: z.null(),
+      conversationCount: z.literal(1),
+      lastActivityAt: timestamp,
+    }),
+  ])
+  .refine((group) =>
+    group.groupType === "LEARNING_REQUEST"
+      ? group.id === `request:${group.learningRequestId}` &&
+        (group.viewerRole === "OWNER") ===
+          (group.receivedProposalCount !== null)
+      : group.id === `conversation:${group.conversationId}`,
+  );
+export type ApiInboxGroup = z.infer<typeof inboxGroupSchema>;
 export const attachmentSchema = z.object({
   attachmentId: uuid,
   fileId: uuid,
@@ -104,15 +140,35 @@ export function createMessagesApi(
     return parsed;
   };
   return {
-    async list(cursor?: string, signal?: AbortSignal) {
-      const page = parsePage(
-        conversationSchema,
-        await call(`/conversations?${pageQuery(cursor)}`, {
+    async inbox(cursor?: string, signal?: AbortSignal) {
+      return parsePage(
+        inboxGroupSchema,
+        await call(`/conversations/inbox?${pageQuery(cursor)}`, {
           includeMeta: true,
           signal,
         }),
       );
-      page.items.forEach((item) => member(item));
+    },
+    async list(
+      cursor?: string,
+      signal?: AbortSignal,
+      learningRequestId?: string,
+    ) {
+      const query = pageQuery(cursor);
+      if (learningRequestId)
+        query.set("learningRequestId", parse(uuid, learningRequestId));
+      const page = parsePage(
+        conversationSchema,
+        await call(`/conversations?${query}`, {
+          includeMeta: true,
+          signal,
+        }),
+      );
+      for (const item of page.items) {
+        member(item);
+        if (learningRequestId && item.learningRequestId !== learningRequestId)
+          throw new AppError("protocol");
+      }
       return page;
     },
     async detail(id: string, signal?: AbortSignal) {

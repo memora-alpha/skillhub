@@ -24,11 +24,22 @@ export function useMessagesApi() {
     [call, userId, key, cache],
   );
 }
-export function useConversations(enabled = true) {
+export function useGroupedInbox(enabled = true) {
   const api = useMessagesApi();
   return useConnectionList(
-    ["conversations"],
-    (cursor, signal) => api.list(cursor, signal),
+    ["conversations", "inbox"],
+    (cursor, signal) => api.inbox(cursor, signal),
+    enabled,
+    { refreshOnFocus: "stale", cancelOnDisable: true },
+  );
+}
+export function useConversations(enabled = true, learningRequestId?: string) {
+  const api = useMessagesApi();
+  return useConnectionList(
+    learningRequestId
+      ? ["conversations", "request", learningRequestId]
+      : ["conversations"],
+    (cursor, signal) => api.list(cursor, signal, learningRequestId),
     enabled,
     { refreshOnFocus: "stale", cancelOnDisable: true },
   );

@@ -13,6 +13,9 @@ import { EmptyState } from "@/components/EmptyState";
 import { appColors, appRadius, fonts, typography } from "@/constants/theme";
 import { ConnectionFeedback } from "@/features/connections";
 import { ConversationRow } from "../components/ConversationRow";
+import { ConversationCard } from "../components/ConversationCard";
+import { conversationReference } from "../api/conversation-context";
+import { inboxTime } from "../utils/chat-dates";
 import { useInboxGroups } from "../hooks/use-inbox-groups";
 import { RequestInboxCard } from "../components/RequestInboxCard";
 import { messageColors as colors } from "../constants/theme";
@@ -84,7 +87,7 @@ export function ApiMessagesScreen() {
       {() => (
         <FlatList
           data={query.items}
-          keyExtractor={(item) => `${item.kind}:${item.id}`}
+          keyExtractor={({ group }) => group.id}
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
           ItemSeparatorComponent={ConversationSeparator}
@@ -120,14 +123,31 @@ export function ApiMessagesScreen() {
             ) : null
           }
           ListFooterComponent={footer}
-          renderItem={({ item }) =>
-            item.kind === "request" ? (
+          renderItem={({ item: { group, preview } }) =>
+            group.groupType === "LEARNING_REQUEST" ? (
               <RequestInboxCard
-                group={item}
-                deferTitleRead={query.titlesPending}
+                group={group}
+                previewGroup={preview?.kind === "request" ? preview : undefined}
+              />
+            ) : preview?.kind === "direct" ? (
+              <ConversationRow
+                item={preview.item}
+                topic={group.title ?? undefined}
               />
             ) : (
-              <ConversationRow item={item.item} />
+              <ConversationCard
+                name="Cuộc trò chuyện"
+                topic={group.title ?? "Trao đổi trực tiếp"}
+                preview="Mở để xem tin nhắn"
+                time={inboxTime(group.lastActivityAt)}
+                reference={conversationReference(group.conversationId)}
+                onPress={() =>
+                  router.push({
+                    pathname: "/chat/[proposalId]",
+                    params: { proposalId: group.conversationId, mode: "api" },
+                  })
+                }
+              />
             )
           }
         />

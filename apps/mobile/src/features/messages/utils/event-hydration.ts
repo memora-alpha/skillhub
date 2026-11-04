@@ -72,7 +72,11 @@ function reference(
     prefixes = [["notifications"]];
   } else if (proposalEvents.has(frame.event)) {
     const { proposalId } = parse(z.object({ proposalId: uuid }), value.data);
-    prefixes = [["proposals"], ["proposal", proposalId]];
+    prefixes = [
+      ["proposals"],
+      ["proposal", proposalId],
+      ["conversations", "inbox"],
+    ];
     if (frame.event === "proposal.accepted") prefixes.push(["conversations"]);
   } else if (frame.event === "chat.attachment.updated") {
     parse(z.object({ fileId: uuid }), value.data);
@@ -89,6 +93,7 @@ function reference(
     prefixes = [
       ["thread", conversationId],
       ["conversations", "preview", conversationId],
+      ["conversations", "inbox"],
     ];
     if (frame.event === "chat.delivery.updated")
       prefixes.push(["delivery", conversationId]);

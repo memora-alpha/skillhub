@@ -32,7 +32,10 @@ export function ProposalListCard({
   const sent = proposal.proposerId === userId;
   const partnerId = sent ? proposal.recipientId : proposal.proposerId;
   const partner = useParticipantProfile(partnerId);
-  const skill = useCatalogName(compact ? undefined : proposal.skillId);
+  const requestTitle = proposal.learningRequestTitle?.trim();
+  const skill = useCatalogName(
+    compact || requestTitle ? undefined : proposal.skillId,
+  );
   const name = partner.data?.fullName ?? "Thành viên SkillHub";
   const detail = (closeAction?: "withdraw") =>
     router.push({
@@ -101,7 +104,7 @@ export function ProposalListCard({
         )}
       </View>
       <Text accessibilityRole="header" style={styles.title}>
-        {skill.data ?? "Đề xuất trao đổi"}
+        {requestTitle || skill.data || "Đề xuất trao đổi"}
       </Text>
       <View style={styles.personRow}>
         <Avatar
@@ -125,7 +128,6 @@ export function ProposalListCard({
           label={proposalStatusLabels[proposal.status]}
           variant={accepted ? "success" : pending ? "warning" : "default"}
         />
-        <Text style={styles.caption}>Bản {proposal.version}</Text>
       </View>
       <View style={styles.message}>
         <Text numberOfLines={3} style={styles.body}>

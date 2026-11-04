@@ -52,6 +52,7 @@ test("resume avoids full reload but replays affected resources and still notifie
   assert.deepEqual(reloads.at(-1), [
     ["thread", fixtureId(1)],
     ["conversations", "preview", fixtureId(1)],
+    ["conversations", "inbox"],
   ]);
   await hydration.handle(
     { event: "stream.checkpoint", data: "{}", id: "checkpoint" },

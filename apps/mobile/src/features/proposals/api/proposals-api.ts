@@ -22,6 +22,7 @@ export const proposalSchema = z.object({
   id: uuid,
   sourceType: z.enum(["LEARNING_REQUEST", "DIRECT_SEARCH"]),
   learningRequestId: uuid.nullable(),
+  learningRequestTitle: z.string().nullable().optional(),
   proposerId: uuid,
   recipientId: uuid,
   skillId: uuid,
@@ -79,7 +80,6 @@ export function createProposalsApi(
       if (status) query.set("status", status);
       if (learningRequestId) {
         parse(uuid, learningRequestId);
-        if (direction !== "received") throw new AppError("protocol");
         query.set("learningRequestId", learningRequestId);
       }
       const page = parsePage(

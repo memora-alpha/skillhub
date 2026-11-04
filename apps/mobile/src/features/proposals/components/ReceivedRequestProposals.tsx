@@ -18,15 +18,17 @@ export function ReceivedRequestProposals({
   status,
   onStatusChange,
   onOpenChats,
+  direction = "received",
 }: Readonly<{
   requestId: string;
   status: ProposalListTab;
   onStatusChange: (status: ProposalListTab) => void;
   onOpenChats: () => void;
+  direction?: "received" | "sent";
 }>) {
   const focused = useIsFocused();
   const query = useProposalList(
-    "received",
+    direction,
     status === "all" ? undefined : status,
     requestId,
     focused,
@@ -58,21 +60,24 @@ export function ReceivedRequestProposals({
       query={query}
       requestId={requestId}
       quiet={quiet}
+      compactHeader={direction === "sent"}
       header={
         <ProposalListFilters
           statusOnly
           value={status}
           onChange={onStatusChange}
-          direction="received"
+          direction={direction}
           onDirectionChange={() => {}}
         />
       }
       empty={
         <EmptyState
           title={
-            status === "PENDING"
-              ? "Chưa có đề xuất chờ phản hồi"
-              : "Không có đề xuất ở trạng thái này"
+            direction === "sent" && status === "all"
+              ? "Chưa có đề xuất đã gửi cho yêu cầu này"
+              : status === "PENDING"
+                ? "Chưa có đề xuất chờ phản hồi"
+                : "Không có đề xuất ở trạng thái này"
           }
           description="Chọn trạng thái khác để xem các đề xuất đã xử lý."
           action={status === "all" ? undefined : "Xem tất cả"}

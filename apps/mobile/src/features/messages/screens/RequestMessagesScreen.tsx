@@ -2,14 +2,9 @@ import { View, StyleSheet } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { AppScreenLayout } from "@/features/shell";
 import { useRequestDetail } from "@/features/learning-requests";
-import {
-  ProposalListCard,
-  ReceivedRequestProposals,
-} from "@/features/proposals";
-import {
-  useProposal,
-  useSentRequestProposals,
-} from "@/features/proposals/state";
+import { ReceivedRequestProposals } from "@/features/proposals";
+import { useProposal } from "@/features/proposals/state";
+import { useGroupedInbox } from "../hooks/use-messages-api";
 import { ConnectionFeedback, useConnections } from "@/features/connections";
 import { EmptyState } from "@/components/EmptyState";
 import { requestMessageRoute } from "../utils/inbox-groups";
@@ -18,9 +13,14 @@ import { RequestChatsContent } from "../components/RequestChatsContent";
 import { requestGroupTitle } from "../utils/request-group-title";
 
 export function RequestMessagesScreen() {
-  const route = requestMessageRoute(useLocalSearchParams());
+  const params = useLocalSearchParams();
+  const route = requestMessageRoute(params);
   return route ? (
-    <RequestMessages key={route.id} route={route} />
+    <RequestMessages
+      key={route.id}
+      route={route}
+      explicitStatus={params.status !== undefined}
+    />
   ) : (
     <AppScreenLayout
       title="Yêu cầu học"
@@ -38,9 +38,19 @@ export function RequestMessagesScreen() {
 }
 function RequestMessages({
   route,
-}: Readonly<{ route: NonNullable<ReturnType<typeof requestMessageRoute>> }>) {
+  explicitStatus,
+}: Readonly<{
+  route: NonNullable<ReturnType<typeof requestMessageRoute>>;
+  explicitStatus: boolean;
+}>) {
   const router = useRouter();
-  const request = useRequestDetail(route.id, {
+  const inbox = useGroupedInbox(false);
+  const group = inbox.items.find(
+    (item) =>
+      item.groupType === "LEARNING_REQUEST" &&
+      item.learningRequestId === route.id,
+  );
+  const request = useRequestDetail(group ? undefined : route.id, {
     preferOwnList: true,
     refreshOnFocus: "stale",
   });
@@ -48,24 +58,41 @@ function RequestMessages({
   const { userId } = useConnections();
   const ownRequest = !!readable && !("owner" in readable);
   const publicRequest = !!readable && "owner" in readable;
-  const context = useProposal(ownRequest ? "" : (route.proposalId ?? ""));
+  const context = useProposal(
+    group || ownRequest ? "" : (route.proposalId ?? ""),
+  );
   const related =
     !context.denied && context.data?.learningRequestId === route.id
       ? context.data
       : undefined;
   const sent = related && related.proposerId === userId ? related : undefined;
   const received = related && related.recipientId === userId;
-  const direction =
-    ownRequest || received
+  const direction = group
+    ? group.viewerRole === "OWNER"
+      ? "received"
+      : group.viewerRole === "PROPOSER"
+        ? "sent"
+        : "unknown"
+    : ownRequest || received
       ? "received"
       : publicRequest || sent
         ? "sent"
         : "unknown";
   const title = requestGroupTitle(route.id, {
-    title: readable?.title,
-    denied: !!request.readDenied,
-    pending: request.isPending,
+    title:
+      group?.title ??
+      readable?.title ??
+      related?.learningRequestTitle ??
+      undefined,
+    denied: !group && !related?.learningRequestTitle && !!request.readDenied,
+    pending: !group && request.isPending,
   });
+  const rolePending =
+    request.isPending || (!!route.proposalId && context.isPending);
+  const roleError =
+    (!request.readDenied && request.error) ||
+    (!context.denied && context.error);
+  const openChats = () => router.setParams({ view: "chats" });
   return (
     <AppScreenLayout
       title={title}
@@ -81,28 +108,43 @@ function RequestMessages({
           />
           {route.view === "chats" ? (
             <RequestChatsContent requestId={route.id} title={title} />
-          ) : direction === "sent" ? (
-            sent ? (
-              <View style={styles.notice}>
-                <ProposalListCard
-                  proposal={sent}
-                  compact
-                  returnRequestId={route.id}
+          ) : group?.viewerRole === "PARTICIPANT" ? (
+            <View style={styles.notice}>
+              <EmptyState
+                title="Không có đề xuất của bạn cho yêu cầu này"
+                description="Bạn vẫn có thể xem các cuộc trò chuyện của mình."
+              />
+            </View>
+          ) : direction === "unknown" ? (
+            <View style={styles.notice}>
+              {rolePending || roleError ? (
+                <ConnectionFeedback
+                  loading={rolePending}
+                  error={roleError}
+                  retry={
+                    request.error === roleError
+                      ? request.refetch
+                      : context.refetch
+                  }
                 />
-              </View>
-            ) : (
-              <SentRequestProposal requestId={route.id} />
-            )
-          ) : direction === "unknown" &&
-            route.proposalId &&
-            context.isPending ? (
-            <ConnectionFeedback loading />
+              ) : (
+                <EmptyState
+                  title="Chưa xác định được đề xuất cho yêu cầu này"
+                  description="Bạn có thể mở Đoạn chat để xem các cuộc trò chuyện của mình."
+                  action="Mở đoạn chat"
+                  onAction={openChats}
+                />
+              )}
+            </View>
           ) : (
             <ReceivedRequestProposals
               requestId={route.id}
-              status={route.status}
+              direction={direction}
+              status={
+                direction === "sent" && !explicitStatus ? "all" : route.status
+              }
               onStatusChange={(status) => router.setParams({ status })}
-              onOpenChats={() => router.setParams({ view: "chats" })}
+              onOpenChats={openChats}
             />
           )}
         </View>
@@ -111,41 +153,6 @@ function RequestMessages({
   );
 }
 
-function SentRequestProposal({ requestId }: Readonly<{ requestId: string }>) {
-  const sent = useSentRequestProposals({ refreshOnFocus: "stale" });
-  const entry = !sent.denied ? sent.data?.[requestId] : undefined;
-  const detail = useProposal(entry?.id ?? "");
-  const { userId } = useConnections();
-  const proposal =
-    !detail.denied &&
-    detail.data?.learningRequestId === requestId &&
-    detail.data.proposerId === userId
-      ? detail.data
-      : undefined;
-  const loading = sent.isPending || (!!entry && detail.isPending);
-  const error = sent.error ?? detail.error;
-  return (
-    <View style={styles.notice}>
-      <ConnectionFeedback
-        loading={loading}
-        error={error}
-        retry={sent.error ? sent.refetch : detail.refetch}
-      />
-      {proposal ? (
-        <ProposalListCard
-          proposal={proposal}
-          compact
-          returnRequestId={requestId}
-        />
-      ) : !loading && !error ? (
-        <EmptyState
-          title="Chưa có đề xuất đã gửi cho yêu cầu này"
-          description="Đề xuất của bạn sẽ xuất hiện ở đây sau khi gửi."
-        />
-      ) : null}
-    </View>
-  );
-}
 const styles = StyleSheet.create({
   content: { flex: 1 },
   notice: { padding: 16 },

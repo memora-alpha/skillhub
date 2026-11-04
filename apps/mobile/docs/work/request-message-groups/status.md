@@ -1,9 +1,17 @@
 # Trạng thái tin nhắn theo Yêu cầu học
 
-Cập nhật: 2026-11-02T22:35:54+07:00.
+Cập nhật: 2026-11-04T00:31:13+07:00.
 
 **Ready for review — source complete; API/native acceptance pending.**
 Nghiệm thu người dùng trên app thật: chưa thực hiện.
+
+## Tích hợp API Inbox của BE
+
+- `GET /conversations/inbox` cung cấp phân trang, thứ tự, tiêu đề, vai trò và tổng số theo nhóm. Lịch sử đề xuất của chủ bài được tính cả khi chưa có chat. Phần mô tả luồng ghép tại mobile bên dưới là hiện trạng trước tích hợp.
+- Tab Đoạn chat lọc `GET /conversations` theo `learningRequestId`. Tab Đã gửi lọc `GET /proposals` theo cùng ID và mặc định hiện mọi trạng thái. Tiêu đề và vai trò lấy từ nhóm đã đọc trong phiên hiện tại.
+- Thẻ yêu cầu học chỉ hiện tiêu đề, số đếm và chấm cam với nền cam nhạt khi phát hiện tin chưa đọc từ các cuộc chat đã tải. Xem trước từng tin nằm ở tab Đoạn chat. API nhóm chưa trả trạng thái chưa đọc.
+- Inbox sắp xếp theo hoạt động gần nhất của BE và dùng giờ tin đã tải nếu mới hơn. Thay đổi trạng thái đã đọc không ảnh hưởng thứ tự.
+- Nghiệm thu cần môi trường BE đã áp dụng migration và backfill của PR #68.
 
 ## Hiện trạng
 

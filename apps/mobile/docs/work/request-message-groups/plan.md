@@ -61,4 +61,5 @@ Nguồn đối chiếu: thiết kế tham khảo và các điều chỉnh ngư�
 - [x] Đồng bộ thẻ Inbox theo ảnh và đếm toàn bộ lịch sử theo xác nhận người dùng.
 - [x] Phân biệt nhóm khi không đọc được tiêu đề và retry tên qua pull refresh.
 - [x] Giảm N+1 detail tên bài, reuse cache mới và nối AbortSignal tới HTTP.
+- [x] Dùng Inbox của BE cho metadata nhóm và lọc chat/đề xuất đã gửi theo bài.
 - [ ] Nghiệm thu UI/API/native trên Android/iOS với hai tài khoản test.

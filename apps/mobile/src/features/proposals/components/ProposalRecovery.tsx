@@ -1,4 +1,4 @@
-import { Panel } from "@/components/feature-page";
+import { FlowSection } from "@/components/learning-flow";
 import { FormNotice } from "@/components/FormNotice";
 import { Button } from "@/components/Button";
 import { ConnectionFeedback } from "@/features/connections";
@@ -18,7 +18,7 @@ export function ProposalRecovery<T>({
 }>) {
   if (!command.uncertain) return null;
   return (
-    <Panel title="Kiểm tra thao tác trước">
+    <FlowSection title="Kiểm tra thao tác trước">
       <FormNotice tone="info">
         Chưa xác định được kết quả. Kiểm tra lại thao tác trước để tránh gửi
         trùng.
@@ -38,6 +38,6 @@ export function ProposalRecovery<T>({
       >
         {command.pending ? "Đang kiểm tra..." : "Kiểm tra lại thao tác trước"}
       </Button>
-    </Panel>
+    </FlowSection>
   );
 }
