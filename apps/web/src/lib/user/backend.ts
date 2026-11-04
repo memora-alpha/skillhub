@@ -36,6 +36,7 @@ export async function userBackend(
   method = "GET",
   body?: unknown,
   key?: string,
+  timeoutMs = 20000,
 ) {
   let response: Response;
   try {
@@ -43,7 +44,7 @@ export async function userBackend(
       method,
       cache: "no-store",
       redirect: "error",
-      signal: AbortSignal.timeout(20000),
+      signal: AbortSignal.timeout(timeoutMs),
       headers: {
         Accept: "application/json",
         "X-Request-Id": randomUUID(),
@@ -57,6 +58,10 @@ export async function userBackend(
     throw new UserGatewayError(504, "API_UNAVAILABLE");
   }
   if (response.status === 204) return { status: 204, value: null };
+  if (response.status >= 500) {
+    await response.body?.cancel().catch(() => undefined);
+    throw new UserGatewayError(response.status, "API_UNAVAILABLE");
+  }
   let value: unknown;
   try {
     value = await response.json();

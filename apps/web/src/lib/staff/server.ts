@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { proxyEvents } from "./event-proxy";
+import { sessionCookies } from "../auth/session";
+import { authGateway } from "../auth/server";
 import {
   sameOriginMutation,
   staffIdentity,
@@ -15,14 +17,6 @@ import {
   evidencePreviewKind,
 } from "./evidence-file";
 
-const ACCESS = "skillhub_staff_access";
-const REFRESH = "skillhub_staff_refresh";
-const cookieOptions = {
-  httpOnly: true,
-  sameSite: "strict" as const,
-  secure: process.env.NODE_ENV === "production",
-  path: "/api/staff",
-};
 const headers = {
   "Cache-Control": "no-store",
   "X-Content-Type-Options": "nosniff",
@@ -38,15 +32,8 @@ class GatewayError extends Error {
 function reply(data: unknown, status = 200) {
   return NextResponse.json(data, { status, headers });
 }
-function cookiesFor(portal: Portal) {
-  return {
-    access: portal === "staff" ? ACCESS : "skillhub_admin_access",
-    refresh: portal === "staff" ? REFRESH : "skillhub_admin_refresh",
-    options: { ...cookieOptions, path: `/api/${portal}` },
-  };
-}
-function clear(response: NextResponse, portal: Portal) {
-  const cookies = cookiesFor(portal);
+function clear(response: NextResponse) {
+  const cookies = sessionCookies;
   for (const name of [cookies.access, cookies.refresh])
     response.cookies.set(name, "", { ...cookies.options, maxAge: 0 });
   return response;
@@ -234,7 +221,7 @@ async function evidenceContent(
   });
 }
 async function login(request: NextRequest, portal: Portal) {
-  const cookies = cookiesFor(portal);
+  const cookies = sessionCookies;
   const body = await jsonBody(request);
   if (
     typeof body.email !== "string" ||
@@ -256,7 +243,7 @@ async function login(request: NextRequest, portal: Portal) {
   return establish(result.value.data, portal);
 }
 async function establish(data: unknown, portal: Portal) {
-  const cookies = cookiesFor(portal);
+  const cookies = sessionCookies;
   const pair = data as {
     accessToken?: unknown;
     refreshToken?: unknown;
@@ -294,7 +281,7 @@ async function establish(data: unknown, portal: Portal) {
   }
 }
 async function refreshSession(request: NextRequest, portal: Portal) {
-  const refreshToken = request.cookies.get(cookiesFor(portal).refresh)?.value;
+  const refreshToken = request.cookies.get(sessionCookies.refresh)?.value;
   if (!refreshToken) throw new GatewayError(401, "SESSION_EXPIRED");
   const result = await backend("auth/refresh", undefined, "POST", {
     refreshToken,
@@ -302,28 +289,20 @@ async function refreshSession(request: NextRequest, portal: Portal) {
   if (result.status === 200 && result.value?.success)
     return establish(result.value.data, portal);
   const response = reply(result.value, result.status);
-  return result.status === 401 ? clear(response, portal) : response;
+  return result.status === 401 ? clear(response) : response;
 }
-async function logoutSession(request: NextRequest, portal: Portal) {
-  const token = request.cookies.get(cookiesFor(portal).refresh)?.value;
-  if (token) {
-    const result = await backend("auth/logout", undefined, "POST", {
-      refreshToken: token,
-    });
-    if (result.status !== 204 && result.status !== 401)
-      return reply(result.value, result.status);
-  }
-  return clear(reply({ success: true, data: null }), portal);
+async function logoutSession(request: NextRequest) {
+  return authGateway(request);
 }
-function accessToken(request: NextRequest, portal: Portal): string {
-  const token = request.cookies.get(cookiesFor(portal).access)?.value;
+function accessToken(request: NextRequest): string {
+  const token = request.cookies.get(sessionCookies.access)?.value;
   if (!token) throw new GatewayError(401, "SESSION_EXPIRED");
   return token;
 }
 async function readSession(request: NextRequest, portal: Portal) {
   return reply({
     success: true,
-    data: await identity(accessToken(request, portal), portal),
+    data: await identity(accessToken(request), portal),
   });
 }
 const sessionHandlers = new Map<
@@ -359,7 +338,7 @@ async function forwardRequest(
 ) {
   const target = upstreamPath(request.method, path, portal);
   if (!target) throw new GatewayError(404, "ROUTE_NOT_AVAILABLE");
-  const token = accessToken(request, portal);
+  const token = accessToken(request);
   await identity(token, portal);
   const body = ["POST", "PATCH", "PUT", "DELETE"].includes(request.method)
     ? await jsonBody(request)
@@ -405,7 +384,7 @@ export async function staffGateway(
       return await handler(request, portal);
     }
     if (path === "events" && request.method === "GET") {
-      const token = accessToken(request, portal);
+      const token = accessToken(request);
       await identity(token, portal);
       return await proxyEvents(request, new URL("events", baseUrl()), token);
     }

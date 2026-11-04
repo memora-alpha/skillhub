@@ -98,16 +98,29 @@ export type PortalApi = <T>(
 ) => Promise<ApiEnvelope<T>>;
 const renewals: Partial<Record<Portal, Promise<void>>> = {};
 export function refreshStaffSession(portal: Portal) {
-  renewals[portal] ??= staffApi(
-    "session/refresh",
-    { method: "POST", body: {} },
-    portal,
-    false,
-  )
-    .then(() => undefined)
-    .finally(() => {
-      delete renewals[portal];
-    });
+  const work = async () => {
+    // Another portal/tab may have renewed the shared cookie while this one waited.
+    try {
+      await staffApi("session", {}, portal, false);
+      return;
+    } catch (cause) {
+      if (!(cause instanceof StaffApiError) || cause.status !== 401)
+        throw cause;
+    }
+    await staffApi(
+      "session/refresh",
+      { method: "POST", body: {} },
+      portal,
+      false,
+    );
+  };
+  renewals[portal] ??= (
+    typeof navigator !== "undefined" && "locks" in navigator
+      ? navigator.locks.request("skillhub-session", work)
+      : work()
+  ).finally(() => {
+    delete renewals[portal];
+  });
   return renewals[portal];
 }
 async function portalResponse(

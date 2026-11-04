@@ -3,14 +3,12 @@ import { userBackend, userJson, UserGatewayError } from "./backend";
 import { userIdentity, userUpstreamPath, userQuery } from "./policy";
 import { apiBase } from "./backend";
 import { proxyEvents } from "../staff/event-proxy";
-const ACCESS = "skillhub_user_access",
-  REFRESH = "skillhub_user_refresh";
-const cookies = {
-  httpOnly: true,
-  sameSite: "strict" as const,
-  secure: process.env.NODE_ENV === "production",
-  path: "/api/user",
-};
+import { sessionCookies } from "../auth/session";
+import { sameOriginMutation } from "../auth/origin";
+import { authGateway } from "../auth/server";
+const ACCESS = sessionCookies.access,
+  REFRESH = sessionCookies.refresh;
+const cookies = sessionCookies.options;
 const headers = {
   "Cache-Control": "no-store",
   "X-Content-Type-Options": "nosniff",
@@ -68,14 +66,7 @@ async function establish(value: unknown) {
 async function session(request: NextRequest, refresh: boolean) {
   const token = request.cookies.get(REFRESH)?.value;
   if (request.method === "DELETE" && !refresh) {
-    if (token) {
-      const result = await userBackend("auth/logout", undefined, "POST", {
-        refreshToken: token,
-      });
-      if (![204, 401].includes(result.status))
-        return reply(result.value, result.status);
-    }
-    return clear(reply({ success: true, data: null }));
+    return authGateway(request);
   }
   if (request.method === "GET" && !refresh) {
     const access = request.cookies.get(ACCESS)?.value;
@@ -118,11 +109,7 @@ async function session(request: NextRequest, refresh: boolean) {
 }
 export async function userGateway(request: NextRequest, segments: string[]) {
   try {
-    if (
-      request.method !== "GET" &&
-      (request.headers.get("origin") !== new URL(request.url).origin ||
-        request.headers.get("sec-fetch-site") === "cross-site")
-    )
+    if (request.method !== "GET" && !sameOriginMutation(request))
       throw new UserGatewayError(403, "ORIGIN_NOT_ALLOWED");
     const path = segments.join("/");
     if (path === "session" || path === "session/refresh")

@@ -14,7 +14,8 @@ import {
   UserApiError,
   type UserRequestOptions,
 } from "../api/client";
-import { UserLogin } from "./user-login";
+import { SignInRedirect } from "@/features/auth/sign-in-redirect";
+import { announceSessionChange } from "@/features/auth/session-sync";
 import { LearnerShell } from "../components/learner-shell";
 import {
   QueryClient,
@@ -82,7 +83,7 @@ function UserSessionLifecycle({ children }: Readonly<{ children: ReactNode }>) {
     };
     renewing.current = (
       "locks" in navigator
-        ? navigator.locks.request("skillhub-user-session", work)
+        ? navigator.locks.request("skillhub-session", work)
         : work()
     ).finally(() => {
       renewing.current = null;
@@ -156,6 +157,7 @@ function UserSessionLifecycle({ children }: Readonly<{ children: ReactNode }>) {
   );
   const logout = useCallback(async () => {
     await userFetch("session", { method: "DELETE" });
+    announceSessionChange();
     epoch.current++;
     setActor(null);
     setError(undefined);
@@ -170,23 +172,7 @@ function UserSessionLifecycle({ children }: Readonly<{ children: ReactNode }>) {
         Đang mở không gian học tập…
       </main>
     );
-  if (!actor)
-    return (
-      <UserLogin
-        error={error}
-        onLogin={async (email, password) => {
-          const value = await userFetch<Identity>("session", {
-            method: "POST",
-            body: { email, password },
-          });
-          epoch.current++;
-          cache.clear();
-          setActor(value.data);
-          setError(undefined);
-        }}
-        onReset={logout}
-      />
-    );
+  if (!actor) return <SignInRedirect message={error} />;
   return (
     <SessionContext.Provider value={{ actor, request, refresh, logout }}>
       <LearnerShell key={actor.userId}>{children}</LearnerShell>
