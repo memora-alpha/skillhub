@@ -2,15 +2,13 @@ import type { LearningSession } from "../types";
 
 type JoinSession = Pick<
   LearningSession,
-  "status" | "startAt" | "endAt" | "join"
+  "status" | "startAt" | "endAt" | "join" | "allowedActions"
 >;
-export const sessionEarlyJoinMs = 15 * 60_000;
 
 const messages: Record<string, string> = {
   LIVEKIT_DISABLED: "Phòng học chưa được máy chủ kích hoạt.",
   LIVEKIT_POLICY_NOT_READY: "Máy chủ chưa cấu hình thời gian mở phòng học.",
-  JOIN_WINDOW_NOT_OPEN:
-    "Chưa đến giờ mở phòng. Bạn có thể vào sớm tối đa 15 phút trước giờ học.",
+  JOIN_WINDOW_NOT_OPEN: "Chưa đến giờ mở phòng do hệ thống quy định.",
   JOIN_WINDOW_CLOSED: "Đã hết thời gian vào phòng học.",
   SESSION_NOT_JOINABLE: "Buổi học hiện không cho phép vào phòng.",
   SESSION_ENDED:
@@ -34,7 +32,8 @@ export function sessionJoinReason(
   if (now >= end) return "SESSION_ENDED";
   if (!["CONFIRMED", "READY", "ONGOING"].includes(session.status))
     return "SESSION_NOT_JOINABLE";
-  if (now < start - sessionEarlyJoinMs) return "JOIN_WINDOW_NOT_OPEN";
+  if (session.allowedActions && !session.allowedActions.includes("JOIN"))
+    return "SESSION_NOT_JOINABLE";
   const join = session.join;
   if (!join?.canJoin) return join?.reason ?? "JOIN_STATUS_UNAVAILABLE";
   const opens = Date.parse(join.opensAt ?? "");

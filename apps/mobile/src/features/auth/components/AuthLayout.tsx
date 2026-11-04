@@ -24,9 +24,9 @@ export function AuthLayout({
   subtitle: string;
   children: ReactNode;
 }) {
-  const { width } = useWindowDimensions();
+  const { width, height, fontScale } = useWindowDimensions();
   const router = useRouter();
-  const wide = width >= 1024;
+  const wide = width / fontScale >= 1024 && height >= 500;
   const logo = (
     <Pressable
       accessibilityRole="button"
@@ -95,7 +95,7 @@ export function AuthLayout({
 }
 const styles = StyleSheet.create({
   screen: { flex: 1, flexDirection: "row", backgroundColor: colors.cream },
-  keyboard: { flex: 1 },
+  keyboard: { flex: 1, minWidth: 0 },
   scrollContent: {
     flexGrow: 1,
     alignItems: "center",

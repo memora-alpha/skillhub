@@ -17,10 +17,13 @@ import {
   type ResolutionDraft,
 } from "@/lib/staff/report-resolution";
 import { ReportResolutionFields } from "./report-resolution";
+import { AttendanceEvidence } from "./attendance-evidence";
 import { useStaffList, useStaffResource } from "./hooks";
 import { useStaffSession } from "./session";
 import { DecisionDialog, DownloadButton, QueueState } from "./common";
 const reasons: Record<string, string> = {
+  MAKEUP_EXPIRED: "Quá hạn chốt học bù",
+  ATTENDANCE_UNVERIFIABLE: "Chưa xác minh được điểm danh",
   NO_SHOW_LATE: "Vắng mặt hoặc đến muộn",
   INAPPROPRIATE_BEHAVIOR: "Hành vi không phù hợp",
   SKILL_MISMATCH: "Kỹ năng không đúng thỏa thuận",
@@ -195,7 +198,7 @@ function ReportOverview({ item }: Readonly<{ item: ReportCase }>) {
           <dt>Mã báo cáo</dt>
           <dd className="mono">{item.id}</dd>
           <dt>Người gửi</dt>
-          <dd className="mono">{item.reporterId}</dd>
+          <dd className="mono">{item.reporterId ?? "Hệ thống tự ghi nhận"}</dd>
           <dt>Đối tượng báo cáo</dt>
           <dd>
             {item.targetType === "MATERIAL"
@@ -360,6 +363,7 @@ function ReportDetailContent({
     <div className="grid grid-2 staff-report-grid">
       <div className="stack">
         <ReportOverview item={item} />
+        <AttendanceEvidence outcome={item.attendanceOutcome} />
         {item.session && (
           <Card title="Phiên học liên quan">
             <dl className="kv staff-kv">
@@ -457,6 +461,7 @@ function ReportDecision({
     restrictedUserId: "",
     days: "1",
     reversals: "",
+    noShowRuling: "",
   });
   return (
     <DecisionDialog
@@ -470,6 +475,18 @@ function ReportDecision({
       onClose={onClose}
       onReload={reload}
       onSubmit={async (note) => {
+        if (
+          action === "resolve" &&
+          item.session?.status === "DISPUTED" &&
+          !draft.noShowRuling
+        )
+          throw new Error(
+            "Chọn phán quyết điểm danh trước khi giải quyết vụ việc.",
+          );
+        if (action === "reject" && item.session?.status === "DISPUTED")
+          throw new Error(
+            "Vụ việc này cần phán quyết điểm danh. Hãy chọn Giải quyết vụ việc.",
+          );
         await api<ReportCase>("reports/" + item.id + "/" + action, {
           method: "POST",
           body: {
@@ -486,6 +503,21 @@ function ReportDecision({
         <ReportResolutionFields
           value={draft}
           admin={admin}
+          sessionCase={!!item.session}
+          attendanceManaged={
+            !!item.attendanceOutcome &&
+            !!item.session &&
+            ["NO_SHOW", "DISPUTED", "MAKEUP_REQUIRED"].includes(
+              item.session.status,
+            )
+          }
+          rulingRequired={item.session?.status === "DISPUTED"}
+          allowUphold={
+            item.session?.status === "NO_SHOW" &&
+            ["TEACHER_ABSENT", "LEARNER_ABSENT", "BOTH_ABSENT"].includes(
+              item.attendanceOutcome?.attendanceCase ?? "",
+            )
+          }
           onChange={setDraft}
         />
       )}

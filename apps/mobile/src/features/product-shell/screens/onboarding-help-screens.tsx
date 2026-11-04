@@ -197,34 +197,3 @@ export function PreferencesScreen() {
     </FeaturePage>
   );
 }
-export function PoliciesScreen() {
-  return (
-    <FeaturePage title="Quyền riêng tư & sử dụng" back="/help" demo={false}>
-      <Panel title="Thông tin công khai">
-        <Copy>
-          Tên hiển thị, avatar, bio, uy tín, danh hiệu đã chọn và kỹ năng chia
-          sẻ có thể xuất hiện trên hồ sơ. Email, thông tin thanh toán và bằng
-          chứng riêng tư không công khai.
-        </Copy>
-      </Panel>
-      <Panel title="Trao đổi có trách nhiệm">
-        <Copy>
-          Thống nhất nội dung và lịch bằng các nút xác nhận đúng phiên bản. Tôn
-          trọng người trao đổi, quyền phân phối tài liệu và báo cáo vấn đề có
-          căn cứ.
-        </Copy>
-      </Panel>
-      <Panel title="Credit">
-        <Copy>
-          1.000 VND = 1 Credit. Không hỗ trợ rút tiền. Quyết toán cuối Learning
-          Path theo hình thức học; tranh chấp có thể giữ việc quyết toán.
-        </Copy>
-      </Panel>
-      <Copy muted>
-        Nội dung này tóm tắt nguyên tắc sản phẩm trong SRS 1.6. Điều khoản pháp
-        lý và chính sách lưu giữ dữ liệu chính thức cần được cung cấp trước khi
-        phát hành.
-      </Copy>
-    </FeaturePage>
-  );
-}

@@ -6,6 +6,8 @@ import {
   StyleSheet,
   Text,
   View,
+  ScrollView,
+  useWindowDimensions,
 } from "react-native";
 import { useSafeAreaPosition } from "@/components/use-safe-area-position";
 import { Icon } from "@/components/Icon";
@@ -29,6 +31,7 @@ export function AccountMenu({
   onAction: (title: string) => void;
 }>) {
   const position = useSafeAreaPosition({ top: 56, right: 16 });
+  const { width, height } = useWindowDimensions();
   useEffect(() => {
     if (!visible || Platform.OS !== "android") return;
     const subscription = BackHandler.addEventListener(
@@ -55,35 +58,44 @@ export function AccountMenu({
         role="dialog"
         aria-modal
         accessibilityLabel="Menu tài khoản"
-        style={[styles.menu, position]}
+        style={[
+          styles.menu,
+          position,
+          { maxWidth: width - 32, maxHeight: Math.max(120, height - 96) },
+        ]}
       >
-        <View style={styles.profile}>
-          <Text style={styles.name}>{profile.name}</Text>
-          <Text style={styles.email} numberOfLines={1}>
-            {profile.email}
-          </Text>
-        </View>
-        {accountItems.map((item) => (
-          <Pressable
-            key={item.label}
-            accessibilityRole="button"
-            onPress={() => {
-              onClose();
-              onAction(item.label);
-            }}
-            style={({ pressed }) => [
-              styles.menuItem,
-              pressed && { backgroundColor: colors.canvas },
-            ]}
-          >
-            <Icon
-              name={item.icon}
-              size={iconSizes.control}
-              color={colors.muted}
-            />
-            <Text style={styles.menuLabel}>{item.label}</Text>
-          </Pressable>
-        ))}
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.profile}>
+            <Text style={styles.name}>{profile.name}</Text>
+            <Text style={styles.email} numberOfLines={1}>
+              {profile.email}
+            </Text>
+          </View>
+          {accountItems.map((item) => (
+            <Pressable
+              key={item.label}
+              accessibilityRole="button"
+              onPress={() => {
+                onClose();
+                onAction(item.label);
+              }}
+              style={({ pressed }) => [
+                styles.menuItem,
+                pressed && { backgroundColor: colors.canvas },
+              ]}
+            >
+              <Icon
+                name={item.icon}
+                size={iconSizes.control}
+                color={colors.muted}
+              />
+              <Text style={styles.menuLabel}>{item.label}</Text>
+            </Pressable>
+          ))}
+        </ScrollView>
       </View>
     </View>
   );
@@ -134,6 +146,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   menuLabel: {
+    flexShrink: 1,
     fontFamily: fonts.body,
     fontSize: 14,
     lineHeight: 20,

@@ -97,6 +97,7 @@ export class LiveKitService {
       room: input.roomName,
       canPublish: true,
       canSubscribe: true,
+      // Session participants can exchange ephemeral in-room chat over RTC data.
       canPublishData: true,
     });
     return token.toJwt();

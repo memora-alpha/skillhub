@@ -8,13 +8,43 @@ export function ReportResolutionFields({
   value,
   admin,
   onChange,
+  sessionCase = false,
+  attendanceManaged = false,
+  rulingRequired = false,
+  allowUphold = false,
 }: Readonly<{
   value: ResolutionDraft;
   admin: boolean;
   onChange: (value: ResolutionDraft) => void;
+  sessionCase?: boolean;
+  attendanceManaged?: boolean;
+  rulingRequired?: boolean;
+  allowUphold?: boolean;
 }>) {
   return (
     <div className="stack">
+      {attendanceManaged && (
+        <label className="staff-field">
+          <span>Phán quyết điểm danh{rulingRequired ? " (bắt buộc)" : ""}</span>
+          <select
+            required={rulingRequired}
+            value={value.noShowRuling ?? ""}
+            onChange={(e) =>
+              onChange({
+                ...value,
+                noShowRuling: e.target.value as ResolutionDraft["noShowRuling"],
+              })
+            }
+          >
+            <option value="">Chọn phán quyết</option>
+            {allowUphold && (
+              <option value="UPHOLD">Giữ kết luận vắng học</option>
+            )}
+            <option value="EXCUSE">Chấp nhận lý do và yêu cầu học bù</option>
+            <option value="COMPLETE">Ghi nhận hoàn thành buổi học</option>
+          </select>
+        </label>
+      )}
       <p className="muted">
         Chọn biện pháp xử lý nếu cần. Mỗi thay đổi sẽ được ghi nhận cùng lý do
         giải quyết vụ việc.
@@ -40,11 +70,13 @@ export function ReportResolutionFields({
                 }
               >
                 <option value="">Không ghi nhận vi phạm</option>
-                {Object.entries(violationLabels).map(([code, label]) => (
-                  <option key={code} value={code}>
-                    {label}
-                  </option>
-                ))}
+                {Object.entries(violationLabels)
+                  .filter(([code]) => !sessionCase || code !== "NO_SHOW")
+                  .map(([code, label]) => (
+                    <option key={code} value={code}>
+                      {label}
+                    </option>
+                  ))}
               </select>
             </label>
             {p.violation === "FRAUD" && (

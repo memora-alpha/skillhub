@@ -1,5 +1,5 @@
 import type { SchedulingErrorDetails } from "./scheduling-error";
-
+import { scheduleConflictMessage } from "./scheduling-error";
 export class AppError extends Error {
   constructor(
     public readonly kind:
@@ -18,6 +18,35 @@ export const OTP_ERROR_MESSAGE =
   "Mã không đúng hoặc đã hết hạn. Nếu sai 5 lần, hãy thử lại sau 24 giờ.";
 
 const messages: Record<string, string> = {
+  ACTIVE_SESSION_REPORT_EXISTS:
+    "Bạn đã có báo cáo đang xử lý cho buổi này. Mở danh sách báo cáo để theo dõi.",
+  ACTIVE_MATERIAL_REPORT_EXISTS:
+    "Bạn đã có báo cáo đang xử lý cho tài liệu này.",
+  DISPUTE_WINDOW_CLOSED: "Đã hết thời hạn gửi báo cáo buổi học.",
+  DISPUTE_WINDOW_OPEN:
+    "Chưa hết thời hạn khiếu nại. Hãy kiểm tra quyết toán sau thời hạn này.",
+  SETTLEMENT_BLOCKED_BY_DISPUTE:
+    "Lộ trình đang có tranh chấp cần xử lý trước khi quyết toán.",
+  PATH_SESSIONS_INCOMPLETE:
+    "Cần hoàn thành tất cả buổi học trước khi quyết toán.",
+  MATERIAL_VERSION_CONFLICT:
+    "Giá hoặc phiên bản tài liệu đã đổi. Tải lại và kiểm tra trước khi xác nhận.",
+  MATERIAL_PRICE_CHANGED:
+    "Giá hoặc phiên bản tài liệu đã đổi. Tải lại và kiểm tra trước khi xác nhận mua.",
+  MATERIAL_ORDER_NOT_REFUNDABLE: "Đơn mua hiện không đủ điều kiện hoàn tiền.",
+  INSUFFICIENT_AVAILABLE_CREDIT:
+    "Số dư Credit khả dụng chưa đủ. Kiểm tra ví trước khi tiếp tục.",
+  MATERIAL_ALREADY_OWNED: "Bạn đã có quyền truy cập tài liệu này.",
+  MATERIAL_TRANSITION_INVALID:
+    "Tài liệu đã đổi trạng thái. Tải lại danh sách trước khi thao tác.",
+  MATERIAL_NOT_PURCHASABLE: "Tài liệu hiện không đủ điều kiện mua.",
+  MATERIAL_FILE_REQUIRED: "Tài liệu cần có tệp hợp lệ trước khi gửi duyệt.",
+  MATERIAL_REFUND_WINDOW_CLOSED:
+    "Đã hết thời hạn hoàn tiền tự động cho đơn mua này.",
+  MATERIAL_ALREADY_CONSUMED:
+    "Tài liệu đã được cấp đường dẫn tải nên không thể hoàn tiền tự động.",
+  FILE_NOT_READY:
+    "Tệp chưa được quét an toàn xong. Kiểm tra trạng thái tệp trước khi gửi.",
   CHAT_RATE_LIMIT:
     "Bạn đang gửi tin nhắn quá nhanh. Vui lòng đợi trước khi gửi tiếp.",
   PROPOSAL_RATE_LIMIT: "Bạn đã đạt giới hạn gửi đề xuất. Vui lòng thử lại sau.",
@@ -37,6 +66,11 @@ const messages: Record<string, string> = {
 export function errorMessage(error: unknown): string {
   if (!(error instanceof AppError))
     return "Không thể hoàn tất. Vui lòng thử lại.";
+  if (error.code === "SCHEDULE_CONFLICT")
+    return (
+      scheduleConflictMessage(error) ??
+      "Thời gian đề xuất bị trùng lịch. Hãy chọn giờ khác."
+    );
   const message = messages[error.code];
   if (message) return message;
   if (error.kind === "network")

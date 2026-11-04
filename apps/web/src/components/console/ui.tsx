@@ -88,6 +88,8 @@ const STATUS: Record<string, [string, Tone]> = {
   CLOSED: ["Đã đóng", "neutral"],
   NEGOTIATING: ["Đang thương lượng", "info"],
   DISPUTED: ["Tranh chấp", "bad"],
+  NO_SHOW: ["Có người vắng học", "warn"],
+  MAKEUP_REQUIRED: ["Cần học bù", "warn"],
   AWAITING_CONFIRMATION: ["Chờ xác nhận", "warn"],
   COMPLETED: ["Hoàn thành", "ok"],
   SUCCESS: ["Thành công", "ok"],

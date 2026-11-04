@@ -3,6 +3,7 @@ import type { HttpClient, RequestOptions } from "@/lib/http/client";
 import { AppError } from "@/lib/http/errors";
 import { liveKitTokenSchema } from "./livekit-contract";
 import { createRescheduleApi } from "./reschedule-api";
+import { excuseReceipt } from "./attendance-contract";
 import {
   sessionSchema,
   completionReceiptSchema,
@@ -43,6 +44,30 @@ export function createSessionsApi(
   }
   return {
     ...createRescheduleApi(call),
+    async submitExcuse(id: string, reason: string) {
+      const body = z
+        .object({ reason: z.string().trim().min(10).max(1000) })
+        .parse({ reason });
+      return excuseReceipt.parse(
+        await call(`${sessionPath(id)}/absence-excuse`, {
+          method: "POST",
+          body,
+          replayAfterRenewal: false,
+        }),
+      );
+    },
+    async decideExcuse(id: string, accept: boolean, note = "") {
+      const body = z
+        .object({ accept: z.boolean(), note: z.string().trim().max(1000) })
+        .parse({ accept, note });
+      return excuseReceipt.parse(
+        await call(`${sessionPath(id)}/absence-excuse/decision`, {
+          method: "POST",
+          body,
+          replayAfterRenewal: false,
+        }),
+      );
+    },
     async list(range: SessionRange, signal?: AbortSignal) {
       const result = await call(
         `/sessions/mine?${new URLSearchParams(range)}`,

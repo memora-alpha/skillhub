@@ -1,35 +1,54 @@
 import { useRef, useState } from "react";
-import { ActivityIndicator, Linking, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Linking,
+  Text,
+  View,
+  Modal,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+} from "react-native";
 import {
   RoomContext,
-  VideoTrack,
-  useTracks,
   useLocalParticipant,
-  useRemoteParticipants,
   registerGlobals,
-  isTrackReference,
 } from "@livekit/react-native";
 import { LocalVideoTrack, Track } from "livekit-client";
 import { Button } from "@/components/Button";
 import { FormNotice } from "@/components/FormNotice";
-import { Icon } from "@/components/Icon";
-import { appColors } from "@/constants/theme";
 import { useRoomConnection } from "../hooks/use-room-connection.native";
 import type { RoomMediaProps } from "./room-media.types";
 import { roomStyles as styles } from "./native-room.styles";
+import { SafeAreaView } from "@/components/SafeArea";
+import { randomUUID } from "expo-crypto";
+import { NativeRoomStage } from "./native-room-stage";
+import { NativeRoomChat } from "./native-room-chat";
+import { useRoomChat } from "../hooks/use-room-chat";
 
 registerGlobals();
 
 export default function NativeRoom(props: RoomMediaProps) {
   const call = useRoomConnection(props);
+  const [expanded, setExpanded] = useState(true);
+  const [chatOpen, setChatOpen] = useState(false);
+  const chat = useRoomChat(
+    call.room,
+    props.partnerIdentity,
+    randomUUID,
+    call.active,
+  );
   const labels = {
     connecting: "Đang kết nối phòng học…",
     connected: "Đã vào phòng học",
     reconnecting: "Mất kết nối. Đang kết nối lại…",
     disconnected: "Đã ngắt kết nối",
   };
-  return (
+  const content = (
     <View style={styles.page}>
+      <Button variant="paper" onPress={() => setExpanded((value) => !value)}>
+        {expanded ? "Thu gọn phòng học" : "Mở rộng phòng học"}
+      </Button>
       <Text accessibilityLiveRegion="polite" style={styles.status}>
         {labels[call.status]}
       </Text>
@@ -52,8 +71,27 @@ export default function NativeRoom(props: RoomMediaProps) {
       )}
       {call.room && (
         <RoomContext.Provider value={call.room}>
-          <RoomVideos partnerName={props.partnerName} />
+          <NativeRoomStage
+            partnerName={props.partnerName}
+            partnerAvatarUrl={props.partnerAvatarUrl}
+            expanded={expanded}
+          />
           <RoomControls call={call} onLeave={props.onLeave} />
+          <Button
+            variant="paper"
+            onPress={() => setChatOpen((value) => !value)}
+          >
+            {(chatOpen ? "Đóng chat" : "Chat phiên học") +
+              " (" +
+              chat.messages.length +
+              ")"}
+          </Button>
+          <NativeRoomChat
+            chat={chat}
+            partnerName={props.partnerName}
+            partnerAvatarUrl={props.partnerAvatarUrl}
+            hidden={!chatOpen}
+          />
         </RoomContext.Provider>
       )}
       {call.status === "disconnected" && (
@@ -63,49 +101,27 @@ export default function NativeRoom(props: RoomMediaProps) {
       )}
     </View>
   );
-}
-
-function RoomVideos({ partnerName }: Readonly<{ partnerName: string }>) {
-  const tracks = useTracks(
-    [{ source: Track.Source.Camera, withPlaceholder: true }],
-    { onlySubscribed: true },
-  );
-  const remote = useRemoteParticipants();
+  if (!expanded) return content;
   return (
-    <View style={styles.grid}>
-      {remote.length === 0 && (
-        <View style={styles.tile}>
-          <View style={styles.placeholder}>
-            <Icon name="user" color={appColors.white} size={42} />
-            <Text style={styles.placeholderText}>
-              Đang chờ {partnerName} vào phòng
-            </Text>
-          </View>
-        </View>
-      )}
-      {tracks.map((track) => (
-        <View
-          key={`${track.participant.identity}:${track.source}`}
-          style={styles.tile}
+    <Modal
+      visible
+      onRequestClose={() => setExpanded(false)}
+      supportedOrientations={["portrait", "landscape"]}
+    >
+      <SafeAreaView style={styles.fullscreen}>
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
-          {isTrackReference(track) && !track.publication.isMuted ? (
-            <VideoTrack
-              trackRef={track}
-              style={styles.video}
-              objectFit="cover"
-            />
-          ) : (
-            <View style={styles.placeholder}>
-              <Icon name="video" color={appColors.white} size={36} />
-              <Text style={styles.placeholderText}>Camera đang tắt</Text>
-            </View>
-          )}
-          <Text style={styles.name}>
-            {track.participant.isLocal ? "Bạn" : partnerName}
-          </Text>
-        </View>
-      ))}
-    </View>
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={styles.fullscreenContent}
+          >
+            {content}
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </Modal>
   );
 }
 
@@ -116,8 +132,12 @@ function RoomControls({
   call: ReturnType<typeof useRoomConnection>;
   onLeave: () => void;
 }>) {
-  const { localParticipant, isCameraEnabled, isMicrophoneEnabled } =
-    useLocalParticipant();
+  const {
+    localParticipant,
+    isCameraEnabled,
+    isMicrophoneEnabled,
+    isScreenShareEnabled,
+  } = useLocalParticipant();
   const busy = useRef(false);
   const [pending, setPending] = useState(false);
   const [facing, setFacing] = useState<"user" | "environment">("user");
@@ -165,6 +185,19 @@ function RoomControls({
           {isCameraEnabled ? "Tắt camera" : "Bật camera"}
         </Button>
       </View>
+      {Platform.OS === "android" && (
+        <Button
+          variant="paper"
+          disabled={disabled}
+          onPress={() => {
+            void perform(() =>
+              localParticipant.setScreenShareEnabled(!isScreenShareEnabled),
+            );
+          }}
+        >
+          {isScreenShareEnabled ? "Dừng chia sẻ màn hình" : "Chia sẻ màn hình"}
+        </Button>
+      )}
       <Button
         variant="paper"
         disabled={disabled || !isCameraEnabled}

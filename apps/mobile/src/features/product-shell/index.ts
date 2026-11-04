@@ -9,5 +9,4 @@ export {
   OnboardingScreen,
   HelpScreen,
   PreferencesScreen,
-  PoliciesScreen,
 } from "./screens/onboarding-help-screens";

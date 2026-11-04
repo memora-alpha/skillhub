@@ -18,14 +18,23 @@ export function QueueState({
 }>) {
   if (error)
     return (
-      <div className="staff-state">
-        <p role="alert" className="staff-error">
-          {error}
-        </p>
-        <button type="button" className="btn" onClick={reload}>
-          Thử lại
-        </button>
-      </div>
+      <>
+        <div className="staff-state">
+          <p role="alert" className="staff-error">
+            {!empty && "Đang hiển thị dữ liệu đã tải trước đó. "}
+            {error}
+          </p>
+          <button
+            type="button"
+            className="btn"
+            onClick={reload}
+            disabled={loading}
+          >
+            Thử lại
+          </button>
+        </div>
+        {!empty && children}
+      </>
     );
   if (loading && empty)
     return <output className="staff-state">Đang tải hàng đợi…</output>;

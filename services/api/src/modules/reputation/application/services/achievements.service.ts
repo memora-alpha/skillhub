@@ -25,6 +25,12 @@ function achieved(code: string, facts: AchievementFacts): boolean {
       return facts.completedPaths >= 1;
     case "FIVE_PATHS":
       return facts.completedPaths >= 5;
+    case "TEN_PATHS":
+      return facts.completedPaths >= 10;
+    case "FIRST_TEACHING_PATH":
+      return facts.teachingPaths >= 1;
+    case "FIVE_TEACHING_PATHS":
+      return facts.teachingPaths >= 5;
     case "TEN_TEACHING_PATHS":
       return facts.teachingPaths >= 10;
     case "TRUSTED_MEMBER":
@@ -33,6 +39,10 @@ function achieved(code: string, facts: AchievementFacts): boolean {
       return facts.accountAgeDays >= 180 && facts.completedPaths >= 10;
     case "THREE_VERIFIED_SKILLS":
       return facts.verifiedSkillCount >= 3;
+    case "FIRST_VERIFIED_SKILL":
+      return facts.verifiedSkillCount >= 1;
+    case "FIVE_VERIFIED_SKILLS":
+      return facts.verifiedSkillCount >= 5;
     default:
       return false;
   }
@@ -88,6 +98,7 @@ export class AchievementsService {
     );
     if (newlyUnlocked.length !== 0) {
       await tx.userAchievement.createMany({
+        skipDuplicates: true,
         data: newlyUnlocked.map((definition) => ({
           userId,
           achievementId: definition.id,

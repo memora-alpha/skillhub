@@ -82,6 +82,13 @@ export function AccountSettingsScreen() {
             </ActionGroup>
             <ActionGroup title="Thông tin và hỗ trợ">
               <ActionRow
+                icon="shield"
+                label="Chính sách & điều khoản"
+                description="Bảo mật dữ liệu và nguyên tắc sử dụng SkillHub"
+                disabled={busy}
+                onPress={() => router.push("/policies")}
+              />
+              <ActionRow
                 icon="help"
                 label="Trợ giúp"
                 description="Hồ sơ, ảnh đại diện và bảo mật"

@@ -11,6 +11,10 @@
       "bundleIdentifier": "com.skillhub.mobile"
     },
     "android": {
+      "permissions": [
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION"
+      ],
       "package": "com.skillhub.mobile",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
@@ -40,7 +44,10 @@
         }
       ],
       "expo-image",
-      "@livekit/react-native-expo-plugin",
+      [
+        "@livekit/react-native-expo-plugin",
+        { "enableScreenShareService": true }
+      ],
       [
         "@config-plugins/react-native-webrtc",
         {

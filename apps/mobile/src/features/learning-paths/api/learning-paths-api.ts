@@ -3,6 +3,7 @@ import type { RequestOptions } from "@/lib/http/client";
 import { AppError } from "@/lib/http/errors";
 import {
   parse,
+  parsePage,
   resourcePath,
   uuid,
   version,
@@ -56,10 +57,33 @@ export function createLearningPathsApi(
     });
   return {
     async mine(signal?: AbortSignal) {
-      const result = parse(
-        z.array(pathSummarySchema).max(100),
-        await call("/learning-paths/mine", { signal }),
-      );
+      const result: z.infer<typeof pathSummarySchema>[] = [];
+      const cursors = new Set<string>();
+      let cursor: string | null = null;
+      async function loadNextPage() {
+        if (signal?.aborted) throw new AppError("session");
+        const query: string = cursor
+          ? `?${new URLSearchParams({ cursor })}`
+          : "";
+        const page: {
+          items: z.infer<typeof pathSummarySchema>[];
+          nextCursor: string | null;
+        } = parsePage(
+          pathSummarySchema,
+          await call(`/learning-paths/mine${query}`, {
+            signal,
+            includeMeta: true,
+          }),
+        );
+        result.push(...page.items);
+        cursor = page.nextCursor;
+        if (cursor && cursors.has(cursor)) throw new AppError("protocol");
+        if (cursor) cursors.add(cursor);
+
+        if (cursor) await loadNextPage();
+      }
+      await loadNextPage();
+
       if (
         new Set(result.map((p) => p.id)).size !== result.length ||
         result.some((p) => p.counterpartId === userId)

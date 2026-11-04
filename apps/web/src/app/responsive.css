@@ -1,0 +1,163 @@
+/* Shared layout constraints for the learner, Staff and Admin portals. */
+.main-col,
+.content,
+.grid > *,
+.split > *,
+.stack > *,
+.learner-root,
+.learner-content,
+.learner-two-columns > *,
+.learner-form-grid > *,
+.learner-post-grid > *,
+.learner-page-heading > *,
+.learner-account {
+  min-width: 0;
+}
+.main-col {
+  width: 100%;
+}
+.table-wrap {
+  max-width: 100%;
+  overscroll-behavior-inline: contain;
+}
+.staff-detail-actions,
+.staff-dialog-actions,
+.dialog-foot {
+  flex-wrap: wrap;
+}
+.staff-shell :is(.prose, .plain-row, .cell-user, .q-item, .notice, .staff-kv),
+.learner-root
+  :is(.learner-card, .learner-message, .learner-error, .learner-notice) {
+  overflow-wrap: anywhere;
+}
+.learner-search,
+.learner-tabs {
+  max-width: 100%;
+}
+.learner-tabs {
+  flex-wrap: wrap;
+}
+.learner-form :is(input, select, textarea) {
+  max-width: 100%;
+}
+.learner-form label {
+  min-width: 0;
+}
+.learner-room-controls .btn {
+  white-space: normal;
+}
+.learner-media-grid > * {
+  min-width: 0;
+  max-width: 100%;
+}
+.staff-shell .kv {
+  grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
+}
+.staff-shell .dialog {
+  overscroll-behavior: contain;
+}
+@media (max-width: 767px) {
+  .staff-shell .content {
+    padding: 16px max(16px, env(safe-area-inset-right)) 24px
+      max(16px, env(safe-area-inset-left));
+  }
+  .staff-shell
+    :is(
+      .toolbar,
+      .page-actions,
+      .dialog-foot,
+      .staff-detail-actions,
+      .staff-dialog-actions
+    )
+    > * {
+    max-width: 100%;
+  }
+  .staff-shell :is(.input, .select, .field textarea, .search input),
+  .learner-form :is(input, select, textarea),
+  .learner-search input {
+    font-size: 16px;
+  }
+  .staff-shell .badge,
+  .learner-root .learner-status {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .learner-topbar {
+    padding-inline: max(16px, env(safe-area-inset-left))
+      max(16px, env(safe-area-inset-right));
+  }
+  .learner-topbar nav {
+    min-width: 0;
+    max-width: 100%;
+    overscroll-behavior-inline: contain;
+  }
+  .learner-topbar nav a {
+    flex-shrink: 0;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+  .learner-chat {
+    max-height: 65svh;
+  }
+  .learner-card .learner-actions .btn {
+    white-space: normal;
+    min-height: 44px;
+  }
+}
+@media (max-width: 479px) {
+  .staff-shell .kv,
+  .learner-kv {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+  }
+  .staff-shell .kv dd,
+  .learner-kv dd {
+    margin-bottom: 10px;
+  }
+  .staff-shell .dual {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .staff-shell .topbar-crumb {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .staff-shell .file-viewer-head {
+    flex-wrap: wrap;
+  }
+  .staff-shell .file-viewer-head > div {
+    min-width: 0;
+  }
+  .learner-search {
+    flex-wrap: wrap;
+  }
+  .learner-search input {
+    flex-basis: 100%;
+  }
+  .learner-room-controls .btn {
+    flex: 1 1 130px;
+  }
+  .learner-message {
+    max-width: 95%;
+  }
+  .learner-page-heading h1 {
+    font-size: 26px;
+  }
+  .learner-tabs button {
+    flex: 1 1 auto;
+    min-height: 44px;
+  }
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  .side {
+    overflow-y: auto;
+  }
+  .dialog {
+    max-height: calc(100svh - 16px);
+  }
+  .learner-media-grid {
+    min-height: 120px;
+  }
+}

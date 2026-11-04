@@ -1,0 +1,9 @@
+import { PostEditor } from "@/features/learner/posts/post-editor";
+export default async function Page({
+  params,
+}: Readonly<{
+  params: Promise<{ id: string }>;
+}>) {
+  const { id } = await params;
+  return <PostEditor key={id} id={id} />;
+}

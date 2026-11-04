@@ -163,6 +163,16 @@ function PathContent({
         current={current}
         onSelect={setReviewing}
       />
+      {path.lockedVersion && (
+        <Button
+          variant="paper"
+          onPress={() => router.push(`/paths/${path.id}/settlement`)}
+        >
+          {path.settledAt
+            ? "Đã quyết toán · Xem kết quả Credit"
+            : "Hoàn Credit / quyết toán lộ trình"}
+        </Button>
+      )}
       {path.lockedVersion &&
       path.plans.some((plan) => plan.sessions.length > 0) ? (
         <Button

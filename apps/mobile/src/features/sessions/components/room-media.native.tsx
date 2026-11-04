@@ -10,7 +10,7 @@ export const roomMediaAvailable =
   Constants.executionEnvironment !== ExecutionEnvironment.StoreClient;
 const NativeRoom = lazy(() => import("./native-room"));
 
-class RoomBoundary extends Component<
+export class RoomBoundary extends Component<
   { children: ReactNode; onLeave: () => void },
   { failed: boolean }
 > {

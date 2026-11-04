@@ -4,6 +4,16 @@ import { StaffApiError, isSessionFailure } from "@/lib/staff/client";
 import { appendCursor, mergePage } from "@/lib/staff/pagination";
 import type { ApiEnvelope, Pagination } from "@/lib/staff/types";
 import { useStaffSession } from "./session";
+
+function isTemporaryFailure(error: unknown) {
+  return (
+    error instanceof StaffApiError &&
+    (error.status === 0 ||
+      error.status === 408 ||
+      error.status === 429 ||
+      error.status >= 500)
+  );
+}
 export function useStaffCommand() {
   const { api } = useStaffSession();
   const attempt = useRef<{ digest: string; key: string } | null>(null);
@@ -77,6 +87,7 @@ export function useStaffList<T extends { id?: string; userId?: string }>(
   }>({ path, items: [], loading: true });
   const pending = useRef(false);
   const current = useRef<AbortController | null>(null);
+  const cursors = useRef(new Set<string>());
   const load = useCallback(
     (cursor?: string) => {
       if (cursor && pending.current) return;
@@ -86,26 +97,35 @@ export function useStaffList<T extends { id?: string; userId?: string }>(
       pending.current = true;
       return api<T[]>(appendCursor(path, cursor), { signal: controller.signal })
         .then((result) => {
-          if (!Array.isArray(result.data))
+          if (controller.signal.aborted) return;
+          const next = result.meta?.pagination?.nextCursor;
+          if (
+            !Array.isArray(result.data) ||
+            (cursor && next && (next === cursor || cursors.current.has(next)))
+          )
             throw new StaffApiError(502, "API_RESPONSE_INVALID");
-          if (!controller.signal.aborted)
-            setState((s) => ({
-              path,
-              items: cursor ? mergePage(s.items, result.data) : result.data,
-              page: result.meta?.pagination,
-              loading: false,
-            }));
+          if (cursor) cursors.current.add(cursor);
+          else cursors.current.clear();
+          setState((s) => ({
+            path,
+            items: cursor ? mergePage(s.items, result.data) : result.data,
+            page: result.meta?.pagination,
+            loading: false,
+          }));
         })
         .catch((e: unknown) => {
           if (controller.signal.aborted) return;
           if (isSessionFailure(e)) expire();
-          setState((s) => ({
-            path,
-            items: cursor && s.path === path ? s.items : [],
-            page: cursor && s.path === path ? s.page : undefined,
-            loading: false,
-            error: e instanceof Error ? e.message : "Không thể tải hàng đợi.",
-          }));
+          setState((s) => {
+            const keepItems = s.path === path && isTemporaryFailure(e);
+            return {
+              path,
+              items: keepItems ? s.items : [],
+              page: keepItems ? s.page : undefined,
+              loading: false,
+              error: e instanceof Error ? e.message : "Không thể tải hàng đợi.",
+            };
+          });
         })
         .finally(() => {
           if (current.current === controller) pending.current = false;
@@ -124,11 +144,16 @@ export function useStaffList<T extends { id?: string; userId?: string }>(
     loading: !fresh || state.loading,
     error: fresh ? state.error : undefined,
     reload: () => {
-      setState({ path, items: [], loading: true });
+      setState((s) => ({
+        path,
+        items: s.path === path ? s.items : [],
+        page: s.path === path ? s.page : undefined,
+        loading: true,
+      }));
       return load();
     },
     more: () => {
-      if (pending.current || !state.page?.nextCursor) return;
+      if (pending.current || !fresh || !state.page?.nextCursor) return;
       setState((s) => ({ ...s, loading: true }));
       return load(state.page.nextCursor);
     },

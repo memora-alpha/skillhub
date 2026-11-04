@@ -2,10 +2,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState } from "react-native";
 import { useFocusEffect } from "expo-router";
 import type { LearningSession } from "../types";
-import { sessionEarlyJoinMs } from "../utils/session-join";
 
 export function useSessionClock(
-  session?: Pick<LearningSession, "startAt" | "endAt" | "join">,
+  session?: Pick<LearningSession, "startAt" | "endAt" | "join" | "deadlines">,
   onBoundary?: () => void,
 ) {
   const [now, setNow] = useState(Date.now);
@@ -16,15 +15,20 @@ export function useSessionClock(
   const end = session?.endAt;
   const opens = session?.join?.opensAt;
   const closes = session?.join?.closesAt;
+  const confirmBy = session?.deadlines?.confirmBy;
+  const excuseBy = session?.deadlines?.excuseOrReportBy;
+  const makeupBy = session?.deadlines?.makeupBy;
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined;
     const boundaries = [
       Date.parse(start ?? "") - 60 * 60_000 + 1,
-      Date.parse(start ?? "") - sessionEarlyJoinMs,
       Date.parse(start ?? ""),
       Date.parse(end ?? ""),
       Date.parse(opens ?? ""),
       Date.parse(closes ?? ""),
+      Date.parse(confirmBy ?? ""),
+      Date.parse(excuseBy ?? ""),
+      Date.parse(makeupBy ?? ""),
     ].filter(Number.isFinite);
     const refresh = (boundary = false) => {
       if (timer) clearTimeout(timer);
@@ -47,7 +51,7 @@ export function useSessionClock(
       if (timer) clearTimeout(timer);
       subscription.remove();
     };
-  }, [start, end, opens, closes]);
+  }, [start, end, opens, closes, confirmBy, excuseBy, makeupBy]);
   useFocusEffect(
     useCallback(() => {
       focused.current = true;

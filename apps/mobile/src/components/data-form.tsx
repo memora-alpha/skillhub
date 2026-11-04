@@ -7,6 +7,7 @@ import { ControlledInput } from "./ControlledInput";
 import { Button } from "./Button";
 import { FormNotice } from "./FormNotice";
 import { ChoiceGroup } from "./choice-group";
+import { errorMessage } from "@/lib/http/errors";
 
 export type DataField = {
   name: string;
@@ -22,13 +23,18 @@ export function DataForm({
   defaults = {},
   submitLabel = "Lưu bản xem thử",
   onSubmit,
+  disabled = false,
 }: {
   fields: readonly DataField[];
   defaults?: Record<string, string>;
   submitLabel?: string;
-  onSubmit: (values: Record<string, string>) => void | string;
+  onSubmit: (
+    values: Record<string, string>,
+  ) => void | string | Promise<void | string>;
+  disabled?: boolean;
 }) {
   const [error, setError] = useState<string>();
+  const [pending, setPending] = useState(false);
   const schema = z.object(
     Object.fromEntries(fields.map((f) => [f.name, f.rule])),
   );
@@ -49,6 +55,7 @@ export function DataForm({
               label={f.label}
               options={f.choices}
               value={watch(f.name)}
+              disabled={disabled || pending}
               onChange={(v) => setValue(f.name, v, { shouldValidate: true })}
             />
           ) : (
@@ -57,6 +64,7 @@ export function DataForm({
               name={f.name}
               label={f.label}
               multiline={f.multiline}
+              editable={!disabled && !pending}
               hint={f.hint}
               keyboardType={f.numeric ? "decimal-pad" : "default"}
             />
@@ -71,13 +79,23 @@ export function DataForm({
       {error && <FormNotice tone="error">{error}</FormNotice>}
       <Button
         variant="craft"
+        disabled={disabled || pending}
         onPress={() =>
-          void handleSubmit((values) => {
-            setError(onSubmit(values) || undefined);
+          void handleSubmit(async (values) => {
+            if (disabled || pending) return;
+            setPending(true);
+            setError(undefined);
+            try {
+              setError((await onSubmit(values)) || undefined);
+            } catch (cause) {
+              setError(errorMessage(cause));
+            } finally {
+              setPending(false);
+            }
           })()
         }
       >
-        {submitLabel}
+        {pending ? "Đang xử lý…" : submitLabel}
       </Button>
     </View>
   );

@@ -66,6 +66,8 @@ export const planSchema = z.object({
         "COMPLETED",
         "CANCELLED",
         "DISPUTED",
+        "NO_SHOW",
+        "MAKEUP_REQUIRED",
       ]),
     }),
   ),

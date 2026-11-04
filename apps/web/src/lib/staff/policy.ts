@@ -137,12 +137,7 @@ export function upstreamPath(
     )?.[2](path) ?? null
   );
 }
-export function sameOriginMutation(request: Request): boolean {
-  return (
-    request.headers.get("origin") === new URL(request.url).origin &&
-    request.headers.get("sec-fetch-site") !== "cross-site"
-  );
-}
+export { sameOriginMutation } from "../auth/origin";
 export function staffIdentity(value: unknown) {
   if (!value || typeof value !== "object") return null;
   const v = value as Record<string, unknown>;

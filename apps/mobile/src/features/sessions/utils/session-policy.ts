@@ -22,6 +22,9 @@ export function canConfirmSession(
 ) {
   return (
     isParticipant(s, userId) &&
+    (s.allowedActions === undefined ||
+      s.allowedActions.includes("CONFIRM_COMPLETION")) &&
+    (!s.deadlines?.confirmBy || Date.parse(s.deadlines.confirmBy) > now) &&
     ["CONFIRMED", "READY", "ONGOING", "AWAITING_CONFIRMATION"].includes(
       s.status,
     ) &&

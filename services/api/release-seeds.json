@@ -4,6 +4,11 @@
       "id": "admin-staff-tag-material-grants",
       "seeds": ["identity"],
       "reason": "Synchronize existing role grants for tag administration, tag requests and material moderation after authenticated Admin requests were denied."
+    },
+    {
+      "id": "learning-achievement-milestones-20261104",
+      "seeds": ["configuration"],
+      "reason": "Add the five user-requested verified-skill, teaching-path and completed-path achievement milestones without replacing existing definitions."
     }
   ]
 }

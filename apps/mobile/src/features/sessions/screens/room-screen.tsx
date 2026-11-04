@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AppState } from "react-native";
+import { AppState, Switch, View } from "react-native";
 import { useFocusEffect, useLocalSearchParams } from "expo-router";
 import { FormNotice } from "@/components/FormNotice";
 import { useSessionDetail } from "../hooks/use-sessions";
@@ -14,6 +14,7 @@ import {
   SessionButton,
 } from "../components/session-page";
 import { RoomMedia, roomMediaAvailable } from "../components/room-media";
+import { RoomPreview } from "../components/room-preview";
 import {
   canJoinSession,
   joinReason,
@@ -29,6 +30,8 @@ export function RoomScreen() {
 
 function SessionRoom({ id }: Readonly<{ id: string }>) {
   const [attempt, setAttempt] = useState(0);
+  const [startCamera, setStartCamera] = useState(false);
+  const [startMicrophone, setStartMicrophone] = useState(false);
   const query = useSessionDetail(id, attempt > 0);
   const partner = useSessionPartner(query.data);
   const runtime = useSessionsRuntime();
@@ -46,11 +49,15 @@ function SessionRoom({ id }: Readonly<{ id: string }>) {
   const focused = useRef(false);
   const retryLock = useRef(false);
   const intent = useRef(0);
+  const sharingScreen = useRef(false);
+  const screenShareChanged = useCallback((value: boolean) => {
+    sharingScreen.current = value;
+  }, []);
   const callIsCurrent = useCallback(
     () =>
       runtime.isCurrent() &&
       focused.current &&
-      AppState.currentState !== "background" &&
+      (AppState.currentState !== "background" || sharingScreen.current) &&
       !!sessionRef.current &&
       ["CONFIRMED", "READY", "ONGOING"].includes(sessionRef.current.status) &&
       Date.now() < Date.parse(sessionRef.current.endAt),
@@ -67,6 +74,7 @@ function SessionRoom({ id }: Readonly<{ id: string }>) {
     }
   }, [session, terminal, ended, runtime.enabled]);
   const leave = useCallback(() => {
+    sharingScreen.current = false;
     intent.current++;
     setAttempt(0);
     setNotice(
@@ -77,7 +85,7 @@ function SessionRoom({ id }: Readonly<{ id: string }>) {
     useCallback(() => {
       focused.current = true;
       const subscription = AppState.addEventListener("change", (state) => {
-        if (state === "background") {
+        if (state === "background" && !sharingScreen.current) {
           intent.current++;
           setAttempt(0);
           setNotice(
@@ -88,6 +96,7 @@ function SessionRoom({ id }: Readonly<{ id: string }>) {
       return () => {
         intent.current++;
         focused.current = false;
+        sharingScreen.current = false;
         subscription.remove();
         setAttempt(0);
       };
@@ -151,9 +160,10 @@ function SessionRoom({ id }: Readonly<{ id: string }>) {
                 {partner.data?.fullName ?? "Người trao đổi"}
               </SessionCopy>
               <SessionCopy muted>
-                Bạn có thể vào sớm tối đa 15 phút và vào lại khi mất kết nối
-                trong giờ học. Camera và micro chỉ bật khi bạn vào phòng. Cả hai
-                người vẫn cần xác nhận hoàn thành sau buổi học.
+                Bạn có thể vào phòng trong thời gian hệ thống cho phép và vào
+                lại khi mất kết nối trong giờ học. Camera và micro chỉ bật theo
+                lựa chọn của bạn. Chat trong phòng chỉ dùng cho phiên học, không
+                lưu lịch sử. Rời phòng không xác nhận hoàn thành buổi học.
               </SessionCopy>
             </SessionPanel>
             {(ended || !!notice) && (
@@ -174,6 +184,17 @@ function SessionRoom({ id }: Readonly<{ id: string }>) {
                 api={runtime.api}
                 isCurrent={callIsCurrent}
                 partnerName={partner.data?.fullName ?? "Người trao đổi"}
+                partnerAvatarUrl={partner.data?.avatarUrl}
+                partnerIdentity={
+                  id +
+                  ":" +
+                  (session.teacherId === runtime.userId
+                    ? session.learnerId
+                    : session.teacherId)
+                }
+                startCamera={startCamera}
+                startMicrophone={startMicrophone}
+                onScreenShareChange={screenShareChanged}
                 onLeave={leave}
                 onRetry={() => {
                   void retry();
@@ -182,6 +203,43 @@ function SessionRoom({ id }: Readonly<{ id: string }>) {
               />
             ) : (
               <SessionPanel title="Chuẩn bị vào học">
+                {startCamera && !terminal && !ended && (
+                  <RoomPreview onUnavailable={() => setStartCamera(false)} />
+                )}
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 12,
+                  }}
+                >
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <SessionCopy>Bật camera khi vào phòng</SessionCopy>
+                  </View>
+                  <Switch
+                    accessibilityLabel="Bật camera khi vào phòng"
+                    value={startCamera}
+                    onValueChange={setStartCamera}
+                  />
+                </View>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 12,
+                  }}
+                >
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <SessionCopy>Bật micro khi vào phòng</SessionCopy>
+                  </View>
+                  <Switch
+                    accessibilityLabel="Bật micro khi vào phòng"
+                    value={startMicrophone}
+                    onValueChange={setStartMicrophone}
+                  />
+                </View>
                 <SessionCopy>
                   {canJoinSession(session, now)
                     ? "Phòng học đã mở. Kiểm tra kết nối và cho phép camera, micro khi được hỏi."

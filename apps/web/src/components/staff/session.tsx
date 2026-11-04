@@ -12,6 +12,7 @@ import {
 import { staffApi, StaffApiError, type PortalApi } from "@/lib/staff/client";
 import type { Portal } from "@/lib/staff/policy";
 import type { StaffIdentity } from "@/lib/staff/types";
+import { announceSessionChange } from "@/features/auth/session-sync";
 type Session = {
   portal: Portal;
   api: PortalApi;
@@ -102,6 +103,7 @@ export function StaffSessionProvider({
   const logout = useCallback(async () => {
     await perform(async () => {
       await api<null>("session", { method: "DELETE" });
+      announceSessionChange();
       setActor(null);
       setError(null);
     });
