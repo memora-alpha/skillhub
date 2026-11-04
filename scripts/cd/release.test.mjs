@@ -227,6 +227,35 @@ test("ordinary releases migrate both stores without seeding", async (t) => {
   assert.deepEqual(calls, ["postgres", "mongo"]);
 });
 
+test("known migration recovery completes before deploy and never runs for seed-only", async (t) => {
+  const { calls, options } = await releaseFixture(t);
+  const preparePostgres = async () => calls.push("recover");
+  await runRelease({ ...options, preparePostgres });
+  assert.deepEqual(calls, ["recover", "postgres", "mongo"]);
+  calls.length = 0;
+  await runRelease({
+    ...options,
+    preparePostgres,
+    operation: "seed-only",
+    seed: "configuration",
+  });
+  assert.deepEqual(calls, ["configuration"]);
+});
+
+test("recovery failure stops migration, seeds and API startup", async (t) => {
+  const { calls, options } = await releaseFixture(t);
+  await assert.rejects(
+    runRelease({
+      ...options,
+      preparePostgres: async () => {
+        throw new Error("unsafe recovery state");
+      },
+    }),
+    /unsafe recovery state/,
+  );
+  assert.deepEqual(calls, []);
+});
+
 test("explicit seed requests run once, survive retries and are scoped per database", async (t) => {
   const { calls, options } = await releaseFixture(t);
   await runRelease({ ...options, plan });
