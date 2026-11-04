@@ -15,6 +15,9 @@ export function useRoomConnection({
   sessionId,
   api,
   isCurrent,
+  startCamera,
+  startMicrophone,
+  onScreenShareChange,
 }: RoomMediaProps) {
   const [room, setRoom] = useState<Room | null>(null);
   const [status, setStatus] = useState<RoomStatus>("connecting");
@@ -55,6 +58,7 @@ export function useRoomConnection({
         await room.connect(credentials.serverUrl, credentials.participantToken);
       },
       disconnect: async () => {
+        onScreenShareChange(false);
         stopTracks();
         await Promise.allSettled([room.disconnect(), releaseAudio?.()]);
       },
@@ -74,6 +78,7 @@ export function useRoomConnection({
     connectionRef.current = connection;
     async function publish() {
       for (const source of ["microphone", "camera"] as const) {
+        if (source === "microphone" ? !startMicrophone : !startCamera) continue;
         if (!connection.active() || room.state !== ConnectionState.Connected)
           break;
         try {
@@ -110,8 +115,19 @@ export function useRoomConnection({
     room.on(RoomEvent.SignalReconnecting, reconnecting);
     room.on(RoomEvent.Reconnected, reconnected);
     room.on(RoomEvent.Disconnected, disconnected);
+    const screenChanged = () => {
+      const sharing = room.localParticipant.isScreenShareEnabled;
+      onScreenShareChange(sharing);
+      if (!sharing && AppState.currentState === "background") {
+        setStatus("disconnected");
+        void connection.close();
+      }
+    };
+    room.on(RoomEvent.LocalTrackPublished, screenChanged);
+    room.on(RoomEvent.LocalTrackUnpublished, screenChanged);
     const appState = AppState.addEventListener("change", (state) => {
-      if (state === "background") void connection.close();
+      if (state === "background" && !room.localParticipant.isScreenShareEnabled)
+        void connection.close();
     });
     void connection.start();
     return () => {
@@ -120,10 +136,19 @@ export function useRoomConnection({
       room.off(RoomEvent.SignalReconnecting, reconnecting);
       room.off(RoomEvent.Reconnected, reconnected);
       room.off(RoomEvent.Disconnected, disconnected);
+      room.off(RoomEvent.LocalTrackPublished, screenChanged);
+      room.off(RoomEvent.LocalTrackUnpublished, screenChanged);
       void connection.close();
       if (connectionRef.current === connection) connectionRef.current = null;
     };
-  }, [api, isCurrent, sessionId]);
+  }, [
+    api,
+    isCurrent,
+    sessionId,
+    startCamera,
+    startMicrophone,
+    onScreenShareChange,
+  ]);
   return {
     room,
     status,
@@ -133,7 +158,7 @@ export function useRoomConnection({
     active: () => !!connectionRef.current?.active(),
     mediaFailed: () =>
       setMediaNotice(
-        "Không thay đổi được camera hoặc micro. Kiểm tra quyền truy cập trong cài đặt thiết bị và thử lại.",
+        "Không thay đổi được camera, micro hoặc chia sẻ màn hình. Kiểm tra quyền truy cập trong cài đặt thiết bị và thử lại.",
       ),
     mediaSucceeded: () => setMediaNotice(""),
     close: () => {
