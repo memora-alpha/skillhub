@@ -117,10 +117,10 @@ const iconPaths: Record<IconName, ReactNode> = {
 export function ProductIcon({
   name,
   size = 20,
-}: {
+}: Readonly<{
   name: IconName;
   size?: number;
-}) {
+}>) {
   return (
     <svg
       aria-hidden="true"

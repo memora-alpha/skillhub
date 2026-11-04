@@ -80,7 +80,7 @@ export function ProfileScreen() {
                 }}
               >
                 <label>
-                  Họ và tên
+                  <span>Họ và tên</span>
                   <input
                     name="fullName"
                     defaultValue={me.profile.fullName}
@@ -91,12 +91,12 @@ export function ProfileScreen() {
                   />
                 </label>
                 <label>
-                  Email
+                  <span>Email</span>
                   <input value={me.email} readOnly type="email" />
                   <small>Email tài khoản được quản lý bởi hệ thống.</small>
                 </label>
                 <label>
-                  Tiêu đề giới thiệu
+                  <span>Tiêu đề giới thiệu</span>
                   <input
                     name="headline"
                     defaultValue={me.profile.headline}
@@ -106,7 +106,7 @@ export function ProfileScreen() {
                   />
                 </label>
                 <label>
-                  Giới thiệu bản thân
+                  <span>Giới thiệu bản thân</span>
                   <textarea
                     name="bio"
                     defaultValue={me.profile.bio}
@@ -116,7 +116,7 @@ export function ProfileScreen() {
                   />
                 </label>
                 <label>
-                  Múi giờ
+                  <span>Múi giờ</span>
                   <input
                     name="timezone"
                     defaultValue={me.profile.timezone ?? "Asia/Ho_Chi_Minh"}

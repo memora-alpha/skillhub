@@ -59,9 +59,6 @@
   background: var(--brand-soft);
   font-weight: 600;
 }
-.learner-root .app-brand {
-  font-size: 23px;
-}
 .learner-root .sidebar-help {
   margin-top: auto;
 }
@@ -405,7 +402,7 @@
 }
 .learner-root .product-material:nth-child(3n) .product-material-cover {
   background: #fff5dc;
-  color: #97733e;
+  color: #805f32;
 }
 .learner-root .product-material-body {
   padding: 22px;

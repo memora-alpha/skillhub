@@ -38,8 +38,8 @@ export function MaterialShare() {
         <Panel title="Thông tin tài liệu">
           {created ? (
             <>
-              <p role="status" className="learner-notice">
-                Đã lưu bản nháp: {created.title}.
+              <p className="learner-notice">
+                <output>Đã lưu bản nháp: {created.title}.</output>
               </p>
               <button
                 className="btn btn-primary"

@@ -202,32 +202,12 @@ export function useLearningRoom(
         await room.disconnect(true);
         return;
       }
-      for (const track of previewTracks) {
-        if (!active()) {
-          track.stop();
-          continue;
-        }
-        try {
-          await publishRoomTrack(
-            room,
-            track,
-            active,
-            track.kind === "audio" && audio.settings.filter !== "standard"
-              ? () => audio.prepare(track as LocalAudioTrack, active, room)
-              : undefined,
-          );
-        } catch (cause) {
-          track.stop();
-          if (active())
-            setNotice(
-              cause instanceof MicrophoneEffectError
-                ? cause.message
-                : mediaErrorMessage(cause),
-            );
-        } finally {
-          pendingTracks.current.delete(track);
-        }
-      }
+      // Keep track publication sequential, including microphone preparation.
+      await previewTracks.reduce(
+        (previous, track) =>
+          previous.then(() => publishPreviewTrack(room, track, active)),
+        Promise.resolve(),
+      );
       if (!active()) {
         await room.disconnect(true);
         return;
@@ -246,6 +226,36 @@ export function useLearningRoom(
       );
     } finally {
       if (attempt.current === ticket) joining.current = false;
+    }
+  }
+  async function publishPreviewTrack(
+    room: Room,
+    track: LocalTrack,
+    active: () => boolean,
+  ) {
+    try {
+      if (!active()) {
+        track.stop();
+        return;
+      }
+      await publishRoomTrack(
+        room,
+        track,
+        active,
+        track.kind === "audio" && audio.settings.filter !== "standard"
+          ? () => audio.prepare(track as LocalAudioTrack, active, room)
+          : undefined,
+      );
+    } catch (cause) {
+      track.stop();
+      if (active())
+        setNotice(
+          cause instanceof MicrophoneEffectError
+            ? cause.message
+            : mediaErrorMessage(cause),
+        );
+    } finally {
+      pendingTracks.current.delete(track);
     }
   }
   async function toggle(kind: "camera" | "microphone" | "screen") {
@@ -304,14 +314,15 @@ export function useLearningRoom(
         setScreen(room.localParticipant.isScreenShareEnabled);
       }
     } catch (cause) {
-      if (alive.current && attempt.current === ticket)
-        setNotice(
-          kind === "camera" && background.enabled
-            ? "Chưa bật được camera với nền mờ. Kiểm tra mạng rồi thử lại, hoặc tắt mờ nền để bật camera."
-            : cause instanceof MicrophoneEffectError
-              ? cause.message
-              : mediaErrorMessage(cause),
-        );
+      if (alive.current && attempt.current === ticket) {
+        let message = mediaErrorMessage(cause);
+        if (kind === "camera" && background.enabled)
+          message =
+            "Chưa bật được camera với nền mờ. Kiểm tra mạng rồi thử lại, hoặc tắt mờ nền để bật camera.";
+        else if (cause instanceof MicrophoneEffectError)
+          message = cause.message;
+        setNotice(message);
+      }
     } finally {
       if (alive.current && attempt.current === ticket) {
         mediaLock.current = false;

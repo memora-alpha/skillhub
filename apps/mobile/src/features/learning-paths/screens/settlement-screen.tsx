@@ -58,6 +58,22 @@ export function SettlementScreen() {
     confirmed?.scope === scope
       ? confirmed.receipt
       : cache.getQueryData<Receipt>([...runtime.key, "settlement", id]);
+  let creditDescription =
+    "Học một chiều: 96% Credit đã giữ được trả cho người dạy; 4% là phí nền tảng.";
+  if (path?.agreement.exchangeType === "TWO_WAY")
+    creditDescription =
+      "Trao đổi hai chiều: mỗi người được hoàn 96% Credit đã giữ của chính mình; 4% là phí nền tảng.";
+  else if (path?.agreement.teacherId === runtime.userId)
+    creditDescription =
+      "Bạn là người dạy: nhận 96% Credit thỏa thuận; 4% là phí nền tảng.";
+  let settlementDescription =
+    "Credit tiếp tục được giữ đến khi lộ trình đủ điều kiện.";
+  if (path?.settledAt || result)
+    settlementDescription =
+      "Máy chủ đã xác nhận quyết toán. Xem biến động thực tế trong ví.";
+  else if (completed)
+    settlementDescription =
+      "Các buổi đã hoàn tất. Chờ hệ thống kiểm tra điều kiện quyết toán.";
   async function finish(value: Receipt | undefined) {
     if (!value || !runtime.isCurrent()) return;
     setConfirmed({ scope, receipt: value });
@@ -85,13 +101,7 @@ export function SettlementScreen() {
       {path && (
         <Panel title="Hoàn Credit & quyết toán lộ trình">
           <Copy>Trạng thái lộ trình: {path.status}</Copy>
-          <Copy>
-            {path.agreement.exchangeType === "TWO_WAY"
-              ? "Trao đổi hai chiều: mỗi người được hoàn 96% Credit đã giữ của chính mình; 4% là phí nền tảng."
-              : path.agreement.teacherId === runtime.userId
-                ? "Bạn là người dạy: nhận 96% Credit thỏa thuận; 4% là phí nền tảng."
-                : "Học một chiều: 96% Credit đã giữ được trả cho người dạy; 4% là phí nền tảng."}
-          </Copy>
+          <Copy>{creditDescription}</Copy>
           {path.settledAt && (
             <Copy>
               Đã quyết toán lúc{" "}
@@ -102,13 +112,7 @@ export function SettlementScreen() {
             Quyết toán cần tất cả buổi học hoàn thành, hết thời hạn khiếu nại và
             không có tranh chấp đang chặn.
           </Copy>
-          <Copy>
-            {path.settledAt || result
-              ? "Máy chủ đã xác nhận quyết toán. Xem biến động thực tế trong ví."
-              : completed
-                ? "Các buổi đã hoàn tất. Chờ hệ thống kiểm tra điều kiện quyết toán."
-                : "Credit tiếp tục được giữ đến khi lộ trình đủ điều kiện."}
-          </Copy>
+          <Copy>{settlementDescription}</Copy>
           {result && (
             <>
               <Copy>

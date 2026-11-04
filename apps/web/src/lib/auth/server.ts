@@ -83,6 +83,85 @@ async function establish(value: unknown) {
   }
 }
 
+async function rotateSession(refreshToken: string | undefined) {
+  if (!refreshToken) throw new UserGatewayError(401, "SESSION_EXPIRED");
+  const result = await userBackend("auth/refresh", undefined, "POST", {
+    refreshToken,
+  });
+  if (result.status === 200 && result.value?.success)
+    return establish(result.value.data);
+  const response = reply(result.value, result.status);
+  return result.status === 429 ? response : clearSessionCookies(response);
+}
+
+async function readSession(
+  request: NextRequest,
+  refreshToken: string | undefined,
+) {
+  const access = request.cookies.get(sessionCookies.access)?.value;
+  const guest = () =>
+    reply({
+      success: true,
+      data: null,
+      meta: { refreshRequired: Boolean(refreshToken) },
+    });
+  if (!access) return guest();
+  try {
+    return reply({ success: true, data: await identity(access) });
+  } catch (cause) {
+    if (!(cause instanceof UserGatewayError) || cause.status !== 401)
+      throw cause;
+    const response = guest();
+    return refreshToken ? response : clearSessionCookies(response);
+  }
+}
+
+async function revokeSession(refreshToken: string | undefined) {
+  let serverRevoked = !refreshToken;
+  if (refreshToken) {
+    try {
+      const result = await userBackend(
+        "auth/logout",
+        undefined,
+        "POST",
+        { refreshToken },
+        undefined,
+        5000,
+      );
+      serverRevoked = result.status === 204;
+    } catch {
+      // Local sign-out remains possible without confirmed server revocation.
+    }
+  }
+  return clearSessionCookies(
+    reply({ success: true, data: null, meta: { serverRevoked } }),
+  );
+}
+
+async function login(request: NextRequest, refreshToken: string | undefined) {
+  if (request.method !== "POST")
+    throw new UserGatewayError(405, "METHOD_NOT_ALLOWED");
+  if (refreshToken) throw new UserGatewayError(409, "LOGOUT_BEFORE_LOGIN");
+  const body = await userJson(request);
+  if (
+    typeof body.email !== "string" ||
+    !body.email.trim() ||
+    body.email.length > 320 ||
+    typeof body.password !== "string" ||
+    !body.password ||
+    body.password.length > 1024
+  )
+    throw new UserGatewayError(400, "INVALID_LOGIN_INPUT");
+  const result = await userBackend("auth/login", undefined, "POST", {
+    email: body.email.trim(),
+    password: body.password,
+    rememberMe: false,
+  });
+  return result.status === 200 && result.value?.success
+    ? establish(result.value.data)
+    : reply(result.value, result.status);
+}
+
 export async function authGateway(request: NextRequest, refresh = false) {
   let rotationStarted = false;
   try {
@@ -92,77 +171,13 @@ export async function authGateway(request: NextRequest, refresh = false) {
     if (refresh) {
       if (request.method !== "POST")
         throw new UserGatewayError(405, "METHOD_NOT_ALLOWED");
-      if (!refreshToken) throw new UserGatewayError(401, "SESSION_EXPIRED");
-      rotationStarted = true;
-      const result = await userBackend("auth/refresh", undefined, "POST", {
-        refreshToken,
-      });
-      if (result.status === 200 && result.value?.success)
-        return await establish(result.value.data);
-      const response = reply(result.value, result.status);
-      return result.status === 429 ? response : clearSessionCookies(response);
+      rotationStarted = Boolean(refreshToken);
+      return await rotateSession(refreshToken);
     }
-    if (request.method === "GET") {
-      const access = request.cookies.get(sessionCookies.access)?.value;
-      const guest = () =>
-        reply({
-          success: true,
-          data: null,
-          meta: { refreshRequired: Boolean(refreshToken) },
-        });
-      if (!access) return guest();
-      try {
-        return reply({ success: true, data: await identity(access) });
-      } catch (cause) {
-        if (!(cause instanceof UserGatewayError) || cause.status !== 401)
-          throw cause;
-        const response = guest();
-        return refreshToken ? response : clearSessionCookies(response);
-      }
-    }
-    if (request.method === "DELETE") {
-      let serverRevoked = !refreshToken;
-      if (refreshToken) {
-        try {
-          const result = await userBackend(
-            "auth/logout",
-            undefined,
-            "POST",
-            { refreshToken },
-            undefined,
-            5000,
-          );
-          serverRevoked = result.status === 204;
-        } catch {
-          // Local sign-out must remain possible while the API is unavailable.
-          // This does not claim that server-side revocation was completed.
-        }
-      }
-      return clearSessionCookies(
-        reply({ success: true, data: null, meta: { serverRevoked } }),
-      );
-    }
-    if (request.method !== "POST")
-      throw new UserGatewayError(405, "METHOD_NOT_ALLOWED");
-    if (refreshToken) throw new UserGatewayError(409, "LOGOUT_BEFORE_LOGIN");
-    const body = await userJson(request);
-    if (
-      typeof body.email !== "string" ||
-      !body.email.trim() ||
-      body.email.length > 320 ||
-      typeof body.password !== "string" ||
-      !body.password ||
-      body.password.length > 1024
-    )
-      throw new UserGatewayError(400, "INVALID_LOGIN_INPUT");
-    const result = await userBackend("auth/login", undefined, "POST", {
-      email: body.email.trim(),
-      password: body.password,
-      rememberMe: false,
-    });
-    return result.status === 200 && result.value?.success
-      ? await establish(result.value.data)
-      : reply(result.value, result.status);
+    if (request.method === "GET")
+      return await readSession(request, refreshToken);
+    if (request.method === "DELETE") return await revokeSession(refreshToken);
+    return await login(request, refreshToken);
   } catch (cause) {
     const error =
       cause instanceof UserGatewayError

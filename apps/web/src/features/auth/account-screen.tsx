@@ -11,18 +11,28 @@ export function AccountScreen({ mode }: { mode: "register" | "forgot" }) {
     [notice, setNotice] = useState<string>();
   const busy = useRef(false);
   const registering = mode === "register";
-  const title =
-    step === "done"
-      ? registering
-        ? "Tài khoản đã được xác minh"
-        : "Đã đặt lại mật khẩu"
-      : step === "otp"
-        ? "Kiểm tra email của bạn"
-        : step === "reset"
-          ? "Đặt mật khẩu mới"
-          : registering
-            ? "Bắt đầu hành trình mới"
-            : "Quên mật khẩu?";
+  const titles = {
+    start: registering ? "Bắt đầu hành trình mới" : "Quên mật khẩu?",
+    otp: "Kiểm tra email của bạn",
+    reset: "Đặt mật khẩu mới",
+    done: registering ? "Tài khoản đã được xác minh" : "Đã đặt lại mật khẩu",
+  };
+  const descriptions = {
+    start: registering
+      ? "Tạo tài khoản để học điều bạn muốn và chia sẻ điều bạn biết."
+      : "Làm theo hướng dẫn qua email để lấy lại quyền truy cập.",
+    otp: "Nhập mã 6 chữ số gửi đến " + email,
+    reset: registering
+      ? "Tạo tài khoản để học điều bạn muốn và chia sẻ điều bạn biết."
+      : "Làm theo hướng dẫn qua email để lấy lại quyền truy cập.",
+    done: "Bạn có thể đăng nhập bằng tài khoản của mình.",
+  };
+  const submitLabels = {
+    start: registering ? "Tạo tài khoản" : "Gửi mã khôi phục",
+    otp: "Xác minh mã",
+    reset: "Lưu mật khẩu mới",
+    done: "",
+  };
   async function submit(fields: FormData) {
     if (step === "start") {
       const address = String(fields.get("email")).trim();
@@ -126,16 +136,8 @@ export function AccountScreen({ mode }: { mode: "register" | "forgot" }) {
           <p className="auth-eyebrow">
             {registering ? "CHÀO MỪNG ĐẾN SKILLHUB" : "KHÔI PHỤC TÀI KHOẢN"}
           </p>
-          <h2 id="account-heading">{title}</h2>
-          <p>
-            {step === "otp"
-              ? "Nhập mã 6 chữ số gửi đến " + email
-              : step === "done"
-                ? "Bạn có thể đăng nhập bằng tài khoản của mình."
-                : registering
-                  ? "Tạo tài khoản để học điều bạn muốn và chia sẻ điều bạn biết."
-                  : "Làm theo hướng dẫn qua email để lấy lại quyền truy cập."}
-          </p>
+          <h2 id="account-heading">{titles[step]}</h2>
+          <p>{descriptions[step]}</p>
           {step === "done" ? (
             <Link className="auth-submit" href="/login">
               Đến trang đăng nhập →
@@ -284,18 +286,13 @@ export function AccountScreen({ mode }: { mode: "register" | "forgot" }) {
                   {error}
                 </p>
               )}
-              {notice && <p role="status">{notice}</p>}
-              <button className="auth-submit" disabled={pending}>
-                {pending
-                  ? "Đang xử lý…"
-                  : step === "otp"
-                    ? "Xác minh mã"
-                    : step === "reset"
-                      ? "Lưu mật khẩu mới"
-                      : registering
-                        ? "Tạo tài khoản"
-                        : "Gửi mã khôi phục"}{" "}
-                →
+              {notice && (
+                <p>
+                  <output>{notice}</output>
+                </p>
+              )}
+              <button type="submit" className="auth-submit" disabled={pending}>
+                {pending ? "Đang xử lý…" : submitLabels[step]} →
               </button>
               {step === "otp" && (
                 <button

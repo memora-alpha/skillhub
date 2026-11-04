@@ -6,11 +6,16 @@ export function RoomBackgroundControl({
   background,
   disabled,
   onToggle,
-}: {
+}: Readonly<{
   background: CameraBackground;
   disabled: boolean;
   onToggle: () => void;
-}) {
+}>) {
+  let label = "Mờ nền: Tắt";
+  if (background.busy) label = "Đang xử lý nền…";
+  else if (background.enabled)
+    label =
+      background.settings.mode === "image" ? "Ảnh nền: Bật" : "Mờ nền: Bật";
   return (
     <button
       type="button"
@@ -22,15 +27,7 @@ export function RoomBackgroundControl({
       title="Bật hoặc tắt hiệu ứng nền camera"
     >
       <RoomIcon name="background" />
-      <span>
-        {background.busy
-          ? "Đang xử lý nền…"
-          : background.enabled
-            ? background.settings.mode === "image"
-              ? "Ảnh nền: Bật"
-              : "Mờ nền: Bật"
-            : "Mờ nền: Tắt"}
-      </span>
+      <span>{label}</span>
     </button>
   );
 }

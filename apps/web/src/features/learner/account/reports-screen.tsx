@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useState } from "react";
+import { formText } from "../components/form-data";
 import { useUserSession } from "../auth/session";
 import { useUserResource } from "../hooks/use-user-resource";
 import { useUserCommand } from "../hooks/use-user-command";
@@ -112,39 +113,129 @@ export function ReportsScreen() {
     </>
   );
 }
+function reportTarget(sessionId?: string, materialId?: string) {
+  if (sessionId)
+    return {
+      resource: "sessions/" + sessionId,
+      path: "reports/sessions/" + sessionId,
+      back: "/learn/sessions/" + sessionId,
+    };
+  if (materialId)
+    return {
+      resource: "materials/" + materialId,
+      path: "materials/" + materialId + "/reports",
+      back: "/learn/materials/" + materialId,
+    };
+  return { resource: null, path: null, back: "/learn/reports" };
+}
+
+function ReportSubmission({
+  target,
+  path,
+  sessionId,
+  onSent,
+}: Readonly<{
+  target: LearningSession | Material;
+  path: string;
+  sessionId?: string;
+  onSent: (id: string) => void;
+}>) {
+  const { request } = useUserSession();
+  const command = useUserCommand();
+  return (
+    <form
+      className="learner-form"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        const fields = new FormData(e.currentTarget);
+        const body = {
+          reasonCode: formText(fields, "reasonCode"),
+          description: formText(fields, "description").trim(),
+          ...(sessionId ? { evidenceFileIds: [] } : {}),
+        };
+        const result = await command.run(JSON.stringify({ path, body }), () =>
+          request<{ id: string }>(path, { method: "POST", body }),
+        );
+        if (result) onSent(result.data.id);
+      }}
+    >
+      {"title" in target ? (
+        <p>
+          Tài liệu: <strong>{target.title}</strong>
+        </p>
+      ) : (
+        <p>Buổi học: {formatTime(target.startAt)}</p>
+      )}
+      <label>
+        <span>Lý do báo cáo</span>
+        <select
+          name="reasonCode"
+          disabled={command.pending || command.uncertain}
+        >
+          {reportReasons.map(([code, label]) => (
+            <option key={code} value={code}>
+              {label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label>
+        <span>Mô tả chi tiết</span>
+        <textarea
+          name="description"
+          minLength={10}
+          maxLength={2000}
+          rows={7}
+          required
+          disabled={command.pending || command.uncertain}
+          placeholder="Điều gì đã xảy ra? Thời điểm và nội dung cần xem xét…"
+        />
+      </label>
+      <CommandFeedback command={command} />
+      <button
+        type="submit"
+        className="btn btn-primary"
+        disabled={command.pending || command.uncertain}
+      >
+        {command.pending ? "Đang gửi…" : "Gửi báo cáo"}
+      </button>
+    </form>
+  );
+}
+
 export function ReportForm({
   sessionId,
   materialId,
-}: {
-  sessionId?: string;
-  materialId?: string;
-}) {
-  const { request } = useUserSession(),
-    command = useUserCommand(),
-    [sent, setSent] = useState<string | null>(null);
-  const target = useUserResource<LearningSession | Material>(
-    sessionId
-      ? "sessions/" + sessionId
-      : materialId
-        ? "materials/" + materialId
-        : null,
-  );
-  const path = sessionId
-    ? "reports/sessions/" + sessionId
-    : materialId
-      ? "materials/" + materialId + "/reports"
-      : null;
+}: Readonly<{ sessionId?: string; materialId?: string }>) {
+  const [sent, setSent] = useState<string | null>(null);
+  const { resource, path, back } = reportTarget(sessionId, materialId);
+  const target = useUserResource<LearningSession | Material>(resource);
+  let content;
+  if (!path)
+    content = (
+      <Empty>Chọn buổi học hoặc tài liệu cần báo cáo từ trang chi tiết.</Empty>
+    );
+  else if (sent)
+    content = (
+      <p className="learner-notice">
+        <output>
+          Đã gửi báo cáo để xem xét.{" "}
+          <Link href={"/learn/reports/" + sent}>Theo dõi báo cáo</Link>
+        </output>
+      </p>
+    );
+  else if (target.data)
+    content = (
+      <ReportSubmission
+        target={target.data}
+        path={path}
+        sessionId={sessionId}
+        onSent={setSent}
+      />
+    );
   return (
     <>
-      <Back
-        href={
-          sessionId
-            ? "/learn/sessions/" + sessionId
-            : materialId
-              ? "/learn/materials/" + materialId
-              : "/learn/reports"
-        }
-      />
+      <Back href={back} />
       <PageHeading
         eyebrow="CÙNG XÂY DỰNG CỘNG ĐỒNG AN TOÀN"
         title="Gửi báo cáo"
@@ -157,77 +248,7 @@ export function ReportForm({
             error={target.error}
             reload={target.reload}
           />
-          {!path ? (
-            <Empty>
-              Chọn buổi học hoặc tài liệu cần báo cáo từ trang chi tiết.
-            </Empty>
-          ) : sent ? (
-            <p className="learner-notice" role="status">
-              Đã gửi báo cáo để xem xét.{" "}
-              <Link href={"/learn/reports/" + sent}>Theo dõi báo cáo</Link>
-            </p>
-          ) : (
-            target.data && (
-              <form
-                className="learner-form"
-                onSubmit={async (e) => {
-                  e.preventDefault();
-                  const fields = new FormData(e.currentTarget);
-                  const body = {
-                    reasonCode: String(fields.get("reasonCode")),
-                    description: String(fields.get("description")).trim(),
-                    ...(sessionId ? { evidenceFileIds: [] } : {}),
-                  };
-                  const result = await command.run(
-                    JSON.stringify({ path, body }),
-                    () =>
-                      request<{ id: string }>(path, { method: "POST", body }),
-                  );
-                  if (result) setSent(result.data.id);
-                }}
-              >
-                {"title" in target.data ? (
-                  <p>
-                    Tài liệu: <strong>{target.data.title}</strong>
-                  </p>
-                ) : (
-                  <p>Buổi học: {formatTime(target.data.startAt)}</p>
-                )}
-                <label>
-                  Lý do báo cáo
-                  <select
-                    name="reasonCode"
-                    disabled={command.pending || command.uncertain}
-                  >
-                    {reportReasons.map(([code, label]) => (
-                      <option key={code} value={code}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  Mô tả chi tiết
-                  <textarea
-                    name="description"
-                    minLength={10}
-                    maxLength={2000}
-                    rows={7}
-                    required
-                    disabled={command.pending || command.uncertain}
-                    placeholder="Điều gì đã xảy ra? Thời điểm và nội dung cần xem xét…"
-                  />
-                </label>
-                <CommandFeedback command={command} />
-                <button
-                  className="btn btn-primary"
-                  disabled={command.pending || command.uncertain}
-                >
-                  {command.pending ? "Đang gửi…" : "Gửi báo cáo"}
-                </button>
-              </form>
-            )
-          )}
+          {content}
         </Panel>
         <Panel title="Để được hỗ trợ tốt hơn">
           <p>

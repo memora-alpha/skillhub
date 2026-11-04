@@ -33,6 +33,23 @@ export function DashboardScreen() {
       ?.filter((s) => !["CANCELLED", "COMPLETED", "CLOSED"].includes(s.status))
       .sort((a, b) => Date.parse(a.startAt) - Date.parse(b.startAt)),
     next = upcoming?.[0];
+  let nextLabel = "Chưa có lịch";
+  if (next)
+    nextLabel = new Intl.DateTimeFormat("vi-VN", {
+      timeZone: "Asia/Ho_Chi_Minh",
+      day: "2-digit",
+      month: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(new Date(next.startAt));
+  else if (sessions.loading) nextLabel = "Đang tải…";
+  else if (sessions.error) nextLabel = "Chưa tải được";
+  let pathsLabel = paths.items.length + (paths.cursor ? "+" : "") + " lộ trình";
+  if (paths.loading && !paths.items.length) pathsLabel = "Đang tải…";
+  else if (paths.error) pathsLabel = "Chưa tải được";
+  let walletLabel = "Chưa tải được";
+  if (wallet.data) walletLabel = wallet.data.availableCredit + " khả dụng";
+  else if (wallet.loading) walletLabel = "Đang tải…";
   return (
     <>
       <PageHeading
@@ -56,21 +73,7 @@ export function DashboardScreen() {
           </span>
           <div>
             <small>Buổi học gần nhất</small>
-            <strong>
-              {next
-                ? new Intl.DateTimeFormat("vi-VN", {
-                    timeZone: "Asia/Ho_Chi_Minh",
-                    day: "2-digit",
-                    month: "2-digit",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  }).format(new Date(next.startAt))
-                : sessions.loading
-                  ? "Đang tải…"
-                  : sessions.error
-                    ? "Chưa tải được"
-                    : "Chưa có lịch"}
-            </strong>
+            <strong>{nextLabel}</strong>
             <b>Trong 30 ngày tới</b>
           </div>
         </article>
@@ -80,15 +83,7 @@ export function DashboardScreen() {
           </span>
           <div>
             <small>Lộ trình của bạn</small>
-            <strong>
-              {paths.loading && !paths.items.length
-                ? "Đang tải…"
-                : paths.error
-                  ? "Chưa tải được"
-                  : paths.items.length +
-                    (paths.cursor ? "+" : "") +
-                    " lộ trình"}
-            </strong>
+            <strong>{pathsLabel}</strong>
             <b>Các lộ trình mới nhất</b>
           </div>
         </article>
@@ -98,13 +93,7 @@ export function DashboardScreen() {
           </span>
           <div>
             <small>Ví Credit</small>
-            <strong>
-              {wallet.data
-                ? wallet.data.availableCredit + " khả dụng"
-                : wallet.loading
-                  ? "Đang tải…"
-                  : "Chưa tải được"}
-            </strong>
+            <strong>{walletLabel}</strong>
             <b>
               {wallet.data
                 ? wallet.data.heldCredit + " Credit đang giữ"

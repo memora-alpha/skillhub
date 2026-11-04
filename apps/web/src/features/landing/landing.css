@@ -156,14 +156,23 @@
   font-weight: 800;
   box-shadow: 0 9px 22px rgba(196, 81, 43, 0.18);
   transition:
-    transform 0.2s,
     background 0.2s,
     box-shadow 0.2s;
 }
 .skillhub-public .button:hover {
   background: var(--orange-dark);
-  transform: translateY(-2px);
   box-shadow: 0 13px 25px rgba(196, 81, 43, 0.24);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .skillhub-public .button {
+    transition:
+      transform 0.2s,
+      background 0.2s,
+      box-shadow 0.2s;
+  }
+  .skillhub-public .button:hover {
+    transform: translateY(-2px);
+  }
 }
 .skillhub-public .button-small {
   min-height: 42px;
@@ -433,6 +442,7 @@
   gap: 14px;
 }
 .skillhub-public .skill-card {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 15px;
@@ -1794,9 +1804,6 @@
 }
 .skillhub-public .lp-logo {
   flex-shrink: 0;
-}
-.skillhub-public .skill-card {
-  position: relative;
 }
 .skillhub-public .skill-info {
   max-width: 100%;

@@ -15,12 +15,9 @@ export function attendanceSideText(
   if (!side || !side.verdict) return "Đang chờ số liệu điểm danh";
   if (side.verdict === "UNVERIFIABLE")
     return "Chưa đủ dữ liệu để xác minh thời lượng";
-  const label =
-    side.verdict === "PRESENT"
-      ? "Có mặt"
-      : side.verdict === "ABSENT"
-        ? "Vắng mặt"
-        : "Chưa có kết luận";
+  let label = "Chưa có kết luận";
+  if (side.verdict === "PRESENT") label = "Có mặt";
+  else if (side.verdict === "ABSENT") label = "Vắng mặt";
   if (!/^\d+$/.test(side.seconds)) return label;
   const seconds = BigInt(side.seconds);
   return `${label} · ${seconds / 60n} phút ${seconds % 60n} giây${side.late ? " · Vào muộn" : ""}`;

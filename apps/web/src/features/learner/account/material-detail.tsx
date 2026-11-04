@@ -14,7 +14,7 @@ import {
 import { ProductIcon } from "../components/product-icon";
 import type { Material, MaterialOrder } from "./account-types";
 import { safeDownloadUrl } from "./view-policy";
-export function MaterialDetail({ id }: { id: string }) {
+export function MaterialDetail({ id }: Readonly<{ id: string }>) {
   const query = useUserResource<Material>("materials/" + id),
     orders = useUserResource<MaterialOrder[]>("me/material-orders"),
     { request, actor } = useUserSession(),

@@ -34,12 +34,12 @@ function AudioForm({
   connected,
   disabled,
   apply,
-}: {
+}: Readonly<{
   audio: RoomAudio;
   connected: boolean;
   disabled: boolean;
   apply: SettingsProps["changeAudio"];
-}) {
+}>) {
   const [draft, setDraft] = useState(audio.settings);
   const supported =
     typeof navigator === "undefined"
@@ -127,7 +127,7 @@ function AudioForm({
   );
 }
 
-export function RoomMediaSettings(props: SettingsProps) {
+export function RoomMediaSettings(props: Readonly<SettingsProps>) {
   const { background, audio, devices, disabled, connected } = props;
   const dialog = useRef<HTMLDialogElement>(null);
   const id = useId();

@@ -21,11 +21,7 @@ export type IconName =
   | "x";
 
 const icons: Record<IconName, ReactNode> = {
-  arrow: (
-    <>
-      <path d="M5 12h14M14 7l5 5-5 5" />
-    </>
-  ),
+  arrow: <path d="M5 12h14M14 7l5 5-5 5" />,
   book: (
     <>
       <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11v17H6.5A2.5 2.5 0 0 0 4 22.5z" />
@@ -44,21 +40,9 @@ const icons: Record<IconName, ReactNode> = {
       <path d="M8 9h8M8 13h5" />
     </>
   ),
-  check: (
-    <>
-      <path d="m5 12 4 4L19 6" />
-    </>
-  ),
-  chevron: (
-    <>
-      <path d="m9 18 6-6-6-6" />
-    </>
-  ),
-  code: (
-    <>
-      <path d="m8 9-4 3 4 3M16 9l4 3-4 3M14 5l-4 14" />
-    </>
-  ),
+  check: <path d="m5 12 4 4L19 6" />,
+  chevron: <path d="m9 18 6-6-6-6" />,
+  code: <path d="m8 9-4 3 4 3M16 9l4 3-4 3M14 5l-4 14" />,
   data: (
     <>
       <ellipse cx="12" cy="5" rx="8" ry="3" />
@@ -83,11 +67,7 @@ const icons: Record<IconName, ReactNode> = {
       <path d="m14 21 3.5-8 3.5 8M15.5 18h4" />
     </>
   ),
-  menu: (
-    <>
-      <path d="M4 7h16M4 12h16M4 17h16" />
-    </>
-  ),
+  menu: <path d="M4 7h16M4 12h16M4 17h16" />,
   play: (
     <>
       <circle cx="12" cy="12" r="9" />
@@ -101,9 +81,7 @@ const icons: Record<IconName, ReactNode> = {
     </>
   ),
   spark: (
-    <>
-      <path d="m12 3 1.2 4.2L17 9l-3.8 1.8L12 15l-1.2-4.2L7 9l3.8-1.8zM5 15l.7 2.3L8 18l-2.3.7L5 21l-.7-2.3L2 18l2.3-.7zM19 3l.6 1.9 1.9.6-1.9.6L19 8l-.6-1.9-1.9-.6 1.9-.6z" />
-    </>
+    <path d="m12 3 1.2 4.2L17 9l-3.8 1.8L12 15l-1.2-4.2L7 9l3.8-1.8zM5 15l.7 2.3L8 18l-2.3.7L5 21l-.7-2.3L2 18l2.3-.7zM19 3l.6 1.9 1.9.6-1.9.6L19 8l-.6-1.9-1.9-.6 1.9-.6z" />
   ),
   users: (
     <>
@@ -124,11 +102,7 @@ const icons: Record<IconName, ReactNode> = {
       <path d="M16 13h4" />
     </>
   ),
-  x: (
-    <>
-      <path d="m6 6 12 12M18 6 6 18" />
-    </>
-  ),
+  x: <path d="m6 6 12 12M18 6 6 18" />,
 };
 
 export function Icon({ name, size = 22 }: { name: IconName; size?: number }) {
