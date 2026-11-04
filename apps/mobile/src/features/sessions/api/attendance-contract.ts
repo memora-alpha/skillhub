@@ -41,7 +41,7 @@ export const deadlinesSchema = z.object({
   makeupBy: date,
 });
 export const excuseSchema = z.object({
-  status: z.enum(["PENDING", "ACCEPTED", "REJECTED"]),
+  status: z.enum(["PENDING", "ACCEPTED", "REJECTED", "EXPIRED"]),
   reason: z.string(),
   absentUserId: z.uuid(),
 });

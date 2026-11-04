@@ -9,16 +9,14 @@ import { useSessionsRuntime } from "../runtime";
 import type { LearningSession } from "../types";
 import { SessionPanel, SessionCopy, SessionButton } from "./session-page";
 import { sessionErrorMessage } from "../utils/session-read";
+import { AttendanceRules } from "./attendance-rules";
+import { attendanceSideText } from "../utils/attendance-presentation";
 
-const verdicts = {
-  PRESENT: "Có mặt",
-  ABSENT: "Vắng mặt",
-  UNVERIFIABLE: "Chưa xác minh được",
-};
 const excuseLabels = {
   PENDING: "Chờ phản hồi",
   ACCEPTED: "Đã chấp nhận",
   REJECTED: "Không chấp nhận",
+  EXPIRED: "Đã hết hạn phản hồi",
 };
 export function SessionAttendancePanel({
   session,
@@ -78,8 +76,9 @@ export function SessionAttendancePanel({
     <SessionPanel title="Điểm danh và xử lý buổi học">
       {session.attendance?.state === "PENDING_DATA" && (
         <SessionCopy>
-          Đang tổng hợp điểm danh. Tải lại để kiểm tra trước khi xác nhận hoàn
-          thành.
+          Máy chủ đang tổng hợp điểm danh. Chưa có số liệu không có nghĩa là đã
+          học 0 giây hoặc vắng mặt. Chức năng xác nhận sẽ mở khi máy chủ cho
+          phép; kéo xuống để tải lại.
         </SessionCopy>
       )}
       {session.attendance?.state === "UNVERIFIABLE" && (
@@ -94,8 +93,10 @@ export function SessionAttendancePanel({
           side && (
             <SessionCopy key={role}>
               {role === "teacher" ? "Người dạy" : "Người học"}:{" "}
-              {side.verdict ? verdicts[side.verdict] : "Chưa có kết luận"} ·{" "}
-              {BigInt(side.seconds) / 60n} phút{side.late ? " · Vào muộn" : ""}
+              {attendanceSideText(side)}
+              {side.firstJoinedAt
+                ? ` · Vào phòng lần đầu: ${new Date(side.firstJoinedAt).toLocaleString("vi-VN")}`
+                : ""}
             </SessionCopy>
           )
         );
@@ -196,6 +197,7 @@ export function SessionAttendancePanel({
             Đề xuất hoặc xác nhận lịch học bù
           </SessionButton>
         )}
+      <AttendanceRules />
     </SessionPanel>
   );
 }
