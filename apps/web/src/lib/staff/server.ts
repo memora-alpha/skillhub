@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { proxyEvents } from "./event-proxy";
 import { sessionCookies } from "../auth/session";
 import { authGateway } from "../auth/server";
+import { apiBase } from "../user/backend";
 import {
   sameOriginMutation,
   staffIdentity,
@@ -39,29 +40,11 @@ function clear(response: NextResponse) {
   return response;
 }
 function baseUrl() {
-  let u: URL;
   try {
-    u = new URL(
-      process.env.NEXT_PUBLIC_API_URL ??
-        process.env.SKILLHUB_API_URL ??
-        process.env.EXPO_PUBLIC_API_URL ??
-        "http://localhost:3001/api/v1",
-    );
+    return apiBase();
   } catch {
     throw new GatewayError(503, "API_CONFIGURATION_INVALID");
   }
-  if (
-    !["http:", "https:"].includes(u.protocol) ||
-    u.username ||
-    u.password ||
-    u.search ||
-    u.hash
-  )
-    throw new GatewayError(503, "API_CONFIGURATION_INVALID");
-  let end = u.pathname.length;
-  while (end > 0 && u.pathname[end - 1] === "/") end--;
-  u.pathname = u.pathname.slice(0, end) + "/";
-  return u;
 }
 async function readLimitedBody(
   body: ReadableStream<Uint8Array>,

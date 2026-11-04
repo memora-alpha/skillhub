@@ -184,7 +184,12 @@ export async function authGateway(request: NextRequest, refresh = false) {
         ? cause
         : new UserGatewayError(500, "REQUEST_FAILED");
     const response = reply(
-      { success: false, message: error.message, statusCode: error.status },
+      {
+        success: false,
+        message: error.message,
+        statusCode: error.status,
+        ...(error.upstream ? { meta: { upstream: error.upstream } } : {}),
+      },
       error.status,
     );
     // A refresh may have rotated upstream before its response was lost. Never

@@ -4,15 +4,25 @@ export class UserGatewayError extends Error {
   constructor(
     public status: number,
     message: string,
+    public readonly upstream?: Readonly<{
+      host: string;
+      status: number;
+      contentType: string;
+      challenged: boolean;
+      rayId?: string;
+    }>,
   ) {
     super(message);
   }
 }
 export function apiBase() {
+  // Resolve server configuration at request time, including the legacy public
+  // variable, rather than baking a former API address into the server bundle.
+  const environment = process.env;
   const value =
-    process.env.NEXT_PUBLIC_API_URL ??
-    process.env.SKILLHUB_API_URL ??
-    process.env.EXPO_PUBLIC_API_URL ??
+    environment.SKILLHUB_API_URL ??
+    environment.NEXT_PUBLIC_API_URL ??
+    environment.EXPO_PUBLIC_API_URL ??
     "http://localhost:3001/api/v1";
   let url: URL;
   try {
@@ -31,6 +41,15 @@ export function apiBase() {
   url.pathname = url.pathname.replace(/\/$/, "") + "/";
   return url;
 }
+function invalidUpstream(response: Response, url: URL) {
+  return new UserGatewayError(502, "API_RESPONSE_INVALID", {
+    host: url.host,
+    status: response.status,
+    contentType: response.headers.get("content-type") ?? "",
+    challenged: response.headers.get("cf-mitigated") === "challenge",
+    rayId: response.headers.get("cf-ray") ?? undefined,
+  });
+}
 export async function userBackend(
   path: string,
   token?: string,
@@ -39,9 +58,10 @@ export async function userBackend(
   key?: string,
   timeoutMs = 20000,
 ) {
+  const url = new URL(path, apiBase());
   let response: Response;
   try {
-    response = await fetch(new URL(path, apiBase()), {
+    response = await fetch(url, {
       method,
       cache: "no-store",
       redirect: "error",
@@ -67,10 +87,10 @@ export async function userBackend(
   try {
     value = await response.json();
   } catch {
-    throw new UserGatewayError(502, "API_RESPONSE_INVALID");
+    throw invalidUpstream(response, url);
   }
   if (!value || typeof value !== "object" || !("success" in value))
-    throw new UserGatewayError(502, "API_RESPONSE_INVALID");
+    throw invalidUpstream(response, url);
   return {
     status: response.status,
     value: value as { success: boolean; data?: unknown; message?: string },
