@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type ButtonHTMLAttributes } from "react";
 import { useClock } from "../hooks/use-clock";
 import { useUserResource } from "../hooks/use-user-resource";
 import { useUserSession } from "../auth/session";
-import type { LearningSession } from "../types";
+import type { Identity, LearningSession } from "../types";
 import { formatTime } from "../components/common";
 import { canEnterSession } from "../sessions/session-policy";
 import { userErrorText } from "../api/client";
@@ -15,6 +15,7 @@ import {
   roomPerson,
   safeRoomAvatar,
   type PublicRoomProfile,
+  type RoomPerson,
 } from "./room-profiles";
 import { RoomIcon, type RoomIconName } from "./room-icon";
 import { RoomTrack } from "./room-track";
@@ -62,28 +63,21 @@ const labels: Record<string, string> = {
 };
 const createChatId = () => crypto.randomUUID();
 
-export function LearningRoomScreen({ id }: Readonly<{ id: string }>) {
-  const query = useUserResource<LearningSession>("sessions/" + id);
-  const { actor } = useUserSession();
-  const background = useCameraBackground();
-  const audio = useRoomAudio();
-  const devices = useRoomDevices();
-  const room = useLearningRoom(id, background, audio, devices);
-  const previewMedia = useRoomPreview(background, audio, devices);
-  const container = useRef<HTMLElement>(null);
-  const [expanded, setExpanded] = useState(true);
-  const [fullscreen, setFullscreen] = useState(false);
-  const [displayError, setDisplayError] = useState<string>();
-  const [chatOpen, setChatOpen] = useState(false);
+function useRoomPeople(
+  id: string,
+  actor: Identity,
+  session: LearningSession | undefined,
+  tiles: RoomTile[],
+) {
   const peerId =
-    query.data &&
-    (query.data.teacherId === actor.userId
-      ? query.data.learnerId
-      : query.data.teacherId);
+    session &&
+    (session.teacherId === actor.userId
+      ? session.learnerId
+      : session.teacherId);
   const peerProfile = useUserResource<PublicRoomProfile>(
     peerId ? "profiles/" + peerId : null,
   );
-  const connectedPeerName = room.tiles.find(
+  const connectedPeerName = tiles.find(
     (tile) => !tile.local && tile.identity === id + ":" + peerId,
   )?.name;
   const peer = roomPerson(peerProfile.data, peerId) ?? {
@@ -97,6 +91,205 @@ export function LearningRoomScreen({ id }: Readonly<{ id: string }>) {
     name: actor.profile.fullName,
     avatarUrl: actor.profile.avatarUrl,
   };
+  return { peerId, peerProfile, peer, self };
+}
+
+function participantTiles(
+  id: string,
+  actor: Identity,
+  roomTiles: RoomTile[],
+  peerId: string | undefined,
+  peer: RoomPerson,
+) {
+  const preview: RoomTile = {
+    id: "preview",
+    identity: id + ":" + actor.userId,
+    avatarUrl: safeRoomAvatar(actor.profile.avatarUrl),
+    name: `${actor.profile.fullName} (Bạn)`,
+    local: true,
+    source: "camera",
+    microphone: false,
+    speaking: false,
+  };
+  const tiles = (roomTiles.length ? roomTiles : [preview]).map((tile) => {
+    if (tile.local)
+      return {
+        ...tile,
+        name: `${actor.profile.fullName} (Bạn)`,
+        avatarUrl: safeRoomAvatar(actor.profile.avatarUrl),
+      };
+    if (tile.identity === id + ":" + peerId)
+      return { ...tile, name: peer.name, avatarUrl: peer.avatarUrl };
+    return { ...tile, avatarUrl: null };
+  });
+  return tiles;
+}
+
+function RoomControls({
+  room,
+  background,
+  audio,
+  chatOpen,
+  chatCount,
+  onToggleChat,
+}: Readonly<{
+  room: ReturnType<typeof useLearningRoom>;
+  background: ReturnType<typeof useCameraBackground>;
+  audio: ReturnType<typeof useRoomAudio>;
+  chatOpen: boolean;
+  chatCount: number;
+  onToggleChat: () => void;
+}>) {
+  const connected = room.status === "connected";
+  return (
+    <div className={styles.controls} aria-label="Điều khiển phòng học">
+      <IconButton
+        icon={room.microphone ? "microphone" : "microphoneOff"}
+        label={room.microphone ? "Tắt micro" : "Bật micro"}
+        tone={room.microphone ? undefined : "off"}
+        aria-pressed={room.microphone}
+        disabled={!connected || room.mediaBusy || background.busy || audio.busy}
+        onClick={() => void room.toggle("microphone")}
+      />
+      <IconButton
+        icon={room.camera ? "camera" : "cameraOff"}
+        label={room.camera ? "Tắt camera" : "Bật camera"}
+        tone={room.camera ? undefined : "off"}
+        aria-pressed={room.camera}
+        disabled={!connected || room.mediaBusy || background.busy || audio.busy}
+        onClick={() => void room.toggle("camera")}
+      />
+      <RoomBackgroundControl
+        background={background}
+        disabled={!connected || room.mediaBusy || audio.busy}
+        onToggle={() =>
+          void room.changeBackground(
+            background.enabled
+              ? { mode: "off" }
+              : { mode: "blur", blurRadius: 12 },
+          )
+        }
+      />
+      <IconButton
+        icon={room.screen ? "screenOff" : "screen"}
+        label={room.screen ? "Dừng chia sẻ màn hình" : "Chia sẻ màn hình"}
+        tone={room.screen ? "active" : undefined}
+        aria-pressed={room.screen}
+        disabled={!connected || room.mediaBusy || background.busy || audio.busy}
+        onClick={() => void room.toggle("screen")}
+      />
+      {room.audioBlocked && (
+        <IconButton
+          icon="volume"
+          label="Bật âm thanh"
+          tone="active"
+          onClick={room.startAudio}
+        />
+      )}
+      <IconButton
+        icon="phone"
+        label="Rời phòng"
+        tone="danger"
+        onClick={() => {
+          room.close();
+        }}
+      />
+      <IconButton
+        icon="chat"
+        label={"Chat phiên học (" + chatCount + " tin)"}
+        tone={chatOpen ? "active" : undefined}
+        aria-expanded={chatOpen}
+        onClick={onToggleChat}
+      />
+    </div>
+  );
+}
+
+function roomJoinReason(
+  session: LearningSession | undefined,
+  joined: boolean,
+  connecting: boolean,
+  now: number,
+) {
+  if (!session || joined || connecting || canEnterSession(session, now))
+    return undefined;
+  return userErrorText(409, session.join?.reason ?? "SESSION_NOT_JOINABLE");
+}
+
+function RoomNotices({
+  query,
+  room,
+  background,
+  audio,
+  peerProfile,
+  displayError,
+  joinReason,
+}: Readonly<{
+  query: { loading: boolean; error?: string; reload: () => void };
+  room: Pick<ReturnType<typeof useLearningRoom>, "error" | "notice">;
+  background: Pick<ReturnType<typeof useCameraBackground>, "error" | "busy">;
+  audio: Pick<ReturnType<typeof useRoomAudio>, "error">;
+  peerProfile: { error?: string; reload: () => void };
+  displayError?: string;
+  joinReason?: string;
+}>) {
+  const messages = [
+    query.loading ? "Đang tải buổi học…" : undefined,
+    query.error,
+    room.error,
+    room.notice,
+    background.error,
+    audio.error,
+    background.busy
+      ? "Đang chuẩn bị hiệu ứng nền… Lần đầu có thể cần tải thêm dữ liệu."
+      : undefined,
+    peerProfile.error
+      ? "Chưa tải được tên và ảnh của người cùng học."
+      : undefined,
+    displayError,
+    joinReason,
+  ].filter(Boolean);
+
+  if (!messages.length) return null;
+  const hasError = !!(query.error || room.error || displayError);
+  return (
+    <div className={styles.messages} role={hasError ? "alert" : undefined}>
+      {messages.map((message, index) => (
+        <p key={index}>{hasError ? message : <output>{message}</output>}</p>
+      ))}
+      {query.error && (
+        <button type="button" onClick={query.reload}>
+          Thử lại
+        </button>
+      )}
+      {peerProfile.error && (
+        <button type="button" onClick={peerProfile.reload}>
+          Tải lại hồ sơ
+        </button>
+      )}
+    </div>
+  );
+}
+
+export function LearningRoomScreen({ id }: Readonly<{ id: string }>) {
+  const query = useUserResource<LearningSession>("sessions/" + id);
+  const { actor } = useUserSession();
+  const background = useCameraBackground();
+  const audio = useRoomAudio();
+  const devices = useRoomDevices();
+  const room = useLearningRoom(id, background, audio, devices);
+  const previewMedia = useRoomPreview(background, audio, devices);
+  const container = useRef<HTMLElement>(null);
+  const [expanded, setExpanded] = useState(true);
+  const [fullscreen, setFullscreen] = useState(false);
+  const [displayError, setDisplayError] = useState<string>();
+  const [chatOpen, setChatOpen] = useState(false);
+  const { peerId, peerProfile, peer, self } = useRoomPeople(
+    id,
+    actor,
+    query.data,
+    room.tiles,
+  );
   const chat = useRoomChat(
     room.room,
     peerId ? id + ":" + peerId : "",
@@ -114,29 +307,7 @@ export function LearningRoomScreen({ id }: Readonly<{ id: string }>) {
     "signalReconnecting",
   ].includes(room.status);
   const joined = connected || room.tiles.length > 0;
-  const preview: RoomTile = {
-    id: "preview",
-    identity: id + ":" + actor.userId,
-    avatarUrl: safeRoomAvatar(self.avatarUrl),
-    name: `${actor.profile.fullName} (Bạn)`,
-    local: true,
-    source: "camera",
-    microphone: false,
-    speaking: false,
-  };
-  const tiles = (room.tiles.length ? room.tiles : [preview]).map((tile) => ({
-    ...tile,
-    name: tile.local
-      ? `${self.name} (Bạn)`
-      : tile.identity === id + ":" + peerId
-        ? peer.name
-        : tile.name,
-    avatarUrl: tile.local
-      ? safeRoomAvatar(self.avatarUrl)
-      : tile.identity === id + ":" + peerId
-        ? peer.avatarUrl
-        : null,
-  }));
+  const tiles = participantTiles(id, actor, room.tiles, peerId, peer);
   const { room: connectedRoom, close: closeRoom } = room;
 
   useEffect(() => {
@@ -190,26 +361,7 @@ export function LearningRoomScreen({ id }: Readonly<{ id: string }>) {
     }
   }
 
-  const joinReason =
-    query.data && !joined && !connecting && !canEnterSession(query.data, now)
-      ? userErrorText(409, query.data.join?.reason ?? "SESSION_NOT_JOINABLE")
-      : undefined;
-  const messages = [
-    query.loading ? "Đang tải buổi học…" : undefined,
-    query.error,
-    room.error,
-    room.notice,
-    background.error,
-    audio.error,
-    background.busy
-      ? "Đang chuẩn bị hiệu ứng nền… Lần đầu có thể cần tải thêm dữ liệu."
-      : undefined,
-    peerProfile.error
-      ? "Chưa tải được tên và ảnh của người cùng học."
-      : undefined,
-    displayError,
-    joinReason,
-  ].filter(Boolean);
+  const joinReason = roomJoinReason(query.data, joined, connecting, now);
 
   return (
     <section
@@ -278,14 +430,10 @@ export function LearningRoomScreen({ id }: Readonly<{ id: string }>) {
               onClick={query.reload}
             />
           )}
-          <span
-            className={styles.connection}
-            data-connected={connected}
-            role="status"
-          >
+          <output className={styles.connection} data-connected={connected}>
             <i />
             {labels[room.status] ?? "Đang kiểm tra kết nối"}
-          </span>
+          </output>
           <IconButton
             icon={expanded ? "collapse" : "expand"}
             label={
@@ -303,26 +451,15 @@ export function LearningRoomScreen({ id }: Readonly<{ id: string }>) {
         </div>
       </header>
 
-      {messages.length > 0 && (
-        <div
-          className={styles.messages}
-          role={query.error || room.error || displayError ? "alert" : "status"}
-        >
-          {messages.map((message, index) => (
-            <p key={index}>{message}</p>
-          ))}
-          {query.error && (
-            <button type="button" onClick={query.reload}>
-              Thử lại
-            </button>
-          )}
-          {peerProfile.error && (
-            <button type="button" onClick={peerProfile.reload}>
-              Tải lại hồ sơ
-            </button>
-          )}
-        </div>
-      )}
+      <RoomNotices
+        query={query}
+        room={room}
+        background={background}
+        audio={audio}
+        peerProfile={peerProfile}
+        displayError={displayError}
+        joinReason={joinReason}
+      />
 
       {!joined ? (
         <RoomPrejoin
@@ -356,72 +493,14 @@ export function LearningRoomScreen({ id }: Readonly<{ id: string }>) {
           </span>
         </div>
         {joined && (
-          <div className={styles.controls} aria-label="Điều khiển phòng học">
-            <IconButton
-              icon={room.microphone ? "microphone" : "microphoneOff"}
-              label={room.microphone ? "Tắt micro" : "Bật micro"}
-              tone={room.microphone ? undefined : "off"}
-              aria-pressed={room.microphone}
-              disabled={
-                !connected || room.mediaBusy || background.busy || audio.busy
-              }
-              onClick={() => void room.toggle("microphone")}
-            />
-            <IconButton
-              icon={room.camera ? "camera" : "cameraOff"}
-              label={room.camera ? "Tắt camera" : "Bật camera"}
-              tone={room.camera ? undefined : "off"}
-              aria-pressed={room.camera}
-              disabled={
-                !connected || room.mediaBusy || background.busy || audio.busy
-              }
-              onClick={() => void room.toggle("camera")}
-            />
-            <RoomBackgroundControl
-              background={background}
-              disabled={!connected || room.mediaBusy || audio.busy}
-              onToggle={() =>
-                void room.changeBackground(
-                  background.enabled
-                    ? { mode: "off" }
-                    : { mode: "blur", blurRadius: 12 },
-                )
-              }
-            />
-            <IconButton
-              icon={room.screen ? "screenOff" : "screen"}
-              label={room.screen ? "Dừng chia sẻ màn hình" : "Chia sẻ màn hình"}
-              tone={room.screen ? "active" : undefined}
-              aria-pressed={room.screen}
-              disabled={
-                !connected || room.mediaBusy || background.busy || audio.busy
-              }
-              onClick={() => void room.toggle("screen")}
-            />
-            {room.audioBlocked && (
-              <IconButton
-                icon="volume"
-                label="Bật âm thanh"
-                tone="active"
-                onClick={room.startAudio}
-              />
-            )}
-            <IconButton
-              icon="phone"
-              label="Rời phòng"
-              tone="danger"
-              onClick={() => {
-                room.close();
-              }}
-            />
-            <IconButton
-              icon="chat"
-              label={"Chat phiên học (" + chat.messages.length + " tin)"}
-              tone={chatOpen ? "active" : undefined}
-              aria-expanded={chatOpen}
-              onClick={() => setChatOpen((value) => !value)}
-            />
-          </div>
+          <RoomControls
+            room={room}
+            background={background}
+            audio={audio}
+            chatOpen={chatOpen}
+            chatCount={chat.messages.length}
+            onToggleChat={() => setChatOpen((value) => !value)}
+          />
         )}
         <Link
           href={"/learn/sessions/" + id}
