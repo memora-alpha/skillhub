@@ -17,7 +17,7 @@ export function PostEditor({ id }: Readonly<{ id?: string }>) {
   const query = useUserResource<Post>(id ? "learning-requests/" + id : null);
   return (
     <>
-      <Back href={id ? "/learn/posts/" + id : "/learn"} />
+      <Back href={id ? "/learn/posts/" + id : "/learn/explore"} />
       <PageHeading
         title={id ? "Chỉnh sửa bài đăng" : "Bạn muốn học điều gì?"}
         description="Chia sẻ mục tiêu rõ ràng để gặp người hướng dẫn phù hợp."
@@ -29,12 +29,26 @@ export function PostEditor({ id }: Readonly<{ id?: string }>) {
           reload={query.reload}
         />
       )}
-      {(!id || query.data) && (
-        <PostForm
-          key={id ? id + ":" + query.data?.version : "new"}
-          post={query.data}
-        />
-      )}
+      <div className="product-form-layout">
+        <aside className="learner-card product-form-note">
+          <h2>Nhu cầu học của bạn</h2>
+          <ol>
+            <li>Kỹ năng muốn học</li>
+            <li>Mục tiêu và trình độ</li>
+            <li>Credit mong muốn</li>
+            <li>Lưu nháp và xem lại</li>
+          </ol>
+          <p>Thông tin rõ ràng giúp bạn gặp người hướng dẫn phù hợp.</p>
+        </aside>
+        <div>
+          {(!id || query.data) && (
+            <PostForm
+              key={id ? id + ":" + query.data?.version : "new"}
+              post={query.data}
+            />
+          )}
+        </div>
+      </div>
     </>
   );
 }

@@ -25,7 +25,8 @@ export function ConnectionsScreen() {
   return (
     <>
       <PageHeading
-        title="Kết nối của tôi"
+        eyebrow="CÙNG TÌM NGƯỜI ĐỒNG HÀNH"
+        title="Đề nghị học tập"
         description="Xem đề xuất, chọn người phù hợp rồi trao đổi kế hoạch học."
         action={
           <div className="learner-tabs">
@@ -70,7 +71,7 @@ export function ConnectionsScreen() {
     </>
   );
 }
-function ProposalCard({ proposal }: Readonly<{ proposal: Proposal }>) {
+export function ProposalCard({ proposal }: Readonly<{ proposal: Proposal }>) {
   const { actor, request } = useUserSession(),
     command = useUserCommand(true),
     router = useRouter();
@@ -112,7 +113,12 @@ function ProposalCard({ proposal }: Readonly<{ proposal: Proposal }>) {
     <Panel>
       <div className="learner-card-top">
         <h2>
-          <ProfileName id={other} />
+          <Link
+            className="learner-card-link"
+            href={"/learn/connections/" + proposal.id}
+          >
+            <ProfileName id={other} />
+          </Link>
         </h2>
         <Status value={proposal.status} />
       </div>
