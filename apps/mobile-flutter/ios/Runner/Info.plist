@@ -31,6 +31,10 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSCameraUsageDescription</key>
+	<string>SkillHub cần camera để bạn vào phòng học.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>SkillHub cần mic để bạn nói trong phòng học.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>SkillHub cần quyền truy cập thư viện ảnh để bạn chọn ảnh đại diện.</string>
 	<key>UIApplicationSceneManifest</key>

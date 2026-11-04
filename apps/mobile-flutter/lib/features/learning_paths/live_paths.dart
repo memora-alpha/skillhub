@@ -8,6 +8,8 @@ import '../../components/feature_page.dart';
 import '../../components/misc.dart';
 import '../../core/http/app_error.dart';
 import '../auth/session/auth_session.dart';
+import '../remote/refresh_signal.dart';
+import '../remote/remote_load.dart';
 import '../messages/messages_data.dart';
 import '../skills/schema/skill_schema.dart';
 import '../skills/skills_feature.dart';
@@ -44,7 +46,7 @@ const _scheduleStatusLabel = {
 };
 
 const _sessionStatusLabel = {
-  'CONFIRMED': 'Đã xác nhận',
+  'CONFIRMED': 'Đã lên lịch',
   'READY': 'Sẵn sàng',
   'ONGOING': 'Đang diễn ra',
   'AWAITING_CONFIRMATION': 'Chờ xác nhận hoàn thành',
@@ -56,6 +58,7 @@ const _sessionStatusLabel = {
 final livePathsProvider = FutureProvider<List<Map<String, dynamic>>>((
   ref,
 ) async {
+  watchRefresh(ref, RefreshScope.study);
   if (ref.watch(sessionSnapshotProvider).phase != SessionPhase.ready) {
     return const [];
   }
@@ -66,6 +69,7 @@ final livePathProvider = FutureProvider.family<Map<String, dynamic>, String>((
   ref,
   id,
 ) async {
+  watchRefresh(ref, RefreshScope.study);
   if (ref.watch(sessionSnapshotProvider).phase != SessionPhase.ready ||
       !isLiveId(id)) {
     return const {};
@@ -203,6 +207,9 @@ String? scheduleSlotError(List<DateTime> starts, List<int> minutes) {
   return null;
 }
 
+bool _pathStillOpen(Object? status) =>
+    status != 'COMPLETED' && status != 'CANCELLED';
+
 DateTime? _parsedDate(Object? value) {
   if (value is! String || value.isEmpty) return null;
   return DateTime.tryParse(value);
@@ -214,11 +221,18 @@ class LivePathsPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final paths = ref.watch(livePathsProvider);
+    final items = paths.value ?? const <Map<String, dynamic>>[];
     return FeaturePage(
+      onRefresh: () => pullRefresh(ref, const {RefreshScope.study}),
       title: 'Lộ trình của tôi',
       back: '/calendar',
       subtitle: 'Mỗi lần học là một bước tiến cùng nhau.',
       children: [
+        WaitingRefresh(
+          scopes: const {RefreshScope.study},
+          enabled: items.any((path) => _pathStillOpen(path['status'])),
+          child: const SizedBox.shrink(),
+        ),
         if (paths.isLoading && !paths.hasValue)
           const LiveBusyNote(label: 'Đang tải lộ trình.'),
         if (paths.hasError)
@@ -230,7 +244,7 @@ class LivePathsPage extends ConsumerWidget {
           AppButton(
             label: 'Tải lại',
             variant: ButtonVariant.paper,
-            onPressed: () => ref.invalidate(livePathsProvider),
+            onPressed: () => ref.read(refreshTicksProvider.notifier).bump(const {RefreshScope.study}),
           ),
         for (final path in paths.value ?? const <Map<String, dynamic>>[])
           Panel(
@@ -290,6 +304,7 @@ class _LiveAgreementScreenState extends ConsumerState<LiveAgreementScreen> {
     ];
     final twoWay = _type == 'TWO_WAY';
     return FeaturePage(
+      onRefresh: () => pullRefresh(ref, const {RefreshScope.study}),
       title: 'Lộ trình học',
       back: '/messages',
       children: [
@@ -373,7 +388,7 @@ class _LiveAgreementScreenState extends ConsumerState<LiveAgreementScreen> {
                                   'negotiatedCredit': values['credit'],
                                 },
                         );
-                    ref.invalidate(livePathsProvider);
+                    ref.read(refreshTicksProvider.notifier).bump(const {RefreshScope.study});
                     final id = created['id']?.toString() ?? '';
                     if (id.isNotEmpty && context.mounted) {
                       context.go('/paths/$id');
@@ -392,9 +407,196 @@ class _LiveAgreementScreenState extends ConsumerState<LiveAgreementScreen> {
               ),
             ],
           ),
+        _PathSuggestionPanel(
+          conversationId: widget.conversationId,
+          partnerName: widget.partnerName,
+        ),
       ],
     );
   }
+}
+
+class _PathSuggestionPanel extends ConsumerStatefulWidget {
+  const _PathSuggestionPanel({
+    required this.conversationId,
+    required this.partnerName,
+  });
+
+  final String conversationId;
+  final String partnerName;
+
+  @override
+  ConsumerState<_PathSuggestionPanel> createState() =>
+      _PathSuggestionPanelState();
+}
+
+class _PathSuggestionPanelState extends ConsumerState<_PathSuggestionPanel> {
+  String _type = 'TWO_WAY';
+  String _role = 'Tôi dạy';
+  var _saved = false;
+  var _sent = false;
+  var _busy = false;
+  String? _error;
+
+  @override
+  Widget build(BuildContext context) {
+    final twoWay = _type == 'TWO_WAY';
+    return Panel(
+      title: 'Cùng ${widget.partnerName} thiết kế cách học',
+      children: [
+        const FormNotice(
+          tone: NoticeTone.info,
+          message:
+              'Bạn có thể lưu ý tưởng và gửi gợi ý qua Chat trước khi tạo hoặc sửa lộ trình chính thức ở phía trên.',
+        ),
+        const Copy(
+          'Gợi ý dưới đây chưa tạo kế hoạch chính thức, chưa xác nhận điều khoản hoặc giữ Credit.',
+          muted: true,
+        ),
+        ChoiceGroup(
+          label: 'Hình thức mong muốn',
+          options: const ['Trao đổi hai chiều', 'Học một chiều'],
+          value: twoWay ? 'Trao đổi hai chiều' : 'Học một chiều',
+          onChange: (value) => setState(
+            () => _type = value == 'Trao đổi hai chiều' ? 'TWO_WAY' : 'ONE_WAY',
+          ),
+        ),
+        if (!twoWay)
+          ChoiceGroup(
+            label: 'Vai trò mong muốn',
+            options: const ['Tôi dạy', 'Tôi học'],
+            value: _role,
+            onChange: (value) => setState(() => _role = value),
+          ),
+        DataForm(
+          key: ValueKey('$_type$_role'),
+          defaults: const {
+            'credit': '20',
+            'skill': '',
+            'goal': '',
+            'outline': '',
+          },
+          fields: [
+            DataField(
+              name: 'credit',
+              label: twoWay
+                  ? 'Credit cam kết mỗi người'
+                  : 'Credit gợi ý toàn lộ trình',
+              rule: creditRule(twoWay ? 20 : 0, twoWay),
+              numeric: true,
+            ),
+            DataField(
+              name: 'skill',
+              label: twoWay || _role == 'Tôi dạy'
+                  ? 'Kỹ năng bạn muốn dạy'
+                  : 'Kỹ năng muốn học',
+              rule: textRule(1, 100),
+            ),
+            DataField(
+              name: 'goal',
+              label: 'Mục tiêu học',
+              rule: textRule(10, 500),
+              multiline: true,
+            ),
+            DataField(
+              name: 'outline',
+              label: 'Nội dung dự kiến từng buổi',
+              rule: (value) {
+                final lines = [
+                  for (final line in value.split('\n'))
+                    if (line.trim().isNotEmpty) line.trim(),
+                ];
+                if (lines.isEmpty ||
+                    lines.length > 100 ||
+                    lines.any((line) => line.length < 5)) {
+                  return 'Mỗi dòng là một buổi, mô tả ít nhất 5 ký tự; tối đa 100 buổi.';
+                }
+                return null;
+              },
+              multiline: true,
+              hint: 'Mỗi dòng là một buổi. Nội dung này dùng để thương lượng.',
+            ),
+          ],
+          submitLabel: _busy ? 'Đang gửi...' : 'Gửi gợi ý qua Chat',
+          extra: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            spacing: 8,
+            children: [
+              if (_saved)
+                const FormNotice(
+                  tone: NoticeTone.success,
+                  message: 'Bản nháp đã lưu trong phiên này.',
+                ),
+              if (_sent)
+                const FormNotice(
+                  tone: NoticeTone.success,
+                  message:
+                      'Gợi ý đã được gửi trong Chat; chưa phải xác nhận lộ trình.',
+                ),
+              if (_error != null)
+                FormNotice(tone: NoticeTone.error, message: _error!),
+              AppButton(
+                label: 'Lưu bản nháp',
+                variant: ButtonVariant.paper,
+                disabled: _busy,
+                onPressed: () => setState(() {
+                  _saved = true;
+                  _error = null;
+                }),
+              ),
+            ],
+          ),
+          onSubmit: (values) async {
+            setState(() {
+              _busy = true;
+              _error = null;
+              _saved = true;
+            });
+            try {
+              final id = newUuid();
+              await ref.read(authRuntimeProvider).services.conversations.send(
+                widget.conversationId,
+                clientMessageId: id,
+                messageText: _suggestionMessage(values, twoWay, _role),
+                idempotencyKey: id,
+              );
+              ref
+                  .read(refreshTicksProvider.notifier)
+                  .bump(const {RefreshScope.messages});
+              if (mounted) setState(() => _sent = true);
+              return null;
+            } catch (error) {
+              return errorMessage(error);
+            } finally {
+              if (mounted) setState(() => _busy = false);
+            }
+          },
+        ),
+      ],
+    );
+  }
+}
+
+String _suggestionMessage(
+  Map<String, String> values,
+  bool twoWay,
+  String role,
+) {
+  final lessons = [
+    for (final line in (values['outline'] ?? '').split('\n'))
+      if (line.trim().isNotEmpty) line.trim(),
+  ];
+  final teach = twoWay || role == 'Tôi dạy';
+  return [
+    'GỢI Ý LỘ TRÌNH · CHƯA XÁC NHẬN',
+    'Hình thức: ${twoWay ? 'Trao đổi hai chiều' : 'Học một chiều'}',
+    'Chiều trao đổi: ${teach ? 'Tôi dạy → bạn học' : 'Tôi mong muốn học từ bạn'}',
+    'Kỹ năng: ${values['skill']}',
+    'Mục tiêu: ${values['goal']}',
+    'Credit gợi ý cho toàn thỏa thuận: ${values['credit']}${twoWay ? ' mỗi người' : ''}',
+    for (var i = 0; i < lessons.length; i++) 'Buổi ${i + 1}: ${lessons[i]}',
+    'Đây là nội dung thương lượng trong Chat. Người dạy tự tạo kế hoạch; kế hoạch và lịch cần xác nhận riêng. Chưa giữ Credit.',
+  ].join('\n');
 }
 
 class LivePathDetail extends ConsumerStatefulWidget {
@@ -409,6 +611,8 @@ class LivePathDetail extends ConsumerStatefulWidget {
 class _LivePathDetailState extends ConsumerState<LivePathDetail> {
   String? _error;
   String? _busy;
+  String? _settlementGross;
+  String? _settlementFee;
 
   Future<void> _run(String action, Future<void> Function() work) async {
     if (_busy != null) return;
@@ -418,8 +622,7 @@ class _LivePathDetailState extends ConsumerState<LivePathDetail> {
     });
     try {
       await work();
-      ref.invalidate(livePathProvider(widget.id));
-      ref.invalidate(livePathsProvider);
+      ref.read(refreshTicksProvider.notifier).bump(const {RefreshScope.study});
     } catch (error) {
       setState(() => _error = errorMessage(error));
     } finally {
@@ -463,9 +666,15 @@ class _LivePathDetailState extends ConsumerState<LivePathDetail> {
     final credit =
         agreement['totalCreditPerUser'] ?? agreement['negotiatedCredit'];
     return FeaturePage(
+      onRefresh: () => pullRefresh(ref, const {RefreshScope.study}),
       title: 'Không gian lộ trình',
       back: '/paths',
       children: [
+        WaitingRefresh(
+          scopes: const {RefreshScope.study},
+          enabled: path.isNotEmpty && _pathStillOpen(path['status']),
+          child: const SizedBox.shrink(),
+        ),
         if (query.isLoading && path.isEmpty)
           const LiveBusyNote(label: 'Đang tải lộ trình.'),
         if (query.hasError && path.isEmpty)
@@ -587,6 +796,37 @@ class _LivePathDetailState extends ConsumerState<LivePathDetail> {
             variant: ButtonVariant.paper,
             onPressed: () => context.go('/paths/${widget.id}/schedules'),
           ),
+          if (_settlementGross != null)
+            FormNotice(
+              tone: NoticeTone.success,
+              message:
+                  'Đã quyết toán. Tổng $_settlementGross CR, phí $_settlementFee CR.',
+            ),
+          if (path['status'] == 'ACTIVE')
+            AppButton(
+              label: _busy == 'settle' ? 'Đang quyết toán...' : 'Quyết toán lộ trình',
+              variant: ButtonVariant.craft,
+              loading: _busy == 'settle',
+              disabled: _busy != null,
+              onPressed: () => _run('settle', () async {
+                final result = await ref
+                    .read(authRuntimeProvider)
+                    .services
+                    .study
+                    .settle(widget.id);
+                await ref.read(accountProvider.notifier).reload();
+                ref.read(refreshTicksProvider.notifier).bump(const {
+                  RefreshScope.profile,
+                });
+                if (!mounted) return;
+                setState(() {
+                  _settlementGross = _text(result['gross']);
+                  _settlementFee = _text(result['fee']);
+                });
+              }),
+            ),
+          if (path['status'] == 'COMPLETED' && path['settledAt'] != null)
+            const Copy('Lộ trình đã được quyết toán.'),
           if (editable)
             AppButton(
               label: 'Kiểm tra và chốt lịch',
@@ -638,6 +878,7 @@ class _LivePlanPageState extends ConsumerState<LivePlanPage> {
         plan['learnerId'] == me &&
         plan['learnerConfirmedAt'] == null;
     return FeaturePage(
+      onRefresh: () => pullRefresh(ref, const {RefreshScope.study}),
       title: 'Kế hoạch học tập',
       back: '/paths/${widget.id}',
       children: [
@@ -694,8 +935,7 @@ class _LivePlanPageState extends ConsumerState<LivePlanPage> {
                             widget.planId,
                             expectedVersion: _version(plan['version']),
                           );
-                      ref.invalidate(livePathProvider(widget.id));
-                      ref.invalidate(livePathsProvider);
+                      ref.read(refreshTicksProvider.notifier).bump(const {RefreshScope.study});
                     } catch (error) {
                       setState(() => _error = errorMessage(error));
                     } finally {
@@ -730,6 +970,82 @@ class LivePlanEditor extends ConsumerStatefulWidget {
 
 class _LivePlanEditorState extends ConsumerState<LivePlanEditor> {
   String? _skillId;
+  final _goal = AppField(validator: _goalRule);
+  final _outline = AppField(validator: _outlineRule);
+  var _seeded = false;
+  var _submitting = false;
+  String? _formError;
+
+  void _onOutlineChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _outline.addListener(_onOutlineChanged);
+  }
+
+  @override
+  void dispose() {
+    _outline.removeListener(_onOutlineChanged);
+    _goal.dispose();
+    _outline.dispose();
+    super.dispose();
+  }
+
+  void _seed(Map<String, dynamic>? plan) {
+    if (_seeded) return;
+    _seeded = true;
+    _goal.text = plan?['learningGoal']?.toString() ?? '';
+    final lines = [
+      for (final item in _records(plan?['sessionOutline']))
+        _text(item['content']).trim(),
+    ].where((line) => line.isNotEmpty);
+    _outline.text = lines.join('\n');
+  }
+
+  Future<void> _submitPlan({
+    required String skillId,
+    required Map<String, dynamic>? plan,
+  }) async {
+    if (_submitting) return;
+    if (!validateFields([_goal, _outline])) {
+      setState(() => _formError = null);
+      return;
+    }
+    final lines = [
+      for (final line in _outline.text.split('\n'))
+        if (line.trim().isNotEmpty) line.trim(),
+    ];
+    setState(() {
+      _submitting = true;
+      _formError = null;
+    });
+    final body = {
+      'skillId': skillId,
+      'learningGoal': _goal.text.trim(),
+      'totalSessions': lines.length,
+      'sessionOutline': [
+        for (final line in lines) {'content': line},
+      ],
+      if (plan != null) 'expectedVersion': _version(plan['version']),
+    };
+    try {
+      final study = ref.read(authRuntimeProvider).services.study;
+      if (plan == null) {
+        await study.addPlan(widget.id, body);
+      } else {
+        await study.revisePlan(_text(plan['id']), body);
+      }
+      ref.read(refreshTicksProvider.notifier).bump(const {RefreshScope.study});
+      if (mounted) context.go('/paths/${widget.id}');
+    } catch (error) {
+      if (mounted) setState(() => _formError = errorMessage(error));
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -754,7 +1070,9 @@ class _LivePlanEditorState extends ConsumerState<LivePlanEditor> {
                       agreement['teacherId'] == me));
     final selected = _skillId ?? plan?['skillId']?.toString();
     final names = {for (final skill in catalog) skill.id: skill.name};
+    if (canEdit && catalog.isNotEmpty) _seed(plan);
     return FeaturePage(
+      onRefresh: () => pullRefresh(ref, const {RefreshScope.study}),
       title: plan != null ? 'Sửa kế hoạch tôi dạy' : 'Tạo kế hoạch tôi dạy',
       back: '/paths/${widget.id}',
       children: [
@@ -786,62 +1104,36 @@ class _LivePlanEditorState extends ConsumerState<LivePlanEditor> {
                   }
                 },
               ),
-              DataForm(
-                defaults: {
-                  'goal': plan?['learningGoal']?.toString() ?? '',
-                  'outline': _records(plan?['sessionOutline'])
-                      .map((item) => item['content'])
-                      .join('\n'),
-                },
-                fields: const [
-                  DataField(
-                    name: 'goal',
-                    label: 'Mục tiêu học',
-                    multiline: true,
-                    rule: _goalRule,
-                  ),
-                  DataField(
-                    name: 'outline',
-                    label: 'Nội dung từng buổi',
-                    hint: 'Mỗi dòng là một buổi.',
-                    multiline: true,
-                    rule: _outlineRule,
-                  ),
-                ],
-                submitLabel: plan != null ? 'Lưu kế hoạch' : 'Tạo kế hoạch',
-                onSubmit: (values) async {
-                  final skillId = selected ?? catalog.first.id;
-                  final lines = values['outline']!
-                      .split('\n')
-                      .map((line) => line.trim())
-                      .where((line) => line.isNotEmpty)
-                      .toList();
-                  final body = {
-                    'skillId': skillId,
-                    'learningGoal': values['goal']!.trim(),
-                    'totalSessions': lines.length,
-                    'sessionOutline': [
-                      for (final line in lines) {'content': line},
-                    ],
-                    if (plan != null) 'expectedVersion': _version(plan['version']),
-                  };
-                  try {
-                    final study = ref.read(authRuntimeProvider).services.study;
-                    if (plan == null) {
-                      await study.addPlan(widget.id, body);
-                    } else {
-                      await study.revisePlan(_text(plan['id']), body);
-                    }
-                    ref.invalidate(livePathProvider(widget.id));
-                    ref.invalidate(livePathsProvider);
-                    if (context.mounted) {
-                      context.go('/paths/${widget.id}');
-                    }
-                    return null;
-                  } catch (error) {
-                    return errorMessage(error);
-                  }
-                },
+              AppInput(
+                field: _goal,
+                label: 'Mục tiêu học',
+                multiline: true,
+                editable: !_submitting,
+              ),
+              AppInput(
+                field: _outline,
+                label: 'Nội dung từng buổi',
+                multiline: true,
+                hint: 'Mỗi dòng là một buổi, tối đa 100 buổi.',
+                editable: !_submitting,
+              ),
+              Copy(
+                '${[
+                  for (final line in _outline.text.split('\n'))
+                    if (line.trim().isNotEmpty) line,
+                ].length} buổi',
+                muted: true,
+              ),
+              if (_formError != null)
+                FormNotice(tone: NoticeTone.error, message: _formError!),
+              AppButton(
+                label: _submitting ? 'Đang gửi...' : 'Gửi kế hoạch',
+                variant: ButtonVariant.craft,
+                loading: _submitting,
+                onPressed: () => _submitPlan(
+                  skillId: selected ?? catalog.first.id,
+                  plan: plan,
+                ),
               ),
             ],
           ),
@@ -881,6 +1173,7 @@ class _LiveTermsEditorState extends ConsumerState<LiveTermsEditor> {
     final credit =
         agreement['totalCreditPerUser'] ?? agreement['negotiatedCredit'] ?? '20';
     return FeaturePage(
+      onRefresh: () => pullRefresh(ref, const {RefreshScope.study}),
       title: 'Điều chỉnh điều khoản',
       back: '/paths/${widget.id}',
       children: [
@@ -959,8 +1252,7 @@ class _LiveTermsEditorState extends ConsumerState<LiveTermsEditor> {
                                   ),
                                 },
                         );
-                    ref.invalidate(livePathProvider(widget.id));
-                    ref.invalidate(livePathsProvider);
+                    ref.read(refreshTicksProvider.notifier).bump(const {RefreshScope.study});
                     if (context.mounted) {
                       context.go('/paths/${widget.id}');
                     }
@@ -993,16 +1285,13 @@ String? _goalRule(String value) {
 }
 
 String? _outlineRule(String value) {
-  final lines = value
-      .split('\n')
-      .map((line) => line.trim())
-      .where((line) => line.isNotEmpty)
-      .toList();
-  if (lines.isEmpty || lines.length > 100) {
-    return 'Nhập từ 1 đến 100 buổi, mỗi dòng một buổi.';
-  }
-  if (lines.any((line) => line.length > 2000)) {
-    return 'Mỗi buổi tối đa 2000 ký tự.';
+  final lines = [
+    for (final line in value.split('\n'))
+      if (line.trim().isNotEmpty) line.trim(),
+  ];
+  if (lines.isEmpty) return 'Nhập nội dung từng buổi.';
+  if (lines.length > 100 || lines.any((line) => line.length > 2000)) {
+    return 'Mỗi dòng là một buổi, không để trống, tối đa 100 buổi và 2.000 ký tự/buổi.';
   }
   return null;
 }
@@ -1031,8 +1320,7 @@ class _LiveSchedulesPageState extends ConsumerState<LiveSchedulesPage> {
         _text(schedule['id']),
         {'expectedVersion': _version(schedule['version'])},
       );
-      ref.invalidate(livePathProvider(widget.id));
-      ref.invalidate(livePathsProvider);
+      ref.read(refreshTicksProvider.notifier).bump(const {RefreshScope.study});
     } catch (error) {
       setState(() => _error = errorMessage(error));
     } finally {
@@ -1048,9 +1336,15 @@ class _LiveSchedulesPageState extends ConsumerState<LiveSchedulesPage> {
     final catalog = ref.watch(skillCatalogProvider).value ?? const <SkillRecord>[];
     final plans = _records(path['plans']);
     return FeaturePage(
+      onRefresh: () => pullRefresh(ref, const {RefreshScope.study}),
       title: 'Lịch của từng kế hoạch',
       back: '/paths/${widget.id}',
       children: [
+        WaitingRefresh(
+          scopes: const {RefreshScope.study},
+          enabled: path.isNotEmpty && _pathStillOpen(path['status']),
+          child: const SizedBox.shrink(),
+        ),
         if (query.isLoading && path.isEmpty)
           const LiveBusyNote(label: 'Đang tải lịch.'),
         if (query.hasError && path.isEmpty)
@@ -1159,10 +1453,18 @@ class _SchedulePanel extends StatelessWidget {
           ),
         if (sessions.isNotEmpty) ...[
           const Copy('Buổi học đã tạo:'),
-          for (final session in sessions)
+          for (final session in sessions) ...[
             Copy(
               'Buổi ${session['sessionNo']}: ${_when(session['startAt'])} · ${_sessionStatusLabel[session['status']] ?? session['status']}',
             ),
+            if (isLiveId(_text(session['id'])))
+              AppButton(
+                label: 'Mở buổi ${session['sessionNo']}',
+                variant: ButtonVariant.paper,
+                onPressed: () =>
+                    context.go('/learning-sessions/${session['id']}'),
+              ),
+          ],
         ],
       ],
     );
@@ -1186,6 +1488,7 @@ class LiveScheduleEditor extends ConsumerWidget {
     final outline = _records(plan?['sessionOutline']);
     final ready = path.isNotEmpty && plan != null && _canSchedule(path, plan, me);
     return FeaturePage(
+      onRefresh: () => pullRefresh(ref, const {RefreshScope.study}),
       title: 'Đề xuất lịch tôi dạy',
       back: '/paths/$id/schedules',
       children: [
@@ -1203,8 +1506,8 @@ class LiveScheduleEditor extends ConsumerWidget {
           Panel(
             title: 'Lịch cho ${_version(plan['totalSessions'])} buổi',
             children: [
-              const Copy(
-                'Chọn ngày và giờ theo múi giờ thiết bị. Thời lượng từ 60 đến 180 phút. Lịch gửi đi chưa thể sửa trực tiếp.',
+              Copy(
+                'Nhập giờ theo múi giờ thiết bị: ${_deviceZone()}. Định dạng 2026-11-20T19:00. Lịch gửi đi chưa thể sửa trực tiếp.',
                 muted: true,
               ),
               _ScheduleProposalForm(
@@ -1241,52 +1544,35 @@ class _ScheduleProposalForm extends ConsumerStatefulWidget {
 }
 
 class _ScheduleProposalFormState extends ConsumerState<_ScheduleProposalForm> {
-  late final List<DateTime?> _starts = List.filled(widget.outline.length, null);
+  late final List<AppField> _starts = [
+    for (var i = 0; i < widget.outline.length; i++)
+      AppField(validator: _localStartRule),
+  ];
   late final List<AppField> _minutes = [
     for (var i = 0; i < widget.outline.length; i++)
       AppField(text: '60', validator: integerRule(60, 180)),
   ];
-  late final List<String?> _startErrors = List.filled(widget.outline.length, null);
   String? _error;
   var _submitting = false;
 
   @override
   void dispose() {
+    for (final field in _starts) {
+      field.dispose();
+    }
     for (final field in _minutes) {
       field.dispose();
     }
     super.dispose();
   }
 
-  Future<void> _pick(int index) async {
-    if (_submitting) return;
-    final now = DateTime.now();
-    final initial = _starts[index] ?? now.add(const Duration(days: 1, hours: 1));
-    final picked = await _pickMoment(context, initial: initial, first: now);
-    if (!mounted || picked == null) return;
-    setState(() {
-      _starts[index] = picked;
-      _startErrors[index] = picked.isAfter(now) ? null : 'Buổi này phải ở tương lai.';
-      _error = null;
-    });
-  }
-
   Future<void> _submit() async {
     if (_submitting) return;
-    final minutesValid = validateFields(_minutes);
-    final now = DateTime.now();
-    var startsValid = true;
-    setState(() {
-      for (var i = 0; i < _starts.length; i++) {
-        final start = _starts[i];
-        _startErrors[i] = start == null
-            ? 'Chọn ngày và giờ.'
-            : (start.isAfter(now) ? null : 'Buổi này phải ở tương lai.');
-        if (_startErrors[i] != null) startsValid = false;
-      }
-    });
-    if (!minutesValid || !startsValid) return;
-    final starts = [for (final start in _starts) start!];
+    final valid = validateFields([..._starts, ..._minutes]);
+    if (!valid) return;
+    final starts = [
+      for (final field in _starts) parseLocalDateTime(field.text.trim())!,
+    ];
     final minutes = [for (final field in _minutes) int.parse(field.text.trim())];
     final invalid = scheduleSlotError(starts, minutes);
     if (invalid != null) {
@@ -1315,8 +1601,7 @@ class _ScheduleProposalFormState extends ConsumerState<_ScheduleProposalForm> {
           ],
         },
       );
-      ref.invalidate(livePathProvider(widget.pathId));
-      ref.invalidate(livePathsProvider);
+      ref.read(refreshTicksProvider.notifier).bump(const {RefreshScope.study});
       if (mounted) context.go('/paths/${widget.pathId}/schedules');
     } catch (error) {
       if (mounted) setState(() => _error = errorMessage(error));
@@ -1333,16 +1618,13 @@ class _ScheduleProposalFormState extends ConsumerState<_ScheduleProposalForm> {
       children: [
         for (final (index, lesson) in widget.outline.indexed) ...[
           Text(_lessonLabel(lesson, index), style: FeatureStyles.strong),
-          AppButton(
-            label: _starts[index] == null
-                ? 'Chọn ngày giờ'
-                : _momentLabel(_starts[index]!),
-            variant: ButtonVariant.paper,
-            disabled: _submitting,
-            onPressed: () => _pick(index),
+          AppInput(
+            field: _starts[index],
+            label: 'Ngày giờ bắt đầu',
+            placeholder: 'YYYY-MM-DDTHH:mm',
+            hint: 'Ví dụ 2026-11-20T19:00',
+            editable: !_submitting,
           ),
-          if (_startErrors[index] != null)
-            FormNotice(tone: NoticeTone.error, message: _startErrors[index]!),
           AppInput(
             field: _minutes[index],
             label: 'Thời lượng (phút)',
@@ -1362,6 +1644,17 @@ class _ScheduleProposalFormState extends ConsumerState<_ScheduleProposalForm> {
   }
 }
 
+String? _localStartRule(String value) {
+  final date = parseLocalDateTime(value.trim());
+  if (date == null) return 'Nhập ngày giờ theo YYYY-MM-DDTHH:mm.';
+  if (!date.isAfter(DateTime.now())) return 'Buổi học phải ở tương lai.';
+  return null;
+}
+
+String _deviceZone() => DateTime.now().timeZoneOffset.inHours == 7
+    ? 'Asia/Ho_Chi_Minh'
+    : 'Asia/Ho_Chi_Minh';
+
 String _lessonLabel(Map<String, dynamic> lesson, int index) {
   final number = _version(lesson['sessionNo']);
   final no = number == 0 ? index + 1 : number;
@@ -1370,51 +1663,6 @@ String _lessonLabel(Map<String, dynamic> lesson, int index) {
     '',
   );
   return content.isEmpty ? 'Buổi $no' : 'Buổi $no: $content';
-}
-
-String _momentLabel(DateTime value) {
-  final date = value.toLocal();
-  final day = date.day.toString().padLeft(2, '0');
-  final month = date.month.toString().padLeft(2, '0');
-  final hour = date.hour.toString().padLeft(2, '0');
-  final minute = date.minute.toString().padLeft(2, '0');
-  return '$day/$month/${date.year} $hour:$minute';
-}
-
-Future<DateTime?> _pickMoment(
-  BuildContext context, {
-  required DateTime initial,
-  required DateTime first,
-}) async {
-  final firstDay = DateTime(first.year, first.month, first.day);
-  final lastDate = firstDay.add(const Duration(days: 366));
-  final initialDay = DateTime(initial.year, initial.month, initial.day);
-  final initialDate = initialDay.isBefore(firstDay)
-      ? firstDay
-      : (initialDay.isAfter(lastDate) ? lastDate : initialDay);
-  final date = await showDatePicker(
-    context: context,
-    helpText: 'Chọn ngày',
-    cancelText: 'Hủy',
-    confirmText: 'Chọn',
-    initialDate: initialDate,
-    firstDate: firstDay,
-    lastDate: lastDate,
-  );
-  if (date == null || !context.mounted) return null;
-  final time = await showTimePicker(
-    context: context,
-    helpText: 'Chọn giờ',
-    cancelText: 'Hủy',
-    confirmText: 'Chọn',
-    initialTime: TimeOfDay.fromDateTime(initial),
-    builder: (context, child) => MediaQuery(
-      data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
-      child: child ?? const SizedBox.shrink(),
-    ),
-  );
-  if (time == null) return null;
-  return DateTime(date.year, date.month, date.day, time.hour, time.minute);
 }
 
 class LiveHoldPage extends ConsumerStatefulWidget {
@@ -1458,9 +1706,15 @@ class _LiveHoldPageState extends ConsumerState<LiveHoldPage> {
     final blocked = path.isEmpty && (query.isLoading || query.hasError);
     final checked = _checked == signature;
     return FeaturePage(
+      onRefresh: () => pullRefresh(ref, const {RefreshScope.study}),
       title: 'Kiểm tra và chốt lịch',
       back: '/paths/${widget.id}',
       children: [
+        WaitingRefresh(
+          scopes: const {RefreshScope.study},
+          enabled: path.isNotEmpty && _pathStillOpen(path['status']),
+          child: const SizedBox.shrink(),
+        ),
         if (query.isLoading && path.isEmpty)
           const LiveBusyNote(label: 'Đang tải lộ trình.'),
         if (query.hasError && path.isEmpty)
@@ -1574,8 +1828,7 @@ class _LiveHoldPageState extends ConsumerState<LiveHoldPage> {
                       widget.id,
                       expectedVersion: _version(path['currentVersion']),
                     );
-                    ref.invalidate(livePathProvider(widget.id));
-                    ref.invalidate(livePathsProvider);
+                    ref.read(refreshTicksProvider.notifier).bump(const {RefreshScope.study});
                     if (mounted) setState(() => _checked = null);
                   } catch (error) {
                     if (mounted) setState(() => _error = errorMessage(error));

@@ -151,6 +151,7 @@ class FeaturePage extends StatelessWidget {
     this.back = '/ui',
     this.demo = false,
     this.selected = 'Hồ sơ',
+    this.onRefresh,
   });
 
   final String title;
@@ -159,17 +160,17 @@ class FeaturePage extends StatelessWidget {
   final String back;
   final bool demo;
   final String selected;
+  final Future<void> Function()? onRefresh;
 
   @override
   Widget build(BuildContext context) {
-    return AppScreenLayout(
-      title: title,
-      selected: selected,
-      back: (route: back, label: 'Quay lại'),
-      child: ListView(
-        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 36),
-        children: [
+    final list = ListView(
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      physics: onRefresh == null
+          ? null
+          : const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 36),
+      children: [
           Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 860),
@@ -187,7 +188,14 @@ class FeaturePage extends StatelessWidget {
             ),
           ),
         ],
-      ),
+    );
+    return AppScreenLayout(
+      title: title,
+      selected: selected,
+      back: (route: back, label: 'Quay lại'),
+      child: onRefresh == null
+          ? list
+          : RefreshIndicator(onRefresh: onRefresh!, child: list),
     );
   }
 }

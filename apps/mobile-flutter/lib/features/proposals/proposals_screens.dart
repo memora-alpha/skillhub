@@ -15,6 +15,7 @@ import '../messages/messages_data.dart';
 import '../profile/public_profiles_data.dart';
 import '../skills/skills_feature.dart';
 import '../shell/app_screen_layout.dart';
+import '../remote/refresh_signal.dart';
 import 'proposals_data.dart';
 
 final _title = nunito(
@@ -44,14 +45,18 @@ BadgeVariant _statusVariant(String status) => switch (status) {
 
 /// Scrollable body shared by the proposal screens (max width 720).
 class _ProposalBody extends StatelessWidget {
-  const _ProposalBody({required this.children});
+  const _ProposalBody({required this.children, this.onRefresh});
 
   final List<Widget> children;
+  final Future<void> Function()? onRefresh;
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
+    final list = ListView(
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      physics: onRefresh == null
+          ? null
+          : const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
       children: [
         Center(
@@ -66,6 +71,8 @@ class _ProposalBody extends StatelessWidget {
         ),
       ],
     );
+    if (onRefresh == null) return list;
+    return RefreshIndicator(onRefresh: onRefresh!, child: list);
   }
 }
 
@@ -319,7 +326,13 @@ class _ProposalsScreenState extends ConsumerState<ProposalsScreen> {
       selected: 'Tin nhắn',
       back: (route: '/messages', label: 'Quay lại tin nhắn'),
       child: _ProposalBody(
+        onRefresh: () => pullRefresh(ref, const {RefreshScope.proposals}),
         children: [
+          WaitingRefresh(
+            scopes: const {RefreshScope.proposals},
+            enabled: proposals.any((item) => item.status == 'PENDING'),
+            child: const SizedBox.shrink(),
+          ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             spacing: 12,
@@ -456,7 +469,10 @@ class _ProposalDetailScreenState extends ConsumerState<ProposalDetailScreen> {
       }
     }
 
-    return AppScreenLayout(
+    return WaitingRefresh(
+      scopes: const {RefreshScope.proposals},
+      enabled: proposal?.status == 'PENDING',
+      child: AppScreenLayout(
       title: 'Chi tiết đề xuất',
       selected: 'Tin nhắn',
       back: (route: '/proposals', label: 'Quay lại đề xuất'),
@@ -469,6 +485,7 @@ class _ProposalDetailScreenState extends ConsumerState<ProposalDetailScreen> {
               onAction: () => context.go('/proposals'),
             )
           : _ProposalBody(
+              onRefresh: () => pullRefresh(ref, const {RefreshScope.proposals}),
               children: [
                 if (widget.updated)
                   const FormNotice(
@@ -579,6 +596,7 @@ class _ProposalDetailScreenState extends ConsumerState<ProposalDetailScreen> {
                 ),
               ],
             ),
+      ),
     );
   }
 }

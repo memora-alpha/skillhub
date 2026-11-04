@@ -9,6 +9,7 @@ import '../../components/dialogs.dart';
 import '../../components/tappable.dart';
 import '../../core/theme/tokens.dart';
 import '../auth/session/auth_session.dart';
+import '../remote/refresh_signal.dart';
 import 'account_menu.dart';
 import 'inbox_count.dart';
 import 'app_header.dart';
@@ -179,22 +180,62 @@ class AppNavigation extends StatelessWidget {
   }
 }
 
-class TabShell extends StatelessWidget {
+class TabShell extends ConsumerStatefulWidget {
   const TabShell({super.key, required this.shell});
 
   final StatefulNavigationShell shell;
 
   @override
+  ConsumerState<TabShell> createState() => _TabShellState();
+}
+
+class _TabShellState extends ConsumerState<TabShell> {
+  void _rememberIndex(int index) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(shellIndexProvider.notifier).setIndex(index);
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _rememberIndex(widget.shell.currentIndex);
+  }
+
+  @override
+  void didUpdateWidget(TabShell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.shell.currentIndex != widget.shell.currentIndex) {
+      _rememberIndex(widget.shell.currentIndex);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final shell = widget.shell;
     return Scaffold(
       backgroundColor: Chrome.background,
       body: shell,
       bottomNavigationBar: AppNavigation(
         selectedIndex: shell.currentIndex,
-        onSelect: (index) => shell.goBranch(
-          index,
-          initialLocation: index == shell.currentIndex,
-        ),
+        onSelect: (index) {
+          shell.goBranch(index, initialLocation: index == shell.currentIndex);
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            ref.read(shellIndexProvider.notifier).setIndex(index);
+            ref.read(refreshTicksProvider.notifier).bump(switch (index) {
+              1 => const {RefreshScope.discover},
+              2 => const {RefreshScope.study},
+              3 => const {RefreshScope.messages},
+              4 => const {RefreshScope.profile},
+              _ => const {RefreshScope.study, RefreshScope.discover},
+            });
+            if (index == 4) {
+              ref.read(accountProvider.notifier).reload();
+            }
+          });
+        },
       ),
     );
   }

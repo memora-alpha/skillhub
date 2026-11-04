@@ -8,6 +8,7 @@ import '../../components/feature_page.dart';
 import '../../components/misc.dart';
 import '../../core/http/app_error.dart';
 import '../auth/session/auth_session.dart';
+import '../remote/refresh_signal.dart';
 import '../materials/materials_feature.dart';
 import '../sessions/sessions_data.dart';
 
@@ -42,6 +43,11 @@ class ReportsNotifier extends Notifier<List<PreviewReport>> {
 
   @override
   List<PreviewReport> build() {
+    listenForRefresh(ref, RefreshScope.reports, () {
+      if (ref.read(sessionSnapshotProvider).phase != SessionPhase.ready) return;
+      if (ref.read(accountProvider).value?.userId == null) return;
+      reload();
+    });
     final phase = ref.watch(sessionSnapshotProvider).phase;
     final userId = ref.watch(accountProvider).value?.userId;
     if (phase == SessionPhase.ready && userId != null) {
@@ -76,6 +82,8 @@ class ReportsNotifier extends Notifier<List<PreviewReport>> {
 
   PreviewReport? find(String id) => state.where((r) => r.id == id).firstOrNull;
 
+  Future<void> reload() => _load(++_ticket);
+
   void save(PreviewReport report) =>
       state = [report, ...state.where((r) => r.id != report.id)];
 }
@@ -108,14 +116,23 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final items = ref
-        .watch(reportsProvider)
+    final all = ref.watch(reportsProvider);
+    final items = all
         .where((r) => _filter == 'Tất cả' || r.status == _filter)
         .toList();
     return FeaturePage(
+      onRefresh: () => pullRefresh(ref, const {RefreshScope.reports}),
       title: 'Báo cáo của tôi',
       back: '/profile',
       children: [
+        WaitingRefresh(
+          scopes: const {RefreshScope.reports},
+          enabled: all.any(
+            (report) =>
+                report.status != 'RESOLVED' && report.status != 'REJECTED',
+          ),
+          child: const SizedBox.shrink(),
+        ),
         ChoiceGroup(
           label: 'Trạng thái',
           options: const [
@@ -193,6 +210,7 @@ class _ReportEditorScreenState extends ConsumerState<ReportEditorScreen> {
             pathId != null &&
             sessions.any((s) => s.id == sessionId && s.pathId == pathId));
     return FeaturePage(
+      onRefresh: () => pullRefresh(ref, const {RefreshScope.reports}),
       title: materialId != null ? 'Báo cáo tài liệu' : 'Báo cáo buổi học',
       back: materialId != null
           ? '/materials/$materialId'
@@ -315,7 +333,12 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
     ref.watch(reportsProvider);
     final notifier = ref.read(reportsProvider.notifier);
     final r = notifier.find(widget.id);
-    return FeaturePage(
+    final open = r != null && r.status != 'RESOLVED' && r.status != 'REJECTED';
+    return WaitingRefresh(
+      scopes: const {RefreshScope.reports},
+      enabled: open,
+      child: FeaturePage(
+      onRefresh: () => pullRefresh(ref, const {RefreshScope.reports}),
       title: 'Theo dõi báo cáo',
       back: '/reports',
       children: r == null
@@ -385,6 +408,7 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                   label: 'Xem lộ trình liên quan',
                 ),
             ],
+      ),
     );
   }
 }
