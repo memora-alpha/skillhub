@@ -1,6 +1,13 @@
 "use client";
 import Link from "next/link";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import {
+  formatVietnamDayMonth,
+  formatVietnamTime,
+  vietnamDateKey,
+} from "@/lib/vietnam-time";
+import { groupSessionsByDay } from "./calendar-data";
+import { useClock } from "../hooks/use-clock";
 import type { LearningSession } from "../types";
 import { useUserResource } from "../hooks/use-user-resource";
 import {
@@ -13,13 +20,7 @@ import {
 } from "../components/common";
 export function CalendarScreen() {
   const [month, setMonth] = useState(() =>
-    new Intl.DateTimeFormat("sv-SE", {
-      timeZone: "Asia/Ho_Chi_Minh",
-      year: "numeric",
-      month: "2-digit",
-    })
-      .format(new Date())
-      .slice(0, 7),
+    vietnamDateKey(Date.now()).slice(0, 7),
   );
   const [year, selectedMonth] = month.split("-").map(Number);
   const last = new Date(Date.UTC(year!, selectedMonth!, 0)).getUTCDate();
@@ -28,6 +29,14 @@ export function CalendarScreen() {
     to: new Date(month + "-" + last + "T23:59:59.999+07:00").toISOString(),
   });
   const query = useUserResource<LearningSession[]>("sessions/mine?" + range);
+  const firstWeekday =
+    (new Date(Date.UTC(year!, selectedMonth! - 1, 1)).getUTCDay() + 6) % 7;
+  const now = useClock();
+  const today = vietnamDateKey(now);
+  const sessionsByDay = useMemo(
+    () => groupSessionsByDay(query.data ?? []),
+    [query.data],
+  );
   return (
     <>
       <PageHeading
@@ -52,42 +61,74 @@ export function CalendarScreen() {
         error={query.error}
         reload={query.reload}
       />
-      <div className="learner-stack">
-        {query.data?.map((session) => (
-          <Panel key={session.id}>
-            <div className="learner-session-row">
-              <div className="learner-date-box">
-                {new Intl.DateTimeFormat("vi-VN", {
-                  timeZone: "Asia/Ho_Chi_Minh",
-                  day: "2-digit",
-                  month: "2-digit",
-                }).format(new Date(session.startAt))}
-              </div>
-              <div>
-                <Status value={session.status} />
-                <h2>
-                  Buổi học ·{" "}
-                  {session.role === "TEACHER"
-                    ? "Bạn hướng dẫn"
-                    : "Bạn là người học"}
-                </h2>
-                <p>
-                  {formatTime(session.startAt)} –{" "}
-                  {new Intl.DateTimeFormat("vi-VN", {
-                    timeZone: "Asia/Ho_Chi_Minh",
-                    timeStyle: "short",
-                  }).format(new Date(session.endAt))}
-                </p>
-              </div>
-              <Link
-                className="btn btn-primary"
-                href={"/learn/sessions/" + session.id}
-              >
-                Chi tiết / vào học
-              </Link>
+      <div className="product-calendar-layout">
+        <section aria-label="Lịch tháng" className="product-calendar">
+          {["T2", "T3", "T4", "T5", "T6", "T7", "CN"].map((day) => (
+            <div className="weekday" key={day}>
+              {day}
             </div>
-          </Panel>
-        ))}
+          ))}
+          {Array.from({ length: firstWeekday }, (_, i) => (
+            <div className="outside" key={"outside-" + i} />
+          ))}
+          {Array.from({ length: last }, (_, i) => {
+            const day = i + 1,
+              key = month + "-" + String(day).padStart(2, "0");
+            return (
+              <div key={day} className={key === today ? "today" : ""}>
+                <time dateTime={key}>{day}</time>
+                {sessionsByDay.get(key)?.map((session) => (
+                  <Link
+                    key={session.id}
+                    href={"/learn/sessions/" + session.id}
+                    aria-label={"Buổi học " + formatTime(session.startAt)}
+                  >
+                    {formatVietnamTime(session.startAt)}
+                  </Link>
+                ))}
+              </div>
+            );
+          })}
+        </section>
+        <section
+          className="learner-stack"
+          aria-labelledby="calendar-sessions-title"
+        >
+          <h2
+            id="calendar-sessions-title"
+            className="product-calendar-list-title"
+          >
+            Các buổi học trong tháng
+          </h2>
+          {query.data?.map((session) => (
+            <Panel key={session.id}>
+              <div className="learner-session-row">
+                <div className="learner-date-box">
+                  {formatVietnamDayMonth(session.startAt)}
+                </div>
+                <div>
+                  <Status value={session.status} />
+                  <h2>
+                    Buổi học ·{" "}
+                    {session.role === "TEACHER"
+                      ? "Bạn hướng dẫn"
+                      : "Bạn là người học"}
+                  </h2>
+                  <p>
+                    {formatTime(session.startAt)} –{" "}
+                    {formatVietnamTime(session.endAt)}
+                  </p>
+                </div>
+                <Link
+                  className="btn btn-primary"
+                  href={"/learn/sessions/" + session.id}
+                >
+                  Chi tiết / vào học
+                </Link>
+              </div>
+            </Panel>
+          ))}
+        </section>
       </div>
       {!query.loading && !query.error && !query.data?.length && (
         <Empty>

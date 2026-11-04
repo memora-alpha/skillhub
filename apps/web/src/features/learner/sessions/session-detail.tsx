@@ -18,10 +18,15 @@ import { canEnterSession } from "./session-policy";
 import { UserApiError, userErrorText } from "../api/client";
 import { SessionReschedule } from "./session-reschedule";
 import { useClock } from "../hooks/use-clock";
+import { AttendanceRules } from "./attendance-rules";
+import { sessionRefreshInterval } from "./attendance-presentation";
+import { SessionAttendanceStatus } from "./session-attendance-status";
 export function SessionDetail({ id }: Readonly<{ id: string }>) {
   const now = useClock();
-  const query = useUserResource<LearningSession>("sessions/" + id),
-    { request } = useUserSession(),
+  const query = useUserResource<LearningSession>("sessions/" + id, {
+      refetchInterval: sessionRefreshInterval,
+    }),
+    { request, actor } = useUserSession(),
     command = useUserCommand();
   const path = useUserResource<LearningPath>(
       query.data ? "learning-paths/" + query.data.pathId : null,
@@ -74,27 +79,12 @@ export function SessionDetail({ id }: Readonly<{ id: string }>) {
                 </Link>
               </Panel>
               <Panel title="Điểm danh và xác nhận">
-                {session.attendance?.state === "PENDING_DATA" && (
-                  <p className="learner-notice">
-                    Hệ thống đang tổng hợp điểm danh. Tải lại sau để kiểm tra.
-                  </p>
-                )}
-                {(["teacher", "learner"] as const).map((side) => {
-                  const value = session.attendance?.[side];
-                  return (
-                    value && (
-                      <p key={side}>
-                        {side === "teacher" ? "Người dạy" : "Người học"}:{" "}
-                        {value.verdict === "PRESENT"
-                          ? "Có mặt"
-                          : value.verdict === "ABSENT"
-                            ? "Vắng mặt"
-                            : "Chưa xác minh"}{" "}
-                        · {value.seconds} giây
-                      </p>
-                    )
-                  );
-                })}
+                <SessionAttendanceStatus
+                  session={session}
+                  userId={actor.userId}
+                  loading={query.loading}
+                  refresh={query.reload}
+                />
                 {session.deadlines &&
                   Object.entries(session.deadlines).map(
                     ([key, value]) =>
@@ -165,7 +155,9 @@ export function SessionDetail({ id }: Readonly<{ id: string }>) {
                       ? "Chờ phản hồi"
                       : session.excuse.status === "ACCEPTED"
                         ? "Đã chấp nhận"
-                        : "Không chấp nhận"}
+                        : session.excuse.status === "EXPIRED"
+                          ? "Đã hết hạn phản hồi"
+                          : "Không chấp nhận"}
                   </p>
                 )}
                 {allowed.includes("SUBMIT_EXCUSE") && (
@@ -234,6 +226,14 @@ export function SessionDetail({ id }: Readonly<{ id: string }>) {
             </div>
             <div className="learner-stack">
               <Panel title="Phòng học trực tuyến">
+                <p>
+                  <Link
+                    className="learner-card-link"
+                    href={"/learn/reports/new?sessionId=" + id}
+                  >
+                    Báo cáo vấn đề buổi học
+                  </Link>
+                </p>
                 {canEnterSession(session, now) ? (
                   <Link
                     className="btn btn-primary"
@@ -260,6 +260,7 @@ export function SessionDetail({ id }: Readonly<{ id: string }>) {
                   Kiểm tra lại phòng
                 </button>
               </Panel>
+              <AttendanceRules />
               {(allowed.includes("PROPOSE_MAKEUP") ||
                 (["CONFIRMED", "READY"].includes(session.status) &&
                   Date.parse(session.startAt) - now >= 3600000)) && (

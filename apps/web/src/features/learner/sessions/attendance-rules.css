@@ -1,0 +1,3 @@
+.attendance-rules { display: grid; gap: 16px; margin-block: 20px; }
+.attendance-rules dt { font-weight: 600; }
+.attendance-rules dd { margin: 6px 0 0; line-height: 1.6; }
