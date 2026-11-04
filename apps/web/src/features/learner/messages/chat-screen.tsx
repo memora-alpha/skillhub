@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Conversation, Message, PathSummary, Proposal } from "../types";
@@ -31,20 +31,40 @@ export function ChatScreen({ id }: Readonly<{ id: string }>) {
   const [creating, setCreating] = useState(false),
     [opening, setOpening] = useState(false),
     [error, setError] = useState<string>();
-  const rows = [...messages.items].sort((left, right) =>
-      BigInt(left.sequence) < BigInt(right.sequence)
-        ? -1
-        : BigInt(left.sequence) > BigInt(right.sequence)
-          ? 1
-          : 0,
+  const rows = useMemo(
+      () =>
+        [...messages.items].sort((left, right) =>
+          BigInt(left.sequence) < BigInt(right.sequence)
+            ? -1
+            : BigInt(left.sequence) > BigInt(right.sequence)
+              ? 1
+              : 0,
+        ),
+      [messages.items],
     ),
     latest = rows.at(-1)?.id;
   useEffect(() => {
-    if (!latest || document.visibilityState !== "visible") return;
-    void request("conversations/" + id + "/read", {
-      method: "POST",
-      body: { messageId: latest },
-    }).catch(() => undefined);
+    if (!latest) return;
+    let marked = false;
+    let pending = false;
+    const markRead = () => {
+      if (document.visibilityState !== "visible" || marked || pending) return;
+      pending = true;
+      void request("conversations/" + id + "/read", {
+        method: "POST",
+        body: { messageId: latest },
+      })
+        .then(() => {
+          marked = true;
+        })
+        .catch(() => undefined)
+        .finally(() => {
+          pending = false;
+        });
+    };
+    markRead();
+    document.addEventListener("visibilitychange", markRead);
+    return () => document.removeEventListener("visibilitychange", markRead);
   }, [id, latest, request]);
   return (
     <>
