@@ -24,12 +24,10 @@ export function RoomStage({
   let participantStatus: string;
   if (primary.source === "screen_share") {
     participantStatus = `${primary.name} đang chia sẻ màn hình`;
+  } else if (participants) {
+    participantStatus = "Học cùng nhau";
   } else {
-    if (participants) {
-      participantStatus = "Học cùng nhau";
-    } else {
-      participantStatus = `Đang chờ ${peerName} vào phòng`;
-    }
+    participantStatus = `Đang chờ ${peerName} vào phòng`;
   }
   return (
     <div className={styles.stage}>
