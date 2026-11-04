@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { userBackend, userJson, UserGatewayError } from "./backend";
+import { apiBase, userBackend, userJson, UserGatewayError } from "./backend";
 import { userIdentity, userUpstreamPath, userQuery } from "./policy";
-import { apiBase } from "./backend";
 import { proxyEvents } from "../staff/event-proxy";
 import { sessionCookies } from "../auth/session";
 import { sameOriginMutation } from "../auth/origin";
@@ -64,32 +63,29 @@ async function establish(value: unknown) {
     throw error;
   }
 }
-async function session(request: NextRequest, refresh: boolean) {
-  const token = request.cookies.get(REFRESH)?.value;
-  if (request.method === "DELETE" && !refresh) {
-    return authGateway(request);
-  }
-  if (request.method === "GET" && !refresh) {
-    const access = request.cookies.get(ACCESS)?.value;
-    if (!access) throw new UserGatewayError(401, "SESSION_EXPIRED");
-    const result = await userBackend("me", access);
-    if (result.status !== 200 || !result.value?.success)
-      throw new UserGatewayError(result.status, "SESSION_EXPIRED");
-    const actor = userIdentity(result.value.data);
-    if (!actor) throw new UserGatewayError(403, "USER_PORTAL_ACCESS_REQUIRED");
-    return reply({ success: true, data: actor });
-  }
-  if (request.method !== "POST")
-    throw new UserGatewayError(405, "METHOD_NOT_ALLOWED");
-  if (refresh) {
-    if (!token) throw new UserGatewayError(401, "SESSION_EXPIRED");
-    const result = await userBackend("auth/refresh", undefined, "POST", {
-      refreshToken: token,
-    });
-    return result.status === 200 && result.value?.success
-      ? establish(result.value.data)
-      : clear(reply(result.value, result.status));
-  }
+function accessToken(request: NextRequest) {
+  const token = request.cookies.get(ACCESS)?.value;
+  if (!token) throw new UserGatewayError(401, "SESSION_EXPIRED");
+  return token;
+}
+async function readSession(request: NextRequest) {
+  const result = await userBackend("me", accessToken(request));
+  if (result.status !== 200 || !result.value?.success)
+    throw new UserGatewayError(result.status, "SESSION_EXPIRED");
+  const actor = userIdentity(result.value.data);
+  if (!actor) throw new UserGatewayError(403, "USER_PORTAL_ACCESS_REQUIRED");
+  return reply({ success: true, data: actor });
+}
+async function refreshSession(token: string | undefined) {
+  if (!token) throw new UserGatewayError(401, "SESSION_EXPIRED");
+  const result = await userBackend("auth/refresh", undefined, "POST", {
+    refreshToken: token,
+  });
+  return result.status === 200 && result.value?.success
+    ? establish(result.value.data)
+    : clear(reply(result.value, result.status));
+}
+async function loginSession(request: NextRequest, token: string | undefined) {
   if (token) throw new UserGatewayError(409, "LOGOUT_BEFORE_LOGIN");
   const body = await userJson(request);
   if (
@@ -108,6 +104,54 @@ async function session(request: NextRequest, refresh: boolean) {
     ? establish(result.value.data)
     : reply(result.value, result.status);
 }
+async function session(request: NextRequest, refresh: boolean) {
+  if (!refresh) {
+    if (request.method === "DELETE") return authGateway(request);
+    if (request.method === "GET") return readSession(request);
+  }
+  if (request.method !== "POST")
+    throw new UserGatewayError(405, "METHOD_NOT_ALLOWED");
+  const token = request.cookies.get(REFRESH)?.value;
+  return refresh ? refreshSession(token) : loginSession(request, token);
+}
+function isBodyless(method: string, target: string) {
+  if (method === "PATCH")
+    return /^notifications\/[0-9a-f-]+\/read$/i.test(target);
+  return (
+    method === "POST" &&
+    /^(payments\/[0-9a-f-]+\/cancel|me\/materials\/[0-9a-f-]+\/(submit|archive))$/i.test(
+      target,
+    )
+  );
+}
+async function forwardRequest(request: NextRequest, segments: string[]) {
+  const target = userUpstreamPath(request.method, segments);
+  if (!target) throw new UserGatewayError(404, "ROUTE_NOT_AVAILABLE");
+  const token = accessToken(request);
+  const cap = request.method === "POST" ? uploadLimit(target) : null;
+  if (cap) {
+    const result = await userUpload(request, target, token, cap);
+    return reply(result.value, result.status);
+  }
+  const key = request.headers.get("idempotency-key") ?? undefined;
+  if (key && (key.length > 200 || /[\r\n]/.test(key)))
+    throw new UserGatewayError(400, "INVALID_IDEMPOTENCY_KEY");
+  const body =
+    !isBodyless(request.method, target) &&
+    ["POST", "PATCH"].includes(request.method)
+      ? await userJson(request)
+      : undefined;
+  const result = await userBackend(
+    target + userQuery(request.nextUrl.searchParams),
+    token,
+    request.method,
+    body,
+    key,
+  );
+  return result.status === 204
+    ? new NextResponse(null, { status: 204, headers })
+    : reply(result.value, result.status);
+}
 export async function userGateway(request: NextRequest, segments: string[]) {
   try {
     if (request.method !== "GET" && !sameOriginMutation(request))
@@ -116,43 +160,13 @@ export async function userGateway(request: NextRequest, segments: string[]) {
     if (path === "session" || path === "session/refresh")
       return await session(request, path.endsWith("/refresh"));
     if (path === "events" && request.method === "GET") {
-      const token = request.cookies.get(ACCESS)?.value;
-      if (!token) throw new UserGatewayError(401, "SESSION_EXPIRED");
-      return proxyEvents(request, new URL("events", apiBase()), token);
+      return proxyEvents(
+        request,
+        new URL("events", apiBase()),
+        accessToken(request),
+      );
     }
-    const target = userUpstreamPath(request.method, segments);
-    if (!target) throw new UserGatewayError(404, "ROUTE_NOT_AVAILABLE");
-    const token = request.cookies.get(ACCESS)?.value;
-    if (!token) throw new UserGatewayError(401, "SESSION_EXPIRED");
-    const cap = request.method === "POST" ? uploadLimit(target) : null;
-    if (cap) {
-      const result = await userUpload(request, target, token, cap);
-      return reply(result.value, result.status);
-    }
-    const key = request.headers.get("idempotency-key") ?? undefined;
-    if (key && (key.length > 200 || /[\r\n]/.test(key)))
-      throw new UserGatewayError(400, "INVALID_IDEMPOTENCY_KEY");
-    const bodyless =
-      (request.method === "PATCH" &&
-        /^notifications\/[0-9a-f-]+\/read$/i.test(target)) ||
-      (request.method === "POST" &&
-        /^(payments\/[0-9a-f-]+\/cancel|me\/materials\/[0-9a-f-]+\/(submit|archive))$/i.test(
-          target,
-        ));
-    const body =
-      !bodyless && ["POST", "PATCH"].includes(request.method)
-        ? await userJson(request)
-        : undefined;
-    const result = await userBackend(
-      target + userQuery(request.nextUrl.searchParams),
-      token,
-      request.method,
-      body,
-      key,
-    );
-    return result.status === 204
-      ? new NextResponse(null, { status: 204, headers })
-      : reply(result.value, result.status);
+    return await forwardRequest(request, segments);
   } catch (cause) {
     const error =
       cause instanceof UserGatewayError

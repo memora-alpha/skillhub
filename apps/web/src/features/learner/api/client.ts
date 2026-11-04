@@ -47,22 +47,23 @@ const messages: Record<string, string> = {
     "Chưa xác định kết quả lần gửi trước. Hãy kiểm tra trạng thái trước khi gửi yêu cầu khác.",
 };
 export function userErrorText(status: number, code: string) {
-  return (
-    messages[code] ??
-    (status === 429
-      ? "Bạn đang thao tác nhanh. Chờ một lát rồi thử lại."
-      : status === 409
-        ? "Trạng thái đã thay đổi. Tải lại trước khi tiếp tục."
-        : status === 403
-          ? "Bạn không có quyền thực hiện thao tác này."
-          : status === 404
-            ? "Không tìm thấy nội dung hoặc bạn không có quyền truy cập."
-            : status === 400
-              ? "Thông tin chưa hợp lệ. Kiểm tra lại các trường."
-              : status >= 500
-                ? "Máy chủ đang gặp lỗi. Hãy thử lại sau."
-                : "Không thể hoàn tất. Vui lòng thử lại.")
-  );
+  if (messages[code]) return messages[code];
+  switch (status) {
+    case 429:
+      return "Bạn đang thao tác nhanh. Chờ một lát rồi thử lại.";
+    case 409:
+      return "Trạng thái đã thay đổi. Tải lại trước khi tiếp tục.";
+    case 403:
+      return "Bạn không có quyền thực hiện thao tác này.";
+    case 404:
+      return "Không tìm thấy nội dung hoặc bạn không có quyền truy cập.";
+    case 400:
+      return "Thông tin chưa hợp lệ. Kiểm tra lại các trường.";
+    default:
+      return status >= 500
+        ? "Máy chủ đang gặp lỗi. Hãy thử lại sau."
+        : "Không thể hoàn tất. Vui lòng thử lại.";
+  }
 }
 export type UserRequestOptions = {
   method?: "GET" | "POST" | "PATCH" | "DELETE";
@@ -70,34 +71,56 @@ export type UserRequestOptions = {
   key?: string;
   signal?: AbortSignal;
 };
+function requestInit(options: UserRequestOptions): RequestInit {
+  const headers: Record<string, string> = { Accept: "application/json" };
+  let body: BodyInit | undefined;
+  if (options.body !== undefined) {
+    if (typeof FormData !== "undefined" && options.body instanceof FormData) {
+      body = options.body;
+    } else {
+      headers["Content-Type"] = "application/json";
+      body = JSON.stringify(options.body);
+    }
+  }
+  if (options.key) headers["Idempotency-Key"] = options.key;
+  return {
+    method: options.method ?? "GET",
+    credentials: "same-origin",
+    cache: "no-store",
+    signal: options.signal,
+    headers,
+    body,
+  };
+}
+function responseCode(value: unknown): string {
+  if (
+    value &&
+    typeof value === "object" &&
+    "message" in value &&
+    typeof value.message === "string" &&
+    /^[A-Z_]+$/.test(value.message)
+  )
+    return value.message;
+  return "";
+}
+function successReply<T>(value: unknown): Reply<T> {
+  if (
+    !value ||
+    typeof value !== "object" ||
+    !("data" in value) ||
+    !("success" in value) ||
+    value.success !== true
+  )
+    throw new UserApiError(502, "API_RESPONSE_INVALID");
+  return value as Reply<T>;
+}
 export async function userFetch<T>(
   path: string,
   options: UserRequestOptions = {},
 ): Promise<Reply<T>> {
-  const multipart =
-    typeof FormData !== "undefined" && options.body instanceof FormData;
   let response: Response;
   try {
-    response = await fetch("/api/user/" + path, {
-      method: options.method ?? "GET",
-      credentials: "same-origin",
-      cache: "no-store",
-      signal: options.signal,
-      headers: {
-        Accept: "application/json",
-        ...(options.body !== undefined && !multipart
-          ? { "Content-Type": "application/json" }
-          : {}),
-        ...(options.key ? { "Idempotency-Key": options.key } : {}),
-      },
-      ...(options.body !== undefined
-        ? {
-            body: multipart
-              ? (options.body as FormData)
-              : JSON.stringify(options.body),
-          }
-        : {}),
-    });
+    response = await fetch("/api/user/" + path, requestInit(options));
   } catch (cause) {
     if (options.signal?.aborted) throw cause;
     throw new UserApiError(0, "API_UNAVAILABLE");
@@ -109,24 +132,7 @@ export async function userFetch<T>(
   } catch {
     throw new UserApiError(502, "API_RESPONSE_INVALID");
   }
-  if (!response.ok) {
-    const code =
-      value &&
-      typeof value === "object" &&
-      "message" in value &&
-      typeof value.message === "string" &&
-      /^[A-Z_]+$/.test(value.message)
-        ? value.message
-        : "";
-    throw new UserApiError(response.status, code);
-  }
-  if (
-    !value ||
-    typeof value !== "object" ||
-    !("data" in value) ||
-    !("success" in value) ||
-    value.success !== true
-  )
-    throw new UserApiError(502, "API_RESPONSE_INVALID");
-  return value as Reply<T>;
+  if (!response.ok)
+    throw new UserApiError(response.status, responseCode(value));
+  return successReply<T>(value);
 }
