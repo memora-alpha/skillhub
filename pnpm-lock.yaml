@@ -204,6 +204,12 @@ importers:
 
   apps/web:
     dependencies:
+      '@livekit/krisp-noise-filter':
+        specifier: 0.4.5
+        version: 0.4.5(livekit-client@2.23.0(@types/dom-mediacapture-record@1.0.22))
+      '@livekit/track-processors':
+        specifier: 0.8.2
+        version: 0.8.2(@types/dom-mediacapture-transform@0.1.12)(livekit-client@2.23.0(@types/dom-mediacapture-record@1.0.22))
       '@tanstack/react-query':
         specifier: 5.104.1
         version: 5.104.1(react@19.3.0)
@@ -213,6 +219,9 @@ importers:
       next:
         specifier: 16.3.8
         version: 16.3.8(@types/node@22.20.5)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      qrcode:
+        specifier: 1.5.4
+        version: 1.5.4
       react:
         specifier: ^19.2.4
         version: 19.3.0
@@ -1934,6 +1943,11 @@ packages:
       '@livekit/krisp-noise-filter':
         optional: true
 
+  '@livekit/krisp-noise-filter@0.4.5':
+    resolution: {integrity: sha512-UuU70iVsIO52dgGQnAqHEMrEUKBcQdBqfkzN5+M15cS4hRNIINrDAUei5NBPWcXg97BORd3kZY//iSIcfzNfYw==}
+    peerDependencies:
+      livekit-client: ^2.18.7
+
   '@livekit/mutex@1.1.1':
     resolution: {integrity: sha512-EsshAucklmpuUAfkABPxJNhzj9v2sG7JuzFDL4ML1oJQSV14sqrpTYnsaOudMAw9yOaW53NU3QQTlUQoRs4czw==}
 
@@ -1965,9 +1979,18 @@ packages:
       react: '*'
       react-native: '*'
 
+  '@livekit/track-processors@0.8.2':
+    resolution: {integrity: sha512-e7mBsNMR7Ond4IyJ4afZ2azAdbd9SwQTUQgJvJBySp9M9UlObXjp/H9oKyV5UttBUjTS1h0O7SksN4PJIjYScg==}
+    peerDependencies:
+      '@types/dom-mediacapture-transform': ^0.1.9
+      livekit-client: ^1.12.0 || ^2.1.0
+
   '@lukeed/csprng@1.1.0':
     resolution: {integrity: sha512-Z7C/xXCiGWsg0KuKsHTKJxbWhpI3Vs5GwLfOean7MGyVFGqdRgBbAjOCh6u4bbjPc/8MJ2pZmK/0DLdCbivLDA==}
     engines: {node: '>=8'}
+
+  '@mediapipe/tasks-vision@0.10.14':
+    resolution: {integrity: sha512-vOifgZhkndgybdvoRITzRkIueWWSiCKuEUXXK6Q4FaJsFvRJuwgg++vqFUMlL0Uox62U5aEXFhHxlhV7Ja5e3Q==}
 
   '@microsoft/tsdoc@0.16.0':
     resolution: {integrity: sha512-xgAyonlVVS+q7Vc7qLW0UrJU7rSFcETRWsqdXZtjzRU8dF+6CkozTK4V4y1LwOX7j8r/vHphjDeMeGI4tNGeGA==}
@@ -2777,6 +2800,12 @@ packages:
 
   '@types/dom-mediacapture-record@1.0.22':
     resolution: {integrity: sha512-mUMZLK3NvwRLcAAT9qmcK+9p7tpU2FHdDsntR3YI4+GY88XrgG4XiE7u1Q2LAN2/FZOz/tdMDC3GQCR4T8nFuw==}
+
+  '@types/dom-mediacapture-transform@0.1.12':
+    resolution: {integrity: sha512-d7/QsLRwF864A5mgIM/YrfiglHoYn7zgCcAoJgW404r+2DwnNr7EBbLnCWpmOMgH8y0te73L1AV6H1bmauaWFw==}
+
+  '@types/dom-webcodecs@0.1.19':
+    resolution: {integrity: sha512-+yFUIDUaASFz0vQpWBErPxun/Lb+F0TdrlTsj50gm7K797YzEx2TmV6fEiwciHyFNghlZYPgQXH5qRcwMHcJFQ==}
 
   '@types/eslint-scope@3.7.7':
     resolution: {integrity: sha512-MzMFlSLBqNF2gcHWO0G1vP/YQyfvrxZ0bF+u7mzUdZ1/xK4A4sru+nraZz5i3iEIk1l1uyicaDVTB4QbbEkAYg==}
@@ -9069,6 +9098,12 @@ snapshots:
       tslib: 2.8.1
       usehooks-ts: 3.1.1(react@19.3.0)
 
+  '@livekit/krisp-noise-filter@0.4.5(livekit-client@2.23.0(@types/dom-mediacapture-record@1.0.22))':
+    dependencies:
+      '@livekit/mutex': 1.1.1
+      '@livekit/protocol': 1.52.1
+      livekit-client: 2.23.0(@types/dom-mediacapture-record@1.0.22)
+
   '@livekit/mutex@1.1.1': {}
 
   '@livekit/protocol@1.51.0':
@@ -9116,7 +9151,15 @@ snapshots:
       - react-dom
       - tslib
 
+  '@livekit/track-processors@0.8.2(@types/dom-mediacapture-transform@0.1.12)(livekit-client@2.23.0(@types/dom-mediacapture-record@1.0.22))':
+    dependencies:
+      '@mediapipe/tasks-vision': 0.10.14
+      '@types/dom-mediacapture-transform': 0.1.12
+      livekit-client: 2.23.0(@types/dom-mediacapture-record@1.0.22)
+
   '@lukeed/csprng@1.1.0': {}
+
+  '@mediapipe/tasks-vision@0.10.14': {}
 
   '@microsoft/tsdoc@0.16.0': {}
 
@@ -9928,6 +9971,12 @@ snapshots:
       '@types/node': 22.20.5
 
   '@types/dom-mediacapture-record@1.0.22': {}
+
+  '@types/dom-mediacapture-transform@0.1.12':
+    dependencies:
+      '@types/dom-webcodecs': 0.1.19
+
+  '@types/dom-webcodecs@0.1.19': {}
 
   '@types/eslint-scope@3.7.7':
     dependencies:
