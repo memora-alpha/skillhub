@@ -82,7 +82,7 @@ export function MessageComposer({
       }}
     >
       <label>
-        Tin nhắn
+        <span>Tin nhắn</span>
         <textarea
           rows={3}
           value={text}
@@ -95,6 +95,7 @@ export function MessageComposer({
       </label>
       <div className="learner-actions">
         <button
+          type="submit"
           className="btn btn-primary"
           disabled={command.pending || !text.trim()}
         >
@@ -139,8 +140,8 @@ export function MessageComposer({
       </div>
       <CommandFeedback command={command} />
       {!checking && notice && (
-        <p className="learner-notice" role="status">
-          {notice}
+        <p className="learner-notice">
+          <output>{notice}</output>
         </p>
       )}
     </form>

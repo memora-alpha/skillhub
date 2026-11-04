@@ -85,15 +85,19 @@ export function Feedback({
   return (
     <>
       {loading && (
-        <p className="learner-notice" role="status">
-          Đang tải…
+        <p className="learner-notice">
+          <output>Đang tải…</output>
         </p>
       )}
       {error && (
         <div className="learner-error" role="alert">
           {error}{" "}
           {reload && (
-            <button className="learner-text-button" onClick={reload}>
+            <button
+              type="button"
+              className="learner-text-button"
+              onClick={reload}
+            >
               Thử lại
             </button>
           )}
@@ -134,7 +138,7 @@ export function More({
   onMore,
 }: Readonly<{ cursor: string | null; loading: boolean; onMore: () => void }>) {
   return cursor ? (
-    <button className="btn" disabled={loading} onClick={onMore}>
+    <button type="button" className="btn" disabled={loading} onClick={onMore}>
       Xem thêm
     </button>
   ) : null;

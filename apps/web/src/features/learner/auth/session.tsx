@@ -168,8 +168,8 @@ function UserSessionLifecycle({ children }: Readonly<{ children: ReactNode }>) {
   }, [cache]);
   if (loading)
     return (
-      <main className="learner-loading" role="status">
-        Đang mở không gian học tập…
+      <main className="learner-loading">
+        <output>Đang mở không gian học tập…</output>
       </main>
     );
   if (!actor) return <SignInRedirect message={error} />;
