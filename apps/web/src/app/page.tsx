@@ -1,27 +1,12 @@
-import Link from "next/link";
+import type { Metadata } from "next";
+import { LandingPage } from "@/features/landing/landing-page";
+import "@/features/landing/landing.css";
+export const metadata: Metadata = {
+  title: "SkillHub — Chia sẻ điều bạn biết. Học điều bạn muốn.",
+  description:
+    "Kết nối và học kỹ năng trực tuyến 1:1. Trao đổi kỹ năng, học cùng người hướng dẫn và khám phá tài liệu số trên SkillHub.",
+};
 
 export default function HomePage() {
-  return (
-    <main className="landing">
-      <title>SkillHub</title>
-      <p className="eyebrow">SKILLHUB</p>
-      <h1>
-        Chia sẻ điều bạn biết.
-        <br />
-        Học điều bạn muốn.
-      </h1>
-      <p>Kết nối những người cùng mong muốn phát triển kỹ năng.</p>
-      <div className="portal-links">
-        <Link className="btn btn-primary" href="/learn">
-          Đăng nhập người dùng · Bắt đầu học
-        </Link>
-        <Link className="btn btn-primary" href="/admin">
-          Cổng Admin
-        </Link>
-        <Link className="btn" href="/staff">
-          Cổng Staff
-        </Link>
-      </div>
-    </main>
-  );
+  return <LandingPage />;
 }

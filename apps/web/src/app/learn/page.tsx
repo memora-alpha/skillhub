@@ -1,4 +1,4 @@
-import { PostFeed } from "@/features/learner/posts/post-feed";
+import { DashboardScreen } from "@/features/learner/dashboard/dashboard-screen";
 export default function Page() {
-  return <PostFeed />;
+  return <DashboardScreen />;
 }
