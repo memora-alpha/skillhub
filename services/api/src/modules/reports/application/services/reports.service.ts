@@ -330,10 +330,24 @@ export class ReportsService {
         await tx.reportCase.findMany({
           where: { reporterId: actor.userId },
           include: evidenceSummary,
-          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+          orderBy: [
+            { createdAt: { sort: "desc", nulls: "last" } },
+            { id: "desc" },
+          ],
         }),
       ),
     );
+  }
+
+  mineDetail(actor: Principal, caseId: string) {
+    return this.transactions.run(async (tx) => {
+      const item = await tx.reportCase.findFirst({
+        where: { id: caseId, reporterId: actor.userId },
+        include: evidenceSummary,
+      });
+      if (!item) throw new NotFoundException("REPORT_CASE_NOT_FOUND");
+      return withEvidenceSizeText([item])[0];
+    });
   }
 
   staffQueue(actor: Principal) {

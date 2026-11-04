@@ -106,8 +106,18 @@ export class ReportsController {
   }
 
   @Get("staff/queue")
+  @ApiOperation({ summary: "List cases for moderation" })
   async staffQueue(@CurrentIdentity() actor: Principal) {
     return success(await this.reports.staffQueue(actor));
+  }
+
+  @Get("mine/:caseId")
+  @ApiOperation({ summary: "Read a report submitted by the caller" })
+  async mineDetail(
+    @CurrentIdentity() actor: Principal,
+    @Param("caseId", ParseUUIDPipe) caseId: string,
+  ) {
+    return success(await this.reports.mineDetail(actor, caseId));
   }
 
   @Get("staff/:caseId")

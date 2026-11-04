@@ -325,6 +325,10 @@ model("User", (block) =>
 // System-opened cases (no-show timeouts) have no human reporter.
 model("ReportCase", (block) =>
   block
+    .replace(
+      /\bid(\s+)String\b/,
+      'createdAt DateTime? @default(now()) @map("created_at") @db.Timestamptz(3)\n  id$1String',
+    )
     .replace(/\breporterId(\s+)String\b/, "reporterId$1String?")
     .replace(/\breporterIdRecord(\s+)User\b/, "reporterIdRecord$1User?"),
 );
