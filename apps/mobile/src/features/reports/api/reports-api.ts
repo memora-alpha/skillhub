@@ -37,7 +37,7 @@ export const reportSchema = z.object({
   status,
   resolutionNote: z.string().nullable(),
   blocksSettlement: z.boolean(),
-  createdAt: timestamp,
+  createdAt: timestamp.nullable(),
   reportEvidenceCaseIdRecords: z.array(
     z.object({
       id: uuid,
@@ -58,6 +58,15 @@ export function createReportsApi(
   userId: string,
 ) {
   return {
+    async detail(id: string, signal?: AbortSignal) {
+      const report = parse(
+        reportSchema,
+        await call(resourcePath("reports/mine", id), { signal }),
+      );
+      if (report.id !== id || report.reporterId !== userId)
+        throw new AppError("protocol");
+      return report;
+    },
     async mine(signal?: AbortSignal) {
       const rows = parse(
         z.array(reportSchema),

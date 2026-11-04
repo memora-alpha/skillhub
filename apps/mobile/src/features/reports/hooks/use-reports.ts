@@ -12,3 +12,9 @@ export function useReports() {
   const api = useReportsApi();
   return useConnectionQuery(["reports"], (signal) => api.mine(signal));
 }
+export function useReport(id: string) {
+  const api = useReportsApi();
+  return useConnectionQuery(["reports", id], (signal) =>
+    api.detail(id, signal),
+  );
+}
