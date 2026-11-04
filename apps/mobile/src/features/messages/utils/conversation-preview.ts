@@ -3,6 +3,10 @@ import type { ApiConversation, ApiMessage } from "../api/messages-api";
 import type { QueuedText } from "../outbox/outbox-types";
 import { readChatSchedule } from "./schedule-notice";
 import {
+  conversationActivityAt,
+  compareConversationActivity,
+} from "./inbox-order";
+import {
   readPlanShare,
   readConfirmedForm,
   confirmedFormLabels,
@@ -103,7 +107,7 @@ export function conversationInbox(
         return {
           conversation,
           preview: `Bạn: ${pending.messageText}`,
-          activityAt: pending.createdAt,
+          activityAt: conversationActivityAt(conversation, pending.createdAt),
           state: pending.state === "failed" ? "failed" : "pending",
         };
       const text = message ? inboxMessageText(message) : "";
@@ -113,12 +117,15 @@ export function conversationInbox(
         preview: message
           ? `${sender}${text || "Cập nhật cuộc trò chuyện"}`
           : "Bắt đầu trò chuyện",
-        activityAt: message?.sentAt ?? conversation.createdAt,
+        activityAt: conversationActivityAt(conversation, message?.sentAt),
       };
     })
-    .sort(
-      (a, b) =>
-        Date.parse(b.activityAt) - Date.parse(a.activityAt) ||
-        a.conversation.id.localeCompare(b.conversation.id),
+    .sort((a, b) =>
+      compareConversationActivity(
+        a.conversation,
+        b.conversation,
+        a.activityAt,
+        b.activityAt,
+      ),
     );
 }

@@ -7,6 +7,7 @@ export class ConversationResponse {
   @ApiProperty({ format: "uuid" }) participantAId!: string;
   @ApiProperty({ format: "uuid" }) participantBId!: string;
   @ApiProperty({ type: String, format: "date-time" }) createdAt!: Date;
+  @ApiProperty({ type: String, format: "date-time" }) lastActivityAt!: Date;
 }
 export class MessageAttachmentResponse {
   @ApiProperty({ format: "uuid" }) attachmentId!: string;

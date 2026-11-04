@@ -4,6 +4,44 @@ import { conversationInbox } from "../src/features/messages/utils/conversation-p
 import type { ApiMessage } from "../src/features/messages/api/messages-api";
 import type { QueuedText } from "../src/features/messages/outbox/outbox-types";
 import { fixtureId } from "./fixtures/learning-requests-data";
+import { conversationSchema } from "../src/features/messages/api/messages-api";
+
+test("Inbox preserves server activity order while previews are missing or stale", () => {
+  const rows = [1, 2, 3].map((n) =>
+    conversationSchema.parse({
+      id: fixtureId(n),
+      proposalId: fixtureId(n + 10),
+      learningRequestId: null,
+      participantAId: fixtureId(10),
+      participantBId: fixtureId(11),
+      createdAt: "2030-01-01T00:00:00Z",
+      lastActivityAt: `2030-01-0${n === 1 ? 5 : 4}T00:00:00Z`,
+    }),
+  );
+  const previews = new Map<string, ApiMessage | null>([
+    [
+      fixtureId(1),
+      {
+        id: fixtureId(40),
+        conversationId: fixtureId(1),
+        senderId: fixtureId(11),
+        sequence: "1",
+        messageText: "Old cached preview",
+        messageType: "TEXT",
+        attachments: [],
+        sentAt: "2030-01-02T00:00:00Z",
+        readAt: null,
+      },
+    ],
+  ]);
+  const result = conversationInbox(rows, previews, [], fixtureId(10));
+  assert.deepEqual(
+    result.map((row) => row.conversation.id),
+    [1, 3, 2].map(fixtureId),
+  );
+  assert.equal(result[0]!.activityAt, "2030-01-05T00:00:00Z");
+  assert.equal(result[0]!.preview, "Old cached preview");
+});
 
 test("interleaved outbox entries preserve per-conversation draft order, failed state and delivered preview", () => {
   const conversations = [1, 2, 3].map((n) => ({

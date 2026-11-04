@@ -66,13 +66,13 @@ export function createProposalsApi(
   };
   return {
     async list(
-      direction: "sent" | "received",
+      direction: "sent" | "received" | "all",
       status?: Proposal["status"],
       cursor?: string,
       signal?: AbortSignal,
       learningRequestId?: string,
     ) {
-      parse(z.enum(["sent", "received"]), direction);
+      parse(z.enum(["sent", "received", "all"]), direction);
       if (status) parse(proposalSchema.shape.status, status);
       const query = pageQuery(cursor);
       query.set("direction", direction);
@@ -89,8 +89,8 @@ export function createProposalsApi(
       page.items.forEach((item) => {
         member(item);
         if (
-          (direction === "sent" ? item.proposerId : item.recipientId) !==
-            userId ||
+          (direction === "sent" && item.proposerId !== userId) ||
+          (direction === "received" && item.recipientId !== userId) ||
           (status && item.status !== status) ||
           (learningRequestId && item.learningRequestId !== learningRequestId)
         )

@@ -19,6 +19,7 @@ export const conversationSchema = z.object({
   participantAId: uuid,
   participantBId: uuid,
   createdAt: timestamp,
+  lastActivityAt: timestamp.optional(),
 });
 export const attachmentSchema = z.object({
   attachmentId: uuid,

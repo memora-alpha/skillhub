@@ -16,17 +16,40 @@ Live updates for chat, notification and application events use `GET /api/v1/even
 
 ## Proposal routes
 
-| Method/path                                          | Action                      | Result                              |
-| ---------------------------------------------------- | --------------------------- | ----------------------------------- |
-| POST `/proposals`                                    | `proposal:create`           | 201 Proposal, idempotent replay 200 |
-| GET `/proposals?direction=received\|sent&status=...` | `proposal:read:party`       | 200 cursor page, actor-scoped       |
-| GET `/proposals/{id}`                                | `proposal:read:party`       | 200 party-only detail               |
-| PATCH `/proposals/{id}`                              | `proposal:update:self`      | 200, proposer/PENDING/CAS           |
-| POST `/proposals/{id}/accept`                        | `proposal:accept:recipient` | 200 `{proposal,conversation}`       |
-| POST `/proposals/{id}/reject`                        | `proposal:reject:recipient` | 200 terminal Proposal               |
-| POST `/proposals/{id}/withdraw`                      | `proposal:withdraw:self`    | 200 terminal Proposal               |
+| Method/path                                               | Action                      | Result                              |
+| --------------------------------------------------------- | --------------------------- | ----------------------------------- |
+| POST `/proposals`                                         | `proposal:create`           | 201 Proposal, idempotent replay 200 |
+| GET `/proposals?direction=received\|sent\|all&status=...` | `proposal:read:party`       | 200 cursor page, actor-scoped       |
+| GET `/proposals/{id}`                                     | `proposal:read:party`       | 200 party-only detail               |
+| PATCH `/proposals/{id}`                                   | `proposal:update:self`      | 200, proposer/PENDING/CAS           |
+| POST `/proposals/{id}/accept`                             | `proposal:accept:recipient` | 200 `{proposal,conversation}`       |
+| POST `/proposals/{id}/reject`                             | `proposal:reject:recipient` | 200 terminal Proposal               |
+| POST `/proposals/{id}/withdraw`                           | `proposal:withdraw:self`    | 200 terminal Proposal               |
 
 Request owner lists received proposals via GET `/proposals?direction=received&learningRequestId=...`; server verifies ownership of the filter and does not expose competitors' proposal details to another proposer. Status filter is allowlisted. No arbitrary `userId` scope query.
+
+Ordering amendment 2026-11-04:
+
+- Proposal lists use `(createdAt DESC, id DESC)` before `limit + 1`. Default
+  direction remains `received`; `all` selects only proposals where the viewer is
+  proposer or recipient and paginates the combined set once. Status/Request filters
+  remain active. Request-filtered `received` and `all` require Request ownership;
+  `sent` allows the viewer's own history without Request ownership/public access.
+- Conversation lists, including `learningRequestId`, use `(lastActivityAt DESC,
+id DESC)` before pagination. Metadata responses include `lastActivityAt`,
+  initialized at creation and advanced by published messages via the existing
+  publication projection; pending/failed drafts do not advance server activity.
+- Both lists use opaque cursors containing the last returned timestamp/ID and a
+  viewer/filter/resource/order-version scope. The next page uses `time < cursor.time
+OR (time = cursor.time AND id < cursor.id)`, together with membership and filters.
+  Old ID-only or foreign cursors return 400 `INVALID_CURSOR`; restart at page one.
+- Conversation pagination is a live traversal, not a snapshot. A conversation
+  gaining activity may move above the current cursor and reappear on refresh from
+  page one; clients deduplicate IDs. The cursor keeps its original timestamp even
+  if that row changes. New proposals above the boundary also appear on refresh.
+- No new migration: existing Proposal createdAt/ID and Conversation activity
+  indexes are reused. Prior Inbox activity migration and historical backfill must
+  already be applied; deploy the API before mobile starts using `direction=all`.
 
 ### Create body (discriminated by sourceType)
 

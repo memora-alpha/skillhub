@@ -29,10 +29,30 @@ test("new message activity moves a conversation to the top without changing API 
     [...conversations].reverse(),
   );
 });
-test("equal message timestamps retain stable list order", () => {
+test("equal message timestamps use the backend descending ID tie-breaker", () => {
   assert.deepEqual(
     orderConversations(conversations, () => "2030-02-01T00:00:00Z"),
-    conversations,
+    [...conversations].reverse(),
+  );
+});
+test("server activity wins over older or missing cached previews", () => {
+  const rows = conversations.map((row, index) => ({
+    ...row,
+    lastActivityAt: `2030-01-0${4 - index}T00:00:00Z`,
+  }));
+  assert.deepEqual(
+    orderConversations(rows, () => undefined).map((row) => row.id),
+    [fixtureId(1), fixtureId(2)],
+  );
+  assert.deepEqual(
+    orderConversations(rows, () => "2030-01-02T00:00:00Z").map((row) => row.id),
+    [fixtureId(1), fixtureId(2)],
+  );
+  assert.deepEqual(
+    orderConversations(rows, (id) =>
+      id === fixtureId(2) ? "2030-01-05T00:00:00Z" : undefined,
+    ).map((row) => row.id),
+    [fixtureId(2), fixtureId(1)],
   );
 });
 test("message events refresh only the affected thread and preview", async () => {

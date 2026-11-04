@@ -6,6 +6,24 @@
 
 ## Summary
 
+Ordering amendment 2026-11-04 (`fix/conversation-proposal-ordering`): sort flat
+Conversation lists by lastActivityAt/id descending and Proposal lists by
+createdAt/id descending before pagination. Add a versioned timestamp/ID cursor
+reader and server-side direction=all. Preserve party/participant grants, status
+filters and owner-only received/all Request filters. Mobile consumes the single
+all stream and server activity timestamps, with versioned list cache keys.
+Reuse PostgreSQL fields/indexes and the existing chat publication projection;
+no new schema, cross-store writes or dependencies. Live chat traversal uses the
+cursor's original boundary; refresh page one for activity that moves above it.
+
+Constitution check for this amendment: architecture, authoritative storage,
+read transaction boundaries, authorization, module ownership and contracts
+(principles 1–5, 7) Pass by design; publication reliability (8) unchanged and
+covered by existing regressions. Verification (6) Pass for local ordering,
+filter/cursor/permission, mobile consumer tests and workspace checks; real-store
+and device verification Pending. See validation.md for results and limits.
+No exceptions.
+
 Proposal nguồn Request/direct search, accept mở Conversation, chat text/file/read state và notification tối thiểu. Reuse identity, Learning Request lifecycle, Sharing Skill eligibility, PostgreSQL transaction/idempotency/outbox, private storage. Message thuộc MongoDB; không copy nội dung chat vào PostgreSQL.
 
 User amendment 2026-10-09: chat, notification và application events dùng SSE chung `/api/v1/events`. HTTP mutations/history phục vụ thao tác, initial load/hydration/resync; live delivery qua durable per-user event log và SSE reconnect/replay, Redis wakeup hỗ trợ nhiều API instance. Chi tiết tại [SSE contract](contracts/sse.md).
