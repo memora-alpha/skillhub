@@ -3,12 +3,24 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useNavigationDrawer } from "@/components/use-navigation-drawer";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, type Query } from "@tanstack/react-query";
 import { eventAffectsResource } from "../api/events";
 import { useUserSession } from "../auth/session";
 import { useUserResource } from "../hooks/use-user-resource";
 import { ProductIcon } from "./product-icon";
 import { NotificationBell } from "./notification-bell";
+import { formText } from "./form-data";
+function queryAffected(
+  query: Query,
+  userId: string,
+  events: readonly string[],
+) {
+  return (
+    query.queryKey[0] === "learner" &&
+    query.queryKey[1] === userId &&
+    events.some((type) => eventAffectsResource(query.queryKey[2], type))
+  );
+}
 const links = [
   ["/learn", "Tổng quan", "home"],
   ["/learn/explore", "Khám phá", "search"],
@@ -57,12 +69,7 @@ export function LearnerShell({
           const received = [...events];
           events.clear();
           void cache.invalidateQueries({
-            predicate: (query) =>
-              query.queryKey[0] === "learner" &&
-              query.queryKey[1] === actor.userId &&
-              received.some((type) =>
-                eventAffectsResource(query.queryKey[2], type),
-              ),
+            predicate: (query) => queryAffected(query, actor.userId, received),
           });
         }, 250);
     };
@@ -133,6 +140,7 @@ export function LearnerShell({
       </a>
       {open && (
         <button
+          type="button"
           className="product-scrim"
           aria-label="Đóng điều hướng"
           onClick={() => close()}
@@ -158,7 +166,11 @@ export function LearnerShell({
               Skill<i>Hub</i>
             </b>
           </Link>
-          <button aria-label="Đóng điều hướng" onClick={() => close()}>
+          <button
+            type="button"
+            aria-label="Đóng điều hướng"
+            onClick={() => close()}
+          >
             <ProductIcon name="close" />
           </button>
         </div>
@@ -201,6 +213,7 @@ export function LearnerShell({
           <ProductIcon name="chevron" />
         </Link>
         <button
+          type="button"
           className="product-logout"
           onClick={() => {
             void logout().catch((cause: unknown) =>
@@ -216,6 +229,7 @@ export function LearnerShell({
       <div className="workspace-main" inert={open}>
         <header className="app-header">
           <button
+            type="button"
             ref={menuButton}
             className="mobile-menu"
             aria-label="Mở điều hướng"
@@ -229,9 +243,7 @@ export function LearnerShell({
             className="global-search"
             onSubmit={(e) => {
               e.preventDefault();
-              const term = String(
-                new FormData(e.currentTarget).get("q") ?? "",
-              ).trim();
+              const term = formText(new FormData(e.currentTarget), "q").trim();
               router.push("/learn/explore?q=" + encodeURIComponent(term));
             }}
           >
@@ -242,7 +254,7 @@ export function LearnerShell({
               placeholder="Tìm kỹ năng bạn quan tâm…"
               maxLength={120}
             />
-            <button aria-label="Tìm kiếm">
+            <button type="submit" aria-label="Tìm kiếm">
               <ProductIcon name="arrow" size={16} />
             </button>
           </form>
@@ -269,6 +281,7 @@ export function LearnerShell({
             <p className="learner-notice">
               Cập nhật trực tiếp tạm ngắt.{" "}
               <button
+                type="button"
                 className="learner-text-button"
                 onClick={() => {
                   refresh();

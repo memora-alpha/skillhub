@@ -18,6 +18,19 @@ import { ProfileName } from "../components/profile-name";
 import { findInPages } from "../api/find-page";
 import { MessageComposer } from "./message-composer";
 import { AgreementCreator } from "../paths/agreement-creator";
+function compareMessages(left: Message, right: Message) {
+  const leftSequence = BigInt(left.sequence);
+  const rightSequence = BigInt(right.sequence);
+  if (leftSequence < rightSequence) return -1;
+  if (leftSequence > rightSequence) return 1;
+  return 0;
+}
+function messageClassName(message: Message, userId: string) {
+  if (message.messageType === "SYSTEM") return "learner-message system";
+  return message.senderId === userId
+    ? "learner-message mine"
+    : "learner-message ";
+}
 export function ChatScreen({ id }: Readonly<{ id: string }>) {
   const conversation = useUserResource<Conversation>("conversations/" + id),
     messages = useUserList<Message>(
@@ -32,14 +45,7 @@ export function ChatScreen({ id }: Readonly<{ id: string }>) {
     [opening, setOpening] = useState(false),
     [error, setError] = useState<string>();
   const rows = useMemo(
-      () =>
-        [...messages.items].sort((left, right) =>
-          BigInt(left.sequence) < BigInt(right.sequence)
-            ? -1
-            : BigInt(left.sequence) > BigInt(right.sequence)
-              ? 1
-              : 0,
-        ),
+      () => [...messages.items].sort(compareMessages),
       [messages.items],
     ),
     latest = rows.at(-1)?.id;
@@ -106,14 +112,7 @@ export function ChatScreen({ id }: Readonly<{ id: string }>) {
                 {rows.map((message) => (
                   <article
                     key={message.id}
-                    className={
-                      "learner-message " +
-                      (message.messageType === "SYSTEM"
-                        ? "system"
-                        : message.senderId === actor.userId
-                          ? "mine"
-                          : "")
-                    }
+                    className={messageClassName(message, actor.userId)}
                   >
                     <p>{message.messageText}</p>
                     {message.attachments.map((file) => (
@@ -145,6 +144,7 @@ export function ChatScreen({ id }: Readonly<{ id: string }>) {
                   có hiệu lực sau khi xác nhận trên thỏa thuận.
                 </p>
                 <button
+                  type="button"
                   className="btn btn-primary"
                   disabled={opening}
                   onClick={() => {
