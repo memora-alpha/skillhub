@@ -7,5 +7,6 @@ export function conversationView(row: Conversation) {
     participantAId: row.participantAId,
     participantBId: row.participantBId,
     createdAt: row.createdAt,
+    lastActivityAt: row.lastActivityAt,
   };
 }

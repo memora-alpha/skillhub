@@ -27,7 +27,7 @@ export function useMessagesApi() {
 export function useConversations(enabled = true) {
   const api = useMessagesApi();
   return useConnectionList(
-    ["conversations"],
+    ["conversations", "activity-order-v1"],
     (cursor, signal) => api.list(cursor, signal),
     enabled,
     { refreshOnFocus: "stale", cancelOnDisable: true },

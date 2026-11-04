@@ -5,6 +5,9 @@ NestJS backend in the SkillHub pnpm/Turborepo workspace.
 Inbox theo bài học: `GET /api/v1/conversations/inbox`, số đếm toàn bộ theo quyền,
 filter chat/đề xuất đã gửi theo bài và giữ tiêu đề lịch sử; xem
 [contract và triển khai](docs/request-grouped-inbox.md).
+Danh sách chat phẳng sắp theo `lastActivityAt DESC, id DESC`; Proposal theo
+`createdAt DESC, id DESC`, có `direction=all` phân trang chung nhận/gửi. Cursor
+cũ cần bắt đầu lại từ trang đầu; xem [contract](specs/008-connections/contracts/http.md).
 Recovery lỗi migration Inbox do trigger Conversation cũ (2026-11-04): bản sửa
 bootstrap tự kiểm tra và phục hồi đúng migration lỗi đã nhận diện trước khi chạy
 deploy tiếp; xem [điều kiện và rollout](docs/request-grouped-inbox.md#recovery-for-the-legacy-conversation-trigger-2026-11-04).

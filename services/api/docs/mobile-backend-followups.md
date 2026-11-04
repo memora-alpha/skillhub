@@ -6,6 +6,12 @@ Phạm vi: kiểm tra xung đột khi đổi lịch, Credit penalty cho no-show 
 
 Trạng thái bên dưới phản ánh source tại mốc đối chiếu; chưa xác minh bằng HTTP, DB integration hoặc deployment.
 
+Cập nhật 2026-11-04: BE-04/07 đã sửa source trên
+`fix/conversation-proposal-ordering`, cùng consumer mobile. Xem
+[ordering contract](../specs/008-connections/contracts/http.md) và
+[validation](../specs/008-connections/validation.md). Các mục khác vẫn giữ mốc
+đối chiếu lịch sử; chưa xác minh deployment cho thay đổi này.
+
 ## Tổng hợp trạng thái
 
 | ID | Nội dung đã đề xuất | Kết quả kiểm tra source |
@@ -68,15 +74,15 @@ Thứ tự đề xuất: Proposal, Sharing Skill và LearningPath theo **created
 
 | ID / API | Bằng chứng hiện tại | Cần thay đổi |
 | --- | --- | --- |
-| BE-04 — `GET /proposals` | [list](../src/modules/proposals/application/services/proposals.service.ts#L111): `id ASC`, cursor `id > cursor.id`. [DTO](../src/modules/proposals/presentation/http/proposals.dto.ts#L70) chỉ nhận sent/received | `createdAt DESC, id DESC`; cursor `(createdAt,id)` cùng thứ tự; giữ direction/status/learningRequestId và owner scope. `direction=all` là đề xuất bổ sung, không bắt buộc nếu mobile gộp hai luồng đúng phân trang |
+| BE-04 — `GET /proposals` | Source sửa 2026-11-04: [list](../src/modules/proposals/application/services/proposals.service.ts) dùng `createdAt DESC, id DESC`, cursor theo cùng cặp; hỗ trợ `direction=all` phân trang chung | Giữ direction/status/learningRequestId, quyền party và owner scope cho received/all theo Request; còn nghiệm thu API đã deploy |
 | BE-05 — `GET /learning-paths/mine` | [listMine](../src/modules/learning-paths/application/services/learning-paths.service.ts#L239): `updatedAt DESC, id ASC`, `take:100`; [controller](../src/modules/learning-paths/presentation/http/learning-paths.controller.ts#L44) chưa nhận cursor | Sắp `createdAt DESC, id DESC` trước giới hạn. Bổ sung pagination nếu cần xem toàn bộ; công bố response/cursor contract cho mobile |
 | BE-06 — `GET /me/skills` | [list](../src/modules/sharing-skills/infrastructure/persistence/sharing-skills.repository.ts#L147): `id ASC`, cursor theo id; [publicSharing/ownSharing](../src/modules/sharing-skills/infrastructure/persistence/sharing-skills.repository.ts#L25) chưa trả createdAt | `createdAt DESC, id DESC`, cursor tương ứng và trả createdAt. `GET /profiles/:id/skills` dùng cùng repository; áp dụng cùng thứ tự nếu yêu cầu đồng bộ public list được giữ |
-| BE-07 — `GET /conversations` | [list](../src/modules/conversations/application/services/conversations.service.ts#L57): `id ASC`, cursor theo id; [view](../src/modules/conversations/domain/conversation-view.ts#L2) chỉ có createdAt, chưa có lastActivityAt/lastMessageAt | Có projection hoạt động mới nhất, fallback createdAt khi chưa có tin; trả timestamp và sắp giảm dần với ID làm tie-breaker, cursor nhất quán; cập nhật activity theo tin đã commit/publish qua cơ chế cross-store hiện có |
+| BE-07 — `GET /conversations` | Source sửa 2026-11-04: [list](../src/modules/conversations/application/services/conversations.service.ts) dùng `lastActivityAt DESC, id DESC`; [view](../src/modules/conversations/domain/conversation-view.ts) trả activity từ projection hiện có | Cursor timestamp/ID có phiên bản; giữ participant/Request filter. Cần migration/backfill Inbox trước đó và nghiệm thu API đã deploy |
 
 ### Tác động mobile và tiêu chí kiểm lại
 
 - Chỉ sort các trang đã tải ở mobile không đưa được mục mới còn nằm ở trang sau lên trang đầu. Không tải toàn bộ dữ liệu chỉ để che thứ tự BE.
-- Proposal “Tất cả” hiện [nối received rồi sent](../../../apps/mobile/src/features/proposals/api/list-all-proposals.ts#L46). BE đổi order từng direction chưa đủ sửa tab này: cần BE hỗ trợ all hoặc mobile merge có buffer/cursor đúng hai luồng; sort riêng từng batch vẫn có thể sai toàn danh sách.
+- Proposal “Tất cả” trước đây nối received rồi sent. Source 2026-11-04 đã dùng [một luồng direction=all](../../../apps/mobile/src/features/proposals/hooks/use-proposals-api.ts) do BE sắp xếp/phân trang chung; không sort từng batch để ghép hai luồng.
 - Pagination mới phải kiểm nhiều trang, timestamp bằng nhau, cursor sai scope/filter/version, refresh có mục mới và mục thay đổi activity. Với Chat, chốt semantics mục chuyển vị trí giữa các lần tải, tránh bỏ sót/trùng khi activity thay đổi.
 - Thay response mảng của Path thành page là thay contract: cập nhật docs/Swagger và consumer mobile (`api.mine`, list, lookup path theo conversation, kiểm giới hạn 100); không chỉ đổi BE rồi để client parse sai.
 - Giữ quyền participant/owner, status filters và dữ liệu riêng tư. Response timestamp phải chuẩn UTC/ISO; không dùng ID UUID để suy ra thời điểm tạo.

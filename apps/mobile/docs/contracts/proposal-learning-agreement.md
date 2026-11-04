@@ -1,5 +1,21 @@
 # Proposal Chat LearningPlan và lịch
 
+## Thứ tự danh sách — 2026-11-04
+
+- Proposal nhận/gửi dùng `createdAt DESC, id DESC` từ BE. Tab “Tất cả” gọi
+  `GET /proposals?direction=all` với một cursor của BE, thay cho nối hai luồng.
+  Giữ kiểm tra participant/status tại adapter và bộ lọc Request nhận hiện có.
+- Chat dùng `lastActivityAt DESC, id DESC` từ BE trước phân trang. Mobile đọc
+  `lastActivityAt` và lấy thời điểm lớn nhất giữa activity server, preview và draft
+  cục bộ; preview cũ/chưa tải không đẩy chat mới xuống dưới. Timestamp bằng nhau
+  dùng ID giảm dần. Thiếu field khi đọc API cũ thì fallback `createdAt`.
+- List cache có phiên bản mới, không tái sử dụng cursor ID cũ hoặc cursor ghép
+  nhận/gửi. BE trả 400 `INVALID_CURSOR` cho cursor cũ/sai scope; bắt đầu lại trang
+  một. Cần deploy BE hỗ trợ `direction=all` trước bản mobile này.
+- Chat là danh sách live: chat có tin mới có thể chuyển lên trước cursor đang
+  tải; refresh từ trang đầu để nhận vị trí mới. Không có snapshot xuyên trang.
+  Source/regression local không thay nghiệm thu API thật và Android/iOS.
+
 ## Phạm vi và nguồn
 
 Đối chiếu source working tree cho [work Phase 05–06](../work/phase-05-proposal-learning-agreement/plan.md), không phải bằng chứng deployed API. Prefix HTTP `/api/v1`, auth/session/envelope theo [contracts index](README.md).

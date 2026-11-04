@@ -30,11 +30,11 @@ import {
   formatCredit,
   type ProposalHints,
 } from "../../domain/connection-policy";
+import { cursorScope, page } from "../../../skills/domain/skill-policy";
 import {
-  cursorScope,
-  readCursor,
-  page,
-} from "../../../skills/domain/skill-policy";
+  beforeTimeId,
+  readTimeIdCursor,
+} from "../../../../shared/http/time-id-cursor";
 import { AuditWriter } from "../../../audit/application/services/audit-writer";
 import { auditActorFromActor } from "../../../audit/application/contracts/audit.types";
 import { ConversationLifecycleService } from "../../../conversations/application/services/conversation-lifecycle.service";
@@ -121,7 +121,7 @@ export class ProposalsService {
   async list(
     principal: Principal,
     query: {
-      direction?: "sent" | "received";
+      direction?: "sent" | "received" | "all";
       status?: ProposalStatus;
       learningRequestId?: string;
       cursor?: string;
@@ -131,12 +131,13 @@ export class ProposalsService {
     const limit = query.limit ?? 20,
       scope = cursorScope({
         type: "proposals",
+        order: "createdAt-desc-id-desc-v1",
         viewer: principal.userId,
         direction: query.direction ?? "received",
         status: query.status ?? null,
         requestId: query.learningRequestId ?? null,
       }),
-      cursor = readCursor(query.cursor, scope);
+      cursor = readTimeIdCursor(query.cursor, scope);
     return this.transactions.run(async (tx) => {
       await this.actors.require(tx, principal, "proposal:read:party");
       if (query.learningRequestId && query.direction !== "sent") {
@@ -148,19 +149,19 @@ export class ProposalsService {
       }
       const rows = await tx.proposal.findMany({
         where: {
-          ...(query.direction === "sent"
-            ? { proposerId: principal.userId }
-            : { recipientId: principal.userId }),
+          ...this.listMembership(principal.userId, query.direction),
           ...(query.status ? { status: query.status } : {}),
           ...(query.learningRequestId
             ? { requestId: query.learningRequestId }
             : {}),
-          ...(cursor ? { id: { gt: cursor.id } } : {}),
+          ...beforeTimeId("createdAt", cursor),
         },
-        orderBy: { id: "asc" },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         take: limit + 1,
       });
-      const result = page(rows, limit, scope, (row) => row.id);
+      const result = page(rows, limit, scope, (row) =>
+        row.createdAt.toISOString(),
+      );
       const metadata = await this.requests.inboxMetadata(
         tx,
         principal.userId,
@@ -176,6 +177,15 @@ export class ProposalsService {
         })),
       };
     });
+  }
+  private listMembership(
+    userId: string,
+    direction: "sent" | "received" | "all" = "received",
+  ): Prisma.ProposalWhereInput {
+    if (direction === "all")
+      return { OR: [{ proposerId: userId }, { recipientId: userId }] };
+    if (direction === "sent") return { proposerId: userId };
+    return { recipientId: userId };
   }
   async create(command: SkillCommand, input: CreateProposal) {
     if (

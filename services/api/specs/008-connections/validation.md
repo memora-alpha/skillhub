@@ -1,5 +1,42 @@
 # Validation: Kết nối — Proposal, Chat và SSE
 
+## Flat-list ordering amendment — 2026-11-04
+
+Branch `fix/conversation-proposal-ordering`, based on `5b337e13`. Source complete;
+deployed API, real-storage ordering and device acceptance remain unverified.
+
+- Conversation activity/ID and Proposal creation/ID descending ordering is
+  applied before pagination, with versioned timestamp cursors. `direction=all`
+  combines own sent/received proposals before pagination. Existing participant,
+  party, status, Request and owner-only received/all checks remain in place.
+- `test/connections/list-ordering.test.mjs`: 8/8 pass for multi-page order, equal
+  timestamps, default/combined/separate directions, foreign/legacy/malformed
+  cursors, filters, revoked grants, live activity movement and first-page refresh.
+  Local Nest HTTP tests exercise both list routes, validation, response activity,
+  cursor continuation and access errors with in-memory persistence doubles.
+- Full Connections suite after build: 51 total, 44 passed, 0 failed, 7 skipped.
+  PostgreSQL/MongoDB suites skip without explicit `TEST_DATABASE_URL` /
+  `TEST_MONGODB_URI`. An initial sandbox loopback fetch failure passed on rerun
+  with localhost access; no HTTP implementation change was needed.
+- API full lint and check-types passed; after extracting the shared cursor
+  boundary helper, focused lint and `pnpm --filter api build` passed again.
+- Mobile: 31/31 focused tests passed across proposal-lifecycle, proposal-route,
+  sent-request-proposals, inbox-order, conversation-preview, inbox-tab-lifecycle,
+  proposal-stale-read-ui, proposal-landing-ui, connection-read-refresh and
+  conversation-resource. Full mobile lint, check-types and structure check
+  (798 source files) passed; the final exact-list invalidation change also passed
+  focused lint. No Android/iOS run or native build was performed.
+- No new migration/dependency. Deploy API first, then mobile using direction=all.
+  Previous Inbox activity migration/backfill is still required for historical
+  activity accuracy. Old cursors return INVALID_CURSOR; restart at page one.
+  Chat traversal is live, not a snapshot; refresh page one for rows that gained
+  activity above the current cursor. No push or deployment in this task.
+
+Constitution recheck: principles 1–5, 7 Pass for the implementation reviewed;
+principle 6 Pass for the local checks above, with real-store/device verification
+Pending; principle 8 retains existing delivery/backfill behavior and regression
+coverage. No architecture or policy exception introduced.
+
 **Date**: 2026-10-10. **Status**: Core API implementation and local checks complete; real-store/release proof pending. Branch `feat/connections`. Changes are limited to `services/api`; no dependency installation, commit, push or deployment.
 
 ## Proposal schedule text amendment — 2026-10-19

@@ -25,7 +25,7 @@ export function ApiProposalDetailScreen({ id }: Readonly<{ id: string }>) {
     ["proposals"],
     ["proposal", id],
     ["conversation-resource"],
-    { key: ["conversations"], exact: true },
+    { key: ["conversations", "activity-order-v1"], exact: true },
   ]);
   const proposal = query.data;
   const { closeAction } = useLocalSearchParams<{ closeAction?: string }>();

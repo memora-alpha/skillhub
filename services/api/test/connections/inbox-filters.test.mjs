@@ -14,12 +14,13 @@ test("sent Request history retains status, pagination and title without owner/pu
     proposerId: senderId,
     recipientId: ownerId,
     proposedCredit: null,
+    createdAt: new Date("2026-11-04T00:00:00.000Z"),
   }));
   const tx = {
     proposal: {
       findMany: async (args) => {
         query = args;
-        return args.where.id ? [] : rows;
+        return args.where.AND ? [] : rows;
       },
     },
   };
@@ -50,14 +51,21 @@ test("sent Request history retains status, pagination and title without owner/pu
   assert.equal(query.where.recipientId, undefined);
   assert.equal(query.where.requestId, requestId);
   assert.equal(query.where.status, "WITHDRAWN");
-  assert.deepEqual(query.orderBy, { id: "asc" });
+  assert.deepEqual(query.orderBy, [{ createdAt: "desc" }, { id: "desc" }]);
   assert.equal(result.data[0].learningRequestTitle, "Closed Request");
   assert.equal(result.pagination.hasMore, true);
   await service.list(
     { userId: senderId },
     { ...filter, cursor: result.pagination.nextCursor },
   );
-  assert.deepEqual(query.where.id, { gt: rows[0].id });
+  assert.deepEqual(query.where.AND, [
+    {
+      OR: [
+        { createdAt: { lt: rows[0].createdAt } },
+        { createdAt: rows[0].createdAt, id: { lt: rows[0].id } },
+      ],
+    },
+  ]);
   await assert.rejects(
     service.list(
       { userId: senderId },
@@ -72,7 +80,7 @@ test("sent Request history retains status, pagination and title without owner/pu
     );
 });
 
-test("child chat filter retains participant membership and existing unfiltered cursor scope", async () => {
+test("child chat filter retains participant membership and isolates filtered/unfiltered cursors", async () => {
   let query;
   const tx = {
     conversation: {
@@ -83,6 +91,7 @@ test("child chat filter retains participant membership and existing unfiltered c
           requestId: inboxId(1),
           participantAId: senderId,
           participantBId: ownerId,
+          lastActivityAt: new Date("2026-11-04T00:00:00.000Z"),
         }));
       },
     },
@@ -118,5 +127,15 @@ test("child chat filter retains participant membership and existing unfiltered c
   const flat = await service.list(principal, { limit: 1 });
   assert.equal(query.where.requestId, undefined);
   await service.list(principal, { cursor: flat.pagination.nextCursor });
-  assert.deepEqual(query.where.id, { gt: inboxId(2) });
+  assert.deepEqual(query.where.AND, [
+    {
+      OR: [
+        { lastActivityAt: { lt: new Date("2026-11-04T00:00:00.000Z") } },
+        {
+          lastActivityAt: new Date("2026-11-04T00:00:00.000Z"),
+          id: { lt: inboxId(2) },
+        },
+      ],
+    },
+  ]);
 });

@@ -6,7 +6,6 @@ import {
 } from "@/features/connections";
 import { uuid } from "@/lib/http/contracts";
 import { createProposalsApi, type Proposal } from "../api/proposals-api";
-import { listAllProposals } from "../api/list-all-proposals";
 export function useProposalsApi() {
   const { call, userId } = useConnections();
   return useMemo(() => createProposalsApi(call, userId ?? ""), [call, userId]);
@@ -27,11 +26,9 @@ export function useProposalList(
 ) {
   const api = useProposalsApi();
   return useConnectionList(
-    ["proposals", direction, status, learningRequestId],
+    ["proposals", "newest-first-v1", direction, status, learningRequestId],
     (cursor, signal) =>
-      direction === "all"
-        ? listAllProposals(api, status, cursor, signal)
-        : api.list(direction, status, cursor, signal, learningRequestId),
+      api.list(direction, status, cursor, signal, learningRequestId),
     valid,
   );
 }

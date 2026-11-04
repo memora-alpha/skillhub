@@ -18,11 +18,11 @@ import type { Principal } from "../../../auth/application/services/sessions.serv
 import { SkillActorService } from "../../../users/application/services/skill-actor.service";
 import { ConnectionConfig } from "../../../proposals/domain/connection-config";
 import { normalizeMessage } from "../../../proposals/domain/connection-policy";
+import { cursorScope, page } from "../../../skills/domain/skill-policy";
 import {
-  cursorScope,
-  readCursor,
-  page,
-} from "../../../skills/domain/skill-policy";
+  beforeTimeId,
+  readTimeIdCursor,
+} from "../../../../shared/http/time-id-cursor";
 import {
   ChatRepository,
   draftDigest,
@@ -61,12 +61,13 @@ export class ConversationsService {
     const limit = query.limit ?? 20,
       scope = cursorScope({
         type: "conversations",
+        order: "lastActivityAt-desc-id-desc-v1",
         viewer: principal.userId,
         ...(query.learningRequestId
           ? { requestId: query.learningRequestId }
           : {}),
       }),
-      cursor = readCursor(query.cursor, scope);
+      cursor = readTimeIdCursor(query.cursor, scope);
     return this.transactions.run(async (tx) => {
       await this.actors.require(tx, principal, "conversation:read:participant");
       const result = page(
@@ -79,14 +80,14 @@ export class ConversationsService {
               { participantAId: principal.userId },
               { participantBId: principal.userId },
             ],
-            ...(cursor ? { id: { gt: cursor.id } } : {}),
+            ...beforeTimeId("lastActivityAt", cursor),
           },
-          orderBy: { id: "asc" },
+          orderBy: [{ lastActivityAt: "desc" }, { id: "desc" }],
           take: limit + 1,
         }),
         limit,
         scope,
-        (row) => row.id,
+        (row) => row.lastActivityAt.toISOString(),
       );
       return { ...result, data: result.data.map(conversationView) };
     });

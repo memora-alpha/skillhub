@@ -2,6 +2,14 @@
 
 Date: 2026-11-03. Scope: backend API, extending Connections.
 
+Ordering follow-up 2026-11-04: flat `GET /conversations` (including the child
+Request filter) now orders by `lastActivityAt DESC, id DESC` and returns activity
+metadata. Proposal lists use `createdAt DESC, id DESC`, with `direction=all` for
+one combined sent/received page. Both use new order-scoped timestamp/ID cursors;
+old cursors require a first-page refresh. See the
+[HTTP contract](../specs/008-connections/contracts/http.md). This requires no new
+migration beyond the activity migration/backfill described below.
+
 ## Decisions and behavior
 
 - User decision: owners, previous proposers and Conversation participants may
@@ -140,7 +148,7 @@ conversation guard`, `Release database steps completed`, readiness HTTP 200 and
 successful chat delivery. Mongo history backfill above remains a separate rollout
 step. Local verification does not establish recovery of the deployed database.
 
-This branch is based directly on dev and includes only grouped-Inbox changes
+The original grouped-Inbox branch was based directly on dev and included only grouped-Inbox changes
 and the necessary activity/read contracts. It excludes the earlier rate-limit,
 flat-list ordering, sender-enrichment, Verification AI and AI design commits.
 Flat Conversation and Proposal list ordering/cursors remain unchanged.

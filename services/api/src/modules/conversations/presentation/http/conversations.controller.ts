@@ -73,7 +73,11 @@ export class ConversationsController {
   ) {}
   @Get()
   @ApiSuccessResponse(200, ConversationResponse, { paginated: true })
-  @ApiOperation({ summary: "List participant Conversations" })
+  @ApiOperation({
+    summary: "List participant Conversations by latest activity",
+    description:
+      "Ordered by lastActivityAt DESC, id DESC before pagination. Refresh from the first page to see conversations with new activity.",
+  })
   async list(
     @CurrentIdentity() actor: Principal,
     @Query() query: ConversationQueryDto,

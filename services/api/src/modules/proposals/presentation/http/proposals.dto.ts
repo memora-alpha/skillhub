@@ -68,10 +68,13 @@ export class AcceptProposalDto extends DecideProposalDto {
   expectedRequestVersion?: number;
 }
 export class ProposalQueryDto {
-  @ApiPropertyOptional({ enum: ["sent", "received"] })
+  @ApiPropertyOptional({
+    enum: ["sent", "received", "all"],
+    default: "received",
+  })
   @IsOptional()
-  @IsIn(["sent", "received"])
-  direction?: "sent" | "received";
+  @IsIn(["sent", "received", "all"])
+  direction?: "sent" | "received" | "all";
   @ApiPropertyOptional({
     enum: ["PENDING", "ACCEPTED", "REJECTED", "WITHDRAWN", "EXPIRED"],
   })

@@ -64,6 +64,57 @@ function acceptance() {
   };
 }
 
+test("all proposals uses one backend stream and forwards its cursor without concatenating directions", async () => {
+  const h = adapter();
+  const received = {
+    ...proposal,
+    id: fixtureId(102),
+    proposerId: proposal.recipientId,
+    recipientId: proposal.proposerId,
+    createdAt: "2030-01-03T00:00:00Z",
+  };
+  const page = (items: Proposal[], nextCursor: string | null) => ({
+    data: items,
+    meta: {
+      pagination: { limit: 20, hasMore: nextCursor !== null, nextCursor },
+    },
+  });
+  h.respond(page([received, proposal], "server-time-id-cursor"));
+  const first = await h.api.list("all", "PENDING");
+  assert.deepEqual(
+    first.items.map((row) => row.id),
+    [received.id, proposal.id],
+  );
+  assert.equal(h.calls.length, 1);
+  assert.equal(
+    h.calls[0]!.path,
+    "/proposals?limit=20&direction=all&status=PENDING",
+  );
+  h.respond(
+    page(
+      [{ ...proposal, id: fixtureId(103), createdAt: "2029-12-31T00:00:00Z" }],
+      null,
+    ),
+  );
+  const second = await h.api.list("all", "PENDING", first.nextCursor!);
+  assert.equal(second.nextCursor, null);
+  assert.equal(
+    h.calls[1]!.path,
+    "/proposals?limit=20&cursor=server-time-id-cursor&direction=all&status=PENDING",
+  );
+  for (const item of [
+    { ...proposal, proposerId: fixtureId(998), recipientId: fixtureId(999) },
+    { ...proposal, status: "REJECTED" },
+  ]) {
+    h.respond(page([item as Proposal], null));
+    await assert.rejects(h.api.list("all", "PENDING"), AppError);
+  }
+  h.respond(page([received], null));
+  await assert.rejects(h.api.list("sent"), AppError);
+  h.respond(page([proposal], null));
+  await assert.rejects(h.api.list("received"), AppError);
+});
+
 test("proposal edit normalizes form hints and sends version/idempotency without changing identity", async () => {
   const h = adapter();
   const values = apiProposalForm.parse({
