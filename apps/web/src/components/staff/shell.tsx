@@ -1,7 +1,8 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
+import { useNavigationDrawer } from "@/components/use-navigation-drawer";
 import { Icon, type IconName } from "@/components/console/icon";
 import { StaffSessionProvider, useStaffSession } from "./session";
 import { StaffLogin } from "./login";
@@ -49,16 +50,14 @@ function Frame({ children }: Readonly<{ children: ReactNode }>) {
   const links = portal === "admin" ? adminNav : nav;
   const portalName = portal === "admin" ? "Admin" : "Staff";
   const pathname = usePathname();
-  const [open, setOpen] = useState(false);
+  const {
+    open,
+    show,
+    close,
+    trigger: menuButton,
+    panel: sidebar,
+  } = useNavigationDrawer("(min-width: 1024px)");
   const [error, setError] = useState<string | null>(null);
-  useEffect(() => {
-    if (!open) return;
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("keydown", closeOnEscape);
-    return () => document.removeEventListener("keydown", closeOnEscape);
-  }, [open]);
   if (loading)
     return (
       <output className="staff-loading">Đang kiểm tra phiên làm việc…</output>
@@ -81,10 +80,18 @@ function Frame({ children }: Readonly<{ children: ReactNode }>) {
   );
   return (
     <div className="shell staff-shell" key={actor.userId}>
-      <a className="skip-link" href="#main">
+      <a className="skip-link" href="#main" inert={open}>
         Bỏ qua điều hướng
       </a>
-      <aside id="staff-side" className="side" data-open={open}>
+      <aside
+        ref={sidebar}
+        id="staff-side"
+        className="side"
+        data-open={open}
+        role={open ? "dialog" : undefined}
+        aria-modal={open || undefined}
+        aria-label={`Điều hướng ${portalName}`}
+      >
         <div className="side-head">
           <span className="logo" aria-hidden="true">
             S
@@ -97,7 +104,7 @@ function Frame({ children }: Readonly<{ children: ReactNode }>) {
             type="button"
             className="icon-btn menu-btn side-close"
             aria-label="Đóng menu"
-            onClick={() => setOpen(false)}
+            onClick={() => close()}
           >
             <Icon name="x" />
           </button>
@@ -110,7 +117,7 @@ function Frame({ children }: Readonly<{ children: ReactNode }>) {
               href={item.href}
               className="nav-link"
               aria-current={current?.href === item.href ? "page" : undefined}
-              onClick={() => setOpen(false)}
+              onClick={() => close(false)}
             >
               <Icon name={item.icon} />
               {item.label}
@@ -127,7 +134,7 @@ function Frame({ children }: Readonly<{ children: ReactNode }>) {
                   aria-current={
                     current?.href === item.href ? "page" : undefined
                   }
-                  onClick={() => setOpen(false)}
+                  onClick={() => close(false)}
                 >
                   <Icon name={item.icon} />
                   {item.label}
@@ -171,18 +178,20 @@ function Frame({ children }: Readonly<{ children: ReactNode }>) {
           type="button"
           className="scrim"
           aria-label="Đóng menu"
-          onClick={() => setOpen(false)}
+          onClick={() => close()}
+          tabIndex={-1}
         />
       )}
-      <div className="main-col">
+      <div className="main-col" inert={open}>
         <header className="topbar">
           <button
+            ref={menuButton}
             type="button"
             className="icon-btn menu-btn"
             aria-label="Mở menu"
             aria-expanded={open}
             aria-controls="staff-side"
-            onClick={() => setOpen(true)}
+            onClick={show}
           >
             <Icon name="menu" />
           </button>
@@ -194,7 +203,7 @@ function Frame({ children }: Readonly<{ children: ReactNode }>) {
             <NotificationBell portal={portal} />
           </div>
         </header>
-        <main id="main" className="content">
+        <main id="main" className="content" tabIndex={-1}>
           {error && (
             <p className="staff-error" role="alert">
               {error}

@@ -1,25 +1,35 @@
 "use client";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useNavigationDrawer } from "@/components/use-navigation-drawer";
 import { useQueryClient } from "@tanstack/react-query";
 import { eventAffectsResource } from "../api/events";
 import { useUserSession } from "../auth/session";
 import { useUserResource } from "../hooks/use-user-resource";
+import { ProductIcon } from "./product-icon";
+import { NotificationBell } from "./notification-bell";
 const links = [
-  ["/learn", "Khám phá"],
-  ["/learn/connections", "Kết nối"],
-  ["/learn/messages", "Tin nhắn"],
-  ["/learn/paths", "Lộ trình"],
-  ["/learn/calendar", "Lịch học"],
-  ["/learn/skills", "Kỹ năng của tôi"],
-];
+  ["/learn", "Tổng quan", "home"],
+  ["/learn/explore", "Khám phá", "search"],
+  ["/learn/connections", "Đề nghị", "users"],
+  ["/learn/messages", "Tin nhắn", "chat"],
+  ["/learn/paths", "Lộ trình", "book"],
+  ["/learn/calendar", "Lịch học", "calendar"],
+  ["/learn/materials", "Tài liệu", "file"],
+  ["/learn/wallet", "Ví Credit", "wallet"],
+  ["/learn/achievements", "Thành tích", "award"],
+  ["/learn/reports", "Báo cáo của tôi", "shield"],
+] as const;
 export function LearnerShell({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   const { actor, request, refresh, logout } = useUserSession(),
-    pathname = usePathname();
+    pathname = usePathname(),
+    router = useRouter();
   const cache = useQueryClient();
+  const identity = useUserResource<{ profile: { fullName: string } }>("me");
+  const fullName = identity.data?.profile.fullName ?? actor.profile.fullName;
   const wallet = useUserResource<{
     availableCredit: string;
     heldCredit: string;
@@ -27,6 +37,13 @@ export function LearnerShell({
   const [error, setError] = useState<string>(),
     [streamAttempt, setStreamAttempt] = useState(0),
     [live, setLive] = useState(true);
+  const {
+    open,
+    show,
+    close,
+    trigger: menuButton,
+    panel: sidebar,
+  } = useNavigationDrawer("(min-width: 761px)");
   useEffect(() => {
     let source: EventSource | undefined;
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -67,7 +84,12 @@ export function LearnerShell({
       }
       if (ticket !== generation) return;
       source = new EventSource("/api/user/events");
-      source.onopen = () => setLive(true);
+      source.onopen = () => {
+        setLive(true);
+        void cache.invalidateQueries({
+          queryKey: ["learner", actor.userId, "notifications/unread-count"],
+        });
+      };
       for (const type of [
         "chat.message.created",
         "chat.delivery.updated",
@@ -79,6 +101,7 @@ export function LearnerShell({
         "proposal.withdrawn",
         "proposal.expired",
         "wallet.updated",
+        "payment.updated",
         "notification.created",
         "resync-required",
       ])
@@ -102,83 +125,163 @@ export function LearnerShell({
       document.removeEventListener("visibilitychange", focus);
     };
   }, [request, refresh, streamAttempt, cache, actor.userId]);
+
   return (
-    <div className="learner-root">
-      <header className="learner-topbar">
-        <Link className="learner-brand" href="/learn">
-          SkillHub<span>học cùng nhau</span>
-        </Link>
+    <div className="learner-root workspace">
+      <a className="product-skip" href="#learning-content" inert={open}>
+        Đến nội dung chính
+      </a>
+      {open && (
+        <button
+          className="product-scrim"
+          aria-label="Đóng điều hướng"
+          onClick={() => close()}
+          tabIndex={-1}
+        />
+      )}
+      <aside
+        ref={sidebar}
+        id="learning-sidebar"
+        className={"app-sidebar" + (open ? " open" : "")}
+        role={open ? "dialog" : undefined}
+        aria-modal={open || undefined}
+        aria-label="Điều hướng học tập"
+      >
+        <div className="sidebar-head">
+          <Link
+            href="/learn"
+            className="app-brand"
+            onClick={() => close(false)}
+          >
+            <span>S</span>
+            <b>
+              Skill<i>Hub</i>
+            </b>
+          </Link>
+          <button aria-label="Đóng điều hướng" onClick={() => close()}>
+            <ProductIcon name="close" />
+          </button>
+        </div>
         <nav aria-label="Điều hướng học tập">
-          {links.map(([href, label]) => (
+          {links.map(([href, label, icon]) => (
             <Link
               key={href}
-              href={href!}
-              aria-current={pathname === href ? "page" : undefined}
+              href={href}
+              onClick={() => close(false)}
+              aria-current={
+                pathname === href ||
+                (href !== "/learn" && pathname.startsWith(href + "/"))
+                  ? "page"
+                  : undefined
+              }
             >
-              {label}
+              <ProductIcon name={icon} />
+              <span>{label}</span>
             </Link>
           ))}
         </nav>
-        <div className="learner-account">
-          <span className="learner-avatar" aria-hidden="true">
-            {actor.profile.fullName[0] ?? "S"}
-          </span>
-          <span>{actor.profile.fullName}</span>
+        <div className="sidebar-help">
+          <ProductIcon name="users" />
+          <b>Học tốt hơn khi có nhau.</b>
+          <p>Tìm người đồng hành phù hợp với mục tiêu của bạn.</p>
+          <Link href="/learn/explore" onClick={() => close(false)}>
+            Khám phá ngay →
+          </Link>
+        </div>
+        <Link
+          className="sidebar-profile"
+          href="/learn/profile"
+          onClick={() => close(false)}
+        >
+          <span>{fullName.slice(0, 1)}</span>
+          <div>
+            <b>{fullName}</b>
+            <small>Xem hồ sơ</small>
+          </div>
+          <ProductIcon name="chevron" />
+        </Link>
+        <button
+          className="product-logout"
+          onClick={() => {
+            void logout().catch((cause: unknown) =>
+              setError(
+                cause instanceof Error ? cause.message : "Không thể đăng xuất.",
+              ),
+            );
+          }}
+        >
+          Đăng xuất
+        </button>
+      </aside>
+      <div className="workspace-main" inert={open}>
+        <header className="app-header">
           <button
-            className="learner-text-button"
-            onClick={() => {
-              void logout().catch((cause: unknown) =>
-                setError(
-                  cause instanceof Error
-                    ? cause.message
-                    : "Không thể đăng xuất.",
-                ),
-              );
+            ref={menuButton}
+            className="mobile-menu"
+            aria-label="Mở điều hướng"
+            aria-expanded={open}
+            aria-controls="learning-sidebar"
+            onClick={show}
+          >
+            <ProductIcon name="menu" />
+          </button>
+          <form
+            className="global-search"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const term = String(
+                new FormData(e.currentTarget).get("q") ?? "",
+              ).trim();
+              router.push("/learn/explore?q=" + encodeURIComponent(term));
             }}
           >
-            Đăng xuất
-          </button>
-        </div>
-      </header>
-      <div className="learner-subbar">
-        <span>Không gian học tập của bạn</span>
-        <span>
-          {wallet.data ? (
-            <>
-              <strong>{wallet.data.availableCredit} CR</strong> khả dụng ·{" "}
-              {wallet.data.heldCredit} CR đang giữ
-            </>
-          ) : (
-            "Ví Credit"
-          )}
-        </span>
-      </div>
-      <main className="learner-content">
-        {error && (
-          <p className="learner-error" role="alert">
-            {error}
-          </p>
-        )}
-        {!live && (
-          <p className="learner-notice">
-            Cập nhật trực tiếp tạm ngắt.{" "}
-            <button
-              className="learner-text-button"
-              onClick={() => {
-                refresh();
-                setStreamAttempt((v) => v + 1);
-              }}
-            >
-              Kết nối lại
+            <ProductIcon name="search" />
+            <input
+              name="q"
+              aria-label="Tìm nhu cầu học"
+              placeholder="Tìm kỹ năng bạn quan tâm…"
+              maxLength={120}
+            />
+            <button aria-label="Tìm kiếm">
+              <ProductIcon name="arrow" size={16} />
             </button>
-          </p>
-        )}
-        {children}
-      </main>
-      <footer className="learner-footer">
-        <Link href="/learn">SkillHub</Link>
-        <span>Chia sẻ điều bạn biết. Học điều bạn muốn.</span>
-      </footer>
+          </form>
+          <Link className="header-wallet" href="/learn/wallet">
+            <ProductIcon name="wallet" />
+            <span>
+              <b>
+                {wallet.data
+                  ? wallet.data.availableCredit + " CR"
+                  : "Ví Credit"}
+              </b>
+              <small>Credit khả dụng</small>
+            </span>
+          </Link>
+          <NotificationBell />
+        </header>
+        <main id="learning-content" className="app-content" tabIndex={-1}>
+          {error && (
+            <p className="learner-error" role="alert">
+              {error}
+            </p>
+          )}
+          {!live && (
+            <p className="learner-notice">
+              Cập nhật trực tiếp tạm ngắt.{" "}
+              <button
+                className="learner-text-button"
+                onClick={() => {
+                  refresh();
+                  setStreamAttempt((v) => v + 1);
+                }}
+              >
+                Kết nối lại
+              </button>
+            </p>
+          )}
+          {children}
+        </main>
+      </div>
     </div>
   );
 }

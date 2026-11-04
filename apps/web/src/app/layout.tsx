@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { Fira_Code, Fira_Sans } from "next/font/google";
+import { SessionSync } from "@/features/auth/session-sync";
 import "./globals.css";
 import "./console.css";
+import "./responsive.css";
 
 const sans = Fira_Sans({
   subsets: ["latin", "vietnamese"],
@@ -25,7 +27,10 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="vi" className={`${sans.variable} ${mono.variable}`}>
-      <body>{children}</body>
+      <body>
+        <SessionSync />
+        {children}
+      </body>
     </html>
   );
 }

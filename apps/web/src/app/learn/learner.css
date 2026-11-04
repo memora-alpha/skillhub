@@ -18,7 +18,7 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  color: var(--brand);
+  color: var(--brand-strong);
   font-size: 26px;
   letter-spacing: -1px;
   font-weight: 700;
@@ -46,7 +46,7 @@
 }
 .learner-topbar nav a[aria-current="page"] {
   background: var(--brand-soft);
-  color: var(--brand);
+  color: var(--brand-strong);
   font-weight: 600;
 }
 .learner-account {
@@ -62,7 +62,7 @@
   place-items: center;
   border-radius: 50%;
   background: var(--brand-soft);
-  color: var(--brand);
+  color: var(--brand-strong);
   font-weight: 600;
 }
 .learner-subbar {
@@ -75,7 +75,7 @@
   color: var(--muted);
 }
 .learner-subbar strong {
-  color: var(--brand);
+  color: var(--brand-strong);
 }
 .learner-content {
   width: min(1160px, 92vw);
@@ -91,7 +91,7 @@
   font-size: 13px;
 }
 .learner-footer a {
-  color: var(--brand);
+  color: var(--brand-strong);
   font-weight: 700;
   text-decoration: none;
 }
@@ -131,7 +131,7 @@
   line-height: 1;
   font-weight: 700;
   letter-spacing: -6px;
-  color: var(--brand);
+  color: var(--brand-strong);
 }
 .learner-hero aside p {
   font-size: 24px;
@@ -140,7 +140,7 @@
   margin: 16px 0;
 }
 .learner-hero aside a {
-  color: var(--brand);
+  color: var(--brand-strong);
 }
 .learner-page-heading {
   display: flex;
@@ -181,7 +181,7 @@
 }
 .learner-tabs button[aria-pressed="true"] {
   background: var(--surface);
-  color: var(--brand);
+  color: var(--brand-strong);
   box-shadow: var(--shadow);
 }
 .learner-search {
@@ -279,7 +279,7 @@
   text-decoration: none;
 }
 .learner-post-card h2 a:hover {
-  color: var(--brand);
+  color: var(--brand-strong);
 }
 .learner-post-card p {
   margin: 0;
@@ -296,7 +296,7 @@
 .learner-skill-tag {
   font-size: 12px;
   font-weight: 600;
-  color: var(--brand);
+  color: var(--brand-strong);
 }
 .learner-status {
   font-size: 11px;
@@ -312,7 +312,7 @@
 .learner-status-completed,
 .learner-status-accepted {
   background: var(--brand-soft);
-  color: var(--brand);
+  color: var(--brand-strong);
   border-color: transparent;
 }
 .learner-status-no_show,
@@ -333,13 +333,13 @@
   color: var(--muted);
 }
 .learner-post-meta strong {
-  color: var(--brand);
+  color: var(--brand-strong);
   font-weight: 500;
 }
 .learner-card-link {
   font-size: 13px;
   font-weight: 600;
-  color: var(--brand);
+  color: var(--brand-strong);
   text-decoration: none;
 }
 .learner-clamp {
@@ -397,7 +397,7 @@
   border: 0;
   background: none;
   padding: 4px;
-  color: var(--brand);
+  color: var(--brand-strong);
   font: inherit;
   cursor: pointer;
   text-decoration: underline;
@@ -442,7 +442,7 @@
 }
 .learner-choice.selected {
   border-color: var(--brand);
-  color: var(--brand);
+  color: var(--brand-strong);
   background: var(--brand-soft);
 }
 .learner-login {
@@ -467,7 +467,7 @@
 }
 .learner-login-intro .eyebrow {
   margin-top: 60px;
-  color: var(--brand);
+  color: var(--brand-strong);
 }
 .learner-pills {
   display: flex;
@@ -478,7 +478,7 @@
 .learner-pills span {
   font-size: 12px;
   background: var(--brand-soft);
-  color: var(--brand);
+  color: var(--brand-strong);
   border-radius: 20px;
   padding: 9px 12px;
 }
@@ -510,7 +510,7 @@
 .learner-password button {
   border: 0;
   background: transparent;
-  color: var(--brand);
+  color: var(--brand-strong);
   padding: 12px;
   cursor: pointer;
 }
@@ -582,7 +582,7 @@
   padding: 15px;
   text-align: center;
   background: var(--brand-soft);
-  color: var(--brand);
+  color: var(--brand-strong);
   font-size: 20px;
   font-weight: 600;
 }
