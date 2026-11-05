@@ -22,17 +22,22 @@ async function requestSession(
   method = "GET",
   body?: unknown,
   refresh = false,
+  all = false,
 ): Promise<SessionReply> {
   let response: Response;
   try {
-    response = await fetch(`/api/auth/session${refresh ? "/refresh" : ""}`, {
-      method,
-      credentials: "same-origin",
-      cache: "no-store",
-      redirect: "error",
-      headers: body === undefined ? {} : { "Content-Type": "application/json" },
-      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-    });
+    response = await fetch(
+      `/api/auth/session${refresh ? "/refresh" : all ? "/all" : ""}`,
+      {
+        method,
+        credentials: "same-origin",
+        cache: "no-store",
+        redirect: "error",
+        headers:
+          body === undefined ? {} : { "Content-Type": "application/json" },
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      },
+    );
   } catch {
     throw new LoginSessionError(
       0,
@@ -108,4 +113,13 @@ export async function signIn(email: string, password: string) {
 }
 export async function endLoginSession() {
   return requestSession("DELETE");
+}
+export async function endAllLoginSessions() {
+  const result = await requestSession("POST", {}, false, true);
+  if (result.data !== null || result.meta?.serverRevoked !== true)
+    throw new LoginSessionError(
+      502,
+      "Chưa xác nhận được việc kết thúc mọi phiên. Hãy kiểm tra lại.",
+    );
+  return result;
 }

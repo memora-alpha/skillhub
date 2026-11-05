@@ -9,6 +9,7 @@ import { useUserSession } from "../auth/session";
 import { useUserResource } from "../hooks/use-user-resource";
 import { ProductIcon } from "./product-icon";
 import { NotificationBell } from "./notification-bell";
+import { LearnerAccountMenu } from "./learner-account-menu";
 import { formText } from "./form-data";
 function queryAffected(
   query: Query,
@@ -40,14 +41,15 @@ export function LearnerShell({
     pathname = usePathname(),
     router = useRouter();
   const cache = useQueryClient();
-  const identity = useUserResource<{ profile: { fullName: string } }>("me");
+  const identity = useUserResource<{
+    profile: { fullName: string; avatarUrl: string | null };
+  }>("me");
   const fullName = identity.data?.profile.fullName ?? actor.profile.fullName;
   const wallet = useUserResource<{
     availableCredit: string;
     heldCredit: string;
   }>("me/wallet");
-  const [error, setError] = useState<string>(),
-    [streamAttempt, setStreamAttempt] = useState(0),
+  const [streamAttempt, setStreamAttempt] = useState(0),
     [live, setLive] = useState(true);
   const {
     open,
@@ -200,39 +202,6 @@ export function LearnerShell({
             </Link>
           ))}
         </nav>
-        <div className="sidebar-help">
-          <ProductIcon name="users" />
-          <b>Học tốt hơn khi có nhau.</b>
-          <p>Tìm người đồng hành phù hợp với mục tiêu của bạn.</p>
-          <Link href="/learn/explore" onClick={() => close(false)}>
-            Khám phá ngay →
-          </Link>
-        </div>
-        <Link
-          className="sidebar-profile"
-          href="/learn/profile"
-          onClick={() => close(false)}
-        >
-          <span>{fullName.slice(0, 1)}</span>
-          <div>
-            <b>{fullName}</b>
-            <small>Xem hồ sơ</small>
-          </div>
-          <ProductIcon name="chevron" />
-        </Link>
-        <button
-          type="button"
-          className="product-logout"
-          onClick={() => {
-            void logout().catch((cause: unknown) =>
-              setError(
-                cause instanceof Error ? cause.message : "Không thể đăng xuất.",
-              ),
-            );
-          }}
-        >
-          Đăng xuất
-        </button>
       </Sidebar>
       <div className="workspace-main" inert={open}>
         <header className="app-header">
@@ -266,7 +235,15 @@ export function LearnerShell({
               <ProductIcon name="arrow" size={16} />
             </button>
           </form>
-          <Link className="header-wallet" href="/learn/wallet">
+          <Link
+            className="header-wallet"
+            href="/learn/wallet"
+            aria-label={
+              wallet.data
+                ? "Ví Credit: " + wallet.data.availableCredit + " CR khả dụng"
+                : "Ví Credit"
+            }
+          >
             <ProductIcon name="wallet" />
             <span>
               <b>
@@ -278,13 +255,19 @@ export function LearnerShell({
             </span>
           </Link>
           <NotificationBell />
+          <LearnerAccountMenu
+            key={pathname}
+            fullName={fullName}
+            email={actor.email}
+            avatarUrl={
+              identity.data
+                ? identity.data.profile.avatarUrl
+                : actor.profile.avatarUrl
+            }
+            logout={logout}
+          />
         </header>
         <main id="learning-content" className="app-content" tabIndex={-1}>
-          {error && (
-            <p className="learner-error" role="alert">
-              {error}
-            </p>
-          )}
           {!live && (
             <p className="learner-notice">
               Cập nhật trực tiếp tạm ngắt.{" "}

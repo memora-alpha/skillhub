@@ -1,4 +1,5 @@
 "use client";
+import { achievementTitle } from "@/lib/i18n/system-copy";
 import { formText } from "../components/form-data";
 import Link from "next/link";
 import { useState } from "react";
@@ -15,11 +16,14 @@ import {
   More,
 } from "../components/common";
 import type { OwnIdentity } from "./account-types";
+import { ProfileAvatar } from "../components/profile-avatar";
+import { AvatarEditor } from "./avatar-editor";
+import { AccountSecurity } from "./account-security";
 export function ProfileScreen() {
   const skills = useUserList<SharingSkill>("me/skills?limit=3");
   const query = useUserResource<OwnIdentity>("me"),
     command = useUserCommand(),
-    { request } = useUserSession(),
+    { request, actor } = useUserSession(),
     [saved, setSaved] = useState(false);
   const me = query.data;
   return (
@@ -29,6 +33,14 @@ export function ProfileScreen() {
         title="Hồ sơ cá nhân"
         description="Giới thiệu bản thân và những kỹ năng bạn muốn chia sẻ."
       />
+      <p>
+        <Link
+          className="learner-card-link"
+          href={"/learn/people/" + actor.userId}
+        >
+          Xem hồ sơ công khai của tôi →
+        </Link>
+      </p>
       <Feedback
         loading={query.loading}
         error={query.error}
@@ -37,13 +49,15 @@ export function ProfileScreen() {
       {me && (
         <>
           <section className="learner-card product-profile-hero">
-            <span className="product-profile-avatar" aria-hidden="true">
-              {me.profile.fullName.slice(0, 1)}
-            </span>
+            <ProfileAvatar
+              className="product-profile-avatar"
+              fullName={me.profile.fullName}
+              avatarUrl={me.profile.avatarUrl}
+            />
             <div>
               <h1>{me.profile.fullName}</h1>
               <p>{me.profile.headline || "Thành viên SkillHub"}</p>
-              <p>{me.profile.selectedTitle}</p>
+              <p>{achievementTitle(me.profile.selectedTitle)}</p>
             </div>
             <Link className="btn" href="/learn/skills">
               Quản lý kỹ năng →
@@ -51,6 +65,7 @@ export function ProfileScreen() {
           </section>
           <div className="learner-two-columns">
             <Panel title="Thông tin cá nhân">
+              <AvatarEditor onSaved={query.reload} />
               <form
                 className="learner-form"
                 key={
@@ -143,7 +158,10 @@ export function ProfileScreen() {
             </Panel>
             <div className="learner-stack">
               <Panel title="Hành trình trên SkillHub">
-                <p>{me.profile.selectedTitle ?? "Chưa chọn danh hiệu"}</p>
+                <p>
+                  {achievementTitle(me.profile.selectedTitle) ??
+                    "Chưa chọn danh hiệu"}
+                </p>
                 <Link className="learner-card-link" href="/learn/achievements">
                   Thành tích & danh hiệu →
                 </Link>
@@ -151,6 +169,7 @@ export function ProfileScreen() {
                   <div>
                     <strong>{me.profile.reputationScore}</strong>
                     <small>Điểm uy tín</small>
+                    <Link href="/learn/reputation">Xem lịch sử & hạn chế</Link>
                   </div>
                   <div>
                     <strong>{me.profile.completedSessionCount}</strong>
@@ -205,6 +224,7 @@ export function ProfileScreen() {
                 </p>
               </Panel>
               <Panel title="Hỗ trợ học tập">
+                <AccountSecurity />
                 <p>Theo dõi các báo cáo bạn đã gửi trong quá trình học.</p>
                 <Link className="learner-card-link" href="/learn/reports">
                   Báo cáo của tôi →

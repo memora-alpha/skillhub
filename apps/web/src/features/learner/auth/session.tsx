@@ -17,7 +17,11 @@ import {
 } from "../api/client";
 import { SignInRedirect } from "@/features/auth/sign-in-redirect";
 import { announceSessionChange } from "@/features/auth/session-sync";
+import { endAllLoginSessions } from "@/features/auth/session-client";
+import { LearnerShellSkeleton } from "../components/learner-skeleton";
 import { LearnerShell } from "../components/learner-shell";
+import { disableWebPush } from "../notifications/web-push";
+import { WebPushLifecycle } from "../notifications/web-push-lifecycle";
 import {
   QueryClient,
   QueryClientProvider,
@@ -31,7 +35,7 @@ type Context = {
   actor: Identity;
   request: Request;
   refresh: () => void;
-  logout: () => Promise<void>;
+  logout: (all?: boolean) => Promise<void>;
 };
 const SessionContext = createContext<Context | null>(null);
 export function UserSessionProvider({
@@ -148,6 +152,7 @@ function UserSessionLifecycle({ children }: Readonly<{ children: ReactNode }>) {
           cause.code !== "SESSION_RETRY_REQUIRED"
         ) {
           epoch.current++;
+          void disableWebPush(owner).catch(() => undefined);
           setActor(null);
           cache.clear();
         }
@@ -156,30 +161,35 @@ function UserSessionLifecycle({ children }: Readonly<{ children: ReactNode }>) {
     },
     [actor?.userId, renew, cache],
   );
-  const logout = useCallback(async () => {
-    await userFetch("session", { method: "DELETE" });
-    announceSessionChange();
-    epoch.current++;
-    setActor(null);
-    setError(undefined);
-    cache.clear();
-    for (const key of Object.keys(sessionStorage))
-      if (key.startsWith("skillhub-user-draft:"))
-        sessionStorage.removeItem(key);
-  }, [cache]);
+  const logout = useCallback(
+    async (all = false) => {
+      await disableWebPush(actor?.userId).catch(() => undefined);
+      if (all) await endAllLoginSessions();
+      else await userFetch("session", { method: "DELETE" });
+      announceSessionChange();
+      epoch.current++;
+      setActor(null);
+      setError(undefined);
+      cache.clear();
+      try {
+        for (const key of Object.keys(sessionStorage))
+          if (key.startsWith("skillhub-user-draft:"))
+            sessionStorage.removeItem(key);
+      } catch {
+        /* Server revocation remains confirmed even when storage is blocked. */
+      }
+    },
+    [cache, actor?.userId],
+  );
   const context = useMemo(
     () => (actor ? { actor, request, refresh, logout } : null),
     [actor, request, refresh, logout],
   );
-  if (loading)
-    return (
-      <main className="learner-loading">
-        <output>Đang mở không gian học tập…</output>
-      </main>
-    );
+  if (loading) return <LearnerShellSkeleton />;
   if (!actor) return <SignInRedirect message={error} />;
   return (
     <SessionContext.Provider value={context}>
+      <WebPushLifecycle key={actor.userId} />
       <LearnerShell key={actor.userId}>{children}</LearnerShell>
     </SessionContext.Provider>
   );

@@ -1,0 +1,172 @@
+.content {
+  width: 100%;
+}
+.blocks,
+.nav,
+.profile,
+.header {
+  animation: breathe 1.8s ease-in-out infinite;
+}
+.blocks {
+  display: grid;
+  gap: 28px;
+}
+.line,
+.wide,
+.icon,
+.smallIcon,
+.search,
+.wallet {
+  display: block;
+  background: #eadfd5;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+.line {
+  width: 42%;
+  height: 12px;
+}
+.wide {
+  width: 75%;
+  height: 18px;
+}
+.heading {
+  display: grid;
+  gap: 16px;
+  padding-block: 10px;
+}
+.heading .wide {
+  width: min(440px, 85%);
+  height: 36px;
+}
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+.stat,
+.panel {
+  padding: 24px;
+  background: white;
+  border: 1px solid #eddfd4;
+  border-radius: 14px;
+}
+.stat {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.stat > div,
+.row > div {
+  flex: 1;
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+.icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+}
+.smallIcon {
+  width: 20px;
+  height: 20px;
+}
+.columns {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 24px;
+}
+.panel {
+  display: grid;
+  gap: 28px;
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-block: 14px;
+}
+.nav {
+  display: grid;
+  gap: 4px;
+}
+.navRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 45px;
+  padding-inline: 12px;
+}
+.navRow .wide {
+  height: 12px;
+  width: 60%;
+}
+.profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 120px;
+  flex-shrink: 0;
+  padding: 4px;
+}
+.search {
+  width: min(400px, 40%);
+  min-width: 0;
+  flex: 1 1 180px;
+  height: 40px;
+}
+.wallet {
+  width: 100px;
+  height: 40px;
+  margin-left: auto;
+}
+@keyframes breathe {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .blocks,
+  .nav,
+  .profile,
+  .header {
+    animation: none;
+    opacity: 0.7;
+  }
+}
+@media (max-width: 1000px) {
+  .stats {
+    grid-template-columns: 1fr;
+  }
+  .stat {
+    padding: 18px;
+  }
+}
+@media (max-width: 760px) {
+  .sidebar {
+    display: none !important;
+  }
+  .columns {
+    grid-template-columns: 1fr;
+  }
+  .blocks {
+    gap: 20px;
+  }
+  .search {
+    display: none;
+  }
+  .wallet {
+    width: 40px;
+  }
+  .profile {
+    width: 50px;
+  }
+  .profile .wide {
+    display: none;
+  }
+}

@@ -14,6 +14,7 @@ type IconName =
   | "menu"
   | "notification"
   | "plus"
+  | "refresh"
   | "search"
   | "shield"
   | "user"
@@ -22,6 +23,9 @@ type IconName =
   | "wallet";
 
 const iconPaths: Record<IconName, ReactNode> = {
+  refresh: (
+    <path d="M20 7v5h-5M4 17v-5h5M6.1 7a7 7 0 0 1 11.6-1.8L20 8M4 16l2.3 2.8A7 7 0 0 0 17.9 17" />
+  ),
   award: (
     <>
       <circle cx="12" cy="8" r="5" />
