@@ -1,13 +1,12 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useUserSession } from "../auth/session";
 import { useUserList } from "../hooks/use-user-resource";
 import type { Conversation } from "../types";
 import { Empty, Feedback, More, PageHeading } from "../components/common";
 import { ProfileName } from "../components/profile-name";
-import { useState } from "react";
 import styles from "./inbox.module.css";
 type InboxGroup = {
   id: string;
@@ -28,6 +27,13 @@ type InboxGroup = {
     messageType: string;
   } | null;
 };
+function proposalCountText(group: InboxGroup) {
+  if (group.receivedProposalCount !== null)
+    return group.receivedProposalCount + " đề nghị nhận";
+  if (group.sentProposalCount !== null)
+    return group.sentProposalCount + " đề nghị đã gửi";
+  return "";
+}
 export function InboxLayout({ children }: Readonly<{ children: ReactNode }>) {
   const [requestId, setRequestId] = useState<string | null>(null);
   const groups = useUserList<InboxGroup>("conversations/inbox?limit=20");
@@ -92,12 +98,7 @@ export function InboxLayout({ children }: Readonly<{ children: ReactNode }>) {
                       cuộc trò chuyện
                     </button>
                     <p>
-                      {group.receivedProposalCount !== null
-                        ? group.receivedProposalCount + " đề nghị nhận"
-                        : group.sentProposalCount !== null
-                          ? group.sentProposalCount + " đề nghị đã gửi"
-                          : ""}{" "}
-                      ·{" "}
+                      {proposalCountText(group)} ·{" "}
                       <Link
                         href={
                           "/learn/connections?learningRequestId=" +

@@ -127,6 +127,23 @@ export function refreshStaffSession(portal: Portal) {
   });
   return renewals[portal];
 }
+function canRenewSession(
+  path: string,
+  options: ApiOptions,
+  retry: boolean,
+  status: number,
+  message?: string,
+) {
+  const canReadSession = !options.method || options.method === "GET";
+  const canRefreshPath =
+    path === "session" ? canReadSession : !path.startsWith("session/");
+  return (
+    retry &&
+    status === 401 &&
+    ["SESSION_EXPIRED", "SESSION_UNAVAILABLE"].includes(message ?? "") &&
+    canRefreshPath
+  );
+}
 async function portalResponse(
   path: string,
   options: ApiOptions = {},
@@ -164,14 +181,7 @@ async function portalResponse(
     throw new StaffApiError(502, "API_RESPONSE_INVALID");
   }
   if (
-    retry &&
-    response.status === 401 &&
-    ["SESSION_EXPIRED", "SESSION_UNAVAILABLE"].includes(
-      envelope?.message ?? "",
-    ) &&
-    (path === "session"
-      ? !options.method || options.method === "GET"
-      : !path.startsWith("session/"))
+    canRenewSession(path, options, retry, response.status, envelope?.message)
   ) {
     await refreshStaffSession(portal);
     if ((options.method ?? "GET").toUpperCase() !== "GET")

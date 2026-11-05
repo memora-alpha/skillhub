@@ -16,6 +16,11 @@ import {
   type ChatUpload,
 } from "./chat-file-policy";
 export type { ChatUpload } from "./chat-file-policy";
+function fileSizeText(size: number) {
+  if (size >= 1_000_000) return (size / 1_000_000).toFixed(2) + " MB";
+  if (size > 0) return size.toLocaleString("vi-VN") + " byte";
+  return "Chưa có dung lượng";
+}
 export function ChatFiles({
   conversationId,
   files,
@@ -49,6 +54,28 @@ export function ChatFiles({
       ),
     [setFiles],
   );
+  async function uploadChosen(chosen: readonly File[]) {
+    for (const file of chosen) {
+      const form = new FormData();
+      form.set("file", file);
+      const result = await request<{ fileId: string; state: string }>(
+        "conversations/" + conversationId + "/attachments",
+        { method: "POST", body: form },
+      );
+      if (!active.current) return;
+      if (!/^[0-9a-f-]{36}$/i.test(result.data.fileId))
+        throw new Error("Chưa đọc được mã tệp đã tải.");
+      setFiles((old) => [
+        ...old,
+        {
+          id: result.data.fileId,
+          filename: file.name,
+          size: file.size,
+          state: result.data.state,
+        },
+      ]);
+    }
+  }
   return (
     <fieldset className="learner-picker">
       <legend>Tệp đính kèm</legend>
@@ -80,26 +107,7 @@ export function ChatFiles({
             onUploading(true);
             setError(undefined);
             try {
-              for (const file of chosen) {
-                const form = new FormData();
-                form.set("file", file);
-                const result = await request<{ fileId: string; state: string }>(
-                  "conversations/" + conversationId + "/attachments",
-                  { method: "POST", body: form },
-                );
-                if (!active.current) return;
-                if (!/^[0-9a-f-]{36}$/i.test(result.data.fileId))
-                  throw new Error("Chưa đọc được mã tệp đã tải.");
-                setFiles((old) => [
-                  ...old,
-                  {
-                    id: result.data.fileId,
-                    filename: file.name,
-                    size: file.size,
-                    state: result.data.state,
-                  },
-                ]);
-              }
+              await uploadChosen(chosen);
             } catch (cause) {
               if (active.current)
                 setError(
@@ -117,7 +125,11 @@ export function ChatFiles({
           }}
         />
       </label>
-      {uploading && <p role="status">Đang tải tệp lên…</p>}
+      {uploading && (
+        <p>
+          <output>Đang tải tệp lên…</output>
+        </p>
+      )}
       <Feedback error={error} />
       {files.map((file) => (
         <ChatFileRow
@@ -173,13 +185,8 @@ function ChatFileRow({
   return (
     <div>
       <p>
-        {file.filename} ·{" "}
-        {file.size >= 1_000_000
-          ? (file.size / 1_000_000).toFixed(2) + " MB"
-          : file.size > 0
-            ? file.size.toLocaleString("vi-VN") + " byte"
-            : "Chưa có dung lượng"}{" "}
-        · {labels[state] ?? "Chưa sẵn sàng"}
+        {file.filename} · {fileSizeText(file.size)} ·{" "}
+        {labels[state] ?? "Chưa sẵn sàng"}
       </p>
       <Feedback error={query.error} reload={query.reload} />
       <button

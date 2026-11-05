@@ -24,20 +24,18 @@ async function requestSession(
   refresh = false,
   all = false,
 ): Promise<SessionReply> {
+  const logoutSuffix = all ? "/all" : "";
+  const suffix = refresh ? "/refresh" : logoutSuffix;
   let response: Response;
   try {
-    response = await fetch(
-      `/api/auth/session${refresh ? "/refresh" : all ? "/all" : ""}`,
-      {
-        method,
-        credentials: "same-origin",
-        cache: "no-store",
-        redirect: "error",
-        headers:
-          body === undefined ? {} : { "Content-Type": "application/json" },
-        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-      },
-    );
+    response = await fetch(`/api/auth/session${suffix}`, {
+      method,
+      credentials: "same-origin",
+      cache: "no-store",
+      redirect: "error",
+      headers: body === undefined ? {} : { "Content-Type": "application/json" },
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+    });
   } catch {
     throw new LoginSessionError(
       0,

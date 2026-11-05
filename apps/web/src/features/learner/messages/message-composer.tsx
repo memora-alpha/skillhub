@@ -23,7 +23,7 @@ export function MessageComposer({
       return null;
     }
   });
-  const [editing] = useState(() => {
+  const [editing, setEditing] = useState(() => {
     try {
       return parseEditingDraft(sessionStorage.getItem(key + ":editing"));
     } catch {
@@ -62,6 +62,7 @@ export function MessageComposer({
   function clear() {
     intent.current = null;
     setSaved(null);
+    setEditing(null);
     setText("");
     setFiles([]);
     try {
@@ -69,6 +70,34 @@ export function MessageComposer({
       sessionStorage.removeItem(key + ":editing");
     } catch {
       /* Memory state remains authoritative for this screen. */
+    }
+  }
+  async function checkBeforeResend(draft: Draft) {
+    setChecking(true);
+    try {
+      const receipt = await request<{ deliveryStatus: string }>(
+        "conversations/" +
+          conversationId +
+          "/message-deliveries/" +
+          draft.clientMessageId,
+      );
+      if (receipt.data.deliveryStatus === "DELIVERED") {
+        clear();
+        setNotice("Tin nhắn đã được chuyển.");
+        refresh();
+        return false;
+      }
+      return true;
+    } catch (cause) {
+      if (cause instanceof UserApiError && cause.status === 404) return true;
+      setNotice(
+        cause instanceof Error
+          ? cause.message
+          : "Chưa kiểm tra được tin đang chờ.",
+      );
+      return false;
+    } finally {
+      setChecking(false);
     }
   }
   async function send() {
@@ -86,34 +115,7 @@ export function MessageComposer({
       );
       return;
     }
-    if (intent.current) {
-      setChecking(true);
-      try {
-        const receipt = await request<{ deliveryStatus: string }>(
-          "conversations/" +
-            conversationId +
-            "/message-deliveries/" +
-            intent.current.clientMessageId,
-        );
-        if (receipt.data.deliveryStatus === "DELIVERED") {
-          clear();
-          setNotice("Tin nhắn đã được chuyển.");
-          refresh();
-          return;
-        }
-      } catch (cause) {
-        if (!(cause instanceof UserApiError) || cause.status !== 404) {
-          setNotice(
-            cause instanceof Error
-              ? cause.message
-              : "Chưa kiểm tra được tin đang chờ.",
-          );
-          return;
-        }
-      } finally {
-        setChecking(false);
-      }
-    }
+    if (intent.current && !(await checkBeforeResend(intent.current))) return;
     const body = intent.current ?? {
       clientMessageId: crypto.randomUUID(),
       messageText,
@@ -150,6 +152,9 @@ export function MessageComposer({
         "Máy chủ đang hoàn tất việc gửi. Kiểm tra trạng thái trước khi gửi nội dung khác.",
       );
   }
+  let sendLabel = saved ? "Kiểm tra rồi gửi lại cùng yêu cầu" : "Gửi tin nhắn";
+  if (checking) sendLabel = "Đang kiểm tra tin đã gửi…";
+  if (command.pending) sendLabel = "Đang gửi…";
   return (
     <form
       className="learner-form"
@@ -190,13 +195,7 @@ export function MessageComposer({
             (!saved && files.some((file) => file.state !== "CLEAN"))
           }
         >
-          {command.pending
-            ? "Đang gửi…"
-            : checking
-              ? "Đang kiểm tra tin đã gửi…"
-              : saved
-                ? "Kiểm tra rồi gửi lại cùng yêu cầu"
-                : "Gửi tin nhắn"}
+          {sendLabel}
         </button>
         {saved && (
           <button
