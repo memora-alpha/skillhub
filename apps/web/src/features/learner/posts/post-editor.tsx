@@ -28,7 +28,6 @@ export function PostEditor({ id }: Readonly<{ id?: string }>) {
       <Back href={id ? "/learn/posts/" + id : "/learn/explore"} />
       <PageHeading
         title={id ? "Chỉnh sửa bài đăng" : "Bạn muốn học điều gì?"}
-        description="Chia sẻ mục tiêu rõ ràng để gặp người hướng dẫn phù hợp."
       />
       {id && (
         <button

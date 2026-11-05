@@ -14,9 +14,11 @@ export default async function Page({
       : undefined;
   return (
     <ConnectionsScreen
-      key={requestId ?? "all"}
+      key={(requestId ?? "all") + ":" + direction}
       requestId={requestId}
-      initialDirection={direction === "sent" ? "sent" : "received"}
+      initialDirection={
+        direction === "sent" || direction === "all" ? direction : "received"
+      }
     />
   );
 }

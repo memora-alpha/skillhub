@@ -6,6 +6,7 @@ import { findInPages } from "../api/find-page";
 import { Feedback } from "../components/common";
 import type { Skill } from "../types";
 import type { Tag } from "../tags/tag-policy";
+import styles from "./posts.module.css";
 export function PostSkillName({ id }: Readonly<{ id: string }>) {
   const skill = useUserResource<Skill>(id ? "skills/" + id : null);
   return (
@@ -53,18 +54,16 @@ export function PostSelectedTags({ ids }: Readonly<{ ids: string[] }>) {
   const tags = result.key === selection ? result.tags : [];
   return (
     <>
-      <p>
-        Tag có sẵn:{" "}
-        {ids.map((id, i) => (
-          <span key={id}>
-            {i ? ", " : ""}
+      <div className={styles.tags} aria-label="Chủ đề">
+        {ids.map((id) => (
+          <span key={id} className={styles.tag}>
             {tags.find((tag) => tag.id === id)?.label ??
               (result.key === selection && !result.error
-                ? "Tag không còn trong danh mục đang hoạt động"
+                ? "Tag không còn hoạt động"
                 : "Đang tải…")}
           </span>
         ))}
-      </p>
+      </div>
       <Feedback
         error={result.error}
         reload={() => setAttempt((value) => value + 1)}

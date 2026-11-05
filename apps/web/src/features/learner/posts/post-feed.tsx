@@ -4,13 +4,8 @@ import { useState } from "react";
 import { useUserList } from "../hooks/use-user-resource";
 import { useUserSession } from "../auth/session";
 import type { Post, Skill } from "../types";
-import {
-  Empty,
-  Feedback,
-  More,
-  PageHeading,
-  Status,
-} from "../components/common";
+import { Empty, Feedback, More, PageHeading } from "../components/common";
+import { PostCard } from "./post-card";
 export function PostFeed({
   initialKeyword = "",
   initialMine = false,
@@ -31,11 +26,7 @@ export function PostFeed({
   return (
     <>
       <PageHeading
-        eyebrow="CÙNG NHAU HỌC ĐIỀU MỚI"
         title={mine ? "Bài đăng của tôi" : "Khám phá nhu cầu học"}
-        description={
-          "Chào " + actor.profile.fullName + ", cùng tìm người phù hợp nhé."
-        }
         action={
           <div className="learner-tabs">
             <Link className="btn btn-primary" href="/learn/posts/new">
@@ -119,37 +110,23 @@ export function PostFeed({
           />
           <div className="learner-post-grid product-requests">
             {query.items.map((post) => (
-              <article className="learner-card learner-post-card" key={post.id}>
-                <div className="learner-card-top">
-                  <span className="learner-skill-tag">
-                    {post.skill?.name ?? "Yêu cầu học"}
-                  </span>
-                  <Status value={post.status} />
-                </div>
-                <h2>
-                  <Link href={"/learn/posts/" + post.id}>{post.title}</Link>
-                </h2>
-                <p className="learner-clamp">
-                  {post.description ?? post.learningGoal}
-                </p>
-                <div className="learner-post-meta">
-                  <span>
-                    {post.owner?.displayName ??
-                      (mine ? actor.profile.fullName : "Thành viên SkillHub")}
-                  </span>
-                  <strong>
-                    {post.desiredCreditPerHour
-                      ? post.desiredCreditPerHour + " CR/giờ mong muốn"
-                      : "Cùng thỏa thuận"}
-                  </strong>
-                </div>
-                <Link
-                  className="learner-card-link"
-                  href={"/learn/posts/" + post.id}
-                >
-                  {mine ? "Quản lý bài đăng" : "Tìm hiểu và kết nối"} →
-                </Link>
-              </article>
+              <PostCard
+                key={post.id}
+                post={post}
+                own={mine}
+                fullName={
+                  post.owner?.displayName ??
+                  (mine ? actor.profile.fullName : "Thành viên SkillHub")
+                }
+                avatarUrl={
+                  post.owner?.avatarUrl ??
+                  (mine ? actor.profile.avatarUrl : null)
+                }
+                skillName={
+                  post.skill?.name ??
+                  skills.items.find((skill) => skill.id === post.skillId)?.name
+                }
+              />
             ))}
           </div>
           {!query.loading && !query.error && !query.items.length && (

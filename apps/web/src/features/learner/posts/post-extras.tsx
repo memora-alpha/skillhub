@@ -85,10 +85,7 @@ export function PostExtras({
       />
       <fieldset className="learner-picker" disabled={disabled}>
         <legend>Kỹ năng bạn có thể dạy để trao đổi</legend>
-        <p>
-          Chỉ chọn kỹ năng của bạn đang công khai và chưa lưu trữ. Chọn ở đây
-          chưa tạo thỏa thuận hay giữ Credit.
-        </p>
+        <p>Chọn kỹ năng đang công khai của bạn.</p>
         <Feedback
           loading={skills.loading}
           error={skills.error}
@@ -160,7 +157,6 @@ export function PostExtras({
       </fieldset>
       <fieldset className="learner-picker" disabled={disabled}>
         <legend>Lịch rảnh mong muốn</legend>
-        <p>Đây là gợi ý để kết nối; chưa đặt lịch hay tạo buổi học.</p>
         <label>
           <span>Cách nhập lịch</span>
           <select
@@ -177,7 +173,7 @@ export function PostExtras({
         {value.mode === "weekly" && (
           <>
             <label>
-              <span>Múi giờ IANA</span>
+              <span>Múi giờ</span>
               <input
                 value={value.timeZone}
                 onChange={(e) => change({ timeZone: e.target.value })}
@@ -343,10 +339,7 @@ export function PostExtras({
           disabled={disabled}
           onChange={(e) => change({ expiresAt: e.target.value })}
         />
-        <small>
-          Để trống để dùng thời hạn mặc định của hệ thống. Bài hết hạn không
-          nhận lời đề nghị mới.
-        </small>
+        <small>Để trống để dùng thời hạn mặc định.</small>
       </label>
     </>
   );

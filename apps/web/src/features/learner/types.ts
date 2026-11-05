@@ -39,6 +39,7 @@ export type Post = {
     skill: Skill;
     level: string;
     verificationStatus: string;
+    skillLevel?: { name: string } | null;
   }[];
   teachingOverview?: string | null;
   preferredAvailability?: {
@@ -60,12 +61,16 @@ export type Post = {
   learningGoal: string;
   currentLevel: string | null;
   status: string;
+  effectiveStatus?: string;
+  moderationStatus?: string;
   version: number;
   desiredCreditPerHour: string | null;
   moderationRejectReason?: string | null;
   createdAt: string;
 };
 export type Proposal = {
+  learningRequestTitle?: string | null;
+  conversationId?: string;
   proposedDurationMinutes?: number | null;
   initialSessionCount?: number | null;
   id: string;

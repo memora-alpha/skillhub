@@ -59,9 +59,7 @@ export function ProposalHintsFields({
           disabled={disabled}
         />
         <small>
-          Hướng dẫn một chiều: tổng Credit người học trả. Trao đổi hai chiều:
-          Credit mỗi người tạm giữ, ít nhất 20 CR. Máy chủ kiểm tra giới hạn
-          hiện hành.
+          Một chiều: tổng Credit. Hai chiều: mỗi người, tối thiểu 20 CR.
         </small>
       </label>
       <label>
@@ -87,10 +85,7 @@ export function ProposalHintsFields({
           placeholder="Ví dụ: Tối thứ Ba và thứ Năm"
         />
       </label>
-      <p className="muted">
-        Các gợi ý chưa phải giá hay lịch đã cam kết. Hai bên xác nhận lại trong
-        thỏa thuận.
-      </p>
+      <p className="muted">Gợi ý sẽ được hai bên xác nhận lại.</p>
     </>
   );
 }

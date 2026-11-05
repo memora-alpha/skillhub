@@ -10,12 +10,15 @@ type IconName =
   | "clock"
   | "close"
   | "file"
+  | "filter"
   | "home"
   | "menu"
   | "notification"
   | "plus"
+  | "paperclip"
   | "refresh"
   | "search"
+  | "send"
   | "shield"
   | "user"
   | "users"
@@ -23,6 +26,16 @@ type IconName =
   | "wallet";
 
 const iconPaths: Record<IconName, ReactNode> = {
+  filter: <path d="M4 7h16M7 12h10M10 17h4" />,
+  paperclip: (
+    <path d="m8 12 6-6a3 3 0 0 1 4 4l-8 8a5 5 0 0 1-7-7l9-9M7 13l7-7" />
+  ),
+  send: (
+    <>
+      <path d="m22 2-7 20-4-9L2 9z" />
+      <path d="m22 2-11 11" />
+    </>
+  ),
   refresh: (
     <path d="M20 7v5h-5M4 17v-5h5M6.1 7a7 7 0 0 1 11.6-1.8L20 8M4 16l2.3 2.8A7 7 0 0 0 17.9 17" />
   ),

@@ -1,0 +1,41 @@
+.identity {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+}
+.avatar {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: 50%;
+  background: #fae8da;
+  color: #9b4f35;
+  font-size: 18px;
+  font-weight: 600;
+}
+.text {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.text strong {
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.text small {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.small .avatar {
+  width: 36px;
+  height: 36px;
+  font-size: 15px;
+}
