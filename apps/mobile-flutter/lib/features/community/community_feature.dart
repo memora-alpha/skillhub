@@ -10,38 +10,61 @@ import '../auth/session/auth_session.dart';
 import '../learning_paths/paths_data.dart';
 import '../remote/refresh_signal.dart';
 
-class SelectedBadgeNotifier extends Notifier<String> {
-  @override
-  String build() {
-    ref.watch(sessionSnapshotProvider.select((s) => s.generation));
-    return 'Người mới gia nhập';
-  }
+class AchievementsSnapshot {
+  const AchievementsSnapshot({
+    required this.selectedTitle,
+    required this.items,
+  });
 
-  void select(String value) => state = value;
+  final String? selectedTitle;
+  final List<({String title, String description, String code, String? unlockedAt})>
+      items;
 }
 
-final selectedBadgeProvider = NotifierProvider<SelectedBadgeNotifier, String>(
-  SelectedBadgeNotifier.new,
-);
-
-final achievementsProvider =
-    FutureProvider<List<({String title, String description, String code})>>((ref) async {
-      final phase = ref.watch(sessionSnapshotProvider).phase;
-      if (phase != SessionPhase.ready) return const [];
-      final data = await ref.read(authRuntimeProvider).services.study.achievements();
-      if (data is! Map) return const [];
-      final items = data['items'];
-      if (items is! List) return const [];
-      return [
-        for (final item in items)
+final achievementsProvider = FutureProvider<AchievementsSnapshot?>((ref) async {
+  watchRefresh(ref, RefreshScope.profile);
+  final phase = ref.watch(sessionSnapshotProvider).phase;
+  if (phase != SessionPhase.ready) return null;
+  try {
+    final data = await ref
+        .read(authRuntimeProvider)
+        .services
+        .study
+        .achievements();
+    if (data is! Map) return null;
+    final items = data['items'];
+    final selected = data['selectedTitle'];
+    final snapshot = AchievementsSnapshot(
+      selectedTitle: selected is String && selected.isNotEmpty ? selected : null,
+      items: [
+        for (final item in items is List ? items : const [])
           if (item is Map)
             (
               title: item['title']?.toString() ?? '',
               description: item['description']?.toString() ?? '',
               code: item['code']?.toString() ?? '',
+              unlockedAt: item['unlockedAt']?.toString(),
             ),
-      ];
-    });
+      ],
+    );
+    final account = ref.read(accountProvider).value;
+    if (account != null &&
+        account.profile.selectedTitle != snapshot.selectedTitle) {
+      ref
+          .read(accountProvider.notifier)
+          .replaceProfile(
+            account.profile.copyWith(
+              selectedTitle: snapshot.selectedTitle,
+              clearSelectedTitle: snapshot.selectedTitle == null,
+            ),
+          );
+    }
+    return snapshot;
+  } on AppError catch (error) {
+    if (error.kind == AppErrorKind.http && error.status == 403) return null;
+    rethrow;
+  }
+});
 
 class ReviewEditorScreen extends ConsumerWidget {
   const ReviewEditorScreen({super.key, required this.id});
@@ -193,76 +216,141 @@ class AchievementsScreen extends ConsumerStatefulWidget {
 }
 
 class _AchievementsScreenState extends ConsumerState<AchievementsScreen> {
+  Future<void> _selectTitle(String? code) async {
+    final result = await ref
+        .read(authRuntimeProvider)
+        .services
+        .study
+        .selectTitle(code);
+    final title = result['selectedTitle']?.toString();
+    final account = ref.read(accountProvider).value;
+    if (account != null) {
+      ref
+          .read(accountProvider.notifier)
+          .replaceProfile(
+            account.profile.copyWith(
+              selectedTitle: title,
+              clearSelectedTitle: title == null || title.isEmpty,
+            ),
+          );
+    }
+    ref.invalidate(achievementsProvider);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final badge = ref.watch(selectedBadgeProvider);
-    final notifier = ref.read(selectedBadgeProvider.notifier);
-    final unlocked = ref.watch(achievementsProvider).value ?? const [];
+    final query = ref.watch(achievementsProvider);
+    final data = query.value;
+    final selected = data?.selectedTitle ??
+        ref.watch(accountProvider).value?.profile.selectedTitle;
+    final unlocked = data?.items ?? const [];
     return FeaturePage(
+      onRefresh: () async {
+        ref.invalidate(achievementsProvider);
+        await ref.read(achievementsProvider.future);
+      },
       title: 'Thành tích & danh hiệu',
       back: '/profile',
       children: [
-        Panel(
-          title: 'Danh hiệu đang chọn',
-          accent: true,
-          children: [
-            Copy(badge.isEmpty ? 'Không hiển thị danh hiệu' : badge),
-            AsyncAppButton(
-              label: 'Ẩn danh hiệu',
-              busyLabel: 'Đang cập nhật...',
-              variant: ButtonVariant.paper,
-              onPressed: () async {
-                try {
-                  await ref
-                      .read(authRuntimeProvider)
-                      .services
-                      .study
-                      .selectTitle(null);
-                  notifier.select('');
-                } catch (error) {
-                  ref
-                      .read(toastProvider.notifier)
-                      .show(errorMessage(error), ToastTone.error);
-                }
-              },
-            ),
-          ],
-        ),
-        for (final item in unlocked)
+        if (query.isLoading && data == null)
+          const Copy('Đang tải thành tích.', muted: true),
+        if (query.hasError)
           Panel(
-            title: item.title,
+            title: 'Chưa thể cập nhật thành tích',
+            children: [Copy(errorMessage(query.error))],
+          ),
+        if (data == null && query.hasValue)
+          const Copy('Tài khoản hiện không có quyền xem thành tích.'),
+        if (data != null) ...[
+          Panel(
+            title: 'Danh hiệu đang chọn',
+            accent: true,
             children: [
-              const StatusBadge('Đã mở'),
-              Copy(item.description),
+              Copy(
+                selected == null || selected.isEmpty
+                    ? 'Không hiển thị danh hiệu'
+                    : selected,
+              ),
               AsyncAppButton(
-                label: 'Chọn danh hiệu này',
+                label: 'Ẩn danh hiệu',
                 busyLabel: 'Đang cập nhật...',
                 variant: ButtonVariant.paper,
+                disabled: selected == null || selected.isEmpty,
                 onPressed: () async {
                   try {
-                    await ref
-                        .read(authRuntimeProvider)
-                        .services
-                        .study
-                        .selectTitle(item.code.isEmpty ? null : item.code);
-                    notifier.select(item.title);
+                    await _selectTitle(null);
                   } catch (error) {
                     ref
                         .read(toastProvider.notifier)
-                        .show(errorMessage(error), ToastTone.error);
+                        .show(
+                          error is AppError && error.code == 'TITLE_NOT_UNLOCKED'
+                              ? 'Danh hiệu này chưa được mở khóa hoặc không còn khả dụng. Hãy làm mới thành tích.'
+                              : errorMessage(error),
+                          ToastTone.error,
+                        );
                   }
                 },
               ),
             ],
           ),
-        if (unlocked.isEmpty)
-          const EmptyState(
-            title: 'Chưa có thành tích',
-            description: 'Danh hiệu xuất hiện khi máy chủ ghi nhận mốc của bạn.',
-          ),
+          if (unlocked.isEmpty)
+            const EmptyState(
+              title: 'Chưa có thành tích được mở khóa',
+              description:
+                  'Thành tích sẽ xuất hiện khi bạn đạt các mốc của hệ thống.',
+            ),
+          for (final item in unlocked)
+            Panel(
+              title: item.title,
+              children: [
+                StatusBadge(
+                  selected == item.title
+                      ? 'Đang hiển thị trên hồ sơ'
+                      : 'Đã mở khóa',
+                ),
+                Copy(item.description),
+                if (item.unlockedAt != null && item.unlockedAt!.isNotEmpty)
+                  Copy(
+                    'Mở khóa ngày ${_formatUnlocked(item.unlockedAt!)}',
+                    muted: true,
+                  ),
+                AsyncAppButton(
+                  label: selected == item.title
+                      ? 'Đang chọn'
+                      : 'Chọn danh hiệu này',
+                  busyLabel: 'Đang cập nhật...',
+                  variant: ButtonVariant.paper,
+                  disabled: selected == item.title,
+                  onPressed: () async {
+                    try {
+                      await _selectTitle(
+                        item.code.isEmpty ? null : item.code,
+                      );
+                    } catch (error) {
+                      ref
+                          .read(toastProvider.notifier)
+                          .show(
+                            error is AppError &&
+                                    error.code == 'TITLE_NOT_UNLOCKED'
+                                ? 'Danh hiệu này chưa được mở khóa hoặc không còn khả dụng. Hãy làm mới thành tích.'
+                                : errorMessage(error),
+                            ToastTone.error,
+                          );
+                    }
+                  },
+                ),
+              ],
+            ),
+        ],
       ],
     );
   }
+}
+
+String _formatUnlocked(String value) {
+  final date = DateTime.tryParse(value)?.toLocal();
+  if (date == null) return value;
+  return '${date.day}/${date.month}/${date.year}';
 }
 
 class ReputationScreen extends ConsumerWidget {

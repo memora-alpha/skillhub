@@ -20,6 +20,7 @@ class OwnProfile {
     required this.reputationScore,
     required this.verifiedSkillCount,
     required this.completedSessionCount,
+    this.selectedTitle,
   });
 
   final String userId;
@@ -32,19 +33,39 @@ class OwnProfile {
   final num? reputationScore;
   final int verifiedSkillCount;
   final int completedSessionCount;
+  final String? selectedTitle;
 
-  OwnProfile withoutAvatar() => OwnProfile(
+  OwnProfile copyWith({
+    String? fullName,
+    String? headline,
+    String? bio,
+    String? timezone,
+    String? locale,
+    String? avatarUrl,
+    bool clearAvatar = false,
+    num? reputationScore,
+    int? verifiedSkillCount,
+    int? completedSessionCount,
+    String? selectedTitle,
+    bool clearSelectedTitle = false,
+  }) => OwnProfile(
     userId: userId,
-    fullName: fullName,
-    headline: headline,
-    bio: bio,
-    timezone: timezone,
-    locale: locale,
-    avatarUrl: null,
-    reputationScore: reputationScore,
-    verifiedSkillCount: verifiedSkillCount,
-    completedSessionCount: completedSessionCount,
+    fullName: fullName ?? this.fullName,
+    headline: headline ?? this.headline,
+    bio: bio ?? this.bio,
+    timezone: timezone ?? this.timezone,
+    locale: locale ?? this.locale,
+    avatarUrl: clearAvatar ? null : (avatarUrl ?? this.avatarUrl),
+    reputationScore: reputationScore ?? this.reputationScore,
+    verifiedSkillCount: verifiedSkillCount ?? this.verifiedSkillCount,
+    completedSessionCount:
+        completedSessionCount ?? this.completedSessionCount,
+    selectedTitle: clearSelectedTitle
+        ? null
+        : (selectedTitle ?? this.selectedTitle),
   );
+
+  OwnProfile withoutAvatar() => copyWith(clearAvatar: true);
 
   static bool _count(Object? value) => value is int && value >= 0;
 
@@ -52,6 +73,7 @@ class OwnProfile {
     if (value is! Map<String, dynamic>) throw const AppError.protocol();
     final timezone = value['timezone'];
     final avatarUrl = value['avatarUrl'];
+    final selectedTitle = value['selectedTitle'];
     final score = value['reputationScore'];
     if (value['userId'] is! String ||
         value['fullName'] is! String ||
@@ -59,6 +81,7 @@ class OwnProfile {
         value['bio'] is! String ||
         !(timezone == null || timezone is String) ||
         !(avatarUrl == null || avatarUrl is String) ||
+        !(selectedTitle == null || selectedTitle is String) ||
         !const {'vi', 'en'}.contains(value['locale']) ||
         !(score == null || (score is num && score.isFinite)) ||
         !_count(value['verifiedSkillCount']) ||
@@ -76,6 +99,7 @@ class OwnProfile {
       reputationScore: score as num?,
       verifiedSkillCount: value['verifiedSkillCount'] as int,
       completedSessionCount: value['completedSessionCount'] as int,
+      selectedTitle: selectedTitle as String?,
     );
   }
 }
