@@ -8,6 +8,8 @@ import {
   withConfirmedSchedules,
 } from "./fixtures/learning-agreement";
 import { fixtureId } from "./fixtures/learning-requests-data";
+import { terminationFixture } from "./fixtures/path-changes-data";
+import type { TerminationRequest } from "../src/features/learning-paths/api/path-changes-contract";
 
 type Element = { type: unknown; props: Record<string, unknown>; key?: string };
 function elements(tree: unknown): Element[] {
@@ -50,6 +52,12 @@ function harness(detail: boolean) {
     "../components/agreement-schedule-step.tsx",
   );
   const footerFilename = local.resolve("../components/agreement-footer.tsx");
+  const progressFilename = local.resolve(
+    "../components/agreement-progress.tsx",
+  );
+  const cancellationButtonFilename = local.resolve(
+    "../components/path-cancellation-button.tsx",
+  );
   const path = agreementPath(true);
   const params: Record<string, string> = {
     id: path.id,
@@ -63,8 +71,12 @@ function harness(detail: boolean) {
     isFetching: false,
     refetch: () => {},
   };
+  const terminationQuery = { data: [] as TerminationRequest[], denied: false };
   const routes: unknown[] = [],
     calls: unknown[] = [];
+  let renderingPath = false;
+  let changedStep = false;
+  let selectedStep: unknown;
   const navigation: { method: string; href: unknown }[] = [];
   const command = {
     pending: false,
@@ -87,7 +99,16 @@ function harness(detail: boolean) {
   const mocks: Record<string, Record<string, unknown>> = {
     "react/jsx-runtime": { jsx, jsxs: jsx, Fragment: "Fragment" },
     react: {
-      useState: (initial: unknown) => [initial, () => {}],
+      useState: (initial: unknown) =>
+        renderingPath
+          ? [
+              changedStep ? selectedStep : initial,
+              (value: unknown) => {
+                changedStep = true;
+                selectedStep = value;
+              },
+            ]
+          : [initial, () => {}],
       useRef: (current: unknown) => ({ current }),
       useCallback: (value: unknown) => value,
     },
@@ -156,12 +177,20 @@ function harness(detail: boolean) {
       ConfirmedFormFeedback: "FormFeedback",
     },
     "../components/PathReadFeedback": { PathReadFeedback: "ReadFeedback" },
-    "../components/agreement-progress": {
-      AgreementChatLink: "ChatLink",
-      AgreementProgressPanel: "Progress",
+    "../hooks/use-path-changes": {
+      useTerminationRequests: () => terminationQuery,
+    },
+    "../components/path-settlement-panel": {
+      PathSettlementPanel: "SettlementPanel",
+    },
+    "../components/completed-agreement-review": {
+      CompletedAgreementReview: "CompletedReview",
     },
     "../components/ApiAgreementForm": { ApiAgreementForm: "AgreementForm" },
-    "../components/agreement-steps": { AgreementSteps: "Steps" },
+    "../components/agreement-steps": {
+      AgreementSteps: "Steps",
+      agreementSteps: ["method", "plans", "schedules", "completion"],
+    },
     "../components/plan-editor-fields": {
       PlanEditorFrame: "PlanFrame",
       PlanSkillPicker: "SkillPicker",
@@ -213,6 +242,8 @@ function harness(detail: boolean) {
   delete local.cache[plansStepFilename];
   delete local.cache[scheduleStepFilename];
   delete local.cache[footerFilename];
+  delete local.cache[progressFilename];
+  delete local.cache[cancellationButtonFilename];
   const screen = local(filename) as {
     ApiPlanDetailScreen: () => Element;
     ApiPlanEditorScreen: () => Element;
@@ -224,17 +255,27 @@ function harness(detail: boolean) {
     if (Array.isArray(tree)) return tree.map(expand);
     if (!tree || typeof tree !== "object" || !("props" in tree)) return tree;
     const element = tree as Element;
-    return typeof element.type === "function"
-      ? expand((element.type as (props: unknown) => unknown)(element.props))
-      : {
-          ...element,
-          props: { ...element.props, children: expand(element.props.children) },
-        };
+    if (typeof element.type === "function") {
+      const previous = renderingPath;
+      renderingPath = element.type.name === "PathContent";
+      let result: unknown;
+      try {
+        result = element.type(element.props);
+      } finally {
+        renderingPath = previous;
+      }
+      return expand(result);
+    }
+    return {
+      ...element,
+      props: { ...element.props, children: expand(element.props.children) },
+    };
   }
   return {
     path,
     params,
     query,
+    terminationQuery,
     routes,
     navigation,
     calls,
@@ -250,6 +291,8 @@ function harness(detail: boolean) {
       delete local.cache[plansStepFilename];
       delete local.cache[scheduleStepFilename];
       delete local.cache[footerFilename];
+      delete local.cache[progressFilename];
+      delete local.cache[cancellationButtonFilename];
       for (const context of contexts.reverse()) context.restore();
     },
   };
@@ -346,25 +389,238 @@ test("agreement overview separates both directions and returns through history",
   }
 });
 
-test("agreement opens wallet history only after backend confirms settlement", () => {
+test("a settled agreement shows a compact summary and review shortcut instead of negotiation and cancellation", () => {
   const h = harness(false);
   try {
     h.path.lockedVersion = h.path.currentVersion;
-    const walletButton = () =>
+    const summary = () =>
       elements(h.expand(h.render())).find(
-        (element) =>
-          element.type === "Button" &&
-          element.props.children === "Xem sổ giao dịch ví",
+        (element) => element.type === "SettlementPanel",
       );
     for (const status of ["ACTIVE", "DISPUTED", "COMPLETED"] as const) {
       h.path.status = status;
-      assert.equal(walletButton(), undefined);
+      assert.equal(summary(), undefined);
     }
     h.path.settledAt = "2026-11-04T00:00:00Z";
-    const button = walletButton();
+    assert.ok(summary());
+    const tree = h.expand(h.render());
+    assert.equal(
+      elements(tree).some((element) => element.type === "CompletedReview"),
+      false,
+    );
+    const steps = elements(tree).find((element) => element.type === "Steps")!;
+    assert.equal(steps.props.current, "completion");
+    assert.equal(steps.props.value, "completion");
+    assert.equal(steps.props.completed, true);
+    for (const step of ["method", "plans", "schedules"]) {
+      (steps.props.onSelect as (value: string) => void)(step);
+      const reviewed = elements(h.expand(h.render()));
+      assert.ok(
+        reviewed.some(
+          (element) =>
+            element.type === "CompletedReview" && element.props.step === step,
+        ),
+      );
+      assert.equal(
+        reviewed.some((element) => element.type === "SettlementPanel"),
+        false,
+      );
+    }
+    (steps.props.onSelect as (value: string) => void)("completion");
+    assert.ok(summary());
+    assert.equal(h.calls.length, 0);
+    assert.equal(
+      elements(tree).some((element) => element.type === "Steps"),
+      true,
+    );
+    assert.equal(
+      elements(tree).some(
+        (element) =>
+          element.type === "Button" &&
+          element.props.children === "Hủy lộ trình",
+      ),
+      false,
+    );
+    const button = elements(tree).find(
+      (element) =>
+        element.type === "Button" &&
+        element.props.children === "Xem / viết đánh giá",
+    );
     assert.ok(button);
     (button.props.onPress as () => void)();
-    assert.deepEqual(h.routes, ["/wallet/history"]);
+    assert.deepEqual(h.routes, [`/paths/${h.path.id}/review`]);
+  } finally {
+    h.cleanup();
+  }
+});
+
+test("locked schedules offer exactly one session-list shortcut, including during read errors and when reviewing other steps", () => {
+  const h = harness(false);
+  try {
+    h.path.status = "ACTIVE";
+    h.path.lockedVersion = h.path.currentVersion;
+    h.path.plans.forEach((plan, index) => {
+      plan.sessions = [
+        {
+          id: fixtureId(80 + index),
+          sessionNo: 1,
+          startAt: "2030-01-02T10:00:00Z",
+          endAt: "2030-01-02T11:00:00Z",
+          status: "CONFIRMED",
+        },
+      ];
+    });
+    const render = () => h.expand(h.render());
+    const shortcuts = () =>
+      elements(render()).filter(
+        (element) =>
+          (element.type === "Button" &&
+            element.props.children === "Xem tất cả buổi học") ||
+          (element.type === "RouteButton" &&
+            element.props.href === `/paths/${h.path.id}/sessions`),
+      );
+    assert.equal(shortcuts().length, 1);
+    assert.equal(shortcuts()[0]!.props.href, `/paths/${h.path.id}/sessions`);
+    h.query.error = new Error("read failed");
+    assert.equal(shortcuts().length, 1);
+    h.query.error = undefined;
+    const steps = elements(render()).find(
+      (element) => element.type === "Steps",
+    )!;
+    (steps.props.onSelect as (value: string) => void)("method");
+    assert.equal(shortcuts().length, 1);
+    (shortcuts()[0]!.props.onPress as () => void)();
+    assert.deepEqual(h.routes, [`/paths/${h.path.id}/sessions`]);
+    assert.equal(h.calls.length, 0);
+  } finally {
+    h.cleanup();
+  }
+});
+
+test("the cancellation shortcut reflects active server requests and still opens their details", () => {
+  const h = harness(false);
+  try {
+    h.path.lockedVersion = h.path.currentVersion;
+    const row = terminationFixture({
+      pathId: h.path.id,
+      requesterId: learnerId,
+    });
+    h.terminationQuery.data = [row];
+    const buttons = () =>
+      elements(h.expand(h.render())).filter((node) => node.type === "Button");
+    for (const status of ["PENDING", "ACCEPTED", "STAFF_REVIEW"] as const) {
+      row.status = status;
+      const sent = buttons().find(
+        (node) => text(node) === "Đã gửi yêu cầu hủy",
+      );
+      assert.ok(sent);
+      assert.equal(sent.props.variant, "paper");
+    }
+    (
+      buttons().find((node) => text(node) === "Đã gửi yêu cầu hủy")!.props
+        .onPress as () => void
+    )();
+    assert.deepEqual(h.routes, [`/paths/${h.path.id}/cancel`]);
+    assert.equal(h.calls.length, 0);
+    row.requesterId = h.path.participantAId;
+    assert.ok(buttons().some((node) => text(node) === "Xem yêu cầu hủy"));
+    row.status = "WITHDRAWN";
+    assert.ok(buttons().some((node) => text(node) === "Hủy lộ trình"));
+    row.status = "PENDING";
+    row.requesterId = learnerId;
+    h.terminationQuery.denied = true;
+    assert.equal(
+      buttons().some((node) => text(node) === "Đã gửi yêu cầu hủy"),
+      false,
+    );
+    h.path.status = "CANCELLED";
+    assert.ok(buttons().some((node) => text(node) === "Chi tiết hủy lộ trình"));
+  } finally {
+    h.cleanup();
+  }
+});
+
+test("ongoing agreements use Hủy lộ trình and omit the settlement card", () => {
+  const h = harness(false);
+  try {
+    h.path.lockedVersion = h.path.currentVersion;
+    const tree = h.expand(h.render());
+    assert.equal(
+      elements(tree).some(
+        (element) =>
+          element.type === "SettlementPanel" &&
+          element.props.pathId === h.path.id,
+      ),
+      false,
+    );
+    const steps = elements(tree).find((element) => element.type === "Steps")!;
+    (steps.props.onSelect as (value: string) => void)("completion");
+    assert.equal(steps.props.scheduleLocked, true);
+    assert.equal(
+      elements(h.expand(h.render())).some(
+        (element) => element.type === "SettlementPanel",
+      ),
+      false,
+    );
+    const button = elements(tree).find(
+      (element) =>
+        element.type === "Button" && element.props.children === "Hủy lộ trình",
+    );
+    assert.ok(button);
+    assert.equal(button.props.variant, "danger");
+    (button.props.onPress as () => void)();
+    assert.deepEqual(h.routes, [`/paths/${h.path.id}/cancel`]);
+    assert.equal(h.calls.length, 0);
+    h.path.lockedVersion = null;
+    assert.equal(
+      elements(h.expand(h.render())).some(
+        (element) => element.type === "SettlementPanel",
+      ),
+      false,
+    );
+  } finally {
+    h.cleanup();
+  }
+});
+
+test("completed Sessions in both directions reveal the completion summary before financial settlement", () => {
+  const h = harness(false);
+  try {
+    h.path.status = "ACTIVE";
+    h.path.lockedVersion = h.path.currentVersion;
+    h.path.plans.forEach((plan, index) => {
+      plan.sessions = [
+        {
+          id: fixtureId(80 + index),
+          sessionNo: 1,
+          startAt: "2030-01-02T10:00:00Z",
+          endAt: "2030-01-02T11:00:00Z",
+          status: "COMPLETED",
+        },
+      ];
+    });
+    const tree = h.expand(h.render());
+    assert.ok(
+      elements(tree).some((element) => element.type === "SettlementPanel"),
+    );
+    const steps = elements(tree).find((element) => element.type === "Steps")!;
+    assert.equal(steps.props.current, "completion");
+    assert.equal(steps.props.completed, false);
+    assert.equal(
+      elements(tree).some(
+        (element) =>
+          element.type === "Button" &&
+          element.props.children === "Xem / viết đánh giá",
+      ),
+      false,
+    );
+    h.path.plans[1]!.sessions[0]!.status = "AWAITING_CONFIRMATION";
+    assert.equal(
+      elements(h.expand(h.render())).some(
+        (element) => element.type === "SettlementPanel",
+      ),
+      false,
+    );
   } finally {
     h.cleanup();
   }
@@ -459,7 +715,7 @@ test("ONE_WAY learner sees only the teaching direction and opens its exact plan 
   }
 });
 
-test("a locked agreement opens its complete Session list without dispatching a command", () => {
+test("a locked agreement links to its complete Session list without dispatching a command", () => {
   const h = harness(false);
   try {
     h.path.status = "SCHEDULED";
@@ -476,12 +732,12 @@ test("a locked agreement opens its complete Session list without dispatching a c
     const tree = h.expand(h.render());
     const button = elements(tree).find(
       (element) =>
-        element.type === "Button" &&
-        element.props.children === "Xem tất cả buổi học",
+        element.type === "RouteButton" &&
+        element.props.children === "Xem các buổi học",
     )!;
     assert.ok(button);
-    (button.props.onPress as () => void)();
-    assert.deepEqual(h.routes, [`/paths/${h.path.id}/sessions`]);
+    assert.equal(button.props.href, `/paths/${h.path.id}/sessions`);
+    assert.equal(h.routes.length, 0);
     assert.equal(h.calls.length, 0);
   } finally {
     h.cleanup();

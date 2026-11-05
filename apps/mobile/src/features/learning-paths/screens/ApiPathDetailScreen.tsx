@@ -18,6 +18,7 @@ import { AgreementScheduleStep } from "../components/agreement-schedule-step";
 import { AgreementMethodStep } from "../components/agreement-method-step";
 import {
   AgreementSteps,
+  agreementSteps,
   type AgreementStep,
 } from "../components/agreement-steps";
 import {
@@ -29,6 +30,7 @@ import {
   agreementConfirmed,
   editablePath,
   canEditPlan,
+  pathSessionsCompleted,
 } from "../utils/policy-api";
 import type {
   ApiLearningPath,
@@ -46,6 +48,9 @@ import { AgreementContext } from "../components/agreement-context";
 import { AgreementPlansStep } from "../components/agreement-plans-step";
 import { PlanDetailContent } from "../components/plan-detail-content";
 import { usePullRefresh } from "../hooks/use-pull-refresh";
+import { PathSettlementPanel } from "../components/path-settlement-panel";
+import { CompletedAgreementReview } from "../components/completed-agreement-review";
+import { PathCancellationButton } from "../components/path-cancellation-button";
 
 function agreementBackTarget(
   source: ReturnType<typeof uuid.safeParse>,
@@ -132,13 +137,16 @@ function PathContent({
   const runtime = useConnections();
   const { editTerms } = useLocalSearchParams<{ editTerms?: string }>();
   const progress = agreementProgress(path, runtime.userId);
-  const current = agreementStepFor(progress.stage);
+  const settled = path.status === "COMPLETED" && path.settledAt !== null;
+  const completed =
+    path.status !== "CANCELLED" && (settled || pathSessionsCompleted(path));
+  const current = completed ? "completion" : agreementStepFor(progress.stage);
   const [reviewing, setReviewing] = useState<AgreementStep | undefined>(
     editTerms === "1" ? "method" : undefined,
   );
-  const order: AgreementStep[] = ["method", "plans", "schedules"];
   const selected =
-    reviewing && order.indexOf(reviewing) <= order.indexOf(current)
+    reviewing &&
+    agreementSteps.indexOf(reviewing) <= agreementSteps.indexOf(current)
       ? reviewing
       : current;
   const otherId =
@@ -146,7 +154,11 @@ function PathContent({
       ? path.participantBId
       : path.participantAId;
   const name = useParticipantName(otherId);
-  const settled = path.status === "COMPLETED" && path.settledAt !== null;
+  const scheduleHasSessionLink =
+    selected === "schedules" &&
+    !completed &&
+    !blocked &&
+    progress.action?.href === `/paths/${path.id}/sessions`;
   return (
     <>
       <AgreementContext
@@ -154,22 +166,23 @@ function PathContent({
         pathId={path.id}
         partnerId={otherId}
       />
-      {settled && (
+      <AgreementSteps
+        value={selected}
+        current={current}
+        completed={settled}
+        scheduleLocked={path.lockedVersion !== null}
+        onSelect={setReviewing}
+      />
+      {completed && selected === "completion" && (
+        <PathSettlementPanel pathId={path.id} />
+      )}
+      {settled && selected === "completion" && (
         <Button onPress={() => router.push(`/paths/${path.id}/review`)}>
           Xem / viết đánh giá
         </Button>
       )}
-      <AgreementSteps
-        value={selected}
-        current={current}
-        onSelect={setReviewing}
-      />
-      {settled && (
-        <Button variant="paper" onPress={() => router.push("/wallet/history")}>
-          Xem sổ giao dịch ví
-        </Button>
-      )}
       {path.lockedVersion &&
+      !scheduleHasSessionLink &&
       path.plans.some((plan) => plan.sessions.length > 0) ? (
         <Button
           variant="paper"
@@ -178,7 +191,16 @@ function PathContent({
           Xem tất cả buổi học
         </Button>
       ) : null}
-      {selected === "method" && (
+      {completed && selected !== "completion" && (
+        <CompletedAgreementReview
+          key={JSON.stringify([runtime.userId, path.id])}
+          path={path}
+          userId={runtime.userId}
+          partnerName={name.data ?? "Đối tác"}
+          step={selected}
+        />
+      )}
+      {!completed && selected === "method" && (
         <AgreementMethodStep
           path={path}
           blocked={blocked}
@@ -187,7 +209,7 @@ function PathContent({
           onRefresh={onRefresh}
         />
       )}
-      {selected === "plans" && (
+      {!completed && selected === "plans" && (
         <AgreementPlansStep
           path={path}
           userId={runtime.userId}
@@ -198,13 +220,16 @@ function PathContent({
           onContinue={() => setReviewing("schedules")}
         />
       )}
-      {selected === "schedules" && (
+      {!completed && selected === "schedules" && (
         <AgreementScheduleStep
           path={path}
           userId={runtime.userId}
           blocked={blocked}
           onReviewPlans={() => setReviewing("plans")}
         />
+      )}
+      {path.lockedVersion !== null && !settled && (
+        <PathCancellationButton path={path} />
       )}
     </>
   );

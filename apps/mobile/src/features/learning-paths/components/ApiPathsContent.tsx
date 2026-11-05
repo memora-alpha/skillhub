@@ -6,7 +6,7 @@ import { useVisibleListRows } from "@/components/use-visible-list-rows";
 import { Button } from "@/components/Button";
 import { PathReadFeedback } from "./PathReadFeedback";
 import { EmptyState } from "@/components/EmptyState";
-import { Copy, RouteButton } from "@/components/feature-page";
+import { RouteButton } from "@/components/feature-page";
 import { Avatar } from "@/components/Avatar";
 import { Icon } from "@/components/Icon";
 import { useParticipantProfile } from "@/features/connections";
@@ -154,12 +154,11 @@ export function ApiPathsContent() {
           >
             {pathListFilters.map((item) => {
               const checked = item.value === filter;
-              const count = filterPathSummaries(paths, item.value).length;
               return (
                 <Pressable
                   key={item.value}
                   accessibilityRole="radio"
-                  accessibilityLabel={`${item.label} (${count})`}
+                  accessibilityLabel={item.label}
                   accessibilityState={{ checked }}
                   aria-checked={checked}
                   onPress={() => setFilter(item.value)}
@@ -173,24 +172,11 @@ export function ApiPathsContent() {
                   >
                     {item.label}
                   </Text>
-                  <Text
-                    style={[
-                      styles.filterCount,
-                      checked && styles.selectedFilterCount,
-                    ]}
-                  >
-                    {count}
-                  </Text>
                 </Pressable>
               );
             })}
           </View>
         </ScrollView>
-      )}
-      {hasMore && paths.length > 0 && (
-        <Copy muted size="hint">
-          Số lượng theo bộ lọc tính trên các lộ trình đã tải.
-        </Copy>
       )}
     </>
   );
@@ -350,21 +336,4 @@ const styles = StyleSheet.create({
     color: colors.body,
   },
   selectedFilterText: { color: signedInChrome.accent },
-  filterCount: {
-    minWidth: 18,
-    height: 18,
-    paddingHorizontal: 5,
-    overflow: "hidden",
-    borderRadius: appRadius.full,
-    textAlign: "center",
-    textAlignVertical: "center",
-    ...typography.caption,
-    fontFamily: fonts.semibold,
-    color: colors.muted,
-    backgroundColor: colors.surfaceLow,
-  },
-  selectedFilterCount: {
-    color: signedInChrome.accent,
-    backgroundColor: colors.surface,
-  },
 });
