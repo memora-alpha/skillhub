@@ -1236,6 +1236,7 @@ model LearningPath {
   learningPlanPathIdRecords        LearningPlan[]        @relation("LearningPlan_path_id")
 
   participantASettlementApprovedAt DateTime?               @map("participant_a_settlement_approved_at") @db.Timestamptz(3)
+  terminationApprovedAt            DateTime?               @map("termination_approved_at") @db.Timestamptz(3)
   participantBSettlementApprovedAt DateTime?               @map("participant_b_settlement_approved_at") @db.Timestamptz(3)
   changeRequests                   LearningChangeRequest[]
   settlementAttempt                PathSettlementAttempt?
@@ -2039,6 +2040,7 @@ model LearningChangeRequest {
   responderId       String?          @map("responder_id") @db.Uuid
   respondedAt       DateTime?        @map("responded_at") @db.Timestamptz(3)
   accepted          Boolean?
+  approvedAt        DateTime?        @map("approved_at") @db.Timestamptz(3)
   responseNote      String?          @map("response_note") @db.VarChar(1000)
   resolvedByUserId  String?          @map("resolved_by_user_id") @db.Uuid
   resolution        Json?
