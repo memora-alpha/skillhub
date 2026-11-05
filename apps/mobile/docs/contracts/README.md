@@ -11,6 +11,7 @@ Các file này sở hữu phần giao tiếp mobile cần dùng; backend sở h�
 | Wallet/Payment                 | [wallet-payments](wallet-payments.md)                         |
 | Proposal/Chat/Plan/Schedule    | [proposal-learning-agreement](proposal-learning-agreement.md) |
 | Session/completion/reschedule | [sessions](sessions.md)                                       |
+| Dừng lộ trình/quyết toán | [path-cancellation](path-cancellation.md) |
 
 ## Quy ước chung
 

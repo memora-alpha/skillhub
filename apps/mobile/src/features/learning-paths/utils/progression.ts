@@ -173,7 +173,7 @@ export function agreementProgress(
       title: "Đã hoàn tất các buổi học",
       description: "Đang chờ hệ thống quyết toán cuối lộ trình.",
       waiting: [
-        "Hệ thống tự quyết toán khi hết thời hạn khiếu nại và không còn tranh chấp đang chặn.",
+        "Có thể chờ hết thời hạn khiếu nại hoặc cả hai đồng ý quyết toán sớm bằng xác nhận riêng. Tranh chấp và yêu cầu dừng vẫn có thể chặn quyết toán.",
       ],
       action: { label: "Xem các buổi đã học", href: `${base}/sessions` },
     };
@@ -184,7 +184,7 @@ export function agreementProgress(
       description:
         "Hệ thống đã khóa lịch và tạo các buổi học. Xem lịch để chuẩn bị buổi tiếp theo.",
       waiting: [],
-      action: { label: "Xem các buổi học", href: `${base}/schedules` },
+      action: { label: "Xem các buổi học", href: `${base}/sessions` },
     };
   if (!editablePath(path))
     return closedProgress(

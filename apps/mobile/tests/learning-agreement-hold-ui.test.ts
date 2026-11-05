@@ -232,6 +232,32 @@ function holdHarness(viewerId = teacherId) {
 }
 const flush = () => new Promise<void>((resolve) => setImmediate(resolve));
 
+test("Hold keeps schedule review before locking and opens actual sessions after locking in either exchange type", () => {
+  for (const twoWay of [false, true]) {
+    const h = holdHarness();
+    try {
+      h.query.data = withConfirmedSchedules(agreementPath(twoWay));
+      const review = elements(h.render()).find(
+        (element) =>
+          element.type === "RouteButton" &&
+          text(element) === "Xem lại lịch từng buổi",
+      );
+      assert.equal(review?.props.href, `/paths/${h.query.data.id}/schedules`);
+      h.query.data.status = "SCHEDULED";
+      h.query.data.lockedVersion = h.query.data.currentVersion;
+      const sessions = elements(h.render()).find(
+        (element) =>
+          element.type === "RouteButton" &&
+          text(element) === "Xem các buổi học",
+      );
+      assert.equal(sessions?.props.href, `/paths/${h.query.data.id}/sessions`);
+      assert.equal(h.counts().finalizations, 0);
+    } finally {
+      h.cleanup();
+    }
+  }
+});
+
 test("a new Hold check replaces stale finalize feedback and its top-up action", async () => {
   const h = holdHarness(learnerId);
   try {
