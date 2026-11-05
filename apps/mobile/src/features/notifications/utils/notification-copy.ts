@@ -4,6 +4,7 @@ import type { InboxNotification } from "../api/notifications-api";
 // time so existing inbox entries also follow the app language. Never translate
 // user-authored reasons or replace unfamiliar content with a generic message.
 const titles: Record<string, string> = {
+  "Learning change updated": "Cập nhật yêu cầu hủy / dừng học",
   "Session attendance recorded": "Đã có kết quả điểm danh",
   "Absence explanation received": "Có giải trình vắng học",
   "Absence explanation decided": "Giải trình đã được phản hồi",
@@ -30,6 +31,8 @@ const titles: Record<string, string> = {
 };
 
 const bodies: Record<string, string> = {
+  "A cancellation or termination request changed. Open your learning path to review it.":
+    "Yêu cầu hủy buổi hoặc dừng lộ trình có thay đổi. Mở lộ trình để xem trạng thái và xử lý Credit.",
   "Attendance for your session has been determined. Check the session for next steps.":
     "Xem chi tiết buổi học để kiểm tra điểm danh và thao tác tiếp theo.",
   "Your partner explained their absence. Please accept or reject it.":

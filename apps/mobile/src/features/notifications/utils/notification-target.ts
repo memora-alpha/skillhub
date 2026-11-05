@@ -21,6 +21,16 @@ export function notificationTarget(item: InboxNotification): Href | undefined {
     return;
   const payload = item.payload as Record<string, unknown>;
   const valid = (field: string) => uuid.safeParse(payload[field]).success;
+  if (item.type === "learning-path.change.updated" && valid("pathId"))
+    return {
+      pathname: "/paths/[id]/cancel",
+      params: {
+        id: payload.pathId as string,
+        ...(valid("changeRequestId")
+          ? { changeRequestId: payload.changeRequestId as string }
+          : {}),
+      },
+    };
   if (
     [
       "session.attendance.determined",
