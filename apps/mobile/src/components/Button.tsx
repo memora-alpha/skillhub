@@ -11,7 +11,14 @@ import {
 import { appColors, appRadius, colors, fonts } from "@/constants/theme";
 
 type ButtonVariant =
-  "primary" | "secondary" | "ghost" | "white" | "craft" | "forest" | "paper";
+  | "primary"
+  | "secondary"
+  | "ghost"
+  | "white"
+  | "craft"
+  | "forest"
+  | "paper"
+  | "danger";
 type ButtonSize = "sm" | "md" | "lg" | "xl";
 type ButtonProps = Readonly<{
   children: ReactNode;
@@ -34,6 +41,7 @@ const foregrounds: Record<ButtonVariant, string> = {
   craft: colors.white,
   forest: colors.white,
   paper: appColors.inkSoft,
+  danger: appColors.error,
 };
 
 const labelSizes: Record<ButtonSize, { fontSize: number; lineHeight: number }> =
@@ -118,6 +126,7 @@ const styles = StyleSheet.create({
   white: { backgroundColor: colors.white },
   craft: { backgroundColor: appColors.primary },
   forest: { backgroundColor: appColors.forest },
+  danger: { backgroundColor: appColors.errorLight },
   paper: {
     backgroundColor: appColors.surfaceLow,
     borderWidth: 1,
