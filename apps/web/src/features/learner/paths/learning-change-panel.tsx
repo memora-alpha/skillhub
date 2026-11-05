@@ -122,7 +122,11 @@ export function LearningChangePanel({
               }}
             />
           </label>
-          <button className="btn" disabled={disabled || !query.data}>
+          <button
+            type="submit"
+            className="btn"
+            disabled={disabled || !query.data}
+          >
             Gửi yêu cầu cho đối tác
           </button>
         </form>

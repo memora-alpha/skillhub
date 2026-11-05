@@ -88,7 +88,9 @@ export function PathReviews({ path }: Readonly<{ path: LearningPath }>) {
       {own ||
       submitted ||
       command.failure?.code === "REVIEW_ALREADY_SUBMITTED" ? (
-        <p role="status">Bạn đã gửi đánh giá cho lộ trình này.</p>
+        <p>
+          <output>Bạn đã gửi đánh giá cho lộ trình này.</output>
+        </p>
       ) : (
         opened && (
           <form
@@ -130,6 +132,7 @@ export function PathReviews({ path }: Readonly<{ path: LearningPath }>) {
               tín do máy chủ cập nhật theo đánh giá.
             </p>
             <button
+              type="submit"
               className="btn btn-primary"
               disabled={
                 rating < 1 ||

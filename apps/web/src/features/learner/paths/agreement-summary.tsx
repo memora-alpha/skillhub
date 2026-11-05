@@ -18,14 +18,12 @@ export function AgreementSummary({
   counterpartId?: string;
 }>) {
   const { actor } = useUserSession();
-  const who = (id?: string | null) =>
-    id === actor.userId ? (
-      <strong>Bạn ({actor.profile.fullName})</strong>
-    ) : id ? (
-      <ProfileName id={id} />
-    ) : (
-      "Chưa xác định"
-    );
+  const who = (id?: string | null) => {
+    if (id === actor.userId)
+      return <strong>Bạn ({actor.profile.fullName})</strong>;
+    if (id) return <ProfileName id={id} />;
+    return "Chưa xác định";
+  };
   return (
     <section
       className="learner-notice"

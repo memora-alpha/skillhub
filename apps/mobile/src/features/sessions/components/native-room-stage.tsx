@@ -173,21 +173,12 @@ function NativeRoomTile({
           objectFit={screen ? "contain" : "cover"}
         />
       ) : (
-        <View
-          style={[
-            styles.placeholder,
-            {
-              minHeight: primary ? stageHeight : 92,
-              padding: primary ? 24 : 8,
-              paddingBottom: primary ? 48 : 32,
-            },
-          ]}
-        >
-          <Avatar name={name} sourceUri={avatar} size={primary ? 72 : 36} />
-          {primary && (
-            <Text style={styles.placeholderText}>Camera đang tắt</Text>
-          )}
-        </View>
+        <NativeRoomPlaceholder
+          primary={primary}
+          stageHeight={stageHeight}
+          name={name}
+          avatar={avatar}
+        />
       )}
       <View style={styles.tileLabel}>
         <Avatar name={name} sourceUri={avatar} size={20} />
@@ -205,6 +196,34 @@ function NativeRoomTile({
           size={16}
         />
       </View>
+    </View>
+  );
+}
+
+function NativeRoomPlaceholder({
+  primary,
+  stageHeight,
+  name,
+  avatar,
+}: Readonly<{
+  primary: boolean;
+  stageHeight: number;
+  name: string;
+  avatar?: string | null;
+}>) {
+  return (
+    <View
+      style={[
+        styles.placeholder,
+        {
+          minHeight: primary ? stageHeight : 92,
+          padding: primary ? 24 : 8,
+          paddingBottom: primary ? 48 : 32,
+        },
+      ]}
+    >
+      <Avatar name={name} sourceUri={avatar} size={primary ? 72 : 36} />
+      {primary && <Text style={styles.placeholderText}>Camera đang tắt</Text>}
     </View>
   );
 }

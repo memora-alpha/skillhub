@@ -24,18 +24,16 @@ export function ReportEvidence({
     },
   );
   const state = query.data?.fileId === id ? query.data.state : undefined;
+  let stateLabel = "Đang kiểm tra tệp";
+  if (state === "READY") stateLabel = "Sẵn sàng gửi";
+  else if (state === "REJECTED") stateLabel = "Tệp bị từ chối, hãy bỏ tệp này";
   useEffect(() => {
     if (state) onState(id, state);
   }, [id, state, onState]);
   return (
     <div>
       <p>
-        Bằng chứng {id.slice(0, 8)} ·{" "}
-        {state === "READY"
-          ? "Sẵn sàng gửi"
-          : state === "REJECTED"
-            ? "Tệp bị từ chối, hãy bỏ tệp này"
-            : "Đang kiểm tra tệp"}
+        Bằng chứng {id.slice(0, 8)} · {stateLabel}
       </p>
       <Feedback error={query.error} reload={query.reload} />
       <button

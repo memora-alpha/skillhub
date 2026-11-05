@@ -30,8 +30,7 @@ export function FinalizePanel({
       const value = JSON.parse(
         sessionStorage.getItem(storageKey) ?? "null",
       ) as FinalizeIntent | null;
-      return value &&
-        value.pathId === path.id &&
+      return value?.pathId === path.id &&
         value.snapshot?.id === path.id &&
         typeof value.signature === "string" &&
         /^[0-9a-f-]{36}$/i.test(value.key) &&
@@ -64,6 +63,9 @@ export function FinalizePanel({
     }
   };
   const show = result ?? path;
+  let submitLabel = "Chốt lịch và giữ Credit theo thỏa thuận";
+  if (command.pending) submitLabel = "Đang kiểm tra và chốt…";
+  else if (saved) submitLabel = "Đọc lại rồi thử cùng yêu cầu chốt";
   return (
     <Panel title="Kiểm tra cuối, khóa lịch và giữ Credit">
       {saved && (
@@ -87,9 +89,11 @@ export function FinalizePanel({
       )}
       {show.lockedVersion !== null ? (
         <>
-          <p role="status">
-            Máy chủ đã xác nhận thỏa thuận đã khóa. Xem các buổi chính thức bên
-            dưới.
+          <p>
+            <output>
+              Máy chủ đã xác nhận thỏa thuận đã khóa. Xem các buổi chính thức
+              bên dưới.
+            </output>
           </p>
           {show.plans
             .flatMap((plan) => plan.sessions)
@@ -164,11 +168,7 @@ export function FinalizePanel({
                 });
             }}
           >
-            {command.pending
-              ? "Đang kiểm tra và chốt…"
-              : saved
-                ? "Đọc lại rồi thử cùng yêu cầu chốt"
-                : "Chốt lịch và giữ Credit theo thỏa thuận"}
+            {submitLabel}
           </button>
         </>
       )}
@@ -239,8 +239,8 @@ export function FinalizePanel({
       <CommandFeedback command={command} />
       <Feedback error={checkError} />
       {notice && (
-        <p role="status" className="learner-notice">
-          {notice}
+        <p className="learner-notice">
+          <output>{notice}</output>
         </p>
       )}
     </Panel>

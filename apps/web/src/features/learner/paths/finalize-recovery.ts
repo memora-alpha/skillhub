@@ -53,8 +53,7 @@ export function reviewedFinalizeIntent(
 export async function readFinalizePath(request: Request, pathId: string) {
   const value = (await request<LearningPath>("learning-paths/" + pathId)).data;
   if (
-    !value ||
-    value.id !== pathId ||
+    value?.id !== pathId ||
     !Number.isSafeInteger(value.currentVersion) ||
     !(
       value.lockedVersion === null ||

@@ -23,8 +23,7 @@ export function readSettlementStatus(
 ): SettlementStatus {
   const v = value as SettlementStatus | null;
   if (
-    !v ||
-    v.pathId !== pathId ||
+    v?.pathId !== pathId ||
     typeof v.status !== "string" ||
     typeof v.retryable !== "boolean" ||
     !v.immediateSettlement ||
@@ -43,8 +42,7 @@ export function readConsentReceipt(value: unknown, pathId: string) {
     settlement: { outcome: string };
   } | null;
   if (
-    !v ||
-    v.pathId !== pathId ||
+    v?.pathId !== pathId ||
     typeof v.approvedAt !== "string" ||
     !Number.isFinite(Date.parse(v.approvedAt)) ||
     typeof v.bothApproved !== "boolean" ||

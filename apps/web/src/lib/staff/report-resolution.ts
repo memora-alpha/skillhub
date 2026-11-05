@@ -21,28 +21,16 @@ export type ResolutionDraft = {
   days: string;
   reversals: string;
 };
-export function reportResolutionBody(
+type ViolationOutcome = {
+  userId: string;
+  reasonCode: ViolationCode | "";
+  delta?: number;
+};
+
+function sessionRulingBody(
   draft: ResolutionDraft,
-  admin: boolean,
+  violations: ViolationOutcome[],
 ): Record<string, unknown> {
-  const violations = draft.participants
-    .filter((p) => p.violation)
-    .map((p) => {
-      if (p.violation === "FRAUD") {
-        const delta = Number(p.delta);
-        if (
-          !p.delta.trim() ||
-          !Number.isInteger(delta) ||
-          delta < -30 ||
-          delta > -20
-        )
-          throw new Error(
-            "Mức trừ điểm gian lận phải là số nguyên từ -30 đến -20.",
-          );
-        return { userId: p.userId, reasonCode: p.violation, delta };
-      }
-      return { userId: p.userId, reasonCode: p.violation };
-    });
   const body: Record<string, unknown> = {};
   if (draft.cancellationMakeupRuling) {
     if (
@@ -71,6 +59,32 @@ export function reportResolutionBody(
       );
     body.noShowRuling = draft.noShowRuling;
   }
+  return body;
+}
+
+export function reportResolutionBody(
+  draft: ResolutionDraft,
+  admin: boolean,
+): Record<string, unknown> {
+  const violations = draft.participants
+    .filter((p) => p.violation)
+    .map((p) => {
+      if (p.violation === "FRAUD") {
+        const delta = Number(p.delta);
+        if (
+          !p.delta.trim() ||
+          !Number.isInteger(delta) ||
+          delta < -30 ||
+          delta > -20
+        )
+          throw new Error(
+            "Mức trừ điểm gian lận phải là số nguyên từ -30 đến -20.",
+          );
+        return { userId: p.userId, reasonCode: p.violation, delta };
+      }
+      return { userId: p.userId, reasonCode: p.violation };
+    });
+  const body = sessionRulingBody(draft, violations);
   if (violations.length) body.violations = violations;
   if (!admin) return body;
   const adjustments = draft.participants

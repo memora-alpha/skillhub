@@ -8,6 +8,7 @@ import {
   readTerminationReview,
   terminationDecision,
   type AllocationDecision,
+  type Allocation,
   type TerminationChange,
   type TerminationDecision,
   type TerminationReview,
@@ -103,6 +104,7 @@ function TerminationQueue() {
         desc="Xem yêu cầu, Held và chính sách trước khi quyết định. Không tự chia Credit theo số buổi."
         actions={
           <button
+            type="button"
             className="btn"
             disabled={loading}
             onClick={() => startLoad()}
@@ -128,7 +130,11 @@ function TerminationQueue() {
                 {row.blockedByDispute ? " · Có tranh chấp" : ""}
                 {row.awaitingPolicy ? " · Chờ chính sách" : ""}
               </p>
-              <button className="btn" onClick={() => setSelected(row)}>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => setSelected(row)}
+              >
                 Xem phương án & xử lý
               </button>
             </section>
@@ -137,6 +143,7 @@ function TerminationQueue() {
       </QueueState>
       {cursor && (
         <button
+          type="button"
           className="btn"
           disabled={loading}
           onClick={() => startLoad(cursor)}
@@ -160,10 +167,10 @@ function TerminationQueue() {
 function TerminationDetail({
   row,
   close,
-}: {
+}: Readonly<{
   row: TerminationChange;
   close: () => void;
-}) {
+}>) {
   const { api, actor, portal } = useStaffSession();
   const [review, setReview] = useState<TerminationReview>(),
     [amounts, setAmounts] = useState<AllocationDecision[]>([]),
@@ -298,6 +305,13 @@ function TerminationDetail({
     !review.awaitingPolicy &&
     !!review.execution.policyReference &&
     ["ACCEPTED", "STAFF_REVIEW"].includes(review.status);
+  function changeAmount(index: number, field: AllocationField, value: string) {
+    setAmounts((items) =>
+      items.map((item, itemIndex) =>
+        itemIndex === index ? { ...item, [field]: value } : item,
+      ),
+    );
+  }
   return (
     <section
       className="card staff-termination-detail"
@@ -307,13 +321,21 @@ function TerminationDetail({
     >
       <h2>Xem xét yêu cầu {row.id.slice(0, 8)}</h2>
       <p className="staff-wrap">Lộ trình {row.pathId}</p>
-      {busy && <p role="status">Đang kiểm tra máy chủ…</p>}
+      {busy && (
+        <p>
+          <output>Đang kiểm tra máy chủ…</output>
+        </p>
+      )}
       {error && (
         <p role="alert" className="staff-error">
           {error}
         </p>
       )}
-      {success && <p role="status">{success}</p>}
+      {success && (
+        <p>
+          <output>{success}</output>
+        </p>
+      )}
       {review && !success && (
         <>
           <p>{review.reason}</p>
@@ -342,41 +364,15 @@ function TerminationDetail({
             <fieldset disabled={busy || !!intent || unknown}>
               <legend>Phương án phân bổ Credit</legend>
               {review.execution.allocations.map((held, index) => (
-                <div className="staff-held" key={held.allocationId}>
-                  <p className="staff-wrap">
-                    Người giữ: {held.userId}
-                    <br />
-                    Khoản: {held.allocationId}
-                  </p>
-                  <strong>
-                    Held còn lại: {held.remainingHeld} CR · {held.status}
-                  </strong>
-                  {(
-                    ["refund", "counterpartyPayment", "platformFee"] as const
-                  ).map((field, i) => (
-                    <label key={field}>
-                      {["Hoàn người giữ", "Trả đối tác", "Phí nền tảng"][i]}
-                      <input
-                        inputMode="decimal"
-                        required
-                        pattern="(0|[1-9][0-9]{0,9})(\.[0-9]{1,2})?"
-                        value={amounts[index]?.[field] ?? ""}
-                        onChange={(e) =>
-                          setAmounts((items) =>
-                            items.map((a, n) =>
-                              n === index
-                                ? { ...a, [field]: e.target.value }
-                                : a,
-                            ),
-                          )
-                        }
-                      />
-                    </label>
-                  ))}
-                </div>
+                <HeldAllocationFields
+                  key={held.allocationId}
+                  held={held}
+                  value={amounts[index]}
+                  onChange={(field, value) => changeAmount(index, field, value)}
+                />
               ))}
               <label>
-                Lý do quyết định
+                <span>Lý do quyết định</span>
                 <textarea
                   required
                   minLength={3}
@@ -388,7 +384,11 @@ function TerminationDetail({
               </label>
             </fieldset>
             {canExecute && !intent && (
-              <button className="btn btn-primary" disabled={busy || unknown}>
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={busy || unknown}
+              >
                 Kiểm tra phương án
               </button>
             )}
@@ -401,6 +401,7 @@ function TerminationDetail({
           </form>
           {!intent && (
             <button
+              type="button"
               className="btn"
               disabled={
                 busy ||
@@ -431,6 +432,7 @@ function TerminationDetail({
                 quyền, chính sách, Held và tranh chấp.
               </p>
               <button
+                type="button"
                 className="btn btn-danger"
                 disabled={busy}
                 onClick={() => void execute()}
@@ -442,15 +444,18 @@ function TerminationDetail({
             </div>
           )}
           {unknown && (
-            <p role="status">
-              Chưa rõ kết quả. Kiểm tra trạng thái máy chủ; không tạo một phương
-              án khác khi chưa đối chiếu.
+            <p>
+              <output>
+                Chưa rõ kết quả. Kiểm tra trạng thái máy chủ; không tạo một
+                phương án khác khi chưa đối chiếu.
+              </output>
             </p>
           )}
         </>
       )}
       <div className="staff-dialog-actions">
         <button
+          type="button"
           className="btn"
           disabled={busy}
           onClick={() => {
@@ -461,10 +466,53 @@ function TerminationDetail({
         >
           Tải lại chi tiết
         </button>
-        <button className="btn" disabled={busy} onClick={close}>
+        <button type="button" className="btn" disabled={busy} onClick={close}>
           Đóng
         </button>
       </div>
     </section>
+  );
+}
+
+type AllocationField = "refund" | "counterpartyPayment" | "platformFee";
+function HeldAllocationFields({
+  held,
+  value,
+  onChange,
+}: Readonly<{
+  held: Allocation;
+  value: AllocationDecision | undefined;
+  onChange: (field: AllocationField, value: string) => void;
+}>) {
+  const labels: Record<AllocationField, string> = {
+    refund: "Hoàn người giữ",
+    counterpartyPayment: "Trả đối tác",
+    platformFee: "Phí nền tảng",
+  };
+  return (
+    <div className="staff-held">
+      <p className="staff-wrap">
+        Người giữ: {held.userId}
+        <br />
+        Khoản: {held.allocationId}
+      </p>
+      <strong>
+        Held còn lại: {held.remainingHeld} CR · {held.status}
+      </strong>
+      {(["refund", "counterpartyPayment", "platformFee"] as const).map(
+        (field) => (
+          <label key={field}>
+            <span>{labels[field]}</span>
+            <input
+              inputMode="decimal"
+              required
+              pattern="(0|[1-9][0-9]{0,9})(\.[0-9]{1,2})?"
+              value={value?.[field] ?? ""}
+              onChange={(event) => onChange(field, event.target.value)}
+            />
+          </label>
+        ),
+      )}
+    </div>
   );
 }

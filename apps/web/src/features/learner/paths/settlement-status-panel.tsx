@@ -93,9 +93,11 @@ export function SettlementStatusPanel({
       />
       {status && (
         <>
-          <p role="status">
-            {settlementStatusLabels[status.status] ??
-              "Kiểm tra trạng thái quyết toán"}
+          <p>
+            <output>
+              {settlementStatusLabels[status.status] ??
+                "Kiểm tra trạng thái quyết toán"}
+            </output>
           </p>
           {status.reasonCode && <p>{userErrorText(409, status.reasonCode)}</p>}
           {status.autoSettlementAt && !status.settledAt && (
@@ -185,7 +187,11 @@ export function SettlementStatusPanel({
           )}
         </>
       )}
-      {notice && <p role="status">{notice}</p>}
+      {notice && (
+        <p>
+          <output>{notice}</output>
+        </p>
+      )}
       <CommandFeedback command={consent} />
       <CommandFeedback command={retry} />
       {(consent.uncertain || retry.uncertain) && (

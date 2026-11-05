@@ -9,11 +9,14 @@ export function ConnectionScreen({
   reason,
   retrying = false,
   onRetry,
-}: {
+}: Readonly<{
   reason?: "offline" | "unreachable" | null;
   retrying?: boolean;
   onRetry?: () => void;
-}) {
+}>) {
+  let statusLabel = "Đang tải nội dung…";
+  if (reason === "offline") statusLabel = "Thiết bị đang ngoại tuyến";
+  else if (reason) statusLabel = "Chưa kết nối được với SkillHub";
   return (
     <SafeAreaView style={styles.screen}>
       <View style={styles.brand}>
@@ -31,11 +34,7 @@ export function ConnectionScreen({
             />
           )}
           <Text style={styles.label} accessibilityRole="header">
-            {!reason
-              ? "Đang tải nội dung…"
-              : reason === "offline"
-                ? "Thiết bị đang ngoại tuyến"
-                : "Chưa kết nối được với SkillHub"}
+            {statusLabel}
           </Text>
           {reason && (
             <Text style={styles.detail}>
