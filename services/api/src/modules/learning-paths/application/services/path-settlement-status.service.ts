@@ -27,6 +27,15 @@ export class PathSettlementStatusService {
       const attempt = await tx.pathSettlementAttempt.findUnique({
         where: { pathId },
       });
+      let autoSettlementAt: Date | null = null;
+      let canApprove = false;
+      const isA = actor.userId === path.participantAId;
+      const ownApprovedAt = isA
+        ? path.participantASettlementApprovedAt
+        : path.participantBSettlementApprovedAt;
+      const partnerApprovedAt = isA
+        ? path.participantBSettlementApprovedAt
+        : path.participantASettlementApprovedAt;
       const response = (
         status: string,
         reasonCode: string | null,
@@ -40,6 +49,9 @@ export class PathSettlementStatusService {
         lastCheckedAt: attempt?.checkedAt ?? null,
         attemptCount: attempt?.attemptCount ?? 0,
         retryable: status === "RETRYING" || status === "READY",
+        pathVersion: path.lockedVersion,
+        autoSettlementAt,
+        immediateSettlement: { ownApprovedAt, partnerApprovedAt, canApprove },
       });
       if (path.settledAt)
         return response("SETTLED", null, "VIEW_WALLET_HISTORY");
@@ -74,6 +86,8 @@ export class PathSettlementStatusService {
           "LEARNING_PATH_NOT_SETTLEABLE",
           "CONTACT_SUPPORT",
         );
+      autoSettlementAt = await this.reports.pathSettlementDeadline(tx, pathId);
+      canApprove = !ownApprovedAt;
       try {
         await this.reports.assertPathSettlementAllowed(tx, pathId, now);
       } catch (error) {
@@ -81,7 +95,13 @@ export class PathSettlementStatusService {
           error instanceof ConflictException &&
           error.message === "DISPUTE_WINDOW_OPEN"
         )
-          return response("WAITING_DISPUTE_WINDOW", error.message, "WAIT");
+          return response(
+            "WAITING_DISPUTE_WINDOW",
+            error.message,
+            ownApprovedAt
+              ? "WAIT_FOR_PARTNER_OR_DEADLINE"
+              : "APPROVE_IMMEDIATE_SETTLEMENT_OR_WAIT",
+          );
         throw error;
       }
       if (attempt?.outcome === "NEEDS_REVIEW")

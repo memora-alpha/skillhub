@@ -14,6 +14,7 @@ import {
 } from "../../../learning-paths/application/services/learning-change-state";
 import { databaseNow, lockedSession, lockSession } from "./session-tx";
 import { completeSession } from "./session-transitions";
+import { makeupQuota, reserveMakeup } from "./makeup-quota";
 
 @Injectable()
 export class SessionChangesService {
@@ -70,6 +71,10 @@ export class SessionChangesService {
     return this.transactions.run(async (tx) => {
       const { session, path, now } = await this.context(tx, actor, sessionId);
       const row = await this.cancellation(tx, path.id, sessionId, requestId);
+      if (input.accept && row.status === "PENDING") {
+        const quota = await makeupQuota(tx, session, row.requesterId);
+        if (quota.reason) throw new ConflictException(quota.reason);
+      }
       const decided = await this.changes.respond(tx, actor, row, input, now);
       const applied = await this.apply(tx, decided, session, now, actor);
       return changeView(
@@ -248,6 +253,9 @@ export class SessionChangesService {
     if (await changeBlockedByDispute(tx, row.pathId)) return row;
     if (!["SCHEDULED", "ACTIVE"].includes(path.status))
       throw new ConflictException("LEARNING_PATH_CANNOT_BE_CHANGED");
+    const quota = await makeupQuota(tx, session, row.requesterId);
+    if (quota.reason)
+      return this.changes.update(tx, row, "EXPIRED", actor, quota.reason, now);
     const policy = row.policySnapshot as { makeupWindowDays?: number };
     if (
       !Number.isInteger(policy.makeupWindowDays) ||
@@ -255,6 +263,7 @@ export class SessionChangesService {
       policy.makeupWindowDays! > 90
     )
       throw new ConflictException("CANCELLATION_POLICY_SNAPSHOT_INVALID");
+    await reserveMakeup(tx, session, [row.requesterId]);
     await tx.session.update({
       where: { id: session.id },
       data: {

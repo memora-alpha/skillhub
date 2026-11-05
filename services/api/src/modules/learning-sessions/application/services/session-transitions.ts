@@ -23,6 +23,7 @@ import { parseConfigurationValue } from "../../../system-configuration/domain/co
 import { byCodeUnit } from "../../../../infrastructure/idempotency/idempotency.service";
 import { ConflictException } from "@nestjs/common";
 import { lockedSession } from "./session-tx";
+import { reserveMakeup } from "./makeup-quota";
 
 export type NoShowReputation = {
   applyNoShow(
@@ -273,18 +274,27 @@ export async function determineOutcome(
 
 export async function requireMakeup(
   tx: TransactionContext,
-  session: Pick<Session, "id">,
-  outcome: Pick<SessionAttendanceOutcome, "id">,
+  session: Session,
+  outcome: SessionAttendanceOutcome,
   now: Date,
   policy: AttendancePolicy,
   outcomeStatus: "FINAL" | "EXCUSED",
+  makeupUserId?: string,
 ) {
+  // Staff may extend the booking deadline of the same granted occurrence, never grant a second one.
+  const evidence = outcome.evidence as Prisma.JsonObject;
+  if (evidence.makeupGranted !== true) {
+    const users = absentUserIds(session, outcome);
+    if (!users.length && makeupUserId) users.push(makeupUserId);
+    await reserveMakeup(tx, session, users);
+  }
   await tx.sessionAttendanceOutcome.update({
     where: { id: outcome.id },
     data: {
       status: outcomeStatus,
       resolution: "MAKEUP_REQUIRED",
       finalizedAt: now,
+      evidence: { ...evidence, makeupGranted: true },
     },
   });
   await tx.session.update({
@@ -347,7 +357,12 @@ export type NoShowRuling = "UPHOLD" | "EXCUSE" | "COMPLETE";
 export async function applyNoShowRuling(
   tx: TransactionContext,
   reputation: NoShowReputation,
-  input: { sessionId: string; ruling: NoShowRuling; now: Date },
+  input: {
+    sessionId: string;
+    ruling: NoShowRuling;
+    now: Date;
+    makeupUserId?: string;
+  },
 ) {
   const session = await lockedSession(tx, input.sessionId);
   const outcome = await currentOutcome(tx, session);
@@ -371,6 +386,7 @@ export async function applyNoShowRuling(
       input.now,
       policy,
       absent ? "EXCUSED" : "FINAL",
+      input.makeupUserId,
     );
   await tx.sessionAttendanceOutcome.update({
     where: { id: outcome.id },

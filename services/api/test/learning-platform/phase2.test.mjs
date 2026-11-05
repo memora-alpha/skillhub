@@ -645,7 +645,7 @@ test("multi-Session reschedule excludes unchanged Sessions and rechecks at apply
       expectedPlanVersion: 1,
       items: slots(
         ["2026-11-02T10:00:00Z", "2026-11-02T11:00:00Z"],
-        ["2026-11-02T11:00:00Z", "2026-11-02T12:00:00Z"],
+        ["2026-11-05T11:00:00Z", "2026-11-05T12:00:00Z"],
       ),
     },
   );

@@ -797,7 +797,11 @@ model Session {
   attendanceIntervals  SessionAttendanceInterval[] @relation("AttendanceInterval_session")
   attendanceOutcomes   SessionAttendanceOutcome[]  @relation("AttendanceOutcome_session")
 
-  changeRequests LearningChangeRequest[]
+  originalStartAt DateTime?               @map("original_start_at") @db.Timestamptz(3)
+  rescheduleCount Int                     @default(0) @map("reschedule_count")
+  makeupCount     Int                     @default(0) @map("makeup_count")
+  makeupUserIds   String[]                @default([]) @map("makeup_user_ids") @db.Uuid
+  changeRequests  LearningChangeRequest[]
 
   @@unique([planId, planVersion, outlineSessionNo])
   @@unique([id, pathId])
@@ -1230,8 +1234,10 @@ model LearningPath {
   settlementFeePolicyIdRecord      FeePolicyVersion?     @relation("LearningPath_settlement_fee_policy_id", fields: [settlementFeePolicyId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   learningPlanPathIdRecords        LearningPlan[]        @relation("LearningPlan_path_id")
 
-  changeRequests    LearningChangeRequest[]
-  settlementAttempt PathSettlementAttempt?
+  participantASettlementApprovedAt DateTime?               @map("participant_a_settlement_approved_at") @db.Timestamptz(3)
+  participantBSettlementApprovedAt DateTime?               @map("participant_b_settlement_approved_at") @db.Timestamptz(3)
+  changeRequests                   LearningChangeRequest[]
+  settlementAttempt                PathSettlementAttempt?
 
   @@unique([id, settledPathVersion])
   @@index([conversationId])

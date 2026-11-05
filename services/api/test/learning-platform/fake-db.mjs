@@ -127,6 +127,8 @@ for (const [, modelName, body] of schemaText.matchAll(
       value = () => JSON.parse(explicit);
     } else if (explicit !== undefined && /^\w+$/.test(explicit)) {
       value = () => explicit; // enum literal
+    } else if (isList && explicit === "[]") {
+      value = () => [];
     } else if (optional && !isList) {
       value = () => null;
     } else {

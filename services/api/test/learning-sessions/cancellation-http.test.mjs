@@ -17,6 +17,9 @@ import { LearningChangeReviewController } from "../../dist/modules/learning-path
 import { PathTerminationService } from "../../dist/modules/learning-paths/application/services/path-termination.service.js";
 import { PathSettlementStatusController } from "../../dist/modules/learning-paths/presentation/http/path-settlement-status.controller.js";
 import { PathSettlementStatusService } from "../../dist/modules/learning-paths/application/services/path-settlement-status.service.js";
+import { LearningSessionsController } from "../../dist/modules/learning-sessions/presentation/http/learning-sessions.controller.js";
+import { LearningSessionsService } from "../../dist/modules/learning-sessions/application/services/learning-sessions.service.js";
+import { SessionOutcomeService } from "../../dist/modules/learning-sessions/application/services/session-outcome.service.js";
 import { LearningChangeState } from "../../dist/modules/learning-paths/application/services/learning-change-state.js";
 import { AuditWriter } from "../../dist/modules/audit/application/services/audit-writer.js";
 import { AuditRepository } from "../../dist/modules/audit/infrastructure/persistence/audit.repository.js";
@@ -57,6 +60,7 @@ test("HTTP cancellation/termination enforce membership, DTOs, idempotency and Ad
       PathTerminationController,
       LearningChangeReviewController,
       PathSettlementStatusController,
+      LearningSessionsController,
     ],
     providers: [
       IdentityGuard,
@@ -72,6 +76,8 @@ test("HTTP cancellation/termination enforce membership, DTOs, idempotency and Ad
       { provide: SessionChangesService, useValue: cancellations },
       { provide: PathTerminationService, useValue: termination },
       { provide: PathSettlementStatusService, useValue: status },
+      { provide: LearningSessionsService, useValue: ctx.sessions },
+      { provide: SessionOutcomeService, useValue: {} },
     ],
   }).compile();
   const app = module.createNestApplication({ logger: false });
@@ -98,6 +104,40 @@ test("HTTP cancellation/termination enforce membership, DTOs, idempotency and Ad
       body: JSON.stringify(body),
     });
   try {
+    const consentUrl = `/sessions/paths/${pathId}/settlement-consent`;
+    assert.equal(
+      (await post(consentUrl, null, { expectedVersion: 1 })).status,
+      401,
+    );
+    assert.equal(
+      (await post(consentUrl, C, { expectedVersion: 1 })).status,
+      403,
+    );
+    assert.equal(
+      (await post(consentUrl, A, { expectedVersion: "1" })).status,
+      400,
+    );
+    assert.equal(
+      (await post(consentUrl, A, { expectedVersion: 0 })).status,
+      400,
+    );
+    assert.equal(
+      (
+        await post(consentUrl, A, {
+          expectedVersion: 1,
+          acceptForPartner: true,
+        })
+      ).status,
+      400,
+    );
+    assert.equal(
+      (await post(consentUrl, A, { expectedVersion: 2 })).status,
+      409,
+    );
+    assert.equal(
+      (await post(consentUrl, A, { expectedVersion: 1 })).status,
+      409,
+    );
     const url = `/sessions/${session.id}/cancellation-requests`;
     const body = {
       reason: "Please agree to makeup",
@@ -170,6 +210,28 @@ test("HTTP cancellation/termination enforce membership, DTOs, idempotency and Ad
       new DocumentBuilder().build(),
     );
     assert.ok(docs.paths["/api/v1/learning-paths/{pathId}/settlement-status"]);
+    assert.ok(docs.paths["/api/v1/sessions/paths/{pathId}/settlement-consent"]);
+    assert.equal(
+      docs.components.schemas.ApproveImmediateSettlementDto.properties
+        .expectedVersion.minimum,
+      1,
+    );
+    await termination.withdraw(user(A), pathId, stopId, 1);
+    ctx.db.rows("session")[0].status = "COMPLETED";
+    ctx.db.rows("learningPath")[0].status = "ACTIVE";
+    ctx.clock.now = new Date(+session.endAt + 30 * 60000);
+    const firstConsent = await post(consentUrl, A, { expectedVersion: 1 });
+    assert.equal(firstConsent.status, 200);
+    assert.equal(
+      (await firstConsent.json()).data.settlement.outcome,
+      "WAITING",
+    );
+    const secondConsent = await post(consentUrl, B, { expectedVersion: 1 });
+    assert.equal(secondConsent.status, 200);
+    assert.equal(
+      (await secondConsent.json()).data.settlement.outcome,
+      "SETTLED",
+    );
     assert.ok(
       docs.paths[
         "/api/v1/learning-paths/{pathId}/termination-requests/{requestId}/execute"
