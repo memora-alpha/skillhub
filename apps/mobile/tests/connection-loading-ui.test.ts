@@ -16,7 +16,8 @@ test("connection waiting screen renders neutral placeholders with one accessible
       jsx: ts.JsxEmit.ReactJSX,
     },
   }).outputText;
-  const exports: Record<string, () => unknown> = {};
+  const exports: Record<string, (props: Record<string, unknown>) => unknown> =
+    {};
   const jsx = (type: unknown, props: unknown) => ({ type, props });
   runInNewContext(compiled, {
     exports,
@@ -31,6 +32,7 @@ test("connection waiting screen renders neutral placeholders with one accessible
       if (name === "./LoadingIndicator") return { LoadingIndicator: "Loader" };
       if (name === "./SafeArea") return { SafeAreaView: "SafeAreaView" };
       if (name === "./BrandLogo") return { BrandLogo: "Logo" };
+      if (name === "./Button") return { Button: "Button" };
       if (name === "@/constants/theme") return theme;
       throw new Error(`Unexpected waiting UI dependency: ${name}`);
     },
@@ -46,7 +48,7 @@ test("connection waiting screen renders neutral placeholders with one accessible
     nodes.push(element);
     walk(element.props?.children);
   }
-  const tree = exports.ConnectionScreen!();
+  const tree = exports.ConnectionScreen!({});
   walk(tree);
   assert.equal(nodes.filter((node) => node.type === "Loader").length, 1);
   assert.equal(
