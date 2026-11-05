@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import type { Conversation, Message, PathSummary, Proposal } from "../types";
 import { useUserSession } from "../auth/session";
 import { useUserList, useUserResource } from "../hooks/use-user-resource";
@@ -18,6 +19,8 @@ import { ProfileName } from "../components/profile-name";
 import { findInPages } from "../api/find-page";
 import { MessageComposer } from "./message-composer";
 import { AgreementCreator } from "../paths/agreement-creator";
+import { ProposalSource } from "../connections/proposal-source";
+import { ChatDownload } from "./chat-download";
 function compareMessages(left: Message, right: Message) {
   const leftSequence = BigInt(left.sequence);
   const rightSequence = BigInt(right.sequence);
@@ -32,6 +35,7 @@ function messageClassName(message: Message, userId: string) {
     : "learner-message ";
 }
 export function ChatScreen({ id }: Readonly<{ id: string }>) {
+  const cache = useQueryClient();
   const conversation = useUserResource<Conversation>("conversations/" + id),
     messages = useUserList<Message>(
       "conversations/" + id + "/messages?limit=30",
@@ -62,6 +66,9 @@ export function ChatScreen({ id }: Readonly<{ id: string }>) {
       })
         .then(() => {
           marked = true;
+          void cache.invalidateQueries({
+            queryKey: ["learner", actor.userId, "conversations/inbox?limit=20"],
+          });
         })
         .catch(() => undefined)
         .finally(() => {
@@ -71,7 +78,7 @@ export function ChatScreen({ id }: Readonly<{ id: string }>) {
     markRead();
     document.addEventListener("visibilitychange", markRead);
     return () => document.removeEventListener("visibilitychange", markRead);
-  }, [id, latest, request]);
+  }, [id, latest, request, cache, actor.userId]);
   return (
     <>
       <Back href="/learn/messages" />
@@ -85,15 +92,27 @@ export function ChatScreen({ id }: Readonly<{ id: string }>) {
           <PageHeading
             title="Cùng thống nhất buổi học"
             action={
-              <ProfileName
-                id={
-                  conversation.data.participantAId === actor.userId
+              <Link
+                className="learner-card-link"
+                href={
+                  "/learn/people/" +
+                  (conversation.data.participantAId === actor.userId
                     ? conversation.data.participantBId
-                    : conversation.data.participantAId
+                    : conversation.data.participantAId)
                 }
-              />
+              >
+                <ProfileName
+                  id={
+                    conversation.data.participantAId === actor.userId
+                      ? conversation.data.participantBId
+                      : conversation.data.participantAId
+                  }
+                />
+              </Link>
             }
           />
+          <Feedback error={proposal.error} reload={proposal.reload} />
+          {proposal.data && <ProposalSource proposal={proposal.data} />}
           <div className="learner-two-columns">
             <Panel title="Cuộc trò chuyện">
               <More
@@ -116,9 +135,13 @@ export function ChatScreen({ id }: Readonly<{ id: string }>) {
                   >
                     <p>{message.messageText}</p>
                     {message.attachments.map((file) => (
-                      <p key={file.attachmentId}>
-                        Tệp đính kèm: {file.filename}
-                      </p>
+                      <ChatDownload
+                        key={file.attachmentId}
+                        conversationId={id}
+                        messageId={message.id}
+                        attachmentId={file.attachmentId}
+                        filename={file.filename}
+                      />
                     ))}
                     {message.objectType === "LEARNING_PATH" &&
                       message.objectId && (

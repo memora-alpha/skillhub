@@ -7,10 +7,36 @@ import { useUserList } from "../hooks/use-user-resource";
 import type { Conversation } from "../types";
 import { Empty, Feedback, More, PageHeading } from "../components/common";
 import { ProfileName } from "../components/profile-name";
+import { useState } from "react";
+import styles from "./inbox.module.css";
+type InboxGroup = {
+  id: string;
+  groupType: string;
+  learningRequestId: string | null;
+  conversationId: string | null;
+  title: string | null;
+  viewerRole: string;
+  receivedProposalCount: number | null;
+  sentProposalCount: number | null;
+  conversationCount: number;
+  hasUnread: boolean;
+  latestMessage: {
+    conversationId: string;
+    senderId: string;
+    preview: string;
+    sentAt: string;
+    messageType: string;
+  } | null;
+};
 export function InboxLayout({ children }: Readonly<{ children: ReactNode }>) {
+  const [requestId, setRequestId] = useState<string | null>(null);
+  const groups = useUserList<InboxGroup>("conversations/inbox?limit=20");
   const { actor } = useUserSession(),
     pathname = usePathname(),
-    query = useUserList<Conversation>("conversations?limit=20");
+    query = useUserList<Conversation>(
+      "conversations?limit=20" +
+        (requestId ? "&learningRequestId=" + requestId : ""),
+    );
   const active = pathname !== "/learn/messages";
   return (
     <>
@@ -25,6 +51,105 @@ export function InboxLayout({ children }: Readonly<{ children: ReactNode }>) {
           aria-label="Danh sách cuộc trò chuyện"
         >
           <h2>Cuộc trò chuyện</h2>
+          <details className={styles.groups} open>
+            <summary>Nhóm theo bài nhu cầu học / kết nối trực tiếp</summary>
+            <Feedback
+              loading={groups.loading}
+              error={groups.error}
+              reload={groups.reload}
+            />
+            <button
+              type="button"
+              className="btn"
+              aria-pressed={!requestId}
+              onClick={() => setRequestId(null)}
+            >
+              Tất cả cuộc trò chuyện
+            </button>
+            {groups.items.map((group) => (
+              <div
+                key={group.id}
+                className={
+                  styles.group +
+                  (group.hasUnread === true ? " " + styles.unread : "")
+                }
+              >
+                {group.hasUnread === true && (
+                  <strong className={styles.unreadLabel}>
+                    ● Có tin nhắn chưa đọc
+                  </strong>
+                )}
+                {group.groupType === "LEARNING_REQUEST" &&
+                group.learningRequestId ? (
+                  <>
+                    <button
+                      type="button"
+                      className="btn"
+                      aria-pressed={requestId === group.learningRequestId}
+                      onClick={() => setRequestId(group.learningRequestId)}
+                    >
+                      {group.title ?? "Nhu cầu học"} · {group.conversationCount}{" "}
+                      cuộc trò chuyện
+                    </button>
+                    <p>
+                      {group.receivedProposalCount !== null
+                        ? group.receivedProposalCount + " đề nghị nhận"
+                        : group.sentProposalCount !== null
+                          ? group.sentProposalCount + " đề nghị đã gửi"
+                          : ""}{" "}
+                      ·{" "}
+                      <Link
+                        href={
+                          "/learn/connections?learningRequestId=" +
+                          group.learningRequestId +
+                          "&direction=" +
+                          (group.viewerRole === "OWNER" ? "received" : "sent")
+                        }
+                      >
+                        Xem đề nghị của bài
+                      </Link>
+                    </p>
+                  </>
+                ) : (
+                  group.conversationId && (
+                    <Link href={"/learn/messages/" + group.conversationId}>
+                      {group.title ?? "Kết nối trực tiếp"}
+                    </Link>
+                  )
+                )}
+                {group.latestMessage && (
+                  <p className={styles.preview}>
+                    <Link
+                      href={
+                        "/learn/messages/" + group.latestMessage.conversationId
+                      }
+                    >
+                      {group.latestMessage.senderId === actor.userId
+                        ? "Bạn: "
+                        : ""}
+                      {group.latestMessage.preview ||
+                        (group.latestMessage.messageType === "FILE"
+                          ? "Tệp đính kèm"
+                          : "Tin nhắn hệ thống")}
+                    </Link>
+                    <br />
+                    <time dateTime={group.latestMessage.sentAt}>
+                      {new Date(group.latestMessage.sentAt).toLocaleString(
+                        "vi-VN",
+                      )}
+                    </time>
+                  </p>
+                )}
+              </div>
+            ))}
+            <More
+              cursor={groups.cursor}
+              loading={groups.loading}
+              onMore={() => {
+                void groups.more();
+              }}
+            />
+          </details>
           <Feedback
             loading={query.loading}
             error={query.error}
