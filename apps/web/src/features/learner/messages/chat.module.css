@@ -1,0 +1,436 @@
+.chat {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: min(790px, calc(100svh - 285px));
+  min-height: 420px;
+  position: relative;
+  background: #fffbf7;
+}
+.header {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+  min-height: 83px;
+  padding: 13px 14px;
+  background: #fffefc;
+  border-bottom: 1px solid var(--line);
+}
+.iconButton {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  min-width: 36px;
+  min-height: 44px;
+  padding: 4px;
+  border: 0;
+  background: transparent;
+  border-radius: 9px;
+  color: var(--ink);
+  text-decoration: none;
+  cursor: pointer;
+}
+.backIcon {
+  display: flex;
+  transform: rotate(180deg);
+}
+.partner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  color: var(--ink);
+  text-decoration: none;
+}
+.partner > span:last-child {
+  min-width: 0;
+}
+.partner h2 {
+  font-size: 16px;
+  line-height: 1.4;
+  margin: 0 0 4px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.partner small {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.headerAvatar,
+.avatar {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: #fae8da;
+  color: #9b4f35;
+  overflow: hidden;
+  font-weight: 600;
+}
+.headerAvatar {
+  width: 39px;
+  height: 39px;
+  font-size: 17px;
+}
+.avatar,
+.avatarSpace {
+  width: 29px;
+  height: 29px;
+  flex-shrink: 0;
+  font-size: 13px;
+}
+.agreement {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  flex-shrink: 0;
+  min-height: 42px;
+  padding: 8px 11px;
+  border: 1px solid #f3d7c6;
+  border-radius: 22px;
+  background: #fff1e9;
+  color: #a94323;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.agreement:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+.timeline {
+  flex: 1;
+  min-height: 180px;
+  min-width: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  padding: 12px 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.timeline > * {
+  flex-shrink: 0;
+}
+.day {
+  color: #78716b;
+  font-size: 11px;
+  text-align: center;
+  margin: 16px 0 20px;
+}
+.message {
+  display: grid;
+  gap: 4px;
+}
+.messageRow {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+.bubble {
+  max-width: 78%;
+  min-width: 0;
+  background: #fffefc;
+  color: #202521;
+  box-shadow: 0 3px 12px #352b1f0a;
+  border: 1px solid #eee8e1;
+  border-radius: 12px 12px 12px 3px;
+  padding: 9px 12px;
+}
+.bubble p {
+  font-size: 14px;
+  line-height: 1.65;
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.mine .messageRow {
+  justify-content: flex-end;
+}
+.mine .bubble {
+  color: white;
+  background: #c4512b;
+  border-color: #c4512b;
+  border-radius: 12px 12px 3px 12px;
+}
+.messageTime {
+  color: #80766e;
+  margin-left: 37px;
+  font-size: 10px;
+}
+.mine .messageTime {
+  text-align: right;
+  margin-left: 0;
+}
+.system {
+  margin: 12px auto;
+  padding: 9px 12px;
+  max-width: 92%;
+  color: #75685e;
+  font-size: 12px;
+  line-height: 1.7;
+  text-align: center;
+  background: #f4f0ea;
+  border-radius: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.fileCard {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 10px;
+  border-radius: 9px;
+  background: white;
+  color: var(--brand-strong);
+  min-width: 0;
+}
+.fileCard > div {
+  min-width: 0;
+}
+.fileCard button,
+.fileCard a {
+  color: var(--brand-strong);
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+.workflow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  margin-top: 7px;
+  border-radius: 12px;
+  background: white;
+  color: #264e3f;
+  text-decoration: none;
+  min-width: 0;
+}
+.workflow > span {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+.workflow small {
+  font-size: 9px;
+  letter-spacing: 1px;
+}
+.workflow strong {
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.empty {
+  display: grid;
+  gap: 9px;
+  padding: 50px 12px;
+  text-align: center;
+  justify-items: center;
+  color: var(--muted);
+}
+.empty p {
+  margin: 0;
+  font-size: 13px;
+}
+.latest {
+  align-self: center;
+  position: absolute;
+  bottom: 120px;
+  min-height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: white;
+  color: var(--brand-strong);
+  padding: 7px 13px;
+  box-shadow: 0 3px 12px #352b1f18;
+  cursor: pointer;
+}
+.composer {
+  flex-shrink: 0;
+  padding: 12px 14px;
+  border-top: 1px solid var(--line);
+  background: #fffefc;
+}
+.composerRow {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+.composerField {
+  flex: 1;
+  min-width: 0;
+}
+.composerField textarea {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  max-height: 120px;
+  resize: vertical;
+  padding: 11px 13px;
+  border: 1px solid transparent;
+  border-radius: 16px;
+  background: #f5f6f7;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.composerField textarea:focus {
+  outline: 2px solid var(--brand);
+  outline-offset: 1px;
+}
+.attach {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  min-height: 44px;
+  flex-shrink: 0;
+  padding: 6px;
+  color: #80766e;
+  background: transparent;
+  border: 0;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.send {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  color: white;
+  background: #c4512b;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+}
+.send:disabled,
+.attach:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.composerHint {
+  display: block;
+  margin-top: 7px;
+  font-size: 10px;
+  line-height: 1.6;
+  color: #80766e;
+}
+.compactFiles {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.compactFiles > p,
+.compactFiles > label {
+  display: none;
+}
+.compactFiles > div {
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #f7f7f5;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.compactFiles > div p {
+  margin: 0 0 8px;
+}
+.compactFiles > div button {
+  min-height: 36px;
+  font-size: 12px;
+}
+.dialog {
+  width: min(680px, calc(100vw - 28px));
+  max-height: 88svh;
+  overflow: auto;
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: #fffbf7;
+  color: var(--ink);
+}
+.dialog::backdrop {
+  background: #1c141066;
+}
+.dialogHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.dialogHeading h2 {
+  margin: 0;
+  font-size: 22px;
+}
+.dialogNote {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.7;
+}
+@media (max-width: 1150px) {
+  .header {
+    gap: 5px;
+    padding-inline: 9px;
+  }
+  .headerAvatar {
+    width: 34px;
+    height: 34px;
+  }
+  .partner {
+    gap: 7px;
+  }
+  .agreement {
+    padding-inline: 8px;
+  }
+  .timeline {
+    padding-inline: 12px;
+  }
+}
+@media (max-width: 850px) {
+  .chat {
+    height: calc(100svh - 190px);
+    min-height: 380px;
+  }
+  .header {
+    padding-inline: 9px;
+  }
+  .bubble {
+    max-width: 82%;
+  }
+  .composer {
+    padding-inline: 9px;
+  }
+}
+@media (max-width: 360px) {
+  .headerAvatar {
+    display: none;
+  }
+  .agreement {
+    font-size: 11px;
+    padding-inline: 7px;
+  }
+  .timeline {
+    padding-inline: 9px;
+  }
+  .composerRow {
+    gap: 4px;
+  }
+  .attach {
+    width: 32px;
+  }
+}

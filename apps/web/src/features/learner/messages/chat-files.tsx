@@ -10,6 +10,7 @@ import {
 import { useUserSession } from "../auth/session";
 import { useUserResource } from "../hooks/use-user-resource";
 import { Feedback } from "../components/common";
+import styles from "./chat.module.css";
 import {
   chatExtensions,
   validateChatFiles,
@@ -27,12 +28,16 @@ export function ChatFiles({
   setFiles,
   locked,
   onUploading,
+  compact = false,
+  inputId,
 }: Readonly<{
   conversationId: string;
   files: ChatUpload[];
   setFiles: Dispatch<SetStateAction<ChatUpload[]>>;
   locked: boolean;
   onUploading: (busy: boolean) => void;
+  compact?: boolean;
+  inputId?: string;
 }>) {
   const { request } = useUserSession();
   const [uploading, setUploading] = useState(false);
@@ -77,8 +82,8 @@ export function ChatFiles({
     }
   }
   return (
-    <fieldset className="learner-picker">
-      <legend>Tệp đính kèm</legend>
+    <fieldset className={compact ? styles.compactFiles : "learner-picker"}>
+      <legend className={compact ? "sr-only" : undefined}>Tệp đính kèm</legend>
       <p>
         Tối đa 5 tệp, 15 MB/tệp và 50 MB/tin. Tệp được kiểm tra định dạng và
         quét trên máy chủ trước khi gửi.
@@ -87,6 +92,7 @@ export function ChatFiles({
         <span>Chọn tệp</span>
         <input
           type="file"
+          id={inputId}
           multiple
           accept={chatExtensions}
           disabled={locked || uploading || files.length >= 5}
