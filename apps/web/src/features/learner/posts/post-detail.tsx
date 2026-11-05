@@ -7,7 +7,6 @@ import {
   readProposalHints,
 } from "../connections/proposal-hints";
 import { findInPages } from "../api/find-page";
-import { formatTime } from "../components/common";
 import { PostSkillName, PostSelectedTags } from "./post-catalog";
 
 import Link from "next/link";
@@ -24,6 +23,7 @@ import {
   Panel,
   More,
   Status,
+  formatTime,
 } from "../components/common";
 export function PostDetail({ id }: Readonly<{ id: string }>) {
   const query = useUserResource<Post>("learning-requests/" + id),
@@ -93,8 +93,14 @@ export function PostDetail({ id }: Readonly<{ id: string }>) {
                   <h3>
                     Lịch rảnh mong muốn · {post.preferredAvailability.timeZone}
                   </h3>
-                  {post.preferredAvailability.weeklySlots.map((slot, i) => (
-                    <p key={i}>
+                  {post.preferredAvailability.weeklySlots.map((slot) => (
+                    <p
+                      key={JSON.stringify([
+                        slot.weekday,
+                        slot.startTime,
+                        slot.endTime,
+                      ])}
+                    >
                       {
                         (
                           {
@@ -113,8 +119,8 @@ export function PostDetail({ id }: Readonly<{ id: string }>) {
                   ))}
                 </>
               )}
-              {post.preferredSlots?.map((slot, i) => (
-                <p key={i}>
+              {post.preferredSlots?.map((slot) => (
+                <p key={JSON.stringify([slot.startAt, slot.endAt])}>
                   Gợi ý: {formatTime(slot.startAt)} – {formatTime(slot.endAt)}
                 </p>
               ))}

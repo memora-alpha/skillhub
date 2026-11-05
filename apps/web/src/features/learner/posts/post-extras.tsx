@@ -14,28 +14,37 @@ export type PostExtrasValue = {
   verifiedTeacherOnly: boolean;
   timeZone: string;
   mode: "none" | "weekly" | "slots";
-  weeklySlots: { weekday: string; startTime: string; endTime: string }[];
-  preferredSlots: { startAt: string; endAt: string }[];
+  weeklySlots: {
+    clientId?: string;
+    weekday: string;
+    startTime: string;
+    endTime: string;
+  }[];
+  preferredSlots: { clientId?: string; startAt: string; endAt: string }[];
   expiresAt: string;
 };
 export const localTime = (value: string) =>
   new Date(Date.parse(value) + 7 * 3600000).toISOString().slice(0, 16);
 export function initialPostExtras(post?: Post): PostExtrasValue {
+  let mode: PostExtrasValue["mode"] = "none";
+  if (post?.preferredSlots?.length) mode = "slots";
+  if (post?.preferredAvailability) mode = "weekly";
   return {
     tagIds: post?.tagIds ?? post?.tags?.map((tag) => tag.id) ?? [],
     proposedTags: post?.proposedTags ?? [],
     offeredSharingSkillIds: post?.offeredSharingSkillIds ?? [],
     teachingOverview: post?.teachingOverview ?? "",
     verifiedTeacherOnly: post?.verifiedTeacherOnly ?? false,
-    mode: post?.preferredAvailability
-      ? "weekly"
-      : post?.preferredSlots?.length
-        ? "slots"
-        : "none",
+    mode,
     timeZone: post?.preferredAvailability?.timeZone ?? "Asia/Ho_Chi_Minh",
-    weeklySlots: post?.preferredAvailability?.weeklySlots ?? [],
+    weeklySlots:
+      post?.preferredAvailability?.weeklySlots.map((slot, index) => ({
+        ...slot,
+        clientId: "weekly-" + index,
+      })) ?? [],
     preferredSlots:
-      post?.preferredSlots?.map((slot) => ({
+      post?.preferredSlots?.map((slot, index) => ({
+        clientId: "slot-" + index,
         startAt: localTime(slot.startAt),
         endAt: localTime(slot.endAt),
       })) ?? [],
@@ -99,8 +108,11 @@ export function PostExtras({
                       ),
                 })
               }
-            />{" "}
-            {skill.skill.name} · {skill.level}
+            />
+            <span>
+              {" "}
+              {skill.skill.name} · {skill.level}
+            </span>
           </label>
         ))}
         {value.offeredSharingSkillIds
@@ -122,7 +134,7 @@ export function PostExtras({
               >
                 bỏ kỹ năng này
               </button>
-              .
+              {"."}
             </p>
           ))}
         <More
@@ -174,7 +186,7 @@ export function PostExtras({
               />
             </label>
             {value.weeklySlots.map((slot, index) => (
-              <fieldset key={index} className="learner-picker">
+              <fieldset key={slot.clientId} className="learner-picker">
                 <legend>Khoảng rảnh {index + 1}</legend>
                 <label>
                   <span>Ngày trong tuần</span>
@@ -241,7 +253,12 @@ export function PostExtras({
                 change({
                   weeklySlots: [
                     ...value.weeklySlots,
-                    { weekday: "MON", startTime: "19:00", endTime: "21:00" },
+                    {
+                      clientId: crypto.randomUUID(),
+                      weekday: "MON",
+                      startTime: "19:00",
+                      endTime: "21:00",
+                    },
                   ],
                 })
               }
@@ -253,7 +270,7 @@ export function PostExtras({
         {value.mode === "slots" && (
           <>
             {value.preferredSlots.map((slot, index) => (
-              <fieldset key={index} className="learner-picker">
+              <fieldset key={slot.clientId} className="learner-picker">
                 <legend>Khoảng ngày giờ {index + 1}</legend>
                 {(["startAt", "endAt"] as const).map((field) => (
                   <label key={field}>
@@ -297,7 +314,7 @@ export function PostExtras({
                 change({
                   preferredSlots: [
                     ...value.preferredSlots,
-                    { startAt: "", endAt: "" },
+                    { clientId: crypto.randomUUID(), startAt: "", endAt: "" },
                   ],
                 })
               }

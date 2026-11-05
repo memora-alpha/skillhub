@@ -49,7 +49,7 @@ export function BusinessFeedback({
       <div className="learner-error">
         <p>Các khoảng lịch bị trùng:</p>
         <ul>
-          {data.conflicts.slice(0, 100).map((item, index) => {
+          {data.conflicts.slice(0, 100).map((item) => {
             const conflict = record(item),
               proposed = record(conflict.proposed),
               compared = record(conflict.compared);
@@ -57,7 +57,25 @@ export function BusinessFeedback({
               ? conflict.affectedUserIds.filter(uuid)
               : [];
             return (
-              <li key={index}>
+              <li
+                key={JSON.stringify([
+                  conflict.type,
+                  proposed.planId,
+                  proposed.learningPlanId,
+                  proposed.sessionNo,
+                  proposed.startAt,
+                  proposed.endAt,
+                  compared.planId,
+                  compared.learningPlanId,
+                  compared.sessionId,
+                  compared.sessionNo,
+                  compared.startAt,
+                  compared.endAt,
+                  conflict.overlapStartAt,
+                  conflict.overlapEndAt,
+                  conflict.affectedUserIds,
+                ])}
+              >
                 Buổi đề xuất{" "}
                 {typeof proposed.sessionNo === "number"
                   ? proposed.sessionNo

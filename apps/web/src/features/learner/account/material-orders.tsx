@@ -53,15 +53,18 @@ export function MaterialOrders() {
 function OrderCard({
   order,
   reload,
-}: {
+}: Readonly<{
   order: MaterialOrder;
   reload: () => void;
-}) {
+}>) {
   const { request } = useUserSession(),
     command = useUserCommand(true);
   const [review, setReview] = useState(false),
     [done, setDone] = useState(false);
   const refundable = order.status === "SUCCESS" && !done;
+  const confirmLabel = command.uncertain
+    ? "Kiểm tra và thử lại đúng đơn"
+    : "Xác nhận hoàn đơn";
   async function refund() {
     const result = await command.run("refund:" + order.id, async () => {
       const current = (
@@ -98,7 +101,7 @@ function OrderCard({
           Xem tài liệu
         </Link>
         {refundable && !review && (
-          <button className="btn" onClick={() => setReview(true)}>
+          <button type="button" className="btn" onClick={() => setReview(true)}>
             Yêu cầu hoàn đơn
           </button>
         )}
@@ -112,17 +115,15 @@ function OrderCard({
           </p>
           <div className="learner-actions">
             <button
+              type="button"
               className="btn btn-primary"
               disabled={command.pending}
               onClick={() => void refund()}
             >
-              {command.pending
-                ? "Đang kiểm tra…"
-                : command.uncertain
-                  ? "Kiểm tra và thử lại đúng đơn"
-                  : "Xác nhận hoàn đơn"}
+              {command.pending ? "Đang kiểm tra…" : confirmLabel}
             </button>
             <button
+              type="button"
               className="btn"
               disabled={command.pending}
               onClick={() => {
@@ -136,7 +137,11 @@ function OrderCard({
         </div>
       )}
       <CommandFeedback command={command} />
-      {done && <p role="status">Máy chủ đã xác nhận hoàn đơn.</p>}
+      {done && (
+        <p>
+          <output>Máy chủ đã xác nhận hoàn đơn.</output>
+        </p>
+      )}
     </Panel>
   );
 }

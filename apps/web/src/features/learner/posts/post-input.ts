@@ -2,6 +2,49 @@ import { vietnamInstant } from "../sessions/session-policy";
 import { validateTagSelection } from "../tags/tag-policy";
 import type { PostExtrasValue } from "./post-extras";
 
+function readWeeklySlots(value: PostExtrasValue) {
+  if (value.mode !== "weekly") return [];
+  const weeklySlots = value.weeklySlots.map(
+    ({ weekday, startTime, endTime }) => ({
+      weekday,
+      startTime,
+      endTime,
+    }),
+  );
+  if (weeklySlots.length > 5)
+    throw new Error("Chọn tối đa 5 khoảng rảnh tuần.");
+  if (/^[+-]/.test(value.timeZone))
+    throw new Error("Dùng tên múi giờ IANA, ví dụ Asia/Ho_Chi_Minh.");
+  try {
+    new Intl.DateTimeFormat("vi", { timeZone: value.timeZone });
+  } catch {
+    throw new Error("Múi giờ chưa hợp lệ. Ví dụ: Asia/Ho_Chi_Minh.");
+  }
+  weeklySlots.forEach((slot, index) => {
+    if (
+      !/^(MON|TUE|WED|THU|FRI|SAT|SUN)$/.test(slot.weekday) ||
+      !/^([01]\d|2[0-3]):[0-5]\d$/.test(slot.startTime) ||
+      !/^([01]\d|2[0-3]):[0-5]\d$/.test(slot.endTime) ||
+      slot.startTime >= slot.endTime
+    )
+      throw new Error(
+        "Khoảng rảnh tuần " +
+          (index + 1) +
+          " cần giờ kết thúc sau giờ bắt đầu trong cùng ngày.",
+      );
+    if (
+      weeklySlots.some(
+        (other, i) =>
+          i < index &&
+          other.weekday === slot.weekday &&
+          other.startTime < slot.endTime &&
+          other.endTime > slot.startTime,
+      )
+    )
+      throw new Error("Các khoảng rảnh hằng tuần đang chồng nhau.");
+  });
+  return weeklySlots;
+}
 export function postExtraInput(value: PostExtrasValue, now = Date.now()) {
   const proposedTags = validateTagSelection(value.tagIds, value.proposedTags);
   if (value.offeredSharingSkillIds.length > 10)
@@ -9,41 +52,7 @@ export function postExtraInput(value: PostExtrasValue, now = Date.now()) {
   const teachingOverview = value.teachingOverview.trim();
   if (teachingOverview && Array.from(teachingOverview).length < 20)
     throw new Error("Giới thiệu trao đổi cần ít nhất 20 ký tự hoặc để trống.");
-  const weeklySlots = value.mode === "weekly" ? value.weeklySlots : [];
-  if (weeklySlots.length > 5)
-    throw new Error("Chọn tối đa 5 khoảng rảnh tuần.");
-  if (value.mode === "weekly") {
-    if (/^[+-]/.test(value.timeZone))
-      throw new Error("Dùng tên múi giờ IANA, ví dụ Asia/Ho_Chi_Minh.");
-    try {
-      new Intl.DateTimeFormat("vi", { timeZone: value.timeZone });
-    } catch {
-      throw new Error("Múi giờ chưa hợp lệ. Ví dụ: Asia/Ho_Chi_Minh.");
-    }
-    weeklySlots.forEach((slot, index) => {
-      if (
-        !/^(MON|TUE|WED|THU|FRI|SAT|SUN)$/.test(slot.weekday) ||
-        !/^([01]\d|2[0-3]):[0-5]\d$/.test(slot.startTime) ||
-        !/^([01]\d|2[0-3]):[0-5]\d$/.test(slot.endTime) ||
-        slot.startTime >= slot.endTime
-      )
-        throw new Error(
-          "Khoảng rảnh tuần " +
-            (index + 1) +
-            " cần giờ kết thúc sau giờ bắt đầu trong cùng ngày.",
-        );
-      if (
-        weeklySlots.some(
-          (other, i) =>
-            i < index &&
-            other.weekday === slot.weekday &&
-            other.startTime < slot.endTime &&
-            other.endTime > slot.startTime,
-        )
-      )
-        throw new Error("Các khoảng rảnh hằng tuần đang chồng nhau.");
-    });
-  }
+  const weeklySlots = readWeeklySlots(value);
   const preferredSlots =
     value.mode === "slots"
       ? value.preferredSlots.map((slot, index) => {

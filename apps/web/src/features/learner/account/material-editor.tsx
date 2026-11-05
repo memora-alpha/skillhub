@@ -7,6 +7,7 @@ import { CommandFeedback, Feedback, Status } from "../components/common";
 import { SkillPicker } from "../components/skill-picker";
 import { UploadControl } from "../components/upload-control";
 import type { Material } from "./account-types";
+import { formText } from "../components/form-data";
 
 export const editableMaterial = (status: string) =>
   ["DRAFT", "REJECTED", "PENDING_REVIEW", "PUBLISHED"].includes(status);
@@ -14,17 +15,17 @@ export function MaterialEditor({
   material,
   close,
   reload,
-}: {
+}: Readonly<{
   material: Material;
   close: () => void;
   reload: () => void;
-}) {
+}>) {
   const { request } = useUserSession(),
     command = useUserCommand();
-  const [skillId, setSkill] = useState(material.skillId),
-    [access, setAccess] = useState(material.accessType);
-  const [fileId, setFile] = useState(""),
-    [uploading, setUploading] = useState(false);
+  const [skillId, setSkillId] = useState(material.skillId);
+  const [access, setAccess] = useState(material.accessType);
+  const [fileId, setFileId] = useState("");
+  const [uploading, setUploading] = useState(false);
   const file = useUserResource<{ state: string }>(
     fileId ? "me/materials/files/" + fileId : null,
   );
@@ -38,10 +39,10 @@ export function MaterialEditor({
         const body = {
           expectedListingVersion: material.listingVersion,
           skillId,
-          title: String(form.get("title") ?? "").trim(),
-          description: String(form.get("description") ?? "").trim(),
+          title: formText(form, "title").trim(),
+          description: formText(form, "description").trim(),
           accessType: access,
-          priceCredit: access === "FREE" ? "0" : String(form.get("price")),
+          priceCredit: access === "FREE" ? "0" : formText(form, "price"),
           ...(fileId
             ? {
                 fileId,
@@ -68,9 +69,9 @@ export function MaterialEditor({
         style={{ border: 0, padding: 0, minWidth: 0 }}
         className="learner-form"
       >
-        <SkillPicker value={skillId} onChange={setSkill} />
+        <SkillPicker value={skillId} onChange={setSkillId} />
         <label>
-          Tiêu đề
+          <span>Tiêu đề</span>
           <input
             name="title"
             required
@@ -80,7 +81,7 @@ export function MaterialEditor({
           />
         </label>
         <label>
-          Mô tả
+          <span>Mô tả</span>
           <textarea
             name="description"
             required
@@ -91,7 +92,7 @@ export function MaterialEditor({
           />
         </label>
         <label>
-          Hình thức
+          <span>Hình thức</span>
           <select
             value={access}
             onChange={(e) => setAccess(e.target.value as "FREE" | "PAID")}
@@ -102,7 +103,7 @@ export function MaterialEditor({
         </label>
         {access === "PAID" && (
           <label>
-            Giá (CR)
+            <span>Giá (CR)</span>
             <input
               name="price"
               type="number"
@@ -123,7 +124,7 @@ export function MaterialEditor({
           maxBytes={20000000}
           accept=".pdf,.docx,.pptx,.xlsx"
           disabled={disabled}
-          onUploaded={setFile}
+          onUploaded={setFileId}
           onBusyChange={setUploading}
         />
         {fileId && (
@@ -140,8 +141,8 @@ export function MaterialEditor({
               Kiểm tra tệp
             </button>
             <label className="product-consent">
-              <input type="checkbox" name="rights" required /> Tôi có quyền phân
-              phối tệp thay thế.
+              <input type="checkbox" name="rights" required />
+              <span>Tôi có quyền phân phối tệp thay thế.</span>
             </label>
           </>
         )}
@@ -155,6 +156,7 @@ export function MaterialEditor({
       )}
       <div className="learner-actions">
         <button
+          type="submit"
           className="btn btn-primary"
           disabled={
             disabled ||
