@@ -328,12 +328,18 @@ test(
       await t.test(
         "ONE_WAY: exact allocation, concurrent replay, source closure and reconciliation",
         async () => {
-          const ctx = await agreement();
+          const ctx = await agreement(false, 5);
+          await f.db.session.updateMany({
+            where: {
+              id: { in: ctx.sessions.slice(0, 2).map((item) => item.id) },
+            },
+            data: { status: "COMPLETED" },
+          });
           const row = await accepted(ctx);
           const input = await decision(ctx, row, () => ({
             refund: "60.00",
-            counterpartyPayment: "39.00",
-            platformFee: "1.00",
+            counterpartyPayment: "38.40",
+            platformFee: "1.60",
           }));
           const results = await Promise.all(
             [1, 2].map(() =>
@@ -347,7 +353,7 @@ test(
           );
           assert.equal(
             (await assertLots(ctx.teacher.user.id)).availableCredit,
-            13900n,
+            13840n,
           );
           assert.equal((await assertLots(ctx.learner.user.id)).heldCredit, 0n);
           assert.equal(
@@ -390,34 +396,40 @@ test(
         "TWO_WAY: distribute each payer's Held independently, with exact conservation",
         async () => {
           const ctx = await agreement(true);
+          await f.db.session.update({
+            where: { id: ctx.sessions[0].id },
+            data: { status: "COMPLETED" },
+          });
           const row = await accepted(ctx);
           const input = await decision(ctx, row, (item) =>
             item.userId === ctx.teacher.user.id
               ? {
-                  refund: "10.00",
+                  refund: "10.60",
                   counterpartyPayment: "9.00",
-                  platformFee: "1.00",
+                  platformFee: "0.40",
                 }
               : {
-                  refund: "15.00",
+                  refund: "15.60",
                   counterpartyPayment: "4.00",
-                  platformFee: "1.00",
+                  platformFee: "0.40",
                 },
           );
+          input.compensationReason =
+            "Independent case ruling for each participant";
           await stop.execute(reviewer, ctx.path.id, row.id, input);
           assert.equal(
             (await assertLots(ctx.teacher.user.id)).availableCredit,
-            9400n,
+            9460n,
           );
           assert.equal(
             (await assertLots(ctx.learner.user.id)).availableCredit,
-            10400n,
+            10460n,
           );
           assert.equal(
             await f.db.session.count({
               where: { pathId: ctx.path.id, status: "CANCELLED" },
             }),
-            2,
+            1,
           );
           assert.equal(
             await f.db.heldCreditAllocation.count({
@@ -425,6 +437,140 @@ test(
             }),
             0,
           );
+        },
+      );
+
+      await t.test(
+        "session snapshot is immutable; arbitrary fees and compensation without a reason cannot post",
+        async () => {
+          const ctx = await agreement(true);
+          const row = await accepted(ctx);
+          const review = await stop.review(reviewer, ctx.path.id, row.id);
+          assert.equal(review.execution.quote.allocations[0].refund, "20.00");
+          const input = await decision(ctx, row, () => ({
+            refund: "20.00",
+            counterpartyPayment: "0.00",
+            platformFee: "0.00",
+          }));
+          const held = await f.db.heldCreditAllocation.findMany({
+            where: { pathId: ctx.path.id },
+          });
+          await assert.rejects(
+            () =>
+              f.db.heldCreditAllocation.update({
+                where: { id: held[0].id },
+                data: { sessionCreditSnapshot: { policy: "changed" } },
+              }),
+            /SESSION_CREDIT_SNAPSHOT_IMMUTABLE/,
+          );
+          await assert.rejects(
+            () =>
+              stop.execute(reviewer, ctx.path.id, row.id, {
+                ...input,
+                allocations: input.allocations.map((item) => ({
+                  ...item,
+                  refund: "19.00",
+                  platformFee: "1.00",
+                })),
+              }),
+            /TERMINATION_FORMULA_MISMATCH/,
+          );
+          assert.equal(
+            (await assertLots(ctx.teacher.user.id)).heldCredit,
+            2000n,
+          );
+          const compensated = {
+            ...input,
+            allocations: input.allocations.map((item) => ({
+              ...item,
+              refund: "19.00",
+              counterpartyPayment: "1.00",
+            })),
+          };
+          await assert.rejects(
+            () => stop.execute(reviewer, ctx.path.id, row.id, compensated),
+            /TERMINATION_COMPENSATION_REASON_REQUIRED/,
+          );
+          assert.equal(
+            await f.db.creditOperation.count({
+              where: {
+                referenceId: ctx.path.id,
+                operationType: "PATH_TERMINATION",
+              },
+            }),
+            0,
+          );
+          const originalAudit = mutableAudit.append;
+          mutableAudit.append = (tx, entry) =>
+            entry.after?.status === "APPLIED"
+              ? Promise.reject(
+                  new Error("injected session-credit audit failure"),
+                )
+              : originalAudit(tx, entry);
+          try {
+            await assert.rejects(
+              () => stop.execute(reviewer, ctx.path.id, row.id, input),
+              /injected session-credit audit failure/,
+            );
+          } finally {
+            mutableAudit.append = originalAudit;
+          }
+          assert.equal(
+            (await assertLots(ctx.learner.user.id)).heldCredit,
+            2000n,
+          );
+          assert.ok(
+            (
+              await f.db.session.findMany({ where: { pathId: ctx.path.id } })
+            ).every((item) => item.status === "CONFIRMED"),
+          );
+          const results = await Promise.all(
+            [1, 2].map(() =>
+              stop.execute(reviewer, ctx.path.id, row.id, input),
+            ),
+          );
+          assert.equal(results[0].operationId, results[1].operationId);
+          assert.equal(
+            (await assertLots(ctx.teacher.user.id)).availableCredit,
+            10000n,
+          );
+          assert.equal(
+            (await assertLots(ctx.learner.user.id)).availableCredit,
+            10000n,
+          );
+        },
+      );
+
+      await t.test(
+        "ONE_WAY remainder and fee floor settle exactly against original source lots",
+        async () => {
+          const ctx = await agreement(false, 3);
+          const first = ctx.sessions.find(
+            (item) => item.outlineSessionNo === 1,
+          );
+          await f.db.session.update({
+            where: { id: first.id },
+            data: { status: "COMPLETED" },
+          });
+          const row = await accepted(ctx);
+          const quote = await stop.quote(ctx.learner.principal, ctx.path.id);
+          assert.equal(quote.allocations[0].completedCredit, "33.34");
+          assert.equal(quote.allocations[0].platformFee, "1.33");
+          const input = await decision(ctx, row, () => ({
+            refund: "66.66",
+            counterpartyPayment: "32.01",
+            platformFee: "1.33",
+          }));
+          await stop.execute(reviewer, ctx.path.id, row.id, input);
+          assert.equal(
+            (await assertLots(ctx.learner.user.id)).availableCredit,
+            6666n,
+          );
+          assert.equal(
+            (await assertLots(ctx.teacher.user.id)).availableCredit,
+            13201n,
+          );
+          assert.equal((await assertLots(ctx.learner.user.id)).heldCredit, 0n);
         },
       );
 

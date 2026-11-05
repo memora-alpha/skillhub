@@ -13,12 +13,18 @@ import {
   PathTerminationPort,
   type HeldTerminationAllocation,
   type PathTerminationInstruction,
+  type TerminationQuoteContext,
 } from "../ports/path-termination.port";
+import { readTerminationQuote } from "./termination-quote.reader";
+import { parseCredit } from "../../domain/money";
 import { CreditOperationsService } from "./credit-operations.service";
 import { CreditProvenanceService } from "./credit-provenance.service";
 
 @Injectable()
 export class PathTerminationLedgerService extends PathTerminationPort {
+  previewHeld(tx: TransactionContext, input: TerminationQuoteContext) {
+    return readTerminationQuote(tx, input);
+  }
   constructor(
     private readonly operations: CreditOperationsService,
     private readonly provenance: CreditProvenanceService,
@@ -70,6 +76,26 @@ export class PathTerminationLedgerService extends PathTerminationPort {
       orderBy: { id: "asc" },
     });
     this.validateAllocations(input, allocations, held);
+    const quote = await this.previewHeld(tx, input);
+    if (quote.status !== "READY")
+      throw new ConflictException(quote.reasonCodes[0]);
+    for (const decision of allocations) {
+      const calculated = quote.allocations.find(
+        (row) => row.allocationId === decision.allocationId,
+      )!;
+      const fee = parseCredit(calculated.platformFee);
+      let refund = parseCredit(calculated.refund);
+      if (input.exchangeType === "TWO_WAY")
+        refund -= decision.counterpartyPayment;
+      if (
+        decision.platformFee !== fee ||
+        decision.refund !== refund ||
+        (input.exchangeType === "ONE_WAY" &&
+          decision.counterpartyPayment !==
+            parseCredit(calculated.counterpartyPayment))
+      )
+        throw new ConflictException("TERMINATION_FORMULA_MISMATCH");
+    }
     const wallets = new Map<string, CreditWallet>();
     // Credit owner takes sorted wallets only after the caller's Path/Session locks.
     for (const userId of [input.participantAId, input.participantBId].sort(

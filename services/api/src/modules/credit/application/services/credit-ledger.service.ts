@@ -5,6 +5,7 @@ import { byCodeUnit } from "../../../../infrastructure/idempotency/idempotency.s
 
 import type { PathHoldInput } from "../contracts/path-credit";
 import { CreditProvenanceService } from "./credit-provenance.service";
+import { createSessionCreditSnapshot } from "../../domain/session-credit";
 
 @Injectable()
 export class CreditLedgerService {
@@ -19,6 +20,14 @@ export class CreditLedgerService {
       select: { id: true },
     });
     if (existing) return existing.id;
+
+    const sessionCreditSnapshot = createSessionCreditSnapshot(
+      input.exchangeType === "TWO_WAY"
+        ? input.totalCreditPerUser!
+        : input.negotiatedCredit!,
+      input,
+      input.sessions,
+    );
 
     const allocation =
       input.exchangeType === "TWO_WAY"
@@ -115,6 +124,7 @@ export class CreditLedgerService {
           amount: item.amount,
           remainingHeld: item.amount,
           status: "ACTIVE",
+          sessionCreditSnapshot,
         },
       });
       if (wallet.provenanceTracked)

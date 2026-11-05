@@ -86,6 +86,20 @@ async function pathFixture(f, a, b, exchangeType, amount) {
       participantAId: a.user.id,
       participantBId: b.user.id,
       ...agreement,
+      sessions: (exchangeType === "TWO_WAY"
+        ? [
+            [a, b],
+            [b, a],
+          ]
+        : [[a, b]]
+      ).map(([teacher, learner]) => ({
+        id: randomUUID(),
+        planId: randomUUID(),
+        planVersion: 1,
+        outlineSessionNo: 1,
+        teacherId: teacher.user.id,
+        learnerId: learner.user.id,
+      })),
     },
   };
 }

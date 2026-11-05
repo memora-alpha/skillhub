@@ -844,9 +844,10 @@ model HeldCreditAllocation {
   createdAt         DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
   settledAt         DateTime?   @map("settled_at") @db.Timestamptz(3)
 
-  lockedVersionRecord LearningPathVersion @relation("HeldCreditAllocation_locked_version", fields: [pathId, lockedPathVersion], references: [pathId, versionNo], onDelete: Restrict, onUpdate: Restrict)
-  userIdRecord        User                @relation("HeldCreditAllocation_user_id", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  beneficiaryIdRecord User?               @relation("HeldCreditAllocation_beneficiary_id", fields: [beneficiaryId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  lockedVersionRecord   LearningPathVersion @relation("HeldCreditAllocation_locked_version", fields: [pathId, lockedPathVersion], references: [pathId, versionNo], onDelete: Restrict, onUpdate: Restrict)
+  userIdRecord          User                @relation("HeldCreditAllocation_user_id", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  beneficiaryIdRecord   User?               @relation("HeldCreditAllocation_beneficiary_id", fields: [beneficiaryId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  sessionCreditSnapshot Json?               @map("session_credit_snapshot") @db.JsonB
 
   @@unique([pathId, userId])
   @@index([pathId, lockedPathVersion])

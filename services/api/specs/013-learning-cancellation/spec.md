@@ -3,6 +3,10 @@
 Source: SRS V1.6 §§18.20/18.38/18.40; implementation authorized 2026-11-05
 after the cancellation/termination/dispute audit. Backend only.
 
+The [per-session Credit amendment](session-credit-amendment.md), authorized
+2026-11-06 for ONE_WAY and TWO_WAY, supersedes the original non-prorating rules
+below for newly locked Holds. Historical Holds require review.
+
 The later user-approved [Session policy amendment](session-policy-amendment.md)
 adds personal makeup quotas shared across both directions, ordinary reschedule limits and explicit
 bilateral immediate settlement. It takes precedence for those rules.

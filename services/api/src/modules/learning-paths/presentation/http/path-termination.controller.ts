@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Header,
   Headers,
   Param,
   ParseUUIDPipe,
@@ -21,6 +22,7 @@ import {
   ArrayMinSize,
   IsArray,
   IsString,
+  IsOptional,
   IsUUID,
   Matches,
   MaxLength,
@@ -60,6 +62,18 @@ class TerminationReasonDto extends ChangeVersionDto {
   reason!: string;
 }
 class ExecuteTerminationDto extends TerminationReasonDto {
+  @ApiProperty({
+    required: false,
+    minLength: 3,
+    maxLength: 1000,
+    description:
+      "Required for any TWO_WAY compensation transfer; no automatic penalty rate",
+  })
+  @IsOptional()
+  @IsString()
+  @MinLength(3)
+  @MaxLength(1000)
+  compensationReason?: string;
   @ApiProperty() @Matches(/^[a-f0-9]{64}$/) expectedExecutionDigest!: string;
   @ApiProperty({ maxLength: 200 })
   @IsString()
@@ -84,6 +98,18 @@ class ExecuteTerminationDto extends TerminationReasonDto {
 })
 export class PathTerminationController {
   constructor(private readonly changes: PathTerminationService) {}
+  @Get("quote")
+  @Header("Cache-Control", "no-store")
+  @ApiOperation({
+    summary:
+      "Preview immutable per-session Credit, refund, payment, fee and blockers",
+  })
+  async quote(
+    @CurrentIdentity() actor: Principal,
+    @Param("pathId", ParseUUIDPipe) pathId: string,
+  ) {
+    return success(await this.changes.quote(actor, pathId));
+  }
   @Post()
   @ApiHeader({ name: "Idempotency-Key", required: true })
   @ApiOperation({
@@ -143,6 +169,7 @@ export class PathTerminationController {
     );
   }
   @Get(":requestId/review")
+  @Header("Cache-Control", "no-store")
   async review(
     @CurrentIdentity() actor: Principal,
     @Param("pathId", ParseUUIDPipe) pathId: string,
@@ -170,7 +197,7 @@ export class PathTerminationController {
   @Post(":requestId/execute")
   @ApiOperation({
     summary:
-      "Admin executes an explicit Held allocation under an approved policy; no automatic 96/4 or prorating",
+      "Admin executes reviewed per-session settlement; backend validates formula and explicit compensation",
   })
   async execute(
     @CurrentIdentity() actor: Principal,

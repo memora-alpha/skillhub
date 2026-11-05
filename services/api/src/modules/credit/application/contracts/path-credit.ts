@@ -1,3 +1,5 @@
+import type { SessionCreditIdentity } from "../../domain/session-credit";
+
 export type PathHoldInput = {
   pathId: string;
   pathVersion: number;
@@ -8,4 +10,5 @@ export type PathHoldInput = {
   learnerId: string | null;
   totalCreditPerUser: bigint | null;
   negotiatedCredit: bigint | null;
+  sessions: readonly SessionCreditIdentity[];
 };

@@ -40,8 +40,9 @@ Execution body:
 }
 ```
 
-These are explicit decided amounts under the referenced policy; this endpoint is
-not a quote engine. Never derive them in the client from completed/total sessions.
+These are explicit decided amounts under the referenced policy. New Holds are
+validated against the [per-session policy](session-credit-amendment.md).
+Use the backend quote; never derive money on the client.
 Each allocation must be present once and fully accounted for. A new review is
 required when progress/schedule/Hold/Path/policy changes. A blocking report always
 prevents execution, even if the digest has not changed. No automatic execution
@@ -63,6 +64,39 @@ SETTLEMENT_BLOCKED_BY_TERMINATION. Missing idempotency key is 400.
 `learning-path.change.updated` uses durable outbox delivery to both participants,
 with generic notification copy and only Path/request IDs, never the private reason.
 No mobile screens were changed; integrate these APIs in a separately authorized task.
+
+## Per-session Credit amendment 2026-11-06
+
+`GET /learning-paths/:pathId/termination-requests/quote`, Bearer, participant only,
+`Cache-Control: no-store`, no body and no money movement. Returns `pathId`,
+`lockedVersion`, `executionDigest`, `policyReference`, `policy`, `status`
+(`NOT_LOCKED | READY | BLOCKED`), `reasonCodes`, `totalSessions`, `completedSessions`,
+`unresolvedSessionIds`, `directions` and `allocations`.
+
+Each direction has `planId`, `teacherId`, `learnerId`, `total`, `completed`.
+Each allocation has `allocationId`, `userId`, `remainingHeld`, `completedCredit`,
+`uncompletedCredit`, `refund`, `counterpartyPayment`, `platformFee` and
+`sessionCredits: [{sessionId, planId, teacherId, learnerId, credit, status}]`.
+All monetary values are decimal strings. The base quote assumes zero TWO_WAY
+compensation; actual compensation is a separate reasoned Admin instruction.
+Before Hold the quote returns NOT_LOCKED/CREDIT_NOT_HELD with empty allocations
+and null executionDigest/policy; there is no refund/payment/fee to post. This read
+does not introduce a new pre-lock cancellation command.
+`executionDigest` is compatible with the review's `execution.digest` for the same
+live state. The Admin review adds `execution.quote` with this financial breakdown.
+Both reads are no-store. A missing approval reference or a blocking report is
+exposed as a blocker, not permission to post.
+
+Execute additionally accepts optional `compensationReason` (3–1000 characters),
+required when any TWO_WAY `counterpartyPayment` is positive. The existing required
+reason is retained. Backend recalculates before posting: arbitrary totals that
+conserve Held but violate the refund/payment/fee formula are rejected.
+
+New codes: `SESSION_CREDIT_SNAPSHOT_MISSING`, `SESSION_CREDIT_SNAPSHOT_INVALID`,
+`SESSION_CREDIT_SNAPSHOT_MISMATCH`, `TERMINATION_FORMULA_MISMATCH`,
+`TERMINATION_USE_FINAL_SETTLEMENT` (409); `TERMINATION_COMPENSATION_REASON_REQUIRED`
+(400). Legacy Holds have no inferred prices and remain blocked for review.
+This intentionally tightens the execution contract for both exchange types.
 
 ## Session policy amendment 2026-11-05
 

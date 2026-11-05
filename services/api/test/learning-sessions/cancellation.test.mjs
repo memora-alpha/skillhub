@@ -6,6 +6,7 @@ import { AuditWriter } from "../../dist/modules/audit/application/services/audit
 import { AuditRepository } from "../../dist/modules/audit/infrastructure/persistence/audit.repository.js";
 import { LearningChangeState } from "../../dist/modules/learning-paths/application/services/learning-change-state.js";
 import { PathTerminationService } from "../../dist/modules/learning-paths/application/services/path-termination.service.js";
+import { readTerminationQuote } from "../../dist/modules/credit/application/services/termination-quote.reader.js";
 import { SessionChangesService } from "../../dist/modules/learning-sessions/application/services/session-changes.service.js";
 import { PathSettlementStatusService } from "../../dist/modules/learning-paths/application/services/path-settlement-status.service.js";
 import { SessionOutcomeService } from "../../dist/modules/learning-sessions/application/services/session-outcome.service.js";
@@ -39,6 +40,7 @@ async function fixture() {
     state,
     cancellations,
     {
+      previewHeld: readTerminationQuote,
       distributeHeld: async () => {
         throw new Error("Unexpected financial execution");
       },

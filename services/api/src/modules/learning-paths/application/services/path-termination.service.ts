@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
@@ -36,6 +37,7 @@ export type TerminationDecision = {
   expectedExecutionDigest: string;
   policyReference: string;
   reason: string;
+  compensationReason?: string;
   allocations: {
     allocationId: string;
     refund: string;
@@ -56,6 +58,21 @@ function requireReviewer(actor: Principal, execute = false) {
     required.some((permission) => !actor.permissions.includes(permission))
   )
     throw new ForbiddenException("TERMINATION_REVIEW_PERMISSION_REQUIRED");
+}
+
+function assertCompensationReason(
+  exchangeType: string,
+  allocations: { counterpartyPayment: bigint }[],
+  reason?: string,
+) {
+  if (
+    exchangeType !== "TWO_WAY" ||
+    !allocations.some((item) => item.counterpartyPayment > 0n)
+  )
+    return;
+  if (!reason)
+    throw new BadRequestException("TERMINATION_COMPENSATION_REASON_REQUIRED");
+  validateReason(reason, { min: 3, max: 1000 });
 }
 
 @Injectable()
@@ -188,7 +205,50 @@ export class PathTerminationService {
       );
       return {
         ...(await this.view(tx, row)),
-        execution: await this.executionSnapshot(tx, path),
+        execution: await this.executionSnapshot(tx, path, now),
+      };
+    });
+  }
+
+  quote(actor: Principal, pathId: string) {
+    return this.transactions.run(async (tx) => {
+      const { path, now } = await this.context(tx, actor, pathId);
+      if (!path.lockedVersion) {
+        const held = await tx.heldCreditAllocation.count({
+          where: { pathId, remainingHeld: { gt: 0n } },
+        });
+        if (held)
+          throw new ConflictException("TERMINATION_ALLOCATION_MISMATCH");
+        return {
+          pathId,
+          lockedVersion: null,
+          executionDigest: null,
+          policyReference: null,
+          policy: null,
+          status: "NOT_LOCKED",
+          reasonCodes: ["CREDIT_NOT_HELD"],
+          totalSessions: 0,
+          completedSessions: 0,
+          unresolvedSessionIds: [],
+          directions: [],
+          allocations: [],
+        };
+      }
+      assertChangeablePath(path);
+      const execution = await this.executionSnapshot(tx, path, now);
+      const reasonCodes = new Set(execution.quote.reasonCodes);
+      if (!execution.policyReference)
+        reasonCodes.add("TERMINATION_POLICY_NOT_APPROVED");
+      if (await changeBlockedByDispute(tx, pathId))
+        reasonCodes.add("TERMINATION_BLOCKED_BY_DISPUTE");
+      return {
+        pathId,
+        lockedVersion: path.lockedVersion,
+        executionDigest: execution.digest,
+        policyReference: execution.policyReference,
+        ...execution.quote,
+        status: reasonCodes.size ? "BLOCKED" : "READY",
+        reasonCodes: [...reasonCodes],
       };
     });
   }
@@ -294,9 +354,19 @@ export class PathTerminationService {
         throw new ConflictException("TERMINATION_POLICY_NOT_APPROVED");
       if (await changeBlockedByDispute(tx, pathId))
         throw new ConflictException("TERMINATION_BLOCKED_BY_DISPUTE");
-      const execution = await this.executionSnapshot(tx, path);
+      const execution = await this.executionSnapshot(tx, path, now);
       if (execution.digest !== input.expectedExecutionDigest)
         throw new ConflictException("STALE_TERMINATION_EXECUTION");
+      if (execution.quote.status !== "READY")
+        throw new ConflictException(execution.quote.reasonCodes[0]);
+      const agreement = await tx.learningPathVersion.findUniqueOrThrow({
+        where: { pathId_versionNo: { pathId, versionNo: path.lockedVersion! } },
+      });
+      assertCompensationReason(
+        agreement.exchangeType,
+        allocations,
+        input.compensationReason,
+      );
       if (source) {
         const committed = await this.requestPaths.readCommittedPathIds(
           tx,
@@ -316,11 +386,6 @@ export class PathTerminationService {
         reason,
         now,
       );
-      const agreement = await tx.learningPathVersion.findUniqueOrThrow({
-        where: {
-          pathId_versionNo: { pathId, versionNo: path.lockedVersion! },
-        },
-      });
       const posting = await this.credit.distributeHeld(tx, {
         pathId,
         pathVersion: path.lockedVersion!,
@@ -367,6 +432,8 @@ export class PathTerminationService {
         allocations: input.allocations,
         cancelledSessionIds,
         executionDigest: execution.digest,
+        quote: execution.quote,
+        compensationReason: input.compensationReason?.trim() ?? null,
       };
       const applied = await this.changes.update(
         tx,
@@ -420,7 +487,11 @@ export class PathTerminationService {
     });
   }
 
-  private async executionSnapshot(tx: TransactionContext, path: LearningPath) {
+  private async executionSnapshot(
+    tx: TransactionContext,
+    path: LearningPath,
+    now: Date,
+  ) {
     const sessions = await tx.session.findMany({
       where: { pathId: path.id },
       orderBy: { id: "asc" },
@@ -458,12 +529,32 @@ export class PathTerminationService {
       policyReference: (await this.changes.policy(tx))
         .terminationPolicyReference,
     };
+    const agreement = await tx.learningPathVersion.findUniqueOrThrow({
+      where: {
+        pathId_versionNo: { pathId: path.id, versionNo: path.lockedVersion! },
+      },
+    });
+    const quote = await this.credit.previewHeld(tx, {
+      pathId: path.id,
+      pathVersion: path.lockedVersion!,
+      participantAId: path.participantAId,
+      participantBId: path.participantBId,
+      exchangeType: agreement.exchangeType,
+      teacherId: agreement.teacherId,
+      learnerId: agreement.learnerId,
+      expectedCredit:
+        (agreement.exchangeType === "TWO_WAY"
+          ? agreement.totalCreditPerUser
+          : agreement.negotiatedCredit) ?? 0n,
+      now,
+    });
     return {
-      digest: fingerprintCommand(snapshot),
+      digest: fingerprintCommand({ ...snapshot, quote }),
       completed: sessions.filter((item) => item.status === "COMPLETED").length,
       total: sessions.length,
       allocations,
       policyReference: snapshot.policyReference,
+      quote,
     };
   }
 

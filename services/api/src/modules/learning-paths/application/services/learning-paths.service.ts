@@ -1368,6 +1368,23 @@ export class LearningPathsService {
       learnerId: agreement.learnerId,
       totalCreditPerUser: agreement.totalCreditPerUser,
       negotiatedCredit: agreement.negotiatedCredit,
+      sessions: sessionEntries.map(
+        ({
+          id,
+          planId,
+          planVersion,
+          outlineSessionNo,
+          teacherId,
+          learnerId,
+        }) => ({
+          id,
+          planId,
+          planVersion,
+          outlineSessionNo,
+          teacherId,
+          learnerId,
+        }),
+      ),
     });
     const sessions = sessionEntries.map((entry) => ({
       id: entry.id,

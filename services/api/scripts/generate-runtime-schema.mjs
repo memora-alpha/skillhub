@@ -334,6 +334,12 @@ model("ReportCase", (block) =>
 );
 
 // Learning changes own their request history; Session identities remain stable for makeup.
+model("HeldCreditAllocation", (block) =>
+  fields(
+    block,
+    '  sessionCreditSnapshot Json? @map("session_credit_snapshot") @db.JsonB',
+  ),
+);
 model("LearningPath", (block) =>
   fields(
     block,
