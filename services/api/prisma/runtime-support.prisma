@@ -45,13 +45,14 @@ model PaymentReceipt {
 model CreditLot {
   id String @id @default(uuid()) @db.Uuid
   userId String @map("user_id") @db.Uuid
-  operationId String @unique @map("operation_id") @db.Uuid
+  operationId String @map("operation_id") @db.Uuid
   source String @db.VarChar(20)
   available BigInt
   held BigInt @default(0)
   consumed BigInt @default(0)
   granted BigInt
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  @@unique([operationId, userId])
   @@index([userId, createdAt, id])
   @@map("credit_lots")
 }

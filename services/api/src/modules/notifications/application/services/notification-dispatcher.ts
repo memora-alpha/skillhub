@@ -23,6 +23,7 @@ const channelCodes: ReadonlySet<string> = new Set<NotificationChannelCode>([
 const eventChannels: Record<string, readonly NotificationChannelCode[]> = {
   "learning-path.locked": ["IN_APP", "EMAIL", "PUSH"],
   "learning-path.settled": ["IN_APP", "EMAIL", "PUSH"],
+  "learning-path.change.updated": ["IN_APP", "EMAIL", "PUSH"],
   "report.session.opened": ["IN_APP", "EMAIL", "PUSH"],
   "report.case.updated": ["IN_APP", "EMAIL", "PUSH"],
   "skill.verification.decided": ["IN_APP", "EMAIL", "PUSH"],

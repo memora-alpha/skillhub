@@ -1075,7 +1075,7 @@ export class LearningPathsService {
     const existingSessions = await tx.session.findMany({
       where: {
         pathId: { not: pathId },
-        status: { not: "CANCELLED" },
+        status: { notIn: ["CANCELLED", "MAKEUP_REQUIRED"] },
         OR: [
           { teacherId: { in: [path.participantAId, path.participantBId] } },
           { learnerId: { in: [path.participantAId, path.participantBId] } },

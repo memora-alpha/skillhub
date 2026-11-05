@@ -2,6 +2,13 @@
 
 NestJS backend in the SkillHub pnpm/Turborepo workspace.
 
+Hủy buổi để học bù giữ nguyên Session/số buổi; yêu cầu dừng cả thỏa thuận có
+review, kiểm tra tranh chấp và xử lý Held theo quyết định Admin. Thực thi Credit
+khi dừng mặc định bị khóa tới khi có tham chiếu policy được duyệt; không tự chia
+theo số buổi hoặc áp 96%/4%. Có API trạng thái quyết toán và hướng xử lý lỗi.
+Xem [contract](specs/013-learning-cancellation/contracts.md) và
+[migration/rollout](specs/013-learning-cancellation/quickstart.md).
+
 Inbox theo bài học: `GET /api/v1/conversations/inbox`, số đếm toàn bộ theo quyền,
 filter chat/đề xuất đã gửi theo bài và giữ tiêu đề lịch sử; xem
 [contract và triển khai](docs/request-grouped-inbox.md).

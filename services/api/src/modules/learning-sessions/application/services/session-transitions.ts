@@ -102,6 +102,8 @@ export async function refreshPathStatus(
   const current = await tx.learningPath.findUniqueOrThrow({
     where: { id: pathId },
   });
+  // A delayed completion/report event must never reopen a financially closed agreement.
+  if (current.status === "CANCELLED" || current.settledAt) return;
   // A dispute keeps the path DISPUTED; report resolution moves it back to ACTIVE.
   const path =
     current.status === "DISPUTED"

@@ -333,6 +333,45 @@ model("ReportCase", (block) =>
     .replace(/\breporterIdRecord(\s+)User\b/, "reporterIdRecord$1User?"),
 );
 
+// Learning changes own their request history; Session identities remain stable for makeup.
+model("LearningPath", (block) =>
+  fields(
+    block,
+    `
+  changeRequests LearningChangeRequest[]
+  settlementAttempt PathSettlementAttempt?
+`,
+  ),
+);
+model("Session", (block) =>
+  fields(
+    block,
+    `
+  changeRequests LearningChangeRequest[]
+  @@unique([id, pathId])
+`,
+  ),
+);
+model("User", (block) =>
+  fields(
+    block,
+    `
+  requestedLearningChanges LearningChangeRequest[] @relation("LearningChange_requester")
+  respondedLearningChanges LearningChangeRequest[] @relation("LearningChange_responder")
+  resolvedLearningChanges LearningChangeRequest[] @relation("LearningChange_resolver")
+`,
+  ),
+);
+model("CreditOperation", (block) =>
+  fields(
+    block,
+    `
+  learningChange LearningChangeRequest?
+`,
+  ),
+);
+schema += "\n" + readFileSync(new URL("learning-changes.prisma", root), "utf8");
+
 schema = schema.replace(
   /^\/\/ Logical v3[^\r\n]*\r?\n(?:\/\/[^\r\n]*\r?\n)*\r?\n/,
   "// Runtime: v3 domain models plus implemented foundation support.\n" +

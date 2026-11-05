@@ -13,6 +13,7 @@ import { TransactionRunner } from "../../dist/infrastructure/database/transactio
 import { SkillActorService } from "../../dist/modules/users/application/services/skill-actor.service.js";
 import { LearningSessionsController } from "../../dist/modules/learning-sessions/presentation/http/learning-sessions.controller.js";
 import { LearningSessionsService } from "../../dist/modules/learning-sessions/application/services/learning-sessions.service.js";
+import { SessionOutcomeService } from "../../dist/modules/learning-sessions/application/services/session-outcome.service.js";
 import { IdentityGuard } from "../../dist/shared/auth/identity.guard.js";
 import { SessionsService } from "../../dist/modules/auth/application/services/sessions.service.js";
 import { HttpExceptionFilter } from "../../dist/shared/http/http-exception.filter.js";
@@ -37,6 +38,8 @@ test("wallet HTTP uses live identity, exact strings, snapshot cursors and own-on
       imports: [CreditModule, IdentityModule],
       controllers: [LearningSessionsController],
       providers: [
+        // These tests exercise wallet/settlement serialization, not absence commands.
+        { provide: SessionOutcomeService, useValue: {} },
         // Exercise the real service/controller serialization together; wallet routes use real PG.
         {
           provide: LearningSessionsService,

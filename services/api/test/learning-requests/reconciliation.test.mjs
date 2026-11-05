@@ -61,9 +61,19 @@ test("clean pre-match, cancelled and already reconciled records need no changes"
     { ...base, status: "CANCELLED" },
     { ...base, status: "MATCHED", paths: [committed] },
     { ...base, status: "CLOSED", paths: [{ ...committed, settled: true }] },
+    { ...base, status: "CLOSED", paths: [{ ...committed, terminated: true }] },
   ]) {
     assert.equal(classifyLifecycle(snapshot).classification, "NO_CHANGE");
   }
+});
+
+test("an evidenced early termination closes its source without claiming completed settlement", () => {
+  const result = classifyLifecycle({
+    ...base,
+    status: "MATCHED",
+    paths: [{ ...committed, terminated: true }],
+  });
+  assert.deepEqual(result.proposedTransitions, ["CLOSED"]);
 });
 
 test("CLI validates flags/UUID/limit and requires its explicit database before connecting", () => {

@@ -109,7 +109,7 @@ async function assertNoSessionConflicts(
   const sessions = await tx.session.findMany({
     where: {
       id: { notIn: excludedSessionIds },
-      status: { not: "CANCELLED" },
+      status: { notIn: ["CANCELLED", "MAKEUP_REQUIRED"] },
       OR: [
         { teacherId: { in: participantIds } },
         { learnerId: { in: participantIds } },

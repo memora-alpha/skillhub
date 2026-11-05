@@ -348,6 +348,10 @@ model User {
   absenceExcuses        SessionAbsenceExcuse[]      @relation("AbsenceExcuse_absent_user")
   decidedAbsenceExcuses SessionAbsenceExcuse[]      @relation("AbsenceExcuse_decider")
 
+  requestedLearningChanges LearningChangeRequest[] @relation("LearningChange_requester")
+  respondedLearningChanges LearningChangeRequest[] @relation("LearningChange_responder")
+  resolvedLearningChanges  LearningChangeRequest[] @relation("LearningChange_resolver")
+
   @@unique([id, avatarAssetId])
   @@index([roleId])
   @@index([createdAt(sort: Desc), id(sort: Desc)])
@@ -793,7 +797,10 @@ model Session {
   attendanceIntervals  SessionAttendanceInterval[] @relation("AttendanceInterval_session")
   attendanceOutcomes   SessionAttendanceOutcome[]  @relation("AttendanceOutcome_session")
 
+  changeRequests LearningChangeRequest[]
+
   @@unique([planId, planVersion, outlineSessionNo])
+  @@unique([id, pathId])
   @@index([planId, pathId])
   @@index([teacherId])
   @@index([learnerId])
@@ -1223,6 +1230,9 @@ model LearningPath {
   settlementFeePolicyIdRecord      FeePolicyVersion?     @relation("LearningPath_settlement_fee_policy_id", fields: [settlementFeePolicyId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   learningPlanPathIdRecords        LearningPlan[]        @relation("LearningPlan_path_id")
 
+  changeRequests    LearningChangeRequest[]
+  settlementAttempt PathSettlementAttempt?
+
   @@unique([id, settledPathVersion])
   @@index([conversationId])
   @@index([participantAId])
@@ -1402,6 +1412,8 @@ model CreditOperation {
   learningPathSettlementOperationIdRecords LearningPath?       @relation("LearningPath_settlement_operation_id")
   materialOrderOperationIdRecords          MaterialOrder?      @relation("MaterialOrder_operation_id")
   instructionDigest                        String?             @map("instruction_digest") @db.Char(64)
+
+  learningChange LearningChangeRequest?
 
   @@map("credit_operations")
 }
@@ -1601,7 +1613,7 @@ model PaymentReceipt {
 model CreditLot {
   id          String   @id @default(uuid()) @db.Uuid
   userId      String   @map("user_id") @db.Uuid
-  operationId String   @unique @map("operation_id") @db.Uuid
+  operationId String   @map("operation_id") @db.Uuid
   source      String   @db.VarChar(20)
   available   BigInt
   held        BigInt   @default(0)
@@ -1609,6 +1621,7 @@ model CreditLot {
   granted     BigInt
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
 
+  @@unique([operationId, userId])
   @@index([userId, createdAt, id])
   @@map("credit_lots")
 }
@@ -2000,4 +2013,54 @@ model SessionAbsenceExcuse {
   @@index([absentUserId])
   @@index([decidedByUserId])
   @@map("session_absence_excuses")
+}
+
+// Runtime fragment consumed by generate-runtime-schema.mjs (spec 013).
+model LearningChangeRequest {
+  id                String           @id @default(uuid()) @map("change_request_id") @db.Uuid
+  pathId            String           @map("path_id") @db.Uuid
+  sessionId         String?          @map("session_id") @db.Uuid
+  kind              String           @db.Text
+  status            String           @default("PENDING") @db.Text
+  version           Int              @default(1)
+  requesterId       String           @map("requester_id") @db.Uuid
+  reason            String           @db.VarChar(1000)
+  idempotencyKey    String           @map("idempotency_key") @db.VarChar(128)
+  instructionDigest String           @map("instruction_digest") @db.Char(64)
+  occurrenceStartAt DateTime?        @map("occurrence_start_at") @db.Timestamptz(3)
+  policySnapshot    Json             @map("policy_snapshot")
+  responderId       String?          @map("responder_id") @db.Uuid
+  respondedAt       DateTime?        @map("responded_at") @db.Timestamptz(3)
+  accepted          Boolean?
+  responseNote      String?          @map("response_note") @db.VarChar(1000)
+  resolvedByUserId  String?          @map("resolved_by_user_id") @db.Uuid
+  resolution        Json?
+  operationId       String?          @unique @map("operation_id") @db.Uuid
+  createdAt         DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  expiresAt         DateTime         @map("expires_at") @db.Timestamptz(3)
+  closedAt          DateTime?        @map("closed_at") @db.Timestamptz(3)
+  path              LearningPath     @relation(fields: [pathId], references: [id], onDelete: Restrict)
+  session           Session?         @relation(fields: [sessionId, pathId], references: [id, pathId], onDelete: Restrict)
+  requester         User             @relation("LearningChange_requester", fields: [requesterId], references: [id], onDelete: Restrict)
+  responder         User?            @relation("LearningChange_responder", fields: [responderId], references: [id], onDelete: Restrict)
+  resolver          User?            @relation("LearningChange_resolver", fields: [resolvedByUserId], references: [id], onDelete: Restrict)
+  operation         CreditOperation? @relation(fields: [operationId], references: [id], onDelete: Restrict)
+
+  @@unique([pathId, requesterId, idempotencyKey])
+  @@index([pathId, status, expiresAt])
+  @@index([sessionId, status])
+  @@index([status, expiresAt, id])
+  @@map("learning_change_requests")
+}
+
+// Derived diagnostics, recorded after the financial transaction completes/rolls back.
+model PathSettlementAttempt {
+  pathId       String       @id @map("path_id") @db.Uuid
+  checkedAt    DateTime     @map("checked_at") @db.Timestamptz(3)
+  attemptCount Int          @default(1) @map("attempt_count")
+  outcome      String       @db.Text
+  errorCode    String?      @map("error_code") @db.VarChar(80)
+  path         LearningPath @relation(fields: [pathId], references: [id], onDelete: Restrict)
+
+  @@map("path_settlement_attempts")
 }

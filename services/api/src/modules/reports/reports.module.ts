@@ -8,6 +8,7 @@ import { IdentityModule } from "../identity.module";
 import { ReputationModule } from "../reputation/reputation.module";
 import { ReportsController } from "./presentation/http/reports.controller";
 import { ReportsService } from "./application/services/reports.service";
+import { SessionChangesModule } from "../learning-sessions/session-changes.module";
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { ReportsService } from "./application/services/reports.service";
     ReputationModule,
     CreditModule,
     SystemConfigurationModule,
+    SessionChangesModule,
   ],
   controllers: [ReportsController],
   providers: [ReportsService],

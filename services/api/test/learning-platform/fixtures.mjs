@@ -22,6 +22,10 @@ export const user = (userId) => ({ userId, roles: ["USER"], permissions: [] });
 
 /** Values pinned by the system configuration catalog. */
 export const defaultConfiguration = {
+  "learningPath.changeRequests": {
+    requestWindowHours: 72,
+    terminationPolicyReference: null,
+  },
   "session.durationMinutes": { min: 60, max: 180 },
   "session.attendancePolicy": {
     lateGraceMinutes: 10,

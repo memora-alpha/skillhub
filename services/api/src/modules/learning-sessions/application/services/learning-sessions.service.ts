@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
   ServiceUnavailableException,
 } from "@nestjs/common";
@@ -57,6 +58,8 @@ import { ReportsService } from "../../../reports/application/services/reports.se
 import { LearningRequestLifecycleService } from "../../../learning-requests/application/services/learning-request-lifecycle.service";
 import { LearningRequestPathReader } from "../../../learning-paths/application/services/learning-request-path.reader";
 import { lockLearningPathLifecycle } from "../../../learning-paths/application/services/learning-path-lock";
+import { pendingTermination } from "../../../learning-paths/application/services/learning-change-state";
+import { recordSettlementAttempt } from "../../../learning-paths/application/services/path-settlement-state";
 
 /** First join moves earlier and last leave moves later; other activity is ignored. */
 function participantActivityData(
@@ -105,6 +108,7 @@ const TRACKED_LIVEKIT_EVENTS = new Set([
 
 @Injectable()
 export class LearningSessionsService {
+  private readonly logger = new Logger(LearningSessionsService.name);
   constructor(
     private readonly transactions: TransactionRunner,
     private readonly db: PrismaService,
@@ -652,12 +656,12 @@ export class LearningSessionsService {
   }
 
   settlePath(actor: Principal, pathId: string) {
-    return this.settle(pathId, actor);
+    return this.observedSettlement(pathId, actor);
   }
 
   async trySettleCompletedPath(pathId: string) {
     try {
-      await this.settle(pathId);
+      await this.observedSettlement(pathId);
       return { outcome: "SETTLED" as const };
     } catch (error) {
       if (
@@ -667,11 +671,34 @@ export class LearningSessionsService {
           "PATH_SESSIONS_INCOMPLETE",
           "SETTLEMENT_BLOCKED_BY_DISPUTE",
           "DISPUTE_WINDOW_OPEN",
+          "SETTLEMENT_BLOCKED_BY_TERMINATION",
         ].includes(error.message)
       )
         return { outcome: "WAITING" as const };
       throw error;
     }
+  }
+
+  private async observedSettlement(pathId: string, actor?: Principal) {
+    try {
+      const result = await this.settle(pathId, actor);
+      await this.recordSettlement(pathId);
+      return result;
+    } catch (error) {
+      if (!(
+        error instanceof ForbiddenException ||
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      ))
+        await this.recordSettlement(pathId, error);
+      throw error;
+    }
+  }
+
+  private async recordSettlement(pathId: string, failure?: unknown) {
+    await this.transactions
+      .run((tx) => recordSettlementAttempt(tx, pathId, failure))
+      .catch(() => this.logger.error("SETTLEMENT_DIAGNOSTIC_UNAVAILABLE"));
   }
 
   private settle(pathId: string, actor?: Principal) {
@@ -721,6 +748,8 @@ export class LearningSessionsService {
       >`SELECT CURRENT_TIMESTAMP AS now`;
       if (!(clock?.now instanceof Date))
         throw new ConflictException("DATABASE_TIME_UNAVAILABLE");
+      if (await pendingTermination(tx, pathId, clock.now))
+        throw new ConflictException("SETTLEMENT_BLOCKED_BY_TERMINATION");
       await this.reports.assertPathSettlementAllowed(tx, pathId, clock.now);
       const result = await this.settlement.settlePath(tx, {
         pathId,
