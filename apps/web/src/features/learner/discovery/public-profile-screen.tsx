@@ -26,10 +26,7 @@ export function PublicProfileScreen({ userId }: Readonly<{ userId: string }>) {
   return (
     <>
       <Back href="/learn/explore?view=sharers">Tìm người chia sẻ</Back>
-      <PageHeading
-        title="Hồ sơ công khai"
-        description="Thông tin và kỹ năng thành viên chia sẻ với cộng đồng."
-      />
+      <PageHeading title="Hồ sơ công khai" />
       <Feedback
         loading={query.loading}
         error={query.error}

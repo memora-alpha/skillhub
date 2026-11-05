@@ -37,10 +37,7 @@ export function SkillsScreen() {
   );
   return (
     <>
-      <PageHeading
-        title="Kỹ năng tôi có thể chia sẻ"
-        description="Giúp người muốn học hiểu kinh nghiệm và thế mạnh của bạn."
-      />
+      <PageHeading title="Kỹ năng tôi có thể chia sẻ" />
       <label className="learner-actions">
         <input
           type="checkbox"

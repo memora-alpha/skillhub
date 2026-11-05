@@ -61,7 +61,6 @@ export function DashboardScreen() {
           timeZone: "Asia/Ho_Chi_Minh",
         }).format(now)}
         title={"Xin chào, " + actor.profile.fullName + "."}
-        description="Tiếp tục hành trình học tập và chia sẻ kỹ năng của bạn."
         action={
           <Link className="btn btn-primary" href="/learn/posts/new">
             <ProductIcon name="plus" size={17} />

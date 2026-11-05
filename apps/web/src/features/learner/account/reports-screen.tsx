@@ -41,10 +41,7 @@ export function ReportsScreen() {
   );
   return (
     <>
-      <PageHeading
-        title="Báo cáo của tôi"
-        description="Trạng thái xử lý các vấn đề bạn đã gửi."
-      />
+      <PageHeading title="Báo cáo của tôi" />
       <Feedback
         loading={query.loading}
         error={query.error}
@@ -316,11 +313,7 @@ export function ReportForm({
   return (
     <>
       <Back href={back} />
-      <PageHeading
-        eyebrow="CÙNG XÂY DỰNG CỘNG ĐỒNG AN TOÀN"
-        title="Gửi báo cáo"
-        description="Mô tả cụ thể vấn đề để đội ngũ hỗ trợ có thể xem xét."
-      />
+      <PageHeading title="Gửi báo cáo" />
       <div className="learner-two-columns">
         <Panel title={sessionId ? "Báo cáo buổi học" : "Báo cáo tài liệu"}>
           <Feedback

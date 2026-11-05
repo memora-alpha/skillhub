@@ -93,10 +93,7 @@ export function ReputationScreen() {
   return (
     <>
       <Back href="/learn/profile" />
-      <PageHeading
-        title="Lịch sử uy tín"
-        description="Điểm, lịch sử cộng/trừ và các hạn chế đang có hiệu lực theo máy chủ."
-      />
+      <PageHeading title="Lịch sử uy tín" />
       <Feedback
         loading={query.isFetching}
         error={query.error?.message}

@@ -25,7 +25,6 @@ import { useCameraBackground } from "./use-camera-background";
 import { useRoomAudio } from "./use-room-audio";
 import { useRoomDevices } from "./use-room-devices";
 import { RoomMediaSettings } from "./room-media-settings";
-import { RoomBackgroundControl } from "./room-background-control";
 import { useRoomChat } from "./use-room-chat";
 import { RoomChat } from "./room-chat";
 import styles from "./room.module.css";
@@ -158,17 +157,6 @@ function RoomControls({
         aria-pressed={room.camera}
         disabled={!connected || room.mediaBusy || background.busy || audio.busy}
         onClick={() => void room.toggle("camera")}
-      />
-      <RoomBackgroundControl
-        background={background}
-        disabled={!connected || room.mediaBusy || audio.busy}
-        onToggle={() =>
-          void room.changeBackground(
-            background.enabled
-              ? { mode: "off" }
-              : { mode: "blur", blurRadius: 12 },
-          )
-        }
       />
       <IconButton
         icon={room.screen ? "screenOff" : "screen"}

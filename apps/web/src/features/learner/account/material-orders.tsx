@@ -25,7 +25,7 @@ export function MaterialOrders() {
       <Back href="/learn/materials" />
       <PageHeading
         title="Đơn tài liệu đã mua"
-        description="Hoàn đơn trong 24 giờ nếu chưa từng lấy liên kết tải. Máy chủ kiểm tra điều kiện và số dư bên bán khi xử lý."
+        description="Có thể hoàn trong 24 giờ nếu chưa lấy liên kết tải."
       />
       <Feedback
         loading={query.loading}

@@ -23,21 +23,17 @@ export function NotificationsScreen() {
     command = useUserCommand(),
     { request } = useUserSession();
   const unread = useUnreadNotifications();
-  let summary = "Đang tải số thông báo chưa đọc…";
-  if (unread.error)
-    summary =
-      "Chưa tải được số thông báo chưa đọc. Bạn có thể làm mới để thử lại.";
+  let summary = "Đang tải…";
+  if (unread.error) summary = "Chưa tải được số thông báo chưa đọc.";
   else if (unread.count !== undefined) {
     if (unread.count === 0) summary = "Bạn đã đọc tất cả thông báo.";
-    else if (unread.count > 99) summary = "Bạn có hơn 99 thông báo chưa đọc.";
-    else summary = `Bạn có ${unread.count} thông báo chưa đọc.`;
+    else if (unread.count > 99) summary = "Hơn 99 thông báo chưa đọc";
+    else summary = `${unread.count} thông báo chưa đọc`;
   }
   return (
     <>
       <PageHeading
-        eyebrow="CẬP NHẬT DÀNH CHO BẠN"
         title="Thông báo"
-        description="Theo dõi những thay đổi trong học tập và kết nối."
         action={
           <button
             type="button"
@@ -48,11 +44,11 @@ export function NotificationsScreen() {
               void unread.reload();
             }}
           >
-            Làm mới thông báo
+            Làm mới
           </button>
         }
       />
-      <p className="learner-notice">
+      <p className="muted">
         <output>{summary}</output>
       </p>
       <WebPushSettings />

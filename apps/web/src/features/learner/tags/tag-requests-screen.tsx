@@ -40,7 +40,7 @@ export function TagRequestsScreen() {
       <Back href="/learn/explore" />
       <PageHeading
         title="Đề xuất tag của tôi"
-        description="Đề xuất độc lập được Admin xem xét. Yêu cầu chờ duyệt chưa phải tag dùng chung."
+        description="Tag mới cần được duyệt trước khi sử dụng."
       />
       <Panel title="Đề xuất một tag mới">
         <form

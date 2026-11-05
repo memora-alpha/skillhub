@@ -28,11 +28,7 @@ export function ProfileScreen() {
   const me = query.data;
   return (
     <>
-      <PageHeading
-        eyebrow="KHÔNG GIAN CỦA BẠN"
-        title="Hồ sơ cá nhân"
-        description="Giới thiệu bản thân và những kỹ năng bạn muốn chia sẻ."
-      />
+      <PageHeading title="Hồ sơ cá nhân" />
       <p>
         <Link
           className="learner-card-link"

@@ -20,10 +20,7 @@ export function ReportDetail({ id }: Readonly<{ id: string }>) {
   return (
     <>
       <Back href="/learn/reports" />
-      <PageHeading
-        title="Theo dõi báo cáo"
-        description="Nội dung bạn đã gửi và kết quả xử lý từ đội ngũ phụ trách."
-      />
+      <PageHeading title="Theo dõi báo cáo" />
       <Feedback
         loading={query.loading}
         error={query.error}

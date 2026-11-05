@@ -5,7 +5,6 @@ import { RoomTrack } from "./room-track";
 import { RoomMicrophoneMeter } from "./room-microphone-meter";
 import type { RoomAudio } from "./use-room-audio";
 import { RoomAvatar } from "./room-avatar";
-import { RoomBackgroundControl } from "./room-background-control";
 import type { CameraBackground } from "./use-camera-background";
 import styles from "./room.module.css";
 import { SessionJoinWindow } from "../sessions/session-join-window";
@@ -129,17 +128,6 @@ export function RoomPrejoin({
             </label>
           ))}
         </div>
-        <RoomBackgroundControl
-          background={background}
-          disabled={preview.busy || audio.busy || connecting}
-          onToggle={() =>
-            void preview.changeBackground(
-              background.enabled
-                ? { mode: "off" }
-                : { mode: "blur", blurRadius: 12 },
-            )
-          }
-        />
         <div className={styles.microphoneCheck}>
           <RoomIcon name={microphone ? "microphone" : "microphoneOff"} />
           <span>

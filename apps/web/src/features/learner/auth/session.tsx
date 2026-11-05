@@ -189,8 +189,8 @@ function UserSessionLifecycle({ children }: Readonly<{ children: ReactNode }>) {
   if (!actor) return <SignInRedirect message={error} />;
   return (
     <SessionContext.Provider value={context}>
-      <WebPushLifecycle key={actor.userId} />
-      <LearnerShell key={actor.userId}>{children}</LearnerShell>
+      <WebPushLifecycle key={"push:" + actor.userId} />
+      <LearnerShell key={"shell:" + actor.userId}>{children}</LearnerShell>
     </SessionContext.Provider>
   );
 }

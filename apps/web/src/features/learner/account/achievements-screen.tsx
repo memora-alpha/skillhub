@@ -42,10 +42,7 @@ export function AchievementsScreen() {
   return (
     <>
       <Back href="/learn/profile" />
-      <PageHeading
-        title="Thành tích & danh hiệu"
-        description="Ghi nhận hành trình học tập, chia sẻ kiến thức và những kỹ năng đã được xác minh."
-      />
+      <PageHeading title="Thành tích & danh hiệu" />
       <Feedback
         loading={query.loading}
         error={query.error}

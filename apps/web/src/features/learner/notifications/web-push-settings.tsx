@@ -1,7 +1,6 @@
 "use client";
 import { useState, useSyncExternalStore } from "react";
 import { useUserSession } from "../auth/session";
-import { Panel } from "../components/common";
 import {
   enableWebPush,
   disableWebPush,
@@ -20,21 +19,10 @@ export function WebPushSettings() {
   );
   const [busy, setBusy] = useState(false),
     [error, setError] = useState<string>();
-  const actionLabel = enabled
-    ? "Tắt thông báo trên trình duyệt này"
-    : "Bật thông báo trên trình duyệt này";
+  if (!pushConfigured && !enabled) return null;
   return (
-    <Panel title="Thông báo trên trình duyệt">
-      <p>
-        Nhận nhắc lịch và cập nhật khi không mở trang SkillHub. Thiết bị dùng
-        chung sẽ theo tài khoản đang đăng nhập.
-      </p>
-      {!pushConfigured && (
-        <p className="learner-notice">
-          Thông báo đẩy chưa được cấu hình trên bản web này. Thông báo trong ứng
-          dụng vẫn hoạt động.
-        </p>
-      )}
+    <div className="learner-actions">
+      <span>Thông báo trình duyệt</span>
       {error && (
         <p role="alert" className="learner-error">
           {error}
@@ -43,6 +31,9 @@ export function WebPushSettings() {
       <button
         type="button"
         className="btn"
+        aria-label={
+          enabled ? "Tắt thông báo trình duyệt" : "Bật thông báo trình duyệt"
+        }
         disabled={busy || (!pushConfigured && !enabled)}
         onClick={async () => {
           if (busy) return;
@@ -56,7 +47,7 @@ export function WebPushSettings() {
             setError(
               cause instanceof Error
                 ? cause.message
-                : "Không thể cập nhật push.",
+                : "Không thể cập nhật thông báo.",
             );
             window.dispatchEvent(new Event("skillhub-push-changed"));
           } finally {
@@ -64,9 +55,9 @@ export function WebPushSettings() {
           }
         }}
       >
-        {busy ? "Đang cập nhật…" : actionLabel}
+        {busy ? "Đang cập nhật…" : enabled ? "Tắt" : "Bật"}
       </button>
-    </Panel>
+    </div>
   );
 }
 

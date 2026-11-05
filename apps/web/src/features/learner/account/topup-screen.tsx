@@ -120,11 +120,7 @@ export function TopupScreen({ paymentId }: Readonly<{ paymentId?: string }>) {
   return (
     <>
       <Back href="/learn/wallet" />
-      <PageHeading
-        eyebrow="TIẾP TỤC HÀNH TRÌNH HỌC"
-        title="Nạp Credit"
-        description="Tạo lệnh nạp và quét QR. Số dư cập nhật khi máy chủ xác nhận thanh toán."
-      />
+      <PageHeading title="Nạp Credit" />
       <div className="learner-two-columns">
         <Panel title="Chọn số tiền nạp">
           <Feedback

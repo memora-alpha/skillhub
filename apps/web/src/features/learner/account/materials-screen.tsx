@@ -25,7 +25,6 @@ export function MaterialsScreen() {
   return (
     <>
       <PageHeading
-        eyebrow="KIẾN THỨC ĐƯỢC CHIA SẺ"
         title="Thư viện tài liệu"
         action={
           <div className="learner-actions">
@@ -40,7 +39,6 @@ export function MaterialsScreen() {
             </Link>
           </div>
         }
-        description="Tìm tài liệu cho kỹ năng bạn đang học."
       />
       <form
         className="product-material-filters"

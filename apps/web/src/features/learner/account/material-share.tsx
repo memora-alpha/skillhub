@@ -32,10 +32,7 @@ export function MaterialShare() {
   return (
     <>
       <Back href="/learn/materials" />
-      <PageHeading
-        title="Chia sẻ tài liệu"
-        description="Đóng góp kiến thức của bạn cho cộng đồng SkillHub."
-      />
+      <PageHeading title="Chia sẻ tài liệu" />
       <div className="learner-two-columns">
         <Panel title="Thông tin tài liệu">
           {created ? (
