@@ -6,6 +6,7 @@ import { AuditWriter } from "../../dist/modules/audit/application/services/audit
 import { AuditRepository } from "../../dist/modules/audit/infrastructure/persistence/audit.repository.js";
 import { LearningChangeState } from "../../dist/modules/learning-paths/application/services/learning-change-state.js";
 import { PathTerminationService } from "../../dist/modules/learning-paths/application/services/path-termination.service.js";
+import { readTerminationQuote } from "../../dist/modules/credit/application/services/termination-quote.reader.js";
 import { SessionChangesService } from "../../dist/modules/learning-sessions/application/services/session-changes.service.js";
 import { PathSettlementStatusService } from "../../dist/modules/learning-paths/application/services/path-settlement-status.service.js";
 import { SessionOutcomeService } from "../../dist/modules/learning-sessions/application/services/session-outcome.service.js";
@@ -39,6 +40,7 @@ async function fixture() {
     state,
     cancellations,
     {
+      previewHeld: readTerminationQuote,
       distributeHeld: async () => {
         throw new Error("Unexpected financial execution");
       },
@@ -280,7 +282,7 @@ test("cancelled makeup expiry has a Staff resolution even without an attendance 
   );
 });
 
-test("termination does not release money until policy approval and explicit Admin decision", async () => {
+test("bilateral approval stops future obligations and holds money until the policy is enabled", async () => {
   const ctx = await fixture();
   const row = await ctx.stop.request(
     user(A),
@@ -293,35 +295,19 @@ test("termination does not release money until policy approval and explicit Admi
     accept: true,
   });
   assert.equal(accepted.awaitingPolicy, true);
-  assert.equal(ctx.db.rows("session")[0].status, "CONFIRMED");
+  assert.ok(accepted.approvedAt);
+  assert.equal(ctx.db.rows("session")[0].status, "CANCELLED");
   assert.equal(ctx.db.rows("creditOperation").length, 1);
-  const review = await ctx.stop.review(admin, ctx.pathId, row.id);
-  const input = {
-    expectedVersion: accepted.version,
-    expectedExecutionDigest: review.execution.digest,
-    policyReference: "unapproved",
-    reason: "Agreed release",
-    allocations: [
-      {
-        allocationId: ctx.db.rows("heldCreditAllocation")[0].id,
-        refund: "20.00",
-        counterpartyPayment: "0.00",
-        platformFee: "0.00",
-      },
-    ],
-  };
   await assert.rejects(
-    async () => ctx.stop.execute(user(A), ctx.pathId, row.id, input),
-    { message: "TERMINATION_REVIEW_PERMISSION_REQUIRED" },
+    () => ctx.stop.withdraw(user(A), ctx.pathId, row.id, accepted.version),
+    /TERMINATION_ALREADY_APPROVED/,
   );
-  await assert.rejects(
-    () => ctx.stop.execute(admin, ctx.pathId, row.id, input),
-    { message: "TERMINATION_POLICY_NOT_APPROVED" },
-  );
-  await ctx.stop.withdraw(user(A), ctx.pathId, row.id, accepted.version);
+  ctx.clock.now = new Date(+accepted.expiresAt + 1);
+  await ctx.state.expire(ctx.db, ctx.pathId, ctx.clock.now);
+  assert.equal(ctx.db.rows("learningChangeRequest")[0].status, "ACCEPTED");
   assert.equal(
     (await ctx.status.read(user(A), ctx.pathId)).status,
-    "WAITING_SESSIONS",
+    "WAITING_TERMINATION",
   );
 });
 

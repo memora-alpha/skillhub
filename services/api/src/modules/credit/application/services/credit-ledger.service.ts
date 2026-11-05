@@ -5,6 +5,13 @@ import { byCodeUnit } from "../../../../infrastructure/idempotency/idempotency.s
 
 import type { PathHoldInput } from "../contracts/path-credit";
 import { CreditProvenanceService } from "./credit-provenance.service";
+import {
+  allocateHeldFee,
+  calculateSessionCredit,
+  createSessionCreditSnapshot,
+  TWO_WAY_SESSION_POLICY,
+} from "../../domain/session-credit";
+import { readSessionCreditState } from "./session-credit-state.reader";
 
 @Injectable()
 export class CreditLedgerService {
@@ -115,6 +122,12 @@ export class CreditLedgerService {
           amount: item.amount,
           remainingHeld: item.amount,
           status: "ACTIVE",
+          sessionCreditSnapshot: createSessionCreditSnapshot(
+            item.amount,
+            input,
+            input.sessions,
+            item.userId,
+          ),
         },
       });
       if (wallet.provenanceTracked)
@@ -242,12 +255,56 @@ export class CreditLedgerService {
       }
     };
     validateHeldBalances();
-    const results = allocations.map((item) => ({
-      item,
-      gross: item.remainingHeld,
-      fee: roundFee(item.remainingHeld),
-      returned: item.remainingHeld - roundFee(item.remainingHeld),
-    }));
+    const planPolicyCount = allocations.filter(
+      (item) =>
+        (item.sessionCreditSnapshot as { policy?: string } | null)?.policy ===
+        TWO_WAY_SESSION_POLICY,
+    ).length;
+    if (planPolicyCount > 0 && planPolicyCount !== allocations.length)
+      throw new ConflictException("SESSION_CREDIT_SNAPSHOT_MISMATCH");
+    // Historical Holds retain their frozen per-Hold rounding; V2 charges the agreement total once.
+    const heldFees =
+      planPolicyCount > 0
+        ? allocateHeldFee(allocations)
+        : new Map(
+            allocations.map((item) => [
+              item.userId,
+              roundFee(item.remainingHeld),
+            ]),
+          );
+    const sessionState =
+      planPolicyCount > 0 ? await readSessionCreditState(tx, input.pathId) : [];
+    const results = allocations.map((item) => {
+      const fee = heldFees.get(item.userId)!;
+      const snapshot = item.sessionCreditSnapshot as {
+        policy?: string;
+        ownerId?: string;
+      } | null;
+      let compensation = 0n;
+      if (snapshot?.policy === TWO_WAY_SESSION_POLICY) {
+        if (snapshot.ownerId !== item.userId)
+          throw new ConflictException("SESSION_CREDIT_SNAPSHOT_MISMATCH");
+        compensation = calculateSessionCredit(
+          item.sessionCreditSnapshot,
+          item.amount,
+          {
+            ...agreement,
+            participantAId: path.participantAId,
+            participantBId: path.participantBId,
+          },
+          sessionState,
+        ).compensationCredit;
+      }
+      const maximum = item.amount - fee;
+      if (compensation > maximum) compensation = maximum;
+      return {
+        item,
+        gross: item.remainingHeld,
+        fee,
+        compensation,
+        returned: item.remainingHeld - fee - compensation,
+      };
+    });
     const operation = await tx.creditOperation.create({
       data: {
         operationType: "PATH_SETTLEMENT",
@@ -332,7 +389,7 @@ export class CreditLedgerService {
             tx,
             wallet.userId,
             result.item.id,
-            oneWay ? result.gross : result.fee,
+            oneWay ? result.gross : result.fee + result.compensation,
             result.gross,
           );
         }
@@ -346,7 +403,7 @@ export class CreditLedgerService {
         });
         if (oneWay) {
           await applyOneWayPayment(result, wallet);
-        } else {
+        } else if (result.returned > 0n) {
           await tx.creditTransaction.create({
             data: {
               userId: result.item.userId,
@@ -374,9 +431,65 @@ export class CreditLedgerService {
               availableDelta: 0n,
               heldDelta: -result.fee,
               availableAfter,
-              heldAfter,
+              heldAfter: heldAfter + result.compensation,
               status: "SUCCESS",
               idempotencyKey: `${operationKey}:${result.item.userId}:fee`,
+            },
+          });
+        }
+        wallet.availableCredit = availableAfter;
+        wallet.heldCredit = heldAfter;
+        if (result.compensation > 0n) {
+          const recipientId =
+            result.item.userId === path.participantAId
+              ? path.participantBId
+              : path.participantAId;
+          const recipient = byUser.get(recipientId)!;
+          await tx.creditTransaction.create({
+            data: {
+              userId: wallet.userId,
+              operationId: operation.id,
+              entryNo: ++entryNo,
+              type: "PENALTY",
+              amount: result.compensation,
+              availableDelta: 0n,
+              heldDelta: -result.compensation,
+              availableAfter,
+              heldAfter,
+              status: "SUCCESS",
+              idempotencyKey: `${operationKey}:${wallet.userId}:compensation`,
+            },
+          });
+          recipient.availableCredit += result.compensation;
+          await tx.creditWallet.update({
+            where: { userId: recipientId },
+            data: {
+              availableCredit: recipient.availableCredit,
+              walletVersion: { increment: 1 },
+            },
+          });
+          await tx.creditLot.create({
+            data: {
+              userId: recipientId,
+              operationId: operation.id,
+              source: "EARNED",
+              available: result.compensation,
+              granted: result.compensation,
+            },
+          });
+          await tx.creditTransaction.create({
+            data: {
+              userId: recipientId,
+              operationId: operation.id,
+              entryNo: ++entryNo,
+              type: "ADJUSTMENT",
+              amount: result.compensation,
+              availableDelta: result.compensation,
+              heldDelta: 0n,
+              availableAfter: recipient.availableCredit,
+              heldAfter: recipient.heldCredit,
+              status: "SUCCESS",
+              idempotencyKey: `${operationKey}:${wallet.userId}:compensation-received`,
             },
           });
         }
@@ -396,6 +509,15 @@ export class CreditLedgerService {
       versionNo: policy.versionNo,
       calculationRule: policy.calculationRule,
       roundingRule: policy.roundingRule,
+      compensation: results.map((result) => ({
+        allocationId: result.item.id,
+        userId: result.item.userId,
+        credit: result.compensation.toString(),
+      })),
+      attendance: sessionState.map((session) => ({
+        sessionId: session.id,
+        outcome: session.creditAttendance,
+      })),
     };
     await tx.learningPath.update({
       where: { id: input.pathId },

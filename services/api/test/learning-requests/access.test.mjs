@@ -231,6 +231,7 @@ test("bootstrap grants only the chosen per-role actions and preserves existing g
       "learning-request:approve",
       "learning-request:reject",
       "report:moderate",
+      "learning-path:terminate",
       "sharing-skill:create:self",
       "sharing-skill:update:self",
       "sharing-skill:archive:self",
@@ -257,9 +258,13 @@ test("bootstrap grants only the chosen per-role actions and preserves existing g
   }
   assert.ok(calls.grants.every(({ skipDuplicates }) => skipDuplicates));
   assert.equal(grants.get("USER").has("skill-catalog:create"), false);
+  assert.equal(grants.get("USER").has("learning-path:terminate"), false);
   assert.equal(grants.get("STAFF").has("skill-verification:revoke"), false);
+  assert.equal(grants.get("STAFF").has("credit:adjust"), false);
+  assert.equal(grants.get("STAFF").has("dispute:override"), false);
   for (const role of ["STAFF", "ADMIN"]) {
     assert.ok(grants.get(role).has("event:read:self"));
+    assert.ok(grants.get(role).has("learning-path:terminate"));
     assert.equal(grants.get(role).has("conversation:read:participant"), false);
   }
   assert.ok(grants.get("ADMIN").has("skill-catalog:create"));

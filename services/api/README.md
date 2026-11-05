@@ -27,8 +27,15 @@ và [rollout](specs/013-learning-cancellation/quickstart.md#session-policy-and-e
 
 Hủy buổi để học bù giữ nguyên Session/số buổi; yêu cầu dừng cả thỏa thuận có
 review, kiểm tra tranh chấp và xử lý Held theo quyết định Admin. Thực thi Credit
-khi dừng mặc định bị khóa tới khi có tham chiếu policy được duyệt; không tự chia
-theo số buổi hoặc áp 96%/4%. Có API trạng thái quyết toán và hướng xử lý lỗi.
+khi dừng mặc định bị khóa tới khi có tham chiếu policy được duyệt. Với Hold mới,
+Credit từng buổi được lưu cố định: ONE_WAY hoàn phần chưa học, trả phần đã học
+sau phí; TWO_WAY hoàn cam kết riêng mỗi người sau phí trên phần đã thực hiện.
+Phí 4% làm tròn xuống một lần; bồi thường TWO_WAY cần Admin quyết định và lý do.
+API `GET /api/v1/learning-paths/:pathId/termination-requests/quote` xem trước
+phân bổ và các chốt chặn. Hold cũ thiếu snapshot cần review, không tự backfill.
+Áp migration `20261106000000_session_credit` trước code; xem
+[policy và rollout](specs/013-learning-cancellation/session-credit-amendment.md).
+Có API trạng thái quyết toán và hướng xử lý lỗi.
 Xem [contract](specs/013-learning-cancellation/contracts.md) và
 [migration/rollout](specs/013-learning-cancellation/quickstart.md).
 

@@ -15,6 +15,7 @@ model LearningChangeRequest {
   responderId String? @map("responder_id") @db.Uuid
   respondedAt DateTime? @map("responded_at") @db.Timestamptz(3)
   accepted Boolean?
+  approvedAt DateTime? @map("approved_at") @db.Timestamptz(3)
   responseNote String? @map("response_note") @db.VarChar(1000)
   resolvedByUserId String? @map("resolved_by_user_id") @db.Uuid
   resolution Json?

@@ -153,6 +153,42 @@ export class SessionChangesService {
   }
 
   /** Session owner contract; caller has User -> Request -> Path locks. */
+  async cancelFutureObligations(
+    tx: TransactionContext,
+    pathId: string,
+    actorId: string,
+    reason: string,
+    cutoff: Date,
+  ) {
+    const rows = await tx.session.findMany({
+      where: { pathId },
+      orderBy: { id: "asc" },
+    });
+    // Approval and Session writers share the Path lock; acquire Session locks deterministically.
+    for (const row of rows) await lockSession(tx, row.id);
+    const ids = rows
+      .filter(
+        (row) =>
+          (["CONFIRMED", "READY"].includes(row.status) &&
+            row.startAt >= cutoff) ||
+          (row.status === "MAKEUP_REQUIRED" &&
+            (!row.makeupDeadlineAt || row.makeupDeadlineAt > cutoff)),
+      )
+      .map((row) => row.id);
+    await tx.session.updateMany({
+      where: { id: { in: ids } },
+      data: {
+        status: "CANCELLED",
+        cancelledByUserId: actorId,
+        cancelledAt: cutoff,
+        cancelReason: reason,
+        confirmDeadlineAt: null,
+        makeupDeadlineAt: null,
+      },
+    });
+  }
+
+  /** Session owner contract; caller has User -> Request -> Path locks. */
   async cancelRemaining(
     tx: TransactionContext,
     pathId: string,

@@ -15,6 +15,7 @@ import { SessionChangesController } from "../../dist/modules/learning-sessions/p
 import { PathTerminationController } from "../../dist/modules/learning-paths/presentation/http/path-termination.controller.js";
 import { LearningChangeReviewController } from "../../dist/modules/learning-paths/presentation/http/learning-change-review.controller.js";
 import { PathTerminationService } from "../../dist/modules/learning-paths/application/services/path-termination.service.js";
+import { readTerminationQuote } from "../../dist/modules/credit/application/services/termination-quote.reader.js";
 import { PathSettlementStatusController } from "../../dist/modules/learning-paths/presentation/http/path-settlement-status.controller.js";
 import { PathSettlementStatusService } from "../../dist/modules/learning-paths/application/services/path-settlement-status.service.js";
 import { LearningSessionsController } from "../../dist/modules/learning-sessions/presentation/http/learning-sessions.controller.js";
@@ -46,7 +47,7 @@ test("HTTP cancellation/termination enforce membership, DTOs, idempotency and Ad
     runner(ctx.db),
     changes,
     cancellations,
-    {},
+    { previewHeld: readTerminationQuote },
     ctx.requests,
     ctx.requestPaths,
   );
@@ -104,6 +105,22 @@ test("HTTP cancellation/termination enforce membership, DTOs, idempotency and Ad
       body: JSON.stringify(body),
     });
   try {
+    const quoteUrl = `${base}/learning-paths/${pathId}/termination-requests/quote`;
+    assert.equal((await fetch(quoteUrl)).status, 401);
+    assert.equal(
+      (await fetch(quoteUrl, { headers: { authorization: `Bearer ${C}` } }))
+        .status,
+      403,
+    );
+    const quoteResponse = await fetch(quoteUrl, {
+      headers: { authorization: `Bearer ${B}` },
+    });
+    assert.equal(quoteResponse.status, 200);
+    assert.equal(quoteResponse.headers.get("cache-control"), "no-store");
+    const quote = (await quoteResponse.json()).data;
+    assert.equal(quote.allocations[0].refund, "100.00");
+    assert.equal(quote.allocations[0].sessionCredits[0].credit, "100.00");
+    assert.ok(quote.reasonCodes.includes("TERMINATION_POLICY_NOT_APPROVED"));
     const consentUrl = `/sessions/paths/${pathId}/settlement-consent`;
     assert.equal(
       (await post(consentUrl, null, { expectedVersion: 1 })).status,

@@ -117,6 +117,11 @@ export const PERMISSION_CATALOG = [
   },
   { code: "credit:adjust", description: "Adjust credit with audit" },
   {
+    code: "learning-path:terminate",
+    description:
+      "Approve termination using the server-calculated Credit policy",
+  },
+  {
     code: "report:moderate",
     description: "Process session reports and disputes",
   },

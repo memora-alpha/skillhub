@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Header,
   Headers,
   Param,
   ParseUUIDPipe,
@@ -21,6 +22,7 @@ import {
   ArrayMinSize,
   IsArray,
   IsString,
+  IsOptional,
   IsUUID,
   Matches,
   MaxLength,
@@ -60,19 +62,38 @@ class TerminationReasonDto extends ChangeVersionDto {
   reason!: string;
 }
 class ExecuteTerminationDto extends TerminationReasonDto {
+  @ApiProperty({
+    required: false,
+    minLength: 3,
+    maxLength: 1000,
+    description:
+      "Legacy context only; the backend calculates compensation from attendance",
+  })
+  @IsOptional()
+  @IsString()
+  @MinLength(3)
+  @MaxLength(1000)
+  compensationReason?: string;
   @ApiProperty() @Matches(/^[a-f0-9]{64}$/) expectedExecutionDigest!: string;
-  @ApiProperty({ maxLength: 200 })
+  @ApiProperty({ maxLength: 200, required: false })
+  @IsOptional()
   @IsString()
   @MinLength(1)
   @MaxLength(200)
-  policyReference!: string;
-  @ApiProperty({ type: [TerminationAllocationDto] })
+  policyReference?: string;
+  @ApiProperty({
+    type: [TerminationAllocationDto],
+    required: false,
+    description:
+      "Optional exact quote assertion; amounts cannot override the server formula",
+  })
+  @IsOptional()
   @IsArray()
   @ArrayMinSize(1)
   @ArrayMaxSize(2)
   @ValidateNested({ each: true })
   @Type(() => TerminationAllocationDto)
-  allocations!: TerminationAllocationDto[];
+  allocations?: TerminationAllocationDto[];
 }
 
 @ApiTags("learning-paths")
@@ -84,11 +105,23 @@ class ExecuteTerminationDto extends TerminationReasonDto {
 })
 export class PathTerminationController {
   constructor(private readonly changes: PathTerminationService) {}
+  @Get("quote")
+  @Header("Cache-Control", "no-store")
+  @ApiOperation({
+    summary:
+      "Preview immutable per-session Credit, refund, payment, fee and blockers",
+  })
+  async quote(
+    @CurrentIdentity() actor: Principal,
+    @Param("pathId", ParseUUIDPipe) pathId: string,
+  ) {
+    return success(await this.changes.quote(actor, pathId));
+  }
   @Post()
   @ApiHeader({ name: "Idempotency-Key", required: true })
   @ApiOperation({
     summary:
-      "Request agreement-wide early termination; schedules stay effective until execution",
+      "Request agreement-wide termination; obligations stop when the partner or Staff approves",
   })
   async request(
     @CurrentIdentity() actor: Principal,
@@ -143,6 +176,7 @@ export class PathTerminationController {
     );
   }
   @Get(":requestId/review")
+  @Header("Cache-Control", "no-store")
   async review(
     @CurrentIdentity() actor: Principal,
     @Param("pathId", ParseUUIDPipe) pathId: string,
@@ -170,7 +204,7 @@ export class PathTerminationController {
   @Post(":requestId/execute")
   @ApiOperation({
     summary:
-      "Admin executes an explicit Held allocation under an approved policy; no automatic 96/4 or prorating",
+      "Staff/Admin approves termination; backend calculates settlement or waits for existing session outcomes",
   })
   async execute(
     @CurrentIdentity() actor: Principal,

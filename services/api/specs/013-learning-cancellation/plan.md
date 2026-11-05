@@ -2,6 +2,10 @@
 
 Branch: `fix/path-cancellation`. Date: 2026-11-05. Backend only.
 
+Current work: `fix/two-way-session-credit`, including ONE_WAY at the user's
+explicit request. See [per-session calculation, tasks and Constitution Check](session-credit-amendment.md).
+Its accepted rules supersede the historical no-prorating design below.
+
 Implementation continues on `fix/session-policy-settlement` for the subsequent
 user-approved [Session policy amendment](session-policy-amendment.md), including
 the accepted rounding, counting and original-schedule anchor proposals. The

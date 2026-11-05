@@ -17,6 +17,7 @@ import { ReportsModule } from "../reports/reports.module";
 import { PathSettlementStatusService } from "./application/services/path-settlement-status.service";
 import { PathSettlementStatusController } from "./presentation/http/path-settlement-status.controller";
 import { LearningChangeReviewController } from "./presentation/http/learning-change-review.controller";
+import { PathTerminationRecoveryWorker } from "./infrastructure/jobs/path-termination-recovery.worker";
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { LearningChangeReviewController } from "./presentation/http/learning-cha
     LearningPathsService,
     PathTerminationService,
     PathSettlementStatusService,
+    PathTerminationRecoveryWorker,
   ],
   exports: [LearningPathsService],
 })

@@ -281,6 +281,8 @@ export async function requireMakeup(
   outcomeStatus: "FINAL" | "EXCUSED",
   makeupUserId?: string,
 ) {
+  if (await closeAfterTermination(tx, session, outcome, now, outcomeStatus))
+    return;
   // Staff may extend the booking deadline of the same granted occurrence, never grant a second one.
   const evidence = outcome.evidence as Prisma.JsonObject;
   if (evidence.makeupGranted !== true) {
@@ -349,6 +351,35 @@ export async function finalizeNoShow(
       absentUserIds: absent,
     },
   );
+}
+
+/** Approval ends future obligations; final attendance is retained for Credit and disputes. */
+async function closeAfterTermination(
+  tx: TransactionContext,
+  session: Session,
+  outcome: SessionAttendanceOutcome,
+  now: Date,
+  status: "FINAL" | "EXCUSED",
+) {
+  const path = await tx.learningPath.findUniqueOrThrow({
+    where: { id: session.pathId },
+  });
+  if (!path.terminationApprovedAt) return false;
+  await tx.sessionAttendanceOutcome.update({
+    where: { id: outcome.id },
+    data: { status, finalizedAt: now },
+  });
+  await tx.session.update({
+    where: { id: session.id },
+    data: {
+      status: "CANCELLED",
+      cancelledAt: now,
+      cancelReason: "Termination approved; attendance finalized",
+      confirmDeadlineAt: null,
+      makeupDeadlineAt: null,
+    },
+  });
+  return true;
 }
 
 export type NoShowRuling = "UPHOLD" | "EXCUSE" | "COMPLETE";

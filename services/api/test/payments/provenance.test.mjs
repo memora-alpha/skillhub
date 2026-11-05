@@ -78,6 +78,76 @@ async function pathFixture(f, a, b, exchangeType, amount) {
       createdByUserId: a.user.id,
     },
   });
+  const sessions = await f.db.$transaction(async (tx) => {
+    const rows = [];
+    const directions =
+      exchangeType === "TWO_WAY"
+        ? [
+            [a, b],
+            [b, a],
+          ]
+        : [[a, b]];
+    // Each Session depends on its owned plan, version, outline and locked agreement link.
+    for (const [index, [teacher, learner]] of directions.entries()) {
+      const owned = await tx.learningPlan.create({
+        data: {
+          pathId: path.id,
+          teacherId: teacher.user.id,
+          learnerId: learner.user.id,
+          createdByUserId: teacher.user.id,
+          currentVersion: 1,
+          status: "CONFIRMED",
+        },
+      });
+      await tx.learningPlanVersion.create({
+        data: {
+          planId: owned.id,
+          versionNo: 1,
+          skillId: skill.id,
+          learningGoal: "A sufficient fixture goal",
+          totalSessions: 1,
+          learnerConfirmedAt: new Date(),
+        },
+      });
+      await tx.planSessionOutline.create({
+        data: {
+          planId: owned.id,
+          planVersion: 1,
+          sessionNo: 1,
+          content: "One completed lesson",
+        },
+      });
+      await tx.pathVersionPlan.create({
+        data: {
+          pathId: path.id,
+          pathVersion: 1,
+          planId: owned.id,
+          planVersion: 1,
+        },
+      });
+      const identity = {
+        id: randomUUID(),
+        planId: owned.id,
+        planVersion: 1,
+        outlineSessionNo: 1,
+        teacherId: teacher.user.id,
+        learnerId: learner.user.id,
+      };
+      const startAt = new Date(Date.now() - (index + 2) * 86400000);
+      await tx.session.create({
+        data: {
+          ...identity,
+          pathId: path.id,
+          startAt,
+          originalStartAt: startAt,
+          endAt: new Date(+startAt + 3600000),
+          status: "COMPLETED",
+        },
+      });
+      rows.push(identity);
+    }
+    return rows;
+  });
   return {
     path,
     input: {
@@ -86,6 +156,7 @@ async function pathFixture(f, a, b, exchangeType, amount) {
       participantAId: a.user.id,
       participantBId: b.user.id,
       ...agreement,
+      sessions,
     },
   };
 }

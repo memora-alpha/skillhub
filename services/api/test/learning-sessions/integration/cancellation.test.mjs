@@ -37,8 +37,18 @@ test(
       const admin = await f.account("ADMIN");
       const reviewer = {
         ...admin.principal,
-        permissions: ["report:moderate", "credit:adjust", "dispute:override"],
+        permissions: [
+          "report:moderate",
+          "learning-path:terminate",
+          "credit:adjust",
+          "dispute:override",
+        ],
       };
+      const staffAccount = await f.account("STAFF");
+      assert.ok(
+        staffAccount.principal.permissions.includes("learning-path:terminate"),
+      );
+      assert.ok(!staffAccount.principal.permissions.includes("credit:adjust"));
       await f.transactions.run((tx) => seedPathFeePolicies(tx));
       const provenance = new CreditProvenanceService();
       const operations = new CreditOperationsService(provenance);
@@ -230,7 +240,7 @@ test(
         });
         return { teacher, learner, path, sessions, request };
       }
-      async function accepted(ctx) {
+      async function requestStaffReview(ctx) {
         const row = await stop.request(
           ctx.teacher.principal,
           ctx.path.id,
@@ -239,7 +249,7 @@ test(
         );
         return stop.respond(ctx.learner.principal, ctx.path.id, row.id, {
           expectedVersion: 1,
-          accept: true,
+          accept: false,
         });
       }
       async function decision(ctx, row, split) {
@@ -328,12 +338,18 @@ test(
       await t.test(
         "ONE_WAY: exact allocation, concurrent replay, source closure and reconciliation",
         async () => {
-          const ctx = await agreement();
-          const row = await accepted(ctx);
+          const ctx = await agreement(false, 5);
+          await f.db.session.updateMany({
+            where: {
+              id: { in: ctx.sessions.slice(0, 2).map((item) => item.id) },
+            },
+            data: { status: "COMPLETED" },
+          });
+          const row = await requestStaffReview(ctx);
           const input = await decision(ctx, row, () => ({
             refund: "60.00",
-            counterpartyPayment: "39.00",
-            platformFee: "1.00",
+            counterpartyPayment: "38.40",
+            platformFee: "1.60",
           }));
           const results = await Promise.all(
             [1, 2].map(() =>
@@ -347,7 +363,7 @@ test(
           );
           assert.equal(
             (await assertLots(ctx.teacher.user.id)).availableCredit,
-            13900n,
+            13840n,
           );
           assert.equal((await assertLots(ctx.learner.user.id)).heldCredit, 0n);
           assert.equal(
@@ -387,37 +403,61 @@ test(
       );
 
       await t.test(
-        "TWO_WAY: distribute each payer's Held independently, with exact conservation",
+        "TWO_WAY: automatic teacher-absence compensation is capped after the total Held fee",
         async () => {
           const ctx = await agreement(true);
-          const row = await accepted(ctx);
-          const input = await decision(ctx, row, (item) =>
-            item.userId === ctx.teacher.user.id
-              ? {
-                  refund: "10.00",
-                  counterpartyPayment: "9.00",
-                  platformFee: "1.00",
-                }
-              : {
-                  refund: "15.00",
-                  counterpartyPayment: "4.00",
-                  platformFee: "1.00",
-                },
+          const session = ctx.sessions.find(
+            (item) => item.teacherId === ctx.teacher.user.id,
           );
+          const decidedAt = new Date();
+          await f.db.session.update({
+            where: { id: session.id },
+            data: {
+              status: "MAKEUP_REQUIRED",
+              makeupDeadlineAt: new Date(+decidedAt + 86400000),
+            },
+          });
+          await f.db.sessionAttendanceOutcome.create({
+            data: {
+              sessionId: session.id,
+              occurrenceStartAt: session.startAt,
+              occurrenceEndAt: session.endAt,
+              teacherVerdict: "ABSENT",
+              learnerVerdict: "PRESENT",
+              teacherLate: false,
+              learnerLate: false,
+              teacherSeconds: 0n,
+              learnerSeconds: 3600n,
+              attendanceCase: "TEACHER_ABSENT",
+              status: "FINAL",
+              resolution: "MAKEUP_REQUIRED",
+              determinedAt: decidedAt,
+              finalizesAt: decidedAt,
+              finalizedAt: decidedAt,
+              evidence: {},
+            },
+          });
+          const row = await requestStaffReview(ctx);
+          const review = await stop.review(reviewer, ctx.path.id, row.id);
+          const input = {
+            expectedVersion: row.version,
+            expectedExecutionDigest: review.execution.digest,
+            reason: "Apply the server-calculated absence policy",
+          };
+          const allocation = review.execution.quote.allocations.find(
+            (item) => item.userId === ctx.teacher.user.id,
+          );
+          assert.equal(allocation.platformFee, "0.80");
+          assert.equal(allocation.counterpartyPayment, "19.20");
+          assert.equal(allocation.refund, "0.00");
           await stop.execute(reviewer, ctx.path.id, row.id, input);
           assert.equal(
             (await assertLots(ctx.teacher.user.id)).availableCredit,
-            9400n,
+            8000n,
           );
           assert.equal(
             (await assertLots(ctx.learner.user.id)).availableCredit,
-            10400n,
-          );
-          assert.equal(
-            await f.db.session.count({
-              where: { pathId: ctx.path.id, status: "CANCELLED" },
-            }),
-            2,
+            11840n,
           );
           assert.equal(
             await f.db.heldCreditAllocation.count({
@@ -429,10 +469,240 @@ test(
       );
 
       await t.test(
+        "TWO_WAY reciprocal compensation preserves each wallet, ledger chain and purchased sources",
+        async () => {
+          const ctx = await agreement(true, 3);
+          const decidedAt = new Date();
+          for (const session of ctx.sessions.filter(
+            (item) => item.outlineSessionNo === 1,
+          )) {
+            await f.db.session.update({
+              where: { id: session.id },
+              data: {
+                status: "MAKEUP_REQUIRED",
+                makeupDeadlineAt: new Date(+decidedAt + 86400000),
+              },
+            });
+            await f.db.sessionAttendanceOutcome.create({
+              data: {
+                sessionId: session.id,
+                occurrenceStartAt: session.startAt,
+                occurrenceEndAt: session.endAt,
+                teacherVerdict: "ABSENT",
+                learnerVerdict: "PRESENT",
+                teacherLate: false,
+                learnerLate: false,
+                teacherSeconds: 0n,
+                learnerSeconds: 3600n,
+                attendanceCase: "TEACHER_ABSENT",
+                status: "FINAL",
+                resolution: "MAKEUP_REQUIRED",
+                determinedAt: decidedAt,
+                finalizesAt: decidedAt,
+                finalizedAt: decidedAt,
+                evidence: {},
+              },
+            });
+          }
+          const quote = await stop.quote(ctx.teacher.principal, ctx.path.id);
+          assert.equal(quote.allocations.length, 2);
+          for (const item of quote.allocations) {
+            assert.equal(item.counterpartyPayment, "6.67");
+            assert.equal(item.platformFee, "0.80");
+            assert.equal(item.refund, "12.53");
+          }
+          const request = await stop.request(
+            ctx.teacher.principal,
+            ctx.path.id,
+            randomUUID(),
+            "Both participants agree to end the remaining obligations",
+          );
+          const result = await stop.respond(
+            ctx.learner.principal,
+            ctx.path.id,
+            request.id,
+            { expectedVersion: 1, accept: true },
+          );
+          assert.equal(result.status, "APPLIED");
+          for (const person of [ctx.teacher, ctx.learner]) {
+            const wallet = await assertLots(person.user.id);
+            assert.equal(wallet.availableCredit, 9920n);
+            assert.equal(wallet.heldCredit, 0n);
+            const entries = await f.db.creditTransaction.findMany({
+              where: {
+                operationId: result.operationId,
+                userId: person.user.id,
+              },
+              orderBy: { entryNo: "asc" },
+            });
+            let available = 8000n;
+            let held = 2000n;
+            for (const entry of entries) {
+              available += entry.availableDelta;
+              held += entry.heldDelta;
+              assert.equal(entry.availableAfter, available);
+              assert.equal(entry.heldAfter, held);
+            }
+            assert.equal(available, wallet.availableCredit);
+            assert.equal(held, wallet.heldCredit);
+            const lots = await f.db.creditLot.findMany({
+              where: { userId: person.user.id },
+            });
+            assert.equal(
+              lots
+                .filter((lot) => lot.source === "PURCHASED")
+                .reduce((sum, lot) => sum + lot.available, 0n),
+              9253n,
+            );
+            assert.equal(
+              lots
+                .filter((lot) => lot.source === "EARNED")
+                .reduce((sum, lot) => sum + lot.available, 0n),
+              667n,
+            );
+          }
+        },
+      );
+
+      await t.test(
+        "session snapshot is immutable; arbitrary fees or compensation cannot override the formula",
+        async () => {
+          const ctx = await agreement(true);
+          const row = await requestStaffReview(ctx);
+          const review = await stop.review(reviewer, ctx.path.id, row.id);
+          assert.equal(review.execution.quote.allocations[0].refund, "19.20");
+          const input = await decision(ctx, row, () => ({
+            refund: "19.20",
+            counterpartyPayment: "0.00",
+            platformFee: "0.80",
+          }));
+          const held = await f.db.heldCreditAllocation.findMany({
+            where: { pathId: ctx.path.id },
+          });
+          await assert.rejects(
+            () =>
+              f.db.heldCreditAllocation.update({
+                where: { id: held[0].id },
+                data: { sessionCreditSnapshot: { policy: "changed" } },
+              }),
+            /SESSION_CREDIT_SNAPSHOT_IMMUTABLE/,
+          );
+          await assert.rejects(
+            () =>
+              stop.execute(reviewer, ctx.path.id, row.id, {
+                ...input,
+                allocations: input.allocations.map((item) => ({
+                  ...item,
+                  refund: "19.00",
+                  platformFee: "1.00",
+                })),
+              }),
+            /TERMINATION_FORMULA_MISMATCH/,
+          );
+          assert.equal(
+            (await assertLots(ctx.teacher.user.id)).heldCredit,
+            2000n,
+          );
+          const compensated = {
+            ...input,
+            allocations: input.allocations.map((item) => ({
+              ...item,
+              refund: "19.00",
+              counterpartyPayment: "1.00",
+            })),
+          };
+          await assert.rejects(
+            () => stop.execute(reviewer, ctx.path.id, row.id, compensated),
+            /TERMINATION_FORMULA_MISMATCH/,
+          );
+          assert.equal(
+            await f.db.creditOperation.count({
+              where: {
+                referenceId: ctx.path.id,
+                operationType: "PATH_TERMINATION",
+              },
+            }),
+            0,
+          );
+          const originalAudit = mutableAudit.append;
+          mutableAudit.append = (tx, entry) =>
+            entry.after?.status === "APPLIED"
+              ? Promise.reject(
+                  new Error("injected session-credit audit failure"),
+                )
+              : originalAudit(tx, entry);
+          try {
+            await assert.rejects(
+              () => stop.execute(reviewer, ctx.path.id, row.id, input),
+              /injected session-credit audit failure/,
+            );
+          } finally {
+            mutableAudit.append = originalAudit;
+          }
+          assert.equal(
+            (await assertLots(ctx.learner.user.id)).heldCredit,
+            2000n,
+          );
+          assert.ok(
+            (
+              await f.db.session.findMany({ where: { pathId: ctx.path.id } })
+            ).every((item) => item.status === "CONFIRMED"),
+          );
+          const results = await Promise.all(
+            [1, 2].map(() =>
+              stop.execute(reviewer, ctx.path.id, row.id, input),
+            ),
+          );
+          assert.equal(results[0].operationId, results[1].operationId);
+          assert.equal(
+            (await assertLots(ctx.teacher.user.id)).availableCredit,
+            9920n,
+          );
+          assert.equal(
+            (await assertLots(ctx.learner.user.id)).availableCredit,
+            9920n,
+          );
+        },
+      );
+
+      await t.test(
+        "ONE_WAY remainder and fee floor settle exactly against original source lots",
+        async () => {
+          const ctx = await agreement(false, 3);
+          const first = ctx.sessions.find(
+            (item) => item.outlineSessionNo === 1,
+          );
+          await f.db.session.update({
+            where: { id: first.id },
+            data: { status: "COMPLETED" },
+          });
+          const row = await requestStaffReview(ctx);
+          const quote = await stop.quote(ctx.learner.principal, ctx.path.id);
+          assert.equal(quote.allocations[0].completedCredit, "33.34");
+          assert.equal(quote.allocations[0].platformFee, "1.33");
+          const input = await decision(ctx, row, () => ({
+            refund: "66.66",
+            counterpartyPayment: "32.01",
+            platformFee: "1.33",
+          }));
+          await stop.execute(reviewer, ctx.path.id, row.id, input);
+          assert.equal(
+            (await assertLots(ctx.learner.user.id)).availableCredit,
+            6666n,
+          );
+          assert.equal(
+            (await assertLots(ctx.teacher.user.id)).availableCredit,
+            13201n,
+          );
+          assert.equal((await assertLots(ctx.learner.user.id)).heldCredit, 0n);
+        },
+      );
+
+      await t.test(
         "audit failure rolls back balances, lots, ledger, sessions and source together",
         async () => {
           const ctx = await agreement();
-          const row = await accepted(ctx);
+          const row = await requestStaffReview(ctx);
           const input = await decision(ctx, row, refundAll);
           const original = mutableAudit.append;
           mutableAudit.append = (tx, entry) =>
@@ -485,20 +755,11 @@ test(
       );
 
       await t.test(
-        "policy, dispute, stale snapshot, unruled past sessions and invalid sums block all posting",
+        "approval holds money during a dispute and recovers without another human approval",
         async () => {
           const ctx = await agreement();
-          const row = await accepted(ctx);
-          const input = await decision(ctx, row, refundAll);
-          values["learningPath.changeRequests"].terminationPolicyReference =
-            null;
-          await assert.rejects(
-            () => stop.execute(reviewer, ctx.path.id, row.id, input),
-            { message: "TERMINATION_POLICY_NOT_APPROVED" },
-          );
-          values["learningPath.changeRequests"].terminationPolicyReference =
-            "test-approved-policy-v1";
-          await f.db.reportCase.create({
+          const row = await requestStaffReview(ctx);
+          const opened = await f.db.reportCase.create({
             data: {
               reporterId: ctx.teacher.user.id,
               targetType: "SESSION",
@@ -511,41 +772,86 @@ test(
               blocksSettlement: true,
             },
           });
-          await assert.rejects(
-            () => stop.execute(reviewer, ctx.path.id, row.id, input),
-            { message: "TERMINATION_BLOCKED_BY_DISPUTE" },
+          const review = await stop.review(reviewer, ctx.path.id, row.id);
+          const input = {
+            expectedVersion: row.version,
+            expectedExecutionDigest: review.execution.digest,
+            reason: "Approve and wait for the existing dispute",
+          };
+          const approved = await stop.execute(
+            reviewer,
+            ctx.path.id,
+            row.id,
+            input,
           );
-          await f.db.reportCase.updateMany({
-            where: { relatedPathId: ctx.path.id },
-            data: { status: "RESOLVED", blocksSettlement: false },
-          });
-          await assert.rejects(
-            () =>
-              stop.execute(reviewer, ctx.path.id, row.id, {
-                ...input,
-                allocations: input.allocations.map((item) => ({
-                  ...item,
-                  refund: "99.99",
-                })),
-              }),
-            { message: "TERMINATION_ALLOCATION_MISMATCH" },
-          );
-          await f.db.session.update({
-            where: { id: ctx.sessions[0].id },
-            data: { status: "AWAITING_CONFIRMATION" },
-          });
-          await assert.rejects(
-            () => stop.execute(reviewer, ctx.path.id, row.id, input),
-            { message: "STALE_TERMINATION_EXECUTION" },
-          );
-          const refreshed = await decision(ctx, row, refundAll);
-          await assert.rejects(
-            () => stop.execute(reviewer, ctx.path.id, row.id, refreshed),
-            { message: "TERMINATION_SESSION_RULING_REQUIRED" },
-          );
+          assert.equal(approved.status, "ACCEPTED");
+          assert.ok(approved.approvedAt);
           assert.equal(
             (await assertLots(ctx.learner.user.id)).heldCredit,
             10000n,
+          );
+          assert.equal(
+            (
+              await f.db.session.findUniqueOrThrow({
+                where: { id: ctx.sessions[0].id },
+              })
+            ).status,
+            "CANCELLED",
+          );
+          await assert.rejects(
+            () =>
+              f.db.learningChangeRequest.update({
+                where: { id: row.id },
+                data: {
+                  approvedAt: new Date(+approved.approvedAt + 1000),
+                  version: { increment: 1 },
+                },
+              }),
+            /TERMINATION_APPROVAL_IMMUTABLE/,
+          );
+          await f.db.reportCase.update({
+            where: { id: opened.id },
+            data: { status: "RESOLVED", blocksSettlement: false },
+          });
+          assert.equal(
+            (await stop.recoverApproved(ctx.path.id, row.id)).status,
+            "APPLIED",
+          );
+          assert.equal((await assertLots(ctx.learner.user.id)).heldCredit, 0n);
+          assert.equal(
+            (await assertLots(ctx.learner.user.id)).availableCredit,
+            10000n,
+          );
+        },
+      );
+
+      await t.test(
+        "bilateral consent posts exactly once under concurrent replies and preserves source lots",
+        async () => {
+          const ctx = await agreement(true, 3);
+          const row = await stop.request(
+            ctx.teacher.principal,
+            ctx.path.id,
+            randomUUID(),
+            "Both agree to stop without Staff",
+          );
+          const result = await Promise.all(
+            [1, 2].map(() =>
+              stop.respond(ctx.learner.principal, ctx.path.id, row.id, {
+                expectedVersion: 1,
+                accept: true,
+              }),
+            ),
+          );
+          assert.equal(result[0].status, "APPLIED");
+          assert.equal(result[0].operationId, result[1].operationId);
+          assert.equal(
+            (await assertLots(ctx.teacher.user.id)).availableCredit,
+            9920n,
+          );
+          assert.equal(
+            (await assertLots(ctx.learner.user.id)).availableCredit,
+            9920n,
           );
           assert.equal(
             await f.db.creditOperation.count({
@@ -554,10 +860,51 @@ test(
                 operationType: "PATH_TERMINATION",
               },
             }),
-            0,
+            1,
+          );
+          assert.equal(
+            (
+              await f.db.learningRequest.findUniqueOrThrow({
+                where: { id: ctx.request.id },
+              })
+            ).status,
+            "CLOSED",
           );
         },
       );
+
+      await t.test(
+        "Staff can approve a rejected termination using only the formula-specific permission",
+        async () => {
+          const ctx = await agreement(true);
+          const row = await requestStaffReview(ctx);
+          const review = await stop.review(
+            staffAccount.principal,
+            ctx.path.id,
+            row.id,
+          );
+          const result = await stop.execute(
+            staffAccount.principal,
+            ctx.path.id,
+            row.id,
+            {
+              expectedVersion: row.version,
+              expectedExecutionDigest: review.execution.digest,
+              reason: "Staff approves the server-calculated termination policy",
+            },
+          );
+          assert.equal(result.status, "APPLIED");
+          assert.equal(
+            (await assertLots(ctx.teacher.user.id)).availableCredit,
+            9920n,
+          );
+          assert.equal(
+            (await assertLots(ctx.learner.user.id)).availableCredit,
+            9920n,
+          );
+        },
+      );
+
       await t.test(
         "personal quota serializes concurrent makeup acceptances and rolls back a failed audit",
         async () => {

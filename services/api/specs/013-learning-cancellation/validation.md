@@ -1,5 +1,9 @@
 # Validation — 2026-11-05
 
+The later ONE_WAY/TWO_WAY per-session implementation and its **173/173** passing
+regressions are recorded in [the 2026-11-06 amendment](session-credit-amendment.md#validation-2026-11-06).
+The evidence below is historical and predates the new calculation.
+
 Branch: `fix/path-cancellation`. Verification recorded before commit. No push,
 deployment, application-schema migration or financial-policy activation performed.
 

@@ -379,6 +379,7 @@ export class LearningPathsService {
       const data = page.map((path) => ({
         id: path.id,
         title: titles.get(path.conversationId) ?? null,
+        terminationApprovedAt: path.terminationApprovedAt,
         conversationId: path.conversationId,
         status: path.status,
         exchangeType: exchangeTypes.get(path.id) ?? null,
@@ -473,6 +474,7 @@ export class LearningPathsService {
         currentVersion: path.currentVersion,
         lockedVersion: path.lockedVersion,
         completedAt: path.completedAt,
+        terminationApprovedAt: path.terminationApprovedAt,
         settledAt: path.settledAt,
         agreement: {
           version: agreement.versionNo,
@@ -1368,6 +1370,23 @@ export class LearningPathsService {
       learnerId: agreement.learnerId,
       totalCreditPerUser: agreement.totalCreditPerUser,
       negotiatedCredit: agreement.negotiatedCredit,
+      sessions: sessionEntries.map(
+        ({
+          id,
+          planId,
+          planVersion,
+          outlineSessionNo,
+          teacherId,
+          learnerId,
+        }) => ({
+          id,
+          planId,
+          planVersion,
+          outlineSessionNo,
+          teacherId,
+          learnerId,
+        }),
+      ),
     });
     const sessions = sessionEntries.map((entry) => ({
       id: entry.id,
@@ -1472,7 +1491,7 @@ export class LearningPathsService {
         ? agreement.totalCreditPerUser!
         : agreement.negotiatedCredit!;
     const feeSnapshot =
-      ((grossPerPayer * BigInt(settlementBps.fee)) / 10_000n) * payerCount;
+      (grossPerPayer * payerCount * BigInt(settlementBps.fee)) / 10_000n;
     await tx.learningPathVersion.update({
       where: { pathId_versionNo: { pathId, versionNo: expectedVersion } },
       data: {
