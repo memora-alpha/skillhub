@@ -15,6 +15,7 @@ export function useUserCommand(idempotent = false) {
     identity = useRef<{ fingerprint: string; key: string } | null>(null);
   const [pending, setPending] = useState(false),
     [error, setError] = useState<string>(),
+    [failure, setFailure] = useState<UserApiError>(),
     [uncertain, setUncertain] = useState(false);
   async function run<T>(
     fingerprint: string,
@@ -34,6 +35,7 @@ export function useUserCommand(idempotent = false) {
     lock.current = true;
     setPending(true);
     setError(undefined);
+    setFailure(undefined);
     try {
       const result = await work(identity.current.key);
       if (!active.current) return;
@@ -47,15 +49,33 @@ export function useUserCommand(idempotent = false) {
         !(cause instanceof UserApiError) ||
         cause.status === 0 ||
         cause.status === 408 ||
-        cause.status >= 500;
+        cause.code === "COMMAND_UNCERTAIN" ||
+        cause.code === "IDEMPOTENCY_IN_PROGRESS" ||
+        (cause.status >= 500 && cause.code !== "CONNECTION_POLICY_UNAVAILABLE");
       if (!unknown) identity.current = null;
       setUncertain(unknown);
       setError(cause instanceof Error ? cause.message : "Không thể hoàn tất.");
+      setFailure(cause instanceof UserApiError ? cause : undefined);
       refresh();
     } finally {
       lock.current = false;
       if (active.current) setPending(false);
     }
   }
-  return { run, pending, error, uncertain, canRetry: idempotent && uncertain };
+  return {
+    run,
+    pending,
+    error,
+    uncertain,
+    failure,
+    canRetry: idempotent && uncertain,
+    resetAfterRead: () => {
+      if (lock.current) return false;
+      identity.current = null;
+      setUncertain(false);
+      setError(undefined);
+      setFailure(undefined);
+      return true;
+    },
+  };
 }

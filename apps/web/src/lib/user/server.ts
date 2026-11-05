@@ -6,6 +6,7 @@ import { sessionCookies } from "../auth/session";
 import { sameOriginMutation } from "../auth/origin";
 import { userUpload, uploadLimit } from "./upload";
 import { authGateway } from "../auth/server";
+import { tokenReply, failedTokenRotation } from "../auth/token-reply";
 const ACCESS = sessionCookies.access,
   REFRESH = sessionCookies.refresh;
 const cookies = sessionCookies.options;
@@ -41,11 +42,12 @@ async function establish(value: unknown) {
   try {
     const me = await userBackend("me", pair.accessToken);
     const actor = me.value?.success && userIdentity(me.value.data);
-    if (!actor)
-      throw new UserGatewayError(
-        me.status === 200 ? 403 : me.status,
-        "USER_PORTAL_ACCESS_REQUIRED",
-      );
+    if (!actor) {
+      let status = me.status;
+      if (status === 200) status = 403;
+      else if (status < 400) status = 502;
+      throw new UserGatewayError(status, "USER_PORTAL_ACCESS_REQUIRED");
+    }
     const response = reply({ success: true, data: actor });
     response.cookies.set(ACCESS, pair.accessToken, {
       ...cookies,
@@ -71,19 +73,29 @@ function accessToken(request: NextRequest) {
 async function readSession(request: NextRequest) {
   const result = await userBackend("me", accessToken(request));
   if (result.status !== 200 || !result.value?.success)
-    throw new UserGatewayError(result.status, "SESSION_EXPIRED");
+    throw new UserGatewayError(
+      result.status < 400 ? 502 : result.status,
+      "SESSION_EXPIRED",
+    );
   const actor = userIdentity(result.value.data);
   if (!actor) throw new UserGatewayError(403, "USER_PORTAL_ACCESS_REQUIRED");
   return reply({ success: true, data: actor });
 }
 async function refreshSession(token: string | undefined) {
   if (!token) throw new UserGatewayError(401, "SESSION_EXPIRED");
-  const result = await userBackend("auth/refresh", undefined, "POST", {
-    refreshToken: token,
-  });
-  return result.status === 200 && result.value?.success
-    ? establish(result.value.data)
-    : clear(reply(result.value, result.status));
+  try {
+    const result = tokenReply(
+      await userBackend("auth/refresh", undefined, "POST", {
+        refreshToken: token,
+      }),
+    );
+    if (result.status === 200 && result.value?.success)
+      return await establish(result.value.data);
+    const response = reply(result.value, result.status);
+    return result.status === 429 ? response : clear(response);
+  } catch (cause) {
+    return failedTokenRotation(cause, reply);
+  }
 }
 async function loginSession(request: NextRequest, token: string | undefined) {
   if (token) throw new UserGatewayError(409, "LOGOUT_BEFORE_LOGIN");
@@ -95,11 +107,13 @@ async function loginSession(request: NextRequest, token: string | undefined) {
     body.password.length > 1024
   )
     throw new UserGatewayError(400, "INVALID_LOGIN_INPUT");
-  const result = await userBackend("auth/login", undefined, "POST", {
-    email: body.email.trim(),
-    password: body.password,
-    rememberMe: false,
-  });
+  const result = tokenReply(
+    await userBackend("auth/login", undefined, "POST", {
+      email: body.email.trim(),
+      password: body.password,
+      rememberMe: false,
+    }),
+  );
   return result.status === 200 && result.value?.success
     ? establish(result.value.data)
     : reply(result.value, result.status);
@@ -119,7 +133,7 @@ function isBodyless(method: string, target: string) {
     return /^notifications\/[0-9a-f-]+\/read$/i.test(target);
   return (
     method === "POST" &&
-    /^(payments\/[0-9a-f-]+\/cancel|me\/materials\/[0-9a-f-]+\/(submit|archive))$/i.test(
+    /^(payments\/[0-9a-f-]+\/cancel|sessions\/paths\/[0-9a-f-]+\/settlement|me\/material-orders\/[0-9a-f-]+\/refund|me\/materials\/[0-9a-f-]+\/(submit|archive))$/i.test(
       target,
     )
   );

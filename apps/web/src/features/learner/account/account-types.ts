@@ -67,6 +67,7 @@ export type OwnIdentity = {
   userId: string;
   email: string;
   profile: {
+    avatarUrl: string | null;
     fullName: string;
     headline: string;
     bio: string;

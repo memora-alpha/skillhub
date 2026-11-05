@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { BusinessFeedback } from "./business-feedback";
 export { formatVietnamDateTime as formatTime } from "@/lib/vietnam-time";
 const labels: Record<string, string> = {
   FREE: "Miễn phí",
@@ -155,11 +156,22 @@ export function Back({
 export function CommandFeedback({
   command,
 }: Readonly<{
-  command: { pending: boolean; error?: string; uncertain: boolean };
+  command: {
+    pending: boolean;
+    error?: string;
+    uncertain: boolean;
+    failure?: { code: string; details?: unknown };
+  };
 }>) {
   return (
     <>
       <Feedback loading={command.pending} error={command.error} />
+      {command.failure && (
+        <BusinessFeedback
+          code={command.failure.code}
+          details={command.failure.details}
+        />
+      )}
       {command.uncertain && (
         <p className="learner-notice">
           Chưa rõ kết quả lần gửi. Hãy kiểm tra dữ liệu mới trước khi thử lại;

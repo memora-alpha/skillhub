@@ -1,3 +1,5 @@
+import { GatewayError, rejectUpstreamChallenge } from "../gateway/upstream";
+
 // The browser authenticates only with portal-scoped HttpOnly cookies.
 // Never forward upstream response headers/cookies or put a bearer in a URL.
 export async function proxyEvents(
@@ -40,6 +42,7 @@ export async function proxyEvents(
       },
     });
     clearTimeout(timer); // Only stream setup times out; heartbeat/replay owns its lifetime.
+    await rejectUpstreamChallenge(upstream);
     if (upstream.status !== 200) {
       await upstream.body?.cancel();
       cleanup();
@@ -93,8 +96,10 @@ export async function proxyEvents(
         "X-Content-Type-Options": "nosniff",
       },
     });
-  } catch {
+  } catch (cause) {
     cleanup();
+    if (cause instanceof GatewayError)
+      return failure(cause.status, cause.message);
     return failure(504, "API_UNAVAILABLE");
   }
 }

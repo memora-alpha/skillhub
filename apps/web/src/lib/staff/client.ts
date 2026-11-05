@@ -19,6 +19,10 @@ export function isSessionFailure(error: unknown): boolean {
   );
 }
 const errorMessages: Readonly<Record<string, string>> = {
+  API_UPSTREAM_CHALLENGE:
+    "Kết nối tới máy chủ đang bị chặn. Vui lòng thử lại sau hoặc liên hệ hỗ trợ.",
+  SESSION_RETRY_REQUIRED:
+    "Đã làm mới phiên. Kiểm tra trạng thái rồi thực hiện lại thao tác.",
   DEMO_RESOLUTION_UNSUPPORTED:
     "Dữ liệu thử chỉ hỗ trợ ghi chú và trạng thái báo cáo; chưa áp dụng thay đổi Credit hoặc uy tín.",
   DEMO_DATA_INVALID:
@@ -144,14 +148,19 @@ async function portalResponse(
       ...(options.body ? { body: JSON.stringify(options.body) } : {}),
     });
   } catch (e) {
-    if (e instanceof Error && e.name === "AbortError") throw e;
+    if (
+      options.signal?.aborted ||
+      (e instanceof Error && e.name === "AbortError")
+    )
+      throw e;
     throw new StaffApiError(0, "NETWORK_ERROR");
   }
   if (response.ok) return response;
   let envelope: { message?: string };
   try {
     envelope = await response.json();
-  } catch {
+  } catch (cause) {
+    if (options.signal?.aborted) throw cause;
     throw new StaffApiError(502, "API_RESPONSE_INVALID");
   }
   if (
@@ -165,6 +174,8 @@ async function portalResponse(
       : !path.startsWith("session/"))
   ) {
     await refreshStaffSession(portal);
+    if ((options.method ?? "GET").toUpperCase() !== "GET")
+      throw new StaffApiError(409, "SESSION_RETRY_REQUIRED");
     return portalResponse(path, options, portal, false);
   }
   throw new StaffApiError(
@@ -183,7 +194,8 @@ export async function staffApi<T>(
   let envelope: ApiEnvelope<T>;
   try {
     envelope = await response.json();
-  } catch {
+  } catch (cause) {
+    if (options.signal?.aborted) throw cause;
     throw new StaffApiError(502, "API_RESPONSE_INVALID");
   }
   if (envelope?.success !== true)
