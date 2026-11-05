@@ -60,6 +60,21 @@ export const sessionSchema = z
     learnerId: z.uuid(),
     startAt: timestamp,
     endAt: timestamp,
+    originalStartAt: timestamp.nullable().optional(),
+    rescheduleCount: z.number().int().nonnegative().optional(),
+    makeupCount: z.number().int().nonnegative().optional(),
+    makeupUserIds: z.array(z.uuid()).optional(),
+    makeupQuota: z
+      .object({
+        userId: z.uuid(),
+        totalSessions: z.number().int().nonnegative(),
+        limit: z.number().int().positive(),
+        used: z.number().int().nonnegative(),
+        remaining: z.number().int().nonnegative(),
+        requiresReview: z.boolean(),
+        reason: z.string().nullable(),
+      })
+      .optional(),
     status: z.enum(sessionStatuses),
     teacherConfirmationStatus: z.string().nullable(),
     learnerConfirmationStatus: z.string().nullable(),

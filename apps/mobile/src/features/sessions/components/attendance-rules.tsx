@@ -38,9 +38,14 @@ export function AttendanceRules() {
         không áp dụng tự chấp nhận lý do giữa hai bên.
       </SessionCopy>
       <SessionCopy muted>
+        Mỗi buổi chỉ được học bù một lần. Lượt học bù tính riêng mỗi người, dùng
+        chung cả chiều dạy và học; hết lượt chuyển nhân sự xử lý.
+      </SessionCopy>
+      <SessionCopy muted>
         Điểm uy tín khác Credit. Hoàn tất một buổi chưa quyết toán ngay; cần đủ
-        điều kiện cả lộ trình, hết hạn khiếu nại và không có tranh chấp giữ
-        quyết toán.
+        điều kiện cả lộ trình và không có tranh chấp giữ quyết toán. Sau khi học
+        xong toàn bộ, hai bên có thể đồng ý quyết toán sớm bằng thao tác riêng;
+        nếu không thì chờ hết thời hạn.
       </SessionCopy>
     </View>
   );

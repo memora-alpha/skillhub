@@ -14,6 +14,7 @@ export {
   useLearningPaths,
 } from "./hooks/use-learning-paths-api";
 export { useRefreshLearningPath } from "./hooks/use-refresh-learning-path";
+export { LearningChangePanel } from "./components/learning-change-panel";
 export type {
   ApiLearningPath,
   PathSummary,
