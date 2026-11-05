@@ -145,7 +145,10 @@ export function ApiSendProposalScreen({
     uuid.safeParse(sharingSkillId).success ? sharingSkillId! : null,
   );
   const api = useProposalsApi();
-  const command = useConnectionCommand<Proposal>([["proposals"]]);
+  const command = useConnectionCommand<Proposal>([
+    ["proposals"],
+    ["conversations", "inbox"],
+  ]);
   const submitting = useRef(false);
   const [preparing, setPreparing] = useState(false);
   const [preparationError, setPreparationError] = useState<unknown>();

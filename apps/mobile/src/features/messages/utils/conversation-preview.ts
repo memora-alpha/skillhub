@@ -66,6 +66,7 @@ export type InboxConversation = {
   activityAt: string;
   state?: "pending" | "failed";
   unread?: boolean;
+  previewSenderId?: string;
 };
 function inboxMessageText(message: ApiMessage) {
   if (readChatSchedule(message)?.locked) return "Lịch học đã chốt";
@@ -109,6 +110,7 @@ export function conversationInbox(
           preview: `Bạn: ${pending.messageText}`,
           activityAt: conversationActivityAt(conversation, pending.createdAt),
           state: pending.state === "failed" ? "failed" : "pending",
+          previewSenderId: userId,
         };
       const text = message ? inboxMessageText(message) : "";
       const sender = message?.senderId === userId ? "Bạn: " : "";
@@ -118,6 +120,9 @@ export function conversationInbox(
           ? `${sender}${text || "Cập nhật cuộc trò chuyện"}`
           : "Bắt đầu trò chuyện",
         activityAt: conversationActivityAt(conversation, message?.sentAt),
+        ...(message && message.messageType !== "SYSTEM"
+          ? { previewSenderId: message.senderId }
+          : {}),
       };
     })
     .sort((a, b) =>

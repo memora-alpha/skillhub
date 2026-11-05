@@ -1,4 +1,5 @@
 import { RefreshableFlatList as FlatList } from "@/components/RefreshableFlatList";
+import { useVisibleListRows } from "@/components/use-visible-list-rows";
 import { useState, type ReactNode } from "react";
 import { View } from "react-native";
 import { useIsFocused, useRouter } from "expo-router";
@@ -27,6 +28,7 @@ export function MyRequestsContent({
 }>) {
   const [status, setStatus] = useState("Tất cả");
   const focused = useIsFocused();
+  const { visibleIds, ...viewability } = useVisibleListRows();
   const query = useRequestList(
     "mine",
     status === "Tất cả" ? {} : { status },
@@ -61,6 +63,8 @@ export function MyRequestsContent({
       contentInsetAdjustmentBehavior="automatic"
       keyboardShouldPersistTaps="handled"
       data={query.items}
+      {...viewability}
+      extraData={visibleIds}
       keyExtractor={(item) => item.id}
       contentContainerStyle={[
         styles.content,
@@ -100,6 +104,7 @@ export function MyRequestsContent({
       renderItem={({ item }) => (
         <RequestCard
           request={item}
+          loadSkill={focused && visibleIds.has(item.id)}
           onPress={() => router.navigate(`/requests/${item.id}`)}
         />
       )}

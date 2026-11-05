@@ -17,6 +17,7 @@ test("completion refresh invalidates only the current owner's related Path and s
   const keys = [
     [...scope, "learning-paths", path],
     [...scope, "learning-paths", "mine"],
+    [...scope, "learning-paths", "mine", "pages"],
     [...scope, "learning-paths", "other"],
     ["connections", "other-user", 1, "learning-paths", path],
     ["connections", teacherId, 0, "learning-paths", path],
@@ -25,7 +26,7 @@ test("completion refresh invalidates only the current owner's related Path and s
   await refreshLearningPath(cache, scope, path, () => true);
   assert.deepEqual(
     keys.map((key) => cache.getQueryState(key)?.isInvalidated),
-    [true, true, false, false, false],
+    [true, true, true, false, false, false],
   );
   cache.clear();
   keys.forEach((key) => cache.setQueryData(key, "previous"));

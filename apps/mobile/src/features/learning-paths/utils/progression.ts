@@ -5,6 +5,7 @@ import {
   editablePath,
   ownConfirmation,
   plansConfirmed,
+  pathSessionsCompleted,
 } from "./policy-api";
 
 export type NextAction = { label: string; href: `/paths/${string}` };
@@ -162,6 +163,20 @@ export function agreementProgress(
     );
   const terminal = terminalProgress(path);
   if (terminal) return terminal;
+  if (
+    path.status === "ACTIVE" &&
+    path.lockedVersion !== null &&
+    pathSessionsCompleted(path)
+  )
+    return {
+      stage: "sessions",
+      title: "Đã hoàn tất các buổi học",
+      description: "Đang chờ hệ thống quyết toán cuối lộ trình.",
+      waiting: [
+        "Hệ thống tự quyết toán khi hết thời hạn khiếu nại và không còn tranh chấp đang chặn.",
+      ],
+      action: { label: "Xem các buổi đã học", href: `${base}/sessions` },
+    };
   if (path.lockedVersion !== null)
     return {
       stage: "sessions",

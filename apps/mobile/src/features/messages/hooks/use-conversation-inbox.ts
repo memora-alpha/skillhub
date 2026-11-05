@@ -19,11 +19,16 @@ import {
 } from "@/lib/query/use-quiet-read-recovery";
 
 export function useConversationInbox(
-  options: { enabled?: boolean; previewLimit?: number } = {},
+  options: {
+    enabled?: boolean;
+    previewLimit?: number;
+    learningRequestId?: string;
+    shouldLoadPreview?: (conversation: ApiConversation) => boolean;
+  } = {},
 ) {
   const screenFocused = useIsFocused();
   const focused = screenFocused && options.enabled !== false;
-  const query = useConversations(focused),
+  const query = useConversations(focused, options.learningRequestId),
     api = useMessagesApi(),
     runtime = useConnections(),
     cache = useQueryClient();
@@ -52,8 +57,12 @@ export function useConversationInbox(
           ),
         activityIds,
         runtime.userId ?? "",
+      ).filter(
+        (conversation) =>
+          !options.learningRequestId ||
+          conversation.learningRequestId === options.learningRequestId,
       );
-  const ordered = orderConversations(knownConversations, (id) => {
+  const activity = (id: string) => {
     const key = [...runtime.key, "conversations", "preview", id];
     if (connectionReadAccess(cache, key).denied) return;
     const message = newestMessage(
@@ -73,11 +82,17 @@ export function useConversationInbox(
             : latest,
         message?.sentAt,
       );
-  });
+  };
   const conversations =
     options.previewLimit === undefined
       ? knownConversations
-      : ordered.slice(0, options.previewLimit);
+      : orderConversations(knownConversations, activity).slice(
+          0,
+          options.previewLimit,
+        );
+  const previewAllowed = (conversation: ApiConversation) =>
+    options.shouldLoadPreview?.(conversation) ?? true;
+  const previewsEnabled = runtime.enabled && focused && !query.denied;
   const results = useQueries({
     queries: conversations.map((conversation) => {
       const key = [...runtime.key, "conversations", "preview", conversation.id];
@@ -85,7 +100,7 @@ export function useConversationInbox(
       return {
         queryKey: key,
         meta: { connectionReadAccess: access },
-        enabled: runtime.enabled && focused && !query.denied,
+        enabled: previewsEnabled && previewAllowed(conversation),
         retry: false,
         initialData: () => {
           const threadKey = [...runtime.key, "thread", conversation.id];
@@ -116,16 +131,21 @@ export function useConversationInbox(
     }),
   });
   useEffect(() => {
-    if (!focused)
+    if (!focused || options.shouldLoadPreview)
       void cache.cancelQueries({
         queryKey: [...runtime.key, "conversations", "preview"],
         type: "inactive",
+        predicate: (query) => query.getObserversCount() > 0,
       });
-  }, [cache, focused, runtime.key]);
+  }, [cache, focused, runtime.key, options.shouldLoadPreview]);
   useQuietReadRecovery({
-    error: results.find((result) => isTransientReadError(result.error))?.error,
+    error: results.find(
+      (result, index) =>
+        previewAllowed(conversations[index]!) &&
+        isTransientReadError(result.error),
+    )?.error,
     fetching: results.some((result) => result.isFetching),
-    enabled: focused && runtime.enabled,
+    enabled: previewsEnabled,
     retry: () =>
       cache.refetchQueries(
         {
@@ -147,7 +167,7 @@ export function useConversationInbox(
         { cancelRefetch: false },
       );
     }, [cache, runtime]),
-    runtime.enabled && focused,
+    previewsEnabled,
   );
   const messages = new Map(
     conversations.map((conversation, index) => {
@@ -189,7 +209,12 @@ export function useConversationInbox(
       item.conversation.id,
     ]).denied;
     if (denied)
-      return { ...item, preview: "Không tải được tin nhắn", state: undefined };
+      return {
+        ...item,
+        preview: "Không tải được tin nhắn",
+        state: undefined,
+        previewSenderId: undefined,
+      };
     if (
       messages.get(item.conversation.id) ||
       queuedIds.has(item.conversation.id)

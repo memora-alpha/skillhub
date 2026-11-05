@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Avatar } from "@/components/Avatar";
 import { Badge } from "@/components/Badge";
 import { Button } from "@/components/Button";
@@ -18,23 +18,82 @@ import {
 import type { Proposal } from "../api/proposals-api";
 import { proposalStatusLabels } from "../constants/proposal-status";
 
+function proposalBadgeVariant(status: Proposal["status"]) {
+  if (status === "ACCEPTED") return "success";
+  if (status === "PENDING") return "warning";
+  return "default";
+}
+
 export function ProposalListCard({
   proposal,
-}: Readonly<{ proposal: Proposal }>) {
+  returnRequestId,
+  compact = false,
+}: Readonly<{
+  proposal: Proposal;
+  returnRequestId?: string;
+  compact?: boolean;
+}>) {
   const router = useRouter();
   const { userId } = useConnections();
   const sent = proposal.proposerId === userId;
   const partnerId = sent ? proposal.recipientId : proposal.proposerId;
   const partner = useParticipantProfile(partnerId);
-  const skill = useCatalogName(proposal.skillId);
+  const requestTitle = proposal.learningRequestTitle?.trim();
+  const skill = useCatalogName(
+    compact || requestTitle ? undefined : proposal.skillId,
+  );
   const name = partner.data?.fullName ?? "Thành viên SkillHub";
   const detail = (closeAction?: "withdraw") =>
     router.push({
       pathname: "/proposal/[id]",
-      params: { id: proposal.id, ...(closeAction ? { closeAction } : {}) },
+      params: {
+        id: proposal.id,
+        ...(closeAction ? { closeAction } : {}),
+        ...(returnRequestId === proposal.learningRequestId
+          ? { returnRequestId }
+          : {}),
+      },
     });
   const accepted = proposal.status === "ACCEPTED";
   const pending = proposal.status === "PENDING";
+  const badgeVariant = proposalBadgeVariant(proposal.status);
+  if (compact)
+    return (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Xem đề xuất của ${name}, ${proposalStatusLabels[proposal.status]}`}
+        onPress={() => detail()}
+        style={({ pressed }) => [
+          styles.card,
+          styles.compact,
+          pressed && { opacity: 0.72 },
+        ]}
+      >
+        <View style={styles.personRow}>
+          <Avatar
+            name={name}
+            userId={partnerId}
+            sourceUri={partner.data?.avatarUrl}
+            size={40}
+          />
+          <View style={styles.identity}>
+            <Text numberOfLines={1} style={styles.name}>
+              {name}
+            </Text>
+            <Text style={styles.caption}>
+              {new Date(proposal.createdAt).toLocaleDateString("vi-VN")}
+            </Text>
+          </View>
+          <Badge
+            label={proposalStatusLabels[proposal.status]}
+            variant={badgeVariant}
+          />
+        </View>
+        <Text numberOfLines={2} style={styles.body}>
+          {proposal.message}
+        </Text>
+      </Pressable>
+    );
   return (
     <View style={styles.card}>
       <View style={styles.heading}>
@@ -52,7 +111,7 @@ export function ProposalListCard({
         )}
       </View>
       <Text accessibilityRole="header" style={styles.title}>
-        {skill.data ?? "Đề xuất trao đổi"}
+        {requestTitle || skill.data || "Đề xuất trao đổi"}
       </Text>
       <View style={styles.personRow}>
         <Avatar
@@ -74,9 +133,8 @@ export function ProposalListCard({
       <View style={styles.statusRow}>
         <Badge
           label={proposalStatusLabels[proposal.status]}
-          variant={accepted ? "success" : pending ? "warning" : "default"}
+          variant={badgeVariant}
         />
-        <Text style={styles.caption}>Bản {proposal.version}</Text>
       </View>
       <View style={styles.message}>
         <Text numberOfLines={3} style={styles.body}>
@@ -141,6 +199,7 @@ export function ProposalListCard({
   );
 }
 const styles = StyleSheet.create({
+  compact: { padding: 12, gap: 10 },
   card: {
     backgroundColor: colors.surface,
     borderColor: colors.border,

@@ -8,6 +8,7 @@
 
 | Work tiếp nhận                                                                       | Plan                                                 | Hiện trạng và bước tiếp                                  |
 | ------------------------------------------------------------------------------------ | ---------------------------------------------------- | -------------------------------------------------------- |
+| Tin nhắn theo Yêu cầu học — màn riêng Nhận được/Đoạn chat | [plan](request-message-groups/plan.md) | [status](request-message-groups/status.md) |
 | Giảm HTTP 429 mobile — Inbox/Chat, cache, cooldown và lifecycle | [plan](mobile-chat-rate-limit/plan.md) | [status](mobile-chat-rate-limit/status.md) |
 | Phase03 Wallet & Top-up — tiếp tục review/fix trên nhánh Wallet hiện tại | [plan](phase-03-wallet-topup/plan.md)               | [status](phase-03-wallet-topup/status.md)               |
 | Phase04 Learning Request & Discovery, tiếp nhận acceptance đang mở từ spec005        | [plan](phase-04-learning-request-discovery/plan.md)  | [status](phase-04-learning-request-discovery/status.md)  |

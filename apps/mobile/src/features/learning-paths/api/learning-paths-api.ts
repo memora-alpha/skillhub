@@ -4,6 +4,7 @@ import { AppError } from "@/lib/http/errors";
 import {
   parse,
   parsePage,
+  pageQuery,
   resourcePath,
   uuid,
   version,
@@ -48,6 +49,23 @@ export function createLearningPathsApi(
   userId: string,
 ) {
   const pathUrl = (id: string) => resourcePath("learning-paths", id);
+  async function readMinePage(query: URLSearchParams, signal?: AbortSignal) {
+    const params = query.toString();
+    const search = params ? `?${params}` : "";
+    const page = parsePage(
+      pathSummarySchema,
+      await call(`/learning-paths/mine${search}`, {
+        signal,
+        includeMeta: true,
+      }),
+    );
+    if (
+      new Set(page.items.map((path) => path.id)).size !== page.items.length ||
+      page.items.some((path) => path.counterpartId === userId)
+    )
+      throw new AppError("protocol");
+    return page;
+  }
   const post = (url: string, body?: unknown, idempotencyKey?: string) =>
     call(url, {
       method: "POST",
@@ -56,25 +74,17 @@ export function createLearningPathsApi(
       replayAfterRenewal: false,
     });
   return {
+    minePage(cursor?: string, signal?: AbortSignal) {
+      return readMinePage(pageQuery(cursor), signal);
+    },
     async mine(signal?: AbortSignal) {
       const result: z.infer<typeof pathSummarySchema>[] = [];
       const cursors = new Set<string>();
       let cursor: string | null = null;
       async function loadNextPage() {
         if (signal?.aborted) throw new AppError("session");
-        const query: string = cursor
-          ? `?${new URLSearchParams({ cursor })}`
-          : "";
-        const page: {
-          items: z.infer<typeof pathSummarySchema>[];
-          nextCursor: string | null;
-        } = parsePage(
-          pathSummarySchema,
-          await call(`/learning-paths/mine${query}`, {
-            signal,
-            includeMeta: true,
-          }),
-        );
+        const query = new URLSearchParams(cursor ? { cursor } : undefined);
+        const page = await readMinePage(query, signal);
         result.push(...page.items);
         cursor = page.nextCursor;
         if (cursor && cursors.has(cursor)) throw new AppError("protocol");
@@ -84,10 +94,7 @@ export function createLearningPathsApi(
       }
       await loadNextPage();
 
-      if (
-        new Set(result.map((p) => p.id)).size !== result.length ||
-        result.some((p) => p.counterpartId === userId)
-      )
+      if (new Set(result.map((p) => p.id)).size !== result.length)
         throw new AppError("protocol");
       return result;
     },

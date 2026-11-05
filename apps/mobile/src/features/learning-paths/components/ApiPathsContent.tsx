@@ -1,5 +1,9 @@
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useIsFocused } from "expo-router";
+import { RefreshableFlatList } from "@/components/RefreshableFlatList";
+import { useVisibleListRows } from "@/components/use-visible-list-rows";
+import { Button } from "@/components/Button";
 import { PathReadFeedback } from "./PathReadFeedback";
 import { EmptyState } from "@/components/EmptyState";
 import { Copy, RouteButton } from "@/components/feature-page";
@@ -13,7 +17,7 @@ import {
   signedInChrome,
   typography,
 } from "@/constants/theme";
-import { useLearningPaths } from "../hooks/use-learning-paths-api";
+import { useLearningPathPages } from "../hooks/use-learning-paths-api";
 import { pathStatusLabel } from "../utils/policy-api";
 import type { PathSummary } from "../api/learning-paths-contract";
 import {
@@ -42,8 +46,11 @@ function statusColor(status: PathSummary["status"]) {
   return colors.warning;
 }
 
-export function ApiPathCard({ path }: Readonly<{ path: PathSummary }>) {
-  const profile = useParticipantProfile(path.counterpartId);
+export function ApiPathCard({
+  path,
+  loadProfile = true,
+}: Readonly<{ path: PathSummary; loadProfile?: boolean }>) {
+  const profile = useParticipantProfile(path.counterpartId, loadProfile);
   const name = profile.data?.fullName ?? "Lộ trình cùng đối tác";
   const confirmed = ["CONFIRMED", "SCHEDULED", "ACTIVE", "COMPLETED"].includes(
     path.status,
@@ -117,14 +124,24 @@ export function ApiPathCard({ path }: Readonly<{ path: PathSummary }>) {
   );
 }
 export function ApiPathsContent() {
-  const query = useLearningPaths();
+  const focused = useIsFocused();
+  const query = useLearningPathPages(focused);
   const [filter, setFilter] = useState<PathListFilter>("all");
-  const paths = query.data ?? [];
+  const { visibleIds, ...viewability } = useVisibleListRows();
+  const paths = query.items;
   const visible = filterPathSummaries(paths, filter);
-  return (
+  const hasMore = !!query.hasNextPage && !query.denied;
+  const refresh = () => query.refetch({ cancelRefetch: false });
+  const loadMore = () => {
+    if (focused && hasMore && !query.isFetching)
+      void query.fetchNextPage({ cancelRefetch: false });
+  };
+  const header = (
     <>
-      <PathReadFeedback query={query} />
-      {!!query.data?.length && (
+      {!query.isFetchNextPageError && (
+        <PathReadFeedback query={{ ...query, refetch: refresh }} />
+      )}
+      {paths.length > 0 && (
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -170,31 +187,64 @@ export function ApiPathsContent() {
           </View>
         </ScrollView>
       )}
-      {visible.map((path) => (
-        <ApiPathCard key={path.id} path={path} />
-      ))}
-      {query.data?.length === 0 && (
-        <EmptyState
-          title="Chưa có lộ trình"
-          description="Mở cuộc trò chuyện sau khi đề xuất được chấp nhận để cùng tạo lộ trình học."
-        />
-      )}
-      {!!query.data?.length && visible.length === 0 && (
-        <EmptyState
-          title="Chưa có lộ trình ở trạng thái này"
-          description="Chọn Tất cả để xem các lộ trình còn lại."
-        />
-      )}
-      {query.data?.length === 100 && (
+      {hasMore && paths.length > 0 && (
         <Copy muted size="hint">
-          Đang hiển thị tối đa 100 lộ trình được cập nhật gần nhất. Số lượng bộ
-          lọc tính trong danh sách đã tải.
+          Số lượng theo bộ lọc tính trên các lộ trình đã tải.
         </Copy>
       )}
     </>
   );
+  let emptyDescription =
+    "Mở cuộc trò chuyện sau khi đề xuất được chấp nhận để cùng tạo lộ trình học.";
+  if (hasMore) emptyDescription = "Tải thêm lộ trình để xem các trang còn lại.";
+  else if (paths.length)
+    emptyDescription = "Chọn Tất cả để xem các lộ trình còn lại.";
+  const empty = query.data && (
+    <EmptyState
+      title={
+        paths.length
+          ? "Chưa thấy lộ trình ở trạng thái này"
+          : "Chưa có lộ trình"
+      }
+      description={emptyDescription}
+    />
+  );
+  let footer = null;
+  if (query.isFetchNextPageError)
+    footer = <PathReadFeedback query={{ ...query, refetch: loadMore }} />;
+  else if (hasMore)
+    footer = (
+      <Button variant="paper" disabled={query.isFetching} onPress={loadMore}>
+        {query.isFetchingNextPage ? "Đang tải thêm…" : "Tải thêm lộ trình"}
+      </Button>
+    );
+  return (
+    <RefreshableFlatList
+      data={visible}
+      {...viewability}
+      extraData={visibleIds}
+      keyExtractor={(path) => path.id}
+      contentContainerStyle={styles.list}
+      showsVerticalScrollIndicator={false}
+      ListHeaderComponent={header}
+      ListEmptyComponent={empty}
+      ListFooterComponent={footer}
+      refreshing={query.isRefetching}
+      onRefresh={() => void refresh()}
+      onEndReached={() => {
+        if (filter === "all" && visible.length && !query.error) loadMore();
+      }}
+      renderItem={({ item }) => (
+        <ApiPathCard
+          path={item}
+          loadProfile={focused && visibleIds.has(item.id)}
+        />
+      )}
+    />
+  );
 }
 const styles = StyleSheet.create({
+  list: { paddingBottom: 24, gap: 16 },
   card: {
     position: "relative",
     overflow: "hidden",

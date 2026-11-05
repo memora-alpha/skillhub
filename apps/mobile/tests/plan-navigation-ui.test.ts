@@ -346,6 +346,30 @@ test("agreement overview separates both directions and returns through history",
   }
 });
 
+test("agreement opens wallet history only after backend confirms settlement", () => {
+  const h = harness(false);
+  try {
+    h.path.lockedVersion = h.path.currentVersion;
+    const walletButton = () =>
+      elements(h.expand(h.render())).find(
+        (element) =>
+          element.type === "Button" &&
+          element.props.children === "Xem sổ giao dịch ví",
+      );
+    for (const status of ["ACTIVE", "DISPUTED", "COMPLETED"] as const) {
+      h.path.status = status;
+      assert.equal(walletButton(), undefined);
+    }
+    h.path.settledAt = "2026-11-04T00:00:00Z";
+    const button = walletButton();
+    assert.ok(button);
+    (button.props.onPress as () => void)();
+    assert.deepEqual(h.routes, ["/wallet/history"]);
+  } finally {
+    h.cleanup();
+  }
+});
+
 test("TWO_WAY can create the teaching direction while the learning direction awaits confirmation", () => {
   const h = harness(false);
   try {

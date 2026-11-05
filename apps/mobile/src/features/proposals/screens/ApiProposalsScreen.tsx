@@ -1,14 +1,11 @@
 import { useState } from "react";
-import { RefreshableFlatList as FlatList } from "@/components/RefreshableFlatList";
-import { View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { AppScreenLayout } from "@/features/shell";
 import { Button } from "@/components/Button";
 import { EmptyState } from "@/components/EmptyState";
-import { Copy, ui } from "@/components/feature-page";
-import { ConnectionFeedback } from "@/features/connections";
+import { Copy } from "@/components/feature-page";
 import { useProposalList } from "../hooks/use-proposals-api";
-import { ProposalListCard } from "../components/ProposalListCard";
+import { ProposalList } from "../components/ProposalList";
 import {
   ProposalListFilters,
   type ProposalListTab,
@@ -17,12 +14,8 @@ import {
   ProposalSearchButton,
   ProposalSearchField,
 } from "../components/ProposalSearch";
-import { searchProposals } from "../utils/search-proposals";
 import { proposalListFilter } from "../utils/proposal-route";
 import { ProposalUnavailable } from "../components/ProposalUnavailable";
-function ProposalSeparator() {
-  return <View style={{ height: 12 }} />;
-}
 function emptyDescription(searching: boolean, hasMore: boolean) {
   if (!searching) return "Đề xuất ở trạng thái này sẽ xuất hiện tại đây.";
   return hasMore
@@ -74,23 +67,12 @@ export function ApiProposalsScreen() {
       }
     >
       {() => (
-        <FlatList
-          data={searchProposals(query.items, keyword)}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="on-drag"
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={[ui.page, { paddingTop: 0 }]}
-          refreshing={query.isRefetching}
-          onRefresh={() => {
-            void query.refetch();
-          }}
-          onEndReached={() => {
-            if (query.hasNextPage && !query.isFetching)
-              void query.fetchNextPage({ cancelRefetch: false });
-          }}
-          ItemSeparatorComponent={ProposalSeparator}
-          ListHeaderComponent={
-            <View style={{ gap: 12, marginBottom: 16 }}>
+        <ProposalList
+          query={query}
+          keyword={keyword}
+          compactHeader={direction === "sent"}
+          header={
+            <>
               {searchOpen && (
                 <ProposalSearchField value={keyword} onChange={setKeyword} />
               )}
@@ -116,46 +98,23 @@ export function ApiProposalsScreen() {
                   </Button>
                 </>
               )}
-              <ConnectionFeedback
-                loading={query.isLoading}
-                error={query.error}
-                retry={query.refetch}
-              />
-            </View>
+            </>
           }
-          ListEmptyComponent={
-            !query.isPending && !query.error ? (
-              <EmptyState
-                title={
-                  keyword.trim()
-                    ? "Chưa thấy đề xuất phù hợp"
-                    : "Chưa có đề xuất"
-                }
-                description={emptyDescription(
-                  !!keyword.trim(),
-                  !!query.hasNextPage,
-                )}
-                action={keyword.trim() ? "Xóa tìm kiếm" : "Khám phá"}
-                onAction={() =>
-                  keyword.trim() ? setKeyword("") : router.push("/discover")
-                }
-              />
-            ) : null
+          empty={
+            <EmptyState
+              title={
+                keyword.trim() ? "Chưa thấy đề xuất phù hợp" : "Chưa có đề xuất"
+              }
+              description={emptyDescription(
+                !!keyword.trim(),
+                !!query.hasNextPage,
+              )}
+              action={keyword.trim() ? "Xóa tìm kiếm" : "Khám phá"}
+              onAction={() =>
+                keyword.trim() ? setKeyword("") : router.push("/discover")
+              }
+            />
           }
-          ListFooterComponent={
-            query.hasNextPage ? (
-              <Button
-                variant="secondary"
-                disabled={query.isFetching}
-                onPress={() => {
-                  void query.fetchNextPage({ cancelRefetch: false });
-                }}
-              >
-                Tải thêm đề xuất
-              </Button>
-            ) : null
-          }
-          renderItem={({ item }) => <ProposalListCard proposal={item} />}
         />
       )}
     </AppScreenLayout>

@@ -16,6 +16,7 @@ export function useMessageSend(id: string) {
   const command = useConnectionCommand<Delivery>([
     ["thread", id],
     ["conversations", "preview", id],
+    ["conversations", "inbox"],
     ["delivery", id],
   ]);
   const draft = useRef<MessageDraft | undefined>(undefined);
@@ -40,6 +41,9 @@ export function useMessageSend(id: string) {
       });
       void cache.invalidateQueries({
         queryKey: [...runtime.key, "thread", id],
+      });
+      void cache.invalidateQueries({
+        queryKey: [...runtime.key, "conversations", "inbox"],
       });
     }
   }, [delivery.data, runtime, cache, id]);

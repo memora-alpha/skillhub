@@ -6,6 +6,7 @@ export {
   useRequestDetail,
   useRequestList,
   useSkillOptions,
+  useRefreshRequestDetails,
 } from "./hooks/use-requests";
 export type { PublicRequest } from "./types";
 export { MyRequestsScreen } from "./screens/my-requests-screen";

@@ -1,4 +1,3 @@
-import { RefreshableScrollView as ScrollView } from "@/components/RefreshableScrollView";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { AppScreenLayout } from "@/features/shell";
@@ -73,12 +72,7 @@ export function MyLearningScreen() {
           {tab === "requests" ? (
             <MyRequestsContent embedded />
           ) : (
-            <ScrollView
-              contentContainerStyle={styles.scroll}
-              showsVerticalScrollIndicator={false}
-            >
-              <ApiPathsContent />
-            </ScrollView>
+            <ApiPathsContent />
           )}
         </View>
       )}
@@ -122,10 +116,4 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   selectedLabel: { color: colors.primary },
-  scroll: { paddingBottom: 24, gap: 16 },
-  caption: {
-    ...typography.secondary,
-    fontFamily: fonts.body,
-    color: colors.muted,
-  },
 });

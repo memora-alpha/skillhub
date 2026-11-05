@@ -23,7 +23,7 @@ import { calendarColors as colors } from "../constants/theme";
 export function CalendarScreen() {
   const focused = useIsFocused();
   const [date, setDate] = useState(() => new Date());
-  const [day, setDay] = useState<number | null>(() => date.getDate());
+  const [day, setDay] = useState<number | null>(null);
   const month = date.getMonth(),
     year = date.getFullYear(),
     timezone = deviceTimezone();
@@ -32,11 +32,12 @@ export function CalendarScreen() {
     timezone,
     focused,
   );
+  const refresh = () => query.refetch({ cancelRefetch: false });
   useQuietReadRecovery({
     error: query.error,
     fetching: query.isFetching,
     enabled: query.enabled,
-    retry: () => query.refetch({ cancelRefetch: false }),
+    retry: refresh,
   });
   const sessions = query.data ?? [];
   const visible = sessions.filter(
@@ -53,6 +54,8 @@ export function CalendarScreen() {
           style={styles.background}
           contentContainerStyle={styles.page}
           showsVerticalScrollIndicator={false}
+          refreshing={query.isRefetching}
+          onRefresh={() => void refresh()}
         >
           <MonthCalendar
             month={month}
@@ -74,7 +77,7 @@ export function CalendarScreen() {
             {...query}
             quietTransient
             refreshing={query.isFetching}
-            retry={() => query.refetch({ cancelRefetch: false })}
+            retry={refresh}
           >
             {listIsLimited(sessions) && (
               <FormNotice tone="info">

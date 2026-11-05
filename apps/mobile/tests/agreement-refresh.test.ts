@@ -2,6 +2,30 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { mock, test } from "node:test";
 import { pathToFileURL } from "node:url";
+import { agreementPath } from "./fixtures/learning-agreement";
+import { fixtureId } from "./fixtures/learning-requests-data";
+import { shouldWatchLearningPath } from "../src/features/learning-paths/utils/policy-api";
+
+test("completed sessions keep reading until the backend settles the path", () => {
+  const path = agreementPath(true);
+  path.status = "ACTIVE";
+  path.lockedVersion = path.currentVersion;
+  assert.equal(shouldWatchLearningPath(path), false);
+  for (const plan of path.plans)
+    plan.sessions = Array.from({ length: plan.totalSessions }, (_, index) => ({
+      id: fixtureId(100 + index),
+      sessionNo: index + 1,
+      startAt: "2026-11-01T02:00:00Z",
+      endAt: "2026-11-01T03:00:00Z",
+      status: "COMPLETED",
+    }));
+  assert.equal(shouldWatchLearningPath(path), true);
+  path.status = "DISPUTED";
+  assert.equal(shouldWatchLearningPath(path), false);
+  path.status = "COMPLETED";
+  path.settledAt = "2026-11-05T00:00:00Z";
+  assert.equal(shouldWatchLearningPath(path), false);
+});
 
 test("agreement reads pause on background/blur, avoid overlapping reads, and stop at session expiry", async (t) => {
   const local = createRequire(

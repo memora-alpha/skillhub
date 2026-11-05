@@ -24,11 +24,22 @@ export function useMessagesApi() {
     [call, userId, key, cache],
   );
 }
-export function useConversations(enabled = true) {
+export function useGroupedInbox(enabled = true) {
   const api = useMessagesApi();
   return useConnectionList(
-    ["conversations", "activity-order-v1"],
-    (cursor, signal) => api.list(cursor, signal),
+    ["conversations", "inbox"],
+    (cursor, signal) => api.inbox(cursor, signal),
+    enabled,
+    { refreshOnFocus: "stale", cancelOnDisable: true },
+  );
+}
+export function useConversations(enabled = true, learningRequestId?: string) {
+  const api = useMessagesApi();
+  return useConnectionList(
+    learningRequestId
+      ? ["conversations", "request", learningRequestId]
+      : ["conversations", "activity-order-v1"],
+    (cursor, signal) => api.list(cursor, signal, learningRequestId),
     enabled,
     { refreshOnFocus: "stale", cancelOnDisable: true },
   );
@@ -50,8 +61,10 @@ export function useThread(id: string, enabled: boolean) {
   const loadingOlder = useRef(false);
   const fresh = useRef(true);
   const olderRequest = useRef<AbortController | undefined>(undefined);
+  const valid = enabled && uuid.safeParse(id).success;
   useFocusEffect(
     useCallback(() => {
+      if (!valid) return;
       fresh.current =
         cache.getQueryCache().find({ queryKey: key, exact: true })?.isStale() ??
         true;
@@ -61,7 +74,7 @@ export function useThread(id: string, enabled: boolean) {
         fresh.current = true;
         olderRequest.current?.abort();
       };
-    }, [id, cache, runtime.key]),
+    }, [id, cache, runtime.key, valid]),
   );
   const [olderPending, setOlderPending] = useState(false);
   const [olderError, setOlderError] = useState<unknown>();
@@ -84,8 +97,8 @@ export function useThread(id: string, enabled: boolean) {
         assertCurrent: runtime.assertCurrent,
       });
     },
-    enabled && uuid.safeParse(id).success,
-    { refreshOnFocus: "stale" },
+    valid,
+    { refreshOnFocus: "stale", cancelOnDisable: true },
   );
   const loadOlder = async () => {
     const previous = query.data;

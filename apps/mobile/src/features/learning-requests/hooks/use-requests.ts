@@ -20,6 +20,10 @@ import {
   evictDeniedRequestList,
 } from "../utils/request-list-query";
 import { requestSkillOptions } from "../utils/request-skill-query";
+import {
+  cachedOwnRequest,
+  type RequestDetailOptions,
+} from "../utils/request-detail-cache";
 export function useRefreshOnFocus(refetch: () => unknown) {
   useFocusEffect(
     useCallback(() => {
@@ -35,13 +39,20 @@ export function useRequestList(
   scope: "mine" | "feed" | "recommended",
   filters: RequestFilters = {},
   active = true,
+  options: { firstPageOnly?: boolean } = {},
 ) {
   const { api, key, enabled, isCurrent } = useRequestsRuntime();
   const client = useQueryClient();
-  const options = requestListOptions(api, key, scope, filters);
-  const signature = hashKey(options.queryKey);
+  const queryOptions = requestListOptions(
+    api,
+    key,
+    scope,
+    filters,
+    options.firstPageOnly,
+  );
+  const signature = hashKey(queryOptions.queryKey);
   const query = useInfiniteQuery({
-    ...options,
+    ...queryOptions,
     enabled: enabled && active,
   });
   const denied = readDenial(query.error);
@@ -65,14 +76,14 @@ export function useRequestList(
     if (enabled && active && !denied && query.hasNextPage)
       return fetchRequestNextPage(
         client,
-        options.queryKey,
+        queryOptions.queryKey,
         () => query.fetchNextPage({ cancelRefetch: false }),
         isCurrent,
       );
   };
   const items = denied ? [] : requestListItems(query.data?.pages);
   const autoLoadMore = () => {
-    const current = client.getQueryState(options.queryKey);
+    const current = client.getQueryState(queryOptions.queryKey);
     if (
       canAutoLoadRequestPage({
         active: enabled && active && isCurrent(),
@@ -95,7 +106,10 @@ export function useRequestList(
     autoLoadMore,
   };
 }
-export function useRequestDetail(id: string | undefined) {
+export function useRequestDetail(
+  id: string | undefined,
+  options: RequestDetailOptions = {},
+) {
   const { api, key, enabled, isCurrent } = useRequestsRuntime();
   const client = useQueryClient();
   const access = useMemo(
@@ -103,19 +117,58 @@ export function useRequestDetail(id: string | undefined) {
     [client, key, id],
   );
   const valid = z.uuid().safeParse(id).success;
+  const active = options.active !== false;
+  const wait = !!options.waitForOwnList;
+  const staleOnly = options.refreshOnFocus === "stale";
+  const queryKey = useMemo(() => [...key, "detail", id], [key, id]);
+  const own = options.preferOwnList
+    ? cachedOwnRequest(client, key, id, access)
+    : undefined;
+  const previous = client.getQueryData<{ version: number }>(queryKey);
+  const useOwn = own && own.item.version >= (previous?.version ?? 0);
   const query = useQuery({
-    queryKey: [...key, "detail", id],
+    queryKey,
     meta: { requestReadGuard: access },
-    enabled: enabled && valid,
-    queryFn: () => access.read(() => api.detail(id!), isCurrent),
+    enabled: enabled && valid && active && !wait && !useOwn,
+    queryFn: ({ signal }) =>
+      access.read(() => api.detail(id!, signal), isCurrent),
     retry: false,
   });
   const refresh = useCallback(() => {
-    if (enabled && valid) void query.refetch();
-  }, [enabled, valid, query.refetch]);
+    if (!enabled || !valid || !active || wait) return;
+    if (staleOnly)
+      void client.refetchQueries(
+        { queryKey, exact: true, type: "active", stale: true },
+        { cancelRefetch: false },
+      );
+    else void query.refetch();
+  }, [
+    enabled,
+    valid,
+    active,
+    wait,
+    staleOnly,
+    client,
+    queryKey,
+    query.refetch,
+  ]);
   useRefreshOnFocus(refresh);
+  useEffect(() => {
+    if (!active)
+      void client.cancelQueries({ queryKey, exact: true, type: "inactive" });
+  }, [active, client, queryKey]);
   if (query.error) access.fail(query.error);
-  return { ...query, valid, readDenied: access.denial };
+  let data = query.data;
+  if (useOwn) data = own.item;
+  if (access.denial) data = undefined;
+  return {
+    ...query,
+    data,
+    isPending: !data && query.isPending,
+    isLoading: !data && query.isLoading,
+    valid,
+    readDenied: access.denial,
+  };
 }
 export function useSkillOptions(q?: string, active = true) {
   const { api, key, enabled } = useRequestsRuntime();
@@ -128,13 +181,22 @@ export function useSkillOptions(q?: string, active = true) {
     getNextPageParam: (page) => page.nextCursor ?? undefined,
   });
 }
-export function useSkillName(id: string | undefined) {
+export function useSkillName(id: string | undefined, allowed = true) {
   const { api, key, enabled } = useRequestsRuntime();
   const cache = useQueryClient();
-  return useQuery({
+  const query = useQuery({
     ...requestSkillOptions(api, key, id, cache),
-    enabled: enabled && !!id,
+    enabled: enabled && allowed && !!id,
   });
+  useEffect(() => {
+    if (id && !allowed)
+      void cache.cancelQueries({
+        queryKey: [...key, "skill", id],
+        exact: true,
+        type: "inactive",
+      });
+  }, [allowed, cache, id, key]);
+  return query;
 }
 export function useRequestSync() {
   const { key, isCurrent } = useRequestsRuntime();
@@ -146,4 +208,39 @@ export function useRequestSync() {
       await queryClient.invalidateQueries({ queryKey: key });
     }
   };
+}
+
+export function useRefreshRequestDetails(
+  options: { preferOwnList?: boolean } = {},
+) {
+  const { key, isCurrent } = useRequestsRuntime();
+  const client = useQueryClient();
+  const preferOwnList = !!options.preferOwnList;
+  return useCallback(() => {
+    if (!isCurrent()) return Promise.resolve();
+    return client.refetchQueries(
+      {
+        queryKey: [...key, "detail"],
+        type: "active",
+        predicate: (query) => {
+          if (!preferOwnList) return true;
+          const id = query.queryKey[key.length + 1];
+          const own =
+            typeof id === "string"
+              ? cachedOwnRequest(
+                  client,
+                  key,
+                  id,
+                  requestReadGuard(client, query.queryKey),
+                )
+              : undefined;
+          const detail = client.getQueryData<{ version: number }>(
+            query.queryKey,
+          );
+          return !own?.fresh || own.item.version < (detail?.version ?? 0);
+        },
+      },
+      { cancelRefetch: false },
+    );
+  }, [client, key, isCurrent, preferOwnList]);
 }

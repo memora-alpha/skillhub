@@ -14,6 +14,27 @@ import {
   learnerId,
   withConfirmedSchedules,
 } from "./fixtures/learning-agreement";
+import { fixtureId } from "./fixtures/learning-requests-data";
+
+test("all completed sessions wait for backend settlement without announcing readiness to study", () => {
+  const path = agreementPath();
+  path.status = "ACTIVE";
+  path.lockedVersion = path.currentVersion;
+  for (const plan of path.plans)
+    plan.sessions = Array.from({ length: plan.totalSessions }, (_, index) => ({
+      id: fixtureId(100 + index),
+      sessionNo: index + 1,
+      startAt: "2026-11-01T02:00:00Z",
+      endAt: "2026-11-01T03:00:00Z",
+      status: "COMPLETED",
+    }));
+  const progress = agreementProgress(path, teacherId);
+  assert.equal(progress.title, "Đã hoàn tất các buổi học");
+  assert.match(progress.waiting.join(), /hết thời hạn khiếu nại/);
+  assert.equal(progress.action?.href, `/paths/${path.id}/sessions`);
+  assert.equal(path.status, "ACTIVE");
+  assert.equal(path.settledAt, null);
+});
 
 test("ONE_WAY directs only the teacher to create a plan; learner waits", () => {
   const path = { ...agreementPath(), status: "PROPOSED" as const, plans: [] };

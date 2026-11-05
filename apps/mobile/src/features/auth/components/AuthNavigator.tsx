@@ -39,6 +39,7 @@ export function AuthNavigator() {
       <Stack.Protected guard={authenticated}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="chat/[proposalId]" />
+        <Stack.Screen name="messages/request/[id]" />
         <Stack.Screen name="chat-attachment" />
         <Stack.Screen name="request/[id]" />
         <Stack.Screen name="session/[id]" />
@@ -69,7 +70,6 @@ export function AuthNavigator() {
         <Stack.Screen name="paths/[id]/hold" />
         <Stack.Screen name="paths/[id]/cancel" />
         <Stack.Screen name="paths/[id]/terms" />
-        <Stack.Screen name="paths/[id]/settlement" />
         <Stack.Screen name="paths/[id]/sessions" />
         <Stack.Screen name="learning-sessions/[id]/index" />
         <Stack.Screen name="learning-sessions/[id]/reschedule" />

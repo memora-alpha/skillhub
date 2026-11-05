@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { orderConversations } from "../src/features/messages/utils/inbox-order";
+import {
+  orderConversations,
+  orderInboxGroups,
+} from "../src/features/messages/utils/inbox-order";
+import type { ApiInboxGroup } from "../src/features/messages/api/messages-api";
 import { createChatEventHydrator } from "../src/features/messages/utils/event-hydration";
 import { fixtureId } from "./fixtures/learning-requests-data";
 
@@ -55,7 +59,38 @@ test("server activity wins over older or missing cached previews", () => {
     [fixtureId(2), fixtureId(1)],
   );
 });
-test("message events refresh only the affected thread and preview", async () => {
+
+test("a newer chat promotes its request above other groups while stale preview data cannot demote it", () => {
+  const groups: ApiInboxGroup[] = [2, 1].map((n) => ({
+    id: `request:${fixtureId(n)}`,
+    groupType: "LEARNING_REQUEST",
+    learningRequestId: fixtureId(n),
+    conversationId: null,
+    title: null,
+    viewerRole: "OWNER",
+    receivedProposalCount: 1,
+    sentProposalCount: 0,
+    conversationCount: 1,
+    lastActivityAt: `2030-01-0${n}T00:00:00Z`,
+  }));
+  assert.deepEqual(
+    orderInboxGroups(groups, () => undefined),
+    groups,
+  );
+  assert.deepEqual(
+    orderInboxGroups(groups, () => "2029-01-01T00:00:00Z"),
+    groups,
+  );
+  assert.deepEqual(
+    orderInboxGroups(groups, (group) =>
+      group.learningRequestId === fixtureId(1)
+        ? "2030-01-03T00:00:00Z"
+        : undefined,
+    ),
+    [...groups].reverse(),
+  );
+});
+test("message events refresh the affected thread, preview and grouped inbox", async () => {
   const reloads: unknown[] = [];
   const hydrator = createChatEventHydrator({
     reload: async (prefixes) => {
@@ -85,6 +120,7 @@ test("message events refresh only the affected thread and preview", async () => 
     [
       ["thread", fixtureId(1)],
       ["conversations", "preview", fixtureId(1)],
+      ["conversations", "inbox"],
     ],
   ]);
 });

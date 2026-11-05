@@ -146,6 +146,7 @@ function PathContent({
       ? path.participantBId
       : path.participantAId;
   const name = useParticipantName(otherId);
+  const settled = path.status === "COMPLETED" && path.settledAt !== null;
   return (
     <>
       <AgreementContext
@@ -153,7 +154,7 @@ function PathContent({
         pathId={path.id}
         partnerId={otherId}
       />
-      {path.status === "COMPLETED" && path.settledAt !== null && (
+      {settled && (
         <Button onPress={() => router.push(`/paths/${path.id}/review`)}>
           Xem / viết đánh giá
         </Button>
@@ -163,14 +164,9 @@ function PathContent({
         current={current}
         onSelect={setReviewing}
       />
-      {path.lockedVersion && (
-        <Button
-          variant="paper"
-          onPress={() => router.push(`/paths/${path.id}/settlement`)}
-        >
-          {path.settledAt
-            ? "Đã quyết toán · Xem kết quả Credit"
-            : "Hoàn Credit / quyết toán lộ trình"}
+      {settled && (
+        <Button variant="paper" onPress={() => router.push("/wallet/history")}>
+          Xem sổ giao dịch ví
         </Button>
       )}
       {path.lockedVersion &&

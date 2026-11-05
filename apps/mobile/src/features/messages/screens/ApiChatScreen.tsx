@@ -28,6 +28,7 @@ import { chatTimeline, type ChatTimelineItem } from "../utils/chat-timeline";
 import { lastSeenOutgoingId } from "../utils/seen-message";
 import type { ApiMessage } from "../api/messages-api";
 import { messageColors as colors } from "../constants/theme";
+import { chatInboxRoute } from "../utils/inbox-groups";
 import { useConversationContext } from "../hooks/use-conversation-context";
 import { ConfirmedFormFeedback } from "../components/ConfirmedFormFeedback";
 import { useChatAttachment } from "../hooks/use-chat-attachment";
@@ -36,6 +37,8 @@ import { ChatSendFeedback } from "../components/ChatSendFeedback";
 import { ScreenLoadingBoundary } from "@/components/ScreenLoadingBoundary";
 export function ApiChatScreen({ id }: Readonly<{ id: string }>) {
   const conversation = useConversation(id);
+  // History checks membership independently. Keep rendering gated on detail.
+  const thread = useThread(id, !conversation.denied);
   if (!uuid.safeParse(id).success)
     return (
       <FeaturePage title="Tin nhắn" demo={false} back="/messages">
@@ -63,27 +66,26 @@ export function ApiChatScreen({ id }: Readonly<{ id: string }>) {
     );
   return (
     <ApiChatConversation
-      key={id}
-      id={id}
       conversation={conversation.data}
+      thread={thread}
       refreshConversation={conversation.refetch}
     />
   );
 }
 function ApiChatConversation({
-  id,
   conversation,
+  thread,
   refreshConversation,
 }: Readonly<{
-  id: string;
   conversation: NonNullable<ReturnType<typeof useConversation>["data"]>;
+  thread: ReturnType<typeof useThread>;
   refreshConversation: () => unknown;
 }>) {
-  const router = useRouter(),
+  const { id } = conversation,
+    router = useRouter(),
     runtime = useConnections(),
     api = useMessagesApi();
-  const thread = useThread(id, true),
-    sender = useChatOutbox(id),
+  const sender = useChatOutbox(id),
     live = useChatEvents();
   const partnerId =
     conversation.participantAId === runtime.userId
@@ -229,7 +231,7 @@ function ApiChatConversation({
             skill: "",
             request: "",
           }}
-          onBack={() => router.dismissTo("/messages")}
+          onBack={() => router.dismissTo(chatInboxRoute(conversation))}
           onAgreement={() => {
             void agreement.open();
           }}
@@ -388,9 +390,7 @@ function ApiChatConversation({
             attachment.pending || (!!attachment.file && !attachment.ready)
           }
           attachmentDisabled={attachment.locked}
-          onAttach={() => {
-            void attachment.choose();
-          }}
+          onAttach={() => void attachment.choose()}
         />
       </KeyboardAvoidingView>
     </SafeAreaView>

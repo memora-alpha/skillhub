@@ -54,6 +54,9 @@ test("Mine keeps cached cards on 429, loads quietly when empty, and exposes perm
       useRouter: () => ({ navigate() {} }),
     },
     "@/components/RefreshableFlatList": { RefreshableFlatList: "List" },
+    "@/components/use-visible-list-rows": {
+      useVisibleListRows: () => ({ visibleIds: new Set(["visible"]) }),
+    },
     "@/components/EmptyState": { EmptyState: "Empty" },
     "@/components/LoadingIndicator": { LoadingIndicator: "Indicator" },
     "@/lib/query/use-quiet-read-recovery": {
@@ -105,6 +108,11 @@ test("Mine keeps cached cards on 429, loads quietly when empty, and exposes perm
     query.data = {};
     result = MyRequestsContent({});
     assert.equal(result.props.data.length, 1);
+    const renderItem = result.props.renderItem as (info: {
+      item: { id: string };
+    }) => Element;
+    assert.equal(renderItem({ item: { id: "cached" } }).props.loadSkill, false);
+    assert.equal(renderItem({ item: { id: "visible" } }).props.loadSkill, true);
     result.props.onEndReached();
     assert.equal(autoLoads, 1);
     assert.equal(result.props.ListFooterComponent.props.quietTransient, true);

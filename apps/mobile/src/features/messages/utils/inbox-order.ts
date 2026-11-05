@@ -1,4 +1,9 @@
-import type { ApiConversation } from "../api/messages-api";
+import type { ApiConversation, ApiInboxGroup } from "../api/messages-api";
+
+function timestamp(value?: string) {
+  const time = Date.parse(value ?? "");
+  return Number.isFinite(time) ? time : 0;
+}
 
 export function conversationActivityAt(
   conversation: ApiConversation,
@@ -31,4 +36,20 @@ export function orderConversations(
   return [...conversations].sort((a, b) =>
     compareConversationActivity(a, b, activity(a.id), activity(b.id)),
   );
+}
+
+export function orderInboxGroups(
+  groups: ApiInboxGroup[],
+  messageActivity: (group: ApiInboxGroup) => string | undefined,
+) {
+  return groups
+    .map((group) => ({
+      group,
+      activity: Math.max(
+        timestamp(group.lastActivityAt),
+        timestamp(messageActivity(group)),
+      ),
+    }))
+    .sort((a, b) => b.activity - a.activity)
+    .map(({ group }) => group);
 }
