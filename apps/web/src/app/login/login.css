@@ -16,6 +16,31 @@
   text-decoration: none;
   color: var(--auth-ink);
 }
+.auth-topbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.auth-home {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border: 1px solid #eddfd4;
+  border-radius: 50%;
+  color: var(--auth-brand);
+  background: #fff;
+  text-decoration: none;
+  transition:
+    background 150ms,
+    border-color 150ms;
+}
+.auth-home:hover {
+  border-color: var(--auth-brand);
+  background: #fff1e8;
+}
 .auth-brand > span {
   width: 36px;
   height: 36px;
@@ -106,25 +131,6 @@
   color: var(--auth-ink);
   margin-bottom: 10px;
   font-size: 16px;
-}
-.auth-password {
-  display: flex;
-  border: 1px solid #c8bdb0;
-  border-radius: 10px;
-  overflow: hidden;
-}
-.auth-password input {
-  border: 0;
-  margin: 0;
-  flex: 1;
-  width: 0;
-}
-.auth-password button {
-  border: 0;
-  background: transparent;
-  color: var(--auth-brand);
-  padding: 12px;
-  cursor: pointer;
 }
 .auth-submit {
   display: flex;
@@ -288,4 +294,71 @@
   .legal-heading {
     padding-top: 30px;
   }
+}
+
+/* Keep the login action next to its fields, including when there is no error. */
+.auth-login-page .auth-feedback:empty,
+.auth-login-page .auth-tools:empty {
+  display: none;
+}
+.auth-login-page .auth-feedback {
+  min-height: 0;
+}
+.auth-login-page .auth-submit {
+  margin-top: 4px;
+}
+.auth-login-page .auth-remember {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  cursor: pointer;
+  line-height: 1.5;
+}
+.auth-login-page .auth-remember input {
+  width: 18px;
+  height: 18px;
+  min-height: 18px;
+  margin: 0;
+  padding: 0;
+  flex-shrink: 0;
+  accent-color: var(--auth-brand);
+}
+.auth-login-page :is(input, button, a):focus-visible {
+  outline: 2px solid var(--auth-brand);
+  outline-offset: 3px;
+}
+.auth-password-rules {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 145px), 1fr));
+  gap: 7px 12px;
+  margin: 6px 0 14px;
+  padding: 0;
+  list-style: none;
+  color: #746d65;
+  font-size: 0.8rem;
+}
+.auth-password-rules li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.auth-password-rules [data-met="true"],
+.auth-password-match[data-met="true"] {
+  color: #267151;
+}
+.auth-password-match {
+  font-size: 0.8rem;
+  color: #9d3425;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }

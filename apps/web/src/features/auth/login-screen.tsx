@@ -2,6 +2,7 @@
 import { formText } from "../learner/components/form-data";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { PasswordInput } from "@/components/password-input";
 import type { SessionDestination } from "@/lib/auth/session";
 import { announceSessionChange } from "./session-sync";
 import {
@@ -21,10 +22,22 @@ function enter(value: SessionDestination | null, announce = false) {
 export function LoginScreen() {
   const [checking, setChecking] = useState(true);
   const [pending, setPending] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string>();
   const [canReset, setCanReset] = useState(false);
   const busy = useRef(false);
+  const emailInput = useRef<HTMLInputElement>(null);
+  const rememberInput = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("skillhub:login-email");
+      if (saved && saved.length <= 320) {
+        if (emailInput.current) emailInput.current.value = saved;
+        if (rememberInput.current) rememberInput.current.checked = true;
+      }
+    } catch {
+      // Login remains available when browser storage is blocked.
+    }
+  }, []);
   useEffect(() => {
     let active = true;
     const work = restoreLoginSession();
@@ -58,10 +71,32 @@ export function LoginScreen() {
   else if (pending) submitLabel = "Đang đăng nhập…";
   else submitLabel = "Đăng nhập";
   return (
-    <main className="auth-page">
-      <Link href="/" className="auth-brand">
-        <span>S</span> SkillHub
-      </Link>
+    <main className="auth-page auth-login-page">
+      <header className="auth-topbar">
+        <Link
+          href="/"
+          className="auth-home"
+          aria-label="Quay lại trang chủ"
+          title="Quay lại trang chủ"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            width="22"
+            height="22"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="m12 5-7 7 7 7M5 12h14" />
+          </svg>
+        </Link>
+        <Link href="/" className="auth-brand">
+          <span>S</span> SkillHub
+        </Link>
+      </header>
       <div className="auth-grid">
         <section className="auth-intro">
           <p className="auth-eyebrow">HỌC CÙNG NHAU, TIẾN XA HƠN</p>
@@ -94,13 +129,19 @@ export function LoginScreen() {
               setError(undefined);
               const data = new FormData(event.currentTarget);
               try {
-                enter(
-                  await signIn(
-                    formText(data, "email").trim(),
-                    formText(data, "password"),
-                  ),
-                  true,
+                const email = formText(data, "email").trim();
+                const destination = await signIn(
+                  email,
+                  formText(data, "password"),
                 );
+                try {
+                  if (data.get("rememberEmail"))
+                    localStorage.setItem("skillhub:login-email", email);
+                  else localStorage.removeItem("skillhub:login-email");
+                } catch {
+                  // A storage restriction must not prevent a successful sign-in.
+                }
+                enter(destination, true);
               } catch (cause) {
                 setError(
                   cause instanceof Error
@@ -116,6 +157,7 @@ export function LoginScreen() {
           >
             <label htmlFor="login-email">Email</label>
             <input
+              ref={emailInput}
               id="login-email"
               name="email"
               type="email"
@@ -126,26 +168,32 @@ export function LoginScreen() {
               disabled={checking || pending}
             />
             <label htmlFor="login-password">Mật khẩu</label>
-            <div className="auth-password">
+            <PasswordInput
+              id="login-password"
+              name="password"
+              autoComplete="current-password"
+              required
+              maxLength={1024}
+              disabled={checking || pending}
+            />
+            <label className="auth-remember">
               <input
-                id="login-password"
-                name="password"
-                type={showPassword ? "text" : "password"}
-                autoComplete="current-password"
-                required
-                maxLength={1024}
+                type="checkbox"
+                ref={rememberInput}
+                name="rememberEmail"
                 disabled={checking || pending}
+                onChange={(event) => {
+                  if (!event.target.checked) {
+                    try {
+                      localStorage.removeItem("skillhub:login-email");
+                    } catch {
+                      /* Storage may be blocked. */
+                    }
+                  }
+                }}
               />
-              <button
-                type="button"
-                aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
-                aria-controls="login-password"
-                aria-pressed={showPassword}
-                onClick={() => setShowPassword(!showPassword)}
-              >
-                {showPassword ? "Ẩn" : "Hiện"}
-              </button>
-            </div>
+              Ghi nhớ tài khoản cho lần sau
+            </label>
             <div className="auth-feedback" aria-live="polite">
               {error && (
                 <p className="auth-error" role="alert">
@@ -193,9 +241,6 @@ export function LoginScreen() {
               </button>
             )}
           </div>
-          <Link className="auth-back" href="/">
-            ← Quay lại trang chủ
-          </Link>
         </section>
       </div>
     </main>
