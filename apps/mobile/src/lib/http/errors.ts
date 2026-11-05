@@ -15,9 +15,40 @@ export class AppError extends Error {
 }
 
 export const OTP_ERROR_MESSAGE =
-  "Mã không đúng hoặc đã hết hạn. Nếu sai 5 lần, hãy thử lại sau 24 giờ.";
+  "Mã không đúng, đã hết hạn hoặc đang bị giới hạn. Sai 5 lần có thể bị chặn OTP 24 giờ; gửi lại mã không gỡ giới hạn. Mật khẩu hợp lệ vẫn dùng để đăng nhập được.";
 
 const messages: Record<string, string> = {
+  SESSION_MAKEUP_LIMIT_REACHED:
+    "Buổi này đã dùng lượt học bù; cần nhân sự xem xét nếu còn vấn đề.",
+  USER_MAKEUP_LIMIT_REACHED:
+    "Người yêu cầu đã hết lượt học bù trong thỏa thuận.",
+  MAKEUP_ATTRIBUTION_REVIEW_REQUIRED:
+    "Lịch sử học bù cần nhân sự xác minh người sử dụng lượt.",
+  SESSION_RESCHEDULE_LIMIT_REACHED: "Buổi này đã đổi lịch đủ 3 lần.",
+  RESCHEDULE_SESSION_ORDER_VIOLATION:
+    "Giờ mới phải giữ đúng thứ tự các buổi trong kế hoạch.",
+  LAST_SESSION_RESCHEDULE_WINDOW_EXCEEDED:
+    "Buổi cuối chỉ được dời tối đa 48 giờ so với lịch gốc.",
+  SESSION_CANNOT_BE_CANCELLED:
+    "Buổi đã bắt đầu hoặc không còn đủ điều kiện hủy để học bù.",
+  CHANGE_REQUEST_ALREADY_PENDING:
+    "Đã có yêu cầu đang chờ xử lý. Tải lại lịch sử yêu cầu.",
+  CHANGE_REQUEST_EXPIRED:
+    "Yêu cầu đã hết hạn. Kiểm tra lịch hiện tại trên máy chủ.",
+  STALE_SESSION_OCCURRENCE:
+    "Giờ buổi học đã đổi. Tải lại trước khi gửi yêu cầu.",
+  STALE_CHANGE_REQUEST_VERSION:
+    "Yêu cầu đã được cập nhật. Tải lại để xem phản hồi mới.",
+  SETTLEMENT_STATE_CHANGED:
+    "Điều kiện hoặc phiên bản quyết toán đã đổi. Tải lại trước khi đồng ý.",
+  SETTLEMENT_BLOCKED_BY_TERMINATION:
+    "Đang xử lý yêu cầu dừng nên chưa thể quyết toán lộ trình.",
+  EMAIL_ALREADY_EXISTS:
+    "Email đã được sử dụng. Hãy đăng nhập hoặc khôi phục mật khẩu.",
+  EMAIL_ALREADY_REGISTERED:
+    "Email đã được sử dụng. Hãy đăng nhập hoặc khôi phục mật khẩu.",
+  NEW_ACTIVITY_RESTRICTED:
+    "Tài khoản đang bị hạn chế tạo bài hoặc đề xuất mới. Xem mục Uy tín để biết lý do và thời hạn; bạn vẫn có thể theo dõi hoạt động đã có quyền truy cập.",
   ACTIVE_SESSION_REPORT_EXISTS:
     "Bạn đã có báo cáo đang xử lý cho buổi này. Mở danh sách báo cáo để theo dõi.",
   ACTIVE_MATERIAL_REPORT_EXISTS:

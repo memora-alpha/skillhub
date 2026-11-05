@@ -1,6 +1,6 @@
 import '../../../core/http/app_error.dart';
 
-const otpRequestAcknowledgment = 'Vui lòng kiểm tra email để lấy mã xác minh.';
+const otpRequestAcknowledgment = 'Nếu yêu cầu hợp lệ, email hướng dẫn sẽ được gửi. Nếu email đã có tài khoản, hãy đăng nhập hoặc khôi phục mật khẩu.';
 const resetUncertainGuidance =
     'Chưa xác nhận được kết quả. Hãy thử đăng nhập bằng mật khẩu mới.';
 
