@@ -33,6 +33,7 @@ import type {
   CreateSessionReportDto,
   ReportCaseActionDto,
 } from "../../presentation/http/reports.dto";
+import { SessionChangesService } from "../../../learning-sessions/application/services/session-changes.service";
 
 /** Signed Credit text, already format-checked by the DTO, in hundredths. */
 function signedCreditUnits(value: string): bigint {
@@ -75,6 +76,7 @@ export class ReportsService {
     private readonly reputation: ReputationService,
     private readonly creditAdjustments: CreditAdjustmentPort,
     private readonly configuration: SystemConfigurationService,
+    private readonly sessionChanges: SessionChangesService,
   ) {}
 
   /** Case opened by the Session lifecycle itself; holds settlement like a user report. */
@@ -100,7 +102,8 @@ export class ReportsService {
       where: { id: input.pathId },
     });
     const caseId = randomUUID();
-    const blocksSettlement = path.settledAt === null;
+    const blocksSettlement =
+      path.settledAt === null && path.status !== "CANCELLED";
     await tx.reportCase.create({
       data: {
         id: caseId,
@@ -260,7 +263,8 @@ export class ReportsService {
       if (clock.now >= disputeBy)
         throw new ConflictException("DISPUTE_WINDOW_CLOSED");
       const caseId = randomUUID();
-      const blocksSettlement = path.settledAt === null;
+      const blocksSettlement =
+        path.settledAt === null && path.status !== "CANCELLED";
       await tx.reportCase.create({
         data: {
           id: caseId,
@@ -548,8 +552,19 @@ export class ReportsService {
     now: Date,
   ) {
     if (!item.relatedSessionId) {
-      if (input.noShowRuling)
+      if (input.noShowRuling || input.cancellationMakeupRuling)
         throw new ConflictException("NO_SHOW_RULING_NOT_APPLICABLE");
+      return;
+    }
+    if (input.noShowRuling && input.cancellationMakeupRuling)
+      throw new BadRequestException("ONE_SESSION_RULING_REQUIRED");
+    if (action === "resolve" && input.cancellationMakeupRuling) {
+      await this.sessionChanges.ruleCancelledMakeup(
+        tx,
+        item.relatedSessionId,
+        input.cancellationMakeupRuling,
+        now,
+      );
       return;
     }
     const session = await tx.session.findUniqueOrThrow({
@@ -655,6 +670,7 @@ export class ReportsService {
       creditAdjustments: (input.creditAdjustments?.length ?? 0) > 0,
       reversals: (input.reversals?.length ?? 0) > 0,
       noShowRuling: input.noShowRuling !== undefined,
+      cancellationMakeupRuling: input.cancellationMakeupRuling !== undefined,
     };
     if (action !== "resolve" && Object.values(requested).some(Boolean)) {
       throw new BadRequestException("RESOLUTION_OPTIONS_REQUIRE_RESOLVE");

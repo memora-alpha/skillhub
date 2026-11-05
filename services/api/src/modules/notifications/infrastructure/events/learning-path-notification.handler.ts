@@ -10,6 +10,7 @@ import { NotificationDispatcher } from "../../application/services/notification-
 const eventTypes = [
   "learning-path.locked",
   "learning-path.settled",
+  "learning-path.change.updated",
   "report.session.opened",
   "report.case.updated",
 ] as const;
@@ -64,7 +65,8 @@ export class LearningPathNotificationHandler
     const resolveNotification = async () => {
       if (
         event.type === "learning-path.locked" ||
-        event.type === "learning-path.settled"
+        event.type === "learning-path.settled" ||
+        event.type === "learning-path.change.updated"
       ) {
         if (typeof data.pathId !== "string")
           throw new Error("INVALID_LEARNING_PATH_EVENT");
@@ -74,14 +76,22 @@ export class LearningPathNotificationHandler
         });
         if (!path) throw new Error("LEARNING_PATH_EVENT_TARGET_MISSING");
         recipients = [path.participantAId, path.participantBId];
-        title =
-          event.type === "learning-path.locked"
-            ? "Learning path scheduled"
-            : "Learning path completed";
-        body =
-          event.type === "learning-path.locked"
-            ? "Your learning path schedule is now locked."
-            : "Your learning path has completed and settlement is recorded.";
+        const copy: Record<string, { title: string; body: string }> = {
+          "learning-path.locked": {
+            title: "Learning path scheduled",
+            body: "Your learning path schedule is now locked.",
+          },
+          "learning-path.settled": {
+            title: "Learning path completed",
+            body: "Your learning path has completed and settlement is recorded.",
+          },
+          "learning-path.change.updated": {
+            title: "Learning change updated",
+            body: "A cancellation or termination request changed. Open your learning path to review it.",
+          },
+        };
+        title = copy[event.type]!.title;
+        body = copy[event.type]!.body;
       } else if (event.type === "report.session.opened") {
         await resolveSessionNotification();
       } else {
@@ -114,6 +124,9 @@ export class LearningPathNotificationHandler
           ? { sessionId: data.sessionId }
           : {}),
         ...(typeof data.caseId === "string" ? { caseId: data.caseId } : {}),
+        ...(typeof data.changeRequestId === "string"
+          ? { changeRequestId: data.changeRequestId }
+          : {}),
       },
     });
   }

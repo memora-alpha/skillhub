@@ -123,6 +123,8 @@ for (const [, modelName, body] of schemaText.matchAll(
       value = () => (type === "BigInt" ? BigInt(explicit) : Number(explicit));
     } else if (explicit === "true" || explicit === "false") {
       value = () => explicit === "true";
+    } else if (explicit?.startsWith('"') && explicit.endsWith('"')) {
+      value = () => JSON.parse(explicit);
     } else if (explicit !== undefined && /^\w+$/.test(explicit)) {
       value = () => explicit; // enum literal
     } else if (optional && !isList) {

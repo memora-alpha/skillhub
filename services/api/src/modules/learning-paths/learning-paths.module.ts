@@ -9,6 +9,14 @@ import { LearningPathsController } from "./presentation/http/learning-paths.cont
 import { LearningPathsService } from "./application/services/learning-paths.service";
 import { LearningRequestsModule } from "../learning-requests/learning-requests.module";
 import { LearningPathRequestStateModule } from "./learning-path-request-state.module";
+import { LearningChangeStateModule } from "./learning-change-state.module";
+import { SessionChangesModule } from "../learning-sessions/session-changes.module";
+import { PathTerminationService } from "./application/services/path-termination.service";
+import { PathTerminationController } from "./presentation/http/path-termination.controller";
+import { ReportsModule } from "../reports/reports.module";
+import { PathSettlementStatusService } from "./application/services/path-settlement-status.service";
+import { PathSettlementStatusController } from "./presentation/http/path-settlement-status.controller";
+import { LearningChangeReviewController } from "./presentation/http/learning-change-review.controller";
 
 @Module({
   imports: [
@@ -20,9 +28,21 @@ import { LearningPathRequestStateModule } from "./learning-path-request-state.mo
     CreditModule,
     SystemConfigurationModule,
     IdempotencyModule,
+    LearningChangeStateModule,
+    SessionChangesModule,
+    ReportsModule,
   ],
-  controllers: [LearningPathsController],
-  providers: [LearningPathsService],
+  controllers: [
+    LearningPathsController,
+    PathTerminationController,
+    PathSettlementStatusController,
+    LearningChangeReviewController,
+  ],
+  providers: [
+    LearningPathsService,
+    PathTerminationService,
+    PathSettlementStatusService,
+  ],
   exports: [LearningPathsService],
 })
 export class LearningPathsModule {}

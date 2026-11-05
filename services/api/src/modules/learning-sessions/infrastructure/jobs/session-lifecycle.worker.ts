@@ -15,6 +15,7 @@ import {
   type ObservationResult,
 } from "../../application/services/session-outcome.service";
 import { byCodeUnit } from "../../../../infrastructure/idempotency/idempotency.service";
+import { settlementRetryDelay } from "../../../learning-paths/application/services/path-settlement-state";
 
 @Injectable()
 export class SessionLifecycleWorker implements OnModuleInit, OnModuleDestroy {
@@ -198,6 +199,14 @@ export class SessionLifecycleWorker implements OnModuleInit, OnModuleDestroy {
       });
       for (const path of paths) {
         if (this.stopped) break;
+        const attempt = await this.db.pathSettlementAttempt.findUnique({
+          where: { pathId: path.id },
+        });
+        if (
+          attempt &&
+          +this.clock.now() < +attempt.checkedAt + settlementRetryDelay(attempt)
+        )
+          continue;
         await this.sessions
           .trySettleCompletedPath(path.id)
           .catch(() => this.logger.error("SESSION_SETTLEMENT_DEFERRED"));

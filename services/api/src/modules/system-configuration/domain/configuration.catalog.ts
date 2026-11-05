@@ -34,6 +34,22 @@ export const CONFIGURATION_DEFINITIONS = {
     mutable: false,
     defaultValue: 20,
   },
+  "learningPath.changeRequests": {
+    schema: z
+      .object({
+        requestWindowHours: z.number().int().min(1).max(720),
+        // An operator must reference the approved cancellation policy before any Held is distributed.
+        terminationPolicyReference: z
+          .string()
+          .trim()
+          .min(1)
+          .max(200)
+          .nullable(),
+      })
+      .strict(),
+    mutable: true,
+    defaultValue: { requestWindowHours: 72, terminationPolicyReference: null },
+  },
   "credit.topUpVndPerCredit": {
     schema: z.literal(1000),
     mutable: false,

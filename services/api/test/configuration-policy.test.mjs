@@ -39,6 +39,7 @@ test("approved defaults and mutability are explicit", () => {
   assert.deepEqual(Object.keys(CONFIGURATION_DEFINITIONS).sort(), [
     "credit.pathSettlementBps",
     "credit.topUpVndPerCredit",
+    "learningPath.changeRequests",
     "learningPath.minCreditPerUser",
     "learningRequest.moderationRuleSet",
     "livekit.joinWindow",
@@ -48,6 +49,10 @@ test("approved defaults and mutability are explicit", () => {
     "storage.downloadTtlSeconds",
     "storage.evidenceMaxBytes",
   ]);
+  assert.deepEqual(
+    CONFIGURATION_DEFINITIONS["learningPath.changeRequests"].defaultValue,
+    { requestWindowHours: 72, terminationPolicyReference: null },
+  );
 });
 
 test("rejects unknown and secret-like keys", () => {

@@ -96,6 +96,10 @@ export class ReportReversalDto {
 
 export class ReportCaseActionDto {
   @IsOptional()
+  @IsIn(["EXTEND", "COMPLETE"])
+  cancellationMakeupRuling?: "EXTEND" | "COMPLETE";
+
+  @IsOptional()
   @IsIn(["UPHOLD", "EXCUSE", "COMPLETE"])
   noShowRuling?: "UPHOLD" | "EXCUSE" | "COMPLETE";
 

@@ -20,6 +20,8 @@ import {
 import { PrismaCreditAdjustmentAdapter } from "./infrastructure/adapters/prisma-credit-adjustment.adapter";
 import { CreditOperationsService } from "./application/services/credit-operations.service";
 import { CreditProvenanceService } from "./application/services/credit-provenance.service";
+import { PathTerminationPort } from "./application/ports/path-termination.port";
+import { PathTerminationLedgerService } from "./application/services/path-termination-ledger.service";
 
 @Module({
   imports: [DatabaseModule, IdentityModule],
@@ -28,6 +30,8 @@ import { CreditProvenanceService } from "./application/services/credit-provenanc
     CreditWalletReader,
     CreditProvenanceService,
     CreditOperationsService,
+    PathTerminationLedgerService,
+    { provide: PathTerminationPort, useExisting: PathTerminationLedgerService },
     CreditLedgerService,
     CreditLedgerAdapter,
     { provide: WalletPort, useExisting: CreditLedgerAdapter },
@@ -53,6 +57,7 @@ import { CreditProvenanceService } from "./application/services/credit-provenanc
     WalletPort,
     PathSettlementPort,
     CreditAdjustmentPort,
+    PathTerminationPort,
   ],
 })
 export class CreditModule {}

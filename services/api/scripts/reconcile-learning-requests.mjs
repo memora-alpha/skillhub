@@ -69,13 +69,13 @@ export function classifyLifecycle(snapshot) {
   const path = committed[0];
   if (
     !["NEGOTIATING", "MATCHED", "CLOSED"].includes(snapshot.status) ||
-    (snapshot.status === "CLOSED" && !path.settled)
+    (snapshot.status === "CLOSED" && !path.settled && !path.terminated)
   )
     return result;
   result.candidatePathId = path.pathId;
   if (snapshot.status === "NEGOTIATING")
     result.proposedTransitions.push("MATCHED");
-  if (path.settled && snapshot.status !== "CLOSED")
+  if ((path.settled || path.terminated) && snapshot.status !== "CLOSED")
     result.proposedTransitions.push("CLOSED");
   result.classification = result.proposedTransitions.length
     ? "NEEDS_REPAIR"
@@ -135,6 +135,8 @@ function pathEvidence(path, data) {
       settled: false,
     };
   const settled = path.settled_at !== null;
+  const terminated =
+    path.status === "CANCELLED" && terminationEvidence(path, data);
   const twoWay = path.exchange_type === "TWO_WAY";
   const requiredUsers = twoWay
     ? [path.participant_a_id, path.participant_b_id]
@@ -174,6 +176,9 @@ function pathEvidence(path, data) {
         ),
     );
   const expectedCredit = BigInt(path.expected_credit ?? 0);
+  let expectedHoldStatus = "ACTIVE";
+  if (settled) expectedHoldStatus = "SETTLED";
+  if (terminated) expectedHoldStatus = "RELEASED";
   const holdsConsistent =
     expectedCredit > 0n &&
     holds.length === requiredUsers.length &&
@@ -185,8 +190,9 @@ function pathEvidence(path, data) {
         BigInt(hold.amount) === expectedCredit &&
         hold.purpose === (twoWay ? "COMMITMENT" : "TEACHING_PAYMENT") &&
         hold.beneficiary_id === (twoWay ? null : path.agreement_teacher_id) &&
-        hold.status === (settled ? "SETTLED" : "ACTIVE") &&
-        BigInt(hold.remaining_held) === (settled ? 0n : expectedCredit),
+        hold.status === expectedHoldStatus &&
+        BigInt(hold.remaining_held) ===
+          (settled || terminated ? 0n : expectedCredit),
     );
   const holdOperation = data.operations.filter(
     (op) =>
@@ -286,12 +292,63 @@ function pathEvidence(path, data) {
       holdsConsistent &&
       holdOperation.length === 1 &&
       holdLedgerConsistent &&
-      settlementConsistent,
+      settlementConsistent &&
+      (path.status !== "CANCELLED" || terminated),
     ),
     settled,
+    terminated,
     sessionsComplete:
       sessions.length > 0 && sessions.every((s) => s.status === "COMPLETED"),
   };
+}
+
+/** A terminal Request needs evidence of the explicit decision, not just a CANCELLED label. */
+function terminationEvidence(path, data) {
+  const decisions = data.changes.filter(
+    (row) =>
+      row.path_id === path.path_id &&
+      row.kind === "PATH_TERMINATION" &&
+      row.status === "APPLIED",
+  );
+  if (decisions.length !== 1 || path.settled_at !== null) return false;
+  const decision = decisions[0];
+  const operation = data.operations.find(
+    (row) => row.operation_id === decision.operation_id,
+  );
+  if (
+    !operation ||
+    operation.operation_type !== "PATH_TERMINATION" ||
+    operation.reference_id !== path.path_id ||
+    operation.status !== "SUCCESS" ||
+    operation.idempotency_key !==
+      `path-termination:${path.path_id}:v${path.locked_version}` ||
+    !decision.resolved_by_user_id ||
+    !decision.resolution?.policyReference
+  )
+    return false;
+  const rows = data.ledger.filter(
+    (row) => row.operation_id === operation.operation_id,
+  );
+  const held = data.holds.filter((row) => row.path_id === path.path_id);
+  const fees = rows
+    .filter((row) => row.type === "PLATFORM_FEE")
+    .reduce((sum, row) => sum + BigInt(row.amount), 0n);
+  const availableDelta = rows.reduce(
+    (sum, row) => sum + BigInt(row.available_delta),
+    0n,
+  );
+  const heldDelta = rows.reduce((sum, row) => sum + BigInt(row.held_delta), 0n);
+  const gross = held.reduce((sum, row) => sum + BigInt(row.amount), 0n);
+  const parties = [path.participant_a_id, path.participant_b_id];
+  return (
+    rows.length > 0 &&
+    rows.every((row) => parties.includes(row.user_id)) &&
+    heldDelta === -gross &&
+    availableDelta + fees === gross &&
+    data.sessions
+      .filter((row) => row.path_id === path.path_id)
+      .every((row) => ["COMPLETED", "CANCELLED"].includes(row.status))
+  );
 }
 
 async function loadEvidence(client, requestIds) {
@@ -358,8 +415,12 @@ async function loadEvidence(client, requestIds) {
     [ids],
   );
   const ledger = await client.query(
-    "SELECT operation_id,user_id,type,SUM(amount)::text AS amount,COUNT(*)::int AS count FROM credit_transactions WHERE operation_id = ANY($1::uuid[]) AND status::text = 'SUCCESS' GROUP BY operation_id,user_id,type",
+    "SELECT operation_id,user_id,type,SUM(amount)::text AS amount,SUM(available_delta)::text AS available_delta,SUM(held_delta)::text AS held_delta,COUNT(*)::int AS count FROM credit_transactions WHERE operation_id = ANY($1::uuid[]) AND status::text = 'SUCCESS' GROUP BY operation_id,user_id,type",
     [operations.rows.map((op) => op.operation_id)],
+  );
+  const changes = await client.query(
+    "SELECT path_id,kind,status,operation_id,resolved_by_user_id,resolution FROM learning_change_requests WHERE path_id = ANY($1::uuid[]) AND kind='PATH_TERMINATION' AND status='APPLIED'",
+    [ids],
   );
   return {
     sources,
@@ -370,6 +431,7 @@ async function loadEvidence(client, requestIds) {
     plans: plans.rows,
     operations: operations.rows,
     ledger: ledger.rows,
+    changes: changes.rows,
   };
 }
 
