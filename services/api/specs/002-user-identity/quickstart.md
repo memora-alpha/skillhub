@@ -2,6 +2,11 @@
 
 > Current OTP design: [Redis OTP amendment (2026-10-08)](redis-otp.md) supersedes PostgreSQL challenge/counter and email-outbox statements below.
 
+> 2026-11-06: [Direct staff creation and duplicate registration](staff-accounts.md)
+> adds reason-free Admin creation of an immediately active STAFF account with password.
+> No invitation, activation flow, migration or extra environment is required. Existing-email
+> registration now returns 409 EMAIL_ALREADY_EXISTS; resend/recovery remain neutral.
+
 Identity controllers now invoke application use cases directly. Private Prisma
 adapters live under each owner's `infrastructure/persistence`; jobs/schedulers
 live under `infrastructure/jobs`. Integration fixtures compile the runtime
@@ -48,7 +53,7 @@ Swagger is at `/api/docs` in development/test. Identity endpoints use `/api/v1/.
 
 JSON responses follow Memora: `{success:true,message,data,meta?}` or `{success:false,message,statusCode}`. Read tokens/profile/upload results from `data`; user list rows are the `data` array and cursor/hasMore/limit are in `meta.pagination`. Registration/resend/forgot use `data:null`. A 204 response has no JSON body. Validation `message` is one string joined with `; `; 5xx hides internal details. This replaces the previous response shapes in the unreleased v1 API.
 
-1. Register valid fields and accepted terms; receive neutral 202 without tokens or a database account. Registration data is encrypted in Redis for five minutes. Obtain the code from a controlled mailbox. Duplicate signup cannot replace profile/password.
+1. Register valid fields and accepted terms for a new email; receive 202 without tokens or a database account. Existing accounts return 409 EMAIL_ALREADY_EXISTS. Registration data is encrypted in Redis for five minutes. Obtain the code from a controlled mailbox. Repeating signup while a draft is valid cannot replace its profile/password.
 2. Verify six-digit REGISTER code once to create a verified ACTIVE account, then login. An inactive account cannot obtain a session; invalid proof responses are neutral.
 3. Access own `/me` and authenticated public `/profiles/{userId}` projections. Public profile excludes email/roles. Profile edits accept only the declared fields.
 4. Rotate refresh serially. Replay revokes that family; logout accepts its refresh credential even after access expiry. Logout-all revokes all families.

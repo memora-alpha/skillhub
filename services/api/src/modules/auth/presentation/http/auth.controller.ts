@@ -85,6 +85,7 @@ export class AuthController {
       "Stage registration in Redis and send OTP; no account is created yet",
   })
   @ApiSuccessResponse(202, null)
+  @ApiErrorResponse(409, "EMAIL_ALREADY_EXISTS")
   async register(@Body() body: RegisterDto, @Req() req: Request) {
     await this.rate(req, "register", body.email);
     const result = await this.registerAccount.execute(body);

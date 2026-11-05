@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { ConflictException, Injectable } from "@nestjs/common";
 
 import { IdentityConfig } from "../../../../configs/identity.config";
 import { PrismaService } from "../../../../infrastructure/database/prisma.service";
@@ -23,15 +23,15 @@ export class RegisterUseCase {
     locale?: "vi" | "en";
   }) {
     data = { ...data, email: normalizeEmail(data.email) };
+    if (await this.users.byEmail(this.db, data.email))
+      throw new ConflictException("EMAIL_ALREADY_EXISTS");
     const passwordHash = await this.config.crypto.hashPassword(data.password);
-    if (!(await this.users.byEmail(this.db, data.email))) {
-      await this.otp.requestRegistration(data.email, {
-        fullName: data.fullName,
-        passwordHash,
-        timezone: data.timezone,
-        locale: data.locale,
-      });
-    }
+    await this.otp.requestRegistration(data.email, {
+      fullName: data.fullName,
+      passwordHash,
+      timezone: data.timezone,
+      locale: data.locale,
+    });
     return acknowledgment;
   }
 }

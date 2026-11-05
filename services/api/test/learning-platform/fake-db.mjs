@@ -4,6 +4,13 @@ import { readFileSync } from "node:fs";
 // In-memory subset of the Prisma client used by the learning-platform services.
 // relation name -> [target model, [[local field, target field], ...], isList]
 const relations = {
+  conversation: {
+    requestIdRecord: ["learningRequest", [["requestId", "id"]], false],
+    proposalIdRecord: ["proposal", [["proposalId", "id"]], false],
+  },
+  proposal: {
+    skillIdRecord: ["skill", [["skillId", "id"]], false],
+  },
   learningPath: {
     learningPathVersionPathIdRecords: [
       "learningPathVersion",

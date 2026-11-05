@@ -107,3 +107,11 @@ All 37 tasks completed, including the architecture refactor and Memora response 
 - [x] Require resetToken at password/reset; preserve password/session/audit transaction and account status.
 - [x] Update composition, Swagger, HTTP contract and client walkthrough.
 - [x] Complete build/typecheck/lint and PostgreSQL/Redis integration verification; record results in validation.md.
+
+## Direct STAFF creation and duplicate-email amendment — 2026-11-06
+
+- [x] Record corrected API-only direct account creation, no reason, explicit v1 duplicate error and Constitution Check in staff-accounts.md.
+- [x] Atomically consume Admin reauth, create ACTIVE verified STAFF with hashed password, and append audit via owner contracts.
+- [x] Remove invitation/activation endpoints, delivery, migration, storage and configuration.
+- [x] Add focused unit/HTTP/provider checks and isolated PostgreSQL concurrency/rollback suite; update contracts and rollout instructions.
+- [ ] Run PostgreSQL suite with explicitly isolated TEST_DATABASE_URL (not configured locally; Docker daemon unavailable).

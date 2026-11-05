@@ -1,5 +1,6 @@
 import { RemoveStaffUseCase } from "../../application/use-cases/remove-staff.use-case";
 import { AssignStaffUseCase } from "../../application/use-cases/assign-staff.use-case";
+import { CreateStaffUseCase } from "../../application/use-cases/create-staff.use-case";
 import { UnlockUserUseCase } from "../../application/use-cases/unlock-user.use-case";
 import { LockUserUseCase } from "../../application/use-cases/lock-user.use-case";
 import { ListUsersUseCase } from "../../application/use-cases/list-users.use-case";
@@ -28,9 +29,9 @@ import {
 } from "../../../../shared/auth/identity.guard";
 import { Principal } from "../../../auth/application/services/sessions.service";
 
-import { ReasonDto, StaffDto, UserListDto } from "./users.dto";
-import { AdminUserResponse } from "./users.responses";
-import { paginated } from "../../../../shared/http/response";
+import { CreateStaffDto, ReasonDto, StaffDto, UserListDto } from "./users.dto";
+import { AdminUserResponse, CreatedStaffResponse } from "./users.responses";
+import { paginated, success } from "../../../../shared/http/response";
 import {
   ApiSuccessResponse,
   ApiErrorResponse,
@@ -52,7 +53,24 @@ export class AdministrationController {
     private readonly unlockUser: UnlockUserUseCase,
     private readonly assignStaff: AssignStaffUseCase,
     private readonly removeStaff: RemoveStaffUseCase,
+    private readonly createStaff: CreateStaffUseCase,
   ) {}
+  @Post("staff")
+  @HttpCode(201)
+  @ApiOperation({
+    summary: "Admin creates an active STAFF account directly with a password",
+  })
+  @ApiSuccessResponse(201, CreatedStaffResponse)
+  @ApiErrorResponse(409, "EMAIL_ALREADY_EXISTS")
+  async create(
+    @CurrentIdentity() actor: Principal,
+    @Body() body: CreateStaffDto,
+  ) {
+    return success(
+      await this.createStaff.execute(actor, body),
+      "Staff account created.",
+    );
+  }
   @Get()
   @ApiOperation({ summary: "List masked users with context-bound cursor" })
   @ApiSuccessResponse(200, AdminUserResponse, { paginated: true })

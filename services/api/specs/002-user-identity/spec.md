@@ -1,5 +1,9 @@
 # Feature Specification: Danh tính người dùng
 
+> 2026-11-06: [Direct staff creation and duplicate registration](staff-accounts.md)
+> adds Admin-only direct STAFF creation with password (no input reason) and changes existing-email
+> registration to 409 EMAIL_ALREADY_EXISTS, superseding neutral signup statements below.
+
 > Password recovery amendment (2026-10-08): verify RESET_PASSWORD OTP before accepting a password update. See [password-recovery.md](password-recovery.md): forgot → verify-otp → one-use resetToken → reset. Verification alone never changes the password or revokes sessions.
 
 > Current OTP design: [Redis OTP amendment (2026-10-08)](redis-otp.md) supersedes PostgreSQL challenge/counter and email-outbox statements below.
