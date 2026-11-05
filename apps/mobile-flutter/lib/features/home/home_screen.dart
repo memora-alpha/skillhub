@@ -10,7 +10,9 @@ import '../../components/tappable.dart';
 import '../../core/http/app_error.dart';
 import '../../core/theme/tokens.dart';
 import '../auth/session/auth_session.dart';
+import '../community/community_feature.dart';
 import '../discovery/discovery_data.dart';
+import '../learning_paths/live_paths.dart';
 import '../learning_paths/negotiation_message.dart';
 import '../messages/messages_data.dart';
 import '../shell/app_screen_layout.dart';
@@ -247,52 +249,9 @@ class _HomeContent extends StatelessWidget {
               : () => context.push('/learning-sessions/${nextSession!['id']}'),
           onDiscover: () => onAction('Khám phá'),
         ),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _SectionHeading(
-              title: 'Lộ trình đang học',
-              action: 'Chi tiết',
-              onTap: () => onAction('Lộ trình của tôi'),
-            ),
-            Tappable(
-              semanticLabel: 'Tìm lộ trình học',
-              onTap: () => onAction('Lộ trình của tôi'),
-              child: _Card(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  spacing: 12,
-                  children: [
-                    Row(
-                      spacing: 10,
-                      children: [
-                        _IconBox(
-                          icon: AppIcon.book,
-                          color: _C.orange,
-                          background: _C.yellowSoft,
-                          width: 40,
-                          height: 40,
-                        ),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Chưa có lộ trình đang học', style: _label),
-                              Text(
-                                'Lộ trình xuất hiện sau khi đề xuất được chấp nhận.',
-                                style: _caption,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
+        _HomePathCard(
+          nextSessionPathId: nextSession?['pathId']?.toString(),
+          onOpenPaths: () => onAction('Lộ trình của tôi'),
         ),
         Row(
           spacing: 12,
@@ -342,64 +301,8 @@ class _HomeContent extends StatelessWidget {
               ),
           ],
         ),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _SectionHeading(
-              title: 'Tiến trình huy hiệu',
-              action: 'Xem tất cả',
-              accent: _C.yellow,
-              onTap: () => onAction('Tiến trình huy hiệu'),
-            ),
-            _Card(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                spacing: 12,
-                children: [
-                  const _IconBox(
-                    icon: AppIcon.award,
-                    color: _C.yellow,
-                    background: _C.yellowSoft,
-                    width: 44,
-                    height: 48,
-                  ),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      spacing: 8,
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              spacing: 8,
-                              children: [
-                                Expanded(
-                                  child: Text('Chưa có thành tích', style: _label),
-                                ),
-                              ],
-                            ),
-                            Text(
-                              'Danh hiệu mở khi bạn hoàn thành các mốc trên máy chủ.',
-                              style: _caption,
-                            ),
-                          ],
-                        ),
-                        AppProgressBar(
-                          value: 0,
-                          max: 1,
-                          color: _C.yellow,
-                          trackColor: _C.track,
-                          height: 6,
-                          label: 'Chưa có thành tích',
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+        _HomeAchievementsCard(
+          onOpen: () => onAction('Tiến trình huy hiệu'),
         ),
       ],
     );
@@ -695,6 +598,259 @@ class _HomeContent extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             spacing: 24,
             children: [primary, secondary],
+          ),
+      ],
+    );
+  }
+}
+
+Map<String, dynamic> _asMap(Object? value) =>
+    value is Map ? Map<String, dynamic>.from(value) : const {};
+
+List<Map<String, dynamic>> _asMaps(Object? value) => [
+  for (final item in value is List ? value : const []) _asMap(item),
+];
+
+({String title, int completed, int total}) _homePathProgress(
+  Map<String, dynamic>? path,
+  String userId,
+) {
+  final plans = _asMaps(path?['plans']);
+  final plan = plans.where((item) => item['learnerId'] == userId).firstOrNull ??
+      (plans.isEmpty ? null : plans.first);
+  final sessions = [
+    for (final item in plans) ..._asMaps(item['sessions']),
+  ];
+  final goal = plan?['learningGoal']?.toString().trim() ?? '';
+  return (
+    title: goal.isEmpty ? 'Lộ trình học của bạn' : goal,
+    completed: sessions.where((item) => item['status'] == 'COMPLETED').length,
+    total: sessions.length,
+  );
+}
+
+String? _selectHomePathId(
+  String? nextSessionPathId,
+  List<Map<String, dynamic>> paths,
+) {
+  if (nextSessionPathId != null && nextSessionPathId.isNotEmpty) {
+    return nextSessionPathId;
+  }
+  for (final path in paths) {
+    final status = path['status']?.toString() ?? '';
+    if (status == 'ACTIVE' || status == 'SCHEDULED') {
+      final id = path['id']?.toString();
+      if (id != null && id.isNotEmpty) return id;
+    }
+  }
+  return null;
+}
+
+/// RN home achievements teaser — selected title from `/me/achievements`, not a stub.
+class _HomeAchievementsCard extends ConsumerWidget {
+  const _HomeAchievementsCard({required this.onOpen});
+
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final achievements = ref.watch(achievementsProvider);
+    final selected =
+        achievements.value?.selectedTitle ??
+        ref.watch(accountProvider).value?.profile.selectedTitle;
+    final title = (selected != null && selected.isNotEmpty)
+        ? selected
+        : 'Thành tích của bạn';
+    final caption = selected != null && selected.isNotEmpty
+        ? 'Danh hiệu đang hiển thị trên hồ sơ'
+        : 'Xem thành tích đã mở khóa và chọn danh hiệu cho hồ sơ.';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _SectionHeading(
+          title: 'Thành tích & danh hiệu',
+          action: 'Xem tất cả',
+          accent: _C.yellow,
+          onTap: onOpen,
+        ),
+        Tappable(
+          semanticLabel: 'Xem thành tích và danh hiệu',
+          onTap: onOpen,
+          child: _Card(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              spacing: 12,
+              children: [
+                const _IconBox(
+                  icon: AppIcon.award,
+                  color: _C.yellow,
+                  background: _C.yellowSoft,
+                  width: 44,
+                  height: 48,
+                ),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    spacing: 4,
+                    children: [
+                      Text(title, style: _label),
+                      Text(caption, style: _caption),
+                    ],
+                  ),
+                ),
+                const AppIcon(AppIcon.chevron, size: 16, color: _C.orange),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// RN `HomePathCard` — live path progress, not a hardcoded empty stub.
+class _HomePathCard extends ConsumerWidget {
+  const _HomePathCard({
+    required this.nextSessionPathId,
+    required this.onOpenPaths,
+  });
+
+  final String? nextSessionPathId;
+  final VoidCallback onOpenPaths;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final me = ref.watch(accountSessionProvider)?.userId ?? '';
+    final pathsQuery = ref.watch(livePathsProvider);
+    final pathId = _selectHomePathId(
+      nextSessionPathId,
+      pathsQuery.value ?? const [],
+    );
+    final detailQuery = pathId == null
+        ? null
+        : ref.watch(livePathProvider(pathId));
+    final path = detailQuery?.value;
+    final hasPath = path != null && path.isNotEmpty;
+    final progress = _homePathProgress(hasPath ? path : null, me);
+    final loading = pathsQuery.isLoading ||
+        (pathId != null && detailQuery != null && detailQuery.isLoading);
+    final error = detailQuery?.hasError == true
+        ? detailQuery!.error
+        : pathsQuery.hasError
+        ? pathsQuery.error
+        : null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _SectionHeading(
+          title: 'Lộ trình đang học',
+          action: 'Tất cả',
+          onTap: onOpenPaths,
+        ),
+        if (loading && !hasPath)
+          const _Card(
+            padding: EdgeInsets.all(16),
+            child: Center(
+              child: SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          )
+        else if (error != null && !hasPath)
+          _Card(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              spacing: 10,
+              children: [
+                Text(errorMessage(error), style: _caption),
+                AppButton(
+                  label: 'Thử lại',
+                  variant: ButtonVariant.paper,
+                  onPressed: () => ref.invalidate(livePathsProvider),
+                ),
+              ],
+            ),
+          )
+        else if (hasPath)
+          Tappable(
+            semanticLabel: 'Xem lộ trình: ${progress.title}',
+            onTap: () => context.push('/paths/${path['id']}'),
+            child: _Card(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                spacing: 12,
+                children: [
+                  Row(
+                    spacing: 10,
+                    children: [
+                      _IconBox(
+                        icon: AppIcon.book,
+                        color: _C.orange,
+                        background: _C.yellowSoft,
+                        width: 40,
+                        height: 40,
+                      ),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          spacing: 4,
+                          children: [
+                            Text(
+                              progress.title,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: _label,
+                            ),
+                            Text(
+                              '${progress.completed}/${progress.total} buổi hoàn tất trong lộ trình',
+                              style: _caption,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const AppIcon(
+                        AppIcon.chevron,
+                        size: 16,
+                        color: _C.orange,
+                      ),
+                    ],
+                  ),
+                  if (progress.total > 0)
+                    AppProgressBar(
+                      value: progress.completed,
+                      max: progress.total,
+                      label: progress.title,
+                      color: _C.orange,
+                      trackColor: _C.track,
+                      height: 6,
+                    ),
+                ],
+              ),
+            ),
+          )
+        else
+          _Card(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              spacing: 6,
+              children: [
+                Text(
+                  'Chưa tìm thấy lộ trình đang diễn ra',
+                  style: _label,
+                ),
+                Text(
+                  'Các lộ trình đã lên lịch hoặc đang học sẽ xuất hiện ở đây.',
+                  style: _caption,
+                ),
+              ],
+            ),
           ),
       ],
     );
