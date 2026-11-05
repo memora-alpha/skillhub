@@ -26,10 +26,8 @@ class MaterialsService {
 
   Future<Map<String, dynamic>> archive(String id) => _api.archive(id);
 
-  Future<List<Map<String, dynamic>>> search({
-    String? q,
-    String? accessType,
-  }) => _api.search(q: q, accessType: accessType);
+  Future<List<Map<String, dynamic>>> search({String? q, String? accessType}) =>
+      _api.search(q: q, accessType: accessType);
 
   Future<Map<String, dynamic>> detail(String id) => _api.detail(id);
 
@@ -45,4 +43,5 @@ class MaterialsService {
   );
 
   Future<List<Map<String, dynamic>>> orders() => _api.orders();
+  Future<Map<String, dynamic>> refund(String orderId) => _api.refund(orderId);
 }

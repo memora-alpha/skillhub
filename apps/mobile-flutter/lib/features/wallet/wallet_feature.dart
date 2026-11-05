@@ -401,7 +401,7 @@ class _PaymentStatusScreenState extends ConsumerState<PaymentStatusScreen>
                       'Chưa tạo được mã QR từ cổng thanh toán. Hệ thống đang thử lại — chưa trừ tiền ngân hàng.',
                 ),
                 const Copy(
-                  'Nếu chờ lâu: bấm Hủy lệnh rồi tạo lệnh nạp mới. “Tải lại” chỉ cập nhật trạng thái, không tạo QR.',
+                  'Tải lại chỉ kiểm tra lệnh hiện tại, không tạo QR mới. Chỉ tạo lệnh khác sau khi máy chủ xác nhận lệnh cũ đã hủy hoặc hết hạn; không chuyển khoản thêm khi kết quả chưa rõ.',
                   muted: true,
                 ),
               ] else if (_text(data['recoveryReason']).isNotEmpty)

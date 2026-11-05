@@ -66,8 +66,10 @@ class Conversation {
   final int unread;
   final String time;
   final DateTime? createdAt;
+
   /// Latest message time used for inbox ordering.
   final DateTime? lastActivityAt;
+
   /// Learning-request title (or skill / fallback) shown as the block title.
   final String topic;
   final String? avatarUrl;
@@ -491,6 +493,8 @@ String _skillIdFromJson(Map<String, dynamic> json) {
 }
 
 class MessagesNotifier extends Notifier<MessagesState> {
+  final _markingRead = <String>{};
+  final _acknowledgedRead = <String, String>{};
   var _ticket = 0;
   String? _userId;
 
@@ -505,11 +509,7 @@ class MessagesNotifier extends Notifier<MessagesState> {
     final phase = ref.watch(sessionSnapshotProvider.select((s) => s.phase));
     if (phase != SessionPhase.ready) {
       _userId = null;
-      return const MessagesState(
-        conversations: [],
-        threads: {},
-        read: {},
-      );
+      return const MessagesState(conversations: [], threads: {}, read: {});
     }
     ref.listen(accountProvider, (previous, next) {
       final id = next.value?.userId;
@@ -517,11 +517,7 @@ class MessagesNotifier extends Notifier<MessagesState> {
       _userId = id;
       _reload(++_ticket, id);
     }, fireImmediately: true);
-    return const MessagesState(
-      conversations: [],
-      threads: {},
-      read: {},
-    );
+    return const MessagesState(conversations: [], threads: {}, read: {});
   }
 
   Future<
@@ -858,17 +854,30 @@ class MessagesNotifier extends Notifier<MessagesState> {
 
   void markRead(String conversationId) {
     final conversation = state.find(conversationId);
-    if (conversation == null || state.read.contains(conversation.id)) return;
-    state = state.copyWith(read: {...state.read, conversation.id});
+    if (conversation == null) return;
     final thread = state.threads[conversation.id];
     final incoming = thread?.where((message) => !message.mine).lastOrNull;
     if (incoming == null) return;
+    final session = ref.read(sessionSnapshotProvider);
+    final key = '${session.generation}:${conversation.id}:${incoming.id}';
+    if (_markingRead.contains(key) || _acknowledgedRead[conversation.id] == key)
+      return;
+    _markingRead.add(key);
     ref
         .read(authRuntimeProvider)
         .services
         .conversations
         .markRead(conversation.id, messageId: incoming.id)
-        .then((_) {}, onError: (_, _) {});
+        .then((_) {
+          if (ref.mounted && session == ref.read(sessionSnapshotProvider)) {
+            _acknowledgedRead[conversation.id] = key;
+            state = state.copyWith(read: {...state.read, conversation.id});
+            ref.read(refreshTicksProvider.notifier).bump(const {
+              RefreshScope.inbox,
+            });
+          }
+        }, onError: (_, _) {})
+        .whenComplete(() => _markingRead.remove(key));
   }
 
   void _append(String conversationId, ChatMessage message) {
@@ -893,7 +902,9 @@ class MessagesNotifier extends Notifier<MessagesState> {
           .services
           .conversations
           .messages(conversation.id, cursor: cursor, limit: 50);
-      final older = [for (final message in page.items) _chatMessage(message, me)];
+      final older = [
+        for (final message in page.items) _chatMessage(message, me),
+      ];
       final current = state.threads[conversation.id] ?? const <ChatMessage>[];
       if (!ref.mounted) return;
       state = state.copyWith(
@@ -901,10 +912,7 @@ class MessagesNotifier extends Notifier<MessagesState> {
           ...state.threads,
           conversation.id: [...older, ...current],
         },
-        olderCursors: {
-          ...state.olderCursors,
-          conversation.id: page.nextCursor,
-        },
+        olderCursors: {...state.olderCursors, conversation.id: page.nextCursor},
       );
     } catch (_) {}
   }
@@ -963,10 +971,7 @@ ChatMessage _chatMessage(MessageRecord message, String me) {
     attachments: attachments,
     file: attachments.isEmpty
         ? null
-        : (
-            name: attachments.first.filename,
-            bytes: attachments.first.bytes,
-          ),
+        : (name: attachments.first.filename, bytes: attachments.first.bytes),
   );
 }
 

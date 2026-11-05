@@ -9,6 +9,7 @@ import '../../components/misc.dart';
 import '../messages/messages_data.dart';
 import '../sessions/sessions_data.dart';
 import 'live_paths.dart';
+import 'live_settlement.dart';
 import 'paths_data.dart';
 
 String _confirmed(bool value) => value ? 'Đã xác nhận' : 'Chưa xác nhận';
@@ -1084,6 +1085,7 @@ class SettlementScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    if (isLiveId(id)) return LiveSettlementScreen(id: id);
     ref.watch(pathsProvider);
     final path = ref.read(pathsProvider.notifier).find(id);
     return FeaturePage(

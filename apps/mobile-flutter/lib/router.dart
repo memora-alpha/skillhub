@@ -21,6 +21,7 @@ import 'features/learning_paths/study_live_screen.dart';
 import 'features/learning_requests/requests_feature.dart';
 import 'features/materials/materials_feature.dart';
 import 'features/messages/messages_screens.dart';
+import 'features/messages/aggregate_inbox.dart';
 import 'features/notifications/notifications_screen.dart';
 import 'features/product_shell/product_shell_feature.dart';
 import 'features/profile/edit_profile_screen.dart';
@@ -85,7 +86,10 @@ final _featureRoutes = <GoRoute>[
       return MaterialPage<void>(
         key: ValueKey<String>('chat-$id'),
         restorationId: 'chat-$id',
-        child: ChatScreen(key: ValueKey<String>('chat-$id'), conversationId: id),
+        child: ChatScreen(
+          key: ValueKey<String>('chat-$id'),
+          conversationId: id,
+        ),
       );
     },
   ),
@@ -158,7 +162,10 @@ final _featureRoutes = <GoRoute>[
   _route('/requests/:id/edit', (s) => RequestEditorScreen(id: _p(s, 'id'))),
   _route('/skills', (_) => const SkillsScreen()),
   _route('/tags', (_) => const TagsScreen()),
-  _route('/catalog/skills/:skillId', (s) => CatalogSkillScreen(skillId: _p(s, 'skillId'))),
+  _route(
+    '/catalog/skills/:skillId',
+    (s) => CatalogSkillScreen(skillId: _p(s, 'skillId')),
+  ),
   _route('/skills/new', (_) => const SkillEditorScreen()),
   _route('/skills/history', (_) => const VerificationHistoryScreen()),
   _route('/skills/:id', (s) => SkillDetailScreen(id: _p(s, 'id'))),
@@ -335,8 +342,15 @@ final routerProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/messages',
-                builder: (_, _) => const MessagesScreen(),
+                builder: (_, _) => const AggregateInboxScreen(),
                 routes: [
+                  GoRoute(
+                    path: 'request/:requestId',
+                    builder: (_, state) => AggregateInboxScreen(
+                      requestId: state.pathParameters['requestId'],
+                      title: state.uri.queryParameters['title'],
+                    ),
+                  ),
                   GoRoute(
                     path: 'with/:userId',
                     builder: (_, state) => MessagePartnerScreen(

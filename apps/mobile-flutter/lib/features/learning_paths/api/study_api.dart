@@ -104,6 +104,20 @@ class StudyApi {
   Future<Map<String, dynamic>> settle(String pathId) =>
       _json('/sessions/paths/$pathId/settlement', 'POST', const {});
 
+  Future<Map<String, dynamic>> settlementStatus(String pathId) async {
+    final row = asMap(await _client.request('/learning-paths/$pathId/settlement-status', authenticated: true));
+    if (row['pathId'] != pathId || row['immediateSettlement'] is! Map || row['retryable'] is! bool) throw const AppError.protocol();
+    return row;
+  }
+
+  Future<Map<String, dynamic>> settlementConsent(String pathId, int expectedVersion) async {
+    if (expectedVersion < 1) throw const AppError.protocol();
+    final row = await _json('/sessions/paths/$pathId/settlement-consent', 'POST', {'expectedVersion': expectedVersion});
+    final result = row['settlement'];
+    if (row['pathId'] != pathId || row['approvedAt'] is! String || DateTime.tryParse(row['approvedAt'] as String) == null || row['bothApproved'] is! bool || result is! Map || !const {'SETTLED','WAITING','RETRYING','NEEDS_REVIEW'}.contains(result['outcome'])) throw const AppError.protocol();
+    return row;
+  }
+
   /// Public API: `POST /api/v1/sessions/{sessionId}/confirm-completion`.
   /// Body is `{}` or `{note}` (≤1000). Empty note must omit the field — prod
   /// DTO exposes no properties and rejects unknown keys.

@@ -3,20 +3,37 @@ import 'package:dio/dio.dart';
 import '../../../core/http/app_error.dart';
 import '../../../core/http/http_client.dart';
 import '../schema/conversation_schema.dart';
+import '../schema/inbox_schema.dart';
 
 class ConversationsApi {
   ConversationsApi(this._client);
 
   final HttpClient _client;
 
-  Future<Page<ConversationRecord>> list({String? cursor, int? limit}) async =>
+  Future<Page<InboxGroup>> inbox({String? cursor, int limit = 20}) async =>
       Page.parse(
         await _client.requestEnvelope(
-          withQuery('/conversations', {'cursor': cursor, 'limit': limit}),
+          withQuery('/conversations/inbox', {'cursor': cursor, 'limit': limit}),
           authenticated: true,
         ),
-        ConversationRecord.parse,
+        InboxGroup.parse,
       );
+
+  Future<Page<ConversationRecord>> list({
+    String? cursor,
+    int? limit,
+    String? learningRequestId,
+  }) async => Page.parse(
+    await _client.requestEnvelope(
+      withQuery('/conversations', {
+        'cursor': cursor,
+        'limit': limit,
+        'learningRequestId': learningRequestId,
+      }),
+      authenticated: true,
+    ),
+    ConversationRecord.parse,
+  );
 
   Future<ConversationRecord> get(String id) async => ConversationRecord.parse(
     await _client.request('/conversations/$id', authenticated: true),
@@ -54,8 +71,7 @@ class ConversationsApi {
     final body = <String, Object?>{
       'clientMessageId': clientMessageId,
       if (messageText.isNotEmpty) 'messageText': messageText,
-      if (attachmentFileIds.isNotEmpty)
-        'attachmentFileIds': attachmentFileIds,
+      if (attachmentFileIds.isNotEmpty) 'attachmentFileIds': attachmentFileIds,
     };
     final json = asMap(
       await _client.request(
@@ -108,13 +124,12 @@ class ConversationsApi {
     ),
   );
 
-  Future<Map<String, dynamic>> upload(String id, FormData body) async =>
-      asMap(
-        await _client.request(
-          '/conversations/$id/attachments',
-          method: 'POST',
-          body: body,
-          authenticated: true,
-        ),
-      );
+  Future<Map<String, dynamic>> upload(String id, FormData body) async => asMap(
+    await _client.request(
+      '/conversations/$id/attachments',
+      method: 'POST',
+      body: body,
+      authenticated: true,
+    ),
+  );
 }

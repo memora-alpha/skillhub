@@ -225,12 +225,14 @@ class _LiveSessionPageState extends ConsumerState<LiveSessionPage> {
         ? session['learnerConfirmationStatus']
         : session['teacherConfirmationStatus'];
     final status = session['status']?.toString() ?? '';
+    final allowed = session['allowedActions'] is List ? session['allowedActions'] as List : const [];
+    final quota = _record(session['makeupQuota']);
     final ended = end != null && !DateTime.now().isBefore(end);
     final canConfirm =
         session.isNotEmpty &&
         ended &&
         mineStatus != 'CONFIRMED' &&
-        !const {'CANCELLED', 'DISPUTED', 'COMPLETED'}.contains(status);
+        allowed.contains('CONFIRM_COMPLETION') && !query.hasError;
     final canJoin = join['canJoin'] == true;
     final joinReason = canJoin
         ? null
@@ -300,6 +302,9 @@ class _LiveSessionPageState extends ConsumerState<LiveSessionPage> {
                   muted: true,
                 ),
               if (window != null) Copy(window, muted: true),
+              Copy('Đổi lịch thường: ${session['rescheduleCount'] ?? 'Chưa có dữ liệu'}/3 lần. Mỗi buổi học bù tối đa một lần.', muted: true),
+              if (quota.isNotEmpty) Copy('Lượt học bù của bạn: đã dùng ${quota['used']}/${quota['limit']}, còn ${quota['remaining']}.', muted: true),
+              if (quota['requiresReview'] == true) const Copy('Lịch sử học bù cần nhân sự xác minh.'),
             ],
           ),
           if (_error != null)
@@ -340,6 +345,8 @@ class _LiveSessionPageState extends ConsumerState<LiveSessionPage> {
                 try {
                   final sessionId =
                       session['id']?.toString() ?? widget.id;
+                  final fresh = await ref.read(authRuntimeProvider).services.study.session(sessionId);
+                  if (fresh['allowedActions'] is! List || !(fresh['allowedActions'] as List).contains('CONFIRM_COMPLETION')) throw const AppError.protocol();
                   await ref
                       .read(authRuntimeProvider)
                       .services
@@ -361,6 +368,7 @@ class _LiveSessionPageState extends ConsumerState<LiveSessionPage> {
               '/paths/${session['pathId']}/schedules',
             ),
           ),
+          if (status != 'CANCELLED') AppButton(label: 'Báo cáo vấn đề buổi học', variant: ButtonVariant.paper, onPressed: () => context.push(Uri(path: '/reports/new', queryParameters: {'sessionId': widget.id, 'pathId': session['pathId'].toString()}).toString())),
         ],
       ],
       ),
