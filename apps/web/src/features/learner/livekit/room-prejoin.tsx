@@ -8,6 +8,8 @@ import { RoomAvatar } from "./room-avatar";
 import { RoomBackgroundControl } from "./room-background-control";
 import type { CameraBackground } from "./use-camera-background";
 import styles from "./room.module.css";
+import { SessionJoinWindow } from "../sessions/session-join-window";
+import type { LearningSession } from "../types";
 
 export function RoomPrejoin({
   name,
@@ -19,6 +21,8 @@ export function RoomPrejoin({
   canJoin,
   onJoin,
   onCancel,
+  onRetryDevices,
+  session,
 }: Readonly<{
   name: string;
   avatarUrl?: string | null;
@@ -29,6 +33,8 @@ export function RoomPrejoin({
   canJoin: boolean;
   onJoin: () => void;
   onCancel: () => void;
+  onRetryDevices: () => void;
+  session?: LearningSession;
 }>) {
   const camera = !!preview.tracks.camera;
   const microphone = !!preview.tracks.microphone;
@@ -157,8 +163,17 @@ export function RoomPrejoin({
             {preview.error}
           </p>
         )}
+        <button
+          type="button"
+          className={styles.cancelJoin}
+          disabled={preview.busy || connecting}
+          onClick={onRetryDevices}
+        >
+          Kiểm tra lại thiết bị / trạng thái phòng
+        </button>
       </div>
       <div className={styles.prejoinInfo}>
+        <SessionJoinWindow session={session} />
         <span className={styles.eyebrow}>TRƯỚC KHI BẮT ĐẦU</span>
         <h2>Sẵn sàng học cùng nhau?</h2>
         <p>

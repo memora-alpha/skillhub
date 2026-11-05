@@ -7,6 +7,7 @@ import type { Conversation, Proposal, LearningPath } from "../types";
 import { useUserSession } from "../auth/session";
 import { useUserCommand } from "../hooks/use-user-command";
 import { CommandFeedback, Panel } from "../components/common";
+import { AgreementSummary } from "./agreement-summary";
 export function AgreementCreator({
   conversation,
   proposal,
@@ -20,7 +21,13 @@ export function AgreementCreator({
     command = useUserCommand(),
     router = useRouter();
   const [exchangeType, setExchangeType] = useState(
-    path?.agreement.exchangeType ?? "ONE_WAY",
+    path?.agreement.exchangeType ??
+      (proposal?.exchangeTypeHint === "TWO_WAY" ? "TWO_WAY" : "ONE_WAY"),
+  );
+  const [credit, setCredit] = useState(
+    path?.agreement.negotiatedCredit ??
+      path?.agreement.totalCreditPerUser ??
+      "20",
   );
   const counterpart =
     actor.userId === conversation.participantAId
@@ -86,6 +93,13 @@ export function AgreementCreator({
           </select>
         </label>
         <p>{roleDescription}</p>
+        <AgreementSummary
+          exchangeType={exchangeType}
+          teacherId={teacherId}
+          learnerId={learnerId}
+          amount={credit}
+          counterpartId={counterpart}
+        />
         <label>
           <span>
             {exchangeType === "ONE_WAY"
@@ -98,11 +112,8 @@ export function AgreementCreator({
             min={exchangeType === "TWO_WAY" ? 20 : 0.01}
             step="0.01"
             max="9999999999.99"
-            defaultValue={
-              path?.agreement.negotiatedCredit ??
-              path?.agreement.totalCreditPerUser ??
-              "20"
-            }
+            value={credit}
+            onChange={(event) => setCredit(event.target.value)}
             required
             disabled={command.pending || command.uncertain}
           />

@@ -6,6 +6,7 @@ import type { Plan, ScheduleItem } from "../types";
 import { useUserSession } from "../auth/session";
 import { useUserCommand } from "../hooks/use-user-command";
 import { CommandFeedback } from "../components/common";
+import { ProfileName } from "../components/profile-name";
 import { vietnamInstant } from "../sessions/session-policy";
 const local = (date: string) =>
   new Date(Date.parse(date) + 7 * 3600000).toISOString().slice(0, 16);
@@ -56,17 +57,22 @@ export function ScheduleEditor({
               return { sessionNo: index + 1, startAt, endAt };
             },
           );
-          if (
-            items.some((item, index) =>
-              items.some(
-                (other, second) =>
-                  second > index &&
-                  Date.parse(item.startAt) < Date.parse(other.endAt) &&
-                  Date.parse(item.endAt) > Date.parse(other.startAt),
-              ),
-            )
-          )
-            throw new Error("Các buổi trong kế hoạch đang bị trùng giờ.");
+          for (const [index, item] of items.entries()) {
+            const other = items.find(
+              (row, second) =>
+                second > index &&
+                Date.parse(item.startAt) < Date.parse(row.endAt) &&
+                Date.parse(item.endAt) > Date.parse(row.startAt),
+            );
+            if (other)
+              throw new Error(
+                "Buổi " +
+                  item.sessionNo +
+                  " trùng buổi " +
+                  other.sessionNo +
+                  ". Cả người hướng dẫn và người học của kế hoạch đều bị ảnh hưởng.",
+              );
+          }
           const body = plan.schedule
             ? { expectedVersion: plan.schedule.version, items }
             : { expectedPlanVersion: plan.version, items };
@@ -89,6 +95,10 @@ export function ScheduleEditor({
       <p className="muted">
         Nhập giờ Việt Nam. Đối tác cần xác nhận cùng phiên bản trước khi chốt
         lịch.
+      </p>
+      <p>
+        Người hướng dẫn: <ProfileName id={plan.teacherId} /> · Người học:{" "}
+        <ProfileName id={plan.learnerId} />.
       </p>
       {Array.from({ length: plan.totalSessions }, (_, index) => {
         const old = plan.schedule?.items.find(

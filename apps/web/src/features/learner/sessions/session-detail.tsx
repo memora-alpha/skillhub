@@ -1,4 +1,5 @@
 "use client";
+import { SessionJoinWindow } from "./session-join-window";
 import { formText } from "../components/form-data";
 
 import Link from "next/link";
@@ -23,6 +24,9 @@ import { useClock } from "../hooks/use-clock";
 import { AttendanceRules } from "./attendance-rules";
 import { sessionRefreshInterval } from "./attendance-presentation";
 import { SessionAttendanceStatus } from "./session-attendance-status";
+import { SessionLimits } from "./session-limits";
+import { LearningChangePanel } from "../paths/learning-change-panel";
+import { canRequestCancellation } from "../paths/post-session-contract";
 function excuseStatusLabel(status: string) {
   switch (status) {
     case "PENDING":
@@ -261,9 +265,7 @@ export function SessionDetail({ id }: Readonly<{ id: string }>) {
                     )}
                   </p>
                 )}
-                {session.join?.opensAt && (
-                  <p>Mở phòng: {formatTime(session.join.opensAt)}</p>
-                )}
+                <SessionJoinWindow session={session} />
                 <button
                   type="button"
                   className="btn"
@@ -274,9 +276,18 @@ export function SessionDetail({ id }: Readonly<{ id: string }>) {
                 </button>
               </Panel>
               <AttendanceRules />
+              <SessionLimits session={session} />
+              <LearningChangePanel
+                pathId={session.pathId}
+                sessionId={id}
+                startAt={session.startAt}
+                canRequest={canRequestCancellation(session, now)}
+                blocked={query.loading || !!query.error}
+              />
               {(allowed.includes("PROPOSE_MAKEUP") ||
                 (["CONFIRMED", "READY"].includes(session.status) &&
-                  Date.parse(session.startAt) - now >= 3600000)) && (
+                  Date.parse(session.startAt) - now >= 3600000 &&
+                  (session.rescheduleCount ?? 0) < 3)) && (
                 <Panel
                   title={
                     session.status === "MAKEUP_REQUIRED"

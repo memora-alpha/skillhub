@@ -41,9 +41,15 @@ export function AttendanceRules() {
         không áp dụng tự chấp nhận lý do giữa hai bên.
       </p>
       <p className="muted">
+        Mỗi buổi học bù tối đa một lần. Mỗi người có hạn mức riêng: tối thiểu
+        một lượt, hoặc một lượt cho mỗi năm buổi tham gia trong thỏa thuận. Hết
+        lượt sẽ chuyển nhân sự xem xét thay vì tự cấp lịch bù mới.
+      </p>
+      <p className="muted">
         Điểm uy tín khác Credit. Hoàn tất một buổi chưa quyết toán ngay; cần đủ
-        điều kiện cả lộ trình, hết hạn khiếu nại và không có tranh chấp giữ
-        quyết toán.
+        điều kiện cả lộ trình và không có tranh chấp giữ quyết toán. Sau khi học
+        xong toàn bộ, hai bên có thể đồng ý quyết toán sớm bằng thao tác riêng;
+        nếu không, tiếp tục chờ hết hạn.
       </p>
       <Link href="/terms#attendance">Đọc điều khoản về buổi học →</Link>
     </Panel>

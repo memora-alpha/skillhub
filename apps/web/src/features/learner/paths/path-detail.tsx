@@ -1,7 +1,6 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useUserResource } from "../hooks/use-user-resource";
 import { useUserSession } from "../auth/session";
 import { useUserCommand } from "../hooks/use-user-command";
@@ -17,7 +16,11 @@ import {
 import { PlanPanel } from "./plan-panel";
 import { PlanEditor } from "./plan-editor";
 import { AgreementCreator } from "./agreement-creator";
-import { SettlementPanel } from "./settlement-panel";
+import { SettlementStatusPanel } from "./settlement-status-panel";
+import { LearningChangePanel } from "./learning-change-panel";
+import { PathReviews } from "./path-reviews";
+import { PathAgreementSummary } from "./agreement-summary";
+import { FinalizePanel } from "./finalize-panel";
 function pathPermissions(path: LearningPath | undefined, userId: string) {
   if (!path)
     return {
@@ -45,13 +48,13 @@ function pathPermissions(path: LearningPath | undefined, userId: string) {
   return { ready, ownConfirmed, editable, canAdd };
 }
 export function PathDetail({ id }: Readonly<{ id: string }>) {
-  const query = useUserResource<LearningPath>("learning-paths/" + id),
+  const query = useUserResource<LearningPath>("learning-paths/" + id, {
+      retainOnTemporaryError: true,
+    }),
     { actor, request } = useUserSession(),
-    command = useUserCommand(true),
-    router = useRouter();
+    command = useUserCommand(true);
   const [tab, setTab] = useState("plans");
-  const [editing, setEditing] = useState(false),
-    [reviewed, setReviewed] = useState(false);
+  const [editing, setEditing] = useState(false);
   const path = query.data;
   const { ready, ownConfirmed, editable, canAdd } = pathPermissions(
     path,
@@ -90,6 +93,8 @@ export function PathDetail({ id }: Readonly<{ id: string }>) {
             description={"Phiên bản thỏa thuận " + path.currentVersion}
             action={<Status value={path.status} />}
           />
+          <PathAgreementSummary path={path} />
+          <CommandFeedback command={command} />
           <div className="path-tabs" aria-label="Các phần của lộ trình">
             {[
               ["overview", "Tổng quan"],
@@ -114,11 +119,18 @@ export function PathDetail({ id }: Readonly<{ id: string }>) {
             ))}
           </div>
           {!!path.lockedVersion && (
-            <SettlementPanel
-              key={path.id}
-              path={path}
-              blocked={query.loading || !!query.error}
-            />
+            <>
+              <SettlementStatusPanel key={path.id} pathId={path.id} />
+              <LearningChangePanel
+                pathId={path.id}
+                canRequest={
+                  !path.settledAt &&
+                  ["SCHEDULED", "ACTIVE", "DISPUTED"].includes(path.status)
+                }
+                blocked={query.loading || !!query.error}
+              />
+              <PathReviews path={path} />
+            </>
           )}
           {tab === "overview" && (
             <div className="learner-two-columns">
@@ -247,116 +259,10 @@ export function PathDetail({ id }: Readonly<{ id: string }>) {
             </div>
           )}
           {tab === "finalize" && (
-            <div className="learner-two-columns">
-              {" "}
-              <Panel title="3. Chốt lịch và bắt đầu học">
-                {path.lockedVersion ? (
-                  <>
-                    <p>
-                      Lộ trình đã chốt. Lịch chính thức nằm trong từng buổi học
-                      bên cạnh.
-                    </p>
-                    <Link className="btn btn-primary" href="/learn/calendar">
-                      Mở lịch học
-                    </Link>
-                  </>
-                ) : (
-                  <>
-                    <p>
-                      Chỉ chốt khi đã có đủ kế hoạch và cả hai cùng xác nhận tất
-                      cả lịch.
-                    </p>
-                    <p>
-                      Hệ thống sẽ tạm giữ{" "}
-                      {path.agreement.negotiatedCredit ??
-                        path.agreement.totalCreditPerUser}{" "}
-                      Credit{" "}
-                      {path.agreement.exchangeType === "TWO_WAY"
-                        ? "từ mỗi người"
-                        : "từ người học"}{" "}
-                      theo thỏa thuận. Kết quả giữ tiền do BE xác nhận.
-                    </p>
-                    <label>
-                      <input
-                        type="checkbox"
-                        checked={reviewed}
-                        onChange={(event) => setReviewed(event.target.checked)}
-                      />{" "}
-                      Tôi đã kiểm tra nội dung, Credit và giờ học.
-                    </label>
-                    <button
-                      type="button"
-                      className="btn btn-primary"
-                      disabled={
-                        !reviewed ||
-                        path.status !== "CONFIRMED" ||
-                        query.loading ||
-                        command.pending ||
-                        (command.uncertain && !command.canRetry)
-                      }
-                      onClick={() => {
-                        void command
-                          .run(
-                            "finalize:" + id + ":" + path.currentVersion,
-                            async (key) => {
-                              await request(
-                                "learning-paths/" + id + "/final-validation",
-                                { method: "POST", body: {} },
-                              );
-                              return request<{ sessions: { id: string }[] }>(
-                                "learning-paths/" + id + "/finalize",
-                                {
-                                  method: "POST",
-                                  body: {
-                                    expectedVersion: path.currentVersion,
-                                  },
-                                  key,
-                                },
-                              );
-                            },
-                          )
-                          .then((result) => {
-                            if (result?.data.sessions.length === 1)
-                              router.push(
-                                "/learn/sessions/" +
-                                  result.data.sessions[0]!.id,
-                              );
-                          });
-                      }}
-                    >
-                      Chốt lịch và tạm giữ Credit
-                    </button>
-                  </>
-                )}
-                <CommandFeedback command={command} />
-              </Panel>
-              <Panel title="Tình trạng thỏa thuận">
-                <p>
-                  Điều khoản:{" "}
-                  {ready ? "Hai bên đã xác nhận" : "Chưa đủ xác nhận"}
-                </p>
-                <p>Số kế hoạch: {path.plans.length}</p>
-                <p>
-                  Kế hoạch được người học xác nhận:{" "}
-                  {path.plans.filter((plan) => plan.learnerConfirmedAt).length}
-                </p>
-                <p>
-                  Lịch học:{" "}
-                  {path.lockedVersion ? "Đã khóa theo thỏa thuận" : "Chưa khóa"}
-                </p>
-                <p className="muted">
-                  Điều kiện số dư, trùng lịch và trạng thái hiện tại được máy
-                  chủ kiểm tra khi chốt.
-                </p>
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={() => setTab("overview")}
-                >
-                  Xem lại điều khoản
-                </button>
-              </Panel>
-            </div>
+            <FinalizePanel
+              path={path}
+              blocked={query.loading || !!query.error}
+            />
           )}
         </>
       )}
