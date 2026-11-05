@@ -15,7 +15,8 @@ export type TerminationAction = "accept" | "decline" | "withdraw" | "escalate";
 const content = {
   accept: {
     title: "Đồng ý hủy lộ trình?",
-    description: "Yêu cầu sẽ chờ Admin quyết định hủy và xử lý Credit.",
+    description:
+      "Các buổi tương lai sẽ dừng. Hệ thống tự tính Credit theo dữ liệu buổi học.",
     confirm: "Xác nhận đồng ý",
   },
   decline: {
@@ -97,7 +98,14 @@ export function TerminationActionDialog({
             )}
             {action !== "withdraw" && (
               <FormNotice tone="warning" compact>
-                Lịch học và Credit vẫn giữ nguyên trong lúc chờ.
+                {action === "accept"
+                  ? "Nếu còn tranh chấp hoặc buổi học chưa có kết luận, Credit sẽ chờ xử lý."
+                  : "Lịch học vẫn có hiệu lực đến khi đối tác hoặc nhân viên duyệt hủy."}
+              </FormNotice>
+            )}
+            {action === "accept" && (
+              <FormNotice tone="error" compact>
+                Sau khi đồng ý, không thể rút yêu cầu hủy.
               </FormNotice>
             )}
             <View style={styles.actions}>

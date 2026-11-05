@@ -82,6 +82,7 @@ export const learningPathSchema = z.object({
   lockedVersion: version.nullable(),
   completedAt: confirmedAt,
   settledAt: confirmedAt,
+  terminationApprovedAt: confirmedAt.optional(),
   agreement: z.object({
     version,
     exchangeType: exchange,

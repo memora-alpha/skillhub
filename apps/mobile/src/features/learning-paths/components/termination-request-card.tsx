@@ -139,7 +139,9 @@ export function TerminationRequestCard({
       title={
         actions.respond
           ? "Đối tác muốn hủy lộ trình"
-          : terminationLabels[request.status]
+          : request.approvedAt && request.status === "ACCEPTED"
+            ? "Đã duyệt hủy lộ trình"
+            : terminationLabels[request.status]
       }
     >
       <Copy size="hint">
@@ -161,7 +163,11 @@ export function TerminationRequestCard({
         </Copy>
       )}
       {request.status === "ACCEPTED" && (
-        <Copy size="hint">Chờ Admin quyết định hủy và xử lý Credit.</Copy>
+        <Copy size="hint">
+          {request.approvedAt
+            ? "Đã dừng các buổi tương lai. Hệ thống tự quyết toán Credit khi đủ điều kiện."
+            : "Yêu cầu đã được đồng ý. Tải lại để xem kết quả xử lý."}
+        </Copy>
       )}
       {request.status === "STAFF_REVIEW" && (
         <Copy size="hint">
@@ -173,7 +179,10 @@ export function TerminationRequestCard({
       {request.responseNote && <Copy>Phản hồi: {request.responseNote}</Copy>}
       {openTermination(request) && blockers.length > 0 && (
         <FormNotice tone="warning" compact>
-          Đã gửi yêu cầu, lộ trình chưa hủy. Chờ {blockers.join(" và ")}.
+          {request.approvedAt
+            ? "Đã duyệt hủy. Credit đang chờ "
+            : "Đã gửi yêu cầu, lộ trình chưa hủy. Chờ "}
+          {blockers.join(" và ")}.
         </FormNotice>
       )}
       <TerminationDecision request={request} />

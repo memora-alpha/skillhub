@@ -533,6 +533,13 @@ test("the cancellation shortcut reflects active server requests and still opens 
       buttons().some((node) => text(node) === "Đã gửi yêu cầu hủy"),
       false,
     );
+    h.path.terminationApprovedAt = row.createdAt;
+    const approved = buttons().find(
+      (node) => text(node) === "Đã duyệt hủy · Xem Credit",
+    );
+    assert.ok(approved);
+    assert.equal(approved.props.variant, "paper");
+    assert.equal(h.calls.length, 0);
     h.path.status = "CANCELLED";
     assert.ok(buttons().some((node) => text(node) === "Chi tiết hủy lộ trình"));
   } finally {

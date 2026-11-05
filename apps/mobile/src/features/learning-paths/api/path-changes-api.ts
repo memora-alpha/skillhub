@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { RequestOptions } from "@/lib/http/client";
 import { AppError } from "@/lib/http/errors";
 import { parse, resourcePath, uuid, version } from "@/lib/http/contracts";
+import { terminationQuote } from "./termination-quote-contract";
 import {
   changeReason,
   settlementStatus,
@@ -38,6 +39,21 @@ export function createPathChangesApi(
     );
   }
   return {
+    async quote(pathId: string, signal?: AbortSignal) {
+      const result = parse(
+        terminationQuote,
+        await call(`${base(pathId)}/quote`, { signal }),
+      );
+      if (
+        result.pathId !== pathId ||
+        new Set(result.allocations.map((row) => row.allocationId)).size !==
+          result.allocations.length ||
+        new Set(result.allocations.map((row) => row.userId)).size !==
+          result.allocations.length
+      )
+        throw new AppError("protocol");
+      return result;
+    },
     async list(pathId: string, signal?: AbortSignal) {
       const rows = parse(
         z.array(terminationRequest).max(100),

@@ -49,10 +49,11 @@ export function TerminationConfirmDialog({
               <Text style={styles.body}>{reason}</Text>
             </View>
             <FormNotice tone="warning" compact>
-              Lịch học vẫn có hiệu lực đến khi việc hủy được thực hiện.
+              Lịch học vẫn có hiệu lực đến khi đối tác hoặc nhân viên duyệt hủy.
             </FormNotice>
             <Text style={styles.important}>
-              Credit chưa được hoàn ngay; xử lý theo quyết định hủy.
+              Gửi yêu cầu chưa hoàn Credit. Số tiền được hệ thống tính khi quyết
+              toán.
             </Text>
             <View style={styles.actions}>
               <Button variant="danger" disabled={disabled} onPress={onConfirm}>

@@ -11,6 +11,7 @@ export function canRequestTermination(
   return (
     path.lockedVersion !== null &&
     path.settledAt === null &&
+    !path.terminationApprovedAt &&
     ["SCHEDULED", "ACTIVE", "DISPUTED"].includes(path.status) &&
     !rows.some(openTermination)
   );
@@ -21,7 +22,11 @@ export function terminationActions(
   now = Date.now(),
 ) {
   const open =
-    !!userId && openTermination(row) && now < Date.parse(row.expiresAt);
+    !!userId &&
+    !row.approvedAt &&
+    row.status !== "ACCEPTED" &&
+    openTermination(row) &&
+    now < Date.parse(row.expiresAt);
   return {
     respond: open && row.status === "PENDING" && row.requesterId !== userId,
     withdraw: open && row.requesterId === userId,
@@ -30,9 +35,9 @@ export function terminationActions(
 }
 export const terminationLabels: Record<TerminationRequest["status"], string> = {
   PENDING: "Chờ đối tác phản hồi",
-  ACCEPTED: "Hai bên đã đồng ý hủy",
+  ACCEPTED: "Đã đồng ý hủy",
   STAFF_REVIEW: "Chờ nhân viên xem xét",
-  REJECTED: "Admin đã từ chối",
+  REJECTED: "Yêu cầu hủy bị từ chối",
   WITHDRAWN: "Đã rút yêu cầu",
   EXPIRED: "Yêu cầu đã hết hạn",
   APPLIED: "Đã hủy lộ trình",

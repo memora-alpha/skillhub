@@ -4,12 +4,18 @@ Phạm vi: `apps/mobile`, nhánh `feat/mobile-path-cancellation` từ `origin/de
 
 Đối chiếu tiếp trên `origin/dev@aefd324f` (PR79): chỉ bổ sung phần hủy/quyết toán lộ trình. Người dùng yêu cầu không chỉnh Session; các thay đổi liên quan hạn mức học bù/đổi lịch được ghi là ngoài phạm vi lượt này. Wallet chỉ thêm public hook làm mới read cache theo owner/generation sau khi backend trả kết quả tài chính terminal, không tự cập nhật số dư.
 
+Lượt hiện tại: BE `b4d5ed65` (PR82), đã có trên baseline mobile `0cb0636d`. Tiếp nhận quote và ngữ nghĩa duyệt hủy mới trong phạm vi Path; không sửa Session, Backend, cấu hình/migration hoặc công thức tài chính.
+
 Nguồn nghiệp vụ: SRS1.6 §18.20 và quy tắc Held/ONE_WAY/TWO_WAY. Backend đã có `specs/013-learning-cancellation/contracts.md`, `PathTerminationController`, `PathSettlementStatusService`, `LearningChangeState`, `PathTerminationLedgerService` và publisher thông báo. Đây là bằng chứng source, chưa xác nhận deployment.
 
 Thiết kế: tái sử dụng FlowPage/FlowSection, Button/Input/FormNotice, theme/font và pattern xem lại trước khi gửi trong luồng thỏa thuận hiện có. Không có frame thiết kế mới được cung cấp.
 
 ## Công việc
 
+- [x] Đồng bộ PR82 (`b4d5ed65`): participant quote, approval receipt trước phân bổ tiền, dừng nghĩa vụ khi duyệt và worker quyết toán sau blockers.
+- [x] Bổ sung approvedAt/terminationApprovedAt, khóa thao tác sau duyệt; thay copy chờ Admin, phân biệt đã duyệt với APPLIED.
+- [x] Preview Credit theo chủ khoản, giữ chuỗi BE, thông báo snapshot cũ/kết luận buổi/tranh chấp/policy, không tính công thức ở mobile.
+- [x] Dọn quote read model còn dữ liệu mobile sử dụng và bỏ tham số hook luôn true; giữ validation tiền/identity, retry và query scope.
 - [x] Xác minh API, trạng thái, quyền participant, version, idempotency và giới hạn policy.
 - [x] Adapter có validation boundary cho danh sách yêu cầu, gửi/phản hồi/rút/chuyển nhân viên và trạng thái quyết toán.
 - [x] Thay màn chưa hỗ trợ bằng luồng thật; thêm entry từ thỏa thuận đã khóa, bước xem lại, loading/error/empty/recovery, scope theo user/generation và refresh chỉ đọc.
@@ -33,7 +39,7 @@ Thiết kế: tái sử dụng FlowPage/FlowSection, Button/Input/FormNotice, th
 
 ## Tiêu chí
 
-Gửi yêu cầu chưa dừng lịch học hay thay đổi ví. Đồng ý chỉ chuyển yêu cầu sang chờ quyết định; không đồng ý chuyển STAFF_REVIEW. Chỉ người gửi được rút; escalation dùng lý do, version. Khi không rõ kết quả, giữ nguyên ý định và chỉ kiểm tra/gửi lại khi người dùng bấm; focus/reconnect/polling chỉ GET. Khi quyền đọc bị từ chối, không hiển thị cache riêng tư. Giao dịch và trạng thái terminal chỉ lấy từ backend.
+Gửi yêu cầu chưa dừng lịch học hay thay đổi ví. Theo PR82, partner đồng ý hoặc Staff/Admin duyệt thì BE dừng các buổi tương lai và thử quyết toán; ACCEPTED/approvedAt còn chờ khác APPLIED/operationId đã xử lý Credit. Không đồng ý chuyển STAFF_REVIEW. Chỉ người gửi được rút trước duyệt; sau ACCEPTED/approvedAt không có thao tác participant tiếp. Khi không rõ kết quả, giữ nguyên ý định và chỉ kiểm tra/gửi lại khi người dùng bấm; focus/reconnect/polling chỉ GET. Khi quyền đọc bị từ chối, không hiển thị cache riêng tư. Giao dịch và trạng thái terminal chỉ lấy từ backend.
 
 Quyết toán sớm: dùng `pathVersion` và `immediateSettlement.canApprove` từ BE; thiếu fields mới thì không hiện quyền đồng ý. Đọc lại quyền/version ngay trước gửi. Cả hai đồng ý chỉ bỏ thời gian chờ, không vượt tranh chấp/yêu cầu dừng hoặc điều kiện tài chính. Hiện trạng thái từng bên và `autoSettlementAt`; báo cáo mới có thể xóa consent nên lần đồng ý mới vẫn phải do người dùng thực hiện. Receipt WAITING/RETRYING/NEEDS_REVIEW không là bằng chứng đã chuyển tiền.
 
@@ -43,5 +49,5 @@ Không hard-code tỷ lệ phạt/refund hoặc dùng 96%/4% của completion ch
 
 - API danh sách trả tối đa 100 yêu cầu gần nhất, không có pagination/detail participant cho yêu cầu cũ hơn.
 - `learning-path.change.updated` chỉ gửi Path/request IDs, không có kind hoặc Session ID; không thể xác định hủy buổi hay dừng cả lộ trình chỉ từ payload. Mobile ưu tiên yêu cầu dừng khớp ID; nếu không có thì chỉ dẫn xem các buổi học.
-- Quyết định có allocation IDs và amounts nhưng không có chủ sở hữu allocation trong participant projection. Hiển thị từng khoản trung lập; sổ ví là nguồn cho phần riêng của người dùng.
+- Quote và quyết định mới có userId của khoản tạm giữ; hiển thị theo chủ khoản. Quyết định cũ thiếu userId giữ nhãn trung lập; sổ ví là nguồn giao dịch đã ghi nhận.
 - Backend ghi RELEASE/ADJUSTMENT/PLATFORM_FEE khi dừng, không bảo đảm có transaction `PENALTY`; mobile không suy phí hoặc toàn bộ phần chuyển đối tác thành một mức phạt đã chốt.

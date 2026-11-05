@@ -3,6 +3,30 @@ import type {
   SettlementStatus,
 } from "../../src/features/learning-paths/api/path-changes-contract";
 import { fixtureId } from "./learning-requests-data";
+import type { TerminationQuote } from "../../src/features/learning-paths/api/termination-quote-contract";
+
+export function terminationQuoteFixture(
+  overrides: Partial<TerminationQuote> = {},
+): TerminationQuote {
+  return {
+    pathId: fixtureId(10),
+    status: "READY",
+    reasonCodes: [],
+    totalSessions: 5,
+    completedSessions: 2,
+    allocations: [
+      {
+        allocationId: fixtureId(40),
+        userId: fixtureId(1),
+        refund: "60.00",
+        counterpartyPayment: "38.40",
+        platformFee: "1.60",
+        compensationCredit: "0.00",
+      },
+    ],
+    ...overrides,
+  };
+}
 
 export function terminationFixture(
   overrides: Partial<TerminationRequest> = {},
