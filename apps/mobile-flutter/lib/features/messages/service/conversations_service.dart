@@ -17,18 +17,26 @@ class ConversationsService {
   Future<Page<MessageRecord>> messages(
     String id, {
     String? cursor,
+    String? afterSequence,
     int? limit,
-  }) => _api.messages(id, cursor: cursor, limit: limit);
+  }) => _api.messages(
+    id,
+    cursor: cursor,
+    afterSequence: afterSequence,
+    limit: limit,
+  );
 
   Future<MessageRecord> send(
     String id, {
     required String clientMessageId,
-    required String messageText,
+    String messageText = '',
+    List<String> attachmentFileIds = const [],
     required String idempotencyKey,
   }) => _api.send(
     id,
     clientMessageId: clientMessageId,
     messageText: messageText,
+    attachmentFileIds: attachmentFileIds,
     idempotencyKey: idempotencyKey,
   );
 

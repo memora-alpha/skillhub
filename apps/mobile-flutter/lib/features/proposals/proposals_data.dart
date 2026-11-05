@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/http/app_error.dart';
 import '../auth/session/auth_session.dart';
+import '../remote/refresh_signal.dart';
 import '../remote/remote_load.dart';
 import '../skills/skills_feature.dart';
 import 'schema/proposal_schema.dart';
@@ -70,6 +71,7 @@ class DemoProposal {
     String? time,
     String? status,
     Object? localDecisionNote = _unset,
+    String? conversationId,
   }) => DemoProposal(
     id: id,
     direction: direction,
@@ -89,7 +91,7 @@ class DemoProposal {
         ? this.localDecisionNote
         : localDecisionNote as String?,
     version: version,
-    conversationId: conversationId,
+    conversationId: conversationId ?? this.conversationId,
   );
 }
 
@@ -160,6 +162,12 @@ class ProposalsNotifier extends Notifier<List<DemoProposal>> {
 
   @override
   List<DemoProposal> build() {
+    listenForRefresh(ref, RefreshScope.proposals, () {
+      final me = ref.read(accountProvider).value?.userId;
+      if (ref.read(sessionSnapshotProvider).phase != SessionPhase.ready) return;
+      if (me == null) return;
+      _reload(++_ticket, me);
+    });
     final phase = ref.watch(sessionSnapshotProvider).phase;
     final userId = ref.watch(accountProvider).value?.userId;
     if (phase == SessionPhase.ready && userId != null) {
@@ -309,11 +317,21 @@ class ProposalsNotifier extends Notifier<List<DemoProposal>> {
       final api = ref.read(authRuntimeProvider).services.proposals;
       final key = newUuid();
       if (status == 'ACCEPTED') {
-        await api.accept(
+        final accepted = await api.accept(
           id,
           expectedVersion: item.version,
           idempotencyKey: key,
         );
+        state = [
+          for (final proposal in state)
+            if (proposal.id == id)
+              proposal.copyWith(
+                status: 'ACCEPTED',
+                conversationId: accepted.conversation.id,
+              )
+            else
+              proposal,
+        ];
       } else if (status == 'REJECTED') {
         await api.reject(
           id,

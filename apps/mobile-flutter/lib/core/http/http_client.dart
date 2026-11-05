@@ -56,8 +56,10 @@ ApiEnvelope readEnvelope(int status, Object? payload) {
 }
 
 Map<String, dynamic> asMap(Object? value) {
-  if (value is! Map<String, dynamic>) throw const AppError.protocol();
-  return value;
+  if (value is Map<String, dynamic>) return value;
+  // jsonDecode on web can yield Map<dynamic, dynamic>.
+  if (value is Map) return Map<String, dynamic>.from(value);
+  throw const AppError.protocol();
 }
 
 String asString(Object? value) {
@@ -77,8 +79,11 @@ String? asOptionalString(Object? value) {
 }
 
 int asInt(Object? value) {
-  if (value is! int) throw const AppError.protocol();
-  return value;
+  if (value is int) return value;
+  if (value is num && value.roundToDouble() == value.toDouble()) {
+    return value.round();
+  }
+  throw const AppError.protocol();
 }
 
 bool asBool(Object? value) {
@@ -92,11 +97,23 @@ List<T> asList<T>(Object? value, T Function(Object? item) parse) {
 }
 
 String withQuery(String path, Map<String, Object?> query) {
-  final parts = [
-    for (final entry in query.entries)
-      if (entry.value != null)
-        '${entry.key}=${Uri.encodeQueryComponent('${entry.value}')}',
-  ];
+  final parts = <String>[];
+  for (final entry in query.entries) {
+    final value = entry.value;
+    if (value == null) continue;
+    if (value is List) {
+      for (final item in value) {
+        if (item == null) continue;
+        parts.add(
+          '${entry.key}=${Uri.encodeQueryComponent('$item')}',
+        );
+      }
+      continue;
+    }
+    parts.add(
+      '${entry.key}=${Uri.encodeQueryComponent('$value')}',
+    );
+  }
   return parts.isEmpty ? path : '$path?${parts.join('&')}';
 }
 

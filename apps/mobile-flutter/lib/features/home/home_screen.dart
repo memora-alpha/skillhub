@@ -7,12 +7,23 @@ import '../../components/app_icon.dart';
 import '../../components/user_avatar.dart';
 import '../../components/feature_page.dart';
 import '../../components/tappable.dart';
+import '../../core/http/app_error.dart';
 import '../../core/theme/tokens.dart';
 import '../auth/session/auth_session.dart';
 import '../discovery/discovery_data.dart';
+import '../learning_paths/negotiation_message.dart';
 import '../messages/messages_data.dart';
 import '../shell/app_screen_layout.dart';
+import '../sessions/live_sessions.dart';
 import '../shell/navigation.dart';
+import '../remote/refresh_signal.dart';
+import '../wallet/wallet_feature.dart';
+
+String _creditText(Object? value) {
+  if (value == null) return '—';
+  final text = '$value'.trim();
+  return text.isEmpty ? '—' : text;
+}
 
 abstract final class _C {
   static const background = Chrome.background;
@@ -56,7 +67,7 @@ class HomeScreen extends ConsumerWidget {
     final session = ref.watch(accountSessionProvider);
     if (session == null) return const SizedBox.shrink();
     final conversationList = ref.watch(
-      messagesProvider.select((s) => s.conversations),
+      messagesProvider.select((s) => s.previews),
     );
     final requests =
         ref.watch(recommendedRequestsProvider).value ?? const <LearningRequest>[];
@@ -77,15 +88,10 @@ class HomeScreen extends ConsumerWidget {
           return;
         }
       }
-      for (final conversation in conversationList) {
-        if (conversation.name == label) {
-          context.push('/chat/${conversation.proposal}');
-          return;
-        }
-      }
       context.push('/discover');
     }
 
+    final upcoming = ref.watch(upcomingSessionProvider);
     final words = session.name.trim().split(RegExp(r'\s+'));
     final name = words.length > 2
         ? words.sublist(words.length - 2).join(' ')
@@ -95,8 +101,14 @@ class HomeScreen extends ConsumerWidget {
       title: '',
       selected: 'Trang chủ',
       background: _C.background,
-      child: ListView(
-        padding: const EdgeInsets.all(20),
+      child: RefreshIndicator(
+        onRefresh: () => pullRefresh(
+          ref,
+          const {RefreshScope.study, RefreshScope.discover},
+        ),
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(20),
         children: [
           Center(
             child: ConstrainedBox(
@@ -107,6 +119,14 @@ class HomeScreen extends ConsumerWidget {
                 children: [
                   _HomeContent(
                     name: name,
+                    nextSession: upcoming.asData?.value,
+                    sessionsLoading: upcoming.isLoading && !upcoming.hasValue,
+                    sessionsError: upcoming.hasError
+                        ? errorMessage(upcoming.error)
+                        : null,
+                    balance: _creditText(
+                      ref.watch(walletProvider).value?['availableCredit'],
+                    ),
                     isNew: session.isNew,
                     reputation: profile.reputationScore?.round() ?? 0,
                     learned: profile.completedSessionCount,
@@ -125,10 +145,17 @@ class HomeScreen extends ConsumerWidget {
                     messages: [
                       for (final item in conversationList.take(4))
                         (
-                          id: item.proposal,
-                          name: item.name,
+                          id: item.id,
+                          name: item.name.isEmpty
+                              ? 'Thành viên SkillHub'
+                              : item.name,
                           userId: item.userId,
-                          message: item.last,
+                          avatarUrl: item.avatarUrl,
+                          message: item.last.isEmpty
+                              ? 'Đề xuất đã chấp nhận'
+                              : conversationMessagePreview(item.last),
+                          topic: item.inboxTitle,
+                          reference: conversationReference(item.proposal),
                           time: item.time,
                           unread: item.unread,
                         ),
@@ -140,6 +167,7 @@ class HomeScreen extends ConsumerWidget {
             ),
           ),
         ],
+        ),
       ),
     );
   }
@@ -148,6 +176,10 @@ class HomeScreen extends ConsumerWidget {
 class _HomeContent extends StatelessWidget {
   const _HomeContent({
     required this.name,
+    required this.nextSession,
+    required this.sessionsLoading,
+    required this.sessionsError,
+    required this.balance,
     required this.isNew,
     required this.reputation,
     required this.learned,
@@ -158,6 +190,10 @@ class _HomeContent extends StatelessWidget {
   });
 
   final String name;
+  final Map<String, dynamic>? nextSession;
+  final bool sessionsLoading;
+  final String? sessionsError;
+  final String balance;
   final bool isNew;
   final int reputation;
   final int learned;
@@ -178,7 +214,10 @@ class _HomeContent extends StatelessWidget {
       String id,
       String name,
       String userId,
+      String? avatarUrl,
       String message,
+      String topic,
+      String reference,
       String time,
       int unread,
     })
@@ -199,7 +238,15 @@ class _HomeContent extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       spacing: 28,
       children: [
-        _SessionCard(isNew: true, onAction: onAction),
+        _SessionCard(
+          session: nextSession,
+          loading: sessionsLoading,
+          error: sessionsError,
+          onOpen: nextSession == null
+              ? null
+              : () => context.push('/learning-sessions/${nextSession!['id']}'),
+          onDiscover: () => onAction('Khám phá'),
+        ),
         Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -523,11 +570,15 @@ class _HomeContent extends StatelessWidget {
                         ],
                       ),
                     ),
-                  for (var i = 0; i < messages.length; i++)
+                  for (final message in messages)
                     _MessageRow(
-                      message: messages[i],
-                      first: i == 0,
-                      onTap: () => onAction(messages[i].name),
+                      key: ValueKey(message.id),
+                      message: message,
+                      first: message.id == messages.first.id,
+                      onTap: () {
+                        final id = message.id;
+                        GoRouter.of(context).push('/chat/$id');
+                      },
                     ),
                 ],
               ),
@@ -607,7 +658,7 @@ class _HomeContent extends StatelessWidget {
                         ),
                         Text.rich(
                           TextSpan(
-                            text: '0 ',
+                            text: '$balance ',
                             children: const [
                               TextSpan(
                                 text: 'CR',
@@ -651,10 +702,19 @@ class _HomeContent extends StatelessWidget {
 }
 
 class _SessionCard extends StatelessWidget {
-  const _SessionCard({required this.isNew, required this.onAction});
+  const _SessionCard({
+    required this.session,
+    required this.loading,
+    required this.error,
+    required this.onOpen,
+    required this.onDiscover,
+  });
 
-  final bool isNew;
-  final ValueChanged<String> onAction;
+  final Map<String, dynamic>? session;
+  final bool loading;
+  final String? error;
+  final VoidCallback? onOpen;
+  final VoidCallback onDiscover;
 
   @override
   Widget build(BuildContext context) {
@@ -663,6 +723,24 @@ class _SessionCard extends StatelessWidget {
       weight: FontWeight.w600,
       color: _C.body,
     );
+    final start = session == null ? null : sessionInstant(session!['startAt']);
+    final title = loading
+        ? 'Đang tải buổi học'
+        : error != null
+        ? 'Không tải được buổi học'
+        : session == null
+        ? 'Chưa có buổi học sắp tới'
+        : sessionRoleLabel(session!);
+    final detail = loading
+        ? 'Đang lấy buổi học từ hệ thống.'
+        : error ??
+              (session == null
+                  ? 'Tìm kỹ năng bạn muốn học và kết nối với người hướng dẫn.'
+                  : [
+                      if (start != null) viDateTime(start),
+                      '${sessionMinutes(session!)} phút',
+                      sessionStatusLabel(session!['status']),
+                    ].join(' · '));
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -684,146 +762,58 @@ class _SessionCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         spacing: 12,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          _Chip(
+            background: const Color(0xFFFFFAF5),
             children: [
-              _Chip(
-                background: const Color(0xFFFFFAF5),
-                children: [
-                  Container(
-                    width: 6,
-                    height: 6,
-                    decoration: const BoxDecoration(
-                      color: _C.green,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  Text(
-                    isNew ? 'Buổi học tiếp theo' : 'Sắp diễn ra',
-                    style: caption,
-                  ),
-                ],
-              ),
-              if (!isNew)
-                _Chip(
-                  background: const Color(0x73FFFFFF),
-                  children: [
-                    const AppIcon(
-                      AppIcon.video,
-                      size: IconSizes.inline,
-                      color: _C.body,
-                    ),
-                    Text('Google Meet', style: caption),
-                  ],
+              Container(
+                width: 6,
+                height: 6,
+                decoration: const BoxDecoration(
+                  color: _C.green,
+                  shape: BoxShape.circle,
                 ),
+              ),
+              Text('Buổi học tiếp theo', style: caption),
             ],
           ),
           Text(
-            'Chưa có buổi học sắp tới',
+            title,
             style: nunito((18, 25), weight: FontWeight.w700, color: _C.ink),
           ),
-          if (isNew)
-            Text(
-              'Tìm kỹ năng bạn muốn học và kết nối với người hướng dẫn.',
-              style: nunito(
-                TypeScale.secondary,
-                weight: FontWeight.w500,
-                color: _C.body,
-              ),
-            )
-          else
-            Row(
-              spacing: 7,
-              children: [
-                UserAvatar(
-                  name: '',
-                  userId: '',
-                  size: AvatarSizes.compact,
-                ),
-                Flexible(
-                  child: Text(
-                    '',
+          Text(
+            detail,
+            style: nunito(
+              TypeScale.secondary,
+              weight: FontWeight.w500,
+              color: _C.body,
+            ),
+          ),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: AppButton(
+              size: ButtonSize.sm,
+              variant: ButtonVariant.white,
+              minHeight: 36,
+              onPressed: session == null ? onDiscover : onOpen,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                spacing: 4,
+                children: [
+                  Text(
+                    session == null ? 'Khám phá kỹ năng' : 'Mở buổi học',
                     style: nunito(
                       TypeScale.secondary,
-                      weight: FontWeight.w600,
-                      color: _C.body,
+                      weight: FontWeight.w700,
+                      color: _C.orange,
                     ),
                   ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 2,
+                  const AppIcon(
+                    AppIcon.arrow,
+                    size: IconSizes.inline,
+                    color: _C.orange,
                   ),
-                  decoration: BoxDecoration(
-                    color: const Color(0x99FFFFFF),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    'Mentor',
-                    style: nunito(
-                      TypeScale.caption,
-                      weight: FontWeight.w500,
-                      color: _C.orangeDark,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          Padding(
-            padding: const EdgeInsets.only(top: 16),
-            child: Wrap(
-              alignment: WrapAlignment.spaceBetween,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              spacing: 10,
-              runSpacing: 10,
-              children: [
-                if (!isNew)
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    spacing: 6,
-                    children: [
-                      const AppIcon(
-                        AppIcon.clock,
-                        size: 14,
-                        color: _C.orangeDark,
-                      ),
-                      Text(
-                        '',
-                        style: nunito(
-                          TypeScale.secondary,
-                          weight: FontWeight.w500,
-                          color: _C.body,
-                        ),
-                      ),
-                    ],
-                  ),
-                AppButton(
-                  size: ButtonSize.sm,
-                  variant: ButtonVariant.white,
-                  minHeight: 36,
-                  onPressed: () => onAction(isNew ? 'Khám phá' : 'Vào học'),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    spacing: 4,
-                    children: [
-                      Text(
-                        isNew ? 'Khám phá kỹ năng' : 'Vào học',
-                        style: nunito(
-                          TypeScale.secondary,
-                          weight: FontWeight.w700,
-                          color: _C.orange,
-                        ),
-                      ),
-                      const AppIcon(
-                        AppIcon.arrow,
-                        size: IconSizes.inline,
-                        color: _C.orange,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ],
@@ -834,6 +824,7 @@ class _SessionCard extends StatelessWidget {
 
 class _MessageRow extends StatelessWidget {
   const _MessageRow({
+    super.key,
     required this.message,
     required this.first,
     required this.onTap,
@@ -843,7 +834,10 @@ class _MessageRow extends StatelessWidget {
     String id,
     String name,
     String userId,
+    String? avatarUrl,
     String message,
+    String topic,
+    String reference,
     String time,
     int unread,
   })
@@ -854,7 +848,8 @@ class _MessageRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Tappable(
-      semanticLabel: 'Tin nhắn từ ${message.name}',
+      semanticLabel:
+          'Tin nhắn về ${message.topic}, với ${message.name}, ${message.message}',
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 14),
@@ -869,6 +864,7 @@ class _MessageRow extends StatelessWidget {
                 UserAvatar(
                   name: message.name,
                   userId: message.userId,
+                  imageUrl: message.avatarUrl,
                   size: AvatarSizes.list,
                 ),
                 if (first)
@@ -897,7 +893,7 @@ class _MessageRow extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          message.name,
+                          message.topic,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: _label,
@@ -919,6 +915,16 @@ class _MessageRow extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: _caption.copyWith(
                       color: message.unread > 0 ? _C.body : null,
+                    ),
+                  ),
+                  Text(
+                    '${message.name} · ${message.reference}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: nunito(
+                      TypeScale.caption,
+                      weight: FontWeight.w500,
+                      color: _C.muted,
                     ),
                   ),
                 ],

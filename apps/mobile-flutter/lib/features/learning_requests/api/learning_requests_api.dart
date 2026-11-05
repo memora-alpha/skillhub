@@ -6,22 +6,33 @@ class LearningRequestsApi {
 
   final HttpClient _client;
 
-  Future<Page<LearningRequestCard>> feed({String? cursor, int? limit}) =>
-      _page('/learning-requests', cursor, limit);
+  Future<Page<LearningRequestCard>> feed({
+    String? cursor,
+    int? limit,
+    RequestQuery query = const RequestQuery(),
+  }) => _page('/learning-requests', cursor, limit, query);
 
-  Future<Page<Map<String, dynamic>>> mine({String? cursor, int? limit}) async =>
-      Page.parse(
-        await _client.requestEnvelope(
-          withQuery('/learning-requests/mine', {'cursor': cursor, 'limit': limit}),
-          authenticated: true,
-        ),
-        asMap,
-      );
+  Future<Page<Map<String, dynamic>>> mine({
+    String? cursor,
+    int? limit,
+    RequestQuery query = const RequestQuery(),
+  }) async => Page.parse(
+    await _client.requestEnvelope(
+      withQuery('/learning-requests/mine', {
+        ...query.asQuery(),
+        'cursor': cursor,
+        'limit': limit,
+      }),
+      authenticated: true,
+    ),
+    asMap,
+  );
 
   Future<Page<LearningRequestCard>> recommended({
     String? cursor,
     int? limit,
-  }) => _page('/learning-requests/recommended', cursor, limit);
+    RequestQuery query = const RequestQuery(),
+  }) => _page('/learning-requests/recommended', cursor, limit, query);
 
   Future<Map<String, dynamic>> get(String requestId) async => asMap(
     await _client.request('/learning-requests/$requestId', authenticated: true),
@@ -64,9 +75,14 @@ class LearningRequestsApi {
     String path,
     String? cursor,
     int? limit,
+    RequestQuery query,
   ) async => Page.parse(
     await _client.requestEnvelope(
-      withQuery(path, {'cursor': cursor, 'limit': limit}),
+      withQuery(path, {
+        ...query.asQuery(),
+        'cursor': cursor,
+        'limit': limit,
+      }),
       authenticated: true,
     ),
     LearningRequestCard.parse,

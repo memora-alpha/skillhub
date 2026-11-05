@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -11,7 +9,9 @@ import '../../components/misc.dart';
 import '../../core/http/app_error.dart';
 import '../../core/toast/toast.dart';
 import '../auth/session/auth_session.dart';
+import '../remote/refresh_signal.dart';
 import '../remote/remote_load.dart';
+import 'payment_auto_read.dart';
 
 String _text(Object? value) => value?.toString() ?? '';
 
@@ -29,12 +29,14 @@ bool _validAmount(String value) {
 }
 
 final walletProvider = FutureProvider<Map<String, dynamic>>((ref) async {
+  watchRefresh(ref, RefreshScope.study);
   final phase = ref.watch(sessionSnapshotProvider).phase;
   if (phase != SessionPhase.ready) return const {};
   return ref.read(authRuntimeProvider).services.wallet.wallet();
 });
 
 final ledgerProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  watchRefresh(ref, RefreshScope.study);
   final phase = ref.watch(sessionSnapshotProvider).phase;
   if (phase != SessionPhase.ready) return const [];
   return drainPages(
@@ -47,6 +49,7 @@ final ledgerProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
 });
 
 final paymentsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  watchRefresh(ref, RefreshScope.study);
   final phase = ref.watch(sessionSnapshotProvider).phase;
   if (phase != SessionPhase.ready) return const [];
   return drainPages(
@@ -75,6 +78,7 @@ class WalletScreen extends ConsumerWidget {
       title: 'Ví Credit',
       back: '/profile',
       subtitle: 'Credit dùng để học và chia sẻ trên SkillHub.',
+      onRefresh: () => pullRefresh(ref, const {RefreshScope.study}),
       children: [
         Panel(
           title: 'Ví tài khoản',
@@ -256,13 +260,83 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen> {
   }
 }
 
-class PaymentStatusScreen extends ConsumerWidget {
+class PaymentStatusScreen extends ConsumerStatefulWidget {
   const PaymentStatusScreen({super.key, this.id = ''});
 
   final String id;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PaymentStatusScreen> createState() =>
+      _PaymentStatusScreenState();
+}
+
+class _PaymentStatusScreenState extends ConsumerState<PaymentStatusScreen>
+    with WidgetsBindingObserver {
+  VoidCallback? _stopWatching;
+  var _foreground = true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _syncWatching());
+  }
+
+  @override
+  void didUpdateWidget(PaymentStatusScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.id != widget.id) _syncWatching();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final next = state == AppLifecycleState.resumed;
+    if (next == _foreground) return;
+    _foreground = next;
+    _syncWatching();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _stopWatching?.call();
+    super.dispose();
+  }
+
+  void _syncWatching() {
+    _stopWatching?.call();
+    _stopWatching = null;
+    final id = widget.id;
+    if (!mounted || !_foreground || id.isEmpty) return;
+    _stopWatching = startPaymentReadLoop(
+      current: () =>
+          mounted &&
+          _foreground &&
+          ref.read(sessionSnapshotProvider).phase == SessionPhase.ready,
+      snapshot: () {
+        final payment = ref.read(_paymentProvider(id));
+        return PaymentReadSnapshot(
+          id: id,
+          status: payment.value?['status']?.toString(),
+          denied: payment.hasError && isDeniedPaymentRead(payment.error),
+        );
+      },
+      read: () async {
+        if (!mounted) return;
+        ref.invalidate(_paymentProvider(id));
+        try {
+          await ref.read(_paymentProvider(id).future);
+        } catch (error) {
+          if (isDeniedPaymentRead(error)) return;
+          rethrow;
+        }
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final id = widget.id;
     if (id.isEmpty) {
       return const FeaturePage(
         title: 'Trạng thái thanh toán',
@@ -279,12 +353,16 @@ class PaymentStatusScreen extends ConsumerWidget {
     final data = payment.value ?? const {};
     final checkout = data['checkout'];
     final qr = checkout is Map ? checkout['qrCode']?.toString() ?? '' : '';
+    final status = _text(data['status']);
+    final waiting = !isTerminalPaymentStatus(status) &&
+        status.isNotEmpty &&
+        !(payment.hasError && isDeniedPaymentRead(payment.error));
     return FeaturePage(
       title: 'Trạng thái thanh toán',
       back: '/wallet',
       children: [
         Panel(
-          title: _text(data['status']).isEmpty ? 'Đang tải' : _text(data['status']),
+          title: status.isEmpty ? 'Đang tải' : status,
           children: [
             if (payment.isLoading && data.isEmpty)
               const Copy('Đang đọc lệnh thanh toán.', muted: true)
@@ -316,9 +394,20 @@ class PaymentStatusScreen extends ConsumerWidget {
                     ),
                   ),
                 ),
-              if (_text(data['recoveryReason']).isNotEmpty)
+              if (_text(data['recoveryReason']) == 'PAYMENT_RECOVERY_PENDING') ...[
+                const FormNotice(
+                  tone: NoticeTone.info,
+                  message:
+                      'Chưa tạo được mã QR từ cổng thanh toán. Hệ thống đang thử lại — chưa trừ tiền ngân hàng.',
+                ),
+                const Copy(
+                  'Nếu chờ lâu: bấm Hủy lệnh rồi tạo lệnh nạp mới. “Tải lại” chỉ cập nhật trạng thái, không tạo QR.',
+                  muted: true,
+                ),
+              ] else if (_text(data['recoveryReason']).isNotEmpty)
                 Copy(_text(data['recoveryReason'])),
-              if (data['status'] == 'PENDING' || data['status'] == 'CREATED')
+              if (waiting &&
+                  _text(data['recoveryReason']) != 'PAYMENT_RECOVERY_PENDING')
                 const Copy('Đang kiểm tra thanh toán...', muted: true),
               AppButton(
                 label: payment.isLoading && data.isEmpty ? 'Đang tải...' : 'Tải lại',
@@ -339,6 +428,14 @@ class PaymentStatusScreen extends ConsumerWidget {
                           .cancelPayment(id);
                       ref.invalidate(_paymentProvider(id));
                       ref.invalidate(paymentsProvider);
+                      ref.invalidate(walletProvider);
+                      if (context.mounted) {
+                        ref.read(toastProvider.notifier).show(
+                          'Đã hủy lệnh nạp. Bạn có thể tạo lệnh mới.',
+                          ToastTone.info,
+                        );
+                        context.go('/wallet/topup');
+                      }
                     } catch (error) {
                       ref
                           .read(toastProvider.notifier)
@@ -354,8 +451,6 @@ class PaymentStatusScreen extends ConsumerWidget {
   }
 }
 
-const _openPaymentStatuses = {'PENDING', 'CREATED'};
-
 final _paymentProvider = FutureProvider.family<Map<String, dynamic>, String>((
   ref,
   id,
@@ -363,12 +458,7 @@ final _paymentProvider = FutureProvider.family<Map<String, dynamic>, String>((
   final phase = ref.watch(sessionSnapshotProvider).phase;
   if (phase != SessionPhase.ready || id.isEmpty) return const {};
   final payment = await ref.read(authRuntimeProvider).services.wallet.payment(id);
-  final status = payment['status']?.toString() ?? '';
-  if (_openPaymentStatuses.contains(status)) {
-    // Temporary until payOS webhook or SSE updates this screen.
-    final timer = Timer(const Duration(seconds: 5), ref.invalidateSelf);
-    ref.onDispose(timer.cancel);
-  } else if (status == 'PAID') {
+  if (payment['status']?.toString() == 'PAID') {
     ref.invalidate(walletProvider);
     ref.invalidate(paymentsProvider);
   }

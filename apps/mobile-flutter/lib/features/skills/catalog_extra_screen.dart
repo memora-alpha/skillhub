@@ -7,6 +7,7 @@ import '../../components/misc.dart';
 import '../../core/http/app_error.dart';
 import '../../core/toast/toast.dart';
 import '../auth/session/auth_session.dart';
+import '../remote/refresh_signal.dart';
 import '../remote/remote_load.dart';
 import 'schema/skill_schema.dart';
 
@@ -18,9 +19,16 @@ class TagsScreen extends ConsumerWidget {
     final tags = ref.watch(_tagsProvider);
     final requests = ref.watch(_tagRequestsProvider);
     return FeaturePage(
+      onRefresh: () => pullRefresh(ref, const {RefreshScope.skills}),
       title: 'Thẻ kỹ năng',
       back: '/skills',
       children: [
+        WaitingRefresh(
+          scopes: const {RefreshScope.skills},
+          enabled: requests.value?.any((item) => item['status'] == 'PENDING') ??
+              false,
+          child: const SizedBox.shrink(),
+        ),
         DataForm(
           fields: [
             DataField(
@@ -107,6 +115,7 @@ final _tagsProvider = FutureProvider<List<TagRecord>>((ref) async {
 final _tagRequestsProvider = FutureProvider<List<Map<String, dynamic>>>((
   ref,
 ) async {
+  watchRefresh(ref, RefreshScope.skills);
   final phase = ref.watch(sessionSnapshotProvider).phase;
   if (phase != SessionPhase.ready) return const [];
   return drainPages(
@@ -129,6 +138,7 @@ class CatalogSkillScreen extends ConsumerWidget {
     final levels = ref.watch(_levelsProvider(skillId));
     final record = skill.value;
     return FeaturePage(
+      onRefresh: () => pullRefresh(ref, const {RefreshScope.skills}),
       title: record?.name ?? 'Kỹ năng trong danh mục',
       back: '/skills',
       children: [
@@ -195,6 +205,7 @@ class VerificationDetailScreen extends ConsumerWidget {
     final data = detail.value ?? const {};
     final files = data['evidence'] ?? data['files'];
     return FeaturePage(
+      onRefresh: () => pullRefresh(ref, const {RefreshScope.skills}),
       title: 'Hồ sơ xác minh',
       back: '/skills/history',
       children: [

@@ -1,8 +1,8 @@
-import 'dart:typed_data';
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
 import '../core/theme/tokens.dart';
+import 'avatar_web_image.dart';
 
 const _palette = [
   (Color(0xFFFFE3D5), Color(0xFF9A3D20)),
@@ -60,6 +60,7 @@ class Avatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final personKey = userId ?? name;
     final (background, foreground) = avatarColors(
       userId ?? name.trim().toLowerCase(),
     );
@@ -78,24 +79,61 @@ class Avatar extends StatelessWidget {
         ),
       ),
     );
+
+    // Web + network URL: HTML <img> with CSS border-radius. Do not wrap in
+    // ClipOval — Flutter clips hide HtmlPlatformViews (esp. under DevicePreview).
+    if (kIsWeb && imageBytes == null && imageUrl != null) {
+      return SizedBox(
+        key: ValueKey('avatar:$personKey'),
+        width: size,
+        height: size,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            DecoratedBox(
+              decoration: BoxDecoration(
+                color: background,
+                shape: BoxShape.circle,
+              ),
+              child: initials,
+            ),
+            AvatarWebImage(
+              url: imageUrl!,
+              viewKey: personKey,
+              onError: onImageError,
+            ),
+          ],
+        ),
+      );
+    }
+
     Widget child = initials;
     if (imageBytes != null) {
       child = Image.memory(imageBytes!, fit: BoxFit.cover);
     } else if (imageUrl != null) {
-      child = Image.network(
-        imageUrl!,
-        fit: BoxFit.cover,
-        gaplessPlayback: true,
-        webHtmlElementStrategy: WebHtmlElementStrategy.prefer,
-        errorBuilder: (_, _, _) {
-          if (onImageError != null) {
-            WidgetsBinding.instance.addPostFrameCallback((_) => onImageError!());
-          }
-          return initials;
-        },
+      child = Stack(
+        fit: StackFit.expand,
+        children: [
+          initials,
+          Image.network(
+            imageUrl!,
+            key: ValueKey('$personKey|$imageUrl'),
+            fit: BoxFit.cover,
+            gaplessPlayback: true,
+            errorBuilder: (_, _, _) {
+              if (onImageError != null) {
+                WidgetsBinding.instance.addPostFrameCallback(
+                  (_) => onImageError!(),
+                );
+              }
+              return const SizedBox.shrink();
+            },
+          ),
+        ],
       );
     }
     return ClipOval(
+      key: ValueKey('avatar:$personKey'),
       child: Container(
         width: size,
         height: size,

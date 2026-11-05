@@ -7,6 +7,7 @@ import '../../core/theme/tokens.dart';
 import '../auth/session/auth_session.dart';
 import '../shell/app_screen_layout.dart';
 import '../shell/navigation.dart';
+import '../remote/refresh_signal.dart';
 import 'profile_widgets.dart';
 
 class ProfileScreen extends ConsumerWidget {
@@ -25,7 +26,13 @@ class ProfileScreen extends ConsumerWidget {
       background: Chrome.background,
       surface: Chrome.surface,
       noticeBody: (label) => label == 'Thông báo' ? null : profileNoticeBody(label),
-      child: ListView(
+      child: RefreshIndicator(
+        onRefresh: () async {
+          ref.read(refreshTicksProvider.notifier).bump(const {RefreshScope.profile});
+          await ref.read(accountProvider.notifier).reload();
+        },
+        child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         children: [
           Center(
@@ -61,6 +68,7 @@ class ProfileScreen extends ConsumerWidget {
             ),
           ),
         ],
+        ),
       ),
     );
   }

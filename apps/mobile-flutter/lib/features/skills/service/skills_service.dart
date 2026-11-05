@@ -82,7 +82,13 @@ class SkillsService {
     String skillId, {
     String? cursor,
     int? limit,
-  }) => _api.listSharers(skillId, cursor: cursor, limit: limit);
+    bool verifiedOnly = false,
+  }) => _api.listSharers(
+    skillId,
+    cursor: cursor,
+    limit: limit,
+    verifiedOnly: verifiedOnly,
+  );
 
   Future<Page<SharingSkillRecord>> profileSkills(
     String userId, {

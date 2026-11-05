@@ -2,9 +2,11 @@ import 'dart:ui';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/http/app_error.dart';
 import '../../core/theme/tokens.dart';
 import '../auth/session/auth_session.dart';
 import '../learning_requests/schema/learning_request_schema.dart';
+import '../remote/refresh_signal.dart';
 
 abstract final class DiscoveryColors {
   static const background = Chrome.background;
@@ -37,7 +39,9 @@ class LearningRequest {
     required this.sessions,
     required this.created,
     required this.category,
+    this.skillId = '',
     this.goal = '',
+    this.avatarUrl,
   });
 
   final String id;
@@ -49,7 +53,9 @@ class LearningRequest {
   final int sessions;
   final String created;
   final String category;
+  final String skillId;
   final String goal;
+  final String? avatarUrl;
 
   int get budgetCredit => int.tryParse(budget.split(' ').first) ?? 0;
 }
@@ -66,7 +72,9 @@ LearningRequest learningRequestFromCard(LearningRequestCard card) => LearningReq
   sessions: 0,
   created: _shortWhen(card.createdAt),
   category: card.skill.name,
+  skillId: card.skill.id,
   goal: card.learningGoal,
+  avatarUrl: card.ownerAvatarUrl,
 );
 
 String _shortWhen(String? value) {
@@ -80,30 +88,63 @@ String _shortWhen(String? value) {
   return '$day/$month $hour:$minute';
 }
 
-final learningRequestsProvider = FutureProvider<List<LearningRequest>>((
-  ref,
+List<LearningRequest> _lastFeed = const [];
+List<LearningRequest> _lastRecommended = const [];
+
+Future<List<LearningRequest>> _loadRequests(
+  Ref ref,
+  RequestQuery query,
 ) async {
+  watchRefresh(ref, RefreshScope.discover);
   final phase = ref.watch(sessionSnapshotProvider).phase;
   if (phase != SessionPhase.ready) return const [];
-  final page = await ref
-      .read(authRuntimeProvider)
-      .services
-      .learningRequests
-      .feed(limit: 50);
-  return [for (final card in page.items) learningRequestFromCard(card)];
-});
+  try {
+    final page = await ref
+        .read(authRuntimeProvider)
+        .services
+        .learningRequests
+        .feed(limit: 50, query: query);
+    final next = [for (final card in page.items) learningRequestFromCard(card)];
+    if (query.keyword == null && query.tagIds.isEmpty) {
+      _lastFeed = next;
+    }
+    return next;
+  } catch (error) {
+    if (isTransientReadError(error)) return _lastFeed;
+    rethrow;
+  }
+}
+
+final learningRequestsProvider = FutureProvider<List<LearningRequest>>(
+  (ref) => _loadRequests(ref, const RequestQuery()),
+);
+
+final filteredLearningRequestsProvider =
+    FutureProvider.family<List<LearningRequest>, RequestQuery>(
+      (ref, query) => _loadRequests(ref, query),
+    );
 
 final recommendedRequestsProvider = FutureProvider<List<LearningRequest>>((
   ref,
 ) async {
+  watchRefresh(ref, RefreshScope.discover);
   final phase = ref.watch(sessionSnapshotProvider).phase;
   if (phase != SessionPhase.ready) return const [];
-  final page = await ref
-      .read(authRuntimeProvider)
-      .services
-      .learningRequests
-      .recommended(limit: 20);
-  return [for (final card in page.items) learningRequestFromCard(card)];
+  try {
+    final page = await ref
+        .read(authRuntimeProvider)
+        .services
+        .learningRequests
+        .recommended(limit: 20);
+    final next = [
+      for (final card in page.items) learningRequestFromCard(card),
+    ];
+    _lastRecommended = next;
+    return next;
+  } catch (error) {
+    if (isTransientReadError(error)) return _lastRecommended;
+    rethrow;
+  }
 });
 
 class RequestDetailContent {
@@ -138,6 +179,7 @@ final serverRequestProvider = FutureProvider.family<Map<String, dynamic>, String
   ref,
   id,
 ) async {
+  watchRefresh(ref, RefreshScope.discover);
   final phase = ref.watch(sessionSnapshotProvider).phase;
   if (phase != SessionPhase.ready || id.isEmpty) return const {};
   return ref.read(authRuntimeProvider).services.learningRequests.get(id);

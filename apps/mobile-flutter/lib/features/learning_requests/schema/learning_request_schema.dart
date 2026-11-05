@@ -1,5 +1,44 @@
 import '../../../core/http/http_client.dart';
 
+class RequestQuery {
+  const RequestQuery({
+    this.keyword,
+    this.skillId,
+    this.status,
+    this.tagIds = const [],
+  });
+
+  final String? keyword;
+  final String? skillId;
+  final String? status;
+  final List<String> tagIds;
+
+  Map<String, Object?> asQuery() => {
+    'keyword': ?keyword,
+    'skillId': ?skillId,
+    'status': ?status,
+    if (tagIds.isNotEmpty) 'tagIds': tagIds,
+  };
+
+  @override
+  bool operator ==(Object other) {
+    if (other is! RequestQuery) return false;
+    if (other.keyword != keyword ||
+        other.skillId != skillId ||
+        other.status != status ||
+        other.tagIds.length != tagIds.length) {
+      return false;
+    }
+    for (var i = 0; i < tagIds.length; i++) {
+      if (other.tagIds[i] != tagIds[i]) return false;
+    }
+    return true;
+  }
+
+  @override
+  int get hashCode => Object.hash(keyword, skillId, status, Object.hashAll(tagIds));
+}
+
 class NamedRef {
   const NamedRef({required this.id, required this.name});
 
@@ -22,6 +61,7 @@ class LearningRequestCard {
     required this.verifiedTeacherOnly,
     this.ownerId = '',
     this.ownerName = '',
+    this.ownerAvatarUrl,
     this.tagLabels = const [],
     this.desiredCreditPerHour,
     this.createdAt,
@@ -36,6 +76,7 @@ class LearningRequestCard {
   final bool verifiedTeacherOnly;
   final String ownerId;
   final String ownerName;
+  final String? ownerAvatarUrl;
   final List<String> tagLabels;
   final String? desiredCreditPerHour;
   final String? createdAt;
@@ -44,8 +85,11 @@ class LearningRequestCard {
   static LearningRequestCard parse(Object? value) {
     final json = asMap(value);
     final owner = json['owner'];
-    final ownerMap = owner is Map<String, dynamic> ? owner : null;
+    final ownerMap = owner is Map
+        ? Map<String, dynamic>.from(owner)
+        : null;
     final tags = json['tags'];
+    final avatar = ownerMap?['avatarUrl'];
     return LearningRequestCard(
       id: asString(json['id']),
       title: asString(json['title']),
@@ -55,6 +99,7 @@ class LearningRequestCard {
       verifiedTeacherOnly: asBool(json['verifiedTeacherOnly']),
       ownerId: ownerMap == null ? '' : asText(ownerMap['id']),
       ownerName: ownerMap == null ? '' : asText(ownerMap['displayName']),
+      ownerAvatarUrl: avatar is String && avatar.isNotEmpty ? avatar : null,
       tagLabels: tags is List
           ? [
               for (final tag in tags)
@@ -68,6 +113,80 @@ class LearningRequestCard {
   }
 }
 
+const weekdays = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+const weekdayLabels = [
+  'Thứ 2',
+  'Thứ 3',
+  'Thứ 4',
+  'Thứ 5',
+  'Thứ 6',
+  'Thứ 7',
+  'Chủ nhật',
+];
+
+String weekdayLabel(String weekday) {
+  final index = weekdays.indexOf(weekday);
+  return index < 0 ? weekday : weekdayLabels[index];
+}
+
+class WeeklySlot {
+  const WeeklySlot({
+    required this.weekday,
+    required this.startTime,
+    required this.endTime,
+  });
+
+  final String weekday;
+  final String startTime;
+  final String endTime;
+
+  static WeeklySlot? tryParse(Object? value) {
+    if (value is! Map) return null;
+    final json = Map<String, dynamic>.from(value);
+    final weekday = json['weekday']?.toString() ?? '';
+    final start = json['startTime']?.toString() ?? '';
+    final end = json['endTime']?.toString() ?? '';
+    if (weekday.isEmpty || start.isEmpty || end.isEmpty) return null;
+    return WeeklySlot(weekday: weekday, startTime: start, endTime: end);
+  }
+
+  Map<String, String> toJson() => {
+    'weekday': weekday,
+    'startTime': startTime,
+    'endTime': endTime,
+  };
+}
+
+class PreferredAvailability {
+  const PreferredAvailability({
+    required this.timeZone,
+    required this.weeklySlots,
+  });
+
+  final String timeZone;
+  final List<WeeklySlot> weeklySlots;
+
+  static PreferredAvailability? tryParse(Object? value) {
+    if (value is! Map) return null;
+    final json = Map<String, dynamic>.from(value);
+    final zone = json['timeZone']?.toString() ?? '';
+    final slots = json['weeklySlots'];
+    if (zone.isEmpty) return null;
+    return PreferredAvailability(
+      timeZone: zone,
+      weeklySlots: [
+        if (slots is List)
+          for (final item in slots) ?WeeklySlot.tryParse(item),
+      ],
+    );
+  }
+
+  Map<String, Object?> toJson() => {
+    'timeZone': timeZone,
+    'weeklySlots': [for (final slot in weeklySlots) slot.toJson()],
+  };
+}
+
 class LearningRequestDraft {
   const LearningRequestDraft({
     required this.title,
@@ -78,6 +197,11 @@ class LearningRequestDraft {
     this.verifiedTeacherOnly = false,
     this.tagIds = const [],
     this.preferredSlots = const [],
+    this.teachingOverview,
+    this.offeredSharingSkillIds = const [],
+    this.desiredCreditPerHour,
+    this.preferredAvailability,
+    this.expiresAt,
   });
 
   final String title;
@@ -88,23 +212,36 @@ class LearningRequestDraft {
   final bool verifiedTeacherOnly;
   final List<String> tagIds;
   final List<({DateTime startAt, DateTime endAt})> preferredSlots;
+  final String? teachingOverview;
+  final List<String> offeredSharingSkillIds;
+  final String? desiredCreditPerHour;
+  final PreferredAvailability? preferredAvailability;
+  final DateTime? expiresAt;
 
-  Map<String, Object?> toJson({int? expectedVersion}) => {
-    'title': title,
-    'skillId': skillId,
-    'description': description,
-    'learningGoal': learningGoal,
-    'currentLevel': ?currentLevel,
-    'verifiedTeacherOnly': verifiedTeacherOnly,
-    if (tagIds.isNotEmpty) 'tagIds': tagIds,
-    if (preferredSlots.isNotEmpty)
+  Map<String, Object?> toJson({int? expectedVersion}) {
+    final weekly = preferredAvailability?.weeklySlots ?? const <WeeklySlot>[];
+    return {
+      'title': title,
+      'skillId': skillId,
+      'description': description,
+      'learningGoal': learningGoal,
+      'currentLevel': currentLevel,
+      'verifiedTeacherOnly': verifiedTeacherOnly,
+      'tagIds': tagIds,
+      'teachingOverview': teachingOverview,
+      'offeredSharingSkillIds': offeredSharingSkillIds,
+      'desiredCreditPerHour': desiredCreditPerHour,
+      'preferredAvailability': preferredAvailability?.toJson(),
       'preferredSlots': [
-        for (final slot in preferredSlots)
-          {
-            'startAt': slot.startAt.toUtc().toIso8601String(),
-            'endAt': slot.endAt.toUtc().toIso8601String(),
-          },
+        if (weekly.isEmpty)
+          for (final slot in preferredSlots)
+            {
+              'startAt': slot.startAt.toUtc().toIso8601String(),
+              'endAt': slot.endAt.toUtc().toIso8601String(),
+            },
       ],
-    'expectedVersion': ?expectedVersion,
-  };
+      'expiresAt': expiresAt?.toUtc().toIso8601String(),
+      'expectedVersion': ?expectedVersion,
+    };
+  }
 }

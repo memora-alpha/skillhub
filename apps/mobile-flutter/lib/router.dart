@@ -21,6 +21,7 @@ import 'features/learning_paths/study_live_screen.dart';
 import 'features/learning_requests/requests_feature.dart';
 import 'features/materials/materials_feature.dart';
 import 'features/messages/messages_screens.dart';
+import 'features/notifications/notifications_screen.dart';
 import 'features/product_shell/product_shell_feature.dart';
 import 'features/profile/edit_profile_screen.dart';
 import 'features/profile/profile_screen.dart';
@@ -65,6 +66,8 @@ GoRoute _route(String path, Widget Function(GoRouterState state) build) =>
 String _p(GoRouterState s, String name) => s.pathParameters[name]!;
 String? _q(GoRouterState s, String name) => s.uri.queryParameters[name];
 
+final _rootKey = GlobalKey<NavigatorState>(debugLabel: 'root');
+
 /// Static segments such as `new`, `history`, `library` and `mine` must stay
 /// before their `:id` siblings because go_router matches in list order.
 final _featureRoutes = <GoRoute>[
@@ -74,9 +77,17 @@ final _featureRoutes = <GoRoute>[
     (s) => UserProfileScreen(id: _p(s, 'id'), requestId: _q(s, 'requestId')),
   ),
   _route('/session/:id', (s) => SessionDetailScreen(id: _p(s, 'id'))),
-  _route(
-    '/chat/:proposalId',
-    (s) => ChatScreen(proposalId: _p(s, 'proposalId')),
+  GoRoute(
+    path: '/chat/:proposalId',
+    parentNavigatorKey: _rootKey,
+    pageBuilder: (_, state) {
+      final id = _p(state, 'proposalId');
+      return MaterialPage<void>(
+        key: ValueKey<String>('chat-$id'),
+        restorationId: 'chat-$id',
+        child: ChatScreen(key: ValueKey<String>('chat-$id'), conversationId: id),
+      );
+    },
   ),
   _route(
     '/chat-attachment',
@@ -225,8 +236,6 @@ final _featureRoutes = <GoRoute>[
   ),
 ];
 
-final _rootKey = GlobalKey<NavigatorState>(debugLabel: 'root');
-
 final routerProvider = Provider<GoRouter>((ref) {
   final refresh = ValueNotifier(0);
   ref.listen(authStatusProvider, (_, _) => refresh.value++);
@@ -327,6 +336,29 @@ final routerProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: '/messages',
                 builder: (_, _) => const MessagesScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'with/:userId',
+                    builder: (_, state) => MessagePartnerScreen(
+                      userId: Uri.decodeComponent(
+                        state.pathParameters['userId'] ?? '',
+                      ),
+                    ),
+                    routes: [
+                      GoRoute(
+                        path: 'skill/:skillKey',
+                        builder: (_, state) => MessageSkillScreen(
+                          userId: Uri.decodeComponent(
+                            state.pathParameters['userId'] ?? '',
+                          ),
+                          skillKey: Uri.decodeComponent(
+                            state.pathParameters['skillKey'] ?? '',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ],
           ),

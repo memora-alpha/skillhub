@@ -53,6 +53,7 @@ class AppButton extends StatelessWidget {
     this.loading = false,
     this.backgroundColor,
     this.border,
+    this.borderRadius,
     this.minHeight,
     this.semanticLabel,
   }) : assert(label != null || child != null);
@@ -66,6 +67,7 @@ class AppButton extends StatelessWidget {
   final bool loading;
   final Color? backgroundColor;
   final BoxBorder? border;
+  final double? borderRadius;
   final double? minHeight;
   final String? semanticLabel;
 
@@ -122,7 +124,7 @@ class AppButton extends StatelessWidget {
         padding: _paddings[size],
         decoration: BoxDecoration(
           color: backgroundColor ?? _backgrounds[variant],
-          borderRadius: BorderRadius.circular(Layout.radius),
+          borderRadius: BorderRadius.circular(borderRadius ?? Layout.radius),
           border:
               border ??
               (variant == ButtonVariant.paper

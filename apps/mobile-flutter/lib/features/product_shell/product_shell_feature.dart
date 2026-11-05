@@ -8,53 +8,12 @@ import '../../components/feature_page.dart';
 import '../../components/misc.dart';
 import '../../core/theme/tokens.dart';
 import '../auth/session/auth_session.dart';
-import 'live_inbox.dart';
 import '../discovery/discovery_data.dart';
 import '../profile/public_profiles_data.dart';
-import '../remote/remote_load.dart';
-import '../shell/inbox_count.dart';
-import 'schema/notification_schema.dart';
-
-class PreviewNotification {
-  const PreviewNotification({
-    required this.id,
-    required this.title,
-    required this.body,
-    required this.group,
-    required this.href,
-    this.read = false,
-  });
-
-  final String id;
-  final String title;
-  final String body;
-  final String group;
-  final String href;
-  final bool read;
-
-  PreviewNotification markRead() => PreviewNotification(
-    id: id,
-    title: title,
-    body: body,
-    group: group,
-    href: href,
-    read: true,
-  );
-}
 
 const _notificationGroups = ['Học tập', 'Credit', 'Cộng đồng'];
 
-PreviewNotification _notification(NotificationRecord record) => PreviewNotification(
-  id: record.id,
-  title: record.title,
-  body: record.body,
-  group: 'Học tập',
-  href: '/notifications',
-  read: record.readAt != null,
-);
-
 typedef ProductPreview = ({
-  List<PreviewNotification> notifications,
   List<String> enabled,
   List<String> interests,
   String timezone,
@@ -62,77 +21,25 @@ typedef ProductPreview = ({
 });
 
 class ProductPreviewNotifier extends Notifier<ProductPreview> {
-  var _ticket = 0;
-
   @override
-  ProductPreview build() {
-    final phase = ref.watch(sessionSnapshotProvider).phase;
-    final userId = ref.watch(accountProvider).value?.userId;
-    if (phase == SessionPhase.ready && userId != null) {
-      _ticket++;
-      _loadNotifications(_ticket);
-    }
-    return (
-      notifications: const [],
-      enabled: _notificationGroups,
-      interests: const [],
-      timezone: 'Asia/Ho_Chi_Minh',
-      language: 'Tiếng Việt',
-    );
-  }
-
-  Future<void> _loadNotifications(int ticket) async {
-    try {
-      final records = await drainPages(
-        (cursor) => ref
-            .read(authRuntimeProvider)
-            .services
-            .notifications
-            .list(cursor: cursor, limit: 50),
-      );
-      if (!ref.mounted || ticket != _ticket) return;
-      final items = [for (final record in records) _notification(record)];
-      _set(notifications: items);
-      ref.read(inboxCountProvider.notifier).setCount(
-        items.where((item) => !item.read).length,
-      );
-    } catch (_) {}
-  }
+  ProductPreview build() => (
+    enabled: _notificationGroups,
+    interests: const [],
+    timezone: 'Asia/Ho_Chi_Minh',
+    language: 'Tiếng Việt',
+  );
 
   void _set({
-    List<PreviewNotification>? notifications,
     List<String>? enabled,
     List<String>? interests,
     String? timezone,
     String? language,
   }) => state = (
-    notifications: notifications ?? state.notifications,
     enabled: enabled ?? state.enabled,
     interests: interests ?? state.interests,
     timezone: timezone ?? state.timezone,
     language: language ?? state.language,
   );
-
-  Future<void> read([String? id]) async {
-    final targets = [
-      for (final item in state.notifications)
-        if (!item.read && (id == null || item.id == id)) item.id,
-    ];
-    final next = [
-      for (final n in state.notifications)
-        id == null || n.id == id ? n.markRead() : n,
-    ];
-    _set(notifications: next);
-    ref
-        .read(inboxCountProvider.notifier)
-        .setCount(next.where((item) => !item.read).length);
-    final api = ref.read(authRuntimeProvider).services.notifications;
-    for (final notificationId in targets) {
-      try {
-        await api.markRead(notificationId);
-      } catch (_) {}
-    }
-  }
 
   void toggleGroup(String group) => _set(
     enabled: state.enabled.contains(group)
@@ -162,72 +69,6 @@ Iterable<LearningRequest> _searchRequests(
   List<LearningRequest> requests,
   String query,
 ) => requests.where((r) => _matches('${r.title} ${r.tags.join(' ')}', query));
-
-class NotificationsScreen extends ConsumerStatefulWidget {
-  const NotificationsScreen({super.key});
-
-  @override
-  ConsumerState<NotificationsScreen> createState() =>
-      _NotificationsScreenState();
-}
-
-class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
-  var _filter = 'Tất cả';
-
-  @override
-  Widget build(BuildContext context) {
-    final preview = ref.watch(productPreviewProvider);
-    final notifier = ref.read(productPreviewProvider.notifier);
-    final items = preview.notifications.where(
-      (n) =>
-          preview.enabled.contains(n.group) && (_filter == 'Tất cả' || !n.read),
-    );
-    return FeaturePage(
-      title: 'Thông báo',
-      back: '/home',
-      children: [
-        const LiveInbox(),
-        ChoiceGroup(
-          label: 'Hiển thị',
-          options: const ['Tất cả', 'Chưa đọc'],
-          value: _filter,
-          onChange: (value) => setState(() => _filter = value),
-        ),
-        AppButton(
-          label: 'Đánh dấu tất cả đã đọc',
-          variant: ButtonVariant.paper,
-          onPressed: notifier.read,
-        ),
-        for (final n in items)
-          Panel(
-            title: n.title,
-            children: [
-              StatusBadge(n.read ? 'Đã đọc' : 'Mới'),
-              Copy(n.body),
-              AppButton(
-                label: 'Xem nội dung liên quan',
-                variant: ButtonVariant.paper,
-                onPressed: () {
-                  notifier.read(n.id);
-                  context.push(n.href);
-                },
-              ),
-            ],
-          ),
-        if (items.isEmpty)
-          const EmptyState(
-            title: 'Không có thông báo',
-            description: 'Bạn đã xem hết hoặc nhóm thông báo này đã tắt trong bản xem thử.',
-          ),
-        const RouteButton(
-          secondary: true,
-          href: '/preferences/notifications',
-          label: 'Tùy chỉnh thông báo mẫu',
-        ),
-      ],
-    );
-  }
-}
 
 class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});

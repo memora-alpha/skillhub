@@ -1,5 +1,6 @@
 import '../../core/http/http_client.dart';
 import '../learning_paths/service/study_service.dart';
+import '../materials/service/materials_service.dart';
 import '../learning_requests/service/learning_requests_service.dart';
 import '../messages/service/conversations_service.dart';
 import '../product_shell/service/notifications_service.dart';
@@ -19,7 +20,8 @@ class ProductServices {
       conversations = ConversationsService(client),
       notifications = NotificationsService(client),
       study = StudyService(client),
-      wallet = WalletService(client);
+      wallet = WalletService(client),
+      materials = MaterialsService(client);
 
   final SkillsService skills;
   final VerificationsService verifications;
@@ -29,4 +31,5 @@ class ProductServices {
   final NotificationsService notifications;
   final StudyService study;
   final WalletService wallet;
+  final MaterialsService materials;
 }

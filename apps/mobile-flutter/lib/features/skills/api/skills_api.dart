@@ -149,11 +149,13 @@ class SkillsApi {
     String skillId, {
     String? cursor,
     int? limit,
+    bool verifiedOnly = false,
   }) async => Page.parse(
     await _client.requestEnvelope(
       withQuery('/skills/$skillId/sharers', {
         'cursor': cursor,
         'limit': limit,
+        'verifiedOnly': verifiedOnly,
       }),
       authenticated: true,
     ),

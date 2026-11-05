@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -10,6 +12,8 @@ import '../../components/tappable.dart';
 import '../../core/theme/tokens.dart';
 import '../shell/app_screen_layout.dart';
 import '../shell/navigation.dart';
+import '../learning_requests/schema/learning_request_schema.dart';
+import '../remote/refresh_signal.dart';
 import 'discovery_data.dart';
 
 typedef _C = DiscoveryColors;
@@ -31,6 +35,8 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
   late final _search = TextEditingController(text: widget.query);
   final _focus = FocusNode();
   String _filter = 'Tất cả';
+  String _keyword = '';
+  Timer? _keywordDebounce;
   bool _advancedOpen = false;
   String _advanced = 'all';
   bool _oldestFirst = false;
@@ -39,44 +45,82 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
   @override
   void initState() {
     super.initState();
-    _search.addListener(() => setState(() {}));
+    _keyword = widget.query.trim();
+    _search.addListener(_onSearchChanged);
     _focus.addListener(() => setState(() {}));
   }
 
   @override
   void didUpdateWidget(DiscoverScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.query != widget.query) _search.text = widget.query;
+    if (oldWidget.query != widget.query) {
+      _search.text = widget.query;
+      _setKeyword(widget.query);
+    }
   }
 
   @override
   void dispose() {
+    _keywordDebounce?.cancel();
     _search.dispose();
     _focus.dispose();
     super.dispose();
+  }
+
+  void _onSearchChanged() {
+    setState(() {});
+    _keywordDebounce?.cancel();
+    _keywordDebounce = Timer(const Duration(milliseconds: 350), () {
+      _setKeyword(_search.text);
+    });
+  }
+
+  void _setKeyword(String value) {
+    final next = value.trim();
+    if (next == _keyword) return;
+    setState(() => _keyword = next);
   }
 
   void _reset() => setState(() {
     _filter = 'Tất cả';
     _advanced = 'all';
     _search.clear();
+    _keyword = '';
   });
 
   @override
   Widget build(BuildContext context) {
-    final search = _search.text.toLowerCase();
-    final loaded = ref.watch(learningRequestsProvider).value ?? const <LearningRequest>[];
-    final filters = ['Tất cả', ...{for (final item in loaded) item.category}];
+    final skillId = _filter == 'Tất cả'
+        ? null
+        : (ref.watch(learningRequestsProvider).value ?? const <LearningRequest>[])
+              .where((item) => item.category == _filter)
+              .map((item) => item.skillId)
+              .where((id) => id.isNotEmpty)
+              .firstOrNull;
+    final loaded =
+        ref
+            .watch(
+              filteredLearningRequestsProvider(
+                RequestQuery(
+                  keyword: _keyword.isEmpty ? null : _keyword,
+                  skillId: skillId,
+                ),
+              ),
+            )
+            .value ??
+        const <LearningRequest>[];
+    final filters = [
+      'Tất cả',
+      ...{
+        if (_filter != 'Tất cả') _filter,
+        for (final item in loaded) item.category,
+      },
+    ];
     final requests = loaded.where(
       (item) =>
-          (_filter == 'Tất cả' || item.category == _filter) &&
           (_advanced == 'all' ||
               (_advanced == 'credit' && item.budgetCredit >= 60) ||
-              (_advanced == 'sessions' && item.sessions >= 8)) &&
-          (search.isEmpty ||
-              '${item.title} ${item.user} ${item.tags.join(' ')}'
-                  .toLowerCase()
-                  .contains(search)),
+              (_advanced == 'sessions' && item.sessions >= 8)),
     ).toList();
     final sorted = _oldestFirst ? requests.reversed.toList() : requests;
     final secondary = nunito(
@@ -113,8 +157,11 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
           ],
         ),
       ),
-      child: ListView(
+      child: RefreshIndicator(
+        onRefresh: () => pullRefresh(ref, const {RefreshScope.discover}),
+        child: ListView(
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(24, 4, 24, 24),
         children: [
           Center(
@@ -501,6 +548,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
             ),
           ),
         ],
+        ),
       ),
     );
   }
@@ -541,6 +589,7 @@ class LearningRequestRow extends StatelessWidget {
                 UserAvatar(
                   name: request.user,
                   userId: request.userId,
+                  imageUrl: request.avatarUrl,
                   size: AvatarSizes.list,
                 ),
                 Expanded(
@@ -905,6 +954,7 @@ class RequestDetailScreen extends ConsumerWidget {
                                       UserAvatar(
                                         name: request.user,
                                         userId: request.userId,
+                                        imageUrl: request.avatarUrl,
                                         size: AvatarSizes.list,
                                       ),
                                       Expanded(

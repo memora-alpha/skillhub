@@ -1,0 +1,150 @@
+{
+  "info": {
+    "name": "SkillHub Sessions (public API)",
+    "description": "Login + GET /sessions/mine với from/to tuyệt đối (RFC3339). Import vào Postman: File → Import.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "https://skillhub.memora.cam/api/v1" },
+    { "key": "email", "value": "nhatmoon71@gmail.com" },
+    { "key": "password", "value": "" },
+    { "key": "accessToken", "value": "" },
+    { "key": "from", "value": "2026-10-31T17:00:00.000Z" },
+    { "key": "to", "value": "2026-11-30T16:59:59.999Z" },
+    { "key": "sessionId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth — login",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "const token = json && json.data && json.data.accessToken;",
+              "if (token) {",
+              "  pm.collectionVariables.set('accessToken', token);",
+              "  console.log('accessToken saved');",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Accept", "value": "application/json" },
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Origin", "value": "http://localhost:3000" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\",\n  \"rememberMe\": true\n}"
+        },
+        "url": "{{baseUrl}}/auth/login",
+        "description": "Điền password ở biến collection rồi Send. Token tự ghi vào {{accessToken}}."
+      }
+    },
+    {
+      "name": "Sessions — mine (tháng 11 VN)",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            { "key": "token", "value": "{{accessToken}}", "type": "string" }
+          ]
+        },
+        "method": "GET",
+        "header": [
+          { "key": "Accept", "value": "application/json" },
+          { "key": "Origin", "value": "http://localhost:3000" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/sessions/mine?from={{from}}&to={{to}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["sessions", "mine"],
+          "query": [
+            {
+              "key": "from",
+              "value": "{{from}}",
+              "description": "RFC3339 absolute, đầu tháng 11 VN = 2026-10-31T17:00:00.000Z"
+            },
+            {
+              "key": "to",
+              "value": "{{to}}",
+              "description": "RFC3339 absolute, cuối tháng 11 VN = 2026-11-30T16:59:59.999Z"
+            }
+          ]
+        },
+        "description": "Khi có cả from và to, API lọc theo startAt trong khoảng đóng. Expect ~10 buổi với account test."
+      }
+    },
+    {
+      "name": "Sessions — mine (không to = endAt >= from)",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            { "key": "token", "value": "{{accessToken}}", "type": "string" }
+          ]
+        },
+        "method": "GET",
+        "header": [
+          { "key": "Accept", "value": "application/json" },
+          { "key": "Origin", "value": "http://localhost:3000" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/sessions/mine?from={{from}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["sessions", "mine"],
+          "query": [
+            { "key": "from", "value": "{{from}}" },
+            { "key": "to", "value": "", "disabled": true }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Sessions — detail",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            { "key": "token", "value": "{{accessToken}}", "type": "string" }
+          ]
+        },
+        "method": "GET",
+        "header": [
+          { "key": "Accept", "value": "application/json" },
+          { "key": "Origin", "value": "http://localhost:3000" }
+        ],
+        "url": "{{baseUrl}}/sessions/{{sessionId}}"
+      }
+    },
+    {
+      "name": "Sessions — confirm-completion",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            { "key": "token", "value": "{{accessToken}}", "type": "string" }
+          ]
+        },
+        "method": "POST",
+        "header": [
+          { "key": "Accept", "value": "application/json" },
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Origin", "value": "http://localhost:3000" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{}"
+        },
+        "url": "{{baseUrl}}/sessions/{{sessionId}}/confirm-completion",
+        "description": "Body {} hoặc {\"note\":\"...\"}. Path đúng là confirm-completion (không phải /complete)."
+      }
+    }
+  ]
+}

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -8,9 +10,12 @@ import '../../components/user_avatar.dart';
 import '../../components/feature_page.dart';
 import '../../components/misc.dart';
 import '../../components/tappable.dart';
+import '../../core/http/app_error.dart';
 import '../../core/theme/tokens.dart';
-import '../sessions/sessions_data.dart';
+import '../sessions/live_sessions.dart';
+import '../remote/refresh_signal.dart';
 import '../shell/app_screen_layout.dart';
+import 'calendar_session_card.dart';
 
 abstract final class _C {
   static const surface = Chrome.surface;
@@ -244,107 +249,177 @@ class CalendarScreen extends ConsumerStatefulWidget {
 }
 
 class _CalendarScreenState extends ConsumerState<CalendarScreen> {
-  DateTime _date = DateTime.now();
+  DateTime _date = DateTime(DateTime.now().year, DateTime.now().month);
   int? _day;
-  String _tab = 'Sắp tới';
+  String _tab = 'Đã kết thúc / lịch sử';
+  Timer? _clock;
+
+  @override
+  void initState() {
+    super.initState();
+    _clock = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted && _tab == 'Sắp tới') setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _clock?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final month = _date.month;
     final year = _date.year;
-    final monthSessions = ref.watch(sessionsProvider).where((s) {
-      final d = s.startAt.toLocal();
-      return d.month == month && d.year == year;
-    }).toList();
-    final visible = monthSessions
-        .where(
-          (s) =>
-              (_day == null || s.startAt.toLocal().day == _day) &&
-              (_tab == 'Sắp tới'
-                  ? s.status == 'CONFIRMED'
-                  : s.status != 'CONFIRMED'),
-        )
-        .toList();
+    final query = ref.watch(monthSessionsProvider(monthSessionKey(year, month)));
+    final monthSessions = query.value ?? const <Map<String, dynamic>>[];
+    bool dayMatches(Map<String, dynamic> session) {
+      if (_day == null) return true;
+      final start = sessionInstant(session['startAt'])?.toLocal();
+      return start != null &&
+          start.year == year &&
+          start.month == month &&
+          start.day == _day;
+    }
+
+    // Tab = lọc status API, không đụng join window / endAt.
+    bool tabMatches(Map<String, dynamic> session) => switch (_tab) {
+      'Sắp tới' => sessionIsUpcoming(session),
+      'Quá hạn' => sessionMissedJoin(session),
+      _ => sessionIsHistory(session),
+    };
+    final listItems = [
+      for (final session in monthSessions)
+        if (dayMatches(session) && tabMatches(session)) session,
+    ];
+    _sortCalendarSessions(listItems, nearestFirst: _tab == 'Sắp tới');
     return AppScreenLayout(
       title: 'Lịch học',
       selected: 'Lịch học',
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 36),
-        children: [
-          Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 860),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                spacing: 16,
-                children: [
-                  const Copy(
-                    'Lịch và buổi học trong bản xem thử. Không có lịch tài khoản thật được tải tại đây.',
-                    muted: true,
-                  ),
-                  MonthCalendar(
-                    month: month,
-                    year: year,
-                    sessionDays: {
-                      for (final s in monthSessions) s.startAt.toLocal().day,
-                    },
-                    selectedDay: _day,
-                    onDayPress: (value) =>
-                        setState(() => _day = _day == value ? null : value),
-                    onMonthChange: (value) => setState(() {
-                      _date = DateTime(year, value);
-                      _day = null;
-                    }),
-                  ),
-                  ChoiceGroup(
-                    label: 'Buổi học',
-                    options: const ['Sắp tới', 'Đã kết thúc / lịch sử'],
-                    value: _tab,
-                    onChange: (value) => setState(() => _tab = value),
-                  ),
-                  if (_day != null)
-                    AppButton(
-                      label: 'Xem cả tháng',
-                      variant: ButtonVariant.paper,
-                      onPressed: () => setState(() => _day = null),
+      child: RefreshIndicator(
+        onRefresh: () => pullRefresh(ref, const {RefreshScope.study}),
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 36),
+          children: [
+            Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 860),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  spacing: 16,
+                  children: [
+                    WaitingRefresh(
+                      scopes: const {RefreshScope.study},
+                      enabled: monthSessions.any(sessionIsUpcoming),
+                      shellIndex: 2,
+                      child: const SizedBox.shrink(),
                     ),
-                  for (final s in visible)
-                    Panel(
-                      title: s.title,
-                      children: [
-                        StatusBadge(s.status),
-                        Copy(
-                          '${s.partner} · ${viDateTime(s.startAt)} · ${s.duration} phút',
+                    if (query.isLoading && !query.hasValue)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 8),
+                        child: Center(
+                          child: CircularProgressIndicator(strokeWidth: 2),
                         ),
-                        RouteButton(
-                          href: '/learning-sessions/${s.id}',
-                          label: 'Mở buổi học',
-                        ),
+                      ),
+                    if (query.hasError)
+                      FormNotice(
+                        tone: NoticeTone.error,
+                        message: errorMessage(query.error),
+                      ),
+                    MonthCalendar(
+                      month: month,
+                      year: year,
+                      sessionDays: {
+                        for (final session in monthSessions)
+                          if (sessionInstant(session['startAt'])?.toLocal()
+                              case final DateTime start
+                              when start.year == year && start.month == month)
+                            start.day,
+                      },
+                      selectedDay: _day,
+                      onDayPress: (value) =>
+                          setState(() => _day = _day == value ? null : value),
+                      onMonthChange: (value) => setState(() {
+                        _date = DateTime(year, value);
+                        _day = null;
+                      }),
+                    ),
+                    ChoiceGroup(
+                      label: 'Buổi học',
+                      options: const [
+                        'Sắp tới',
+                        'Quá hạn',
+                        'Đã kết thúc / lịch sử',
                       ],
+                      value: _tab,
+                      onChange: (value) => setState(() {
+                        _tab = value;
+                        _day = null;
+                      }),
                     ),
-                  if (visible.isEmpty)
-                    const EmptyState(
-                      title: 'Không có buổi học phù hợp',
-                      description: 'Thử ngày, tháng hoặc nhóm buổi học khác.',
+                    if (_day != null)
+                      AppButton(
+                        label: 'Đang lọc ngày $_day/${_date.month} — xem cả tháng',
+                        variant: ButtonVariant.paper,
+                        onPressed: () => setState(() => _day = null),
+                      ),
+                    for (final session in listItems)
+                      CalendarSessionCard(
+                        session: session,
+                        highlight: _tab == 'Sắp tới' &&
+                            sessionIsImminent(session),
+                      ),
+                    if (listItems.isEmpty)
+                      EmptyState(
+                        title: switch (_tab) {
+                          'Sắp tới' => 'Không có buổi sắp tới',
+                          'Quá hạn' => 'Không có buổi no-show',
+                          _ => 'Không có buổi đã kết thúc',
+                        },
+                        description: _day != null
+                            ? 'Đang lọc ngày $_day. Bấm «xem cả tháng» hoặc chọn ngày khác.'
+                            : 'Đổi tab / tháng, hoặc mở Toàn bộ lịch sử học.',
+                      ),
+                    AppButton(
+                      label: 'Lộ trình của tôi',
+                      variant: ButtonVariant.craft,
+                      onPressed: () => context.push('/paths'),
                     ),
-                  AppButton(
-                    label: 'Lộ trình của tôi',
-                    variant: ButtonVariant.craft,
-                    onPressed: () => context.push('/paths'),
-                  ),
-                  const RouteButton(
-                    secondary: true,
-                    href: '/learning-history',
-                    label: 'Toàn bộ lịch sử học',
-                  ),
-                ],
+                    const RouteButton(
+                      secondary: true,
+                      href: '/learning-history',
+                      label: 'Toàn bộ lịch sử học',
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
+}
+
+void _sortCalendarSessions(
+  List<Map<String, dynamic>> rows, {
+  required bool nearestFirst,
+}) {
+  final now = DateTime.now();
+  rows.sort((a, b) {
+    final left =
+        sessionInstant(a['startAt']) ?? DateTime.fromMillisecondsSinceEpoch(0);
+    final right =
+        sessionInstant(b['startAt']) ?? DateTime.fromMillisecondsSinceEpoch(0);
+    if (!nearestFirst) return right.compareTo(left);
+    final byNear = left
+        .difference(now)
+        .abs()
+        .compareTo(right.difference(now).abs());
+    return byNear != 0 ? byNear : left.compareTo(right);
+  });
 }
 
 typedef _SessionDetail = ({
