@@ -120,7 +120,8 @@ export function MaterialDetail({ id }: Readonly<{ id: string }>) {
                   <p>{accessDescription}</p>
                   {purchased && (
                     <p className="muted">
-                      Lấy liên kết tải sẽ ghi nhận tài liệu đã được sử dụng.
+                      Lấy liên kết tải sẽ ghi nhận tài liệu đã được sử dụng và
+                      mất quyền hoàn đơn tự động.
                     </p>
                   )}
                   <button

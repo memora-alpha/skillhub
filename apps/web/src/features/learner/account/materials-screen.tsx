@@ -29,6 +29,9 @@ export function MaterialsScreen() {
         title="Thư viện tài liệu"
         action={
           <div className="learner-actions">
+            <Link className="btn" href="/learn/materials/orders">
+              Đơn tài liệu đã mua
+            </Link>
             <Link className="btn" href="/learn/materials/mine">
               Tài liệu của tôi
             </Link>

@@ -1,11 +1,12 @@
 "use client";
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useUserSession } from "../auth/session";
 import { useUserResource, useUserList } from "../hooks/use-user-resource";
 import { useUserCommand } from "../hooks/use-user-command";
+import { ProductIcon } from "../components/product-icon";
 import { useClock } from "../hooks/use-clock";
 import {
   Back,
@@ -20,6 +21,12 @@ import {
 } from "../components/common";
 import { canShowPaymentQr } from "./view-policy";
 import type { Payment, PaymentPolicy } from "./account-types";
+import {
+  paymentPolicyText,
+  recoverOrCreatePayment,
+  validPaymentAmount,
+  type PaymentIntent,
+} from "./payment-recovery";
 const paymentLabels: Record<string, string> = {
   CREATED: "Đang chuẩn bị mã QR",
   PENDING: "Đang chờ thanh toán",
@@ -67,7 +74,7 @@ function PaymentQr({ payload }: Readonly<{ payload: string }>) {
   );
 }
 export function TopupScreen({ paymentId }: Readonly<{ paymentId?: string }>) {
-  const { request } = useUserSession(),
+  const { request, actor } = useUserSession(),
     router = useRouter(),
     command = useUserCommand(true),
     cancel = useUserCommand(true),
@@ -75,14 +82,40 @@ export function TopupScreen({ paymentId }: Readonly<{ paymentId?: string }>) {
   const policy = useUserResource<PaymentPolicy>("payments/creation-policy"),
     current = useUserResource<Payment>(
       paymentId ? "payments/" + paymentId : null,
+      {
+        refetchInterval: (value) =>
+          value && ["CREATED", "PENDING", "REVIEW"].includes(value.status)
+            ? 5000
+            : false,
+      },
     ),
     history = useUserList<Payment>("payments?limit=10");
-  const [amount, setAmount] = useState("100000");
+  const storageKey = "skillhub-user-draft:" + actor.userId + ":payment-intent";
+  const [savedIntent, setSavedIntent] = useState<PaymentIntent | null>(() => {
+    try {
+      const value = JSON.parse(
+        sessionStorage.getItem(storageKey) ?? "null",
+      ) as PaymentIntent | null;
+      return value &&
+        /^[0-9a-f-]{36}$/i.test(value.key) &&
+        validPaymentAmount(value.amount)
+        ? value
+        : null;
+    } catch {
+      return null;
+    }
+  });
+  const intent = useRef(savedIntent);
+  const [amount, setAmount] = useState(savedIntent?.amount ?? "100000");
+  const [checking, setChecking] = useState(false);
+  const [recoveryError, setRecoveryError] = useState<string>();
+  const [recoveryNotice, setRecoveryNotice] = useState<string>();
   const payment = current.data;
   const pending = payment && ["CREATED", "PENDING"].includes(payment.status);
   let createLabel: string;
   if (command.pending) createLabel = "Đang tạo lệnh…";
-  else if (command.canRetry) createLabel = "Kiểm tra lại cùng yêu cầu";
+  else if (savedIntent || command.canRetry)
+    createLabel = "Khôi phục cùng yêu cầu nạp";
   else createLabel = "Tạo mã QR thanh toán";
   return (
     <>
@@ -103,7 +136,7 @@ export function TopupScreen({ paymentId }: Readonly<{ paymentId?: string }>) {
             <p className="learner-notice">
               {policy.data.existingPaymentId ? (
                 <>
-                  Bạn có lệnh nạp cần xử lý.{" "}
+                  {paymentPolicyText(policy.data.reasonCode)}{" "}
                   <Link
                     href={
                       "/learn/wallet/topup?paymentId=" +
@@ -114,7 +147,7 @@ export function TopupScreen({ paymentId }: Readonly<{ paymentId?: string }>) {
                   </Link>
                 </>
               ) : (
-                "Kênh nạp Credit hiện chưa sẵn sàng. Vui lòng thử lại sau."
+                paymentPolicyText(policy.data.reasonCode)
               )}
             </p>
           )}
@@ -122,17 +155,32 @@ export function TopupScreen({ paymentId }: Readonly<{ paymentId?: string }>) {
             className="learner-form"
             onSubmit={async (e) => {
               e.preventDefault();
-              const result = await command.run("topup:" + amount, (key) =>
-                request<Payment>("payments", {
-                  method: "POST",
-                  key,
-                  body: { paymentAmountVnd: amount, gateway: "PAYOS" },
-                }),
-              );
-              if (result)
-                router.replace(
-                  "/learn/wallet/topup?paymentId=" + result.data.id,
-                );
+              setRecoveryNotice(undefined);
+              const fingerprint = "topup:" + (intent.current?.amount ?? amount);
+              const result = await command.run(fingerprint, (key) => {
+                const isRecovery = !!intent.current;
+                const value = intent.current ?? { key, amount };
+                intent.current = value;
+                setSavedIntent(value);
+                try {
+                  sessionStorage.setItem(storageKey, JSON.stringify(value));
+                } catch {
+                  setRecoveryError(
+                    "Trình duyệt không lưu được yêu cầu. Giữ màn hình này để khôi phục cùng lệnh.",
+                  );
+                }
+                return recoverOrCreatePayment(request, value, isRecovery);
+              });
+              if (result) {
+                intent.current = null;
+                setSavedIntent(null);
+                try {
+                  sessionStorage.removeItem(storageKey);
+                } catch {
+                  /* Preserve confirmed payment navigation. */
+                }
+                router.replace("/learn/wallet/topup?paymentId=" + result.id);
+              }
             }}
           >
             <div className="learner-actions">
@@ -144,7 +192,9 @@ export function TopupScreen({ paymentId }: Readonly<{ paymentId?: string }>) {
                   }
                   aria-pressed={amount === String(value)}
                   key={value}
-                  disabled={command.pending || command.uncertain}
+                  disabled={
+                    command.pending || command.uncertain || !!savedIntent
+                  }
                   onClick={() => setAmount(String(value))}
                 >
                   {value.toLocaleString("vi-VN")} ₫
@@ -160,30 +210,94 @@ export function TopupScreen({ paymentId }: Readonly<{ paymentId?: string }>) {
                 step={1000}
                 value={amount}
                 required
-                disabled={command.pending || command.uncertain}
+                disabled={command.pending || command.uncertain || !!savedIntent}
                 onChange={(e) => setAmount(e.target.value)}
               />
               <small>Từ 1.000 đến 2.000.000 VND, bội số của 1.000.</small>
             </label>
-            <button
-              type="submit"
-              className="btn btn-primary"
-              disabled={
-                command.pending ||
-                (!command.canRetry && !policy.data?.canCreate)
-              }
-            >
-              {createLabel}
-            </button>
+            <div className="payment-create-actions">
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={
+                  command.pending ||
+                  checking ||
+                  (!savedIntent && !command.canRetry && !policy.data?.canCreate)
+                }
+              >
+                {createLabel}
+              </button>
+              <button
+                type="button"
+                className="btn payment-refresh"
+                aria-label="Kiểm tra lại lệnh nạp và lịch sử"
+                title="Kiểm tra lại lệnh nạp và lịch sử"
+                aria-busy={checking}
+                disabled={checking || command.pending}
+                onClick={async () => {
+                  setChecking(true);
+                  setRecoveryError(undefined);
+                  setRecoveryNotice(undefined);
+                  try {
+                    const decision = (
+                      await request<PaymentPolicy>("payments/creation-policy")
+                    ).data;
+                    policy.reload();
+                    history.reload();
+                    if (paymentId) current.reload();
+                    if (decision.existingPaymentId)
+                      router.replace(
+                        "/learn/wallet/topup?paymentId=" +
+                          decision.existingPaymentId,
+                      );
+                    else
+                      setRecoveryNotice(
+                        savedIntent
+                          ? "Chưa tìm thấy lệnh chưa hoàn tất. Dùng Khôi phục cùng yêu cầu nạp để kiểm tra lại khóa đã lưu; chưa bắt đầu lệnh mới."
+                          : "Không có lệnh chưa hoàn tất theo máy chủ. Bạn có thể xem lại lịch sử bên dưới.",
+                      );
+                  } catch (cause) {
+                    setRecoveryError(
+                      cause instanceof Error
+                        ? cause.message
+                        : "Chưa đọc được lệnh hiện tại.",
+                    );
+                  } finally {
+                    setChecking(false);
+                  }
+                }}
+              >
+                <ProductIcon name="refresh" size={19} />
+              </button>
+            </div>
           </form>
           <CommandFeedback command={command} />
+          {savedIntent && (
+            <p className="learner-notice">
+              Đang giữ cùng yêu cầu nạp{" "}
+              {Number(savedIntent.amount).toLocaleString("vi-VN")} VND. Chưa đổi
+              số tiền khi kết quả chưa rõ. Tiếp tục kiểm tra cùng yêu cầu này.
+            </p>
+          )}
+          <Feedback error={recoveryError} />
+          {recoveryNotice && (
+            <p role="status" className="learner-notice">
+              {recoveryNotice}
+            </p>
+          )}
+          <p className="muted">
+            1.000 VND = 1 Credit. QR/redirect và hết giờ trên trình duyệt không
+            xác nhận trạng thái thanh toán. Không có rút Credit ra tiền.
+          </p>
         </Panel>
         <Panel title="Thanh toán bằng QR">
-          <Feedback
-            loading={current.loading}
-            error={current.error}
-            reload={current.reload}
-          />
+          {paymentId && (
+            <Feedback
+              loading={current.loading}
+              error={current.error}
+              reload={current.reload}
+            />
+          )}
           {payment ? (
             <>
               <Status
@@ -198,7 +312,9 @@ export function TopupScreen({ paymentId }: Readonly<{ paymentId?: string }>) {
               <div className="learner-actions">
                 <button
                   type="button"
-                  className="btn"
+                  className="btn payment-refresh"
+                  aria-label="Làm mới trạng thái thanh toán"
+                  title="Làm mới trạng thái thanh toán"
                   onClick={() => {
                     current.reload();
                     history.reload();
@@ -206,7 +322,7 @@ export function TopupScreen({ paymentId }: Readonly<{ paymentId?: string }>) {
                   }}
                   disabled={current.loading}
                 >
-                  Kiểm tra trạng thái
+                  <ProductIcon name="refresh" size={19} />
                 </button>
                 {pending && !payment.recoveryRequired && (
                   <button

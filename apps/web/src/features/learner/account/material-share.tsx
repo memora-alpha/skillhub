@@ -17,6 +17,7 @@ import {
 import { SkillPicker } from "../components/skill-picker";
 import { UploadControl } from "../components/upload-control";
 import type { Material } from "./account-types";
+import { MaterialEditor, editableMaterial } from "./material-editor";
 export function MaterialShare() {
   const [skillId, setSkillId] = useState(""),
     [fileId, setFileId] = useState(""),
@@ -220,6 +221,9 @@ export function MaterialShare() {
   );
 }
 export function MyMaterials() {
+  const [editing, setEditing] = useState<string | null>(null),
+    [archiving, setArchiving] = useState<string | null>(null),
+    [inspectionError, setInspectionError] = useState<string>();
   const query =
       useUserResource<(Material & { rejectReason: string | null })[]>(
         "me/materials",
@@ -243,6 +247,33 @@ export function MyMaterials() {
         reload={query.reload}
       />
       <CommandFeedback command={command} />
+      {command.uncertain && (
+        <button
+          className="btn"
+          onClick={async () => {
+            try {
+              await request<Material[]>("me/materials");
+              command.resetAfterRead();
+              setArchiving(null);
+              setInspectionError(undefined);
+              query.reload();
+            } catch (cause) {
+              setInspectionError(
+                cause instanceof Error
+                  ? cause.message
+                  : "Chưa đối chiếu được trạng thái.",
+              );
+            }
+          }}
+        >
+          Đối chiếu trạng thái tài liệu
+        </button>
+      )}
+      {inspectionError && (
+        <p className="learner-error" role="alert">
+          {inspectionError}
+        </p>
+      )}
       <div className="learner-stack">
         {query.data?.map((material) => (
           <Panel key={material.id}>
@@ -260,6 +291,78 @@ export function MyMaterials() {
                 : material.priceCredit + " CR"}{" "}
               · Phiên bản {material.listingVersion}
             </p>
+            {editing === material.id && editableMaterial(material.status) ? (
+              <MaterialEditor
+                key={material.id + ":" + material.listingVersion}
+                material={material}
+                close={() => setEditing(null)}
+                reload={query.reload}
+              />
+            ) : (
+              editableMaterial(material.status) && (
+                <div className="learner-actions">
+                  <button
+                    className="btn"
+                    disabled={command.pending || command.uncertain}
+                    onClick={() => {
+                      setArchiving(null);
+                      setEditing(material.id);
+                    }}
+                  >
+                    Sửa tài liệu
+                  </button>
+                  <button
+                    className="btn"
+                    disabled={command.pending || command.uncertain}
+                    onClick={() => {
+                      setEditing(null);
+                      setArchiving(material.id);
+                    }}
+                  >
+                    Lưu trữ
+                  </button>
+                </div>
+              )
+            )}
+            {archiving === material.id && (
+              <div className="learner-notice">
+                <p>
+                  Lưu trữ “{material.title}”? Tài liệu sẽ ngừng phân phối. Hiện
+                  chưa có thao tác khôi phục; quyền của người đã mua do máy chủ
+                  quản lý.
+                </p>
+                <button
+                  className="btn btn-primary"
+                  disabled={command.pending || command.uncertain}
+                  onClick={() =>
+                    void command
+                      .run("archive:" + material.id, () =>
+                        request("me/materials/" + material.id + "/archive", {
+                          method: "POST",
+                        }),
+                      )
+                      .then((result) => {
+                        if (result) {
+                          setArchiving(null);
+                          query.reload();
+                        }
+                      })
+                  }
+                >
+                  Xác nhận lưu trữ
+                </button>{" "}
+                <button
+                  className="btn"
+                  disabled={command.pending}
+                  onClick={() => {
+                    setArchiving(null);
+                    query.reload();
+                  }}
+                >
+                  Đóng và làm mới
+                </button>
+              </div>
+            )}
             {material.status === "DRAFT" && (
               <button
                 type="button"
