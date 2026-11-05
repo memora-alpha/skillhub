@@ -12,7 +12,9 @@ import {
   calculateSessionCredit,
   ONE_WAY_SESSION_POLICY,
   TWO_WAY_SESSION_POLICY,
+  allocateHeldFee,
 } from "../../domain/session-credit";
+import { readSessionCreditState } from "./session-credit-state.reader";
 import { formatCredit } from "../../domain/money";
 import { byCodeUnit } from "../../../../infrastructure/idempotency/idempotency.service";
 
@@ -51,10 +53,10 @@ export async function readTerminationQuote(
     where: { pathId: input.pathId, lockedPathVersion: input.pathVersion },
     orderBy: { id: "asc" },
   });
-  const sessions = await tx.session.findMany({
-    where: { pathId: input.pathId },
-    orderBy: { id: "asc" },
-  });
+  const sessions = await readSessionCreditState(tx, input.pathId);
+  const oneWay = input.exchangeType === "ONE_WAY";
+  const heldFees =
+    !oneWay && held.length ? allocateHeldFee(held) : new Map<string, bigint>();
   const reasons = new Set<string>();
   const count = input.exchangeType === "TWO_WAY" ? 2 : 1;
   if (
@@ -72,7 +74,11 @@ export async function readTerminationQuote(
   const completedSessions = sessions.filter(
     (row) => row.status === "COMPLETED",
   ).length;
-  if (sessions.length > 0 && completedSessions === sessions.length)
+  if (
+    !input.terminationApproved &&
+    sessions.length > 0 &&
+    completedSessions === sessions.length
+  )
     reasons.add("TERMINATION_USE_FINAL_SETTLEMENT");
   const allocations = held.flatMap((row) => {
     try {
@@ -82,7 +88,17 @@ export async function readTerminationQuote(
         input,
         sessions,
       );
-      const oneWay = input.exchangeType === "ONE_WAY";
+      const fee = oneWay ? calculation.platformFee : heldFees.get(row.userId)!;
+      const availableForCompensation = row.amount - fee;
+      let compensation = oneWay ? 0n : calculation.compensationCredit;
+      if (compensation > availableForCompensation)
+        compensation = availableForCompensation;
+      if (
+        !oneWay &&
+        (row.sessionCreditSnapshot as { ownerId?: string })?.ownerId !==
+          row.userId
+      )
+        throw new ConflictException("SESSION_CREDIT_SNAPSHOT_MISMATCH");
       return [
         {
           allocationId: row.id,
@@ -93,12 +109,20 @@ export async function readTerminationQuote(
           refund: formatCredit(
             oneWay
               ? calculation.uncompletedCredit
-              : calculation.refundBeforeCompensation,
+              : row.amount - fee - compensation,
           ),
           counterpartyPayment: formatCredit(
-            oneWay ? calculation.completedCredit - calculation.platformFee : 0n,
+            oneWay ? calculation.completedCredit - fee : compensation,
           ),
-          platformFee: formatCredit(calculation.platformFee),
+          platformFee: formatCredit(fee),
+          compensationCredit: formatCredit(compensation),
+          requestedCompensationCredit: formatCredit(
+            oneWay ? 0n : calculation.compensationCredit,
+          ),
+          attendance: sessions.map((session) => ({
+            sessionId: session.id,
+            outcome: session.creditAttendance,
+          })),
           sessionCredits: calculation.sessions.map((item) => ({
             sessionId: item.id,
             planId: item.planId,

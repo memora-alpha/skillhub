@@ -69,9 +69,9 @@ test("ONE_WAY freezes exact per-session shares; the first original sessions rece
   );
 });
 
-test("TWO_WAY denominator spans unequal directions; teaching imbalance never infers compensation", () => {
+test("TWO_WAY freezes each teaching plan denominator and charges its full commitment", () => {
   const rows = makeSessions(5, 3);
-  const snapshot = createSessionCreditSnapshot(10000n, twoWay, rows);
+  const snapshot = createSessionCreditSnapshot(10000n, twoWay, rows, "a");
   const result = calculateSessionCredit(
     snapshot,
     10000n,
@@ -81,14 +81,14 @@ test("TWO_WAY denominator spans unequal directions; teaching imbalance never inf
       status: row.teacherId === "a" ? "COMPLETED" : "CONFIRMED",
     })),
   );
-  assert.equal(result.completedCredit, 6250n);
-  assert.equal(result.platformFee, 250n);
-  assert.equal(result.refundBeforeCompensation, 9750n);
+  assert.equal(result.completedCredit, 10000n);
+  assert.equal(result.platformFee, 400n);
+  assert.equal(result.completedCredit - result.platformFee, 9600n);
 });
 
 test("makeup keeps the same original share; only a completed occurrence counts", () => {
   const rows = makeSessions(2, 2);
-  const snapshot = createSessionCreditSnapshot(2001n, twoWay, rows);
+  const snapshot = createSessionCreditSnapshot(2001n, twoWay, rows, "a");
   const live = rows.map((row) => ({ ...row, status: "MAKEUP_REQUIRED" }));
   assert.equal(
     calculateSessionCredit(snapshot, 2001n, twoWay, live).completedCredit,
@@ -97,17 +97,17 @@ test("makeup keeps the same original share; only a completed occurrence counts",
   live[0].status = "COMPLETED";
   assert.equal(
     calculateSessionCredit(snapshot, 2001n, twoWay, live).completedCredit,
-    501n,
+    1001n,
   );
   assert.equal(
     calculateSessionCredit(snapshot, 2001n, twoWay, live).completedCredit,
-    501n,
+    1001n,
   );
 });
 
 test("legacy, changed identities, missing original sessions and altered monetary policy cannot be quoted", () => {
   const rows = makeSessions(1, 1);
-  const snapshot = createSessionCreditSnapshot(2000n, twoWay, rows);
+  const snapshot = createSessionCreditSnapshot(2000n, twoWay, rows, "a");
   const live = rows.map((row) => ({ ...row, status: "CONFIRMED" }));
   const calculate = (value, current = live) =>
     calculateSessionCredit(value, 2000n, twoWay, current);
@@ -177,7 +177,7 @@ test("exhaustive small-unit splits conserve Credit and aggregate fees once", () 
         );
         assert.equal(result.uncompletedCredit + result.completedCredit, total);
         assert.equal(result.platformFee, (result.completedCredit * 4n) / 100n);
-        assert.ok(result.refundBeforeCompensation >= 0n);
+        assert.ok(result.platformFee <= total);
       }
     }
   }

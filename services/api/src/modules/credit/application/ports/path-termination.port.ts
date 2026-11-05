@@ -23,7 +23,7 @@ export type PathTerminationInstruction = {
 export type TerminationQuoteContext = Omit<
   PathTerminationInstruction,
   "allocations" | "requestId" | "policyReference"
->;
+> & { terminationApproved?: boolean };
 export type TerminationQuote = {
   policy: string;
   status: "BLOCKED" | "READY";
@@ -47,6 +47,19 @@ export type TerminationQuote = {
     refund: string;
     counterpartyPayment: string;
     platformFee: string;
+    compensationCredit: string;
+    requestedCompensationCredit: string;
+    attendance: {
+      sessionId: string;
+      outcome: {
+        id: string;
+        status: string;
+        resolution: string | null;
+        teacherVerdict: string;
+        learnerVerdict: string;
+        finalizedAt: string | null;
+      } | null;
+    }[];
     sessionCredits: {
       sessionId: string;
       planId: string;

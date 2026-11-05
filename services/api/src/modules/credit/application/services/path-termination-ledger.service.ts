@@ -76,7 +76,10 @@ export class PathTerminationLedgerService extends PathTerminationPort {
       orderBy: { id: "asc" },
     });
     this.validateAllocations(input, allocations, held);
-    const quote = await this.previewHeld(tx, input);
+    const quote = await this.previewHeld(tx, {
+      ...input,
+      terminationApproved: true,
+    });
     if (quote.status !== "READY")
       throw new ConflictException(quote.reasonCodes[0]);
     for (const decision of allocations) {
@@ -84,15 +87,12 @@ export class PathTerminationLedgerService extends PathTerminationPort {
         (row) => row.allocationId === decision.allocationId,
       )!;
       const fee = parseCredit(calculated.platformFee);
-      let refund = parseCredit(calculated.refund);
-      if (input.exchangeType === "TWO_WAY")
-        refund -= decision.counterpartyPayment;
+      const refund = parseCredit(calculated.refund);
       if (
         decision.platformFee !== fee ||
         decision.refund !== refund ||
-        (input.exchangeType === "ONE_WAY" &&
-          decision.counterpartyPayment !==
-            parseCredit(calculated.counterpartyPayment))
+        decision.counterpartyPayment !==
+          parseCredit(calculated.counterpartyPayment)
       )
         throw new ConflictException("TERMINATION_FORMULA_MISMATCH");
     }

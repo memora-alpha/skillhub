@@ -40,17 +40,22 @@ test("participant quote returns immutable shares, direction progress and policy 
   const initial = await ctx.stop.quote(user(A), ctx.pathId);
   assert.deepEqual(initial.reasonCodes, ["TERMINATION_POLICY_NOT_APPROVED"]);
   assert.equal(initial.totalSessions, 2);
-  assert.equal(initial.allocations[0].refund, "100.00");
+  assert.equal(initial.allocations[0].refund, "96.00");
   assert.equal(initial.allocations[0].sessionCredits.length, 2);
   ctx.configuration.values[
     "learningPath.changeRequests"
   ].terminationPolicyReference = "approved-v1";
   ctx.db.rows("session")[0].status = "COMPLETED";
   const quote = await ctx.stop.quote(user(B), ctx.pathId);
+  quote.allocations.sort(
+    (a, b) =>
+      Number(b.userId === ctx.db.rows("session")[0].teacherId) -
+      Number(a.userId === ctx.db.rows("session")[0].teacherId),
+  );
   assert.equal(quote.status, "READY");
-  assert.equal(quote.allocations[0].completedCredit, "50.00");
-  assert.equal(quote.allocations[0].refund, "98.00");
-  assert.equal(quote.allocations[0].platformFee, "2.00");
+  assert.equal(quote.allocations[0].completedCredit, "100.00");
+  assert.equal(quote.allocations[0].refund, "96.00");
+  assert.equal(quote.allocations[0].platformFee, "4.00");
   assert.equal(quote.allocations[0].counterpartyPayment, "0.00");
   assert.notEqual(quote.executionDigest, initial.executionDigest);
   assert.deepEqual(ctx.db.rows("creditWallet"), before);

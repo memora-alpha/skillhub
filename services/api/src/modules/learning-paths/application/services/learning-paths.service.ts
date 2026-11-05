@@ -1489,7 +1489,7 @@ export class LearningPathsService {
         ? agreement.totalCreditPerUser!
         : agreement.negotiatedCredit!;
     const feeSnapshot =
-      ((grossPerPayer * BigInt(settlementBps.fee)) / 10_000n) * payerCount;
+      (grossPerPayer * payerCount * BigInt(settlementBps.fee)) / 10_000n;
     await tx.learningPathVersion.update({
       where: { pathId_versionNo: { pathId, versionNo: expectedVersion } },
       data: {
