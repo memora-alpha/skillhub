@@ -21,6 +21,8 @@ import { ConversationMembershipReader } from "../../../dist/modules/conversation
 import { SchedulingService } from "../../../dist/modules/scheduling/application/services/scheduling.service.js";
 import { seedPathFeePolicies } from "../../../dist/modules/credit/application/seed-fee-policies.js";
 import { previewLifecycle } from "../../../scripts/reconcile-learning-requests.mjs";
+import { LearningSessionsService } from "../../../dist/modules/learning-sessions/application/services/learning-sessions.service.js";
+import { ReportsService } from "../../../dist/modules/reports/application/services/reports.service.js";
 
 test(
   "PostgreSQL: cancellation and early termination preserve money, history and atomicity",
@@ -86,8 +88,32 @@ test(
         f.audit,
         configuration,
       );
+      const reports = new ReportsService(
+        f.transactions,
+        {},
+        {},
+        mutableAudit,
+        {},
+        {},
+        configuration,
+        cancellations,
+      );
+      const learningSessions = new LearningSessionsService(
+        f.transactions,
+        f.db,
+        wallet,
+        { applyPathCompletion: async () => {} },
+        { evaluate: async () => {} },
+        reports,
+        configuration,
+        { config: { enabled: false } },
+        { now: () => new Date() },
+        requests,
+        requestPaths,
+        mutableAudit,
+      );
 
-      async function agreement(twoWay = false) {
+      async function agreement(twoWay = false, totalSessions = 1) {
         const teacher = await f.account(),
           learner = await f.account();
         for (const person of [teacher, learner])
@@ -162,8 +188,10 @@ test(
           const plan = await paths.addPlan(owner.principal, path.id, {
             skillId: skill.id,
             learningGoal: "A test goal",
-            totalSessions: 1,
-            sessionOutline: [{ content: "One lesson" }],
+            totalSessions,
+            sessionOutline: Array.from({ length: totalSessions }, () => ({
+              content: "One lesson",
+            })),
           });
           await paths.confirmPlan(student.principal, plan.id, 1);
           plans.push({ plan, index, owner });
@@ -177,13 +205,13 @@ test(
             plan.id,
             {
               expectedPlanVersion: 1,
-              items: [
-                {
-                  sessionNo: 1,
-                  startAt: startAt.toISOString(),
-                  endAt: new Date(+startAt + 3600000).toISOString(),
-                },
-              ],
+              items: Array.from({ length: totalSessions }, (_, n) => ({
+                sessionNo: n + 1,
+                startAt: new Date(+startAt + n * 86400000).toISOString(),
+                endAt: new Date(
+                  +startAt + n * 86400000 + 3600000,
+                ).toISOString(),
+              })),
             },
           );
           await schedules.confirmProposal(teacher.principal, schedule.id, 1);
@@ -526,6 +554,347 @@ test(
             }),
             0,
           );
+        },
+      );
+      await t.test(
+        "shared plan quota serializes concurrent makeup acceptances and rolls back a failed audit",
+        async () => {
+          const ctx = await agreement(false, 6);
+          const requestsForMakeup = await Promise.all(
+            ctx.sessions.slice(0, 2).map((session) =>
+              cancellations.request(
+                ctx.teacher.principal,
+                session.id,
+                randomUUID(),
+                {
+                  reason: "Reserve one makeup",
+                  expectedStartAt: session.startAt.toISOString(),
+                },
+              ),
+            ),
+          );
+          const results = await Promise.allSettled(
+            requestsForMakeup.map((row, i) =>
+              cancellations.respond(
+                ctx.learner.principal,
+                ctx.sessions[i].id,
+                row.id,
+                { expectedVersion: 1, accept: true },
+              ),
+            ),
+          );
+          assert.equal(
+            results.filter((r) => r.status === "fulfilled").length,
+            1,
+          );
+          assert.equal(
+            results.filter(
+              (r) =>
+                r.status === "rejected" &&
+                r.reason.message === "PLAN_MAKEUP_LIMIT_REACHED",
+            ).length,
+            1,
+          );
+          assert.equal(
+            await f.db.session.count({
+              where: { pathId: ctx.path.id, makeupCount: 1 },
+            }),
+            1,
+          );
+          const fresh = await agreement();
+          const row = await cancellations.request(
+            fresh.teacher.principal,
+            fresh.sessions[0].id,
+            randomUUID(),
+            {
+              reason: "Rollback makeup grant",
+              expectedStartAt: fresh.sessions[0].startAt.toISOString(),
+            },
+          );
+          const append = mutableAudit.append;
+          mutableAudit.append = async () => {
+            throw new Error("POLICY_AUDIT_FAILURE");
+          };
+          try {
+            await assert.rejects(
+              () =>
+                cancellations.respond(
+                  fresh.learner.principal,
+                  fresh.sessions[0].id,
+                  row.id,
+                  { expectedVersion: 1, accept: true },
+                ),
+              /POLICY_AUDIT_FAILURE/,
+            );
+          } finally {
+            mutableAudit.append = append;
+          }
+          assert.equal(
+            (
+              await f.db.session.findUniqueOrThrow({
+                where: { id: fresh.sessions[0].id },
+              })
+            ).makeupCount,
+            0,
+          );
+          assert.equal(
+            (
+              await f.db.learningChangeRequest.findUniqueOrThrow({
+                where: { id: row.id },
+              })
+            ).status,
+            "PENDING",
+          );
+        },
+      );
+
+      await t.test(
+        "reschedule confirmations count once, preserve the original anchor and enforce three applied changes",
+        async () => {
+          const ctx = await agreement();
+          const session = ctx.sessions[0];
+          assert.equal(+session.originalStartAt, +session.startAt);
+          const history = await f.db.sessionScheduleHistory.findFirstOrThrow({
+            where: { sessionId: session.id, supersededAt: null },
+            include: { scheduleItemIdRecord: true },
+          });
+          const scheduleId = history.scheduleItemIdRecord.scheduleProposalId;
+          for (let n = 1; n <= 3; n++) {
+            const proposed = await schedules.proposeReschedule(
+              ctx.teacher.principal,
+              session.id,
+              {
+                expectedVersion: n,
+                startAt: new Date(+session.startAt + n * 3600000).toISOString(),
+                endAt: new Date(+session.endAt + n * 3600000).toISOString(),
+              },
+            );
+            await Promise.all(
+              [ctx.teacher, ctx.learner].map((person) =>
+                schedules.confirmProposal(
+                  person.principal,
+                  scheduleId,
+                  proposed.version,
+                ),
+              ),
+            );
+            await schedules.confirmProposal(
+              ctx.learner.principal,
+              scheduleId,
+              proposed.version,
+            );
+            assert.equal(
+              (
+                await f.db.session.findUniqueOrThrow({
+                  where: { id: session.id },
+                })
+              ).rescheduleCount,
+              n,
+            );
+          }
+          await assert.rejects(
+            () =>
+              schedules.proposeReschedule(ctx.teacher.principal, session.id, {
+                expectedVersion: 4,
+                startAt: new Date(+session.startAt + 4 * 3600000).toISOString(),
+                endAt: new Date(+session.endAt + 4 * 3600000).toISOString(),
+              }),
+            { message: "SESSION_RESCHEDULE_LIMIT_REACHED" },
+          );
+          await assert.rejects(
+            () =>
+              f.db.session.update({
+                where: { id: session.id },
+                data: {
+                  originalStartAt: new Date(+session.startAt + 86400000),
+                },
+              }),
+            /SESSION_POLICY_HISTORY_IMMUTABLE/,
+          );
+          await assert.rejects(
+            () =>
+              f.db.session.update({
+                where: { id: session.id },
+                data: { rescheduleCount: 0 },
+              }),
+            /SESSION_POLICY_HISTORY_IMMUTABLE/,
+          );
+        },
+      );
+
+      async function markCompletedForSettlement(ctx) {
+        const endedAt = new Date(Date.now() - 30 * 60000);
+        await f.db.session.updateMany({
+          where: { pathId: ctx.path.id },
+          data: {
+            startAt: new Date(+endedAt - 3600000),
+            endAt: endedAt,
+            status: "COMPLETED",
+          },
+        });
+        await f.db.learningPath.update({
+          where: { id: ctx.path.id },
+          data: { status: "ACTIVE" },
+        });
+      }
+      await t.test(
+        "consent audit rollback, durable consent after financial rollback and exactly-once concurrent settlement",
+        async () => {
+          const ctx = await agreement();
+          await markCompletedForSettlement(ctx);
+          const append = mutableAudit.append;
+          mutableAudit.append = async () => {
+            throw new Error("CONSENT_AUDIT_FAILURE");
+          };
+          try {
+            await assert.rejects(
+              () =>
+                learningSessions.approveImmediateSettlement(
+                  ctx.teacher.principal,
+                  ctx.path.id,
+                  1,
+                ),
+              /CONSENT_AUDIT_FAILURE/,
+            );
+          } finally {
+            mutableAudit.append = append;
+          }
+          assert.equal(
+            (
+              await f.db.learningPath.findUniqueOrThrow({
+                where: { id: ctx.path.id },
+              })
+            ).participantASettlementApprovedAt,
+            null,
+          );
+          assert.equal(
+            (
+              await learningSessions.approveImmediateSettlement(
+                ctx.teacher.principal,
+                ctx.path.id,
+                1,
+              )
+            ).settlement.outcome,
+            "WAITING",
+          );
+          const settle = wallet.settlePath.bind(wallet);
+          wallet.settlePath = async (...args) => {
+            await settle(...args);
+            throw new Error("SETTLEMENT_AFTER_LEDGER_FAILURE");
+          };
+          try {
+            assert.equal(
+              (
+                await learningSessions.approveImmediateSettlement(
+                  ctx.learner.principal,
+                  ctx.path.id,
+                  1,
+                )
+              ).settlement.outcome,
+              "RETRYING",
+            );
+          } finally {
+            wallet.settlePath = settle;
+          }
+          const pending = await f.db.learningPath.findUniqueOrThrow({
+            where: { id: ctx.path.id },
+          });
+          assert.ok(
+            pending.participantASettlementApprovedAt &&
+              pending.participantBSettlementApprovedAt,
+          );
+          assert.equal(pending.settledAt, null);
+          assert.equal(
+            (await assertLots(ctx.learner.user.id)).heldCredit,
+            10000n,
+          );
+          await Promise.all([
+            learningSessions.trySettleCompletedPath(ctx.path.id),
+            learningSessions.approveImmediateSettlement(
+              ctx.learner.principal,
+              ctx.path.id,
+              1,
+            ),
+            learningSessions.approveImmediateSettlement(
+              ctx.teacher.principal,
+              ctx.path.id,
+              1,
+            ),
+          ]);
+          const completed = await f.db.learningPath.findUniqueOrThrow({
+            where: { id: ctx.path.id },
+          });
+          assert.ok(completed.settledAt);
+          assert.equal((await assertLots(ctx.learner.user.id)).heldCredit, 0n);
+          assert.equal(
+            (await assertLots(ctx.teacher.user.id)).availableCredit,
+            19600n,
+          );
+          const posting = completed.settlementOperationId;
+          await learningSessions.approveImmediateSettlement(
+            ctx.teacher.principal,
+            ctx.path.id,
+            1,
+          );
+          assert.equal(
+            (
+              await f.db.learningPath.findUniqueOrThrow({
+                where: { id: ctx.path.id },
+              })
+            ).settlementOperationId,
+            posting,
+          );
+        },
+      );
+
+      await t.test(
+        "report and second financial consent serialize without releasing blocked Held",
+        async () => {
+          const ctx = await agreement();
+          await markCompletedForSettlement(ctx);
+          await learningSessions.approveImmediateSettlement(
+            ctx.teacher.principal,
+            ctx.path.id,
+            1,
+          );
+          const results = await Promise.allSettled([
+            reports.createSessionReport(
+              ctx.teacher.principal,
+              ctx.sessions[0].id,
+              {
+                reasonCode: "OTHER",
+                description: "Review before releasing funds",
+                evidenceFileIds: [],
+              },
+            ),
+            learningSessions.approveImmediateSettlement(
+              ctx.learner.principal,
+              ctx.path.id,
+              1,
+            ),
+          ]);
+          assert.equal(results[0].status, "fulfilled");
+          const path = await f.db.learningPath.findUniqueOrThrow({
+            where: { id: ctx.path.id },
+          });
+          const report = await f.db.reportCase.findFirstOrThrow({
+            where: { relatedPathId: ctx.path.id },
+          });
+          if (path.settledAt) {
+            assert.equal(report.blocksSettlement, false);
+            assert.equal(
+              (await assertLots(ctx.learner.user.id)).heldCredit,
+              0n,
+            );
+          } else {
+            assert.equal(report.blocksSettlement, true);
+            assert.equal(path.participantASettlementApprovedAt, null);
+            assert.equal(path.participantBSettlementApprovedAt, null);
+            assert.equal(
+              (await assertLots(ctx.learner.user.id)).heldCredit,
+              10000n,
+            );
+          }
         },
       );
     } finally {

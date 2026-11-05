@@ -15,9 +15,11 @@ import { SessionLifecycleWorker } from "./infrastructure/jobs/session-lifecycle.
 import { SessionCompletionHandler } from "./infrastructure/events/session-completion.handler";
 import { LearningRequestsModule } from "../learning-requests/learning-requests.module";
 import { LearningPathRequestStateModule } from "../learning-paths/learning-path-request-state.module";
+import { AuditModule } from "../audit/audit.module";
 
 @Module({
   imports: [
+    AuditModule,
     DatabaseModule,
     LearningRequestsModule,
     LearningPathRequestStateModule,

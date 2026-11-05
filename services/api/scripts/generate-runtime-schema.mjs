@@ -338,6 +338,8 @@ model("LearningPath", (block) =>
   fields(
     block,
     `
+  participantASettlementApprovedAt DateTime? @map("participant_a_settlement_approved_at") @db.Timestamptz(3)
+  participantBSettlementApprovedAt DateTime? @map("participant_b_settlement_approved_at") @db.Timestamptz(3)
   changeRequests LearningChangeRequest[]
   settlementAttempt PathSettlementAttempt?
 `,
@@ -347,6 +349,9 @@ model("Session", (block) =>
   fields(
     block,
     `
+  originalStartAt DateTime? @map("original_start_at") @db.Timestamptz(3)
+  rescheduleCount Int @default(0) @map("reschedule_count")
+  makeupCount Int @default(0) @map("makeup_count")
   changeRequests LearningChangeRequest[]
   @@unique([id, pathId])
 `,

@@ -16,3 +16,11 @@
 
 Not implementation tasks: PO policy approval, production migration/activation,
 mobile integration, release/relock and post-settlement reversal policy.
+
+## Session policy amendment 2026-11-05
+
+The [amendment plan and completed tasks](session-policy-amendment.md) cover the
+subsequently approved makeup/reschedule limits and immediate settlement consent.
+Final local validation: 139 service/HTTP regressions plus 18 PostgreSQL/schema
+checks, no failures/skips; API lint, typecheck and build passed. Production rollout
+and frontend/mobile integration remain outside this implementation.

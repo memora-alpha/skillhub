@@ -59,7 +59,14 @@ import { LearningRequestLifecycleService } from "../../../learning-requests/appl
 import { LearningRequestPathReader } from "../../../learning-paths/application/services/learning-request-path.reader";
 import { lockLearningPathLifecycle } from "../../../learning-paths/application/services/learning-path-lock";
 import { pendingTermination } from "../../../learning-paths/application/services/learning-change-state";
-import { recordSettlementAttempt } from "../../../learning-paths/application/services/path-settlement-state";
+import {
+  recordSettlementAttempt,
+  settlementFailure,
+} from "../../../learning-paths/application/services/path-settlement-state";
+import { AuditWriter } from "../../../audit/application/services/audit-writer";
+import { roleCodes } from "../../../../shared/authorization/principal-actor";
+import { randomUUID } from "node:crypto";
+import { makeupQuota } from "./makeup-quota";
 
 /** First join moves earlier and last leave moves later; other activity is ignored. */
 function participantActivityData(
@@ -121,6 +128,7 @@ export class LearningSessionsService {
     @Inject(CLOCK) private readonly clock: Clock,
     private readonly requests: LearningRequestLifecycleService,
     private readonly requestPaths: LearningRequestPathReader,
+    private readonly audit: AuditWriter,
   ) {}
 
   private async joinPolicy(
@@ -327,6 +335,9 @@ export class LearningSessionsService {
         startAt: true,
         endAt: true,
         status: true,
+        originalStartAt: true,
+        rescheduleCount: true,
+        makeupCount: true,
         teacherConfirmationStatus: true,
         learnerConfirmationStatus: true,
         teacherFirstJoinedAt: true,
@@ -402,6 +413,7 @@ export class LearningSessionsService {
       role: actor.userId === session.teacherId ? "TEACHER" : "LEARNER",
       join,
       progress: await this.progress(session.pathId, session.planId),
+      makeupQuota: await makeupQuota(this.db, session),
       ...sessionAttendanceView({
         actorId: actor.userId,
         now,
@@ -657,6 +669,107 @@ export class LearningSessionsService {
 
   settlePath(actor: Principal, pathId: string) {
     return this.observedSettlement(pathId, actor);
+  }
+
+  async approveImmediateSettlement(
+    actor: Principal,
+    pathId: string,
+    expectedVersion: number,
+  ) {
+    const consent = await this.transactions.run(async (tx) => {
+      await lockLearningPathLifecycle(
+        tx,
+        pathId,
+        this.requestPaths,
+        this.requests,
+        actor,
+      );
+      const path = await tx.learningPath.findUniqueOrThrow({
+        where: { id: pathId },
+      });
+      if (path.lockedVersion !== expectedVersion)
+        throw new ConflictException("STALE_PATH_VERSION");
+      const isA = path.participantAId === actor.userId;
+      const own = isA
+        ? path.participantASettlementApprovedAt
+        : path.participantBSettlementApprovedAt;
+      if (path.settledAt)
+        return {
+          approvedAt: own,
+          bothApproved: Boolean(
+            path.participantASettlementApprovedAt &&
+            path.participantBSettlementApprovedAt,
+          ),
+        };
+      const now = await databaseNow(tx);
+      await this.assertImmediateSettlementAllowed(tx, path, now);
+      const field = isA
+        ? "participantASettlementApprovedAt"
+        : "participantBSettlementApprovedAt";
+      if (!own) {
+        await tx.learningPath.update({
+          where: { id: pathId },
+          data: { [field]: now },
+        });
+        await this.audit.append(tx, {
+          actor: {
+            kind: "HUMAN",
+            userId: actor.userId,
+            roles: roleCodes(actor),
+          },
+          action: "PATH_SETTLEMENT_CONSENT",
+          target: { type: "LEARNING_PATH", id: pathId },
+          after: {
+            pathVersion: expectedVersion,
+            userId: actor.userId,
+            approvedAt: now.toISOString(),
+          },
+          reason: "Participant approved immediate final settlement",
+          context: { requestId: randomUUID(), correlationId: randomUUID() },
+        });
+        // Reuse the registered settlement consumer; a committed consent survives delivery failure.
+        await tx.outboxEvent.create({
+          data: {
+            aggregateType: "LEARNING_PATH",
+            aggregateId: pathId,
+            version: 1,
+            type: "learning-path.sessions-completed",
+            payload: { pathId },
+            dedupeKey: `path.settlement-consent:${pathId}:${actor.userId}:${now.toISOString()}`,
+            correlationId: randomUUID(),
+          },
+        });
+      }
+      const partner = isA
+        ? path.participantBSettlementApprovedAt
+        : path.participantASettlementApprovedAt;
+      return { approvedAt: own ?? now, bothApproved: Boolean(partner) };
+    });
+    // Never hold the consent transaction while starting the financial transaction.
+    const settlement = await this.trySettleCompletedPath(pathId).catch(
+      (error: unknown) => settlementFailure(error),
+    );
+    return { pathId, ...consent, settlement };
+  }
+
+  private async assertImmediateSettlementAllowed(
+    tx: TransactionContext,
+    path: LearningPath,
+    now: Date,
+  ) {
+    if (await this.reports.hasBlockingDispute(tx, path.id))
+      throw new ConflictException("SETTLEMENT_BLOCKED_BY_DISPUTE");
+    if (await pendingTermination(tx, path.id, now))
+      throw new ConflictException("SETTLEMENT_BLOCKED_BY_TERMINATION");
+    if (path.status !== "ACTIVE")
+      throw new ConflictException("LEARNING_PATH_NOT_SETTLEABLE");
+    if (
+      await tx.session.count({
+        where: { pathId: path.id, status: { not: "COMPLETED" } },
+      })
+    )
+      throw new ConflictException("PATH_SESSIONS_INCOMPLETE");
+    await this.reports.pathSettlementDeadline(tx, path.id);
   }
 
   async trySettleCompletedPath(pathId: string) {

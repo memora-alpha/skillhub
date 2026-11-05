@@ -62,3 +62,39 @@ reference and explicit allocations, never production defaults.
 
 See [rollout](quickstart.md) for migration order and policy gate; see
 [HTTP contracts](contracts.md) for client integration. No mobile code changed.
+
+## Session policy amendment validation 2026-11-05
+
+Branch `fix/session-policy-settlement`. This evidence covers the later
+[approved policy amendment](session-policy-amendment.md), not a production rollout.
+
+- `pnpm --filter api lint`: Pass, zero warnings.
+- `pnpm --filter api check-types`: Pass.
+- `pnpm --filter api build`: Pass; Prisma generated before Nest build.
+- Session suites, learning-platform phases 1–4 and learning-platform audit:
+  **139/139 passed**, no skips. Includes HTTP membership/body/version validation,
+  Swagger consent body, distinct completion/financial consent, exact 48-hour
+  expiry and early settlement, report clearing, shared quota rounding, last-session
+  anchor, sequence, three successful changes, no-op/replay and same-grant extension.
+- Session integration suites plus path-scheduling/runtime-v3 schema suites:
+  **18/18 passed**, no skips, against a dedicated localhost PostgreSQL 18 cluster
+  with explicit TEST_DATABASE_URL. The harness applied migrations in disposable
+  UUID schemas and removed those schemas; no application database was migrated.
+- Real PostgreSQL concurrent plan-quota acceptance grants exactly one opportunity;
+  injected audit failure rolls back the counter and request decision.
+- Concurrent/replayed schedule confirmations count once. Database checks retain
+  the original anchor and prevent counter decreases. Backfill retains legacy
+  excess, excludes identifiable makeup/no-op changes and preserves expired grants.
+- Injected consent audit failure leaves no consent. Injected failure after ledger
+  posting rolls back the financial transaction but retains committed consents.
+  Worker/participant retries converge on one settlement operation with conserved
+  tracked source lots and exact 96/4 distribution.
+- A report racing the second approval either blocks settlement with Held intact
+  and consents cleared, or follows already committed settlement as nonblocking.
+- `git diff --check`: Pass. No frontend/mobile/shared-package changes.
+
+These results replace preliminary local runs that failed to reach localhost from
+the sandbox or ran supplemental schema checks before the build had finished.
+The final runs used the completed build and explicit isolated test connection.
+Production migration/activation, deployed behavior, device journeys and Sonar
+cloud Quality Gate were not tested or claimed.

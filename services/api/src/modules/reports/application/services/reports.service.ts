@@ -85,7 +85,8 @@ export class ReportsService {
     input: {
       sessionId: string;
       pathId: string;
-      reasonCode: "MAKEUP_EXPIRED" | "ATTENDANCE_UNVERIFIABLE";
+      reasonCode:
+        "MAKEUP_EXPIRED" | "ATTENDANCE_UNVERIFIABLE" | "MAKEUP_LIMIT_REACHED";
       description: string;
     },
   ): Promise<string> {
@@ -118,10 +119,14 @@ export class ReportsService {
         blocksSettlement,
       },
     });
-    if (blocksSettlement && path.status !== "DISPUTED")
+    if (blocksSettlement)
       await tx.learningPath.update({
         where: { id: path.id },
-        data: { status: "DISPUTED" },
+        data: {
+          status: "DISPUTED",
+          participantASettlementApprovedAt: null,
+          participantBSettlementApprovedAt: null,
+        },
       });
     await this.audit.append(tx, {
       actor: { kind: "SYSTEM", name: "session-lifecycle" },
@@ -304,7 +309,11 @@ export class ReportsService {
       if (blocksSettlement) {
         await tx.learningPath.update({
           where: { id: path.id },
-          data: { status: "DISPUTED" },
+          data: {
+            status: "DISPUTED",
+            participantASettlementApprovedAt: null,
+            participantBSettlementApprovedAt: null,
+          },
         });
       }
       await tx.outboxEvent.create({
@@ -393,6 +402,19 @@ export class ReportsService {
   ) {
     if (await this.hasBlockingDispute(tx, pathId))
       throw new ConflictException("SETTLEMENT_BLOCKED_BY_DISPUTE");
+    const path = await tx.learningPath.findUniqueOrThrow({
+      where: { id: pathId },
+    });
+    const deadline = await this.pathSettlementDeadline(tx, pathId);
+    if (
+      path.participantASettlementApprovedAt &&
+      path.participantBSettlementApprovedAt
+    )
+      return;
+    if (now < deadline) throw new ConflictException("DISPUTE_WINDOW_OPEN");
+  }
+
+  async pathSettlementDeadline(tx: TransactionContext, pathId: string) {
     const sessions = await tx.session.findMany({
       where: { pathId },
       select: { id: true, startAt: true, endAt: true },
@@ -412,8 +434,7 @@ export class ReportsService {
         return outcome?.finalizesAt ?? this.disputeDeadline(tx, session.endAt);
       }),
     );
-    const deadline = new Date(Math.max(...deadlines.map((at) => +at)));
-    if (now < deadline) throw new ConflictException("DISPUTE_WINDOW_OPEN");
+    return new Date(Math.max(...deadlines.map((at) => +at)));
   }
 
   updateCase(

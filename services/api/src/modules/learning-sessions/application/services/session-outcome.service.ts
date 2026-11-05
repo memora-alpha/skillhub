@@ -21,6 +21,8 @@ import {
   recordParticipantEvent,
 } from "./session-attendance";
 import { databaseNow, lockedSession } from "./session-tx";
+import { makeupQuota } from "./makeup-quota";
+import { byCodeUnit } from "../../../../infrastructure/idempotency/idempotency.service";
 import {
   completeSession,
   currentOutcome,
@@ -255,9 +257,8 @@ export class SessionOutcomeService {
           where: { outcomeId: outcome.id, status: "PENDING" },
           data: { status: "EXPIRED" },
         });
-        return finalizeNoShow(
+        return this.finalizeNoShowOrReview(
           tx,
-          this.reputation,
           session,
           outcome,
           now,
@@ -271,6 +272,47 @@ export class SessionOutcomeService {
       )
         return this.expireMakeup(tx, session, outcome);
     });
+  }
+
+  private async finalizeNoShowOrReview(
+    tx: TransactionContext,
+    session: Session,
+    outcome: SessionAttendanceOutcome,
+    now: Date,
+    policy: ReturnType<typeof outcomePolicy>,
+  ) {
+    const quota = await makeupQuota(tx, session);
+    if (outcome.attendanceCase !== "LEARNER_ABSENT" && quota.reason) {
+      // Finalize the existing reputation penalty even when another makeup cannot be granted.
+      // Sequential: reputation locks must follow the same deterministic user order.
+      for (const userId of absentUserIds(session, outcome).sort(byCodeUnit))
+        await this.reputation.applyNoShow(tx, {
+          userId,
+          sessionId: session.id,
+          outcomeId: outcome.id,
+          now,
+        });
+      await this.reports.openSystemSessionCase(tx, {
+        sessionId: session.id,
+        pathId: session.pathId,
+        reasonCode: "MAKEUP_LIMIT_REACHED",
+        description: quota.reason,
+      });
+      await tx.sessionAttendanceOutcome.update({
+        where: { id: outcome.id },
+        data: {
+          status: "DISPUTED",
+          resolution: "STAFF_REVIEW",
+          finalizedAt: now,
+        },
+      });
+      await tx.session.update({
+        where: { id: session.id },
+        data: { status: "DISPUTED", confirmDeadlineAt: null },
+      });
+      return;
+    }
+    return finalizeNoShow(tx, this.reputation, session, outcome, now, policy);
   }
 
   private async timeout(

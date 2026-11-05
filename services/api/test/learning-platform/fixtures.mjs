@@ -175,7 +175,7 @@ export function setup({ wallets = {}, config = {}, requestId = null } = {}) {
       runner(db),
       {},
       {},
-      {},
+      new AuditWriter(new AuditRepository()),
       undefined,
       undefined,
       configuration,
@@ -185,6 +185,7 @@ export function setup({ wallets = {}, config = {}, requestId = null } = {}) {
     { now: () => clock.now },
     requests,
     requestPaths,
+    new AuditWriter(new AuditRepository()),
   );
   return {
     db,

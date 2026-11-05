@@ -490,6 +490,30 @@ test("makeup reschedule starts a fresh occurrence that is judged again", async (
   const teacherPenalties = penalties.filter((p) => p.userId === A);
   assert.equal(teacherPenalties.length, 2);
   assert.notEqual(teacherPenalties[0].outcomeId, teacherPenalties[1].outcomeId);
+  assert.equal(ctx.session.status, "DISPUTED");
+  assert.equal(ctx.session.makeupCount, 1);
+  assert.equal(ctx.db.rows("reportCase")[0].reasonCode, "MAKEUP_LIMIT_REACHED");
+});
+
+test("Staff can extend the booking deadline of the same makeup without granting a second opportunity", async () => {
+  const ctx = await ended({ teacher: 0 });
+  await ctx.sessions.ensureDetermined(ctx.session.id);
+  const service = outcomes(ctx, []);
+  hours(ctx, 49);
+  await service.finalizeDue(ctx.session.id);
+  const firstDeadline = +ctx.session.makeupDeadlineAt;
+  ctx.clock.now = new Date(firstDeadline);
+  await service.finalizeDue(ctx.session.id);
+  const reports = reportsFor(ctx);
+  const report = ctx.db.rows("reportCase")[0];
+  await reports.updateCase(staff, report.id, "claim");
+  await reports.updateCase(staff, report.id, "resolve", {
+    note: "Extend the existing makeup booking opportunity",
+    noShowRuling: "EXCUSE",
+  });
+  assert.equal(ctx.session.status, "MAKEUP_REQUIRED");
+  assert.equal(ctx.session.makeupCount, 1);
+  assert.ok(+ctx.session.makeupDeadlineAt > firstDeadline);
 });
 
 test("unauthorized completion cannot materialize attendance", async () => {

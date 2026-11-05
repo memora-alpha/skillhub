@@ -27,6 +27,7 @@ import {
   SubmitAbsenceExcuseDto,
   DecideAbsenceExcuseDto,
   LiveKitTokenRequestDto,
+  ApproveImmediateSettlementDto,
 } from "./learning-sessions.dto";
 import { LiveKitTokenResponse } from "./learning-sessions.responses";
 import { SessionOutcomeService } from "../../application/services/session-outcome.service";
@@ -101,6 +102,30 @@ export class LearningSessionsController {
     return success(
       await this.sessions.settlePath(actor, pathId),
       "Path settlement processed.",
+    );
+  }
+
+  @Post("paths/:pathId/settlement-consent")
+  @HttpCode(200)
+  @ApiOperation({
+    summary:
+      "Approve immediate final settlement; both participants must explicitly approve",
+    description:
+      "Separate from Session completion. Both consents bypass only the 48-hour wait. Blocking reports and termination requests still hold Credit.",
+  })
+  @ApiErrorResponse(409)
+  async approveSettlement(
+    @CurrentIdentity() actor: Principal,
+    @Param("pathId", ParseUUIDPipe) pathId: string,
+    @Body() body: ApproveImmediateSettlementDto,
+  ) {
+    return success(
+      await this.sessions.approveImmediateSettlement(
+        actor,
+        pathId,
+        body.expectedVersion,
+      ),
+      "Immediate settlement consent recorded.",
     );
   }
 

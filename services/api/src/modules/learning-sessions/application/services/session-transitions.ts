@@ -23,6 +23,7 @@ import { parseConfigurationValue } from "../../../system-configuration/domain/co
 import { byCodeUnit } from "../../../../infrastructure/idempotency/idempotency.service";
 import { ConflictException } from "@nestjs/common";
 import { lockedSession } from "./session-tx";
+import { reserveMakeup } from "./makeup-quota";
 
 export type NoShowReputation = {
   applyNoShow(
@@ -273,18 +274,22 @@ export async function determineOutcome(
 
 export async function requireMakeup(
   tx: TransactionContext,
-  session: Pick<Session, "id">,
-  outcome: Pick<SessionAttendanceOutcome, "id">,
+  session: Session,
+  outcome: Pick<SessionAttendanceOutcome, "id" | "evidence">,
   now: Date,
   policy: AttendancePolicy,
   outcomeStatus: "FINAL" | "EXCUSED",
 ) {
+  // Staff may extend the booking deadline of the same granted occurrence, never grant a second one.
+  const evidence = outcome.evidence as Prisma.JsonObject;
+  if (evidence.makeupGranted !== true) await reserveMakeup(tx, session);
   await tx.sessionAttendanceOutcome.update({
     where: { id: outcome.id },
     data: {
       status: outcomeStatus,
       resolution: "MAKEUP_REQUIRED",
       finalizedAt: now,
+      evidence: { ...evidence, makeupGranted: true },
     },
   });
   await tx.session.update({

@@ -63,3 +63,60 @@ SETTLEMENT_BLOCKED_BY_TERMINATION. Missing idempotency key is 400.
 `learning-path.change.updated` uses durable outbox delivery to both participants,
 with generic notification copy and only Path/request IDs, never the private reason.
 No mobile screens were changed; integrate these APIs in a separately authorized task.
+
+## Session policy amendment 2026-11-05
+
+Session detail now includes `originalStartAt`, `rescheduleCount`, `makeupCount`, and
+`makeupQuota: {limit, used, remaining, reason}`. The list also returns the three
+Session fields. `makeupCount` records granted opportunities, not HTTP attempts.
+The quota is shared by cancellation/absence makeup within each locked plan/teaching
+direction: `max(1, floor(totalSessions / 5))`. Each original Session gets at most
+one opportunity. Expired requests, repeated responses and makeup booking do not
+consume ordinary reschedule attempts.
+
+Ordinary reschedules apply at most three changed, bilaterally confirmed versions
+per Session. A new interval must fit between its neighboring Sessions in the same
+plan. The last Session can start at most 48 hours after `originalStartAt`; equality
+is allowed. Both intake and final confirmation recheck these rules and the existing
+60-minute cutoff. Reconfirming the applied version returns its LOCKED result
+without counting it again. Makeup booking retains its configured deadline and is
+separate from these ordinary reschedule limits.
+
+New 409 codes: `SESSION_MAKEUP_LIMIT_REACHED`, `PLAN_MAKEUP_LIMIT_REACHED`,
+`SESSION_RESCHEDULE_LIMIT_REACHED`, `RESCHEDULE_SESSION_ORDER_VIOLATION`,
+`LAST_SESSION_RESCHEDULE_WINDOW_EXCEEDED`. A cancellation accepted while blocked
+by a dispute may expire on recovery if another grant has exhausted its quota.
+Automatic no-show quota exhaustion opens a blocking `MAKEUP_LIMIT_REACHED` Staff
+case. A Staff extension of an existing booking deadline retains the same grant;
+it does not authorize a second makeup occurrence.
+
+### Immediate final settlement
+
+`POST /sessions/paths/:pathId/settlement-consent`, Bearer, body:
+
+```json
+{ "expectedVersion": 1 }
+```
+
+`expectedVersion` is the locked agreement version returned by settlement-status.
+Only a participant can consent for themselves, after every Session is COMPLETED.
+This decision is separate from `confirm-completion`. Replays retain the original
+consent time. Both explicit consents bypass only the 48-hour report window;
+blocking disputes, termination requests, fee/Hold/provenance and source lifecycle
+invariants still apply. Without both consents, existing expiry settlement remains.
+New blocking reports clear both consents; new approvals are needed after case
+resolution if the window is still open. A report recorded after settlement retains
+the existing nonblocking behavior; there is no automatic ledger reversal.
+
+200 response data: `{pathId, approvedAt, bothApproved, settlement: {outcome, errorCode?}}`.
+`outcome` is `SETTLED`, `WAITING`, `RETRYING` or `NEEDS_REVIEW`. Consent commits with
+its audit and durable retry outbox before the financial transaction. A financial
+failure therefore retains consent for worker recovery and never exposes a raw
+exception through this response. `POST /sessions/paths/:pathId/settlement` remains
+a retry command and does not implicitly grant consent.
+
+Settlement-status adds `pathVersion`, `autoSettlementAt` (UTC; null while not ready)
+and `immediateSettlement: {ownApprovedAt, partnerApprovedAt, canApprove}`. While the
+window is open, `nextAction` is `APPROVE_IMMEDIATE_SETTLEMENT_OR_WAIT` or
+`WAIT_FOR_PARTNER_OR_DEADLINE`. Client code must use these fields, not treat Session
+completion as financial consent or calculate monetary outcomes.

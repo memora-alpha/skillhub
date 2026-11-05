@@ -1372,6 +1372,7 @@ export class LearningPathsService {
       teacherId: entry.teacherId,
       learnerId: entry.learnerId,
       startAt: entry.startAt,
+      originalStartAt: entry.startAt,
       endAt: entry.endAt,
       status: entry.status,
     }));

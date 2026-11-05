@@ -372,3 +372,13 @@ worker chạy lại vì dedupe key cố định.
 - `FREE_CANCEL_BEFORE_HOURS`, `LATE_CANCEL_PENALTY_RATE` (huỷ chủ động) không thuộc spec này.
 - Không recording/egress, không thu media; interval chỉ chứa thời điểm kết nối.
 - Retention của interval/evidence theo chính sách dữ liệu chung (SRS 18.38 còn mở).
+
+## Amendment 2026-11-05
+
+The accepted [Session policy amendment](../013-learning-cancellation/session-policy-amendment.md)
+adds a shared per-direction makeup quota and one grant per original Session.
+A second missed makeup still receives the existing no-show reputation decision,
+but cannot automatically grant another makeup: it opens a blocking Staff case.
+Extending the booking deadline of the same granted occurrence remains possible.
+Explicit bilateral financial consent can bypass the final settlement wait without
+bypassing a blocking report. The historical baseline above must be read with this amendment.

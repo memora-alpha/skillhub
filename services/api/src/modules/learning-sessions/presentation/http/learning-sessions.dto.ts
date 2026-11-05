@@ -4,10 +4,23 @@ import {
   IsOptional,
   IsString,
   MaxLength,
+  IsInt,
+  Min,
 } from "class-validator";
 import { Transform } from "class-transformer";
+import { ApiProperty } from "@nestjs/swagger";
 
 export class LiveKitTokenRequestDto {}
+
+export class ApproveImmediateSettlementDto {
+  @ApiProperty({
+    minimum: 1,
+    description: "Locked agreement version from settlement-status",
+  })
+  @IsInt()
+  @Min(1)
+  expectedVersion!: number;
+}
 
 export class ConfirmSessionCompletionDto {
   @IsOptional()

@@ -2,6 +2,11 @@
 
 Branch: `fix/path-cancellation`. Date: 2026-11-05. Backend only.
 
+Implementation continues on `fix/session-policy-settlement` for the subsequent
+user-approved [Session policy amendment](session-policy-amendment.md), including
+the accepted rounding, counting and original-schedule anchor proposals. The
+historical validation below covers the initial cancellation tranche only.
+
 The user authorized implementation after reviewing the proposed fixes. Preserve a
 Session's identity and promised session count when cancelling an occurrence for
 makeup. Require bilateral consent; an unanswered request does not cancel a class.

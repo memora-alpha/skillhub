@@ -1,3 +1,4 @@
+import { assertReschedulePolicy } from "./reschedule-policy";
 import {
   BadRequestException,
   ConflictException,
@@ -244,6 +245,15 @@ async function applyReschedule(
     }
     return { item, previousHistory: history, session, changed };
   });
+  const resultingSessions = updates.map(({ session, item }) => ({
+    ...session,
+    startAt: item.startAt,
+    endAt: item.endAt,
+  }));
+  for (const { session, item, changed } of updates) {
+    if (changed && session.status !== "MAKEUP_REQUIRED")
+      assertReschedulePolicy(session, item, resultingSessions);
+  }
   if (
     updates.some(({ item }, index) =>
       updates.some(
@@ -276,6 +286,10 @@ async function applyReschedule(
           startAt: item.startAt,
           endAt: item.endAt,
           status: "CONFIRMED",
+          ...(session.status === "MAKEUP_REQUIRED"
+            ? {}
+            : { rescheduleCount: { increment: 1 } }),
+          originalStartAt: session.originalStartAt ?? session.startAt,
           // A new occurrence: confirmations, attendance evidence and deadlines start over.
           teacherConfirmationStatus: null,
           teacherConfirmedAt: null,
@@ -646,6 +660,13 @@ export class SchedulingService {
         throw new ForbiddenException("LEARNING_PATH_ACCESS_DENIED");
       }
       if (proposal.status === "LOCKED") {
+        if (proposal.appliedVersion === expectedVersion)
+          return {
+            id: scheduleId,
+            version: expectedVersion,
+            bothConfirmed: true,
+            status: "LOCKED",
+          };
         throw new ConflictException("SCHEDULE_ALREADY_LOCKED");
       }
       if (proposal.currentVersion !== expectedVersion) {
@@ -876,6 +897,18 @@ export class SchedulingService {
         startAt: item.id === history.scheduleItemId ? startAt : item.startAt,
         endAt: item.id === history.scheduleItemId ? endAt : item.endAt,
       }));
+      const changed =
+        +startAt !== +lockedSession.startAt || +endAt !== +lockedSession.endAt;
+      if (!makeup && changed) {
+        const direction = await tx.session.findMany({
+          where: {
+            pathId: lockedSession.pathId,
+            planId: lockedSession.planId,
+            planVersion: lockedSession.planVersion,
+          },
+        });
+        assertReschedulePolicy(lockedSession, { startAt, endAt }, direction);
+      }
       const currentHistories = await tx.sessionScheduleHistory.findMany({
         where: {
           scheduleItemId: { in: currentItems.map((item) => item.id) },
