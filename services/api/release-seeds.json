@@ -9,6 +9,11 @@
       "id": "learning-achievement-milestones-20261104",
       "seeds": ["configuration"],
       "reason": "Add the five user-requested verified-skill, teaching-path and completed-path achievement milestones without replacing existing definitions."
+    },
+    {
+      "id": "path-termination-plan-v2-20261106",
+      "seeds": ["identity", "configuration"],
+      "reason": "Grant formula-only path termination approval to Staff and initialize missing configuration defaults before operator activation of the agreed plan V2 policy."
     }
   ]
 }
