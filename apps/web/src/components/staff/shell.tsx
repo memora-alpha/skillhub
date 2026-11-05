@@ -24,6 +24,7 @@ const nav: NavigationItem[] = [
   { href: "/staff/moderation", label: "Kiểm duyệt yêu cầu học", icon: "flag" },
   { href: "/staff/content", label: "Duyệt tài liệu", icon: "file" },
   { href: "/staff/disputes", label: "Báo cáo & tranh chấp", icon: "alert" },
+  { href: "/staff/learning-changes", label: "Dừng lộ trình", icon: "file" },
   { href: "/staff/notifications", label: "Thông báo", icon: "bell" },
   { href: "/staff/wallet", label: "Ví của tôi", icon: "card" },
   { href: "/staff/reputation", label: "Uy tín của tôi", icon: "star" },
@@ -42,6 +43,7 @@ const adminNav: typeof nav = [
   { href: "/admin/moderation", label: "Kiểm duyệt yêu cầu học", icon: "flag" },
   { href: "/admin/content", label: "Duyệt tài liệu", icon: "file" },
   { href: "/admin/disputes", label: "Báo cáo & tranh chấp", icon: "alert" },
+  { href: "/admin/learning-changes", label: "Dừng lộ trình", icon: "file" },
   { href: "/admin/config", label: "Quy tắc kiểm duyệt", icon: "sliders" },
   { href: "/admin/notifications", label: "Thông báo", icon: "bell" },
 ];

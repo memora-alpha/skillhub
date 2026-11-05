@@ -411,3 +411,62 @@ output.staff-success {
   --brand-soft: var(--notification-soft);
   --brand-strong: var(--notification);
 }
+
+.staff-termination-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  gap: 16px;
+  margin-block: 20px;
+}
+.staff-termination-grid .card,
+.staff-termination-detail {
+  padding: 20px;
+  min-width: 0;
+}
+.staff-wrap {
+  overflow-wrap: anywhere;
+}
+.staff-termination-detail {
+  margin-block: 24px;
+  scroll-margin-top: 24px;
+}
+.staff-termination-form {
+  display: grid;
+  gap: 16px;
+}
+.staff-termination-form fieldset {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px;
+}
+.staff-termination-form label {
+  display: grid;
+  gap: 8px;
+  margin-block: 12px;
+}
+.staff-termination-form input,
+.staff-termination-form textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+}
+.staff-termination-form input {
+  min-height: 44px;
+}
+.staff-termination-form textarea {
+  min-height: 110px;
+  resize: vertical;
+}
+.staff-held {
+  padding: 16px;
+  margin-block: 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}

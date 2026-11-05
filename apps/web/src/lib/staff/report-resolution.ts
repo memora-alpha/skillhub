@@ -14,6 +14,8 @@ export type ParticipantOutcome = {
 };
 export type ResolutionDraft = {
   noShowRuling?: "" | "UPHOLD" | "EXCUSE" | "COMPLETE";
+  cancellationMakeupRuling?: "" | "EXTEND" | "COMPLETE";
+  makeupUserId?: string;
   participants: ParticipantOutcome[];
   restrictedUserId: string;
   days: string;
@@ -42,6 +44,24 @@ export function reportResolutionBody(
       return { userId: p.userId, reasonCode: p.violation };
     });
   const body: Record<string, unknown> = {};
+  if (draft.cancellationMakeupRuling) {
+    if (
+      draft.noShowRuling ||
+      !["EXTEND", "COMPLETE"].includes(draft.cancellationMakeupRuling)
+    )
+      throw new Error("Chỉ chọn một loại phán quyết buổi học.");
+    body.cancellationMakeupRuling = draft.cancellationMakeupRuling;
+  }
+  if (draft.makeupUserId) {
+    if (
+      draft.noShowRuling !== "EXCUSE" ||
+      !draft.participants.some((p) => p.userId === draft.makeupUserId)
+    )
+      throw new Error(
+        "Chọn người tham gia yêu cầu học bù khi xử lý điểm danh chưa xác minh.",
+      );
+    body.makeupUserId = draft.makeupUserId;
+  }
   if (draft.noShowRuling) {
     if (!["UPHOLD", "EXCUSE", "COMPLETE"].includes(draft.noShowRuling))
       throw new Error("Chọn phán quyết điểm danh hợp lệ.");

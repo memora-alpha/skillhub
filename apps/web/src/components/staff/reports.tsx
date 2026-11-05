@@ -478,7 +478,8 @@ function ReportDecision({
         if (
           action === "resolve" &&
           item.session?.status === "DISPUTED" &&
-          !draft.noShowRuling
+          !draft.noShowRuling &&
+          !draft.cancellationMakeupRuling
         )
           throw new Error(
             "Chọn phán quyết điểm danh trước khi giải quyết vụ việc.",
@@ -512,6 +513,15 @@ function ReportDecision({
             )
           }
           rulingRequired={item.session?.status === "DISPUTED"}
+          cancelledMakeup={
+            !item.attendanceOutcome &&
+            !!item.session &&
+            ["DISPUTED", "MAKEUP_REQUIRED"].includes(item.session.status)
+          }
+          unverifiable={
+            item.attendanceOutcome?.attendanceCase === "UNVERIFIABLE"
+          }
+          systemCase={!item.reporterId}
           allowUphold={
             item.session?.status === "NO_SHOW" &&
             ["TEACHER_ABSENT", "LEARNER_ABSENT", "BOTH_ABSENT"].includes(

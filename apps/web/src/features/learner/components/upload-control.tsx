@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useUserSession } from "../auth/session";
 import { Feedback } from "./common";
 export function UploadControl({
@@ -8,21 +8,32 @@ export function UploadControl({
   accept,
   onUploaded,
   disabled = false,
+  label = "Tệp tài liệu",
+  onBusyChange,
 }: Readonly<{
   endpoint: string;
   maxBytes: number;
   accept: string;
   onUploaded: (id: string) => void;
   disabled?: boolean;
+  label?: string;
+  onBusyChange?: (busy: boolean) => void;
 }>) {
   const { request } = useUserSession(),
     busy = useRef(false);
+  const alive = useRef(true);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
   const [uploading, setUploading] = useState(false),
     [error, setError] = useState<string>();
   return (
     <div>
       <label>
-        <span>Tệp tài liệu</span>
+        <span>{label}</span>
         <input
           aria-label="Chọn tệp tải lên"
           type="file"
@@ -42,6 +53,7 @@ export function UploadControl({
             }
             busy.current = true;
             setUploading(true);
+            onBusyChange?.(true);
             setError(undefined);
             const data = new FormData();
             data.set("file", file);
@@ -50,18 +62,23 @@ export function UploadControl({
               body: data,
             })
               .then((result) => {
+                if (!alive.current) return;
                 if (!/^[0-9a-f-]{36}$/i.test(result.data?.fileId))
                   throw new Error("Phản hồi tệp chưa hợp lệ.");
                 onUploaded(result.data.fileId);
               })
-              .catch((cause: unknown) =>
+              .catch((cause: unknown) => {
+                if (!alive.current) return;
                 setError(
                   cause instanceof Error ? cause.message : "Chưa tải được tệp.",
-                ),
-              )
+                );
+              })
               .finally(() => {
                 busy.current = false;
-                setUploading(false);
+                if (alive.current) {
+                  setUploading(false);
+                  onBusyChange?.(false);
+                }
               });
           }}
         />

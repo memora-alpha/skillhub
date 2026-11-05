@@ -1,6 +1,9 @@
 "use client";
 import Link from "next/link";
-import { useState } from "react";
+import { useCallback, useState } from "react";
+import { UploadControl } from "../components/upload-control";
+import { ReportEvidence } from "./report-evidence";
+import { UserApiError } from "../api/client";
 import { formText } from "../components/form-data";
 import { useUserSession } from "../auth/session";
 import { useUserResource } from "../hooks/use-user-resource";
@@ -142,19 +145,45 @@ function ReportSubmission({
 }>) {
   const { request } = useUserSession();
   const command = useUserCommand();
+  const [files, setFiles] = useState<{ id: string; state: string }[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const updateFile = useCallback(
+    (id: string, state: string) =>
+      setFiles((rows) =>
+        rows.map((row) =>
+          row.id === id && row.state !== state ? { id, state } : row,
+        ),
+      ),
+    [],
+  );
   return (
     <form
       className="learner-form"
       onSubmit={async (e) => {
         e.preventDefault();
+        if (uploading || command.pending || command.uncertain) return;
         const fields = new FormData(e.currentTarget);
         const body = {
           reasonCode: formText(fields, "reasonCode"),
           description: formText(fields, "description").trim(),
-          ...(sessionId ? { evidenceFileIds: [] } : {}),
+          ...(sessionId
+            ? { evidenceFileIds: files.map((file) => file.id) }
+            : {}),
         };
-        const result = await command.run(JSON.stringify({ path, body }), () =>
-          request<{ id: string }>(path, { method: "POST", body }),
+        const result = await command.run(
+          JSON.stringify({ path, body }),
+          async () => {
+            if (sessionId) {
+              const fresh = (
+                await request<LearningSession>("sessions/" + sessionId)
+              ).data;
+              if (fresh.status === "CANCELLED")
+                throw new UserApiError(409, "SESSION_NOT_REPORTABLE");
+              if (files.some((file) => file.state !== "READY"))
+                throw new UserApiError(409, "FILE_NOT_CLEAN");
+            }
+            return request<{ id: string }>(path, { method: "POST", body });
+          },
         );
         if (result) onSent(result.data.id);
       }}
@@ -179,6 +208,44 @@ function ReportSubmission({
           ))}
         </select>
       </label>
+      {sessionId && (
+        <>
+          <p>
+            Bạn có thể báo cáo khi có vấn đề trong buổi học hoặc sau buổi học,
+            kể cả khi một bên vắng. Máy chủ kiểm tra thời hạn; báo cáo sau quyết
+            toán không tự đảo giao dịch Credit.
+          </p>
+          <UploadControl
+            endpoint="reports/evidence-files"
+            label="Tệp bằng chứng"
+            onBusyChange={setUploading}
+            maxBytes={10000000}
+            accept="image/jpeg,image/png,image/webp,application/pdf"
+            disabled={command.pending || command.uncertain || files.length >= 5}
+            onUploaded={(id) =>
+              setFiles((rows) =>
+                rows.some((r) => r.id === id)
+                  ? rows
+                  : [...rows, { id, state: "PENDING" }],
+              )
+            }
+          />
+          <small>
+            Tối đa 5 bằng chứng. Chỉ gửi khi mọi tệp đã được máy chủ kiểm tra.
+          </small>
+          {files.map((file) => (
+            <ReportEvidence
+              key={file.id}
+              id={file.id}
+              onState={updateFile}
+              disabled={command.pending || command.uncertain}
+              onRemove={() =>
+                setFiles((rows) => rows.filter((r) => r.id !== file.id))
+              }
+            />
+          ))}
+        </>
+      )}
       <label>
         <span>Mô tả chi tiết</span>
         <textarea
@@ -192,10 +259,22 @@ function ReportSubmission({
         />
       </label>
       <CommandFeedback command={command} />
+      {(command.uncertain ||
+        command.failure?.code === "ACTIVE_SESSION_REPORT_EXISTS") && (
+        <Link href="/learn/reports">
+          Kiểm tra báo cáo đã gửi trước khi thao tác tiếp
+        </Link>
+      )}
       <button
         type="submit"
         className="btn btn-primary"
-        disabled={command.pending || command.uncertain}
+        disabled={
+          uploading ||
+          command.pending ||
+          command.uncertain ||
+          files.some((file) => file.state !== "READY") ||
+          ("status" in target && target.status === "CANCELLED")
+        }
       >
         {command.pending ? "Đang gửi…" : "Gửi báo cáo"}
       </button>
@@ -227,6 +306,7 @@ export function ReportForm({
   else if (target.data)
     content = (
       <ReportSubmission
+        key={path}
         target={target.data}
         path={path}
         sessionId={sessionId}
