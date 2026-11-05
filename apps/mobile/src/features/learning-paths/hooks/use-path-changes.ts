@@ -32,6 +32,7 @@ export function useTerminationRequests(pathId: string, allowed = true) {
     for (const key of [
       ["learning-paths", pathId],
       ["learning-paths", pathId, "settlement"],
+      ["learning-paths", pathId, "termination-quote"],
       ["learning-paths", "mine"],
     ])
       void cache.invalidateQueries(

@@ -7,6 +7,7 @@ import { createPathChangesApi } from "../src/features/learning-paths/api/path-ch
 import {
   terminationFixture,
   settlementFixture,
+  terminationQuoteFixture,
 } from "./fixtures/path-changes-data";
 import type { SettlementStatus } from "../src/features/learning-paths/api/path-changes-contract";
 import { fixtureId } from "./fixtures/learning-requests-data";
@@ -34,6 +35,7 @@ function harness(
     | "termination-create-form"
     | "termination-request-card"
     | "termination-decision"
+    | "termination-credit-preview"
     | "path-settlement-panel"
     | "settlement-consent-form",
 ) {
@@ -49,6 +51,7 @@ function harness(
   let index = 0;
   const states: unknown[] = [];
   const request = terminationFixture();
+  const quote = terminationQuoteFixture();
   let current = true;
   let viewerId = fixtureId(1);
   let fail = false;
@@ -155,6 +158,9 @@ function harness(
       usePathChangesApi: () => api,
       usePathSettlement: () => query,
     },
+    "../hooks/use-termination-quote": {
+      useTerminationQuote: () => ({ ...query, data: quote }),
+    },
     "./termination-feedback": { TerminationFeedback: "Feedback" },
     "./PathReadFeedback": { PathReadFeedback: "ReadFeedback" },
   };
@@ -172,6 +178,7 @@ function harness(
     "termination-create-form": "TerminationCreateForm",
     "termination-request-card": "TerminationRequestCard",
     "termination-decision": "TerminationDecision",
+    "termination-credit-preview": "TerminationQuoteDetails",
     "path-settlement-panel": "PathSettlementPanel",
     "settlement-consent-form": "SettlementConsentForm",
   }[component];
@@ -198,6 +205,7 @@ function harness(
   }
   return {
     request,
+    quote,
     calls,
     command,
     query,
@@ -220,6 +228,7 @@ function harness(
         module[exportName]!({
           pathId: request.pathId,
           request,
+          quote,
           snapshot: query.data,
           blocked,
           refresh: () => {
@@ -400,6 +409,55 @@ test("cancellation blockers share one warning that distinguishes submitted from 
   }
 });
 
+test("an approved cancellation distinguishes stopped obligations from Credit waiting on blockers", () => {
+  const h = harness("termination-request-card");
+  try {
+    h.request.status = "ACCEPTED";
+    h.request.approvedAt = h.request.createdAt;
+    h.request.blockedByDispute = true;
+    const tree = h.render();
+    assert.match(text(tree), /Đã dừng các buổi tương lai/);
+    assert.match(text(tree), /Đã duyệt hủy. Credit đang chờ/);
+    assert.doesNotMatch(text(tree), /lộ trình chưa hủy|Chờ Admin/);
+    assert.equal(
+      nodes(tree).filter((node) => node.type === "Button").length,
+      0,
+    );
+    assert.equal(h.calls.length, 0);
+  } finally {
+    h.close();
+  }
+});
+
+test("quote details label both owners, keep exact amounts and never send a mutation", () => {
+  const h = harness("termination-credit-preview");
+  try {
+    h.quote.allocations.push({
+      ...h.quote.allocations[0]!,
+      allocationId: fixtureId(41),
+      userId: fixtureId(2),
+      refund: "9007199254740993.01",
+      compensationCredit: "3.01",
+      counterpartyPayment: "3.01",
+    });
+    h.quote.status = "BLOCKED";
+    h.quote.reasonCodes = ["TERMINATION_SESSION_RULING_REQUIRED"];
+    const tree = h.render();
+    const titles = nodes(tree)
+      .filter((node) => node.type === "Section")
+      .map((node) => node.props.title);
+    assert.deepEqual(titles, ["Khoản của bạn", "Khoản của đối tác"]);
+    assert.match(text(tree), /Hoàn lại:\s+60.00\s+CR/);
+    assert.match(text(tree), /9007199254740993.01/);
+    assert.match(text(tree), /3.01\s+CR bồi hoàn/);
+    assert.match(text(tree), /Chờ kết luận/);
+    assert.match(text(tree), /Tạm tính/);
+    assert.equal(h.calls.length, 0);
+  } finally {
+    h.close();
+  }
+});
+
 test("staff escalation asks for a note only when chosen and still validates it before sending", async () => {
   const h = harness("termination-request-card");
   try {
@@ -481,13 +539,19 @@ test("accepting shows the server's accepted state immediately and never exposes 
     button(h.render(), "Xác nhận đồng ý").onPress();
     h.request.status = "ACCEPTED";
     h.request.accepted = true;
+    h.request.approvedAt = h.request.createdAt;
+    h.request.resolution = {
+      approvalDigest: "a".repeat(64),
+      reason: "Both participants agreed to terminate",
+      approvedAt: h.request.createdAt,
+    };
     await tick();
     assert.deepEqual(h.calls[0]?.body, { expectedVersion: 1, accept: true });
     assert.equal(
       nodes(h.render()).some((node) => node.type === "Modal"),
       false,
     );
-    assert.match(text(h.render()), /Chờ Admin quyết định/);
+    assert.match(text(h.render()), /Đã dừng các buổi tương lai/);
     assert.equal(
       nodes(h.render()).filter((node) => node.type === "Button").length,
       0,
@@ -499,7 +563,10 @@ test("accepting shows the server's accepted state immediately and never exposes 
       ),
       false,
     );
-    assert.ok(button(h.render(), "Rút yêu cầu"));
+    assert.equal(
+      nodes(h.render()).filter((node) => node.type === "Button").length,
+      0,
+    );
     assert.equal(h.calls.length, 1);
   } finally {
     h.close();

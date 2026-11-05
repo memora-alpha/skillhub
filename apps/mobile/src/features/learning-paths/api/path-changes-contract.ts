@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { timestamp, uuid, version } from "@/lib/http/contracts";
 
-const credit = z.string().regex(/^(?:0|[1-9]\d*)(?:\.\d{1,2})?$/);
+export const credit = z.string().regex(/^(?:0|[1-9]\d*)(?:\.\d{1,2})?$/);
 export const changeReason = z.string().trim().min(3).max(1000);
 export const terminationResolution = z.object({
   policyReference: z.string().min(1),
@@ -10,6 +10,7 @@ export const terminationResolution = z.object({
     .array(
       z.object({
         allocationId: uuid,
+        userId: uuid.optional(),
         refund: credit,
         counterpartyPayment: credit,
         platformFee: credit,
@@ -41,6 +42,7 @@ export const terminationRequest = z
     responderId: uuid.nullable(),
     respondedAt: timestamp.nullable(),
     accepted: z.boolean().nullable(),
+    approvedAt: timestamp.nullable().optional(),
     responseNote: z.string().nullable(),
     closedAt: timestamp.nullable(),
     operationId: uuid.nullable(),
@@ -48,6 +50,11 @@ export const terminationRequest = z
       .union([
         terminationResolution,
         z.object({ outcome: z.literal("REJECTED"), reason: z.string() }),
+        z.object({
+          approvalDigest: z.string().regex(/^[a-f0-9]{64}$/),
+          reason: z.string(),
+          approvedAt: timestamp,
+        }),
       ])
       .nullable(),
     blockedByDispute: z.boolean(),

@@ -3,6 +3,10 @@ import { FormNotice } from "@/components/FormNotice";
 import { AppError } from "@/lib/http/errors";
 
 const messages: Record<string, string> = {
+  TERMINATION_ALREADY_APPROVED:
+    "Yêu cầu đã được duyệt, không thể rút hoặc chuyển nhân viên. Tải lại để xem Credit.",
+  TERMINATION_USE_FINAL_SETTLEMENT:
+    "Các buổi đã hoàn tất. Về bước Hoàn tất của lộ trình để xem quyết toán.",
   STALE_PATH_VERSION:
     "Phiên bản thỏa thuận đã thay đổi. Tải lại trước khi đồng ý quyết toán.",
   SETTLEMENT_CONSENT_NOT_ALLOWED:
