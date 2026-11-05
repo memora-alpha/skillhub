@@ -57,6 +57,9 @@ test("Inbox shows loading for a transient first read, preserves cached empty/con
     "../components/ConversationCard": { ConversationCard: "Card" },
     "../components/RequestInboxCard": { RequestInboxCard: "RequestCard" },
     "../hooks/use-inbox-groups": { useInboxGroups: () => state },
+    "@/components/use-visible-list-rows": {
+      useVisibleListRows: () => ({ visibleIds: new Set() }),
+    },
     "@/lib/query/use-quiet-read-recovery": {
       isTransientReadError,
       useQuietReadRecovery() {},
@@ -96,6 +99,64 @@ test("Inbox shows loading for a transient first read, preserves cached empty/con
     assert.equal(render().props.data, state.items);
     state.error = new AppError("http", 403);
     assert.equal(render().props.ListHeaderComponent.props.error, state.error);
+  } finally {
+    delete local.cache[filename];
+    contexts.reverse().forEach((context) => context.restore());
+  }
+});
+
+test("grouped Inbox skips the secondary list until a group with chat is visible", () => {
+  const local = createRequire(
+    new URL(
+      "../src/features/messages/hooks/use-inbox-groups.ts",
+      import.meta.url,
+    ),
+  );
+  const filename = local.resolve("./use-inbox-groups.ts");
+  const requestId = fixtureId(1);
+  const otherId = fixtureId(2);
+  const groups = [
+    { id: `request:${requestId}`, conversationCount: 0 },
+    { id: `request:${otherId}`, conversationCount: 1 },
+  ].map((group) => ({
+    ...group,
+    groupType: "LEARNING_REQUEST",
+    lastActivityAt: "2026-10-23T00:00:00Z",
+  }));
+  type PreviewOptions = NonNullable<
+    Parameters<
+      typeof import("../src/features/messages/hooks/use-conversation-inbox").useConversationInbox
+    >[0]
+  >;
+  let previewOptions: PreviewOptions | undefined;
+  const mocks = {
+    react: { useCallback: (fn: unknown) => fn },
+    "expo-router": { useIsFocused: () => true },
+    "@/features/connections": {
+      useConnections: () => ({ userId: fixtureId(3) }),
+    },
+    "./use-messages-api": { useGroupedInbox: () => ({ items: groups }) },
+    "./use-conversation-inbox": {
+      useConversationInbox: (options: PreviewOptions) => {
+        previewOptions = options;
+        return { items: [] };
+      },
+    },
+  };
+  const contexts = Object.entries(mocks).map(([name, namedExports]) =>
+    mock.module(pathToFileURL(local.resolve(name)), { namedExports }),
+  );
+  try {
+    delete local.cache[filename];
+    const { useInboxGroups } = local(
+      filename,
+    ) as typeof import("../src/features/messages/hooks/use-inbox-groups");
+    assert.equal(useInboxGroups(new Set()).items.length, 2);
+    assert.equal(previewOptions?.enabled, false);
+    useInboxGroups(new Set([`request:${requestId}`]));
+    assert.equal(previewOptions?.enabled, false);
+    useInboxGroups(new Set([`request:${otherId}`]));
+    assert.equal(previewOptions?.enabled, true);
   } finally {
     delete local.cache[filename];
     contexts.reverse().forEach((context) => context.restore());
@@ -185,7 +246,7 @@ test("connection read cancellation on disable aborts the pending transport and r
   }
 });
 
-test("leaving Inbox disables its list/previews and cancels only reads with no other active consumer", async () => {
+test("Inbox only reads visible previews and cancels unshared reads on scroll or blur", async () => {
   const local = createRequire(
     new URL(
       "../src/features/messages/hooks/use-conversation-inbox.ts",
@@ -205,9 +266,9 @@ test("leaving Inbox disables its list/previews and cancels only reads with no ot
   const finishes = new Map<string, () => void>();
   const observers: QueryObserver[] = [],
     stops: (() => void)[] = [];
-  const items = [10, 11].map((n) => ({
-    id: fixtureId(n),
-    proposalId: fixtureId(n + 10),
+  const items = Array.from({ length: 20 }, (_, index) => ({
+    id: fixtureId(index + 10),
+    proposalId: fixtureId(index + 30),
     learningRequestId: null,
     participantAId: fixtureId(1),
     participantBId: fixtureId(2),
@@ -273,17 +334,27 @@ test("leaving Inbox disables its list/previews and cancels only reads with no ot
   );
   try {
     delete local.cache[filename];
-    const { useConversationInbox } = local(filename) as {
-      useConversationInbox: () => { items: unknown[] };
-    };
+    const { useConversationInbox } = local(
+      filename,
+    ) as typeof import("../src/features/messages/hooks/use-conversation-inbox");
+    let visibleIds = new Set<string>();
     const render = () => {
       effects = [];
-      const result = useConversationInbox();
+      const result = useConversationInbox({
+        shouldLoadPreview: (conversation) => visibleIds.has(conversation.id),
+      });
       effects.forEach((fn) => fn());
       return result;
     };
+    assert.equal(render().items.length, 20);
+    assert.equal(signals.size, 0, "no preview is needed to show the list");
+    visibleIds = new Set([items[0]!.id, items[1]!.id]);
     render();
-    assert.equal(signals.size, 2);
+    assert.equal(signals.size, 2, "two visible rows need two history reads");
+    visibleIds = new Set([items[1]!.id]);
+    render();
+    assert.equal(signals.get(items[0]!.id)!.aborted, true);
+    assert.equal(signals.get(items[1]!.id)!.aborted, false);
     // A concurrent consumer must keep the second query alive after Inbox blurs.
     const shared = new QueryObserver(cache, {
       ...observers[1]!.options,
@@ -293,8 +364,8 @@ test("leaving Inbox disables its list/previews and cancels only reads with no ot
     stops.push(stopShared);
     focused = false;
     render();
-    assert.deepEqual(listEnabled, [true, false]);
-    assert.deepEqual(refreshEnabled, [true, false]);
+    assert.deepEqual(listEnabled, [true, true, true, false]);
+    assert.deepEqual(refreshEnabled, [true, true, true, false]);
     assert.equal(signals.get(items[0]!.id)!.aborted, true);
     assert.equal(signals.get(items[1]!.id)!.aborted, false);
     finishes.get(items[1]!.id)!();
@@ -305,7 +376,7 @@ test("leaving Inbox disables its list/previews and cancels only reads with no ot
     const retained = render();
     assert.equal(
       retained.items.length,
-      2,
+      20,
       "blur retains the cached conversation list",
     );
   } finally {

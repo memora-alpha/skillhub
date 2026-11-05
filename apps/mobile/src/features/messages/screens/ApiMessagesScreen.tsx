@@ -17,11 +17,13 @@ import { ConversationCard } from "../components/ConversationCard";
 import { conversationReference } from "../api/conversation-context";
 import { inboxTime } from "../utils/chat-dates";
 import { useInboxGroups } from "../hooks/use-inbox-groups";
+import { useVisibleListRows } from "@/components/use-visible-list-rows";
 import { RequestInboxCard } from "../components/RequestInboxCard";
 import { messageColors as colors } from "../constants/theme";
 
 export function ApiMessagesScreen() {
-  const query = useInboxGroups(),
+  const { visibleIds, ...viewability } = useVisibleListRows();
+  const query = useInboxGroups(visibleIds),
     router = useRouter();
   const focused = useIsFocused();
   const quietError = isTransientReadError(query.error);
@@ -46,7 +48,8 @@ export function ApiMessagesScreen() {
     error: query.error,
     fetching: query.isFetching,
     enabled: focused,
-    retry: () => query.refetch(),
+    retry: () =>
+      query.isFetchNextPageError ? query.loadMore() : query.refetch(),
   });
   let footer = null;
   if (quietError && query.hasNextPage)
@@ -87,6 +90,8 @@ export function ApiMessagesScreen() {
       {() => (
         <FlatList
           data={query.items}
+          {...viewability}
+          extraData={visibleIds}
           keyExtractor={({ group }) => group.id}
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
@@ -133,6 +138,7 @@ export function ApiMessagesScreen() {
               <ConversationRow
                 item={preview.item}
                 topic={group.title ?? undefined}
+                visible={visibleIds.has(group.id)}
               />
             ) : (
               <ConversationCard

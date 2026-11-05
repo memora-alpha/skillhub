@@ -7,7 +7,6 @@ export {
   ScheduleEditorScreen,
   HoldScreen,
 } from "./screens/schedule-screens";
-export { SettlementScreen } from "./screens/settlement-screen";
 export { TermsEditorScreen } from "./screens/terms-screen";
 export { PathCancellationScreen } from "./screens/cancellation-screen";
 export {

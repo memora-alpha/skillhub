@@ -77,7 +77,8 @@ Phase 07 đã sửa availability cho `CONFIRMED`/`READY` và cutoff 60 phút. Fo
 - Timeout/5xx/lost response: giữ draft/receipt nếu có, GET đối chiếu trước hành động gửi lại. Proposal không có server idempotency: không tự tạo version mới vì mất POST response; read không đủ chứng minh kết quả thì giữ trạng thái chưa rõ và chặn gửi lặp.
 - Keys và late results theo owner/generation. 403/404 ẩn/xóa private projection; stale cache cùng account có cảnh báo, mutation bị khóa đến khi read thành công. Context Path lỗi không làm biến mất detail Session hợp lệ; riêng action cần Path/version phải khóa.
 - Sau complete/apply-reschedule, đọc lại detail/list và Path liên quan qua public boundary của learning-paths. Không tự đặt progress, Path COMPLETED, settledAt hoặc số dư. Không import private feature modules.
-- Backend có settlement command và worker; Session UI không gọi settlement theo buổi. Kết quả cuối thỏa thuận/Wallet/ledger thuộc work tương ứng.
+- Backend thử tự quyết toán khi tất cả buổi hoàn tất và worker kiểm tra lại các lộ trình đang học mỗi 30 giây. Backend kiểm tra thời hạn khiếu nại và tranh chấp trước khi ghi Credit. Khi lộ trình đã hoàn tất và có `settledAt`, màn chi tiết trên mobile dẫn thẳng đến sổ giao dịch ví.
+- Khi tất cả Session COMPLETED, Path còn ACTIVE trong lúc chờ quyết toán. Giao dịch ledger chuyển Path sang COMPLETED và ghi `settledAt` nguyên tử. Thời hạn khiếu nại lấy từ outcome của từng buổi hoặc cấu hình attendance, mặc định 48 giờ sau endAt; backend chờ hạn muộn nhất của cả thỏa thuận.
 
 ## Lỗi cần giữ đúng nghĩa
 

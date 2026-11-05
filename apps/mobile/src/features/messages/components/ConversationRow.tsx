@@ -9,21 +9,23 @@ export function ConversationRow({
   item,
   compact = false,
   topic,
-}: Readonly<{ item: InboxConversation; compact?: boolean; topic?: string }>) {
+  visible = true,
+}: Readonly<{
+  item: InboxConversation;
+  compact?: boolean;
+  topic?: string;
+  visible?: boolean;
+}>) {
   const { conversation } = item;
-  const focused = useIsFocused();
+  const active = useIsFocused() && visible;
   const router = useRouter(),
     { userId } = useConnections();
   const partnerId =
     conversation.participantAId === userId
       ? conversation.participantBId
       : conversation.participantAId;
-  const profile = useParticipantProfile(partnerId, focused);
-  const context = useConversationContext(
-    conversation,
-    false,
-    focused && !topic,
-  );
+  const profile = useParticipantProfile(partnerId, active);
+  const context = useConversationContext(conversation, false, active && !topic);
   const state =
     item.state === "failed"
       ? "Chưa gửi · "

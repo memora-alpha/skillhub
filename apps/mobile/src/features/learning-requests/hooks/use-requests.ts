@@ -179,13 +179,22 @@ export function useSkillOptions(q?: string, active = true) {
     getNextPageParam: (page) => page.nextCursor ?? undefined,
   });
 }
-export function useSkillName(id: string | undefined) {
+export function useSkillName(id: string | undefined, allowed = true) {
   const { api, key, enabled } = useRequestsRuntime();
   const cache = useQueryClient();
-  return useQuery({
+  const query = useQuery({
     ...requestSkillOptions(api, key, id, cache),
-    enabled: enabled && !!id,
+    enabled: enabled && allowed && !!id,
   });
+  useEffect(() => {
+    if (id && !allowed)
+      void cache.cancelQueries({
+        queryKey: [...key, "skill", id],
+        exact: true,
+        type: "inactive",
+      });
+  }, [allowed, cache, id, key]);
+  return query;
 }
 export function useRequestSync() {
   const { key, isCurrent } = useRequestsRuntime();

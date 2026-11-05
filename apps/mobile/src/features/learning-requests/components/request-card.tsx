@@ -42,18 +42,20 @@ export function RequestCard({
   onPress,
   proposal,
   loadAvatar = true,
+  loadSkill = true,
 }: Readonly<{
   request: RequestItem;
   onPress: () => void;
   proposal?: SentRequestProposal;
   loadAvatar?: boolean;
+  loadSkill?: boolean;
 }>) {
   const own = isOwnRequest(request);
   const avatar = useRequestOwnerAvatar(
     own ? undefined : request.owner,
     loadAvatar,
   );
-  const skill = useSkillName(own ? request.skillId : undefined);
+  const skill = useSkillName(own ? request.skillId : undefined, loadSkill);
   const state = requestState(request);
   const skillName = own ? skill.data?.name : request.skill.name;
   const allTags = [

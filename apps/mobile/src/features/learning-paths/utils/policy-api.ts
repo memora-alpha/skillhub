@@ -6,6 +6,19 @@ import type {
 export const editablePath = (path: ApiLearningPath) =>
   path.lockedVersion === null &&
   ["PROPOSED", "PARTIALLY_CONFIRMED", "CONFIRMED"].includes(path.status);
+export const pathSessionsCompleted = (path: ApiLearningPath) =>
+  path.plans.length > 0 &&
+  path.plans.every(
+    (plan) =>
+      plan.sessions.length === plan.totalSessions &&
+      plan.sessions.every((session) => session.status === "COMPLETED"),
+  );
+export const shouldWatchLearningPath = (path: ApiLearningPath) =>
+  editablePath(path) ||
+  (path.status === "ACTIVE" &&
+    path.lockedVersion !== null &&
+    path.settledAt === null &&
+    pathSessionsCompleted(path));
 export const agreementConfirmed = (path: ApiLearningPath) =>
   path.agreement.version === path.currentVersion &&
   !!path.agreement.participantAConfirmedAt &&

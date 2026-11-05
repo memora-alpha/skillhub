@@ -4,6 +4,48 @@ Cập nhật tài liệu: 2026-11-03T15:52:11+07:00.
 
 **Ready for review — source complete; acceptance pending.** Source và regression đã hoàn tất trên nhánh `fix/mobile-proposal-chat-learning-path`; nghiệm thu API thật và Android/iOS còn mở.
 
+## Tải Hành trình của tôi
+
+Cập nhật 2026-11-04T23:07:58+07:00.
+
+- Learning Path mở trang 20 lộ trình, dựng danh sách bằng FlatList và chỉ đọc
+  hồ sơ đối tác cho thẻ đang thấy. Cuộn hoặc chọn tải thêm sẽ lấy trang kế.
+- Bộ lọc ghi rõ số lượng tính trên dữ liệu đã tải. Kéo làm mới chỉ đọc danh
+  sách lộ trình. Các luồng tra cứu cần toàn bộ lộ trình tiếp tục dùng API cũ.
+- Tab Yêu cầu học chỉ đọc tên kỹ năng cho thẻ đang thấy. Cache và scope phiên
+  tiếp tục được dùng khi đổi tab.
+- 949 test mobile, TypeScript và ESLint đạt. Chưa đo thời gian tải trên thiết bị
+  với API thật.
+
+## Rà luồng hoàn tất ngày 2026-11-05
+
+2026-11-05T12:53:07+07:00.
+
+- Lộ trình ACTIVE có đủ buổi COMPLETED tiếp tục đọc lại khi màn đang mở, tới
+  khi backend trả kết quả quyết toán. Đã quyết toán hoặc có tranh chấp thì dừng
+  lượt đọc định kỳ này. Quyền/state cuối vẫn lấy từ server.
+- Lịch học mở theo cả tháng và kéo làm mới query tháng hiện tại.
+- 951 test mobile, TypeScript và ESLint đạt. Nghiệm thu thiết bị/API thật còn mở.
+- Backend còn lỗi kiểm thử HTTP tại
+  `services/api/test/learning-sessions/http.test.mjs:201`: JSON webhook sai
+  định dạng trả 500, ca kiểm thử yêu cầu 400. Đã tái hiện ở lượt audit này.
+
+## Đối chiếu nghiệp vụ quyết toán
+
+2026-11-05T13:01:25+07:00.
+
+- Đối chiếu SRS 1.6 mục 18.19/18.40 với service, ledger, handler sự kiện và
+  worker. Chờ tất cả Session COMPLETED, hết thời hạn khiếu nại muộn nhất và
+  hết tranh chấp chặn trước khi chuyển Path COMPLETED cùng kết quả Credit.
+- ONE_WAY trả teacher 96%, phí 4%. TWO_WAY hoàn 96% khoản Held của chính mỗi
+  participant, phí 4% mỗi khoản. Phí làm tròn xuống theo snapshot tại lúc khóa.
+- Đã build backend và chạy 58 test liên quan. Kiểm tra riêng worker với dữ liệu
+  giả lập ONE_WAY 100 Credit và TWO_WAY 20 Credit mỗi người đạt, gồm trước/đúng
+  hạn 48 giờ và gọi lại để kiểm tra ledger không bị ghi thêm.
+- Đổi panel sau khi mọi buổi hoàn tất thành trạng thái chờ hệ thống quyết toán,
+  tránh tiếp tục hướng dẫn chuẩn bị buổi học. 43 test mobile liên quan đạt.
+- Chưa đối chiếu cấu hình hoặc giao dịch trên API đang triển khai.
+
 ## Kiểm tra xung đột lịch
 
 - Editor đối chiếu draft nội bộ, lịch chiều đối ứng trong Path và Session đã chốt của tài khoản hiện tại ở Path khác. `useExistingScheduleCheck` đọc GET `/sessions/mine` trên toàn dải ngày của draft, kể cả các thẻ thu gọn và lịch điền theo tuần.

@@ -37,6 +37,8 @@ import { ChatSendFeedback } from "../components/ChatSendFeedback";
 import { ScreenLoadingBoundary } from "@/components/ScreenLoadingBoundary";
 export function ApiChatScreen({ id }: Readonly<{ id: string }>) {
   const conversation = useConversation(id);
+  // History checks membership independently. Keep rendering gated on detail.
+  const thread = useThread(id, !conversation.denied);
   if (!uuid.safeParse(id).success)
     return (
       <FeaturePage title="Tin nhắn" demo={false} back="/messages">
@@ -64,27 +66,26 @@ export function ApiChatScreen({ id }: Readonly<{ id: string }>) {
     );
   return (
     <ApiChatConversation
-      key={id}
-      id={id}
       conversation={conversation.data}
+      thread={thread}
       refreshConversation={conversation.refetch}
     />
   );
 }
 function ApiChatConversation({
-  id,
   conversation,
+  thread,
   refreshConversation,
 }: Readonly<{
-  id: string;
   conversation: NonNullable<ReturnType<typeof useConversation>["data"]>;
+  thread: ReturnType<typeof useThread>;
   refreshConversation: () => unknown;
 }>) {
-  const router = useRouter(),
+  const { id } = conversation,
+    router = useRouter(),
     runtime = useConnections(),
     api = useMessagesApi();
-  const thread = useThread(id, true),
-    sender = useChatOutbox(id),
+  const sender = useChatOutbox(id),
     live = useChatEvents();
   const partnerId =
     conversation.participantAId === runtime.userId
@@ -389,9 +390,7 @@ function ApiChatConversation({
             attachment.pending || (!!attachment.file && !attachment.ready)
           }
           attachmentDisabled={attachment.locked}
-          onAttach={() => {
-            void attachment.choose();
-          }}
+          onAttach={() => void attachment.choose()}
         />
       </KeyboardAvoidingView>
     </SafeAreaView>

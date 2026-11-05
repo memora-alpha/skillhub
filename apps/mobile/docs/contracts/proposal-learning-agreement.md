@@ -95,7 +95,7 @@ mine mới đủ version. Không tăng concurrency hoặc sửa chính sách quy
 
 | Method / endpoint                            | Payload dùng                                         | Kết quả / ràng buộc                                                           |
 | -------------------------------------------- | ---------------------------------------------------- | ----------------------------------------------------------------------------- |
-| GET `/learning-paths/mine`                   | Không body                                           | Tối đa 100 summaries theo updatedAt; không cursor/filter conversation         |
+| GET `/learning-paths/mine`                   | Query `limit` và `cursor` tùy chọn                    | Summary theo createdAt và ID giảm dần; tối đa 100 mỗi trang. Hành trình dùng 20 mỗi trang. |
 | GET `/learning-paths/:id`                    | Không body                                           | Current agreement, plans, schedules, sessions; chỉ participant                |
 | POST `/learning-paths`                       | conversationId, exchangeType, các terms theo loại    | `{id,version,status}`; chưa Hold, không server idempotency                    |
 | PATCH `/learning-paths/:id`                  | expectedVersion và terms, không conversationId       | Đổi terms tăng agreement version; no-op giữ version, `unchanged: true`        |

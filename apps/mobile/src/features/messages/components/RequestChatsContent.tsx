@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import { View, StyleSheet } from "react-native";
 import { useIsFocused } from "expo-router";
 import { RefreshableFlatList as FlatList } from "@/components/RefreshableFlatList";
@@ -6,7 +6,9 @@ import { Button } from "@/components/Button";
 import { EmptyState } from "@/components/EmptyState";
 import { ConnectionFeedback } from "@/features/connections";
 import { useConversationInbox } from "../hooks/use-conversation-inbox";
+import { useVisibleListRows } from "@/components/use-visible-list-rows";
 import { ConversationRow } from "./ConversationRow";
+import type { ApiConversation } from "../api/messages-api";
 import {
   isTransientReadError,
   useQuietReadRecovery,
@@ -17,7 +19,15 @@ export function RequestChatsContent({
   title,
 }: Readonly<{ requestId: string; title: string }>) {
   const focused = useIsFocused();
-  const query = useConversationInbox({ learningRequestId: requestId });
+  const { visibleIds, ...viewability } = useVisibleListRows();
+  const shouldLoadPreview = useCallback(
+    (conversation: ApiConversation) => visibleIds.has(conversation.id),
+    [visibleIds],
+  );
+  const query = useConversationInbox({
+    learningRequestId: requestId,
+    shouldLoadPreview,
+  });
   const hasMore = !!query.hasNextPage && !query.denied;
   const quiet = isTransientReadError(query.error);
   useQuietReadRecovery({
@@ -49,6 +59,8 @@ export function RequestChatsContent({
   return (
     <FlatList
       data={query.items}
+      {...viewability}
+      extraData={visibleIds}
       keyExtractor={(item) => item.conversation.id}
       contentContainerStyle={styles.content}
       ItemSeparatorComponent={Separator}
@@ -88,7 +100,12 @@ export function RequestChatsContent({
         ) : null
       }
       renderItem={({ item }) => (
-        <ConversationRow item={item} compact topic={title} />
+        <ConversationRow
+          item={item}
+          compact
+          topic={title}
+          visible={visibleIds.has(item.conversation.id)}
+        />
       )}
     />
   );

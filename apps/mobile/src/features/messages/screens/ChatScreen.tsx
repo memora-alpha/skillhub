@@ -8,5 +8,5 @@ export function ChatScreen() {
   const id = Array.isArray(params.proposalId)
     ? params.proposalId[0]
     : params.proposalId;
-  return <ApiChatScreen id={id ?? ""} />;
+  return <ApiChatScreen key={id} id={id ?? ""} />;
 }

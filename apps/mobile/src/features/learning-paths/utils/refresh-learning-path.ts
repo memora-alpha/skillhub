@@ -14,7 +14,6 @@ export async function refreshLearningPath(
     }),
     cache.invalidateQueries({
       queryKey: [...scope, "learning-paths", "mine"],
-      exact: true,
     }),
   ]);
 }

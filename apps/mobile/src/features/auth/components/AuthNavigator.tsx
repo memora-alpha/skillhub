@@ -70,7 +70,6 @@ export function AuthNavigator() {
         <Stack.Screen name="paths/[id]/hold" />
         <Stack.Screen name="paths/[id]/cancel" />
         <Stack.Screen name="paths/[id]/terms" />
-        <Stack.Screen name="paths/[id]/settlement" />
         <Stack.Screen name="paths/[id]/sessions" />
         <Stack.Screen name="learning-sessions/[id]/index" />
         <Stack.Screen name="learning-sessions/[id]/reschedule" />

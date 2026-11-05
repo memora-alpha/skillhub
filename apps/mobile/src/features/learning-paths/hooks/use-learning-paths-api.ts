@@ -1,9 +1,13 @@
 import { useMemo } from "react";
-import { useConnections, useConnectionQuery } from "@/features/connections";
+import {
+  useConnections,
+  useConnectionList,
+  useConnectionQuery,
+} from "@/features/connections";
 import { uuid } from "@/lib/http/contracts";
 import { createLearningPathsApi } from "../api/learning-paths-api";
 import { useAgreementRefresh } from "./use-agreement-refresh";
-import { editablePath } from "../utils/policy-api";
+import { shouldWatchLearningPath } from "../utils/policy-api";
 
 export function useLearningPathsApi() {
   const runtime = useConnections();
@@ -21,6 +25,18 @@ export function useLearningPaths(allowed = true) {
     { cancelOnDisable: true },
   );
 }
+export function useLearningPathPages(allowed: boolean) {
+  const api = useLearningPathsApi();
+  return useConnectionList(
+    ["learning-paths", "mine", "pages"],
+    api.minePage,
+    allowed,
+    {
+      refreshOnFocus: "stale",
+      cancelOnDisable: true,
+    },
+  );
+}
 export function useLearningPath(id: string, allowed = true) {
   const api = useLearningPathsApi(),
     runtime = useConnections();
@@ -35,7 +51,7 @@ export function useLearningPath(id: string, allowed = true) {
     allowed &&
       runtime.enabled &&
       !!query.data &&
-      editablePath(query.data) &&
+      shouldWatchLearningPath(query.data) &&
       !query.error &&
       !query.denied,
     runtime.isCurrent,

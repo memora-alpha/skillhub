@@ -1,9 +1,21 @@
 # Trạng thái tin nhắn theo Yêu cầu học
 
-Cập nhật: 2026-11-04T00:31:13+07:00.
+Cập nhật: 2026-11-04T22:49:51+07:00.
 
 **Ready for review — source complete; API/native acceptance pending.**
 Nghiệm thu người dùng trên app thật: chưa thực hiện.
+
+## Tải màn Tin nhắn
+
+- Hiện thẻ nhóm ngay khi có trang Inbox. Chỉ bật danh sách hội thoại phụ khi
+  vùng nhìn thấy có nhóm có chat. Preview và profile tải theo hàng đang thấy;
+  cache cùng phiên tiếp tục phục vụ preview đã đọc khi cuộn hoặc quay lại.
+- Tab Đoạn chat dùng cùng cơ chế theo từng hàng. Hủy GET preview khi hàng rời
+  vùng nhìn thấy hoặc màn mất focus nếu không có consumer đang dùng chung.
+- Khi mở chat, trang tin mới nhất và detail bắt đầu song song. Hai endpoint
+  đều kiểm tra quyền tham gia và UI chỉ hiện tin sau khi detail hợp lệ.
+- Test với 20 hội thoại cho thấy danh sách cần 0 lượt đọc lịch sử để render và
+  2 hàng đang thấy phát sinh 2 lượt đọc. Chưa đo thời gian trên thiết bị/API thật.
 
 ## Tích hợp API Inbox của BE
 

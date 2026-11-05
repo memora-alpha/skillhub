@@ -3,6 +3,12 @@ import { createRequire } from "node:module";
 import { mock, test } from "node:test";
 import { pathToFileURL } from "node:url";
 import { AppError } from "../src/lib/http/errors";
+import {
+  deviceTimezone,
+  sessionDay,
+  sessionRange,
+  listIsLimited,
+} from "../src/features/sessions/utils/session-time";
 
 type Element = { type: unknown; props: Record<string, unknown> };
 function nodes(tree: unknown): Element[] {
@@ -11,6 +17,82 @@ function nodes(tree: unknown): Element[] {
   const element = tree as Element;
   return [element, ...nodes(element.props.children)];
 }
+
+test("Calendar initially shows the whole month and refreshes only its month query", () => {
+  const local = createRequire(
+    new URL(
+      "../src/features/calendar/screens/CalendarScreen.tsx",
+      import.meta.url,
+    ),
+  );
+  const filename = local.resolve("./CalendarScreen.tsx");
+  const now = new Date();
+  const differentDay = now.getDate() === 1 ? 2 : 1;
+  const session = {
+    id: "session-in-current-month",
+    startAt: new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      differentDay,
+      12,
+    ).toISOString(),
+  };
+  const refetch = mock.fn();
+  const jsx = (type: unknown, props: unknown) => ({ type, props });
+  const mocks = {
+    react: {
+      useState: (value: unknown) => [
+        typeof value === "function" ? value() : value,
+        () => {},
+      ],
+    },
+    "react/jsx-runtime": { jsx, jsxs: jsx },
+    "react-native": {
+      Text: "Text",
+      StyleSheet: { create: (styles: unknown) => styles },
+    },
+    "expo-router": { useIsFocused: () => true },
+    "@/components/RefreshableScrollView": { RefreshableScrollView: "Scroll" },
+    "@/components/EmptyState": { EmptyState: "Empty" },
+    "@/components/FormNotice": { FormNotice: "Notice" },
+    "@/features/shell": { AppScreenLayout: "Layout" },
+    "@/features/sessions": {
+      useSessionList: () => ({ data: [session], refetch }),
+      SessionFeedback: "Feedback",
+      deviceTimezone,
+      sessionDay,
+      sessionRange,
+      listIsLimited,
+    },
+    "@/lib/query/use-quiet-read-recovery": { useQuietReadRecovery() {} },
+    "../components/MonthCalendar": { MonthCalendar: "Month" },
+    "../components/CalendarSessionCard": { CalendarSessionCard: "Card" },
+  };
+  const contexts = Object.entries(mocks).map(([name, namedExports]) =>
+    mock.module(pathToFileURL(local.resolve(name)), { namedExports }),
+  );
+  try {
+    delete local.cache[filename];
+    const { CalendarScreen } = local(filename);
+    const elements = nodes(CalendarScreen().props.children());
+    assert.equal(
+      elements.find((node) => node.type === "Month")?.props.selectedDay,
+      null,
+    );
+    assert.equal(
+      elements.find((node) => node.type === "Card")?.props.session,
+      session,
+    );
+    const scroll = elements.find((node) => node.type === "Scroll");
+    (scroll!.props.onRefresh as () => void)();
+    assert.deepEqual(refetch.mock.calls[0]?.arguments, [
+      { cancelRefetch: false },
+    ]);
+  } finally {
+    delete local.cache[filename];
+    contexts.reverse().forEach((context) => context.restore());
+  }
+});
 test("Calendar429 preserves deadline and cached content through shared cooldown feedback; denial hides content", () => {
   const local = createRequire(
     new URL(

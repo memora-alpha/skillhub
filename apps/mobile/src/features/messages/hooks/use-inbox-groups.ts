@@ -1,18 +1,32 @@
+import { useCallback } from "react";
 import { useIsFocused } from "expo-router";
 import { useConnections } from "@/features/connections";
 import { useConversationInbox } from "./use-conversation-inbox";
 import { useGroupedInbox } from "./use-messages-api";
 import { inboxGroups } from "../utils/inbox-groups";
 import { orderInboxGroups } from "../utils/inbox-order";
-import type { ApiInboxGroup } from "../api/messages-api";
+import type { ApiConversation, ApiInboxGroup } from "../api/messages-api";
 
-export function useInboxGroups() {
+export function useInboxGroups(visibleIds: ReadonlySet<string>) {
   const focused = useIsFocused();
   const { userId } = useConnections();
   const inbox = useGroupedInbox(focused);
+  const hasVisibleChats = inbox.items.some(
+    (group) => group.conversationCount > 0 && visibleIds.has(group.id),
+  );
+  const shouldLoadPreview = useCallback(
+    (conversation: ApiConversation) =>
+      visibleIds.has(
+        conversation.learningRequestId
+          ? `request:${conversation.learningRequestId}`
+          : `conversation:${conversation.id}`,
+      ),
+    [visibleIds],
+  );
   const previews = useConversationInbox({
-    enabled: inbox.items.length > 0,
+    enabled: hasVisibleChats,
     previewLimit: 20,
+    shouldLoadPreview,
   });
   const byId = new Map(
     inboxGroups(previews.items, [], userId ?? "").map((group) => [
@@ -41,8 +55,8 @@ export function useInboxGroups() {
     hasNextPage: inbox.hasNextPage && !inbox.denied,
     refetch: () =>
       Promise.all([
-        inbox.refetch(),
-        inbox.items.length ? previews.refetch() : undefined,
+        inbox.refetch({ cancelRefetch: false }),
+        hasVisibleChats ? previews.refetch() : undefined,
       ]),
     loadMore: () => inbox.fetchNextPage({ cancelRefetch: false }),
   };
