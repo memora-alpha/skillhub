@@ -63,4 +63,5 @@ Nguồn đối chiếu: thiết kế tham khảo và các điều chỉnh ngư�
 - [x] Giảm N+1 detail tên bài, reuse cache mới và nối AbortSignal tới HTTP.
 - [x] Dùng Inbox của BE cho metadata nhóm và lọc chat/đề xuất đã gửi theo bài.
 - [x] Hiện danh sách từ API nhóm, chỉ tải preview/profile cho hàng đang thấy và đọc tin nhắn song song với detail khi mở chat.
+- [x] Tách logic nhóm/vai trò và các biểu thức lồng nhau trong danh sách cảnh báo Sonar của Inbox/Proposal.
 - [ ] Nghiệm thu UI/API/native trên Android/iOS với hai tài khoản test.

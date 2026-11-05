@@ -128,19 +128,25 @@ export function ApiMessagesScreen() {
             ) : null
           }
           ListFooterComponent={footer}
-          renderItem={({ item: { group, preview } }) =>
-            group.groupType === "LEARNING_REQUEST" ? (
-              <RequestInboxCard
-                group={group}
-                previewGroup={preview?.kind === "request" ? preview : undefined}
-              />
-            ) : preview?.kind === "direct" ? (
-              <ConversationRow
-                item={preview.item}
-                topic={group.title ?? undefined}
-                visible={visibleIds.has(group.id)}
-              />
-            ) : (
+          renderItem={({ item: { group, preview } }) => {
+            if (group.groupType === "LEARNING_REQUEST")
+              return (
+                <RequestInboxCard
+                  group={group}
+                  previewGroup={
+                    preview?.kind === "request" ? preview : undefined
+                  }
+                />
+              );
+            if (preview?.kind === "direct")
+              return (
+                <ConversationRow
+                  item={preview.item}
+                  topic={group.title ?? undefined}
+                  visible={visibleIds.has(group.id)}
+                />
+              );
+            return (
               <ConversationCard
                 name="Cuộc trò chuyện"
                 topic={group.title ?? "Trao đổi trực tiếp"}
@@ -154,8 +160,8 @@ export function ApiMessagesScreen() {
                   })
                 }
               />
-            )
-          }
+            );
+          }}
         />
       )}
     </AppScreenLayout>

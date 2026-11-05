@@ -1,9 +1,25 @@
 # Trạng thái tin nhắn theo Yêu cầu học
 
-Cập nhật: 2026-11-04T22:49:51+07:00.
+Cập nhật: 2026-11-05T14:37:44+07:00.
 
 **Ready for review — source complete; API/native acceptance pending.**
 Nghiệm thu người dùng trên app thật: chưa thực hiện.
+
+## Kiểm tra Sonar 2026-11-05T14:37:44+07:00
+
+- Tách logic nhóm chat, vai trò người xem và nội dung tab; dùng hằng mặc định
+  readonly cho coverage. Bỏ ternary/template literal lồng nhau trong 10 file
+  Inbox, Proposal, My Learning và request detail được báo.
+- SonarJS 4.2.2 chạy cục bộ ba rule cognitive-complexity (ngưỡng 15),
+  no-nested-conditional và no-nested-template-literals: 22 lỗi ở HEAD trước sửa,
+  còn 0 lỗi sau sửa. Kết quả ignored: `.expo/sonar-check-results.json` ở root.
+  Chưa chạy lại phân tích trên Sonar server.
+- Full mobile 952/952 test, TypeScript, ESLint và kiểm tra định dạng/diff đạt.
+  Log test cục bộ: `%TEMP%/skillhub-mobile-sonar-final-tests.log`.
+  check-structure còn lỗi có sẵn ở `messages-api.ts`: 294 dòng, giới hạn 250;
+  file này không thay đổi trong đợt sửa Sonar.
+- Không đổi contract API hoặc xử lý lỗi thiếu preview/chưa đọc ngoài 20 chat;
+  phần đó vẫn chờ BE summary và cập nhật mobile.
 
 ## Tải màn Tin nhắn
 

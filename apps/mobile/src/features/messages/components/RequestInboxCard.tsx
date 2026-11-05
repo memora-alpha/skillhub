@@ -7,32 +7,39 @@ import type { RequestInboxGroup } from "../utils/inbox-groups";
 import { messageColors as colors } from "../constants/theme";
 import { conversationReference } from "../api/conversation-context";
 
+type RequestGroup = Extract<ApiInboxGroup, { groupType: "LEARNING_REQUEST" }>;
+
+function requestSummary(group: RequestGroup) {
+  const chats = `${group.conversationCount} đoạn chat`;
+  if (group.viewerRole === "OWNER")
+    return `${group.receivedProposalCount} đề xuất nhận được · ${chats}`;
+  if (group.viewerRole === "PROPOSER") return `Đã gửi đề xuất · ${chats}`;
+  return chats;
+}
+
 export function RequestInboxCard({
   group,
   previewGroup,
 }: Readonly<{
-  group: Extract<ApiInboxGroup, { groupType: "LEARNING_REQUEST" }>;
+  group: RequestGroup;
   previewGroup?: RequestInboxGroup;
 }>) {
   const router = useRouter();
   const unread = previewGroup?.unread ?? false;
   const proposalId = previewGroup?.latestConversation?.conversation.proposalId;
-  const chatSummary = `${group.conversationCount} đoạn chat`;
-  const summary =
-    group.viewerRole === "OWNER"
-      ? `${group.receivedProposalCount} đề xuất nhận được · ${chatSummary}`
-      : group.viewerRole === "PROPOSER"
-        ? `Đã gửi đề xuất · ${chatSummary}`
-        : chatSummary;
+  const summary = requestSummary(group);
   const title = group.title?.trim() || "Yêu cầu học";
   const reference = group.title?.trim()
     ? undefined
     : conversationReference(group.learningRequestId);
   const view = group.conversationCount ? "chats" : "received";
+  const referenceLabel = reference ? `, ${reference}` : "";
+  const unreadLabel = unread ? ", có tin nhắn chưa đọc" : "";
+  const accessibilityLabel = `${title}${referenceLabel}, ${summary}${unreadLabel}`;
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${title}${reference ? `, ${reference}` : ""}, ${summary}${unread ? ", có tin nhắn chưa đọc" : ""}`}
+      accessibilityLabel={accessibilityLabel}
       onPress={() =>
         router.push({
           pathname: "/messages/request/[id]",

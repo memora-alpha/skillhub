@@ -34,6 +34,10 @@ export function ReceivedRequestProposals({
     focused,
   );
   const quiet = isTransientReadError(query.error);
+  let emptyTitle = "Không có đề xuất ở trạng thái này";
+  if (direction === "sent" && status === "all")
+    emptyTitle = "Chưa có đề xuất đã gửi cho yêu cầu này";
+  else if (status === "PENDING") emptyTitle = "Chưa có đề xuất chờ phản hồi";
   useQuietReadRecovery({
     error: query.error,
     fetching: query.isFetching,
@@ -72,13 +76,7 @@ export function ReceivedRequestProposals({
       }
       empty={
         <EmptyState
-          title={
-            direction === "sent" && status === "all"
-              ? "Chưa có đề xuất đã gửi cho yêu cầu này"
-              : status === "PENDING"
-                ? "Chưa có đề xuất chờ phản hồi"
-                : "Không có đề xuất ở trạng thái này"
-          }
+          title={emptyTitle}
           description="Chọn trạng thái khác để xem các đề xuất đã xử lý."
           action={status === "all" ? undefined : "Xem tất cả"}
           onAction={() => onStatusChange("all")}

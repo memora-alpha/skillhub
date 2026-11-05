@@ -18,6 +18,12 @@ import {
 import type { Proposal } from "../api/proposals-api";
 import { proposalStatusLabels } from "../constants/proposal-status";
 
+function proposalBadgeVariant(status: Proposal["status"]) {
+  if (status === "ACCEPTED") return "success";
+  if (status === "PENDING") return "warning";
+  return "default";
+}
+
 export function ProposalListCard({
   proposal,
   returnRequestId,
@@ -50,6 +56,7 @@ export function ProposalListCard({
     });
   const accepted = proposal.status === "ACCEPTED";
   const pending = proposal.status === "PENDING";
+  const badgeVariant = proposalBadgeVariant(proposal.status);
   if (compact)
     return (
       <Pressable
@@ -79,7 +86,7 @@ export function ProposalListCard({
           </View>
           <Badge
             label={proposalStatusLabels[proposal.status]}
-            variant={accepted ? "success" : pending ? "warning" : "default"}
+            variant={badgeVariant}
           />
         </View>
         <Text numberOfLines={2} style={styles.body}>
@@ -126,7 +133,7 @@ export function ProposalListCard({
       <View style={styles.statusRow}>
         <Badge
           label={proposalStatusLabels[proposal.status]}
-          variant={accepted ? "success" : pending ? "warning" : "default"}
+          variant={badgeVariant}
         />
       </View>
       <View style={styles.message}>

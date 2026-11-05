@@ -194,6 +194,11 @@ export function ApiPathsContent() {
       )}
     </>
   );
+  let emptyDescription =
+    "Mở cuộc trò chuyện sau khi đề xuất được chấp nhận để cùng tạo lộ trình học.";
+  if (hasMore) emptyDescription = "Tải thêm lộ trình để xem các trang còn lại.";
+  else if (paths.length)
+    emptyDescription = "Chọn Tất cả để xem các lộ trình còn lại.";
   const empty = query.data && (
     <EmptyState
       title={
@@ -201,15 +206,18 @@ export function ApiPathsContent() {
           ? "Chưa thấy lộ trình ở trạng thái này"
           : "Chưa có lộ trình"
       }
-      description={
-        hasMore
-          ? "Tải thêm lộ trình để xem các trang còn lại."
-          : paths.length
-            ? "Chọn Tất cả để xem các lộ trình còn lại."
-            : "Mở cuộc trò chuyện sau khi đề xuất được chấp nhận để cùng tạo lộ trình học."
-      }
+      description={emptyDescription}
     />
   );
+  let footer = null;
+  if (query.isFetchNextPageError)
+    footer = <PathReadFeedback query={{ ...query, refetch: loadMore }} />;
+  else if (hasMore)
+    footer = (
+      <Button variant="paper" disabled={query.isFetching} onPress={loadMore}>
+        {query.isFetchingNextPage ? "Đang tải thêm…" : "Tải thêm lộ trình"}
+      </Button>
+    );
   return (
     <RefreshableFlatList
       data={visible}
@@ -220,19 +228,7 @@ export function ApiPathsContent() {
       showsVerticalScrollIndicator={false}
       ListHeaderComponent={header}
       ListEmptyComponent={empty}
-      ListFooterComponent={
-        query.isFetchNextPageError ? (
-          <PathReadFeedback query={{ ...query, refetch: loadMore }} />
-        ) : hasMore ? (
-          <Button
-            variant="paper"
-            disabled={query.isFetching}
-            onPress={loadMore}
-          >
-            {query.isFetchingNextPage ? "Đang tải thêm…" : "Tải thêm lộ trình"}
-          </Button>
-        ) : null
-      }
+      ListFooterComponent={footer}
       refreshing={query.isRefetching}
       onRefresh={() => void refresh()}
       onEndReached={() => {

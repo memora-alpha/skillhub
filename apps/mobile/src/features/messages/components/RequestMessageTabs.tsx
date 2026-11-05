@@ -21,6 +21,9 @@ export function RequestMessageTabs({
   onChange: (value: RequestMessageTab) => void;
   direction?: "sent" | "received" | "unknown";
 }>) {
+  let proposalLabel = "Đề xuất";
+  if (direction === "received") proposalLabel = "Đề xuất nhận được";
+  else if (direction === "sent") proposalLabel = "Đề xuất đã gửi";
   return (
     <View
       accessibilityRole="tablist"
@@ -37,11 +40,7 @@ export function RequestMessageTabs({
           style={[styles.tab, value === tab.value && styles.selected]}
         >
           <Text style={[styles.label, value === tab.value && styles.active]}>
-            {tab.value === "received" && direction !== "received"
-              ? direction === "sent"
-                ? "Đề xuất đã gửi"
-                : "Đề xuất"
-              : tab.label}
+            {tab.value === "received" ? proposalLabel : tab.label}
           </Text>
         </Pressable>
       ))}

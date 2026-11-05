@@ -158,7 +158,9 @@ export function useRequestDetail(
       void client.cancelQueries({ queryKey, exact: true, type: "inactive" });
   }, [active, client, queryKey]);
   if (query.error) access.fail(query.error);
-  const data = access.denial ? undefined : useOwn ? own.item : query.data;
+  let data = query.data;
+  if (useOwn) data = own.item;
+  if (access.denial) data = undefined;
   return {
     ...query,
     data,

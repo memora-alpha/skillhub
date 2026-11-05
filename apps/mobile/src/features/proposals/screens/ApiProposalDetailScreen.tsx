@@ -35,16 +35,18 @@ export function ApiProposalDetailScreen({ id }: Readonly<{ id: string }>) {
     returnRequestId?: string;
   }>();
   const requestBack = proposalId(returnRequestId);
+  const proposalTab = proposal?.proposerId === userId ? "sent" : "received";
   const [closing, setClosing] = useState<"reject" | "withdraw" | undefined>(
     closeAction === "reject" || closeAction === "withdraw"
       ? closeAction
       : undefined,
   );
+  const closingActor =
+    closing === "reject" ? proposal?.recipientId : proposal?.proposerId;
   const closeConfirmation =
     closing &&
     proposal?.status === "PENDING" &&
-    (closing === "reject" ? proposal.recipientId : proposal.proposerId) ===
-      userId &&
+    closingActor === userId &&
     !command.uncertain
       ? closing
       : undefined;
@@ -96,7 +98,7 @@ export function ApiProposalDetailScreen({ id }: Readonly<{ id: string }>) {
           : {
               pathname: "/proposals",
               params: {
-                tab: proposal?.proposerId === userId ? "sent" : "received",
+                tab: proposalTab,
               },
             }
       }

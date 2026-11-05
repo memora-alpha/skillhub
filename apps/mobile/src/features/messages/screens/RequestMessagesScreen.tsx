@@ -12,6 +12,35 @@ import { RequestMessageTabs } from "../components/RequestMessageTabs";
 import { RequestChatsContent } from "../components/RequestChatsContent";
 import { requestGroupTitle } from "../utils/request-group-title";
 
+type RequestRoute = NonNullable<ReturnType<typeof requestMessageRoute>>;
+type ProposalDirection = "received" | "sent" | "unknown";
+
+function proposalDirection(
+  viewerRole: "OWNER" | "PROPOSER" | "PARTICIPANT" | undefined,
+  received: boolean,
+  sent: boolean,
+): ProposalDirection {
+  if (viewerRole === "OWNER") return "received";
+  if (viewerRole === "PROPOSER") return "sent";
+  if (viewerRole === "PARTICIPANT") return "unknown";
+  if (received) return "received";
+  if (sent) return "sent";
+  return "unknown";
+}
+
+function roleFeedback(
+  request: ReturnType<typeof useRequestDetail>,
+  context: ReturnType<typeof useProposal>,
+  hasProposal: boolean,
+) {
+  const pending = request.isPending || (hasProposal && context.isPending);
+  const error =
+    (!request.readDenied && request.error) ||
+    (!context.denied && context.error);
+  const retry = request.error === error ? request.refetch : context.refetch;
+  return { pending, error, retry };
+}
+
 export function RequestMessagesScreen() {
   const params = useLocalSearchParams();
   const route = requestMessageRoute(params);
@@ -40,7 +69,7 @@ function RequestMessages({
   route,
   explicitStatus,
 }: Readonly<{
-  route: NonNullable<ReturnType<typeof requestMessageRoute>>;
+  route: RequestRoute;
   explicitStatus: boolean;
 }>) {
   const router = useRouter();
@@ -67,17 +96,11 @@ function RequestMessages({
       : undefined;
   const sent = related && related.proposerId === userId ? related : undefined;
   const received = related && related.recipientId === userId;
-  const direction = group
-    ? group.viewerRole === "OWNER"
-      ? "received"
-      : group.viewerRole === "PROPOSER"
-        ? "sent"
-        : "unknown"
-    : ownRequest || received
-      ? "received"
-      : publicRequest || sent
-        ? "sent"
-        : "unknown";
+  const direction = proposalDirection(
+    group?.viewerRole,
+    ownRequest || !!received,
+    publicRequest || !!sent,
+  );
   const title = requestGroupTitle(route.id, {
     title:
       group?.title ??
@@ -87,12 +110,9 @@ function RequestMessages({
     denied: !group && !related?.learningRequestTitle && !!request.readDenied,
     pending: !group && request.isPending,
   });
-  const rolePending =
-    request.isPending || (!!route.proposalId && context.isPending);
-  const roleError =
-    (!request.readDenied && request.error) ||
-    (!context.denied && context.error);
+  const feedback = roleFeedback(request, context, !!route.proposalId);
   const openChats = () => router.setParams({ view: "chats" });
+  const status = direction === "sent" && !explicitStatus ? "all" : route.status;
   return (
     <AppScreenLayout
       title={title}
@@ -108,41 +128,15 @@ function RequestMessages({
           />
           {route.view === "chats" ? (
             <RequestChatsContent requestId={route.id} title={title} />
-          ) : group?.viewerRole === "PARTICIPANT" ? (
-            <View style={styles.notice}>
-              <EmptyState
-                title="Không có đề xuất của bạn cho yêu cầu này"
-                description="Bạn vẫn có thể xem các cuộc trò chuyện của mình."
-              />
-            </View>
-          ) : direction === "unknown" ? (
-            <View style={styles.notice}>
-              {rolePending || roleError ? (
-                <ConnectionFeedback
-                  loading={rolePending}
-                  error={roleError}
-                  retry={
-                    request.error === roleError
-                      ? request.refetch
-                      : context.refetch
-                  }
-                />
-              ) : (
-                <EmptyState
-                  title="Chưa xác định được đề xuất cho yêu cầu này"
-                  description="Bạn có thể mở Đoạn chat để xem các cuộc trò chuyện của mình."
-                  action="Mở đoạn chat"
-                  onAction={openChats}
-                />
-              )}
-            </View>
           ) : (
-            <ReceivedRequestProposals
-              requestId={route.id}
+            <RequestProposalContent
+              route={route}
               direction={direction}
-              status={
-                direction === "sent" && !explicitStatus ? "all" : route.status
-              }
+              participant={group?.viewerRole === "PARTICIPANT"}
+              pending={feedback.pending}
+              error={feedback.error}
+              retry={feedback.retry}
+              status={status}
               onStatusChange={(status) => router.setParams({ status })}
               onOpenChats={openChats}
             />
@@ -150,6 +144,62 @@ function RequestMessages({
         </View>
       )}
     </AppScreenLayout>
+  );
+}
+
+function RequestProposalContent({
+  route,
+  direction,
+  participant,
+  pending,
+  error,
+  retry,
+  status,
+  onStatusChange,
+  onOpenChats,
+}: Readonly<{
+  route: RequestRoute;
+  direction: ProposalDirection;
+  participant: boolean;
+  pending: boolean;
+  error: unknown;
+  retry: () => unknown;
+  status: RequestRoute["status"];
+  onStatusChange: (status: RequestRoute["status"]) => void;
+  onOpenChats: () => void;
+}>) {
+  if (participant)
+    return (
+      <View style={styles.notice}>
+        <EmptyState
+          title="Không có đề xuất của bạn cho yêu cầu này"
+          description="Bạn vẫn có thể xem các cuộc trò chuyện của mình."
+        />
+      </View>
+    );
+  if (direction === "unknown")
+    return (
+      <View style={styles.notice}>
+        {pending || error ? (
+          <ConnectionFeedback loading={pending} error={error} retry={retry} />
+        ) : (
+          <EmptyState
+            title="Chưa xác định được đề xuất cho yêu cầu này"
+            description="Bạn có thể mở Đoạn chat để xem các cuộc trò chuyện của mình."
+            action="Mở đoạn chat"
+            onAction={onOpenChats}
+          />
+        )}
+      </View>
+    );
+  return (
+    <ReceivedRequestProposals
+      requestId={route.id}
+      direction={direction}
+      status={status}
+      onStatusChange={onStatusChange}
+      onOpenChats={onOpenChats}
+    />
   );
 }
 

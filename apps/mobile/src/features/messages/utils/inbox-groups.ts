@@ -31,48 +31,110 @@ export type InboxGroup =
       item: InboxConversation;
     };
 
+type InboxCoverage = Readonly<{ received: boolean; chats: boolean }>;
+const completeCoverage: InboxCoverage = { received: true, chats: true };
+
+function requestGroup(
+  requests: Map<string, RequestInboxGroup>,
+  id: string,
+  activityAt: string,
+  preview: string,
+  coverage: InboxCoverage,
+) {
+  let group = requests.get(id);
+  if (!group) {
+    group = {
+      kind: "request",
+      id,
+      activityAt,
+      preview,
+      unread: false,
+      hasPending: false,
+      hasChat: false,
+      receivedCount: 0,
+      pendingCount: 0,
+      chatCount: 0,
+      receivedCountExact: coverage.received,
+      chatCountExact: coverage.chats,
+    };
+    requests.set(id, group);
+  } else if (Date.parse(activityAt) > Date.parse(group.activityAt)) {
+    group.activityAt = activityAt;
+    group.preview = preview;
+  }
+  return group;
+}
+
+function proposalPreview(status: Proposal["status"]) {
+  if (status === "PENDING") return "Có đề xuất đang chờ phản hồi";
+  if (status === "REJECTED") return "Đề xuất đã từ chối";
+  return "Lịch sử đề xuất";
+}
+
+function chatPreview(item: InboxConversation) {
+  if (item.state === "failed") return `Chưa gửi · ${item.preview}`;
+  if (item.state === "pending") return `Chờ gửi · ${item.preview}`;
+  return item.preview;
+}
+
+function addConversation(
+  requests: Map<string, RequestInboxGroup>,
+  direct: InboxGroup[],
+  item: InboxConversation,
+  userId: string,
+  coverage: InboxCoverage,
+) {
+  const conversation = item.conversation;
+  if (
+    ![conversation.participantAId, conversation.participantBId].includes(userId)
+  )
+    return;
+  if (!conversation.learningRequestId) {
+    direct.push({
+      kind: "direct",
+      id: conversation.id,
+      activityAt: item.activityAt,
+      item,
+    });
+    return;
+  }
+  const group = requestGroup(
+    requests,
+    conversation.learningRequestId,
+    item.activityAt,
+    chatPreview(item),
+    coverage,
+  );
+  group.hasChat = true;
+  group.contextProposalId ??= conversation.proposalId;
+  group.unread ||= !!item.unread;
+  group.chatCount++;
+  if (
+    !group.latestConversation ||
+    Date.parse(item.activityAt) >
+      Date.parse(group.latestConversation.activityAt)
+  )
+    group.latestConversation = item;
+}
+
 export function inboxGroups(
   conversations: InboxConversation[],
   proposals: Proposal[],
   userId: string,
-  coverage = { received: true, chats: true },
+  coverage: InboxCoverage = completeCoverage,
 ): InboxGroup[] {
   const requests = new Map<string, RequestInboxGroup>();
   const direct: InboxGroup[] = [];
-  const add = (id: string, activityAt: string, preview: string) => {
-    let group = requests.get(id);
-    if (!group) {
-      group = {
-        kind: "request",
-        id,
-        activityAt,
-        preview,
-        unread: false,
-        hasPending: false,
-        hasChat: false,
-        receivedCount: 0,
-        pendingCount: 0,
-        chatCount: 0,
-        receivedCountExact: coverage.received,
-        chatCountExact: coverage.chats,
-      };
-      requests.set(id, group);
-    } else if (Date.parse(activityAt) > Date.parse(group.activityAt)) {
-      group.activityAt = activityAt;
-      group.preview = preview;
-    }
-    return group;
-  };
   for (const proposal of new Map(proposals.map((p) => [p.id, p])).values()) {
     if (proposal.recipientId !== userId || !proposal.learningRequestId)
       continue;
-    const preview =
-      proposal.status === "PENDING"
-        ? "Có đề xuất đang chờ phản hồi"
-        : proposal.status === "REJECTED"
-          ? "Đề xuất đã từ chối"
-          : "Lịch sử đề xuất";
-    const group = add(proposal.learningRequestId, proposal.updatedAt, preview);
+    const group = requestGroup(
+      requests,
+      proposal.learningRequestId,
+      proposal.updatedAt,
+      proposalPreview(proposal.status),
+      coverage,
+    );
     group.hasPending ||= proposal.status === "PENDING";
     group.receivedCount++;
     group.skillId ??= proposal.skillId;
@@ -82,43 +144,12 @@ export function inboxGroups(
   for (const item of new Map(
     conversations.map((c) => [c.conversation.id, c]),
   ).values()) {
-    const c = item.conversation;
-    if (![c.participantAId, c.participantBId].includes(userId)) continue;
-    if (!c.learningRequestId) {
-      direct.push({
-        kind: "direct",
-        id: c.id,
-        activityAt: item.activityAt,
-        item,
-      });
-      continue;
-    }
-    let prefix = "";
-    if (item.state === "failed") prefix = "Chưa gửi · ";
-    else if (item.state === "pending") prefix = "Chờ gửi · ";
-    const group = add(
-      c.learningRequestId,
-      item.activityAt,
-      `${prefix}${item.preview}`,
-    );
-    group.hasChat = true;
-    group.contextProposalId ??= c.proposalId;
-    group.unread ||= !!item.unread;
-    group.chatCount++;
-    if (
-      !group.latestConversation ||
-      Date.parse(item.activityAt) >
-        Date.parse(group.latestConversation.activityAt)
-    )
-      group.latestConversation = item;
+    addConversation(requests, direct, item, userId, coverage);
   }
   for (const group of requests.values()) {
     const latest = group.latestConversation;
     if (!latest) continue;
-    let prefix = "";
-    if (latest.state === "failed") prefix = "Chưa gửi · ";
-    else if (latest.state === "pending") prefix = "Chờ gửi · ";
-    group.preview = `${prefix}${latest.preview}`;
+    group.preview = chatPreview(latest);
   }
   return [...requests.values(), ...direct].sort(
     (a, b) =>
