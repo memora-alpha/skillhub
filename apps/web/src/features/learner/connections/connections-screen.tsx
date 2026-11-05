@@ -17,10 +17,17 @@ import {
 } from "../components/common";
 import { ProfileName } from "../components/profile-name";
 import { findInPages } from "../api/find-page";
-export function ConnectionsScreen() {
-  const [direction, setDirection] = useState("received");
+import { ProposalSource } from "./proposal-source";
+import { ProposalEditor } from "./proposal-editor";
+export function ConnectionsScreen({
+  requestId,
+  initialDirection = "received",
+}: Readonly<{ requestId?: string; initialDirection?: string }>) {
+  const [direction, setDirection] = useState(initialDirection);
   const query = useUserList<Proposal>(
-    "proposals?limit=20&direction=" + direction,
+    "proposals?limit=20&direction=" +
+      direction +
+      (requestId ? "&learningRequestId=" + requestId : ""),
   );
   return (
     <>
@@ -30,6 +37,9 @@ export function ConnectionsScreen() {
         description="Xem đề xuất, chọn người phù hợp rồi trao đổi kế hoạch học."
         action={
           <div className="learner-tabs">
+            <Link className="btn" href="/learn/explore?view=sharers">
+              Tìm người chia sẻ
+            </Link>
             <button
               aria-pressed={direction === "received"}
               onClick={() => setDirection("received")}
@@ -45,6 +55,13 @@ export function ConnectionsScreen() {
           </div>
         }
       />
+      {requestId && (
+        <p className="learner-notice">
+          Đang xem đề nghị của một bài nhu cầu học.{" "}
+          <Link href={"/learn/posts/" + requestId}>Xem bài nguồn</Link> ·{" "}
+          <Link href="/learn/connections">Xem mọi đề nghị</Link>
+        </p>
+      )}
       <Feedback
         loading={query.loading}
         error={query.error}
@@ -76,6 +93,7 @@ export function ProposalCard({ proposal }: Readonly<{ proposal: Proposal }>) {
     command = useUserCommand(true),
     router = useRouter();
   const [opening, setOpening] = useState(false),
+    [editing, setEditing] = useState(false),
     [error, setError] = useState<string>();
   const other =
     proposal.proposerId === actor.userId
@@ -122,12 +140,16 @@ export function ProposalCard({ proposal }: Readonly<{ proposal: Proposal }>) {
         </h2>
         <Status value={proposal.status} />
       </div>
+      <ProposalSource proposal={proposal} />
       <p className="learner-prose">{proposal.message}</p>
       {proposal.candidateSlots && <p>Gợi ý lịch: {proposal.candidateSlots}</p>}
       {proposal.proposedCredit && (
         <p>Credit gợi ý: {proposal.proposedCredit} CR</p>
       )}
-      <div className="learner-actions">
+      <div className="learner-actions" inert={editing}>
+        <Link className="btn" href={"/learn/people/" + other}>
+          Xem hồ sơ đối tác
+        </Link>
         {proposal.learningRequestId && (
           <Link
             className="btn"
@@ -204,6 +226,25 @@ export function ProposalCard({ proposal }: Readonly<{ proposal: Proposal }>) {
           </button>
         )}
       </div>
+      {proposal.status === "PENDING" &&
+        proposal.proposerId === actor.userId && (
+          <>
+            <button
+              type="button"
+              className="btn"
+              disabled={command.pending || command.uncertain || editing}
+              onClick={() => setEditing(true)}
+            >
+              Sửa đề xuất
+            </button>
+            {editing && (
+              <ProposalEditor
+                proposal={proposal}
+                onClose={() => setEditing(false)}
+              />
+            )}
+          </>
+        )}
       <Feedback error={error} />
       <CommandFeedback command={command} />
     </Panel>

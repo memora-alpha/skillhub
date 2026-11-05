@@ -1,7 +1,6 @@
 "use client";
 import { formText } from "../components/form-data";
 
-import Link from "next/link";
 import { useState } from "react";
 import { useUserSession } from "../auth/session";
 import { useUserList, useUserResource } from "../hooks/use-user-resource";
@@ -15,8 +14,8 @@ import {
   More,
   PageHeading,
   Panel,
-  Status,
 } from "../components/common";
+import { SkillManagementCard } from "./skill-management-card";
 type Level = {
   id: string;
   name: string;
@@ -25,7 +24,10 @@ type Level = {
   sortOrder: number;
 };
 export function SkillsScreen() {
-  const query = useUserList<SharingSkill>("me/skills?limit=20"),
+  const [includeArchived, setIncludeArchived] = useState(false);
+  const query = useUserList<SharingSkill>(
+      "me/skills?limit=20&includeArchived=" + includeArchived,
+    ),
     { request } = useUserSession(),
     command = useUserCommand(true);
   const [skillId, setSkillId] = useState(""),
@@ -39,6 +41,14 @@ export function SkillsScreen() {
         title="Kỹ năng tôi có thể chia sẻ"
         description="Giúp người muốn học hiểu kinh nghiệm và thế mạnh của bạn."
       />
+      <label className="learner-actions">
+        <input
+          type="checkbox"
+          checked={includeArchived}
+          onChange={(event) => setIncludeArchived(event.target.checked)}
+        />{" "}
+        Hiển thị cả kỹ năng đã lưu trữ
+      </label>
       <div className="learner-two-columns">
         <div className="learner-stack">
           <Feedback
@@ -47,24 +57,12 @@ export function SkillsScreen() {
             reload={query.reload}
           />
           {query.items.map((skill) => (
-            <Panel key={skill.id} title={skill.skill.name}>
-              <p>{skill.description}</p>
-              {skill.verificationStatus && (
-                <p>
-                  <Status value={skill.verificationStatus} />
-                </p>
-              )}
-              <Link
-                className="learner-card-link"
-                href={"/learn/skills/" + skill.id + "/verification"}
-              >
-                Chi tiết xác minh kỹ năng →
-              </Link>
-              <p className="muted">
-                Trình độ: {skill.level} ·{" "}
-                {skill.isVisible ? "Đang hiển thị" : "Đang ẩn"}
-              </p>
-            </Panel>
+            <SkillManagementCard
+              key={skill.id}
+              skill={skill}
+              blocked={!!query.error || query.loading}
+              reload={query.reload}
+            />
           ))}
           {!query.loading && !query.error && !query.items.length && (
             <Empty>Bạn chưa khai báo kỹ năng chia sẻ.</Empty>

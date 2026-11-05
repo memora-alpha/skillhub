@@ -597,7 +597,7 @@ export function LandingPage() {
           </div>
         </div>
         <div className="container footer-bottom">
-          <span>© 2026 SkillHub. All rights reserved.</span>
+          <span>© 2026 SkillHub. Mọi quyền được bảo lưu.</span>
           <span>Được xây dựng cho những người luôn muốn tiến bộ.</span>
         </div>
       </footer>
