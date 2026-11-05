@@ -819,6 +819,8 @@ export class SchedulingService {
         where: { id: lockedSession.pathId },
       });
       const makeup = lockedSession.status === "MAKEUP_REQUIRED";
+      if (path.terminationApprovedAt)
+        throw new ConflictException("TERMINATION_ALREADY_APPROVED");
       if (
         (path.status !== "SCHEDULED" && path.status !== "ACTIVE") ||
         (!makeup && !["CONFIRMED", "READY"].includes(lockedSession.status))

@@ -46,6 +46,7 @@ export class PathSettlementStatusService {
         reasonCode,
         nextAction,
         settledAt: path.settledAt,
+        terminationApprovedAt: path.terminationApprovedAt,
         lastCheckedAt: attempt?.checkedAt ?? null,
         attemptCount: attempt?.attemptCount ?? 0,
         retryable: status === "RETRYING" || status === "READY",

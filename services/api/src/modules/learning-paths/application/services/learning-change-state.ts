@@ -58,7 +58,7 @@ export function pendingTermination(
       pathId,
       kind: "PATH_TERMINATION",
       status: { in: OPEN_CHANGE_STATUSES },
-      expiresAt: { gt: now },
+      OR: [{ expiresAt: { gt: now } }, { approvedAt: { not: null } }],
     },
     select: { id: true },
   });
@@ -99,6 +99,7 @@ export function changeView(
     responderId: row.responderId,
     respondedAt: row.respondedAt,
     accepted: row.accepted,
+    approvedAt: row.approvedAt,
     responseNote: row.responseNote,
     closedAt: row.closedAt,
     resolvedByUserId: row.resolvedByUserId,
@@ -283,6 +284,8 @@ export class LearningChangeState {
   ) {
     if (row.requesterId !== actor.userId)
       throw new ForbiddenException("CHANGE_REQUEST_OWNER_REQUIRED");
+    if (row.approvedAt)
+      throw new ConflictException("TERMINATION_ALREADY_APPROVED");
     if (row.status === "WITHDRAWN") return row;
     this.assertOpen(row, expectedVersion, now);
     return this.update(
@@ -300,7 +303,7 @@ export class LearningChangeState {
       throw new ConflictException("STALE_CHANGE_REQUEST_VERSION");
     if (!OPEN_CHANGE_STATUSES.includes(row.status))
       throw new ConflictException("CHANGE_REQUEST_CLOSED");
-    if (now >= row.expiresAt)
+    if (!row.approvedAt && now >= row.expiresAt)
       throw new ConflictException("CHANGE_REQUEST_EXPIRED");
   }
 
@@ -332,6 +335,7 @@ export class LearningChangeState {
         pathId,
         status: { in: OPEN_CHANGE_STATUSES },
         expiresAt: { lte: now },
+        approvedAt: null,
       },
       orderBy: { id: "asc" },
     });

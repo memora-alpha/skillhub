@@ -379,6 +379,7 @@ export class LearningPathsService {
       const data = page.map((path) => ({
         id: path.id,
         title: titles.get(path.conversationId) ?? null,
+        terminationApprovedAt: path.terminationApprovedAt,
         conversationId: path.conversationId,
         status: path.status,
         exchangeType: exchangeTypes.get(path.id) ?? null,
@@ -473,6 +474,7 @@ export class LearningPathsService {
         currentVersion: path.currentVersion,
         lockedVersion: path.lockedVersion,
         completedAt: path.completedAt,
+        terminationApprovedAt: path.terminationApprovedAt,
         settledAt: path.settledAt,
         agreement: {
           version: agreement.versionNo,

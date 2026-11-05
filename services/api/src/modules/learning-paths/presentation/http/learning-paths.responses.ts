@@ -11,6 +11,14 @@ export class LearningPathSummaryResponse {
   title!: string | null;
   @ApiProperty({ format: "uuid" }) conversationId!: string;
   @ApiProperty() status!: string;
+  @ApiProperty({
+    type: String,
+    format: "date-time",
+    nullable: true,
+    description:
+      "New learning obligations stop at this approval time; Credit may still await existing outcomes.",
+  })
+  terminationApprovedAt!: string | null;
   @ApiProperty({ type: String, enum: ["ONE_WAY", "TWO_WAY"], nullable: true })
   exchangeType!: string | null;
   @ApiProperty({ format: "uuid" }) counterpartId!: string;

@@ -266,9 +266,10 @@ export class PrismaUsersRepository extends UsersRepository {
     } satisfies Record<RoleCode, readonly PermissionCode[]>;
     const reportGrants = {
       USER: [],
-      STAFF: ["report:moderate"],
+      STAFF: ["report:moderate", "learning-path:terminate"],
       ADMIN: [
         "report:moderate",
+        "learning-path:terminate",
         "credit:adjust",
         "credit:reverse:settlement",
         "dispute:override",

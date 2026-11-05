@@ -281,6 +281,11 @@ export class SessionOutcomeService {
     now: Date,
     policy: ReturnType<typeof outcomePolicy>,
   ) {
+    const path = await tx.learningPath.findUniqueOrThrow({
+      where: { id: session.pathId },
+    });
+    if (path.terminationApprovedAt)
+      return finalizeNoShow(tx, this.reputation, session, outcome, now, policy);
     const quotas = await makeupQuotas(
       tx,
       session,

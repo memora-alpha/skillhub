@@ -67,7 +67,7 @@ class ExecuteTerminationDto extends TerminationReasonDto {
     minLength: 3,
     maxLength: 1000,
     description:
-      "Required for any TWO_WAY compensation transfer; no automatic penalty rate",
+      "Legacy context only; the backend calculates compensation from attendance",
   })
   @IsOptional()
   @IsString()
@@ -75,18 +75,25 @@ class ExecuteTerminationDto extends TerminationReasonDto {
   @MaxLength(1000)
   compensationReason?: string;
   @ApiProperty() @Matches(/^[a-f0-9]{64}$/) expectedExecutionDigest!: string;
-  @ApiProperty({ maxLength: 200 })
+  @ApiProperty({ maxLength: 200, required: false })
+  @IsOptional()
   @IsString()
   @MinLength(1)
   @MaxLength(200)
-  policyReference!: string;
-  @ApiProperty({ type: [TerminationAllocationDto] })
+  policyReference?: string;
+  @ApiProperty({
+    type: [TerminationAllocationDto],
+    required: false,
+    description:
+      "Optional exact quote assertion; amounts cannot override the server formula",
+  })
+  @IsOptional()
   @IsArray()
   @ArrayMinSize(1)
   @ArrayMaxSize(2)
   @ValidateNested({ each: true })
   @Type(() => TerminationAllocationDto)
-  allocations!: TerminationAllocationDto[];
+  allocations?: TerminationAllocationDto[];
 }
 
 @ApiTags("learning-paths")
@@ -114,7 +121,7 @@ export class PathTerminationController {
   @ApiHeader({ name: "Idempotency-Key", required: true })
   @ApiOperation({
     summary:
-      "Request agreement-wide early termination; schedules stay effective until execution",
+      "Request agreement-wide termination; obligations stop when the partner or Staff approves",
   })
   async request(
     @CurrentIdentity() actor: Principal,
@@ -197,7 +204,7 @@ export class PathTerminationController {
   @Post(":requestId/execute")
   @ApiOperation({
     summary:
-      "Admin executes reviewed per-session settlement; backend validates formula and explicit compensation",
+      "Staff/Admin approves termination; backend calculates settlement or waits for existing session outcomes",
   })
   async execute(
     @CurrentIdentity() actor: Principal,

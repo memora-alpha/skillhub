@@ -52,6 +52,7 @@ export class LearningChangeRecoveryWorker
         const rows = await this.db.learningChangeRequest.findMany({
           where: {
             status: { in: OPEN_CHANGE_STATUSES },
+            approvedAt: null,
             ...(cursor ? { id: { gt: cursor } } : {}),
           },
           orderBy: { id: "asc" },
