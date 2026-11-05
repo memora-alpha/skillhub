@@ -15,10 +15,7 @@ export function PathsScreen() {
   const query = useUserList<PathSummary>("learning-paths/mine?limit=20");
   return (
     <>
-      <PageHeading
-        title="Lộ trình học của tôi"
-        description="Từ một lời hẹn đến kế hoạch học rõ ràng, có xác nhận của cả hai."
-      />
+      <PageHeading title="Lộ trình học của tôi" />
       <Feedback
         loading={query.loading}
         error={query.error}

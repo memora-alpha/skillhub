@@ -1,0 +1,32 @@
+.summary {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  margin-block: 12px 20px;
+  font-size: 0.875rem;
+}
+.line {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.summary details {
+  min-width: 0;
+}
+.summary summary {
+  cursor: pointer;
+  color: var(--color-text-secondary, #756458);
+}
+.summary summary:focus-visible {
+  outline: 2px solid #c4512b;
+  outline-offset: 4px;
+}
+.summary details[open] {
+  flex-basis: 100%;
+}
+.summary details p {
+  margin-block: 8px;
+}

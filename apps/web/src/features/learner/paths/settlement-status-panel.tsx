@@ -73,19 +73,12 @@ export function SettlementStatusPanel({
     );
     if (result) {
       setReviewing(false);
-      setNotice(
-        "Đã ghi nhận ý kiến của bạn. Kết quả quyết toán được tải lại từ máy chủ.",
-      );
+      setNotice("Đã ghi nhận đồng ý quyết toán sớm.");
     }
     query.reload();
   }
   return (
     <Panel title="Hoàn Credit & quyết toán">
-      <p>
-        Trao đổi hai chiều: mỗi người nhận lại 96% Credit đã giữ của mình. Học
-        một chiều: người dạy nhận 96% Credit thỏa thuận. Phần còn lại là phí nền
-        tảng.
-      </p>
       <Feedback
         loading={query.loading}
         error={query.error ?? contractError}
@@ -106,12 +99,6 @@ export function SettlementStatusPanel({
           {status.settledAt && (
             <p>Đã quyết toán lúc {formatTime(status.settledAt)}</p>
           )}
-          {status.lastCheckedAt && (
-            <p className="muted">
-              Kiểm tra lần cuối: {formatTime(status.lastCheckedAt)} ·{" "}
-              {status.attemptCount} lần
-            </p>
-          )}
           {status.immediateSettlement.ownApprovedAt && (
             <p>
               Bạn đã đồng ý quyết toán sớm.{" "}
@@ -122,37 +109,40 @@ export function SettlementStatusPanel({
           )}
           {status.immediateSettlement.canApprove && !consent.uncertain && (
             <>
-              <p>
-                Hoàn thành buổi học không đồng nghĩa với đồng ý quyết toán tiền.
-                Hai bên có thể chọn quyết toán ngay thay vì chờ hết hạn khiếu
-                nại. Sau quyết toán, báo cáo không tự đảo giao dịch Credit.
-              </p>
               {!reviewing ? (
                 <button
                   type="button"
                   className="btn"
                   onClick={() => setReviewing(true)}
                 >
-                  Xem và đồng ý quyết toán sớm
+                  Quyết toán sớm
                 </button>
               ) : (
-                <div className="learner-actions">
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    disabled={consent.pending || query.loading || !!query.error}
-                    onClick={() => void approve()}
-                  >
-                    Tôi đồng ý quyết toán ngay
-                  </button>
-                  <button
-                    type="button"
-                    className="btn"
-                    disabled={consent.pending}
-                    onClick={() => setReviewing(false)}
-                  >
-                    Tiếp tục chờ theo hạn
-                  </button>
+                <div>
+                  <p>
+                    Quyết toán ngay sẽ kết thúc thời gian chờ khiếu nại. Báo cáo
+                    sau đó không tự hoàn Credit.
+                  </p>
+                  <div className="learner-actions">
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      disabled={
+                        consent.pending || query.loading || !!query.error
+                      }
+                      onClick={() => void approve()}
+                    >
+                      Tôi đồng ý quyết toán ngay
+                    </button>
+                    <button
+                      type="button"
+                      className="btn"
+                      disabled={consent.pending}
+                      onClick={() => setReviewing(false)}
+                    >
+                      Tiếp tục chờ theo hạn
+                    </button>
+                  </div>
                 </div>
               )}
             </>
@@ -207,10 +197,10 @@ export function SettlementStatusPanel({
           disabled={query.loading}
           onClick={query.reload}
         >
-          Tải lại trạng thái
+          Làm mới
         </button>
         <Link className="btn" href="/learn/wallet">
-          Xem ví & lịch sử Credit
+          Xem ví
         </Link>
       </div>
     </Panel>

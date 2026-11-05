@@ -79,12 +79,7 @@ export function PathReviews({ path }: Readonly<{ path: LearningPath }>) {
           <small>{formatTime(r.createdAt)}</small>
         </article>
       ))}
-      {!opened && (
-        <p>
-          Đánh giá mở sau khi toàn bộ lộ trình hoàn thành và BE đã quyết toán.
-          Việc chỉ hoàn thành một buổi chưa mở đánh giá.
-        </p>
-      )}
+      {!opened && <p className="muted">Mở đánh giá sau khi quyết toán.</p>}
       {own ||
       submitted ||
       command.failure?.code === "REVIEW_ALREADY_SUBMITTED" ? (
@@ -127,10 +122,6 @@ export function PathReviews({ path }: Readonly<{ path: LearningPath }>) {
                 onChange={(e) => setComment(e.target.value)}
               />
             </label>
-            <p>
-              Mỗi người gửi một đánh giá cho đối tác trên mỗi lộ trình. Điểm uy
-              tín do máy chủ cập nhật theo đánh giá.
-            </p>
             <button
               type="submit"
               className="btn btn-primary"

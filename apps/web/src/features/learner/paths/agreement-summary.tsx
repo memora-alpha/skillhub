@@ -2,6 +2,7 @@
 import { useUserSession } from "../auth/session";
 import { ProfileName } from "../components/profile-name";
 import type { LearningPath } from "../types";
+import styles from "./agreement-summary.module.css";
 export function AgreementSummary({
   exchangeType,
   teacherId,
@@ -19,52 +20,50 @@ export function AgreementSummary({
 }>) {
   const { actor } = useUserSession();
   const who = (id?: string | null) => {
-    if (id === actor.userId)
-      return <strong>Bạn ({actor.profile.fullName})</strong>;
+    if (id === actor.userId) return "Bạn";
     if (id) return <ProfileName id={id} />;
     return "Chưa xác định";
   };
   return (
-    <section
-      className="learner-notice"
-      aria-label="Vai trò và Credit trong thỏa thuận"
-    >
-      <p>
+    <section className={styles.summary} aria-label="Thỏa thuận">
+      <div className={styles.line}>
         <strong>
-          {locked
-            ? "Thỏa thuận đã khóa"
-            : "Dự thảo chưa khóa · chưa giữ Credit"}
+          {exchangeType === "TWO_WAY"
+            ? "Trao đổi hai chiều"
+            : teacherId === actor.userId
+              ? "Bạn hướng dẫn"
+              : learnerId === actor.userId
+                ? "Bạn học"
+                : "Học một chiều"}
+          {" · "}
+          {amount
+            ? new Intl.NumberFormat("vi-VN", {
+                maximumFractionDigits: 2,
+              }).format(Number(amount)) + " CR"
+            : "Chưa chốt Credit"}
+          {exchangeType === "TWO_WAY" && amount ? "/người" : ""}
         </strong>
-      </p>
-      {exchangeType === "ONE_WAY" ? (
-        <>
-          <p>
-            Người học / bên trả: {who(learnerId)} ·{" "}
-            {amount ?? "Chưa thống nhất"} CR cho toàn lộ trình.
-          </p>
-          <p>
-            Người hướng dẫn / bên nhận khi quyết toán: {who(teacherId)}. Nhận
-            96% Credit thương lượng; phí nền tảng 4%.
-          </p>
-        </>
-      ) : (
-        <>
-          <p>
-            Hai chiều: bạn ({actor.profile.fullName}) và {who(counterpartId)}{" "}
-            mỗi người {locked ? "đã được giữ" : "sẽ được giữ khi chốt"}{" "}
-            {amount ?? "chưa thống nhất"} CR.
-          </p>
-          <p>
-            Mỗi người dạy một kế hoạch và học kế hoạch của đối phương. Khi quyết
-            toán đủ điều kiện, mỗi người nhận lại 96% khoản mình đã giữ; phí 4%.
-          </p>
-        </>
-      )}
-      <p>
-        {locked
-          ? "Xem các buổi học chính thức trong lịch học và theo dõi quyết toán theo kết quả máy chủ."
-          : "Xác nhận điều khoản, kế hoạch và lịch chưa thay thế thao tác chốt cuối. Máy chủ kiểm tra lại và giữ Credit khi chốt thành công."}
-      </p>
+        {!locked && <span className="muted">Dự thảo</span>}
+      </div>
+      <details>
+        <summary>Chi tiết thỏa thuận</summary>
+        {exchangeType === "ONE_WAY" ? (
+          <>
+            <p>Người học, bên trả: {who(learnerId)}</p>
+            <p>Người hướng dẫn, bên nhận: {who(teacherId)}</p>
+            <p>
+              Cho toàn lộ trình. Người hướng dẫn nhận 96% khi quyết toán; phí
+              4%.
+            </p>
+          </>
+        ) : (
+          <>
+            <p>Bạn và {who(counterpartId)} cùng học và hướng dẫn nhau.</p>
+            <p>Mỗi người nhận lại 96% Credit đã giữ khi quyết toán; phí 4%.</p>
+          </>
+        )}
+        {!locked && <p>Credit chỉ được giữ khi chốt lịch thành công.</p>}
+      </details>
     </section>
   );
 }

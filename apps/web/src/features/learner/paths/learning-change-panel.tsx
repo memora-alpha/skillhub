@@ -33,6 +33,7 @@ export function LearningChangePanel({
   const create = useUserCommand(true),
     decision = useUserCommand();
   const [reason, setReason] = useState("");
+  const [composing, setComposing] = useState(false);
   const [note, setNote] = useState("");
   const submitted = useRef<{ reason: string; expectedStartAt?: string } | null>(
     null,
@@ -70,6 +71,7 @@ export function LearningChangePanel({
     if (receipt) {
       submitted.current = null;
       setReason("");
+      setComposing(false);
     }
     query.reload();
   }
@@ -88,19 +90,32 @@ export function LearningChangePanel({
     );
     query.reload();
   }
+  if (!canRequest && query.data?.length === 0 && !query.error) return null;
   return (
     <Panel title={sessionId ? "Hủy buổi để học bù" : "Yêu cầu dừng lộ trình"}>
-      <p>
-        {sessionId
-          ? "Hai bên cần đồng ý trước giờ bắt đầu. Hủy giữ nguyên số buổi và Credit; người yêu cầu dùng một lượt học bù. Người chấp nhận không mất lượt. Sau khi áp dụng, hai bên cần chốt lịch bù."
-          : "Gửi yêu cầu không tự dừng lịch học. Quyết định dừng và phân bổ Credit phải được xử lý theo chính sách đã duyệt; không tự hoàn theo số buổi đã học."}
-      </p>
+      {(composing || open) && (
+        <p>
+          {sessionId
+            ? "Hai bên cần đồng ý trước giờ học. Người yêu cầu dùng một lượt học bù; Credit giữ nguyên. Sau đó cần chốt lịch bù."
+            : "Lịch học tiếp tục đến khi yêu cầu được duyệt. Credit được xử lý theo quyết định."}
+        </p>
+      )}
       <Feedback
         loading={query.loading}
         error={query.error}
         reload={query.reload}
       />
-      {!open && canRequest && (
+      {!open && canRequest && !composing && !create.uncertain && (
+        <button
+          type="button"
+          className="btn"
+          disabled={disabled}
+          onClick={() => setComposing(true)}
+        >
+          {sessionId ? "Yêu cầu hủy buổi" : "Yêu cầu dừng lộ trình"}
+        </button>
+      )}
+      {!open && canRequest && (composing || create.uncertain) && (
         <form
           className="learner-form"
           onSubmit={(e) => {
@@ -129,6 +144,15 @@ export function LearningChangePanel({
           >
             Gửi yêu cầu cho đối tác
           </button>
+          {!create.pending && !create.uncertain && (
+            <button
+              type="button"
+              className="btn"
+              onClick={() => setComposing(false)}
+            >
+              Đóng
+            </button>
+          )}
         </form>
       )}
       {create.canRetry && (
@@ -257,7 +281,7 @@ export function LearningChangePanel({
         disabled={query.loading || create.pending || decision.pending}
         onClick={() => query.reload()}
       >
-        Tải lại lịch sử yêu cầu
+        Làm mới
       </button>
     </Panel>
   );

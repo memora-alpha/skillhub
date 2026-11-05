@@ -63,11 +63,11 @@ export function FinalizePanel({
     }
   };
   const show = result ?? path;
-  let submitLabel = "Chốt lịch và giữ Credit theo thỏa thuận";
+  let submitLabel = "Chốt lịch và giữ Credit";
   if (command.pending) submitLabel = "Đang kiểm tra và chốt…";
-  else if (saved) submitLabel = "Đọc lại rồi thử cùng yêu cầu chốt";
+  else if (saved) submitLabel = "Kiểm tra và thử lại";
   return (
-    <Panel title="Kiểm tra cuối, khóa lịch và giữ Credit">
+    <Panel title="Chốt lịch">
       {saved && (
         <details open>
           <summary>
@@ -90,10 +90,7 @@ export function FinalizePanel({
       {show.lockedVersion !== null ? (
         <>
           <p>
-            <output>
-              Máy chủ đã xác nhận thỏa thuận đã khóa. Xem các buổi chính thức
-              bên dưới.
-            </output>
+            <output>Đã chốt lịch.</output>
           </p>
           {show.plans
             .flatMap((plan) => plan.sessions)
@@ -110,10 +107,7 @@ export function FinalizePanel({
         </>
       ) : (
         <>
-          <p>
-            Kiểm tra trước không giữ chỗ lịch hay số dư. Khi chốt, máy chủ kiểm
-            tra lại; nếu không đủ điều kiện, chưa được coi là đã khóa.
-          </p>
+          <p>Chốt lịch sẽ giữ Credit theo thỏa thuận.</p>
           <label>
             <input
               type="checkbox"
@@ -121,7 +115,7 @@ export function FinalizePanel({
               disabled={command.pending || !!saved}
               onChange={(e) => setReviewed(e.target.checked)}
             />{" "}
-            Tôi đã đối chiếu vai trò, Credit và các buổi học của phiên bản này.
+            Tôi đồng ý với lịch học và Credit này.
           </label>
           <button
             type="button"
@@ -161,8 +155,8 @@ export function FinalizePanel({
                     clear();
                     setNotice(
                       outcome.recovered
-                        ? "Đã khôi phục thỏa thuận và các buổi học hiện tại từ máy chủ."
-                        : "Đã kiểm tra lại thỏa thuận và các buổi học chính thức sau khi chốt.",
+                        ? "Đã tìm thấy lịch học đã chốt."
+                        : "Chốt lịch thành công.",
                     );
                   }
                 });
@@ -186,12 +180,10 @@ export function FinalizePanel({
             refresh();
             if (latest.lockedVersion !== null) {
               clear();
-              setNotice(
-                "Máy chủ đã xác nhận thỏa thuận được khóa. Sử dụng các buổi học hiện tại.",
-              );
+              setNotice("Lịch học đã được chốt.");
             } else {
               setNotice(
-                "Chưa nhận được xác nhận thỏa thuận đã khóa. Nếu lần gửi trước chưa rõ kết quả, tiếp tục kiểm tra hoặc thử lại cùng yêu cầu đã lưu.",
+                "Chưa xác nhận được kết quả. Kiểm tra lại hoặc thử cùng yêu cầu đã lưu.",
               );
               setCanReset(
                 !!saved && commitmentSnapshot(latest) !== saved.signature,
@@ -208,7 +200,7 @@ export function FinalizePanel({
           }
         }}
       >
-        Kiểm tra thỏa thuận / buổi học hiện tại
+        Kiểm tra lại trạng thái
       </button>
       {canReset && (
         <button
@@ -229,11 +221,11 @@ export function FinalizePanel({
             setReviewed(false);
             setCanReset(false);
             setNotice(
-              "Phiên bản máy chủ đã đổi. Đối chiếu lại nội dung mới trước khi chốt.",
+              "Thỏa thuận đã đổi. Kiểm tra nội dung mới trước khi chốt.",
             );
           }}
         >
-          Đã đối chiếu nội dung mới, tiếp tục yêu cầu chốt
+          Dùng nội dung đã cập nhật
         </button>
       )}
       <CommandFeedback command={command} />

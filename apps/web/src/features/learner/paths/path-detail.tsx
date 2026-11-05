@@ -60,14 +60,8 @@ export function PathDetail({ id }: Readonly<{ id: string }>) {
     path,
     actor.userId,
   );
-  const oneWayRole =
-    path?.agreement.teacherId === actor.userId
-      ? "Bạn hướng dẫn, đối tác học."
-      : "Đối tác hướng dẫn, bạn học.";
-  const roleDescription =
-    path?.agreement.exchangeType === "ONE_WAY"
-      ? oneWayRole
-      : "Mỗi người tự tạo kế hoạch cho chiều mình hướng dẫn.";
+  const activeTab =
+    path?.lockedVersion != null && tab === "finalize" ? "schedule" : tab;
   const conversation: Conversation | undefined = path
     ? {
         id: path.conversationId,
@@ -89,15 +83,24 @@ export function PathDetail({ id }: Readonly<{ id: string }>) {
       {path && (
         <>
           <PageHeading
-            title="Cùng thống nhất hành trình học"
-            description={"Phiên bản thỏa thuận " + path.currentVersion}
-            action={<Status value={path.status} />}
+            title="Lộ trình học"
+            action={
+              <div className="learner-actions">
+                <Status value={path.status} />
+                <Link
+                  className="btn"
+                  href={"/learn/messages/" + path.conversationId}
+                >
+                  Nhắn tin
+                </Link>
+              </div>
+            }
           />
           <PathAgreementSummary path={path} />
           <CommandFeedback command={command} />
           <div className="path-tabs" aria-label="Các phần của lộ trình">
             {[
-              ["overview", "Tổng quan"],
+              ["overview", "Thỏa thuận"],
               [
                 "plans",
                 path.agreement.exchangeType === "TWO_WAY"
@@ -105,13 +108,15 @@ export function PathDetail({ id }: Readonly<{ id: string }>) {
                   : "Kế hoạch học",
               ],
               ["schedule", "Lịch học"],
-              ["finalize", "Kiểm tra cuối"],
+              ...(path.lockedVersion === null
+                ? [["finalize", "Chốt lịch"]]
+                : []),
             ].map(([value, label]) => (
               <button
                 type="button"
                 key={value}
-                className={tab === value ? "active" : ""}
-                aria-pressed={tab === value}
+                className={activeTab === value ? "active" : ""}
+                aria-pressed={activeTab === value}
                 onClick={() => setTab(value!)}
               >
                 {label}
@@ -119,40 +124,26 @@ export function PathDetail({ id }: Readonly<{ id: string }>) {
             ))}
           </div>
           {!!path.lockedVersion && (
-            <>
-              <SettlementStatusPanel key={path.id} pathId={path.id} />
-              <LearningChangePanel
-                pathId={path.id}
-                canRequest={
-                  !path.settledAt &&
-                  ["SCHEDULED", "ACTIVE", "DISPUTED"].includes(path.status)
-                }
-                blocked={query.loading || !!query.error}
-              />
-              <PathReviews path={path} />
-            </>
+            <div hidden={activeTab !== "overview"}>
+              <div className="learner-stack">
+                <SettlementStatusPanel key={path.id} pathId={path.id} />
+                <LearningChangePanel
+                  pathId={path.id}
+                  canRequest={
+                    !path.settledAt &&
+                    ["SCHEDULED", "ACTIVE", "DISPUTED"].includes(path.status)
+                  }
+                  blocked={query.loading || !!query.error}
+                />
+                <PathReviews path={path} />
+              </div>
+            </div>
           )}
-          {tab === "overview" && (
-            <div className="learner-two-columns">
+          {activeTab === "overview" && editable && (
+            <div className="learner-stack">
               <div className="learner-stack">
                 {" "}
-                <Panel title="1. Điều khoản chung">
-                  <p>
-                    {path.agreement.exchangeType === "ONE_WAY"
-                      ? "Hướng dẫn một chiều"
-                      : "Trao đổi kỹ năng hai chiều"}
-                  </p>
-                  <p>
-                    <strong>
-                      {path.agreement.negotiatedCredit ??
-                        path.agreement.totalCreditPerUser}{" "}
-                      Credit
-                    </strong>
-                    {path.agreement.exchangeType === "TWO_WAY"
-                      ? " mỗi người tạm giữ"
-                      : " cho cả lộ trình"}
-                  </p>
-                  <p>{roleDescription}</p>
+                <Panel title="Xác nhận thỏa thuận">
                   {editable && (
                     <div className="learner-actions">
                       <button
@@ -172,9 +163,7 @@ export function PathDetail({ id }: Readonly<{ id: string }>) {
                           );
                         }}
                       >
-                        {ownConfirmed
-                          ? "Bạn đã xác nhận điều khoản"
-                          : "Tôi xác nhận điều khoản phiên bản này"}
+                        {ownConfirmed ? "Đã xác nhận" : "Xác nhận thỏa thuận"}
                       </button>
                       <button
                         type="button"
@@ -188,7 +177,7 @@ export function PathDetail({ id }: Readonly<{ id: string }>) {
                   <p className="muted">
                     {ready
                       ? "Hai bên đã xác nhận điều khoản."
-                      : "Chờ cả hai xác nhận điều khoản trước khi hoàn thiện kế hoạch."}
+                      : "Chờ hai bên xác nhận."}
                   </p>
                 </Panel>
                 {editing && editable && conversation && (
@@ -198,22 +187,10 @@ export function PathDetail({ id }: Readonly<{ id: string }>) {
                     conversation={conversation}
                   />
                 )}
-              </div>{" "}
-              <Panel title="Tiếp tục trao đổi">
-                <p>
-                  Chưa thống nhất? Quay lại trao đổi với đối tác trước khi xác
-                  nhận.
-                </p>
-                <Link
-                  className="btn"
-                  href={"/learn/messages/" + path.conversationId}
-                >
-                  Mở cuộc trò chuyện
-                </Link>
-              </Panel>
+              </div>
             </div>
           )}
-          {tab === "plans" && (
+          {activeTab === "plans" && (
             <div className="plans-grid product-plans">
               {" "}
               {path.plans.map((plan) => (
@@ -226,21 +203,20 @@ export function PathDetail({ id }: Readonly<{ id: string }>) {
                 />
               ))}
               {canAdd && (
-                <Panel title="2. Tạo kế hoạch bạn hướng dẫn">
+                <Panel title="Tạo kế hoạch">
                   <PlanEditor path={path} onSaved={query.reload} />
                 </Panel>
               )}
               {!path.plans.length && !canAdd && (
-                <Panel title="2. Kế hoạch học">
+                <Panel title="Kế hoạch học">
                   <p>
-                    Chờ hai bên xác nhận điều khoản và người hướng dẫn tạo kế
-                    hoạch.
+                    Chờ người hướng dẫn tạo kế hoạch sau khi hai bên xác nhận.
                   </p>
                 </Panel>
               )}
             </div>
           )}
-          {tab === "schedule" && (
+          {activeTab === "schedule" && (
             <div className="learner-stack">
               {path.plans.map((plan) => (
                 <PlanPanel
@@ -258,7 +234,7 @@ export function PathDetail({ id }: Readonly<{ id: string }>) {
               )}
             </div>
           )}
-          {tab === "finalize" && (
+          {activeTab === "finalize" && (
             <FinalizePanel
               path={path}
               blocked={query.loading || !!query.error}
