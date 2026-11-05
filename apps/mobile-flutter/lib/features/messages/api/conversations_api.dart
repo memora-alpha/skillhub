@@ -47,14 +47,21 @@ class ConversationsApi {
   Future<MessageRecord> send(
     String id, {
     required String clientMessageId,
-    required String messageText,
+    String messageText = '',
+    List<String> attachmentFileIds = const [],
     required String idempotencyKey,
   }) async {
+    final body = <String, Object?>{
+      'clientMessageId': clientMessageId,
+      if (messageText.isNotEmpty) 'messageText': messageText,
+      if (attachmentFileIds.isNotEmpty)
+        'attachmentFileIds': attachmentFileIds,
+    };
     final json = asMap(
       await _client.request(
         '/conversations/$id/messages',
         method: 'POST',
-        body: {'clientMessageId': clientMessageId, 'messageText': messageText},
+        body: body,
         headers: {'Idempotency-Key': idempotencyKey},
         authenticated: true,
       ),

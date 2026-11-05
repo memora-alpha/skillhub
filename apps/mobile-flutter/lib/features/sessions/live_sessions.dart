@@ -24,6 +24,19 @@ bool sessionIsUpcoming(Map<String, dynamic> session) =>
 bool sessionIsHistory(Map<String, dynamic> session) =>
     !sessionIsUpcoming(session);
 
+/// Trong cửa sổ 5 phút trước giờ bắt đầu đến khi kết thúc buổi.
+bool sessionIsImminent(
+  Map<String, dynamic> session, [
+  DateTime? now,
+]) {
+  final start = sessionInstant(session['startAt']);
+  if (start == null) return false;
+  final clock = now ?? DateTime.now();
+  final end = sessionInstant(session['endAt']);
+  if (end != null && !clock.isBefore(end)) return false;
+  return !clock.isBefore(start.subtract(const Duration(minutes: 5)));
+}
+
 /// Quá hạn — no-show.
 bool sessionMissedJoin(Map<String, dynamic> session) =>
     sessionStatusOf(session) == 'NO_SHOW';

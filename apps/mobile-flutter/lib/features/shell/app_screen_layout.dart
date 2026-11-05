@@ -9,6 +9,7 @@ import '../../components/dialogs.dart';
 import '../../components/tappable.dart';
 import '../../core/theme/tokens.dart';
 import '../auth/session/auth_session.dart';
+import '../notifications/notifications_data.dart';
 import '../remote/refresh_signal.dart';
 import 'account_menu.dart';
 import 'inbox_count.dart';
@@ -64,6 +65,9 @@ class AppScreenLayout extends ConsumerWidget {
       }
       action(choice);
     }
+
+    // Keep the bell badge in sync with GET /notifications unread pages.
+    ref.watch(notificationUnreadCountProvider);
 
     return Scaffold(
       backgroundColor: surface,

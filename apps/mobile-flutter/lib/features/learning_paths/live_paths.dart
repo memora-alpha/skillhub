@@ -16,9 +16,15 @@ import '../remote/remote_load.dart';
 import '../messages/messages_data.dart';
 import '../skills/schema/skill_schema.dart';
 import '../skills/skills_feature.dart';
+import 'agreement_hub.dart';
+import 'agreement_schedule_chrome.dart';
 import 'negotiation_card.dart';
 import 'negotiation_message.dart';
+import 'path_summary_card.dart';
 import 'plan_suggestion_draft.dart';
+import 'schedule_busy_day.dart';
+import 'schedule_conflicts.dart';
+import 'schedule_existing_feedback.dart';
 import 'schedule_slot_row.dart';
 import 'schedule_timeline.dart';
 import 'schedule_weekly_generator.dart';
@@ -359,13 +365,21 @@ bool _awaitingPeerConfirmation(
   return false;
 }
 
-class LivePathsPage extends ConsumerWidget {
+class LivePathsPage extends ConsumerStatefulWidget {
   const LivePathsPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<LivePathsPage> createState() => _LivePathsPageState();
+}
+
+class _LivePathsPageState extends ConsumerState<LivePathsPage> {
+  var _filter = 'all';
+
+  @override
+  Widget build(BuildContext context) {
     final paths = ref.watch(livePathsProvider);
     final items = paths.value ?? const <Map<String, dynamic>>[];
+    final visible = filterPathSummaries(items, _filter);
     return FeaturePage(
       onRefresh: () => pullRefresh(ref, const {RefreshScope.study}),
       title: 'Lộ trình của tôi',
@@ -388,28 +402,37 @@ class LivePathsPage extends ConsumerWidget {
           AppButton(
             label: 'Tải lại',
             variant: ButtonVariant.paper,
-            onPressed: () => ref.read(refreshTicksProvider.notifier).bump(const {RefreshScope.study}),
+            onPressed: () => ref
+                .read(refreshTicksProvider.notifier)
+                .bump(const {RefreshScope.study}),
           ),
-        for (final path in paths.value ?? const <Map<String, dynamic>>[])
-          Panel(
-            title: _partnerName(ref, _text(path['counterpartId'])),
-            children: [
-              Copy(
-                '${_statusLabel[path['status']] ?? path['status']} · v${path['currentVersion']}',
-              ),
-              Copy(_exchangeLabel(path['exchangeType']?.toString())),
-              AppButton(
-                label: 'Mở lộ trình',
-                variant: ButtonVariant.paper,
-                onPressed: () => context.go('/paths/${path['id']}'),
-              ),
-            ],
+        if (items.isNotEmpty)
+          PathListFiltersBar(
+            filter: _filter,
+            paths: items,
+            onChanged: (value) => setState(() => _filter = value),
           ),
-        if (paths.hasValue && paths.value!.isEmpty)
+        for (final path in visible)
+          PathSummaryCard(
+            path: path,
+            statusLabel: _statusLabel[path['status']] ?? '${path['status']}',
+            exchangeLabel: _exchangeLabel(path['exchangeType']?.toString()),
+          ),
+        if (paths.hasValue && items.isEmpty)
           const EmptyState(
             title: 'Chưa có lộ trình',
             description:
                 'Mở cuộc trò chuyện sau khi đề xuất được chấp nhận để cùng tạo lộ trình học.',
+          ),
+        if (paths.hasValue && items.isNotEmpty && visible.isEmpty)
+          const EmptyState(
+            title: 'Chưa có lộ trình ở trạng thái này',
+            description: 'Chọn Tất cả để xem các lộ trình còn lại.',
+          ),
+        if (items.length == 100)
+          const Copy(
+            'Đang hiển thị tối đa 100 lộ trình được cập nhật gần nhất. Số lượng bộ lọc tính trong danh sách đã tải.',
+            muted: true,
           ),
         const RouteButton(href: '/messages', label: 'Đến cuộc trao đổi'),
       ],
@@ -836,6 +859,7 @@ class _LivePathDetailState extends ConsumerState<LivePathDetail> {
   String? _busy;
   String? _settlementGross;
   String? _settlementFee;
+  AgreementStep? _reviewing;
 
   Future<void> _run(String action, Future<void> Function() work) async {
     if (_busy != null) return;
@@ -858,40 +882,38 @@ class _LivePathDetailState extends ConsumerState<LivePathDetail> {
     final query = ref.watch(livePathProvider(widget.id));
     final path = query.value ?? const <String, dynamic>{};
     final me = ref.watch(accountSessionProvider)?.userId ?? '';
-    final agreement = _record(path['agreement']);
-    final plans = _records(path['plans']);
-    final catalog = ref.watch(skillCatalogProvider).value ?? const <SkillRecord>[];
-    final editable = path.isNotEmpty && _editablePath(path);
-    final mineIsA = path['participantAId'] == me;
-    final confirmedByMe = _confirmedBy(path, agreement, me);
-    final partnerConfirmed =
-        (mineIsA
-            ? agreement['participantBConfirmedAt']
-            : agreement['participantAConfirmedAt']) !=
-        null;
     final conversationId = _text(path['conversationId']);
-    final canConfirm =
-        editable &&
-        me.isNotEmpty &&
-        !confirmedByMe &&
-        (path['participantAId'] == me || path['participantBId'] == me);
-    final taught = plans.any((plan) => plan['teacherId'] == me);
-    final canCreate =
-        editable &&
-        me.isNotEmpty &&
-        !taught &&
-        (path['participantAId'] == me || path['participantBId'] == me) &&
-        (agreement['exchangeType'] == 'TWO_WAY' ||
-            agreement['teacherId'] == me);
     final other = path['participantAId'] == me
         ? path['participantBId']
         : path['participantAId'];
-    final credit =
-        agreement['totalCreditPerUser'] ?? agreement['negotiatedCredit'];
+    final partnerId = _text(other);
+    final partnerName = partnerId.isEmpty
+        ? 'đối tác'
+        : _partnerName(ref, partnerId);
+    final progress = path.isEmpty
+        ? null
+        : agreementProgress(path, me);
+    final current = progress == null
+        ? AgreementStep.method
+        : agreementStepFor(progress.stage);
+    final order = const [
+      AgreementStep.method,
+      AgreementStep.plans,
+      AgreementStep.schedules,
+    ];
+    final reviewing = _reviewing;
+    final selected = reviewing != null &&
+            order.indexOf(reviewing) <= order.indexOf(current)
+        ? reviewing
+        : current;
+    final blocked = query.hasError;
+    final plans = _records(path['plans']);
+    final back = conversationId.isEmpty ? '/paths' : '/chat/$conversationId';
+
     return FeaturePage(
       onRefresh: () => pullRefresh(ref, const {RefreshScope.study}),
-      title: 'Không gian lộ trình',
-      back: '/paths',
+      title: 'Thỏa thuận học',
+      back: back,
       children: [
         WaitingRefresh(
           scopes: const {RefreshScope.study},
@@ -900,7 +922,7 @@ class _LivePathDetailState extends ConsumerState<LivePathDetail> {
           child: const SizedBox.shrink(),
         ),
         if (query.isLoading && path.isEmpty)
-          const LiveBusyNote(label: 'Đang tải lộ trình.'),
+          const LiveBusyNote(label: 'Đang tải thỏa thuận.'),
         if (query.hasError && path.isEmpty)
           FormNotice(
             tone: NoticeTone.error,
@@ -908,118 +930,104 @@ class _LivePathDetailState extends ConsumerState<LivePathDetail> {
           ),
         if (query.hasValue && path.isEmpty)
           const EmptyState(
-            title: 'Không tìm thấy lộ trình',
-            description: 'Lộ trình không còn trên máy chủ hoặc bạn không tham gia.',
+            title: 'Không tìm thấy thỏa thuận',
+            description:
+                'Thỏa thuận không còn trên máy chủ hoặc bạn không tham gia.',
           ),
-        if (path.isNotEmpty) ...[
-          Panel(
-            title: _partnerName(ref, _text(other)),
-            accent: true,
-            children: [
-              Copy(
-                '${_statusLabel[path['status']] ?? path['status']} · ${_exchangeLabel(agreement['exchangeType']?.toString())} · v${path['currentVersion']}',
-              ),
-              if (credit != null) Copy('$credit CR'),
-              if (path['lockedVersion'] != null)
-                Copy(
-                  'Đã khóa phiên bản ${path['lockedVersion']}. Các buổi học bên dưới được tải từ hệ thống.',
-                ),
-              const Copy(
-                'Mỗi người tự tạo kế hoạch mình dạy. Người học của kế hoạch đó bấm xác nhận. Cả hai cùng xác nhận điều khoản của phiên bản hiện tại.',
-                muted: true,
-              ),
-            ],
+        if (path.isNotEmpty && progress != null) ...[
+          AgreementContextBar(
+            name: partnerName,
+            pathId: widget.id,
+            partnerId: partnerId,
           ),
-          for (final plan in plans)
+          if (path['status'] == 'COMPLETED' && path['settledAt'] != null)
+            AppButton(
+              label: 'Xem / viết đánh giá',
+              onPressed: () => context.go('/paths/${widget.id}/review'),
+            ),
+          AgreementStepsBar(
+            value: selected,
+            current: current,
+            onSelect: (step) => setState(() => _reviewing = step),
+          ),
+          if (path['lockedVersion'] != null)
+            AppButton(
+              label: path['settledAt'] != null
+                  ? 'Đã quyết toán · Xem kết quả Credit'
+                  : 'Hoàn Credit / quyết toán lộ trình',
+              variant: ButtonVariant.paper,
+              onPressed: () => context.go('/paths/${widget.id}/settlement'),
+            ),
+          if (path['lockedVersion'] != null &&
+              plans.any((plan) => _records(plan['sessions']).isNotEmpty))
+            AppButton(
+              label: 'Xem tất cả buổi học',
+              variant: ButtonVariant.paper,
+              onPressed: () => context.go('/paths/${widget.id}/sessions'),
+            ),
+          if (progress.stage == AgreementStage.sessions)
+            AgreementSessionsReadyPanel(
+              pathId: widget.id,
+              actionLabel: progress.action?.label ?? 'Xem các buổi học',
+            )
+          else if (progress.stage == AgreementStage.closed)
             Panel(
-              title: _skillName(catalog, _text(plan['skillId'])),
+              title: progress.title,
+              accent: true,
               children: [
-                Copy(
-                  plan['teacherId'] == me
-                      ? 'Bạn dạy · ${_text(plan['learnerId']) == other ? _partnerName(ref, _text(other)) : 'Người học'} học'
-                      : '${_partnerName(ref, _text(plan['teacherId']))} dạy · Bạn học',
-                ),
-                Copy(
-                  plan['learnerConfirmedAt'] == null
-                      ? 'Người học chưa xác nhận kế hoạch v${plan['version']}'
-                      : 'Người học đã xác nhận kế hoạch v${plan['version']}',
-                  muted: true,
-                ),
-                AppButton(
-                  label: 'Xem kế hoạch',
-                  variant: ButtonVariant.paper,
-                  onPressed: () =>
-                      context.go('/paths/${widget.id}/plans/${plan['id']}'),
-                ),
-                if (editable &&
-                    _planConfirmStatuses.contains(path['status']) &&
-                    plan['learnerId'] == me &&
-                    plan['learnerConfirmedAt'] == null)
+                Copy(progress.description),
+                for (final message in progress.waiting) Copy(message),
+                if (conversationId.isNotEmpty)
                   AppButton(
-                    label: 'Xác nhận kế hoạch',
-                    loading: _busy == plan['id'],
-                    disabled: _busy != null,
-                    onPressed: () => _run('${plan['id']}', () async {
-                      await ref
-                          .read(authRuntimeProvider)
-                          .services
-                          .study
-                          .confirmPlan(
-                            _text(plan['id']),
-                            expectedVersion: _version(plan['version']),
-                          );
-                    }),
+                    label: 'Trao đổi qua chat',
+                    variant: ButtonVariant.paper,
+                    onPressed: () => context.go('/chat/$conversationId'),
                   ),
               ],
+            )
+          else if (selected == AgreementStep.method)
+            AgreementMethodStepPanel(
+              path: path,
+              me: me,
+              partnerId: partnerId,
+              partnerName: partnerName,
+              blocked: blocked,
+              busy: _busy == 'terms',
+              error: _error,
+              onConfirm: () => _run('terms', () async {
+                await ref
+                    .read(authRuntimeProvider)
+                    .services
+                    .study
+                    .confirmPath(
+                      widget.id,
+                      expectedVersion: _version(path['currentVersion']),
+                    );
+              }),
+              onContinue: () =>
+                  setState(() => _reviewing = AgreementStep.plans),
+            )
+          else if (selected == AgreementStep.plans)
+            AgreementPlansStepPanel(
+              path: path,
+              me: me,
+              partnerName: partnerName,
+              blocked: blocked,
+              canContinue: current == AgreementStep.schedules,
+              onReviewMethod: () =>
+                  setState(() => _reviewing = AgreementStep.method),
+              onContinue: () =>
+                  setState(() => _reviewing = AgreementStep.schedules),
+            )
+          else
+            AgreementScheduleStepPanel(
+              path: path,
+              me: me,
+              blocked: blocked,
+              progress: progress,
+              onReviewPlans: () =>
+                  setState(() => _reviewing = AgreementStep.plans),
             ),
-          if (canCreate)
-            AppButton(
-              label: 'Tạo kế hoạch tôi dạy',
-              onPressed: () => context.go('/paths/${widget.id}/plans/new'),
-            ),
-          Panel(
-            title: 'Điều khoản v${agreement['version'] ?? path['currentVersion']}',
-            children: [
-              Copy(
-                'Bạn: ${confirmedByMe ? 'đã xác nhận' : 'chưa xác nhận'} · Đối tác: ${partnerConfirmed ? 'đã xác nhận' : 'chưa xác nhận'}',
-              ),
-              const Copy(
-                'Điều khoản và từng kế hoạch có xác nhận riêng. Tin nhắn không thay thế xác nhận.',
-                muted: true,
-              ),
-              if (_error != null)
-                FormNotice(tone: NoticeTone.error, message: _error!),
-              if (canConfirm)
-                AppButton(
-                  label:
-                      'Xác nhận điều khoản v${path['currentVersion']}',
-                  variant: ButtonVariant.craft,
-                  loading: _busy == 'terms',
-                  disabled: _busy != null,
-                  onPressed: () => _run('terms', () async {
-                    await ref
-                        .read(authRuntimeProvider)
-                        .services
-                        .study
-                        .confirmPath(
-                          widget.id,
-                          expectedVersion: _version(path['currentVersion']),
-                        );
-                  }),
-                ),
-              if (editable)
-                AppButton(
-                  label: 'Sửa điều khoản',
-                  variant: ButtonVariant.paper,
-                  onPressed: () => context.go('/paths/${widget.id}/terms'),
-                ),
-            ],
-          ),
-          AppButton(
-            label: 'Lịch của từng kế hoạch',
-            variant: ButtonVariant.paper,
-            onPressed: () => context.go('/paths/${widget.id}/schedules'),
-          ),
           if (_settlementGross != null)
             FormNotice(
               tone: NoticeTone.success,
@@ -1028,7 +1036,9 @@ class _LivePathDetailState extends ConsumerState<LivePathDetail> {
             ),
           if (path['status'] == 'ACTIVE')
             AppButton(
-              label: _busy == 'settle' ? 'Đang quyết toán...' : 'Quyết toán lộ trình',
+              label: _busy == 'settle'
+                  ? 'Đang quyết toán...'
+                  : 'Quyết toán lộ trình',
               variant: ButtonVariant.craft,
               loading: _busy == 'settle',
               disabled: _busy != null,
@@ -1049,21 +1059,6 @@ class _LivePathDetailState extends ConsumerState<LivePathDetail> {
                 });
               }),
             ),
-          if (path['status'] == 'COMPLETED' && path['settledAt'] != null)
-            const Copy('Lộ trình đã được quyết toán.'),
-          if (editable)
-            AppButton(
-              label: 'Kiểm tra và chốt lịch',
-              variant: ButtonVariant.paper,
-              onPressed: () => context.go('/paths/${widget.id}/hold'),
-            ),
-          AppButton(
-            label: 'Trao đổi qua Chat',
-            variant: ButtonVariant.paper,
-            onPressed: () => context.go(
-              conversationId.isEmpty ? '/messages' : '/chat/$conversationId',
-            ),
-          ),
         ],
       ],
     );
@@ -1770,6 +1765,11 @@ class _LiveSchedulesPageState extends ConsumerState<LiveSchedulesPage> {
             description: 'Lộ trình không còn trên máy chủ hoặc bạn không tham gia.',
           ),
         if (path.isNotEmpty) ...[
+          AgreementScheduleChrome(
+            path: path,
+            me: me,
+            blocked: _busy != null,
+          ),
           _ScheduleExchangeBanner(path: path),
           const _ScheduleTimezoneNotice(),
           if (path['status'] != 'CONFIRMED' && path['lockedVersion'] == null)
@@ -2330,6 +2330,95 @@ class _ScheduleProposalFormState extends ConsumerState<_ScheduleProposalForm> {
   var _submitting = false;
   var _applied = false;
   int? _active;
+  List<Map<String, dynamic>>? _existingSessions;
+  Object? _existingError;
+  var _existingLoading = false;
+  var _existingEpoch = 0;
+
+  List<ScheduleSlot> get _draftSlots {
+    final slots = <ScheduleSlot>[];
+    for (var i = 0; i < _starts.length; i++) {
+      final start = parseLocalDateTime(_starts[i].text.trim());
+      final raw = _minutes[i].text.trim();
+      if (start == null || !RegExp(r'^\d+$').hasMatch(raw)) continue;
+      final minutes = int.parse(raw);
+      if (minutes < 60 || minutes > 180) continue;
+      slots.add(
+        ScheduleSlot(
+          sessionNo: i + 1,
+          startAt: start,
+          endAt: start.add(Duration(minutes: minutes)),
+        ),
+      );
+    }
+    return slots;
+  }
+
+  List<ExistingScheduleConflict> get _existingConflicts {
+    final sessions = _existingSessions;
+    if (sessions == null || _existingError != null) return const [];
+    return existingScheduleConflicts(_draftSlots, sessions, widget.pathId);
+  }
+
+  bool get _existingBlocked {
+    final slots = _draftSlots;
+    if (slots.isEmpty) return false;
+    if (_existingLoading || _existingSessions == null || _existingError != null) {
+      return true;
+    }
+    if (scheduleListIsLimited(_existingSessions!)) return true;
+    return _existingConflicts.isNotEmpty;
+  }
+
+  Future<void> _refreshExistingCheck() async {
+    final slots = _draftSlots;
+    if (slots.isEmpty) {
+      setState(() {
+        _existingSessions = null;
+        _existingError = null;
+        _existingLoading = false;
+      });
+      return;
+    }
+    final range = existingScheduleRange(slots);
+    if (range == null) return;
+    final epoch = ++_existingEpoch;
+    setState(() {
+      _existingLoading = true;
+      _existingError = null;
+    });
+    try {
+      final rows = await ref.read(authRuntimeProvider).services.study.mySessions(
+        from: scheduleApiInstant(range.from),
+        to: scheduleApiInstant(range.to),
+      );
+      if (!mounted || epoch != _existingEpoch) return;
+      setState(() {
+        _existingSessions = rows;
+        _existingLoading = false;
+        _mergeExistingIntoSlotErrors();
+      });
+    } catch (error) {
+      if (!mounted || epoch != _existingEpoch) return;
+      setState(() {
+        _existingError = error;
+        _existingLoading = false;
+      });
+    }
+  }
+
+  void _mergeExistingIntoSlotErrors() {
+    for (final conflict in _existingConflicts) {
+      final index = conflict.slot.sessionNo - 1;
+      final message = existingScheduleConflictMessage(conflict);
+      final current = _slotErrors[index];
+      if (current == null || current == message) {
+        _slotErrors[index] = message;
+      } else if (!current.contains(message)) {
+        _slotErrors[index] = '$current\n$message';
+      }
+    }
+  }
 
   int get _filledCount {
     var count = 0;
@@ -2402,6 +2491,14 @@ class _ScheduleProposalFormState extends ConsumerState<_ScheduleProposalForm> {
     super.dispose();
   }
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _refreshExistingCheck();
+    });
+  }
+
   void _applyWeekly(List<WeeklyScheduleSlot> items) {
     setState(() {
       for (var i = 0; i < items.length && i < _starts.length; i++) {
@@ -2414,6 +2511,7 @@ class _ScheduleProposalFormState extends ConsumerState<_ScheduleProposalForm> {
       _applied = true;
       _recheckOverlaps();
     });
+    _refreshExistingCheck();
   }
 
   Future<void> _pickStart(int index) async {
@@ -2428,6 +2526,7 @@ class _ScheduleProposalFormState extends ConsumerState<_ScheduleProposalForm> {
       _starts[index].touched = true;
       _recheckOverlaps(focus: index);
     });
+    await _refreshExistingCheck();
   }
 
   void _setMinutes(int index, String value) {
@@ -2436,10 +2535,11 @@ class _ScheduleProposalFormState extends ConsumerState<_ScheduleProposalForm> {
       _minutes[index].touched = true;
       _recheckOverlaps(focus: index);
     });
+    _refreshExistingCheck();
   }
 
   Future<void> _submit() async {
-    if (_submitting) return;
+    if (_submitting || _existingBlocked) return;
     final valid = validateFields([..._starts, ..._minutes]);
     if (!valid) {
       final index = List.generate(_starts.length, (i) => i).indexWhere(
@@ -2461,6 +2561,22 @@ class _ScheduleProposalFormState extends ConsumerState<_ScheduleProposalForm> {
       setState(() {
         _error = invalid;
         _recheckOverlaps();
+      });
+      return;
+    }
+    await _refreshExistingCheck();
+    if (!mounted) return;
+    if (_existingBlocked) {
+      final first = _existingConflicts.firstOrNull;
+      setState(() {
+        _mergeExistingIntoSlotErrors();
+        if (first != null) {
+          _active = first.slot.sessionNo - 1;
+          _error = existingScheduleConflictMessage(first);
+        } else {
+          _error =
+              'Chưa thể gửi lịch; hãy hoàn tất đối chiếu lịch đã có.';
+        }
       });
       return;
     }
@@ -2530,7 +2646,7 @@ class _ScheduleProposalFormState extends ConsumerState<_ScheduleProposalForm> {
           ),
         if (widget.schedule != null)
           const Copy(
-            'Giữ nguyên giờ của các buổi chưa sửa. Nếu lịch thay đổi, hai bên cần xác nhận phiên bản mới.',
+            'Lịch thay đổi cần cả hai xác nhận lại.',
             muted: true,
           ),
         Panel(
@@ -2576,6 +2692,10 @@ class _ScheduleProposalFormState extends ConsumerState<_ScheduleProposalForm> {
                 ),
               ],
             ),
+            const Copy(
+              'Chọn Sửa ở từng buổi để xem các khung giờ bạn đã có lịch trong ngày đó.',
+              muted: true,
+            ),
             for (final (index, lesson) in widget.outline.indexed)
               ScheduleTimelineItem(
                 last: index == widget.outline.length - 1,
@@ -2589,11 +2709,17 @@ class _ScheduleProposalFormState extends ConsumerState<_ScheduleProposalForm> {
                   open: _active == index,
                   disabled: _submitting,
                   overlapError: _slotErrors[index],
+                  warnedSessionIds: [
+                    for (final conflict in _existingConflicts)
+                      if (conflict.slot.sessionNo == index + 1)
+                        '${conflict.session['id']}',
+                  ],
                   onToggle: () => setState(
                     () => _active = _active == index ? null : index,
                   ),
                   onDone: () => setState(() {
                     _recheckOverlaps(focus: index);
+                    _mergeExistingIntoSlotErrors();
                     if (_slotErrors[index] == null) _active = null;
                   }),
                   onPickStart: () => _pickStart(index),
@@ -2602,54 +2728,73 @@ class _ScheduleProposalFormState extends ConsumerState<_ScheduleProposalForm> {
               ),
           ],
         ),
+        ScheduleExistingFeedback(
+          hasSlots: _draftSlots.isNotEmpty,
+          pending: _existingLoading,
+          available: _existingSessions != null && _existingError == null,
+          limited: _existingSessions != null &&
+              scheduleListIsLimited(_existingSessions!),
+          checkedSessionCount: _existingSessions == null
+              ? 0
+              : _existingSessions!
+                    .where((session) => session['status'] != 'CANCELLED')
+                    .length,
+          error: _existingError == null ? null : errorMessage(_existingError),
+          onRetry: _refreshExistingCheck,
+        ),
         Copy(
           'Giờ theo thiết bị · ${_deviceZone()}',
           muted: true,
         ),
-        Panel(
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              spacing: 10,
-              children: [
-                const AppIcon(
-                  AppIcon.checkCircle,
-                  size: 20,
-                  color: AppColors.forest,
-                ),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    spacing: 4,
-                    children: [
-                      Text(
-                        'Trước khi chốt lịch',
-                        style: nunito(
-                          TypeScale.body,
-                          weight: FontWeight.w700,
-                          color: AppColors.ink,
-                        ),
+        Container(
+          padding: const EdgeInsets.all(13),
+          decoration: BoxDecoration(
+            color: AppColors.infoSoft,
+            borderRadius: BorderRadius.circular(AppRadii.control),
+            border: Border.all(color: AppColors.infoBorder),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            spacing: 10,
+            children: [
+              const AppIcon(
+                AppIcon.shield,
+                size: 20,
+                color: AppColors.info,
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  spacing: 4,
+                  children: [
+                    Text(
+                      'Trước khi chốt lịch',
+                      style: nunito(
+                        TypeScale.body,
+                        weight: FontWeight.w700,
+                        color: AppColors.ink,
                       ),
-                      Text(
-                        'Hai bên cần xác nhận cùng phiên bản lịch. Credit chỉ tạm giữ và buổi học chỉ được tạo khi chốt thỏa thuận.',
-                        style: nunito(
-                          TypeScale.secondary,
-                          color: AppColors.muted,
-                        ),
+                    ),
+                    Text(
+                      'Hai bên xác nhận cùng phiên bản. Chốt lịch mới tạm giữ Credit và tạo buổi học.',
+                      style: nunito(
+                        TypeScale.secondary,
+                        color: AppColors.muted,
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
         if (_error != null) FormNotice(tone: NoticeTone.error, message: _error!),
         AppButton(
           label: _submitLabel(),
           variant: ButtonVariant.craft,
           loading: _submitting,
-          disabled: _submitting || _slotErrors.isNotEmpty,
+          disabled:
+              _submitting || _slotErrors.isNotEmpty || _existingBlocked,
           onPressed: _submit,
         ),
       ],
@@ -2670,6 +2815,7 @@ class _ScheduleSessionCard extends StatelessWidget {
     required this.onPickStart,
     required this.onSelectMinutes,
     this.overlapError,
+    this.warnedSessionIds = const [],
   });
 
   final int sessionNo;
@@ -2679,6 +2825,7 @@ class _ScheduleSessionCard extends StatelessWidget {
   final bool open;
   final bool disabled;
   final String? overlapError;
+  final List<String> warnedSessionIds;
   final VoidCallback onToggle;
   final VoidCallback onDone;
   final VoidCallback onPickStart;
@@ -2799,13 +2946,14 @@ class _ScheduleSessionCard extends StatelessWidget {
                   ],
                 ),
               ),
-              if (collapsedError != null) FieldError(collapsedError),
+              if (collapsedError != null)
+                FormNotice(
+                  tone: NoticeTone.error,
+                  message: '$collapsedError\nHãy chọn giờ khác.',
+                ),
               if (open) ...[
                 const Divider(height: 1, color: AppColors.border),
-                Text(
-                  'Ngày giờ buổi $sessionNo',
-                  style: FeatureStyles.label,
-                ),
+                Text('Ngày và giờ bắt đầu', style: FeatureStyles.label),
                 AppButton(
                   label: local.isEmpty
                       ? 'Chọn ngày và giờ'
@@ -2815,10 +2963,15 @@ class _ScheduleSessionCard extends StatelessWidget {
                   onPressed: onPickStart,
                 ),
                 if (startField.error != null) FieldError(startField.error!),
-                if (overlapError != null) FieldError(overlapError!),
+                if (overlapError != null)
+                  FormNotice(
+                    tone: NoticeTone.error,
+                    message: '$overlapError\nHãy chọn giờ khác.',
+                  ),
                 AppInput(
                   field: minutesField,
-                  label: 'Thời lượng buổi $sessionNo (phút)',
+                  label: 'Học trong bao lâu?',
+                  hint: 'Nhập từ 60 đến 180 phút.',
                   editable: !disabled,
                   keyboardType: TextInputType.number,
                 ),
@@ -2864,6 +3017,15 @@ class _ScheduleSessionCard extends StatelessWidget {
                       ),
                   ],
                 ),
+                if (parseLocalDateTime(local) case final DateTime start)
+                  ScheduleBusyDay(
+                    startAt: start,
+                    endAt: start.add(
+                      Duration(minutes: int.tryParse(minutes) ?? 60),
+                    ),
+                    allowed: !disabled,
+                    warnedSessionIds: warnedSessionIds,
+                  ),
                 Align(
                   alignment: Alignment.centerLeft,
                   child: AppButton(

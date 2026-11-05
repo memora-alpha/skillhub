@@ -11,6 +11,7 @@ import '../learning_paths/paths_data.dart';
 import '../remote/refresh_signal.dart';
 import 'live_room.dart';
 import 'live_sessions.dart';
+import 'session_history_card.dart';
 import 'sessions_data.dart';
 
 PreviewSession? _find(WidgetRef ref, String id) =>
@@ -34,18 +35,18 @@ class PathSessionsScreen extends ConsumerWidget {
       back: '/paths/$id',
       children: [
         for (final s in items)
-          Panel(
-            title: s.title,
-            children: [
-              StatusBadge(s.status),
-              Copy(
-                '${s.partner} · ${viDateTime(s.startAt)} · ${s.duration} phút',
-              ),
-              RouteButton(
-                href: '/learning-sessions/${s.id}',
-                label: 'Chi tiết buổi học',
-              ),
-            ],
+          SessionHistoryCard(
+            session: {
+              'id': s.id,
+              'status': s.status,
+              'role': s.mine ? 'TEACHER' : 'LEARNER',
+              'startAt': s.startAt.toUtc().toIso8601String(),
+              'endAt': s.startAt
+                  .add(Duration(minutes: s.duration))
+                  .toUtc()
+                  .toIso8601String(),
+            },
+            openLabel: 'Chi tiết buổi học',
           ),
         if (items.isEmpty)
           const EmptyState(
@@ -112,21 +113,11 @@ class _HistorySessionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final missed = sessionMissedJoin(session);
-    final note = sessionHistoryNote(session);
-    final start = sessionInstant(session['startAt']);
-    return Panel(
-      title: sessionRoleLabel(session),
-      children: [
-        Copy(sessionStatusLabel(session['status'])),
-        if (start != null)
-          Copy('${viDateTime(start)} · ${sessionMinutes(session)} phút'),
-        if (note.isNotEmpty) Copy(note, muted: true),
-        RouteButton(
-          href: '/learning-sessions/${session['id']}',
-          label: missed ? 'Xem buổi đã lố giờ' : 'Chi tiết buổi học',
-        ),
-      ],
+    return SessionHistoryCard(
+      session: session,
+      openLabel: sessionMissedJoin(session)
+          ? 'Xem buổi đã lố giờ'
+          : 'Chi tiết buổi học',
     );
   }
 }

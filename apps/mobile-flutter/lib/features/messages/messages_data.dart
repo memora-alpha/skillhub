@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/tokens.dart';
 import '../auth/session/auth_session.dart';
+import '../learning_paths/negotiation_message.dart';
 import '../proposals/proposals_data.dart';
 import '../remote/refresh_signal.dart';
 import '../remote/remote_load.dart';
@@ -123,6 +124,20 @@ class Conversation {
 
 typedef SampleFile = ({String name, int bytes});
 
+class ChatAttachmentView {
+  const ChatAttachmentView({
+    required this.attachmentId,
+    required this.filename,
+    required this.bytes,
+    required this.mimeType,
+  });
+
+  final String attachmentId;
+  final String filename;
+  final int bytes;
+  final String mimeType;
+}
+
 class ChatMessage {
   const ChatMessage({
     required this.id,
@@ -132,6 +147,7 @@ class ChatMessage {
     this.sentAt,
     this.sequence,
     this.file,
+    this.attachments = const [],
   });
 
   final String id;
@@ -141,6 +157,7 @@ class ChatMessage {
   final DateTime? sentAt;
   final String? sequence;
   final SampleFile? file;
+  final List<ChatAttachmentView> attachments;
 }
 
 const conversationHint =
@@ -210,6 +227,111 @@ class MessagesState {
     return rows;
   }
 
+  /// People with at least one conversation, newest activity first.
+  List<MessagePartner> partners({String query = ''}) {
+    final needle = _searchKey(query);
+    final byUser = <String, List<Conversation>>{};
+    for (final item in previews) {
+      final key = item.userId.isEmpty ? item.id : item.userId;
+      (byUser[key] ??= []).add(item);
+    }
+    final rows = [
+      for (final entry in byUser.entries)
+        MessagePartner(
+          userId: entry.key,
+          name: entry.value.first.name,
+          avatarUrl: entry.value.first.avatarUrl,
+          conversations: entry.value,
+        ),
+    ]..sort((a, b) => b.sortAt.compareTo(a.sortAt));
+    if (needle.isEmpty) return rows;
+    return [
+      for (final row in rows)
+        if (_searchKey(row.name).contains(needle) ||
+            _searchKey(row.userId).contains(needle) ||
+            row.conversations.any(
+              (item) =>
+                  _searchKey(item.skill).contains(needle) ||
+                  _searchKey(item.inboxTitle).contains(needle) ||
+                  _searchKey(item.last).contains(needle),
+            ))
+          row,
+    ];
+  }
+
+  /// Conversations with one partner, newest first, optionally filtered.
+  List<Conversation> partnerThreads(
+    String userId, {
+    String query = '',
+    String? skillKey,
+    Map<String, String> skillByProposal = const {},
+  }) {
+    final needle = _searchKey(query);
+    final rows = [
+      for (final item in previews)
+        if ((item.userId == userId ||
+                (item.userId.isEmpty && item.id == userId)) &&
+            (skillKey == null ||
+                messageSkillKey(item, skillByProposal: skillByProposal) ==
+                    skillKey))
+          item,
+    ];
+    if (needle.isEmpty) return rows;
+    return [
+      for (final item in rows)
+        if (_searchKey(
+              messageSkillLabel(item, skillByProposal: skillByProposal),
+            ).contains(needle) ||
+            _searchKey(item.inboxTitle).contains(needle) ||
+            _searchKey(item.last).contains(needle) ||
+            _searchKey(item.topic).contains(needle))
+          item,
+    ];
+  }
+
+  /// Skills shared with one partner, newest activity first.
+  ///
+  /// [skillByProposal] overrides stale conversation.skill when proposals
+  /// already know the catalog skill name (avoids grouping by request title).
+  List<MessageSkillGroup> partnerSkills(
+    String userId, {
+    String query = '',
+    Map<String, String> skillByProposal = const {},
+  }) {
+    final needle = _searchKey(query);
+    final bySkill = <String, List<Conversation>>{};
+    for (final item in partnerThreads(
+      userId,
+      skillByProposal: skillByProposal,
+    )) {
+      final key = messageSkillKey(item, skillByProposal: skillByProposal);
+      (bySkill[key] ??= []).add(item);
+    }
+    final rows = [
+      for (final entry in bySkill.entries)
+        MessageSkillGroup(
+          key: entry.key,
+          label: messageSkillLabel(
+            entry.value.first,
+            skillByProposal: skillByProposal,
+          ),
+          conversations: entry.value,
+        ),
+    ]..sort((a, b) => b.sortAt.compareTo(a.sortAt));
+    if (needle.isEmpty) return rows;
+    return [
+      for (final row in rows)
+        if (_searchKey(row.label).contains(needle) ||
+            row.conversations.any(
+              (item) =>
+                  _searchKey(item.inboxTitle).contains(needle) ||
+                  _searchKey(item.last).contains(needle) ||
+                  _searchKey(item.topic).contains(needle),
+            ))
+          row,
+    ];
+  }
+
   MessagesState copyWith({
     List<Conversation>? conversations,
     Map<String, List<ChatMessage>>? threads,
@@ -223,6 +345,149 @@ class MessagesState {
     olderCursors: olderCursors ?? this.olderCursors,
     settled: settled ?? this.settled,
   );
+}
+
+/// One inbox person: all skill/conversation threads with them.
+class MessagePartner {
+  const MessagePartner({
+    required this.userId,
+    required this.name,
+    required this.conversations,
+    this.avatarUrl,
+  });
+
+  final String userId;
+  final String name;
+  final String? avatarUrl;
+  final List<Conversation> conversations;
+
+  DateTime get sortAt {
+    DateTime latest = DateTime.fromMillisecondsSinceEpoch(0);
+    for (final item in conversations) {
+      if (item.sortAt.isAfter(latest)) latest = item.sortAt;
+    }
+    return latest;
+  }
+
+  Conversation get latest => conversations.first;
+
+  int get unread {
+    var total = 0;
+    for (final item in conversations) {
+      total += item.unread;
+    }
+    return total;
+  }
+
+  String get preview {
+    final text = latest.last.trim();
+    if (text.isNotEmpty) return conversationMessagePreview(text);
+    if (latest.createdLabel.isNotEmpty) {
+      return 'Đề xuất đã chấp nhận · ${latest.createdLabel}';
+    }
+    return 'Đề xuất đã chấp nhận';
+  }
+
+  String skillSummary({Map<String, String> skillByProposal = const {}}) {
+    final labels = <String>{
+      for (final item in conversations)
+        messageSkillKey(item, skillByProposal: skillByProposal),
+    };
+    if (labels.isEmpty) return '${conversations.length} cuộc trao đổi';
+    if (labels.length == 1) {
+      return messageSkillLabel(
+        conversations.first,
+        skillByProposal: skillByProposal,
+      );
+    }
+    return '${labels.length} kỹ năng · ${conversations.length} cuộc trao đổi';
+  }
+}
+
+/// Conversations with one partner under one skill.
+class MessageSkillGroup {
+  const MessageSkillGroup({
+    required this.key,
+    required this.label,
+    required this.conversations,
+  });
+
+  final String key;
+  final String label;
+  final List<Conversation> conversations;
+
+  DateTime get sortAt {
+    DateTime latest = DateTime.fromMillisecondsSinceEpoch(0);
+    for (final item in conversations) {
+      if (item.sortAt.isAfter(latest)) latest = item.sortAt;
+    }
+    return latest;
+  }
+
+  Conversation get latest => conversations.first;
+
+  int get unread {
+    var total = 0;
+    for (final item in conversations) {
+      total += item.unread;
+    }
+    return total;
+  }
+
+  String get preview {
+    final text = latest.last.trim();
+    if (text.isNotEmpty) return conversationMessagePreview(text);
+    if (latest.createdLabel.isNotEmpty) {
+      return 'Đề xuất đã chấp nhận · ${latest.createdLabel}';
+    }
+    return 'Đề xuất đã chấp nhận';
+  }
+
+  String get threadSummary {
+    final count = conversations.length;
+    return count == 1 ? '1 cuộc trao đổi' : '$count cuộc trao đổi';
+  }
+}
+
+String messageSkillLabel(
+  Conversation item, {
+  Map<String, String> skillByProposal = const {},
+}) {
+  final fromProposal = skillByProposal[item.proposal]?.trim() ?? '';
+  if (fromProposal.isNotEmpty) return fromProposal;
+  final skill = item.skill.trim();
+  final topic = item.topic.trim();
+  // Guard: never treat the learning-request title as a skill group.
+  if (skill.isNotEmpty && (topic.isEmpty || skill != topic)) return skill;
+  return 'Khác';
+}
+
+String messageSkillKey(
+  Conversation item, {
+  Map<String, String> skillByProposal = const {},
+}) => _searchKey(messageSkillLabel(item, skillByProposal: skillByProposal));
+
+String _searchKey(String value) =>
+    value.toLowerCase().replaceAll(RegExp(r'\s+'), ' ').trim();
+
+String _skillNameFromJson(Object? value) {
+  if (value is String && value.trim().isNotEmpty) return value.trim();
+  if (value is Map) {
+    final name = value['name'];
+    if (name is String && name.trim().isNotEmpty) return name.trim();
+  }
+  return '';
+}
+
+String _skillIdFromJson(Map<String, dynamic> json) {
+  final skillId = json['skillId'];
+  if (skillId is String && skillId.isNotEmpty) return skillId;
+  final nested = json['skill'];
+  if (nested is Map) {
+    final id = nested['id'];
+    if (id is String && id.isNotEmpty) return id;
+  }
+  return '';
 }
 
 class MessagesNotifier extends Notifier<MessagesState> {
@@ -324,7 +589,7 @@ class MessagesNotifier extends Notifier<MessagesState> {
       thread = [for (final message in page.items) _chatMessage(message, me)];
       olderCursor = page.nextCursor;
     }
-    final topic = await _conversationTopic(
+    final labels = await _conversationLabels(
       proposalId: record.proposalId,
       learningRequestId: record.learningRequestId,
     );
@@ -339,7 +604,7 @@ class MessagesNotifier extends Notifier<MessagesState> {
         proposal: record.proposalId,
         name: name,
         userId: other,
-        skill: topic,
+        skill: labels.skill,
         request: record.learningRequestId ?? '',
         last: lastMessage?.text ?? '',
         messages: thread.length,
@@ -347,18 +612,42 @@ class MessagesNotifier extends Notifier<MessagesState> {
         time: lastMessage?.time ?? '',
         createdAt: createdAt,
         lastActivityAt: lastMessage?.sentAt ?? createdAt,
-        topic: topic,
+        topic: labels.topic,
         avatarUrl: avatarUrl,
       ),
     );
   }
 
-  /// Prefer learning-request title; fall back to skill / generic label (RN context).
-  Future<String> _conversationTopic({
+  /// Skill name for grouping; request/proposal title for conversation cards.
+  Future<({String skill, String topic})> _conversationLabels({
     required String proposalId,
     required String? learningRequestId,
   }) async {
     final runtime = ref.read(authRuntimeProvider);
+    final catalog = await ref.read(skillCatalogProvider.future);
+    final skillNames = {for (final item in catalog) item.id: item.name};
+    var skill = '';
+    var topic = '';
+    var sourceType = '';
+
+    for (final item in ref.read(proposalsProvider)) {
+      if (item.id != proposalId) continue;
+      if (item.skill.trim().isNotEmpty) skill = item.skill.trim();
+      sourceType = item.sourceType;
+      break;
+    }
+
+    try {
+      final proposal = await runtime.services.proposals.get(proposalId);
+      sourceType = proposal.sourceType;
+      final named = skillNames[proposal.skillId]?.trim() ?? '';
+      if (named.isNotEmpty) {
+        skill = named;
+      } else if (skill.isEmpty && proposal.skillId.isNotEmpty) {
+        skill = proposal.skillId;
+      }
+    } catch (_) {}
+
     if (learningRequestId != null && learningRequestId.isNotEmpty) {
       try {
         final request = await runtime.services.learningRequests.get(
@@ -366,33 +655,34 @@ class MessagesNotifier extends Notifier<MessagesState> {
         );
         final title = request['title'];
         if (title is String && title.trim().isNotEmpty) {
-          return title.trim();
+          topic = title.trim();
+        }
+        if (skill.isEmpty) {
+          final named = _skillNameFromJson(request['skill']);
+          if (named.isNotEmpty) {
+            skill = named;
+          } else {
+            final skillId = _skillIdFromJson(request);
+            final fromCatalog = skillNames[skillId]?.trim() ?? '';
+            if (fromCatalog.isNotEmpty) skill = fromCatalog;
+          }
         }
       } catch (_) {}
     }
-    for (final item in ref.read(proposalsProvider)) {
-      if (item.id != proposalId) continue;
-      if (item.skill.trim().isNotEmpty) {
-        return item.sourceType == 'DIRECT_SEARCH'
-            ? '${item.skill.trim()} · Lời mời trực tiếp'
-            : item.skill.trim();
-      }
-      break;
+
+    if (topic.isEmpty && sourceType == 'DIRECT_SEARCH') {
+      topic = skill.isEmpty
+          ? 'Lời mời trực tiếp'
+          : '$skill · Lời mời trực tiếp';
     }
-    try {
-      final proposal = await runtime.services.proposals.get(proposalId);
-      if (proposal.skillId.isNotEmpty) {
-        final catalog = await ref.read(skillCatalogProvider.future);
-        for (final skill in catalog) {
-          if (skill.id == proposal.skillId && skill.name.trim().isNotEmpty) {
-            return proposal.sourceType == 'DIRECT_SEARCH'
-                ? '${skill.name.trim()} · Lời mời trực tiếp'
-                : skill.name.trim();
-          }
-        }
-      }
-    } catch (_) {}
-    return 'Đề xuất học';
+    if (topic.isEmpty) {
+      topic = 'Đề xuất học';
+    }
+    // Never let the request title leak into the skill group label.
+    if (skill.isNotEmpty && skill == topic) {
+      skill = '';
+    }
+    return (skill: skill, topic: topic);
   }
 
   Future<void> _reload(int ticket, String me) async {
@@ -619,10 +909,15 @@ class MessagesNotifier extends Notifier<MessagesState> {
     } catch (_) {}
   }
 
-  Future<void> send(String conversationId, String text) async {
+  Future<void> send(
+    String conversationId,
+    String text, {
+    List<String> attachmentFileIds = const [],
+  }) async {
     final conversation = state.find(conversationId);
     final body = text.trim();
-    if (body.isEmpty || conversation == null) return;
+    if (conversation == null) return;
+    if (body.isEmpty && attachmentFileIds.isEmpty) return;
     final clientMessageId = newUuid();
     try {
       final message = await ref
@@ -633,6 +928,7 @@ class MessagesNotifier extends Notifier<MessagesState> {
             conversation.id,
             clientMessageId: clientMessageId,
             messageText: body,
+            attachmentFileIds: attachmentFileIds,
             idempotencyKey: clientMessageId,
           );
       final me = ref.read(accountProvider).value?.userId ?? '';
@@ -644,12 +940,19 @@ class MessagesNotifier extends Notifier<MessagesState> {
           .delivery(conversation.id, clientMessageId);
     } catch (_) {}
   }
-
-  bool sendFile(String proposal, SampleFile file) => false;
 }
 
 ChatMessage _chatMessage(MessageRecord message, String me) {
   final sentAt = DateTime.tryParse(message.sentAt);
+  final attachments = [
+    for (final item in message.attachments)
+      ChatAttachmentView(
+        attachmentId: item.attachmentId,
+        filename: item.filename,
+        bytes: item.fileSizeBytes,
+        mimeType: item.mimeType,
+      ),
+  ];
   return ChatMessage(
     id: message.id,
     mine: message.senderId == me,
@@ -657,6 +960,13 @@ ChatMessage _chatMessage(MessageRecord message, String me) {
     time: clockTime(sentAt?.toLocal()),
     sentAt: sentAt,
     sequence: message.sequence,
+    attachments: attachments,
+    file: attachments.isEmpty
+        ? null
+        : (
+            name: attachments.first.filename,
+            bytes: attachments.first.bytes,
+          ),
   );
 }
 

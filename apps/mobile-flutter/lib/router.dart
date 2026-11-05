@@ -21,6 +21,7 @@ import 'features/learning_paths/study_live_screen.dart';
 import 'features/learning_requests/requests_feature.dart';
 import 'features/materials/materials_feature.dart';
 import 'features/messages/messages_screens.dart';
+import 'features/notifications/notifications_screen.dart';
 import 'features/product_shell/product_shell_feature.dart';
 import 'features/profile/edit_profile_screen.dart';
 import 'features/profile/profile_screen.dart';
@@ -335,6 +336,29 @@ final routerProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: '/messages',
                 builder: (_, _) => const MessagesScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'with/:userId',
+                    builder: (_, state) => MessagePartnerScreen(
+                      userId: Uri.decodeComponent(
+                        state.pathParameters['userId'] ?? '',
+                      ),
+                    ),
+                    routes: [
+                      GoRoute(
+                        path: 'skill/:skillKey',
+                        builder: (_, state) => MessageSkillScreen(
+                          userId: Uri.decodeComponent(
+                            state.pathParameters['userId'] ?? '',
+                          ),
+                          skillKey: Uri.decodeComponent(
+                            state.pathParameters['skillKey'] ?? '',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ],
           ),

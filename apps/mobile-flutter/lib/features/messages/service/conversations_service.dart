@@ -29,12 +29,14 @@ class ConversationsService {
   Future<MessageRecord> send(
     String id, {
     required String clientMessageId,
-    required String messageText,
+    String messageText = '',
+    List<String> attachmentFileIds = const [],
     required String idempotencyKey,
   }) => _api.send(
     id,
     clientMessageId: clientMessageId,
     messageText: messageText,
+    attachmentFileIds: attachmentFileIds,
     idempotencyKey: idempotencyKey,
   );
 

@@ -1,11 +1,11 @@
 import 'package:flutter/widgets.dart';
 
-/// Public and auth palette.
+/// Public and auth palette — cloned from RN `colors` in theme.ts.
 abstract final class Palette {
-  static const brand = Color(0xFFD4622A);
-  static const brandHover = Color(0xFFB8521E);
-  static const brandLight = Color(0xFFFEF0E8);
-  static const brandMuted = Color(0xFFF5D4C0);
+  static const brand = Color(0xFFC4512B);
+  static const brandHover = Color(0xFFAD3F20);
+  static const brandLight = Color(0xFFFFF1E8);
+  static const brandMuted = Color(0xFFF8DAC8);
   static const brandSurface = Color(0xFFF6D3BA);
   static const sage = Color(0xFF3D6B5A);
   static const cream = Color(0xFFFFFCF8);
@@ -15,9 +15,9 @@ abstract final class Palette {
   static const body = Color(0xFF5C4A3A);
   static const muted = Color(0xFF8A7060);
   static const mutedLight = Color(0xFFBCA99A);
-  static const border = Color(0xFFE2D9CE);
+  static const border = Color(0xFFEDDFD4);
   static const borderDark = Color(0xFFC8BDB0);
-  static const sand = Color(0xFFF7F1E9);
+  static const sand = Color(0xFFF7F7F5);
   static const success = Color(0xFF2E7D53);
   static const warning = Color(0xFFD4901A);
   static const star = Color(0xFFFBBF24);
@@ -29,44 +29,60 @@ abstract final class Palette {
   static const gold = Color(0xFFB8860B);
 }
 
-/// "Crafted Exchange" tokens used by the signed-in product surfaces.
+/// "Crafted Exchange" tokens — cloned from RN `appColors`.
 abstract final class AppColors {
-  static const primary = Color(0xFFBA4E36);
-  static const primaryDark = Color(0xFF9A3721);
-  static const primarySoft = Color(0xFFFFF2F0);
-  static const primaryMuted = Color(0xFFFFDAD2);
+  static const primary = Color(0xFFC4512B);
+  static const primaryDark = Color(0xFFAD3F20);
+  static const primaryPressed = Color(0xFF933019);
+  static const primarySoft = Color(0xFFFFF1E8);
+  static const primaryMuted = Color(0xFFF8DAC8);
   static const forest = Color(0xFF264E3F);
   static const forestSoft = Color(0xFFE7F2EC);
   static const forestMuted = Color(0xFFBDE9D5);
   static const amber = Color(0xFFD97736);
   static const amberSoft = Color(0xFFFFF1E7);
-  static const canvas = Color(0xFFFCF9F3);
-  static const surface = Color(0xFFFFFFFF);
-  static const surfaceLow = Color(0xFFF6F3ED);
-  static const surfaceInset = Color(0xFFEDE8DF);
+  static const canvas = Color(0xFFFFFBF7);
+  static const surface = Color(0xFFFFFEFC);
+  static const surfaceLow = Color(0xFFF7F7F5);
+  static const surfaceInset = Color(0xFFF0F1EE);
+  static const surfaceHigh = Color(0xFFE8EAE6);
   static const ink = Color(0xFF1C2520);
   static const body = Color(0xFF57423D);
   static const muted = Color(0xFF8A716C);
   static const mutedLight = Color(0xFFA9958F);
-  static const border = Color(0xFFE2DCD2);
+  static const border = Color(0xFFE8E6E2);
+  static const borderStrong = Color(0xFFD9DCD5);
   static const success = Color(0xFF2D6A4F);
   static const successSoft = Color(0xFFE7F3EC);
+  static const info = Color(0xFF405F78);
+  static const infoSoft = Color(0xFFEEF3F7);
+  static const infoBorder = Color(0xFFD7E2EB);
+  static const warning = Color(0xFFC85A17);
   static const error = Color(0xFFBA1A1A);
   static const errorLight = Color(0xFFFFEFED);
   static const white = Color(0xFFFFFFFF);
   static const brand = primary;
+  static const brandHover = primaryDark;
+  static const brandLight = primarySoft;
+  static const brandMuted = primaryMuted;
+  static const brandSurface = primaryMuted;
   static const inkSoft = body;
   static const sage = forest;
+  static const sageLight = forestSoft;
+  static const cream = canvas;
+  static const sand = surfaceInset;
+  static const warningLight = amberSoft;
   static const gold = amber;
+  static const star = amber;
 }
 
-/// Shared chrome for every signed-in screen: header, logo and bottom navigation.
+/// Shared chrome for every signed-in screen — cloned from RN `signedInChrome`.
 abstract final class Chrome {
-  static const background = Color(0xFFFCFAF7);
-  static const surface = Color(0xFFFFFFFF);
+  static const background = AppColors.canvas;
+  static const surface = AppColors.surface;
   static const ink = Color(0xFF202521);
   static const muted = Color(0xFFAAA69F);
-  static const border = Color(0xFFF0ECE6);
+  static const border = AppColors.border;
   static const accent = Color(0xFFEF653D);
 }
 
@@ -89,13 +105,14 @@ abstract final class Fonts {
   static const fraunces = 'Fraunces';
 }
 
-/// Font size and line height pairs.
+/// Font size and line height pairs — cloned from RN `typography`.
 abstract final class TypeScale {
   static const caption = (11.0, 15.0);
   static const secondary = (13.0, 18.0);
   static const body = (15.0, 22.0);
   static const heading = (17.0, 24.0);
   static const title = (20.0, 28.0);
+  static const amount = (32.0, 40.0);
 }
 
 TextStyle nunito(
@@ -147,17 +164,21 @@ abstract final class Layout {
   static const radius = 6.0;
 }
 
+/// Public/auth radii — cloned from RN `radius`.
 abstract final class Radii {
   static const badge = 4.0;
   static const control = 6.0;
-  static const card = 8.0;
+  static const card = 20.0;
 }
 
+/// Signed-in product radii — cloned from RN `appRadius`.
 abstract final class AppRadii {
-  static const badge = 8.0;
-  static const control = 8.0;
-  static const card = 16.0;
+  static const badge = 10.0;
+  static const control = 12.0;
+  static const button = 10.0;
+  static const card = 20.0;
   static const feature = 24.0;
+  static const full = 999.0;
 }
 
 abstract final class Shadows {

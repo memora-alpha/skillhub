@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -13,6 +15,7 @@ import '../../core/theme/tokens.dart';
 import '../sessions/live_sessions.dart';
 import '../remote/refresh_signal.dart';
 import '../shell/app_screen_layout.dart';
+import 'calendar_session_card.dart';
 
 abstract final class _C {
   static const surface = Chrome.surface;
@@ -249,6 +252,21 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   DateTime _date = DateTime(DateTime.now().year, DateTime.now().month);
   int? _day;
   String _tab = 'Đã kết thúc / lịch sử';
+  Timer? _clock;
+
+  @override
+  void initState() {
+    super.initState();
+    _clock = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted && _tab == 'Sắp tới') setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _clock?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -275,7 +293,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
       for (final session in monthSessions)
         if (dayMatches(session) && tabMatches(session)) session,
     ];
-    _sortCalendarSessions(listItems);
+    _sortCalendarSessions(listItems, nearestFirst: _tab == 'Sắp tới');
     return AppScreenLayout(
       title: 'Lịch học',
       selected: 'Lịch học',
@@ -348,28 +366,10 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                         onPressed: () => setState(() => _day = null),
                       ),
                     for (final session in listItems)
-                      Panel(
-                        title: sessionRoleLabel(session),
-                        children: [
-                          Copy(sessionStatusLabel(session['status'])),
-                          if (sessionInstant(session['startAt'])
-                              case final DateTime start)
-                            Copy(
-                              '${viDateTime(start)} · ${sessionMinutes(session)} phút',
-                            ),
-                          if (sessionHistoryNote(session)
-                              case final String note
-                              when note.isNotEmpty)
-                            Copy(note, muted: true),
-                          RouteButton(
-                            href: '/learning-sessions/${session['id']}',
-                            label: sessionAwaitingConfirmation(session)
-                                ? 'Xác nhận hoàn thành'
-                                : sessionMissedJoin(session)
-                                ? 'Xem buổi đã lố giờ'
-                                : 'Mở buổi học',
-                          ),
-                        ],
+                      CalendarSessionCard(
+                        session: session,
+                        highlight: _tab == 'Sắp tới' &&
+                            sessionIsImminent(session),
                       ),
                     if (listItems.isEmpty)
                       EmptyState(
@@ -403,43 +403,23 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   }
 }
 
-void _sortCalendarSessions(List<Map<String, dynamic>> rows) {
+void _sortCalendarSessions(
+  List<Map<String, dynamic>> rows, {
+  required bool nearestFirst,
+}) {
+  final now = DateTime.now();
   rows.sort((a, b) {
     final left =
         sessionInstant(a['startAt']) ?? DateTime.fromMillisecondsSinceEpoch(0);
     final right =
         sessionInstant(b['startAt']) ?? DateTime.fromMillisecondsSinceEpoch(0);
-    return right.compareTo(left);
+    if (!nearestFirst) return right.compareTo(left);
+    final byNear = left
+        .difference(now)
+        .abs()
+        .compareTo(right.difference(now).abs());
+    return byNear != 0 ? byNear : left.compareTo(right);
   });
-}
-
-class _MissedSessionRow extends StatelessWidget {
-  const _MissedSessionRow({required this.session});
-
-  final Map<String, dynamic> session;
-
-  @override
-  Widget build(BuildContext context) {
-    final start = sessionInstant(session['startAt']);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      spacing: 4,
-      children: [
-        Copy(
-          '${sessionRoleLabel(session)} · ${sessionStatusLabel(session['status'])}',
-        ),
-        if (start != null)
-          Copy(
-            '${viDateTime(start)} · ${sessionMinutes(session)} phút',
-            muted: true,
-          ),
-        RouteButton(
-          href: '/learning-sessions/${session['id']}',
-          label: 'Xem buổi đã lố giờ',
-        ),
-      ],
-    );
-  }
 }
 
 typedef _SessionDetail = ({

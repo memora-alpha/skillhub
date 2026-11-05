@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../components/app_button.dart';
+import '../../components/app_icon.dart';
 import '../../components/app_input.dart';
 import '../../components/feature_page.dart';
 import '../../components/misc.dart';
@@ -15,6 +16,7 @@ import '../shell/app_screen_layout.dart';
 import '../remote/remote_load.dart';
 import '../skills/schema/skill_schema.dart';
 import '../skills/skills_feature.dart';
+import 'request_form_ui.dart';
 import 'requests_state.dart';
 import 'schema/learning_request_schema.dart';
 
@@ -243,15 +245,13 @@ class _LiveRequestEditorState extends ConsumerState<LiveRequestEditor> {
           ? Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
-                color: Palette.warningLight,
+                color: RequestFormColors.amberSoft,
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
                 'Bản nháp',
-                style: nunito(
-                  TypeScale.caption,
-                  weight: FontWeight.w700,
-                  color: AppColors.primary,
+                style: requestHintStyle.copyWith(
+                  color: RequestFormColors.primary,
                 ),
               ),
             )
@@ -303,39 +303,17 @@ class _LiveRequestEditorState extends ConsumerState<LiveRequestEditor> {
                     ),
                   ),
                 ),
-                Material(
-                  color: AppColors.surface,
-                  child: SafeArea(
-                    top: false,
-                    child: Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 640),
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            spacing: 8,
-                            children: [
-                              AppButton(
-                                label: _saving
-                                    ? 'Đang lưu...'
-                                    : creating
-                                    ? 'Lưu bản nháp'
-                                    : 'Lưu thay đổi',
-                                loading: _saving,
-                                onPressed: () => _save(request),
-                              ),
-                              if (creating)
-                                const Copy(
-                                  'Lưu nháp để xem lại trước khi đăng.',
-                                  muted: true,
-                                ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
+                RequestEditorFooter(
+                  label: _saving
+                      ? 'Đang lưu...'
+                      : creating
+                      ? 'Lưu bản nháp'
+                      : 'Lưu thay đổi',
+                  loading: _saving,
+                  onPressed: () => _save(request),
+                  hint: creating
+                      ? 'Lưu nháp để xem lại trước khi đăng.'
+                      : null,
                 ),
               ],
             ),
@@ -352,42 +330,41 @@ class _NeedCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final locked = request?.publishedAt != null;
-    return Panel(
+    return RequestSection(
       title: 'Nhu cầu học',
+      icon: AppIcon.book,
       children: [
-        AppInput(
+        RequestTextField(
           field: state._title,
           label: 'Tiêu đề',
           required: true,
           placeholder: 'Ví dụ: Muốn học React Hooks để làm dự án web',
           editable: !state._saving,
         ),
-        Text(
-          'Kỹ năng muốn học *',
-          style: nunito(
-            TypeScale.body,
-            weight: FontWeight.w700,
-            color: AppColors.body,
-          ),
-        ),
         if (locked) ...[
-          Copy(state._skillName.isEmpty ? 'Thông tin kỹ năng chưa khả dụng' : state._skillName),
+          const Copy('Kỹ năng muốn học *'),
+          Copy(
+            state._skillName.isEmpty
+                ? 'Thông tin kỹ năng chưa khả dụng'
+                : state._skillName,
+          ),
           const Copy(
             'Kỹ năng được giữ nguyên sau lần đăng đầu tiên.',
             muted: true,
           ),
         ] else
           _SkillPicker(state: state),
-        AppInput(
+        RequestTextField(
           field: state._description,
           label: 'Mô tả nhu cầu',
           required: true,
           multiline: true,
           hint: '20–3000 ký tự.',
-          placeholder: 'Bạn đang ở đâu, cần hỗ trợ gì và thích học theo cách nào?',
+          placeholder:
+              'Bạn đang ở đâu, cần hỗ trợ gì và thích học theo cách nào?',
           editable: !state._saving,
         ),
-        AppInput(
+        RequestTextField(
           field: state._goal,
           label: 'Mục tiêu học tập',
           required: true,
@@ -416,12 +393,25 @@ class _SkillPicker extends ConsumerWidget {
     }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      spacing: 8,
+      spacing: 10,
       children: [
-        AppButton(
+        Text.rich(
+          TextSpan(
+            text: 'Kỹ năng muốn học',
+            style: requestLabelStyle,
+            children: const [
+              TextSpan(
+                text: ' *',
+                style: TextStyle(color: RequestFormColors.accent),
+              ),
+            ],
+          ),
+        ),
+        RequestPaperButton(
           label: label,
-          variant: ButtonVariant.paper,
           disabled: state._saving,
+          trailingChevron: true,
+          expanded: state._skillOpen,
           onPressed: () =>
               state.update(() => state._skillOpen = !state._skillOpen),
         ),
@@ -429,17 +419,38 @@ class _SkillPicker extends ConsumerWidget {
           TextField(
             controller: state._skillQuery,
             enabled: !state._saving,
-            decoration: const InputDecoration(
-              labelText: 'Tìm kỹ năng',
-              hintText: 'Nhập ít nhất 2 ký tự để tìm trong toàn bộ danh mục.',
+            style: nunito((14, 21), color: RequestFormColors.ink),
+            decoration: InputDecoration(
+              isCollapsed: true,
+              hintText: 'Tìm trong danh mục kỹ năng',
+              hintStyle: nunito(
+                (14, 21),
+                color: RequestFormColors.mutedLight,
+              ),
+              filled: true,
+              fillColor: RequestFormColors.canvas,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 12,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppRadii.card),
+                borderSide: const BorderSide(color: RequestFormColors.border),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppRadii.card),
+                borderSide: const BorderSide(color: RequestFormColors.border),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppRadii.card),
+                borderSide: const BorderSide(color: RequestFormColors.accent),
+              ),
             ),
             onChanged: (value) {
               state._skillDebounce?.cancel();
               state._skillDebounce = Timer(const Duration(milliseconds: 300), () {
                 if (!state.mounted) return;
-                state.update(
-                  () => state._skillKeyword = value.trim(),
-                );
+                state.update(() => state._skillKeyword = value.trim());
               });
             },
           ),
@@ -454,8 +465,13 @@ class _SkillPicker extends ConsumerWidget {
               child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
             ),
           if (query.hasError)
-            FormNotice(tone: NoticeTone.error, message: 'Không tải được danh mục kỹ năng.'),
-          if (query.hasValue && options.isEmpty && state._skillKeyword.runes.length >= 2)
+            FormNotice(
+              tone: NoticeTone.error,
+              message: 'Không tải được danh mục kỹ năng.',
+            ),
+          if (query.hasValue &&
+              options.isEmpty &&
+              state._skillKeyword.runes.length >= 2)
             const Copy('Chưa có kỹ năng phù hợp.', muted: true),
           Wrap(
             spacing: 8,
@@ -465,6 +481,12 @@ class _SkillPicker extends ConsumerWidget {
                 ChoiceChip(
                   label: Text(skill.name),
                   selected: skill.id == state._skillId,
+                  selectedColor: RequestFormColors.amberSoft,
+                  side: BorderSide(
+                    color: skill.id == state._skillId
+                        ? RequestFormColors.accent
+                        : RequestFormColors.border,
+                  ),
                   onSelected: state._saving
                       ? null
                       : (_) => state.update(() {
@@ -494,15 +516,22 @@ class _OfferCard extends ConsumerWidget {
       for (final skill in mine)
         if (skill.visible && !skill.archived) skill,
     ];
-    return Panel(
-      accent: true,
+    var summary = 'Thêm kỹ năng và nội dung bạn có thể chia sẻ';
+    if (state._overview.text.trim().isNotEmpty) {
+      summary = 'Đã thêm nội dung có thể dạy';
+    }
+    if (state._offeringIds.isNotEmpty) {
+      summary = '${state._offeringIds.length} kỹ năng đã chọn';
+    }
+    return RequestSection(
       title: 'Bạn có thể dạy',
+      icon: AppIcon.users,
+      tone: RequestSectionTone.forest,
+      collapsible: true,
+      summary: summary,
+      disabled: state._saving,
       children: [
-        const Copy(
-          'Chia sẻ thế mạnh để tìm bạn trao đổi phù hợp',
-          muted: true,
-        ),
-        AppInput(
+        RequestTextField(
           field: state._overview,
           label: 'Nội dung có thể dạy (không bắt buộc)',
           multiline: true,
@@ -523,9 +552,9 @@ class _OfferCard extends ConsumerWidget {
                 final skill = options
                     .where((item) => item.id == id)
                     .firstOrNull;
-                final label = skill?.name ?? id;
+                final chipLabel = skill?.name ?? id;
                 return InputChip(
-                  label: Text(label),
+                  label: Text(chipLabel),
                   onDeleted: state._saving
                       ? null
                       : () => state.update(() => state._offeringIds.remove(id)),
@@ -533,14 +562,15 @@ class _OfferCard extends ConsumerWidget {
               }(),
           ],
         ),
-        AppButton(
+        RequestPaperButton(
           label: state._offeringOpen
               ? 'Thu gọn danh sách'
               : state._offeringIds.isEmpty
               ? 'Chọn kỹ năng có thể dạy'
               : 'Thêm kỹ năng',
-          variant: ButtonVariant.paper,
           disabled: state._saving,
+          trailingChevron: true,
+          expanded: state._offeringOpen,
           onPressed: () =>
               state.update(() => state._offeringOpen = !state._offeringOpen),
         ),
@@ -567,9 +597,8 @@ class _OfferCard extends ConsumerWidget {
               ],
             ),
           if (state._offeringIds.isNotEmpty)
-            AppButton(
+            RequestPaperButton(
               label: 'Bỏ tất cả lựa chọn',
-              variant: ButtonVariant.paper,
               disabled: state._saving,
               onPressed: () => state.update(state._offeringIds.clear),
             ),
@@ -597,8 +626,22 @@ class _OptionsCard extends ConsumerWidget {
         tags.where((tag) => tag.id == id).firstOrNull ??
             TagRecord(id: id, label: id),
     ];
-    return Panel(
+    final summaryParts = <String>[
+      if (state._level.isNotEmpty) state._level,
+      if (state._tagIds.isNotEmpty) '${state._tagIds.length} tag',
+      if (state._credit.text.trim().isNotEmpty)
+        '${state._credit.text.trim()} Credit/giờ',
+      if (state._verified) 'Người dạy đã xác minh',
+    ];
+    return RequestSection(
       title: 'Tùy chọn học tập',
+      icon: AppIcon.filter,
+      tone: RequestSectionTone.amber,
+      collapsible: true,
+      summary: summaryParts.isEmpty
+          ? 'Trình độ, tag, mức Credit'
+          : summaryParts.join(' · '),
+      disabled: state._saving,
       children: [
         ChoiceGroup(
           label: 'Trình độ hiện tại (không bắt buộc)',
@@ -616,17 +659,44 @@ class _OptionsCard extends ConsumerWidget {
               state.update(() => state._verified = value == 'Có'),
         ),
         const Copy('Tag (không bắt buộc)'),
-        AppButton(
+        RequestPaperButton(
           label: state._tagOpen ? 'Đóng danh mục tag' : 'Chọn tag',
-          variant: ButtonVariant.paper,
           disabled: state._saving,
+          trailingChevron: true,
+          expanded: state._tagOpen,
           onPressed: () => state.update(() => state._tagOpen = !state._tagOpen),
         ),
         if (state._tagOpen) ...[
           TextField(
             controller: state._tagQuery,
             enabled: !state._saving,
-            decoration: const InputDecoration(labelText: 'Tìm tag'),
+            style: nunito((14, 21), color: RequestFormColors.ink),
+            decoration: InputDecoration(
+              isCollapsed: true,
+              hintText: 'Tìm tag',
+              hintStyle: nunito(
+                (14, 21),
+                color: RequestFormColors.mutedLight,
+              ),
+              filled: true,
+              fillColor: RequestFormColors.canvas,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 12,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppRadii.card),
+                borderSide: const BorderSide(color: RequestFormColors.border),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppRadii.card),
+                borderSide: const BorderSide(color: RequestFormColors.border),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppRadii.card),
+                borderSide: const BorderSide(color: RequestFormColors.accent),
+              ),
+            ),
             onChanged: (_) => state.update(() {}),
           ),
           if (matches.isEmpty)
@@ -639,6 +709,12 @@ class _OptionsCard extends ConsumerWidget {
                 FilterChip(
                   label: Text(tag.label),
                   selected: state._tagIds.contains(tag.id),
+                  selectedColor: RequestFormColors.amberSoft,
+                  side: BorderSide(
+                    color: state._tagIds.contains(tag.id)
+                        ? RequestFormColors.accent
+                        : RequestFormColors.border,
+                  ),
                   onSelected: state._saving
                       ? null
                       : (selected) => state.update(() {
@@ -670,7 +746,7 @@ class _OptionsCard extends ConsumerWidget {
               ),
           ],
         ),
-        AppInput(
+        RequestTextField(
           field: state._credit,
           label: 'Credit mong muốn mỗi giờ (không bắt buộc)',
           hint: 'Mức mong muốn; giá cuối cùng sẽ được thỏa thuận.',
@@ -691,8 +767,20 @@ class _TimeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final full = state._weekly.length >= 5;
-    return Panel(
+    var summary = 'Thêm lịch rảnh hằng tuần';
+    if (state._savedSlots.isNotEmpty) {
+      summary = '${state._savedSlots.length} khoảng ngày đã lưu';
+    }
+    if (state._weekly.isNotEmpty) {
+      summary = '${state._weekly.length} khoảng mỗi tuần';
+    }
+    return RequestSection(
       title: 'Thời gian ưu tiên',
+      icon: AppIcon.clock,
+      collapsible: true,
+      summary: summary,
+      hasError: _weeklyError(state._weekly) != null,
+      disabled: state._saving,
       children: [
         const Copy(
           'Không bắt buộc · Lặp hằng tuần · Tối đa 5 khoảng',
@@ -702,9 +790,8 @@ class _TimeCard extends StatelessWidget {
         for (var index = 0; index < state._weekly.length; index++)
           _WeeklyRowCard(state: state, index: index),
         if (!full)
-          AppButton(
+          RequestPaperButton(
             label: 'Thêm giờ rảnh',
-            variant: ButtonVariant.paper,
             disabled: state._saving,
             onPressed: () => state.update(
               () => state._weekly = [
@@ -867,28 +954,30 @@ class _DeadlineCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Panel(
+    return RequestSection(
       title: 'Hạn đăng bài',
+      icon: AppIcon.calendar,
       children: [
         const Copy('Không bắt buộc', muted: true),
-        AppButton(
+        RequestPaperButton(
           label: state._expiresAt == null
               ? 'Chọn ngày và giờ'
               : viDateTime(state._expiresAt!),
-          variant: ButtonVariant.paper,
           disabled: state._saving,
           onPressed: () async {
             final now = DateTime.now();
-            final picked = await _pickFuture(context, state._expiresAt ?? now.add(const Duration(days: 7)));
+            final picked = await _pickFuture(
+              context,
+              state._expiresAt ?? now.add(const Duration(days: 7)),
+            );
             if (picked == null) return;
             state.update(() => state._expiresAt = picked);
           },
         ),
         const Copy('Để trống để dùng hạn mặc định.', muted: true),
         if (state._expiresAt != null)
-          AppButton(
+          RequestPaperButton(
             label: 'Dùng hạn mặc định',
-            variant: ButtonVariant.paper,
             disabled: state._saving,
             onPressed: () => state.update(() => state._expiresAt = null),
           ),

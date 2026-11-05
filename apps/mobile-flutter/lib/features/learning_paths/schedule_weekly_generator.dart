@@ -96,35 +96,43 @@ class _ScheduleWeeklyGeneratorState extends State<ScheduleWeeklyGenerator> {
         .join(', ');
     return Panel(
       children: [
-        Row(
-          spacing: 8,
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: AppColors.surfaceInset,
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(
-                '1',
-                style: nunito(
-                  TypeScale.secondary,
-                  weight: FontWeight.w700,
-                  color: AppColors.ink,
+        Container(
+          padding: const EdgeInsets.only(bottom: 8),
+          decoration: const BoxDecoration(
+            border: Border(
+              bottom: BorderSide(color: AppColors.border, width: 0.5),
+            ),
+          ),
+          child: Row(
+            spacing: 8,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceInset,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  '1',
+                  style: nunito(
+                    TypeScale.secondary,
+                    weight: FontWeight.w700,
+                    color: AppColors.ink,
+                  ),
                 ),
               ),
-            ),
-            Expanded(
-              child: Text(
-                'Lên lịch theo tuần',
-                style: nunito(
-                  TypeScale.heading,
-                  weight: FontWeight.w700,
-                  color: AppColors.ink,
+              Expanded(
+                child: Text(
+                  'Lên lịch theo tuần',
+                  style: nunito(
+                    TypeScale.heading,
+                    weight: FontWeight.w700,
+                    color: AppColors.ink,
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         Copy(
           'Điền lịch cho ${widget.count} buổi, sau đó xem lại và chỉnh riêng từng buổi.',
