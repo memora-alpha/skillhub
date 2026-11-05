@@ -71,7 +71,9 @@ export default function NativeRoomPreview() {
           </Text>
         </View>
       )}
-      <Text style={styles.name}>Xem trước · Chưa phát hình vào phòng</Text>
+      <View style={styles.tileLabel}>
+        <Text style={styles.name}>Bạn · Xem trước · Chưa phát hình</Text>
+      </View>
     </View>
   );
 }

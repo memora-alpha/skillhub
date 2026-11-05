@@ -66,6 +66,13 @@ function ReportEditor({
         <Panel title="Mô tả điều đã xảy ra">
           <Copy>Đối tượng: {id}</Copy>
           {target === "SESSION" && (
+            <Copy>
+              Báo cáo được gửi khi có vấn đề trong hoặc sau buổi học, kể cả một
+              bên vắng. Máy chủ kiểm tra thời hạn và quyền gửi; báo cáo sau
+              quyết toán không tự đảo giao dịch Credit.
+            </Copy>
+          )}
+          {target === "SESSION" && (
             <ServerFilePicker
               files={files}
               onChange={setFiles}

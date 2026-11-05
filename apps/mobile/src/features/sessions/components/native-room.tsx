@@ -16,6 +16,8 @@ import {
 } from "@livekit/react-native";
 import { LocalVideoTrack, Track } from "livekit-client";
 import { Button } from "@/components/Button";
+import { RoomAction } from "./room-action";
+import { RoomHeading } from "./room-heading";
 import { FormNotice } from "@/components/FormNotice";
 import { useRoomConnection } from "../hooks/use-room-connection.native";
 import type { RoomMediaProps } from "./room-media.types";
@@ -45,60 +47,75 @@ export default function NativeRoom(props: RoomMediaProps) {
     disconnected: "Đã ngắt kết nối",
   };
   const content = (
-    <View style={styles.page}>
-      <Button variant="paper" onPress={() => setExpanded((value) => !value)}>
-        {expanded ? "Thu gọn phòng học" : "Mở rộng phòng học"}
-      </Button>
-      <Text accessibilityLiveRegion="polite" style={styles.status}>
-        {labels[call.status]}
-      </Text>
-      {(call.status === "connecting" || call.status === "reconnecting") && (
-        <ActivityIndicator accessibilityLabel={labels[call.status]} />
-      )}
-      {!!call.error && <FormNotice tone="error">{call.error}</FormNotice>}
-      {!!call.mediaNotice && (
-        <FormNotice tone="info">{call.mediaNotice}</FormNotice>
-      )}
-      {!!call.mediaNotice && (
-        <Button
-          variant="paper"
-          onPress={() => {
-            void Linking.openSettings().catch(call.mediaFailed);
-          }}
-        >
-          Cài đặt quyền camera / micro
-        </Button>
-      )}
-      {call.room && (
-        <RoomContext.Provider value={call.room}>
-          <NativeRoomStage
-            partnerName={props.partnerName}
-            partnerAvatarUrl={props.partnerAvatarUrl}
-            expanded={expanded}
+    <View style={[styles.page, expanded && { flex: 1 }]}>
+      <RoomHeading
+        subtitle={props.partnerName}
+        status={labels[call.status]}
+        connected={call.status === "connected"}
+        action={
+          <RoomAction
+            icon={expanded ? "minimize" : "maximize"}
+            label={expanded ? "Thu gọn phòng học" : "Mở rộng phòng học"}
+            onPress={() => setExpanded((value) => !value)}
           />
-          <RoomControls call={call} onLeave={props.onLeave} />
+        }
+      />
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={styles.fullscreenContent}
+      >
+        {(call.status === "connecting" || call.status === "reconnecting") && (
+          <ActivityIndicator accessibilityLabel={labels[call.status]} />
+        )}
+        {!!call.error && <FormNotice tone="error">{call.error}</FormNotice>}
+        {!!call.mediaNotice && (
+          <FormNotice tone="info">{call.mediaNotice}</FormNotice>
+        )}
+        {!!call.mediaNotice && (
           <Button
             variant="paper"
-            onPress={() => setChatOpen((value) => !value)}
+            onPress={() => {
+              void Linking.openSettings().catch(call.mediaFailed);
+            }}
           >
-            {(chatOpen ? "Đóng chat" : "Chat phiên học") +
-              " (" +
-              chat.messages.length +
-              ")"}
+            Cài đặt quyền camera / micro
           </Button>
-          <NativeRoomChat
-            chat={chat}
-            partnerName={props.partnerName}
-            partnerAvatarUrl={props.partnerAvatarUrl}
-            hidden={!chatOpen}
-          />
-        </RoomContext.Provider>
-      )}
+        )}
+        {call.room && (
+          <RoomContext.Provider value={call.room}>
+            <NativeRoomStage
+              partnerName={props.partnerName}
+              partnerAvatarUrl={props.partnerAvatarUrl}
+              expanded={expanded}
+            />
+            <NativeRoomChat
+              chat={chat}
+              partnerName={props.partnerName}
+              partnerAvatarUrl={props.partnerAvatarUrl}
+              hidden={!chatOpen}
+            />
+          </RoomContext.Provider>
+        )}
+      </ScrollView>
       {call.status === "disconnected" && (
         <Button disabled={props.retrying} onPress={props.onRetry}>
           {props.retrying ? "Đang kiểm tra phòng…" : "Kết nối lại"}
         </Button>
       )}
+      {call.room && (
+        <RoomContext.Provider value={call.room}>
+          <RoomControls
+            call={call}
+            onLeave={props.onLeave}
+            chatOpen={chatOpen}
+            chatCount={chat.messages.length}
+            onToggleChat={() => setChatOpen((value) => !value)}
+          />
+        </RoomContext.Provider>
+      )}
+      <Text style={styles.footnote}>
+        Rời phòng không tự xác nhận hoàn tất buổi học.
+      </Text>
     </View>
   );
   if (!expanded) return content;
@@ -113,12 +130,7 @@ export default function NativeRoom(props: RoomMediaProps) {
           style={{ flex: 1 }}
           behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
-          <ScrollView
-            keyboardShouldPersistTaps="handled"
-            contentContainerStyle={styles.fullscreenContent}
-          >
-            {content}
-          </ScrollView>
+          {content}
         </KeyboardAvoidingView>
       </SafeAreaView>
     </Modal>
@@ -128,9 +140,15 @@ export default function NativeRoom(props: RoomMediaProps) {
 function RoomControls({
   call,
   onLeave,
+  chatOpen,
+  chatCount,
+  onToggleChat,
 }: Readonly<{
   call: ReturnType<typeof useRoomConnection>;
   onLeave: () => void;
+  chatOpen: boolean;
+  chatCount: number;
+  onToggleChat: () => void;
 }>) {
   const {
     localParticipant,
@@ -160,70 +178,82 @@ function RoomControls({
   return (
     <View style={styles.controls}>
       <View style={styles.controlRow}>
-        <Button
-          variant="paper"
-          style={styles.control}
+        <RoomAction
+          icon={isMicrophoneEnabled ? "microphone" : "microphone-off"}
+          label={isMicrophoneEnabled ? "Tắt micro" : "Bật micro"}
+          tone={isMicrophoneEnabled ? undefined : "off"}
+          selected={isMicrophoneEnabled}
           disabled={disabled}
           onPress={() => {
             void perform(() =>
               localParticipant.setMicrophoneEnabled(!isMicrophoneEnabled),
             );
           }}
-        >
-          {isMicrophoneEnabled ? "Tắt micro" : "Bật micro"}
-        </Button>
-        <Button
-          variant="paper"
-          style={styles.control}
+        />
+        <RoomAction
+          icon={isCameraEnabled ? "video" : "video-off"}
+          label={isCameraEnabled ? "Tắt camera" : "Bật camera"}
+          tone={isCameraEnabled ? undefined : "off"}
+          selected={isCameraEnabled}
           disabled={disabled}
           onPress={() => {
             void perform(() =>
               localParticipant.setCameraEnabled(!isCameraEnabled),
             );
           }}
-        >
-          {isCameraEnabled ? "Tắt camera" : "Bật camera"}
-        </Button>
-      </View>
-      {Platform.OS === "android" && (
-        <Button
-          variant="paper"
-          disabled={disabled}
+        />
+        <RoomAction
+          icon="switch-camera"
+          label="Đổi camera trước / sau"
+          disabled={disabled || !isCameraEnabled}
           onPress={() => {
-            void perform(() =>
-              localParticipant.setScreenShareEnabled(!isScreenShareEnabled),
-            );
+            void perform(async () => {
+              const track = localParticipant.getTrackPublication(
+                Track.Source.Camera,
+              )?.track;
+              if (!(track instanceof LocalVideoTrack)) return;
+              const next = facing === "user" ? "environment" : "user";
+              await track.restartTrack({ facingMode: next });
+              if (call.active()) setFacing(next);
+            });
           }}
-        >
-          {isScreenShareEnabled ? "Dừng chia sẻ màn hình" : "Chia sẻ màn hình"}
-        </Button>
-      )}
-      <Button
-        variant="paper"
-        disabled={disabled || !isCameraEnabled}
-        onPress={() => {
-          void perform(async () => {
-            const track = localParticipant.getTrackPublication(
-              Track.Source.Camera,
-            )?.track;
-            if (!(track instanceof LocalVideoTrack)) return;
-            const next = facing === "user" ? "environment" : "user";
-            await track.restartTrack({ facingMode: next });
-            if (call.active()) setFacing(next);
-          });
-        }}
-      >
-        Đổi camera trước / sau
-      </Button>
-      <Button
-        style={styles.leave}
-        onPress={() => {
-          call.close();
-          onLeave();
-        }}
-      >
-        Rời phòng học
-      </Button>
+        />
+        {Platform.OS === "android" && (
+          <RoomAction
+            icon="screen-share"
+            label={
+              isScreenShareEnabled
+                ? "Dừng chia sẻ màn hình"
+                : "Chia sẻ màn hình"
+            }
+            tone={isScreenShareEnabled ? "active" : undefined}
+            selected={isScreenShareEnabled}
+            disabled={disabled}
+            onPress={() => {
+              void perform(() =>
+                localParticipant.setScreenShareEnabled(!isScreenShareEnabled),
+              );
+            }}
+          />
+        )}
+        <RoomAction
+          icon="message"
+          label={chatOpen ? "Đóng chat phiên học" : "Mở chat phiên học"}
+          tone={chatOpen ? "active" : undefined}
+          selected={chatOpen}
+          count={chatCount}
+          onPress={onToggleChat}
+        />
+        <RoomAction
+          icon="phone-off"
+          label="Rời phòng học"
+          tone="danger"
+          onPress={() => {
+            call.close();
+            onLeave();
+          }}
+        />
+      </View>
     </View>
   );
 }

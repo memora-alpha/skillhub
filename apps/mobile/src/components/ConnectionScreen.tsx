@@ -2,9 +2,18 @@ import { StyleSheet, Text, View } from "react-native";
 import { LoadingIndicator } from "./LoadingIndicator";
 import { SafeAreaView } from "./SafeArea";
 import { BrandLogo } from "./BrandLogo";
+import { Button } from "./Button";
 import { appColors as colors, fonts, typography } from "@/constants/theme";
 
-export function ConnectionScreen() {
+export function ConnectionScreen({
+  reason,
+  retrying = false,
+  onRetry,
+}: {
+  reason?: "offline" | "unreachable" | null;
+  retrying?: boolean;
+  onRetry?: () => void;
+}) {
   return (
     <SafeAreaView style={styles.screen}>
       <View style={styles.brand}>
@@ -12,12 +21,37 @@ export function ConnectionScreen() {
       </View>
       <View style={styles.content}>
         <View style={styles.status}>
-          <LoadingIndicator
-            presentation="inline"
-            size="large"
-            accessibilityLabel="Đang tải nội dung"
-          />
-          <Text style={styles.label}>Đang tải nội dung…</Text>
+          {(!reason || retrying) && (
+            <LoadingIndicator
+              presentation="inline"
+              size="large"
+              accessibilityLabel={
+                reason ? "Đang kết nối lại" : "Đang tải nội dung"
+              }
+            />
+          )}
+          <Text style={styles.label} accessibilityRole="header">
+            {!reason
+              ? "Đang tải nội dung…"
+              : reason === "offline"
+                ? "Thiết bị đang ngoại tuyến"
+                : "Chưa kết nối được với SkillHub"}
+          </Text>
+          {reason && (
+            <Text style={styles.detail}>
+              Kiểm tra kết nối mạng rồi thử lại. App chỉ tải lại dữ liệu; các
+              thao tác gửi hoặc thanh toán sẽ không được tự gửi lại.
+            </Text>
+          )}
+          {reason && onRetry && (
+            <Button
+              onPress={onRetry}
+              disabled={retrying}
+              accessibilityState={{ busy: retrying }}
+            >
+              {retrying ? "Đang kết nối lại…" : "Thử kết nối lại"}
+            </Button>
+          )}
         </View>
         <View
           accessibilityElementsHidden
@@ -57,6 +91,7 @@ const styles = StyleSheet.create({
   },
   status: { alignItems: "center", gap: 12 },
   label: { ...typography.body, fontFamily: fonts.medium, color: colors.muted },
+  detail: { ...typography.body, color: colors.muted, textAlign: "center" },
   placeholders: { gap: 16, flexShrink: 1, overflow: "hidden" },
   card: {
     borderRadius: 20,

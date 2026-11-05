@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AppState, Switch, View } from "react-native";
+import { AppState } from "react-native";
 import { useFocusEffect, useLocalSearchParams } from "expo-router";
 import { FormNotice } from "@/components/FormNotice";
 import { useSessionDetail } from "../hooks/use-sessions";
@@ -7,14 +7,9 @@ import { useSessionPartner } from "../hooks/use-session-partner";
 import { useSessionClock } from "../hooks/use-session-clock";
 import { useSessionsRuntime } from "../runtime";
 import { SessionFeedback } from "../components/session-feedback";
-import {
-  SessionPage,
-  SessionPanel,
-  SessionCopy,
-  SessionButton,
-} from "../components/session-page";
+import { SessionPage } from "../components/session-page";
 import { RoomMedia, roomMediaAvailable } from "../components/room-media";
-import { RoomPreview } from "../components/room-preview";
+import { RoomLobby } from "../components/room-lobby";
 import {
   canJoinSession,
   joinReason,
@@ -155,17 +150,6 @@ function SessionRoom({ id }: Readonly<{ id: string }>) {
       >
         {session && (
           <>
-            <SessionPanel title="Buổi học trực tuyến">
-              <SessionCopy>
-                {partner.data?.fullName ?? "Người trao đổi"}
-              </SessionCopy>
-              <SessionCopy muted>
-                Bạn có thể vào phòng trong thời gian hệ thống cho phép và vào
-                lại khi mất kết nối trong giờ học. Camera và micro chỉ bật theo
-                lựa chọn của bạn. Chat trong phòng chỉ dùng cho phiên học, không
-                lưu lịch sử. Rời phòng không xác nhận hoàn thành buổi học.
-              </SessionCopy>
-            </SessionPanel>
             {(ended || !!notice) && (
               <FormNotice tone="info">
                 {ended ? joinReason("SESSION_ENDED") : notice}
@@ -202,70 +186,30 @@ function SessionRoom({ id }: Readonly<{ id: string }>) {
                 retrying={query.isFetching}
               />
             ) : (
-              <SessionPanel title="Chuẩn bị vào học">
-                {startCamera && !terminal && !ended && (
-                  <RoomPreview onUnavailable={() => setStartCamera(false)} />
-                )}
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: 12,
-                  }}
-                >
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <SessionCopy>Bật camera khi vào phòng</SessionCopy>
-                  </View>
-                  <Switch
-                    accessibilityLabel="Bật camera khi vào phòng"
-                    value={startCamera}
-                    onValueChange={setStartCamera}
-                  />
-                </View>
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: 12,
-                  }}
-                >
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <SessionCopy>Bật micro khi vào phòng</SessionCopy>
-                  </View>
-                  <Switch
-                    accessibilityLabel="Bật micro khi vào phòng"
-                    value={startMicrophone}
-                    onValueChange={setStartMicrophone}
-                  />
-                </View>
-                <SessionCopy>
-                  {canJoinSession(session, now)
-                    ? "Phòng học đã mở. Kiểm tra kết nối và cho phép camera, micro khi được hỏi."
-                    : joinReason(sessionJoinReason(session, now))}
-                </SessionCopy>
-                <SessionButton
-                  disabled={
-                    !roomMediaAvailable ||
-                    !canJoinSession(session, now) ||
-                    query.isFetching ||
-                    !!query.error
-                  }
-                  onPress={join}
-                >
-                  Vào phòng học
-                </SessionButton>
-                <SessionButton
-                  variant="paper"
-                  disabled={query.isFetching}
-                  onPress={() => {
-                    void query.refetch();
-                  }}
-                >
-                  Tải lại trạng thái
-                </SessionButton>
-              </SessionPanel>
+              <RoomLobby
+                partnerName={partner.data?.fullName ?? "Người trao đổi"}
+                camera={startCamera}
+                microphone={startMicrophone}
+                onCameraChange={setStartCamera}
+                onMicrophoneChange={setStartMicrophone}
+                previewAvailable={roomMediaAvailable && !terminal && !ended}
+                reason={
+                  canJoinSession(session, now)
+                    ? "Phòng học đã mở. Cho phép camera, micro khi được hỏi."
+                    : joinReason(sessionJoinReason(session, now))
+                }
+                canJoin={
+                  roomMediaAvailable &&
+                  canJoinSession(session, now) &&
+                  !query.isFetching &&
+                  !query.error
+                }
+                refreshing={query.isFetching}
+                onJoin={join}
+                onRefresh={() => {
+                  void query.refetch();
+                }}
+              />
             )}
           </>
         )}
