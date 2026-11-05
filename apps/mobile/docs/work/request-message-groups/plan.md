@@ -12,8 +12,9 @@ Không chuyển Proposal thành nhóm nhiều người hoặc trộn tin nhắn 
 ## Thiết kế và hành vi
 
 - Inbox gom các cuộc chat và đề xuất nhận được theo UUID của bài Yêu cầu học.
-  Bài chỉ có đề xuất đã từ chối vẫn có entry lịch sử. Lời mời trực tiếp giữ entry
-  conversation hiện tại; quản lý đề xuất trực tiếp/đã gửi mở từ nút clipboard
+  Bài chỉ có đề xuất đã từ chối vẫn có entry lịch sử. Inbox chia hai tab không số:
+  Theo yêu cầu học / Trao đổi trực tiếp; lời mời trực tiếp giữ entry conversation
+  trong tab riêng. Quản lý đề xuất trực tiếp/đã gửi mở từ nút Đề xuất
   gọn ở header. Bỏ banner Đề xuất và nhãn Cuộc trò chuyện khỏi đầu danh sách.
 - Thẻ bài theo [ảnh tham chiếu người dùng](references/inbox-request-cards.png):
   icon tài liệu cam, tên bài, dòng tổng đề xuất nhận được/đoạn chat, tin nhắn gần
@@ -64,4 +65,5 @@ Nguồn đối chiếu: thiết kế tham khảo và các điều chỉnh ngư�
 - [x] Dùng Inbox của BE cho metadata nhóm và lọc chat/đề xuất đã gửi theo bài.
 - [x] Hiện danh sách từ API nhóm, chỉ tải preview/profile cho hàng đang thấy và đọc tin nhắn song song với detail khi mở chat.
 - [x] Tách logic nhóm/vai trò và các biểu thức lồng nhau trong danh sách cảnh báo Sonar của Inbox/Proposal.
+- [x] Tách hai loại Inbox theo tab, giữ phân trang chung của BE, chỉ tải preview đúng tab và Back từ direct chat về tab trực tiếp.
 - [ ] Nghiệm thu UI/API/native trên Android/iOS với hai tài khoản test.

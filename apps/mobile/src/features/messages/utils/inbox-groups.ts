@@ -200,5 +200,5 @@ export function chatInboxRoute(
             : {}),
         },
       }
-    : "/messages";
+    : "/messages?tab=direct";
 }
