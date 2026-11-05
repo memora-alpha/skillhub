@@ -2,13 +2,38 @@ import { z } from "zod";
 import { paymentConfiguration } from "../modules/payments/domain/payment-config";
 import { liveKitConfiguration } from "../modules/learning-sessions/infrastructure/livekit/livekit.service";
 
+const corsOriginSchema = z.string().transform((value, context) => {
+  const url = URL.parse(value);
+  if (
+    !url ||
+    !["http:", "https:"].includes(url.protocol) ||
+    url.username ||
+    url.password ||
+    url.hostname.includes("*") ||
+    url.pathname !== "/" ||
+    url.search ||
+    url.hash
+  ) {
+    context.addIssue({
+      code: "custom",
+      message:
+        "Expected an HTTP(S) origin without credentials, path, query or fragment",
+    });
+    return z.NEVER;
+  }
+  return url.origin;
+});
+
 // Loose: identity, SMTP and S3 keys are validated by their own providers and must survive.
 const environmentSchema = z.looseObject({
   NODE_ENV: z
     .enum(["development", "test", "production"])
     .default("development"),
   PORT: z.coerce.number().int().min(1).max(65535).default(3001),
-  CORS_ORIGIN: z.url(),
+  CORS_ORIGIN: z
+    .string()
+    .transform((value) => value.split(",").map((origin) => origin.trim()))
+    .pipe(z.array(corsOriginSchema).min(1)),
   DATABASE_URL: z.string().regex(/^postgres(?:ql)?:\/\//),
   MONGODB_URI: z.string().regex(/^mongodb(?:\+srv)?:\/\//),
   REDIS_URL: z.string().regex(/^rediss?:\/\//),
@@ -66,7 +91,8 @@ function insecureProductionSettings(config: Environment): string[] {
     redis.searchParams.has("rejectUnauthorized")
   )
     failures.push("REDIS_URL");
-  if (!config.CORS_ORIGIN.startsWith("https://")) failures.push("CORS_ORIGIN");
+  if (config.CORS_ORIGIN.some((origin) => !origin.startsWith("https://")))
+    failures.push("CORS_ORIGIN");
   return failures;
 }
 

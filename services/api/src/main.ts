@@ -27,7 +27,7 @@ async function bootstrap() {
   app.setGlobalPrefix("api");
   app.enableVersioning({ type: VersioningType.URI });
   app.enableCors({
-    origin: config.getOrThrow<string>("CORS_ORIGIN"),
+    origin: config.getOrThrow<string[]>("CORS_ORIGIN"),
     exposedHeaders: ["x-request-id", "x-correlation-id"],
   });
   app.enableShutdownHooks();
