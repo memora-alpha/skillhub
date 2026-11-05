@@ -1,5 +1,9 @@
 # Redis OTP amendment — 2026-10-08
 
+> 2026-11-06: [Duplicate-registration amendment](staff-accounts.md) supersedes
+> neutral signup for existing accounts: register now returns 409 EMAIL_ALREADY_EXISTS.
+> Resend/recovery and staging of new email addresses retain this Redis design.
+
 > Recovery now requires a separate [OTP verification and reset grant](password-recovery.md). Only registration continues to use its existing direct verification flow. The earlier combined reset descriptions are superseded.
 
 The user requested the Memora registration flow and explicitly rejected PostgreSQL OTP challenge tables. This amendment supersedes the original PostgreSQL proof, issue-window and email-outbox design in spec 002.

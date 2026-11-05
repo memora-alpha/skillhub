@@ -5,7 +5,7 @@ Implemented identity HTTP contract, published by development/test Swagger. Ident
 ## Standard response
 
 - JSON success (200/202): `{success:true,message:string,data:T,meta?:object}`. Shapes in the route table and below describe `data`.
-- Neutral registration/resend/recovery acknowledgment (202): `{success:true,message:"If eligible, instructions will be sent",data:null}`; existing and unknown/ineligible email flows remain neutral.
+- New-email registration and neutral resend/recovery acknowledgment (202): `{success:true,message:"If eligible, instructions will be sent",data:null}`. Registration with an existing email returns 409 `EMAIL_ALREADY_EXISTS` (2026-11-06 amendment); resend/recovery remain neutral.
 - Paginated user list (200): `{success:true,message:"Users retrieved.",data:AdminUserSummary[],meta:{pagination:{nextCursor:string|null,hasMore:boolean,limit:number}}}`. `hasMore` is true exactly when `nextCursor` is non-null; default limit 20, maximum 100. No total count is computed.
 - Error: `{success:false,message:string,statusCode:number}` with the actual HTTP status. Validation messages are joined with `; `; all 5xx messages are `Internal server error`, with no provider/database/credential details.
 - 204 success has no response body. Health/readiness JSON also uses the success envelope at the existing version-neutral paths.
@@ -18,13 +18,14 @@ Protected routes use Bearer access JWT plus live session/User/status/securityVer
 
 ## Registration lifecycle (2026-10-08 amendment)
 
-`POST /auth/register` stages an encrypted registration draft and OTP in Redis and queues email; it creates no User and returns the same neutral 202 envelope. `POST /auth/verification/verify` commits one verified ACTIVE User/USER assignment and audit only after a valid OTP; success remains bodiless 204. Resend uses the valid cached draft without replacing its password/profile. Once the draft expires, resend remains neutral and the client must submit registration again. Existing accounts are never overwritten. See [Redis OTP amendment](../redis-otp.md).
+`POST /auth/register` returns 409 `EMAIL_ALREADY_EXISTS` for an existing normalized email. Otherwise it stages an encrypted registration draft and OTP in Redis and queues email, creates no User and returns 202. `POST /auth/verification/verify` commits one verified ACTIVE User/USER assignment and audit only after a valid OTP; success remains bodiless 204. Resend uses the valid cached draft without replacing its password/profile. Once the draft expires, resend remains neutral and the client must submit registration again. Existing accounts are never overwritten. See [Redis OTP amendment](../redis-otp.md) and [direct staff creation and duplicate-registration contract](../staff-accounts.md).
 
 ## Routes
 
 | Method/path                                     | Access                     | Request                                                               | Response/behavior                                                                                                         |
 | ----------------------------------------------- | -------------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| POST /api/v1/auth/register                      | Guest                      | fullName,email,password,confirmPassword,agreeTerms; timezone?,locale? | 202 neutral acknowledgment for valid existing/new email; no tokens; validation400/throttle429                             |
+| POST /api/v1/auth/register                      | Guest                      | fullName,email,password,confirmPassword,agreeTerms; timezone?,locale? | 202 for new email; 409 EMAIL_ALREADY_EXISTS for existing account; no tokens; validation400/throttle429                    |
+| POST /api/v1/admin/users/staff                  | ADMIN + roles.staff.assign | email,fullName,password,confirmPassword,reauthToken; no reason        | 201 data:{userId}; immediately ACTIVE verified STAFF; 409 EMAIL_ALREADY_EXISTS                                            |
 | POST /api/v1/auth/verification/resend           | Guest                      | email                                                                 | 202 same acknowledgment; server REGISTER purpose; SRS limits                                                              |
 | POST /api/v1/auth/verification/verify           | Guest                      | email,otpCode six digits                                              | 204; all wrong/expired/nonexistent/superseded/exhausted proof400 OTP_INVALID_OR_EXPIRED                                   |
 | POST /api/v1/auth/login                         | Guest                      | email,password,rememberMe?=false                                      | 200 TokenPair; wrong credentials401 INVALID_CREDENTIALS; correct credentials/nonactive403 ACCOUNT_NOT_ACTIVE; throttle429 |

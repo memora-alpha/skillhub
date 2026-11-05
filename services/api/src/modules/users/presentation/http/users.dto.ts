@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { ApiProperty, ApiPropertyOptional, PickType } from "@nestjs/swagger";
 import { Transform, Type } from "class-transformer";
 import {
   IsIn,
@@ -9,7 +9,7 @@ import {
   Max,
   Min,
 } from "class-validator";
-import { Policy } from "../../../auth/presentation/http/auth.dto";
+import { RegisterDto, Policy } from "../../../auth/presentation/http/auth.dto";
 import { validFullName, validTimezone } from "../../domain/profile-policy";
 
 export class ProfileDto {
@@ -45,6 +45,17 @@ export class StaffDto extends ReasonDto {
   @ApiProperty({ writeOnly: true })
   @IsString()
   @Length(1, 1024)
+  reauthToken!: string;
+}
+export class CreateStaffDto extends PickType(RegisterDto, [
+  "email",
+  "fullName",
+  "password",
+  "confirmPassword",
+] as const) {
+  @ApiProperty({ writeOnly: true })
+  @IsString()
+  @Length(43, 43)
   reauthToken!: string;
 }
 export class UserListDto {

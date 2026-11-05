@@ -57,8 +57,10 @@ import { SmtpAdapter } from "../infrastructure/email/smtp.adapter";
 import { SharpAvatarInspector } from "./users/infrastructure/storage/sharp-avatar-inspector";
 import { BullAvatarJobs } from "./users/infrastructure/jobs/avatar-jobs";
 import { BullIdentityEmailJobs } from "./notifications/infrastructure/jobs/identity-email-jobs";
+import { CreateStaffUseCase } from "./users/application/use-cases/create-staff.use-case";
 // Shared by runtime composition and integration fixtures; repositories remain private.
 export const IDENTITY_APPLICATION_PROVIDERS = [
+  CreateStaffUseCase,
   SessionsService,
   OtpService,
   { provide: OtpStore, useClass: RedisOtpStore },

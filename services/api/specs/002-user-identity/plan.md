@@ -1,5 +1,8 @@
 # Implementation Plan: Danh tính người dùng
 
+> 2026-11-06 implementation and Constitution Check:
+> [direct staff creation and explicit duplicate-registration errors](staff-accounts.md).
+
 > Current password recovery plan: [verify OTP before password reset](password-recovery.md). The 2026-10-08 amendment adds a separate verification API and supersedes the combined OTP/password reset flow below.
 
 > Current OTP design: [Redis OTP amendment (2026-10-08)](redis-otp.md) supersedes PostgreSQL challenge/counter and email-outbox statements below.

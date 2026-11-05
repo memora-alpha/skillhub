@@ -2,14 +2,25 @@ import "reflect-metadata";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { LearningPathsService } from "../dist/modules/learning-paths/application/services/learning-paths.service.js";
+import { ConversationMembershipReader } from "../dist/modules/conversations/application/services/conversation-membership.reader.js";
+import { Test } from "@nestjs/testing";
+import { VersioningType } from "@nestjs/common";
+import { SwaggerModule, DocumentBuilder } from "@nestjs/swagger";
+import { LearningPathsController } from "../dist/modules/learning-paths/presentation/http/learning-paths.controller.js";
+import { SessionsService } from "../dist/modules/auth/application/services/sessions.service.js";
 
 const userA = "0a0a0a0a-0000-4000-8000-00000000000a";
 const userB = "0b0b0b0b-0000-4000-8000-00000000000b";
 const pathId = "9a9a9a9a-0000-4000-8000-000000000001";
 const at = (iso) => new Date(iso);
 
-function service(tx) {
-  return new LearningPathsService({ run: (work) => work(tx) }, {}, {}, {});
+function service(tx, conversations = { readTitles: async () => new Map() }) {
+  return new LearningPathsService(
+    { run: (work) => work(tx) },
+    conversations,
+    {},
+    {},
+  );
 }
 
 function pathRow(overrides = {}) {
@@ -237,4 +248,143 @@ test("listMine returns the counterpart and current exchange type", async () => {
     learningPath: { findMany: () => [] },
   }).listMine({ userId: userA });
   assert.deepEqual(empty, []);
+});
+
+test("mine adds the matching title per item in one page-level read without changing cursors", async () => {
+  const rows = [
+    pathRow(),
+    pathRow({
+      id: "9a9a9a9a-0000-4000-8000-000000000002",
+      conversationId: "direct",
+    }),
+    pathRow({ id: "lookahead", conversationId: "outside-page" }),
+  ];
+  const calls = [];
+  const tx = {
+    learningPath: { findMany: async () => rows },
+    learningPathVersion: { findMany: async () => [] },
+  };
+  const reader = {
+    readTitles: async (context, viewer, ids) => {
+      assert.equal(context, tx);
+      calls.push({ viewer, ids });
+      return new Map([
+        ["conversation", "Học tiếng Anh"],
+        ["direct", "TypeScript"],
+      ]);
+    },
+  };
+  const result = await service(tx, reader).listMinePage(
+    { userId: userA },
+    { limit: "2" },
+  );
+  assert.deepEqual(
+    result.data.map(({ title }) => title),
+    ["Học tiếng Anh", "TypeScript"],
+  );
+  assert.deepEqual(calls, [{ viewer: userA, ids: ["conversation", "direct"] }]);
+  assert.equal(result.pagination.hasMore, true);
+  assert.equal(
+    JSON.parse(
+      Buffer.from(result.pagination.nextCursor, "base64url").toString(),
+    ).id,
+    rows[1].id,
+  );
+  const missing = await service(tx).listMinePage(
+    { userId: userA },
+    { limit: "1" },
+  );
+  assert.equal(missing.data[0].title, null);
+});
+
+test("conversation title projection restricts membership, prefers request title and falls back to direct skill name", async () => {
+  const queries = [];
+  const reader = new ConversationMembershipReader();
+  const tx = {
+    conversation: {
+      findMany: async (query) => {
+        queries.push(query);
+        return [
+          {
+            id: "request-chat",
+            requestIdRecord: { title: "Tiêu đề bài học đã đóng" },
+            proposalIdRecord: { skillIdRecord: { name: "English" } },
+          },
+          {
+            id: "direct-chat",
+            requestIdRecord: null,
+            proposalIdRecord: { skillIdRecord: { name: "TypeScript" } },
+          },
+        ];
+      },
+    },
+  };
+  const result = await reader.readTitles(tx, userB, [
+    "request-chat",
+    "direct-chat",
+    "request-chat",
+  ]);
+  assert.equal(result.get("request-chat"), "Tiêu đề bài học đã đóng");
+  assert.equal(result.get("direct-chat"), "TypeScript");
+  assert.deepEqual(queries[0].where, {
+    id: { in: ["request-chat", "direct-chat"] },
+    OR: [{ participantAId: userB }, { participantBId: userB }],
+  });
+  assert.deepEqual(queries[0].select.requestIdRecord, {
+    select: { title: true },
+  });
+  assert.equal(queries[0].select.requestIdRecord.select.content, undefined);
+  assert.equal((await reader.readTitles(tx, userA, [])).size, 0);
+  assert.equal(queries.length, 1);
+});
+
+test("GET learning-paths/mine includes title in the paginated JSON and Swagger schema", async () => {
+  const paths = service(
+    {
+      learningPath: { findMany: async () => [pathRow()] },
+      learningPathVersion: { findMany: async () => [] },
+    },
+    { readTitles: async () => new Map([["conversation", "Học TypeScript"]]) },
+  );
+  const module = await Test.createTestingModule({
+    controllers: [LearningPathsController],
+    providers: [
+      { provide: LearningPathsService, useValue: paths },
+      {
+        provide: SessionsService,
+        useValue: { principal: async () => ({ userId: userA }) },
+      },
+    ],
+  }).compile();
+  const app = module.createNestApplication();
+  app.setGlobalPrefix("api");
+  app.enableVersioning({ type: VersioningType.URI });
+  await app.listen(0, "127.0.0.1");
+  try {
+    const base = await app.getUrl();
+    assert.equal(
+      (await fetch(`${base}/api/v1/learning-paths/mine`)).status,
+      401,
+    );
+    const response = await fetch(`${base}/api/v1/learning-paths/mine?limit=2`, {
+      headers: { authorization: "Bearer fixture" },
+    });
+    assert.equal(response.status, 200);
+    const body = await response.json();
+    assert.equal(body.data[0].title, "Học TypeScript");
+    assert.equal(body.meta.pagination.limit, 2);
+    assert.equal(body.meta.pagination.hasMore, false);
+    const doc = SwaggerModule.createDocument(
+      app,
+      new DocumentBuilder().addBearerAuth().build(),
+    );
+    assert.equal(
+      doc.components.schemas.LearningPathSummaryResponse.properties.title
+        .nullable,
+      true,
+    );
+    assert.ok(doc.paths["/api/v1/learning-paths/mine"].get.responses[200]);
+  } finally {
+    await app.close();
+  }
 });
