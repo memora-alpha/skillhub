@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { notificationCopy } from "@/lib/i18n/system-copy";
 import { useUserList } from "../hooks/use-user-resource";
 import { useUserCommand } from "../hooks/use-user-command";
 import { useUnreadNotifications } from "../hooks/use-unread-notifications";
@@ -16,6 +17,7 @@ import {
 import { ProductIcon } from "../components/product-icon";
 import { notificationDestination } from "./view-policy";
 import type { InboxNotification } from "./account-types";
+import { WebPushSettings } from "../notifications/web-push-settings";
 export function NotificationsScreen() {
   const query = useUserList<InboxNotification>("notifications?limit=20"),
     command = useUserCommand(),
@@ -53,6 +55,7 @@ export function NotificationsScreen() {
       <p className="learner-notice">
         <output>{summary}</output>
       </p>
+      <WebPushSettings />
       <Feedback
         loading={query.loading}
         error={query.error}
@@ -62,6 +65,7 @@ export function NotificationsScreen() {
       <div className="learner-stack">
         {query.items.map((item) => {
           const href = notificationDestination(item.payload);
+          const copy = notificationCopy(item);
           return (
             <Panel
               className={
@@ -71,8 +75,8 @@ export function NotificationsScreen() {
             >
               <ProductIcon name="notification" />
               <div>
-                <h2>{item.title}</h2>
-                <p className="learner-prose">{item.body}</p>
+                <h2>{copy.title}</h2>
+                <p className="learner-prose">{copy.body}</p>
                 <time dateTime={item.createdAt}>
                   {formatTime(item.createdAt)}
                 </time>

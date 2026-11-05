@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { notificationCopy } from "@/lib/i18n/system-copy";
 import {
   Badge,
   Card,
@@ -115,10 +116,10 @@ export function NotificationsScreen() {
               >
                 <div className="stack">
                   <div className="row">
-                    <strong>{item.title}</strong>
+                    <strong>{notificationCopy(item).title}</strong>
                     {!item.readAt && <Badge tone="brand">Chưa đọc</Badge>}
                   </div>
-                  <p className="prose">{item.body}</p>
+                  <p className="prose">{notificationCopy(item).body}</p>
                   <time className="muted" dateTime={item.createdAt}>
                     {fmtDateTime(item.createdAt)}
                   </time>

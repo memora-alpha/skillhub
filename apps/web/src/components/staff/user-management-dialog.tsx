@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { Avatar, Badge, StatusBadge } from "@/components/console/ui";
 import { Icon } from "@/components/console/icon";
+import { PasswordInput } from "@/components/password-input";
 import { fmtDateTime } from "@/lib/console/format";
 import type { AdminUser } from "@/lib/staff/admin-types";
 import { isSessionFailure, StaffApiError } from "@/lib/staff/client";
@@ -209,9 +210,9 @@ export function UserManagementDialog({
                   <span>
                     Mật khẩu Admin <span aria-hidden="true">*</span>
                   </span>
-                  <input
+                  <PasswordInput
                     id={`${id}-password`}
-                    type="password"
+                    visibilityLabel="mật khẩu Admin"
                     required
                     autoComplete="current-password"
                     maxLength={64}
