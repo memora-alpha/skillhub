@@ -6,6 +6,22 @@
 
 ## Summary
 
+Inbox summary amendment 2026-11-05 (`fix/inbox-message-summary`, from current dev):
+add nullable latestMessage and viewer-specific hasUnread to grouped Inbox only.
+PostgreSQL remains authoritative for group membership; Mongo remains authoritative
+for published messages and read watermarks. A read service enumerates all viewer
+participant chats for the selected groups in bounded ID batches and hydrates
+Mongo snapshots outside PostgreSQL transactions, then rechecks live grants.
+Existing counts/order/cursors and publication/read workflows are unchanged.
+No new schema/index, ENV, seed, frontend/shared changes or dependencies.
+
+Constitution check for summary amendment: principles 1–5, 7–8 Pass by design
+(owner-local queries, explicit authorization, additive contract, no cross-store
+writes/held transaction during Mongo I/O); principle 6 Pass for focused/full
+Connections regressions, real Mongo disposable-database checks, lint/types/build.
+Real PostgreSQL membership, load and deployed-client verification remain Pending;
+see validation.md. No architecture or policy exception is introduced.
+
 Ordering amendment 2026-11-04 (`fix/conversation-proposal-ordering`): sort flat
 Conversation lists by lastActivityAt/id descending and Proposal lists by
 createdAt/id descending before pagination. Add a versioned timestamp/ID cursor

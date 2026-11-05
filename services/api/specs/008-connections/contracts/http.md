@@ -145,3 +145,35 @@ groups with proposals but no chat are included. `GET /conversations` adds the
 `learningRequestId` filter; sent proposals can be filtered by Request without
 ownership. Proposal responses add `learningRequestTitle`. Existing list ordering
 and cursors are preserved. See [contract, access rules and rollout](../../../docs/request-grouped-inbox.md).
+
+## Inbox latest message and unread amendment (2026-11-05)
+
+Each `GET /conversations/inbox` item additionally includes:
+
+```ts
+latestMessage: {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  messageType: "TEXT" | "FILE" | "SYSTEM";
+  preview: string; // normalized plain text, at most 160 Unicode code points
+  sentAt: string; // UTC ISO timestamp
+} | null;
+hasUnread: boolean;
+```
+
+Use only PUBLISHED messages from viewer-participant chats. A Request group
+aggregates all such conversations, independent of child-chat pagination; Request
+ownership alone does not authorize another conversation's messages. No published
+messages means null/false. Latest uses each chat's highest sequence, then sentAt
+DESC/message ID DESC between chats. Unread is the existence of an incoming
+published sequence above the viewer's own lastReadSequence (missing = zero),
+regardless of who sent latestMessage. GET does not mark messages read.
+
+Message/read-state hydration runs in bounded Mongo snapshot batches outside
+PostgreSQL transactions, followed by live session/grant revalidation. Failure to
+read a complete batch returns 503 INBOX_MESSAGES_UNAVAILABLE (or the existing
+chat readiness 503), never a fabricated empty/read result. Group counts, ordering,
+cursor scope and live-pagination behavior are unchanged by this amendment.
+No new migration, index, seed or ENV. See the grouped-Inbox document for preview
+fallbacks and cross-store consistency limits; frontend consumption remains separate.

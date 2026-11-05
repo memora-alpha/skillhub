@@ -1,5 +1,44 @@
 # Validation: Kết nối — Proposal, Chat và SSE
 
+## Inbox latest message and unread — 2026-11-05
+
+Branch `fix/inbox-message-summary` from dev `1488043`. Scope is services/api only;
+source complete, deployment/client acceptance pending.
+
+After verification, the main checkout was switched to a concurrent CORS task.
+The 20 Inbox files were moved to a separate worktree on the branch above, with
+SHA256 equality verified before removing only the duplicate Inbox edits from the
+main checkout. CORS changes were preserved. The checks below ran before that
+byte-identical source transfer; no dependencies were installed in the new worktree.
+
+- GET Inbox adds nullable latestMessage (id/conversationId/senderId/type/preview/time)
+  and viewer-specific hasUnread. Published messages only; full membership-based
+  Request aggregation is independent of child-chat pagination. Batches of 100
+  release PostgreSQL locks before Mongo I/O and revalidate grants afterward.
+- Type checking, full API lint and build passed. Full Connections suite:
+  **61 tests, 55 passed, 0 failed, 6 skipped**. The skipped cases require explicit
+  TEST_DATABASE_URL; no PostgreSQL application database was used.
+- Real MongoDB 8.3 local replica-set verification used explicit TEST_MONGODB_URI
+  against loopback and random `inbox_messages_test_*` / `connections_test_*`
+  databases, removed in finally blocks. No application collections were read or
+  written. Snapshot aggregation, published/draft filtering, missing/read/peer
+  watermarks, Long sequences above JS safe integer range, own-latest with unread
+  incoming, FILE/SYSTEM preview and non-mutating GET were exercised.
+- 205-chat coverage verifies unread/latest in the final batch and excludes an
+  unauthorized chat with a newer message. Mongo queries are real; PostgreSQL
+  membership predicates in this test are evaluated with persistence doubles.
+- Unit/HTTP/Swagger regressions cover both participant sides, direct/proposal-only
+  groups, tie order, preview bounds, grant loss before/during hydration, incomplete
+  or failed Mongo reads returning errors, and unchanged group pagination.
+- No new migration/index, ENV, seed, dependency or mobile changes. No deployment,
+  load benchmark or device acceptance is claimed for this work.
+  Each Mongo batch has a snapshot; cross-store/group reads remain live rather
+  than one snapshot across the entire response.
+
+Constitution recheck: principles 1–5, 7–8 Pass for the implemented owner-local
+read flow and unchanged writers. Principle 6 Pass for checks above, with real-PG
+membership/load and deployed-client verification Pending. No exceptions.
+
 ## Flat-list ordering amendment — 2026-11-04
 
 Branch `fix/conversation-proposal-ordering`, based on `5b337e13`. Source complete;

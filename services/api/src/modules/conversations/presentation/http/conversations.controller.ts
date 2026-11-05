@@ -90,6 +90,8 @@ export class ConversationsController {
   @ApiOperation({
     summary:
       "List Inbox groups, including received proposals without a Conversation",
+    description:
+      "Includes latestMessage and hasUnread across all viewer-accessible chats in each group. Published messages only; empty groups return null/false. Reading Inbox does not mark messages read.",
   })
   async groups(
     @CurrentIdentity() actor: Principal,

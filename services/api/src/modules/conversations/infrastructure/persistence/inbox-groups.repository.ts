@@ -16,6 +16,29 @@ export type InboxGroupRow = {
 
 @Injectable()
 export class InboxGroupsRepository {
+  conversations(
+    tx: TransactionContext,
+    userId: string,
+    requestIds: string[],
+    directIds: string[],
+    limit: number,
+    after?: string,
+  ) {
+    return tx.conversation.findMany({
+      where: {
+        OR: [
+          { requestId: { in: requestIds } },
+          { id: { in: directIds }, requestId: null },
+        ],
+        AND: [{ OR: [{ participantAId: userId }, { participantBId: userId }] }],
+        ...(after ? { id: { gt: after } } : {}),
+      },
+      select: { id: true, requestId: true },
+      orderBy: { id: "asc" },
+      take: limit,
+    });
+  }
+
   page(
     tx: TransactionContext,
     userId: string,
