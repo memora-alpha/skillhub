@@ -48,6 +48,19 @@
   display: grid;
   gap: 16px;
 }
+.staff-create-dialog {
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+}
+.staff-create-dialog h2 {
+  margin: 0;
+}
+.staff-create-fields {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
 @media (max-width: 600px) {
   .user-dialog-content {
     gap: 16px;

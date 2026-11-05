@@ -60,6 +60,8 @@ const errorMessages: Readonly<Record<string, string>> = {
     "Danh hiệu này chưa được mở khóa hoặc không còn khả dụng. Hãy làm mới thành tích.",
   FILE_TYPE_NOT_SUPPORTED: "Định dạng tệp này chưa được hỗ trợ.",
   INVALID_CREDENTIALS: "Email hoặc mật khẩu không đúng.",
+  EMAIL_ALREADY_EXISTS:
+    "Email này đã được sử dụng. Chọn email khác hoặc quản lý tài khoản hiện có.",
   ADMIN_PORTAL_ACCESS_REQUIRED:
     "Cổng Admin chỉ dành cho tài khoản có quyền ADMIN.",
   REAUTH_REQUIRED:

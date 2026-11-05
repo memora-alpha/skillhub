@@ -11,7 +11,6 @@ import {
   useNotificationInbox,
 } from "./notification-session";
 import type { Portal } from "@/lib/staff/policy";
-import { developmentFeatures } from "@/lib/staff/development-features";
 type NavigationItem = {
   href: string;
   label: string;
@@ -65,17 +64,7 @@ function Frame({ children }: Readonly<{ children: ReactNode }>) {
       <output className="staff-loading">Đang kiểm tra phiên làm việc…</output>
     );
   if (!actor) return <StaffLogin />;
-  const developmentLinks: NavigationItem[] = Object.values(
-    developmentFeatures,
-  ).map((feature) => ({
-    href: feature.href,
-    label: feature.title,
-    icon: feature.icon,
-  }));
-  const current = [
-    ...links,
-    ...(portal === "admin" ? developmentLinks : []),
-  ].find((item) =>
+  const current = links.find((item) =>
     item.href === `/${portal}`
       ? pathname === item.href
       : pathname.startsWith(item.href) || item.aliases?.includes(pathname),
@@ -133,25 +122,6 @@ function Frame({ children }: Readonly<{ children: ReactNode }>) {
               {item.label}
             </Link>
           ))}
-          {portal === "admin" && (
-            <>
-              <div className="nav-title">ĐANG PHÁT TRIỂN</div>
-              {developmentLinks.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="nav-link"
-                  aria-current={
-                    current?.href === item.href ? "page" : undefined
-                  }
-                  onClick={() => close(false)}
-                >
-                  <Icon name={item.icon} />
-                  {item.label}
-                </Link>
-              ))}
-            </>
-          )}
         </nav>
         <div className="side-foot">
           <div className="who">

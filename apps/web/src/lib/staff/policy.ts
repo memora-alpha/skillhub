@@ -119,6 +119,7 @@ const adminRoutes: [string, RegExp, (path: string) => string][] = [
     (p) => `admin/${p}`,
   ],
   ["GET", /^users$/, (p) => `admin/${p}`],
+  ["POST", /^users\/staff$/, (p) => `admin/${p}`],
   [
     "POST",
     new RegExp(`^users/${uuid}/(lock|unlock)$`, "i"),
