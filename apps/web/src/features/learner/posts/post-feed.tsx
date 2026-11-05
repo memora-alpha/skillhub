@@ -13,11 +13,12 @@ import {
 } from "../components/common";
 export function PostFeed({
   initialKeyword = "",
-}: Readonly<{ initialKeyword?: string }>) {
+  initialMine = false,
+}: Readonly<{ initialKeyword?: string; initialMine?: boolean }>) {
   const { actor } = useUserSession();
   const skills = useUserList<Skill>("skills?limit=50");
   const [skillId, setSkillId] = useState("");
-  const [mine, setMine] = useState(false),
+  const [mine, setMine] = useState(initialMine),
     [search, setSearch] = useState(initialKeyword),
     [keyword, setKeyword] = useState(initialKeyword);
   const query = useUserList<Post>(
