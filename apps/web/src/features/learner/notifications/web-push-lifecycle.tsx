@@ -22,14 +22,14 @@ export function WebPushLifecycle() {
       const binding = pushBinding();
       if (!binding) return;
       pending = true;
-      const work =
+      let work = Promise.resolve();
+      if (
         binding.userId !== actor.userId ||
         !("Notification" in window) ||
         Notification.permission !== "granted"
-          ? disableWebPush(actor.userId)
-          : pushConfigured
-            ? enableWebPush(actor.userId, true)
-            : Promise.resolve();
+      )
+        work = disableWebPush(actor.userId);
+      else if (pushConfigured) work = enableWebPush(actor.userId, true);
       void work
         .catch(() => undefined)
         .finally(() => {

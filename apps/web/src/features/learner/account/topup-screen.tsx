@@ -281,8 +281,8 @@ export function TopupScreen({ paymentId }: Readonly<{ paymentId?: string }>) {
           )}
           <Feedback error={recoveryError} />
           {recoveryNotice && (
-            <p role="status" className="learner-notice">
-              {recoveryNotice}
+            <p className="learner-notice">
+              <output>{recoveryNotice}</output>
             </p>
           )}
           <p className="muted">

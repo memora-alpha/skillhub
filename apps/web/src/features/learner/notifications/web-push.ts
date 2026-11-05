@@ -157,7 +157,7 @@ export async function enableWebPush(
     if (!data || typeof data.id !== "string")
       throw new Error("Máy chủ chưa xác nhận token thông báo.");
     // A rotated token is registered first; revoke only this user's old registration.
-    if (old && old.userId === userId && old.tokenId !== data.id)
+    if (old?.userId === userId && old.tokenId !== data.id)
       await userFetch("notifications/push-tokens/" + old.tokenId, {
         method: "DELETE",
       }).catch(() => undefined);

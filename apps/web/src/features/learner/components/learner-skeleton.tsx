@@ -8,10 +8,10 @@ export function LearnerContentSkeleton() {
   return (
     <div
       className={styles.content}
-      role="status"
       aria-label="Đang tải nội dung học tập"
       aria-busy="true"
     >
+      <output className={styles.status}>Đang tải nội dung học tập</output>
       <div aria-hidden="true" className={styles.blocks}>
         <div className={styles.heading}>
           <Line />

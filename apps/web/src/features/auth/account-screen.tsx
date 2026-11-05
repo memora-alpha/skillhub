@@ -332,9 +332,5 @@ function AccountFields({
         </small>
       </>
     );
-  return (
-    <>
-      <PasswordFields registering={false} pending={pending} />
-    </>
-  );
+  return <PasswordFields registering={false} pending={pending} />;
 }

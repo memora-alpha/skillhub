@@ -86,7 +86,11 @@ export function TagRequestsScreen() {
           </label>
           <Feedback error={error} />
           <CommandFeedback command={command} />
-          {notice && <p role="status">{notice}</p>}
+          {notice && (
+            <p>
+              <output>{notice}</output>
+            </p>
+          )}
           <button
             className="btn btn-primary"
             disabled={command.pending}

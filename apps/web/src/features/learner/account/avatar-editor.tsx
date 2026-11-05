@@ -207,8 +207,8 @@ export function AvatarEditor({ onSaved }: Readonly<{ onSaved: () => void }>) {
       </div>
       <Feedback error={error} />
       {notice && (
-        <p role="status" className="learner-notice">
-          {notice}
+        <p className="learner-notice">
+          <output>{notice}</output>
         </p>
       )}
     </div>

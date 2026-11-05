@@ -192,7 +192,7 @@ export function LoginScreen() {
                   }
                 }}
               />
-              Ghi nhớ tài khoản cho lần sau
+              <span>Ghi nhớ tài khoản cho lần sau</span>
             </label>
             <div className="auth-feedback" aria-live="polite">
               {error && (

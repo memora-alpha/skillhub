@@ -37,7 +37,7 @@ export function SharersScreen({
             checked={verifiedOnly}
             onChange={(event) => setVerifiedOnly(event.target.checked)}
           />
-          Chỉ hiện kỹ năng đã được xác minh
+          <span>Chỉ hiện kỹ năng đã được xác minh</span>
         </label>
       </Panel>
       {skillId ? (

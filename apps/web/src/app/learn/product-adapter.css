@@ -91,7 +91,8 @@
   padding-block: 12px;
 }
 .learner-root .global-search {
-  flex: 1 1 220px;
+  flex: 1;
+  width: auto;
   min-width: 0;
   max-width: 410px;
 }
@@ -944,12 +945,6 @@
   font-style: normal;
 }
 
-.learner-root .global-search {
-  flex: 1;
-  width: auto;
-  max-width: 410px;
-  min-width: 0;
-}
 @media (min-width: 761px) and (max-width: 1100px) {
   .learner-root .product-plans {
     grid-template-columns: 1fr;

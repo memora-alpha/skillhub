@@ -20,6 +20,9 @@ export function WebPushSettings() {
   );
   const [busy, setBusy] = useState(false),
     [error, setError] = useState<string>();
+  const actionLabel = enabled
+    ? "Tắt thông báo trên trình duyệt này"
+    : "Bật thông báo trên trình duyệt này";
   return (
     <Panel title="Thông báo trên trình duyệt">
       <p>
@@ -38,6 +41,7 @@ export function WebPushSettings() {
         </p>
       )}
       <button
+        type="button"
         className="btn"
         disabled={busy || (!pushConfigured && !enabled)}
         onClick={async () => {
@@ -60,11 +64,7 @@ export function WebPushSettings() {
           }
         }}
       >
-        {busy
-          ? "Đang cập nhật…"
-          : enabled
-            ? "Tắt thông báo trên trình duyệt này"
-            : "Bật thông báo trên trình duyệt này"}
+        {busy ? "Đang cập nhật…" : actionLabel}
       </button>
     </Panel>
   );

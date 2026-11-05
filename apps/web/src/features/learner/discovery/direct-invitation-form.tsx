@@ -28,6 +28,9 @@ export function DirectInvitationForm({
   const [validation, setValidation] = useState<string>();
   const submitted = useRef<InvitationBody | undefined>(undefined);
   const disabled = command.pending || (command.uncertain && !command.canRetry);
+  const sendLabel = command.canRetry
+    ? "Kiểm tra và thử lại lời mời"
+    : "Gửi lời mời trực tiếp";
   return (
     <form
       className="learner-form"
@@ -96,11 +99,7 @@ export function DirectInvitationForm({
       <Feedback error={validation} />
       <CommandFeedback command={command} />
       <button type="submit" className="btn btn-primary" disabled={disabled}>
-        {command.pending
-          ? "Đang gửi lời mời…"
-          : command.canRetry
-            ? "Kiểm tra và thử lại lời mời"
-            : "Gửi lời mời trực tiếp"}
+        {command.pending ? "Đang gửi lời mời…" : sendLabel}
       </button>
     </form>
   );

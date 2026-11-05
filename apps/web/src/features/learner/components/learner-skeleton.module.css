@@ -148,8 +148,8 @@
   }
 }
 @media (max-width: 760px) {
-  .sidebar {
-    display: none !important;
+  :global(.learner-root) .sidebar:global(.app-sidebar) {
+    display: none;
   }
   .columns {
     grid-template-columns: 1fr;
@@ -169,4 +169,13 @@
   .profile .wide {
     display: none;
   }
+}
+
+.status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }

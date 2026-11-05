@@ -61,6 +61,8 @@ export function SkillManagementCard({
       },
     });
   }
+  const visibilityLabel = skill.isVisible ? "Đang hiển thị" : "Đang ẩn";
+  const stateLabel = skill.archivedAt ? "Đã lưu trữ" : visibilityLabel;
   return (
     <Panel title={skill.skill.name}>
       <p className="learner-prose">{skill.description}</p>
@@ -68,12 +70,7 @@ export function SkillManagementCard({
         <Status value={skill.verificationStatus ?? "UNVERIFIED"} />
       </p>
       <p className="muted">
-        Trình độ: {skill.level} ·{" "}
-        {skill.archivedAt
-          ? "Đã lưu trữ"
-          : skill.isVisible
-            ? "Đang hiển thị"
-            : "Đang ẩn"}
+        Trình độ: {skill.level} · {stateLabel}
       </p>
       <Link
         className="learner-card-link"
@@ -199,8 +196,8 @@ export function SkillManagementCard({
                 type="checkbox"
                 name="isVisible"
                 defaultChecked={editing.isVisible}
-              />{" "}
-              Hiển thị công khai
+              />
+              <span> Hiển thị công khai</span>
             </label>
             <button
               className="btn btn-primary"
@@ -242,8 +239,8 @@ export function SkillManagementCard({
         </button>
       )}
       {notice && (
-        <p role="status" className="learner-notice">
-          {notice}
+        <p className="learner-notice">
+          <output>{notice}</output>
         </p>
       )}
     </Panel>
