@@ -1,5 +1,20 @@
 # Identity implementation validation
 
+## Direct STAFF creation / duplicate-email amendment — 2026-11-06
+
+Branch `feat/staff-accounts-registration`. Contract, design/Constitution Check,
+current evidence: [staff-accounts.md](staff-accounts.md).
+Adds direct Admin creation of ACTIVE STAFF without reason or invitations; register returns
+409 EMAIL_ALREADY_EXISTS for existing accounts. Earlier neutral-signup evidence
+below describes its historical revision.
+
+Corrected revision: API lint/typecheck/build/Prisma validation and combined
+86/86 regression tests pass (identity 21, Learning Path 7, learning-platform 52,
+outbox 3, runtime identity repositories 3).
+The new PostgreSQL suite requires TEST_DATABASE_URL and stopped at preflight
+because it is absent; no application database was used. See the amendment for
+remaining database verification.
+
 Date: 2026-10-03. Branch: `feat/user-identity`. Planning/schema baseline committed as `a3eb599` (`feat(api): define identity specification and product schemas`), with root formatting/lint/commitlint hooks. Implementation follows local `speckit-implement` and the prerequisite `speckit-tasks` workflow. Requirements checklist: 16/16 complete. No before/after implementation extension hooks are registered.
 
 ## Runtime v3 update (2026-10-07)

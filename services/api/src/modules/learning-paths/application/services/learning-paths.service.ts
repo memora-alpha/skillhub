@@ -371,8 +371,14 @@ export class LearningPathsService {
       const exchangeTypes = new Map(
         agreements.map(({ pathId, exchangeType }) => [pathId, exchangeType]),
       );
+      const titles = await this.conversations.readTitles(
+        tx,
+        actor.userId,
+        page.map(({ conversationId }) => conversationId),
+      );
       const data = page.map((path) => ({
         id: path.id,
+        title: titles.get(path.conversationId) ?? null,
         conversationId: path.conversationId,
         status: path.status,
         exchangeType: exchangeTypes.get(path.id) ?? null,

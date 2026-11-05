@@ -82,16 +82,19 @@ export function setup({ wallets = {}, config = {}, requestId = null } = {}) {
   });
   db.seed("proposal", {
     id: "proposal",
+    skillId: "topic-skill",
     requestId,
     sourceType: requestId ? "LEARNING_REQUEST" : "DIRECT_SEARCH",
     status: "ACCEPTED",
     proposerId: A,
     recipientId: B,
   });
+  db.seed("skill", { id: "topic-skill", name: "Fixture Skill" });
   if (requestId)
     db.seed("learningRequest", {
       id: requestId,
       ownerId: B,
+      title: "Fixture Learning Request",
       status: "NEGOTIATING",
       version: 2,
     });

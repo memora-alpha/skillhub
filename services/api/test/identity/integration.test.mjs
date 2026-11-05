@@ -1297,7 +1297,7 @@ test(
                   ).length,
                 0,
               ),
-            22,
+            23,
           );
           assert.ok(document.paths["/api/health"]);
           assert.ok(!document.paths["/api/v1/health"]);

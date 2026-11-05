@@ -1,5 +1,16 @@
 # SkillHub API
 
+`GET /api/v1/learning-paths/mine` includes `title` per item: related Learning Request
+title, or source skill name for direct connections. Pagination is unchanged; no
+migration is needed for this field. See [list contract](docs/learning-path-list.md).
+
+Direct staff creation/registration amendment (2026-11-06): Admin can call
+`POST /api/v1/admin/users/staff` with `email`, `fullName`, `password`,
+`confirmPassword`, `reauthToken` (no reason). Returns 201 with userId; STAFF is ACTIVE
+and can log in immediately. No invitation, activation email, migration or new env.
+Registration returns `409 EMAIL_ALREADY_EXISTS` for an existing email.
+See [contract and checks](specs/002-user-identity/staff-accounts.md).
+
 NestJS backend in the SkillHub pnpm/Turborepo workspace.
 
 Session policy amendment (2026-11-05): học bù tối đa một lần mỗi buổi, hạn mức

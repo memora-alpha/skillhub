@@ -1,4 +1,7 @@
 import { ApiProperty } from "@nestjs/swagger";
+export class CreatedStaffResponse {
+  @ApiProperty({ format: "uuid" }) userId!: string;
+}
 export class PublicProfileResponse {
   @ApiProperty({
     type: Object,

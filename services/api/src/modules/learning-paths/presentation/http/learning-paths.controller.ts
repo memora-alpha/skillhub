@@ -30,6 +30,8 @@ import type { Principal } from "../../../auth/application/services/sessions.serv
 import { paginated, success } from "../../../../shared/http/response";
 import { skillCommand } from "../../../skills/presentation/http/skills.controller";
 import { LearningPathsService } from "../../application/services/learning-paths.service";
+import { LearningPathSummaryResponse } from "./learning-paths.responses";
+import { ApiSuccessResponse } from "../../../../shared/http/api-response.decorators";
 import {
   ConfirmVersionDto,
   ChangeLearningPathDto,
@@ -125,8 +127,9 @@ export class LearningPathsController {
   @ApiOperation({
     summary: "List the caller's LearningPaths, newest creation first",
     description:
-      "Ordered by createdAt DESC, id DESC. Continue with meta.pagination.nextCursor.",
+      "Ordered by createdAt DESC, id DESC. Each item includes title from its Learning Request or the direct connection skill. Continue with meta.pagination.nextCursor.",
   })
+  @ApiSuccessResponse(200, LearningPathSummaryResponse, { paginated: true })
   @ApiQuery({
     name: "limit",
     required: false,
