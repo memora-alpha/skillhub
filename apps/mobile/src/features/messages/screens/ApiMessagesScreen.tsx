@@ -2,7 +2,7 @@ import { RefreshableFlatList as FlatList } from "@/components/RefreshableFlatLis
 import { StyleSheet, Text, View } from "react-native";
 import { useEffect } from "react";
 import { LoadingIndicator as ActivityIndicator } from "@/components/LoadingIndicator";
-import { useIsFocused, useRouter } from "expo-router";
+import { useIsFocused, useLocalSearchParams, useRouter } from "expo-router";
 import {
   isTransientReadError,
   useQuietReadRecovery,
@@ -20,10 +20,16 @@ import { useInboxGroups } from "../hooks/use-inbox-groups";
 import { useVisibleListRows } from "@/components/use-visible-list-rows";
 import { RequestInboxCard } from "../components/RequestInboxCard";
 import { messageColors as colors } from "../constants/theme";
+import { InboxTabs, type InboxTab } from "../components/InboxTabs";
 
 export function ApiMessagesScreen() {
+  const params = useLocalSearchParams<{ tab?: string }>();
+  const tab: InboxTab = params.tab === "direct" ? "direct" : "requests";
   const { visibleIds, ...viewability } = useVisibleListRows();
-  const query = useInboxGroups(visibleIds),
+  const query = useInboxGroups(
+      visibleIds,
+      tab === "direct" ? "DIRECT_CONVERSATION" : "LEARNING_REQUEST",
+    ),
     router = useRouter();
   const focused = useIsFocused();
   const quietError = isTransientReadError(query.error);
@@ -89,6 +95,7 @@ export function ApiMessagesScreen() {
     >
       {() => (
         <FlatList
+          key={tab}
           data={query.items}
           {...viewability}
           extraData={visibleIds}
@@ -101,18 +108,29 @@ export function ApiMessagesScreen() {
             void query.refetch();
           }}
           onEndReached={() => {
-            if (query.hasNextPage && !query.isFetching && !query.error)
+            if (
+              focused &&
+              query.hasNextPage &&
+              !query.isFetching &&
+              !query.error
+            )
               void query.loadMore();
           }}
           ListHeaderComponent={
-            <ConnectionFeedback
-              loading={
-                (!query.data && (query.isPending || quietError)) ||
-                (!query.items.length && query.hasNextPage && !query.error)
-              }
-              error={quietError ? undefined : query.error}
-              retry={query.refetch}
-            />
+            <View style={styles.listHeader}>
+              <InboxTabs
+                value={tab}
+                onChange={(value) => router.setParams({ tab: value })}
+              />
+              <ConnectionFeedback
+                loading={
+                  (!query.data && (query.isPending || quietError)) ||
+                  (!query.items.length && query.hasNextPage && !query.error)
+                }
+                error={quietError ? undefined : query.error}
+                retry={query.refetch}
+              />
+            </View>
           }
           ListEmptyComponent={
             !query.isPending &&
@@ -120,8 +138,16 @@ export function ApiMessagesScreen() {
             (!query.error || (query.data && quietError)) ? (
               <EmptyState
                 icon="message"
-                title="Chưa có tin nhắn"
-                description="Đề xuất nhận được và các cuộc trò chuyện sẽ xuất hiện tại đây."
+                title={
+                  tab === "direct"
+                    ? "Chưa có trao đổi trực tiếp"
+                    : "Chưa có trao đổi theo yêu cầu học"
+                }
+                description={
+                  tab === "direct"
+                    ? "Cuộc trò chuyện từ lời mời trực tiếp sẽ xuất hiện sau khi đối tác chấp nhận."
+                    : "Các bài yêu cầu học có đề xuất hoặc đoạn chat sẽ xuất hiện tại đây."
+                }
                 action="Xem đề xuất"
                 onAction={() => router.push("/proposals")}
               />
@@ -195,4 +221,5 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
   },
   separator: { height: 10 },
+  listHeader: { gap: 12, paddingBottom: 12 },
 });

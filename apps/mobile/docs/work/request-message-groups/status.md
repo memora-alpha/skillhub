@@ -1,9 +1,18 @@
 # Trạng thái tin nhắn theo Yêu cầu học
 
-Cập nhật: 2026-11-05T14:37:44+07:00.
+Cập nhật: 2026-11-06T00:29:01+07:00.
 
 **Ready for review — source complete; API/native acceptance pending.**
 Nghiệm thu người dùng trên app thật: chưa thực hiện.
+
+## Hai tab theo nguồn trao đổi
+
+- Tiếp tục trên nhánh hiện có `feat/mobile-path-cancellation`: Inbox có hai tab không số “Theo yêu cầu học” / “Trao đổi trực tiếp”; default là Request. Nhóm theo bài và chat trực tiếp được lọc riêng, giữ thứ tự hoạt động hiện có. Lời mời chưa chấp nhận vẫn ở màn Đề xuất.
+- Tab lưu trong route param `tab=requests|direct`; thiếu/sai về requests. Direct chat Back về `/messages?tab=direct`, chat theo bài vẫn về tab Đoạn chat của bài. Remount list khi đổi tab để không giữ vị trí cuộn của loại trước.
+- BE chưa nhận query lọc loại Inbox nên giữ một list/cursor theo session và lọc ở hook mobile. Tab chưa thấy hàng vẫn đọc các trang tiếp theo, không báo rỗng sớm. Giữ loading/error/denied/quiet recovery/pull refresh. Không gửi tham số filter giả; không đổi BE.
+- Preview chỉ enabled khi có hàng có chat đang thấy thuộc tab đã chọn; callback chặn các conversation của loại khác, kể cả viewability còn ID của tab cũ. Giới hạn preview20 và hydration/profile có sẵn giữ nguyên; một hàng chưa có preview vẫn có metadata nhóm để mở chat.
+- Kiểm chứng source cuối: TypeScript và ESLint các file thay đổi PASS; focused Inbox19/19 và full mobile984/984 PASS, 0 failed/skipped/cancelled. Logs ignored `.expo/inbox-split-tests.log`, `.expo/inbox-split-full-tests.log`. Web export PASS (`.expo/inbox-split-export.log`), `git diff --check` PASS. Structure còn baseline `messages-api.ts`294 dòng/250 như mốc trước; file đó không đổi.
+- Visual fixture320px/390px đã mở/chuyển cả hai tab, không tràn ngang (DOM client/content320px). Ảnh ignored `.expo/inbox-split-preview/requests-390.jpg`, `direct-390.jpg`, `requests-320.jpg`, `direct-320.jpg`. Dùng ApiMessagesScreen/InboxTabs/RequestInboxCard/ConversationCard thật; mock API, routing, shell, Avatar, icon và ConversationRow hydration với dữ liệu mẫu. Không thay nghiệm thu API thật/native; chưa kiểm Back/gesture/large text trên thiết bị. Source/tests Session và BE giữ nguyên, chưa push/deploy.
 
 ## Kiểm tra Sonar 2026-11-05T14:37:44+07:00
 

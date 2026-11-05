@@ -52,13 +52,22 @@ Nếu GET download trả URL đã hết hạn, không mở link và hiện thôn
 
 SSE chỉ chứa references, hydrate qua authorized HTTP. Chat text hoặc gợi ý lộ trình không tạo confirmation. Không có public SSE event cho thay đổi plan/terms/schedule: detail đọc lại mỗi 30 giây khi focus/app active, dừng khi blur/background/error/terminal/session cũ; còn refresh focus/foreground và invalidation sau command. Chỉ GET, không replay mutation.
 
-## Điều hướng Inbox theo Yêu cầu học — 2026-11-02
+## Điều hướng Inbox theo nguồn trao đổi — 2026-11-06
 
-Inbox gom theo `learningRequestId` của các Conversation và Proposal nhận được đã
-tải; cùng đối tác ở hai bài vẫn là hai nhóm. Mỗi Proposal/Conversation giữ nguyên
-quan hệ, participant và quyền server. Bài chỉ có Proposal bị từ chối vẫn giữ entry
-lịch sử. Proposal trực tiếp/đã gửi còn trong màn Đề xuất; direct Conversation giữ
-entry chat hiện tại.
+Inbox dùng metadata nhóm từ `GET /conversations/inbox`, có hai tab không số:
+**Theo yêu cầu học** (`LEARNING_REQUEST`, mặc định) và **Trao đổi trực tiếp**
+(`DIRECT_CONVERSATION`). Tab đầu gom theo `learningRequestId`; cùng đối tác ở
+hai bài vẫn là hai nhóm. Tab trực tiếp giữ từng Conversation riêng. Mỗi
+Proposal/Conversation giữ nguyên quan hệ, participant và quyền server; lời mời
+chưa chấp nhận tiếp tục quản lý ở màn Đề xuất.
+
+Tab được lưu bằng `/messages?tab=requests|direct`; giá trị thiếu/sai dùng requests.
+Back từ chat trực tiếp về `/messages?tab=direct`, chat theo bài về tab Đoạn chat
+của bài đó. Thứ tự hoạt động hiện có được giữ riêng trong từng tab. API Inbox
+chưa có query lọc loại: mobile lọc các trang dùng chung, giữ cursor/hasNextPage,
+đọc tiếp khi tab chưa có hàng nhưng vẫn còn trang. Không báo rỗng từ một trang
+chỉ có loại khác; lỗi/pending/denied vẫn theo runtime. Chỉ bật preview cho hàng
+đang thấy thuộc tab đang mở; chuyển tab remount list để bắt đầu từ đầu.
 
 Màn `/messages/request/[id]` có hai tab không số: Đề xuất nhận được/Đoạn chat.
 Chỉ owner projection của Request được mở list received với `learningRequestId`;
@@ -66,10 +75,8 @@ Chỉ owner projection của Request được mở list received với `learning
 owner/title cũ từ cache. Tab chat lọc Conversations theo ID bài trước khi đọc
 history/preview; Back từ Chat dùng `learningRequestId` từ conversation đã authorize.
 List còn trang chưa được coi là rỗng. Thẻ Inbox hiển thị số Proposal nhận được
-ở mọi trạng thái và số Conversation riêng biệt theo bài. Khi còn trang/lỗi đọc,
-số đã biết dùng dấu `+` (cận dưới), chưa biết số dùng `…`; chỉ bỏ dấu `+` khi nguồn
-đã đọc đủ và không lỗi. Không giả total unread. Backend chưa có group/batch/filter
-conversation. Preview dùng tin gần nhất của các chat đã tải, tách khỏi updatedAt
+ở mọi trạng thái và số Conversation theo metadata nhóm của BE. Không giả total
+unread hoặc tổng preview từ số trang client. Preview dùng tin gần nhất của các chat đã tải, tách khỏi updatedAt
 của Proposal để sự kiện đề xuất mới không thay nội dung tin nhắn. Chỉ prefix tên
 người gửi khi metadata message và authorized profile khớp; outgoing giữ “Bạn:”.
 

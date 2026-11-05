@@ -211,7 +211,10 @@ test("chat Back uses the actual conversation request and directs direct-search c
     pathname: "/messages/request/[id]",
     params: { id: request, view: "chats" },
   });
-  assert.equal(chatInboxRoute({ learningRequestId: null }), "/messages");
+  assert.equal(
+    chatInboxRoute({ learningRequestId: null }),
+    "/messages?tab=direct",
+  );
 });
 
 test("counts all received proposal statuses and unique chat IDs without replacing the latest message with a newer proposal event", () => {
