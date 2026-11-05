@@ -14,7 +14,7 @@ import {
   useLocalParticipant,
   registerGlobals,
 } from "@livekit/react-native";
-import { LocalVideoTrack, Track } from "livekit-client";
+import { Track } from "livekit-client";
 import { Button } from "@/components/Button";
 import { RoomAction } from "./room-action";
 import { RoomHeading } from "./room-heading";
@@ -27,11 +27,17 @@ import { randomUUID } from "expo-crypto";
 import { NativeRoomStage } from "./native-room-stage";
 import { NativeRoomChat } from "./native-room-chat";
 import { useRoomChat } from "../hooks/use-room-chat";
+import { useNativeMediaSettings } from "../hooks/use-native-media-settings";
+import { NativeMediaSettings } from "./native-media-settings";
+import { useNativeCameraBackground } from "../hooks/use-native-camera-background";
 
 registerGlobals();
 
 export default function NativeRoom(props: RoomMediaProps) {
-  const call = useRoomConnection(props);
+  const background = useNativeCameraBackground(props.isCurrent);
+  const call = useRoomConnection(props, background);
+  const media = useNativeMediaSettings(call.room, call.active);
+  const [facing, setFacing] = useState<"user" | "environment">("user");
   const [expanded, setExpanded] = useState(true);
   const [chatOpen, setChatOpen] = useState(false);
   const chat = useRoomChat(
@@ -68,6 +74,9 @@ export default function NativeRoom(props: RoomMediaProps) {
           <ActivityIndicator accessibilityLabel={labels[call.status]} />
         )}
         {!!call.error && <FormNotice tone="error">{call.error}</FormNotice>}
+        {!!background.error && (
+          <FormNotice tone="error">{background.error}</FormNotice>
+        )}
         {!!call.mediaNotice && (
           <FormNotice tone="info">{call.mediaNotice}</FormNotice>
         )}
@@ -106,6 +115,10 @@ export default function NativeRoom(props: RoomMediaProps) {
         <RoomContext.Provider value={call.room}>
           <RoomControls
             call={call}
+            media={media}
+            background={background}
+            facing={facing}
+            setFacing={setFacing}
             onLeave={props.onLeave}
             chatOpen={chatOpen}
             chatCount={chat.messages.length}
@@ -139,12 +152,20 @@ export default function NativeRoom(props: RoomMediaProps) {
 
 function RoomControls({
   call,
+  media,
+  background,
+  facing,
+  setFacing,
   onLeave,
   chatOpen,
   chatCount,
   onToggleChat,
 }: Readonly<{
   call: ReturnType<typeof useRoomConnection>;
+  media: ReturnType<typeof useNativeMediaSettings>;
+  background: ReturnType<typeof useNativeCameraBackground>;
+  facing: "user" | "environment";
+  setFacing: (facing: "user" | "environment") => void;
   onLeave: () => void;
   chatOpen: boolean;
   chatCount: number;
@@ -158,8 +179,21 @@ function RoomControls({
   } = useLocalParticipant();
   const busy = useRef(false);
   const [pending, setPending] = useState(false);
-  const [facing, setFacing] = useState<"user" | "environment">("user");
-  const disabled = pending || call.mediaPending || call.status !== "connected";
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const disabled =
+    pending ||
+    media.pending ||
+    background.busy ||
+    call.mediaPending ||
+    call.status !== "connected";
+  function switchCamera() {
+    void perform(async () => {
+      if (!call.room) return;
+      const next = facing === "user" ? "environment" : "user";
+      await background.publish(call.room, call.active, next);
+      if (call.active()) setFacing(next);
+    });
+  }
   async function perform(work: () => Promise<unknown>) {
     if (busy.current || !call.active() || disabled) return;
     busy.current = true;
@@ -197,26 +231,23 @@ function RoomControls({
           selected={isCameraEnabled}
           disabled={disabled}
           onPress={() => {
-            void perform(() =>
-              localParticipant.setCameraEnabled(!isCameraEnabled),
-            );
-          }}
-        />
-        <RoomAction
-          icon="switch-camera"
-          label="Đổi camera trước / sau"
-          disabled={disabled || !isCameraEnabled}
-          onPress={() => {
             void perform(async () => {
+              if (!call.room) return;
+              if (!isCameraEnabled)
+                return background.publish(call.room, call.active, facing);
               const track = localParticipant.getTrackPublication(
                 Track.Source.Camera,
               )?.track;
-              if (!(track instanceof LocalVideoTrack)) return;
-              const next = facing === "user" ? "environment" : "user";
-              await track.restartTrack({ facingMode: next });
-              if (call.active()) setFacing(next);
+              if (track) await localParticipant.unpublishTrack(track);
+              await background.release(call.room);
             });
           }}
+        />
+        <RoomAction
+          icon="settings"
+          label="Âm thanh và hình ảnh"
+          disabled={disabled}
+          onPress={() => setSettingsOpen(true)}
         />
         {Platform.OS === "android" && (
           <RoomAction
@@ -254,6 +285,17 @@ function RoomControls({
           }}
         />
       </View>
+      {settingsOpen && (
+        <NativeMediaSettings
+          media={media}
+          background={background}
+          disabled={pending || call.mediaPending || call.status !== "connected"}
+          camera={isCameraEnabled}
+          facing={facing}
+          onCamera={switchCamera}
+          onClose={() => setSettingsOpen(false)}
+        />
+      )}
     </View>
   );
 }

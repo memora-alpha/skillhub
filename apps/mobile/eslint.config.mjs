@@ -8,5 +8,10 @@ export default [
   js.configs.recommended,
   ...tseslint.configs.recommended,
   { languageOptions: { globals: globals.node } },
+  // Expo loads these build-time plugins as CommonJS; app TypeScript stays ESM.
+  {
+    files: ["plugins/**/*.cjs"],
+    rules: { "@typescript-eslint/no-require-imports": "off" },
+  },
   prettier,
 ];
