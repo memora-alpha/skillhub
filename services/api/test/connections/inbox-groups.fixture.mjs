@@ -173,6 +173,15 @@ export async function checkInboxGroupQueries(client) {
     projection,
     requests,
     { read: async () => new Map([[direct, "Direct skill"]]) },
+    {
+      read: async (_principal, groups) =>
+        new Map(
+          groups.map((group) => [
+            group.id,
+            { latestMessage: null, hasUnread: false },
+          ]),
+        ),
+    },
   );
   const owner = await service.list({ userId: ownerId }, { limit: 1 });
   assert.equal(owner.data.length, 1);

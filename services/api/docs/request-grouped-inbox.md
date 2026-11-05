@@ -45,14 +45,60 @@ Example Request group:
   "receivedProposalCount": 25,
   "sentProposalCount": 0,
   "conversationCount": 4,
-  "lastActivityAt": "2026-11-03T03:00:00.000Z"
+  "lastActivityAt": "2026-11-03T03:00:00.000Z",
+  "latestMessage": {
+    "id": "00000000-0000-4000-8000-000000000010",
+    "conversationId": "00000000-0000-4000-8000-000000000020",
+    "senderId": "00000000-0000-4000-8000-000000000030",
+    "messageType": "TEXT",
+    "preview": "Mình gửi bạn tài liệu cho buổi học tới.",
+    "sentAt": "2026-11-03T03:00:00.000Z"
+  },
+  "hasUnread": true
 }
 ```
 
 `viewerRole` is OWNER, PROPOSER or PARTICIPANT. Direct groups use
 `groupType=DIRECT_CONVERSATION`, `id=conversation:<uuid>`, `conversationId`,
-`learningRequestId=null` and the source skill topic as title. No message bodies,
-other users' proposal counts, private profiles or Request descriptions are exposed.
+`learningRequestId=null` and the source skill topic as title. Message previews are
+limited to authorized conversations; attachment metadata/URLs, other users'
+proposal counts, private profiles and Request descriptions are not exposed.
+
+### Message preview and unread amendment — 2026-11-05
+
+- Every group returns `latestMessage: object | null` and `hasUnread: boolean`.
+  A group with no published message (including proposal-only groups) returns
+  `null` and `false`. Drafts/preparing/failed messages never contribute.
+- `latestMessage` includes the message `id`, `conversationId`, `senderId`,
+  `messageType` (TEXT/FILE/SYSTEM), `preview` and UTC `sentAt`. Per-conversation
+  latest uses the highest published sequence; across conversations select by
+  `sentAt DESC, message id DESC`. Sequence is never compared between chats.
+- `preview` is plain text with whitespace normalized and at most 160 Unicode
+  code points (a technical response bound). Empty FILE text uses `Đã gửi một tệp`;
+  other empty text uses `Cập nhật cuộc trò chuyện`. No signed file URLs or storage
+  fields are returned. Preview labels for structured client message formats are
+  not decoded by this endpoint.
+- `hasUnread` is true if any accessible conversation contains a published message
+  from another sender with sequence greater than **this viewer's** read watermark.
+  A missing watermark starts at zero. Outgoing messages do not clear earlier
+  unread incoming messages. Reading Inbox never advances watermarks.
+- Request summaries cover **every** participant conversation for selected groups,
+  independent of child-chat pagination. Request ownership alone grants no access
+  to other people's chats. Direct groups summarize their one authorized chat.
+- Hydration enumerates participant IDs from PostgreSQL in batches of 100, then
+  reads latest messages/read states from MongoDB outside PG transactions. Each
+  Mongo batch uses a snapshot read and a five-second query bound; no per-chat
+  client round trip is made. Both viewer grants/session are checked again
+  after Mongo hydration. Cross-store/group pagination remains live, not a snapshot.
+- Mongo failure/incomplete results return 503 instead of silently returning
+  `null`/`false`. Proposal-only pages need no Mongo access. Existing counts,
+  ordering, cursors and `lastActivityAt` are unchanged; proposal activity may be
+  newer than `latestMessage.sentAt`.
+- This is an additive response change. No new seed, ENV, PostgreSQL migration or
+  Mongo index is required; reuse the configured Mongo replica set and existing
+  chat publication/read-state indexes. Clients can use these fields directly
+  instead of inferring unread from partially loaded chat history. Mobile source
+  is outside this amendment's scope.
 
 Counts are aggregated over all relevant PostgreSQL rows **before** group
 pagination. Proposal and Conversation aggregates are separate so their join cannot
@@ -66,13 +112,13 @@ Load a group's child chats with the additive filter:
 
 `GET /api/v1/conversations?learningRequestId=<uuid>&limit=20&cursor=...`
 
-This still checks participant membership and preserves dev's existing ID-based order.
+This checks participant membership and orders by `lastActivityAt DESC, id DESC`.
 Its cursor is scoped to the Request filter; group/flat/other-Request cursors are
-not interchangeable. The unfiltered flat list and existing cursors remain valid.
+not interchangeable. This summary amendment does not change their cursor scopes.
 
 `GET /api/v1/proposals?direction=sent&learningRequestId=<uuid>&status=...`
 now returns only the current proposer's history, with the existing status filter
-and ID-based keyset pagination. It does not fetch the public Request detail
+and `createdAt DESC, id DESC` keyset pagination. It does not fetch the public Request detail
 or require ownership. Missing/unrelated Request IDs produce an empty own-history
 list. Received lists filtered by Request remain owner-only; nonowners get 404.
 
@@ -99,7 +145,8 @@ applies to proposal projections returned by create/update/decision workflows.
   exports a parameterized viewer-scoped aggregation projection. Learning Requests
   owns historical title access. Lightweight read modules avoid command/worker
   dependency cycles; no cross-module repositories or writes are introduced.
-- Stores/transactions (2, 3, 8): all new reads run in PostgreSQL transactions;
+- Stores/transactions (2, 3, 8): membership/count reads run in PostgreSQL transactions;
+  message/read-state hydration runs in Mongo outside those transactions.
   Mongo message state, delivery, financial state, audit and outbox are unchanged.
   Counts are derived on read. A minimal Conversation activity projection is maintained
   alongside delivery acknowledgement and rebuilt from published Mongo messages.

@@ -165,6 +165,8 @@ test("HTTP Inbox route precedes UUID detail, retains pagination and accepts the 
     receivedProposalCount: 25,
     sentProposalCount: 0,
     conversationCount: 4,
+    latestMessage: null,
+    hasUnread: false,
   };
   const paging = { limit: 1, hasMore: true, nextCursor: "opaque" };
   const module = await Test.createTestingModule({

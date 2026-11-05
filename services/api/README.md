@@ -12,6 +12,9 @@ Xem [contract](specs/013-learning-cancellation/contracts.md) và
 Inbox theo bài học: `GET /api/v1/conversations/inbox`, số đếm toàn bộ theo quyền,
 filter chat/đề xuất đã gửi theo bài và giữ tiêu đề lịch sử; xem
 [contract và triển khai](docs/request-grouped-inbox.md).
+Inbox trả `latestMessage` và `hasUnread` theo viewer, tổng hợp trên mọi chat mà
+viewer tham gia trong nhóm; chưa có tin thì trả `null`/`false`. Không cần seed,
+env hay migration mới cho hai field này; MongoDB lỗi trả 503.
 Danh sách chat phẳng sắp theo `lastActivityAt DESC, id DESC`; Proposal theo
 `createdAt DESC, id DESC`, có `direction=all` phân trang chung nhận/gửi. Cursor
 cũ cần bắt đầu lại từ trang đầu; xem [contract](specs/008-connections/contracts/http.md).

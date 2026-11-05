@@ -91,6 +91,17 @@ examples, not instructions to start other agents.
 
 ## Remaining release verification
 
+### Inbox latest message and unread — 2026-11-05
+
+- [x] Add latestMessage/hasUnread DTO and group response fields; keep counts/order/cursors.
+- [x] Enumerate all viewer-participant chats for selected groups in bounded batches;
+      hydrate published messages and viewer Long read watermarks outside PG transactions.
+- [x] Revalidate live grants after hydration; fail unavailable/incomplete reads;
+      keep Inbox GET free of read-watermark writes.
+- [x] Complete focused, real Mongo disposable-database, HTTP/Swagger and workspace checks.
+- [x] Document preview bounds, unread semantics, authorization and additive rollout.
+- [ ] Verify deployed API and client consumption separately; no deployment in this task.
+
 T017 passed on installed local PostgreSQL on 2026-10-11. The configured Mongo replica-set suite and 13 full AppModule HTTP/SSE check groups also passed, including a harmless CHAT upload/scan/download journey against real R2/ClamAV; see [local validation](local-validation.md). T036 remains pending for broader source/revocation/recovery races, Redis multi-instance/proxy, storage cleanup races and load proof. Completed checkboxes do not establish production readiness.
 
 ## 2026-10-19 proposal schedule text amendment

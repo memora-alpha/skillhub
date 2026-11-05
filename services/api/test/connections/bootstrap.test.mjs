@@ -149,6 +149,21 @@ test("feature modules resolve owner contracts and register SSE/chat workers; HTT
       app,
       new DocumentBuilder().addBearerAuth().build(),
     );
+    const inbox = doc.components.schemas.InboxGroupResponse;
+    assert.equal(inbox.properties.hasUnread.type, "boolean");
+    assert.equal(inbox.properties.latestMessage.nullable, true);
+    assert(inbox.required.includes("hasUnread"));
+    assert(inbox.required.includes("latestMessage"));
+    const latest = doc.components.schemas.InboxLatestMessageResponse;
+    assert.deepEqual(latest.required, [
+      "id",
+      "conversationId",
+      "senderId",
+      "messageType",
+      "preview",
+      "sentAt",
+    ]);
+    assert.equal(latest.properties.preview.maxLength, 160);
     for (const route of [
       "/api/v1/conversations/inbox",
       "/api/v1/proposals",

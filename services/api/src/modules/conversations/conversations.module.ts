@@ -1,5 +1,7 @@
 import { InboxGroupsService } from "./application/services/inbox-groups.service";
 import { InboxGroupsRepository } from "./infrastructure/persistence/inbox-groups.repository";
+import { ChatInboxRepository } from "./infrastructure/persistence/chat-inbox.repository";
+import { InboxMessageReader } from "./application/services/inbox-message.reader";
 import { LearningRequestInboxModule } from "../learning-requests/learning-request-inbox.module";
 import { ConversationTopicsModule } from "../proposals/conversation-topics.module";
 import { Module } from "@nestjs/common";
@@ -31,6 +33,8 @@ import { ConversationMembershipReader } from "./application/services/conversatio
   providers: [
     InboxGroupsService,
     InboxGroupsRepository,
+    ChatInboxRepository,
+    InboxMessageReader,
     ConnectionConfig,
     ConversationLifecycleService,
     ChatRepository,

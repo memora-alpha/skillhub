@@ -62,6 +62,15 @@ export class ChatDownloadResponse {
   @ApiProperty({ type: String, format: "date-time" }) expiresAt!: Date;
 }
 
+export class InboxLatestMessageResponse {
+  @ApiProperty({ format: "uuid" }) id!: string;
+  @ApiProperty({ format: "uuid" }) conversationId!: string;
+  @ApiProperty({ format: "uuid" }) senderId!: string;
+  @ApiProperty({ enum: ["TEXT", "FILE", "SYSTEM"] }) messageType!: string;
+  @ApiProperty({ maxLength: 160 }) preview!: string;
+  @ApiProperty({ type: String, format: "date-time" }) sentAt!: Date;
+}
+
 export class InboxGroupResponse {
   @ApiProperty({
     description: "Stable request:<uuid> or conversation:<uuid> group key",
@@ -95,4 +104,11 @@ export class InboxGroupResponse {
   })
   conversationCount!: number;
   @ApiProperty({ type: String, format: "date-time" }) lastActivityAt!: Date;
+  @ApiProperty({ type: InboxLatestMessageResponse, nullable: true })
+  latestMessage!: InboxLatestMessageResponse | null;
+  @ApiProperty({
+    description:
+      "Any published incoming message beyond the viewer's read watermark across all accessible chats in this group",
+  })
+  hasUnread!: boolean;
 }
