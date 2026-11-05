@@ -66,13 +66,17 @@ No mobile screens were changed; integrate these APIs in a separately authorized 
 
 ## Session policy amendment 2026-11-05
 
-Session detail now includes `originalStartAt`, `rescheduleCount`, `makeupCount`, and
-`makeupQuota: {limit, used, remaining, reason}`. The list also returns the three
-Session fields. `makeupCount` records granted opportunities, not HTTP attempts.
-The quota is shared by cancellation/absence makeup within each locked plan/teaching
-direction: `max(1, floor(totalSessions / 5))`. Each original Session gets at most
-one opportunity. Expired requests, repeated responses and makeup booking do not
-consume ordinary reschedule attempts.
+Session detail/list include `originalStartAt`, `rescheduleCount`, `makeupCount`
+and `makeupUserIds` (the participants charged for the grant). Detail also returns
+the viewer's `makeupQuota: {userId, totalSessions, limit, used, remaining, requiresReview, reason}`.
+`totalSessions` includes every Session the viewer participates in within this
+agreement, whether teacher or learner, across both TWO_WAY directions. Each person
+has `max(1, floor(totalSessions / 5))` opportunities. Cancellation consumes only the
+requester's quota; accepted absence consumes only the absent person's quota. If
+both are absent, each uses one. Accepting the partner's request never consumes the
+acceptor's quota. The same original Session can still have only one makeup.
+Expired requests, repeated responses, same-grant extensions and makeup booking do
+not consume additional grants or ordinary reschedule attempts.
 
 Ordinary reschedules apply at most three changed, bilaterally confirmed versions
 per Session. A new interval must fit between its neighboring Sessions in the same
@@ -82,13 +86,22 @@ is allowed. Both intake and final confirmation recheck these rules and the exist
 without counting it again. Makeup booking retains its configured deadline and is
 separate from these ordinary reschedule limits.
 
-New 409 codes: `SESSION_MAKEUP_LIMIT_REACHED`, `PLAN_MAKEUP_LIMIT_REACHED`,
+New 409 codes: `SESSION_MAKEUP_LIMIT_REACHED`, `USER_MAKEUP_LIMIT_REACHED`,
+`MAKEUP_ATTRIBUTION_REVIEW_REQUIRED`,
 `SESSION_RESCHEDULE_LIMIT_REACHED`, `RESCHEDULE_SESSION_ORDER_VIOLATION`,
 `LAST_SESSION_RESCHEDULE_WINDOW_EXCEEDED`. A cancellation accepted while blocked
 by a dispute may expire on recovery if another grant has exhausted its quota.
 Automatic no-show quota exhaustion opens a blocking `MAKEUP_LIMIT_REACHED` Staff
 case. A Staff extension of an existing booking deadline retains the same grant;
 it does not authorize a second makeup occurrence.
+
+For Staff `noShowRuling: EXCUSE` on unverifiable attendance, the human report's
+reporter is the requester unless Staff explicitly supplies `makeupUserId` (a
+participant UUID). System cases with no identified absent/requesting user require
+that field; otherwise 400 `MAKEUP_USER_REQUIRED`. This field is only valid for an
+EXCUSE resolution. It does not override determined absence or reassign an existing
+grant. Missing/ambiguous legacy attribution sets `requiresReview`; `used` then
+describes known attributed usage and must not be treated as a grant authorization.
 
 ### Immediate final settlement
 

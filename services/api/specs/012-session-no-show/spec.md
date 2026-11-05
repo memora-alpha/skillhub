@@ -376,7 +376,8 @@ worker chạy lại vì dedupe key cố định.
 ## Amendment 2026-11-05
 
 The accepted [Session policy amendment](../013-learning-cancellation/session-policy-amendment.md)
-adds a shared per-direction makeup quota and one grant per original Session.
+adds a personal makeup quota shared across both directions in one agreement and
+one grant per original Session. Charge the requester/absent user, not the partner.
 A second missed makeup still receives the existing no-show reputation decision,
 but cannot automatically grant another makeup: it opens a blocking Staff case.
 Extending the booking deadline of the same granted occurrence remains possible.

@@ -800,6 +800,7 @@ model Session {
   originalStartAt DateTime?               @map("original_start_at") @db.Timestamptz(3)
   rescheduleCount Int                     @default(0) @map("reschedule_count")
   makeupCount     Int                     @default(0) @map("makeup_count")
+  makeupUserIds   String[]                @default([]) @map("makeup_user_ids") @db.Uuid
   changeRequests  LearningChangeRequest[]
 
   @@unique([planId, planVersion, outlineSessionNo])

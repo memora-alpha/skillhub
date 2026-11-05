@@ -581,11 +581,20 @@ export class ReportsService {
 
   private async settleSessionRuling(
     tx: TransactionContext,
-    item: { id: string; relatedSessionId: string | null },
+    item: {
+      id: string;
+      relatedSessionId: string | null;
+      reporterId: string | null;
+    },
     action: "resolve" | "reject",
     input: ReportCaseActionDto,
     now: Date,
   ) {
+    if (
+      input.makeupUserId &&
+      (action !== "resolve" || input.noShowRuling !== "EXCUSE")
+    )
+      throw new BadRequestException("MAKEUP_USER_REQUIRES_EXCUSE_RULING");
     if (!item.relatedSessionId) {
       if (input.noShowRuling || input.cancellationMakeupRuling)
         throw new ConflictException("NO_SHOW_RULING_NOT_APPLICABLE");
@@ -615,6 +624,7 @@ export class ReportsService {
         sessionId: item.relatedSessionId,
         ruling: input.noShowRuling,
         now,
+        makeupUserId: input.makeupUserId ?? item.reporterId ?? undefined,
       });
       return;
     }

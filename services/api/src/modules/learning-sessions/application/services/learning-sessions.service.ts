@@ -338,6 +338,7 @@ export class LearningSessionsService {
         originalStartAt: true,
         rescheduleCount: true,
         makeupCount: true,
+        makeupUserIds: true,
         teacherConfirmationStatus: true,
         learnerConfirmationStatus: true,
         teacherFirstJoinedAt: true,
@@ -413,7 +414,7 @@ export class LearningSessionsService {
       role: actor.userId === session.teacherId ? "TEACHER" : "LEARNER",
       join,
       progress: await this.progress(session.pathId, session.planId),
-      makeupQuota: await makeupQuota(this.db, session),
+      makeupQuota: await makeupQuota(this.db, session, actor.userId),
       ...sessionAttendanceView({
         actorId: actor.userId,
         now,

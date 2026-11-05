@@ -3,11 +3,13 @@
 NestJS backend in the SkillHub pnpm/Turborepo workspace.
 
 Session policy amendment (2026-11-05): học bù tối đa một lần mỗi buổi, hạn mức
-`max(1, floor(số buổi / 5))` riêng từng chiều học. Đổi lịch thông thường tối đa
+`max(1, floor(tổng buổi tham gia thỏa thuận / 5))` riêng mỗi người. Hủy tính lượt
+cho người yêu cầu, vắng tính cho người vắng; dùng chung qua cả hai chiều học. Đổi lịch thông thường tối đa
 3 lần áp dụng thành công mỗi buổi, giữ thứ tự buổi; buổi cuối dời tối đa 48h từ
 lịch gốc. Hai bên có thể đồng ý quyết toán ngay qua API riêng sau khi hoàn thành
 toàn bộ thỏa thuận; nếu chưa đủ đồng ý thì giữ cửa sổ chờ 48h, report vẫn chặn.
-Cần migration `20261105010000_session_policy_settlement` trước code mới;
+Cần migration `20261105010000_session_policy_settlement` rồi
+`20261105020000_personal_makeup_quota` trước code mới;
 xem [policy](specs/013-learning-cancellation/session-policy-amendment.md),
 [API](specs/013-learning-cancellation/contracts.md#session-policy-amendment-2026-11-05)
 và [rollout](specs/013-learning-cancellation/quickstart.md#session-policy-and-early-settlement-rollout).

@@ -24,3 +24,8 @@ subsequently approved makeup/reschedule limits and immediate settlement consent.
 Final local validation: 139 service/HTTP regressions plus 18 PostgreSQL/schema
 checks, no failures/skips; API lint, typecheck and build passed. Production rollout
 and frontend/mobile integration remain outside this implementation.
+
+Personal-quota correction: completed per-user attribution, requester/absent-only
+charging, shared agreement-wide allowance across both roles/directions, immutable
+backfill migration and viewer projection. Final checks: 142 service/HTTP and 20
+PostgreSQL/schema tests passed without failures/skips; lint, typecheck and build passed.

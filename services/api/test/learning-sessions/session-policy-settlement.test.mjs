@@ -82,7 +82,7 @@ async function move(ctx, session, startAt, endAt) {
   return proposal;
 }
 
-test("makeup quota floors 20 percent, shares reasons, and isolates TWO_WAY directions", async () => {
+test("personal quota floors 20 percent and charges only the requester", async () => {
   for (const [total, limit] of [
     [1, 1],
     [4, 1],
@@ -93,29 +93,78 @@ test("makeup quota floors 20 percent, shares reasons, and isolates TWO_WAY direc
   ]) {
     const ctx = await multipleSessions(total);
     assert.equal(
-      (await makeupQuota(ctx.db, ctx.sessionsInPlan[0])).limit,
+      (await makeupQuota(ctx.db, ctx.sessionsInPlan[0], A)).limit,
       limit,
     );
-    await reserveMakeup(ctx.db, ctx.sessionsInPlan[0]);
+    await reserveMakeup(ctx.db, ctx.sessionsInPlan[0], [A]);
     await assert.rejects(
-      () => reserveMakeup(ctx.db, ctx.sessionsInPlan[0]),
+      () => reserveMakeup(ctx.db, ctx.sessionsInPlan[0], [A]),
       error("SESSION_MAKEUP_LIMIT_REACHED"),
     );
     if (total > 1 && limit === 1)
       await assert.rejects(
-        () => reserveMakeup(ctx.db, ctx.sessionsInPlan[1]),
-        error("PLAN_MAKEUP_LIMIT_REACHED"),
+        () => reserveMakeup(ctx.db, ctx.sessionsInPlan[1], [A]),
+        error("USER_MAKEUP_LIMIT_REACHED"),
       );
-    const other = ctx.db.seed("session", {
-      ...ctx.sessionsInPlan[0],
+    assert.equal((await makeupQuota(ctx.db, ctx.sessionsInPlan[0], B)).used, 0);
+    assert.equal(
+      (await makeupQuota(ctx.db, ctx.sessionsInPlan[0], B)).remaining,
+      limit,
+    );
+  }
+});
+
+test("one person's quota spans both directions and a partner retains their own allowance", async () => {
+  const ctx = await multipleSessions(6);
+  const originals = [...ctx.sessionsInPlan];
+  const reversePlanId = randomUUID();
+  const reverse = originals.map((row) =>
+    ctx.db.seed("session", {
+      ...row,
       id: randomUUID(),
-      planId: randomUUID(),
+      planId: reversePlanId,
       teacherId: B,
       learnerId: A,
       makeupCount: 0,
-    });
-    assert.equal((await makeupQuota(ctx.db, other)).remaining, 1);
-  }
+      makeupUserIds: [],
+    }),
+  );
+  assert.equal((await makeupQuota(ctx.db, originals[0], A)).totalSessions, 12);
+  assert.equal((await makeupQuota(ctx.db, originals[0], A)).limit, 2);
+  await reserveMakeup(ctx.db, originals[0], [A]);
+  await reserveMakeup(ctx.db, reverse[0], [A]);
+  await assert.rejects(
+    () => reserveMakeup(ctx.db, originals[1], [A]),
+    error("USER_MAKEUP_LIMIT_REACHED"),
+  );
+  assert.equal((await makeupQuota(ctx.db, reverse[1], B)).remaining, 2);
+  await reserveMakeup(ctx.db, originals[1], [B]);
+  assert.equal((await makeupQuota(ctx.db, reverse[1], B)).used, 1);
+  assert.equal((await makeupQuota(ctx.db, reverse[1], A)).used, 2);
+});
+
+test("both absent participants use their own allowance; invalid and unknown attribution cannot grant makeup", async () => {
+  const ctx = await multipleSessions(6);
+  await assert.rejects(
+    () => reserveMakeup(ctx.db, ctx.sessionsInPlan[0], []),
+    error("MAKEUP_USER_REQUIRED"),
+  );
+  await assert.rejects(
+    () => reserveMakeup(ctx.db, ctx.sessionsInPlan[0], [C]),
+    error("MAKEUP_USER_NOT_PARTICIPANT"),
+  );
+  await reserveMakeup(ctx.db, ctx.sessionsInPlan[0], [B, A, A]);
+  assert.deepEqual(ctx.sessionsInPlan[0].makeupUserIds, [A, B]);
+  await assert.rejects(
+    () => reserveMakeup(ctx.db, ctx.sessionsInPlan[1], [B]),
+    error("USER_MAKEUP_LIMIT_REACHED"),
+  );
+  const legacy = await multipleSessions(6);
+  legacy.sessionsInPlan[0].makeupCount = 1;
+  await assert.rejects(
+    () => reserveMakeup(legacy.db, legacy.sessionsInPlan[1], [A]),
+    error("MAKEUP_ATTRIBUTION_REVIEW_REQUIRED"),
+  );
 });
 
 test("cancellation and absence share one quota and same-Session makeup cannot be granted twice", async () => {
@@ -140,8 +189,8 @@ test("cancellation and absence share one quota and same-Session makeup cannot be
   assert.equal(first.makeupCount, 1);
   assert.equal(first.rescheduleCount, 0);
   await assert.rejects(
-    () => reserveMakeup(ctx.db, ctx.sessionsInPlan[1]),
-    error("PLAN_MAKEUP_LIMIT_REACHED"),
+    () => reserveMakeup(ctx.db, ctx.sessionsInPlan[1], [A]),
+    error("USER_MAKEUP_LIMIT_REACHED"),
   );
   const held = ctx.db
     .rows("creditWallet")

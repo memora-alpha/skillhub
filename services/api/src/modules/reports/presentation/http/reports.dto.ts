@@ -14,6 +14,7 @@ import {
   MinLength,
   ValidateNested,
 } from "class-validator";
+import { ApiPropertyOptional } from "@nestjs/swagger";
 import { ADJUDICATED_RESTRICTION_DAYS } from "../../../reputation/application/services/reputation.service";
 
 /** SRS 1.6 §18.23 report reason codes. */
@@ -95,6 +96,16 @@ export class ReportReversalDto {
 }
 
 export class ReportCaseActionDto {
+  /** For unverifiable attendance: the participant requesting Staff-approved makeup. */
+  @ApiPropertyOptional({
+    format: "uuid",
+    description:
+      "Participant requesting makeup when attendance is unverifiable; required for a system case with no requester.",
+  })
+  @IsOptional()
+  @IsUUID("4")
+  makeupUserId?: string;
+
   @IsOptional()
   @IsIn(["EXTEND", "COMPLETE"])
   cancellationMakeupRuling?: "EXTEND" | "COMPLETE";

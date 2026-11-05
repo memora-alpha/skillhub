@@ -275,14 +275,19 @@ export async function determineOutcome(
 export async function requireMakeup(
   tx: TransactionContext,
   session: Session,
-  outcome: Pick<SessionAttendanceOutcome, "id" | "evidence">,
+  outcome: SessionAttendanceOutcome,
   now: Date,
   policy: AttendancePolicy,
   outcomeStatus: "FINAL" | "EXCUSED",
+  makeupUserId?: string,
 ) {
   // Staff may extend the booking deadline of the same granted occurrence, never grant a second one.
   const evidence = outcome.evidence as Prisma.JsonObject;
-  if (evidence.makeupGranted !== true) await reserveMakeup(tx, session);
+  if (evidence.makeupGranted !== true) {
+    const users = absentUserIds(session, outcome);
+    if (!users.length && makeupUserId) users.push(makeupUserId);
+    await reserveMakeup(tx, session, users);
+  }
   await tx.sessionAttendanceOutcome.update({
     where: { id: outcome.id },
     data: {
@@ -352,7 +357,12 @@ export type NoShowRuling = "UPHOLD" | "EXCUSE" | "COMPLETE";
 export async function applyNoShowRuling(
   tx: TransactionContext,
   reputation: NoShowReputation,
-  input: { sessionId: string; ruling: NoShowRuling; now: Date },
+  input: {
+    sessionId: string;
+    ruling: NoShowRuling;
+    now: Date;
+    makeupUserId?: string;
+  },
 ) {
   const session = await lockedSession(tx, input.sessionId);
   const outcome = await currentOutcome(tx, session);
@@ -376,6 +386,7 @@ export async function applyNoShowRuling(
       input.now,
       policy,
       absent ? "EXCUSED" : "FINAL",
+      input.makeupUserId,
     );
   await tx.sessionAttendanceOutcome.update({
     where: { id: outcome.id },

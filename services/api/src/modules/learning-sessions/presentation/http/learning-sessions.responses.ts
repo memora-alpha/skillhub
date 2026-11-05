@@ -15,6 +15,7 @@ export const sessionReadSelect = {
   originalStartAt: true,
   rescheduleCount: true,
   makeupCount: true,
+  makeupUserIds: true,
   status: true,
   teacherConfirmationStatus: true,
   teacherConfirmedAt: true,

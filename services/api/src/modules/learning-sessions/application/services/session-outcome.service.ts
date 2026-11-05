@@ -21,7 +21,7 @@ import {
   recordParticipantEvent,
 } from "./session-attendance";
 import { databaseNow, lockedSession } from "./session-tx";
-import { makeupQuota } from "./makeup-quota";
+import { makeupQuotas } from "./makeup-quota";
 import { byCodeUnit } from "../../../../infrastructure/idempotency/idempotency.service";
 import {
   completeSession,
@@ -281,8 +281,13 @@ export class SessionOutcomeService {
     now: Date,
     policy: ReturnType<typeof outcomePolicy>,
   ) {
-    const quota = await makeupQuota(tx, session);
-    if (outcome.attendanceCase !== "LEARNER_ABSENT" && quota.reason) {
+    const quotas = await makeupQuotas(
+      tx,
+      session,
+      absentUserIds(session, outcome),
+    );
+    const quota = quotas.find((value) => value.reason);
+    if (outcome.attendanceCase !== "LEARNER_ABSENT" && quota?.reason) {
       // Finalize the existing reputation penalty even when another makeup cannot be granted.
       // Sequential: reputation locks must follow the same deterministic user order.
       for (const userId of absentUserIds(session, outcome).sort(byCodeUnit))

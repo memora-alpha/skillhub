@@ -59,3 +59,17 @@ is inferred from completion; expiry settlement still works with neither approval
 Run all Session integration files against TEST_DATABASE_URL, including the policy
 migration/backfill test. Frontend/mobile integration and production rollout remain
 separate work.
+
+## Personal makeup quota correction
+
+Also apply `20261105020000_personal_makeup_quota` after the previous policy
+migration and before the corrected API starts. Existing bootstrap applies both
+pending migrations in order. No new env, seed or permissions are needed.
+
+The correction stores the requester/absent participants per Session and calculates
+20% separately for each person over all Sessions they participate in within this
+agreement, shared across both teaching directions. A grant's attribution cannot be
+changed by ordinary UPDATE. Existing records without reliable responsibility, or
+ambiguous legacy multiple grants, require review instead of charging both users.
+Verify one participant exhausting their allowance does not consume the partner's
+allowance; simultaneous requests across directions cannot exceed the person's cap.

@@ -98,3 +98,26 @@ the sandbox or ran supplemental schema checks before the build had finished.
 The final runs used the completed build and explicit isolated test connection.
 Production migration/activation, deployed behavior, device journeys and Sonar
 cloud Quality Gate were not tested or claimed.
+
+## Personal makeup quota correction
+
+The user replaced the direction-based quota with a personal allowance: 20% of
+every Session they participate in within the same agreement, across both roles
+and teaching directions; floor with minimum one remains. Only the requester or
+absent users consume their quota. The partner accepting a request consumes none.
+
+- API lint, typecheck and build passed.
+- **142/142 service/HTTP regressions passed**, no skips. Added independent personal
+  allowance, shared usage across roles/directions, both-absent attribution, invalid
+  participant/no-requester handling and unknown legacy attribution checks.
+- **20/20 PostgreSQL/schema checks passed**, no skips, on the dedicated localhost
+  PostgreSQL 18 cluster with explicit TEST_DATABASE_URL. The added real TWO_WAY
+  scenario exhausts one participant across directions while preserving the other
+  participant's allowance. Concurrent requests still serialize under the Path lock.
+- Migration `20261105020000_personal_makeup_quota` preserves old migration checksums,
+  attributes only applied cancellation/recorded absence, retains unknown history
+  without guessing responsibility and prevents moving a grant to another user.
+- Counter/decision audit rollback and all existing settlement/report concurrency,
+  financial rollback, source-lot conservation and exactly-once tests remain green.
+- No env/seed/permission additions, frontend changes or deployment. CI/cloud
+  results remain separate from these local checks.

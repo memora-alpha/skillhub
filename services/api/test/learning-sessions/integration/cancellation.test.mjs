@@ -199,7 +199,9 @@ test(
         await paths.confirmAgreement(teacher.principal, path.id, 1);
         await paths.confirmAgreement(learner.principal, path.id, 1);
         for (const { plan, index, owner } of plans) {
-          const startAt = new Date(Date.now() + (7 + index) * 86400000);
+          const startAt = new Date(
+            Date.now() + (7 + index * totalSessions) * 86400000,
+          );
           const schedule = await schedules.createProposal(
             owner.principal,
             plan.id,
@@ -557,7 +559,7 @@ test(
         },
       );
       await t.test(
-        "shared plan quota serializes concurrent makeup acceptances and rolls back a failed audit",
+        "personal quota serializes concurrent makeup acceptances and rolls back a failed audit",
         async () => {
           const ctx = await agreement(false, 6);
           const requestsForMakeup = await Promise.all(
@@ -591,10 +593,14 @@ test(
             results.filter(
               (r) =>
                 r.status === "rejected" &&
-                r.reason.message === "PLAN_MAKEUP_LIMIT_REACHED",
+                r.reason.message === "USER_MAKEUP_LIMIT_REACHED",
             ).length,
             1,
           );
+          const attributed = await f.db.session.findMany({
+            where: { pathId: ctx.path.id, makeupCount: 1 },
+          });
+          assert.deepEqual(attributed[0].makeupUserIds, [ctx.teacher.user.id]);
           assert.equal(
             await f.db.session.count({
               where: { pathId: ctx.path.id, makeupCount: 1 },
@@ -644,6 +650,59 @@ test(
               })
             ).status,
             "PENDING",
+          );
+        },
+      );
+
+      await t.test(
+        "TWO_WAY personal allowance spans both roles and never consumes the partner allowance",
+        async () => {
+          const ctx = await agreement(true, 3);
+          const first = ctx.sessions[0];
+          const second = ctx.sessions.find(
+            (row) => row.planId !== first.planId,
+          );
+          const third = ctx.sessions.find(
+            (row) => row.id !== first.id && row.id !== second.id,
+          );
+          async function requestBy(person, session, partner) {
+            const row = await cancellations.request(
+              person.principal,
+              session.id,
+              randomUUID(),
+              {
+                reason: "Request a personal makeup",
+                expectedStartAt: session.startAt.toISOString(),
+              },
+            );
+            return cancellations.respond(
+              partner.principal,
+              session.id,
+              row.id,
+              { expectedVersion: 1, accept: true },
+            );
+          }
+          await requestBy(ctx.teacher, first, ctx.learner);
+          await assert.rejects(
+            () => requestBy(ctx.teacher, second, ctx.learner),
+            { message: "USER_MAKEUP_LIMIT_REACHED" },
+          );
+          await requestBy(ctx.learner, third, ctx.teacher);
+          const charged = await f.db.session.findMany({
+            where: { pathId: ctx.path.id, makeupCount: 1 },
+          });
+          assert.equal(charged.length, 2);
+          assert.equal(
+            charged.filter((row) =>
+              row.makeupUserIds.includes(ctx.teacher.user.id),
+            ).length,
+            1,
+          );
+          assert.equal(
+            charged.filter((row) =>
+              row.makeupUserIds.includes(ctx.learner.user.id),
+            ).length,
+            1,
           );
         },
       );

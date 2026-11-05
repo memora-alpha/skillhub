@@ -330,6 +330,7 @@ test("accepted excuse: makeup without penalty; only the present party decides", 
   });
   await service.decideExcuse(user(A), ctx.session.id, true, "ok");
   assert.equal(ctx.session.status, "MAKEUP_REQUIRED");
+  assert.deepEqual(ctx.session.makeupUserIds, [B]);
   assert.equal(ctx.db.rows("sessionAttendanceOutcome")[0].status, "EXCUSED");
   hours(ctx, 49);
   await service.finalizeDue(ctx.session.id);
@@ -453,6 +454,30 @@ test("system cases require a ruling", async () => {
   });
   assert.equal(ctx.session.status, "COMPLETED");
   assert.equal(ctx.db.rows("sessionAttendanceOutcome")[0].status, "FINAL");
+});
+
+test("Staff makeup for unverifiable attendance requires an explicit participant instead of charging both", async () => {
+  const ctx = await ended({ teacher: 0, observed: false });
+  await ctx.sessions.ensureDetermined(ctx.session.id);
+  hours(ctx, 25);
+  await outcomes(ctx).finalizeDue(ctx.session.id);
+  const reports = reportsFor(ctx);
+  const [item] = ctx.db.rows("reportCase");
+  await reports.updateCase(staff, item.id, "claim");
+  await assert.rejects(
+    () =>
+      reports.updateCase(staff, item.id, "resolve", {
+        note: "Grant a requested makeup",
+        noShowRuling: "EXCUSE",
+      }),
+    { message: "MAKEUP_USER_REQUIRED" },
+  );
+  await reports.updateCase(staff, item.id, "resolve", {
+    note: "Grant the learner's requested makeup",
+    noShowRuling: "EXCUSE",
+    makeupUserId: B,
+  });
+  assert.deepEqual(ctx.session.makeupUserIds, [B]);
 });
 
 test("makeup reschedule starts a fresh occurrence that is judged again", async () => {
