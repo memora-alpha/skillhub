@@ -1,5 +1,5 @@
-import { UnavailableScreen } from "@/components/staff/unavailable";
+import { notFound } from "next/navigation";
 
 export default function Page() {
-  return <UnavailableScreen feature="audit" />;
+  notFound();
 }

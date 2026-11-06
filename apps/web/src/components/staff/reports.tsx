@@ -150,7 +150,7 @@ export function ReportsScreen() {
     </>
   );
 }
-type ReportAction = "claim" | "need-more-info" | "resolve" | "reject";
+type ReportAction = "claim" | "resolve" | "reject";
 const actions: Record<
   ReportAction,
   { title: string; label: string; description: string }
@@ -160,12 +160,6 @@ const actions: Record<
     label: "Nhận xử lý",
     description:
       "Vụ việc sẽ được giao cho bạn và chuyển sang trạng thái đang xem xét.",
-  },
-  "need-more-info": {
-    title: "Yêu cầu bổ sung thông tin",
-    label: "Gửi yêu cầu bổ sung",
-    description:
-      "Ghi rõ thông tin còn thiếu để người gửi biết nội dung cần bổ sung.",
   },
   resolve: {
     title: "Hoàn tất xử lý báo cáo",
@@ -290,16 +284,6 @@ function ReportActions({ item, owns, busy, onAction }: ReportActionProps) {
   return (
     <>
       <p className="muted">Bạn đang phụ trách vụ việc này.</p>
-      {item.status !== "NEED_MORE_INFO" && (
-        <button
-          type="button"
-          className="btn"
-          disabled={busy}
-          onClick={() => onAction("need-more-info")}
-        >
-          Yêu cầu bổ sung thông tin
-        </button>
-      )}
       <button
         type="button"
         className="btn btn-primary"
