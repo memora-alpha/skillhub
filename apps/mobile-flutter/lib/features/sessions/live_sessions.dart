@@ -9,6 +9,8 @@ import '../../components/misc.dart';
 import '../../core/http/app_error.dart';
 import '../auth/session/auth_session.dart';
 import '../remote/refresh_signal.dart';
+import 'session_resolution_panel.dart';
+import 'session_makeup_panel.dart';
 
 const _upcomingStatuses = {'CONFIRMED', 'READY', 'ONGOING'};
 
@@ -53,6 +55,7 @@ const _sessionStatusLabel = {
   'CANCELLED': 'Đã hủy',
   'DISPUTED': 'Đang tranh chấp',
   'NO_SHOW': 'Không vào được · lố giờ / vắng',
+  'MAKEUP_REQUIRED': 'Cần thống nhất lịch học bù',
 };
 
 String monthSessionKey(int year, int month) =>
@@ -361,6 +364,19 @@ class _LiveSessionPageState extends ConsumerState<LiveSessionPage> {
               },
             ),
           ],
+          if (status == 'MAKEUP_REQUIRED' && allowed.contains('PROPOSE_MAKEUP'))
+            SessionMakeupPanel(
+              key: ValueKey('makeup-${widget.id}'),
+              session: session,
+              onRefresh: _reload,
+              disabled: _busy != null || query.isLoading || query.hasError,
+            ),
+          SessionResolutionPanel(
+            key: ValueKey(widget.id),
+            session: session,
+            onRefresh: _reload,
+            disabled: _busy != null || query.isLoading || query.hasError,
+          ),
           AppButton(
             label: 'Lịch của lộ trình',
             variant: ButtonVariant.paper,
@@ -368,7 +384,7 @@ class _LiveSessionPageState extends ConsumerState<LiveSessionPage> {
               '/paths/${session['pathId']}/schedules',
             ),
           ),
-          if (status != 'CANCELLED') AppButton(label: 'Báo cáo vấn đề buổi học', variant: ButtonVariant.paper, onPressed: () => context.push(Uri(path: '/reports/new', queryParameters: {'sessionId': widget.id, 'pathId': session['pathId'].toString()}).toString())),
+          if (status != 'CANCELLED') AppButton(label: 'Báo sự cố kỹ thuật / vấn đề khác', variant: ButtonVariant.paper, onPressed: () => context.push(Uri(path: '/reports/new', queryParameters: {'sessionId': widget.id, 'pathId': session['pathId'].toString()}).toString())),
         ],
       ],
       ),

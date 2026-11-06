@@ -3,9 +3,14 @@ import 'package:dio/dio.dart';
 import '../../../core/http/http_client.dart';
 import '../../remote/remote_load.dart';
 import '../api/study_api.dart';
+import '../../sessions/api/session_resolution_api.dart';
 
 class StudyService {
-  StudyService(HttpClient client) : _api = StudyApi(client);
+  StudyService(HttpClient client)
+    : _api = StudyApi(client),
+      resolution = SessionResolutionApi(client);
+
+  final SessionResolutionApi resolution;
 
   final StudyApi _api;
 
@@ -80,8 +85,12 @@ class StudyService {
       _api.session(sessionId);
 
   Future<Map<String, dynamic>> settle(String pathId) => _api.settle(pathId);
-  Future<Map<String, dynamic>> settlementStatus(String pathId) => _api.settlementStatus(pathId);
-  Future<Map<String, dynamic>> settlementConsent(String pathId, int expectedVersion) => _api.settlementConsent(pathId, expectedVersion);
+  Future<Map<String, dynamic>> settlementStatus(String pathId) =>
+      _api.settlementStatus(pathId);
+  Future<Map<String, dynamic>> settlementConsent(
+    String pathId,
+    int expectedVersion,
+  ) => _api.settlementConsent(pathId, expectedVersion);
 
   Future<Map<String, dynamic>> confirmCompletion(
     String sessionId, {

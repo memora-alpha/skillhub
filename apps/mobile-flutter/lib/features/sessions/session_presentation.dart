@@ -31,7 +31,7 @@ SessionPresentation sessionPresentation(
     return const SessionPresentation(
       label: 'Có người vắng học',
       variant: SessionPresentationVariant.warning,
-      description: 'Xem kết quả điểm danh và thời hạn giải trình hoặc báo cáo.',
+      description: 'Xem kết quả điểm danh, giải trình vắng học và xử lý học bù.',
     );
   }
   if (status == 'MAKEUP_REQUIRED') {
