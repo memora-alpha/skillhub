@@ -12,6 +12,10 @@ import {
 } from "../components/common";
 import { UserApiError, userErrorText } from "../api/client";
 import {
+  settlementConsentMessage,
+  watchSettlement,
+} from "./settlement-presentation";
+import {
   readSettlementStatus,
   readConsentReceipt,
   settlementStatusLabels,
@@ -24,8 +28,7 @@ export function SettlementStatusPanel({
   const query = useUserResource<SettlementStatus>(
     "learning-paths/" + pathId + "/settlement-status",
     {
-      refetchInterval: (s) =>
-        s && ["RETRYING", "READY"].includes(s.status) ? 15000 : false,
+      refetchInterval: (s) => (s && watchSettlement(s.status) ? 15000 : false),
     },
   );
   const { request } = useUserSession();
@@ -73,12 +76,19 @@ export function SettlementStatusPanel({
     );
     if (result) {
       setReviewing(false);
-      setNotice("Đã ghi nhận đồng ý quyết toán sớm.");
+      setNotice(
+        "Đã ghi nhận đồng ý giải ngân. Máy chủ tự xử lý khi đủ ý kiến hai bên và đủ điều kiện.",
+      );
     }
     query.reload();
   }
   return (
-    <Panel title="Hoàn Credit & quyết toán">
+    <Panel title="Hoàn Credit & giải ngân">
+      <p>
+        Sau khi hoàn tất toàn bộ thỏa thuận, hai bên có thể đồng ý giải ngân
+        ngay. Hệ thống tự xử lý khi đủ ý kiến và không còn vấn đề cần giải
+        quyết. Xác nhận học xong một buổi là bước riêng.
+      </p>
       <Feedback
         loading={query.loading}
         error={query.error ?? contractError}
@@ -99,12 +109,9 @@ export function SettlementStatusPanel({
           {status.settledAt && (
             <p>Đã quyết toán lúc {formatTime(status.settledAt)}</p>
           )}
-          {status.immediateSettlement.ownApprovedAt && (
+          {settlementConsentMessage(status) && (
             <p>
-              Bạn đã đồng ý quyết toán sớm.{" "}
-              {status.immediateSettlement.partnerApprovedAt
-                ? "Đối tác cũng đã đồng ý."
-                : "Đang chờ ý kiến đối tác hoặc hết thời hạn."}
+              <output>{settlementConsentMessage(status)}</output>
             </p>
           )}
           {status.immediateSettlement.canApprove && !consent.uncertain && (
@@ -115,12 +122,12 @@ export function SettlementStatusPanel({
                   className="btn"
                   onClick={() => setReviewing(true)}
                 >
-                  Quyết toán sớm
+                  Đồng ý giải ngân
                 </button>
               ) : (
                 <div>
                   <p>
-                    Quyết toán ngay sẽ kết thúc thời gian chờ khiếu nại. Báo cáo
+                    Giải ngân ngay sẽ kết thúc thời gian chờ khiếu nại. Báo cáo
                     sau đó không tự hoàn Credit.
                   </p>
                   <div className="learner-actions">
@@ -132,7 +139,7 @@ export function SettlementStatusPanel({
                       }
                       onClick={() => void approve()}
                     >
-                      Tôi đồng ý quyết toán ngay
+                      Tôi đồng ý giải ngân ngay
                     </button>
                     <button
                       type="button"

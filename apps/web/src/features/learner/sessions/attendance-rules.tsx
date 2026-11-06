@@ -30,15 +30,15 @@ export function AttendanceRules() {
         ))}
       </dl>
       <p className="muted">
-        Mặc định cần tham gia ít nhất 80% thời lượng. Hạn giải trình/báo cáo là
+        Mặc định cần tham gia ít nhất 80% thời lượng. Hạn giải trình vắng học là
         48 giờ sau buổi học; hạn chốt lịch học bù là 7 ngày từ khi yêu cầu học
         bù. Thời hạn thực tế và thao tác được phép theo dữ liệu buổi học phía
         trên.
       </p>
       <p className="muted">
         Lý do được chấp nhận: học bù, không phạt uy tín. Thiếu dữ liệu đáng tin
-        cậy: chưa xác minh, không tự phạt vắng. Cả hai vắng có thể gửi báo cáo,
-        không áp dụng tự chấp nhận lý do giữa hai bên.
+        cậy: chưa xác minh, không tự phạt vắng. Vắng học không cần tạo báo cáo
+        sự cố. Cả hai vắng không áp dụng tự chấp nhận lý do giữa hai bên.
       </p>
       <p className="muted">
         Mỗi buổi học bù tối đa một lần. Mỗi người có hạn mức riêng: tối thiểu
@@ -48,8 +48,8 @@ export function AttendanceRules() {
       <p className="muted">
         Điểm uy tín khác Credit. Hoàn tất một buổi chưa quyết toán ngay; cần đủ
         điều kiện cả lộ trình và không có tranh chấp giữ quyết toán. Sau khi học
-        xong toàn bộ, hai bên có thể đồng ý quyết toán sớm bằng thao tác riêng;
-        nếu không, tiếp tục chờ hết hạn.
+        xong toàn bộ, hai bên đồng ý giải ngân bằng thao tác riêng thì hệ thống
+        tự xử lý; nếu không, tiếp tục chờ hết hạn.
       </p>
       <Link href="/terms#attendance">Đọc điều khoản về buổi học →</Link>
     </Panel>

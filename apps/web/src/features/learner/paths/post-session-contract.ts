@@ -54,7 +54,7 @@ export function readConsentReceipt(value: unknown, pathId: string) {
   return v;
 }
 export const settlementStatusLabels: Record<string, string> = {
-  SETTLED: "Đã quyết toán",
+  SETTLED: "Đã giải ngân",
   TERMINATED: "Thỏa thuận đã dừng",
   NOT_LOCKED: "Chưa chốt thỏa thuận",
   WAITING_SESSIONS: "Chờ hoàn thành các buổi học",
@@ -62,8 +62,8 @@ export const settlementStatusLabels: Record<string, string> = {
   WAITING_DISPUTE: "Chờ xử lý tranh chấp",
   WAITING_DISPUTE_WINDOW: "Đang trong thời hạn khiếu nại",
   NEEDS_REVIEW: "Cần nhân sự kiểm tra",
-  RETRYING: "Hệ thống đang thử quyết toán lại",
-  READY: "Đủ điều kiện kiểm tra quyết toán",
+  RETRYING: "Hệ thống đang thử giải ngân lại",
+  READY: "Hệ thống đang kiểm tra giải ngân",
 };
 export type LearningChange = {
   id: string;

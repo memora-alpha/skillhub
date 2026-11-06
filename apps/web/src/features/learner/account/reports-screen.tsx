@@ -21,18 +21,12 @@ import {
 import type { ReportCase, Material } from "./account-types";
 import type { LearningSession } from "../types";
 import { reportStatuses, reportStatusLabel } from "./report-status";
-export const reportReasons = [
-  ["NO_SHOW_LATE", "Vắng học / đến muộn"],
-  ["INAPPROPRIATE_BEHAVIOR", "Hành vi không phù hợp"],
-  ["HARASSMENT", "Quấy rối"],
-  ["SKILL_MISMATCH", "Kỹ năng không phù hợp"],
-  ["FALSE_INFORMATION", "Thông tin sai lệch"],
-  ["TECHNICAL_ISSUE", "Sự cố kỹ thuật"],
-  ["CREDIT_ISSUE", "Vấn đề Credit"],
-  ["INAPPROPRIATE_CONTENT", "Nội dung không phù hợp"],
-  ["SPAM_SCAM", "Spam / lừa đảo"],
-  ["OTHER", "Khác"],
-] as const;
+import {
+  canSubmitReportReason,
+  reportReasonLabel,
+  reportReasons,
+} from "./report-reasons";
+export { reportReasons } from "./report-reasons";
 export function ReportsScreen() {
   const query = useUserResource<ReportCase[]>("reports/mine");
   const [filter, setFilter] = useState("ALL");
@@ -67,11 +61,7 @@ export function ReportsScreen() {
         {items?.map((item) => (
           <Panel key={item.id}>
             <div className="learner-card-top">
-              <h2>
-                {reportReasons.find(
-                  ([code]) => code === item.reasonCode,
-                )?.[1] ?? item.reasonCode}
-              </h2>
+              <h2>{reportReasonLabel(item.reasonCode)}</h2>
               <Status
                 value={item.status}
                 label={reportStatusLabel(item.status)}
@@ -170,6 +160,8 @@ function ReportSubmission({
         const result = await command.run(
           JSON.stringify({ path, body }),
           async () => {
+            if (!canSubmitReportReason(body.reasonCode))
+              throw new UserApiError(400, "REPORT_REASON_INVALID");
             if (sessionId) {
               const fresh = (
                 await request<LearningSession>("sessions/" + sessionId)
@@ -208,10 +200,14 @@ function ReportSubmission({
       {sessionId && (
         <>
           <p>
-            Bạn có thể báo cáo khi có vấn đề trong buổi học hoặc sau buổi học,
-            kể cả khi một bên vắng. Máy chủ kiểm tra thời hạn; báo cáo sau quyết
-            toán không tự đảo giao dịch Credit.
+            Báo cáo dành cho sự cố kỹ thuật hoặc vấn đề khác cần hỗ trợ. Vắng
+            học, hủy buổi và học bù được xử lý trong chi tiết buổi học, không
+            cần tạo báo cáo vắng học. Báo cáo sau giải ngân không tự đảo giao
+            dịch Credit.
           </p>
+          <Link href={"/learn/sessions/" + sessionId}>
+            Xử lý vắng học / hủy buổi / học bù
+          </Link>
           <UploadControl
             endpoint="reports/evidence-files"
             label="Tệp bằng chứng"

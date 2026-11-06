@@ -11,7 +11,7 @@ import {
 } from "../components/common";
 import { useUserResource } from "../hooks/use-user-resource";
 import type { ReportCase } from "./account-types";
-import { reportReasons } from "./reports-screen";
+import { reportReasonLabel } from "./report-reasons";
 import { reportStatusLabel } from "./report-status";
 
 export function ReportDetail({ id }: Readonly<{ id: string }>) {
@@ -28,12 +28,7 @@ export function ReportDetail({ id }: Readonly<{ id: string }>) {
       />
       {report && (
         <div className="learner-two-columns">
-          <Panel
-            title={
-              reportReasons.find(([code]) => code === report.reasonCode)?.[1] ??
-              report.reasonCode
-            }
-          >
+          <Panel title={reportReasonLabel(report.reasonCode)}>
             <Status
               value={report.status}
               label={reportStatusLabel(report.status)}
@@ -52,12 +47,6 @@ export function ReportDetail({ id }: Readonly<{ id: string }>) {
             </p>
             {report.resolvedAt && (
               <p>Thời điểm xử lý: {formatTime(report.resolvedAt)}</p>
-            )}
-            {report.status === "NEED_MORE_INFO" && (
-              <p className="learner-notice">
-                Nhân sự yêu cầu bổ sung thông tin. Chức năng gửi bổ sung trực
-                tiếp hiện chưa khả dụng.
-              </p>
             )}
           </Panel>
           <div className="learner-stack">

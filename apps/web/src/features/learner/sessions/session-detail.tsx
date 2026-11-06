@@ -111,7 +111,7 @@ export function SessionDetail({ id }: Readonly<{ id: string }>) {
                           {
                             {
                               confirmBy: "Hạn xác nhận",
-                              excuseOrReportBy: "Hạn giải trình/báo cáo",
+                              excuseOrReportBy: "Hạn giải trình vắng học",
                               makeupBy: "Hạn học bù",
                             }[key]
                           }
@@ -242,14 +242,16 @@ export function SessionDetail({ id }: Readonly<{ id: string }>) {
             </div>
             <div className="learner-stack">
               <Panel title="Phòng học trực tuyến">
-                <p>
-                  <Link
-                    className="learner-card-link"
-                    href={"/learn/reports/new?sessionId=" + id}
-                  >
-                    Báo cáo vấn đề buổi học
-                  </Link>
-                </p>
+                {session.status !== "CANCELLED" && (
+                  <p>
+                    <Link
+                      className="learner-card-link"
+                      href={"/learn/reports/new?sessionId=" + id}
+                    >
+                      Báo sự cố kỹ thuật / vấn đề khác
+                    </Link>
+                  </p>
+                )}
                 {canEnterSession(session, now) ? (
                   <Link
                     className="btn btn-primary"
