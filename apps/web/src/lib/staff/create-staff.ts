@@ -8,6 +8,15 @@ export type StaffAccountDraft = {
   confirmPassword: string;
 };
 
+function validStaffEmail(email: string) {
+  if (email.length < 5 || email.length > 254 || /\s/u.test(email)) return false;
+  const at = email.indexOf("@");
+  if (at <= 0 || email.indexOf("@", at + 1) !== -1) return false;
+  const domain = email.slice(at + 1);
+  const dot = domain.indexOf(".", 1);
+  return dot > 0 && dot < domain.length - 1;
+}
+
 export function staffAccountError(
   draft: StaffAccountDraft,
 ): string | undefined {
@@ -20,12 +29,7 @@ export function staffAccountError(
   )
     return "Họ tên cần 2–100 ký tự, gồm chữ, khoảng trắng, dấu nháy hoặc gạch nối.";
   const email = draft.email.trim();
-  if (
-    email.length < 5 ||
-    email.length > 254 ||
-    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
-  )
-    return "Nhập địa chỉ email hợp lệ.";
+  if (!validStaffEmail(email)) return "Nhập địa chỉ email hợp lệ.";
   if (!strongPassword(draft.password))
     return "Mật khẩu Staff cần 8–64 ký tự, có chữ hoa, chữ thường, số và ký tự đặc biệt.";
   if (draft.password !== draft.confirmPassword)

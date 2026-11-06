@@ -194,8 +194,15 @@ export function PostDetailContent({
                     <div key={weekday} className={styles.scheduleRow}>
                       <strong>{label}</strong>
                       <div className={styles.tags}>
-                        {slots.map((slot, index) => (
-                          <span className={styles.tag} key={index}>
+                        {slots.map((slot) => (
+                          <span
+                            className={styles.tag}
+                            key={JSON.stringify([
+                              slot.weekday,
+                              slot.startTime,
+                              slot.endTime,
+                            ])}
+                          >
                             {slot.startTime} – {slot.endTime}
                           </span>
                         ))}
@@ -208,8 +215,11 @@ export function PostDetailContent({
             {!!post.preferredSlots?.length && (
               <>
                 <p className={styles.caption}>Ngày cụ thể · Giờ Việt Nam</p>
-                {post.preferredSlots.map((slot, index) => (
-                  <div className={styles.tag} key={index}>
+                {post.preferredSlots.map((slot) => (
+                  <div
+                    className={styles.tag}
+                    key={JSON.stringify([slot.startAt, slot.endAt])}
+                  >
                     {formatTime(slot.startAt)} – {formatTime(slot.endAt)}
                   </div>
                 ))}

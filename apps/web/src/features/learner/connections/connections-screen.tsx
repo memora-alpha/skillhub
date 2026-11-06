@@ -80,7 +80,6 @@ export function ConnectionsScreen({
           <label className={styles.search}>
             <ProductIcon name="search" size={18} />
             <input
-              autoFocus
               aria-label="Tìm trong các đề nghị đã tải"
               placeholder="Tìm nội dung đề nghị…"
               maxLength={100}
@@ -91,7 +90,8 @@ export function ConnectionsScreen({
         )}
         <p>Đề nghị của bạn</p>
         <div className={styles.filterRow}>
-          <div className={styles.tabs} role="group" aria-label="Chiều đề nghị">
+          <fieldset className={styles.tabs}>
+            <legend className="sr-only">Chiều đề nghị</legend>
             {directions.map((item) => (
               <button
                 type="button"
@@ -105,7 +105,7 @@ export function ConnectionsScreen({
                 {item.label}
               </button>
             ))}
-          </div>
+          </fieldset>
           <button
             type="button"
             className={styles.filterButton}
@@ -118,11 +118,8 @@ export function ConnectionsScreen({
           </button>
         </div>
         {filterOpen && (
-          <div
-            className={styles.options}
-            role="group"
-            aria-label="Trạng thái đề nghị"
-          >
+          <fieldset className={styles.options}>
+            <legend className="sr-only">Trạng thái đề nghị</legend>
             {statuses.map((value) => (
               <button
                 type="button"
@@ -136,7 +133,7 @@ export function ConnectionsScreen({
                 {value === "all" ? "Tất cả trạng thái" : statusText(value)}
               </button>
             ))}
-          </div>
+          </fieldset>
         )}
         {status !== "all" && <p>Trạng thái: {statusText(status)}</p>}
       </div>

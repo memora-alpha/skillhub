@@ -215,6 +215,9 @@
   white-space: nowrap;
 }
 .tabs {
+  margin: 0;
+  min-width: 0;
+  border: 0;
   display: flex;
   gap: 6px;
   padding: 16px;

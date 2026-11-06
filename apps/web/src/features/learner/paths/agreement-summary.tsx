@@ -19,6 +19,10 @@ export function AgreementSummary({
   counterpartId?: string;
 }>) {
   const { actor } = useUserSession();
+  let roleLabel = "Học một chiều";
+  if (learnerId === actor.userId) roleLabel = "Bạn học";
+  if (teacherId === actor.userId) roleLabel = "Bạn hướng dẫn";
+  if (exchangeType === "TWO_WAY") roleLabel = "Trao đổi hai chiều";
   const who = (id?: string | null) => {
     if (id === actor.userId) return "Bạn";
     if (id) return <ProfileName id={id} />;
@@ -28,13 +32,7 @@ export function AgreementSummary({
     <section className={styles.summary} aria-label="Thỏa thuận">
       <div className={styles.line}>
         <strong>
-          {exchangeType === "TWO_WAY"
-            ? "Trao đổi hai chiều"
-            : teacherId === actor.userId
-              ? "Bạn hướng dẫn"
-              : learnerId === actor.userId
-                ? "Bạn học"
-                : "Học một chiều"}
+          {roleLabel}
           {" · "}
           {amount
             ? new Intl.NumberFormat("vi-VN", {

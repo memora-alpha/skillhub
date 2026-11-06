@@ -70,19 +70,22 @@ export function PostPublicActions({ post }: Readonly<{ post: Post }>) {
         </>
       ) : (
         !existing.isPending &&
-        !existing.error &&
-        (postActions(post).propose ? (
-          <details className={styles.proposal}>
-            <summary>
-              <ProductIcon name="send" size={17} />
-              Gửi đề xuất
-            </summary>
-            <PostProposalForm post={post} />
-          </details>
-        ) : (
-          <p className={styles.caption}>Bài không còn nhận đề xuất.</p>
-        ))
+        !existing.error && <NewProposalAction post={post} />
       )}
     </section>
+  );
+}
+
+function NewProposalAction({ post }: Readonly<{ post: Post }>) {
+  if (!postActions(post).propose)
+    return <p className={styles.caption}>Bài không còn nhận đề xuất.</p>;
+  return (
+    <details className={styles.proposal}>
+      <summary>
+        <ProductIcon name="send" size={17} />
+        Gửi đề xuất
+      </summary>
+      <PostProposalForm post={post} />
+    </details>
   );
 }

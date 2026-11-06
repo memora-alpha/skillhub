@@ -49,7 +49,10 @@ export function CreateStaffDialog({
           if (flight.current || uncertain) return;
           const form = event.currentTarget;
           const data = new FormData(form);
-          const value = (key: string) => String(data.get(key) ?? "");
+          const value = (key: string) => {
+            const field = data.get(key);
+            return typeof field === "string" ? field : "";
+          };
           flight.current = true;
           setBusy(true);
           setError("");
@@ -118,7 +121,7 @@ export function CreateStaffDialog({
             className="user-action-fields staff-create-fields"
           >
             <label className="field">
-              Họ và tên
+              <span>Họ và tên</span>
               <input
                 className="input"
                 name="fullName"
@@ -129,7 +132,7 @@ export function CreateStaffDialog({
               />
             </label>
             <label className="field">
-              Email nhân viên
+              <span>Email nhân viên</span>
               <input
                 className="input"
                 name="email"
@@ -140,7 +143,7 @@ export function CreateStaffDialog({
               />
             </label>
             <label className="field">
-              Mật khẩu Staff
+              <span>Mật khẩu Staff</span>
               <PasswordInput
                 className="input"
                 name="password"
@@ -155,7 +158,7 @@ export function CreateStaffDialog({
               8–64 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt.
             </p>
             <label className="field">
-              Nhập lại mật khẩu Staff
+              <span>Nhập lại mật khẩu Staff</span>
               <PasswordInput
                 className="input"
                 name="confirmPassword"
@@ -167,7 +170,7 @@ export function CreateStaffDialog({
               />
             </label>
             <label className="field">
-              Mật khẩu Admin của bạn
+              <span>Mật khẩu Admin của bạn</span>
               <PasswordInput
                 className="input"
                 name="adminPassword"

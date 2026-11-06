@@ -68,29 +68,7 @@ export function ProposalCard({
       className={styles.card + (!detail && sent ? " " + styles.compact : "")}
     >
       {(detail || !sent) && (
-        <>
-          <div className={styles.source}>
-            <span>
-              {proposal.sourceType === "DIRECT_SEARCH"
-                ? "Lời mời trực tiếp"
-                : "Phản hồi yêu cầu học"}
-            </span>
-            {proposal.exchangeTypeHint && (
-              <span>
-                {proposal.exchangeTypeHint === "TWO_WAY"
-                  ? "Gợi ý hai chiều"
-                  : "Gợi ý một chiều"}
-              </span>
-            )}
-          </div>
-          <h2>
-            <Link href={"/learn/connections/" + proposal.id}>
-              {proposal.learningRequestTitle?.trim() ||
-                skill.data?.name ||
-                "Đề nghị học tập"}
-            </Link>
-          </h2>
-        </>
+        <ProposalHeading proposal={proposal} skillName={skill.data?.name} />
       )}
       <div className={styles.personRow}>
         <Link href={"/learn/people/" + other}>
@@ -115,37 +93,7 @@ export function ProposalCard({
           Credit gợi ý: <strong>{proposal.proposedCredit} CR</strong>
         </p>
       )}
-      {!detail && (
-        <div className={styles.actions}>
-          <Link
-            className={
-              styles.action +
-              (proposal.status === "PENDING" && !sent
-                ? " " + styles.primary
-                : "")
-            }
-            href={"/learn/connections/" + proposal.id}
-          >
-            {proposal.status === "PENDING" && !sent
-              ? "Xem và phản hồi"
-              : "Chi tiết"}
-            <ProductIcon name="arrow" size={16} />
-          </Link>
-          {proposal.status === "ACCEPTED" && (
-            <Link
-              className={styles.action + " " + styles.primary}
-              href={
-                proposal.conversationId
-                  ? "/learn/messages/" + proposal.conversationId
-                  : "/learn/messages"
-              }
-            >
-              <ProductIcon name="chat" size={16} />
-              Nhắn tin
-            </Link>
-          )}
-        </div>
-      )}
+      {!detail && <ProposalListActions proposal={proposal} sent={sent} />}
       {detail && (
         <>
           <div className={styles.details}>
@@ -179,6 +127,7 @@ export function ProposalCard({
               (proposal.recipientId === actor.userId ? (
                 <>
                   <button
+                    type="button"
                     className="btn btn-primary"
                     disabled={
                       command.pending ||
@@ -191,6 +140,7 @@ export function ProposalCard({
                     Chấp nhận và trao đổi
                   </button>
                   <button
+                    type="button"
                     className="btn"
                     disabled={command.pending || command.uncertain}
                     onClick={() => {
@@ -202,6 +152,7 @@ export function ProposalCard({
                 </>
               ) : (
                 <button
+                  type="button"
                   className="btn"
                   disabled={command.pending || command.uncertain}
                   onClick={() => {
@@ -213,6 +164,7 @@ export function ProposalCard({
               ))}
             {proposal.status === "ACCEPTED" && (
               <button
+                type="button"
                 className="btn btn-primary"
                 disabled={opening}
                 onClick={() => {
@@ -301,5 +253,71 @@ export function ProposalCard({
         </>
       )}
     </article>
+  );
+}
+
+function ProposalHeading({
+  proposal,
+  skillName,
+}: Readonly<{ proposal: Proposal; skillName?: string }>) {
+  return (
+    <>
+      <div className={styles.source}>
+        <span>
+          {proposal.sourceType === "DIRECT_SEARCH"
+            ? "Lời mời trực tiếp"
+            : "Phản hồi yêu cầu học"}
+        </span>
+        {proposal.exchangeTypeHint && (
+          <span>
+            {proposal.exchangeTypeHint === "TWO_WAY"
+              ? "Gợi ý hai chiều"
+              : "Gợi ý một chiều"}
+          </span>
+        )}
+      </div>
+      <h2>
+        <Link href={"/learn/connections/" + proposal.id}>
+          {proposal.learningRequestTitle?.trim() ||
+            skillName ||
+            "Đề nghị học tập"}
+        </Link>
+      </h2>
+    </>
+  );
+}
+
+function ProposalListActions({
+  proposal,
+  sent,
+}: Readonly<{ proposal: Proposal; sent: boolean }>) {
+  return (
+    <div className={styles.actions}>
+      <Link
+        className={
+          styles.action +
+          (proposal.status === "PENDING" && !sent ? " " + styles.primary : "")
+        }
+        href={"/learn/connections/" + proposal.id}
+      >
+        {proposal.status === "PENDING" && !sent
+          ? "Xem và phản hồi"
+          : "Chi tiết"}
+        <ProductIcon name="arrow" size={16} />
+      </Link>
+      {proposal.status === "ACCEPTED" && (
+        <Link
+          className={styles.action + " " + styles.primary}
+          href={
+            proposal.conversationId
+              ? "/learn/messages/" + proposal.conversationId
+              : "/learn/messages"
+          }
+        >
+          <ProductIcon name="chat" size={16} />
+          Nhắn tin
+        </Link>
+      )}
+    </div>
   );
 }

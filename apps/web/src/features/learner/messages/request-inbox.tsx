@@ -19,6 +19,14 @@ export function RequestInbox({
     group.conversationCount ? "chats" : "proposals",
   );
   const direction = group.viewerRole === "OWNER" ? "received" : "sent";
+  const proposalContent =
+    group.viewerRole === "PARTICIPANT" ? (
+      <p className={styles.empty}>
+        Bạn có thể xem các cuộc trò chuyện của mình trong mục Đoạn chat.
+      </p>
+    ) : (
+      <RequestProposals id={group.learningRequestId!} direction={direction} />
+    );
   return (
     <section className={styles.request}>
       <header className={styles.requestHeader}>
@@ -43,11 +51,8 @@ export function RequestInbox({
           Xem bài
         </Link>
       </header>
-      <div
-        className={styles.tabs}
-        role="group"
-        aria-label="Nội dung yêu cầu học"
-      >
+      <fieldset className={styles.tabs}>
+        <legend className="sr-only">Nội dung yêu cầu học</legend>
         <button
           type="button"
           aria-pressed={view === "proposals"}
@@ -64,15 +69,11 @@ export function RequestInbox({
         >
           Đoạn chat
         </button>
-      </div>
+      </fieldset>
       {view === "chats" ? (
         <RequestChats id={group.learningRequestId!} />
-      ) : group.viewerRole === "PARTICIPANT" ? (
-        <p className={styles.empty}>
-          Bạn có thể xem các cuộc trò chuyện của mình trong mục Đoạn chat.
-        </p>
       ) : (
-        <RequestProposals id={group.learningRequestId!} direction={direction} />
+        proposalContent
       )}
     </section>
   );
@@ -139,7 +140,7 @@ function RequestProposals({
   return (
     <div className={styles.requestBody}>
       <label className={styles.statusFilter}>
-        Trạng thái
+        <span>Trạng thái</span>
         <select
           value={status}
           onChange={(event) => setStatus(event.target.value)}

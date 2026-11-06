@@ -59,6 +59,10 @@
   align-items: center;
 }
 .tabs {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
   display: flex;
   flex: 1;
   gap: 7px;
@@ -96,6 +100,8 @@
   border-radius: 50%;
 }
 .options {
+  min-width: 0;
+  margin: 0;
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
@@ -274,6 +280,7 @@
   .headerActions > a {
     min-width: 44px;
     padding: 10px;
+    font-size: 12px;
   }
   .headerActions > a > span {
     display: none;
@@ -283,9 +290,6 @@
   }
   .header h1 {
     font-size: 25px;
-  }
-  .headerActions > a {
-    font-size: 12px;
   }
   .tabs button {
     padding-inline: 8px;

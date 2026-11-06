@@ -45,48 +45,54 @@ export function InboxLayout({ children }: Readonly<{ children: ReactNode }>) {
             reload={groups.reload}
           />
           <div className={styles.groupList}>
-            {groups.items.map((group) =>
-              group.groupType === "LEARNING_REQUEST" &&
-              group.learningRequestId ? (
-                <button
-                  key={group.id}
-                  type="button"
-                  className={styles.groupCard}
-                  data-unread={group.hasUnread}
-                  aria-pressed={selectedId === group.id && !active}
-                  onClick={() => {
-                    setSelectedId(group.id);
-                    if (active) router.push("/learn/messages");
-                  }}
-                >
-                  <span className={styles.groupIcon}>
-                    <ProductIcon name="book" size={21} />
-                  </span>
-                  <span className={styles.groupText}>
-                    <strong>{group.title?.trim() || "Yêu cầu học"}</strong>
-                    <small>{inboxGroupSummary(group)}</small>
-                  </span>
-                  {group.hasUnread && (
-                    <span
-                      className={styles.dot}
-                      aria-label="Có tin nhắn chưa đọc"
-                    />
-                  )}
-                  <ProductIcon name="chevron" size={15} />
-                </button>
-              ) : group.conversationId ? (
-                <DirectConversation
-                  key={group.id}
-                  group={group}
-                  conversation={conversations.items.find(
-                    (item) => item.id === group.conversationId,
-                  )}
-                  loading={conversations.loading}
-                  active={pathname.endsWith("/" + group.conversationId)}
-                  onOpen={() => setSelectedId(undefined)}
-                />
-              ) : null,
-            )}
+            {groups.items.map((group) => {
+              if (
+                group.groupType === "LEARNING_REQUEST" &&
+                group.learningRequestId
+              )
+                return (
+                  <button
+                    key={group.id}
+                    type="button"
+                    className={styles.groupCard}
+                    data-unread={group.hasUnread}
+                    aria-pressed={selectedId === group.id && !active}
+                    onClick={() => {
+                      setSelectedId(group.id);
+                      if (active) router.push("/learn/messages");
+                    }}
+                  >
+                    <span className={styles.groupIcon}>
+                      <ProductIcon name="book" size={21} />
+                    </span>
+                    <span className={styles.groupText}>
+                      <strong>{group.title?.trim() || "Yêu cầu học"}</strong>
+                      <small>{inboxGroupSummary(group)}</small>
+                    </span>
+                    {group.hasUnread && (
+                      <span
+                        className={styles.dot}
+                        aria-label="Có tin nhắn chưa đọc"
+                      />
+                    )}
+                    <ProductIcon name="chevron" size={15} />
+                  </button>
+                );
+              if (group.conversationId)
+                return (
+                  <DirectConversation
+                    key={group.id}
+                    group={group}
+                    conversation={conversations.items.find(
+                      (item) => item.id === group.conversationId,
+                    )}
+                    loading={conversations.loading}
+                    active={pathname.endsWith("/" + group.conversationId)}
+                    onOpen={() => setSelectedId(undefined)}
+                  />
+                );
+              return null;
+            })}
           </div>
           {!groups.loading && !groups.error && !groups.items.length && (
             <div className={styles.empty}>
@@ -140,11 +146,12 @@ function DirectConversation({
     !conversation && !loading ? "conversations/" + group.conversationId : null,
   );
   const row = conversation ?? detail.data;
-  const partnerId = row
-    ? row.participantAId === actor.userId
-      ? row.participantBId
-      : row.participantAId
-    : null;
+  let partnerId: string | null = null;
+  if (row)
+    partnerId =
+      row.participantAId === actor.userId
+        ? row.participantBId
+        : row.participantAId;
   const last = group.latestMessage;
   return (
     <Link

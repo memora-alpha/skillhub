@@ -23,7 +23,9 @@ const dateFormat = new Intl.DateTimeFormat("vi-VN", {
 function compareMessages(left: Message, right: Message) {
   const a = BigInt(left.sequence),
     b = BigInt(right.sequence);
-  return a < b ? -1 : a > b ? 1 : 0;
+  if (a < b) return -1;
+  if (a > b) return 1;
+  return 0;
 }
 export function ChatScreen({ id }: Readonly<{ id: string }>) {
   const cache = useQueryClient();
@@ -71,11 +73,12 @@ export function ChatScreen({ id }: Readonly<{ id: string }>) {
     return () => document.removeEventListener("visibilitychange", markRead);
   }, [id, latest, request, cache, actor.userId]);
 
-  const partnerId = conversation.data
-    ? conversation.data.participantAId === actor.userId
-      ? conversation.data.participantBId
-      : conversation.data.participantAId
-    : null;
+  let partnerId: string | null = null;
+  if (conversation.data)
+    partnerId =
+      conversation.data.participantAId === actor.userId
+        ? conversation.data.participantBId
+        : conversation.data.participantAId;
   const profile = useUserResource<{
     fullName: string;
     avatarUrl: string | null;
@@ -189,7 +192,7 @@ export function ChatScreen({ id }: Readonly<{ id: string }>) {
             ref={timeline}
             className={styles.timeline}
             aria-label="Nội dung tin nhắn"
-            tabIndex={0}
+            role="log"
             onScroll={(event) => {
               const element = event.currentTarget;
               const bottom =

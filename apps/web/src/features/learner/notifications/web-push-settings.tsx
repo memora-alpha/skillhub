@@ -20,6 +20,7 @@ export function WebPushSettings() {
   const [busy, setBusy] = useState(false),
     [error, setError] = useState<string>();
   if (!pushConfigured && !enabled) return null;
+  const actionLabel = enabled ? "Tắt" : "Bật";
   return (
     <div className="learner-actions">
       <span>Thông báo trình duyệt</span>
@@ -55,7 +56,7 @@ export function WebPushSettings() {
           }
         }}
       >
-        {busy ? "Đang cập nhật…" : enabled ? "Tắt" : "Bật"}
+        {busy ? "Đang cập nhật…" : actionLabel}
       </button>
     </div>
   );

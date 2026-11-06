@@ -33,6 +33,6 @@ export function partitionSessionsByDate<T extends { startAt: string }>(
     Date.parse(left.startAt) - Date.parse(right.startAt);
   groups.today.sort(byStart);
   groups.upcoming.sort(byStart);
-  groups.past.sort((left, right) => byStart(right, left));
+  groups.past.sort((left, right) => -byStart(left, right));
   return groups;
 }
