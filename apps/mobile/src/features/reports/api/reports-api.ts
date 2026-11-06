@@ -5,12 +5,11 @@ import { uploadedFileSchema } from "@/lib/http/file-upload";
 import { AppError } from "@/lib/http/errors";
 
 export const reportReasons = [
-  "NO_SHOW_LATE",
+  "TECHNICAL_ISSUE",
   "INAPPROPRIATE_BEHAVIOR",
   "HARASSMENT",
   "SKILL_MISMATCH",
   "FALSE_INFORMATION",
-  "TECHNICAL_ISSUE",
   "CREDIT_ISSUE",
   "INAPPROPRIATE_CONTENT",
   "SPAM_SCAM",

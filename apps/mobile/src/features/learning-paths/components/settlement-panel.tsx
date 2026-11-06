@@ -9,8 +9,13 @@ import {
 } from "@/features/connections";
 import { AppError } from "@/lib/http/errors";
 import { createPostLearningApi } from "../api/post-learning-api";
+import { useAgreementRefresh } from "../hooks/use-agreement-refresh";
+import {
+  settlementConsentMessage,
+  watchSettlement,
+} from "../utils/settlement-presentation";
 const labels: Record<string, string> = {
-  SETTLED: "Đã quyết toán",
+  SETTLED: "Đã giải ngân",
   TERMINATED: "Lộ trình đã dừng",
   NOT_LOCKED: "Chưa chốt lộ trình",
   WAITING_SESSIONS: "Chờ hoàn thành các buổi",
@@ -18,8 +23,8 @@ const labels: Record<string, string> = {
   WAITING_DISPUTE: "Chờ xử lý tranh chấp",
   WAITING_DISPUTE_WINDOW: "Đang trong hạn khiếu nại",
   NEEDS_REVIEW: "Cần nhân sự đối soát",
-  RETRYING: "Hệ thống đang thử quyết toán lại",
-  READY: "Đủ điều kiện kiểm tra quyết toán",
+  RETRYING: "Hệ thống đang thử giải ngân lại",
+  READY: "Hệ thống đang kiểm tra giải ngân",
 };
 export function PathSettlementPanel({
   pathId,
@@ -35,6 +40,16 @@ export function PathSettlementPanel({
     retry = useConnectionCommand([["learning-paths"], ["wallet"]]);
   const [reviewing, setReviewing] = useState(false);
   const status = query.data;
+  useAgreementRefresh(
+    query.refetch,
+    !!status &&
+      watchSettlement(status.status) &&
+      !query.error &&
+      !blocked &&
+      !consent.pending &&
+      !retry.pending,
+    runtime.isCurrent,
+  );
   const disabled =
     blocked ||
     query.isFetching ||
@@ -44,10 +59,15 @@ export function PathSettlementPanel({
     retry.pending ||
     retry.uncertain;
   return (
-    <Panel title="Credit & quyết toán">
+    <Panel title="Credit & giải ngân">
       <Copy>
         Hai chiều: mỗi người nhận lại 96% Credit đã giữ của mình. Một chiều:
         người dạy nhận 96% Credit thỏa thuận. Phần còn lại là phí nền tảng.
+      </Copy>
+      <Copy>
+        Sau khi hoàn tất toàn bộ thỏa thuận, hai bên có thể đồng ý giải ngân
+        ngay. Hệ thống tự xử lý khi đủ ý kiến và không còn vấn đề cần giải
+        quyết.
       </Copy>
       <ConnectionFeedback loading={query.isLoading} error={query.error} />
       {status && (
@@ -72,13 +92,8 @@ export function PathSettlementPanel({
               {status.attemptCount} lần
             </Copy>
           )}
-          {status.immediateSettlement.ownApprovedAt && (
-            <Copy>
-              Bạn đã đồng ý quyết toán sớm.{" "}
-              {status.immediateSettlement.partnerApprovedAt
-                ? "Đối tác cũng đã đồng ý."
-                : "Đang chờ đối tác hoặc hết thời hạn."}
-            </Copy>
+          {settlementConsentMessage(status) && (
+            <Copy>{settlementConsentMessage(status)}</Copy>
           )}
           {status.immediateSettlement.canApprove && !consent.uncertain && (
             <>
@@ -89,7 +104,7 @@ export function PathSettlementPanel({
               </Copy>
               {!reviewing ? (
                 <Button disabled={disabled} onPress={() => setReviewing(true)}>
-                  Xem và đồng ý quyết toán sớm
+                  Đồng ý giải ngân
                 </Button>
               ) : (
                 <>
@@ -120,7 +135,7 @@ export function PathSettlementPanel({
                         })
                     }
                   >
-                    Tôi đồng ý quyết toán ngay
+                    Tôi đồng ý giải ngân ngay
                   </Button>
                   <Button
                     variant="paper"

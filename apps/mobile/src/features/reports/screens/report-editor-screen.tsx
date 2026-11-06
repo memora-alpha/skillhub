@@ -67,10 +67,21 @@ function ReportEditor({
           <Copy>Đối tượng: {id}</Copy>
           {target === "SESSION" && (
             <Copy>
-              Báo cáo được gửi khi có vấn đề trong hoặc sau buổi học, kể cả một
-              bên vắng. Máy chủ kiểm tra thời hạn và quyền gửi; báo cáo sau
-              quyết toán không tự đảo giao dịch Credit.
+              Báo cáo dành cho sự cố kỹ thuật hoặc vấn đề khác cần hỗ trợ. Vắng
+              học, hủy buổi và học bù được xử lý trong chi tiết buổi học, không
+              cần tạo báo cáo vắng học. Báo cáo sau giải ngân không tự đảo giao
+              dịch Credit.
             </Copy>
+          )}
+          {sessionId && (
+            <RouteButton
+              href={{
+                pathname: "/learning-sessions/[id]",
+                params: { id: sessionId },
+              }}
+            >
+              Xử lý vắng học / hủy buổi / học bù
+            </RouteButton>
           )}
           {target === "SESSION" && (
             <ServerFilePicker
@@ -97,6 +108,7 @@ function ReportEditor({
             </>
           )}
           <DataForm
+            defaults={{ reason: "TECHNICAL_ISSUE" }}
             fields={[
               {
                 name: "reason",
