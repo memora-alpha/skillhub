@@ -1,3 +1,4 @@
+import '../auth/widgets/legal_policy.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -507,43 +508,16 @@ class PoliciesScreen extends StatelessWidget {
   const PoliciesScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return const FeaturePage(
-      title: 'Quyền riêng tư & sử dụng',
-      back: '/help',
-      demo: false,
-      children: [
-        Panel(
-          title: 'Thông tin công khai',
-          children: [
-            Copy(
-              'Tên hiển thị, avatar, bio, uy tín, danh hiệu đã chọn và kỹ năng chia sẻ có thể xuất hiện trên hồ sơ. Email, thông tin thanh toán và bằng chứng riêng tư không công khai.',
-            ),
-          ],
-        ),
-        Panel(
-          title: 'Trao đổi có trách nhiệm',
-          children: [
-            Copy(
-              'Thống nhất nội dung và lịch bằng các nút xác nhận đúng phiên bản. Tôn trọng đối tác, quyền phân phối tài liệu và báo cáo vấn đề có căn cứ.',
-            ),
-          ],
-        ),
-        Panel(
-          title: 'Credit',
-          children: [
-            Copy(
-              '1.000 VND = 1 Credit. Không hỗ trợ rút tiền. Quyết toán cuối lộ trình theo hình thức học; tranh chấp có thể giữ việc quyết toán.',
-            ),
-          ],
-        ),
-        Copy(
-          'Nội dung này tóm tắt nguyên tắc sản phẩm trong SRS 1.6. Điều khoản pháp lý và chính sách lưu giữ dữ liệu chính thức cần được cung cấp trước khi phát hành.',
-          muted: true,
-        ),
-      ],
-    );
-  }
+  Widget build(BuildContext context) => FeaturePage(
+    title: 'Quyền riêng tư & sử dụng',
+    back: '/help',
+    demo: false,
+    children: [
+      const Copy('Nội dung dùng chung với web và ứng dụng Expo. Đây vẫn là bản dự thảo của nhóm SkillHub; thông tin vận hành và lưu giữ dữ liệu chưa chốt đầy đủ.'),
+      AppButton(label: 'Điều khoản sử dụng', onPressed: () => showLegalPolicy(context, 'terms')),
+      AppButton(label: 'Chính sách bảo mật', variant: ButtonVariant.secondary, onPressed: () => showLegalPolicy(context, 'privacy')),
+    ],
+  );
 }
 
 class _PublicPage extends StatelessWidget {

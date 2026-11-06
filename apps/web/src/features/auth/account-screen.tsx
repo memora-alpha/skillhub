@@ -1,8 +1,10 @@
 "use client";
 import { formText } from "../learner/components/form-data";
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { accountRequest } from "./account-client";
+import { PasswordFields } from "./password-fields";
+import { strongPassword } from "./password-policy";
 export function AccountScreen({
   mode,
 }: Readonly<{ mode: "register" | "forgot" }>) {
@@ -13,6 +15,14 @@ export function AccountScreen({
     [error, setError] = useState<string>(),
     [notice, setNotice] = useState<string>();
   const busy = useRef(false);
+  const [resendAt, setResendAt] = useState(0);
+  const [clock, setClock] = useState(Date.now);
+  useEffect(() => {
+    if (step !== "otp") return;
+    const timer = setInterval(() => setClock(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [step]);
+  const resendSeconds = Math.max(0, Math.ceil((resendAt - clock) / 1000));
   const registering = mode === "register";
   const titles = {
     start: registering ? "Bắt đầu hành trình mới" : "Quên mật khẩu?",
@@ -40,6 +50,8 @@ export function AccountScreen({
     const address = formText(fields, "email").trim();
     if (registering && fields.get("password") !== fields.get("confirmPassword"))
       throw new Error("Hai mật khẩu chưa trùng khớp.");
+    if (registering && !strongPassword(formText(fields, "password")))
+      throw new Error("Mật khẩu chưa đáp ứng đủ các yêu cầu bên dưới.");
     await accountRequest(
       registering ? "register" : "password/forgot",
       registering
@@ -55,8 +67,12 @@ export function AccountScreen({
         : { email: address },
     );
     setEmail(address);
+    setClock(Date.now());
+    setResendAt(Date.now() + 60000);
     setStep("otp");
-    setNotice("Nếu yêu cầu hợp lệ, email hướng dẫn sẽ được gửi đến bạn.");
+    setNotice(
+      "Nếu yêu cầu hợp lệ, email hướng dẫn sẽ được gửi đến bạn. Nếu email đã có tài khoản, hãy đăng nhập hoặc khôi phục mật khẩu.",
+    );
   }
   async function submitOtp(fields: FormData) {
     const body = { email, otpCode: formText(fields, "otpCode") };
@@ -84,6 +100,8 @@ export function AccountScreen({
       throw new Error("Phiên đặt lại đã hết hạn. Hãy bắt đầu lại.");
     if (fields.get("newPassword") !== fields.get("confirmNewPassword"))
       throw new Error("Hai mật khẩu chưa trùng khớp.");
+    if (!strongPassword(formText(fields, "newPassword")))
+      throw new Error("Mật khẩu mới chưa đáp ứng đủ các yêu cầu.");
     await accountRequest("password/reset", {
       email,
       resetToken: proof.resetToken,
@@ -179,20 +197,25 @@ export function AccountScreen({
                 <button
                   type="button"
                   className="auth-reset"
-                  disabled={pending}
+                  disabled={pending || resendSeconds > 0}
                   onClick={() => {
+                    if (Date.now() < resendAt) return;
                     void run(async () => {
                       await accountRequest(
                         registering ? "verification/resend" : "password/forgot",
                         { email },
                       );
+                      setClock(Date.now());
+                      setResendAt(Date.now() + 60000);
                       setNotice(
                         "Đã gửi yêu cầu cấp mã mới. Vui lòng kiểm tra email.",
                       );
                     });
                   }}
                 >
-                  Gửi lại mã xác nhận
+                  {resendSeconds > 0
+                    ? `Gửi lại mã sau ${resendSeconds}s`
+                    : "Gửi lại mã xác nhận"}
                 </button>
               )}
               {step !== "start" && (
@@ -214,6 +237,9 @@ export function AccountScreen({
           )}
           <p className="auth-account-links">
             <Link href="/login">← Đăng nhập</Link>
+            {registering && (
+              <Link href="/forgot-password">Khôi phục mật khẩu</Link>
+            )}
             {!registering && <Link href="/register">Tạo tài khoản</Link>}
           </p>
         </section>
@@ -256,31 +282,7 @@ function AccountFields({
         />
         {registering && (
           <>
-            <label htmlFor="account-password">Mật khẩu</label>
-            <input
-              id="account-password"
-              name="password"
-              type="password"
-              autoComplete="new-password"
-              minLength={8}
-              maxLength={64}
-              required
-              disabled={pending}
-            />
-            <small>
-              8–64 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt.
-            </small>
-            <label htmlFor="account-confirm">Nhập lại mật khẩu</label>
-            <input
-              id="account-confirm"
-              name="confirmPassword"
-              type="password"
-              autoComplete="new-password"
-              minLength={8}
-              maxLength={64}
-              required
-              disabled={pending}
-            />
+            <PasswordFields registering pending={pending} />
             <label className="auth-consent">
               <input
                 type="checkbox"
@@ -320,33 +322,15 @@ function AccountFields({
           disabled={pending}
           placeholder="000000"
         />
+        <small>
+          {registering
+            ? "Mã đăng ký gồm 6 chữ số, có hiệu lực 5 phút. "
+            : "Nhập mã 6 chữ số từ email khôi phục. "}
+          Chỉ mã mới nhất còn hiệu lực. Gửi lại mã hoặc bắt đầu lại không gỡ
+          giới hạn theo email. Đồng hồ gửi lại chỉ là hướng dẫn trên thiết bị
+          này.
+        </small>
       </>
     );
-  return (
-    <>
-      <label htmlFor="new-password">Mật khẩu mới</label>
-      <input
-        id="new-password"
-        name="newPassword"
-        type="password"
-        autoComplete="new-password"
-        minLength={8}
-        maxLength={64}
-        required
-        disabled={pending}
-      />
-      <small>Gồm chữ hoa, chữ thường, số và ký tự đặc biệt.</small>
-      <label htmlFor="new-password-confirm">Nhập lại mật khẩu mới</label>
-      <input
-        id="new-password-confirm"
-        name="confirmNewPassword"
-        type="password"
-        autoComplete="new-password"
-        minLength={8}
-        maxLength={64}
-        required
-        disabled={pending}
-      />
-    </>
-  );
+  return <PasswordFields registering={false} pending={pending} />;
 }

@@ -1,5 +1,22 @@
 const uuid = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 const routes: [string, RegExp, (path: string) => string][] = [
+  ["GET", /^learning-changes\/review-queue$/, (p) => p],
+  [
+    "GET",
+    new RegExp(
+      `^learning-paths/${uuid}/termination-requests/${uuid}/review$`,
+      "i",
+    ),
+    (p) => p,
+  ],
+  [
+    "POST",
+    new RegExp(
+      `^learning-paths/${uuid}/termination-requests/${uuid}/reject$`,
+      "i",
+    ),
+    (p) => p,
+  ],
   ["GET", /^materials$/, () => "staff/materials"],
   ["GET", new RegExp(`^materials/${uuid}/download$`, "i"), (p) => p],
   [
@@ -70,6 +87,14 @@ const routes: [string, RegExp, (path: string) => string][] = [
   ["PATCH", new RegExp(`^notifications/${uuid}/read$`, "i"), (p) => p],
 ];
 const adminRoutes: [string, RegExp, (path: string) => string][] = [
+  [
+    "POST",
+    new RegExp(
+      `^learning-paths/${uuid}/termination-requests/${uuid}/execute$`,
+      "i",
+    ),
+    (p) => p,
+  ],
   ["GET", /^achievements$/, () => "me/achievements"],
   [
     "PATCH",
@@ -94,6 +119,7 @@ const adminRoutes: [string, RegExp, (path: string) => string][] = [
     (p) => `admin/${p}`,
   ],
   ["GET", /^users$/, (p) => `admin/${p}`],
+  ["POST", /^users\/staff$/, (p) => `admin/${p}`],
   [
     "POST",
     new RegExp(`^users/${uuid}/(lock|unlock)$`, "i"),

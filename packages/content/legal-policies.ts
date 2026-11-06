@@ -1,6 +1,6 @@
 export const legalPolicies = {
-  version: "2026-11-04-draft-3",
-  updatedAt: "04/11/2026",
+  version: "2026-11-05-draft-4",
+  updatedAt: "05/11/2026",
   notice:
     "Bản dự thảo do nhóm phát triển SkillHub chuẩn bị. Thông tin liên hệ, thời hạn lưu giữ dữ liệu và một số quy tắc Credit cần được hoàn thiện trước khi phát hành chính thức.",
   terms: {
@@ -31,6 +31,7 @@ export const legalPolicies = {
           "Chấp nhận đề xuất chỉ mở trao đổi, chưa chốt buổi học. Học một chiều có một kế hoạch từ người dạy tới người học; trao đổi hai chiều có hai kế hoạch đối ứng, mỗi người tự tạo kế hoạch cho phần mình dạy.",
           "Người học xác nhận phiên bản kế hoạch hiện tại; cả hai cùng xác nhận điều khoản và lịch tương ứng. Tin nhắn không thay thế thao tác xác nhận. Buổi học kéo dài từ 60 đến 180 phút.",
           "Đổi lịch thông thường cần cả hai xác nhận cùng phiên bản ít nhất 60 phút trước giờ bắt đầu lịch cũ. Khi chưa đủ xác nhận hoặc máy chủ chưa áp dụng lịch mới, lịch cũ vẫn có hiệu lực. Lịch học bù áp dụng theo thời hạn học bù được hiển thị.",
+          "Mỗi buổi được đổi lịch thông thường tối đa 3 lần áp dụng thành công, phải giữ thứ tự trong kế hoạch; buổi cuối dời tối đa 48 giờ từ lịch gốc. Hai bên có thể đồng ý hủy một buổi chưa bắt đầu để học bù, giữ nguyên số buổi cam kết và Credit; việc hủy không tự tạo phạt Credit hay uy tín. Yêu cầu dừng cả lộ trình được xử lý riêng theo chính sách phân bổ Credit đã duyệt; gửi yêu cầu chưa làm lịch cũ mất hiệu lực.",
         ],
       },
       {
@@ -41,6 +42,7 @@ export const legalPolicies = {
           "Nếu chỉ người dạy có mặt và người học bị xác định vắng, sau thời hạn khiếu nại mà không có tranh chấp giữ kết quả, buổi được tính đã sử dụng và người học bị trừ 8 điểm uy tín. Nếu người dạy vắng hoặc cả hai vắng, buổi cần học bù và mỗi người bị xác định vắng bị trừ 8 điểm uy tín khi kết luận được chốt.",
           "Trong thời hạn mặc định 48 giờ sau khi buổi kết thúc, bên vắng có thể gửi lý do để bên còn lại xem xét. Lý do được chấp nhận dẫn tới học bù và không áp dụng phạt uy tín cho lần vắng đó. Cơ chế chấp nhận lý do giữa hai bên không áp dụng khi cả hai cùng vắng; khiếu nại được gửi qua báo cáo buổi học.",
           "Hạn mặc định để hai bên chốt lịch học bù là 7 ngày kể từ khi chuyển sang cần học bù. Quá hạn mà chưa chốt được lịch, hệ thống chuyển vụ việc cho nhân sự xử lý và giữ quyết toán. Khi có khiếu nại đang xử lý, kết quả vắng chưa tự chốt.",
+          "Mỗi buổi gốc chỉ có một cơ hội học bù. Mỗi người có hạn mức riêng bằng số nguyên làm tròn xuống của tổng số buổi mình tham gia trong thỏa thuận chia 5, tối thiểu một lượt; dùng chung cả chiều dạy và học. Hủy tính lượt cho người yêu cầu, vắng tính cho người được xác định vắng; cả hai vắng tính một lượt mỗi người. Người chỉ chấp nhận yêu cầu của đối tác không bị tính lượt. Hết hạn mức hoặc chưa xác minh được lịch sử sử dụng lượt sẽ chuyển nhân sự xem xét, không tự cấp thêm học bù.",
           "Dữ liệu kết nối không đủ tin cậy được ghi là chưa xác minh được; trạng thái này không tự tạo phạt vắng. Tùy bằng chứng và xác nhận của hai bên, buổi có thể được hoàn tất theo thời hạn hoặc chuyển nhân sự xem xét. Bạn có thể báo cáo sự cố kỹ thuật trong chi tiết buổi học.",
         ],
       },
@@ -57,7 +59,7 @@ export const legalPolicies = {
         title: "Credit, thanh toán và quyết toán",
         paragraphs: [
           "Tỷ lệ quy đổi hiện tại là 1.000 VND = 1 Credit. Credit dùng cho hoạt động học tập và tài liệu trên SkillHub; ứng dụng chưa hỗ trợ rút Credit thành tiền. Chỉ coi nạp tiền thành công khi máy chủ xác nhận và lịch sử ví ghi nhận giao dịch.",
-          "Credit được giữ theo thỏa thuận. Chỉ quyết toán khi toàn bộ buổi đủ điều kiện hoàn tất, đã hết thời hạn khiếu nại áp dụng và không còn tranh chấp giữ quyết toán: trao đổi hai chiều hoàn 96% Credit đã giữ cho từng người, nền tảng giữ 4%; học một chiều trả 96% Credit thỏa thuận cho người dạy, nền tảng giữ 4%. Buổi tự hoàn tất sau thời hạn xác nhận không làm mất thời gian khiếu nại còn lại.",
+          "Credit được giữ theo thỏa thuận. Chỉ quyết toán khi toàn bộ buổi đủ điều kiện hoàn tất và không có tranh chấp hoặc yêu cầu dừng đang giữ quyết toán: trao đổi hai chiều hoàn 96% Credit đã giữ cho từng người, nền tảng giữ 4%; học một chiều trả 96% Credit thỏa thuận cho người dạy, nền tảng giữ 4%. Mặc định chờ hết thời hạn khiếu nại. Hai bên có thể đồng ý quyết toán ngay bằng thao tác riêng sau khi hoàn thành toàn bộ; xác nhận học xong không thay cho đồng ý xử lý Credit. Đồng ý sớm chỉ bỏ qua thời gian chờ, không bỏ qua tranh chấp hay kiểm tra tài chính. Báo cáo giữ quyết toán mới sẽ xóa các đồng ý sớm trước đó. Báo cáo sau quyết toán không tự đảo giao dịch.",
           "Phí quyết toán 4% không phải tiền phạt vắng học. Tỷ lệ phạt, hoàn Credit riêng cho hủy muộn/vắng học và cách phân bổ theo buổi chưa được nhóm chốt đầy đủ; không có cam kết hoàn tự động theo một tỷ lệ cố định. Vụ việc cần điều chỉnh tài chính phải được xử lý theo quyền và có lịch sử giao dịch.",
         ],
       },

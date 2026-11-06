@@ -156,6 +156,12 @@ function harness(detail: boolean) {
       ConfirmedFormFeedback: "FormFeedback",
     },
     "../components/PathReadFeedback": { PathReadFeedback: "ReadFeedback" },
+    "../components/settlement-panel": {
+      PathSettlementPanel: "SettlementPanel",
+    },
+    "../components/learning-change-panel": {
+      LearningChangePanel: "LearningChangePanel",
+    },
     "../components/agreement-progress": {
       AgreementChatLink: "ChatLink",
       AgreementProgressPanel: "Progress",

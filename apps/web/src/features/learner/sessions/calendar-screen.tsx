@@ -1,23 +1,14 @@
 "use client";
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import {
-  formatVietnamDayMonth,
-  formatVietnamTime,
-  vietnamDateKey,
-} from "@/lib/vietnam-time";
-import { groupSessionsByDay } from "./calendar-data";
+import { formatVietnamTime, vietnamDateKey } from "@/lib/vietnam-time";
+import { groupSessionsByDay, partitionSessionsByDate } from "./calendar-data";
+import { CalendarAgenda } from "./calendar-agenda";
+import styles from "./calendar-agenda.module.css";
 import { useClock } from "../hooks/use-clock";
 import type { LearningSession } from "../types";
 import { useUserResource } from "../hooks/use-user-resource";
-import {
-  Empty,
-  Feedback,
-  PageHeading,
-  Panel,
-  Status,
-  formatTime,
-} from "../components/common";
+import { Empty, Feedback, PageHeading, formatTime } from "../components/common";
 export function CalendarScreen() {
   const [month, setMonth] = useState(() =>
     vietnamDateKey(Date.now()).slice(0, 7),
@@ -37,23 +28,37 @@ export function CalendarScreen() {
     () => groupSessionsByDay(query.data ?? []),
     [query.data],
   );
+  const agenda = useMemo(
+    () => partitionSessionsByDate(query.data ?? [], today),
+    [query.data, today],
+  );
   return (
     <>
       <PageHeading
-        eyebrow="THỜI GIAN DÀNH CHO BẠN"
         title="Lịch học của tôi"
-        description="Lịch hiển thị theo giờ Việt Nam. Chọn một buổi để xem chi tiết hoặc vào phòng."
+        description="Lịch học theo ngày · Giờ Việt Nam (UTC+7)"
         action={
-          <input
-            className="learner-month"
-            aria-label="Tháng học"
-            type="month"
-            value={month}
-            onChange={(event) => {
-              if (/^\d{4}-\d{2}$/.test(event.target.value))
-                setMonth(event.target.value);
-            }}
-          />
+          <div className={styles.monthActions}>
+            {month !== today.slice(0, 7) && (
+              <button
+                type="button"
+                className="btn"
+                onClick={() => setMonth(today.slice(0, 7))}
+              >
+                Về tháng hiện tại
+              </button>
+            )}
+            <input
+              className="learner-month"
+              aria-label="Tháng học"
+              type="month"
+              value={month}
+              onChange={(event) => {
+                if (/^\d{4}-\d{2}$/.test(event.target.value))
+                  setMonth(event.target.value);
+              }}
+            />
+          </div>
         }
       />
       <Feedback
@@ -61,7 +66,10 @@ export function CalendarScreen() {
         error={query.error}
         reload={query.reload}
       />
-      <div className="product-calendar-layout">
+      <section className={styles.month} aria-labelledby="calendar-month-title">
+        <h2 id="calendar-month-title" className={styles.monthTitle}>
+          Tháng {String(selectedMonth).padStart(2, "0")}/{year}
+        </h2>
         <section aria-label="Lịch tháng" className="product-calendar">
           {["T2", "T3", "T4", "T5", "T6", "T7", "CN"].map((day) => (
             <div className="weekday" key={day}>
@@ -90,46 +98,8 @@ export function CalendarScreen() {
             );
           })}
         </section>
-        <section
-          className="learner-stack"
-          aria-labelledby="calendar-sessions-title"
-        >
-          <h2
-            id="calendar-sessions-title"
-            className="product-calendar-list-title"
-          >
-            Các buổi học trong tháng
-          </h2>
-          {query.data?.map((session) => (
-            <Panel key={session.id}>
-              <div className="learner-session-row">
-                <div className="learner-date-box">
-                  {formatVietnamDayMonth(session.startAt)}
-                </div>
-                <div>
-                  <Status value={session.status} />
-                  <h2>
-                    Buổi học ·{" "}
-                    {session.role === "TEACHER"
-                      ? "Bạn hướng dẫn"
-                      : "Bạn là người học"}
-                  </h2>
-                  <p>
-                    {formatTime(session.startAt)} –{" "}
-                    {formatVietnamTime(session.endAt)}
-                  </p>
-                </div>
-                <Link
-                  className="btn btn-primary"
-                  href={"/learn/sessions/" + session.id}
-                >
-                  Chi tiết / vào học
-                </Link>
-              </div>
-            </Panel>
-          ))}
-        </section>
-      </div>
+      </section>
+      {query.data && <CalendarAgenda groups={agenda} />}
       {!query.loading && !query.error && !query.data?.length && (
         <Empty>
           Tháng này chưa có buổi học. Lịch sẽ xuất hiện sau khi cả hai xác nhận

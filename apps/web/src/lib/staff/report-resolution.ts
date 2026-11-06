@@ -14,11 +14,54 @@ export type ParticipantOutcome = {
 };
 export type ResolutionDraft = {
   noShowRuling?: "" | "UPHOLD" | "EXCUSE" | "COMPLETE";
+  cancellationMakeupRuling?: "" | "EXTEND" | "COMPLETE";
+  makeupUserId?: string;
   participants: ParticipantOutcome[];
   restrictedUserId: string;
   days: string;
   reversals: string;
 };
+type ViolationOutcome = {
+  userId: string;
+  reasonCode: ViolationCode | "";
+  delta?: number;
+};
+
+function sessionRulingBody(
+  draft: ResolutionDraft,
+  violations: ViolationOutcome[],
+): Record<string, unknown> {
+  const body: Record<string, unknown> = {};
+  if (draft.cancellationMakeupRuling) {
+    if (
+      draft.noShowRuling ||
+      !["EXTEND", "COMPLETE"].includes(draft.cancellationMakeupRuling)
+    )
+      throw new Error("Chỉ chọn một loại phán quyết buổi học.");
+    body.cancellationMakeupRuling = draft.cancellationMakeupRuling;
+  }
+  if (draft.makeupUserId) {
+    if (
+      draft.noShowRuling !== "EXCUSE" ||
+      !draft.participants.some((p) => p.userId === draft.makeupUserId)
+    )
+      throw new Error(
+        "Chọn người tham gia yêu cầu học bù khi xử lý điểm danh chưa xác minh.",
+      );
+    body.makeupUserId = draft.makeupUserId;
+  }
+  if (draft.noShowRuling) {
+    if (!["UPHOLD", "EXCUSE", "COMPLETE"].includes(draft.noShowRuling))
+      throw new Error("Chọn phán quyết điểm danh hợp lệ.");
+    if (violations.some((v) => v.reasonCode === "NO_SHOW"))
+      throw new Error(
+        "Dùng phán quyết điểm danh để xử lý vắng học; không ghi thêm vi phạm NO_SHOW.",
+      );
+    body.noShowRuling = draft.noShowRuling;
+  }
+  return body;
+}
+
 export function reportResolutionBody(
   draft: ResolutionDraft,
   admin: boolean,
@@ -41,16 +84,7 @@ export function reportResolutionBody(
       }
       return { userId: p.userId, reasonCode: p.violation };
     });
-  const body: Record<string, unknown> = {};
-  if (draft.noShowRuling) {
-    if (!["UPHOLD", "EXCUSE", "COMPLETE"].includes(draft.noShowRuling))
-      throw new Error("Chọn phán quyết điểm danh hợp lệ.");
-    if (violations.some((v) => v.reasonCode === "NO_SHOW"))
-      throw new Error(
-        "Dùng phán quyết điểm danh để xử lý vắng học; không ghi thêm vi phạm NO_SHOW.",
-      );
-    body.noShowRuling = draft.noShowRuling;
-  }
+  const body = sessionRulingBody(draft, violations);
   if (violations.length) body.violations = violations;
   if (!admin) return body;
   const adjustments = draft.participants

@@ -10,7 +10,8 @@ import '../../core/http/app_error.dart';
 import '../auth/session/auth_session.dart';
 import '../remote/refresh_signal.dart';
 import '../materials/materials_feature.dart';
-import '../sessions/sessions_data.dart';
+import '../sessions/live_sessions.dart';
+import 'report_policy.dart';
 
 class PreviewReport {
   const PreviewReport({
@@ -65,12 +66,13 @@ class ReportsNotifier extends Notifier<List<PreviewReport>> {
         for (final row in rows)
           PreviewReport(
             id: row['id']?.toString() ?? '',
-            target: 'SESSION',
-            targetId: row['sessionId']?.toString() ?? '',
-            pathId: row['pathId']?.toString(),
+            target: row['targetType']?.toString() ?? 'SESSION',
+            targetId: row['targetId']?.toString() ?? '',
+            pathId: row['relatedPathId']?.toString(),
             description: row['description']?.toString() ?? '',
-            reason: row['reason']?.toString() ?? row['category']?.toString() ?? '',
-            files: const [],
+            reason: row['reasonCode']?.toString() ?? '',
+            note: row['resolutionNote']?.toString(),
+            files: [for (final file in row['reportEvidenceCaseIdRecords'] is List ? row['reportEvidenceCaseIdRecords'] as List : const []) if (file is Map) '${file['mimeType']} · ${file['fileSizeBytes']} byte'],
             status: row['status']?.toString() ?? '',
           ),
       ];
@@ -90,19 +92,6 @@ class ReportsNotifier extends Notifier<List<PreviewReport>> {
 
 final reportsProvider =
     NotifierProvider<ReportsNotifier, List<PreviewReport>>(ReportsNotifier.new);
-
-const _reasons = [
-  'NO_SHOW_LATE',
-  'INAPPROPRIATE_BEHAVIOR',
-  'HARASSMENT',
-  'SKILL_MISMATCH',
-  'FALSE_INFORMATION',
-  'TECHNICAL_ISSUE',
-  'CREDIT_ISSUE',
-  'INAPPROPRIATE_CONTENT',
-  'SPAM_SCAM',
-  'OTHER',
-];
 
 class ReportsScreen extends ConsumerStatefulWidget {
   const ReportsScreen({super.key});
@@ -138,6 +127,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           options: const [
             'Tất cả',
             'OPEN',
+            'UNDER_REVIEW',
             'NEED_MORE_INFO',
             'RESOLVED',
             'REJECTED',
@@ -196,7 +186,9 @@ class _ReportEditorScreenState extends ConsumerState<ReportEditorScreen> {
   @override
   Widget build(BuildContext context) {
     final ReportEditorScreen(:pathId, :sessionId, :materialId) = widget;
-    final sessions = ref.watch(sessionsProvider);
+    final detail = sessionId == null ? null : ref.watch(liveSessionProvider(sessionId));
+    final session = detail?.value;
+    final userId = ref.watch(accountProvider).value?.userId;
     final materials = ref.watch(materialsProvider).materials;
     final valid =
         (materialId != null &&
@@ -208,9 +200,12 @@ class _ReportEditorScreenState extends ConsumerState<ReportEditorScreen> {
             )) ||
         (sessionId != null &&
             pathId != null &&
-            sessions.any((s) => s.id == sessionId && s.pathId == pathId));
+            detail != null && !detail.isLoading && !detail.hasError &&
+            session?['id'] == sessionId && session?['pathId'] == pathId &&
+            session?['status'] != 'CANCELLED' && userId != null &&
+            [session?['teacherId'], session?['learnerId']].contains(userId));
     return FeaturePage(
-      onRefresh: () => pullRefresh(ref, const {RefreshScope.reports}),
+      onRefresh: () => pullRefresh(ref, const {RefreshScope.reports, RefreshScope.study}),
       title: materialId != null ? 'Báo cáo tài liệu' : 'Báo cáo buổi học',
       back: materialId != null
           ? '/materials/$materialId'
@@ -218,7 +213,9 @@ class _ReportEditorScreenState extends ConsumerState<ReportEditorScreen> {
           ? '/learning-sessions/$sessionId'
           : '/reports',
       children: [
-        if (!valid)
+        if (detail?.isLoading == true) const Center(child: CircularProgressIndicator())
+        else if (detail?.hasError == true) FormNotice(tone: NoticeTone.error, message: errorMessage(detail?.error))
+        else if (!valid)
           const EmptyState(
             title: 'Chưa chọn đối tượng hợp lệ',
             description: 'Mở báo cáo từ buổi học hoặc tài liệu liên quan.',
@@ -230,18 +227,23 @@ class _ReportEditorScreenState extends ConsumerState<ReportEditorScreen> {
               Copy(
                 'Đối tượng: ${materialId ?? sessionId}${pathId != null ? ' · lộ trình $pathId' : ''}',
               ),
+              if (sessionId != null) ...[
+                const Copy('Báo cáo dành cho sự cố kỹ thuật hoặc vấn đề khác. Vắng học, hủy buổi và học bù có luồng xử lý riêng, không cần tạo báo cáo.'),
+                RouteButton(href: '/learning-sessions/$sessionId', label: 'Xử lý vắng học / hủy buổi', secondary: true),
+              ],
               SampleFiles(
                 value: _files,
                 onChange: (files) => setState(() => _files = files),
               ),
               DataForm(
+                defaults: const {'reason': 'TECHNICAL_ISSUE'},
                 fields: [
                   DataField(
                     name: 'reason',
                     label: 'Loại vấn đề',
                     rule: (v) =>
-                        _reasons.contains(v) ? null : 'Chọn loại vấn đề.',
-                    choices: _reasons,
+                        reportReasons.contains(v) ? null : 'Chọn loại vấn đề.',
+                    choices: reportReasons,
                   ),
                   DataField(
                     name: 'description',
@@ -291,6 +293,9 @@ class _ReportEditorScreenState extends ConsumerState<ReportEditorScreen> {
                         fileIds.add(fileId);
                       }
                     }
+                    final fresh = await study.session(sessionId);
+                    if (!context.mounted) return null;
+                    if (fresh['id'] != sessionId || fresh['pathId'] != pathId || fresh['status'] == 'CANCELLED') throw const AppError.protocol();
                     final created = await study.reportSession(sessionId, {
                       'reasonCode': v['reason'],
                       'description': v['description'],
@@ -326,7 +331,6 @@ class ReportDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
-  List<String> _files = const [];
 
   @override
   Widget build(BuildContext context) {
@@ -345,7 +349,7 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
           ? const [
               EmptyState(
                 title: 'Không tìm thấy báo cáo',
-                description: 'Báo cáo không có trong dữ liệu mẫu.',
+                description: 'Chưa tải được báo cáo hoặc bạn không có quyền xem. Kéo xuống để thử lại.',
               ),
             ]
           : [
@@ -353,52 +357,18 @@ class _ReportDetailScreenState extends ConsumerState<ReportDetailScreen> {
                 title: 'Báo cáo ${r.id}',
                 children: [
                   StatusBadge(r.status),
-                  Copy('${r.reason} · ${r.targetId}'),
+                  Copy('${reportReasonLabel(r.reason)} · ${r.targetId}'),
                   Copy(r.description),
                   for (final f in r.files) Copy('Bằng chứng riêng tư: $f'),
-                  if (r.note != null) Copy('Phản hồi mẫu: ${r.note}'),
+                  if (r.note != null) Copy('Phản hồi xử lý: ${r.note}'),
                   if (r.additional != null) Copy('Bổ sung: ${r.additional}'),
                 ],
               ),
               if (r.status == 'NEED_MORE_INFO')
-                Panel(
+                const Panel(
                   title: 'Bổ sung thông tin',
                   children: [
-                    SampleFiles(
-                      value: _files,
-                      onChange: (files) => setState(() => _files = files),
-                    ),
-                    DataForm(
-                      fields: [
-                        DataField(
-                          name: 'description',
-                          label: 'Thông tin bổ sung',
-                          rule: textRule(20, 2000),
-                          multiline: true,
-                        ),
-                      ],
-                      submitLabel: 'Gửi bổ sung mẫu',
-                      onSubmit: (v) {
-                        if (r.files.length + _files.length > 5) {
-                          return 'Mỗi báo cáo có tối đa 5 tệp. Hãy bỏ bớt tệp bổ sung.';
-                        }
-                        notifier.save(
-                          PreviewReport(
-                            id: r.id,
-                            target: r.target,
-                            targetId: r.targetId,
-                            pathId: r.pathId,
-                            description: r.description,
-                            reason: r.reason,
-                            note: r.note,
-                            additional: v['description'],
-                            files: [...r.files, ..._files],
-                            status: 'UNDER_REVIEW',
-                          ),
-                        );
-                        return null;
-                      },
-                    ),
+                    Copy('Nhân sự yêu cầu bổ sung. API gửi bổ sung trực tiếp vào vụ việc hiện chưa có; nội dung chưa được gửi không thể chuyển trạng thái xử lý trên máy chủ.'),
                   ],
                 ),
               if (r.pathId != null)

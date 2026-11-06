@@ -182,10 +182,7 @@ export function useLearningRoom(
           close();
         }
       });
-      const end = Math.min(
-        Date.parse(fresh.endAt),
-        Date.parse(credentials.joinClosesAt),
-      );
+      const end = Date.parse(credentials.joinClosesAt);
       timer.current = setTimeout(
         () => {
           if (active()) {

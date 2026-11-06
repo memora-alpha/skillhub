@@ -1020,6 +1020,15 @@ class _ChatConversationState extends ConsumerState<_ChatConversation> {
     final olderCursor = ref.watch(
       messagesProvider.select((s) => s.olderCursors[_id]),
     );
+    if (messages.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted &&
+            ModalRoute.of(context)?.isCurrent == true &&
+            WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) {
+          ref.read(messagesProvider.notifier).markRead(_id);
+        }
+      });
+    }
     return Scaffold(
       backgroundColor: MessageColors.surface,
       body: SafeArea(

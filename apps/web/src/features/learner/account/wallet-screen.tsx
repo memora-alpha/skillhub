@@ -33,9 +33,7 @@ export function WalletScreen() {
   return (
     <>
       <PageHeading
-        eyebrow="CREDIT CỦA BẠN"
         title="Ví Credit"
-        description="Theo dõi số dư và lịch sử Credit trong hành trình học tập."
         action={
           <Link className="btn btn-primary" href="/learn/wallet/topup">
             + Nạp Credit

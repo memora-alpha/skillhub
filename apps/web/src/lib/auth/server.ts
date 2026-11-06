@@ -3,6 +3,7 @@ import { userBackend, userJson, UserGatewayError } from "../user/backend";
 import { userIdentity } from "../user/policy";
 import { staffIdentity } from "../staff/policy";
 import { sameOriginMutation } from "./origin";
+import { tokenReply, rotationMayHaveConsumedToken } from "./token-reply";
 import {
   clearSessionCookies,
   sessionCookies,
@@ -16,11 +17,42 @@ const headers = {
 const reply = (data: unknown, status = 200) =>
   NextResponse.json(data, { status, headers });
 
+export async function logoutAllGateway(request: NextRequest) {
+  try {
+    if (request.method !== "POST")
+      throw new UserGatewayError(405, "METHOD_NOT_ALLOWED");
+    if (!sameOriginMutation(request))
+      throw new UserGatewayError(403, "ORIGIN_NOT_ALLOWED");
+    const token = request.cookies.get(sessionCookies.access)?.value;
+    if (!token) throw new UserGatewayError(401, "SESSION_EXPIRED");
+    const body = await userJson(request);
+    if (Object.keys(body).length)
+      throw new UserGatewayError(400, "EMPTY_BODY_REQUIRED");
+    const result = await userBackend("auth/logout-all", token, "POST", {});
+    if (result.status !== 204) {
+      if (result.status >= 400) return reply(result.value, result.status);
+      throw new UserGatewayError(502, "API_RESPONSE_INVALID");
+    }
+    return clearSessionCookies(
+      reply({ success: true, data: null, meta: { serverRevoked: true } }),
+    );
+  } catch (cause) {
+    const error =
+      cause instanceof UserGatewayError
+        ? cause
+        : new UserGatewayError(500, "REQUEST_FAILED");
+    return reply(
+      { success: false, message: error.message, statusCode: error.status },
+      error.status,
+    );
+  }
+}
+
 async function identity(token: string) {
   const result = await userBackend("me", token);
   if (result.status !== 200 || !result.value?.success)
     throw new UserGatewayError(
-      result.status === 200 ? 502 : result.status,
+      result.status < 400 ? 502 : result.status,
       "SESSION_EXPIRED",
     );
   const destination = sessionDestination(result.value.data);
@@ -85,9 +117,11 @@ async function establish(value: unknown) {
 
 async function rotateSession(refreshToken: string | undefined) {
   if (!refreshToken) throw new UserGatewayError(401, "SESSION_EXPIRED");
-  const result = await userBackend("auth/refresh", undefined, "POST", {
-    refreshToken,
-  });
+  const result = tokenReply(
+    await userBackend("auth/refresh", undefined, "POST", {
+      refreshToken,
+    }),
+  );
   if (result.status === 200 && result.value?.success)
     return establish(result.value.data);
   const response = reply(result.value, result.status);
@@ -152,11 +186,13 @@ async function login(request: NextRequest, refreshToken: string | undefined) {
     body.password.length > 1024
   )
     throw new UserGatewayError(400, "INVALID_LOGIN_INPUT");
-  const result = await userBackend("auth/login", undefined, "POST", {
-    email: body.email.trim(),
-    password: body.password,
-    rememberMe: false,
-  });
+  const result = tokenReply(
+    await userBackend("auth/login", undefined, "POST", {
+      email: body.email.trim(),
+      password: body.password,
+      rememberMe: false,
+    }),
+  );
   return result.status === 200 && result.value?.success
     ? establish(result.value.data)
     : reply(result.value, result.status);
@@ -189,7 +225,7 @@ export async function authGateway(request: NextRequest, refresh = false) {
     );
     // A refresh may have rotated upstream before its response was lost. Never
     // keep replaying that credential or leave it blocking a fresh sign-in.
-    return rotationStarted && error.status !== 429
+    return rotationStarted && rotationMayHaveConsumedToken(error)
       ? clearSessionCookies(response)
       : response;
   }

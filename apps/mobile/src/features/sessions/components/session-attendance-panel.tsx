@@ -109,7 +109,7 @@ export function SessionAttendancePanel({
                 {
                   {
                     confirmBy: "Hạn xác nhận",
-                    excuseOrReportBy: "Hạn giải trình/báo cáo",
+                    excuseOrReportBy: "Hạn giải trình vắng học",
                     makeupBy: "Hạn chốt học bù",
                   }[key]
                 }
@@ -171,8 +171,7 @@ export function SessionAttendancePanel({
           </SessionButton>
         </>
       )}
-      {(actions.includes("REPORT_NO_SHOW") ||
-        session.status !== "CANCELLED") && (
+      {session.status !== "CANCELLED" && (
         <SessionButton
           variant="paper"
           disabled={disabled || pending}
@@ -183,7 +182,7 @@ export function SessionAttendancePanel({
             })
           }
         >
-          Báo cáo vấn đề buổi học
+          Báo sự cố kỹ thuật / vấn đề khác
         </SessionButton>
       )}
       {session.status === "MAKEUP_REQUIRED" &&

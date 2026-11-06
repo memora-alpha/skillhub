@@ -24,6 +24,8 @@ import { canConfirmSession } from "../utils/session-policy";
 import { sessionErrorMessage } from "../utils/session-read";
 import { isRescheduleEligible } from "../utils/reschedule-form";
 import { SessionAttendancePanel } from "../components/session-attendance-panel";
+import { SessionLimitsPanel } from "../components/session-limits-panel";
+import { LearningChangePanel } from "@/features/learning-paths";
 
 export function LearningSessionScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -118,6 +120,26 @@ export function LearningSessionScreen() {
                 />
               )}
               {session && <SessionContextPanel session={session} />}
+              {session && (
+                <>
+                  <SessionLimitsPanel session={session} />
+                  <LearningChangePanel
+                    pathId={session.pathId}
+                    sessionId={session.id}
+                    startAt={session.startAt}
+                    canRequest={
+                      ["CONFIRMED", "READY"].includes(session.status) &&
+                      Date.parse(session.startAt) > now &&
+                      (session.makeupCount ?? 0) < 1 &&
+                      (!session.makeupQuota ||
+                        (!session.makeupQuota.requiresReview &&
+                          session.makeupQuota.remaining > 0))
+                    }
+                    blocked={query.isFetching || query.isError}
+                    onChanged={() => query.refetch()}
+                  />
+                </>
+              )}
               {session && (
                 <SessionAttendancePanel
                   key={session.id}

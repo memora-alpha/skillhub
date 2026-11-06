@@ -6,7 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../components/app_button.dart';
 import '../../../components/app_checkbox.dart';
 import '../../../components/app_input.dart';
-import '../../../components/dialogs.dart';
+import '../widgets/legal_policy.dart';
 import '../schema/auth_schema.dart';
 import '../session/auth_session.dart';
 import '../utils/auth_validation.dart';
@@ -14,16 +14,6 @@ import '../utils/cooldown.dart';
 import '../widgets/async_action.dart';
 import '../widgets/auth_layout.dart';
 
-const _notices = {
-  'terms': (
-    'Điều khoản sử dụng',
-    'Nội dung điều khoản chính thức chưa được cung cấp. Vui lòng liên hệ SkillHub để được hỗ trợ trước khi đăng ký.',
-  ),
-  'privacy': (
-    'Chính sách bảo mật',
-    'Nội dung chính sách chính thức chưa được cung cấp. Vui lòng liên hệ SkillHub để được hỗ trợ trước khi đăng ký.',
-  ),
-};
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key, this.email});
@@ -67,8 +57,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen>
   }
 
   void _openNotice(String key) {
-    final (title, body) = _notices[key]!;
-    showInfoModal(context, title: title, body: body);
+    showLegalPolicy(context, key);
   }
 
   Future<void> _submit() async {

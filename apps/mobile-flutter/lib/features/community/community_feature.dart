@@ -9,6 +9,7 @@ import '../../core/toast/toast.dart';
 import '../auth/session/auth_session.dart';
 import '../learning_paths/paths_data.dart';
 import '../remote/refresh_signal.dart';
+import 'reputation_history.dart';
 
 class AchievementsSnapshot {
   const AchievementsSnapshot({
@@ -17,8 +18,10 @@ class AchievementsSnapshot {
   });
 
   final String? selectedTitle;
-  final List<({String title, String description, String code, String? unlockedAt})>
-      items;
+  final List<
+    ({String title, String description, String code, String? unlockedAt})
+  >
+  items;
 }
 
 final achievementsProvider = FutureProvider<AchievementsSnapshot?>((ref) async {
@@ -35,7 +38,9 @@ final achievementsProvider = FutureProvider<AchievementsSnapshot?>((ref) async {
     final items = data['items'];
     final selected = data['selectedTitle'];
     final snapshot = AchievementsSnapshot(
-      selectedTitle: selected is String && selected.isNotEmpty ? selected : null,
+      selectedTitle: selected is String && selected.isNotEmpty
+          ? selected
+          : null,
       items: [
         for (final item in items is List ? items : const [])
           if (item is Map)
@@ -241,7 +246,8 @@ class _AchievementsScreenState extends ConsumerState<AchievementsScreen> {
   Widget build(BuildContext context) {
     final query = ref.watch(achievementsProvider);
     final data = query.value;
-    final selected = data?.selectedTitle ??
+    final selected =
+        data?.selectedTitle ??
         ref.watch(accountProvider).value?.profile.selectedTitle;
     final unlocked = data?.items ?? const [];
     return FeaturePage(
@@ -283,7 +289,8 @@ class _AchievementsScreenState extends ConsumerState<AchievementsScreen> {
                     ref
                         .read(toastProvider.notifier)
                         .show(
-                          error is AppError && error.code == 'TITLE_NOT_UNLOCKED'
+                          error is AppError &&
+                                  error.code == 'TITLE_NOT_UNLOCKED'
                               ? 'Danh hiệu này chưa được mở khóa hoặc không còn khả dụng. Hãy làm mới thành tích.'
                               : errorMessage(error),
                           ToastTone.error,
@@ -323,9 +330,7 @@ class _AchievementsScreenState extends ConsumerState<AchievementsScreen> {
                   disabled: selected == item.title,
                   onPressed: () async {
                     try {
-                      await _selectTitle(
-                        item.code.isEmpty ? null : item.code,
-                      );
+                      await _selectTitle(item.code.isEmpty ? null : item.code);
                     } catch (error) {
                       ref
                           .read(toastProvider.notifier)
@@ -362,7 +367,9 @@ class ReputationScreen extends ConsumerWidget {
     final label = score == null ? 'Chưa có' : '$score';
     return FeaturePage(
       onRefresh: () async {
-        ref.read(refreshTicksProvider.notifier).bump(const {RefreshScope.profile});
+        ref.read(refreshTicksProvider.notifier).bump(const {
+          RefreshScope.profile,
+        });
         await ref.read(accountProvider.notifier).reload();
       },
       title: 'Điểm uy tín',
@@ -373,10 +380,7 @@ class ReputationScreen extends ConsumerWidget {
           accent: true,
           children: [
             Metric(label: 'Điểm uy tín', value: label),
-            const Copy(
-              'Điểm lấy từ hồ sơ đang đăng nhập.',
-              muted: true,
-            ),
+            const Copy('Điểm lấy từ hồ sơ đang đăng nhập.', muted: true),
           ],
         ),
         Panel(
@@ -402,60 +406,8 @@ class ReputationScreen extends ConsumerWidget {
   }
 }
 
-class ReputationHistoryScreen extends ConsumerWidget {
+class ReputationHistoryScreen extends StatelessWidget {
   const ReputationHistoryScreen({super.key});
-
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final history = ref.watch(_reputationProvider);
-    final data = history.value;
-    final items = data?['items'] ?? data?['entries'];
-    return FeaturePage(
-      onRefresh: () => pullRefresh(ref, const {RefreshScope.profile}),
-      title: 'Lịch sử uy tín',
-      back: '/reputation',
-      children: [
-        if (history.isLoading && history.value == null)
-          const Copy('Đang tải lịch sử uy tín.', muted: true)
-        else if (history.hasError)
-          Copy(errorMessage(history.error))
-        else if (items is List && items.isNotEmpty)
-          for (final item in items)
-            Panel(
-              title: item is Map ? item['reason']?.toString() ?? 'Sự kiện' : 'Sự kiện',
-              children: [
-                Copy(item.toString()),
-              ],
-            )
-        else
-          Panel(
-            title: 'Chưa có sự kiện uy tín',
-            children: [
-              Copy(data == null ? 'Máy chủ chưa trả lịch sử.' : data.toString()),
-            ],
-          ),
-        Panel(
-          title: 'Khi cần xem xét vi phạm',
-          children: [
-            Copy(
-              'Chi tiết quyết định sẽ gồm lý do, thời gian, mức hạn chế và tham chiếu báo cáo. Bạn có thể theo dõi báo cáo hoặc liên hệ hỗ trợ.',
-            ),
-            RouteButton(
-              secondary: true,
-              href: '/reports',
-              label: 'Báo cáo của tôi',
-            ),
-            RouteButton(secondary: true, href: '/help', label: 'Trợ giúp'),
-          ],
-        ),
-      ],
-    );
-  }
+  Widget build(BuildContext context) => const LiveReputationHistory();
 }
-
-final _reputationProvider = FutureProvider<Map<String, dynamic>>((ref) async {
-  watchRefresh(ref, RefreshScope.profile);
-  final phase = ref.watch(sessionSnapshotProvider).phase;
-  if (phase != SessionPhase.ready) return const {};
-  return ref.read(authRuntimeProvider).services.study.reputation();
-});

@@ -22,10 +22,13 @@ async function requestSession(
   method = "GET",
   body?: unknown,
   refresh = false,
+  all = false,
 ): Promise<SessionReply> {
+  const logoutSuffix = all ? "/all" : "";
+  const suffix = refresh ? "/refresh" : logoutSuffix;
   let response: Response;
   try {
-    response = await fetch(`/api/auth/session${refresh ? "/refresh" : ""}`, {
+    response = await fetch(`/api/auth/session${suffix}`, {
       method,
       credentials: "same-origin",
       cache: "no-store",
@@ -108,4 +111,13 @@ export async function signIn(email: string, password: string) {
 }
 export async function endLoginSession() {
   return requestSession("DELETE");
+}
+export async function endAllLoginSessions() {
+  const result = await requestSession("POST", {}, false, true);
+  if (result.data !== null || result.meta?.serverRevoked !== true)
+    throw new LoginSessionError(
+      502,
+      "Chưa xác nhận được việc kết thúc mọi phiên. Hãy kiểm tra lại.",
+    );
+  return result;
 }

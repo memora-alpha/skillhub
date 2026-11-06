@@ -52,9 +52,8 @@ class MaterialsApi {
     asMap,
   );
 
-  Future<Map<String, dynamic>> detail(String id) async => asMap(
-    await _client.request('/materials/$id'),
-  );
+  Future<Map<String, dynamic>> detail(String id) async =>
+      asMap(await _client.request('/materials/$id'));
 
   Future<Map<String, dynamic>> download(String id) async => asMap(
     await _client.request('/materials/$id/download', authenticated: true),
@@ -74,6 +73,14 @@ class MaterialsApi {
   Future<List<Map<String, dynamic>>> orders() async => asList(
     await _client.request('/me/material-orders', authenticated: true),
     asMap,
+  );
+
+  Future<Map<String, dynamic>> refund(String orderId) async => asMap(
+    await _client.request(
+      '/me/material-orders/$orderId/refund',
+      method: 'POST',
+      authenticated: true,
+    ),
   );
 
   Future<Map<String, dynamic>> _json(

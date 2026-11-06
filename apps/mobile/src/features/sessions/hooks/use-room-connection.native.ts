@@ -7,18 +7,29 @@ import { acquireRoomAudio } from "../utils/room-audio.native";
 import { createRoomConnection } from "../utils/room-connection";
 import { canJoinSession, sessionJoinReason } from "../utils/session-join";
 import { sessionErrorMessage } from "../utils/session-read";
+import type { useNativeCameraBackground } from "./use-native-camera-background";
+import {
+  defaultNativeAudioSettings,
+  nativeAudioCapture,
+} from "../utils/native-audio-settings";
 
 export type RoomStatus =
   "connecting" | "connected" | "reconnecting" | "disconnected";
 
-export function useRoomConnection({
-  sessionId,
-  api,
-  isCurrent,
-  startCamera,
-  startMicrophone,
-  onScreenShareChange,
-}: RoomMediaProps) {
+export function useRoomConnection(
+  {
+    sessionId,
+    api,
+    isCurrent,
+    startCamera,
+    startMicrophone,
+    onScreenShareChange,
+  }: RoomMediaProps,
+  camera: Pick<
+    ReturnType<typeof useNativeCameraBackground>,
+    "publish" | "release"
+  >,
+) {
   const [room, setRoom] = useState<Room | null>(null);
   const [status, setStatus] = useState<RoomStatus>("connecting");
   const [error, setError] = useState("");
@@ -28,7 +39,11 @@ export function useRoomConnection({
     null,
   );
   useEffect(() => {
-    const room = new Room({ adaptiveStream: true, dynacast: true });
+    const room = new Room({
+      adaptiveStream: true,
+      dynacast: true,
+      audioCaptureDefaults: nativeAudioCapture(defaultNativeAudioSettings),
+    });
     setRoom(room);
     setStatus("connecting");
     setError("");
@@ -60,7 +75,11 @@ export function useRoomConnection({
       disconnect: async () => {
         onScreenShareChange(false);
         stopTracks();
-        await Promise.allSettled([room.disconnect(), releaseAudio?.()]);
+        await Promise.allSettled([
+          camera.release(room),
+          room.disconnect(),
+          releaseAudio?.(),
+        ]);
       },
       connected: () => {
         setStatus("connected");
@@ -81,7 +100,7 @@ export function useRoomConnection({
         const publication =
           source === "microphone"
             ? await room.localParticipant.setMicrophoneEnabled(true)
-            : await room.localParticipant.setCameraEnabled(true);
+            : await camera.publish(room, connection.active);
         if (!connection.active()) {
           publication?.track?.stop();
           return false;
@@ -152,6 +171,8 @@ export function useRoomConnection({
     startCamera,
     startMicrophone,
     onScreenShareChange,
+    camera.publish,
+    camera.release,
   ]);
   return {
     room,

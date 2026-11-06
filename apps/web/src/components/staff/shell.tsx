@@ -11,7 +11,6 @@ import {
   useNotificationInbox,
 } from "./notification-session";
 import type { Portal } from "@/lib/staff/policy";
-import { developmentFeatures } from "@/lib/staff/development-features";
 type NavigationItem = {
   href: string;
   label: string;
@@ -24,6 +23,7 @@ const nav: NavigationItem[] = [
   { href: "/staff/moderation", label: "Kiểm duyệt yêu cầu học", icon: "flag" },
   { href: "/staff/content", label: "Duyệt tài liệu", icon: "file" },
   { href: "/staff/disputes", label: "Báo cáo & tranh chấp", icon: "alert" },
+  { href: "/staff/learning-changes", label: "Dừng lộ trình", icon: "file" },
   { href: "/staff/notifications", label: "Thông báo", icon: "bell" },
   { href: "/staff/wallet", label: "Ví của tôi", icon: "card" },
   { href: "/staff/reputation", label: "Uy tín của tôi", icon: "star" },
@@ -42,6 +42,7 @@ const adminNav: typeof nav = [
   { href: "/admin/moderation", label: "Kiểm duyệt yêu cầu học", icon: "flag" },
   { href: "/admin/content", label: "Duyệt tài liệu", icon: "file" },
   { href: "/admin/disputes", label: "Báo cáo & tranh chấp", icon: "alert" },
+  { href: "/admin/learning-changes", label: "Dừng lộ trình", icon: "file" },
   { href: "/admin/config", label: "Quy tắc kiểm duyệt", icon: "sliders" },
   { href: "/admin/notifications", label: "Thông báo", icon: "bell" },
 ];
@@ -63,17 +64,7 @@ function Frame({ children }: Readonly<{ children: ReactNode }>) {
       <output className="staff-loading">Đang kiểm tra phiên làm việc…</output>
     );
   if (!actor) return <StaffLogin />;
-  const developmentLinks: NavigationItem[] = Object.values(
-    developmentFeatures,
-  ).map((feature) => ({
-    href: feature.href,
-    label: feature.title,
-    icon: feature.icon,
-  }));
-  const current = [
-    ...links,
-    ...(portal === "admin" ? developmentLinks : []),
-  ].find((item) =>
+  const current = links.find((item) =>
     item.href === `/${portal}`
       ? pathname === item.href
       : pathname.startsWith(item.href) || item.aliases?.includes(pathname),
@@ -131,25 +122,6 @@ function Frame({ children }: Readonly<{ children: ReactNode }>) {
               {item.label}
             </Link>
           ))}
-          {portal === "admin" && (
-            <>
-              <div className="nav-title">ĐANG PHÁT TRIỂN</div>
-              {developmentLinks.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="nav-link"
-                  aria-current={
-                    current?.href === item.href ? "page" : undefined
-                  }
-                  onClick={() => close(false)}
-                >
-                  <Icon name={item.icon} />
-                  {item.label}
-                </Link>
-              ))}
-            </>
-          )}
         </nav>
         <div className="side-foot">
           <div className="who">

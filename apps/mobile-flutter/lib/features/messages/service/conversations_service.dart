@@ -3,14 +3,25 @@ import 'package:dio/dio.dart';
 import '../../../core/http/http_client.dart';
 import '../api/conversations_api.dart';
 import '../schema/conversation_schema.dart';
+import '../schema/inbox_schema.dart';
 
 class ConversationsService {
   ConversationsService(HttpClient client) : _api = ConversationsApi(client);
 
   final ConversationsApi _api;
 
-  Future<Page<ConversationRecord>> list({String? cursor, int? limit}) =>
-      _api.list(cursor: cursor, limit: limit);
+  Future<Page<InboxGroup>> inbox({String? cursor, int limit = 20}) =>
+      _api.inbox(cursor: cursor, limit: limit);
+
+  Future<Page<ConversationRecord>> list({
+    String? cursor,
+    int? limit,
+    String? learningRequestId,
+  }) => _api.list(
+    cursor: cursor,
+    limit: limit,
+    learningRequestId: learningRequestId,
+  );
 
   Future<ConversationRecord> get(String id) => _api.get(id);
 

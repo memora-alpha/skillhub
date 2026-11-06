@@ -13,6 +13,7 @@ import '../auth/session/auth_session.dart';
 import '../remote/refresh_signal.dart';
 import '../skills/schema/skill_schema.dart';
 import '../skills/skills_feature.dart';
+import 'material_refund.dart';
 
 final _uuid = RegExp(
   r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
@@ -29,10 +30,7 @@ const _materialMimes = {
   'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 };
 
-const _orderStatus = {
-  'SUCCESS': 'Đã mua',
-  'REFUNDED': 'Đã hoàn',
-};
+const _orderStatus = {'SUCCESS': 'Đã mua', 'REFUNDED': 'Đã hoàn'};
 
 const _statusLabel = {
   'DRAFT': 'Bản nháp',
@@ -67,10 +65,11 @@ final materialCatalogProvider =
       final parts = key.split('\n');
       final q = parts.first;
       final access = parts.length > 1 && parts[1].isNotEmpty ? parts[1] : null;
-      return ref.read(authRuntimeProvider).services.materials.search(
-        q: q,
-        accessType: access,
-      );
+      return ref
+          .read(authRuntimeProvider)
+          .services
+          .materials
+          .search(q: q, accessType: access);
     });
 
 String _text(Object? value) => value == null ? '' : '$value';
@@ -113,7 +112,8 @@ class _LiveMaterialsPageState extends ConsumerState<LiveMaterialsPage> {
   Widget build(BuildContext context) {
     final access = _filter == 'Tất cả' ? '' : _filter;
     final query = ref.watch(materialCatalogProvider('$_search\n$access'));
-    final catalog = ref.watch(skillCatalogProvider).value ?? const <SkillRecord>[];
+    final catalog =
+        ref.watch(skillCatalogProvider).value ?? const <SkillRecord>[];
     final items = query.value ?? const <Map<String, dynamic>>[];
     return FeaturePage(
       title: 'Tài liệu học tập',
@@ -144,7 +144,10 @@ class _LiveMaterialsPageState extends ConsumerState<LiveMaterialsPage> {
             child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
           ),
         if (query.hasError && items.isEmpty)
-          FormNotice(tone: NoticeTone.error, message: errorMessage(query.error)),
+          FormNotice(
+            tone: NoticeTone.error,
+            message: errorMessage(query.error),
+          ),
         for (final item in items)
           Panel(
             title: _text(item['title']),
@@ -204,7 +207,8 @@ class _LiveMyMaterialsPageState extends ConsumerState<LiveMyMaterialsPage> {
   @override
   Widget build(BuildContext context) {
     final query = ref.watch(myMaterialsProvider);
-    final catalog = ref.watch(skillCatalogProvider).value ?? const <SkillRecord>[];
+    final catalog =
+        ref.watch(skillCatalogProvider).value ?? const <SkillRecord>[];
     final items = query.value ?? const <Map<String, dynamic>>[];
     return FeaturePage(
       title: 'Tài liệu tôi chia sẻ',
@@ -223,22 +227,25 @@ class _LiveMyMaterialsPageState extends ConsumerState<LiveMyMaterialsPage> {
             child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
           ),
         if (query.hasError && items.isEmpty)
-          FormNotice(tone: NoticeTone.error, message: errorMessage(query.error)),
-        if (_error != null) FormNotice(tone: NoticeTone.error, message: _error!),
+          FormNotice(
+            tone: NoticeTone.error,
+            message: errorMessage(query.error),
+          ),
+        if (_error != null)
+          FormNotice(tone: NoticeTone.error, message: _error!),
         for (final item in items)
           Panel(
             title: _text(item['title']),
             children: [
-              StatusBadge(_statusLabel[item['status']] ?? _text(item['status'])),
+              StatusBadge(
+                _statusLabel[item['status']] ?? _text(item['status']),
+              ),
               Copy(
                 _text(item['rejectReason']).isEmpty
                     ? _text(item['description'])
                     : 'Lý do từ chối: ${item['rejectReason']}',
               ),
-              Copy(
-                _skillName(catalog, _text(item['skillId'])),
-                muted: true,
-              ),
+              Copy(_skillName(catalog, _text(item['skillId'])), muted: true),
               RouteButton(
                 secondary: true,
                 href: '/materials/${item['id']}',
@@ -271,7 +278,8 @@ class _LiveMyMaterialsPageState extends ConsumerState<LiveMyMaterialsPage> {
         if (query.hasValue && items.isEmpty)
           const EmptyState(
             title: 'Bạn chưa đăng tài liệu',
-            description: 'Tài liệu gửi lên sẽ chờ kiểm duyệt trước khi công bố.',
+            description:
+                'Tài liệu gửi lên sẽ chờ kiểm duyệt trước khi công bố.',
           ),
         const RouteButton(
           secondary: true,
@@ -354,7 +362,8 @@ class _LiveMaterialEditorState extends ConsumerState<LiveMaterialEditor> {
     final current = (mine.value ?? const <Map<String, dynamic>>[])
         .where((item) => item['id'] == id)
         .firstOrNull;
-    final catalog = ref.watch(skillCatalogProvider).value ?? const <SkillRecord>[];
+    final catalog =
+        ref.watch(skillCatalogProvider).value ?? const <SkillRecord>[];
     final choices = [for (final item in catalog) item.name];
     final skillName = current == null
         ? (choices.isEmpty ? '' : choices.first)
@@ -375,7 +384,8 @@ class _LiveMaterialEditorState extends ConsumerState<LiveMaterialEditor> {
         else if (missing)
           const EmptyState(
             title: 'Không thể chỉnh sửa',
-            description: 'Bạn chỉ chỉnh sửa tài liệu của mình còn được quản lý.',
+            description:
+                'Bạn chỉ chỉnh sửa tài liệu của mình còn được quản lý.',
           )
         else
           Panel(
@@ -406,7 +416,9 @@ class _LiveMaterialEditorState extends ConsumerState<LiveMaterialEditor> {
                   defaults: {
                     'title': _text(current?['title']),
                     'description': _text(current?['description']),
-                    'skill': choices.contains(skillName) ? skillName : choices.first,
+                    'skill': choices.contains(skillName)
+                        ? skillName
+                        : choices.first,
                     'access': _text(current?['accessType']).isEmpty
                         ? 'FREE'
                         : _text(current?['accessType']),
@@ -435,8 +447,7 @@ class _LiveMaterialEditorState extends ConsumerState<LiveMaterialEditor> {
                     DataField(
                       name: 'access',
                       label: 'Cách chia sẻ',
-                      rule: (value) =>
-                          value == 'FREE' || value == 'PAID'
+                      rule: (value) => value == 'FREE' || value == 'PAID'
                           ? null
                           : 'Chọn một lựa chọn.',
                       choices: const ['FREE', 'PAID'],
@@ -478,7 +489,9 @@ class _LiveMaterialEditorState extends ConsumerState<LiveMaterialEditor> {
       return 'Tài liệu PAID phải có giá lớn hơn 0.';
     }
     if (current == null && _file == null) return 'Chọn một tệp tài liệu.';
-    final skill = catalog.where((item) => item.name == values['skill']).firstOrNull;
+    final skill = catalog
+        .where((item) => item.name == values['skill'])
+        .firstOrNull;
     if (skill == null) return 'Chọn kỹ năng trong danh mục.';
     void phase(String value) {
       if (mounted) setState(() => _phase = value);
@@ -548,14 +561,14 @@ class LiveMaterialDetail extends ConsumerWidget {
         .where((item) => item['id'] == id)
         .firstOrNull;
     final material = owned ?? query.value;
-    final catalog = ref.watch(skillCatalogProvider).value ?? const <SkillRecord>[];
+    final catalog =
+        ref.watch(skillCatalogProvider).value ?? const <SkillRecord>[];
     final me = ref.watch(accountSessionProvider)?.userId ?? '';
     final bought =
         (ref.watch(materialOrdersProvider).value ??
                 const <Map<String, dynamic>>[])
             .any(
-              (item) =>
-                  item['materialId'] == id && item['status'] == 'SUCCESS',
+              (item) => item['materialId'] == id && item['status'] == 'SUCCESS',
             );
     final owner = material?['ownerId'] == me;
     final published = material?['status'] == 'PUBLISHED';
@@ -579,11 +592,18 @@ class LiveMaterialDetail extends ConsumerWidget {
             child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
           ),
         if (owned == null && query.hasError && material == null)
-          FormNotice(tone: NoticeTone.error, message: errorMessage(query.error)),
-        if (material == null && mine.hasValue && !query.isLoading && !query.hasError)
+          FormNotice(
+            tone: NoticeTone.error,
+            message: errorMessage(query.error),
+          ),
+        if (material == null &&
+            mine.hasValue &&
+            !query.isLoading &&
+            !query.hasError)
           const EmptyState(
             title: 'Không tìm thấy tài liệu',
-            description: 'Tài liệu không còn trên máy chủ hoặc chưa được công bố.',
+            description:
+                'Tài liệu không còn trên máy chủ hoặc chưa được công bố.',
           ),
         if (material != null) ...[
           Panel(
@@ -615,25 +635,25 @@ class LiveMaterialDetail extends ConsumerWidget {
             ),
           if (owner && _fileOf(material) != null)
             RouteButton(href: '/materials/$id/access', label: 'Mở tệp'),
-          if (!owner && published && (material['accessType'] == 'FREE' || bought))
+          if (!owner &&
+              published &&
+              (material['accessType'] == 'FREE' || bought))
             RouteButton(href: '/materials/$id/access', label: 'Mở tệp'),
-          if (!owner && published && material['accessType'] == 'PAID' && !bought)
-            RouteButton(
-              href: '/materials/$id/purchase',
-              label: 'Mua tài liệu',
-            ),
+          if (!owner &&
+              published &&
+              material['accessType'] == 'PAID' &&
+              !bought)
+            RouteButton(href: '/materials/$id/purchase', label: 'Mua tài liệu'),
         ],
       ],
     );
   }
 }
 
-final _publicMaterialProvider = FutureProvider.family<Map<String, dynamic>, String>((
-  ref,
-  id,
-) async {
-  return ref.read(authRuntimeProvider).services.materials.detail(id);
-});
+final _publicMaterialProvider =
+    FutureProvider.family<Map<String, dynamic>, String>((ref, id) async {
+      return ref.read(authRuntimeProvider).services.materials.detail(id);
+    });
 
 class LiveMaterialAccess extends ConsumerStatefulWidget {
   const LiveMaterialAccess({super.key, required this.id});
@@ -722,10 +742,11 @@ class _LiveMaterialPurchaseState extends ConsumerState<LiveMaterialPurchase> {
       _error = null;
     });
     try {
-      await ref.read(authRuntimeProvider).services.materials.purchase(
-        widget.id,
-        expectedListingVersion: version,
-      );
+      await ref
+          .read(authRuntimeProvider)
+          .services
+          .materials
+          .purchase(widget.id, expectedListingVersion: version);
       ref.invalidate(materialOrdersProvider);
       if (mounted) context.pushReplacement('/materials/${widget.id}/access');
     } catch (error) {
@@ -749,12 +770,17 @@ class _LiveMaterialPurchaseState extends ConsumerState<LiveMaterialPurchase> {
             child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
           ),
         if (query.hasError && material == null)
-          FormNotice(tone: NoticeTone.error, message: errorMessage(query.error)),
+          FormNotice(
+            tone: NoticeTone.error,
+            message: errorMessage(query.error),
+          ),
         if (material != null)
           Panel(
             title: _text(material['title']),
             children: [
-              Copy('Giá ${_priceLabel(material)} · phiên bản ${material['listingVersion']}'),
+              Copy(
+                'Giá ${_priceLabel(material)} · phiên bản ${material['listingVersion']}',
+              ),
               const Copy(
                 'Credit bị trừ khi mua thành công. Bản đã mua được giữ cho bạn.',
                 muted: true,
@@ -785,13 +811,20 @@ class LiveMaterialLibrary extends ConsumerWidget {
       back: '/materials',
       onRefresh: () async => ref.invalidate(materialOrdersProvider),
       children: [
+        const Copy(
+          'Hiển thị tối đa 100 đơn gần nhất. Lấy liên kết tải sẽ làm mất quyền hoàn đơn tự động.',
+          muted: true,
+        ),
         if (query.isLoading && items.isEmpty)
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 24),
             child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
           ),
         if (query.hasError && items.isEmpty)
-          FormNotice(tone: NoticeTone.error, message: errorMessage(query.error)),
+          FormNotice(
+            tone: NoticeTone.error,
+            message: errorMessage(query.error),
+          ),
         for (final item in items)
           Panel(
             title: '${item['grossCredit']} CR',
@@ -799,10 +832,18 @@ class LiveMaterialLibrary extends ConsumerWidget {
               Copy(
                 '${_orderStatus[item['status']] ?? item['status']} · phiên bản ${item['listingVersion']}',
               ),
-              RouteButton(
-                href: '/materials/${item['materialId']}/access',
-                label: 'Mở tệp',
-              ),
+              if (item['status'] == 'SUCCESS')
+                RouteButton(
+                  href: '/materials/${item['materialId']}/access',
+                  label: 'Mở tệp',
+                ),
+              if (item['status'] == 'SUCCESS')
+                MaterialRefund(
+                  key: ValueKey('${item['id']}:${item['status']}'),
+                  orderId: _text(item['id']),
+                  grossCredit: _text(item['grossCredit']),
+                  onChanged: () => ref.invalidate(materialOrdersProvider),
+                ),
             ],
           ),
         if (query.hasValue && items.isEmpty)

@@ -1,54 +1,129 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
+import { ProductIcon } from "../components/product-icon";
+import styles from "./chat.module.css";
 import { useUserSession } from "../auth/session";
 import { useUserCommand } from "../hooks/use-user-command";
 import { CommandFeedback } from "../components/common";
-type Draft = {
-  clientMessageId: string;
-  messageText: string;
-  attachmentFileIds: string[];
-};
+import { ChatFiles, type ChatUpload } from "./chat-files";
+import { UserApiError } from "../api/client";
+import {
+  parseChatDraft,
+  parseEditingDraft,
+  type ChatDraft as Draft,
+} from "./chat-draft";
 export function MessageComposer({
   conversationId,
 }: Readonly<{ conversationId: string }>) {
   const { actor, request, refresh } = useUserSession(),
     command = useUserCommand(true);
   const key = "skillhub-user-draft:" + actor.userId + ":" + conversationId;
+  const fileInputId = useId();
   const [saved, setSaved] = useState<Draft | null>(() => {
     try {
-      const value = JSON.parse(
-        sessionStorage.getItem(key) ?? "null",
-      ) as Draft | null;
-      return value &&
-        typeof value.messageText === "string" &&
-        /^[0-9a-f-]{36}$/i.test(value.clientMessageId)
-        ? { ...value, attachmentFileIds: [] }
-        : null;
+      return parseChatDraft(sessionStorage.getItem(key));
+    } catch {
+      return null;
+    }
+  });
+  const [editing, setEditing] = useState(() => {
+    try {
+      return parseEditingDraft(sessionStorage.getItem(key + ":editing"));
     } catch {
       return null;
     }
   });
   const intent = useRef(saved),
-    [text, setText] = useState(saved?.messageText ?? ""),
+    [text, setText] = useState(
+      saved?.messageText ?? editing?.messageText ?? "",
+    ),
     [notice, setNotice] = useState<string>(),
     [checking, setChecking] = useState(false);
+  const [files, setFiles] = useState<ChatUpload[]>(
+    saved?.files ??
+      saved?.attachmentFileIds.map((id) => ({
+        id,
+        filename: "Tệp đã gửi đang chờ kết quả",
+        size: 0,
+        state: "CHECKING",
+      })) ??
+      editing?.files ??
+      [],
+  );
+  const [uploading, setUploading] = useState(false);
+  useEffect(() => {
+    if (saved) return;
+    try {
+      sessionStorage.setItem(
+        key + ":editing",
+        JSON.stringify({ messageText: text, files }),
+      );
+    } catch {
+      /* Sending shows a persistence notice if storage is unavailable. */
+    }
+  }, [key, text, files, saved]);
   function clear() {
     intent.current = null;
     setSaved(null);
+    setEditing(null);
     setText("");
+    setFiles([]);
     try {
       sessionStorage.removeItem(key);
+      sessionStorage.removeItem(key + ":editing");
     } catch {
       /* Memory state remains authoritative for this screen. */
     }
   }
+  async function checkBeforeResend(draft: Draft) {
+    setChecking(true);
+    try {
+      const receipt = await request<{ deliveryStatus: string }>(
+        "conversations/" +
+          conversationId +
+          "/message-deliveries/" +
+          draft.clientMessageId,
+      );
+      if (receipt.data.deliveryStatus === "DELIVERED") {
+        clear();
+        setNotice("Tin nhắn đã được chuyển.");
+        refresh();
+        return false;
+      }
+      return true;
+    } catch (cause) {
+      if (cause instanceof UserApiError && cause.status === 404) return true;
+      setNotice(
+        cause instanceof Error
+          ? cause.message
+          : "Chưa kiểm tra được tin đang chờ.",
+      );
+      return false;
+    } finally {
+      setChecking(false);
+    }
+  }
   async function send() {
     const messageText = text.trim();
-    if (!messageText || command.pending) return;
+    if (
+      (!messageText && !files.length) ||
+      command.pending ||
+      checking ||
+      uploading
+    )
+      return;
+    if (!intent.current && files.some((file) => file.state !== "CLEAN")) {
+      setNotice(
+        "Chờ tất cả tệp được kiểm tra sạch hoặc bỏ tệp chưa sẵn sàng trước khi gửi.",
+      );
+      return;
+    }
+    if (intent.current && !(await checkBeforeResend(intent.current))) return;
     const body = intent.current ?? {
       clientMessageId: crypto.randomUUID(),
       messageText,
-      attachmentFileIds: [],
+      attachmentFileIds: files.map((file) => file.id),
+      files,
     };
     intent.current = body;
     setSaved(body);
@@ -62,45 +137,101 @@ export function MessageComposer({
     const result = await command.run(body.clientMessageId, () =>
       request<{ deliveryStatus: string }>(
         "conversations/" + conversationId + "/messages",
-        { method: "POST", body },
+        {
+          method: "POST",
+          body: {
+            clientMessageId: body.clientMessageId,
+            messageText: body.messageText,
+            attachmentFileIds: body.attachmentFileIds,
+          },
+        },
       ),
     );
     if (result?.data.deliveryStatus === "DELIVERED") {
       clear();
-      setNotice(undefined);
+      setNotice("Tin nhắn đã được chuyển.");
     } else if (result)
       setNotice(
         "Máy chủ đang hoàn tất việc gửi. Kiểm tra trạng thái trước khi gửi nội dung khác.",
       );
   }
+  let sendLabel = saved ? "Kiểm tra rồi gửi lại cùng yêu cầu" : "Gửi tin nhắn";
+  if (checking) sendLabel = "Đang kiểm tra tin đã gửi…";
+  if (command.pending) sendLabel = "Đang gửi…";
   return (
     <form
-      className="learner-form"
+      className={styles.composer}
       onSubmit={(event) => {
         event.preventDefault();
         void send();
       }}
     >
-      <label>
-        <span>Tin nhắn</span>
-        <textarea
-          rows={3}
-          value={text}
-          minLength={1}
-          maxLength={2000}
-          required
-          disabled={!!saved || command.pending}
-          onChange={(event) => setText(event.target.value)}
-        />
-      </label>
-      <div className="learner-actions">
+      <ChatFiles
+        key={conversationId}
+        conversationId={conversationId}
+        files={files}
+        setFiles={setFiles}
+        locked={!!saved || command.pending}
+        onUploading={setUploading}
+        compact
+        inputId={fileInputId}
+      />
+      <div className={styles.composerRow}>
+        <button
+          type="button"
+          className={styles.attach}
+          aria-label="Đính kèm tệp"
+          title="Tối đa 5 tệp, 15 MB/tệp"
+          disabled={
+            !!saved || command.pending || uploading || files.length >= 5
+          }
+          onClick={() => document.getElementById(fileInputId)?.click()}
+        >
+          <ProductIcon name="paperclip" size={22} />
+        </button>
+        <label className={styles.composerField}>
+          <span className="sr-only">Tin nhắn</span>
+          <textarea
+            rows={1}
+            placeholder="Nhập tin nhắn…"
+            value={text}
+            minLength={1}
+            maxLength={2000}
+            required={!files.length}
+            disabled={!!saved || command.pending}
+            onChange={(event) => setText(event.target.value)}
+            onKeyDown={(event) => {
+              if (
+                event.key === "Enter" &&
+                !event.shiftKey &&
+                !event.nativeEvent.isComposing
+              ) {
+                event.preventDefault();
+                event.currentTarget.form?.requestSubmit();
+              }
+            }}
+          />
+        </label>
         <button
           type="submit"
-          className="btn btn-primary"
-          disabled={command.pending || !text.trim()}
+          className={styles.send}
+          aria-label={sendLabel}
+          title={sendLabel}
+          disabled={
+            command.pending ||
+            checking ||
+            uploading ||
+            (!text.trim() && !files.length) ||
+            (!saved && files.some((file) => file.state !== "CLEAN"))
+          }
         >
-          {saved ? "Gửi lại cùng yêu cầu" : "Gửi tin nhắn"}
+          <ProductIcon name="send" size={20} />
         </button>
+      </div>
+      <small className={styles.composerHint}>
+        Enter để gửi · Shift + Enter để xuống dòng · Tối đa 15 MB/tệp
+      </small>
+      <div className="learner-actions">
         {saved && (
           <button
             className="btn"
@@ -138,6 +269,23 @@ export function MessageComposer({
           </button>
         )}
       </div>
+      {saved && command.failure && !command.uncertain && (
+        <button
+          type="button"
+          className="btn"
+          onClick={() => {
+            intent.current = null;
+            setSaved(null);
+            try {
+              sessionStorage.removeItem(key);
+            } catch {
+              /* Keep editable memory draft. */
+            }
+          }}
+        >
+          Sửa bản gửi bị từ chối
+        </button>
+      )}
       <CommandFeedback command={command} />
       {!checking && notice && (
         <p className="learner-notice">

@@ -1,7 +1,7 @@
 import { AppError } from "@/lib/http/errors";
 
 export const OTP_REQUEST_ACKNOWLEDGMENT =
-  "Vui lòng kiểm tra email để lấy mã xác minh.";
+  "Nếu yêu cầu hợp lệ, email hướng dẫn sẽ được gửi. Nếu email đã có tài khoản, hãy đăng nhập hoặc khôi phục mật khẩu.";
 export const RESET_UNCERTAIN_GUIDANCE =
   "Chưa xác nhận được kết quả. Hãy thử đăng nhập bằng mật khẩu mới.";
 

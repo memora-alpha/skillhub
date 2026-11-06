@@ -46,6 +46,8 @@ import { AgreementContext } from "../components/agreement-context";
 import { AgreementPlansStep } from "../components/agreement-plans-step";
 import { PlanDetailContent } from "../components/plan-detail-content";
 import { usePullRefresh } from "../hooks/use-pull-refresh";
+import { PathSettlementPanel } from "../components/settlement-panel";
+import { LearningChangePanel } from "../components/learning-change-panel";
 
 function agreementBackTarget(
   source: ReturnType<typeof uuid.safeParse>,
@@ -158,6 +160,20 @@ function PathContent({
         <Button onPress={() => router.push(`/paths/${path.id}/review`)}>
           Xem / viết đánh giá
         </Button>
+      )}
+      {!!path.lockedVersion && (
+        <>
+          <PathSettlementPanel pathId={path.id} blocked={blocked} />
+          <LearningChangePanel
+            pathId={path.id}
+            canRequest={
+              !path.settledAt &&
+              ["SCHEDULED", "ACTIVE", "DISPUTED"].includes(path.status)
+            }
+            blocked={blocked}
+            onChanged={onRefresh}
+          />
+        </>
       )}
       <AgreementSteps
         value={selected}

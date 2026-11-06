@@ -25,10 +25,12 @@ export function MaterialsScreen() {
   return (
     <>
       <PageHeading
-        eyebrow="KIẾN THỨC ĐƯỢC CHIA SẺ"
         title="Thư viện tài liệu"
         action={
           <div className="learner-actions">
+            <Link className="btn" href="/learn/materials/orders">
+              Đơn tài liệu đã mua
+            </Link>
             <Link className="btn" href="/learn/materials/mine">
               Tài liệu của tôi
             </Link>
@@ -37,7 +39,6 @@ export function MaterialsScreen() {
             </Link>
           </div>
         }
-        description="Tìm tài liệu cho kỹ năng bạn đang học."
       />
       <form
         className="product-material-filters"

@@ -14,8 +14,9 @@ export function SkillPicker({
 }>) {
   const [search, setSearch] = useState(""),
     [term, setTerm] = useState("");
+  const [searchError, setSearchError] = useState<string>();
   const query = useUserList<Skill>(
-    "skills?limit=20&q=" + encodeURIComponent(term),
+    "skills?limit=20" + (term ? "&q=" + encodeURIComponent(term) : ""),
   );
   const selected = useUserResource<Skill>(value ? "skills/" + value : null);
   return (
@@ -39,11 +40,22 @@ export function SkillPicker({
         <button
           className="btn"
           type="button"
-          onClick={() => setTerm(search.trim())}
+          onClick={() => {
+            const value = search.trim().normalize("NFC");
+            if (value && Array.from(value).length < 2) {
+              setSearchError(
+                "Nhập ít nhất 2 ký tự để tìm kỹ năng, hoặc để trống để xem tất cả.",
+              );
+              return;
+            }
+            setSearchError(undefined);
+            setTerm(value);
+          }}
         >
           Tìm
         </button>
       </div>
+      <Feedback error={searchError} />
       <Feedback
         loading={query.loading}
         error={query.error}

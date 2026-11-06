@@ -42,6 +42,16 @@ import WifiOff from "lucide-react-native/icons/wifi-off";
 import RefreshCw from "lucide-react-native/icons/refresh-cw";
 import CheckCheck from "lucide-react-native/icons/check-check";
 
+import Mic from "lucide-react-native/icons/mic";
+import MicOff from "lucide-react-native/icons/mic-off";
+import VideoOff from "lucide-react-native/icons/video-off";
+import ScreenShare from "lucide-react-native/icons/screen-share";
+import SwitchCamera from "lucide-react-native/icons/switch-camera";
+import PhoneOff from "lucide-react-native/icons/phone-off";
+import Maximize from "lucide-react-native/icons/maximize";
+import Minimize from "lucide-react-native/icons/minimize";
+import Pin from "lucide-react-native/icons/pin";
+
 // Keep semantic names stable for every screen. Per-icon imports avoid loading the catalog.
 export const iconComponents = {
   zap: Zap,
@@ -87,5 +97,14 @@ export const iconComponents = {
   "wifi-off": WifiOff,
   refresh: RefreshCw,
   checks: CheckCheck,
+  microphone: Mic,
+  "microphone-off": MicOff,
+  "video-off": VideoOff,
+  "screen-share": ScreenShare,
+  "switch-camera": SwitchCamera,
+  "phone-off": PhoneOff,
+  maximize: Maximize,
+  minimize: Minimize,
+  pin: Pin,
 } as const;
 export type IconName = keyof typeof iconComponents;

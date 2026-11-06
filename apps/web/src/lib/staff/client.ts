@@ -19,6 +19,10 @@ export function isSessionFailure(error: unknown): boolean {
   );
 }
 const errorMessages: Readonly<Record<string, string>> = {
+  API_UPSTREAM_CHALLENGE:
+    "Kết nối tới máy chủ đang bị chặn. Vui lòng thử lại sau hoặc liên hệ hỗ trợ.",
+  SESSION_RETRY_REQUIRED:
+    "Đã làm mới phiên. Kiểm tra trạng thái rồi thực hiện lại thao tác.",
   DEMO_RESOLUTION_UNSUPPORTED:
     "Dữ liệu thử chỉ hỗ trợ ghi chú và trạng thái báo cáo; chưa áp dụng thay đổi Credit hoặc uy tín.",
   DEMO_DATA_INVALID:
@@ -56,6 +60,8 @@ const errorMessages: Readonly<Record<string, string>> = {
     "Danh hiệu này chưa được mở khóa hoặc không còn khả dụng. Hãy làm mới thành tích.",
   FILE_TYPE_NOT_SUPPORTED: "Định dạng tệp này chưa được hỗ trợ.",
   INVALID_CREDENTIALS: "Email hoặc mật khẩu không đúng.",
+  EMAIL_ALREADY_EXISTS:
+    "Email này đã được sử dụng. Chọn email khác hoặc quản lý tài khoản hiện có.",
   ADMIN_PORTAL_ACCESS_REQUIRED:
     "Cổng Admin chỉ dành cho tài khoản có quyền ADMIN.",
   REAUTH_REQUIRED:
@@ -123,6 +129,23 @@ export function refreshStaffSession(portal: Portal) {
   });
   return renewals[portal];
 }
+function canRenewSession(
+  path: string,
+  options: ApiOptions,
+  retry: boolean,
+  status: number,
+  message?: string,
+) {
+  const canReadSession = !options.method || options.method === "GET";
+  const canRefreshPath =
+    path === "session" ? canReadSession : !path.startsWith("session/");
+  return (
+    retry &&
+    status === 401 &&
+    ["SESSION_EXPIRED", "SESSION_UNAVAILABLE"].includes(message ?? "") &&
+    canRefreshPath
+  );
+}
 async function portalResponse(
   path: string,
   options: ApiOptions = {},
@@ -144,27 +167,27 @@ async function portalResponse(
       ...(options.body ? { body: JSON.stringify(options.body) } : {}),
     });
   } catch (e) {
-    if (e instanceof Error && e.name === "AbortError") throw e;
+    if (
+      options.signal?.aborted ||
+      (e instanceof Error && e.name === "AbortError")
+    )
+      throw e;
     throw new StaffApiError(0, "NETWORK_ERROR");
   }
   if (response.ok) return response;
   let envelope: { message?: string };
   try {
     envelope = await response.json();
-  } catch {
+  } catch (cause) {
+    if (options.signal?.aborted) throw cause;
     throw new StaffApiError(502, "API_RESPONSE_INVALID");
   }
   if (
-    retry &&
-    response.status === 401 &&
-    ["SESSION_EXPIRED", "SESSION_UNAVAILABLE"].includes(
-      envelope?.message ?? "",
-    ) &&
-    (path === "session"
-      ? !options.method || options.method === "GET"
-      : !path.startsWith("session/"))
+    canRenewSession(path, options, retry, response.status, envelope?.message)
   ) {
     await refreshStaffSession(portal);
+    if ((options.method ?? "GET").toUpperCase() !== "GET")
+      throw new StaffApiError(409, "SESSION_RETRY_REQUIRED");
     return portalResponse(path, options, portal, false);
   }
   throw new StaffApiError(
@@ -183,7 +206,8 @@ export async function staffApi<T>(
   let envelope: ApiEnvelope<T>;
   try {
     envelope = await response.json();
-  } catch {
+  } catch (cause) {
+    if (options.signal?.aborted) throw cause;
     throw new StaffApiError(502, "API_RESPONSE_INVALID");
   }
   if (envelope?.success !== true)

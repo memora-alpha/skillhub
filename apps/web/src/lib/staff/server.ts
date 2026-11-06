@@ -3,6 +3,13 @@ import { randomUUID } from "node:crypto";
 import { proxyEvents } from "./event-proxy";
 import { sessionCookies } from "../auth/session";
 import { authGateway } from "../auth/server";
+import { tokenReply, failedTokenRotation } from "../auth/token-reply";
+import {
+  GatewayError,
+  backendBaseUrl as baseUrl,
+  readBackendReply,
+  rejectUpstreamChallenge,
+} from "../gateway/upstream";
 import {
   sameOriginMutation,
   staffIdentity,
@@ -21,14 +28,6 @@ const headers = {
   "Cache-Control": "no-store",
   "X-Content-Type-Options": "nosniff",
 };
-class GatewayError extends Error {
-  constructor(
-    public status: number,
-    message: string,
-  ) {
-    super(message);
-  }
-}
 function reply(data: unknown, status = 200) {
   return NextResponse.json(data, { status, headers });
 }
@@ -37,31 +36,6 @@ function clear(response: NextResponse) {
   for (const name of [cookies.access, cookies.refresh])
     response.cookies.set(name, "", { ...cookies.options, maxAge: 0 });
   return response;
-}
-function baseUrl() {
-  let u: URL;
-  try {
-    u = new URL(
-      process.env.NEXT_PUBLIC_API_URL ??
-        process.env.SKILLHUB_API_URL ??
-        process.env.EXPO_PUBLIC_API_URL ??
-        "http://localhost:3001/api/v1",
-    );
-  } catch {
-    throw new GatewayError(503, "API_CONFIGURATION_INVALID");
-  }
-  if (
-    !["http:", "https:"].includes(u.protocol) ||
-    u.username ||
-    u.password ||
-    u.search ||
-    u.hash
-  )
-    throw new GatewayError(503, "API_CONFIGURATION_INVALID");
-  let end = u.pathname.length;
-  while (end > 0 && u.pathname[end - 1] === "/") end--;
-  u.pathname = u.pathname.slice(0, end) + "/";
-  return u;
 }
 async function readLimitedBody(
   body: ReadableStream<Uint8Array>,
@@ -104,9 +78,10 @@ async function backend(
   body?: Record<string, unknown>,
   key?: string,
 ) {
+  const url = new URL(path, baseUrl());
   let response: Response;
   try {
-    response = await fetch(new URL(path, baseUrl()), {
+    response = await fetch(url, {
       method,
       cache: "no-store",
       redirect: "error",
@@ -125,25 +100,13 @@ async function backend(
     if (e instanceof GatewayError) throw e;
     throw new GatewayError(504, "API_UNAVAILABLE");
   }
-  if (response.status === 204) return { status: 204, value: null };
-  let value: unknown;
-  try {
-    value = await response.json();
-  } catch {
-    throw new GatewayError(502, "API_RESPONSE_INVALID");
-  }
-  if (!value || typeof value !== "object" || !("success" in value))
-    throw new GatewayError(502, "API_RESPONSE_INVALID");
-  return {
-    status: response.status,
-    value: value as { success: boolean; data?: unknown; message?: unknown },
-  };
+  return readBackendReply(response);
 }
 async function identity(token: string, portal: Portal) {
   const result = await backend("me", token);
   if (result.status !== 200 || !result.value?.success)
     throw new GatewayError(
-      result.status === 200 ? 502 : result.status,
+      result.status < 400 ? 502 : result.status,
       "SESSION_UNAVAILABLE",
     );
   const actor = staffIdentity(result.value.data);
@@ -173,6 +136,7 @@ async function validateEvidenceResponse(
   maximum: number,
   material: boolean,
 ): Promise<string> {
+  await rejectUpstreamChallenge(file);
   if (!file.ok) {
     await file.body?.cancel();
     throw new GatewayError(
@@ -233,11 +197,13 @@ async function login(request: NextRequest, portal: Portal) {
   // Refuse account replacement: logout first, so parallel tabs cannot silently switch identities.
   if (request.cookies.has(cookies.refresh))
     throw new GatewayError(409, "LOGOUT_BEFORE_LOGIN");
-  const result = await backend("auth/login", undefined, "POST", {
-    email: body.email.trim(),
-    password: body.password,
-    rememberMe: false,
-  });
+  const result = tokenReply(
+    await backend("auth/login", undefined, "POST", {
+      email: body.email.trim(),
+      password: body.password,
+      rememberMe: false,
+    }),
+  );
   if (result.status !== 200 || !result.value?.success)
     return reply(result.value, result.status);
   return establish(result.value.data, portal);
@@ -283,13 +249,17 @@ async function establish(data: unknown, portal: Portal) {
 async function refreshSession(request: NextRequest, portal: Portal) {
   const refreshToken = request.cookies.get(sessionCookies.refresh)?.value;
   if (!refreshToken) throw new GatewayError(401, "SESSION_EXPIRED");
-  const result = await backend("auth/refresh", undefined, "POST", {
-    refreshToken,
-  });
-  if (result.status === 200 && result.value?.success)
-    return establish(result.value.data, portal);
-  const response = reply(result.value, result.status);
-  return result.status === 401 ? clear(response) : response;
+  try {
+    const result = tokenReply(
+      await backend("auth/refresh", undefined, "POST", { refreshToken }),
+    );
+    if (result.status === 200 && result.value?.success)
+      return await establish(result.value.data, portal);
+    const response = reply(result.value, result.status);
+    return result.status === 429 ? response : clear(response);
+  } catch (cause) {
+    return failedTokenRotation(cause, reply);
+  }
 }
 async function logoutSession(request: NextRequest) {
   return authGateway(request);
@@ -319,6 +289,7 @@ function querySuffix(request: NextRequest): string {
   const accepted = new URLSearchParams();
   for (const name of [
     "cursor",
+    "after",
     "limit",
     "status",
     "role",

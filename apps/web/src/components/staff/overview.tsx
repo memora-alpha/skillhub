@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { Badge, Card, PageHeader, Stat } from "@/components/console/ui";
 import { fmtDateTime } from "@/lib/console/format";
+import { prepareOverviewQueue } from "@/lib/staff/overview-queue";
 import type {
   LearningRequest,
   ReportCase,
@@ -91,7 +92,7 @@ export function OverviewScreen({
         ]
       : []),
   ];
-  const rows = [
+  const rows = prepareOverviewQueue([
     ...evidence.items.map((r) => ({
       id: r.id,
       title: `Xác minh #${r.id.slice(0, 8)}`,
@@ -127,9 +128,7 @@ export function OverviewScreen({
       at: r.createdAt,
       href: "/admin/tag-requests",
     })),
-  ]
-    .sort((a, b) => a.at.localeCompare(b.at))
-    .slice(0, 8);
+  ]);
   return (
     <>
       <PageHeader
@@ -195,7 +194,9 @@ export function OverviewScreen({
                       <Badge tone="brand">{row.kind}</Badge>
                     </td>
                     <td>{row.title}</td>
-                    <td>{fmtDateTime(row.at)}</td>
+                    <td>
+                      {row.at ? fmtDateTime(row.at) : "Chưa có thời gian"}
+                    </td>
                     <td>
                       <Link className="link" href={row.href}>
                         Xem xét →

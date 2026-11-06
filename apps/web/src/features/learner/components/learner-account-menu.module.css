@@ -1,0 +1,161 @@
+.account {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 2px;
+}
+.profile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 4px 6px;
+  border-radius: 9px;
+  color: var(--app-ink);
+  text-decoration: none;
+}
+.profile:hover,
+.trigger:hover {
+  background: var(--app-orange-pale);
+}
+.avatar {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: 50%;
+  color: white;
+  background: var(--app-forest);
+  font-size: 14px;
+  font-weight: 600;
+}
+.avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.name {
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 600;
+}
+.trigger {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  color: var(--app-body);
+  background: transparent;
+  cursor: pointer;
+}
+.trigger svg {
+  transform: rotate(90deg);
+}
+.trigger[aria-expanded="true"] svg {
+  transform: rotate(-90deg);
+}
+.profile:focus-visible,
+.trigger:focus-visible,
+.item:focus-visible,
+.signOut:focus-visible {
+  outline: 2px solid var(--app-orange-dark);
+  outline-offset: 2px;
+}
+.dropdown {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 10px);
+  right: 0;
+  width: min(300px, calc(100vw - 32px));
+  max-height: calc(100dvh - 96px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 8px;
+  border-radius: 12px;
+  color: var(--app-body);
+  background: white;
+  box-shadow: 0 10px 32px rgb(45 28 18 / 0.18);
+}
+.identity {
+  display: grid;
+  gap: 4px;
+  padding: 12px 12px 16px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--app-line);
+  overflow-wrap: anywhere;
+}
+.identity strong {
+  color: var(--app-ink);
+  font-size: 14px;
+  font-weight: 600;
+}
+.identity > span {
+  color: var(--app-muted);
+  font-size: 12px;
+}
+.item,
+.signOut {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: var(--app-body);
+  font-size: 13px;
+  line-height: 1.45;
+  text-decoration: none;
+}
+.item svg,
+.signOut svg {
+  flex-shrink: 0;
+}
+.item:hover {
+  color: var(--app-orange-dark);
+  background: var(--app-orange-pale);
+}
+.footer {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--app-line);
+}
+.signOut {
+  width: 100%;
+  border: 0;
+  color: var(--bad);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.signOut:hover {
+  background: var(--bad-soft);
+}
+.signOut:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+.error {
+  margin: 4px 12px 8px;
+  color: var(--bad);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 1100px) {
+  .name {
+    max-width: 100px;
+  }
+}
+@media (max-width: 600px), (min-width: 761px) and (max-width: 950px) {
+  .name {
+    display: none;
+  }
+}

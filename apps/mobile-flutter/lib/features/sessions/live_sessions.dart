@@ -9,6 +9,8 @@ import '../../components/misc.dart';
 import '../../core/http/app_error.dart';
 import '../auth/session/auth_session.dart';
 import '../remote/refresh_signal.dart';
+import 'session_resolution_panel.dart';
+import 'session_makeup_panel.dart';
 
 const _upcomingStatuses = {'CONFIRMED', 'READY', 'ONGOING'};
 
@@ -53,6 +55,7 @@ const _sessionStatusLabel = {
   'CANCELLED': 'Đã hủy',
   'DISPUTED': 'Đang tranh chấp',
   'NO_SHOW': 'Không vào được · lố giờ / vắng',
+  'MAKEUP_REQUIRED': 'Cần thống nhất lịch học bù',
 };
 
 String monthSessionKey(int year, int month) =>
@@ -225,12 +228,14 @@ class _LiveSessionPageState extends ConsumerState<LiveSessionPage> {
         ? session['learnerConfirmationStatus']
         : session['teacherConfirmationStatus'];
     final status = session['status']?.toString() ?? '';
+    final allowed = session['allowedActions'] is List ? session['allowedActions'] as List : const [];
+    final quota = _record(session['makeupQuota']);
     final ended = end != null && !DateTime.now().isBefore(end);
     final canConfirm =
         session.isNotEmpty &&
         ended &&
         mineStatus != 'CONFIRMED' &&
-        !const {'CANCELLED', 'DISPUTED', 'COMPLETED'}.contains(status);
+        allowed.contains('CONFIRM_COMPLETION') && !query.hasError;
     final canJoin = join['canJoin'] == true;
     final joinReason = canJoin
         ? null
@@ -300,6 +305,9 @@ class _LiveSessionPageState extends ConsumerState<LiveSessionPage> {
                   muted: true,
                 ),
               if (window != null) Copy(window, muted: true),
+              Copy('Đổi lịch thường: ${session['rescheduleCount'] ?? 'Chưa có dữ liệu'}/3 lần. Mỗi buổi học bù tối đa một lần.', muted: true),
+              if (quota.isNotEmpty) Copy('Lượt học bù của bạn: đã dùng ${quota['used']}/${quota['limit']}, còn ${quota['remaining']}.', muted: true),
+              if (quota['requiresReview'] == true) const Copy('Lịch sử học bù cần nhân sự xác minh.'),
             ],
           ),
           if (_error != null)
@@ -340,6 +348,8 @@ class _LiveSessionPageState extends ConsumerState<LiveSessionPage> {
                 try {
                   final sessionId =
                       session['id']?.toString() ?? widget.id;
+                  final fresh = await ref.read(authRuntimeProvider).services.study.session(sessionId);
+                  if (fresh['allowedActions'] is! List || !(fresh['allowedActions'] as List).contains('CONFIRM_COMPLETION')) throw const AppError.protocol();
                   await ref
                       .read(authRuntimeProvider)
                       .services
@@ -354,6 +364,19 @@ class _LiveSessionPageState extends ConsumerState<LiveSessionPage> {
               },
             ),
           ],
+          if (status == 'MAKEUP_REQUIRED' && allowed.contains('PROPOSE_MAKEUP'))
+            SessionMakeupPanel(
+              key: ValueKey('makeup-${widget.id}'),
+              session: session,
+              onRefresh: _reload,
+              disabled: _busy != null || query.isLoading || query.hasError,
+            ),
+          SessionResolutionPanel(
+            key: ValueKey(widget.id),
+            session: session,
+            onRefresh: _reload,
+            disabled: _busy != null || query.isLoading || query.hasError,
+          ),
           AppButton(
             label: 'Lịch của lộ trình',
             variant: ButtonVariant.paper,
@@ -361,6 +384,7 @@ class _LiveSessionPageState extends ConsumerState<LiveSessionPage> {
               '/paths/${session['pathId']}/schedules',
             ),
           ),
+          if (status != 'CANCELLED') AppButton(label: 'Báo sự cố kỹ thuật / vấn đề khác', variant: ButtonVariant.paper, onPressed: () => context.push(Uri(path: '/reports/new', queryParameters: {'sessionId': widget.id, 'pathId': session['pathId'].toString()}).toString())),
         ],
       ],
       ),

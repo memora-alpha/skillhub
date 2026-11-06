@@ -1,4 +1,5 @@
 "use client";
+import { achievementCopy, achievementTitle } from "@/lib/i18n/system-copy";
 import { useUserResource } from "../hooks/use-user-resource";
 import { useUserCommand } from "../hooks/use-user-command";
 import { useUserSession } from "../auth/session";
@@ -41,10 +42,7 @@ export function AchievementsScreen() {
   return (
     <>
       <Back href="/learn/profile" />
-      <PageHeading
-        title="Thành tích & danh hiệu"
-        description="Ghi nhận hành trình học tập, chia sẻ kiến thức và những kỹ năng đã được xác minh."
-      />
+      <PageHeading title="Thành tích & danh hiệu" />
       <Feedback
         loading={query.loading}
         error={query.error}
@@ -54,7 +52,10 @@ export function AchievementsScreen() {
       {data && (
         <>
           <Panel title="Danh hiệu trên hồ sơ">
-            <p>{data.selectedTitle ?? "Bạn chưa chọn danh hiệu."}</p>
+            <p>
+              {achievementTitle(data.selectedTitle) ??
+                "Bạn chưa chọn danh hiệu."}
+            </p>
             {data.selectedTitle && (
               <button
                 className="btn"
@@ -73,8 +74,8 @@ export function AchievementsScreen() {
                 <span className="achievement-emblem">
                   <ProductIcon name="award" />
                 </span>
-                <h2>{item.title}</h2>
-                <p>{item.description}</p>
+                <h2>{achievementCopy(item).title}</h2>
+                <p>{achievementCopy(item).description}</p>
                 <p className="muted">Mở khóa: {formatTime(item.unlockedAt)}</p>
                 <button
                   className="btn"

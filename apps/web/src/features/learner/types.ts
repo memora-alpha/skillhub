@@ -16,8 +16,10 @@ export type Reply<T> = {
   data: T;
   meta?: { pagination?: Pagination };
 };
-export type Skill = { id: string; name: string };
+export type Skill = { id: string; name: string; status?: string };
 export type SharingSkill = {
+  version: number;
+  experienceYears?: string | null;
   verificationStatus?: string;
   id: string;
   skill: Skill;
@@ -28,6 +30,27 @@ export type SharingSkill = {
   archivedAt: string | null;
 };
 export type Post = {
+  tagIds?: string[];
+  tags?: { id: string; label: string }[];
+  proposedTags?: string[];
+  offeredSharingSkillIds?: string[];
+  offeredSharingSkills?: {
+    id: string;
+    skill: Skill;
+    level: string;
+    verificationStatus: string;
+    skillLevel?: { name: string } | null;
+  }[];
+  teachingOverview?: string | null;
+  preferredAvailability?: {
+    timeZone: string;
+    weeklySlots: { weekday: string; startTime: string; endTime: string }[];
+  } | null;
+  preferredSlots?: { startAt: string; endAt: string }[];
+  verifiedTeacherOnly?: boolean;
+  expiresAt?: string | null;
+  requestedExpiresAt?: string | null;
+  publishedAt?: string | null;
   id: string;
   ownerId?: string;
   owner?: { id: string; displayName: string; avatarUrl: string | null };
@@ -38,12 +61,18 @@ export type Post = {
   learningGoal: string;
   currentLevel: string | null;
   status: string;
+  effectiveStatus?: string;
+  moderationStatus?: string;
   version: number;
   desiredCreditPerHour: string | null;
   moderationRejectReason?: string | null;
   createdAt: string;
 };
 export type Proposal = {
+  learningRequestTitle?: string | null;
+  conversationId?: string;
+  proposedDurationMinutes?: number | null;
+  initialSessionCount?: number | null;
   id: string;
   sourceType: "LEARNING_REQUEST" | "DIRECT_SEARCH";
   proposerId: string;
@@ -73,7 +102,12 @@ export type Message = {
   messageType: string;
   sentAt: string;
   sequence: string;
-  attachments: { attachmentId: string; filename: string }[];
+  attachments: {
+    attachmentId: string;
+    fileId?: string;
+    filename: string;
+    fileSizeBytes?: number;
+  }[];
   objectType?: string;
   objectId?: string;
 };
@@ -145,6 +179,19 @@ export type LearningSession = {
   learnerId: string;
   startAt: string;
   endAt: string;
+  originalStartAt?: string | null;
+  rescheduleCount?: number;
+  makeupCount?: number;
+  makeupUserIds?: string[];
+  makeupQuota?: {
+    userId: string;
+    totalSessions: number;
+    limit: number;
+    used: number;
+    remaining: number;
+    requiresReview: boolean;
+    reason: string | null;
+  };
   status: string;
   role?: string;
   teacherConfirmationStatus: string | null;

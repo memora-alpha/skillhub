@@ -59,7 +59,16 @@ export function NativeRoomStage({
   else stageLabel = "Đang chờ " + partnerName + " vào phòng";
   return (
     <View style={styles.grid}>
-      <Text style={styles.status}>{stageLabel}</Text>
+      <View style={styles.stageBar}>
+        <Icon
+          name={
+            main?.source === Track.Source.ScreenShare ? "screen-share" : "users"
+          }
+          color="#bdc1c6"
+          size={18}
+        />
+        <Text style={styles.status}>{stageLabel}</Text>
+      </View>
       {main && (
         <NativeRoomTile
           track={main}
@@ -117,7 +126,10 @@ export function NativeRoomStage({
                   : "Ghim màn hình của " + partnerName
               }
               accessibilityState={{ selected: main && id(main) === id(track) }}
-              onPress={() => setPinned(id(track))}
+              onPress={() => setPinned(id(track) === pinned ? null : id(track))}
+              style={
+                main && id(main) === id(track) ? styles.selectedTile : undefined
+              }
             >
               {
                 <NativeRoomTile
@@ -161,30 +173,57 @@ function NativeRoomTile({
           objectFit={screen ? "contain" : "cover"}
         />
       ) : (
-        <View
-          style={[
-            styles.placeholder,
-            { minHeight: primary ? stageHeight : 92 },
-          ]}
-        >
-          <Avatar name={name} sourceUri={avatar} size={primary ? 72 : 36} />
-          <Text style={styles.placeholderText}>Camera đang tắt</Text>
-        </View>
+        <NativeRoomPlaceholder
+          primary={primary}
+          stageHeight={stageHeight}
+          name={name}
+          avatar={avatar}
+        />
       )}
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          paddingLeft: 10,
-        }}
-      >
-        <Avatar name={name} sourceUri={avatar} size={24} />
-        <Text numberOfLines={2} style={[styles.name, { flex: 1 }]}>
+      <View style={styles.tileLabel}>
+        <Avatar name={name} sourceUri={avatar} size={20} />
+        <Text numberOfLines={1} style={styles.name}>
           {name}
           {screen ? " · Màn hình" : ""}
-          {track.participant.isMicrophoneEnabled ? "" : " · Tắt micro"}
         </Text>
+        <Icon
+          name={
+            track.participant.isMicrophoneEnabled
+              ? "microphone"
+              : "microphone-off"
+          }
+          color="#f1f3f4"
+          size={16}
+        />
       </View>
+    </View>
+  );
+}
+
+function NativeRoomPlaceholder({
+  primary,
+  stageHeight,
+  name,
+  avatar,
+}: Readonly<{
+  primary: boolean;
+  stageHeight: number;
+  name: string;
+  avatar?: string | null;
+}>) {
+  return (
+    <View
+      style={[
+        styles.placeholder,
+        {
+          minHeight: primary ? stageHeight : 92,
+          padding: primary ? 24 : 8,
+          paddingBottom: primary ? 48 : 32,
+        },
+      ]}
+    >
+      <Avatar name={name} sourceUri={avatar} size={primary ? 72 : 36} />
+      {primary && <Text style={styles.placeholderText}>Camera đang tắt</Text>}
     </View>
   );
 }

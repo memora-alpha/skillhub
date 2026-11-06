@@ -7,7 +7,7 @@ import { useUserSession } from "../auth/session";
 import type { Identity, LearningSession } from "../types";
 import { formatTime } from "../components/common";
 import { canEnterSession } from "../sessions/session-policy";
-import { userErrorText } from "../api/client";
+import { userErrorText, UserApiError } from "../api/client";
 import { useLearningRoom } from "./use-learning-room";
 import type { RoomTile } from "./room-media";
 import { RoomStage } from "./room-stage";
@@ -25,7 +25,6 @@ import { useCameraBackground } from "./use-camera-background";
 import { useRoomAudio } from "./use-room-audio";
 import { useRoomDevices } from "./use-room-devices";
 import { RoomMediaSettings } from "./room-media-settings";
-import { RoomBackgroundControl } from "./room-background-control";
 import { useRoomChat } from "./use-room-chat";
 import { RoomChat } from "./room-chat";
 import styles from "./room.module.css";
@@ -159,17 +158,6 @@ function RoomControls({
         disabled={!connected || room.mediaBusy || background.busy || audio.busy}
         onClick={() => void room.toggle("camera")}
       />
-      <RoomBackgroundControl
-        background={background}
-        disabled={!connected || room.mediaBusy || audio.busy}
-        onToggle={() =>
-          void room.changeBackground(
-            background.enabled
-              ? { mode: "off" }
-              : { mode: "blur", blurRadius: 12 },
-          )
-        }
-      />
       <IconButton
         icon={room.screen ? "screenOff" : "screen"}
         label={room.screen ? "Dừng chia sẻ màn hình" : "Chia sẻ màn hình"}
@@ -272,7 +260,9 @@ function RoomNotices({
 }
 
 export function LearningRoomScreen({ id }: Readonly<{ id: string }>) {
-  const query = useUserResource<LearningSession>("sessions/" + id);
+  const query = useUserResource<LearningSession>("sessions/" + id, {
+    refetchInterval: () => 15000,
+  });
   const { actor } = useUserSession();
   const background = useCameraBackground();
   const audio = useRoomAudio();
@@ -294,10 +284,7 @@ export function LearningRoomScreen({ id }: Readonly<{ id: string }>) {
     room.room,
     peerId ? id + ":" + peerId : "",
     createChatId,
-    () =>
-      !!query.data &&
-      Date.now() < Date.parse(query.data.endAt) &&
-      ["CONFIRMED", "READY", "ONGOING"].includes(query.data.status),
+    () => !!query.data && canEnterSession(query.data),
   );
   const now = useClock();
   const connected = room.status === "connected";
@@ -313,12 +300,12 @@ export function LearningRoomScreen({ id }: Readonly<{ id: string }>) {
   useEffect(() => {
     if (
       connectedRoom &&
-      query.data &&
-      (!["CONFIRMED", "READY", "ONGOING"].includes(query.data.status) ||
-        Date.now() >= Date.parse(query.data.endAt))
+      ((query.data && !canEnterSession(query.data)) ||
+        (query.failure instanceof UserApiError &&
+          [401, 403, 404].includes(query.failure.status)))
     )
       closeRoom();
-  }, [connectedRoom, closeRoom, query.data]);
+  }, [connectedRoom, closeRoom, query.data, query.failure]);
 
   useEffect(() => {
     const element = container.current;
@@ -463,7 +450,12 @@ export function LearningRoomScreen({ id }: Readonly<{ id: string }>) {
 
       {!joined ? (
         <RoomPrejoin
+          session={query.data}
           name={actor.profile.fullName}
+          onRetryDevices={() => {
+            void devices.refresh();
+            query.reload();
+          }}
           avatarUrl={actor.profile.avatarUrl}
           preview={previewMedia}
           background={background}

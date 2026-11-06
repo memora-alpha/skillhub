@@ -43,11 +43,7 @@ export function VerificationScreen({ id }: Readonly<{ id: string }>) {
   return (
     <>
       <Back href="/learn/skills" />
-      <PageHeading
-        eyebrow="CHIA SẺ VỚI SỰ TIN CẬY"
-        title="Xác minh kỹ năng"
-        description="Gửi bằng chứng để đội ngũ phụ trách xem xét kỹ năng chia sẻ."
-      />
+      <PageHeading title="Xác minh kỹ năng" />
       <div className="learner-two-columns">
         <Panel title="Bằng chứng kỹ năng">
           {sent ? (

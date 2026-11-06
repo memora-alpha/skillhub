@@ -27,7 +27,11 @@ export function ConnectionGate({ children }: { children: ReactNode }) {
         presentationStyle="fullScreen"
         onRequestClose={() => {}}
       >
-        <ConnectionScreen />
+        <ConnectionScreen
+          reason={state.reason}
+          retrying={state.retrying}
+          onRetry={() => void state.retry()}
+        />
       </Modal>
     </View>
   );

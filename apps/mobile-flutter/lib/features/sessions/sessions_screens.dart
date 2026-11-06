@@ -219,7 +219,7 @@ class _LearningSessionScreenState extends ConsumerState<LearningSessionScreen> {
                   path: '/reports/new',
                   queryParameters: {'pathId': s.pathId, 'sessionId': s.id},
                 ).toString(),
-                label: 'Báo cáo vấn đề buổi học',
+                label: 'Báo sự cố kỹ thuật / vấn đề khác',
               ),
               RouteButton(
                 secondary: true,
@@ -238,6 +238,7 @@ class RescheduleScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    if (isLiveId(id)) return LiveSessionPage(id: id);
     final s = _find(ref, id);
     return FeaturePage(
       title: 'Đề nghị đổi lịch',
@@ -329,6 +330,7 @@ class CompletionScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    if (isLiveId(id)) return LiveSessionPage(id: id);
     final s = _find(ref, id);
     String confirmed(bool value) => value ? 'Đã xác nhận' : 'Chưa xác nhận';
     return FeaturePage(

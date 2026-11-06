@@ -1,6 +1,9 @@
 "use client";
 import Link from "next/link";
-import { useState } from "react";
+import { useCallback, useState } from "react";
+import { UploadControl } from "../components/upload-control";
+import { ReportEvidence } from "./report-evidence";
+import { UserApiError } from "../api/client";
 import { formText } from "../components/form-data";
 import { useUserSession } from "../auth/session";
 import { useUserResource } from "../hooks/use-user-resource";
@@ -18,18 +21,12 @@ import {
 import type { ReportCase, Material } from "./account-types";
 import type { LearningSession } from "../types";
 import { reportStatuses, reportStatusLabel } from "./report-status";
-export const reportReasons = [
-  ["NO_SHOW_LATE", "Vắng học / đến muộn"],
-  ["INAPPROPRIATE_BEHAVIOR", "Hành vi không phù hợp"],
-  ["HARASSMENT", "Quấy rối"],
-  ["SKILL_MISMATCH", "Kỹ năng không phù hợp"],
-  ["FALSE_INFORMATION", "Thông tin sai lệch"],
-  ["TECHNICAL_ISSUE", "Sự cố kỹ thuật"],
-  ["CREDIT_ISSUE", "Vấn đề Credit"],
-  ["INAPPROPRIATE_CONTENT", "Nội dung không phù hợp"],
-  ["SPAM_SCAM", "Spam / lừa đảo"],
-  ["OTHER", "Khác"],
-] as const;
+import {
+  canSubmitReportReason,
+  reportReasonLabel,
+  reportReasons,
+} from "./report-reasons";
+export { reportReasons } from "./report-reasons";
 export function ReportsScreen() {
   const query = useUserResource<ReportCase[]>("reports/mine");
   const [filter, setFilter] = useState("ALL");
@@ -38,10 +35,7 @@ export function ReportsScreen() {
   );
   return (
     <>
-      <PageHeading
-        title="Báo cáo của tôi"
-        description="Trạng thái xử lý các vấn đề bạn đã gửi."
-      />
+      <PageHeading title="Báo cáo của tôi" />
       <Feedback
         loading={query.loading}
         error={query.error}
@@ -67,11 +61,7 @@ export function ReportsScreen() {
         {items?.map((item) => (
           <Panel key={item.id}>
             <div className="learner-card-top">
-              <h2>
-                {reportReasons.find(
-                  ([code]) => code === item.reasonCode,
-                )?.[1] ?? item.reasonCode}
-              </h2>
+              <h2>{reportReasonLabel(item.reasonCode)}</h2>
               <Status
                 value={item.status}
                 label={reportStatusLabel(item.status)}
@@ -142,19 +132,47 @@ function ReportSubmission({
 }>) {
   const { request } = useUserSession();
   const command = useUserCommand();
+  const [files, setFiles] = useState<{ id: string; state: string }[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const updateFile = useCallback(
+    (id: string, state: string) =>
+      setFiles((rows) =>
+        rows.map((row) =>
+          row.id === id && row.state !== state ? { id, state } : row,
+        ),
+      ),
+    [],
+  );
   return (
     <form
       className="learner-form"
       onSubmit={async (e) => {
         e.preventDefault();
+        if (uploading || command.pending || command.uncertain) return;
         const fields = new FormData(e.currentTarget);
         const body = {
           reasonCode: formText(fields, "reasonCode"),
           description: formText(fields, "description").trim(),
-          ...(sessionId ? { evidenceFileIds: [] } : {}),
+          ...(sessionId
+            ? { evidenceFileIds: files.map((file) => file.id) }
+            : {}),
         };
-        const result = await command.run(JSON.stringify({ path, body }), () =>
-          request<{ id: string }>(path, { method: "POST", body }),
+        const result = await command.run(
+          JSON.stringify({ path, body }),
+          async () => {
+            if (!canSubmitReportReason(body.reasonCode))
+              throw new UserApiError(400, "REPORT_REASON_INVALID");
+            if (sessionId) {
+              const fresh = (
+                await request<LearningSession>("sessions/" + sessionId)
+              ).data;
+              if (fresh.status === "CANCELLED")
+                throw new UserApiError(409, "SESSION_NOT_REPORTABLE");
+              if (files.some((file) => file.state !== "READY"))
+                throw new UserApiError(409, "FILE_NOT_CLEAN");
+            }
+            return request<{ id: string }>(path, { method: "POST", body });
+          },
         );
         if (result) onSent(result.data.id);
       }}
@@ -179,6 +197,48 @@ function ReportSubmission({
           ))}
         </select>
       </label>
+      {sessionId && (
+        <>
+          <p>
+            Báo cáo dành cho sự cố kỹ thuật hoặc vấn đề khác cần hỗ trợ. Vắng
+            học, hủy buổi và học bù được xử lý trong chi tiết buổi học, không
+            cần tạo báo cáo vắng học. Báo cáo sau giải ngân không tự đảo giao
+            dịch Credit.
+          </p>
+          <Link href={"/learn/sessions/" + sessionId}>
+            Xử lý vắng học / hủy buổi / học bù
+          </Link>
+          <UploadControl
+            endpoint="reports/evidence-files"
+            label="Tệp bằng chứng"
+            onBusyChange={setUploading}
+            maxBytes={10000000}
+            accept="image/jpeg,image/png,image/webp,application/pdf"
+            disabled={command.pending || command.uncertain || files.length >= 5}
+            onUploaded={(id) =>
+              setFiles((rows) =>
+                rows.some((r) => r.id === id)
+                  ? rows
+                  : [...rows, { id, state: "PENDING" }],
+              )
+            }
+          />
+          <small>
+            Tối đa 5 bằng chứng. Chỉ gửi khi mọi tệp đã được máy chủ kiểm tra.
+          </small>
+          {files.map((file) => (
+            <ReportEvidence
+              key={file.id}
+              id={file.id}
+              onState={updateFile}
+              disabled={command.pending || command.uncertain}
+              onRemove={() =>
+                setFiles((rows) => rows.filter((r) => r.id !== file.id))
+              }
+            />
+          ))}
+        </>
+      )}
       <label>
         <span>Mô tả chi tiết</span>
         <textarea
@@ -192,10 +252,22 @@ function ReportSubmission({
         />
       </label>
       <CommandFeedback command={command} />
+      {(command.uncertain ||
+        command.failure?.code === "ACTIVE_SESSION_REPORT_EXISTS") && (
+        <Link href="/learn/reports">
+          Kiểm tra báo cáo đã gửi trước khi thao tác tiếp
+        </Link>
+      )}
       <button
         type="submit"
         className="btn btn-primary"
-        disabled={command.pending || command.uncertain}
+        disabled={
+          uploading ||
+          command.pending ||
+          command.uncertain ||
+          files.some((file) => file.state !== "READY") ||
+          ("status" in target && target.status === "CANCELLED")
+        }
       >
         {command.pending ? "Đang gửi…" : "Gửi báo cáo"}
       </button>
@@ -227,6 +299,7 @@ export function ReportForm({
   else if (target.data)
     content = (
       <ReportSubmission
+        key={path}
         target={target.data}
         path={path}
         sessionId={sessionId}
@@ -236,11 +309,7 @@ export function ReportForm({
   return (
     <>
       <Back href={back} />
-      <PageHeading
-        eyebrow="CÙNG XÂY DỰNG CỘNG ĐỒNG AN TOÀN"
-        title="Gửi báo cáo"
-        description="Mô tả cụ thể vấn đề để đội ngũ hỗ trợ có thể xem xét."
-      />
+      <PageHeading title="Gửi báo cáo" />
       <div className="learner-two-columns">
         <Panel title={sessionId ? "Báo cáo buổi học" : "Báo cáo tài liệu"}>
           <Feedback

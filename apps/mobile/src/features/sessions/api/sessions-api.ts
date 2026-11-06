@@ -34,6 +34,8 @@ export function createSessionsApi(
     if (!result.success || (id && result.data.id !== id))
       throw new AppError("protocol");
     const s = result.data;
+    if (s.makeupQuota && s.makeupQuota.userId !== userId)
+      throw new AppError("protocol");
     if (userId !== s.teacherId && userId !== s.learnerId)
       throw new AppError("http", 403, "SESSION_ACCESS_DENIED");
     const role: "TEACHER" | "LEARNER" =

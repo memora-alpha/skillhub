@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { notificationCopy } from "@/lib/i18n/system-copy";
 import { useUserList } from "../hooks/use-user-resource";
 import { useUserCommand } from "../hooks/use-user-command";
 import { useUnreadNotifications } from "../hooks/use-unread-notifications";
@@ -16,26 +17,23 @@ import {
 import { ProductIcon } from "../components/product-icon";
 import { notificationDestination } from "./view-policy";
 import type { InboxNotification } from "./account-types";
+import { WebPushSettings } from "../notifications/web-push-settings";
 export function NotificationsScreen() {
   const query = useUserList<InboxNotification>("notifications?limit=20"),
     command = useUserCommand(),
     { request } = useUserSession();
   const unread = useUnreadNotifications();
-  let summary = "Đang tải số thông báo chưa đọc…";
-  if (unread.error)
-    summary =
-      "Chưa tải được số thông báo chưa đọc. Bạn có thể làm mới để thử lại.";
+  let summary = "Đang tải…";
+  if (unread.error) summary = "Chưa tải được số thông báo chưa đọc.";
   else if (unread.count !== undefined) {
     if (unread.count === 0) summary = "Bạn đã đọc tất cả thông báo.";
-    else if (unread.count > 99) summary = "Bạn có hơn 99 thông báo chưa đọc.";
-    else summary = `Bạn có ${unread.count} thông báo chưa đọc.`;
+    else if (unread.count > 99) summary = "Hơn 99 thông báo chưa đọc";
+    else summary = `${unread.count} thông báo chưa đọc`;
   }
   return (
     <>
       <PageHeading
-        eyebrow="CẬP NHẬT DÀNH CHO BẠN"
         title="Thông báo"
-        description="Theo dõi những thay đổi trong học tập và kết nối."
         action={
           <button
             type="button"
@@ -46,13 +44,14 @@ export function NotificationsScreen() {
               void unread.reload();
             }}
           >
-            Làm mới thông báo
+            Làm mới
           </button>
         }
       />
-      <p className="learner-notice">
+      <p className="muted">
         <output>{summary}</output>
       </p>
+      <WebPushSettings />
       <Feedback
         loading={query.loading}
         error={query.error}
@@ -62,6 +61,7 @@ export function NotificationsScreen() {
       <div className="learner-stack">
         {query.items.map((item) => {
           const href = notificationDestination(item.payload);
+          const copy = notificationCopy(item);
           return (
             <Panel
               className={
@@ -71,8 +71,8 @@ export function NotificationsScreen() {
             >
               <ProductIcon name="notification" />
               <div>
-                <h2>{item.title}</h2>
-                <p className="learner-prose">{item.body}</p>
+                <h2>{copy.title}</h2>
+                <p className="learner-prose">{copy.body}</p>
                 <time dateTime={item.createdAt}>
                   {formatTime(item.createdAt)}
                 </time>

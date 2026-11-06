@@ -1,4 +1,5 @@
 "use client";
+import { achievementCopy, achievementTitle } from "@/lib/i18n/system-copy";
 import { Badge, Card, Empty, PageHeader } from "@/components/console/ui";
 import { fmtDateTime } from "@/lib/console/format";
 import { useAchievements } from "./use-achievements";
@@ -50,7 +51,10 @@ export function AchievementsScreen() {
               </button>
             }
           >
-            <p>{data.selectedTitle ?? "Không hiển thị danh hiệu"}</p>
+            <p>
+              {achievementTitle(data.selectedTitle) ??
+                "Không hiển thị danh hiệu"}
+            </p>
             <p className="muted">
               Danh hiệu đã chọn hiển thị trên hồ sơ công khai của bạn.
             </p>
@@ -76,9 +80,9 @@ export function AchievementsScreen() {
                     {data.items.map((item) => (
                       <tr key={item.code}>
                         <td>
-                          <strong>{item.title}</strong>
+                          <strong>{achievementCopy(item).title}</strong>
                         </td>
-                        <td>{item.description}</td>
+                        <td>{achievementCopy(item).description}</td>
                         <td>{fmtDateTime(item.unlockedAt)}</td>
                         <td>
                           {data.selectedTitle === item.title ? (

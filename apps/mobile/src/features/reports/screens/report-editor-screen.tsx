@@ -66,6 +66,24 @@ function ReportEditor({
         <Panel title="Mô tả điều đã xảy ra">
           <Copy>Đối tượng: {id}</Copy>
           {target === "SESSION" && (
+            <Copy>
+              Báo cáo dành cho sự cố kỹ thuật hoặc vấn đề khác cần hỗ trợ. Vắng
+              học, hủy buổi và học bù được xử lý trong chi tiết buổi học, không
+              cần tạo báo cáo vắng học. Báo cáo sau giải ngân không tự đảo giao
+              dịch Credit.
+            </Copy>
+          )}
+          {sessionId && (
+            <RouteButton
+              href={{
+                pathname: "/learning-sessions/[id]",
+                params: { id: sessionId },
+              }}
+            >
+              Xử lý vắng học / hủy buổi / học bù
+            </RouteButton>
+          )}
+          {target === "SESSION" && (
             <ServerFilePicker
               files={files}
               onChange={setFiles}
@@ -90,6 +108,7 @@ function ReportEditor({
             </>
           )}
           <DataForm
+            defaults={{ reason: "TECHNICAL_ISSUE" }}
             fields={[
               {
                 name: "reason",

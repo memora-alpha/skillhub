@@ -44,9 +44,6 @@ export function PlanPanel({
     : proposeScheduleLabel;
   return (
     <Panel title={teacher ? "Kế hoạch bạn hướng dẫn" : "Kế hoạch bạn học"}>
-      <p className="panel-kicker">
-        {teacher ? "BẠN HƯỚNG DẪN" : "BẠN ĐANG HỌC"}
-      </p>
       <Status value={plan.status} />
       {mode === "plan" && (
         <>
@@ -59,9 +56,7 @@ export function PlanPanel({
               </li>
             ))}
           </ol>
-          <p>
-            {plan.totalSessions} buổi · Phiên bản {plan.version}
-          </p>
+          <p>{plan.totalSessions} buổi</p>
           {editable && !teacher && !plan.learnerConfirmedAt && (
             <button
               type="button"
@@ -76,7 +71,7 @@ export function PlanPanel({
                 );
               }}
             >
-              Tôi xác nhận kế hoạch phiên bản này
+              Xác nhận kế hoạch
             </button>
           )}
           {editable && teacher && (
@@ -101,57 +96,56 @@ export function PlanPanel({
       {mode === "schedule" && (
         <>
           <h3>{plan.learningGoal}</h3>
-          <h3>Lịch dự kiến</h3>
-          {plan.schedule ? (
-            <>
-              <Status value={plan.schedule.status} />
-              <ul>
-                {plan.schedule.items.map((item) => (
-                  <li key={item.sessionNo}>
-                    Buổi {item.sessionNo}: {formatTime(item.startAt)} –{" "}
-                    {formatTime(item.endAt)}
-                  </li>
-                ))}
-              </ul>
-              {editable && plan.schedule.appliedVersion === null && (
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  disabled={
-                    !!ownScheduleConfirmed ||
-                    command.pending ||
-                    command.uncertain
-                  }
-                  onClick={() => {
-                    void command.run(
-                      "schedule:" +
-                        plan.schedule!.id +
-                        ":" +
-                        plan.schedule!.version,
-                      () =>
-                        request(
-                          "schedule-proposals/" +
-                            plan.schedule!.id +
-                            "/confirm",
-                          {
-                            method: "POST",
-                            body: { expectedVersion: plan.schedule!.version },
-                          },
-                        ),
-                    );
-                  }}
-                >
-                  {ownScheduleConfirmed
-                    ? "Bạn đã xác nhận lịch này"
-                    : "Xác nhận lịch phiên bản này"}
-                </button>
-              )}
-            </>
-          ) : (
-            <p className="muted">
-              Chưa có lịch. Cần đủ xác nhận kế hoạch trước khi đề nghị giờ học.
-            </p>
-          )}
+          {!plan.sessions.length && <h3>Lịch dự kiến</h3>}
+          {!plan.sessions.length &&
+            (plan.schedule ? (
+              <>
+                <Status value={plan.schedule.status} />
+                <ul>
+                  {plan.schedule.items.map((item) => (
+                    <li key={item.sessionNo}>
+                      Buổi {item.sessionNo}: {formatTime(item.startAt)} –{" "}
+                      {formatTime(item.endAt)}
+                    </li>
+                  ))}
+                </ul>
+                {editable && plan.schedule.appliedVersion === null && (
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    disabled={
+                      !!ownScheduleConfirmed ||
+                      command.pending ||
+                      command.uncertain
+                    }
+                    onClick={() => {
+                      void command.run(
+                        "schedule:" +
+                          plan.schedule!.id +
+                          ":" +
+                          plan.schedule!.version,
+                        () =>
+                          request(
+                            "schedule-proposals/" +
+                              plan.schedule!.id +
+                              "/confirm",
+                            {
+                              method: "POST",
+                              body: { expectedVersion: plan.schedule!.version },
+                            },
+                          ),
+                      );
+                    }}
+                  >
+                    {ownScheduleConfirmed
+                      ? "Đã xác nhận lịch"
+                      : "Xác nhận lịch"}
+                  </button>
+                )}
+              </>
+            ) : (
+              <p className="muted">Xác nhận kế hoạch để xếp lịch.</p>
+            ))}
           {editable &&
             teacher &&
             path.status === "CONFIRMED" &&

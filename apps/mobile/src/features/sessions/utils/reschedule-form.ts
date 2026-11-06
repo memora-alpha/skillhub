@@ -18,6 +18,7 @@ export type RescheduleForm = z.infer<typeof rescheduleFormSchema>;
 export function rescheduleAvailabilityMessage(
   session: Pick<LearningSession, "startAt" | "allowedActions" | "deadlines"> & {
     status: string;
+    rescheduleCount?: number;
   },
   now = Date.now(),
 ) {
@@ -44,6 +45,7 @@ export function rescheduleInput(
 export function isRescheduleEligible(
   session: Pick<LearningSession, "startAt" | "allowedActions" | "deadlines"> & {
     status: string;
+    rescheduleCount?: number;
   },
   now = Date.now(),
 ) {
@@ -55,6 +57,7 @@ export function isRescheduleEligible(
     );
   return (
     ["CONFIRMED", "READY"].includes(session.status) &&
+    (session.rescheduleCount ?? 0) < 3 &&
     Date.parse(session.startAt) - now >= 3_600_000
   );
 }

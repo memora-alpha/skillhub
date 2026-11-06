@@ -13,17 +13,32 @@ import {
   Feedback,
   PageHeading,
   Panel,
+  Status,
 } from "../components/common";
 import type { Post } from "../types";
+import Link from "next/link";
+import { PostExtras, initialPostExtras } from "./post-extras";
+import { postExtraInput } from "./post-input";
 export function PostEditor({ id }: Readonly<{ id?: string }>) {
-  const query = useUserResource<Post>(id ? "learning-requests/" + id : null);
+  const query = useUserResource<Post>(id ? "learning-requests/" + id : null, {
+    retainOnTemporaryError: true,
+  });
   return (
     <>
       <Back href={id ? "/learn/posts/" + id : "/learn/explore"} />
       <PageHeading
         title={id ? "Chỉnh sửa bài đăng" : "Bạn muốn học điều gì?"}
-        description="Chia sẻ mục tiêu rõ ràng để gặp người hướng dẫn phù hợp."
       />
+      {id && (
+        <button
+          type="button"
+          className="btn"
+          disabled={query.loading}
+          onClick={query.reload}
+        >
+          Kiểm tra phiên bản mới trên máy chủ
+        </button>
+      )}
       {id && (
         <Feedback
           loading={query.loading}
@@ -44,10 +59,7 @@ export function PostEditor({ id }: Readonly<{ id?: string }>) {
         </aside>
         <div>
           {(!id || query.data) && (
-            <PostForm
-              key={id ? id + ":" + query.data?.version : "new"}
-              post={query.data}
-            />
+            <PostForm key={id ?? "new"} post={query.data} />
           )}
         </div>
       </div>
@@ -60,11 +72,18 @@ function PostForm({ post }: Readonly<{ post?: Post }>) {
     command = useUserCommand();
   const [skill, setSkill] = useState(post?.skillId ?? post?.skill?.id ?? ""),
     [error, setError] = useState<string>();
+  const [baseline, setBaseline] = useState(post);
+  const [extras, setExtras] = useState(() => initialPostExtras(post));
+  const stale = !!post && post.version !== baseline?.version;
   const blocked =
     command.pending ||
     command.uncertain ||
+    stale ||
     !!post?.owner ||
-    (!!post && !["DRAFT", "OPEN", "REJECTED"].includes(post.status));
+    (!!post &&
+      !["DRAFT", "OPEN", "PENDING_MODERATION", "REJECTED"].includes(
+        post.status,
+      ));
   const saveLabel = post ? "Lưu thay đổi" : "Lưu bài đăng";
   return (
     <Panel>
@@ -79,8 +98,48 @@ function PostForm({ post }: Readonly<{ post?: Post }>) {
             return;
           }
           const fields = new FormData(event.currentTarget);
+          for (const [field, label, minimum, maximum] of [
+            ["title", "Tiêu đề", 10, 120],
+            ["description", "Mô tả", 20, 3000],
+            ["goal", "Mục tiêu học", 10, 1000],
+          ] as const) {
+            const length = Array.from(formText(fields, field).trim()).length;
+            if (length < minimum || length > maximum) {
+              setError(
+                label +
+                  " cần từ " +
+                  minimum +
+                  " đến " +
+                  maximum +
+                  " ký tự sau khi bỏ khoảng trắng ở đầu/cuối.",
+              );
+              return;
+            }
+          }
+          const hourlyCredit = formText(fields, "credit");
+          if (
+            hourlyCredit &&
+            (!/^(?:0|[1-9]\d{0,9})(?:\.\d{1,2})?$/.test(hourlyCredit) ||
+              Number(hourlyCredit) <= 0)
+          ) {
+            setError(
+              "Credit/giờ phải lớn hơn 0, tối đa 2 chữ số thập phân, hoặc để trống.",
+            );
+            return;
+          }
+          let extended: ReturnType<typeof postExtraInput>;
+          try {
+            extended = postExtraInput(extras);
+          } catch (cause) {
+            setError(
+              cause instanceof Error
+                ? cause.message
+                : "Thông tin bổ sung chưa hợp lệ.",
+            );
+            return;
+          }
           const body = {
-            skillId: skill,
+            ...(!baseline?.publishedAt ? { skillId: skill } : {}),
             title: formText(fields, "title").trim(),
             description: formText(fields, "description").trim(),
             learningGoal: formText(fields, "goal").trim(),
@@ -88,14 +147,8 @@ function PostForm({ post }: Readonly<{ post?: Post }>) {
             desiredCreditPerHour: fields.get("credit")
               ? formText(fields, "credit")
               : null,
-            ...(!post
-              ? {
-                  verifiedTeacherOnly: false,
-                  tagIds: [],
-                  preferredSlots: [],
-                  expiresAt: null,
-                }
-              : { expectedVersion: post.version }),
+            ...extended,
+            ...(baseline ? { expectedVersion: baseline.version } : {}),
           };
           const result = await command.run(
             JSON.stringify({ id: post?.id, body }),
@@ -108,7 +161,46 @@ function PostForm({ post }: Readonly<{ post?: Post }>) {
           if (result) router.replace("/learn/posts/" + result.data.id);
         }}
       >
-        <SkillPicker value={skill} onChange={setSkill} disabled={blocked} />
+        {stale && (
+          <div className="learner-notice">
+            <p>
+              Bài trên máy chủ đã thay đổi. Bản đang nhập của bạn vẫn được giữ;
+              đối chiếu trước khi lưu tiếp.
+            </p>
+            <details>
+              <summary>Xem nội dung mới từ máy chủ</summary>
+              <p>{post?.title}</p>
+              <p className="learner-prose">{post?.description}</p>
+              <p>{post?.learningGoal}</p>
+              {post && (
+                <p>
+                  Trạng thái: <Status value={post.status} />
+                </p>
+              )}
+            </details>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => {
+                setBaseline(post);
+                if (post?.publishedAt)
+                  setSkill(post.skillId ?? post.skill?.id ?? "");
+              }}
+            >
+              Đã đối chiếu, dùng phiên bản mới cho bản đang nhập
+            </button>
+          </div>
+        )}
+        <SkillPicker
+          value={skill}
+          onChange={setSkill}
+          disabled={blocked || !!baseline?.publishedAt}
+        />
+        {baseline?.publishedAt && (
+          <p className="muted">
+            Kỹ năng chính được giữ sau lần xuất bản đầu tiên.
+          </p>
+        )}
         <label>
           <span>Tiêu đề</span>
           <input
@@ -174,12 +266,32 @@ function PostForm({ post }: Readonly<{ post?: Post }>) {
             <small>Mức gợi ý; giá cuối cùng do hai bên xác nhận.</small>
           </label>
         </div>
+        <PostExtras value={extras} onChange={setExtras} disabled={blocked} />
+        {extras.proposedTags.length > 0 && (
+          <p className="learner-notice">
+            Khi xuất bản, bài này sẽ chờ duyệt cùng các tag mới. Lưu nháp chưa
+            gửi bài ra công khai.
+          </p>
+        )}
         {error && (
           <p className="learner-error" role="alert">
             {error}
           </p>
         )}
         <CommandFeedback command={command} />
+        {command.uncertain && (
+          <p>
+            Bản đang nhập được giữ nguyên.{" "}
+            <Link
+              href="/learn/explore?mine=true"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Kiểm tra bài của tôi trong tab mới
+            </Link>{" "}
+            trước khi bắt đầu yêu cầu khác.
+          </p>
+        )}
         <button type="submit" className="btn btn-primary" disabled={blocked}>
           {command.pending ? "Đang lưu…" : saveLabel}
         </button>

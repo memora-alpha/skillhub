@@ -857,8 +857,6 @@ class LivePathDetail extends ConsumerStatefulWidget {
 class _LivePathDetailState extends ConsumerState<LivePathDetail> {
   String? _error;
   String? _busy;
-  String? _settlementGross;
-  String? _settlementFee;
   AgreementStep? _reviewing;
 
   Future<void> _run(String action, Future<void> Function() work) async {
@@ -1027,37 +1025,6 @@ class _LivePathDetailState extends ConsumerState<LivePathDetail> {
               progress: progress,
               onReviewPlans: () =>
                   setState(() => _reviewing = AgreementStep.plans),
-            ),
-          if (_settlementGross != null)
-            FormNotice(
-              tone: NoticeTone.success,
-              message:
-                  'Đã quyết toán. Tổng $_settlementGross CR, phí $_settlementFee CR.',
-            ),
-          if (path['status'] == 'ACTIVE')
-            AppButton(
-              label: _busy == 'settle'
-                  ? 'Đang quyết toán...'
-                  : 'Quyết toán lộ trình',
-              variant: ButtonVariant.craft,
-              loading: _busy == 'settle',
-              disabled: _busy != null,
-              onPressed: () => _run('settle', () async {
-                final result = await ref
-                    .read(authRuntimeProvider)
-                    .services
-                    .study
-                    .settle(widget.id);
-                await ref.read(accountProvider.notifier).reload();
-                ref.read(refreshTicksProvider.notifier).bump(const {
-                  RefreshScope.profile,
-                });
-                if (!mounted) return;
-                setState(() {
-                  _settlementGross = _text(result['gross']);
-                  _settlementFee = _text(result['fee']);
-                });
-              }),
             ),
         ],
       ],

@@ -62,35 +62,6 @@
   font-style: normal;
   text-align: center;
 }
-.learner-root .sidebar-help {
-  margin: auto 5px 15px;
-  padding: 16px;
-  border-radius: 13px;
-  color: white;
-  background: var(--app-forest);
-}
-.learner-root .sidebar-help > svg {
-  color: #f0ae8e;
-}
-.learner-root .sidebar-help b {
-  display: block;
-  margin: 9px 0 5px;
-  font-size: 12px;
-}
-.learner-root .sidebar-help p {
-  color: rgba(255, 255, 255, 0.58);
-  font-size: 9px;
-  line-height: 1.5;
-}
-.learner-root .sidebar-help button {
-  margin-top: 10px;
-  padding: 0;
-  border: 0;
-  color: #f1b394;
-  background: transparent;
-  font-size: 10px;
-  font-weight: 700;
-}
 .learner-root .sidebar-profile {
   min-height: 54px;
   display: flex;

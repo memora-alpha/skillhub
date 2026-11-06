@@ -18,6 +18,7 @@ export function useUserResource<T>(
   path: string | null,
   options?: {
     refetchInterval?: (data: T | undefined) => number | false;
+    retainOnTemporaryError?: boolean;
   },
 ) {
   const { request, actor } = useUserSession();
@@ -32,10 +33,16 @@ export function useUserResource<T>(
     refetchIntervalInBackground: false,
   });
   return {
-    data: query.error ? undefined : query.data?.data,
+    data:
+      query.error &&
+      !(options?.retainOnTemporaryError && isTemporaryFailure(query.error))
+        ? undefined
+        : query.data?.data,
     pagination: query.data?.meta?.pagination,
     loading: !!path && (query.isPending || query.isFetching),
+    initialLoading: !!path && query.isPending,
     error: query.error?.message,
+    failure: query.error,
     reload: () => {
       void query.refetch();
     },
@@ -83,6 +90,7 @@ export function useUserList<T extends { id: string }>(path: string) {
   return {
     items: showItems ? items : [],
     loading: query.isPending || query.isFetching,
+    initialLoading: query.isPending,
     error: query.error ? staleNotice + query.error.message : undefined,
     cursor: query.hasNextPage
       ? (query.data?.pages.at(-1)?.meta?.pagination?.nextCursor ?? null)

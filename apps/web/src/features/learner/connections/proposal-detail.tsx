@@ -7,7 +7,8 @@ import {
   Panel,
   formatTime,
 } from "../components/common";
-import { ProposalCard } from "./connections-screen";
+import { ProposalCard } from "./proposal-card";
+import styles from "./connections.module.css";
 import type { Proposal } from "../types";
 export function ProposalDetail({ id }: Readonly<{ id: string }>) {
   const query = useUserResource<Proposal>("proposals/" + id);
@@ -15,19 +16,15 @@ export function ProposalDetail({ id }: Readonly<{ id: string }>) {
   return (
     <>
       <Back href="/learn/connections" />
-      <PageHeading
-        eyebrow="KẾT NỐI HỌC TẬP"
-        title="Chi tiết đề nghị"
-        description="Xem lời nhắn và điều kiện gợi ý trước khi bắt đầu trao đổi."
-      />
+      <PageHeading title="Chi tiết đề nghị" />
       <Feedback
         loading={query.loading}
         error={query.error}
         reload={query.reload}
       />
       {proposal && (
-        <div className="learner-two-columns">
-          <ProposalCard proposal={proposal} />
+        <div className={styles.detail}>
+          <ProposalCard proposal={proposal} detail />
           <Panel title="Thông tin đề nghị">
             <p>Gửi lúc {formatTime(proposal.createdAt)}</p>
             <p>Phiên bản: {proposal.version}</p>

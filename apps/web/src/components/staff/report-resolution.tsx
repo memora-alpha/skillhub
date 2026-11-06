@@ -12,6 +12,9 @@ export function ReportResolutionFields({
   attendanceManaged = false,
   rulingRequired = false,
   allowUphold = false,
+  cancelledMakeup = false,
+  unverifiable = false,
+  systemCase = false,
 }: Readonly<{
   value: ResolutionDraft;
   admin: boolean;
@@ -20,6 +23,9 @@ export function ReportResolutionFields({
   attendanceManaged?: boolean;
   rulingRequired?: boolean;
   allowUphold?: boolean;
+  cancelledMakeup?: boolean;
+  unverifiable?: boolean;
+  systemCase?: boolean;
 }>) {
   return (
     <div className="stack">
@@ -33,6 +39,7 @@ export function ReportResolutionFields({
               onChange({
                 ...value,
                 noShowRuling: e.target.value as ResolutionDraft["noShowRuling"],
+                makeupUserId: "",
               })
             }
           >
@@ -43,6 +50,55 @@ export function ReportResolutionFields({
             <option value="EXCUSE">Chấp nhận lý do và yêu cầu học bù</option>
             <option value="COMPLETE">Ghi nhận hoàn thành buổi học</option>
           </select>
+        </label>
+      )}
+      {unverifiable && value.noShowRuling === "EXCUSE" && (
+        <label className="staff-field">
+          <span>
+            Người yêu cầu sử dụng lượt học bù
+            {systemCase ? " (bắt buộc cho vụ việc hệ thống)" : ""}
+          </span>
+          <select
+            value={value.makeupUserId ?? ""}
+            required={systemCase}
+            onChange={(e) =>
+              onChange({ ...value, makeupUserId: e.target.value })
+            }
+          >
+            <option value="">
+              {systemCase ? "Chọn người yêu cầu" : "Theo người gửi báo cáo"}
+            </option>
+            {value.participants.map((p, i) => (
+              <option key={p.userId} value={p.userId}>
+                Người tham gia {i + 1} — {p.userId}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      {cancelledMakeup && (
+        <label className="staff-field">
+          <span>Quyết định cho học bù từ hủy buổi</span>
+          <select
+            required={rulingRequired}
+            value={value.cancellationMakeupRuling ?? ""}
+            onChange={(e) =>
+              onChange({
+                ...value,
+                cancellationMakeupRuling: e.target
+                  .value as ResolutionDraft["cancellationMakeupRuling"],
+              })
+            }
+          >
+            <option value="">Chọn quyết định</option>
+            <option value="EXTEND">
+              Gia hạn đặt lịch của lượt học bù đã cấp
+            </option>
+            <option value="COMPLETE">
+              Ghi nhận hoàn thành theo kết luận xử lý
+            </option>
+          </select>
+          <small>Gia hạn không cấp thêm một lượt học bù.</small>
         </label>
       )}
       <p className="muted">

@@ -16,6 +16,7 @@ import { useStaffSession } from "./session";
 import { Pager, QueueState } from "./common";
 import { Icon } from "@/components/console/icon";
 import { UserManagementDialog } from "./user-management-dialog";
+import { CreateStaffDialog } from "./create-staff-dialog";
 import {
   allowedUserActions,
   type UserAction,
@@ -32,6 +33,7 @@ export function UsersScreen({
   );
   const [initialAction, setInitialAction] = useState<UserAction>();
   const [success, setSuccess] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
   const params = new URLSearchParams({ limit: "20" });
   if (status) params.set("status", status);
   if (role) params.set("role", role);
@@ -58,14 +60,28 @@ export function UsersScreen({
         title="Người dùng"
         desc="Quản lý trạng thái tài khoản và phân quyền nhân viên."
         actions={
-          <button
-            type="button"
-            className="btn"
-            disabled={queue.loading}
-            onClick={reload}
-          >
-            Làm mới
-          </button>
+          <div className="row">
+            {actor?.roles.includes("ADMIN") && (
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => {
+                  reset();
+                  setCreating(true);
+                }}
+              >
+                Tạo tài khoản Staff
+              </button>
+            )}
+            <button
+              type="button"
+              className="btn"
+              disabled={queue.loading}
+              onClick={reload}
+            >
+              Làm mới
+            </button>
+          </div>
         }
       />
       <div className="toolbar">
@@ -275,6 +291,26 @@ export function UsersScreen({
             hasMore={queue.page?.hasMore}
           />
         </Card>
+      )}
+      {creating && (
+        <CreateStaffDialog
+          key={actor?.userId}
+          onClose={() => setCreating(false)}
+          onCreated={() => {
+            setCreating(false);
+            setSuccess(
+              "Đã tạo tài khoản Staff. Nhân viên có thể đăng nhập ngay.",
+            );
+            void reload();
+          }}
+          onCheck={() => {
+            setCreating(false);
+            setRole("");
+            setStatus("");
+            setQ("");
+            void reload();
+          }}
+        />
       )}
       {selected && !queue.error && (
         <UserManagementDialog

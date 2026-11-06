@@ -1,201 +1,159 @@
 "use client";
-import { formText } from "../components/form-data";
-
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { useUserSession } from "../auth/session";
-import { useUserResource, useUserList } from "../hooks/use-user-resource";
+import { useUserResource } from "../hooks/use-user-resource";
 import { useUserCommand } from "../hooks/use-user-command";
-import type { Post, Proposal, SharingSkill } from "../types";
-import {
-  Back,
-  CommandFeedback,
-  Feedback,
-  PageHeading,
-  Panel,
-  More,
-  Status,
-} from "../components/common";
+import { Back, CommandFeedback, Feedback } from "../components/common";
+import { ProductIcon } from "../components/product-icon";
+import type { Post } from "../types";
+import { postActions } from "./post-policy";
+import { postCredit } from "./post-presentation";
+import { PostDetailContent } from "./post-detail-content";
+import { PostPublicActions } from "./post-public-actions";
+import styles from "./posts.module.css";
+
 export function PostDetail({ id }: Readonly<{ id: string }>) {
-  const query = useUserResource<Post>("learning-requests/" + id),
-    { request } = useUserSession(),
-    command = useUserCommand();
-  const post = query.data,
-    owner = post && !post.owner;
+  const query = useUserResource<Post>("learning-requests/" + id);
+  const post = query.data;
+  const owner = !!post && !post.owner;
+  const actions = post ? postActions(post) : undefined;
   return (
     <>
-      <Back href="/learn" />
+      <Back href={owner ? "/learn/explore?mine=true" : "/learn/explore"} />
       <Feedback
         loading={query.loading}
         error={query.error}
         reload={query.reload}
       />
-      {post && (
-        <>
-          <PageHeading
-            title={post.title}
-            description={post.owner?.displayName ?? "Bài đăng của bạn"}
-            action={<Status value={post.status} />}
-          />
-          <div className="learner-two-columns">
-            <Panel title="Điều mình muốn học">
-              <p className="learner-prose">{post.description}</p>
-              <h3>Mục tiêu</h3>
-              <p className="learner-prose">{post.learningGoal}</p>
-              <p>
-                {post.skill?.name ?? "Kỹ năng đã chọn"} ·{" "}
-                {post.desiredCreditPerHour
-                  ? post.desiredCreditPerHour + " CR/giờ mong muốn"
-                  : "Credit theo thỏa thuận"}
-              </p>
-              {post.moderationRejectReason && (
-                <p className="learner-error">
-                  Lý do chưa duyệt: {post.moderationRejectReason}
-                </p>
-              )}
-              {owner && (
-                <div className="learner-actions">
-                  {["DRAFT", "OPEN", "REJECTED"].includes(post.status) && (
-                    <Link className="btn" href={"/learn/posts/" + id + "/edit"}>
-                      Chỉnh sửa bài
-                    </Link>
-                  )}
-                  {["DRAFT", "REJECTED"].includes(post.status) && (
-                    <button
-                      type="button"
-                      className="btn btn-primary"
-                      disabled={command.pending || command.uncertain}
-                      onClick={() => {
-                        void command.run(
-                          "publish:" + id + ":" + post.version,
-                          () =>
-                            request("learning-requests/" + id + "/publish", {
-                              method: "POST",
-                              body: { expectedVersion: post.version },
-                            }),
-                        );
-                      }}
-                    >
-                      Xuất bản bài đăng
-                    </button>
-                  )}
-                  <Link className="btn" href="/learn/connections">
-                    Xem đề xuất kết nối
-                  </Link>
-                </div>
-              )}
-              <CommandFeedback command={command} />
-            </Panel>
-            {!owner && post.status === "OPEN" ? (
-              <ProposalForm post={post} />
-            ) : (
-              <Panel title="Bước tiếp theo">
-                <p>
-                  Trao đổi với đối tác và xác nhận kế hoạch, lịch học trong mục
-                  Kết nối.
-                </p>
-                <Link className="btn btn-primary" href="/learn/connections">
-                  Đến kết nối của tôi
-                </Link>
-              </Panel>
-            )}
+      {post && actions && (
+        <div className={styles.detailLayout}>
+          <div className={styles.content}>
+            <PostDetailContent
+              post={post}
+              owner={owner}
+              expired={actions.expired}
+            />
           </div>
-        </>
+          <aside
+            className={styles.sidebar}
+            aria-label="Credit và thao tác bài đăng"
+          >
+            <section className={styles.budget}>
+              <h2 className={styles.sectionTitle}>
+                <ProductIcon name="wallet" size={18} />
+                {owner ? "Credit mong muốn" : "Ngân sách mong muốn"}
+              </h2>
+              <p className={styles.credit}>
+                {postCredit(post.desiredCreditPerHour)}
+                {post.desiredCreditPerHour && <span> / giờ</span>}
+              </p>
+              <p>Mức tham khảo, sẽ được hai bên thỏa thuận.</p>
+            </section>
+            {owner ? (
+              <PostOwnerActions post={post} />
+            ) : (
+              <PostPublicActions post={post} />
+            )}
+          </aside>
+        </div>
       )}
     </>
   );
 }
-function ProposalForm({ post }: Readonly<{ post: Post }>) {
-  const skills = useUserList<SharingSkill>("me/skills?limit=50"),
-    { request } = useUserSession(),
-    router = useRouter(),
-    command = useUserCommand(true);
-  const skillId = post.skill?.id ?? post.skillId,
-    eligible = skills.items.some(
-      (skill) =>
-        skill.skill.id === skillId && skill.isVisible && !skill.archivedAt,
-    );
+
+function PostOwnerActions({ post }: Readonly<{ post: Post }>) {
+  const { request } = useUserSession();
+  const command = useUserCommand();
+  const [cancelling, setCancelling] = useState(false);
+  const actions = postActions(post);
+  const id = post.id;
+  if (!actions.edit && !actions.publish && !actions.cancel && !post.publishedAt)
+    return null;
   return (
-    <Panel title="Cùng học với mình nhé">
-      <Feedback
-        loading={skills.loading}
-        error={skills.error}
-        reload={skills.reload}
-      />
-      <More
-        cursor={skills.cursor}
-        loading={skills.loading}
-        onMore={() => {
-          void skills.more();
-        }}
-      />
-      {eligible ? (
-        <form
-          className="learner-form"
-          onSubmit={async (event) => {
-            event.preventDefault();
-            const data = new FormData(event.currentTarget);
-            const body = {
-              sourceType: "LEARNING_REQUEST",
-              learningRequestId: post.id,
-              message: formText(data, "message").trim(),
-              exchangeTypeHint: "ONE_WAY",
-              candidateSlots: formText(data, "schedule").trim() || null,
-            };
-            const result = await command.run(JSON.stringify(body), (key) =>
-              request<Proposal>("proposals", { method: "POST", body, key }),
-            );
-            if (result) router.push("/learn/connections");
-          }}
-        >
-          <p>
-            Bạn đã khai báo kỹ năng phù hợp. Giới thiệu cách bạn có thể hướng
-            dẫn nhé.
-          </p>
-          <label>
-            <span>Lời nhắn</span>
-            <textarea
-              name="message"
-              rows={5}
-              minLength={10}
-              maxLength={1000}
-              required
-              disabled={command.pending}
-            />
-          </label>
-          <label>
-            <span>Gợi ý thời gian</span>
-            <input
-              name="schedule"
-              maxLength={1000}
-              disabled={command.pending}
-              placeholder="Ví dụ: Chiều thứ Ba, khoảng 15 giờ"
-            />
-          </label>
-          <CommandFeedback command={command} />
+    <section className={styles.ownerActions}>
+      <h2>Quản lý bài đăng</h2>
+      <div className="learner-actions">
+        {actions.edit && (
+          <Link className="btn" href={"/learn/posts/" + id + "/edit"}>
+            {post.status === "REJECTED"
+              ? "Chỉnh sửa và gửi duyệt lại"
+              : "Chỉnh sửa"}
+          </Link>
+        )}
+        {actions.publish && (
           <button
-            type="submit"
+            type="button"
             className="btn btn-primary"
-            disabled={
-              command.pending || (command.uncertain && !command.canRetry)
+            disabled={command.pending || command.uncertain}
+            onClick={() => {
+              void command.run("publish:" + id + ":" + post.version, () =>
+                request("learning-requests/" + id + "/publish", {
+                  method: "POST",
+                  body: { expectedVersion: post.version },
+                }),
+              );
+            }}
+          >
+            Đăng yêu cầu
+          </button>
+        )}
+        {post.publishedAt && (
+          <Link
+            className="btn"
+            href={
+              "/learn/connections?direction=received&learningRequestId=" + id
             }
           >
-            Gửi đề xuất hướng dẫn
+            Xem đề xuất nhận được
+          </Link>
+        )}
+        {actions.cancel && (
+          <button
+            type="button"
+            className="btn"
+            disabled={command.pending || command.uncertain}
+            onClick={() => setCancelling(true)}
+          >
+            Hủy bài đăng
           </button>
-        </form>
-      ) : (
-        !skills.loading && (
-          <>
-            <p>
-              Khai báo kỹ năng phù hợp để giới thiệu bản thân với người muốn
-              học.
-            </p>
-            <Link className="btn" href="/learn/skills">
-              Khai báo kỹ năng
-            </Link>
-          </>
-        )
+        )}
+      </div>
+      {cancelling && actions.cancel && (
+        <div className="learner-notice">
+          <p>Bài sẽ ngừng nhận đề xuất mới. Lịch sử đề xuất vẫn được giữ.</p>
+          <div className="learner-actions">
+            <button
+              type="button"
+              className="btn"
+              disabled={command.pending || command.uncertain}
+              onClick={() => {
+                void command
+                  .run("cancel:" + id + ":" + post.version, () =>
+                    request("learning-requests/" + id + "/cancel", {
+                      method: "POST",
+                      body: { expectedVersion: post.version },
+                    }),
+                  )
+                  .then((result) => {
+                    if (result) setCancelling(false);
+                  });
+              }}
+            >
+              Xác nhận hủy
+            </button>
+            <button
+              type="button"
+              className="btn"
+              disabled={command.pending}
+              onClick={() => setCancelling(false)}
+            >
+              Giữ bài
+            </button>
+          </div>
+        </div>
       )}
-    </Panel>
+      <CommandFeedback command={command} />
+    </section>
   );
 }

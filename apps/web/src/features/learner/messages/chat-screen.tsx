@@ -1,37 +1,34 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import type { Conversation, Message, PathSummary, Proposal } from "../types";
 import { useUserSession } from "../auth/session";
 import { useUserList, useUserResource } from "../hooks/use-user-resource";
-import {
-  Back,
-  Empty,
-  Feedback,
-  More,
-  PageHeading,
-  Panel,
-  formatTime,
-} from "../components/common";
-import { ProfileName } from "../components/profile-name";
+import { Feedback, More } from "../components/common";
+import { ProfileAvatar } from "../components/profile-avatar";
+import { ProductIcon } from "../components/product-icon";
 import { findInPages } from "../api/find-page";
+import { vietnamDateKey } from "@/lib/vietnam-time";
 import { MessageComposer } from "./message-composer";
-import { AgreementCreator } from "../paths/agreement-creator";
+import { ChatMessage } from "./chat-message";
+import { ChatAgreementDialog } from "./chat-agreement-dialog";
+import styles from "./chat.module.css";
+
+const dateFormat = new Intl.DateTimeFormat("vi-VN", {
+  timeZone: "Asia/Ho_Chi_Minh",
+  dateStyle: "full",
+});
 function compareMessages(left: Message, right: Message) {
-  const leftSequence = BigInt(left.sequence);
-  const rightSequence = BigInt(right.sequence);
-  if (leftSequence < rightSequence) return -1;
-  if (leftSequence > rightSequence) return 1;
+  const a = BigInt(left.sequence),
+    b = BigInt(right.sequence);
+  if (a < b) return -1;
+  if (a > b) return 1;
   return 0;
 }
-function messageClassName(message: Message, userId: string) {
-  if (message.messageType === "SYSTEM") return "learner-message system";
-  return message.senderId === userId
-    ? "learner-message mine"
-    : "learner-message ";
-}
 export function ChatScreen({ id }: Readonly<{ id: string }>) {
+  const cache = useQueryClient();
   const conversation = useUserResource<Conversation>("conversations/" + id),
     messages = useUserList<Message>(
       "conversations/" + id + "/messages?limit=30",
@@ -62,6 +59,9 @@ export function ChatScreen({ id }: Readonly<{ id: string }>) {
       })
         .then(() => {
           marked = true;
+          void cache.invalidateQueries({
+            queryKey: ["learner", actor.userId, "conversations/inbox?limit=20"],
+          });
         })
         .catch(() => undefined)
         .finally(() => {
@@ -71,10 +71,73 @@ export function ChatScreen({ id }: Readonly<{ id: string }>) {
     markRead();
     document.addEventListener("visibilitychange", markRead);
     return () => document.removeEventListener("visibilitychange", markRead);
-  }, [id, latest, request]);
+  }, [id, latest, request, cache, actor.userId]);
+
+  let partnerId: string | null = null;
+  if (conversation.data)
+    partnerId =
+      conversation.data.participantAId === actor.userId
+        ? conversation.data.participantBId
+        : conversation.data.participantAId;
+  const profile = useUserResource<{
+    fullName: string;
+    avatarUrl: string | null;
+  }>(partnerId ? "profiles/" + partnerId : null);
+  const partner = profile.data ?? {
+    fullName: "Thành viên SkillHub",
+    avatarUrl: null,
+  };
+  const timeline = useRef<HTMLDivElement>(null);
+  const previous = useRef<{ first?: string; last?: string; height: number }>({
+    height: 0,
+  });
+  const following = useRef(true);
+  const [atBottom, setAtBottom] = useState(true);
+  useLayoutEffect(() => {
+    const element = timeline.current;
+    if (!element) return;
+    const first = rows[0]?.id,
+      last = rows.at(-1)?.id;
+    if (
+      previous.current.last === last &&
+      previous.current.first &&
+      previous.current.first !== first
+    ) {
+      element.scrollTop += element.scrollHeight - previous.current.height;
+    } else if (following.current) element.scrollTop = element.scrollHeight;
+    previous.current = { first, last, height: element.scrollHeight };
+  }, [rows, conversation.data?.id]);
+  useEffect(() => {
+    const element = timeline.current;
+    if (!element) return;
+    const resize = new ResizeObserver(() => {
+      if (following.current) element.scrollTop = element.scrollHeight;
+    });
+    resize.observe(element);
+    return () => resize.disconnect();
+  }, [conversation.data?.id]);
+  async function openAgreement() {
+    if (opening) return;
+    setOpening(true);
+    setError(undefined);
+    try {
+      const path = await findInPages<PathSummary>(
+        request,
+        "learning-paths/mine?limit=100",
+        (path) => path.conversationId === id,
+      );
+      if (path) router.push("/learn/paths/" + path.id);
+      else setCreating(true);
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : "Không thể mở thỏa thuận.",
+      );
+    } finally {
+      setOpening(false);
+    }
+  }
   return (
-    <>
-      <Back href="/learn/messages" />
+    <section className={styles.chat} aria-label="Cuộc trò chuyện">
       <Feedback
         loading={conversation.loading}
         error={conversation.error}
@@ -82,108 +145,142 @@ export function ChatScreen({ id }: Readonly<{ id: string }>) {
       />
       {conversation.data && (
         <>
-          <PageHeading
-            title="Cùng thống nhất buổi học"
-            action={
-              <ProfileName
-                id={
-                  conversation.data.participantAId === actor.userId
-                    ? conversation.data.participantBId
-                    : conversation.data.participantAId
-                }
+          <header className={styles.header}>
+            <Link
+              className={styles.iconButton}
+              href="/learn/messages"
+              aria-label="Quay lại tin nhắn"
+            >
+              <span className={styles.backIcon}>
+                <ProductIcon name="arrow" />
+              </span>
+            </Link>
+            <Link
+              className={styles.partner}
+              href={"/learn/people/" + partnerId}
+            >
+              <ProfileAvatar
+                fullName={partner.fullName}
+                avatarUrl={partner.avatarUrl}
+                className={styles.headerAvatar}
               />
-            }
-          />
-          <div className="learner-two-columns">
-            <Panel title="Cuộc trò chuyện">
-              <More
-                cursor={messages.cursor}
-                loading={messages.loading}
-                onMore={() => {
-                  void messages.more();
-                }}
-              />
-              <Feedback
-                loading={messages.loading}
-                error={messages.error}
-                reload={messages.reload}
-              />
-              <div className="learner-chat">
-                {rows.map((message) => (
-                  <article
-                    key={message.id}
-                    className={messageClassName(message, actor.userId)}
-                  >
-                    <p>{message.messageText}</p>
-                    {message.attachments.map((file) => (
-                      <p key={file.attachmentId}>
-                        Tệp đính kèm: {file.filename}
-                      </p>
-                    ))}
-                    {message.objectType === "LEARNING_PATH" &&
-                      message.objectId && (
-                        <Link href={"/learn/paths/" + message.objectId}>
-                          Xem lộ trình
-                        </Link>
-                      )}
-                    <time dateTime={message.sentAt}>
-                      {formatTime(message.sentAt)}
-                    </time>
-                  </article>
-                ))}
+              <span>
+                <h2>{partner.fullName}</h2>
+                <small>
+                  {proposal.data?.learningRequestTitle?.trim() ||
+                    (proposal.data?.sourceType === "DIRECT_SEARCH"
+                      ? "Trao đổi trực tiếp"
+                      : "Cùng trao đổi về yêu cầu học")}
+                </small>
+              </span>
+            </Link>
+            <button
+              type="button"
+              className={styles.agreement}
+              disabled={opening}
+              onClick={() => {
+                void openAgreement();
+              }}
+            >
+              <ProductIcon name="check" size={17} />
+              {opening ? "Đang mở…" : "Thỏa thuận"}
+            </button>
+          </header>
+          <Feedback error={error} />
+          <Feedback error={proposal.error} reload={proposal.reload} />
+          <div
+            ref={timeline}
+            className={styles.timeline}
+            aria-label="Nội dung tin nhắn"
+            role="log"
+            onScroll={(event) => {
+              const element = event.currentTarget;
+              const bottom =
+                element.scrollHeight -
+                  element.scrollTop -
+                  element.clientHeight <
+                100;
+              following.current = bottom;
+              setAtBottom(bottom);
+            }}
+          >
+            <More
+              cursor={messages.cursor}
+              loading={messages.loading}
+              onMore={() => {
+                void messages.more();
+              }}
+            />
+            <Feedback
+              loading={messages.loading}
+              error={messages.error}
+              reload={messages.reload}
+            />
+            {rows.map((message, index) => {
+              const previousMessage = rows[index - 1],
+                next = rows[index + 1];
+              const sameNext =
+                !!next &&
+                next.messageType !== "SYSTEM" &&
+                next.senderId === message.senderId &&
+                vietnamDateKey(next.sentAt) ===
+                  vietnamDateKey(message.sentAt) &&
+                Date.parse(next.sentAt) - Date.parse(message.sentAt) <
+                  5 * 60_000;
+              const dayStarts =
+                !previousMessage ||
+                vietnamDateKey(previousMessage.sentAt) !==
+                  vietnamDateKey(message.sentAt);
+              return (
+                <div key={message.id}>
+                  {dayStarts && (
+                    <p className={styles.day}>
+                      {dateFormat.format(new Date(message.sentAt))}
+                    </p>
+                  )}
+                  <ChatMessage
+                    message={message}
+                    conversationId={id}
+                    mine={message.senderId === actor.userId}
+                    partner={partner}
+                    showAvatar={!sameNext}
+                    showTime={!sameNext}
+                  />
+                </div>
+              );
+            })}
+            {!messages.loading && !messages.error && !rows.length && (
+              <div className={styles.empty}>
+                <ProductIcon name="chat" size={36} />
+                <strong>Bắt đầu bằng một lời chào</strong>
+                <p>Chia sẻ mục tiêu học và cùng tìm thời gian phù hợp.</p>
               </div>
-              {!messages.loading && !messages.error && !rows.length && (
-                <Empty>Bắt đầu bằng lời chào và mục tiêu của bạn.</Empty>
-              )}
-              <MessageComposer conversationId={id} />
-            </Panel>
-            <div className="learner-stack">
-              <Panel title="Từ trao đổi đến buổi học">
-                <p>
-                  Tin nhắn giúp hai bên trao đổi. Kế hoạch, Credit và lịch chỉ
-                  có hiệu lực sau khi xác nhận trên thỏa thuận.
-                </p>
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  disabled={opening}
-                  onClick={() => {
-                    if (opening) return;
-                    setOpening(true);
-                    setError(undefined);
-                    void findInPages<PathSummary>(
-                      request,
-                      "learning-paths/mine?limit=100",
-                      (path) => path.conversationId === id,
-                    )
-                      .then((path) => {
-                        if (path) router.push("/learn/paths/" + path.id);
-                        else setCreating(true);
-                      })
-                      .catch((cause: unknown) =>
-                        setError(
-                          cause instanceof Error
-                            ? cause.message
-                            : "Không thể mở lộ trình.",
-                        ),
-                      )
-                      .finally(() => setOpening(false));
-                  }}
-                >
-                  Mở / tạo thỏa thuận học
-                </button>
-                <Feedback error={error} />
-              </Panel>
-              {creating && proposal.data && (
-                <AgreementCreator
-                  conversation={conversation.data}
-                  proposal={proposal.data}
-                />
-              )}
-            </div>
+            )}
           </div>
+          {!atBottom && (
+            <button
+              type="button"
+              className={styles.latest}
+              onClick={() => {
+                if (timeline.current)
+                  timeline.current.scrollTop = timeline.current.scrollHeight;
+                following.current = true;
+                setAtBottom(true);
+              }}
+            >
+              Xuống tin mới nhất ↓
+            </button>
+          )}
+          <MessageComposer conversationId={id} />
+          {creating && (
+            <ChatAgreementDialog
+              conversation={conversation.data}
+              proposal={proposal.data}
+              onClose={() => setCreating(false)}
+            />
+          )}
         </>
       )}
-    </>
+    </section>
   );
 }

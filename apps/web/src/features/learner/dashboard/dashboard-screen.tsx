@@ -13,6 +13,7 @@ import {
   formatTime,
 } from "../components/common";
 import { ProductIcon } from "../components/product-icon";
+import { LearnerContentSkeleton } from "../components/learner-skeleton";
 import { ProfileName } from "../components/profile-name";
 export function DashboardScreen() {
   const { actor } = useUserSession();
@@ -50,6 +51,8 @@ export function DashboardScreen() {
   let walletLabel = "Chưa tải được";
   if (wallet.data) walletLabel = wallet.data.availableCredit + " khả dụng";
   else if (wallet.loading) walletLabel = "Đang tải…";
+  if (sessions.initialLoading || paths.initialLoading || wallet.initialLoading)
+    return <LearnerContentSkeleton />;
   return (
     <>
       <PageHeading
@@ -58,7 +61,6 @@ export function DashboardScreen() {
           timeZone: "Asia/Ho_Chi_Minh",
         }).format(now)}
         title={"Xin chào, " + actor.profile.fullName + "."}
-        description="Tiếp tục hành trình học tập và chia sẻ kỹ năng của bạn."
         action={
           <Link className="btn btn-primary" href="/learn/posts/new">
             <ProductIcon name="plus" size={17} />

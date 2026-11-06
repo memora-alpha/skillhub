@@ -2,14 +2,16 @@ import type { LearningSession, LiveKitCredentials } from "../types";
 export function canEnterSession(session: LearningSession, now = Date.now()) {
   const join = session.join;
   return (
-    ["CONFIRMED", "READY", "ONGOING"].includes(session.status) &&
+    ["CONFIRMED", "READY", "ONGOING", "AWAITING_CONFIRMATION"].includes(
+      session.status,
+    ) &&
     (session.allowedActions === undefined ||
       session.allowedActions.includes("JOIN")) &&
     !!join?.canJoin &&
     !!join.opensAt &&
     !!join.closesAt &&
     now >= Date.parse(join.opensAt) &&
-    now < Math.min(Date.parse(join.closesAt), Date.parse(session.endAt))
+    now < Date.parse(join.closesAt)
   );
 }
 export function validRoomCredentials(
