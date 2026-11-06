@@ -1,5 +1,6 @@
 package expo.modules.skillhubvideo
 
+import com.facebook.react.bridge.ReactContext
 import com.oney.WebRTCModule.SkillHubEffectsBridge
 import com.oney.WebRTCModule.WebRTCModule
 import expo.modules.kotlin.Promise
@@ -49,7 +50,7 @@ class SkillHubVideoEffectsModule : Module() {
   }
 
   private fun configure(trackId: String, mode: String, preset: String?, requestId: String = "cleanup") {
-    val webRtc = appContext.reactContext?.getNativeModule(WebRTCModule::class.java)
+    val webRtc = (appContext.reactContext as? ReactContext)?.getNativeModule(WebRTCModule::class.java)
       ?: throw IllegalStateException("WEBRTC_NOT_AVAILABLE")
     val previous = entries[trackId]
     if (mode == "off" && previous == null) return

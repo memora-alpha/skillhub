@@ -11,7 +11,16 @@ android {
   defaultConfig { minSdkVersion 24 }
 }
 
+def lockedClasspaths = [
+  'debugCompileClasspath', 'debugRuntimeClasspath',
+  'releaseCompileClasspath', 'releaseRuntimeClasspath'
+]
+configurations.configureEach {
+  if (name in lockedClasspaths) resolutionStrategy.activateDependencyLocking()
+}
+
 dependencies {
+  implementation 'com.facebook.react:react-android'
   implementation project(':livekit_react-native-webrtc')
   implementation 'com.google.mlkit:segmentation-selfie:16.0.0-beta6'
 }

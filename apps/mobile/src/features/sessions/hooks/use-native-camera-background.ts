@@ -156,9 +156,31 @@ export function useNativeCameraBackground(isCurrent: () => boolean) {
     [releaseTrack],
   );
 
+  function applyBackground(target: CameraOwner, next: NativeBackground) {
+    target.requestId = String(++request.current);
+    setWarming(next.mode !== "off");
+    return changePublishedCameraBackground(
+      target.track,
+      async () => {
+        await bridge?.configure(
+          target.track.mediaStreamTrack.id,
+          next.mode,
+          next.mode === "image" ? next.preset : null,
+          target.requestId,
+        );
+      },
+      () =>
+        mounted.current &&
+        latest.current.isCurrent() &&
+        target === owner.current &&
+        !target.failed &&
+        target.room.state === ConnectionState.Connected,
+    );
+  }
+
   async function change(next: NativeBackground) {
-    if (flight.current || !mounted.current || !latest.current.isCurrent())
-      return;
+    const current = () => mounted.current && latest.current.isCurrent();
+    if (flight.current || !current()) return;
     if (!bridge && next.mode !== "off") return;
     flight.current = true;
     setBusy(true);
@@ -170,28 +192,10 @@ export function useNativeCameraBackground(isCurrent: () => boolean) {
         target.room.state === ConnectionState.Connected &&
         !target.failed
       ) {
-        target.requestId = String(++request.current);
-        setWarming(next.mode !== "off");
-        const changed = await changePublishedCameraBackground(
-          target.track,
-          async () => {
-            await bridge?.configure(
-              target.track.mediaStreamTrack.id,
-              next.mode,
-              next.mode === "image" ? next.preset : null,
-              target.requestId,
-            );
-          },
-          () =>
-            mounted.current &&
-            latest.current.isCurrent() &&
-            target === owner.current &&
-            !target.failed &&
-            target.room.state === ConnectionState.Connected,
-        );
+        const changed = await applyBackground(target, next);
         if (!changed) return;
       }
-      if (!mounted.current || !latest.current.isCurrent()) return;
+      if (!current()) return;
       latest.current.settings = next;
       setSettings(next);
       if (next.mode === "off" || !target) setWarming(false);
@@ -203,7 +207,7 @@ export function useNativeCameraBackground(isCurrent: () => boolean) {
           .catch(() => {});
         await releaseTrack(target.track).catch(() => {});
       }
-      if (mounted.current && latest.current.isCurrent()) {
+      if (current()) {
         setWarming(false);
         setError(
           "Chưa áp dụng được hiệu ứng nền. Camera đã tắt để tránh gửi hình chưa xử lý.",

@@ -6,6 +6,7 @@ import com.google.mlkit.vision.segmentation.Segmentation
 import com.google.mlkit.vision.segmentation.selfie.SelfieSegmenterOptions
 import com.oney.WebRTCModule.videoEffects.VideoFrameProcessor
 import java.nio.ByteOrder
+import java.nio.ByteBuffer
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
@@ -20,6 +21,7 @@ internal class BackgroundProcessor(
   private val status: (String) -> Unit
 ) : VideoFrameProcessor, AutoCloseable {
   private data class Mask(val values: FloatArray, val width: Int, val height: Int, val at: Long)
+  private data class BlendTarget(val data: ByteBuffer, val stride: Int, val width: Int, val height: Int)
   private val segmenter = Segmentation.getClient(SelfieSegmenterOptions.Builder()
     .setDetectorMode(SelfieSegmenterOptions.STREAM_MODE).enableRawSizeMask().build())
   private val mask = AtomicReference<Mask?>(null)
@@ -40,17 +42,7 @@ internal class BackgroundProcessor(
   @Synchronized
   override fun process(frame: VideoFrame, textureHelper: SurfaceTextureHelper): VideoFrame {
     try {
-      if (frame.buffer.width != sourceWidth || frame.buffer.height != sourceHeight || frame.rotation != sourceRotation) {
-        sourceWidth = frame.buffer.width
-        sourceHeight = frame.buffer.height
-        sourceRotation = frame.rotation
-        generation.incrementAndGet()
-        mask.set(null)
-        cached?.release()
-        cached = null
-        image = null
-        ready = false
-      }
+      updateDimensions(frame)
       val now = SystemClock.elapsedRealtime()
       if (!ready && now - createdAt > 5_000) reportFailure()
       val previous = cached
@@ -73,15 +65,12 @@ internal class BackgroundProcessor(
         MaskMath.blur(planes.u, width / 2, height / 2, 5),
         MaskMath.blur(planes.v, width / 2, height / 2, 5)
       ) else image ?: BackgroundPixels.preset(preset, width, height, frame.rotation).also { image = it }
-      val alpha = ByteArray(width * height)
-      for (y in 0 until height) for (x in 0 until width)
-        alpha[y * width + x] = MaskMath.alpha(snapshot.values, snapshot.width, snapshot.height,
-          (x + 0.5f) / width, (y + 0.5f) / height, frame.rotation).toByte()
+      val alpha = alphaMask(snapshot, width, height, frame.rotation)
       val output = JavaI420Buffer.allocate(width, height)
       try {
-        blend(planes.y, background.y, output.dataY, output.strideY, width, height, alpha, width, false)
-        blend(planes.u, background.u, output.dataU, output.strideU, width / 2, height / 2, alpha, width, true)
-        blend(planes.v, background.v, output.dataV, output.strideV, width / 2, height / 2, alpha, width, true)
+        blend(planes.y, background.y, BlendTarget(output.dataY, output.strideY, width, height), alpha, width, false)
+        blend(planes.u, background.u, BlendTarget(output.dataU, output.strideU, width / 2, height / 2), alpha, width, true)
+        blend(planes.v, background.v, BlendTarget(output.dataV, output.strideV, width / 2, height / 2), alpha, width, true)
       } catch (cause: Exception) { output.release(); throw cause }
       if (!ready) { ready = true; status("ready") }
       return remember(VideoFrame(output, frame.rotation, frame.timestampNs), now)
@@ -92,6 +81,27 @@ internal class BackgroundProcessor(
       return if (previous != null) copyFrame(previous, frame.timestampNs)
       else solid(320, 240, frame.rotation, frame.timestampNs)
     }
+  }
+
+  private fun updateDimensions(frame: VideoFrame) {
+    if (frame.buffer.width == sourceWidth && frame.buffer.height == sourceHeight && frame.rotation == sourceRotation) return
+    sourceWidth = frame.buffer.width
+    sourceHeight = frame.buffer.height
+    sourceRotation = frame.rotation
+    generation.incrementAndGet()
+    mask.set(null)
+    cached?.release()
+    cached = null
+    image = null
+    ready = false
+  }
+
+  private fun alphaMask(snapshot: Mask, width: Int, height: Int, rotation: Int): ByteArray {
+    val alpha = ByteArray(width * height)
+    for (y in 0 until height) for (x in 0 until width)
+      alpha[y * width + x] = MaskMath.alpha(snapshot.values, snapshot.width, snapshot.height,
+        (x + 0.5f) / width, (y + 0.5f) / height, rotation).toByte()
+    return alpha
   }
 
   private fun detect(planes: Planes, width: Int, height: Int, rotation: Int, now: Long) {
@@ -116,9 +126,10 @@ internal class BackgroundProcessor(
   }
 
   private fun blend(
-    foreground: ByteArray, background: ByteArray, output: java.nio.ByteBuffer, stride: Int,
-    width: Int, height: Int, alpha: ByteArray, alphaWidth: Int, chroma: Boolean
+    foreground: ByteArray, background: ByteArray, target: BlendTarget,
+    alpha: ByteArray, alphaWidth: Int, chroma: Boolean
   ) {
+    val (output, stride, width, height) = target
     for (y in 0 until height) for (x in 0 until width) {
       val a = if (chroma) {
         val p = y * 2 * alphaWidth + x * 2

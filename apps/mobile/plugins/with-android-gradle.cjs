@@ -11,8 +11,8 @@ function updateWrapper(source) {
   );
 }
 
-module.exports = (config) =>
-  withDangerousMod(config, [
+function withAndroidGradle(config) {
+  return withDangerousMod(config, [
     "android",
     async (mod) => {
       const target = path.join(
@@ -27,4 +27,6 @@ module.exports = (config) =>
       return mod;
     },
   ]);
+}
+module.exports = withAndroidGradle;
 module.exports.updateWrapper = updateWrapper;

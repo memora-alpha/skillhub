@@ -83,7 +83,9 @@ export function useNativeMediaSettings(
     };
   }, [room]);
 
-  async function perform(work: (current: () => boolean) => Promise<void>) {
+  async function perform(
+    work: (current: () => boolean) => Promise<void> | void,
+  ) {
     if (flight.current || !room || !latest.current.active()) return;
     const attempt = generation.current;
     const current = () =>
@@ -136,7 +138,7 @@ export function useNativeMediaSettings(
         setSettings(next);
       }),
     changeVolume: (next: number) =>
-      perform(async () => {
+      perform(() => {
         if (!room || !Number.isFinite(next) || next < 0 || next > 1) return;
         for (const participant of room.remoteParticipants.values())
           for (const publication of participant.audioTrackPublications.values())

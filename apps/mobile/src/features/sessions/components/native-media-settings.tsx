@@ -37,6 +37,7 @@ export function NativeMediaSettings({
   onClose: () => void;
 }>) {
   const busy = disabled || media.pending || background.busy;
+  const facingLabel = facing === "user" ? "trước" : "sau";
   return (
     <Modal
       visible
@@ -132,9 +133,7 @@ export function NativeMediaSettings({
           <View style={styles.panel}>
             <Text style={styles.title}>Hình ảnh</Text>
             <Text style={styles.copy}>
-              {camera
-                ? `Đang dùng camera ${facing === "user" ? "trước" : "sau"}.`
-                : "Camera đang tắt."}
+              {camera ? `Đang dùng camera ${facingLabel}.` : "Camera đang tắt."}
             </Text>
             <Button
               variant="secondary"
