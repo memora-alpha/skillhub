@@ -187,6 +187,10 @@ test("locked/terminal paths and outsiders cannot restart negotiations", () => {
   path.status = "SCHEDULED";
   path.lockedVersion = 3;
   assert.equal(agreementProgress(path, teacherId).stage, "sessions");
+  assert.equal(
+    agreementProgress(path, teacherId).action?.href,
+    `/paths/${path.id}/sessions`,
+  );
   assert.equal(canCreatePlan(path, teacherId), false);
   assert.equal(canValidateForFinalize(path), false);
   for (const status of ["CANCELLED", "DISPUTED", "COMPLETED"] as const)

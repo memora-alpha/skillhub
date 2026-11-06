@@ -111,7 +111,7 @@ function HoldContent({
           Lịch học đã được chốt. Các buổi học của bạn đã sẵn sàng.
         </FormNotice>
         {!embedded && (
-          <RouteButton href={`/paths/${path.id}/schedules`}>
+          <RouteButton href={`/paths/${path.id}/sessions`}>
             Xem các buổi học
           </RouteButton>
         )}

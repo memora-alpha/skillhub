@@ -32,6 +32,8 @@ test("Inbox shows loading for a transient first read, preserves cached empty/con
     },
   };
   let loadedPages = 0;
+  const params: { tab?: string } = {};
+  let requestedType: unknown;
   const routes: string[] = [];
   const jsx = (type: unknown, props: unknown) => ({ type, props });
   const mocks = {
@@ -40,11 +42,16 @@ test("Inbox shows loading for a transient first read, preserves cached empty/con
     "react-native": {
       View: "View",
       Text: "Text",
+      Pressable: "Pressable",
       ActivityIndicator: "Loading",
       StyleSheet: { create: (styles: unknown) => styles },
     },
     "expo-router": {
-      useRouter: () => ({ push: (path: string) => routes.push(path) }),
+      useRouter: () => ({
+        push: (path: string) => routes.push(path),
+        setParams: (next: { tab: string }) => Object.assign(params, next),
+      }),
+      useLocalSearchParams: () => params,
       useIsFocused: () => true,
     },
     "@/features/shell": { AppScreenLayout: "Layout" },
@@ -56,7 +63,12 @@ test("Inbox shows loading for a transient first read, preserves cached empty/con
     "../components/ConversationRow": { ConversationRow: "Row" },
     "../components/ConversationCard": { ConversationCard: "Card" },
     "../components/RequestInboxCard": { RequestInboxCard: "RequestCard" },
-    "../hooks/use-inbox-groups": { useInboxGroups: () => state },
+    "../hooks/use-inbox-groups": {
+      useInboxGroups: (_ids: unknown, type: unknown) => {
+        requestedType = type;
+        return state;
+      },
+    },
     "@/components/use-visible-list-rows": {
       useVisibleListRows: () => ({ visibleIds: new Set() }),
     },
@@ -76,19 +88,22 @@ test("Inbox shows loading for a transient first read, preserves cached empty/con
     action.props.onPress();
     assert.deepEqual(routes, ["/proposals"]);
     const render = () => ApiMessagesScreen().props.children();
+    const feedback = (list: ReturnType<typeof render>) =>
+      list.props.ListHeaderComponent.props.children[1].props;
     const loading = render();
-    assert.equal(loading.props.ListHeaderComponent.props.loading, true);
-    assert.equal(loading.props.ListHeaderComponent.props.error, undefined);
+    assert.equal(requestedType, "LEARNING_REQUEST");
+    assert.equal(feedback(loading).loading, true);
+    assert.equal(feedback(loading).error, undefined);
     assert.equal(loading.props.ListEmptyComponent, null);
     state.data = { pages: [] };
     const cachedEmpty = render();
-    assert.equal(cachedEmpty.props.ListHeaderComponent.props.loading, false);
+    assert.equal(feedback(cachedEmpty).loading, false);
     assert.equal(cachedEmpty.props.ListEmptyComponent.type, "Empty");
     state.error = undefined;
     state.hasNextPage = true;
     const scanning = render();
     assert.equal(scanning.props.ListEmptyComponent, null);
-    assert.equal(scanning.props.ListHeaderComponent.props.loading, true);
+    assert.equal(feedback(scanning).loading, true);
     assert.equal(
       loadedPages,
       1,
@@ -98,7 +113,35 @@ test("Inbox shows loading for a transient first read, preserves cached empty/con
     state.items = [{ conversation: { id: fixtureId(1) } }];
     assert.equal(render().props.data, state.items);
     state.error = new AppError("http", 403);
-    assert.equal(render().props.ListHeaderComponent.props.error, state.error);
+    assert.equal(feedback(render()).error, state.error);
+    const tabs = render().props.ListHeaderComponent.props.children[0];
+    const buttons = tabs.type(tabs.props).props.children;
+    assert.deepEqual(
+      buttons.map(
+        (item: { props: { children: { props: { children: string } } } }) =>
+          item.props.children.props.children,
+      ),
+      ["Theo yêu cầu học", "Trao đổi trực tiếp"],
+    );
+    buttons[1].props.onPress();
+    assert.equal(params.tab, "direct");
+    state.items = [];
+    state.error = undefined;
+    assert.equal(
+      render().props.ListEmptyComponent.props.title,
+      "Chưa có trao đổi trực tiếp",
+    );
+    assert.equal(requestedType, "DIRECT_CONVERSATION");
+    state.hasNextPage = true;
+    assert.equal(render().props.ListEmptyComponent, null);
+    assert.equal(
+      loadedPages,
+      2,
+      "a direct tab must scan later mixed pages before claiming it is empty",
+    );
+    params.tab = "unknown";
+    render();
+    assert.equal(requestedType, "LEARNING_REQUEST");
   } finally {
     delete local.cache[filename];
     contexts.reverse().forEach((context) => context.restore());
@@ -115,7 +158,7 @@ test("grouped Inbox skips the secondary list until a group with chat is visible"
   const filename = local.resolve("./use-inbox-groups.ts");
   const requestId = fixtureId(1);
   const otherId = fixtureId(2);
-  const groups = [
+  const requestGroups = [
     { id: `request:${requestId}`, conversationCount: 0 },
     { id: `request:${otherId}`, conversationCount: 1 },
   ].map((group) => ({
@@ -123,6 +166,15 @@ test("grouped Inbox skips the secondary list until a group with chat is visible"
     groupType: "LEARNING_REQUEST",
     lastActivityAt: "2026-10-23T00:00:00Z",
   }));
+  const directId = fixtureId(4);
+  const direct = {
+    id: `conversation:${directId}`,
+    conversationId: directId,
+    groupType: "DIRECT_CONVERSATION",
+    conversationCount: 1,
+    lastActivityAt: "2026-10-24T00:00:00Z",
+  };
+  const groups = [...requestGroups, direct];
   type PreviewOptions = NonNullable<
     Parameters<
       typeof import("../src/features/messages/hooks/use-conversation-inbox").useConversationInbox
@@ -135,7 +187,9 @@ test("grouped Inbox skips the secondary list until a group with chat is visible"
     "@/features/connections": {
       useConnections: () => ({ userId: fixtureId(3) }),
     },
-    "./use-messages-api": { useGroupedInbox: () => ({ items: groups }) },
+    "./use-messages-api": {
+      useGroupedInbox: () => ({ items: groups, hasNextPage: true }),
+    },
     "./use-conversation-inbox": {
       useConversationInbox: (options: PreviewOptions) => {
         previewOptions = options;
@@ -151,12 +205,54 @@ test("grouped Inbox skips the secondary list until a group with chat is visible"
     const { useInboxGroups } = local(
       filename,
     ) as typeof import("../src/features/messages/hooks/use-inbox-groups");
-    assert.equal(useInboxGroups(new Set()).items.length, 2);
+    assert.equal(useInboxGroups(new Set()).items.length, 3);
     assert.equal(previewOptions?.enabled, false);
     useInboxGroups(new Set([`request:${requestId}`]));
     assert.equal(previewOptions?.enabled, false);
     useInboxGroups(new Set([`request:${otherId}`]));
     assert.equal(previewOptions?.enabled, true);
+    const visibleIds = new Set([`request:${otherId}`, direct.id]);
+    const requests = useInboxGroups(visibleIds, "LEARNING_REQUEST");
+    assert.deepEqual(
+      requests.items.map(({ group }) => group.id),
+      requestGroups.map((group) => group.id),
+    );
+    assert.equal(
+      requests.hasNextPage,
+      true,
+      "filtering must retain the server cursor coverage",
+    );
+    const directConversation = {
+      id: directId,
+      proposalId: fixtureId(5),
+      learningRequestId: null,
+      participantAId: fixtureId(3),
+      participantBId: otherId,
+      createdAt: direct.lastActivityAt,
+    };
+    assert.equal(
+      previewOptions?.shouldLoadPreview?.(directConversation),
+      false,
+    );
+    const directOnly = useInboxGroups(visibleIds, "DIRECT_CONVERSATION");
+    assert.deepEqual(
+      directOnly.items.map(({ group }) => group.id),
+      [direct.id],
+    );
+    assert.equal(previewOptions?.shouldLoadPreview?.(directConversation), true);
+    assert.equal(
+      previewOptions?.shouldLoadPreview?.({
+        ...directConversation,
+        learningRequestId: otherId,
+      }),
+      false,
+    );
+    useInboxGroups(new Set([`request:${otherId}`]), "DIRECT_CONVERSATION");
+    assert.equal(
+      previewOptions?.enabled,
+      false,
+      "stale viewability from the previous tab must not enable previews",
+    );
   } finally {
     delete local.cache[filename];
     contexts.reverse().forEach((context) => context.restore());

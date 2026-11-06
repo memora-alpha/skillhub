@@ -7,12 +7,25 @@ import {
   typography,
 } from "@/constants/theme";
 
-export type AgreementStep = "method" | "plans" | "schedules";
-const steps: AgreementStep[] = ["method", "plans", "schedules"];
-const labels = ["Cách học", "Lộ trình", "Lịch học"];
+export type AgreementStep = "method" | "plans" | "schedules" | "completion";
+export const agreementSteps: AgreementStep[] = [
+  "method",
+  "plans",
+  "schedules",
+  "completion",
+];
+const labels = ["Cách học", "Lộ trình", "Lịch học", "Hoàn tất"];
 
-function stepDescription(index: number, currentIndex: number) {
-  if (index < currentIndex) return "Đã thống nhất";
+function stepDescription(
+  index: number,
+  currentIndex: number,
+  completed: boolean,
+  scheduleLocked: boolean,
+) {
+  if (index === 2 && scheduleLocked) return "Đã chốt lịch";
+  if (index === 3 && index === currentIndex)
+    return completed ? "Đã hoàn thành" : "Chờ quyết toán";
+  if (completed || index < currentIndex) return "Đã thống nhất";
   if (index === currentIndex) return "Đang thống nhất";
   return "Chưa bắt đầu";
 }
@@ -21,24 +34,32 @@ export function AgreementSteps({
   value,
   current,
   onSelect,
+  completed = false,
+  scheduleLocked = false,
 }: Readonly<{
   value: AgreementStep;
   current: AgreementStep;
   onSelect: (step: AgreementStep) => void;
+  completed?: boolean;
+  scheduleLocked?: boolean;
 }>) {
-  const currentIndex = steps.indexOf(current);
+  const currentIndex = agreementSteps.indexOf(current);
   return (
     <View style={styles.steps}>
       <View pointerEvents="none" style={styles.track}>
-        {steps.slice(1).map((step, index) => (
+        {agreementSteps.slice(1).map((step, index) => (
           <View
             key={step}
             style={[styles.segment, index < currentIndex && styles.doneTrack]}
           />
         ))}
       </View>
-      {steps.map((step, index) => {
-        const disabled = index > currentIndex;
+      {agreementSteps.map((step, index) => {
+        const disabled = !completed && index > currentIndex;
+        const done =
+          completed ||
+          index < currentIndex ||
+          (step === "schedules" && scheduleLocked);
         const selected = value === step;
         return (
           <Pressable
@@ -53,11 +74,11 @@ export function AgreementSteps({
             <View
               style={[
                 styles.circle,
-                index < currentIndex && styles.doneCircle,
+                done && styles.doneCircle,
                 selected && styles.selectedCircle,
               ]}
             >
-              {index < currentIndex ? (
+              {done ? (
                 <Icon
                   name="check"
                   size={16}
@@ -85,7 +106,7 @@ export function AgreementSteps({
               {labels[index]}
             </Text>
             <Text style={[styles.caption, selected && styles.active]}>
-              {stepDescription(index, currentIndex)}
+              {stepDescription(index, currentIndex, completed, scheduleLocked)}
             </Text>
           </Pressable>
         );
@@ -106,8 +127,8 @@ const styles = StyleSheet.create({
   track: {
     position: "absolute",
     top: 23,
-    left: "16.66%",
-    right: "16.66%",
+    left: "12.5%",
+    right: "12.5%",
     flexDirection: "row",
   },
   segment: { flex: 1, height: 2, backgroundColor: colors.surfaceInset },
@@ -140,7 +161,7 @@ const styles = StyleSheet.create({
     minHeight: 64,
     minWidth: 0,
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "flex-start",
     gap: 4,
   },
   disabled: { opacity: 0.5 },
@@ -149,6 +170,7 @@ const styles = StyleSheet.create({
     ...typography.secondary,
     fontFamily: fonts.semibold,
     color: colors.body,
+    textAlign: "center",
   },
   active: { color: colors.primary },
 });

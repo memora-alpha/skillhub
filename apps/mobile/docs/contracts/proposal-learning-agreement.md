@@ -52,13 +52,22 @@ Nếu GET download trả URL đã hết hạn, không mở link và hiện thôn
 
 SSE chỉ chứa references, hydrate qua authorized HTTP. Chat text hoặc gợi ý lộ trình không tạo confirmation. Không có public SSE event cho thay đổi plan/terms/schedule: detail đọc lại mỗi 30 giây khi focus/app active, dừng khi blur/background/error/terminal/session cũ; còn refresh focus/foreground và invalidation sau command. Chỉ GET, không replay mutation.
 
-## Điều hướng Inbox theo Yêu cầu học — 2026-11-02
+## Điều hướng Inbox theo nguồn trao đổi — 2026-11-06
 
-Inbox gom theo `learningRequestId` của các Conversation và Proposal nhận được đã
-tải; cùng đối tác ở hai bài vẫn là hai nhóm. Mỗi Proposal/Conversation giữ nguyên
-quan hệ, participant và quyền server. Bài chỉ có Proposal bị từ chối vẫn giữ entry
-lịch sử. Proposal trực tiếp/đã gửi còn trong màn Đề xuất; direct Conversation giữ
-entry chat hiện tại.
+Inbox dùng metadata nhóm từ `GET /conversations/inbox`, có hai tab không số:
+**Theo yêu cầu học** (`LEARNING_REQUEST`, mặc định) và **Trao đổi trực tiếp**
+(`DIRECT_CONVERSATION`). Tab đầu gom theo `learningRequestId`; cùng đối tác ở
+hai bài vẫn là hai nhóm. Tab trực tiếp giữ từng Conversation riêng. Mỗi
+Proposal/Conversation giữ nguyên quan hệ, participant và quyền server; lời mời
+chưa chấp nhận tiếp tục quản lý ở màn Đề xuất.
+
+Tab được lưu bằng `/messages?tab=requests|direct`; giá trị thiếu/sai dùng requests.
+Back từ chat trực tiếp về `/messages?tab=direct`, chat theo bài về tab Đoạn chat
+của bài đó. Thứ tự hoạt động hiện có được giữ riêng trong từng tab. API Inbox
+chưa có query lọc loại: mobile lọc các trang dùng chung, giữ cursor/hasNextPage,
+đọc tiếp khi tab chưa có hàng nhưng vẫn còn trang. Không báo rỗng từ một trang
+chỉ có loại khác; lỗi/pending/denied vẫn theo runtime. Chỉ bật preview cho hàng
+đang thấy thuộc tab đang mở; chuyển tab remount list để bắt đầu từ đầu.
 
 Màn `/messages/request/[id]` có hai tab không số: Đề xuất nhận được/Đoạn chat.
 Chỉ owner projection của Request được mở list received với `learningRequestId`;
@@ -66,10 +75,8 @@ Chỉ owner projection của Request được mở list received với `learning
 owner/title cũ từ cache. Tab chat lọc Conversations theo ID bài trước khi đọc
 history/preview; Back từ Chat dùng `learningRequestId` từ conversation đã authorize.
 List còn trang chưa được coi là rỗng. Thẻ Inbox hiển thị số Proposal nhận được
-ở mọi trạng thái và số Conversation riêng biệt theo bài. Khi còn trang/lỗi đọc,
-số đã biết dùng dấu `+` (cận dưới), chưa biết số dùng `…`; chỉ bỏ dấu `+` khi nguồn
-đã đọc đủ và không lỗi. Không giả total unread. Backend chưa có group/batch/filter
-conversation. Preview dùng tin gần nhất của các chat đã tải, tách khỏi updatedAt
+ở mọi trạng thái và số Conversation theo metadata nhóm của BE. Không giả total
+unread hoặc tổng preview từ số trang client. Preview dùng tin gần nhất của các chat đã tải, tách khỏi updatedAt
 của Proposal để sự kiện đề xuất mới không thay nội dung tin nhắn. Chỉ prefix tên
 người gửi khi metadata message và authorized profile khớp; outgoing giữ “Bạn:”.
 
@@ -106,6 +113,16 @@ mine mới đủ version. Không tăng concurrency hoặc sửa chính sách quy
 
 ONE_WAY: teacherId/learnerId là hai participants, negotiatedCredit >0, tối đa 2 chữ số thập phân; một plan. TWO_WAY: totalCreditPerUser >=20; hai plan đối ứng do hai teacher tạo. Role không suy từ proposer/recipient. Outline phải đủ đúng số buổi (1–100); mobile kiểm schema và server là thẩm quyền cuối cùng.
 
+Danh sách Hành trình dùng bộ lọc chỉ có nhãn, không hiện số lượng hoặc chú thích số đã tải. Source BE của `GET /learning-paths/mine` hiện chỉ có IDs, status, exchangeType, counterpartId, versions và timestamps; chưa trả tiêu đề, tên kỹ năng hay learningGoal. Thẻ hiển thị tên đối tác và hình thức học, không suy thành tiêu đề lộ trình hoặc tải detail riêng từng thẻ để bù field thiếu. `learningGoal` nằm trong plan của API detail; cần bổ sung contract BE nếu muốn có tiêu đề trong danh sách.
+
+Điều hướng sau chốt lịch: CTA “Xem các buổi học” ở progress/Hold và “Xem tất cả buổi học” ở thỏa thuận cùng mở `/paths/[id]/sessions`. `/paths/[id]/schedules` vẫn dùng để đề xuất, xem lại và xác nhận lịch từng kế hoạch trước chốt; không đổi nghiệp vụ Session.
+
+Trên cùng màn thỏa thuận chỉ hiện một shortcut danh sách buổi học: nếu progress của bước Lịch học đã có link `/sessions`, bỏ shortcut chung bị trùng; ở các bước khác/Hoàn tất hoặc khi progress không có link thì dùng shortcut chung nếu đã có buổi học.
+
+Nhãn bước Lịch học dựa vào `lockedVersion`: khác null thì hiện “Đã chốt lịch” với dấu hoàn thành, kể cả trong lúc các buổi đang diễn ra. Không dùng vị trí bước đang chọn để báo còn thống nhất; việc chốt lịch không tự mở bước4 hay xác nhận Credit đã quyết toán.
+
+Thỏa thuận có bốn bước chung: Cách học → Lộ trình → Lịch học → Hoàn tất. Bước4 bị khóa trước khi đủ các buổi hoàn thành; khi đủ buổi hoặc đã quyết toán thì mặc định mở bước4 với tổng kết. Trong lúc chờ tài chính ghi “Chờ quyết toán”, chỉ đánh dấu bước4 đã hoàn thành khi Path COMPLETED có settledAt từ BE. Bấm lại ba bước đầu để đọc điều khoản, nội dung từng kế hoạch và lịch hiện tại; không có form sửa hay thao tác xác nhận/chốt lịch trong phần chỉ đọc. Không có mục “Xem lại thỏa thuận” thu gọn riêng. Đây là snapshot hiện tại được phép đọc, không phải lịch sử đầy đủ các phiên bản.
+
 Detail schema giữ version, learnerConfirmedAt trên plan hiện hành; confirmation timestamps của agreement/schedule thuộc version được trả. Khi version đổi, mobile dùng snapshot mới, không giữ confirmation của bản cũ. Các ID/participant/outline/schedule shape được kiểm tại adapter.
 
 Editor plan/schedule giữ snapshot đã mở và draft riêng khi polling có revision mới, không remount theo version hoặc tự reset nội dung đang nhập. Gửi bị khóa đến khi người dùng mở bản mới; callback của bản cũ và validation đang chạy cũng kiểm lại revision trước command. Nút mở bản mới reset draft theo snapshot mới nhất, không khả dụng khi command pending/unknown hoặc read đang lỗi. Thỏa thuận tạm chưa cho sửa giữ draft chỉ đọc; mất authorized data/đổi resource vẫn unmount, không giữ nội dung riêng tư qua denial.
@@ -140,9 +157,9 @@ Preflight mobile chỉ đọc lịch của tài khoản hiện tại. Backend ki
 
 ## Khoảng trống API và fixture
 
-- Các thao tác hủy/dừng LearningPath và đọc/kết toán số dư cuối lộ trình chưa có endpoint mobile xác minh trong API source hiện tại. Không dùng `PathsPreviewProvider`/fixture để thay đổi status hoặc hiển thị khoản Credit như đã phát sinh trên tài khoản thật. Hai route cũ hiện giải thích rõ tính năng chưa hỗ trợ và không gửi mutation.
+- Cập nhật ngày 2026-11-05 theo backend `14880432`: đã có API dừng lộ trình và trạng thái quyết toán. Mobile nối ở [contract hủy/quyết toán](path-cancellation.md) và [work](../work/path-cancellation/status.md). Không dùng `PathsPreviewProvider`/fixture để thay đổi status hoặc hiển thị Credit như giao dịch thật.
 - Luồng Inbox/Chat/Attachment và thỏa thuận/plan/schedule/terms không có fixture runtime; route luôn dùng API và ID thiếu/sai báo không tìm thấy. `PathsPreviewProvider` còn phục vụ Community/Sessions chưa tích hợp API, không được đọc từ các route LearningPath API.
-- Đây là kết quả đối chiếu source hiện tại, không xác nhận trạng thái triển khai production. Dependency backend trước khi triển khai hủy/kết toán: endpoint đọc trạng thái/ledger và mutation có quyền, expected version, idempotency cùng kết quả quyết định từ server.
+- Đây là kết quả đối chiếu source, không xác nhận production. Thực thi phân bổ Held khi dừng vẫn cần policy được operator duyệt và quyết định Admin; mobile không gọi endpoint execute hay tự suy số tiền.
 
 Editor lịch có bộ điền theo tuần ở client: chọn thứ, ngày/giờ bắt đầu và thời lượng, áp dụng đúng số buổi trong plan rồi xem/sửa từng buổi trước khi gửi. Chỉ gửi items hữu hạn cùng expectedPlanVersion qua endpoint hiện có; không tạo recurrence resource, không tự confirm/Hold/Session. Ngày bắt đầu là mốc từ đó tìm các thứ đã chọn, giữ giờ địa phương; validation tương lai/thứ tự/thời lượng vẫn áp dụng cho toàn bộ draft. Áp dụng lại ghi đè draft sau thao tác rõ ràng, không tự chạy khi thay lựa chọn/refetch. Không có lưu nháp bền hoặc Google Meet tự tạo ở màn này. Khi refresh nền, chỉ khóa gửi; không khóa input để làm đóng picker. Lỗi đọc hoặc trạng thái không hợp lệ vẫn khóa thao tác.
 
@@ -165,7 +182,7 @@ Editor lịch có bộ điền theo tuần ở client: chọn thứ, ngày/giờ
 ## UI đã hợp nhất sau review
 
 - Gửi proposal thành công về `/proposals?tab=sent&status=PENDING`; danh sách có Nhận được/Đã gửi/Tất cả và bộ lọc trạng thái riêng. Accept một action vẫn revalidate source/version trên server. Reject/withdraw xác nhận inline; route close cũ chuyển về detail.
-- Header Chat dùng **Thỏa thuận**, mở bước hiện hành của conversation: **Cách học → Lộ trình → Lịch học**. Chỉ render nội dung bước được chọn, cho xem lại bước đã hoàn tất. Tạo path về Cách học, không đi thẳng editor. Gửi và đồng ý cách học / Gửi và đồng ý thay đổi gọi create/revise rồi confirm chính caller ở version vừa lưu trong cùng thao tác; đối tác xác nhận riêng. Mở form hoặc đọc lại không tự confirm. Thẻ tin nhắn vẫn mở riêng detail; người học xác nhận đúng version và giữ detail, nút Tiếp tục thỏa thuận mở bước hiện hành.
+- Header Chat dùng **Thỏa thuận**, mở bước hiện hành của conversation: **Cách học → Lộ trình → Lịch học → Hoàn tất**. Chỉ render nội dung bước được chọn, cho xem lại bước đã hoàn tất. Tạo path về Cách học, không đi thẳng editor. Gửi và đồng ý cách học / Gửi và đồng ý thay đổi gọi create/revise rồi confirm chính caller ở version vừa lưu trong cùng thao tác; đối tác xác nhận riêng. Mở form hoặc đọc lại không tự confirm. Thẻ tin nhắn vẫn mở riêng detail; người học xác nhận đúng version và giữ detail, nút Tiếp tục thỏa thuận mở bước hiện hành.
 - Cách học gồm hình thức, vai trò và Credit; dùng POST path/confirm trước khi có plan (backend cho phép), không đòi path.status CONFIRMED để mở bước Lộ trình. Policy mobile yêu cầu đủ hai timestamps đúng currentVersion trước create/edit/confirm plan, kể cả deep link. TWO_WAY mỗi người tự tạo chiều mình dạy; ONE_WAY chỉ teacher. Plan cũ vẫn đọc được trước khi xác nhận cách học.
 - Add/sửa plan giữ agreement version và xác nhận cách học. Sửa terms thực sự tăng agreement version và cần hai bên xác nhận lại terms; mobile theo snapshot mới, chỉ mở lịch khi đủ cả plans/terms và status CONFIRMED. Không tự sao chép confirmation ở client.
 - Thẻ Chat mang `fromConversation` được kiểm UUID và đối chiếu conversation của authorized path. Detail/overview Back ưu tiên history; detail chia sẻ có fallback về Chat ngay khi loading/error, link cũ thiếu nguồn fallback `/messages`. Không tự đưa người đọc sang danh sách cá nhân. Bỏ nút Về cuộc trò chuyện trong các màn API của flow; dùng Back trên header theo nguồn mở.
