@@ -41,6 +41,7 @@ const reputationSchema = z.object({
       endsAt: timestamp,
     }),
   ),
+  policyNotice: z.array(z.string()).nullable().optional(),
   restrictionReviews: z
     .array(
       z.object({
@@ -112,6 +113,15 @@ export function createCommunityApi(
     return row;
   }
   return {
+    async acknowledgeReputationPolicy() {
+      return parse(
+        z.object({ acknowledged: z.literal(true) }),
+        await call("/reputation/restrictions/policy-acknowledgement", {
+          method: "POST",
+          replayAfterRenewal: false,
+        }),
+      );
+    },
     async recovery(signal?: AbortSignal) {
       return parse(
         recoverySchema,

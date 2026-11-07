@@ -84,6 +84,7 @@ Product Owner đã chốt các nguyên tắc sau khi duyệt triển khai.
 - Quiz đạt ít nhất 80%, một lần thưởng mỗi chu kỳ. Streak 14 ngày cần hoạt động hợp lệ. Session cần xác nhận hai bên và bằng chứng tham gia phù hợp.
 - Ưu tiên app learner hiển thị điểm, nhiệm vụ, tiến độ và điều kiện mở khóa.
 - Quyền tạo Request/Proposal mở khi hết thời hạn khóa. Yêu cầu Staff/Admin review vẫn được ghi nhận và theo dõi sau khi quyền đã mở.
+- Với mức 20–29, quyền tạo mới chỉ mở sau ba ngày và khi người dùng đã xác nhận đọc chính sách. Xác nhận độc lập với quiz.
 - Một đợt Reputation dưới 40 là một chu kỳ. Streak cần hoàn thành Policy Awareness hoặc một Session hợp lệ trong 14 ngày.
 - Policy Awareness áp dụng cho mọi loại vi phạm. No-show/hủy muộn có thêm Commitment Recovery, các nhóm khác có Good Behavior Streak. Tài khoản bị khóa toàn bộ không đủ điều kiện.
 
@@ -91,7 +92,7 @@ Các chi tiết còn mở là cách xử lý bằng chứng dùng lại, vi ph�
 
 | Quyết định | Bước phụ thuộc |
 |---|---|
-| Phân quyền duyệt theo mức khóa, xác nhận đọc policy và chuyển đổi hạn chế cũ. | 1–3, 6 |
+| Xử lý riêng các hạn chế trước 1.7 thiếu căn cứ sự kiện. Migration không suy đoán lượt xác nhận policy hoặc quyết định xét duyệt trong lịch sử. | 1–3, 6 |
 | Cách ghi ngân sách khi điểm chạm trần 100, xử lý ngân sách sau thu hồi và chính sách cộng dồn chung bằng chứng. | 4–5 |
 | Vi phạm xác nhận muộn, phiên bản và số lần làm quiz, loại bằng chứng tham gia Session đủ chuẩn. | 5 |
 | App mục tiêu cho learner và Staff/Admin, dung sai đúng giờ và quy trình xét Rehabilitation Review sau MVP. | 5–6 |
@@ -102,3 +103,16 @@ Các chi tiết còn mở là cách xử lý bằng chứng dùng lại, vi ph�
 - Thử migration với dữ liệu 1.6 có khóa còn hiệu lực, đã hết hạn và khóa từ moderation. Đối soát điểm, audit và quyền trước/sau. Không tự suy diễn dữ liệu xét duyệt lịch sử.
 - Xác nhận server giữ đúng ngân sách và không ghi trùng khi xử lý đồng thời, khi retry sau mất phản hồi và khi audit/write lỗi.
 - Triển khai từng giai đoạn theo thứ tự P0, ledger/guard P1, MVP, rồi projection/UI. Kiểm tra các thao tác mở quyền bắt buộc có đường thực hiện trước khi bật enforcement tương ứng.
+
+## Bàn giao triển khai
+
+| Phần | Hành vi đã nối vào luồng hiện hành |
+|---|---|
+| Restriction và Proposal | Review chỉ đổi điểm, penalty đã xác nhận mới xét khóa. Proposal kiểm tra khóa tạo hoạt động với cả hai loại nguồn. |
+| Chống farm | Backend đếm Path phân biệt theo cặp bất kể hướng, theo lần cộng điểm dương gần nhất của mỗi Path. Path chưa có sự kiện thưởng v1.7 không chiếm hạn mức. |
+| Xét duyệt và chính sách | API đọc hàng chờ theo user và ghi quyết định có AuditLog. Mức 0–19 mở quyền theo hạn. Mức 20–29 có xác nhận đọc chính sách riêng, không yêu cầu qua quiz. |
+| Hoàn tác | Lệnh Admin ghi giao dịch đối ứng một lần. Hạn chế cũ thiếu trigger giữ nguyên để xử lý riêng. Các quyết định độc lập giữ thời hạn. |
+| Recovery MVP | Quiz, streak và commitment xác minh phía server. Hạn mức tính điểm thưởng đã cấp trong 30 ngày. Thu hồi thưởng không cấp lại hạn mức hoặc lượt nhận trong chu kỳ. |
+| App learner | Expo hiển thị nhiệm vụ, bài quiz, tiến độ, hạn mức, thời điểm mở quyền và trạng thái duyệt. |
+
+API build, Prisma schema validate, suite Learning Platform/Audit/Proposal và TypeScript mobile đã được kiểm tra cục bộ. Kiểm thử migration và tranh chấp ghi trên PostgreSQL cần `TEST_DATABASE_URL` trỏ tới database kiểm thử cô lập. Smoke test trên thiết bị cần app và API chạy cùng môi trường.

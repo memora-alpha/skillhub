@@ -1,6 +1,10 @@
 import { Badge } from "@/components/Badge";
 import { Copy, Metric, Panel } from "@/components/feature-page";
+import { Button } from "@/components/Button";
+import { ConnectionFeedback, useConnections } from "@/features/connections";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { Reputation } from "../api/community-api";
+import { useCommunityApi } from "../hooks/use-community";
 
 const levels: Record<string, string> = {
   EXCELLENT: "Rất tốt",
@@ -31,6 +35,18 @@ export const reputationReasons: Record<string, string> = {
   PENALTY_REVERSED: "Hoàn điểm do hủy xử phạt",
 };
 export function ReputationSummary({ data }: Readonly<{ data: Reputation }>) {
+  const runtime = useConnections();
+  const api = useCommunityApi();
+  const cache = useQueryClient();
+  const policy = useMutation({
+    mutationFn: api.acknowledgeReputationPolicy,
+    onSuccess: async () => {
+      if (runtime.isCurrent())
+        await cache.invalidateQueries({
+          queryKey: [...runtime.key, "reputation"],
+        });
+    },
+  });
   return (
     <>
       <Panel title="Uy tín tài khoản" accent>
@@ -58,11 +74,23 @@ export function ReputationSummary({ data }: Readonly<{ data: Reputation }>) {
           ({ scope }) => scope === "CREATE_NEW_ACTIVITY",
         ) && (
           <Copy muted>
-            Quyền tạo yêu cầu học và đề xuất mở lại khi hết thời hạn khóa. Việc
-            xét duyệt được theo dõi riêng.
+            {data.policyNotice
+              ? "Quyền tạo yêu cầu học và đề xuất mở lại khi hết thời hạn khóa và bạn xác nhận đã đọc chính sách."
+              : "Quyền tạo yêu cầu học và đề xuất mở lại khi hết thời hạn khóa. Việc xét duyệt được theo dõi riêng."}
           </Copy>
         )}
       </Panel>
+      {data.policyNotice && (
+        <Panel title="Xác nhận đã đọc chính sách">
+          {data.policyNotice.map((rule) => (
+            <Copy key={rule}>{rule}</Copy>
+          ))}
+          <ConnectionFeedback loading={policy.isPending} error={policy.error} />
+          <Button disabled={policy.isPending} onPress={() => policy.mutate()}>
+            Tôi đã đọc chính sách
+          </Button>
+        </Panel>
+      )}
       {Boolean(data.restrictionReviews?.length) && (
         <Panel title="Xét duyệt hạn chế">
           {data.restrictionReviews?.map(({ id, scope, decision }) => (
