@@ -134,6 +134,40 @@ test("SH-080: reviews open after COMPLETED, once per reviewer, with 1-5 stars", 
   }
 });
 
+test("a pair can earn positive reputation from at most two distinct paths in 30 days", async () => {
+  const ctx = phase3();
+  const first = await settledOneWay(ctx);
+  await ctx.reputation.applyPathCompletion(
+    ctx.db,
+    A,
+    first.pathId,
+    ctx.clock.now,
+  );
+  const original = pathRow(ctx.db, first.pathId);
+  const second = {
+    ...original,
+    id: randomUUID(),
+    participantAId: B,
+    participantBId: A,
+  };
+  const third = { ...original, id: randomUUID() };
+  delete second.reputationRewardedAt;
+  delete third.reputationRewardedAt;
+  ctx.db.seed("learningPath", second);
+  ctx.db.seed("learningPath", third);
+
+  await ctx.reviews.create(user(A), second.id, { rating: 5 });
+  await ctx.reviews.create(user(B), third.id, { rating: 5 });
+  assert.equal(score(ctx.db, B), 52);
+  assert.equal(score(ctx.db, A), 51);
+  await ctx.reviews.create(user(B), first.pathId, { rating: 4 });
+  assert.equal(score(ctx.db, A), 52);
+
+  ctx.clock.now = new Date(ctx.clock.now.getTime() + 30 * 86400000);
+  await ctx.reviews.create(user(A), third.id, { rating: 5 });
+  assert.equal(score(ctx.db, B), 54);
+});
+
 test("SH-081: reputation starts at 50, stays within 0-100 and every change is traceable", async () => {
   const ctx = phase3();
   const tx = ctx.db;

@@ -74,6 +74,7 @@ export class ReviewsService {
         sourceId: review.id,
         eventKey: `review:${review.id}`,
         now: clock.now,
+        rewardPath: path,
       });
       await this.achievements.evaluate(tx, revieweeId, clock.now);
       return review;

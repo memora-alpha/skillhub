@@ -5,6 +5,8 @@ import {
 } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import type { TransactionContext } from "../../../../infrastructure/database/transaction-context";
+import { lockUsers } from "../../../../shared/database/identity-transactions";
+import type { LearningPath } from "../../../../generated/prisma/client";
 import { AuditWriter } from "../../../audit/application/services/audit-writer";
 import type { AuditActor } from "../../../audit/application/contracts/audit.types";
 
@@ -12,6 +14,10 @@ const scoreMinimum = 0;
 const scoreMaximum = 100;
 const ruleVersion = "SRS-1.6";
 const dayMilliseconds = 24 * 60 * 60 * 1000;
+type RewardPath = Pick<
+  LearningPath,
+  "id" | "participantAId" | "participantBId"
+>;
 const policyActor = { kind: "SYSTEM", name: "reputation-policy" } as const;
 
 /** Lock lengths an adjudicated decision may impose (SRS 1.6 §18.34 levels). */
@@ -84,6 +90,7 @@ export class ReputationService {
       eventKey: string;
       now: Date;
       evaluateRestriction?: boolean;
+      rewardPath?: RewardPath | null;
     },
   ): Promise<void> {
     const existing = await tx.reputationHistory.findUnique({
@@ -91,6 +98,12 @@ export class ReputationService {
       select: { id: true },
     });
     if (existing) return;
+    if (input.rewardPath && input.delta > 0) {
+      await lockUsers(tx, [
+        input.rewardPath.participantAId,
+        input.rewardPath.participantBId,
+      ]);
+    }
     const rows = await tx.$queryRaw<{ id: string }[]>`
       SELECT user_id AS id FROM users WHERE user_id = ${input.userId}::uuid FOR UPDATE
     `;
@@ -99,10 +112,16 @@ export class ReputationService {
       where: { id: input.userId },
       select: { reputationScore: true },
     });
-    const scoreAfter = Math.max(
+    const proposedScore = Math.max(
       scoreMinimum,
       Math.min(scoreMaximum, user.reputationScore + input.delta),
     );
+    const scoreAfter =
+      input.rewardPath &&
+      proposedScore > user.reputationScore &&
+      !(await this.reservePathReward(tx, input.rewardPath, input.now))
+        ? user.reputationScore
+        : proposedScore;
     const actualDelta = scoreAfter - user.reputationScore;
     await tx.user.update({
       where: { id: input.userId },
@@ -132,6 +151,14 @@ export class ReputationService {
     pathId: string,
     now: Date,
   ): Promise<void> {
+    const rewardPath = await tx.learningPath.findUnique({
+      where: { id: pathId },
+    });
+    if (rewardPath)
+      await lockUsers(tx, [
+        rewardPath.participantAId,
+        rewardPath.participantBId,
+      ]);
     const locks = await tx.$queryRaw<{ id: string }[]>`
       SELECT user_id AS id FROM users WHERE user_id = ${userId}::uuid FOR UPDATE
     `;
@@ -154,7 +181,38 @@ export class ReputationService {
       sourceId: pathId,
       eventKey: `path-completion:${pathId}:${userId}`,
       now,
+      rewardPath,
     });
+  }
+
+  private async reservePathReward(
+    tx: TransactionContext,
+    path: RewardPath,
+    now: Date,
+  ): Promise<boolean> {
+    const { id, participantAId, participantBId } = path;
+    const rewardedPaths = await tx.learningPath.findMany({
+      where: {
+        reputationRewardedAt: {
+          gt: new Date(now.getTime() - 30 * dayMilliseconds),
+        },
+        OR: [
+          { participantAId, participantBId },
+          { participantAId: participantBId, participantBId: participantAId },
+        ],
+      },
+      select: { id: true, reputationRewardedAt: true },
+      take: 2,
+    });
+    const current = rewardedPaths.find((entry) => entry.id === id);
+    if (!current && rewardedPaths.length >= 2) return false;
+    if (!current?.reputationRewardedAt || current.reputationRewardedAt < now) {
+      await tx.learningPath.update({
+        where: { id },
+        data: { reputationRewardedAt: now },
+      });
+    }
+    return true;
   }
 
   async applyViolation(

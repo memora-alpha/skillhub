@@ -1236,6 +1236,7 @@ model LearningPath {
   learningPlanPathIdRecords        LearningPlan[]        @relation("LearningPlan_path_id")
 
   participantASettlementApprovedAt DateTime?               @map("participant_a_settlement_approved_at") @db.Timestamptz(3)
+  reputationRewardedAt DateTime? @map("reputation_rewarded_at") @db.Timestamptz(3)
   terminationApprovedAt            DateTime?               @map("termination_approved_at") @db.Timestamptz(3)
   participantBSettlementApprovedAt DateTime?               @map("participant_b_settlement_approved_at") @db.Timestamptz(3)
   changeRequests                   LearningChangeRequest[]

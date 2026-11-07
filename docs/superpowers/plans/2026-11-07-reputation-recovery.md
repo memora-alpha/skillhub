@@ -83,15 +83,17 @@ Product Owner đã chốt các nguyên tắc sau khi duyệt triển khai.
 - Chỉ tính thưởng từ tối đa hai Learning Path cho cùng cặp trong 30 ngày, áp dụng cho sự kiện mới sau rollout 1.7.
 - Quiz đạt ít nhất 80%, một lần thưởng mỗi chu kỳ. Streak 14 ngày cần hoạt động hợp lệ. Session cần xác nhận hai bên và bằng chứng tham gia phù hợp.
 - Ưu tiên app learner hiển thị điểm, nhiệm vụ, tiến độ và điều kiện mở khóa.
+- Quyền tạo Request/Proposal mở khi hết thời hạn khóa. Yêu cầu Staff/Admin review vẫn được ghi nhận và theo dõi sau khi quyền đã mở.
+- Một đợt Reputation dưới 40 là một chu kỳ. Streak cần hoàn thành Policy Awareness hoặc một Session hợp lệ trong 14 ngày.
+- Policy Awareness áp dụng cho mọi loại vi phạm. No-show/hủy muộn có thêm Commitment Recovery, các nhóm khác có Good Behavior Streak. Tài khoản bị khóa toàn bộ không đủ điều kiện.
 
-Các chi tiết còn mở là cách xác định hoạt động hợp lệ và suspension nghiêm trọng, ma trận phân nhiệm vụ, ranh giới chu kỳ, xử lý bằng chứng dùng lại, trạng thái sau khi hết thời hạn mà vẫn chờ duyệt và migration hạn chế cũ.
+Các chi tiết còn mở là cách xử lý bằng chứng dùng lại, vi phạm xác nhận muộn và migration hạn chế cũ.
 
 | Quyết định | Bước phụ thuộc |
 |---|---|
-| Phân quyền duyệt theo mức khóa, xử lý sau ngày hết hạn nếu còn chờ duyệt hoặc chưa đọc policy, và chuyển đổi hạn chế cũ. | 1–3, 6 |
-| Định nghĩa suspension nghiêm trọng, ma trận phân nhiệm vụ theo loại vi phạm và ranh giới chu kỳ. Đảm bảo người không còn Session có đường phục hồi. | 4–5 |
+| Phân quyền duyệt theo mức khóa, xác nhận đọc policy và chuyển đổi hạn chế cũ. | 1–3, 6 |
 | Cách ghi ngân sách khi điểm chạm trần 100, xử lý ngân sách sau thu hồi và chính sách cộng dồn chung bằng chứng. | 4–5 |
-| Hành vi chủ động cho streak, mốc 14 ngày, vi phạm xác nhận muộn, phiên bản và số lần làm quiz, Session đủ chuẩn. | 5 |
+| Vi phạm xác nhận muộn, phiên bản và số lần làm quiz, loại bằng chứng tham gia Session đủ chuẩn. | 5 |
 | App mục tiêu cho learner và Staff/Admin, dung sai đúng giờ và quy trình xét Rehabilitation Review sau MVP. | 5–6 |
 
 ## Kiểm chứng trước khi phát hành
