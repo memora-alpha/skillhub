@@ -41,56 +41,9 @@ const reputationSchema = z.object({
       endsAt: timestamp,
     }),
   ),
-  policyNotice: z.array(z.string()).nullable().optional(),
-  restrictionReviews: z
-    .array(
-      z.object({
-        id: uuid,
-        scope: z.enum(["REQUIRE_STAFF_REVIEW", "REQUIRE_ADMIN_REVIEW"]),
-        endsAt: timestamp,
-        decision: z.enum(["APPROVED", "FOLLOW_UP_REQUIRED"]).nullable(),
-        reviewedAt: timestamp.nullable(),
-      }),
-    )
-    .optional(),
   items: z.array(historyItem).max(50),
   nextCursor: uuid.nullable(),
 });
-const missionCode = z.enum([
-  "POLICY_AWARENESS",
-  "GOOD_BEHAVIOR_STREAK",
-  "COMMITMENT_RECOVERY",
-]);
-const recoverySchema = z.object({
-  eligible: z.boolean(),
-  remainingBudget: z.number().int().min(0).max(5),
-  missions: z
-    .array(
-      z.object({
-        code: missionCode,
-        reward: z.number().int().min(1).max(3),
-        claimed: z.boolean(),
-        progress: z.object({
-          current: z.number().int().nonnegative(),
-          target: z.number().int().positive(),
-          complete: z.boolean(),
-        }),
-      }),
-    )
-    .max(3),
-  quiz: z
-    .object({
-      version: z.string(),
-      policy: z.array(z.string()),
-      questions: z.array(z.string()).length(5),
-    })
-    .nullable(),
-});
-const recoveryResult = z.object({
-  passed: z.boolean(),
-  awarded: z.number().int().min(0).max(3),
-});
-export type RecoveryMissionCode = z.infer<typeof missionCode>;
 export type Review = z.infer<typeof reviewSchema>;
 export type ReviewInput = z.infer<typeof reviewInput>;
 export type Reputation = z.infer<typeof reputationSchema>;
@@ -113,43 +66,6 @@ export function createCommunityApi(
     return row;
   }
   return {
-    async acknowledgeReputationPolicy() {
-      return parse(
-        z.object({ acknowledged: z.literal(true) }),
-        await call("/reputation/restrictions/policy-acknowledgement", {
-          method: "POST",
-          replayAfterRenewal: false,
-        }),
-      );
-    },
-    async recovery(signal?: AbortSignal) {
-      return parse(
-        recoverySchema,
-        await call("/reputation/recovery", { signal }),
-      );
-    },
-    async submitRecoveryQuiz(version: string, answers: boolean[]) {
-      return parse(
-        recoveryResult,
-        await call("/reputation/recovery/quiz", {
-          method: "POST",
-          body: { version, answers },
-          replayAfterRenewal: false,
-        }),
-      );
-    },
-    async claimRecovery(
-      code: Exclude<RecoveryMissionCode, "POLICY_AWARENESS">,
-    ) {
-      return parse(
-        recoveryResult,
-        await call("/reputation/recovery/claim", {
-          method: "POST",
-          body: { code },
-          replayAfterRenewal: false,
-        }),
-      );
-    },
     async reviews(pathId: string, counterpartId: string, signal?: AbortSignal) {
       const rows = parse(
         z.array(reviewSchema).max(2),
