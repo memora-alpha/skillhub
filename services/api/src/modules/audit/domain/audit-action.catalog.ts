@@ -39,6 +39,7 @@ export const AUDIT_ACTIONS = [
   "REPUTATION_ADJUST",
   "USER_RESTRICTION_APPLY",
   "USER_RESTRICTION_REVOKE",
+  "USER_RESTRICTION_REVIEW",
   "SCHEDULE_RESCHEDULE",
   "PATH_SETTLEMENT_CONSENT",
   "LEARNING_CHANGE_UPDATE",
@@ -271,6 +272,10 @@ const projectionByAction: Record<
   REPUTATION_ADJUST: reputation,
   USER_RESTRICTION_APPLY: userRestrictions,
   USER_RESTRICTION_REVOKE: userRestrictions,
+  USER_RESTRICTION_REVIEW: z.strictObject({
+    restrictionId: uuid,
+    decision: z.enum(["APPROVED", "FOLLOW_UP_REQUIRED"]),
+  }),
   SCHEDULE_RESCHEDULE: reschedule,
   PATH_SETTLEMENT_CONSENT: z.strictObject({
     pathVersion: z.number().int().positive(),

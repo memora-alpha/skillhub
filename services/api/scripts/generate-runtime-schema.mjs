@@ -295,6 +295,15 @@ model("CreditOperation", (block) =>
 schema = schema.replace(/enum SessionStatus \{[\s\S]*?\n\}/, (block) =>
   fields(block, "  NO_SHOW\n  MAKEUP_REQUIRED"),
 );
+model("UserRestriction", (block) =>
+  fields(
+    block,
+    `
+  reviewDecision String? @map("review_decision") @db.Text
+  reviewedAt DateTime? @map("reviewed_at") @db.Timestamptz(3)
+`,
+  ),
+);
 model("Session", (block) =>
   fields(
     block,

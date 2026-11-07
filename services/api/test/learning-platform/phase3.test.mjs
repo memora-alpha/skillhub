@@ -312,6 +312,87 @@ test("ordinary score changes preserve restrictions and do not renew expired ones
   assert.equal(ctx.db.rows("userRestriction").length, 1);
 });
 
+test("expired restrictions allow activity but still support an audited review decision", async () => {
+  const ctx = phase3();
+  await ctx.reputation.applyAdjudicatedRestriction(ctx.db, {
+    userId: A,
+    days: 30,
+    caseId: randomUUID(),
+    actor: { kind: "HUMAN", userId: admin.userId, roles: admin.roles },
+    reason: "Confirmed serious violation",
+    now: ctx.clock.now,
+  });
+  const restriction = ctx.db
+    .rows("userRestriction")
+    .find(({ scope }) => scope === "REQUIRE_ADMIN_REVIEW");
+  ctx.clock.now = new Date(new Date(restriction.endsAt).getTime() + 1000);
+  await ctx.reputation.assertMayCreateActivity(ctx.db, A, ctx.clock.now);
+  const history = await ctx.reviews.history(user(A));
+  assert.equal(history.activeRestrictions.length, 0);
+  assert.equal(history.restrictionReviews[0].decision, null);
+  await rejectsWith(
+    ctx.reputation.reviewRestriction(
+      ctx.db,
+      staff,
+      restriction.id,
+      "APPROVED",
+      "Reviewed",
+    ),
+    403,
+    "RESTRICTION_REVIEW_FORBIDDEN",
+  );
+  await ctx.reputation.reviewRestriction(
+    ctx.db,
+    admin,
+    restriction.id,
+    "APPROVED",
+    "Reviewed",
+  );
+  assert.equal(
+    (await ctx.reviews.history(user(A))).restrictionReviews[0].decision,
+    "APPROVED",
+  );
+  assert.equal(audits(ctx.db, "USER_RESTRICTION_REVIEW").length, 1);
+});
+
+test("penalty reversal restores the applied delta once and withdraws only the linked lock", async () => {
+  const ctx = phase3();
+  await ctx.db.user.update({ where: { id: A }, data: { reputationScore: 3 } });
+  const now = ctx.clock.now;
+  const outcomeId = randomUUID();
+  await ctx.reputation.applyNoShow(ctx.db, {
+    userId: A,
+    sessionId: randomUUID(),
+    outcomeId,
+    now,
+  });
+  await ctx.reputation.applyAdjudicatedRestriction(ctx.db, {
+    userId: A,
+    days: 7,
+    caseId: randomUUID(),
+    actor: { kind: "HUMAN", userId: admin.userId, roles: admin.roles },
+    reason: "Independent decision",
+    now,
+  });
+  const event = ctx.db.rows("reputationHistory")[0];
+  assert.equal(event.delta, -3);
+  const reverse = () =>
+    ctx.reputation.reverseEvent(
+      ctx.db,
+      admin,
+      event.id,
+      "Incorrect attendance",
+    );
+  await reverse();
+  await reverse();
+  assert.equal(score(ctx.db, A), 3);
+  assert.equal(ctx.db.rows("reputationHistory").length, 2);
+  assert.equal(audits(ctx.db, "REPUTATION_EVENT_REVERSE").length, 1);
+  const active = (await ctx.reviews.history(user(A))).activeRestrictions;
+  assert.equal(active.length, 2);
+  assert(active.every((row) => row.reasonCode === "ADJUDICATED_VIOLATION"));
+});
+
 test("SH-083: badges unlock on their criteria and only unlocked titles can be shown", async () => {
   const ctx = phase3();
   await seedAchievements(ctx.db);

@@ -132,10 +132,34 @@ export class ReviewsService {
         orderBy: [{ endsAt: "asc" }, { id: "asc" }],
         select: { scope: true, reasonCode: true, endsAt: true },
       });
+      const restrictionReviews = await tx.userRestriction.findMany({
+        where: {
+          userId: actor.userId,
+          revokedAt: null,
+          startsAt: { lte: clock.now },
+          scope: { in: ["REQUIRE_STAFF_REVIEW", "REQUIRE_ADMIN_REVIEW"] },
+        },
+        orderBy: [{ startsAt: "desc" }, { id: "desc" }],
+        select: {
+          id: true,
+          scope: true,
+          endsAt: true,
+          reviewDecision: true,
+          reviewedAt: true,
+        },
+        take: 50,
+      });
       return {
         reputationScore: user.reputationScore,
         level: reputationLevel(user.reputationScore),
         activeRestrictions,
+        restrictionReviews: restrictionReviews.map(
+          ({ reviewDecision, reviewedAt, ...row }) => ({
+            ...row,
+            decision: reviewDecision ?? null,
+            reviewedAt: reviewedAt ?? null,
+          }),
+        ),
         items: rows.slice(0, 50),
         nextCursor: rows.length > 50 ? (rows[49]?.id ?? null) : null,
       };

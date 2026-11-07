@@ -1526,6 +1526,8 @@ model MaterialEntitlement {
 }
 
 model UserRestriction {
+  reviewDecision String? @map("review_decision") @db.Text
+  reviewedAt DateTime? @map("reviewed_at") @db.Timestamptz(3)
   id              String    @id @default(uuid()) @map("restriction_id") @db.Uuid
   userId          String    @map("user_id") @db.Uuid
   // Open vocabulary; owning feature must validate it before release.

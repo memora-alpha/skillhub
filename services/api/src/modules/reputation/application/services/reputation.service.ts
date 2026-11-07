@@ -1,4 +1,5 @@
 import {
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -9,6 +10,7 @@ import { lockUsers } from "../../../../shared/database/identity-transactions";
 import type { LearningPath } from "../../../../generated/prisma/client";
 import { AuditWriter } from "../../../audit/application/services/audit-writer";
 import type { AuditActor } from "../../../audit/application/contracts/audit.types";
+import type { Principal } from "../../../auth/application/services/sessions.service";
 
 const scoreMinimum = 0;
 const scoreMaximum = 100;
@@ -22,6 +24,12 @@ const policyActor = { kind: "SYSTEM", name: "reputation-policy" } as const;
 
 /** Lock lengths an adjudicated decision may impose (SRS 1.6 §18.34 levels). */
 export const ADJUDICATED_RESTRICTION_DAYS = [1, 3, 7, 30] as const;
+export const RESTRICTION_REVIEW_DECISIONS = [
+  "APPROVED",
+  "FOLLOW_UP_REQUIRED",
+] as const;
+export type RestrictionReviewDecision =
+  (typeof RESTRICTION_REVIEW_DECISIONS)[number];
 
 /** SRS 1.6 §18.34 reputation bands; WARNING is shown to the owner without a lock. */
 export function reputationLevel(score: number) {
@@ -60,6 +68,65 @@ function restrictionDays(score: number): number {
 @Injectable()
 export class ReputationService {
   constructor(private readonly audit: AuditWriter) {}
+
+  async reviewRestriction(
+    tx: TransactionContext,
+    actor: Principal,
+    restrictionId: string,
+    decision: RestrictionReviewDecision,
+    reason: string,
+  ) {
+    const target = await tx.userRestriction.findUnique({
+      where: { id: restrictionId },
+    });
+    if (!target) throw new NotFoundException("RESTRICTION_NOT_FOUND");
+    const admin = actor.roles.includes("ADMIN");
+    const staffReview =
+      actor.roles.includes("STAFF") && target.scope === "REQUIRE_STAFF_REVIEW";
+    if (
+      !actor.permissions.includes("report:moderate") ||
+      (!admin && !staffReview)
+    )
+      throw new ForbiddenException("RESTRICTION_REVIEW_FORBIDDEN");
+    if (!reason.trim()) throw new ConflictException("RESOLUTION_NOTE_REQUIRED");
+    await lockUsers(tx, [target.userId]);
+    const current = await tx.userRestriction.findUniqueOrThrow({
+      where: { id: restrictionId },
+    });
+    if (
+      current.revokedAt ||
+      !["REQUIRE_STAFF_REVIEW", "REQUIRE_ADMIN_REVIEW"].includes(current.scope)
+    ) {
+      throw new ConflictException("RESTRICTION_NOT_REVIEWABLE");
+    }
+    if (current.reviewDecision) {
+      if (current.reviewDecision !== decision)
+        throw new ConflictException("RESTRICTION_ALREADY_REVIEWED");
+      return { restrictionId, decision, reviewedAt: current.reviewedAt };
+    }
+    const [clock] = await tx.$queryRaw<
+      { now: Date }[]
+    >`SELECT CURRENT_TIMESTAMP AS now`;
+    if (!(clock?.now instanceof Date))
+      throw new ConflictException("DATABASE_TIME_UNAVAILABLE");
+    await tx.userRestriction.update({
+      where: { id: restrictionId },
+      data: { reviewDecision: decision, reviewedAt: clock.now },
+    });
+    await this.audit.append(tx, {
+      actor: {
+        kind: "HUMAN",
+        userId: actor.userId,
+        roles: [admin ? "ADMIN" : "STAFF"],
+      },
+      action: "USER_RESTRICTION_REVIEW",
+      target: { type: "USER", id: target.userId },
+      after: { restrictionId, decision },
+      reason: reason.trim(),
+      context: auditContext(),
+    });
+    return { restrictionId, decision, reviewedAt: clock.now };
+  }
 
   async assertMayCreateActivity(
     tx: TransactionContext,

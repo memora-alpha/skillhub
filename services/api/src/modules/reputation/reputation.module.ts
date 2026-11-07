@@ -5,10 +5,11 @@ import { IdentityModule } from "../identity.module";
 import { ReputationService } from "./application/services/reputation.service";
 import { AchievementsService } from "./application/services/achievements.service";
 import { AchievementsController } from "./presentation/http/achievements.controller";
+import { RestrictionReviewsController } from "./presentation/http/restriction-reviews.controller";
 
 @Module({
   imports: [DatabaseModule, IdentityModule, AuditModule],
-  controllers: [AchievementsController],
+  controllers: [AchievementsController, RestrictionReviewsController],
   providers: [ReputationService, AchievementsService],
   exports: [ReputationService, AchievementsService],
 })
