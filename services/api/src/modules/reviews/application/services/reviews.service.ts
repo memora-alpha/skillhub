@@ -14,6 +14,10 @@ import {
 } from "../../../reputation/application/services/reputation.service";
 import { AchievementsService } from "../../../reputation/application/services/achievements.service";
 import type { CreateReviewDto } from "../../presentation/http/reviews.dto";
+import {
+  effectiveRestriction,
+  recoveryPolicy,
+} from "../../../reputation/domain/restriction-policy";
 
 const ratingDelta: Record<number, number> = { 1: -5, 2: -2, 3: 0, 4: 1, 5: 2 };
 
@@ -125,12 +129,16 @@ export class ReviewsService {
       const activeRestrictions = await tx.userRestriction.findMany({
         where: {
           userId: actor.userId,
-          revokedAt: null,
-          startsAt: { lte: clock.now },
-          endsAt: { gt: clock.now },
+          ...effectiveRestriction(clock.now),
         },
         orderBy: [{ endsAt: "asc" }, { id: "asc" }],
-        select: { scope: true, reasonCode: true, endsAt: true },
+        select: {
+          scope: true,
+          reasonCode: true,
+          endsAt: true,
+          policyRequired: true,
+          policyAcknowledgedAt: true,
+        },
       });
       const restrictionReviews = await tx.userRestriction.findMany({
         where: {
@@ -152,7 +160,18 @@ export class ReviewsService {
       return {
         reputationScore: user.reputationScore,
         level: reputationLevel(user.reputationScore),
-        activeRestrictions,
+        activeRestrictions: activeRestrictions.map(
+          ({ scope, reasonCode, endsAt }) => ({
+            scope,
+            reasonCode,
+            endsAt,
+          }),
+        ),
+        policyNotice: activeRestrictions.some(
+          (row) => row.policyRequired && !row.policyAcknowledgedAt,
+        )
+          ? recoveryPolicy
+          : null,
         restrictionReviews: restrictionReviews.map(
           ({ reviewDecision, reviewedAt, ...row }) => ({
             ...row,

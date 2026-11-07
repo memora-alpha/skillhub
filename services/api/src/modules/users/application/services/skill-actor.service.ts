@@ -12,6 +12,7 @@ import type { TransactionContext } from "../../../../infrastructure/database/tra
 import type { Actor } from "../../../../shared/authorization/authorization.types";
 import type { PermissionCode } from "../../../../shared/authorization/permission.catalog";
 import { AvatarStorage } from "../../../../infrastructure/storage/avatar-storage";
+import { effectiveRestriction } from "../../../reputation/domain/restriction-policy";
 
 @Injectable()
 export class SkillActorService {
@@ -41,9 +42,7 @@ export class SkillActorService {
       await tx.userRestriction.findFirst({
         where: {
           userId,
-          revokedAt: null,
-          startsAt: { lte: now },
-          endsAt: { gt: now },
+          ...effectiveRestriction(now),
           scope: { in: ["learning-request:create", "CREATE_NEW_ACTIVITY"] },
         },
       })
@@ -83,9 +82,7 @@ export class SkillActorService {
     const restrictions = await tx.userRestriction.findMany({
       where: {
         userId: principal.userId,
-        revokedAt: null,
-        startsAt: { lte: now },
-        endsAt: { gt: now },
+        ...effectiveRestriction(now),
       },
     });
     const blocked = new Set(restrictions.map((row) => row.scope));

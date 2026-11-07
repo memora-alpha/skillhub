@@ -39,7 +39,15 @@ function reputationFixture({ score, active = [] }) {
       eventKey: `event:${delta}`,
       now,
     });
-  return { apply, audits, created, revoked };
+  const penalize = () =>
+    service.applyViolation(tx, {
+      userId,
+      reasonCode: "LIGHT_VIOLATION",
+      sourceId: "case",
+      eventKey: "penalty",
+      now,
+    });
+  return { apply, penalize, audits, created, revoked };
 }
 
 test("restriction apply is audited with the superseded and new restrictions", async () => {
@@ -49,7 +57,7 @@ test("restriction apply is audited with the superseded and new restrictions", as
     endsAt: new Date("2026-10-21T00:00:00.000Z"),
   };
   const fixture = reputationFixture({ score: 30, active: [shorter] });
-  await fixture.apply(-5);
+  await fixture.penalize();
 
   assert.deepEqual(fixture.revoked, ["r1"]);
   assert.equal(fixture.created.length, 1);
@@ -79,13 +87,14 @@ test("an unchanged longer restriction writes no audit", async () => {
     endsAt: new Date("2026-12-01T00:00:00.000Z"),
   };
   const fixture = reputationFixture({ score: 30, active: [longer] });
-  await fixture.apply(-5);
+  await fixture.penalize();
 
-  assert.deepEqual(fixture.created, []);
+  assert.equal(fixture.created.length, 1);
+  assert.equal(fixture.created[0].revokedAt, now);
   assert.deepEqual(fixture.audits, []);
 });
 
-test("recovering to 40 revokes low-reputation restrictions with one audit", async () => {
+test("recovering past 40 preserves low-reputation restrictions without revocation audit", async () => {
   const restriction = {
     id: "r1",
     scope: "CREATE_NEW_ACTIVITY",
@@ -94,10 +103,8 @@ test("recovering to 40 revokes low-reputation restrictions with one audit", asyn
   const recovered = reputationFixture({ score: 38, active: [restriction] });
   await recovered.apply(5);
 
-  assert.deepEqual(recovered.revoked, ["r1"]);
-  assert.equal(recovered.audits.length, 1);
-  assert.equal(recovered.audits[0].action, "USER_RESTRICTION_REVOKE");
-  assert.deepEqual(recovered.audits[0].after, { score: 43, restrictions: [] });
+  assert.deepEqual(recovered.revoked, []);
+  assert.deepEqual(recovered.audits, []);
 
   const clean = reputationFixture({ score: 60 });
   await clean.apply(1);

@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Get,
   Param,
   ParseUUIDPipe,
   Post,
@@ -41,6 +42,29 @@ export class RestrictionReviewsController {
     private readonly transactions: TransactionRunner,
     private readonly reputation: ReputationService,
   ) {}
+
+  @Post("restrictions/policy-acknowledgement")
+  @ApiOperation({
+    summary: "Acknowledge the reputation policy for the current account",
+  })
+  async acknowledgePolicy(@CurrentIdentity() actor: Principal) {
+    const result = await this.transactions.run((tx) =>
+      this.reputation.acknowledgePolicy(tx, actor.userId),
+    );
+    return success(result, "Policy acknowledged.");
+  }
+
+  @Get("users/:userId/restriction-reviews")
+  @ApiOperation({ summary: "List outstanding restriction reviews for a user" })
+  async pending(
+    @CurrentIdentity() actor: Principal,
+    @Param("userId", ParseUUIDPipe) userId: string,
+  ) {
+    const result = await this.transactions.run((tx) =>
+      this.reputation.pendingRestrictionReviews(tx, actor, userId),
+    );
+    return success(result, "Pending restriction reviews retrieved.");
+  }
 
   @Post("restrictions/:restrictionId/review")
   @ApiOperation({

@@ -7,6 +7,7 @@ import type { TransactionContext } from "../../../../infrastructure/database/tra
 import { TransactionRunner } from "../../../../infrastructure/database/transaction-runner";
 import { lockUsers } from "../../../../shared/database/identity-transactions";
 import { ReputationService } from "./reputation.service";
+import { recoveryPolicy } from "../../domain/restriction-policy";
 
 const day = 86_400_000;
 const budget = 5;
@@ -69,12 +70,7 @@ export class RecoveryService {
         remainingBudget: state.remainingBudget,
         quiz: {
           version: quizVersion,
-          policy: [
-            "Xác nhận trung thực việc tham gia và hoàn thành buổi học.",
-            "Khi không thể tham gia, thông báo cho đối phương và dùng chức năng đổi lịch hoặc hủy.",
-            "Không tạo hoạt động giả để nhận điểm. Gửi báo cáo trung thực.",
-            "Tăng điểm không thay đổi thời hạn hạn chế quyền đang áp dụng.",
-          ],
+          policy: recoveryPolicy,
           questions: policyQuiz.map(([statement]) => statement),
         },
       };
@@ -159,12 +155,21 @@ export class RecoveryService {
     });
     const cycle = crossing?.id ?? userId;
     const startedAt = crossing?.createdAt ?? user.createdAt;
-    const violation = await tx.reputationHistory.findFirst({
-      where: { userId, sourceType: "ADJUDICATED_VIOLATION" },
+    const reversals = await tx.reputationHistory.findMany({
+      where: { userId, sourceType: "REPUTATION_REVERSAL" },
+      select: { sourceId: true },
+    });
+    const reversedIds = reversals.map(({ sourceId }) => sourceId);
+    const violations = await tx.reputationHistory.findMany({
+      where: {
+        userId,
+        sourceType: "ADJUDICATED_VIOLATION",
+        createdAt: { gte: startedAt },
+        id: { notIn: reversedIds },
+      },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     });
-    const cycleViolation =
-      violation && violation.createdAt >= startedAt ? violation : null;
+    const cycleViolation = violations[0];
     const secondary =
       cycleViolation &&
       ["NO_SHOW", "LATE_CANCELLATION"].includes(cycleViolation.reasonCode)
@@ -193,6 +198,8 @@ export class RecoveryService {
       cycle,
       missions,
       claims,
+      reversedIds,
+      violations,
       score: user.reputationScore,
       streakStart: cycleViolation?.createdAt ?? startedAt,
       remainingBudget: Math.max(0, budget - (totals._sum.delta ?? 0)),
@@ -204,6 +211,18 @@ export class RecoveryService {
     userId: string,
     state: NonNullable<Awaited<ReturnType<RecoveryService["state"]>>>,
   ) {
+    const reportIds = state.violations
+      .filter(({ eventKey }) => eventKey.startsWith("report-case:"))
+      .map(({ sourceId }) => sourceId);
+    const reports = await tx.reportCase.findMany({
+      where: { id: { in: reportIds } },
+      select: { relatedSessionId: true },
+    });
+    const penalizedSessions = new Set(
+      reports.flatMap(({ relatedSessionId }) =>
+        relatedSessionId ? [relatedSessionId] : [],
+      ),
+    );
     const sessions = await tx.session.findMany({
       where: {
         OR: [{ teacherId: userId }, { learnerId: userId }],
@@ -214,6 +233,7 @@ export class RecoveryService {
         learnerConfirmationStatus: "CONFIRMED",
       },
       select: {
+        id: true,
         startAt: true,
         endAt: true,
         attendanceOutcomes: {
@@ -226,15 +246,18 @@ export class RecoveryService {
         },
       },
     });
-    const valid = sessions.filter((session) =>
-      session.attendanceOutcomes.some(
-        (outcome) =>
-          outcome.occurrenceStartAt.getTime() === session.startAt.getTime(),
-      ),
+    const valid = sessions.filter(
+      (session) =>
+        !penalizedSessions.has(session.id) &&
+        session.attendanceOutcomes.some(
+          (outcome) =>
+            outcome.occurrenceStartAt.getTime() === session.startAt.getTime(),
+        ),
     );
     const policyClaim = state.claims.find(
-      ({ eventKey }) =>
-        eventKey === this.eventKey(state.cycle, "POLICY_AWARENESS"),
+      ({ eventKey, id }) =>
+        eventKey === this.eventKey(state.cycle, "POLICY_AWARENESS") &&
+        !state.reversedIds.includes(id),
     );
     const inStreak = (date: Date) =>
       date >= state.streakStart && date <= state.now;

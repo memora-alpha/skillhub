@@ -11,6 +11,7 @@ import type { LearningPath } from "../../../../generated/prisma/client";
 import { AuditWriter } from "../../../audit/application/services/audit-writer";
 import type { AuditActor } from "../../../audit/application/contracts/audit.types";
 import type { Principal } from "../../../auth/application/services/sessions.service";
+import { effectiveRestriction } from "../../domain/restriction-policy";
 
 const scoreMinimum = 0;
 const scoreMaximum = 100;
@@ -68,6 +69,60 @@ function restrictionDays(score: number): number {
 @Injectable()
 export class ReputationService {
   constructor(private readonly audit: AuditWriter) {}
+
+  async acknowledgePolicy(tx: TransactionContext, userId: string) {
+    await lockUsers(tx, [userId]);
+    const [clock] = await tx.$queryRaw<
+      { now: Date }[]
+    >`SELECT CURRENT_TIMESTAMP AS now`;
+    if (!(clock?.now instanceof Date))
+      throw new ConflictException("DATABASE_TIME_UNAVAILABLE");
+    await tx.userRestriction.updateMany({
+      where: {
+        userId,
+        revokedAt: null,
+        startsAt: { lte: clock.now },
+        policyRequired: true,
+        policyAcknowledgedAt: null,
+      },
+      data: { policyAcknowledgedAt: clock.now },
+    });
+    return { acknowledged: true };
+  }
+
+  async pendingRestrictionReviews(
+    tx: TransactionContext,
+    actor: Principal,
+    userId: string,
+  ) {
+    const admin = actor.roles.includes("ADMIN");
+    if (
+      !actor.permissions.includes("report:moderate") ||
+      (!admin && !actor.roles.includes("STAFF"))
+    )
+      throw new ForbiddenException("RESTRICTION_REVIEW_FORBIDDEN");
+    return tx.userRestriction.findMany({
+      where: {
+        userId,
+        revokedAt: null,
+        reviewDecision: null,
+        scope: {
+          in: admin
+            ? ["REQUIRE_STAFF_REVIEW", "REQUIRE_ADMIN_REVIEW"]
+            : ["REQUIRE_STAFF_REVIEW"],
+        },
+      },
+      orderBy: [{ endsAt: "asc" }, { id: "asc" }],
+      select: {
+        id: true,
+        scope: true,
+        reasonCode: true,
+        startsAt: true,
+        endsAt: true,
+      },
+      take: 50,
+    });
+  }
 
   async reverseEvent(
     tx: TransactionContext,
@@ -261,9 +316,7 @@ export class ReputationService {
       where: {
         userId,
         scope: "CREATE_NEW_ACTIVITY",
-        startsAt: { lte: now },
-        endsAt: { gt: now },
-        revokedAt: null,
+        ...effectiveRestriction(now),
       },
       select: { id: true },
     });
@@ -569,6 +622,8 @@ export class ReputationService {
         sourceType: input.sourceType,
         sourceId: input.sourceId,
         triggerEventKey: input.triggerEventKey,
+        policyRequired:
+          input.reasonCode === "LOW_REPUTATION" && input.days === 3,
       };
       if (active[0] && active[0].endsAt >= endsAt) {
         if (input.triggerEventKey)

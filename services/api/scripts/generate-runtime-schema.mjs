@@ -300,6 +300,8 @@ model("UserRestriction", (block) =>
     block,
     `
   triggerEventKey String? @map("trigger_event_key") @db.VarChar(255)
+  policyRequired Boolean @default(false) @map("policy_required")
+  policyAcknowledgedAt DateTime? @map("policy_acknowledged_at") @db.Timestamptz(3)
   reviewDecision String? @map("review_decision") @db.Text
   reviewedAt DateTime? @map("reviewed_at") @db.Timestamptz(3)
 `,

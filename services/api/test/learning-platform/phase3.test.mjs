@@ -503,6 +503,34 @@ test("commitment recovery only counts distinct mutually confirmed sessions with 
   assert.equal((await recovery.mine(A)).eligible, false);
 });
 
+test("a three-day low-reputation lock requires expiry and policy acknowledgement, without a quiz", async () => {
+  const ctx = phase3();
+  const now = ctx.clock.now;
+  await ctx.db.user.update({ where: { id: A }, data: { reputationScore: 32 } });
+  await ctx.reputation.applyNoShow(ctx.db, {
+    userId: A,
+    sessionId: randomUUID(),
+    outcomeId: randomUUID(),
+    now,
+  });
+  await rejectsWith(
+    ctx.reputation.assertMayCreateActivity(ctx.db, A, now),
+    403,
+    "NEW_ACTIVITY_RESTRICTED",
+  );
+  ctx.clock.now = new Date(now.getTime() + 3 * 86400000);
+  await rejectsWith(
+    ctx.reputation.assertMayCreateActivity(ctx.db, A, ctx.clock.now),
+    403,
+    "NEW_ACTIVITY_RESTRICTED",
+  );
+  assert((await ctx.reviews.history(user(A))).policyNotice?.length);
+  await ctx.reputation.acknowledgePolicy(ctx.db, A);
+  await ctx.reputation.assertMayCreateActivity(ctx.db, A, ctx.clock.now);
+  assert.equal((await ctx.reviews.history(user(A))).policyNotice, null);
+  assert.equal(ctx.db.rows("reputationHistory").length, 1);
+});
+
 test("SH-083: badges unlock on their criteria and only unlocked titles can be shown", async () => {
   const ctx = phase3();
   await seedAchievements(ctx.db);
