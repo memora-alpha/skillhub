@@ -1,6 +1,7 @@
 import { Copy, RouteButton } from "@/components/feature-page";
 import { FormNotice } from "@/components/FormNotice";
 import { useConnections } from "@/features/connections";
+import { TerminationCreditAmounts } from "./termination-credit-amounts";
 import {
   terminationResolution,
   type TerminationRequest,
@@ -21,16 +22,20 @@ export function TerminationDecision({
       </FormNotice>
       <Copy>Lý do quyết định: {decision.data.reason}</Copy>
       {decision.data.allocations.map((allocation, index) => (
-        <Copy key={allocation.allocationId}>
-          {allocation.userId
-            ? allocation.userId === runtime.userId
-              ? "Khoản của bạn"
-              : "Khoản của đối tác"
-            : `Khoản tạm giữ ${index + 1}`}
-          : hoàn cho chủ khoản {allocation.refund} CR · chuyển đối tác{" "}
-          {allocation.counterpartyPayment} CR · phí nền tảng{" "}
-          {allocation.platformFee} CR.
-        </Copy>
+        <TerminationCreditAmounts
+          key={allocation.allocationId}
+          title={
+            allocation.userId
+              ? allocation.userId === runtime.userId
+                ? "Khoản của bạn"
+                : "Khoản của đối tác"
+              : `Khoản tạm giữ ${index + 1}`
+          }
+          refundLabel="Hoàn cho chủ khoản"
+          refund={allocation.refund}
+          counterpartyPayment={allocation.counterpartyPayment}
+          platformFee={allocation.platformFee}
+        />
       ))}
       <Copy size="hint">Xem giao dịch ví để biết phần Credit của bạn.</Copy>
       <RouteButton secondary href="/wallet/history">

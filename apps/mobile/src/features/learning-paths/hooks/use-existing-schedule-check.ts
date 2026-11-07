@@ -5,7 +5,7 @@ import {
   deviceTimezone,
   listIsLimited,
   useSessionList,
-} from "@/features/sessions";
+} from "@/features/sessions/state";
 import type { ApiLearningPlan } from "../api/learning-paths-contract";
 import type { ScheduleInput } from "../schemas/schedule-input";
 import {

@@ -607,6 +607,15 @@ test("completed Sessions in both directions reveal the completion summary before
       ];
     });
     const tree = h.expand(h.render());
+    assert.equal(
+      elements(tree).some((element) => text(element) === "Hủy lộ trình"),
+      false,
+    );
+    assert.ok(
+      elements(tree).some(
+        (element) => text(element) === "Xem lịch sử yêu cầu hủy",
+      ),
+    );
     assert.ok(
       elements(tree).some((element) => element.type === "SettlementPanel"),
     );

@@ -156,7 +156,7 @@ test("Path Session list renders sessions outside the current month and has a Pat
   });
   const h = load("sessions/screens/session-list-screen.tsx", {
     "expo-router": { useLocalSearchParams: () => ({ id: path.id }) },
-    "@/features/learning-paths": {
+    "@/features/learning-paths/state": {
       useLearningPath: () => ({
         data: path,
         denied: false,

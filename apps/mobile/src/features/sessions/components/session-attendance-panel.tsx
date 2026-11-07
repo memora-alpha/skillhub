@@ -3,7 +3,7 @@ import { useRouter } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { DataForm, textRule } from "@/components/data-form";
 import { FormNotice } from "@/components/FormNotice";
-import { useRefreshLearningPath } from "@/features/learning-paths";
+import { useRefreshLearningPath } from "@/features/learning-paths/state";
 import { AppError } from "@/lib/http/errors";
 import { useSessionsRuntime } from "../runtime";
 import type { LearningSession } from "../types";

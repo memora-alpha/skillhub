@@ -96,6 +96,7 @@ export const learningPathSchema = z.object({
 });
 export const pathSummarySchema = z.object({
   id: uuid,
+  title: z.string().nullable().optional(),
   conversationId: uuid,
   status: pathStatus,
   exchangeType: exchange.nullable(),

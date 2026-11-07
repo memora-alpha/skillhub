@@ -93,8 +93,14 @@ export function ApiPathCard({
       </View>
       <View style={styles.details}>
         <View style={styles.titleBlock}>
-          <Text style={styles.eyebrow}>HÌNH THỨC HỌC</Text>
-          <Text style={styles.exchangeTitle}>{exchangeName}</Text>
+          <Text
+            accessibilityRole="header"
+            numberOfLines={2}
+            style={styles.exchangeTitle}
+          >
+            {path.title?.trim() || "Lộ trình học cùng đối tác"}
+          </Text>
+          <Text style={styles.updated}>{exchangeName}</Text>
         </View>
         <View
           style={[
