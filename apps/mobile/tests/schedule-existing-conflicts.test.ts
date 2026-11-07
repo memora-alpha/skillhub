@@ -90,7 +90,7 @@ test("the automatic check loads all filled dates, waits for the initial read, an
     },
     "expo-router": { useIsFocused: () => focused },
     "react-hook-form": { useWatch: () => items },
-    "@/features/sessions": {
+    "@/features/sessions/state": {
       deviceTimezone: () => "UTC",
       listIsLimited: (data: unknown[]) => data.length >= 100,
       useSessionList: (range: unknown, _timezone: string, allowed: boolean) => {

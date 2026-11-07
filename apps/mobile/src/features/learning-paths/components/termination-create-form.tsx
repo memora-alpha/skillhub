@@ -1,10 +1,12 @@
 import { useState } from "react";
-import { Keyboard } from "react-native";
+import { Keyboard, StyleSheet, Text, View } from "react-native";
+import { appColors as colors } from "@/constants/theme";
+import { Icon } from "@/components/Icon";
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
 import { Copy } from "@/components/feature-page";
 import { FormNotice } from "@/components/FormNotice";
-import { FlowSection } from "@/components/learning-flow";
+import { cancellationStyles as ui } from "./cancellation-styles";
 import { useConnectionCommand, useConnections } from "@/features/connections";
 import {
   changeReason,
@@ -71,8 +73,16 @@ export function TerminationCreateForm({
     </>
   );
   return (
-    <FlowSection title="Gửi yêu cầu hủy">
-      <Copy size="hint">Đối tác sẽ nhận được yêu cầu và lý do của bạn.</Copy>
+    <View style={ui.surface}>
+      <View style={ui.header}>
+        <Text style={ui.eyebrow}>THỐNG NHẤT VỚI ĐỐI TÁC</Text>
+        <Text accessibilityRole="header" style={ui.title}>
+          Gửi yêu cầu hủy
+        </Text>
+        <Copy size="hint">
+          Chia sẻ lý do để đối tác hiểu và phản hồi yêu cầu của bạn.
+        </Copy>
+      </View>
       <Input
         label="Lý do hủy"
         required
@@ -83,9 +93,19 @@ export function TerminationCreateForm({
         maxLength={1000}
         placeholder="Vì sao bạn muốn dừng lộ trình?"
         hint="Từ 3 đến 1.000 ký tự."
+        fieldStyle={styles.field}
+        style={styles.input}
       />
+      <View style={ui.footnote}>
+        <Icon name="shield" size={16} color={colors.muted} />
+        <Text style={ui.text}>
+          Lịch học vẫn có hiệu lực đến khi được duyệt hủy. Credit chưa được hoàn
+          ngay khi gửi.
+        </Text>
+      </View>
       <Button
-        variant="danger"
+        variant="primary"
+        leadingIcon="send"
         disabled={disabled || !valid || reviewing}
         onPress={() => {
           if (disabled || !valid || reviewing) return;
@@ -125,6 +145,11 @@ export function TerminationCreateForm({
           Tải lại yêu cầu
         </Button>
       )}
-    </FlowSection>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  field: { backgroundColor: colors.canvas, borderRadius: 12 },
+  input: { minHeight: 116, textAlignVertical: "top" },
+});

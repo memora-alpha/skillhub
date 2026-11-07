@@ -1,4 +1,4 @@
-import { useLearningPath } from "@/features/learning-paths";
+import { useLearningPath } from "@/features/learning-paths/state";
 import type { LearningSession } from "../types";
 import { resolveSessionContext } from "../utils/session-context";
 

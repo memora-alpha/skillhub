@@ -36,6 +36,8 @@ function harness(
     | "termination-request-card"
     | "termination-decision"
     | "termination-credit-preview"
+    | "termination-requests"
+    | "termination-history-item"
     | "path-settlement-panel"
     | "settlement-consent-form",
 ) {
@@ -124,13 +126,15 @@ function harness(
         return [
           states[slot],
           (next: unknown) => {
-            states[slot] = next;
+            states[slot] =
+              typeof next === "function" ? next(states[slot]) : next;
           },
         ];
       },
     },
     "react/jsx-runtime": { jsx, jsxs: jsx, Fragment: "Fragment" },
     "react-native": {
+      Pressable: "Pressable",
       View: "View",
       Text: "Text",
       Modal: "Modal",
@@ -167,6 +171,18 @@ function harness(
   const contexts = Object.entries(mocks).map(([name, namedExports]) =>
     mock.module(pathToFileURL(local.resolve(name)), { namedExports }),
   );
+  if (component === "termination-requests") {
+    contexts.push(
+      mock.module(pathToFileURL(local.resolve("./termination-request-card")), {
+        namedExports: { TerminationRequestCard: "RequestCard" },
+      }),
+    );
+    contexts.push(
+      mock.module(pathToFileURL(local.resolve("./termination-history-item")), {
+        namedExports: { TerminationHistoryItem: "HistoryItem" },
+      }),
+    );
+  }
   delete local.cache[filename];
   delete local.cache[dialogFilename];
   delete local.cache[actionDialogFilename];
@@ -179,6 +195,8 @@ function harness(
     "termination-request-card": "TerminationRequestCard",
     "termination-decision": "TerminationDecision",
     "termination-credit-preview": "TerminationQuoteDetails",
+    "termination-requests": "TerminationRequests",
+    "termination-history-item": "TerminationHistoryItem",
     "path-settlement-panel": "PathSettlementPanel",
     "settlement-consent-form": "SettlementConsentForm",
   }[component];
@@ -190,9 +208,13 @@ function harness(
     const element = value as Element;
     if (
       typeof element.type === "function" &&
-      ["TerminationConfirmDialog", "TerminationActionDialog"].includes(
-        element.type.name,
-      )
+      [
+        "TerminationConfirmDialog",
+        "TerminationActionDialog",
+        "TerminationRequestMetadata",
+        "TerminationCreditAmounts",
+        "TerminationStatusHeader",
+      ].includes(element.type.name)
     )
       return expandDialog(element.type(element.props));
     return {
@@ -222,10 +244,10 @@ function harness(
     setBlocked(value: boolean) {
       blocked = value;
     },
-    render() {
+    render(overrides: Record<string, unknown> = {}, exported = exportName) {
       index = 0;
       return expandDialog(
-        module[exportName]!({
+        module[exported]!({
           pathId: request.pathId,
           request,
           quote,
@@ -234,6 +256,7 @@ function harness(
           refresh: () => {
             refreshes++;
           },
+          ...overrides,
         }),
       ) as Element;
     },
@@ -247,9 +270,161 @@ function harness(
   };
 }
 const tick = () => new Promise((resolve) => setImmediate(resolve));
+
+test("withdrawn history identifies the requester and uses server send/close timestamps", () => {
+  const h = harness("termination-request-card");
+  try {
+    h.request.status = "WITHDRAWN";
+    h.request.closedAt = "2030-01-03T10:30:00Z";
+    for (const viewer of [h.request.requesterId, fixtureId(2)]) {
+      h.setViewer(viewer);
+      const tree = h.render();
+      assert.match(
+        text(tree),
+        viewer === h.request.requesterId ? /Bạn\s+đã rút/ : /Đối tác\s+đã rút/,
+      );
+      assert.match(text(tree), /Gửi lúc/);
+      assert.match(text(tree), /Rút lúc/);
+      assert.match(text(tree), /03\/01\/2030/);
+      assert.match(text(tree), /không còn hiệu lực/);
+      assert.doesNotMatch(text(tree), /Hạn phản hồi|đã gửi yêu cầu hủy/);
+      assert.equal(
+        nodes(tree).some((node) => node.type === "Button"),
+        false,
+      );
+    }
+    h.request.closedAt = null;
+    assert.match(text(h.render()), /chưa có thời gian từ hệ thống/);
+    assert.equal(h.calls.length, 0);
+  } finally {
+    h.close();
+  }
+});
+
+test("history rows reveal full details individually, keep server timestamps and never send a command", () => {
+  const h = harness("termination-history-item");
+  try {
+    h.request.status = "WITHDRAWN";
+    h.request.closedAt = "2030-01-03T10:30:00Z";
+    let tree = h.render();
+    assert.match(text(tree), /Đã rút yêu cầu/);
+    assert.match(
+      text(tree),
+      /Rút lúc 17:30 03\/01\/2030|Rút lúc .*03\/01\/2030/,
+    );
+    assert.ok(
+      nodes(tree).some(
+        (node) => node.type === "Text" && node.props.numberOfLines === 2,
+      ),
+    );
+    const toggle = () =>
+      nodes(tree).find((node) => node.type === "Pressable")!.props;
+    assert.deepEqual(toggle().accessibilityState, { expanded: false });
+    (toggle().onPress as () => void)();
+    tree = h.render();
+    assert.match(text(tree), /Gửi lúc/);
+    assert.match(text(tree), /không còn hiệu lực/);
+    assert.equal(
+      nodes(tree).some((node) => node.props.numberOfLines === 2),
+      false,
+    );
+    (toggle().onPress as () => void)();
+    tree = h.render();
+    assert.deepEqual(toggle().accessibilityState, { expanded: false });
+    h.request.closedAt = null;
+    assert.match(text(h.render()), /Gửi lúc/);
+    assert.equal(h.calls.length, 0);
+  } finally {
+    h.close();
+  }
+  const selected = harness("termination-history-item");
+  try {
+    selected.request.status = "EXPIRED";
+    const tree = selected.render({ defaultExpanded: true, selected: true });
+    assert.match(text(tree), /Từ thông báo/);
+    assert.match(text(tree), /Hết hạn lúc/);
+    assert.deepEqual(
+      nodes(tree).find((node) => node.type === "Pressable")!.props
+        .accessibilityState,
+      { expanded: true },
+    );
+  } finally {
+    selected.close();
+  }
+});
+
+test("cancellation list keeps the active request before history, opens notification targets and retains withdrawal receipts", () => {
+  const h = harness("termination-requests");
+  try {
+    const old = terminationFixture({
+      id: fixtureId(50),
+      status: "WITHDRAWN",
+      version: 2,
+    });
+    const requests = [h.request, old];
+    const render = (selectedId?: string) =>
+      h.render({
+        requests,
+        selectedId,
+        beforeHistory: {
+          type: "CreditPreview",
+          props: { children: "Credit dự kiến" },
+        },
+      });
+    const cards = (tree: Element) =>
+      nodes(tree).filter(
+        (node) => node.type === "RequestCard" || node.type === "HistoryItem",
+      );
+    let tree = render();
+    assert.match(
+      text(tree),
+      /Yêu cầu hiện tại[\s\S]*Credit dự kiến[\s\S]*Lịch sử yêu cầu hủy/,
+    );
+    assert.equal(cards(tree).length, 1);
+    assert.match(text(tree), /Lịch sử yêu cầu hủy/);
+    button(tree, "Xem lịch sử (1)").onPress();
+    tree = render();
+    assert.deepEqual(
+      cards(tree).map((card) => (card.props.request as typeof old).id),
+      [h.request.id, old.id],
+    );
+    button(tree, "Thu gọn lịch sử").onPress();
+    tree = render(old.id);
+    assert.equal(cards(tree).length, 2);
+    assert.ok(
+      cards(tree).some(
+        (node) =>
+          node.type === "HistoryItem" &&
+          node.props.selected === true &&
+          node.props.defaultExpanded === true,
+      ),
+    );
+    const receipt = {
+      ...h.request,
+      status: "WITHDRAWN" as const,
+      version: 2,
+      closedAt: "2030-01-02T00:00:00Z",
+    };
+    (cards(tree)[0]!.props.onUpdated as (value: typeof receipt) => void)(
+      receipt,
+    );
+    tree = render(old.id); // the GET still has the old PENDING row
+    assert.doesNotMatch(text(tree), /Yêu cầu hiện tại/);
+    assert.equal(
+      (cards(tree)[0]!.props.request as typeof receipt).status,
+      "WITHDRAWN",
+    );
+    assert.equal(h.calls.length, 0);
+  } finally {
+    h.close();
+  }
+});
+
 function button(tree: Element, label: string) {
   const found = nodes(tree).find(
-    (node) => node.type === "Button" && text(node) === label,
+    (node) =>
+      (node.type === "Button" && text(node) === label) ||
+      (node.type === "Pressable" && node.props.accessibilityLabel === label),
   );
   assert.ok(found, `Missing button: ${label}`);
   assert.equal(typeof found.props.onPress, "function");
@@ -429,6 +604,36 @@ test("an approved cancellation distinguishes stopped obligations from Credit wai
   }
 });
 
+test("Credit preview expands explicitly and never sends a mutation", () => {
+  const h = harness("termination-credit-preview");
+  try {
+    const render = () => h.render({}, "TerminationCreditPreview");
+    let tree = render();
+    assert.doesNotMatch(text(tree), /Tạm tính|96.00/);
+    assert.deepEqual(button(tree, "Xem Credit dự kiến").accessibilityState, {
+      expanded: false,
+    });
+    button(tree, "Xem Credit dự kiến").onPress();
+    tree = render();
+    // The real details component stays mounted only while expanded.
+    assert.ok(
+      nodes(tree).some(
+        (node) =>
+          typeof node.type === "function" &&
+          node.type.name === "TerminationQuoteDetails",
+      ),
+    );
+    button(tree, "Thu gọn Credit dự kiến").onPress();
+    assert.deepEqual(
+      button(render(), "Xem Credit dự kiến").accessibilityState,
+      { expanded: false },
+    );
+    assert.equal(h.calls.length, 0);
+  } finally {
+    h.close();
+  }
+});
+
 test("quote details label both owners, keep exact amounts and never send a mutation", () => {
   const h = harness("termination-credit-preview");
   try {
@@ -444,8 +649,8 @@ test("quote details label both owners, keep exact amounts and never send a mutat
     h.quote.reasonCodes = ["TERMINATION_SESSION_RULING_REQUIRED"];
     const tree = h.render();
     const titles = nodes(tree)
-      .filter((node) => node.type === "Section")
-      .map((node) => node.props.title);
+      .filter((node) => node.props.accessibilityRole === "header")
+      .map((node) => text(node));
     assert.deepEqual(titles, ["Khoản của bạn", "Khoản của đối tác"]);
     assert.match(text(tree), /Hoàn lại:\s+60.00\s+CR/);
     assert.match(text(tree), /9007199254740993.01/);

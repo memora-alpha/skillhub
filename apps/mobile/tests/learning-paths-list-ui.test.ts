@@ -122,6 +122,26 @@ test("path list renders its first page, loads another on request, and only enric
         [path.counterpartId, false],
       ],
     );
+    const cardText = (value: unknown): string => {
+      if (Array.isArray(value)) return value.map(cardText).join(" ");
+      if (value && typeof value === "object" && "props" in value)
+        return cardText(
+          (value as { props: { children?: unknown } }).props.children,
+        );
+      return typeof value === "string" ? value : "";
+    };
+    for (const title of [
+      "Học tiếng Anh giao tiếp ".repeat(10),
+      null,
+      undefined,
+      "   ",
+    ]) {
+      const tree = ApiPathCard({ path: { ...path, title } });
+      assert.ok(
+        cardText(tree).includes(title?.trim() || "Lộ trình học cùng đối tác"),
+      );
+      assert.ok(cardText(tree).includes("Học một chiều"));
+    }
     props.ListFooterComponent.props.onPress();
     assert.deepEqual(fetchNextPage.mock.calls[0]?.arguments, [
       { cancelRefetch: false },

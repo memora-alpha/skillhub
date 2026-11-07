@@ -1,5 +1,57 @@
 # Trạng thái dừng lộ trình mobile
 
+## Kiểm tra trước commit — 2026-11-07T16:33:04+07:00
+
+- Rà soát diff luồng LP-01–04, lịch sử/receipt hủy và public entry Path/Session trên nhánh `fix/learning-path-flow`: chưa phát hiện lỗi mới cần sửa trong phạm vi source hiện tại.
+- TypeScript, ESLint toàn mobile, structure (877 source files), Prettier các file source/test thay đổi và `git diff --check` PASS. Full mobile **1004/1004 PASS**, 0 failed/skipped/cancelled; log local ignored `.expo/precommit-mobile-tests.log`. Kiểm quy tắc commit scope **6/6 PASS**.
+- pnpm trong môi trường kiểm tra bật tự cài dependency trước script và dừng do không có TTY. Chạy checks với `pnpm_config_verify_deps_before_run=false`, dùng dependency đã cài; không đổi cấu hình repo hoặc dependency.
+- Không chạy lại Expo export hoặc API/native acceptance trong lượt kiểm tra này. Giới hạn BE của LP-01 và đề xuất LP-05 giữ nguyên; không thay backend, push hoặc deploy.
+
+## Sửa require cycle — 2026-11-06T22:54:44+07:00
+
+- Theo cảnh báo người dùng gửi: cắt chuỗi Learning Path index → schedule screens/editor/busy day → Session index → reschedule screen/hook → Learning Path index. Thêm public `sessions/state` chỉ xuất useSessionList/time helpers; hai consumer đối chiếu lịch dùng entry này. Mở rộng `learning-paths/state` với Path reads/refresh, chuyển Session context/action/reschedule/attendance/list sang entry đó. Index hiện hữu giữ export tương thích, không đổi UI, API, cache keys hoặc hook behavior.
+- Checker khai báo rõ `sessions/state` là public subpath, cập nhật architecture và mocks của consumer tương ứng. Không deep import private feature khác, không tắt LogBox hoặc suppress warning.
+- Regression `learning-session-imports.test.ts` theo local runtime import/re-export bằng TypeScript resolver, bỏ type-only import. Đã tái hiện trước sửa: schedule-busy-day kéo vào14 Path/Session screens. Sau sửa, closure của sáu entry hooks/components liên quan không có Path/Session screen nào. Đây là kiểm graph source, chưa xác nhận Metro/native startup trên thiết bị của người dùng.
+- Full mobile **1004/1004 PASS**, 0 failed/skipped/cancelled (`.expo/learning-session-cycle-full-tests.log`); TypeScript, ESLint các file đổi, structure toàn mobile877 source files và diff check PASS. Expo web export PASS (`.expo/learning-session-cycle-export.log`, output `.expo/learning-session-cycle-export`). Chưa commit/push; cần full reload app để Metro nhận entry mới, không thay BE.
+
+## Danh sách lịch sử — 2026-11-06T22:42:50+07:00
+
+- Theo phản hồi về phần list khi mở: `TerminationHistoryItem` thay việc render toàn bộ request card trong history. Mỗi dòng có marker trạng thái, tiêu đề15px, người gửi/thời gian và preview lý do tối đa2 dòng; các dòng phân cách bằng hairline, không thêm card. APPLIED dùng dấu check xanh, các trạng thái kết thúc khác trung tính.
+- Bấm dòng mở/đóng độc lập với accessibility expanded và label kèm trạng thái/thời gian. Phần chi tiết giữ lý do đầy đủ, ghi chú, timestamps và `TerminationDecision`/Credit server. Không có hook command hoặc CTA phản hồi ở history. Target thông báo và receipt vừa đóng mở đúng mục; key history theo id/version/selected để target mới không giữ trạng thái thu gọn cũ.
+- **34/34 focused tests PASS** (`.expo/cancellation-history-list-tests.log`), gồm read-only disclosure từng dòng, timestamps/fallback khi thiếu closedAt, thông báo cũ, receipt trước GET và regression mutation/quyền. TypeScript, ESLint vùng thay đổi, structure toàn mobile876 files, diff check và Expo web export PASS (`.expo/cancellation-history-list-export.log`). Không chạy lại full suite cho lượt UI này.
+- Visual: xem3 request WITHDRAWN/REJECTED/EXPIRED tại390px, mở riêng request bị từ chối và kiểm320px không tràn ngang (client/content320). Bản xem thử dùng UI thật và API/runtime/shell/icon mock, dữ liệu mẫu. Ảnh ignored `.expo/learning-path-flow-preview/history-list-390.jpg`; chưa nghiệm thu API/native, không thay BE/Session, chưa commit/push.
+
+## Tinh chỉnh thiết kế — 2026-11-06T22:36:04+07:00
+
+- Tiếp nhận phản hồi “design lại cho đẹp”: form có eyebrow, tiêu đề20px, textarea thoáng, nút gửi màu cam đất theo token primary và icon send; lưu ý lịch/Credit đặt ngay trước nút. Modal xác nhận vẫn dùng hành động danger như trước.
+- Request có badge trạng thái nhẹ và tiêu đề rõ; badge approved ghi “Đã duyệt hủy”, không ghi kết thúc tài chính cho ACCEPTED. Lý do/ghi chú có vạch trái, metadata gom thành cụm nhỏ. History render request với variant plain trên nền màn, không còn card từng mục; header lịch sử và Credit là disclosure có icon/chevron và accessibility expanded. Credit mặc định đóng, mở chỉ render thông tin read; không tự gửi mutation. Thông báo cũ mở history mặc định, người dùng có thể thu gọn, target thay đổi được mở lại.
+- **33/33 focused tests PASS** (`.expo/cancellation-polish-tests.log`); giữ kiểm quyền/modal/retry/receipt, exact Credit và completion, thêm kiểm disclosure Credit không phát mutation. Expo web export PASS (`.expo/cancellation-polish-export.log`, output `.expo/cancellation-polish-export`). TypeScript, ESLint vùng thay đổi, structure toàn mobile (875 source files) và diff check PASS.
+- Visual fixture320/390: đã nhập lý do mẫu để xem CTA, mở/đóng Credit và mở history. Không tràn ngang ở320px (client/content320). Ảnh ignored `.expo/learning-path-flow-preview/polished-form-390.jpg`, `polished-history-320.jpg`; form/request/status/metadata/disclosure thật với API/runtime/shell/icon mock, dữ liệu mẫu. Chưa nghiệm thu native/API thật; không đổi BE/Session/shared components hoặc theme toàn app, chưa commit/push.
+- React review: không có hook điều kiện, disclosure local không gây POST; receipt vẫn theo owner/path và version. Không thêm dependency; tái sử dụng Button/Input/Icon và token Nunito hiện có.
+
+## Thiết kế lại màn hủy — 2026-11-06T22:24:34+07:00
+
+- Theo yêu cầu dễ đọc, không lồng card: bỏ FlowSection bao ngoài nhóm request/history; mỗi request chỉ có một card. Heading nhóm/lịch sử nằm trên nền màn hình, thông báo deep link là dòng chữ thay banner có khung. Giữ một card cho Credit dự kiến, các allocation bên trong là dòng nhãn–số tiền có vạch phân cách; dùng cùng component số tiền cho kết quả quyết toán đã hủy.
+- Thứ tự màn: form gửi mới hoặc yêu cầu hiện tại → Credit dự kiến → lịch sử. Trong request: trạng thái/người gửi → lý do riêng → phản hồi/cảnh báo → cụm thời gian gọn → hành động. Hai nút phản hồi xếp dọc để không ép chữ trên màn nhỏ. Giữ dữ liệu server, quyền, modal xác nhận, uncertain recovery và receipt/version hiện có.
+- Kiểm chứng: **32/32 focused tests PASS** (`.expo/cancellation-flat-layout-tests.log`), có kiểm thứ tự Credit trước lịch sử, quyền phản hồi, rút/receipt chậm, timestamps, exact Credit, completion/deep link và retry. TypeScript, ESLint vùng thay đổi, structure toàn mobile (873 source files), diff check và Expo web export PASS (`.expo/cancellation-flat-export.log`, output `.expo/cancellation-flat-export`). Không chạy lại full suite cho thay đổi trình bày này; kết quả1001/1001 bên dưới thuộc lượt sửa logic trước đó.
+- Visual fixture ở `.expo/learning-path-flow-preview`: đã xem form/lịch sử đã rút và yêu cầu PENDING ở320×760/390×844; bảng Credit phẳng, không còn card lồng card, client/content đều320/390px, không có phần tử div vượt viewport390. UI thật với API/runtime/shell/icon mock và dữ liệu mẫu, chưa nghiệm thu API/Android/iOS. Không thay BE/Session/shared components, chưa commit/push.
+
+## Sửa luồng mobile — 2026-11-06T21:52:10+07:00
+
+- Trạng thái: source complete; API/native acceptance pending. Nhánh `fix/learning-path-flow`; chỉ thay đổi `apps/mobile`, chưa commit/push/deploy.
+- LP-01: dùng dữ liệu plan/session hiện có để chặn tạo hủy mới sau khi đủ buổi COMPLETED ở tất cả chiều; entry đổi sang xem lịch sử, màn mở trực tiếp dẫn về bước Hoàn tất. Không đổi Session hoặc API; yêu cầu cũ vẫn theo quyền server. Giới hạn BE đã ghi trong plan vẫn còn.
+- LP-02: adapter giữ `title` nullable/optional để tương thích response cũ; card hiển thị title tối đa hai dòng và fallback khi thiếu/trống, hình thức học là metadata.
+- LP-03–04: metadata ghi người gửi/rút, thời gian gửi/rút/duyệt/đóng từ server, fallback trung thực khi thiếu thời gian và ghi yêu cầu đã rút hết hiệu lực. Tách yêu cầu đang xử lý khỏi lịch sử thu gọn; thông báo cũ mở đúng lịch sử, không đưa lên trước request đang mở. Receipt thành công được giữ theo id/version và chuyển nhóm ngay khi rút, kể cả GET chậm; không gán trạng thái hoặc thời gian từ client.
+- Kiểm chứng: hai regression mới tái hiện lỗi title/guard trước sửa; full mobile **1001/1001 PASS**, 0 failed/skipped/cancelled (`.expo/learning-path-flow-full-tests.log`). Có kiểm screen mở trực tiếp, cả hai chiều, form theo status, title thiếu/dài, hai vai trò khi rút, thông báo cũ, receipt trước GET và refresh lỗi. TypeScript, ESLint vùng thay đổi, structure toàn mobile (872 source files), `git diff --check` và Expo web export PASS (`.expo/learning-path-flow-export.log`, output `.expo/learning-path-flow-export`). Dùng Node/executables đã cài theo contributing, không cài dependency.
+- Visual: xem fixture `TerminationRequests`/request card/metadata thật với dữ liệu mẫu và runtime/shell/icon mock; 320×760 không tràn ngang (client/content đều320px), rõ trạng thái và timestamps. Fixture ignored `.expo/learning-path-flow-preview`. Chưa kiểm trực quan card title hoặc toàn màn trên native; fixture/web export không thay acceptance Android/iOS/API thật.
+- React review: hooks không điều kiện, state receipt nằm trong scope user/path của màn, chỉ cập nhật sau response đúng runtime; version GET mới hơn thắng receipt cũ. Nút lịch sử có accessibility expanded, không có mutation khi mở lịch sử/notification. Giữ Button/theme/font/pattern hiện có; không thêm thư viện hoặc sửa shared components. LP-05 chưa triển khai.
+
+## Rà soát bổ sung — 2026-11-06T21:32:47+07:00
+
+Đã ghi [các vấn đề cần sửa trên mobile](learning-path-flow-audit.md) trên `fix/learning-path-flow` tại HEAD `b6ce898f`: LP-01–04 còn mở; LP-05 là đề xuất UX chưa triển khai. Theo yêu cầu người dùng, [kế hoạch hiện tại](plan.md#kế-hoạch-sửa-mobile-sau-rà-soát) chỉ sửa `apps/mobile`; lỗi BE là giới hạn ngoài phạm vi, không nằm trong checklist. Lượt này chỉ kiểm tra và chỉnh tài liệu, chưa sửa implementation. Trạng thái source complete bên dưới thuộc lượt triển khai trước, không có nghĩa các finding mới đã được xử lý.
+
+## Trạng thái lượt triển khai trước
+
 - Trạng thái: Ready for review — source complete; API/native acceptance pending.
 - Cập nhật lúc: 2026-11-06T04:47:20+07:00.
 - Nhánh: `feat/mobile-path-cancellation`; baseline `0cb0636d` đã gồm BE `b4d5ed65` (PR82), tracking `origin/feat/mobile-path-cancellation`, không tracking dev. Phạm vi commit mới: đồng bộ PR82 và dọn read model quote; chưa push/deploy.
