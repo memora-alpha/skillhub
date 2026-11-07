@@ -14,7 +14,7 @@ import type { Principal } from "../../../auth/application/services/sessions.serv
 
 const scoreMinimum = 0;
 const scoreMaximum = 100;
-const ruleVersion = "SRS-1.6";
+const ruleVersion = "SRS-1.7";
 const dayMilliseconds = 24 * 60 * 60 * 1000;
 type RewardPath = Pick<
   LearningPath,
@@ -68,6 +68,130 @@ function restrictionDays(score: number): number {
 @Injectable()
 export class ReputationService {
   constructor(private readonly audit: AuditWriter) {}
+
+  async reverseEvent(
+    tx: TransactionContext,
+    actor: Principal,
+    historyId: string,
+    reason: string,
+  ) {
+    if (
+      !actor.roles.includes("ADMIN") ||
+      !actor.permissions.includes("report:moderate")
+    )
+      throw new ForbiddenException("REPUTATION_REVERSAL_FORBIDDEN");
+    if (!reason.trim()) throw new ConflictException("RESOLUTION_NOTE_REQUIRED");
+    const original = await tx.reputationHistory.findUnique({
+      where: { id: historyId },
+    });
+    if (!original) throw new NotFoundException("REPUTATION_EVENT_NOT_FOUND");
+    if (
+      !["ADJUDICATED_VIOLATION", "RECOVERY_MISSION"].includes(
+        original.sourceType,
+      )
+    )
+      throw new ConflictException("REPUTATION_EVENT_NOT_REVERSIBLE");
+    await lockUsers(tx, [original.userId]);
+    const eventKey = `reputation-reversal:${historyId}`;
+    const existing = await tx.reputationHistory.findUnique({
+      where: { eventKey },
+    });
+    if (existing) return existing;
+    const [clock] = await tx.$queryRaw<
+      { now: Date }[]
+    >`SELECT CURRENT_TIMESTAMP AS now`;
+    if (!(clock?.now instanceof Date))
+      throw new ConflictException("DATABASE_TIME_UNAVAILABLE");
+    await this.apply(tx, {
+      userId: original.userId,
+      delta: -original.delta,
+      reasonCode:
+        original.sourceType === "RECOVERY_MISSION"
+          ? "RECOVERY_REWARD_REVOKED"
+          : "PENALTY_REVERSED",
+      sourceType: "REPUTATION_REVERSAL",
+      sourceId: original.id,
+      eventKey,
+      now: clock.now,
+    });
+    const reversal = await tx.reputationHistory.findUniqueOrThrow({
+      where: { eventKey },
+    });
+    const restrictionChanges = await this.reconcileReversedRestriction(
+      tx,
+      original,
+      clock.now,
+    );
+    await this.audit.append(tx, {
+      actor: { kind: "HUMAN", userId: actor.userId, roles: ["ADMIN"] },
+      action: "REPUTATION_EVENT_REVERSE",
+      target: { type: "USER", id: original.userId },
+      after: {
+        originalId: original.id,
+        reversalId: reversal.id,
+        ...restrictionChanges,
+      },
+      reason: reason.trim(),
+      context: auditContext(),
+    });
+    return reversal;
+  }
+
+  private async reconcileReversedRestriction(
+    tx: TransactionContext,
+    original: { userId: string; eventKey: string },
+    now: Date,
+  ) {
+    const withdrawn = await tx.userRestriction.findMany({
+      where: {
+        userId: original.userId,
+        triggerEventKey: original.eventKey,
+        revokedAt: null,
+      },
+    });
+    const withdrawnRestrictionIds = withdrawn.map(({ id }) => id);
+    const restoredRestrictionIds: string[] = [];
+    if (withdrawn.length === 0)
+      return { withdrawnRestrictionIds, restoredRestrictionIds };
+    await tx.userRestriction.updateMany({
+      where: { id: { in: withdrawnRestrictionIds } },
+      data: { revokedAt: now },
+    });
+    const alternatives = await tx.userRestriction.findMany({
+      where: {
+        userId: original.userId,
+        reasonCode: "LOW_REPUTATION",
+        scope: { in: withdrawn.map(({ scope }) => scope) },
+        endsAt: { gt: now },
+        triggerEventKey: { not: null },
+      },
+      orderBy: [{ endsAt: "desc" }, { id: "desc" }],
+    });
+    const reversed = await tx.reputationHistory.findMany({
+      where: { userId: original.userId, sourceType: "REPUTATION_REVERSAL" },
+      select: { sourceId: true },
+    });
+    const events = await tx.reputationHistory.findMany({
+      where: { id: { in: reversed.map(({ sourceId }) => sourceId) } },
+      select: { eventKey: true },
+    });
+    const reversedKeys = new Set(events.map(({ eventKey }) => eventKey));
+    for (const { scope } of withdrawn) {
+      const candidate = alternatives.find(
+        (row) =>
+          row.scope === scope &&
+          row.triggerEventKey &&
+          !reversedKeys.has(row.triggerEventKey),
+      );
+      if (candidate) restoredRestrictionIds.push(candidate.id);
+    }
+    if (restoredRestrictionIds.length)
+      await tx.userRestriction.updateMany({
+        where: { id: { in: restoredRestrictionIds } },
+        data: { revokedAt: null },
+      });
+    return { withdrawnRestrictionIds, restoredRestrictionIds };
+  }
 
   async reviewRestriction(
     tx: TransactionContext,
@@ -377,7 +501,13 @@ export class ReputationService {
 
   private async applyRestriction(
     tx: TransactionContext,
-    input: { userId: string; sourceType: string; sourceId: string; now: Date },
+    input: {
+      userId: string;
+      sourceType: string;
+      sourceId: string;
+      eventKey: string;
+      now: Date;
+    },
     score: number,
   ) {
     const days = restrictionDays(score);
@@ -386,6 +516,7 @@ export class ReputationService {
       ...input,
       days,
       reasonCode: "LOW_REPUTATION",
+      triggerEventKey: input.eventKey,
     });
     if (applied.length === 0) return;
     await this.audit.append(tx, {
@@ -412,6 +543,7 @@ export class ReputationService {
       sourceType: string;
       sourceId: string;
       now: Date;
+      triggerEventKey?: string;
     },
   ) {
     const endsAt = new Date(input.now.getTime() + input.days * dayMilliseconds);
@@ -428,7 +560,23 @@ export class ReputationService {
         },
         orderBy: { endsAt: "desc" },
       });
-      if (active[0] && active[0].endsAt >= endsAt) continue;
+      const candidate = {
+        userId: input.userId,
+        scope,
+        reasonCode: input.reasonCode,
+        startsAt: input.now,
+        endsAt,
+        sourceType: input.sourceType,
+        sourceId: input.sourceId,
+        triggerEventKey: input.triggerEventKey,
+      };
+      if (active[0] && active[0].endsAt >= endsAt) {
+        if (input.triggerEventKey)
+          await tx.userRestriction.create({
+            data: { ...candidate, revokedAt: input.now },
+          });
+        continue;
+      }
       if (active.length > 0) {
         await tx.userRestriction.updateMany({
           where: { id: { in: active.map(({ id }) => id) } },
@@ -436,17 +584,7 @@ export class ReputationService {
         });
         superseded.push(...active);
       }
-      await tx.userRestriction.create({
-        data: {
-          userId: input.userId,
-          scope,
-          reasonCode: input.reasonCode,
-          startsAt: input.now,
-          endsAt,
-          sourceType: input.sourceType,
-          sourceId: input.sourceId,
-        },
-      });
+      await tx.userRestriction.create({ data: candidate });
       applied.push({ scope, endsAt });
     }
     return { superseded, applied };

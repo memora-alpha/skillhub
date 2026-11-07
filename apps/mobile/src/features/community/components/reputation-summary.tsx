@@ -26,6 +26,9 @@ export const reputationReasons: Record<string, string> = {
   LIGHT_VIOLATION: "Vi phạm nhẹ",
   MEDIUM_HARASSMENT: "Quấy rối",
   FRAUD: "Gian lận",
+  RECOVERY_MISSION_REWARD: "Thưởng nhiệm vụ phục hồi",
+  RECOVERY_REWARD_REVOKED: "Thu hồi thưởng phục hồi",
+  PENALTY_REVERSED: "Hoàn điểm do hủy xử phạt",
 };
 export function ReputationSummary({ data }: Readonly<{ data: Reputation }>) {
   return (
@@ -51,7 +54,29 @@ export function ReputationSummary({ data }: Readonly<{ data: Reputation }>) {
             Đến {new Date(item.endsAt).toLocaleString("vi-VN")}
           </Copy>
         ))}
+        {data.activeRestrictions.some(
+          ({ scope }) => scope === "CREATE_NEW_ACTIVITY",
+        ) && (
+          <Copy muted>
+            Quyền tạo yêu cầu học và đề xuất mở lại khi hết thời hạn khóa. Việc
+            xét duyệt được theo dõi riêng.
+          </Copy>
+        )}
       </Panel>
+      {Boolean(data.restrictionReviews?.length) && (
+        <Panel title="Xét duyệt hạn chế">
+          {data.restrictionReviews?.map(({ id, scope, decision }) => (
+            <Copy key={id}>
+              {scopes[scope]} ·{" "}
+              {decision === "APPROVED"
+                ? "Đã duyệt"
+                : decision === "FOLLOW_UP_REQUIRED"
+                  ? "Cần theo dõi thêm"
+                  : "Đang chờ xét duyệt"}
+            </Copy>
+          ))}
+        </Panel>
+      )}
     </>
   );
 }

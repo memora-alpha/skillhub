@@ -299,6 +299,7 @@ model("UserRestriction", (block) =>
   fields(
     block,
     `
+  triggerEventKey String? @map("trigger_event_key") @db.VarChar(255)
   reviewDecision String? @map("review_decision") @db.Text
   reviewedAt DateTime? @map("reviewed_at") @db.Timestamptz(3)
 `,

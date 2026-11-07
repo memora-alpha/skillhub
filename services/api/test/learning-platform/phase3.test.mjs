@@ -10,6 +10,7 @@ import { NotificationDispatcher } from "../../dist/modules/notifications/applica
 import { PrismaInAppNotificationAdapter } from "../../dist/modules/notifications/infrastructure/channels/prisma-in-app-notification.adapter.js";
 import { AchievementsService } from "../../dist/modules/reputation/application/services/achievements.service.js";
 import { ReputationService } from "../../dist/modules/reputation/application/services/reputation.service.js";
+import { RecoveryService } from "../../dist/modules/reputation/application/services/recovery.service.js";
 import { seedAchievements } from "../../dist/modules/reputation/application/seed-achievements.js";
 import {
   CreateSessionReportDto,
@@ -391,6 +392,115 @@ test("penalty reversal restores the applied delta once and withdraws only the li
   const active = (await ctx.reviews.history(user(A))).activeRestrictions;
   assert.equal(active.length, 2);
   assert(active.every((row) => row.reasonCode === "ADJUDICATED_VIOLATION"));
+});
+
+test("recovery requires verified activity, applies a partial budget and preserves active locks", async () => {
+  const ctx = phase3();
+  const recovery = new RecoveryService(runner(ctx.db), ctx.reputation);
+  const now = ctx.clock.now;
+  await ctx.reputation.apply(ctx.db, {
+    userId: A,
+    delta: 2,
+    reasonCode: "RECOVERY_MISSION_REWARD",
+    sourceType: "RECOVERY_MISSION",
+    sourceId: "POLICY_AWARENESS",
+    eventKey: "past-cycle",
+    now,
+  });
+  await ctx.reputation.applyViolation(ctx.db, {
+    userId: A,
+    reasonCode: "FRAUD",
+    delta: -20,
+    sourceId: randomUUID(),
+    eventKey: "confirmed-fraud",
+    now,
+  });
+  const quiz = (answers) => recovery.submitQuiz(A, "1", answers);
+  assert.deepEqual(await quiz([false, false, false, false, true]), {
+    passed: false,
+    awarded: 0,
+  });
+  assert.deepEqual(await quiz([true, false, true, false, false]), {
+    passed: true,
+    awarded: 2,
+  });
+  assert.deepEqual(await quiz([true, false, true, false, false]), {
+    passed: true,
+    awarded: 2,
+  });
+  assert.equal(score(ctx.db, A), 34);
+  assert.equal(
+    (await ctx.reviews.history(user(A))).activeRestrictions.length,
+    1,
+  );
+  await rejectsWith(
+    recovery.claim(A, "GOOD_BEHAVIOR_STREAK"),
+    409,
+    "RECOVERY_MISSION_INCOMPLETE",
+  );
+  ctx.clock.now = new Date(now.getTime() + 14 * 86400000);
+  assert.deepEqual(await recovery.claim(A, "GOOD_BEHAVIOR_STREAK"), {
+    passed: true,
+    awarded: 1,
+  });
+  assert.equal((await recovery.mine(A)).remainingBudget, 0);
+  assert.equal(score(ctx.db, A), 35);
+});
+
+test("commitment recovery only counts distinct mutually confirmed sessions with current attendance", async () => {
+  const ctx = phase3();
+  const recovery = new RecoveryService(runner(ctx.db), ctx.reputation);
+  await ctx.db.user.update({ where: { id: A }, data: { reputationScore: 45 } });
+  const now = ctx.clock.now;
+  await ctx.reputation.applyNoShow(ctx.db, {
+    userId: A,
+    sessionId: randomUUID(),
+    outcomeId: randomUUID(),
+    now,
+  });
+  ctx.clock.now = new Date(now.getTime() + 86400000);
+  const makeSession = (confirmed) => {
+    const id = randomUUID();
+    ctx.db.seed("session", {
+      id,
+      teacherId: B,
+      learnerId: A,
+      startAt: now,
+      endAt: new Date(now.getTime() + 3600000),
+      status: "COMPLETED",
+      teacherConfirmationStatus: "CONFIRMED",
+      learnerConfirmationStatus: confirmed ? "CONFIRMED" : null,
+    });
+    ctx.db.seed("sessionAttendanceOutcome", {
+      sessionId: id,
+      occurrenceStartAt: now,
+      status: "FINAL",
+      attendanceCase: "BOTH_PRESENT",
+      resolution: "COMPLETED_MUTUAL",
+    });
+    return id;
+  };
+  makeSession(true);
+  const second = makeSession(false);
+  assert.deepEqual(
+    (await recovery.mine(A)).missions.map(({ code }) => code),
+    ["POLICY_AWARENESS", "COMMITMENT_RECOVERY"],
+  );
+  await rejectsWith(
+    recovery.claim(A, "COMMITMENT_RECOVERY"),
+    409,
+    "RECOVERY_MISSION_INCOMPLETE",
+  );
+  await ctx.db.session.update({
+    where: { id: second },
+    data: { learnerConfirmationStatus: "CONFIRMED" },
+  });
+  assert.deepEqual(await recovery.claim(A, "COMMITMENT_RECOVERY"), {
+    passed: true,
+    awarded: 3,
+  });
+  assert.equal(score(ctx.db, A), 40);
+  assert.equal((await recovery.mine(A)).eligible, false);
 });
 
 test("SH-083: badges unlock on their criteria and only unlocked titles can be shown", async () => {

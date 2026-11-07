@@ -21,26 +21,28 @@ import {
   type RestrictionReviewDecision,
 } from "../../application/services/reputation.service";
 
-class RestrictionReviewDto {
-  @IsIn(RESTRICTION_REVIEW_DECISIONS)
-  decision!: RestrictionReviewDecision;
-
+class ReputationDecisionReasonDto {
   @IsString()
   @MaxLength(1000)
   reason!: string;
 }
 
+class RestrictionReviewDto extends ReputationDecisionReasonDto {
+  @IsIn(RESTRICTION_REVIEW_DECISIONS)
+  decision!: RestrictionReviewDecision;
+}
+
 @ApiTags("reputation")
 @ApiBearerAuth()
 @UseGuards(IdentityGuard)
-@Controller({ path: "reputation/restrictions", version: "1" })
+@Controller({ path: "reputation", version: "1" })
 export class RestrictionReviewsController {
   constructor(
     private readonly transactions: TransactionRunner,
     private readonly reputation: ReputationService,
   ) {}
 
-  @Post(":restrictionId/review")
+  @Post("restrictions/:restrictionId/review")
   @ApiOperation({
     summary: "Record a Staff or Admin restriction review decision",
   })
@@ -59,5 +61,20 @@ export class RestrictionReviewsController {
       ),
     );
     return success(result, "Restriction review recorded.");
+  }
+
+  @Post("events/:historyId/reverse")
+  @ApiOperation({
+    summary: "Reverse a confirmed penalty or a fraudulent mission reward",
+  })
+  async reverse(
+    @CurrentIdentity() actor: Principal,
+    @Param("historyId", ParseUUIDPipe) historyId: string,
+    @Body() body: ReputationDecisionReasonDto,
+  ) {
+    const result = await this.transactions.run((tx) =>
+      this.reputation.reverseEvent(tx, actor, historyId, body.reason),
+    );
+    return success(result, "Reputation event reversed.");
   }
 }

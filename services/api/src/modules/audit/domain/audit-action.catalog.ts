@@ -37,6 +37,7 @@ export const AUDIT_ACTIONS = [
   "REPORT_CASE_UPDATE",
   "REPORT_EVIDENCE_READ",
   "REPUTATION_ADJUST",
+  "REPUTATION_EVENT_REVERSE",
   "USER_RESTRICTION_APPLY",
   "USER_RESTRICTION_REVOKE",
   "USER_RESTRICTION_REVIEW",
@@ -270,6 +271,12 @@ const projectionByAction: Record<
   REPORT_CASE_UPDATE: reportCase,
   REPORT_EVIDENCE_READ: reportEvidenceRead,
   REPUTATION_ADJUST: reputation,
+  REPUTATION_EVENT_REVERSE: z.strictObject({
+    originalId: uuid,
+    reversalId: uuid,
+    withdrawnRestrictionIds: z.array(uuid),
+    restoredRestrictionIds: z.array(uuid),
+  }),
   USER_RESTRICTION_APPLY: userRestrictions,
   USER_RESTRICTION_REVOKE: userRestrictions,
   USER_RESTRICTION_REVIEW: z.strictObject({

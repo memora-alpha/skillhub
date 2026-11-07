@@ -8,6 +8,8 @@ import {
 } from "@/components/feature-page";
 import { ConnectionFeedback } from "@/features/connections";
 import { useReputation } from "../hooks/use-community";
+import { useConnections } from "@/features/connections";
+import { RecoveryMissions } from "../components/recovery-missions";
 import {
   ReputationSummary,
   reputationReasons,
@@ -21,6 +23,7 @@ export function ReputationHistoryScreen() {
 }
 function ReputationView({ history }: Readonly<{ history: boolean }>) {
   const query = useReputation();
+  const { userId } = useConnections();
   const data = query.data?.pages[0];
   return (
     <FeaturePage
@@ -40,6 +43,7 @@ function ReputationView({ history }: Readonly<{ history: boolean }>) {
         <Copy>Thông tin uy tín hiện không khả dụng cho tài khoản này.</Copy>
       )}
       {data && <ReputationSummary data={data} />}
+      {!history && data && <RecoveryMissions key={userId} />}
       {data && history && (
         <>
           {!query.items.length && (
