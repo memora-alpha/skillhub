@@ -83,6 +83,7 @@ export class ReputationService {
       sourceId: string;
       eventKey: string;
       now: Date;
+      evaluateRestriction?: boolean;
     },
   ): Promise<void> {
     const existing = await tx.reputationHistory.findUnique({
@@ -121,7 +122,8 @@ export class ReputationService {
         createdAt: input.now,
       },
     });
-    await this.applyRestriction(tx, input, scoreAfter);
+    if (input.evaluateRestriction && input.delta < 0)
+      await this.applyRestriction(tx, input, scoreAfter);
   }
 
   async applyPathCompletion(
@@ -198,6 +200,7 @@ export class ReputationService {
       sourceId: input.sourceId,
       eventKey: input.eventKey,
       now: input.now,
+      evaluateRestriction: true,
     });
   }
 
@@ -253,31 +256,7 @@ export class ReputationService {
     score: number,
   ) {
     const days = restrictionDays(score);
-    if (days === 0) {
-      const lifted = await tx.userRestriction.findMany({
-        where: {
-          userId: input.userId,
-          reasonCode: "LOW_REPUTATION",
-          revokedAt: null,
-        },
-        select: { id: true, scope: true, endsAt: true },
-      });
-      if (lifted.length === 0) return;
-      await tx.userRestriction.updateMany({
-        where: { id: { in: lifted.map(({ id }) => id) } },
-        data: { revokedAt: input.now },
-      });
-      await this.audit.append(tx, {
-        actor: policyActor,
-        action: "USER_RESTRICTION_REVOKE",
-        target: { type: "USER", id: input.userId },
-        before: { restrictions: lifted.map(restrictionSnapshot) },
-        after: { score, restrictions: [] },
-        reason: `Reputation score ${score} lifts low-reputation restrictions`,
-        context: auditContext(),
-      });
-      return;
-    }
+    if (days === 0) return;
     const { superseded, applied } = await this.restrict(tx, {
       ...input,
       days,

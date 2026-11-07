@@ -2,9 +2,9 @@
 
 ## Current business source
 
-- `SRS_SkillHub_V1.6_VietLai_DongBoNghiepVu.docx` is the current business source of truth.
-- `SRS_SkillHub_V1.4_BoSungQuyDinhNghiepVu_VI.docx` and `SRS_SkillHub_V1.3.docx` are retained for historical comparison only.
-- Data model documents remain useful for structure, but when they conflict with SRS 1.6, record the conflict and do not invent a rule.
+- `SRS_SkillHub_V1.7_Reputation_Recovery.docx` is the current business source of truth. Sections 18.34.1–18.34.3 cover restriction lifecycle and Reputation recovery, including product decisions still open.
+- SRS 1.6 and earlier versions are retained for historical comparison.
+- When data model documents conflict with SRS 1.7, record the conflict. Keep unresolved product rules open until they are confirmed.
 
 ## Important SRS 1.6 updates
 

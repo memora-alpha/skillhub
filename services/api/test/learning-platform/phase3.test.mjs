@@ -204,6 +204,7 @@ test("SH-082: reputation bands give a warning first, then timed locks with revie
       sourceId: "test",
       eventKey: `step-${(step += 1)}`,
       now: ctx.clock.now,
+      evaluateRestriction: true,
     });
 
   await moveBy(-5);
@@ -243,6 +244,38 @@ test("SH-082: reputation bands give a warning first, then timed locks with revie
       /Reputation score \d+ requires/.test(reason),
     ),
   );
+});
+
+test("ordinary score changes preserve restrictions and do not renew expired ones", async () => {
+  const ctx = phase3();
+  const apply = (delta, eventKey, now) =>
+    ctx.reputation.apply(ctx.db, {
+      userId: A,
+      delta,
+      reasonCode: "REVIEW_RATING",
+      sourceType: "REVIEW",
+      sourceId: eventKey,
+      eventKey,
+      now,
+    });
+  const now = ctx.clock.now;
+  await apply(-5, "review-1", now);
+  await apply(-5, "review-2", now);
+  await apply(-5, "review-3", now);
+  assert.equal(ctx.db.rows("userRestriction").length, 0);
+  await ctx.reputation.applyNoShow(ctx.db, {
+    userId: A,
+    sessionId: "session",
+    outcomeId: "outcome",
+    now,
+  });
+  const lock = ctx.db.rows("userRestriction")[0];
+  await apply(13, "completion", now);
+  assert.equal(ctx.db.rows("userRestriction")[0].revokedAt, null);
+  const later = new Date(new Date(lock.endsAt).getTime() + 1000);
+  await apply(-5, "review-after-expiry", later);
+  await apply(0, "neutral-review", later);
+  assert.equal(ctx.db.rows("userRestriction").length, 1);
 });
 
 test("SH-083: badges unlock on their criteria and only unlocked titles can be shown", async () => {
