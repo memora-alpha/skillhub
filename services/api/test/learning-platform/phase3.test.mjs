@@ -10,6 +10,7 @@ import { NotificationDispatcher } from "../../dist/modules/notifications/applica
 import { PrismaInAppNotificationAdapter } from "../../dist/modules/notifications/infrastructure/channels/prisma-in-app-notification.adapter.js";
 import { AchievementsService } from "../../dist/modules/reputation/application/services/achievements.service.js";
 import { ReputationService } from "../../dist/modules/reputation/application/services/reputation.service.js";
+import { RecoveryService } from "../../dist/modules/reputation/application/services/recovery.service.js";
 import { seedAchievements } from "../../dist/modules/reputation/application/seed-achievements.js";
 import {
   CreateSessionReportDto,
@@ -134,6 +135,40 @@ test("SH-080: reviews open after COMPLETED, once per reviewer, with 1-5 stars", 
   }
 });
 
+test("a pair can earn positive reputation from at most two distinct paths in 30 days", async () => {
+  const ctx = phase3();
+  const first = await settledOneWay(ctx);
+  await ctx.reputation.applyPathCompletion(
+    ctx.db,
+    A,
+    first.pathId,
+    ctx.clock.now,
+  );
+  const original = pathRow(ctx.db, first.pathId);
+  const second = {
+    ...original,
+    id: randomUUID(),
+    participantAId: B,
+    participantBId: A,
+  };
+  const third = { ...original, id: randomUUID() };
+  delete second.reputationRewardedAt;
+  delete third.reputationRewardedAt;
+  ctx.db.seed("learningPath", second);
+  ctx.db.seed("learningPath", third);
+
+  await ctx.reviews.create(user(A), second.id, { rating: 5 });
+  await ctx.reviews.create(user(B), third.id, { rating: 5 });
+  assert.equal(score(ctx.db, B), 52);
+  assert.equal(score(ctx.db, A), 51);
+  await ctx.reviews.create(user(B), first.pathId, { rating: 4 });
+  assert.equal(score(ctx.db, A), 52);
+
+  ctx.clock.now = new Date(ctx.clock.now.getTime() + 30 * 86400000);
+  await ctx.reviews.create(user(A), third.id, { rating: 5 });
+  assert.equal(score(ctx.db, B), 54);
+});
+
 test("SH-081: reputation starts at 50, stays within 0-100 and every change is traceable", async () => {
   const ctx = phase3();
   const tx = ctx.db;
@@ -204,6 +239,7 @@ test("SH-082: reputation bands give a warning first, then timed locks with revie
       sourceId: "test",
       eventKey: `step-${(step += 1)}`,
       now: ctx.clock.now,
+      evaluateRestriction: true,
     });
 
   await moveBy(-5);
@@ -243,6 +279,256 @@ test("SH-082: reputation bands give a warning first, then timed locks with revie
       /Reputation score \d+ requires/.test(reason),
     ),
   );
+});
+
+test("ordinary score changes preserve restrictions and do not renew expired ones", async () => {
+  const ctx = phase3();
+  const apply = (delta, eventKey, now) =>
+    ctx.reputation.apply(ctx.db, {
+      userId: A,
+      delta,
+      reasonCode: "REVIEW_RATING",
+      sourceType: "REVIEW",
+      sourceId: eventKey,
+      eventKey,
+      now,
+    });
+  const now = ctx.clock.now;
+  await apply(-5, "review-1", now);
+  await apply(-5, "review-2", now);
+  await apply(-5, "review-3", now);
+  assert.equal(ctx.db.rows("userRestriction").length, 0);
+  await ctx.reputation.applyNoShow(ctx.db, {
+    userId: A,
+    sessionId: "session",
+    outcomeId: "outcome",
+    now,
+  });
+  const lock = ctx.db.rows("userRestriction")[0];
+  await apply(13, "completion", now);
+  assert.equal(ctx.db.rows("userRestriction")[0].revokedAt, null);
+  const later = new Date(new Date(lock.endsAt).getTime() + 1000);
+  await apply(-5, "review-after-expiry", later);
+  await apply(0, "neutral-review", later);
+  assert.equal(ctx.db.rows("userRestriction").length, 1);
+});
+
+test("expired restrictions allow activity but still support an audited review decision", async () => {
+  const ctx = phase3();
+  await ctx.reputation.applyAdjudicatedRestriction(ctx.db, {
+    userId: A,
+    days: 30,
+    caseId: randomUUID(),
+    actor: { kind: "HUMAN", userId: admin.userId, roles: admin.roles },
+    reason: "Confirmed serious violation",
+    now: ctx.clock.now,
+  });
+  const restriction = ctx.db
+    .rows("userRestriction")
+    .find(({ scope }) => scope === "REQUIRE_ADMIN_REVIEW");
+  ctx.clock.now = new Date(new Date(restriction.endsAt).getTime() + 1000);
+  await ctx.reputation.assertMayCreateActivity(ctx.db, A, ctx.clock.now);
+  const history = await ctx.reviews.history(user(A));
+  assert.equal(history.activeRestrictions.length, 0);
+  assert.equal(history.restrictionReviews[0].decision, null);
+  await rejectsWith(
+    ctx.reputation.reviewRestriction(
+      ctx.db,
+      staff,
+      restriction.id,
+      "APPROVED",
+      "Reviewed",
+    ),
+    403,
+    "RESTRICTION_REVIEW_FORBIDDEN",
+  );
+  await ctx.reputation.reviewRestriction(
+    ctx.db,
+    admin,
+    restriction.id,
+    "APPROVED",
+    "Reviewed",
+  );
+  assert.equal(
+    (await ctx.reviews.history(user(A))).restrictionReviews[0].decision,
+    "APPROVED",
+  );
+  assert.equal(audits(ctx.db, "USER_RESTRICTION_REVIEW").length, 1);
+});
+
+test("penalty reversal restores the applied delta once and withdraws only the linked lock", async () => {
+  const ctx = phase3();
+  await ctx.db.user.update({ where: { id: A }, data: { reputationScore: 3 } });
+  const now = ctx.clock.now;
+  const outcomeId = randomUUID();
+  await ctx.reputation.applyNoShow(ctx.db, {
+    userId: A,
+    sessionId: randomUUID(),
+    outcomeId,
+    now,
+  });
+  await ctx.reputation.applyAdjudicatedRestriction(ctx.db, {
+    userId: A,
+    days: 7,
+    caseId: randomUUID(),
+    actor: { kind: "HUMAN", userId: admin.userId, roles: admin.roles },
+    reason: "Independent decision",
+    now,
+  });
+  const event = ctx.db.rows("reputationHistory")[0];
+  assert.equal(event.delta, -3);
+  const reverse = () =>
+    ctx.reputation.reverseEvent(
+      ctx.db,
+      admin,
+      event.id,
+      "Incorrect attendance",
+    );
+  await reverse();
+  await reverse();
+  assert.equal(score(ctx.db, A), 3);
+  assert.equal(ctx.db.rows("reputationHistory").length, 2);
+  assert.equal(audits(ctx.db, "REPUTATION_EVENT_REVERSE").length, 1);
+  const active = (await ctx.reviews.history(user(A))).activeRestrictions;
+  assert.equal(active.length, 2);
+  assert(active.every((row) => row.reasonCode === "ADJUDICATED_VIOLATION"));
+});
+
+test("recovery requires verified activity, applies a partial budget and preserves active locks", async () => {
+  const ctx = phase3();
+  const recovery = new RecoveryService(runner(ctx.db), ctx.reputation);
+  const now = ctx.clock.now;
+  await ctx.reputation.apply(ctx.db, {
+    userId: A,
+    delta: 2,
+    reasonCode: "RECOVERY_MISSION_REWARD",
+    sourceType: "RECOVERY_MISSION",
+    sourceId: "POLICY_AWARENESS",
+    eventKey: "past-cycle",
+    now,
+  });
+  await ctx.reputation.applyViolation(ctx.db, {
+    userId: A,
+    reasonCode: "FRAUD",
+    delta: -20,
+    sourceId: randomUUID(),
+    eventKey: "confirmed-fraud",
+    now,
+  });
+  const quiz = (answers) => recovery.submitQuiz(A, "1", answers);
+  assert.deepEqual(await quiz([false, false, false, false, true]), {
+    passed: false,
+    awarded: 0,
+  });
+  assert.deepEqual(await quiz([true, false, true, false, false]), {
+    passed: true,
+    awarded: 2,
+  });
+  assert.deepEqual(await quiz([true, false, true, false, false]), {
+    passed: true,
+    awarded: 2,
+  });
+  assert.equal(score(ctx.db, A), 34);
+  assert.equal(
+    (await ctx.reviews.history(user(A))).activeRestrictions.length,
+    1,
+  );
+  await rejectsWith(
+    recovery.claim(A, "GOOD_BEHAVIOR_STREAK"),
+    409,
+    "RECOVERY_MISSION_INCOMPLETE",
+  );
+  ctx.clock.now = new Date(now.getTime() + 14 * 86400000);
+  assert.deepEqual(await recovery.claim(A, "GOOD_BEHAVIOR_STREAK"), {
+    passed: true,
+    awarded: 1,
+  });
+  assert.equal((await recovery.mine(A)).remainingBudget, 0);
+  assert.equal(score(ctx.db, A), 35);
+});
+
+test("commitment recovery only counts distinct mutually confirmed sessions with current attendance", async () => {
+  const ctx = phase3();
+  const recovery = new RecoveryService(runner(ctx.db), ctx.reputation);
+  await ctx.db.user.update({ where: { id: A }, data: { reputationScore: 45 } });
+  const now = ctx.clock.now;
+  await ctx.reputation.applyNoShow(ctx.db, {
+    userId: A,
+    sessionId: randomUUID(),
+    outcomeId: randomUUID(),
+    now,
+  });
+  ctx.clock.now = new Date(now.getTime() + 86400000);
+  const makeSession = (confirmed) => {
+    const id = randomUUID();
+    ctx.db.seed("session", {
+      id,
+      teacherId: B,
+      learnerId: A,
+      startAt: now,
+      endAt: new Date(now.getTime() + 3600000),
+      status: "COMPLETED",
+      teacherConfirmationStatus: "CONFIRMED",
+      learnerConfirmationStatus: confirmed ? "CONFIRMED" : null,
+    });
+    ctx.db.seed("sessionAttendanceOutcome", {
+      sessionId: id,
+      occurrenceStartAt: now,
+      status: "FINAL",
+      attendanceCase: "BOTH_PRESENT",
+      resolution: "COMPLETED_MUTUAL",
+    });
+    return id;
+  };
+  makeSession(true);
+  const second = makeSession(false);
+  assert.deepEqual(
+    (await recovery.mine(A)).missions.map(({ code }) => code),
+    ["POLICY_AWARENESS", "COMMITMENT_RECOVERY"],
+  );
+  await rejectsWith(
+    recovery.claim(A, "COMMITMENT_RECOVERY"),
+    409,
+    "RECOVERY_MISSION_INCOMPLETE",
+  );
+  await ctx.db.session.update({
+    where: { id: second },
+    data: { learnerConfirmationStatus: "CONFIRMED" },
+  });
+  assert.deepEqual(await recovery.claim(A, "COMMITMENT_RECOVERY"), {
+    passed: true,
+    awarded: 3,
+  });
+  assert.equal(score(ctx.db, A), 40);
+  assert.equal((await recovery.mine(A)).eligible, false);
+});
+
+test("a three-day low-reputation lock requires expiry and policy acknowledgement, without a quiz", async () => {
+  const ctx = phase3();
+  const now = ctx.clock.now;
+  await ctx.db.user.update({ where: { id: A }, data: { reputationScore: 32 } });
+  await ctx.reputation.applyNoShow(ctx.db, {
+    userId: A,
+    sessionId: randomUUID(),
+    outcomeId: randomUUID(),
+    now,
+  });
+  await rejectsWith(
+    ctx.reputation.assertMayCreateActivity(ctx.db, A, now),
+    403,
+    "NEW_ACTIVITY_RESTRICTED",
+  );
+  ctx.clock.now = new Date(now.getTime() + 3 * 86400000);
+  await rejectsWith(
+    ctx.reputation.assertMayCreateActivity(ctx.db, A, ctx.clock.now),
+    403,
+    "NEW_ACTIVITY_RESTRICTED",
+  );
+  assert((await ctx.reviews.history(user(A))).policyNotice?.length);
+  await ctx.reputation.acknowledgePolicy(ctx.db, A);
+  await ctx.reputation.assertMayCreateActivity(ctx.db, A, ctx.clock.now);
+  assert.equal((await ctx.reviews.history(user(A))).policyNotice, null);
+  assert.equal(ctx.db.rows("reputationHistory").length, 1);
 });
 
 test("SH-083: badges unlock on their criteria and only unlocked titles can be shown", async () => {

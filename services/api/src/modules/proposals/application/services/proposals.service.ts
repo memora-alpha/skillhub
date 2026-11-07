@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   HttpException,
   Injectable,
   NotFoundException,
@@ -11,6 +12,7 @@ import { TransactionRunner } from "../../../../infrastructure/database/transacti
 import type { TransactionContext } from "../../../../infrastructure/database/transaction-context";
 import { IdempotencyService } from "../../../../infrastructure/idempotency/idempotency.service";
 import type { Principal } from "../../../auth/application/services/sessions.service";
+import type { PermissionCode } from "../../../../shared/authorization/permission.catalog";
 import { SkillActorService } from "../../../users/application/services/skill-actor.service";
 import { SharingSkillsService } from "../../../sharing-skills/application/services/sharing-skills.service";
 import { LearningRequestLifecycleService } from "../../../learning-requests/application/services/learning-request-lifecycle.service";
@@ -207,9 +209,14 @@ export class ProposalsService {
     if (recipientId === command.principal.userId)
       throw new ConflictException("SELF_PROPOSAL");
     const authorize = async (tx: TransactionContext) => {
-      await this.actors.require(tx, command.principal, "proposal:create", [
-        recipientId,
-      ]);
+      const actor = await this.actors.require(
+        tx,
+        command.principal,
+        "proposal:create",
+        [recipientId],
+      );
+      if (actor.blockedPermissions.has("CREATE_NEW_ACTIVITY" as PermissionCode))
+        throw new ForbiddenException("NEW_ACTIVITY_RESTRICTED");
       await this.actors.assertConnectionParty(tx, recipientId);
     };
     try {

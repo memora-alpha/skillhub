@@ -295,6 +295,18 @@ model("CreditOperation", (block) =>
 schema = schema.replace(/enum SessionStatus \{[\s\S]*?\n\}/, (block) =>
   fields(block, "  NO_SHOW\n  MAKEUP_REQUIRED"),
 );
+model("UserRestriction", (block) =>
+  fields(
+    block,
+    `
+  triggerEventKey String? @map("trigger_event_key") @db.VarChar(255)
+  policyRequired Boolean @default(false) @map("policy_required")
+  policyAcknowledgedAt DateTime? @map("policy_acknowledged_at") @db.Timestamptz(3)
+  reviewDecision String? @map("review_decision") @db.Text
+  reviewedAt DateTime? @map("reviewed_at") @db.Timestamptz(3)
+`,
+  ),
+);
 model("Session", (block) =>
   fields(
     block,
@@ -345,6 +357,7 @@ model("LearningPath", (block) =>
     block,
     `
   participantASettlementApprovedAt DateTime? @map("participant_a_settlement_approved_at") @db.Timestamptz(3)
+  reputationRewardedAt DateTime? @map("reputation_rewarded_at") @db.Timestamptz(3)
   terminationApprovedAt DateTime? @map("termination_approved_at") @db.Timestamptz(3)
   participantBSettlementApprovedAt DateTime? @map("participant_b_settlement_approved_at") @db.Timestamptz(3)
   changeRequests LearningChangeRequest[]

@@ -1236,6 +1236,7 @@ model LearningPath {
   learningPlanPathIdRecords        LearningPlan[]        @relation("LearningPlan_path_id")
 
   participantASettlementApprovedAt DateTime?               @map("participant_a_settlement_approved_at") @db.Timestamptz(3)
+  reputationRewardedAt DateTime? @map("reputation_rewarded_at") @db.Timestamptz(3)
   terminationApprovedAt            DateTime?               @map("termination_approved_at") @db.Timestamptz(3)
   participantBSettlementApprovedAt DateTime?               @map("participant_b_settlement_approved_at") @db.Timestamptz(3)
   changeRequests                   LearningChangeRequest[]
@@ -1525,6 +1526,11 @@ model MaterialEntitlement {
 }
 
 model UserRestriction {
+  policyRequired Boolean @default(false) @map("policy_required")
+  policyAcknowledgedAt DateTime? @map("policy_acknowledged_at") @db.Timestamptz(3)
+  triggerEventKey String? @map("trigger_event_key") @db.VarChar(255)
+  reviewDecision String? @map("review_decision") @db.Text
+  reviewedAt DateTime? @map("reviewed_at") @db.Timestamptz(3)
   id              String    @id @default(uuid()) @map("restriction_id") @db.Uuid
   userId          String    @map("user_id") @db.Uuid
   // Open vocabulary; owning feature must validate it before release.

@@ -14,7 +14,7 @@ import {
   ChangeProposalDto,
 } from "../../dist/modules/proposals/presentation/http/proposals.dto.js";
 
-function fixture() {
+function fixture(blockedPermissions = new Set()) {
   const proposerId = randomUUID(),
     recipientId = randomUUID(),
     id = randomUUID(),
@@ -83,7 +83,11 @@ function fixture() {
   const actors = {
     require: async (_tx, principal, permission, others) => {
       calls.push({ permission, user: principal.userId, others });
-      return { userId: principal.userId, roles: ["USER"] };
+      return {
+        userId: principal.userId,
+        roles: ["USER"],
+        blockedPermissions: blockedPermissions,
+      };
     },
     assertConnectionParty: async () => {},
   };
@@ -178,6 +182,24 @@ test("direct invitation derives target parties without requiring proposer's teac
     ) < 1000,
   );
 });
+test("activity restrictions reject both sources of new proposals", async () => {
+  const f = fixture(new Set(["CREATE_NEW_ACTIVITY"]));
+  f.command.principal.userId = f.row.proposerId;
+  for (const source of [
+    { sourceType: "DIRECT_SEARCH", recipientSharingSkillId: randomUUID() },
+    { sourceType: "LEARNING_REQUEST", learningRequestId: f.row.requestId },
+  ]) {
+    await assert.rejects(
+      f.service.create(f.command, {
+        ...source,
+        message: "A suitable invitation",
+      }),
+      /NEW_ACTIVITY_RESTRICTED/,
+    );
+  }
+  assert(!f.calls.includes("work"));
+});
+
 test("proposal rolling quotas and direct cooldown reject before creating another proposal", async () => {
   for (const [day, hour, cooldown, expected] of [
     [50, 0, false, "PROPOSAL_RATE_LIMIT"],

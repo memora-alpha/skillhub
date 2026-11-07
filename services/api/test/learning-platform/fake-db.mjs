@@ -4,6 +4,13 @@ import { readFileSync } from "node:fs";
 // In-memory subset of the Prisma client used by the learning-platform services.
 // relation name -> [target model, [[local field, target field], ...], isList]
 const relations = {
+  session: {
+    attendanceOutcomes: [
+      "sessionAttendanceOutcome",
+      [["id", "sessionId"]],
+      true,
+    ],
+  },
   conversation: {
     requestIdRecord: ["learningRequest", [["requestId", "id"]], false],
     proposalIdRecord: ["proposal", [["proposalId", "id"]], false],
@@ -346,6 +353,16 @@ export function createFakeDb({ now = () => new Date() } = {}) {
       findMany: (args = {}) => query(name, rows(name), args),
       count: ({ where } = {}) =>
         rows(name).filter((row) => matches(name, row, where)).length,
+      aggregate: ({ where, _sum }) => ({
+        _sum: Object.fromEntries(
+          Object.keys(_sum).map((field) => [
+            field,
+            rows(name)
+              .filter((row) => matches(name, row, where))
+              .reduce((sum, row) => sum + row[field], 0),
+          ]),
+        ),
+      }),
       create: ({ data, ...args }) => shape(name, insert(name, data), args),
       createMany: ({ data }) => ({
         count: [data].flat().map((item) => insert(name, item)).length,
@@ -377,7 +394,11 @@ export function createFakeDb({ now = () => new Date() } = {}) {
     seed: (name, data) => insert(name, data),
     $queryRaw(strings, ...values) {
       const sql = strings.join("?");
-      if (sql.includes("CURRENT_TIMESTAMP")) return [{ now: now() }];
+      if (
+        sql.includes("CURRENT_TIMESTAMP") ||
+        sql.includes("clock_timestamp()")
+      )
+        return [{ now: now() }];
       if (sql.includes("SELECT DISTINCT p.path_id")) {
         return rows("learningPath")
           .filter((path) => {

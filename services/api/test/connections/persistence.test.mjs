@@ -112,7 +112,11 @@ test(
       const actors = {
         require: async (tx, principal, _permission, others = []) => {
           await lockUsers(tx, [principal.userId, ...others]);
-          return { userId: principal.userId, roles: ["USER"] };
+          return {
+            userId: principal.userId,
+            roles: ["USER"],
+            blockedPermissions: new Set(),
+          };
         },
         assertConnectionParty: async () => {},
       };
