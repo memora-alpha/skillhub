@@ -1,6 +1,15 @@
 // Codes are explicit actions. Role grants are stored separately by users.
 export const PERMISSION_CATALOG = [
   {
+    code: "credit:read:any",
+    description: "Admin reads system Credit ledger and wallets",
+  },
+  { code: "payment:read:any", description: "Admin reads system payments" },
+  {
+    code: "payment:reconcile",
+    description: "Admin reads payment reconciliation",
+  },
+  {
     code: "staff-permissions:manage",
     description: "Manage Staff operational permissions",
   },

@@ -1,4 +1,6 @@
 import { Module } from "@nestjs/common";
+import { AdminCreditReader } from "./application/services/admin-credit.reader";
+import { AdminCreditController } from "./presentation/http/admin-credit.controller";
 import { DatabaseModule } from "../../infrastructure/database/database.module";
 import { CreditWalletReader } from "./application/services/credit-wallet.reader";
 import { CreditLedgerService } from "./application/services/credit-ledger.service";
@@ -25,8 +27,9 @@ import { PathTerminationLedgerService } from "./application/services/path-termin
 
 @Module({
   imports: [DatabaseModule, IdentityModule],
-  controllers: [WalletController],
+  controllers: [WalletController, AdminCreditController],
   providers: [
+    AdminCreditReader,
     CreditWalletReader,
     CreditProvenanceService,
     CreditOperationsService,

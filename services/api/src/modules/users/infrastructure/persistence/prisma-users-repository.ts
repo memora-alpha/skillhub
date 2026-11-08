@@ -251,6 +251,9 @@ export class PrismaUsersRepository extends UsersRepository {
       "users.lock",
       "users.unlock",
       "roles.staff.assign",
+      "credit:read:any",
+      "payment:read:any",
+      "payment:reconcile",
       "staff-permissions:manage",
     ];
     const learningRequestGrants = {

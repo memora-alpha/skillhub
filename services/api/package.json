@@ -75,7 +75,8 @@
     "test:learning-request:integration": "node test/require-integration-env.mjs && nest build && node --test --test-concurrency=1 test/learning-requests/proposed-tags.integration.test.mjs test/learning-requests/persistence.integration.test.mjs test/learning-requests/notification.integration.test.mjs test/learning-requests/fe-extension.integration.test.mjs test/learning-requests/lifecycle.integration.test.mjs",
     "learning-requests:reconcile": "node scripts/reconcile-learning-requests.mjs",
     "test:report-support": "nest build && node --test test/report-support.test.mjs test/learning-platform/phase3.test.mjs",
-    "test:public-reviews": "nest build && node --test test/public-reviews.test.mjs"
+    "test:public-reviews": "nest build && node --test test/public-reviews.test.mjs",
+    "test:admin-finance": "nest build && node --test test/admin-finance.test.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1146.0",

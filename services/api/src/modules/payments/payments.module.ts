@@ -1,4 +1,8 @@
+import { TransactionRunner } from "../../infrastructure/database/transaction-runner";
 import { Module } from "@nestjs/common";
+import { AdminPaymentsReader } from "./application/services/admin-payments.reader";
+import { AdminPaymentsController } from "./presentation/http/admin-payments.controller";
+import { PaymentReconciliationReader } from "./application/services/payment-reconciliation.reader";
 import { DatabaseModule } from "../../infrastructure/database/database.module";
 import { IdempotencyModule } from "../../infrastructure/idempotency/idempotency.module";
 import { IdentityModule } from "../identity.module";
@@ -29,8 +33,19 @@ import {
     AuditModule,
     ApplicationEventsModule,
   ],
-  controllers: [PaymentsController, PayosWebhookController],
+  controllers: [
+    PaymentsController,
+    PayosWebhookController,
+    AdminPaymentsController,
+  ],
   providers: [
+    AdminPaymentsReader,
+    {
+      provide: PaymentReconciliationReader,
+      inject: [TransactionRunner, PayosTransport],
+      useFactory: (runner: TransactionRunner, transport: PayosTransport) =>
+        new PaymentReconciliationReader(runner, transport),
+    },
     PayosTransport,
     PaymentCreationPolicy,
     PaymentCheckoutWorker,

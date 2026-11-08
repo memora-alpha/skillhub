@@ -462,6 +462,20 @@ model("Permission", (block) =>
 schema +=
   "\n" + readFileSync(new URL("staff-permissions.prisma", root), "utf8");
 
+// Global Admin pagination indices (spec 014).
+model("CreditTransaction", (block) =>
+  fields(
+    block,
+    '  @@index([createdAt(sort: Desc), id(sort: Desc)], map: "credit_transactions_admin_order_idx")',
+  ),
+);
+model("Payment", (block) =>
+  fields(
+    block,
+    '  @@index([createdAt(sort: Desc), id(sort: Desc)], map: "payments_admin_order_idx")',
+  ),
+);
+
 schema = schema.replace(
   /^\/\/ Logical v3[^\r\n]*\r?\n(?:\/\/[^\r\n]*\r?\n)*\r?\n/,
   "// Runtime: v3 domain models plus implemented foundation support.\n" +

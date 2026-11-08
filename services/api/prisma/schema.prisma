@@ -895,6 +895,7 @@ model CreditTransaction {
   @@index([userId])
   @@index([operationId])
   @@index([reversesTransactionId])
+  @@index([createdAt(sort: Desc), id(sort: Desc)], map: "credit_transactions_admin_order_idx")
   @@map("credit_transactions")
 }
 
@@ -920,6 +921,7 @@ model Payment {
   @@unique([userId, creationKeyDigest])
   @@index([userId])
   @@index([userId, status, createdAt, id])
+  @@index([createdAt(sort: Desc), id(sort: Desc)], map: "payments_admin_order_idx")
   @@map("payments")
 }
 
