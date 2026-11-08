@@ -1,3 +1,4 @@
+import { ListPageQuery } from "../../../../shared/http/list-page";
 import { Type } from "class-transformer";
 import {
   IsBoolean,
@@ -58,7 +59,7 @@ export class MaterialQueryDto {
   @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(50) limit = 20;
 }
 
-export class StaffMaterialQueryDto {
+export class StaffMaterialQueryDto extends ListPageQuery {
   @IsOptional() @IsIn(STAFF_STATES) status?: (typeof STAFF_STATES)[number];
 }
 

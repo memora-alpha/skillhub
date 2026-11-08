@@ -1,4 +1,9 @@
 import {
+  listInput,
+  listBoundary,
+  listResult,
+} from "../../../../shared/http/list-page";
+import {
   BadRequestException,
   ConflictException,
   Injectable,
@@ -82,15 +87,23 @@ export class MaterialsService {
     return this.attachments.status(principal, fileId);
   }
 
-  listMine(principal: Principal) {
+  async listMine(
+    principal: Principal,
+    query: { limit?: number; cursor?: string } = {},
+  ) {
+    const scope = JSON.stringify(["materials-mine-v1", principal.userId]);
+    const { limit, cursor } = listInput(query, scope);
     return this.transactions.run(async (tx) => {
-      // ponytail: newest 100 only; add cursor pagination when an owner exceeds it.
       const rows = await tx.material.findMany({
-        where: { ownerId: principal.userId },
+        where: {
+          ownerId: principal.userId,
+          ...listBoundary("updatedAt", cursor),
+        },
         orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
-        take: 100,
+        take: limit + 1,
       });
-      return rows.map(ownerMaterialView);
+      const result = listResult(rows, limit, scope, (row) => row.updatedAt);
+      return { ...result, data: result.data.map(ownerMaterialView) };
     });
   }
 

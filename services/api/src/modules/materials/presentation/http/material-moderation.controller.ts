@@ -14,7 +14,7 @@ import {
   CurrentIdentity,
   IdentityGuard,
 } from "../../../../shared/auth/identity.guard";
-import { success } from "../../../../shared/http/response";
+import { paginated, success } from "../../../../shared/http/response";
 import type { Principal } from "../../../auth/application/services/sessions.service";
 import { MaterialModerationService } from "../../application/services/material-moderation.service";
 import {
@@ -35,7 +35,8 @@ export class MaterialModerationController {
     @CurrentIdentity() actor: Principal,
     @Query() query: StaffMaterialQueryDto,
   ) {
-    return success(await this.moderation.queue(actor, query.status));
+    const result = await this.moderation.queue(actor, query.status, query);
+    return paginated(result.data, result.pagination);
   }
 
   @Post(":materialId/:action")

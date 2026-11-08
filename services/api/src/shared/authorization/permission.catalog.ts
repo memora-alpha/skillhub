@@ -57,6 +57,18 @@ export const PERMISSION_CATALOG = [
     code: "skill-catalog:restore",
     description: "Restore archived catalog skill",
   },
+  {
+    code: "profile:moderate",
+    description: "Moderate avatar and bio with audit",
+  },
+  {
+    code: "review:moderate",
+    description: "Hide or restore reviews with audit",
+  },
+  {
+    code: "fee-policy:manage",
+    description: "Manage versioned material fee policies",
+  },
   { code: "profile:read:self", description: "Read own profile" },
   { code: "profile:update:self", description: "Update own profile" },
   {

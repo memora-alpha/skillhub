@@ -1,3 +1,8 @@
+import {
+  listInput,
+  listBoundary,
+  listResult,
+} from "../../../../shared/http/list-page";
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../../../../infrastructure/database/prisma.service";
 import type { TransactionContext } from "../../../../infrastructure/database/transaction-context";
@@ -25,6 +30,7 @@ type SharingRow = Prisma.SharingSkillGetPayload<{ include: typeof include }>;
 export function publicSharing(row: SharingRow) {
   return {
     id: row.id,
+    createdAt: row.createdAt,
     skill: row.skillIdRecord,
     level: row.levelIdRecord?.code ?? row.level!,
     levelId: row.levelId,
@@ -146,12 +152,12 @@ export class SharingSkillsRepository {
   }
   async list(userId: string, query: SharingQuery, publicOnly = false) {
     const scope = cursorScope({
-      type: "sharing",
+      type: "sharing-created-v2",
       userId,
       publicOnly,
       archived: query.includeArchived ?? false,
     });
-    const cursor = readCursor(query.cursor, scope);
+    const { limit, cursor } = listInput(query, scope);
     let visibility: Prisma.SharingSkillWhereInput = query.includeArchived
       ? {}
       : { archivedAt: null };
@@ -167,13 +173,13 @@ export class SharingSkillsRepository {
       where: {
         userId,
         ...visibility,
-        ...(cursor ? { id: { gt: cursor.id } } : {}),
+        ...listBoundary("createdAt", cursor),
       },
       include,
-      orderBy: { id: "asc" },
-      take: query.limit + 1,
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: limit + 1,
     });
-    const result = page(rows, query.limit, scope, (row) => row.id);
+    const result = listResult(rows, limit, scope, (row) => row.createdAt);
     return {
       ...result,
       data: result.data.map(publicOnly ? publicSharing : ownSharing),

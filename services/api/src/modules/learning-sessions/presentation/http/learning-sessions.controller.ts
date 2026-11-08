@@ -1,3 +1,5 @@
+import { IsISO8601, IsOptional } from "class-validator";
+import { ListPageQuery } from "../../../../shared/http/list-page";
 import {
   Body,
   BadRequestException,
@@ -21,7 +23,7 @@ import {
   IdentityGuard,
 } from "../../../../shared/auth/identity.guard";
 import type { Principal } from "../../../auth/application/services/sessions.service";
-import { success } from "../../../../shared/http/response";
+import { paginated, success } from "../../../../shared/http/response";
 import {
   ConfirmSessionCompletionDto,
   SubmitAbsenceExcuseDto,
@@ -33,6 +35,10 @@ import { LiveKitTokenResponse } from "./learning-sessions.responses";
 import { SessionOutcomeService } from "../../application/services/session-outcome.service";
 import { LearningSessionsService } from "../../application/services/learning-sessions.service";
 
+class SessionListQuery extends ListPageQuery {
+  @IsOptional() @IsISO8601({ strict: true }) from?: string;
+  @IsOptional() @IsISO8601({ strict: true }) to?: string;
+}
 @ApiTags("sessions")
 @ApiBearerAuth()
 @UseGuards(IdentityGuard)
@@ -67,13 +73,10 @@ export class LearningSessionsController {
   @ApiOperation({ summary: "List the caller's sessions" })
   async mine(
     @CurrentIdentity() actor: Principal,
-    @Query("from") from?: string,
-    @Query("to") to?: string,
+    @Query() query: SessionListQuery,
   ) {
-    return success(
-      await this.sessions.mine(actor, from, to),
-      "Sessions retrieved.",
-    );
+    const result = await this.sessions.mine(actor, query.from, query.to, query);
+    return paginated(result.data, result.pagination, "Sessions retrieved.");
   }
 
   @Get(":sessionId")

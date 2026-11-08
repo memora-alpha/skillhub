@@ -1,4 +1,9 @@
 import {
+  listInput,
+  listBoundary,
+  listResult,
+} from "../../../../shared/http/list-page";
+import {
   BadRequestException,
   ConflictException,
   Injectable,
@@ -217,15 +222,23 @@ export class MaterialPurchaseService {
     });
   }
 
-  listOrders(principal: Principal) {
+  async listOrders(
+    principal: Principal,
+    query: { limit?: number; cursor?: string } = {},
+  ) {
+    const scope = JSON.stringify(["material-orders-v1", principal.userId]);
+    const { limit, cursor } = listInput(query, scope);
     return this.transactions.run(async (tx) => {
-      // ponytail: newest 100 only; paginate when a buyer exceeds it.
       const rows = await tx.materialOrder.findMany({
-        where: { buyerId: principal.userId },
+        where: {
+          buyerId: principal.userId,
+          ...listBoundary("createdAt", cursor),
+        },
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-        take: 100,
+        take: limit + 1,
       });
-      return rows.map(orderView);
+      const result = listResult(rows, limit, scope, (row) => row.createdAt);
+      return { ...result, data: result.data.map(orderView) };
     });
   }
 }
@@ -281,7 +294,7 @@ async function activeFeePolicy(tx: TransactionContext) {
       approvedAt: { not: null },
       effectiveAt: { lte: clock.now },
     },
-    orderBy: { versionNo: "desc" },
+    orderBy: [{ effectiveAt: "desc" }, { versionNo: "desc" }],
   });
   const rounding = policy?.roundingRule as {
     mode?: unknown;

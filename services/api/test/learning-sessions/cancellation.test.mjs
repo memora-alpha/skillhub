@@ -319,17 +319,16 @@ test("pending termination blocks full settlement; withdrawing it permits the ord
     "stop",
     "End the agreement early",
   );
-  // Complete the existing session and stay inside the configured request window.
+  // Replace the expired request while the final session is still unfinished.
   ctx.clock.now = new Date("2026-11-02T11:30:00Z");
-  await ctx.sessions.complete(user(A), ctx.session.id, "Taught");
-  await ctx.sessions.complete(user(B), ctx.session.id, "Learned");
-  // The first request expired; create a current termination request on the ACTIVE path.
   const current = await ctx.stop.request(
     user(A),
     ctx.pathId,
     "current-stop",
     "Discuss ending the agreement",
   );
+  await ctx.sessions.complete(user(A), ctx.session.id, "Taught");
+  await ctx.sessions.complete(user(B), ctx.session.id, "Learned");
   ctx.clock.now = new Date("2026-11-04T12:00:00Z");
   await assert.rejects(() => ctx.sessions.settlePath(user(A), ctx.pathId), {
     message: "SETTLEMENT_BLOCKED_BY_TERMINATION",

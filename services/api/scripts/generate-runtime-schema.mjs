@@ -476,6 +476,72 @@ model("Payment", (block) =>
   ),
 );
 
+// Completion-gap data is additive; existing accounts keep enabled notifications.
+model("User", (block) =>
+  fields(
+    block,
+    `
+  notificationPreferences Json? @map("notification_preferences")
+  profileModeration Json? @map("profile_moderation")
+  createdFeePolicies FeePolicyVersion[] @relation("FeePolicy_creator")
+`,
+  ),
+);
+model("Review", (block) =>
+  fields(
+    block,
+    '  moderationVersion Int @default(0) @map("moderation_version")',
+  ),
+);
+model("FeePolicyVersion", (block) =>
+  fields(
+    block,
+    `
+  createdBy String? @map("created_by") @db.Uuid
+  createdByRecord User? @relation("FeePolicy_creator", fields: [createdBy], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  @@index([createdBy], map: "fee_policies_creator_idx")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+`,
+  ),
+);
+
+model("SharingSkill", (block) =>
+  fields(
+    block,
+    '  @@index([userId, createdAt(sort: Desc), id(sort: Desc)], map: "sharing_skills_user_created_idx")',
+  ),
+);
+model("Session", (block) =>
+  fields(
+    block,
+    `
+  @@index([teacherId, startAt, id], map: "sessions_teacher_page_idx")
+  @@index([learnerId, startAt, id], map: "sessions_learner_page_idx")
+`,
+  ),
+);
+model("Material", (block) =>
+  fields(
+    block,
+    `
+  @@index([ownerId, updatedAt(sort: Desc), id(sort: Desc)], map: "materials_owner_page_idx")
+  @@index([status, updatedAt, id], map: "materials_staff_page_idx")
+`,
+  ),
+);
+model("MaterialOrder", (block) =>
+  fields(
+    block,
+    '  @@index([buyerId, createdAt(sort: Desc), id(sort: Desc)], map: "material_orders_buyer_page_idx")',
+  ),
+);
+model("FeePolicyVersion", (block) =>
+  fields(
+    block,
+    '  @@index([createdAt(sort: Desc), id(sort: Desc)], map: "fee_policies_page_idx")',
+  ),
+);
+
 schema = schema.replace(
   /^\/\/ Logical v3[^\r\n]*\r?\n(?:\/\/[^\r\n]*\r?\n)*\r?\n/,
   "// Runtime: v3 domain models plus implemented foundation support.\n" +

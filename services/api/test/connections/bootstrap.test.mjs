@@ -1,3 +1,4 @@
+import { ReauthProofService } from "../../dist/modules/auth/application/services/reauth-proof.service.js";
 import "reflect-metadata";
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -99,6 +100,7 @@ test("feature modules resolve owner contracts and register SSE/chat workers; HTT
     .useModule(
       fixtureModule([
         [SessionsService, {}],
+        [ReauthProofService, {}],
         [IdentityConfig, { jwtKey: "fixture-ledger-cursor-key" }],
         [SkillActorService, {}],
         [UsersService, {}],
@@ -192,6 +194,10 @@ test("feature modules resolve owner contracts and register SSE/chat workers; HTT
       "/api/v1/admin/credit/operations/{id}",
       "/api/v1/admin/users/{userId}/wallet",
       "/api/v1/admin/payments",
+      "/api/v1/admin/fee-policies",
+      "/api/v1/admin/fee-revenue",
+      "/api/v1/staff/reviews",
+      "/api/v1/me/notification-preferences",
       "/api/v1/admin/payments/{id}/reconciliation",
       "/api/v1/me/wallet",
       "/api/v1/me/wallet/transactions",

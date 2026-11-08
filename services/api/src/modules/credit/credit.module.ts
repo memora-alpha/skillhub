@@ -1,3 +1,5 @@
+import { FeePolicyAdminService } from "./application/services/fee-policy-admin.service";
+import { FeePolicyAdminController } from "./presentation/http/fee-policy-admin.controller";
 import { Module } from "@nestjs/common";
 import { AdminCreditReader } from "./application/services/admin-credit.reader";
 import { AdminCreditController } from "./presentation/http/admin-credit.controller";
@@ -27,9 +29,14 @@ import { PathTerminationLedgerService } from "./application/services/path-termin
 
 @Module({
   imports: [DatabaseModule, IdentityModule],
-  controllers: [WalletController, AdminCreditController],
+  controllers: [
+    WalletController,
+    AdminCreditController,
+    FeePolicyAdminController,
+  ],
   providers: [
     AdminCreditReader,
+    FeePolicyAdminService,
     CreditWalletReader,
     CreditProvenanceService,
     CreditOperationsService,

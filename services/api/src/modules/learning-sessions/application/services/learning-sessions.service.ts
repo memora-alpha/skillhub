@@ -1,4 +1,9 @@
 import {
+  listInput,
+  listBoundary,
+  listResult,
+} from "../../../../shared/http/list-page";
+import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
@@ -302,11 +307,25 @@ export class LearningSessionsService {
     };
   }
 
-  async mine(actor: Principal, from?: string, to?: string) {
+  async mine(
+    actor: Principal,
+    from?: string,
+    to?: string,
+    query: { limit?: number; cursor?: string } = {},
+  ) {
+    const scope = JSON.stringify([
+      "sessions-mine-v1",
+      actor.userId,
+      from ?? null,
+      to ?? null,
+    ]);
+    const { limit, cursor } = listInput(query, scope);
     let start: Date;
     let end: Date | undefined;
     try {
-      start = from ? parseAbsoluteTimestamp(from) : this.clock.now();
+      start = from
+        ? parseAbsoluteTimestamp(from)
+        : new Date(cursor?.anchor ?? this.clock.now());
       end = to ? parseAbsoluteTimestamp(to) : undefined;
     } catch {
       throw new BadRequestException("INVALID_SESSION_DATE_RANGE");
@@ -320,12 +339,13 @@ export class LearningSessionsService {
     const sessions = await this.db.session.findMany({
       where: {
         OR: [{ teacherId: actor.userId }, { learnerId: actor.userId }],
+        ...listBoundary("startAt", cursor, true),
         ...(end
           ? { startAt: { gte: start, lte: end } }
           : { endAt: { gte: start } }),
       },
       orderBy: [{ startAt: "asc" }, { id: "asc" }],
-      take: 100,
+      take: limit + 1,
       select: {
         id: true,
         pathId: true,
@@ -347,10 +367,17 @@ export class LearningSessionsService {
         makeupDeadlineAt: true,
       },
     });
+    const result = listResult(
+      sessions,
+      limit,
+      scope,
+      (row) => row.startAt,
+      start,
+    );
     const policy = await this.joinPolicy();
     const now = this.clock.now();
-    const inputsFor = await this.attendanceInputs(actor.userId, sessions);
-    return sessions.map(
+    const inputsFor = await this.attendanceInputs(actor.userId, result.data);
+    const data = result.data.map(
       ({
         teacherFirstJoinedAt,
         learnerFirstJoinedAt,
@@ -389,6 +416,7 @@ export class LearningSessionsService {
         };
       },
     );
+    return { data, pagination: result.pagination };
   }
 
   async detail(actor: Principal, sessionId: string) {

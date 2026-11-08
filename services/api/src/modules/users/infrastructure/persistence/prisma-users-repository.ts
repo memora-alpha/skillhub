@@ -255,6 +255,9 @@ export class PrismaUsersRepository extends UsersRepository {
       "payment:read:any",
       "payment:reconcile",
       "staff-permissions:manage",
+      "profile:moderate",
+      "review:moderate",
+      "fee-policy:manage",
     ];
     const learningRequestGrants = {
       USER: [

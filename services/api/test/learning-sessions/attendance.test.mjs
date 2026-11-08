@@ -152,7 +152,9 @@ test("detail exposes attendance, deadlines and allowed actions per role", async 
   const learner = await ctx.sessions.detail(user(B), ctx.session.id);
   assert.deepEqual(learner.allowedActions, ["SUBMIT_EXCUSE", "REPORT_NO_SHOW"]);
   assert.equal("attendanceStatus" in learner, false);
-  const [listed] = await ctx.sessions.mine(user(B), "2026-11-01T00:00:00Z");
+  const {
+    data: [listed],
+  } = await ctx.sessions.mine(user(B), "2026-11-01T00:00:00Z");
   assert.equal(listed.attendance.state, "DETERMINED");
   assert.deepEqual(listed.allowedActions, ["SUBMIT_EXCUSE", "REPORT_NO_SHOW"]);
 });

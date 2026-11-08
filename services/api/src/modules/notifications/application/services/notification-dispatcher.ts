@@ -1,3 +1,4 @@
+import { preferredRecipients } from "../../domain/notification-preferences";
 import { Inject, Injectable } from "@nestjs/common";
 import { OutboxConsumer } from "../../../../infrastructure/events/outbox-consumer";
 import type { TransactionContext } from "../../../../infrastructure/database/transaction-context";
@@ -89,11 +90,18 @@ export class NotificationDispatcher {
     );
   }
 
-  private deliver(
+  private async deliver(
     channel: NotificationChannelCode,
     tx: TransactionContext,
     message: NotificationMessage,
   ): Promise<void> {
+    const userIds = await preferredRecipients(
+      tx,
+      message.userIds,
+      message.type,
+    );
+    if (!userIds.length) return;
+    message = { ...message, userIds };
     if (channel === "IN_APP") return this.inApp.notify(tx, message);
     if (channel === "EMAIL") return this.email(tx, message);
     return this.pushToDevices(tx, message);

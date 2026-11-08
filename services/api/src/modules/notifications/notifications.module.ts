@@ -1,3 +1,5 @@
+import { NotificationPreferencesController } from "./presentation/http/notification-preferences.controller";
+import { NotificationPreferencesService } from "./application/services/notification-preferences.service";
 import { Module } from "@nestjs/common";
 import { DatabaseModule } from "../../infrastructure/database/database.module";
 import { OutboxModule } from "../../infrastructure/events/outbox.module";
@@ -17,9 +19,14 @@ import { ConnectionNotificationService } from "./application/services/connection
 
 @Module({
   imports: [DatabaseModule, IdentityModule, OutboxModule],
-  controllers: [NotificationsController, PushTokensController],
+  controllers: [
+    NotificationsController,
+    PushTokensController,
+    NotificationPreferencesController,
+  ],
   providers: [
     ConnectionNotificationService,
+    NotificationPreferencesService,
     IdentityGuard,
     NotificationAccessService,
     ListNotificationsUseCase,
