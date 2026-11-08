@@ -22,6 +22,15 @@ import type { Principal } from "../../../auth/application/services/sessions.serv
 import { success } from "../../../../shared/http/response";
 import { StaffPermissionService } from "../../application/services/staff-permission.service";
 import { StaffDto } from "./users.dto";
+import {
+  ApiErrorResponse,
+  ApiSuccessResponse,
+} from "../../../../shared/http/api-response.decorators";
+import {
+  StaffPermissionCatalogResponse,
+  StaffPermissionsResponse,
+  StaffPermissionVersionResponse,
+} from "./staff-permissions.responses";
 
 export class StaffPermissionChangeDto extends StaffDto {
   @ApiProperty({ enum: ["GRANT", "DENY", "RESET"] })
@@ -40,15 +49,22 @@ export class StaffPermissionChangeDto extends StaffDto {
 @ApiTags("staff-permissions")
 @ApiBearerAuth()
 @UseGuards(IdentityGuard)
+@ApiErrorResponse(400)
+@ApiErrorResponse(401)
+@ApiErrorResponse(403, "STAFF_PERMISSION_MANAGEMENT_REQUIRED")
 @Controller({ path: "admin/staff-permissions", version: "1" })
 export class StaffPermissionsController {
   constructor(private readonly permissions: StaffPermissionService) {}
   @Get("catalog")
   @ApiOperation({ summary: "Read operational permissions delegable to Staff" })
+  @ApiSuccessResponse(200, StaffPermissionCatalogResponse, { isArray: true })
   async catalog(@CurrentIdentity() actor: Principal) {
     return success(await this.permissions.catalog(actor));
   }
   @Get(":userId")
+  @ApiSuccessResponse(200, StaffPermissionsResponse)
+  @ApiErrorResponse(404, "USER_NOT_FOUND")
+  @ApiErrorResponse(409, "TARGET_NOT_STAFF")
   @ApiOperation({
     summary: "Read current Staff permissions, overrides and version",
   })
@@ -59,6 +75,9 @@ export class StaffPermissionsController {
     return success(await this.permissions.read(actor, id));
   }
   @Put(":userId/:code")
+  @ApiSuccessResponse(200, StaffPermissionVersionResponse)
+  @ApiErrorResponse(404, "USER_NOT_FOUND")
+  @ApiErrorResponse(409, "TARGET_NOT_STAFF or STALE_STAFF_PERMISSION_VERSION")
   @ApiOperation({
     summary:
       "Admin grants, denies or resets a Staff permission; invalidates target sessions",

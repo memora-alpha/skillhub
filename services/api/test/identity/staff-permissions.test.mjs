@@ -9,6 +9,49 @@ import { LearningRequestAccessService } from "../../dist/modules/learning-reques
 import { StaffPermissionService } from "../../dist/modules/users/application/services/staff-permission.service.js";
 import { SkillActorService } from "../../dist/modules/users/application/services/skill-actor.service.js";
 
+test("permission reads and changes reject non-Admins before taking target locks, then recheck after locking", async () => {
+  for (const method of ["read", "change"]) {
+    const events = [];
+    let authorized = false;
+    const tx = {
+      $queryRaw: async () => {
+        events.push("lock");
+        authorized = false;
+        return [];
+      },
+    };
+    const service = new StaffPermissionService(
+      { $transaction: async (work) => work(tx) },
+      {
+        assertLive: async () => {
+          events.push("authorize");
+          return {
+            roles: authorized ? ["ADMIN"] : ["STAFF"],
+            permissions: ["staff-permissions:manage"],
+          };
+        },
+      },
+      {},
+      {},
+      {},
+      {},
+    );
+    const invoke = () =>
+      service[method]({ userId: "admin" }, "staff", "report:moderate", {
+        effect: "DENY",
+        expectedVersion: 1,
+        reason: "Reassignment",
+        reauthToken: "proof",
+      });
+    await assert.rejects(invoke(), /STAFF_PERMISSION_MANAGEMENT_REQUIRED/);
+    assert.deepEqual(events, ["authorize"]);
+    events.length = 0;
+    authorized = true;
+    await assert.rejects(invoke(), /STAFF_PERMISSION_MANAGEMENT_REQUIRED/);
+    assert.deepEqual(events, ["authorize", "lock", "authorize"]);
+  }
+});
+
 test("a Staff submission still requires Admin after the owner is demoted to USER", async () => {
   const service = new SkillActorService({}, {});
   const tx = {

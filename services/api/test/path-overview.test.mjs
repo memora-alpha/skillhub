@@ -6,6 +6,7 @@ import {
   PathOverviewReader,
   overviewCard,
 } from "../dist/modules/learning-paths/application/services/path-overview.reader.js";
+import { projectOverview } from "../dist/modules/learning-paths/application/services/path-overview.projection.js";
 const actor = { userId: "a" };
 const path = {
   id: "p",
@@ -174,4 +175,161 @@ test("attendance/completion actions remain blocked by a disputed path", async ()
     attention.allowedActions.some((item) => item.code === "CONFIRM_COMPLETION"),
     false,
   );
+});
+
+function completedContext() {
+  return {
+    actor,
+    path: { ...path, status: "ACTIVE" },
+    now,
+    rows: [
+      {
+        session: session("s", "a", "b", "COMPLETED"),
+        outcome: null,
+        excuse: null,
+      },
+    ],
+    cases: [],
+    changes: [],
+    plans: [
+      {
+        ownedPlanRecord: { teacherId: "a", learnerId: "b" },
+        planVersionRecord: { totalSessions: 3 },
+      },
+    ],
+    disputeHours: 48,
+  };
+}
+
+test("settlement precedence preserves blocked, stopped, draft and incomplete states", () => {
+  const initial = completedContext();
+  const termination = {
+    id: "change",
+    kind: "PATH_TERMINATION",
+    status: "STAFF_REVIEW",
+    requesterId: "b",
+    approvedAt: null,
+    expiresAt: now,
+    sessionId: null,
+  };
+  const report = {
+    id: "case",
+    status: "OPEN",
+    blocksSettlement: true,
+    reasonCode: "ATTENDANCE",
+    relatedSessionId: "s",
+  };
+  const scenarios = [
+    [
+      {
+        ...initial,
+        path: { ...initial.path, settledAt: now },
+        changes: [termination],
+        cases: [report],
+      },
+      "SETTLED",
+    ],
+    [
+      { ...initial, path: { ...initial.path, status: "CANCELLED" } },
+      "TERMINATED",
+    ],
+    [
+      {
+        ...initial,
+        path: { ...initial.path, lockedVersion: null },
+        cases: [report],
+      },
+      "NOT_LOCKED",
+    ],
+    [
+      { ...initial, changes: [termination], cases: [report] },
+      "WAITING_TERMINATION",
+    ],
+    [{ ...initial, cases: [report] }, "WAITING_DISPUTE"],
+    [{ ...initial, rows: [] }, "WAITING_SESSIONS"],
+    [
+      { ...initial, path: { ...initial.path, status: "DISPUTED" } },
+      "NEEDS_REVIEW",
+    ],
+  ];
+  for (const [context, expected] of scenarios) {
+    const settlement = projectOverview({
+      ...context,
+      disputeHours: undefined,
+    }).settlement;
+    assert.equal(settlement.status, expected);
+    assert.equal(settlement.immediateSettlement.canApprove, false);
+    assert.equal(settlement.autoSettlementAt, null);
+  }
+});
+
+test("settlement confirmation window, retries and policy errors retain their distinct actions", () => {
+  const context = completedContext();
+  let view = projectOverview(context).settlement;
+  assert.equal(view.status, "WAITING_DISPUTE_WINDOW");
+  assert.equal(view.nextAction, "APPROVE_IMMEDIATE_SETTLEMENT_OR_WAIT");
+  assert.equal(view.immediateSettlement.canApprove, true);
+  context.path.participantASettlementApprovedAt = now;
+  view = projectOverview(context).settlement;
+  assert.equal(view.nextAction, "WAIT_FOR_PARTNER_OR_DEADLINE");
+  assert.equal(view.immediateSettlement.canApprove, false);
+  context.path.participantBSettlementApprovedAt = now;
+  assert.equal(projectOverview(context).settlement.status, "READY");
+  for (const [outcome, action] of [
+    ["RETRYING", "WAIT_FOR_RETRY"],
+    ["NEEDS_REVIEW", "CONTACT_SUPPORT"],
+  ]) {
+    const attempt = {
+      outcome,
+      errorCode: "SETTLEMENT_FAILED",
+      checkedAt: now,
+      attemptCount: 2,
+    };
+    view = projectOverview({ ...context, attempt }).settlement;
+    assert.equal(view.status, outcome);
+    assert.equal(view.nextAction, action);
+    assert.equal(view.reasonCode, "SETTLEMENT_FAILED");
+    assert.equal(view.attemptCount, 2);
+  }
+  assert.throws(
+    () => projectOverview({ ...context, disputeHours: undefined }),
+    /ATTENDANCE_POLICY_UNAVAILABLE/,
+  );
+});
+
+test("overview preserves draft progress, next-session role and viewer-action priority", () => {
+  const context = completedContext();
+  const next = session("next", "b", "a", "CONFIRMED");
+  next.startAt = new Date("2026-11-09T10:00:00Z");
+  next.endAt = new Date("2026-11-09T11:00:00Z");
+  context.rows.push({ session: next, outcome: null, excuse: null });
+  let view = projectOverview(context);
+  assert.equal(view.primaryAction.code, "VIEW_NEXT_SESSION");
+  assert.equal(view.nextSession.role, "LEARNER");
+  context.path.lockedVersion = null;
+  view = projectOverview(context);
+  assert.deepEqual(view.progress.teaching, { completed: 1, total: 3 });
+  context.changes.push({
+    id: "change",
+    kind: "SESSION_RESCHEDULE",
+    status: "PENDING",
+    requesterId: "b",
+    expiresAt: next.startAt,
+    approvedAt: null,
+    sessionId: "next",
+  });
+  context.cases.push({
+    id: "case",
+    status: "OPEN",
+    blocksSettlement: true,
+    reasonCode: "ATTENDANCE",
+    relatedSessionId: "s",
+  });
+  view = projectOverview(context);
+  assert.equal(view.attentionCount, 2);
+  assert.equal(view.primaryAttention.waitingOn, "SELF");
+  assert.deepEqual(view.primaryAction, {
+    code: "VIEW_PROBLEM",
+    target: { type: "LEARNING_CHANGE", id: "change" },
+  });
 });

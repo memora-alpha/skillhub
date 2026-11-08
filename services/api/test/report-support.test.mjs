@@ -13,6 +13,68 @@ const partyA = "11111111-1111-4111-8111-111111111111",
 const handler = "33333333-3333-4333-8333-333333333333",
   caseId = "44444444-4444-4444-8444-444444444444";
 
+test("incident authorization batches related parties and never exposes them in the case projection", async () => {
+  const cases = Array.from({ length: 100 }, (_, index) => ({
+    id: String(index),
+    status: "UNDER_REVIEW",
+    severity: "HIGH",
+    version: 1,
+    reporterId: partyA,
+    targetType: "SESSION",
+    targetId: "session",
+    relatedPathId: "path",
+    relatedOrderId: "order",
+  }));
+  let pathReads = 0,
+    orderReads = 0;
+  const tx = {
+    reportIncident: { findUnique: async () => ({ id: "incident", cases }) },
+    learningPath: {
+      findMany: async () => {
+        pathReads++;
+        return [{ id: "path", participantAId: partyA, participantBId: partyB }];
+      },
+    },
+    materialOrder: {
+      findMany: async () => {
+        orderReads++;
+        return [{ id: "order", buyerId: partyA, sellerId: partyB }];
+      },
+    },
+  };
+  const service = new ReportSupportService(
+    { run: async (work) => work(tx) },
+    {
+      require: async () => ({
+        roles: ["STAFF"],
+        permissions: new Set(["report:group", "report:moderate"]),
+        blockedPermissions: new Set(),
+      }),
+    },
+    {},
+    {},
+  );
+  const view = await service.incident({ userId: handler }, "incident");
+  assert.equal(pathReads, 1);
+  assert.equal(orderReads, 1);
+  assert.deepEqual(Object.keys(view.cases[0]).sort(), [
+    "id",
+    "severity",
+    "status",
+    "version",
+  ]);
+  cases[99].reporterId = handler;
+  await assert.rejects(
+    service.incident({ userId: handler }, "incident"),
+    /REPORT_SELF_MODERATION_FORBIDDEN/,
+  );
+  cases[99].reporterId = partyA;
+  await assert.rejects(
+    service.incident({ userId: partyB }, "incident"),
+    /REPORT_SELF_MODERATION_FORBIDDEN/,
+  );
+});
+
 test("group decision shares one transaction and applies attendance ruling only once", async () => {
   const incidentId = "66666666-6666-4666-8666-666666666666";
   const cases = [caseId, "77777777-7777-4777-8777-777777777777"].map((id) => ({
@@ -42,13 +104,17 @@ test("group decision shares one transaction and applies attendance ruling only o
       findUnique: async ({ where }) => cases.find((row) => row.id === where.id),
     },
     learningPath: {
-      findUniqueOrThrow: async () => ({
-        participantAId: partyA,
-        participantBId: partyB,
-      }),
+      findMany: async () => [
+        {
+          id: "path",
+          participantAId: partyA,
+          participantBId: partyB,
+        },
+      ],
     },
   };
   const calls = [];
+  let active = false;
   const service = new ReportSupportService(
     { run: async (work) => work(tx) },
     {
@@ -58,7 +124,15 @@ test("group decision shares one transaction and applies attendance ruling only o
         blockedPermissions: new Set(),
       }),
     },
-    { updateCaseInTransaction: async (...args) => calls.push(args) },
+    {
+      updateCaseInTransaction: async (...args) => {
+        assert.equal(active, false, "case transitions must not overlap");
+        active = true;
+        await new Promise((resolve) => setImmediate(resolve));
+        calls.push(args);
+        active = false;
+      },
+    },
     { append: async () => {} },
   );
   const result = await service.decide({ userId: handler }, incidentId, {

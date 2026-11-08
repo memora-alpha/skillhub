@@ -72,7 +72,7 @@ export class PublicReviewsService implements OnModuleInit {
   }
   private async active(tx: TransactionContext, userId: string) {
     const user = await this.users.byId(tx, userId);
-    if (!user || user.accountStatus !== "ACTIVE")
+    if (user?.accountStatus !== "ACTIVE")
       throw new NotFoundException("PROFILE_NOT_FOUND");
   }
   private async aggregate(tx: TransactionContext, userId: string) {

@@ -8,9 +8,20 @@ test("single-role changes are idempotent and Staff operations cannot demote Admi
   const roles = Object.fromEntries(
     ["USER", "STAFF", "ADMIN"].map((code) => [code, { id: code, code }]),
   );
-  const account = { id: "fixture", roleId: "USER" };
-  let writes = 0;
+  const account = {
+    id: "fixture",
+    roleId: "USER",
+    securityVersion: 1,
+    staffPermissionVersion: 0,
+  };
+  let writes = 0,
+    cleared = 0;
   const tx = {
+    userPermissionOverride: {
+      deleteMany: async () => {
+        cleared++;
+      },
+    },
     role: { findUniqueOrThrow: async ({ where }) => roles[where.code] },
     user: {
       findUniqueOrThrow: async () => ({
@@ -19,7 +30,10 @@ test("single-role changes are idempotent and Staff operations cannot demote Admi
       }),
       update: async ({ data }) => {
         writes++;
-        Object.assign(account, data);
+        for (const [key, value] of Object.entries(data)) {
+          account[key] =
+            typeof value === "object" ? account[key] + value.increment : value;
+        }
         return account;
       },
     },
@@ -27,10 +41,13 @@ test("single-role changes are idempotent and Staff operations cannot demote Admi
   const repository = new PrismaUsersRepository();
   assert.equal(await repository.role(tx, account.id, "STAFF", true), true);
   assert.equal(account.roleId, "STAFF");
+  assert.equal(account.securityVersion, 2);
   assert.equal(await repository.role(tx, account.id, "STAFF", true), false);
   assert.equal(await repository.role(tx, account.id, "STAFF", false), true);
   assert.equal(account.roleId, "USER");
+  assert.equal(account.securityVersion, 3);
   await repository.role(tx, account.id, "ADMIN", true);
+  assert.equal(account.securityVersion, 3);
   await assert.rejects(
     repository.role(tx, account.id, "STAFF", true),
     (error) => error.getStatus() === 400,
@@ -38,6 +55,8 @@ test("single-role changes are idempotent and Staff operations cannot demote Admi
   assert.equal(await repository.role(tx, account.id, "STAFF", false), false);
   assert.equal(account.roleId, "ADMIN");
   assert.equal(writes, 3);
+  assert.equal(cleared, 3);
+  assert.equal(account.staffPermissionVersion, 3);
 });
 
 test("v3 inline profile preserves the public projection and hides account secrets", async () => {
@@ -77,9 +96,21 @@ test("v3 inline profile preserves the public projection and hides account secret
     assert.equal(secret in profile, false);
 });
 
-test("grants come only from the user's one assigned role", async () => {
+test("Staff keeps one role while inheriting USER participation and applying operational overrides", async () => {
   const repository = new PrismaUsersRepository();
   const tx = {
+    rolePermission: {
+      findMany: async () => [
+        { permissionIdRecord: { code: "proposal:create" } },
+      ],
+    },
+    userPermissionOverride: {
+      findMany: async () => [
+        { permission: { code: "report:moderate" }, effect: "DENY" },
+        { permission: { code: "report:group" }, effect: "GRANT" },
+        { permission: { code: "credit:adjust" }, effect: "GRANT" },
+      ],
+    },
     user: {
       findUniqueOrThrow: async () => ({
         roleIdRecord: {
@@ -87,6 +118,7 @@ test("grants come only from the user's one assigned role", async () => {
           rolePermissionRoleIdRecords: [
             { permissionIdRecord: { code: "users.read" } },
             { permissionIdRecord: { code: "users.read" } },
+            { permissionIdRecord: { code: "report:moderate" } },
           ],
         },
       }),
@@ -94,6 +126,29 @@ test("grants come only from the user's one assigned role", async () => {
   };
   assert.deepEqual(await repository.grants(tx, "fixture"), {
     roles: ["STAFF"],
-    permissions: ["users.read"],
+    permissions: ["proposal:create", "report:group", "users.read"],
   });
+});
+
+test("USER and ADMIN use their assigned grants without Staff inheritance or overrides", async () => {
+  const repository = new PrismaUsersRepository();
+  for (const code of ["USER", "ADMIN"]) {
+    const tx = {
+      user: {
+        findUniqueOrThrow: async () => ({
+          roleIdRecord: {
+            code,
+            rolePermissionRoleIdRecords: [
+              { permissionIdRecord: { code: "users.read" } },
+              { permissionIdRecord: { code: "users.read" } },
+            ],
+          },
+        }),
+      },
+    };
+    assert.deepEqual(await repository.grants(tx, "fixture"), {
+      roles: [code],
+      permissions: ["users.read"],
+    });
+  }
 });

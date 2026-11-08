@@ -1,11 +1,10 @@
 # Implementation — backend worktrees
 
 Ngày bắt đầu: 2026-11-08. Base: dev tại 30d9221d (PR #84).
-Không thay đổi cơ chế uy tín do thành viên khác phụ trách. Chưa commit/push,
+Không thay đổi cơ chế uy tín do thành viên khác phụ trách. Đã commit/push và mở PR #85–#89,
 chưa áp migration vào database và chưa triển khai frontend.
 
-Worktree root:
-C:/Users/NHH/.codex/visualizations/2026/11/06/01a1afab-0a6a-7421-87cc-7f27f5bf2015
+Worktree root: thư mục cục bộ riêng của developer.
 
 | Branch                  | Thư mục                     | Phạm vi backend                                                                              |
 | ----------------------- | --------------------------- | -------------------------------------------------------------------------------------------- |
@@ -15,7 +14,8 @@ C:/Users/NHH/.codex/visualizations/2026/11/06/01a1afab-0a6a-7421-87cc-7f27f5bf20
 | feat/public-reviews     | skillhub-public-reviews     | Review công khai cũ/mới, summary profile, danh sách sent/received.                           |
 | feat/admin-transactions | skillhub-admin-transactions | Admin đọc ledger/operation/wallet/Payment và đối soát database; không có command thay số dư. |
 
-Các branch hiện chứa thay đổi chưa commit, không tự merge vào dev. Khi ghép cần
+Các branch đã push và mở PR vào dev. Merge #85 → #86 → #87 → #88 → #89
+bằng Create a merge commit; chưa merge hoặc deploy. Khi ghép cần
 giữ cả các phần bổ sung trong identity.module, reports.module, permission.catalog,
 seedRoles, runtime schema generator và schema; không dùng một bản ghi đè bản khác.
 Migration mới có thứ tự:
