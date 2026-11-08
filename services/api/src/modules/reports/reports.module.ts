@@ -1,5 +1,6 @@
 import { SystemConfigurationModule } from "../system-configuration/system-configuration.module";
 import { Module } from "@nestjs/common";
+import { ParticipantCasesReader } from "./application/services/participant-cases.reader";
 import { DatabaseModule } from "../../infrastructure/database/database.module";
 import { AuditModule } from "../audit/audit.module";
 import { CreditModule } from "../credit/credit.module";
@@ -22,7 +23,7 @@ import { SessionChangesModule } from "../learning-sessions/session-changes.modul
     SessionChangesModule,
   ],
   controllers: [ReportsController],
-  providers: [ReportsService],
-  exports: [ReportsService],
+  providers: [ReportsService, ParticipantCasesReader],
+  exports: [ReportsService, ParticipantCasesReader],
 })
 export class ReportsModule {}
