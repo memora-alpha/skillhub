@@ -76,12 +76,16 @@ test("v3 inline profile preserves the public projection and hides account secret
     selectedAvatarRecord: { state: "CLEAN", storageKey: "private-object-key" },
   };
   const repository = new PrismaUsersRepository();
-  const tx = { user: { findUnique: async () => user } };
+  const tx = {
+    user: { findUnique: async () => user },
+    learningPath: { count: async () => 3 },
+  };
   const reader = new ProfileReader(tx, repository, {
     url: async () => "https://fixture.invalid/signed",
   });
   const profile = await reader.profile(user.id, true);
   assert.equal(profile.fullName, user.fullName);
+  assert.equal(profile.completedLearningPathCount, 3);
   assert.equal(profile.headline, "");
   assert.equal(profile.bio, "");
   assert.equal(profile.avatarUrl, "https://fixture.invalid/signed");

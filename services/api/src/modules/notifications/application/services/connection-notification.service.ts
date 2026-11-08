@@ -1,9 +1,10 @@
+import { preferredRecipients } from "../../domain/notification-preferences";
 import { Injectable } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import type { TransactionContext } from "../../../../infrastructure/database/transaction-context";
 @Injectable()
 export class ConnectionNotificationService {
-  createChat(
+  async createChat(
     tx: TransactionContext,
     input: {
       notificationId: string;
@@ -12,6 +13,11 @@ export class ConnectionNotificationService {
       messageId: string;
     },
   ) {
+    if (
+      !(await preferredRecipients(tx, [input.userId], "chat.message.delivered"))
+        .length
+    )
+      return null;
     return tx.notification.create({
       data: {
         id: input.notificationId,
@@ -27,11 +33,13 @@ export class ConnectionNotificationService {
       },
     });
   }
-  create(
+  async create(
     tx: TransactionContext,
     input: { userId: string; type: string; proposalId: string },
   ) {
     // Database owner trigger appends notification.created in this same transaction.
+    if (!(await preferredRecipients(tx, [input.userId], input.type)).length)
+      return null;
     return tx.notification.create({
       data: {
         id: randomUUID(),

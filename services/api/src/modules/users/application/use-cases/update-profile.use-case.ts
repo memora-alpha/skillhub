@@ -19,6 +19,17 @@ export class UpdateProfileUseCase {
   async execute(userId: string, data: ProfileChange) {
     await transaction(this.db, async (tx) => {
       await lockUsers(tx, [userId]);
+      const current = await this.repository.byId(tx, userId);
+      if (data.bio !== undefined && current?.profileModeration) {
+        const moderation = {
+          ...(current.profileModeration as Record<string, never>),
+        };
+        delete moderation.bio;
+        await tx.user.update({
+          where: { id: userId },
+          data: { profileModeration: moderation },
+        });
+      }
       await this.repository.updateProfile(tx, userId, data);
     });
     return this.profiles.profile(userId);

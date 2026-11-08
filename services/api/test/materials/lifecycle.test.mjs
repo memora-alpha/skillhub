@@ -107,7 +107,7 @@ test("owner material lifecycle on isolated PostgreSQL", async (t) => {
       assert.equal(material.moderationStatus, "PENDING");
       const mine = await f.materials.listMine(owner.principal);
       assert.deepEqual(
-        mine.map((m) => m.id),
+        mine.data.map((m) => m.id),
         [material.id],
       );
     });
@@ -202,7 +202,7 @@ test("owner material lifecycle on isolated PostgreSQL", async (t) => {
           f.moderator.principal,
           "REJECTED",
         );
-        assert.ok(queue.some((m) => m.id === live.id));
+        assert.ok(queue.data.some((m) => m.id === live.id));
         // Editing a rejected listing makes a clean DRAFT again (D3).
         const redrafted = await f.materials.update(owner.principal, live.id, {
           expectedListingVersion: rejected.listingVersion,

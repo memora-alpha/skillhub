@@ -9,6 +9,10 @@ test("connection notification owner writes generic copy and references only in t
   const rows = [],
     owner = new ConnectionNotificationService();
   const tx = {
+    user: {
+      findMany: async ({ where }) =>
+        where.id.in.map((id) => ({ id, notificationPreferences: null })),
+    },
     notification: {
       create: async ({ data }) => {
         rows.push(data);

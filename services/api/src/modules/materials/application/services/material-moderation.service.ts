@@ -1,4 +1,9 @@
 import {
+  listInput,
+  listBoundary,
+  listResult,
+} from "../../../../shared/http/list-page";
+import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
@@ -30,16 +35,26 @@ export class MaterialModerationService {
   ) {}
 
   // Async so the moderator check surfaces as a promise rejection, never a sync throw.
-  async queue(principal: Principal, status: MaterialState = "PENDING_REVIEW") {
+  async queue(
+    principal: Principal,
+    status: MaterialState = "PENDING_REVIEW",
+    query: { limit?: number; cursor?: string } = {},
+  ) {
     requireModerator(principal);
+    const scope = JSON.stringify([
+      "materials-staff-v1",
+      principal.userId,
+      status,
+    ]);
+    const { limit, cursor } = listInput(query, scope);
     return this.transactions.run(async (tx) => {
-      // ponytail: oldest 100 first; paginate when the queue grows past it.
       const rows = await tx.material.findMany({
-        where: { status },
+        where: { status, ...listBoundary("updatedAt", cursor, true) },
         orderBy: [{ updatedAt: "asc" }, { id: "asc" }],
-        take: 100,
+        take: limit + 1,
       });
-      return rows.map(ownerMaterialView);
+      const result = listResult(rows, limit, scope, (row) => row.updatedAt);
+      return { ...result, data: result.data.map(ownerMaterialView) };
     });
   }
 

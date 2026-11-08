@@ -27,6 +27,7 @@ export class SkillResponse {
   @ApiProperty({ format: "date-time" }) updatedAt!: string;
 }
 export class PublicSharingResponse {
+  @ApiProperty({ format: "date-time" }) createdAt!: string;
   @ApiProperty({ format: "uuid" }) id!: string;
   @ApiProperty({ type: SkillResponse }) skill!: SkillResponse;
   @ApiProperty({

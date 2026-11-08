@@ -1,3 +1,4 @@
+import { ListPageQuery } from "../../../../shared/http/list-page";
 import {
   BadRequestException,
   Body,
@@ -8,6 +9,7 @@ import {
   Patch,
   Post,
   Req,
+  Query,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -21,7 +23,7 @@ import {
   type IdentityRequest,
 } from "../../../../shared/auth/identity.guard";
 import { getOrCreateRequestContext } from "../../../../shared/http/request-context";
-import { success } from "../../../../shared/http/response";
+import { paginated, success } from "../../../../shared/http/response";
 import type { Principal } from "../../../auth/application/services/sessions.service";
 import { MaterialsService } from "../../application/services/materials.service";
 import { CreateMaterialDto, UpdateMaterialDto } from "./materials.dto";
@@ -73,8 +75,12 @@ export class MyMaterialsController {
   }
 
   @Get()
-  async mine(@CurrentIdentity() actor: Principal) {
-    return success(await this.materials.listMine(actor));
+  async mine(
+    @CurrentIdentity() actor: Principal,
+    @Query() query: ListPageQuery,
+  ) {
+    const result = await this.materials.listMine(actor, query);
+    return paginated(result.data, result.pagination);
   }
 
   @Post()

@@ -1,3 +1,5 @@
+import { ReauthProofService } from "./auth/application/services/reauth-proof.service";
+import { ProfileModerationController } from "./users/presentation/http/profile-moderation.controller";
 import { IDENTITY_APPLICATION_PROVIDERS } from "./identity.providers";
 import { PublicReviewReader } from "./users/application/services/public-review-reader";
 import { StaffPermissionsController } from "./users/presentation/http/staff-permissions.controller";
@@ -46,6 +48,7 @@ import { ProfileReader } from "./users/application/services/profile-reader.servi
     UsersController,
     AdministrationController,
     StaffPermissionsController,
+    ProfileModerationController,
   ],
   providers: [
     PublicReviewReader,
@@ -64,6 +67,7 @@ import { ProfileReader } from "./users/application/services/profile-reader.servi
     IdentityEmailWorker,
   ],
   exports: [
+    ReauthProofService,
     PublicReviewReader,
     ProfileReader,
     UsersService,

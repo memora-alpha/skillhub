@@ -29,10 +29,19 @@ export class PrismaAvatarRepository extends AvatarRepository {
   required(tx: IdentityTx, id: string): Promise<AvatarAsset> {
     return tx.avatarAsset.findUniqueOrThrow({ where: { id } });
   }
-  select(tx: IdentityTx, userId: string, id: string | null): Promise<User> {
+  async select(
+    tx: IdentityTx,
+    userId: string,
+    id: string | null,
+  ): Promise<User> {
+    const user = await tx.user.findUniqueOrThrow({ where: { id: userId } });
+    const moderation = {
+      ...((user.profileModeration as Record<string, never>) ?? {}),
+    };
+    delete moderation.avatar;
     return tx.user.update({
       where: { id: userId },
-      data: { avatarAssetId: id },
+      data: { avatarAssetId: id, profileModeration: moderation },
     });
   }
   cancelUser(tx: IdentityTx, userId: string): Promise<{ count: number }> {

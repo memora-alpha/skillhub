@@ -1,3 +1,4 @@
+import { ProfileModerationService } from "./users/application/services/profile-moderation.service";
 import { OtpStore } from "./auth/application/ports/otp-store";
 import { StaffPermissionService } from "./users/application/services/staff-permission.service";
 import { StaffPermissionRepository } from "./users/infrastructure/persistence/staff-permission.repository";
@@ -62,6 +63,7 @@ import { BullIdentityEmailJobs } from "./notifications/infrastructure/jobs/ident
 import { CreateStaffUseCase } from "./users/application/use-cases/create-staff.use-case";
 // Shared by runtime composition and integration fixtures; repositories remain private.
 export const IDENTITY_APPLICATION_PROVIDERS = [
+  ProfileModerationService,
   StaffPermissionService,
   StaffPermissionRepository,
   CreateStaffUseCase,

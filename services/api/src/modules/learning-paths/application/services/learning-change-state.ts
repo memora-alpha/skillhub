@@ -171,6 +171,16 @@ export class LearningChangeState {
       return existing;
     }
     assertChangeablePath(path);
+    if (input.kind === "PATH_TERMINATION") {
+      const [total, remaining] = await Promise.all([
+        tx.session.count({ where: { pathId: path.id } }),
+        tx.session.count({
+          where: { pathId: path.id, status: { not: "COMPLETED" } },
+        }),
+      ]);
+      if (total > 0 && remaining === 0)
+        throw new ConflictException("PATH_ALREADY_LEARNING_FINISHED");
+    }
     await this.expire(tx, path.id, now);
     const other = await tx.learningChangeRequest.findFirst({
       where: {

@@ -19,11 +19,15 @@ export class ProfileReader {
     const row = await this.repository.profile(this.db, userId);
     if (!row || (publicOnly && row.user.accountStatus !== "ACTIVE"))
       throw new NotFoundException();
+    const bioModeration = (
+      row.profileModeration as { bio?: { action?: string } } | null
+    )?.bio;
     const projection = {
       userId,
       fullName: row.fullName,
       headline: row.headline ?? "",
-      bio: row.bio ?? "",
+      bio:
+        publicOnly && bioModeration?.action === "HIDE" ? "" : (row.bio ?? ""),
       avatarUrl:
         row.avatarAsset?.state === "CLEAN"
           ? await this.storage.url(row.avatarAsset.storageKey)
@@ -31,6 +35,13 @@ export class ProfileReader {
       reputationScore: row.reputationScore,
       verifiedSkillCount: row.verifiedSkillCount,
       completedSessionCount: row.completedSessionCount,
+      completedLearningPathCount: await this.db.learningPath.count({
+        where: {
+          status: "COMPLETED",
+          settledAt: { not: null },
+          OR: [{ participantAId: userId }, { participantBId: userId }],
+        },
+      }),
       selectedTitle: row.selectedTitle,
       ...(this.reviews
         ? { reviewSummary: await this.reviews.read(userId) }
@@ -40,6 +51,11 @@ export class ProfileReader {
     // URLs are supplied by the storage adapter/controller, never a quarantine key.
     return publicOnly
       ? projection
-      : { ...projection, timezone: row.timezone, locale: row.locale };
+      : {
+          ...projection,
+          profileModeration: row.profileModeration ?? null,
+          timezone: row.timezone,
+          locale: row.locale,
+        };
   }
 }

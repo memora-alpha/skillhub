@@ -1,3 +1,4 @@
+import { ListPageQuery } from "../../../../shared/http/list-page";
 import {
   Body,
   Controller,
@@ -8,6 +9,7 @@ import {
   ParseUUIDPipe,
   Post,
   Res,
+  Query,
   UseGuards,
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiHeader, ApiTags } from "@nestjs/swagger";
@@ -16,7 +18,7 @@ import {
   CurrentIdentity,
   IdentityGuard,
 } from "../../../../shared/auth/identity.guard";
-import { success } from "../../../../shared/http/response";
+import { paginated, success } from "../../../../shared/http/response";
 import type { Principal } from "../../../auth/application/services/sessions.service";
 import { MaterialCatalogService } from "../../application/services/material-catalog.service";
 import { MaterialPurchaseService } from "../../application/services/material-purchase.service";
@@ -88,7 +90,11 @@ export class MaterialAccessController {
   }
 
   @Get("me/material-orders")
-  async orders(@CurrentIdentity() actor: Principal) {
-    return success(await this.purchases.listOrders(actor));
+  async orders(
+    @CurrentIdentity() actor: Principal,
+    @Query() query: ListPageQuery,
+  ) {
+    const result = await this.purchases.listOrders(actor, query);
+    return paginated(result.data, result.pagination);
   }
 }

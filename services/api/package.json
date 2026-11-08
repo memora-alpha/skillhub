@@ -76,7 +76,9 @@
     "learning-requests:reconcile": "node scripts/reconcile-learning-requests.mjs",
     "test:report-support": "nest build && node --test test/report-support.test.mjs test/learning-platform/phase3.test.mjs",
     "test:public-reviews": "nest build && node --test test/public-reviews.test.mjs",
-    "test:admin-finance": "nest build && node --test test/admin-finance.test.mjs"
+    "test:admin-finance": "nest build && node --test test/admin-finance.test.mjs",
+    "test:completion-gaps": "nest build && node --test test/backend-completion-gaps.test.mjs",
+    "test:completion-gaps:integration": "node test/require-integration-env.mjs && nest build && node --test --test-concurrency=1 test/backend-completion-gaps.integration.test.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1146.0",

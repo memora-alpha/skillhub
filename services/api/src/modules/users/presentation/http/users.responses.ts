@@ -26,9 +26,11 @@ export class PublicProfileResponse {
   @ApiProperty({ type: Number }) reputationScore!: number;
   @ApiProperty() verifiedSkillCount!: number;
   @ApiProperty() completedSessionCount!: number;
+  @ApiProperty() completedLearningPathCount!: number;
   @ApiProperty({ type: String, nullable: true }) selectedTitle!: string | null;
 }
 export class OwnProfileResponse extends PublicProfileResponse {
+  @ApiProperty({ type: Object, nullable: true }) profileModeration!: unknown;
   @ApiProperty({ type: String, nullable: true }) timezone!: string | null;
   @ApiProperty({ enum: ["vi", "en"] }) locale!: string;
 }

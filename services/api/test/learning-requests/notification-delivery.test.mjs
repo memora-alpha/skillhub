@@ -29,6 +29,11 @@ function deliveryHarness(failInsert = false) {
       const receipts = new Set(state.receipts);
       const notifications = new Map(state.notifications);
       const tx = {
+        user: {
+          findMany: async () => [
+            { id: ownerId, notificationPreferences: null },
+          ],
+        },
         $executeRaw: async (_strings, consumer, id) => {
           const key = `${consumer}:${id}`;
           if (receipts.has(key)) return 0;

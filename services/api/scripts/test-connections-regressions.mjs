@@ -19,6 +19,8 @@ const names = [
   "test:learning-paths",
   "test:public-reviews",
   "test:admin-finance",
+  "test:completion-gaps",
+  "test:completion-gaps:integration",
 ];
 const files = [
   ...new Set(

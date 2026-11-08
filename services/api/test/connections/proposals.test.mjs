@@ -47,6 +47,10 @@ function fixture(blockedPermissions = new Set()) {
     cooldown = false;
   let conversation;
   const tx = {
+    user: {
+      findMany: async ({ where }) =>
+        where.id.in.map((id) => ({ id, notificationPreferences: null })),
+    },
     $queryRaw: async (strings) => {
       calls.push(strings.join("?"));
       return strings.join("").includes("clock_timestamp")

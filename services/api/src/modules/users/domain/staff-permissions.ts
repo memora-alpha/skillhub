@@ -14,6 +14,8 @@ export const STAFF_DELEGABLE_PERMISSIONS = [
   "report:communicate",
   "learning-path:terminate",
   "material:moderate",
+  "profile:moderate",
+  "review:moderate",
 ] as const;
 
 export type PermissionOverride = { code: string; effect: string };

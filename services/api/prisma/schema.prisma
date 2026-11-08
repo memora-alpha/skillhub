@@ -361,6 +361,10 @@ model User {
   permissionOverrides         UserPermissionOverride[] @relation("PermissionOverride_target")
   assignedPermissionOverrides UserPermissionOverride[] @relation("PermissionOverride_actor")
 
+  notificationPreferences Json?              @map("notification_preferences")
+  profileModeration       Json?              @map("profile_moderation")
+  createdFeePolicies      FeePolicyVersion[] @relation("FeePolicy_creator")
+
   @@unique([id, avatarAssetId])
   @@index([roleId])
   @@index([createdAt(sort: Desc), id(sort: Desc)])
@@ -509,6 +513,7 @@ model SharingSkill {
   @@index([userId])
   @@index([skillId])
   @@index([skillId, levelId])
+  @@index([userId, createdAt(sort: Desc), id(sort: Desc)], map: "sharing_skills_user_created_idx")
   @@map("sharing_skills")
 }
 
@@ -822,6 +827,8 @@ model Session {
   @@index([cancelledByUserId])
   @@index([status, confirmDeadlineAt])
   @@index([status, makeupDeadlineAt])
+  @@index([teacherId, startAt, id], map: "sessions_teacher_page_idx")
+  @@index([learnerId, startAt, id], map: "sessions_learner_page_idx")
   @@map("sessions")
 }
 
@@ -953,9 +960,10 @@ model Review {
   createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   hiddenAt   DateTime? @map("hidden_at") @db.Timestamptz(3)
 
-  pathIdRecord     LearningPath @relation("Review_path_id", fields: [pathId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  reviewerIdRecord User         @relation("Review_reviewer_id", fields: [reviewerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  revieweeIdRecord User         @relation("Review_reviewee_id", fields: [revieweeId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  pathIdRecord      LearningPath @relation("Review_path_id", fields: [pathId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  reviewerIdRecord  User         @relation("Review_reviewer_id", fields: [reviewerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  revieweeIdRecord  User         @relation("Review_reviewee_id", fields: [revieweeId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  moderationVersion Int          @default(0) @map("moderation_version")
 
   @@unique([pathId, reviewerId])
   @@index([pathId])
@@ -1426,8 +1434,14 @@ model FeePolicyVersion {
   approvedByUserIdRecord                   User?                 @relation("FeePolicyVersion_approved_by_user_id", fields: [approvedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   materialOrderFeePolicyIdRecords          MaterialOrder[]       @relation("MaterialOrder_fee_policy_id")
 
+  createdBy       String?  @map("created_by") @db.Uuid
+  createdByRecord User?    @relation("FeePolicy_creator", fields: [createdBy], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
   @@unique([policyCode, versionNo])
   @@index([approvedByUserId])
+  @@index([createdBy], map: "fee_policies_creator_idx")
+  @@index([createdAt(sort: Desc), id(sort: Desc)], map: "fee_policies_page_idx")
   @@map("fee_policy_versions")
 }
 
@@ -1489,6 +1503,8 @@ model Material {
   @@index([ownerId])
   @@index([skillId])
   @@index([reviewedByUserId])
+  @@index([ownerId, updatedAt(sort: Desc), id(sort: Desc)], map: "materials_owner_page_idx")
+  @@index([status, updatedAt, id], map: "materials_staff_page_idx")
   @@map("materials")
 }
 
@@ -1524,6 +1540,7 @@ model MaterialOrder {
   @@index([materialId])
   @@index([feePolicyId])
   @@index([operationId])
+  @@index([buyerId, createdAt(sort: Desc), id(sort: Desc)], map: "material_orders_buyer_page_idx")
   @@map("material_orders")
 }
 
