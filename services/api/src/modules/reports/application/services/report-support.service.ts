@@ -20,6 +20,12 @@ import {
 import type { ReportCaseActionDto } from "../../presentation/http/reports.dto";
 import { AuditService } from "../../../audit/application/services/audit.service";
 import { z } from "zod";
+import type { ReportCase } from "../../../../generated/prisma/client";
+
+type CaseParties = Pick<
+  ReportCase,
+  "reporterId" | "targetType" | "targetId" | "relatedPathId" | "relatedOrderId"
+>;
 
 @Injectable()
 export class ReportSupportService {
@@ -79,6 +85,60 @@ export class ReportSupportService {
     }
     if (item.targetType === "USER") parties.add(item.targetId);
     return { item, parties: [...parties] };
+  }
+  /** Batch related parties before validating every case; do not issue one read per case. */
+  private async assertIndependentCases(
+    tx: TransactionContext,
+    actorId: string,
+    cases: CaseParties[],
+  ) {
+    const pathIds = [
+      ...new Set(
+        cases.flatMap((item) =>
+          item.relatedPathId ? [item.relatedPathId] : [],
+        ),
+      ),
+    ];
+    const orderIds = [
+      ...new Set(
+        cases.flatMap((item) =>
+          item.relatedOrderId ? [item.relatedOrderId] : [],
+        ),
+      ),
+    ];
+    const [paths, orders] = await Promise.all([
+      pathIds.length
+        ? tx.learningPath.findMany({
+            where: { id: { in: pathIds } },
+            select: { id: true, participantAId: true, participantBId: true },
+          })
+        : [],
+      orderIds.length
+        ? tx.materialOrder.findMany({
+            where: { id: { in: orderIds } },
+            select: { id: true, buyerId: true, sellerId: true },
+          })
+        : [],
+    ]);
+    const pathById = new Map(paths.map((row) => [row.id, row]));
+    const orderById = new Map(orders.map((row) => [row.id, row]));
+    for (const item of cases) {
+      const parties = new Set<string>(item.reporterId ? [item.reporterId] : []);
+      if (item.targetType === "USER") parties.add(item.targetId);
+      if (item.relatedPathId) {
+        const path = pathById.get(item.relatedPathId);
+        if (!path) throw new NotFoundException("LEARNING_PATH_NOT_FOUND");
+        parties.add(path.participantAId);
+        parties.add(path.participantBId);
+      }
+      if (item.relatedOrderId) {
+        const order = orderById.get(item.relatedOrderId);
+        if (!order) throw new NotFoundException("MATERIAL_ORDER_NOT_FOUND");
+        parties.add(order.buyerId);
+        parties.add(order.sellerId);
+      }
+      assertIndependentCaseActor(actorId, [...parties]);
+    }
   }
   private async audit(
     tx: TransactionContext,
@@ -190,17 +250,31 @@ export class ReportSupportService {
         where: { id },
         include: {
           cases: {
-            select: { id: true, status: true, version: true, severity: true },
+            select: {
+              id: true,
+              status: true,
+              version: true,
+              severity: true,
+              reporterId: true,
+              targetType: true,
+              targetId: true,
+              relatedPathId: true,
+              relatedOrderId: true,
+            },
           },
         },
       });
       if (!incident) throw new NotFoundException("INCIDENT_NOT_FOUND");
-      for (const item of incident.cases)
-        assertIndependentCaseActor(
-          actor.userId,
-          (await this.parties(tx, item.id)).parties,
-        );
-      return incident;
+      await this.assertIndependentCases(tx, actor.userId, incident.cases);
+      return {
+        ...incident,
+        cases: incident.cases.map(({ id, status, version, severity }) => ({
+          id,
+          status,
+          version,
+          severity,
+        })),
+      };
     });
   }
   classifyIncident(
@@ -226,11 +300,7 @@ export class ReportSupportService {
         incident.status !== "OPEN"
       )
         throw new ConflictException("STALE_INCIDENT_VERSION");
-      for (const item of incident.cases)
-        assertIndependentCaseActor(
-          actor.userId,
-          (await this.parties(tx, item.id)).parties,
-        );
+      await this.assertIndependentCases(tx, actor.userId, incident.cases);
       await tx.reportCase.updateMany({
         where: { incidentId: id },
         data: { severity: input.severity, version: { increment: 1 } },
@@ -281,9 +351,8 @@ export class ReportSupportService {
         orderBy: { id: "asc" },
       });
       assertSameIncident(cases);
+      await this.assertIndependentCases(tx, actor.userId, cases);
       for (const item of cases) {
-        const scope = await this.parties(tx, item.id);
-        assertIndependentCaseActor(actor.userId, scope.parties);
         if (
           !OPEN_REPORT_STATUSES.includes(item.status) ||
           item.incidentId ||
@@ -366,7 +435,7 @@ export class ReportSupportService {
       action: "resolve" | "reject";
       expectedVersion: number;
       note: string;
-      noShowRuling?: ReportCaseActionDto["noShowRuling"];
+      noShowRuling?: NonNullable<ReportCaseActionDto["noShowRuling"]>;
       makeupUserId?: string;
     },
   ) {
@@ -392,21 +461,20 @@ export class ReportSupportService {
         orderBy: { id: "asc" },
       });
       assertSameIncident(cases);
+      await this.assertIndependentCases(tx, actor.userId, cases);
       for (const item of cases) {
-        assertIndependentCaseActor(
-          actor.userId,
-          (await this.parties(tx, item.id)).parties,
-        );
         if (
           !OPEN_REPORT_STATUSES.includes(item.status) ||
           item.handlerId !== actor.userId
         )
           throw new ConflictException("INCIDENT_CASE_CHANGED");
       }
-      // Sequential owner transitions share one transaction. Attendance ruling applies once.
+      // Each transition reads the preceding case's writes before releasing shared
+      // Path/Session blockers. Parallel transitions could reconcile the Path too soon.
       for (let index = 0; index < cases.length; index++) {
         const item = cases[index]!;
         await this.reports.updateCaseInTransaction(
+          // NOSONAR: dependent owner transitions on one transaction, not independent I/O.
           tx,
           { ...actor, permissions: [...live.permissions] },
           item.id,

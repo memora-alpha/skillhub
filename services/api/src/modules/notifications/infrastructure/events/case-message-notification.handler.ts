@@ -64,7 +64,7 @@ export class CaseMessageNotificationHandler
       if (data.senderId !== data.partyId) return [data.partyId];
       if (!report.handlerId) return [];
       const handler = await this.users.byId(tx, report.handlerId);
-      if (!handler || handler.accountStatus !== "ACTIVE") return [];
+      if (handler?.accountStatus !== "ACTIVE") return [];
       const grants = await this.users.grants(tx, report.handlerId);
       if (
         !grants.roles.some((role) => role === "STAFF" || role === "ADMIN") ||
