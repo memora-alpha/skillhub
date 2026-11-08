@@ -5,7 +5,7 @@ Cập nhật phạm vi: 2026-11-08 — nới lỏng uy tín do thành viên khá
 Cập nhật bổ sung: 2026-11-08 — Admin quản lý giao dịch Credit và Payment.
 Yêu cầu chỉ kiểm tra/lập plan trước đây được thay bằng yêu cầu tạo branch/worktree
 và bắt đầu implementation ngày 2026-11-08. Code nằm trong các worktree riêng;
-chưa commit, push, áp migration hoặc deploy. Trạng thái từng phần ở implementation.md.
+đã commit/push và mở PR #85–#89 vào dev; chưa áp migration hoặc deploy. Trạng thái từng phần ở implementation.md.
 
 ## 1. Phạm vi và các quyết định đã chốt
 
@@ -39,7 +39,12 @@ Không lên lịch thay đổi điểm uy tín, badge, ưu tiên gợi ý hoặc
 Các nhóm thiếu hụt khác trong đợt audit trước vẫn là backlog riêng, không tự động
 trở thành đầu việc triển khai của plan này.
 
-## 2. Kết quả kiểm tra source hiện tại
+## 2. Kết quả kiểm tra source trước implementation
+
+Đây là baseline audit. Bản triển khai đã thêm kế thừa quyền USER cho STAFF,
+bảng `user_permission_overrides` và quản trị quyền. Migration
+`20261108000000_staff_permissions` đã có trong source; chưa áp vào database.
+Các mục bên dưới mô tả source tại thời điểm audit, không phải trạng thái PR mới.
 
 ### Quyền tài khoản và Staff
 
@@ -149,7 +154,8 @@ Thiết kế đề xuất để cụ thể hóa yêu cầu thêm bảng quyền:
 | `UserPermissionOverride` mới, tên dự kiến | Admin GRANT/DENY quyền vận hành cho từng STAFF; liên kết User và Permission. |
 | Audit hiện có                             | Lưu người thay đổi, lý do, trước/sau và thời điểm.                           |
 
-- Bảng mới dự kiến có userId, permissionId, effect, updatedBy, updatedAt, version;
+- Bảng override có userId, permissionId, effect, updatedBy, updatedAt; version
+  nằm ở `users.staffPermissionVersion`, không phải cột của bảng override;
   duy nhất theo userId + permissionId. Danh mục quyền không bị nhân bản.
 - Với STAFF: quyền hiệu lực là quyền tham gia USER cộng quyền vận hành mặc định
   và GRANT riêng, sau đó trừ DENY trong phạm vi quyền vận hành; restriction tài
@@ -240,8 +246,9 @@ trường hợp một nhóm có nhiều vi phạm hoặc nhiều giao dịch; gi
 - Giao tiếp nghiệp vụ xử lý case được giới hạn theo case được giao, kiểm tra
   role/permission hiệu lực, assignment và quan hệ người dùng với case tại backend.
   Giới hạn này không áp dụng cho chat/học thông thường mà Staff là participant.
-- Đề xuất mỗi bên có thread riêng với Staff để tránh lộ nội dung riêng hoặc
-  danh tính người báo cáo. Phòng chung và ghi chú nội bộ là các lựa chọn cần chốt.
+- Đã chốt mỗi bên có thread riêng với Staff được giao. Phòng chung giữa các
+  bên nằm ngoài phạm vi; ghi chú nội bộ là backlog riêng, không phải lựa chọn
+  thay cho thread riêng đã được duyệt.
 - Người dùng phản hồi NEED_MORE_INFO và bổ sung evidence theo giới hạn file,
   quyền sở hữu, scan và quyền tải hiện hữu.
 - Thu hồi quyền hoặc chuyển người xử lý phải có hiệu lực với lần đọc/gửi tiếp.
@@ -408,7 +415,7 @@ Command luôn kiểm tra lại quyền, version và trạng thái khi thực thi
 | Hạng mục                                                | Dự kiến thay đổi lưu trữ                                                                                                                                 |
 | ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Dữ liệu tổng hợp Path, attention và participant summary | Ưu tiên projection từ dữ liệu hiện có; chưa thấy cần đổi enum nghiệp vụ hoặc migration chỉ để có nhãn UI. Kiểm tra index bằng query plan khi triển khai. |
-| Quyền Staff riêng                                       | Cần thiết kế migration cho bảng override mới và seed/catalog có kiểm soát; tái sử dụng Role/Permission/RolePermission.                                   |
+| Quyền Staff riêng                                       | Đã có `20261108000000_staff_permissions` tạo bảng override và bootstrap quyền; version nằm trên users. Áp migration và kiểm chứng DB còn chờ.            |
 | Nhóm report, severity và chống xử lý lặp                | Cần schema/migration riêng cho incident, quan hệ, phân loại và dấu vết quyết định.                                                                       |
 | Trao đổi case                                           | PG giữ metadata/membership/quyền; Mongo giữ message. Chi tiết thread, recipient và deadline có thể cần schema/index/migration.                           |
 | Quản trị giao dịch                                      | Tái sử dụng wallet/ledger/operation/payment/receipt/finding; bổ sung metadata quyết định hoặc index khi thiết kế cần, không nhân bản ledger.             |
@@ -668,12 +675,11 @@ Contract đọc dự kiến, prefix /api/v1:
   phải xác định cách biểu diễn BOTH cho trao đổi hai chiều trước khi thêm filter.
 - Với tài khoản reviewer không còn hồ sơ công khai, cần chốt cách ẩn danh phần
   tác giả hoặc ẩn review; không làm summary và list dùng hai quy tắc khác nhau.
-- Review hiện tại chỉ cho hai participant đọc. Cần chốt phạm vi công khai review
-  cũ và thông báo hiển thị khi gửi review mới trước rollout; không coi hiddenAt
-  null tự động chứng minh tác giả trước đây đã biết nhận xét sẽ công khai.
-- Ưu tiên query dữ liệu có sẵn; chỉ bổ sung index nếu query plan cần. Nếu chọn
-  công khai theo consent/version của review thì cần thiết kế field/migration
-  riêng; chưa kết luận toàn bộ phần công khai chắc chắn không cần migration.
+- Đã chốt công khai cả review cũ và mới cho thành viên đã đăng nhập. Thông báo
+  hiển thị khi gửi review mới và truyền thông rollout là phần FE/vận hành còn
+  chờ; không mở lại quyết định phạm vi review cũ.
+- Triển khai query dữ liệu có sẵn theo phạm vi công khai đã chốt, không thêm
+  consent/version mới. Chỉ bổ sung index nếu query plan chứng minh cần.
 - Reviews sở hữu truy vấn/thống kê; profile gọi contract của Reviews. FE hiển thị
   summary và trang danh sách, không tự tải tất cả Path để tính sao. Nếu cache,
   xác định invalidation khi tạo/ẩn/khôi phục review và thay đổi quyền hồ sơ.
@@ -800,5 +806,5 @@ Các API đề xuất dưới prefix /api/v1, tên route sẽ chốt trong contr
   không cộng Credit hai lần; adjustment/reversal đồng thời giữ số dư, nguồn tiền,
   ledger và audit nguyên tử. Dùng PostgreSQL thật cho các invariant tài chính.
 
-Chưa sửa code, gọi provider, điều chỉnh giao dịch hay chạy migration. Phần nới
+Đã triển khai API đọc trong PR #89; chưa gọi provider, điều chỉnh giao dịch hay chạy migration. Phần nới
 lỏng uy tín vẫn ngoài scope; phần quản trị này không thay thế cơ chế đó.
