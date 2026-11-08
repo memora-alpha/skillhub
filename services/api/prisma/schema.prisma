@@ -352,6 +352,10 @@ model User {
   respondedLearningChanges LearningChangeRequest[] @relation("LearningChange_responder")
   resolvedLearningChanges  LearningChangeRequest[] @relation("LearningChange_resolver")
 
+  staffPermissionVersion      Int                      @default(0) @map("staff_permission_version")
+  permissionOverrides         UserPermissionOverride[] @relation("PermissionOverride_target")
+  assignedPermissionOverrides UserPermissionOverride[] @relation("PermissionOverride_actor")
+
   @@unique([id, avatarAssetId])
   @@index([roleId])
   @@index([createdAt(sort: Desc), id(sort: Desc)])
@@ -375,7 +379,8 @@ model Permission {
   code        String  @unique @map("code") @db.VarChar(100)
   description String? @map("description") @db.VarChar(255)
 
-  rolePermissionPermissionIdRecords RolePermission[] @relation("RolePermission_permission_id")
+  rolePermissionPermissionIdRecords RolePermission[]         @relation("RolePermission_permission_id")
+  userOverrides                     UserPermissionOverride[]
 
   @@map("permissions")
 }
@@ -516,6 +521,7 @@ model SkillVerification {
   sharingSkillIdRecord           SharingSkill    @relation("SkillVerification_sharing_skill_id", fields: [sharingSkillId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   reviewerIdRecord               User?           @relation("SkillVerification_reviewer_id", fields: [reviewerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   version                        Int             @default(1)
+  submittedRole                  String?         @map("submitted_role") @db.VarChar(10)
 
   @@unique([id, sharingSkillId])
   @@index([sharingSkillId])
@@ -1236,7 +1242,7 @@ model LearningPath {
   learningPlanPathIdRecords        LearningPlan[]        @relation("LearningPlan_path_id")
 
   participantASettlementApprovedAt DateTime?               @map("participant_a_settlement_approved_at") @db.Timestamptz(3)
-  reputationRewardedAt DateTime? @map("reputation_rewarded_at") @db.Timestamptz(3)
+  reputationRewardedAt             DateTime?               @map("reputation_rewarded_at") @db.Timestamptz(3)
   terminationApprovedAt            DateTime?               @map("termination_approved_at") @db.Timestamptz(3)
   participantBSettlementApprovedAt DateTime?               @map("participant_b_settlement_approved_at") @db.Timestamptz(3)
   changeRequests                   LearningChangeRequest[]
@@ -1526,11 +1532,6 @@ model MaterialEntitlement {
 }
 
 model UserRestriction {
-  policyRequired Boolean @default(false) @map("policy_required")
-  policyAcknowledgedAt DateTime? @map("policy_acknowledged_at") @db.Timestamptz(3)
-  triggerEventKey String? @map("trigger_event_key") @db.VarChar(255)
-  reviewDecision String? @map("review_decision") @db.Text
-  reviewedAt DateTime? @map("reviewed_at") @db.Timestamptz(3)
   id              String    @id @default(uuid()) @map("restriction_id") @db.Uuid
   userId          String    @map("user_id") @db.Uuid
   // Open vocabulary; owning feature must validate it before release.
@@ -1546,6 +1547,12 @@ model UserRestriction {
 
   userIdRecord          User  @relation("UserRestriction_user_id", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   appliedByUserIdRecord User? @relation("UserRestriction_applied_by_user_id", fields: [appliedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  triggerEventKey      String?   @map("trigger_event_key") @db.VarChar(255)
+  policyRequired       Boolean   @default(false) @map("policy_required")
+  policyAcknowledgedAt DateTime? @map("policy_acknowledged_at") @db.Timestamptz(3)
+  reviewDecision       String?   @map("review_decision") @db.Text
+  reviewedAt           DateTime? @map("reviewed_at") @db.Timestamptz(3)
 
   @@index([userId])
   @@index([appliedByUserId])
@@ -2078,4 +2085,21 @@ model PathSettlementAttempt {
   path         LearningPath @relation(fields: [pathId], references: [id], onDelete: Restrict)
 
   @@map("path_settlement_attempts")
+}
+
+// Runtime fragment for Staff permission overrides.
+model UserPermissionOverride {
+  userId       String     @map("user_id") @db.Uuid
+  permissionId String     @map("permission_id") @db.Uuid
+  effect       String     @db.VarChar(5)
+  updatedBy    String     @map("updated_by") @db.Uuid
+  updatedAt    DateTime   @default(now()) @map("updated_at") @db.Timestamptz(3)
+  user         User       @relation("PermissionOverride_target", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  actor        User       @relation("PermissionOverride_actor", fields: [updatedBy], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@id([userId, permissionId])
+  @@index([permissionId], map: "user_permission_overrides_permission_idx")
+  @@index([updatedBy], map: "user_permission_overrides_actor_idx")
+  @@map("user_permission_overrides")
 }

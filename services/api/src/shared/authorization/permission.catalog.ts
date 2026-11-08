@@ -1,5 +1,9 @@
 // Codes are explicit actions. Role grants are stored separately by users.
 export const PERMISSION_CATALOG = [
+  {
+    code: "staff-permissions:manage",
+    description: "Manage Staff operational permissions",
+  },
   { code: "tag:read", description: "Read the complete tag catalog" },
   { code: "tag:create", description: "Create canonical tags" },
   { code: "tag:update", description: "Update and hide canonical tags" },

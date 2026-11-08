@@ -398,6 +398,29 @@ model("CreditOperation", (block) =>
 );
 schema += "\n" + readFileSync(new URL("learning-changes.prisma", root), "utf8");
 
+// Staff participation and per-account operational grants (spec 014).
+model("SkillVerification", (block) =>
+  fields(
+    block,
+    '  submittedRole String? @map("submitted_role") @db.VarChar(10)',
+  ),
+);
+model("User", (block) =>
+  fields(
+    block,
+    `
+  staffPermissionVersion Int @default(0) @map("staff_permission_version")
+  permissionOverrides UserPermissionOverride[] @relation("PermissionOverride_target")
+  assignedPermissionOverrides UserPermissionOverride[] @relation("PermissionOverride_actor")
+`,
+  ),
+);
+model("Permission", (block) =>
+  fields(block, "  userOverrides UserPermissionOverride[]"),
+);
+schema +=
+  "\n" + readFileSync(new URL("staff-permissions.prisma", root), "utf8");
+
 schema = schema.replace(
   /^\/\/ Logical v3[^\r\n]*\r?\n(?:\/\/[^\r\n]*\r?\n)*\r?\n/,
   "// Runtime: v3 domain models plus implemented foundation support.\n" +
