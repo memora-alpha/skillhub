@@ -5,6 +5,16 @@ export class CreatedStaffResponse {
 export class PublicProfileResponse {
   @ApiProperty({
     type: Object,
+    description:
+      "Visible received review summary: reviewCount, averageRating (null without reviews), ratingDistribution keyed 1..5",
+  })
+  reviewSummary!: {
+    reviewCount: number;
+    averageRating: number | null;
+    ratingDistribution: Record<string, number>;
+  };
+  @ApiProperty({
+    type: Object,
     description: "Visible sharing skills preview with cursor pagination",
   })
   sharingSkills!: unknown;
