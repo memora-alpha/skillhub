@@ -1,3 +1,4 @@
+import { ParticipantCasesReader } from "./application/services/participant-cases.reader";
 import { SystemConfigurationModule } from "../system-configuration/system-configuration.module";
 import { Module } from "@nestjs/common";
 import { ReportSupportService } from "./application/services/report-support.service";
@@ -27,11 +28,12 @@ import { SessionChangesModule } from "../learning-sessions/session-changes.modul
   ],
   controllers: [ReportsController, ReportSupportController],
   providers: [
+    ParticipantCasesReader,
     ReportsService,
     ReportSupportService,
     CaseMessagesService,
     CaseMessageRepository,
   ],
-  exports: [ReportsService],
+  exports: [ReportsService, ParticipantCasesReader],
 })
 export class ReportsModule {}

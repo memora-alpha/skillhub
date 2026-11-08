@@ -1,3 +1,4 @@
+import { PathOverviewReader, overviewCard } from "./path-overview.reader";
 import {
   BadRequestException,
   ConflictException,
@@ -307,6 +308,7 @@ export class LearningPathsService {
     private readonly commands: IdempotencyService,
     private readonly requests: LearningRequestLifecycleService,
     private readonly requestPaths: LearningRequestPathReader,
+    private readonly overview?: PathOverviewReader,
   ) {}
 
   async listMine(actor: Principal) {
@@ -376,9 +378,13 @@ export class LearningPathsService {
         actor.userId,
         page.map(({ conversationId }) => conversationId),
       );
+      const summaries = this.overview
+        ? await this.overview.batch(tx, actor, page)
+        : new Map();
       const data = page.map((path) => ({
         id: path.id,
         title: titles.get(path.conversationId) ?? null,
+        ...(summaries.has(path.id) ? overviewCard(summaries.get(path.id)) : {}),
         terminationApprovedAt: path.terminationApprovedAt,
         conversationId: path.conversationId,
         status: path.status,
@@ -465,8 +471,17 @@ export class LearningPathsService {
                 status: true,
               },
             });
+      const summary = this.overview
+        ? (await this.overview.batch(tx, actor, [path])).get(path.id)
+        : undefined;
       return {
         id: path.id,
+        ...(summary
+          ? {
+              overview: overviewCard(summary),
+              attentionItems: summary.attentionItems,
+            }
+          : {}),
         conversationId: path.conversationId,
         status: path.status,
         participantAId: path.participantAId,

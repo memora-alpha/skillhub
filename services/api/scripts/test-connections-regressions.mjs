@@ -16,6 +16,7 @@ const names = [
   "test:learning-request",
   "test:skills",
   "test:report-support",
+  "test:learning-paths",
 ];
 const files = [
   ...new Set(
