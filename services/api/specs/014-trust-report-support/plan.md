@@ -208,11 +208,13 @@ không phụ thuộc việc Staff còn được giao case vận hành hay không
   giới transaction/lock với quyết định, kể cả đường retry/idempotency. Không chỉ
   ẩn nút trên FE. Queue/action metadata phải chỉ đúng hồ sơ nào cần Admin xử lý.
 - Role thay đổi khi hồ sơ còn PENDING cần kiểm tra lại: USER lên STAFF phải vào
-  luồng Admin duyệt. Đề xuất hồ sơ nộp khi là STAFF vẫn cần Admin nếu sau đó bị gỡ
-  role; cần chốt việc lưu role lúc nộp và quy tắc chuyển tiếp trước triển khai.
-- Đây là bổ sung quyền trong plan, không yêu cầu sửa code hiện tại. Source đang
-  cấp quyền approve/reject cho cả STAFF/ADMIN nhưng `VerificationsService.decide()`
-  chưa đối chiếu người duyệt với chủ sở hữu hoặc yêu cầu Admin khi owner là STAFF.
+  luồng Admin duyệt. Đã lưu `submittedRole`: hồ sơ nộp khi là STAFF vẫn cần Admin
+  nếu sau đó bị gỡ role. Migration bổ sung field đã có, chưa áp vào database.
+- Đã triển khai kiểm tra người duyệt độc lập, role hiện tại của chủ sở hữu và
+  `submittedRole` trong `VerificationsService.decide()`, kể cả retry/idempotency
+  dưới transaction/lock. Staff không tự duyệt hoặc duyệt hồ sơ Staff khác;
+  Admin cũng không được duyệt hồ sơ của chính mình. Kiểm chứng database thật
+  cho luồng duyệt còn chờ, không coi kiểm tra source/unit là bằng chứng runtime.
 
 Nguồn: `src/modules/skills/domain/skill-policy.ts:4`,
 `src/modules/sharing-skills/application/services/sharing-skills.service.ts:190`,
