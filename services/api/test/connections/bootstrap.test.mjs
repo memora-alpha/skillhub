@@ -29,6 +29,8 @@ import { SessionsService } from "../../dist/modules/auth/application/services/se
 import { SkillActorService } from "../../dist/modules/users/application/services/skill-actor.service.js";
 import { UsersService } from "../../dist/modules/users/application/services/users.service.js";
 import { AuditService } from "../../dist/modules/audit/application/services/audit.service.js";
+import { ReviewsModule } from "../../dist/modules/reviews/reviews.module.js";
+import { PublicReviewReader } from "../../dist/modules/users/application/services/public-review-reader.js";
 import { SharingSkillsModule } from "../../dist/modules/sharing-skills/sharing-skills.module.js";
 import { SharingSkillsService } from "../../dist/modules/sharing-skills/application/services/sharing-skills.service.js";
 import { LearningRequestsModule } from "../../dist/modules/learning-requests/learning-requests.module.js";
@@ -76,6 +78,7 @@ test("feature modules resolve owner contracts and register SSE/chat workers; HTT
       ProposalsModule,
       LearningPathsModule,
       ReputationModule,
+      ReviewsModule,
       SkillNotificationModule,
     ],
   })
@@ -97,6 +100,7 @@ test("feature modules resolve owner contracts and register SSE/chat workers; HTT
         [SkillActorService, {}],
         [UsersService, {}],
         [AuditService, {}],
+        [PublicReviewReader, new PublicReviewReader()],
         [IdentityGuard, { canActivate: () => true }],
       ]),
     )
@@ -177,6 +181,8 @@ test("feature modules resolve owner contracts and register SSE/chat workers; HTT
       "/api/v1/conversations/{id}/messages",
       "/api/v1/events",
       "/api/v1/me/achievements",
+      "/api/v1/profiles/{userId}/reviews",
+      "/api/v1/me/reviews",
       "/api/v1/me/wallet",
       "/api/v1/me/wallet/transactions",
       "/api/v1/learning-paths/mine",
