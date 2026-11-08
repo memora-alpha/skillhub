@@ -1,4 +1,7 @@
 import { Module } from "@nestjs/common";
+import { PathOverviewReader } from "./application/services/path-overview.reader";
+import { PathOverviewController } from "./presentation/http/path-overview.controller";
+import { SessionOverviewModule } from "../learning-sessions/session-overview.module";
 import { DatabaseModule } from "../../infrastructure/database/database.module";
 import { IdempotencyModule } from "../../infrastructure/idempotency/idempotency.module";
 import { IdentityModule } from "../identity.module";
@@ -21,6 +24,7 @@ import { PathTerminationRecoveryWorker } from "./infrastructure/jobs/path-termin
 
 @Module({
   imports: [
+    SessionOverviewModule,
     DatabaseModule,
     LearningRequestsModule,
     LearningPathRequestStateModule,
@@ -34,12 +38,14 @@ import { PathTerminationRecoveryWorker } from "./infrastructure/jobs/path-termin
     ReportsModule,
   ],
   controllers: [
+    PathOverviewController,
     LearningPathsController,
     PathTerminationController,
     PathSettlementStatusController,
     LearningChangeReviewController,
   ],
   providers: [
+    PathOverviewReader,
     LearningPathsService,
     PathTerminationService,
     PathSettlementStatusService,

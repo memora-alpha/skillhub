@@ -398,6 +398,70 @@ model("CreditOperation", (block) =>
 );
 schema += "\n" + readFileSync(new URL("learning-changes.prisma", root), "utf8");
 
+// Incident grouping, classification and committed private-message metadata (spec 014).
+model("User", (block) =>
+  fields(
+    block,
+    `
+  handledReportIncidents ReportIncident[]
+  caseMessagePartyReceipts ReportMessageReceipt[] @relation("CaseMessage_party")
+  caseMessageSenderReceipts ReportMessageReceipt[] @relation("CaseMessage_sender")
+  privateReportEvidence ReportEvidence[]
+`,
+  ),
+);
+model("StoredFile", (block) =>
+  fields(block, "  privateReportEvidence ReportEvidence?"),
+);
+model("ReportEvidence", (block) =>
+  fields(
+    block,
+    `
+  partyId String? @map("party_id") @db.Uuid
+  storedFileId String? @unique @map("stored_file_id") @db.Uuid
+  party User? @relation(fields: [partyId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  storedFile StoredFile? @relation(fields: [storedFileId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+`,
+  ),
+);
+model("ReportCase", (block) =>
+  fields(
+    block,
+    `
+  severity String? @db.VarChar(8)
+  version Int @default(1)
+  incidentId String? @map("incident_id") @db.Uuid
+  incident ReportIncident? @relation(fields: [incidentId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  messageReceipts ReportMessageReceipt[]
+  @@index([incidentId], map: "report_cases_incident_idx")
+`,
+  ),
+);
+schema += "\n" + readFileSync(new URL("report-support.prisma", root), "utf8");
+
+// Staff participation and per-account operational grants (spec 014).
+model("SkillVerification", (block) =>
+  fields(
+    block,
+    '  submittedRole String? @map("submitted_role") @db.VarChar(10)',
+  ),
+);
+model("User", (block) =>
+  fields(
+    block,
+    `
+  staffPermissionVersion Int @default(0) @map("staff_permission_version")
+  permissionOverrides UserPermissionOverride[] @relation("PermissionOverride_target")
+  assignedPermissionOverrides UserPermissionOverride[] @relation("PermissionOverride_actor")
+`,
+  ),
+);
+model("Permission", (block) =>
+  fields(block, "  userOverrides UserPermissionOverride[]"),
+);
+schema +=
+  "\n" + readFileSync(new URL("staff-permissions.prisma", root), "utf8");
+
 schema = schema.replace(
   /^\/\/ Logical v3[^\r\n]*\r?\n(?:\/\/[^\r\n]*\r?\n)*\r?\n/,
   "// Runtime: v3 domain models plus implemented foundation support.\n" +

@@ -1,6 +1,34 @@
 import { ApiProperty } from "@nestjs/swagger";
 
 export class LearningPathSummaryResponse {
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    enum: [
+      "PREPARING",
+      "WAITING_START",
+      "LEARNING",
+      "LEARNING_FINISHED",
+      "COMPLETED",
+      "STOPPED",
+    ],
+  })
+  learningStage!: string | null;
+  @ApiProperty({ type: String, nullable: true }) stageReasonCode!:
+    string | null;
+  @ApiProperty({
+    type: Object,
+    description:
+      "Learning/teaching completed and total counts, with the agreement version basis",
+  })
+  progress!: object;
+  @ApiProperty({ type: Object, nullable: true }) nextSession!: object | null;
+  @ApiProperty({ type: Number, minimum: 0 }) attentionCount!: number;
+  @ApiProperty({ type: Object, nullable: true }) primaryAttention!:
+    object | null;
+  @ApiProperty({ type: Object }) primaryAction!: object;
+  @ApiProperty({ type: Object }) settlement!: object;
+  @ApiProperty({ format: "date-time" }) evaluatedAt!: string;
   @ApiProperty({ format: "uuid" }) id!: string;
   @ApiProperty({
     type: String,

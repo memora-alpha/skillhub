@@ -1,5 +1,6 @@
 import { IDENTITY_APPLICATION_PROVIDERS } from "./identity.providers";
 import { PublicReviewReader } from "./users/application/services/public-review-reader";
+import { StaffPermissionsController } from "./users/presentation/http/staff-permissions.controller";
 import { AvatarWorker } from "./users/infrastructure/jobs/avatar.worker";
 import { AvatarScheduler } from "./users/infrastructure/jobs/avatar.scheduler";
 import { IdentityEmailWorker } from "./notifications/infrastructure/jobs/identity-email.worker";
@@ -40,7 +41,12 @@ import { ProfileReader } from "./users/application/services/profile-reader.servi
       { name: "identity-avatar" },
     ),
   ],
-  controllers: [AuthController, UsersController, AdministrationController],
+  controllers: [
+    AuthController,
+    UsersController,
+    AdministrationController,
+    StaffPermissionsController,
+  ],
   providers: [
     PublicReviewReader,
     IdentityConfig,

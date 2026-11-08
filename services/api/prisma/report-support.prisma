@@ -1,0 +1,33 @@
+// Runtime incident and message receipt fragments.
+model ReportIncident {
+  id         String       @id @default(uuid()) @db.Uuid
+  targetType String       @map("target_type") @db.Text
+  targetId   String       @map("target_id") @db.Text
+  status     String       @default("OPEN") @db.VarChar(16)
+  severity   String       @db.VarChar(8)
+  reason     String       @db.VarChar(2000)
+  handlerId  String       @map("handler_id") @db.Uuid
+  version    Int          @default(1)
+  createdAt  DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  resolvedAt DateTime?    @map("resolved_at") @db.Timestamptz(3)
+  cases      ReportCase[]
+  handler User @relation(fields: [handlerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([status, createdAt, id], map: "report_incidents_queue_idx")
+  @@map("report_incidents")
+}
+
+model ReportMessageReceipt {
+  messageId String     @id @map("message_id") @db.VarChar(64)
+  caseId    String     @map("case_id") @db.Uuid
+  partyId   String     @map("party_id") @db.Uuid
+  senderId  String     @map("sender_id") @db.Uuid
+  digest    String     @db.Char(64)
+  createdAt DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  report    ReportCase @relation(fields: [caseId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  party User @relation("CaseMessage_party", fields: [partyId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  sender User @relation("CaseMessage_sender", fields: [senderId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  @@index([caseId, partyId, createdAt, messageId], map: "report_message_receipts_thread_idx")
+  @@map("report_message_receipts")
+}
