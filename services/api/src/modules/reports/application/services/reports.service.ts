@@ -483,19 +483,7 @@ export class ReportsService {
       where: { id: caseId },
     });
     await this.assertIndependentReviewer(tx, actor, item);
-    if (
-      item.incidentId &&
-      !incidentDecision &&
-      (action === "resolve" || action === "reject")
-    )
-      throw new ConflictException("INCIDENT_DECISION_REQUIRED");
-    if (item.status === "RESOLVED" || item.status === "REJECTED") {
-      const replay =
-        (action === "resolve" && item.status === "RESOLVED") ||
-        (action === "reject" && item.status === "REJECTED");
-      if (replay) return item;
-      throw new ConflictException("REPORT_CASE_CLOSED");
-    }
+    if (this.isCaseReplay(item, action, incidentDecision)) return item;
     const [clock] = await tx.$queryRaw<
       { now: Date }[]
     >`SELECT CURRENT_TIMESTAMP AS now`;
@@ -559,6 +547,26 @@ export class ReportsService {
     return resolved;
   }
 
+  /** Grouped cases require an incident decision; closed cases only accept exact replays. */
+  private isCaseReplay(
+    item: ReportCase,
+    action: "claim" | "need-more-info" | "resolve" | "reject",
+    incidentDecision: boolean,
+  ) {
+    if (
+      item.incidentId &&
+      !incidentDecision &&
+      (action === "resolve" || action === "reject")
+    )
+      throw new ConflictException("INCIDENT_DECISION_REQUIRED");
+    if (item.status !== "RESOLVED" && item.status !== "REJECTED") return false;
+    if (
+      (action === "resolve" && item.status === "RESOLVED") ||
+      (action === "reject" && item.status === "REJECTED")
+    )
+      return true;
+    throw new ConflictException("REPORT_CASE_CLOSED");
+  }
   /** Validate all participants before allowing any moderation transition. */
   private async assertIndependentReviewer(
     tx: TransactionContext,
