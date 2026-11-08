@@ -30,7 +30,7 @@ export class CaseMessageRepository {
         { upsert: true },
       );
       const row = await this.collection.findOne({ _id: message._id });
-      if (!row || row.digest !== message.digest)
+      if (row?.digest !== message.digest)
         throw new ConflictException("CASE_MESSAGE_ID_REUSED");
     } catch (error) {
       if (error instanceof ConflictException) throw error;

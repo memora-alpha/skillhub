@@ -55,6 +55,7 @@ export class StaffPermissionService {
   }
   read(principal: Principal, userId: string) {
     return transaction(this.db, async (tx) => {
+      await this.admin(tx, principal);
       await lockUsers(tx, [principal.userId, userId]);
       await this.admin(tx, principal);
       const target = await this.staff(tx, userId);
@@ -96,6 +97,7 @@ export class StaffPermissionService {
     )
       throw new BadRequestException("INVALID_PERMISSION_CHANGE");
     return transaction(this.db, async (tx) => {
+      await this.admin(tx, principal);
       await lockUsers(tx, [principal.userId, userId]);
       const live = await this.admin(tx, principal);
       const target = await this.staff(tx, userId);

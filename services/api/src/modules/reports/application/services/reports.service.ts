@@ -1,3 +1,4 @@
+import type { ReportCase } from "../../../../generated/prisma/client";
 import {
   BadRequestException,
   ServiceUnavailableException,
@@ -481,25 +482,7 @@ export class ReportsService {
     const item = await tx.reportCase.findUniqueOrThrow({
       where: { id: caseId },
     });
-    const parties = new Set<string>(item.reporterId ? [item.reporterId] : []);
-    if (item.targetType === "USER") parties.add(item.targetId);
-    if (item.relatedPathId) {
-      const path = await tx.learningPath.findUniqueOrThrow({
-        where: { id: item.relatedPathId },
-        select: { participantAId: true, participantBId: true },
-      });
-      parties.add(path.participantAId);
-      parties.add(path.participantBId);
-    }
-    if (item.relatedOrderId) {
-      const order = await tx.materialOrder.findUniqueOrThrow({
-        where: { id: item.relatedOrderId },
-        select: { buyerId: true, sellerId: true },
-      });
-      parties.add(order.buyerId);
-      parties.add(order.sellerId);
-    }
-    assertIndependentCaseActor(actor.userId, [...parties]);
+    await this.assertIndependentReviewer(tx, actor, item);
     if (
       item.incidentId &&
       !incidentDecision &&
@@ -518,35 +501,7 @@ export class ReportsService {
     >`SELECT CURRENT_TIMESTAMP AS now`;
     if (!(clock?.now instanceof Date))
       throw new ConflictException("DATABASE_TIME_UNAVAILABLE");
-    const claimCase = async () => {
-      if (item.status === "UNDER_REVIEW" && item.handlerId === actor.userId)
-        return item;
-      if (item.status !== "OPEN")
-        throw new ConflictException("REPORT_CASE_NOT_CLAIMABLE");
-      const updated = await tx.reportCase.update({
-        where: { id: caseId },
-        data: {
-          status: "UNDER_REVIEW",
-          handlerId: actor.userId,
-          version: { increment: 1 },
-        },
-      });
-      await this.auditCaseAction(
-        tx,
-        actor,
-        item,
-        updated.status,
-        "Claimed report case",
-      );
-      await this.emitCaseUpdated(
-        tx,
-        updated.id,
-        updated.reporterId,
-        updated.status,
-      );
-      return updated;
-    };
-    if (action === "claim") return claimCase();
+    if (action === "claim") return this.claimCase(tx, actor, item);
     if (item.handlerId !== actor.userId)
       throw new ForbiddenException("REPORT_CASE_NOT_ASSIGNED_TO_CALLER");
     if (action === "need-more-info") {
@@ -600,37 +555,101 @@ export class ReportsService {
       resolved.status,
       item.relatedPathId,
     );
-    const reconcilePathAfterReport = async () => {
-      if (item.relatedPathId) {
-        const unresolvedBlocks = await tx.reportCase.count({
-          where: {
-            relatedPathId: item.relatedPathId,
-            id: { not: caseId },
-            blocksSettlement: true,
-            status: { in: ["OPEN", "UNDER_REVIEW", "NEED_MORE_INFO"] },
-          },
+    await this.reconcilePathAfterReport(tx, item);
+    return resolved;
+  }
+
+  /** Validate all participants before allowing any moderation transition. */
+  private async assertIndependentReviewer(
+    tx: TransactionContext,
+    actor: Principal,
+    item: ReportCase,
+  ) {
+    const parties = new Set<string>(item.reporterId ? [item.reporterId] : []);
+    if (item.targetType === "USER") parties.add(item.targetId);
+    if (item.relatedPathId) {
+      const path = await tx.learningPath.findUniqueOrThrow({
+        where: { id: item.relatedPathId },
+        select: { participantAId: true, participantBId: true },
+      });
+      parties.add(path.participantAId);
+      parties.add(path.participantBId);
+    }
+    if (item.relatedOrderId) {
+      const order = await tx.materialOrder.findUniqueOrThrow({
+        where: { id: item.relatedOrderId },
+        select: { buyerId: true, sellerId: true },
+      });
+      parties.add(order.buyerId);
+      parties.add(order.sellerId);
+    }
+    assertIndependentCaseActor(actor.userId, [...parties]);
+  }
+  /** Claim an open case idempotently with its audit and notification in the same transaction. */
+  private async claimCase(
+    tx: TransactionContext,
+    actor: Principal,
+    item: ReportCase,
+  ) {
+    if (item.status === "UNDER_REVIEW" && item.handlerId === actor.userId)
+      return item;
+    if (item.status !== "OPEN")
+      throw new ConflictException("REPORT_CASE_NOT_CLAIMABLE");
+    const updated = await tx.reportCase.update({
+      where: { id: item.id },
+      data: {
+        status: "UNDER_REVIEW",
+        handlerId: actor.userId,
+        version: { increment: 1 },
+      },
+    });
+    await this.auditCaseAction(
+      tx,
+      actor,
+      item,
+      updated.status,
+      "Claimed report case",
+    );
+    await this.emitCaseUpdated(
+      tx,
+      updated.id,
+      updated.reporterId,
+      updated.status,
+    );
+    return updated;
+  }
+  /** Reconcile only after all other settlement-blocking cases have been released. */
+  private async reconcilePathAfterReport(
+    tx: TransactionContext,
+    item: ReportCase,
+  ) {
+    if (item.relatedPathId) {
+      const unresolvedBlocks = await tx.reportCase.count({
+        where: {
+          relatedPathId: item.relatedPathId,
+          id: { not: item.id },
+          blocksSettlement: true,
+          status: { in: ["OPEN", "UNDER_REVIEW", "NEED_MORE_INFO"] },
+        },
+      });
+      if (unresolvedBlocks === 0) {
+        const path = await tx.learningPath.findUnique({
+          where: { id: item.relatedPathId },
         });
-        if (unresolvedBlocks === 0) {
-          const path = await tx.learningPath.findUnique({
-            where: { id: item.relatedPathId },
+        if (path?.status === "DISPUTED") {
+          const incomplete = await tx.session.count({
+            where: { pathId: path.id, status: { not: "COMPLETED" } },
           });
-          if (path?.status === "DISPUTED") {
-            const incomplete = await tx.session.count({
-              where: { pathId: path.id, status: { not: "COMPLETED" } },
-            });
-            const unsettledStatus = incomplete === 0 ? "ACTIVE" : "SCHEDULED";
-            await tx.learningPath.update({
-              where: { id: path.id },
-              data: {
-                status: path.settledAt ? "COMPLETED" : unsettledStatus,
-              },
-            });
-          }
+          const unsettledStatus = incomplete === 0 ? "ACTIVE" : "SCHEDULED";
+          await tx.learningPath.update({
+            where: { id: path.id },
+            data: {
+              status: path.settledAt ? "COMPLETED" : unsettledStatus,
+            },
+          });
         }
       }
-    };
-    await reconcilePathAfterReport();
-    return resolved;
+    }
   }
 
   private async settleSessionRuling(
