@@ -49,7 +49,7 @@
     "identity:bootstrap-admin": "node scripts/identity-bootstrap.mjs admin",
     "identity:create-admin": "node scripts/create-admin.mjs",
     "test:identity:admin": "nest build && node --test --test-concurrency=1 test/identity/create-admin-account.test.mjs",
-    "test:rbac": "nest build && node --test test/authorization.test.mjs test/authorization-http.test.mjs",
+    "test:rbac": "nest build && node --test test/authorization.test.mjs test/authorization-http.test.mjs test/identity/staff-permissions.test.mjs",
     "test:consistency": "nest build && node --test test/request-context.test.mjs test/transaction.test.mjs test/idempotency.test.mjs test/outbox-delivery.test.mjs",
     "test:consistency:integration": "node test/require-integration-env.mjs && nest build && node --test --test-concurrency=1 test/transaction-persistence.test.mjs test/idempotency-persistence.test.mjs test/outbox-persistence.test.mjs",
     "test:audit": "nest build && node --test test/audit-policy.test.mjs test/audit-writer.test.mjs test/audit-http.test.mjs",

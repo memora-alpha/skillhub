@@ -117,7 +117,13 @@ export class PrismaUsersRepository extends UsersRepository {
     await tx.userPermissionOverride.deleteMany({ where: { userId } });
     await tx.user.update({
       where: { id: userId },
-      data: { roleId: next.id, staffPermissionVersion: { increment: 1 } },
+      data: {
+        roleId: next.id,
+        staffPermissionVersion: { increment: 1 },
+        ...(code === "STAFF" || user.roleIdRecord.code === "STAFF"
+          ? { securityVersion: { increment: 1 } }
+          : {}),
+      },
     });
     return true;
   }
