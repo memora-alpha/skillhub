@@ -1,3 +1,4 @@
+import { assertIndependentSkillReviewer } from "../../domain/staff-permissions";
 import {
   ConflictException,
   ForbiddenException,
@@ -34,6 +35,22 @@ export class SkillActorService {
     });
     if (user?.accountStatus !== "ACTIVE" || !user.emailVerified || restriction)
       throw new ConflictException("CONNECTION_PARTY_UNAVAILABLE");
+  }
+  async assertSkillReviewer(
+    tx: TransactionContext,
+    actor: Actor,
+    ownerId: string,
+    submittedRole?: string | null,
+  ) {
+    const owner = await tx.user.findUniqueOrThrow({
+      where: { id: ownerId },
+      select: { roleIdRecord: { select: { code: true } } },
+    });
+    assertIndependentSkillReviewer(
+      actor,
+      ownerId,
+      submittedRole === "STAFF" ? "STAFF" : owner.roleIdRecord.code,
+    );
   }
   async assertAllowed(tx: TransactionContext, userId: string) {
     await this.assertConnectionParty(tx, userId);

@@ -357,6 +357,10 @@ model User {
   caseMessageSenderReceipts ReportMessageReceipt[] @relation("CaseMessage_sender")
   privateReportEvidence     ReportEvidence[]
 
+  staffPermissionVersion      Int                      @default(0) @map("staff_permission_version")
+  permissionOverrides         UserPermissionOverride[] @relation("PermissionOverride_target")
+  assignedPermissionOverrides UserPermissionOverride[] @relation("PermissionOverride_actor")
+
   @@unique([id, avatarAssetId])
   @@index([roleId])
   @@index([createdAt(sort: Desc), id(sort: Desc)])
@@ -380,7 +384,8 @@ model Permission {
   code        String  @unique @map("code") @db.VarChar(100)
   description String? @map("description") @db.VarChar(255)
 
-  rolePermissionPermissionIdRecords RolePermission[] @relation("RolePermission_permission_id")
+  rolePermissionPermissionIdRecords RolePermission[]         @relation("RolePermission_permission_id")
+  userOverrides                     UserPermissionOverride[]
 
   @@map("permissions")
 }
@@ -521,6 +526,7 @@ model SkillVerification {
   sharingSkillIdRecord           SharingSkill    @relation("SkillVerification_sharing_skill_id", fields: [sharingSkillId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   reviewerIdRecord               User?           @relation("SkillVerification_reviewer_id", fields: [reviewerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   version                        Int             @default(1)
+  submittedRole                  String?         @map("submitted_role") @db.VarChar(10)
 
   @@unique([id, sharingSkillId])
   @@index([sharingSkillId])
@@ -2132,4 +2138,21 @@ model ReportMessageReceipt {
 
   @@index([caseId, partyId, createdAt, messageId], map: "report_message_receipts_thread_idx")
   @@map("report_message_receipts")
+}
+
+// Runtime fragment for Staff permission overrides.
+model UserPermissionOverride {
+  userId       String     @map("user_id") @db.Uuid
+  permissionId String     @map("permission_id") @db.Uuid
+  effect       String     @db.VarChar(5)
+  updatedBy    String     @map("updated_by") @db.Uuid
+  updatedAt    DateTime   @default(now()) @map("updated_at") @db.Timestamptz(3)
+  user         User       @relation("PermissionOverride_target", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  actor        User       @relation("PermissionOverride_actor", fields: [updatedBy], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@id([userId, permissionId])
+  @@index([permissionId], map: "user_permission_overrides_permission_idx")
+  @@index([updatedBy], map: "user_permission_overrides_actor_idx")
+  @@map("user_permission_overrides")
 }
