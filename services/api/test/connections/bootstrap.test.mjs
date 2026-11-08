@@ -31,6 +31,8 @@ import { UsersService } from "../../dist/modules/users/application/services/user
 import { AuditService } from "../../dist/modules/audit/application/services/audit.service.js";
 import { ReviewsModule } from "../../dist/modules/reviews/reviews.module.js";
 import { PublicReviewReader } from "../../dist/modules/users/application/services/public-review-reader.js";
+import { PaymentsModule } from "../../dist/modules/payments/payments.module.js";
+import { PayosTransport } from "../../dist/modules/payments/infrastructure/gateway/payos-transport.js";
 import { SharingSkillsModule } from "../../dist/modules/sharing-skills/sharing-skills.module.js";
 import { SharingSkillsService } from "../../dist/modules/sharing-skills/application/services/sharing-skills.service.js";
 import { LearningRequestsModule } from "../../dist/modules/learning-requests/learning-requests.module.js";
@@ -79,6 +81,7 @@ test("feature modules resolve owner contracts and register SSE/chat workers; HTT
       LearningPathsModule,
       ReputationModule,
       ReviewsModule,
+      PaymentsModule,
       SkillNotificationModule,
     ],
   })
@@ -119,6 +122,8 @@ test("feature modules resolve owner contracts and register SSE/chat workers; HTT
     .useModule(fixtureModule([[LearningRequestLifecycleService, {}]]))
     .overrideProvider(OutboxDispatcher)
     .useValue({})
+    .overrideProvider(PayosTransport)
+    .useValue({ config: { enabled: false, creationPaused: false } })
     .overrideProvider(TransactionalMailer)
     .useValue({ send: async () => {} })
     .overrideProvider(PushSender)
@@ -183,6 +188,11 @@ test("feature modules resolve owner contracts and register SSE/chat workers; HTT
       "/api/v1/me/achievements",
       "/api/v1/profiles/{userId}/reviews",
       "/api/v1/me/reviews",
+      "/api/v1/admin/credit/transactions",
+      "/api/v1/admin/credit/operations/{id}",
+      "/api/v1/admin/users/{userId}/wallet",
+      "/api/v1/admin/payments",
+      "/api/v1/admin/payments/{id}/reconciliation",
       "/api/v1/me/wallet",
       "/api/v1/me/wallet/transactions",
       "/api/v1/learning-paths/mine",
