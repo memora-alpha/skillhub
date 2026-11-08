@@ -1,3 +1,4 @@
+import type { ReportCase } from "../../../../generated/prisma/client";
 import {
   BadRequestException,
   ServiceUnavailableException,
@@ -34,6 +35,9 @@ import type {
   ReportCaseActionDto,
 } from "../../presentation/http/reports.dto";
 import { SessionChangesService } from "../../../learning-sessions/application/services/session-changes.service";
+import { assertIndependentCaseActor } from "../../domain/report-support.policy";
+
+type ReportCaseAction = "claim" | "need-more-info" | "resolve" | "reject";
 
 /** Signed Credit text, already format-checked by the DTO, in hundredths. */
 function signedCreditUnits(value: string): bigint {
@@ -47,6 +51,7 @@ function signedCreditUnits(value: string): bigint {
 
 const evidenceSummary = {
   reportEvidenceCaseIdRecords: {
+    where: { storedFileId: null },
     select: { id: true, mimeType: true, fileSizeBytes: true, uploadedAt: true },
   },
 } as const;
@@ -184,9 +189,17 @@ export class ReportsService {
     const row = await this.transactions.run(async (tx) => {
       const evidence = await tx.reportEvidence.findUnique({
         where: { id: evidenceId },
-        select: { caseId: true, storageKey: true },
+        select: { caseId: true, storageKey: true, storedFileId: true },
       });
       if (!evidence) throw new NotFoundException("REPORT_EVIDENCE_NOT_FOUND");
+      {
+        const report = await tx.reportCase.findUniqueOrThrow({
+          where: { id: evidence.caseId },
+          select: { handlerId: true },
+        });
+        if (report.handlerId !== actor.userId)
+          throw new ForbiddenException("REPORT_CASE_NOT_ASSIGNED_TO_CALLER");
+      }
       const stored = await tx.storedFile.findFirst({
         where: {
           objectKey: evidence.storageKey,
@@ -299,6 +312,8 @@ export class ReportsService {
           data: {
             id: randomUUID(),
             caseId,
+            partyId: actor.userId,
+            storedFileId: fileId,
             mimeType: file.mime,
             storageKey: file.key,
             fileSizeBytes: BigInt(file.size),
@@ -440,143 +455,211 @@ export class ReportsService {
   updateCase(
     actor: Principal,
     caseId: string,
-    action: "claim" | "need-more-info" | "resolve" | "reject",
+    action: ReportCaseAction,
     input: ReportCaseActionDto = {},
+  ) {
+    return this.transactions.run((tx) =>
+      this.updateCaseInTransaction(tx, actor, caseId, action, input),
+    );
+  }
+
+  /** Reports owner transition shared by single-case and atomic incident decisions. */
+  async updateCaseInTransaction(
+    tx: TransactionContext,
+    actor: Principal,
+    caseId: string,
+    action: ReportCaseAction,
+    input: ReportCaseActionDto = {},
+    incidentDecision = false,
   ) {
     this.requireStaff(actor);
     const note = input.note;
     this.assertResolutionAllowed(actor, action, input);
-    return this.transactions.run(async (tx) => {
-      const initial = await tx.reportCase.findUnique({ where: { id: caseId } });
-      if (!initial) throw new NotFoundException("REPORT_CASE_NOT_FOUND");
-      // Case effects share the same Path -> Session locks as lifecycle writers.
-      if (initial.relatedSessionId)
-        await lockedSession(tx, initial.relatedSessionId);
-      else if (initial.relatedPathId) await lockPath(tx, initial.relatedPathId);
-      const item = await tx.reportCase.findUniqueOrThrow({
-        where: { id: caseId },
-      });
-      if (item.status === "RESOLVED" || item.status === "REJECTED") {
-        const replay =
-          (action === "resolve" && item.status === "RESOLVED") ||
-          (action === "reject" && item.status === "REJECTED");
-        if (replay) return item;
-        throw new ConflictException("REPORT_CASE_CLOSED");
-      }
-      const [clock] = await tx.$queryRaw<
-        { now: Date }[]
-      >`SELECT CURRENT_TIMESTAMP AS now`;
-      if (!(clock?.now instanceof Date))
-        throw new ConflictException("DATABASE_TIME_UNAVAILABLE");
-      const claimCase = async () => {
-        if (item.status === "UNDER_REVIEW" && item.handlerId === actor.userId)
-          return item;
-        if (item.status !== "OPEN")
-          throw new ConflictException("REPORT_CASE_NOT_CLAIMABLE");
-        const updated = await tx.reportCase.update({
-          where: { id: caseId },
-          data: { status: "UNDER_REVIEW", handlerId: actor.userId },
-        });
-        await this.auditCaseAction(
-          tx,
-          actor,
-          item,
-          updated.status,
-          "Claimed report case",
-        );
-        await this.emitCaseUpdated(
-          tx,
-          updated.id,
-          updated.reporterId,
-          updated.status,
-        );
-        return updated;
-      };
-      if (action === "claim") return claimCase();
-      if (item.handlerId !== actor.userId)
-        throw new ForbiddenException("REPORT_CASE_NOT_ASSIGNED_TO_CALLER");
-      if (action === "need-more-info") {
-        const updated = await tx.reportCase.update({
-          where: { id: caseId },
-          data: {
-            status: "NEED_MORE_INFO",
-            resolutionNote: note?.trim() || null,
-          },
-        });
-        await this.auditCaseAction(
-          tx,
-          actor,
-          item,
-          updated.status,
-          note?.trim() || "Requested more information",
-        );
-        await this.emitCaseUpdated(
-          tx,
-          updated.id,
-          updated.reporterId,
-          updated.status,
-        );
-        return updated;
-      }
-      if (!note?.trim())
-        throw new ConflictException("RESOLUTION_NOTE_REQUIRED");
-      await this.settleSessionRuling(tx, item, action, input, clock.now);
-      const resolved = await tx.reportCase.update({
+    const initial = await tx.reportCase.findUnique({ where: { id: caseId } });
+    if (!initial) throw new NotFoundException("REPORT_CASE_NOT_FOUND");
+    // Case effects share the same Path -> Session locks as lifecycle writers.
+    if (initial.relatedSessionId)
+      await lockedSession(tx, initial.relatedSessionId);
+    else if (initial.relatedPathId) await lockPath(tx, initial.relatedPathId);
+    const item = await tx.reportCase.findUniqueOrThrow({
+      where: { id: caseId },
+    });
+    await this.assertIndependentReviewer(tx, actor, item);
+    if (this.isCaseReplay(item, action, incidentDecision)) return item;
+    const [clock] = await tx.$queryRaw<
+      { now: Date }[]
+    >`SELECT CURRENT_TIMESTAMP AS now`;
+    if (!(clock?.now instanceof Date))
+      throw new ConflictException("DATABASE_TIME_UNAVAILABLE");
+    if (action === "claim") return this.claimCase(tx, actor, item);
+    if (item.handlerId !== actor.userId)
+      throw new ForbiddenException("REPORT_CASE_NOT_ASSIGNED_TO_CALLER");
+    if (action === "need-more-info") {
+      const updated = await tx.reportCase.update({
         where: { id: caseId },
         data: {
-          status: action === "resolve" ? "RESOLVED" : "REJECTED",
-          resolutionCode:
-            action === "resolve" ? "STAFF_RESOLVED" : "STAFF_REJECTED",
-          resolutionNote: note.trim(),
-          resolvedByUserId: actor.userId,
-          resolvedAt: clock.now,
-          blocksSettlement: false,
+          status: "NEED_MORE_INFO",
+          version: { increment: 1 },
+          resolutionNote: note?.trim() || null,
         },
       });
-      await this.auditCaseAction(tx, actor, item, resolved.status, note.trim());
-      if (action === "resolve") {
-        await this.applyResolution(tx, actor, item, input, clock.now);
-      }
-
+      await this.auditCaseAction(
+        tx,
+        actor,
+        item,
+        updated.status,
+        note?.trim() || "Requested more information",
+      );
       await this.emitCaseUpdated(
         tx,
-        resolved.id,
-        resolved.reporterId,
-        resolved.status,
-        item.relatedPathId,
+        updated.id,
+        updated.reporterId,
+        updated.status,
       );
-      const reconcilePathAfterReport = async () => {
-        if (item.relatedPathId) {
-          const unresolvedBlocks = await tx.reportCase.count({
-            where: {
-              relatedPathId: item.relatedPathId,
-              id: { not: caseId },
-              blocksSettlement: true,
-              status: { in: ["OPEN", "UNDER_REVIEW", "NEED_MORE_INFO"] },
+      return updated;
+    }
+    if (!note?.trim()) throw new ConflictException("RESOLUTION_NOTE_REQUIRED");
+    await this.settleSessionRuling(tx, item, action, input, clock.now);
+    const resolved = await tx.reportCase.update({
+      where: { id: caseId },
+      data: {
+        status: action === "resolve" ? "RESOLVED" : "REJECTED",
+        version: { increment: 1 },
+        resolutionCode:
+          action === "resolve" ? "STAFF_RESOLVED" : "STAFF_REJECTED",
+        resolutionNote: note.trim(),
+        resolvedByUserId: actor.userId,
+        resolvedAt: clock.now,
+        blocksSettlement: false,
+      },
+    });
+    await this.auditCaseAction(tx, actor, item, resolved.status, note.trim());
+    if (action === "resolve") {
+      await this.applyResolution(tx, actor, item, input, clock.now);
+    }
+
+    await this.emitCaseUpdated(
+      tx,
+      resolved.id,
+      resolved.reporterId,
+      resolved.status,
+      item.relatedPathId,
+    );
+    await this.reconcilePathAfterReport(tx, item);
+    return resolved;
+  }
+
+  /** Grouped cases require an incident decision; closed cases only accept exact replays. */
+  private isCaseReplay(
+    item: ReportCase,
+    action: ReportCaseAction,
+    incidentDecision: boolean,
+  ) {
+    if (
+      item.incidentId &&
+      !incidentDecision &&
+      (action === "resolve" || action === "reject")
+    )
+      throw new ConflictException("INCIDENT_DECISION_REQUIRED");
+    if (item.status !== "RESOLVED" && item.status !== "REJECTED") return false;
+    if (
+      (action === "resolve" && item.status === "RESOLVED") ||
+      (action === "reject" && item.status === "REJECTED")
+    )
+      return true;
+    throw new ConflictException("REPORT_CASE_CLOSED");
+  }
+  /** Validate all participants before allowing any moderation transition. */
+  private async assertIndependentReviewer(
+    tx: TransactionContext,
+    actor: Principal,
+    item: ReportCase,
+  ) {
+    const parties = new Set<string>(item.reporterId ? [item.reporterId] : []);
+    if (item.targetType === "USER") parties.add(item.targetId);
+    if (item.relatedPathId) {
+      const path = await tx.learningPath.findUniqueOrThrow({
+        where: { id: item.relatedPathId },
+        select: { participantAId: true, participantBId: true },
+      });
+      parties.add(path.participantAId);
+      parties.add(path.participantBId);
+    }
+    if (item.relatedOrderId) {
+      const order = await tx.materialOrder.findUniqueOrThrow({
+        where: { id: item.relatedOrderId },
+        select: { buyerId: true, sellerId: true },
+      });
+      parties.add(order.buyerId);
+      parties.add(order.sellerId);
+    }
+    assertIndependentCaseActor(actor.userId, [...parties]);
+  }
+  /** Claim an open case idempotently with its audit and notification in the same transaction. */
+  private async claimCase(
+    tx: TransactionContext,
+    actor: Principal,
+    item: ReportCase,
+  ) {
+    if (item.status === "UNDER_REVIEW" && item.handlerId === actor.userId)
+      return item;
+    if (item.status !== "OPEN")
+      throw new ConflictException("REPORT_CASE_NOT_CLAIMABLE");
+    const updated = await tx.reportCase.update({
+      where: { id: item.id },
+      data: {
+        status: "UNDER_REVIEW",
+        handlerId: actor.userId,
+        version: { increment: 1 },
+      },
+    });
+    await this.auditCaseAction(
+      tx,
+      actor,
+      item,
+      updated.status,
+      "Claimed report case",
+    );
+    await this.emitCaseUpdated(
+      tx,
+      updated.id,
+      updated.reporterId,
+      updated.status,
+    );
+    return updated;
+  }
+  /** Reconcile only after all other settlement-blocking cases have been released. */
+  private async reconcilePathAfterReport(
+    tx: TransactionContext,
+    item: ReportCase,
+  ) {
+    if (item.relatedPathId) {
+      const unresolvedBlocks = await tx.reportCase.count({
+        where: {
+          relatedPathId: item.relatedPathId,
+          id: { not: item.id },
+          blocksSettlement: true,
+          status: { in: ["OPEN", "UNDER_REVIEW", "NEED_MORE_INFO"] },
+        },
+      });
+      if (unresolvedBlocks === 0) {
+        const path = await tx.learningPath.findUnique({
+          where: { id: item.relatedPathId },
+        });
+        if (path?.status === "DISPUTED") {
+          const incomplete = await tx.session.count({
+            where: { pathId: path.id, status: { not: "COMPLETED" } },
+          });
+          const unsettledStatus = incomplete === 0 ? "ACTIVE" : "SCHEDULED";
+          await tx.learningPath.update({
+            where: { id: path.id },
+            data: {
+              status: path.settledAt ? "COMPLETED" : unsettledStatus,
             },
           });
-          if (unresolvedBlocks === 0) {
-            const path = await tx.learningPath.findUnique({
-              where: { id: item.relatedPathId },
-            });
-            if (path?.status === "DISPUTED") {
-              const incomplete = await tx.session.count({
-                where: { pathId: path.id, status: { not: "COMPLETED" } },
-              });
-              const unsettledStatus = incomplete === 0 ? "ACTIVE" : "SCHEDULED";
-              await tx.learningPath.update({
-                where: { id: path.id },
-                data: {
-                  status: path.settledAt ? "COMPLETED" : unsettledStatus,
-                },
-              });
-            }
-          }
         }
-      };
-      await reconcilePathAfterReport();
-      return resolved;
-    });
+      }
+    }
   }
 
   private async settleSessionRuling(

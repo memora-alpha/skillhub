@@ -300,6 +300,9 @@ export class PrismaUsersRepository extends UsersRepository {
       STAFF: ["report:moderate", "learning-path:terminate"],
       ADMIN: [
         "report:moderate",
+        "report:group",
+        "report:classify",
+        "report:communicate",
         "learning-path:terminate",
         "credit:adjust",
         "credit:reverse:settlement",

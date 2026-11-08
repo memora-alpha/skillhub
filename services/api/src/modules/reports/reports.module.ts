@@ -1,5 +1,9 @@
 import { SystemConfigurationModule } from "../system-configuration/system-configuration.module";
 import { Module } from "@nestjs/common";
+import { ReportSupportService } from "./application/services/report-support.service";
+import { CaseMessagesService } from "./application/services/case-messages.service";
+import { CaseMessageRepository } from "./infrastructure/persistence/case-message.repository";
+import { ReportSupportController } from "./presentation/http/report-support.controller";
 import { DatabaseModule } from "../../infrastructure/database/database.module";
 import { AuditModule } from "../audit/audit.module";
 import { CreditModule } from "../credit/credit.module";
@@ -21,8 +25,13 @@ import { SessionChangesModule } from "../learning-sessions/session-changes.modul
     SystemConfigurationModule,
     SessionChangesModule,
   ],
-  controllers: [ReportsController],
-  providers: [ReportsService],
+  controllers: [ReportsController, ReportSupportController],
+  providers: [
+    ReportsService,
+    ReportSupportService,
+    CaseMessagesService,
+    CaseMessageRepository,
+  ],
   exports: [ReportsService],
 })
 export class ReportsModule {}
