@@ -473,8 +473,7 @@ export class ReportSupportService {
       // Path/Session blockers. Parallel transitions could reconcile the Path too soon.
       for (let index = 0; index < cases.length; index++) {
         const item = cases[index]!;
-        await this.reports.updateCaseInTransaction(
-          // NOSONAR: dependent owner transitions on one transaction, not independent I/O.
+        const transition = this.reports.updateCaseInTransaction(
           tx,
           { ...actor, permissions: [...live.permissions] },
           item.id,
@@ -490,6 +489,7 @@ export class ReportSupportService {
           },
           true,
         );
+        await transition; // NOSONAR: each transition consumes preceding case writes in this transaction.
       }
       const updated = await tx.reportIncident.update({
         where: { id: incidentId },
