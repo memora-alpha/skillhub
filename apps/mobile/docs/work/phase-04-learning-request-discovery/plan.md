@@ -21,6 +21,21 @@ S02 không cần setup lại design system; S03 implementation đã có, chỉ s
 
 ## Task còn mở, giữ ID gốc
 
+### Thông báo hạn chế đăng bài theo uy tín
+
+- [x] REP-LR-01: Đối chiếu create/publish và SkillActorService; nhận đúng `403 NEW_ACTIVITY_RESTRICTED`, không suy quyền từ điểm uy tín cached.
+- [x] REP-LR-02: Thông báo rõ chưa thể tạo/đăng yêu cầu học, CTA tới Uy tín, giữ draft và history Back; không đổi các lỗi 403 khác hoặc tự replay mutation.
+- [x] REP-LR-03: Kiểm thử HTTP fixture create/publish, phân loại lỗi và CTA; TypeScript/lint/structure. API triển khai và Android/iOS acceptance vẫn thuộc các gate hiện có bên dưới.
+- [x] REP-LR-04: Giữ policyNotice/restrictionReviews theo BE, tích hợp xác nhận chính sách trong Uy tín và hộp thoại khi create/publish bị chặn; hết hạn chưa xác nhận phải nói rõ điều kiện còn thiếu. Giữ draft, không tự đăng bài sau xác nhận.
+- [x] REP-LR-05: Preflight chính sách, khóa nhấn trùng/đổi phiên/focus cũ; POST mất phản hồi phải đọc lại, receipt thành công không gửi lại khi refresh lỗi. Regression API/hook/UI và toàn bộ mobile suite.
+- [x] REP-LR-06: Đồng bộ Nunito/theme cho modal, gọn nhóm điểm/lý do/quy tắc, ghim nút xác nhận; bỏ nút Đóng cuối modal và Kiểm tra lại trạng thái. Kiểm web fixture 320/390/430px, giữ × và retry GET có điều kiện khi lỗi.
+- [x] REP-LR-07: Kiểm GET Uy tín tại route tạo mới trước khi mở form; không tin cache cũ/điểm số, giữ draft khi quyền đổi sau khi đã soạn. Phân biệt kiểm hạn chế sớm với final validation tại POST.
+- [x] REP-LR-08: Thiết kế lại lịch sử thành timeline theo ngày, score card và font Nunito. Gỡ nút làm mới/Danh hiệu/Báo cáo/xác nhận chính sách khỏi lịch sử; chỉ giữ tải thêm theo cursor. Giữ read/error/denied/pagination và kiểm web fixture 320/390/430px.
+- [x] REP-LR-09: Bổ sung shortcut Uy tín trên Hồ sơ để người dùng có đường vào `/reputation` rồi `/reputation/history`, thay vì chỉ tiếp cận khi bị chặn đăng bài.
+- [x] REP-LR-10: GET trạng thái chính mới có policyNotice phải cho xác nhận lại, kể cả cùng nội dung; giữ receipt khi GET lỗi/cache cũ/tải thêm lịch sử, không tự POST.
+- [x] REP-LR-11: Kiểm hạn chế sớm khi mở chi tiết nháp đã lưu, chỉ khóa Đăng; giữ chỉnh sửa/hủy và không tự đăng sau GET thành công.
+- [x] REP-LR-12: Phân biệt lỗi tag/skill/skill có thể dạy/tài khoản theo code HTTP409; giữ form sửa được khi server đã từ chối rõ ràng, còn conflict/unknown outcome vẫn đối chiếu. Regression cho cả ba điểm.
+
 ### Đồng bộ owner avatar theo BE 232cb6ba
 
 Follow-up ngày 2026-10-27 trên `fix/mobile-proposal-chat-learning-path`, sau khi fetch/đối chiếu `origin/dev` 79d4bb1f; không merge hoặc sửa BE/shared/dependencies. Tái sử dụng Avatar và profile read/cache/session hiện có, giữ thiết kế card/detail.

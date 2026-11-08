@@ -1,5 +1,87 @@
 # Trạng thái Phase04 Learning Request và Discovery
 
+## Hạn chế đăng bài và xác nhận chính sách uy tín
+
+2026-11-08T20:54:19+07:00, nhánh `fix/learning-path-flow`.
+
+- Source hoàn tất trong `apps/mobile`: đối chiếu create/publish BE gọi
+  `SkillActorService.assertAllowed`, kiểm effective restriction và trả
+  `403 NEW_ACTIVITY_RESTRICTED`. Không sửa BE/shared/dependency.
+- Editor và màn chi tiết bài nháp giải thích chưa thể tạo/đăng yêu cầu học do
+  hạn chế theo chính sách uy tín. Hộp thoại tự mở với điểm/lý do/thời hạn và
+  policyNotice thật; có thể đóng/mở lại, hoặc xác nhận ở màn Uy tín. Ngày đã
+  qua mà còn thiếu xác nhận được ghi rõ. Hiển thị kết quả xem xét Staff/Admin.
+- Notice editor nằm ở footer gần nút lưu; form không bị reset khi lỗi. Màn Uy
+  tín dùng history Back để trở về form, fallback vẫn về Hồ sơ khi không có
+  history. Lỗi quyền chung, network và dependency giữ xử lý hiện có.
+- Chỉ nhấn nút xác nhận mới gửi POST. Preflight đọc lại policy; giữ receipt
+  thành công khi refetch lỗi, POST mất phản hồi yêu cầu kiểm tra trước khi thử
+  lại. Khóa nhấn trùng, focus/phiên cũ và không tự đăng lại bài. Deadline chỉ
+  kích hoạt GET khi focus/foreground; cache trước lỗi POST không đủ bằng chứng
+  để hiện thông báo đã mở quyền.
+- Receipt xác nhận không còn che policyNotice từ GET trạng thái chính mới,
+  kể cả nội dung quy tắc giống đợt cũ. Dùng số lần ghi cache thành công để
+  nhận biết read mới; không coi tải thêm history là đọc lại policy. GET lỗi
+  sau POST thành công vẫn giữ receipt và chỉ retry GET, không tự gửi POST.
+- `InfoModal` thêm busy để khóa đóng trong lúc xác nhận. Entry công khai
+  `community/policy` tránh kéo các màn community vào Request; cấu hình structure
+  cho phép đúng entry này. Không đổi root tooling hoặc shared packages.
+- Route tạo Request mới hiện đọc GET Uy tín trước khi mount form, không đợi
+  người dùng soạn rồi POST mới báo. Chỉ fresh read không lỗi/không có restriction
+  tạo mới mới mở composer; score thấp riêng lẻ không tự khóa. Nếu quyền đổi
+  sau khi đã soạn, giữ form/draft mounted và khóa lưu. Sửa bài đã có giữ luồng
+  riêng. POST vẫn kiểm tra cuối vì GET không bao phủ toàn bộ quyền/quota.
+- Chi tiết nháp đã lưu kiểm GET Uy tín trước khi bật Đăng; cached/đang đọc/
+  read lỗi/hạn chế đều khóa Đăng, có feedback và link Uy tín. Chỉnh sửa/hủy
+  giữ điều kiện riêng; không tự đăng sau khi GET gỡ hạn chế.
+- Lỗi HTTP409 có mã TAG_NOT_ACTIVE, SKILL_NOT_ACTIVE, SHARING_SKILL_CHANGED/
+  ARCHIVED/NOT_VISIBLE và CONNECTION_PARTY_UNAVAILABLE có thông báo nguyên
+  nhân/hướng xử lý riêng; không suy tất cả thành xung đột hoặc uy tín thấp.
+  Từ chối rõ ràng không đưa form vào compare/unknown; conflict409 chưa biết,
+  network/protocol/5xx chưa rõ kết quả vẫn đối chiếu trước khi gửi lại.
+- Lịch sử uy tín được tách khỏi xử lý policy: score card + timeline theo ngày,
+  badge tăng/giảm, trước → sau và giờ. Dùng Nunito/tokens toàn phần nội dung;
+  gỡ nút làm mới, Danh hiệu, Báo cáo và policy actions khỏi lịch sử. Chỉ giữ
+  nút tải thêm theo cursor; focus/resume, pull refresh và retry lỗi còn hoạt động.
+- Bổ sung shortcut Uy tín trên Hồ sơ: đường vào màn là Hồ sơ → Uy tín →
+  Lịch sử điểm & vi phạm. Route đã có nhưng trước đó thiếu entry ở Profile;
+  đã kiểm mapping shortcut tới `/reputation` và link lịch sử có thật.
+- Kiểm chứng lượt hiện tại: **1.034/1.034 full mobile tests đạt**, fail 0,
+  skipped 0; TypeScript, ESLint, structure 892 source files và whitespace đạt.
+  Regression mới kiểm composer chưa được mount khi cache cũ/hạn chế/read lỗi,
+  giữ descendant/draft khi quyền đổi, không tự khóa theo điểm số, scope ALL,
+  nhóm lịch sử theo ngày và chỉ còn action tải thêm đúng cursor; thêm regression
+  xác nhận mới cùng nội dung/receipt sau GET lỗi/pagination, quyền đăng nháp
+  độc lập chỉnh sửa và phân loại rejection409. Log ignored mới nhất:
+  `.expo/reputation-followup-tests.log` (focused 23 tests trước lượt cuối).
+- Đã xem web fixture ở 320/390/430px: timeline/font Nunito không tràn ngang,
+  khi đã tải hết lịch sử không có body buttons; route tạo bị hạn chế chưa hiện
+  ô soạn, chỉ mở composer sau response giả lập đã gỡ hạn chế. Screenshot:
+  `.expo/reputation-screens-preview/history-{320,390,430}.png` và
+  `.expo/reputation-screens-preview/create-restricted-430.png`. Dùng component
+  thật với boundary/provider fixture; không thay API/native acceptance.
+- Kiểm chứng luồng trước chỉnh UI: **1.025/1.025 full mobile tests đạt**, fail 0, skipped 0;
+  TypeScript, ESLint, structure **884 source files** và `git diff --check` đạt.
+  Regression bao phủ API policy/receipt/legacy projection, nhấn trùng, đổi
+  policy/focus/session trong preflight, response cũ sau đổi owner, POST unknown,
+  receipt thành công + read lỗi, deadline GET và UI không dùng cache cũ để
+  tuyên bố mở quyền. Log ignored: `.expo/reputation-policy-tests.log`.
+  Chạy pnpm với `pnpm_config_verify_deps_before_run=false` để dùng dependencies
+  hiện có, không purge/cài lại modules.
+- Chỉnh UI theo yêu cầu: dùng Nunito/body/heading token cho điểm, tiêu đề và
+  quy tắc; gỡ serif Metric/Panel khỏi modal, nhóm lý do/thời hạn trên nền nhẹ,
+  đánh số quy tắc riêng. Bỏ action Đóng cuối và nút Kiểm tra lại trạng thái;
+  giữ ×, một CTA xác nhận ghim dưới vùng cuộn và Thử lại chỉ trong feedback lỗi.
+- Kiểm chứng UI mới: 20 focused tests, TypeScript, ESLint, structure 885 source
+  files và whitespace đạt. Web fixture dùng component thật ở 320/390/430px:
+  font Nunito, không tràn ngang/card, không có hai nút đã gỡ, CTA luôn trong
+  viewport, xác nhận và đóng hoạt động. Screenshot đã xem tại ignored
+  `.expo/reputation-policy-preview/modal-{320,390,430}.png`; fixture không dùng
+  tài khoản/API thật. Log tests `.expo/reputation-policy-ui-tests.log`.
+- Chưa nghiệm thu tài khoản bị hạn chế với API triển khai hoặc bố cục/keyboard/
+  Back trên Android/iOS. Recovery missions nằm ngoài scope; các gate acceptance
+  hiện có vẫn mở. Contract mới tại [Uy tín](../../contracts/reputation.md).
+
 ## Đồng bộ owner avatar theo BE 232cb6ba
 
 Follow-up trên `fix/mobile-proposal-chat-learning-path`; fetch ngày 2026-10-27 xác nhận `origin/dev` 79d4bb1f đã có trong nhánh hiện tại, không có commit BE mới khác. Chỉ sửa `apps/mobile`; source/tests đã commit tại `0c533023` (`fix(mobile): use learning request owner avatars`) theo yêu cầu ngày2026-10-27, tài liệu bàn giao trong commit riêng. Lint-staged/commitlint đạt, chưa push.

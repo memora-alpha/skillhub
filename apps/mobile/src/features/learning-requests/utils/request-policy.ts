@@ -1,4 +1,5 @@
 import { AppError, errorMessage } from "@/lib/http/errors";
+import { requestRejectionMessage } from "./request-rejection";
 import type {
   OwnerRequest,
   RequestItem,
@@ -46,8 +47,20 @@ export function dateLabel(date: string | null) {
       })
     : "Chưa xác định";
 }
+export function isRequestActivityRestricted(error: unknown) {
+  return (
+    error instanceof AppError &&
+    error.kind === "http" &&
+    error.status === 403 &&
+    error.code === "NEW_ACTIVITY_RESTRICTED"
+  );
+}
 export function requestError(error: unknown, mutation = false) {
+  if (isRequestActivityRestricted(error))
+    return "Bạn chưa thể tạo hoặc đăng yêu cầu học vì tài khoản đang bị hạn chế tạo hoạt động mới theo chính sách uy tín. Xem mục Uy tín để kiểm tra điểm hiện tại, lý do và thời hạn hạn chế. Tăng điểm không tự gỡ hạn chế đang áp dụng.";
   if (error instanceof AppError) {
+    const rejection = requestRejectionMessage(error);
+    if (rejection) return rejection;
     if (error.status === 503)
       return "Yêu cầu học hiện chưa khả dụng. Vui lòng thử lại sau.";
     if (error.status === 404)

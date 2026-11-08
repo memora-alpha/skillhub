@@ -14,6 +14,7 @@ const publicFeatureEntries = new Set([
   "notifications/state",
   "messages/state",
   "proposals/state",
+  "community/policy",
 ]);
 
 function walk(directory) {
