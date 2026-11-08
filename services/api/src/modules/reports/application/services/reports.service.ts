@@ -37,6 +37,8 @@ import type {
 import { SessionChangesService } from "../../../learning-sessions/application/services/session-changes.service";
 import { assertIndependentCaseActor } from "../../domain/report-support.policy";
 
+type ReportCaseAction = "claim" | "need-more-info" | "resolve" | "reject";
+
 /** Signed Credit text, already format-checked by the DTO, in hundredths. */
 function signedCreditUnits(value: string): bigint {
   const negative = value.startsWith("-");
@@ -453,7 +455,7 @@ export class ReportsService {
   updateCase(
     actor: Principal,
     caseId: string,
-    action: "claim" | "need-more-info" | "resolve" | "reject",
+    action: ReportCaseAction,
     input: ReportCaseActionDto = {},
   ) {
     return this.transactions.run((tx) =>
@@ -466,7 +468,7 @@ export class ReportsService {
     tx: TransactionContext,
     actor: Principal,
     caseId: string,
-    action: "claim" | "need-more-info" | "resolve" | "reject",
+    action: ReportCaseAction,
     input: ReportCaseActionDto = {},
     incidentDecision = false,
   ) {
@@ -550,7 +552,7 @@ export class ReportsService {
   /** Grouped cases require an incident decision; closed cases only accept exact replays. */
   private isCaseReplay(
     item: ReportCase,
-    action: "claim" | "need-more-info" | "resolve" | "reject",
+    action: ReportCaseAction,
     incidentDecision: boolean,
   ) {
     if (
