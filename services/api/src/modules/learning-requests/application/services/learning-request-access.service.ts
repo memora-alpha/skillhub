@@ -38,7 +38,8 @@ export class LearningRequestAccessService {
     permission: PermissionCode,
   ): Promise<Principal> {
     const live = await this.assertAction(tx, principal, permission);
-    if (!live.roles.includes("USER")) throw new ForbiddenException();
+    if (!live.roles.some((role) => role === "USER" || role === "STAFF"))
+      throw new ForbiddenException();
     return live;
   }
 }

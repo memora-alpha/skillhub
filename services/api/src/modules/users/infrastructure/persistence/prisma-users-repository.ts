@@ -1,3 +1,4 @@
+import { resolveStaffPermissions } from "../../domain/staff-permissions";
 import { BadRequestException, Injectable } from "@nestjs/common";
 import { IdentityTx } from "../../../../shared/database/identity-transactions";
 import {
@@ -113,7 +114,11 @@ export class PrismaUsersRepository extends UsersRepository {
     const next = add
       ? role
       : await tx.role.findUniqueOrThrow({ where: { code: "USER" } });
-    await tx.user.update({ where: { id: userId }, data: { roleId: next.id } });
+    await tx.userPermissionOverride.deleteMany({ where: { userId } });
+    await tx.user.update({
+      where: { id: userId },
+      data: { roleId: next.id, staffPermissionVersion: { increment: 1 } },
+    });
     return true;
   }
   async grants(
@@ -132,15 +137,34 @@ export class PrismaUsersRepository extends UsersRepository {
         },
       },
     });
+    const defaults = user.roleIdRecord.rolePermissionRoleIdRecords.map(
+      (grant) => grant.permissionIdRecord.code,
+    );
+    if (user.roleIdRecord.code !== "STAFF")
+      return {
+        roles: [user.roleIdRecord.code],
+        permissions: [...new Set(defaults)],
+      };
+    const [participation, overrides] = await Promise.all([
+      tx.rolePermission.findMany({
+        where: { roleIdRecord: { code: "USER" } },
+        include: { permissionIdRecord: true },
+      }),
+      tx.userPermissionOverride.findMany({
+        where: { userId },
+        include: { permission: true },
+      }),
+    ]);
     return {
       roles: [user.roleIdRecord.code],
-      permissions: [
-        ...new Set(
-          user.roleIdRecord.rolePermissionRoleIdRecords.map(
-            (grant) => grant.permissionIdRecord.code,
-          ),
-        ),
-      ],
+      permissions: resolveStaffPermissions(
+        defaults,
+        participation.map((grant) => grant.permissionIdRecord.code),
+        overrides.map((grant) => ({
+          code: grant.permission.code,
+          effect: grant.effect,
+        })),
+      ),
     };
   }
   async profile(
@@ -221,6 +245,7 @@ export class PrismaUsersRepository extends UsersRepository {
       "users.lock",
       "users.unlock",
       "roles.staff.assign",
+      "staff-permissions:manage",
     ];
     const learningRequestGrants = {
       USER: [
