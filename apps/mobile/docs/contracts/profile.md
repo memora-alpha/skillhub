@@ -25,6 +25,16 @@ Self-preview lấy saved account allowlist và public Skills API; another UUID d
 
 SRS PRO-001..004 có path count/title; completedSessionCount không thay completedLearningPathCount, UI không gán số buổi sang số lộ trình. Timezone/locale/title/notifications settings chưa đủ triển khai; website/rating/learned-taught counts chưa có contract dùng cho profile. Native Text không chứng minh backend đã sanitize bio. Privacy theo [security](../guides/security-and-privacy.md), không phát private evidence/download từ public UI kể cả self.
 
+## Điều hướng hồ sơ qua avatar
+
+Các entry xem hồ sơ trong yêu cầu học, chi tiết đề xuất, chi tiết buổi học,
+tìm người chia sẻ và khám phá mẫu dùng avatar làm vùng nhấn. Tên và hàng
+metadata không mở hồ sơ; nút xem hồ sơ trùng được gỡ. Avatar trên trang Hồ sơ
+của mình mở self-preview; avatar trên self-preview/public profile giữ dạng
+hiển thị để tránh đẩy lặp cùng màn. Điều hướng Back, tab Hồ sơ và chỉnh sửa
+tài khoản giữ chức năng riêng. Khi đi từ yêu cầu học, giữ `requestId` cho Back
+fallback. Avatar lỗi ảnh vẫn giữ initials và hành động mở hồ sơ.
+
 ## Evidence và việc còn mở
 
 [Checklist003](../../specs/003-profile-public-profile/checklist.md), [tasks003](../../specs/003-profile-public-profile/tasks.md), [validation003](../../specs/003-profile-public-profile/validation.md) là nguồn lịch sử: có Android14/Pixel7/LAN save/reopen/font130% cho revision cũ; pending Back trong request chậm, iOS/thiết bị thật, Public Profile Figma riêng vẫn mở. Web avatar202/QUARANTINED và ClamAV PING/INSTREAM không chứng minh full API CLEAN. Native gallery/upload và Settings recovery/email thật còn thiếu. Amendment other-user profile2026-10-13 có fixture/51 focused tests được ghi nhận ở lần trước; API/native acceptance cho amendment chưa được chạy. Không chạy lại các checks này trong migration.

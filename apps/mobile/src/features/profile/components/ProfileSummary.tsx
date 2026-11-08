@@ -18,10 +18,12 @@ export function ProfileSummary({
   profile,
   onEdit,
   avatarNotice,
+  linkToPublicProfile,
 }: Readonly<{
   profile: PublicProfile;
   onEdit?: () => void;
   avatarNotice?: ReactNode;
+  linkToPublicProfile?: boolean;
 }>) {
   const stats = [
     { value: profile.reputationScore, label: "Điểm uy tín" },
@@ -37,6 +39,7 @@ export function ProfileSummary({
         avatarUrl={profile.avatarUrl}
         selectedTitle={profile.selectedTitle}
         onEdit={onEdit}
+        linkToPublicProfile={linkToPublicProfile}
       />
       {avatarNotice}
       <View style={styles.stats}>

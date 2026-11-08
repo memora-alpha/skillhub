@@ -1,6 +1,5 @@
 import { StyleSheet, View } from "react-native";
 import { Redirect, useRouter } from "expo-router";
-import { ProfileButton as Button } from "../components/ProfileButton";
 import { useAuthSession } from "@/features/auth";
 import { OwnProfileSkillList } from "@/features/skills";
 import { ProfileLayout } from "../components/ProfileLayout";
@@ -23,18 +22,8 @@ export function ProfileScreen() {
             profile={profile}
             onEdit={() => router.push("/edit-profile")}
             avatarNotice={<AvatarUploadNotice />}
+            linkToPublicProfile
           />
-          <Button
-            variant="secondary"
-            onPress={() =>
-              router.push({
-                pathname: "/profiles/[userId]",
-                params: { userId: profile.userId },
-              })
-            }
-          >
-            Xem hồ sơ công khai
-          </Button>
           <ProfileShortcuts
             onOpen={open}
             onSettings={() => router.push("/account-settings")}

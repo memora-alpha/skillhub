@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Avatar } from "@/components/Avatar";
+import { ProfileAvatarLink } from "@/components/profile-avatar-link";
 import { Icon } from "@/components/Icon";
 import { typography, avatarSizes, iconSizes, fonts } from "@/constants/theme";
 import { profileColors } from "../constants/theme";
@@ -11,6 +12,7 @@ export function ProfileHero({
   avatarUrl = null,
   selectedTitle,
   onEdit,
+  linkToPublicProfile = false,
 }: {
   name: string;
   userId: string;
@@ -18,16 +20,27 @@ export function ProfileHero({
   avatarUrl?: string | null;
   selectedTitle?: string | null;
   onEdit?: () => void;
+  linkToPublicProfile?: boolean;
 }) {
   return (
     <View style={styles.hero}>
       <View style={styles.top}>
-        <Avatar
-          name={name}
-          userId={userId}
-          size={avatarSizes.profile}
-          sourceUri={avatarUrl}
-        />
+        {linkToPublicProfile ? (
+          <ProfileAvatarLink
+            name={name}
+            userId={userId}
+            size={avatarSizes.profile}
+            sourceUri={avatarUrl}
+            href={{ pathname: "/profiles/[userId]", params: { userId } }}
+          />
+        ) : (
+          <Avatar
+            name={name}
+            userId={userId}
+            size={avatarSizes.profile}
+            sourceUri={avatarUrl}
+          />
+        )}
         {onEdit && (
           <Pressable
             accessibilityRole="button"

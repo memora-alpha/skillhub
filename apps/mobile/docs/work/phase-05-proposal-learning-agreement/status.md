@@ -1,8 +1,28 @@
 # Trạng thái Phase 05–06
 
-Cập nhật tài liệu: 2026-11-03T15:52:11+07:00.
+Cập nhật tài liệu: 2026-11-08T16:14:30+07:00.
 
 **Ready for review — source complete; acceptance pending.** Source và regression đã hoàn tất trên nhánh `fix/mobile-proposal-chat-learning-path`; nghiệm thu API thật và Android/iOS còn mở.
+
+## Điều hướng hồ sơ qua avatar
+
+2026-11-08T16:14:30+07:00, trên nhánh hiện tại `fix/learning-path-flow`.
+
+- Entry xem hồ sơ trong Request, chi tiết Proposal/Session, tìm người chia sẻ,
+  khám phá mẫu và self-preview chuyển sang avatar. Gỡ nút trùng và chevron của
+  hàng không còn nhấn; tên/metadata giữ dạng thông tin. Giữ `requestId` khi mở
+  từ Request, ảnh thật/initials và xử lý lỗi ảnh hiện có.
+- Phát hiện và sửa hai link tới route không tồn tại `/proposals/[id]` trong
+  footer Request và thông báo đề xuất trùng thành `/proposal/[id]`. Regression
+  đề xuất trùng kiểm file route đích có thật, đúng ID và không hiện action khi
+  đang kiểm tra hoặc read lỗi.
+- 32 focused tests đạt, fail 0, skipped 0; TypeScript, ESLint, structure
+  (878 source files) và `git diff --check` đạt. Chạy pnpm với
+  `pnpm_config_verify_deps_before_run=false` để dùng dependencies hiện có vì
+  wrapper mặc định định cài lại modules rồi dừng do no-TTY.
+- Phạm vi kiểm chứng là source và host tests; chưa nghiệm thu giao diện,
+  Back/gesture trên Android/iOS hoặc luồng hai tài khoản với API triển khai.
+  Không xác nhận thêm lỗi nào trong phạm vi rà luồng điều hướng này.
 
 ## Tải Hành trình của tôi
 

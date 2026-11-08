@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { View } from "react-native";
-import { Avatar } from "@/components/Avatar";
+import { ProfileAvatarLink } from "@/components/profile-avatar-link";
 import { Badge } from "@/components/Badge";
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
@@ -125,7 +125,11 @@ function SharerResults({
       {query.items.map((row) => (
         <Panel key={row.id} title={row.user.fullName}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-            <Avatar
+            <ProfileAvatarLink
+              href={{
+                pathname: "/profiles/[userId]",
+                params: { userId: row.user.userId },
+              }}
               name={row.user.fullName}
               userId={row.user.userId}
               sourceUri={row.user.avatarUrl}
@@ -149,9 +153,6 @@ function SharerResults({
           <Copy>{row.description}</Copy>
           <RouteButton href={`/public-skills/${row.user.userId}/${row.id}`}>
             Xem kỹ năng & kết nối
-          </RouteButton>
-          <RouteButton secondary href={`/profiles/${row.user.userId}`}>
-            Xem hồ sơ
           </RouteButton>
         </Panel>
       ))}

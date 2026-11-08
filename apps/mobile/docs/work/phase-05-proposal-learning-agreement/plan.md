@@ -18,6 +18,8 @@ Phạm vi Phase 05–06 nằm trong một work với hai mốc bên dưới. Gi�
 
 Luồng: Learning Request hoặc Sharing Skill → gửi proposal → Đã gửi → người nhận accept → Chat.
 
+- [x] Chuyển entry xem hồ sơ sang avatar trong Request/Proposal/Session/Skills và self-preview; giữ ngữ cảnh Back và bỏ nút trùng. Sửa hai entry xem đề xuất dùng route `/proposal/[id]` có thật.
+
 - [x] Kiểm tra nguồn, trạng thái bài/kỹ năng, kỹ năng dạy phù hợp và proposal trùng trước khi cho gửi; đọc lỗi không được coi là đủ điều kiện.
 - [x] Quản lý Nhận được/Đã gửi; hiển thị proposal đã gửi trên Request; accept/reject/edit/withdraw theo quyền và version.
 - [x] Accept mở đúng conversation. Inbox/chat dùng API, avatar thật, tải tin mới nhất trước, phân trang tin cũ và đồng bộ read/delivery/SSE.
