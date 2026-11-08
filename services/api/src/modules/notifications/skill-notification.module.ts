@@ -1,4 +1,6 @@
 import { Module } from "@nestjs/common";
+import { IdentityModule } from "../identity.module";
+import { CaseMessageNotificationHandler } from "./infrastructure/events/case-message-notification.handler";
 import { ConfigService } from "@nestjs/config";
 import { DatabaseModule } from "../../infrastructure/database/database.module";
 import { SmtpTransactionalMailer } from "../../infrastructure/email/smtp-transactional-mailer.adapter";
@@ -22,8 +24,9 @@ import {
 } from "./application/ports/notification-channels";
 import { PrismaInAppNotificationAdapter } from "./infrastructure/channels/prisma-in-app-notification.adapter";
 @Module({
-  imports: [OutboxModule, VerificationsModule, DatabaseModule],
+  imports: [OutboxModule, VerificationsModule, DatabaseModule, IdentityModule],
   providers: [
+    CaseMessageNotificationHandler,
     SkillNotificationHandler,
     LearningPathNotificationHandler,
     SessionNotificationHandler,

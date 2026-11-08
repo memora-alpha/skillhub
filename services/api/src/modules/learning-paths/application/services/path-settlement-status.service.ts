@@ -1,4 +1,5 @@
 import { ConflictException, Injectable } from "@nestjs/common";
+import { PathOverviewReader } from "./path-overview.reader";
 import { TransactionRunner } from "../../../../infrastructure/database/transaction-runner";
 import type { Principal } from "../../../auth/application/services/sessions.service";
 import { ReportsService } from "../../../reports/application/services/reports.service";
@@ -15,8 +16,11 @@ export class PathSettlementStatusService {
   constructor(
     private readonly transactions: TransactionRunner,
     private readonly reports: ReportsService,
+    private readonly overview?: PathOverviewReader,
   ) {}
   read(actor: Principal, pathId: string) {
+    if (this.overview)
+      return this.overview.read(actor, pathId).then((row) => row.settlement);
     return this.transactions.run(async (tx) => {
       await lockLearningPath(tx, pathId);
       const path = await tx.learningPath.findUniqueOrThrow({

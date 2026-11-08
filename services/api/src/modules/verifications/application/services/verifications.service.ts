@@ -134,6 +134,7 @@ export class VerificationsService {
             sharingSkillId: id,
             status: "PENDING",
             submittedAt: new Date(),
+            submittedRole: actor.roles[0],
           });
           // Acquire file locks in the sorted order and persist each binding before its evidence.
           for (const fileId of data.fileIds) {
@@ -247,6 +248,12 @@ export class VerificationsService {
           owner.userId,
           initial.sharingSkillId,
         );
+        await this.actors.assertSkillReviewer(
+          tx,
+          actor,
+          owner.userId,
+          initial.submittedRole,
+        );
         const row = await this.repository.get(id, tx, true);
         expectedVersion(row.version, input.expectedVersion);
         if (row.status !== "PENDING")
@@ -310,9 +317,18 @@ export class VerificationsService {
         return { id, status, version: decided.version };
       },
       async (tx) => {
-        await this.actors.require(tx, command.principal, permission, [
+        const actor = await this.actors.require(
+          tx,
+          command.principal,
+          permission,
+          [owner.userId],
+        );
+        await this.actors.assertSkillReviewer(
+          tx,
+          actor,
           owner.userId,
-        ]);
+          initial.submittedRole,
+        );
       },
     );
     return verificationView(await this.repository.get(result.value.id));
