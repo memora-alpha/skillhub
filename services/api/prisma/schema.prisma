@@ -352,6 +352,11 @@ model User {
   respondedLearningChanges LearningChangeRequest[] @relation("LearningChange_responder")
   resolvedLearningChanges  LearningChangeRequest[] @relation("LearningChange_resolver")
 
+  handledReportIncidents    ReportIncident[]
+  caseMessagePartyReceipts  ReportMessageReceipt[] @relation("CaseMessage_party")
+  caseMessageSenderReceipts ReportMessageReceipt[] @relation("CaseMessage_sender")
+  privateReportEvidence     ReportEvidence[]
+
   @@unique([id, avatarAssetId])
   @@index([roleId])
   @@index([createdAt(sort: Desc), id(sort: Desc)])
@@ -1032,6 +1037,12 @@ model ReportCase {
   relatedOrderIdRecord        MaterialOrder?     @relation("ReportCase_related_order_id", fields: [relatedOrderId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   reportEvidenceCaseIdRecords ReportEvidence[]   @relation("ReportEvidence_case_id")
 
+  severity        String?                @db.VarChar(8)
+  version         Int                    @default(1)
+  incidentId      String?                @map("incident_id") @db.Uuid
+  incident        ReportIncident?        @relation(fields: [incidentId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  messageReceipts ReportMessageReceipt[]
+
   @@index([reporterId])
   @@index([relatedSessionId])
   @@index([relatedTransactionId])
@@ -1040,6 +1051,7 @@ model ReportCase {
   @@index([relatedPathId])
   @@index([relatedMaterialId])
   @@index([relatedOrderId])
+  @@index([incidentId], map: "report_cases_incident_idx")
   @@map("report_cases")
 }
 
@@ -1052,6 +1064,11 @@ model ReportEvidence {
   uploadedAt    DateTime @map("uploaded_at") @db.Timestamptz(3)
 
   caseIdRecord ReportCase @relation("ReportEvidence_case_id", fields: [caseId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  partyId      String?     @map("party_id") @db.Uuid
+  storedFileId String?     @unique @map("stored_file_id") @db.Uuid
+  party        User?       @relation(fields: [partyId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  storedFile   StoredFile? @relation(fields: [storedFileId], references: [id], onDelete: Restrict, onUpdate: Restrict)
 
   @@index([caseId])
   @@map("report_evidence")
@@ -1236,7 +1253,7 @@ model LearningPath {
   learningPlanPathIdRecords        LearningPlan[]        @relation("LearningPlan_path_id")
 
   participantASettlementApprovedAt DateTime?               @map("participant_a_settlement_approved_at") @db.Timestamptz(3)
-  reputationRewardedAt DateTime? @map("reputation_rewarded_at") @db.Timestamptz(3)
+  reputationRewardedAt             DateTime?               @map("reputation_rewarded_at") @db.Timestamptz(3)
   terminationApprovedAt            DateTime?               @map("termination_approved_at") @db.Timestamptz(3)
   participantBSettlementApprovedAt DateTime?               @map("participant_b_settlement_approved_at") @db.Timestamptz(3)
   changeRequests                   LearningChangeRequest[]
@@ -1526,11 +1543,6 @@ model MaterialEntitlement {
 }
 
 model UserRestriction {
-  policyRequired Boolean @default(false) @map("policy_required")
-  policyAcknowledgedAt DateTime? @map("policy_acknowledged_at") @db.Timestamptz(3)
-  triggerEventKey String? @map("trigger_event_key") @db.VarChar(255)
-  reviewDecision String? @map("review_decision") @db.Text
-  reviewedAt DateTime? @map("reviewed_at") @db.Timestamptz(3)
   id              String    @id @default(uuid()) @map("restriction_id") @db.Uuid
   userId          String    @map("user_id") @db.Uuid
   // Open vocabulary; owning feature must validate it before release.
@@ -1546,6 +1558,12 @@ model UserRestriction {
 
   userIdRecord          User  @relation("UserRestriction_user_id", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   appliedByUserIdRecord User? @relation("UserRestriction_applied_by_user_id", fields: [appliedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  triggerEventKey      String?   @map("trigger_event_key") @db.VarChar(255)
+  policyRequired       Boolean   @default(false) @map("policy_required")
+  policyAcknowledgedAt DateTime? @map("policy_acknowledged_at") @db.Timestamptz(3)
+  reviewDecision       String?   @map("review_decision") @db.Text
+  reviewedAt           DateTime? @map("reviewed_at") @db.Timestamptz(3)
 
   @@index([userId])
   @@index([appliedByUserId])
@@ -1737,31 +1755,32 @@ model SystemConfigurationRevision {
 }
 
 model StoredFile {
-  id                String                @id @db.Uuid
-  purpose           String
-  uploadedBy        String                @map("uploaded_by") @db.Uuid
-  objectKey         String                @unique @map("object_key")
-  generation        Int                   @default(1)
-  originalName      String                @map("original_name")
-  detectedMime      String?               @map("detected_mime")
-  sizeBytes         Int?                  @map("size_bytes")
-  sha256            String?
-  state             String
-  scanAttempts      Int                   @default(0) @map("scan_attempts")
-  scanVerdict       String?               @map("scan_verdict")
-  scannerVersion    String?               @map("scanner_version")
-  scannedAt         DateTime?             @map("scanned_at") @db.Timestamptz(3)
-  scanLeaseToken    String?               @map("scan_lease_token") @db.Uuid
-  scanLeaseUntil    DateTime?             @map("scan_lease_until") @db.Timestamptz(3)
-  providerVersionId String?               @map("provider_version_id")
-  failureCode       String?               @map("failure_code")
-  createdAt         DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt         DateTime              @updatedAt @map("updated_at") @db.Timestamptz(3)
-  scanEvents        StoredFileScanEvent[]
-  attachedAt        DateTime?             @map("attached_at") @db.Timestamptz(3)
-  resourceType      String?               @map("resource_type")
-  resourceId        String?               @map("resource_id") @db.Uuid
-  evidence          SkillEvidence?
+  id                    String                @id @db.Uuid
+  purpose               String
+  uploadedBy            String                @map("uploaded_by") @db.Uuid
+  objectKey             String                @unique @map("object_key")
+  generation            Int                   @default(1)
+  originalName          String                @map("original_name")
+  detectedMime          String?               @map("detected_mime")
+  sizeBytes             Int?                  @map("size_bytes")
+  sha256                String?
+  state                 String
+  scanAttempts          Int                   @default(0) @map("scan_attempts")
+  scanVerdict           String?               @map("scan_verdict")
+  scannerVersion        String?               @map("scanner_version")
+  scannedAt             DateTime?             @map("scanned_at") @db.Timestamptz(3)
+  scanLeaseToken        String?               @map("scan_lease_token") @db.Uuid
+  scanLeaseUntil        DateTime?             @map("scan_lease_until") @db.Timestamptz(3)
+  providerVersionId     String?               @map("provider_version_id")
+  failureCode           String?               @map("failure_code")
+  createdAt             DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime              @updatedAt @map("updated_at") @db.Timestamptz(3)
+  scanEvents            StoredFileScanEvent[]
+  attachedAt            DateTime?             @map("attached_at") @db.Timestamptz(3)
+  resourceType          String?               @map("resource_type")
+  resourceId            String?               @map("resource_id") @db.Uuid
+  evidence              SkillEvidence?
+  privateReportEvidence ReportEvidence?
 
   @@index([state, createdAt])
   @@index([scanLeaseUntil])
@@ -2078,4 +2097,39 @@ model PathSettlementAttempt {
   path         LearningPath @relation(fields: [pathId], references: [id], onDelete: Restrict)
 
   @@map("path_settlement_attempts")
+}
+
+// Runtime incident and message receipt fragments.
+model ReportIncident {
+  id         String       @id @default(uuid()) @db.Uuid
+  targetType String       @map("target_type") @db.Text
+  targetId   String       @map("target_id") @db.Text
+  status     String       @default("OPEN") @db.VarChar(16)
+  severity   String       @db.VarChar(8)
+  reason     String       @db.VarChar(2000)
+  handlerId  String       @map("handler_id") @db.Uuid
+  version    Int          @default(1)
+  createdAt  DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  resolvedAt DateTime?    @map("resolved_at") @db.Timestamptz(3)
+  cases      ReportCase[]
+  handler    User         @relation(fields: [handlerId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([status, createdAt, id], map: "report_incidents_queue_idx")
+  @@map("report_incidents")
+}
+
+model ReportMessageReceipt {
+  messageId String     @id @map("message_id") @db.VarChar(64)
+  caseId    String     @map("case_id") @db.Uuid
+  partyId   String     @map("party_id") @db.Uuid
+  senderId  String     @map("sender_id") @db.Uuid
+  digest    String     @db.Char(64)
+  createdAt DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  report    ReportCase @relation(fields: [caseId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  party  User @relation("CaseMessage_party", fields: [partyId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  sender User @relation("CaseMessage_sender", fields: [senderId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([caseId, partyId, createdAt, messageId], map: "report_message_receipts_thread_idx")
+  @@map("report_message_receipts")
 }
