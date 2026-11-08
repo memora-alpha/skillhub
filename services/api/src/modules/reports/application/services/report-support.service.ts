@@ -122,23 +122,34 @@ export class ReportSupportService {
     ]);
     const pathById = new Map(paths.map((row) => [row.id, row]));
     const orderById = new Map(orders.map((row) => [row.id, row]));
-    for (const item of cases) {
-      const parties = new Set<string>(item.reporterId ? [item.reporterId] : []);
-      if (item.targetType === "USER") parties.add(item.targetId);
-      if (item.relatedPathId) {
-        const path = pathById.get(item.relatedPathId);
-        if (!path) throw new NotFoundException("LEARNING_PATH_NOT_FOUND");
-        parties.add(path.participantAId);
-        parties.add(path.participantBId);
-      }
-      if (item.relatedOrderId) {
-        const order = orderById.get(item.relatedOrderId);
-        if (!order) throw new NotFoundException("MATERIAL_ORDER_NOT_FOUND");
-        parties.add(order.buyerId);
-        parties.add(order.sellerId);
-      }
-      assertIndependentCaseActor(actorId, [...parties]);
+    for (const item of cases)
+      this.assertCaseParties(actorId, item, pathById, orderById);
+  }
+  /** Reject a handler who is any party, including a participant who did not report. */
+  private assertCaseParties(
+    actorId: string,
+    item: CaseParties,
+    paths: ReadonlyMap<
+      string,
+      { participantAId: string; participantBId: string }
+    >,
+    orders: ReadonlyMap<string, { buyerId: string; sellerId: string }>,
+  ) {
+    const parties = new Set<string>(item.reporterId ? [item.reporterId] : []);
+    if (item.targetType === "USER") parties.add(item.targetId);
+    if (item.relatedPathId) {
+      const path = paths.get(item.relatedPathId);
+      if (!path) throw new NotFoundException("LEARNING_PATH_NOT_FOUND");
+      parties.add(path.participantAId);
+      parties.add(path.participantBId);
     }
+    if (item.relatedOrderId) {
+      const order = orders.get(item.relatedOrderId);
+      if (!order) throw new NotFoundException("MATERIAL_ORDER_NOT_FOUND");
+      parties.add(order.buyerId);
+      parties.add(order.sellerId);
+    }
+    assertIndependentCaseActor(actorId, [...parties]);
   }
   private async audit(
     tx: TransactionContext,
