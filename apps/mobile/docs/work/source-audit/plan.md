@@ -78,3 +78,11 @@ Kết quả local không nghiệm thu backend/deployment hoặc native. Không �
 - [x] Sửa read preference email có thể retry sau lỗi bộ nhớ ban đầu, xác nhận regression thất bại trước sửa và đạt sau sửa; nối shortcut Đánh giá về tôi tới route hiện có.
 - [x] Chạy full suite, TypeScript, lint, structure và export web; cập nhật [hồ sơ dọn source](cleanup-2026-11-01.md) và [status](status.md) với kết quả và giới hạn.
 - [x] Rà toàn bộ diff trước commit, chạy lại tests trọng tâm/format/quy tắc commit và kiểm toolchain pnpm đúng phiên bản; ghi kết luận source ready cùng acceptance còn mở trong status. Chưa stage/commit/push.
+
+## Màn Chính sách mobile — 2026-11-08
+
+- [x] Thay Quay lại bằng icon mũi tên, giữ history Back và fallback guest.
+- [x] Tách Điều khoản/Bảo mật; mặc định tóm tắt 5 ý, cho đọc bản đầy đủ và giữ metadata/bản dự thảo. Nội dung đăng ký vẫn dùng bản đầy đủ.
+- [x] Đối chiếu bản tóm tắt với shared legal draft và source uy tín/điều khoản/Credit; không tự đặt liên hệ, retention hoặc cam kết pháp lý. Không sửa shared content/BE.
+- [x] Kiểm web fixture 320/390/430px, chuyển mục/đọc đầy đủ/back/font/overflow; TypeScript, lint và structure.
+- [x] Chỉnh bố cục theo phản hồi tiếp: tham khảo privacy hub chính thức Airbnb/Spotify, dùng tab gạch chân + danh sách chủ đề mở/đóng, hạ notice/version xuống cuối. Dùng Nunito/theme; kiểm accordion, accessibility, loaded fonts và full suite do bổ sung aria mapping trên Button mobile.

@@ -1,5 +1,38 @@
 # Kết quả rà source mobile
 
+## Màn Chính sách — 2026-11-08T21:14:28+07:00
+
+- Theo yêu cầu mới, `/policies` đổi Quay lại thành icon mũi tên, giữ nhãn
+  accessibility, history Back và fallback `/`.
+- Chỉnh bố cục theo phản hồi tiếp: header Chính sách căn giữa, tab gạch chân,
+  tiêu đề tài liệu rõ và 5 chủ đề có icon/mô tả ngắn. Mỗi lần chạm chỉ mở một
+  tóm tắt; chuyển tab reset danh sách/đầu trang. Link toàn văn sau danh sách,
+  notice/version xuống cuối; ngày cập nhật/badge draft gọn dưới tiêu đề.
+  Dùng Nunito/theme, giữ Đọc bản đầy đủ/Xem tóm tắt và toàn văn ở đăng ký.
+- Tham khảo cách tách lớp đọc nhanh/toàn văn tại
+  [Airbnb Privacy](https://www.airbnb.com/privacy) và
+  [Spotify Safety & Privacy](https://www.spotify.com/us/safetyandprivacy/learn-more-about-privacy/plain).
+  Đây là tham khảo trang công khai, không phải nghiệm thu app native của họ.
+  Thêm mapping aria-expanded/aria-selected từ accessibilityState trong Button
+  mobile để web preview và screen reader có trạng thái tương ứng; giữ API/visual
+  mặc định của các consumer khác.
+- Tóm tắt căn cứ shared legal draft `2026-11-05-draft-4`, source policy hạn
+  chế và phí quyết toán 4% (`credit/domain/money.ts`). Nêu hạn chế uy tín,
+  tăng điểm không tự gỡ, hoàn Credit có điều kiện và chưa hỗ trợ tự xóa toàn
+  bộ tài khoản. Không sửa shared/BE hoặc tự bổ sung thông tin liên hệ/retention.
+- TypeScript, full ESLint, structure 894 source files và whitespace đạt.
+  Full mobile suite 1.034/1.034 đạt, không fail/skipped; log ignored
+  `.expo/legal-layout-tests.log`. ScrollView dùng ScrollViewInstance theo RN0.88.
+- Web fixture dùng screen/summary/toàn văn/Button/Icon thật tại 320/390/430px:
+  không tràn ngang, font Nunito thực sự đã load, icon-only Back, history/fallback,
+  accordion mở/đóng/thay mục, aria-expanded, chuyển tab về danh sách và đọc
+  đủ hai bản đạt. Consumer PolicyContent mặc định dùng ở
+  đăng ký vẫn hiển thị toàn văn/notice. Đã xem screenshot terms-390/privacy-390
+  trong ignored `.expo/legal-preview/`; script `.expo/legal-preview.cjs`.
+- Source/UI complete; chưa kiểm Android/iOS. Đây không phải phê duyệt pháp
+  lý: bản gốc vẫn thiếu đầu mối liên hệ, thời hạn lưu giữ và một số quy tắc
+  Credit; chưa xác minh termsVersion của API triển khai.
+
 ## Hiện trạng
 
 - Cập nhật lúc: 2026-11-01T07:48:21+07:00.
