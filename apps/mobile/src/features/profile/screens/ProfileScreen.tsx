@@ -21,13 +21,11 @@ export function ProfileScreen() {
           <ProfileSummary
             profile={profile}
             onEdit={() => router.push("/edit-profile")}
+            onSettings={() => router.push("/account-settings")}
             avatarNotice={<AvatarUploadNotice />}
             linkToPublicProfile
           />
-          <ProfileShortcuts
-            onOpen={open}
-            onSettings={() => router.push("/account-settings")}
-          />
+          <ProfileShortcuts onOpen={open} />
           <ProfileAbout bio={profile.bio} />
           <OwnProfileSkillList />
           <ProfileLogout />

@@ -36,9 +36,4 @@ export const profileActions: {
     icon: "star",
     color: colors.gold,
   },
-  {
-    label: "Cài đặt",
-    icon: "settings",
-    color: colors.inkSoft,
-  },
 ];

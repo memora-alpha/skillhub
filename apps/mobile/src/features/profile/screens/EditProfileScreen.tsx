@@ -148,7 +148,8 @@ function ProfileForm({ session }: { session: AccountSession }) {
         );
     } finally {
       selecting.current = false;
-      if (isCurrent()) setPicking(false);
+      // Release this form's local lock even if the picker finishes while blurred.
+      setPicking(false);
     }
   };
   const save = form.handleSubmit(async (values) => {

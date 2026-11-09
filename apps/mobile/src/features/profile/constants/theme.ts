@@ -41,5 +41,4 @@ export const profileActionTints: Readonly<Record<string, string>> = {
   award: "#FFF7DE",
   shield: "#F0EEFF",
   star: "#FFF7DE",
-  settings: profileColors.neutral,
 };

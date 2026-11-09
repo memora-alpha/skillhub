@@ -17,11 +17,13 @@ import type { PublicProfile } from "../types/profile";
 export function ProfileSummary({
   profile,
   onEdit,
+  onSettings,
   avatarNotice,
   linkToPublicProfile,
 }: Readonly<{
   profile: PublicProfile;
   onEdit?: () => void;
+  onSettings?: () => void;
   avatarNotice?: ReactNode;
   linkToPublicProfile?: boolean;
 }>) {
@@ -39,6 +41,7 @@ export function ProfileSummary({
         avatarUrl={profile.avatarUrl}
         selectedTitle={profile.selectedTitle}
         onEdit={onEdit}
+        onSettings={onSettings}
         linkToPublicProfile={linkToPublicProfile}
       />
       {avatarNotice}
