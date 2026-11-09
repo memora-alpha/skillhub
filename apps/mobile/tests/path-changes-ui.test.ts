@@ -613,7 +613,7 @@ test("partner decline submits expected version only after review, and stale/clos
     h.close();
   }
 });
-test("cancellation blockers share one warning that distinguishes submitted from cancelled", () => {
+test("disputes and policy block Credit settlement without blocking cancellation approval", () => {
   const h = harness("termination-request-card");
   try {
     for (const [dispute, policy] of [
@@ -623,11 +623,20 @@ test("cancellation blockers share one warning that distinguishes submitted from 
     ]) {
       h.request.blockedByDispute = dispute!;
       h.request.awaitingPolicy = policy!;
+      h.setViewer(fixtureId(1));
       const warnings = nodes(h.render()).filter(
         (node) => node.type === "Notice" && node.props.tone === "warning",
       );
       assert.equal(warnings.length, 1);
-      assert.match(text(warnings[0]), /Đã gửi yêu cầu, lộ trình chưa hủy/);
+      assert.match(text(warnings[0]), /Credit chưa thể quyết toán: chờ/);
+      assert.match(
+        text(warnings[0]),
+        /Đã gửi yêu cầu hủy, đang chờ đối tác đồng ý/,
+      );
+      assert.doesNotMatch(
+        text(warnings[0]),
+        /lộ trình chưa hủy|thực hiện quyết định dừng/,
+      );
       assert.equal(
         text(warnings[0]).includes("giải quyết tranh chấp"),
         dispute,
@@ -636,6 +645,12 @@ test("cancellation blockers share one warning that distinguishes submitted from 
         text(warnings[0]).includes("duyệt chính sách Credit"),
         policy,
       );
+      h.setViewer(fixtureId(2));
+      assert.match(
+        text(h.render()),
+        /Đối tác đã gửi yêu cầu hủy, đang chờ bạn phản hồi/,
+      );
+      assert.equal(button(h.render(), "Đồng ý hủy").disabled, false);
     }
     h.request.blockedByDispute = false;
     h.request.awaitingPolicy = false;
@@ -645,6 +660,15 @@ test("cancellation blockers share one warning that distinguishes submitted from 
       ).length,
       0,
     );
+    h.request.blockedByDispute = true;
+    h.request.status = "STAFF_REVIEW";
+    assert.match(text(h.render()), /Yêu cầu hủy đang chờ nhân viên xem xét/);
+    assert.doesNotMatch(
+      text(h.render()),
+      /đang chờ đối tác đồng ý|đang chờ bạn phản hồi/,
+    );
+    h.request.status = "ACCEPTED";
+    assert.match(text(h.render()), /đã được đồng ý, đang chờ cập nhật kết quả/);
   } finally {
     h.close();
   }
@@ -658,7 +682,7 @@ test("an approved cancellation distinguishes stopped obligations from Credit wai
     h.request.blockedByDispute = true;
     const tree = h.render();
     assert.match(text(tree), /Đã dừng các buổi tương lai/);
-    assert.match(text(tree), /Đã duyệt hủy. Credit đang chờ/);
+    assert.match(text(tree), /Đã duyệt hủy\.\s+Credit chưa thể quyết toán/);
     assert.doesNotMatch(text(tree), /lộ trình chưa hủy|Chờ Admin/);
     assert.equal(
       nodes(tree).filter((node) => node.type === "Button").length,
@@ -919,6 +943,64 @@ test("completion summary retains financial blockers on read failure and has no m
       nodes(h.render()).some((node) => node.props.href === "/wallet/history"),
     );
     assert.match(text(h.render()), /Lộ trình đã hoàn thành/);
+  } finally {
+    h.close();
+  }
+});
+
+test("saved early consent never overrides dispute, termination or review blockers", () => {
+  const h = harness("path-settlement-panel");
+  try {
+    for (const status of [
+      "WAITING_DISPUTE",
+      "WAITING_TERMINATION",
+      "NEEDS_REVIEW",
+      "RETRYING",
+    ] as const) {
+      for (const partnerApprovedAt of [null, "2030-01-01T00:00:00Z"]) {
+        h.query.data = {
+          ...settlementFixture(status),
+          immediateSettlement: {
+            ownApprovedAt: "2030-01-01T00:00:00Z",
+            partnerApprovedAt,
+            canApprove: false,
+          },
+        };
+        const tree = h.render();
+        assert.match(text(tree), /Đã ghi nhận đồng ý quyết toán sớm/);
+        assert.doesNotMatch(
+          text(tree),
+          /Chờ đối tác hoặc hết thời gian chờ|Cả hai đã đồng ý · Đang xử lý/,
+        );
+        assert.ok(nodes(tree).some((node) => node.type === "Notice"));
+      }
+    }
+    for (const status of ["WAITING_DISPUTE_WINDOW", "READY"] as const) {
+      h.query.data = {
+        ...settlementFixture(status),
+        immediateSettlement: {
+          ownApprovedAt: "2030-01-01T00:00:00Z",
+          partnerApprovedAt: null,
+          canApprove: false,
+        },
+      };
+      assert.match(text(h.render()), /Chờ đối tác hoặc hết thời gian chờ/);
+    }
+    for (const status of ["TERMINATED", "SETTLED"] as const) {
+      h.query.data = {
+        ...settlementFixture(status),
+        immediateSettlement: {
+          ownApprovedAt: "2030-01-01T00:00:00Z",
+          partnerApprovedAt: "2030-01-01T00:00:00Z",
+          canApprove: false,
+        },
+      };
+      assert.doesNotMatch(
+        text(h.render()),
+        /Chờ đối tác|Đã ghi nhận đồng ý|Đang xử lý quyết toán/,
+      );
+    }
+    assert.equal(h.calls.length, 0);
   } finally {
     h.close();
   }

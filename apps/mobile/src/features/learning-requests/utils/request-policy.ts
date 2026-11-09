@@ -17,6 +17,15 @@ export const statusLabels = {
   CANCELLED: "Đã hủy",
   EXPIRED: "Hết hạn",
 } as const;
+export function requestEditorNotice(request?: Pick<OwnerRequest, "status">) {
+  if (request?.status === "REJECTED")
+    return "Lưu thay đổi sẽ đưa bài về bản nháp. Bạn cần đăng lại để bài được kiểm tra.";
+  if (request?.status === "PENDING_MODERATION")
+    return "Nội dung sẽ được kiểm tra lại khi lưu. Bài chỉ nhận đề xuất sau khi được duyệt.";
+  if (request?.status === "OPEN")
+    return "Nội dung được kiểm tra lại khi lưu. Bài có thể chuyển sang chờ duyệt.";
+  return "Lưu bản nháp, sau đó đăng bài.";
+}
 export function isOwnRequest(item: RequestItem): item is OwnerRequest {
   return "skillId" in item;
 }

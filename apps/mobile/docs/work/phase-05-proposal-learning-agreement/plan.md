@@ -34,6 +34,8 @@ Luồng: Learning Request hoặc Sharing Skill → gửi proposal → Đã gửi
 
 ## Mốc 2 — Plan & Schedule
 
+- [x] Rà banner/chú thích liên feature theo phản hồi tranh chấp: sửa warning và lỗi hủy để chỉ rõ Credit chờ xử lý; Hold phản ánh trạng thái hủy/tranh chấp/hoàn thành và đã duyệt hủy; consent đã lưu không lấn át blocker quyết toán. Đối chiếu backend, thêm regression; sửa hướng dẫn editor Learning Request theo trạng thái tại work Phase04. Không đổi quyền hay mutation.
+
 - [x] Rà lại toàn bộ phần UI/điều hướng vừa sửa theo yêu cầu: sửa fallback icon/màu trạng thái khi learningStage null, khóa xác nhận lịch trong refresh/read error cả ở handler. Regression trạng thái, blocked/recovery, nhiều buổi/hai chiều, test quyết toán phù hợp yêu cầu đã bỏ nút chung; kiểm toàn bộ mobile và web export. API/native acceptance giữ riêng.
 
 - [x] Theo lựa chọn rõ của người dùng ngày 2026-11-09, Tình hình học tập chỉ giữ tóm tắt, không render danh sách attention và các nút case/Session riêng. Toàn màn Lịch học giữ một nút Xem tất cả buổi học mở danh sách của cả lộ trình, không đi qua tóm tắt vụ việc. Giữ dữ liệu/route vụ việc hiện có cho các luồng riêng.

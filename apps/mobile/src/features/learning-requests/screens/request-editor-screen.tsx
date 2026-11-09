@@ -19,6 +19,7 @@ import {
   isOwnRequest,
   requestError,
   isRequestActivityRestricted,
+  requestEditorNotice,
 } from "../utils/request-policy";
 import { RequestRestrictionNotice } from "../components/request-restriction-notice";
 import { canCreateRequest } from "@/features/community/policy";
@@ -204,11 +205,7 @@ function RequestForm({
       {creationBlocked && creationPolicy && (
         <RequestCreationFeedback policy={creationPolicy} />
       )}
-      <Copy muted>
-        {initial?.publishedAt
-          ? "Bài đã đăng sẽ được duyệt lại khi sửa."
-          : "Lưu nháp, sau đó đăng bài."}
-      </Copy>
+      <Copy muted>{requestEditorNotice(baseline)}</Copy>
       <RequestConflict
         initial={baseline}
         latest={recovery.latest}

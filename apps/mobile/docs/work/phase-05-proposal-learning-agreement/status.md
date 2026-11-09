@@ -1,5 +1,16 @@
 # Trạng thái Phase 05–06
 
+## Banner đúng trạng thái — 2026-11-09T22:28:14+07:00
+
+- Bổ sung theo đính chính của người dùng lúc2026-11-09T22:36:26+07:00: warning Credit luôn mở đầu bằng trạng thái yêu cầu hủy. PENDING: người gửi chờ đối tác đồng ý, người nhận chờ chính mình phản hồi; STAFF_REVIEW chờ nhân viên; ACCEPTED chưa có approvedAt chờ cập nhật; có approvedAt ghi đã duyệt hủy. Sau đó mới nêu Credit chờ tranh chấp/chính sách. Regression22/22 path-changes-ui PASS, ESLint file và diff whitespace PASS; không thay quyền gửi/đồng ý hoặc tự quyết toán.
+
+- Sau lượt rà read-only, người dùng yêu cầu sửa4 chỗ. Warning của yêu cầu hủy và lỗi TERMINATION_BLOCKED_BY_DISPUTE chỉ rõ Credit chờ tranh chấp/chính sách, không nói tranh chấp ngăn duyệt hủy. Header/thao tác phản hồi giữ theo trạng thái yêu cầu; regression vẫn cho đối tác mở Đồng ý hủy khi có blocker Credit.
+- Hold dùng progression hiện hành cho CANCELLED/DISPUTED/COMPLETED; không báo xanh các buổi sẵn sàng. Khi đã có terminationApprovedAt nhưng chưa quyết toán, thông báo các buổi tương lai đã dừng. Path đang học/chờ bắt đầu chỉ hướng mở danh sách xem trạng thái từng buổi. Không sửa finalize/quyền/API.
+- Consent sớm đã lưu chỉ nói chờ đối tác/thời hạn ở WAITING_DISPUTE_WINDOW hoặc READY. Các trạng thái dispute/termination/review/retry giữ warning thật và chỉ ghi nhận consent, không hứa tự giải ngân sau hạn. Không lặp consent ở SETTLED/TERMINATED.
+- Editor Learning Request dùng baseline.status hiện hành: REJECTED phải lưu về nháp rồi đăng lại; OPEN có thể chuyển chờ duyệt, PENDING_MODERATION chờ duyệt, DRAFT hướng dẫn đăng sau lưu. Chi tiết tại work Phase04.
+- 40 focused tests PASS; full mobile **1065/1065 PASS**, fail/skip/cancel0. TypeScript, ESLint toàn mobile, structure910 và diff whitespace PASS. Logs local ignored .expo/banner-copy-fixes-tests.log và .expo/banner-copy-final-tests.log. Không chạy lại export vì thay đổi copy/nhánh hiển thị, không thêm import package hoặc route.
+- Fixture component thật tại320/390/430 và chữ lớn320: WAITING_DISPUTE/WAITING_TERMINATION cùng consent đã lưu hiển thị đúng warning, không có wait hint cũ, không tràn ngang/page error; đã xem ảnh390. Artifact local .expo/settlement-preview/banner-*.png. Boundary router/provider giả lập; chưa nghiệm thu API thật hoặc native. Chưa stage/commit các sửa banner.
+
 ## Chia commit theo phạm vi — 2026-11-09T22:01:13+07:00
 
 - Theo yêu cầu tiếp của người dùng, giữ nhánh fix/learning-path-flow và chia source thành bốn commit: 0fe92188 tổng quan/vụ việc và bảo vệ hủy; 3649835b giao diện thỏa thuận/lịch; 44f47d29 lifecycle Proposal; 5ea52e90 nút hồ sơ và khóa picker. Nhóm tài liệu contract/plan/status được commit riêng sau source.

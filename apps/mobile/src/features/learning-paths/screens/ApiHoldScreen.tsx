@@ -24,6 +24,7 @@ import {
 } from "../hooks/use-learning-paths-api";
 import type { ApiLearningPath } from "../api/learning-paths-contract";
 import { canValidateForFinalize } from "../utils/policy-api";
+import { agreementProgress } from "../utils/progression";
 import {
   useConfirmedFormShare,
   ConfirmedFormFeedback,
@@ -97,6 +98,11 @@ function HoldContent({
   const signature = JSON.stringify(path),
     agreement = path.agreement;
   const ready = canValidateForFinalize(path);
+  const progress = agreementProgress(path, runtime.userId);
+  const closed = progress.stage === "closed";
+  const stopping =
+    !!path.terminationApprovedAt &&
+    !["CANCELLED", "COMPLETED"].includes(path.status);
   const latestError = latestAction === "check" ? check.error : finalize.error;
   const shortfall = creditShortfall(latestError, runtime.userId);
   const canTopUp =
@@ -106,9 +112,30 @@ function HoldContent({
         agreement.learnerId === runtime.userId));
   if (path.lockedVersion !== null)
     return (
-      <Panel title="Lịch đã chốt">
-        <FormNotice tone="success" compact>
-          Lịch học đã được chốt. Các buổi học của bạn đã sẵn sàng.
+      <Panel
+        title={
+          stopping
+            ? "Đã duyệt hủy lộ trình"
+            : closed
+              ? progress.title
+              : "Lịch đã chốt"
+        }
+      >
+        <FormNotice
+          tone={
+            path.status === "DISPUTED"
+              ? "warning"
+              : stopping || closed
+                ? "info"
+                : "success"
+          }
+          compact
+        >
+          {stopping
+            ? "Các buổi học tương lai đã dừng. Credit được quyết toán khi đủ điều kiện."
+            : closed
+              ? progress.description
+              : "Lịch học đã được chốt. Mở danh sách để xem trạng thái từng buổi."}
         </FormNotice>
         {!embedded && (
           <RouteButton href={`/paths/${path.id}/sessions`}>

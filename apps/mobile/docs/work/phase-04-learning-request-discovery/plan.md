@@ -21,6 +21,10 @@ S02 không cần setup lại design system; S03 implementation đã có, chỉ s
 
 ## Task còn mở, giữ ID gốc
 
+### Sửa chú thích editor theo trạng thái
+
+- [x] Phân biệt REJECTED cần lưu về nháp rồi đăng lại, OPEN có thể chuyển chờ duyệt, PENDING_MODERATION tiếp tục kiểm tra và DRAFT cần đăng sau lưu. Lấy baseline hiện hành sau recovery; không suy từ publishedAt hoặc thay đổi mutation.
+
 ### Thông báo hạn chế đăng bài theo uy tín
 
 - [x] REP-LR-01: Đối chiếu create/publish và SkillActorService; nhận đúng `403 NEW_ACTIVITY_RESTRICTED`, không suy quyền từ điểm uy tín cached.

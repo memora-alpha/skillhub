@@ -85,15 +85,22 @@ export function PathSettlementPanel({ pathId }: Readonly<{ pathId: string }>) {
       {status?.status === "TERMINATED" && (
         <Copy>Lộ trình đã hủy. Credit được xử lý theo quyết định hủy.</Copy>
       )}
-      {status?.immediateSettlement?.ownApprovedAt && !settled && (
-        <Copy size="hint">
-          {status.immediateSettlement.partnerApprovedAt
-            ? "Cả hai đã đồng ý · Đang xử lý quyết toán."
-            : "Bạn đã đồng ý · Chờ đối tác hoặc hết thời gian chờ."}
-        </Copy>
-      )}
+      {status?.immediateSettlement?.ownApprovedAt &&
+        !settled &&
+        status.status !== "TERMINATED" && (
+          <Copy size="hint">
+            {waiting
+              ? status.immediateSettlement.partnerApprovedAt
+                ? "Cả hai đã đồng ý · Đang xử lý quyết toán."
+                : "Bạn đã đồng ý · Chờ đối tác hoặc hết thời gian chờ."
+              : status.immediateSettlement.partnerApprovedAt
+                ? "Đã ghi nhận đồng ý quyết toán sớm của cả hai."
+                : "Đã ghi nhận đồng ý quyết toán sớm của bạn."}
+          </Copy>
+        )}
       {status?.immediateSettlement?.partnerApprovedAt &&
         !status.immediateSettlement.ownApprovedAt &&
+        status.status !== "TERMINATED" &&
         !settled && <Copy size="hint">Đối tác đã đồng ý quyết toán sớm.</Copy>}
       {status && canConsentToSettlement(status) && (
         <SettlementConsentForm

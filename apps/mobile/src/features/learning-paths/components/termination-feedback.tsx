@@ -33,7 +33,7 @@ const messages: Record<string, string> = {
   TERMINATION_POLICY_NOT_APPROVED:
     "Đang chờ chính sách xử lý Credit được duyệt.",
   TERMINATION_BLOCKED_BY_DISPUTE:
-    "Cần giải quyết tranh chấp trước khi thực hiện quyết định dừng.",
+    "Credit đang chờ giải quyết tranh chấp trước khi quyết toán.",
   PARTNER_DECISION_REQUIRED: "Chỉ đối tác mới được phản hồi yêu cầu này.",
   CHANGE_REQUEST_OWNER_REQUIRED: "Chỉ người gửi mới được rút yêu cầu.",
 };

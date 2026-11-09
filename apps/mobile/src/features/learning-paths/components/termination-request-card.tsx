@@ -60,6 +60,15 @@ export function TerminationRequestCard({
     request.blockedByDispute && "giải quyết tranh chấp",
     request.awaitingPolicy && "duyệt chính sách Credit",
   ].filter(Boolean);
+  const cancellationNotice = request.approvedAt
+    ? "Đã duyệt hủy."
+    : request.status === "STAFF_REVIEW"
+      ? "Yêu cầu hủy đang chờ nhân viên xem xét."
+      : request.status === "ACCEPTED"
+        ? "Yêu cầu hủy đã được đồng ý, đang chờ cập nhật kết quả."
+        : request.requesterId === runtime.userId
+          ? "Đã gửi yêu cầu hủy, đang chờ đối tác đồng ý."
+          : "Đối tác đã gửi yêu cầu hủy, đang chờ bạn phản hồi.";
   const submitted = (result?: TerminationRequest) => {
     if (result && runtime.isCurrent()) {
       setReceipt(result);
@@ -173,9 +182,7 @@ export function TerminationRequestCard({
       )}
       {openTermination(request) && blockers.length > 0 && (
         <FormNotice tone="warning" compact>
-          {request.approvedAt
-            ? "Đã duyệt hủy. Credit đang chờ "
-            : "Đã gửi yêu cầu, lộ trình chưa hủy. Chờ "}
+          {cancellationNotice} Credit chưa thể quyết toán: chờ{" "}
           {blockers.join(" và ")}.
         </FormNotice>
       )}

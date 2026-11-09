@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { mock, test } from "node:test";
 import { pathToFileURL } from "node:url";
-import { canValidateForFinalize } from "../src/features/learning-paths/utils/policy-api";
+import * as policy from "../src/features/learning-paths/utils/policy-api";
 import { readScheduledMessage } from "../src/features/learning-paths/utils/scheduled-message";
 import { AppError } from "../src/lib/http/errors";
 import { fixtureId } from "./fixtures/learning-requests-data";
@@ -186,7 +186,7 @@ function holdHarness(viewerId = teacherId) {
         }),
       }),
     },
-    "../utils/policy-api": { canValidateForFinalize },
+    "../utils/policy-api": { ...policy },
   };
   const loaded = loadMocked<{ ApiHoldScreen: () => Element }>(
     local,
@@ -274,6 +274,46 @@ test("Hold keeps schedule review before locking and opens actual sessions after 
     } finally {
       h.cleanup();
     }
+  }
+});
+
+test("reopening Hold reflects terminal states and approved cancellation without a ready-to-study banner", () => {
+  const h = holdHarness();
+  try {
+    h.query.data.lockedVersion = h.query.data.currentVersion;
+    for (const [status, label, tone] of [
+      ["CANCELLED", "Thỏa thuận đã hủy", "info"],
+      ["DISPUTED", "Thỏa thuận đang tranh chấp", "warning"],
+      ["COMPLETED", "Thỏa thuận đã hoàn thành", "info"],
+    ] as const) {
+      h.query.data.status = status;
+      const tree = h.render();
+      assert.ok(
+        elements(tree).some(
+          (node) => node.type === "Panel" && node.props.title === label,
+        ),
+      );
+      assert.ok(
+        elements(tree).some(
+          (node) => node.type === "FormNotice" && node.props.tone === tone,
+        ),
+      );
+      assert.doesNotMatch(text(tree), /đã sẵn sàng/);
+      assert.ok(
+        elements(tree).some(
+          (node) => node.props.href === `/paths/${h.query.data.id}/sessions`,
+        ),
+      );
+    }
+    h.query.data.status = "ACTIVE";
+    h.query.data.terminationApprovedAt = "2030-01-01T00:00:00Z";
+    assert.match(text(h.render()), /Các buổi học tương lai đã dừng/);
+    assert.doesNotMatch(text(h.render()), /đã sẵn sàng/);
+    h.query.data.terminationApprovedAt = null;
+    assert.match(text(h.render()), /Mở danh sách để xem trạng thái từng buổi/);
+    assert.equal(h.counts().finalizations, 0);
+  } finally {
+    h.cleanup();
   }
 });
 

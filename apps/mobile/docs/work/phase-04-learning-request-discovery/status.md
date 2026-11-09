@@ -1,5 +1,10 @@
 # Trạng thái Phase04 Learning Request và Discovery
 
+## Chú thích editor theo trạng thái — 2026-11-09T22:28:14+07:00
+
+- Theo yêu cầu sửa sau audit banner, bỏ suy luận từ publishedAt. requestEditorNotice nhận status của baseline đang chỉnh: REJECTED giải thích lưu về nháp và phải đăng lại; OPEN nói có thể chuyển chờ duyệt, PENDING_MODERATION chỉ nhận đề xuất sau duyệt; DRAFT/tạo mới lưu nháp rồi đăng. Không đổi API, moderation hay navigation.
+- Regression5 nhánh trong learning-requests-form-ui; nhóm ảnh hưởng40 PASS, full mobile1065/1065 PASS, fail/skip/cancel0. TypeScript/ESLint/structure910 PASS. Evidence và giới hạn fixture/API/native của lượt sửa liên feature tại work Phase05–06, mục Banner đúng trạng thái. Chưa stage/commit.
+
 ## Hạn chế đăng bài và xác nhận chính sách uy tín
 
 2026-11-08T20:54:19+07:00, nhánh `fix/learning-path-flow`.
