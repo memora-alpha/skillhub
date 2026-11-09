@@ -48,10 +48,12 @@ class AdjustmentReasonDto {
   reason!: string;
 }
 
+const positiveCreditAmount = /^[1-9]\d{0,9}$/;
+
 class CreditAdjustmentDto extends AdjustmentReasonDto {
-  @ApiProperty({ example: "100", pattern: "^[1-9][0-9]{0,9}$" })
+  @ApiProperty({ example: "100", pattern: positiveCreditAmount.source })
   @IsString()
-  @Matches(/^[1-9][0-9]{0,9}$/)
+  @Matches(positiveCreditAmount)
   amount!: string;
 }
 

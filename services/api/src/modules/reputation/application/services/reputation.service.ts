@@ -249,7 +249,7 @@ export class ReputationService {
     return { withdrawnRestrictionIds, restoredRestrictionIds };
   }
 
-  async releaseLowReputationRestrictions(
+  releaseLowReputationRestrictions(
     tx: TransactionContext,
     userId: string,
     now: Date,
