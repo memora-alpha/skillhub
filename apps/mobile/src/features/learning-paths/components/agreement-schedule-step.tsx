@@ -23,6 +23,23 @@ import {
 } from "../utils/policy-api";
 import { AgreementProgressPanel } from "./agreement-progress";
 
+function scheduleHeading(stage: string) {
+  if (stage === "sessions")
+    return {
+      title: "Lịch đã chốt",
+      description: "Mở buổi học để xem lịch chi tiết và tham gia.",
+    };
+  if (stage === "finalize")
+    return {
+      title: "Sẵn sàng chốt lịch",
+      description: "Hai bên đã xác nhận lịch. Kiểm tra và chốt để bắt đầu học.",
+    };
+  return {
+    title: "Lịch học của hai bạn",
+    description: "Người dạy đề xuất lịch, cả hai cùng xem và xác nhận.",
+  };
+}
+
 export function AgreementScheduleStep({
   path,
   userId,
@@ -35,6 +52,7 @@ export function AgreementScheduleStep({
   const router = useRouter();
   const progress = agreementProgress(path, userId);
   const directions = scheduleDirections(path, userId);
+  const heading = scheduleHeading(progress.stage);
   if (!["schedules", "finalize", "sessions"].includes(progress.stage))
     return (
       <AgreementProgressPanel
@@ -56,21 +74,11 @@ export function AgreementScheduleStep({
               <Icon name="calendar" size={20} color={colors.primary} />
             </View>
             <Text accessibilityRole="header" style={styles.title}>
-              {progress.stage === "sessions"
-                ? "Lịch đã chốt"
-                : progress.stage === "finalize"
-                  ? "Sẵn sàng chốt lịch"
-                  : "Lịch học của hai bạn"}
+              {heading.title}
             </Text>
           </View>
         </View>
-        <Text style={styles.description}>
-          {progress.stage === "sessions"
-            ? "Mở buổi học để xem lịch chi tiết và tham gia."
-            : progress.stage === "finalize"
-              ? "Hai bên đã xác nhận lịch. Kiểm tra và chốt để bắt đầu học."
-              : "Người dạy đề xuất lịch, cả hai cùng xem và xác nhận."}
-        </Text>
+        <Text style={styles.description}>{heading.description}</Text>
         <View style={styles.directions}>
           {directions
             .filter(

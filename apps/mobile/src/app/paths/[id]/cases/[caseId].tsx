@@ -1,2 +1,1 @@
-import { PathCaseSummaryScreen } from "@/features/learning-paths";
-export default PathCaseSummaryScreen;
+export { PathCaseSummaryScreen as default } from "@/features/learning-paths";

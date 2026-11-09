@@ -21,6 +21,11 @@ export function AgreementMethodSummary({
   children: ReactNode;
 }>) {
   const twoWay = path.agreement.exchangeType === "TWO_WAY";
+  let roleNote =
+    path.agreement.teacherId === userId
+      ? "Bạn dạy · Đối tác học"
+      : "Đối tác dạy · Bạn học";
+  if (twoWay) roleNote = "Hai bên cùng dạy và học.";
   return (
     <View style={styles.summary}>
       <View style={styles.row}>
@@ -29,13 +34,7 @@ export function AgreementMethodSummary({
           {twoWay ? "Trao đổi hai chiều" : "Học một chiều"}
         </Text>
       </View>
-      <Text style={styles.note}>
-        {twoWay
-          ? "Hai bên cùng dạy và học."
-          : path.agreement.teacherId === userId
-            ? "Bạn dạy · Đối tác học"
-            : "Đối tác dạy · Bạn học"}
-      </Text>
+      <Text style={styles.note}>{roleNote}</Text>
       <View style={styles.section}>
         <View style={styles.row}>
           <Text style={styles.label}>

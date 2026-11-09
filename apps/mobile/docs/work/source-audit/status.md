@@ -1,5 +1,14 @@
 # Kết quả rà source mobile
 
+## Refactor cảnh báo Sonar — 2026-11-09T22:52:24+07:00
+
+- Đối chiếu28 cảnh báo người dùng gửi trên14 file source:3 cognitive-complexity,23 nested conditional và2 re-export default. Chỉ sửa apps/mobile; không đổi backend, root config, dependency hay business behavior.
+- Tách lựa chọn notice yêu cầu hủy và presentation badge khỏi JSX; tách LockedScheduleSummary khỏi HoldContent. Độ phức tạp đo bằng SonarJS: TerminationRequestCard16→6, TerminationStatusHeader17→5, HoldContent23→7, ngưỡng15.
+- Community tách màu delta, notice policy, kết quả review và nhãn ngày; Learning Path tách mô tả hình thức/lịch, nhãn action liên quan và ghi nhận consent, tính empty/pagination labels trước JSX. Hai route cases dùng export-from trực tiếp. Không thay nội dung hoặc thứ tự ưu tiên trạng thái. Helper review giữ null hợp lệ; không ép kiểu để bỏ lỗi.
+- SonarJS4.2.2 chạy cục bộ rule cognitive-complexity(15) và no-nested-conditional trên16 source files thay đổi/thêm mới:0 errors. Công cụ chỉ cài tạm ở .expo/sonar-rule-check với ignore-scripts, không đổi package/lock dự án. Không gọi scan server Sonar. Scripts/JSON local ignored: .expo/check-sonar-refactor.cjs, .expo/measure-sonar-refactor.cjs, .expo/sonar-rule-check/results.json.
+- 75 focused tests PASS; full mobile **1065/1065 PASS**, fail/skip/cancel0. TypeScript, ESLint toàn mobile, structure911, Prettier các file thay đổi và diff whitespace PASS. So sánh159 Vietnamese UI literals trước/sau:0 khác biệt. Hold harness render component con đã tách để tiếp tục kiểm thông báo terminal/approved, link Session và mutation guard thật. Logs local .expo/sonar-refactor-focused.log và .expo/sonar-refactor-final-tests.log.
+- Chưa stage/commit. Đây là refactor source, không đổi layout/route đích/API; không chạy lại export hoặc nghiệm thu API/native.
+
 ## Màn Chính sách — 2026-11-08T21:14:28+07:00
 
 - Theo yêu cầu mới, `/policies` đổi Quay lại thành icon mũi tên, giữ nhãn

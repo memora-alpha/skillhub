@@ -1,2 +1,1 @@
-import { PathCasesScreen } from "@/features/learning-paths";
-export default PathCasesScreen;
+export { PathCasesScreen as default } from "@/features/learning-paths";

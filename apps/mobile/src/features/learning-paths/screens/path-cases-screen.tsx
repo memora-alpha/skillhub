@@ -1,4 +1,5 @@
 import { useLocalSearchParams } from "expo-router";
+import type { ReactNode } from "react";
 import { FlowPage } from "@/components/learning-flow";
 import { Copy } from "@/components/feature-page";
 import { EmptyState } from "@/components/EmptyState";
@@ -19,6 +20,24 @@ export function PathCasesScreen() {
     if (query.hasNextPage && !query.isFetching && !query.denied)
       void query.fetchNextPage({ cancelRefetch: false });
   };
+  let emptyState: ReactNode = null;
+  if (!valid)
+    emptyState = (
+      <EmptyState
+        title="Mã thỏa thuận không hợp lệ"
+        description="Mở lại từ danh sách lộ trình."
+      />
+    );
+  else if (query.data && !query.denied)
+    emptyState = (
+      <EmptyState
+        title="Chưa có vụ việc"
+        description="Chưa ghi nhận vụ việc liên quan thỏa thuận này."
+      />
+    );
+  let loadMoreLabel = "Tải thêm vụ việc";
+  if (query.isFetchNextPageError) loadMoreLabel = "Thử tải thêm vụ việc";
+  if (query.isFetchingNextPage) loadMoreLabel = "Đang tải thêm…";
   return (
     <FlowPage
       title="Vụ việc của thỏa thuận"
@@ -44,19 +63,7 @@ export function PathCasesScreen() {
             />
           </>
         }
-        ListEmptyComponent={
-          !valid ? (
-            <EmptyState
-              title="Mã thỏa thuận không hợp lệ"
-              description="Mở lại từ danh sách lộ trình."
-            />
-          ) : query.data && !query.denied ? (
-            <EmptyState
-              title="Chưa có vụ việc"
-              description="Chưa ghi nhận vụ việc liên quan thỏa thuận này."
-            />
-          ) : null
-        }
+        ListEmptyComponent={emptyState}
         ListFooterComponent={
           query.hasNextPage && !query.denied ? (
             <Button
@@ -64,11 +71,7 @@ export function PathCasesScreen() {
               disabled={query.isFetching}
               onPress={loadMore}
             >
-              {query.isFetchingNextPage
-                ? "Đang tải thêm…"
-                : query.isFetchNextPageError
-                  ? "Thử tải thêm vụ việc"
-                  : "Tải thêm vụ việc"}
+              {loadMoreLabel}
             </Button>
           ) : null
         }

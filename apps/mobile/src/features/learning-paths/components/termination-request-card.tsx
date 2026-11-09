@@ -29,6 +29,19 @@ const actionLabels: Record<TerminationAction, string> = {
   withdraw: "Rút yêu cầu",
   escalate: "Nhờ hỗ trợ",
 };
+function cancellationStatusNotice(
+  request: TerminationRequest,
+  userId?: string,
+) {
+  if (request.approvedAt) return "Đã duyệt hủy.";
+  if (request.status === "STAFF_REVIEW")
+    return "Yêu cầu hủy đang chờ nhân viên xem xét.";
+  if (request.status === "ACCEPTED")
+    return "Yêu cầu hủy đã được đồng ý, đang chờ cập nhật kết quả.";
+  if (request.requesterId === userId)
+    return "Đã gửi yêu cầu hủy, đang chờ đối tác đồng ý.";
+  return "Đối tác đã gửi yêu cầu hủy, đang chờ bạn phản hồi.";
+}
 export function TerminationRequestCard({
   request: initialRequest,
   blocked,
@@ -60,15 +73,7 @@ export function TerminationRequestCard({
     request.blockedByDispute && "giải quyết tranh chấp",
     request.awaitingPolicy && "duyệt chính sách Credit",
   ].filter(Boolean);
-  const cancellationNotice = request.approvedAt
-    ? "Đã duyệt hủy."
-    : request.status === "STAFF_REVIEW"
-      ? "Yêu cầu hủy đang chờ nhân viên xem xét."
-      : request.status === "ACCEPTED"
-        ? "Yêu cầu hủy đã được đồng ý, đang chờ cập nhật kết quả."
-        : request.requesterId === runtime.userId
-          ? "Đã gửi yêu cầu hủy, đang chờ đối tác đồng ý."
-          : "Đối tác đã gửi yêu cầu hủy, đang chờ bạn phản hồi.";
+  const cancellationNotice = cancellationStatusNotice(request, runtime.userId);
   const submitted = (result?: TerminationRequest) => {
     if (result && runtime.isCurrent()) {
       setReceipt(result);

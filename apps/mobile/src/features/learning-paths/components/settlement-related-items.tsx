@@ -3,6 +3,11 @@ import { RouteButton } from "@/components/feature-page";
 import type { SettlementStatus } from "../api/path-changes-contract";
 import { pathTargetHref } from "../utils/path-overview-presentation";
 
+const targetLabels: Record<string, string> = {
+  CASE_SUMMARY: "Xem vụ việc ảnh hưởng quyết toán",
+  SESSION: "Xem buổi học cần xử lý",
+};
+
 export function SettlementRelatedItems({
   status,
 }: Readonly<{ status: SettlementStatus }>) {
@@ -28,11 +33,7 @@ export function SettlementRelatedItems({
             key={`${target.type}:${target.id}`}
             href={href}
           >
-            {target.type === "CASE_SUMMARY"
-              ? "Xem vụ việc ảnh hưởng quyết toán"
-              : target.type === "SESSION"
-                ? "Xem buổi học cần xử lý"
-                : "Xem yêu cầu hủy"}
+            {targetLabels[target.type] ?? "Xem yêu cầu hủy"}
           </RouteButton>
         ) : null;
       })}

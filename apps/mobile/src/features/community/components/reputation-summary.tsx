@@ -22,6 +22,12 @@ export const reputationReasons: Record<string, string> = {
   FRAUD: "Gian lận",
   RECOVERY_MISSION_REWARD: "Hoàn thành nhiệm vụ phục hồi uy tín",
 };
+function reviewDecisionText(decision: string | null) {
+  if (decision === "APPROVED") return "Đã được xem xét và chấp thuận.";
+  if (decision === "FOLLOW_UP_REQUIRED")
+    return "Cần tiếp tục theo dõi theo quyết định xử lý.";
+  return "Chưa có kết quả xem xét.";
+}
 export function ReputationSummary({ data }: Readonly<{ data: Reputation }>) {
   return (
     <View style={styles.stack}>
@@ -54,11 +60,7 @@ export function ReputationSummary({ data }: Readonly<{ data: Reputation }>) {
                 {scopes[review.scope]}
               </Text>
               <Text style={styles.note}>
-                {review.decision === "APPROVED"
-                  ? "Đã được xem xét và chấp thuận."
-                  : review.decision === "FOLLOW_UP_REQUIRED"
-                    ? "Cần tiếp tục theo dõi theo quyết định xử lý."
-                    : "Chưa có kết quả xem xét."}
+                {reviewDecisionText(review.decision)}
               </Text>
             </View>
           ))}

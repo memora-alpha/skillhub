@@ -8,6 +8,8 @@ Baseline review: HEAD ed5a17dd9f1a6d5e45e1b6af33b17dd4518b46fd. Quy trình theo 
 
 ## Phần review đã thực hiện
 
+- [x] Theo báo cáo Sonar người dùng gửi ngày2026-11-09: xử lý3 cognitive-complexity,23 nested ternary và2 route re-export trong Community/Learning Path. Tách logic trình bày, giữ nguyên nội dung/quyền/luồng async; chạy rule SonarJS cục bộ và regression mobile, không đổi dependency dự án.
+
 - [x] Đọc runtime/HTTP/storage/session/provider và cleanup, flow recovery, private/public boundaries.
 - [x] Đọc LR adapters/query/form/preflight/conflict/expiry/weekly/Tag/offering và đối chiếu backend source cần thiết.
 - [x] Đọc Profile/Skills query/UI/save/upload/scan/job lifecycle và projection/cache behavior.

@@ -30,15 +30,16 @@ export function ReputationPolicyGate({
     !policy.query.isFetching &&
     !hasRequestRestriction(policy.data) &&
     !policy.data.policyNotice?.length;
+  let notice = message;
+  if (cleared)
+    notice =
+      "Không còn hạn chế tạo yêu cầu học. Nội dung đang nhập được giữ nguyên; bạn có thể thử lưu hoặc đăng lại.";
+  else if (policy.acknowledged && !policy.error && !policy.query.error)
+    notice =
+      "Đã xác nhận chính sách. Tài khoản vẫn đang bị hạn chế; xem thời hạn và trạng thái mới nhất trước khi đăng lại.";
   return (
     <View style={{ gap: 8 }}>
-      <FormNotice tone={cleared ? "success" : "error"}>
-        {cleared
-          ? "Không còn hạn chế tạo yêu cầu học. Nội dung đang nhập được giữ nguyên; bạn có thể thử lưu hoặc đăng lại."
-          : policy.acknowledged && !policy.error && !policy.query.error
-            ? "Đã xác nhận chính sách. Tài khoản vẫn đang bị hạn chế; xem thời hạn và trạng thái mới nhất trước khi đăng lại."
-            : message}
-      </FormNotice>
+      <FormNotice tone={cleared ? "success" : "error"}>{notice}</FormNotice>
       <Button
         variant="paper"
         disabled={pending || policy.pending}

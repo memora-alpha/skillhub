@@ -5,6 +5,14 @@ import { reputationHistoryGroups } from "../utils/reputation-history";
 import { reputationReasons } from "./reputation-summary";
 import { historyStyles as styles } from "./reputation-history.styles";
 
+function deltaColors(delta: number) {
+  if (delta > 0)
+    return { color: colors.forest, backgroundColor: colors.forestSoft };
+  if (delta < 0)
+    return { color: colors.error, backgroundColor: colors.errorLight };
+  return { color: colors.muted, backgroundColor: colors.surfaceInset };
+}
+
 export function ReputationHistory({
   items,
 }: Readonly<{ items: Reputation["items"] }>) {
@@ -32,16 +40,7 @@ export function ReputationHistory({
           <View style={styles.card}>
             {group.items.map((row, index) => {
               const positive = row.delta > 0;
-              const color = positive
-                ? colors.forest
-                : row.delta < 0
-                  ? colors.error
-                  : colors.muted;
-              const backgroundColor = positive
-                ? colors.forestSoft
-                : row.delta < 0
-                  ? colors.errorLight
-                  : colors.surfaceInset;
+              const { color, backgroundColor } = deltaColors(row.delta);
               const last = index === group.items.length - 1;
               return (
                 <View key={row.id} style={styles.event}>

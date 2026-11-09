@@ -215,9 +215,15 @@ function holdHarness(viewerId = teacherId) {
       const content = elements(screen.ApiHoldScreen()).find(
         (e) => typeof e.type === "function" && e.type.name === "HoldContent",
       )!;
-      return (content.type as (props: Record<string, unknown>) => Element)(
-        content.props,
-      );
+      const tree = (
+        content.type as (props: Record<string, unknown>) => Element
+      )(content.props);
+      if (
+        typeof tree.type === "function" &&
+        tree.type.name === "LockedScheduleSummary"
+      )
+        return tree.type(tree.props);
+      return tree;
     },
     button(tree: Element, label: string) {
       const button = elements(tree).find(

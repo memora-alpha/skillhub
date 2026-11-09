@@ -17,6 +17,7 @@ import { canConsentToSettlement } from "../utils/settlement-consent";
 import {
   settlementWaitNote,
   settlementWarnings,
+  earlyConsentNote,
 } from "../utils/settlement-summary";
 
 // Completion summary only; automatic settlement never requires a manual refresh command.
@@ -88,15 +89,7 @@ export function PathSettlementPanel({ pathId }: Readonly<{ pathId: string }>) {
       {status?.immediateSettlement?.ownApprovedAt &&
         !settled &&
         status.status !== "TERMINATED" && (
-          <Copy size="hint">
-            {waiting
-              ? status.immediateSettlement.partnerApprovedAt
-                ? "Cả hai đã đồng ý · Đang xử lý quyết toán."
-                : "Bạn đã đồng ý · Chờ đối tác hoặc hết thời gian chờ."
-              : status.immediateSettlement.partnerApprovedAt
-                ? "Đã ghi nhận đồng ý quyết toán sớm của cả hai."
-                : "Đã ghi nhận đồng ý quyết toán sớm của bạn."}
-          </Copy>
+          <Copy size="hint">{earlyConsentNote(status)}</Copy>
         )}
       {status?.immediateSettlement?.partnerApprovedAt &&
         !status.immediateSettlement.ownApprovedAt &&

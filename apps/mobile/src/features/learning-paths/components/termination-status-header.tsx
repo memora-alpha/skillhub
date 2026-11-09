@@ -9,6 +9,29 @@ import {
 } from "../utils/termination-policy";
 import { cancellationStyles as ui } from "./cancellation-styles";
 
+function terminationBadge(approved: boolean, open: boolean) {
+  if (approved)
+    return {
+      icon: "check-circle" as const,
+      label: "Đã duyệt hủy",
+      accent: colors.forest,
+      background: colors.forestSoft,
+    };
+  if (open)
+    return {
+      icon: "clock" as const,
+      label: "Đang xử lý",
+      accent: colors.warning,
+      background: colors.amberSoft,
+    };
+  return {
+    icon: "close" as const,
+    label: "Đã kết thúc",
+    accent: colors.muted,
+    background: colors.surfaceInset,
+  };
+}
+
 export function TerminationStatusHeader({
   request,
   mine,
@@ -20,16 +43,7 @@ export function TerminationStatusHeader({
 }>) {
   const approved = !!request.approvedAt || request.status === "APPLIED";
   const open = openTermination(request);
-  const accent = approved
-    ? colors.forest
-    : open
-      ? colors.warning
-      : colors.muted;
-  const background = approved
-    ? colors.forestSoft
-    : open
-      ? colors.amberSoft
-      : colors.surfaceInset;
+  const { icon, label, accent, background } = terminationBadge(approved, open);
   let title = terminationLabels[request.status];
   if (canRespond) title = "Đối tác muốn hủy lộ trình";
   if (request.approvedAt && request.status === "ACCEPTED")
@@ -38,14 +52,8 @@ export function TerminationStatusHeader({
     <View style={ui.header}>
       <View style={styles.statusLine}>
         <View style={[styles.badge, { backgroundColor: background }]}>
-          <Icon
-            name={approved ? "check-circle" : open ? "clock" : "close"}
-            size={14}
-            color={accent}
-          />
-          <Text style={[styles.badgeText, { color: accent }]}>
-            {approved ? "Đã duyệt hủy" : open ? "Đang xử lý" : "Đã kết thúc"}
-          </Text>
+          <Icon name={icon} size={14} color={accent} />
+          <Text style={[styles.badgeText, { color: accent }]}>{label}</Text>
         </View>
       </View>
       <Text accessibilityRole="header" style={ui.title}>

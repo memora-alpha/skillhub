@@ -13,20 +13,19 @@ export function reputationHistoryGroups(
   const today = format(now);
   const yesterday = new Date(now);
   yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayLabel = format(yesterday);
   const groups = new Map<
     string,
     { date: string; label: string; items: Reputation["items"] }
   >();
   for (const item of items) {
     const date = format(new Date(item.createdAt));
+    let label = date;
+    if (date === today) label = "Hôm nay";
+    else if (date === yesterdayLabel) label = "Hôm qua";
     const group = groups.get(date) ?? {
       date,
-      label:
-        date === today
-          ? "Hôm nay"
-          : date === format(yesterday)
-            ? "Hôm qua"
-            : date,
+      label,
       items: [],
     };
     group.items.push(item);
