@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { timestamp, uuid, version } from "@/lib/http/contracts";
+import { overviewCard, pathAttention } from "./path-overview-contract";
 
 export const pathStatus = z.enum([
   "DRAFT",
@@ -83,6 +84,8 @@ export const learningPathSchema = z.object({
   completedAt: confirmedAt,
   settledAt: confirmedAt,
   terminationApprovedAt: confirmedAt.optional(),
+  overview: overviewCard.optional(),
+  attentionItems: z.array(pathAttention).optional(),
   agreement: z.object({
     version,
     exchangeType: exchange,
@@ -94,17 +97,35 @@ export const learningPathSchema = z.object({
   }),
   plans: z.array(planSchema).max(2),
 });
-export const pathSummarySchema = z.object({
-  id: uuid,
-  conversationId: uuid,
-  status: pathStatus,
-  exchangeType: exchange.nullable(),
-  counterpartId: uuid,
-  currentVersion: version,
-  lockedVersion: version.nullable(),
-  createdAt: timestamp,
-  updatedAt: timestamp,
-});
+export const pathSummarySchema = z
+  .object({
+    ...overviewCard.partial().shape,
+    id: uuid,
+    title: z.string().nullable().optional(),
+    conversationId: uuid,
+    status: pathStatus,
+    exchangeType: exchange.nullable(),
+    counterpartId: uuid,
+    currentVersion: version,
+    lockedVersion: version.nullable(),
+    terminationApprovedAt: confirmedAt.optional(),
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  })
+  .superRefine((row, ctx) => {
+    const present = Object.keys(overviewCard.shape).some(
+      (key) => row[key as keyof typeof row] !== undefined,
+    );
+    if (present && !overviewCard.safeParse(row).success)
+      ctx.addIssue({ code: "custom", message: "Incomplete path overview" });
+    if (row.settlement && row.settlement.pathId !== row.id)
+      ctx.addIssue({ code: "custom", message: "Wrong overview path" });
+    if (
+      row.primaryAction?.target.type === "LEARNING_PATH" &&
+      row.primaryAction.target.id !== row.id
+    )
+      ctx.addIssue({ code: "custom", message: "Wrong overview action path" });
+  });
 export type ApiLearningPath = z.infer<typeof learningPathSchema>;
 export type ApiLearningPlan = z.infer<typeof planSchema>;
 export type PathSummary = z.infer<typeof pathSummarySchema>;

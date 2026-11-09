@@ -183,6 +183,10 @@ function harness(detail: boolean) {
     "../components/path-settlement-panel": {
       PathSettlementPanel: "SettlementPanel",
     },
+    "../components/path-overview-panel": { PathOverviewPanel: "OverviewPanel" },
+    "../hooks/use-refresh-learning-path": {
+      useRefreshLearningPath: () => async () => query.refetch(),
+    },
     "../components/completed-agreement-review": {
       CompletedAgreementReview: "CompletedReview",
     },
@@ -367,6 +371,12 @@ test("agreement overview separates both directions and returns through history",
     assert.equal(page.props.title, "Thỏa thuận học");
     assert.equal(page.props.backBehavior, "history");
     const tree = h.expand(page);
+    const layout = elements(tree);
+    assert.ok(
+      layout.findIndex((e) => e.type === "AgreementContext") <
+        layout.findIndex((e) => e.type === "Steps"),
+    );
+    assert.ok(!layout.some((e) => e.type === "OverviewPanel"));
     assert.match(text(tree), /Bạn học/);
     assert.match(text(tree), /Bạn dạy/);
     assert.match(text(tree), /Bạn cần xác nhận/);
@@ -409,12 +419,19 @@ test("a settled agreement shows a compact summary and review shortcut instead of
       false,
     );
     const steps = elements(tree).find((element) => element.type === "Steps")!;
+    assert.ok(
+      !elements(tree).some((element) => element.type === "OverviewPanel"),
+    );
     assert.equal(steps.props.current, "completion");
     assert.equal(steps.props.value, "completion");
     assert.equal(steps.props.completed, true);
     for (const step of ["method", "plans", "schedules"]) {
       (steps.props.onSelect as (value: string) => void)(step);
       const reviewed = elements(h.expand(h.render()));
+      assert.equal(
+        reviewed.some((element) => element.type === "OverviewPanel"),
+        step === "schedules",
+      );
       assert.ok(
         reviewed.some(
           (element) =>
@@ -480,7 +497,9 @@ test("locked schedules offer exactly one session-list shortcut, including during
             element.props.href === `/paths/${h.path.id}/sessions`),
       );
     assert.equal(shortcuts().length, 1);
-    assert.equal(shortcuts()[0]!.props.href, `/paths/${h.path.id}/sessions`);
+    (shortcuts()[0]!.props.onPress as () => void)();
+    assert.deepEqual(h.routes, [`/paths/${h.path.id}/sessions`]);
+    h.routes.length = 0;
     h.query.error = new Error("read failed");
     assert.equal(shortcuts().length, 1);
     h.query.error = undefined;
@@ -607,6 +626,15 @@ test("completed Sessions in both directions reveal the completion summary before
       ];
     });
     const tree = h.expand(h.render());
+    assert.equal(
+      elements(tree).some((element) => text(element) === "Hủy lộ trình"),
+      false,
+    );
+    assert.ok(
+      elements(tree).some(
+        (element) => text(element) === "Xem lịch sử yêu cầu hủy",
+      ),
+    );
     assert.ok(
       elements(tree).some((element) => element.type === "SettlementPanel"),
     );
@@ -739,12 +767,13 @@ test("a locked agreement links to its complete Session list without dispatching 
     const tree = h.expand(h.render());
     const button = elements(tree).find(
       (element) =>
-        element.type === "RouteButton" &&
-        element.props.children === "Xem các buổi học",
+        element.type === "Button" &&
+        element.props.children === "Xem tất cả buổi học",
     )!;
     assert.ok(button);
-    assert.equal(button.props.href, `/paths/${h.path.id}/sessions`);
     assert.equal(h.routes.length, 0);
+    (button.props.onPress as () => void)();
+    assert.deepEqual(h.routes, [`/paths/${h.path.id}/sessions`]);
     assert.equal(h.calls.length, 0);
   } finally {
     h.cleanup();
@@ -1050,11 +1079,40 @@ test("schedule step distinguishes both directions and blocks proposing while a r
   }
 });
 
+test("closed agreements explain their state without an empty generic status card", () => {
+  const h = harness(false);
+  try {
+    h.path.lockedVersion = h.path.currentVersion;
+    for (const status of ["CANCELLED", "DISPUTED", "COMPLETED"] as const) {
+      h.path.status = status;
+      const tree = h.expand(h.render());
+      assert.doesNotMatch(text(tree), /Trạng thái thỏa thuận/);
+      const notice = elements(tree).find(
+        (element) =>
+          element.type === "Notice" && text(element).includes("Thỏa thuận"),
+      );
+      assert.ok(notice);
+      assert.match(
+        text(notice),
+        status === "CANCELLED"
+          ? /đã hủy/
+          : status === "DISPUTED"
+            ? /đang có tranh chấp/
+            : /đã hoàn thành/,
+      );
+    }
+    assert.equal(h.calls.length, 0);
+  } finally {
+    h.cleanup();
+  }
+});
+
 test("schedule overview leads to final validation only after both confirm and ONE_WAY has one direction", () => {
   const h = harness(false);
   try {
     h.path.plans = withConfirmedSchedules(h.path).plans;
     let tree = h.expand(h.render());
+    assert.match(text(tree), /Bắt đầu/);
     assert.ok(
       elements(tree).some((e) => e.props.children === "Xem và chốt lịch học"),
     );

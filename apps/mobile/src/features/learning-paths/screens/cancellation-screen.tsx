@@ -8,7 +8,7 @@ import { Copy, RouteButton } from "@/components/feature-page";
 import { uuid } from "@/lib/http/contracts";
 import { PathReadFeedback } from "../components/PathReadFeedback";
 import { TerminationCreateForm } from "../components/termination-create-form";
-import { TerminationRequestCard } from "../components/termination-request-card";
+import { TerminationRequests } from "../components/termination-requests";
 import { TerminationCreditPreview } from "../components/termination-credit-preview";
 import { useLearningPath } from "../hooks/use-learning-paths-api";
 import {
@@ -16,7 +16,10 @@ import {
   useTerminationRequests,
 } from "../hooks/use-path-changes";
 import { usePullRefresh } from "../hooks/use-pull-refresh";
-import { canRequestTermination } from "../utils/termination-policy";
+import {
+  canRequestTermination,
+  terminationSessionsCompleted,
+} from "../utils/termination-policy";
 
 export function PathCancellationScreen() {
   const { id = "", changeRequestId } = useLocalSearchParams<{
@@ -65,6 +68,7 @@ function CancellationContent({
   const pull = usePullRefresh(refresh);
   const blocked =
     !!path.error || !!query.error || path.isFetching || query.isFetching;
+  const completed = !!path.data && terminationSessionsCompleted(path.data);
   return (
     <FlowPage
       title="Hủy lộ trình"
@@ -93,6 +97,17 @@ function CancellationContent({
           )}
           {query.data && (
             <>
+              {completed && path.data.status !== "CANCELLED" && (
+                <>
+                  <FormNotice tone="info" compact>
+                    Các buổi học đã hoàn tất. Không thể gửi yêu cầu hủy mới. Về
+                    bước Hoàn tất để xem quyết toán.
+                  </FormNotice>
+                  <RouteButton href={`/paths/${id}`}>
+                    Về bước Hoàn tất
+                  </RouteButton>
+                </>
+              )}
               {uuid.safeParse(changeRequestId).success &&
                 !query.data.some(
                   (request) => request.id === changeRequestId,
@@ -115,31 +130,28 @@ function CancellationContent({
                 />
               )}
               {!query.data.length &&
+                !completed &&
                 !canRequestTermination(path.data, query.data) && (
                   <FormNotice tone="info" compact>
                     Lộ trình hiện chưa đủ điều kiện gửi yêu cầu hủy.
                   </FormNotice>
                 )}
-              {[
-                ...query.data.filter(
-                  (request) => request.id === changeRequestId,
-                ),
-                ...query.data.filter(
-                  (request) => request.id !== changeRequestId,
-                ),
-              ].map((request) => (
-                <TerminationRequestCard
-                  key={`${request.id}:${request.version}`}
-                  request={request}
-                  blocked={blocked}
-                  refresh={refresh}
-                />
-              ))}
-              {path.data.lockedVersion !== null &&
-                !path.data.settledAt &&
-                ["SCHEDULED", "ACTIVE", "DISPUTED"].includes(
-                  path.data.status,
-                ) && <TerminationCreditPreview pathId={id} />}
+              <TerminationRequests
+                requests={query.data}
+                selectedId={changeRequestId}
+                blocked={blocked}
+                refresh={refresh}
+                beforeHistory={
+                  path.data.lockedVersion !== null &&
+                  !completed &&
+                  !path.data.settledAt &&
+                  ["SCHEDULED", "ACTIVE", "DISPUTED"].includes(
+                    path.data.status,
+                  ) ? (
+                    <TerminationCreditPreview pathId={id} />
+                  ) : null
+                }
+              />
               {query.data.length === 100 && (
                 <Copy size="hint">
                   Hiển thị tối đa 100 yêu cầu gần nhất do hệ thống cung cấp.

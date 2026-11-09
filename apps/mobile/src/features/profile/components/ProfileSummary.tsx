@@ -17,11 +17,15 @@ import type { PublicProfile } from "../types/profile";
 export function ProfileSummary({
   profile,
   onEdit,
+  onSettings,
   avatarNotice,
+  linkToPublicProfile,
 }: Readonly<{
   profile: PublicProfile;
   onEdit?: () => void;
+  onSettings?: () => void;
   avatarNotice?: ReactNode;
+  linkToPublicProfile?: boolean;
 }>) {
   const stats = [
     { value: profile.reputationScore, label: "Điểm uy tín" },
@@ -37,6 +41,8 @@ export function ProfileSummary({
         avatarUrl={profile.avatarUrl}
         selectedTitle={profile.selectedTitle}
         onEdit={onEdit}
+        onSettings={onSettings}
+        linkToPublicProfile={linkToPublicProfile}
       />
       {avatarNotice}
       <View style={styles.stats}>

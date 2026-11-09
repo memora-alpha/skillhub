@@ -12,10 +12,8 @@ import {
 
 export function ProfileShortcuts({
   onOpen,
-  onSettings,
 }: {
   onOpen: (label: string) => void;
-  onSettings: () => void;
 }) {
   const [hovered, setHovered] = useState<string | null>(null);
   return (
@@ -25,9 +23,7 @@ export function ProfileShortcuts({
           key={shortcut.label}
           accessibilityRole="button"
           accessibilityLabel={shortcut.label}
-          onPress={() =>
-            shortcut.icon === "settings" ? onSettings() : onOpen(shortcut.label)
-          }
+          onPress={() => onOpen(shortcut.label)}
           onHoverIn={() => setHovered(shortcut.label)}
           onHoverOut={() => setHovered(null)}
           style={({ pressed }) => [

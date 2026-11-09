@@ -80,7 +80,7 @@ function harness() {
     },
     "expo-router": { useIsFocused: () => true },
     "react-hook-form": { useWatch: () => items },
-    "@/features/sessions": {
+    "@/features/sessions/state": {
       deviceTimezone: () => "Asia/Ho_Chi_Minh",
       listIsLimited: (data: unknown[]) => data.length >= 100,
       useSessionList: (

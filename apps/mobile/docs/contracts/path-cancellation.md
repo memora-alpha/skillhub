@@ -1,5 +1,17 @@
 # Dừng lộ trình và quyết toán
 
+## Tổng quan và vụ việc dành cho participant — 2026-11-08
+
+Đã tích hợp source BE `PathOverviewController`/`path-overview.projection.ts`/`ParticipantCasesReader` vào mobile; [task và kết quả](../work/path-cancellation/status.md). Các ghi chú PR79/82 bên dưới giữ ngữ cảnh của lượt trước.
+
+- GET `/learning-paths/mine` nhận thêm overview card; GET `/learning-paths/:id` nhận `overview` và `attentionItems`; GET `/learning-paths/:id/overview` đọc riêng overview + attention. Stage PREPARING/WAITING_START/LEARNING/LEARNING_FINISHED/COMPLETED/STOPPED hoặc null không thay business status hay quyền mutation. Progress có learning/teaching và basis CURRENT_PLAN/LOCKED_AGREEMENT; nextSession có role, status, giờ bắt đầu/kết thúc. Mobile không suy giai đoạn từ dispute hoặc quyết toán khi đã có stage của BE.
+- Attention có target, waitingOn, deadline, blocksSettlement và allowedActions. Mobile mở màn resource để xử lý theo quyền đọc mới; không biến code JOIN/CONFIRM/VIEW thành một POST tự động. Chỉ cho target CASE_SUMMARY/SESSION/LEARNING_CHANGE/LEARNING_PATH đúng định dạng và scope; target lạ chỉ có copy an toàn.
+- GET `/learning-paths/:id/cases?limit=20&cursor=...` đọc cả vụ việc đối tác/hệ thống với envelope pagination; cursor opaque theo path/viewer. GET `/learning-paths/:id/cases/:caseId/summary` trả trường chung và attention nullable. Mobile kiểm case/path identity, chỉ giữ id, relatedPathId/relatedSessionId, reasonCode, status, blocksSettlement, createdAt/resolvedAt; không giữ description/reporter/evidence/resolutionNote. NEED_MORE_INFO không xác định viewer là người phải bổ sung.
+- Settlement-status nhận thêm relatedItems/nextActionTarget. Blocker mở participant case summary; response cũ thiếu target mở danh sách cases của Path, không thay bằng GET reports/mine. Credit vẫn hoàn toàn do BE quyết định; source quote/consent không đổi.
+- Read mới dùng Connections runtime owner/generation, AbortSignal/cancel-on-disable, focus/foreground và polling chỉ đọc khi phù hợp; denied không dùng cache/embedded overview để lộ dữ liệu. Pull/resource refresh invalidates detail/overview/cases/settlement cùng Path. Trường overview cũ vắng toàn bộ được chấp nhận; payload mới thiếu/sai field hoặc identity bị từ chối. Title mới chỉ có ở list, chưa có ở API detail.
+
+Learning Request feed/mine/recommended/detail/create/edit/publish/cancel và các trường mở rộng đã có trong source mobile; không bổ sung endpoint hoặc sửa BE trong task này. Hủy Session, quota học bù và đổi lịch đã có trong source hiện hành; câu ngoài phạm vi Session ở cuối tài liệu mô tả phạm vi lượt PR79 trước đây.
+
 Đối chiếu source backend `b4d5ed65` (PR82) ngày 2026-11-06: [contract013](../../../../services/api/specs/013-learning-cancellation/contracts.md), controllers, `PathTerminationService`, `LearningChangeState`, `readTerminationQuote` và `calculateSessionCredit`. Source mới thay đổi nghĩa của đồng ý hủy và thêm quote. Mobile hiển thị kết quả server, không tự tính phần trăm hoặc gọi API duyệt của Staff/Admin. Tích hợp tại [work](../work/path-cancellation/status.md).
 
 Tất cả đường dẫn dưới `/api/v1`, Bearer auth, participant của Path. Shared HTTP runtime bóc envelope, kiểm session generation và giữ cache riêng; adapter parse UUID, status/version/amount/timestamp và kiểm ID của response.

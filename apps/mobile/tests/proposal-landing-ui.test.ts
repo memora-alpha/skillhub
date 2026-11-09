@@ -19,6 +19,9 @@ test("successful Request and direct proposals land in Sent; failed sends stay in
   let preflightError: unknown;
   let createCount = 0;
   let readSource: () => Promise<unknown> = async () => request;
+  let createResult: () => Promise<unknown> = async () => ({ id: fixtureId(3) });
+  let focus: () => () => void = () => () => {};
+  let blur = () => {};
   let pendingResult: { id: string } | null | undefined = null;
   const request = {
     status: "OPEN",
@@ -29,11 +32,16 @@ test("successful Request and direct proposals land in Sent; failed sends stay in
   const jsx = (type: unknown, props: unknown) => ({ type, props });
   const mocks = {
     react: {
+      useCallback: (callback: unknown) => callback,
       useRef: (current: unknown) => ({ current }),
       useState: (value: unknown) => [value, () => {}],
     },
     "react/jsx-runtime": { jsx, jsxs: jsx, Fragment: "Fragment" },
     "expo-router": {
+      useFocusEffect: (callback: () => () => void) => {
+        focus = callback;
+        blur = callback();
+      },
       useRouter: () => ({ dismissTo: (route: unknown) => routes.push(route) }),
     },
     "@/components/feature-page": { Copy: "Copy" },
@@ -99,7 +107,7 @@ test("successful Request and direct proposals land in Sent; failed sends stay in
         create: async () => {
           createCount++;
           if (failing) throw new Error("network");
-          return { id: fixtureId(3) };
+          return createResult();
         },
       }),
     },
@@ -226,6 +234,54 @@ test("successful Request and direct proposals land in Sent; failed sends stay in
     readSource = async () => request;
     await guarded.onSubmit({ message: "Retry after a failed preflight" });
     assert.equal(createCount, before + 3, "failed preflight releases the lock");
+    const routeCount = routes.length;
+    for (const refocus of [false, true]) {
+      const abandoned = forms(
+        ApiSendProposalScreen({ requestId: fixtureId(4) }),
+      )[0]!;
+      readSource = () =>
+        new Promise((resolve) => {
+          release = resolve;
+        });
+      const pendingSend = abandoned.onSubmit({
+        message: "Leave during preflight",
+      });
+      blur();
+      if (refocus) blur = focus();
+      release(request);
+      await pendingSend;
+      assert.equal(
+        createCount,
+        before + 3,
+        "leaving during preflight must not POST",
+      );
+    }
+    readSource = async () => request;
+    for (const refocus of [false, true]) {
+      const abandoned = forms(
+        ApiSendProposalScreen({ requestId: fixtureId(4) }),
+      )[0]!;
+      let started = () => {};
+      const postStarted = new Promise<void>((resolve) => {
+        started = resolve;
+      });
+      createResult = () =>
+        new Promise((resolve) => {
+          release = resolve;
+          started();
+        });
+      const pendingSend = abandoned.onSubmit({ message: "Leave during POST" });
+      await postStarted;
+      blur();
+      if (refocus) blur = focus();
+      release({ id: fixtureId(3) });
+      await pendingSend;
+      assert.equal(
+        routes.length,
+        routeCount,
+        "a completed POST cannot navigate a later visit",
+      );
+    }
   } finally {
     delete local.cache[filename];
     for (const context of contexts.reverse()) context.restore();

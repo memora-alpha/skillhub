@@ -4,6 +4,7 @@ import { View, Text } from "react-native";
 import { SafeAreaView } from "@/components/SafeArea";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { BrandLogo } from "@/components/BrandLogo";
+import { ProfileAvatarLink } from "@/components/profile-avatar-link";
 import { Input } from "@/components/Input";
 import { Button } from "@/components/Button";
 import { Badge } from "@/components/Badge";
@@ -90,9 +91,14 @@ export function PublicExploreScreen() {
         ? profiles.map((p) => (
             <Panel key={p.id} title={p.name}>
               <Copy>{p.skills.map((s) => s.name).join(", ")}</Copy>
-              <RouteButton secondary href={`/explore/profiles/${p.id}`}>
-                Xem hồ sơ công khai
-              </RouteButton>
+              <ProfileAvatarLink
+                name={p.name}
+                userId={p.id}
+                href={{
+                  pathname: "/explore/profiles/[userId]",
+                  params: { userId: p.id },
+                }}
+              />
             </Panel>
           ))
         : requests.map((r) => (
@@ -170,9 +176,14 @@ export function PublicGuestRequestScreen() {
             Người học đang tìm người chia sẻ phù hợp để thương lượng nội dung và
             lịch học.
           </Copy>
-          <RouteButton secondary href={`/explore/profiles/${request.userId}`}>
-            Xem người đăng
-          </RouteButton>
+          <ProfileAvatarLink
+            name={request.user}
+            userId={request.userId}
+            href={{
+              pathname: "/explore/profiles/[userId]",
+              params: { userId: request.userId },
+            }}
+          />
           <RouteButton href={session ? "/discover" : "/login"}>
             {session ? "Tìm yêu cầu học" : "Đăng nhập để kết nối"}
           </RouteButton>

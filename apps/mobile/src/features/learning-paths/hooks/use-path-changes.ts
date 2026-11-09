@@ -32,11 +32,12 @@ export function useTerminationRequests(pathId: string, allowed = true) {
     for (const key of [
       ["learning-paths", pathId],
       ["learning-paths", pathId, "settlement"],
+      ["learning-paths", pathId, "overview"],
       ["learning-paths", pathId, "termination-quote"],
       ["learning-paths", "mine"],
     ])
       void cache.invalidateQueries(
-        { queryKey: [...runtime.key, ...key], exact: true },
+        { queryKey: [...runtime.key, ...key], exact: key[1] !== "mine" },
         { cancelRefetch: false },
       );
   }, [revision, allowed, focused, runtime, cache, pathId]);
@@ -76,6 +77,10 @@ export function usePathSettlement(pathId: string, allowed = true) {
     void refreshWallet();
     void cache.invalidateQueries(
       { queryKey: [...runtime.key, "learning-paths", pathId], exact: true },
+      { cancelRefetch: false },
+    );
+    void cache.invalidateQueries(
+      { queryKey: [...runtime.key, "learning-paths", pathId, "overview"] },
       { cancelRefetch: false },
     );
     void cache.invalidateQueries(

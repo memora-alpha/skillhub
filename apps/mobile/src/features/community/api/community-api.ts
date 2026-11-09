@@ -41,6 +41,24 @@ const reputationSchema = z.object({
       endsAt: timestamp,
     }),
   ),
+  policyNotice: z
+    .array(z.string().trim().min(1).max(3000))
+    .min(1)
+    .max(20)
+    .nullable()
+    .optional(),
+  restrictionReviews: z
+    .array(
+      z.object({
+        id: uuid,
+        scope: z.enum(["REQUIRE_STAFF_REVIEW", "REQUIRE_ADMIN_REVIEW"]),
+        endsAt: timestamp,
+        decision: z.enum(["APPROVED", "FOLLOW_UP_REQUIRED"]).nullable(),
+        reviewedAt: timestamp.nullable(),
+      }),
+    )
+    .max(50)
+    .optional(),
   items: z.array(historyItem).max(50),
   nextCursor: uuid.nullable(),
 });
@@ -66,6 +84,16 @@ export function createCommunityApi(
     return row;
   }
   return {
+    async acknowledgePolicy() {
+      parse(uuid, userId);
+      return parse(
+        z.object({ acknowledged: z.literal(true) }),
+        await call("/reputation/restrictions/policy-acknowledgement", {
+          method: "POST",
+          replayAfterRenewal: false,
+        }),
+      );
+    },
     async reviews(pathId: string, counterpartId: string, signal?: AbortSignal) {
       const rows = parse(
         z.array(reviewSchema).max(2),

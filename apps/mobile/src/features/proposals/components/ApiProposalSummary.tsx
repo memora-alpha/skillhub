@@ -86,24 +86,29 @@ export function ApiProposalSummary({
         />
       </View>
 
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`Xem hồ sơ ${partnerName}`}
-        onPress={() =>
-          router.push({
-            pathname: "/profiles/[userId]",
-            params: { userId: partnerId },
-          })
-        }
-        style={({ pressed }) => [styles.personRow, pressed && styles.pressed]}
-      >
-        <Avatar
-          name={partnerName}
-          userId={partnerId}
-          sourceUri={partner.data?.avatarUrl}
-          size={40}
-          shape="circle"
-        />
+      <View style={styles.personRow}>
+        <Pressable
+          accessibilityRole="link"
+          accessibilityLabel={`Xem hồ sơ ${partnerName}`}
+          onPress={() =>
+            router.push({
+              pathname: "/profiles/[userId]",
+              params: { userId: partnerId },
+            })
+          }
+          style={({ pressed }) => [
+            styles.avatarLink,
+            pressed && styles.pressed,
+          ]}
+        >
+          <Avatar
+            name={partnerName}
+            userId={partnerId}
+            sourceUri={partner.data?.avatarUrl}
+            size={40}
+            shape="circle"
+          />
+        </Pressable>
         <View style={styles.personText}>
           <Text numberOfLines={1} style={styles.personName}>
             {partnerName}
@@ -113,8 +118,7 @@ export function ApiProposalSummary({
             {new Date(proposal.createdAt).toLocaleDateString("vi-VN")}
           </Text>
         </View>
-        <Icon name="chevron" size={18} color={colors.muted} />
-      </Pressable>
+      </View>
 
       <View style={styles.messageSection}>
         <Text style={styles.sectionLabel}>Lời nhắn</Text>
@@ -208,6 +212,12 @@ const styles = StyleSheet.create({
     color: colors.ink,
   },
   pressed: { opacity: 0.72 },
+  avatarLink: {
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   personRow: { flexDirection: "row", alignItems: "center", gap: 12 },
   personText: { flex: 1, minWidth: 0, gap: 3 },
   personName: {

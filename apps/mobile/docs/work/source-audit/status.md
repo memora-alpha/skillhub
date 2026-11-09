@@ -1,5 +1,47 @@
 # Kết quả rà source mobile
 
+## Refactor cảnh báo Sonar — 2026-11-09T22:52:24+07:00
+
+- Đối chiếu28 cảnh báo người dùng gửi trên14 file source:3 cognitive-complexity,23 nested conditional và2 re-export default. Chỉ sửa apps/mobile; không đổi backend, root config, dependency hay business behavior.
+- Tách lựa chọn notice yêu cầu hủy và presentation badge khỏi JSX; tách LockedScheduleSummary khỏi HoldContent. Độ phức tạp đo bằng SonarJS: TerminationRequestCard16→6, TerminationStatusHeader17→5, HoldContent23→7, ngưỡng15.
+- Community tách màu delta, notice policy, kết quả review và nhãn ngày; Learning Path tách mô tả hình thức/lịch, nhãn action liên quan và ghi nhận consent, tính empty/pagination labels trước JSX. Hai route cases dùng export-from trực tiếp. Không thay nội dung hoặc thứ tự ưu tiên trạng thái. Helper review giữ null hợp lệ; không ép kiểu để bỏ lỗi.
+- SonarJS4.2.2 chạy cục bộ rule cognitive-complexity(15) và no-nested-conditional trên16 source files thay đổi/thêm mới:0 errors. Công cụ chỉ cài tạm ở .expo/sonar-rule-check với ignore-scripts, không đổi package/lock dự án. Không gọi scan server Sonar. Scripts/JSON local ignored: .expo/check-sonar-refactor.cjs, .expo/measure-sonar-refactor.cjs, .expo/sonar-rule-check/results.json.
+- 75 focused tests PASS; full mobile **1065/1065 PASS**, fail/skip/cancel0. TypeScript, ESLint toàn mobile, structure911, Prettier các file thay đổi và diff whitespace PASS. So sánh159 Vietnamese UI literals trước/sau:0 khác biệt. Hold harness render component con đã tách để tiếp tục kiểm thông báo terminal/approved, link Session và mutation guard thật. Logs local .expo/sonar-refactor-focused.log và .expo/sonar-refactor-final-tests.log.
+- Chưa stage/commit. Đây là refactor source, không đổi layout/route đích/API; không chạy lại export hoặc nghiệm thu API/native.
+
+## Màn Chính sách — 2026-11-08T21:14:28+07:00
+
+- Theo yêu cầu mới, `/policies` đổi Quay lại thành icon mũi tên, giữ nhãn
+  accessibility, history Back và fallback `/`.
+- Chỉnh bố cục theo phản hồi tiếp: header Chính sách căn giữa, tab gạch chân,
+  tiêu đề tài liệu rõ và 5 chủ đề có icon/mô tả ngắn. Mỗi lần chạm chỉ mở một
+  tóm tắt; chuyển tab reset danh sách/đầu trang. Link toàn văn sau danh sách,
+  notice/version xuống cuối; ngày cập nhật/badge draft gọn dưới tiêu đề.
+  Dùng Nunito/theme, giữ Đọc bản đầy đủ/Xem tóm tắt và toàn văn ở đăng ký.
+- Tham khảo cách tách lớp đọc nhanh/toàn văn tại
+  [Airbnb Privacy](https://www.airbnb.com/privacy) và
+  [Spotify Safety & Privacy](https://www.spotify.com/us/safetyandprivacy/learn-more-about-privacy/plain).
+  Đây là tham khảo trang công khai, không phải nghiệm thu app native của họ.
+  Thêm mapping aria-expanded/aria-selected từ accessibilityState trong Button
+  mobile để web preview và screen reader có trạng thái tương ứng; giữ API/visual
+  mặc định của các consumer khác.
+- Tóm tắt căn cứ shared legal draft `2026-11-05-draft-4`, source policy hạn
+  chế và phí quyết toán 4% (`credit/domain/money.ts`). Nêu hạn chế uy tín,
+  tăng điểm không tự gỡ, hoàn Credit có điều kiện và chưa hỗ trợ tự xóa toàn
+  bộ tài khoản. Không sửa shared/BE hoặc tự bổ sung thông tin liên hệ/retention.
+- TypeScript, full ESLint, structure 894 source files và whitespace đạt.
+  Full mobile suite 1.034/1.034 đạt, không fail/skipped; log ignored
+  `.expo/legal-layout-tests.log`. ScrollView dùng ScrollViewInstance theo RN0.88.
+- Web fixture dùng screen/summary/toàn văn/Button/Icon thật tại 320/390/430px:
+  không tràn ngang, font Nunito thực sự đã load, icon-only Back, history/fallback,
+  accordion mở/đóng/thay mục, aria-expanded, chuyển tab về danh sách và đọc
+  đủ hai bản đạt. Consumer PolicyContent mặc định dùng ở
+  đăng ký vẫn hiển thị toàn văn/notice. Đã xem screenshot terms-390/privacy-390
+  trong ignored `.expo/legal-preview/`; script `.expo/legal-preview.cjs`.
+- Source/UI complete; chưa kiểm Android/iOS. Đây không phải phê duyệt pháp
+  lý: bản gốc vẫn thiếu đầu mối liên hệ, thời hạn lưu giữ và một số quy tắc
+  Credit; chưa xác minh termsVersion của API triển khai.
+
 ## Hiện trạng
 
 - Cập nhật lúc: 2026-11-01T07:48:21+07:00.

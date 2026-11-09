@@ -18,7 +18,16 @@ import {
   editableRequest,
   isOwnRequest,
   requestError,
+  isRequestActivityRestricted,
+  requestEditorNotice,
 } from "../utils/request-policy";
+import { RequestRestrictionNotice } from "../components/request-restriction-notice";
+import { canCreateRequest } from "@/features/community/policy";
+import {
+  RequestCreationGate,
+  RequestCreationFeedback,
+  type CreationPolicy,
+} from "../components/request-creation-gate";
 import { type OwnerRequest } from "../types";
 import { AppError } from "@/lib/http/errors";
 import { RequestConflict } from "../components/request-conflict";
@@ -84,6 +93,14 @@ export function RequestEditorScreen() {
     baseline.current = query.data;
   const owner = baseline.current;
   if (!session) return <Redirect href="/login" />;
+  if (id === undefined)
+    return (
+      <RequestCreationGate
+        key={`${runtime.controller.generation}:${session.userId}:new`}
+      >
+        {(creationPolicy) => <RequestForm creationPolicy={creationPolicy} />}
+      </RequestCreationGate>
+    );
   if (id !== undefined && editorUnavailable(query, !!owner))
     return (
       <RequestPage title="Sửa yêu cầu học">
@@ -107,9 +124,11 @@ export function RequestEditorScreen() {
 function RequestForm({
   initial,
   source,
+  creationPolicy,
 }: Readonly<{
   initial?: OwnerRequest;
   source?: EditorRead;
+  creationPolicy?: CreationPolicy;
 }>) {
   const router = useRouter();
   const {
@@ -122,6 +141,8 @@ function RequestForm({
     recovery,
     acceptLatest,
   } = useRequestForm(initial, source);
+  const restricted = isRequestActivityRestricted(error);
+  const creationBlocked = !!creationPolicy && !canCreateRequest(creationPolicy);
   let saveLabel = initial ? "Lưu thay đổi" : "Lưu bản nháp";
   if (pending) saveLabel = "Đang lưu...";
   return (
@@ -158,11 +179,16 @@ function RequestForm({
                 gap: 8,
               }}
             >
+              {restricted && (
+                <RequestRestrictionNotice error={error} pending={pending} />
+              )}
               <Button
                 variant="craft"
                 style={[styles.action, { backgroundColor: colors.accent }]}
-                disabled={pending || blocked}
-                onPress={() => void form.handleSubmit(save)()}
+                disabled={pending || blocked || creationBlocked}
+                onPress={() => {
+                  if (!creationBlocked) void form.handleSubmit(save)();
+                }}
               >
                 {saveLabel}
               </Button>
@@ -176,11 +202,10 @@ function RequestForm({
         )
       }
     >
-      <Copy muted>
-        {initial?.publishedAt
-          ? "Bài đã đăng sẽ được duyệt lại khi sửa."
-          : "Lưu nháp, sau đó đăng bài."}
-      </Copy>
+      {creationBlocked && creationPolicy && (
+        <RequestCreationFeedback policy={creationPolicy} />
+      )}
+      <Copy muted>{requestEditorNotice(baseline)}</Copy>
       <RequestConflict
         initial={baseline}
         latest={recovery.latest}
@@ -198,11 +223,11 @@ function RequestForm({
       {!recovery.denied && (
         <RequestFields
           form={form}
-          pending={pending || blocked}
+          pending={pending || blocked || creationBlocked}
           initial={baseline}
         />
       )}
-      {!!error && !recovery.denied && (
+      {!!error && !restricted && !recovery.denied && (
         <FormNotice tone="error">{requestError(error, true)}</FormNotice>
       )}
     </RequestPage>
