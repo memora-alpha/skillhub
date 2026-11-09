@@ -26,7 +26,15 @@ test("public profile validates target and strips private/nested fields", async (
       assert.equal(options?.authenticated, true);
       return {
         ...fixtureIdentity(target).profile,
+        completedLearningPathCount: 3,
         email: target.email,
+        profileModeration: {
+          bio: {
+            action: "HIDE",
+            reason: "private moderation reason",
+            at: "2026-11-09T00:00:00.000Z",
+          },
+        },
         sharingSkills: [{ privateEvidence: "secret" }],
       };
     }),
@@ -36,9 +44,11 @@ test("public profile validates target and strips private/nested fields", async (
   const profile = await api.get(target.id);
   assert.equal(profile?.fullName, target.name);
   assert.equal(profile?.userId, target.id);
+  assert.equal(profile?.completedLearningPathCount, 3);
   assert.equal("email" in profile!, false);
   assert.equal("timezone" in profile!, false);
   assert.equal("locale" in profile!, false);
+  assert.equal("profileModeration" in profile!, false);
   assert.deepEqual(profile?.sharingSkills, []);
 });
 
@@ -47,6 +57,7 @@ test("wrong target, malformed counts and malformed projection are protocol error
     fixtureIdentity(fixtureUsers[0]).profile,
     { ...fixtureIdentity(target).profile, verifiedSkillCount: -1 },
     { ...fixtureIdentity(target).profile, bio: null },
+    { ...fixtureIdentity(target).profile, completedLearningPathCount: -1 },
   ]) {
     const api = createPublicProfileApi(mock(async () => value));
     await assert.rejects(

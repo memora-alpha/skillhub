@@ -166,21 +166,41 @@ export function useAuthSession() {
 export function useUpdateProfile() {
   const { runtime, account } = useAuthSession();
   const client = useQueryClient();
+  const generation = runtime.controller.generation;
   return useMutation({
+    retry: false,
     mutationFn: async (patch: ProfilePatch) => {
-      const generation = runtime.controller.generation;
+      const isCurrent = () =>
+        generation === runtime.controller.generation &&
+        runtime.controller.getSnapshot() === "ready";
+      if (!account || !isCurrent()) throw new AppError("session");
+      await client.cancelQueries({
+        queryKey: ["account", "me", generation],
+        exact: true,
+      });
+      if (!isCurrent()) throw new AppError("session");
       const profile = await runtime.accountApi.updateProfile(patch);
-      if (
-        generation !== runtime.controller.generation ||
-        profile.userId !== account?.userId
-      )
+      if (!isCurrent() || profile.userId !== account?.userId)
         throw new AppError("session");
+      await client.cancelQueries({
+        queryKey: ["account", "me", generation],
+        exact: true,
+      });
+      if (!isCurrent()) throw new AppError("session");
       client.setQueryData<OwnIdentity>(
         ["account", "me", generation],
         (current) => (current ? { ...current, profile } : current),
       );
       void client.invalidateQueries({
         queryKey: ["account", "me", generation],
+      });
+      void client.invalidateQueries({
+        queryKey: [
+          "public-profile",
+          account.userId,
+          generation,
+          account.userId,
+        ],
       });
       return profile;
     },

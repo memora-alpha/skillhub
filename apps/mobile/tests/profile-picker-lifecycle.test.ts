@@ -102,6 +102,9 @@ test("avatar picker releases the form lock when it resolves while blurred", asyn
       profileStyles: {},
     },
     "../components/AvatarDraftEditor": { AvatarDraftEditor: "Avatar" },
+    "../components/ProfileModerationNotice": {
+      ProfileModerationNotice: "ModerationNotice",
+    },
   };
   const contexts = Object.entries(mocks).map(([name, namedExports]) =>
     mock.module(pathToFileURL(local.resolve(name)), { namedExports }),

@@ -8,6 +8,7 @@ import { ProfileAbout, ProfileSummary } from "../components/ProfileSummary";
 import { useProfilePreview } from "../context/ProfilePreview";
 import { ProfileShortcuts } from "../components/ProfileShortcuts";
 import { ProfileLogout } from "../components/ProfileLogout";
+import { ProfileModerationNotice } from "../components/ProfileModerationNotice";
 
 export function ProfileScreen() {
   const { session } = useAuthSession();
@@ -24,6 +25,9 @@ export function ProfileScreen() {
             onSettings={() => router.push("/account-settings")}
             avatarNotice={<AvatarUploadNotice />}
             linkToPublicProfile
+          />
+          <ProfileModerationNotice
+            onEdit={() => router.push("/edit-profile")}
           />
           <ProfileShortcuts onOpen={open} />
           <ProfileAbout bio={profile.bio} />
