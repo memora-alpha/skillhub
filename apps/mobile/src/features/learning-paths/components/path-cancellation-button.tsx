@@ -4,17 +4,19 @@ import { useConnections } from "@/features/connections";
 import type { ApiLearningPath } from "../api/learning-paths-contract";
 import { useTerminationRequests } from "../hooks/use-path-changes";
 import { openTermination } from "../utils/termination-policy";
+import { pathSessionsCompleted } from "../utils/policy-api";
 
 export function PathCancellationButton({
   path,
 }: Readonly<{
-  path: Pick<ApiLearningPath, "id" | "status" | "terminationApprovedAt">;
+  path: ApiLearningPath;
 }>) {
   const router = useRouter();
   const runtime = useConnections();
   const query = useTerminationRequests(path.id, path.status !== "CANCELLED");
   const request = query.denied ? undefined : query.data?.find(openTermination);
   const approved = !!path.terminationApprovedAt || !!request?.approvedAt;
+  if (!request && !approved && pathSessionsCompleted(path)) return null;
   let label = "Hủy lộ trình";
   if (request)
     label =

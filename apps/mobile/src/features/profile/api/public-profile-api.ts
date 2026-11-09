@@ -12,6 +12,14 @@ const profileSchema = z.object({
   reputationScore: z.number().finite().nullable(),
   verifiedSkillCount: z.number().int().nonnegative(),
   completedSessionCount: z.number().int().nonnegative(),
+  completedLearningPathCount: z.number().int().nonnegative(),
+  reviewSummary: z
+    .object({
+      reviewCount: z.number().int().nonnegative(),
+      averageRating: z.number().nullable(),
+      ratingDistribution: z.record(z.string(), z.number().int().nonnegative()),
+    })
+    .optional(),
   selectedTitle: z.string().nullable().optional().default(null),
 });
 

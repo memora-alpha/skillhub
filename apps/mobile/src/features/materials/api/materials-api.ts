@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { readCursorPages } from "@/lib/http/cursor-pages";
 import type { RequestOptions } from "@/lib/http/client";
 import {
   parse,
@@ -29,9 +30,11 @@ export function createMaterialsApi(
       replayAfterRenewal: false,
     });
   async function mine(signal?: AbortSignal) {
-    const rows = parse(
-      z.array(materialSchema),
-      await call("/me/materials", { signal }),
+    const rows = await readCursorPages(
+      call,
+      "/me/materials",
+      materialSchema,
+      signal,
     );
     if (rows.some((row) => row.ownerId !== userId))
       throw new AppError("protocol");
@@ -39,6 +42,24 @@ export function createMaterialsApi(
   }
   return {
     mine,
+    async minePage(cursor?: string, signal?: AbortSignal) {
+      return parsePage(
+        materialSchema,
+        await call(`/me/materials?${pageQuery(cursor)}`, {
+          includeMeta: true,
+          signal,
+        }),
+      );
+    },
+    async ordersPage(cursor?: string, signal?: AbortSignal) {
+      return parsePage(
+        orderSchema,
+        await call(`/me/material-orders?${pageQuery(cursor)}`, {
+          includeMeta: true,
+          signal,
+        }),
+      );
+    },
     async search(
       q = "",
       accessType?: "FREE" | "PAID",
@@ -147,10 +168,20 @@ export function createMaterialsApi(
       );
     },
     async orders(signal?: AbortSignal) {
-      return parse(
-        z.array(orderSchema),
-        await call("/me/material-orders", { signal }),
+      return readCursorPages(call, "/me/material-orders", orderSchema, signal);
+    },
+    async ownedOrder(materialId: string, signal?: AbortSignal) {
+      parse(uuid, materialId);
+      const matches = (row: z.infer<typeof orderSchema>) =>
+        row.materialId === materialId && row.status === "SUCCESS";
+      const rows = await readCursorPages(
+        call,
+        "/me/material-orders",
+        orderSchema,
+        signal,
+        (items) => items.some(matches),
       );
+      return rows.find(matches) ?? null;
     },
     async purchase(id: string, expectedListingVersion: number, key: string) {
       const row = parse(

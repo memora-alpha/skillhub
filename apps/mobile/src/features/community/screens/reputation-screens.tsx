@@ -8,6 +8,7 @@ import {
 } from "@/components/feature-page";
 import { ConnectionFeedback } from "@/features/connections";
 import { useReputation } from "../hooks/use-community";
+import { RecoveryPanel } from "../components/recovery-panel";
 import {
   ReputationSummary,
   reputationReasons,
@@ -40,6 +41,7 @@ function ReputationView({ history }: Readonly<{ history: boolean }>) {
         <Copy>Thông tin uy tín hiện không khả dụng cho tài khoản này.</Copy>
       )}
       {data && <ReputationSummary data={data} />}
+      {data && !history && <RecoveryPanel />}
       {data && history && (
         <>
           {!query.items.length && (

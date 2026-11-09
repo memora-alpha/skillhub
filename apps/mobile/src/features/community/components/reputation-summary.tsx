@@ -48,7 +48,9 @@ export function ReputationSummary({ data }: Readonly<{ data: Reputation }>) {
             {"\n"}
             Lý do: {reputationReasons[item.reasonCode] ?? item.reasonCode}
             {"\n"}
-            Đến {new Date(item.endsAt).toLocaleString("vi-VN")}
+            Thời hạn: {new Date(item.endsAt).toLocaleString("vi-VN")}
+            {Date.parse(item.endsAt) <= Date.now() &&
+              " · Cần xác nhận chính sách hoặc chờ xét lại để mở quyền."}
           </Copy>
         ))}
       </Panel>

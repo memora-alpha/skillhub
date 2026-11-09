@@ -51,6 +51,7 @@ import { usePullRefresh } from "../hooks/use-pull-refresh";
 import { PathSettlementPanel } from "../components/path-settlement-panel";
 import { CompletedAgreementReview } from "../components/completed-agreement-review";
 import { PathCancellationButton } from "../components/path-cancellation-button";
+import { PathOverviewPanel } from "../components/path-overview-panel";
 
 function agreementBackTarget(
   source: ReturnType<typeof uuid.safeParse>,
@@ -166,6 +167,7 @@ function PathContent({
         pathId={path.id}
         partnerId={otherId}
       />
+      <PathOverviewPanel pathId={path.id} />
       <AgreementSteps
         value={selected}
         current={current}

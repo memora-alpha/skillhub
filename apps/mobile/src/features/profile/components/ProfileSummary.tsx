@@ -26,7 +26,7 @@ export function ProfileSummary({
   const stats = [
     { value: profile.reputationScore, label: "Điểm uy tín" },
     { value: profile.verifiedSkillCount, label: "Kỹ năng đã xác minh" },
-    { value: null, label: "Learning Path hoàn thành", pending: true },
+    { value: profile.completedLearningPathCount, label: "Lộ trình hoàn thành" },
   ];
   return (
     <View style={styles.heroCard}>
@@ -47,16 +47,13 @@ export function ProfileSummary({
               style={[
                 styles.statValue,
                 {
-                  color: stat.pending
-                    ? profileColors.muted
-                    : profileStatColors[index],
+                  color: profileStatColors[index],
                 },
               ]}
             >
               {stat.value ?? "—"}
             </Text>
             <Text style={styles.statLabel}>{stat.label}</Text>
-            {stat.pending && <Text style={styles.statLabel}>Sắp có</Text>}
           </View>
         ))}
       </View>

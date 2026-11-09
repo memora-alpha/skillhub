@@ -67,10 +67,8 @@ function ReportEditor({
           <Copy>Đối tượng: {id}</Copy>
           {target === "SESSION" && (
             <Copy>
-              Báo cáo dành cho sự cố kỹ thuật hoặc vấn đề khác cần hỗ trợ. Vắng
-              học, hủy buổi và học bù được xử lý trong chi tiết buổi học, không
-              cần tạo báo cáo vắng học. Báo cáo sau giải ngân không tự đảo giao
-              dịch Credit.
+              Mô tả vấn đề cần hỗ trợ. Để hủy buổi hoặc xin học bù, mở chi tiết
+              buổi học.
             </Copy>
           )}
           {sessionId && (

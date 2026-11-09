@@ -12,6 +12,16 @@ export type OwnProfile = {
   reputationScore: number | null;
   verifiedSkillCount: number;
   completedSessionCount: number;
+  completedLearningPathCount?: number;
+  reviewSummary?: {
+    reviewCount: number;
+    averageRating: number | null;
+    ratingDistribution: Record<string, number>;
+  };
+  profileModeration?: {
+    bio?: { action: string; reason: string };
+    avatar?: { action: string; reason: string };
+  } | null;
   selectedTitle?: string | null;
 };
 export type OwnIdentity = {
@@ -49,7 +59,9 @@ export function parseProfile(value: unknown): OwnProfile {
         Number.isFinite(value.reputationScore))
     ) ||
     !count(value.verifiedSkillCount) ||
-    !count(value.completedSessionCount)
+    !count(value.completedSessionCount) ||
+    (value.completedLearningPathCount !== undefined &&
+      !count(value.completedLearningPathCount))
   )
     throw new AppError("protocol");
   return { ...value, selectedTitle: value.selectedTitle ?? null } as OwnProfile;

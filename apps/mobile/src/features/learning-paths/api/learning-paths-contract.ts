@@ -104,6 +104,19 @@ export const pathSummarySchema = z.object({
   lockedVersion: version.nullable(),
   createdAt: timestamp,
   updatedAt: timestamp,
+  learningStage: z.string().nullable().optional(),
+  progress: z
+    .object({
+      learning: z
+        .object({ completed: z.number(), total: z.number() })
+        .nullable(),
+      teaching: z
+        .object({ completed: z.number(), total: z.number() })
+        .nullable(),
+    })
+    .optional(),
+  nextSession: z.object({ id: uuid, startAt: timestamp }).nullable().optional(),
+  attentionCount: z.number().optional(),
 });
 export type ApiLearningPath = z.infer<typeof learningPathSchema>;
 export type ApiLearningPlan = z.infer<typeof planSchema>;

@@ -68,6 +68,20 @@ const messages: Record<string, string> = {
   INSUFFICIENT_AVAILABLE_CREDIT:
     "Số dư Credit khả dụng chưa đủ. Kiểm tra ví trước khi tiếp tục.",
   MATERIAL_ALREADY_OWNED: "Bạn đã có quyền truy cập tài liệu này.",
+  PATH_ALREADY_LEARNING_FINISHED:
+    "Các buổi học đã hoàn thành. Mở quyết toán để theo dõi Credit.",
+  CASE_HANDLER_REQUIRED:
+    "Vụ việc chưa có người xử lý. Bạn có thể gửi thông tin khi nhân viên tiếp nhận.",
+  REPORT_CASE_CLOSED: "Vụ việc đã đóng. Bạn vẫn có thể xem lại trao đổi.",
+  CASE_EVIDENCE_LIMIT: "Bạn đã gửi đủ 5 bằng chứng cho vụ việc này.",
+  CASE_MESSAGE_ID_REUSED:
+    "Nội dung gửi lại đã thay đổi. Tải lại trao đổi để kiểm tra.",
+  RECOVERY_MISSION_INCOMPLETE:
+    "Nhiệm vụ chưa đủ điều kiện. Hoàn thành các bước rồi kiểm tra lại.",
+  RECOVERY_MISSION_NOT_ELIGIBLE:
+    "Nhiệm vụ này không còn áp dụng cho tài khoản của bạn. Hãy cập nhật uy tín.",
+  RECOVERY_QUIZ_VERSION_OR_LENGTH_INVALID:
+    "Bài kiểm tra đã cập nhật. Tải lại câu hỏi để làm tiếp.",
   MATERIAL_TRANSITION_INVALID:
     "Tài liệu đã đổi trạng thái. Tải lại danh sách trước khi thao tác.",
   MATERIAL_NOT_PURCHASABLE: "Tài liệu hiện không đủ điều kiện mua.",

@@ -31,6 +31,14 @@ function exchangeLabel(exchangeType: PathSummary["exchangeType"]) {
   if (exchangeType === "ONE_WAY") return "Học một chiều";
   return "Chưa có hình thức học";
 }
+const learningStageLabels: Record<string, string> = {
+  PREPARING: "Đang chuẩn bị",
+  WAITING_START: "Chờ bắt đầu",
+  LEARNING: "Đang học",
+  LEARNING_FINISHED: "Đã học xong · Chờ quyết toán",
+  COMPLETED: "Đã hoàn tất",
+  STOPPED: "Đã dừng",
+};
 
 function statusIcon(status: PathSummary["status"]) {
   if (["CANCELLED", "DISPUTED"].includes(status)) return "alert" as const;
@@ -115,11 +123,37 @@ export function ApiPathCard({
               closed && styles.closedText,
             ]}
           >
-            {pathStatusLabel[path.status]}
+            {(path.learningStage && learningStageLabels[path.learningStage]) ||
+              pathStatusLabel[path.status]}
           </Text>
         </View>
       </View>
       <RouteButton href={`/paths/${path.id}`}>Mở lộ trình</RouteButton>
+      {path.progress?.learning && (
+        <Text style={styles.updated}>
+          Học: {path.progress.learning.completed}/{path.progress.learning.total}{" "}
+          buổi
+        </Text>
+      )}
+      {path.progress?.teaching && (
+        <Text style={styles.updated}>
+          Dạy: {path.progress.teaching.completed}/{path.progress.teaching.total}{" "}
+          buổi
+        </Text>
+      )}
+      {!!path.attentionCount && (
+        <Text style={styles.updated}>
+          {path.attentionCount} việc cần theo dõi
+        </Text>
+      )}
+      {path.nextSession && (
+        <RouteButton
+          secondary
+          href={`/learning-sessions/${path.nextSession.id}`}
+        >
+          {`Buổi kế tiếp · ${new Date(path.nextSession.startAt).toLocaleString("vi-VN")}`}
+        </RouteButton>
+      )}
     </View>
   );
 }

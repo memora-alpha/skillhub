@@ -10,6 +10,7 @@ import {
 } from "@/components/feature-page";
 import { useProductPreview } from "../context";
 import { LocalePreviewScreen } from "./locale-screen";
+import { NotificationPreferences } from "@/features/notifications";
 export function OnboardingScreen() {
   const [step, setStep] = useState(0);
   const { interests, setInterests } = useProductPreview();
@@ -151,7 +152,6 @@ export function HelpScreen() {
 }
 export function PreferencesScreen() {
   const { section } = useLocalSearchParams<{ section: string }>();
-  const { enabled, toggle } = useProductPreview();
   if (section === "timezone" || section === "language")
     return <LocalePreviewScreen section={section} />;
   if (section !== "notifications" && section !== "privacy")
@@ -166,22 +166,10 @@ export function PreferencesScreen() {
         section === "notifications" ? "Tùy chỉnh thông báo" : "Quyền riêng tư"
       }
       back="/account-settings"
+      demo={false}
     >
       {section === "notifications" ? (
-        <Panel title="Nhóm thông báo trong bản xem thử">
-          {["Học tập", "Credit", "Cộng đồng"].map((group) => (
-            <Button key={group} variant="paper" onPress={() => toggle(group)}>
-              {group}: {enabled.includes(group) ? "Đang bật" : "Đã tắt"}
-            </Button>
-          ))}
-          <Copy muted>
-            Lựa chọn này chỉ lọc trung tâm thông báo mẫu; không thay đổi email
-            hoặc push thực tế.
-          </Copy>
-          <RouteButton href="/notifications">
-            Xem trung tâm thông báo
-          </RouteButton>
-        </Panel>
+        <NotificationPreferences />
       ) : (
         <Panel title="Bạn quyết định điều mình chia sẻ">
           <Copy>

@@ -23,7 +23,8 @@ import { FormNotice } from "@/components/FormNotice";
 import {
   useMaterial,
   useMaterialSearch,
-  useMaterialOrders,
+  useMaterialOwnership,
+  useMaterialOrderPages,
   useMaterialsApi,
 } from "../hooks/use-materials";
 
@@ -110,12 +111,10 @@ export function MaterialDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>(),
     query = useMaterial(id),
     runtime = useConnections();
-  const orders = useMaterialOrders();
+  const orders = useMaterialOwnership(id);
   const material = query.data,
     owned = material?.ownerId === runtime.userId;
-  const purchased = orders.data?.some(
-    (order) => order.materialId === id && order.status === "SUCCESS",
-  );
+  const purchased = !!orders.data;
   return (
     <FeaturePage
       demo={false}
@@ -156,10 +155,16 @@ export function MaterialDetailScreen() {
             <RouteButton href={`/materials/${id}/access`}>
               Mở tài liệu
             </RouteButton>
-          ) : (
+          ) : orders.data !== undefined && !orders.error ? (
             <RouteButton href={`/materials/${id}/purchase`}>
               Xem xác nhận mua
             </RouteButton>
+          ) : (
+            <ConnectionFeedback
+              loading={orders.isLoading}
+              error={orders.error}
+              retry={orders.refetch}
+            />
           )}
           {owned && (
             <RouteButton secondary href={`/materials/${id}/edit`}>
@@ -178,7 +183,7 @@ export function MaterialDetailScreen() {
   );
 }
 export function MaterialLibraryScreen() {
-  const query = useMaterialOrders(),
+  const query = useMaterialOrderPages(),
     api = useMaterialsApi(),
     runtime = useConnections(),
     cache = useQueryClient();
@@ -212,8 +217,11 @@ export function MaterialLibraryScreen() {
         Hoàn tiền trong 24 giờ nếu chưa được cấp đường dẫn tải. Hệ thống sẽ kiểm
         tra điều kiện và số dư người bán.
       </Copy>
-      {query.data?.map((order) => (
-        <Panel key={order.id} title={`Đơn mua ${order.id}`}>
+      {query.items.map((order) => (
+        <Panel
+          key={order.id}
+          title={`Đơn mua · ${new Date(order.createdAt).toLocaleDateString("vi-VN")}`}
+        >
           <Badge label={order.status} />
           <Copy>
             {order.grossCredit} CR · phiên bản {order.listingVersion}
@@ -255,7 +263,16 @@ export function MaterialLibraryScreen() {
           )}
         </Panel>
       ))}
-      {query.data?.length === 0 && (
+      {query.hasNextPage && (
+        <Button
+          variant="paper"
+          disabled={query.isFetching}
+          onPress={() => void query.fetchNextPage()}
+        >
+          Xem thêm đơn mua
+        </Button>
+      )}
+      {query.data && query.items.length === 0 && (
         <EmptyState
           title="Chưa có đơn mua"
           description="Các tài liệu miễn phí có thể mở trực tiếp từ trang khám phá."

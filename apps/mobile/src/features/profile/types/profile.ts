@@ -21,6 +21,12 @@ export type PublicProfile = Readonly<{
   reputationScore: number | null;
   verifiedSkillCount: number;
   completedSessionCount: number;
+  completedLearningPathCount?: number;
+  reviewSummary?: {
+    reviewCount: number;
+    averageRating: number | null;
+    ratingDistribution: Record<string, number>;
+  };
   selectedTitle?: string | null;
   sharingSkills: readonly PublicSkill[];
 }>;
