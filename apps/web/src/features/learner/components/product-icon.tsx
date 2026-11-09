@@ -20,12 +20,16 @@ type IconName =
   | "search"
   | "send"
   | "shield"
+  | "star"
   | "user"
   | "users"
   | "video"
   | "wallet";
 
 const iconPaths: Record<IconName, ReactNode> = {
+  star: (
+    <path d="m12 3 2.8 5.7 6.3.9-4.55 4.4 1.08 6.25L12 17.3l-5.63 2.95 1.08-6.25L2.9 9.6l6.3-.9L12 3Z" />
+  ),
   filter: <path d="M4 7h16M7 12h10M10 17h4" />,
   paperclip: (
     <path d="m8 12 6-6a3 3 0 0 1 4 4l-8 8a5 5 0 0 1-7-7l9-9M7 13l7-7" />

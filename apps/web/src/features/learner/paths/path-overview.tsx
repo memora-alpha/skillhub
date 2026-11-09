@@ -1,16 +1,11 @@
 "use client";
 import Link from "next/link";
 import { useState } from "react";
-import { useUserList, useUserResource } from "../hooks/use-user-resource";
-import {
-  Feedback,
-  More,
-  Panel,
-  Status,
-  formatTime,
-} from "../components/common";
+import { useUserResource } from "../hooks/use-user-resource";
+import { Feedback, Panel, Status, formatTime } from "../components/common";
 import { settlementStatusLabels } from "./post-session-contract";
-import { PrivateCaseThread } from "../account/private-case-thread";
+import { PathCases } from "./path-cases";
+import styles from "../components/learning-layout.module.css";
 import { learningStageLabel } from "./path-navigation";
 type Target = { type: string; id: string };
 type Attention = {
@@ -64,7 +59,7 @@ export function PathProgress({
           stages[overview.learningStage ?? ""] ??
           "Đang cập nhật tiến độ"}
       </strong>
-      <div className="learner-actions">
+      <div className={styles.progressList}>
         {(
           [
             ["learning", "Bạn học"],
@@ -73,12 +68,17 @@ export function PathProgress({
         ).map(([key, label]) => {
           const row = overview.progress[key];
           return row ? (
-            <span key={key}>
-              {label}:{" "}
+            <div key={key} className={styles.progressRow}>
+              <span>{label}</span>
               <strong>
                 {row.completed}/{row.total} buổi
               </strong>
-            </span>
+              <progress
+                aria-label={label}
+                value={row.completed}
+                max={Math.max(row.total, 1)}
+              />
+            </div>
           ) : null;
         })}
       </div>
@@ -93,14 +93,6 @@ export function PathProgress({
     </div>
   );
 }
-type CaseSummary = {
-  id: string;
-  status: string;
-  reasonCode: string;
-  relatedSessionId: string | null;
-  blocksSettlement: boolean;
-  createdAt: string | null;
-};
 export function PathOverviewPanel({
   pathId,
   onOpenSection,
@@ -108,13 +100,7 @@ export function PathOverviewPanel({
   const query = useUserResource<PathOverview>(
     `learning-paths/${pathId}/overview`,
   );
-  const cases = useUserList<CaseSummary>(
-    `learning-paths/${pathId}/cases?limit=20`,
-  );
   const [selected, setSelected] = useState<string>();
-  const summary = useUserResource<CaseSummary>(
-    selected ? `learning-paths/${pathId}/cases/${selected}/summary` : null,
-  );
   return (
     <Panel title="Tiến độ và việc cần làm">
       <Feedback
@@ -207,55 +193,12 @@ export function PathOverviewPanel({
           ))}
         </>
       )}
-      <details>
-        <summary>
-          Vụ việc trong lộ trình ({cases.items.length}
-          {cases.cursor ? "+" : ""})
-        </summary>
-        <Feedback
-          loading={cases.loading}
-          error={cases.error}
-          reload={cases.reload}
-        />
-        {cases.items.map((item) => (
-          <p key={item.id}>
-            <Status value={item.status} />{" "}
-            <button className="btn" onClick={() => setSelected(item.id)}>
-              Xem vụ việc {item.id.slice(0, 8)}
-            </button>
-            {item.blocksSettlement && <span> · Đang chặn quyết toán</span>}
-          </p>
-        ))}
-        {!cases.loading && !cases.items.length && <p>Không có vụ việc.</p>}
-        <More
-          cursor={cases.cursor}
-          loading={cases.loading}
-          onMore={() => {
-            void cases.more();
-          }}
-        />
-      </details>
-      {selected && (
-        <section>
-          <button className="btn" onClick={() => setSelected(undefined)}>
-            Đóng vụ việc
-          </button>
-          <Feedback
-            loading={summary.loading}
-            error={summary.error}
-            reload={summary.reload}
-          />
-          {summary.data && (
-            <>
-              <Status value={summary.data.status} />
-              <PrivateCaseThread
-                caseId={selected}
-                closed={["RESOLVED", "REJECTED"].includes(summary.data.status)}
-              />
-            </>
-          )}
-        </section>
-      )}
+      <PathCases
+        compact
+        pathId={pathId}
+        selected={selected}
+        onSelect={setSelected}
+      />
     </Panel>
   );
 }

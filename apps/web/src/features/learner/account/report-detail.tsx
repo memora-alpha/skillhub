@@ -1,4 +1,5 @@
 "use client";
+import { reportDescriptionText } from "@/lib/system-text";
 import Link from "next/link";
 import {
   Back,
@@ -13,6 +14,7 @@ import { useUserResource } from "../hooks/use-user-resource";
 import type { ReportCase } from "./account-types";
 import { reportReasonLabel } from "./report-reasons";
 import { reportStatusLabel } from "./report-status";
+import styles from "../components/learning-layout.module.css";
 import { PrivateCaseThread } from "./private-case-thread";
 
 export function ReportDetail({ id }: Readonly<{ id: string }>) {
@@ -28,34 +30,30 @@ export function ReportDetail({ id }: Readonly<{ id: string }>) {
         reload={query.reload}
       />
       {report && (
-        <div className="learner-two-columns">
-          <Panel title={reportReasonLabel(report.reasonCode)}>
-            <Status
-              value={report.status}
-              label={reportStatusLabel(report.status)}
-            />
-            <p className="muted">Mã báo cáo: {report.id}</p>
-            <p>
-              {report.createdAt
-                ? formatTime(report.createdAt)
-                : "Chưa ghi nhận thời điểm gửi"}
-            </p>
-            <p className="learner-prose">{report.description}</p>
-            <h3>Phản hồi xử lý</h3>
-            <p className="learner-prose">
-              {report.resolutionNote ??
-                "Chưa có phản hồi từ nhân sự phụ trách."}
-            </p>
-            {report.resolvedAt && (
-              <p>Thời điểm xử lý: {formatTime(report.resolvedAt)}</p>
-            )}
-          </Panel>
-          <div className="learner-stack">
-            <Panel title="Hỗ trợ riêng">
-              <PrivateCaseThread
-                caseId={id}
-                closed={["RESOLVED", "REJECTED"].includes(report.status)}
+        <div className={styles.detailGrid}>
+          <div className={styles.detailSummary}>
+            <Panel title={reportReasonLabel(report.reasonCode)}>
+              <Status
+                value={report.status}
+                label={reportStatusLabel(report.status)}
               />
+              <p className="muted">Mã báo cáo: {report.id}</p>
+              <p>
+                {report.createdAt
+                  ? formatTime(report.createdAt)
+                  : "Chưa ghi nhận thời điểm gửi"}
+              </p>
+              <p className="learner-prose">
+                {reportDescriptionText(report.description)}
+              </p>
+              <h3>Phản hồi xử lý</h3>
+              <p className="learner-prose">
+                {report.resolutionNote ??
+                  "Chưa có phản hồi từ nhân sự phụ trách."}
+              </p>
+              {report.resolvedAt && (
+                <p>Thời điểm xử lý: {formatTime(report.resolvedAt)}</p>
+              )}
             </Panel>
             <Panel title="Thông tin liên quan">
               {report.blocksSettlement && (
@@ -84,6 +82,14 @@ export function ReportDetail({ id }: Readonly<{ id: string }>) {
                   </Link>
                 </p>
               )}
+            </Panel>
+          </div>
+          <div className="learner-stack">
+            <Panel title="Trao đổi riêng với hỗ trợ">
+              <PrivateCaseThread
+                caseId={id}
+                closed={["RESOLVED", "REJECTED"].includes(report.status)}
+              />
             </Panel>
             <Panel title="Bằng chứng đã gửi">
               {report.reportEvidenceCaseIdRecords.map((file) => (

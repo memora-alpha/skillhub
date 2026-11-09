@@ -1,4 +1,5 @@
 "use client";
+import { reportDescriptionText } from "@/lib/system-text";
 import Link from "next/link";
 import { useCallback, useState } from "react";
 import { UploadControl } from "../components/upload-control";
@@ -26,6 +27,8 @@ import {
   reportReasonLabel,
   reportReasons,
 } from "./report-reasons";
+import styles from "../components/learning-layout.module.css";
+import { ProductIcon } from "../components/product-icon";
 export { reportReasons } from "./report-reasons";
 export function ReportsScreen() {
   const query = useUserResource<ReportCase[]>("reports/mine");
@@ -34,62 +37,77 @@ export function ReportsScreen() {
     (item) => filter === "ALL" || item.status === filter,
   );
   return (
-    <>
-      <PageHeading title="Báo cáo của tôi" />
+    <div className={styles.page}>
+      <PageHeading
+        title="Báo cáo của tôi"
+        description="Theo dõi phản hồi và bổ sung thông tin cho các báo cáo bạn đã gửi."
+      />
       <Feedback
         loading={query.loading}
         error={query.error}
         reload={query.reload}
       />
-      <div className="learner-form">
-        <label>
-          <span>Trạng thái báo cáo</span>
-          <select
-            value={filter}
-            onChange={(event) => setFilter(event.target.value)}
+      <div className={styles.filters} aria-label="Trạng thái báo cáo">
+        {[["ALL", "Tất cả"], ...reportStatuses].map(([code, label]) => (
+          <button
+            type="button"
+            key={code}
+            aria-pressed={filter === code}
+            onClick={() => setFilter(code!)}
           >
-            <option value="ALL">Tất cả</option>
-            {reportStatuses.map(([code, label]) => (
-              <option key={code} value={code}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </label>
+            {label}
+          </button>
+        ))}
       </div>
-      <div className="learner-stack">
+      <div className={styles.reportList}>
         {items?.map((item) => (
-          <Panel key={item.id}>
-            <div className="learner-card-top">
+          <Panel key={item.id} className={styles.reportCard}>
+            <div className={styles.reportTop}>
               <h2>{reportReasonLabel(item.reasonCode)}</h2>
               <Status
                 value={item.status}
                 label={reportStatusLabel(item.status)}
               />
             </div>
-            <p className="learner-prose">{item.description}</p>
-            <p className="muted">
-              {item.createdAt
-                ? formatTime(item.createdAt)
-                : "Chưa ghi nhận thời điểm gửi"}
+            <p className="learner-prose">
+              {reportDescriptionText(item.description)}
             </p>
+            <div className={styles.meta}>
+              <span>
+                <ProductIcon name="calendar" size={16} />
+                {item.createdAt
+                  ? formatTime(item.createdAt)
+                  : "Chưa ghi nhận thời điểm gửi"}
+              </span>
+              <span>
+                {item.relatedSessionId
+                  ? "Buổi học"
+                  : item.relatedMaterialId
+                    ? "Tài liệu"
+                    : "Báo cáo hỗ trợ"}
+              </span>
+            </div>
             {item.resolutionNote && (
               <p className="learner-prose">Phản hồi: {item.resolutionNote}</p>
             )}
-            <Link
-              className="learner-card-link"
-              href={"/learn/reports/" + item.id}
-            >
-              Theo dõi báo cáo →
-            </Link>
-            {item.relatedSessionId && (
+            <div className={styles.actions}>
               <Link
-                className="learner-card-link"
-                href={"/learn/sessions/" + item.relatedSessionId}
+                className="btn btn-primary"
+                href={"/learn/reports/" + item.id}
               >
-                Xem buổi học →
+                {item.status === "NEED_MORE_INFO"
+                  ? "Bổ sung thông tin →"
+                  : "Xem chi tiết →"}
               </Link>
-            )}
+              {item.relatedSessionId && (
+                <Link
+                  className="learner-card-link"
+                  href={"/learn/sessions/" + item.relatedSessionId}
+                >
+                  Xem buổi học →
+                </Link>
+              )}
+            </div>
           </Panel>
         ))}
       </div>
@@ -100,7 +118,7 @@ export function ReportsScreen() {
             : "Không có báo cáo ở trạng thái này."}
         </Empty>
       )}
-    </>
+    </div>
   );
 }
 function reportTarget(sessionId?: string, materialId?: string) {

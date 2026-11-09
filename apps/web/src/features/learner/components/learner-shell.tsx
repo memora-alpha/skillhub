@@ -32,6 +32,7 @@ const links = [
   ["/learn/materials", "Tài liệu", "file"],
   ["/learn/wallet", "Ví Credit", "wallet"],
   ["/learn/achievements", "Thành tích", "award"],
+  ["/learn/reviews", "Đánh giá của tôi", "star"],
   ["/learn/reports", "Báo cáo của tôi", "shield"],
 ] as const;
 export function LearnerShell({

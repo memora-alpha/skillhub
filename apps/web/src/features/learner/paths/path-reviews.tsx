@@ -12,6 +12,9 @@ import {
 } from "../components/common";
 import { checkedReviews, type PathReview } from "./post-session-contract";
 import { UserApiError } from "../api/client";
+import Link from "next/link";
+import { ReviewRatingInput, ReviewStars } from "../reviews/review-stars";
+import styles from "../reviews/reviews.module.css";
 
 export function PathReviews({ path }: Readonly<{ path: LearningPath }>) {
   const { actor, request } = useUserSession();
@@ -92,62 +95,60 @@ export function PathReviews({ path }: Readonly<{ path: LearningPath }>) {
         error={readError ?? query.error ?? contractError}
         reload={() => void reconcile()}
       />
-      {rows?.map((r) => (
-        <article key={r.id}>
-          <h3>
-            {r.reviewerId === actor.userId
-              ? "Đánh giá bạn đã gửi"
-              : "Đánh giá từ đối tác"}{" "}
-            · {r.rating}/5
-          </h3>
-          <p className="learner-prose">
-            {r.comment || "Không có nhận xét thêm."}
-          </p>
-          <small>{formatTime(r.createdAt)}</small>
-        </article>
-      ))}
+      <div className={styles.reviewList}>
+        {rows?.map((r) => (
+          <article key={r.id} className={styles.reviewCard}>
+            <h3>
+              {r.reviewerId === actor.userId
+                ? "Đánh giá bạn đã gửi"
+                : "Đánh giá từ đối tác"}
+            </h3>
+            <ReviewStars rating={r.rating} />
+            <p className={styles.comment}>
+              {r.comment || "Không có nhận xét thêm."}
+            </p>
+            <small>{formatTime(r.createdAt)}</small>
+          </article>
+        ))}
+      </div>
       {!opened && <p className="muted">Mở đánh giá sau khi quyết toán.</p>}
       {own ||
       submitted ||
       command.failure?.code === "REVIEW_ALREADY_SUBMITTED" ? (
-        <p>
+        <p className={styles.success}>
           <output>Bạn đã gửi đánh giá cho lộ trình này.</output>
         </p>
       ) : (
         opened && (
           <form
-            className="learner-form"
+            className={styles.form}
             onSubmit={(e) => {
               e.preventDefault();
               void submit();
             }}
           >
-            <label>
-              <span>Chấm điểm đối tác</span>
-              <select
-                required
-                value={rating}
-                disabled={checking || command.pending || command.uncertain}
-                onChange={(e) => setRating(Number(e.target.value))}
-              >
-                <option value={0} disabled>
-                  Chọn số sao
-                </option>
-                {[5, 4, 3, 2, 1].map((n) => (
-                  <option key={n} value={n}>
-                    {n} sao
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
+            <ReviewRatingInput
+              value={rating}
+              onChange={setRating}
+              disabled={
+                checking ||
+                command.pending ||
+                command.uncertain ||
+                query.loading ||
+                !!query.error ||
+                !!contractError
+              }
+            />
+            <label className={styles.commentInput}>
               <span>Nhận xét (không bắt buộc)</span>
               <textarea
                 value={comment}
                 maxLength={1000}
+                placeholder="Điều gì ở trải nghiệm học tập này bạn muốn chia sẻ với đối tác?"
                 disabled={checking || command.pending || command.uncertain}
                 onChange={(e) => setComment(e.target.value)}
               />
+              <small>{comment.length}/1.000 ký tự</small>
             </label>
             <button
               type="submit"
@@ -163,7 +164,7 @@ export function PathReviews({ path }: Readonly<{ path: LearningPath }>) {
                 !rows
               }
             >
-              Gửi đánh giá
+              {command.pending ? "Đang gửi đánh giá…" : "Gửi đánh giá"}
             </button>
           </form>
         )
@@ -185,6 +186,11 @@ export function PathReviews({ path }: Readonly<{ path: LearningPath }>) {
           gửi trùng đánh giá.
         </p>
       )}
+      <div className={styles.links}>
+        <Link href="/learn/reviews" className="btn">
+          Xem đánh giá của tôi
+        </Link>
+      </div>
     </Panel>
   );
 }

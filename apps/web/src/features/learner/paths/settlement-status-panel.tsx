@@ -1,4 +1,6 @@
 "use client";
+import styles from "../components/learning-layout.module.css";
+import { ProductIcon } from "../components/product-icon";
 import { useState } from "react";
 import Link from "next/link";
 import { useUserSession } from "../auth/session";
@@ -115,11 +117,14 @@ export function SettlementStatusPanel({
     query.reload();
   }
   return (
-    <Panel title="Hoàn Credit & giải ngân">
+    <Panel title="Quyết toán Credit" className={styles.settlement}>
+      <div className={styles.settlementVisual}>
+        <ProductIcon name="wallet" size={34} />
+        <span>Theo dõi hoàn Credit & giải ngân</span>
+      </div>
       <p>
-        Sau khi hoàn tất toàn bộ thỏa thuận, hai bên có thể đồng ý giải ngân
-        ngay. Hệ thống tự xử lý khi đủ ý kiến và không còn vấn đề cần giải
-        quyết. Xác nhận học xong một buổi là bước riêng.
+        Hệ thống tự quyết toán khi toàn bộ thỏa thuận đủ điều kiện. Hai bên có
+        thể đồng ý giải ngân sớm; xác nhận hoàn thành buổi học là bước riêng.
       </p>
       <Feedback
         loading={query.loading}

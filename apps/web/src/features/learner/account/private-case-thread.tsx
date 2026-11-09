@@ -1,4 +1,5 @@
 "use client";
+import styles from "../components/learning-layout.module.css";
 import { useCallback, useRef, useState } from "react";
 import { useUserSession } from "../auth/session";
 import { useUserList, useUserResource } from "../hooks/use-user-resource";
@@ -78,7 +79,7 @@ function CaseThreadContent({
     }
   }
   return (
-    <section className="learner-stack">
+    <section className={"learner-stack " + styles.thread}>
       <h3>Trao đổi với người xử lý</h3>
       <p className="muted">
         Chỉ bạn và nhân sự được phân công xem nội dung này.
