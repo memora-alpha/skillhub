@@ -1,4 +1,4 @@
-import { PreferencesScreen } from "@/features/product-shell";
+import { PreferencesScreen } from "@/features/settings";
 export default function Screen() {
   return <PreferencesScreen />;
 }

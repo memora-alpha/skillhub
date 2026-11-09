@@ -1,16 +1,21 @@
-import { RefreshableScrollView as ScrollView } from "@/components/RefreshableScrollView";
 import { StyleSheet, Text, View } from "react-native";
-import { Redirect } from "expo-router";
-import { AppScreenLayout } from "@/features/shell";
+import { Redirect, useRouter } from "expo-router";
 import { Badge } from "@/components/Badge";
-import { Icon } from "@/components/Icon";
+import { ActionRow } from "@/components/ActionGroup";
 import {
   appColors as colors,
-  appRadius as radius,
+  appRadius,
   fonts,
   typography,
 } from "@/constants/theme";
 import { useAuthSession } from "@/features/auth";
+import { SettingsPage } from "../components/SettingsPage";
+import {
+  SettingsIntro,
+  SettingsSection,
+  SettingsNote,
+  settingsStyles,
+} from "../components/SettingsUI";
 
 const accountStatuses = {
   ACTIVE: { label: "Đang hoạt động", variant: "success" },
@@ -22,110 +27,69 @@ const accountStatuses = {
 
 export function AccountDetailsScreen() {
   const { session, account } = useAuthSession();
+  const router = useRouter();
   if (!session || !account) return <Redirect href="/login" />;
   const status = accountStatuses[account.accountStatus];
   return (
-    <AppScreenLayout
-      title="Tài khoản"
-      selected="Cài đặt"
-      back={{ href: "/account-settings", label: "Quay lại cài đặt" }}
-    >
-      {() => (
-        <ScrollView contentContainerStyle={styles.content}>
-          <View style={styles.intro}>
-            <View style={styles.introIcon}>
-              <Icon name="lock" size={24} color={colors.primary} />
-            </View>
-            <View style={styles.introCopy}>
-              <Text accessibilityRole="header" style={styles.title}>
-                Thông tin đăng nhập
-              </Text>
-              <Text style={styles.caption}>
-                Email và trạng thái tài khoản của bạn.
-              </Text>
-            </View>
+    <SettingsPage title="Tài khoản">
+      <SettingsIntro
+        title="Thông tin đăng nhập"
+        description="Email và trạng thái xác minh của tài khoản SkillHub."
+      />
+      <SettingsSection title="Email đăng nhập">
+        <View style={styles.emailCard}>
+          <View style={styles.emailHeading}>
+            <Text style={styles.monogram}>@</Text>
+            <Text style={settingsStyles.label}>Địa chỉ email của bạn</Text>
           </View>
-          <View style={[styles.card, styles.emailCard]}>
-            <Text style={styles.label}>Email đăng nhập</Text>
-            <Text selectable style={styles.email}>
-              {account.email}
-            </Text>
-            <Text style={styles.caption}>
-              Dùng để đăng nhập và nhận mã xác minh.
-            </Text>
-          </View>
-          <View style={styles.section}>
-            <Text accessibilityRole="header" style={styles.sectionTitle}>
-              Trạng thái
-            </Text>
-            <View style={styles.card}>
-              <View style={styles.statusRow}>
-                <Text style={styles.statusLabel}>Xác minh email</Text>
-                <Badge
-                  label={
-                    account.emailVerified ? "Đã xác minh" : "Chưa xác minh"
-                  }
-                  variant={account.emailVerified ? "success" : "warning"}
-                />
-              </View>
-              <View style={[styles.statusRow, styles.separator]}>
-                <Text style={styles.statusLabel}>Trạng thái tài khoản</Text>
-                <Badge label={status.label} variant={status.variant} />
-              </View>
-            </View>
-          </View>
-          <View style={styles.privacy}>
-            <Icon name="shield" size={18} color={colors.muted} />
-            <Text style={styles.privacyText}>
-              Chỉ bạn xem được thông tin này. Email đăng nhập không hiển thị
-              trên hồ sơ công khai.
-            </Text>
-          </View>
-        </ScrollView>
-      )}
-    </AppScreenLayout>
+          <Text selectable style={styles.email}>
+            {account.email}
+          </Text>
+          <Text style={settingsStyles.caption}>
+            Dùng để đăng nhập và nhận mã xác minh.
+          </Text>
+        </View>
+      </SettingsSection>
+      <SettingsSection title="Trạng thái tài khoản">
+        <View style={styles.statusRow}>
+          <Text style={styles.statusLabel}>Xác minh email</Text>
+          <Badge
+            label={account.emailVerified ? "Đã xác minh" : "Chưa xác minh"}
+            variant={account.emailVerified ? "success" : "warning"}
+          />
+        </View>
+        <View style={styles.statusRow}>
+          <Text style={styles.statusLabel}>Tài khoản</Text>
+          <Badge label={status.label} variant={status.variant} />
+        </View>
+      </SettingsSection>
+      <SettingsSection title="Bảo mật">
+        <ActionRow
+          icon="lock"
+          label="Đặt lại mật khẩu"
+          description="Xác minh email trước khi đổi mật khẩu"
+          onPress={() => router.push("/forgot-password")}
+        />
+      </SettingsSection>
+      <SettingsNote>
+        Email đăng nhập chỉ hiển thị với bạn và không xuất hiện trên hồ sơ công
+        khai.
+      </SettingsNote>
+    </SettingsPage>
   );
 }
+
 const styles = StyleSheet.create({
-  content: {
-    padding: 16,
-    paddingTop: 24,
-    paddingBottom: 32,
-    gap: 24,
-    width: "100%",
-    maxWidth: 640,
-    alignSelf: "center",
-  },
-  intro: { flexDirection: "row", alignItems: "center", gap: 12 },
-  introIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: radius.card,
-    alignItems: "center",
-    justifyContent: "center",
+  emailCard: { padding: 20, gap: 12 },
+  emailHeading: { flexDirection: "row", alignItems: "center", gap: 10 },
+  monogram: {
+    ...typography.body,
+    fontFamily: fonts.bold,
+    color: colors.primary,
     backgroundColor: colors.primarySoft,
-  },
-  introCopy: { flex: 1, minWidth: 0, gap: 4 },
-  title: { ...typography.title, fontFamily: fonts.bold, color: colors.ink },
-  section: { gap: 8 },
-  sectionTitle: {
-    ...typography.secondary,
-    fontFamily: fonts.semibold,
-    color: colors.inkSoft,
-    paddingHorizontal: 4,
-  },
-  card: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.card,
-    backgroundColor: colors.surface,
-    overflow: "hidden",
-  },
-  emailCard: { padding: 18, gap: 8 },
-  label: {
-    ...typography.secondary,
-    fontFamily: fonts.semibold,
-    color: colors.inkSoft,
+    borderRadius: appRadius.control,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
   },
   email: {
     ...typography.heading,
@@ -139,27 +103,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     gap: 12,
-    minHeight: 64,
-    padding: 16,
+    padding: 18,
+    minHeight: 66,
   },
   statusLabel: {
     ...typography.body,
     fontFamily: fonts.medium,
-    color: colors.body,
-    flex: 1,
-    minWidth: 120,
-  },
-  separator: { borderTopWidth: 1, borderTopColor: colors.border },
-  caption: {
-    ...typography.secondary,
-    fontFamily: fonts.body,
     color: colors.inkSoft,
-  },
-  privacy: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
-  privacyText: {
-    ...typography.secondary,
-    fontFamily: fonts.body,
-    color: colors.inkSoft,
-    flex: 1,
+    flexShrink: 1,
   },
 });
