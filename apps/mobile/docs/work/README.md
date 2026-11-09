@@ -8,6 +8,7 @@
 
 | Work tiếp nhận                                                                       | Plan                                                 | Hiện trạng và bước tiếp                                  |
 | ------------------------------------------------------------------------------------ | ---------------------------------------------------- | -------------------------------------------------------- |
+| Hoàn thiện Settings và thống kê Profile trên Expo | [plan](settings-profile/plan.md) | [status](settings-profile/status.md) |
 | Dừng lộ trình, thông báo và quyết toán Credit | [plan](path-cancellation/plan.md) | [status](path-cancellation/status.md) |
 | Tin nhắn theo Yêu cầu học — màn riêng Nhận được/Đoạn chat | [plan](request-message-groups/plan.md) | [status](request-message-groups/status.md) |
 | Giảm HTTP 429 mobile — Inbox/Chat, cache, cooldown và lifecycle | [plan](mobile-chat-rate-limit/plan.md) | [status](mobile-chat-rate-limit/status.md) |
