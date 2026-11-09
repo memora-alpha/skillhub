@@ -22,7 +22,6 @@ export function AgreementPlansStep({
   partnerName,
   blocked,
   canContinue,
-  onReviewMethod,
   onContinue,
 }: Readonly<{
   path: ApiLearningPath;
@@ -30,7 +29,6 @@ export function AgreementPlansStep({
   partnerName: string;
   blocked: boolean;
   canContinue: boolean;
-  onReviewMethod: () => void;
   onContinue: () => void;
 }>) {
   const twoWay = path.agreement.exchangeType === "TWO_WAY";
@@ -67,17 +65,7 @@ export function AgreementPlansStep({
             blocked={blocked}
           />
         ))}
-      <View style={styles.reminder}>
-        <Icon name="shield" size={16} color={colors.muted} />
-        <Text style={styles.reminderText}>
-          Lộ trình cần người học xác nhận. Credit chỉ tạm giữ khi hai bên chốt
-          lịch.
-        </Text>
-      </View>
-      <AgreementFooter
-        conversationId={path.conversationId}
-        review={{ label: "Xem lại cách học", onPress: onReviewMethod }}
-      >
+      <AgreementFooter conversationId={path.conversationId}>
         {canContinue && (
           <Button
             style={agreementFooterPrimaryStyle}
@@ -206,14 +194,7 @@ function ExistingPlanContent({
           <Icon name="calendar" size={12} color={colors.muted} />
           <Text style={styles.secondary}>{plan.totalSessions} buổi</Text>
         </View>
-        <Text style={styles.secondary}>· Bản {plan.version}</Text>
       </View>
-      {confirmed && (
-        <View style={styles.confirmation}>
-          <Icon name="check-circle" size={14} color={colors.forest} />
-          <Text style={styles.confirmationText}>Người học đã xác nhận</Text>
-        </View>
-      )}
       <View style={styles.actions}>
         <Button
           size="sm"

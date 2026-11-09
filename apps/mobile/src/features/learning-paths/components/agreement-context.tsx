@@ -1,18 +1,12 @@
 import { StyleSheet, Text, View } from "react-native";
 import { Avatar } from "@/components/Avatar";
 import { useParticipantProfile } from "@/features/connections";
-import {
-  appColors as colors,
-  appRadius,
-  fonts,
-  typography,
-} from "@/constants/theme";
+import { appColors as colors, fonts, typography } from "@/constants/theme";
 
 export function AgreementContext({
   name,
-  pathId,
   partnerId,
-}: Readonly<{ name: string; pathId: string; partnerId?: string }>) {
+}: Readonly<{ name: string; partnerId?: string }>) {
   const profile = useParticipantProfile(partnerId);
   return (
     <View style={styles.row}>
@@ -34,12 +28,6 @@ export function AgreementContext({
           </Text>
         </View>
       </View>
-      <Text
-        accessibilityLabel={`Mã thỏa thuận ${pathId}`}
-        style={styles.reference}
-      >
-        #{pathId.slice(-8).toUpperCase()}
-      </Text>
     </View>
   );
 }
@@ -67,15 +55,5 @@ const styles = StyleSheet.create({
     ...typography.caption,
     fontFamily: fonts.body,
     color: colors.muted,
-  },
-  reference: {
-    ...typography.caption,
-    fontFamily: fonts.medium,
-    color: colors.muted,
-    fontVariant: ["tabular-nums"],
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: appRadius.badge,
-    backgroundColor: colors.surfaceLow,
   },
 });

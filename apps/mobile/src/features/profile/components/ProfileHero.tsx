@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Avatar } from "@/components/Avatar";
+import { ProfileAvatarLink } from "@/components/profile-avatar-link";
 import { Icon } from "@/components/Icon";
 import { typography, avatarSizes, iconSizes, fonts } from "@/constants/theme";
 import { profileColors } from "../constants/theme";
@@ -11,6 +12,8 @@ export function ProfileHero({
   avatarUrl = null,
   selectedTitle,
   onEdit,
+  onSettings,
+  linkToPublicProfile = false,
 }: {
   name: string;
   userId: string;
@@ -18,31 +21,64 @@ export function ProfileHero({
   avatarUrl?: string | null;
   selectedTitle?: string | null;
   onEdit?: () => void;
+  onSettings?: () => void;
+  linkToPublicProfile?: boolean;
 }) {
   return (
     <View style={styles.hero}>
       <View style={styles.top}>
-        <Avatar
-          name={name}
-          userId={userId}
-          size={avatarSizes.profile}
-          sourceUri={avatarUrl}
-        />
-        {onEdit && (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Chỉnh sửa hồ sơ"
-            onPress={onEdit}
-            style={({ pressed }) => [styles.edit, pressed && { opacity: 0.7 }]}
-          >
-            <Icon
-              name="edit"
-              size={iconSizes.inline}
-              color={profileColors.ink}
-            />
-            <Text style={styles.editLabel}>Chỉnh sửa</Text>
-          </Pressable>
+        {linkToPublicProfile ? (
+          <ProfileAvatarLink
+            name={name}
+            userId={userId}
+            size={avatarSizes.profile}
+            sourceUri={avatarUrl}
+            href={{ pathname: "/profiles/[userId]", params: { userId } }}
+          />
+        ) : (
+          <Avatar
+            name={name}
+            userId={userId}
+            size={avatarSizes.profile}
+            sourceUri={avatarUrl}
+          />
         )}
+        <View style={styles.actions}>
+          {onEdit && (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Chỉnh sửa hồ sơ"
+              onPress={onEdit}
+              style={({ pressed }) => [
+                styles.iconButton,
+                pressed && { opacity: 0.7 },
+              ]}
+            >
+              <Icon
+                name="edit"
+                size={iconSizes.control}
+                color={profileColors.ink}
+              />
+            </Pressable>
+          )}
+          {onSettings && (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Cài đặt tài khoản"
+              onPress={onSettings}
+              style={({ pressed }) => [
+                styles.iconButton,
+                pressed && { opacity: 0.7 },
+              ]}
+            >
+              <Icon
+                name="settings"
+                size={iconSizes.control}
+                color={profileColors.ink}
+              />
+            </Pressable>
+          )}
+        </View>
       </View>
       <View style={styles.info}>
         <View style={styles.nameRow}>
@@ -82,23 +118,24 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     gap: 8,
   },
-  edit: {
-    flexDirection: "row",
+  iconButton: {
+    flexShrink: 0,
     alignItems: "center",
     justifyContent: "center",
-    gap: 4,
-    paddingHorizontal: 9,
-    minHeight: 36,
+    width: 44,
+    height: 44,
     borderRadius: 13,
     backgroundColor: profileColors.surface,
     borderWidth: 1,
     borderColor: profileColors.border,
   },
-  editLabel: {
-    fontFamily: fonts.semibold,
-    ...typography.caption,
-    color: profileColors.ink,
-    includeFontPadding: false,
+  actions: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "flex-end",
+    gap: 4,
+    flexShrink: 1,
+    minWidth: 0,
   },
   info: { marginTop: 8 },
   titleBadge: {

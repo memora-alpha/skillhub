@@ -24,6 +24,7 @@ import {
 } from "../hooks/use-learning-paths-api";
 import type { ApiLearningPath } from "../api/learning-paths-contract";
 import { canValidateForFinalize } from "../utils/policy-api";
+import { LockedScheduleSummary } from "../components/locked-schedule-summary";
 import {
   useConfirmedFormShare,
   ConfirmedFormFeedback,
@@ -55,7 +56,7 @@ export function ApiHoldScreen() {
         <HoldContent
           key={query.data.id}
           path={query.data}
-          blocked={!!query.error}
+          blocked={!!query.error || query.isFetching}
           refresh={query.refetch}
         />
       )}
@@ -106,19 +107,11 @@ function HoldContent({
         agreement.learnerId === runtime.userId));
   if (path.lockedVersion !== null)
     return (
-      <Panel title="Lịch đã chốt">
-        <FormNotice tone="success" compact>
-          Lịch học đã được chốt. Các buổi học của bạn đã sẵn sàng.
-        </FormNotice>
-        {!embedded && (
-          <RouteButton href={`/paths/${path.id}/sessions`}>
-            Xem các buổi học
-          </RouteButton>
-        )}
-        {!embedded && (
-          <ConfirmedFormFeedback conversationId={path.conversationId} />
-        )}
-      </Panel>
+      <LockedScheduleSummary
+        path={path}
+        userId={runtime.userId}
+        embedded={embedded}
+      />
     );
   return (
     <>

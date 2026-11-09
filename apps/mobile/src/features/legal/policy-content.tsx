@@ -4,16 +4,22 @@ import { legalPolicies } from "./content";
 
 export function PolicyContent({
   type,
-}: Readonly<{ type: "terms" | "privacy" }>) {
+  showMetadata = true,
+}: Readonly<{ type: "terms" | "privacy"; showMetadata?: boolean }>) {
   const policy = legalPolicies[type];
   return (
     <View style={styles.content}>
-      <Text selectable style={styles.meta}>
-        Cập nhật {legalPolicies.updatedAt} · Phiên bản {legalPolicies.version}
-      </Text>
-      <Text selectable style={styles.notice}>
-        {legalPolicies.notice}
-      </Text>
+      {showMetadata && (
+        <>
+          <Text selectable style={styles.meta}>
+            Cập nhật {legalPolicies.updatedAt} · Phiên bản{" "}
+            {legalPolicies.version}
+          </Text>
+          <Text selectable style={styles.notice}>
+            {legalPolicies.notice}
+          </Text>
+        </>
+      )}
       <Text selectable style={styles.body}>
         {policy.introduction}
       </Text>

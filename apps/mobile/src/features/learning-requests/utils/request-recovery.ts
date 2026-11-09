@@ -2,10 +2,12 @@ import { AppError } from "@/lib/http/errors";
 import { requestDefaults, type RequestDraft } from "../schemas/request-form";
 import type { OwnerRequest } from "../types";
 import { editableRequest } from "./request-policy";
+import { requestRejectionMessage } from "./request-rejection";
 
 export function mutationNeedsReconcile(error: unknown) {
   return (
     error instanceof AppError &&
+    !requestRejectionMessage(error) &&
     (error.status === 409 ||
       error.kind === "network" ||
       error.kind === "protocol" ||

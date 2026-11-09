@@ -96,21 +96,20 @@ export function SessionDetailContent({
             </View>
           </View>
         </View>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Xem hồ sơ đối tác"
-          onPress={onOpenPartner}
-          style={({ pressed }) => [
-            styles.partner,
-            pressed && { opacity: 0.75 },
-          ]}
-        >
-          <Avatar
-            name={partner?.fullName || "Đối tác"}
-            userId={teacher ? session.learnerId : session.teacherId}
-            sourceUri={partner?.avatarUrl}
-            size={48}
-          />
+        <View style={styles.partner}>
+          <Pressable
+            accessibilityRole="link"
+            accessibilityLabel={`Xem hồ sơ ${partner?.fullName || "đối tác"}`}
+            onPress={onOpenPartner}
+            style={({ pressed }) => ({ opacity: pressed ? 0.75 : 1 })}
+          >
+            <Avatar
+              name={partner?.fullName || "Đối tác"}
+              userId={teacher ? session.learnerId : session.teacherId}
+              sourceUri={partner?.avatarUrl}
+              size={48}
+            />
+          </Pressable>
           <View style={styles.grow}>
             <Text style={styles.partnerRole}>
               ĐỐI TÁC · {teacher ? "NGƯỜI HỌC" : "NGƯỜI DẠY"}
@@ -119,8 +118,7 @@ export function SessionDetailContent({
               {partner?.fullName || "Chưa có thông tin đối tác"}
             </Text>
           </View>
-          <Icon name="chevron" size={18} color={colors.muted} />
-        </Pressable>
+        </View>
         {((session.status === "CANCELLED" && session.cancelReason) ||
           session.cancelledAt) && (
           <View style={styles.cancellation}>

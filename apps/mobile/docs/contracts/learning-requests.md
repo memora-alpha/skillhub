@@ -54,6 +54,46 @@ List data[] + meta.pagination; LR limit1–100/default20, Skill max50, Tag max10
 
 ## Lỗi freshness và lifecycle
 
+Route tạo mới kiểm hạn chế bằng GET `/reputation/me` trước khi mount form.
+Snapshot cũ/đang đọc/lỗi không đủ để mở composer. Khi bị hạn chế, hiển thị
+lý do/thời hạn và xác nhận chính sách theo [contract Uy tín](reputation.md).
+Nếu đã soạn rồi GET mới phát hiện hạn chế, giữ draft mounted và khóa lưu;
+không áp điều kiện tạo mới này vào sửa Request đã có. Kiểm tra sớm không thay
+quyết định cuối ở POST, không tự suy quyền từ điểm uy tín cached.
+
+Chi tiết bản nháp đã lưu cũng đọc GET Uy tín trước khi cho phép nhấn Đăng.
+Trong lúc chưa có kết quả mới/đang đọc/lỗi hoặc còn hạn chế, nút Đăng bị khóa;
+hiện feedback và đường vào Uy tín. Chỉnh sửa và hủy nháp giữ điều kiện riêng,
+không bị khóa chỉ vì kiểm tra uy tín. GET mới cho phép cũng không tự đăng bài.
+
+Các mã HTTP409 đã xác định là từ chối validation/điều kiện tài khoản được
+giải thích riêng, không đưa form sang chế độ so sánh phiên bản:
+
+| Code | Nội dung cần xử lý |
+| --- | --- |
+| `TAG_NOT_ACTIVE` | Bỏ/chọn lại tag đã ngừng hoạt động. |
+| `SKILL_NOT_ACTIVE` | Kiểm tra/chọn kỹ năng đang hoạt động. |
+| `SHARING_SKILL_CHANGED` | Chọn lại kỹ năng có thể dạy đã thay đổi. |
+| `SHARING_SKILL_ARCHIVED` | Bỏ/thay kỹ năng có thể dạy đã lưu trữ. |
+| `SHARING_SKILL_NOT_VISIBLE` | Công khai hoặc thay kỹ năng có thể dạy. |
+| `CONNECTION_PARTY_UNAVAILABLE` | Kiểm tra xác minh email, trạng thái tài khoản và hạn chế; không tự kết luận là điểm uy tín thấp. |
+
+HTTP409 chưa có mã nhận diện vẫn giữ xử lý xung đột/state. Network/protocol và
+5xx không rõ kết quả vẫn giữ đối chiếu trước khi thử mutation lại.
+
+POST tạo nháp và publish có thể trả `403 NEW_ACTIVITY_RESTRICTED` khi backend
+xác định hạn chế tạo hoạt động mới còn hiệu lực. Mobile hiển thị rõ chưa thể
+tạo/đăng yêu cầu học theo chính sách uy tín, hướng tới điểm/lý do/thời hạn trong
+`/reputation` và nhắc tăng điểm không tự gỡ hạn chế. Hộp thoại chính sách tự mở
+khi bị chặn, cho đọc/xác nhận ngay tại màn nguồn theo [contract Uy tín](reputation.md).
+Không suy quyền từ điểm
+profile cached hay tự đặt ngưỡng/mốc mở khóa. Lỗi này có CTA “Xem uy tín và hạn
+chế” thay cho retry đọc lại Request; các lỗi 403 khác giữ thông báo quyền chung.
+Trong editor, notice nằm ở footer gần nút lưu để không bị khuất cuối form;
+giữ draft và dùng history Back từ Uy tín để quay về màn nguồn. Không tự gửi lại
+create/publish. Xác nhận chính sách dùng API hiện có, không tự phát thao tác
+phục hồi uy tín hoặc gửi lại bài sau khi xác nhận.
+
 Feed/mine giữ danh sách đã tải khi GET gặp429/network/5xx, hiện loading nhẹ và phục hồi theo backoff/Retry-After khi màn còn focus; chưa có dữ liệu thì hiện loading. Lỗi quyền/validation vẫn hiển thị để xử lý. Cuộn gần cuối tự tải trang kế tiếp, không chạy khi đang fetch/có lỗi/ngoài phiên hiện hành; giữ nút tải thêm/thử lại và recovery cursor400 hiện có. Cursor trả lặp sẽ dừng phân trang để tránh vòng request.
 
 GET list403/404 ẩn và evict cached pages nhưng giữ lỗi để retry đầy đủ;503 sau denial không hiển thị snapshot cũ. Denial trang tiếp theo áp dụng cho cả list, không tiếp tục cursor. Cache list rỗng gặp transient error vẫn loading, không khẳng định empty. Offering selector chưa mở và chưa có selected IDs không gọi /me/skills; có selection vẫn resolve labels, không bỏ ID chỉ vì picker đang đóng.

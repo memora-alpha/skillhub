@@ -21,7 +21,9 @@ Server state thuộc Query; client-only recovery/cooldown dùng Zustand hoặc c
 
 ## Imports và trách nhiệm
 
-Feature dùng public index.ts; public subpaths được checker khai báo cụ thể: learning-paths/state, learning-paths/policy, notifications/state, messages/state, proposals/state. Facade product-shell/state không có consumer đã được bỏ trong [lượt dọn source](work/source-audit/cleanup-2026-11-01.md). Không deep import private feature khác; không tạo barrel gây vòng import để đạt hình thức. Route → screen/view → hook/runtime (khi cần logic) → API adapter → HTTP chung. Không bắt thêm controller rỗng.
+Feature dùng public index.ts; public subpaths được checker khai báo cụ thể: learning-paths/state, learning-paths/policy, sessions/state, notifications/state, messages/state, proposals/state. Facade product-shell/state không có consumer đã được bỏ trong [lượt dọn source](work/source-audit/cleanup-2026-11-01.md). Không deep import private feature khác; không tạo barrel gây vòng import để đạt hình thức. Route → screen/view → hook/runtime (khi cần logic) → API adapter → HTTP chung. Không bắt thêm controller rỗng.
+
+`sessions/state` xuất `useSessionList`, `deviceTimezone`, `listIsLimited` cho phần đối chiếu lịch của Learning Path mà không tải Session screens. `learning-paths/state` xuất thêm `useLearningPath`, `useLearningPaths`, `useRefreshLearningPath` cho Session reads/refresh mà không tải Path screens. Các hook và component nền dùng những entry này thay cho index có screen exports, tránh vòng Learning Path → Session → Learning Path. Entry index cũ giữ export để tương thích consumer/route hiện có.
 
 `learning-paths` giữ `index.ts`, `state.ts`, `policy.ts` ở root làm public entry. `api/` chứa contract/adapters và submission recovery; `components/`, `screens/`, `hooks/` giữ UI/runtime; `schemas/` chứa validation input; `utils/` chứa xử lý dữ liệu, policy/progression từ snapshot API và định dạng form chat; `preview/` gom context, fixtures, types và rules chỉ còn phục vụ các consumer chưa tích hợp API. Di chuyển nội bộ không mở thêm public subpath hoặc đổi route/API.
 

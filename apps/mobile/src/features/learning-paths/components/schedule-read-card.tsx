@@ -55,8 +55,7 @@ export function ScheduleTimezoneNotice() {
     <View style={styles.timezoneNotice}>
       <Icon name="clock" size={13} color={colors.muted} />
       <Text style={styles.timezoneNoticeText}>
-        Giờ theo múi giờ thiết bị. Lịch cần cả hai xác nhận; buổi học và Credit
-        chỉ được tạo, tạm giữ khi chốt lộ trình.
+        Giờ hiển thị theo múi giờ thiết bị.
       </Text>
     </View>
   );
@@ -186,12 +185,7 @@ export function ScheduleListOverview({
     );
   const waiting = progress.waiting.length > 0;
   return (
-    <View
-      style={[
-        styles.banner,
-        waiting ? styles.bannerWaiting : styles.bannerReady,
-      ]}
-    >
+    <View style={[styles.banner, waiting && styles.bannerWaiting]}>
       <Icon
         name={progress.stage === "finalize" ? "check-circle" : "clock"}
         size={22}

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { agreementPath } from "./fixtures/learning-agreement";
 import { test } from "node:test";
 import type { RequestOptions } from "../src/lib/http/client";
 import { AppError } from "../src/lib/http/errors";
@@ -189,6 +190,7 @@ test("actions enforce requester, partner, expiry and terminal status while keepi
     false,
   );
   const path = {
+    ...agreementPath(),
     status: "ACTIVE",
     lockedVersion: 1,
     settledAt: null,

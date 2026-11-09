@@ -107,33 +107,6 @@ export const styles = StyleSheet.create({
     fontFamily: fonts.body,
     color: colors.muted,
   },
-  confirmation: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 9,
-    paddingVertical: 8,
-    borderRadius: appRadius.badge,
-    backgroundColor: colors.forestSoft,
-  },
-  confirmationText: {
-    ...typography.secondary,
-    fontFamily: fonts.body,
-    color: colors.forest,
-    flex: 1,
-  },
   actions: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   action: { flexGrow: 1, flexBasis: 120, minHeight: 44 },
-  reminder: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "center",
-    gap: 8,
-  },
-  reminderText: {
-    flex: 1,
-    ...typography.secondary,
-    fontFamily: fonts.body,
-    color: colors.muted,
-  },
 });

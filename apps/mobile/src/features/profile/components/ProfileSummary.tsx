@@ -17,16 +17,23 @@ import type { PublicProfile } from "../types/profile";
 export function ProfileSummary({
   profile,
   onEdit,
+  onSettings,
   avatarNotice,
+  linkToPublicProfile,
 }: Readonly<{
   profile: PublicProfile;
   onEdit?: () => void;
+  onSettings?: () => void;
   avatarNotice?: ReactNode;
+  linkToPublicProfile?: boolean;
 }>) {
   const stats = [
     { value: profile.reputationScore, label: "Điểm uy tín" },
     { value: profile.verifiedSkillCount, label: "Kỹ năng đã xác minh" },
-    { value: profile.completedLearningPathCount, label: "Lộ trình hoàn thành" },
+    {
+      value: profile.completedLearningPathCount,
+      label: "Lộ trình hoàn thành",
+    },
   ];
   return (
     <View style={styles.heroCard}>
@@ -37,6 +44,8 @@ export function ProfileSummary({
         avatarUrl={profile.avatarUrl}
         selectedTitle={profile.selectedTitle}
         onEdit={onEdit}
+        onSettings={onSettings}
+        linkToPublicProfile={linkToPublicProfile}
       />
       {avatarNotice}
       <View style={styles.stats}>
@@ -47,7 +56,10 @@ export function ProfileSummary({
               style={[
                 styles.statValue,
                 {
-                  color: profileStatColors[index],
+                  color:
+                    stat.value == null
+                      ? profileColors.muted
+                      : profileStatColors[index],
                 },
               ]}
             >

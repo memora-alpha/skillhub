@@ -17,6 +17,7 @@ import {
 } from "@/features/connections";
 import { uuid } from "@/lib/http/contracts";
 import { useProposalsApi } from "../hooks/use-proposals-api";
+import { useProposalLifecycle } from "../hooks/use-proposal-lifecycle";
 import { findPendingProposal } from "../api/proposal-preflight";
 import type {
   Proposal,
@@ -139,6 +140,9 @@ export function ApiSendProposalScreen({
 }>) {
   const router = useRouter();
   const runtime = useConnections();
+  const captureCurrent = useProposalLifecycle(
+    JSON.stringify([requestId, userId, sharingSkillId]),
+  );
   const requestQuery = useRequestDetail(requestId);
   const skillQuery = usePublicSkill(
     uuid.safeParse(userId).success ? userId! : null,
@@ -200,7 +204,10 @@ export function ApiSendProposalScreen({
         params: { tab: "sent", status: "PENDING" },
       });
   };
-  const submitPrepared = async (hints: ProposalHints) => {
+  const submitPrepared = async (
+    hints: ProposalHints,
+    current: () => boolean,
+  ) => {
     if (
       !allowed ||
       !canCompose ||
@@ -208,12 +215,12 @@ export function ApiSendProposalScreen({
       query.isFetching ||
       command.uncertain ||
       command.pending ||
-      !runtime.isCurrent()
+      !current()
     )
       return;
     const validSource = await refetchValid(
       () => query.refetch(),
-      runtime.isCurrent,
+      current,
       (source) =>
         sourceMatchesProposal(
           source,
@@ -224,14 +231,13 @@ export function ApiSendProposalScreen({
         ),
     );
     if (!validSource) return;
-    if (!(await hasNoPendingProposal(pending.refetch, runtime.isCurrent)))
-      return;
+    if (!(await hasNoPendingProposal(pending.refetch, current))) return;
     if (!direct) {
       const eligibility = await teacher.refetch();
       if (
         eligibility.error ||
         eligibility.data?.state !== "eligible" ||
-        !runtime.isCurrent()
+        !current()
       )
         return;
     }
@@ -239,17 +245,18 @@ export function ApiSendProposalScreen({
     const result = await command.run(JSON.stringify(body), (key) =>
       api.create(body, key),
     );
-    openResult(result);
+    if (current()) openResult(result);
   };
   const submit = async (hints: ProposalHints) => {
+    const current = captureCurrent(runtime.isCurrent);
     if (submitting.current || command.pending || command.uncertain) return;
     submitting.current = true;
     setPreparing(true);
     setPreparationError(undefined);
     try {
-      await submitPrepared(hints);
+      await submitPrepared(hints, current);
     } catch (error) {
-      if (runtime.isCurrent()) setPreparationError(error);
+      if (current()) setPreparationError(error);
     } finally {
       submitting.current = false;
       if (runtime.isCurrent()) setPreparing(false);
@@ -289,6 +296,7 @@ export function ApiSendProposalScreen({
         error={command.error}
         originalError={command.originalError}
         isCurrent={runtime.isCurrent}
+        captureCurrent={() => captureCurrent(runtime.isCurrent)}
         retry={command.retry}
         onOpenSent={() =>
           router.push({ pathname: "/proposals", params: { tab: "sent" } })

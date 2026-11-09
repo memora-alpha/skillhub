@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useSyncExternalStore } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useRefreshLearningPath } from "@/features/learning-paths";
+import { useRefreshLearningPath } from "@/features/learning-paths/state";
 import { useSessionsRuntime } from "../runtime";
 import { createCompletionAction } from "../utils/completion-action";
 

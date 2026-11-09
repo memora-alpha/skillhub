@@ -1,7 +1,5 @@
 import { useState } from "react";
-import { useLocalSearchParams } from "expo-router";
 import { Button } from "@/components/Button";
-import { Input } from "@/components/Input";
 import {
   FeaturePage,
   Panel,
@@ -9,8 +7,6 @@ import {
   RouteButton,
 } from "@/components/feature-page";
 import { useProductPreview } from "../context";
-import { LocalePreviewScreen } from "./locale-screen";
-import { NotificationPreferences } from "@/features/notifications";
 export function OnboardingScreen() {
   const [step, setStep] = useState(0);
   const { interests, setInterests } = useProductPreview();
@@ -91,97 +87,6 @@ export function OnboardingScreen() {
           </Button>
         )}
       </Panel>
-    </FeaturePage>
-  );
-}
-const faqs = [
-  [
-    "Chấp nhận đề xuất đã chốt lịch chưa?",
-    "Chấp nhận chỉ mở cuộc trao đổi. Hai bên vẫn cần tạo kế hoạch, xác nhận kế hoạch, điều khoản và từng lịch trước khi khóa lịch.",
-  ],
-  [
-    "Trao đổi hai chiều cần mấy kế hoạch?",
-    "Hai kế hoạch đối ứng. Mỗi người tự tạo kế hoạch cho kỹ năng mình dạy, người học xác nhận phiên bản hiện tại.",
-  ],
-  [
-    "Khi nào Credit được quyết toán?",
-    "Sau khi tất cả buổi học trong thỏa thuận hoàn thành và không có tranh chấp giữ quyết toán. Hoàn thành một buổi chưa quyết toán.",
-  ],
-  [
-    "Tôi có thể đổi lịch không?",
-    "Hai bên phải cùng xác nhận lịch mới ít nhất 60 phút trước giờ bắt đầu của lịch cũ. Nếu chưa đủ xác nhận, lịch cũ giữ nguyên.",
-  ],
-  [
-    "Có thể rút Credit không?",
-    "SkillHub chưa hỗ trợ rút hoặc quy đổi Credit thành tiền. Credit dùng cho học tập và tài liệu trên nền tảng.",
-  ],
-  [
-    "Bằng chứng xác minh có công khai không?",
-    "Người xem hồ sơ chỉ thấy trạng thái xác minh. Tệp bằng chứng riêng tư không được công khai.",
-  ],
-];
-export function HelpScreen() {
-  const [search, setSearch] = useState("");
-  const [expanded, setExpanded] = useState<string>();
-  return (
-    <FeaturePage title="Trung tâm trợ giúp" back="/profile" demo={false}>
-      <Input label="Tìm câu hỏi" value={search} onChangeText={setSearch} />
-      {faqs
-        .filter(([q, a]) =>
-          `${q} ${a}`.toLowerCase().includes(search.toLowerCase()),
-        )
-        .map(([q, a]) => (
-          <Panel key={q}>
-            <Button
-              variant="paper"
-              onPress={() => setExpanded(expanded === q ? undefined : q)}
-            >
-              {q}
-            </Button>
-            {expanded === q && <Copy>{a}</Copy>}
-          </Panel>
-        ))}
-      <RouteButton secondary href="/reports">
-        Theo dõi báo cáo
-      </RouteButton>
-      <RouteButton secondary href="/policies">
-        Quyền riêng tư & nguyên tắc sử dụng
-      </RouteButton>
-    </FeaturePage>
-  );
-}
-export function PreferencesScreen() {
-  const { section } = useLocalSearchParams<{ section: string }>();
-  if (section === "timezone" || section === "language")
-    return <LocalePreviewScreen section={section} />;
-  if (section !== "notifications" && section !== "privacy")
-    return (
-      <FeaturePage title="Tùy chọn" back="/account-settings">
-        <Copy>Không tìm thấy mục cài đặt này.</Copy>
-      </FeaturePage>
-    );
-  return (
-    <FeaturePage
-      title={
-        section === "notifications" ? "Tùy chỉnh thông báo" : "Quyền riêng tư"
-      }
-      back="/account-settings"
-      demo={false}
-    >
-      {section === "notifications" ? (
-        <NotificationPreferences />
-      ) : (
-        <Panel title="Bạn quyết định điều mình chia sẻ">
-          <Copy>
-            Email đăng nhập, thông tin thanh toán, bằng chứng và tệp tài liệu
-            riêng tư không được hiển thị trên hồ sơ công khai.
-          </Copy>
-          <RouteButton href="/my-skills">Quản lý hiển thị kỹ năng</RouteButton>
-          <RouteButton secondary href="/profile">
-            Xem hồ sơ của tôi
-          </RouteButton>
-        </Panel>
-      )}
     </FeaturePage>
   );
 }

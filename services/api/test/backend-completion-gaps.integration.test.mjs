@@ -1,7 +1,8 @@
 import "reflect-metadata";
 import assert from "node:assert/strict";
-import { randomUUID, randomBytes } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { test } from "node:test";
+import { configureIdentityTestEnvironment } from "./identity/test-environment.mjs";
 import { createMaterialFixture } from "./materials/fixture.mjs";
 import { FeePolicyAdminService } from "../dist/modules/credit/application/services/fee-policy-admin.service.js";
 import { ReauthProofService } from "../dist/modules/auth/application/services/reauth-proof.service.js";
@@ -14,36 +15,7 @@ import { ConnectionNotificationService } from "../dist/modules/notifications/app
 import { SharingSkillsRepository } from "../dist/modules/sharing-skills/infrastructure/persistence/sharing-skills.repository.js";
 
 // The isolated suite must not depend on a developer's ignored identity env.
-Object.assign(process.env, {
-  NODE_ENV: "test",
-  IDENTITY_JWT_KEY: randomBytes(48).toString("base64"),
-  IDENTITY_OTP_KEY: randomBytes(32).toString("base64"),
-  IDENTITY_ENCRYPTION_KEY: randomBytes(32).toString("base64"),
-  IDENTITY_KEY_ID: "completion-test",
-  IDENTITY_PREVIOUS_KEYS: "",
-  IDENTITY_JWT_ISSUER: "completion-test",
-  IDENTITY_JWT_AUDIENCE: "completion-test",
-  IDENTITY_TERMS_VERSION: "test",
-  IDENTITY_DEFAULT_TIMEZONE: "UTC",
-  IDENTITY_INITIAL_REPUTATION: "50",
-});
-for (const key of [
-  "ACCESS_SECONDS",
-  "REFRESH_SECONDS",
-  "REMEMBER_SECONDS",
-  "RESET_SECONDS",
-  "REAUTH_SECONDS",
-  "THROTTLE_WINDOW_SECONDS",
-  "EMAIL_RATE_LIMIT",
-  "IP_RATE_LIMIT",
-  "DEVICE_RATE_LIMIT",
-  "REQUEST_RATE_LIMIT",
-  "DELIVERY_ATTEMPTS",
-  "DELIVERY_RETENTION_SECONDS",
-  "NOTIFICATION_SECONDS",
-  "AVATAR_RETENTION_SECONDS",
-])
-  process.env[`IDENTITY_${key}`] = "3600";
+configureIdentityTestEnvironment("completion-test");
 
 test(
   "completion-gap migration, policy concurrency, snapshots, moderation and pagination on isolated PostgreSQL",

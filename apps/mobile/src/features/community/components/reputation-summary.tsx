@@ -1,18 +1,12 @@
 import { systemCodeLabel } from "@/constants/system-text";
-import { Badge } from "@/components/Badge";
-import { Copy, Metric, Panel } from "@/components/feature-page";
+import { Text, View } from "react-native";
 import type { Reputation } from "../api/community-api";
-
-const levels: Record<string, string> = {
-  EXCELLENT: "Rất tốt",
-  NORMAL: "Bình thường",
-  WARNING: "Cảnh báo",
-  RESTRICTED: "Hạn chế",
-  LOW: "Thấp",
-  SEVERE: "Rất thấp",
-  CRITICAL: "Nghiêm trọng",
-};
+import { restrictionDeadline } from "../utils/reputation-policy";
+import { policyStyles as styles } from "./reputation-policy.styles";
+import { ReputationScoreCard } from "./reputation-score-card";
 const scopes: Record<string, string> = {
+  ALL: "Hạn chế hoạt động tài khoản",
+  "learning-request:create": "Hạn chế tạo yêu cầu học",
   CREATE_NEW_ACTIVITY: "Hạn chế tạo hoạt động mới",
   REQUIRE_STAFF_REVIEW: "Cần nhân viên xem xét",
   REQUIRE_ADMIN_REVIEW: "Cần quản trị viên xem xét",
@@ -27,36 +21,54 @@ export const reputationReasons: Record<string, string> = {
   LIGHT_VIOLATION: "Vi phạm nhẹ",
   MEDIUM_HARASSMENT: "Quấy rối",
   FRAUD: "Gian lận",
+  RECOVERY_MISSION_REWARD: "Hoàn thành nhiệm vụ phục hồi uy tín",
 };
+function reviewDecisionText(decision: string | null) {
+  if (decision === "APPROVED") return "Đã được xem xét và chấp thuận.";
+  if (decision === "FOLLOW_UP_REQUIRED")
+    return "Cần tiếp tục theo dõi theo quyết định xử lý.";
+  return "Chưa có kết quả xem xét.";
+}
 export function ReputationSummary({ data }: Readonly<{ data: Reputation }>) {
   return (
-    <>
-      <Panel title="Uy tín tài khoản" accent>
-        <Metric label="Điểm uy tín" value={`${data.reputationScore} / 100`} />
-        <Badge label={levels[data.level] ?? "Chưa xác định"} />
-        <Copy muted>
-          Điểm và hạn chế được hệ thống cập nhật theo hoạt động và quyết định xử
-          lý.
-        </Copy>
-      </Panel>
-      <Panel title="Hạn chế tài khoản hiện tại">
+    <View style={styles.stack}>
+      <ReputationScoreCard data={data} />
+      <View style={styles.section}>
+        <Text style={styles.heading}>Hạn chế tài khoản</Text>
         {!data.activeRestrictions.length && (
-          <Copy>Không có hạn chế đang hiệu lực.</Copy>
+          <Text style={styles.body}>Không có hạn chế đang hiệu lực.</Text>
         )}
         {data.activeRestrictions.map((item, index) => (
-          <Copy key={`${item.scope}:${index}`}>
-            {scopes[item.scope] ?? systemCodeLabel(item.scope)}
-            {"\n"}
-            Lý do:{" "}
-            {reputationReasons[item.reasonCode] ??
-              systemCodeLabel(item.reasonCode)}
-            {"\n"}
-            Thời hạn: {new Date(item.endsAt).toLocaleString("vi-VN")}
-            {Date.parse(item.endsAt) <= Date.now() &&
-              " · Cần xác nhận chính sách hoặc chờ xét lại để mở quyền."}
-          </Copy>
+          <View key={`${item.scope}:${index}`} style={styles.restriction}>
+            <Text style={styles.restrictionTitle}>
+              {scopes[item.scope] ?? systemCodeLabel(item.scope)}
+            </Text>
+            <Text style={styles.body}>
+              Lý do:{" "}
+              {reputationReasons[item.reasonCode] ??
+                systemCodeLabel(item.reasonCode)}
+            </Text>
+            <Text style={styles.note}>
+              {restrictionDeadline(item.endsAt, !!data.policyNotice?.length)}
+            </Text>
+          </View>
         ))}
-      </Panel>
-    </>
+      </View>
+      {!!data.restrictionReviews?.length && (
+        <View style={styles.section}>
+          <Text style={styles.heading}>Theo dõi xem xét hạn chế</Text>
+          {data.restrictionReviews.map((review) => (
+            <View key={review.id} style={styles.section}>
+              <Text style={styles.restrictionTitle}>
+                {scopes[review.scope]}
+              </Text>
+              <Text style={styles.note}>
+                {reviewDecisionText(review.decision)}
+              </Text>
+            </View>
+          ))}
+        </View>
+      )}
+    </View>
   );
 }

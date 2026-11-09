@@ -31,3 +31,15 @@ export function profileHasChanges(
     saved.bio !== draft.bio
   );
 }
+
+export function profileDraftPatch(
+  saved: ProfileDraft,
+  draft: ProfileDraft,
+): Partial<ProfileDraft> {
+  const patch: Partial<ProfileDraft> = {};
+  if (saved.fullName !== draft.fullName.trim())
+    patch.fullName = draft.fullName.trim();
+  if (saved.headline !== draft.headline) patch.headline = draft.headline;
+  if (saved.bio !== draft.bio) patch.bio = draft.bio;
+  return patch;
+}

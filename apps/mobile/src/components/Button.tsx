@@ -71,6 +71,8 @@ export function Button({
       accessibilityLabel={accessibilityLabel}
       disabled={disabled}
       accessibilityState={{ ...accessibilityState, disabled }}
+      aria-expanded={accessibilityState?.expanded}
+      aria-selected={accessibilityState?.selected}
       onPress={onPress}
       style={({ pressed }) => [
         styles.base,

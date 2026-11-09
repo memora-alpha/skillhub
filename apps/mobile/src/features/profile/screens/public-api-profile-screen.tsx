@@ -1,4 +1,4 @@
-import { StyleSheet, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { LoadingIndicator as ActivityIndicator } from "@/components/LoadingIndicator";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { z } from "zod";
@@ -12,11 +12,13 @@ import { ProfileLayout } from "../components/ProfileLayout";
 import { ProfileAbout, ProfileSummary } from "../components/ProfileSummary";
 import { usePublicProfile } from "../hooks/use-public-profile";
 import { ProfileReviews } from "../components/profile-reviews";
+import { profileStyles } from "../components/ProfilePrimitives";
 
 export function PublicApiProfileScreen({
   userId,
 }: Readonly<{ userId: string }>) {
   const { session } = useAuthSession();
+  const selfPreview = userId === session?.userId;
   const query = usePublicProfile(userId);
   const router = useRouter();
   const { requestId } = useLocalSearchParams<{
@@ -29,7 +31,7 @@ export function PublicApiProfileScreen({
         pathname: "/request/[id]",
         params: { id: requestId },
       });
-    router.replace("/discover");
+    router.replace(selfPreview ? "/profile" : "/discover");
   };
   if (!session) return null;
   return (
@@ -41,6 +43,9 @@ export function PublicApiProfileScreen({
     >
       {() => (
         <View style={styles.stack}>
+          {selfPreview && (
+            <Text style={profileStyles.caption}>Xem trước hồ sơ công khai</Text>
+          )}
           <PublicProfileReadState query={query} userId={userId} />
         </View>
       )}

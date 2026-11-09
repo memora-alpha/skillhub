@@ -2,7 +2,7 @@ import { useCallback, useMemo, useRef, useSyncExternalStore } from "react";
 import { useFocusEffect } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { AppError } from "@/lib/http/errors";
-import { useRefreshLearningPath } from "@/features/learning-paths";
+import { useRefreshLearningPath } from "@/features/learning-paths/state";
 import { useSessionsRuntime } from "../runtime";
 import type { LearningSession } from "../types";
 import { createRescheduleAction } from "../utils/reschedule-action";

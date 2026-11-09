@@ -7,7 +7,7 @@ import {
   deviceTimezone,
   listIsLimited,
   useSessionList,
-} from "@/features/sessions";
+} from "@/features/sessions/state";
 import { appColors as colors, fonts, typography } from "@/constants/theme";
 import {
   scheduleBusyRange,

@@ -5,6 +5,7 @@ import { ConnectionFeedback } from "@/features/connections";
 
 export function ProposalRecovery<T>({
   command,
+  captureCurrent,
   onRecovered,
 }: Readonly<{
   command: {
@@ -14,6 +15,7 @@ export function ProposalRecovery<T>({
     error: unknown;
     retry: () => Promise<T | undefined>;
   };
+  captureCurrent: () => () => boolean;
   onRecovered: (result: T) => void;
 }>) {
   if (!command.uncertain) return null;
@@ -31,8 +33,10 @@ export function ProposalRecovery<T>({
         variant="craft"
         disabled={command.pending}
         onPress={() => {
+          const current = captureCurrent();
+          if (!current() || command.pending) return;
           void command.retry().then((result) => {
-            if (result) onRecovered(result);
+            if (result && current()) onRecovered(result);
           });
         }}
       >

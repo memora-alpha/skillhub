@@ -25,35 +25,32 @@ export function RequestRequesterDetails({
   const router = useRouter();
   const avatar = useRequestOwnerAvatar(owner);
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`Xem hồ sơ công khai của ${owner.displayName}`}
-      onPress={() =>
-        router.push({
-          pathname: "/profiles/[userId]",
-          params: { userId: owner.id, requestId },
-        })
-      }
-      style={({ pressed }) => [
-        styles.card,
-        styles.metadataRow,
-        pressed && { opacity: 0.8 },
-      ]}
-    >
-      <Avatar
-        name={owner.displayName}
-        userId={owner.id}
-        size={44}
-        sourceUri={avatar.sourceUri}
-        onImageError={avatar.onImageError}
-        shape="circle"
-      />
+    <View style={[styles.card, styles.metadataRow]}>
+      <Pressable
+        accessibilityRole="link"
+        accessibilityLabel={`Xem hồ sơ công khai của ${owner.displayName}`}
+        onPress={() =>
+          router.push({
+            pathname: "/profiles/[userId]",
+            params: { userId: owner.id, requestId },
+          })
+        }
+        style={({ pressed }) => ({ opacity: pressed ? 0.8 : 1 })}
+      >
+        <Avatar
+          name={owner.displayName}
+          userId={owner.id}
+          size={44}
+          sourceUri={avatar.sourceUri}
+          onImageError={avatar.onImageError}
+          shape="circle"
+        />
+      </Pressable>
       <View style={{ flex: 1, gap: 4 }}>
         <Text style={styles.caption}>Người đăng yêu cầu</Text>
         <Text style={styles.emphasis}>{owner.displayName}</Text>
       </View>
-      <Icon name="chevron" size={18} color={colors.accent} />
-    </Pressable>
+    </View>
   );
 }
 
@@ -89,19 +86,6 @@ export function RequestPublicFooter({
           />
         )}
         <View style={styles.footerRow}>
-          <Button
-            variant="paper"
-            style={[styles.secondary, styles.footerSecondary]}
-            accessibilityLabel="Xem hồ sơ người đăng yêu cầu"
-            onPress={() =>
-              router.push({
-                pathname: "/profiles/[userId]",
-                params: { userId: request.owner.id, requestId: request.id },
-              })
-            }
-          >
-            <Text style={styles.secondaryLabel}>Xem hồ sơ</Text>
-          </Button>
           <Button
             variant="craft"
             style={[styles.publish, styles.footerPrimary]}
