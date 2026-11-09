@@ -80,12 +80,8 @@ test("demo and invalid profile targets are unavailable instead of showing sample
   }
 });
 
-test("self preview keeps saved profile fields and reads public Skills through the API list", () => {
+test("self preview reads the authoritative public API instead of the private saved bio", () => {
   const node = profileScreen()(ids.user);
-  const content = (node.props.children as () => Node)();
-  const children = (content.props.children as Node).props.children as Node[];
-  const profile = children.find((child) => child.type === "ProfileSummary")
-    ?.props.profile as { fullName: string };
-  assert.equal(profile.fullName, "Saved profile");
-  assert.equal(children.at(-1)?.type, "PublicSelfSkillList");
+  assert.equal(node.type, "PublicApiProfileScreen");
+  assert.equal(node.props.userId, ids.user);
 });

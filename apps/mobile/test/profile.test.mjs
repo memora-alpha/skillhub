@@ -112,6 +112,22 @@ test("whitespace-only name changes do not save, but explicit optional clearing d
   );
 });
 
+test("editing name or headline does not resubmit a moderated bio; explicit bio clearing is retained", () => {
+  const saved = { ...draft, bio: "Bio awaiting correction" };
+  assert.deepEqual(
+    validation.profileDraftPatch(saved, { ...saved, fullName: "  Minh Anh  " }),
+    { fullName: "Minh Anh" },
+  );
+  assert.deepEqual(
+    validation.profileDraftPatch(saved, { ...saved, headline: "New headline" }),
+    { headline: "New headline" },
+  );
+  assert.deepEqual(validation.profileDraftPatch(saved, { ...saved, bio: "" }), {
+    bio: "",
+  });
+  assert.deepEqual(validation.profileDraftPatch(saved, saved), {});
+});
+
 test("own preview preserves server values and empty fields without inventing skills or reputation", () => {
   const saved = {
     ...own,

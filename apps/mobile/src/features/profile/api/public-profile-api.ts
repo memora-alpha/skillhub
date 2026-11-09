@@ -12,6 +12,12 @@ const profileSchema = z.object({
   reputationScore: z.number().finite().nullable(),
   verifiedSkillCount: z.number().int().nonnegative(),
   completedSessionCount: z.number().int().nonnegative(),
+  completedLearningPathCount: z
+    .number()
+    .int()
+    .nonnegative()
+    .nullable()
+    .optional(),
   selectedTitle: z.string().nullable().optional().default(null),
 });
 

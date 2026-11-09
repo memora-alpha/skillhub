@@ -1,4 +1,4 @@
-import { HelpScreen } from "@/features/product-shell";
+import { HelpScreen } from "@/features/settings";
 export default function Screen() {
   return <HelpScreen />;
 }
