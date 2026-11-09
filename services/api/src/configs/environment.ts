@@ -26,6 +26,13 @@ const corsOriginSchema = z.string().transform((value, context) => {
 
 // Loose: identity, SMTP and S3 keys are validated by their own providers and must survive.
 const environmentSchema = z.looseObject({
+  APP_DEPLOYMENT_TIER: z
+    .enum(["local", "staging", "production"])
+    .default("production"),
+  QA_ADMIN_ADJUSTMENTS_ENABLED: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
   NODE_ENV: z
     .enum(["development", "test", "production"])
     .default("development"),
@@ -124,6 +131,11 @@ export function validateEnvironment(input: Record<string, unknown>) {
     throw new Error(`Invalid environment configuration: ${fields.join(", ")}`);
   }
   const config = result.data;
+  if (
+    config.APP_DEPLOYMENT_TIER === "production" &&
+    config.QA_ADMIN_ADJUSTMENTS_ENABLED
+  )
+    fail(["QA_ADMIN_ADJUSTMENTS_ENABLED"]);
   for (const name of ["DATABASE_URL", "MONGODB_URI", "REDIS_URL"] as const) {
     if (!URL.canParse(config[name])) fail([name]);
   }

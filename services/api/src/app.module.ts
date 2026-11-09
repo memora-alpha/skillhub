@@ -36,6 +36,7 @@ import { ReportsModule } from "./modules/reports/reports.module";
 import { CreditModule } from "./modules/credit/credit.module";
 import { PaymentsModule } from "./modules/payments/payments.module";
 import { MaterialsModule } from "./modules/materials/materials.module";
+import { AdminQaAdjustmentsModule } from "./modules/admin-qa-adjustments/admin-qa-adjustments.module";
 
 @Module({
   imports: [
@@ -87,6 +88,7 @@ import { MaterialsModule } from "./modules/materials/materials.module";
     CreditModule,
     PaymentsModule,
     MaterialsModule,
+    AdminQaAdjustmentsModule,
   ],
   controllers: [HealthController],
   providers: [

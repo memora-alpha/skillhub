@@ -216,6 +216,7 @@ export class ReputationService {
       where: {
         userId: original.userId,
         reasonCode: "LOW_REPUTATION",
+        qaReleased: false,
         scope: { in: withdrawn.map(({ scope }) => scope) },
         endsAt: { gt: now },
         triggerEventKey: { not: null },
@@ -246,6 +247,21 @@ export class ReputationService {
         data: { revokedAt: null },
       });
     return { withdrawnRestrictionIds, restoredRestrictionIds };
+  }
+
+  async releaseLowReputationRestrictions(
+    tx: TransactionContext,
+    userId: string,
+    now: Date,
+  ) {
+    return tx.userRestriction.updateMany({
+      where: {
+        userId,
+        reasonCode: "LOW_REPUTATION",
+        ...effectiveRestriction(now),
+      },
+      data: { revokedAt: now, qaReleased: true },
+    });
   }
 
   async reviewRestriction(
