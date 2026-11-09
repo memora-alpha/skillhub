@@ -21,7 +21,7 @@ export type PublicProfile = Readonly<{
   reputationScore: number | null;
   verifiedSkillCount: number;
   completedSessionCount: number;
-  completedLearningPathCount?: number;
+  completedLearningPathCount?: number | null;
   reviewSummary?: {
     reviewCount: number;
     averageRating: number | null;

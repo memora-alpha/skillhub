@@ -16,6 +16,7 @@ import { useProposal, useProposalsApi } from "../hooks/use-proposals-api";
 import { ApiProposalForm } from "../components/ApiProposalForm";
 import { ProposalRecovery } from "../components/ProposalRecovery";
 import type { Proposal, ProposalHints } from "../api/proposals-api";
+import { useProposalLifecycle } from "../hooks/use-proposal-lifecycle";
 
 export function ApiEditProposalScreen({ id }: Readonly<{ id: string }>) {
   const query = useProposal(id),
@@ -28,6 +29,7 @@ export function ApiEditProposalScreen({ id }: Readonly<{ id: string }>) {
     ]);
   const runtime = useConnections(),
     router = useRouter();
+  const captureCurrent = useProposalLifecycle(id);
   const proposal = query.data;
   const original = useRef<number | undefined>(undefined);
   const [editorRevision, setEditorRevision] = useState(0);
@@ -44,11 +46,14 @@ export function ApiEditProposalScreen({ id }: Readonly<{ id: string }>) {
       });
   };
   const submit = async (hints: ProposalHints) => {
+    const current = captureCurrent(runtime.isCurrent);
     if (
+      !current() ||
       !allowed ||
       query.error ||
       query.isFetching ||
       changed ||
+      command.pending ||
       command.uncertain
     )
       return;
@@ -56,7 +61,7 @@ export function ApiEditProposalScreen({ id }: Readonly<{ id: string }>) {
     const result = await command.run(JSON.stringify({ id, ...body }), (key) =>
       api.update(id, body, key),
     );
-    if (result) finish(result);
+    if (result && current()) finish(result);
   };
   return (
     <FeaturePage
@@ -71,7 +76,11 @@ export function ApiEditProposalScreen({ id }: Readonly<{ id: string }>) {
         error={query.error}
         retry={query.refetch}
       />
-      <ProposalRecovery command={command} onRecovered={finish} />
+      <ProposalRecovery
+        command={command}
+        captureCurrent={() => captureCurrent(runtime.isCurrent)}
+        onRecovered={finish}
+      />
       {allowed ? (
         <Panel title="Cập nhật lời đề nghị">
           {!command.uncertain && <ConnectionFeedback error={command.error} />}

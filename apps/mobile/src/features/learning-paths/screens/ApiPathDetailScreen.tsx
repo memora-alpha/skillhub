@@ -52,6 +52,7 @@ import { PathSettlementPanel } from "../components/path-settlement-panel";
 import { CompletedAgreementReview } from "../components/completed-agreement-review";
 import { PathCancellationButton } from "../components/path-cancellation-button";
 import { PathOverviewPanel } from "../components/path-overview-panel";
+import { useRefreshLearningPath } from "../hooks/use-refresh-learning-path";
 
 function agreementBackTarget(
   source: ReturnType<typeof uuid.safeParse>,
@@ -82,7 +83,8 @@ export function ApiPathDetailScreen() {
   }>();
   const source = uuid.safeParse(fromConversation);
   const query = useLearningPath(id);
-  const pullRefresh = usePullRefresh(query.refetch);
+  const refreshPath = useRefreshLearningPath();
+  const pullRefresh = usePullRefresh(() => refreshPath(id));
   return (
     <FeaturePage
       title="Thỏa thuận học"
@@ -110,7 +112,7 @@ export function ApiPathDetailScreen() {
           <PathContent
             key={query.data.id}
             path={query.data}
-            blocked={!!query.error}
+            blocked={!!query.error || query.isFetching}
             onRefresh={query.refetch}
           />
         )}
@@ -158,16 +160,10 @@ function PathContent({
   const scheduleHasSessionLink =
     selected === "schedules" &&
     !completed &&
-    !blocked &&
     progress.action?.href === `/paths/${path.id}/sessions`;
   return (
     <>
-      <AgreementContext
-        name={name.data ?? "đối tác"}
-        pathId={path.id}
-        partnerId={otherId}
-      />
-      <PathOverviewPanel pathId={path.id} />
+      <AgreementContext name={name.data ?? "đối tác"} partnerId={otherId} />
       <AgreementSteps
         value={selected}
         current={current}
@@ -175,6 +171,12 @@ function PathContent({
         scheduleLocked={path.lockedVersion !== null}
         onSelect={setReviewing}
       />
+      {selected === "schedules" &&
+        (path.lockedVersion !== null ||
+          ["CANCELLED", "DISPUTED"].includes(path.status) ||
+          (path.overview?.attentionCount ?? 0) > 0) && (
+          <PathOverviewPanel path={path} />
+        )}
       {completed && selected === "completion" && (
         <PathSettlementPanel pathId={path.id} />
       )}
@@ -218,7 +220,6 @@ function PathContent({
           partnerName={name.data ?? "Đối tác"}
           blocked={blocked}
           canContinue={current === "schedules"}
-          onReviewMethod={() => setReviewing("method")}
           onContinue={() => setReviewing("schedules")}
         />
       )}
@@ -227,7 +228,6 @@ function PathContent({
           path={path}
           userId={runtime.userId}
           blocked={blocked}
-          onReviewPlans={() => setReviewing("plans")}
         />
       )}
       {path.lockedVersion !== null && !settled && (

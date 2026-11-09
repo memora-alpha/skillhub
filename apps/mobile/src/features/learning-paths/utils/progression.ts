@@ -32,17 +32,17 @@ function terminalProgress(
   switch (path.status) {
     case "CANCELLED":
       return closedProgress(
-        "Trạng thái thỏa thuận",
+        "Thỏa thuận đã hủy",
         "Thỏa thuận đã hủy. Không thể tiếp tục xác nhận kế hoạch hoặc lịch.",
       );
     case "DISPUTED":
       return closedProgress(
-        "Trạng thái thỏa thuận",
+        "Thỏa thuận đang tranh chấp",
         "Thỏa thuận đang có tranh chấp. Xem trạng thái và trao đổi với đối tác.",
       );
     case "COMPLETED":
       return closedProgress(
-        "Trạng thái thỏa thuận",
+        "Thỏa thuận đã hoàn thành",
         "Thỏa thuận đã hoàn thành. Bạn có thể xem lại các buổi học.",
       );
     default:
@@ -175,7 +175,7 @@ export function agreementProgress(
       waiting: [
         "Có thể chờ hết thời hạn khiếu nại hoặc cả hai đồng ý quyết toán sớm bằng xác nhận riêng. Tranh chấp và yêu cầu dừng vẫn có thể chặn quyết toán.",
       ],
-      action: { label: "Xem các buổi đã học", href: `${base}/sessions` },
+      action: { label: "Xem tất cả buổi học", href: `${base}/sessions` },
     };
   if (path.lockedVersion !== null)
     return {
@@ -184,7 +184,7 @@ export function agreementProgress(
       description:
         "Hệ thống đã khóa lịch và tạo các buổi học. Xem lịch để chuẩn bị buổi tiếp theo.",
       waiting: [],
-      action: { label: "Xem các buổi học", href: `${base}/sessions` },
+      action: { label: "Xem tất cả buổi học", href: `${base}/sessions` },
     };
   if (!editablePath(path))
     return closedProgress(

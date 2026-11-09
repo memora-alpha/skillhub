@@ -38,6 +38,24 @@ Follow-up 2026-11-01: cleanup logout theo intent riêng, không bị hủy bởi
 
 Auth renewal single-flight, access RAM, native refresh SecureStore, web memory-only; ambiguous rotation không replay token có thể đã consume. Ownership/generation và cache cleanup chuẩn nằm tại [state/session](../guides/state-and-session.md). Current SessionController states: bootstrapping,guest,ready,offline,reauth; ready không phải wire account status.
 
+## Hiển thị Chính sách trên mobile
+
+Route `/policies` dùng icon mũi tên với nhãn accessibility Quay lại; có history
+thì back, không có thì replace `/`. Điều khoản và Bảo mật dùng tab gạch chân,
+mỗi bản có tiêu đề/ngày cập nhật/badge dự thảo và 5 chủ đề dạng hàng. Chạm
+một hàng để mở tóm tắt; mỗi lần mở tối đa một chủ đề. Link đọc toàn văn ở sau
+danh sách; notice/phiên bản ở cuối. Chuyển tab trở về danh sách đóng/đầu trang.
+`PolicyContent` mặc định vẫn hiển thị toàn văn và metadata trong đăng ký;
+`showMetadata=false` chỉ tránh lặp metadata ở màn Chính sách đã có header riêng.
+
+Bản tóm tắt mobile căn cứ shared `packages/content/legal-policies.ts`
+(`2026-11-05-draft-4`), source restriction policy và phí quyết toán 4% trong
+credit/domain/money. Nêu rõ hạn chế uy tín và tăng điểm không tự gỡ hạn chế;
+không thêm ngưỡng/ngày hoặc hứa tự hoàn Credit. Nội dung vẫn là dự thảo:
+đầu mối liên hệ, retention và một số quy tắc Credit cần được hoàn thiện.
+Không coi rà soát source/hiển thị là phê duyệt pháp lý hay đồng bộ phiên bản
+terms cấu hình trên API triển khai.
+
 ## Yêu cầu / chênh lệch / evidence
 
 SRS18.2/18.3/18.4 mô tả PENDING_VERIFICATION và OTP_EMAIL_COOLDOWN429 có retryAfterSeconds/cooldownUntil; identity contract thực tế stage registration Redis và neutral400 OTP_INVALID_OR_EXPIRED. Giữ hai nguồn, không đổi client để giả expose dữ liệu backend không trả. Cần product/API owner chốt nếu mở lại contract; migration không thay rule.

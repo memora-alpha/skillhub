@@ -12,10 +12,12 @@ import {
 import { PathReadFeedback } from "./PathReadFeedback";
 import { usePathSettlement } from "../hooks/use-path-changes";
 import { SettlementConsentForm } from "./settlement-consent-form";
+import { SettlementRelatedItems } from "./settlement-related-items";
 import { canConsentToSettlement } from "../utils/settlement-consent";
 import {
   settlementWaitNote,
   settlementWarnings,
+  earlyConsentNote,
 } from "../utils/settlement-summary";
 
 // Completion summary only; automatic settlement never requires a manual refresh command.
@@ -40,7 +42,6 @@ export function PathSettlementPanel({ pathId }: Readonly<{ pathId: string }>) {
               ? "Thỏa thuận đã hoàn tất"
               : "Đã học xong · Chờ quyết toán"}
           </Text>
-          <Text style={styles.subtitle}>Các buổi học đã hoàn tất.</Text>
         </View>
       </View>
       <PathReadFeedback query={query} />
@@ -71,9 +72,6 @@ export function PathSettlementPanel({ pathId }: Readonly<{ pathId: string }>) {
               })}
             </Text>
           )}
-          <Text style={styles.date}>
-            Không cần thao tác thêm nếu đủ điều kiện.
-          </Text>
         </View>
       )}
       {status && ["NOT_LOCKED", "WAITING_SESSIONS"].includes(status.status) && (
@@ -90,15 +88,14 @@ export function PathSettlementPanel({ pathId }: Readonly<{ pathId: string }>) {
       {status?.status === "TERMINATED" && (
         <Copy>Lộ trình đã hủy. Credit được xử lý theo quyết định hủy.</Copy>
       )}
-      {status?.immediateSettlement?.ownApprovedAt && !settled && (
-        <Copy size="hint">
-          {status.immediateSettlement.partnerApprovedAt
-            ? "Cả hai đã đồng ý · Đang xử lý quyết toán."
-            : "Bạn đã đồng ý · Chờ đối tác hoặc hết thời gian chờ."}
-        </Copy>
-      )}
+      {status?.immediateSettlement?.ownApprovedAt &&
+        !settled &&
+        status.status !== "TERMINATED" && (
+          <Copy size="hint">{earlyConsentNote(status)}</Copy>
+        )}
       {status?.immediateSettlement?.partnerApprovedAt &&
         !status.immediateSettlement.ownApprovedAt &&
+        status.status !== "TERMINATED" &&
         !settled && <Copy size="hint">Đối tác đã đồng ý quyết toán sớm.</Copy>}
       {status && canConsentToSettlement(status) && (
         <SettlementConsentForm
@@ -110,13 +107,12 @@ export function PathSettlementPanel({ pathId }: Readonly<{ pathId: string }>) {
           }}
         />
       )}
-      {status?.status === "WAITING_DISPUTE" && (
-        <RouteButton secondary href={`/paths/${pathId}?cases=1`}>
-          Xem vụ việc đang chặn
-        </RouteButton>
-      )}
+      {status && <SettlementRelatedItems status={status} />}
       {status &&
-        ["WAITING_TERMINATION", "TERMINATED"].includes(status.status) && (
+        ["WAITING_TERMINATION", "TERMINATED"].includes(status.status) &&
+        ![status.nextActionTarget, ...(status.relatedItems ?? [])].some(
+          (target) => target?.type === "LEARNING_CHANGE",
+        ) && (
           <RouteButton secondary href={`/paths/${pathId}/cancel`}>
             Xem yêu cầu hủy
           </RouteButton>
@@ -160,12 +156,6 @@ const styles = StyleSheet.create({
     color: colors.forest,
   },
   title: { ...typography.heading, fontFamily: fonts.bold, color: colors.ink },
-  subtitle: {
-    ...typography.secondary,
-    fontFamily: fonts.body,
-    color: colors.muted,
-    marginTop: 2,
-  },
   timing: {
     borderTopWidth: 1,
     borderColor: colors.border,

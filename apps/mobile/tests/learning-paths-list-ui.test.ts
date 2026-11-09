@@ -5,6 +5,7 @@ import { pathToFileURL } from "node:url";
 import { createLearningPathsApi } from "../src/features/learning-paths/api/learning-paths-api";
 import type { PathSummary } from "../src/features/learning-paths/api/learning-paths-contract";
 import { fixtureId } from "./fixtures/learning-requests-data";
+import { overviewFixture } from "./fixtures/path-overview";
 
 function summary(id: number): PathSummary {
   return {
@@ -122,6 +123,97 @@ test("path list renders its first page, loads another on request, and only enric
         [path.counterpartId, false],
       ],
     );
+    const cardText = (value: unknown): string => {
+      if (Array.isArray(value)) return value.map(cardText).join(" ");
+      if (value && typeof value === "object" && "props" in value)
+        return cardText(
+          (value as { props: { children?: unknown } }).props.children,
+        );
+      return typeof value === "string" ? value : "";
+    };
+    for (const title of [
+      "Học tiếng Anh giao tiếp ".repeat(10),
+      null,
+      undefined,
+      "   ",
+    ]) {
+      const tree = ApiPathCard({ path: { ...path, title } });
+      assert.ok(
+        cardText(tree).includes(title?.trim() || "Lộ trình học cùng đối tác"),
+      );
+      assert.ok(cardText(tree).includes("Học một chiều"));
+      assert.doesNotMatch(cardText(tree), /Cập nhật|Bản 1/);
+    }
+    const { PathListHighlight } = local("./path-list-highlight.tsx");
+    const overview = overviewFixture();
+    const attention = cardText(PathListHighlight({ overview }));
+    assert.match(attention, /Vắng mặt hoặc trễ nghiêm trọng/);
+    assert.doesNotMatch(attention, /Buổi tiếp theo|Bạn học/);
+    const upcoming = cardText(
+      PathListHighlight({
+        overview: { ...overview, primaryAttention: null, attentionCount: 0 },
+      }),
+    );
+    assert.match(upcoming, /Buổi tiếp theo/);
+    assert.doesNotMatch(upcoming, /hoàn thành|quyết toán/);
+    assert.equal(
+      PathListHighlight({
+        overview: {
+          ...overview,
+          primaryAttention: null,
+          nextSession: null,
+          progress: { ...overview.progress, basis: "CURRENT_PLAN" },
+        },
+      }),
+      null,
+    );
+    const stopped = ApiPathCard({
+      path: { ...path, ...overviewFixture(), learningStage: "STOPPED" },
+    });
+    assert.ok(cardText(stopped).includes("Đã dừng học"));
+    assert.ok(!cardText(stopped).includes("Đang học"));
+    assert.doesNotMatch(
+      cardText(
+        ApiPathCard({
+          path: {
+            ...path,
+            ...overviewFixture(),
+            learningStage: null,
+            stageReasonCode: "LEARNING_STAGE_DATA_INCOMPLETE",
+          },
+        }),
+      ),
+      /Chưa xác định|chưa đầy đủ/,
+    );
+    for (const [status, expectedIcon] of [
+      ["ACTIVE", "check-circle"],
+      ["CANCELLED", "alert"],
+      ["DISPUTED", "alert"],
+    ] as const) {
+      const stack: unknown[] = [
+        ApiPathCard({
+          path: { ...path, ...overviewFixture(), status, learningStage: null },
+        }),
+      ];
+      const icons: string[] = [];
+      while (stack.length) {
+        const node = stack.pop();
+        if (Array.isArray(node)) stack.push(...node);
+        else if (node && typeof node === "object" && "props" in node) {
+          const element = node as {
+            type: unknown;
+            props: { name?: string; children?: unknown };
+          };
+          if (element.type === "Icon" && element.props.name)
+            icons.push(element.props.name);
+          stack.push(element.props.children);
+        }
+      }
+      assert.ok(
+        icons.includes(expectedIcon),
+        `${status} should retain its status icon when learningStage is absent`,
+      );
+    }
     props.ListFooterComponent.props.onPress();
     assert.deepEqual(fetchNextPage.mock.calls[0]?.arguments, [
       { cancelRefetch: false },

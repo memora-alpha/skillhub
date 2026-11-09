@@ -8,6 +8,7 @@ import {
   useWindowDimensions,
   type StyleProp,
   type ViewStyle,
+  type TextStyle,
 } from "react-native";
 import type { ReactNode } from "react";
 import { SafeAreaView } from "@/components/SafeArea";
@@ -22,6 +23,10 @@ export function InfoModal({
   confirmLabel = "Đã hiểu",
   onConfirm,
   style,
+  busy = false,
+  showConfirm = true,
+  titleStyle,
+  footer,
 }: {
   title: string | null;
   children?: ReactNode;
@@ -29,6 +34,10 @@ export function InfoModal({
   confirmLabel?: string;
   onConfirm?: () => void;
   style?: StyleProp<ViewStyle>;
+  busy?: boolean;
+  showConfirm?: boolean;
+  titleStyle?: StyleProp<TextStyle>;
+  footer?: ReactNode;
 }) {
   const { width, height } = useWindowDimensions();
   const compact = width < 380 || height < 500;
@@ -37,12 +46,15 @@ export function InfoModal({
       visible={title !== null}
       transparent
       animationType="none"
-      onRequestClose={onClose}
+      onRequestClose={() => {
+        if (!busy) onClose();
+      }}
     >
       <SafeAreaView style={[styles.overlay, compact && { padding: 12 }]}>
         <Pressable
           style={StyleSheet.absoluteFill}
           onPress={onClose}
+          disabled={busy}
           accessibilityRole="button"
           accessibilityLabel="Đóng hộp thoại"
         />
@@ -54,11 +66,12 @@ export function InfoModal({
           style={[styles.card, compact && { padding: 16, gap: 12 }, style]}
         >
           <View style={styles.heading}>
-            <Text accessibilityRole="header" style={styles.title}>
+            <Text accessibilityRole="header" style={[styles.title, titleStyle]}>
               {title}
             </Text>
             <Pressable
               onPress={onClose}
+              disabled={busy}
               accessibilityRole="button"
               accessibilityLabel="Đóng"
               hitSlop={10}
@@ -78,7 +91,12 @@ export function InfoModal({
               children
             )}
           </ScrollView>
-          <Button onPress={onConfirm ?? onClose}>{confirmLabel}</Button>
+          {footer}
+          {showConfirm && (
+            <Button disabled={busy} onPress={onConfirm ?? onClose}>
+              {confirmLabel}
+            </Button>
+          )}
         </View>
       </SafeAreaView>
     </Modal>

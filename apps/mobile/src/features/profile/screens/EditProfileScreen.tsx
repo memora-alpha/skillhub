@@ -35,10 +35,12 @@ import {
 import { avatarSaveErrorMessage } from "../utils/avatar-save-error";
 import {
   profileHasChanges,
+  profileDraftPatch,
   validateProfileDraft,
 } from "../utils/profile-validation";
 import type { ProfileDraft } from "../types/profile";
 import { profileSaveErrorMessage } from "../utils/profile-save-error";
+import { ProfileModerationNotice } from "../components/ProfileModerationNotice";
 
 const profileFormSchema = z
   .object({
@@ -148,7 +150,8 @@ function ProfileForm({ session }: { session: AccountSession }) {
         );
     } finally {
       selecting.current = false;
-      if (isCurrent()) setPicking(false);
+      // Release this form's local lock even if the picker finishes while blurred.
+      setPicking(false);
     }
   };
   const save = form.handleSubmit(async (values) => {
@@ -167,7 +170,7 @@ function ProfileForm({ session }: { session: AccountSession }) {
     setProfileSaved(false);
     try {
       if (profileHasChanges(initial, values)) {
-        await updateProfile.mutateAsync(values);
+        await updateProfile.mutateAsync(profileDraftPatch(initial, values));
         if (!isCurrent()) return;
         setInitial(values);
         setProfileSaved(true);
@@ -202,6 +205,7 @@ function ProfileForm({ session }: { session: AccountSession }) {
     >
       {() => (
         <View style={styles.stack}>
+          <ProfileModerationNotice />
           <AvatarDraftEditor
             session={session}
             draft={avatarDraft}

@@ -74,7 +74,7 @@ test("busy-day feedback uses scoped date queries, updates overlaps, and never tr
     "expo-router": { useIsFocused: () => focused },
     "@/components/FormNotice": { FormNotice: "Notice" },
     "@/features/connections": { ConnectionFeedback: "Feedback" },
-    "@/features/sessions": {
+    "@/features/sessions/state": {
       deviceTimezone: () => "UTC",
       listIsLimited: (items: unknown[]) => items.length >= 100,
       useSessionList: (

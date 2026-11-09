@@ -1,8 +1,128 @@
 # Trạng thái Phase 05–06
 
-Cập nhật tài liệu: 2026-11-03T15:52:11+07:00.
+## Banner đúng trạng thái — 2026-11-09T22:28:14+07:00
+
+- Bổ sung theo đính chính của người dùng lúc2026-11-09T22:36:26+07:00: warning Credit luôn mở đầu bằng trạng thái yêu cầu hủy. PENDING: người gửi chờ đối tác đồng ý, người nhận chờ chính mình phản hồi; STAFF_REVIEW chờ nhân viên; ACCEPTED chưa có approvedAt chờ cập nhật; có approvedAt ghi đã duyệt hủy. Sau đó mới nêu Credit chờ tranh chấp/chính sách. Regression22/22 path-changes-ui PASS, ESLint file và diff whitespace PASS; không thay quyền gửi/đồng ý hoặc tự quyết toán.
+
+- Sau lượt rà read-only, người dùng yêu cầu sửa4 chỗ. Warning của yêu cầu hủy và lỗi TERMINATION_BLOCKED_BY_DISPUTE chỉ rõ Credit chờ tranh chấp/chính sách, không nói tranh chấp ngăn duyệt hủy. Header/thao tác phản hồi giữ theo trạng thái yêu cầu; regression vẫn cho đối tác mở Đồng ý hủy khi có blocker Credit.
+- Hold dùng progression hiện hành cho CANCELLED/DISPUTED/COMPLETED; không báo xanh các buổi sẵn sàng. Khi đã có terminationApprovedAt nhưng chưa quyết toán, thông báo các buổi tương lai đã dừng. Path đang học/chờ bắt đầu chỉ hướng mở danh sách xem trạng thái từng buổi. Không sửa finalize/quyền/API.
+- Consent sớm đã lưu chỉ nói chờ đối tác/thời hạn ở WAITING_DISPUTE_WINDOW hoặc READY. Các trạng thái dispute/termination/review/retry giữ warning thật và chỉ ghi nhận consent, không hứa tự giải ngân sau hạn. Không lặp consent ở SETTLED/TERMINATED.
+- Editor Learning Request dùng baseline.status hiện hành: REJECTED phải lưu về nháp rồi đăng lại; OPEN có thể chuyển chờ duyệt, PENDING_MODERATION chờ duyệt, DRAFT hướng dẫn đăng sau lưu. Chi tiết tại work Phase04.
+- 40 focused tests PASS; full mobile **1065/1065 PASS**, fail/skip/cancel0. TypeScript, ESLint toàn mobile, structure910 và diff whitespace PASS. Logs local ignored .expo/banner-copy-fixes-tests.log và .expo/banner-copy-final-tests.log. Không chạy lại export vì thay đổi copy/nhánh hiển thị, không thêm import package hoặc route.
+- Fixture component thật tại320/390/430 và chữ lớn320: WAITING_DISPUTE/WAITING_TERMINATION cùng consent đã lưu hiển thị đúng warning, không có wait hint cũ, không tràn ngang/page error; đã xem ảnh390. Artifact local .expo/settlement-preview/banner-*.png. Boundary router/provider giả lập; chưa nghiệm thu API thật hoặc native. Chưa stage/commit các sửa banner.
+
+## Chia commit theo phạm vi — 2026-11-09T22:01:13+07:00
+
+- Theo yêu cầu tiếp của người dùng, giữ nhánh fix/learning-path-flow và chia source thành bốn commit: 0fe92188 tổng quan/vụ việc và bảo vệ hủy; 3649835b giao diện thỏa thuận/lịch; 44f47d29 lifecycle Proposal; 5ea52e90 nút hồ sơ và khóa picker. Nhóm tài liệu contract/plan/status được commit riêng sau source.
+- Đã review staged diff từng nhóm; lint-staged/Prettier và commitlint chạy qua hooks, không bypass. Kiểm chứng source giữ kết quả1062 test và các checks bên dưới; không có thay đổi logic sau kiểm chứng. Chỉ commit local, không push/deploy; API/native acceptance vẫn pending.
+
+## Dọn code và kiểm tra trước commit — 2026-11-09T21:55:42+07:00
+
+- Xóa component PathAttentionItems không còn consumer sau lựa chọn tóm tắt gọn; bỏ test của component bị xóa. PathOverviewSummary chỉ còn nội dung tóm tắt đang dùng, bỏ props compact/showStage và nhánh CTA một buổi không còn sử dụng. PathOverviewPanel không tạo lại attentionItems khi fallback vì không còn render danh sách này. Giữ contract/API và các route vụ việc đang được settlement sử dụng.
+- Bỏ style doneNumber không thể chạy khi bước đã hoàn thành luôn hiển thị icon, bannerReady trùng style banner nền và màu settings shortcut đã bị bỏ. Kiểm import graph910 source files: mọi module thay đổi ngoài app routes đều có production consumer; audit style local không còn candidate thừa trong diff.
+- Phát hiện test focus mới đã ghi đè nhầm tests/proposal-lifecycle.test.ts ở lượt trước. Khôi phục nguyên8 test API/form/identity/version/idempotency cũ (file không còn diff), chuyển test hook mới sang proposal-visit-lifecycle.test.ts. Kết quả1055 trước đó thiếu8 test cũ; kết quả hiện tại chạy đủ các test khôi phục và đã bỏ1 test component dead.
+- Full mobile **1062/1062 PASS**, fail/skip/cancel0; TypeScript, ESLint toàn mobile, structure910, Prettier toàn source/test đang thay đổi và git diff whitespace PASS. Expo web export PASS. Logs local ignored: .expo/mobile-cleanup-final-tests.log và .expo/mobile-cleanup-export.log; bundle tại .expo/mobile-cleanup-export.
+- Fixture source thật: tổng quan/lối vào tất cả buổi học và own/public profile tại320/390/430, chữ lớn320 PASS; không tràn ngang, không thêm CTA một buổi, chỉ một CTA danh sách toàn Path, callback/nút tài khoản đúng. Hồ sơ cuối cùng dùng hai nút icon vuông44×44px, bo góc13px, cách4px, có nền/viền mảnh, không chữ Chỉnh sửa. Scripts/ảnh local tại .expo/schedule-layout-preview và .expo/profile-settings-preview.
+- Source đủ kiểm chứng để review/commit. API thật/hai tài khoản và Android/iOS acceptance vẫn chưa thực hiện, fixture/export không thay các bước đó. Người dùng sau đó đã yêu cầu chia commit, ghi tại mục trên.
+
+## Sửa mobile sau rà liên feature — 2026-11-09T21:38:04+07:00
+
+- Theo yêu cầu sửa mobile, luồng Learning Request → Proposal và lời mời trực tiếp dùng guard theo resource, session và lượt focus. Preflight hoàn tất sau khi rời màn không POST; POST đã gửi vẫn hoàn tất qua runtime/cache/recovery hiện có nhưng không tự điều hướng từ màn khác. Gửi, sửa, chấp nhận và explicit recovery đều chụp lượt focus trước khi await; quay lại màn không hồi sinh callback cũ. Không tự replay mutation.
+- Bỏ nhánh chặn tạo thỏa thuận khi có từ100 Path: api.mine đã đọc hết cursor,100 chỉ là page size. Giữ kiểm lỗi/refresh/denied, Path có sẵn cùng conversation và chống tạo trùng hiện tại. Không đổi API/backend; không thêm thay đổi nghiệp vụ cho Learning Request khi chưa có lỗi xác nhận.
+- Hồ sơ riêng chuyển Cài đặt khỏi grid thành icon bánh răng cạnh Chỉnh sửa, vùng chạm44px và nhãn accessibility Cài đặt tài khoản. Icon settings dùng glyph bánh răng trong map mobile hiện có. Hồ sơ công khai không nhận handler quản lý tài khoản. Profile picker luôn nhả khóa local khi kết thúc lúc blur; dữ liệu ảnh/error vẫn kiểm focus/session.
+- Regression gồm rời màn khi preflight hoặc POST đang chờ, blur/refocus, đổi resource/session, hồi phục explicit, picker cancel/kết quả cũ lúc blur và danh sách hơn100 Path. Full mobile **1055/1055 PASS**, fail/skip/cancel0; TypeScript, ESLint và structure911 PASS. Log local ignored .expo/mobile-proposal-profile-tests.log.
+- Fixture dùng components thật và icon Lucide thật, chỉ thay native SVG/router boundary; own/public profiles320/390/430 và chữ lớn320: không tràn ngang, một icon Cài đặt cạnh Chỉnh sửa, callback đúng, không còn shortcut trùng hoặc control tài khoản trên public profile. Đã xem ảnh390 và chữ lớn320 tại .expo/profile-settings-preview. Chưa nghiệm thu API thật hoặc Android/iOS.
+
+## Rà lại sau thiết kế — 2026-11-09T19:01:54+07:00
+
+- Rà source danh sách, thỏa thuận/bốn bước, tổng quan gọn, lịch xem/editor, tóm tắt vụ việc, nhiều Session/hai chiều/khác tháng, denied/read errors, trạng thái hủy/hoàn tất và các đích điều hướng trong phạm vi vừa thay đổi.
+- Sửa hai lỗi xác nhận được: list thiếu learningStage đã dùng label Path nhưng icon/màu lại theo PREPARING; giờ cả label và presentation cùng fallback Path. Màn lịch từng buổi trước đó chỉ blocked theo error, vẫn cho xác nhận trong isFetching; giờ truyền blocked cả refresh xuống overview/các chiều/finalize và guard trực tiếp callback xác nhận khi blocked/pending.
+- Regression kiểm ACTIVE/CANCELLED/DISPUTED thiếu stage có icon phù hợp; trong refresh/read failure nút xác nhận disabled, gọi trực tiếp handler không POST; tải xong xác nhận hoạt động lại. Không đổi API, phiên bản hay chính sách xác nhận.
+- Full suite lần đầu có một test còn đòi link danh sách vụ việc chung đã được người dùng yêu cầu bỏ. Cập nhật assertion để vẫn kiểm thông báo tranh chấp, giữ trạng thái quyết toán khi read lỗi và không có nút generic đó.
+- Full mobile cuối **1060/1060 PASS**, fail/skip/cancel0; TypeScript, ESLint toàn mobile, structure910, git diff whitespace PASS. Expo web export PASS tại .expo/learning-ui-review-export. Logs local ignored: learning-ui-review-final-tests.log, learning-ui-review-fixes-tests.log và learning-ui-review-export.log.
+- Chưa xác nhận thêm lỗi trong scope source đã rà. Bằng chứng full tests/export không thay nghiệm thu API thật/hai tài khoản hoặc Android/iOS, Back gesture, accessibility hệ điều hành và đồng bộ foreground/background trên thiết bị.
+
+
+## Tổng quan gọn, mở toàn bộ buổi học — 2026-11-09T18:55:28+07:00
+
+- Người dùng xác nhận lựa chọn: tóm tắt gọn → tất cả buổi học, bỏ danh sách vấn đề và các màn trung gian trong khối Tình hình học tập.
+- PathOverviewPanel chỉ render tiến độ, thông tin buổi tiếp theo ở chế độ compact và tổng số việc cần theo dõi. Không render PathAttentionItems hoặc CTA tới case/Session riêng; không còn chuỗi list vấn đề → tóm tắt vụ việc → một buổi. Thông tin chi tiết/vụ việc và routes riêng giữ nguyên cho các consumer khác.
+- Nút tổng hiện có ở phần lịch tiếp tục là CTA duy nhất mở /paths/[id]/sessions. Danh sách này đã kiểm nhiều buổi, hai chiều và khác tháng ở lượt trước; không giới hạn vào nextSession hoặc một attention item.
+- 35 focused tests PASS, TypeScript, ESLint file ảnh hưởng, structure910 và diff whitespace PASS. Regression ba attention items chỉ cho một dòng đếm và không có link chi tiết; denied/empty và đích danh sách giữ nguyên. Log .expo/overview-simple-sessions-tests.log.
+- Fixture source thật tại320/390/430 và chữ lớn320: không còn list/case/single-session link, chính xác một nút Xem tất cả buổi học, đích path sessions đúng, không tràn ngang/API request/page error. Đã xem ảnh390; evidence .expo/schedule-layout-preview/overview-simple-*.png. Chưa nghiệm thu Android/iOS hoặc API thật.
+
+
+## Phân biệt một buổi và toàn lộ trình — 2026-11-09T18:47:36+07:00
+
+- Nút cũ Xem buổi học liên quan dùng relatedSessionId đơn từ participant case, nên mở chi tiết một Session. Đổi nhãn thành Xem buổi học của vụ việc; bổ sung Xem tất cả buổi học mở /paths/[id]/sessions ở chi tiết vụ việc. Không suy rằng tất cả Session của Path đều thuộc cùng vụ việc.
+- CTA tổng ở lịch/chốt thống nhất nhãn Xem tất cả buổi học. Buổi tiếp theo ghi rõ Xem buổi học tiếp theo, giữ đích một Session. Màn danh sách đổi title Tất cả buổi học và hiển thị tổng số buổi thật từ Path.
+- Source danh sách vốn flatMap tất cả plan rồi sắp xếp startAt, không giới hạn tháng hay chỉ lấy phần tử đầu. Regression mở rộng tới ba Session, hai chiều học/dạy và khác tháng, kiểm đủ ID/plan và thứ tự. Không sửa API hoặc giả lập quan hệ nhiều Session cho vụ việc vì contract chỉ có relatedSessionId đơn.
+- Card Trạng thái thỏa thuận rỗng do terminal progress có description nhưng component chỉ render waiting (rỗng). Trạng thái đóng giờ dùng FormNotice gọn với mô tả thật; title progression cũng cụ thể đã hủy/đang tranh chấp/hoàn thành. Các bước khác không có waiting vẫn hiển thị description, không còn panel tiêu đề rỗng.
+- 61 focused tests PASS, TypeScript, ESLint file ảnh hưởng, structure910 và diff whitespace PASS; log local ignored .expo/session-navigation-clarity-tests.log. Bao phủ hai loại đích Session/list, cả hai chiều/khác tháng và terminal notices; không đổi mutation/quyền. Chưa nghiệm thu dữ liệu API thật hoặc Android/iOS.
+
+
+## Thiết kế màn Lịch học — 2026-11-09T18:40:25+07:00
+
+- Theo đính chính của người dùng, card Tình hình học tập chỉ xuất hiện khi chọn bước Lịch học, trước phần lịch. Đối tác giữ vị trí trên thanh bốn bước. Không lặp card ở Cách học/Lộ trình/Hoàn tất; phần không có dữ liệu hữu ích tiếp tục ẩn.
+- Phần lịch dùng các dòng phẳng, phân cách nhẹ: vai trò + trạng thái → kỹ năng → số buổi và ngày bắt đầu thực tế nếu có. Bỏ khung xám lồng; nút đề xuất/xác nhận/chốt/xem buổi nằm trong section lịch. Chat thành nút phụ nhẹ. Lịch đã chốt dùng cùng bố cục; không tự suy có lịch nếu payload thiếu schedule/Session.
+- Giữ duy nhất một shortcut Session list khi mở bước lịch, kể cả read error. Chỉ thao tác xem Session được giữ cho phép khi read lỗi; điều hướng đề xuất/xác nhận/chốt vẫn blocked theo guard có sẵn. Không đổi mutation hoặc policy backend.
+- Màn lịch từng buổi đổi title thành Lịch học, ưu tiên trạng thái hiện tại → hình thức gọn → từng lịch → múi giờ → kiểm tra/chốt. Bỏ chú thích điều kiện trùng và rút dòng múi giờ; thông tin Credit vẫn ở bước chốt.
+- 65 focused tests PASS, TypeScript, ESLint các file ảnh hưởng và structure (910 files) PASS. Regression kiểm vị trí card theo bước, thứ tự màn xem lịch, ngày bắt đầu, ONE_WAY/TWO_WAY, read errors và một shortcut Session. Log .expo/schedule-layout-refinement-tests.log.
+- Fixture component thật với router/provider/icon/SVG boundary giả lập: 320/390/430px và chữ lớn320; chưa xếp, đủ xác nhận, đã chốt, blocked, một chiều và lịch từng buổi PASS. Kiểm CTA/đổi bước, không tràn ngang, không API request/page error; đã xem ảnh màn chờ và đã chốt. Evidence .expo/schedule-layout-preview. Chưa nghiệm thu API thật/Android/iOS.
+
+
+## Vị trí đối tác và tổng quan — 2026-11-09T18:04:36+07:00
+
+- Đối chiếu ApiPathDetailScreen tại HEAD: AgreementContext trước AgreementSteps. Đã khôi phục thứ tự đối tác → thanh bốn bước → nội dung bước; giữ thông tin đối tác gọn, không đưa lại mã kỹ thuật.
+- Card Tình hình học tập chỉ mount khi chọn bước Lộ trình và thuộc giai đoạn có tổng quan cần hiển thị. Đặt trước nội dung lộ trình; không lặp ở Cách học/Lịch học/Hoàn tất. Nếu không có dữ liệu hữu ích, component tiếp tục ẩn toàn bộ card. Danh sách vẫn chỉ có tóm tắt ngắn.
+- Regression kiểm thứ tự đối tác/thanh bước và chọn các bước, kể cả xem lại sau hoàn tất: tổng quan chỉ có ở Lộ trình, Hoàn tất vẫn dùng quyết toán riêng. Không đổi API, quyền hay hành động xác nhận. Kết quả kiểm tra và giới hạn xem các mục ngay dưới; chưa nghiệm thu Android/iOS hoặc API thật.
+
+
+## Tinh gọn thỏa thuận theo phản hồi — 2026-11-09T18:02:33+07:00
+
+- Bỏ nút Vụ việc liên quan thỏa thuận, nút Xem thỏa thuận và quyết toán và lối mở danh sách vụ việc chung khi không có target cụ thể. Màn tóm tắt giữ Back theo history và fallback; trợ giúp chỉ hiện khi cần bổ sung thông tin. Footer Lộ trình/Lịch học bỏ nút xem lại bước đã có trong stepper.
+- Cách học dùng các dòng Hình thức, Credit, Xác nhận; bỏ avatar lặp, khung lồng và hướng dẫn phân công dài. Card lộ trình bỏ số phiên bản, dòng xác nhận và ghi chú Credit lặp. Phần hoàn tất bỏ mô tả lặp và không dựng thêm tổng quan học tập cùng thông tin.
+- Giai đoạn null không biến thành một trạng thái giả: không hiện Chưa xác định giai đoạn học hay Dữ liệu chưa đầy đủ. Dữ liệu tiến độ/buổi tiếp theo có thật vẫn hiện; không có gì hữu ích thì bỏ cả khối. List dùng trạng thái Path hiện có khi stage vắng. Không sửa contract hay tự suy giai đoạn học.
+- Tổng quan dùng hai thanh tiến độ học/dạy, thời gian buổi tiếp theo và các việc cụ thể cần xử lý. Bỏ timestamp kiểm tra, thông báo không có việc và placeholder không hỗ trợ. Chặn link attention trỏ lại chính thỏa thuận; giữ link tới Session/yêu cầu hủy/vụ việc cụ thể. Read errors/retry và denied-data guards giữ nguyên.
+- 78 focused tests PASS, TypeScript, ESLint và structure PASS. Assertions bao phủ stage null nhưng có tiến độ, tổng quan trống/denied, không có nút lặp và target trỏ về chính trang. Log local ignored: .expo/agreement-compact-followup-tests.log.
+- Fixture component thật với provider/router/icon giả lập ở 320/390/430px và chữ lớn320: cách học, lịch học, tổng quan đủ/thiếu stage/trống và tóm tắt vụ việc PASS; không tràn ngang, không gọi API/page error. Evidence .expo/agreement-compact-preview. Đã xem ảnh cách học/tổng quan; API thật và Android/iOS chưa nghiệm thu.
+
+
+## Thiết kế list lộ trình và lịch học — 2026-11-09T17:39:50+07:00
+
+**Source complete; native/API acceptance pending.** Tiếp tục trên working tree hiện tại và giữ các sửa overview/hủy/quyết toán có sẵn.
+
+- Tab dùng nhãn Lộ trình học. Card ưu tiên tên lộ trình, hình thức, đối tác và trạng thái; chỉ hiện một cập nhật theo thứ tự việc cần theo dõi → buổi tiếp theo → tiến độ đã chốt. Bỏ phiên bản, thời điểm cập nhật, giải thích kỹ thuật và các nút dẫn phụ; một nút Xem lộ trình mở đủ chi tiết.
+- Tiến trình bốn bước đặt đầu màn thỏa thuận, trên đối tác. Giữ quyền chọn lại bước trước; bước tương lai vẫn khóa. Mỗi bước có trạng thái cho accessibility, màn hình chỉ hiện trạng thái của bước đang xem. Bỏ mã thỏa thuận khỏi context.
+- Bước lịch chỉ giữ mô tả ngắn, từng chiều bạn dạy/bạn học, kỹ năng, số buổi, trạng thái và hành động tiếp theo. Bỏ khối chờ trùng từng chiều, số phiên bản và nút nhắc chat trùng footer. Chi tiết kiểm tra Credit vẫn ở bước kiểm tra/chốt hiện có.
+- Tổng quan học tập đặt sau nội dung bước; chỉ hiện khi đã khóa, dừng/tranh chấp hoặc có attention trong snapshot. Quyền/API/owner-session guards, mutation và recovery giữ nguyên.
+- 66 focused tests PASS, TypeScript, ESLint, structure (910 source files) và diff whitespace PASS. Bổ sung assertions cho ưu tiên thông tin và thứ tự tiến trình/context; regression lịch, xác nhận, điều hướng và hoàn tất giữ nguyên.
+- Fixture dùng các component source thật và ranh giới provider/router/icon giả lập: 320/390/430px, chữ lớn320, list, lịch hai chiều, đủ xác nhận/chờ chốt và blocked; kiểm đích CTA và chọn lại bước PASS, không tràn ngang/API request/page error. Evidence local ignored tại .expo/path-redesign-preview; focused log .expo/path-list-redesign-tests.log. Chưa chạy API thật hoặc Android/iOS.
+
+
+Cập nhật tài liệu: 2026-11-08T16:14:30+07:00.
 
 **Ready for review — source complete; acceptance pending.** Source và regression đã hoàn tất trên nhánh `fix/mobile-proposal-chat-learning-path`; nghiệm thu API thật và Android/iOS còn mở.
+
+## Điều hướng hồ sơ qua avatar
+
+2026-11-08T16:14:30+07:00, trên nhánh hiện tại `fix/learning-path-flow`.
+
+- Entry xem hồ sơ trong Request, chi tiết Proposal/Session, tìm người chia sẻ,
+  khám phá mẫu và self-preview chuyển sang avatar. Gỡ nút trùng và chevron của
+  hàng không còn nhấn; tên/metadata giữ dạng thông tin. Giữ `requestId` khi mở
+  từ Request, ảnh thật/initials và xử lý lỗi ảnh hiện có.
+- Phát hiện và sửa hai link tới route không tồn tại `/proposals/[id]` trong
+  footer Request và thông báo đề xuất trùng thành `/proposal/[id]`. Regression
+  đề xuất trùng kiểm file route đích có thật, đúng ID và không hiện action khi
+  đang kiểm tra hoặc read lỗi.
+- 32 focused tests đạt, fail 0, skipped 0; TypeScript, ESLint, structure
+  (878 source files) và `git diff --check` đạt. Chạy pnpm với
+  `pnpm_config_verify_deps_before_run=false` để dùng dependencies hiện có vì
+  wrapper mặc định định cài lại modules rồi dừng do no-TTY.
+- Phạm vi kiểm chứng là source và host tests; chưa nghiệm thu giao diện,
+  Back/gesture trên Android/iOS hoặc luồng hai tài khoản với API triển khai.
+  Không xác nhận thêm lỗi nào trong phạm vi rà luồng điều hướng này.
 
 ## Tải Hành trình của tôi
 

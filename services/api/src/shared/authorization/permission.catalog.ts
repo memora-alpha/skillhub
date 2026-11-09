@@ -150,6 +150,11 @@ export const PERMISSION_CATALOG = [
     description: "Issue participant token",
   },
   { code: "credit:adjust", description: "Adjust credit with audit" },
+  { code: "credit:adjust:qa", description: "Grant credit for internal QA" },
+  {
+    code: "reputation:adjust:qa",
+    description: "Adjust reputation for internal QA",
+  },
   {
     code: "learning-path:terminate",
     description:

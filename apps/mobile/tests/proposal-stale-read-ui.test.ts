@@ -24,6 +24,10 @@ test("cached proposal remains readable after refresh failure but cannot be edite
       edit ? "./ApiEditProposalScreen.tsx" : "./ApiProposalDetailScreen.tsx",
     );
     let runs = 0;
+    const routes: unknown[] = [];
+    let focus: () => () => void = () => () => {};
+    let blur = () => {};
+    let complete: (result: unknown) => void = () => {};
     const proposal = {
       id: fixtureId(10),
       proposerId: fixtureId(1),
@@ -41,11 +45,19 @@ test("cached proposal remains readable after refresh failure but cannot be edite
     const mocks = {
       "react/jsx-runtime": { jsx, jsxs: jsx, Fragment: "Fragment" },
       react: {
+        useCallback: (callback: unknown) => callback,
         useRef: (current: unknown) => ({ current }),
         useState: (value: unknown) => [value, () => {}],
       },
       "expo-router": {
-        useRouter: () => ({}),
+        useRouter: () => ({
+          replace: (route: unknown) => routes.push(route),
+          dismissTo: (route: unknown) => routes.push(route),
+        }),
+        useFocusEffect: (callback: () => () => void) => {
+          focus = callback;
+          blur = callback();
+        },
         useLocalSearchParams: () => ({}),
       },
       "@/components/feature-page": { Copy: "Copy", RouteButton: "RouteButton" },
@@ -64,7 +76,9 @@ test("cached proposal remains readable after refresh failure but cannot be edite
           uncertain: false,
           run: async () => {
             runs++;
-            return undefined;
+            return new Promise((resolve) => {
+              complete = resolve;
+            });
           },
         }),
       },
@@ -84,6 +98,7 @@ test("cached proposal remains readable after refresh failure but cannot be edite
     );
     try {
       delete local.cache[filename];
+      delete local.cache[local.resolve("../hooks/use-proposal-lifecycle")];
       const screen = local(filename) as {
         ApiEditProposalScreen: (props: { id: string }) => unknown;
         ApiProposalDetailScreen: (props: { id: string }) => unknown;
@@ -116,8 +131,37 @@ test("cached proposal remains readable after refresh failure but cannot be edite
       );
       query.error = undefined;
       assert.equal(action().props.disabled, false);
+      const invoke = () => {
+        const props = action().props;
+        return edit
+          ? (props.onSubmit as (hints: unknown) => Promise<void>)({
+              message: "draft",
+            })
+          : (props.onAccept as (version: number) => Promise<void>)(1);
+      };
+      for (const refocus of [false, true]) {
+        const pending = invoke();
+        blur();
+        if (refocus) blur = focus();
+        complete({ id: proposal.id, conversation: { id: fixtureId(20) } });
+        await pending;
+        assert.equal(
+          routes.length,
+          0,
+          "late decisions cannot navigate after leaving, even after returning",
+        );
+      }
+      const pending = invoke();
+      complete({ id: proposal.id, conversation: { id: fixtureId(20) } });
+      await pending;
+      assert.equal(
+        routes.length,
+        1,
+        "the current visit still navigates on success",
+      );
     } finally {
       delete local.cache[filename];
+      delete local.cache[local.resolve("../hooks/use-proposal-lifecycle")];
       for (const context of contexts.reverse()) context.restore();
     }
   }

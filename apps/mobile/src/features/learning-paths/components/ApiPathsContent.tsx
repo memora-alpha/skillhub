@@ -20,6 +20,9 @@ import {
 import { useLearningPathPages } from "../hooks/use-learning-paths-api";
 import { pathStatusLabel } from "../utils/policy-api";
 import type { PathSummary } from "../api/learning-paths-contract";
+import { overviewCard } from "../api/path-overview-contract";
+import { PathListHighlight } from "./path-list-highlight";
+import { learningStageLabel } from "../utils/path-overview-presentation";
 import {
   filterPathSummaries,
   pathListFilters,
@@ -31,14 +34,6 @@ function exchangeLabel(exchangeType: PathSummary["exchangeType"]) {
   if (exchangeType === "ONE_WAY") return "Học một chiều";
   return "Chưa có hình thức học";
 }
-const learningStageLabels: Record<string, string> = {
-  PREPARING: "Đang chuẩn bị",
-  WAITING_START: "Chờ bắt đầu",
-  LEARNING: "Đang học",
-  LEARNING_FINISHED: "Đã học xong · Chờ quyết toán",
-  COMPLETED: "Đã hoàn tất",
-  STOPPED: "Đã dừng",
-};
 
 function statusIcon(status: PathSummary["status"]) {
   if (["CANCELLED", "DISPUTED"].includes(status)) return "alert" as const;
@@ -59,50 +54,38 @@ export function ApiPathCard({
   loadProfile = true,
 }: Readonly<{ path: PathSummary; loadProfile?: boolean }>) {
   const profile = useParticipantProfile(path.counterpartId, loadProfile);
-  const name = profile.data?.fullName ?? "Lộ trình cùng đối tác";
+  const name = profile.data?.fullName ?? "Đối tác";
+  const parsed = overviewCard.safeParse(path);
+  const overview = parsed.success ? parsed.data : undefined;
+  const presentationStatus = overview?.learningStage
+    ? (
+        {
+          PREPARING: "DRAFT",
+          WAITING_START: "SCHEDULED",
+          LEARNING: "ACTIVE",
+          LEARNING_FINISHED: "ACTIVE",
+          COMPLETED: "COMPLETED",
+          STOPPED: "CANCELLED",
+        } as const
+      )[overview.learningStage]
+    : path.status;
   const confirmed = ["CONFIRMED", "SCHEDULED", "ACTIVE", "COMPLETED"].includes(
-    path.status,
+    presentationStatus,
   );
-  const closed = ["CANCELLED", "DISPUTED"].includes(path.status);
+  const closed = ["CANCELLED", "DISPUTED"].includes(presentationStatus);
   const exchangeName = exchangeLabel(path.exchangeType);
   return (
     <View style={styles.card}>
-      <View style={styles.header}>
-        <Avatar
-          name={name}
-          userId={path.counterpartId}
-          sourceUri={profile.data?.avatarUrl}
-          size={40}
-        />
-        <View style={styles.person}>
-          <View style={styles.personLine}>
-            <Text
-              accessibilityRole="header"
-              numberOfLines={1}
-              style={styles.name}
-            >
-              {name}
-            </Text>
-          </View>
-          <Text style={styles.updated}>
-            Cập nhật{" "}
-            {new Date(path.updatedAt).toLocaleString("vi-VN", {
-              day: "2-digit",
-              month: "2-digit",
-              year: "numeric",
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </Text>
-        </View>
-        <View style={styles.version}>
-          <Text style={styles.versionText}>Bản {path.currentVersion}</Text>
-        </View>
-      </View>
       <View style={styles.details}>
         <View style={styles.titleBlock}>
-          <Text style={styles.eyebrow}>HÌNH THỨC HỌC</Text>
-          <Text style={styles.exchangeTitle}>{exchangeName}</Text>
+          <Text
+            accessibilityRole="header"
+            numberOfLines={2}
+            style={styles.exchangeTitle}
+          >
+            {path.title?.trim() || "Lộ trình học cùng đối tác"}
+          </Text>
+          <Text style={styles.updated}>{exchangeName}</Text>
         </View>
         <View
           style={[
@@ -112,9 +95,9 @@ export function ApiPathCard({
           ]}
         >
           <Icon
-            name={statusIcon(path.status)}
+            name={statusIcon(presentationStatus)}
             size={15}
-            color={statusColor(path.status)}
+            color={statusColor(presentationStatus)}
           />
           <Text
             style={[
@@ -123,37 +106,30 @@ export function ApiPathCard({
               closed && styles.closedText,
             ]}
           >
-            {(path.learningStage && learningStageLabels[path.learningStage]) ||
-              pathStatusLabel[path.status]}
+            {overview?.learningStage
+              ? learningStageLabel(overview.learningStage)
+              : pathStatusLabel[path.status]}
           </Text>
         </View>
       </View>
-      <RouteButton href={`/paths/${path.id}`}>Mở lộ trình</RouteButton>
-      {path.progress?.learning && (
-        <Text style={styles.updated}>
-          Học: {path.progress.learning.completed}/{path.progress.learning.total}{" "}
-          buổi
+      <View style={styles.header}>
+        <Avatar
+          name={name}
+          userId={path.counterpartId}
+          sourceUri={profile.data?.avatarUrl}
+          size={32}
+        />
+        <Text numberOfLines={1} style={styles.partner}>
+          Cùng {name}
         </Text>
+      </View>
+      {overview && <PathListHighlight overview={overview} />}
+      {path.status === "DISPUTED" && (
+        <Text style={styles.attention}>Có tranh chấp đang xử lý</Text>
       )}
-      {path.progress?.teaching && (
-        <Text style={styles.updated}>
-          Dạy: {path.progress.teaching.completed}/{path.progress.teaching.total}{" "}
-          buổi
-        </Text>
-      )}
-      {!!path.attentionCount && (
-        <Text style={styles.updated}>
-          {path.attentionCount} việc cần theo dõi
-        </Text>
-      )}
-      {path.nextSession && (
-        <RouteButton
-          secondary
-          href={`/learning-sessions/${path.nextSession.id}`}
-        >
-          {`Buổi kế tiếp · ${new Date(path.nextSession.startAt).toLocaleString("vi-VN")}`}
-        </RouteButton>
-      )}
+      <RouteButton secondary href={`/paths/${path.id}`}>
+        Xem lộ trình
+      </RouteButton>
     </View>
   );
 }
@@ -275,38 +251,17 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: appRadius.card,
   },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingBottom: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-  },
-  person: { flex: 1, minWidth: 0, gap: 4 },
-  personLine: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 7,
-    minWidth: 0,
-  },
-  name: {
+  header: { flexDirection: "row", alignItems: "center", gap: 8 },
+  partner: {
     flex: 1,
-    minWidth: 0,
-    ...typography.body,
-    fontFamily: fonts.bold,
-    color: colors.ink,
+    ...typography.secondary,
+    fontFamily: fonts.medium,
+    color: colors.body,
   },
-  version: {
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: appRadius.badge,
-    backgroundColor: colors.surfaceLow,
-  },
-  versionText: {
+  attention: {
     ...typography.secondary,
     fontFamily: fonts.semibold,
-    color: colors.muted,
+    color: colors.error,
   },
   status: {
     alignSelf: "flex-start",
@@ -328,14 +283,8 @@ const styles = StyleSheet.create({
   confirmedText: { color: colors.forest },
   closedStatus: { backgroundColor: colors.errorLight },
   closedText: { color: colors.error },
-  details: { gap: 9 },
-  titleBlock: { gap: 2 },
-  eyebrow: {
-    ...typography.caption,
-    fontFamily: fonts.bold,
-    color: colors.muted,
-    letterSpacing: 0.5,
-  },
+  details: { gap: 10 },
+  titleBlock: { gap: 4 },
   exchangeTitle: {
     ...typography.heading,
     fontFamily: fonts.bold,

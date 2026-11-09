@@ -304,6 +304,7 @@ model("UserRestriction", (block) =>
   policyAcknowledgedAt DateTime? @map("policy_acknowledged_at") @db.Timestamptz(3)
   reviewDecision String? @map("review_decision") @db.Text
   reviewedAt DateTime? @map("reviewed_at") @db.Timestamptz(3)
+  qaReleased Boolean @default(false) @map("qa_released")
 `,
   ),
 );

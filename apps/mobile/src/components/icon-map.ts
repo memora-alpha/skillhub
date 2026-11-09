@@ -22,7 +22,7 @@ import BookOpenText from "lucide-react-native/icons/book-open-text";
 import X from "lucide-react-native/icons/x";
 import Wallet from "lucide-react-native/icons/wallet";
 import QrCode from "lucide-react-native/icons/qr-code";
-import Settings from "lucide-react-native/icons/settings-2";
+import Settings from "lucide-react-native/icons/settings";
 import SlidersHorizontal from "lucide-react-native/icons/sliders-horizontal";
 import ClipboardList from "lucide-react-native/icons/clipboard-list";
 import Trash from "lucide-react-native/icons/trash";

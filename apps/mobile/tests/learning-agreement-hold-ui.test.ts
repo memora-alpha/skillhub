@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { mock, test } from "node:test";
 import { pathToFileURL } from "node:url";
-import { canValidateForFinalize } from "../src/features/learning-paths/utils/policy-api";
+import * as policy from "../src/features/learning-paths/utils/policy-api";
 import { readScheduledMessage } from "../src/features/learning-paths/utils/scheduled-message";
 import { AppError } from "../src/lib/http/errors";
 import { fixtureId } from "./fixtures/learning-requests-data";
@@ -186,7 +186,7 @@ function holdHarness(viewerId = teacherId) {
         }),
       }),
     },
-    "../utils/policy-api": { canValidateForFinalize },
+    "../utils/policy-api": { ...policy },
   };
   const loaded = loadMocked<{ ApiHoldScreen: () => Element }>(
     local,
@@ -215,9 +215,15 @@ function holdHarness(viewerId = teacherId) {
       const content = elements(screen.ApiHoldScreen()).find(
         (e) => typeof e.type === "function" && e.type.name === "HoldContent",
       )!;
-      return (content.type as (props: Record<string, unknown>) => Element)(
-        content.props,
-      );
+      const tree = (
+        content.type as (props: Record<string, unknown>) => Element
+      )(content.props);
+      if (
+        typeof tree.type === "function" &&
+        tree.type.name === "LockedScheduleSummary"
+      )
+        return tree.type(tree.props);
+      return tree;
     },
     button(tree: Element, label: string) {
       const button = elements(tree).find(
@@ -231,6 +237,25 @@ function holdHarness(viewerId = teacherId) {
   };
 }
 const flush = () => new Promise<void>((resolve) => setImmediate(resolve));
+
+test("refreshing the agreement disables validation and finalization until fresh data returns", async () => {
+  const h = holdHarness(learnerId);
+  try {
+    const checkLabel = "Kiểm tra điều kiện trên hệ thống";
+    const finalizeLabel = "Xác nhận chốt lịch và tạm giữ Credit";
+    h.button(h.render(), checkLabel).onPress();
+    await flush();
+    assert.equal(h.button(h.render(), finalizeLabel).disabled, false);
+    h.query.isFetching = true;
+    assert.equal(h.button(h.render(), checkLabel).disabled, true);
+    assert.equal(h.button(h.render(), finalizeLabel).disabled, true);
+    h.query.isFetching = false;
+    assert.equal(h.button(h.render(), finalizeLabel).disabled, false);
+    assert.equal(h.counts().finalizations, 0);
+  } finally {
+    h.cleanup();
+  }
+});
 
 test("Hold keeps schedule review before locking and opens actual sessions after locking in either exchange type", () => {
   for (const twoWay of [false, true]) {
@@ -248,13 +273,53 @@ test("Hold keeps schedule review before locking and opens actual sessions after 
       const sessions = elements(h.render()).find(
         (element) =>
           element.type === "RouteButton" &&
-          text(element) === "Xem các buổi học",
+          text(element) === "Xem tất cả buổi học",
       );
       assert.equal(sessions?.props.href, `/paths/${h.query.data.id}/sessions`);
       assert.equal(h.counts().finalizations, 0);
     } finally {
       h.cleanup();
     }
+  }
+});
+
+test("reopening Hold reflects terminal states and approved cancellation without a ready-to-study banner", () => {
+  const h = holdHarness();
+  try {
+    h.query.data.lockedVersion = h.query.data.currentVersion;
+    for (const [status, label, tone] of [
+      ["CANCELLED", "Thỏa thuận đã hủy", "info"],
+      ["DISPUTED", "Thỏa thuận đang tranh chấp", "warning"],
+      ["COMPLETED", "Thỏa thuận đã hoàn thành", "info"],
+    ] as const) {
+      h.query.data.status = status;
+      const tree = h.render();
+      assert.ok(
+        elements(tree).some(
+          (node) => node.type === "Panel" && node.props.title === label,
+        ),
+      );
+      assert.ok(
+        elements(tree).some(
+          (node) => node.type === "FormNotice" && node.props.tone === tone,
+        ),
+      );
+      assert.doesNotMatch(text(tree), /đã sẵn sàng/);
+      assert.ok(
+        elements(tree).some(
+          (node) => node.props.href === `/paths/${h.query.data.id}/sessions`,
+        ),
+      );
+    }
+    h.query.data.status = "ACTIVE";
+    h.query.data.terminationApprovedAt = "2030-01-01T00:00:00Z";
+    assert.match(text(h.render()), /Các buổi học tương lai đã dừng/);
+    assert.doesNotMatch(text(h.render()), /đã sẵn sàng/);
+    h.query.data.terminationApprovedAt = null;
+    assert.match(text(h.render()), /Mở danh sách để xem trạng thái từng buổi/);
+    assert.equal(h.counts().finalizations, 0);
+  } finally {
+    h.cleanup();
   }
 });
 
@@ -587,14 +652,14 @@ test("path-list refresh failure keeps the mounted form draft while blocking subm
   }
 });
 
-test("a full path-list snapshot does not imply this conversation has no existing path", () => {
+test("a completely paginated path list allows a new agreement beyond one hundred paths", () => {
   const h = entryHarness();
   try {
-    h.query.data = Array.from({ length: 100 }, (_, index) => ({
+    h.query.data = Array.from({ length: 101 }, (_, index) => ({
       id: `other-${index}`,
       conversationId: "another-conversation",
     }));
-    assert.equal(h.form(h.render()), undefined);
+    assert.ok(h.form(h.render()));
   } finally {
     h.cleanup();
   }

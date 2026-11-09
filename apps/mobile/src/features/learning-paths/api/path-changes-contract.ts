@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { timestamp, uuid, version } from "@/lib/http/contracts";
+import { pathTarget } from "./path-target-contract";
 
 export const credit = z.string().regex(/^(?:0|[1-9]\d*)(?:\.\d{1,2})?$/);
 export const changeReason = z.string().trim().min(3).max(1000);
@@ -69,36 +70,48 @@ export const terminationRequest = z
       ctx.addIssue({ code: "custom", message: "Missing termination decision" });
   });
 
-export const settlementStatus = z.object({
-  pathId: uuid,
-  status: z.enum([
-    "SETTLED",
-    "TERMINATED",
-    "NOT_LOCKED",
-    "WAITING_TERMINATION",
-    "WAITING_DISPUTE",
-    "WAITING_SESSIONS",
-    "NEEDS_REVIEW",
-    "WAITING_DISPUTE_WINDOW",
-    "RETRYING",
-    "READY",
-  ]),
-  reasonCode: z.string().nullable(),
-  nextAction: z.string(),
-  settledAt: timestamp.nullable(),
-  lastCheckedAt: timestamp.nullable(),
-  attemptCount: z.number().int().nonnegative(),
-  retryable: z.boolean(),
-  pathVersion: version.nullable().optional(),
-  autoSettlementAt: timestamp.nullable().optional(),
-  immediateSettlement: z
-    .object({
-      ownApprovedAt: timestamp.nullable(),
-      partnerApprovedAt: timestamp.nullable(),
-      canApprove: z.boolean(),
-    })
-    .optional(),
-});
+export const settlementStatus = z
+  .object({
+    pathId: uuid,
+    status: z.enum([
+      "SETTLED",
+      "TERMINATED",
+      "NOT_LOCKED",
+      "WAITING_TERMINATION",
+      "WAITING_DISPUTE",
+      "WAITING_SESSIONS",
+      "NEEDS_REVIEW",
+      "WAITING_DISPUTE_WINDOW",
+      "RETRYING",
+      "READY",
+    ]),
+    reasonCode: z.string().nullable(),
+    nextAction: z.string(),
+    settledAt: timestamp.nullable(),
+    lastCheckedAt: timestamp.nullable(),
+    attemptCount: z.number().int().nonnegative(),
+    retryable: z.boolean(),
+    relatedItems: z.array(pathTarget).optional(),
+    nextActionTarget: pathTarget.nullable().optional(),
+    pathVersion: version.nullable().optional(),
+    autoSettlementAt: timestamp.nullable().optional(),
+    immediateSettlement: z
+      .object({
+        ownApprovedAt: timestamp.nullable(),
+        partnerApprovedAt: timestamp.nullable(),
+        canApprove: z.boolean(),
+      })
+      .optional(),
+  })
+  .superRefine((row, ctx) => {
+    if (
+      [row.nextActionTarget, ...(row.relatedItems ?? [])].some(
+        (target) =>
+          target?.type === "LEARNING_PATH" && target.id !== row.pathId,
+      )
+    )
+      ctx.addIssue({ code: "custom", message: "Wrong settlement target path" });
+  });
 export const settlementConsentReceipt = z.object({
   pathId: uuid,
   approvedAt: timestamp.nullable(),

@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { Keyboard, StyleSheet, View } from "react-native";
+import { Keyboard, StyleSheet, Text, View } from "react-native";
 import { Button } from "@/components/Button";
 import { Copy } from "@/components/feature-page";
 import { FormNotice } from "@/components/FormNotice";
-import { FlowSection } from "@/components/learning-flow";
+import { cancellationStyles as ui } from "./cancellation-styles";
+import { TerminationStatusHeader } from "./termination-status-header";
 import { useConnectionCommand, useConnections } from "@/features/connections";
 import {
   changeReason,
@@ -12,10 +13,10 @@ import {
 import { usePathChangesApi } from "../hooks/use-path-changes";
 import {
   terminationActions,
-  terminationLabels,
   openTermination,
 } from "../utils/termination-policy";
 import { TerminationDecision } from "./termination-decision";
+import { TerminationRequestMetadata } from "./termination-request-metadata";
 import { TerminationFeedback } from "./termination-feedback";
 import {
   TerminationActionDialog,
@@ -28,14 +29,31 @@ const actionLabels: Record<TerminationAction, string> = {
   withdraw: "Rút yêu cầu",
   escalate: "Nhờ hỗ trợ",
 };
+function cancellationStatusNotice(
+  request: TerminationRequest,
+  userId?: string,
+) {
+  if (request.approvedAt) return "Đã duyệt hủy.";
+  if (request.status === "STAFF_REVIEW")
+    return "Yêu cầu hủy đang chờ nhân viên xem xét.";
+  if (request.status === "ACCEPTED")
+    return "Yêu cầu hủy đã được đồng ý, đang chờ cập nhật kết quả.";
+  if (request.requesterId === userId)
+    return "Đã gửi yêu cầu hủy, đang chờ đối tác đồng ý.";
+  return "Đối tác đã gửi yêu cầu hủy, đang chờ bạn phản hồi.";
+}
 export function TerminationRequestCard({
   request: initialRequest,
   blocked,
   refresh,
+  onUpdated,
+  plain = false,
 }: Readonly<{
   request: TerminationRequest;
   blocked: boolean;
   refresh: () => unknown;
+  onUpdated?: (request: TerminationRequest) => void;
+  plain?: boolean;
 }>) {
   const runtime = useConnections();
   const api = usePathChangesApi();
@@ -55,10 +73,12 @@ export function TerminationRequestCard({
     request.blockedByDispute && "giải quyết tranh chấp",
     request.awaitingPolicy && "duyệt chính sách Credit",
   ].filter(Boolean);
+  const cancellationNotice = cancellationStatusNotice(request, runtime.userId);
   const submitted = (result?: TerminationRequest) => {
     if (result && runtime.isCurrent()) {
       setReceipt(result);
       setConfirm(undefined);
+      onUpdated?.(result);
       refresh();
     }
   };
@@ -135,33 +155,16 @@ export function TerminationRequestCard({
     </>
   );
   return (
-    <FlowSection
-      title={
-        actions.respond
-          ? "Đối tác muốn hủy lộ trình"
-          : request.approvedAt && request.status === "ACCEPTED"
-            ? "Đã duyệt hủy lộ trình"
-            : terminationLabels[request.status]
-      }
-    >
-      <Copy size="hint">
-        {request.requesterId === runtime.userId
-          ? "Bạn đã gửi yêu cầu"
-          : "Đối tác đã gửi yêu cầu"}
-      </Copy>
-      <Copy>Lý do: {request.reason}</Copy>
-      {request.status === "PENDING" && (
-        <Copy size="hint">
-          Hạn phản hồi{" "}
-          {new Date(request.expiresAt).toLocaleString("vi-VN", {
-            day: "2-digit",
-            month: "2-digit",
-            year: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-          })}
-        </Copy>
-      )}
+    <View style={plain ? styles.plain : ui.surface}>
+      <TerminationStatusHeader
+        request={request}
+        mine={request.requesterId === runtime.userId}
+        canRespond={actions.respond}
+      />
+      <View style={ui.reason}>
+        <Text style={ui.label}>Lý do hủy</Text>
+        <Copy>{request.reason}</Copy>
+      </View>
       {request.status === "ACCEPTED" && (
         <Copy size="hint">
           {request.approvedAt
@@ -176,16 +179,20 @@ export function TerminationRequestCard({
             : "Yêu cầu đã được gửi đến nhân viên hỗ trợ."}
         </Copy>
       )}
-      {request.responseNote && <Copy>Phản hồi: {request.responseNote}</Copy>}
+      {request.responseNote && (
+        <View style={ui.reason}>
+          <Text style={ui.label}>Ghi chú phản hồi</Text>
+          <Copy>{request.responseNote}</Copy>
+        </View>
+      )}
       {openTermination(request) && blockers.length > 0 && (
         <FormNotice tone="warning" compact>
-          {request.approvedAt
-            ? "Đã duyệt hủy. Credit đang chờ "
-            : "Đã gửi yêu cầu, lộ trình chưa hủy. Chờ "}
+          {cancellationNotice} Credit chưa thể quyết toán: chờ{" "}
           {blockers.join(" và ")}.
         </FormNotice>
       )}
       <TerminationDecision request={request} />
+      <TerminationRequestMetadata request={request} />
       {actions.respond && (
         <View style={styles.responses}>
           <Button
@@ -245,10 +252,11 @@ export function TerminationRequestCard({
         />
       )}
       {!confirm && feedback}
-    </FlowSection>
+    </View>
   );
 }
 const styles = StyleSheet.create({
-  responses: { flexDirection: "row", gap: 8 },
-  response: { flex: 1 },
+  plain: { gap: 16 },
+  responses: { gap: 8 },
+  response: { alignSelf: "stretch" },
 });

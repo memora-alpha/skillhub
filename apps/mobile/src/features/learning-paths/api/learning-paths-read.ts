@@ -1,5 +1,7 @@
 import { AppError } from "@/lib/http/errors";
 import { parse } from "@/lib/http/contracts";
+import { assertOverviewIdentity } from "./path-overview-api";
+import { pathOverview } from "./path-overview-contract";
 import {
   learningPathSchema,
   type ApiLearningPlan,
@@ -26,6 +28,23 @@ export function readLearningPath(
   const path = parse(learningPathSchema, response);
   const participants = [path.participantAId, path.participantBId];
   const sessions = path.plans.flatMap((plan) => plan.sessions);
+  if (path.overview) {
+    assertOverviewIdentity(path.overview, id);
+    parse(pathOverview, {
+      ...path.overview,
+      attentionItems: path.attentionItems,
+    });
+    const next = path.overview.nextSession;
+    if (
+      next &&
+      !path.plans.some(
+        (plan) =>
+          plan.id === next.planId &&
+          plan.sessions.some((session) => session.id === next.id),
+      )
+    )
+      throw new AppError("protocol");
+  } else if (path.attentionItems !== undefined) throw new AppError("protocol");
   if (
     path.id !== id ||
     !participants.includes(userId) ||

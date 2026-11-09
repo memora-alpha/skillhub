@@ -3,8 +3,10 @@ import { Button } from "@/components/Button";
 import { useConnections } from "@/features/connections";
 import type { ApiLearningPath } from "../api/learning-paths-contract";
 import { useTerminationRequests } from "../hooks/use-path-changes";
-import { openTermination } from "../utils/termination-policy";
-import { pathSessionsCompleted } from "../utils/policy-api";
+import {
+  openTermination,
+  terminationSessionsCompleted,
+} from "../utils/termination-policy";
 
 export function PathCancellationButton({
   path,
@@ -16,8 +18,9 @@ export function PathCancellationButton({
   const query = useTerminationRequests(path.id, path.status !== "CANCELLED");
   const request = query.denied ? undefined : query.data?.find(openTermination);
   const approved = !!path.terminationApprovedAt || !!request?.approvedAt;
-  if (!request && !approved && pathSessionsCompleted(path)) return null;
   let label = "Hủy lộ trình";
+  const completed = terminationSessionsCompleted(path);
+  if (completed) label = "Xem lịch sử yêu cầu hủy";
   if (request)
     label =
       request.requesterId === runtime.userId
@@ -28,7 +31,9 @@ export function PathCancellationButton({
   return (
     <Button
       variant={
-        approved || request || path.status === "CANCELLED" ? "paper" : "danger"
+        approved || request || completed || path.status === "CANCELLED"
+          ? "paper"
+          : "danger"
       }
       onPress={() => router.push(`/paths/${path.id}/cancel`)}
     >

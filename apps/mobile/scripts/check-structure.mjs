@@ -10,9 +10,11 @@ const errors = [];
 const publicFeatureEntries = new Set([
   "learning-paths/state",
   "learning-paths/policy",
+  "sessions/state",
   "notifications/state",
   "messages/state",
   "proposals/state",
+  "community/policy",
 ]);
 
 function walk(directory) {

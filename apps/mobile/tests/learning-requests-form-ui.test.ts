@@ -4,6 +4,24 @@ import { matchingRequestOptions } from "../src/features/learning-requests/utils/
 import { requestTimeZoneNote } from "../src/features/learning-requests/utils/request-time-zone";
 import { deviceTimeZone } from "../src/features/learning-requests/schemas/request-preferences";
 import { requestDefaults } from "../src/features/learning-requests/schemas/request-form";
+import { requestEditorNotice } from "../src/features/learning-requests/utils/request-policy";
+
+test("editor guidance distinguishes rejected drafts from published and pending moderation", () => {
+  assert.match(
+    requestEditorNotice({ status: "REJECTED" }),
+    /về bản nháp.*cần đăng lại/,
+  );
+  assert.match(
+    requestEditorNotice({ status: "OPEN" }),
+    /có thể chuyển sang chờ duyệt/,
+  );
+  assert.match(
+    requestEditorNotice({ status: "PENDING_MODERATION" }),
+    /chỉ nhận đề xuất sau khi được duyệt/,
+  );
+  assert.match(requestEditorNotice({ status: "DRAFT" }), /sau đó đăng bài/);
+  assert.match(requestEditorNotice(), /sau đó đăng bài/);
+});
 
 test("offering search matches Vietnamese accents, uppercase and separate words without changing IDs/order", () => {
   const options = [

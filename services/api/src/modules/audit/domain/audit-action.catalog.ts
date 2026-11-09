@@ -278,7 +278,9 @@ const projectionByAction: Record<
     restoredRestrictionIds: z.array(uuid),
   }),
   USER_RESTRICTION_APPLY: userRestrictions,
-  USER_RESTRICTION_REVOKE: userRestrictions,
+  USER_RESTRICTION_REVOKE: userRestrictions.extend({
+    revokedCount: z.number().int().positive().optional(),
+  }),
   USER_RESTRICTION_REVIEW: z.strictObject({
     restrictionId: uuid,
     decision: z.enum(["APPROVED", "FOLLOW_UP_REQUIRED"]),

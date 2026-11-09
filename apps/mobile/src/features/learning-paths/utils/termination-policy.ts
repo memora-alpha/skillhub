@@ -2,6 +2,10 @@ import type { ApiLearningPath } from "../api/learning-paths-contract";
 import type { TerminationRequest } from "../api/path-changes-contract";
 import { pathSessionsCompleted } from "./policy-api";
 
+export const terminationSessionsCompleted = (path: ApiLearningPath) =>
+  path.plans.length === (path.agreement.exchangeType === "TWO_WAY" ? 2 : 1) &&
+  pathSessionsCompleted(path);
+
 export const openTermination = (row: TerminationRequest) =>
   ["PENDING", "ACCEPTED", "STAFF_REVIEW"].includes(row.status);
 
@@ -22,6 +26,7 @@ export function canRequestTermination(
     !pathSessionsCompleted(path) &&
     path.settledAt === null &&
     !path.terminationApprovedAt &&
+    !terminationSessionsCompleted(path) &&
     ["SCHEDULED", "ACTIVE", "DISPUTED"].includes(path.status) &&
     !rows.some(openTermination)
   );

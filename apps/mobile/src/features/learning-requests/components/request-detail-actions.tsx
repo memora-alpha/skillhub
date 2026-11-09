@@ -5,13 +5,20 @@ import { Icon } from "@/components/Icon";
 import { FormNotice } from "@/components/FormNotice";
 import { Button } from "@/components/Button";
 import { Copy } from "@/components/feature-page";
+import {
+  useReputationPolicy,
+  canCreateRequest,
+} from "@/features/community/policy";
 import { RequestSection } from "./request-section";
+import { RequestPublishPolicy } from "./request-publish-policy";
 import {
   cancelableRequest,
   editableRequest,
   requestState,
   requestError,
+  isRequestActivityRestricted,
 } from "../utils/request-policy";
+import { RequestRestrictionNotice } from "./request-restriction-notice";
 import type { OwnerRequest } from "../types";
 import {
   requestDetailColors as colors,
@@ -96,11 +103,16 @@ export function RequestOwnerFooter({
   error,
   refresh,
 }: Readonly<RequestActionProps & { error?: unknown; refresh: () => void }>) {
-  if (!editableRequest(request)) return null;
   const draft = requestState(request) === "DRAFT";
+  const policy = useReputationPolicy(draft);
+  const publishAllowed = draft && canCreateRequest(policy);
+  if (!editableRequest(request)) return null;
   return (
     <View style={styles.footer}>
       <View style={styles.footerContent}>
+        {draft && !publishAllowed && !error && (
+          <RequestPublishPolicy policy={policy} />
+        )}
         {draft && !!error && (
           <RequestActionError
             error={error}
@@ -134,8 +146,10 @@ export function RequestOwnerFooter({
               variant="craft"
               style={[styles.publish, styles.footerPrimary]}
               accessibilityLabel="Đăng yêu cầu học"
-              disabled={pending || blocked}
-              onPress={() => void run("publish")}
+              disabled={pending || blocked || !publishAllowed}
+              onPress={() => {
+                if (!pending && !blocked && publishAllowed) void run("publish");
+              }}
             >
               <Icon name="send" size={17} color={colors.white} />
               <Text style={styles.publishLabel}>
@@ -158,6 +172,8 @@ export function RequestActionError({
   pending: boolean;
   refresh: () => void;
 }>) {
+  if (isRequestActivityRestricted(error))
+    return <RequestRestrictionNotice error={error} pending={pending} />;
   return (
     <View style={{ gap: 8 }}>
       <FormNotice tone="error">{requestError(error, true)}</FormNotice>

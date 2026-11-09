@@ -74,7 +74,7 @@ test("request card and public requester use the owner avatar with visibility and
     const { RequestCard } = local(
       files[0]!,
     ) as typeof import("../src/features/learning-requests/components/request-card");
-    const { RequestRequesterDetails } = local(
+    const { RequestRequesterDetails, RequestPublicFooter } = local(
       files[1]!,
     ) as typeof import("../src/features/learning-requests/components/request-public-details");
     const request = publicFixture({
@@ -97,7 +97,20 @@ test("request card and public requester use the owner avatar with visibility and
     const avatar = elements(details).find((el) => el.type === "Avatar")!;
     assert.equal(avatar.props.sourceUri, request.owner.avatarUrl);
     assert.equal(avatar.props.onImageError, recover);
-    ((details as Element).props.onPress as () => void)();
+    assert.equal((details as Element).props.onPress, undefined);
+    const link = elements(details).find(
+      (el) => el.type === "Pressable" && el.props.accessibilityRole === "link",
+    )!;
+    assert.equal(
+      elements(link).some((el) => el === avatar),
+      true,
+    );
+    (link.props.onPress as () => void)();
+    const footerButtons = elements(RequestPublicFooter({ request })).filter(
+      (el) => el.type === "Button",
+    );
+    assert.equal(footerButtons.length, 1);
+    assert.equal(footerButtons[0]!.props.accessibilityLabel, "Gửi đề xuất");
     assert.deepEqual(routes, [
       {
         pathname: "/profiles/[userId]",

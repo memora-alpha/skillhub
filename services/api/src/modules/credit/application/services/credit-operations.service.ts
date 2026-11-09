@@ -123,6 +123,7 @@ export class CreditOperationsService {
       actorId: string;
       reason: string;
       idempotencyKey: string;
+      systemAdjustment?: true;
     },
   ): Promise<{ operationId: string }> {
     if (input.amount === 0n || !input.reason.trim())
@@ -141,12 +142,17 @@ export class CreditOperationsService {
       return { operationId: existing.id };
     }
     const after = wallet.availableCredit + input.amount;
+    if (
+      input.systemAdjustment &&
+      after + wallet.heldCredit > 9_223_372_036_854_775_807n
+    )
+      throw new ConflictException("CREDIT_BALANCE_LIMIT_EXCEEDED");
     if (after < 0n)
       throw new ConflictException("INSUFFICIENT_AVAILABLE_CREDIT");
     const operation = await tx.creditOperation.create({
       data: {
         operationType: "ADMIN_ADJUSTMENT",
-        referenceType: "DISPUTE",
+        referenceType: input.systemAdjustment ? "SYSTEM" : "DISPUTE",
         referenceId: input.referenceId,
         idempotencyKey: input.idempotencyKey,
         instructionDigest: digest,

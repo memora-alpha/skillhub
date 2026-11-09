@@ -45,88 +45,114 @@ export function AgreementSteps({
 }>) {
   const currentIndex = agreementSteps.indexOf(current);
   return (
-    <View style={styles.steps}>
-      <View pointerEvents="none" style={styles.track}>
-        {agreementSteps.slice(1).map((step, index) => (
-          <View
-            key={step}
-            style={[styles.segment, index < currentIndex && styles.doneTrack]}
-          />
-        ))}
+    <View style={styles.panel}>
+      <View style={styles.heading}>
+        <Text accessibilityRole="header" style={styles.headingTitle}>
+          {labels[agreementSteps.indexOf(value)]}
+        </Text>
+        <Text style={styles.caption}>
+          {stepDescription(
+            agreementSteps.indexOf(value),
+            currentIndex,
+            completed,
+            scheduleLocked,
+          )}
+        </Text>
       </View>
-      {agreementSteps.map((step, index) => {
-        const disabled = !completed && index > currentIndex;
-        const done =
-          completed ||
-          index < currentIndex ||
-          (step === "schedules" && scheduleLocked);
-        const selected = value === step;
-        return (
-          <Pressable
-            key={step}
-            accessibilityRole="button"
-            accessibilityLabel={`Bước ${index + 1}: ${labels[index]}`}
-            accessibilityState={{ selected, disabled }}
-            disabled={disabled}
-            onPress={() => onSelect(step)}
-            style={styles.step}
-          >
+      <View style={styles.steps}>
+        <View pointerEvents="none" style={styles.track}>
+          {agreementSteps.slice(1).map((step, index) => (
             <View
-              style={[
-                styles.circle,
-                done && styles.doneCircle,
-                selected && styles.selectedCircle,
-              ]}
-            >
-              {done ? (
-                <Icon
-                  name="check"
-                  size={16}
-                  color={selected ? colors.white : colors.forest}
-                />
-              ) : (
-                <Text
-                  style={[
-                    styles.number,
-                    index < currentIndex && styles.doneNumber,
-                    selected && styles.selectedNumber,
-                  ]}
-                >
-                  {index + 1}
-                </Text>
+              key={step}
+              style={[styles.segment, index < currentIndex && styles.doneTrack]}
+            />
+          ))}
+        </View>
+        {agreementSteps.map((step, index) => {
+          const disabled = !completed && index > currentIndex;
+          const done =
+            completed ||
+            index < currentIndex ||
+            (step === "schedules" && scheduleLocked);
+          const selected = value === step;
+          return (
+            <Pressable
+              key={step}
+              accessibilityRole="button"
+              accessibilityLabel={`Bước ${index + 1}: ${labels[index]}`}
+              accessibilityHint={stepDescription(
+                index,
+                currentIndex,
+                completed,
+                scheduleLocked,
               )}
-            </View>
-            <Text
-              style={[
-                styles.label,
-                disabled && styles.disabled,
-                selected && styles.active,
-              ]}
+              accessibilityState={{ selected, disabled }}
+              disabled={disabled}
+              onPress={() => onSelect(step)}
+              style={styles.step}
             >
-              {labels[index]}
-            </Text>
-            <Text style={[styles.caption, selected && styles.active]}>
-              {stepDescription(index, currentIndex, completed, scheduleLocked)}
-            </Text>
-          </Pressable>
-        );
-      })}
+              <View
+                style={[
+                  styles.circle,
+                  done && styles.doneCircle,
+                  selected && styles.selectedCircle,
+                ]}
+              >
+                {done ? (
+                  <Icon
+                    name="check"
+                    size={16}
+                    color={selected ? colors.white : colors.forest}
+                  />
+                ) : (
+                  <Text
+                    style={[styles.number, selected && styles.selectedNumber]}
+                  >
+                    {index + 1}
+                  </Text>
+                )}
+              </View>
+              <Text
+                style={[
+                  styles.label,
+                  disabled && styles.disabled,
+                  selected && styles.active,
+                ]}
+              >
+                {labels[index]}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
     </View>
   );
 }
 const styles = StyleSheet.create({
-  steps: {
-    flexDirection: "row",
+  panel: {
     backgroundColor: colors.surface,
     borderRadius: appRadius.card,
     borderWidth: 1,
     borderColor: colors.border,
-    paddingVertical: 8,
-    paddingHorizontal: 4,
+    padding: 16,
+    gap: 16,
   },
+  heading: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    flexWrap: "wrap",
+    gap: 6,
+  },
+  headingTitle: {
+    ...typography.heading,
+    fontFamily: fonts.bold,
+    color: colors.ink,
+  },
+  steps: { flexDirection: "row" },
   track: {
     position: "absolute",
-    top: 23,
+    top: 15,
     left: "12.5%",
     right: "12.5%",
     flexDirection: "row",
@@ -149,7 +175,6 @@ const styles = StyleSheet.create({
   },
   doneCircle: { backgroundColor: colors.forestSoft },
   selectedNumber: { color: colors.white },
-  doneNumber: { color: colors.forest },
   caption: {
     ...typography.caption,
     fontFamily: fonts.body,

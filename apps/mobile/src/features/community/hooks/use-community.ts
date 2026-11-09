@@ -31,7 +31,7 @@ export function usePathReviews(
       uuid.safeParse(counterpartId).success,
   );
 }
-export function useReputation() {
+export function useReputation(enabled = true) {
   const api = useCommunityApi();
   const runtime = useConnections();
   const cache = useQueryClient();
@@ -43,7 +43,7 @@ export function useReputation() {
   const query = useInfiniteQuery({
     queryKey,
     meta: { connectionReadAccess: access },
-    enabled: runtime.enabled,
+    enabled: runtime.enabled && enabled,
     initialPageParam: undefined as string | undefined,
     queryFn: ({ pageParam, signal }) =>
       access.read(() => api.reputation(pageParam, signal), runtime.isCurrent),
@@ -54,7 +54,7 @@ export function useReputation() {
     },
     retry: false,
   });
-  useConnectionRefresh(query.refetch, runtime.enabled);
+  useConnectionRefresh(query.refetch, runtime.enabled && enabled);
   const readable = runtime.enabled && runtime.isCurrent() && !access.denied;
   return {
     ...query,

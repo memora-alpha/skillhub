@@ -1,5 +1,9 @@
 import { AppError } from "@/lib/http/errors";
 import { isRecord } from "@/lib/http/response";
+import {
+  parseProfileModeration,
+  type ProfileModeration,
+} from "./profile-moderation-contracts";
 
 export type OwnProfile = {
   userId: string;
@@ -12,17 +16,14 @@ export type OwnProfile = {
   reputationScore: number | null;
   verifiedSkillCount: number;
   completedSessionCount: number;
-  completedLearningPathCount?: number;
+  completedLearningPathCount?: number | null;
   reviewSummary?: {
     reviewCount: number;
     averageRating: number | null;
     ratingDistribution: Record<string, number>;
   };
-  profileModeration?: {
-    bio?: { action: string; reason: string };
-    avatar?: { action: string; reason: string };
-  } | null;
   selectedTitle?: string | null;
+  profileModeration?: ProfileModeration | null;
 };
 export type OwnIdentity = {
   userId: string;
@@ -61,10 +62,15 @@ export function parseProfile(value: unknown): OwnProfile {
     !count(value.verifiedSkillCount) ||
     !count(value.completedSessionCount) ||
     (value.completedLearningPathCount !== undefined &&
+      value.completedLearningPathCount !== null &&
       !count(value.completedLearningPathCount))
   )
     throw new AppError("protocol");
-  return { ...value, selectedTitle: value.selectedTitle ?? null } as OwnProfile;
+  return {
+    ...value,
+    selectedTitle: value.selectedTitle ?? null,
+    profileModeration: parseProfileModeration(value.profileModeration),
+  } as OwnProfile;
 }
 export function parseIdentity(value: unknown): OwnIdentity {
   if (

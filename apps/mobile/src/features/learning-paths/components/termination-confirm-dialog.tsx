@@ -15,6 +15,7 @@ export function TerminationConfirmDialog({
   disabled,
   closeDisabled,
   pending,
+  checking = false,
   onConfirm,
   onClose,
   feedback,
@@ -23,10 +24,14 @@ export function TerminationConfirmDialog({
   disabled: boolean;
   closeDisabled: boolean;
   pending: boolean;
+  checking?: boolean;
   onConfirm: () => void;
   onClose: () => void;
   feedback: ReactNode;
 }>) {
+  let confirmLabel = "Xác nhận gửi yêu cầu";
+  if (checking) confirmLabel = "Đang kiểm tra...";
+  else if (pending) confirmLabel = "Đang gửi...";
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
       <SafeAreaView style={styles.overlay}>
@@ -57,7 +62,7 @@ export function TerminationConfirmDialog({
             </Text>
             <View style={styles.actions}>
               <Button variant="danger" disabled={disabled} onPress={onConfirm}>
-                {pending ? "Đang gửi..." : "Xác nhận gửi yêu cầu"}
+                {confirmLabel}
               </Button>
               <Button
                 variant="ghost"

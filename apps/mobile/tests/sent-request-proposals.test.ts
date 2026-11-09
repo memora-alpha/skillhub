@@ -179,7 +179,7 @@ test("Request detail opens existing pending/accepted proposals, allows terminal 
       assert.equal(button.props.accessibilityLabel, "Xem đề xuất");
       (button.props.onPress as () => void)();
       assert.deepEqual(routes.at(-1), {
-        pathname: "/proposals/[id]",
+        pathname: "/proposal/[id]",
         params: { id: proposal.id },
       });
     }
