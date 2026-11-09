@@ -1,6 +1,7 @@
 "use client";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useUserSession } from "../auth/session";
+import { ReputationPathSource } from "./reputation-path-source";
 import { ReputationRecovery } from "./reputation-recovery";
 import {
   Back,
@@ -147,12 +148,19 @@ export function ReputationScreen() {
                 {entry.scoreBefore} → {entry.scoreAfter} ·{" "}
                 {formatTime(entry.createdAt)}
               </p>
-              <details>
-                <summary>Thông tin tham chiếu</summary>
-                <p className="learner-prose">
-                  {entry.sourceType}: {entry.sourceId}
-                </p>
-              </details>
+              {entry.sourceType === "LEARNING_PATH" ? (
+                <ReputationPathSource
+                  key={entry.sourceId}
+                  pathId={entry.sourceId}
+                />
+              ) : (
+                <details>
+                  <summary>Thông tin tham chiếu</summary>
+                  <p className="learner-prose">
+                    {entry.sourceType}: {entry.sourceId}
+                  </p>
+                </details>
+              )}
             </Panel>
           ))}
       </div>

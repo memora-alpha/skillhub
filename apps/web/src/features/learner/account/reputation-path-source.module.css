@@ -1,0 +1,42 @@
+.source {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding-top: 16px;
+  margin-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.label,
+.hint {
+  color: var(--muted);
+  font-size: 13px;
+}
+.link {
+  color: var(--brand-strong);
+  text-decoration: none;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+  line-height: 1.65;
+}
+.link:hover {
+  text-decoration: underline;
+}
+.code {
+  overflow-wrap: anywhere;
+  color: var(--muted);
+  font-size: 12px;
+}
+.source summary {
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 12px;
+}
+.retry {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.source p {
+  margin: 0;
+}
