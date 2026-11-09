@@ -565,3 +565,26 @@ Upstream references: [Spec Kit integrations](https://github.github.com/spec-kit/
 and [installation](https://github.github.com/spec-kit/installation.html).
 
 - [SRS SkillHub V1.6](../../docs/SRS_SkillHub_V1.6_VietLai_DongBoNghiepVu.docx): nguồn yêu cầu hiện hành; spec Kỹ năng giới hạn evidence 10 MB/file theo quyết định đã chốt.
+
+## Điều chỉnh credit và uy tín để QA
+
+Bật `QA_ADMIN_ADJUSTMENTS_ENABLED=true` trên backend đang phục vụ web/app test
+và đặt `APP_DEPLOYMENT_TIER=local` hoặc `staging`. Chỉ dùng với DB test.
+Mặc định hai route bị tắt. Cấu hình bật với tier `production` bị từ chối lúc khởi động.
+Chạy `pnpm --filter api exec prisma migrate deploy` để áp dụng migration
+`20261109010000_qa_restriction_release` trước khi chạy backend mới.
+Sau khi build, chạy `pnpm --filter api identity:seed` để cấp hai quyền mới cho Admin.
+
+Cả hai route yêu cầu Bearer token Admin và header `Idempotency-Key`. Dùng lại key
+khi gửi lại cùng yêu cầu. Dùng key mới cho thao tác mới. Cả hai ghi lý do và audit.
+
+| API                                                       | Quyền                  | Body ví dụ                                                                                          |
+| --------------------------------------------------------- | ---------------------- | --------------------------------------------------------------------------------------------------- |
+| `POST /api/v1/admin/users/:userId/credit-adjustments`     | `credit:adjust:qa`     | `{"amount":"100","reason":"QA mua tài liệu"}`                                                       |
+| `POST /api/v1/admin/users/:userId/reputation-adjustments` | `reputation:adjust:qa` | `{"targetScore":50,"reason":"QA mở lại luồng tạo yêu cầu","releaseLowReputationRestrictions":true}` |
+
+`amount` là số credit nguyên dương dạng chuỗi. Grant tăng Available, ghi ledger
+với tham chiếu `SYSTEM` và không tạo Payment. `targetScore` nằm trong khoảng
+0–100. Giảm điểm áp dụng policy hạn chế hiện tại. Tùy chọn gỡ hạn chế mặc định
+tắt. Khi bật với điểm đích từ 40, chỉ gỡ hạn chế do điểm thấp của user đích.
+Sau khi gọi API, tải lại dữ liệu hoặc đăng nhập lại bằng tài khoản test trên web/app.

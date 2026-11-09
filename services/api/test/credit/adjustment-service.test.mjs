@@ -94,6 +94,22 @@ test("negative adjustment refuses to make Available negative", async () => {
   assert.equal(ctx.current.availableCredit, 100n);
 });
 
+test("QA grants leave room to return held credit to Available", async () => {
+  const ctx = setup({
+    availableCredit: 9_223_372_036_854_775_607n,
+    heldCredit: 200n,
+  });
+  await assert.rejects(
+    ctx.service.adjustAvailable(ctx.tx, {
+      ...instruction,
+      amount: 100n,
+      systemAdjustment: true,
+    }),
+    /CREDIT_BALANCE_LIMIT_EXCEEDED/,
+  );
+  assert.equal(ctx.transactions.length, 0);
+});
+
 test("material refund returns gross and debits only seller net when Available covers it", async () => {
   const buyerId = "22222222-2222-4222-8222-222222222222";
   const sellerId = "33333333-3333-4333-8333-333333333333";
