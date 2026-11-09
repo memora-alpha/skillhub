@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useLocalSearchParams } from "expo-router";
 import { z } from "zod";
 import { Button } from "@/components/Button";
 import { Copy, Panel, RouteButton } from "@/components/feature-page";
@@ -31,6 +32,7 @@ const attention = z.object({
   sessionId: uuid.nullable(),
   deadline: timestamp.nullable(),
   blocksSettlement: z.boolean(),
+  target: z.object({ type: z.string(), id: uuid }).optional(),
 });
 const overview = z.object({
   learningStage: z.string().nullable(),
@@ -92,7 +94,11 @@ export function PathOverviewPanel({ pathId }: Readonly<{ pathId: string }>) {
     async (signal) =>
       parse(overview, await runtime.call(root + "/overview", { signal })),
   );
-  const [expanded, setExpanded] = useState(false);
+  const params = useLocalSearchParams<{ cases?: string }>();
+  const [expanded, setExpanded] = useState(params.cases === "1");
+  useEffect(() => {
+    if (params.cases === "1") setExpanded(true);
+  }, [params.cases]);
   const cases = useConnectionList(
     ["learning-paths", pathId, "cases"],
     async (cursor, signal) =>
@@ -162,6 +168,22 @@ export function PathOverviewPanel({ pathId }: Readonly<{ pathId: string }>) {
                     href={`/learning-sessions/${item.sessionId}`}
                   >
                     Xem buổi học cần xử lý
+                  </RouteButton>
+                )}
+                {!item.sessionId && item.target?.type === "LEARNING_CHANGE" && (
+                  <RouteButton secondary href={`/paths/${pathId}/cancel`}>
+                    Phản hồi yêu cầu dừng lộ trình
+                  </RouteButton>
+                )}
+                {item.target?.type === "CASE_SUMMARY" && (
+                  <RouteButton
+                    secondary
+                    href={{
+                      pathname: "/reports/[id]",
+                      params: { id: item.target.id, support: "1", pathId },
+                    }}
+                  >
+                    Theo dõi vụ việc
                   </RouteButton>
                 )}
               </Panel>
@@ -247,7 +269,7 @@ function CaseSummary({
                 secondary
                 href={{
                   pathname: "/reports/[id]",
-                  params: { id: caseId, support: "1" },
+                  params: { id: caseId, support: "1", pathId },
                 }}
               >
                 Trao đổi với người xử lý

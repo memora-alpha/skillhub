@@ -35,7 +35,7 @@ export function MaterialPurchaseScreen() {
   async function finish(order: MaterialOrder | undefined) {
     if (!order || !runtime.isCurrent()) return;
     await cache.invalidateQueries({ queryKey: ["wallet", runtime.userId] });
-    router.replace("/materials/library");
+    router.replace(`/materials/${id}/access`);
   }
   return (
     <FeaturePage

@@ -89,14 +89,26 @@ export function ReportsScreen() {
   );
 }
 export function ReportDetailScreen() {
-  const { id, support } = useLocalSearchParams<{
+  const { id, support, pathId } = useLocalSearchParams<{
     id: string;
     support?: string;
+    pathId?: string;
   }>();
   if (support === "1")
     return (
-      <FeaturePage demo={false} title="Hỗ trợ vụ việc" back="/reports">
-        <PrivateCaseThread caseId={typeof id === "string" ? id : ""} />
+      <FeaturePage
+        demo={false}
+        title="Hỗ trợ vụ việc"
+        back={
+          typeof pathId === "string" && /^[0-9a-f-]{36}$/i.test(pathId)
+            ? `/paths/${pathId}?cases=1`
+            : "/reports"
+        }
+      >
+        <PrivateCaseThread
+          caseId={typeof id === "string" ? id : ""}
+          pathId={typeof pathId === "string" ? pathId : undefined}
+        />
       </FeaturePage>
     );
   return <ReportOwnerDetailScreen />;
@@ -162,7 +174,9 @@ function ReportOwnerDetailScreen() {
           description="Báo cáo không tồn tại hoặc không thuộc tài khoản này."
         />
       )}
-      {typeof id === "string" && <PrivateCaseThread caseId={id} />}
+      {typeof id === "string" && report && (
+        <PrivateCaseThread caseId={id} status={report.status} />
+      )}
     </FeaturePage>
   );
 }

@@ -62,7 +62,7 @@ export function ProposalReadiness({
           variant="secondary"
           onPress={() =>
             router.push({
-              pathname: "/proposals/[id]",
+              pathname: "/proposal/[id]",
               params: { id: duplicate.id },
             })
           }

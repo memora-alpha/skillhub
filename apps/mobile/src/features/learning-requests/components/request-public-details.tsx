@@ -111,7 +111,7 @@ export function RequestPublicFooter({
               if (disabled) return;
               if (existing && proposal)
                 router.push({
-                  pathname: "/proposals/[id]",
+                  pathname: "/proposal/[id]",
                   params: { id: proposal.id },
                 });
               else

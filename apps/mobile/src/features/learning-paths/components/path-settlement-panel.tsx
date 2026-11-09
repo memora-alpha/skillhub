@@ -36,7 +36,9 @@ export function PathSettlementPanel({ pathId }: Readonly<{ pathId: string }>) {
         <View style={styles.grow}>
           <Text style={styles.eyebrow}>HOÀN THÀNH</Text>
           <Text accessibilityRole="header" style={styles.title}>
-            {settled ? "Lộ trình đã hoàn thành" : "Bạn đã hoàn tất lộ trình"}
+            {settled
+              ? "Thỏa thuận đã hoàn tất"
+              : "Đã học xong · Chờ quyết toán"}
           </Text>
           <Text style={styles.subtitle}>Các buổi học đã hoàn tất.</Text>
         </View>
@@ -109,8 +111,8 @@ export function PathSettlementPanel({ pathId }: Readonly<{ pathId: string }>) {
         />
       )}
       {status?.status === "WAITING_DISPUTE" && (
-        <RouteButton secondary href="/reports">
-          Xem báo cáo
+        <RouteButton secondary href={`/paths/${pathId}?cases=1`}>
+          Xem vụ việc đang chặn
         </RouteButton>
       )}
       {status &&
