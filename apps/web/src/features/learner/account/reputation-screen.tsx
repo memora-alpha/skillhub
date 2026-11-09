@@ -94,12 +94,10 @@ export function ReputationScreen() {
   return (
     <>
       <Back href="/learn/profile" />
-      <PageHeading title="Lịch sử uy tín" />
-      {current &&
-        (current.reputationScore < 40 ||
-          current.activeRestrictions.length > 0) && (
-          <ReputationRecovery onChanged={() => void query.refetch()} />
-        )}
+      <PageHeading
+        title="Uy tín của bạn"
+        description="Theo dõi sự tin cậy bạn xây dựng qua mỗi lần học cùng nhau."
+      />
       <Feedback
         loading={query.isFetching}
         error={query.error?.message}
@@ -127,7 +125,14 @@ export function ReputationScreen() {
           </Panel>
         </>
       )}
+      {!denied &&
+        current &&
+        (current.reputationScore < 40 ||
+          current.activeRestrictions.length > 0) && (
+          <ReputationRecovery onChanged={() => void query.refetch()} />
+        )}
       <div className="learner-stack">
+        {!denied && entries.length > 0 && <h2>Lịch sử thay đổi</h2>}
         {!denied &&
           entries.map((entry) => (
             <Panel
@@ -142,9 +147,12 @@ export function ReputationScreen() {
                 {entry.scoreBefore} → {entry.scoreAfter} ·{" "}
                 {formatTime(entry.createdAt)}
               </p>
-              <p className="learner-prose">
-                Tham chiếu {entry.sourceType}: {entry.sourceId}
-              </p>
+              <details>
+                <summary>Thông tin tham chiếu</summary>
+                <p className="learner-prose">
+                  {entry.sourceType}: {entry.sourceId}
+                </p>
+              </details>
             </Panel>
           ))}
       </div>

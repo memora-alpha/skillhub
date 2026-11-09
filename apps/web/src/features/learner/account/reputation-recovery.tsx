@@ -4,6 +4,10 @@ import { useUserResource } from "../hooks/use-user-resource";
 import { useUserSession } from "../auth/session";
 import { useUserCommand } from "../hooks/use-user-command";
 import { CommandFeedback, Feedback, Panel } from "../components/common";
+import { ProductIcon } from "../components/product-icon";
+import { RecoveryQuiz, type RecoveryQuizData } from "./recovery-quiz";
+import styles from "./reputation-recovery.module.css";
+
 type Mission = {
   code: string;
   reward: number;
@@ -14,171 +18,251 @@ type Recovery = {
   eligible: boolean;
   missions: Mission[];
   remainingBudget: number;
-  quiz: { version: string; policy: string[]; questions: string[] } | null;
+  quiz: RecoveryQuizData | null;
 };
-const names: Record<string, string> = {
-  POLICY_AWARENESS: "Hiểu chính sách",
-  GOOD_BEHAVIOR_STREAK: "Duy trì hành vi tốt",
-  COMMITMENT_RECOVERY: "Hoàn thành cam kết học tập",
+const missions: Record<string, { title: string; description: string }> = {
+  POLICY_AWARENESS: {
+    title: "Hiểu cách học cùng nhau",
+    description: "Trả lời vài câu hỏi ngắn về quy tắc cộng đồng.",
+  },
+  GOOD_BEHAVIOR_STREAK: {
+    title: "Duy trì thói quen tốt",
+    description: "Duy trì 14 ngày không có vi phạm mới và có hoạt động hợp lệ.",
+  },
+  COMMITMENT_RECOVERY: {
+    title: "Hoàn thành cam kết học tập",
+    description: "Hoàn thành 2 buổi học hợp lệ, có đủ xác nhận của hai bên.",
+  },
 };
 export function ReputationRecovery({
   onChanged,
 }: Readonly<{ onChanged: () => void }>) {
-  const query = useUserResource<Recovery>("reputation/recovery"),
-    { request } = useUserSession(),
-    command = useUserCommand(true);
-  const [result, setResult] = useState<string>(),
-    form = useRef<HTMLFormElement>(null),
-    last = useRef<{ path: string; body: unknown } | undefined>(undefined);
+  const query = useUserResource<Recovery>("reputation/recovery");
+  const { request } = useUserSession();
+  const command = useUserCommand(true);
+  const [quizOpen, setQuizOpen] = useState(false);
+  const [result, setResult] = useState<{ passed: boolean; text: string }>();
+  const last = useRef<{ path: string; body: unknown } | undefined>(undefined);
+  const locked = command.pending || command.uncertain;
   async function run(path: string, body: unknown) {
     last.current = { path, body };
+    setResult(undefined);
     const response = await command.run(JSON.stringify({ path, body }), () =>
       request<{ passed?: boolean; awarded?: number }>(path, {
         method: "POST",
         body,
       }),
     );
-    if (response) {
-      setResult(
-        response.data.passed === false
-          ? "Chưa đạt. Bạn hãy đọc lại và thử lại."
-          : `Đã ghi nhận${typeof response.data.awarded === "number" ? ": +" + response.data.awarded + " điểm" : ""}.`,
-      );
-      query.reload();
-      onChanged();
-    }
+    if (!response) return;
+    const passed = response.data.passed !== false;
+    setResult({
+      passed,
+      text: !passed
+        ? "Bạn chưa đạt lần này. Đọc lại các câu hỏi và thử lại nhé."
+        : typeof response.data.awarded === "number"
+          ? response.data.awarded > 0
+            ? `Đã ghi nhận ${response.data.awarded} điểm phục hồi. Tiếp tục duy trì việc học đều đặn nhé!`
+            : "Đã ghi nhận. Bạn đã hết lượt điểm phục hồi trong kỳ này."
+          : "Bạn đã xác nhận chính sách. Trạng thái hạn chế đang được cập nhật.",
+    });
+    query.reload();
+    onChanged();
   }
+  const data = query.data;
+  const policyMission = data?.missions.find(
+    (m) => m.code === "POLICY_AWARENESS",
+  );
   return (
-    <Panel title="Phục hồi uy tín">
+    <Panel className={styles.recovery}>
+      <div className={styles.header}>
+        <div className={styles.heading}>
+          <span className={styles.icon}>
+            <ProductIcon name="shield" size={22} />
+          </span>
+          <div>
+            <h2>Phục hồi uy tín</h2>
+            <p>Những bước nhỏ giúp bạn xây dựng lại sự tin cậy.</p>
+          </div>
+        </div>
+        {data?.eligible && (
+          <span className={styles.budget}>
+            Còn {data.remainingBudget} điểm <span>trong 30 ngày</span>
+          </span>
+        )}
+      </div>
       <Feedback
         loading={query.loading}
         error={query.error}
         reload={query.reload}
       />
-      {query.data && (
+      {data?.eligible ? (
         <>
-          {!query.data.eligible ? (
-            <p>Hiện không có nhiệm vụ phục hồi dành cho bạn.</p>
-          ) : (
-            <>
-              <p>
-                Còn tối đa {query.data.remainingBudget} điểm phục hồi trong kỳ.
-              </p>
-              {query.data.missions.map((mission) => (
-                <div key={mission.code}>
-                  <h3>{names[mission.code] ?? mission.code}</h3>
+          <div className={styles.missions}>
+            {data.missions.map((mission) => {
+              const info = missions[mission.code],
+                isQuiz = mission.code === "POLICY_AWARENESS";
+              const progressText = isQuiz
+                ? "Bài kiểm tra ngắn"
+                : mission.code === "GOOD_BEHAVIOR_STREAK"
+                  ? `${mission.progress.current}/${mission.progress.target} ngày`
+                  : `${mission.progress.current}/${mission.progress.target} buổi học`;
+              return (
+                <article className={styles.mission} key={mission.code}>
+                  <div className={styles.missionTop}>
+                    <span className={styles.taskIcon}>
+                      <ProductIcon
+                        name={
+                          mission.claimed
+                            ? "check"
+                            : isQuiz
+                              ? "book"
+                              : "calendar"
+                        }
+                        size={20}
+                      />
+                    </span>
+                    <span
+                      className={mission.claimed ? styles.done : styles.reward}
+                    >
+                      {mission.claimed
+                        ? "Đã nhận điểm"
+                        : `+${mission.reward} điểm`}
+                    </span>
+                  </div>
+                  <h3>{info?.title ?? "Nhiệm vụ phục hồi"}</h3>
                   <p>
-                    {mission.claimed
-                      ? "Đã nhận điểm"
-                      : `${mission.progress.current}/${mission.progress.target} · +${mission.reward} điểm`}
+                    {info?.description ??
+                      "Hoàn thành yêu cầu để nhận điểm uy tín."}
                   </p>
-                  {mission.code !== "POLICY_AWARENESS" && !mission.claimed && (
-                    <button
-                      className="btn"
-                      disabled={
-                        !mission.progress.complete ||
-                        query.loading ||
-                        command.pending ||
-                        command.uncertain
-                      }
-                      onClick={() =>
-                        void run("reputation/recovery/claim", {
-                          code: mission.code,
-                        })
-                      }
-                    >
-                      Nhận điểm
-                    </button>
-                  )}
-                </div>
-              ))}
-              {query.data.quiz &&
-                !query.data.missions.find(
-                  (row) => row.code === "POLICY_AWARENESS",
-                )?.claimed && (
-                  <details>
-                    <summary>Làm bài kiểm tra chính sách</summary>
-                    <form
-                      ref={form}
-                      className="learner-form"
-                      key={query.data.quiz.version}
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        const data = new FormData(e.currentTarget);
-                        void run("reputation/recovery/quiz", {
-                          version: query.data!.quiz!.version,
-                          answers: query.data!.quiz!.questions.map(
-                            (_, i) => data.get("answer" + i) === "true",
-                          ),
-                        });
-                      }}
-                    >
-                      {query.data.quiz.questions.map((question, i) => (
-                        <fieldset key={question}>
-                          <legend>{question}</legend>
-                          {[
-                            ["true", "Đúng"],
-                            ["false", "Sai"],
-                          ].map(([value, label]) => (
-                            <label key={value}>
-                              <input
-                                required
-                                type="radio"
-                                name={"answer" + i}
-                                value={value}
-                                disabled={command.pending || command.uncertain}
-                              />
-                              {label}
-                            </label>
-                          ))}
-                        </fieldset>
+                  <div className={styles.missionFoot}>
+                    <span className={styles.progressText}>
+                      {mission.claimed ? "Đã hoàn thành" : progressText}
+                    </span>
+                    {!mission.claimed &&
+                      (isQuiz ? (
+                        <button
+                          type="button"
+                          className="btn btn-primary"
+                          disabled={
+                            locked ||
+                            query.loading ||
+                            !!query.error ||
+                            !data.quiz
+                          }
+                          aria-expanded={quizOpen}
+                          aria-controls="recovery-quiz"
+                          onClick={() => setQuizOpen(!quizOpen)}
+                        >
+                          {quizOpen
+                            ? "Thu gọn bài kiểm tra"
+                            : "Làm bài kiểm tra"}
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          className="btn"
+                          disabled={
+                            !mission.progress.complete ||
+                            locked ||
+                            query.loading ||
+                            !!query.error
+                          }
+                          onClick={() =>
+                            void run("reputation/recovery/claim", {
+                              code: mission.code,
+                            })
+                          }
+                        >
+                          {mission.progress.complete
+                            ? "Nhận điểm"
+                            : "Đang thực hiện"}
+                        </button>
                       ))}
-                      <button
-                        className="btn btn-primary"
-                        disabled={command.pending || command.uncertain}
-                      >
-                        Nộp bài
-                      </button>
-                    </form>
-                  </details>
-                )}
-            </>
+                  </div>
+                  {!isQuiz && !mission.claimed && (
+                    <progress
+                      className={styles.progress}
+                      value={mission.progress.current}
+                      max={Math.max(1, mission.progress.target)}
+                      aria-label={`Tiến độ ${info?.title ?? "nhiệm vụ"}`}
+                    />
+                  )}
+                </article>
+              );
+            })}
+          </div>
+          {quizOpen && data.quiz && !policyMission?.claimed && (
+            <RecoveryQuiz
+              key={data.quiz.version}
+              quiz={data.quiz}
+              disabled={locked || query.loading || !!query.error}
+              pending={command.pending}
+              onSubmit={(body) => void run("reputation/recovery/quiz", body)}
+            />
           )}
-          <details>
-            <summary>Xác nhận chính sách để mở lại quyền</summary>
-            <p>
-              Điểm phục hồi không tự gỡ hạn chế. Một số hạn chế cần hết thời hạn
-              và được xác nhận chính sách hoặc nhân sự xét lại.
-            </p>
-            <p>
-              Tham gia đúng hẹn, chỉ xác nhận buổi học thực tế, không tạo hoạt
-              động giả và cung cấp bằng chứng trung thực.
-            </p>
-            <button
-              className="btn"
-              disabled={command.pending || command.uncertain}
-              onClick={() =>
-                void run("reputation/restrictions/policy-acknowledgement", {})
-              }
-            >
-              Tôi đã đọc và xác nhận
-            </button>
-          </details>
         </>
+      ) : (
+        data && (
+          <p className={styles.note}>
+            Hiện bạn chưa có nhiệm vụ phục hồi. Tiếp tục tham gia học đúng hẹn
+            để duy trì uy tín nhé.
+          </p>
+        )
       )}
+      <div aria-live="polite" aria-atomic="true">
+        {result && (
+          <p className={result.passed ? styles.success : styles.notice}>
+            {result.text}
+          </p>
+        )}
+      </div>
       <CommandFeedback command={command} />
       {command.canRetry && (
         <button
+          type="button"
           className="btn"
           disabled={command.pending}
           onClick={() => {
             if (last.current) void run(last.current.path, last.current.body);
           }}
         >
-          Kiểm tra lại yêu cầu
+          Kiểm tra lại kết quả
         </button>
       )}
-      {result && <p role="status">{result}</p>}
+      {data && (
+        <details className={styles.policy}>
+          <summary>
+            <span>Cần mở lại quyền hoạt động?</span>
+            <span className={styles.policyHint}>Xem hướng dẫn</span>
+          </summary>
+          <div className={styles.policyBody}>
+            <p>
+              Điểm tăng không tự kết thúc hạn chế. Bạn có thể cần chờ hết thời
+              hạn, xác nhận chính sách hoặc được nhân sự xét lại.
+            </p>
+            <ul>
+              {(
+                data.quiz?.policy ?? [
+                  "Tham gia đúng hẹn và chỉ xác nhận những buổi học thực tế.",
+                  "Không tạo hoạt động giả; cung cấp thông tin và bằng chứng trung thực.",
+                ]
+              ).map((rule) => (
+                <li key={rule}>{rule}</li>
+              ))}
+            </ul>
+            <button
+              type="button"
+              className="btn"
+              disabled={locked || query.loading || !!query.error}
+              onClick={() =>
+                void run("reputation/restrictions/policy-acknowledgement", {})
+              }
+            >
+              Tôi đã đọc và đồng ý
+            </button>
+          </div>
+        </details>
+      )}
     </Panel>
   );
 }
