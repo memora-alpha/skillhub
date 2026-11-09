@@ -14,6 +14,7 @@ export function ProposalRecoveryPanel({
   error,
   originalError,
   isCurrent,
+  captureCurrent,
   retry,
   onOpenSent,
   openResult,
@@ -23,6 +24,7 @@ export function ProposalRecoveryPanel({
   error: unknown;
   originalError: unknown;
   isCurrent: () => boolean;
+  captureCurrent: () => () => boolean;
   retry: () => Promise<Proposal | undefined>;
   onOpenSent: () => void;
   openResult: (proposal: Proposal | undefined) => void;
@@ -40,7 +42,11 @@ export function ProposalRecoveryPanel({
         variant="craft"
         disabled={pending || !isCurrent()}
         onPress={() => {
-          void retry().then(openResult);
+          const current = captureCurrent();
+          if (!current() || pending) return;
+          void retry().then((result) => {
+            if (current()) openResult(result);
+          });
         }}
       >
         {pending ? "Đang kiểm tra..." : "Kiểm tra lại lần gửi trước"}

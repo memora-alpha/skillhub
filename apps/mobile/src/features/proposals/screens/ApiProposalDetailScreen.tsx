@@ -15,12 +15,14 @@ import { ProposalRecovery } from "../components/ProposalRecovery";
 import { ProposalAcceptActions } from "../components/ProposalAcceptActions";
 import type { ProposalDecisionResult } from "../api/proposals-api";
 import { proposalId } from "../utils/proposal-route";
+import { useProposalLifecycle } from "../hooks/use-proposal-lifecycle";
 
 export function ApiProposalDetailScreen({ id }: Readonly<{ id: string }>) {
   const router = useRouter();
   const query = useProposal(id);
   const api = useProposalsApi();
   const { userId, isCurrent } = useConnections();
+  const captureCurrent = useProposalLifecycle(id);
   const command = useConnectionCommand<ProposalDecisionResult>([
     ["proposals"],
     ["proposal", id],
@@ -61,11 +63,14 @@ export function ApiProposalDetailScreen({ id }: Readonly<{ id: string }>) {
     proposalVersion: number,
     expectedRequestVersion?: number,
   ) => {
+    const current = captureCurrent(isCurrent);
     if (
+      !current() ||
       proposal?.status !== "PENDING" ||
       proposal.recipientId !== userId ||
       query.error ||
       query.isFetching ||
+      command.pending ||
       command.uncertain ||
       (proposal.sourceType === "LEARNING_REQUEST" &&
         expectedRequestVersion === undefined) ||
@@ -79,7 +84,7 @@ export function ApiProposalDetailScreen({ id }: Readonly<{ id: string }>) {
       (key) =>
         api.decide(id, "accept", proposalVersion, key, expectedRequestVersion),
     );
-    if (result) openConversation(result);
+    if (result && current()) openConversation(result);
   };
   return (
     <FeaturePage
@@ -109,7 +114,11 @@ export function ApiProposalDetailScreen({ id }: Readonly<{ id: string }>) {
         error={query.error}
         retry={query.refetch}
       />
-      <ProposalRecovery command={command} onRecovered={openConversation} />
+      <ProposalRecovery
+        command={command}
+        captureCurrent={() => captureCurrent(isCurrent)}
+        onRecovered={openConversation}
+      />
       {proposal && (
         <>
           <ApiProposalSummary proposal={proposal} />
@@ -181,13 +190,21 @@ export function ApiProposalDetailScreen({ id }: Readonly<{ id: string }>) {
               <Button
                 disabled={command.pending || query.isFetching || !!query.error}
                 onPress={() => {
+                  const current = captureCurrent(isCurrent);
+                  if (
+                    !current() ||
+                    command.pending ||
+                    query.error ||
+                    query.isFetching
+                  )
+                    return;
                   const action = closeConfirmation;
                   void command
                     .run(`${action}:${id}:${proposal.version}`, (key) =>
                       api.decide(id, action, proposal.version, key),
                     )
                     .then((result) => {
-                      if (result) setClosing(undefined);
+                      if (result && current()) setClosing(undefined);
                     });
                 }}
               >
