@@ -1,3 +1,4 @@
+import { systemCodeLabel } from "@/constants/system-text";
 import { useMemo } from "react";
 import { Panel, Copy } from "@/components/feature-page";
 import { Button } from "@/components/Button";
@@ -140,7 +141,10 @@ export function LearningChangePanel({
         </Copy>
       )}
       {query.data?.map((row) => (
-        <Panel key={row.id} title={labels[row.status] ?? row.status}>
+        <Panel
+          key={row.id}
+          title={labels[row.status] ?? systemCodeLabel(row.status)}
+        >
           <Copy>{row.reason}</Copy>
           <Copy muted>
             Hạn phản hồi: {new Date(row.expiresAt).toLocaleString("vi-VN")}

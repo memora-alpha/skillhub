@@ -1,3 +1,4 @@
+import { knownSystemMessage } from "@/constants/system-text";
 import type { SchedulingErrorDetails } from "./scheduling-error";
 import { scheduleConflictMessage } from "./scheduling-error";
 export class AppError extends Error {
@@ -116,7 +117,7 @@ export function errorMessage(error: unknown): string {
       scheduleConflictMessage(error) ??
       "Thời gian đề xuất bị trùng lịch. Hãy chọn giờ khác."
     );
-  const message = messages[error.code];
+  const message = messages[error.code] ?? knownSystemMessage(error.code);
   if (message) return message;
   if (error.kind === "network")
     return "Không thể kết nối. Kiểm tra mạng và thử lại.";

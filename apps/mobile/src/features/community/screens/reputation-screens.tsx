@@ -1,3 +1,4 @@
+import { systemCodeLabel } from "@/constants/system-text";
 import { Button } from "@/components/Button";
 import { EmptyState } from "@/components/EmptyState";
 import {
@@ -53,7 +54,10 @@ function ReputationView({ history }: Readonly<{ history: boolean }>) {
           {query.items.map((row) => (
             <Panel
               key={row.id}
-              title={reputationReasons[row.reasonCode] ?? row.reasonCode}
+              title={
+                reputationReasons[row.reasonCode] ??
+                systemCodeLabel(row.reasonCode)
+              }
             >
               <Copy>
                 {row.delta > 0 ? "+" : ""}

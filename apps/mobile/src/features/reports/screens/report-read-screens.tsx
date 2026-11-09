@@ -1,3 +1,4 @@
+import { reportDescriptionText } from "@/constants/system-text";
 import { useState } from "react";
 import { useLocalSearchParams } from "expo-router";
 import { Badge } from "@/components/Badge";
@@ -65,7 +66,7 @@ export function ReportsScreen() {
           <Badge
             label={row.status === "OPEN" ? "Đã tiếp nhận" : uiLabel(row.status)}
           />
-          <Copy>{row.description}</Copy>
+          <Copy>{reportDescriptionText(row.description)}</Copy>
           <Copy>
             {row.createdAt
               ? new Date(row.createdAt).toLocaleString("vi-VN")
@@ -142,7 +143,7 @@ function ReportOwnerDetailScreen() {
                   : uiLabel(report.status)
               }
             />
-            <Copy>{report.description}</Copy>
+            <Copy>{reportDescriptionText(report.description)}</Copy>
             <Copy>
               {report.createdAt
                 ? new Date(report.createdAt).toLocaleString("vi-VN")

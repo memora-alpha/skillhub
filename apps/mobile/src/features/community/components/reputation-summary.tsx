@@ -1,3 +1,4 @@
+import { systemCodeLabel } from "@/constants/system-text";
 import { Badge } from "@/components/Badge";
 import { Copy, Metric, Panel } from "@/components/feature-page";
 import type { Reputation } from "../api/community-api";
@@ -32,7 +33,7 @@ export function ReputationSummary({ data }: Readonly<{ data: Reputation }>) {
     <>
       <Panel title="Uy tín tài khoản" accent>
         <Metric label="Điểm uy tín" value={`${data.reputationScore} / 100`} />
-        <Badge label={levels[data.level] ?? data.level} />
+        <Badge label={levels[data.level] ?? "Chưa xác định"} />
         <Copy muted>
           Điểm và hạn chế được hệ thống cập nhật theo hoạt động và quyết định xử
           lý.
@@ -44,9 +45,11 @@ export function ReputationSummary({ data }: Readonly<{ data: Reputation }>) {
         )}
         {data.activeRestrictions.map((item, index) => (
           <Copy key={`${item.scope}:${index}`}>
-            {scopes[item.scope] ?? item.scope}
+            {scopes[item.scope] ?? systemCodeLabel(item.scope)}
             {"\n"}
-            Lý do: {reputationReasons[item.reasonCode] ?? item.reasonCode}
+            Lý do:{" "}
+            {reputationReasons[item.reasonCode] ??
+              systemCodeLabel(item.reasonCode)}
             {"\n"}
             Thời hạn: {new Date(item.endsAt).toLocaleString("vi-VN")}
             {Date.parse(item.endsAt) <= Date.now() &&

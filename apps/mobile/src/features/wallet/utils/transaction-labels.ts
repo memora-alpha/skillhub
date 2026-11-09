@@ -1,3 +1,4 @@
+import { systemCodeLabel } from "@/constants/system-text";
 const labels: Record<string, string> = {
   TOP_UP: "Nạp Credit",
   DAILY_BONUS: "Thưởng hằng ngày",
@@ -21,9 +22,9 @@ const states: Record<string, string> = {
   REVERSED: "Đã được đảo",
 };
 export const transactionLabel = (code: string) =>
-  labels[code] ?? `Loại chưa nhận diện (${code})`;
+  labels[code] ?? systemCodeLabel(code, "Giao dịch khác");
 export const transactionStatus = (code: string) =>
-  states[code] ?? `Trạng thái chưa nhận diện (${code})`;
+  states[code] ?? systemCodeLabel(code, "Trạng thái đang được cập nhật");
 const references: Record<string, string> = {
   PAYMENT: "Thanh toán",
   LEARNING_PATH: "Lộ trình học",
@@ -33,7 +34,8 @@ const references: Record<string, string> = {
   MATERIAL_ORDER: "Đơn tài liệu",
   SYSTEM: "Hệ thống",
 };
-export const referenceLabel = (code: string) => references[code] ?? code;
+export const referenceLabel = (code: string) =>
+  references[code] ?? systemCodeLabel(code, "Hoạt động liên quan");
 export const transactionTime = (value: string) =>
   new Date(value).toLocaleString("vi-VN", {
     hour: "2-digit",
