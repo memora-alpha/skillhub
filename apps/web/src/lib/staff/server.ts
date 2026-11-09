@@ -190,8 +190,10 @@ async function login(request: NextRequest, portal: Portal) {
   if (
     typeof body.email !== "string" ||
     typeof body.password !== "string" ||
-    body.email.length > 320 ||
-    body.password.length > 1024
+    body.email.trim().length < 5 ||
+    body.email.trim().length > 254 ||
+    body.password.length < 1 ||
+    body.password.length > 64
   )
     throw new GatewayError(400, "INVALID_LOGIN_INPUT");
   // Refuse account replacement: logout first, so parallel tabs cannot silently switch identities.

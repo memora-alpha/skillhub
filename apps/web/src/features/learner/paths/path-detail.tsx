@@ -22,6 +22,7 @@ import { PathReviews } from "./path-reviews";
 import { PathAgreementSummary } from "./agreement-summary";
 import { FinalizePanel } from "./finalize-panel";
 import { PathOverviewPanel, type PathOverview } from "./path-overview";
+import { learningStageLabel } from "./path-navigation";
 function pathPermissions(path: LearningPath | undefined, userId: string) {
   if (!path)
     return {
@@ -54,7 +55,7 @@ export function PathDetail({ id }: Readonly<{ id: string }>) {
     }),
     { actor, request } = useUserSession(),
     command = useUserCommand(true);
-  const [tab, setTab] = useState("plans");
+  const [tab, setTab] = useState("overview");
   const [editing, setEditing] = useState(false);
   const path = query.data;
   const overview = useUserResource<PathOverview>(
@@ -90,7 +91,10 @@ export function PathDetail({ id }: Readonly<{ id: string }>) {
             title="Lộ trình học"
             action={
               <div className="learner-actions">
-                <Status value={path.status} />
+                <Status
+                  value={path.status}
+                  label={learningStageLabel(overview.data?.learningStage)}
+                />
                 <Link
                   className="btn"
                   href={"/learn/messages/" + path.conversationId}
@@ -100,7 +104,17 @@ export function PathDetail({ id }: Readonly<{ id: string }>) {
               </div>
             }
           />
-          <PathOverviewPanel pathId={id} />
+          <PathOverviewPanel
+            pathId={id}
+            onOpenSection={(section) => {
+              setTab("overview");
+              requestAnimationFrame(() => {
+                const target = document.getElementById(section);
+                target?.scrollIntoView({ block: "start", behavior: "smooth" });
+                target?.focus({ preventScroll: true });
+              });
+            }}
+          />
           <details>
             <summary>Thỏa thuận học tập</summary>
             <PathAgreementSummary path={path} />
@@ -134,19 +148,23 @@ export function PathDetail({ id }: Readonly<{ id: string }>) {
           {!!path.lockedVersion && (
             <div hidden={activeTab !== "overview"}>
               <div className="learner-stack">
-                <SettlementStatusPanel key={path.id} pathId={path.id} />
-                <LearningChangePanel
-                  pathId={path.id}
-                  canRequest={
-                    !path.settledAt &&
-                    !!overview.data &&
-                    !["LEARNING_FINISHED", "COMPLETED", "STOPPED"].includes(
-                      overview.data.learningStage ?? "",
-                    ) &&
-                    ["SCHEDULED", "ACTIVE", "DISPUTED"].includes(path.status)
-                  }
-                  blocked={query.loading || !!query.error}
-                />
+                <div id="path-settlement" tabIndex={-1}>
+                  <SettlementStatusPanel key={path.id} pathId={path.id} />
+                </div>
+                <div id="path-changes" tabIndex={-1}>
+                  <LearningChangePanel
+                    pathId={path.id}
+                    canRequest={
+                      !path.settledAt &&
+                      !!overview.data &&
+                      !["LEARNING_FINISHED", "COMPLETED", "STOPPED"].includes(
+                        overview.data.learningStage ?? "",
+                      ) &&
+                      ["SCHEDULED", "ACTIVE", "DISPUTED"].includes(path.status)
+                    }
+                    blocked={query.loading || !!query.error}
+                  />
+                </div>
                 <PathReviews path={path} />
               </div>
             </div>

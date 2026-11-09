@@ -36,6 +36,38 @@ export function SettlementStatusPanel({
   const retry = useUserCommand();
   const [reviewing, setReviewing] = useState(false);
   const [notice, setNotice] = useState<string>();
+  const [checking, setChecking] = useState(false);
+  const [readError, setReadError] = useState<string>();
+  async function reconcile() {
+    if (checking || consent.pending || retry.pending) return;
+    setChecking(true);
+    setReadError(undefined);
+    try {
+      const fresh = readSettlementStatus(
+        (await request("learning-paths/" + pathId + "/settlement-status")).data,
+        pathId,
+      );
+      consent.resetAfterRead();
+      retry.resetAfterRead();
+      setReviewing(false);
+      setNotice(
+        fresh.settledAt
+          ? "Thỏa thuận đã được quyết toán."
+          : fresh.immediateSettlement.ownApprovedAt
+            ? "Máy chủ đã ghi nhận ý kiến của bạn."
+            : "Đã cập nhật trạng thái. Bạn có thể tiếp tục các thao tác được phép bên dưới.",
+      );
+      query.reload();
+    } catch (cause) {
+      setReadError(
+        cause instanceof Error
+          ? cause.message
+          : "Chưa kiểm tra được trạng thái.",
+      );
+    } finally {
+      setChecking(false);
+    }
+  }
   let status: SettlementStatus | undefined;
   let contractError: string | undefined;
   if (query.data) {
@@ -91,8 +123,8 @@ export function SettlementStatusPanel({
       </p>
       <Feedback
         loading={query.loading}
-        error={query.error ?? contractError}
-        reload={query.reload}
+        error={readError ?? query.error ?? contractError}
+        reload={() => void reconcile()}
       />
       {status && (
         <>
@@ -135,7 +167,10 @@ export function SettlementStatusPanel({
                       type="button"
                       className="btn btn-primary"
                       disabled={
-                        consent.pending || query.loading || !!query.error
+                        checking ||
+                        consent.pending ||
+                        query.loading ||
+                        !!query.error
                       }
                       onClick={() => void approve()}
                     >
@@ -159,12 +194,13 @@ export function SettlementStatusPanel({
               Cần nhân sự đối soát. Gửi mã lộ trình khi liên hệ hỗ trợ: {pathId}
             </p>
           )}
-          {status.retryable && (
+          {status.retryable && status.status === "RETRYING" && (
             <button
               type="button"
               className="btn"
               disabled={
                 retry.pending ||
+                checking ||
                 retry.uncertain ||
                 query.loading ||
                 !!query.error
@@ -179,7 +215,7 @@ export function SettlementStatusPanel({
                   .then(() => query.reload())
               }
             >
-              Yêu cầu kiểm tra quyết toán
+              Thử lại quyết toán
             </button>
           )}
         </>
@@ -201,10 +237,16 @@ export function SettlementStatusPanel({
         <button
           type="button"
           className="btn"
-          disabled={query.loading}
-          onClick={query.reload}
+          disabled={
+            checking || query.loading || consent.pending || retry.pending
+          }
+          onClick={() => void reconcile()}
         >
-          Làm mới
+          {checking
+            ? "Đang kiểm tra…"
+            : consent.uncertain || retry.uncertain
+              ? "Kiểm tra lại kết quả"
+              : "Cập nhật trạng thái"}
         </button>
         <Link className="btn" href="/learn/wallet">
           Xem ví

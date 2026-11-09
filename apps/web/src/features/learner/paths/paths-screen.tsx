@@ -12,6 +12,7 @@ import {
 } from "../components/common";
 import { ProfileName } from "../components/profile-name";
 import { PathProgress, type PathOverview } from "./path-overview";
+import { learningStageLabel, pathActionLabel } from "./path-navigation";
 export function PathsScreen() {
   const query = useUserList<PathSummary & Partial<PathOverview>>(
     "learning-paths/mine?limit=20",
@@ -27,7 +28,10 @@ export function PathsScreen() {
       <div className="learner-post-grid">
         {query.items.map((path) => (
           <Panel key={path.id}>
-            <Status value={path.status} />
+            <Status
+              value={path.status}
+              label={learningStageLabel(path.learningStage)}
+            />
             <h2>
               Học cùng <ProfileName id={path.counterpartId} />
             </h2>
@@ -39,7 +43,7 @@ export function PathsScreen() {
               <PathProgress overview={path as PathSummary & PathOverview} />
             )}
             <Link className="btn btn-primary" href={"/learn/paths/" + path.id}>
-              Xem kế hoạch và lịch học
+              {pathActionLabel(path.learningStage, path.attentionCount)}
             </Link>
           </Panel>
         ))}

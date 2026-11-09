@@ -7,14 +7,8 @@ import { CalendarAgenda } from "./calendar-agenda";
 import styles from "./calendar-agenda.module.css";
 import { useClock } from "../hooks/use-clock";
 import type { LearningSession } from "../types";
-import { useUserList } from "../hooks/use-user-resource";
-import {
-  Empty,
-  Feedback,
-  More,
-  PageHeading,
-  formatTime,
-} from "../components/common";
+import { useUserSnapshot } from "../hooks/use-user-snapshot";
+import { Empty, Feedback, PageHeading, formatTime } from "../components/common";
 export function CalendarScreen() {
   const [month, setMonth] = useState(() =>
     vietnamDateKey(Date.now()).slice(0, 7),
@@ -25,7 +19,9 @@ export function CalendarScreen() {
     from: new Date(month + "-01T00:00:00+07:00").toISOString(),
     to: new Date(month + "-" + last + "T23:59:59.999+07:00").toISOString(),
   });
-  const query = useUserList<LearningSession>("sessions/mine?limit=20&" + range);
+  const query = useUserSnapshot<LearningSession>(
+    "sessions/mine?limit=100&" + range,
+  );
   const firstWeekday =
     (new Date(Date.UTC(year!, selectedMonth! - 1, 1)).getUTCDay() + 6) % 7;
   const now = useClock();
@@ -106,23 +102,11 @@ export function CalendarScreen() {
         </section>
       </section>
       <CalendarAgenda groups={agenda} />
-      <More
-        cursor={query.cursor}
-        loading={query.loading}
-        onMore={() => {
-          void query.more();
-        }}
-      />
       {!query.loading && !query.error && !query.items.length && (
         <Empty>
           Tháng này chưa có buổi học. Lịch sẽ xuất hiện sau khi cả hai xác nhận
           và chốt thỏa thuận.
         </Empty>
-      )}
-      {query.cursor && (
-        <p className="learner-notice">
-          Còn buổi học trong tháng. Chọn tải thêm để xem đầy đủ lịch.
-        </p>
       )}
     </>
   );

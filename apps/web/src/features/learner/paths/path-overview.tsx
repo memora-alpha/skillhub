@@ -11,6 +11,7 @@ import {
 } from "../components/common";
 import { settlementStatusLabels } from "./post-session-contract";
 import { PrivateCaseThread } from "../account/private-case-thread";
+import { learningStageLabel } from "./path-navigation";
 type Target = { type: string; id: string };
 type Attention = {
   key: string;
@@ -19,6 +20,7 @@ type Attention = {
   waitingOn: string;
   deadline: string | null;
   target: Target;
+  sessionId?: string | null;
   blocksSettlement: boolean;
 };
 export type PathOverview = {
@@ -58,7 +60,9 @@ export function PathProgress({
   return (
     <div className="learner-stack">
       <strong>
-        {stages[overview.learningStage ?? ""] ?? "Đang cập nhật tiến độ"}
+        {learningStageLabel(overview.learningStage) ??
+          stages[overview.learningStage ?? ""] ??
+          "Đang cập nhật tiến độ"}
       </strong>
       <div className="learner-actions">
         {(
@@ -97,7 +101,10 @@ type CaseSummary = {
   blocksSettlement: boolean;
   createdAt: string | null;
 };
-export function PathOverviewPanel({ pathId }: Readonly<{ pathId: string }>) {
+export function PathOverviewPanel({
+  pathId,
+  onOpenSection,
+}: Readonly<{ pathId: string; onOpenSection?: (section: string) => void }>) {
   const query = useUserResource<PathOverview>(
     `learning-paths/${pathId}/overview`,
   );
@@ -118,6 +125,23 @@ export function PathOverviewPanel({ pathId }: Readonly<{ pathId: string }>) {
       {query.data && (
         <>
           <PathProgress overview={query.data} />
+          {onOpenSection &&
+            query.data.learningStage === "LEARNING_FINISHED" && (
+              <button
+                className="btn btn-primary"
+                onClick={() => onOpenSection("path-settlement")}
+              >
+                Theo dõi quyết toán
+              </button>
+            )}
+          {onOpenSection && query.data.learningStage === "COMPLETED" && (
+            <button
+              className="btn btn-primary"
+              onClick={() => onOpenSection("path-settlement")}
+            >
+              Xem kết quả & đánh giá
+            </button>
+          )}
           <p>
             {settlementStatusLabels[query.data.settlement.status] ??
               "Đang cập nhật quyết toán"}
@@ -162,6 +186,23 @@ export function PathOverviewPanel({ pathId }: Readonly<{ pathId: string }>) {
                   Xem vụ việc
                 </button>
               )}
+              {item.target.type === "LEARNING_CHANGE" &&
+                (item.sessionId ? (
+                  <Link href={`/learn/sessions/${item.sessionId}`}>
+                    Xem yêu cầu thay đổi buổi học
+                  </Link>
+                ) : onOpenSection ? (
+                  <button
+                    className="btn"
+                    onClick={() => onOpenSection("path-changes")}
+                  >
+                    Xem yêu cầu dừng lộ trình
+                  </button>
+                ) : (
+                  <Link href={`/learn/paths/${pathId}#path-changes`}>
+                    Xem yêu cầu dừng lộ trình
+                  </Link>
+                ))}
             </div>
           ))}
         </>

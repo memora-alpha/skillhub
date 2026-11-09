@@ -28,12 +28,26 @@ export function PrivateCaseThread({
   caseId,
   closed = false,
 }: Readonly<{ caseId: string; closed?: boolean }>) {
+  const { actor } = useUserSession();
+  return (
+    <CaseThreadContent
+      key={`${actor.userId}:${caseId}`}
+      caseId={caseId}
+      closed={closed}
+    />
+  );
+}
+function CaseThreadContent({
+  caseId,
+  closed = false,
+}: Readonly<{ caseId: string; closed?: boolean }>) {
   const { actor, request } = useUserSession();
   const base = `reports/support/cases/${caseId}/parties/${actor.userId}`;
   const messages = useUserList<Message>(base + "/messages?limit=20"),
     evidence = useUserResource<Evidence[]>(base + "/evidence"),
     command = useUserCommand(true),
-    fileCommand = useUserCommand(true);
+    fileCommand = useUserCommand(true),
+    downloadCommand = useUserCommand(true);
   const [text, setText] = useState(""),
     [file, setFile] = useState<{ id: string; state: string }>(),
     [busy, setBusy] = useState(false),
@@ -143,9 +157,9 @@ export function PrivateCaseThread({
             {row.mimeType} · {formatTime(row.uploadedAt)}{" "}
             <button
               className="btn"
-              disabled={fileCommand.pending}
+              disabled={downloadCommand.pending}
               onClick={() => {
-                void fileCommand.run("download:" + row.id, async () => {
+                void downloadCommand.run("download:" + row.id, async () => {
                   const result = await request<{ url: string }>(
                     base + "/evidence/" + row.id + "/download",
                   );
@@ -192,9 +206,13 @@ export function PrivateCaseThread({
                 />
                 <button
                   className="btn"
-                  disabled={file.state !== "READY" || fileCommand.pending}
+                  disabled={
+                    file.state !== "READY" ||
+                    fileCommand.pending ||
+                    fileCommand.uncertain
+                  }
                   onClick={() => {
-                    void command
+                    void fileCommand
                       .run("evidence:" + file.id, () =>
                         request(base + "/evidence", {
                           method: "POST",
@@ -218,6 +236,16 @@ export function PrivateCaseThread({
       </details>
       <CommandFeedback command={command} />
       <CommandFeedback command={fileCommand} />
+      <CommandFeedback command={downloadCommand} />
+      {downloadCommand.uncertain && (
+        <button
+          className="btn"
+          disabled={downloadCommand.pending}
+          onClick={() => downloadCommand.resetAfterRead()}
+        >
+          Thử mở lại bằng chứng
+        </button>
+      )}
       {fileCommand.uncertain && (
         <button
           className="btn"

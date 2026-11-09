@@ -44,6 +44,7 @@ async function requestSession(
   }
   if (!response.ok) {
     const messages: Record<number, string> = {
+      400: "Email hoặc mật khẩu chưa đúng định dạng. Vui lòng kiểm tra lại.",
       401: "Email hoặc mật khẩu chưa đúng. Vui lòng thử lại.",
       403: "Tài khoản chưa được phép truy cập. Vui lòng kiểm tra xác minh hoặc liên hệ hỗ trợ.",
       409: "Bạn đang có phiên đăng nhập. Kết thúc phiên cũ để đổi tài khoản.",

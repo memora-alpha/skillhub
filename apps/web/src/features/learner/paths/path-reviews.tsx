@@ -19,6 +19,8 @@ export function PathReviews({ path }: Readonly<{ path: LearningPath }>) {
     "learning-paths/" + path.id + "/reviews",
   );
   const command = useUserCommand();
+  const [checking, setChecking] = useState(false);
+  const [readError, setReadError] = useState<string>();
   const [rating, setRating] = useState(0),
     [comment, setComment] = useState("");
   const [submitted, setSubmitted] = useState(false);
@@ -37,6 +39,31 @@ export function PathReviews({ path }: Readonly<{ path: LearningPath }>) {
   }
   const own = rows?.find((r) => r.reviewerId === actor.userId);
   const opened = path.status === "COMPLETED" && !!path.settledAt;
+  async function reconcile() {
+    if (checking || command.pending) return;
+    setChecking(true);
+    setReadError(undefined);
+    try {
+      const latest = checkedReviews(
+        (await request("learning-paths/" + path.id + "/reviews")).data,
+        path.id,
+        [path.participantAId, path.participantBId],
+      );
+      if (latest.some((row) => row.reviewerId === actor.userId))
+        setSubmitted(true);
+      // The server's unique path/reviewer constraint also protects a later resubmission.
+      command.resetAfterRead();
+      query.reload();
+    } catch (cause) {
+      setReadError(
+        cause instanceof Error
+          ? cause.message
+          : "Chưa kiểm tra được kết quả. Vui lòng thử lại.",
+      );
+    } finally {
+      setChecking(false);
+    }
+  }
   async function submit() {
     const body = { rating, comment: comment.trim() };
     const result = await command.run(
@@ -62,8 +89,8 @@ export function PathReviews({ path }: Readonly<{ path: LearningPath }>) {
     <Panel title="Đánh giá sau lộ trình">
       <Feedback
         loading={query.loading}
-        error={query.error ?? contractError}
-        reload={query.reload}
+        error={readError ?? query.error ?? contractError}
+        reload={() => void reconcile()}
       />
       {rows?.map((r) => (
         <article key={r.id}>
@@ -100,7 +127,7 @@ export function PathReviews({ path }: Readonly<{ path: LearningPath }>) {
               <select
                 required
                 value={rating}
-                disabled={command.pending || command.uncertain}
+                disabled={checking || command.pending || command.uncertain}
                 onChange={(e) => setRating(Number(e.target.value))}
               >
                 <option value={0} disabled>
@@ -118,7 +145,7 @@ export function PathReviews({ path }: Readonly<{ path: LearningPath }>) {
               <textarea
                 value={comment}
                 maxLength={1000}
-                disabled={command.pending || command.uncertain}
+                disabled={checking || command.pending || command.uncertain}
                 onChange={(e) => setComment(e.target.value)}
               />
             </label>
@@ -127,6 +154,7 @@ export function PathReviews({ path }: Readonly<{ path: LearningPath }>) {
               className="btn btn-primary"
               disabled={
                 rating < 1 ||
+                checking ||
                 command.pending ||
                 command.uncertain ||
                 query.loading ||
@@ -141,6 +169,16 @@ export function PathReviews({ path }: Readonly<{ path: LearningPath }>) {
         )
       )}
       {!own && !submitted && <CommandFeedback command={command} />}
+      {command.uncertain && !own && !submitted && (
+        <button
+          type="button"
+          className="btn"
+          disabled={checking || command.pending}
+          onClick={() => void reconcile()}
+        >
+          {checking ? "Đang kiểm tra…" : "Kiểm tra lại kết quả"}
+        </button>
+      )}
       {command.uncertain && !own && !submitted && (
         <p>
           Chưa rõ kết quả. Tải lại danh sách trước khi thao tác tiếp; không tự
