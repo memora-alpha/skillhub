@@ -14,16 +14,19 @@ import { DecisionDialog, Pager, QueueState } from "./common";
 
 function TagNavigation({ page }: Readonly<{ page: "catalog" | "requests" }>) {
   return (
-    <nav className="toolbar" aria-label="Quản lý tag cộng đồng">
+    <nav
+      className="ops-tabbar ops-link-tabs"
+      aria-label="Quản lý tag cộng đồng"
+    >
       <Link
-        className={`btn ${page === "catalog" ? "btn-primary" : ""}`}
+        className="ops-tab"
         href="/admin/tags"
         aria-current={page === "catalog" ? "page" : undefined}
       >
         Danh mục tag
       </Link>
       <Link
-        className={`btn ${page === "requests" ? "btn-primary" : ""}`}
+        className="ops-tab"
         href="/admin/tag-requests"
         aria-current={page === "requests" ? "page" : undefined}
       >
@@ -55,7 +58,7 @@ export function TagsScreen() {
   return (
     <>
       <PageHeader
-        title="Danh mục tag"
+        title="Tag cộng đồng"
         desc="Quản lý tag dùng cho tìm kiếm và yêu cầu học."
         actions={
           <div className="row">
@@ -103,7 +106,7 @@ export function TagsScreen() {
         </label>
       </form>
       {success && <output className="staff-success">{success}</output>}
-      <Card flush>
+      <Card flush className="ops-tag-table">
         <QueueState
           loading={queue.loading}
           error={queue.error}

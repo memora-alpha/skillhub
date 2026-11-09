@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useNavigationDrawer } from "@/components/use-navigation-drawer";
 import { Icon, type IconName } from "@/components/console/icon";
 import { StaffSessionProvider, useStaffSession } from "./session";
@@ -16,6 +16,7 @@ type NavigationItem = {
   label: string;
   icon: IconName;
   aliases?: string[];
+  group?: "Quản trị" | "Cá nhân";
 };
 const nav: NavigationItem[] = [
   { href: "/staff", label: "Tổng quan", icon: "inbox" },
@@ -31,16 +32,32 @@ const nav: NavigationItem[] = [
   { href: "/staff/disputes", label: "Báo cáo & tranh chấp", icon: "alert" },
   { href: "/staff/learning-changes", label: "Dừng lộ trình", icon: "file" },
   { href: "/staff/notifications", label: "Thông báo", icon: "bell" },
-  { href: "/staff/wallet", label: "Ví của tôi", icon: "card" },
-  { href: "/staff/reputation", label: "Uy tín của tôi", icon: "star" },
+  {
+    href: "/staff/wallet",
+    label: "Ví của tôi",
+    icon: "card",
+    group: "Cá nhân",
+  },
+  {
+    href: "/staff/reputation",
+    label: "Uy tín của tôi",
+    icon: "star",
+    group: "Cá nhân",
+  },
 ];
 const adminNav: typeof nav = [
   { href: "/admin", label: "Tổng quan", icon: "grid" },
-  { href: "/admin/users", label: "Người dùng", icon: "users" },
+  {
+    href: "/admin/users",
+    label: "Người dùng",
+    icon: "users",
+    group: "Quản trị",
+  },
   {
     href: "/admin/staff-permissions",
     label: "Quyền nhân viên",
     icon: "shield",
+    group: "Quản trị",
   },
   {
     href: "/admin/profile-moderation",
@@ -48,26 +65,44 @@ const adminNav: typeof nav = [
     icon: "users",
   },
   { href: "/admin/reputation", label: "Xét lại uy tín", icon: "star" },
-  { href: "/admin/credits", label: "Tài chính", icon: "card" },
-  { href: "/admin/skills", label: "Danh mục kỹ năng", icon: "tag" },
+  {
+    href: "/admin/credits",
+    label: "Tài chính",
+    icon: "card",
+    group: "Quản trị",
+  },
+  {
+    href: "/admin/skills",
+    label: "Danh mục kỹ năng",
+    icon: "tag",
+    group: "Quản trị",
+  },
   {
     href: "/admin/tags",
     label: "Tag cộng đồng",
     icon: "tag",
     aliases: ["/admin/tag-requests"],
+    group: "Quản trị",
   },
   { href: "/admin/evidence", label: "Bằng chứng kỹ năng", icon: "shield" },
   { href: "/admin/moderation", label: "Kiểm duyệt yêu cầu học", icon: "flag" },
   { href: "/admin/content", label: "Duyệt tài liệu", icon: "file" },
   { href: "/admin/disputes", label: "Báo cáo & tranh chấp", icon: "alert" },
   { href: "/admin/learning-changes", label: "Dừng lộ trình", icon: "file" },
-  { href: "/admin/config", label: "Quy tắc kiểm duyệt", icon: "sliders" },
+  {
+    href: "/admin/config",
+    label: "Quy tắc kiểm duyệt",
+    icon: "sliders",
+    group: "Quản trị",
+  },
   { href: "/admin/notifications", label: "Thông báo", icon: "bell" },
 ];
 function Frame({ children }: Readonly<{ children: ReactNode }>) {
   const { actor, loading, logout, busy, portal } = useStaffSession();
   const links = portal === "admin" ? adminNav : nav;
   const portalName = portal === "admin" ? "Admin" : "Staff";
+  const workspaceName =
+    portal === "admin" ? "Quản trị viên" : "Nhân viên vận hành";
   const pathname = usePathname();
   const {
     open,
@@ -77,6 +112,11 @@ function Frame({ children }: Readonly<{ children: ReactNode }>) {
     panel: sidebarRef,
   } = useNavigationDrawer("(min-width: 1024px)");
   const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    sidebarRef.current
+      ?.querySelector<HTMLElement>('[aria-current="page"]')
+      ?.scrollIntoView({ block: "nearest" });
+  }, [pathname, actor?.userId, sidebarRef]);
   if (loading)
     return (
       <output className="staff-loading">Đang kiểm tra phiên làm việc…</output>
@@ -115,7 +155,7 @@ function Frame({ children }: Readonly<{ children: ReactNode }>) {
           </span>
           <div>
             <div className="side-title">SkillHub</div>
-            <div className="side-sub">Cổng {portalName}</div>
+            <div className="side-sub">Không gian vận hành</div>
           </div>
           <button
             type="button"
@@ -126,20 +166,40 @@ function Frame({ children }: Readonly<{ children: ReactNode }>) {
             <Icon name="x" />
           </button>
         </div>
+        <div className="ops-workspace-identity">
+          <span className="avatar" aria-hidden="true">
+            <Icon name="shield" size={18} />
+          </span>
+          <div>
+            <small>Không gian làm việc</small>
+            <strong>{workspaceName}</strong>
+          </div>
+        </div>
         <nav className="side-nav" aria-label={`Điều hướng ${portalName}`}>
-          <div className="nav-title">KHÔNG GIAN LÀM VIỆC</div>
-          {links.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="nav-link"
-              aria-current={current?.href === item.href ? "page" : undefined}
-              onClick={() => close(false)}
-            >
-              <Icon name={item.icon} />
-              {item.label}
-            </Link>
-          ))}
+          {(["Công việc", "Quản trị", "Cá nhân"] as const).map((group) => {
+            const items = links.filter(
+              (item) => (item.group ?? "Công việc") === group,
+            );
+            return items.length ? (
+              <div className="nav-group" key={group}>
+                <div className="nav-title">{group}</div>
+                {items.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className="nav-link"
+                    aria-current={
+                      current?.href === item.href ? "page" : undefined
+                    }
+                    onClick={() => close(false)}
+                  >
+                    <Icon name={item.icon} />
+                    <span>{item.label}</span>
+                  </Link>
+                ))}
+              </div>
+            ) : null;
+          })}
         </nav>
         <div className="side-foot">
           <div className="who">
@@ -194,16 +254,25 @@ function Frame({ children }: Readonly<{ children: ReactNode }>) {
             <Icon name="menu" />
           </button>
           <span className="topbar-crumb">
-            SkillHub <Icon name="right" size={14} />{" "}
-            {current?.label ?? portalName}
+            <span className="ops-crumb-root">SkillHub</span>{" "}
+            <Icon name="right" size={14} />{" "}
+            <strong>{current?.label ?? portalName}</strong>
           </span>
           <div className="row">
             {actor.roles.includes("STAFF") && (
               <Link href="/learn" className="btn">
-                Không gian học
+                <span className="ops-learn-label">Không gian học</span>
+                <span className="ops-learn-short">Học tập</span>
               </Link>
             )}
             <NotificationBell portal={portal} />
+            <span
+              className="avatar ops-topbar-avatar"
+              title={actor.fullName}
+              aria-label={actor.fullName}
+            >
+              {actor.fullName.slice(0, 1)}
+            </span>
           </div>
         </header>
         <main id="main" className="content" tabIndex={-1}>

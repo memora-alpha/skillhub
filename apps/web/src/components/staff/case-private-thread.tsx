@@ -8,7 +8,8 @@ import { fmtDateTime, fmtSize } from "@/lib/console/format";
 export function PrivateThread({
   caseId,
   partyId,
-}: Readonly<{ caseId: string; partyId: string }>) {
+  readOnly = false,
+}: Readonly<{ caseId: string; partyId: string; readOnly?: boolean }>) {
   const { api, actor } = useStaffSession();
   const base = `reports/support/cases/${caseId}/parties/${partyId}`;
   const messages = useStaffList<{
@@ -65,40 +66,47 @@ export function PrivateThread({
         more={messages.more}
         hasMore={messages.page?.hasMore}
       />
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          void operation.run(async () => {
-            const content = text.trim();
-            if (attempt.current?.text !== content)
-              attempt.current = { text: content, id: crypto.randomUUID() };
-            await api(`${base}/messages`, {
-              method: "POST",
-              body: { clientMessageId: attempt.current.id, text: content },
+      {readOnly && (
+        <p className="muted">
+          Vụ việc đã kết thúc. Bạn có thể xem lịch sử trao đổi.
+        </p>
+      )}
+      {!readOnly && (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            void operation.run(async () => {
+              const content = text.trim();
+              if (attempt.current?.text !== content)
+                attempt.current = { text: content, id: crypto.randomUUID() };
+              await api(`${base}/messages`, {
+                method: "POST",
+                body: { clientMessageId: attempt.current.id, text: content },
+              });
+              attempt.current = null;
+              setText("");
+              await messages.reload();
             });
-            attempt.current = null;
-            setText("");
-            await messages.reload();
-          });
-        }}
-      >
-        <label>
-          Tin nhắn riêng
-          <textarea
-            required
-            maxLength={4000}
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            disabled={operation.busy}
-          />
-        </label>
-        <button
-          className="btn btn-primary"
-          disabled={operation.busy || !text.trim()}
+          }}
         >
-          Gửi
-        </button>
-      </form>
+          <label>
+            Tin nhắn riêng
+            <textarea
+              required
+              maxLength={4000}
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              disabled={operation.busy}
+            />
+          </label>
+          <button
+            className="btn btn-primary"
+            disabled={operation.busy || !text.trim()}
+          >
+            Gửi
+          </button>
+        </form>
+      )}
       {operation.feedback}
       <details>
         <summary>Bằng chứng riêng</summary>

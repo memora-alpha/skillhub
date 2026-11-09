@@ -9,8 +9,8 @@ export type SupportCase = {
   reasonCode: string;
   status: string;
   handlerId: string | null;
-  createdAt: string;
-  severity: string;
+  createdAt: string | null;
+  severity: string | null;
   version: number;
   incidentId: string | null;
   targetType: string;

@@ -79,6 +79,7 @@ export function DecisionDialog({
   idempotent = false,
   children,
   withReason = true,
+  presentation = "modal",
 }: Readonly<{
   title: string;
   description: string;
@@ -93,10 +94,12 @@ export function DecisionDialog({
   idempotent?: boolean;
   children?: ReactNode;
   withReason?: boolean;
+  presentation?: "modal" | "drawer";
 }>) {
   const { expire } = useStaffSession();
   const dialog = useRef<HTMLDialogElement>(null);
   const area = useRef<HTMLTextAreaElement>(null);
+  const heading = useRef<HTMLHeadingElement>(null);
   const attempt = useRef<{ text: string; key: string } | null>(null);
   const flight = useRef(false);
   const [text, setText] = useState("");
@@ -106,12 +109,15 @@ export function DecisionDialog({
   const id = useId();
   useEffect(() => {
     if (!dialog.current?.open) dialog.current?.showModal();
-    area.current?.focus();
-  }, []);
+    if (presentation === "drawer") {
+      heading.current?.focus({ preventScroll: true });
+      if (dialog.current) dialog.current.scrollTop = 0;
+    } else area.current?.focus();
+  }, [presentation]);
   return (
     <dialog
       ref={dialog}
-      className="dialog"
+      className={`dialog${presentation === "drawer" ? " ops-decision-drawer" : ""}`}
       aria-labelledby={`${id}-title`}
       onCancel={(e) => {
         e.preventDefault();
@@ -159,10 +165,27 @@ export function DecisionDialog({
           }
         }}
       >
+        {presentation === "drawer" && (
+          <button
+            type="button"
+            className="icon-btn ops-drawer-close"
+            aria-label="Đóng hộp thoại"
+            disabled={busy}
+            onClick={onClose}
+          >
+            ×
+          </button>
+        )}
         <span className={`badge badge-${danger ? "bad" : "brand"}`}>
           XÁC NHẬN THAO TÁC
         </span>
-        <h2 id={`${id}-title`}>{title}</h2>
+        <h2
+          ref={heading}
+          tabIndex={presentation === "drawer" ? -1 : undefined}
+          id={`${id}-title`}
+        >
+          {title}
+        </h2>
         <p className="muted">{description}</p>
         {children && (
           <fieldset className="portal-fields" disabled={busy || mustReload}>

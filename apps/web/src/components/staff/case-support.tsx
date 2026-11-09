@@ -29,6 +29,7 @@ export function CaseSupportPanel({
     ),
   ];
   const owns = item.handlerId === actor?.userId;
+  const open = ["OPEN", "UNDER_REVIEW", "NEED_MORE_INFO"].includes(item.status);
   return (
     <Card>
       <h2>Trao đổi riêng</h2>
@@ -72,11 +73,14 @@ export function CaseSupportPanel({
               key={`${item.id}:${party}`}
               caseId={item.id}
               partyId={party}
+              readOnly={!open}
             />
           )}
-          <button className="btn" onClick={() => setNeedInfo(true)}>
-            Yêu cầu bổ sung
-          </button>
+          {open && (
+            <button className="btn" onClick={() => setNeedInfo(true)}>
+              Yêu cầu bổ sung
+            </button>
+          )}
         </>
       )}
       {item.incidentId && (
@@ -91,7 +95,7 @@ export function CaseSupportPanel({
           onUpdated={onUpdated}
         />
       )}{" "}
-      {needInfo && (
+      {needInfo && open && (
         <DecisionDialog
           title="Yêu cầu bổ sung thông tin"
           description="Người dùng có thể trả lời trong cuộc trao đổi riêng."
