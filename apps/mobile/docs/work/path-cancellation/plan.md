@@ -1,5 +1,19 @@
 # Dừng lộ trình và quyết toán Credit trên mobile React
 
+## Bổ sung tổng quan và vụ việc Learning Path — 2026-11-08
+
+Phạm vi mới theo yêu cầu người dùng: cập nhật plan và sửa mobile cho các thông tin/API BE còn thiếu. Backend chỉ đọc. Tái sử dụng card, FlowPage, Copy, RouteButton và trạng thái đọc hiện có; không thay theme hoặc thêm thư viện. Chi tiết thỏa thuận không tự dựng title vì API detail chưa trả field này.
+
+- [x] LP-06: nhận overview trên list/detail và tích hợp GET overview; hiển thị giai đoạn BE, lý do thiếu dữ liệu, tiến độ học/dạy và buổi tiếp theo. Tách giai đoạn học khỏi trạng thái tranh chấp/quyết toán; giữ workflow editor hiện có.
+- [x] LP-07: hiển thị attention, người cần xử lý, hạn và hành động dẫn tới đúng Session/yêu cầu hủy/vụ việc; chỉ điều hướng theo target allowlist, không phát command từ overview.
+- [x] LP-08: tích hợp danh sách vụ việc có cursor và participant-safe summary; entry từ thỏa thuận và quyết toán. Không dùng báo cáo cá nhân thay cho vụ việc của đối tác/hệ thống, không nhận nội dung/evidence riêng tư.
+- [x] LP-09: giữ relatedItems/nextActionTarget của quyết toán và mở đúng resource; loading/error/denied/refresh, owner/session, focus/foreground và read-only polling.
+- [x] LP-10: rà lại luồng liên quan đã có: duyệt hủy/dừng nghĩa vụ, quote Credit, consent, hủy buổi, hạn mức học bù/đổi lịch, lifecycle Request và final validation; sửa phần mobile còn lệch, không viết lại chức năng đã có hoặc tự tính tiền.
+- [x] LP-11: regression contract, target/cross-path identity, cursor, quyền đọc/session, UI/navigation và consumer; typecheck/lint/structure/full tests. Ghi rõ giới hạn nghiệm thu API thật/native trong status.
+- [ ] LP-12: nghiệm thu API triển khai và Android/iOS với hai participant: ONE_WAY/TWO_WAY, vụ việc đối tác/hệ thống, phân trang, dừng học chờ Credit, hoàn tất chờ quyết toán, logout và Back/deep link.
+
+Contract: source `PathOverviewController`, `path-overview.projection.ts`, `ParticipantCasesReader`, `PathTerminationService`, Session policy và Learning Request lifecycle. Field bổ sung vắng toàn bộ trên server cũ phải có fallback rõ; payload mới sai cấu trúc/identity không được dùng làm dữ liệu hợp lệ. API/native acceptance chưa thuộc bằng chứng local.
+
 ## Kế hoạch sửa mobile sau rà soát
 
 Nhánh: `fix/learning-path-flow`. Phạm vi triển khai chỉ `apps/mobile`, theo yêu cầu người dùng. Source LP-01–04 đã sửa và kiểm tra cục bộ; nghiệm thu API thật/Android/iOS còn mở. [Audit chi tiết](learning-path-flow-audit.md) ghi bằng chứng và tiêu chí; [status](status.md) ghi kết quả kiểm chứng.

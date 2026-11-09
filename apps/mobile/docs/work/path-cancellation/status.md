@@ -1,5 +1,24 @@
 # Trạng thái dừng lộ trình mobile
 
+## Tổng quan và vụ việc thỏa thuận — 2026-11-08T23:23:27+07:00
+
+**Ready for review — source complete; API/native acceptance pending.** Phạm vi theo yêu cầu hiện tại: bổ sung các thông tin/API mobile còn thiếu và rà các luồng liên quan; chỉ thay `apps/mobile`, không sửa BE/shared packages, commit, push hoặc deploy. Task LP-06–12 ở [plan](plan.md).
+
+- List/detail giữ overview của BE; card ưu tiên learningStage thay vì dùng ACTIVE/DISPUTED để suy giai đoạn. Hiển thị tiến độ học/dạy riêng, cơ sở kế hoạch/chốt, buổi tiếp theo và vai trò; stage thiếu dữ liệu có thông báo rõ. Workflow editor/xác nhận vẫn kiểm Path/version hiện hành.
+- GET overview có query owner/generation, cancel-on-disable/focus, read-only refresh/poll; dừng khi runtime không hoạt động, lỗi hoặc denied. Attention hiển thị người cần xử lý/hạn/blocker; điều hướng theo allowlist tới Session, yêu cầu hủy hoặc participant case summary, không tự gọi mutation từ action code BE.
+- Hai route mới `/paths/[id]/cases` và `/paths/[id]/cases/[caseId]` đọc danh sách có cursor/tóm tắt an toàn, gồm vụ việc của đối tác/hệ thống. Read model không giữ reporter, mô tả riêng, evidence hoặc Staff notes; NEED_MORE_INFO không tự quy trách nhiệm cho viewer. Có loading/error/empty/denied, tải thêm và retry.
+- Settlement giữ relatedItems/nextActionTarget, mở đúng vụ việc/yêu cầu/buổi học; response cũ WAITING_DISPUTE mở danh sách vụ việc của Path. Pull refresh và thay đổi hủy/quyết toán làm mới overview theo resource/session; completion Session dùng public refresh hiện có. Không tự chỉnh số dư hoặc tính phí.
+- Rà source cho thấy quote/approvedAt, consent, hủy Session, makeupQuota, giới hạn đổi lịch và API Learning Request đã tích hợp; không viết lại các phần này. Giữ các sửa trước trong working tree: preflight hủy bằng dữ liệu mới, chặn double tap/late session, chặn confirm/finalize trong refresh và phân biệt học xong với quyết toán xong.
+- API detail chưa có title: giữ tiêu đề chung Thỏa thuận học, không đoán từ cache danh sách. API list vẫn hiển thị title hiện có. LP-12 chưa nghiệm thu thực tế.
+
+Kiểm chứng local:
+
+- Full mobile sau rà cuối: **1.058/1.058 PASS**, không fail/skip/cancel; log ignored `.expo/path-overview-final-full.log`. Guard runtime/ID cho polling và thời điểm kiểm tra overview cũng có nhóm ảnh hưởng **6/6 PASS** (`path-overview-review.log`).
+- TypeScript, ESLint, structure **909 source files**, `git diff --check` PASS. Web export PASS tới `.expo/path-overview-web`; không coi bundle là nghiệm thu API/native.
+- Fixture component thật với ranh giới navigation/provider giả lập: 320/390/430px, chữ lớn320, đích case/Session, stage chưa xác định và case đã giải quyết PASS; không tràn ngang, không gọi API, không page error. Ảnh/log ở `.expo/path-overview-preview`; chỉ chứng minh bố cục/đích thao tác trong fixture. Chưa chạy native hoặc chuyển Credit thật.
+
+Bước tiếp: LP-12 trên API test đã cập nhật BE và hai tài khoản được phép; xác nhận case privacy, cursor, đồng bộ hai chiều, consent/dừng chờ Credit và Back/deep link Android/iOS. Các mục bên dưới là bằng chứng các lượt trước.
+
 ## Kiểm tra trước commit — 2026-11-07T16:33:04+07:00
 
 - Rà soát diff luồng LP-01–04, lịch sử/receipt hủy và public entry Path/Session trên nhánh `fix/learning-path-flow`: chưa phát hiện lỗi mới cần sửa trong phạm vi source hiện tại.

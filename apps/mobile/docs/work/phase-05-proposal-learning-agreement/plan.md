@@ -2,6 +2,8 @@
 
 ## Mục tiêu
 
+Phần bổ sung tổng quan Learning Path, vụ việc participant và điều hướng quyết toán ngày 2026-11-08 được theo dõi tiếp tại [plan LP-06–12](../path-cancellation/plan.md) và [status](../path-cancellation/status.md); giữ các task negotiation/editor tại work này.
+
 Tạo hành trình liên tục từ gửi đề xuất đến chốt lịch học. Mỗi bước cho biết ai cần thao tác, đang chờ điều gì và bước tiếp theo; người dùng có thể trở lại Chat khi thương lượng.
 
 Phạm vi Phase 05–06 nằm trong một work với hai mốc bên dưới. Giữ số các phase khác và lịch sử cũ.
@@ -18,6 +20,10 @@ Phạm vi Phase 05–06 nằm trong một work với hai mốc bên dưới. Gi�
 
 Luồng: Learning Request hoặc Sharing Skill → gửi proposal → Đã gửi → người nhận accept → Chat.
 
+- [x] Dọn component/props/nhánh UI/style không còn consumer sau thiết kế gọn; khôi phục8 test Proposal cũ và tách test focus mới; full checks, web export và fixture không đổi hành vi. Sau khi kiểm tra mức sẵn sàng, chia commit local theo yêu cầu tiếp của người dùng; giữ API/native acceptance riêng.
+
+- [x] Sửa mobile sau rà liên feature: preflight/gửi/sửa/chấp nhận và recovery Proposal chỉ điều hướng trong lượt mở màn hiện tại, giữ session/idempotency; bỏ giới hạn tổng 100 Path lỗi thời khi danh sách đã phân trang đủ. Đưa Cài đặt thành icon bánh răng cạnh Chỉnh sửa trên hồ sơ riêng và sửa khóa chọn ảnh khi picker hoàn tất lúc màn mất focus.
+
 - [x] Chuyển entry xem hồ sơ sang avatar trong Request/Proposal/Session/Skills và self-preview; giữ ngữ cảnh Back và bỏ nút trùng. Sửa hai entry xem đề xuất dùng route `/proposal/[id]` có thật.
 
 - [x] Kiểm tra nguồn, trạng thái bài/kỹ năng, kỹ năng dạy phù hợp và proposal trùng trước khi cho gửi; đọc lỗi không được coi là đủ điều kiện.
@@ -27,6 +33,20 @@ Luồng: Learning Request hoặc Sharing Skill → gửi proposal → Đã gửi
 - [x] Chỉnh thẻ tệp trong hàng tin nhắn và ô tệp đã chọn có × trong composer theo hướng Messenger, dùng chung nút Gửi; giờ Inbox theo hôm nay/tuần lịch/ngày tháng. Rút chú thích thỏa thuận/lộ trình/lịch, dùng font nhỏ hơn nội dung chính; kiểm bố cục component thực ở 320/390px và regression.
 
 ## Mốc 2 — Plan & Schedule
+
+- [x] Rà lại toàn bộ phần UI/điều hướng vừa sửa theo yêu cầu: sửa fallback icon/màu trạng thái khi learningStage null, khóa xác nhận lịch trong refresh/read error cả ở handler. Regression trạng thái, blocked/recovery, nhiều buổi/hai chiều, test quyết toán phù hợp yêu cầu đã bỏ nút chung; kiểm toàn bộ mobile và web export. API/native acceptance giữ riêng.
+
+- [x] Theo lựa chọn rõ của người dùng ngày 2026-11-09, Tình hình học tập chỉ giữ tóm tắt, không render danh sách attention và các nút case/Session riêng. Toàn màn Lịch học giữ một nút Xem tất cả buổi học mở danh sách của cả lộ trình, không đi qua tóm tắt vụ việc. Giữ dữ liệu/route vụ việc hiện có cho các luồng riêng.
+
+- [x] Làm rõ điều hướng theo phản hồi nhiều buổi học: tóm tắt vụ việc phân biệt buổi cụ thể với toàn bộ buổi của lộ trình, CTA tổng dùng nhãn Xem tất cả buổi học. Kiểm danh sách gom đầy đủ cả hai chiều và khác tháng. Bỏ card trạng thái chung bị rỗng, dùng thông báo ngắn có mô tả cho hủy/tranh chấp/hoàn thành. Session screen chỉ chỉnh title/số lượng trong phạm vi người dùng yêu cầu, không sửa API hay policy.
+
+- [x] Thiết kế lại màn Lịch học theo phản hồi tiếp: đối tác → bốn bước → tổng quan có dữ liệu → lịch từng chiều → hành động chính. Các chiều dùng dòng phẳng với trạng thái, kỹ năng, số buổi/ngày bắt đầu; nút chính nằm trong phần lịch, chat là thao tác phụ. Giữ một link danh sách Session kể cả read lỗi. Màn lịch từng buổi ưu tiên trạng thái trước hình thức và chuyển chú thích múi giờ xuống dưới; không đổi API/quyền/xác nhận.
+
+- [x] Theo phản hồi tiếp 2026-11-09, đối chiếu source giao diện cũ và đưa phần đối tác về trên thanh bước. Card Tình hình học tập chỉ hiện ở bước Lịch học (theo đính chính của người dùng), trước các nội dung lịch; không lặp ở Cách học/Lộ trình/Hoàn tất và không thêm card đầy đủ vào danh sách. Giữ điều kiện chỉ hiện dữ liệu hữu ích.
+
+- [x] Tinh gọn thỏa thuận theo phản hồi tiếp ngày 2026-11-09: bỏ điều hướng lặp với Back/stepper và nút vụ việc chung; cách học dùng các dòng thông tin, Credit và xác nhận. Tổng quan chỉ trình bày dữ liệu có thật, không hiện nhãn giai đoạn chưa xác định/cảnh báo dữ liệu thiếu; bỏ tổng quan trùng khi đã hoàn tất. Giữ các thao tác cụ thể cần xử lý và lỗi mạng có retry.
+
+- [x] Thiết kế lại list lộ trình và bước Lịch học theo yêu cầu ngày 2026-11-09: thẻ chỉ giữ thông tin nhận diện, trạng thái và một cập nhật ưu tiên; đưa tiến trình bốn bước lên đầu, bỏ metadata/chú thích/nút chat trùng. Nguồn thiết kế là yêu cầu hiện tại và pattern/theme SkillHub trong source, không có frame mới. Giữ API, quyền, confirmation và recovery; tổng quan chi tiết đặt sau nội dung bước đang mở.
 
 Luồng: Chat → Cách học → Lộ trình → Lịch học → server validation/finalize.
 
@@ -90,6 +110,6 @@ Các quy tắc chi tiết đối chiếu [BE amendments](../../../../../services
 | **P05-API-DEP-T78:** phát hiện trùng lịch giữa hai chiều trước confirm                          | Mobile đã cảnh báo/chặn gửi overlap đã biết trong Path và tự đối chiếu toàn bộ draft với lịch đã chốt của chính mình ở Path khác. Lịch riêng của người đối diện, conflict phát sinh đồng thời và lỗi BE chi tiết vẫn cần contract/evidence BE; giữ final-validation/finalize authoritative. |
 | Tạo path/plan/lịch chưa có server idempotency; tìm path theo conversation bị giới hạn danh sách | Giữ draft/intent và đọc đối chiếu; chặn tạo mới khi kết quả chưa rõ hoặc danh sách đầy, không tự replay.                                                                                                                                                                                    |
 | Dạy thử tùy chọn                                                                                | Backlog tương lai cùng dependency backend, không là blocker phase này.                                                                                                                                                                                                                      |
-| Hủy/quyết toán chưa có API mobile xác minh                                                      | Hiện unavailable, không đổi status/Credit bằng fixture; triển khai ở phạm vi riêng.                                                                                                                                                                                                         |
+| Hủy/quyết toán và tổng quan sau chốt | Đã có source mobile ở [work Path](../path-cancellation/status.md); giữ nguồn BE authoritative và chưa nghiệm thu API/native. |
 
 Kết quả kiểm tra và bước bàn giao ở [status](status.md). Các task ID, thiết kế trung gian và bằng chứng cũ được giữ trong [history](history.md); không tiếp tục thêm nhật ký lượt sửa vào plan này.
