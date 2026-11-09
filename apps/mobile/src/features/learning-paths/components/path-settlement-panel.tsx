@@ -12,6 +12,7 @@ import {
 import { PathReadFeedback } from "./PathReadFeedback";
 import { usePathSettlement } from "../hooks/use-path-changes";
 import { SettlementConsentForm } from "./settlement-consent-form";
+import { SettlementRelatedItems } from "./settlement-related-items";
 import { canConsentToSettlement } from "../utils/settlement-consent";
 import {
   settlementWaitNote,
@@ -36,9 +37,8 @@ export function PathSettlementPanel({ pathId }: Readonly<{ pathId: string }>) {
         <View style={styles.grow}>
           <Text style={styles.eyebrow}>HOÀN THÀNH</Text>
           <Text accessibilityRole="header" style={styles.title}>
-            {settled ? "Lộ trình đã hoàn thành" : "Bạn đã hoàn tất lộ trình"}
+            {settled ? "Lộ trình đã hoàn thành" : "Đã hoàn tất các buổi học"}
           </Text>
-          <Text style={styles.subtitle}>Các buổi học đã hoàn tất.</Text>
         </View>
       </View>
       <PathReadFeedback query={query} />
@@ -69,9 +69,6 @@ export function PathSettlementPanel({ pathId }: Readonly<{ pathId: string }>) {
               })}
             </Text>
           )}
-          <Text style={styles.date}>
-            Không cần thao tác thêm nếu đủ điều kiện.
-          </Text>
         </View>
       )}
       {status && ["NOT_LOCKED", "WAITING_SESSIONS"].includes(status.status) && (
@@ -108,13 +105,12 @@ export function PathSettlementPanel({ pathId }: Readonly<{ pathId: string }>) {
           }}
         />
       )}
-      {status?.status === "WAITING_DISPUTE" && (
-        <RouteButton secondary href="/reports">
-          Xem báo cáo
-        </RouteButton>
-      )}
+      {status && <SettlementRelatedItems status={status} />}
       {status &&
-        ["WAITING_TERMINATION", "TERMINATED"].includes(status.status) && (
+        ["WAITING_TERMINATION", "TERMINATED"].includes(status.status) &&
+        ![status.nextActionTarget, ...(status.relatedItems ?? [])].some(
+          (target) => target?.type === "LEARNING_CHANGE",
+        ) && (
           <RouteButton secondary href={`/paths/${pathId}/cancel`}>
             Xem yêu cầu hủy
           </RouteButton>
@@ -158,12 +154,6 @@ const styles = StyleSheet.create({
     color: colors.forest,
   },
   title: { ...typography.heading, fontFamily: fonts.bold, color: colors.ink },
-  subtitle: {
-    ...typography.secondary,
-    fontFamily: fonts.body,
-    color: colors.muted,
-    marginTop: 2,
-  },
   timing: {
     borderTopWidth: 1,
     borderColor: colors.border,

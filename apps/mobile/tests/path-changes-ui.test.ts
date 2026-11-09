@@ -11,6 +11,7 @@ import {
 } from "./fixtures/path-changes-data";
 import type { SettlementStatus } from "../src/features/learning-paths/api/path-changes-contract";
 import { fixtureId } from "./fixtures/learning-requests-data";
+import { agreementPath } from "./fixtures/learning-agreement";
 
 type Element = {
   type: string | ((props: Record<string, unknown>) => Element);
@@ -53,6 +54,10 @@ function harness(
   let index = 0;
   const states: unknown[] = [];
   const request = terminationFixture();
+  const preflightPath = agreementPath();
+  preflightPath.id = request.pathId;
+  preflightPath.status = "ACTIVE";
+  preflightPath.lockedVersion = preflightPath.currentVersion;
   const quote = terminationQuoteFixture();
   let current = true;
   let viewerId = fixtureId(1);
@@ -120,6 +125,12 @@ function harness(
   });
   const mocks = {
     react: {
+      useRef: (initial: unknown) => {
+        const slot = index++;
+        if (!(slot in states)) states[slot] = { current: initial };
+        return states[slot];
+      },
+      useEffect: () => {},
       useState: (initial: unknown) => {
         const slot = index++;
         if (!(slot in states)) states[slot] = initial;
@@ -159,8 +170,11 @@ function harness(
       useConnectionCommand: () => command,
     },
     "../hooks/use-path-changes": {
-      usePathChangesApi: () => api,
+      usePathChangesApi: () => ({ ...api, list: async () => [] }),
       usePathSettlement: () => query,
+    },
+    "../hooks/use-learning-paths-api": {
+      useLearningPathsApi: () => ({ detail: async () => preflightPath }),
     },
     "../hooks/use-termination-quote": {
       useTerminationQuote: () => ({ ...query, data: quote }),
@@ -214,6 +228,7 @@ function harness(
         "TerminationRequestMetadata",
         "TerminationCreditAmounts",
         "TerminationStatusHeader",
+        "SettlementRelatedItems",
       ].includes(element.type.name)
     )
       return expandDialog(element.type(element.props));
@@ -227,6 +242,7 @@ function harness(
   }
   return {
     request,
+    preflightPath,
     quote,
     calls,
     command,
@@ -510,8 +526,58 @@ test("busy, stale reads and a changed login session block creation and suppress 
     button(h.render(), "Xác nhận gửi yêu cầu").onPress();
     h.setCurrent(false);
     await tick();
+    assert.equal(h.calls.length, 0);
     assert.equal(h.counts().refreshes, 0);
     assert.doesNotMatch(text(h.render()), /Đã gửi yêu cầu/);
+  } finally {
+    h.close();
+  }
+});
+
+test("confirming an old cancellation dialog rechecks completion and sends no new request", async () => {
+  const h = harness("termination-create-form");
+  try {
+    input(h.render()).onChangeText("Không tiếp tục học");
+    button(h.render(), "Gửi yêu cầu hủy").onPress();
+    h.preflightPath.plans[0]!.sessions = [
+      {
+        id: fixtureId(75),
+        sessionNo: 1,
+        status: "COMPLETED",
+        startAt: "2030-01-02T10:00:00Z",
+        endAt: "2030-01-02T11:00:00Z",
+      },
+    ];
+    button(h.render(), "Xác nhận gửi yêu cầu").onPress();
+    await tick();
+    assert.equal(h.calls.length, 0);
+    assert.equal(h.counts().refreshes, 1);
+    const error = nodes(h.render()).find(
+      (node) =>
+        node.type === "Feedback" && node.props.error instanceof AppError,
+    )?.props.error as AppError;
+    assert.equal(error.code, "TERMINATION_USE_FINAL_SETTLEMENT");
+    assert.equal(
+      nodes(h.render()).find((node) => node.type === "Input")?.props.value,
+      "Không tiếp tục học",
+    );
+  } finally {
+    h.close();
+  }
+});
+
+test("rapid confirmation taps perform one cancellation command after preflight", async () => {
+  const h = harness("termination-create-form");
+  try {
+    input(h.render()).onChangeText("Không tiếp tục học");
+    button(h.render(), "Gửi yêu cầu hủy").onPress();
+    const confirm = button(h.render(), "Xác nhận gửi yêu cầu");
+    confirm.onPress();
+    confirm.onPress();
+    await tick();
+    assert.equal(h.calls.length, 1);
+    assert.equal(h.calls[0]?.method, "POST");
+    assert.equal(h.counts().refreshes, 1);
   } finally {
     h.close();
   }
@@ -841,7 +907,13 @@ test("completion summary retains financial blockers on read failure and has no m
       ),
     );
     h.query.data.status = "WAITING_DISPUTE";
-    assert.ok(nodes(h.render()).some((node) => node.props.href === "/reports"));
+    assert.match(text(h.render()), /tranh chấp/);
+    assert.equal(
+      nodes(h.render()).some(
+        (node) => node.props.href === `/paths/${h.query.data.pathId}/cases`,
+      ),
+      false,
+    );
     h.query.data.status = "SETTLED";
     assert.ok(
       nodes(h.render()).some((node) => node.props.href === "/wallet/history"),

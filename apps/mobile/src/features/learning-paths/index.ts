@@ -9,6 +9,8 @@ export {
 } from "./screens/schedule-screens";
 export { TermsEditorScreen } from "./screens/terms-screen";
 export { PathCancellationScreen } from "./screens/cancellation-screen";
+export { PathCasesScreen } from "./screens/path-cases-screen";
+export { PathCaseSummaryScreen } from "./screens/path-case-summary-screen";
 export {
   useLearningPath,
   useLearningPaths,

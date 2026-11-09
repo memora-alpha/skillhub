@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { uuid, timestamp, version } from "@/lib/http/contracts";
+import { pathTarget } from "./path-target-contract";
 export const changeSchema = z.object({
   id: uuid,
   pathId: uuid,
@@ -50,6 +51,8 @@ export const settlementStatusSchema = z.object({
   lastCheckedAt: timestamp.nullable(),
   attemptCount: z.number().int().nonnegative(),
   retryable: z.boolean(),
+  relatedItems: z.array(pathTarget).optional(),
+  nextActionTarget: pathTarget.nullable().optional(),
   pathVersion: version.nullable(),
   autoSettlementAt: timestamp.nullable(),
   immediateSettlement: z.object({

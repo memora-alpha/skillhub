@@ -10,7 +10,7 @@ export async function refreshLearningPath(
   await Promise.allSettled([
     cache.invalidateQueries({
       queryKey: [...scope, "learning-paths", pathId],
-      exact: true,
+      // Path detail, overview, cases and settlement share this resource scope.
     }),
     cache.invalidateQueries({
       queryKey: [...scope, "learning-paths", "mine"],
