@@ -232,6 +232,25 @@ function holdHarness(viewerId = teacherId) {
 }
 const flush = () => new Promise<void>((resolve) => setImmediate(resolve));
 
+test("refreshing the agreement disables validation and finalization until fresh data returns", async () => {
+  const h = holdHarness(learnerId);
+  try {
+    const checkLabel = "Kiểm tra điều kiện trên hệ thống";
+    const finalizeLabel = "Xác nhận chốt lịch và tạm giữ Credit";
+    h.button(h.render(), checkLabel).onPress();
+    await flush();
+    assert.equal(h.button(h.render(), finalizeLabel).disabled, false);
+    h.query.isFetching = true;
+    assert.equal(h.button(h.render(), checkLabel).disabled, true);
+    assert.equal(h.button(h.render(), finalizeLabel).disabled, true);
+    h.query.isFetching = false;
+    assert.equal(h.button(h.render(), finalizeLabel).disabled, false);
+    assert.equal(h.counts().finalizations, 0);
+  } finally {
+    h.cleanup();
+  }
+});
+
 test("Hold keeps schedule review before locking and opens actual sessions after locking in either exchange type", () => {
   for (const twoWay of [false, true]) {
     const h = holdHarness();
@@ -248,7 +267,7 @@ test("Hold keeps schedule review before locking and opens actual sessions after 
       const sessions = elements(h.render()).find(
         (element) =>
           element.type === "RouteButton" &&
-          text(element) === "Xem các buổi học",
+          text(element) === "Xem tất cả buổi học",
       );
       assert.equal(sessions?.props.href, `/paths/${h.query.data.id}/sessions`);
       assert.equal(h.counts().finalizations, 0);
@@ -587,14 +606,14 @@ test("path-list refresh failure keeps the mounted form draft while blocking subm
   }
 });
 
-test("a full path-list snapshot does not imply this conversation has no existing path", () => {
+test("a completely paginated path list allows a new agreement beyond one hundred paths", () => {
   const h = entryHarness();
   try {
-    h.query.data = Array.from({ length: 100 }, (_, index) => ({
+    h.query.data = Array.from({ length: 101 }, (_, index) => ({
       id: `other-${index}`,
       conversationId: "another-conversation",
     }));
-    assert.equal(h.form(h.render()), undefined);
+    assert.ok(h.form(h.render()));
   } finally {
     h.cleanup();
   }

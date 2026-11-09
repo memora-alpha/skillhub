@@ -228,6 +228,12 @@ test("confirming both schedule directions saves confirmations without publishing
   }
   let confirmations = 0,
     shares = 0;
+  const query = {
+    data: path,
+    isFetching: false,
+    error: undefined as unknown,
+    refetch() {},
+  };
   const jsx = (type: unknown, props: Record<string, unknown>) => ({
     type,
     props,
@@ -251,6 +257,7 @@ test("confirming both schedule directions saves confirmations without publishing
       }),
       useCatalogName: () => ({ data: "React" }),
       useConnectionCommand: () => ({
+        pending: false,
         run: (_key: string, send: (id: string) => Promise<unknown>) =>
           send(fixtureId(99)),
       }),
@@ -265,7 +272,7 @@ test("confirming both schedule directions saves confirmations without publishing
       }),
     },
     "../hooks/use-learning-paths-api": {
-      useLearningPath: () => ({ data: path, refetch() {} }),
+      useLearningPath: () => query,
       useLearningPathsApi: () => ({
         confirmSchedule: async () => {
           confirmations++;
@@ -300,11 +307,46 @@ test("confirming both schedule directions saves confirmations without publishing
   try {
     delete local.cache[filename];
     const { ApiSchedulesScreen } = local(filename);
-    const panels = elements(ApiSchedulesScreen()).filter(
+    const page = ApiSchedulesScreen();
+    assert.equal(page.props.title, "Lịch học");
+    const layout = elements(page);
+    assert.ok(
+      layout.findIndex((item) => item.type === "Overview") <
+        layout.findIndex((item) => item.type === "Context"),
+    );
+    assert.ok(
+      layout.findIndex((item) => item.type === "Context") <
+        layout.findIndex((item) => item.type === "Timezone"),
+    );
+    const panels = layout.filter(
       (item) =>
         typeof item.type === "function" && item.type.name === "SchedulePanel",
     );
     assert.equal(panels.length, 2);
+    for (const refreshing of [true, false]) {
+      query.isFetching = refreshing;
+      query.error = refreshing ? undefined : new Error("read failed");
+      for (const panel of elements(ApiSchedulesScreen()).filter(
+        (item) =>
+          typeof item.type === "function" && item.type.name === "SchedulePanel",
+      )) {
+        assert.equal(panel.props.blocked, true);
+        const tree = elements(
+          (panel.type as (props: Record<string, unknown>) => unknown)(
+            panel.props,
+          ),
+        );
+        const confirm = tree.find(
+          (item) =>
+            item.type === "Button" && item.props.children === "Đồng ý lịch học",
+        )!;
+        assert.equal(confirm.props.disabled, true);
+        (confirm.props.onPress as () => void)();
+      }
+    }
+    assert.equal(confirmations, 0);
+    query.isFetching = false;
+    query.error = undefined;
     for (const panel of panels) {
       const tree = elements(
         (panel.type as (props: Record<string, unknown>) => unknown)(
@@ -315,6 +357,7 @@ test("confirming both schedule directions saves confirmations without publishing
         (item) =>
           item.type === "Button" && item.props.children === "Đồng ý lịch học",
       )!;
+      assert.equal(confirm.props.disabled, false);
       (confirm.props.onPress as () => void)();
       await new Promise((resolve) => setImmediate(resolve));
     }

@@ -154,6 +154,16 @@ test("Path Session list renders sessions outside the current month and has a Pat
     startAt: "2030-06-01T00:00:00Z",
     endAt: "2030-06-01T01:00:00Z",
   });
+  plan.totalSessions = 2;
+  const reciprocal = path.plans.find((row) => row.id !== plan.id)!;
+  reciprocal.sessions = [
+    {
+      ...plan.sessions[0]!,
+      id: "20000000-0000-4000-8000-000000000098",
+      startAt: "2030-03-01T00:00:00Z",
+      endAt: "2030-03-01T01:00:00Z",
+    },
+  ];
   const h = load("sessions/screens/session-list-screen.tsx", {
     "expo-router": { useLocalSearchParams: () => ({ id: path.id }) },
     "@/features/learning-paths/state": {
@@ -173,7 +183,23 @@ test("Path Session list renders sessions outside the current month and has a Pat
   try {
     const tree = expand(h.module.PathSessionsScreen());
     assert.equal((tree as Element).props.back, `/paths/${path.id}`);
-    assert.equal(elements(tree).filter((el) => el.type === "Card").length, 2);
+    assert.equal((tree as Element).props.title, "Tất cả buổi học");
+    const cards = elements(tree).filter((el) => el.type === "Card");
+    assert.equal(cards.length, 3);
+    const sessions = cards.map(
+      (card) =>
+        card.props.session as { id: string; planId: string; startAt: string },
+    );
+    assert.equal(new Set(sessions.map((session) => session.planId)).size, 2);
+    assert.equal(new Set(sessions.map((session) => session.id)).size, 3);
+    assert.deepEqual(
+      sessions.map((session) => session.startAt),
+      [
+        plan.sessions[0]!.startAt,
+        reciprocal.sessions[0]!.startAt,
+        plan.sessions[1]!.startAt,
+      ],
+    );
   } finally {
     h.cleanup();
   }

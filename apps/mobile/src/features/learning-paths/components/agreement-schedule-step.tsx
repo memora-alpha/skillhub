@@ -16,32 +16,26 @@ import type {
 } from "../api/learning-paths-contract";
 import { agreementProgress } from "../utils/progression";
 import { scheduleDirections } from "../utils/schedule-directions";
-import { ScheduleChatReminder } from "./schedule-chat-reminder";
 import {
   ownConfirmation,
   scheduleStatusLabel,
   scheduleIsComplete,
 } from "../utils/policy-api";
 import { AgreementProgressPanel } from "./agreement-progress";
-import {
-  AgreementFooter,
-  agreementFooterPrimaryStyle,
-} from "./agreement-footer";
 
 export function AgreementScheduleStep({
   path,
   userId,
   blocked,
-  onReviewPlans,
 }: Readonly<{
   path: ApiLearningPath;
   userId?: string;
   blocked: boolean;
-  onReviewPlans: () => void;
 }>) {
   const router = useRouter();
   const progress = agreementProgress(path, userId);
-  if (!["schedules", "finalize"].includes(progress.stage))
+  const directions = scheduleDirections(path, userId);
+  if (!["schedules", "finalize", "sessions"].includes(progress.stage))
     return (
       <AgreementProgressPanel
         path={path}
@@ -62,76 +56,63 @@ export function AgreementScheduleStep({
               <Icon name="calendar" size={20} color={colors.primary} />
             </View>
             <Text accessibilityRole="header" style={styles.title}>
-              {progress.title.replace(/^Bước \d+ · /, "")}
+              {progress.stage === "sessions"
+                ? "Lịch đã chốt"
+                : progress.stage === "finalize"
+                  ? "Sẵn sàng chốt lịch"
+                  : "Lịch học của hai bạn"}
             </Text>
           </View>
-          <Text style={styles.step}>
-            {progress.stage === "finalize" ? "Chờ chốt" : "Bước 3"}
-          </Text>
         </View>
         <Text style={styles.description}>
-          {progress.stage === "finalize"
-            ? "Hai bên đã xác nhận lịch. Kiểm tra và chốt để bắt đầu học."
-            : "Hai bên xem và xác nhận cùng phiên bản lịch."}
+          {progress.stage === "sessions"
+            ? "Mở buổi học để xem lịch chi tiết và tham gia."
+            : progress.stage === "finalize"
+              ? "Hai bên đã xác nhận lịch. Kiểm tra và chốt để bắt đầu học."
+              : "Người dạy đề xuất lịch, cả hai cùng xem và xác nhận."}
         </Text>
-        {path.agreement.exchangeType === "TWO_WAY" && (
-          <Text style={styles.metadata}>
-            Trao đổi hai chiều · Bạn dạy và bạn học có lịch riêng.
-          </Text>
-        )}
-        {!!progress.waiting.length && (
-          <View style={styles.waiting}>
-            <Icon name="clock" size={18} color={colors.primary} />
-            <View style={styles.waitingContent}>
-              {progress.waiting.map((message) => (
-                <Text key={message} style={styles.waitingText}>
-                  {message}
-                </Text>
-              ))}
-            </View>
-          </View>
-        )}
         <View style={styles.directions}>
-          {scheduleDirections(path, userId).map(({ key, plan, mine }) => (
-            <ScheduleDirection
-              key={key}
-              path={path}
-              plan={plan}
-              teaching={mine}
-              userId={userId}
-            />
-          ))}
+          {directions
+            .filter(
+              ({ plan }) =>
+                progress.stage !== "sessions" ||
+                plan?.schedule ||
+                plan?.sessions.length,
+            )
+            .map(({ key, plan, mine }) => (
+              <ScheduleDirection
+                key={key}
+                path={path}
+                plan={plan}
+                teaching={mine}
+                userId={userId}
+              />
+            ))}
         </View>
-        {scheduleDirections(path, userId).some(
-          ({ mine, plan }) => !mine && plan && !plan.schedule,
-        ) && (
-          <ScheduleChatReminder
-            conversationId={path.conversationId}
-            blocked={blocked}
-          />
-        )}
-        <View style={styles.note}>
-          <Icon name="shield" size={16} color={colors.forest} />
-          <Text style={styles.noteText}>
-            Hệ thống kiểm tra lịch và số dư trước khi chốt, tạm giữ Credit và
-            tạo buổi học.
-          </Text>
-        </View>
-      </FlowSection>
-      <AgreementFooter
-        conversationId={path.conversationId}
-        review={{ label: "Xem lại lộ trình", onPress: onReviewPlans }}
-      >
         <Button
-          style={agreementFooterPrimaryStyle}
-          disabled={blocked}
+          style={styles.primary}
+          disabled={blocked && progress.stage !== "sessions"}
           onPress={() => {
-            if (!blocked) router.push(action.href);
+            if (!blocked || progress.stage === "sessions")
+              router.push(action.href);
           }}
         >
           {action.label}
         </Button>
-      </AgreementFooter>
+      </FlowSection>
+      <Button
+        variant="ghost"
+        leadingIcon="message"
+        accessibilityLabel="Trao đổi qua chat"
+        onPress={() =>
+          router.dismissTo({
+            pathname: "/chat/[proposalId]",
+            params: { proposalId: path.conversationId, mode: "api" },
+          })
+        }
+      >
+        Trao đổi qua chat
+      </Button>
     </>
   );
 }
@@ -160,41 +141,60 @@ function ScheduleDirection({
     !!plan &&
     scheduleIsComplete(plan);
   const mine = !!schedule && !!ownConfirmation(path, schedule, userId);
-  const label = scheduleDirectionLabel({
-    hasPlan: !!plan,
-    hasSchedule: !!schedule,
-    teaching,
-    status: schedule?.status,
-    ready,
-    confirmed,
-    mine,
-  });
+  const label = plan?.sessions.length
+    ? "Đã chốt"
+    : scheduleDirectionLabel({
+        hasPlan: !!plan,
+        hasSchedule: !!schedule,
+        teaching,
+        status: schedule?.status,
+        ready,
+        confirmed,
+        mine,
+      });
   const done =
-    !!schedule && (schedule.status === "LOCKED" || (ready && confirmed));
+    !!plan?.sessions.length ||
+    (!!schedule && (schedule.status === "LOCKED" || (ready && confirmed)));
+  const slots = plan?.sessions.length ? plan.sessions : schedule?.items;
+  const first = slots?.reduce<(typeof slots)[number] | undefined>(
+    (earliest, slot) =>
+      !earliest || Date.parse(slot.startAt) < Date.parse(earliest.startAt)
+        ? slot
+        : earliest,
+    undefined,
+  );
   return (
     <View style={styles.direction}>
-      <View style={styles.directionContent}>
+      <View style={styles.directionHeading}>
         <Text style={styles.directionTitle}>
           {teaching ? "Lịch bạn dạy" : "Lịch bạn học"}
         </Text>
-        <Text style={styles.skill}>
-          {plan ? (skill.data ?? "Lộ trình học") : "Chưa có lộ trình"}
-        </Text>
-        <Text style={styles.metadata}>
-          {plan
-            ? `${plan.totalSessions} buổi`
-            : "Hoàn thành lộ trình trước khi xếp lịch"}
-          {schedule ? ` · Lịch bản ${schedule.version}` : ""}
-        </Text>
+        <View style={[styles.badge, done && styles.doneBadge]}>
+          <Icon
+            name={done ? "check-circle" : "clock"}
+            size={14}
+            color={done ? colors.forest : colors.warning}
+          />
+          <Text style={[styles.badgeText, done && styles.doneText]}>
+            {label}
+          </Text>
+        </View>
       </View>
-      <View style={[styles.badge, done && styles.doneBadge]}>
-        <Icon
-          name={done ? "check-circle" : "clock"}
-          size={14}
-          color={done ? colors.forest : colors.warning}
-        />
-        <Text style={[styles.badgeText, done && styles.doneText]}>{label}</Text>
-      </View>
+      <Text style={styles.skill}>
+        {plan ? (skill.data ?? "Lộ trình học") : "Chưa có lộ trình"}
+      </Text>
+      <Text style={styles.metadata}>
+        {plan
+          ? `${plan.totalSessions} buổi`
+          : "Hoàn thành lộ trình trước khi xếp lịch"}
+        {first &&
+          ` · Bắt đầu ${new Date(first.startAt).toLocaleString("vi-VN", {
+            day: "2-digit",
+            month: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+          })}`}
+      </Text>
     </View>
   );
 }
@@ -224,9 +224,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     flexWrap: "wrap",
     gap: 10,
-    paddingBottom: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
   },
   titleRow: {
     flex: 1,
@@ -249,55 +246,35 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bold,
     color: colors.ink,
   },
-  step: {
-    ...typography.secondary,
-    fontFamily: fonts.semibold,
-    color: colors.primary,
-    backgroundColor: colors.primarySoft,
-    borderRadius: appRadius.badge,
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-  },
   description: {
     ...typography.secondary,
     fontFamily: fonts.body,
     color: colors.body,
   },
-  waiting: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 10,
-    padding: 12,
-    borderRadius: appRadius.control,
-    backgroundColor: colors.primarySoft,
-  },
-  waitingContent: { flex: 1, minWidth: 0, gap: 8 },
-  waitingText: {
-    ...typography.secondary,
-    fontFamily: fonts.semibold,
-    color: colors.body,
-  },
-  directions: { gap: 10 },
+  primary: { minHeight: 48, borderRadius: appRadius.control, marginTop: 4 },
+  directions: { gap: 0 },
   direction: {
+    gap: 6,
+    paddingVertical: 14,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+  },
+  directionHeading: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     flexWrap: "wrap",
     gap: 10,
-    padding: 12,
-    borderRadius: appRadius.control,
-    backgroundColor: colors.surfaceLow,
   },
-  directionContent: { flex: 1, minWidth: 120, gap: 4 },
   directionTitle: {
-    ...typography.body,
+    ...typography.secondary,
     fontFamily: fonts.semibold,
     color: colors.ink,
   },
   skill: {
-    ...typography.secondary,
-    fontFamily: fonts.medium,
-    color: colors.body,
+    ...typography.body,
+    fontFamily: fonts.semibold,
+    color: colors.ink,
   },
   metadata: {
     ...typography.secondary,
@@ -305,6 +282,7 @@ const styles = StyleSheet.create({
     color: colors.muted,
   },
   badge: {
+    maxWidth: "100%",
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
@@ -314,17 +292,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.amberSoft,
   },
   badgeText: {
+    flexShrink: 1,
     ...typography.secondary,
     fontFamily: fonts.semibold,
     color: colors.warning,
   },
   doneBadge: { backgroundColor: colors.forestSoft },
   doneText: { color: colors.forest },
-  note: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
-  noteText: {
-    flex: 1,
-    ...typography.secondary,
-    fontFamily: fonts.body,
-    color: colors.muted,
-  },
 });

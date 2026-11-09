@@ -2,7 +2,11 @@ import { useLocalSearchParams } from "expo-router";
 import { z } from "zod";
 import { useLearningPath } from "@/features/learning-paths/state";
 import { useConnections } from "@/features/connections";
-import { SessionPage, SessionEmptyState } from "../components/session-page";
+import {
+  SessionPage,
+  SessionEmptyState,
+  SessionCopy,
+} from "../components/session-page";
 import { deviceTimezone } from "../utils/session-time";
 import { pathSessionItems } from "../utils/session-context";
 import { SessionCard } from "../components/session-card";
@@ -16,7 +20,7 @@ export function PathSessionsScreen() {
   const items = query.data ? pathSessionItems(query.data) : [];
   return (
     <SessionPage
-      title="Buổi học của lộ trình"
+      title="Tất cả buổi học"
       back={valid ? `/paths/${id}` : "/my-learning"}
       backBehavior="history"
     >
@@ -28,6 +32,11 @@ export function PathSessionsScreen() {
         refreshing={query.isFetching}
         retry={() => query.refetch()}
       >
+        {items.length > 0 && (
+          <SessionCopy muted>
+            {items.length} buổi học trong lộ trình
+          </SessionCopy>
+        )}
         {items.map((session) => (
           <SessionCard
             key={session.id}

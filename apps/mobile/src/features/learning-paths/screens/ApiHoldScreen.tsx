@@ -55,7 +55,7 @@ export function ApiHoldScreen() {
         <HoldContent
           key={query.data.id}
           path={query.data}
-          blocked={!!query.error}
+          blocked={!!query.error || query.isFetching}
           refresh={query.refetch}
         />
       )}
@@ -112,7 +112,7 @@ function HoldContent({
         </FormNotice>
         {!embedded && (
           <RouteButton href={`/paths/${path.id}/sessions`}>
-            Xem các buổi học
+            Xem tất cả buổi học
           </RouteButton>
         )}
         {!embedded && (

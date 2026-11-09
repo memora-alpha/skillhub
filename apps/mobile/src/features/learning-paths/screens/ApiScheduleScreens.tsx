@@ -11,7 +11,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 
 import { ApiFinalizePanel } from "./ApiHoldScreen";
 
-import { Copy, RouteButton } from "@/components/feature-page";
+import { RouteButton } from "@/components/feature-page";
 import { FlowPage as FeaturePage } from "@/components/learning-flow";
 import { Button } from "@/components/Button";
 
@@ -53,9 +53,10 @@ export function ApiSchedulesScreen() {
     path = query.data;
   const runtime = useConnections();
   const pullRefresh = usePullRefresh(query.refetch);
+  const blocked = !!query.error || query.isFetching;
   return (
     <FeaturePage
-      title="Lịch của từng kế hoạch"
+      title="Lịch học"
       demo={false}
       backBehavior="history"
       back={`/paths/${id}`}
@@ -80,19 +81,12 @@ export function ApiSchedulesScreen() {
               ) : null;
             })()}
           <ConfirmedFormFeedback conversationId={path.conversationId} />
-          <ScheduleExchangeContext path={path} />
           <ScheduleListOverview
             path={path}
-            blocked={!!query.error}
+            blocked={blocked}
             userId={runtime.userId}
           />
-          <ScheduleTimezoneNotice />
-          {path.status !== "CONFIRMED" && path.lockedVersion === null && (
-            <Copy size="hint">
-              Đủ lộ trình, xác nhận của người học và cách học đã thống nhất mới
-              được đề xuất lịch.
-            </Copy>
-          )}
+          <ScheduleExchangeContext path={path} />
           {scheduleDirections(path, runtime.userId).map(
             ({ key, plan, mine }) =>
               plan ? (
@@ -100,21 +94,22 @@ export function ApiSchedulesScreen() {
                   key={key}
                   path={path}
                   plan={plan}
-                  blocked={!!query.error}
+                  blocked={blocked}
                 />
               ) : (
                 <ScheduleMissingPlanCard
                   key={key}
                   path={path}
                   mine={mine}
-                  blocked={!!query.error}
+                  blocked={blocked}
                 />
               ),
           )}
+          <ScheduleTimezoneNotice />
           {(canValidateForFinalize(path) || path.lockedVersion !== null) && (
             <ApiFinalizePanel
               path={path}
-              blocked={!!query.error}
+              blocked={blocked}
               refresh={query.refetch}
             />
           )}
@@ -155,6 +150,7 @@ function SchedulePanel({
             <Button
               disabled={blocked || command.pending}
               onPress={() => {
+                if (blocked || command.pending) return;
                 void command.run(
                   `schedule:${schedule.id}:${schedule.version}`,
                   () => api.confirmSchedule(schedule.id, schedule.version),
