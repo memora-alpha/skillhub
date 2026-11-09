@@ -1,4 +1,5 @@
 "use client";
+import { systemCodeLabel } from "@/lib/system-text";
 
 import { useEffect, useRef, useState } from "react";
 import { Card, Empty, PageHeader, StatusBadge } from "@/components/console/ui";
@@ -57,7 +58,10 @@ function EntryDetail({
               <dt>Mã giao dịch</dt>
               <dd className="mono">{entry.data.id}</dd>
               <dt>Loại</dt>
-              <dd>{types[entry.data.type] ?? entry.data.type}</dd>
+              <dd>
+                {types[entry.data.type] ??
+                  systemCodeLabel(entry.data.type, "Giao dịch khác")}
+              </dd>
               <dt>Trạng thái</dt>
               <dd>
                 <StatusBadge status={entry.data.status} />
@@ -82,7 +86,11 @@ function EntryDetail({
               </dd>
               <dt>Tham chiếu</dt>
               <dd className="mono">
-                {entry.data.referenceType} · {entry.data.referenceId}
+                {systemCodeLabel(
+                  entry.data.referenceType,
+                  "Hoạt động liên quan",
+                )}{" "}
+                · {entry.data.referenceId}
               </dd>
               <dt>Thời gian</dt>
               <dd>{fmtDateTime(entry.data.createdAt)}</dd>
@@ -201,7 +209,10 @@ export function WalletScreen() {
                 {ledger.items.map((entry) => (
                   <tr key={entry.id}>
                     <td>{fmtDateTime(entry.createdAt)}</td>
-                    <td>{types[entry.type] ?? entry.type}</td>
+                    <td>
+                      {types[entry.type] ??
+                        systemCodeLabel(entry.type, "Giao dịch khác")}
+                    </td>
                     <td className="staff-credit">{creditText(entry.amount)}</td>
                     <td className="staff-credit">
                       {creditText(entry.availableAfter)}

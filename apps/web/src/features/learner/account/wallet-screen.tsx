@@ -1,4 +1,5 @@
 "use client";
+import { systemCodeLabel } from "@/lib/system-text";
 import Link from "next/link";
 import { useUserList, useUserResource } from "../hooks/use-user-resource";
 import {
@@ -95,7 +96,10 @@ export function WalletScreen() {
               <tbody>
                 {ledger.items.map((row) => (
                   <tr key={row.id}>
-                    <td>{transactionNames[row.type] ?? row.type}</td>
+                    <td>
+                      {transactionNames[row.type] ??
+                        systemCodeLabel(row.type, "Giao dịch khác")}
+                    </td>
                     <td>{formatTime(row.createdAt)}</td>
                     <td
                       className={

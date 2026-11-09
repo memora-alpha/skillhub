@@ -1,3 +1,4 @@
+import { systemCodeLabel } from "@/lib/system-text";
 export const reportStatuses = [
   ["OPEN", "Đã tiếp nhận"],
   ["UNDER_REVIEW", "Đang xem xét"],
@@ -6,5 +7,8 @@ export const reportStatuses = [
   ["REJECTED", "Đã từ chối"],
 ] as const;
 export function reportStatusLabel(status: string) {
-  return reportStatuses.find(([code]) => code === status)?.[1] ?? status;
+  return (
+    reportStatuses.find(([code]) => code === status)?.[1] ??
+    systemCodeLabel(status, "Trạng thái đang được cập nhật")
+  );
 }

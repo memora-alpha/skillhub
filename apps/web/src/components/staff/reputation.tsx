@@ -1,4 +1,5 @@
 "use client";
+import { systemCodeLabel } from "@/lib/system-text";
 
 import { useState } from "react";
 import { Card, Empty, PageHeader } from "@/components/console/ui";
@@ -73,7 +74,7 @@ export function ReputationScreen() {
                 <dt>Điểm uy tín</dt>
                 <dd className="staff-credit">{data.reputationScore}</dd>
                 <dt>Mức uy tín</dt>
-                <dd>{levels[data.level] ?? data.level}</dd>
+                <dd>{levels[data.level] ?? "Chưa xác định"}</dd>
               </dl>
             </Card>
             <section className="section">
@@ -85,11 +86,12 @@ export function ReputationScreen() {
                     {data.activeRestrictions.map((restriction, index) => (
                       <li key={`${restriction.scope}-${index}`}>
                         <strong>
-                          {scopes[restriction.scope] ?? restriction.scope}
+                          {scopes[restriction.scope] ??
+                            systemCodeLabel(restriction.scope)}
                         </strong>
                         <p>
                           {reasons[restriction.reasonCode] ??
-                            restriction.reasonCode}{" "}
+                            systemCodeLabel(restriction.reasonCode)}{" "}
                           · Đến {fmtDateTime(restriction.endsAt)}
                         </p>
                       </li>
@@ -122,7 +124,8 @@ export function ReputationScreen() {
                           <tr key={item.id}>
                             <td>{fmtDateTime(item.createdAt)}</td>
                             <td>
-                              {reasons[item.reasonCode] ?? item.reasonCode}
+                              {reasons[item.reasonCode] ??
+                                systemCodeLabel(item.reasonCode)}
                             </td>
                             <td>
                               {item.delta > 0 ? "+" : ""}

@@ -1,4 +1,5 @@
 "use client";
+import { systemCodeLabel } from "@/lib/system-text";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useUserSession } from "../auth/session";
 import { ReputationPathSource } from "./reputation-path-source";
@@ -108,16 +109,19 @@ export function ReputationScreen() {
         <>
           <Panel title="Uy tín hiện tại">
             <strong className="product-price">{current.reputationScore}</strong>
-            <p>Cấp độ: {levels[current.level] ?? current.level}</p>
+            <p>Cấp độ: {levels[current.level] ?? "Chưa xác định"}</p>
           </Panel>
           <Panel title="Hạn chế đang áp dụng">
             {current.activeRestrictions.length ? (
               current.activeRestrictions.map((restriction, index) => (
                 <p key={restriction.scope + index}>
-                  {scopes[restriction.scope] ?? restriction.scope} ·{" "}
-                  {reasons[restriction.reasonCode] ?? restriction.reasonCode} ·
-                  thời hạn đến {formatTime(restriction.endsAt)}. Có thể cần xác
-                  nhận chính sách hoặc xét lại để mở quyền.
+                  {scopes[restriction.scope] ??
+                    systemCodeLabel(restriction.scope)}{" "}
+                  ·{" "}
+                  {reasons[restriction.reasonCode] ??
+                    systemCodeLabel(restriction.reasonCode)}{" "}
+                  · thời hạn đến {formatTime(restriction.endsAt)}. Có thể cần
+                  xác nhận chính sách hoặc xét lại để mở quyền.
                 </p>
               ))
             ) : (
@@ -138,7 +142,9 @@ export function ReputationScreen() {
           entries.map((entry) => (
             <Panel
               key={entry.id}
-              title={reasons[entry.reasonCode] ?? entry.reasonCode}
+              title={
+                reasons[entry.reasonCode] ?? systemCodeLabel(entry.reasonCode)
+              }
             >
               <strong>
                 {entry.delta > 0 ? "+" : ""}
@@ -157,7 +163,8 @@ export function ReputationScreen() {
                 <details>
                   <summary>Thông tin tham chiếu</summary>
                   <p className="learner-prose">
-                    {entry.sourceType}: {entry.sourceId}
+                    {systemCodeLabel(entry.sourceType, "Hoạt động liên quan")}:{" "}
+                    {entry.sourceId}
                   </p>
                 </details>
               )}

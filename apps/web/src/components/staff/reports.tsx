@@ -1,4 +1,5 @@
 "use client";
+import { reportDescriptionText } from "@/lib/system-text";
 import Link from "next/link";
 import { useState } from "react";
 import {
@@ -214,7 +215,9 @@ function ReportOverview({ item }: Readonly<{ item: ReportCase }>) {
       </dl>
       <section className="ops-case-description">
         <h3 className="sub-title">Mô tả sự việc</h3>
-        <p className="prose">{item.description || "Chưa có mô tả bổ sung."}</p>
+        <p className="prose">
+          {reportDescriptionText(item.description) || "Chưa có mô tả bổ sung."}
+        </p>
       </section>
       <details className="ops-case-identifiers">
         <summary>Mã tham chiếu liên quan</summary>

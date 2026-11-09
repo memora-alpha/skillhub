@@ -1,4 +1,5 @@
 "use client";
+import { systemCodeLabel } from "@/lib/system-text";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useStaffSession } from "./session";
 import { StaffApiError } from "@/lib/staff/client";
@@ -126,7 +127,7 @@ function TerminationQueue() {
               <p className="staff-wrap">Lộ trình: {row.pathId}</p>
               <p>{row.reason}</p>
               <p>
-                {row.status}
+                {systemCodeLabel(row.status)}
                 {row.blockedByDispute ? " · Có tranh chấp" : ""}
                 {row.awaitingPolicy ? " · Chờ chính sách" : ""}
               </p>
@@ -215,7 +216,7 @@ function TerminationDetail({
           })),
         );
         if (current.status === "APPLIED" || current.status === "REJECTED")
-          setSuccess("Máy chủ xác nhận: " + current.status);
+          setSuccess("Máy chủ xác nhận: " + systemCodeLabel(current.status));
       })
       .catch((cause: unknown) => {
         if (alive.current) {
@@ -335,7 +336,8 @@ function TerminationDetail({
           <p>{review.reason}</p>
           <p>
             Tiến độ {review.execution.completed}/{review.execution.total} buổi ·
-            Trạng thái {review.status} · Phiên bản {review.version}
+            Trạng thái {systemCodeLabel(review.status)} · Phiên bản{" "}
+            {review.version}
           </p>
           <p className="staff-wrap">
             Chính sách: {review.execution.policyReference ?? "Chưa được duyệt"}
@@ -361,6 +363,18 @@ function TerminationDetail({
                 <p role="status">
                   Cần xử lý các buổi học hoặc vụ việc còn mở trước khi thực thi.
                 </p>
+              )}
+              {review.execution.quote.reasonCodes.length > 0 && (
+                <ul>
+                  {review.execution.quote.reasonCodes.map((code) => (
+                    <li key={code}>
+                      {systemCodeLabel(
+                        code,
+                        "Cần kiểm tra điều kiện tất toán.",
+                      )}
+                    </li>
+                  ))}
+                </ul>
               )}
               {review.execution.allocations.map((held) => (
                 <HeldAllocationFields

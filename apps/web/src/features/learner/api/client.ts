@@ -1,3 +1,4 @@
+import { knownSystemMessage } from "@/lib/system-text";
 import type { Reply } from "../types";
 export class UserApiError extends Error {
   constructor(
@@ -157,6 +158,8 @@ const messages: Record<string, string> = {
 };
 export function userErrorText(status: number, code: string) {
   if (messages[code]) return messages[code];
+  const translated = knownSystemMessage(code);
+  if (translated) return translated;
   switch (status) {
     case 429:
       return "Bạn đang thao tác nhanh. Chờ một lát rồi thử lại.";

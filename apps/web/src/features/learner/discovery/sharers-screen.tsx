@@ -1,4 +1,5 @@
 "use client";
+import { systemCodeLabel } from "@/lib/system-text";
 
 import Link from "next/link";
 import { useState } from "react";
@@ -88,7 +89,8 @@ function SharerResults({
             </div>
             <p>
               <strong>{row.skill.name}</strong> ·{" "}
-              {row.skillLevel?.name ?? row.level}
+              {row.skillLevel?.name ??
+                systemCodeLabel(row.level, "Chưa xác định trình độ")}
             </p>
             <Status value={row.verificationStatus} />
             <p className="learner-prose">{row.description}</p>

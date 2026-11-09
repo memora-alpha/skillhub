@@ -1,4 +1,5 @@
 "use client";
+import { systemCodeLabel } from "@/lib/system-text";
 import { useUserResource } from "../hooks/use-user-resource";
 import { useUserSession } from "../auth/session";
 import { Feedback } from "../components/common";
@@ -40,6 +41,18 @@ export function TerminationPreview({ pathId }: Readonly<{ pathId: string }>) {
             <p className="learner-notice">
               Cần xử lý các buổi học hoặc vụ việc còn mở trước khi chốt Credit.
             </p>
+          )}
+          {query.data.reasonCodes.length > 0 && (
+            <ul>
+              {query.data.reasonCodes.map((code) => (
+                <li key={code}>
+                  {systemCodeLabel(
+                    code,
+                    "Cần nhân viên kiểm tra điều kiện tất toán.",
+                  )}
+                </li>
+              ))}
+            </ul>
           )}
           {query.data.allocations.map((row) => (
             <div key={row.allocationId}>

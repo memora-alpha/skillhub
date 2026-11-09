@@ -1,3 +1,4 @@
+import { systemCodeLabel } from "@/lib/system-text";
 import type { ReportCaseDetail } from "@/lib/staff/types";
 import { Badge, Card } from "@/components/console/ui";
 import { fmtDateTime } from "@/lib/console/format";
@@ -52,23 +53,32 @@ export function AttendanceEvidence({
         <summary>Chi tiết kết quả điểm danh</summary>
         <dl className="kv staff-kv ops-attendance-meta">
           <dt>Kết luận</dt>
-          <dd>{labels[outcome.attendanceCase] ?? outcome.attendanceCase}</dd>
+          <dd>
+            {labels[outcome.attendanceCase] ??
+              systemCodeLabel(outcome.attendanceCase)}
+          </dd>
           <dt>Người dạy</dt>
           <dd>
-            {labels[outcome.teacherVerdict] ?? outcome.teacherVerdict} ·{" "}
-            {outcome.teacherSeconds} giây
+            {labels[outcome.teacherVerdict] ??
+              systemCodeLabel(outcome.teacherVerdict)}{" "}
+            · {outcome.teacherSeconds} giây
             {outcome.teacherLate ? " · Vào muộn" : ""}
           </dd>
           <dt>Người học</dt>
           <dd>
-            {labels[outcome.learnerVerdict] ?? outcome.learnerVerdict} ·{" "}
-            {outcome.learnerSeconds} giây
+            {labels[outcome.learnerVerdict] ??
+              systemCodeLabel(outcome.learnerVerdict)}{" "}
+            · {outcome.learnerSeconds} giây
             {outcome.learnerLate ? " · Vào muộn" : ""}
           </dd>
           <dt>Trạng thái kết quả</dt>
-          <dd>{outcome.status}</dd>
+          <dd>{systemCodeLabel(outcome.status)}</dd>
           <dt>Phán quyết</dt>
-          <dd>{outcome.resolution ?? "Chưa có"}</dd>
+          <dd>
+            {outcome.resolution
+              ? systemCodeLabel(outcome.resolution)
+              : "Chưa có"}
+          </dd>
           <dt>Ghi nhận lúc</dt>
           <dd>{fmtDateTime(outcome.determinedAt)}</dd>
           <dt>Hạn xử lý</dt>

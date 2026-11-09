@@ -1,3 +1,4 @@
+import { systemCodeLabel } from "@/lib/system-text";
 import type { Tone } from "@/components/console/ui";
 import { fmtDateTime } from "../console/format";
 
@@ -19,7 +20,7 @@ const reasons: Record<string, string> = {
   FRAUD: "Gian lận",
 };
 export function reportReasonLabel(code: string) {
-  return reasons[code] ?? "Vấn đề cần xem xét";
+  return reasons[code] ?? systemCodeLabel(code, "Vấn đề cần xem xét");
 }
 export function severityTone(code: string | null | undefined): Tone {
   return code === "CRITICAL"

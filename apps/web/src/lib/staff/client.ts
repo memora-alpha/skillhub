@@ -1,3 +1,4 @@
+import { knownSystemMessage } from "@/lib/system-text";
 import type { ApiEnvelope } from "./types";
 import type { Portal } from "./policy";
 import { allowedEvidenceMime, allowedMaterialMime } from "./evidence-file";
@@ -95,6 +96,8 @@ const errorMessages: Readonly<Record<string, string>> = {
 };
 function messageFor(status: number, code: string) {
   if (Object.hasOwn(errorMessages, code)) return errorMessages[code];
+  const translated = knownSystemMessage(code);
+  if (translated) return translated;
   if (code === "FILE_UNAVAILABLE" || code === "INVALID_DOWNLOAD_LINK")
     return "Không thể mở tệp hoặc liên kết đã hết hạn. Nhấn Thử lại để lấy liên kết mới.";
   if (code === "API_UNAVAILABLE" || code === "API_RESPONSE_INVALID")

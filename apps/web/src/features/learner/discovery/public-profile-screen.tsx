@@ -1,4 +1,5 @@
 "use client";
+import { systemCodeLabel } from "@/lib/system-text";
 
 import Link from "next/link";
 import { achievementTitle } from "@/lib/i18n/system-copy";
@@ -147,7 +148,11 @@ function PublicSkillCard({
   return (
     <div className={styles.skill} id={"skill-" + skill.id}>
       <Panel title={skill.skill.name}>
-        <p>Trình độ: {skill.skillLevel?.name ?? skill.level}</p>
+        <p>
+          Trình độ:{" "}
+          {skill.skillLevel?.name ??
+            systemCodeLabel(skill.level, "Chưa xác định trình độ")}
+        </p>
         <Status value={skill.verificationStatus} />
         <p className="learner-prose">{skill.description}</p>
         {skill.experienceYears && (

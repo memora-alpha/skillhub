@@ -1,4 +1,5 @@
 "use client";
+import { systemCodeLabel } from "@/lib/system-text";
 import { useState } from "react";
 import { Card, PageHeader } from "@/components/console/ui";
 import { Identifier, useOperation } from "./operation-tools";
@@ -117,7 +118,7 @@ function PendingReviews({ userId }: Readonly<{ userId: string }>) {
                   {r.scope === "REQUIRE_ADMIN_REVIEW"
                     ? "Cần Admin xét"
                     : "Cần Staff xét"}
-                  <small>{r.reasonCode}</small>
+                  <small>{systemCodeLabel(r.reasonCode)}</small>
                 </td>
                 <td>
                   {fmtDateTime(r.startsAt)} — {fmtDateTime(r.endsAt)}

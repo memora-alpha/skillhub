@@ -1,4 +1,5 @@
 "use client";
+import { systemCodeLabel } from "@/lib/system-text";
 import { useRef, useState } from "react";
 import { useUserSession } from "../auth/session";
 import { useUserResource } from "../hooks/use-user-resource";
@@ -171,7 +172,7 @@ export function LearningChangePanel({
       )}
       {query.data?.map((row) => (
         <article key={row.id}>
-          <h3>{changeLabels[row.status] ?? row.status}</h3>
+          <h3>{changeLabels[row.status] ?? systemCodeLabel(row.status)}</h3>
           <p className="learner-prose">{row.reason}</p>
           <p className="muted">
             Gửi: {formatTime(row.createdAt)} · Hạn phản hồi:{" "}

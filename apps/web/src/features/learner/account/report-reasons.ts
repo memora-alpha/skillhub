@@ -1,3 +1,4 @@
+import { systemCodeLabel } from "@/lib/system-text";
 export const reportReasons = [
   ["TECHNICAL_ISSUE", "Sự cố kỹ thuật"],
   ["INAPPROPRIATE_BEHAVIOR", "Hành vi không phù hợp"],
@@ -15,5 +16,8 @@ export const canSubmitReportReason = (code: string) =>
 
 export function reportReasonLabel(code: string) {
   if (code === "NO_SHOW_LATE") return "Vắng học / đến muộn (báo cáo trước đây)";
-  return reportReasons.find(([reason]) => reason === code)?.[1] ?? code;
+  return (
+    reportReasons.find(([reason]) => reason === code)?.[1] ??
+    systemCodeLabel(code, "Vấn đề cần xem xét")
+  );
 }
