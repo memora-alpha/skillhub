@@ -18,6 +18,7 @@ import { ProfileAvatar } from "../components/profile-avatar";
 import { DirectInvitationForm } from "./direct-invitation-form";
 import type { PublicProfile, PublicSharingSkill } from "./discovery-types";
 import styles from "./discovery.module.css";
+import { ProfileReviews, RatingSummary } from "../account/profile-reviews";
 
 export function PublicProfileScreen({ userId }: Readonly<{ userId: string }>) {
   const query = useUserResource<PublicProfile>("profiles/" + userId);
@@ -62,10 +63,12 @@ export function PublicProfileScreen({ userId }: Readonly<{ userId: string }>) {
                 <span>Kỹ năng đã xác minh</span>
               </div>
               <div>
-                <strong>{profile.completedSessionCount}</strong>
-                <span>Buổi đã hoàn thành</span>
+                <strong>{profile.completedLearningPathCount}</strong>
+                <span>Lộ trình đã hoàn tất</span>
               </div>
             </div>
+            <p>{profile.completedSessionCount} buổi đã hoàn thành</p>
+            <RatingSummary summary={profile.reviewSummary} />
             {actor.userId === userId && (
               <Link className="btn" href="/learn/profile">
                 Chỉnh sửa hồ sơ của tôi
@@ -73,6 +76,7 @@ export function PublicProfileScreen({ userId }: Readonly<{ userId: string }>) {
             )}
           </Panel>
           <PublicSkills userId={userId} fullName={profile.fullName} />
+          <ProfileReviews userId={userId} />
         </>
       )}
     </>

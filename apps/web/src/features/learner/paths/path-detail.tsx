@@ -21,6 +21,7 @@ import { LearningChangePanel } from "./learning-change-panel";
 import { PathReviews } from "./path-reviews";
 import { PathAgreementSummary } from "./agreement-summary";
 import { FinalizePanel } from "./finalize-panel";
+import { PathOverviewPanel, type PathOverview } from "./path-overview";
 function pathPermissions(path: LearningPath | undefined, userId: string) {
   if (!path)
     return {
@@ -56,6 +57,9 @@ export function PathDetail({ id }: Readonly<{ id: string }>) {
   const [tab, setTab] = useState("plans");
   const [editing, setEditing] = useState(false);
   const path = query.data;
+  const overview = useUserResource<PathOverview>(
+    "learning-paths/" + id + "/overview",
+  );
   const { ready, ownConfirmed, editable, canAdd } = pathPermissions(
     path,
     actor.userId,
@@ -96,7 +100,11 @@ export function PathDetail({ id }: Readonly<{ id: string }>) {
               </div>
             }
           />
-          <PathAgreementSummary path={path} />
+          <PathOverviewPanel pathId={id} />
+          <details>
+            <summary>Thỏa thuận học tập</summary>
+            <PathAgreementSummary path={path} />
+          </details>
           <CommandFeedback command={command} />
           <div className="path-tabs" aria-label="Các phần của lộ trình">
             {[
@@ -131,6 +139,10 @@ export function PathDetail({ id }: Readonly<{ id: string }>) {
                   pathId={path.id}
                   canRequest={
                     !path.settledAt &&
+                    !!overview.data &&
+                    !["LEARNING_FINISHED", "COMPLETED", "STOPPED"].includes(
+                      overview.data.learningStage ?? "",
+                    ) &&
                     ["SCHEDULED", "ACTIVE", "DISPUTED"].includes(path.status)
                   }
                   blocked={query.loading || !!query.error}

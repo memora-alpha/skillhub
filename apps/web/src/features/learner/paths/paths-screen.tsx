@@ -11,8 +11,11 @@ import {
   Status,
 } from "../components/common";
 import { ProfileName } from "../components/profile-name";
+import { PathProgress, type PathOverview } from "./path-overview";
 export function PathsScreen() {
-  const query = useUserList<PathSummary>("learning-paths/mine?limit=20");
+  const query = useUserList<PathSummary & Partial<PathOverview>>(
+    "learning-paths/mine?limit=20",
+  );
   return (
     <>
       <PageHeading title="Lộ trình học của tôi" />
@@ -32,6 +35,9 @@ export function PathsScreen() {
               {exchangeLabels[path.exchangeType ?? ""] ??
                 "Đang thống nhất hình thức"}
             </p>
+            {path.progress && (
+              <PathProgress overview={path as PathSummary & PathOverview} />
+            )}
             <Link className="btn btn-primary" href={"/learn/paths/" + path.id}>
               Xem kế hoạch và lịch học
             </Link>

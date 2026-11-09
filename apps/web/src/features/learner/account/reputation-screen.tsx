@@ -1,6 +1,7 @@
 "use client";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useUserSession } from "../auth/session";
+import { ReputationRecovery } from "./reputation-recovery";
 import {
   Back,
   Empty,
@@ -94,6 +95,11 @@ export function ReputationScreen() {
     <>
       <Back href="/learn/profile" />
       <PageHeading title="Lịch sử uy tín" />
+      {current &&
+        (current.reputationScore < 40 ||
+          current.activeRestrictions.length > 0) && (
+          <ReputationRecovery onChanged={() => void query.refetch()} />
+        )}
       <Feedback
         loading={query.isFetching}
         error={query.error?.message}
@@ -111,7 +117,8 @@ export function ReputationScreen() {
                 <p key={restriction.scope + index}>
                   {scopes[restriction.scope] ?? restriction.scope} ·{" "}
                   {reasons[restriction.reasonCode] ?? restriction.reasonCode} ·
-                  đến {formatTime(restriction.endsAt)}
+                  thời hạn đến {formatTime(restriction.endsAt)}. Có thể cần xác
+                  nhận chính sách hoặc xét lại để mở quyền.
                 </p>
               ))
             ) : (

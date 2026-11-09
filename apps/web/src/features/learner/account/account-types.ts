@@ -74,6 +74,12 @@ export type OwnIdentity = {
     reputationScore: number;
     verifiedSkillCount: number;
     completedSessionCount: number;
+    completedLearningPathCount: number;
+    reviewSummary?: import("./profile-reviews").ReviewSummary;
+    profileModeration?: Record<
+      string,
+      { action: string; reason: string; at: string }
+    > | null;
     timezone: string | null;
     locale: string;
     selectedTitle: string | null;

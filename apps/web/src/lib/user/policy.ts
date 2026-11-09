@@ -2,6 +2,25 @@ const uuid = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 const route = (pattern: string) => new RegExp("^" + pattern + "$", "i");
 const allowed: Record<string, RegExp[]> = {
   GET: [
+    route("reputation/recovery"),
+    route("me/(notification-preferences|reviews)"),
+    route("profiles/" + uuid + "/reviews"),
+    route(
+      "learning-paths/" +
+        uuid +
+        "/(overview|cases(/" +
+        uuid +
+        "/summary)?|termination-requests/quote)",
+    ),
+    route(
+      "reports/support/cases/" +
+        uuid +
+        "/parties/" +
+        uuid +
+        "/(messages|evidence(/" +
+        uuid +
+        "/download)?)",
+    ),
     route("reputation/me"),
     route("tags"),
     route("me/tag-requests(/" + uuid + ")?"),
@@ -59,6 +78,15 @@ const allowed: Record<string, RegExp[]> = {
     route("sessions/(mine|" + uuid + ")"),
   ],
   POST: [
+    route("reputation/recovery/(quiz|claim)"),
+    route("reputation/restrictions/policy-acknowledgement"),
+    route(
+      "reports/support/cases/" +
+        uuid +
+        "/parties/" +
+        uuid +
+        "/(messages|evidence)",
+    ),
     route("me/material-orders/" + uuid + "/refund"),
     route("notifications/push-tokens"),
     route("me/avatar"),
@@ -105,6 +133,7 @@ const allowed: Record<string, RegExp[]> = {
     ),
   ],
   PATCH: [
+    route("me/notification-preferences"),
     route("me/materials/" + uuid),
     route("me/skills/" + uuid),
     route("me/achievements/selected-title"),
@@ -157,7 +186,7 @@ export function userIdentity(value: unknown) {
     v.accountStatus !== "ACTIVE" ||
     v.emailVerified !== true ||
     !Array.isArray(v.roles) ||
-    !v.roles.includes("USER") ||
+    !v.roles.some((role) => role === "USER" || role === "STAFF") ||
     typeof v.email !== "string" ||
     !v.profile ||
     typeof v.profile !== "object"
@@ -168,7 +197,7 @@ export function userIdentity(value: unknown) {
   return {
     userId: v.userId,
     email: v.email,
-    roles: ["USER"],
+    roles: v.roles.filter((role): role is string => typeof role === "string"),
     profile: {
       fullName: profile.fullName,
       avatarUrl:

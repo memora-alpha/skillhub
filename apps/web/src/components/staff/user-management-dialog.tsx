@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 import { Avatar, Badge, StatusBadge } from "@/components/console/ui";
 import { Icon } from "@/components/console/icon";
@@ -107,6 +108,26 @@ export function UserManagementDialog({
           >
             <h3>Thao tác quản lý</h3>
             <div className="user-row-actions">
+              <Link
+                className="btn"
+                href={`/admin/profile-moderation?userId=${user.userId}`}
+              >
+                Kiểm duyệt hồ sơ
+              </Link>
+              <Link
+                className="btn"
+                href={`/admin/reputation?userId=${user.userId}`}
+              >
+                Xét lại uy tín
+              </Link>
+              {user.roles.includes("STAFF") && (
+                <Link
+                  className="btn"
+                  href={`/admin/staff-permissions?userId=${user.userId}`}
+                >
+                  Quyền chi tiết
+                </Link>
+              )}
               {allowed.map((next) => (
                 <button
                   key={next}

@@ -19,6 +19,26 @@ export function isSessionFailure(error: unknown): boolean {
   );
 }
 const errorMessages: Readonly<Record<string, string>> = {
+  INCIDENT_DECISION_REQUIRED:
+    "Báo cáo đã được gom. Mở vụ việc chung để ra quyết định.",
+  REPORT_SELF_MODERATION_FORBIDDEN:
+    "Vụ việc có liên quan đến bạn. Cần một nhân viên khác xử lý.",
+  PROFILE_SELF_MODERATION_FORBIDDEN:
+    "Hồ sơ của bạn cần một nhân viên khác kiểm duyệt.",
+  REVIEW_SELF_MODERATION_FORBIDDEN:
+    "Đánh giá liên quan đến bạn cần một nhân viên khác kiểm duyệt.",
+  CASE_HANDLER_REQUIRED: "Nhận xử lý báo cáo trước khi trao đổi.",
+  CASE_THREAD_ACCESS_DENIED: "Bạn chưa được giao xử lý cuộc trao đổi này.",
+  REPORT_INCIDENT_TARGET_MISMATCH:
+    "Chỉ gom các báo cáo có cùng đối tượng và buổi học.",
+  REPORT_CASE_NOT_GROUPABLE:
+    "Một báo cáo đã được xử lý, đã gom hoặc được giao cho người khác. Tải lại hàng đợi.",
+  STALE_STAFF_PERMISSION_VERSION:
+    "Quyền nhân viên đã thay đổi. Làm mới quyền rồi xác nhận lại.",
+  STALE_FEE_POLICY_VERSION:
+    "Phiên bản phí đã thay đổi. Tải lại và chọn phiên bản tiếp theo.",
+  FEE_POLICY_EFFECTIVE_TIME_IN_PAST:
+    "Thời điểm áp dụng phải ở tương lai hoặc để trống để áp dụng ngay.",
   API_UPSTREAM_CHALLENGE:
     "Kết nối tới máy chủ đang bị chặn. Vui lòng thử lại sau hoặc liên hệ hỗ trợ.",
   SESSION_RETRY_REQUIRED:

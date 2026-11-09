@@ -48,13 +48,26 @@ export function useUserResource<T>(
     },
   };
 }
-export function useUserList<T extends { id: string }>(path: string) {
+export function useUserList<T extends { id: string }>(
+  path: string,
+  nestedItems = false,
+) {
   const { request, actor } = useUserSession();
   const query = useInfiniteQuery({
     queryKey: ["learner", actor.userId, path],
     initialPageParam: undefined as string | undefined,
     queryFn: async ({ pageParam, signal }) => {
-      const reply = await request<T[]>(pageUrl(path, pageParam), { signal });
+      const raw = await request<T[] | { items: T[] }>(
+        pageUrl(path, pageParam),
+        { signal },
+      );
+      const reply = {
+        ...raw,
+        data:
+          nestedItems && !Array.isArray(raw.data)
+            ? raw.data.items
+            : (raw.data as T[]),
+      };
       if (
         !Array.isArray(reply.data) ||
         (pageParam && reply.meta?.pagination?.nextCursor === pageParam)

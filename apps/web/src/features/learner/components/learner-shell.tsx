@@ -268,6 +268,13 @@ export function LearnerShell({
           />
         </header>
         <main id="learning-content" className="app-content" tabIndex={-1}>
+          {actor.roles.includes("STAFF") && (
+            <p>
+              <Link className="btn" href="/staff">
+                Về khu vực nhân sự
+              </Link>
+            </p>
+          )}
           {!live && (
             <p className="learner-notice">
               Cập nhật trực tiếp tạm ngắt.{" "}

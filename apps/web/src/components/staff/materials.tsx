@@ -14,7 +14,7 @@ import {
   type MaterialState,
   type ModeratedMaterial,
 } from "@/lib/staff/account-types";
-import { DecisionDialog, DownloadButton, QueueState } from "./common";
+import { DecisionDialog, DownloadButton, Pager, QueueState } from "./common";
 import { useStaffList } from "./hooks";
 import { useStaffSession } from "./session";
 
@@ -199,10 +199,14 @@ export function MaterialsScreen() {
         </QueueState>
         {!queue.error && (
           <p className="staff-state muted">
-            {queue.items.length} tài liệu đã tải · Mỗi trạng thái hiển thị tối
-            đa 100 mục.
+            {queue.items.length} tài liệu đã tải
           </p>
         )}
+        <Pager
+          loading={queue.loading}
+          more={queue.more}
+          hasMore={queue.page?.hasMore}
+        />
       </Card>
       {decision && (
         <DecisionDialog

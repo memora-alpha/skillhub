@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useRef, useState } from "react";
-import { useUserResource } from "../hooks/use-user-resource";
+import { useUserResource, useUserList } from "../hooks/use-user-resource";
 import { useUserCommand } from "../hooks/use-user-command";
 import { useUserSession } from "../auth/session";
 import {
@@ -14,16 +14,19 @@ import {
 import { ProductIcon } from "../components/product-icon";
 import type { Material, MaterialOrder } from "./account-types";
 import { safeDownloadUrl } from "./view-policy";
+import { materialPurchaseAccess } from "./material-access-policy";
 export function MaterialDetail({ id }: Readonly<{ id: string }>) {
   const query = useUserResource<Material>("materials/" + id),
-    orders = useUserResource<MaterialOrder[]>("me/material-orders"),
+    orders = useUserList<MaterialOrder>("me/material-orders?limit=100"),
     { request, actor } = useUserSession(),
     command = useUserCommand(true);
   const material = query.data;
-  const purchased = orders.data?.some(
-      (order) => order.materialId === id && order.status === "SUCCESS",
-    ),
-    owned = material?.ownerId === actor.userId;
+  const { purchased, canPurchase } = materialPurchaseAccess(
+    id,
+    orders.items,
+    orders,
+  );
+  const owned = material?.ownerId === actor.userId;
   const [acceptedListing, setAcceptedListing] = useState(""),
     [downloading, setDownloading] = useState(false),
     [download, setDownload] = useState<{ url: string; expiresAt: string }>(),
@@ -114,6 +117,23 @@ export function MaterialDetail({ id }: Readonly<{ id: string }>) {
                 error={orders.error}
                 reload={orders.reload}
               />
+              {!owned &&
+                !purchased &&
+                material.accessType === "PAID" &&
+                orders.cursor && (
+                  <p className="learner-notice">
+                    Cần kiểm tra đơn cũ trước khi mua.{" "}
+                    <button
+                      className="btn"
+                      disabled={orders.loading}
+                      onClick={() => {
+                        void orders.more();
+                      }}
+                    >
+                      Kiểm tra đơn cũ hơn
+                    </button>
+                  </p>
+                )}
               {owned || purchased || material.accessType === "FREE" ? (
                 <>
                   <p>{accessDescription}</p>
@@ -163,12 +183,7 @@ export function MaterialDetail({ id }: Readonly<{ id: string }>) {
                   <button
                     className="btn btn-primary"
                     style={{ marginTop: 18 }}
-                    disabled={
-                      !agree ||
-                      orders.loading ||
-                      !!orders.error ||
-                      command.pending
-                    }
+                    disabled={!agree || !canPurchase || command.pending}
                     onClick={() => {
                       void command
                         .run(

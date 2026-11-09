@@ -11,6 +11,7 @@ import {
 } from "../components/common";
 import { changeLabels, type LearningChange } from "./post-session-contract";
 import { UserApiError } from "../api/client";
+import { TerminationPreview } from "./termination-preview";
 
 export function LearningChangePanel({
   pathId,
@@ -105,6 +106,9 @@ export function LearningChangePanel({
         error={query.error}
         reload={query.reload}
       />
+      {!sessionId && (composing || open) && (
+        <TerminationPreview pathId={pathId} />
+      )}
       {!open && canRequest && !composing && !create.uncertain && (
         <button
           type="button"

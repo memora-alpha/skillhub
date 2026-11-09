@@ -18,6 +18,7 @@ import {
 } from "@/lib/staff/report-resolution";
 import { ReportResolutionFields } from "./report-resolution";
 import { AttendanceEvidence } from "./attendance-evidence";
+import { CaseSupportPanel } from "./report-support";
 import { useStaffList, useStaffResource } from "./hooks";
 import { useStaffSession } from "./session";
 import { DecisionDialog, DownloadButton, QueueState } from "./common";
@@ -281,6 +282,12 @@ function ReportActions({ item, owns, busy, onAction }: ReportActionProps) {
         Một nhân viên khác đang phụ trách vụ việc này.
       </p>
     );
+  if (item.incidentId)
+    return (
+      <p className="staff-flag">
+        Báo cáo đã gom vào vụ việc chung. Mở quyết định chung bên dưới.
+      </p>
+    );
   return (
     <>
       <p className="muted">Bạn đang phụ trách vụ việc này.</p>
@@ -393,6 +400,7 @@ function ReportDetailContent({
         <Card title="Bằng chứng">
           <ReportFiles files={item.reportEvidenceCaseIdRecords} />
         </Card>
+        <CaseSupportPanel item={item} onUpdated={reload} />
       </div>
       <Card title="Xử lý vụ việc">
         <div className="stack">

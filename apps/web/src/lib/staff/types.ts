@@ -79,6 +79,7 @@ export type ReportEvidence = {
 };
 export type ReportCase = {
   id: string;
+  incidentId?: string | null;
   reporterId: string | null;
   targetType: string;
   targetId: string;

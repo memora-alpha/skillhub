@@ -13,6 +13,7 @@ import { useUserResource } from "../hooks/use-user-resource";
 import type { ReportCase } from "./account-types";
 import { reportReasonLabel } from "./report-reasons";
 import { reportStatusLabel } from "./report-status";
+import { PrivateCaseThread } from "./private-case-thread";
 
 export function ReportDetail({ id }: Readonly<{ id: string }>) {
   const query = useUserResource<ReportCase>("reports/mine/" + id);
@@ -50,6 +51,12 @@ export function ReportDetail({ id }: Readonly<{ id: string }>) {
             )}
           </Panel>
           <div className="learner-stack">
+            <Panel title="Hỗ trợ riêng">
+              <PrivateCaseThread
+                caseId={id}
+                closed={["RESOLVED", "REJECTED"].includes(report.status)}
+              />
+            </Panel>
             <Panel title="Thông tin liên quan">
               {report.blocksSettlement && (
                 <p className="learner-notice">

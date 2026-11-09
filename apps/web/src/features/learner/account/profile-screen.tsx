@@ -19,6 +19,7 @@ import type { OwnIdentity } from "./account-types";
 import { ProfileAvatar } from "../components/profile-avatar";
 import { AvatarEditor } from "./avatar-editor";
 import { AccountSecurity } from "./account-security";
+import { ProfileReviews, RatingSummary } from "./profile-reviews";
 export function ProfileScreen() {
   const skills = useUserList<SharingSkill>("me/skills?limit=3");
   const query = useUserResource<OwnIdentity>("me"),
@@ -44,6 +45,16 @@ export function ProfileScreen() {
       />
       {me && (
         <>
+          {me.profile.profileModeration &&
+            Object.entries(me.profile.profileModeration).map(
+              ([field, item]) => (
+                <p className="learner-notice" key={field}>
+                  {field === "bio" ? "Giới thiệu" : "Ảnh đại diện"}:{" "}
+                  {item.action === "HIDE" ? "Đã bị ẩn" : "Cần cập nhật"}.{" "}
+                  {item.reason}
+                </p>
+              ),
+            )}
           <section className="learner-card product-profile-hero">
             <ProfileAvatar
               className="product-profile-avatar"
@@ -168,14 +179,16 @@ export function ProfileScreen() {
                     <Link href="/learn/reputation">Xem lịch sử & hạn chế</Link>
                   </div>
                   <div>
-                    <strong>{me.profile.completedSessionCount}</strong>
-                    <small>Buổi hoàn thành</small>
+                    <strong>{me.profile.completedLearningPathCount}</strong>
+                    <small>Lộ trình hoàn tất</small>
                   </div>
                   <div>
                     <strong>{me.profile.verifiedSkillCount}</strong>
                     <small>Kỹ năng đã xác minh</small>
                   </div>
                 </div>
+                <p>{me.profile.completedSessionCount} buổi đã hoàn thành</p>
+                <RatingSummary summary={me.profile.reviewSummary} />
               </Panel>
               <Panel title="Kỹ năng của bạn">
                 <Feedback
@@ -228,6 +241,7 @@ export function ProfileScreen() {
               </Panel>
             </div>
           </div>
+          <ProfileReviews userId={actor.userId} own />
         </>
       )}
     </>

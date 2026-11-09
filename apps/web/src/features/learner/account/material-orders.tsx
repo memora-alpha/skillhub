@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useUserSession } from "../auth/session";
-import { useUserResource } from "../hooks/use-user-resource";
+import { useUserList } from "../hooks/use-user-resource";
 import { useUserCommand } from "../hooks/use-user-command";
 import {
   Back,
@@ -11,15 +11,15 @@ import {
   Feedback,
   PageHeading,
   Panel,
+  More,
   Status,
   formatTime,
 } from "../components/common";
 import type { MaterialOrder } from "./account-types";
-import { UserApiError } from "../api/client";
 import { readRefundedOrder } from "./material-order-policy";
 
 export function MaterialOrders() {
-  const query = useUserResource<MaterialOrder[]>("me/material-orders");
+  const query = useUserList<MaterialOrder>("me/material-orders?limit=20");
   return (
     <>
       <Back href="/learn/materials" />
@@ -32,11 +32,8 @@ export function MaterialOrders() {
         error={query.error}
         reload={query.reload}
       />
-      <p className="muted">
-        Hiển thị tối đa 100 đơn gần nhất theo dữ liệu máy chủ.
-      </p>
       <div className="learner-stack">
-        {query.data?.map((order) => (
+        {query.items.map((order) => (
           <OrderCard
             key={order.id + ":" + order.status}
             order={order}
@@ -44,7 +41,14 @@ export function MaterialOrders() {
           />
         ))}
       </div>
-      {!query.loading && !query.error && query.data?.length === 0 && (
+      <More
+        cursor={query.cursor}
+        loading={query.loading}
+        onMore={() => {
+          void query.more();
+        }}
+      />
+      {!query.loading && !query.error && query.items.length === 0 && (
         <Empty>Bạn chưa có đơn tài liệu.</Empty>
       )}
     </>
@@ -67,14 +71,6 @@ function OrderCard({
     : "Xác nhận hoàn đơn";
   async function refund() {
     const result = await command.run("refund:" + order.id, async () => {
-      const current = (
-        await request<MaterialOrder[]>("me/material-orders")
-      ).data.find((item) => item.id === order.id);
-      if (!current) throw new UserApiError(404, "MATERIAL_ORDER_NOT_FOUND");
-      if (current.status === "REFUNDED")
-        return { data: readRefundedOrder(current, order.id) };
-      if (current.status !== "SUCCESS")
-        throw new UserApiError(409, "MATERIAL_ORDER_NOT_REFUNDABLE");
       const result = await request<unknown>(
         "me/material-orders/" + order.id + "/refund",
         { method: "POST" },

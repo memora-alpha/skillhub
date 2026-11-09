@@ -3,7 +3,7 @@ import { formText } from "../components/form-data";
 import Link from "next/link";
 import { useState } from "react";
 import { useUserSession } from "../auth/session";
-import { useUserResource } from "../hooks/use-user-resource";
+import { useUserResource, useUserList } from "../hooks/use-user-resource";
 import { useUserCommand } from "../hooks/use-user-command";
 import {
   Back,
@@ -12,6 +12,7 @@ import {
   Feedback,
   PageHeading,
   Panel,
+  More,
   Status,
 } from "../components/common";
 import { SkillPicker } from "../components/skill-picker";
@@ -221,10 +222,9 @@ export function MyMaterials() {
   const [editing, setEditing] = useState<string | null>(null),
     [archiving, setArchiving] = useState<string | null>(null),
     [inspectionError, setInspectionError] = useState<string>();
-  const query =
-      useUserResource<(Material & { rejectReason: string | null })[]>(
-        "me/materials",
-      ),
+  const query = useUserList<Material & { rejectReason: string | null }>(
+      "me/materials",
+    ),
     { request } = useUserSession(),
     command = useUserCommand();
   return (
@@ -272,7 +272,7 @@ export function MyMaterials() {
         </p>
       )}
       <div className="learner-stack">
-        {query.data?.map((material) => (
+        {query.items.map((material) => (
           <Panel key={material.id}>
             <div className="learner-card-top">
               <h2>{material.title}</h2>
@@ -379,9 +379,16 @@ export function MyMaterials() {
           </Panel>
         ))}
       </div>
-      {!query.loading && !query.error && !query.data?.length && (
+      {!query.loading && !query.error && !query.items.length && (
         <Empty>Bạn chưa chia sẻ tài liệu nào.</Empty>
       )}
+      <More
+        cursor={query.cursor}
+        loading={query.loading}
+        onMore={() => {
+          void query.more();
+        }}
+      />
     </>
   );
 }

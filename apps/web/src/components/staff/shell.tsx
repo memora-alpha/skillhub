@@ -21,6 +21,12 @@ const nav: NavigationItem[] = [
   { href: "/staff", label: "Tổng quan", icon: "inbox" },
   { href: "/staff/evidence", label: "Bằng chứng kỹ năng", icon: "shield" },
   { href: "/staff/moderation", label: "Kiểm duyệt yêu cầu học", icon: "flag" },
+  {
+    href: "/staff/profile-moderation",
+    label: "Hồ sơ & đánh giá",
+    icon: "users",
+  },
+  { href: "/staff/restriction-reviews", label: "Xét lại uy tín", icon: "star" },
   { href: "/staff/content", label: "Duyệt tài liệu", icon: "file" },
   { href: "/staff/disputes", label: "Báo cáo & tranh chấp", icon: "alert" },
   { href: "/staff/learning-changes", label: "Dừng lộ trình", icon: "file" },
@@ -31,6 +37,18 @@ const nav: NavigationItem[] = [
 const adminNav: typeof nav = [
   { href: "/admin", label: "Tổng quan", icon: "grid" },
   { href: "/admin/users", label: "Người dùng", icon: "users" },
+  {
+    href: "/admin/staff-permissions",
+    label: "Quyền nhân viên",
+    icon: "shield",
+  },
+  {
+    href: "/admin/profile-moderation",
+    label: "Hồ sơ & đánh giá",
+    icon: "users",
+  },
+  { href: "/admin/reputation", label: "Xét lại uy tín", icon: "star" },
+  { href: "/admin/credits", label: "Tài chính", icon: "card" },
   { href: "/admin/skills", label: "Danh mục kỹ năng", icon: "tag" },
   {
     href: "/admin/tags",
@@ -180,6 +198,11 @@ function Frame({ children }: Readonly<{ children: ReactNode }>) {
             {current?.label ?? portalName}
           </span>
           <div className="row">
+            {actor.roles.includes("STAFF") && (
+              <Link href="/learn" className="btn">
+                Không gian học
+              </Link>
+            )}
             <NotificationBell portal={portal} />
           </div>
         </header>
