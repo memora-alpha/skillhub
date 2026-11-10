@@ -2,11 +2,7 @@ import { z } from "zod";
 import { AppError } from "@/lib/http/errors";
 import { parse, resourcePath, version, uuid } from "@/lib/http/contracts";
 import type { RequestOptions } from "@/lib/http/client";
-import {
-  changeSchema,
-  settlementStatusSchema,
-  settlementConsentSchema,
-} from "./post-learning-contracts";
+import { changeSchema } from "./post-learning-contracts";
 
 export function createPostLearningApi(
   call: (path: string, options?: RequestOptions) => Promise<unknown>,
@@ -20,40 +16,6 @@ export function createPostLearningApi(
     return row;
   };
   return {
-    async status(pathId: string, signal?: AbortSignal) {
-      return verify(
-        parse(
-          settlementStatusSchema,
-          await call(
-            `${resourcePath("learning-paths", pathId)}/settlement-status`,
-            { signal },
-          ),
-        ),
-        pathId,
-      );
-    },
-    async consent(pathId: string, expectedVersion: number) {
-      return verify(
-        parse(
-          settlementConsentSchema,
-          await call(
-            `${resourcePath("sessions/paths", pathId)}/settlement-consent`,
-            {
-              method: "POST",
-              body: { expectedVersion: parse(version, expectedVersion) },
-              replayAfterRenewal: false,
-            },
-          ),
-        ),
-        pathId,
-      );
-    },
-    async retrySettlement(pathId: string) {
-      return call(`${resourcePath("sessions/paths", pathId)}/settlement`, {
-        method: "POST",
-        replayAfterRenewal: false,
-      });
-    },
     async changes(pathId: string, sessionId?: string, signal?: AbortSignal) {
       const rows = parse(
         z.array(changeSchema).max(100),
