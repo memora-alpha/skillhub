@@ -240,9 +240,9 @@ export function RoomChat({
             }}
           />
           {contactIssue && (
-            <p id={bodyId + "-contact"} role="status" className={styles.error}>
+            <output id={bodyId + "-contact"} className={styles.error}>
               {contactIssue.message}
-            </p>
+            </output>
           )}
           <div className={styles.composerActions}>
             <span>Enter để gửi · Shift + Enter xuống dòng</span>

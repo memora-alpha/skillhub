@@ -81,12 +81,12 @@ export function useRoomChat(
       if (controller.current === chat && current.current()) {
         const availability = chat.status();
         setStatus(availability);
+        const fallback =
+          availability === "ready"
+            ? "Chưa gửi được tin nhắn. Kiểm tra kết nối rồi gửi lại."
+            : roomChatStatusMessage(availability);
         setError(
-          cause instanceof ContactInformationError
-            ? cause.message
-            : availability === "ready"
-              ? "Chưa gửi được tin nhắn. Kiểm tra kết nối rồi gửi lại."
-              : roomChatStatusMessage(availability),
+          cause instanceof ContactInformationError ? cause.message : fallback,
         );
       }
       return false;

@@ -88,7 +88,7 @@ export function PathCard({
             {path.attentionCount} việc cần theo dõi
           </span>
         )}
-        {!path.nextSession && !(path.attentionCount > 0) && (
+        {!path.nextSession && path.attentionCount <= 0 && (
           <p className="muted">Chưa có hoạt động tiếp theo</p>
         )}
       </div>

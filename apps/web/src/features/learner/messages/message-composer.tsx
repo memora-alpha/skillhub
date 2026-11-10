@@ -259,11 +259,11 @@ export function MessageComposer({
         </button>
       </div>
       {contactIssue && (
-        <p id={contactHintId} role="status" className="learner-error">
+        <output id={contactHintId} className="learner-error">
           {saved
             ? "Bản gửi cũ có thông tin liên hệ riêng. Kiểm tra kết quả trước khi sửa nội dung."
             : contactIssue.message}
-        </p>
+        </output>
       )}
       <small className={styles.composerHint}>
         Enter để gửi · Shift + Enter để xuống dòng · Tối đa 15 MB/tệp

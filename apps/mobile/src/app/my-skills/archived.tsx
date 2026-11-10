@@ -1,3 +1,1 @@
-import { ArchivedSkillsScreen } from "@/features/skills";
-
-export default ArchivedSkillsScreen;
+export { ArchivedSkillsScreen as default } from "@/features/skills";

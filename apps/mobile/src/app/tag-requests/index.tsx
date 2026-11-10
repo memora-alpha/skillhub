@@ -1,3 +1,1 @@
-import { TagRequestsScreen } from "@/features/tag-requests";
-
-export default TagRequestsScreen;
+export { TagRequestsScreen as default } from "@/features/tag-requests";
