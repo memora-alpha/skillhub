@@ -378,7 +378,7 @@ test("locked path confirmation replays without downgrading or reopening its plan
   );
 });
 
-test("mine lists newest created paths first and paginates beyond the first page", async () => {
+test("mine sorts by business activity, with ID ties, independent of creation and technical updates", async () => {
   const ctx = setup();
   const rows = [
     [
@@ -408,6 +408,9 @@ test("mine lists newest created paths first and paginates beyond the first page"
       status: "PROPOSED",
       createdAt: new Date(createdAt),
       updatedAt: new Date(updatedAt),
+      lastActivityAt: new Date(
+        id === rows[0][0] ? "2026-11-03T10:00:00Z" : "2026-11-02T10:00:00Z",
+      ),
     });
     ctx.db.seed("learningPathVersion", {
       pathId: id,
@@ -418,7 +421,7 @@ test("mine lists newest created paths first and paginates beyond the first page"
   const first = await ctx.paths.listMinePage(user(A), { limit: "2" });
   assert.deepEqual(
     first.data.map(({ id }) => id),
-    [rows[2][0], rows[1][0]],
+    [rows[0][0], rows[2][0]],
   );
   assert.equal(first.pagination.hasMore, true);
   const second = await ctx.paths.listMinePage(user(A), {
@@ -427,9 +430,57 @@ test("mine lists newest created paths first and paginates beyond the first page"
   });
   assert.deepEqual(
     second.data.map(({ id }) => id),
-    [rows[0][0]],
+    [rows[1][0]],
   );
   assert.equal(second.pagination.hasMore, false);
+  const boundary = JSON.parse(
+    Buffer.from(first.pagination.nextCursor, "base64url").toString(),
+  );
+  assert.equal(boundary.order, "activity-v1");
+  assert.equal(boundary.lastActivityAt, "2026-11-02T10:00:00.000Z");
+  // A row's activity changing between pages must not rewrite the old cursor boundary.
+  ctx.db.rows("learningPath").find((p) => p.id === rows[2][0]).lastActivityAt =
+    new Date("2026-11-04T00:00:00Z");
+  const resumed = await ctx.paths.listMinePage(user(A), {
+    limit: "2",
+    cursor: first.pagination.nextCursor,
+  });
+  assert.deepEqual(
+    resumed.data.map((p) => p.id),
+    [rows[1][0]],
+  );
+  const refreshed = await ctx.paths.listMinePage(user(A), { limit: "2" });
+  assert.deepEqual(
+    refreshed.data.map((p) => p.id),
+    [rows[2][0], rows[0][0]],
+  );
+  const reread = await ctx.paths.listMinePage(user(A), { limit: "2" });
+  assert.deepEqual(reread, refreshed);
+  const legacy = Buffer.from(
+    JSON.stringify({
+      actorId: A,
+      createdAt: "2026-11-02T10:00:00.000Z",
+      id: rows[2][0],
+    }),
+  ).toString("base64url");
+  assert.throws(
+    () => ctx.paths.listMinePage(user(A), { cursor: legacy }),
+    /INVALID_LEARNING_PATH_CURSOR/,
+  );
+  for (const patch of [
+    { order: "created-v1" },
+    { lastActivityAt: "invalid" },
+    { id: "invalid" },
+  ])
+    assert.throws(
+      () =>
+        ctx.paths.listMinePage(user(A), {
+          cursor: Buffer.from(
+            JSON.stringify({ ...boundary, ...patch }),
+          ).toString("base64url"),
+        }),
+      /INVALID_LEARNING_PATH_CURSOR/,
+    );
   assert.throws(
     () =>
       ctx.paths.listMinePage(user(B), {

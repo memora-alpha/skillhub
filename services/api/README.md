@@ -6,6 +6,12 @@ Learning fees remain 4%; hiding a review does not reverse reputation history.
 
 # SkillHub API
 
+Learning Path activity ordering (2026-11-11): `/learning-paths/mine` returns
+`lastActivityAt` and orders by `lastActivityAt DESC, id DESC`. Apply migration
+`20261111000000_learning_path_activity` before the API; no env or seed changes.
+Old creation-time cursors must restart from page one. Business triggers exclude
+reads, repeated confirmations and technical updates. See [list contract](docs/learning-path-list.md).
+
 Schedule communication amendment (2026-11-10): first confirmation per participant
 and schedule version records a SYSTEM chat message and a
 `learning-path.schedule.confirmed` notification for the other participant.

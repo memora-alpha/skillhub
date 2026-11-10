@@ -121,5 +121,11 @@ export class LearningPathSummaryResponse {
   @ApiProperty() currentVersion!: number;
   @ApiProperty({ type: Number, nullable: true }) lockedVersion!: number | null;
   @ApiProperty({ format: "date-time" }) createdAt!: string;
+  @ApiProperty({
+    format: "date-time",
+    description:
+      "Latest committed business activity. Reads and no-op writes do not advance it.",
+  })
+  lastActivityAt!: string;
   @ApiProperty({ format: "date-time" }) updatedAt!: string;
 }

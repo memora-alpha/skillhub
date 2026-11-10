@@ -62,19 +62,21 @@ function decodeMineCursor(value: string | undefined, actorId: string) {
       Buffer.from(value, "base64url").toString("utf8"),
     ) as {
       actorId: string;
-      createdAt: string;
+      order: string;
+      lastActivityAt: string;
       id: string;
     };
-    const createdAt = new Date(cursor.createdAt);
+    const lastActivityAt = new Date(cursor.lastActivityAt);
     if (
       cursor.actorId !== actorId ||
+      cursor.order !== "activity-v1" ||
       !uuidPattern.test(cursor.id) ||
-      !Number.isFinite(createdAt.getTime()) ||
-      createdAt.toISOString() !== cursor.createdAt
+      !Number.isFinite(lastActivityAt.getTime()) ||
+      lastActivityAt.toISOString() !== cursor.lastActivityAt
     ) {
       throw new Error("cursor mismatch");
     }
-    return { createdAt, id: cursor.id };
+    return { lastActivityAt, id: cursor.id };
   } catch {
     throw new BadRequestException("INVALID_LEARNING_PATH_CURSOR");
   }
@@ -345,15 +347,18 @@ export class LearningPathsService {
               ? [
                   {
                     OR: [
-                      { createdAt: { lt: cursor.createdAt } },
-                      { createdAt: cursor.createdAt, id: { lt: cursor.id } },
+                      { lastActivityAt: { lt: cursor.lastActivityAt } },
+                      {
+                        lastActivityAt: cursor.lastActivityAt,
+                        id: { lt: cursor.id },
+                      },
                     ],
                   },
                 ]
               : []),
           ],
         },
-        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        orderBy: [{ lastActivityAt: "desc" }, { id: "desc" }],
         take: limit + 1,
       });
       const hasMore = paths.length > limit;
@@ -398,6 +403,7 @@ export class LearningPathsService {
         currentVersion: path.currentVersion,
         lockedVersion: path.lockedVersion,
         createdAt: path.createdAt,
+        lastActivityAt: path.lastActivityAt,
         updatedAt: path.updatedAt,
       }));
       const last = page.at(-1)!;
@@ -410,7 +416,8 @@ export class LearningPathsService {
             ? Buffer.from(
                 JSON.stringify({
                   actorId: actor.userId,
-                  createdAt: last.createdAt.toISOString(),
+                  order: "activity-v1",
+                  lastActivityAt: last.lastActivityAt.toISOString(),
                   id: last.id,
                 }),
               ).toString("base64url")

@@ -1268,6 +1268,8 @@ model LearningPath {
   settlementFeePolicyIdRecord      FeePolicyVersion?     @relation("LearningPath_settlement_fee_policy_id", fields: [settlementFeePolicyId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   learningPlanPathIdRecords        LearningPlan[]        @relation("LearningPlan_path_id")
 
+  lastActivityAt DateTime @default(now()) @map("last_activity_at") @db.Timestamptz(3)
+
   participantASettlementApprovedAt DateTime?               @map("participant_a_settlement_approved_at") @db.Timestamptz(3)
   reputationRewardedAt             DateTime?               @map("reputation_rewarded_at") @db.Timestamptz(3)
   terminationApprovedAt            DateTime?               @map("termination_approved_at") @db.Timestamptz(3)
@@ -1281,6 +1283,8 @@ model LearningPath {
   @@index([participantBId])
   @@index([settlementOperationId])
   @@index([settlementFeePolicyId])
+  @@index([participantAId, lastActivityAt(sort: Desc), id(sort: Desc)], map: "learning_paths_participant_a_activity_idx")
+  @@index([participantBId, lastActivityAt(sort: Desc), id(sort: Desc)], map: "learning_paths_participant_b_activity_idx")
   @@map("learning_paths")
 }
 
