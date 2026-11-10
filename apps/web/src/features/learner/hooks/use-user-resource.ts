@@ -1,4 +1,5 @@
 "use client";
+import { isConnectionFailure } from "@/lib/network/connection-store";
 import { pageUrl } from "../api/page-url";
 import { useMemo } from "react";
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
@@ -43,6 +44,7 @@ export function useUserResource<T>(
   return {
     data:
       query.error &&
+      !isConnectionFailure(query.error) &&
       !(options?.retainOnTemporaryError && isTemporaryFailure(query.error))
         ? undefined
         : query.data?.data,

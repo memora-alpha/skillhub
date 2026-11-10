@@ -1,3 +1,4 @@
+import { apiFetch } from "@/lib/network/api-fetch";
 import { knownSystemMessage } from "@/lib/system-text";
 import {
   findContactInformation,
@@ -247,7 +248,7 @@ export async function userFetch<T>(
       throw new UserApiError(400, "CONTACT_INFORMATION_BLOCKED");
   let response: Response;
   try {
-    response = await fetch("/api/user/" + path, requestInit(options));
+    response = await apiFetch("/api/user/" + path, requestInit(options));
   } catch (cause) {
     if (options.signal?.aborted) throw cause;
     throw new UserApiError(0, "API_UNAVAILABLE");

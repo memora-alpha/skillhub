@@ -1,3 +1,4 @@
+import { apiFetch } from "@/lib/network/api-fetch";
 import type { SessionDestination } from "@/lib/auth/session";
 
 export class LoginSessionError extends Error {
@@ -28,7 +29,7 @@ async function requestSession(
   const suffix = refresh ? "/refresh" : logoutSuffix;
   let response: Response;
   try {
-    response = await fetch(`/api/auth/session${suffix}`, {
+    response = await apiFetch(`/api/auth/session${suffix}`, {
       method,
       credentials: "same-origin",
       cache: "no-store",

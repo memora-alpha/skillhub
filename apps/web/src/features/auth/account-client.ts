@@ -1,10 +1,11 @@
+import { apiFetch } from "@/lib/network/api-fetch";
 export async function accountRequest<T = unknown>(
   action: string,
   body: unknown,
 ): Promise<T | undefined> {
   let response: Response;
   try {
-    response = await fetch("/api/auth/account/" + action, {
+    response = await apiFetch("/api/auth/account/" + action, {
       method: "POST",
       credentials: "same-origin",
       cache: "no-store",
