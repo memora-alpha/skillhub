@@ -8,7 +8,7 @@ const messages: Record<string, string> = {
   TERMINATION_USE_FINAL_SETTLEMENT:
     "Các buổi đã hoàn tất. Về bước Hoàn tất của lộ trình để xem quyết toán.",
   STALE_PATH_VERSION:
-    "Phiên bản thỏa thuận đã thay đổi. Tải lại trước khi đồng ý quyết toán.",
+    "Thỏa thuận đã thay đổi. Hãy tải lại trước khi đồng ý quyết toán.",
   SETTLEMENT_CONSENT_NOT_ALLOWED:
     "Hiện chưa thể đồng ý quyết toán sớm. Tải lại trạng thái và kiểm tra yêu cầu dừng hoặc tranh chấp.",
   SETTLEMENT_BLOCKED_BY_TERMINATION:
@@ -24,7 +24,7 @@ const messages: Record<string, string> = {
   CHANGE_REQUEST_KEY_CONFLICT:
     "Nội dung khác lần gửi trước. Tải lại yêu cầu trước khi tiếp tục.",
   STALE_CHANGE_REQUEST_VERSION:
-    "Yêu cầu đã được cập nhật. Tải lại và xem phiên bản mới trước khi phản hồi.",
+    "Yêu cầu đã được cập nhật. Hãy tải lại và xem thay đổi trước khi phản hồi.",
   CHANGE_REQUEST_EXPIRED: "Yêu cầu đã hết hạn. Tải lại để xem trạng thái mới.",
   CHANGE_REQUEST_CLOSED: "Yêu cầu đã đóng. Tải lại để xem kết quả.",
   CHANGE_REQUEST_ALREADY_DECIDED: "Đã có phản hồi cho yêu cầu. Tải lại để xem.",

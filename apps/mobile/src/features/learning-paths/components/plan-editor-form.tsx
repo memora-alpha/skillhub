@@ -3,7 +3,7 @@ import { useRef } from "react";
 import { useRouter } from "expo-router";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Copy } from "@/components/feature-page";
-import { FlowSection as Panel } from "@/components/learning-flow";
+import { FormNotice } from "@/components/FormNotice";
 import { Button } from "@/components/Button";
 import {
   ConnectionFeedback,
@@ -104,7 +104,31 @@ export function PlanForm({
     </Button>
   );
   return (
-    <PlanEditorFrame action={saveAction}>
+    <PlanEditorFrame
+      action={saveAction}
+      feedback={
+        command.uncertain ? (
+          <>
+            <FormNotice tone="warning" compact>
+              Chưa xác định được kết quả lưu lộ trình. Nội dung được giữ lại;
+              kiểm tra trạng thái trước khi gửi tiếp.
+            </FormNotice>
+            <Button
+              variant="secondary"
+              disabled={blocked || command.pending}
+              onPress={() => router.dismissTo(`/paths/${path.id}`)}
+            >
+              Xem trạng thái lộ trình
+            </Button>
+          </>
+        ) : command.error ? (
+          <ConnectionFeedback
+            error={command.error}
+            errorPresentation="notice"
+          />
+        ) : undefined
+      }
+    >
       <EditorRevisionNotice
         visible={snapshot.changed}
         disabled={command.pending || command.uncertain || blocked}
@@ -160,21 +184,6 @@ export function PlanForm({
         <Copy muted size="hint">
           Sửa nội dung cần người học xác nhận lại.
         </Copy>
-      )}
-      {!!command.error && <ConnectionFeedback error={command.error} />}
-      {command.uncertain && (
-        <Panel title="Kiểm tra kế hoạch vừa gửi">
-          <Copy size="hint">
-            Chưa xác định được kết quả. Nội dung được giữ lại; mở lộ trình để
-            xem kế hoạch và phiên bản mới nhất trước khi gửi thêm.
-          </Copy>
-          <Button
-            variant="secondary"
-            onPress={() => router.dismissTo(`/paths/${path.id}`)}
-          >
-            Xem trạng thái lộ trình
-          </Button>
-        </Panel>
       )}
     </PlanEditorFrame>
   );

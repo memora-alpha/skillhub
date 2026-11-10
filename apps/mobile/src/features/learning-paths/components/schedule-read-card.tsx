@@ -119,7 +119,7 @@ function ScheduledSessionList({ plan }: Readonly<{ plan: ApiLearningPlan }>) {
   const scheduledCount = schedule.items.length;
   const complete = scheduleIsComplete(plan);
   const revisionMessage = complete
-    ? "Lịch đã điều chỉnh. Hai bên cần xem và xác nhận phiên bản này."
+    ? "Lịch đã được cập nhật. Hai bên cần xem và xác nhận lại."
     : "Lộ trình đã đổi số buổi. Người dạy cần bổ sung lịch còn thiếu trước khi hai bên xác nhận.";
   return (
     <View style={styles.list}>

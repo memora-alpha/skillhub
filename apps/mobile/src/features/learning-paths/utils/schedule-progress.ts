@@ -58,7 +58,7 @@ function scheduleDirectionProgress(
       },
     };
   if (!schedule.participantAConfirmedAt || !schedule.participantBConfirmedAt)
-    return { waiting: "Chờ đối tác xác nhận lịch cùng phiên bản." };
+    return { waiting: "Chờ đối tác đồng ý lịch hiện tại." };
   return null;
 }
 

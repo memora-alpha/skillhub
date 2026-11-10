@@ -79,7 +79,9 @@ export function SettlementConsentForm({
   };
   const feedback = (
     <>
-      <TerminationFeedback error={command.error} />
+      <TerminationFeedback
+        error={command.uncertain ? undefined : command.error}
+      />
       {command.uncertain && (
         <>
           <FormNotice tone="warning" compact>
@@ -94,7 +96,7 @@ export function SettlementConsentForm({
               void command.retry().then(received);
             }}
           >
-            Gửi lại đồng ý
+            Kiểm tra lại lần đồng ý trước
           </Button>
         </>
       )}

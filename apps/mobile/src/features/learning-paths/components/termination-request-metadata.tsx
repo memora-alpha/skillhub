@@ -34,7 +34,7 @@ export function TerminationRequestMetadata({
           {closedLabel}{" "}
           {request.closedAt
             ? date(request.closedAt)
-            : "chưa có thời gian từ hệ thống"}
+            : "chưa có thông tin thời gian"}
         </Copy>
       )}
       {request.status === "EXPIRED" && (

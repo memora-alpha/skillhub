@@ -131,14 +131,14 @@ function PlanTimelineRow({
 }
 
 function planConfirmationMessage(plan: ApiLearningPlan, mine: boolean) {
-  if (plan.learnerConfirmedAt) return "Người học đã xác nhận phiên bản này.";
+  if (plan.learnerConfirmedAt) return "Người học đã đồng ý lộ trình này.";
   if (plan.status === "DRAFT")
     return mine
       ? "Bản nháp chưa được gửi cho người học."
       : "Lộ trình chưa được gửi để bạn xác nhận.";
   if (plan.status === "NEEDS_REVISION")
     return mine
-      ? "Người học đề nghị chỉnh sửa phiên bản này."
+      ? "Người học đề nghị chỉnh sửa lộ trình này."
       : "Lộ trình cần được người dạy chỉnh sửa.";
   if (mine) return "Đã gửi lộ trình, chờ người học xác nhận.";
   return "Xem nội dung từng buổi trước khi xác nhận.";

@@ -64,7 +64,7 @@ function termsProgress(
     waiting: [
       mine
         ? "Bạn đã xác nhận · Chờ đối tác đồng ý cách học."
-        : "Bạn cần xem và đồng ý cách học của phiên bản hiện tại.",
+        : "Bạn cần xem và đồng ý cách học đã thỏa thuận.",
     ],
     action: mine ? undefined : { label: "Xem và đồng ý cách học", href: base },
   };
@@ -142,7 +142,7 @@ function plansProgress(
     title: "Bước 2 · Tạo và duyệt lộ trình",
     description: twoWay
       ? "Cần hai kế hoạch đối ứng. Mỗi người tạo chiều mình dạy và xác nhận chiều mình học."
-      : "Người dạy tạo một kế hoạch; người học xem nội dung và xác nhận đúng phiên bản.",
+      : "Người dạy tạo lộ trình; người học xem nội dung và đồng ý trước khi xếp lịch.",
     waiting,
     action,
   };

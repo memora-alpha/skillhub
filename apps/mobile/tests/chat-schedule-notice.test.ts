@@ -278,6 +278,9 @@ test("confirming each schedule direction shares its exact receipt only after suc
   let current = true,
     reject = false,
     bothConfirmed = false;
+  let uncertain = false,
+    retries = 0,
+    refreshes = 0;
   let status = "PROPOSED";
   const receipts: { conversationId: string; text: string; identity: string }[] =
     [];
@@ -285,11 +288,18 @@ test("confirming each schedule direction shares its exact receipt only after suc
     data: path,
     isFetching: false,
     error: undefined as unknown,
-    refetch() {},
+    refetch() {
+      refreshes++;
+    },
   };
-  const jsx = (type: unknown, props: Record<string, unknown>) => ({
+  const jsx = (
+    type: unknown,
+    props: Record<string, unknown>,
+    key?: string,
+  ) => ({
     type,
     props,
+    key,
   });
   const mocks = Object.entries({
     "react/jsx-runtime": { jsx, jsxs: jsx },
@@ -311,6 +321,10 @@ test("confirming each schedule direction shares its exact receipt only after suc
       useCatalogName: () => ({ data: "React" }),
       useConnectionCommand: () => ({
         pending: false,
+        uncertain,
+        retry: async () => {
+          retries++;
+        },
         run: (_key: string, send: (id: string) => Promise<unknown>) =>
           send(fixtureId(99)).catch(() => undefined),
       }),
@@ -352,6 +366,7 @@ test("confirming each schedule direction shares its exact receipt only after suc
   type Element = {
     type: string | ((props: Record<string, unknown>) => unknown);
     props: Record<string, unknown>;
+    key?: string;
   };
   const elements = (value: unknown): Element[] => {
     if (Array.isArray(value)) return value.flatMap(elements);
@@ -378,6 +393,23 @@ test("confirming each schedule direction shares its exact receipt only after suc
         typeof item.type === "function" && item.type.name === "SchedulePanel",
     );
     assert.equal(panels.length, 2);
+    const originalKey = panels[0]!.key;
+    query.data = {
+      ...path,
+      plans: path.plans.map((plan, index) =>
+        index ? plan : { ...plan, schedule: { ...plan.schedule!, version: 5 } },
+      ),
+    };
+    const revisedPanel = elements(ApiSchedulesScreen()).find(
+      (item) =>
+        typeof item.type === "function" && item.type.name === "SchedulePanel",
+    )!;
+    assert.notEqual(
+      revisedPanel.key,
+      originalKey,
+      "a new schedule version must not inherit the old command recovery",
+    );
+    query.data = path;
     for (const refreshing of [true, false]) {
       query.isFetching = refreshing;
       query.error = refreshing ? undefined : new Error("read failed");
@@ -402,6 +434,156 @@ test("confirming each schedule direction shares its exact receipt only after suc
     assert.equal(confirmations, 0);
     query.isFetching = false;
     query.error = undefined;
+    uncertain = true;
+    for (const panel of panels) {
+      const tree = elements(
+        (panel.type as (props: Record<string, unknown>) => unknown)(
+          panel.props,
+        ),
+      );
+      const confirm = tree.find(
+        (item) =>
+          item.type === "Button" && item.props.children === "Đồng ý lịch học",
+      )!;
+      assert.equal(confirm.props.disabled, true);
+      (confirm.props.onPress as () => void)();
+      assert.ok(
+        tree.some(
+          (item) => item.type === "Notice" && item.props.tone === "warning",
+        ),
+      );
+      assert.equal(
+        tree.some((item) => item.type === "Feedback"),
+        false,
+      );
+      const refresh = tree.find(
+        (item) => item.props.children === "Kiểm tra trạng thái lịch",
+      )!;
+      (refresh.props.onPress as () => void)();
+      const retry = tree.find(
+        (item) => item.props.children === "Kiểm tra lại lần xác nhận trước",
+      )!;
+      (retry.props.onPress as () => void)();
+    }
+    assert.equal(confirmations, 0);
+    assert.equal(refreshes, 2);
+    assert.equal(retries, 2);
+    const readPath = structuredClone(path);
+    readPath.plans[0]!.schedule!.participantAConfirmedAt =
+      "2030-01-01T00:00:00Z";
+    const firstReadPanel = panels[0]!;
+    const afterRead = elements(
+      (firstReadPanel.type as (props: Record<string, unknown>) => unknown)({
+        ...firstReadPanel.props,
+        path: readPath,
+        plan: readPath.plans[0],
+      }),
+    );
+    assert.equal(
+      afterRead.some(
+        (node) =>
+          node.type === "Button" && node.props.children === "Đồng ý lịch học",
+      ),
+      false,
+    );
+    assert.equal(
+      afterRead.some(
+        (node) => node.type === "Notice" && node.props.tone === "warning",
+      ),
+      false,
+    );
+    assert.ok(
+      afterRead.some(
+        (node) => node.type === "Notice" && node.props.tone === "info",
+      ),
+    );
+    assert.equal(
+      confirmations,
+      0,
+      "reading a saved confirmation cannot replay a command",
+    );
+    assert.match(
+      String(afterRead.find((node) => node.type === "Notice")!.props.children),
+      /Bạn đã đồng ý lịch này/,
+    );
+    assert.equal(
+      shares,
+      0,
+      "reading confirmation is not a chat delivery receipt",
+    );
+    const finishChat = afterRead.find(
+      (node) =>
+        node.type === "Button" &&
+        node.props.children === "Gửi cập nhật vào Chat",
+    )!;
+    assert.ok(finishChat);
+    (finishChat.props.onPress as () => void)();
+    assert.equal(retries, 3);
+    const editAfterRead = afterRead.find(
+      (node) =>
+        node.type === "Button" &&
+        node.props.children === "Chỉnh sửa lịch tôi dạy",
+    )!;
+    assert.ok(editAfterRead);
+    assert.equal(editAfterRead.props.disabled, false);
+    for (const readState of [
+      { blocked: true, current: true },
+      { blocked: false, current: false },
+    ]) {
+      current = readState.current;
+      const blockedRead = elements(
+        (firstReadPanel.type as (props: Record<string, unknown>) => unknown)({
+          ...firstReadPanel.props,
+          path: readPath,
+          plan: readPath.plans[0],
+          blocked: readState.blocked,
+        }),
+      );
+      const notice = blockedRead.find((node) => node.type === "Notice")!;
+      assert.equal(notice.props.tone, readState.current ? "info" : "warning");
+      const chatAction = blockedRead.find(
+        (node) => node.props.children === "Gửi cập nhật vào Chat",
+      );
+      if (readState.current) assert.equal(chatAction?.props.disabled, true);
+      else assert.equal(chatAction, undefined);
+    }
+    current = true;
+    const partnerOnly = structuredClone(path);
+    partnerOnly.plans[0]!.schedule!.participantBConfirmedAt =
+      "2030-01-01T00:00:00Z";
+    const partnerRead = elements(
+      (firstReadPanel.type as (props: Record<string, unknown>) => unknown)({
+        ...firstReadPanel.props,
+        path: partnerOnly,
+        plan: partnerOnly.plans[0],
+      }),
+    );
+    assert.ok(
+      partnerRead.some(
+        (node) => node.type === "Notice" && node.props.tone === "warning",
+      ),
+    );
+    const lockedPath = structuredClone(readPath);
+    lockedPath.lockedVersion = lockedPath.currentVersion;
+    lockedPath.plans[0]!.schedule!.status = "LOCKED";
+    const lockedRead = elements(
+      (firstReadPanel.type as (props: Record<string, unknown>) => unknown)({
+        ...firstReadPanel.props,
+        path: lockedPath,
+        plan: lockedPath.plans[0],
+      }),
+    );
+    assert.equal(
+      lockedRead.some((node) => node.type === "Notice"),
+      false,
+    );
+    assert.equal(
+      lockedRead.some(
+        (node) => node.props.children === "Gửi cập nhật vào Chat",
+      ),
+      false,
+    );
+    uncertain = false;
     for (const panel of panels) {
       bothConfirmed = panel.props.plan === path.plans[1];
       const tree = elements(

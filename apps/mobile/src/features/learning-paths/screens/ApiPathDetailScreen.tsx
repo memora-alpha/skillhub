@@ -4,7 +4,6 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { uuid } from "@/lib/http/contracts";
 import { EmptyState } from "@/components/EmptyState";
 import { FlowPage as FeaturePage } from "@/components/learning-flow";
-import { Copy } from "@/components/feature-page";
 import { Button } from "@/components/Button";
 import {
   ConnectionFeedback,
@@ -101,8 +100,8 @@ export function ApiPathDetailScreen() {
             {formVersion &&
               formVersion !== String(query.data.currentVersion) && (
                 <FormNotice tone="info" compact>
-                  Thỏa thuận đã đổi phiên bản sau khi gửi form này. Bạn đang xem
-                  bản hiện tại.
+                  Thỏa thuận đã được cập nhật sau khi gửi thẻ này. Bạn đang xem
+                  nội dung mới nhất.
                 </FormNotice>
               )}
           </>
@@ -343,11 +342,16 @@ export function ApiPlanActions({
     <View style={actionStyles.footer}>
       {(command.error || command.uncertain) && (
         <View style={actionStyles.feedback}>
-          <ConnectionFeedback error={command.error} />
+          {!command.uncertain && (
+            <ConnectionFeedback
+              error={command.error}
+              errorPresentation="notice"
+            />
+          )}
           {command.uncertain && (
-            <Copy muted size="hint">
+            <FormNotice tone="warning" compact>
               Chưa rõ kết quả xác nhận. Tải lại trạng thái để kiểm tra.
-            </Copy>
+            </FormNotice>
           )}
         </View>
       )}
