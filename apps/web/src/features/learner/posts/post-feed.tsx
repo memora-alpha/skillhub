@@ -6,6 +6,8 @@ import { useUserSession } from "../auth/session";
 import type { Post, Skill } from "../types";
 import { Empty, Feedback, More, PageHeading } from "../components/common";
 import { PostCard } from "./post-card";
+import { TagPicker } from "../tags/tag-picker";
+import { ownPostStatuses, postFeedQuery } from "./post-feed-query";
 export function PostFeed({
   initialKeyword = "",
   initialMine = false,
@@ -13,15 +15,13 @@ export function PostFeed({
   const { actor } = useUserSession();
   const skills = useUserList<Skill>("skills?limit=50");
   const [skillId, setSkillId] = useState("");
+  const [tagIds, setTagIds] = useState<string[]>([]);
+  const [status, setStatus] = useState("");
   const [mine, setMine] = useState(initialMine),
     [search, setSearch] = useState(initialKeyword),
     [keyword, setKeyword] = useState(initialKeyword);
   const query = useUserList<Post>(
-    "learning-requests" +
-      (mine ? "/mine" : "") +
-      "?limit=20&keyword=" +
-      encodeURIComponent(keyword) +
-      (skillId ? "&skillId=" + encodeURIComponent(skillId) : ""),
+    postFeedQuery({ mine, keyword, skillId, tagIds, status }),
   );
   return (
     <>
@@ -85,6 +85,51 @@ export function PostFeed({
           />
         </aside>
         <div>
+          <div className="learner-form">
+            {mine && (
+              <label>
+                <span>Trạng thái bài của tôi</span>
+                <select
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value)}
+                >
+                  <option value="">Tất cả trạng thái</option>
+                  {ownPostStatuses.map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            <details>
+              <summary>
+                Lọc theo tag{tagIds.length ? ` (${tagIds.length})` : ""}
+              </summary>
+              <TagPicker
+                ids={tagIds}
+                proposed={[]}
+                onChange={(ids) => setTagIds(ids)}
+                disabled={false}
+                allowProposals={false}
+              />
+            </details>
+            {(skillId || tagIds.length > 0 || (mine && status) || keyword) && (
+              <button
+                type="button"
+                className="btn"
+                onClick={() => {
+                  setSkillId("");
+                  setTagIds([]);
+                  setStatus("");
+                  setSearch("");
+                  setKeyword("");
+                }}
+              >
+                Xóa bộ lọc
+              </button>
+            )}
+          </div>
           <form
             className="learner-search"
             onSubmit={(e) => {
