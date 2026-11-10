@@ -1,25 +1,13 @@
-# BE cần bổ sung chi tiết lỗi thời gian lịch
+# Chi tiết lỗi thời gian lịch học
 
-Trạng thái: **đề xuất bàn giao BE, chưa triển khai/chưa nghiệm thu API**. Phạm vi là lỗi thời gian khi kiểm tra và chốt Learning Path. Tài liệu này không thay wire contract hiện hành và không yêu cầu thay nghiệp vụ hoặc sửa backend trong nhánh mobile.
+Trạng thái: **BE đã triển khai trong source `ecf5ad79`; mobile đã nối contract, chưa nghiệm thu API triển khai/native**. Phạm vi là lỗi thời gian khi kiểm tra và chốt Learning Path.
 
-## Vấn đề đã xác minh
+## Contract đã đối chiếu
 
-- `POST /api/v1/learning-paths/:pathId/final-validation` và `POST /api/v1/learning-paths/:pathId/finalize` cùng đi qua `validateForFinalizeTx` trong [learning-paths.service.ts](../../../../services/api/src/modules/learning-paths/application/services/learning-paths.service.ts).
-- `validateScheduleTimes` dùng giờ DB (`CURRENT_TIMESTAMP`) và configuration `session.durationMinutes`, nhưng chỉ ném `ConflictException("INVALID_SCHEDULE_ITEMS")`. Response409 không cho biết chiều dạy, buổi hoặc điều kiện nào sai.
-- Mobile đang đối chiếu lịch đã tải với giờ thiết bị và giới hạn60–180 để hỗ trợ hiển thị. Cách này không xác định chắc kết quả server nếu đồng hồ/config khác hoặc snapshot lịch đã cũ. Mục tiêu cần đạt: chỉ rõ **lịch do ai dạy, ai học; buổi nào; khoảng giờ nào; vì sao không hợp lệ** theo dữ liệu thực sự được BE kiểm tra.
-- [http-exception.filter.ts](../../../../services/api/src/shared/http/http-exception.filter.ts) hiện chỉ cho phép public scheduling details cho `SCHEDULE_CONFLICT` và `INSUFFICIENT_AVAILABLE_CREDIT`. Chỉ thêm object vào exception của service sẽ chưa đủ để đưa chi tiết lỗi thời gian tới client.
-
-## Công việc BE cần làm
-
-1. **Thu thập tất cả buổi sai trong snapshot/version đang kiểm tra.** Thay nhánh `.some(...)` bằng kết quả chi tiết có định danh. Giữ liên kết mỗi item với plan, teacher/learner và schedule/version; không chỉ trả sessionNo vì hai chiều đều có thể có Buổi1. Không lấy người gọi API làm chủ lịch bị lỗi.
-2. **Giữ HTTP409 và message `INVALID_SCHEDULE_ITEMS`, bổ sung `details` có schema cố định.** Dùng cùng cấu trúc cho final-validation và finalize. Trả giờ DB đã dùng đánh giá và giới hạn thời lượng thực tế đã đọc từ configuration; không dùng thời gian request của thiết bị để kết luận.
-3. **Bổ sung bộ lọc public details.** Trong HttpExceptionFilter, validate/allowlist riêng cho mã này: UUID, version/sessionNo nguyên dương, timestamps ISO8601, reason enum và duration policy. Không truyền nguyên object exception/record DB ra response. Bộ lọc phải cho phép endAt<=startAt trong chi tiết lỗi để không làm mất chính lỗi cần báo.
-4. **Cập nhật OpenAPI và contract/test.** Mở rộng `finalizeConflictSchema` ở [learning-paths.controller.ts](../../../../services/api/src/modules/learning-paths/presentation/http/learning-paths.controller.ts), cùng contract HTTP backend liên quan, với ví dụ một chiều/hai chiều và nhiều buổi sai.
-5. **Giữ kiểm tra lại trong transaction finalize.** Final-validation chỉ là kết quả tại thời điểm đánh giá, không giữ chỗ hoặc bảo đảm lần chốt sau sẽ thành công. Finalize vẫn kiểm tra thời gian/quyền/version và rollback khi không hợp lệ; không tạo Session/Hold hay khóa lịch nếu thất bại. Giữ idempotency/replay hiện hành.
-
-## Response đề xuất để BE chốt contract
-
-Tên field/enum dưới đây là **đề xuất mới**, chưa có trong API hiện tại. `teacherId` là người dạy của plan bị lỗi, `learnerId` là người học; đây không phải quy kết người có lỗi hay người gây thiệt hại. Tên hiển thị có thể lấy từ profile đã được phép đọc, không cần thêm dữ liệu cá nhân vào response.
+- `POST /api/v1/learning-paths/:pathId/final-validation` và `POST /api/v1/learning-paths/:pathId/finalize` cùng kiểm tra snapshot lịch trong `validateForFinalizeTx`.
+- HTTP409 giữ message `INVALID_SCHEDULE_ITEMS`, thêm `details.invalidItems`, `details.evaluatedAt` và `details.durationMinutes`. Hai endpoint dùng cùng schema. Public error filter validate/allowlist trước khi trả chi tiết; OpenAPI đã mô tả cấu trúc này.
+- `evaluatedAt` là giờ DB dùng để đánh giá; `durationMinutes.min/max` lấy từ cấu hình thực tế. Các buổi sai được thu thập trước Hold/Session/lock; finalize tiếp tục kiểm tra lại, không dùng kết quả final-validation để bỏ qua validation.
+- Mỗi item định danh plan, schedule, version, teacher/learner, số buổi và khoảng giờ. `teacherId` là người dạy, không mặc định là người gọi API hoặc người gây lỗi.
 
 ```json
 {
@@ -27,8 +15,6 @@ Tên field/enum dưới đây là **đề xuất mới**, chưa có trong API hi
   "message": "INVALID_SCHEDULE_ITEMS",
   "statusCode": 409,
   "details": {
-    "pathId": "00000000-0000-4000-8000-000000000030",
-    "pathVersion": 3,
     "evaluatedAt": "2030-01-02T12:00:00.000Z",
     "durationMinutes": { "min": 60, "max": 180 },
     "invalidItems": [
@@ -49,30 +35,26 @@ Tên field/enum dưới đây là **đề xuất mới**, chưa có trong API hi
 }
 ```
 
-| Reason đề xuất | Điều kiện dựa trên snapshot BE | Nội dung mobile cần hiển thị |
+| Reason thực tế | Điều kiện BE | Nội dung mobile |
 | --- | --- | --- |
-| `START_NOT_IN_FUTURE` | startAt<=evaluatedAt (giờ DB) | Giờ bắt đầu đã qua hoặc không sau thời điểm kiểm tra |
-| `END_NOT_AFTER_START` | endAt<=startAt | Giờ kết thúc phải sau giờ bắt đầu |
-| `DURATION_OUT_OF_RANGE` | endAt>startAt và số phút nằm ngoài min/max configuration | Thời lượng thực tế và khoảng phút được phép |
+| `START_NOT_IN_FUTURE` | startAt <= evaluatedAt | Giờ bắt đầu đã qua |
+| `END_NOT_AFTER_START` | endAt <= startAt | Giờ kết thúc phải sau giờ bắt đầu |
+| `DURATION_TOO_SHORT` | Thời lượng dưới min | Thời lượng thực tế và số phút tối thiểu |
+| `DURATION_TOO_LONG` | Thời lượng trên max | Thời lượng thực tế và số phút tối đa |
 
-Mỗi item có thể có nhiều reason độc lập, ví dụ giờ bắt đầu đã qua và thời lượng quá ngắn. Với endAt<=startAt, dùng reason về thứ tự thời gian, tránh thông báo thời lượng âm gây khó hiểu. Không thêm reason cho quy tắc sản phẩm chưa tồn tại.
+Khác bản đề xuất trước: response không có pathId/pathVersion và không dùng `DURATION_OUT_OF_RANGE`; hai reason thời lượng tách riêng. `invalidItems` có1–200 mục; reason mỗi mục có1–4 giá trị không trùng. Version/sessionNo và duration policy là số nguyên dương; min không lớn hơn max. Chi tiết cho phép endAt <= startAt để hiển thị chính lỗi đó.
 
-Trả đủ các buổi sai trong phạm vi số plan/buổi tối đa được hệ thống cho phép, sắp ổn định theo planId/sessionNo. Nếu BE cần giới hạn số item trả về, contract phải có tổng số lỗi và cờ còn mục chưa hiển thị; không cắt âm thầm. Các ID/version phải thuộc Path và snapshot đã được actor cấp quyền đọc; không lấy dữ liệu Path khác.
+## Mobile đã tích hợp
 
-## Tiêu chí kiểm thử BE
+- [HTTP adapter](../../src/lib/http/scheduling-error.ts) chỉ giữ chi tiết hợp lệ cho đúng mã lỗi409, bỏ field lạ và từ chối payload thiếu/sai schema. Hai mã trùng lịch/thiếu Credit giữ contract cũ.
+- [Đối chiếu snapshot](../../src/features/learning-paths/utils/invalid-schedule-items.ts) kiểm plan/schedule ID, version, teacher/learner, sessionNo và timestamps với Path đang mở. [Màn kiểm tra/chốt](../../src/features/learning-paths/screens/ApiHoldScreen.tsx) giữ dấu nhận diện snapshot đã gửi để phát hiện cả thay đổi currentVersion của Path. Một mục không khớp khiến toàn bộ kết quả chuyển sang thông báo tải lại, không gắn lỗi vào lịch khác.
+- [Feedback](../../src/features/learning-paths/components/schedule-validation-feedback.tsx) ưu tiên reason và giới hạn BE; không dùng Date.now hoặc60–180 để thay kết luận server. Mỗi buổi sai có lý do ngắn, tên kỹ năng/người dạy và khoảng giờ. `evaluatedAt` vẫn được validate trong details nhưng không hiển thị thời điểm máy chủ cho người dùng. Ngày giờ theo múi giờ thiết bị, chỉ chú thích một lần ở màn lịch.
+- Profile chỉ cung cấp tên hiển thị. Thiếu tên dùng bạn/đối tác theo ID. Lịch mình dạy có link sửa; lịch đối tác mở danh sách đọc. Kết quả khác snapshot không có link sửa dựa trên dữ liệu cũ.
+- API cũ/thiếu hoặc sai details giữ đối chiếu sơ bộ theo lịch đã tải và giờ thiết bị; giao diện yêu cầu tải lại để kiểm tra chi tiết mới nhất. Không có bằng chứng local thì không đoán lịch của ai sai.
+- Finalize xóa kết quả kiểm tra thành công cũ ngay khi gửi. Lỗi thời gian yêu cầu kiểm tra lại; recovery của kết quả chưa rõ vẫn giữ đúng intent/key.
 
-- ONE_WAY: đúng teacher/learner, plan/schedule/version và sessionNo của buổi sai; không nhầm actor đang bấm kiểm tra với teacher.
-- TWO_WAY: chỉ lịchA sai, chỉ lịchB sai, cả hai sai; cả hai cùng sessionNo1 vẫn phân biệt được. Nhiều buổi sai phải trả đủ với reason đúng từng buổi.
-- Biên giờ: startAt bằng giờ DB phải thất bại; startAt sau giờ DB và thời lượng hợp lệ phải qua bước kiểm thời gian. Giờ thiết bị nhanh/chậm không thay kết quả/reason BE.
-- Biên thời lượng: đúng min/max configuration được chấp nhận; dưới min/trên max và endAt<=startAt trả reason tương ứng. Test policy khác60–180 để chứng minh response lấy configuration thật.
-- Final-validation thành công, sau đó thời gian trôi qua khiến lịch không hợp lệ: finalize trả lỗi409 với đánh giá mới, không tạo Hold/Session/lock; không tái sử dụng kết quả kiểm tra cũ để bỏ qua validation.
-- Test tích hợp đi qua **service → HttpExceptionFilter → HTTP JSON**, xác nhận details còn đủ trên cả hai endpoint, đồng thời giữ fallback message/status cho client cũ. Unit test service riêng không đủ.
-- Người ngoài Path không nhận details. Payload details sai schema không bị phản chiếu nguyên trạng. OpenAPI và response thực tế phải khớp.
+## Kiểm chứng và giới hạn
 
-## Phần mobile phải nối sau khi BE chốt và triển khai
-
-- Thêm schema của `INVALID_SCHEDULE_ITEMS` trong [scheduling-error.ts](../../src/lib/http/scheduling-error.ts) và `SchedulingErrorDetails`. Hiện `readSchedulingError` chỉ nhận hai mã lỗi scheduling khác nên sẽ bỏ details mới nếu chưa sửa adapter.
-- Đọc các ID/version/reason server; đối chiếu đúng Path và phiên đang mở. Ưu tiên lý do BE, không tính lại bằng Date.now để thay kết luận server. Nếu snapshot màn đã thay đổi, thông báo cần tải lại/xem lịch mới, không gắn lỗi cũ vào phiên bản khác.
-- Tên từ profile chỉ dùng trình bày; thiếu tên thì dùng bạn/đối tác theo teacherId/learnerId. Link sửa chỉ dành cho lịch mình dạy; lịch đối tác mở màn đọc.
-- Giữ fallback rõ ràng cho API cũ/thiếu details và test malformed details. Kiểm thử API thật bằng hai tài khoản sau khi BE triển khai.
-- **Lỗi mobile độc lập đã sửa source:** [ApiHoldScreen.tsx](../../src/features/learning-paths/screens/ApiHoldScreen.tsx) xóa `checked` ngay khi bắt đầu finalize; sau khi bị từ chối không còn thông báo xanh/nút chốt dựa trên kết quả cũ, cần kiểm tra lại. Recovery riêng cho kết quả chưa rõ được giữ. Đây là sửa frontend, không phải phần BE phải sửa; xem kiểm chứng mới nhất trong [status](../work/phase-05-proposal-learning-agreement/status.md).
+- Source BE có regression cho cả endpoint, hai chiều, nhiều buổi, giờ DB, giới hạn cấu hình, đúng version hiện hành và public HTTP filter. Việc đọc source/test không chứng minh deployment đã chạy bản sửa.
+- Mobile có regression HTTP boundary, malformed details, reason/giới hạn server, hai chiều cùng Buổi1, nhiều lỗi, stale owner/version/item và chuyển lỗi giữa kiểm tra/chốt. Kết quả checks hiện hành ở [status](../work/phase-05-proposal-learning-agreement/status.md).
+- Còn nghiệm thu bằng hai tài khoản trên API đã triển khai và Android/iOS thật: thời gian trôi qua giữa kiểm tra/chốt, chỉnh lịch đồng thời, đồng hồ thiết bị lệch và lỗi không phát sinh Hold/Session/lock. Không thực hiện mutation thật trong lượt tích hợp source.

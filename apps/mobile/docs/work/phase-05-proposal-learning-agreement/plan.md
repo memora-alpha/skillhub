@@ -34,11 +34,21 @@ Luồng: Learning Request hoặc Sharing Skill → gửi proposal → Đã gửi
 
 ## Mốc 2 — Plan & Schedule
 
+- [x] Bỏ settlement component/helper/API/schema cũ không còn consumer; giữ luồng đổi lịch Session đang dùng. Sửa mock ProfileReviews và pagination của sessions fixture theo contract, tăng assertion lỗi; kiểm toàn bộ1098 tests, unused types, lint, structure935 và web export. API/native acceptance còn riêng.
+
+- [x] Đồng bộ recovery khi đọc lại lịch: xác nhận của chính người dùng trên lịch hiện tại thay warning chưa rõ bằng thông báo đã đồng ý, giữ khả năng hoàn tất thẻ Chat với intent cũ; đọc lại không tự POST hay giả Chat đã gửi. Scope command theo actor/Path/plan/schedule/version/trạng thái để lịch mới không giữ recovery cũ. Với finalize chưa rõ kết quả, chỉ hiện recovery, không đồng thời báo lỗi thời gian hoặc yêu cầu nạp Credit từ lỗi replay.
+
+- [x] Rút gọn câu chữ trên luồng: lỗi giờ qua hạn nêu buổi, người dạy/kỹ năng, thời gian và hướng sửa; bỏ giờ máy chủ/múi giờ lặp. Nút kiểm tra/chốt và cảnh báo nội dung đã cập nhật dùng lời hướng dẫn trực tiếp; giữ schema, version guards, quyền và policy BE.
+
+- [x] Đồng bộ feedback khi gửi/sửa/xác nhận: lỗi nghiệp vụ có banner rõ, form kế hoạch/lịch giữ feedback cạnh nút gửi; kết quả chưa rõ dùng warning và bước kiểm tra riêng. Khóa xác nhận lịch mới khi đang recovery, retry đúng intent trước; thẻ Chat nói rõ thao tác nào đã lưu và chỉ gửi lại thẻ. Hủy/quyết toán giữ phân biệt receipt và kết quả Credit, không lặp đồng thời lỗi chung với warning chưa rõ kết quả.
+
+- [x] Giữ kết quả đủ điều kiện qua refetch chỉ thay metadata overview/attention. Dấu nhận diện kiểm tra dựa trên Path, trạng thái, điều khoản, kế hoạch và lịch thực tế; thay nội dung/version vẫn vô hiệu hóa kết quả và chặn chốt. Regression cho refresh nền và thay agreement/plan/schedule.
+
 - [x] Rà/dọn toàn bộ diff: bỏ metadata số buổi chưa dùng của thẻ xác nhận, tách thẻ mới khỏi đường gom legacy, bỏ export helper chỉ phục vụ test và reset checked lặp. Tái hiện/sửa sự kiện đổi giờ/phút trước render; kiểm đủ tests/types/lint/structure/export và ba fixture, giữ hai lỗi baseline ngoài scope riêng.
 
 - [x] Thay bộ lọc Đã xác nhận dễ hiểu nhầm bằng nhóm đủ vòng đời, tách Chờ quyết toán/Tranh chấp; ưu tiên stage BE, fallback status. Nói rõ phạm vi các trang đã tải, giữ filter khi tải thêm, không báo rỗng toàn danh sách khi còn trang và giữ thứ tự/cursor BE.
 
-- [ ] BE bổ sung chi tiết `INVALID_SCHEDULE_ITEMS` trên final-validation/finalize theo [bàn giao](../../contracts/backend-schedule-validation-gap.md): định danh plan/schedule/version/teacher/learner/buổi, reason, giờ DB và policy; public error filter, OpenAPI và HTTP integration tests. Mobile nối schema/hiển thị sau khi contract BE được chốt/triển khai; chưa thực hiện backend trong work này.
+- [x] Nối chi tiết `INVALID_SCHEDULE_ITEMS` trên final-validation/finalize theo [contract](../../contracts/backend-schedule-validation-gap.md): BE có plan/schedule/version/teacher/learner/buổi, bốn reason, giờ DB và policy; mobile validate details, ưu tiên kết luận server và đối chiếu snapshot trước khi hiển thị. Khác phiên bản yêu cầu tải lại, không gắn lỗi cũ vào lịch mới. Nghiệm thu API triển khai/native còn mở; không sửa backend trong work này.
 - [x] Mobile xóa kết quả kiểm tra cũ ngay khi bắt đầu finalize để không còn thông báo xanh/nút chốt dựa trên validation đã hết giá trị sau khi bị từ chối; guard cả handler, giữ recovery cho kết quả chưa rõ. Regression tái hiện từ lượt review đã được kiểm lại.
 - [x] Đồng ý lịch từng chiều tự gửi thẻ Chat từ receipt sau confirm thành công; hiển thị người xác nhận/chờ ai/đủ xác nhận nhưng chưa chốt, giữ link đúng version và retry tin riêng. Invalidate list/nhóm/preview sau delivery, không giả chưa đọc. Không gửi thẻ chờ chốt cho receipt LOCKED. Source dùng cơ chế form hiện có, bảo đảm bền khi app tắt vẫn cần BE outbox.
 
