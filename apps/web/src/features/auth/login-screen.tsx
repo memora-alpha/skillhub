@@ -133,9 +133,10 @@ export function LoginScreen() {
                 const destination = await signIn(
                   email,
                   formText(data, "password"),
+                  data.get("rememberMe") === "on",
                 );
                 try {
-                  if (data.get("rememberEmail"))
+                  if (data.get("rememberMe") === "on")
                     localStorage.setItem("skillhub:login-email", email);
                   else localStorage.removeItem("skillhub:login-email");
                 } catch {
@@ -183,7 +184,7 @@ export function LoginScreen() {
               <input
                 type="checkbox"
                 ref={rememberInput}
-                name="rememberEmail"
+                name="rememberMe"
                 disabled={checking || pending}
                 onChange={(event) => {
                   if (!event.target.checked) {
@@ -195,7 +196,7 @@ export function LoginScreen() {
                   }
                 }}
               />
-              <span>Ghi nhớ tài khoản cho lần sau</span>
+              <span>Ghi nhớ đăng nhập</span>
             </label>
             <div className="auth-feedback" aria-live="polite">
               {error && (
