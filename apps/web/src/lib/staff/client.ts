@@ -1,3 +1,4 @@
+import { knownSystemMessage } from "@/lib/system-text";
 import type { ApiEnvelope } from "./types";
 import type { Portal } from "./policy";
 import { allowedEvidenceMime, allowedMaterialMime } from "./evidence-file";
@@ -19,6 +20,26 @@ export function isSessionFailure(error: unknown): boolean {
   );
 }
 const errorMessages: Readonly<Record<string, string>> = {
+  INCIDENT_DECISION_REQUIRED:
+    "Báo cáo đã được gom. Mở vụ việc chung để ra quyết định.",
+  REPORT_SELF_MODERATION_FORBIDDEN:
+    "Vụ việc có liên quan đến bạn. Cần một nhân viên khác xử lý.",
+  PROFILE_SELF_MODERATION_FORBIDDEN:
+    "Hồ sơ của bạn cần một nhân viên khác kiểm duyệt.",
+  REVIEW_SELF_MODERATION_FORBIDDEN:
+    "Đánh giá liên quan đến bạn cần một nhân viên khác kiểm duyệt.",
+  CASE_HANDLER_REQUIRED: "Nhận xử lý báo cáo trước khi trao đổi.",
+  CASE_THREAD_ACCESS_DENIED: "Bạn chưa được giao xử lý cuộc trao đổi này.",
+  REPORT_INCIDENT_TARGET_MISMATCH:
+    "Chỉ gom các báo cáo có cùng đối tượng và buổi học.",
+  REPORT_CASE_NOT_GROUPABLE:
+    "Một báo cáo đã được xử lý, đã gom hoặc được giao cho người khác. Tải lại hàng đợi.",
+  STALE_STAFF_PERMISSION_VERSION:
+    "Quyền nhân viên đã thay đổi. Làm mới quyền rồi xác nhận lại.",
+  STALE_FEE_POLICY_VERSION:
+    "Phiên bản phí đã thay đổi. Tải lại và chọn phiên bản tiếp theo.",
+  FEE_POLICY_EFFECTIVE_TIME_IN_PAST:
+    "Thời điểm áp dụng phải ở tương lai hoặc để trống để áp dụng ngay.",
   API_UPSTREAM_CHALLENGE:
     "Kết nối tới máy chủ đang bị chặn. Vui lòng thử lại sau hoặc liên hệ hỗ trợ.",
   SESSION_RETRY_REQUIRED:
@@ -38,9 +59,9 @@ const errorMessages: Readonly<Record<string, string>> = {
   MATERIAL_TRANSITION_INVALID:
     "Trạng thái tài liệu đã thay đổi. Tải lại rồi chọn thao tác phù hợp.",
   MATERIAL_PERMISSION_REQUIRED:
-    "Tài khoản chưa được cấp quyền thao tác với tài liệu. Cần người quản lý server đồng bộ quyền.",
+    "Bạn chưa được cấp quyền xử lý tài liệu. Liên hệ quản trị viên để kiểm tra quyền.",
   STAFF_ACCESS_REQUIRED:
-    "Tài khoản chưa được cấp quyền duyệt tài liệu. Cần người quản lý server đồng bộ quyền.",
+    "Bạn chưa được cấp quyền duyệt tài liệu. Liên hệ quản trị viên để kiểm tra quyền.",
   SKILL_LEVEL_DUPLICATE: "Mã hoặc tên cấp độ đã tồn tại trong kỹ năng này.",
   TAG_ALREADY_EXISTS:
     "Tên tag đã tồn tại. Chọn tên khác hoặc kiểm tra lại danh mục tag.",
@@ -75,10 +96,12 @@ const errorMessages: Readonly<Record<string, string>> = {
 };
 function messageFor(status: number, code: string) {
   if (Object.hasOwn(errorMessages, code)) return errorMessages[code];
+  const translated = knownSystemMessage(code);
+  if (translated) return translated;
   if (code === "FILE_UNAVAILABLE" || code === "INVALID_DOWNLOAD_LINK")
     return "Không thể mở tệp hoặc liên kết đã hết hạn. Nhấn Thử lại để lấy liên kết mới.";
   if (code === "API_UNAVAILABLE" || code === "API_RESPONSE_INVALID")
-    return "Không thể kết nối backend. Kiểm tra dịch vụ API rồi thử lại.";
+    return "Chưa kết nối được với máy chủ. Vui lòng thử lại sau ít giây.";
   if (status === 401) return "Phiên đã hết hạn. Vui lòng đăng nhập lại.";
   if (status === 403) return "Bạn không có quyền thực hiện thao tác này.";
   if (status === 409)

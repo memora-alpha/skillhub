@@ -2,9 +2,15 @@ import type { LearningSession } from "../types";
 
 export function sessionRefreshInterval(session: LearningSession | undefined) {
   return session &&
-    ["CONFIRMED", "READY", "ONGOING", "AWAITING_CONFIRMATION"].includes(
-      session.status,
-    )
+    [
+      "CONFIRMED",
+      "READY",
+      "ONGOING",
+      "AWAITING_CONFIRMATION",
+      "NO_SHOW",
+      "MAKEUP_REQUIRED",
+      "DISPUTED",
+    ].includes(session.status)
     ? 30_000
     : false;
 }

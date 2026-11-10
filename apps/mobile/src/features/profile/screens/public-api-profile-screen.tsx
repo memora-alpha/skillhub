@@ -11,6 +11,7 @@ import { errorMessage } from "@/lib/http/errors";
 import { ProfileLayout } from "../components/ProfileLayout";
 import { ProfileAbout, ProfileSummary } from "../components/ProfileSummary";
 import { usePublicProfile } from "../hooks/use-public-profile";
+import { ProfileReviews } from "../components/profile-reviews";
 import { profileStyles } from "../components/ProfilePrimitives";
 
 export function PublicApiProfileScreen({
@@ -85,6 +86,7 @@ function PublicProfileReadState({
         )}
         <ProfileSummary profile={query.data} />
         <ProfileAbout bio={query.data.bio} />
+        <ProfileReviews userId={userId} />
         <PublicProfileSkillList userId={userId} />
       </>
     );

@@ -16,10 +16,14 @@ import {
   connectionError,
 } from "@/features/connections";
 import { MaterialEditorForm } from "../components/material-editor-form";
-import { useMyMaterials, useMaterialsApi } from "../hooks/use-materials";
+import {
+  useMyMaterials,
+  useMyMaterialPages,
+  useMaterialsApi,
+} from "../hooks/use-materials";
 
 export function MyMaterialsScreen() {
-  const query = useMyMaterials(),
+  const query = useMyMaterialPages(),
     api = useMaterialsApi();
   const command = useConnectionCommand([["materials"]]);
   const [archive, setArchive] = useState<string>();
@@ -48,7 +52,7 @@ export function MyMaterialsScreen() {
           khi gửi lại.
         </Copy>
       )}
-      {query.data?.map((material) => (
+      {query.items.map((material) => (
         <Panel key={material.id} title={material.title}>
           <Badge label={material.status} />
           <Copy>{material.rejectReason ?? material.description}</Copy>
@@ -105,7 +109,18 @@ export function MyMaterialsScreen() {
           )}
         </Panel>
       ))}
-      {query.data?.length === 0 && <Copy>Bạn chưa chia sẻ tài liệu nào.</Copy>}
+      {query.data && query.items.length === 0 && (
+        <Copy>Bạn chưa chia sẻ tài liệu nào.</Copy>
+      )}
+      {query.hasNextPage && (
+        <Button
+          variant="paper"
+          disabled={query.isFetching}
+          onPress={() => void query.fetchNextPage()}
+        >
+          Xem thêm tài liệu
+        </Button>
+      )}
     </FeaturePage>
   );
 }

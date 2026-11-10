@@ -1,6 +1,10 @@
 import { useMemo } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { useConnections, useConnectionQuery } from "@/features/connections";
+import {
+  useConnections,
+  useConnectionQuery,
+  useConnectionList,
+} from "@/features/connections";
 import { uuid } from "@/lib/http/contracts";
 import { createMaterialsApi } from "../api/materials-api";
 export function useMaterialsApi() {
@@ -24,10 +28,26 @@ export function useMyMaterials() {
     api.mine(signal),
   );
 }
+export function useMyMaterialPages() {
+  const api = useMaterialsApi();
+  return useConnectionList(["materials", "mine", "pages"], api.minePage);
+}
+export function useMaterialOrderPages() {
+  const api = useMaterialsApi();
+  return useConnectionList(["materials", "orders", "pages"], api.ordersPage);
+}
 export function useMaterialOrders() {
   const api = useMaterialsApi();
   return useConnectionQuery(["materials", "orders"], (signal) =>
     api.orders(signal),
+  );
+}
+export function useMaterialOwnership(materialId: string) {
+  const api = useMaterialsApi();
+  return useConnectionQuery(
+    ["materials", "orders", materialId],
+    (signal) => api.ownedOrder(materialId, signal),
+    uuid.safeParse(materialId).success,
   );
 }
 export function useMaterialSearch(q: string, accessType?: "FREE" | "PAID") {

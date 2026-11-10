@@ -12,6 +12,7 @@ export function toOwnProfilePreview(source: OwnProfile): PublicProfile {
     verifiedSkillCount: source.verifiedSkillCount,
     completedSessionCount: source.completedSessionCount,
     completedLearningPathCount: source.completedLearningPathCount ?? null,
+    reviewSummary: source.reviewSummary,
     selectedTitle: source.selectedTitle ?? null,
     sharingSkills: [],
   };

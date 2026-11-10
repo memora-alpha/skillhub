@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { proxyEvents } from "./event-proxy";
+import { staffQuery } from "./query";
 import { sessionCookies } from "../auth/session";
 import { authGateway } from "../auth/server";
 import { tokenReply, failedTokenRotation } from "../auth/token-reply";
@@ -190,8 +191,10 @@ async function login(request: NextRequest, portal: Portal) {
   if (
     typeof body.email !== "string" ||
     typeof body.password !== "string" ||
-    body.email.length > 320 ||
-    body.password.length > 1024
+    body.email.trim().length < 5 ||
+    body.email.trim().length > 254 ||
+    body.password.length < 1 ||
+    body.password.length > 64
   )
     throw new GatewayError(400, "INVALID_LOGIN_INPUT");
   // Refuse account replacement: logout first, so parallel tabs cannot silently switch identities.
@@ -283,25 +286,6 @@ const sessionHandlers = new Map<
   ["POST", login],
   ["DELETE", logoutSession],
 ]);
-function querySuffix(request: NextRequest): string {
-  if (request.method !== "GET") return "";
-  const query = request.nextUrl.searchParams;
-  const accepted = new URLSearchParams();
-  for (const name of [
-    "cursor",
-    "after",
-    "limit",
-    "status",
-    "role",
-    "categoryId",
-    "q",
-    "unreadOnly",
-    "type",
-    "referenceType",
-  ])
-    if (query.has(name)) accepted.set(name, query.get(name)!);
-  return accepted.size ? "?" + accepted : "";
-}
 async function forwardRequest(
   request: NextRequest,
   path: string,
@@ -318,7 +302,10 @@ async function forwardRequest(
   if (key && (key.length > 200 || /[\r\n]/.test(key)))
     throw new GatewayError(400, "INVALID_IDEMPOTENCY_KEY");
   const result = await backend(
-    target + querySuffix(request),
+    target +
+      (request.method === "GET"
+        ? staffQuery(path, request.nextUrl.searchParams)
+        : ""),
     token,
     request.method,
     body,

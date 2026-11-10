@@ -19,6 +19,7 @@ export function useUserResource<T>(
   options?: {
     refetchInterval?: (data: T | undefined) => number | false;
     retainOnTemporaryError?: boolean;
+    pollOnTemporaryError?: boolean;
   },
 ) {
   const { request, actor } = useUserSession();
@@ -27,9 +28,16 @@ export function useUserResource<T>(
     enabled: !!path,
     queryFn: ({ signal }) => request<T>(path!, { signal }),
     refetchInterval: (query) =>
-      query.state.error
+      query.state.error &&
+      !(options?.pollOnTemporaryError && isTemporaryFailure(query.state.error))
         ? false
-        : (options?.refetchInterval?.(query.state.data?.data) ?? false),
+        : (() => {
+            const interval =
+              options?.refetchInterval?.(query.state.data?.data) ?? false;
+            return query.state.error && interval
+              ? Math.max(interval, 10000)
+              : interval;
+          })(),
     refetchIntervalInBackground: false,
   });
   return {
@@ -48,13 +56,26 @@ export function useUserResource<T>(
     },
   };
 }
-export function useUserList<T extends { id: string }>(path: string) {
+export function useUserList<T extends { id: string }>(
+  path: string,
+  nestedItems = false,
+) {
   const { request, actor } = useUserSession();
   const query = useInfiniteQuery({
     queryKey: ["learner", actor.userId, path],
     initialPageParam: undefined as string | undefined,
     queryFn: async ({ pageParam, signal }) => {
-      const reply = await request<T[]>(pageUrl(path, pageParam), { signal });
+      const raw = await request<T[] | { items: T[] }>(
+        pageUrl(path, pageParam),
+        { signal },
+      );
+      const reply = {
+        ...raw,
+        data:
+          nestedItems && !Array.isArray(raw.data)
+            ? raw.data.items
+            : (raw.data as T[]),
+      };
       if (
         !Array.isArray(reply.data) ||
         (pageParam && reply.meta?.pagination?.nextCursor === pageParam)

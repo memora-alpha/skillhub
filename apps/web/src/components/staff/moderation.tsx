@@ -1,4 +1,5 @@
 "use client";
+import { systemCodeLabel } from "@/lib/system-text";
 import { useState } from "react";
 import {
   Badge,
@@ -290,7 +291,11 @@ export function ModerationScreen() {
                     {selected.offeredSharingSkills.map((skill) => (
                       <Badge key={skill.id} tone="brand">
                         {skill.skill.name} ·{" "}
-                        {levels[skill.level] ?? skill.level}
+                        {levels[skill.level] ??
+                          systemCodeLabel(
+                            skill.level,
+                            "Chưa xác định trình độ",
+                          )}
                       </Badge>
                     ))}
                   </div>

@@ -2,6 +2,7 @@ import { Button } from "@/components/Button";
 import { Text, View } from "react-native";
 import { FeaturePage, RouteButton } from "@/components/feature-page";
 import { ConnectionFeedback } from "@/features/connections";
+import { RecoveryPanel } from "../components/recovery-panel";
 import { useReputationPolicy } from "../hooks/use-reputation-policy";
 import { ReputationPolicyContent } from "../components/reputation-policy-content";
 import { ReputationSummary } from "../components/reputation-summary";
@@ -40,6 +41,7 @@ function ReputationView({ history }: Readonly<{ history: boolean }>) {
           Thông tin uy tín hiện không khả dụng cho tài khoản này.
         </Text>
       )}
+      {data && !history && <RecoveryPanel />}
       {data &&
         (history ? (
           <ReputationScoreCard data={data} />

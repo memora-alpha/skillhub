@@ -25,6 +25,11 @@ export type TerminationReview = TerminationChange & {
     total: number;
     allocations: Allocation[];
     policyReference: string | null;
+    quote: {
+      status: "READY" | "BLOCKED";
+      reasonCodes: string[];
+      allocations: AllocationDecision[];
+    };
   };
 };
 export type AllocationDecision = {
@@ -97,13 +102,67 @@ export function readTerminationReview(value: unknown): TerminationReview {
     creditUnits(allocation.remainingHeld);
     return allocation as Allocation;
   });
+  const quote = record(execution.quote);
+  if (
+    !["READY", "BLOCKED"].includes(String(quote.status)) ||
+    !Array.isArray(quote.reasonCodes) ||
+    !quote.reasonCodes.every((r) => typeof r === "string") ||
+    !Array.isArray(quote.allocations)
+  )
+    throw new Error("Chưa tải được dự tính Credit từ máy chủ.");
+  const quoted = quote.allocations.map((value) => {
+    const item = record(value);
+    if (
+      !validId(item.allocationId) ||
+      typeof item.refund !== "string" ||
+      typeof item.counterpartyPayment !== "string" ||
+      typeof item.platformFee !== "string"
+    )
+      throw new Error("Dự tính Credit chưa hợp lệ.");
+    creditUnits(item.refund);
+    creditUnits(item.counterpartyPayment);
+    creditUnits(item.platformFee);
+    return {
+      allocationId: item.allocationId,
+      refund: item.refund,
+      counterpartyPayment: item.counterpartyPayment,
+      platformFee: item.platformFee,
+    } as AllocationDecision;
+  });
+  if (
+    new Set(quoted.map((a) => a.allocationId)).size !== quoted.length ||
+    quoted.some(
+      (a) => !allocations.some((held) => held.allocationId === a.allocationId),
+    )
+  )
+    throw new Error("Dự tính Credit có khoản giữ lặp hoặc không khớp.");
+  if (
+    quote.status === "READY" &&
+    (quoted.length !== allocations.length ||
+      quoted.some((a) => {
+        const held = allocations.find(
+          (item) => item.allocationId === a.allocationId,
+        )!;
+        return (
+          creditUnits(a.refund) +
+            creditUnits(a.counterpartyPayment) +
+            creditUnits(a.platformFee) !==
+          creditUnits(held.remainingHeld)
+        );
+      }))
+  )
+    throw new Error("Dự tính Credit chưa bao phủ đúng các khoản đang giữ.");
   if (
     new Set(allocations.map((a) => a.allocationId)).size !== allocations.length
   )
     throw new Error("Khoản Held bị lặp trong snapshot.");
   return {
     ...row,
-    execution: { ...execution, allocations } as TerminationReview["execution"],
+    execution: {
+      ...execution,
+      allocations,
+      quote: { ...quote, allocations: quoted },
+    } as TerminationReview["execution"],
   };
 }
 export function creditUnits(value: string): bigint {
@@ -136,6 +195,10 @@ export function terminationDecision(
     throw new Error("Yêu cầu chưa thể thực thi hoặc đang có tranh chấp.");
   if (!review.execution.policyReference || review.awaitingPolicy)
     throw new Error("Chưa có chính sách dừng lộ trình được duyệt.");
+  if (review.execution.quote.status !== "READY")
+    throw new Error(
+      "Cần xử lý điểm danh hoặc vụ việc còn mở trước khi phân bổ Credit.",
+    );
   if (
     !/^[a-f0-9]{64}$/.test(review.execution.digest) ||
     !Number.isInteger(review.version) ||
@@ -155,6 +218,16 @@ export function terminationDecision(
     const held = review.execution.allocations.find(
       (item) => item.allocationId === a.allocationId,
     );
+    const calculated = review.execution.quote.allocations.find(
+      (item) => item.allocationId === a.allocationId,
+    );
+    if (
+      !calculated ||
+      (["refund", "counterpartyPayment", "platformFee"] as const).some(
+        (field) => creditUnits(a[field]) !== creditUnits(calculated[field]),
+      )
+    )
+      throw new Error("Phân bổ phải khớp dự tính mới nhất từ máy chủ.");
     if (
       !held ||
       creditUnits(a.refund) +

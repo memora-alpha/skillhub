@@ -18,9 +18,11 @@ import { PlanEditor } from "./plan-editor";
 import { AgreementCreator } from "./agreement-creator";
 import { SettlementStatusPanel } from "./settlement-status-panel";
 import { LearningChangePanel } from "./learning-change-panel";
-import { PathReviews } from "./path-reviews";
 import { PathAgreementSummary } from "./agreement-summary";
 import { FinalizePanel } from "./finalize-panel";
+import { PathOverviewPanel, type PathOverview } from "./path-overview";
+import styles from "../components/learning-layout.module.css";
+import { learningStageLabel } from "./path-navigation";
 function pathPermissions(path: LearningPath | undefined, userId: string) {
   if (!path)
     return {
@@ -53,9 +55,12 @@ export function PathDetail({ id }: Readonly<{ id: string }>) {
     }),
     { actor, request } = useUserSession(),
     command = useUserCommand(true);
-  const [tab, setTab] = useState("plans");
+  const [tab, setTab] = useState("overview");
   const [editing, setEditing] = useState(false);
   const path = query.data;
+  const overview = useUserResource<PathOverview>(
+    "learning-paths/" + id + "/overview",
+  );
   const { ready, ownConfirmed, editable, canAdd } = pathPermissions(
     path,
     actor.userId,
@@ -83,10 +88,13 @@ export function PathDetail({ id }: Readonly<{ id: string }>) {
       {path && (
         <>
           <PageHeading
-            title="Lộ trình học"
+            title={path.plans[0]?.learningGoal || "Lộ trình học"}
             action={
               <div className="learner-actions">
-                <Status value={path.status} />
+                <Status
+                  value={path.status}
+                  label={learningStageLabel(overview.data?.learningStage)}
+                />
                 <Link
                   className="btn"
                   href={"/learn/messages/" + path.conversationId}
@@ -96,11 +104,28 @@ export function PathDetail({ id }: Readonly<{ id: string }>) {
               </div>
             }
           />
-          <PathAgreementSummary path={path} />
+          <PathOverviewPanel
+            pathId={id}
+            onOpenSection={(section) => {
+              setTab("overview");
+              requestAnimationFrame(() => {
+                const target = document.getElementById(section);
+                target?.scrollIntoView({ block: "start", behavior: "smooth" });
+                target?.focus({ preventScroll: true });
+              });
+            }}
+          />
+          <details>
+            <summary>Thỏa thuận học tập</summary>
+            <PathAgreementSummary path={path} />
+          </details>
           <CommandFeedback command={command} />
           <div className="path-tabs" aria-label="Các phần của lộ trình">
             {[
-              ["overview", "Thỏa thuận"],
+              [
+                "overview",
+                path.lockedVersion ? "Tổng quan & kết quả" : "Thỏa thuận",
+              ],
               [
                 "plans",
                 path.agreement.exchangeType === "TWO_WAY"
@@ -125,17 +150,44 @@ export function PathDetail({ id }: Readonly<{ id: string }>) {
           </div>
           {!!path.lockedVersion && (
             <div hidden={activeTab !== "overview"}>
-              <div className="learner-stack">
-                <SettlementStatusPanel key={path.id} pathId={path.id} />
-                <LearningChangePanel
-                  pathId={path.id}
-                  canRequest={
-                    !path.settledAt &&
-                    ["SCHEDULED", "ACTIVE", "DISPUTED"].includes(path.status)
-                  }
-                  blocked={query.loading || !!query.error}
-                />
-                <PathReviews path={path} />
+              <div className={styles.completionHeading}>
+                <p className={styles.eyebrow}>SAU HỌC TẬP</p>
+                <h2>Kết quả & các bước tiếp theo</h2>
+                <p>
+                  Theo dõi quyết toán, đánh giá và yêu cầu thay đổi của lộ
+                  trình.
+                </p>
+              </div>
+              <div className={styles.completionGrid}>
+                <div id="path-settlement" tabIndex={-1}>
+                  <SettlementStatusPanel key={path.id} pathId={path.id} />
+                </div>
+                <Panel title="Đánh giá sau lộ trình">
+                  <p>
+                    {path.status === "COMPLETED" && path.settledAt
+                      ? "Chia sẻ trải nghiệm về toàn bộ thỏa thuận với đối tác."
+                      : "Đánh giá sẽ mở sau khi lộ trình hoàn tất và Credit đã được quyết toán."}
+                  </p>
+                  <Link className="btn" href={`/learn/paths/${path.id}/review`}>
+                    {path.status === "COMPLETED" && path.settledAt
+                      ? "Viết / xem đánh giá →"
+                      : "Xem điều kiện đánh giá →"}
+                  </Link>
+                </Panel>
+                <div id="path-changes" tabIndex={-1}>
+                  <LearningChangePanel
+                    pathId={path.id}
+                    canRequest={
+                      !path.settledAt &&
+                      !!overview.data &&
+                      !["LEARNING_FINISHED", "COMPLETED", "STOPPED"].includes(
+                        overview.data.learningStage ?? "",
+                      ) &&
+                      ["SCHEDULED", "ACTIVE", "DISPUTED"].includes(path.status)
+                    }
+                    blocked={query.loading || !!query.error}
+                  />
+                </div>
               </div>
             </div>
           )}

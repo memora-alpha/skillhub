@@ -10,7 +10,6 @@ import { useUserSession } from "../auth/session";
 import {
   CommandFeedback,
   Feedback,
-  PageHeading,
   Panel,
   Status,
   More,
@@ -19,6 +18,8 @@ import type { OwnIdentity } from "./account-types";
 import { ProfileAvatar } from "../components/profile-avatar";
 import { AvatarEditor } from "./avatar-editor";
 import { AccountSecurity } from "./account-security";
+import { RatingSummary } from "./profile-reviews";
+import styles from "../components/learning-layout.module.css";
 export function ProfileScreen() {
   const skills = useUserList<SharingSkill>("me/skills?limit=3");
   const query = useUserResource<OwnIdentity>("me"),
@@ -28,15 +29,6 @@ export function ProfileScreen() {
   const me = query.data;
   return (
     <>
-      <PageHeading title="Hồ sơ cá nhân" />
-      <p>
-        <Link
-          className="learner-card-link"
-          href={"/learn/people/" + actor.userId}
-        >
-          Xem hồ sơ công khai của tôi →
-        </Link>
-      </p>
       <Feedback
         loading={query.loading}
         error={query.error}
@@ -44,6 +36,16 @@ export function ProfileScreen() {
       />
       {me && (
         <>
+          {me.profile.profileModeration &&
+            Object.entries(me.profile.profileModeration).map(
+              ([field, item]) => (
+                <p className="learner-notice" key={field}>
+                  {field === "bio" ? "Giới thiệu" : "Ảnh đại diện"}:{" "}
+                  {item.action === "HIDE" ? "Đã bị ẩn" : "Cần cập nhật"}.{" "}
+                  {item.reason}
+                </p>
+              ),
+            )}
           <section className="learner-card product-profile-hero">
             <ProfileAvatar
               className="product-profile-avatar"
@@ -54,105 +56,116 @@ export function ProfileScreen() {
               <h1>{me.profile.fullName}</h1>
               <p>{me.profile.headline || "Thành viên SkillHub"}</p>
               <p>{achievementTitle(me.profile.selectedTitle)}</p>
+              <Link
+                className="learner-card-link"
+                href={"/learn/people/" + actor.userId}
+              >
+                Xem hồ sơ công khai →
+              </Link>
             </div>
             <Link className="btn" href="/learn/skills">
               Quản lý kỹ năng →
             </Link>
           </section>
-          <div className="learner-two-columns">
-            <Panel title="Thông tin cá nhân">
-              <AvatarEditor onSaved={query.reload} />
-              <form
-                className="learner-form"
-                key={
-                  me.profile.fullName +
-                  ":" +
-                  me.profile.headline +
-                  ":" +
-                  me.profile.bio
-                }
-                onSubmit={async (e) => {
-                  e.preventDefault();
-                  setSaved(false);
-                  const data = new FormData(e.currentTarget);
-                  const body = {
-                    fullName: formText(data, "fullName").trim(),
-                    headline: formText(data, "headline").trim(),
-                    bio: formText(data, "bio").trim(),
-                    timezone: formText(data, "timezone"),
-                    locale: me.profile.locale,
-                  };
-                  const result = await command.run(JSON.stringify(body), () =>
-                    request("me/profile", { method: "PATCH", body }),
-                  );
-                  if (result) {
-                    setSaved(true);
-                    query.reload();
+          <div className={styles.profileGrid}>
+            <div className={styles.profileMain}>
+              <Panel title="Thông tin cá nhân">
+                <form
+                  className={"learner-form " + styles.profileForm}
+                  key={
+                    me.profile.fullName +
+                    ":" +
+                    me.profile.headline +
+                    ":" +
+                    me.profile.bio
                   }
-                }}
-              >
-                <label>
-                  <span>Họ và tên</span>
-                  <input
-                    name="fullName"
-                    defaultValue={me.profile.fullName}
-                    minLength={2}
-                    maxLength={100}
-                    required
-                    disabled={command.pending || command.uncertain}
-                  />
-                </label>
-                <label>
-                  <span>Email</span>
-                  <input value={me.email} readOnly type="email" />
-                  <small>Email tài khoản được quản lý bởi hệ thống.</small>
-                </label>
-                <label>
-                  <span>Tiêu đề giới thiệu</span>
-                  <input
-                    name="headline"
-                    defaultValue={me.profile.headline}
-                    maxLength={120}
-                    disabled={command.pending || command.uncertain}
-                    placeholder="Bạn muốn chia sẻ điều gì với cộng đồng?"
-                  />
-                </label>
-                <label>
-                  <span>Giới thiệu bản thân</span>
-                  <textarea
-                    name="bio"
-                    defaultValue={me.profile.bio}
-                    rows={5}
-                    maxLength={1000}
-                    disabled={command.pending || command.uncertain}
-                  />
-                </label>
-                <label>
-                  <span>Múi giờ</span>
-                  <input
-                    name="timezone"
-                    defaultValue={me.profile.timezone ?? "Asia/Ho_Chi_Minh"}
-                    required
-                    maxLength={100}
-                    disabled={command.pending || command.uncertain}
-                  />
-                </label>
-                <CommandFeedback command={command} />
-                {saved && (
-                  <p className="learner-notice">
-                    <output>Đã lưu hồ sơ.</output>
-                  </p>
-                )}
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  disabled={command.pending || command.uncertain}
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    setSaved(false);
+                    const data = new FormData(e.currentTarget);
+                    const body = {
+                      fullName: formText(data, "fullName").trim(),
+                      headline: formText(data, "headline").trim(),
+                      bio: formText(data, "bio").trim(),
+                      timezone: formText(data, "timezone"),
+                      locale: me.profile.locale,
+                    };
+                    const result = await command.run(JSON.stringify(body), () =>
+                      request("me/profile", { method: "PATCH", body }),
+                    );
+                    if (result) {
+                      setSaved(true);
+                      query.reload();
+                    }
+                  }}
                 >
-                  {command.pending ? "Đang lưu…" : "Lưu thay đổi"}
-                </button>
-              </form>
-            </Panel>
-            <div className="learner-stack">
+                  <label>
+                    <span>Họ và tên</span>
+                    <input
+                      name="fullName"
+                      defaultValue={me.profile.fullName}
+                      minLength={2}
+                      maxLength={100}
+                      required
+                      disabled={command.pending || command.uncertain}
+                    />
+                  </label>
+                  <label>
+                    <span>Email</span>
+                    <input value={me.email} readOnly type="email" />
+                    <small>Email tài khoản được quản lý bởi hệ thống.</small>
+                  </label>
+                  <label>
+                    <span>Tiêu đề giới thiệu</span>
+                    <input
+                      name="headline"
+                      defaultValue={me.profile.headline}
+                      maxLength={120}
+                      disabled={command.pending || command.uncertain}
+                      placeholder="Bạn muốn chia sẻ điều gì với cộng đồng?"
+                    />
+                  </label>
+                  <label>
+                    <span>Múi giờ</span>
+                    <input
+                      name="timezone"
+                      defaultValue={me.profile.timezone ?? "Asia/Ho_Chi_Minh"}
+                      required
+                      maxLength={100}
+                      disabled={command.pending || command.uncertain}
+                    />
+                  </label>
+                  <label>
+                    <span>Giới thiệu bản thân</span>
+                    <textarea
+                      name="bio"
+                      defaultValue={me.profile.bio}
+                      rows={5}
+                      maxLength={1000}
+                      disabled={command.pending || command.uncertain}
+                    />
+                  </label>
+
+                  <CommandFeedback command={command} />
+                  {saved && (
+                    <p className="learner-notice">
+                      <output>Đã lưu hồ sơ.</output>
+                    </p>
+                  )}
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                    disabled={command.pending || command.uncertain}
+                  >
+                    {command.pending ? "Đang lưu…" : "Lưu thay đổi"}
+                  </button>
+                </form>
+              </Panel>
+              <Panel>
+                <AvatarEditor onSaved={query.reload} />
+              </Panel>
+            </div>
+            <aside className={styles.sideStack}>
               <Panel title="Hành trình trên SkillHub">
                 <p>
                   {achievementTitle(me.profile.selectedTitle) ??
@@ -161,72 +174,85 @@ export function ProfileScreen() {
                 <Link className="learner-card-link" href="/learn/achievements">
                   Thành tích & danh hiệu →
                 </Link>
-                <div className="product-profile-stats">
+                <div className={styles.stats}>
                   <div>
                     <strong>{me.profile.reputationScore}</strong>
                     <small>Điểm uy tín</small>
                     <Link href="/learn/reputation">Xem lịch sử & hạn chế</Link>
                   </div>
                   <div>
-                    <strong>{me.profile.completedSessionCount}</strong>
-                    <small>Buổi hoàn thành</small>
+                    <strong>{me.profile.completedLearningPathCount}</strong>
+                    <small>Lộ trình hoàn tất</small>
                   </div>
                   <div>
                     <strong>{me.profile.verifiedSkillCount}</strong>
                     <small>Kỹ năng đã xác minh</small>
                   </div>
+                  <div>
+                    <strong>{me.profile.completedSessionCount}</strong>
+                    <small>Buổi đã hoàn thành</small>
+                  </div>
                 </div>
               </Panel>
-              <Panel title="Kỹ năng của bạn">
-                <Feedback
-                  loading={skills.loading}
-                  error={skills.error}
-                  reload={skills.reload}
-                />
-                {skills.items.map((skill) => (
-                  <div className="product-pending" key={skill.id}>
-                    <strong>{skill.skill.name}</strong>
-                    <p>
-                      {skill.level} ·{" "}
-                      {skill.isVisible ? "Đang hiển thị" : "Đang ẩn"}
-                    </p>
-                    {skill.verificationStatus && (
-                      <Status value={skill.verificationStatus} />
-                    )}
-                    <p>
-                      <Link
-                        className="learner-card-link"
-                        href={"/learn/skills/" + skill.id + "/verification"}
-                      >
-                        Chi tiết xác minh →
-                      </Link>
-                    </p>
-                  </div>
-                ))}
-                {!skills.loading && !skills.error && !skills.items.length && (
-                  <p>Bạn chưa khai báo kỹ năng chia sẻ.</p>
-                )}
-                <More
-                  cursor={skills.cursor}
-                  loading={skills.loading}
-                  onMore={() => {
-                    void skills.more();
-                  }}
-                />
-                <p>
-                  <Link className="btn" href="/learn/skills">
-                    Quản lý kỹ năng
-                  </Link>
-                </p>
+              <Panel title="Đánh giá đã nhận" className={styles.summaryLink}>
+                <RatingSummary summary={me.profile.reviewSummary} />
+                <Link className="btn" href="/learn/reviews">
+                  Xem đánh giá của tôi →
+                </Link>
               </Panel>
-              <Panel title="Hỗ trợ học tập">
+              <details>
+                <summary>Kỹ năng của bạn</summary>
+                <Panel title="Kỹ năng của bạn">
+                  <Feedback
+                    loading={skills.loading}
+                    error={skills.error}
+                    reload={skills.reload}
+                  />
+                  {skills.items.map((skill) => (
+                    <div className="product-pending" key={skill.id}>
+                      <strong>{skill.skill.name}</strong>
+                      <p>
+                        {skill.level} ·{" "}
+                        {skill.isVisible ? "Đang hiển thị" : "Đang ẩn"}
+                      </p>
+                      {skill.verificationStatus && (
+                        <Status value={skill.verificationStatus} />
+                      )}
+                      <p>
+                        <Link
+                          className="learner-card-link"
+                          href={"/learn/skills/" + skill.id + "/verification"}
+                        >
+                          Chi tiết xác minh →
+                        </Link>
+                      </p>
+                    </div>
+                  ))}
+                  {!skills.loading && !skills.error && !skills.items.length && (
+                    <p>Bạn chưa khai báo kỹ năng chia sẻ.</p>
+                  )}
+                  <More
+                    cursor={skills.cursor}
+                    loading={skills.loading}
+                    onMore={() => {
+                      void skills.more();
+                    }}
+                  />
+                  <p>
+                    <Link className="btn" href="/learn/skills">
+                      Quản lý kỹ năng
+                    </Link>
+                  </p>
+                </Panel>
+              </details>
+              <Panel title="Tài khoản & hỗ trợ">
                 <AccountSecurity />
                 <p>Theo dõi các báo cáo bạn đã gửi trong quá trình học.</p>
                 <Link className="learner-card-link" href="/learn/reports">
                   Báo cáo của tôi →
                 </Link>
               </Panel>
-            </div>
+            </aside>
           </div>
         </>
       )}

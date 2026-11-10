@@ -30,7 +30,7 @@ export function LoginScreen() {
   useEffect(() => {
     try {
       const saved = localStorage.getItem("skillhub:login-email");
-      if (saved && saved.length <= 320) {
+      if (saved && saved.length <= 254) {
         if (emailInput.current) emailInput.current.value = saved;
         if (rememberInput.current) rememberInput.current.checked = true;
       }
@@ -148,7 +148,9 @@ export function LoginScreen() {
                     ? cause.message
                     : "Không thể đăng nhập. Vui lòng thử lại.",
                 );
-                setCanReset(true);
+                setCanReset(
+                  cause instanceof LoginSessionError && cause.status === 409,
+                );
               } finally {
                 busy.current = false;
                 setPending(false);
@@ -164,7 +166,8 @@ export function LoginScreen() {
               autoComplete="username"
               placeholder="ban@example.com"
               required
-              maxLength={320}
+              minLength={5}
+              maxLength={254}
               disabled={checking || pending}
             />
             <label htmlFor="login-password">Mật khẩu</label>
@@ -173,7 +176,7 @@ export function LoginScreen() {
               name="password"
               autoComplete="current-password"
               required
-              maxLength={1024}
+              maxLength={64}
               disabled={checking || pending}
             />
             <label className="auth-remember">

@@ -1,4 +1,5 @@
 "use client";
+import { systemCodeLabel } from "@/lib/system-text";
 import { useRef, useState } from "react";
 import { useUserSession } from "../auth/session";
 import { useUserResource } from "../hooks/use-user-resource";
@@ -11,6 +12,7 @@ import {
 } from "../components/common";
 import { changeLabels, type LearningChange } from "./post-session-contract";
 import { UserApiError } from "../api/client";
+import { TerminationPreview } from "./termination-preview";
 
 export function LearningChangePanel({
   pathId,
@@ -105,6 +107,9 @@ export function LearningChangePanel({
         error={query.error}
         reload={query.reload}
       />
+      {!sessionId && (composing || open) && (
+        <TerminationPreview pathId={pathId} />
+      )}
       {!open && canRequest && !composing && !create.uncertain && (
         <button
           type="button"
@@ -167,7 +172,7 @@ export function LearningChangePanel({
       )}
       {query.data?.map((row) => (
         <article key={row.id}>
-          <h3>{changeLabels[row.status] ?? row.status}</h3>
+          <h3>{changeLabels[row.status] ?? systemCodeLabel(row.status)}</h3>
           <p className="learner-prose">{row.reason}</p>
           <p className="muted">
             Gửi: {formatTime(row.createdAt)} · Hạn phản hồi:{" "}

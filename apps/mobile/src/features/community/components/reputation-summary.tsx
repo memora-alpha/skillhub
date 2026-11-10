@@ -1,3 +1,4 @@
+import { systemCodeLabel } from "@/constants/system-text";
 import { Text, View } from "react-native";
 import type { Reputation } from "../api/community-api";
 import { restrictionDeadline } from "../utils/reputation-policy";
@@ -40,10 +41,12 @@ export function ReputationSummary({ data }: Readonly<{ data: Reputation }>) {
         {data.activeRestrictions.map((item, index) => (
           <View key={`${item.scope}:${index}`} style={styles.restriction}>
             <Text style={styles.restrictionTitle}>
-              {scopes[item.scope] ?? item.scope}
+              {scopes[item.scope] ?? systemCodeLabel(item.scope)}
             </Text>
             <Text style={styles.body}>
-              Lý do: {reputationReasons[item.reasonCode] ?? item.reasonCode}
+              Lý do:{" "}
+              {reputationReasons[item.reasonCode] ??
+                systemCodeLabel(item.reasonCode)}
             </Text>
             <Text style={styles.note}>
               {restrictionDeadline(item.endsAt, !!data.policyNotice?.length)}

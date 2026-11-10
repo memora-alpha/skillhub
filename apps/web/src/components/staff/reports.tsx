@@ -1,4 +1,5 @@
 "use client";
+import { reportDescriptionText } from "@/lib/system-text";
 import Link from "next/link";
 import { useState } from "react";
 import {
@@ -18,26 +19,15 @@ import {
 } from "@/lib/staff/report-resolution";
 import { ReportResolutionFields } from "./report-resolution";
 import { AttendanceEvidence } from "./attendance-evidence";
+import { CaseSupportPanel } from "./case-support";
 import { useStaffList, useStaffResource } from "./hooks";
 import { useStaffSession } from "./session";
 import { DecisionDialog, DownloadButton, QueueState } from "./common";
-const reasons: Record<string, string> = {
-  MAKEUP_EXPIRED: "Quá hạn chốt học bù",
-  ATTENDANCE_UNVERIFIABLE: "Chưa xác minh được điểm danh",
-  NO_SHOW_LATE: "Vắng mặt hoặc đến muộn",
-  INAPPROPRIATE_BEHAVIOR: "Hành vi không phù hợp",
-  SKILL_MISMATCH: "Kỹ năng không đúng thỏa thuận",
-  FALSE_INFORMATION: "Thông tin sai lệch",
-  CREDIT_ISSUE: "Vấn đề Credit",
-  SPAM_SCAM: "Spam hoặc lừa đảo",
-  OTHER: "Lý do khác",
-  NO_SHOW: "Không tham gia buổi học",
-  LATE_CANCELLATION: "Hủy muộn",
-  TECHNICAL_ISSUE: "Vấn đề kỹ thuật",
-  INAPPROPRIATE_CONTENT: "Nội dung không phù hợp",
-  HARASSMENT: "Quấy rối",
-  FRAUD: "Gian lận",
-};
+import {
+  reportReasonLabel,
+  reportDateLabel,
+  targetTypeLabel,
+} from "@/lib/staff/report-presentation";
 export function ReportsScreen() {
   const { portal } = useStaffSession();
   const queue = useStaffList<ReportCase>("reports");
@@ -116,7 +106,7 @@ export function ReportsScreen() {
                   {items.map((item) => (
                     <tr key={item.id}>
                       <td className="mono">#{item.id.slice(0, 8)}</td>
-                      <td>{reasons[item.reasonCode] ?? item.reasonCode}</td>
+                      <td>{reportReasonLabel(item.reasonCode)}</td>
                       <td>
                         <StatusBadge status={item.status} />
                       </td>
@@ -174,61 +164,94 @@ const actions: Record<
 };
 function ReportOverview({ item }: Readonly<{ item: ReportCase }>) {
   return (
-    <Card title="Nội dung báo cáo">
-      <div className="stack">
+    <Card className="ops-case-overview">
+      <div className="ops-case-title">
+        <span className="mono" title={item.id}>
+          #{item.id.slice(0, 8)}
+        </span>
+        <h2>{reportReasonLabel(item.reasonCode)}</h2>
         <div className="row">
           <StatusBadge status={item.status} />
           <Badge tone={item.blocksSettlement ? "warn" : "neutral"}>
             {item.blocksSettlement
-              ? "Settlement đang bị chặn"
-              : "Không chặn settlement"}
+              ? "Đang chặn quyết toán"
+              : "Không chặn quyết toán"}
           </Badge>
         </div>
-        <h3 className="sub-title">
-          {reasons[item.reasonCode] ?? item.reasonCode}
-        </h3>
-        <p className="prose">{item.description}</p>
-        <dl className="kv staff-kv">
-          <dt>Mã báo cáo</dt>
-          <dd className="mono">{item.id}</dd>
+      </div>
+      <dl className="ops-case-facts">
+        <div>
+          <dt>Đối tượng</dt>
+          <dd>{targetTypeLabel(item.targetType)}</dd>
+        </div>
+        <div>
           <dt>Người gửi</dt>
-          <dd className="mono">{item.reporterId ?? "Hệ thống tự ghi nhận"}</dd>
-          <dt>Đối tượng báo cáo</dt>
           <dd>
-            {item.targetType === "MATERIAL"
-              ? "Tài liệu"
-              : item.targetType === "SESSION"
-                ? "Buổi học"
-                : item.targetType}
+            {item.reporterId ? (
+              <span className="mono" title={item.reporterId}>
+                #{item.reporterId.slice(0, 8)}
+              </span>
+            ) : (
+              "Hệ thống tự ghi nhận"
+            )}
           </dd>
-          <dt>Mã đối tượng</dt>
+        </div>
+        <div>
+          <dt>Thời điểm gửi</dt>
+          <dd>{reportDateLabel(item.createdAt)}</dd>
+        </div>
+        <div>
+          <dt>Người phụ trách</dt>
+          <dd>
+            {item.handlerId ? (
+              <span className="mono" title={item.handlerId}>
+                #{item.handlerId.slice(0, 8)}
+              </span>
+            ) : (
+              "Chưa có người nhận"
+            )}
+          </dd>
+        </div>
+      </dl>
+      <section className="ops-case-description">
+        <h3 className="sub-title">Mô tả sự việc</h3>
+        <p className="prose">
+          {reportDescriptionText(item.description) || "Chưa có mô tả bổ sung."}
+        </p>
+      </section>
+      <details className="ops-case-identifiers">
+        <summary>Mã tham chiếu liên quan</summary>
+        <dl className="kv staff-kv">
+          <dt>Báo cáo</dt>
+          <dd className="mono">{item.id}</dd>
+          <dt>Đối tượng</dt>
           <dd className="mono">{item.targetId}</dd>
+          {item.relatedPathId && (
+            <>
+              <dt>Lộ trình</dt>
+              <dd className="mono">{item.relatedPathId}</dd>
+            </>
+          )}
           {item.relatedSessionId && (
             <>
-              <dt>Buổi học liên quan</dt>
+              <dt>Buổi học</dt>
               <dd className="mono">{item.relatedSessionId}</dd>
             </>
           )}
           {item.relatedMaterialId && (
             <>
-              <dt>Tài liệu liên quan</dt>
+              <dt>Tài liệu</dt>
               <dd className="mono">{item.relatedMaterialId}</dd>
             </>
           )}
           {item.relatedOrderId && (
             <>
-              <dt>Đơn mua tài liệu</dt>
+              <dt>Đơn mua</dt>
               <dd className="mono">{item.relatedOrderId}</dd>
             </>
           )}
-          <dt>Learning Path</dt>
-          <dd className="mono">{item.relatedPathId ?? "Không có"}</dd>
-          <dt>Ngày gửi</dt>
-          <dd>{fmtDateTime(item.createdAt)}</dd>
-          <dt>Người xử lý</dt>
-          <dd className="mono">{item.handlerId ?? "Chưa được giao"}</dd>
         </dl>
-      </div>
+      </details>
     </Card>
   );
 }
@@ -281,6 +304,12 @@ function ReportActions({ item, owns, busy, onAction }: ReportActionProps) {
         Một nhân viên khác đang phụ trách vụ việc này.
       </p>
     );
+  if (item.incidentId)
+    return (
+      <p className="staff-flag">
+        Báo cáo đã gom vào vụ việc chung. Mở quyết định chung bên dưới.
+      </p>
+    );
   return (
     <>
       <p className="muted">Bạn đang phụ trách vụ việc này.</p>
@@ -290,7 +319,7 @@ function ReportActions({ item, owns, busy, onAction }: ReportActionProps) {
         disabled={busy}
         onClick={() => onAction("resolve")}
       >
-        Đã xử lý
+        Đưa ra quyết định
       </button>
       <button
         type="button"
@@ -348,53 +377,59 @@ function ReportDetailContent({
       <div className="stack">
         <ReportOverview item={item} />
         <AttendanceEvidence outcome={item.attendanceOutcome} />
-        {item.session && (
-          <Card title="Phiên học liên quan">
-            <dl className="kv staff-kv">
-              <dt>Trạng thái</dt>
-              <dd>
-                <StatusBadge status={item.session.status} />
-              </dd>
-              <dt>Người dạy</dt>
-              <dd className="mono">{item.session.teacherId}</dd>
-              <dt>Người học</dt>
-              <dd className="mono">{item.session.learnerId}</dd>
-              <dt>Bắt đầu</dt>
-              <dd>{fmtDateTime(item.session.startAt)}</dd>
-              <dt>Kết thúc</dt>
-              <dd>{fmtDateTime(item.session.endAt)}</dd>
-              <dt>Xác nhận người dạy</dt>
-              <dd>{item.session.teacherConfirmationStatus}</dd>
-              <dt>Xác nhận người học</dt>
-              <dd>{item.session.learnerConfirmationStatus}</dd>
-            </dl>
-          </Card>
-        )}
-        {item.path && (
-          <Card title="Lộ trình liên quan">
-            <dl className="kv staff-kv">
-              <dt>Trạng thái</dt>
-              <dd>
-                <StatusBadge status={item.path.status} />
-              </dd>
-              <dt>Người tham gia 1</dt>
-              <dd className="mono">{item.path.participantAId}</dd>
-              <dt>Người tham gia 2</dt>
-              <dd className="mono">{item.path.participantBId}</dd>
-              <dt>Quyết toán</dt>
-              <dd>
-                {item.path.settledAt
-                  ? fmtDateTime(item.path.settledAt)
-                  : "Chưa quyết toán"}
-              </dd>
-            </dl>
-          </Card>
+        {(item.session || item.path) && (
+          <details className="ops-case-context">
+            <summary>Thông tin buổi học và thỏa thuận</summary>
+            {item.session && (
+              <Card title="Phiên học liên quan">
+                <dl className="kv staff-kv">
+                  <dt>Trạng thái</dt>
+                  <dd>
+                    <StatusBadge status={item.session.status} />
+                  </dd>
+                  <dt>Người dạy</dt>
+                  <dd className="mono">{item.session.teacherId}</dd>
+                  <dt>Người học</dt>
+                  <dd className="mono">{item.session.learnerId}</dd>
+                  <dt>Bắt đầu</dt>
+                  <dd>{fmtDateTime(item.session.startAt)}</dd>
+                  <dt>Kết thúc</dt>
+                  <dd>{fmtDateTime(item.session.endAt)}</dd>
+                  <dt>Xác nhận người dạy</dt>
+                  <dd>{item.session.teacherConfirmationStatus}</dd>
+                  <dt>Xác nhận người học</dt>
+                  <dd>{item.session.learnerConfirmationStatus}</dd>
+                </dl>
+              </Card>
+            )}
+            {item.path && (
+              <Card title="Lộ trình liên quan">
+                <dl className="kv staff-kv">
+                  <dt>Trạng thái</dt>
+                  <dd>
+                    <StatusBadge status={item.path.status} />
+                  </dd>
+                  <dt>Người tham gia 1</dt>
+                  <dd className="mono">{item.path.participantAId}</dd>
+                  <dt>Người tham gia 2</dt>
+                  <dd className="mono">{item.path.participantBId}</dd>
+                  <dt>Quyết toán</dt>
+                  <dd>
+                    {item.path.settledAt
+                      ? fmtDateTime(item.path.settledAt)
+                      : "Chưa quyết toán"}
+                  </dd>
+                </dl>
+              </Card>
+            )}
+          </details>
         )}
         <Card title="Bằng chứng">
           <ReportFiles files={item.reportEvidenceCaseIdRecords} />
         </Card>
+        <CaseSupportPanel item={item} onUpdated={reload} />
       </div>
-      <Card title="Xử lý vụ việc">
+      <Card title="Xử lý vụ việc" className="ops-case-decision">
         <div className="stack">
           {confirmed && (
             <output className="staff-success">
@@ -449,6 +484,7 @@ function ReportDecision({
   });
   return (
     <DecisionDialog
+      presentation="drawer"
       title={actions[action].title}
       description={actions[action].description}
       label={action === "claim" ? "Ghi chú" : "Nội dung xử lý"}
@@ -518,7 +554,11 @@ function ReportDecision({
     </DecisionDialog>
   );
 }
-export function ReportDetailScreen({ id }: Readonly<{ id: string }>) {
+export function ReportDetailScreen({
+  id,
+  embedded = false,
+  onUpdated,
+}: Readonly<{ id: string; embedded?: boolean; onUpdated?: () => void }>) {
   const { actor, portal } = useStaffSession();
   const resource = useStaffResource<ReportCaseDetail>(`reports/${id}`);
   const [confirmedId, setConfirmedId] = useState<string | null>(null);
@@ -530,25 +570,45 @@ export function ReportDetailScreen({ id }: Readonly<{ id: string }>) {
   };
   return (
     <>
-      <PageHeader
-        title="Chi tiết báo cáo"
-        desc={"Báo cáo #" + id.slice(0, 8)}
-        back={
-          <Link className="link" href={"/" + portal + "/disputes"}>
-            ← Hàng đợi báo cáo
-          </Link>
-        }
-        actions={
-          <button
-            type="button"
-            className="btn"
-            disabled={resource.loading}
-            onClick={reload}
-          >
-            Làm mới
-          </button>
-        }
-      />
+      {!embedded && (
+        <PageHeader
+          title="Chi tiết báo cáo"
+          desc={"Báo cáo #" + id.slice(0, 8)}
+          back={
+            <Link className="link" href={"/" + portal + "/disputes"}>
+              ← Hàng đợi báo cáo
+            </Link>
+          }
+          actions={
+            <button
+              type="button"
+              className="btn"
+              disabled={resource.loading}
+              onClick={reload}
+            >
+              Làm mới
+            </button>
+          }
+        />
+      )}
+      {embedded && (
+        <div className="ops-case-toolbar">
+          <h2>Chi tiết báo cáo</h2>
+          <div className="row">
+            <button
+              type="button"
+              className="btn btn-sm"
+              disabled={resource.loading}
+              onClick={reload}
+            >
+              Cập nhật
+            </button>
+            <Link className="link" href={`/${portal}/disputes/${id}`}>
+              Mở trang chi tiết →
+            </Link>
+          </div>
+        </div>
+      )}
       <ReportDetailContent
         item={item}
         loading={resource.loading}
@@ -569,6 +629,7 @@ export function ReportDetailScreen({ id }: Readonly<{ id: string }>) {
           onComplete={() => {
             setConfirmedId(id);
             void resource.reload();
+            onUpdated?.();
           }}
         />
       )}

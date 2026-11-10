@@ -12,6 +12,9 @@ import {
 } from "../components/common";
 import { checkedReviews, type PathReview } from "./post-session-contract";
 import { UserApiError } from "../api/client";
+import Link from "next/link";
+import { ReviewRatingInput, ReviewStars } from "../reviews/review-stars";
+import styles from "../reviews/reviews.module.css";
 
 export function PathReviews({ path }: Readonly<{ path: LearningPath }>) {
   const { actor, request } = useUserSession();
@@ -19,6 +22,8 @@ export function PathReviews({ path }: Readonly<{ path: LearningPath }>) {
     "learning-paths/" + path.id + "/reviews",
   );
   const command = useUserCommand();
+  const [checking, setChecking] = useState(false);
+  const [readError, setReadError] = useState<string>();
   const [rating, setRating] = useState(0),
     [comment, setComment] = useState("");
   const [submitted, setSubmitted] = useState(false);
@@ -37,6 +42,31 @@ export function PathReviews({ path }: Readonly<{ path: LearningPath }>) {
   }
   const own = rows?.find((r) => r.reviewerId === actor.userId);
   const opened = path.status === "COMPLETED" && !!path.settledAt;
+  async function reconcile() {
+    if (checking || command.pending) return;
+    setChecking(true);
+    setReadError(undefined);
+    try {
+      const latest = checkedReviews(
+        (await request("learning-paths/" + path.id + "/reviews")).data,
+        path.id,
+        [path.participantAId, path.participantBId],
+      );
+      if (latest.some((row) => row.reviewerId === actor.userId))
+        setSubmitted(true);
+      // The server's unique path/reviewer constraint also protects a later resubmission.
+      command.resetAfterRead();
+      query.reload();
+    } catch (cause) {
+      setReadError(
+        cause instanceof Error
+          ? cause.message
+          : "Chưa kiểm tra được kết quả. Vui lòng thử lại.",
+      );
+    } finally {
+      setChecking(false);
+    }
+  }
   async function submit() {
     const body = { rating, comment: comment.trim() };
     const result = await command.run(
@@ -62,71 +92,70 @@ export function PathReviews({ path }: Readonly<{ path: LearningPath }>) {
     <Panel title="Đánh giá sau lộ trình">
       <Feedback
         loading={query.loading}
-        error={query.error ?? contractError}
-        reload={query.reload}
+        error={readError ?? query.error ?? contractError}
+        reload={() => void reconcile()}
       />
-      {rows?.map((r) => (
-        <article key={r.id}>
-          <h3>
-            {r.reviewerId === actor.userId
-              ? "Đánh giá bạn đã gửi"
-              : "Đánh giá từ đối tác"}{" "}
-            · {r.rating}/5
-          </h3>
-          <p className="learner-prose">
-            {r.comment || "Không có nhận xét thêm."}
-          </p>
-          <small>{formatTime(r.createdAt)}</small>
-        </article>
-      ))}
+      <div className={styles.reviewList}>
+        {rows?.map((r) => (
+          <article key={r.id} className={styles.reviewCard}>
+            <h3>
+              {r.reviewerId === actor.userId
+                ? "Đánh giá bạn đã gửi"
+                : "Đánh giá từ đối tác"}
+            </h3>
+            <ReviewStars rating={r.rating} />
+            <p className={styles.comment}>
+              {r.comment || "Không có nhận xét thêm."}
+            </p>
+            <small>{formatTime(r.createdAt)}</small>
+          </article>
+        ))}
+      </div>
       {!opened && <p className="muted">Mở đánh giá sau khi quyết toán.</p>}
       {own ||
       submitted ||
       command.failure?.code === "REVIEW_ALREADY_SUBMITTED" ? (
-        <p>
+        <p className={styles.success}>
           <output>Bạn đã gửi đánh giá cho lộ trình này.</output>
         </p>
       ) : (
         opened && (
           <form
-            className="learner-form"
+            className={styles.form}
             onSubmit={(e) => {
               e.preventDefault();
               void submit();
             }}
           >
-            <label>
-              <span>Chấm điểm đối tác</span>
-              <select
-                required
-                value={rating}
-                disabled={command.pending || command.uncertain}
-                onChange={(e) => setRating(Number(e.target.value))}
-              >
-                <option value={0} disabled>
-                  Chọn số sao
-                </option>
-                {[5, 4, 3, 2, 1].map((n) => (
-                  <option key={n} value={n}>
-                    {n} sao
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
+            <ReviewRatingInput
+              value={rating}
+              onChange={setRating}
+              disabled={
+                checking ||
+                command.pending ||
+                command.uncertain ||
+                query.loading ||
+                !!query.error ||
+                !!contractError
+              }
+            />
+            <label className={styles.commentInput}>
               <span>Nhận xét (không bắt buộc)</span>
               <textarea
                 value={comment}
                 maxLength={1000}
-                disabled={command.pending || command.uncertain}
+                placeholder="Điều gì ở trải nghiệm học tập này bạn muốn chia sẻ với đối tác?"
+                disabled={checking || command.pending || command.uncertain}
                 onChange={(e) => setComment(e.target.value)}
               />
+              <small>{comment.length}/1.000 ký tự</small>
             </label>
             <button
               type="submit"
               className="btn btn-primary"
               disabled={
                 rating < 1 ||
+                checking ||
                 command.pending ||
                 command.uncertain ||
                 query.loading ||
@@ -135,18 +164,33 @@ export function PathReviews({ path }: Readonly<{ path: LearningPath }>) {
                 !rows
               }
             >
-              Gửi đánh giá
+              {command.pending ? "Đang gửi đánh giá…" : "Gửi đánh giá"}
             </button>
           </form>
         )
       )}
       {!own && !submitted && <CommandFeedback command={command} />}
       {command.uncertain && !own && !submitted && (
+        <button
+          type="button"
+          className="btn"
+          disabled={checking || command.pending}
+          onClick={() => void reconcile()}
+        >
+          {checking ? "Đang kiểm tra…" : "Kiểm tra lại kết quả"}
+        </button>
+      )}
+      {command.uncertain && !own && !submitted && (
         <p>
           Chưa rõ kết quả. Tải lại danh sách trước khi thao tác tiếp; không tự
           gửi trùng đánh giá.
         </p>
       )}
+      <div className={styles.links}>
+        <Link href="/learn/reviews" className="btn">
+          Xem đánh giá của tôi
+        </Link>
+      </div>
     </Panel>
   );
 }

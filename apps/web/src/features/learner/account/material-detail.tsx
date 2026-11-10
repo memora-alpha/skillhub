@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useRef, useState } from "react";
 import { useUserResource } from "../hooks/use-user-resource";
+import { useUserSnapshot } from "../hooks/use-user-snapshot";
 import { useUserCommand } from "../hooks/use-user-command";
 import { useUserSession } from "../auth/session";
 import {
@@ -14,19 +15,38 @@ import {
 import { ProductIcon } from "../components/product-icon";
 import type { Material, MaterialOrder } from "./account-types";
 import { safeDownloadUrl } from "./view-policy";
+import { materialPurchaseAccess } from "./material-access-policy";
 export function MaterialDetail({ id }: Readonly<{ id: string }>) {
+  const { actor } = useUserSession();
+  return <MaterialDetailContent key={`${actor.userId}:${id}`} id={id} />;
+}
+function useMaterialDetail(id: string) {
   const query = useUserResource<Material>("materials/" + id),
-    orders = useUserResource<MaterialOrder[]>("me/material-orders"),
     { request, actor } = useUserSession(),
     command = useUserCommand(true);
   const material = query.data;
-  const purchased = orders.data?.some(
-      (order) => order.materialId === id && order.status === "SUCCESS",
-    ),
-    owned = material?.ownerId === actor.userId;
+  const orders = useUserSnapshot<MaterialOrder>(
+    "me/material-orders?limit=100",
+    {
+      enabled:
+        !!material &&
+        material.accessType === "PAID" &&
+        material.ownerId !== actor.userId,
+      scope: id,
+      stopAt: (order) => order.materialId === id && order.status === "SUCCESS",
+    },
+  );
+  const [purchaseRecorded, setPurchaseRecorded] = useState(false);
+  const access = materialPurchaseAccess(id, orders.items, {
+    ...orders,
+    cursor: orders.complete ? null : "checking",
+  });
+  const purchased = purchaseRecorded || access.purchased;
+  const canPurchase = !purchaseRecorded && access.canPurchase;
+  const owned = material?.ownerId === actor.userId;
   const [acceptedListing, setAcceptedListing] = useState(""),
     [downloading, setDownloading] = useState(false),
-    [download, setDownload] = useState<{ url: string; expiresAt: string }>(),
+    [confirmDownload, setConfirmDownload] = useState(false),
     [error, setError] = useState<string>();
   const lock = useRef(false);
   const listing = material
@@ -38,17 +58,18 @@ export function MaterialDetail({ id }: Readonly<{ id: string }>) {
     lock.current = true;
     setDownloading(true);
     setError(undefined);
-    setDownload(undefined);
     try {
       const result = await request<{ url: string; expiresAt: string }>(
         "materials/" + id + "/download",
       );
       if (
         !safeDownloadUrl(result.data.url) ||
-        !Number.isFinite(Date.parse(result.data.expiresAt))
+        !Number.isFinite(Date.parse(result.data.expiresAt)) ||
+        Date.parse(result.data.expiresAt) <= Date.now()
       )
         throw new Error("Liên kết tải chưa hợp lệ.");
-      setDownload(result.data);
+      setConfirmDownload(false);
+      window.location.assign(result.data.url);
     } catch (cause) {
       setError(
         cause instanceof Error ? cause.message : "Chưa tải được tài liệu.",
@@ -66,6 +87,50 @@ export function MaterialDetail({ id }: Readonly<{ id: string }>) {
   if (command.pending) purchaseLabel = "Đang xử lý…";
   else if (command.canRetry) purchaseLabel = "Kiểm tra lại yêu cầu mua";
   else purchaseLabel = "Mua tài liệu";
+  return {
+    query,
+    material,
+    orders,
+    command,
+    request,
+    owned,
+    purchased,
+    canPurchase,
+    downloading,
+    confirmDownload,
+    setConfirmDownload,
+    getDownload,
+    error,
+    agree,
+    listing,
+    setAcceptedListing,
+    setPurchaseRecorded,
+    accessDescription,
+    purchaseLabel,
+  };
+}
+function MaterialDetailContent({ id }: Readonly<{ id: string }>) {
+  const {
+    query,
+    material,
+    orders,
+    command,
+    request,
+    owned,
+    purchased,
+    canPurchase,
+    downloading,
+    confirmDownload,
+    setConfirmDownload,
+    getDownload,
+    error,
+    agree,
+    listing,
+    setAcceptedListing,
+    setPurchaseRecorded,
+    accessDescription,
+    purchaseLabel,
+  } = useMaterialDetail(id);
   return (
     <>
       <Back href="/learn/materials" />
@@ -119,30 +184,52 @@ export function MaterialDetail({ id }: Readonly<{ id: string }>) {
                   <p>{accessDescription}</p>
                   {purchased && (
                     <p className="muted">
-                      Lấy liên kết tải sẽ ghi nhận tài liệu đã được sử dụng và
-                      mất quyền hoàn đơn tự động.
+                      Bắt đầu tải sẽ ghi nhận tài liệu đã sử dụng và kết thúc
+                      quyền hoàn đơn tự động.
                     </p>
                   )}
                   <button
+                    type="button"
                     className="btn btn-primary"
-                    disabled={downloading}
+                    disabled={downloading || confirmDownload}
                     onClick={() => {
-                      void getDownload();
+                      if (purchased) setConfirmDownload(true);
+                      else void getDownload();
                     }}
                   >
-                    {downloading ? "Đang lấy liên kết…" : "Lấy liên kết tải"}
+                    {downloading ? "Đang chuẩn bị tải…" : "Tải tài liệu"}
                   </button>
-                  {download && (
-                    <p>
-                      <a
-                        className="btn btn-primary"
-                        href={download.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        Tải tài liệu ↗
-                      </a>
-                    </p>
+                  {confirmDownload && (
+                    <section
+                      className="learner-notice"
+                      aria-label="Xác nhận tải tài liệu"
+                    >
+                      <strong>Bắt đầu sử dụng tài liệu?</strong>
+                      <p>
+                        Sau bước này, đơn mua không còn đủ điều kiện hoàn tự
+                        động, kể cả khi việc tải bị gián đoạn.
+                      </p>
+                      <div className="learner-actions">
+                        <button
+                          type="button"
+                          className="btn btn-primary"
+                          disabled={downloading}
+                          onClick={() => void getDownload()}
+                        >
+                          {downloading
+                            ? "Đang chuẩn bị tải…"
+                            : "Xác nhận và tải"}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn"
+                          disabled={downloading}
+                          onClick={() => setConfirmDownload(false)}
+                        >
+                          Để sau
+                        </button>
+                      </div>
+                    </section>
                   )}
                   <Feedback error={error} />
                 </>
@@ -161,29 +248,35 @@ export function MaterialDetail({ id }: Readonly<{ id: string }>) {
                     Tôi đồng ý mua tài liệu với giá {material.priceCredit} CR.
                   </label>
                   <button
+                    type="button"
                     className="btn btn-primary"
                     style={{ marginTop: 18 }}
-                    disabled={
-                      !agree ||
-                      orders.loading ||
-                      !!orders.error ||
-                      command.pending
-                    }
+                    disabled={!agree || !canPurchase || command.pending}
                     onClick={() => {
                       void command
                         .run(
                           "purchase:" + id + ":" + material.listingVersion,
                           (key) =>
-                            request("materials/" + id + "/purchase", {
-                              method: "POST",
-                              key,
-                              body: {
-                                expectedListingVersion: material.listingVersion,
+                            request<{ order: MaterialOrder }>(
+                              "materials/" + id + "/purchase",
+                              {
+                                method: "POST",
+                                key,
+                                body: {
+                                  expectedListingVersion:
+                                    material.listingVersion,
+                                },
                               },
-                            }),
+                            ),
                         )
                         .then((result) => {
-                          if (result) orders.reload();
+                          if (
+                            result?.data.order?.materialId === id &&
+                            result.data.order.status === "SUCCESS"
+                          ) {
+                            setPurchaseRecorded(true);
+                            void orders.reload();
+                          }
                         });
                     }}
                   >

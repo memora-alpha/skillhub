@@ -1,11 +1,13 @@
 "use client";
 import Link from "next/link";
-import { Badge, Card, PageHeader, Stat } from "@/components/console/ui";
+import { Badge, Card, PageHeader } from "@/components/console/ui";
+import { Icon } from "@/components/console/icon";
+import { reportReasonLabel } from "@/lib/staff/report-presentation";
+import type { SupportCase } from "./report-support-types";
 import { fmtDateTime } from "@/lib/console/format";
 import { prepareOverviewQueue } from "@/lib/staff/overview-queue";
 import type {
   LearningRequest,
-  ReportCase,
   Verification,
   Pagination,
 } from "@/lib/staff/types";
@@ -21,10 +23,10 @@ type QueueSummary = Readonly<{
   page?: Pagination;
   reload: () => void;
 }>;
-function queueCount(source: QueueSummary, cap?: number): string {
+function queueCount(source: QueueSummary): string {
   if (source.loading) return "…";
   if (source.error) return "—";
-  return `${source.items.length}${source.page?.hasMore || (cap && source.items.length >= cap) ? "+" : ""}`;
+  return `${source.items.length}${source.page?.hasMore ? "+" : ""}`;
 }
 function emptyQueueMessage(
   groups: readonly { source: QueueSummary }[],
@@ -44,7 +46,7 @@ export function OverviewScreen({
     "verifications?status=PENDING&limit=20",
   );
   const requests = useStaffList<LearningRequest>("learning-requests?limit=20");
-  const reports = useStaffList<ReportCase>("reports");
+  const reports = useStaffList<SupportCase>("reports/support/queue?limit=20");
   const materials = useStaffList<ModeratedMaterial>(
     "materials?status=PENDING_REVIEW",
   );
@@ -53,38 +55,35 @@ export function OverviewScreen({
     icon: IconName;
     href: string;
     source: QueueSummary;
-    cap?: number;
   }[] = [
     {
-      title: "Xác minh kỹ năng",
+      title: "Bằng chứng kỹ năng",
       icon: "shield" as const,
       href: `/${portal}/evidence`,
       source: evidence,
     },
     {
-      title: "Kiểm duyệt yêu cầu học",
+      title: "Yêu cầu học",
       icon: "flag" as const,
       href: `/${portal}/moderation`,
       source: requests,
     },
     {
-      title: "Báo cáo & tranh chấp",
+      title: "Báo cáo đang mở",
       icon: "alert" as const,
       href: `/${portal}/disputes`,
       source: reports,
-      cap: 100,
     },
     {
-      title: "Tài liệu chờ duyệt",
+      title: "Tài liệu",
       icon: "file",
       href: `/${portal}/content`,
       source: materials,
-      cap: 100,
     },
     ...(tagRequests
       ? [
           {
-            title: "Đề xuất tag chờ duyệt",
+            title: "Đề xuất tag",
             icon: "tag" as const,
             href: "/admin/tag-requests",
             source: tagRequests,
@@ -109,7 +108,7 @@ export function OverviewScreen({
     })),
     ...reports.items.map((r) => ({
       id: r.id,
-      title: r.reasonCode,
+      title: reportReasonLabel(r.reasonCode),
       kind: "Báo cáo",
       at: r.createdAt,
       href: `/${portal}/disputes/${r.id}`,
@@ -130,7 +129,7 @@ export function OverviewScreen({
     })),
   ]);
   return (
-    <>
+    <section className="ops-overview">
       <PageHeader
         title={`Chào ${actor?.fullName ?? "bạn"}`}
         desc="Bắt đầu từ các mục cần xem xét trong hàng đợi của bạn."
@@ -143,35 +142,71 @@ export function OverviewScreen({
               for (const group of groups) group.source.reload();
             }}
           >
-            Làm mới hàng đợi
+            <Icon name="refresh" size={16} /> Làm mới tất cả
           </button>
         }
       />
-      <div className="grid staff-queue-cards">
-        {groups.map((group) => (
-          <Card key={group.href}>
-            <Stat
-              label={group.title}
-              icon={group.icon}
-              value={queueCount(group.source, group.cap)}
-              hint={
-                group.cap
-                  ? `Đã tải tối đa ${group.cap} mục`
-                  : "Số mục đã tải trong hàng đợi"
-              }
-            />
-            {group.source.error && (
-              <p className="staff-error" role="alert">
-                {group.source.error}
-              </p>
-            )}
-            <Link className="link" href={group.href}>
-              Mở hàng đợi →
-            </Link>
-          </Card>
-        ))}
+      <div className="ops-section-heading">
+        <div>
+          <h2>Cần xử lý</h2>
+          <p className="muted">
+            Số lượng phản ánh các mục đã tải trong từng hàng đợi.
+          </p>
+        </div>
       </div>
-      <Card className="section" title="Các mục đang chờ xem xét" flush>
+      <div className="grid staff-queue-cards">
+        {groups.map((group) => {
+          function queueDescription() {
+            if (group.source.error) {
+              return "Chưa tải được";
+            }
+            if (group.source.page?.hasMore) {
+              return "mục đã tải · còn trang sau";
+            }
+            return "mục đang hiển thị";
+          }
+          return (
+            <Card key={group.href} className="ops-queue-card">
+              <Link className="ops-queue-link" href={group.href}>
+                <span className="ops-queue-icon">
+                  <Icon name={group.icon} size={22} />
+                </span>
+                <span className="ops-queue-summary">
+                  <span>{group.title}</span>
+                  <strong>{queueCount(group.source)}</strong>
+                  <small className="muted">{queueDescription()}</small>
+                </span>
+                <Icon name="right" size={16} />
+              </Link>
+              {group.source.error && (
+                <p className="staff-error" role="alert">
+                  {group.source.error}
+                </p>
+              )}
+              {group.source.error && (
+                <button
+                  type="button"
+                  className="btn btn-sm"
+                  disabled={group.source.loading}
+                  onClick={group.source.reload}
+                >
+                  Thử tải lại
+                </button>
+              )}
+            </Card>
+          );
+        })}
+      </div>
+      <Card
+        className="section ops-queue-table"
+        title="Các mục đang chờ xem xét"
+        actions={
+          <span className="muted">
+            Tối đa 8 mục cũ nhất trong dữ liệu đã tải
+          </span>
+        }
+        flush
+      >
         {!rows.length ? (
           <p className="staff-state">{emptyQueueMessage(groups)}</p>
         ) : (
@@ -209,6 +244,6 @@ export function OverviewScreen({
           </div>
         )}
       </Card>
-    </>
+    </section>
   );
 }

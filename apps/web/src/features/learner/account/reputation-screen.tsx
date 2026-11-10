@@ -1,6 +1,9 @@
 "use client";
+import { systemCodeLabel } from "@/lib/system-text";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useUserSession } from "../auth/session";
+import { ReputationPathSource } from "./reputation-path-source";
+import { ReputationRecovery } from "./reputation-recovery";
 import {
   Back,
   Empty,
@@ -93,7 +96,10 @@ export function ReputationScreen() {
   return (
     <>
       <Back href="/learn/profile" />
-      <PageHeading title="Lịch sử uy tín" />
+      <PageHeading
+        title="Uy tín của bạn"
+        description="Theo dõi sự tin cậy bạn xây dựng qua mỗi lần học cùng nhau."
+      />
       <Feedback
         loading={query.isFetching}
         error={query.error?.message}
@@ -103,15 +109,19 @@ export function ReputationScreen() {
         <>
           <Panel title="Uy tín hiện tại">
             <strong className="product-price">{current.reputationScore}</strong>
-            <p>Cấp độ: {levels[current.level] ?? current.level}</p>
+            <p>Cấp độ: {levels[current.level] ?? "Chưa xác định"}</p>
           </Panel>
           <Panel title="Hạn chế đang áp dụng">
             {current.activeRestrictions.length ? (
               current.activeRestrictions.map((restriction, index) => (
                 <p key={restriction.scope + index}>
-                  {scopes[restriction.scope] ?? restriction.scope} ·{" "}
-                  {reasons[restriction.reasonCode] ?? restriction.reasonCode} ·
-                  đến {formatTime(restriction.endsAt)}
+                  {scopes[restriction.scope] ??
+                    systemCodeLabel(restriction.scope)}{" "}
+                  ·{" "}
+                  {reasons[restriction.reasonCode] ??
+                    systemCodeLabel(restriction.reasonCode)}{" "}
+                  · thời hạn đến {formatTime(restriction.endsAt)}. Có thể cần
+                  xác nhận chính sách hoặc xét lại để mở quyền.
                 </p>
               ))
             ) : (
@@ -120,12 +130,21 @@ export function ReputationScreen() {
           </Panel>
         </>
       )}
+      {!denied &&
+        current &&
+        (current.reputationScore < 40 ||
+          current.activeRestrictions.length > 0) && (
+          <ReputationRecovery onChanged={() => void query.refetch()} />
+        )}
       <div className="learner-stack">
+        {!denied && entries.length > 0 && <h2>Lịch sử thay đổi</h2>}
         {!denied &&
           entries.map((entry) => (
             <Panel
               key={entry.id}
-              title={reasons[entry.reasonCode] ?? entry.reasonCode}
+              title={
+                reasons[entry.reasonCode] ?? systemCodeLabel(entry.reasonCode)
+              }
             >
               <strong>
                 {entry.delta > 0 ? "+" : ""}
@@ -135,9 +154,20 @@ export function ReputationScreen() {
                 {entry.scoreBefore} → {entry.scoreAfter} ·{" "}
                 {formatTime(entry.createdAt)}
               </p>
-              <p className="learner-prose">
-                Tham chiếu {entry.sourceType}: {entry.sourceId}
-              </p>
+              {entry.sourceType === "LEARNING_PATH" ? (
+                <ReputationPathSource
+                  key={entry.sourceId}
+                  pathId={entry.sourceId}
+                />
+              ) : (
+                <details>
+                  <summary>Thông tin tham chiếu</summary>
+                  <p className="learner-prose">
+                    {systemCodeLabel(entry.sourceType, "Hoạt động liên quan")}:{" "}
+                    {entry.sourceId}
+                  </p>
+                </details>
+              )}
             </Panel>
           ))}
       </div>

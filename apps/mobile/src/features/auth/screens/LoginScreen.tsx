@@ -57,6 +57,7 @@ export function LoginScreen() {
         <AuthFormInput
           control={form.control}
           name="email"
+          maxLength={254}
           label="Email"
           required
           placeholder="email@gmail.com"
@@ -77,6 +78,7 @@ export function LoginScreen() {
         <AuthFormInput
           control={form.control}
           name="password"
+          maxLength={64}
           label="Mật khẩu"
           required
           password

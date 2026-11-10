@@ -1,3 +1,4 @@
+import { systemCodeLabel } from "@/lib/system-text";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { BusinessFeedback } from "./business-feedback";
@@ -54,7 +55,9 @@ const labels: Record<string, string> = {
   NEEDS_REVISION: "Cần thống nhất lại",
 };
 export function statusText(status: string) {
-  return labels[status] ?? status;
+  return (
+    labels[status] ?? systemCodeLabel(status, "Trạng thái đang được cập nhật")
+  );
 }
 export function Status({
   value,

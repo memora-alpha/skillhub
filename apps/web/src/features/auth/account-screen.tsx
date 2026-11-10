@@ -278,6 +278,7 @@ function AccountFields({
           autoComplete="email"
           required
           maxLength={254}
+          minLength={5}
           disabled={pending}
         />
         {registering && (

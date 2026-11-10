@@ -32,6 +32,7 @@ const links = [
   ["/learn/materials", "Tài liệu", "file"],
   ["/learn/wallet", "Ví Credit", "wallet"],
   ["/learn/achievements", "Thành tích", "award"],
+  ["/learn/reviews", "Đánh giá của tôi", "star"],
   ["/learn/reports", "Báo cáo của tôi", "shield"],
 ] as const;
 export function LearnerShell({
@@ -268,6 +269,13 @@ export function LearnerShell({
           />
         </header>
         <main id="learning-content" className="app-content" tabIndex={-1}>
+          {actor.roles.includes("STAFF") && (
+            <p>
+              <Link className="btn" href="/staff">
+                Về khu vực nhân sự
+              </Link>
+            </p>
+          )}
           {!live && (
             <p className="learner-notice">
               Cập nhật trực tiếp tạm ngắt.{" "}

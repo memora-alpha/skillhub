@@ -1,3 +1,4 @@
+import { reportDescriptionText } from "@/constants/system-text";
 import { useState } from "react";
 import { useLocalSearchParams } from "expo-router";
 import { Badge } from "@/components/Badge";
@@ -12,6 +13,7 @@ import {
 import { ConnectionFeedback } from "@/features/connections";
 import { useReport, useReports } from "../hooks/use-reports";
 import { uiLabel } from "@/constants/ui-copy";
+import { PrivateCaseThread } from "../components/private-case-thread";
 const reportFilters = [
   "Tất cả",
   "Đã tiếp nhận",
@@ -60,11 +62,11 @@ export function ReportsScreen() {
         retry={query.refetch}
       />
       {items.map((row) => (
-        <Panel key={row.id} title={"Báo cáo " + row.id}>
+        <Panel key={row.id} title={uiLabel(row.reasonCode)}>
           <Badge
             label={row.status === "OPEN" ? "Đã tiếp nhận" : uiLabel(row.status)}
           />
-          <Copy>{row.description}</Copy>
+          <Copy>{reportDescriptionText(row.description)}</Copy>
           <Copy>
             {row.createdAt
               ? new Date(row.createdAt).toLocaleString("vi-VN")
@@ -88,6 +90,31 @@ export function ReportsScreen() {
   );
 }
 export function ReportDetailScreen() {
+  const { id, support, pathId } = useLocalSearchParams<{
+    id: string;
+    support?: string;
+    pathId?: string;
+  }>();
+  if (support === "1")
+    return (
+      <FeaturePage
+        demo={false}
+        title="Hỗ trợ vụ việc"
+        back={
+          typeof pathId === "string" && /^[0-9a-f-]{36}$/i.test(pathId)
+            ? `/paths/${pathId}?cases=1`
+            : "/reports"
+        }
+      >
+        <PrivateCaseThread
+          caseId={typeof id === "string" ? id : ""}
+          pathId={typeof pathId === "string" ? pathId : undefined}
+        />
+      </FeaturePage>
+    );
+  return <ReportOwnerDetailScreen />;
+}
+function ReportOwnerDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>(),
     query = useReport(typeof id === "string" ? id : "");
   const report = query.data;
@@ -108,7 +135,7 @@ export function ReportDetailScreen() {
       />
       {report && (
         <>
-          <Panel title={"Báo cáo " + report.id}>
+          <Panel title={uiLabel(report.reasonCode)}>
             <Badge
               label={
                 report.status === "OPEN"
@@ -116,10 +143,7 @@ export function ReportDetailScreen() {
                   : uiLabel(report.status)
               }
             />
-            <Copy>
-              {uiLabel(report.reasonCode)} · {report.targetId}
-            </Copy>
-            <Copy>{report.description}</Copy>
+            <Copy>{reportDescriptionText(report.description)}</Copy>
             <Copy>
               {report.createdAt
                 ? new Date(report.createdAt).toLocaleString("vi-VN")
@@ -137,12 +161,6 @@ export function ReportDetailScreen() {
                 byte
               </Copy>
             ))}
-            {report.status === "NEED_MORE_INFO" && (
-              <Copy>
-                Nhân viên yêu cầu bổ sung thông tin. Hiện API chưa có thao tác
-                gửi bổ sung từ ứng dụng.
-              </Copy>
-            )}
           </Panel>
           {report.relatedPathId && (
             <RouteButton secondary href={`/paths/${report.relatedPathId}`}>
@@ -156,6 +174,9 @@ export function ReportDetailScreen() {
           title="Không tìm thấy báo cáo"
           description="Báo cáo không tồn tại hoặc không thuộc tài khoản này."
         />
+      )}
+      {typeof id === "string" && report && (
+        <PrivateCaseThread caseId={id} status={report.status} />
       )}
     </FeaturePage>
   );

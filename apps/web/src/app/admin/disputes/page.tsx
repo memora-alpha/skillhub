@@ -1,4 +1,4 @@
-import { ReportsScreen } from "@/components/staff/reports";
+import { SupportQueueScreen } from "@/components/staff/report-support";
 export default function Page() {
-  return <ReportsScreen />;
+  return <SupportQueueScreen />;
 }

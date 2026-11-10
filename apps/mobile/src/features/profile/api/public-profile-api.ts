@@ -18,6 +18,13 @@ const profileSchema = z.object({
     .nonnegative()
     .nullable()
     .optional(),
+  reviewSummary: z
+    .object({
+      reviewCount: z.number().int().nonnegative(),
+      averageRating: z.number().nullable(),
+      ratingDistribution: z.record(z.string(), z.number().int().nonnegative()),
+    })
+    .optional(),
   selectedTitle: z.string().nullable().optional().default(null),
 });
 

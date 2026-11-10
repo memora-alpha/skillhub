@@ -55,11 +55,6 @@ export function ReviewsScreen() {
           counterpartId={path.counterpartId}
         />
       ))}
-      {query.data?.length === 100 && (
-        <Copy muted>
-          Danh sách hiện dựa trên 100 lộ trình cập nhật gần nhất.
-        </Copy>
-      )}
     </FeaturePage>
   );
 }

@@ -1,6 +1,16 @@
 export function eventAffectsResource(path: unknown, event: string) {
   if (typeof path !== "string") return false;
   if (event === "resync-required") return true;
+  if (event.startsWith("report."))
+    return ["reports", "learning-paths"].some((prefix) =>
+      path.startsWith(prefix),
+    );
+  if (event.startsWith("review."))
+    return ["profiles", "me/reviews", "me", "learning-paths"].some((prefix) =>
+      path.startsWith(prefix),
+    );
+  if (event.startsWith("reputation."))
+    return path.startsWith("reputation") || path === "me";
   if (event === "wallet.updated")
     return ["me/wallet", "learning-paths", "me/achievements"].some((prefix) =>
       path.startsWith(prefix),

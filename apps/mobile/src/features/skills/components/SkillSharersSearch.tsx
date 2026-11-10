@@ -1,3 +1,4 @@
+import { uiLabel } from "@/constants/ui-copy";
 import { useState } from "react";
 import { View } from "react-native";
 import { ProfileAvatarLink } from "@/components/profile-avatar-link";
@@ -147,7 +148,7 @@ function SharerResults({
             />
           </View>
           <Copy>
-            {row.skillLevel?.name ?? row.level} · Uy tín{" "}
+            {row.skillLevel?.name ?? uiLabel(row.level)} · Uy tín{" "}
             {row.user.reputationScore}/100
           </Copy>
           <Copy>{row.description}</Copy>

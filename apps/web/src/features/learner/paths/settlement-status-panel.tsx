@@ -1,4 +1,6 @@
 "use client";
+import styles from "../components/learning-layout.module.css";
+import { ProductIcon } from "../components/product-icon";
 import { useState } from "react";
 import Link from "next/link";
 import { useUserSession } from "../auth/session";
@@ -36,6 +38,41 @@ export function SettlementStatusPanel({
   const retry = useUserCommand();
   const [reviewing, setReviewing] = useState(false);
   const [notice, setNotice] = useState<string>();
+  const [checking, setChecking] = useState(false);
+  const [readError, setReadError] = useState<string>();
+  async function reconcile() {
+    if (checking || consent.pending || retry.pending) return;
+    setChecking(true);
+    setReadError(undefined);
+    try {
+      const fresh = readSettlementStatus(
+        (await request("learning-paths/" + pathId + "/settlement-status")).data,
+        pathId,
+      );
+      consent.resetAfterRead();
+      retry.resetAfterRead();
+      setReviewing(false);
+      function reconciliationNotice() {
+        if (fresh.settledAt) {
+          return "Thỏa thuận đã được quyết toán.";
+        }
+        if (fresh.immediateSettlement.ownApprovedAt) {
+          return "Máy chủ đã ghi nhận ý kiến của bạn.";
+        }
+        return "Đã cập nhật trạng thái. Bạn có thể tiếp tục các thao tác được phép bên dưới.";
+      }
+      setNotice(reconciliationNotice());
+      query.reload();
+    } catch (cause) {
+      setReadError(
+        cause instanceof Error
+          ? cause.message
+          : "Chưa kiểm tra được trạng thái.",
+      );
+    } finally {
+      setChecking(false);
+    }
+  }
   let status: SettlementStatus | undefined;
   let contractError: string | undefined;
   if (query.data) {
@@ -82,17 +119,29 @@ export function SettlementStatusPanel({
     }
     query.reload();
   }
+  function refreshLabel() {
+    if (checking) {
+      return "Đang kiểm tra…";
+    }
+    if (consent.uncertain || retry.uncertain) {
+      return "Kiểm tra lại kết quả";
+    }
+    return "Cập nhật trạng thái";
+  }
   return (
-    <Panel title="Hoàn Credit & giải ngân">
+    <Panel title="Quyết toán Credit" className={styles.settlement}>
+      <div className={styles.settlementVisual}>
+        <ProductIcon name="wallet" size={34} />
+        <span>Theo dõi hoàn Credit & giải ngân</span>
+      </div>
       <p>
-        Sau khi hoàn tất toàn bộ thỏa thuận, hai bên có thể đồng ý giải ngân
-        ngay. Hệ thống tự xử lý khi đủ ý kiến và không còn vấn đề cần giải
-        quyết. Xác nhận học xong một buổi là bước riêng.
+        Hệ thống tự quyết toán khi toàn bộ thỏa thuận đủ điều kiện. Hai bên có
+        thể đồng ý giải ngân sớm; xác nhận hoàn thành buổi học là bước riêng.
       </p>
       <Feedback
         loading={query.loading}
-        error={query.error ?? contractError}
-        reload={query.reload}
+        error={readError ?? query.error ?? contractError}
+        reload={() => void reconcile()}
       />
       {status && (
         <>
@@ -135,7 +184,10 @@ export function SettlementStatusPanel({
                       type="button"
                       className="btn btn-primary"
                       disabled={
-                        consent.pending || query.loading || !!query.error
+                        checking ||
+                        consent.pending ||
+                        query.loading ||
+                        !!query.error
                       }
                       onClick={() => void approve()}
                     >
@@ -159,12 +211,13 @@ export function SettlementStatusPanel({
               Cần nhân sự đối soát. Gửi mã lộ trình khi liên hệ hỗ trợ: {pathId}
             </p>
           )}
-          {status.retryable && (
+          {status.retryable && status.status === "RETRYING" && (
             <button
               type="button"
               className="btn"
               disabled={
                 retry.pending ||
+                checking ||
                 retry.uncertain ||
                 query.loading ||
                 !!query.error
@@ -179,7 +232,7 @@ export function SettlementStatusPanel({
                   .then(() => query.reload())
               }
             >
-              Yêu cầu kiểm tra quyết toán
+              Thử lại quyết toán
             </button>
           )}
         </>
@@ -201,10 +254,12 @@ export function SettlementStatusPanel({
         <button
           type="button"
           className="btn"
-          disabled={query.loading}
-          onClick={query.reload}
+          disabled={
+            checking || query.loading || consent.pending || retry.pending
+          }
+          onClick={() => void reconcile()}
         >
-          Làm mới
+          {refreshLabel()}
         </button>
         <Link className="btn" href="/learn/wallet">
           Xem ví

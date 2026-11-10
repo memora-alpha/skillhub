@@ -19,6 +19,8 @@ export type PublicProfile = {
   reputationScore: number;
   verifiedSkillCount: number;
   completedSessionCount: number;
+  completedLearningPathCount: number;
+  reviewSummary?: import("../account/profile-reviews").ReviewSummary;
   selectedTitle: string | null;
 };
 

@@ -8,6 +8,7 @@ import { ProfileAbout, ProfileSummary } from "../components/ProfileSummary";
 import { useProfilePreview } from "../context/ProfilePreview";
 import { ProfileShortcuts } from "../components/ProfileShortcuts";
 import { ProfileLogout } from "../components/ProfileLogout";
+import { ProfileReviews } from "../components/profile-reviews";
 import { ProfileModerationNotice } from "../components/ProfileModerationNotice";
 
 export function ProfileScreen() {
@@ -31,6 +32,7 @@ export function ProfileScreen() {
           />
           <ProfileShortcuts onOpen={open} />
           <ProfileAbout bio={profile.bio} />
+          <ProfileReviews userId={profile.userId} own />
           <OwnProfileSkillList />
           <ProfileLogout />
         </View>

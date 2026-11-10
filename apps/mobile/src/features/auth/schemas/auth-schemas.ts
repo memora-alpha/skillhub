@@ -23,7 +23,10 @@ export { fullNameSchema } from "@/utils/identity-validation";
 
 export const loginSchema = z.object({
   email: emailSchema,
-  password: z.string().min(1, "Vui lòng nhập mật khẩu."),
+  password: z
+    .string()
+    .min(1, "Vui lòng nhập mật khẩu.")
+    .max(64, "Mật khẩu chỉ được tối đa 64 ký tự."),
   rememberMe: z.boolean(),
 });
 

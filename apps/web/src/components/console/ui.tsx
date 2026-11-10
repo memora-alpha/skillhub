@@ -1,4 +1,5 @@
 "use client";
+import { systemCodeLabel } from "@/lib/system-text";
 
 import type { ReactNode } from "react";
 import { Icon, type IconName } from "./icon";
@@ -96,6 +97,8 @@ const STATUS: Record<string, [string, Tone]> = {
   FAILED: ["Thất bại", "bad"],
   REVERSED: ["Đã hoàn tác", "neutral"],
   PAID: ["Đã thanh toán", "ok"],
+  REVIEW: ["Cần đối soát", "warn"],
+  DRAFT: ["Bản nháp", "neutral"],
   CREATED: ["Mới tạo", "neutral"],
   EXPIRED: ["Hết hạn", "neutral"],
   REFUNDED: ["Đã hoàn tiền", "info"],
@@ -107,13 +110,16 @@ const STATUS: Record<string, [string, Tone]> = {
   PAID_MATERIAL: ["Trả phí", "brand"],
   HIDDEN: ["Đang ẩn", "neutral"],
   VISIBLE: ["Hiển thị", "ok"],
-  USER: ["USER", "neutral"],
-  STAFF: ["STAFF", "info"],
-  ADMIN: ["ADMIN", "brand"],
+  USER: ["Người dùng", "neutral"],
+  STAFF: ["Nhân viên", "info"],
+  ADMIN: ["Quản trị viên", "brand"],
 };
 
 export function StatusBadge({ status }: { status: string }) {
-  const [label, tone] = STATUS[status] ?? [status, "neutral" as Tone];
+  const [label, tone] = STATUS[status] ?? [
+    systemCodeLabel(status, "Trạng thái đang được cập nhật"),
+    "neutral" as Tone,
+  ];
   return <Badge tone={tone}>{label}</Badge>;
 }
 

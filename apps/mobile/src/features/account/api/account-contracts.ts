@@ -17,6 +17,11 @@ export type OwnProfile = {
   verifiedSkillCount: number;
   completedSessionCount: number;
   completedLearningPathCount?: number | null;
+  reviewSummary?: {
+    reviewCount: number;
+    averageRating: number | null;
+    ratingDistribution: Record<string, number>;
+  };
   selectedTitle?: string | null;
   profileModeration?: ProfileModeration | null;
 };

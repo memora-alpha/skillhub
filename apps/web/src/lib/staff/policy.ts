@@ -1,5 +1,74 @@
 const uuid = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 const routes: [string, RegExp, (path: string) => string][] = [
+  ["GET", new RegExp(`^profiles/${uuid}(/skills|/reviews)?$`, "i"), (p) => p],
+  ["GET", /^reviews$/, (p) => `staff/${p}`],
+  [
+    "POST",
+    new RegExp(`^reviews/${uuid}/moderation$`, "i"),
+    (p) => `staff/${p}`,
+  ],
+  [
+    "GET",
+    new RegExp(`^users/${uuid}/profile-moderation$`, "i"),
+    (p) => `staff/${p}`,
+  ],
+  [
+    "POST",
+    new RegExp(`^users/${uuid}/profile-moderation$`, "i"),
+    (p) => `staff/${p}`,
+  ],
+  ["GET", /^reports\/support\/queue$/, (p) => p],
+  ["GET", new RegExp(`^reports/support/incidents/${uuid}$`, "i"), (p) => p],
+  ["POST", /^reports\/support\/incidents$/, (p) => p],
+  [
+    "POST",
+    new RegExp(`^reports/support/incidents/${uuid}/(severity|decision)$`, "i"),
+    (p) => p,
+  ],
+  [
+    "POST",
+    new RegExp(`^reports/support/cases/${uuid}/severity$`, "i"),
+    (p) => p,
+  ],
+  [
+    "GET",
+    new RegExp(
+      `^reports/support/cases/${uuid}/parties/${uuid}/(messages|evidence)$`,
+      "i",
+    ),
+    (p) => p,
+  ],
+  [
+    "POST",
+    new RegExp(`^reports/support/cases/${uuid}/parties/${uuid}/messages$`, "i"),
+    (p) => p,
+  ],
+  [
+    "GET",
+    new RegExp(
+      `^reports/support/cases/${uuid}/parties/${uuid}/evidence/${uuid}/download$`,
+      "i",
+    ),
+    (p) => p,
+  ],
+  [
+    "GET",
+    new RegExp(
+      `^reports/support/cases/${uuid}/parties/${uuid}/evidence/${uuid}/content$`,
+      "i",
+    ),
+    (p) => p.replace(/content$/, "download"),
+  ],
+  [
+    "GET",
+    new RegExp(`^reputation/users/${uuid}/restriction-reviews$`, "i"),
+    (p) => p,
+  ],
+  [
+    "POST",
+    new RegExp(`^reputation/restrictions/${uuid}/review$`, "i"),
+    (p) => p,
+  ],
   ["GET", /^learning-changes\/review-queue$/, (p) => p],
   [
     "GET",
@@ -87,6 +156,35 @@ const routes: [string, RegExp, (path: string) => string][] = [
   ["PATCH", new RegExp(`^notifications/${uuid}/read$`, "i"), (p) => p],
 ];
 const adminRoutes: [string, RegExp, (path: string) => string][] = [
+  ["GET", /^staff-permissions\/catalog$/, (p) => `admin/${p}`],
+  ["GET", new RegExp(`^staff-permissions/${uuid}$`, "i"), (p) => `admin/${p}`],
+  [
+    "PUT",
+    new RegExp(`^staff-permissions/${uuid}/[a-z][a-z0-9:-]+$`, "i"),
+    (p) => `admin/${p}`,
+  ],
+  ["POST", new RegExp(`^reputation/events/${uuid}/reverse$`, "i"), (p) => p],
+  ["GET", /^credit\/transactions$/, (p) => `admin/${p}`],
+  [
+    "GET",
+    new RegExp(`^credit/(transactions|operations)/${uuid}$`, "i"),
+    (p) => `admin/${p}`,
+  ],
+  ["GET", new RegExp(`^users/${uuid}/wallet$`, "i"), (p) => `admin/${p}`],
+  ["GET", /^payments$/, (p) => `admin/${p}`],
+  [
+    "GET",
+    new RegExp(`^payments/${uuid}(/reconciliation)?$`, "i"),
+    (p) => `admin/${p}`,
+  ],
+  ["GET", /^fee-policies$/, (p) => `admin/${p}`],
+  ["POST", /^fee-policies\/material$/, (p) => `admin/${p}`],
+  [
+    "POST",
+    new RegExp(`^fee-policies/${uuid}/approve$`, "i"),
+    (p) => `admin/${p}`,
+  ],
+  ["GET", /^fee-revenue$/, (p) => `admin/${p}`],
   [
     "POST",
     new RegExp(

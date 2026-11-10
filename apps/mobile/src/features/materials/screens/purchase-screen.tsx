@@ -16,7 +16,7 @@ import {
 } from "@/features/connections";
 import {
   useMaterial,
-  useMaterialOrders,
+  useMaterialOwnership,
   useMaterialsApi,
 } from "../hooks/use-materials";
 import type { MaterialOrder } from "../api/material-contracts";
@@ -24,20 +24,18 @@ import type { MaterialOrder } from "../api/material-contracts";
 export function MaterialPurchaseScreen() {
   const { id } = useLocalSearchParams<{ id: string }>(),
     query = useMaterial(id),
-    orders = useMaterialOrders();
+    orders = useMaterialOwnership(id);
   const runtime = useConnections(),
     api = useMaterialsApi(),
     cache = useQueryClient(),
     router = useRouter();
   const command = useConnectionCommand<MaterialOrder>([["materials"]]);
   const material = query.data;
-  const purchased = orders.data?.some(
-    (order) => order.materialId === id && order.status === "SUCCESS",
-  );
+  const purchased = !!orders.data;
   async function finish(order: MaterialOrder | undefined) {
     if (!order || !runtime.isCurrent()) return;
     await cache.invalidateQueries({ queryKey: ["wallet", runtime.userId] });
-    router.replace("/materials/library");
+    router.replace(`/materials/${id}/access`);
   }
   return (
     <FeaturePage

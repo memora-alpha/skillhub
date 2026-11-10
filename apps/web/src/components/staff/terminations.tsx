@@ -1,4 +1,5 @@
 "use client";
+import { systemCodeLabel } from "@/lib/system-text";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useStaffSession } from "./session";
 import { StaffApiError } from "@/lib/staff/client";
@@ -126,7 +127,7 @@ function TerminationQueue() {
               <p className="staff-wrap">Lộ trình: {row.pathId}</p>
               <p>{row.reason}</p>
               <p>
-                {row.status}
+                {systemCodeLabel(row.status)}
                 {row.blockedByDispute ? " · Có tranh chấp" : ""}
                 {row.awaitingPolicy ? " · Chờ chính sách" : ""}
               </p>
@@ -207,15 +208,15 @@ function TerminationDetail({
         setIntent(undefined);
         setUnknown(false);
         setAmounts(
-          current.execution.allocations.map((a) => ({
+          current.execution.quote.allocations.map((a) => ({
             allocationId: a.allocationId,
-            refund: "",
-            counterpartyPayment: "",
-            platformFee: "",
+            refund: a.refund,
+            counterpartyPayment: a.counterpartyPayment,
+            platformFee: a.platformFee,
           })),
         );
         if (current.status === "APPLIED" || current.status === "REJECTED")
-          setSuccess("Máy chủ xác nhận: " + current.status);
+          setSuccess("Máy chủ xác nhận: " + systemCodeLabel(current.status));
       })
       .catch((cause: unknown) => {
         if (alive.current) {
@@ -304,14 +305,8 @@ function TerminationDetail({
     !review.blockedByDispute &&
     !review.awaitingPolicy &&
     !!review.execution.policyReference &&
+    review.execution.quote.status === "READY" &&
     ["ACCEPTED", "STAFF_REVIEW"].includes(review.status);
-  function changeAmount(index: number, field: AllocationField, value: string) {
-    setAmounts((items) =>
-      items.map((item, itemIndex) =>
-        itemIndex === index ? { ...item, [field]: value } : item,
-      ),
-    );
-  }
   return (
     <section
       className="card staff-termination-detail"
@@ -341,7 +336,8 @@ function TerminationDetail({
           <p>{review.reason}</p>
           <p>
             Tiến độ {review.execution.completed}/{review.execution.total} buổi ·
-            Trạng thái {review.status} · Phiên bản {review.version}
+            Trạng thái {systemCodeLabel(review.status)} · Phiên bản{" "}
+            {review.version}
           </p>
           <p className="staff-wrap">
             Chính sách: {review.execution.policyReference ?? "Chưa được duyệt"}
@@ -362,13 +358,31 @@ function TerminationDetail({
             }}
           >
             <fieldset disabled={busy || !!intent || unknown}>
-              <legend>Phương án phân bổ Credit</legend>
-              {review.execution.allocations.map((held, index) => (
+              <legend>Credit do máy chủ tính</legend>
+              {review.execution.quote.status === "BLOCKED" && (
+                <output>
+                  Cần xử lý các buổi học hoặc vụ việc còn mở trước khi thực thi.
+                </output>
+              )}
+              {review.execution.quote.reasonCodes.length > 0 && (
+                <ul>
+                  {review.execution.quote.reasonCodes.map((code) => (
+                    <li key={code}>
+                      {systemCodeLabel(
+                        code,
+                        "Cần kiểm tra điều kiện tất toán.",
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {review.execution.allocations.map((held) => (
                 <HeldAllocationFields
                   key={held.allocationId}
                   held={held}
-                  value={amounts[index]}
-                  onChange={(field, value) => changeAmount(index, field, value)}
+                  value={amounts.find(
+                    (amount) => amount.allocationId === held.allocationId,
+                  )}
                 />
               ))}
               <label>
@@ -478,11 +492,9 @@ type AllocationField = "refund" | "counterpartyPayment" | "platformFee";
 function HeldAllocationFields({
   held,
   value,
-  onChange,
 }: Readonly<{
   held: Allocation;
   value: AllocationDecision | undefined;
-  onChange: (field: AllocationField, value: string) => void;
 }>) {
   const labels: Record<AllocationField, string> = {
     refund: "Hoàn người giữ",
@@ -505,10 +517,10 @@ function HeldAllocationFields({
             <span>{labels[field]}</span>
             <input
               inputMode="decimal"
+              readOnly
               required
               pattern="(0|[1-9][0-9]{0,9})(\.[0-9]{1,2})?"
               value={value?.[field] ?? ""}
-              onChange={(event) => onChange(field, event.target.value)}
             />
           </label>
         ),

@@ -180,10 +180,12 @@ async function login(request: NextRequest, refreshToken: string | undefined) {
   if (
     typeof body.email !== "string" ||
     !body.email.trim() ||
-    body.email.length > 320 ||
+    body.email.trim().length < 5 ||
+    body.email.trim().length > 254 ||
     typeof body.password !== "string" ||
     !body.password ||
-    body.password.length > 1024
+    body.password.length < 1 ||
+    body.password.length > 64
   )
     throw new UserGatewayError(400, "INVALID_LOGIN_INPUT");
   const result = tokenReply(

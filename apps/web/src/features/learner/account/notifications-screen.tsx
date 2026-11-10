@@ -18,6 +18,7 @@ import { ProductIcon } from "../components/product-icon";
 import { notificationDestination } from "./view-policy";
 import type { InboxNotification } from "./account-types";
 import { WebPushSettings } from "../notifications/web-push-settings";
+import { NotificationPreferences } from "../notifications/notification-preferences";
 export function NotificationsScreen() {
   const query = useUserList<InboxNotification>("notifications?limit=20"),
     command = useUserCommand(),
@@ -51,7 +52,11 @@ export function NotificationsScreen() {
       <p className="muted">
         <output>{summary}</output>
       </p>
-      <WebPushSettings />
+      <details>
+        <summary>Cài đặt thông báo</summary>
+        <NotificationPreferences />
+        <WebPushSettings />
+      </details>
       <Feedback
         loading={query.loading}
         error={query.error}

@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { Icon } from "@/components/console/icon";
 import { notificationCopy } from "@/lib/i18n/system-copy";
 import {
   Badge,
@@ -35,7 +36,7 @@ export function NotificationsScreen() {
           </button>
         }
       />
-      <div className="toolbar">
+      <div className="ops-tabbar">
         <Segmented
           label="Lọc thông báo đã tải"
           value={filter}
@@ -46,7 +47,10 @@ export function NotificationsScreen() {
           ]}
         />
       </div>
-      <output className="staff-notification-status">
+      <output
+        className="staff-notification-status ops-notification-connection"
+        data-state={queue.live}
+      >
         {queue.live === "connected" && "Đang nhận cập nhật trực tiếp"}
         {queue.live === "connecting" && "Đang kết nối cập nhật trực tiếp…"}
         {queue.live === "paused" && "Tạm dừng cập nhật khi tab ở nền."}
@@ -82,7 +86,7 @@ export function NotificationsScreen() {
           {queue.actionError}
         </p>
       )}
-      <Card flush>
+      <Card flush className="ops-inbox">
         {queue.loading && !queue.items.length && (
           <output className="staff-state">Đang tải thông báo…</output>
         )}
@@ -114,7 +118,10 @@ export function NotificationsScreen() {
                 data-unread={!item.readAt}
                 key={item.id}
               >
-                <div className="stack">
+                <span className="ops-notification-icon" aria-hidden="true">
+                  <Icon name="bell" size={20} />
+                </span>
+                <div className="stack ops-notification-copy">
                   <div className="row">
                     <strong>{notificationCopy(item).title}</strong>
                     {!item.readAt && <Badge tone="brand">Chưa đọc</Badge>}

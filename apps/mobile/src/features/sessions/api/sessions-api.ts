@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { readCursorPages } from "@/lib/http/cursor-pages";
 import type { HttpClient, RequestOptions } from "@/lib/http/client";
 import { AppError } from "@/lib/http/errors";
 import { liveKitTokenSchema } from "./livekit-contract";
@@ -71,11 +72,12 @@ export function createSessionsApi(
       );
     },
     async list(range: SessionRange, signal?: AbortSignal) {
-      const result = await call(
+      const result = await readCursorPages(
+        call,
         `/sessions/mine?${new URLSearchParams(range)}`,
-        { signal },
+        sessionSchema,
+        signal,
       );
-      if (!Array.isArray(result)) throw new AppError("protocol");
       return result.map((value) => parse(value, undefined, true));
     },
     async detail(id: string, signal?: AbortSignal) {

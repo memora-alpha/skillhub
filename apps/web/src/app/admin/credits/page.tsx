@@ -1,5 +1,5 @@
-import { notFound } from "next/navigation";
+import { FinanceScreen } from "@/components/staff/finance";
 
 export default function Page() {
-  notFound();
+  return <FinanceScreen />;
 }

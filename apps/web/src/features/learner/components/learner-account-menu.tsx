@@ -14,6 +14,7 @@ const accountLinks = [
   ["/learn/materials/mine", "Tài liệu của tôi", "file"],
   ["/learn/wallet", "Ví & giao dịch", "wallet"],
   ["/learn/reports", "Báo cáo của tôi", "shield"],
+  ["/learn/reviews", "Đánh giá của tôi", "star"],
 ] as const;
 
 function avatarSource(value: string | null) {

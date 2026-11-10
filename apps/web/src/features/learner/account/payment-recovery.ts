@@ -14,13 +14,13 @@ export function validPaymentAmount(value: string) {
 export function paymentPolicyText(code: string | null) {
   const reasons: Record<string, string> = {
     PAYMENT_UNRESOLVED:
-      "Bạn có lệnh nạp đang chờ hoặc cần đối soát. Kiểm tra lệnh hiện tại để tiếp tục xử lý.",
+      "Bạn có đơn nạp đang chờ xác nhận. Mở đơn hiện tại để tiếp tục.",
     PAYMENT_RECONCILIATION_REQUIRED:
-      "Lệnh trước cần đối soát, chưa thể tạo lệnh mới. Mở lệnh cần xử lý hoặc liên hệ hỗ trợ.",
+      "Đơn trước đang được kiểm tra nên chưa thể tạo đơn mới. Mở đơn hiện tại hoặc liên hệ hỗ trợ.",
     PAYMENT_CHANNEL_RECONCILIATION_REQUIRED:
-      "Kênh thanh toán đang đối soát các lệnh cũ. Chờ hệ thống xử lý; không chuyển khoản thêm vào QR cũ.",
+      "Hệ thống đang kiểm tra các đơn cũ. Vui lòng chờ và không chuyển thêm tiền vào mã QR cũ.",
     PAYMENT_CREATION_PAUSED:
-      "Kênh nạp tạm dừng tạo lệnh mới. Bạn vẫn có thể kiểm tra các lệnh đã tạo.",
+      "Dịch vụ nạp Credit đang tạm dừng tạo đơn mới. Bạn vẫn có thể kiểm tra các đơn đã tạo.",
     PAYMENT_PROVIDER_UNAVAILABLE:
       "Nhà cung cấp thanh toán chưa sẵn sàng. Thử kiểm tra lại sau.",
   };

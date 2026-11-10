@@ -102,9 +102,11 @@ async function loginSession(request: NextRequest, token: string | undefined) {
   const body = await userJson(request);
   if (
     typeof body.email !== "string" ||
-    body.email.length > 320 ||
+    body.email.trim().length < 5 ||
+    body.email.trim().length > 254 ||
     typeof body.password !== "string" ||
-    body.password.length > 1024
+    body.password.length < 1 ||
+    body.password.length > 64
   )
     throw new UserGatewayError(400, "INVALID_LOGIN_INPUT");
   const result = tokenReply(

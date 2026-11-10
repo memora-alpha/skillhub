@@ -1,3 +1,4 @@
+import { systemCodeLabel } from "./system-text";
 const labels: Record<string, string> = {
   TWO_WAY: "Trao đổi hai chiều",
   ONE_WAY: "Dạy học một chiều",
@@ -52,5 +53,11 @@ const labels: Record<string, string> = {
   OTHER: "Vấn đề khác",
 };
 export function uiLabel(value: string): string {
-  return labels[value] ?? value;
+  return (
+    labels[value] ??
+    systemCodeLabel(
+      value,
+      /^[A-Z][A-Z0-9_]*$/.test(value) ? "Thông tin đang được cập nhật" : value,
+    )
+  );
 }

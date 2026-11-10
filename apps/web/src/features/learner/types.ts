@@ -175,6 +175,8 @@ export type LearningSession = {
   id: string;
   pathId: string;
   planId: string;
+  planVersion?: number;
+  outlineSessionNo?: number;
   teacherId: string;
   learnerId: string;
   startAt: string;
@@ -196,6 +198,12 @@ export type LearningSession = {
   role?: string;
   teacherConfirmationStatus: string | null;
   learnerConfirmationStatus: string | null;
+  teacherConfirmedAt?: string | null;
+  learnerConfirmedAt?: string | null;
+  progress?: {
+    agreement: { total: number; completed: number };
+    plan: { total: number; completed: number };
+  };
   join?: {
     canJoin: boolean;
     opensAt: string | null;
@@ -219,6 +227,8 @@ export type LearningSession = {
     };
     determinedAt?: string | null;
     case?: string | null;
+    outcomeStatus?: string | null;
+    resolution?: string | null;
   };
   deadlines?: {
     confirmBy: string | null;
