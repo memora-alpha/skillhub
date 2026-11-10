@@ -148,6 +148,14 @@ function useSkillsRuntime() {
         await queryClient.cancelQueries({ queryKey: scope });
         if (isCurrent()) removeSkillQueries(queryClient, scope, id);
       },
+      async rememberRestoredSkill(skill: OwnSkill) {
+        if (!isCurrent() || skill.archivedAt) return;
+        await queryClient.cancelQueries({ queryKey: scope });
+        if (!isCurrent()) return;
+        // Only a confirmed restore may undo the local archive tombstone.
+        deletedSkillIds.delete(skill.id);
+        recordSkillQueries(queryClient, scope, skill);
+      },
       assertCurrent() {
         if (!isCurrent()) throw new AppError("session");
       },

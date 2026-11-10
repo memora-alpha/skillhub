@@ -25,6 +25,7 @@ export const appRoutes: Record<string, Href | undefined> = {
   "Tài liệu học tập": "/materials",
   "Trung tâm trợ giúp": "/help",
   "Kỹ năng": "/my-skills",
+  "Kỹ năng đã lưu trữ": "/my-skills/archived",
   "Thêm kỹ năng chia sẻ": "/my-skills/new",
   "Xác minh kỹ năng": "/my-skills",
   "Thành tích": "/achievements",

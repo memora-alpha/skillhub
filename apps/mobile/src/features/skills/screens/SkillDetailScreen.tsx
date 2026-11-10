@@ -47,7 +47,7 @@ export function SkillDetailScreen({
       },
       () => router.dismissTo("/my-skills"),
       true,
-      "Đã xóa kỹ năng.",
+      "Đã lưu trữ kỹ năng.",
     );
   };
   return (
@@ -102,14 +102,14 @@ export function SkillDetailScreen({
         }}
       />
       <InfoModal
-        title={confirm ? "Xóa kỹ năng?" : null}
+        title={confirm ? "Lưu trữ kỹ năng?" : null}
         onClose={() => setConfirm(false)}
-        confirmLabel="Xóa kỹ năng"
+        confirmLabel="Lưu trữ kỹ năng"
         onConfirm={remove}
       >
         <Text style={skillStyles.body}>
           Kỹ năng sẽ bị gỡ khỏi hồ sơ và danh sách của bạn. Lịch sử xác minh vẫn
-          được hệ thống lưu giữ.
+          được hệ thống lưu giữ. Bạn có thể khôi phục trong mục Đã lưu trữ.
         </Text>
         <Button variant="secondary" onPress={() => setConfirm(false)}>
           Hủy

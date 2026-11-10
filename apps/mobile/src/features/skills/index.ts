@@ -9,6 +9,7 @@ export {
 } from "./components/ProfileSkillRows";
 export { useProfileSkillWindow } from "./hooks/use-profile-skill-window";
 export { MySkillsScreen } from "./screens/MySkillsScreen";
+export { ArchivedSkillsScreen } from "./screens/ArchivedSkillsScreen";
 export { SkillFormScreen } from "./screens/SkillFormScreen";
 export { SkillDetailScreen } from "./screens/SkillDetailScreen";
 export { PublicSkillDetailScreen } from "./screens/public-skill-detail-screen";
