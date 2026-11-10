@@ -73,7 +73,23 @@ export function sessionsFixture() {
           status: 200,
           statusText: "OK",
           headers: {},
-          data: { success: true, data },
+          data: {
+            success: true,
+            data,
+            ...(method === "GET" &&
+            path.startsWith("/sessions/mine") &&
+            Array.isArray(data)
+              ? {
+                  meta: {
+                    pagination: {
+                      limit: 100,
+                      hasMore: false,
+                      nextCursor: null,
+                    },
+                  },
+                }
+              : {}),
+          },
         };
       },
     }),

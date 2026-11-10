@@ -5,7 +5,6 @@ import { useForm, useWatch, type UseFormSetError } from "react-hook-form";
 import { useFocusEffect, useRouter } from "expo-router";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Copy, RouteButton } from "@/components/feature-page";
-import { FlowSection } from "@/components/learning-flow";
 import { Button } from "@/components/Button";
 import { Icon } from "@/components/Icon";
 
@@ -222,8 +221,25 @@ export function ScheduleForm({
       {scheduleButtonLabel(command.pending, !!schedule, plan.totalSessions)}
     </Button>
   );
+  let feedback;
+  if (command.uncertain)
+    feedback = (
+      <>
+        <FormNotice tone="warning" compact>
+          Chưa xác định được kết quả gửi lịch. Nội dung được giữ lại; kiểm tra
+          trạng thái trước khi gửi tiếp.
+        </FormNotice>
+        <RouteButton href={`/paths/${path.id}/schedules`}>
+          Xem trạng thái lịch
+        </RouteButton>
+      </>
+    );
+  else if (command.error)
+    feedback = (
+      <ConnectionFeedback error={command.error} errorPresentation="notice" />
+    );
   return (
-    <PlanEditorFrame action={action}>
+    <PlanEditorFrame action={action} feedback={feedback}>
       <EditorRevisionNotice
         visible={snapshot.changed}
         disabled={blocked || command.pending || command.uncertain}
@@ -277,23 +293,11 @@ export function ScheduleForm({
         <View style={styles.policyContent}>
           <Text style={styles.policyTitle}>Trước khi chốt lịch</Text>
           <Text style={styles.policyText}>
-            Hai bên xác nhận cùng phiên bản. Chốt lịch mới tạm giữ Credit và tạo
-            buổi học.
+            Hai bên cần đồng ý cùng một lịch. Credit chỉ được tạm giữ khi chốt
+            lịch.
           </Text>
         </View>
       </View>
-      <ConnectionFeedback error={command.error} />
-      {command.uncertain && (
-        <FlowSection title="Kiểm tra lịch vừa gửi">
-          <Copy size="hint">
-            Chưa xác định được kết quả. Giữ nguyên nội dung và xem lại trạng
-            thái trước khi gửi thêm lịch.
-          </Copy>
-          <RouteButton href={`/paths/${path.id}/schedules`}>
-            Xem trạng thái lịch
-          </RouteButton>
-        </FlowSection>
-      )}
     </PlanEditorFrame>
   );
 }

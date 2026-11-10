@@ -7,13 +7,13 @@
 - Community tách màu delta, notice policy, kết quả review và nhãn ngày; Learning Path tách mô tả hình thức/lịch, nhãn action liên quan và ghi nhận consent, tính empty/pagination labels trước JSX. Hai route cases dùng export-from trực tiếp. Không thay nội dung hoặc thứ tự ưu tiên trạng thái. Helper review giữ null hợp lệ; không ép kiểu để bỏ lỗi.
 - SonarJS4.2.2 chạy cục bộ rule cognitive-complexity(15) và no-nested-conditional trên16 source files thay đổi/thêm mới:0 errors. Công cụ chỉ cài tạm ở .expo/sonar-rule-check với ignore-scripts, không đổi package/lock dự án. Không gọi scan server Sonar. Scripts/JSON local ignored: .expo/check-sonar-refactor.cjs, .expo/measure-sonar-refactor.cjs, .expo/sonar-rule-check/results.json.
 - 75 focused tests PASS; full mobile **1065/1065 PASS**, fail/skip/cancel0. TypeScript, ESLint toàn mobile, structure911, Prettier các file thay đổi và diff whitespace PASS. So sánh159 Vietnamese UI literals trước/sau:0 khác biệt. Hold harness render component con đã tách để tiếp tục kiểm thông báo terminal/approved, link Session và mutation guard thật. Logs local .expo/sonar-refactor-focused.log và .expo/sonar-refactor-final-tests.log.
-- Chưa stage/commit. Đây là refactor source, không đổi layout/route đích/API; không chạy lại export hoặc nghiệm thu API/native.
+- Đây là refactor source, không đổi layout/route đích/API; không chạy lại export hoặc nghiệm thu API/native.
 
 ## Màn Chính sách — 2026-11-08T21:14:28+07:00
 
-- Theo yêu cầu mới, `/policies` đổi Quay lại thành icon mũi tên, giữ nhãn
+- `/policies` đổi Quay lại thành icon mũi tên, giữ nhãn
   accessibility, history Back và fallback `/`.
-- Chỉnh bố cục theo phản hồi tiếp: header Chính sách căn giữa, tab gạch chân,
+- Chỉnh bố cục: header Chính sách căn giữa, tab gạch chân,
   tiêu đề tài liệu rõ và 5 chủ đề có icon/mô tả ngắn. Mỗi lần chạm chỉ mở một
   tóm tắt; chuyển tab reset danh sách/đầu trang. Link toàn văn sau danh sách,
   notice/version xuống cuối; ngày cập nhật/badge draft gọn dưới tiêu đề.
@@ -46,17 +46,17 @@
 
 - Cập nhật lúc: 2026-11-01T07:48:21+07:00.
 - Trạng thái: **đã dọn source không còn dùng**, giữ các màn xem thử theo lựa chọn người dùng; xóa ròng16 file ngoài catalog đã bỏ trước đó và chuyển2 cấu hình/helper. Sửa retry đọc email sau lỗi storage ban đầu và shortcut Đánh giá về tôi. Chi tiết tại [hồ sơ dọn source](cleanup-2026-11-01.md). AUTH-01..06 giữ bản sửa trên `fix/mobile-auth-session`; lịch sử tại [review Auth](auth-review-2026-10-31.md). CORS/deployment và API/native acceptance chưa xác minh.
-- Baseline: review ban đầu 19/10 tại ed5a17dd; review Auth trước sửa tại d2d30f01. Nhánh sửa Auth tạo từ origin/dev tại `0825a5d3ca0c1ce10a204a29c74634290244ca43`, mang theo các thay đổi tài liệu chưa commit từ nhánh cũ.
+- Baseline: review ban đầu 19/10 tại ed5a17dd; review Auth trước sửa tại d2d30f01. Baseline triển khai Auth: `0825a5d3ca0c1ce10a204a29c74634290244ca43`.
 - Kết luận: F01 đã sửa ở lượt Skills trước; lượt Auth mới sửa lifecycle recovery, cleanup logout, refresh theo generation và hướng dẫn ACCOUNT_NOT_ACTIVE. Không xác nhận toàn app/API/native hoàn chỉnh.
 - Mốc full suite UX trước các lượt gỡ nút/màn: **909/909 tests PASS**,0 failed/skipped/cancelled; TypeScript, ESLint --max-warnings0 và structure815 source files PASS. Có17 regression Auth và6 regression preference/hydration mới. Log local ignored: `.expo/auth-login-preferences-tests.log`; log trước UX903 tests ở `.expo/auth-session-full-tests.log`, không cộng hai suite. Các log không phải artifact chia sẻ qua Git.
 - Follow-up Cài đặt: bỏ nút logout riêng cùng state/dialog/styles không còn dùng; logout ở cuối Hồ sơ và Đăng xuất tất cả thiết bị trong Cài đặt vẫn giữ. TypeScript, focused ESLint màn Cài đặt và structure815 files PASS; không thêm test hoặc chạy lại full suite cho việc gỡ nút này.
 - Follow-up gỡ màn catalog: xóa route /ui và UiCatalogScreen, gỡ entry point Hồ sơ/menu/Stack; đổi các đường Back tới catalog sang /profile. TypeScript, focused lint, structure814 source files và34 tests startup/điều hướng/consumer PASS (9 trong `.expo/ui-catalog-removal-tests.log`,25 trong `.expo/ui-catalog-consumers-tests.log`). Không còn tham chiếu catalog hoặc /ui trong source runtime; không chạy lại full suite/native/browser visual ở lượt này.
-- Rà lại toàn nhánh: full **909/909 tests PASS**,0 failed/skipped/cancelled; TypeScript, full ESLint --max-warnings0 và structure814 source files PASS. Lệnh full suite có `--test-concurrency=4`, log ignored `.expo/auth-final-review-tests.log`. Ngoài suite, **2/2 reproduction xác nhận lỗi** AUTH-05/06 bằng [source evidence](evidence/auth-followup-review.cjs.txt); không cộng reproduction vào909 và không coi suite xanh là finding đã đóng.
+- Rà source: full **909/909 tests PASS**,0 failed/skipped/cancelled; TypeScript, full ESLint --max-warnings0 và structure814 source files PASS. Lệnh full suite có `--test-concurrency=4`, log ignored `.expo/auth-final-review-tests.log`. Ngoài suite, **2/2 reproduction xác nhận lỗi** AUTH-05/06 bằng [source evidence](evidence/auth-followup-review.cjs.txt); không cộng reproduction vào909 và không coi suite xanh là finding đã đóng.
 - Bản sửa ngày01/11: full **914/914 tests PASS**,0 failed/skipped/cancelled; TypeScript, full ESLint --max-warnings0 và structure814 source files PASS. Log ignored `.expo/auth-cleanup-preference-fixes-tests.log`. Có5 tests mới so với909: queued logout + login fail/success, cleanup retry xếp sau write B, cùng email retry sau lỗi và pending latest write không bị older failure dọn nhầm. Trước sửa3 cases fail; sau sửa focused42/42 và full914/914 pass. Lượt này không sửa UI/backend/storage schema/dependencies.
 - Lượt dọn code ngày01/11: full **915/915 tests PASS**,0 failed/skipped/cancelled; thêm1 regression đọc email ban đầu lỗi rồi storage phục hồi. TypeScript, full ESLint --max-warnings0 và structure798 source files PASS. Graph từ routes, có platform siblings, không tìm thấy orphan ngoài2 global declaration. Web export PASS tại `.expo/cleanup-web-export`, tắt dotenv/telemetry; log ignored `.expo/cleanup-web-export.log`. Không dùng export làm nghiệm thu UI/API/native. Full suite log ignored `.expo/auth-cleanup-unused-tests.log`.
 - Nghiệm thu: chưa chạy SecureStore/Android/iOS, API/email/Redis thật hoặc process kill trong lúc cleanup storage lỗi. Pending cleanup hiện giữ trong RAM; giới hạn restart khi cả local deletion và remote revoke thất bại được ghi trong review Auth. Preference email chỉ lưu email riêng ở native SecureStore/web localStorage; credential web vẫn memory-only. Không sửa backend, root tooling hoặc dependencies.
-- Rà trước commit lúc2026-11-01T07:48:21+07:00: chưa phát hiện blocker mới trong diff Auth/UX/dọn source. Chạy lại32/32 tests trọng tâm (session/screens/email/native text/entry points), format toàn bộ code thay đổi,6/6 tests quy tắc commit và diff whitespace PASS; log ignored `.expo/precommit-focused-review.log`. Full915, TypeScript/lint/structure/export là kết quả ngay trước lượt rà, source không đổi nên không chạy lặp toàn suite. Corepack pnpm10.24.0 đã cache chạy workspace bình thường; fallback pnpm11.25.0 của môi trường từng tự yêu cầu install và dừng vì no TTY, không đổi dependencies/lockfile. Chưa chạy hook trên staged files vì chưa stage/commit.
-- Bước tiếp theo: có thể commit phần source đã kiểm tra; nghiệm thu thiết bị/API và kiểm CORS khi endpoint truy cập được vẫn còn mở. Chưa stage/commit/push. Reproduction AUTH-05/06 và các findings ban đầu giữ làm lịch sử trước fix, không chạy để nghiệm thu source mới; dùng regression trong tests. Kết quả Skills riêng ở cuối file.
+- Kiểm chứng source lúc2026-11-01T07:48:21+07:00: chưa phát hiện blocker mới trong diff Auth/UX/dọn source. Chạy lại32/32 tests trọng tâm (session/screens/email/native text/entry points), format toàn bộ code thay đổi,6/6 tests quy tắc commit và diff whitespace PASS; log ignored `.expo/precommit-focused-review.log`. Full915, TypeScript/lint/structure/export là kết quả ngay trước lượt rà, source không đổi nên không chạy lặp toàn suite. Corepack pnpm10.24.0 đã cache chạy workspace bình thường; fallback pnpm11.25.0 của môi trường từng tự yêu cầu install và dừng vì no TTY, không đổi dependencies/lockfile.
+- Bước tiếp theo: nghiệm thu thiết bị/API và kiểm CORS khi endpoint truy cập được vẫn còn mở. Reproduction AUTH-05/06 và các findings ban đầu giữ làm lịch sử trước fix, không chạy để nghiệm thu source mới; dùng regression trong tests. Kết quả Skills riêng ở cuối file.
 
 ## F01 — P2 — Dữ liệu Skills riêng tư vẫn hiển thị sau khi server từ chối đọc
 
@@ -74,7 +74,7 @@
 
 ## F02 — P2 — Reset token sống qua thời điểm phiên signed-in kết thúc
 
-**Follow-up 2026-10-31:** đã sửa trong source và regression trên nhánh `fix/mobile-auth-session`; xem [bản sửa Auth](auth-review-2026-10-31.md#bản-sửa-từ-dev). Trigger/source/reproduction dưới đây mô tả baseline trước sửa.
+**Follow-up 2026-10-31:** đã sửa trong source và regression; xem [bản sửa Auth](auth-review-2026-10-31.md#bản-sửa-từ-dev). Trigger/source/reproduction dưới đây mô tả baseline trước sửa.
 
 **Trigger:** user signed-in đã verify recovery OTP, đang ở /reset-password với proof memory-only; session hết hạn/bị revoke khiến generation đổi và session thành guest trong khi vẫn ở route recovery.
 
@@ -114,7 +114,7 @@ Từ apps/mobile trong PowerShell:
 
 Đã rà Auth controller/storage/HTTP/recovery/gates; network connection store/probe/recovery; LR requests API/query/preflight/recovery/form/navigation/weekly/Tag/offerings; Profile public/own/avatar; Skills parsers/query/cache/save/verification/evidence transfer/scan/compression logic liên quan. Backend chỉ đọc contract/controller/DTO/service phục vụ đối chiếu, không sửa.
 
-Real API/mailbox/storage/scanner/Staff approval, Android/iOS/native keyboard/Back/picker/EXIF/background/process kill, full visual/accessibility review: NOT_RUN. Không dùng kết quả review thay các acceptance T025..T032 hoặc AC của specs003/004. Wallet/Payment và nhánh triển khai nó ngoài phạm vi. Không thêm kết luận Sonar Quality Gate từ local tests.
+Real API/mailbox/storage/scanner/Staff approval, Android/iOS/native keyboard/Back/picker/EXIF/background/process kill, full visual/accessibility review: NOT_RUN. Không dùng kết quả review thay các acceptance T025..T032 hoặc AC của specs003/004. Wallet/Payment ngoài phạm vi. Không thêm kết luận Sonar Quality Gate từ local tests.
 
 ## Nhật ký 2026-10-19T20:31:39+07:00
 
@@ -122,7 +122,7 @@ Review xác nhận hai findings tại baseline; checks và reproduction được
 
 ## Follow-up F01 — 2026-10-19T21:35:54+07:00
 
-Bản sửa F01 thuộc nhánh fix/mobile-skills-read-denial, dựa trên dev tại db550cc. Phạm vi gồm feature Skills, tests liên quan và tài liệu kỹ thuật. F02, Wallet/Payment, backend, shared packages và dependencies ngoài phạm vi.
+Baseline bản sửa F01: `dev@db550cc`. Phạm vi gồm feature Skills, tests liên quan và tài liệu kỹ thuật. F02, Wallet/Payment, backend, shared packages và dependencies ngoài phạm vi.
 
 ### Kết quả source
 
@@ -204,7 +204,7 @@ Không phát hiện nhu cầu tạo lại CRUD/catalog/evidence đã có. Đã b
 
 ## Tích hợp dev25c3334 — 2026-10-19T23:55:00+07:00
 
-- Conflict PublicProfileScreen giữ wrapper của nhánh Skills, chuyển vào màn public profile dùng account/API; không khôi phục màn hồ sơ/kỹ năng mẫu. Backend và lockfile giữ nguyên nội dung từ origin/dev25c3334.
+- PublicProfileScreen dùng wrapper Skills và màn public profile dùng account/API; không khôi phục màn hồ sơ/kỹ năng mẫu. Backend và lockfile giữ nguyên nội dung từ origin/dev25c3334.
 - Giữ public usePublicSkill export và nút gửi lời mời từ dev. Thêm canRead cho callback điều hướng: regression trước sửa tái hiện callback cũ vẫn chạy sau403; sau sửa bị chặn qua403→503 và chỉ mở lại sau200, self không có nút tự gửi lời mời. Mở rộng module list của harness cho public detail, hiện12 module.
 - dev xóa mock Proposal nhưng còn2 test files import helpers đã xóa, gây2 suite load failures và4 lỗi typecheck. Chuyển proposal-lifecycle sang adapter/form API, thay proposal-request-preview bằng [proposal-route](../../../tests/proposal-route.test.ts). Kiểm version/idempotency, resource/actor/conversation mismatch, server409 không replay, validation và UUID route; không khôi phục local mock transitions hoặc tự suy kết quả server.
 - Full suite332/332 PASS,0 failed/skipped/cancelled; typecheck, ESLint --max-warnings0, structure503 source files, format và diff whitespace PASS. Tests sử dụng fixture response với adapter/source thật; không xác nhận nghiệm thu Proposal/Chat/LiveKit hoặc API/native thật của các thay đổi từ dev.

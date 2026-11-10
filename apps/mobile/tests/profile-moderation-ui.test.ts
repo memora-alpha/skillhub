@@ -150,6 +150,7 @@ test("self preview renders public bio, never private owner content on read failu
       ProfileAbout: "About",
     },
     "../components/ProfilePrimitives": { profileStyles: {} },
+    "../components/profile-reviews": { ProfileReviews: "Reviews" },
     "../hooks/use-public-profile": { usePublicProfile: () => query },
   });
   const filename = local.resolve("./public-api-profile-screen.tsx");
@@ -167,6 +168,10 @@ test("self preview renders public bio, never private owner content on read failu
       body().find((element) => element.type === "Summary")?.props.profile,
       query.data,
     );
+    assert.equal(
+      body().find((element) => element.type === "Reviews")?.props.userId,
+      owner.userId,
+    );
     (layout().props.onBack as () => void)();
     assert.equal(destinations.at(-1), "/profile");
     requestId = "11111111-1111-4111-8111-111111111111";
@@ -179,7 +184,10 @@ test("self preview renders public bio, never private owner content on read failu
       query = { data, error: new Error("Read failed"), refetch() {} };
       assert.equal(
         body().some(
-          (element) => element.type === "About" || element.type === "Summary",
+          (element) =>
+            element.type === "About" ||
+            element.type === "Summary" ||
+            element.type === "Reviews",
         ),
         false,
       );

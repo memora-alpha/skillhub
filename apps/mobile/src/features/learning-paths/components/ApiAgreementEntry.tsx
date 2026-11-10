@@ -1,4 +1,5 @@
 import { PathReadFeedback } from "./PathReadFeedback";
+import { FormNotice } from "@/components/FormNotice";
 import { useRef } from "react";
 import { Redirect, useRouter } from "expo-router";
 import { Copy, RouteButton } from "@/components/feature-page";
@@ -127,13 +128,17 @@ export function ApiAgreementEntry({
                 else void query.refetch();
               }}
             />
-            <ConnectionFeedback error={command.error} retry={query.refetch} />
+            <ConnectionFeedback
+              error={command.uncertain ? undefined : command.error}
+              errorPresentation="notice"
+              retry={query.refetch}
+            />
             {command.uncertain && (
               <>
-                <Copy>
+                <FormNotice tone="warning" compact>
                   Chưa xác định được lần tạo trước. Tải lại trạng thái hoặc mở
-                  danh sách lộ trình để đối chiếu; không gửi lại tự động.
-                </Copy>
+                  danh sách lộ trình trước khi gửi tiếp.
+                </FormNotice>
                 <RouteButton href="/my-learning?tab=paths">
                   Xem các lộ trình
                 </RouteButton>

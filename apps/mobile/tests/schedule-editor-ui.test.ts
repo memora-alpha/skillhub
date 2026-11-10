@@ -41,6 +41,7 @@ test("schedule editor applies only to draft, submits exact plan version, and rem
   const command = {
     pending: false,
     uncertain: false,
+    error: undefined as unknown,
     run: async (_fingerprint: string, send: () => Promise<unknown>) => send(),
   };
   const jsx = (type: unknown, props: Record<string, unknown>) => ({
@@ -80,7 +81,6 @@ test("schedule editor applies only to draft, submits exact plan version, and rem
     },
     "@hookform/resolvers/zod": { zodResolver: () => ({}) },
     "@/components/feature-page": { Copy: "Copy", RouteButton: "RouteButton" },
-    "@/components/learning-flow": { FlowSection: "Section" },
     "@/components/Button": { Button: "Button" },
     "@/components/Icon": { Icon: "Icon" },
     "@/components/FormNotice": { FormNotice: "Notice" },
@@ -166,6 +166,25 @@ test("schedule editor applies only to draft, submits exact plan version, and rem
     assert.equal(calls.length, 1);
     command.pending = false;
     command.uncertain = false;
+    command.error = new Error("Rejected schedule");
+    const rejected = ScheduleForm(props);
+    assert.equal(
+      (rejected.props.feedback as Element).props.error,
+      command.error,
+    );
+    assert.equal(
+      (rejected.props.feedback as Element).props.errorPresentation,
+      "notice",
+    );
+    command.uncertain = true;
+    const unknown = ScheduleForm(props);
+    assert.ok(unknown.props.feedback);
+    assert.equal(
+      elements(unknown.props.children).some((item) => item.type === "Feedback"),
+      false,
+    );
+    command.uncertain = false;
+    command.error = undefined;
     tree = elements(ScheduleForm(props));
     const backgroundRefreshSave = tree.find((item) => item.type === "Button")!;
     assert.equal(backgroundRefreshSave.props.disabled, false);

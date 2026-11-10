@@ -1,5 +1,12 @@
 import { useState, type ReactNode } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { useWatch, type Control } from "react-hook-form";
 import { KeyboardFormScrollView } from "@/components/KeyboardFormScrollView";
 import { ControlledInput } from "@/components/ControlledInput";
@@ -16,7 +23,8 @@ import type { PlanEditorValues } from "../schemas/plan-editor-input";
 export function PlanEditorFrame({
   children,
   action,
-}: Readonly<{ children: ReactNode; action: ReactNode }>) {
+  feedback,
+}: Readonly<{ children: ReactNode; action: ReactNode; feedback?: ReactNode }>) {
   return (
     <View style={styles.frame}>
       <KeyboardFormScrollView
@@ -25,7 +33,18 @@ export function PlanEditorFrame({
       >
         {children}
       </KeyboardFormScrollView>
-      <View style={styles.footer}>{action}</View>
+      <View style={styles.footer}>
+        {feedback && (
+          <ScrollView
+            style={styles.feedback}
+            contentContainerStyle={{ gap: 8 }}
+            nestedScrollEnabled
+          >
+            {feedback}
+          </ScrollView>
+        )}
+        {action}
+      </View>
     </View>
   );
 }
@@ -198,11 +217,13 @@ const styles = StyleSheet.create({
   frame: { flex: 1 },
   content: { padding: 16, gap: 16, paddingBottom: 24 },
   footer: {
+    gap: 8,
     padding: 12,
     backgroundColor: colors.surface,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
   },
+  feedback: { maxHeight: 240, flexGrow: 0 },
   group: {
     gap: 12,
     padding: 16,

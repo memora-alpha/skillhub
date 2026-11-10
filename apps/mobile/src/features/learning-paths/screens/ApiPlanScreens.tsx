@@ -175,7 +175,7 @@ export function ApiPlanEditorScreen() {
           description={
             agreementConfirmed(path)
               ? "Bạn chỉ tạo hoặc sửa lộ trình mình dạy khi thỏa thuận chưa khóa."
-              : "Mở Thỏa thuận để cả hai xác nhận hình thức, vai trò và Credit của phiên bản hiện tại."
+              : "Mở Thỏa thuận để cả hai xem và đồng ý hình thức học, vai trò và mức Credit mới nhất."
           }
         />
       )}
@@ -227,7 +227,17 @@ function SharePlan({
   if (plan.teacherId !== runtime.userId) return null;
   return (
     <PlanShareCard>
-      <ConnectionFeedback error={sender.error ?? sender.delivery.error} />
+      {sender.uncertain ? (
+        <FormNotice tone="warning" compact>
+          Chưa xác định được kết quả gửi thẻ lộ trình vào Chat. Kiểm tra lần
+          chia sẻ trước trước khi gửi tiếp.
+        </FormNotice>
+      ) : (
+        <ConnectionFeedback
+          error={sender.error ?? sender.delivery.error}
+          errorPresentation="notice"
+        />
+      )}
       <Button
         disabled={
           blocked || sender.pending || sender.processing || sender.uncertain

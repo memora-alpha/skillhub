@@ -18,7 +18,7 @@ Baseline review: HEAD ed5a17dd9f1a6d5e45e1b6af33b17dd4518b46fd. Quy trình theo 
 
 ## Điều kiện hoàn thành review
 
-Findings có bằng chứng tái hiện hoặc chuỗi source rõ; không gán lỗi cho khác biệt nhánh Wallet, không lấy suite xanh thay acceptance API/native. Review không tác động dữ liệu thật. Các đề xuất sửa và kết quả follow-up nằm ở findings.
+Findings có bằng chứng tái hiện hoặc chuỗi source rõ; không gán lỗi cho khác biệt baseline Wallet, không lấy suite xanh thay acceptance API/native. Review không tác động dữ liệu thật. Các đề xuất sửa và kết quả follow-up nằm ở findings.
 
 ## Kiểm chứng
 
@@ -42,9 +42,8 @@ API/scanner/Staff và native acceptance tiếp tục theo checklist004. GAP-09 c
 - [x] Tái hiện F02 và các ca logout/refresh khác generation bằng source thật với adapter cô lập; chạy focused regression hiện có.
 - [x] Ghi lỗi còn mở, lỗi cũ đã sửa và phần chưa xác minh tại [review Auth](auth-review-2026-10-31.md).
 
-Lượt review ban đầu chỉ thay tài liệu/evidence. Bản sửa tiếp nhận trên nhánh từ dev:
+Review ban đầu chỉ thay tài liệu/evidence. Phạm vi sửa Auth:
 
-- [x] Tạo `fix/mobile-auth-session` từ `origin/dev@0825a5d3` và mang các thay đổi tài liệu sang nhánh mới.
 - [x] AUTH-01/F02: gắn owner generation cho signed-in recovery, cleanup độc lập với màn hình; giữ guest recovery và điều hướng khi reset thành công.
 - [x] AUTH-02: retry cleanup sau logout thay vì restore credential; bảo vệ phiên mới khỏi completion cũ.
 - [x] AUTH-03: refresh single-flight theo generation, cleanup đúng Promise.
@@ -79,7 +78,7 @@ Kết quả local không nghiệm thu backend/deployment hoặc native. Không �
 - [x] Rà import graph từ routes, kể cả platform siblings; đọc consumer trước khi bỏ16 file, chuyển2 cấu hình/helper sang vị trí đúng trách nhiệm và gỡ exports/state/nhánh mock không thể truy cập.
 - [x] Sửa read preference email có thể retry sau lỗi bộ nhớ ban đầu, xác nhận regression thất bại trước sửa và đạt sau sửa; nối shortcut Đánh giá về tôi tới route hiện có.
 - [x] Chạy full suite, TypeScript, lint, structure và export web; cập nhật [hồ sơ dọn source](cleanup-2026-11-01.md) và [status](status.md) với kết quả và giới hạn.
-- [x] Rà toàn bộ diff trước commit, chạy lại tests trọng tâm/format/quy tắc commit và kiểm toolchain pnpm đúng phiên bản; ghi kết luận source ready cùng acceptance còn mở trong status. Chưa stage/commit/push.
+- [x] Rà toàn bộ diff, chạy lại tests trọng tâm/format/quy tắc commit và kiểm toolchain pnpm đúng phiên bản; ghi kết luận source ready cùng acceptance còn mở trong status.
 
 ## Màn Chính sách mobile — 2026-11-08
 
@@ -87,4 +86,4 @@ Kết quả local không nghiệm thu backend/deployment hoặc native. Không �
 - [x] Tách Điều khoản/Bảo mật; mặc định tóm tắt 5 ý, cho đọc bản đầy đủ và giữ metadata/bản dự thảo. Nội dung đăng ký vẫn dùng bản đầy đủ.
 - [x] Đối chiếu bản tóm tắt với shared legal draft và source uy tín/điều khoản/Credit; không tự đặt liên hệ, retention hoặc cam kết pháp lý. Không sửa shared content/BE.
 - [x] Kiểm web fixture 320/390/430px, chuyển mục/đọc đầy đủ/back/font/overflow; TypeScript, lint và structure.
-- [x] Chỉnh bố cục theo phản hồi tiếp: tham khảo privacy hub chính thức Airbnb/Spotify, dùng tab gạch chân + danh sách chủ đề mở/đóng, hạ notice/version xuống cuối. Dùng Nunito/theme; kiểm accordion, accessibility, loaded fonts và full suite do bổ sung aria mapping trên Button mobile.
+- [x] Chỉnh bố cục: tham khảo privacy hub chính thức Airbnb/Spotify, dùng tab gạch chân + danh sách chủ đề mở/đóng, hạ notice/version xuống cuối. Dùng Nunito/theme; kiểm accordion, accessibility, loaded fonts và full suite do bổ sung aria mapping trên Button mobile.

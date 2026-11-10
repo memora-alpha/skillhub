@@ -12,13 +12,13 @@
 | Dừng lộ trình, thông báo và quyết toán Credit | [plan](path-cancellation/plan.md) | [status](path-cancellation/status.md) |
 | Tin nhắn theo Yêu cầu học — màn riêng Nhận được/Đoạn chat | [plan](request-message-groups/plan.md) | [status](request-message-groups/status.md) |
 | Giảm HTTP 429 mobile — Inbox/Chat, cache, cooldown và lifecycle | [plan](mobile-chat-rate-limit/plan.md) | [status](mobile-chat-rate-limit/status.md) |
-| Phase03 Wallet & Top-up — tiếp tục review/fix trên nhánh Wallet hiện tại | [plan](phase-03-wallet-topup/plan.md)               | [status](phase-03-wallet-topup/status.md)               |
+| Phase03 Wallet & Top-up | [plan](phase-03-wallet-topup/plan.md) | [status](phase-03-wallet-topup/status.md) |
 | Phase04 Learning Request & Discovery, tiếp nhận acceptance đang mở từ spec005        | [plan](phase-04-learning-request-discovery/plan.md)  | [status](phase-04-learning-request-discovery/status.md)  |
 | Phase05–06 Proposal → Chat → Plan → Schedule                                         | [plan](phase-05-proposal-learning-agreement/plan.md) | [status](phase-05-proposal-learning-agreement/status.md) |
-| Phase07 Session API — context/tiến độ, điều hướng, completion và đổi lịch; LiveKit ở nhánh khác | [plan](phase-07-session-api/plan.md) | [status](phase-07-session-api/status.md) |
+| Phase07 Session API — context/tiến độ, điều hướng, completion và đổi lịch; LiveKit thuộc work riêng | [plan](phase-07-session-api/plan.md) | [status](phase-07-session-api/status.md) |
 
 
-Phase03 đã được giao tiếp tục trên `feat/mobile-wallet-payment-history`, bổ sung cancel/recovery theo BE `dev@1c8fb8d` ngày 2026-10-22. Plan/status tiếp nhận task mới; task IDs và evidence spec006 được giữ nguyên, không tạo checklist acceptance trùng. Không tự checkout/merge hoặc suy hiện trạng từ baseline migration.
+Phase03 bổ sung cancel/recovery theo BE `dev@1c8fb8d` ngày 2026-10-22. Plan/status tiếp nhận task mới; task IDs và evidence spec006 được giữ nguyên, không tạo checklist acceptance trùng. Hiện trạng triển khai cần đối chiếu source và status, không suy từ baseline migration.
 
 Phase00 có hồ sơ chính tại [migration](../migration.md), không tạo progress song song. [Roadmap](../roadmap.md) không phải bảng trạng thái thực hiện.
 

@@ -5,6 +5,8 @@ import { pathToFileURL } from "node:url";
 import * as policy from "../src/features/learning-paths/utils/policy-api";
 import { readScheduledMessage } from "../src/features/learning-paths/utils/scheduled-message";
 import { AppError } from "../src/lib/http/errors";
+import { scheduleTimeDetails } from "./fixtures/invalid-schedule-details";
+import { overviewFixture } from "./fixtures/path-overview";
 import { fixtureId } from "./fixtures/learning-requests-data";
 import {
   agreementPath,
@@ -241,8 +243,8 @@ const flush = () => new Promise<void>((resolve) => setImmediate(resolve));
 test("refreshing the agreement disables validation and finalization until fresh data returns", async () => {
   const h = holdHarness(learnerId);
   try {
-    const checkLabel = "Kiểm tra điều kiện trên hệ thống";
-    const finalizeLabel = "Xác nhận chốt lịch và tạm giữ Credit";
+    const checkLabel = "Kiểm tra lịch và Credit";
+    const finalizeLabel = "Chốt lịch và tạm giữ Credit";
     h.button(h.render(), checkLabel).onPress();
     await flush();
     assert.equal(h.button(h.render(), finalizeLabel).disabled, false);
@@ -328,7 +330,7 @@ test("a new Hold check replaces stale finalize feedback and its top-up action", 
   try {
     h.query.data = withConfirmedSchedules(agreementPath(true));
     h.validateAs({ version: 3, planCount: 2, scheduleCount: 2 });
-    const checkLabel = "Kiểm tra điều kiện trên hệ thống";
+    const checkLabel = "Kiểm tra lịch và Credit";
     h.button(h.render(), checkLabel).onPress();
     await flush();
     h.finalize.error = new AppError(
@@ -338,7 +340,7 @@ test("a new Hold check replaces stale finalize feedback and its top-up action", 
       0,
       { userIds: [h.viewerId] },
     );
-    h.button(h.render(), "Xác nhận chốt lịch và tạm giữ Credit").onPress();
+    h.button(h.render(), "Chốt lịch và tạm giữ Credit").onPress();
     await flush();
     const hasTopUp = (tree: Element) =>
       elements(tree).some((element) => element.props.href === "/wallet/topup");
@@ -367,6 +369,68 @@ test("a new Hold check replaces stale finalize feedback and its top-up action", 
   }
 });
 
+test("both validation and finalization show schedule ownership details for invalid times", async () => {
+  const h = holdHarness();
+  try {
+    h.check.error = new AppError(
+      "http",
+      409,
+      "INVALID_SCHEDULE_ITEMS",
+      0,
+      scheduleTimeDetails(h.query.data),
+    );
+    let tree = h.render();
+    const invalidNotice = (value: Element) =>
+      elements(value).find(
+        (element) =>
+          typeof element.type === "function" &&
+          element.type.name === "ScheduleValidationFeedback",
+      );
+    assert.equal(invalidNotice(tree)?.props.path, h.query.data);
+    assert.equal(invalidNotice(tree)?.props.userId, h.viewerId);
+    assert.equal(invalidNotice(tree)?.props.error, h.check.error);
+    assert.equal(
+      elements(tree).some((element) => element.type === "ConnectionFeedback"),
+      false,
+    );
+    h.check.error = undefined;
+    h.button(h.render(), "Kiểm tra lịch và Credit").onPress();
+    await flush();
+    h.finalize.error = new AppError(
+      "http",
+      409,
+      "INVALID_SCHEDULE_ITEMS",
+      0,
+      scheduleTimeDetails(h.query.data),
+    );
+    h.button(h.render(), "Chốt lịch và tạm giữ Credit").onPress();
+    await flush();
+    tree = h.render();
+    assert.ok(invalidNotice(tree));
+    assert.equal(invalidNotice(tree)?.props.error, h.finalize.error);
+    assert.equal(invalidNotice(tree)?.props.snapshotCurrent, true);
+    assert.equal(
+      elements(tree).some((node) => node.props.tone === "success"),
+      false,
+    );
+    const rejectedButton = h.button(tree, "Chốt lịch và tạm giữ Credit");
+    assert.equal(rejectedButton.disabled, true);
+    rejectedButton.onPress();
+    assert.equal(h.counts().finalizations, 1);
+    assert.equal(
+      elements(tree).some((element) => element.type === "ConnectionFeedback"),
+      false,
+    );
+    h.query.data.currentVersion++;
+    assert.equal(invalidNotice(h.render())?.props.snapshotCurrent, false);
+    h.button(tree, "Kiểm tra lịch và Credit").onPress();
+    await flush();
+    assert.equal(invalidNotice(h.render()), undefined);
+  } finally {
+    h.cleanup();
+  }
+});
+
 test("a one-way Hold check without payer details offers top-up only to the learner", async () => {
   for (const viewerId of [teacherId, learnerId]) {
     const h = holdHarness(viewerId);
@@ -376,7 +440,7 @@ test("a one-way Hold check without payer details offers top-up only to the learn
         409,
         "INSUFFICIENT_AVAILABLE_CREDIT",
       );
-      h.button(h.render(), "Kiểm tra điều kiện trên hệ thống").onPress();
+      h.button(h.render(), "Kiểm tra lịch và Credit").onPress();
       await flush();
       const feedback = elements(h.render());
       assert.equal(
@@ -417,10 +481,10 @@ test("finalizing a two-way schedule publishes one notification for all six sessi
     }
     h.validateAs({ version: 3, planCount: 2, scheduleCount: 2 });
     h.finalizeSuccessfully();
-    h.button(h.render(), "Kiểm tra điều kiện trên hệ thống").onPress();
+    h.button(h.render(), "Kiểm tra lịch và Credit").onPress();
     await flush();
     assert.equal(h.notices.length, 0);
-    h.button(h.render(), "Xác nhận chốt lịch và tạm giữ Credit").onPress();
+    h.button(h.render(), "Chốt lịch và tạm giữ Credit").onPress();
     await flush();
     assert.equal(h.notices.length, 1);
     assert.equal(
@@ -437,14 +501,14 @@ test("finalizing a two-way schedule publishes one notification for all six sessi
 test("Hold UI requires a matching server validation, then invalidates it when the snapshot changes", async () => {
   const h = holdHarness();
   try {
-    const label = "Xác nhận chốt lịch và tạm giữ Credit";
+    const label = "Chốt lịch và tạm giữ Credit";
     assert.equal(h.button(h.render(), label).disabled, true);
     h.validateAs({ version: 2, planCount: 1, scheduleCount: 1 });
-    h.button(h.render(), "Kiểm tra điều kiện trên hệ thống").onPress();
+    h.button(h.render(), "Kiểm tra lịch và Credit").onPress();
     await flush();
     assert.equal(h.button(h.render(), label).disabled, true);
     h.validateAs({ version: 3, planCount: 1, scheduleCount: 1 });
-    h.button(h.render(), "Kiểm tra điều kiện trên hệ thống").onPress();
+    h.button(h.render(), "Kiểm tra lịch và Credit").onPress();
     await flush();
     assert.equal(h.button(h.render(), label).disabled, false);
     h.query.data = { ...h.query.data, currentVersion: 4 };
@@ -455,15 +519,103 @@ test("Hold UI requires a matching server validation, then invalidates it when th
   }
 });
 
+test("eligibility survives background refresh when only overview metadata changes", async () => {
+  const h = holdHarness();
+  try {
+    h.query.data.overview = overviewFixture();
+    h.button(h.render(), "Kiểm tra lịch và Credit").onPress();
+    await flush();
+    const label = "Chốt lịch và tạm giữ Credit";
+    assert.match(text(h.render()), /Đủ điều kiện tại lần kiểm tra này/);
+    h.query.isFetching = true;
+    assert.equal(h.button(h.render(), label).disabled, true);
+    h.query.data = {
+      ...h.query.data,
+      overview: {
+        ...h.query.data.overview!,
+        evaluatedAt: "2030-01-01T00:00:01Z",
+      },
+      attentionItems: [],
+    };
+    h.query.isFetching = false;
+    assert.match(text(h.render()), /Đủ điều kiện tại lần kiểm tra này/);
+    assert.equal(h.button(h.render(), label).disabled, false);
+    assert.equal(h.counts().finalizations, 0);
+  } finally {
+    h.cleanup();
+  }
+});
+
+test("eligibility is cleared when agreement, plan or schedule data changes", async () => {
+  for (const change of ["agreement", "plan", "schedule"] as const) {
+    const h = holdHarness();
+    try {
+      h.button(h.render(), "Kiểm tra lịch và Credit").onPress();
+      await flush();
+      if (change === "agreement")
+        h.query.data.agreement.negotiatedCredit = "15.00";
+      if (change === "plan") h.query.data.plans[0]!.version++;
+      if (change === "schedule")
+        h.query.data.plans[0]!.schedule!.items[0]!.endAt =
+          "2030-01-02T12:00:00Z";
+      const tree = h.render();
+      assert.doesNotMatch(text(tree), /Đủ điều kiện tại lần kiểm tra này/);
+      const button = h.button(tree, "Chốt lịch và tạm giữ Credit");
+      assert.equal(button.disabled, true);
+      button.onPress();
+      assert.equal(h.counts().finalizations, 0);
+    } finally {
+      h.cleanup();
+    }
+  }
+});
+
 test("unknown finalize exposes explicit recovery, blocks a new intent and refreshes after recovery", async () => {
   const h = holdHarness();
   try {
-    const label = "Xác nhận chốt lịch và tạm giữ Credit";
-    h.button(h.render(), "Kiểm tra điều kiện trên hệ thống").onPress();
+    const label = "Chốt lịch và tạm giữ Credit";
+    h.button(h.render(), "Kiểm tra lịch và Credit").onPress();
     await flush();
     h.button(h.render(), label).onPress();
     await flush();
     assert.equal(h.button(h.render(), label).disabled, true);
+    for (const error of [
+      new AppError(
+        "http",
+        409,
+        "INVALID_SCHEDULE_ITEMS",
+        0,
+        scheduleTimeDetails(h.query.data),
+      ),
+      new AppError("http", 409, "INSUFFICIENT_AVAILABLE_CREDIT", 0, {
+        userIds: [teacherId],
+      }),
+    ]) {
+      h.finalize.error = error;
+      const recovery = elements(h.render());
+      assert.equal(
+        recovery.some(
+          (node) =>
+            typeof node.type === "function" &&
+            node.type.name === "ScheduleValidationFeedback",
+        ),
+        false,
+      );
+      assert.equal(
+        recovery.some((node) => node.type === "ConnectionFeedback"),
+        false,
+      );
+      assert.equal(
+        recovery.some((node) => node.props.href === "/wallet/topup"),
+        false,
+      );
+      assert.ok(
+        recovery.some(
+          (node) => node.type === "FormNotice" && node.props.tone === "warning",
+        ),
+      );
+      assert.equal(h.button(h.render(), label).disabled, true);
+    }
     h.button(h.render(), "Kiểm tra lại lần chốt trước").onPress();
     await flush();
     assert.deepEqual(h.counts(), {
@@ -481,20 +633,20 @@ test("refresh errors and expired sessions cannot unlock finalization", async () 
   try {
     h.query.error = new Error("refresh failed");
     assert.equal(
-      h.button(h.render(), "Kiểm tra điều kiện trên hệ thống").disabled,
+      h.button(h.render(), "Kiểm tra lịch và Credit").disabled,
       true,
     );
     h.query.error = undefined;
     h.expire();
-    h.button(h.render(), "Kiểm tra điều kiện trên hệ thống").onPress();
+    h.button(h.render(), "Kiểm tra lịch và Credit").onPress();
     await flush();
     assert.equal(
-      h.button(h.render(), "Xác nhận chốt lịch và tạm giữ Credit").disabled,
+      h.button(h.render(), "Chốt lịch và tạm giữ Credit").disabled,
       true,
     );
     h.query.data = { ...agreementPath(), plans: [] };
     assert.equal(
-      h.button(h.render(), "Kiểm tra điều kiện trên hệ thống").disabled,
+      h.button(h.render(), "Kiểm tra lịch và Credit").disabled,
       true,
     );
   } finally {
@@ -559,6 +711,7 @@ function entryHarness() {
       }),
     },
     "./PathReadFeedback": { PathReadFeedback: "PathReadFeedback" },
+    "@/components/FormNotice": { FormNotice: "FormNotice" },
     "@/features/messages/state": {
       useConfirmedFormShare: () => ({ publish: async () => {} }),
     },

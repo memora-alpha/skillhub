@@ -1,7 +1,8 @@
 import { View } from "react-native";
-import { Copy } from "@/components/feature-page";
+import { FormNotice } from "@/components/FormNotice";
 import { Button } from "@/components/Button";
 import { useConfirmedFormShare } from "../hooks/use-confirmed-form-share";
+import { formDeliveryNotice } from "../utils/form-delivery-notice";
 
 export function ConfirmedFormFeedback({
   conversationId,
@@ -15,13 +16,12 @@ export function ConfirmedFormFeedback({
     <View style={{ gap: 8 }}>
       {pending.map((item) => (
         <View key={item.clientMessageId} style={{ gap: 6 }}>
-          <Copy muted>
-            {item.state === "sending"
-              ? "Đang gửi form đã xác nhận vào Chat…"
-              : item.state === "processing"
-                ? "Xác nhận đã lưu. Thẻ Chat đang được xử lý."
-                : "Xác nhận đã lưu, nhưng chưa gửi được thẻ vào Chat."}
-          </Copy>
+          <FormNotice
+            tone={item.state === "failed" ? "warning" : "info"}
+            compact
+          >
+            {formDeliveryNotice(item)}
+          </FormNotice>
           {item.state !== "sending" && (
             <Button
               variant="secondary"
@@ -39,7 +39,7 @@ export function ConfirmedFormFeedback({
                 void sender.retry(item);
               }}
             >
-              Gửi lại thẻ đã xác nhận
+              Gửi lại thẻ vào Chat
             </Button>
           )}
         </View>

@@ -20,7 +20,7 @@ Phạm vi Phase 05–06 nằm trong một work với hai mốc bên dưới. Gi�
 
 Luồng: Learning Request hoặc Sharing Skill → gửi proposal → Đã gửi → người nhận accept → Chat.
 
-- [x] Dọn component/props/nhánh UI/style không còn consumer sau thiết kế gọn; khôi phục8 test Proposal cũ và tách test focus mới; full checks, web export và fixture không đổi hành vi. Sau khi kiểm tra mức sẵn sàng, chia commit local theo yêu cầu tiếp của người dùng; giữ API/native acceptance riêng.
+- [x] Dọn component/props/nhánh UI/style không còn consumer; khôi phục8 test Proposal cũ và tách test focus mới. Full checks, web export và fixture giữ nguyên hành vi; API/native acceptance còn riêng.
 
 - [x] Sửa mobile sau rà liên feature: preflight/gửi/sửa/chấp nhận và recovery Proposal chỉ điều hướng trong lượt mở màn hiện tại, giữ session/idempotency; bỏ giới hạn tổng 100 Path lỗi thời khi danh sách đã phân trang đủ. Đưa Cài đặt thành icon bánh răng cạnh Chỉnh sửa trên hồ sơ riêng và sửa khóa chọn ảnh khi picker hoàn tất lúc màn mất focus.
 
@@ -34,21 +34,43 @@ Luồng: Learning Request hoặc Sharing Skill → gửi proposal → Đã gửi
 
 ## Mốc 2 — Plan & Schedule
 
-- [x] Rà banner/chú thích liên feature theo phản hồi tranh chấp: sửa warning và lỗi hủy để chỉ rõ Credit chờ xử lý; Hold phản ánh trạng thái hủy/tranh chấp/hoàn thành và đã duyệt hủy; consent đã lưu không lấn át blocker quyết toán. Đối chiếu backend, thêm regression; sửa hướng dẫn editor Learning Request theo trạng thái tại work Phase04. Không đổi quyền hay mutation.
+- [x] Refactor15 cảnh báo Sonar trong9 file của luồng lịch/Chat: tách nội dung thẻ lịch, điều kiện feedback, ternary và template lồng nhau; giữ hành vi và wire message. Kiểm regression98 tests, TypeScript, lint và structure; kết quả phân tích SonarCloud mới còn chờ.
 
-- [x] Rà lại toàn bộ phần UI/điều hướng vừa sửa theo yêu cầu: sửa fallback icon/màu trạng thái khi learningStage null, khóa xác nhận lịch trong refresh/read error cả ở handler. Regression trạng thái, blocked/recovery, nhiều buổi/hai chiều, test quyết toán phù hợp yêu cầu đã bỏ nút chung; kiểm toàn bộ mobile và web export. API/native acceptance giữ riêng.
+- [x] Bỏ settlement component/helper/API/schema cũ không còn consumer; giữ luồng đổi lịch Session đang dùng. Sửa mock ProfileReviews và pagination của sessions fixture theo contract, tăng assertion lỗi; kiểm toàn bộ1098 tests, unused types, lint, structure935 và web export. API/native acceptance còn riêng.
 
-- [x] Theo lựa chọn rõ của người dùng ngày 2026-11-09, Tình hình học tập chỉ giữ tóm tắt, không render danh sách attention và các nút case/Session riêng. Toàn màn Lịch học giữ một nút Xem tất cả buổi học mở danh sách của cả lộ trình, không đi qua tóm tắt vụ việc. Giữ dữ liệu/route vụ việc hiện có cho các luồng riêng.
+- [x] Đồng bộ recovery khi đọc lại lịch: xác nhận của chính người dùng trên lịch hiện tại thay warning chưa rõ bằng thông báo đã đồng ý, giữ khả năng hoàn tất thẻ Chat với intent cũ; đọc lại không tự POST hay giả Chat đã gửi. Scope command theo actor/Path/plan/schedule/version/trạng thái để lịch mới không giữ recovery cũ. Với finalize chưa rõ kết quả, chỉ hiện recovery, không đồng thời báo lỗi thời gian hoặc yêu cầu nạp Credit từ lỗi replay.
 
-- [x] Làm rõ điều hướng theo phản hồi nhiều buổi học: tóm tắt vụ việc phân biệt buổi cụ thể với toàn bộ buổi của lộ trình, CTA tổng dùng nhãn Xem tất cả buổi học. Kiểm danh sách gom đầy đủ cả hai chiều và khác tháng. Bỏ card trạng thái chung bị rỗng, dùng thông báo ngắn có mô tả cho hủy/tranh chấp/hoàn thành. Session screen chỉ chỉnh title/số lượng trong phạm vi người dùng yêu cầu, không sửa API hay policy.
+- [x] Rút gọn câu chữ trên luồng: lỗi giờ qua hạn nêu buổi, người dạy/kỹ năng, thời gian và hướng sửa; bỏ giờ máy chủ/múi giờ lặp. Nút kiểm tra/chốt và cảnh báo nội dung đã cập nhật dùng lời hướng dẫn trực tiếp; giữ schema, version guards, quyền và policy BE.
 
-- [x] Thiết kế lại màn Lịch học theo phản hồi tiếp: đối tác → bốn bước → tổng quan có dữ liệu → lịch từng chiều → hành động chính. Các chiều dùng dòng phẳng với trạng thái, kỹ năng, số buổi/ngày bắt đầu; nút chính nằm trong phần lịch, chat là thao tác phụ. Giữ một link danh sách Session kể cả read lỗi. Màn lịch từng buổi ưu tiên trạng thái trước hình thức và chuyển chú thích múi giờ xuống dưới; không đổi API/quyền/xác nhận.
+- [x] Đồng bộ feedback khi gửi/sửa/xác nhận: lỗi nghiệp vụ có banner rõ, form kế hoạch/lịch giữ feedback cạnh nút gửi; kết quả chưa rõ dùng warning và bước kiểm tra riêng. Khóa xác nhận lịch mới khi đang recovery, retry đúng intent trước; thẻ Chat nói rõ thao tác nào đã lưu và chỉ gửi lại thẻ. Hủy/quyết toán giữ phân biệt receipt và kết quả Credit, không lặp đồng thời lỗi chung với warning chưa rõ kết quả.
 
-- [x] Theo phản hồi tiếp 2026-11-09, đối chiếu source giao diện cũ và đưa phần đối tác về trên thanh bước. Card Tình hình học tập chỉ hiện ở bước Lịch học (theo đính chính của người dùng), trước các nội dung lịch; không lặp ở Cách học/Lộ trình/Hoàn tất và không thêm card đầy đủ vào danh sách. Giữ điều kiện chỉ hiện dữ liệu hữu ích.
+- [x] Giữ kết quả đủ điều kiện qua refetch chỉ thay metadata overview/attention. Dấu nhận diện kiểm tra dựa trên Path, trạng thái, điều khoản, kế hoạch và lịch thực tế; thay nội dung/version vẫn vô hiệu hóa kết quả và chặn chốt. Regression cho refresh nền và thay agreement/plan/schedule.
 
-- [x] Tinh gọn thỏa thuận theo phản hồi tiếp ngày 2026-11-09: bỏ điều hướng lặp với Back/stepper và nút vụ việc chung; cách học dùng các dòng thông tin, Credit và xác nhận. Tổng quan chỉ trình bày dữ liệu có thật, không hiện nhãn giai đoạn chưa xác định/cảnh báo dữ liệu thiếu; bỏ tổng quan trùng khi đã hoàn tất. Giữ các thao tác cụ thể cần xử lý và lỗi mạng có retry.
+- [x] Rà/dọn toàn bộ diff: bỏ metadata số buổi chưa dùng của thẻ xác nhận, tách thẻ mới khỏi đường gom legacy, bỏ export helper chỉ phục vụ test và reset checked lặp. Tái hiện/sửa sự kiện đổi giờ/phút trước render; kiểm đủ tests/types/lint/structure/export và ba fixture, giữ hai lỗi baseline ngoài scope riêng.
 
-- [x] Thiết kế lại list lộ trình và bước Lịch học theo yêu cầu ngày 2026-11-09: thẻ chỉ giữ thông tin nhận diện, trạng thái và một cập nhật ưu tiên; đưa tiến trình bốn bước lên đầu, bỏ metadata/chú thích/nút chat trùng. Nguồn thiết kế là yêu cầu hiện tại và pattern/theme SkillHub trong source, không có frame mới. Giữ API, quyền, confirmation và recovery; tổng quan chi tiết đặt sau nội dung bước đang mở.
+- [x] Thay bộ lọc Đã xác nhận dễ hiểu nhầm bằng nhóm đủ vòng đời, tách Chờ quyết toán/Tranh chấp; ưu tiên stage BE, fallback status. Nói rõ phạm vi các trang đã tải, giữ filter khi tải thêm, không báo rỗng toàn danh sách khi còn trang và giữ thứ tự/cursor BE.
+
+- [x] Nối chi tiết `INVALID_SCHEDULE_ITEMS` trên final-validation/finalize theo [contract](../../contracts/backend-schedule-validation-gap.md): BE có plan/schedule/version/teacher/learner/buổi, bốn reason, giờ DB và policy; mobile validate details, ưu tiên kết luận server và đối chiếu snapshot trước khi hiển thị. Khác phiên bản yêu cầu tải lại, không gắn lỗi cũ vào lịch mới. Nghiệm thu API triển khai/native còn mở; không sửa backend trong work này.
+- [x] Mobile xóa kết quả kiểm tra cũ ngay khi bắt đầu finalize để không còn thông báo xanh/nút chốt dựa trên validation đã hết giá trị sau khi bị từ chối; guard cả handler, giữ recovery cho kết quả chưa rõ. Regression tái hiện từ lượt review đã được kiểm lại.
+- [x] Đồng ý lịch từng chiều tự gửi thẻ Chat từ receipt sau confirm thành công; hiển thị người xác nhận/chờ ai/đủ xác nhận nhưng chưa chốt, giữ link đúng version và retry tin riêng. Invalidate list/nhóm/preview sau delivery, không giả chưa đọc. Không gửi thẻ chờ chốt cho receipt LOCKED. Source dùng cơ chế form hiện có, bảo đảm bền khi app tắt vẫn cần BE outbox.
+
+- [x] Sửa chọn giờ Android sang hai cột cuộn ngay trong form tạo/sửa lịch; kiểm tra/chốt lịch báo thời gian không hợp lệ phải chỉ rõ chiều dạy, buổi, giờ và lý do từ snapshot hiện tại. API chưa trả chi tiết thì giữ fallback rõ giới hạn; không đoán người sai khi không có bằng chứng local.
+
+- [x] Sửa banner/chú thích tranh chấp: warning và lỗi hủy chỉ rõ Credit chờ xử lý; Hold phản ánh trạng thái hủy/tranh chấp/hoàn thành và đã duyệt hủy; consent đã lưu không lấn át blocker quyết toán. Đối chiếu backend, thêm regression; sửa hướng dẫn editor Learning Request theo trạng thái tại work Phase04. Không đổi quyền hay mutation.
+
+- [x] Sửa fallback icon/màu trạng thái khi learningStage null; khóa xác nhận lịch trong refresh/read error cả ở handler. Regression bao phủ trạng thái, blocked/recovery, nhiều buổi/hai chiều và quyết toán không có nút chung; kiểm toàn bộ mobile và web export. API/native acceptance giữ riêng.
+
+- [x] Tình hình học tập chỉ giữ tóm tắt, không render danh sách attention và các nút case/Session riêng. Màn Lịch học có một nút Xem tất cả buổi học mở danh sách của cả lộ trình, không đi qua tóm tắt vụ việc. Giữ dữ liệu/route vụ việc cho các luồng riêng.
+
+- [x] Tóm tắt vụ việc phân biệt buổi cụ thể với toàn bộ buổi của lộ trình; CTA tổng dùng nhãn Xem tất cả buổi học. Kiểm danh sách gom đầy đủ cả hai chiều và khác tháng. Bỏ card trạng thái chung bị rỗng, dùng thông báo ngắn có mô tả cho hủy/tranh chấp/hoàn thành. Session screen chỉ đổi title/số lượng, không sửa API hay policy.
+
+- [x] Sắp nội dung màn Lịch học: đối tác → bốn bước → tổng quan có dữ liệu → lịch từng chiều → hành động chính. Các chiều dùng dòng phẳng với trạng thái, kỹ năng, số buổi/ngày bắt đầu; nút chính nằm trong phần lịch, chat là thao tác phụ. Giữ một link danh sách Session kể cả read lỗi. Màn lịch từng buổi ưu tiên trạng thái trước hình thức và chuyển chú thích múi giờ xuống dưới; không đổi API/quyền/xác nhận.
+
+- [x] Đặt phần đối tác trên thanh bước. Card Tình hình học tập chỉ hiện ở bước Lịch học, trước các nội dung lịch; không lặp ở Cách học/Lộ trình/Hoàn tất và không thêm card đầy đủ vào danh sách. Chỉ hiện dữ liệu hữu ích.
+
+- [x] Bỏ điều hướng lặp với Back/stepper và nút vụ việc chung; cách học dùng các dòng thông tin, Credit và xác nhận. Tổng quan chỉ trình bày dữ liệu có thật, không hiện nhãn giai đoạn chưa xác định/cảnh báo dữ liệu thiếu; bỏ tổng quan trùng khi đã hoàn tất. Giữ các thao tác cụ thể cần xử lý và lỗi mạng có retry.
+
+- [x] Thẻ lộ trình chỉ giữ thông tin nhận diện, trạng thái và một cập nhật ưu tiên; đưa tiến trình bốn bước lên đầu, bỏ metadata/chú thích/nút chat trùng. UI tái sử dụng pattern/theme SkillHub hiện có. Giữ API, quyền, confirmation và recovery; tổng quan chi tiết đặt sau nội dung bước đang mở.
 
 Luồng: Chat → Cách học → Lộ trình → Lịch học → server validation/finalize.
 
@@ -58,7 +80,7 @@ Luồng: Chat → Cách học → Lộ trình → Lịch học → server valida
 - [x] Hai bên xác nhận cùng version lịch; backend validation và finalize quyết định Hold/lock/tạo Session. Giữ recovery đúng intent khi mất phản hồi.
 - [x] Khi kiểm tra điều kiện hoặc chốt lịch báo thiếu Credit, hiển thị nút Nạp Credit mở màn `/wallet/topup` hiện có.
 - [x] Đọc chi tiết xung đột lịch và người thiếu Credit từ response 409. Giữ thông báo dự phòng cho API cũ.
-- [x] Cách học/lộ trình xác nhận thành công vẫn gửi form vào Chat; đồng ý từng lịch không gửi thêm card. Chốt lịch thành công gửi một thông báo tổng số Session của cả lộ trình, có nút Xem lịch học. Gửi chat lỗi chỉ retry tin, không thực hiện lại xác nhận/chốt lịch.
+- [x] Cách học/lộ trình và đồng ý từng lịch xác nhận thành công gửi form vào Chat theo yêu cầu cập nhật; thẻ lịch từng chiều giữ riêng người/phiên bản. Chốt lịch thành công gửi một thông báo tổng số Session của cả lộ trình, có nút Xem lịch học. Gửi chat lỗi chỉ retry tin, không thực hiện lại xác nhận/chốt lịch.
 - [x] Gộp các card lịch cùng conversation/path thành một thông báo gọn trong history; giữ tin thường/tệp và sequence mới nhất cho read watermark. Card cũ chỉ báo đã xác nhận, không suy ra chốt lịch hoặc tổng buổi từ history chưa đầy đủ.
 - [x] Card lịch dùng chung ChatWorkflowCard với card cách học/lộ trình: bố cục, avatar, căn phía người gửi, badge và link Xem lịch học thống nhất; giữ nội dung lịch đã gộp.
 - [x] Chuẩn hóa Back/footer, polling nền kết hợp kéo tải lại; bỏ fixture khỏi các route đã có API. Preview còn lại chỉ phục vụ các consumer chưa tích hợp ngoài luồng này.

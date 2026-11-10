@@ -310,7 +310,7 @@ test("withdrawn history identifies the requester and uses server send/close time
       );
     }
     h.request.closedAt = null;
-    assert.match(text(h.render()), /chưa có thời gian từ hệ thống/);
+    assert.match(text(h.render()), /chưa có thông tin thời gian/);
     assert.equal(h.calls.length, 0);
   } finally {
     h.close();
@@ -1072,7 +1072,7 @@ test("an uncertain financial consent stays blocked until an explicit retry/read,
     assert.equal(h.calls.length, count);
     h.setFail(false);
     h.consentReceipt.settlement.outcome = "RETRYING";
-    button(h.render(), "Gửi lại đồng ý").onPress();
+    button(h.render(), "Kiểm tra lại lần đồng ý trước").onPress();
     await tick();
     assert.match(text(h.render()), /chưa xác nhận Credit đã chuyển/);
     assert.equal(h.calls.filter((call) => call.method === "POST").length, 1);

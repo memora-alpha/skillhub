@@ -3,6 +3,26 @@ import type {
   ApiLearningPlan,
 } from "../api/learning-paths-contract";
 
+// Overview/attention are recomputed on every GET; eligibility belongs to the
+// agreement and schedule snapshot, not the time that overview was evaluated.
+export function finalizationValidationKey(path: ApiLearningPath) {
+  return JSON.stringify({
+    id: path.id,
+    currentVersion: path.currentVersion,
+    status: path.status,
+    participantAId: path.participantAId,
+    participantBId: path.participantBId,
+    lockedVersion: path.lockedVersion,
+    completedAt: path.completedAt,
+    settledAt: path.settledAt,
+    terminationApprovedAt: path.terminationApprovedAt,
+    agreement: path.agreement,
+    plans: [...path.plans].sort((left, right) =>
+      left.id.localeCompare(right.id),
+    ),
+  });
+}
+
 export const editablePath = (path: ApiLearningPath) =>
   path.lockedVersion === null &&
   ["PROPOSED", "PARTIALLY_CONFIRMED", "CONFIRMED"].includes(path.status);

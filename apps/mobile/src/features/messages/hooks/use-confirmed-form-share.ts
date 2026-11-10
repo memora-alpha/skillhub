@@ -29,7 +29,7 @@ export function useConfirmedFormShare() {
         queryKey: [...runtime.key, "thread", id],
       });
       void cache.invalidateQueries({
-        queryKey: [...runtime.key, "conversations", "preview", id],
+        queryKey: [...runtime.key, "conversations"],
       });
     },
   });

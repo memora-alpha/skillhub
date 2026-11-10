@@ -100,7 +100,9 @@ export function TerminationCreateForm({
   };
   const feedback = (
     <>
-      <TerminationFeedback error={command.error} />
+      <TerminationFeedback
+        error={command.uncertain ? undefined : command.error}
+      />
       <TerminationFeedback error={preflightError} />
       {command.uncertain && (
         <>

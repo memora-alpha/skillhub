@@ -4,7 +4,7 @@
 
 Tiếp tục Session đang có: từ Lịch học hoặc LearningPlan mở đúng Session thật; đọc đủ nội dung/tiến độ; xác nhận hoàn thành và cập nhật các màn liên quan; đề nghị và xác nhận đổi lịch cùng version khi backend đủ điều kiện.
 
-Chỉ thay `apps/mobile`, ưu tiên features sessions/calendar và public boundary của learning-paths. Không viết lại API completion đã nối. **LiveKit đang tích hợp ở nhánh khác theo người dùng: không triển khai token/media/RoomScreen, không thêm SDK hoặc sửa camera/mic/app config trong phase này.** Backend chỉ đọc để đối chiếu. Report/Dispute đầy đủ, settlement/reviews, hủy/no-show, thông báo và dữ liệu Home mẫu thuộc work khác.
+Chỉ thay `apps/mobile`, ưu tiên features sessions/calendar và public boundary của learning-paths. Không viết lại API completion đã nối. **LiveKit thuộc work tích hợp media riêng; token/media/RoomScreen, SDK và camera/mic/app config nằm ngoài phase này.** Backend chỉ đọc để đối chiếu. Report/Dispute đầy đủ, settlement/reviews, hủy/no-show, thông báo và dữ liệu Home mẫu thuộc work khác.
 
 ## Nhận diện và nguồn
 
@@ -12,7 +12,7 @@ Chỉ thay `apps/mobile`, ưu tiên features sessions/calendar và public bounda
 - Task cũ được tiếp nhận vào task dưới đây theo tham chiếu; đây là checklist thực hiện hiện hành duy nhất của work. Không cộng task lịch sử như một lần hoàn thành mới.
 - [Contract Session hiện hành](../../contracts/sessions.md), [contract thỏa thuận](../../contracts/proposal-learning-agreement.md), [workflow](../../workflow.md), [API guide](../../guides/api-client.md), [state/session](../../guides/state-and-session.md).
 - [SRS 1.6](../../../../../docs/SRS_SkillHub_V1.6_VietLai_DongBoNghiepVu.docx) §18.18–18.20, §18.23, §18.33, §18.38. Thời lượng 60–180 phút, cutoff 60 phút đã chốt; policy hủy/no-show/timeout chưa chốt.
-- Baseline working tree `be4738b9`, nhánh `feat/mobile-session`; thời điểm và kết quả audit tại [status](status.md). Không tự checkout/merge nhánh LiveKit chưa được xác định.
+- Baseline `be4738b9`; thời điểm và kết quả audit tại [status](status.md).
 
 ## Kết quả rà luồng trước triển khai
 
@@ -23,7 +23,7 @@ Chỉ thay `apps/mobile`, ưu tiên features sessions/calendar và public bounda
 | Danh sách Session theo Path | Đọc mine trong tháng rồi lọc Path                                                     | Không đủ để gọi là toàn bộ buổi của Path; dùng Path detail hiện có cho danh sách toàn Path hoặc giữ màn theo tháng với nhãn phạm vi rõ |
 | Detail → hoàn thành         | Modal/POST/preflight/receipt/read reconcile đã có                                     | Schema chưa đọc progress; invalidation hiện tập trung sessions, chưa đồng bộ Path consumer                                             |
 | Detail → đổi lịch           | Form draft, gửi bị khóa                                                               | Đọc proposal qua Path; READY/cutoff/state CTA; POST propose/confirm, stale/unknown/reload và lịch hiệu lực                             |
-| Phòng học                   | Backend có contract; RoomScreen trong checkout là preview                             | Do nhánh LiveKit khác sở hữu, không phải task triển khai của phase này                                                                 |
+| Phòng học                   | Backend có contract; RoomScreen trong checkout là preview                             | Do work LiveKit sở hữu, không phải task triển khai của phase này                                                                 |
 | Session → report            | Backend có create/mine; mobile local preview                                          | Bàn giao Phase 08, không mở link Session thật vào editor preview                                                                       |
 
 GAP-01 lịch sử không còn là “không có bất kỳ GET đọc proposal”: `GET /learning-paths/:id` hiện có version/appliedVersion/items/xác nhận. Serializer BigInt của detail cũng đã được xử lý trong source. Conflict tại confirm đổi lịch cuối vẫn cần bằng chứng backend; không đánh dấu mọi gap đã đóng.
@@ -38,7 +38,7 @@ GAP-01 lịch sử không còn là “không có bất kỳ GET đọc proposal�
 | S04 Navigation & Lifecycle   | Back/deep link/refetch/account switch đúng                                         | Các lát cắt liên quan đã nối                                    |
 | S05 Integration & Edge Cases | Concurrent/stale/unknown/denial có kiểm chứng                                      | Backend test cho đổi lịch cuối; không dùng fixture để đóng gate |
 | S06 Verification & Cleanup   | Checks, regression và docs đúng scope                                              | Source đã triển khai; ghi riêng phần unavailable                |
-| S99 Review & Acceptance      | API hai tài khoản và Android/iOS                                                   | Môi trường test hợp lệ; LiveKit kiểm theo work nhánh khác       |
+| S99 Review & Acceptance      | API hai tài khoản và Android/iOS                                                   | Môi trường test hợp lệ; LiveKit kiểm theo work LiveKit       |
 
 ### S01 — Baseline và contract
 
@@ -47,7 +47,7 @@ GAP-01 lịch sử không còn là “không có bất kỳ GET đọc proposal�
 
 ### S02 — Tái sử dụng UI
 
-- [x] P07-S02-T01 Dùng SessionPage/SessionFeedback, detail/modal/picker hiện có, Nunito/theme và timeline Plan làm nguồn thiết kế; xác định vị trí context/tiến độ, lịch hiện tại/lịch đề xuất, xác nhận A/B và CTA. Chưa có frame mới; không tuyên bố pixel-match. Không sửa room/card LiveKit do nhánh khác sở hữu. Shared component chỉ đổi nếu cần và kiểm consumer đang dùng.
+- [x] P07-S02-T01 Dùng SessionPage/SessionFeedback, detail/modal/picker hiện có, Nunito/theme và timeline Plan làm nguồn thiết kế; xác định vị trí context/tiến độ, lịch hiện tại/lịch đề xuất, xác nhận A/B và CTA. Chưa có frame mới; không tuyên bố pixel-match. Không sửa room/card LiveKit thuộc work LiveKit. Shared component chỉ đổi nếu cần và kiểm consumer đang dùng.
 
 ### S03 — Hoàn thiện từng lát cắt
 
@@ -59,7 +59,7 @@ GAP-01 lịch sử không còn là “không có bất kỳ GET đọc proposal�
 
 ### S04 — Điều hướng và lifecycle
 
-- [x] P07-S04-T01 Kiểm Calendar/Plan/Path list → detail → đổi lịch → Back; legacy `/session/[id]` vẫn mở detail thật. Deep link có fallback an toàn; ID mẫu không request/fallback. Focus/resume chỉ refetch reads; người dùng ở màn khác/account khác không nhận late response hoặc tự replay POST. Giữ boundary nhánh LiveKit: không sửa `/learning-sessions/[id]/room`; thống kê file chung schema/detail/runtime để đối chiếu khi ghép, không tự merge.
+- [x] P07-S04-T01 Kiểm Calendar/Plan/Path list → detail → đổi lịch → Back; legacy `/session/[id]` vẫn mở detail thật. Deep link có fallback an toàn; ID mẫu không request/fallback. Focus/resume chỉ refetch reads; người dùng ở màn khác/account khác không nhận late response hoặc tự replay POST. Giữ phạm vi LiveKit: không sửa `/learning-sessions/[id]/room`; thống kê file chung schema/detail/runtime để đối chiếu khi tích hợp LiveKit.
 
 ### S05 — Tích hợp và ca lỗi
 
@@ -73,7 +73,7 @@ GAP-01 lịch sử không còn là “không có bất kỳ GET đọc proposal�
 
 ### S99 — Review và nghiệm thu
 
-- [x] P07-S99-T01 Technical/UI review source/contract/diff và evidence các lát cắt; xác định rõ phần nào đã nối, phần nào unavailable, file nào cần phối hợp với nhánh LiveKit. Không tự ghi owner đã duyệt.
+- [x] P07-S99-T01 Technical/UI review source/contract/diff và evidence các lát cắt; xác định rõ phần nào đã nối, phần nào unavailable, file nào cần phối hợp với work LiveKit. Không tự ghi owner đã duyệt.
 - [ ] P07-S99-T02 Nghiệm thu API hai tài khoản và Android/iOS theo bảng dưới; tiếp nhận spec006/T019/T020. Không đóng phase nếu reschedule vẫn gated hoặc API/native chưa đạt tiêu chí; có thể ghi source complete; acceptance pending. Việc điều chỉnh phạm vi để bỏ acceptance cần quyết định có nguồn.
 
 ## Ma trận hành vi
@@ -104,13 +104,13 @@ Môi trường: API test đã migrate/cấp quyền/config đúng, hai participa
 | 7   | C truy cập; A logout/đổi account giữa request                                    | Denied/không lộ cache; không late mutation/navigation sang phiên khác                             |
 | 8   | Android/iOS: keyboard/picker, font lớn, hardware Back/gesture, background/resume | Không mất draft ngoài dự kiến, không gửi POST tự động; UI đọc được và tương tác đúng              |
 
-Không có API/device thì ghi NOT_RUN, giữ acceptance mở. Media/camera/mic/token/reconnect do nhánh LiveKit kiểm riêng, không là điều kiện hoàn thành implementation Session của phase này.
+Không có API/device thì ghi NOT_RUN, giữ acceptance mở. Media/camera/mic/token/reconnect do work LiveKit kiểm riêng, không là điều kiện hoàn thành implementation Session của phase này.
 
 ## Câu hỏi và dependency
 
 - **SESSION-DEP-01:** conflict nguyên tử ở confirm cuối; backend owner cần xử lý/xác minh qua công việc riêng, phase này không cấp quyền sửa backend.
 - **SESSION-DEP-02/03:** API đích/read mapping và config test đúng SRS. Có thể triển khai phần read/schema/fixture trước.
 - **SESSION-DEP-04:** proposeReschedule so cả buổi giữ nguyên trong candidate với chính Session đó trong otherSessions; lịch nhiều buổi có thể bị SCHEDULE_CONFLICT giả. Cần sửa/xác minh backend riêng trước khi mở mutation; xem diagnostic trong contract. Không sửa backend trong task UI.
-- **LIVEKIT-HANDOFF:** chưa có tên/ref nhánh LiveKit; chỉ cần khi đối chiếu tích hợp giữa hai nhánh. Không chặn Session context/completion/đổi lịch, không tự chọn nhánh hoặc làm lại phần tích hợp.
+- **LIVEKIT-HANDOFF:** cần đối chiếu các file dùng chung với work LiveKit khi tích hợp; không chặn Session context/completion/đổi lịch.
 - **REPORT-HANDOFF:** Phase 08 sở hữu report thật, evidence và owner detail/read gap. Giữ Session thật không đi editor preview.
 - Không quyết định thay PO về completion timeout, auto-confirm, dispute window, cancel/no-show hoặc tiền phạt. Chúng không được thêm để đóng phase Session.

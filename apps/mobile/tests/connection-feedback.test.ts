@@ -23,13 +23,13 @@ test("rate limits have calm inline feedback without retry; other failures keep a
   const stubs = {
     "react/jsx-runtime": { jsx, jsxs: jsx },
     "react-native": {
-      ActivityIndicator: "Spinner",
       View: "View",
       Text: "Text",
       Pressable: "Pressable",
       StyleSheet: { create: (value: unknown) => value },
     },
     "@/components/Icon": { Icon: "Icon" },
+    "@/components/FormNotice": { FormNotice: "Notice" },
     "@/components/LoadingIndicator": { LoadingIndicator: "Spinner" },
   };
   const mocks = Object.entries(stubs).map(([name, namedExports]) =>
@@ -37,7 +37,7 @@ test("rate limits have calm inline feedback without retry; other failures keep a
   );
   try {
     delete local.cache[filename];
-    const { ConnectionFeedback } = local(
+    const { ConnectionFeedback, connectionError } = local(
       filename,
     ) as typeof import("../src/features/connections/components");
     let retries = 0;
@@ -73,6 +73,25 @@ test("rate limits have calm inline feedback without retry; other failures keep a
     (pending.props.onPress as () => void)();
     assert.equal(retries, 1);
     assert.equal(ConnectionFeedback({}), null);
+    for (const status of [409, 429, 503]) {
+      const notice = elements(
+        ConnectionFeedback({
+          error: new AppError("http", status),
+          errorPresentation: "notice",
+        }),
+      ).find((item) => item.type === "Notice")!;
+      assert.equal(notice.props.tone, status === 429 ? "warning" : "error");
+    }
+    assert.doesNotMatch(
+      connectionError(new AppError("protocol")) ?? "",
+      /hợp đồng|protocol/,
+    );
+    assert.match(
+      connectionError(
+        new AppError("http", 409, "COMMAND_RECONCILE_REQUIRED"),
+      ) ?? "",
+      /kiểm tra trạng thái trước khi gửi tiếp/,
+    );
   } finally {
     delete local.cache[filename];
     mocks.reverse().forEach((item) => item.restore());

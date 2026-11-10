@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Copy } from "@/components/feature-page";
 import { FlowSection as Panel } from "@/components/learning-flow";
 import { Button } from "@/components/Button";
+import { FormNotice } from "@/components/FormNotice";
 import {
   ConnectionFeedback,
   useConnections,
@@ -125,12 +126,17 @@ export function AgreementMethodStep({
             Hủy điều chỉnh
           </Button>
         )}
-        {!!command.error && <ConnectionFeedback error={command.error} />}
+        {!command.uncertain && (
+          <ConnectionFeedback
+            error={command.error}
+            errorPresentation="notice"
+          />
+        )}
         {command.uncertain && (
           <>
-            <Copy muted size="hint">
+            <FormNotice tone="warning" compact>
               Chưa rõ kết quả lần gửi. Kiểm tra trạng thái trước khi gửi tiếp.
-            </Copy>
+            </FormNotice>
             {!mine && (
               <Button
                 variant="secondary"
@@ -149,7 +155,7 @@ export function AgreementMethodStep({
                 void command.retry();
               }}
             >
-              Thử lại lần gửi trước
+              Kiểm tra lại lần gửi trước
             </Button>
           </>
         )}

@@ -21,6 +21,14 @@ function summary(id: number): PathSummary {
   };
 }
 
+type Element = { type: unknown; props: Record<string, unknown> };
+function elements(tree: unknown): Element[] {
+  if (Array.isArray(tree)) return tree.flatMap(elements);
+  if (!tree || typeof tree !== "object" || !("props" in tree)) return [];
+  const element = tree as Element;
+  return [element, ...elements(element.props.children)];
+}
+
 test("My Learning reads one bounded page while the exhaustive lookup still follows the cursor", async () => {
   const signal = new AbortController().signal;
   const calls: string[] = [];
@@ -64,18 +72,30 @@ test("path list renders its first page, loads another on request, and only enric
   const fetchNextPage = mock.fn();
   const refetch = mock.fn();
   let focused = true;
+  let selectedFilter: unknown = "all";
   const query = {
     items: [path, summary(11)],
     data: {},
     hasNextPage: true,
     isFetching: false,
+    isFetchingNextPage: false,
+    isFetchNextPageError: false,
+    error: undefined as unknown,
+    denied: false,
     fetchNextPage,
     refetch,
   };
   const profile = mock.fn(() => ({ data: { fullName: "Đối tác" } }));
   const jsx = (type: unknown, props: unknown) => ({ type, props });
   const mocks = {
-    react: { useState: (value: unknown) => [value] },
+    react: {
+      useState: () => [
+        selectedFilter,
+        (value: unknown) => {
+          selectedFilter = value;
+        },
+      ],
+    },
     "react/jsx-runtime": { jsx, jsxs: jsx },
     "react-native": {
       Pressable: "Pressable",
@@ -129,7 +149,9 @@ test("path list renders its first page, loads another on request, and only enric
         return cardText(
           (value as { props: { children?: unknown } }).props.children,
         );
-      return typeof value === "string" ? value : "";
+      return typeof value === "string" || typeof value === "number"
+        ? String(value)
+        : "";
     };
     for (const title of [
       "Học tiếng Anh giao tiếp ".repeat(10),
@@ -222,6 +244,77 @@ test("path list renders its first page, loads another on request, and only enric
     assert.deepEqual(refetch.mock.calls[0]?.arguments, [
       { cancelRefetch: false },
     ]);
+    const choose = (label: string) => {
+      const option = elements(ApiPathsContent().props.ListHeaderComponent).find(
+        (node) =>
+          node.type === "Pressable" && node.props.accessibilityLabel === label,
+      );
+      assert.ok(option, `Missing filter: ${label}`);
+      (option.props.onPress as () => void)();
+      return ApiPathsContent().props;
+    };
+    assert.equal(
+      elements(props.ListHeaderComponent).some(
+        (node) => node.props.accessibilityLabel === "Đã xác nhận",
+      ),
+      false,
+    );
+    let filtered = choose("Chờ bắt đầu");
+    assert.deepEqual(filtered.data, []);
+    assert.match(
+      cardText(filtered.ListHeaderComponent),
+      /Đang lọc trong\s+2\s+lộ trình đã tải/,
+    );
+    assert.match(filtered.ListEmptyComponent.props.title, /trong phần đã tải/);
+    assert.match(filtered.ListEmptyComponent.props.description, /Tải thêm/);
+    filtered.onEndReached();
+    assert.equal(
+      fetchNextPage.mock.callCount(),
+      1,
+      "selecting a filter does not scan further pages automatically",
+    );
+    filtered.ListFooterComponent.props.onPress();
+    assert.equal(fetchNextPage.mock.callCount(), 2);
+    const next = { ...summary(12), status: "SCHEDULED" as const };
+    query.items = [...query.items, next];
+    filtered = ApiPathsContent().props;
+    assert.deepEqual(filtered.data, [next]);
+    assert.match(
+      cardText(filtered.ListHeaderComponent),
+      /Đang lọc trong\s+3\s+lộ trình đã tải/,
+    );
+    assert.equal(
+      elements(filtered.ListHeaderComponent).find(
+        (node) => node.props.accessibilityLabel === "Chờ bắt đầu",
+      )?.props["aria-checked"],
+      true,
+    );
+    query.error = new Error("Could not load more");
+    query.isFetchNextPageError = true;
+    filtered = ApiPathsContent().props;
+    assert.deepEqual(filtered.data, [next]);
+    assert.equal(filtered.ListFooterComponent.type, "Feedback");
+    filtered.ListFooterComponent.props.query.refetch();
+    assert.equal(fetchNextPage.mock.callCount(), 3);
+    query.error = undefined;
+    query.isFetchNextPageError = false;
+    query.hasNextPage = false;
+    filtered = choose("Hoàn thành");
+    assert.equal(
+      filtered.ListEmptyComponent.props.title,
+      "Không có lộ trình ở trạng thái này",
+    );
+    assert.doesNotMatch(
+      cardText(filtered.ListHeaderComponent),
+      /chưa tải|đã tải/,
+    );
+    assert.equal(filtered.ListFooterComponent, null);
+    const all = choose("Tất cả");
+    assert.deepEqual(
+      all.data,
+      query.items,
+      "filtering never reorders the server's pages",
+    );
     focused = false;
     assert.equal(
       ApiPathsContent().props.renderItem({ item: path }).props.loadProfile,

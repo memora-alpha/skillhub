@@ -169,6 +169,7 @@ test("file messages stay in the message row and only open the authorized current
       readPlanShare: () => null,
       readConfirmedForm: () => null,
       readScheduledMessage: () => null,
+      readScheduleConfirmation: () => null,
       readNegotiationMessage: () => null,
       confirmedFormLabels: {},
     },

@@ -132,7 +132,9 @@ export function TerminationRequestCard({
   };
   const feedback = (
     <>
-      <TerminationFeedback error={command.error} />
+      <TerminationFeedback
+        error={command.uncertain ? undefined : command.error}
+      />
       {command.uncertain && (
         <>
           <FormNotice tone="warning" compact>

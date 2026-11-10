@@ -14,8 +14,8 @@ export function EditorRevisionNotice({
   return (
     <>
       <FormNotice tone="info" compact>
-        Có bản mới. Bản đang nhập được giữ lại, chưa thể gửi. Mở bản mới sẽ thay
-        nội dung này.
+        Nội dung đã được cập nhật. Phần đang nhập vẫn được giữ lại. Tải nội dung
+        mới sẽ thay phần đang nhập.
       </FormNotice>
       <Button
         variant="secondary"
@@ -24,7 +24,7 @@ export function EditorRevisionNotice({
           if (!disabled) onReload();
         }}
       >
-        Mở nội dung phiên bản mới
+        Tải nội dung mới
       </Button>
     </>
   );

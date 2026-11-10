@@ -150,7 +150,7 @@ test("schedule confirmation and waiting guidance use the current participant, in
   assert.equal(agreementProgress(path, teacherId).action, undefined);
   assert.match(
     agreementProgress(path, teacherId).waiting.join(),
-    /Chờ đối tác xác nhận lịch/,
+    /Chờ đối tác đồng ý lịch/,
   );
   assert.equal(canValidateForFinalize(path), false);
 });

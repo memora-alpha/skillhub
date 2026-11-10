@@ -31,16 +31,22 @@ import {
   canEditSchedule,
   canConfirmSchedule,
   canValidateForFinalize,
+  ownConfirmation,
 } from "../utils/policy-api";
 import type {
   ApiLearningPath,
   ApiLearningPlan,
 } from "../api/learning-paths-contract";
 import { ScheduleForm } from "../components/schedule-editor-form";
-import { ConfirmedFormFeedback } from "@/features/messages/state";
+import {
+  ConfirmedFormFeedback,
+  useConfirmedFormShare,
+} from "@/features/messages/state";
 import { FormNotice } from "@/components/FormNotice";
 import { scheduleDirections } from "../utils/schedule-directions";
 import { usePullRefresh } from "../hooks/use-pull-refresh";
+import { confirmAndShare } from "../api/confirm-and-share";
+import { scheduleConfirmationMessage } from "../utils/schedule-confirmation-message";
 
 export function ApiSchedulesScreen() {
   const { id, formPlanId, formScheduleId, formVersion } = useLocalSearchParams<{
@@ -75,8 +81,8 @@ export function ApiSchedulesScreen() {
                 current.id !== formScheduleId ||
                 String(current.version) !== formVersion ? (
                 <FormNotice tone="info" compact>
-                  Lịch đã thay đổi sau khi gửi form này. Hãy xem lịch hiện tại
-                  trước khi xác nhận.
+                  Lịch đã được cập nhật sau khi gửi thẻ này. Hãy xem lịch mới
+                  trước khi đồng ý.
                 </FormNotice>
               ) : null;
             })()}
@@ -91,10 +97,22 @@ export function ApiSchedulesScreen() {
             ({ key, plan, mine }) =>
               plan ? (
                 <SchedulePanel
-                  key={key}
+                  key={JSON.stringify([
+                    key,
+                    runtime.userId,
+                    path.id,
+                    path.currentVersion,
+                    path.status,
+                    path.lockedVersion,
+                    plan.id,
+                    plan.version,
+                    plan.schedule?.id,
+                    plan.schedule?.version,
+                  ])}
                   path={path}
                   plan={plan}
                   blocked={blocked}
+                  refresh={query.refetch}
                 />
               ) : (
                 <ScheduleMissingPlanCard
@@ -118,14 +136,81 @@ export function ApiSchedulesScreen() {
     </FeaturePage>
   );
 }
+function scheduleConfirmationFeedback({
+  command,
+  confirmationKnown,
+  locked,
+  blocked,
+  refresh,
+}: Readonly<{
+  command: ReturnType<typeof useConnectionCommand>;
+  confirmationKnown: boolean;
+  locked: boolean;
+  blocked: boolean;
+  refresh: () => unknown;
+}>) {
+  if (!command.uncertain)
+    return (
+      <ConnectionFeedback
+        error={confirmationKnown ? undefined : command.error}
+        errorPresentation="notice"
+      />
+    );
+  if (confirmationKnown) {
+    if (locked) return null;
+    return (
+      <>
+        <FormNotice tone="info" compact>
+          Bạn đã đồng ý lịch này. Bạn có thể gửi thẻ cập nhật vào Chat.
+        </FormNotice>
+        <Button
+          variant="secondary"
+          disabled={blocked || command.pending}
+          onPress={() => {
+            void command.retry();
+          }}
+        >
+          Gửi cập nhật vào Chat
+        </Button>
+      </>
+    );
+  }
+  return (
+    <>
+      <FormNotice tone="warning" compact>
+        Chưa xác định được kết quả đồng ý lịch. Kiểm tra trạng thái trước khi
+        xác nhận lại.
+      </FormNotice>
+      <Button
+        variant="secondary"
+        disabled={blocked || command.pending}
+        onPress={refresh}
+      >
+        Kiểm tra trạng thái lịch
+      </Button>
+      <Button
+        variant="secondary"
+        disabled={blocked || command.pending}
+        onPress={() => {
+          void command.retry();
+        }}
+      >
+        Kiểm tra lại lần xác nhận trước
+      </Button>
+    </>
+  );
+}
+
 function SchedulePanel({
   path,
   plan,
   blocked,
+  refresh,
 }: Readonly<{
   path: ApiLearningPath;
   plan: ApiLearningPlan;
   blocked: boolean;
+  refresh: () => unknown;
 }>) {
   const api = useLearningPathsApi(),
     command = useConnectionCommand([
@@ -136,6 +221,12 @@ function SchedulePanel({
   const skill = useCatalogName(plan.skillId),
     schedule = plan.schedule;
   const router = useRouter();
+  const share = useConfirmedFormShare();
+  const confirmationKnown =
+    runtime.isCurrent() &&
+    !!schedule &&
+    !!ownConfirmation(path, schedule, runtime.userId);
+  const locked = path.lockedVersion !== null || schedule?.status === "LOCKED";
   return (
     <ScheduleReadCard
       path={path}
@@ -148,19 +239,55 @@ function SchedulePanel({
         <>
           {canConfirmSchedule(path, plan, runtime.userId) && (
             <Button
-              disabled={blocked || command.pending}
+              disabled={blocked || command.pending || command.uncertain}
               onPress={() => {
-                if (blocked || command.pending) return;
+                if (
+                  blocked ||
+                  command.pending ||
+                  command.uncertain ||
+                  !runtime.isCurrent() ||
+                  !canConfirmSchedule(path, plan, runtime.userId)
+                )
+                  return;
                 void command.run(
                   `schedule:${schedule.id}:${schedule.version}`,
-                  () => api.confirmSchedule(schedule.id, schedule.version),
+                  confirmAndShare(
+                    () => api.confirmSchedule(schedule.id, schedule.version),
+                    (result, identity) => {
+                      // A stale screen may receive an already-locked replay.
+                      // It is not a new confirmation awaiting finalization.
+                      if (result.status === "LOCKED") return;
+                      void share.publish(
+                        path.conversationId,
+                        scheduleConfirmationMessage({
+                          pathId: path.id,
+                          planId: plan.id,
+                          scheduleId: schedule.id,
+                          version: result.version,
+                          confirmedBy: runtime.userId!,
+                          teacherId: plan.teacherId,
+                          learnerId: plan.learnerId,
+                          bothConfirmed: result.bothConfirmed,
+                          title: plan.learningGoal,
+                        }),
+                        identity,
+                      );
+                    },
+                    runtime.isCurrent,
+                  ),
                 );
               }}
             >
               Đồng ý lịch học
             </Button>
           )}
-          <ConnectionFeedback error={command.error} />
+          {scheduleConfirmationFeedback({
+            command,
+            confirmationKnown,
+            locked,
+            blocked,
+            refresh,
+          })}
         </>
       )}
       {canSchedule(path, plan, runtime.userId) && !blocked && (
@@ -172,7 +299,11 @@ function SchedulePanel({
         <Button
           variant="secondary"
           leadingIcon="edit"
-          disabled={blocked || command.pending || command.uncertain}
+          disabled={
+            blocked ||
+            command.pending ||
+            (command.uncertain && !confirmationKnown)
+          }
           onPress={() => router.push(`/paths/${path.id}/schedules/${plan.id}`)}
         >
           Chỉnh sửa lịch tôi dạy

@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { LoadingIndicator as ActivityIndicator } from "@/components/LoadingIndicator";
 import type { LoadingPresentation } from "@/components/LoadingIndicator";
 import { Icon } from "@/components/Icon";
+import { FormNotice } from "@/components/FormNotice";
 import { AppError, errorMessage } from "@/lib/http/errors";
 import {
   creditShortfall,
@@ -47,7 +48,7 @@ const errors: Record<string, string> = {
   CHAT_OUTBOX_STORAGE_UNAVAILABLE:
     "Chưa tải được tin nhắn chờ gửi trên thiết bị. Thử lại.",
   INVALID_TEXT:
-    "Nội dung chưa hợp lệ sau khi hệ thống xử lý văn bản thuần. Kiểm tra độ dài và ký tự trong nội dung.",
+    "Nội dung chưa hợp lệ. Hãy kiểm tra độ dài và các ký tự bạn đã nhập.",
   INVALID_CREDIT_AMOUNT:
     "Nhập Credit lớn hơn 0, không có số 0 đầu và tối đa 2 chữ số thập phân.",
   INVALID_CREDIT_HINT:
@@ -59,16 +60,16 @@ const errors: Record<string, string> = {
   INVALID_CANDIDATE_SLOTS:
     "Lịch rảnh chưa hợp lệ. Hãy nhập gợi ý bằng văn bản để cùng trao đổi.",
   CONNECTION_POLICY_UNAVAILABLE:
-    "Máy chủ chưa cấu hình giới hạn cho gợi ý này. Bạn có thể bỏ trống số buổi dự kiến; với học một chiều, bỏ trống cả Credit gợi ý rồi thử lại.",
+    "Chưa thể dùng các gợi ý này. Hãy bỏ trống số buổi dự kiến; nếu học một chiều, bỏ trống cả Credit gợi ý rồi thử lại.",
   PATH_CREATE_RECONCILE_REQUIRED:
-    "Lần tạo trước đã gửi nhưng chưa xác định được kết quả. Tải lại danh sách và mở Learning Path đã tạo; chưa thể gửi lại để tránh trùng.",
+    "Chưa nhận được kết quả tạo lộ trình. Hãy tải lại danh sách để kiểm tra trước khi tạo tiếp.",
   STALE_LEARNING_PATH_VERSION:
-    "Điều khoản đã thay đổi. Tải lại và xem phiên bản mới trước khi xác nhận.",
+    "Thỏa thuận đã thay đổi. Hãy tải lại và xem nội dung mới trước khi đồng ý.",
   STALE_LEARNING_PLAN_VERSION:
     "Kế hoạch đã thay đổi. Tải lại nội dung mới trước khi xác nhận.",
   STALE_SCHEDULE_VERSION: "Lịch đã thay đổi. Tải lại và kiểm tra lịch mới.",
   INSUFFICIENT_AVAILABLE_CREDIT:
-    "Số dư khả dụng chưa đủ để tạm giữ Credit cho Learning Path.",
+    "Số dư khả dụng chưa đủ để tạm giữ Credit cho lộ trình.",
   SCHEDULE_CONFLICT:
     "Lịch học bị trùng. Kiểm tra lại các buổi học trước khi chốt.",
   SCHEDULE_PROPOSAL_ALREADY_EXISTS:
@@ -78,7 +79,7 @@ const errors: Record<string, string> = {
   LEARNING_PATH_NOT_CONFIRMED:
     "Hai bên cần xác nhận đầy đủ kế hoạch và điều khoản trước khi tạo lịch.",
   LEARNING_PATH_VERSION_MISSING:
-    "Không tìm thấy phiên bản điều khoản hiện tại. Hãy tải lại lộ trình.",
+    "Chưa tải được thỏa thuận hiện tại. Hãy tải lại lộ trình.",
   REQUIRED_LEARNING_PLANS_MISSING:
     "Lộ trình chưa có đủ kế hoạch cho các chiều học. Hãy kiểm tra lại kế hoạch.",
   LEARNING_PLAN_NOT_CONFIRMED:
@@ -88,7 +89,7 @@ const errors: Record<string, string> = {
   INVALID_TWO_WAY_AGREEMENT:
     "Điều khoản trao đổi hai chiều chưa hợp lệ. Hãy kiểm tra các chiều dạy và mức Credit.",
   REQUIRED_SCHEDULE_PROPOSAL_MISSING:
-    "Phiên bản hiện tại chưa có đủ đề xuất lịch. Hãy kiểm tra lịch của từng kế hoạch.",
+    "Chưa có đủ lịch học. Hãy kiểm tra lịch của từng kế hoạch.",
   SCHEDULE_NOT_CONFIRMED:
     "Có lịch chưa được cả hai xác nhận hoặc chưa đủ số buổi theo kế hoạch.",
   INVALID_SCHEDULE_ITEMS:
@@ -96,7 +97,7 @@ const errors: Record<string, string> = {
   DATABASE_TIME_UNAVAILABLE:
     "Hệ thống chưa kiểm tra được thời gian. Vui lòng thử lại.",
   LEARNING_PATH_NOT_EDITABLE:
-    "Learning Path không còn cho phép chỉnh sửa. Hãy tải lại trạng thái.",
+    "Lộ trình hiện không thể chỉnh sửa. Hãy tải lại để xem trạng thái mới nhất.",
   PROPOSAL_ALREADY_PENDING:
     "Bạn đã có đề xuất đang chờ. Mở danh sách đã gửi để kiểm tra.",
   PROPOSAL_EXPIRED: "Đề xuất đã hết hạn. Hãy tải lại trạng thái.",
@@ -111,7 +112,7 @@ const errors: Record<string, string> = {
     "Tệp chưa hoàn tất kiểm tra. Vui lòng kiểm tra lại trạng thái.",
   FILE_TOO_LARGE: "Tệp vượt giới hạn 15 MB.",
   COMMAND_RECONCILE_REQUIRED:
-    "Chưa xác định được kết quả lần gửi trước. Giữ nguyên nội dung và thử lại để tránh gửi trùng.",
+    "Chưa xác định được kết quả lần gửi trước. Giữ nguyên nội dung và kiểm tra trạng thái trước khi gửi tiếp.",
 };
 export function connectionError(error: unknown, viewerId?: string) {
   const scheduleMessage = scheduleConflictMessage(error);
@@ -127,7 +128,7 @@ export function connectionError(error: unknown, viewerId?: string) {
     if (error.status === 409)
       return "Trạng thái đã thay đổi. Tải lại trước khi thao tác.";
     if (error.kind === "protocol")
-      return "Dữ liệu máy chủ chưa đúng hợp đồng. Vui lòng thử tải lại.";
+      return "Chưa đọc được kết quả. Vui lòng tải lại trạng thái trước khi thao tác tiếp.";
   }
   return errorMessage(error);
 }
@@ -137,6 +138,7 @@ export function ConnectionFeedback({
   retry,
   viewerId,
   errorTone = "muted",
+  errorPresentation = "inline",
   loadingPresentation = "screen",
 }: Readonly<{
   loading?: boolean;
@@ -144,6 +146,7 @@ export function ConnectionFeedback({
   retry?: () => unknown;
   viewerId?: string;
   errorTone?: "muted" | "error";
+  errorPresentation?: "inline" | "notice";
   loadingPresentation?: LoadingPresentation;
 }>) {
   if (!loading && !error) return null;
@@ -158,14 +161,24 @@ export function ConnectionFeedback({
       )}
       {!!error && (
         <View accessibilityLiveRegion="polite" style={styles.row}>
-          <Icon
-            name={limited ? "clock" : "alert"}
-            size={16}
-            color={colors[errorTone]}
-          />
-          <Text style={[styles.message, { color: colors[errorTone] }]}>
-            {connectionError(error, viewerId)}
-          </Text>
+          {errorPresentation === "notice" ? (
+            <View style={styles.noticeBody}>
+              <FormNotice tone={limited ? "warning" : "error"} compact>
+                {connectionError(error, viewerId)}
+              </FormNotice>
+            </View>
+          ) : (
+            <>
+              <Icon
+                name={limited ? "clock" : "alert"}
+                size={16}
+                color={colors[errorTone]}
+              />
+              <Text style={[styles.message, { color: colors[errorTone] }]}>
+                {connectionError(error, viewerId)}
+              </Text>
+            </>
+          )}
           {!!retry && limited && (
             <RateLimitRetry error={error} retry={retry} loading={loading} />
           )}
@@ -189,6 +202,7 @@ export function ConnectionFeedback({
   );
 }
 const styles = StyleSheet.create({
+  noticeBody: { flex: 1 },
   feedback: { gap: 6 },
   row: {
     flexDirection: "row",
