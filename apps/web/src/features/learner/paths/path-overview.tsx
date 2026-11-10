@@ -114,6 +114,7 @@ export function PathOverviewPanel({
           {onOpenSection &&
             query.data.learningStage === "LEARNING_FINISHED" && (
               <button
+                type="button"
                 className="btn btn-primary"
                 onClick={() => onOpenSection("path-settlement")}
               >
@@ -122,6 +123,7 @@ export function PathOverviewPanel({
             )}
           {onOpenSection && query.data.learningStage === "COMPLETED" && (
             <button
+              type="button"
               className="btn btn-primary"
               onClick={() => onOpenSection("path-settlement")}
             >
@@ -144,53 +146,67 @@ export function PathOverviewPanel({
               {formatTime(query.data.settlement.autoSettlementAt)}
             </p>
           )}
-          {query.data.attentionItems?.map((item) => (
-            <div key={item.key}>
-              <Status value={item.status} />
-              <span>
-                {" "}
-                ·{" "}
-                {item.waitingOn === "SELF"
-                  ? "Cần bạn xử lý"
-                  : item.waitingOn === "COUNTERPART"
-                    ? "Chờ đối tác"
-                    : item.waitingOn === "STAFF"
-                      ? "Chờ nhân sự hỗ trợ"
-                      : "Đang theo dõi"}
-              </span>
-              {item.deadline && <p>Hạn: {formatTime(item.deadline)}</p>}
-              {item.target.type === "SESSION" && (
-                <Link href={"/learn/sessions/" + item.target.id}>
-                  Xem buổi học
-                </Link>
-              )}
-              {item.target.type === "CASE_SUMMARY" && (
-                <button
-                  className="btn"
-                  onClick={() => setSelected(item.target.id)}
-                >
-                  Xem vụ việc
-                </button>
-              )}
-              {item.target.type === "LEARNING_CHANGE" &&
-                (item.sessionId ? (
+          {query.data.attentionItems?.map((item) => {
+            function waitingLabel() {
+              if (item.waitingOn === "SELF") {
+                return "Cần bạn xử lý";
+              }
+              if (item.waitingOn === "COUNTERPART") {
+                return "Chờ đối tác";
+              }
+              if (item.waitingOn === "STAFF") {
+                return "Chờ nhân sự hỗ trợ";
+              }
+              return "Đang theo dõi";
+            }
+            function changeAction() {
+              if (item.sessionId) {
+                return (
                   <Link href={`/learn/sessions/${item.sessionId}`}>
                     Xem yêu cầu thay đổi buổi học
                   </Link>
-                ) : onOpenSection ? (
+                );
+              }
+              if (onOpenSection) {
+                return (
                   <button
+                    type="button"
                     className="btn"
                     onClick={() => onOpenSection("path-changes")}
                   >
                     Xem yêu cầu dừng lộ trình
                   </button>
-                ) : (
-                  <Link href={`/learn/paths/${pathId}#path-changes`}>
-                    Xem yêu cầu dừng lộ trình
+                );
+              }
+              return (
+                <Link href={`/learn/paths/${pathId}#path-changes`}>
+                  Xem yêu cầu dừng lộ trình
+                </Link>
+              );
+            }
+            return (
+              <div key={item.key}>
+                <Status value={item.status} />
+                <span> · {waitingLabel()}</span>
+                {item.deadline && <p>Hạn: {formatTime(item.deadline)}</p>}
+                {item.target.type === "SESSION" && (
+                  <Link href={"/learn/sessions/" + item.target.id}>
+                    Xem buổi học
                   </Link>
-                ))}
-            </div>
-          ))}
+                )}
+                {item.target.type === "CASE_SUMMARY" && (
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => setSelected(item.target.id)}
+                  >
+                    Xem vụ việc
+                  </button>
+                )}
+                {item.target.type === "LEARNING_CHANGE" && changeAction()}
+              </div>
+            );
+          })}
         </>
       )}
       <PathCases

@@ -54,16 +54,23 @@ export function ReputationRecovery({
       }),
     );
     if (!response) return;
-    const passed = response.data.passed !== false;
+    const responseData = response.data;
+    const passed = responseData.passed !== false;
+    function recoveryResultText() {
+      if (!passed) {
+        return "Bạn chưa đạt lần này. Đọc lại các câu hỏi và thử lại nhé.";
+      }
+      if (typeof responseData.awarded === "number") {
+        if (responseData.awarded > 0) {
+          return `Đã ghi nhận ${responseData.awarded} điểm phục hồi. Tiếp tục duy trì việc học đều đặn nhé!`;
+        }
+        return "Đã ghi nhận. Bạn đã hết lượt điểm phục hồi trong kỳ này.";
+      }
+      return "Bạn đã xác nhận chính sách. Trạng thái hạn chế đang được cập nhật.";
+    }
     setResult({
       passed,
-      text: !passed
-        ? "Bạn chưa đạt lần này. Đọc lại các câu hỏi và thử lại nhé."
-        : typeof response.data.awarded === "number"
-          ? response.data.awarded > 0
-            ? `Đã ghi nhận ${response.data.awarded} điểm phục hồi. Tiếp tục duy trì việc học đều đặn nhé!`
-            : "Đã ghi nhận. Bạn đã hết lượt điểm phục hồi trong kỳ này."
-          : "Bạn đã xác nhận chính sách. Trạng thái hạn chế đang được cập nhật.",
+      text: recoveryResultText(),
     });
     query.reload();
     onChanged();
@@ -101,25 +108,30 @@ export function ReputationRecovery({
             {data.missions.map((mission) => {
               const info = missions[mission.code],
                 isQuiz = mission.code === "POLICY_AWARENESS";
-              const progressText = isQuiz
-                ? "Bài kiểm tra ngắn"
-                : mission.code === "GOOD_BEHAVIOR_STREAK"
-                  ? `${mission.progress.current}/${mission.progress.target} ngày`
-                  : `${mission.progress.current}/${mission.progress.target} buổi học`;
+              function missionProgressText() {
+                if (isQuiz) {
+                  return "Bài kiểm tra ngắn";
+                }
+                if (mission.code === "GOOD_BEHAVIOR_STREAK") {
+                  return `${mission.progress.current}/${mission.progress.target} ngày`;
+                }
+                return `${mission.progress.current}/${mission.progress.target} buổi học`;
+              }
+              const progressText = missionProgressText();
+              function missionIcon() {
+                if (mission.claimed) {
+                  return "check";
+                }
+                if (isQuiz) {
+                  return "book";
+                }
+                return "calendar";
+              }
               return (
                 <article className={styles.mission} key={mission.code}>
                   <div className={styles.missionTop}>
                     <span className={styles.taskIcon}>
-                      <ProductIcon
-                        name={
-                          mission.claimed
-                            ? "check"
-                            : isQuiz
-                              ? "book"
-                              : "calendar"
-                        }
-                        size={20}
-                      />
+                      <ProductIcon name={missionIcon()} size={20} />
                     </span>
                     <span
                       className={mission.claimed ? styles.done : styles.reward}

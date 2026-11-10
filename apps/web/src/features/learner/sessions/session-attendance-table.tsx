@@ -45,9 +45,8 @@ export function SessionAttendanceTable({
   const resolution = session.attendance?.resolution;
   return (
     <>
-      <div
+      <ul
         className={styles.attendance}
-        role="list"
         aria-label="Kết quả của từng người tham gia"
       >
         {(["teacher", "learner"] as const).map((side) => {
@@ -73,7 +72,7 @@ export function SessionAttendanceTable({
           if (value?.verdict === "ABSENT") verdictClass = styles.absent;
           else if (value?.verdict === "PRESENT") verdictClass = styles.present;
           return (
-            <div key={side} className={styles.attendanceRow} role="listitem">
+            <li key={side} className={styles.attendanceRow}>
               <div className={styles.person}>
                 <ProfileAvatar
                   fullName={person}
@@ -99,15 +98,15 @@ export function SessionAttendanceTable({
                 <strong>{confirmed ? "Đã xác nhận" : "Chưa xác nhận"}</strong>
                 {confirmedAt && <small>{formatTime(confirmedAt)}</small>}
               </div>
-            </div>
+            </li>
           );
         })}
-      </div>
+      </ul>
       {pending && (
-        <p className={styles.note} role="status">
+        <output className={styles.note}>
           Máy chủ đang tổng hợp điểm danh. Chưa có số liệu không có nghĩa là bạn
           đã học 0 giây hoặc vắng mặt.
-        </p>
+        </output>
       )}
       {session.attendance?.state === "UNVERIFIABLE" && (
         <p className={styles.note}>

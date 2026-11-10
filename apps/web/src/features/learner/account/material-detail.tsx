@@ -20,7 +20,7 @@ export function MaterialDetail({ id }: Readonly<{ id: string }>) {
   const { actor } = useUserSession();
   return <MaterialDetailContent key={`${actor.userId}:${id}`} id={id} />;
 }
-function MaterialDetailContent({ id }: Readonly<{ id: string }>) {
+function useMaterialDetail(id: string) {
   const query = useUserResource<Material>("materials/" + id),
     { request, actor } = useUserSession(),
     command = useUserCommand(true);
@@ -87,6 +87,50 @@ function MaterialDetailContent({ id }: Readonly<{ id: string }>) {
   if (command.pending) purchaseLabel = "Đang xử lý…";
   else if (command.canRetry) purchaseLabel = "Kiểm tra lại yêu cầu mua";
   else purchaseLabel = "Mua tài liệu";
+  return {
+    query,
+    material,
+    orders,
+    command,
+    request,
+    owned,
+    purchased,
+    canPurchase,
+    downloading,
+    confirmDownload,
+    setConfirmDownload,
+    getDownload,
+    error,
+    agree,
+    listing,
+    setAcceptedListing,
+    setPurchaseRecorded,
+    accessDescription,
+    purchaseLabel,
+  };
+}
+function MaterialDetailContent({ id }: Readonly<{ id: string }>) {
+  const {
+    query,
+    material,
+    orders,
+    command,
+    request,
+    owned,
+    purchased,
+    canPurchase,
+    downloading,
+    confirmDownload,
+    setConfirmDownload,
+    getDownload,
+    error,
+    agree,
+    listing,
+    setAcceptedListing,
+    setPurchaseRecorded,
+    accessDescription,
+    purchaseLabel,
+  } = useMaterialDetail(id);
   return (
     <>
       <Back href="/learn/materials" />
@@ -145,6 +189,7 @@ function MaterialDetailContent({ id }: Readonly<{ id: string }>) {
                     </p>
                   )}
                   <button
+                    type="button"
                     className="btn btn-primary"
                     disabled={downloading || confirmDownload}
                     onClick={() => {
@@ -203,6 +248,7 @@ function MaterialDetailContent({ id }: Readonly<{ id: string }>) {
                     Tôi đồng ý mua tài liệu với giá {material.priceCredit} CR.
                   </label>
                   <button
+                    type="button"
                     className="btn btn-primary"
                     style={{ marginTop: 18 }}
                     disabled={!agree || !canPurchase || command.pending}

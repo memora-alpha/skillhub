@@ -32,6 +32,7 @@ export function PrivateThread({
   return (
     <section>
       <button
+        type="button"
         className="btn"
         onClick={() => {
           void messages.reload();
@@ -90,7 +91,7 @@ export function PrivateThread({
           }}
         >
           <label>
-            Tin nhắn riêng
+            <span>Tin nhắn riêng</span>
             <textarea
               required
               maxLength={4000}
@@ -100,6 +101,7 @@ export function PrivateThread({
             />
           </label>
           <button
+            type="submit"
             className="btn btn-primary"
             disabled={operation.busy || !text.trim()}
           >

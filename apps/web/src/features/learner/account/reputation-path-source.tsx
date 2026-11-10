@@ -54,11 +54,7 @@ export function ReputationPathSource({ pathId }: Readonly<{ pathId: string }>) {
             Chưa tải được tên lộ trình. Bạn có thể mở liên kết để kiểm tra quyền
             truy cập.
           </span>
-          <button
-            type="button"
-            className="btn"
-            onClick={() => void query.reload()}
-          >
+          <button type="button" className="btn" onClick={query.reload}>
             Thử tải lại tên
           </button>
         </div>

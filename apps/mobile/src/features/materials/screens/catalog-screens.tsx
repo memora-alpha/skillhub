@@ -115,6 +115,27 @@ export function MaterialDetailScreen() {
   const material = query.data,
     owned = material?.ownerId === runtime.userId;
   const purchased = !!orders.data;
+  function materialAccessAction(accessType: string) {
+    if (owned || purchased || accessType === "FREE") {
+      return (
+        <RouteButton href={`/materials/${id}/access`}>Mở tài liệu</RouteButton>
+      );
+    }
+    if (orders.data !== undefined && !orders.error) {
+      return (
+        <RouteButton href={`/materials/${id}/purchase`}>
+          Xem xác nhận mua
+        </RouteButton>
+      );
+    }
+    return (
+      <ConnectionFeedback
+        loading={orders.isLoading}
+        error={orders.error}
+        retry={orders.refetch}
+      />
+    );
+  }
   return (
     <FeaturePage
       demo={false}
@@ -151,21 +172,7 @@ export function MaterialDetailScreen() {
               </Copy>
             )}
           </Panel>
-          {owned || purchased || material.accessType === "FREE" ? (
-            <RouteButton href={`/materials/${id}/access`}>
-              Mở tài liệu
-            </RouteButton>
-          ) : orders.data !== undefined && !orders.error ? (
-            <RouteButton href={`/materials/${id}/purchase`}>
-              Xem xác nhận mua
-            </RouteButton>
-          ) : (
-            <ConnectionFeedback
-              loading={orders.isLoading}
-              error={orders.error}
-              retry={orders.refetch}
-            />
-          )}
+          {materialAccessAction(material.accessType)}
           {owned && (
             <RouteButton secondary href={`/materials/${id}/edit`}>
               Chỉnh sửa tài liệu

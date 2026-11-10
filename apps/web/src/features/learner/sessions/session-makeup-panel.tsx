@@ -48,32 +48,39 @@ export function SessionMakeupPanel({
               "Chốt kết quả điểm danh",
               "Đề xuất lịch học bù",
               "Hai bên xác nhận lịch mới",
-            ].map((label, index) => (
-              <li
-                key={label}
-                aria-current={
-                  index === (confirming ? 2 : granted ? 1 : 0)
-                    ? "step"
-                    : undefined
+            ].map((label, index) => {
+              function makeupStep() {
+                if (confirming) {
+                  return 2;
                 }
-              >
-                <span>{index + 1}</span>
-                {label}
-              </li>
-            ))}
+                if (granted) {
+                  return 1;
+                }
+                return 0;
+              }
+              return (
+                <li
+                  key={label}
+                  aria-current={index === makeupStep() ? "step" : undefined}
+                >
+                  <span>{index + 1}</span>
+                  {label}
+                </li>
+              );
+            })}
           </ol>
           {state === "waiting" && (
-            <p role="status">
+            <output>
               Kết quả cả hai vắng còn trong thời hạn phản hồi. Khi hết hạn, nếu
               đủ điều kiện và không có báo cáo đang mở, hệ thống tự cấp học bù
               để hai bạn thống nhất lịch mới, không cần Staff duyệt lịch.
-            </p>
+            </output>
           )}
           {state === "processing" && (
-            <p role="status">
+            <output>
               Đang chờ máy chủ cập nhật kết quả và quyền học bù. Trang tự kiểm
               tra lại mỗi 30 giây; form chọn lịch sẽ xuất hiện khi được phép.
-            </p>
+            </output>
           )}
           {deadline && state !== "blocked" && (
             <div className={styles.inset}>
@@ -107,18 +114,18 @@ export function SessionMakeupPanel({
                   disabled={disabled}
                 />
               ) : (
-                <p role="status">
+                <output>
                   Đang chờ tải lịch trong lộ trình. Bạn có thể dùng nút Làm mới
                   ở đầu trang nếu chưa tải được.
-                </p>
+                </output>
               )}
             </>
           )}
           {state === "closed" && (
-            <p role="status">
+            <output>
               Đã hết hạn chốt lịch học bù. Không thể gửi hoặc xác nhận lịch mới;
               đang chờ hệ thống cập nhật hướng xử lý tiếp theo.
-            </p>
+            </output>
           )}
           {state === "blocked" && (
             <>

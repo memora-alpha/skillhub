@@ -60,56 +60,61 @@ export function ReportsScreen() {
         ))}
       </div>
       <div className={styles.reportList}>
-        {items?.map((item) => (
-          <Panel key={item.id} className={styles.reportCard}>
-            <div className={styles.reportTop}>
-              <h2>{reportReasonLabel(item.reasonCode)}</h2>
-              <Status
-                value={item.status}
-                label={reportStatusLabel(item.status)}
-              />
-            </div>
-            <p className="learner-prose">
-              {reportDescriptionText(item.description)}
-            </p>
-            <div className={styles.meta}>
-              <span>
-                <ProductIcon name="calendar" size={16} />
-                {item.createdAt
-                  ? formatTime(item.createdAt)
-                  : "Chưa ghi nhận thời điểm gửi"}
-              </span>
-              <span>
-                {item.relatedSessionId
-                  ? "Buổi học"
-                  : item.relatedMaterialId
-                    ? "Tài liệu"
-                    : "Báo cáo hỗ trợ"}
-              </span>
-            </div>
-            {item.resolutionNote && (
-              <p className="learner-prose">Phản hồi: {item.resolutionNote}</p>
-            )}
-            <div className={styles.actions}>
-              <Link
-                className="btn btn-primary"
-                href={"/learn/reports/" + item.id}
-              >
-                {item.status === "NEED_MORE_INFO"
-                  ? "Bổ sung thông tin →"
-                  : "Xem chi tiết →"}
-              </Link>
-              {item.relatedSessionId && (
-                <Link
-                  className="learner-card-link"
-                  href={"/learn/sessions/" + item.relatedSessionId}
-                >
-                  Xem buổi học →
-                </Link>
+        {items?.map((item) => {
+          function reportTargetLabel() {
+            if (item.relatedSessionId) {
+              return "Buổi học";
+            }
+            if (item.relatedMaterialId) {
+              return "Tài liệu";
+            }
+            return "Báo cáo hỗ trợ";
+          }
+          return (
+            <Panel key={item.id} className={styles.reportCard}>
+              <div className={styles.reportTop}>
+                <h2>{reportReasonLabel(item.reasonCode)}</h2>
+                <Status
+                  value={item.status}
+                  label={reportStatusLabel(item.status)}
+                />
+              </div>
+              <p className="learner-prose">
+                {reportDescriptionText(item.description)}
+              </p>
+              <div className={styles.meta}>
+                <span>
+                  <ProductIcon name="calendar" size={16} />
+                  {item.createdAt
+                    ? formatTime(item.createdAt)
+                    : "Chưa ghi nhận thời điểm gửi"}
+                </span>
+                <span>{reportTargetLabel()}</span>
+              </div>
+              {item.resolutionNote && (
+                <p className="learner-prose">Phản hồi: {item.resolutionNote}</p>
               )}
-            </div>
-          </Panel>
-        ))}
+              <div className={styles.actions}>
+                <Link
+                  className="btn btn-primary"
+                  href={"/learn/reports/" + item.id}
+                >
+                  {item.status === "NEED_MORE_INFO"
+                    ? "Bổ sung thông tin →"
+                    : "Xem chi tiết →"}
+                </Link>
+                {item.relatedSessionId && (
+                  <Link
+                    className="learner-card-link"
+                    href={"/learn/sessions/" + item.relatedSessionId}
+                  >
+                    Xem buổi học →
+                  </Link>
+                )}
+              </div>
+            </Panel>
+          );
+        })}
       </div>
       {!query.loading && !query.error && !items?.length && (
         <Empty>

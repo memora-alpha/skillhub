@@ -505,7 +505,8 @@
   display: grid;
   gap: 18px;
 }
-.makeupContent > p {
+.makeupContent > p,
+.makeupContent > output {
   margin: 0;
 }
 .makeupSteps {
@@ -615,4 +616,15 @@
   .meta {
     gap: 10px 16px;
   }
+}
+
+/* Native list and live-result elements retain the existing card layout. */
+.attendance {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+output.note,
+.makeupContent output {
+  display: block;
 }

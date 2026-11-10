@@ -49,6 +49,15 @@ export function MaterialFeePolicies() {
   const [reason, setReason] = useState("");
   const [password, setPassword] = useState("");
   const [effectiveAt, setEffectiveAt] = useState("");
+  function saveLabel() {
+    if (operation.busy) {
+      return "Đang lưu…";
+    }
+    if (mode === "create") {
+      return "Tạo bản nháp";
+    }
+    return "Duyệt phiên bản";
+  }
   return (
     <div className={styles.workspace}>
       <Card title="Chính sách phí">
@@ -74,48 +83,54 @@ export function MaterialFeePolicies() {
                 </tr>
               </thead>
               <tbody>
-                {list.items.map((f) => (
-                  <tr key={f.id}>
-                    <td data-label="Phạm vi / phiên bản">
-                      <strong>{financeLabel(f.policyCode)}</strong>
-                      <small>Phiên bản {f.versionNo}</small>
-                    </td>
-                    <td data-label="Mức phí">
-                      {typeof f.calculationRule.feeBps === "number"
-                        ? `${f.calculationRule.feeBps / 100}%`
-                        : typeof f.calculationRule.platformFeeBps === "number"
-                          ? `${f.calculationRule.platformFeeBps / 100}%`
-                          : "Theo chính sách"}
-                    </td>
-                    <td data-label="Trạng thái">
-                      {f.effective ? (
-                        <span className="badge badge-ok">Đang áp dụng</span>
-                      ) : (
-                        <StatusBadge status={f.status} />
-                      )}
-                    </td>
-                    <td data-label="Hiệu lực từ">
-                      {f.effectiveAt
-                        ? fmtDateTime(f.effectiveAt)
-                        : "Chưa lên lịch"}
-                    </td>
-                    <td data-label="Thao tác">
-                      {f.policyCode === "MATERIAL_PAID" &&
-                        f.status === "DRAFT" && (
-                          <button
-                            className="btn"
-                            onClick={() => {
-                              setMode(f.id);
-                              setPassword("");
-                              setReason("");
-                            }}
-                          >
-                            Chọn để duyệt
-                          </button>
+                {list.items.map((f) => {
+                  function feeRateLabel() {
+                    if (typeof f.calculationRule.feeBps === "number") {
+                      return `${f.calculationRule.feeBps / 100}%`;
+                    }
+                    if (typeof f.calculationRule.platformFeeBps === "number") {
+                      return `${f.calculationRule.platformFeeBps / 100}%`;
+                    }
+                    return "Theo chính sách";
+                  }
+                  return (
+                    <tr key={f.id}>
+                      <td data-label="Phạm vi / phiên bản">
+                        <strong>{financeLabel(f.policyCode)}</strong>
+                        <small>Phiên bản {f.versionNo}</small>
+                      </td>
+                      <td data-label="Mức phí">{feeRateLabel()}</td>
+                      <td data-label="Trạng thái">
+                        {f.effective ? (
+                          <span className="badge badge-ok">Đang áp dụng</span>
+                        ) : (
+                          <StatusBadge status={f.status} />
                         )}
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td data-label="Hiệu lực từ">
+                        {f.effectiveAt
+                          ? fmtDateTime(f.effectiveAt)
+                          : "Chưa lên lịch"}
+                      </td>
+                      <td data-label="Thao tác">
+                        {f.policyCode === "MATERIAL_PAID" &&
+                          f.status === "DRAFT" && (
+                            <button
+                              type="button"
+                              className="btn"
+                              onClick={() => {
+                                setMode(f.id);
+                                setPassword("");
+                                setReason("");
+                              }}
+                            >
+                              Chọn để duyệt
+                            </button>
+                          )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -189,7 +204,7 @@ export function MaterialFeePolicies() {
               {mode === "create" ? (
                 <>
                   <label>
-                    Phiên bản
+                    <span>Phiên bản</span>
                     <input
                       className="input"
                       type="number"
@@ -201,7 +216,7 @@ export function MaterialFeePolicies() {
                     />
                   </label>
                   <label>
-                    Mức phí (%)
+                    <span>Mức phí (%)</span>
                     <input
                       className="input"
                       type="number"
@@ -218,7 +233,7 @@ export function MaterialFeePolicies() {
                 </>
               ) : (
                 <label>
-                  Hiệu lực từ (để trống: ngay khi duyệt)
+                  <span>Hiệu lực từ (để trống: ngay khi duyệt)</span>
                   <input
                     className="input"
                     type="datetime-local"
@@ -228,7 +243,7 @@ export function MaterialFeePolicies() {
                 </label>
               )}
               <label>
-                Lý do
+                <span>Lý do</span>
                 <textarea
                   required
                   minLength={3}
@@ -238,7 +253,7 @@ export function MaterialFeePolicies() {
                 />
               </label>
               <label>
-                Mật khẩu Admin
+                <span>Mật khẩu Admin</span>
                 <PasswordInput
                   required
                   value={password}
@@ -248,14 +263,11 @@ export function MaterialFeePolicies() {
               </label>
               <div className="row">
                 <button
+                  type="submit"
                   className="btn btn-primary"
                   disabled={reason.trim().length < 3}
                 >
-                  {operation.busy
-                    ? "Đang lưu…"
-                    : mode === "create"
-                      ? "Tạo bản nháp"
-                      : "Duyệt phiên bản"}
+                  {saveLabel()}
                 </button>
                 {mode !== "create" && (
                   <button
@@ -307,7 +319,7 @@ function RevenueScreen() {
         }}
       >
         <label>
-          Từ ngày
+          <span>Từ ngày</span>
           <input
             className="input"
             type="date"
@@ -317,7 +329,7 @@ function RevenueScreen() {
           />
         </label>
         <label>
-          Đến ngày
+          <span>Đến ngày</span>
           <input
             className="input"
             type="date"
@@ -328,7 +340,7 @@ function RevenueScreen() {
           />
         </label>
         <label>
-          Nhóm theo
+          <span>Nhóm theo</span>
           <select
             className="select"
             value={granularity}
@@ -338,7 +350,9 @@ function RevenueScreen() {
             <option value="month">Tháng</option>
           </select>
         </label>
-        <button className="btn btn-primary">Xem báo cáo</button>
+        <button type="submit" className="btn btn-primary">
+          Xem báo cáo
+        </button>
       </form>
       {error && (
         <p role="alert" className="staff-error">
@@ -381,8 +395,8 @@ function RevenueResult({ query }: Readonly<{ query: string }>) {
             </tr>
           </thead>
           <tbody>
-            {resource.data?.items.map((r, i) => (
-              <tr key={i}>
+            {resource.data?.items.map((r) => (
+              <tr key={`${r.period}:${r.business}`}>
                 <td data-label="Kỳ">{r.period}</td>
                 <td data-label="Nghiệp vụ">{financeLabel(r.business)}</td>
                 <td data-label="Phí thu (CR)">

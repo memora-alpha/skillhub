@@ -38,7 +38,7 @@ export function CaseSupportPanel({
       ) : (
         <>
           <label>
-            Bên liên quan
+            <span>Bên liên quan</span>
             <select
               className="select"
               value={party}
@@ -64,7 +64,9 @@ export function CaseSupportPanel({
                 }}
               >
                 <Identifier value={draft} onChange={setDraft} />
-                <button className="btn">Mở trao đổi</button>
+                <button type="submit" className="btn">
+                  Mở trao đổi
+                </button>
               </form>
             </details>
           )}
@@ -77,14 +79,18 @@ export function CaseSupportPanel({
             />
           )}
           {open && (
-            <button className="btn" onClick={() => setNeedInfo(true)}>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => setNeedInfo(true)}
+            >
               Yêu cầu bổ sung
             </button>
           )}
         </>
       )}
       {item.incidentId && (
-        <button className="btn" onClick={() => setIncident(true)}>
+        <button type="button" className="btn" onClick={() => setIncident(true)}>
           Mở quyết định vụ việc chung
         </button>
       )}

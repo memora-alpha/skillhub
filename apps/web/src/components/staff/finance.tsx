@@ -11,7 +11,11 @@ import { Pager, QueueState } from "./common";
 import { Identifier } from "./operation-tools";
 import { MaterialFeePolicies } from "./material-fee-policies";
 import { fmtDateTime } from "@/lib/console/format";
-import { financeLabel, financeNumber } from "@/lib/staff/finance-presentation";
+import {
+  financeLabel,
+  financeNumber,
+  keyedFinanceItems,
+} from "@/lib/staff/finance-presentation";
 import { systemCodeLabel } from "@/lib/system-text";
 import { OperationReference } from "./operation-reference";
 import styles from "./operations.module.css";
@@ -89,8 +93,8 @@ function FinanceDetails({ value }: Readonly<{ value: unknown }>) {
   if (Array.isArray(value))
     return value.length ? (
       <ul>
-        {value.map((item, i) => (
-          <li key={i}>
+        {keyedFinanceItems(value).map(({ value: item, key }) => (
+          <li key={key}>
             <FinanceDetails value={item} />
           </li>
         ))}
@@ -119,16 +123,32 @@ function FinanceDetails({ value }: Readonly<{ value: unknown }>) {
         ))}
       </dl>
     );
-  return (
-    <span>
-      {typeof value === "string" && /^[A-Z][A-Z0-9_]+$/.test(value)
-        ? systemCodeLabel(value, "Thông tin bổ sung")
-        : String(value)}
-    </span>
-  );
+  if (typeof value === "string")
+    return (
+      <span>
+        {/^[A-Z][A-Z0-9_]+$/.test(value)
+          ? systemCodeLabel(value, "Thông tin bổ sung")
+          : value}
+      </span>
+    );
+  if (typeof value === "number" || typeof value === "bigint")
+    return <span>{value.toString()}</span>;
+  return <span>—</span>;
 }
 export function FinanceScreen() {
   const [tab, setTab] = useState("ledger");
+  function financeTab() {
+    if (tab === "ledger") {
+      return <LedgerScreen />;
+    }
+    if (tab === "payments") {
+      return <PaymentsScreen />;
+    }
+    if (tab === "wallet") {
+      return <WalletLookup />;
+    }
+    return <MaterialFeePolicies />;
+  }
   return (
     <>
       <PageHeader
@@ -148,15 +168,7 @@ export function FinanceScreen() {
           ]}
         />
       </div>
-      {tab === "ledger" ? (
-        <LedgerScreen />
-      ) : tab === "payments" ? (
-        <PaymentsScreen />
-      ) : tab === "wallet" ? (
-        <WalletLookup />
-      ) : (
-        <MaterialFeePolicies />
-      )}
+      {financeTab()}
     </>
   );
 }
@@ -165,7 +177,11 @@ function LedgerScreen() {
   const [filter, setFilter] = useState("");
   const [selected, setSelected] = useState<string>();
   const list = useStaffList<Ledger>(
-    `credit/transactions?limit=20${filter ? `&userId=${filter}` : ""}`,
+    "credit/transactions?" +
+      new URLSearchParams({
+        limit: "20",
+        ...(filter ? { userId: filter } : {}),
+      }),
   );
   return (
     <Card
@@ -199,7 +215,9 @@ function LedgerScreen() {
         }}
       >
         <Identifier value={draft} onChange={setDraft} />
-        <button className="btn btn-primary">Lọc người dùng</button>
+        <button type="submit" className="btn btn-primary">
+          Lọc người dùng
+        </button>
         <button
           className="btn"
           type="button"
@@ -258,6 +276,7 @@ function LedgerScreen() {
                   <td data-label="Thao tác">
                     <div className={styles.actions}>
                       <button
+                        type="button"
                         className="btn"
                         onClick={() =>
                           setSelected(`credit/transactions/${r.id}`)
@@ -266,6 +285,7 @@ function LedgerScreen() {
                         Chi tiết
                       </button>
                       <button
+                        type="button"
                         className="btn"
                         onClick={() =>
                           setSelected(`credit/operations/${r.operationId}`)
@@ -300,7 +320,8 @@ function PaymentsScreen() {
   const [status, setStatus] = useState("");
   const [selected, setSelected] = useState<string>();
   const list = useStaffList<Payment>(
-    `payments?limit=20${status ? `&status=${status}` : ""}`,
+    "payments?" +
+      new URLSearchParams({ limit: "20", ...(status ? { status } : {}) }),
   );
   return (
     <Card
@@ -327,7 +348,7 @@ function PaymentsScreen() {
       </p>
       <div className={styles.filters}>
         <label>
-          Trạng thái
+          <span>Trạng thái</span>
           <select
             className="select"
             value={status}
@@ -399,12 +420,14 @@ function PaymentsScreen() {
                   <td data-label="Thao tác">
                     <div className={styles.actions}>
                       <button
+                        type="button"
                         className="btn"
                         onClick={() => setSelected(`payments/${p.id}`)}
                       >
                         Chi tiết
                       </button>
                       <button
+                        type="button"
                         className="btn"
                         onClick={() =>
                           setSelected(`payments/${p.id}/reconciliation`)
@@ -451,7 +474,9 @@ function WalletLookup() {
         }}
       >
         <Identifier value={draft} onChange={setDraft} />
-        <button className="btn btn-primary">Xem ví</button>
+        <button type="submit" className="btn btn-primary">
+          Xem ví
+        </button>
       </form>
       {id && (
         <Detail key={id} path={`users/${id}/wallet`} close={() => setId("")} />
@@ -482,15 +507,22 @@ function Detail({
         previous.focus();
     };
   }, []);
-  const title = path.endsWith("/reconciliation")
-    ? "Đối soát thanh toán"
-    : path.endsWith("/wallet")
-      ? "Ví người dùng"
-      : path.startsWith("payments/")
-        ? "Chi tiết thanh toán"
-        : path.startsWith("credit/operations/")
-          ? "Chi tiết nghiệp vụ"
-          : "Chi tiết giao dịch";
+  function detailTitle() {
+    if (path.endsWith("/reconciliation")) {
+      return "Đối soát thanh toán";
+    }
+    if (path.endsWith("/wallet")) {
+      return "Ví người dùng";
+    }
+    if (path.startsWith("payments/")) {
+      return "Chi tiết thanh toán";
+    }
+    if (path.startsWith("credit/operations/")) {
+      return "Chi tiết nghiệp vụ";
+    }
+    return "Chi tiết giao dịch";
+  }
+  const title = detailTitle();
   return (
     <dialog
       ref={dialog}
@@ -505,7 +537,7 @@ function Detail({
         <h2 id={titleId} tabIndex={-1} ref={heading}>
           {title}
         </h2>
-        <button className="btn" onClick={close}>
+        <button type="button" className="btn" onClick={close}>
           Đóng
         </button>
       </div>
@@ -608,15 +640,15 @@ function PrimaryFinance({ value }: Readonly<{ value: unknown }>) {
           ))}
       </dl>
       {Array.isArray(row.records) &&
-        row.records.map((record, index) => {
+        keyedFinanceItems(row.records).map(({ value: record, key }) => {
           const r = record as Record<string, unknown>;
           return (
-            <section key={index}>
+            <section key={key}>
               <h4>Kết quả đối soát</h4>
               {Array.isArray(r.findings) && r.findings.length ? (
                 <ul>
-                  {r.findings.map((f, i) => (
-                    <li key={i}>
+                  {keyedFinanceItems(r.findings).map(({ value: f, key }) => (
+                    <li key={key}>
                       {typeof f === "string"
                         ? systemCodeLabel(f, "Có sai lệch cần kiểm tra thêm.")
                         : "Có sai lệch cần kiểm tra thêm."}
@@ -644,14 +676,19 @@ const paymentStatuses: Record<string, string> = {
   REFUNDED: "Đã hoàn",
 };
 function PaymentStatus({ status }: Readonly<{ status: string }>) {
-  const tone =
-    status === "PAID"
-      ? "ok"
-      : status === "FAILED"
-        ? "bad"
-        : ["PENDING", "REVIEW"].includes(status)
-          ? "warn"
-          : "neutral";
+  function paymentTone() {
+    if (status === "PAID") {
+      return "ok";
+    }
+    if (status === "FAILED") {
+      return "bad";
+    }
+    if (["PENDING", "REVIEW"].includes(status)) {
+      return "warn";
+    }
+    return "neutral";
+  }
+  const tone = paymentTone();
   return (
     <span className={`badge badge-${tone}`}>
       {paymentStatuses[status] ?? "Chưa xác định"}

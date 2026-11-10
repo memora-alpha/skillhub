@@ -52,13 +52,16 @@ export function SettlementStatusPanel({
       consent.resetAfterRead();
       retry.resetAfterRead();
       setReviewing(false);
-      setNotice(
-        fresh.settledAt
-          ? "Thỏa thuận đã được quyết toán."
-          : fresh.immediateSettlement.ownApprovedAt
-            ? "Máy chủ đã ghi nhận ý kiến của bạn."
-            : "Đã cập nhật trạng thái. Bạn có thể tiếp tục các thao tác được phép bên dưới.",
-      );
+      function reconciliationNotice() {
+        if (fresh.settledAt) {
+          return "Thỏa thuận đã được quyết toán.";
+        }
+        if (fresh.immediateSettlement.ownApprovedAt) {
+          return "Máy chủ đã ghi nhận ý kiến của bạn.";
+        }
+        return "Đã cập nhật trạng thái. Bạn có thể tiếp tục các thao tác được phép bên dưới.";
+      }
+      setNotice(reconciliationNotice());
       query.reload();
     } catch (cause) {
       setReadError(
@@ -115,6 +118,15 @@ export function SettlementStatusPanel({
       );
     }
     query.reload();
+  }
+  function refreshLabel() {
+    if (checking) {
+      return "Đang kiểm tra…";
+    }
+    if (consent.uncertain || retry.uncertain) {
+      return "Kiểm tra lại kết quả";
+    }
+    return "Cập nhật trạng thái";
   }
   return (
     <Panel title="Quyết toán Credit" className={styles.settlement}>
@@ -247,11 +259,7 @@ export function SettlementStatusPanel({
           }
           onClick={() => void reconcile()}
         >
-          {checking
-            ? "Đang kiểm tra…"
-            : consent.uncertain || retry.uncertain
-              ? "Kiểm tra lại kết quả"
-              : "Cập nhật trạng thái"}
+          {refreshLabel()}
         </button>
         <Link className="btn" href="/learn/wallet">
           Xem ví

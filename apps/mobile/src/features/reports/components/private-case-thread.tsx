@@ -111,6 +111,27 @@ function PrivateCaseThreadContent({ caseId, status, pathId }: CaseThreadProps) {
     currentStatus,
     !valid || !!context.error || !!query.error || !!filesQuery.error,
   );
+  function sendEvidence(fileId: string) {
+    return command.run(`evidence:${fileId}`, async () => {
+      const result = await runtime.call(`${root}/evidence`, {
+        method: "POST",
+        body: { fileId },
+        replayAfterRenewal: false,
+      });
+      if (runtime.isCurrent())
+        setFiles((current) => current.filter((item) => item.fileId !== fileId));
+      return result;
+    });
+  }
+  function evidenceToggleLabel() {
+    if (open) {
+      return "Thu gọn bằng chứng";
+    }
+    if (writable) {
+      return "Xem / bổ sung bằng chứng";
+    }
+    return "Xem bằng chứng";
+  }
   return (
     <Panel title="Trao đổi riêng với người xử lý">
       <Copy muted>Chỉ bạn và người xử lý được xem nội dung này.</Copy>
@@ -202,11 +223,7 @@ function PrivateCaseThreadContent({ caseId, status, pathId }: CaseThreadProps) {
         </>
       )}
       <Button variant="paper" onPress={() => setOpen(!open)}>
-        {open
-          ? "Thu gọn bằng chứng"
-          : writable
-            ? "Xem / bổ sung bằng chứng"
-            : "Xem bằng chứng"}
+        {evidenceToggleLabel()}
       </Button>
       {open && (
         <>
@@ -245,28 +262,7 @@ function PrivateCaseThreadContent({ caseId, status, pathId }: CaseThreadProps) {
                     <Button
                       key={file.fileId}
                       disabled={command.pending || command.uncertain}
-                      onPress={() =>
-                        void command.run(
-                          `evidence:${file.fileId}`,
-                          async () => {
-                            const result = await runtime.call(
-                              `${root}/evidence`,
-                              {
-                                method: "POST",
-                                body: { fileId: file.fileId },
-                                replayAfterRenewal: false,
-                              },
-                            );
-                            if (runtime.isCurrent())
-                              setFiles((current) =>
-                                current.filter(
-                                  (item) => item.fileId !== file.fileId,
-                                ),
-                              );
-                            return result;
-                          },
-                        )
-                      }
+                      onPress={() => sendEvidence(file.fileId)}
                     >
                       Gửi {file.name}
                     </Button>

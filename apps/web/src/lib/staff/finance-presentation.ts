@@ -5,7 +5,8 @@ export function financeNumber(value: string) {
   const match = /^(-?)(\d+)(?:\.(\d+))?$/.exec(value);
   if (!match) return "—";
   const [, sign, whole, fraction] = match;
-  return `${sign}${BigInt(whole!).toLocaleString("vi-VN")}${fraction ? `,${fraction}` : ""}`;
+  const decimal = fraction ? "," + fraction : "";
+  return `${sign}${BigInt(whole!).toLocaleString("vi-VN")}${decimal}`;
 }
 const labels: Record<string, string> = {
   TWO_WAY: "Trao đổi hai chiều",
@@ -47,4 +48,21 @@ export function feeRevenueQuery(from: string, to: string, granularity: string) {
     to: new Date(end).toISOString(),
     granularity,
   }).toString();
+}
+
+/** Prefer API identity; content plus occurrence distinguishes repeated scalar results. */
+export function keyedFinanceItems(items: readonly unknown[]) {
+  const occurrences = new Map<string, number>();
+  return items.map((value) => {
+    const identity =
+      value &&
+      typeof value === "object" &&
+      "id" in value &&
+      typeof value.id === "string"
+        ? "id:" + value.id
+        : "value:" + JSON.stringify(value);
+    const occurrence = occurrences.get(identity) ?? 0;
+    occurrences.set(identity, occurrence + 1);
+    return { value, key: identity + ":" + occurrence };
+  });
 }

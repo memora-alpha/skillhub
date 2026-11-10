@@ -25,7 +25,7 @@ export function IncidentPanel({
     <Card>
       <div className="row">
         <h2>Vụ việc chung</h2>
-        <button className="btn" onClick={close}>
+        <button type="button" className="btn" onClick={close}>
           Đóng
         </button>
       </div>
@@ -53,6 +53,7 @@ export function IncidentPanel({
               resource.data.handlerId === actor?.userId && (
                 <div className="row">
                   <button
+                    type="button"
                     className="btn"
                     onClick={() => {
                       setSeverity(resource.data!.severity);
@@ -62,12 +63,17 @@ export function IncidentPanel({
                     Đổi mức độ
                   </button>
                   <button
+                    type="button"
                     className="btn btn-primary"
                     onClick={() => setDecision("resolve")}
                   >
                     Giải quyết chung
                   </button>
-                  <button className="btn" onClick={() => setDecision("reject")}>
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => setDecision("reject")}
+                  >
                     Bác bỏ chung
                   </button>
                 </div>
@@ -128,7 +134,7 @@ export function IncidentPanel({
                 }}
               >
                 <label>
-                  Phán quyết điểm danh
+                  <span>Phán quyết điểm danh</span>
                   <select
                     className="select"
                     value={ruling}
@@ -161,7 +167,7 @@ export function SeveritySelect({
 }: Readonly<{ value: string; onChange: (value: string) => void }>) {
   return (
     <label>
-      Mức độ
+      <span>Mức độ</span>
       <select
         className="select"
         value={value}

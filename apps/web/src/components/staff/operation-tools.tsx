@@ -41,7 +41,7 @@ export function useOperation() {
             {error}
           </p>
         )}
-        {message && <p role="status">{message}</p>}
+        {message && <output>{message}</output>}
       </>
     ),
   };

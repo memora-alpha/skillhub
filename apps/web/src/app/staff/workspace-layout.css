@@ -633,6 +633,11 @@
 .ops-permission-heading p {
   font-size: 12px;
 }
+.ops-permission-table {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
 .ops-permission-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 110px 110px auto;

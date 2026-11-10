@@ -116,7 +116,7 @@ function CaseThreadContent({
           }}
         >
           <label>
-            Nội dung
+            <span>Nội dung</span>
             <textarea
               required
               maxLength={4000}
@@ -129,6 +129,7 @@ function CaseThreadContent({
             />
           </label>
           <button
+            type="submit"
             className="btn btn-primary"
             disabled={command.pending || command.uncertain || !text.trim()}
           >
@@ -157,6 +158,7 @@ function CaseThreadContent({
           <p key={row.id}>
             {row.mimeType} · {formatTime(row.uploadedAt)}{" "}
             <button
+              type="button"
               className="btn"
               disabled={downloadCommand.pending}
               onClick={() => {
@@ -206,6 +208,7 @@ function CaseThreadContent({
                   onRemove={() => setFile(undefined)}
                 />
                 <button
+                  type="button"
                   className="btn"
                   disabled={
                     file.state !== "READY" ||
@@ -240,6 +243,7 @@ function CaseThreadContent({
       <CommandFeedback command={downloadCommand} />
       {downloadCommand.uncertain && (
         <button
+          type="button"
           className="btn"
           disabled={downloadCommand.pending}
           onClick={() => downloadCommand.resetAfterRead()}
@@ -249,6 +253,7 @@ function CaseThreadContent({
       )}
       {fileCommand.uncertain && (
         <button
+          type="button"
           className="btn"
           disabled={fileCommand.pending}
           onClick={async () => {

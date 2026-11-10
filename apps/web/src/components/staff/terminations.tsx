@@ -360,9 +360,9 @@ function TerminationDetail({
             <fieldset disabled={busy || !!intent || unknown}>
               <legend>Credit do máy chủ tính</legend>
               {review.execution.quote.status === "BLOCKED" && (
-                <p role="status">
+                <output>
                   Cần xử lý các buổi học hoặc vụ việc còn mở trước khi thực thi.
-                </p>
+                </output>
               )}
               {review.execution.quote.reasonCodes.length > 0 && (
                 <ul>

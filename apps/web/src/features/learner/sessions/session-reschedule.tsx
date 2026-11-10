@@ -61,6 +61,33 @@ export function SessionReschedule({
         "Đã hết hạn chốt lịch học bù. Tải lại buổi học để xem hướng xử lý.",
       );
   }
+  function confirmationMessage() {
+    if (ownConfirmed && partnerConfirmed) {
+      return "Hai bên đã xác nhận. Đang chờ máy chủ áp dụng lịch mới.";
+    }
+    if (ownConfirmed) {
+      return "Bạn đã xác nhận. Chờ đối tác xác nhận để áp dụng lịch mới; trang sẽ tự cập nhật.";
+    }
+    return "Bạn cần xác nhận phiên bản lịch này, kể cả khi bạn là người gửi đề xuất.";
+  }
+  function confirmationLabel() {
+    if (ownConfirmed) {
+      return "Đã xác nhận · chờ đối tác";
+    }
+    if (command.pending) {
+      return "Đang xác nhận…";
+    }
+    return "Xác nhận lịch đề xuất";
+  }
+  function proposalLabel() {
+    if (command.pending) {
+      return "Đang gửi đề xuất…";
+    }
+    if (makeup) {
+      return "Gửi đề xuất lịch học bù";
+    }
+    return "Gửi đề nghị lịch mới";
+  }
   return (
     <div className="learner-stack">
       {pending ? (
@@ -98,13 +125,7 @@ export function SessionReschedule({
               <dd>{partnerConfirmed ? "Đã xác nhận" : "Chưa xác nhận"}</dd>
             </div>
           </dl>
-          <p className="muted" role="status">
-            {ownConfirmed && partnerConfirmed
-              ? "Hai bên đã xác nhận. Đang chờ máy chủ áp dụng lịch mới."
-              : ownConfirmed
-                ? "Bạn đã xác nhận. Chờ đối tác xác nhận để áp dụng lịch mới; trang sẽ tự cập nhật."
-                : "Bạn cần xác nhận phiên bản lịch này, kể cả khi bạn là người gửi đề xuất."}
-          </p>
+          <output className="muted">{confirmationMessage()}</output>
           <button
             type="button"
             className="btn btn-primary"
@@ -132,11 +153,7 @@ export function SessionReschedule({
               );
             }}
           >
-            {ownConfirmed
-              ? "Đã xác nhận · chờ đối tác"
-              : command.pending
-                ? "Đang xác nhận…"
-                : "Xác nhận lịch đề xuất"}
+            {confirmationLabel()}
           </button>
         </>
       ) : (
@@ -202,11 +219,7 @@ export function SessionReschedule({
             />
           </label>
           <button type="submit" className="btn btn-primary" disabled={blocked}>
-            {command.pending
-              ? "Đang gửi đề xuất…"
-              : makeup
-                ? "Gửi đề xuất lịch học bù"
-                : "Gửi đề nghị lịch mới"}
+            {proposalLabel()}
           </button>
         </form>
       )}

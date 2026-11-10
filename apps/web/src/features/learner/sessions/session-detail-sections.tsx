@@ -106,28 +106,33 @@ function SessionJourney({ step }: Readonly<{ step: number }>) {
           "Hoàn tất các buổi",
           "Quyết toán thỏa thuận",
           "Mở đánh giá",
-        ].map((label, index) => (
-          <li
-            key={label}
-            className={
-              index === step
-                ? styles.current
-                : index < step
-                  ? styles.done
-                  : undefined
+        ].map((label, index) => {
+          function journeyStepClass() {
+            if (index === step) {
+              return styles.current;
             }
-            aria-current={index === step ? "step" : undefined}
-          >
-            <span>
-              {index < step ? (
-                <ProductIcon name="check" size={15} />
-              ) : (
-                index + 1
-              )}
-            </span>
-            {label}
-          </li>
-        ))}
+            if (index < step) {
+              return styles.done;
+            }
+            return undefined;
+          }
+          return (
+            <li
+              key={label}
+              className={journeyStepClass()}
+              aria-current={index === step ? "step" : undefined}
+            >
+              <span>
+                {index < step ? (
+                  <ProductIcon name="check" size={15} />
+                ) : (
+                  index + 1
+                )}
+              </span>
+              {label}
+            </li>
+          );
+        })}
       </ol>
     </section>
   );
@@ -239,6 +244,15 @@ export function SessionActionCard({
     destination = "#session-settlement";
     actionLabel = "Theo dõi quyết toán";
   }
+  function roomSectionLabel() {
+    if (after) {
+      return "SAU BUỔI HỌC";
+    }
+    if (makeup) {
+      return "HỌC BÙ VÀ LỊCH MỚI";
+    }
+    return "PHÒNG HỌC TRỰC TUYẾN";
+  }
   return (
     <Panel className={styles.card}>
       <div
@@ -246,13 +260,7 @@ export function SessionActionCard({
       >
         <ProductIcon name={joinable ? "video" : "clock"} size={28} />
         <div>
-          <small>
-            {after
-              ? "SAU BUỔI HỌC"
-              : makeup
-                ? "HỌC BÙ VÀ LỊCH MỚI"
-                : "PHÒNG HỌC TRỰC TUYẾN"}
-          </small>
+          <small>{roomSectionLabel()}</small>
           <strong>{view.room}</strong>
         </div>
       </div>

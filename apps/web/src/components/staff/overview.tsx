@@ -155,41 +155,47 @@ export function OverviewScreen({
         </div>
       </div>
       <div className="grid staff-queue-cards">
-        {groups.map((group) => (
-          <Card key={group.href} className="ops-queue-card">
-            <Link className="ops-queue-link" href={group.href}>
-              <span className="ops-queue-icon">
-                <Icon name={group.icon} size={22} />
-              </span>
-              <span className="ops-queue-summary">
-                <span>{group.title}</span>
-                <strong>{queueCount(group.source)}</strong>
-                <small className="muted">
-                  {group.source.error
-                    ? "Chưa tải được"
-                    : group.source.page?.hasMore
-                      ? "mục đã tải · còn trang sau"
-                      : "mục đang hiển thị"}
-                </small>
-              </span>
-              <Icon name="right" size={16} />
-            </Link>
-            {group.source.error && (
-              <p className="staff-error" role="alert">
-                {group.source.error}
-              </p>
-            )}
-            {group.source.error && (
-              <button
-                className="btn btn-sm"
-                disabled={group.source.loading}
-                onClick={group.source.reload}
-              >
-                Thử tải lại
-              </button>
-            )}
-          </Card>
-        ))}
+        {groups.map((group) => {
+          function queueDescription() {
+            if (group.source.error) {
+              return "Chưa tải được";
+            }
+            if (group.source.page?.hasMore) {
+              return "mục đã tải · còn trang sau";
+            }
+            return "mục đang hiển thị";
+          }
+          return (
+            <Card key={group.href} className="ops-queue-card">
+              <Link className="ops-queue-link" href={group.href}>
+                <span className="ops-queue-icon">
+                  <Icon name={group.icon} size={22} />
+                </span>
+                <span className="ops-queue-summary">
+                  <span>{group.title}</span>
+                  <strong>{queueCount(group.source)}</strong>
+                  <small className="muted">{queueDescription()}</small>
+                </span>
+                <Icon name="right" size={16} />
+              </Link>
+              {group.source.error && (
+                <p className="staff-error" role="alert">
+                  {group.source.error}
+                </p>
+              )}
+              {group.source.error && (
+                <button
+                  type="button"
+                  className="btn btn-sm"
+                  disabled={group.source.loading}
+                  onClick={group.source.reload}
+                >
+                  Thử tải lại
+                </button>
+              )}
+            </Card>
+          );
+        })}
       </div>
       <Card
         className="section ops-queue-table"

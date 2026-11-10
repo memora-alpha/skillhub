@@ -321,8 +321,9 @@
   .reportList {
     grid-template-columns: minmax(0, 1fr);
   }
-  .profileForm > * {
-    grid-column: 1 !important;
+  .profileForm > label:nth-child(n),
+  .profileForm > :not(label) {
+    grid-column: 1;
   }
   .reviewGate {
     padding: 20px;

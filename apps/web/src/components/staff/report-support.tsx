@@ -78,13 +78,15 @@ export function SupportQueueScreen() {
       return "Mỗi vụ việc gom tối đa 100 báo cáo.";
     return undefined;
   }
-  const options = statuses.filter(([code]) =>
-    scope === "closed"
-      ? ["RESOLVED", "REJECTED"].includes(code)
-      : scope === "open"
-        ? !["RESOLVED", "REJECTED"].includes(code)
-        : true,
-  );
+  const options = statuses.filter(([code]) => {
+    if (scope === "closed") {
+      return ["RESOLVED", "REJECTED"].includes(code);
+    }
+    if (scope === "open") {
+      return !["RESOLVED", "REJECTED"].includes(code);
+    }
+    return true;
+  });
   function selectCase(id: string) {
     setCurrentId(id);
     if (window.matchMedia("(max-width: 900px)").matches)
@@ -235,80 +237,85 @@ export function SupportQueueScreen() {
               />
             ) : (
               <div className="ops-case-list" aria-label="Danh sách báo cáo">
-                {visible.map((row) => (
-                  <article
-                    key={row.id}
-                    className="ops-case-item"
-                    data-selected={detailId === row.id}
-                  >
-                    <div className="ops-case-item-top">
-                      <label className="ops-case-checkbox">
-                        <input
-                          type="checkbox"
-                          aria-label={`Chọn báo cáo ${row.id.slice(0, 8)} để gom vụ việc`}
-                          disabled={!!selectionIssue(row)}
-                          title={selectionIssue(row)}
-                          checked={selected.includes(row.id)}
-                          onChange={(e) =>
-                            setSelected((value) =>
-                              e.target.checked
-                                ? [...value, row.id]
-                                : value.filter((id) => id !== row.id),
-                            )
-                          }
-                        />
-                        <span className="mono">#{row.id.slice(0, 8)}</span>
-                      </label>
-                      <Badge tone={severityTone(row.severity)}>
-                        {severities.find((s) => s.code === row.severity)
-                          ?.label ?? "Chưa phân loại"}
-                      </Badge>
-                    </div>
-                    <button
-                      type="button"
-                      className="ops-case-select"
-                      aria-pressed={detailId === row.id}
-                      onClick={() => selectCase(row.id)}
+                {visible.map((row) => {
+                  function handlerLabel() {
+                    if (!row.handlerId) {
+                      return "Chưa có người nhận";
+                    }
+                    if (row.handlerId === actor?.userId) {
+                      return "Bạn đang phụ trách";
+                    }
+                    return "Nhân viên khác phụ trách";
+                  }
+                  return (
+                    <article
+                      key={row.id}
+                      className="ops-case-item"
+                      data-selected={detailId === row.id}
                     >
-                      <strong>{reportReasonLabel(row.reasonCode)}</strong>
-                      <span className="muted">
-                        {reportDateLabel(row.createdAt)}
-                      </span>
-                      <span className="muted">
-                        {!row.handlerId
-                          ? "Chưa có người nhận"
-                          : row.handlerId === actor?.userId
-                            ? "Bạn đang phụ trách"
-                            : "Nhân viên khác phụ trách"}
-                      </span>
-                    </button>
-                    <div className="ops-case-item-foot">
-                      <StatusBadge status={row.status} />
+                      <div className="ops-case-item-top">
+                        <label className="ops-case-checkbox">
+                          <input
+                            type="checkbox"
+                            aria-label={`Chọn báo cáo ${row.id.slice(0, 8)} để gom vụ việc`}
+                            disabled={!!selectionIssue(row)}
+                            title={selectionIssue(row)}
+                            checked={selected.includes(row.id)}
+                            onChange={(e) =>
+                              setSelected((value) =>
+                                e.target.checked
+                                  ? [...value, row.id]
+                                  : value.filter((id) => id !== row.id),
+                              )
+                            }
+                          />
+                          <span className="mono">#{row.id.slice(0, 8)}</span>
+                        </label>
+                        <Badge tone={severityTone(row.severity)}>
+                          {severities.find((s) => s.code === row.severity)
+                            ?.label ?? "Chưa phân loại"}
+                        </Badge>
+                      </div>
                       <button
                         type="button"
-                        className="link ops-text-button"
-                        onClick={() => {
-                          if (row.incidentId) setIncident(row.incidentId);
-                          else {
-                            setGroupSeverity(row.severity || "MEDIUM");
-                            setClassify(row);
-                          }
-                        }}
+                        className="ops-case-select"
+                        aria-pressed={detailId === row.id}
+                        onClick={() => selectCase(row.id)}
                       >
-                        Đổi mức độ
+                        <strong>{reportReasonLabel(row.reasonCode)}</strong>
+                        <span className="muted">
+                          {reportDateLabel(row.createdAt)}
+                        </span>
+                        <span className="muted">{handlerLabel()}</span>
                       </button>
-                      {row.incidentId && (
+                      <div className="ops-case-item-foot">
+                        <StatusBadge status={row.status} />
                         <button
                           type="button"
                           className="link ops-text-button"
-                          onClick={() => setIncident(row.incidentId!)}
+                          onClick={() => {
+                            if (row.incidentId) setIncident(row.incidentId);
+                            else {
+                              setGroupSeverity(row.severity || "MEDIUM");
+                              setClassify(row);
+                            }
+                          }}
                         >
-                          Vụ việc chung
+                          Đổi mức độ
                         </button>
-                      )}
-                    </div>
-                  </article>
-                ))}
+                        {row.incidentId && (
+                          <button
+                            type="button"
+                            className="link ops-text-button"
+                            onClick={() => setIncident(row.incidentId!)}
+                          >
+                            Vụ việc chung
+                          </button>
+                        )}
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
             )}
           </QueueState>

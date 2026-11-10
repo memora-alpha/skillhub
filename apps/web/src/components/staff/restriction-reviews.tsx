@@ -66,7 +66,7 @@ export function RestrictionReviewsScreen({
                   onChange={setHistoryId}
                 />
                 <label>
-                  Lý do
+                  <span>Lý do</span>
                   <textarea
                     required
                     maxLength={1000}
@@ -125,6 +125,7 @@ function PendingReviews({ userId }: Readonly<{ userId: string }>) {
                 </td>
                 <td>
                   <button
+                    type="button"
                     className="btn"
                     onClick={() =>
                       setSelected({ restriction: r, decision: "APPROVED" })
@@ -133,6 +134,7 @@ function PendingReviews({ userId }: Readonly<{ userId: string }>) {
                     Chấp thuận
                   </button>
                   <button
+                    type="button"
                     className="btn"
                     onClick={() =>
                       setSelected({

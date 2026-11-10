@@ -42,12 +42,15 @@ export function ProfileReviews({
     async (cursor, signal) => {
       const query = pageQuery(cursor);
       if (own) query.set("direction", direction);
+      const endpoint = own
+        ? "/me/reviews"
+        : `/profiles/${encodeURIComponent(userId)}/reviews`;
       const result = parse(
         page,
-        await runtime.call(
-          `${own ? "/me/reviews" : `/profiles/${encodeURIComponent(userId)}/reviews`}?${query}`,
-          { signal, includeMeta: true },
-        ),
+        await runtime.call(`${endpoint}?${query}`, {
+          signal,
+          includeMeta: true,
+        }),
       );
       return {
         items: result.data.items,

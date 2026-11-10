@@ -32,8 +32,9 @@ export function CaseDrawer({
         event.preventDefault();
         onClose();
       }}
-      onClick={(event) => {
-        if (event.target === event.currentTarget) onClose();
+      closedby="any"
+      onClose={(event) => {
+        if (!event.currentTarget.open) onClose();
       }}
     >
       <div className={styles.drawerSurface}>

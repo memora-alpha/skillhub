@@ -93,5 +93,6 @@ function durationText(value: string) {
     return "Chưa có dữ liệu";
   const seconds = Number(value);
   if (!Number.isSafeInteger(seconds) || seconds < 0) return "Chưa có dữ liệu";
-  return `${Math.floor(seconds / 60)} phút${seconds % 60 ? ` ${seconds % 60} giây` : ""}`;
+  const remainder = seconds % 60 ? " " + (seconds % 60) + " giây" : "";
+  return `${Math.floor(seconds / 60)} phút${remainder}`;
 }

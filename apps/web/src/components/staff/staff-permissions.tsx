@@ -160,9 +160,8 @@ function PermissionEditor({
                 Cập nhật quyền
               </button>
             </div>
-            <div
+            <ul
               className="ops-permission-table"
-              role="list"
               aria-label="Danh mục quyền nhân viên"
             >
               {catalog.data.map((permission) => {
@@ -172,12 +171,17 @@ function PermissionEditor({
                 const allowed = permissions.data!.effectivePermissions.includes(
                   permission.code,
                 );
+                function overrideLabel() {
+                  if (override?.effect === "GRANT") {
+                    return "Đã cấp riêng";
+                  }
+                  if (override?.effect === "DENY") {
+                    return "Đã chặn riêng";
+                  }
+                  return "Theo mặc định";
+                }
                 return (
-                  <div
-                    className="ops-permission-row"
-                    role="listitem"
-                    key={permission.code}
-                  >
+                  <li className="ops-permission-row" key={permission.code}>
                     <div>
                       <code>{permission.code}</code>
                       <p>{permission.description || "Quyền nghiệp vụ"}</p>
@@ -185,36 +189,33 @@ function PermissionEditor({
                     <Badge tone={allowed ? "ok" : "neutral"}>
                       {allowed ? "Được phép" : "Không được phép"}
                     </Badge>
-                    <span className="muted">
-                      {override?.effect === "GRANT"
-                        ? "Đã cấp riêng"
-                        : override?.effect === "DENY"
-                          ? "Đã chặn riêng"
-                          : "Theo mặc định"}
-                    </span>
+                    <span className="muted">{overrideLabel()}</span>
                     <button
                       type="button"
                       className="btn btn-sm"
                       disabled={permissions.loading}
                       onClick={() => {
                         setCode(permission.code);
-                        setEffect(
-                          override?.effect === "DENY"
-                            ? "DENY"
-                            : override?.effect === "GRANT"
-                              ? "GRANT"
-                              : "RESET",
-                        );
+                        function overrideEffect() {
+                          if (override?.effect === "DENY") {
+                            return "DENY";
+                          }
+                          if (override?.effect === "GRANT") {
+                            return "GRANT";
+                          }
+                          return "RESET";
+                        }
+                        setEffect(overrideEffect());
                         setSaved(false);
                         setPassword("");
                       }}
                     >
                       Thay đổi
                     </button>
-                  </div>
+                  </li>
                 );
               })}
-            </div>
+            </ul>
             {code && (
               <DecisionDialog
                 key={code}
@@ -293,9 +294,7 @@ function PermissionEditor({
         )}
       </QueueState>
       {saved && (
-        <p className="staff-success" role="status">
-          Đã cập nhật quyền nhân viên.
-        </p>
+        <output className="staff-success">Đã cập nhật quyền nhân viên.</output>
       )}
     </Card>
   );

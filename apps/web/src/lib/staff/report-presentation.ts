@@ -23,13 +23,16 @@ export function reportReasonLabel(code: string) {
   return reasons[code] ?? systemCodeLabel(code, "Vấn đề cần xem xét");
 }
 export function severityTone(code: string | null | undefined): Tone {
-  return code === "CRITICAL"
-    ? "bad"
-    : code === "HIGH"
-      ? "warn"
-      : code === "MEDIUM"
-        ? "info"
-        : "neutral";
+  if (code === "CRITICAL") {
+    return "bad";
+  }
+  if (code === "HIGH") {
+    return "warn";
+  }
+  if (code === "MEDIUM") {
+    return "info";
+  }
+  return "neutral";
 }
 export function targetTypeLabel(type: string) {
   return (
