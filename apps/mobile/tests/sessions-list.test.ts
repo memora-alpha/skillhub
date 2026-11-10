@@ -7,6 +7,7 @@ import {
   listIsLimited,
 } from "../src/features/sessions/utils/session-time";
 import { sessionReadState } from "../src/features/sessions/utils/session-read";
+import { AppError } from "../src/lib/http/errors";
 
 test("session list uses the existing transport and rejects participant/role mismatches", async () => {
   const f = sessionsFixture();
@@ -22,11 +23,16 @@ test("session list uses the existing transport and rejects participant/role mism
   f.record.role = "LEARNER";
   await assert.rejects(
     f.api.list({ from: "2026-10-01T00:00:00Z", to: "2026-10-31T23:59:59Z" }),
+    (error) => error instanceof AppError && error.kind === "protocol",
   );
   f.record.role = "TEACHER";
   f.record.teacherId = "10000000-0000-4000-8000-000000000009";
   await assert.rejects(
     f.api.list({ from: "2026-10-01T00:00:00Z", to: "2026-10-31T23:59:59Z" }),
+    (error) =>
+      error instanceof AppError &&
+      error.status === 403 &&
+      error.code === "SESSION_ACCESS_DENIED",
   );
 });
 test("month/day UTC boundaries stay inclusive and midnight follows display timezone", () => {
