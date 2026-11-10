@@ -60,12 +60,9 @@ function TimeColumn({
         }}
         accessibilityActions={[{ name: "increment" }, { name: "decrement" }]}
         onAccessibilityAction={({ nativeEvent }) => {
-          const delta =
-            nativeEvent.actionName === "increment"
-              ? 1
-              : nativeEvent.actionName === "decrement"
-                ? -1
-                : 0;
+          let delta = 0;
+          if (nativeEvent.actionName === "increment") delta = 1;
+          else if (nativeEvent.actionName === "decrement") delta = -1;
           if (delta)
             choose(Math.max(0, Math.min(count - 1, selected.current + delta)));
         }}

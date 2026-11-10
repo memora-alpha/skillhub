@@ -30,9 +30,11 @@ export function scheduleConfirmationMessage(input: ScheduleConfirmation) {
     title: input.title.trim().replace(/\s+/g, " ").slice(0, 160) || "Lịch học",
   });
   const teacher = value.confirmedBy === value.teacherId;
+  const confirmedRole = teacher ? "Người dạy" : "Người học";
+  const waitingRole = teacher ? "người học" : "người dạy";
   const summary = value.bothConfirmed
     ? "Hai bên đã đồng ý lịch này · Chưa chốt lịch."
-    : `${teacher ? "Người dạy" : "Người học"} đã đồng ý · Chờ ${teacher ? "người học" : "người dạy"} xác nhận.`;
+    : `${confirmedRole} đã đồng ý · Chờ ${waitingRole} xác nhận.`;
   const message = confirmedFormMessage({
     kind: "schedule",
     pathId: value.pathId,

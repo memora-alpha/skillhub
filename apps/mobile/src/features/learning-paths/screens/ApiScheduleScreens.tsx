@@ -136,6 +136,71 @@ export function ApiSchedulesScreen() {
     </FeaturePage>
   );
 }
+function scheduleConfirmationFeedback({
+  command,
+  confirmationKnown,
+  locked,
+  blocked,
+  refresh,
+}: Readonly<{
+  command: ReturnType<typeof useConnectionCommand>;
+  confirmationKnown: boolean;
+  locked: boolean;
+  blocked: boolean;
+  refresh: () => unknown;
+}>) {
+  if (!command.uncertain)
+    return (
+      <ConnectionFeedback
+        error={confirmationKnown ? undefined : command.error}
+        errorPresentation="notice"
+      />
+    );
+  if (confirmationKnown) {
+    if (locked) return null;
+    return (
+      <>
+        <FormNotice tone="info" compact>
+          Bạn đã đồng ý lịch này. Bạn có thể gửi thẻ cập nhật vào Chat.
+        </FormNotice>
+        <Button
+          variant="secondary"
+          disabled={blocked || command.pending}
+          onPress={() => {
+            void command.retry();
+          }}
+        >
+          Gửi cập nhật vào Chat
+        </Button>
+      </>
+    );
+  }
+  return (
+    <>
+      <FormNotice tone="warning" compact>
+        Chưa xác định được kết quả đồng ý lịch. Kiểm tra trạng thái trước khi
+        xác nhận lại.
+      </FormNotice>
+      <Button
+        variant="secondary"
+        disabled={blocked || command.pending}
+        onPress={refresh}
+      >
+        Kiểm tra trạng thái lịch
+      </Button>
+      <Button
+        variant="secondary"
+        disabled={blocked || command.pending}
+        onPress={() => {
+          void command.retry();
+        }}
+      >
+        Kiểm tra lại lần xác nhận trước
+      </Button>
+    </>
+  );
+}
+
 function SchedulePanel({
   path,
   plan,
@@ -216,55 +281,13 @@ function SchedulePanel({
               Đồng ý lịch học
             </Button>
           )}
-          {command.uncertain ? (
-            confirmationKnown ? (
-              !locked && (
-                <>
-                  <FormNotice tone="info" compact>
-                    Bạn đã đồng ý lịch này. Bạn có thể gửi thẻ cập nhật vào
-                    Chat.
-                  </FormNotice>
-                  <Button
-                    variant="secondary"
-                    disabled={blocked || command.pending}
-                    onPress={() => {
-                      void command.retry();
-                    }}
-                  >
-                    Gửi cập nhật vào Chat
-                  </Button>
-                </>
-              )
-            ) : (
-              <>
-                <FormNotice tone="warning" compact>
-                  Chưa xác định được kết quả đồng ý lịch. Kiểm tra trạng thái
-                  trước khi xác nhận lại.
-                </FormNotice>
-                <Button
-                  variant="secondary"
-                  disabled={blocked || command.pending}
-                  onPress={refresh}
-                >
-                  Kiểm tra trạng thái lịch
-                </Button>
-                <Button
-                  variant="secondary"
-                  disabled={blocked || command.pending}
-                  onPress={() => {
-                    void command.retry();
-                  }}
-                >
-                  Kiểm tra lại lần xác nhận trước
-                </Button>
-              </>
-            )
-          ) : (
-            <ConnectionFeedback
-              error={confirmationKnown ? undefined : command.error}
-              errorPresentation="notice"
-            />
-          )}
+          {scheduleConfirmationFeedback({
+            command,
+            confirmationKnown,
+            locked,
+            blocked,
+            refresh,
+          })}
         </>
       )}
       {canSchedule(path, plan, runtime.userId) && !blocked && (

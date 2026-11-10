@@ -201,17 +201,13 @@ export function ApiPathsContent() {
   if (hasMore) emptyDescription = "Tải thêm để tiếp tục tìm lộ trình phù hợp.";
   else if (paths.length)
     emptyDescription = "Chọn Tất cả để xem các lộ trình còn lại.";
+  let emptyTitle = "Chưa có lộ trình";
+  if (paths.length)
+    emptyTitle = hasMore
+      ? "Chưa thấy lộ trình phù hợp trong phần đã tải"
+      : "Không có lộ trình ở trạng thái này";
   const empty = query.data && (
-    <EmptyState
-      title={
-        paths.length
-          ? hasMore
-            ? "Chưa thấy lộ trình phù hợp trong phần đã tải"
-            : "Không có lộ trình ở trạng thái này"
-          : "Chưa có lộ trình"
-      }
-      description={emptyDescription}
-    />
+    <EmptyState title={emptyTitle} description={emptyDescription} />
   );
   let footer = null;
   if (query.isFetchNextPageError)

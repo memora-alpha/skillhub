@@ -1,5 +1,10 @@
 # Trạng thái Phase 05–06
 
+## Refactor cảnh báo Sonar — 2026-11-10T23:35:23+07:00
+
+- Sửa các vị trí của15 cảnh báo trong9 file: tách summary/title/date range của ChatScheduleNotice, feedback tạo/sửa/xác nhận lịch và các biểu thức điều kiện/template lồng nhau. Không đổi nội dung tin Chat, metadata, quyền, identity retry hoặc hành vi chọn giờ.
+- **98/98 regression PASS**, TypeScript với noUnusedLocals/noUnusedParameters, ESLint các file sửa kèm no-nested-ternary, structure935 và diff whitespace PASS. AST kiểm9 file không còn ternary/template lồng nhau; bộ đếm cấu trúc của ChatScheduleNotice khớp mức cũ24 và giảm còn8 sau sửa (ngưỡng15). Logs ignored `.expo/sonar-refactor-tests.log`, script `.expo/check-sonar-refactor.cjs`. Chưa chạy phân tích SonarCloud mới; kiểm tra local không xác nhận trạng thái issue/Quality Gate trên server.
+
 ## Dọn mã và kiểm tra tổng thể — 2026-11-10T23:15:54+07:00
 
 - Bỏ SettlementPanel và helper trình bày không còn consumer, cùng methods/schema settlement cũ trong post-learning API; giữ luồng LearningChangePanel đang dùng từ Session. Kiểm tra graph935 source files: các module production đã sửa đều có consumer, không import fixture/test vào production và không còn style thừa trong diff.

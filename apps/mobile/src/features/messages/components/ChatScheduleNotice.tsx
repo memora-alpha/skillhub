@@ -2,6 +2,37 @@ import type { ComponentProps } from "react";
 import { ChatWorkflowCard } from "./ChatWorkflowCard";
 import type { ChatScheduleNotice as Notice } from "../utils/schedule-notice";
 
+function confirmationSummary(
+  value: NonNullable<Notice["confirmation"]>,
+  mine: boolean,
+  partner: string,
+) {
+  if (value.bothConfirmed)
+    return "Hai bên đã đồng ý lịch này · Chưa chốt lịch.";
+  const confirmedBy = mine ? "Bạn" : partner;
+  const waitingFor = mine ? "đối tác" : "bạn";
+  return `${confirmedBy} đã đồng ý · Chờ ${waitingFor} xác nhận.`;
+}
+
+function scheduleTitle(notice: Notice) {
+  if (notice.sessionCount === undefined) return "Đã xác nhận lịch học";
+  const readiness = notice.locked ? " đã sẵn sàng" : "";
+  return `${notice.sessionCount} buổi học${readiness}.`;
+}
+
+function scheduleDateRange(notice: Notice) {
+  const date = (value: string) =>
+    new Date(value).toLocaleDateString("vi-VN", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+  const start = notice.startAt ? date(notice.startAt) : undefined;
+  const end = notice.endAt ? date(notice.endAt) : undefined;
+  if (!start) return "";
+  return start === end ? `Ngày ${start}` : `${start} – ${end}`;
+}
+
 export function ChatScheduleNotice({
   notice,
   ...cardProps
@@ -21,11 +52,7 @@ export function ChatScheduleNotice({
         {...cardProps}
         label={teaching ? "Lịch bạn dạy" : "Lịch bạn học"}
         title={value.title}
-        summary={
-          value.bothConfirmed
-            ? "Hai bên đã đồng ý lịch này · Chưa chốt lịch."
-            : `${cardProps.mine ? "Bạn" : cardProps.partner} đã đồng ý · Chờ ${cardProps.mine ? "đối tác" : "bạn"} xác nhận.`
-        }
+        summary={confirmationSummary(value, cardProps.mine, cardProps.partner)}
         version={value.version}
         expandSummary
         confirmed={value.bothConfirmed}
@@ -35,27 +62,12 @@ export function ChatScheduleNotice({
       />
     );
   }
-  const date = (value: string) =>
-    new Date(value).toLocaleDateString("vi-VN", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    });
-  const start = notice.startAt ? date(notice.startAt) : undefined;
-  const end = notice.endAt ? date(notice.endAt) : undefined;
-  let title = "Đã xác nhận lịch học";
-  if (notice.sessionCount !== undefined) {
-    const readiness = notice.locked ? " đã sẵn sàng" : "";
-    title = `${notice.sessionCount} buổi học${readiness}.`;
-  }
-  let summary = "";
-  if (start) summary = start === end ? `Ngày ${start}` : `${start} – ${end}`;
   return (
     <ChatWorkflowCard
       {...cardProps}
       label="Lịch học"
-      title={title}
-      summary={summary}
+      title={scheduleTitle(notice)}
+      summary={scheduleDateRange(notice)}
       confirmed
       badgeLabel={notice.locked ? "Đã chốt" : "Đã xác nhận"}
       action="Xem lịch học"

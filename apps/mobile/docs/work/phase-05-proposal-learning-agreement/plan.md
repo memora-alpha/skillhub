@@ -34,6 +34,8 @@ Luồng: Learning Request hoặc Sharing Skill → gửi proposal → Đã gửi
 
 ## Mốc 2 — Plan & Schedule
 
+- [x] Refactor15 cảnh báo Sonar trong9 file của luồng lịch/Chat: tách nội dung thẻ lịch, điều kiện feedback, ternary và template lồng nhau; giữ hành vi và wire message. Kiểm regression98 tests, TypeScript, lint và structure; kết quả phân tích SonarCloud mới còn chờ.
+
 - [x] Bỏ settlement component/helper/API/schema cũ không còn consumer; giữ luồng đổi lịch Session đang dùng. Sửa mock ProfileReviews và pagination của sessions fixture theo contract, tăng assertion lỗi; kiểm toàn bộ1098 tests, unused types, lint, structure935 và web export. API/native acceptance còn riêng.
 
 - [x] Đồng bộ recovery khi đọc lại lịch: xác nhận của chính người dùng trên lịch hiện tại thay warning chưa rõ bằng thông báo đã đồng ý, giữ khả năng hoàn tất thẻ Chat với intent cũ; đọc lại không tự POST hay giả Chat đã gửi. Scope command theo actor/Path/plan/schedule/version/trạng thái để lịch mới không giữ recovery cũ. Với finalize chưa rõ kết quả, chỉ hiện recovery, không đồng thời báo lỗi thời gian hoặc yêu cầu nạp Credit từ lỗi replay.

@@ -103,32 +103,29 @@ export function PlanForm({
       {command.pending ? "Đang lưu..." : "Lưu và xem lộ trình"}
     </Button>
   );
+  let feedback;
+  if (command.uncertain)
+    feedback = (
+      <>
+        <FormNotice tone="warning" compact>
+          Chưa xác định được kết quả lưu lộ trình. Nội dung được giữ lại; kiểm
+          tra trạng thái trước khi gửi tiếp.
+        </FormNotice>
+        <Button
+          variant="secondary"
+          disabled={blocked || command.pending}
+          onPress={() => router.dismissTo(`/paths/${path.id}`)}
+        >
+          Xem trạng thái lộ trình
+        </Button>
+      </>
+    );
+  else if (command.error)
+    feedback = (
+      <ConnectionFeedback error={command.error} errorPresentation="notice" />
+    );
   return (
-    <PlanEditorFrame
-      action={saveAction}
-      feedback={
-        command.uncertain ? (
-          <>
-            <FormNotice tone="warning" compact>
-              Chưa xác định được kết quả lưu lộ trình. Nội dung được giữ lại;
-              kiểm tra trạng thái trước khi gửi tiếp.
-            </FormNotice>
-            <Button
-              variant="secondary"
-              disabled={blocked || command.pending}
-              onPress={() => router.dismissTo(`/paths/${path.id}`)}
-            >
-              Xem trạng thái lộ trình
-            </Button>
-          </>
-        ) : command.error ? (
-          <ConnectionFeedback
-            error={command.error}
-            errorPresentation="notice"
-          />
-        ) : undefined
-      }
-    >
+    <PlanEditorFrame action={saveAction} feedback={feedback}>
       <EditorRevisionNotice
         visible={snapshot.changed}
         disabled={command.pending || command.uncertain || blocked}

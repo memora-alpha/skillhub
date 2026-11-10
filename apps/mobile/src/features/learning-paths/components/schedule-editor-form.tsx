@@ -221,28 +221,25 @@ export function ScheduleForm({
       {scheduleButtonLabel(command.pending, !!schedule, plan.totalSessions)}
     </Button>
   );
+  let feedback;
+  if (command.uncertain)
+    feedback = (
+      <>
+        <FormNotice tone="warning" compact>
+          Chưa xác định được kết quả gửi lịch. Nội dung được giữ lại; kiểm tra
+          trạng thái trước khi gửi tiếp.
+        </FormNotice>
+        <RouteButton href={`/paths/${path.id}/schedules`}>
+          Xem trạng thái lịch
+        </RouteButton>
+      </>
+    );
+  else if (command.error)
+    feedback = (
+      <ConnectionFeedback error={command.error} errorPresentation="notice" />
+    );
   return (
-    <PlanEditorFrame
-      action={action}
-      feedback={
-        command.uncertain ? (
-          <>
-            <FormNotice tone="warning" compact>
-              Chưa xác định được kết quả gửi lịch. Nội dung được giữ lại; kiểm
-              tra trạng thái trước khi gửi tiếp.
-            </FormNotice>
-            <RouteButton href={`/paths/${path.id}/schedules`}>
-              Xem trạng thái lịch
-            </RouteButton>
-          </>
-        ) : command.error ? (
-          <ConnectionFeedback
-            error={command.error}
-            errorPresentation="notice"
-          />
-        ) : undefined
-      }
-    >
+    <PlanEditorFrame action={action} feedback={feedback}>
       <EditorRevisionNotice
         visible={snapshot.changed}
         disabled={blocked || command.pending || command.uncertain}

@@ -24,6 +24,8 @@ function InvalidPlanSchedule({
   const skill = useCatalogName(issue.plan.skillId);
   const teacherLabel =
     teacher.data || (issue.plan.teacherId === userId ? "bạn" : "đối tác");
+  const skillLabel = skill.data ? `${skill.data} · ` : "";
+  const directionLabel = `${skillLabel}${teacherLabel} dạy`;
   const mine = issue.plan.teacherId === userId;
   return (
     <View style={{ gap: 8 }}>
@@ -32,7 +34,7 @@ function InvalidPlanSchedule({
           <Text style={{ fontFamily: fonts.semibold }}>
             Buổi {item.sessionNo}: {item.reasons.join("; ")}.
           </Text>
-          {`\n${skill.data ? `${skill.data} · ` : ""}${teacherLabel} dạy`}
+          {`\n${directionLabel}`}
           {Number.isFinite(Date.parse(item.startAt)) &&
           Number.isFinite(Date.parse(item.endAt))
             ? `\n${scheduleWindowLabel(item)}`
@@ -70,40 +72,47 @@ export function ScheduleValidationFeedback({
   snapshotCurrent?: boolean;
 }>) {
   const details = invalidScheduleDetails(error);
-  const issues = snapshotCurrent
-    ? details
+  let issues: ReturnType<typeof invalidScheduleItems> | undefined;
+  if (snapshotCurrent)
+    issues = details
       ? serverInvalidScheduleItems(path, details)
-      : invalidScheduleItems(path)
-    : undefined;
+      : invalidScheduleItems(path);
+  let feedback;
+  if (!issues)
+    feedback = (
+      <FormNotice tone="error" compact>
+        Lịch đã thay đổi. Hãy tải lại và kiểm tra lịch mới.
+      </FormNotice>
+    );
+  else if (issues.length)
+    feedback = (
+      <>
+        {!details && (
+          <Copy size="hint">
+            Chưa có kết quả kiểm tra chi tiết. Hãy tải lại lịch để kiểm tra các
+            buổi dưới đây.
+          </Copy>
+        )}
+        {issues.map((issue) => (
+          <InvalidPlanSchedule
+            key={issue.plan.id}
+            pathId={path.id}
+            issue={issue}
+            userId={userId}
+          />
+        ))}
+      </>
+    );
+  else
+    feedback = (
+      <FormNotice tone="error" compact>
+        Chưa xác định được buổi cần sửa. Hãy tải lại lịch và kiểm tra lại.
+      </FormNotice>
+    );
   return (
     <View accessibilityLiveRegion="polite" style={{ gap: 12 }}>
       <Copy>Chưa thể chốt lịch.</Copy>
-      {!issues ? (
-        <FormNotice tone="error" compact>
-          Lịch đã thay đổi. Hãy tải lại và kiểm tra lịch mới.
-        </FormNotice>
-      ) : issues.length ? (
-        <>
-          {!details && (
-            <Copy size="hint">
-              Chưa có kết quả kiểm tra chi tiết. Hãy tải lại lịch để kiểm tra
-              các buổi dưới đây.
-            </Copy>
-          )}
-          {issues.map((issue) => (
-            <InvalidPlanSchedule
-              key={issue.plan.id}
-              pathId={path.id}
-              issue={issue}
-              userId={userId}
-            />
-          ))}
-        </>
-      ) : (
-        <FormNotice tone="error" compact>
-          Chưa xác định được buổi cần sửa. Hãy tải lại lịch và kiểm tra lại.
-        </FormNotice>
-      )}
+      {feedback}
     </View>
   );
 }

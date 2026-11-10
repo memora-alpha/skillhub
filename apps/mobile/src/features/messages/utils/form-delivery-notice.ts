@@ -6,17 +6,12 @@ import type { FormDelivery } from "./confirmed-form-delivery";
 
 export function formDeliveryNotice(item: FormDelivery) {
   const form = readConfirmedForm(item.messageText);
-  const subject =
-    form?.kind === "method"
-      ? "Cách học"
-      : form?.kind === "plan"
-        ? "Lộ trình"
-        : "Lịch học";
-  const saved = readScheduledMessage(item.messageText)
-    ? "Lịch học đã được chốt."
-    : form
-      ? `${subject} đã được xác nhận.`
-      : "Thao tác đã được lưu.";
+  let subject = "Lịch học";
+  if (form?.kind === "method") subject = "Cách học";
+  else if (form?.kind === "plan") subject = "Lộ trình";
+  let saved = "Thao tác đã được lưu.";
+  if (readScheduledMessage(item.messageText)) saved = "Lịch học đã được chốt.";
+  else if (form) saved = `${subject} đã được xác nhận.`;
   if (item.state === "sending")
     return `${saved} Đang gửi thẻ cập nhật vào Chat…`;
   if (item.state === "processing")
