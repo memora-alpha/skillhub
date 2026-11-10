@@ -16,6 +16,7 @@ import { ConversationMembershipReader } from "../../../conversations/application
 import { lockUsers } from "../../../../shared/database/identity-transactions";
 import { LearningRequestLifecycleService } from "../../../learning-requests/application/services/learning-request-lifecycle.service";
 import { LearningRequestPathReader } from "./learning-request-path.reader";
+import { assertScheduleTimes } from "./schedule-time-validation";
 import {
   lockLearningPath as lockPath,
   lockLearningPathLifecycle,
@@ -1034,8 +1035,12 @@ export class LearningPathsService {
       throw new ConflictException("REQUIRED_SCHEDULE_PROPOSAL_MISSING");
     }
     const collectScheduleItems = () => {
-      const scheduleItems =
-        [] as (typeof currentSchedules)[number]["scheduleItemScheduleVersionRecords"];
+      type ScheduleItem =
+        (typeof currentSchedules)[number]["scheduleItemScheduleVersionRecords"][number] & {
+          teacherId: string;
+          learnerId: string;
+        };
+      const scheduleItems: ScheduleItem[] = [];
       for (const link of plans) {
         const schedules = currentSchedules.filter((schedule) =>
           schedule.scheduleItemScheduleVersionRecords.some(
@@ -1059,14 +1064,23 @@ export class LearningPathsService {
         ) {
           throw new ConflictException("SCHEDULE_NOT_CONFIRMED");
         }
-        scheduleItems.push(...schedule.scheduleItemScheduleVersionRecords);
+        scheduleItems.push(
+          ...schedule.scheduleItemScheduleVersionRecords.map((item) => ({
+            ...item,
+            teacherId: link.ownedPlanRecord.teacherId,
+            learnerId: link.ownedPlanRecord.learnerId,
+          })),
+        );
       }
 
       return scheduleItems;
     };
     const scheduleItems = collectScheduleItems();
     const orderedItems = [...scheduleItems].sort(
-      (left, right) => left.startAt.getTime() - right.startAt.getTime(),
+      (left, right) =>
+        left.startAt.getTime() - right.startAt.getTime() ||
+        left.planId.localeCompare(right.planId) ||
+        left.sessionNo - right.sessionNo,
     );
     const [clock] = await tx.$queryRaw<{ now: Date }[]>`
         SELECT CURRENT_TIMESTAMP AS now
@@ -1079,22 +1093,7 @@ export class LearningPathsService {
       tx,
     );
     const durationMinutes = values["session.durationMinutes"];
-    const validateScheduleTimes = () => {
-      if (
-        orderedItems.some((item) => {
-          const duration =
-            (item.endAt.getTime() - item.startAt.getTime()) / 60_000;
-          return (
-            item.startAt <= clock.now ||
-            duration < durationMinutes.min ||
-            duration > durationMinutes.max
-          );
-        })
-      ) {
-        throw new ConflictException("INVALID_SCHEDULE_ITEMS");
-      }
-    };
-    validateScheduleTimes();
+    assertScheduleTimes(orderedItems, clock.now, durationMinutes);
     const existingSessions = await tx.session.findMany({
       where: {
         pathId: { not: pathId },

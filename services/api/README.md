@@ -6,6 +6,13 @@ Learning fees remain 4%; hiding a review does not reverse reputation history.
 
 # SkillHub API
 
+Schedule validation amendment (2026-11-10): `final-validation` and `finalize`
+keep `409 INVALID_SCHEDULE_ITEMS` and add `details.invalidItems` identifying
+each invalid session, its schedule/plan versions, teacher/learner IDs, UTC
+times and reason codes, plus database `evaluatedAt` and effective duration
+limits. See [contract and validation](specs/008-connections/schedule-validation-plan.md).
+No migration or configuration change is required.
+
 `GET /api/v1/learning-paths/mine` includes `title` per item: related Learning Request
 title, or source skill name for direct connections. Pagination is unchanged; no
 migration is needed for this field. See [list contract](docs/learning-path-list.md).

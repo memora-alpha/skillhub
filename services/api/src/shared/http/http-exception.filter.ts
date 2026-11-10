@@ -8,6 +8,7 @@ import {
 } from "@nestjs/common";
 import type { Response } from "express";
 import { failure } from "./response";
+import { invalidScheduleDetails } from "./invalid-schedule-details";
 import {
   safeRequestLog,
   safeServerErrorLog,
@@ -170,6 +171,8 @@ function scheduleDetails(status: number, text: string, detail: unknown) {
 }
 
 function publicErrorDetails(status: number, text: string, detail: unknown) {
+  if (text === "INVALID_SCHEDULE_ITEMS")
+    return invalidScheduleDetails(status, text, detail);
   const schedule = scheduleDetails(status, text, detail);
   if (schedule) return schedule;
   if (status === 409 && text === "INSUFFICIENT_AVAILABLE_CREDIT") {
