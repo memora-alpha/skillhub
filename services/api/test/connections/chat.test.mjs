@@ -5,6 +5,8 @@ import { randomUUID } from "node:crypto";
 import { mongo } from "mongoose";
 import { ConversationsService } from "../../dist/modules/conversations/application/services/conversations.service.js";
 import { ChatPublicationService } from "../../dist/modules/conversations/application/services/chat-publication.service.js";
+import { enqueueSystemMessage } from "../../dist/modules/conversations/application/services/system-messages.js";
+import { SystemMessagePublisher } from "../../dist/modules/conversations/application/services/system-message-publisher.js";
 import {
   draftDigest,
   publicMessage,
@@ -59,10 +61,10 @@ function fixture() {
       },
       create: async ({ data }) => {
         const row = {
-          ...data,
           status: "PREPARING",
           createdAt: new Date(),
           draftDigest: null,
+          ...data,
         };
         receipts.set(row.id, row);
         return row;
@@ -83,6 +85,12 @@ function fixture() {
         receipts.set(where.id, { ...row, ...data });
         return { count: 1 };
       },
+    },
+  };
+  tx.outboxEvent = {
+    create: async ({ data }) => {
+      outbox.push(data);
+      return data;
     },
   };
   const transactions = {
@@ -111,6 +119,15 @@ function fixture() {
       if (failDraft) {
         failDraft = false;
         throw new Error("Mongo unavailable before draft");
+      }
+      const existing = messages.get(input._id);
+      if (existing) {
+        if (
+          existing.commandDigest !== input.commandDigest ||
+          draftDigest(existing) !== existing.draftDigest
+        )
+          throw new Error("MESSAGE_DRAFT_CONFLICT");
+        return existing; // Match the real repository's immutable $setOnInsert.
       }
       const row = {
         ...input,
@@ -174,6 +191,9 @@ function fixture() {
   const input = { clientMessageId: randomUUID(), messageText: "Hello" },
     context = { correlationId: randomUUID() };
   return {
+    tx,
+    chat,
+    transactions,
     service,
     publisher,
     principal,
@@ -235,6 +255,121 @@ test("durable PREPARING identity survives missing draft and same-body retry; con
   assert.equal(f.sequence, 1n);
   assert.equal(f.notifications.length, 1);
   assert.equal(f.notifications[0].userId, f.conversation.participantBId);
+});
+
+test("system message recovers Mongo outages and post-commit crash without duplicate history, SSE or notification", async () => {
+  const f = fixture();
+  const input = {
+    conversationId: f.conversation.id,
+    senderId: f.principal.userId,
+    messageText: "An đã xác nhận lịch Bình dạy An. Đang chờ Bình xác nhận.",
+    objectType: "SCHEDULE_PROPOSAL",
+    objectId: randomUUID(),
+    objectVersion: 2,
+  };
+  const messageId = await f.transactions.run((tx) =>
+    enqueueSystemMessage(tx, input),
+  );
+  assert.equal(f.messages.size, 0, "no Mongo I/O in business transaction");
+  assert.equal(f.events.length, 0);
+  const event = f.outbox[0];
+  const registered = new Map();
+  const system = new SystemMessagePublisher(
+    { register: (type, publisher) => registered.set(type, publisher) },
+    f.tx,
+    f.chat,
+    f.publisher,
+  );
+  system.onModuleInit();
+  assert.equal(registered.get("chat.system.publish"), system);
+  f.failDraft();
+  await assert.rejects(system.publish(event), /Mongo unavailable before draft/);
+  f.failPublish(true);
+  await assert.rejects(
+    system.publish(event),
+    /Mongo unavailable during publication/,
+  );
+  assert.equal(f.receipts.get(messageId).status, "COMMITTED");
+  f.failPublish(false);
+  f.failAcknowledgement();
+  await assert.rejects(system.publish(event), /crash after Mongo commit/);
+  assert.equal(f.messages.get(messageId).status, "PUBLISHED");
+  assert.equal(f.receipts.get(messageId).status, "COMMITTED");
+  await Promise.all([system.publish(event), system.publish(event)]);
+  await system.publish(event);
+  assert.equal(f.messages.size, 1);
+  assert.equal(f.sequence, 1n);
+  assert.equal(f.receipts.get(messageId).status, "DELIVERED");
+  assert.equal(
+    f.notifications.length,
+    0,
+    "domain notification handles the action",
+  );
+  assert.deepEqual(
+    f.events.map((e) => e.type),
+    ["chat.message.created"],
+  );
+  assert.deepEqual(f.events[0].users, [
+    f.conversation.participantAId,
+    f.conversation.participantBId,
+  ]);
+  assert.equal(f.conversation.lastActivityAt, f.messages.get(messageId).sentAt);
+  const view = publicMessage(f.messages.get(messageId));
+  assert.equal(view.messageType, "SYSTEM");
+  assert.equal(view.messageText, input.messageText);
+  assert.equal(view.objectVersion, 2);
+  assert.equal(view.objectId, input.objectId);
+});
+
+test("system message snapshots cannot overwrite committed content; failed enqueue rolls back its receipt", async () => {
+  const f = fixture();
+  await f.transactions.run((tx) =>
+    enqueueSystemMessage(tx, {
+      conversationId: f.conversation.id,
+      senderId: f.principal.userId,
+      messageText: "Thỏa thuận đã được chốt.",
+      objectType: "LEARNING_PATH",
+      objectId: randomUUID(),
+      objectVersion: 1,
+    }),
+  );
+  const system = new SystemMessagePublisher(
+    { register() {} },
+    f.tx,
+    f.chat,
+    f.publisher,
+  );
+  const event = f.outbox[0];
+  for (const invalid of [
+    { ...event, eventId: randomUUID() },
+    { ...event, version: 2 },
+    { ...event, payload: { ...event.payload, messageText: "changed" } },
+    {
+      ...event,
+      payload: { ...event.payload, senderId: f.conversation.participantBId },
+    },
+    { ...event, payload: { ...event.payload, messageType: "TEXT" } },
+  ])
+    await assert.rejects(system.publish(invalid));
+  assert.equal(f.messages.size, 0);
+  const receiptsBefore = f.receipts.size;
+  f.tx.outboxEvent.create = async () => {
+    throw new Error("outbox unavailable");
+  };
+  await assert.rejects(
+    f.transactions.run((tx) =>
+      enqueueSystemMessage(tx, {
+        conversationId: f.conversation.id,
+        senderId: f.principal.userId,
+        messageText: "Thỏa thuận đã được chốt.",
+        objectType: "LEARNING_PATH",
+        objectId: randomUUID(),
+        objectVersion: 1,
+      }),
+    ),
+    /outbox unavailable/,
+  );
+  assert.equal(f.receipts.size, receiptsBefore);
 });
 test("COMMITTED worker retry after Mongo publication keeps original sequence and emits once", async () => {
   const f = fixture();

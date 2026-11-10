@@ -16,6 +16,7 @@ import { ConversationMembershipReader } from "../../../conversations/application
 import { lockUsers } from "../../../../shared/database/identity-transactions";
 import { LearningRequestLifecycleService } from "../../../learning-requests/application/services/learning-request-lifecycle.service";
 import { LearningRequestPathReader } from "./learning-request-path.reader";
+import { enqueueSystemMessage } from "../../../conversations/application/services/system-messages";
 import { assertScheduleTimes } from "./schedule-time-validation";
 import {
   lockLearningPath as lockPath,
@@ -1447,6 +1448,14 @@ export class LearningPathsService {
         dedupeKey: `learning-path-locked:${pathId}:v${expectedVersion}`,
         correlationId: randomUUID(),
       },
+    });
+    await enqueueSystemMessage(tx, {
+      conversationId: path.conversationId,
+      senderId: actor.userId,
+      messageText: `Thỏa thuận đã được chốt. Lịch học đã được khóa và ${sessionIds.length} buổi học đã được tạo. Xem lịch học.`,
+      objectType: "LEARNING_PATH",
+      objectId: pathId,
+      objectVersion: expectedVersion,
     });
     return {
       pathId,

@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import mongoose from "mongoose";
 import { ChatRepository } from "../../dist/modules/conversations/infrastructure/persistence/chat.repository.js";
+import { systemMessageDraft } from "../../dist/modules/conversations/domain/system-message.js";
 const uri = process.env.TEST_MONGODB_URI;
 test(
   "real replica set publishes each draft once and advances monotonic read with durable event intent",
@@ -88,6 +89,26 @@ test(
         await repository.advanceRead(randomUUID(), readerId, latest._id),
         null,
       );
+      const systemDraft = await repository.draft(
+        systemMessageDraft(randomUUID(), {
+          conversationId,
+          senderId,
+          messageText: "Thỏa thuận đã được chốt.",
+          objectType: "LEARNING_PATH",
+          objectId: randomUUID(),
+          objectVersion: 1,
+        }),
+      );
+      const repeated = await Promise.all(
+        Array.from({ length: 3 }, () =>
+          repository.publish(systemDraft._id, systemDraft.draftDigest),
+        ),
+      );
+      assert.equal(new Set(repeated.map((m) => m.sequence.toString())).size, 1);
+      const history = await repository.history(conversationId, 20);
+      assert.equal(history.rows.length, 6);
+      assert.equal(history.rows.at(-1).messageType, "SYSTEM");
+      assert.equal(history.rows.at(-1).objectId, systemDraft.objectId);
     } finally {
       await connection.dropDatabase();
       await connection.close();

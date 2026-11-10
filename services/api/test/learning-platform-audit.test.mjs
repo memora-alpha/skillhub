@@ -117,6 +117,7 @@ test("an applied reschedule is audited with old and new session times", async ()
   const scheduleId = "3c2b1a09-8f7e-4d6c-9b5a-4e3d2c1b0a99";
   const sessionId = "6a5b4c3d-2e1f-4a0b-9c8d-7e6f5a4b3c2d";
   const participantB = "1b2c3d4e-5f60-4718-8a9b-0c1d2e3f4a5b";
+  const conversationId = "4a5b6c7d-8e9f-4012-8345-67890abcdef1";
   const session = {
     id: sessionId,
     status: "CONFIRMED",
@@ -126,7 +127,7 @@ test("an applied reschedule is audited with old and new session times", async ()
   const item = (id, scheduleVersion, startAt, endAt) => ({
     id,
     scheduleVersion,
-    planId: "plan",
+    planId: "5a6b7c8d-9e0f-4123-8456-7890abcdef12",
     planVersion: 1,
     sessionNo: 1,
     startAt: new Date(startAt),
@@ -143,6 +144,7 @@ test("an applied reschedule is audited with old and new session times", async ()
   };
   const audits = [];
   const sessionUpdates = [];
+  const communicationEvents = [];
   const tx = {
     learningPath: {
       findUnique: () => ({
@@ -161,6 +163,8 @@ test("an applied reschedule is audited with old and new session times", async ()
         appliedVersion: 1,
         status: "NEEDS_REVISION",
         pathIdRecord: {
+          id: pathId,
+          conversationId,
           participantAId: userId,
           participantBId: participantB,
           status: "SCHEDULED",
@@ -174,6 +178,8 @@ test("an applied reschedule is audited with old and new session times", async ()
       update: ({ data }) => Object.assign(version, data),
     },
     scheduleItem: {
+      findFirst: ({ where }) =>
+        items.find((row) => row.scheduleVersion === where.scheduleVersion),
       findMany: ({ where }) =>
         items.filter((row) => row.scheduleVersion === where.scheduleVersion),
     },
@@ -189,6 +195,22 @@ test("an applied reschedule is audited with old and new session times", async ()
       update: ({ data }) => sessionUpdates.push(data),
     },
     auditLog: { create: ({ data }) => audits.push(data) },
+    learningPlan: {
+      findUniqueOrThrow: () => ({ teacherId: userId, learnerId: participantB }),
+    },
+    user: {
+      findMany: () => [
+        { id: userId, fullName: "An" },
+        { id: participantB, fullName: "Bình" },
+      ],
+    },
+    chatPublication: { create: ({ data }) => data },
+    outboxEvent: {
+      create: ({ data }) => {
+        communicationEvents.push(data);
+        return data;
+      },
+    },
   };
   const service = new SchedulingService(
     { run: (work) => work(tx) },
@@ -207,6 +229,10 @@ test("an applied reschedule is audited with old and new session times", async ()
   );
 
   assert.equal(result.status, "LOCKED");
+  assert.deepEqual(
+    communicationEvents.map((e) => e.type),
+    ["chat.system.publish", "learning-path.schedule.confirmed"],
+  );
   assert.equal(sessionUpdates.length, 1);
   assert.equal(audits.length, 1);
   const [audit] = audits;
