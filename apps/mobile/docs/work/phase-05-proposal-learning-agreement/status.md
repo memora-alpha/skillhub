@@ -42,32 +42,27 @@
 
 ## Banner đúng trạng thái — 2026-11-09T22:28:14+07:00
 
-- Bổ sung theo đính chính của người dùng lúc2026-11-09T22:36:26+07:00: warning Credit luôn mở đầu bằng trạng thái yêu cầu hủy. PENDING: người gửi chờ đối tác đồng ý, người nhận chờ chính mình phản hồi; STAFF_REVIEW chờ nhân viên; ACCEPTED chưa có approvedAt chờ cập nhật; có approvedAt ghi đã duyệt hủy. Sau đó mới nêu Credit chờ tranh chấp/chính sách. Regression22/22 path-changes-ui PASS, ESLint file và diff whitespace PASS; không thay quyền gửi/đồng ý hoặc tự quyết toán.
+- Cập nhật 2026-11-09T22:36:26+07:00: warning Credit mở đầu bằng trạng thái yêu cầu hủy. PENDING: người gửi chờ đối tác đồng ý, người nhận chờ chính mình phản hồi; STAFF_REVIEW chờ nhân viên; ACCEPTED chưa có approvedAt chờ cập nhật; có approvedAt ghi đã duyệt hủy. Sau đó nêu Credit chờ tranh chấp/chính sách. Regression22/22 path-changes-ui PASS, ESLint file và diff whitespace PASS; không thay quyền gửi/đồng ý hoặc tự quyết toán.
 
-- Sau lượt rà read-only, người dùng yêu cầu sửa4 chỗ. Warning của yêu cầu hủy và lỗi TERMINATION_BLOCKED_BY_DISPUTE chỉ rõ Credit chờ tranh chấp/chính sách, không nói tranh chấp ngăn duyệt hủy. Header/thao tác phản hồi giữ theo trạng thái yêu cầu; regression vẫn cho đối tác mở Đồng ý hủy khi có blocker Credit.
+- Warning của yêu cầu hủy và lỗi TERMINATION_BLOCKED_BY_DISPUTE chỉ rõ Credit chờ tranh chấp/chính sách, không nói tranh chấp ngăn duyệt hủy. Header/thao tác phản hồi giữ theo trạng thái yêu cầu; regression vẫn cho đối tác mở Đồng ý hủy khi có blocker Credit.
 - Hold dùng progression hiện hành cho CANCELLED/DISPUTED/COMPLETED; không báo xanh các buổi sẵn sàng. Khi đã có terminationApprovedAt nhưng chưa quyết toán, thông báo các buổi tương lai đã dừng. Path đang học/chờ bắt đầu chỉ hướng mở danh sách xem trạng thái từng buổi. Không sửa finalize/quyền/API.
 - Consent sớm đã lưu chỉ nói chờ đối tác/thời hạn ở WAITING_DISPUTE_WINDOW hoặc READY. Các trạng thái dispute/termination/review/retry giữ warning thật và chỉ ghi nhận consent, không hứa tự giải ngân sau hạn. Không lặp consent ở SETTLED/TERMINATED.
 - Editor Learning Request dùng baseline.status hiện hành: REJECTED phải lưu về nháp rồi đăng lại; OPEN có thể chuyển chờ duyệt, PENDING_MODERATION chờ duyệt, DRAFT hướng dẫn đăng sau lưu. Chi tiết tại work Phase04.
 - 40 focused tests PASS; full mobile **1065/1065 PASS**, fail/skip/cancel0. TypeScript, ESLint toàn mobile, structure910 và diff whitespace PASS. Logs local ignored .expo/banner-copy-fixes-tests.log và .expo/banner-copy-final-tests.log. Không chạy lại export vì thay đổi copy/nhánh hiển thị, không thêm import package hoặc route.
-- Fixture component thật tại320/390/430 và chữ lớn320: WAITING_DISPUTE/WAITING_TERMINATION cùng consent đã lưu hiển thị đúng warning, không có wait hint cũ, không tràn ngang/page error; đã xem ảnh390. Artifact local .expo/settlement-preview/banner-*.png. Boundary router/provider giả lập; chưa nghiệm thu API thật hoặc native. Chưa stage/commit các sửa banner.
+- Fixture component thật tại320/390/430 và chữ lớn320: WAITING_DISPUTE/WAITING_TERMINATION cùng consent đã lưu hiển thị đúng warning, không có wait hint cũ, không tràn ngang/page error; đã xem ảnh390. Artifact local .expo/settlement-preview/banner-*.png. Boundary router/provider giả lập; chưa nghiệm thu API thật hoặc native.
 
-## Chia commit theo phạm vi — 2026-11-09T22:01:13+07:00
-
-- Theo yêu cầu tiếp của người dùng, giữ nhánh fix/learning-path-flow và chia source thành bốn commit: 0fe92188 tổng quan/vụ việc và bảo vệ hủy; 3649835b giao diện thỏa thuận/lịch; 44f47d29 lifecycle Proposal; 5ea52e90 nút hồ sơ và khóa picker. Nhóm tài liệu contract/plan/status được commit riêng sau source.
-- Đã review staged diff từng nhóm; lint-staged/Prettier và commitlint chạy qua hooks, không bypass. Kiểm chứng source giữ kết quả1062 test và các checks bên dưới; không có thay đổi logic sau kiểm chứng. Chỉ commit local, không push/deploy; API/native acceptance vẫn pending.
-
-## Dọn code và kiểm tra trước commit — 2026-11-09T21:55:42+07:00
+## Dọn code và kiểm tra — 2026-11-09T21:55:42+07:00
 
 - Xóa component PathAttentionItems không còn consumer sau lựa chọn tóm tắt gọn; bỏ test của component bị xóa. PathOverviewSummary chỉ còn nội dung tóm tắt đang dùng, bỏ props compact/showStage và nhánh CTA một buổi không còn sử dụng. PathOverviewPanel không tạo lại attentionItems khi fallback vì không còn render danh sách này. Giữ contract/API và các route vụ việc đang được settlement sử dụng.
 - Bỏ style doneNumber không thể chạy khi bước đã hoàn thành luôn hiển thị icon, bannerReady trùng style banner nền và màu settings shortcut đã bị bỏ. Kiểm import graph910 source files: mọi module thay đổi ngoài app routes đều có production consumer; audit style local không còn candidate thừa trong diff.
 - Phát hiện test focus mới đã ghi đè nhầm tests/proposal-lifecycle.test.ts ở lượt trước. Khôi phục nguyên8 test API/form/identity/version/idempotency cũ (file không còn diff), chuyển test hook mới sang proposal-visit-lifecycle.test.ts. Kết quả1055 trước đó thiếu8 test cũ; kết quả hiện tại chạy đủ các test khôi phục và đã bỏ1 test component dead.
 - Full mobile **1062/1062 PASS**, fail/skip/cancel0; TypeScript, ESLint toàn mobile, structure910, Prettier toàn source/test đang thay đổi và git diff whitespace PASS. Expo web export PASS. Logs local ignored: .expo/mobile-cleanup-final-tests.log và .expo/mobile-cleanup-export.log; bundle tại .expo/mobile-cleanup-export.
 - Fixture source thật: tổng quan/lối vào tất cả buổi học và own/public profile tại320/390/430, chữ lớn320 PASS; không tràn ngang, không thêm CTA một buổi, chỉ một CTA danh sách toàn Path, callback/nút tài khoản đúng. Hồ sơ cuối cùng dùng hai nút icon vuông44×44px, bo góc13px, cách4px, có nền/viền mảnh, không chữ Chỉnh sửa. Scripts/ảnh local tại .expo/schedule-layout-preview và .expo/profile-settings-preview.
-- Source đủ kiểm chứng để review/commit. API thật/hai tài khoản và Android/iOS acceptance vẫn chưa thực hiện, fixture/export không thay các bước đó. Người dùng sau đó đã yêu cầu chia commit, ghi tại mục trên.
+- API thật/hai tài khoản và Android/iOS acceptance vẫn chưa thực hiện; fixture/export không thay các bước đó.
 
 ## Sửa mobile sau rà liên feature — 2026-11-09T21:38:04+07:00
 
-- Theo yêu cầu sửa mobile, luồng Learning Request → Proposal và lời mời trực tiếp dùng guard theo resource, session và lượt focus. Preflight hoàn tất sau khi rời màn không POST; POST đã gửi vẫn hoàn tất qua runtime/cache/recovery hiện có nhưng không tự điều hướng từ màn khác. Gửi, sửa, chấp nhận và explicit recovery đều chụp lượt focus trước khi await; quay lại màn không hồi sinh callback cũ. Không tự replay mutation.
+- Luồng Learning Request → Proposal và lời mời trực tiếp dùng guard theo resource, session và lượt focus. Preflight hoàn tất sau khi rời màn không POST; POST đã gửi vẫn hoàn tất qua runtime/cache/recovery hiện có nhưng không tự điều hướng từ màn khác. Gửi, sửa, chấp nhận và explicit recovery đều chụp lượt focus trước khi await; quay lại màn không hồi sinh callback cũ. Không tự replay mutation.
 - Bỏ nhánh chặn tạo thỏa thuận khi có từ100 Path: api.mine đã đọc hết cursor,100 chỉ là page size. Giữ kiểm lỗi/refresh/denied, Path có sẵn cùng conversation và chống tạo trùng hiện tại. Không đổi API/backend; không thêm thay đổi nghiệp vụ cho Learning Request khi chưa có lỗi xác nhận.
 - Hồ sơ riêng chuyển Cài đặt khỏi grid thành icon bánh răng cạnh Chỉnh sửa, vùng chạm44px và nhãn accessibility Cài đặt tài khoản. Icon settings dùng glyph bánh răng trong map mobile hiện có. Hồ sơ công khai không nhận handler quản lý tài khoản. Profile picker luôn nhả khóa local khi kết thúc lúc blur; dữ liệu ảnh/error vẫn kiểm focus/session.
 - Regression gồm rời màn khi preflight hoặc POST đang chờ, blur/refocus, đổi resource/session, hồi phục explicit, picker cancel/kết quả cũ lúc blur và danh sách hơn100 Path. Full mobile **1055/1055 PASS**, fail/skip/cancel0; TypeScript, ESLint và structure911 PASS. Log local ignored .expo/mobile-proposal-profile-tests.log.
@@ -78,14 +73,14 @@
 - Rà source danh sách, thỏa thuận/bốn bước, tổng quan gọn, lịch xem/editor, tóm tắt vụ việc, nhiều Session/hai chiều/khác tháng, denied/read errors, trạng thái hủy/hoàn tất và các đích điều hướng trong phạm vi vừa thay đổi.
 - Sửa hai lỗi xác nhận được: list thiếu learningStage đã dùng label Path nhưng icon/màu lại theo PREPARING; giờ cả label và presentation cùng fallback Path. Màn lịch từng buổi trước đó chỉ blocked theo error, vẫn cho xác nhận trong isFetching; giờ truyền blocked cả refresh xuống overview/các chiều/finalize và guard trực tiếp callback xác nhận khi blocked/pending.
 - Regression kiểm ACTIVE/CANCELLED/DISPUTED thiếu stage có icon phù hợp; trong refresh/read failure nút xác nhận disabled, gọi trực tiếp handler không POST; tải xong xác nhận hoạt động lại. Không đổi API, phiên bản hay chính sách xác nhận.
-- Full suite lần đầu có một test còn đòi link danh sách vụ việc chung đã được người dùng yêu cầu bỏ. Cập nhật assertion để vẫn kiểm thông báo tranh chấp, giữ trạng thái quyết toán khi read lỗi và không có nút generic đó.
+- Cập nhật assertion còn kiểm link danh sách vụ việc chung đã bị loại khỏi UI; regression tiếp tục kiểm thông báo tranh chấp, giữ trạng thái quyết toán khi read lỗi và không có nút generic đó.
 - Full mobile cuối **1060/1060 PASS**, fail/skip/cancel0; TypeScript, ESLint toàn mobile, structure910, git diff whitespace PASS. Expo web export PASS tại .expo/learning-ui-review-export. Logs local ignored: learning-ui-review-final-tests.log, learning-ui-review-fixes-tests.log và learning-ui-review-export.log.
 - Chưa xác nhận thêm lỗi trong scope source đã rà. Bằng chứng full tests/export không thay nghiệm thu API thật/hai tài khoản hoặc Android/iOS, Back gesture, accessibility hệ điều hành và đồng bộ foreground/background trên thiết bị.
 
 
 ## Tổng quan gọn, mở toàn bộ buổi học — 2026-11-09T18:55:28+07:00
 
-- Người dùng xác nhận lựa chọn: tóm tắt gọn → tất cả buổi học, bỏ danh sách vấn đề và các màn trung gian trong khối Tình hình học tập.
+- Tình hình học tập dùng tóm tắt gọn và liên kết tới tất cả buổi học; bỏ danh sách vấn đề và các màn trung gian.
 - PathOverviewPanel chỉ render tiến độ, thông tin buổi tiếp theo ở chế độ compact và tổng số việc cần theo dõi. Không render PathAttentionItems hoặc CTA tới case/Session riêng; không còn chuỗi list vấn đề → tóm tắt vụ việc → một buổi. Thông tin chi tiết/vụ việc và routes riêng giữ nguyên cho các consumer khác.
 - Nút tổng hiện có ở phần lịch tiếp tục là CTA duy nhất mở /paths/[id]/sessions. Danh sách này đã kiểm nhiều buổi, hai chiều và khác tháng ở lượt trước; không giới hạn vào nextSession hoặc một attention item.
 - 35 focused tests PASS, TypeScript, ESLint file ảnh hưởng, structure910 và diff whitespace PASS. Regression ba attention items chỉ cho một dòng đếm và không có link chi tiết; denied/empty và đích danh sách giữ nguyên. Log .expo/overview-simple-sessions-tests.log.
@@ -103,7 +98,7 @@
 
 ## Thiết kế màn Lịch học — 2026-11-09T18:40:25+07:00
 
-- Theo đính chính của người dùng, card Tình hình học tập chỉ xuất hiện khi chọn bước Lịch học, trước phần lịch. Đối tác giữ vị trí trên thanh bốn bước. Không lặp card ở Cách học/Lộ trình/Hoàn tất; phần không có dữ liệu hữu ích tiếp tục ẩn.
+- Card Tình hình học tập chỉ xuất hiện khi chọn bước Lịch học, trước phần lịch. Đối tác giữ vị trí trên thanh bốn bước. Không lặp card ở Cách học/Lộ trình/Hoàn tất; phần không có dữ liệu hữu ích tiếp tục ẩn.
 - Phần lịch dùng các dòng phẳng, phân cách nhẹ: vai trò + trạng thái → kỹ năng → số buổi và ngày bắt đầu thực tế nếu có. Bỏ khung xám lồng; nút đề xuất/xác nhận/chốt/xem buổi nằm trong section lịch. Chat thành nút phụ nhẹ. Lịch đã chốt dùng cùng bố cục; không tự suy có lịch nếu payload thiếu schedule/Session.
 - Giữ duy nhất một shortcut Session list khi mở bước lịch, kể cả read error. Chỉ thao tác xem Session được giữ cho phép khi read lỗi; điều hướng đề xuất/xác nhận/chốt vẫn blocked theo guard có sẵn. Không đổi mutation hoặc policy backend.
 - Màn lịch từng buổi đổi title thành Lịch học, ưu tiên trạng thái hiện tại → hình thức gọn → từng lịch → múi giờ → kiểm tra/chốt. Bỏ chú thích điều kiện trùng và rút dòng múi giờ; thông tin Credit vẫn ở bước chốt.
@@ -118,7 +113,7 @@
 - Regression kiểm thứ tự đối tác/thanh bước và chọn các bước, kể cả xem lại sau hoàn tất: tổng quan chỉ có ở Lộ trình, Hoàn tất vẫn dùng quyết toán riêng. Không đổi API, quyền hay hành động xác nhận. Kết quả kiểm tra và giới hạn xem các mục ngay dưới; chưa nghiệm thu Android/iOS hoặc API thật.
 
 
-## Tinh gọn thỏa thuận theo phản hồi — 2026-11-09T18:02:33+07:00
+## Tinh gọn thỏa thuận — 2026-11-09T18:02:33+07:00
 
 - Bỏ nút Vụ việc liên quan thỏa thuận, nút Xem thỏa thuận và quyết toán và lối mở danh sách vụ việc chung khi không có target cụ thể. Màn tóm tắt giữ Back theo history và fallback; trợ giúp chỉ hiện khi cần bổ sung thông tin. Footer Lộ trình/Lịch học bỏ nút xem lại bước đã có trong stepper.
 - Cách học dùng các dòng Hình thức, Credit, Xác nhận; bỏ avatar lặp, khung lồng và hướng dẫn phân công dài. Card lộ trình bỏ số phiên bản, dòng xác nhận và ghi chú Credit lặp. Phần hoàn tất bỏ mô tả lặp và không dựng thêm tổng quan học tập cùng thông tin.
@@ -142,11 +137,11 @@
 
 Cập nhật tài liệu: 2026-11-08T16:14:30+07:00.
 
-**Ready for review — source complete; acceptance pending.** Source và regression đã hoàn tất trên nhánh `fix/mobile-proposal-chat-learning-path`; nghiệm thu API thật và Android/iOS còn mở.
+**Ready for review — source complete; acceptance pending.** Source và regression đã hoàn tất; nghiệm thu API thật và Android/iOS còn mở.
 
 ## Điều hướng hồ sơ qua avatar
 
-2026-11-08T16:14:30+07:00, trên nhánh hiện tại `fix/learning-path-flow`.
+Kiểm chứng: 2026-11-08T16:14:30+07:00.
 
 - Entry xem hồ sơ trong Request, chi tiết Proposal/Session, tìm người chia sẻ,
   khám phá mẫu và self-preview chuyển sang avatar. Gỡ nút trùng và chevron của
@@ -234,36 +229,22 @@ Kết quả của các thay đổi code trước lần biên tập tài liệu n
 - 64/64 focused tests đạt trong 16 suite: `schedule-conflicts`, `schedule-existing-conflicts`, `schedule-existing-fresh`, `schedule-busy-day`, `schedule-timeline`, `schedule-editor-ui`, `schedule-read-card`, `editor-draft-revision`, `learning-amendments`, `learning-agreement-hold-ui`, `chat-schedule-notice`, `chat-file-card`, `chat-timeline`, `message-grouping`, `sessions-context`, `sessions-reschedule-availability`.
 - Sau dọn code thừa, 14/14 tests liên quan đạt: `chat-schedule-notice`, `chat-file-card`, `weekly-schedule`, `schedule-time-fields`, `schedule-editor-ui`. Nhóm này có giao với 64 tests trên.
 - Mobile lint, check-types, structure check (822 source files), format và diff check đạt. Hai test Session đã đồng bộ import `rescheduleAvailabilityMessage` và quy tắc xác nhận hai bên trước cutoff 60 phút.
-- Các commit code/test đã qua lint-staged và commitlint. Chưa nghiệm thu trực tiếp API thật, Android hoặc iOS.
+- Chưa nghiệm thu trực tiếp API thật, Android hoặc iOS.
 
-## Các commit lịch học và Chat
+## Kiểm chứng lịch học và Chat
 
 - `2a685d4e` — đồng bộ test điều kiện đổi lịch.
 - `a45177a3` — kiểm tra xung đột, làm mới Session và vô hiệu hóa callback editor cũ.
 - `4f8a9423` — điều hướng nạp Credit từ lỗi thiếu số dư.
 - `6e9f4539` — gộp và thống nhất card thông báo lịch trong Chat.
 
-## Bàn giao Git
+## Kiểm chứng hồi quy trước đây
 
-Các commit source/tests ngày 2026-10-27:
+Source/tests ngày 2026-10-27 đạt869/869 và bundle ba nền tảng tại checkpoint bên dưới.
 
-- `0c533023` — `fix(mobile): use learning request owner avatars`.
-- `c788942a` — `fix(mobile): explain failed chat attachments`.
+Các mốc trước đó đã được kiểm TypeScript trên từng snapshot. Focused tests: loading 10/10, Proposal 2/2, Chat 10/10, Learning Path 41/41. Logs ignored `.expo/commit-{1..4}-{types,tests}.log`.
 
-Cả hai qua lint-staged/commitlint; tài liệu contract/plan/status trong commit riêng. Source không đổi so với bản đã đạt869/869 và bundle ba nền tảng ở checkpoint dưới. Chưa push.
-
-Checkpoint chia commit trước đó:
-
-Source đã chia thành 4 commit theo nhóm; tài liệu ghi nhận trong commit riêng, chưa push.
-
-- `36a91c19` — `fix(mobile): unify screen loading states`.
-- `5e06db18` — `fix(mobile): guard proposal submission and actions`.
-- `3907c6d1` — `fix(mobile): streamline chat attachments and delivery recovery`.
-- `0790f219` — `fix(mobile): preserve learning drafts and validate schedules`.
-
-Mỗi mốc source được kiểm TypeScript trên bản chụp Git index để không dựa vào file chưa stage của commit sau. Focused tests theo thứ tự: 10/10 loading, 2/2 Proposal, 10/10 Chat, 41/41 Learning Path. Cả bốn commit đã qua lint-staged và commitlint; logs ignored `.expo/commit-{1..4}-{types,tests}.log`. Các ghi chú chưa commit ở checkpoint lịch sử bên dưới là trạng thái tại lúc kiểm chứng tương ứng.
-
-Follow-up loading toàn mobile dùng cùng nhánh: Proposal/LearningPath gom loader ở vùng content, Chat gom lần tải thread đầu; dữ liệu phụ/trang cũ dùng placeholder và refresh có cache giữ content. Checkpoint loading trước chỉnh thẻ tệp là 855/855 cùng types/lint/structure788/export ba platform đạt; evidence và giới hạn chính ở [status loading](../mobile-chat-rate-limit/status.md). Bảng bên dưới giữ checkpoint 843/843 của lần sửa Proposal/Chat trước khi gom loading; checkpoint UI mới nhất ở ngay dưới.
+Proposal/LearningPath gom loader ở vùng content, Chat gom lần tải thread đầu; dữ liệu phụ/trang cũ dùng placeholder và refresh có cache giữ content. Checkpoint loading trước chỉnh thẻ tệp là 855/855 cùng types/lint/structure788/export ba platform đạt; evidence và giới hạn chính ở [status loading](../mobile-chat-rate-limit/status.md). Bảng bên dưới giữ checkpoint 843/843 của lần sửa Proposal/Chat trước khi gom loading; checkpoint UI mới nhất ở ngay dưới.
 
 ## Kết quả kiểm tra trước thay đổi lịch và Chat
 
@@ -271,7 +252,7 @@ Follow-up loading toàn mobile dùng cùng nhánh: Proposal/LearningPath gom loa
 
 Rà phần owner avatar theo BE232cb6ba cùng Proposal/Chat/Plan/Schedule trên working tree hiện tại. Phát hiện và tái hiện một lỗi trình bày: GET status tệp trả REJECTED/SCAN_FAILED/UPLOAD_FAILED/CLEANUP_PENDING/DELETED nhưng preview vẫn ghi “Chờ kiểm tra tệp…” và cho kiểm tra lại như đang quét. Regression trước sửa fail đúng nhánh REJECTED (`.expo/post-be-audit-repro.log`). Đã phân biệt nhãn/lý do và hướng dẫn bỏ/chọn lại; QUARANTINED/SCANNING vẫn cho đọc status, chỉ READY mới gửi. Không tự upload/retry mutation, không thay endpoint/BE; processing/uncertain tiếp tục recovery cùng intent. Có regression UI cho cả năm trạng thái và kiểm không gửi ở mọi trạng thái ngoài READY, gồm trạng thái chưa biết.
 
-Baseline audit **868/868 PASS**; sau sửa **869/869 full tests, 12/12 focused PASS**, TypeScript, toàn mobile ESLint và structure **792 source files PASS**. Logs ignored `.expo/post-be-audit-tests.log`, `.expo/post-be-audit-full-final.log`, `.expo/post-be-audit-focused.log`, `.expo/post-be-audit-types-final.log`, `.expo/post-be-audit-lint-final.log`, `.expo/post-be-audit-structure-final.log`. Export Android/iOS/web PASS tại `.expo/post-be-audit-export`, log `.expo/post-be-audit-export.log`; dùng override ignored loại artifact `.expo` như checkpoint trước, không sửa cấu hình sản phẩm. Prettier/diff PASS. Chưa phát hiện thêm lỗi trong phạm vi source đã rà; chưa nghiệm thu BE thật/hai tài khoản/Android/iOS. Source/tests đồng bộ avatar và sửa lỗi scan đã commit tại `0c533023`/`c788942a` như phần bàn giao; chưa push.
+Baseline audit **868/868 PASS**; sau sửa **869/869 full tests, 12/12 focused PASS**, TypeScript, toàn mobile ESLint và structure **792 source files PASS**. Logs ignored `.expo/post-be-audit-tests.log`, `.expo/post-be-audit-full-final.log`, `.expo/post-be-audit-focused.log`, `.expo/post-be-audit-types-final.log`, `.expo/post-be-audit-lint-final.log`, `.expo/post-be-audit-structure-final.log`. Export Android/iOS/web PASS tại `.expo/post-be-audit-export`, log `.expo/post-be-audit-export.log`; dùng override ignored loại artifact `.expo` như checkpoint trước, không sửa cấu hình sản phẩm. Prettier/diff PASS. Chưa phát hiện thêm lỗi trong phạm vi source đã rà; chưa nghiệm thu BE thật/hai tài khoản/Android/iOS.
 
 ### Checkpoint trước đồng bộ BE
 
@@ -281,11 +262,11 @@ Review toàn luồng 2026-10-26 đã tái hiện và sửa ba nhóm lỗi (4 ca 
 - Schedule khôi phục phần giây sau validation theo phút có thể tạo trùng 27 giây giữa hai buổi. Nay kiểm lại timestamp cuối, trả lỗi field và mở đúng buổi cần sửa; không gửi hoặc mất draft. Có regression riêng cho utility và handler form.
 - Link tải tệp hết hạn trước khi mở từng bị bỏ qua im lặng. Nay hiện lý do và cho nhấn lại thẻ để lấy link mới, không tự retry hoặc mở link hết hạn; kiểm phiên/duplicate taps giữ nguyên.
 
-Kết quả source mới nhất: **863/863 full tests, 42/42 focused PASS**, TypeScript, toàn mobile ESLint, structure **790 source files**, format/diff và export Android/iOS/web PASS. Logs ignored `.expo/flow-audit-full.log`, `.expo/flow-audit-focused.log`, `.expo/flow-audit-types.log`, `.expo/flow-audit-lint.log`, `.expo/flow-audit-export.log`; bundle `.expo/flow-audit-export`. Thêm 4 regression mới, mở rộng test thẻ tệp; full suite bao gồm thay đổi nhập thời lượng trực tiếp. Export dùng cùng override tạm loại artifact `.expo` đã mô tả bên dưới, không sửa cấu hình sản phẩm. Chưa nghiệm thu API/native với hai tài khoản; source đã commit theo nhóm ở phần bàn giao, chưa push.
+Kết quả source mới nhất: **863/863 full tests, 42/42 focused PASS**, TypeScript, toàn mobile ESLint, structure **790 source files**, format/diff và export Android/iOS/web PASS. Logs ignored `.expo/flow-audit-full.log`, `.expo/flow-audit-focused.log`, `.expo/flow-audit-types.log`, `.expo/flow-audit-lint.log`, `.expo/flow-audit-export.log`; bundle `.expo/flow-audit-export`. Thêm 4 regression mới, mở rộng test thẻ tệp; full suite bao gồm thay đổi nhập thời lượng trực tiếp. Export dùng cùng override tạm loại artifact `.expo` đã mô tả bên dưới, không sửa cấu hình sản phẩm. Chưa nghiệm thu API/native với hai tài khoản.
 
 Follow-up thời lượng 2026-10-26: “Học trong bao lâu?” dùng Input chung với bàn phím số và đơn vị phút thay wheel; lịch tuần và chỉnh từng buổi cùng nhận thay đổi. Giữ DateTimeField cho ngày/giờ bắt đầu, schema số nguyên 60–180, disabled và payload. Checkpoint riêng **7/7 focused PASS**, lint hai file/structure790 PASS; TypeScript PASS (`.expo/typed-duration-types.log`), regression tại `.expo/typed-duration-focused.log`. Đã được kiểm lại trong full suite/export của review trên.
 
-Follow-up UI thẻ tệp/Inbox/lộ trình đã triển khai trên cùng nhánh:
+UI thẻ tệp/Inbox/lộ trình đã triển khai:
 
 - Chat dùng `ChatAttachmentTile` gọn có × trong composer theo hướng Messenger, phía trên hàng nhập tin; dùng chung nút Gửi, bỏ hướng dẫn khi ready. Tệp đã gửi dùng `ChatFileCard` với icon tài liệu/ảnh và tải tệp, giữ phía gửi/nhận, avatar/giờ. Tên dài tối đa hai dòng, hiện loại/dung lượng và accessibility label đầy đủ. × khóa theo upload/delivery; giữ refetch READY trước send và recovery của controller. Tải qua API có quyền, giữ kiểm tra phiên/hạn URL và chặn nhấn liên tiếp.
 - Inbox: giờ hôm nay; `Th 2`…`Th 7` cho ngày trước trong tuần lịch bắt đầu thứ Hai; `25 thg 10` cho tuần trước, thêm năm khi khác năm. Dùng ngày địa phương, có regression qua ranh giới tuần/tháng/năm.
@@ -293,11 +274,11 @@ Follow-up UI thẻ tệp/Inbox/lộ trình đã triển khai trên cùng nhánh:
 - Checkpoint Messenger: full mobile **858/858 PASS**, TypeScript, ESLint và structure **790 source files** đạt. Logs ignored `.expo/messenger-full.log`, `.expo/messenger-types.log`, `.expo/messenger-lint.log`; **7/7 focused** gồm handler remove khóa/mở, ready chỉ còn remove, recovery giữ caption và attachment trong composer (`.expo/messenger-focused.log`). Sửa type của JSX stub test rồi chạy lại typecheck và composer regression/lint, không đổi runtime.
 - Đã xem component React Native Web thật ở khung 320/390px, có tên tệp dài, tin nhận/gửi, ô tệp ready và đang upload; ảnh `.expo/messenger-preview.png`. Thử × ở bản preview: gỡ tile và khóa Gửi khi trống, upload giữ ×/Gửi disabled. Preview cô lập dữ liệu và native boundaries, không phải nghiệm thu API hay thiết bị. Ảnh `.expo/ui-polish-preview.png` giữ checkpoint giao diện thỏa thuận/lộ trình trước đó.
 
-Checkpoint Messenger Android/iOS/web export **PASS**, output `.expo/messenger-export`, log `.expo/messenger-export.log`. Checkpoint trước tại `.expo/ui-polish-export-final` cũng PASS; các lượt đầu dừng ở Metro không được tính PASS. Lượt đạt dùng Expo default config với override tạm chỉ loại `.expo` chứa artifact kiểm tra cũ khỏi file scan (`.expo/web/cache/ui-polish-metro.cjs`); không thay config app/dependency. Preview và helper nằm trong vùng cache. Không stage/commit/push, không sửa API/shared packages/dependencies; nghiệm thu thiết bị/API vẫn còn mở.
+Checkpoint Messenger Android/iOS/web export **PASS**, output `.expo/messenger-export`, log `.expo/messenger-export.log`. Checkpoint trước tại `.expo/ui-polish-export-final` cũng PASS; các lượt đầu dừng ở Metro không được tính PASS. Lượt đạt dùng Expo default config với override tạm chỉ loại `.expo` chứa artifact kiểm tra cũ khỏi file scan (`.expo/web/cache/ui-polish-metro.cjs`); không thay config app/dependency. Preview và helper nằm trong vùng cache. Không sửa API/shared packages/dependencies; nghiệm thu thiết bị/API vẫn còn mở.
 
 Review 2026-10-25T20:19:39+07:00 đã tái hiện editor bị remount theo plan version (log `.expo/review-editor-before.log`). Plan/Schedule editor hiện giữ resource key và snapshot đã mở; polling không reset draft, callback cũ/validation chậm không được gửi khi revision đổi. Chỉ nút mở bản mới reset form; pending/unknown chặn việc bỏ intent. Khi thỏa thuận tạm chưa cho sửa, draft đã mở giữ ở chế độ chỉ đọc; khi mất authorized data hoặc đổi resource không được phép thì editor bị gỡ. Không mở quyền hoặc tự xác nhận nghiệp vụ.
 
-Kiểm chứng review: **855/855 full tests, 32/32 focused**, TypeScript, ESLint, structure788, format/diff và export Android/iOS/web đạt. Logs ignored `.expo/review-full-final.log`, `.expo/review-focused-final.log`, `.expo/review-types-final.log`, `.expo/review-lint-final.log`, `.expo/review-export-final.log`. Baseline trước review847; thêm8 regression về focus, resource key, draft/reload/version callback và giữ/gỡ editor theo quyền. Chưa nghiệm thu polling/concurrent edits trên API/native, chưa stage/commit/push.
+Kiểm chứng review: **855/855 full tests, 32/32 focused**, TypeScript, ESLint, structure788, format/diff và export Android/iOS/web đạt. Logs ignored `.expo/review-full-final.log`, `.expo/review-focused-final.log`, `.expo/review-types-final.log`, `.expo/review-lint-final.log`, `.expo/review-export-final.log`. Baseline trước review847; thêm8 regression về focus, resource key, draft/reload/version callback và giữ/gỡ editor theo quyền. Chưa nghiệm thu polling/concurrent edits trên API/native.
 
 | Phần             | Hiện trạng                                                                                                                                                                                                                                                                                                                                                                     |
 | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -315,14 +296,14 @@ Kiểm chứng review: **855/855 full tests, 32/32 focused**, TypeScript, ESLint
 | Full mobile tests                    | **843/843 PASS**, fail 0, skipped 0; baseline trước sửa 834/834, bổ sung 9 regression và mở rộng test proposal/template hiện có. Log ignored: `.expo/proposal-chat-learning-full-final.log`.                                                                                                    |
 | ESLint, TypeScript, structure        | PASS; structure kiểm 781 source files. Logs ignored `.expo/proposal-chat-learning-types-final.log`, `.expo/proposal-chat-learning-lint-final.log`. Dùng binary local tương đương package scripts vì pnpm wrapper định cài lại dependencies và dừng ở lỗi no-TTY; không cài/purge modules.       |
 | Android/iOS/web export               | PASS tại `.expo/proposal-chat-learning-export-final`; log `.expo/proposal-chat-learning-export-final.log`. Chứng minh bundle cả ba platform, không thay nghiệm thu native/API.                                                                                                                  |
-| Diff                                 | Prettier toàn bộ file thay đổi và whitespace PASS; chỉ sửa apps/mobile. Không push.                                                                                                                                                                                                             |
+| Diff                                 | Prettier toàn bộ file thay đổi và whitespace PASS; chỉ sửa apps/mobile.                                                                                                                                                                                                             |
 | UI host checks                       | Test dùng màn/hook/handler thật với mock native boundaries: picker thời lượng, template chỉ áp dụng khi nhấn nút, gửi file không caption, upload/scan/read lỗi, duplicate taps, logout, 201/202 và recovery giữ payload gốc. Chưa kiểm giao diện/gesture/document picker/scanner trên thiết bị. |
 | API đang triển khai                  | **Chưa nghiệm thu** end-to-end với hai tài khoản.                                                                                                                                                                                                                                               |
 | Android/iOS và nghiệm thu người dùng | **Chưa thực hiện** cho phiên bản bàn giao hiện tại.                                                                                                                                                                                                                                             |
 
 Regression kiểm no-op/same-version đúng flag và resource, sửa plan giữ cách học/chiều đối ứng, lịch thiếu không confirm/finalize, quyền teacher/lock, PATCH và prefill giữ giây của lịch cũ, uncertain giữ draft. Lưu terms y nguyên đã tự xác nhận không confirm/gửi Chat thêm; phần chưa xác nhận vẫn confirm. Không coi host mocks hoặc web export là nghiệm thu quyền/ledger/API thật.
 
-Follow-up 2026-10-25 đã đối chiếu SRS 1.6 mục 18.12/CHAT-002: Chat cho phép attachment tối đa 15 MB và phải validation/malware scan. Chọn tệp tự mở picker và upload theo thao tác người dùng, gửi chỉ sau GET trạng thái READY mới. Recovery 202 chỉ đọc delivery; nếu server báo publication failure thì người dùng có thể gửi lại cùng intent. Màn đính kèm cũ và chia sẻ lộ trình được cập nhật theo cùng cơ chế recovery. Không sửa BE/shared/dependency; chưa stage/commit/push.
+Follow-up 2026-10-25 đã đối chiếu SRS 1.6 mục 18.12/CHAT-002: Chat cho phép attachment tối đa 15 MB và phải validation/malware scan. Chọn tệp tự mở picker và upload theo thao tác người dùng, gửi chỉ sau GET trạng thái READY mới. Recovery 202 chỉ đọc delivery; nếu server báo publication failure thì người dùng có thể gửi lại cùng intent. Màn đính kèm cũ và chia sẻ lộ trình được cập nhật theo cùng cơ chế recovery. Không sửa BE/shared/dependency.
 
 ## Giới hạn và dependency còn mở
 

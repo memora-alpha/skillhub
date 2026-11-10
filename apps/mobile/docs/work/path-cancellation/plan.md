@@ -2,7 +2,7 @@
 
 ## Bổ sung tổng quan và vụ việc Learning Path — 2026-11-08
 
-Phạm vi mới theo yêu cầu người dùng: cập nhật plan và sửa mobile cho các thông tin/API BE còn thiếu. Backend chỉ đọc. Tái sử dụng card, FlowPage, Copy, RouteButton và trạng thái đọc hiện có; không thay theme hoặc thêm thư viện. Chi tiết thỏa thuận không tự dựng title vì API detail chưa trả field này.
+Phạm vi: cập nhật plan và sửa mobile cho các thông tin/API BE còn thiếu. Backend chỉ đọc. Tái sử dụng card, FlowPage, Copy, RouteButton và trạng thái đọc hiện có; không thay theme hoặc thêm thư viện. Chi tiết thỏa thuận không tự dựng title vì API detail chưa trả field này.
 
 - [x] LP-06: nhận overview trên list/detail và tích hợp GET overview; hiển thị giai đoạn BE, lý do thiếu dữ liệu, tiến độ học/dạy và buổi tiếp theo. Tách giai đoạn học khỏi trạng thái tranh chấp/quyết toán; giữ workflow editor hiện có.
 - [x] LP-07: hiển thị attention, người cần xử lý, hạn và hành động dẫn tới đúng Session/yêu cầu hủy/vụ việc; chỉ điều hướng theo target allowlist, không phát command từ overview.
@@ -16,26 +16,26 @@ Contract: source `PathOverviewController`, `path-overview.projection.ts`, `Parti
 
 ## Kế hoạch sửa mobile sau rà soát
 
-Nhánh: `fix/learning-path-flow`. Phạm vi triển khai chỉ `apps/mobile`, theo yêu cầu người dùng. Source LP-01–04 đã sửa và kiểm tra cục bộ; nghiệm thu API thật/Android/iOS còn mở. [Audit chi tiết](learning-path-flow-audit.md) ghi bằng chứng và tiêu chí; [status](status.md) ghi kết quả kiểm chứng.
+Phạm vi triển khai chỉ `apps/mobile`. Source LP-01–04 đã sửa và kiểm tra cục bộ; nghiệm thu API thật/Android/iOS còn mở. [Audit chi tiết](learning-path-flow-audit.md) ghi bằng chứng và tiêu chí; [status](status.md) ghi kết quả kiểm chứng.
 
 - [x] LP-01: chặn tạo yêu cầu hủy mới trên mobile khi tất cả buổi bắt buộc đã COMPLETED; thống nhất entry và màn mở trực tiếp, dẫn về bước Hoàn tất. Vẫn xem lịch sử và rút yêu cầu cũ theo quyền API.
 - [x] LP-02: nhận `title` từ API và hiển thị trên card “Lộ trình của tôi”, có fallback khi thiếu và xử lý tiêu đề dài.
 - [x] LP-03: làm rõ ai đã rút yêu cầu, thời gian gửi/rút từ API và trạng thái không còn hiệu lực.
 - [x] LP-04: tách yêu cầu hiện tại khỏi lịch sử hủy; giữ điều hướng từ thông báo cũ rõ ràng.
 - [x] Kiểm thử cục bộ cho ONE_WAY/TWO_WAY, deep link, trạng thái form khi gửi/rút/gửi lại, refresh lỗi/chậm, title thiếu/dài; xem fixture lịch sử ở 320px không tràn ngang.
-- [x] Thiết kế lại màn hủy theo yêu cầu: bỏ card nhóm bao quanh card request, bỏ card con trong Credit; ưu tiên trạng thái/người gửi → lý do → phản hồi/cảnh báo → thời gian → hành động. Credit đặt trước lịch sử, nhóm lịch sử nằm trực tiếp trên nền màn hình; xem fixture320/390 và chạy regression liên quan.
-- [x] Tinh chỉnh thiết kế theo phản hồi tiếp: form có nút gửi màu thương hiệu, badge trạng thái có màu theo kết quả, vùng lý do có vạch phân cách, lịch sử là mục phẳng; Credit mặc định thu gọn, mở/đóng chủ động với accessibility expanded. Giữ quyền, xác nhận và recovery.
+- [x] Thiết kế lại màn hủy: bỏ card nhóm bao quanh card request, bỏ card con trong Credit; ưu tiên trạng thái/người gửi → lý do → phản hồi/cảnh báo → thời gian → hành động. Credit đặt trước lịch sử, nhóm lịch sử nằm trực tiếp trên nền màn hình; xem fixture320/390 và chạy regression liên quan.
+- [x] Tinh chỉnh thiết kế: form có nút gửi màu thương hiệu, badge trạng thái có màu theo kết quả, vùng lý do có vạch phân cách, lịch sử là mục phẳng; Credit mặc định thu gọn, mở/đóng chủ động với accessibility expanded. Giữ quyền, xác nhận và recovery.
 - [x] Thiết kế lại list lịch sử khi mở: dòng tóm tắt có icon/trạng thái/người gửi/thời gian và lý do tối đa hai dòng; bấm mở từng mục riêng để xem toàn bộ lý do, phản hồi, timeline và quyết định Credit. Thông báo cũ/receipt mới tự mở đúng mục, không phát command từ lịch sử.
-- [x] Sửa cảnh báo require cycle Learning Path ↔ Session theo yêu cầu tiếp: dùng public entry state không tải screen cho đối chiếu lịch và Path read/refresh; kiểm dependency graph và regression các consumer.
+- [x] Sửa cảnh báo require cycle Learning Path ↔ Session bằng public entry state không tải screen cho đối chiếu lịch và Path read/refresh; kiểm dependency graph và regression các consumer.
 - [ ] Nghiệm thu API thật và Android/iOS: title dài/chữ lớn, gửi → rút → gửi lại, Back/keyboard, refresh chậm và mở thông báo cũ.
 
 API hiện chưa chặn tạo yêu cầu sau khi học xong; đây là giới hạn ngoài phạm vi sửa mobile. Việc sửa mobile không bảo đảm chặn request từ client khác hoặc race trên server. Không đưa sửa API, transaction, migration, policy tài chính hoặc tự đóng yêu cầu cũ vào checklist này. LP-05 (bộ lọc mới) là đề xuất chưa chốt, chưa triển khai.
 
 ## Bối cảnh triển khai trước đó
 
-Phạm vi: `apps/mobile`, nhánh `feat/mobile-path-cancellation` từ `origin/dev@14880432`. Backend chỉ được đọc để đối chiếu; không sửa API, migration hoặc policy.
+Phạm vi: `apps/mobile`; baseline `origin/dev@14880432`. Backend chỉ được đọc để đối chiếu; không sửa API, migration hoặc policy.
 
-Đối chiếu tiếp trên `origin/dev@aefd324f` (PR79): chỉ bổ sung phần hủy/quyết toán lộ trình. Người dùng yêu cầu không chỉnh Session; các thay đổi liên quan hạn mức học bù/đổi lịch được ghi là ngoài phạm vi lượt này. Wallet chỉ thêm public hook làm mới read cache theo owner/generation sau khi backend trả kết quả tài chính terminal, không tự cập nhật số dư.
+Đối chiếu tiếp trên `origin/dev@aefd324f` (PR79): chỉ bổ sung phần hủy/quyết toán lộ trình. Session, hạn mức học bù và đổi lịch ngoài phạm vi lượt này. Wallet chỉ thêm public hook làm mới read cache theo owner/generation sau khi backend trả kết quả tài chính terminal, không tự cập nhật số dư.
 
 Lượt hiện tại: BE `b4d5ed65` (PR82), đã có trên baseline mobile `0cb0636d`. Tiếp nhận quote và ngữ nghĩa duyệt hủy mới trong phạm vi Path; không sửa Session, Backend, cấu hình/migration hoặc công thức tài chính.
 

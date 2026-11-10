@@ -2,12 +2,12 @@
 
 ## Chú thích editor theo trạng thái — 2026-11-09T22:28:14+07:00
 
-- Theo yêu cầu sửa sau audit banner, bỏ suy luận từ publishedAt. requestEditorNotice nhận status của baseline đang chỉnh: REJECTED giải thích lưu về nháp và phải đăng lại; OPEN nói có thể chuyển chờ duyệt, PENDING_MODERATION chỉ nhận đề xuất sau duyệt; DRAFT/tạo mới lưu nháp rồi đăng. Không đổi API, moderation hay navigation.
-- Regression5 nhánh trong learning-requests-form-ui; nhóm ảnh hưởng40 PASS, full mobile1065/1065 PASS, fail/skip/cancel0. TypeScript/ESLint/structure910 PASS. Evidence và giới hạn fixture/API/native của lượt sửa liên feature tại work Phase05–06, mục Banner đúng trạng thái. Chưa stage/commit.
+- Bỏ suy luận từ publishedAt. requestEditorNotice nhận status của baseline đang chỉnh: REJECTED giải thích lưu về nháp và phải đăng lại; OPEN nói có thể chuyển chờ duyệt, PENDING_MODERATION chỉ nhận đề xuất sau duyệt; DRAFT/tạo mới lưu nháp rồi đăng. Không đổi API, moderation hay navigation.
+- Regression5 nhánh trong learning-requests-form-ui; nhóm ảnh hưởng40 PASS, full mobile1065/1065 PASS, fail/skip/cancel0. TypeScript/ESLint/structure910 PASS. Evidence và giới hạn fixture/API/native của lượt sửa liên feature tại work Phase05–06, mục Banner đúng trạng thái.
 
 ## Hạn chế đăng bài và xác nhận chính sách uy tín
 
-2026-11-08T20:54:19+07:00, nhánh `fix/learning-path-flow`.
+2026-11-08T20:54:19+07:00.
 
 - Source hoàn tất trong `apps/mobile`: đối chiếu create/publish BE gọi
   `SkillActorService.assertAllowed`, kiểm effective restriction và trả
@@ -73,7 +73,7 @@
   tuyên bố mở quyền. Log ignored: `.expo/reputation-policy-tests.log`.
   Chạy pnpm với `pnpm_config_verify_deps_before_run=false` để dùng dependencies
   hiện có, không purge/cài lại modules.
-- Chỉnh UI theo yêu cầu: dùng Nunito/body/heading token cho điểm, tiêu đề và
+- Chỉnh UI: dùng Nunito/body/heading token cho điểm, tiêu đề và
   quy tắc; gỡ serif Metric/Panel khỏi modal, nhóm lý do/thời hạn trên nền nhẹ,
   đánh số quy tắc riêng. Bỏ action Đóng cuối và nút Kiểm tra lại trạng thái;
   giữ ×, một CTA xác nhận ghim dưới vùng cuộn và Thử lại chỉ trong feedback lỗi.
@@ -89,7 +89,7 @@
 
 ## Đồng bộ owner avatar theo BE 232cb6ba
 
-Follow-up trên `fix/mobile-proposal-chat-learning-path`; fetch ngày 2026-10-27 xác nhận `origin/dev` 79d4bb1f đã có trong nhánh hiện tại, không có commit BE mới khác. Chỉ sửa `apps/mobile`; source/tests đã commit tại `0c533023` (`fix(mobile): use learning request owner avatars`) theo yêu cầu ngày2026-10-27, tài liệu bàn giao trong commit riêng. Lint-staged/commitlint đạt, chưa push.
+Đối chiếu BE tại `79d4bb1f` ngày 2026-10-27. Phạm vi sửa owner avatar chỉ gồm `apps/mobile`; kết quả kiểm tra và giới hạn nghiệm thu bên dưới.
 
 - Schema public feed/recommended/detail nhận bắt buộc nullable `owner.avatarUrl`, validate HTTP(S) và giữ loại bỏ metadata riêng tư. Fixture public đã theo contract mới; projection owner/moderation giữ nguyên.
 - Card và chi tiết dùng URL response trực tiếp; null dùng initials, offscreen không kích hoạt tải ảnh hoặc profile. Không lookup profile chỉ để hiển thị avatar còn hạn.
@@ -103,11 +103,11 @@ Không sửa BE/shared/dependencies, không chạy migration/seed hoặc gọi A
 
 - Cập nhật lúc: 2026-10-27T09:48:54+07:00.
 - Trạng thái: In progress — đồng bộ owner avatar theo BE232cb6ba đã hoàn tất source và automated checks; real API/native acceptance và motion trên thiết bị vẫn mở. PT-09/PT-10 giữ checkpoint bên dưới.
-- Nhánh proposedTags trước đó: `fix/mobile-learning-request-proposed-tags`, khởi tạo từ dev0318bf7e, hiện đặt trên dev6a847121 sau hoàn tác push nhầm. Source được đưa lại thành3 commit d0661167/450cffc7/7d79d058, tài liệu đi riêng; upstream đúng `origin/fix/mobile-learning-request-proposed-tags`.
+- Baseline proposedTags: mobile `0318bf7e`, BE `9d356167`.
 - Đã có trong source: phần CRUD/list/detail/discovery, Tag/weekly/FR-35 và profile kế thừa baseline; mới tích hợp proposedTags theo BE commit9d356167. Bảng baseline phía dưới giữ evidence theo thời điểm, không suy toàn bộ nghiệp vụ từ thay đổi này.
 - Nghiệm thu người dùng: Chưa thực hiện trong migration; không giả nhận từ checkbox lịch sử.
 - Chưa hoàn tất: T025..T029 real API theo từng gate và T030..T032 Android/iOS/native fixes khi có lỗi thật; FR-35/weekly/catalog mobile User acceptance cùng các task đó.
-- Bước tiếp theo: Review qua PR nhánh feature vào dev; kiểm đóng/mở bộ lọc, keyboard/Back trên thiết bị sau reload; PT-04 kiểm proposedTags với API đã apply migration20261024000000. Các gate B06/T025..T032 cũ vẫn theo [plan](plan.md); không tự chạy migration hoặc thao tác Staff từ mobile.
+- Bước tiếp theo: Kiểm đóng/mở bộ lọc, keyboard/Back trên thiết bị sau reload; PT-04 kiểm proposedTags với API đã apply migration20261024000000. Các gate B06/T025..T032 cũ vẫn theo [plan](plan.md); không tự chạy migration hoặc thao tác Staff từ mobile.
 
 ## Bằng chứng hiện hành
 
@@ -128,27 +128,16 @@ resume nhắc T037/FR-35 nhưng tasks không có task definition T037. Giữ tha
 
 ## Review và nhật ký
 
-### 2026-10-24T23:37:14+07:00 — khôi phục sau push nhầm dev
+### Kiểm chứng proposedTags, form và feed — 2026-10-24
 
-Người dùng chọn hoàn tác4 commit trên dev và giữ code ở nhánh riêng. Reflog và remote xác nhận dev đã nhận30f94200; feature local còn trỏ upstream origin/dev, nhánh remote cùng tên chưa có. Đã xuất bản nhánh feature trước để giữ code và đặt lại upstream đúng tên.
-
-Commit revert6a847121 đã push lên dev bằng cập nhật fast-forward, không force-push hoặc viết lại lịch sử. So sánh toàn tree xác nhận nội dung dev sau revert khớp0318bf7e, không gỡ thay đổi khác. Local dev cũng được fast-forward về trạng thái đó.
-
-Feature được fast-forward qua revert rồi đưa lại từng nhóm để PR vào dev vẫn có4 commit cần review: da532aad→d0661167 (tag),79de4483→450cffc7 (form),1035465b→7d79d058 (feed), cùng commit tài liệu riêng. Mỗi nhóm dùng cherry-pick không commit rồi commit bình thường để lint-staged/commitlint vẫn chạy; so sánh index trước mỗi commit với tree tương ứng đều khớp. Trước cập nhật ghi nhận này, toàn tree khớp bản30f94200 đã kiểm; source/tests không thay đổi nên evidence834/834 và bundle ở PT-09/PT-10 tiếp tục áp dụng. Native/API/Staff acceptance vẫn chưa xác nhận. Không tự tạo/merge PR.
-
-### 2026-10-24T22:56:35+07:00 — chia commit theo yêu cầu
-
-Đã tách source thành3 commit trên nhánh hiện tại, không đổi nội dung implementation:
-
-- da532aad — feat(mobile): support proposed learning request tags. Schema/default/input/PATCH/recovery, unified tag input và owner/public display; form/card được stage riêng phần tag để không kéo theo bố cục và feed.
-- 79de4483 — refactor(mobile): streamline learning request forms and pickers. Form thu gọn, shared picker sheet/controls, stable weekly rows, lazy offerings và regression tương ứng. Sheet có sẵn API X/height và selectors có active prop để consumer bộ lọc ở commit tiếp theo sử dụng.
-- 1035465b — perf(mobile): optimize request feeds and filters. Auto-pagination/cache/focus/loading/denial eviction, compact cards, filter sheet/removable named chips và proposal refresh.
-
-Commit tài liệu riêng ghi contract, task và evidence. TypeScript chạy trên đúng nội dung index của hai commit đầu đều đạt (`.expo/commit1-types.log`, `commit2-types.log`); source/test cuối giữ nguyên so với trước khi chia. Checks full834/834, lint/types/structure/export ở PT-09/PT-10 tiếp tục là evidence của cùng source. Đã review staged diff và chạy pre-commit lint-staged/commitlint bình thường cho3 source commits, không bypass hooks; working content sau hooks khớp bản trước khi chia. Chưa push; native/real API acceptance không được suy ra từ commit.
+- proposedTags: schema/default/input/PATCH/recovery, unified tag input và owner/public display.
+- Form: bố cục thu gọn, shared picker sheet/controls, stable weekly rows, lazy offerings và regression tương ứng. Sheet hỗ trợ nút X/height; selectors có active prop cho bộ lọc.
+- Feed: auto-pagination/cache/focus/loading/denial eviction, compact cards, filter sheet/removable named chips và proposal refresh.
+- Source đối chiếu `30f94200`: full834/834, lint/types/structure/export ở PT-09/PT-10; các snapshot tag/form cũng đạt TypeScript (`.expo/commit1-types.log`, `commit2-types.log`). Native/API/Staff acceptance chưa xác nhận.
 
 ### 2026-10-24T22:10:25+07:00 — sửa list và đóng bộ lọc PT-09/PT-10
 
-Theo yêu cầu người dùng thực hiện3 điểm review và đổi nút Đóng thành X, xử lý bảng lọc thu lại/phóng ra. Chỉ sửa mobile, giữ route/theme/session/API contract; không BE/shared/dependency/commit.
+Sửa3 điểm review, đổi nút Đóng thành X và xử lý bảng lọc thu lại/phóng ra. Chỉ sửa mobile, giữ route/theme/session/API contract; không sửa BE/shared/dependency.
 
 - useRequestList ẩn data/items/next-page actions ngay khi GET403/404. Effect evict riêng data/dataUpdatedAt sau khi read đã idle, giữ error/status để banner quyền vẫn hiện; không dùng setQueryData vốn reset lỗi sang success. Hết quyền ở trang tiếp theo cũng dùng full-read retry thay vì nút thử lại cursor đã mất. TanStack regression kiểm cả refetch và next-page403, cache bị xóa,503 sau đó không hồi sinh card, read thành công mới render lại.
 - Mine/feed có query.data rỗng gặp429/network/5xx hiện loading thay Empty. Cached content có item vẫn được giữ với loading nhẹ; lỗi quyền vẫn rõ. Offering picker empty/closed không fetch /me/skills; mở picker hoặc có selected IDs vẫn resolve labels/paging như cũ, transport nhận AbortSignal. Không thay default consumers khác.
@@ -156,11 +145,11 @@ Theo yêu cầu người dùng thực hiện3 điểm review và đổi nút Đ�
 
 Đã đạt regression6/6 về list denial/cached-empty/filter mounted state và sheet height, offering regression1/1; full cuối834/834 đạt sau tinh chỉnh active/handle spacing. TypeScript/ESLint và structure777 đạt; export Android/iOS/web max-workers1 đạt sau dừng lượt export max-workers2 kéo dài, không sửa config hoặc dừng Metro của người dùng. Log `.expo/list-fixes-{regression,offerings,focused,full,types,lint,structure,export}.log` ignored.
 
-Web tương tác actual components + fixture/adapter như PT-08: mở/chọn tag/tìm/hủy bằng X → không áp dụng; mở lại/chọn/Áp dụng → chip tên; mở lại giữ tag đã áp dụng. Đo DOM panel height576px cả trạng thái open và closed trong animation, root transform none; ảnh `.expo/list-fixes-filter.png`, số đo `.expo/list-fixes-motion.json`. Host mô phỏng window800→420 khi keyboard mở rồi đóng vẫn giữ snap640. Không xác nhận motion native từ web; keyboard/Back/OS presentation trên Android/iOS, real API và Staff NOT_RUN. Chưa stage/commit/push.
+Web tương tác actual components + fixture/adapter như PT-08: mở/chọn tag/tìm/hủy bằng X → không áp dụng; mở lại/chọn/Áp dụng → chip tên; mở lại giữ tag đã áp dụng. Đo DOM panel height576px cả trạng thái open và closed trong animation, root transform none; ảnh `.expo/list-fixes-filter.png`, số đo `.expo/list-fixes-motion.json`. Host mô phỏng window800→420 khi keyboard mở rồi đóng vẫn giữ snap640. Không xác nhận motion native từ web; keyboard/Back/OS presentation trên Android/iOS, real API và Staff NOT_RUN.
 
 ### 2026-10-24T21:51:24+07:00 — rà Learning Request sau PT-08
 
-Theo yêu cầu kiểm tra, chưa sửa source sản phẩm. TypeScript/ESLint max-warnings0, structure777 và full830/830 chạy lại đạt. Suite hiện có chưa phủ các ca được kiểm bổ sung bằng ignored host harness/actual TanStack observer và API adapter:
+Lượt rà này chỉ kiểm tra source sản phẩm. TypeScript/ESLint max-warnings0, structure777 và full830/830 chạy lại đạt. Suite hiện có chưa phủ các ca được kiểm bổ sung bằng ignored host harness/actual TanStack observer và API adapter:
 
 - Mine có card trong cache, refetch GET403: banner lỗi xuất hiện nhưng FlatList vẫn nhận toàn bộ query.items và render card. Request list chưa có denial eviction/visibility guard như detail. Không thấy account/session crossover; vấn đề là tiếp tục trình bày snapshot sau khi cùng phiên bị từ chối quyền đọc. Feed dùng cùng cơ chế truyền data trực tiếp.
 - Mine đã tải thành công data.pages với items[], refetch GET429: query.data vẫn tồn tại nên ListEmptyComponent là Empty và không có LoadingIndicator trong header (guard items.length). Hiện thông báo chưa có yêu cầu thay vì trạng thái đang chờ dữ liệu; feed có cùng nhánh. Không áp dụng cho initial query chưa từng có data, vốn đang loading đúng.
@@ -170,7 +159,7 @@ Theo yêu cầu kiểm tra, chưa sửa source sản phẩm. TypeScript/ESLint m
 
 ### 2026-10-24T21:36:54+07:00 — tối ưu danh sách PT-08
 
-Đã thực hiện6 đề xuất theo yêu cầu, chỉ trong mobile; giữ theme/routes/API/session, không sửa BE/avatar contract hoặc dependencies:
+Đã thực hiện6 đề xuất, chỉ trong mobile; giữ theme/routes/API/session, không sửa BE/avatar contract hoặc dependencies:
 
 - Mine dùng focus guard và quiet read recovery như feed. GET429/network/5xx chưa có dữ liệu hiện loading, có dữ liệu giữ card và loading nhẹ, trang kế tiếp giữ dữ liệu cũ/loading footer; lỗi không transient vẫn có hướng xử lý. Focus cả mine/feed/recommended chỉ refetch khi stale; mutation invalidation và kéo làm mới giữ refresh chủ động.
 - Tên kỹ năng tận dụng catalog cùng owner/session chưa invalidated, giữ thời điểm dữ liệu gốc và staleTime5 phút. Feed pull-to-refresh chỉ refresh lịch sử đề xuất khi query stale (30 giây), vẫn đọc đủ lịch sử khi cần; refresh/retry và flight coalescing không bỏ trạng thái proposal cũ ở các trang sau.
@@ -179,21 +168,21 @@ Theo yêu cầu kiểm tra, chưa sửa source sản phẩm. TypeScript/ESLint m
 
 Full830/830 đạt (7 regression mới về cache skill/account isolation/invalidation, coalescing/429/retry/repeated cursor, mine quiet/focus, named tag chips/draft dismissal và stale-only sent proposals). Sau bổ sung giữ tên tag khi mở lại, focused catalog/list UI4/4 đạt. TypeScript/ESLint max-warnings0, structure777, Prettier/diff và export Android/iOS/web max-workers2 đạt. Evidence ignored `.expo/list-{focused,full,ui,types,lint,structure,export}.log` và `.expo/list-preview{,-small}.png`.
 
-Web preview dùng actual card/filter/tag/skill/sheet/button với catalog/profile fixtures, icon/keyboard-scroll adapters; đã tương tác chọn2 tag → áp dụng → bỏ1 tag, mở lại/chọn kỹ năng rồi đóng không áp dụng, và xem bố cục320/390px. Paging kiểm bằng TanStack thật/HTTP fixture và host tests, preview không mô phỏng hiệu năng native FlatList. Chưa kiểm API thật, native keyboard/Back/large text hoặc Staff; PT-04 và acceptance gốc vẫn mở. Chưa stage/commit/push.
+Web preview dùng actual card/filter/tag/skill/sheet/button với catalog/profile fixtures, icon/keyboard-scroll adapters; đã tương tác chọn2 tag → áp dụng → bỏ1 tag, mở lại/chọn kỹ năng rồi đóng không áp dụng, và xem bố cục320/390px. Paging kiểm bằng TanStack thật/HTTP fixture và host tests, preview không mô phỏng hiệu năng native FlatList. Chưa kiểm API thật, native keyboard/Back/large text hoặc Staff; PT-04 và acceptance gốc vẫn mở.
 
 ### 2026-10-24T20:40:16+07:00 — sửa3 lỗi review PT-07
 
-Đã sửa theo yêu cầu người dùng, chỉ trong mobile:
+Đã sửa, chỉ trong mobile:
 
 - Editor lịch cấp key riêng cho từng row, giữ key khi sửa và xóa đúng row; callback của row đã xóa hoặc form đã được reset không áp vào row khác. Key không được serialize, weeklyAvailability/giới hạn5/validation/timezone không đổi. Web đã lặp lại ca MON19–21/TUE20–22: mở giờ MON rồi xóa MON, picker cũ biến mất; mở TUE vẫn20–22. Ảnh `.expo/form-fixes-weekly.png`.
 - Chuẩn hóa query/exact-match/proposed label qua cùng hàm NFC/trim/collapse whitespace. Query lấy prefix tối đa120 UTF-16 units, không cắt đôi surrogate pair; vẫn validate toàn bộ tên đề xuất gốc. Exact match từ cache được đưa vào các lựa chọn nếu trang hiện tại thiếu; tìm nhiều khoảng trắng không mất nút chọn.
 - Dùng một policy canChoose cho nút chạm và handler chọn; keyboard add xử lý canonical trước giới hạn dành cho proposal mới. 9 canonical +1 proposal tương đương có thể thay thành10 canonical, không cho tăng thành11. Web fixture đã tìm `React   Native` ở10/10 và chọn được canonical; proposal/Mới biến mất, counter vẫn10/10, các tag không thay thế được vẫn disabled. Ảnh `.expo/form-fixes-tags.png`.
 
-Regression10/10 (4 test mới) và full823/823 đạt; TypeScript/ESLint max-warnings0, structure776, Prettier/diff và export Android/iOS/web max-workers2 đạt. Logs `.expo/form-fixes-{regression,full,types,lint,export}.log` ignored. Test mới kiểm key của actual RequestTimeFields qua host harness, stale callbacks/rebase, normalized/bounded Unicode queries và nút chạm/keyboard ở full budget. Preview vẫn dùng catalog fixture/adapter như PT-06, không gọi API thật; native keyboard/Back/large text và Staff acceptance NOT_RUN. Chưa stage/commit/push; PT-04 và acceptance gốc giữ mở.
+Regression10/10 (4 test mới) và full823/823 đạt; TypeScript/ESLint max-warnings0, structure776, Prettier/diff và export Android/iOS/web max-workers2 đạt. Logs `.expo/form-fixes-{regression,full,types,lint,export}.log` ignored. Test mới kiểm key của actual RequestTimeFields qua host harness, stale callbacks/rebase, normalized/bounded Unicode queries và nút chạm/keyboard ở full budget. Preview vẫn dùng catalog fixture/adapter như PT-06, không gọi API thật; native keyboard/Back/large text và Staff acceptance NOT_RUN; PT-04 và acceptance gốc giữ mở.
 
 ### 2026-10-24T20:27:42+07:00 — rà lỗi form sau PT-06
 
-Theo yêu cầu chỉ kiểm tra, không sửa/stage/commit source sản phẩm. TypeScript/ESLint/structure774 và full819/819 chạy lại đạt, nhưng bộ test hiện có chưa phủ3 ca sau (PT-07 còn mở):
+Lượt rà này chỉ kiểm tra source sản phẩm. TypeScript/ESLint/structure774 và full819/819 chạy lại đạt, nhưng bộ test hiện có chưa phủ3 ca sau (PT-07 còn mở):
 
 - `request-time-fields.tsx` key theo index tái sử dụng row và DateTimeField state sau khi xóa. Web fixture tái hiện bằng hai lịch MON19–21/TUE20–22: mở picker giờ bắt đầu của MON, xóa MON khi picker còn mở; picker giữ19 trong row TUE, xác nhận khiến TUE đổi20→19. Cần identity ổn định hoặc reset đúng state khi row thay thế. Ảnh `.expo/form-audit-weekly.png`; không gọi API lưu lịch thật.
 - Query dùng NFC/trim, exact-match lại collapse whitespace. Host harness với catalog React Native đã tải và tìm `React   Native` cho exact-cache match nhưng options[], UI ẩn cả nút thêm và không có kết quả để chạm chọn; bàn phím submit vẫn là workaround. Khoảng trắng dài còn có thể sinh q141 ký tự dù proposed label chuẩn hóa chỉ12; BE TagQueryDto chặn q>120. Cần thống nhất normalization và kiểm giới hạn trước query.
@@ -203,31 +192,31 @@ Evidence ignored `.expo/form-audit-types.log`, `form-audit-lint.log`, `form-audi
 
 ### 2026-10-24T16:03:29+07:00 — đồng bộ form gọn hơn PT-06
 
-Người dùng yêu cầu thực hiện toàn bộ đề xuất cho tag/kỹ năng và các ô còn lại. Giữ theme, routes, RHF/Zod, API/session/recovery; không sửa BE/shared packages/dependencies. SkillSelector (gồm consumer filter) và kỹ năng có thể dạy dùng bảng chọn `@expo/ui` BottomSheet + RNHostView, giữ search/debounce/paging/disabled. Shared mobile Button nhận thêm accessibilityState tùy chọn; trạng thái disabled của chính Button luôn được giữ, các consumer cũ không đổi API.
+Cải thiện tag/kỹ năng và các ô còn lại. Giữ theme, routes, RHF/Zod, API/session/recovery; không sửa BE/shared packages/dependencies. SkillSelector (gồm consumer filter) và kỹ năng có thể dạy dùng bảng chọn `@expo/ui` BottomSheet + RNHostView, giữ search/debounce/paging/disabled. Shared mobile Button nhận thêm accessibilityState tùy chọn; trạng thái disabled của chính Button luôn được giữ, các consumer cũ không đổi API.
 
 Nhu cầu bắt buộc luôn hiện; các mục Bạn có thể dạy/Tùy chọn học tập/Thời gian/Hạn đăng thu gọn kèm tóm tắt, giữ children mounted để không mất draft và tự hiện khi có lỗi. Mở rộng RequestSection đang có để giữ header theme, summary và disabled/accessibility; universal Collapsible không hỗ trợ các header/state này. Ô nhiều dòng bắt đầu80px và tăng theo nội dung, hint chỉ hiện khi focus/lỗi. Lịch tuần hoàn chỉnh hiện dạng Thứ/giờ để sửa; khoảng thiếu hoặc lỗi vẫn mở. Ngày/giờ, timezone, giới hạn5 và logic thay thế lịch cũ được giữ.
 
 Tag dùng chung một ô tìm/thêm; canonical đã biết được chọn bằng ID, tên đề xuất tương đương được thay bằng canonical khi chọn. Chip đề xuất có màu nhẹ/dấu Mới. Search có debounce, add đợi kết quả ổn định, lỗi danh mục không tự tạo đề xuất. `tagSearch` nằm trong draft/rebase và validation, không serialize ra API: chưa xác nhận sẽ chặn Save, hiện lỗi tại ô và giữ chữ thay vì bỏ nội dung. Giới hạn10, normalization và owner/public boundaries giữ nguyên.
 
-Focused91/91 và full819/819 đạt; TypeScript, ESLint, structure774, Prettier/diff và export Android/iOS/web max-workers2 đạt. Log `.expo/compact-form-*` ignored. Web preview tương tác dùng actual form/RHF/resolver/controls + @expo/ui web; catalog/reads/icon/keyboard-scroll environment là fixture/adapter, Save chỉ serialize local, không gọi API. Đã kiểm chọn kỹ năng, chọn kỹ năng có thể dạy, Save khi tag chưa xác nhận → giữ chữ/lỗi → thêm tag mới/chọn canonical, thu gọn giữ lựa chọn, thêm Thứ2 19:00–21:00/thu gọn và lưu payload đúng, pending disabled. Đã sửa pointerEvents của Host sau khi tái hiện vùng chạm sheet bị chặn trên web. Ảnh `.expo/compact-form-preview.png`; chưa nghiệm thu native keyboard/Back/large text, API thật hoặc Staff. Chưa commit/push.
+Focused91/91 và full819/819 đạt; TypeScript, ESLint, structure774, Prettier/diff và export Android/iOS/web max-workers2 đạt. Log `.expo/compact-form-*` ignored. Web preview tương tác dùng actual form/RHF/resolver/controls + @expo/ui web; catalog/reads/icon/keyboard-scroll environment là fixture/adapter, Save chỉ serialize local, không gọi API. Đã kiểm chọn kỹ năng, chọn kỹ năng có thể dạy, Save khi tag chưa xác nhận → giữ chữ/lỗi → thêm tag mới/chọn canonical, thu gọn giữ lựa chọn, thêm Thứ2 19:00–21:00/thu gọn và lưu payload đúng, pending disabled. Đã sửa pointerEvents của Host sau khi tái hiện vùng chạm sheet bị chặn trên web. Ảnh `.expo/compact-form-preview.png`; chưa nghiệm thu native keyboard/Back/large text, API thật hoặc Staff.
 
 ### 2026-10-24T15:29:33+07:00 — thu gọn giao diện tag PT-05
 
-Theo yêu cầu người dùng giảm chú thích và chỉnh phần thêm tag gọn/hợp lý, tham khảo [Atlassian removable tags](https://atlassian.design/components/tag/examples) và [Select](https://atlassian.design/components/select/examples). Giữ theme SkillHub và shared Input/Button/chip hiện có, không thêm dependency/native control mới.
+Phần thêm tag dùng ít chú thích và bố cục gọn, tham khảo [Atlassian removable tags](https://atlassian.design/components/tag/examples) và [Select](https://atlassian.design/components/select/examples). Giữ theme SkillHub và shared Input/Button/chip hiện có, không thêm dependency/native control mới.
 
 Form chỉ còn nhãn Tag và một counter tổng; catalog picker có chế độ compact, giữ selected chips và link Chọn từ danh mục/Thu gọn. Input tag mới + nút icon plus48px cùng hàng; label đọc vẫn có cho screen reader, submit bàn phím thêm tag và giữ bàn phím. Gỡ helper dài, counters con và nút bỏ tất cả trong form; chip vẫn xóa từng tag. Chỉ hiện câu “Tag mới sẽ được duyệt cùng bài.” khi có đề xuất. Default selector của bộ lọc/offerings giữ counter/clear và giới hạn cũ; API, normalization, pending/error và tổng10 không đổi. Bỏ raw maxLength160 của ô mới, vẫn validate1–80 code points sau NFC theo BE.
 
-Focused15/15 và full815/815 đạt; TypeScript, ESLint toàn mobile (kiểm lại helper toggle sau tách presentation), structure771, Prettier/diff và export web đạt. Preview dùng actual RN Web components/fonts, catalog mẫu và icon SVG thay thế tương đương, đã nhìn3 trạng thái trống/đã chọn/mở danh mục trong khung320px; nhãn dài xuống dòng. Screenshot/HTML/script/log trong `.expo/compact-tags-*` ignored. Preview là SSR tĩnh, tương tác thêm/trùng tên/xóa/pending được kiểm qua host UI harness; chưa chạy app tương tác/native/API thật. Chưa commit/push.
+Focused15/15 và full815/815 đạt; TypeScript, ESLint toàn mobile (kiểm lại helper toggle sau tách presentation), structure771, Prettier/diff và export web đạt. Preview dùng actual RN Web components/fonts, catalog mẫu và icon SVG thay thế tương đương, đã nhìn3 trạng thái trống/đã chọn/mở danh mục trong khung320px; nhãn dài xuống dòng. Screenshot/HTML/script/log trong `.expo/compact-tags-*` ignored. Preview là SSR tĩnh, tương tác thêm/trùng tên/xóa/pending được kiểm qua host UI harness; chưa chạy app tương tác/native/API thật.
 
 ### 2026-10-24T14:58:17+07:00 — tích hợp proposedTags
 
-Yêu cầu người dùng: tạo nhánh từ dev để đồng bộ mobile với Learning Request BE mới. Đã fetch origin/dev, tạo nhánh fix/mobile-learning-request-proposed-tags tại0318bf7e. Contract đọc trực tiếp từ DTO/domain/use cases và amendment007 của BE commit9d356167; không sửa BE/shared/dependency hoặc API endpoints.
+Đồng bộ mobile với Learning Request BE tại baseline `0318bf7e`. Contract đọc trực tiếp từ DTO/domain/use cases và amendment007 của BE commit9d356167; không sửa BE/shared/dependency hoặc API endpoints.
 
 - Owner schema nhận proposedTags, default[] cho response cũ thiếu field, từ chối null/invalid; public schemas bỏ trường này. Form mặc định/reopen/draftToInput/PATCH và conflict comparison/rebase giữ labels; omit PATCH giữ,[] clear, không đưa lại labels đã duyệt khi người dùng giữ draft không sửa field đó.
 - Chuẩn hóa giống BE: NFC, trim/collapse whitespace,1–80 code points, không control character và duplicate key không phân biệt hoa/thường; giữ dấu. Validate tổng tagIds+proposedTags<=10. Selector có giới hạn theo số chỗ còn lại; vẫn bỏ được tag khi đã đầy.
 - Form có input + Thêm tag đề xuất, chip bỏ từng tag/bỏ tất cả, pending disabled và giải thích duyệt cùng bài. Owner detail có section riêng, Mine card có số tag chưa duyệt; public không render proposed labels. Dùng field/theme/components hiện có, không gọi endpoint tạo tag hoặc thêm yêu cầu catalog riêng. Khi server approve trả proposedTags[] và canonical tagIds mới, section đề xuất tự ẩn qua read hiện hữu.
 
-Focused10/10 và full815/815 đạt (10 regression mới về Unicode/control/duplicates/shared limit, owner-public/API round-trip/PATCH clearing, conflict-rebase, UI add/remove/pending và privacy rendering). TypeScript, ESLint max-warnings0, structure771, Prettier/diff đạt; export Android/iOS/web max-workers2 đạt. Evidence ignored `.expo/proposed-tags-focused-final.log`, `.expo/proposed-tags-full-final.log`, `.expo/proposed-tags-types-verified.log`, `.expo/proposed-tags-lint-verified.log`, `.expo/proposed-tags-export.log`. Host fixture/VM tests và bundles không phải native/API/Staff UAT. Chưa thao tác server/DB, deploy, commit hoặc push; PT-04 vẫn NOT_RUN.
+Focused10/10 và full815/815 đạt (10 regression mới về Unicode/control/duplicates/shared limit, owner-public/API round-trip/PATCH clearing, conflict-rebase, UI add/remove/pending và privacy rendering). TypeScript, ESLint max-warnings0, structure771, Prettier/diff đạt; export Android/iOS/web max-workers2 đạt. Evidence ignored `.expo/proposed-tags-focused-final.log`, `.expo/proposed-tags-full-final.log`, `.expo/proposed-tags-types-verified.log`, `.expo/proposed-tags-lint-verified.log`, `.expo/proposed-tags-export.log`. Host fixture/VM tests và bundles không phải native/API/Staff UAT. Chưa thao tác server/DB hoặc deploy; PT-04 vẫn NOT_RUN.
 
 ### 2026-10-19T19:58:07+07:00
 

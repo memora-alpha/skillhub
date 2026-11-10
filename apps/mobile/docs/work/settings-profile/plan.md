@@ -2,7 +2,7 @@
 
 ## Kết quả và nguồn
 
-Yêu cầu: tạo nhánh từ dev và sửa phần thiếu trong Settings/Profile, người dùng xác nhận Mobile (Expo). Baseline khảo sát ban đầu `dev@4b588f62`, working tree sạch trước sửa. Lệnh tạo nhánh đầu tiên bị từ chối cấp quyền; sau khi dev cập nhật, đã tạo `fix/settings-profile` từ `dev@c0821daf`, giữ nguyên toàn bộ thay đổi staged/unstaged. Source hiện được chia commit Profile và Settings riêng theo yêu cầu tiếp; tài liệu gom trong commit riêng. Chưa push.
+Hoàn thiện Settings/Profile trên mobile Expo. Baseline khảo sát `dev@4b588f62`; bản đối chiếu triển khai `dev@c0821daf`.
 
 Nguồn: [SRS1.6](../../../../../docs/SRS_SkillHub_V1.6_VietLai_DongBoNghiepVu.docx) PRO-001..004 và profile timezone/locale; [contract](../../contracts/profile.md), users responses/DTO và notification-preferences controller/service/policy được đối chiếu source. Thiết kế tái sử dụng Settings ActionGroup, FeaturePage/Panel, Input/Button, theme hiện có và native Expo UI Picker/Switch; không có frame mới được cung cấp.
 
@@ -28,7 +28,7 @@ Native/API UAT đề xuất: đổi timezone/language rồi mở lại sau đăn
 
 ## Tiếp nhận thiết kế lại Settings — 2026-11-09
 
-Người dùng yêu cầu đồng nhất giao diện Settings với app và tham khảo các app khác. Giữ theme Crafted Exchange, Nunito, AppHeader/SafeArea, Input/Button/ActionRow và các luồng API đã nối. Tham khảo cách tổ chức account/preferences của [Notion](https://www.notion.com/help/account-settings) và nhóm thông báo của [Spotify](https://support.spotify.com/us/article/notification-settings/); dùng cấu trúc tham khảo, không thêm chức năng bên ngoài contract SkillHub.
+Settings dùng giao diện thống nhất với app. Giữ theme Crafted Exchange, Nunito, AppHeader/SafeArea, Input/Button/ActionRow và các luồng API đã nối. Tham khảo cách tổ chức account/preferences của [Notion](https://www.notion.com/help/account-settings) và nhóm thông báo của [Spotify](https://support.spotify.com/us/article/notification-settings/); dùng cấu trúc tham khảo, không thêm chức năng bên ngoài contract SkillHub.
 
 - [x] Thống nhất 7 màn: Settings, Account, Timezone, Language, Notifications, Privacy, Help qua SettingsPage/Section/Note; scope trong feature Settings, không đổi shared theme hoặc component toàn app.
 - [x] Thẻ tài khoản, nhóm bảo mật, giá trị timezone/ngôn ngữ rõ; lựa chọn ngôn ngữ dạng radio row; native Picker/Switch có màu app và đủ chiều rộng; nút Save cố định.
@@ -47,7 +47,7 @@ Chưa có nghiệm thu native keyboard/safe-area/VoiceOver/TalkBack hoặc API t
 
 ## Sửa kiểm duyệt và self public-preview — 2026-11-10
 
-Người dùng yêu cầu triển khai PRO-GAP-03/04 trong [audit](profile-api-audit.md). Giữ phạm vi mobile, dùng backend contract hiện có; review summary/danh sách reviews và i18n toàn app tiếp tục ngoài lượt sửa này.
+Triển khai PRO-GAP-03/04 trong [audit](profile-api-audit.md). Giữ phạm vi mobile, dùng backend contract hiện có; review summary/danh sách reviews và i18n toàn app tiếp tục ngoài lượt sửa này.
 
 - [x] Validate private profileModeration từ `/me`, tương thích null/missing; enum action, reason và timestamp sai không bị coi là hồ sơ sạch.
 - [x] Notice cho bio/avatar HIDE hoặc REQUEST_EDIT trên Profile/Edit Profile, có lý do/thời điểm và action mở Edit. Giữ bio gốc để chủ hồ sơ sửa; không đưa reason ra public.

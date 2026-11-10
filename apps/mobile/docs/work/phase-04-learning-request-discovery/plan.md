@@ -42,7 +42,7 @@ S02 không cần setup lại design system; S03 implementation đã có, chỉ s
 
 ### Đồng bộ owner avatar theo BE 232cb6ba
 
-Follow-up ngày 2026-10-27 trên `fix/mobile-proposal-chat-learning-path`, sau khi fetch/đối chiếu `origin/dev` 79d4bb1f; không merge hoặc sửa BE/shared/dependencies. Tái sử dụng Avatar và profile read/cache/session hiện có, giữ thiết kế card/detail.
+Đối chiếu BE tại `79d4bb1f` ngày 2026-10-27; không sửa BE/shared/dependencies. Tái sử dụng Avatar và profile read/cache/session hiện có, giữ thiết kế card/detail.
 
 - [x] AV-01: Đồng bộ field bắt buộc nullable `owner.avatarUrl` ở public feed/recommended/detail và fixture; giữ validation HTTP(S)/private stripping.
 - [x] AV-02: Hiển thị URL response trực tiếp, không gọi profile khi URL còn hạn hoặc null; giữ viewability của card và profile navigation/context.
@@ -53,21 +53,21 @@ Real API/native acceptance tiếp tục thuộc T025..T032, chưa tự ghi hoàn
 
 ### Tích hợp proposedTags theo BE dev ngày 24/10/2026
 
-Nhánh `fix/mobile-learning-request-proposed-tags` từ origin/dev0318bf7e. Nguồn contract: BE commit9d356167 và amendment `services/api/specs/007-learning-request/proposed-tags.md`; chỉ sửa mobile, không chạy migration/seed hoặc sửa BE.
+Baseline mobile `dev@0318bf7e`. Nguồn contract: BE commit9d356167 và amendment `services/api/specs/007-learning-request/proposed-tags.md`; chỉ sửa mobile, không chạy migration/seed hoặc sửa BE.
 
-Sau push nhầm, dev được hoàn tác bằng6a847121 và feature được đưa lại thành4 commit trên base đó để review qua PR; xem [ghi nhận khôi phục](status.md). Không dùng lại nhánh feature cũ ở ancestor của revert để mở PR trống.
+Kết quả kiểm tra proposedTags và các giới hạn API/native được ghi tại [status](status.md).
 
 - [x] PT-01: Owner schema/input/form/PATCH/recovery giữ proposedTags; normalize NFC/whitespace,1–80 code points, không control/duplicate keys, tổng tagIds+proposedTags<=10; omission giữ và[] clear.
 - [x] PT-02: Form chọn tag có sẵn hoặc thêm/xóa tag đề xuất; giới hạn chung, pending disabled, giải thích duyệt cùng bài. Owner detail/mine thấy trạng thái chưa duyệt; public projection không lộ proposedTags.
 - [x] PT-03: Regression form/API serialization/owner-public boundaries/conflict-rebase và UI combined limit; focused/full tests, types/lint/structure/export. Native/API acceptance riêng tại PT-04.
 - [ ] PT-04: Real API/native acceptance khi BE đã deploy migration20261024000000: create/edit/reopen, publish chờ duyệt, Staff duyệt/từ chối và owner reload; không suy host tests thành nghiệm thu này.
-- [x] PT-05: Theo yêu cầu thu gọn giao diện, dùng một nhãn/bộ đếm, input+nút thêm cùng hàng, chip xóa từng tag và chú thích duyệt ngắn có điều kiện; giữ giới hạn/validation và kiểm các consumer selector dùng chung.
-- [x] PT-06: Theo yêu cầu đồng bộ cả form, dùng bảng chọn kỹ năng, thu gọn các mục tùy chọn với tóm tắt/tự mở khi có lỗi, ô nhiều dòng theo nội dung và lịch tuần dạng dòng sửa được; gộp tìm/thêm tag, phân biệt chip Mới và giữ phần tag đang nhập khi Save/conflict. Kiểm host regression, web tương tác dữ liệu mẫu, types/lint/structure/export; native/API vẫn thuộc PT-04 và acceptance gốc.
+- [x] PT-05: Dùng một nhãn/bộ đếm, input+nút thêm cùng hàng, chip xóa từng tag và chú thích duyệt ngắn có điều kiện; giữ giới hạn/validation và kiểm các consumer selector dùng chung.
+- [x] PT-06: Dùng bảng chọn kỹ năng, thu gọn các mục tùy chọn với tóm tắt/tự mở khi có lỗi, ô nhiều dòng theo nội dung và lịch tuần dạng dòng sửa được; gộp tìm/thêm tag, phân biệt chip Mới và giữ phần tag đang nhập khi Save/conflict. Kiểm host regression, web tương tác dữ liệu mẫu, types/lint/structure/export; native/API vẫn thuộc PT-04 và acceptance gốc.
 - [x] PT-07: Khắc phục ba lỗi tìm thấy khi review PT-06: xóa row lịch đang mở picker không giữ draft giờ sang row khác; query tag đồng nhất normalization với exact-match/giới hạn catalog; cho phép thay proposed tag bằng canonical ở tổng10 nếu không tăng số lượng. Đã bổ sung regression và kiểm web fixture; native/API acceptance vẫn thuộc PT-04.
-- [x] PT-08: Theo yêu cầu tối ưu list mobile, đồng bộ quiet loading/cached content và focus, giảm lookup kỹ năng/refresh lịch sử đề xuất, thu gọn card/tag+N, đưa filter vào sheet/chip tên tag xóa từng mục, auto-pagination có guard/error recovery và đổi Đăng thành Tạo yêu cầu. Full830/830, focused4/4 sau bổ sung giữ tên tag khi mở lại sheet, types/lint/structure777/export Android/iOS/web và preview fixture đạt; không sửa BE/avatar contract. Native/API acceptance vẫn mở.
+- [x] PT-08: Đồng bộ quiet loading/cached content và focus, giảm lookup kỹ năng/refresh lịch sử đề xuất, thu gọn card/tag+N, đưa filter vào sheet/chip tên tag xóa từng mục, auto-pagination có guard/error recovery và đổi Đăng thành Tạo yêu cầu. Full830/830, focused4/4 sau bổ sung giữ tên tag khi mở lại sheet, types/lint/structure777/export Android/iOS/web và preview fixture đạt; không sửa BE/avatar contract. Native/API acceptance vẫn mở.
 
 - [x] PT-09: Đã sửa GET403/404 sau cache: ẩn list ngay và evict data mà giữ lỗi, refetch/next-page denial chuyển recovery về full read;503 sau denial không hồi sinh cache. Cache rỗng gặp429/network hiện loading. Optional offering chỉ GET khi mở picker hoặc cần resolve selected labels, có AbortSignal. Regression actual hook/TanStack và UI đạt; API/native acceptance vẫn mở.
-- [x] PT-10: Theo yêu cầu, nút đóng bộ lọc là icon X có accessible label/vùng chạm44; sheet giữ mounted, giữ chiều cao/snap trong lúc đóng và thay đổi bàn phím, không đổi disabled presentation khi thoát. Gate catalog theo active, đóng không apply draft và không nhận Apply muộn. Host regression + web tương tác/đo geometry đạt; cần người dùng kiểm motion trên thiết bị.
+- [x] PT-10: nút đóng bộ lọc là icon X có accessible label/vùng chạm44; sheet giữ mounted, giữ chiều cao/snap trong lúc đóng và thay đổi bàn phím, không đổi disabled presentation khi thoát. Gate catalog theo active, đóng không apply draft và không nhận Apply muộn. Host regression + web tương tác/đo geometry đạt; cần người dùng kiểm motion trên thiết bị.
 
 ### Acceptance Phase04 còn mở
 

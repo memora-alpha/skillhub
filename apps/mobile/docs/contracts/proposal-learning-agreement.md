@@ -232,7 +232,7 @@ Editor lịch có bộ điền theo tuần ở client: chọn thứ, ngày/giờ
 - Save footer cố định của editor; vùng nhập dùng KeyboardFormScrollView. FeaturePage thêm `scrollable` default true và Input thêm `hideLabel` default false; consumer khác giữ hành vi cũ, label accessibility vẫn tồn tại khi ẩn label nhìn thấy.
 - Không thêm reward, dự kiến thời lượng, kho template, hoặc lưu nháp bền vì contract hiện hành không có những dữ liệu/action này. Không dùng fixture thay API để điền các mục trên ảnh tham chiếu.
 
-### Tiêu đề và mô tả buổi học (yêu cầu người dùng 21/10)
+### Tiêu đề và mô tả buổi học
 
 - Hai ô editor là cách trình bày của cùng `sessionOutline[].content`: dòng đầu là tiêu đề bắt buộc; các dòng sau là mô tả tùy chọn. Không thêm field JSON, marker hoặc checklist/rich text; tổng nội dung tối đa 2.000 ký tự, số buổi vẫn theo array.
 - Nội dung cũ một dòng hiển thị thành tiêu đề, không tự sinh mô tả; nội dung nhiều dòng hiển thị dòng đầu/những dòng còn lại, giữ xuống dòng trong mô tả. Reader dùng cùng adapter. Tiêu đề trống không được thay bằng mô tả khi submit. Chỉ nhập tiêu đề vẫn lưu được.

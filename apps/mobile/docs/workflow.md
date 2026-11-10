@@ -109,7 +109,7 @@ Definition of Done cho từng phạm vi:
 - Thời điểm dùng múi giờ Việt Nam, ISO 8601 có offset `+07:00`. Lấy từ đồng hồ hệ thống/công cụ, không tự dựng thời gian.
 - Trên PowerShell có thể dùng `(Get-Date).ToUniversalTime().AddHours(7).ToString('yyyy-MM-ddTHH:mm:ss') + '+07:00'`.
 - Review và nghiệm thu được ghi theo kết quả kiểm chứng và nguồn quyết định phù hợp; trạng thái đăng nhập công cụ không thay kết quả review.
-- Ghi kết luận kỹ thuật/sản phẩm cùng tham chiếu issue, PR hoặc ADR khi có; không sao chép prompt hay lịch sử hội thoại vào tài liệu chia sẻ.
+- Ghi kết luận kỹ thuật/sản phẩm cùng tham chiếu issue, PR hoặc ADR khi có; không sao chép prompt hay lịch sử hội thoại vào tài liệu chia sẻ. Không ghi nhật ký điều phối như “theo yêu cầu”, tạo/chuyển nhánh, xin phép hay chờ commit/push trong plan/status/contract. Chỉ giữ commit/hash khi cần xác định phiên bản đối chiếu hoặc bằng chứng kiểm thử; lịch sử thao tác Git thuộc Git.
 
 ## 8. ADR và khi nào cần hỏi
 

@@ -15,7 +15,7 @@ Nhánh `fix/mobile-chat-rate-limit`, bắt đầu từ `dev`. Chỉ thay đổi 
 - [x] RL-07: Feedback 429 theo code, không khuyến khích retry liên tục; giữ draft/cache và quyền/session boundaries.
 - [x] RL-08: Regression về request counts, cache, cooldown, SSE cursor, outbox identity/lifecycle và logout; chạy mobile tests, lint, types, structure, review diff và cập nhật status. Full suite còn 4 lỗi baseline đã tái hiện trên source `dev`; xem status.
 
-## Tối ưu tiếp theo theo yêu cầu
+## Tối ưu tiếp theo
 
 - [x] OPT-01: Inbox và Chat chia sẻ request trang tin nhắn mới nhất theo owner/session; event mới không dùng lại request bắt đầu trước event.
 - [x] OPT-02: Stream mới/reset đồng bộ đầy đủ; reconnect có cursor đã xử lý snapshot thành công không lặp full reload, giữ replay và payment consumers.
@@ -48,7 +48,7 @@ Nhánh `fix/mobile-chat-rate-limit`, bắt đầu từ `dev`. Chỉ thay đổi 
 
 ## Trải nghiệm tải dữ liệu
 
-- [x] UX-01: Theo yêu cầu mới, lỗi đọc tạm thời chuyển sang loading khi chưa có dữ liệu, giữ cache khi refresh; giữ denied/session và trạng thái empty thật.
+- [x] UX-01: lỗi đọc tạm thời chuyển sang loading khi chưa có dữ liệu, giữ cache khi refresh; giữ denied/session và trạng thái empty thật.
 - [x] UX-02: GET tự phục hồi có backoff/Retry-After khi màn active, hủy timer khi blur; không replay mutation.
 - [x] UX-03: Bỏ trace đếm request và log cooldown lặp, giữ log kỹ thuật ngắn đã che dữ liệu riêng; kiểm tra recovery/UI và cập nhật nghiệm thu. Native UX sau thay đổi chưa được người dùng xác nhận.
 - [x] UX-04: Loading hai chấm đổi chỗ/chồng nhẹ theo tham chiếu TikTok người dùng nêu, màu brand/sage SkillHub; dùng component chung cho feedback đọc, Calendar, Discovery và Inbox; giữ reduced motion/focus/foreground/accessibility. Host checks/web export đạt, native feel chưa kiểm.
@@ -57,12 +57,12 @@ Nhánh `fix/mobile-chat-rate-limit`, bắt đầu từ `dev`. Chỉ thay đổi 
 - [x] UX-06: Regression wrapper/native gesture, caller callbacks, loading accessibility/focus và kiểm các consumer toàn mobile; native feel/gesture còn cần nghiệm thu thiết bị.
 - [x] UX-07: Đổi offline/unreachable thành màn loading với skeleton, bỏ thông báo mất mạng và nút thử lại; tự phục hồi qua retry lock/backoff có giới hạn, background dừng timer, không replay mutation. Chat giữ text outbox hiện hữu.
 - [x] UX-08: Rà lại sau đổi màu; sửa web pull mất gesture khi parent cập nhật callback giữa lúc kéo, thêm regression và chạy lại full mobile checks.
-- [x] UX-09: Theo yêu cầu áp dụng toàn mobile trên nhánh `fix/mobile-proposal-chat-learning-path`, gom loading dữ liệu chính theo từng screen/modal, chỉ một loader giữa vùng nội dung; giữ header/Back và children mounted.
+- [x] UX-09: Toàn mobile gom loading dữ liệu chính theo từng screen/modal, chỉ một loader giữa vùng nội dung; giữ header/Back và children mounted.
 - [x] UX-10: Dữ liệu phụ/trang tiếp theo dùng placeholder; refresh có cache không thêm icon loading. Giữ feedback của action, startup/session và pull refresh, không đổi API/retry/payment outcome.
 - [x] UX-11: Regression nhiều read, cleanup/scope/unmount/focus, giữ draft/children, placeholder/action không khóa màn và Wallet refresh/denial; full mobile checks/export đạt. Native UX còn cần nghiệm thu.
 - [x] UX-12: Review sau gom loading: chặn focus/Tab trong content web đang chờ bằng inert, bỏ focus bàn phím native khi bắt đầu chờ; giữ children/layout/draft và kiểm regression markup/native effect.
 
-## Sonar follow-up sau commit ffa118c7
+## Sonar follow-up — baseline `ffa118c7`
 
 - [x] QA-01: Tách nhãn lỗi SessionFeedback và validation/response của HTTP send để giảm complexity; bỏ footer ternary lồng nhau, readonly props loading, gộp connections import.
 - [x] QA-02: Thay await trong retry loop bằng retry tuần tự sau pause, giữ signal/frame/deadline; regression repeated429/cancel/non429 và Axios rejected response, full mobile checks.
@@ -80,4 +80,4 @@ Nhánh `fix/mobile-chat-rate-limit`, bắt đầu từ `dev`. Chỉ thay đổi 
 
 ## Kiểm tra
 
-Focused Node/tsx tests với fake clock, transport và QueryClient thật khi phù hợp; `pnpm --filter mobile test`, `lint`, `check-types`, `check-structure`. API/native thực hiện riêng khi có môi trường/tài khoản, ghi NOT_RUN nếu chưa chạy. Commit theo yêu cầu tiếp theo của người dùng; không push/deploy trong phạm vi này.
+Focused Node/tsx tests với fake clock, transport và QueryClient thật khi phù hợp; `pnpm --filter mobile test`, `lint`, `check-types`, `check-structure`. API/native thực hiện riêng khi có môi trường/tài khoản, ghi NOT_RUN nếu chưa chạy.
