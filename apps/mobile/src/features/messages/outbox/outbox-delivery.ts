@@ -1,4 +1,5 @@
 import { AppError } from "@/lib/http/errors";
+import { findContactInformation } from "@/lib/contact-policy";
 import type { createMessagesApi, Delivery } from "../api/messages-api";
 import type { QueuedText } from "./outbox-types";
 
@@ -28,6 +29,8 @@ export async function deliverQueuedText(
       if (!(error instanceof AppError && error.status === 404)) throw error;
     }
   }
+  if (findContactInformation(entry.messageText))
+    throw new AppError("http", 400, "CONTACT_INFORMATION_BLOCKED");
   return api.send(
     entry.conversationId,
     {

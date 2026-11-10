@@ -1,4 +1,5 @@
 import type { QueryClient } from "@tanstack/react-query";
+import { safeChatText } from "@/lib/contact-policy";
 import type { ApiConversation, ApiMessage } from "../api/messages-api";
 import type { QueuedText } from "../outbox/outbox-types";
 import { readChatSchedule } from "./schedule-notice";
@@ -74,7 +75,8 @@ function inboxMessageText(message: ApiMessage) {
   if (form)
     return `Đã xác nhận ${confirmedFormLabels[form.kind].toLowerCase()}`;
   if (readPlanShare(message.messageText)) return "Lộ trình học được chia sẻ";
-  if (message.messageText.trim()) return message.messageText.trim();
+  if (message.messageText.trim())
+    return safeChatText(message.messageText.trim());
   return message.messageType === "FILE" ? "Đã gửi một tệp" : "";
 }
 export function conversationInbox(
@@ -107,7 +109,7 @@ export function conversationInbox(
       )
         return {
           conversation,
-          preview: `Bạn: ${pending.messageText}`,
+          preview: `Bạn: ${safeChatText(pending.messageText)}`,
           activityAt: conversationActivityAt(conversation, pending.createdAt),
           state: pending.state === "failed" ? "failed" : "pending",
           previewSenderId: userId,

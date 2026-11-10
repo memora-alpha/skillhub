@@ -7,6 +7,7 @@ import { useUserCommand } from "../hooks/use-user-command";
 import { CommandFeedback } from "../components/common";
 import { ChatFiles, type ChatUpload } from "./chat-files";
 import { UserApiError } from "../api/client";
+import { findContactInformation } from "@/lib/contact-policy";
 import {
   parseChatDraft,
   parseEditingDraft,
@@ -51,6 +52,10 @@ export function MessageComposer({
       [],
   );
   const [uploading, setUploading] = useState(false);
+  const contactIssue =
+    findContactInformation(saved?.messageText ?? text) ??
+    files.map((file) => findContactInformation(file.filename)).find(Boolean);
+  const contactHintId = fileInputId + "-contact";
   useEffect(() => {
     if (saved) return;
     try {
@@ -92,7 +97,25 @@ export function MessageComposer({
       }
       return true;
     } catch (cause) {
-      if (cause instanceof UserApiError && cause.status === 404) return true;
+      if (cause instanceof UserApiError && cause.status === 404) {
+        const issue =
+          findContactInformation(draft.messageText) ??
+          draft.files
+            ?.map((file) => findContactInformation(file.filename))
+            .find(Boolean);
+        if (issue) {
+          intent.current = null;
+          setSaved(null);
+          try {
+            sessionStorage.removeItem(key);
+          } catch {
+            /* Keep the editable draft. */
+          }
+          setNotice(issue.message);
+          return false;
+        }
+        return true;
+      }
       setNotice(
         cause instanceof Error
           ? cause.message
@@ -119,6 +142,10 @@ export function MessageComposer({
       return;
     }
     if (intent.current && !(await checkBeforeResend(intent.current))) return;
+    if (contactIssue) {
+      setNotice(contactIssue.message);
+      return;
+    }
     const body = intent.current ?? {
       clientMessageId: crypto.randomUUID(),
       messageText,
@@ -198,6 +225,8 @@ export function MessageComposer({
             minLength={1}
             maxLength={2000}
             required={!files.length}
+            aria-invalid={!!contactIssue}
+            aria-describedby={contactIssue ? contactHintId : undefined}
             disabled={!!saved || command.pending}
             onChange={(event) => setText(event.target.value)}
             onKeyDown={(event) => {
@@ -221,6 +250,7 @@ export function MessageComposer({
             command.pending ||
             checking ||
             uploading ||
+            (!saved && !!contactIssue) ||
             (!text.trim() && !files.length) ||
             (!saved && files.some((file) => file.state !== "CLEAN"))
           }
@@ -228,6 +258,13 @@ export function MessageComposer({
           <ProductIcon name="send" size={20} />
         </button>
       </div>
+      {contactIssue && (
+        <p id={contactHintId} role="status" className="learner-error">
+          {saved
+            ? "Bản gửi cũ có thông tin liên hệ riêng. Kiểm tra kết quả trước khi sửa nội dung."
+            : contactIssue.message}
+        </p>
+      )}
       <small className={styles.composerHint}>
         Enter để gửi · Shift + Enter để xuống dòng · Tối đa 15 MB/tệp
       </small>

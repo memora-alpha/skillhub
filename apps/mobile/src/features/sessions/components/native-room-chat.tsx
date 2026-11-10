@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { Button } from "@/components/Button";
 import { Avatar } from "@/components/Avatar";
 import { fonts } from "@/constants/theme";
+import { findContactInformation } from "@/lib/contact-policy";
 import { roomChatTextLimit } from "../utils/ephemeral-chat";
 import type { useRoomChat } from "../hooks/use-room-chat";
 
@@ -18,6 +19,7 @@ export function NativeRoomChat({
   hidden?: boolean;
 }>) {
   const [draft, setDraft] = useState("");
+  const contactIssue = findContactInformation(draft);
   const log = useRef<ComponentRef<typeof ScrollView>>(null);
   return (
     <View
@@ -85,7 +87,9 @@ export function NativeRoomChat({
         editable={chat.ready && !chat.pending}
       />
       <Button
-        disabled={!chat.ready || chat.pending || !draft.trim()}
+        disabled={
+          !chat.ready || chat.pending || !draft.trim() || !!contactIssue
+        }
         onPress={() => {
           const text = draft;
           void chat.send(text).then((sent) => {
@@ -95,6 +99,11 @@ export function NativeRoomChat({
       >
         {chat.pending ? "Đang gửi…" : "Gửi tin nhắn"}
       </Button>
+      {contactIssue && (
+        <Text accessibilityRole="alert" style={styles.notice}>
+          {contactIssue.message}
+        </Text>
+      )}
     </View>
   );
 }

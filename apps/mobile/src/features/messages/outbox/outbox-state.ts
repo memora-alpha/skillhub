@@ -1,4 +1,5 @@
 import { AppError } from "@/lib/http/errors";
+import { findContactInformation } from "@/lib/contact-policy";
 import { parse } from "@/lib/http/contracts";
 import type { ApiMessage } from "../api/messages-api";
 import type { OutboxApi } from "./outbox-delivery";
@@ -80,6 +81,13 @@ export abstract class OutboxState {
   enqueue(conversationId: string, messageText: string) {
     if (!this.snapshot.ready || !this.options.current() || this.stopped)
       return false;
+    if (findContactInformation(messageText)) {
+      this.publish(
+        this.snapshot.items,
+        new AppError("http", 400, "CONTACT_INFORMATION_BLOCKED"),
+      );
+      return false;
+    }
     const body = queuedTextSchema.safeParse({
       clientMessageId: this.options.createId(),
       conversationId,
@@ -91,6 +99,7 @@ export abstract class OutboxState {
       retryAt: 0,
     });
     if (!body.success) return false;
+    this.snapshot = { ...this.snapshot, error: undefined };
     this.publish([...this.snapshot.items, body.data]);
     void this.persist()
       .then(() => this.wake())

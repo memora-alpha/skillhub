@@ -1,3 +1,5 @@
+import { AppError } from "@/lib/http/errors";
+import { findContactInformation } from "@/lib/contact-policy";
 export const CHAT_MAX_BYTES = 15_000_000;
 export const chatFormats: Record<string, string> = {
   pdf: "application/pdf",
@@ -21,6 +23,8 @@ export type ChatFile = {
   file?: File;
 };
 export function validateChatFile(file: ChatFile) {
+  if (findContactInformation(file.name))
+    throw new AppError("http", 400, "CONTACT_INFORMATION_BLOCKED");
   const parts = file.name.toLowerCase().split(".");
   const mime = chatFormats[parts.at(-1) ?? ""];
   const claimedMime = file.mimeType?.trim().toLowerCase();

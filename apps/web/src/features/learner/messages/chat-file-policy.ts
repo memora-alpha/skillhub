@@ -1,3 +1,4 @@
+import { assertNoContactInformation } from "@/lib/contact-policy";
 export type ChatUpload = {
   id: string;
   filename: string;
@@ -10,6 +11,7 @@ export function validateChatFiles(
   files: { name: string; size: number }[],
   existing: { size: number }[] = [],
 ) {
+  files.forEach((file) => assertNoContactInformation(file.name));
   if (files.length + existing.length > 5)
     throw new Error("Mỗi tin nhắn có tối đa 5 tệp.");
   if (files.some((file) => file.size <= 0 || file.size > 15_000_000))

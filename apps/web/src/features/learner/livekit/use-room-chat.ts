@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import type { Room } from "livekit-client";
+import { ContactInformationError } from "@/lib/contact-policy";
 import type { RoomChatMessage } from "./ephemeral-chat";
 import {
   createRoomChatTransport,
@@ -76,14 +77,16 @@ export function useRoomChat(
     setError("");
     try {
       return await chat.send(text);
-    } catch {
+    } catch (cause) {
       if (controller.current === chat && current.current()) {
         const availability = chat.status();
         setStatus(availability);
         setError(
-          availability === "ready"
-            ? "Chưa gửi được tin nhắn. Kiểm tra kết nối rồi gửi lại."
-            : roomChatStatusMessage(availability),
+          cause instanceof ContactInformationError
+            ? cause.message
+            : availability === "ready"
+              ? "Chưa gửi được tin nhắn. Kiểm tra kết nối rồi gửi lại."
+              : roomChatStatusMessage(availability),
         );
       }
       return false;
