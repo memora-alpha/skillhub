@@ -4,7 +4,7 @@ import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import type { ReactNode } from "react";
 import { useLocalSearchParams } from "expo-router";
-import { Copy, RouteButton } from "@/components/feature-page";
+import { RouteButton } from "@/components/feature-page";
 import { Icon } from "@/components/Icon";
 import {
   FlowPage as FeaturePage,
@@ -15,6 +15,7 @@ import { FormNotice } from "@/components/FormNotice";
 import { creditShortfall } from "@/lib/http/scheduling-error";
 import { AppError } from "@/lib/http/errors";
 import { ScheduleValidationFeedback } from "../components/schedule-validation-feedback";
+import { scheduleValidationKey } from "../utils/invalid-schedule-items";
 import {
   ConnectionFeedback,
   useConnectionCommand,
@@ -25,7 +26,10 @@ import {
   useLearningPathsApi,
 } from "../hooks/use-learning-paths-api";
 import type { ApiLearningPath } from "../api/learning-paths-contract";
-import { canValidateForFinalize } from "../utils/policy-api";
+import {
+  canValidateForFinalize,
+  finalizationValidationKey,
+} from "../utils/policy-api";
 import { LockedScheduleSummary } from "../components/locked-schedule-summary";
 import {
   useConfirmedFormShare,
@@ -93,18 +97,23 @@ function HoldContent({
       ["learning-paths", "mine"],
     ]);
   const [checked, setChecked] = useState<string>();
+  const [validationSnapshot, setValidationSnapshot] = useState<string>();
   const [latestAction, setLatestAction] = useState<"check" | "finalize">(
     "check",
   );
   const share = useConfirmedFormShare();
-  const signature = JSON.stringify(path),
+  const signature = finalizationValidationKey(path),
     agreement = path.agreement;
+  const validationKey = scheduleValidationKey(path);
   const ready = canValidateForFinalize(path);
   const latestError = latestAction === "check" ? check.error : finalize.error;
+  // A rejection while replaying does not settle the original unknown result.
+  const feedbackError =
+    latestAction === "finalize" && finalize.uncertain ? undefined : latestError;
   const invalidTime =
-    latestError instanceof AppError &&
-    latestError.code === "INVALID_SCHEDULE_ITEMS";
-  const shortfall = creditShortfall(latestError, runtime.userId);
+    feedbackError instanceof AppError &&
+    feedbackError.code === "INVALID_SCHEDULE_ITEMS";
+  const shortfall = creditShortfall(feedbackError, runtime.userId);
   const canTopUp =
     shortfall === "viewer" ||
     (shortfall === "unknown" &&
@@ -136,32 +145,31 @@ function HoldContent({
           <ReviewBullet>
             {agreement.exchangeType === "TWO_WAY" ? (
               <>
-                Mỗi người sẽ được tạm giữ{" "}
+                Tạm giữ{" "}
                 <Text style={styles.reviewEmphasis}>
                   {agreement.totalCreditPerUser} CR
                 </Text>{" "}
-                cho toàn thỏa thuận.
+                từ ví mỗi người cho thỏa thuận này.
               </>
             ) : (
               <>
-                Người học sẽ được tạm giữ{" "}
+                Tạm giữ{" "}
                 <Text style={styles.reviewEmphasis}>
                   {agreement.negotiatedCredit} CR
                 </Text>{" "}
-                cho toàn lộ trình; người dạy không tạm giữ Credit.
+                từ ví người học; người dạy không bị tạm giữ Credit.
               </>
             )}
           </ReviewBullet>
           <ReviewBullet>
-            Thao tác chốt lịch sẽ khóa thời gian học, tạo các buổi học và tạm
-            giữ Credit.
+            Chốt lịch sẽ xác nhận thời gian học và tạm giữ Credit theo thỏa
+            thuận.
           </ReviewBullet>
         </View>
         <View style={styles.validationNote}>
           <Icon name="alert" size={16} color={colors.amber} />
           <Text style={styles.validationText}>
-            Hệ thống kiểm tra lịch trùng và số dư khi kiểm tra điều kiện, sau đó
-            xác nhận lại khi bạn chốt lịch.
+            Kiểm tra lịch trùng và số dư Credit trước khi chốt.
           </Text>
         </View>
         {!ready && (
@@ -190,6 +198,7 @@ function HoldContent({
             )
               return;
             setLatestAction("check");
+            setValidationSnapshot(validationKey);
             setChecked(undefined);
             void check
               .run(`validate:${path.id}`, () => api.validate(path.id))
@@ -204,25 +213,30 @@ function HoldContent({
               });
           }}
         >
-          {check.pending
-            ? "Đang kiểm tra..."
-            : "Kiểm tra điều kiện trên hệ thống"}
+          {check.pending ? "Đang kiểm tra..." : "Kiểm tra lịch và Credit"}
         </Button>
         {invalidTime && (
-          <ScheduleValidationFeedback path={path} userId={runtime.userId} />
+          <ScheduleValidationFeedback
+            path={path}
+            userId={runtime.userId}
+            error={latestError}
+            snapshotCurrent={
+              !validationSnapshot || validationSnapshot === validationKey
+            }
+          />
         )}
         {latestAction === "check" && !invalidTime && (
           <ConnectionFeedback
             error={latestError}
             viewerId={runtime.userId}
             errorTone="error"
+            errorPresentation="notice"
           />
         )}
         {canTopUp && <RouteButton href="/wallet/topup">Nạp Credit</RouteButton>}
         {checked === signature && (
           <FormNotice tone="success" compact>
-            Đủ điều kiện tại lần kiểm tra vừa rồi. Hệ thống sẽ kiểm tra lại khi
-            bạn chốt lịch.
+            Đủ điều kiện tại lần kiểm tra này. Bạn có thể chốt lịch.
           </FormNotice>
         )}
         <Button
@@ -247,6 +261,7 @@ function HoldContent({
               return;
             setChecked(undefined);
             setLatestAction("finalize");
+            setValidationSnapshot(validationKey);
             void finalize
               .run(`finalize:${path.id}:${path.currentVersion}`, (identity) =>
                 confirmAndShare(
@@ -270,13 +285,14 @@ function HoldContent({
         >
           {finalize.pending
             ? "Đang chốt lịch..."
-            : "Xác nhận chốt lịch và tạm giữ Credit"}
+            : "Chốt lịch và tạm giữ Credit"}
         </Button>
-        {latestAction === "finalize" && !invalidTime && (
+        {latestAction === "finalize" && !invalidTime && !finalize.uncertain && (
           <ConnectionFeedback
             error={latestError}
             viewerId={runtime.userId}
             errorTone="error"
+            errorPresentation="notice"
           />
         )}
         {!embedded && (
@@ -284,10 +300,10 @@ function HoldContent({
         )}
         {finalize.uncertain && (
           <Panel title="Kiểm tra lần chốt vừa gửi">
-            <Copy size="hint">
-              Chưa rõ kết quả chốt. Tải lại trạng thái hoặc kiểm tra đúng lần
-              gửi trước để tránh tạm giữ Credit hai lần.
-            </Copy>
+            <FormNotice tone="warning" compact>
+              Chưa nhận được kết quả chốt lịch. Hãy kiểm tra trạng thái trước
+              khi chốt lại.
+            </FormNotice>
             <Button
               variant="secondary"
               disabled={blocked || finalize.pending}

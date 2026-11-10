@@ -22,8 +22,45 @@ const overlap = z
   );
 const schedule = z.object({ conflicts: z.array(overlap).min(1).max(100) });
 const credit = z.object({ userIds: z.array(z.uuid()).min(1).max(2) });
+const invalidTimeItem = z
+  .object({
+    planId: z.uuid(),
+    planVersion: z.number().int().positive(),
+    scheduleId: z.uuid(),
+    scheduleVersion: z.number().int().positive(),
+    teacherId: z.uuid(),
+    learnerId: z.uuid(),
+    sessionNo: z.number().int().positive(),
+    // Do not require endAt > startAt: that is one of the errors being reported.
+    startAt: z.iso.datetime({ offset: true }),
+    endAt: z.iso.datetime({ offset: true }),
+    reasons: z
+      .array(
+        z.enum([
+          "START_NOT_IN_FUTURE",
+          "END_NOT_AFTER_START",
+          "DURATION_TOO_SHORT",
+          "DURATION_TOO_LONG",
+        ]),
+      )
+      .min(1)
+      .max(4)
+      .refine((reasons) => new Set(reasons).size === reasons.length),
+  })
+  .refine((item) => item.teacherId !== item.learnerId);
+const invalidTimes = z.object({
+  invalidItems: z.array(invalidTimeItem).min(1).max(200),
+  evaluatedAt: z.iso.datetime({ offset: true }),
+  durationMinutes: z
+    .object({
+      min: z.number().int().positive(),
+      max: z.number().int().positive(),
+    })
+    .refine((policy) => policy.min <= policy.max),
+});
+export type InvalidScheduleDetails = z.infer<typeof invalidTimes>;
 export type SchedulingErrorDetails =
-  z.infer<typeof schedule> | z.infer<typeof credit>;
+  z.infer<typeof schedule> | z.infer<typeof credit> | InvalidScheduleDetails;
 
 export function readSchedulingError(
   status: number,
@@ -31,10 +68,22 @@ export function readSchedulingError(
   details: unknown,
 ) {
   if (status !== 409) return undefined;
+  if (code === "INVALID_SCHEDULE_ITEMS")
+    return invalidTimes.safeParse(details).data;
   if (code === "SCHEDULE_CONFLICT") return schedule.safeParse(details).data;
   if (code === "INSUFFICIENT_AVAILABLE_CREDIT")
     return credit.safeParse(details).data;
   return undefined;
+}
+
+export function invalidScheduleDetails(error: unknown) {
+  if (
+    !(error instanceof AppError) ||
+    error.status !== 409 ||
+    error.code !== "INVALID_SCHEDULE_ITEMS"
+  )
+    return undefined;
+  return invalidTimes.safeParse(error.details).data;
 }
 
 export function scheduleConflictMessage(error: unknown) {
