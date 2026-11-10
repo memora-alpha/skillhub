@@ -47,26 +47,4 @@ export function useOperation() {
   };
 }
 
-export function Identifier({
-  value,
-  onChange,
-  label = "Mã người dùng",
-}: Readonly<{
-  value: string;
-  onChange: (value: string) => void;
-  label?: string;
-}>) {
-  return (
-    <label>
-      {label}
-      <input
-        className="input"
-        required
-        value={value}
-        onChange={(e) => onChange(e.target.value.trim())}
-        pattern="[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
-        placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-      />
-    </label>
-  );
-}
+export { Identifier } from "./identifier-field";

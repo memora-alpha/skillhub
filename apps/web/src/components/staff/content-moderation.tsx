@@ -11,6 +11,7 @@ import { useStaffSession } from "./session";
 import { DecisionDialog, Pager, QueueState } from "./common";
 import { Identifier } from "./operation-tools";
 import { OperationReference } from "./operation-reference";
+import { StaffUserProfile } from "./user-profile";
 import { fmtDateTime } from "@/lib/console/format";
 import styles from "./operations.module.css";
 type Review = {
@@ -37,6 +38,7 @@ export function ContentModerationScreen({
 }: Readonly<{ initialUserId?: string }>) {
   const [draft, setDraft] = useState(initialUserId);
   const [userId, setUserId] = useState(initialUserId);
+  const [profileRevision, setProfileRevision] = useState(0);
   const [tab, setTab] = useState(initialUserId ? "profile" : "reviews");
   const { actor } = useStaffSession();
   const openProfile = (id: string) => {
@@ -62,42 +64,69 @@ export function ContentModerationScreen({
         />
       </div>
       {tab === "profile" ? (
-        <Card title="Kiểm tra hồ sơ người dùng">
-          <p className={styles.hint}>
-            Tra cứu bằng mã người dùng từ báo cáo hoặc danh sách người dùng.
-          </p>
-          <form
-            className={styles.filters}
-            onSubmit={(e) => {
-              e.preventDefault();
-              setUserId(draft);
-            }}
-          >
-            <Identifier value={draft} onChange={setDraft} />
-            <button className="btn btn-primary" type="submit">
-              Xem hồ sơ
-            </button>
-          </form>
-          {userId === actor?.userId ? (
-            <p role="status" className={styles.hint}>
-              Hồ sơ của bạn cần một nhân viên khác kiểm duyệt.
+        <div className={styles.workspace}>
+          <Card title="Tìm hồ sơ người dùng">
+            <p className={styles.hint}>
+              Tra cứu bằng mã người dùng từ báo cáo hoặc danh sách người dùng.
             </p>
-          ) : userId ? (
-            <ProfileModeration key={userId} userId={userId} />
-          ) : (
-            <div className={styles.lookupEmpty}>
-              <strong>Chọn hồ sơ cần xem xét</strong>Giới thiệu và ảnh đại diện
-              sẽ hiển thị tại đây.
-            </div>
+            <form
+              className={styles.filters}
+              onSubmit={(e) => {
+                e.preventDefault();
+                setUserId(draft);
+              }}
+            >
+              <Identifier value={draft} onChange={setDraft} />
+              <button className="btn btn-primary" type="submit">
+                Xem hồ sơ
+              </button>
+            </form>
+            {!userId && (
+              <div className={styles.lookupEmpty}>
+                <strong>Chọn hồ sơ để xem thông tin</strong>Tên, ảnh, kỹ năng và
+                đánh giá sẽ hiển thị tại đây.
+              </div>
+            )}
+          </Card>
+          {userId && (
+            <>
+              <StaffUserProfile
+                key={`public:${userId}:${profileRevision}`}
+                userId={userId}
+              />
+              <Card title="Kiểm duyệt hồ sơ">
+                {userId === actor?.userId ? (
+                  <p role="status" className={styles.hint}>
+                    Bạn có thể xem hồ sơ của mình. Việc kiểm duyệt cần một nhân
+                    viên khác xử lý.
+                  </p>
+                ) : (
+                  <>
+                    <p className={styles.hint}>
+                      Nội dung gốc để kiểm duyệt. Lý do ẩn hoặc yêu cầu sửa sẽ
+                      được gửi cho chủ hồ sơ.
+                    </p>
+                    <ProfileModeration
+                      key={userId}
+                      userId={userId}
+                      onChanged={() => setProfileRevision((value) => value + 1)}
+                    />
+                  </>
+                )}
+              </Card>
+            </>
           )}
-        </Card>
+        </div>
       ) : (
         <ReviewModeration onProfile={openProfile} />
       )}
     </>
   );
 }
-function ProfileModeration({ userId }: Readonly<{ userId: string }>) {
+function ProfileModeration({
+  userId,
+  onChanged,
+}: Readonly<{ userId: string; onChanged: () => void }>) {
   const { api } = useStaffSession();
   const resource = useStaffResource<Profile>(
     `users/${userId}/profile-moderation`,
@@ -192,6 +221,7 @@ function ProfileModeration({ userId }: Readonly<{ userId: string }>) {
                 });
                 setDecision(undefined);
                 await resource.reload();
+                onChanged();
               }}
             />
           )}
