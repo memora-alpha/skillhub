@@ -24,6 +24,7 @@ export function ChatWorkflowCard({
   badgeLabel,
   actionText = "Xem chi tiết",
   showAvatar = true,
+  expandSummary = false,
 }: Readonly<{
   mine: boolean;
   partner: string;
@@ -38,6 +39,7 @@ export function ChatWorkflowCard({
   action: string;
   time?: string;
   showAvatar?: boolean;
+  expandSummary?: boolean;
   confirmed: boolean;
   onPress: () => void;
 }>) {
@@ -85,7 +87,10 @@ export function ChatWorkflowCard({
             {title}
           </Text>
           {!!summary && (
-            <Text numberOfLines={2} style={styles.summary}>
+            <Text
+              numberOfLines={expandSummary ? undefined : 2}
+              style={styles.summary}
+            >
               {summary}
             </Text>
           )}
@@ -121,8 +126,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  header: { flexDirection: "row", alignItems: "center", gap: 8 },
-  heading: { flex: 1, minWidth: 0 },
+  header: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: 8,
+  },
+  heading: { flex: 1, minWidth: 80 },
   icon: {
     width: 28,
     height: 28,

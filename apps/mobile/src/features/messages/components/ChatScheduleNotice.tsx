@@ -11,6 +11,30 @@ export function ChatScheduleNotice({
     "mine" | "partner" | "partnerId" | "avatarUrl" | "showAvatar" | "onPress"
   >
 >) {
+  if (notice.confirmation) {
+    const value = notice.confirmation;
+    const teaching = cardProps.mine
+      ? value.confirmedBy === value.teacherId
+      : value.confirmedBy !== value.teacherId;
+    return (
+      <ChatWorkflowCard
+        {...cardProps}
+        label={teaching ? "Lịch bạn dạy" : "Lịch bạn học"}
+        title={value.title}
+        summary={
+          value.bothConfirmed
+            ? "Hai bên đã đồng ý lịch này · Chưa chốt lịch."
+            : `${cardProps.mine ? "Bạn" : cardProps.partner} đã đồng ý · Chờ ${cardProps.mine ? "đối tác" : "bạn"} xác nhận.`
+        }
+        version={value.version}
+        expandSummary
+        confirmed={value.bothConfirmed}
+        badgeLabel={value.bothConfirmed ? "Đủ xác nhận" : "Chờ xác nhận"}
+        action="Xem lịch học"
+        actionText="Xem lịch học"
+      />
+    );
+  }
   const date = (value: string) =>
     new Date(value).toLocaleDateString("vi-VN", {
       day: "2-digit",

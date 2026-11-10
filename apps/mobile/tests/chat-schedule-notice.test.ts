@@ -12,6 +12,10 @@ import { readChatSchedule } from "../src/features/messages/utils/schedule-notice
 import type { ApiMessage } from "../src/features/messages/api/messages-api";
 import { fixtureId } from "./fixtures/learning-requests-data";
 import {
+  scheduleConfirmationMessage,
+  readScheduleConfirmation,
+} from "../src/features/learning-paths/utils/schedule-confirmation-message";
+import {
   agreementPath,
   withConfirmedSchedules,
 } from "./fixtures/learning-agreement";
@@ -207,13 +211,56 @@ test("schedule notice card is compact, has no per-session list or confirmation v
     assert.equal(action.props.actionText, "Xem lịch học");
     (action.props.onPress as () => void)();
     assert.equal(presses, 1);
+    for (const mine of [true, false])
+      for (const teacher of [true, false])
+        for (const bothConfirmed of [false, true]) {
+          const confirmation = readScheduleConfirmation(
+            scheduleConfirmationMessage({
+              pathId,
+              planId: fixtureId(11),
+              scheduleId: fixtureId(50),
+              version: 4,
+              confirmedBy: fixtureId(teacher ? 1 : 2),
+              teacherId: fixtureId(1),
+              learnerId: fixtureId(2),
+              bothConfirmed,
+              title: "React cơ bản",
+            }),
+          )!;
+          const [card] = elements(
+            ChatScheduleNotice({
+              mine,
+              partner: "Bình",
+              partnerId: fixtureId(2),
+              notice: { pathId, locked: false, confirmation },
+              onPress() {},
+            }),
+          );
+          assert.equal(
+            card!.props.label,
+            (mine ? teacher : !teacher) ? "Lịch bạn dạy" : "Lịch bạn học",
+          );
+          assert.equal(
+            card!.props.badgeLabel,
+            bothConfirmed ? "Đủ xác nhận" : "Chờ xác nhận",
+          );
+          assert.equal(card!.props.confirmed, bothConfirmed);
+          assert.match(
+            String(card!.props.summary),
+            bothConfirmed
+              ? /Hai bên.*Chưa chốt/
+              : mine
+                ? /Bạn đã đồng ý.*đối tác/
+                : /Bình đã đồng ý.*bạn xác nhận/,
+          );
+        }
   } finally {
     delete local.cache[filename];
     mocks.reverse().forEach((item) => item.restore());
   }
 });
 
-test("confirming both schedule directions saves confirmations without publishing chat cards", async () => {
+test("confirming each schedule direction shares its exact receipt only after success", async () => {
   const local = createRequire(
     new URL(
       "../src/features/learning-paths/screens/ApiScheduleScreens.tsx",
@@ -228,6 +275,12 @@ test("confirming both schedule directions saves confirmations without publishing
   }
   let confirmations = 0,
     shares = 0;
+  let current = true,
+    reject = false,
+    bothConfirmed = false;
+  let status = "PROPOSED";
+  const receipts: { conversationId: string; text: string; identity: string }[] =
+    [];
   const query = {
     data: path,
     isFetching: false,
@@ -253,21 +306,22 @@ test("confirming both schedule directions saves confirmations without publishing
     "@/features/connections": {
       useConnections: () => ({
         userId: path.participantAId,
-        isCurrent: () => true,
+        isCurrent: () => current,
       }),
       useCatalogName: () => ({ data: "React" }),
       useConnectionCommand: () => ({
         pending: false,
         run: (_key: string, send: (id: string) => Promise<unknown>) =>
-          send(fixtureId(99)),
+          send(fixtureId(99)).catch(() => undefined),
       }),
       ConnectionFeedback: "Feedback",
     },
     "@/features/messages/state": {
       ConfirmedFormFeedback: "ChatFeedback",
       useConfirmedFormShare: () => ({
-        publish: () => {
+        publish: (conversationId: string, text: string, identity: string) => {
           shares++;
+          receipts.push({ conversationId, text, identity });
         },
       }),
     },
@@ -276,7 +330,8 @@ test("confirming both schedule directions saves confirmations without publishing
       useLearningPathsApi: () => ({
         confirmSchedule: async () => {
           confirmations++;
-          return { version: 4 };
+          if (reject) throw new Error("Rejected confirmation");
+          return { version: 4, bothConfirmed, status };
         },
       }),
     },
@@ -348,6 +403,7 @@ test("confirming both schedule directions saves confirmations without publishing
     query.isFetching = false;
     query.error = undefined;
     for (const panel of panels) {
+      bothConfirmed = panel.props.plan === path.plans[1];
       const tree = elements(
         (panel.type as (props: Record<string, unknown>) => unknown)(
           panel.props,
@@ -362,7 +418,50 @@ test("confirming both schedule directions saves confirmations without publishing
       await new Promise((resolve) => setImmediate(resolve));
     }
     assert.equal(confirmations, 2);
-    assert.equal(shares, 0);
+    assert.equal(shares, 2);
+    for (const [index, receipt] of receipts.entries()) {
+      const parsed = readScheduleConfirmation(receipt.text)!;
+      assert.equal(receipt.conversationId, path.conversationId);
+      assert.equal(receipt.identity, fixtureId(99));
+      assert.equal(parsed.planId, path.plans[index]!.id);
+      assert.equal(parsed.scheduleId, path.plans[index]!.schedule!.id);
+      assert.equal(parsed.version, 4);
+      assert.equal(parsed.confirmedBy, path.participantAId);
+      assert.equal(parsed.bothConfirmed, index === 1);
+    }
+    const firstPanel = panels[0]!;
+    const confirmAgain = () =>
+      elements(
+        (firstPanel.type as (props: Record<string, unknown>) => unknown)(
+          firstPanel.props,
+        ),
+      ).find(
+        (item) =>
+          item.type === "Button" && item.props.children === "Đồng ý lịch học",
+      )!.props.onPress as () => void;
+    reject = true;
+    confirmAgain()();
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(confirmations, 3);
+    assert.equal(shares, 2, "a failed confirmation does not announce success");
+    reject = false;
+    status = "LOCKED";
+    confirmAgain()();
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(confirmations, 4);
+    assert.equal(
+      shares,
+      2,
+      "an already-locked replay must not announce an unfinalized confirmation",
+    );
+    current = false;
+    confirmAgain()();
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(
+      confirmations,
+      4,
+      "an expired session cannot confirm or share",
+    );
   } finally {
     delete local.cache[filename];
     mocks.reverse().forEach((item) => item.restore());

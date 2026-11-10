@@ -188,18 +188,26 @@ export function ApiPathsContent() {
           </View>
         </ScrollView>
       )}
+      {filter !== "all" && hasMore && (
+        <Text accessibilityLiveRegion="polite" style={styles.filterHint}>
+          Đang lọc trong {paths.length} lộ trình đã tải. Còn lộ trình chưa tải;
+          bạn có thể tải thêm bên dưới.
+        </Text>
+      )}
     </>
   );
   let emptyDescription =
     "Mở cuộc trò chuyện sau khi đề xuất được chấp nhận để cùng tạo lộ trình học.";
-  if (hasMore) emptyDescription = "Tải thêm lộ trình để xem các trang còn lại.";
+  if (hasMore) emptyDescription = "Tải thêm để tiếp tục tìm lộ trình phù hợp.";
   else if (paths.length)
     emptyDescription = "Chọn Tất cả để xem các lộ trình còn lại.";
   const empty = query.data && (
     <EmptyState
       title={
         paths.length
-          ? "Chưa thấy lộ trình ở trạng thái này"
+          ? hasMore
+            ? "Chưa thấy lộ trình phù hợp trong phần đã tải"
+            : "Không có lộ trình ở trạng thái này"
           : "Chưa có lộ trình"
       }
       description={emptyDescription}
@@ -296,8 +304,14 @@ const styles = StyleSheet.create({
     color: colors.muted,
   },
   filters: { flexDirection: "row", alignItems: "center", gap: 8 },
+  filterHint: {
+    marginTop: 8,
+    ...typography.secondary,
+    fontFamily: fonts.body,
+    color: colors.muted,
+  },
   filter: {
-    minHeight: 38,
+    minHeight: 44,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",

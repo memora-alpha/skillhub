@@ -367,6 +367,54 @@ test("a new Hold check replaces stale finalize feedback and its top-up action", 
   }
 });
 
+test("both validation and finalization show schedule ownership details for invalid times", async () => {
+  const h = holdHarness();
+  try {
+    h.check.error = new AppError("http", 409, "INVALID_SCHEDULE_ITEMS");
+    let tree = h.render();
+    const invalidNotice = (value: Element) =>
+      elements(value).find(
+        (element) =>
+          typeof element.type === "function" &&
+          element.type.name === "ScheduleValidationFeedback",
+      );
+    assert.equal(invalidNotice(tree)?.props.path, h.query.data);
+    assert.equal(invalidNotice(tree)?.props.userId, h.viewerId);
+    assert.equal(
+      elements(tree).some((element) => element.type === "ConnectionFeedback"),
+      false,
+    );
+    h.check.error = undefined;
+    h.button(h.render(), "Kiểm tra điều kiện trên hệ thống").onPress();
+    await flush();
+    h.finalize.error = new AppError("http", 409, "INVALID_SCHEDULE_ITEMS");
+    h.button(h.render(), "Xác nhận chốt lịch và tạm giữ Credit").onPress();
+    await flush();
+    tree = h.render();
+    assert.ok(invalidNotice(tree));
+    assert.equal(
+      elements(tree).some((node) => node.props.tone === "success"),
+      false,
+    );
+    const rejectedButton = h.button(
+      tree,
+      "Xác nhận chốt lịch và tạm giữ Credit",
+    );
+    assert.equal(rejectedButton.disabled, true);
+    rejectedButton.onPress();
+    assert.equal(h.counts().finalizations, 1);
+    assert.equal(
+      elements(tree).some((element) => element.type === "ConnectionFeedback"),
+      false,
+    );
+    h.button(tree, "Kiểm tra điều kiện trên hệ thống").onPress();
+    await flush();
+    assert.equal(invalidNotice(h.render()), undefined);
+  } finally {
+    h.cleanup();
+  }
+});
+
 test("a one-way Hold check without payer details offers top-up only to the learner", async () => {
   for (const viewerId of [teacherId, learnerId]) {
     const h = holdHarness(viewerId);

@@ -34,6 +34,16 @@ Luồng: Learning Request hoặc Sharing Skill → gửi proposal → Đã gửi
 
 ## Mốc 2 — Plan & Schedule
 
+- [x] Rà/dọn toàn bộ diff trước commit: bỏ metadata số buổi chưa dùng của thẻ xác nhận, tách thẻ mới khỏi đường gom legacy, bỏ export helper chỉ phục vụ test và reset checked lặp. Tái hiện/sửa sự kiện đổi giờ/phút trước render; kiểm đủ tests/types/lint/structure/export và ba fixture, giữ hai lỗi baseline ngoài scope riêng.
+
+- [x] Theo yêu cầu tiếp về danh sách lộ trình, thay bộ lọc Đã xác nhận dễ hiểu nhầm bằng nhóm đủ vòng đời, tách Chờ quyết toán/Tranh chấp; ưu tiên stage BE, fallback status. Nói rõ phạm vi các trang đã tải, giữ filter khi tải thêm, không báo rỗng toàn danh sách khi còn trang và giữ thứ tự/cursor BE.
+
+- [ ] BE bổ sung chi tiết `INVALID_SCHEDULE_ITEMS` trên final-validation/finalize theo [bàn giao](../../contracts/backend-schedule-validation-gap.md): định danh plan/schedule/version/teacher/learner/buổi, reason, giờ DB và policy; public error filter, OpenAPI và HTTP integration tests. Mobile nối schema/hiển thị sau khi contract BE được chốt/triển khai; chưa thực hiện backend trong work này.
+- [x] Mobile xóa kết quả kiểm tra cũ ngay khi bắt đầu finalize để không còn thông báo xanh/nút chốt dựa trên validation đã hết giá trị sau khi bị từ chối; guard cả handler, giữ recovery cho kết quả chưa rõ. Regression tái hiện từ lượt review đã được kiểm lại.
+- [x] Theo yêu cầu tiếp, đồng ý lịch từng chiều tự gửi thẻ Chat từ receipt sau confirm thành công; hiển thị người xác nhận/chờ ai/đủ xác nhận nhưng chưa chốt, giữ link đúng version và retry tin riêng. Invalidate list/nhóm/preview sau delivery, không giả chưa đọc. Không gửi thẻ chờ chốt cho receipt LOCKED. Source dùng cơ chế form hiện có, bảo đảm bền khi app tắt vẫn cần BE outbox.
+
+- [x] Sửa chọn giờ Android sang hai cột cuộn ngay trong form tạo/sửa lịch; kiểm tra/chốt lịch báo thời gian không hợp lệ phải chỉ rõ chiều dạy, buổi, giờ và lý do từ snapshot hiện tại. API chưa trả chi tiết thì giữ fallback rõ giới hạn; không đoán người sai khi không có bằng chứng local.
+
 - [x] Rà banner/chú thích liên feature theo phản hồi tranh chấp: sửa warning và lỗi hủy để chỉ rõ Credit chờ xử lý; Hold phản ánh trạng thái hủy/tranh chấp/hoàn thành và đã duyệt hủy; consent đã lưu không lấn át blocker quyết toán. Đối chiếu backend, thêm regression; sửa hướng dẫn editor Learning Request theo trạng thái tại work Phase04. Không đổi quyền hay mutation.
 
 - [x] Rà lại toàn bộ phần UI/điều hướng vừa sửa theo yêu cầu: sửa fallback icon/màu trạng thái khi learningStage null, khóa xác nhận lịch trong refresh/read error cả ở handler. Regression trạng thái, blocked/recovery, nhiều buổi/hai chiều, test quyết toán phù hợp yêu cầu đã bỏ nút chung; kiểm toàn bộ mobile và web export. API/native acceptance giữ riêng.
@@ -58,7 +68,7 @@ Luồng: Chat → Cách học → Lộ trình → Lịch học → server valida
 - [x] Hai bên xác nhận cùng version lịch; backend validation và finalize quyết định Hold/lock/tạo Session. Giữ recovery đúng intent khi mất phản hồi.
 - [x] Khi kiểm tra điều kiện hoặc chốt lịch báo thiếu Credit, hiển thị nút Nạp Credit mở màn `/wallet/topup` hiện có.
 - [x] Đọc chi tiết xung đột lịch và người thiếu Credit từ response 409. Giữ thông báo dự phòng cho API cũ.
-- [x] Cách học/lộ trình xác nhận thành công vẫn gửi form vào Chat; đồng ý từng lịch không gửi thêm card. Chốt lịch thành công gửi một thông báo tổng số Session của cả lộ trình, có nút Xem lịch học. Gửi chat lỗi chỉ retry tin, không thực hiện lại xác nhận/chốt lịch.
+- [x] Cách học/lộ trình và đồng ý từng lịch xác nhận thành công gửi form vào Chat theo yêu cầu cập nhật; thẻ lịch từng chiều giữ riêng người/phiên bản. Chốt lịch thành công gửi một thông báo tổng số Session của cả lộ trình, có nút Xem lịch học. Gửi chat lỗi chỉ retry tin, không thực hiện lại xác nhận/chốt lịch.
 - [x] Gộp các card lịch cùng conversation/path thành một thông báo gọn trong history; giữ tin thường/tệp và sequence mới nhất cho read watermark. Card cũ chỉ báo đã xác nhận, không suy ra chốt lịch hoặc tổng buổi từ history chưa đầy đủ.
 - [x] Card lịch dùng chung ChatWorkflowCard với card cách học/lộ trình: bố cục, avatar, căn phía người gửi, badge và link Xem lịch học thống nhất; giữ nội dung lịch đã gộp.
 - [x] Chuẩn hóa Back/footer, polling nền kết hợp kéo tải lại; bỏ fixture khỏi các route đã có API. Preview còn lại chỉ phục vụ các consumer chưa tích hợp ngoài luồng này.

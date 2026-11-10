@@ -69,7 +69,12 @@ export type InboxConversation = {
   previewSenderId?: string;
 };
 function inboxMessageText(message: ApiMessage) {
-  if (readChatSchedule(message)?.locked) return "Lịch học đã chốt";
+  const schedule = readChatSchedule(message);
+  if (schedule?.locked) return "Lịch học đã chốt";
+  if (schedule?.confirmation)
+    return schedule.confirmation.bothConfirmed
+      ? "Hai bên đã đồng ý lịch học · Chưa chốt"
+      : "Đã đồng ý lịch học · Chờ người còn lại";
   const form = readConfirmedForm(message.messageText);
   if (form)
     return `Đã xác nhận ${confirmedFormLabels[form.kind].toLowerCase()}`;

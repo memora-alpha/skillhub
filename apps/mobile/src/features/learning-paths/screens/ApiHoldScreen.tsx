@@ -13,6 +13,8 @@ import {
 import { Button } from "@/components/Button";
 import { FormNotice } from "@/components/FormNotice";
 import { creditShortfall } from "@/lib/http/scheduling-error";
+import { AppError } from "@/lib/http/errors";
+import { ScheduleValidationFeedback } from "../components/schedule-validation-feedback";
 import {
   ConnectionFeedback,
   useConnectionCommand,
@@ -99,6 +101,9 @@ function HoldContent({
     agreement = path.agreement;
   const ready = canValidateForFinalize(path);
   const latestError = latestAction === "check" ? check.error : finalize.error;
+  const invalidTime =
+    latestError instanceof AppError &&
+    latestError.code === "INVALID_SCHEDULE_ITEMS";
   const shortfall = creditShortfall(latestError, runtime.userId);
   const canTopUp =
     shortfall === "viewer" ||
@@ -175,6 +180,15 @@ function HoldContent({
             finalize.uncertain
           }
           onPress={() => {
+            if (
+              !runtime.isCurrent() ||
+              !ready ||
+              blocked ||
+              check.pending ||
+              finalize.pending ||
+              finalize.uncertain
+            )
+              return;
             setLatestAction("check");
             setChecked(undefined);
             void check
@@ -194,7 +208,10 @@ function HoldContent({
             ? "Đang kiểm tra..."
             : "Kiểm tra điều kiện trên hệ thống"}
         </Button>
-        {latestAction === "check" && (
+        {invalidTime && (
+          <ScheduleValidationFeedback path={path} userId={runtime.userId} />
+        )}
+        {latestAction === "check" && !invalidTime && (
           <ConnectionFeedback
             error={latestError}
             viewerId={runtime.userId}
@@ -218,6 +235,17 @@ function HoldContent({
             finalize.uncertain
           }
           onPress={() => {
+            if (
+              !runtime.isCurrent() ||
+              !ready ||
+              blocked ||
+              checked !== signature ||
+              check.pending ||
+              finalize.pending ||
+              finalize.uncertain
+            )
+              return;
+            setChecked(undefined);
             setLatestAction("finalize");
             void finalize
               .run(`finalize:${path.id}:${path.currentVersion}`, (identity) =>
@@ -235,7 +263,6 @@ function HoldContent({
               )
               .then((result) => {
                 if (result && runtime.isCurrent()) {
-                  setChecked(undefined);
                   refresh();
                 }
               });
@@ -245,7 +272,7 @@ function HoldContent({
             ? "Đang chốt lịch..."
             : "Xác nhận chốt lịch và tạm giữ Credit"}
         </Button>
-        {latestAction === "finalize" && (
+        {latestAction === "finalize" && !invalidTime && (
           <ConnectionFeedback
             error={latestError}
             viewerId={runtime.userId}

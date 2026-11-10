@@ -181,7 +181,16 @@ function ApiMessageContent({
         onPress={() =>
           router.push({
             pathname: "/paths/[id]/schedules",
-            params: { id: schedule.pathId },
+            params: {
+              id: schedule.pathId,
+              ...(schedule.confirmation
+                ? {
+                    formPlanId: schedule.confirmation.planId,
+                    formScheduleId: schedule.confirmation.scheduleId,
+                    formVersion: String(schedule.confirmation.version),
+                  }
+                : {}),
+            },
           })
         }
       />
