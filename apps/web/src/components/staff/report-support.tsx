@@ -57,6 +57,27 @@ export function SupportQueueScreen() {
       .includes(needle),
   );
   const detailId = currentId ?? visible[0]?.id;
+  const selectedCases = list.items.filter((row) => selected.includes(row.id));
+  const groupContext = selectedCases[0];
+  function selectionIssue(row: SupportCase) {
+    if (row.incidentId) return "Báo cáo đã thuộc một vụ việc chung.";
+    if (["RESOLVED", "REJECTED"].includes(row.status))
+      return "Báo cáo đã kết thúc.";
+    if (row.handlerId && row.handlerId !== actor?.userId)
+      return "Báo cáo do nhân viên khác phụ trách.";
+    if (
+      groupContext &&
+      ["targetType", "targetId", "relatedPathId", "relatedSessionId"].some(
+        (key) =>
+          row[key as keyof SupportCase] !==
+          groupContext[key as keyof SupportCase],
+      )
+    )
+      return "Chỉ chọn các báo cáo cùng đối tượng, lộ trình và buổi học.";
+    if (selected.length >= 100 && !selected.includes(row.id))
+      return "Mỗi vụ việc gom tối đa 100 báo cáo.";
+    return undefined;
+  }
   const options = statuses.filter(([code]) =>
     scope === "closed"
       ? ["RESOLVED", "REJECTED"].includes(code)
@@ -163,14 +184,42 @@ export function SupportQueueScreen() {
             type="button"
             className="btn"
             disabled={
-              list.loading || selected.length < 2 || selected.length > 100
+              list.loading ||
+              selected.length < 2 ||
+              selected.length > 100 ||
+              selectedCases.length !== selected.length ||
+              selectedCases.some((row) => !!selectionIssue(row))
             }
-            onClick={() => setGroup(true)}
+            onClick={() => {
+              const highest = Math.max(
+                ...selectedCases.map((row) => {
+                  const index = severities.findIndex(
+                    (item) => item.code === row.severity,
+                  );
+                  return index < 0 ? 1 : index;
+                }),
+              );
+              setGroupSeverity(severities[highest]?.code ?? "MEDIUM");
+              setGroup(true);
+            }}
           >
             Gom {selected.length} báo cáo
           </button>
         )}
       </div>
+      {selected.length > 0 && (
+        <p className="muted">
+          Đã chọn {selected.length} báo cáo. Chọn thêm báo cáo cùng đối tượng và
+          buổi học để gom thành một vụ việc.{" "}
+          <button
+            type="button"
+            className="link ops-text-button"
+            onClick={() => setSelected([])}
+          >
+            Bỏ chọn tất cả
+          </button>
+        </p>
+      )}
       <div className="ops-report-workspace">
         <Card className="ops-report-list" flush>
           <QueueState
@@ -197,11 +246,8 @@ export function SupportQueueScreen() {
                         <input
                           type="checkbox"
                           aria-label={`Chọn báo cáo ${row.id.slice(0, 8)} để gom vụ việc`}
-                          disabled={
-                            !!row.incidentId ||
-                            ["RESOLVED", "REJECTED"].includes(row.status) ||
-                            !!(row.handlerId && row.handlerId !== actor?.userId)
-                          }
+                          disabled={!!selectionIssue(row)}
+                          title={selectionIssue(row)}
                           checked={selected.includes(row.id)}
                           onChange={(e) =>
                             setSelected((value) =>

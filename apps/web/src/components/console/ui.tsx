@@ -97,6 +97,8 @@ const STATUS: Record<string, [string, Tone]> = {
   FAILED: ["Thất bại", "bad"],
   REVERSED: ["Đã hoàn tác", "neutral"],
   PAID: ["Đã thanh toán", "ok"],
+  REVIEW: ["Cần đối soát", "warn"],
+  DRAFT: ["Bản nháp", "neutral"],
   CREATED: ["Mới tạo", "neutral"],
   EXPIRED: ["Hết hạn", "neutral"],
   REFUNDED: ["Đã hoàn tiền", "info"],

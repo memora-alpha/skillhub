@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { proxyEvents } from "./event-proxy";
+import { staffQuery } from "./query";
 import { sessionCookies } from "../auth/session";
 import { authGateway } from "../auth/server";
 import { tokenReply, failedTokenRotation } from "../auth/token-reply";
@@ -285,25 +286,6 @@ const sessionHandlers = new Map<
   ["POST", login],
   ["DELETE", logoutSession],
 ]);
-function querySuffix(request: NextRequest): string {
-  if (request.method !== "GET") return "";
-  const query = request.nextUrl.searchParams;
-  const accepted = new URLSearchParams();
-  for (const name of [
-    "cursor",
-    "after",
-    "limit",
-    "status",
-    "role",
-    "categoryId",
-    "q",
-    "unreadOnly",
-    "type",
-    "referenceType",
-  ])
-    if (query.has(name)) accepted.set(name, query.get(name)!);
-  return accepted.size ? "?" + accepted : "";
-}
 async function forwardRequest(
   request: NextRequest,
   path: string,
@@ -320,7 +302,10 @@ async function forwardRequest(
   if (key && (key.length > 200 || /[\r\n]/.test(key)))
     throw new GatewayError(400, "INVALID_IDEMPOTENCY_KEY");
   const result = await backend(
-    target + querySuffix(request),
+    target +
+      (request.method === "GET"
+        ? staffQuery(path, request.nextUrl.searchParams)
+        : ""),
     token,
     request.method,
     body,

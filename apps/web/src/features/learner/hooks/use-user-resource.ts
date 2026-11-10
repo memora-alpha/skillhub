@@ -19,6 +19,7 @@ export function useUserResource<T>(
   options?: {
     refetchInterval?: (data: T | undefined) => number | false;
     retainOnTemporaryError?: boolean;
+    pollOnTemporaryError?: boolean;
   },
 ) {
   const { request, actor } = useUserSession();
@@ -27,9 +28,16 @@ export function useUserResource<T>(
     enabled: !!path,
     queryFn: ({ signal }) => request<T>(path!, { signal }),
     refetchInterval: (query) =>
-      query.state.error
+      query.state.error &&
+      !(options?.pollOnTemporaryError && isTemporaryFailure(query.state.error))
         ? false
-        : (options?.refetchInterval?.(query.state.data?.data) ?? false),
+        : (() => {
+            const interval =
+              options?.refetchInterval?.(query.state.data?.data) ?? false;
+            return query.state.error && interval
+              ? Math.max(interval, 10000)
+              : interval;
+          })(),
     refetchIntervalInBackground: false,
   });
   return {

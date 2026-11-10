@@ -59,9 +59,9 @@ const errorMessages: Readonly<Record<string, string>> = {
   MATERIAL_TRANSITION_INVALID:
     "Trạng thái tài liệu đã thay đổi. Tải lại rồi chọn thao tác phù hợp.",
   MATERIAL_PERMISSION_REQUIRED:
-    "Tài khoản chưa được cấp quyền thao tác với tài liệu. Cần người quản lý server đồng bộ quyền.",
+    "Bạn chưa được cấp quyền xử lý tài liệu. Liên hệ quản trị viên để kiểm tra quyền.",
   STAFF_ACCESS_REQUIRED:
-    "Tài khoản chưa được cấp quyền duyệt tài liệu. Cần người quản lý server đồng bộ quyền.",
+    "Bạn chưa được cấp quyền duyệt tài liệu. Liên hệ quản trị viên để kiểm tra quyền.",
   SKILL_LEVEL_DUPLICATE: "Mã hoặc tên cấp độ đã tồn tại trong kỹ năng này.",
   TAG_ALREADY_EXISTS:
     "Tên tag đã tồn tại. Chọn tên khác hoặc kiểm tra lại danh mục tag.",
@@ -101,7 +101,7 @@ function messageFor(status: number, code: string) {
   if (code === "FILE_UNAVAILABLE" || code === "INVALID_DOWNLOAD_LINK")
     return "Không thể mở tệp hoặc liên kết đã hết hạn. Nhấn Thử lại để lấy liên kết mới.";
   if (code === "API_UNAVAILABLE" || code === "API_RESPONSE_INVALID")
-    return "Không thể kết nối backend. Kiểm tra dịch vụ API rồi thử lại.";
+    return "Chưa kết nối được với máy chủ. Vui lòng thử lại sau ít giây.";
   if (status === 401) return "Phiên đã hết hạn. Vui lòng đăng nhập lại.";
   if (status === 403) return "Bạn không có quyền thực hiện thao tác này.";
   if (status === 409)

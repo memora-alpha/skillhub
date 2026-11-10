@@ -1,11 +1,20 @@
 "use client";
-import { useState } from "react";
-import { Card, PageHeader, StatusBadge } from "@/components/console/ui";
+import { useEffect, useId, useRef, useState } from "react";
+import {
+  Card,
+  PageHeader,
+  Segmented,
+  StatusBadge,
+} from "@/components/console/ui";
 import { useStaffList, useStaffResource } from "./hooks";
 import { Pager, QueueState } from "./common";
 import { Identifier } from "./operation-tools";
 import { MaterialFeePolicies } from "./material-fee-policies";
 import { fmtDateTime } from "@/lib/console/format";
+import { financeLabel, financeNumber } from "@/lib/staff/finance-presentation";
+import { systemCodeLabel } from "@/lib/system-text";
+import { OperationReference } from "./operation-reference";
+import styles from "./operations.module.css";
 type Ledger = {
   id: string;
   userId: string;
@@ -91,18 +100,32 @@ function FinanceDetails({ value }: Readonly<{ value: unknown }>) {
     );
   if (typeof value === "object")
     return (
-      <dl className="kv staff-kv">
+      <dl className={styles.detail}>
         {Object.entries(value).map(([key, v]) => (
           <div key={key}>
-            <dt>{labels[key] || key}</dt>
+            <dt>{labels[key] || "Thông tin bổ sung"}</dt>
             <dd style={{ overflowWrap: "anywhere" }}>
-              <FinanceDetails value={v} />
+              {typeof v === "string" ? (
+                <FinanceValue
+                  name={key}
+                  value={v}
+                  payment={"paymentAmountVnd" in value}
+                />
+              ) : (
+                <FinanceDetails value={v} />
+              )}
             </dd>
           </div>
         ))}
       </dl>
     );
-  return <span>{String(value)}</span>;
+  return (
+    <span>
+      {typeof value === "string" && /^[A-Z][A-Z0-9_]+$/.test(value)
+        ? systemCodeLabel(value, "Thông tin bổ sung")
+        : String(value)}
+    </span>
+  );
 }
 export function FinanceScreen() {
   const [tab, setTab] = useState("ledger");
@@ -112,22 +135,18 @@ export function FinanceScreen() {
         title="Tài chính"
         desc="Tra cứu Credit, thanh toán và phí nền tảng."
       />
-      <div className="toolbar" role="group" aria-label="Mục tài chính">
-        {[
-          ["ledger", "Giao dịch"],
-          ["payments", "Thanh toán"],
-          ["wallet", "Ví người dùng"],
-          ["fees", "Phí & doanh thu"],
-        ].map(([id, label]) => (
-          <button
-            className={`btn ${tab === id ? "btn-primary" : ""}`}
-            key={id}
-            onClick={() => setTab(id!)}
-            aria-pressed={tab === id}
-          >
-            {label}
-          </button>
-        ))}
+      <div className={styles.tabs}>
+        <Segmented
+          label="Mục tài chính"
+          value={tab}
+          onChange={setTab}
+          options={[
+            { id: "ledger", label: "Giao dịch Credit" },
+            { id: "payments", label: "Thanh toán" },
+            { id: "wallet", label: "Ví người dùng" },
+            { id: "fees", label: "Phí & doanh thu" },
+          ]}
+        />
       </div>
       {tab === "ledger" ? (
         <LedgerScreen />
@@ -149,17 +168,38 @@ function LedgerScreen() {
     `credit/transactions?limit=20${filter ? `&userId=${filter}` : ""}`,
   );
   return (
-    <Card>
+    <Card
+      title="Lịch sử giao dịch Credit"
+      actions={
+        <div className={styles.actions}>
+          <span className="muted">
+            {list.items.length}
+            {list.page?.hasMore ? "+" : ""} giao dịch đã tải
+          </span>
+          <button
+            type="button"
+            className="btn"
+            disabled={list.loading}
+            onClick={() => void list.reload()}
+          >
+            Làm mới
+          </button>
+        </div>
+      }
+    >
+      <p className={styles.hint}>
+        Xem biến động Credit và số dư sau từng giao dịch.
+      </p>
       <form
-        className="toolbar"
+        className={styles.filters}
         onSubmit={(e) => {
           e.preventDefault();
-          setFilter(draft);
+          setFilter(draft.trim());
           setSelected(undefined);
         }}
       >
         <Identifier value={draft} onChange={setDraft} />
-        <button className="btn">Lọc người dùng</button>
+        <button className="btn btn-primary">Lọc người dùng</button>
         <button
           className="btn"
           type="button"
@@ -169,56 +209,71 @@ function LedgerScreen() {
             setSelected(undefined);
           }}
         >
-          Tất cả
+          Bỏ lọc
         </button>
       </form>
       <QueueState
         loading={list.loading}
         error={list.error}
         empty={!list.items.length}
+        emptyTitle="Chưa có giao dịch"
+        emptyDescription="Thử bỏ bộ lọc hoặc kiểm tra lại mã người dùng."
         reload={list.reload}
       >
         <div className="table-wrap">
-          <table>
+          <table className={`table ${styles.table}`}>
             <thead>
               <tr>
                 <th>Ngày / người dùng</th>
                 <th>Loại</th>
                 <th>Credit</th>
-                <th>Khả dụng / giữ</th>
+                <th>Số dư sau giao dịch</th>
                 <th>Chi tiết</th>
               </tr>
             </thead>
             <tbody>
               {list.items.map((r) => (
                 <tr key={r.id}>
-                  <td>
+                  <td data-label="Ngày / người dùng">
                     {fmtDateTime(r.createdAt)}
-                    <details>
-                      <summary>Người dùng</summary>
-                      {r.userId}
-                    </details>
+                    <OperationReference id={r.userId} label="Người dùng" />
                   </td>
-                  <td>{transactionLabels[r.type] || r.type}</td>
-                  <td>{r.amount}</td>
-                  <td>
-                    {r.availableAfter} / {r.heldAfter}
+                  <td data-label="Loại">
+                    {financeLabel(r.type)}
+                    <small>
+                      <StatusBadge status={r.status} />
+                    </small>
                   </td>
-                  <td>
-                    <button
-                      className="btn"
-                      onClick={() => setSelected(`credit/transactions/${r.id}`)}
-                    >
-                      Giao dịch
-                    </button>
-                    <button
-                      className="btn"
-                      onClick={() =>
-                        setSelected(`credit/operations/${r.operationId}`)
-                      }
-                    >
-                      Nghiệp vụ
-                    </button>
+                  <td data-label="Credit">
+                    <span className={styles.money}>
+                      {financeNumber(r.amount)} CR
+                    </span>
+                  </td>
+                  <td data-label="Số dư sau giao dịch">
+                    <span className={styles.money}>
+                      {financeNumber(r.availableAfter)} CR
+                    </span>
+                    <small>Đang giữ: {financeNumber(r.heldAfter)} CR</small>
+                  </td>
+                  <td data-label="Thao tác">
+                    <div className={styles.actions}>
+                      <button
+                        className="btn"
+                        onClick={() =>
+                          setSelected(`credit/transactions/${r.id}`)
+                        }
+                      >
+                        Chi tiết
+                      </button>
+                      <button
+                        className="btn"
+                        onClick={() =>
+                          setSelected(`credit/operations/${r.operationId}`)
+                        }
+                      >
+                        Nghiệp vụ
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -248,42 +303,67 @@ function PaymentsScreen() {
     `payments?limit=20${status ? `&status=${status}` : ""}`,
   );
   return (
-    <Card>
-      <label>
-        Trạng thái
-        <select
-          className="select"
-          value={status}
-          onChange={(e) => {
-            setStatus(e.target.value);
-            setSelected(undefined);
-          }}
-        >
-          <option value="">Tất cả</option>
-          {[
-            "CREATED",
-            "PENDING",
-            "PAID",
-            "REVIEW",
-            "CANCELLED",
-            "EXPIRED",
-            "FAILED",
-            "REFUNDED",
-          ].map((s) => (
-            <option key={s} value={s}>
-              {paymentStatuses[s] || s}
-            </option>
-          ))}
-        </select>
-      </label>
+    <Card
+      title="Thanh toán nạp Credit"
+      actions={
+        <div className={styles.actions}>
+          <span className="muted">
+            {list.items.length}
+            {list.page?.hasMore ? "+" : ""} thanh toán đã tải
+          </span>
+          <button
+            type="button"
+            className="btn"
+            disabled={list.loading}
+            onClick={() => void list.reload()}
+          >
+            Làm mới
+          </button>
+        </div>
+      }
+    >
+      <p className={styles.hint}>
+        Tra cứu đơn nạp và đối chiếu với dữ liệu thanh toán đã ghi nhận.
+      </p>
+      <div className={styles.filters}>
+        <label>
+          Trạng thái
+          <select
+            className="select"
+            value={status}
+            onChange={(e) => {
+              setStatus(e.target.value);
+              setSelected(undefined);
+            }}
+          >
+            <option value="">Tất cả</option>
+            {[
+              "CREATED",
+              "PENDING",
+              "PAID",
+              "REVIEW",
+              "CANCELLED",
+              "EXPIRED",
+              "FAILED",
+              "REFUNDED",
+            ].map((s) => (
+              <option key={s} value={s}>
+                {paymentStatuses[s] || s}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
       <QueueState
         loading={list.loading}
         error={list.error}
         empty={!list.items.length}
+        emptyTitle="Chưa có thanh toán"
+        emptyDescription="Không có thanh toán phù hợp với trạng thái đã chọn."
         reload={list.reload}
       >
         <div className="table-wrap">
-          <table>
+          <table className={`table ${styles.table}`}>
             <thead>
               <tr>
                 <th>Đơn / ngày</th>
@@ -296,37 +376,43 @@ function PaymentsScreen() {
             <tbody>
               {list.items.map((p) => (
                 <tr key={p.id}>
-                  <td>
-                    {p.payosCheckout?.orderCode || p.id}
+                  <td data-label="Đơn / ngày">
+                    <strong>
+                      {p.payosCheckout?.orderCode
+                        ? `Đơn #${p.payosCheckout.orderCode}`
+                        : `Thanh toán #${p.id.slice(0, 8)}`}
+                    </strong>
                     <small>{fmtDateTime(p.createdAt)}</small>
                   </td>
-                  <td>
-                    <details>
-                      <summary>Xem mã người dùng</summary>
-                      {p.userId}
-                    </details>
+                  <td data-label="Người dùng">
+                    <OperationReference id={p.userId} label="Người dùng" />
                   </td>
-                  <td>
-                    {p.paymentAmountVnd} VND / {p.creditAmount} CR
+                  <td data-label="Số tiền">
+                    <span className={styles.money}>
+                      {financeNumber(p.paymentAmountVnd)} ₫
+                    </span>
+                    <small>{financeNumber(p.creditAmount)} CR</small>
                   </td>
-                  <td>
-                    <StatusBadge status={p.status} />
+                  <td data-label="Trạng thái">
+                    <PaymentStatus status={p.status} />
                   </td>
-                  <td>
-                    <button
-                      className="btn"
-                      onClick={() => setSelected(`payments/${p.id}`)}
-                    >
-                      Chi tiết
-                    </button>
-                    <button
-                      className="btn"
-                      onClick={() =>
-                        setSelected(`payments/${p.id}/reconciliation`)
-                      }
-                    >
-                      Đối soát
-                    </button>
+                  <td data-label="Thao tác">
+                    <div className={styles.actions}>
+                      <button
+                        className="btn"
+                        onClick={() => setSelected(`payments/${p.id}`)}
+                      >
+                        Chi tiết
+                      </button>
+                      <button
+                        className="btn"
+                        onClick={() =>
+                          setSelected(`payments/${p.id}/reconciliation`)
+                        }
+                      >
+                        Đối soát
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -353,19 +439,28 @@ function WalletLookup() {
   const [draft, setDraft] = useState("");
   const [id, setId] = useState("");
   return (
-    <Card>
+    <Card title="Tra cứu ví người dùng">
+      <p className={styles.hint}>
+        Nhập mã người dùng để xem Credit khả dụng và Credit đang giữ.
+      </p>
       <form
-        className="toolbar"
+        className={styles.filters}
         onSubmit={(e) => {
           e.preventDefault();
           setId(draft);
         }}
       >
         <Identifier value={draft} onChange={setDraft} />
-        <button className="btn">Xem ví</button>
+        <button className="btn btn-primary">Xem ví</button>
       </form>
       {id && (
         <Detail key={id} path={`users/${id}/wallet`} close={() => setId("")} />
+      )}
+      {!id && (
+        <div className={styles.lookupEmpty}>
+          <strong>Chọn ví cần tra cứu</strong>Mã người dùng có trong danh sách
+          người dùng hoặc chi tiết giao dịch.
+        </div>
       )}
     </Card>
   );
@@ -375,42 +470,107 @@ function Detail({
   close,
 }: Readonly<{ path: string; close: () => void }>) {
   const resource = useStaffResource<unknown>(path);
+  const dialog = useRef<HTMLDialogElement>(null);
+  const heading = useRef<HTMLHeadingElement>(null);
+  const titleId = useId();
+  useEffect(() => {
+    const previous = document.activeElement;
+    dialog.current?.showModal();
+    heading.current?.focus();
+    return () => {
+      if (previous instanceof HTMLElement && previous.isConnected)
+        previous.focus();
+    };
+  }, []);
+  const title = path.endsWith("/reconciliation")
+    ? "Đối soát thanh toán"
+    : path.endsWith("/wallet")
+      ? "Ví người dùng"
+      : path.startsWith("payments/")
+        ? "Chi tiết thanh toán"
+        : path.startsWith("credit/operations/")
+          ? "Chi tiết nghiệp vụ"
+          : "Chi tiết giao dịch";
   return (
-    <section>
-      <div className="row">
-        <h3>Kết quả tra cứu</h3>
+    <dialog
+      ref={dialog}
+      className={styles.drawer}
+      aria-labelledby={titleId}
+      onCancel={(event) => {
+        event.preventDefault();
+        close();
+      }}
+    >
+      <div className={styles.drawerHead}>
+        <h2 id={titleId} tabIndex={-1} ref={heading}>
+          {title}
+        </h2>
         <button className="btn" onClick={close}>
           Đóng
         </button>
       </div>
-      <QueueState
-        loading={resource.loading}
-        error={resource.error}
-        empty={!resource.data}
-        reload={resource.reload}
-      >
-        <PrimaryFinance value={resource.data} />
-        <details>
-          <summary>Chi tiết kỹ thuật</summary>
-          <FinanceDetails value={resource.data} />
-        </details>
-      </QueueState>
-    </section>
+      <div className={styles.drawerBody}>
+        <QueueState
+          loading={resource.loading}
+          error={resource.error}
+          empty={!resource.data}
+          reload={resource.reload}
+        >
+          <PrimaryFinance value={resource.data} />
+          <details className={styles.technical}>
+            <summary>Thông tin đối chiếu & mã tham chiếu</summary>
+            <FinanceDetails value={resource.data} />
+          </details>
+        </QueueState>
+      </div>
+    </dialog>
   );
 }
 
-const transactionLabels: Record<string, string> = {
-  TOP_UP: "Nạp Credit",
-  HOLD: "Giữ Credit",
-  RELEASE: "Hoàn Credit giữ",
-  SETTLEMENT: "Quyết toán",
-  MATERIAL_PURCHASE: "Mua tài liệu",
-  MATERIAL_SALE: "Bán tài liệu",
-  MATERIAL_REFUND: "Hoàn tài liệu",
-  ADJUSTMENT: "Điều chỉnh",
-  PLATFORM_FEE: "Phí nền tảng",
-  REVERSAL: "Bút toán đảo",
-};
+function FinanceValue({
+  name,
+  value,
+  payment = false,
+}: Readonly<{ name: string; value: string; payment?: boolean }>) {
+  if (name === "status")
+    return payment ? (
+      <PaymentStatus status={value} />
+    ) : (
+      <StatusBadge status={value} />
+    );
+  if (["createdAt", "paidAt", "expiresAt"].includes(name))
+    return (
+      <>
+        {Number.isFinite(Date.parse(value))
+          ? fmtDateTime(value)
+          : "Chưa có thời gian"}
+      </>
+    );
+  if (["type", "operationType", "referenceType"].includes(name))
+    return <>{financeLabel(value)}</>;
+  if (
+    [
+      "amount",
+      "creditAmount",
+      "availableCredit",
+      "heldCredit",
+      "availableDelta",
+      "heldDelta",
+      "availableAfter",
+      "heldAfter",
+    ].includes(name)
+  )
+    return <span className={styles.money}>{financeNumber(value)} CR</span>;
+  if (name === "paymentAmountVnd")
+    return <span className={styles.money}>{financeNumber(value)} ₫</span>;
+  return (
+    <>
+      {["state", "providerStatus", "basis"].includes(name)
+        ? systemCodeLabel(value, "Thông tin bổ sung")
+        : value}
+    </>
+  );
+}
 function PrimaryFinance({ value }: Readonly<{ value: unknown }>) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const row = value as Record<string, unknown>;
@@ -431,20 +591,18 @@ function PrimaryFinance({ value }: Readonly<{ value: unknown }>) {
   ];
   return (
     <>
-      <dl className="kv staff-kv">
+      <dl className={styles.detail}>
         {fields
           .filter((k) => row[k] !== undefined && row[k] !== null)
           .map((k) => (
             <div key={k}>
               <dt>{labels[k] || k}</dt>
               <dd>
-                {k === "status" ? (
-                  <StatusBadge status={String(row[k])} />
-                ) : k === "createdAt" ? (
-                  fmtDateTime(String(row[k]))
-                ) : (
-                  String(row[k])
-                )}
+                <FinanceValue
+                  name={k}
+                  value={String(row[k])}
+                  payment={"paymentAmountVnd" in row}
+                />
               </dd>
             </div>
           ))}
@@ -459,7 +617,9 @@ function PrimaryFinance({ value }: Readonly<{ value: unknown }>) {
                 <ul>
                   {r.findings.map((f, i) => (
                     <li key={i}>
-                      {typeof f === "string" ? f : JSON.stringify(f)}
+                      {typeof f === "string"
+                        ? systemCodeLabel(f, "Có sai lệch cần kiểm tra thêm.")
+                        : "Có sai lệch cần kiểm tra thêm."}
                     </li>
                   ))}
                 </ul>
@@ -483,3 +643,18 @@ const paymentStatuses: Record<string, string> = {
   FAILED: "Thất bại",
   REFUNDED: "Đã hoàn",
 };
+function PaymentStatus({ status }: Readonly<{ status: string }>) {
+  const tone =
+    status === "PAID"
+      ? "ok"
+      : status === "FAILED"
+        ? "bad"
+        : ["PENDING", "REVIEW"].includes(status)
+          ? "warn"
+          : "neutral";
+  return (
+    <span className={`badge badge-${tone}`}>
+      {paymentStatuses[status] ?? "Chưa xác định"}
+    </span>
+  );
+}

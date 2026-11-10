@@ -1,12 +1,18 @@
 "use client";
 import { useState } from "react";
-import { Card } from "@/components/console/ui";
+import { Card, Empty, StatusBadge } from "@/components/console/ui";
 import { PasswordInput } from "@/components/password-input";
 import { useStaffList, useStaffResource } from "./hooks";
 import { useStaffSession } from "./session";
 import { Pager, QueueState } from "./common";
 import { useOperation } from "./operation-tools";
 import { fmtDateTime } from "@/lib/console/format";
+import {
+  feeRevenueQuery,
+  financeLabel,
+  financeNumber,
+} from "@/lib/staff/finance-presentation";
+import styles from "./operations.module.css";
 type Fee = {
   id: string;
   policyCode: string;
@@ -31,15 +37,25 @@ export function MaterialFeePolicies() {
   const list = useStaffList<Fee>("fee-policies?limit=20");
   const operation = useOperation();
   const [mode, setMode] = useState("create");
-  const [version, setVersion] = useState(1);
+  const [version, setVersion] = useState<number>();
+  const nextVersion =
+    Math.max(
+      0,
+      ...list.items
+        .filter((fee) => fee.policyCode === "MATERIAL_PAID")
+        .map((fee) => fee.versionNo),
+    ) + 1;
   const [bps, setBps] = useState(500);
   const [reason, setReason] = useState("");
   const [password, setPassword] = useState("");
   const [effectiveAt, setEffectiveAt] = useState("");
   return (
-    <>
-      <Card>
-        <h2>Chính sách phí</h2>
+    <div className={styles.workspace}>
+      <Card title="Chính sách phí">
+        <p className={styles.hint}>
+          Theo dõi mức phí và thời điểm áp dụng. Phí tài liệu được tạo bản nháp
+          trước khi duyệt.
+        </p>
         <QueueState
           loading={list.loading}
           error={list.error}
@@ -47,7 +63,7 @@ export function MaterialFeePolicies() {
           reload={list.reload}
         >
           <div className="table-wrap">
-            <table>
+            <table className={`table ${styles.table}`}>
               <thead>
                 <tr>
                   <th>Phạm vi / phiên bản</th>
@@ -60,26 +76,40 @@ export function MaterialFeePolicies() {
               <tbody>
                 {list.items.map((f) => (
                   <tr key={f.id}>
-                    <td>
-                      {f.policyCode} · v{f.versionNo}
+                    <td data-label="Phạm vi / phiên bản">
+                      <strong>{financeLabel(f.policyCode)}</strong>
+                      <small>Phiên bản {f.versionNo}</small>
                     </td>
-                    <td>
+                    <td data-label="Mức phí">
                       {typeof f.calculationRule.feeBps === "number"
                         ? `${f.calculationRule.feeBps / 100}%`
                         : typeof f.calculationRule.platformFeeBps === "number"
                           ? `${f.calculationRule.platformFeeBps / 100}%`
                           : "Theo chính sách"}
                     </td>
-                    <td>{f.effective ? "Đang áp dụng" : f.status}</td>
-                    <td>
+                    <td data-label="Trạng thái">
+                      {f.effective ? (
+                        <span className="badge badge-ok">Đang áp dụng</span>
+                      ) : (
+                        <StatusBadge status={f.status} />
+                      )}
+                    </td>
+                    <td data-label="Hiệu lực từ">
                       {f.effectiveAt
                         ? fmtDateTime(f.effectiveAt)
-                        : "Chưa áp dụng"}
+                        : "Chưa lên lịch"}
                     </td>
-                    <td>
+                    <td data-label="Thao tác">
                       {f.policyCode === "MATERIAL_PAID" &&
                         f.status === "DRAFT" && (
-                          <button className="btn" onClick={() => setMode(f.id)}>
+                          <button
+                            className="btn"
+                            onClick={() => {
+                              setMode(f.id);
+                              setPassword("");
+                              setReason("");
+                            }}
+                          >
                             Chọn để duyệt
                           </button>
                         )}
@@ -95,7 +125,10 @@ export function MaterialFeePolicies() {
           hasMore={list.page?.hasMore}
           more={list.more}
         />
-        <details>
+        <details
+          className={styles.technical}
+          open={mode !== "create" || undefined}
+        >
           <summary>
             {mode === "create"
               ? "Tạo phiên bản phí tài liệu"
@@ -105,6 +138,14 @@ export function MaterialFeePolicies() {
             onSubmit={(e) => {
               e.preventDefault();
               void operation.run(async () => {
+                if (
+                  mode !== "create" &&
+                  effectiveAt &&
+                  new Date(effectiveAt).getTime() <= Date.now()
+                )
+                  throw new Error(
+                    "Chọn thời điểm trong tương lai hoặc để trống để áp dụng ngay.",
+                  );
                 const auth = await api<{ reauthToken: string }>(
                   "reauthenticate",
                   {
@@ -120,7 +161,11 @@ export function MaterialFeePolicies() {
                 if (mode === "create")
                   await api("fee-policies/material", {
                     method: "POST",
-                    body: { ...body, versionNo: version, feeBps: bps },
+                    body: {
+                      ...body,
+                      versionNo: version ?? nextVersion,
+                      feeBps: bps,
+                    },
                   });
                 else
                   await api(`fee-policies/${mode}/approve`, {
@@ -134,10 +179,13 @@ export function MaterialFeePolicies() {
                   });
                 await list.reload();
                 setMode("create");
+                setVersion(undefined);
+                setReason("");
+                setEffectiveAt("");
               });
             }}
           >
-            <fieldset disabled={operation.busy}>
+            <fieldset className={styles.form} disabled={operation.busy}>
               {mode === "create" ? (
                 <>
                   <label>
@@ -148,21 +196,23 @@ export function MaterialFeePolicies() {
                       min={1}
                       step={1}
                       required
-                      value={version}
+                      value={version ?? nextVersion}
                       onChange={(e) => setVersion(Number(e.target.value))}
                     />
                   </label>
                   <label>
-                    Phí (điểm cơ bản, 500 = 5%)
+                    Mức phí (%)
                     <input
                       className="input"
                       type="number"
                       min={0}
-                      max={9999}
-                      step={1}
+                      max={99.99}
+                      step={0.01}
                       required
-                      value={bps}
-                      onChange={(e) => setBps(Number(e.target.value))}
+                      value={bps / 100}
+                      onChange={(e) =>
+                        setBps(Math.round(Number(e.target.value) * 100))
+                      }
                     />
                   </label>
                 </>
@@ -201,7 +251,11 @@ export function MaterialFeePolicies() {
                   className="btn btn-primary"
                   disabled={reason.trim().length < 3}
                 >
-                  Xác nhận
+                  {operation.busy
+                    ? "Đang lưu…"
+                    : mode === "create"
+                      ? "Tạo bản nháp"
+                      : "Duyệt phiên bản"}
                 </button>
                 {mode !== "create" && (
                   <button
@@ -219,27 +273,37 @@ export function MaterialFeePolicies() {
         </details>
       </Card>
       <RevenueScreen />
-    </>
+    </div>
   );
 }
 function RevenueScreen() {
   const [range, setRange] = useState("");
+  const [revision, setRevision] = useState(0);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [granularity, setGranularity] = useState("day");
+  const [error, setError] = useState("");
   return (
-    <Card>
-      <h2>Doanh thu phí</h2>
+    <Card title="Doanh thu phí">
+      <p className={styles.hint}>
+        Chọn khoảng ngày, tối đa 366 ngày. Kỳ báo cáo được tính theo UTC.
+      </p>
       <form
-        className="toolbar"
+        className={styles.filters}
         onSubmit={(e) => {
           e.preventDefault();
-          const params = new URLSearchParams({
-            from: new Date(`${from}T00:00:00`).toISOString(),
-            to: new Date(`${to}T23:59:59.999`).toISOString(),
-            granularity,
-          });
-          setRange(params.toString());
+          try {
+            const query = feeRevenueQuery(from, to, granularity);
+            setError("");
+            setRange(query);
+            setRevision((value) => value + 1);
+          } catch (cause) {
+            setError(
+              cause instanceof Error
+                ? cause.message
+                : "Kiểm tra lại khoảng ngày.",
+            );
+          }
         }}
       >
         <label>
@@ -274,9 +338,21 @@ function RevenueScreen() {
             <option value="month">Tháng</option>
           </select>
         </label>
-        <button className="btn">Xem báo cáo</button>
+        <button className="btn btn-primary">Xem báo cáo</button>
       </form>
-      {range && <RevenueResult key={range} query={range} />}
+      {error && (
+        <p role="alert" className="staff-error">
+          {error}
+        </p>
+      )}
+      {range ? (
+        <RevenueResult key={`${range}:${revision}`} query={range} />
+      ) : (
+        <div className={styles.lookupEmpty}>
+          <strong>Xem phí đã thu và đã hoàn</strong>Chọn khoảng ngày để xem
+          doanh thu thực tế.
+        </div>
+      )}
     </Card>
   );
 }
@@ -289,32 +365,48 @@ function RevenueResult({ query }: Readonly<{ query: string }>) {
       empty={!resource.data}
       reload={resource.reload}
     >
-      <p className="muted">Kỳ báo cáo theo UTC.</p>
+      <p className={styles.hint}>
+        Kỳ báo cáo theo {resource.data?.timezone ?? "UTC"}. Thuần = phí thu −
+        phí hoàn.
+      </p>
       <div className="table-wrap">
-        <table>
+        <table className={`table ${styles.table}`}>
           <thead>
             <tr>
               <th>Kỳ</th>
               <th>Nghiệp vụ</th>
               <th>Thu</th>
               <th>Hoàn</th>
-              <th>Ròng (CR)</th>
+              <th>Thuần (CR)</th>
             </tr>
           </thead>
           <tbody>
             {resource.data?.items.map((r, i) => (
               <tr key={i}>
-                <td>{r.period}</td>
-                <td>{r.business}</td>
-                <td>{r.collectedCredit}</td>
-                <td>{r.refundedCredit}</td>
-                <td>{r.netCredit}</td>
+                <td data-label="Kỳ">{r.period}</td>
+                <td data-label="Nghiệp vụ">{financeLabel(r.business)}</td>
+                <td data-label="Phí thu (CR)">
+                  {financeNumber(r.collectedCredit)}
+                </td>
+                <td data-label="Phí hoàn (CR)">
+                  {financeNumber(r.refundedCredit)}
+                </td>
+                <td data-label="Thuần (CR)">
+                  <span className={styles.money}>
+                    {financeNumber(r.netCredit)}
+                  </span>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      {resource.data?.items.length === 0 && <p>Chưa có doanh thu trong kỳ.</p>}
+      {resource.data?.items.length === 0 && (
+        <Empty
+          title="Chưa có doanh thu trong kỳ"
+          desc="Thử chọn khoảng ngày khác."
+        />
+      )}
     </QueueState>
   );
 }

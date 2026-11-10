@@ -9,12 +9,16 @@ export function QueueState({
   empty,
   reload,
   children,
+  emptyTitle = "Hàng đợi trống",
+  emptyDescription = "Chưa có mục nào cần xử lý ở trạng thái này.",
 }: Readonly<{
   loading: boolean;
   error?: string;
   empty: boolean;
   reload: () => void;
   children: ReactNode;
+  emptyTitle?: string;
+  emptyDescription?: string;
 }>) {
   if (error)
     return (
@@ -37,14 +41,8 @@ export function QueueState({
       </>
     );
   if (loading && empty)
-    return <output className="staff-state">Đang tải hàng đợi…</output>;
-  if (empty)
-    return (
-      <Empty
-        title="Hàng đợi trống"
-        desc="Chưa có mục nào cần xử lý ở trạng thái này."
-      />
-    );
+    return <output className="staff-state">Đang tải dữ liệu…</output>;
+  if (empty) return <Empty title={emptyTitle} desc={emptyDescription} />;
   return children;
 }
 export function Pager({
