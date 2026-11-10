@@ -129,9 +129,9 @@ export class LearningPathsController {
 
   @Get("mine")
   @ApiOperation({
-    summary: "List the caller's LearningPaths, newest creation first",
+    summary: "List the caller's LearningPaths by latest business activity",
     description:
-      "Ordered by createdAt DESC, id DESC. Each item includes title from its Learning Request or the direct connection skill. Continue with meta.pagination.nextCursor.",
+      "Ordered by lastActivityAt DESC, id DESC. Reads and repeated confirmations do not change activity. Continue with meta.pagination.nextCursor; legacy createdAt cursors must restart from the first page. Each item includes the source Request title or direct connection skill name.",
   })
   @ApiSuccessResponse(200, LearningPathSummaryResponse, { paginated: true })
   @ApiQuery({

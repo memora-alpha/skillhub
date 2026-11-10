@@ -34,6 +34,7 @@ function pathRow(overrides = {}) {
     status: "CONFIRMED",
     createdAt: at("2026-10-01T00:00:00.000Z"),
     updatedAt: at("2026-10-02T00:00:00.000Z"),
+    lastActivityAt: at("2026-10-03T00:00:00.000Z"),
     completedAt: null,
     settledAt: null,
     ...overrides,
@@ -250,7 +251,7 @@ test("listMine returns the counterpart and current exchange type", async () => {
   assert.deepEqual(empty, []);
 });
 
-test("mine adds the matching title per item in one page-level read without changing cursors", async () => {
+test("mine hydrates matching titles only for the selected activity page", async () => {
   const rows = [
     pathRow(),
     pathRow({
@@ -372,6 +373,7 @@ test("GET learning-paths/mine includes title in the paginated JSON and Swagger s
     assert.equal(response.status, 200);
     const body = await response.json();
     assert.equal(body.data[0].title, "Học TypeScript");
+    assert.equal(body.data[0].lastActivityAt, "2026-10-03T00:00:00.000Z");
     assert.equal(body.meta.pagination.limit, 2);
     assert.equal(body.meta.pagination.hasMore, false);
     const doc = SwaggerModule.createDocument(
@@ -384,6 +386,11 @@ test("GET learning-paths/mine includes title in the paginated JSON and Swagger s
       true,
     );
     assert.ok(doc.paths["/api/v1/learning-paths/mine"].get.responses[200]);
+    assert.equal(
+      doc.components.schemas.LearningPathSummaryResponse.properties
+        .lastActivityAt.format,
+      "date-time",
+    );
   } finally {
     await app.close();
   }
