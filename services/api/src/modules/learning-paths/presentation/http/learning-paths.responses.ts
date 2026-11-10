@@ -1,4 +1,72 @@
-import { ApiProperty } from "@nestjs/swagger";
+import { ApiProperty, type ApiResponseSchemaHost } from "@nestjs/swagger";
+
+export const invalidScheduleDetailsSchema: ApiResponseSchemaHost["schema"] = {
+  type: "object",
+  required: ["invalidItems", "evaluatedAt", "durationMinutes"],
+  properties: {
+    evaluatedAt: {
+      type: "string",
+      format: "date-time",
+      description: "Database time used for validation (UTC).",
+    },
+    durationMinutes: {
+      type: "object",
+      required: ["min", "max"],
+      properties: {
+        min: { type: "integer", minimum: 1 },
+        max: { type: "integer", minimum: 1 },
+      },
+    },
+    invalidItems: {
+      type: "array",
+      minItems: 1,
+      maxItems: 200,
+      description:
+        "Every invalid item in the current confirmed schedules. Resolve participant IDs to display names using existing participant data.",
+      items: {
+        type: "object",
+        required: [
+          "scheduleId",
+          "scheduleVersion",
+          "planId",
+          "planVersion",
+          "teacherId",
+          "learnerId",
+          "sessionNo",
+          "startAt",
+          "endAt",
+          "reasons",
+        ],
+        properties: {
+          scheduleId: { type: "string", format: "uuid" },
+          scheduleVersion: { type: "integer", minimum: 1 },
+          planId: { type: "string", format: "uuid" },
+          planVersion: { type: "integer", minimum: 1 },
+          teacherId: { type: "string", format: "uuid" },
+          learnerId: { type: "string", format: "uuid" },
+          sessionNo: { type: "integer", minimum: 1 },
+          startAt: { type: "string", format: "date-time" },
+          endAt: { type: "string", format: "date-time" },
+          reasons: {
+            type: "array",
+            minItems: 1,
+            maxItems: 4,
+            uniqueItems: true,
+            items: {
+              type: "string",
+              enum: [
+                "START_NOT_IN_FUTURE",
+                "END_NOT_AFTER_START",
+                "DURATION_TOO_SHORT",
+                "DURATION_TOO_LONG",
+              ],
+            },
+          },
+        },
+      },
+    },
+  },
+};
 
 export class LearningPathSummaryResponse {
   @ApiProperty({
