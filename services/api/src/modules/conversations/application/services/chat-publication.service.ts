@@ -101,15 +101,16 @@ export class ChatPublicationService implements OnModuleInit, OnModuleDestroy {
         conversation.participantAId,
         conversation.participantBId,
       ]);
-      await this.notifications.createChat(tx, {
-        notificationId: receipt.deliveredEventId,
-        userId:
-          receipt.senderId === conversation.participantAId
-            ? conversation.participantBId
-            : conversation.participantAId,
-        conversationId: conversation.id,
-        messageId: id,
-      });
+      if (published.messageType !== "SYSTEM")
+        await this.notifications.createChat(tx, {
+          notificationId: receipt.deliveredEventId,
+          userId:
+            receipt.senderId === conversation.participantAId
+              ? conversation.participantBId
+              : conversation.participantAId,
+          conversationId: conversation.id,
+          messageId: id,
+        });
       const refs = {
         conversationId: conversation.id,
         messageId: id,
@@ -122,13 +123,14 @@ export class ChatPublicationService implements OnModuleInit, OnModuleDestroy {
         "chat.message.created",
         refs,
       );
-      await this.events.append(
-        tx,
-        [receipt.senderId],
-        receipt.deliveredEventId,
-        "chat.delivery.updated",
-        refs,
-      );
+      if (published.messageType !== "SYSTEM")
+        await this.events.append(
+          tx,
+          [receipt.senderId],
+          receipt.deliveredEventId,
+          "chat.delivery.updated",
+          refs,
+        );
     });
     return published;
   }

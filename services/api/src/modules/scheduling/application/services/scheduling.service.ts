@@ -1,4 +1,5 @@
 import { assertReschedulePolicy } from "./reschedule-policy";
+import { recordScheduleConfirmation } from "./schedule-confirmation-events";
 import {
   BadRequestException,
   ConflictException,
@@ -787,6 +788,22 @@ export class SchedulingService {
           ...(rescheduleApplied ? { appliedVersion: expectedVersion } : {}),
         },
       });
+      if (!confirmField) {
+        await recordScheduleConfirmation(tx, {
+          pathId: path.id,
+          conversationId: path.conversationId,
+          actorId: actor.userId,
+          recipientId:
+            actor.userId === path.participantAId
+              ? path.participantBId
+              : path.participantAId,
+          scheduleId,
+          scheduleVersion: expectedVersion,
+          bothConfirmed,
+          isReschedule: proposal.appliedVersion !== null,
+          rescheduleApplied,
+        });
+      }
       return {
         id: scheduleId,
         version: expectedVersion,

@@ -6,6 +6,14 @@ Learning fees remain 4%; hiding a review does not reverse reputation history.
 
 # SkillHub API
 
+Schedule communication amendment (2026-11-10): first confirmation per participant
+and schedule version records a SYSTEM chat message and a
+`learning-path.schedule.confirmed` notification for the other participant.
+Successful finalization records a SYSTEM message and retains the existing
+`learning-path.locked` notification. Durable outbox delivery recovers chat outages;
+retries do not duplicate messages or domain notifications. No migration/env/seed;
+restart API/worker for new handlers. See [contract and validation](specs/008-connections/schedule-communication-plan.md).
+
 Schedule validation amendment (2026-11-10): `final-validation` and `finalize`
 keep `409 INVALID_SCHEDULE_ITEMS` and add `details.invalidItems` identifying
 each invalid session, its schedule/plan versions, teacher/learner IDs, UTC

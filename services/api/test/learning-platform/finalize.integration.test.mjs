@@ -25,14 +25,16 @@ import { defaultConfiguration, plan, slots, user } from "./fixtures.mjs";
 const url = process.env.TEST_DATABASE_URL;
 
 /** Every transaction this runner opens fails on its last write, the outbox event. */
-function failingOnOutbox(transactions) {
+function failingOnOutbox(transactions, onlyType) {
   const failing = (tx) =>
     new Proxy(tx, {
       get(target, property) {
         if (property === "outboxEvent") {
           return {
-            create: async () => {
-              throw new Error("outbox unavailable");
+            create: async (args) => {
+              if (!onlyType || args.data.type === onlyType)
+                throw new Error("outbox unavailable");
+              return target.outboxEvent.create(args);
             },
           };
         }
@@ -184,11 +186,13 @@ test(
           new LearningRequestPathReader(),
         );
       const paths = pathsWith(transactions);
-      const schedules = new SchedulingService(
-        transactions,
-        new AuditWriter(new AuditRepository()),
-        configuration,
-      );
+      const schedulesWith = (runner) =>
+        new SchedulingService(
+          runner,
+          new AuditWriter(new AuditRepository()),
+          configuration,
+        );
+      const schedules = schedulesWith(transactions);
 
       const { id: pathId } = await paths.create(user(A), {
         conversationId,
@@ -218,9 +222,41 @@ test(
           expectedPlanVersion: 1,
           items: slots([start.toISOString(), end.toISOString()]),
         });
-        await schedules.confirmProposal(user(A), schedule.id, 1);
-        await schedules.confirmProposal(user(B), schedule.id, 1);
+        const messagesBefore = await db.chatPublication.count();
+        const eventsBefore = await db.outboxEvent.count();
+        await assert.rejects(
+          schedulesWith(
+            failingOnOutbox(transactions, "learning-path.schedule.confirmed"),
+          ).confirmProposal(user(A), schedule.id, 1),
+          /outbox unavailable/,
+        );
+        const version = await db.scheduleVersion.findUniqueOrThrow({
+          where: {
+            scheduleProposalId_versionNo: {
+              scheduleProposalId: schedule.id,
+              versionNo: 1,
+            },
+          },
+        });
+        assert.equal(version.participantAConfirmedAt, null);
+        assert.equal(version.participantBConfirmedAt, null);
+        assert.equal(await db.chatPublication.count(), messagesBefore);
+        assert.equal(await db.outboxEvent.count(), eventsBefore);
+        await Promise.all([
+          schedules.confirmProposal(user(A), schedule.id, 1),
+          schedules.confirmProposal(user(A), schedule.id, 1),
+          schedules.confirmProposal(user(B), schedule.id, 1),
+          schedules.confirmProposal(user(B), schedule.id, 1),
+        ]);
       }
+      assert.equal(await db.chatPublication.count(), 4);
+      assert.equal(
+        await db.outboxEvent.count({
+          where: { type: "learning-path.schedule.confirmed" },
+        }),
+        4,
+      );
+      const confirmationEvents = await db.outboxEvent.count();
 
       await assert.rejects(
         pathsWith(failingOnOutbox(transactions)).finalize(
@@ -230,6 +266,22 @@ test(
         ),
         /outbox unavailable/,
       );
+      await assert.rejects(
+        pathsWith(
+          failingOnOutbox(transactions, "chat.system.publish"),
+        ).finalize(
+          { principal: user(A), key: "finalize-system-outbox-failure" },
+          pathId,
+          1,
+        ),
+        /outbox unavailable/,
+      );
+      assert.equal(
+        await db.chatPublication.count(),
+        4,
+        "failed lock message receipt rolled back",
+      );
+      assert.equal(await db.outboxEvent.count(), confirmationEvents);
 
       const path = await db.learningPath.findUniqueOrThrow({
         where: { id: pathId },
@@ -285,6 +337,15 @@ test(
         1,
       );
       assert.equal(await db.creditOperation.count(), 1);
+      assert.equal(await db.chatPublication.count(), 5);
+      assert.equal(
+        await db.outboxEvent.count({ where: { type: "learning-path.locked" } }),
+        1,
+      );
+      assert.equal(
+        await db.outboxEvent.count({ where: { type: "chat.system.publish" } }),
+        5,
+      );
       for (const id of [A, B]) {
         const row = await db.creditWallet.findUniqueOrThrow({
           where: { userId: id },

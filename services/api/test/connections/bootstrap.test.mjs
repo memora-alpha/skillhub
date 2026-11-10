@@ -157,6 +157,8 @@ test("feature modules resolve owner contracts and register SSE/chat workers; HTT
     for (const type of [
       "application.events.wakeup",
       "chat.message.publish",
+      "chat.system.publish",
+      "learning-path.schedule.confirmed",
       "learning-request.rejected",
       "report.case.message",
       "report.case.evidence",

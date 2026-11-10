@@ -112,6 +112,11 @@ export function setup({ wallets = {}, config = {}, requestId = null } = {}) {
   for (const id of [A, B, C]) {
     db.seed("user", {
       id,
+      fullName: new Map([
+        [A, "An"],
+        [B, "Bình"],
+        [C, "Chi"],
+      ]).get(id),
       emailVerified: true,
       accountStatus: "ACTIVE",
       verifiedSkillCount: 0,

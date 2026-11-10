@@ -16,6 +16,7 @@ import { ApplicationEventsModule } from "../application-events/application-event
 import { ChatRepository } from "./infrastructure/persistence/chat.repository";
 import { ConversationAccessService } from "./application/services/conversation-access.service";
 import { ChatPublicationService } from "./application/services/chat-publication.service";
+import { SystemMessagePublisher } from "./application/services/system-message-publisher";
 import { ConversationsService } from "./application/services/conversations.service";
 import { ConversationsController } from "./presentation/http/conversations.controller";
 import { ConversationMembershipReader } from "./application/services/conversation-membership.reader";
@@ -40,6 +41,7 @@ import { ConversationMembershipReader } from "./application/services/conversatio
     ChatRepository,
     ConversationAccessService,
     ChatPublicationService,
+    SystemMessagePublisher,
     ConversationsService,
     ConversationMembershipReader,
   ],

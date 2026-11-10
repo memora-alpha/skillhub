@@ -10,6 +10,7 @@ import { VerificationsModule } from "../verifications/verifications.module";
 import { SkillNotificationHandler } from "./infrastructure/events/skill-notification.handler";
 import { SessionNotificationHandler } from "./infrastructure/events/session-notification.handler";
 import { LearningPathNotificationHandler } from "./infrastructure/events/learning-path-notification.handler";
+import { ScheduleConfirmationNotificationHandler } from "./infrastructure/events/schedule-confirmation-notification.handler";
 import { MaterialNotificationHandler } from "./infrastructure/events/material-notification.handler";
 import { LearningRequestRejectionPublisher } from "./infrastructure/events/learning-request-rejection.publisher";
 import {
@@ -29,6 +30,7 @@ import { PrismaInAppNotificationAdapter } from "./infrastructure/channels/prisma
     CaseMessageNotificationHandler,
     SkillNotificationHandler,
     LearningPathNotificationHandler,
+    ScheduleConfirmationNotificationHandler,
     SessionNotificationHandler,
     MaterialNotificationHandler,
     LearningRequestRejectionPublisher,

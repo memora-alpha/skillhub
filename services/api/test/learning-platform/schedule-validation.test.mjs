@@ -51,7 +51,16 @@ async function twoWay() {
     await ctx.schedules.confirmProposal(user(A), schedule.id, 1);
     await ctx.schedules.confirmProposal(user(B), schedule.id, 1);
   }
-  return { ...ctx, pathId: path.id, ab, ba };
+  return {
+    ...ctx,
+    pathId: path.id,
+    ab,
+    ba,
+    communicationCounts: {
+      outboxEvent: ctx.db.rows("outboxEvent").length,
+      chatPublication: ctx.db.rows("chatPublication").length,
+    },
+  };
 }
 
 function itemFor(ctx, planId, sessionNo) {
@@ -81,13 +90,14 @@ function expiredSecondSession(ctx) {
 function assertNoLock(ctx) {
   assert.equal(pathRow(ctx.db, ctx.pathId).status, "CONFIRMED");
   assert.equal(pathRow(ctx.db, ctx.pathId).lockedVersion, null);
-  for (const model of [
-    "session",
-    "heldCreditAllocation",
-    "creditOperation",
-    "outboxEvent",
-  ])
+  for (const model of ["session", "heldCreditAllocation", "creditOperation"])
     assert.equal(ctx.db.rows(model).length, 0, model);
+  for (const [model, count] of Object.entries(ctx.communicationCounts))
+    assert.equal(
+      ctx.db.rows(model).length,
+      count,
+      `${model}: no new communication on invalid schedule`,
+    );
   assert.equal(wallet(ctx.db, A).availableCredit, 5000n);
   assert.equal(wallet(ctx.db, B).availableCredit, 5000n);
   assert.ok(
