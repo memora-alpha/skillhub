@@ -26,6 +26,7 @@ export const appRoutes: Record<string, Href | undefined> = {
   "Trung tâm trợ giúp": "/help",
   "Kỹ năng": "/my-skills",
   "Kỹ năng đã lưu trữ": "/my-skills/archived",
+  "Đề xuất tag của tôi": "/tag-requests",
   "Thêm kỹ năng chia sẻ": "/my-skills/new",
   "Xác minh kỹ năng": "/my-skills",
   "Thành tích": "/achievements",
@@ -56,6 +57,7 @@ export const accountItems: { label: string; icon: IconName }[] = [
   { label: "Hồ sơ", icon: "user" },
   { label: "Ví Credit", icon: "wallet" },
   { label: "Tài liệu của tôi", icon: "book" },
+  { label: "Đề xuất tag của tôi", icon: "book" },
   { label: "Cài đặt", icon: "settings" },
   { label: "Trung tâm trợ giúp", icon: "help" },
 ];

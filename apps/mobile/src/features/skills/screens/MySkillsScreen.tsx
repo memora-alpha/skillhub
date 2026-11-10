@@ -79,6 +79,10 @@ export function MySkillsScreen() {
             label="Đã lưu trữ"
             onPress={() => router.push("/my-skills/archived")}
           />
+          <SkillAction
+            label="Đề xuất tag của tôi"
+            onPress={() => router.push("/tag-requests")}
+          />
         </View>
         <SkillFilters
           value={filter}
