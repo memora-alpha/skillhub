@@ -7,7 +7,7 @@ import { FormNotice } from "@/components/FormNotice";
 import { pickerValue } from "@/utils/date-choice";
 import type { LearningSession } from "../types";
 import type { RescheduleInput } from "../api/reschedule-api";
-import { formatSessionTime, sessionDuration } from "../utils/session-time";
+import { formatReportDeadline, sessionDuration } from "../utils/session-time";
 import { sessionSchedule } from "../utils/session-schedule";
 import { SessionSection, SessionInfoRow } from "./session-section";
 import { SessionButton } from "./session-page";
@@ -86,8 +86,8 @@ export function RescheduleDraft({
         </SessionInfoRow>
         {makeup && !applied && session.deadlines?.makeupBy && (
           <Text selectable style={styles.secondary}>
-            Hạn chốt lịch bù:{" "}
-            {formatSessionTime(session.deadlines.makeupBy, timezone)}
+            Chốt trước{" "}
+            {formatReportDeadline(session.deadlines.makeupBy, timezone)}
           </Text>
         )}
       </SessionSection>
@@ -108,7 +108,7 @@ export function RescheduleDraft({
                   seed={pickerValue(
                     new Date(Math.max(Date.parse(session.startAt), now)),
                   )}
-                  disabled={pending}
+                  disabled={unavailable}
                   onChange={(value) => {
                     field.onChange(value);
                     field.onBlur();
@@ -127,7 +127,7 @@ export function RescheduleDraft({
             name="duration"
             label="Thời lượng (phút)"
             keyboardType="number-pad"
-            editable={!pending}
+            editable={!unavailable}
             hint="Từ 60 đến 180 phút."
           />
           <FormNotice compact tone="info">

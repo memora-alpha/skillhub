@@ -70,13 +70,15 @@ export function RescheduleProposalPanel({
               </View>
             ))}
           </View>
-          <SessionCopy muted>
-            {snapshot.ownConfirmed && snapshot.partnerConfirmed
-              ? "Cả hai đã xác nhận. Đang cập nhật lịch."
-              : makeup
-                ? "Cả hai cần xác nhận lịch học bù trước hạn."
-                : "Cả hai cần xác nhận trước giờ học cũ ít nhất 60 phút."}
-          </SessionCopy>
+          {!unavailableMessage && (
+            <SessionCopy muted>
+              {snapshot.ownConfirmed && snapshot.partnerConfirmed
+                ? "Cả hai đã xác nhận. Đang cập nhật lịch."
+                : makeup
+                  ? "Cả hai cần xác nhận lịch học bù trước hạn."
+                  : "Cả hai cần xác nhận trước giờ học cũ ít nhất 60 phút."}
+            </SessionCopy>
+          )}
         </>
       )}
       {!schedule && !error && (

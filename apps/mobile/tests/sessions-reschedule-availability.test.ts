@@ -6,6 +6,8 @@ import {
   isRescheduleEligible,
 } from "../src/features/sessions/utils/reschedule-form";
 import { sessionRecord, now } from "./fixtures/sessions-client";
+import { sessionErrorMessage } from "../src/features/sessions/utils/session-read";
+import { AppError } from "../src/lib/http/errors";
 
 test("reschedule explains bilateral confirmation before the cutoff and unavailability after it", () => {
   const session = {
@@ -71,4 +73,27 @@ test("the form accepts valid local dates and whole durations from 60 to 180 minu
       false,
     );
   }
+});
+
+test("makeup errors explain the correct flow without promising that the old session remains active", () => {
+  for (const code of [
+    "SCHEDULE_CONFLICT",
+    "RESCHEDULE_CUTOFF_OR_STATE_VIOLATION",
+    "SESSION_CANNOT_BE_RESCHEDULED",
+  ]) {
+    const error = new AppError("http", 409, code);
+    assert.match(sessionErrorMessage(error, true), /học bù/);
+    assert.doesNotMatch(sessionErrorMessage(error, true), /lịch cũ/);
+  }
+  assert.match(
+    sessionErrorMessage(new AppError("http", 409, "SCHEDULE_CONFLICT")),
+    /lịch cũ/,
+  );
+  assert.match(
+    sessionErrorMessage(
+      new AppError("http", 409, "MAKEUP_WINDOW_CLOSED"),
+      true,
+    ),
+    /hết hạn/,
+  );
 });

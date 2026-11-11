@@ -106,7 +106,7 @@ export function RescheduleScreen() {
             )}
             {session && !!action.error && (
               <FormNotice compact tone="error">
-                {sessionErrorMessage(action.error)}
+                {sessionErrorMessage(action.error, makeup)}
               </FormNotice>
             )}
             {session && action.blocked && !action.pending && (
