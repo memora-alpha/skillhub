@@ -21,6 +21,11 @@ export function notificationTarget(item: InboxNotification): Href | undefined {
     return;
   const payload = item.payload as Record<string, unknown>;
   const valid = (field: string) => uuid.safeParse(payload[field]).success;
+  if (item.type === "learning-path.schedule.confirmed" && valid("pathId"))
+    return {
+      pathname: "/paths/[id]/schedules",
+      params: { id: payload.pathId as string },
+    };
   if (
     [
       "report.session.opened",
@@ -35,7 +40,11 @@ export function notificationTarget(item: InboxNotification): Href | undefined {
       params: {
         id: payload.caseId as string,
         support: "1",
-        ...(valid("pathId") ? { pathId: payload.pathId as string } : {}),
+        ...(valid("relatedPathId")
+          ? { pathId: payload.relatedPathId as string }
+          : valid("pathId")
+            ? { pathId: payload.pathId as string }
+            : {}),
       },
     };
   if (item.type === "learning-path.change.updated" && valid("pathId"))

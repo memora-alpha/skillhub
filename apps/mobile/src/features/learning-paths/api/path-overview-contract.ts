@@ -2,6 +2,7 @@ import { z } from "zod";
 import { timestamp, uuid } from "@/lib/http/contracts";
 import { pathTarget } from "./path-target-contract";
 import { settlementStatus } from "./path-changes-contract";
+import { caseCapabilities } from "@/lib/http/case-capabilities";
 
 export const pathAttention = z.object({
   key: z.string().min(1),
@@ -71,7 +72,7 @@ export const pathOverview = overviewCard
     )
       ctx.addIssue({ code: "custom", message: "Inconsistent path attention" });
   });
-export const participantCase = z.object({
+export const participantCase = caseCapabilities.extend({
   id: uuid,
   relatedPathId: uuid,
   relatedSessionId: uuid.nullable(),

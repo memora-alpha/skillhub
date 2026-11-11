@@ -42,9 +42,11 @@ export const reportSchema = z.object({
   resolutionNote: z.string().nullable(),
   blocksSettlement: z.boolean(),
   createdAt: timestamp.nullable(),
+  evidenceCount: z.number().int().nonnegative(),
   reportEvidenceCaseIdRecords: z.array(
     z.object({
       id: uuid,
+      storedFileId: uuid.nullable(),
       mimeType: z.string(),
       fileSizeBytes: z.string().regex(/^\d+$/),
       uploadedAt: timestamp,
@@ -54,6 +56,7 @@ export const reportSchema = z.object({
 export type UserReport = z.infer<typeof reportSchema>;
 const caseEvidence = z.object({
   id: uuid,
+  storedFileId: uuid.nullable(),
   mimeType: z.string(),
   fileSizeBytes: z.string().regex(/^\d+$/),
   uploadedAt: timestamp,
