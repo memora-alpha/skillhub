@@ -13,10 +13,13 @@ export function sessionReportingState(
     reporting.blockedReason === null &&
     !!reporting.reportBy &&
     !expired;
-  const reason = allowed
-    ? null
-    : (reporting?.blockedReason ??
-      (expired ? "DISPUTE_WINDOW_CLOSED" : "REPORT_POLICY_UNAVAILABLE"));
+  let reason: string | null = null;
+  if (!allowed) {
+    const fallback = expired
+      ? "DISPUTE_WINDOW_CLOSED"
+      : "REPORT_POLICY_UNAVAILABLE";
+    reason = reporting?.blockedReason ?? fallback;
+  }
   let message = "Tạm chưa thể gửi báo cáo. Vui lòng thử lại.";
   switch (reason) {
     case null:

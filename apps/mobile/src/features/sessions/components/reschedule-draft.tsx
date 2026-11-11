@@ -20,6 +20,12 @@ import {
 } from "../utils/reschedule-form";
 import { rescheduleStyles as styles } from "./reschedule.styles";
 
+function scheduleTitle(makeup: boolean, applied: boolean) {
+  if (applied) return "Lịch học bù đã chốt";
+  if (makeup) return "Buổi cần học bù";
+  return "Lịch hiện tại";
+}
+
 export function RescheduleDraft({
   session,
   timezone,
@@ -71,16 +77,7 @@ export function RescheduleDraft({
   });
   return (
     <>
-      <SessionSection
-        title={
-          applied
-            ? "Lịch học bù đã chốt"
-            : makeup
-              ? "Buổi cần học bù"
-              : "Lịch hiện tại"
-        }
-        icon="calendar"
-      >
+      <SessionSection title={scheduleTitle(makeup, applied)} icon="calendar">
         <SessionInfoRow label={schedule.date}>
           {schedule.time} · {duration} phút
         </SessionInfoRow>

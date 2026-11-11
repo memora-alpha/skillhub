@@ -161,3 +161,53 @@ test("network failures propagate and reports without files require no status rea
     [],
   );
 });
+
+test("a failed reader drains its peer without starting another file or applying late updates", async () => {
+  const files = [file(1), file(2), file(3)];
+  const failure = new Error("scan read failed");
+  const reads: string[] = [];
+  let releaseFailure!: () => void, releasePeer!: () => void;
+  const first = new Promise<void>((resolve) => {
+    releaseFailure = resolve;
+  });
+  const peer = new Promise<void>((resolve) => {
+    releasePeer = resolve;
+  });
+  let settled = false,
+    updates = 0;
+  const result = checkReportFiles(files, {
+    signal: signal(),
+    active: () => true,
+    read: async (id) => {
+      reads.push(id);
+      if (id === files[0]!.fileId) {
+        await first;
+        throw failure;
+      }
+      await peer;
+      return { fileId: id, state: "READY" };
+    },
+    update: () => {
+      updates++;
+    },
+  }).then(
+    () => {
+      settled = true;
+      return undefined;
+    },
+    (error: unknown) => {
+      settled = true;
+      return error;
+    },
+  );
+  releaseFailure();
+  await new Promise(setImmediate);
+  assert.equal(settled, false);
+  releasePeer();
+  assert.equal(await result, failure);
+  assert.deepEqual(
+    reads,
+    files.slice(0, 2).map((item) => item.fileId),
+  );
+  assert.equal(updates, 0);
+});

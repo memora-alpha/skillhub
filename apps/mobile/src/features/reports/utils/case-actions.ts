@@ -52,3 +52,21 @@ export function caseBlockedCopy(reason: string | null | undefined) {
       return "Chưa thể bổ sung thông tin. Cập nhật trạng thái để tiếp tục.";
   }
 }
+
+export function caseAwaitingHandler({
+  reason,
+  status,
+  hasPath,
+  handlerId,
+  waiting,
+}: Readonly<{
+  reason?: string | null;
+  status?: string;
+  hasPath: boolean;
+  handlerId?: string | null;
+  waiting: boolean;
+}>) {
+  if (reason === "CASE_HANDLER_REQUIRED") return true;
+  const missingHandler = !hasPath && handlerId === null;
+  return (missingHandler || waiting) && canWriteCase(status);
+}

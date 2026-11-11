@@ -8,6 +8,12 @@ import {
   ReportFileCheckError,
 } from "../utils/check-report-files";
 
+function fileCheckMessage(cause: unknown, aborted: boolean) {
+  if (aborted) return "Đã dừng kiểm tra tệp. Bấm gửi lại để tiếp tục.";
+  if (cause instanceof ReportFileCheckError) return cause.message;
+  return connectionError(cause);
+}
+
 export function useReportFileCheck({
   read,
   update,
@@ -75,13 +81,7 @@ export function useReportFileCheck({
       });
     } catch (cause) {
       if (mounted.current && current.current.isCurrent())
-        setError(
-          request.signal.aborted
-            ? "Đã dừng kiểm tra tệp. Bấm gửi lại để tiếp tục."
-            : cause instanceof ReportFileCheckError
-              ? cause.message
-              : connectionError(cause),
-        );
+        setError(fileCheckMessage(cause, request.signal.aborted));
     } finally {
       if (controller.current === request) controller.current = null;
       if (mounted.current && current.current.isCurrent()) setChecking(false);

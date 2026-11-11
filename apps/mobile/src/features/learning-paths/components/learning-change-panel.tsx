@@ -1,4 +1,3 @@
-import { systemCodeLabel } from "@/constants/system-text";
 import { useMemo, useState, type ReactNode } from "react";
 import { Text, View } from "react-native";
 import { Icon } from "@/components/Icon";
@@ -15,14 +14,15 @@ import {
 import { createPostLearningApi } from "../api/post-learning-api";
 import type { LearningChange } from "../api/post-learning-contracts";
 import { changePanelStyles as styles } from "./learning-change-panel.styles";
+import { LearningChangeRequest } from "./learning-change-request";
 
 function CompactChangePanel({
   title,
   children,
-}: {
+}: Readonly<{
   title: string;
   children: ReactNode;
-}) {
+}>) {
   return (
     <View style={styles.panel}>
       <View style={styles.headingRow}>
@@ -36,41 +36,68 @@ function CompactChangePanel({
   );
 }
 
-function CompactRequest({
+function ChangePanelFrame({
+  compact,
+  embedded,
   title,
   children,
-}: {
+}: Readonly<{
+  compact: boolean;
+  embedded: boolean;
   title: string;
   children: ReactNode;
-}) {
+}>) {
+  if (compact && embedded)
+    return <View style={styles.embedded}>{children}</View>;
+  if (compact)
+    return <CompactChangePanel title={title}>{children}</CompactChangePanel>;
+  return <Panel title={title}>{children}</Panel>;
+}
+
+function changePanelTitle(compact: boolean, sessionId?: string) {
+  if (compact) return "Thay đổi buổi học";
+  if (sessionId) return "Hủy buổi để học bù";
+  return "Dừng lộ trình";
+}
+
+function changeGuidance(compact: boolean, sessionId?: string) {
+  if (!sessionId)
+    return "Gửi yêu cầu không tự hủy lịch học. Việc dừng và xử lý Credit cần quyết định theo chính sách đã duyệt; không tự tính hoàn theo số buổi.";
+  if (compact)
+    return "Cần hai bên đồng ý trước giờ học. Người yêu cầu dùng 1 lượt học bù; số buổi và Credit giữ nguyên. Hai bên cần chốt lại lịch bù.";
+  return "Hai bên cần đồng ý trước giờ bắt đầu. Giữ nguyên số buổi và Credit; người yêu cầu dùng một lượt học bù, người chấp nhận không mất lượt. Lịch bù cần được hai bên chốt lại.";
+}
+
+function RequestToggle({
+  embedded,
+  open,
+  onToggle,
+}: Readonly<{ embedded: boolean; open: boolean; onToggle: () => void }>) {
+  const label = open ? "Đóng yêu cầu" : "Yêu cầu hủy để học bù";
+  const content = embedded ? (
+    <Text style={styles.toggleLabel}>{label}</Text>
+  ) : (
+    label
+  );
   return (
-    <View style={styles.request}>
-      <Text accessibilityRole="header" style={styles.status}>
-        {title}
-      </Text>
-      {children}
-    </View>
+    <Button
+      variant={embedded ? "ghost" : "paper"}
+      style={embedded ? styles.requestToggle : undefined}
+      leadingIcon={embedded ? "calendar" : undefined}
+      icon={embedded ? "chevron" : undefined}
+      accessibilityLabel={label}
+      accessibilityState={{ expanded: open }}
+      onPress={onToggle}
+    >
+      {content}
+    </Button>
   );
 }
 
-function EmbeddedChangePanel({
-  children,
-}: {
-  title: string;
-  children: ReactNode;
-}) {
-  return <View style={styles.embedded}>{children}</View>;
+function isActive(row: LearningChange) {
+  return ["PENDING", "ACCEPTED", "STAFF_REVIEW"].includes(row.status);
 }
 
-const labels: Record<string, string> = {
-  PENDING: "Chờ đối tác",
-  ACCEPTED: "Hai bên đã đồng ý, chờ xử lý",
-  STAFF_REVIEW: "Đang chuyển nhân sự",
-  REJECTED: "Đã từ chối",
-  WITHDRAWN: "Đã rút",
-  EXPIRED: "Đã hết hạn",
-  APPLIED: "Đã áp dụng",
-};
 export function LearningChangePanel({
   pathId,
   sessionId,
@@ -109,11 +136,7 @@ export function LearningChangePanel({
     creation.uncertain ||
     decision.pending ||
     decision.uncertain;
-  const open = query.data?.some((row) =>
-    ["PENDING", "ACCEPTED", "STAFF_REVIEW"].includes(row.status),
-  );
-  const isActive = (row: LearningChange) =>
-    ["PENDING", "ACCEPTED", "STAFF_REVIEW"].includes(row.status);
+  const open = query.data?.some(isActive);
   const history = query.data?.filter((row) => !isActive(row)) ?? [];
   const rows = compactSession
     ? [...(query.data?.filter(isActive) ?? []), ...(historyOpen ? history : [])]
@@ -140,6 +163,17 @@ export function LearningChangePanel({
       onChanged?.();
     }
   }
+  async function escalate(row: LearningChange, reason: string) {
+    await decision.run(
+      JSON.stringify({ id: row.id, version: row.version, reason }),
+      () =>
+        api.respond(pathId, undefined, row.id, row.version, "escalate", {
+          reason,
+        }),
+    );
+    void query.refetch();
+    onChanged?.();
+  }
   if (
     compactSession &&
     !canRequest &&
@@ -153,56 +187,26 @@ export function LearningChangePanel({
     !decision.uncertain
   )
     return null;
-  const Container = compactSession
-    ? embedded
-      ? EmbeddedChangePanel
-      : CompactChangePanel
-    : Panel;
-  const RequestCard = compactSession ? CompactRequest : Panel;
   return (
-    <Container
-      title={
-        compactSession
-          ? "Thay đổi buổi học"
-          : sessionId
-            ? "Hủy buổi để học bù"
-            : "Dừng lộ trình"
-      }
+    <ChangePanelFrame
+      compact={compactSession}
+      embedded={embedded}
+      title={changePanelTitle(compactSession, sessionId)}
     >
       {(!compactSession || requestOpen || open) && (
         <Copy size={compactSession ? "hint" : "body"}>
-          {sessionId
-            ? compactSession
-              ? "Cần hai bên đồng ý trước giờ học. Người yêu cầu dùng 1 lượt học bù; số buổi và Credit giữ nguyên. Hai bên cần chốt lại lịch bù."
-              : "Hai bên cần đồng ý trước giờ bắt đầu. Giữ nguyên số buổi và Credit; người yêu cầu dùng một lượt học bù, người chấp nhận không mất lượt. Lịch bù cần được hai bên chốt lại."
-            : "Gửi yêu cầu không tự hủy lịch học. Việc dừng và xử lý Credit cần quyết định theo chính sách đã duyệt; không tự tính hoàn theo số buổi."}
+          {changeGuidance(compactSession, sessionId)}
         </Copy>
       )}
       <ConnectionFeedback loading={query.isLoading} error={query.error} />
       {!open && canRequest && (
         <>
           {compactSession && (
-            <Button
-              variant={embedded ? "ghost" : "paper"}
-              style={embedded ? styles.requestToggle : undefined}
-              leadingIcon={embedded ? "calendar" : undefined}
-              icon={embedded ? "chevron" : undefined}
-              accessibilityLabel={
-                requestOpen ? "Đóng yêu cầu" : "Yêu cầu hủy để học bù"
-              }
-              accessibilityState={{ expanded: requestOpen }}
-              onPress={() => setRequestOpen(!requestOpen)}
-            >
-              {embedded ? (
-                <Text style={styles.toggleLabel}>
-                  {requestOpen ? "Đóng yêu cầu" : "Yêu cầu hủy để học bù"}
-                </Text>
-              ) : requestOpen ? (
-                "Đóng yêu cầu"
-              ) : (
-                "Yêu cầu hủy để học bù"
-              )}
-            </Button>
+            <RequestToggle
+              embedded={embedded}
+              open={requestOpen}
+              onToggle={() => setRequestOpen(!requestOpen)}
+            />
           )}
           <View
             style={
@@ -266,98 +270,16 @@ export function LearningChangePanel({
         </Copy>
       )}
       {rows?.map((row) => (
-        <RequestCard
+        <LearningChangeRequest
           key={row.id}
-          title={
-            compactSession &&
-            row.status === "PENDING" &&
-            row.requesterId !== runtime.userId
-              ? "Cần bạn phản hồi"
-              : (labels[row.status] ?? systemCodeLabel(row.status))
-          }
-        >
-          <Copy>{row.reason}</Copy>
-          <Copy muted>
-            Hạn phản hồi: {new Date(row.expiresAt).toLocaleString("vi-VN")}
-          </Copy>
-          {row.responseNote && <Copy>Phản hồi: {row.responseNote}</Copy>}
-          {row.blockedByDispute && (
-            <Copy>Đang có tranh chấp, chưa thể áp dụng quyết định.</Copy>
-          )}
-          {row.awaitingPolicy && (
-            <Copy>Chờ chính sách xử lý Credit được duyệt.</Copy>
-          )}
-          {row.status === "PENDING" &&
-            (row.requesterId === runtime.userId ? (
-              <Button
-                variant="paper"
-                disabled={disabled}
-                onPress={() => void act(row, "withdraw")}
-              >
-                Rút yêu cầu
-              </Button>
-            ) : (
-              <>
-                <Button
-                  disabled={disabled}
-                  onPress={() => void act(row, "response", true)}
-                >
-                  Đồng ý yêu cầu
-                </Button>
-                <Button
-                  variant="paper"
-                  disabled={disabled}
-                  onPress={() => void act(row, "response", false)}
-                >
-                  Từ chối
-                </Button>
-              </>
-            ))}
-          {["ACCEPTED", "STAFF_REVIEW"].includes(row.status) &&
-            row.requesterId === runtime.userId && (
-              <Button
-                variant="paper"
-                disabled={disabled}
-                onPress={() => void act(row, "withdraw")}
-              >
-                Rút yêu cầu chưa thực thi
-              </Button>
-            )}
-          {!sessionId && ["PENDING", "ACCEPTED"].includes(row.status) && (
-            <DataForm
-              fields={[
-                {
-                  name: "reason",
-                  label: "Lý do cần nhân sự hỗ trợ",
-                  rule: textRule(3, 1000),
-                  multiline: true,
-                },
-              ]}
-              submitLabel="Chuyển nhân sự xem xét"
-              disabled={disabled}
-              onSubmit={async (values) => {
-                await decision.run(
-                  JSON.stringify({
-                    id: row.id,
-                    version: row.version,
-                    reason: values.reason,
-                  }),
-                  () =>
-                    api.respond(
-                      pathId,
-                      undefined,
-                      row.id,
-                      row.version,
-                      "escalate",
-                      { reason: values.reason },
-                    ),
-                );
-                void query.refetch();
-                onChanged?.();
-              }}
-            />
-          )}
-        </RequestCard>
+          row={row}
+          compact={compactSession}
+          userId={runtime.userId}
+          sessionId={sessionId}
+          disabled={disabled}
+          onAct={act}
+          onEscalate={escalate}
+        />
       ))}
       {compactSession && history.length > 0 && (
         <Button
@@ -379,6 +301,6 @@ export function LearningChangePanel({
           Tải lại lịch sử yêu cầu
         </Button>
       )}
-    </Container>
+    </ChangePanelFrame>
   );
 }

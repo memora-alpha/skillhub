@@ -9,6 +9,7 @@ import {
   canSendCaseMessage,
   canWriteCase,
   casePermissions,
+  caseAwaitingHandler,
 } from "../src/features/reports/utils/case-actions";
 import { notificationTarget } from "../src/features/notifications/utils/notification-target";
 import type { InboxNotification } from "../src/features/notifications/api/notifications-api";
@@ -18,6 +19,34 @@ const actor = "10000000-0000-4000-8000-000000000001";
 const caseId = "a0000000-0000-4000-8000-000000000001";
 const sessionId = "20000000-0000-4000-8000-000000000001";
 const pathId = "30000000-0000-4000-8000-000000000001";
+
+test("handler waiting follows server context and only uses missing-handler fallback on open cases without a path", () => {
+  const context = {
+    status: "OPEN",
+    hasPath: false,
+    handlerId: null,
+    waiting: false,
+  };
+  assert.equal(caseAwaitingHandler(context), true);
+  assert.equal(caseAwaitingHandler({ ...context, hasPath: true }), false);
+  assert.equal(
+    caseAwaitingHandler({ ...context, handlerId: undefined }),
+    false,
+  );
+  assert.equal(caseAwaitingHandler({ ...context, status: "RESOLVED" }), false);
+  assert.equal(
+    caseAwaitingHandler({ ...context, hasPath: true, waiting: true }),
+    true,
+  );
+  assert.equal(
+    caseAwaitingHandler({
+      ...context,
+      hasPath: true,
+      reason: "CASE_HANDLER_REQUIRED",
+    }),
+    true,
+  );
+});
 
 test("schedule confirmation notifications open the agreement schedule and never a payload URL", () => {
   const item: InboxNotification = {

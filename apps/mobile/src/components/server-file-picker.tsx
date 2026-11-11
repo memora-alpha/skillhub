@@ -16,6 +16,53 @@ import { uploadBody, type UploadedFile } from "@/lib/http/file-upload";
 import { errorMessage } from "@/lib/http/errors";
 import { FileSelectionError, photoUploadAsset } from "@/lib/http/picked-image";
 
+function fileStatusLabel(
+  state: string,
+  checkOnSubmit: boolean,
+  disabled: boolean,
+) {
+  if (state === "READY") return "Sẵn sàng";
+  if (
+    [
+      "REJECTED",
+      "FAILED",
+      "INFECTED",
+      "SCAN_FAILED",
+      "DELETED",
+      "EXPIRED",
+    ].includes(state)
+  )
+    return "Tệp chưa hợp lệ";
+  if (checkOnSubmit && !disabled) return "Kiểm tra khi gửi";
+  return "Đang kiểm tra";
+}
+
+function fileLimitHint(
+  compact: boolean,
+  checkOnSubmit: boolean,
+  maxCount: number,
+  maxBytes: number,
+) {
+  const size = maxBytes / 1_000_000;
+  if (!compact)
+    return `Tối đa ${maxCount} tệp, ${size} MB/tệp. Tệp cần được quét an toàn trước khi gửi.`;
+  const hint = checkOnSubmit
+    ? "Tệp được kiểm tra khi gửi."
+    : "Chỉ gửi khi tệp sẵn sàng.";
+  return `Tối đa ${maxCount} tệp · ${size} MB/tệp. ${hint}`;
+}
+
+function filePickerLabel(
+  allowPhotos: boolean,
+  pending: boolean,
+  compact: boolean,
+) {
+  if (allowPhotos) return "Chọn tệp";
+  if (pending) return "Đang xử lý tệp…";
+  if (compact) return "Thêm tệp đính kèm";
+  return "Chọn và tải tệp lên";
+}
+
 export function ServerFilePicker({
   files,
   onChange,
@@ -101,20 +148,7 @@ export function ServerFilePicker({
                 {file.name}
               </Text>
               <Text style={styles.hint}>
-                {file.state === "READY"
-                  ? "Sẵn sàng"
-                  : [
-                        "REJECTED",
-                        "FAILED",
-                        "INFECTED",
-                        "SCAN_FAILED",
-                        "DELETED",
-                        "EXPIRED",
-                      ].includes(file.state)
-                    ? "Tệp chưa hợp lệ"
-                    : checkOnSubmit && !disabled
-                      ? "Kiểm tra khi gửi"
-                      : "Đang kiểm tra"}
+                {fileStatusLabel(file.state, checkOnSubmit, disabled)}
               </Text>
             </View>
             {file.state === "READY" && (
@@ -140,9 +174,7 @@ export function ServerFilePicker({
         ),
       )}
       <Copy muted size={compact ? "hint" : "body"}>
-        {compact
-          ? `Tối đa ${maxCount} tệp · ${maxBytes / 1_000_000} MB/tệp.${checkOnSubmit ? " Tệp được kiểm tra khi gửi." : " Chỉ gửi khi tệp sẵn sàng."}`
-          : `Tối đa ${maxCount} tệp, ${maxBytes / 1_000_000} MB/tệp. Tệp cần được quét an toàn trước khi gửi.`}
+        {fileLimitHint(compact, checkOnSubmit, maxCount, maxBytes)}
       </Copy>
       {error && (
         <FormNotice compact={compact} tone="error">
@@ -204,13 +236,7 @@ export function ServerFilePicker({
             });
           }}
         >
-          {allowPhotos
-            ? "Chọn tệp"
-            : pending
-              ? "Đang xử lý tệp…"
-              : compact
-                ? "Thêm tệp đính kèm"
-                : "Chọn và tải tệp lên"}
+          {filePickerLabel(allowPhotos, pending, compact)}
         </Button>
       </View>
       {!!files.length && !checkOnSubmit && (

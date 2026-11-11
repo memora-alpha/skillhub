@@ -4,6 +4,33 @@ import { useSessionReport } from "@/features/reports/state";
 import { useSessionReporting } from "../hooks/use-session-reporting";
 import { SessionActionRow } from "./session-section";
 import { sectionStyles as styles } from "./session-section.styles";
+import type { IconName } from "@/components/Icon";
+
+type ReportRead = ReturnType<typeof useSessionReport>;
+type Reporting = ReturnType<typeof useSessionReporting>;
+
+function reportActionVariant(
+  hasReport: boolean,
+  retryable: boolean,
+): { title: string; icon: IconName } {
+  if (hasReport) return { title: "Xem báo cáo", icon: "clipboard" };
+  if (retryable) return { title: "Tải lại thông tin", icon: "refresh" };
+  return { title: "Báo sự cố", icon: "flag" };
+}
+
+function reportActionHint(
+  read: ReportRead,
+  reporting: Reporting,
+  checking: boolean,
+  hasReport: boolean,
+) {
+  if (read.report) return read.report.statusLabel;
+  if (checking) return "Đang cập nhật…";
+  if (read.error || hasReport) return "Chưa tải được báo cáo. Chạm để thử lại.";
+  if (reporting.ready && reporting.deadlineShort)
+    return `Gửi trước ${reporting.deadlineShort}`;
+  return reporting.message;
+}
 
 export function SessionReportAction({
   sessionId,
@@ -20,20 +47,8 @@ export function SessionReportAction({
     !report &&
     !checking &&
     (!!reportRead.error || reporting.retryable || hasReport);
-  const title = hasReport
-    ? "Xem báo cáo"
-    : retryable
-      ? "Tải lại thông tin"
-      : "Báo sự cố";
-  const hint = report
-    ? report.statusLabel
-    : checking
-      ? "Đang cập nhật…"
-      : reportRead.error || (hasReport && !report)
-        ? "Chưa tải được báo cáo. Chạm để thử lại."
-        : reporting.ready && reporting.deadlineShort
-          ? `Gửi trước ${reporting.deadlineShort}`
-          : reporting.message;
+  const { title, icon } = reportActionVariant(hasReport, retryable);
+  const hint = reportActionHint(reportRead, reporting, checking, hasReport);
   async function act() {
     if (!reportRead.isCurrent()) return;
     if (report) return router.push(`/reports/${report.id}`);
@@ -52,7 +67,7 @@ export function SessionReportAction({
     <View style={styles.reportAction}>
       <SessionActionRow
         title={title}
-        icon={hasReport ? "clipboard" : retryable ? "refresh" : "flag"}
+        icon={icon}
         disabled={
           disabled || checking || (!report && !retryable && !reporting.ready)
         }

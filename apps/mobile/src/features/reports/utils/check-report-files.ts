@@ -37,6 +37,35 @@ function pause(ms: number, signal: AbortSignal) {
   });
 }
 
+async function pollReportFile(
+  file: UploadedFile,
+  options: CheckOptions,
+  check: () => void,
+  attempt = 0,
+): Promise<UploadedFile> {
+  check();
+  const result = await options.read(file.fileId, options.signal);
+  check();
+  if (result.fileId !== file.fileId)
+    throw new ReportFileCheckError(
+      "Chưa xác nhận được tệp đã chọn. Vui lòng gửi lại.",
+    );
+  const updated = { ...file, state: result.state };
+  options.update(updated);
+  if (updated.state === "READY") return updated;
+  if (!["UPLOADING", "QUARANTINED", "SCANNING"].includes(updated.state))
+    throw new ReportFileCheckError(
+      `Tệp “${updated.name}” chưa thể sử dụng. Bỏ tệp này rồi chọn lại.`,
+    );
+  if (attempt === 47)
+    throw new ReportFileCheckError(
+      "Tệp vẫn đang được kiểm tra. Vui lòng gửi lại sau; không cần chọn lại tệp.",
+    );
+  const delay = attempt < 23 ? Math.min(500 * 2 ** attempt, 3000) : 5000;
+  await (options.sleep ?? pause)(delay, options.signal);
+  return pollReportFile(updated, options, check, attempt + 1);
+}
+
 export async function checkReportFiles(
   files: readonly UploadedFile[],
   options: CheckOptions,
@@ -51,38 +80,11 @@ export async function checkReportFiles(
   };
   const ready: UploadedFile[] = new Array(files.length);
   let next = 0;
-  async function worker() {
-    while (next < files.length) {
-      let file = files[next]!;
-      const index = next++;
-      for (let attempt = 0; attempt < 48; attempt++) {
-        check();
-        const result = await options.read(file.fileId, options.signal);
-        check();
-        if (result.fileId !== file.fileId)
-          throw new ReportFileCheckError(
-            "Chưa xác nhận được tệp đã chọn. Vui lòng gửi lại.",
-          );
-        file = { ...file, state: result.state };
-        options.update(file);
-        if (file.state === "READY") {
-          ready[index] = file;
-          break;
-        }
-        if (!["UPLOADING", "QUARANTINED", "SCANNING"].includes(file.state))
-          throw new ReportFileCheckError(
-            `Tệp “${file.name}” chưa thể sử dụng. Bỏ tệp này rồi chọn lại.`,
-          );
-        if (attempt === 47)
-          throw new ReportFileCheckError(
-            "Tệp vẫn đang được kiểm tra. Vui lòng gửi lại sau; không cần chọn lại tệp.",
-          );
-        await (options.sleep ?? pause)(
-          attempt < 23 ? Math.min(500 * 2 ** attempt, 3000) : 5000,
-          options.signal,
-        );
-      }
-    }
+  async function worker(): Promise<void> {
+    if (next >= files.length) return;
+    const index = next++;
+    ready[index] = await pollReportFile(files[index]!, options, check);
+    return worker();
   }
   check();
   // Two readers at most; drain in-flight work before returning a failure.

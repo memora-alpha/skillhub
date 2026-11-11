@@ -11,6 +11,36 @@ import { SessionSection } from "./session-section";
 import { SessionLessonContent } from "./session-lesson-content";
 import { sectionStyles as styles } from "./session-section.styles";
 
+function SessionLesson({
+  context,
+  progress,
+  loading,
+  error,
+}: Readonly<{
+  context: ReturnType<typeof useSessionContext>["context"];
+  progress: boolean;
+  loading: boolean;
+  error: unknown;
+}>) {
+  if (context)
+    return (
+      <>
+        {!progress && (
+          <Text style={styles.caption}>Buổi {context.outline.sessionNo}</Text>
+        )}
+        <SessionLessonContent
+          key={`${context.plan.id}:${context.plan.version}:${context.outline.sessionNo}`}
+          content={context.outline.content}
+        />
+      </>
+    );
+  if (error) return null;
+  const message = loading
+    ? "Đang tải nội dung buổi học…"
+    : "Chưa có nội dung buổi học.";
+  return <SessionCopy muted>{message}</SessionCopy>;
+}
+
 export function SessionContextPanel({
   session,
 }: Readonly<{ session: LearningSession }>) {
@@ -94,25 +124,12 @@ export function SessionContextPanel({
             </Text>
           </View>
         )}
-        {context ? (
-          <>
-            {!progress && (
-              <Text style={styles.caption}>
-                Buổi {context.outline.sessionNo}
-              </Text>
-            )}
-            <SessionLessonContent
-              key={`${context.plan.id}:${context.plan.version}:${context.outline.sessionNo}`}
-              content={context.outline.content}
-            />
-          </>
-        ) : !query.error ? (
-          <SessionCopy muted>
-            {query.isLoading
-              ? "Đang tải nội dung buổi học…"
-              : "Chưa có nội dung buổi học."}
-          </SessionCopy>
-        ) : null}
+        <SessionLesson
+          context={context}
+          progress={!!progress}
+          loading={query.isLoading}
+          error={query.error}
+        />
         {!!query.error && (
           <FormNotice compact tone="error">
             Chưa cập nhật được nội dung. Bạn vẫn có thể xem thông tin buổi học.

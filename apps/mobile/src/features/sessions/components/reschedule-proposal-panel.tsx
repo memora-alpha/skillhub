@@ -10,6 +10,17 @@ import { rescheduleStyles as styles } from "./reschedule.styles";
 
 type Snapshot = ReturnType<typeof rescheduleSnapshot>;
 
+function confirmationHint(
+  ownConfirmed: boolean,
+  partnerConfirmed: boolean,
+  makeup: boolean,
+) {
+  if (ownConfirmed && partnerConfirmed)
+    return "Cả hai đã xác nhận. Đang cập nhật lịch.";
+  if (makeup) return "Cả hai cần xác nhận lịch học bù trước hạn.";
+  return "Cả hai cần xác nhận trước giờ học cũ ít nhất 60 phút.";
+}
+
 export function RescheduleProposalPanel({
   snapshot,
   timezone,
@@ -72,11 +83,11 @@ export function RescheduleProposalPanel({
           </View>
           {!unavailableMessage && (
             <SessionCopy muted>
-              {snapshot.ownConfirmed && snapshot.partnerConfirmed
-                ? "Cả hai đã xác nhận. Đang cập nhật lịch."
-                : makeup
-                  ? "Cả hai cần xác nhận lịch học bù trước hạn."
-                  : "Cả hai cần xác nhận trước giờ học cũ ít nhất 60 phút."}
+              {confirmationHint(
+                snapshot.ownConfirmed,
+                snapshot.partnerConfirmed,
+                makeup,
+              )}
             </SessionCopy>
           )}
         </>

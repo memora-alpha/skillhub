@@ -9,6 +9,12 @@ import {
 import type { LearningSession } from "../types";
 import { attendanceSideText } from "../utils/attendance-presentation";
 
+function attendanceDuration(seconds: bigint) {
+  if (seconds >= 60n) return `${seconds / 60n} phút`;
+  if (seconds > 0n) return "Dưới 1 phút";
+  return undefined;
+}
+
 export function SessionAttendanceSummary({
   attendance,
 }: Readonly<{ attendance: LearningSession["attendance"] }>) {
@@ -20,12 +26,7 @@ export function SessionAttendanceSummary({
         const label = role === "teacher" ? "Người dạy" : "Người học";
         const known = side.verdict === "PRESENT" || side.verdict === "ABSENT";
         const seconds = known ? BigInt(side.seconds) : 0n;
-        const duration =
-          seconds >= 60n
-            ? `${seconds / 60n} phút`
-            : seconds > 0n
-              ? "Dưới 1 phút"
-              : undefined;
+        const duration = attendanceDuration(seconds);
         const status = {
           PRESENT: "Có mặt",
           ABSENT: "Vắng mặt",

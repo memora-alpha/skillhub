@@ -6,20 +6,13 @@ import { useLocalSearchParams, useRouter, type Href } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { EmptyState } from "@/components/EmptyState";
-import { Button } from "@/components/Button";
 import { ControlledInput } from "@/components/ControlledInput";
-import { FormNotice } from "@/components/FormNotice";
 import { textRule } from "@/components/data-form";
 import { ServerFilePicker } from "@/components/server-file-picker";
 import { Icon } from "@/components/Icon";
 import { appColors as colors } from "@/constants/theme";
 import type { UploadedFile } from "@/lib/http/file-upload";
-import { AppError } from "@/lib/http/errors";
-import {
-  useConnections,
-  useConnectionCommand,
-  connectionError,
-} from "@/features/connections";
+import { useConnections, useConnectionCommand } from "@/features/connections";
 import { reportReasons } from "../api/reports-api";
 import { useReportsApi } from "../hooks/use-reports";
 import {
@@ -33,12 +26,23 @@ import { reportStyles as s } from "../components/report.styles";
 import { useReportFileCheck } from "../hooks/use-report-file-check";
 import { useSessionReporting } from "@/features/sessions/state";
 import { ReportEligibilityNotice } from "../components/report-eligibility-notice";
-import { RelatedSessionReportLink } from "../components/related-session-report-link";
+import { ReportSubmissionFeedback } from "../components/report-submission-feedback";
 const schema = z.object({
   reason: z.enum(reportReasons),
   description: textRule(10, 2000),
 });
 type Values = z.infer<typeof schema>;
+
+function reportTargetHref(
+  valid: boolean,
+  materialId?: string,
+  sessionId?: string,
+): Href {
+  if (!valid) return "/reports";
+  if (materialId) return `/materials/${materialId}`;
+  return `/learning-sessions/${sessionId}`;
+}
+
 export function ReportEditorScreen() {
   const { sessionId, materialId } = useLocalSearchParams<{
     sessionId?: string;
@@ -92,11 +96,7 @@ function ReportEditor({
   const id = materialId ?? sessionId,
     valid = z.uuid().safeParse(id).success && !(sessionId && materialId);
   const target = materialId ? "MATERIAL" : "SESSION";
-  const targetHref: Href = valid
-    ? materialId
-      ? `/materials/${materialId}`
-      : `/learning-sessions/${sessionId}`
-    : "/reports";
+  const targetHref = reportTargetHref(valid, materialId, sessionId);
   const busy =
     command.pending ||
     command.uncertain ||
@@ -105,12 +105,6 @@ function ReportEditor({
   const formDisabled =
     busy || !permitted || (!materialId && eligibility.checking);
   const submitDisabled = formDisabled || uploading;
-  const activeReport =
-    command.error instanceof AppError &&
-    command.error.status === 409 &&
-    ["ACTIVE_SESSION_REPORT_EXISTS", "ACTIVE_MATERIAL_REPORT_EXISTS"].includes(
-      command.error.code,
-    );
   const submit = handleSubmit(async (values) => {
     if (
       !valid ||
@@ -249,57 +243,19 @@ function ReportEditor({
                   />
                 </ReportSection>
               )}
-              {fileCheck.error && (
-                <FormNotice compact tone="error">
-                  {fileCheck.error}
-                </FormNotice>
-              )}
-              {!!command.error && (
-                <FormNotice compact tone="error">
-                  {connectionError(command.error)}
-                </FormNotice>
-              )}
-              {activeReport &&
-                eligibility.reason !== "ACTIVE_SESSION_REPORT_EXISTS" &&
-                (sessionId ? (
-                  <RelatedSessionReportLink sessionId={sessionId} />
-                ) : (
-                  <ReportLink
-                    title="Xem báo cáo đang xử lý"
-                    href="/reports"
-                    icon="clipboard"
-                  />
-                ))}
-              {command.uncertain && (
-                <ReportSection title="Kiểm tra báo cáo đã gửi" icon="alert">
-                  <ReportCopy muted>
-                    Chưa rõ kết quả gửi. Kiểm tra danh sách trước khi gửi lại.
-                  </ReportCopy>
-                  <ReportLink
-                    title="Xem báo cáo của tôi"
-                    href="/reports"
-                    icon="clipboard"
-                  />
-                </ReportSection>
-              )}
-              <Button
-                variant="craft"
-                leadingIcon="send"
-                accessibilityLabel="Gửi báo cáo"
+              <ReportSubmissionFeedback
+                error={command.error}
+                fileError={fileCheck.error}
+                reason={eligibility.reason}
+                sessionId={sessionId}
+                uncertain={command.uncertain}
+                checkingFiles={fileCheck.checking}
+                busy={busy}
                 disabled={submitDisabled}
-                onPress={() => {
+                onSubmit={() => {
                   void submit();
                 }}
-                style={s.primary}
-              >
-                {command.uncertain
-                  ? "Chờ kiểm tra kết quả"
-                  : fileCheck.checking
-                    ? "Đang kiểm tra tệp…"
-                    : busy
-                      ? "Đang gửi…"
-                      : "Gửi báo cáo"}
-              </Button>
+              />
             </>
           )}
         </>

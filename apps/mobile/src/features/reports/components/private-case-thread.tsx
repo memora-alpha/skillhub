@@ -28,7 +28,7 @@ import { useReportsApi, useCaseEvidence } from "../hooks/use-reports";
 import {
   casePermissions,
   caseBlockedCopy,
-  canWriteCase,
+  caseAwaitingHandler,
 } from "../utils/case-actions";
 import { caseCapabilities } from "@/lib/http/case-capabilities";
 import { AppError } from "@/lib/http/errors";
@@ -141,12 +141,13 @@ function PrivateCaseThreadContent({
       (!!resolvedPathId && !context.data),
   );
   const canSend = permissions.canSendMessage && !waitingForHandler;
-  const awaitingHandler =
-    context.data?.messageBlockedReason === "CASE_HANDLER_REQUIRED" ||
-    (!resolvedPathId &&
-      currentHandler === null &&
-      canWriteCase(currentStatus)) ||
-    (waitingForHandler && canWriteCase(currentStatus));
+  const awaitingHandler = caseAwaitingHandler({
+    reason: context.data?.messageBlockedReason,
+    status: currentStatus,
+    hasPath: !!resolvedPathId,
+    handlerId: currentHandler,
+    waiting: waitingForHandler,
+  });
   const loadingContext =
     (!!resolvedPathId && context.isLoading) ||
     (needsOwnReport && ownReports.isLoading);

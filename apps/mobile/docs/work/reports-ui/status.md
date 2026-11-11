@@ -2,7 +2,7 @@
 
 ## Hiện trạng
 
-- Cập nhật **2026-11-12T00:41:03+07:00**; **Ready for review**, đã chia thay đổi thành sáu commit code và một commit tài liệu theo yêu cầu người dùng. Chỉ mobile, chưa push; nghiệm thu người dùng **Chưa thực hiện**. REPORT-UI-23 đã kiểm chứng toàn bộ suite; các mốc chưa commit phía dưới là lịch sử. Xem phần mới nhất ở cuối và [bảng đối chiếu](session-report-api-audit.md).
+- Cập nhật **2026-11-12T01:16:55+07:00**; **Ready for review**, REPORT-UI-24 đã sửa danh sách Sonar người dùng gửi và kiểm lại source/web fixture. Lượt refactor được commit theo yêu cầu người dùng; không sửa BE, nghiệm thu người dùng **Chưa thực hiện**. Các mốc chưa commit phía dưới là lịch sử. SonarCloud cần scan lại để cập nhật dashboard. Xem phần mới nhất ở cuối và [bảng đối chiếu](session-report-api-audit.md).
 
 - Cập nhật **2026-11-11T20:32:29+07:00**; **Ready for review** trên `fix/mobile-session-ui`; REPORT-UI-13 đã đồng bộ với BE `1c706f9d`, giữ tự kiểm tra tệp khi gửi và X bỏ từng tệp; phạm vi **chỉ mobile**. Điều kiện nghiệp vụ Report vẫn kiểm tra khi gửi, không khôi phục precheck; nghiệm thu người dùng **Chưa thực hiện**. Các mốc phía dưới là lịch sử kiểm chứng, xem phần đồng bộ BE mới ở cuối cho hiện trạng mới nhất.
 - REPORT-UI-11: Chọn ảnh/Chọn tệp có icon, cùng độ rộng trên một hàng; allowPhotos=false giữ nhãn/hành vi mặc định. TypeScript, focused ESLint và web export **PASS**; browser hai nhóm layout ở 320/375/430px và private thread, bảy nhóm photo/upload regression **PASS**, không page error. Đã xem ảnh 375px. Evidence ignored: `.expo/report-picker-row-export.log`, `.expo/report-picker-row-browser.cjs`, `.expo/report-picker-row-validation/`, `.expo/report-picker-row-flow.cjs`, `.expo/report-picker-row-flow-validation/`. Native **NOT_RUN**; không thêm unit test cho đổi bố cục thuần túy.
@@ -143,3 +143,24 @@ Theo yêu cầu người dùng, tách sáu commit code theo phụ thuộc, rồi
 - 3541f877: bỏ Session preview/provider/cờ demo không dùng.
 
 Mỗi commit chạy hooks lint-staged và commitlint; không bypass hook. Không đổi logic sau lần kiểm chứng 1.134 tests/48 nhóm browser ở trên. Chỉ apps/mobile; không push và không coi commit là nghiệm thu API thật/native/UAT.
+
+## Refactor theo danh sách Sonar — 2026-11-12T01:14:41+07:00
+
+- REPORT-UI-24 **Ready for review**, lượt refactor chưa stage/commit. Đã đối chiếu 37 mục người dùng gửi: 5 Cognitive Complexity, 26 nested ternary, 3 readonly props, một prop title không dùng, một await trong loop và một useState không có cặp value/setter. Chỉ apps/mobile, không đổi endpoint/payload hoặc nghiệp vụ.
+- Tách LearningChangeRequest/PendingActions khỏi LearningChangePanel và ReportSubmissionFeedback khỏi editor; dùng helper chọn nội dung/trạng thái thay ternary lồng nhau. Container embedded không còn nhận title không dùng; props component được giữ readonly. Hàm báo cáo và trạng thái chờ handler tách trách nhiệm, không thay quyền hoặc fallback từ BE. Timer dùng reducer để kích render tại hạn thay state value bị bỏ qua.
+- Polling tệp chuyển thành bước bất đồng bộ có giới hạn 48 lần và queue hai worker, giữ delay, thứ tự kết quả, owner/abort guard và đợi request đang chạy kết thúc khi có lỗi. Thêm regression cho lỗi một worker trong lúc peer còn chờ: không đọc tệp thứ ba, không apply kết quả muộn, không trả về trước khi peer kết thúc. Có regression cho fallback chờ nhân viên.
+
+Cognitive Complexity đo bằng SonarSource eslint-plugin-sonarjs 4.2.2 đã có trong cache kiểm tra cục bộ; không thêm dependency/manifest dự án:
+
+| Hàm | Trước | Sau |
+| --- | --- | --- |
+| LearningChangePanel | 32 | 12 |
+| PrivateCaseThreadContent | 16 | 14 |
+| ReportEditor | 26 | 10 |
+| worker trong checkReportFiles | 18 | 1 |
+| SessionReportAction | 20 | 2 |
+| notificationTarget (phát hiện thêm khi kiểm file đã sửa) | 26 | 12 |
+
+- Rules cục bộ trên **17 source files**: Cognitive Complexity ngưỡng 15, nested conditional, readonly props, await trong loop, react/hook-use-state và react/no-unused-prop-types **0 lỗi / 0 warning**. Không thêm NOSONAR hoặc tắt rule. Đây không phải kết quả scan SonarCloud; cần CI/SonarCloud quét lại để cập nhật dashboard.
+- Full suite **1.136/1.136 PASS**, không skip; TypeScript, full ESLint, structure **964 source files**, web export và diff check **PASS**. Browser **54 nhóm PASS**, không page error: 10 chat, 9 entry báo cáo, 13 reporting/schedule/cursor, 11 học bù, 11 chi tiết Session/request/attendance/context. Đã mở xem ảnh pending request 375px; nội dung/form/disclosure và lối phản hồi giữ nguyên. POST/upload trong kiểm thử đều là fixture intercept.
+- Evidence ignored: .expo/session-report-sonar-{rules,metrics,tests,types,lint,structure,export}.log; .expo/session-report-sonar-{result,complexity}.json; .expo/session-report-sonar-browser.cjs và các thư mục validation tương ứng. SonarCloud scan, API/provider thật, Android/iOS và UAT **NOT_RUN**; không tự commit hoặc coi kiểm tra cục bộ là nghiệm thu deployment.
