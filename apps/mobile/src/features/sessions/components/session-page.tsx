@@ -11,13 +11,11 @@ export function SessionPage({
   title,
   back = "/calendar",
   backBehavior = "destination",
-  demo = false,
   children,
 }: Readonly<{
   title: string;
   back?: Href;
   backBehavior?: "destination" | "history";
-  demo?: boolean;
   children: ReactNode;
 }>) {
   return (
@@ -29,9 +27,6 @@ export function SessionPage({
     >
       {() => (
         <KeyboardFormScrollView contentContainerStyle={styles.page}>
-          {demo && (
-            <Text style={styles.preview}>BẢN XEM THỬ · DỮ LIỆU MẪU</Text>
-          )}
           {children}
         </KeyboardFormScrollView>
       )}

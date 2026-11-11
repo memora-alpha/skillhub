@@ -38,11 +38,6 @@ export const sessionUi = StyleSheet.create({
     ...typography.secondary,
     color: colors.body,
   },
-  preview: {
-    fontFamily: fonts.bold,
-    ...typography.caption,
-    color: colors.primary,
-  },
   row: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   cardHeader: {
     flexDirection: "row",
