@@ -106,8 +106,15 @@ test("Session content keeps server progress when Path context is denied and can 
   let context = resolveSessionContext(session, path),
     retries = 0;
   let error: unknown;
+  const routes: unknown[] = [];
   const h = load("sessions/components/session-context-panel.tsx", {
     "./session-page": pageStubs,
+    "./session-lesson-content": {
+      SessionLessonContent: ({ content }: { content: string }) => content,
+    },
+    "expo-router": {
+      useRouter: () => ({ push: (href: unknown) => routes.push(href) }),
+    },
     "../hooks/use-session-context": {
       useSessionContext: () => ({
         context,
@@ -123,9 +130,18 @@ test("Session content keeps server progress when Path context is denied and can 
   try {
     const render = () => expand(h.module.SessionContextPanel({ session }));
     assert.match(text(render()), /Thực hành/);
-    assert.equal(
-      elements(render()).find((el) => el.type === "RouteButton")?.props.href,
-      `/paths/${path.id}/plans/${session.planId}`,
+    const link = elements(render()).find(
+      (el) =>
+        el.type === "Button" && el.props.accessibilityLabel === "Xem lộ trình",
+    )!;
+    (link.props.onPress as () => void)();
+    assert.deepEqual(routes, [`/paths/${path.id}/plans/${session.planId}`]);
+    assert.doesNotMatch(text(render()), /Lộ trình bản/);
+    assert.deepEqual(
+      elements(render()).find(
+        (el) => el.props.accessibilityRole === "progressbar",
+      )?.props.accessibilityValue,
+      { min: 0, max: 1, now: 1, text: "1/1 buổi hoàn thành" },
     );
     error = new Error("temporary refresh failure");
     assert.match(text(render()), /Thực hành/);
@@ -134,7 +150,7 @@ test("Session content keeps server progress when Path context is denied and can 
     error = new Error("denied");
     assert.doesNotMatch(text(render()), /Thực hành/);
     assert.match(text(render()), /1\/2 buổi/);
-    assert.match(text(render()), /Thông tin buổi học vẫn hiển thị/);
+    assert.match(text(render()), /Bạn vẫn có thể xem thông tin buổi học/);
     (
       elements(render()).find((el) => el.type === "Button")!.props
         .onPress as () => void

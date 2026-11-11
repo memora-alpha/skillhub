@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { useLocalSearchParams } from "expo-router";
 import { KeyboardFormScrollView } from "@/components/KeyboardFormScrollView";
 import { Button } from "@/components/Button";
@@ -5,12 +6,16 @@ import { FormNotice } from "@/components/FormNotice";
 import { AppScreenLayout } from "@/features/shell";
 import { useSessionDetail } from "../hooks/use-sessions";
 import { useSessionReschedule } from "../hooks/use-session-reschedule";
+import { useSessionClock } from "../hooks/use-session-clock";
 import { SessionFeedback } from "../components/session-feedback";
 import { RescheduleDraft } from "../components/reschedule-draft";
 import { RescheduleProposalPanel } from "../components/reschedule-proposal-panel";
 import { rescheduleStyles as styles } from "../components/reschedule.styles";
 import { deviceTimezone } from "../utils/session-time";
-import { isRescheduleEligible } from "../utils/reschedule-form";
+import {
+  isRescheduleEligible,
+  rescheduleAvailabilityMessage,
+} from "../utils/reschedule-form";
 import { sessionErrorMessage } from "../utils/session-read";
 
 export function RescheduleScreen() {
@@ -19,18 +24,33 @@ export function RescheduleScreen() {
     session = query.data;
   const action = useSessionReschedule(session);
   const timezone = deviceTimezone();
+  const now = useSessionClock(session, () => {
+    if (query.enabled) void query.refetch({ cancelRefetch: false });
+  });
+  const [makeupSessionId, setMakeupSessionId] = useState<string>();
+  useEffect(() => {
+    setMakeupSessionId((current) => {
+      if (session?.status === "MAKEUP_REQUIRED") return session.id;
+      return current === id ? current : undefined;
+    });
+  }, [id, session?.id, session?.status]);
+  const makeup =
+    session?.status === "MAKEUP_REQUIRED" || makeupSessionId === id;
+  const makeupBooked =
+    makeup && !!session && ["CONFIRMED", "READY"].includes(session.status);
+  const eligible = !!session && isRescheduleEligible(session, now);
   const disabled =
     !session ||
     !query.valid ||
     query.isFetching ||
     query.isError ||
     !action.contextReady ||
-    !isRescheduleEligible(session) ||
+    !eligible ||
     action.pending ||
     action.blocked;
   return (
     <AppScreenLayout
-      title="Đề nghị đổi lịch"
+      title={makeup ? "Lịch học bù" : "Đề nghị đổi lịch"}
       selected="Lịch học"
       back={{ href: "/calendar", label: "Quay lại", behavior: "history" }}
       contentStyle={styles.background}
@@ -51,6 +71,10 @@ export function RescheduleScreen() {
                 expectedVersion={action.snapshot?.version}
                 disabled={disabled || !!action.snapshot?.hasPending}
                 pending={action.pending}
+                hasPending={action.snapshot?.hasPending}
+                now={now}
+                makeup={makeup}
+                applied={makeupBooked}
                 onSubmit={(input) => {
                   if (
                     !disabled &&
@@ -62,33 +86,35 @@ export function RescheduleScreen() {
               />
             )}
             {session && action.contextLoading && !action.snapshot && (
-              <FormNotice tone="info">
-                Đang tải lịch hiện tại để kiểm tra đề nghị đổi lịch…
+              <FormNotice compact tone="info">
+                Đang tải lịch học…
               </FormNotice>
             )}
             {session &&
-              isRescheduleEligible(session) &&
+              eligible &&
               !action.contextLoading &&
+              !action.contextError &&
               !action.contextReady && (
-                <FormNotice tone="info">
-                  Chưa đọc được lịch hiện tại để gửi hoặc xác nhận đề nghị. Kéo
-                  xuống để tải lại.
+                <FormNotice compact tone="info">
+                  Chưa thể thay đổi lịch. Kéo xuống để cập nhật trạng thái.
                 </FormNotice>
               )}
             {session && !!action.message && (
-              <FormNotice tone="info">{action.message}</FormNotice>
+              <FormNotice compact tone="info">
+                {action.message}
+              </FormNotice>
             )}
             {session && !!action.error && (
-              <FormNotice tone="error">
+              <FormNotice compact tone="error">
                 {sessionErrorMessage(action.error)}
               </FormNotice>
             )}
-            {session && action.blocked && (
+            {session && action.blocked && !action.pending && (
               <>
-                <FormNotice tone="info">
+                <FormNotice compact tone="info">
                   {action.uncertain
-                    ? "Chưa xác định được kết quả thao tác. Kiểm tra trạng thái trước khi gửi hoặc xác nhận lại."
-                    : "Cần tải lại trạng thái đổi lịch trước khi tiếp tục."}
+                    ? "Chưa rõ kết quả. Kiểm tra trạng thái trước khi thử lại."
+                    : "Tải lại trạng thái lịch trước khi tiếp tục."}
                 </FormNotice>
                 <Button
                   variant="paper"
@@ -97,7 +123,7 @@ export function RescheduleScreen() {
                     void action.refresh();
                   }}
                 >
-                  Kiểm tra trạng thái đổi lịch
+                  Kiểm tra trạng thái
                 </Button>
               </>
             )}
@@ -109,6 +135,12 @@ export function RescheduleScreen() {
                 error={action.contextError}
                 disabled={disabled}
                 pending={action.pending}
+                makeup={makeup}
+                unavailableMessage={
+                  !eligible
+                    ? rescheduleAvailabilityMessage(session, now)
+                    : undefined
+                }
                 onConfirm={() => {
                   if (
                     !disabled &&

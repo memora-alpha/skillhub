@@ -7,10 +7,16 @@ import { useRefreshLearningPath } from "@/features/learning-paths/state";
 import { AppError } from "@/lib/http/errors";
 import { useSessionsRuntime } from "../runtime";
 import type { LearningSession } from "../types";
-import { SessionPanel, SessionCopy, SessionButton } from "./session-page";
+import { SessionCopy, SessionButton } from "./session-page";
+import { SessionSection, SessionInfoRow } from "./session-section";
 import { sessionErrorMessage } from "../utils/session-read";
-import { AttendanceRules } from "./attendance-rules";
-import { attendanceSideText } from "../utils/attendance-presentation";
+import { formatSessionTime } from "../utils/session-time";
+import { noShowGuidance } from "../utils/attendance-presentation";
+import { SessionAttendanceSummary } from "./session-attendance-summary";
+import {
+  isRescheduleEligible,
+  rescheduleAvailabilityMessage,
+} from "../utils/reschedule-form";
 
 const excuseLabels = {
   PENDING: "Chờ phản hồi",
@@ -55,10 +61,7 @@ export function SessionAttendancePanel({
       if (!fresh.allowedActions?.includes(action))
         throw new AppError("http", 409, "ABSENCE_EXCUSE_NOT_ALLOWED");
       await work();
-      if (runtime.isCurrent())
-        setMessage(
-          "Máy chủ đã ghi nhận. Trạng thái mới được tải lại bên dưới.",
-        );
+      if (runtime.isCurrent()) setMessage("Đã ghi nhận phản hồi của bạn.");
     } catch (cause) {
       if (runtime.isCurrent()) setError(cause);
     } finally {
@@ -72,56 +75,72 @@ export function SessionAttendancePanel({
       busy.current = false;
     }
   }
+  const ended = Date.parse(session.endAt) <= now;
+  const noShowMessage = noShowGuidance(session, now);
+  const makeupEligible = isRescheduleEligible(session, now);
+  const showAttendance =
+    (ended && !!session.attendance && session.status !== "CANCELLED") ||
+    !!session.excuse ||
+    actions.includes("CONFIRM_COMPLETION") ||
+    actions.includes("REPORT_NO_SHOW") ||
+    actions.includes("SUBMIT_EXCUSE") ||
+    actions.includes("DECIDE_EXCUSE") ||
+    session.status === "MAKEUP_REQUIRED" ||
+    pending ||
+    !!message ||
+    !!error;
+  const deadlineRows = [
+    {
+      key: "confirmBy",
+      label: "Hạn xác nhận",
+      visible: actions.includes("CONFIRM_COMPLETION"),
+    },
+    {
+      key: "excuseOrReportBy",
+      label:
+        session.attendance?.case === "BOTH_ABSENT"
+          ? "Hạn phản hồi"
+          : "Hạn giải trình",
+      visible:
+        !!noShowMessage ||
+        actions.includes("SUBMIT_EXCUSE") ||
+        actions.includes("DECIDE_EXCUSE") ||
+        actions.includes("REPORT_NO_SHOW") ||
+        session.excuse?.status === "PENDING",
+    },
+    {
+      key: "makeupBy",
+      label: "Hạn chốt lịch học bù",
+      visible: session.status === "MAKEUP_REQUIRED",
+    },
+  ] as const;
+  if (!showAttendance) return null;
   return (
-    <SessionPanel title="Điểm danh và xử lý buổi học">
+    <SessionSection title="Điểm danh buổi học" icon="clipboard">
+      {noShowMessage && <SessionCopy muted>{noShowMessage}</SessionCopy>}
       {session.attendance?.state === "PENDING_DATA" && (
-        <SessionCopy>
-          Máy chủ đang tổng hợp điểm danh. Chưa có số liệu không có nghĩa là đã
-          học 0 giây hoặc vắng mặt. Chức năng xác nhận sẽ mở khi máy chủ cho
-          phép; kéo xuống để tải lại.
+        <SessionCopy muted>
+          Đang tổng hợp điểm danh. Kéo xuống để cập nhật.
         </SessionCopy>
       )}
       {session.attendance?.state === "UNVERIFIABLE" && (
-        <SessionCopy>
-          Chưa đủ dữ liệu để xác minh điểm danh. Hệ thống sẽ xử lý theo thời hạn
-          và trạng thái buổi học.
-        </SessionCopy>
+        <SessionCopy muted>Chưa đủ dữ liệu xác minh điểm danh.</SessionCopy>
       )}
-      {(["teacher", "learner"] as const).map((role) => {
-        const side = session.attendance?.[role];
-        return (
-          side && (
-            <SessionCopy key={role}>
-              {role === "teacher" ? "Người dạy" : "Người học"}:{" "}
-              {attendanceSideText(side)}
-              {side.firstJoinedAt
-                ? ` · Vào phòng lần đầu: ${new Date(side.firstJoinedAt).toLocaleString("vi-VN")}`
-                : ""}
-            </SessionCopy>
-          )
-        );
+      <SessionAttendanceSummary attendance={session.attendance} />
+      {deadlineRows.map(({ key, label, visible }) => {
+        const date = session.deadlines?.[key];
+        return visible && date ? (
+          <SessionCopy key={key} muted>
+            {label}: {formatSessionTime(date)}
+          </SessionCopy>
+        ) : null;
       })}
-      {session.deadlines &&
-        Object.entries(session.deadlines).map(
-          ([key, date]) =>
-            date && (
-              <SessionCopy key={key} muted>
-                {
-                  {
-                    confirmBy: "Hạn xác nhận",
-                    excuseOrReportBy: "Hạn giải trình vắng học",
-                    makeupBy: "Hạn chốt học bù",
-                  }[key]
-                }
-                : {new Date(date).toLocaleString("vi-VN")}
-              </SessionCopy>
-            ),
-        )}
       {session.excuse && (
-        <>
-          <SessionCopy>Giải trình: {session.excuse.reason}</SessionCopy>
-          <SessionCopy>{excuseLabels[session.excuse.status]}</SessionCopy>
-        </>
+        <SessionInfoRow
+          label={`Giải trình · ${excuseLabels[session.excuse.status]}`}
+        >
+          {session.excuse.reason}
+        </SessionInfoRow>
       )}
       {message && <FormNotice tone="info">{message}</FormNotice>}
       {!!error && (
@@ -171,32 +190,24 @@ export function SessionAttendancePanel({
           </SessionButton>
         </>
       )}
-      {session.status !== "CANCELLED" && (
-        <SessionButton
-          variant="paper"
-          disabled={disabled || pending}
-          onPress={() =>
-            router.push({
-              pathname: "/reports/new",
-              params: { sessionId: session.id, pathId: session.pathId },
-            })
-          }
-        >
-          Báo sự cố kỹ thuật / vấn đề khác
-        </SessionButton>
-      )}
-      {session.status === "MAKEUP_REQUIRED" &&
-        actions.includes("PROPOSE_MAKEUP") && (
+      {session.status === "MAKEUP_REQUIRED" && (
+        <>
+          {!makeupEligible && (
+            <SessionCopy muted>
+              {rescheduleAvailabilityMessage(session, now)}
+            </SessionCopy>
+          )}
           <SessionButton
-            disabled={disabled || pending}
-            onPress={() =>
-              router.push(`/learning-sessions/${session.id}/reschedule`)
-            }
+            disabled={disabled || pending || !makeupEligible}
+            onPress={() => {
+              if (!isRescheduleEligible(session)) return;
+              router.push(`/learning-sessions/${session.id}/reschedule`);
+            }}
           >
-            Đề xuất hoặc xác nhận lịch học bù
+            Chọn lịch học bù
           </SessionButton>
-        )}
-      <AttendanceRules />
-    </SessionPanel>
+        </>
+      )}
+    </SessionSection>
   );
 }

@@ -1,5 +1,27 @@
 import type { LearningSession } from "../types";
 
+export function noShowGuidance(
+  session: Pick<LearningSession, "status" | "attendance" | "deadlines">,
+  now = Date.now(),
+) {
+  if (
+    session.status !== "NO_SHOW" ||
+    session.attendance?.case !== "BOTH_ABSENT"
+  )
+    return;
+  if (
+    session.attendance.outcomeStatus === "DISPUTED" ||
+    session.attendance.resolution === "STAFF_REVIEW"
+  )
+    return "Kết quả vắng học đang được xem xét.";
+  const deadline = session.deadlines?.excuseOrReportBy;
+  if (deadline && Date.parse(deadline) <= now)
+    return "Đang chốt kết quả vắng học. Kéo xuống để cập nhật.";
+  return deadline
+    ? "Hệ thống xét học bù sau hạn phản hồi."
+    : "Hệ thống đang xử lý kết quả vắng học.";
+}
+
 export function attendanceSideText(
   side: NonNullable<LearningSession["attendance"]>["teacher"],
 ) {

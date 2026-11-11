@@ -35,6 +35,15 @@ export function PathCaseSummaryScreen() {
       {query.data && (
         <>
           <ParticipantCaseCard item={query.data} detail />
+          <RouteButton
+            secondary
+            href={{
+              pathname: "/reports/[id]",
+              params: { id: caseId, support: "1", pathId },
+            }}
+          >
+            Trao đổi với người xử lý
+          </RouteButton>
           {query.data.attention && (
             <Copy>
               {waitingOnLabels[query.data.attention.waitingOn] ??
@@ -43,8 +52,7 @@ export function PathCaseSummaryScreen() {
           )}
           {query.data.status === "NEED_MORE_INFO" && (
             <Copy muted size="hint">
-              Trạng thái này không xác định người cần bổ sung. Nếu bạn là người
-              gửi, xem yêu cầu trong Báo cáo của tôi hoặc liên hệ hỗ trợ.
+              Mở trao đổi riêng để xem phản hồi và bổ sung thông tin của bạn.
             </Copy>
           )}
           {query.data.status === "NEED_MORE_INFO" && (

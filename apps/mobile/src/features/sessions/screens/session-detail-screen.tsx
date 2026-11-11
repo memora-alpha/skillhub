@@ -122,31 +122,37 @@ export function LearningSessionScreen() {
               {session && <SessionContextPanel session={session} />}
               {session && (
                 <>
-                  <SessionLimitsPanel session={session} />
-                  <LearningChangePanel
-                    pathId={session.pathId}
-                    sessionId={session.id}
-                    startAt={session.startAt}
-                    canRequest={
-                      ["CONFIRMED", "READY"].includes(session.status) &&
-                      Date.parse(session.startAt) > now &&
-                      (session.makeupCount ?? 0) < 1 &&
-                      (!session.makeupQuota ||
-                        (!session.makeupQuota.requiresReview &&
-                          session.makeupQuota.remaining > 0))
-                    }
-                    blocked={query.isFetching || query.isError}
-                    onChanged={() => query.refetch()}
+                  <SessionAttendancePanel
+                    key={session.id}
+                    session={session}
+                    now={now}
+                    disabled={query.isFetching || query.isError}
                   />
+                  <SessionLimitsPanel
+                    key={`limits-${session.id}`}
+                    session={session}
+                    disabled={query.isFetching || query.isError}
+                  >
+                    <LearningChangePanel
+                      key={`changes-${session.id}`}
+                      compact
+                      embedded
+                      pathId={session.pathId}
+                      sessionId={session.id}
+                      startAt={session.startAt}
+                      canRequest={
+                        ["CONFIRMED", "READY"].includes(session.status) &&
+                        Date.parse(session.startAt) > now &&
+                        (session.makeupCount ?? 0) < 1 &&
+                        (!session.makeupQuota ||
+                          (!session.makeupQuota.requiresReview &&
+                            session.makeupQuota.remaining > 0))
+                      }
+                      blocked={query.isFetching || query.isError}
+                      onChanged={() => query.refetch()}
+                    />
+                  </SessionLimitsPanel>
                 </>
-              )}
-              {session && (
-                <SessionAttendancePanel
-                  key={session.id}
-                  session={session}
-                  now={now}
-                  disabled={query.isFetching || query.isError}
-                />
               )}
               {action.receipt && (
                 <FormNotice tone="info">

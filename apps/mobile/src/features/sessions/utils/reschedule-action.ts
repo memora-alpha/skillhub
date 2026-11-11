@@ -29,10 +29,8 @@ type Options = {
   now?: () => number;
 };
 const successMessages: Record<Intent["kind"], string> = {
-  propose:
-    "Đã gửi đề nghị. Cả bạn và đối tác cần xác nhận lịch mới; lịch cũ vẫn có hiệu lực.",
-  confirm:
-    "Đã ghi nhận xác nhận của bạn. Giờ học có hiệu lực được cập nhật từ máy chủ.",
+  propose: "Đã gửi lịch đề xuất. Cả hai cần xác nhận để chốt lịch.",
+  confirm: "Đã ghi nhận xác nhận của bạn.",
 };
 
 export function createRescheduleAction(options: Options) {
@@ -93,8 +91,7 @@ export function createRescheduleAction(options: Options) {
       blocked: false,
       uncertain: false,
       error: undefined,
-      message:
-        "Đã đọc lại lịch từ máy chủ. Hãy xem đề nghị và trạng thái xác nhận hiện tại.",
+      message: "Đã cập nhật lịch và trạng thái xác nhận.",
     });
   }
   function dispatch(request: Intent, input?: RescheduleInput) {

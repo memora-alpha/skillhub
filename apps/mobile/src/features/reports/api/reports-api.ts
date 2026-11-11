@@ -4,7 +4,7 @@ import { parse, resourcePath, timestamp, uuid } from "@/lib/http/contracts";
 import { uploadedFileSchema } from "@/lib/http/file-upload";
 import { AppError } from "@/lib/http/errors";
 
-export const reportReasons = [
+export const materialReportReasons = [
   "TECHNICAL_ISSUE",
   "INAPPROPRIATE_BEHAVIOR",
   "HARASSMENT",
@@ -14,6 +14,10 @@ export const reportReasons = [
   "INAPPROPRIATE_CONTENT",
   "SPAM_SCAM",
   "OTHER",
+] as const;
+export const reportReasons = [
+  "NO_SHOW_LATE",
+  ...materialReportReasons,
 ] as const;
 const status = z.enum([
   "OPEN",
@@ -34,6 +38,7 @@ export const reportSchema = z.object({
   reasonCode: z.string(),
   description: z.string(),
   status,
+  handlerId: uuid.nullable().optional(),
   resolutionNote: z.string().nullable(),
   blocksSettlement: z.boolean(),
   createdAt: timestamp.nullable(),
@@ -47,6 +52,12 @@ export const reportSchema = z.object({
   ),
 });
 export type UserReport = z.infer<typeof reportSchema>;
+const caseEvidence = z.object({
+  id: uuid,
+  mimeType: z.string(),
+  fileSizeBytes: z.string().regex(/^\d+$/),
+  uploadedAt: timestamp,
+});
 const input = z.object({
   reasonCode: z.enum(reportReasons),
   description: z.string().trim().min(10).max(2000),
@@ -84,6 +95,8 @@ export function createReportsApi(
       values: z.input<typeof input>,
     ) {
       const parsed = parse(input, values);
+      if (target === "MATERIAL")
+        parse(z.enum(materialReportReasons), parsed.reasonCode);
       if (
         new Set(parsed.evidenceFileIds).size !== parsed.evidenceFileIds.length
       )
@@ -112,10 +125,21 @@ export function createReportsApi(
         }),
       );
     },
-    async fileStatus(id: string) {
+    async evidence(caseId: string, signal?: AbortSignal) {
+      const root = resourcePath("reports/support/cases", caseId);
+      const party = resourcePath("parties", userId);
+      const rows = parse(
+        z.array(caseEvidence),
+        await call(`${root}${party}/evidence`, { signal }),
+      );
+      if (new Set(rows.map((row) => row.id)).size !== rows.length)
+        throw new AppError("protocol");
+      return rows;
+    },
+    async fileStatus(id: string, signal?: AbortSignal) {
       const file = parse(
         uploadedFileSchema,
-        await call(resourcePath("reports/evidence-files", id)),
+        await call(resourcePath("reports/evidence-files", id), { signal }),
       );
       if (file.fileId !== id) throw new AppError("protocol");
       return file;

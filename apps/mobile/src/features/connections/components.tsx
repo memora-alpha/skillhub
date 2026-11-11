@@ -3,7 +3,7 @@ import { LoadingIndicator as ActivityIndicator } from "@/components/LoadingIndic
 import type { LoadingPresentation } from "@/components/LoadingIndicator";
 import { Icon } from "@/components/Icon";
 import { FormNotice } from "@/components/FormNotice";
-import { AppError, errorMessage } from "@/lib/http/errors";
+import { AppError, errorMessage, knownErrorMessage } from "@/lib/http/errors";
 import {
   creditShortfall,
   scheduleConflictMessage,
@@ -126,7 +126,10 @@ export function connectionError(error: unknown, viewerId?: string) {
     if ([403, 404].includes(error.status))
       return "Nội dung không còn khả dụng hoặc bạn không có quyền truy cập.";
     if (error.status === 409)
-      return "Trạng thái đã thay đổi. Tải lại trước khi thao tác.";
+      return (
+        knownErrorMessage(error.code) ??
+        "Trạng thái đã thay đổi. Tải lại trước khi thao tác."
+      );
     if (error.kind === "protocol")
       return "Chưa đọc được kết quả. Vui lòng tải lại trạng thái trước khi thao tác tiếp.";
   }

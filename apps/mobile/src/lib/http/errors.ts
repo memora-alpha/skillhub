@@ -19,6 +19,8 @@ export const OTP_ERROR_MESSAGE =
   "Mã không đúng, đã hết hạn hoặc đang bị giới hạn. Sai 5 lần có thể bị chặn OTP 24 giờ; gửi lại mã không gỡ giới hạn. Mật khẩu hợp lệ vẫn dùng để đăng nhập được.";
 
 const messages: Record<string, string> = {
+  SESSION_NOT_REPORTABLE: "Buổi học đã bị hủy nên không thể gửi báo cáo.",
+  DUPLICATE_REPORT_EVIDENCE: "Bằng chứng bị trùng. Bỏ tệp trùng rồi gửi lại.",
   SESSION_MAKEUP_LIMIT_REACHED:
     "Buổi này đã dùng lượt học bù; cần nhân sự xem xét nếu còn vấn đề.",
   USER_MAKEUP_LIMIT_REACHED:
@@ -109,6 +111,10 @@ const messages: Record<string, string> = {
   INVALID_REFRESH_TOKEN: "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
 };
 
+export function knownErrorMessage(code: string): string | undefined {
+  return messages[code] ?? knownSystemMessage(code);
+}
+
 export function errorMessage(error: unknown): string {
   if (!(error instanceof AppError))
     return "Không thể hoàn tất. Vui lòng thử lại.";
@@ -117,7 +123,7 @@ export function errorMessage(error: unknown): string {
       scheduleConflictMessage(error) ??
       "Thời gian đề xuất bị trùng lịch. Hãy chọn giờ khác."
     );
-  const message = messages[error.code] ?? knownSystemMessage(error.code);
+  const message = knownErrorMessage(error.code);
   if (message) return message;
   if (error.kind === "network")
     return "Không thể kết nối. Kiểm tra mạng và thử lại.";
