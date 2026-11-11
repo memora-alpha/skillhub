@@ -34,7 +34,7 @@ export class PathOverviewReader {
     const now = await databaseNow(tx);
     const [sessionRows, cases, changes, attempts, plans] = await Promise.all([
       this.sessions.batch(tx, ids),
-      this.cases.batch(tx, actor.userId, ids),
+      this.cases.batch(tx, actor.userId, ids, now),
       tx.learningChangeRequest.findMany({
         where: {
           pathId: { in: ids },

@@ -33,6 +33,7 @@ const relations = {
     ],
   },
   reportCase: {
+    relatedPathIdRecord: ["learningPath", [["relatedPathId", "id"]], false],
     reportEvidenceCaseIdRecords: ["reportEvidence", [["id", "caseId"]], true],
   },
   learningPlan: {
@@ -245,12 +246,13 @@ export function createFakeDb({ now = () => new Date() } = {}) {
       const relation = relations[model]?.[key];
       if (relation) {
         const value = related(model, row, key);
-        const [target] = relation;
+        const [target, , isList] = relation;
         if (condition.some) {
           return value.some((item) => matches(target, item, condition.some));
         }
         if (condition.is)
           return value !== null && matches(target, value, condition.is);
+        if (!isList) return value !== null && matches(target, value, condition);
         throw new Error(`Unsupported relation filter on ${model}.${key}`);
       }
       if (

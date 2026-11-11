@@ -21,6 +21,8 @@ import { z } from "zod";
 import { FileAttachmentService } from "../../../../infrastructure/storage/file-attachment.service";
 import { FileStorageService } from "../../../../infrastructure/storage/file-storage.service";
 import { storageActor } from "../../../../shared/authorization/principal-actor";
+import { casePartyCapabilities } from "../../domain/case-capabilities";
+import { partyEvidenceWhere, evidenceMetadata } from "./report-evidence-view";
 
 @Injectable()
 export class CaseMessagesService {
@@ -59,10 +61,15 @@ export class CaseMessagesService {
       if (!this.attachments)
         throw new ServiceUnavailableException("CASE_EVIDENCE_UNAVAILABLE");
       const evidenceCount = await tx.reportEvidence.count({
-        where: { caseId, partyId },
+        where: { caseId, ...partyEvidenceWhere(partyId, item.reporterId) },
       });
-      if (evidenceCount >= 5)
-        throw new BadRequestException("CASE_EVIDENCE_LIMIT");
+      const capabilities = casePartyCapabilities({
+        status: item.status,
+        handlerId: item.handlerId,
+        ownEvidenceCount: evidenceCount,
+      });
+      if (capabilities.evidenceBlockedReason)
+        throw new BadRequestException(capabilities.evidenceBlockedReason);
       const file = await this.attachments.attachReady(tx, actor, fileId, {
         type: "REPORT_EVIDENCE",
         id: caseId,
@@ -107,16 +114,11 @@ export class CaseMessagesService {
   }
   async evidence(actor: Principal, caseId: string, partyId: string) {
     return this.transactions.run(async (tx) => {
-      await this.access(tx, actor, caseId, partyId);
+      const item = await this.access(tx, actor, caseId, partyId);
       return (
         await tx.reportEvidence.findMany({
-          where: { caseId, partyId },
-          select: {
-            id: true,
-            mimeType: true,
-            fileSizeBytes: true,
-            uploadedAt: true,
-          },
+          where: { caseId, ...partyEvidenceWhere(partyId, item.reporterId) },
+          select: evidenceMetadata,
           orderBy: { id: "asc" },
         })
       ).map((row) => ({ ...row, fileSizeBytes: row.fileSizeBytes.toString() }));
@@ -129,9 +131,13 @@ export class CaseMessagesService {
     evidenceId: string,
   ) {
     const fileId = await this.transactions.run(async (tx) => {
-      await this.access(tx, actor, caseId, partyId);
+      const item = await this.access(tx, actor, caseId, partyId);
       const row = await tx.reportEvidence.findFirst({
-        where: { id: evidenceId, caseId, partyId },
+        where: {
+          id: evidenceId,
+          caseId,
+          ...partyEvidenceWhere(partyId, item.reporterId),
+        },
         select: { storedFileId: true, storageKey: true },
       });
       if (!row) throw new NotFoundException("REPORT_EVIDENCE_NOT_FOUND");
@@ -235,9 +241,13 @@ export class CaseMessagesService {
           throw new ConflictException("CASE_MESSAGE_ID_REUSED");
         return { id: messageId, createdAt: prior.createdAt };
       }
-      if (!OPEN_REPORT_STATUSES.includes(item.status))
-        throw new ConflictException("REPORT_CASE_CLOSED");
-      if (!item.handlerId) throw new ConflictException("CASE_HANDLER_REQUIRED");
+      const capabilities = casePartyCapabilities({
+        status: item.status,
+        handlerId: item.handlerId,
+        ownEvidenceCount: 0,
+      });
+      if (capabilities.messageBlockedReason)
+        throw new ConflictException(capabilities.messageBlockedReason);
       const receipt = await tx.reportMessageReceipt.create({
         data: { messageId, caseId, partyId, senderId: actor.userId, digest },
       });

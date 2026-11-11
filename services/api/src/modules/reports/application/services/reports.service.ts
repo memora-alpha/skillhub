@@ -36,6 +36,11 @@ import type {
 } from "../../presentation/http/reports.dto";
 import { SessionChangesService } from "../../../learning-sessions/application/services/session-changes.service";
 import { assertIndependentCaseActor } from "../../domain/report-support.policy";
+import { evidenceMetadata, partyEvidenceWhere } from "./report-evidence-view";
+import {
+  sessionReportBlockReason,
+  sessionReporting,
+} from "../../domain/session-report.policy";
 
 type ReportCaseAction = "claim" | "need-more-info" | "resolve" | "reject";
 
@@ -49,12 +54,13 @@ function signedCreditUnits(value: string): bigint {
   return negative ? -units : units;
 }
 
-const evidenceSummary = {
-  reportEvidenceCaseIdRecords: {
-    where: { storedFileId: null },
-    select: { id: true, mimeType: true, fileSizeBytes: true, uploadedAt: true },
-  },
-} as const;
+const evidenceSummary = (viewerId?: string) =>
+  ({
+    reportEvidenceCaseIdRecords: {
+      ...(viewerId ? { where: partyEvidenceWhere(viewerId, viewerId) } : {}),
+      select: evidenceMetadata,
+    },
+  }) as const;
 
 /** BigInt is not JSON-serializable; sizes are returned as strings like skill evidence. */
 function withEvidenceSizeText<
@@ -62,6 +68,7 @@ function withEvidenceSizeText<
 >(cases: T[]) {
   return cases.map((item) => ({
     ...item,
+    evidenceCount: item.reportEvidenceCaseIdRecords.length,
     reportEvidenceCaseIdRecords: item.reportEvidenceCaseIdRecords.map(
       (evidence) => ({
         ...evidence,
@@ -83,6 +90,75 @@ export class ReportsService {
     private readonly configuration: SystemConfigurationService,
     private readonly sessionChanges: SessionChangesService,
   ) {}
+
+  /** Advisory preflight for authorized session reads; POST rechecks under its locks. */
+  async reportingForSessions(
+    tx: TransactionContext,
+    actorId: string,
+    sessions: {
+      id: string;
+      startAt: Date;
+      endAt: Date;
+      teacherId: string;
+      learnerId: string;
+      status: string;
+    }[],
+  ) {
+    if (!sessions.length)
+      return new Map<string, ReturnType<typeof sessionReporting>>();
+    const ids = sessions.map((s) => s.id);
+    const [outcomes, reports, clocks] = await Promise.all([
+      tx.sessionAttendanceOutcome.findMany({
+        where: { sessionId: { in: ids } },
+        select: { sessionId: true, occurrenceStartAt: true, finalizesAt: true },
+      }),
+      tx.reportCase.findMany({
+        where: {
+          reporterId: actorId,
+          relatedSessionId: { in: ids },
+          status: { in: ["OPEN", "UNDER_REVIEW", "NEED_MORE_INFO"] },
+        },
+        select: { relatedSessionId: true },
+      }),
+      tx.$queryRaw<{ now: Date }[]>`SELECT CURRENT_TIMESTAMP AS now`,
+    ]);
+    const now = clocks[0]?.now;
+    if (!(now instanceof Date))
+      throw new ServiceUnavailableException("DATABASE_TIME_UNAVAILABLE");
+    const current = (session: (typeof sessions)[number]) =>
+      outcomes.find(
+        (o) =>
+          o.sessionId === session.id &&
+          +o.occurrenceStartAt === +session.startAt,
+      );
+    let hours: number | null = null;
+    if (sessions.some((s) => !current(s))) {
+      try {
+        hours = (await this.attendancePolicy(tx)).disputeWindowHours;
+      } catch (error) {
+        if (!(error instanceof ServiceUnavailableException)) throw error;
+      }
+    }
+    return new Map(
+      sessions.map((session) => {
+        let reportBy = current(session)?.finalizesAt ?? null;
+        if (!reportBy && hours !== null)
+          reportBy = hoursAfter(session.endAt, hours);
+        return [
+          session.id,
+          sessionReporting({
+            session,
+            actorId,
+            now,
+            reportBy,
+            activeReport: reports.some(
+              (r) => r.relatedSessionId === session.id,
+            ),
+          }),
+        ];
+      }),
+    );
+  }
 
   /** Case opened by the Session lifecycle itself; holds settlement like a user report. */
   async openSystemSessionCase(
@@ -252,14 +328,15 @@ export class ReportsService {
       const path = await tx.learningPath.findUniqueOrThrow({
         where: { id: session.pathId },
       });
-      if (
-        actor.userId !== session.teacherId &&
-        actor.userId !== session.learnerId
-      ) {
+      const accessReason = sessionReportBlockReason(
+        session,
+        actor.userId,
+        false,
+      );
+      if (accessReason === "SESSION_ACCESS_DENIED") {
         throw new ForbiddenException("SESSION_ACCESS_DENIED");
       }
-      if (session.status === "CANCELLED")
-        throw new ConflictException("SESSION_NOT_REPORTABLE");
+      if (accessReason) throw new ConflictException(accessReason);
       const activeReport = await tx.reportCase.findFirst({
         where: {
           reporterId: actor.userId,
@@ -268,8 +345,12 @@ export class ReportsService {
         },
         select: { id: true },
       });
-      if (activeReport)
-        throw new ConflictException("ACTIVE_SESSION_REPORT_EXISTS");
+      const activeReason = sessionReportBlockReason(
+        session,
+        actor.userId,
+        Boolean(activeReport),
+      );
+      if (activeReason) throw new ConflictException(activeReason);
       const [clock] = await tx.$queryRaw<
         { now: Date }[]
       >`SELECT CURRENT_TIMESTAMP AS now`;
@@ -278,8 +359,15 @@ export class ReportsService {
       const outcome = await currentOutcome(tx, session);
       const disputeBy =
         outcome?.finalizesAt ?? (await this.disputeDeadline(tx, session.endAt));
-      if (clock.now >= disputeBy)
-        throw new ConflictException("DISPUTE_WINDOW_CLOSED");
+      const reporting = sessionReporting({
+        session,
+        actorId: actor.userId,
+        activeReport: false,
+        reportBy: disputeBy,
+        now: clock.now,
+      });
+      if (reporting.blockedReason)
+        throw new ConflictException(reporting.blockedReason);
       const caseId = randomUUID();
       const blocksSettlement =
         path.settledAt === null && path.status !== "CANCELLED";
@@ -357,7 +445,7 @@ export class ReportsService {
       withEvidenceSizeText(
         await tx.reportCase.findMany({
           where: { reporterId: actor.userId },
-          include: evidenceSummary,
+          include: evidenceSummary(actor.userId),
           orderBy: [
             { createdAt: { sort: "desc", nulls: "last" } },
             { id: "desc" },
@@ -371,7 +459,7 @@ export class ReportsService {
     return this.transactions.run(async (tx) => {
       const item = await tx.reportCase.findFirst({
         where: { id: caseId, reporterId: actor.userId },
-        include: evidenceSummary,
+        include: evidenceSummary(actor.userId),
       });
       if (!item) throw new NotFoundException("REPORT_CASE_NOT_FOUND");
       return withEvidenceSizeText([item])[0];
@@ -386,7 +474,7 @@ export class ReportsService {
           where: {
             status: { in: ["OPEN", "UNDER_REVIEW", "NEED_MORE_INFO"] },
           },
-          include: evidenceSummary,
+          include: evidenceSummary(),
           orderBy: [{ id: "asc" }],
           take: 100,
         }),
@@ -731,7 +819,7 @@ export class ReportsService {
     return this.transactions.run(async (tx) => {
       const item = await tx.reportCase.findUnique({
         where: { id: caseId },
-        include: evidenceSummary,
+        include: evidenceSummary(),
       });
       if (!item) throw new NotFoundException("REPORT_CASE_NOT_FOUND");
       const session = item.relatedSessionId
