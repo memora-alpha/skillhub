@@ -264,6 +264,10 @@
   border-top: 1px solid var(--line);
   background: #fffefc;
 }
+.composer > output {
+  display: block;
+  margin: 1em 0;
+}
 .composerRow {
   display: flex;
   gap: 8px;

@@ -46,7 +46,10 @@ export function recordSkillQueries(
   for (const [key, data] of lists) {
     if (!data) continue;
     const include =
-      !skill.archivedAt && matchesSkillFilter(skill, key.at(-1) as SkillFilter);
+      key.at(-1) === "ARCHIVED"
+        ? !!skill.archivedAt
+        : !skill.archivedAt &&
+          matchesSkillFilter(skill, key.at(-1) as SkillFilter);
     const found = data.pages.some((page) =>
       page.data.some((item) => item.id === skill.id),
     );

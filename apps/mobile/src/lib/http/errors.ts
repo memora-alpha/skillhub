@@ -1,4 +1,5 @@
 import { knownSystemMessage } from "@/constants/system-text";
+import { contactInformationNotice } from "@/lib/contact-policy";
 import type { SchedulingErrorDetails } from "./scheduling-error";
 import { scheduleConflictMessage } from "./scheduling-error";
 export class AppError extends Error {
@@ -19,6 +20,7 @@ export const OTP_ERROR_MESSAGE =
   "Mã không đúng, đã hết hạn hoặc đang bị giới hạn. Sai 5 lần có thể bị chặn OTP 24 giờ; gửi lại mã không gỡ giới hạn. Mật khẩu hợp lệ vẫn dùng để đăng nhập được.";
 
 const messages: Record<string, string> = {
+  CONTACT_INFORMATION_BLOCKED: contactInformationNotice,
   SESSION_MAKEUP_LIMIT_REACHED:
     "Buổi này đã dùng lượt học bù; cần nhân sự xem xét nếu còn vấn đề.",
   USER_MAKEUP_LIMIT_REACHED:

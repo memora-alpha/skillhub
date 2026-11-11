@@ -1,4 +1,9 @@
+import { apiFetch } from "@/lib/network/api-fetch";
 import { knownSystemMessage } from "@/lib/system-text";
+import {
+  findContactInformation,
+  contactInformationNotice,
+} from "@/lib/contact-policy";
 import type { Reply } from "../types";
 export class UserApiError extends Error {
   constructor(
@@ -10,6 +15,7 @@ export class UserApiError extends Error {
   }
 }
 const messages: Record<string, string> = {
+  CONTACT_INFORMATION_BLOCKED: contactInformationNotice,
   MATERIAL_REFUND_WINDOW_CLOSED: "Đã quá hạn hoàn đơn 24 giờ.",
   MATERIAL_ALREADY_CONSUMED:
     "Đơn đã lấy liên kết tải nên không thể hoàn tự động.",
@@ -230,9 +236,19 @@ export async function userFetch<T>(
   path: string,
   options: UserRequestOptions = {},
 ): Promise<Reply<T>> {
+  if (
+    options.method === "POST" &&
+    /^conversations\/[^/]+\/messages$/.test(path) &&
+    options.body &&
+    typeof options.body === "object" &&
+    "messageText" in options.body &&
+    typeof options.body.messageText === "string"
+  )
+    if (findContactInformation(options.body.messageText))
+      throw new UserApiError(400, "CONTACT_INFORMATION_BLOCKED");
   let response: Response;
   try {
-    response = await fetch("/api/user/" + path, requestInit(options));
+    response = await apiFetch("/api/user/" + path, requestInit(options));
   } catch (cause) {
     if (options.signal?.aborted) throw cause;
     throw new UserApiError(0, "API_UNAVAILABLE");

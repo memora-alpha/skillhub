@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { safeChatText } from "@/lib/contact-policy";
 import type { Message } from "../types";
 import { ProfileAvatar } from "../components/profile-avatar";
 import { ProductIcon } from "../components/product-icon";
@@ -42,7 +43,9 @@ export function ChatMessage({
             <span className={styles.avatarSpace} />
           ))}
         <article className={styles.bubble} title={formatTime(message.sentAt)}>
-          {message.messageText.trim() && <p>{message.messageText}</p>}
+          {message.messageText.trim() && (
+            <p>{safeChatText(message.messageText)}</p>
+          )}
           {message.attachments.map((file) => (
             <div className={styles.fileCard} key={file.attachmentId}>
               <ProductIcon name="file" size={19} />

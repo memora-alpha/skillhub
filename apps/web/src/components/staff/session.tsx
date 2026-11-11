@@ -1,5 +1,9 @@
 "use client";
 import {
+  isConnectionFailure,
+  onConnectionRestored,
+} from "@/lib/network/connection-store";
+import {
   createContext,
   useCallback,
   useContext,
@@ -68,7 +72,7 @@ export function StaffSessionProvider({
       })
       .catch((e: unknown) => {
         if (controller.signal.aborted) return;
-        setActor(null);
+        if (!isConnectionFailure(e)) setActor(null);
         setError(sessionError(e));
       })
       .finally(() => {
@@ -112,6 +116,13 @@ export function StaffSessionProvider({
     setLoading(true);
     setRevision((v) => v + 1);
   }, []);
+  useEffect(
+    () =>
+      onConnectionRestored(() => {
+        if (!actor) refresh();
+      }),
+    [actor, refresh],
+  );
   const value = useMemo<Session>(
     () => ({
       portal,

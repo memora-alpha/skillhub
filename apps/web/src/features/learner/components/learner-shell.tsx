@@ -1,4 +1,5 @@
 "use client";
+import { onConnectionRestored } from "@/lib/network/connection-store";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -119,6 +120,9 @@ export function LearnerShell({
       source.onerror = () => {
         close();
         setLive(false);
+        // A failed stream may be a permission/protocol error. A normal read
+        // distinguishes that from an unavailable server through the API client.
+        void request("session").catch(() => undefined);
       };
     };
     const focus = () => {
@@ -128,8 +132,12 @@ export function LearnerShell({
       } else close();
     };
     void open();
+    const unsubscribe = onConnectionRestored(() => {
+      void open();
+    });
     document.addEventListener("visibilitychange", focus);
     return () => {
+      unsubscribe();
       close();
       if (timer) clearTimeout(timer);
       document.removeEventListener("visibilitychange", focus);

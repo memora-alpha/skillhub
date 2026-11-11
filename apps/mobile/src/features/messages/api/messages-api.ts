@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { findContactInformation } from "@/lib/contact-policy";
 import type { RequestOptions } from "@/lib/http/client";
 import { AppError } from "@/lib/http/errors";
 import {
@@ -134,6 +135,9 @@ export function createMessagesApi(
       return page;
     },
     async send(id: string, body: MessageDraft, signal?: AbortSignal) {
+      // Local policy guard: this code is not a backend response contract.
+      if (findContactInformation(body.messageText ?? ""))
+        throw new AppError("http", 400, "CONTACT_INFORMATION_BLOCKED");
       parse(uuid, body.clientMessageId);
       return delivery(
         await call(`${root(id)}/messages`, {

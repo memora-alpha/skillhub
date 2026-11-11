@@ -106,14 +106,15 @@ async function loginSession(request: NextRequest, token: string | undefined) {
     body.email.trim().length > 254 ||
     typeof body.password !== "string" ||
     body.password.length < 1 ||
-    body.password.length > 64
+    body.password.length > 64 ||
+    (body.rememberMe !== undefined && typeof body.rememberMe !== "boolean")
   )
     throw new UserGatewayError(400, "INVALID_LOGIN_INPUT");
   const result = tokenReply(
     await userBackend("auth/login", undefined, "POST", {
       email: body.email.trim(),
       password: body.password,
-      rememberMe: false,
+      rememberMe: body.rememberMe ?? false,
     }),
   );
   return result.status === 200 && result.value?.success

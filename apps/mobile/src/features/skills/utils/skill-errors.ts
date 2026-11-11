@@ -5,6 +5,8 @@ const messages: Record<string, string> = {
   VERIFICATION_PENDING:
     "Kỹ năng đang có yêu cầu chờ duyệt. Hãy kiểm tra lịch sử xác minh.",
   SHARING_SKILL_ARCHIVED: "Kỹ năng đã bị xóa khỏi hồ sơ.",
+  SHARING_SKILL_NOT_ARCHIVED:
+    "Kỹ năng đã được khôi phục. Tải lại danh sách kỹ năng của bạn.",
   FILE_NOT_READY: "File chưa sẵn sàng. Kiểm tra trạng thái trước khi gửi.",
   SKILL_NOT_ACTIVE: "Kỹ năng không còn có thể chọn. Hãy chọn lại từ danh mục.",
   SKILL_LEVEL_NOT_ACTIVE:

@@ -3,6 +3,7 @@ import { View } from "react-native";
 import { openURL } from "expo-linking";
 import { useRouter } from "expo-router";
 import { Avatar } from "@/components/Avatar";
+import { safeChatText } from "@/lib/contact-policy";
 
 import {
   readPlanShare,
@@ -79,7 +80,11 @@ export function ApiMessageBubble({
   return (
     <View style={{ gap: 6 }}>
       <ApiMessageContent
-        message={message}
+        message={
+          message.messageType === "SYSTEM"
+            ? message
+            : { ...message, messageText: safeChatText(message.messageText) }
+        }
         scheduleNotice={scheduleNotice}
         partner={partner}
         partnerId={partnerId}

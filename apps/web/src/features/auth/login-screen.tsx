@@ -1,4 +1,5 @@
 "use client";
+import { onConnectionRestored } from "@/lib/network/connection-store";
 import { formText } from "../learner/components/form-data";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
@@ -40,29 +41,42 @@ export function LoginScreen() {
   }, []);
   useEffect(() => {
     let active = true;
-    const work = restoreLoginSession();
-    void work
-      .then((value) => {
-        if (active && value) enter(value);
-      })
-      .catch((cause: unknown) => {
-        if (
-          !active ||
-          (cause instanceof LoginSessionError && cause.status === 401)
-        )
-          return;
-        setError(
-          cause instanceof Error
-            ? cause.message
-            : "Không thể kiểm tra phiên đăng nhập.",
-        );
-        setCanReset(cause instanceof LoginSessionError && cause.status === 409);
-      })
-      .finally(() => {
-        if (active) setChecking(false);
-      });
+    const check = () => {
+      void restoreLoginSession()
+        .then((value) => {
+          if (active) {
+            setError(undefined);
+            setCanReset(false);
+            if (value) enter(value);
+          }
+        })
+        .catch((cause: unknown) => {
+          if (
+            !active ||
+            (cause instanceof LoginSessionError && cause.status === 401)
+          )
+            return;
+          setError(
+            cause instanceof Error
+              ? cause.message
+              : "Không thể kiểm tra phiên đăng nhập.",
+          );
+          setCanReset(
+            cause instanceof LoginSessionError && cause.status === 409,
+          );
+        })
+        .finally(() => {
+          if (active) setChecking(false);
+        });
+    };
+    check();
+    const unsubscribe = onConnectionRestored(() => {
+      setChecking(true);
+      check();
+    });
     return () => {
       active = false;
+      unsubscribe();
     };
   }, []);
 
@@ -133,9 +147,10 @@ export function LoginScreen() {
                 const destination = await signIn(
                   email,
                   formText(data, "password"),
+                  data.get("rememberMe") === "on",
                 );
                 try {
-                  if (data.get("rememberEmail"))
+                  if (data.get("rememberMe") === "on")
                     localStorage.setItem("skillhub:login-email", email);
                   else localStorage.removeItem("skillhub:login-email");
                 } catch {
@@ -183,7 +198,7 @@ export function LoginScreen() {
               <input
                 type="checkbox"
                 ref={rememberInput}
-                name="rememberEmail"
+                name="rememberMe"
                 disabled={checking || pending}
                 onChange={(event) => {
                   if (!event.target.checked) {
@@ -195,7 +210,7 @@ export function LoginScreen() {
                   }
                 }}
               />
-              <span>Ghi nhớ tài khoản cho lần sau</span>
+              <span>Ghi nhớ đăng nhập</span>
             </label>
             <div className="auth-feedback" aria-live="polite">
               {error && (

@@ -1,4 +1,8 @@
 "use client";
+import {
+  isConnectionFailure,
+  onConnectionRestored,
+} from "@/lib/network/connection-store";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { StaffApiError, isSessionFailure } from "@/lib/staff/client";
 import { appendCursor, mergePage } from "@/lib/staff/pagination";
@@ -51,16 +55,26 @@ export function useStaffResource<T>(path: string) {
       .catch((e: unknown) => {
         if (controller.signal.aborted) return;
         if (isSessionFailure(e)) expire();
-        setState({
+        setState((previous) => ({
           path,
+          result:
+            previous.path === path && isConnectionFailure(e)
+              ? previous.result
+              : undefined,
           loading: false,
           error: e instanceof Error ? e.message : "Không thể tải dữ liệu.",
-        });
+        }));
       });
   }, [path, expire, api]);
   useEffect(() => {
     void load();
-    return () => current.current?.abort();
+    const unsubscribe = onConnectionRestored(() => {
+      void load();
+    });
+    return () => {
+      unsubscribe();
+      current.current?.abort();
+    };
   }, [load]);
   const fresh = state.path === path;
   return {
@@ -135,7 +149,13 @@ export function useStaffList<T extends { id?: string; userId?: string }>(
   );
   useEffect(() => {
     void load();
-    return () => current.current?.abort();
+    const unsubscribe = onConnectionRestored(() => {
+      void load();
+    });
+    return () => {
+      unsubscribe();
+      current.current?.abort();
+    };
   }, [load]);
   const fresh = state.path === path;
   return {

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Fira_Code, Fira_Sans } from "next/font/google";
 import { SessionSync } from "@/features/auth/session-sync";
+import { ConnectionBoundary } from "@/components/network/connection-boundary";
 import "./globals.css";
 import "./console.css";
 import "./responsive.css";
@@ -28,8 +29,10 @@ export default function RootLayout({
   return (
     <html lang="vi" className={`${sans.variable} ${mono.variable}`}>
       <body>
-        <SessionSync />
-        {children}
+        <ConnectionBoundary>
+          <SessionSync />
+          {children}
+        </ConnectionBoundary>
       </body>
     </html>
   );

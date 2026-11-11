@@ -1,5 +1,9 @@
 "use client";
 import {
+  isConnectionFailure,
+  onConnectionRestored,
+} from "@/lib/network/connection-store";
+import {
   createContext,
   useCallback,
   useContext,
@@ -64,6 +68,8 @@ function UserSessionLifecycle({ children }: Readonly<{ children: ReactNode }>) {
   const [actor, setActor] = useState<Identity | null>(null),
     [loading, setLoading] = useState(true),
     [error, setError] = useState<string>();
+  const [revision, setRevision] = useState(0);
+  const [connectionPending, setConnectionPending] = useState(false);
   const epoch = useRef(0);
   const renewing = useRef<Promise<Identity> | null>(null);
   const refresh = useCallback(() => {
@@ -99,9 +105,14 @@ function UserSessionLifecycle({ children }: Readonly<{ children: ReactNode }>) {
     let active = true;
     void renew()
       .then((value) => {
-        if (active) setActor(value);
+        if (active) {
+          setActor(value);
+          setConnectionPending(false);
+          setError(undefined);
+        }
       })
       .catch((cause: unknown) => {
+        if (active) setConnectionPending(isConnectionFailure(cause));
         if (
           active &&
           (!(cause instanceof UserApiError) || cause.status !== 401)
@@ -118,7 +129,22 @@ function UserSessionLifecycle({ children }: Readonly<{ children: ReactNode }>) {
     return () => {
       active = false;
     };
-  }, [renew]);
+  }, [renew, revision]);
+  useEffect(
+    () =>
+      onConnectionRestored(() => {
+        if (actor) {
+          void cache.invalidateQueries({
+            queryKey: ["learner", actor.userId],
+            refetchType: "active",
+          });
+        } else {
+          setLoading(true);
+          setRevision((value) => value + 1);
+        }
+      }),
+    [actor, cache],
+  );
   const request = useCallback<Request>(
     async <T,>(path: string, options: UserRequestOptions = {}) => {
       const ticket = epoch.current,
@@ -185,7 +211,7 @@ function UserSessionLifecycle({ children }: Readonly<{ children: ReactNode }>) {
     () => (actor ? { actor, request, refresh, logout } : null),
     [actor, request, refresh, logout],
   );
-  if (loading) return <LearnerShellSkeleton />;
+  if (loading || (!actor && connectionPending)) return <LearnerShellSkeleton />;
   if (!actor) return <SignInRedirect message={error} />;
   return (
     <SessionContext.Provider value={context}>

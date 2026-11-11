@@ -12,11 +12,13 @@ export function TagPicker({
   proposed,
   onChange,
   disabled,
+  allowProposals = true,
 }: Readonly<{
   ids: string[];
   proposed: string[];
   onChange: (ids: string[], proposed: string[]) => void;
   disabled: boolean;
+  allowProposals?: boolean;
 }>) {
   const { request } = useUserSession();
   const [search, setSearch] = useState("");
@@ -64,10 +66,11 @@ export function TagPicker({
   }
   return (
     <fieldset className="learner-picker" disabled={disabled}>
-      <legend>Tag của bài đăng</legend>
+      <legend>{allowProposals ? "Tag của bài đăng" : "Lọc theo tag"}</legend>
       <p>
-        Tag có sẵn dùng ngay. Tag mới đề xuất sẽ chờ duyệt cùng bài, chưa được
-        thêm vào danh mục chung.
+        {allowProposals
+          ? "Tag có sẵn dùng ngay. Tag mới đề xuất sẽ chờ duyệt cùng bài, chưa được thêm vào danh mục chung."
+          : "Chọn tối đa 10 tag có sẵn để lọc bài đăng."}
       </p>
       <div className="learner-search">
         <input
@@ -141,59 +144,68 @@ export function TagPicker({
           ))}
         </div>
       )}
-      <label>
-        <span>Đề xuất tag mới cho bài này</span>
-        <input
-          value={label}
-          maxLength={80}
-          onChange={(e) => setLabel(e.target.value)}
-        />
-      </label>
-      <button
-        className="btn"
-        type="button"
-        onClick={() => {
-          try {
-            const value = normalizeTag(label);
-            const existing = query.items.find(
-              (tag) =>
-                normalizeTag(tag.label).toLowerCase() === value.toLowerCase(),
-            );
-            change(
-              existing ? [...new Set([...ids, existing.id])] : ids,
-              existing ? proposed : [...proposed, value],
-            );
-            setLabel("");
-          } catch (cause) {
-            setError(
-              cause instanceof Error ? cause.message : "Tên tag chưa hợp lệ.",
-            );
-          }
-        }}
-      >
-        Thêm tag đề xuất
-      </button>
-      {proposed.map((value, index) => (
-        <p key={value}>
-          {value} · Chờ duyệt{" "}
+      {allowProposals && (
+        <>
+          <label>
+            <span>Đề xuất tag mới cho bài này</span>
+            <input
+              value={label}
+              maxLength={80}
+              onChange={(e) => setLabel(e.target.value)}
+            />
+          </label>
           <button
+            className="btn"
             type="button"
-            className="learner-text-button"
-            onClick={() =>
-              change(
-                ids,
-                proposed.filter((_, i) => i !== index),
-              )
-            }
+            onClick={() => {
+              try {
+                const value = normalizeTag(label);
+                const existing = query.items.find(
+                  (tag) =>
+                    normalizeTag(tag.label).toLowerCase() ===
+                    value.toLowerCase(),
+                );
+                change(
+                  existing ? [...new Set([...ids, existing.id])] : ids,
+                  existing ? proposed : [...proposed, value],
+                );
+                setLabel("");
+              } catch (cause) {
+                setError(
+                  cause instanceof Error
+                    ? cause.message
+                    : "Tên tag chưa hợp lệ.",
+                );
+              }
+            }}
           >
-            Bỏ đề xuất {value}
+            Thêm tag đề xuất
           </button>
-        </p>
-      ))}
+          {proposed.map((value, index) => (
+            <p key={value}>
+              {value} · Chờ duyệt{" "}
+              <button
+                type="button"
+                className="learner-text-button"
+                onClick={() =>
+                  change(
+                    ids,
+                    proposed.filter((_, i) => i !== index),
+                  )
+                }
+              >
+                Bỏ đề xuất {value}
+              </button>
+            </p>
+          ))}
+        </>
+      )}
       <Feedback error={error} />
-      <Link className="learner-card-link" href="/learn/tag-requests">
-        Đề xuất tag độc lập & theo dõi yêu cầu của tôi →
-      </Link>
+      {allowProposals && (
+        <Link className="learner-card-link" href="/learn/tag-requests">
+          Đề xuất tag độc lập & theo dõi yêu cầu của tôi →
+        </Link>
+      )}
     </fieldset>
   );
 }

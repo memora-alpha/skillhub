@@ -9,6 +9,7 @@ import { Feedback, More } from "../components/common";
 import { ProductIcon } from "../components/product-icon";
 import { MemberIdentity } from "../components/member-identity";
 import { formatVietnamTime } from "@/lib/vietnam-time";
+import { safeChatText } from "@/lib/contact-policy";
 import { RequestInbox } from "./request-inbox";
 import { inboxGroupSummary, type InboxGroup } from "./inbox-types";
 import styles from "./inbox.module.css";
@@ -173,7 +174,9 @@ function DirectConversation({
         <span className={styles.preview}>
           <span>
             {last.senderId === actor.userId ? "Bạn: " : ""}
-            {last.preview ||
+            {(last.messageType === "SYSTEM"
+              ? last.preview
+              : safeChatText(last.preview)) ||
               (last.messageType === "FILE"
                 ? "Tệp đính kèm"
                 : "Cập nhật cuộc trò chuyện")}

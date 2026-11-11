@@ -1,3 +1,4 @@
+import { apiFetch } from "@/lib/network/api-fetch";
 import { knownSystemMessage } from "@/lib/system-text";
 import type { ApiEnvelope } from "./types";
 import type { Portal } from "./policy";
@@ -100,7 +101,9 @@ function messageFor(status: number, code: string) {
   if (translated) return translated;
   if (code === "FILE_UNAVAILABLE" || code === "INVALID_DOWNLOAD_LINK")
     return "Không thể mở tệp hoặc liên kết đã hết hạn. Nhấn Thử lại để lấy liên kết mới.";
-  if (code === "API_UNAVAILABLE" || code === "API_RESPONSE_INVALID")
+  if (code === "API_RESPONSE_INVALID")
+    return "Phản hồi máy chủ chưa hợp lệ. Vui lòng thử tải lại nội dung.";
+  if (code === "API_UNAVAILABLE")
     return "Chưa kết nối được với máy chủ. Vui lòng thử lại sau ít giây.";
   if (status === 401) return "Phiên đã hết hạn. Vui lòng đăng nhập lại.";
   if (status === 403) return "Bạn không có quyền thực hiện thao tác này.";
@@ -177,7 +180,7 @@ async function portalResponse(
 ): Promise<Response> {
   let response: Response;
   try {
-    response = await fetch(`/api/${portal}/${path}`, {
+    response = await apiFetch(`/api/${portal}/${path}`, {
       method: options.method ?? "GET",
       credentials: "same-origin",
       cache: "no-store",

@@ -1,3 +1,7 @@
+import {
+  assertNoContactInformation,
+  safeChatText,
+} from "../content/contact-policy";
 export const roomChatTopic = "skillhub.session-chat.v1";
 export const roomChatTextLimit = 1000;
 export type RoomChatMessage = { id: string; text: string; own: boolean };
@@ -48,7 +52,7 @@ export function createEphemeralChat(options: {
           packet.text.length > roomChatTextLimit
         )
           return;
-        append({ v: 1, id: packet.id, text: packet.text }, false);
+        append({ v: 1, id: packet.id, text: safeChatText(packet.text) }, false);
       } catch {
         /* Ignore malformed or unrelated room data. */
       }
@@ -63,6 +67,7 @@ export function createEphemeralChat(options: {
         text.length > roomChatTextLimit
       )
         return false;
+      assertNoContactInformation(text);
       const packet: Packet = { v: 1, id: options.createId(), text };
       if (!validId(packet.id)) return false;
       sending = true;

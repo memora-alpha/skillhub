@@ -194,7 +194,8 @@ async function login(request: NextRequest, portal: Portal) {
     body.email.trim().length < 5 ||
     body.email.trim().length > 254 ||
     body.password.length < 1 ||
-    body.password.length > 64
+    body.password.length > 64 ||
+    (body.rememberMe !== undefined && typeof body.rememberMe !== "boolean")
   )
     throw new GatewayError(400, "INVALID_LOGIN_INPUT");
   // Refuse account replacement: logout first, so parallel tabs cannot silently switch identities.
@@ -204,7 +205,7 @@ async function login(request: NextRequest, portal: Portal) {
     await backend("auth/login", undefined, "POST", {
       email: body.email.trim(),
       password: body.password,
-      rememberMe: false,
+      rememberMe: body.rememberMe ?? false,
     }),
   );
   if (result.status !== 200 || !result.value?.success)

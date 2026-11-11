@@ -18,6 +18,7 @@ import {
   skillLevelSchema,
 } from "./skill-contracts";
 import { z } from "zod";
+import { filteredSkillPage } from "../utils/skill-filter";
 
 export function queryString(
   values: Record<string, string | boolean | undefined>,
@@ -67,6 +68,19 @@ export function createSkillsApi(client: PaginatedHttpClient) {
     });
   return {
     own,
+    archived: (cursor?: string, signal?: AbortSignal) =>
+      filteredSkillPage(
+        async (pageCursor) => {
+          // The backend flag includes both active and archived records.
+          const page = await own(true, pageCursor, signal);
+          return {
+            ...page,
+            data: page.data.filter((skill) => !!skill.archivedAt),
+          };
+        },
+        "ALL",
+        cursor,
+      ),
     async levels(skillId: string, signal?: AbortSignal) {
       const levels = parseContract(
         z.array(skillLevelSchema),
@@ -128,6 +142,15 @@ export function createSkillsApi(client: PaginatedHttpClient) {
         id,
       );
       if (!result.archivedAt) throw new AppError("protocol");
+      return result;
+    },
+    restore: async (id: string, expectedVersion: number, key: string) => {
+      const result = parseOwnMutation(
+        await mutate(`${root(id)}/restore`, { expectedVersion }, key),
+        id,
+      );
+      if (result.archivedAt || result.version <= expectedVersion)
+        throw new AppError("protocol");
       return result;
     },
     async upload(id: string, body: FormData, signal?: AbortSignal) {

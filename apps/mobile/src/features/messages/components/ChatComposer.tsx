@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, TextInput, View } from "react-native";
+import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { findContactInformation } from "@/lib/contact-policy";
 import { useState, type ReactNode } from "react";
 import { Icon } from "@/components/Icon";
 import { iconSizes, typography, fonts } from "@/constants/theme";
@@ -26,11 +27,21 @@ export function ChatComposer({
   attachmentPreview?: ReactNode;
 }) {
   const [focused, setFocused] = useState(false);
-  const disabled = pending || sendDisabled || (!value.trim() && !hasAttachment);
+  const contactIssue = findContactInformation(value);
+  const disabled =
+    pending ||
+    sendDisabled ||
+    !!contactIssue ||
+    (!value.trim() && !hasAttachment);
   return (
     <View style={styles.composer}>
       <View style={styles.content}>
         {attachmentPreview}
+        {contactIssue && (
+          <Text accessibilityRole="alert" style={styles.contactNotice}>
+            {contactIssue.message}
+          </Text>
+        )}
         <View style={styles.row}>
           <Pressable
             accessibilityRole="button"
@@ -58,7 +69,8 @@ export function ChatComposer({
             onBlur={() => setFocused(false)}
             returnKeyType="send"
             onSubmitEditing={(event) => {
-              if (!disabled) onSend(event.nativeEvent.text);
+              if (!disabled && !findContactInformation(event.nativeEvent.text))
+                onSend(event.nativeEvent.text);
             }}
             submitBehavior="newline"
             style={[styles.input, focused && { borderColor: colors.brand }]}
@@ -79,6 +91,12 @@ export function ChatComposer({
   );
 }
 const styles = StyleSheet.create({
+  contactNotice: {
+    color: colors.ink,
+    fontFamily: fonts.body,
+    fontSize: 13,
+    paddingHorizontal: 12,
+  },
   composer: {
     backgroundColor: colors.surface,
     borderTopWidth: 1,

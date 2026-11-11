@@ -10,6 +10,7 @@ import {
 import type { useRoomChat } from "./use-room-chat";
 import { roomChatTextLimit } from "./ephemeral-chat";
 import { RoomIcon } from "./room-icon";
+import { findContactInformation } from "@/lib/contact-policy";
 import { RoomAvatar } from "./room-avatar";
 import type { RoomPerson } from "./room-profiles";
 import styles from "./room-chat.module.css";
@@ -30,6 +31,7 @@ export function RoomChat({
   self: RoomPerson;
 }>) {
   const [draft, setDraft] = useState("");
+  const contactIssue = findContactInformation(draft);
   const [mode, setMode] = useState<WindowMode>("floating");
   const [restoreMode, setRestoreMode] = useState<"floating" | "maximized">(
     "floating",
@@ -218,6 +220,8 @@ export function RoomChat({
           <textarea
             id={bodyId + "-message"}
             value={draft}
+            aria-invalid={!!contactIssue}
+            aria-describedby={contactIssue ? bodyId + "-contact" : undefined}
             rows={2}
             maxLength={roomChatTextLimit}
             onChange={(event) => setDraft(event.target.value)}
@@ -235,11 +239,18 @@ export function RoomChat({
               }
             }}
           />
+          {contactIssue && (
+            <output id={bodyId + "-contact"} className={styles.error}>
+              {contactIssue.message}
+            </output>
+          )}
           <div className={styles.composerActions}>
             <span>Enter để gửi · Shift + Enter xuống dòng</span>
             <button
               type="submit"
-              disabled={!chat.ready || chat.pending || !draft.trim()}
+              disabled={
+                !chat.ready || chat.pending || !draft.trim() || !!contactIssue
+              }
             >
               {chat.pending ? "Đang gửi…" : "Gửi"}
             </button>
