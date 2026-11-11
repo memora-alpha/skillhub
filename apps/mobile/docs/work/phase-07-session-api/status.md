@@ -1,5 +1,18 @@
 # Trạng thái Phase 07 — Session API
 
+## Dọn code trước commit — 2026-11-12T00:27:44+07:00
+
+- P07-UI-07 **Ready for review**, người dùng **Chưa nghiệm thu**. Bỏ Session preview context/provider không có người đọc khỏi UiPreviewProvider/index và xóa cờ demo/style không có caller của SessionPage. Giữ RoomPreview dùng cho camera thật; dữ liệu mẫu của các màn khác có consumer/nhãn vẫn giữ.
+- Kiểm chứng chung tại [Report UI](../reports-ui/status.md), REPORT-UI-23: full suite **1.134/1.134 PASS**, types/lint/structure **962 source files**, export/format/diff và **48 nhóm browser fixture PASS**. Giữ giới hạn API thật/Android/iOS/UAT **NOT_RUN**; chưa stage/commit, chỉ sửa mobile.
+
+## Rà lại màn đăng ký học bù — 2026-11-12T00:10:14+07:00
+
+- P07-UI-06 **Ready for review**; người dùng **Chưa nghiệm thu**. Đối chiếu source `attendance-view.ts`, `scheduling.service.ts` và mobile: học bù dùng quyền `PROPOSE_MAKEUP`/`makeupBy`, cùng API đề xuất/xác nhận lịch theo version; không áp cutoff giờ buổi gốc cho học bù. Không sửa backend, cấu hình thời lượng hoặc quy tắc cấp lượt.
+- UI đã dùng Nunito/theme/SessionSection/SessionButton/DateTimeField/Input chung. Sửa các điểm còn lệch: trường ngày giờ/thời lượng giờ khóa cùng nút gửi khi hết hạn/thiếu quyền/context chưa sẵn sàng; hạn chốt gọn `Chốt trước HH:mm · dd/MM/yyyy`; lỗi học bù không còn nói lịch cũ vẫn hiệu lực; proposal hết hạn không đồng thời nhắc xác nhận trước hạn. Giữ draft khi lỗi trùng lịch.
+- Bổ sung AppState vào lifecycle action: chuyển nền trong lúc đọc kiểm tra trước gửi sẽ hủy lượt thao tác đó, quay lại không tự POST. Focus/owner/version guards, đọc mới trước mutation và recovery uncertain hiện có được giữ.
+- Kiểm chứng: **23 tests PASS** trong 6 file (context/eligibility/read/time/import/lifecycle, gồm quyền/hạn/version/path thay đổi giữa lúc mở form và gửi); TypeScript, full ESLint, structure **963 files**, web export và `git diff --check` **PASS**. Browser **11 nhóm PASS**, 320/375/430px không tràn ngang; một đề xuất thành công, một đề xuất bị từ chối trùng lịch và một xác nhận qua API fixture; không page error. Đã mở xem ảnh form và xác nhận 375px. Full suite, API thật, native keyboard/AppState Android/iOS và font scaling **NOT_RUN**.
+- Evidence local ignored: `.expo/makeup-review-browser.cjs`, `.expo/makeup-review-validation/`, `.expo/makeup-review-browser.log`, `.expo/makeup-review-tests.log`, `.expo/makeup-review-types.log`, `.expo/makeup-review-export.log`. Web fixture và unit test không thay bằng chứng deployment hoặc native; các dependency/acceptance cũ của phase giữ nguyên.
+
 ## Thu nhỏ số tiến độ — 2026-11-11T17:21:22+07:00
 
 - **Ready for review**, người dùng **Chưa nghiệm thu**. P07-UI-05 đổi progressValue từ amount 32px/40px sang title 20px/28px, giữ font đậm và đơn vị buổi. Không đổi dữ liệu/API/logic progress.

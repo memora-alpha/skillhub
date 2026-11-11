@@ -64,6 +64,8 @@ GAP-01 lịch sử không còn là “không có bất kỳ GET đọc proposal�
 - [x] P07-UI-03 Thiết kế lại vùng từ tiến độ theo yêu cầu tiếp: tiến độ nền xanh nhạt/số đếm nổi bật, ẩn tổng thỏa thuận trùng, nội dung dài ba dòng; điểm danh hai hàng kèm nhãn trạng thái; gom yêu cầu học bù, hạn mức và liên kết/quy định trong Quản lý buổi học. Giữ quyền/action/recovery và xem thêm.
 - [x] P07-UI-04 Sắp xếp nội dung quy định thành bốn nhóm có tiêu đề đậm, gạch ý, nhấn mốc/điều kiện chính và tách rõ bốn trường hợp điểm danh. Đặt lịch gốc/lượt đã dùng trong đúng nhóm; không đổi quy tắc hay thao tác.
 - [x] P07-UI-05 Thu nhỏ số tiến độ như 1/1 từ token amount 32px/40px sang title 20px/28px theo yêu cầu; giữ giá trị, thanh tiến độ và accessibility.
+- [x] P07-UI-06 Rà lại chọn/xác nhận học bù theo app và source BE: khóa trường khi không đủ điều kiện, rút gọn hạn chốt, sửa nội dung lỗi theo học bù và bỏ nhắc xác nhận khi đã hết hạn; dừng preflight khi app chuyển nền, không tự gửi lại khi quay lại. Kiểm source/tests/web fixture; không sửa BE hoặc nhận nghiệm thu native/API thật.
+- [x] P07-UI-07 Rà/dọn trước commit: bỏ Session preview context/provider không còn consumer và cờ demo/style không dùng của SessionPage; giữ camera preview thật. Kiểm toàn bộ suite/export/browser theo REPORT-UI-23, không sửa BE hoặc tự commit.
 - Nguồn thiết kế: yêu cầu người dùng trong phiên này; tái sử dụng theme Nunito, Button/Icon, nền và thẻ bo góc hiện hành. Không có frame mới để xác nhận pixel-match.
 - Kiểm chứng và giới hạn tại mục bổ sung UI đầu [status](status.md). Thay đổi `LearningChangePanel` dùng prop `compact` chỉ tại Session; các consumer khác giữ giao diện mặc định.
 
