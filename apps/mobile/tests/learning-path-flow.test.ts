@@ -46,4 +46,14 @@ test("path summary retains a server title and accepts null or older responses wi
   assert.equal(pathSummarySchema.parse({ ...value, title }).title, title);
   assert.equal(pathSummarySchema.parse({ ...value, title: null }).title, null);
   assert.equal(pathSummarySchema.safeParse(value).success, true);
+  const lastActivityAt = "2030-01-02T00:00:00Z";
+  assert.equal(
+    pathSummarySchema.parse({ ...value, lastActivityAt }).lastActivityAt,
+    lastActivityAt,
+  );
+  assert.equal(
+    pathSummarySchema.safeParse({ ...value, lastActivityAt: "invalid" })
+      .success,
+    false,
+  );
 });

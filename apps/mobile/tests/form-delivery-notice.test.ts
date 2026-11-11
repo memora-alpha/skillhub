@@ -8,7 +8,7 @@ import {
   confirmedFormMessage,
   confirmedMethodMessage,
 } from "../src/features/learning-paths/utils/confirmed-form";
-import { scheduledMessage } from "../src/features/learning-paths/utils/scheduled-message";
+import { scheduledMessage } from "./fixtures/legacy-schedule-messages";
 import type { FormDelivery } from "../src/features/messages/utils/confirmed-form-delivery";
 import { fixtureId } from "./fixtures/learning-requests-data";
 

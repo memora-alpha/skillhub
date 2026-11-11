@@ -110,6 +110,7 @@ export const pathSummarySchema = z
     lockedVersion: version.nullable(),
     terminationApprovedAt: confirmedAt.optional(),
     createdAt: timestamp,
+    lastActivityAt: timestamp.optional(),
     updatedAt: timestamp,
   })
   .superRefine((row, ctx) => {
