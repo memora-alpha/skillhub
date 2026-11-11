@@ -1,14 +1,15 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Text, View } from "react-native";
 import { z } from "zod";
 import { Button } from "@/components/Button";
-import { Input } from "@/components/Input";
 import { ReportCopy as Copy, ReportSection as Panel } from "./report-ui";
 import { reportStyles as styles } from "./report.styles";
-import { reportDate } from "../utils/report-presentation";
 import { Icon } from "@/components/Icon";
 import { appColors as colors } from "@/constants/theme";
 import { CaseEvidencePanel } from "./case-evidence-panel";
+import { CaseMessageHistory } from "./case-message-history";
+import { CaseMessageComposer } from "./case-message-composer";
+import { caseThreadStyles as threadStyles } from "./case-thread.styles";
 import {
   parse,
   parsePage,
@@ -24,7 +25,12 @@ import {
   useConnectionCommand,
 } from "@/features/connections";
 import { useReportsApi, useCaseEvidence } from "../hooks/use-reports";
-import { canWriteCase, canSendCaseMessage } from "../utils/case-actions";
+import {
+  casePermissions,
+  caseBlockedCopy,
+  canWriteCase,
+} from "../utils/case-actions";
+import { caseCapabilities } from "@/lib/http/case-capabilities";
 import { AppError } from "@/lib/http/errors";
 const message = z.object({
   id: z.string().regex(/^[a-f0-9]{64}$/),
@@ -59,12 +65,23 @@ function PrivateCaseThreadContent({
   const api = useReportsApi();
   const root = `/reports/support/cases/${encodeURIComponent(caseId)}/parties/${encodeURIComponent(runtime.userId ?? "")}`;
   const valid = uuid.safeParse(caseId).success && !!runtime.userId;
+  const needsOwnReport = valid && status === undefined && !pathId;
+  const ownReports = useConnectionQuery(
+    ["reports"],
+    (signal) => api.mine(signal),
+    needsOwnReport,
+  );
+  const ownReport = needsOwnReport
+    ? ownReports.data?.find((row) => row.id === caseId)
+    : undefined;
+  const resolvedPathId = pathId ?? ownReport?.relatedPathId ?? undefined;
   const context = useConnectionQuery(
-    ["learning-paths", pathId ?? "", "cases", caseId, "thread-context"],
+    ["learning-paths", resolvedPathId ?? "", "cases", caseId, "thread-context"],
     async (signal) => {
       const row = parse(
-        z.object({
+        caseCapabilities.extend({
           id: uuid,
+          relatedPathId: uuid,
           status: z.enum([
             "OPEN",
             "UNDER_REVIEW",
@@ -74,14 +91,15 @@ function PrivateCaseThreadContent({
           ]),
         }),
         await runtime.call(
-          `/learning-paths/${encodeURIComponent(pathId ?? "")}/cases/${encodeURIComponent(caseId)}/summary`,
+          `/learning-paths/${encodeURIComponent(resolvedPathId ?? "")}/cases/${encodeURIComponent(caseId)}/summary`,
           { signal },
         ),
       );
-      if (row.id !== caseId) throw new AppError("protocol");
+      if (row.id !== caseId || row.relatedPathId !== resolvedPathId)
+        throw new AppError("protocol");
       return row;
     },
-    valid && uuid.safeParse(pathId).success,
+    valid && uuid.safeParse(resolvedPathId).success,
   );
   const query = useConnectionList(
     ["reports", caseId, "messages"],
@@ -96,39 +114,48 @@ function PrivateCaseThreadContent({
     valid,
   );
   const filesQuery = useCaseEvidence(caseId, valid);
-  const ownReports = useConnectionQuery(
-    ["reports"],
-    (signal) => api.mine(signal),
-    valid && status === undefined,
+  const historyMessages = useMemo(
+    () => query.data?.pages.flatMap((page) => page.items) ?? [],
+    [query.data],
   );
   const command = useConnectionCommand([["reports"], ["learning-paths"]]);
   const [text, setText] = useState("");
   const [waitingForHandler, setWaitingForHandler] = useState(false);
-  const ownReport = ownReports.data?.find((row) => row.id === caseId);
-  const currentStatus = pathId
+  const currentStatus = resolvedPathId
     ? context.data?.status
     : (status ?? ownReport?.status);
   const currentHandler =
     handlerId !== undefined ? handlerId : ownReport?.handlerId;
-  const writable = canWriteCase(
-    currentStatus,
-    !valid || !!context.error || !!query.error || !!filesQuery.error,
+  const permissions = casePermissions(
+    context.data,
+    {
+      status: currentStatus,
+      handlerId: currentHandler,
+      evidenceCount: filesQuery.data?.length,
+    },
+    !valid ||
+      !!context.error ||
+      !!query.error ||
+      !!filesQuery.error ||
+      (needsOwnReport && !!ownReports.error) ||
+      (!!resolvedPathId && !context.data),
   );
-  const canSend = canSendCaseMessage(
-    currentStatus,
-    currentHandler,
-    !writable || waitingForHandler,
-  );
+  const canSend = permissions.canSendMessage && !waitingForHandler;
   const awaitingHandler =
-    writable && (currentHandler === null || waitingForHandler);
+    context.data?.messageBlockedReason === "CASE_HANDLER_REQUIRED" ||
+    (!resolvedPathId &&
+      currentHandler === null &&
+      canWriteCase(currentStatus)) ||
+    (waitingForHandler && canWriteCase(currentStatus));
+  const loadingContext =
+    (!!resolvedPathId && context.isLoading) ||
+    (needsOwnReport && ownReports.isLoading);
   async function refresh() {
     const results = await Promise.allSettled([
       query.refetch({ throwOnError: true }),
       filesQuery.refetch({ throwOnError: true }),
-      ...(pathId ? [context.refetch({ throwOnError: true })] : []),
-      ...(status === undefined
-        ? [ownReports.refetch({ throwOnError: true })]
-        : []),
+      ...(resolvedPathId ? [context.refetch({ throwOnError: true })] : []),
+      ...(needsOwnReport ? [ownReports.refetch({ throwOnError: true })] : []),
       ...(onRefreshStatus ? [onRefreshStatus()] : []),
     ]);
     if (
@@ -161,7 +188,9 @@ function PrivateCaseThreadContent({
   }
   return (
     <Panel
-      title="Trao đổi với người xử lý"
+      title="Trao đổi hỗ trợ"
+      subtitle="Riêng tư với nhân viên"
+      compact
       icon="message"
       action={
         <Button
@@ -177,106 +206,90 @@ function PrivateCaseThreadContent({
         </Button>
       }
     >
-      <Copy muted>Chỉ bạn và người xử lý được xem nội dung này.</Copy>
       <ConnectionFeedback
-        loading={query.isLoading}
+        loading={query.isLoading || loadingContext}
         error={
           context.error ??
           query.error ??
           filesQuery.error ??
+          (needsOwnReport ? ownReports.error : undefined) ??
           (awaitingHandler ? undefined : command.error)
         }
         retry={() => {
           void refresh();
         }}
       />
-      <View style={styles.thread}>
-        {query.items.map((row) => (
-          <View
-            key={row.id}
-            style={[
-              styles.bubble,
-              row.senderId === runtime.userId && styles.mine,
-            ]}
-          >
-            <Text style={styles.label}>
-              {row.senderId === runtime.userId ? "Bạn" : "Người xử lý"}
+      <CaseMessageHistory
+        messages={historyMessages}
+        userId={runtime.userId ?? null}
+        hasMore={!!query.hasNextPage}
+        loading={query.isFetching}
+        onLoadOlder={() => {
+          void query.fetchNextPage({ cancelRefetch: false });
+        }}
+      />
+      {!query.isLoading &&
+        !query.error &&
+        !historyMessages.length &&
+        canSend && (
+          <Text style={threadStyles.empty}>
+            Nhắn tin để bổ sung thông tin cho báo cáo.
+          </Text>
+        )}
+      <View style={threadStyles.footer}>
+        {!canSend && !awaitingHandler && !loadingContext && (
+          <View style={threadStyles.notice}>
+            <Icon name="shield" size={16} color={colors.muted} />
+            <Text style={threadStyles.noticeText}>
+              {caseBlockedCopy(
+                context.data?.messageBlockedReason ??
+                  (["RESOLVED", "REJECTED"].includes(currentStatus ?? "")
+                    ? "REPORT_CASE_CLOSED"
+                    : null),
+              )}
             </Text>
-            <Copy>{row.text}</Copy>
-            <Text style={styles.caption}>{reportDate(row.createdAt)}</Text>
           </View>
-        ))}
-      </View>
-      {!query.isLoading && !query.error && !query.items.length && (
-        <Copy muted>Chưa có trao đổi.</Copy>
-      )}
-      {query.hasNextPage && (
-        <Button
-          variant="paper"
-          disabled={query.isFetching}
-          onPress={() => void query.fetchNextPage()}
-        >
-          Tin nhắn trước
-        </Button>
-      )}
-      {!writable && (
-        <Copy muted>
-          {currentStatus === "RESOLVED" || currentStatus === "REJECTED"
-            ? "Vụ việc đã kết thúc. Bạn vẫn có thể xem trao đổi và bằng chứng."
-            : "Chưa thể bổ sung thông tin. Cập nhật trạng thái để tiếp tục."}
-        </Copy>
-      )}
-      {awaitingHandler && (
-        <Copy muted>
-          Chờ nhân viên tiếp nhận để gửi phản hồi. Bạn vẫn có thể bổ sung bằng
-          chứng.
-        </Copy>
-      )}
-      {canSend && (
-        <>
-          <Input
-            label="Nội dung bổ sung"
+        )}
+        {awaitingHandler && (
+          <View style={threadStyles.notice}>
+            <Icon name="clock" size={16} color={colors.muted} />
+            <Text style={threadStyles.noticeText}>
+              {caseBlockedCopy("CASE_HANDLER_REQUIRED")}
+            </Text>
+          </View>
+        )}
+        <CaseEvidencePanel
+          caseId={caseId}
+          writable={permissions.canAttachEvidence}
+          ownEvidenceCount={context.data?.ownEvidenceCount}
+          blockedReason={context.data?.evidenceBlockedReason}
+        />
+        {canSend && (
+          <CaseMessageComposer
             value={text}
-            onChangeText={setText}
-            multiline
-            maxLength={4000}
-            placeholder="Bổ sung thông tin hoặc trả lời người xử lý…"
-            fieldStyle={styles.field}
-            style={{ minHeight: 100, textAlignVertical: "top" }}
-            editable={!command.pending && !command.uncertain}
-          />
-          <Button
-            variant="craft"
-            leadingIcon="send"
-            disabled={
-              !text.trim() ||
-              command.pending ||
-              command.uncertain ||
-              !!query.error
-            }
-            onPress={() => {
+            onChange={setText}
+            pending={command.pending}
+            uncertain={command.uncertain}
+            onSend={() => {
               void sendMessage();
             }}
-          >
-            {command.pending ? "Đang gửi…" : "Gửi phản hồi"}
-          </Button>
-        </>
-      )}
-      <CaseEvidencePanel caseId={caseId} writable={writable} />
-      {command.uncertain && writable && (
-        <>
-          <Copy muted>
-            Chưa rõ kết quả gửi. Kiểm tra hoặc gửi lại cùng nội dung.
-          </Copy>
-          <Button
-            variant="paper"
-            disabled={command.pending}
-            onPress={() => void command.retry()}
-          >
-            Kiểm tra / gửi lại
-          </Button>
-        </>
-      )}
+          />
+        )}
+        {command.uncertain && canSend && (
+          <>
+            <Copy muted>
+              Chưa rõ kết quả gửi. Kiểm tra hoặc gửi lại cùng nội dung.
+            </Copy>
+            <Button
+              variant="paper"
+              disabled={command.pending}
+              onPress={() => void command.retry()}
+            >
+              Kiểm tra / gửi lại
+            </Button>
+          </>
+        )}
+      </View>
     </Panel>
   );
 }

@@ -25,6 +25,7 @@ export const reportStyles = StyleSheet.create({
     backgroundColor: c.surface,
   },
   accent: { backgroundColor: c.forestSoft },
+  compactSection: { padding: 14, gap: 12 },
   row: { flexDirection: "row", alignItems: "center", gap: 10 },
   grow: { flex: 1, minWidth: 0, gap: 4 },
   heading: {
@@ -142,16 +143,6 @@ export const reportStyles = StyleSheet.create({
     ...t.body,
     color: c.body,
   },
-  thread: { gap: 12 },
-  bubble: {
-    alignSelf: "flex-start",
-    maxWidth: "95%",
-    padding: 14,
-    gap: 8,
-    borderRadius: r.control,
-    backgroundColor: c.surfaceLow,
-  },
-  mine: { alignSelf: "flex-end", backgroundColor: c.forestSoft },
   attachments: {
     gap: 12,
     borderTopWidth: 1,

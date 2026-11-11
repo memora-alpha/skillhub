@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { Linking, View } from "react-native";
+import { Linking, Text, View } from "react-native";
 import { z } from "zod";
 import { Button } from "@/components/Button";
 import { FormNotice } from "@/components/FormNotice";
@@ -14,13 +14,24 @@ import {
 import { useReportsApi, useCaseEvidence } from "../hooks/use-reports";
 import { useReportFileCheck } from "../hooks/use-report-file-check";
 import { reportFileLabel } from "../utils/report-presentation";
+import { caseBlockedCopy } from "../utils/case-actions";
 import { ReportCopy } from "./report-ui";
 import { reportStyles as styles } from "./report.styles";
+import { Icon } from "@/components/Icon";
+import { appColors } from "@/constants/theme";
+import { caseThreadStyles as threadStyles } from "./case-thread.styles";
 
 export function CaseEvidencePanel({
   caseId,
   writable,
-}: Readonly<{ caseId: string; writable: boolean }>) {
+  ownEvidenceCount,
+  blockedReason,
+}: Readonly<{
+  caseId: string;
+  writable: boolean;
+  ownEvidenceCount?: number;
+  blockedReason?: string | null;
+}>) {
   const runtime = useConnections(),
     api = useReportsApi();
   const query = useCaseEvidence(caseId);
@@ -71,12 +82,20 @@ export function CaseEvidencePanel({
   return (
     <>
       <Button
-        variant="paper"
-        leadingIcon="paperclip"
+        variant="ghost"
+        style={threadStyles.evidenceToggle}
+        accessibilityLabel={toggleLabel()}
         accessibilityState={{ expanded: open }}
         onPress={() => setOpen(!open)}
       >
-        {toggleLabel()}
+        <Icon name="paperclip" size={16} color={appColors.muted} />
+        <Text style={threadStyles.evidenceLabel}>Bằng chứng</Text>
+        <Text style={threadStyles.evidenceCount}>
+          {ownEvidenceCount ?? query.data?.length ?? 0} tệp
+        </Text>
+        <View style={open ? { transform: [{ rotate: "90deg" }] } : undefined}>
+          <Icon name="chevron" size={16} color={appColors.muted} />
+        </View>
       </Button>
       {open && (
         <View style={styles.attachments}>
@@ -107,6 +126,11 @@ export function CaseEvidencePanel({
               {reportFileLabel(file.mimeType, file.fileSizeBytes)}
             </Button>
           ))}
+          {!writable &&
+            blockedReason &&
+            blockedReason !== "REPORT_CASE_CLOSED" && (
+              <ReportCopy muted>{caseBlockedCopy(blockedReason)}</ReportCopy>
+            )}
           {writable && (
             <>
               <ServerFilePicker
@@ -126,7 +150,10 @@ export function CaseEvidencePanel({
                   uploadBusy.current = value;
                   setUploading(value);
                 }}
-                maxCount={Math.max(0, 5 - (query.data?.length ?? 0))}
+                maxCount={Math.max(
+                  0,
+                  5 - (ownEvidenceCount ?? query.data?.length ?? 0),
+                )}
               />
               {fileCheck.error && (
                 <FormNotice compact tone="error">

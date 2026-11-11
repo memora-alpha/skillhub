@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Text, View } from "react-native";
 import { useRouter, type Href } from "expo-router";
 import { AppScreenLayout } from "@/features/shell";
@@ -16,16 +16,35 @@ export function ReportPage({
   back = "/reports",
   selected = "Hồ sơ",
   children,
-  refreshing,
   onRefresh,
 }: Readonly<{
   title: string;
   back?: Href;
   selected?: string;
   children: ReactNode;
-  refreshing?: boolean;
-  onRefresh?: () => void;
+  onRefresh?: () => Promise<unknown>;
 }>) {
+  const [refreshing, setRefreshing] = useState(false);
+  const pulling = useRef(false),
+    mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+  function refresh() {
+    if (pulling.current || !onRefresh) return;
+    pulling.current = true;
+    setRefreshing(true);
+    void Promise.resolve()
+      .then(onRefresh)
+      .catch(() => {})
+      .finally(() => {
+        pulling.current = false;
+        if (mounted.current) setRefreshing(false);
+      });
+  }
   return (
     <AppScreenLayout
       title={title}
@@ -37,7 +56,7 @@ export function ReportPage({
         <KeyboardFormScrollView
           contentContainerStyle={s.page}
           refreshing={refreshing}
-          onRefresh={onRefresh}
+          onRefresh={onRefresh ? refresh : undefined}
         >
           {children}
         </KeyboardFormScrollView>
@@ -50,22 +69,27 @@ export function ReportSection({
   icon = "flag",
   action,
   accent = false,
+  compact = false,
+  subtitle,
   children,
 }: Readonly<{
   title: string;
   icon?: IconName;
   action?: ReactNode;
   accent?: boolean;
+  compact?: boolean;
+  subtitle?: string;
   children: ReactNode;
 }>) {
   return (
-    <View style={[s.section, accent && s.accent]}>
+    <View style={[s.section, accent && s.accent, compact && s.compactSection]}>
       <View style={s.row}>
         <Icon name={icon} size={18} color={colors.forest} />
         <View style={s.grow}>
           <Text accessibilityRole="header" style={s.heading}>
             {title}
           </Text>
+          {subtitle && <Text style={s.caption}>{subtitle}</Text>}
         </View>
         {action}
       </View>
