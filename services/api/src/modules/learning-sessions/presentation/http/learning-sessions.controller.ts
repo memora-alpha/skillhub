@@ -70,7 +70,11 @@ export class LearningSessionsController {
   }
 
   @Get("mine")
-  @ApiOperation({ summary: "List the caller's sessions" })
+  @ApiOperation({
+    summary: "List the caller's sessions",
+    description:
+      "Includes deadlines.reportBy and reporting { canReport, blockedReason, reportBy, evaluatedAt } for each session, using the same reporting window and caller-specific active-case rule as POST /reports/sessions/:sessionId. This is advisory; POST rechecks committed state.",
+  })
   async mine(
     @CurrentIdentity() actor: Principal,
     @Query() query: SessionListQuery,
@@ -80,7 +84,11 @@ export class LearningSessionsController {
   }
 
   @Get(":sessionId")
-  @ApiOperation({ summary: "Read a session for one of its participants" })
+  @ApiOperation({
+    summary: "Read a session for one of its participants",
+    description:
+      "Includes deadlines.reportBy for all session outcomes and reporting { canReport, blockedReason, reportBy, evaluatedAt }. A null reportBy with REPORT_POLICY_UNAVAILABLE means the reporting policy is unavailable. Existing no-show deadlines and actions retain their separate meaning. POST /reports/sessions/:sessionId rechecks eligibility.",
+  })
   async detail(
     @CurrentIdentity() actor: Principal,
     @Param("sessionId", ParseUUIDPipe) sessionId: string,

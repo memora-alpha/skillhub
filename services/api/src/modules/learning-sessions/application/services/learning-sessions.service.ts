@@ -377,6 +377,11 @@ export class LearningSessionsService {
     const policy = await this.joinPolicy();
     const now = this.clock.now();
     const inputsFor = await this.attendanceInputs(actor.userId, result.data);
+    const reportingFor = await this.reports.reportingForSessions(
+      this.db,
+      actor.userId,
+      result.data,
+    );
     const data = result.data.map(
       ({
         teacherFirstJoinedAt,
@@ -412,6 +417,11 @@ export class LearningSessionsService {
           join,
           role: actor.userId === session.teacherId ? "TEACHER" : "LEARNER",
           attendance: { state: view.attendance.state },
+          deadlines: {
+            ...view.deadlines,
+            reportBy: reportingFor.get(session.id)!.reportBy,
+          },
+          reporting: reportingFor.get(session.id)!,
           allowedActions: view.allowedActions,
         };
       },
@@ -436,6 +446,16 @@ export class LearningSessionsService {
       this.livekit.config.enabled,
     );
     const status = sessionStatusAt(session, now, policy);
+    const reporting = (
+      await this.reports.reportingForSessions(this.db, actor.userId, [session])
+    ).get(session.id)!;
+    const attendanceView = sessionAttendanceView({
+      actorId: actor.userId,
+      now,
+      canJoin: join.canJoin,
+      session: { ...session, status },
+      ...(await this.attendanceInputs(actor.userId, [session]))(session.id),
+    });
     return {
       ...session,
       status,
@@ -443,13 +463,9 @@ export class LearningSessionsService {
       join,
       progress: await this.progress(session.pathId, session.planId),
       makeupQuota: await makeupQuota(this.db, session, actor.userId),
-      ...sessionAttendanceView({
-        actorId: actor.userId,
-        now,
-        canJoin: join.canJoin,
-        session: { ...session, status },
-        ...(await this.attendanceInputs(actor.userId, [session]))(session.id),
-      }),
+      ...attendanceView,
+      deadlines: { ...attendanceView.deadlines, reportBy: reporting.reportBy },
+      reporting,
     };
   }
 

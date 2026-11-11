@@ -6,6 +6,12 @@ Learning fees remain 4%; hiding a review does not reverse reputation history.
 
 # SkillHub API
 
+Session/report contract amendment (2026-11-11): caller-scoped current/legacy
+evidence metadata and counts, Session reporting deadline/preflight, independent
+message/evidence capabilities in participant case summaries, and canonical
+navigation context in support notifications. No env, seed or migration changes.
+See [contract and validation](specs/014-trust-report-support/session-report-contracts.md).
+
 Learning Path activity ordering (2026-11-11): `/learning-paths/mine` returns
 `lastActivityAt` and orders by `lastActivityAt DESC, id DESC`. Apply migration
 `20261111000000_learning_path_activity` before the API; no env or seed changes.

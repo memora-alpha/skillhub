@@ -101,6 +101,11 @@ export class ReportsController {
   }
 
   @Get("mine")
+  @ApiOperation({
+    summary: "List reports submitted by the caller",
+    description:
+      "evidenceCount and reportEvidenceCaseIdRecords contain only the caller's evidence, including legacy uploads. Metadata includes storedFileId (nullable for legacy files); fileSizeBytes is a decimal string. No storage keys or partner file metadata are exposed.",
+  })
   async mine(@CurrentIdentity() actor: Principal) {
     return success(await this.reports.listMine(actor));
   }
@@ -112,7 +117,11 @@ export class ReportsController {
   }
 
   @Get("mine/:caseId")
-  @ApiOperation({ summary: "Read a report submitted by the caller" })
+  @ApiOperation({
+    summary: "Read a report submitted by the caller",
+    description:
+      "Includes evidenceCount and current/legacy own evidence metadata with nullable storedFileId and decimal-string fileSizeBytes. Partner evidence and storage keys are excluded.",
+  })
   async mineDetail(
     @CurrentIdentity() actor: Principal,
     @Param("caseId", ParseUUIDPipe) caseId: string,

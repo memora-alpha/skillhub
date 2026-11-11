@@ -34,7 +34,7 @@ export class CaseMessageNotificationHandler
   }
   async publish(event: OutboxMessage) {
     const data = payload.parse(event.payload);
-    const recipients = await this.transactions.run(async (tx) => {
+    const context = await this.transactions.run(async (tx) => {
       if (event.type === "report.case.message" && data.messageId) {
         const receipt = await tx.reportMessageReceipt.findUnique({
           where: { messageId: data.messageId },
@@ -61,26 +61,50 @@ export class CaseMessageNotificationHandler
       const report = await tx.reportCase.findUniqueOrThrow({
         where: { id: data.caseId },
       });
-      if (data.senderId !== data.partyId) return [data.partyId];
-      if (!report.handlerId) return [];
+      const refs = {
+        ...(report.relatedPathId
+          ? {
+              relatedPathId: report.relatedPathId,
+              pathId: report.relatedPathId,
+            }
+          : {}),
+        ...(report.relatedSessionId
+          ? {
+              relatedSessionId: report.relatedSessionId,
+              sessionId: report.relatedSessionId,
+            }
+          : {}),
+        ...(report.relatedOrderId
+          ? { relatedOrderId: report.relatedOrderId }
+          : {}),
+      };
+      if (data.senderId !== data.partyId)
+        return { recipients: [data.partyId], refs };
+      if (!report.handlerId) return { recipients: [], refs };
       const handler = await this.users.byId(tx, report.handlerId);
-      if (handler?.accountStatus !== "ACTIVE") return [];
+      if (handler?.accountStatus !== "ACTIVE") return { recipients: [], refs };
       const grants = await this.users.grants(tx, report.handlerId);
       if (
         !grants.roles.some((role) => role === "STAFF" || role === "ADMIN") ||
         !grants.permissions.includes("report:communicate") ||
         !grants.permissions.includes("report:moderate")
       )
-        return [];
-      return [report.handlerId];
+        return { recipients: [], refs };
+      return { recipients: [report.handlerId], refs };
     });
     await this.dispatcher.dispatch({
       eventId: event.eventId,
       type: event.type,
-      userIds: recipients,
+      userIds: context.recipients,
       title: "Tin nhắn hỗ trợ mới",
       body: "Có cập nhật trong trao đổi hỗ trợ của bạn.",
-      payload: { caseId: data.caseId, partyId: data.partyId },
+      payload: {
+        caseId: data.caseId,
+        partyId: data.partyId,
+        ...context.refs,
+        ...(data.messageId ? { messageId: data.messageId } : {}),
+        ...(data.evidenceId ? { evidenceId: data.evidenceId } : {}),
+      },
     });
   }
 }

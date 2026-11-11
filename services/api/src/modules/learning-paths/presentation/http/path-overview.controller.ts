@@ -44,6 +44,8 @@ export class PathOverviewController {
   @ApiOperation({
     summary:
       "Read participant-safe summary, including partner and system cases",
+    description:
+      "Includes hasHandler, ownEvidenceCount, canSendMessage/messageBlockedReason and canAttachEvidence/evidenceBlockedReason for the caller's private thread. New messages require a handler; evidence does not. New actions require an open case and evidence is limited to five per party. POST revalidates eligibility and file readiness.",
   })
   async caseSummary(
     @CurrentIdentity() actor: Principal,
@@ -60,7 +62,11 @@ export class PathOverviewController {
     });
   }
   @Get(":pathId/cases")
-  @ApiOperation({ summary: "Read participant-safe case list" })
+  @ApiOperation({
+    summary: "Read participant-safe case list",
+    description:
+      "Each case includes the same caller-specific message/evidence capabilities as its summary endpoint; no partner evidence metadata is returned.",
+  })
   async cases(
     @CurrentIdentity() actor: Principal,
     @Param("pathId", ParseUUIDPipe) id: string,
