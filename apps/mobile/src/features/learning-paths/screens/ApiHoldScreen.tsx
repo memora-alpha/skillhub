@@ -31,12 +31,7 @@ import {
   finalizationValidationKey,
 } from "../utils/policy-api";
 import { LockedScheduleSummary } from "../components/locked-schedule-summary";
-import {
-  useConfirmedFormShare,
-  ConfirmedFormFeedback,
-} from "@/features/messages/state";
-import { confirmAndShare } from "../api/confirm-and-share";
-import { scheduledMessage } from "../utils/scheduled-message";
+import { ConfirmedFormFeedback } from "@/features/messages/state";
 import { usePullRefresh } from "../hooks/use-pull-refresh";
 import {
   appColors as colors,
@@ -101,7 +96,6 @@ function HoldContent({
   const [latestAction, setLatestAction] = useState<"check" | "finalize">(
     "check",
   );
-  const share = useConfirmedFormShare();
   const signature = finalizationValidationKey(path),
     agreement = path.agreement;
   const validationKey = scheduleValidationKey(path);
@@ -264,17 +258,7 @@ function HoldContent({
             setValidationSnapshot(validationKey);
             void finalize
               .run(`finalize:${path.id}:${path.currentVersion}`, (identity) =>
-                confirmAndShare(
-                  () => api.finalize(path.id, path.currentVersion, identity),
-                  (result, messageIdentity) => {
-                    void share.publish(
-                      path.conversationId,
-                      scheduledMessage(result),
-                      messageIdentity,
-                    );
-                  },
-                  runtime.isCurrent,
-                )(identity),
+                api.finalize(path.id, path.currentVersion, identity),
               )
               .then((result) => {
                 if (result && runtime.isCurrent()) {

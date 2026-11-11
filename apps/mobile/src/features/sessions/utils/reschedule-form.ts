@@ -22,9 +22,18 @@ export function rescheduleAvailabilityMessage(
   },
   now = Date.now(),
 ) {
+  if (session.status === "MAKEUP_REQUIRED") {
+    const deadline = session.deadlines?.makeupBy;
+    if (deadline && Date.parse(deadline) <= now)
+      return "Đã hết hạn chốt lịch học bù.";
+    if (!deadline) return "Chưa có thời hạn học bù. Kéo xuống để cập nhật.";
+    if (!session.allowedActions?.includes("PROPOSE_MAKEUP"))
+      return "Chưa thể chọn lịch học bù. Kéo xuống để cập nhật trạng thái.";
+    return "Hai bên cần xác nhận lịch học bù trước hạn.";
+  }
   return isRescheduleEligible(session, now)
-    ? "Chọn giờ mới trong tương lai. Hai bên cần xác nhận để lịch mới có hiệu lực."
-    : "Buổi học không còn đủ điều kiện đổi lịch; lịch cũ vẫn có hiệu lực.";
+    ? "Hai bên cần xác nhận trước giờ học cũ ít nhất 60 phút. Lịch cũ giữ nguyên khi chưa chốt."
+    : "Buổi học không còn đủ điều kiện đổi lịch.";
 }
 export function rescheduleInput(
   form: RescheduleForm,

@@ -1,12 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  scheduleConfirmationMessage,
   readScheduleConfirmation,
   type ScheduleConfirmation,
 } from "../src/features/learning-paths/utils/schedule-confirmation-message";
 import { readConfirmedForm } from "../src/features/learning-paths/utils/confirmed-form";
-import { scheduledMessage } from "../src/features/learning-paths/utils/scheduled-message";
+import {
+  scheduledMessage,
+  scheduleConfirmationMessage,
+} from "./fixtures/legacy-schedule-messages";
 import { readChatSchedule } from "../src/features/messages/utils/schedule-notice";
 import { chatTimeline } from "../src/features/messages/utils/chat-timeline";
 import { conversationInbox } from "../src/features/messages/utils/conversation-preview";

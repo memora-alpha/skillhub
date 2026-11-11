@@ -102,11 +102,17 @@ const messages: Record<string, string> = {
   SESSION_SCHEDULE_HISTORY_MISSING:
     "Chưa đọc được lịch hiện hành của buổi học. Hãy tải lại trước khi đổi lịch.",
 };
-export function sessionErrorMessage(error: unknown) {
-  return (
-    scheduleConflictMessage(error) ??
-    (error instanceof AppError && messages[error.code]
-      ? messages[error.code]!
-      : errorMessage(error))
-  );
+const makeupMessages: Record<string, string> = {
+  RESCHEDULE_CUTOFF_OR_STATE_VIOLATION:
+    "Lịch học bù không còn đủ điều kiện xác nhận. Hãy cập nhật trạng thái.",
+  SESSION_CANNOT_BE_RESCHEDULED:
+    "Hiện không thể chọn lịch học bù. Hãy cập nhật trạng thái.",
+  SCHEDULE_CONFLICT: "Giờ học bù bị trùng lịch. Hãy chọn giờ khác.",
+};
+export function sessionErrorMessage(error: unknown, makeup = false) {
+  const message =
+    error instanceof AppError
+      ? (makeup && makeupMessages[error.code]) || messages[error.code]
+      : undefined;
+  return scheduleConflictMessage(error) ?? message ?? errorMessage(error);
 }

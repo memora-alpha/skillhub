@@ -28,6 +28,44 @@ test("detail validates UUID/identity/participant and strips provider metadata", 
   f.handler = async () => ({ ...f.record, id: teacherId });
   await assert.rejects(f.api.detail(sessionId));
 });
+
+test("session reads retain BE reporting snapshot without deriving eligibility from attendance", async () => {
+  const f = sessionsFixture();
+  const deadline = "2026-10-15T03:00:00Z";
+  const reporting = {
+    canReport: false,
+    blockedReason: "ACTIVE_SESSION_REPORT_EXISTS",
+    reportBy: deadline,
+    evaluatedAt: "2026-10-14T06:00:00Z",
+  };
+  f.handler = async () => ({
+    ...f.record,
+    deadlines: {
+      confirmBy: null,
+      excuseOrReportBy: null,
+      makeupBy: null,
+      reportBy: deadline,
+    },
+    reporting,
+  });
+  const detail = await f.api.detail(sessionId);
+  assert.deepEqual(detail.reporting, reporting);
+  assert.equal(detail.deadlines?.reportBy, deadline);
+  f.handler = async () => ({
+    ...f.record,
+    reporting: {
+      ...reporting,
+      blockedReason: "REPORT_POLICY_UNAVAILABLE",
+      reportBy: null,
+    },
+  });
+  assert.equal((await f.api.detail(sessionId)).reporting?.reportBy, null);
+  f.handler = async () => ({
+    ...f.record,
+    reporting: { ...reporting, evaluatedAt: "bad-date" },
+  });
+  await assert.rejects(f.api.detail(sessionId));
+});
 test("403/404 denial persists through transient errors and clears only on a valid read", async () => {
   const client = new QueryClient();
   const key = ["sessions", teacherId, 1, "detail", sessionId];

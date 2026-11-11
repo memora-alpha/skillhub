@@ -77,6 +77,8 @@ test("schedule reads and session hooks do not load Learning Path or Session scre
     "sessions/hooks/use-session-context.ts",
     "sessions/hooks/use-session-action.ts",
     "sessions/components/session-attendance-panel.tsx",
+    "sessions/components/session-limits-panel.tsx",
+    "reports/screens/report-editor-screen.tsx",
   ]) {
     const seen = new Set<string>();
     const pending = [path.join(root, "src/features", entry)];

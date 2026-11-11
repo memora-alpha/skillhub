@@ -58,5 +58,11 @@ export function participantCaseFixture() {
     blocksSettlement: true,
     createdAt: "2030-01-01T00:00:00Z",
     resolvedAt: null,
+    hasHandler: true,
+    ownEvidenceCount: 0,
+    canSendMessage: true,
+    messageBlockedReason: null,
+    canAttachEvidence: true,
+    evidenceBlockedReason: null,
   };
 }

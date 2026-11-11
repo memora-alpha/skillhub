@@ -4,6 +4,7 @@ import {
   deadlinesSchema,
   excuseSchema,
   sessionAction,
+  reportingSchema,
 } from "./api/attendance-contract";
 
 export const sessionStatuses = [
@@ -86,6 +87,7 @@ export const sessionSchema = z
     join: sessionJoinSchema.optional(),
     attendance: attendanceSchema.optional(),
     deadlines: deadlinesSchema.optional(),
+    reporting: reportingSchema.optional(),
     excuse: excuseSchema.nullable().optional(),
     allowedActions: z.array(sessionAction).optional(),
   })

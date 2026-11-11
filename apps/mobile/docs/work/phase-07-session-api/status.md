@@ -1,5 +1,61 @@
 # Trạng thái Phase 07 — Session API
 
+## Dọn code trước commit — 2026-11-12T00:27:44+07:00
+
+- P07-UI-07 **Ready for review**, người dùng **Chưa nghiệm thu**. Bỏ Session preview context/provider không có người đọc khỏi UiPreviewProvider/index và xóa cờ demo/style không có caller của SessionPage. Giữ RoomPreview dùng cho camera thật; dữ liệu mẫu của các màn khác có consumer/nhãn vẫn giữ.
+- Kiểm chứng chung tại [Report UI](../reports-ui/status.md), REPORT-UI-23: full suite **1.134/1.134 PASS**, types/lint/structure **962 source files**, export/format/diff và **48 nhóm browser fixture PASS**. Giữ giới hạn API thật/Android/iOS/UAT **NOT_RUN**; chưa stage/commit, chỉ sửa mobile.
+
+## Rà lại màn đăng ký học bù — 2026-11-12T00:10:14+07:00
+
+- P07-UI-06 **Ready for review**; người dùng **Chưa nghiệm thu**. Đối chiếu source `attendance-view.ts`, `scheduling.service.ts` và mobile: học bù dùng quyền `PROPOSE_MAKEUP`/`makeupBy`, cùng API đề xuất/xác nhận lịch theo version; không áp cutoff giờ buổi gốc cho học bù. Không sửa backend, cấu hình thời lượng hoặc quy tắc cấp lượt.
+- UI đã dùng Nunito/theme/SessionSection/SessionButton/DateTimeField/Input chung. Sửa các điểm còn lệch: trường ngày giờ/thời lượng giờ khóa cùng nút gửi khi hết hạn/thiếu quyền/context chưa sẵn sàng; hạn chốt gọn `Chốt trước HH:mm · dd/MM/yyyy`; lỗi học bù không còn nói lịch cũ vẫn hiệu lực; proposal hết hạn không đồng thời nhắc xác nhận trước hạn. Giữ draft khi lỗi trùng lịch.
+- Bổ sung AppState vào lifecycle action: chuyển nền trong lúc đọc kiểm tra trước gửi sẽ hủy lượt thao tác đó, quay lại không tự POST. Focus/owner/version guards, đọc mới trước mutation và recovery uncertain hiện có được giữ.
+- Kiểm chứng: **23 tests PASS** trong 6 file (context/eligibility/read/time/import/lifecycle, gồm quyền/hạn/version/path thay đổi giữa lúc mở form và gửi); TypeScript, full ESLint, structure **963 files**, web export và `git diff --check` **PASS**. Browser **11 nhóm PASS**, 320/375/430px không tràn ngang; một đề xuất thành công, một đề xuất bị từ chối trùng lịch và một xác nhận qua API fixture; không page error. Đã mở xem ảnh form và xác nhận 375px. Full suite, API thật, native keyboard/AppState Android/iOS và font scaling **NOT_RUN**.
+- Evidence local ignored: `.expo/makeup-review-browser.cjs`, `.expo/makeup-review-validation/`, `.expo/makeup-review-browser.log`, `.expo/makeup-review-tests.log`, `.expo/makeup-review-types.log`, `.expo/makeup-review-export.log`. Web fixture và unit test không thay bằng chứng deployment hoặc native; các dependency/acceptance cũ của phase giữ nguyên.
+
+## Thu nhỏ số tiến độ — 2026-11-11T17:21:22+07:00
+
+- **Ready for review**, người dùng **Chưa nghiệm thu**. P07-UI-05 đổi progressValue từ amount 32px/40px sang title 20px/28px, giữ font đậm và đơn vị buổi. Không đổi dữ liệu/API/logic progress.
+- TypeScript, focused ESLint và web export **PASS**; browser xác nhận 1/1 ở 20px, progressbar vẫn có giá trị đúng và không tràn ngang ở 320/375px. Không thêm unit test cho thay đổi trình bày. Native **NOT_RUN**. Evidence ignored: `.expo/session-small-ui-browser.cjs`, `.expo/session-small-ui-validation/`, `.expo/session-small-ui-export.log`.
+
+## Trình bày quy định buổi học — 2026-11-11T13:14:21+07:00
+
+- **Ready for review**, người dùng **Chưa nghiệm thu**. Chỉ sửa trình bày trong phần mở rộng Quy định buổi học: bốn nhóm Đổi lịch → Học bù → Điểm danh và vắng học → Giải trình và hỗ trợ. Tiêu đề đậm, đường phân cách, gạch ý; nhấn đậm các mốc/điều kiện chính.
+- Bốn trường hợp điểm danh nằm trong một khối nền nhẹ, mỗi trường hợp có nhãn đậm và mô tả riêng. Lịch gốc đặt trong Đổi lịch, lượt đã dùng đặt trong Học bù. Giữ theme/Nunito và hành vi mở/đóng; không sửa API, quyền, mutation hoặc quy tắc nghiệp vụ.
+- Kiểm tra: focused ESLint và TypeScript **PASS**; web export **PASS**; browser **3 nhóm PASS** gồm thứ tự/độ đậm tiêu đề, layout 320/375/430px, mở/đóng không gửi mutation và không page error. Đã xem ảnh phần đầu/điểm danh 375px. Không thêm unit test cho định dạng thuần túy, không chạy lại full suite; native **NOT_RUN**.
+- Evidence ignored: `.expo/mobile-session-rules-browser.cjs`, `.expo/mobile-session-rules-validation/`, `.expo/mobile-session-rules-export.log`.
+
+## Thiết kế lại vùng tiến độ và quản lý buổi học — 2026-11-11T12:58:10+07:00
+
+- Nhánh `fix/mobile-session-ui`, **Ready for review** trong phạm vi giao diện. Nghiệm thu người dùng **Chưa thực hiện**. Nguồn thiết kế: yêu cầu tiếp tục giảm chữ/tăng độ dễ nhìn trong phiên; giữ Nunito, palette, Button/Icon và token của app, không có frame mới để pixel-match.
+- Tiến độ dùng nền forestSoft, số đếm lớn và thanh tiến độ; tổng thỏa thuận chỉ hiện khi khác tiến độ plan. Mở lộ trình bằng nút chevron có nhãn truy cập ở header. Nội dung có nhãn số buổi, mặc định ba dòng và xem thêm/thu gọn.
+- Điểm danh đổi từ hai ô nhiều chữ sang hai hàng: vai trò, số phút tham gia, vào muộn nếu có và badge trạng thái. Dữ liệu chưa xác minh không biến thành vắng/0 phút; accessibility label giữ thời lượng đầy đủ từ server.
+- Gom card yêu cầu học bù vào Quản lý buổi học bằng prop `embedded` chỉ bật cho Session. Hạn mức đặt cạnh nhau; thỏa thuận/báo sự cố thành hàng điều hướng; quy định gom một mục mở rộng, bỏ nội dung trùng và hướng dẫn quyết toán khỏi detail này. Các consumer khác của LearningChangePanel giữ mặc định.
+- Giữ draft mở/đóng, yêu cầu đang chờ và các nút phản hồi, deadline/permission/mutation/recovery hiện hành. Không sửa backend/API/dependency hoặc các màn trên vùng tiến độ.
+- Kiểm chứng: TypeScript, ESLint, structure và focused Session/import/Path changes **63/63 PASS**; web export **PASS**. Browser detail **11 nhóm PASS** ở 320/375/430px, không tràn ngang, một completion POST fixture và không page error. Hồi quy học bù **10 nhóm PASS**, một POST đề xuất/một POST xác nhận fixture, không page error; deadline/permission/đã chốt giữ đúng. Không chạy full suite; API thật, Android/iOS và native font scaling **NOT_RUN**.
+- Evidence ignored: `.expo/mobile-session-redesign-browser.cjs`, `.expo/mobile-session-redesign-validation/`, `.expo/mobile-session-redesign-tests.log`, `.expo/mobile-session-redesign-export.log`; harness hồi quy học bù `.expo/mobile-session-redesign-makeup.cjs`.
+
+## Đồng nhất chọn/xác nhận lịch học bù — 2026-11-11T11:53:18+07:00
+
+- **Ready for review** trên `fix/mobile-session-ui`; nghiệm thu người dùng **Chưa thực hiện**. Theo yêu cầu tiếp tục chỉnh nội dung ngắn, dễ nhìn và đúng luồng học bù; dùng theme, SessionSection/SessionInfoRow/SessionButton đang có, không thêm frame/stack/dependency mới.
+- Màn học bù mang tên “Lịch học bù”, có ngày giờ buổi gốc, hạn chốt, form và nút gửi/xác nhận riêng. Bỏ hướng dẫn giữ lịch cũ/cutoff 60 phút ở học bù; đổi lịch thường vẫn giữ điều kiện này. Không hiện version lịch hoặc thẻ đề nghị rỗng.
+- Có đề nghị đang chờ thì ưu tiên lịch đề xuất và trạng thái hai bên, ẩn form tạo thêm. Sau khi backend áp dụng, giữ tên “Lịch học bù” và hiển thị “Lịch học bù đã chốt”, không mở lại form đổi lịch trong cùng lượt thao tác. Giữ dự thảo cùng Session, feedback/recovery và chống tự gửi lại mutation. Nội dung success không còn mặc định nói lịch cũ vẫn hiệu lực cho học bù.
+- Detail/form/confirmation cùng kiểm tra `isRescheduleEligible`; SessionClock cập nhật ngay khi qua hạn hoặc quay lại màn hình. Nút hết hạn có giải thích, direct link không vượt quyền server; đồng hồ client không thay kiểm tra backend.
+- Cả hai vắng: hiển thị “Hệ thống xét học bù sau hạn phản hồi” và thời hạn server, không hứa cấp lượt hoặc mở form giải trình lẫn nhau. Đến hạn chuyển thông báo đang chốt; case xem xét có nội dung riêng. Không hard-code 48 giờ/7 ngày trong hướng dẫn luồng này.
+- Kiểm tra cuối: TypeScript, ESLint, structure **PASS**; focused Session/import tests **41/41 PASS** (gồm deadline/quyền học bù và hướng dẫn cả hai vắng); web export **PASS**. Browser fixture học bù **10 nhóm PASS**, đúng một POST đề xuất và một POST xác nhận, không page error. Kiểm 320/375/430px, gửi/xác nhận/đã chốt, pending của bạn/đối tác, hết hạn cả detail/form/confirmation và hết hạn khi đang mở, thiếu quyền và lỗi đọc/recovery. Regression giao diện detail **11 nhóm PASS**, một completion POST fixture, không page error. Real API và Android/iOS **NOT_RUN**; không chạy full suite cho phạm vi này.
+- Evidence local ignored: `.expo/mobile-makeup-browser.cjs`, `.expo/mobile-makeup-validation/`, `.expo/mobile-makeup-tests.log`, `.expo/mobile-makeup-export.log`. Không sửa backend, API contract hay dependency.
+
+## Bổ sung UI chi tiết buổi học — 2026-11-11T10:50:51+07:00
+
+- Nhánh `fix/mobile-session-ui`, baseline `90279b28`; **Ready for review** trong phạm vi rút gọn UI. Nghiệm thu người dùng: **Chưa thực hiện**.
+- Gom tiến độ backend và nội dung vào một thẻ, bỏ số phiên bản nội bộ khỏi UI. Bài dài mặc định tối đa bốn dòng, có xem thêm/thu gọn. Giữ progress khi context lỗi/denied và nút tải lại riêng.
+- Điểm danh chỉ hiện khi có dữ liệu sau buổi học hoặc có việc cần xử lý; bỏ giờ vào phòng lần đầu và chỉ hiện hạn liên quan. Giữ giải trình, phản hồi, học bù, confirmation và recovery theo dữ liệu/quyền server.
+- Form hủy buổi và lịch sử đã đóng được thu gọn; mở/đóng giữ draft. Yêu cầu đang hoạt động cùng nút phản hồi luôn hiện. Bên nhận thấy “Cần bạn phản hồi”; nội dung vẫn chỉ rõ người yêu cầu dùng lượt học bù.
+- Đồng nhất heading/icon/thẻ với theme hiện hành. Giới hạn đổi lịch/lượt học bù hiển thị bằng hàng ngắn; quy định và chi tiết nằm sau nút mở rộng, gom liên kết thỏa thuận/báo sự cố ở cuối.
+- Checks: TypeScript, ESLint, structure **PASS**; focused Session/import boundary/Path changes **61/61 PASS**; web export **PASS**. Browser fixture **11 nhóm PASS**, đúng một completion POST fixture và không có page error. Đã mở xem ảnh progress, incoming request, attendance ở 375px; kiểm không tràn ngang 320/375/430px.
+- Evidence local ignored: `.expo/mobile-session-ui-browser.cjs`, `.expo/mobile-session-ui-validation/browser-result.json`, ảnh `detail-320/375/430.png`, `pending-375.png`, `attendance-375.png`; logs `.expo/mobile-session-ui-tests.log`, `.expo/mobile-session-ui-export.log`.
+- Chỉ sửa mobile presentation và test hiện có; không sửa backend/API/dependencies. `compact` là prop tùy chọn, chỉ consumer Session bật. Không chạy lại full suite cho chỉnh UI này. Real API, Android/iOS và native font scaling **NOT_RUN**; web fixture không thay nghiệm thu native.
+
 ## Hiện trạng
 
 - Cập nhật lúc: 2026-10-22T20:53:47+07:00; baseline HEAD `be4738b9`, cùng source của phase.

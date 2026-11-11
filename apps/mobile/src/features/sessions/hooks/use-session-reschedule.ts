@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useRef, useSyncExternalStore } from "react";
 import { useFocusEffect } from "expo-router";
+import { AppState } from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
 import { AppError } from "@/lib/http/errors";
 import { useRefreshLearningPath } from "@/features/learning-paths/state";
@@ -48,8 +49,14 @@ export function useSessionReschedule(session: LearningSession | undefined) {
   );
   useFocusEffect(
     useCallback(() => {
-      action.setActive(true);
-      return () => action.setActive(false);
+      action.setActive(AppState.currentState === "active");
+      const subscription = AppState.addEventListener("change", (state) => {
+        action.setActive(state === "active");
+      });
+      return () => {
+        subscription.remove();
+        action.setActive(false);
+      };
     }, [action]),
   );
   const state = useSyncExternalStore(

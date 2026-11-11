@@ -1,5 +1,13 @@
-import { View } from "react-native";
-import { SessionCopy } from "./session-page";
+import type { ReactNode } from "react";
+import { StyleSheet, Text, View } from "react-native";
+import {
+  appColors as colors,
+  appRadius,
+  fonts,
+  typography,
+} from "@/constants/theme";
+import type { LearningSession } from "../types";
+import { formatSessionTime } from "../utils/session-time";
 
 const cases = [
   [
@@ -14,39 +22,147 @@ const cases = [
   ["Cả hai đều vắng", "Mỗi người −8 điểm uy tín; yêu cầu học bù."],
 ] as const;
 
-export function AttendanceRules() {
+function RuleGroup({
+  title,
+  first = false,
+  children,
+}: Readonly<{ title: string; first?: boolean; children: ReactNode }>) {
   return (
-    <View style={{ gap: 12 }}>
-      <SessionCopy>
-        Quy tắc sau khi kết luận được chốt, không có tranh chấp giữ kết quả:
-      </SessionCopy>
-      {cases.map(([title, text]) => (
-        <View key={title} style={{ gap: 4 }}>
-          <SessionCopy>{title}</SessionCopy>
-          <SessionCopy muted>{text}</SessionCopy>
-        </View>
-      ))}
-      <SessionCopy muted>
-        Mặc định cần tham gia ít nhất 80% thời lượng. Hạn giải trình vắng học là
-        48 giờ sau buổi học; hạn chốt lịch học bù là 7 ngày từ khi yêu cầu học
-        bù. Thời hạn thực tế và thao tác được phép theo dữ liệu buổi học phía
-        trên.
-      </SessionCopy>
-      <SessionCopy muted>
-        Lý do được chấp nhận: học bù, không phạt uy tín. Thiếu dữ liệu đáng tin
-        cậy: chưa xác minh, không tự phạt vắng. Vắng học không cần tạo báo cáo
-        sự cố. Cả hai vắng không áp dụng tự chấp nhận lý do giữa hai bên.
-      </SessionCopy>
-      <SessionCopy muted>
-        Mỗi buổi chỉ được học bù một lần. Lượt học bù tính riêng mỗi người, dùng
-        chung cả chiều dạy và học; hết lượt chuyển nhân sự xử lý.
-      </SessionCopy>
-      <SessionCopy muted>
-        Điểm uy tín khác Credit. Hoàn tất một buổi chưa quyết toán ngay; cần đủ
-        điều kiện cả lộ trình và không có tranh chấp giữ quyết toán. Sau khi học
-        xong toàn bộ, hai bên đồng ý giải ngân bằng thao tác riêng thì hệ thống
-        tự xử lý; nếu không thì chờ hết thời hạn.
-      </SessionCopy>
+    <View style={[styles.group, !first && styles.divided]}>
+      <Text accessibilityRole="header" style={styles.heading}>
+        {title}
+      </Text>
+      {children}
     </View>
   );
 }
+
+function RuleItem({ children }: Readonly<{ children: ReactNode }>) {
+  return (
+    <View style={styles.item}>
+      <View style={styles.dot} />
+      <Text selectable style={styles.body}>
+        {children}
+      </Text>
+    </View>
+  );
+}
+
+export function AttendanceRules({
+  session,
+}: Readonly<{
+  session: Pick<LearningSession, "originalStartAt" | "makeupQuota">;
+}>) {
+  const quota = session.makeupQuota;
+  return (
+    <View style={styles.rules}>
+      <RuleGroup title="Đổi lịch" first>
+        <RuleItem>Giữ nguyên thứ tự các buổi học.</RuleItem>
+        <RuleItem>
+          Buổi cuối được dời tối đa <Text style={styles.emphasis}>48 giờ</Text>{" "}
+          từ lịch gốc.
+        </RuleItem>
+        {session.originalStartAt && (
+          <Text selectable style={styles.note}>
+            <Text style={styles.emphasis}>Lịch gốc: </Text>
+            {formatSessionTime(session.originalStartAt)}
+          </Text>
+        )}
+      </RuleGroup>
+
+      <RuleGroup title="Học bù">
+        <RuleItem>
+          Mỗi buổi được học bù tối đa <Text style={styles.emphasis}>1 lần</Text>
+          .
+        </RuleItem>
+        <RuleItem>
+          Lượt dùng chung cả chiều dạy và học, tính cho người yêu cầu hủy hoặc
+          người vắng.
+        </RuleItem>
+        <RuleItem>Hết lượt cần nhân sự hỗ trợ.</RuleItem>
+        {quota && (
+          <Text selectable style={styles.note}>
+            <Text style={styles.emphasis}>Lượt của bạn: </Text>đã dùng{" "}
+            {quota.used}/{quota.limit} lượt trong thỏa thuận.
+          </Text>
+        )}
+      </RuleGroup>
+
+      <RuleGroup title="Điểm danh và vắng học">
+        <Text style={styles.body}>
+          Kết quả áp dụng khi điểm danh đã chốt và không có tranh chấp.
+        </Text>
+        <View style={styles.cases}>
+          {cases.map(([title, text], index) => (
+            <View
+              key={title}
+              style={[styles.case, index > 0 && styles.caseDivider]}
+            >
+              <Text style={styles.caseTitle}>{title}</Text>
+              <Text selectable style={styles.body}>
+                {text}
+              </Text>
+            </View>
+          ))}
+        </View>
+        <Text style={styles.body}>
+          Thiếu dữ liệu thì chờ xác minh, không tự kết luận vắng. Thời hạn xử lý
+          hiển thị ở phần điểm danh.
+        </Text>
+      </RuleGroup>
+
+      <RuleGroup title="Giải trình và hỗ trợ">
+        <RuleItem>
+          Giải trình được chấp nhận: học bù,{" "}
+          <Text style={styles.emphasis}>không phạt uy tín</Text>.
+        </RuleItem>
+        <RuleItem>Cả hai vắng không được duyệt giải trình cho nhau.</RuleItem>
+        <RuleItem>
+          Sự cố kỹ thuật: chọn <Text style={styles.emphasis}>Báo sự cố</Text>.
+        </RuleItem>
+      </RuleGroup>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  rules: { gap: 16 },
+  group: { gap: 10 },
+  divided: { borderTopWidth: 1, borderColor: colors.border, paddingTop: 16 },
+  heading: { fontFamily: fonts.bold, ...typography.body, color: colors.forest },
+  item: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
+  dot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.muted,
+    marginTop: 7,
+  },
+  body: {
+    flexShrink: 1,
+    fontFamily: fonts.body,
+    ...typography.secondary,
+    color: colors.body,
+  },
+  emphasis: { fontFamily: fonts.bold },
+  note: {
+    fontFamily: fonts.body,
+    ...typography.secondary,
+    color: colors.body,
+    padding: 10,
+    borderRadius: appRadius.control,
+    backgroundColor: colors.forestSoft,
+  },
+  cases: {
+    paddingHorizontal: 12,
+    borderRadius: appRadius.control,
+    backgroundColor: colors.surfaceLow,
+  },
+  case: { gap: 4, paddingVertical: 12 },
+  caseDivider: { borderTopWidth: 1, borderColor: colors.border },
+  caseTitle: {
+    fontFamily: fonts.bold,
+    ...typography.secondary,
+    color: colors.ink,
+  },
+});

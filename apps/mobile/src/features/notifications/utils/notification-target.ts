@@ -11,17 +11,42 @@ const proposalTypes = new Set([
   "proposal.expired",
 ]);
 
-// Payloads are references, never trusted URLs. Unknown types remain readable in the inbox.
-export function notificationTarget(item: InboxNotification): Href | undefined {
+function casePathParams(payload: Record<string, unknown>): { pathId?: string } {
+  for (const value of [payload.relatedPathId, payload.pathId]) {
+    const parsed = uuid.safeParse(value);
+    if (parsed.success) return { pathId: parsed.data };
+  }
+  return {};
+}
+
+function sessionNotificationTarget(
+  type: string,
+  payload: Record<string, unknown>,
+  valid: (field: string) => boolean,
+): Href | undefined {
+  if (type === "learning-path.schedule.confirmed" && valid("pathId"))
+    return {
+      pathname: "/paths/[id]/schedules",
+      params: { id: payload.pathId as string },
+    };
   if (
-    !item.payload ||
-    typeof item.payload !== "object" ||
-    Array.isArray(item.payload)
+    [
+      "report.session.opened",
+      "report.case.updated",
+      "report.case.message",
+      "report.case.evidence",
+    ].includes(type) &&
+    valid("caseId")
   )
-    return;
-  const payload = item.payload as Record<string, unknown>;
-  const valid = (field: string) => uuid.safeParse(payload[field]).success;
-  if (item.type === "learning-path.change.updated" && valid("pathId"))
+    return {
+      pathname: "/reports/[id]",
+      params: {
+        id: payload.caseId as string,
+        support: "1",
+        ...casePathParams(payload),
+      },
+    };
+  if (type === "learning-path.change.updated" && valid("pathId"))
     return {
       pathname: "/paths/[id]/cancel",
       params: {
@@ -39,13 +64,27 @@ export function notificationTarget(item: InboxNotification): Href | undefined {
       "session.no-show.finalized",
       "session.completed.timeout",
       "session.makeup.expired",
-    ].includes(item.type) &&
+    ].includes(type) &&
     valid("sessionId")
   )
     return {
       pathname: "/learning-sessions/[id]",
       params: { id: payload.sessionId as string },
     };
+}
+
+// Payloads are references, never trusted URLs. Unknown types remain readable in the inbox.
+export function notificationTarget(item: InboxNotification): Href | undefined {
+  if (
+    !item.payload ||
+    typeof item.payload !== "object" ||
+    Array.isArray(item.payload)
+  )
+    return;
+  const payload = item.payload as Record<string, unknown>;
+  const valid = (field: string) => uuid.safeParse(payload[field]).success;
+  const sessionTarget = sessionNotificationTarget(item.type, payload, valid);
+  if (sessionTarget) return sessionTarget;
   if (item.type === "chat.message.delivered" && valid("conversationId"))
     return {
       pathname: "/chat/[proposalId]",

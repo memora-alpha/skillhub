@@ -29,8 +29,11 @@ export function sessionJoinReason(
   const end = Date.parse(session.endAt);
   if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start)
     return "SESSION_NOT_JOINABLE";
-  if (now >= end) return "SESSION_ENDED";
-  if (!["CONFIRMED", "READY", "ONGOING"].includes(session.status))
+  if (
+    !["CONFIRMED", "READY", "ONGOING", "AWAITING_CONFIRMATION"].includes(
+      session.status,
+    )
+  )
     return "SESSION_NOT_JOINABLE";
   if (session.allowedActions && !session.allowedActions.includes("JOIN"))
     return "SESSION_NOT_JOINABLE";
@@ -43,6 +46,11 @@ export function sessionJoinReason(
   if (now < opens) return "JOIN_WINDOW_NOT_OPEN";
   if (now >= closes) return "JOIN_WINDOW_CLOSED";
   return null;
+}
+export function sessionRoomClosesAt(
+  session?: Pick<LearningSession, "join" | "endAt">,
+) {
+  return Date.parse(session?.join?.closesAt ?? session?.endAt ?? "");
 }
 export function canJoinSession(session?: JoinSession, now = Date.now()) {
   return sessionJoinReason(session, now) === null;

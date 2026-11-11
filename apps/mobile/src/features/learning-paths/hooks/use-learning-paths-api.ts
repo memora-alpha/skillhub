@@ -1,4 +1,6 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { AppError } from "@/lib/http/errors";
 import {
   useConnections,
   useConnectionList,
@@ -27,7 +29,10 @@ export function useLearningPaths(allowed = true) {
 }
 export function useLearningPathPages(allowed: boolean) {
   const api = useLearningPathsApi();
-  return useConnectionList(
+  const runtime = useConnections(),
+    cache = useQueryClient();
+  const recoveredError = useRef<unknown>(undefined);
+  const query = useConnectionList(
     ["learning-paths", "mine", "pages"],
     api.minePage,
     allowed,
@@ -36,6 +41,25 @@ export function useLearningPathPages(allowed: boolean) {
       cancelOnDisable: true,
     },
   );
+  useEffect(() => {
+    if (
+      allowed &&
+      runtime.isCurrent() &&
+      query.isFetchNextPageError &&
+      query.error instanceof AppError &&
+      query.error.status === 400 &&
+      query.error.code === "INVALID_LEARNING_PATH_CURSOR" &&
+      recoveredError.current !== query.error
+    ) {
+      recoveredError.current = query.error;
+      // Discard every old page. Appending page one to an old cursor chain is unsafe.
+      void cache.resetQueries({
+        queryKey: [...runtime.key, "learning-paths", "mine", "pages"],
+        exact: true,
+      });
+    }
+  }, [allowed, runtime, cache, query.error, query.isFetchNextPageError]);
+  return query;
 }
 export function useLearningPath(id: string, allowed = true) {
   const api = useLearningPathsApi(),

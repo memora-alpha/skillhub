@@ -8,6 +8,7 @@
 
 | Work tiếp nhận                                                                       | Plan                                                 | Hiện trạng và bước tiếp                                  |
 | ------------------------------------------------------------------------------------ | ---------------------------------------------------- | -------------------------------------------------------- |
+| Đồng nhất giao diện Report — tạo, theo dõi và trao đổi | [plan](reports-ui/plan.md) | [status](reports-ui/status.md) |
 | Hoàn thiện Settings và thống kê Profile trên Expo | [plan](settings-profile/plan.md) | [status](settings-profile/status.md) |
 | Dừng lộ trình, thông báo và quyết toán Credit | [plan](path-cancellation/plan.md) | [status](path-cancellation/status.md) |
 | Tin nhắn theo Yêu cầu học — màn riêng Nhận được/Đoạn chat | [plan](request-message-groups/plan.md) | [status](request-message-groups/status.md) |

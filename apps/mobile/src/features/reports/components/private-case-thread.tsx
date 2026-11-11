@@ -1,11 +1,15 @@
-import { useState } from "react";
-import { Linking } from "react-native";
+import { useMemo, useState } from "react";
+import { Text, View } from "react-native";
 import { z } from "zod";
 import { Button } from "@/components/Button";
-import { Input } from "@/components/Input";
-import { Copy, Panel } from "@/components/feature-page";
-import { ServerFilePicker } from "@/components/server-file-picker";
-import type { UploadedFile } from "@/lib/http/file-upload";
+import { ReportCopy as Copy, ReportSection as Panel } from "./report-ui";
+import { reportStyles as styles } from "./report.styles";
+import { Icon } from "@/components/Icon";
+import { appColors as colors } from "@/constants/theme";
+import { CaseEvidencePanel } from "./case-evidence-panel";
+import { CaseMessageHistory } from "./case-message-history";
+import { CaseMessageComposer } from "./case-message-composer";
+import { caseThreadStyles as threadStyles } from "./case-thread.styles";
 import {
   parse,
   parsePage,
@@ -20,8 +24,13 @@ import {
   useConnectionQuery,
   useConnectionCommand,
 } from "@/features/connections";
-import { useReportsApi } from "../hooks/use-reports";
-import { canWriteCase } from "../utils/case-actions";
+import { useReportsApi, useCaseEvidence } from "../hooks/use-reports";
+import {
+  casePermissions,
+  caseBlockedCopy,
+  caseAwaitingHandler,
+} from "../utils/case-actions";
+import { caseCapabilities } from "@/lib/http/case-capabilities";
 import { AppError } from "@/lib/http/errors";
 const message = z.object({
   id: z.string().regex(/^[a-f0-9]{64}$/),
@@ -29,39 +38,50 @@ const message = z.object({
   text: z.string(),
   createdAt: timestamp,
 });
-const evidence = z.object({
-  id: uuid,
-  mimeType: z.string(),
-  fileSizeBytes: z.string(),
-  uploadedAt: timestamp,
-});
 type CaseThreadProps = Readonly<{
   caseId: string;
   status?: string;
   pathId?: string;
+  handlerId?: string | null;
+  onRefreshStatus?: () => Promise<unknown>;
 }>;
-export function PrivateCaseThread({ caseId, status, pathId }: CaseThreadProps) {
+export function PrivateCaseThread(props: CaseThreadProps) {
   const runtime = useConnections();
   return (
     <PrivateCaseThreadContent
-      key={JSON.stringify([runtime.key, caseId])}
-      caseId={caseId}
-      status={status}
-      pathId={pathId}
+      key={JSON.stringify([runtime.key, props.caseId])}
+      {...props}
     />
   );
 }
-function PrivateCaseThreadContent({ caseId, status, pathId }: CaseThreadProps) {
+function PrivateCaseThreadContent({
+  caseId,
+  status,
+  pathId,
+  handlerId,
+  onRefreshStatus,
+}: CaseThreadProps) {
   const runtime = useConnections();
   const api = useReportsApi();
   const root = `/reports/support/cases/${encodeURIComponent(caseId)}/parties/${encodeURIComponent(runtime.userId ?? "")}`;
   const valid = uuid.safeParse(caseId).success && !!runtime.userId;
+  const needsOwnReport = valid && status === undefined && !pathId;
+  const ownReports = useConnectionQuery(
+    ["reports"],
+    (signal) => api.mine(signal),
+    needsOwnReport,
+  );
+  const ownReport = needsOwnReport
+    ? ownReports.data?.find((row) => row.id === caseId)
+    : undefined;
+  const resolvedPathId = pathId ?? ownReport?.relatedPathId ?? undefined;
   const context = useConnectionQuery(
-    ["learning-paths", pathId ?? "", "cases", caseId],
+    ["learning-paths", resolvedPathId ?? "", "cases", caseId, "thread-context"],
     async (signal) => {
       const row = parse(
-        z.object({
+        caseCapabilities.extend({
           id: uuid,
+          relatedPathId: uuid,
           status: z.enum([
             "OPEN",
             "UNDER_REVIEW",
@@ -71,14 +91,15 @@ function PrivateCaseThreadContent({ caseId, status, pathId }: CaseThreadProps) {
           ]),
         }),
         await runtime.call(
-          `/learning-paths/${encodeURIComponent(pathId ?? "")}/cases/${encodeURIComponent(caseId)}/summary`,
+          `/learning-paths/${encodeURIComponent(resolvedPathId ?? "")}/cases/${encodeURIComponent(caseId)}/summary`,
           { signal },
         ),
       );
-      if (row.id !== caseId) throw new AppError("protocol");
+      if (row.id !== caseId || row.relatedPathId !== resolvedPathId)
+        throw new AppError("protocol");
       return row;
     },
-    valid && uuid.safeParse(pathId).success,
+    valid && uuid.safeParse(resolvedPathId).success,
   );
   const query = useConnectionList(
     ["reports", caseId, "messages"],
@@ -92,209 +113,184 @@ function PrivateCaseThreadContent({ caseId, status, pathId }: CaseThreadProps) {
       ),
     valid,
   );
-  const filesQuery = useConnectionQuery(
-    ["reports", caseId, "private-evidence"],
-    async (signal) =>
-      parse(
-        z.array(evidence),
-        await runtime.call(`${root}/evidence`, { signal }),
-      ),
-    valid,
+  const filesQuery = useCaseEvidence(caseId, valid);
+  const historyMessages = useMemo(
+    () => query.data?.pages.flatMap((page) => page.items) ?? [],
+    [query.data],
   );
   const command = useConnectionCommand([["reports"], ["learning-paths"]]);
-  const download = useConnectionCommand([]);
   const [text, setText] = useState("");
-  const [files, setFiles] = useState<UploadedFile[]>([]);
-  const [open, setOpen] = useState(false);
-  const currentStatus = pathId ? context.data?.status : status;
-  const writable = canWriteCase(
-    currentStatus,
-    !valid || !!context.error || !!query.error || !!filesQuery.error,
+  const [waitingForHandler, setWaitingForHandler] = useState(false);
+  const currentStatus = resolvedPathId
+    ? context.data?.status
+    : (status ?? ownReport?.status);
+  const currentHandler =
+    handlerId !== undefined ? handlerId : ownReport?.handlerId;
+  const permissions = casePermissions(
+    context.data,
+    {
+      status: currentStatus,
+      handlerId: currentHandler,
+      evidenceCount: filesQuery.data?.length,
+    },
+    !valid ||
+      !!context.error ||
+      !!query.error ||
+      !!filesQuery.error ||
+      (needsOwnReport && !!ownReports.error) ||
+      (!!resolvedPathId && !context.data),
   );
-  function sendEvidence(fileId: string) {
-    return command.run(`evidence:${fileId}`, async () => {
-      const result = await runtime.call(`${root}/evidence`, {
-        method: "POST",
-        body: { fileId },
-        replayAfterRenewal: false,
-      });
-      if (runtime.isCurrent())
-        setFiles((current) => current.filter((item) => item.fileId !== fileId));
-      return result;
+  const canSend = permissions.canSendMessage && !waitingForHandler;
+  const awaitingHandler = caseAwaitingHandler({
+    reason: context.data?.messageBlockedReason,
+    status: currentStatus,
+    hasPath: !!resolvedPathId,
+    handlerId: currentHandler,
+    waiting: waitingForHandler,
+  });
+  const loadingContext =
+    (!!resolvedPathId && context.isLoading) ||
+    (needsOwnReport && ownReports.isLoading);
+  async function refresh() {
+    const results = await Promise.allSettled([
+      query.refetch({ throwOnError: true }),
+      filesQuery.refetch({ throwOnError: true }),
+      ...(resolvedPathId ? [context.refetch({ throwOnError: true })] : []),
+      ...(needsOwnReport ? [ownReports.refetch({ throwOnError: true })] : []),
+      ...(onRefreshStatus ? [onRefreshStatus()] : []),
+    ]);
+    if (
+      runtime.isCurrent() &&
+      results.every((result) => result.status === "fulfilled")
+    )
+      setWaitingForHandler(false);
+  }
+  function sendMessage() {
+    if (!canSend) return;
+    return command.run(`message:${text.trim()}`, async (clientMessageId) => {
+      try {
+        const result = await runtime.call(`${root}/messages`, {
+          method: "POST",
+          body: { clientMessageId, text: text.trim() },
+          replayAfterRenewal: false,
+        });
+        if (runtime.isCurrent()) setText("");
+        return result;
+      } catch (error) {
+        if (
+          runtime.isCurrent() &&
+          error instanceof AppError &&
+          error.code === "CASE_HANDLER_REQUIRED"
+        )
+          setWaitingForHandler(true);
+        throw error;
+      }
     });
   }
-  function evidenceToggleLabel() {
-    if (open) {
-      return "Thu gọn bằng chứng";
-    }
-    if (writable) {
-      return "Xem / bổ sung bằng chứng";
-    }
-    return "Xem bằng chứng";
-  }
   return (
-    <Panel title="Trao đổi riêng với người xử lý">
-      <Copy muted>Chỉ bạn và người xử lý được xem nội dung này.</Copy>
-      <Button
-        variant="paper"
-        disabled={query.isFetching || filesQuery.isFetching}
-        onPress={() => {
-          void query.refetch();
-          void filesQuery.refetch();
-          if (pathId) void context.refetch();
-        }}
-      >
-        Cập nhật trao đổi
-      </Button>
+    <Panel
+      title="Trao đổi hỗ trợ"
+      subtitle="Riêng tư với nhân viên"
+      compact
+      icon="message"
+      action={
+        <Button
+          variant="ghost"
+          style={styles.iconButton}
+          accessibilityLabel="Cập nhật trao đổi"
+          disabled={query.isFetching || filesQuery.isFetching}
+          onPress={() => {
+            void refresh();
+          }}
+        >
+          <Icon name="refresh" size={18} color={colors.forest} />
+        </Button>
+      }
+    >
       <ConnectionFeedback
-        loading={query.isLoading}
+        loading={query.isLoading || loadingContext}
         error={
           context.error ??
           query.error ??
           filesQuery.error ??
-          command.error ??
-          download.error
+          (needsOwnReport ? ownReports.error : undefined) ??
+          (awaitingHandler ? undefined : command.error)
         }
         retry={() => {
-          void query.refetch();
-          void filesQuery.refetch();
-          if (pathId) void context.refetch();
+          void refresh();
         }}
       />
-      {query.items.map((row) => (
-        <Panel
-          key={row.id}
-          title={row.senderId === runtime.userId ? "Bạn" : "Người xử lý"}
-        >
-          <Copy>{row.text}</Copy>
-          <Copy muted>{new Date(row.createdAt).toLocaleString("vi-VN")}</Copy>
-        </Panel>
-      ))}
-      {query.hasNextPage && (
-        <Button
-          variant="paper"
-          disabled={query.isFetching}
-          onPress={() => void query.fetchNextPage()}
-        >
-          Tin nhắn trước
-        </Button>
-      )}
-      {!writable && (
-        <Copy muted>
-          {currentStatus === "RESOLVED" || currentStatus === "REJECTED"
-            ? "Vụ việc đã kết thúc. Bạn vẫn có thể xem lịch sử và bằng chứng."
-            : "Chưa xác nhận được trạng thái vụ việc. Mở từ lộ trình hoặc cập nhật lại trước khi bổ sung."}
-        </Copy>
-      )}
-      {writable && (
-        <>
-          <Input
-            label="Nội dung bổ sung"
-            value={text}
-            onChangeText={setText}
-            multiline
-            maxLength={4000}
-            editable={!command.pending && !command.uncertain}
-          />
-          <Button
-            disabled={
-              !text.trim() ||
-              command.pending ||
-              command.uncertain ||
-              !!query.error
-            }
-            onPress={() =>
-              void command.run(
-                `message:${text.trim()}`,
-                async (clientMessageId) => {
-                  const result = await runtime.call(`${root}/messages`, {
-                    method: "POST",
-                    body: { clientMessageId, text: text.trim() },
-                    replayAfterRenewal: false,
-                  });
-                  if (runtime.isCurrent()) setText("");
-                  return result;
-                },
-              )
-            }
-          >
-            Gửi phản hồi
-          </Button>
-        </>
-      )}
-      <Button variant="paper" onPress={() => setOpen(!open)}>
-        {evidenceToggleLabel()}
-      </Button>
-      {open && (
-        <>
-          {filesQuery.data?.map((file) => (
-            <Button
-              key={file.id}
-              variant="paper"
-              onPress={() =>
-                void download.run(`download:${file.id}`, async () => {
-                  const result = parse(
-                    z.object({ url: z.url(), expiresAt: timestamp }),
-                    await runtime.call(`${root}/evidence/${file.id}/download`),
-                  );
-                  if (runtime.isCurrent()) await Linking.openURL(result.url);
-                  return result;
-                })
-              }
-            >
-              Xem bằng chứng · {file.mimeType}
-            </Button>
-          ))}
-          {writable && (
-            <>
-              <ServerFilePicker
-                files={files}
-                onChange={setFiles}
-                upload={api.upload}
-                status={api.fileStatus}
-                isCurrent={runtime.isCurrent}
-                disabled={command.pending || command.uncertain}
-                maxCount={Math.max(0, 5 - (filesQuery.data?.length ?? 0))}
-              />
-              {files.map(
-                (file) =>
-                  file.state === "READY" && (
-                    <Button
-                      key={file.fileId}
-                      disabled={command.pending || command.uncertain}
-                      onPress={() => sendEvidence(file.fileId)}
-                    >
-                      Gửi {file.name}
-                    </Button>
-                  ),
+      <CaseMessageHistory
+        messages={historyMessages}
+        userId={runtime.userId ?? null}
+        hasMore={!!query.hasNextPage}
+        loading={query.isFetching}
+        onLoadOlder={() => {
+          void query.fetchNextPage({ cancelRefetch: false });
+        }}
+      />
+      {!query.isLoading &&
+        !query.error &&
+        !historyMessages.length &&
+        canSend && (
+          <Text style={threadStyles.empty}>
+            Nhắn tin để bổ sung thông tin cho báo cáo.
+          </Text>
+        )}
+      <View style={threadStyles.footer}>
+        {!canSend && !awaitingHandler && !loadingContext && (
+          <View style={threadStyles.notice}>
+            <Icon name="shield" size={16} color={colors.muted} />
+            <Text style={threadStyles.noticeText}>
+              {caseBlockedCopy(
+                context.data?.messageBlockedReason ??
+                  (["RESOLVED", "REJECTED"].includes(currentStatus ?? "")
+                    ? "REPORT_CASE_CLOSED"
+                    : null),
               )}
-            </>
-          )}
-        </>
-      )}
-      {download.uncertain && (
-        <Button
-          variant="paper"
-          disabled={download.pending}
-          onPress={() => void download.retry()}
-        >
-          Thử mở lại bằng chứng
-        </Button>
-      )}
-      {command.uncertain && writable && (
-        <>
-          <Copy muted>
-            Chưa rõ kết quả gửi. Kiểm tra hoặc gửi lại cùng nội dung.
-          </Copy>
-          <Button
-            variant="paper"
-            disabled={command.pending}
-            onPress={() => void command.retry()}
-          >
-            Kiểm tra / gửi lại
-          </Button>
-        </>
-      )}
+            </Text>
+          </View>
+        )}
+        {awaitingHandler && (
+          <View style={threadStyles.notice}>
+            <Icon name="clock" size={16} color={colors.muted} />
+            <Text style={threadStyles.noticeText}>
+              {caseBlockedCopy("CASE_HANDLER_REQUIRED")}
+            </Text>
+          </View>
+        )}
+        <CaseEvidencePanel
+          caseId={caseId}
+          writable={permissions.canAttachEvidence}
+          ownEvidenceCount={context.data?.ownEvidenceCount}
+          blockedReason={context.data?.evidenceBlockedReason}
+        />
+        {canSend && (
+          <CaseMessageComposer
+            value={text}
+            onChange={setText}
+            pending={command.pending}
+            uncertain={command.uncertain}
+            onSend={() => {
+              void sendMessage();
+            }}
+          />
+        )}
+        {command.uncertain && canSend && (
+          <>
+            <Copy muted>
+              Chưa rõ kết quả gửi. Kiểm tra hoặc gửi lại cùng nội dung.
+            </Copy>
+            <Button
+              variant="paper"
+              disabled={command.pending}
+              onPress={() => void command.retry()}
+            >
+              Kiểm tra / gửi lại
+            </Button>
+          </>
+        )}
+      </View>
     </Panel>
   );
 }

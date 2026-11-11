@@ -12,33 +12,6 @@ const noticeSchema = z
   .refine((value) => Date.parse(value.startAt) < Date.parse(value.endAt));
 export type ScheduledNotice = z.infer<typeof noticeSchema>;
 
-export function scheduledMessage(result: {
-  pathId: string;
-  version: number;
-  sessions: readonly { startAt: string; endAt: string }[];
-}) {
-  const value = noticeSchema.parse({
-    pathId: result.pathId,
-    version: result.version,
-    sessionCount: result.sessions.length,
-    startAt: new Date(
-      Math.min(
-        ...result.sessions.map((session) => Date.parse(session.startAt)),
-      ),
-    ).toISOString(),
-    endAt: new Date(
-      Math.max(...result.sessions.map((session) => Date.parse(session.endAt))),
-    ).toISOString(),
-  });
-  const query = new URLSearchParams({
-    version: String(value.version),
-    sessions: String(value.sessionCount),
-    startAt: value.startAt,
-    endAt: value.endAt,
-  });
-  return `Lịch học đã chốt\n${value.sessionCount} buổi học\nskillhub://scheduled/${value.pathId}?${query}`;
-}
-
 export function readScheduledMessage(text: string): ScheduledNotice | null {
   const match =
     /^Lịch học đã chốt\n(\d+) buổi học\nskillhub:\/\/scheduled\/([\da-f-]+)\?([^\n]+)$/i.exec(

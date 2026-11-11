@@ -14,6 +14,7 @@ import {
   canJoinSession,
   joinReason,
   sessionJoinReason,
+  sessionRoomClosesAt,
 } from "../utils/session-join";
 import { sessionErrorMessage } from "../utils/session-read";
 
@@ -53,21 +54,23 @@ function SessionRoom({ id }: Readonly<{ id: string }>) {
       runtime.isCurrent() &&
       focused.current &&
       (AppState.currentState !== "background" || sharingScreen.current) &&
-      !!sessionRef.current &&
-      ["CONFIRMED", "READY", "ONGOING"].includes(sessionRef.current.status) &&
-      Date.now() < Date.parse(sessionRef.current.endAt),
+      canJoinSession(sessionRef.current),
     [runtime.isCurrent],
   );
   const [notice, setNotice] = useState("");
   const terminal =
-    !!session && !["CONFIRMED", "READY", "ONGOING"].includes(session.status);
-  const ended = !!session && now >= Date.parse(session.endAt);
+    !!session &&
+    !["CONFIRMED", "READY", "ONGOING", "AWAITING_CONFIRMATION"].includes(
+      session.status,
+    );
+  const ended = !!session && now >= sessionRoomClosesAt(session);
+  const joinable = canJoinSession(session, now);
   useEffect(() => {
-    if (!session || terminal || ended || !runtime.enabled) {
+    if (!session || terminal || ended || !runtime.enabled || !joinable) {
       intent.current++;
       setAttempt(0);
     }
-  }, [session, terminal, ended, runtime.enabled]);
+  }, [session, terminal, ended, runtime.enabled, joinable]);
   const leave = useCallback(() => {
     sharingScreen.current = false;
     intent.current++;

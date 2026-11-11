@@ -2,19 +2,17 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { mock, test } from "node:test";
 import { pathToFileURL } from "node:url";
-import {
-  scheduledMessage,
-  readScheduledMessage,
-} from "../src/features/learning-paths/utils/scheduled-message";
+import { readScheduledMessage } from "../src/features/learning-paths/utils/scheduled-message";
 import { confirmedFormMessage } from "../src/features/learning-paths/utils/confirmed-form";
 import { chatTimeline } from "../src/features/messages/utils/chat-timeline";
 import { readChatSchedule } from "../src/features/messages/utils/schedule-notice";
 import type { ApiMessage } from "../src/features/messages/api/messages-api";
 import { fixtureId } from "./fixtures/learning-requests-data";
+import { readScheduleConfirmation } from "../src/features/learning-paths/utils/schedule-confirmation-message";
 import {
+  scheduledMessage,
   scheduleConfirmationMessage,
-  readScheduleConfirmation,
-} from "../src/features/learning-paths/utils/schedule-confirmation-message";
+} from "./fixtures/legacy-schedule-messages";
 import {
   agreementPath,
   withConfirmedSchedules,
@@ -260,7 +258,7 @@ test("schedule notice card is compact, has no per-session list or confirmation v
   }
 });
 
-test("confirming each schedule direction shares its exact receipt only after success", async () => {
+test("confirming schedules leaves Chat publication to BE and keeps uncertain recovery read-only after confirmation is known", async () => {
   const local = createRequire(
     new URL(
       "../src/features/learning-paths/screens/ApiScheduleScreens.tsx",
@@ -511,14 +509,14 @@ test("confirming each schedule direction shares its exact receipt only after suc
       0,
       "reading confirmation is not a chat delivery receipt",
     );
-    const finishChat = afterRead.find(
+    const refreshKnown = afterRead.find(
       (node) =>
-        node.type === "Button" &&
-        node.props.children === "Gửi cập nhật vào Chat",
+        node.type === "Button" && node.props.children === "Cập nhật lịch học",
     )!;
-    assert.ok(finishChat);
-    (finishChat.props.onPress as () => void)();
-    assert.equal(retries, 3);
+    assert.ok(refreshKnown);
+    (refreshKnown.props.onPress as () => void)();
+    assert.equal(retries, 2);
+    assert.equal(refreshes, 3);
     const editAfterRead = afterRead.find(
       (node) =>
         node.type === "Button" &&
@@ -541,11 +539,11 @@ test("confirming each schedule direction shares its exact receipt only after suc
       );
       const notice = blockedRead.find((node) => node.type === "Notice")!;
       assert.equal(notice.props.tone, readState.current ? "info" : "warning");
-      const chatAction = blockedRead.find(
-        (node) => node.props.children === "Gửi cập nhật vào Chat",
+      const refreshAction = blockedRead.find(
+        (node) => node.props.children === "Cập nhật lịch học",
       );
-      if (readState.current) assert.equal(chatAction?.props.disabled, true);
-      else assert.equal(chatAction, undefined);
+      if (readState.current) assert.equal(refreshAction?.props.disabled, true);
+      else assert.equal(refreshAction, undefined);
     }
     current = true;
     const partnerOnly = structuredClone(path);
@@ -600,17 +598,8 @@ test("confirming each schedule direction shares its exact receipt only after suc
       await new Promise((resolve) => setImmediate(resolve));
     }
     assert.equal(confirmations, 2);
-    assert.equal(shares, 2);
-    for (const [index, receipt] of receipts.entries()) {
-      const parsed = readScheduleConfirmation(receipt.text)!;
-      assert.equal(receipt.conversationId, path.conversationId);
-      assert.equal(receipt.identity, fixtureId(99));
-      assert.equal(parsed.planId, path.plans[index]!.id);
-      assert.equal(parsed.scheduleId, path.plans[index]!.schedule!.id);
-      assert.equal(parsed.version, 4);
-      assert.equal(parsed.confirmedBy, path.participantAId);
-      assert.equal(parsed.bothConfirmed, index === 1);
-    }
+    assert.equal(shares, 0, "BE publishes the confirmation SYSTEM event");
+    assert.deepEqual(receipts, []);
     const firstPanel = panels[0]!;
     const confirmAgain = () =>
       elements(
@@ -625,7 +614,7 @@ test("confirming each schedule direction shares its exact receipt only after suc
     confirmAgain()();
     await new Promise((resolve) => setImmediate(resolve));
     assert.equal(confirmations, 3);
-    assert.equal(shares, 2, "a failed confirmation does not announce success");
+    assert.equal(shares, 0, "a failed confirmation does not announce success");
     reject = false;
     status = "LOCKED";
     confirmAgain()();
@@ -633,7 +622,7 @@ test("confirming each schedule direction shares its exact receipt only after suc
     assert.equal(confirmations, 4);
     assert.equal(
       shares,
-      2,
+      0,
       "an already-locked replay must not announce an unfinalized confirmation",
     );
     current = false;

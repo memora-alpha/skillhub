@@ -36,9 +36,16 @@ export const attendanceSchema = z.object({
   determinedAt: date.optional(),
 });
 export const deadlinesSchema = z.object({
+  reportBy: date.optional(),
   confirmBy: date,
   excuseOrReportBy: date,
   makeupBy: date,
+});
+export const reportingSchema = z.object({
+  canReport: z.boolean(),
+  blockedReason: z.string().nullable(),
+  reportBy: date,
+  evaluatedAt: z.iso.datetime({ offset: true }),
 });
 export const excuseSchema = z.object({
   status: z.enum(["PENDING", "ACCEPTED", "REJECTED", "EXPIRED"]),

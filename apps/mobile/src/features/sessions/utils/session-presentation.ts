@@ -10,8 +10,7 @@ export function sessionPresentation(
     return {
       label: "Có người vắng học",
       variant: "warning" as const,
-      description:
-        "Xem kết quả điểm danh, giải trình vắng học và xử lý học bù.",
+      description: "Kết quả vắng học đang được xử lý. Xem điểm danh bên dưới.",
     };
   if (session.status === "MAKEUP_REQUIRED")
     return {

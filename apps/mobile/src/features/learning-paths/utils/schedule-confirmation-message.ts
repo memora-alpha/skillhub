@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { uuid, version } from "@/lib/http/contracts";
-import { confirmedFormMessage, readConfirmedForm } from "./confirmed-form";
+import { readConfirmedForm } from "./confirmed-form";
 
 const confirmation = z
   .object({
@@ -20,39 +20,6 @@ const confirmation = z
       [value.teacherId, value.learnerId].includes(value.confirmedBy),
   );
 export type ScheduleConfirmation = z.infer<typeof confirmation>;
-
-// A normal participant TEXT message, not a server SYSTEM event. Keep the
-// existing confirmation link readable by older clients and include the receipt
-// status in structured query fields for current clients.
-export function scheduleConfirmationMessage(input: ScheduleConfirmation) {
-  const value = confirmation.parse({
-    ...input,
-    title: input.title.trim().replace(/\s+/g, " ").slice(0, 160) || "Lịch học",
-  });
-  const teacher = value.confirmedBy === value.teacherId;
-  const confirmedRole = teacher ? "Người dạy" : "Người học";
-  const waitingRole = teacher ? "người học" : "người dạy";
-  const summary = value.bothConfirmed
-    ? "Hai bên đã đồng ý lịch này · Chưa chốt lịch."
-    : `${confirmedRole} đã đồng ý · Chờ ${waitingRole} xác nhận.`;
-  const message = confirmedFormMessage({
-    kind: "schedule",
-    pathId: value.pathId,
-    planId: value.planId,
-    scheduleId: value.scheduleId,
-    version: value.version,
-    title: value.title,
-    summary,
-  });
-  const metadata = new URLSearchParams({
-    scheduleConfirmation: "1",
-    confirmedBy: value.confirmedBy,
-    teacherId: value.teacherId,
-    learnerId: value.learnerId,
-    bothConfirmed: String(value.bothConfirmed),
-  });
-  return `${message}&${metadata}`;
-}
 
 export function readScheduleConfirmation(
   text: string,

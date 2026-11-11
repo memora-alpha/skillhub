@@ -1,58 +1,138 @@
+import { Text, View } from "react-native";
+import { useRouter } from "expo-router";
+import { Button } from "@/components/Button";
+import { Icon } from "@/components/Icon";
 import { FormNotice } from "@/components/FormNotice";
+import { appColors as colors } from "@/constants/theme";
 import { useSessionContext } from "../hooks/use-session-context";
 import type { LearningSession } from "../types";
-import {
-  SessionPanel,
-  SessionCopy,
-  SessionButton,
-  SessionRouteButton,
-} from "./session-page";
+import { SessionCopy, SessionButton } from "./session-page";
+import { SessionSection } from "./session-section";
+import { SessionLessonContent } from "./session-lesson-content";
+import { sectionStyles as styles } from "./session-section.styles";
+
+function SessionLesson({
+  context,
+  progress,
+  loading,
+  error,
+}: Readonly<{
+  context: ReturnType<typeof useSessionContext>["context"];
+  progress: boolean;
+  loading: boolean;
+  error: unknown;
+}>) {
+  if (context)
+    return (
+      <>
+        {!progress && (
+          <Text style={styles.caption}>Buổi {context.outline.sessionNo}</Text>
+        )}
+        <SessionLessonContent
+          key={`${context.plan.id}:${context.plan.version}:${context.outline.sessionNo}`}
+          content={context.outline.content}
+        />
+      </>
+    );
+  if (error) return null;
+  const message = loading
+    ? "Đang tải nội dung buổi học…"
+    : "Chưa có nội dung buổi học.";
+  return <SessionCopy muted>{message}</SessionCopy>;
+}
 
 export function SessionContextPanel({
   session,
 }: Readonly<{ session: LearningSession }>) {
   const query = useSessionContext(session),
     context = query.context;
+  const router = useRouter();
+  const progress = session.progress;
   return (
-    <>
-      {session.progress && (
-        <SessionPanel title="Tiến độ học tập">
-          <SessionCopy>
-            Lộ trình kỹ năng: {session.progress.plan.completed}/
-            {session.progress.plan.total} buổi hoàn thành
-          </SessionCopy>
-          <SessionCopy muted>
-            Toàn thỏa thuận: {session.progress.agreement.completed}/
-            {session.progress.agreement.total} buổi hoàn thành
-          </SessionCopy>
-        </SessionPanel>
+    <SessionSection
+      title={progress ? "Tiến độ học tập" : "Nội dung buổi học"}
+      icon="book"
+      action={
+        context && (
+          <Button
+            variant="ghost"
+            accessibilityLabel="Xem lộ trình"
+            style={styles.headerAction}
+            onPress={() =>
+              router.push(`/paths/${context.path.id}/plans/${context.plan.id}`)
+            }
+          >
+            <Icon name="chevron" size={18} color={colors.forest} />
+          </Button>
+        )
+      }
+    >
+      {progress && (
+        <View style={styles.progressSummary}>
+          <View style={styles.progressHeader}>
+            <Text style={styles.progressCaption}>Đã hoàn thành</Text>
+            <Text selectable style={styles.progressValue}>
+              {progress.plan.completed}/{progress.plan.total}
+              <Text style={styles.progressUnit}> buổi</Text>
+            </Text>
+          </View>
+          <View
+            accessibilityRole="progressbar"
+            accessibilityLabel="Tiến độ lộ trình kỹ năng"
+            aria-valuemin={0}
+            aria-valuemax={progress.plan.total}
+            aria-valuenow={progress.plan.completed}
+            aria-valuetext={`${progress.plan.completed}/${progress.plan.total} buổi hoàn thành`}
+            accessibilityValue={{
+              min: 0,
+              max: progress.plan.total,
+              now: progress.plan.completed,
+              text: `${progress.plan.completed}/${progress.plan.total} buổi hoàn thành`,
+            }}
+            style={styles.progressTrack}
+          >
+            <View
+              style={[
+                styles.progressFill,
+                {
+                  width: `${progress.plan.total ? (progress.plan.completed / progress.plan.total) * 100 : 0}%`,
+                },
+              ]}
+            />
+          </View>
+          {(progress.agreement.completed !== progress.plan.completed ||
+            progress.agreement.total !== progress.plan.total) && (
+            <Text selectable style={styles.progressCaption}>
+              Toàn thỏa thuận · {progress.agreement.completed}/
+              {progress.agreement.total} buổi hoàn thành
+            </Text>
+          )}
+        </View>
       )}
-      <SessionPanel title="Nội dung buổi học">
-        {context ? (
-          <>
-            <SessionCopy muted>
-              Buổi {context.outline.sessionNo} · Lộ trình bản{" "}
-              {context.plan.version}
-            </SessionCopy>
-            <SessionCopy>{context.outline.content}</SessionCopy>
-            <SessionRouteButton
-              secondary
-              href={`/paths/${context.path.id}/plans/${context.plan.id}`}
-            >
-              Xem lộ trình
-            </SessionRouteButton>
-          </>
-        ) : (
-          <SessionCopy muted>
-            {query.isLoading
-              ? "Đang tải nội dung buổi học…"
-              : "Chưa đọc được nội dung lộ trình phù hợp với buổi học này."}
-          </SessionCopy>
+      <View style={[styles.content, progress && styles.divider]}>
+        {progress && (
+          <View style={styles.lessonHeading}>
+            {context && (
+              <View style={styles.lessonBadge}>
+                <Text style={styles.lessonBadgeText}>
+                  Buổi {context.outline.sessionNo}
+                </Text>
+              </View>
+            )}
+            <Text accessibilityRole="header" style={styles.contentHeading}>
+              Nội dung buổi học
+            </Text>
+          </View>
         )}
+        <SessionLesson
+          context={context}
+          progress={!!progress}
+          loading={query.isLoading}
+          error={query.error}
+        />
         {!!query.error && (
-          <FormNotice tone="error">
-            Chưa cập nhật được nội dung lộ trình. Thông tin buổi học vẫn hiển
-            thị theo dữ liệu Session.
+          <FormNotice compact tone="error">
+            Chưa cập nhật được nội dung. Bạn vẫn có thể xem thông tin buổi học.
           </FormNotice>
         )}
         {(!context || !!query.error) && !query.isLoading && (
@@ -66,7 +146,7 @@ export function SessionContextPanel({
             Tải lại nội dung
           </SessionButton>
         )}
-      </SessionPanel>
-    </>
+      </View>
+    </SessionSection>
   );
 }

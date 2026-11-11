@@ -11,6 +11,7 @@ const publicFeatureEntries = new Set([
   "learning-paths/state",
   "learning-paths/policy",
   "sessions/state",
+  "reports/state",
   "notifications/state",
   "messages/state",
   "proposals/state",

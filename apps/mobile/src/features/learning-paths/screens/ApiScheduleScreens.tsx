@@ -38,15 +38,10 @@ import type {
   ApiLearningPlan,
 } from "../api/learning-paths-contract";
 import { ScheduleForm } from "../components/schedule-editor-form";
-import {
-  ConfirmedFormFeedback,
-  useConfirmedFormShare,
-} from "@/features/messages/state";
+import { ConfirmedFormFeedback } from "@/features/messages/state";
 import { FormNotice } from "@/components/FormNotice";
 import { scheduleDirections } from "../utils/schedule-directions";
 import { usePullRefresh } from "../hooks/use-pull-refresh";
-import { confirmAndShare } from "../api/confirm-and-share";
-import { scheduleConfirmationMessage } from "../utils/schedule-confirmation-message";
 
 export function ApiSchedulesScreen() {
   const { id, formPlanId, formScheduleId, formVersion } = useLocalSearchParams<{
@@ -161,16 +156,16 @@ function scheduleConfirmationFeedback({
     return (
       <>
         <FormNotice tone="info" compact>
-          Bạn đã đồng ý lịch này. Bạn có thể gửi thẻ cập nhật vào Chat.
+          Bạn đã đồng ý lịch này.
         </FormNotice>
         <Button
           variant="secondary"
           disabled={blocked || command.pending}
           onPress={() => {
-            void command.retry();
+            refresh();
           }}
         >
-          Gửi cập nhật vào Chat
+          Cập nhật lịch học
         </Button>
       </>
     );
@@ -221,7 +216,6 @@ function SchedulePanel({
   const skill = useCatalogName(plan.skillId),
     schedule = plan.schedule;
   const router = useRouter();
-  const share = useConfirmedFormShare();
   const confirmationKnown =
     runtime.isCurrent() &&
     !!schedule &&
@@ -251,30 +245,7 @@ function SchedulePanel({
                   return;
                 void command.run(
                   `schedule:${schedule.id}:${schedule.version}`,
-                  confirmAndShare(
-                    () => api.confirmSchedule(schedule.id, schedule.version),
-                    (result, identity) => {
-                      // A stale screen may receive an already-locked replay.
-                      // It is not a new confirmation awaiting finalization.
-                      if (result.status === "LOCKED") return;
-                      void share.publish(
-                        path.conversationId,
-                        scheduleConfirmationMessage({
-                          pathId: path.id,
-                          planId: plan.id,
-                          scheduleId: schedule.id,
-                          version: result.version,
-                          confirmedBy: runtime.userId!,
-                          teacherId: plan.teacherId,
-                          learnerId: plan.learnerId,
-                          bothConfirmed: result.bothConfirmed,
-                          title: plan.learningGoal,
-                        }),
-                        identity,
-                      );
-                    },
-                    runtime.isCurrent,
-                  ),
+                  () => api.confirmSchedule(schedule.id, schedule.version),
                 );
               }}
             >

@@ -69,4 +69,21 @@ export function formatSessionTime(
 export function sessionDuration(s: Pick<LearningSession, "startAt" | "endAt">) {
   return (Date.parse(s.endAt) - Date.parse(s.startAt)) / 60_000;
 }
+export function formatReportDeadline(
+  timestamp: string,
+  timeZone = deviceTimezone(),
+) {
+  const parts = new Intl.DateTimeFormat("vi-VN", {
+    timeZone,
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).formatToParts(new Date(timestamp));
+  const value = (type: string) =>
+    parts.find((part) => part.type === type)?.value;
+  return `${value("hour")}:${value("minute")} · ${value("day")}/${value("month")}/${value("year")}`;
+}
 export const listIsLimited = (items: readonly unknown[]) => items.length >= 100;

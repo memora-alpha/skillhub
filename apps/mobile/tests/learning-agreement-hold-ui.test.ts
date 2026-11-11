@@ -3,7 +3,6 @@ import { createRequire } from "node:module";
 import { mock, test } from "node:test";
 import { pathToFileURL } from "node:url";
 import * as policy from "../src/features/learning-paths/utils/policy-api";
-import { readScheduledMessage } from "../src/features/learning-paths/utils/scheduled-message";
 import { AppError } from "../src/lib/http/errors";
 import { scheduleTimeDetails } from "./fixtures/invalid-schedule-details";
 import { overviewFixture } from "./fixtures/path-overview";
@@ -458,7 +457,7 @@ test("a one-way Hold check without payer details offers top-up only to the learn
   }
 });
 
-test("finalizing a two-way schedule publishes one notification for all six sessions", async () => {
+test("finalizing a two-way schedule refreshes the path without duplicating the BE chat notification", async () => {
   const h = holdHarness();
   try {
     h.query.data = withConfirmedSchedules(agreementPath(true));
@@ -486,13 +485,9 @@ test("finalizing a two-way schedule publishes one notification for all six sessi
     assert.equal(h.notices.length, 0);
     h.button(h.render(), "Chốt lịch và tạm giữ Credit").onPress();
     await flush();
-    assert.equal(h.notices.length, 1);
-    assert.equal(
-      readScheduledMessage(h.notices[0]!.messageText)!.sessionCount,
-      6,
-    );
-    assert.equal(h.notices[0]!.identity, fixtureId(99));
-    assert.equal(h.notices[0]!.conversationId, h.query.data.conversationId);
+    assert.equal(h.counts().finalizations, 1);
+    assert.equal(h.counts().refreshes, 1);
+    assert.equal(h.notices.length, 0);
   } finally {
     h.cleanup();
   }

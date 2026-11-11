@@ -3,6 +3,7 @@ import { createRequire } from "node:module";
 import { mock, test } from "node:test";
 import { pathToFileURL } from "node:url";
 import { AppError } from "../src/lib/http/errors";
+import { readPayload } from "../src/lib/http/response";
 
 type Element = { type: unknown; props: Record<string, unknown> };
 function elements(value: unknown): Element[] {
@@ -91,6 +92,40 @@ test("rate limits have calm inline feedback without retry; other failures keep a
         new AppError("http", 409, "COMMAND_RECONCILE_REQUIRED"),
       ) ?? "",
       /kiểm tra trạng thái trước khi gửi tiếp/,
+    );
+    for (const [code, expected] of [
+      [
+        "ACTIVE_SESSION_REPORT_EXISTS",
+        "Bạn đã có báo cáo đang xử lý cho buổi này. Mở danh sách báo cáo để theo dõi.",
+      ],
+      [
+        "ACTIVE_MATERIAL_REPORT_EXISTS",
+        "Bạn đã có báo cáo đang xử lý cho tài liệu này.",
+      ],
+      ["DISPUTE_WINDOW_CLOSED", "Đã hết thời hạn gửi báo cáo buổi học."],
+      [
+        "SESSION_NOT_REPORTABLE",
+        "Buổi học đã bị hủy nên không thể gửi báo cáo.",
+      ],
+    ]) {
+      assert.throws(
+        () => readPayload(409, { success: false, message: code }),
+        (error) => {
+          assert.ok(error instanceof AppError);
+          assert.equal(connectionError(error), expected);
+          return true;
+        },
+      );
+    }
+    assert.equal(
+      connectionError(new AppError("http", 409, "UNKNOWN_CONFLICT")),
+      "Trạng thái đã thay đổi. Tải lại trước khi thao tác.",
+    );
+    assert.equal(
+      connectionError(
+        new AppError("http", 403, "ACTIVE_SESSION_REPORT_EXISTS"),
+      ),
+      "Nội dung không còn khả dụng hoặc bạn không có quyền truy cập.",
     );
   } finally {
     delete local.cache[filename];
