@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Text, View } from "react-native";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -31,6 +31,9 @@ import {
 import { ReportReasonField } from "../components/report-reason-field";
 import { reportStyles as s } from "../components/report.styles";
 import { useReportFileCheck } from "../hooks/use-report-file-check";
+import { useSessionReporting } from "@/features/sessions/state";
+import { ReportEligibilityNotice } from "../components/report-eligibility-notice";
+import { RelatedSessionReportLink } from "../components/related-session-report-link";
 const schema = z.object({
   reason: z.enum(reportReasons),
   description: textRule(10, 2000),
@@ -66,9 +69,16 @@ function ReportEditor({
     [uploading, setUploading] = useState(false);
   const sending = useRef(false),
     uploadBusy = useRef(false);
+  const eligibility = useSessionReporting(!materialId ? sessionId : undefined);
+  const permitted = !!materialId || eligibility.permitted;
+  const [opened, setOpened] = useState(false);
+  useEffect(() => {
+    if (permitted) setOpened(true);
+  }, [permitted]);
   const fileCheck = useReportFileCheck({
     read: api.fileStatus,
     isCurrent: runtime.isCurrent,
+    enabled: permitted,
     update: (file) =>
       setFiles((current) =>
         current.map((item) => (item.fileId === file.fileId ? file : item)),
@@ -92,7 +102,9 @@ function ReportEditor({
     command.uncertain ||
     formState.isSubmitting ||
     fileCheck.checking;
-  const submitDisabled = busy || uploading;
+  const formDisabled =
+    busy || !permitted || (!materialId && eligibility.checking);
+  const submitDisabled = formDisabled || uploading;
   const activeReport =
     command.error instanceof AppError &&
     command.error.status === 409 &&
@@ -102,6 +114,8 @@ function ReportEditor({
   const submit = handleSubmit(async (values) => {
     if (
       !valid ||
+      !permitted ||
+      (!materialId && !eligibility.ready) ||
       sending.current ||
       uploadBusy.current ||
       command.pending ||
@@ -111,8 +125,13 @@ function ReportEditor({
       return;
     sending.current = true;
     try {
+      if (!materialId && !(await eligibility.recheck())) return;
+      if (!fileCheck.active()) return;
       const checked = await fileCheck.check(files);
       if (!checked || !fileCheck.active()) return;
+      if (!materialId && files.length > 0 && !(await eligibility.recheck()))
+        return;
+      if (!fileCheck.active()) return;
       const body = {
         reasonCode: values.reason,
         description: values.description,
@@ -127,7 +146,7 @@ function ReportEditor({
           cache.invalidateQueries({ queryKey: ["sessions"] }),
         ]);
         if (runtime.isCurrent()) router.replace(`/reports/${receipt.id}`);
-      }
+      } else if (!materialId && runtime.isCurrent()) void eligibility.refresh();
     } finally {
       sending.current = false;
     }
@@ -137,6 +156,7 @@ function ReportEditor({
       title={materialId ? "Báo cáo tài liệu" : "Báo cáo buổi học"}
       back={targetHref}
       selected={target === "SESSION" ? "Lịch học" : "Hồ sơ"}
+      onRefresh={!materialId ? eligibility.refresh : undefined}
     >
       {!valid ? (
         <EmptyState
@@ -146,128 +166,142 @@ function ReportEditor({
         />
       ) : (
         <>
-          <View style={s.hero}>
-            <View style={s.row}>
-              <View style={s.heroIcon}>
-                <Icon name="shield" size={22} color={colors.forest} />
-              </View>
-              <View style={s.grow}>
-                <Text style={s.title}>Bạn gặp vấn đề gì?</Text>
-                <Text style={s.meta}>
-                  Chia sẻ chi tiết để SkillHub hỗ trợ bạn.
-                </Text>
-              </View>
-            </View>
-          </View>
-          <>
-            <ReportSection title="Nội dung báo cáo" icon="flag">
-              <ReportLink
-                title={
-                  materialId ? "Tài liệu đang báo cáo" : "Buổi học đang báo cáo"
-                }
-                href={targetHref}
-                icon={materialId ? "file" : "calendar"}
-              />
-              <Controller
-                control={control}
-                name="reason"
-                render={({ field }) => (
-                  <ReportReasonField
-                    target={target}
-                    value={field.value}
-                    onChange={field.onChange}
-                    disabled={busy}
-                  />
-                )}
-              />
-              <ControlledInput
-                control={control}
-                name="description"
-                label="Mô tả vấn đề"
-                reserveMessageSpace={false}
-                required
-                multiline
-                maxLength={2000}
-                editable={!busy}
-                fieldStyle={s.field}
-                style={s.description}
-                placeholder="Điều gì đã xảy ra? Bạn cần được hỗ trợ điều gì?"
-              />
-              <Text style={s.counter}>{watch("description").length}/2000</Text>
-            </ReportSection>
-            {target === "SESSION" && (
-              <ReportSection title="Bằng chứng đính kèm" icon="paperclip">
-                <ReportCopy muted>
-                  Không bắt buộc. Thêm ảnh hoặc tài liệu giúp làm rõ vấn đề.
-                </ReportCopy>
-                <ServerFilePicker
-                  compact
-                  allowPhotos
-                  checkOnSubmit
-                  files={files}
-                  onChange={(next) => {
-                    fileCheck.clearError();
-                    setFiles(next);
-                  }}
-                  upload={api.upload}
-                  status={api.fileStatus}
-                  isCurrent={runtime.isCurrent}
-                  disabled={busy}
-                  onBusyChange={(value) => {
-                    uploadBusy.current = value;
-                    setUploading(value);
-                  }}
-                />
-              </ReportSection>
-            )}
-          </>
-          {fileCheck.error && (
-            <FormNotice compact tone="error">
-              {fileCheck.error}
-            </FormNotice>
-          )}
-          {!!command.error && (
-            <FormNotice compact tone="error">
-              {connectionError(command.error)}
-            </FormNotice>
-          )}
-          {activeReport && (
-            <ReportLink
-              title="Xem báo cáo đang xử lý"
-              href="/reports"
-              icon="clipboard"
+          {!materialId && (
+            <ReportEligibilityNotice
+              eligibility={eligibility}
+              sessionId={sessionId ?? ""}
             />
           )}
-          {command.uncertain && (
-            <ReportSection title="Kiểm tra báo cáo đã gửi" icon="alert">
-              <ReportCopy muted>
-                Chưa rõ kết quả gửi. Kiểm tra danh sách trước khi gửi lại.
-              </ReportCopy>
-              <ReportLink
-                title="Xem báo cáo của tôi"
-                href="/reports"
-                icon="clipboard"
-              />
-            </ReportSection>
+          {(opened || permitted) && (
+            <>
+              <View style={s.hero}>
+                <View style={s.row}>
+                  <View style={s.heroIcon}>
+                    <Icon name="shield" size={22} color={colors.forest} />
+                  </View>
+                  <View style={s.grow}>
+                    <Text style={s.title}>Bạn gặp vấn đề gì?</Text>
+                    <Text style={s.meta}>
+                      Chia sẻ chi tiết để SkillHub hỗ trợ bạn.
+                    </Text>
+                  </View>
+                </View>
+              </View>
+              <ReportSection title="Nội dung báo cáo" icon="flag">
+                {materialId && (
+                  <ReportLink
+                    title="Tài liệu đang báo cáo"
+                    href={targetHref}
+                    icon="file"
+                  />
+                )}
+                <Controller
+                  control={control}
+                  name="reason"
+                  render={({ field }) => (
+                    <ReportReasonField
+                      target={target}
+                      value={field.value}
+                      onChange={field.onChange}
+                      disabled={formDisabled}
+                    />
+                  )}
+                />
+                <ControlledInput
+                  control={control}
+                  name="description"
+                  label="Mô tả vấn đề"
+                  reserveMessageSpace={false}
+                  required
+                  multiline
+                  maxLength={2000}
+                  editable={!formDisabled}
+                  fieldStyle={s.field}
+                  style={s.description}
+                  placeholder="Điều gì đã xảy ra? Bạn cần được hỗ trợ điều gì?"
+                />
+                <Text style={s.counter}>
+                  {watch("description").length}/2000
+                </Text>
+              </ReportSection>
+              {target === "SESSION" && (
+                <ReportSection title="Bằng chứng đính kèm" icon="paperclip">
+                  <ReportCopy muted>
+                    Không bắt buộc. Thêm ảnh hoặc tài liệu giúp làm rõ vấn đề.
+                  </ReportCopy>
+                  <ServerFilePicker
+                    compact
+                    allowPhotos
+                    checkOnSubmit
+                    files={files}
+                    onChange={(next) => {
+                      fileCheck.clearError();
+                      setFiles(next);
+                    }}
+                    upload={api.upload}
+                    status={api.fileStatus}
+                    isCurrent={runtime.isCurrent}
+                    disabled={formDisabled}
+                    onBusyChange={(value) => {
+                      uploadBusy.current = value;
+                      setUploading(value);
+                    }}
+                  />
+                </ReportSection>
+              )}
+              {fileCheck.error && (
+                <FormNotice compact tone="error">
+                  {fileCheck.error}
+                </FormNotice>
+              )}
+              {!!command.error && (
+                <FormNotice compact tone="error">
+                  {connectionError(command.error)}
+                </FormNotice>
+              )}
+              {activeReport &&
+                eligibility.reason !== "ACTIVE_SESSION_REPORT_EXISTS" &&
+                (sessionId ? (
+                  <RelatedSessionReportLink sessionId={sessionId} />
+                ) : (
+                  <ReportLink
+                    title="Xem báo cáo đang xử lý"
+                    href="/reports"
+                    icon="clipboard"
+                  />
+                ))}
+              {command.uncertain && (
+                <ReportSection title="Kiểm tra báo cáo đã gửi" icon="alert">
+                  <ReportCopy muted>
+                    Chưa rõ kết quả gửi. Kiểm tra danh sách trước khi gửi lại.
+                  </ReportCopy>
+                  <ReportLink
+                    title="Xem báo cáo của tôi"
+                    href="/reports"
+                    icon="clipboard"
+                  />
+                </ReportSection>
+              )}
+              <Button
+                variant="craft"
+                leadingIcon="send"
+                accessibilityLabel="Gửi báo cáo"
+                disabled={submitDisabled}
+                onPress={() => {
+                  void submit();
+                }}
+                style={s.primary}
+              >
+                {command.uncertain
+                  ? "Chờ kiểm tra kết quả"
+                  : fileCheck.checking
+                    ? "Đang kiểm tra tệp…"
+                    : busy
+                      ? "Đang gửi…"
+                      : "Gửi báo cáo"}
+              </Button>
+            </>
           )}
-          <Button
-            variant="craft"
-            leadingIcon="send"
-            accessibilityLabel="Gửi báo cáo"
-            disabled={submitDisabled}
-            onPress={() => {
-              void submit();
-            }}
-            style={s.primary}
-          >
-            {command.uncertain
-              ? "Chờ kiểm tra kết quả"
-              : fileCheck.checking
-                ? "Đang kiểm tra tệp…"
-                : busy
-                  ? "Đang gửi…"
-                  : "Gửi báo cáo"}
-          </Button>
         </>
       )}
     </ReportPage>

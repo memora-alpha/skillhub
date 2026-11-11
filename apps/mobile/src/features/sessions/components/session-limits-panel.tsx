@@ -10,6 +10,7 @@ import {
 } from "./session-section";
 import { sectionStyles as styles } from "./session-section.styles";
 import { AttendanceRules } from "./attendance-rules";
+import { SessionReportAction } from "./session-report-action";
 
 export function SessionLimitsPanel({
   session,
@@ -55,17 +56,7 @@ export function SessionLimitsPanel({
           icon="book"
           onPress={() => router.push(`/paths/${session.pathId}`)}
         />
-        <SessionActionRow
-          title="Báo sự cố"
-          icon="flag"
-          disabled={disabled}
-          onPress={() =>
-            router.push({
-              pathname: "/reports/new",
-              params: { sessionId: session.id },
-            })
-          }
-        />
+        <SessionReportAction sessionId={session.id} disabled={disabled} />
         <SessionDisclosure title="Quy định buổi học" icon="shield">
           <AttendanceRules session={session} />
         </SessionDisclosure>

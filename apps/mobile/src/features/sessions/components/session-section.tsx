@@ -92,7 +92,7 @@ export function SessionActionRow({
     >
       <Icon name={icon} size={18} color={colors.body} />
       <Text style={styles.disclosureLabel}>{title}</Text>
-      <Icon name="chevron" size={18} color={colors.muted} />
+      {!disabled && <Icon name="chevron" size={18} color={colors.muted} />}
     </Button>
   );
 }

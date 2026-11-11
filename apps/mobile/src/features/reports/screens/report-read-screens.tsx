@@ -7,7 +7,7 @@ import { Button } from "@/components/Button";
 import { FormNotice } from "@/components/FormNotice";
 import { appColors as colors } from "@/constants/theme";
 import { ConnectionFeedback } from "@/features/connections";
-import { useReport, useReports, useCaseEvidence } from "../hooks/use-reports";
+import { useReport, useReports } from "../hooks/use-reports";
 import { uiLabel } from "@/constants/ui-copy";
 import { PrivateCaseThread } from "../components/private-case-thread";
 import {
@@ -37,10 +37,7 @@ export function ReportsScreen() {
     <ReportPage
       title="Báo cáo của tôi"
       back="/profile"
-      refreshing={query.isFetching}
-      onRefresh={() => {
-        void query.refetch();
-      }}
+      onRefresh={() => query.refetch()}
     >
       <View style={s.hero}>
         <View style={s.row}>
@@ -182,15 +179,8 @@ function ReportOwnerDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>(),
     query = useReport(typeof id === "string" ? id : "");
   const report = query.data;
-  const evidence = useCaseEvidence(typeof id === "string" ? id : "", !!report);
   return (
-    <ReportPage
-      title="Theo dõi báo cáo"
-      refreshing={query.isFetching}
-      onRefresh={() => {
-        void query.refetch();
-      }}
-    >
+    <ReportPage title="Theo dõi báo cáo" onRefresh={() => query.refetch()}>
       <ConnectionFeedback
         loading={query.isLoading}
         error={query.error}
@@ -211,6 +201,27 @@ function ReportOwnerDetailScreen() {
               Quyết toán lộ trình đang tạm giữ trong lúc xử lý báo cáo.
             </FormNotice>
           )}
+          <ReportSection
+            title="Nội dung đã gửi"
+            icon={reportReasonIcon(report.reasonCode)}
+          >
+            <ReportDescription key={report.id} value={report.description} />
+            {report.evidenceCount > 0 && (
+              <View style={s.row}>
+                <Icon name="paperclip" size={16} color={colors.muted} />
+                <Text style={s.meta}>
+                  {report.evidenceCount} tệp bằng chứng
+                </Text>
+              </View>
+            )}
+            {report.targetType === "MATERIAL" && (
+              <ReportLink
+                title="Xem tài liệu liên quan"
+                icon="file"
+                href={`/materials/${report.relatedMaterialId ?? report.targetId}`}
+              />
+            )}
+          </ReportSection>
           {report.resolutionNote && (
             <ReportSection
               title="Phản hồi từ người xử lý"
@@ -220,46 +231,13 @@ function ReportOwnerDetailScreen() {
               <ReportCopy>{report.resolutionNote}</ReportCopy>
             </ReportSection>
           )}
-          <ReportSection
-            title="Nội dung đã gửi"
-            icon={reportReasonIcon(report.reasonCode)}
-          >
-            <ReportDescription key={report.id} value={report.description} />
-            {!!evidence.data?.length && (
-              <View style={s.row}>
-                <Icon name="paperclip" size={16} color={colors.muted} />
-                <Text style={s.meta}>
-                  {evidence.data!.length} tệp bằng chứng đính kèm
-                </Text>
-              </View>
-            )}
-            <ReportLink
-              title={
-                report.targetType === "SESSION"
-                  ? "Xem buổi học liên quan"
-                  : "Xem tài liệu liên quan"
-              }
-              icon={report.targetType === "SESSION" ? "calendar" : "file"}
-              href={
-                report.targetType === "SESSION"
-                  ? `/learning-sessions/${report.relatedSessionId ?? report.targetId}`
-                  : `/materials/${report.relatedMaterialId ?? report.targetId}`
-              }
-            />
-          </ReportSection>
           <PrivateCaseThread
             caseId={id}
             status={report.status}
             handlerId={report.handlerId}
+            pathId={report.relatedPathId ?? undefined}
             onRefreshStatus={() => query.refetch()}
           />
-          {report.relatedPathId && (
-            <ReportLink
-              title="Xem lộ trình liên quan"
-              href={`/paths/${report.relatedPathId}`}
-              icon="book"
-            />
-          )}
         </>
       )}
       {!query.isLoading && !query.error && !report && (

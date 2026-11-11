@@ -126,6 +126,15 @@ export const sectionStyles = StyleSheet.create({
     gap: 10,
     justifyContent: "flex-start",
   },
+  reportAction: { paddingBottom: 12 },
+  reportReminderText: {
+    marginLeft: 28,
+    marginTop: -2,
+    minWidth: 0,
+    fontFamily: fonts.body,
+    ...typography.secondary,
+    color: colors.info,
+  },
   divider: { borderTopWidth: 1, borderColor: colors.border, paddingTop: 16 },
   linkLabel: {
     flexShrink: 1,

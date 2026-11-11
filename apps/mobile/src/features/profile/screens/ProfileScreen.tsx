@@ -10,6 +10,7 @@ import { ProfileShortcuts } from "../components/ProfileShortcuts";
 import { ProfileLogout } from "../components/ProfileLogout";
 import { ProfileReviews } from "../components/profile-reviews";
 import { ProfileModerationNotice } from "../components/ProfileModerationNotice";
+import { ProfileSupport } from "../components/ProfileSupport";
 
 export function ProfileScreen() {
   const { session } = useAuthSession();
@@ -34,6 +35,7 @@ export function ProfileScreen() {
           <ProfileAbout bio={profile.bio} />
           <ProfileReviews userId={profile.userId} own />
           <OwnProfileSkillList />
+          <ProfileSupport onOpen={open} />
           <ProfileLogout />
         </View>
       )}
