@@ -8,6 +8,7 @@ import {
 import { IdentityConfig } from "../../../../configs/identity.config";
 import {
   adminBefore,
+  adminPaidTimeRange,
   adminTimeRange,
   financeCursor,
   financeScope,
@@ -83,27 +84,34 @@ export class AdminPaymentsReader {
       financeScope(actor.userId, "payments", filter),
     );
     const boundary = codec.decode(cursor),
-      createdAt = adminTimeRange(query.from, query.to);
+      createdAt = adminTimeRange(query.from, query.to, query.before);
+    const paidAt = adminPaidTimeRange(query.paidFrom, query.paidBefore);
+    const where: Prisma.PaymentWhereInput = {
+      userId: query.userId,
+      status: query.status,
+      externalOrderRef: query.orderCode,
+      gatewayTransactionId: query.gatewayTransactionId,
+      createdAt,
+      ...(paidAt ? { payosCheckout: { paidAt } } : {}),
+    };
     return this.read(actor, "payment:read:any", async (tx) => {
       const rows = await tx.payment.findMany({
-        where: {
-          userId: query.userId,
-          status: query.status,
-          externalOrderRef: query.orderCode,
-          gatewayTransactionId: query.gatewayTransactionId,
-          createdAt,
-          ...adminBefore(boundary),
-        },
+        where: { ...where, ...adminBefore(boundary) },
         select: paymentSelect,
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         take: query.limit + 1,
       });
       const data = rows.slice(0, query.limit),
         last = data.at(-1);
+      const total =
+        query.includeTotal === "true"
+          ? await tx.payment.count({ where })
+          : undefined;
       return {
         data: data.map(adminPaymentView),
         pagination: {
           limit: query.limit,
+          ...(total === undefined ? {} : { total }),
           hasMore: rows.length > query.limit,
           nextCursor:
             rows.length > query.limit && last ? codec.encode(last) : null,

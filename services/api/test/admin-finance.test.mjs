@@ -136,3 +136,75 @@ test("reconciliation cannot run with read permission alone and never enables pro
   const result = await reader.report(actor, id);
   assert.equal("paymentLinkId" in result.records[0], false);
 });
+
+test("payment drill-down uses an exclusive paid-at range and totals before the cursor", async () => {
+  const query = {
+    limit: 20,
+    status: "PAID",
+    paidFrom: "2026-11-01T00:00:00+07:00",
+    paidBefore: "2026-12-01T00:00:00+07:00",
+    includeTotal: "true",
+  };
+  const cursor = financeCursor(
+    "secret",
+    financeScope(actor.userId, "payments", query),
+  ).encode({ id, createdAt: new Date("2026-11-08T00:00:00Z") });
+  let filters;
+  const tx = {
+    $executeRaw: async () => {},
+    payment: {
+      findMany: async ({ where }) => {
+        filters = where;
+        return [];
+      },
+      count: async ({ where }) => {
+        assert.equal(where.OR, undefined);
+        assert.deepEqual(where.payosCheckout, filters.payosCheckout);
+        return 29;
+      },
+    },
+  };
+  const reader = new AdminPaymentsReader(
+    { run: (read) => read(tx) },
+    {
+      assertLive: async () => ({ ...actor, permissions: ["payment:read:any"] }),
+    },
+    { jwtKey: "secret" },
+    {},
+  );
+  const result = await reader.list(actor, { ...query, cursor });
+  assert.equal(result.pagination.total, 29);
+  assert.ok(filters.OR.length);
+  assert.deepEqual(filters.payosCheckout, {
+    paidAt: {
+      gte: new Date("2026-10-31T17:00:00Z"),
+      lt: new Date("2026-11-30T17:00:00Z"),
+    },
+  });
+  await assert.rejects(
+    async () => reader.list(actor, { ...query, paidBefore: query.paidFrom }),
+    /INVALID_ADMIN_FINANCE_RANGE/,
+  );
+});
+
+test("ledger drill-down supports an exclusive creation bound without changing legacy to", () => {
+  assert.deepEqual(
+    adminTimeRange(
+      "2026-11-01T00:00:00Z",
+      undefined,
+      "2026-12-01T00:00:00+07:00",
+    ),
+    {
+      gte: new Date("2026-11-01T00:00:00Z"),
+      lt: new Date("2026-11-30T17:00:00Z"),
+    },
+  );
+  assert.deepEqual(adminTimeRange(undefined, "2026-12-01T00:00:00Z"), {
+    lte: new Date("2026-12-01T00:00:00Z"),
+  });
+  assert.throws(
+    () =>
+      adminTimeRange(undefined, "2026-12-01T00:00:00Z", "2026-12-01T00:00:00Z"),
+    /INVALID_ADMIN_FINANCE_RANGE/,
+  );
+});

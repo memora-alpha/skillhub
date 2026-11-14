@@ -72,31 +72,36 @@ export class AdminCreditReader {
       financeScope(actor.userId, "ledger", filter),
     );
     const boundary = codec.decode(cursor);
-    const createdAt = adminTimeRange(query.from, query.to);
+    const createdAt = adminTimeRange(query.from, query.to, query.before);
+    const where: Prisma.CreditTransactionWhereInput = {
+      userId: query.userId,
+      type: query.type,
+      status: query.status,
+      operationId: query.operationId,
+      operationIdRecord: {
+        referenceType: query.referenceType,
+        referenceId: query.referenceId,
+      },
+      createdAt,
+    };
     return this.read(actor, async (tx) => {
       const rows = await tx.creditTransaction.findMany({
-        where: {
-          userId: query.userId,
-          type: query.type,
-          status: query.status,
-          operationId: query.operationId,
-          operationIdRecord: {
-            referenceType: query.referenceType,
-            referenceId: query.referenceId,
-          },
-          createdAt,
-          ...adminBefore(boundary),
-        },
+        where: { ...where, ...adminBefore(boundary) },
         select: entrySelect,
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         take: query.limit + 1,
       });
       const data = rows.slice(0, query.limit),
         last = data.at(-1);
+      const total =
+        query.includeTotal === "true"
+          ? await tx.creditTransaction.count({ where })
+          : undefined;
       return {
         data: data.map(adminLedgerView),
         pagination: {
           limit: query.limit,
+          ...(total === undefined ? {} : { total }),
           hasMore: rows.length > query.limit,
           nextCursor:
             rows.length > query.limit && last ? codec.encode(last) : null,

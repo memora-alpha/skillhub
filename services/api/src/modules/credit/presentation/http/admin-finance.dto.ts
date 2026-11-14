@@ -35,6 +35,17 @@ export class AdminFinancePageDto {
   @IsISO8601({ strict: true })
   from?: string;
   @ApiPropertyOptional() @IsOptional() @IsISO8601({ strict: true }) to?: string;
+  @ApiPropertyOptional({
+    format: "date-time",
+    description: "Exclusive creation-time bound. Use instead of to.",
+  })
+  @IsOptional()
+  @IsISO8601({ strict: true })
+  before?: string;
+  @ApiPropertyOptional({ enum: ["true", "false"] })
+  @IsOptional()
+  @IsIn(["true", "false"])
+  includeTotal?: "true" | "false";
 }
 export class AdminLedgerQueryDto extends AdminFinancePageDto {
   @ApiPropertyOptional({ enum: CreditTransactionType })

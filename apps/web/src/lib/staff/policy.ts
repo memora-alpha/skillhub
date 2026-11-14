@@ -156,6 +156,7 @@ const routes: [string, RegExp, (path: string) => string][] = [
   ["PATCH", new RegExp(`^notifications/${uuid}/read$`, "i"), (p) => p],
 ];
 const adminRoutes: [string, RegExp, (path: string) => string][] = [
+  ["GET", /^dashboard\/(overview|learning|finance)$/, (p) => `admin/${p}`],
   ["GET", /^staff-permissions\/catalog$/, (p) => `admin/${p}`],
   ["GET", new RegExp(`^staff-permissions/${uuid}$`, "i"), (p) => `admin/${p}`],
   [
