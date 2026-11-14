@@ -2,7 +2,7 @@ import { Text, View } from "react-native";
 import { appColors as colors } from "@/constants/theme";
 import type { Reputation } from "../api/community-api";
 import { reputationHistoryGroups } from "../utils/reputation-history";
-import { reputationReasons } from "./reputation-summary";
+import { reputationReasons } from "../utils/reputation-presentation";
 import { historyStyles as styles } from "./reputation-history.styles";
 
 function deltaColors(delta: number) {
@@ -15,16 +15,14 @@ function deltaColors(delta: number) {
 
 export function ReputationHistory({
   items,
-}: Readonly<{ items: Reputation["items"] }>) {
+  title = "Thay đổi điểm",
+}: Readonly<{ items: Reputation["items"]; title?: string }>) {
   return (
     <View style={styles.stack}>
       <View style={styles.headingRow}>
         <Text accessibilityRole="header" style={styles.heading}>
-          Thay đổi điểm
+          {title}
         </Text>
-        {!!items.length && (
-          <Text style={styles.caption}>{items.length} đã tải</Text>
-        )}
       </View>
       {!items.length && (
         <View style={styles.empty}>

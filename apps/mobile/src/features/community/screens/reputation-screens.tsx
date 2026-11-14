@@ -9,6 +9,7 @@ import { ReputationSummary } from "../components/reputation-summary";
 import { ReputationScoreCard } from "../components/reputation-score-card";
 import { ReputationHistory } from "../components/reputation-history";
 import { historyStyles as styles } from "../components/reputation-history.styles";
+import { reputationStyles as ui } from "../components/reputation.styles";
 
 export function ReputationScreen() {
   return <ReputationView history={false} />;
@@ -19,21 +20,23 @@ export function ReputationHistoryScreen() {
 function ReputationView({ history }: Readonly<{ history: boolean }>) {
   const policy = useReputationPolicy();
   const { query, data } = policy;
+  const showPolicy =
+    !history &&
+    (!!data?.policyNotice?.length ||
+      policy.acknowledged ||
+      policy.needsCheck ||
+      !!policy.error);
   return (
     <FeaturePage
-      title={history ? "Lịch sử uy tín" : "Điểm uy tín"}
+      title={history ? "Lịch sử uy tín" : "Uy tín"}
       back={history ? "/reputation" : "/profile"}
       backBehavior="history"
-      demo={false}
-      subtitle={
-        history ? "Theo dõi các lần tăng, giảm điểm uy tín." : undefined
-      }
       refreshing={query.isRefetching}
       onRefresh={() => void policy.refresh()}
     >
       <ConnectionFeedback
         loading={query.isLoading}
-        error={query.error}
+        error={showPolicy ? undefined : query.error}
         retry={() => policy.refresh()}
       />
       {query.denied && (
@@ -41,23 +44,17 @@ function ReputationView({ history }: Readonly<{ history: boolean }>) {
           Thông tin uy tín hiện không khả dụng cho tài khoản này.
         </Text>
       )}
-      {data && !history && <RecoveryPanel />}
       {data &&
         (history ? (
-          <ReputationScoreCard data={data} />
+          <ReputationScoreCard data={data} compact />
         ) : (
           <ReputationSummary data={data} />
         ))}
-      {!history &&
-        (!!data?.policyNotice?.length ||
-          policy.acknowledged ||
-          policy.needsCheck ||
-          !!policy.error) && (
-          <View style={styles.stack}>
-            <Text style={styles.heading}>Xác nhận lại quy tắc hoạt động</Text>
-            <ReputationPolicyContent policy={policy} />
-          </View>
-        )}
+      {showPolicy && (
+        <View style={ui.card}>
+          <ReputationPolicyContent policy={policy} context="overview" />
+        </View>
+      )}
       {data && history && (
         <>
           <ReputationHistory items={query.items} />
@@ -72,9 +69,16 @@ function ReputationView({ history }: Readonly<{ history: boolean }>) {
           )}
         </>
       )}
-      {!history && (
+      {data && !history && <RecoveryPanel />}
+      {data && !history && (
+        <ReputationHistory
+          items={query.items.slice(0, 3)}
+          title="Thay đổi gần đây"
+        />
+      )}
+      {data && !history && (
         <RouteButton secondary href="/reputation/history">
-          Lịch sử điểm & vi phạm
+          Xem tất cả lịch sử
         </RouteButton>
       )}
     </FeaturePage>

@@ -39,7 +39,8 @@ export function restrictionDeadline(
   now = Date.now(),
 ) {
   const end = new Date(endsAt);
-  if (end.getTime() > now) return `Hạn chế đến ${end.toLocaleString("vi-VN")}.`;
+  if (end.getTime() > now)
+    return `Hạn chế đến ${end.toLocaleString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })}.`;
   return needsPolicy
     ? "Thời hạn đã qua; tài khoản vẫn cần xác nhận chính sách."
     : "Thời hạn đã qua; hệ thống vẫn ghi nhận hạn chế. Hãy tải lại để kiểm tra.";
