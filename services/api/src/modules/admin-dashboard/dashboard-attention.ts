@@ -33,7 +33,7 @@ export async function readDashboardAttention(tx: TransactionContext) {
         submitted_at AS created_at FROM skill_verifications WHERE status = 'PENDING'
       UNION ALL
       SELECT 'LEARNING_REQUEST', request_id, status::text, title, created_at
-      FROM learning_requests WHERE status = 'PENDING_MODERATION'
+      FROM learning_requests WHERE status = 'PENDING_MODERATION' AND expires_at > CURRENT_TIMESTAMP
       UNION ALL
       SELECT 'MATERIAL', material_id, status::text, title, created_at
       FROM materials WHERE status = 'PENDING_REVIEW'

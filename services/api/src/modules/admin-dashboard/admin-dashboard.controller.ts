@@ -1,14 +1,22 @@
 import { Controller, Get, Header, Query, UseGuards } from "@nestjs/common";
-import { ApiBearerAuth, ApiOkResponse, ApiTags } from "@nestjs/swagger";
+import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import type { Principal } from "../auth/application/services/sessions.service";
 import {
   CurrentIdentity,
   IdentityGuard,
 } from "../../shared/auth/identity.guard";
-import { ApiErrorResponse } from "../../shared/http/api-response.decorators";
+import {
+  ApiErrorResponse,
+  ApiSuccessResponse,
+} from "../../shared/http/api-response.decorators";
 import { success } from "../../shared/http/response";
 import { AdminDashboardQuery } from "./admin-dashboard-query.dto";
 import { AdminDashboardService } from "./admin-dashboard.service";
+import {
+  DashboardFinanceResponse,
+  DashboardLearningResponse,
+  DashboardOverviewResponse,
+} from "./admin-dashboard.responses";
 
 @ApiTags("admin-dashboard")
 @ApiBearerAuth()
@@ -22,10 +30,7 @@ export class AdminDashboardController {
 
   @Get("overview")
   @Header("Cache-Control", "no-store")
-  @ApiOkResponse({
-    description:
-      "Snapshot with user growth, learning, fees and operational queue sections.",
-  })
+  @ApiSuccessResponse(200, DashboardOverviewResponse)
   async overview(
     @CurrentIdentity() actor: Principal,
     @Query() query: AdminDashboardQuery,
@@ -35,10 +40,7 @@ export class AdminDashboardController {
 
   @Get("learning")
   @Header("Cache-Control", "no-store")
-  @ApiOkResponse({
-    description:
-      "Learning path and session statistics for the selected period.",
-  })
+  @ApiSuccessResponse(200, DashboardLearningResponse)
   async learning(
     @CurrentIdentity() actor: Principal,
     @Query() query: AdminDashboardQuery,
@@ -48,9 +50,7 @@ export class AdminDashboardController {
 
   @Get("finance")
   @Header("Cache-Control", "no-store")
-  @ApiOkResponse({
-    description: "Recorded Credit fees and VND top-up payment statistics.",
-  })
+  @ApiSuccessResponse(200, DashboardFinanceResponse)
   async finance(
     @CurrentIdentity() actor: Principal,
     @Query() query: AdminDashboardQuery,

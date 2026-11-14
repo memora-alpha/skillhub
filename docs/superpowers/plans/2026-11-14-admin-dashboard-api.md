@@ -109,3 +109,23 @@ Mọi đường dẫn dùng tiền tố `/api/v1`.
 | 8 — Jobs và webhooks | Không áp dụng cho các GET tổng hợp. Chúng đọc dữ liệu giao dịch đã ghi nhận. |
 
 Không dự kiến ngoại lệ kiến trúc.
+
+## Contract đã triển khai để FE gọi thử
+
+Gateway web dùng `/api/admin/dashboard/{overview,learning,finance}`. Backend dùng `/api/v1/admin/dashboard/{overview,learning,finance}`. Áp migration `20261114000000_admin_dashboard_read` trước khi gọi trên DB đã triển khai. Identity seed hiện cũng cấp `dashboard:read` cho ADMIN. Mỗi route đọc một snapshot PostgreSQL và trả `data.period` cùng `data.asOf`.
+
+```http
+GET /api/admin/dashboard/overview?from=2026-11-01T00%3A00%3A00%2B07%3A00&to=2026-12-01T00%3A00%3A00%2B07%3A00&granularity=day&sections=kpis,userGrowth
+```
+
+Query hiện yêu cầu `from` và `to` có offset hoặc `Z` và cách nhau tối đa 366 ngày. Mặc định gom theo ngày ở `Asia/Ho_Chi_Minh`. Có thể chọn `UTC` và `month`. `sections` nhận danh sách phân tách bằng dấu phẩy. Bỏ qua tham số này để nhận mọi section của route.
+
+| Route | Section đã có | Dữ liệu |
+| --- | --- | --- |
+| `overview` | `kpis,userGrowth,learningActivity,pathStages,feeSeries,attentionSummary,priorityItems` | User growth đếm tài khoản đang mang role USER theo `User.createdAt`. KPI kết hợp số học tập và net fee Credit. Hàng đợi dùng 5 nhóm xử lý của trang hiện tại, đếm toàn bộ và trả tối đa 10 mục mới nhất. Báo cáo cũ có thể có `createdAt: null`. |
+| `learning` | `kpis,learningActivity,pathStages` | Đếm lộ trình tạo theo `createdAt`, quyết toán theo `settledAt`, buổi theo lịch hiện tại `startAt` và tập con có trạng thái `COMPLETED`. `pathStages` là trạng thái hiện tại của các lộ trình tạo trong kỳ. |
+| `finance` | `kpis,feeSeries,paymentSeries,attentionSummary` | Phí thu/hoàn/net từ ledger. VND và Credit của đơn `PAID` được gom theo `PayosCheckout.paidAt`. Đơn thiếu mốc thanh toán nằm ngoài chuỗi. `paymentsInReview` là số đơn `REVIEW` hiện tại. |
+
+Drill-down payment từ một bucket dùng `/api/admin/payments?status=PAID&paidFrom=<bucketStart>&paidBefore=<bucketEnd>&includeTotal=true`. Drill-down ledger theo mốc tạo dùng `/api/admin/credit/transactions?from=<bucketStart>&before=<bucketEnd>&includeTotal=true`. `includeTotal=true` tính tổng theo filter trước cursor. Cận `to` của API cũ vẫn bao gồm thời điểm truyền vào. Các bucket trả cận UTC đã cắt theo kỳ yêu cầu. Credit giữ hai chữ số thập phân, VND dùng chuỗi số nguyên.
+
+Các field và cách đếm trên là bản đầu để FE tích hợp. Cần đối chiếu `App.tsx` của ZIP để chốt KPI, top kỹ năng, thứ tự priority, tiêu chí quyết toán cần rà soát và điều hướng tới đúng tab/drawer. Tích hợp hiện cấp route web cho FE gọi trực tiếp. Việc gắn dữ liệu lên trang dashboard và state của màn đích thuộc phần FE.
