@@ -52,6 +52,11 @@ export const AUDIT_ACTIONS = [
   "MATERIAL_MODERATE",
   "MATERIAL_PURCHASE",
   "MATERIAL_REFUND",
+  "MATERIAL_REVIEW_CREATE",
+  "MATERIAL_REVIEW_UPDATE",
+  "MATERIAL_REVIEW_DELETE",
+  "MATERIAL_REVIEW_REPORT",
+  "MATERIAL_REVIEW_MODERATE",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
@@ -223,6 +228,17 @@ const materialRefund = z.strictObject({
   grossCredit: z.string().regex(/^[1-9]\d*$/),
   operationId: uuid,
 });
+const materialReview = z.strictObject({
+  materialId: uuid,
+  rating: z.number().int().min(1).max(5),
+  status: z.enum(["VISIBLE", "HIDDEN"]),
+  version: z.number().int().positive(),
+  deleted: z.boolean(),
+});
+const materialReviewReport = z.strictObject({
+  reviewId: uuid,
+  status: z.enum(["OPEN", "RESOLVED"]),
+});
 
 const projectionByAction: Record<
   Exclude<AuditAction, "SYSTEM_CONFIGURATION_UPDATE">,
@@ -318,6 +334,11 @@ const projectionByAction: Record<
   MATERIAL_MODERATE: material,
   MATERIAL_PURCHASE: materialOrder,
   MATERIAL_REFUND: materialRefund,
+  MATERIAL_REVIEW_CREATE: materialReview,
+  MATERIAL_REVIEW_UPDATE: materialReview,
+  MATERIAL_REVIEW_DELETE: materialReview,
+  MATERIAL_REVIEW_REPORT: materialReviewReport,
+  MATERIAL_REVIEW_MODERATE: materialReview,
 };
 
 function validateProjection(

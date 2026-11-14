@@ -33,6 +33,9 @@ const eventChannels: Record<string, readonly NotificationChannelCode[]> = {
   "material.moderated": ["IN_APP", "EMAIL", "PUSH"],
   "material.purchased": ["IN_APP", "EMAIL", "PUSH"],
   "material.refunded": ["IN_APP", "EMAIL", "PUSH"],
+  "material.review.created": ["IN_APP", "EMAIL", "PUSH"],
+  "material.review.hidden": ["IN_APP", "EMAIL", "PUSH"],
+  "material.review.restored": ["IN_APP", "EMAIL", "PUSH"],
   "learning-request.rejected": ["IN_APP", "EMAIL", "PUSH"],
 };
 

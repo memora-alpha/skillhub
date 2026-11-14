@@ -106,6 +106,6 @@ import { S3ObjectStorage } from "./s3-object-storage.adapter";
       ) => new FileReconciler(repository, objects, config),
     },
   ],
-  exports: [FileStorageService, FileAttachmentService],
+  exports: [FileStorageService, FileAttachmentService, OBJECT_STORAGE],
 })
 export class StorageModule {}

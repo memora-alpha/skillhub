@@ -3,6 +3,9 @@ import { Readable } from "node:stream";
 import test from "node:test";
 import { FileFormatDetector } from "../dist/infrastructure/storage/file-format-detector.js";
 import CFB from "cfb";
+import { randomBytes } from "node:crypto";
+import { deflateRawSync } from "node:zlib";
+import sharp from "sharp";
 
 const detector = new FileFormatDetector();
 const pdf = Buffer.from("%PDF-1.7\n1 0 obj<</Type/Catalog>>endobj\n%%EOF\n");
@@ -11,21 +14,25 @@ function makeZip(entries, flags = 0) {
   const parts = [];
   const directory = [];
   let position = 0;
-  for (const [name, content] of entries) {
+  for (const [name, content, compression = "store"] of entries) {
     const nameBytes = Buffer.from(name);
-    const bytes = Buffer.from(content);
+    const expanded = Buffer.from(content);
+    const method = compression === "deflate" ? 8 : 0;
+    const bytes = method === 8 ? deflateRawSync(expanded) : expanded;
     const local = Buffer.alloc(30);
     local.writeUInt32LE(0x04034b50, 0);
     local.writeUInt16LE(flags, 6);
+    local.writeUInt16LE(method, 8);
     local.writeUInt32LE(bytes.length, 18);
-    local.writeUInt32LE(bytes.length, 22);
+    local.writeUInt32LE(expanded.length, 22);
     local.writeUInt16LE(nameBytes.length, 26);
     parts.push(local, nameBytes, bytes);
     const central = Buffer.alloc(46);
     central.writeUInt32LE(0x02014b50, 0);
     central.writeUInt16LE(flags, 8);
+    central.writeUInt16LE(method, 10);
     central.writeUInt32LE(bytes.length, 20);
-    central.writeUInt32LE(bytes.length, 24);
+    central.writeUInt32LE(expanded.length, 24);
     central.writeUInt16LE(nameBytes.length, 28);
     central.writeUInt32LE(position, 42);
     directory.push(central, nameBytes);
@@ -39,6 +46,14 @@ function makeZip(entries, flags = 0) {
   end.writeUInt32LE(centralLength, 12);
   end.writeUInt32LE(position, 16);
   return Buffer.concat([...parts, ...directory, end]);
+}
+
+function declareFirstEntryExpandedSize(zip, expandedSize) {
+  const patched = Buffer.from(zip);
+  const endOffset = patched.length - 22;
+  const centralOffset = patched.readUInt32LE(endOffset + 16);
+  patched.writeUInt32LE(expandedSize, centralOffset + 24);
+  return patched;
 }
 
 const docxEntries = [
@@ -144,6 +159,139 @@ test("valid OOXML container passes; generic ZIP and encrypted OOXML fail", async
       body: Readable.from([makeZip(docxEntries, 1)]),
     }),
     /FILE_FORMAT_UNSUPPORTED/,
+  );
+});
+
+test("valid OOXML above 10x passes while archive safety limits return 413", async () => {
+  const input = {
+    name: "expanded.docx",
+    purpose: "EVIDENCE",
+    capBytes: 10_000_000,
+  };
+  const validExpanded = makeZip([
+    docxEntries[0],
+    docxEntries[1],
+    ["word/document.xml", Buffer.alloc(800_000, 0x61), "deflate"],
+    ["word/media/padding.bin", randomBytes(40_000)],
+  ]);
+  assert.ok(800_000 / validExpanded.length > 10);
+  assert.ok(800_000 / validExpanded.length < 50);
+  assert.equal(
+    (
+      await detector.inspect({
+        ...input,
+        body: Readable.from([validExpanded]),
+      })
+    ).detectedMime,
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  );
+
+  const excessiveRatio = makeZip([
+    docxEntries[0],
+    docxEntries[1],
+    ["word/document.xml", Buffer.alloc(3_000_000, 0x61), "deflate"],
+  ]);
+  await assert.rejects(
+    detector.inspect({ ...input, body: Readable.from([excessiveRatio]) }),
+    /FILE_ARCHIVE_EXPANSION_LIMIT_EXCEEDED/,
+  );
+
+  const tooManyEntries = makeZip([
+    ...docxEntries,
+    ...Array.from({ length: 998 }, (_, index) => [
+      `word/media/${index}.bin`,
+      Buffer.from([index % 255]),
+    ]),
+  ]);
+  await assert.rejects(
+    detector.inspect({ ...input, body: Readable.from([tooManyEntries]) }),
+    /FILE_ARCHIVE_EXPANSION_LIMIT_EXCEEDED/,
+  );
+
+  const excessiveAbsoluteSize = declareFirstEntryExpandedSize(
+    makeZip(docxEntries),
+    100_000_001,
+  );
+  await assert.rejects(
+    detector.inspect({
+      ...input,
+      body: Readable.from([excessiveAbsoluteSize]),
+    }),
+    /FILE_ARCHIVE_EXPANSION_LIMIT_EXCEEDED/,
+  );
+
+  const oversizedCentralDirectory = makeZip([
+    ...docxEntries,
+    ...Array.from({ length: 997 }, (_, index) => [
+      `word/media/${"a".repeat(510)}-${index}.bin`,
+      Buffer.alloc(0),
+    ]),
+  ]);
+  await assert.rejects(
+    detector.inspect({
+      ...input,
+      body: Readable.from([oversizedCentralDirectory]),
+    }),
+    /FILE_ARCHIVE_EXPANSION_LIMIT_EXCEEDED/,
+  );
+
+  const oversizedCapturedXml = makeZip([
+    [
+      "[Content_Types].xml",
+      Buffer.concat([
+        Buffer.from(docxEntries[0][1]),
+        Buffer.alloc(256_001, 0x20),
+      ]),
+    ],
+    docxEntries[1],
+    docxEntries[2],
+  ]);
+  await assert.rejects(
+    detector.inspect({
+      ...input,
+      body: Readable.from([oversizedCapturedXml]),
+    }),
+    /FILE_ARCHIVE_EXPANSION_LIMIT_EXCEEDED/,
+  );
+});
+
+test("material covers enforce static image dimensions and pixel safety", async () => {
+  const valid = await sharp({
+    create: {
+      width: 640,
+      height: 360,
+      channels: 3,
+      background: { r: 40, g: 80, b: 120 },
+    },
+  })
+    .png()
+    .toBuffer();
+  const result = await detector.inspect({
+    body: Readable.from([valid]),
+    name: "cover.png",
+    purpose: "MATERIAL_COVER",
+    capBytes: 10_000_000,
+  });
+  assert.equal(result.detectedMime, "image/png");
+
+  const tooSmall = await sharp({
+    create: {
+      width: 320,
+      height: 180,
+      channels: 3,
+      background: { r: 0, g: 0, b: 0 },
+    },
+  })
+    .webp()
+    .toBuffer();
+  await assert.rejects(
+    detector.inspect({
+      body: Readable.from([tooSmall]),
+      name: "cover.webp",
+      purpose: "MATERIAL_COVER",
+      capBytes: 10_000_000,
+    }),
+    /MATERIAL_COVER_INVALID/,
   );
 });
 

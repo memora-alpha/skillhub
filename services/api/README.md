@@ -136,8 +136,8 @@ và bằng chứng PostgreSQL ở [UTC validation](specs/006-system-configuratio
 
 ## Phạm vi và trạng thái
 
-Learning Materials (spec011, SH-115..119): owner upload/draft/submit, Staff review/hide,
-public search/preview, authorized short-lived download and atomic PAID purchase with a 5%
+Learning Materials (spec011 + spec016, SH-115..119): owner upload/draft/submit, Staff review/hide,
+public search/preview, material reviews and cover thumbnails, authorized short-lived download and atomic PAID purchase with a 5%
 MATERIAL_PAID fee. Rollout: migrations `20261021000000_material_constraints` then
 `20261021010000_stored_file_material_purpose` then
 `20261021020000_material_refund_consumption` → `pnpm db:seed-configuration` →

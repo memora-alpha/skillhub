@@ -105,4 +105,7 @@ order: buyer ≠ seller, gross = fee + net, status SUCCESS; entitlement: status 
 - Admin xử lý refund khi seller không còn đủ net trong Available vẫn đi qua dispute/Credit adjustment flow; tự động hoàn tiền không được phép tạo số dư âm.
 - Buyer có được nhận file mới khi owner thay file không (hiện tại: không).
 - Retention object đã bán sau khi ARCHIVED.
-- Tag cho material, file preview, giao diện cấu hình fee (SH-105), template notification (SH-110).
+- Tag cho material, giao diện cấu hình fee (SH-105), template notification (SH-110).
+- Material cover/thumbnail và material-specific reviews được mở rộng bởi
+  [spec016](../016-material-reviews-thumbnails/spec.md); document-page rendering vẫn
+  ngoài phạm vi MVP.

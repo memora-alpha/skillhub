@@ -11,6 +11,7 @@ import {
   MaxLength,
   Min,
   MinLength,
+  ValidateIf,
 } from "class-validator";
 import { REPORT_REASON_CODES } from "../../../reports/presentation/http/reports.dto";
 
@@ -34,6 +35,7 @@ export class CreateMaterialDto {
   /** BR-42: must be true; the service answers MATERIAL_RIGHTS_CONFIRMATION_REQUIRED otherwise. */
   @IsBoolean() distributionRightsConfirmed!: boolean;
   @IsOptional() @IsUUID("4") fileId?: string;
+  @IsOptional() @IsUUID("4") coverFileId?: string;
 }
 
 export class UpdateMaterialDto {
@@ -48,6 +50,9 @@ export class UpdateMaterialDto {
   @IsOptional() @IsIn(ACCESS) accessType?: (typeof ACCESS)[number];
   @IsOptional() @IsString() @MaxLength(13) priceCredit?: string;
   @IsOptional() @IsUUID("4") fileId?: string;
+  @ValidateIf((_object, value) => value !== undefined && value !== null)
+  @IsUUID("4")
+  coverFileId?: string | null;
   @IsOptional() @IsBoolean() distributionRightsConfirmed?: boolean;
 }
 
@@ -75,4 +80,46 @@ export class ModerateMaterialDto {
 export class ReportMaterialDto {
   @IsIn(REPORT_REASON_CODES) reasonCode!: (typeof REPORT_REASON_CODES)[number];
   @IsString() @MinLength(10) @MaxLength(2000) description!: string;
+}
+
+export class MaterialReviewQueryDto extends ListPageQuery {
+  @Max(50)
+  override limit = 20;
+}
+
+export class CreateMaterialReviewDto {
+  @IsInt() @Min(1) @Max(5) rating!: number;
+  @IsOptional() @IsString() @MaxLength(2000) comment?: string;
+}
+
+export class UpdateMaterialReviewDto {
+  @IsInt() @Min(1) expectedVersion!: number;
+  @IsOptional() @IsInt() @Min(1) @Max(5) rating?: number;
+  @ValidateIf((_object, value) => value !== undefined && value !== null)
+  @IsString()
+  @MaxLength(2000)
+  comment?: string | null;
+}
+
+export class DeleteMaterialReviewQueryDto {
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  expectedVersion!: number;
+}
+
+export class ReportMaterialReviewDto {
+  @IsIn(REPORT_REASON_CODES) reasonCode!: (typeof REPORT_REASON_CODES)[number];
+  @IsString() @MinLength(10) @MaxLength(2000) description!: string;
+}
+
+export class StaffMaterialReviewQueryDto extends ListPageQuery {
+  @IsOptional()
+  @IsIn(["REPORTED", "HIDDEN"])
+  status?: "REPORTED" | "HIDDEN";
+}
+
+export class ModerateMaterialReviewDto {
+  @IsInt() @Min(1) expectedVersion!: number;
+  @IsString() @MinLength(1) @MaxLength(2000) reason!: string;
 }

@@ -7,6 +7,7 @@ import {
 export const CHAT_MAX_BYTES = 15_000_000;
 export const APPROVED_EVIDENCE_MAX_BYTES = 10_000_000;
 export const MATERIAL_MAX_BYTES = 20_000_000;
+export const MATERIAL_COVER_MAX_BYTES = 10_000_000;
 
 const formats = {
   pdf: "application/pdf",
@@ -63,7 +64,8 @@ export function validateFile(input: {
     purpose !== "EVIDENCE" &&
     purpose !== "REPORT" &&
     purpose !== "CHAT" &&
-    purpose !== "MATERIAL"
+    purpose !== "MATERIAL" &&
+    purpose !== "MATERIAL_COVER"
   ) {
     throw new FileStorageError("FILE_POLICY_UNAVAILABLE", 503);
   }
@@ -105,7 +107,9 @@ export function validateFile(input: {
   const nonChatExtensions =
     purpose === "MATERIAL"
       ? new Set(["pdf", "docx", "pptx", "xlsx"])
-      : evidenceExtensions;
+      : purpose === "MATERIAL_COVER"
+        ? new Set(["jpg", "jpeg", "png", "webp"])
+        : evidenceExtensions;
   const allowed = purpose === "CHAT" ? Object.keys(formats) : nonChatExtensions;
   if (
     !(allowed instanceof Set

@@ -9,6 +9,9 @@ import { MaterialModerationService } from "../../dist/modules/materials/applicat
 import { MaterialCatalogService } from "../../dist/modules/materials/application/services/material-catalog.service.js";
 import { MaterialPurchaseService } from "../../dist/modules/materials/application/services/material-purchase.service.js";
 import { MaterialReportsService } from "../../dist/modules/materials/application/services/material-reports.service.js";
+import { MaterialThumbnailsService } from "../../dist/modules/materials/application/services/material-thumbnails.service.js";
+import { MaterialReviewsService } from "../../dist/modules/materials/application/services/material-reviews.service.js";
+import { MaterialReviewModerationService } from "../../dist/modules/materials/application/services/material-review-moderation.service.js";
 
 /** Fresh UUID schema with all migrations, fee policies and one ACTIVE skill. */
 export async function createMaterialFixture() {
@@ -68,6 +71,7 @@ export async function createMaterialFixture() {
     f.transactions,
     f.storage,
     f.attachments,
+    new MaterialThumbnailsService(f.objectStorage),
   );
   const purchases = new MaterialPurchaseService(
     f.transactions,
@@ -75,6 +79,17 @@ export async function createMaterialFixture() {
     f.audit,
   );
   const reports = new MaterialReportsService(f.transactions);
+  const reviews = new MaterialReviewsService(
+    f.transactions,
+    f.commands,
+    f.actors,
+    f.audit,
+  );
+  const reviewModeration = new MaterialReviewModerationService(
+    f.transactions,
+    f.actors,
+    f.audit,
+  );
   const moderator = await f.account("STAFF");
   /** Create → attach file → submit → approve, through the real services. */
   async function publishedMaterial(owner, overrides = {}) {
@@ -100,6 +115,8 @@ export async function createMaterialFixture() {
     catalog,
     purchases,
     reports,
+    reviews,
+    reviewModeration,
     moderator,
     publishedMaterial,
   };
