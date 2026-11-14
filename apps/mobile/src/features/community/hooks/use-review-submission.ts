@@ -48,6 +48,9 @@ export function useReviewSubmission(pathId: string, counterpartId: string) {
           saved,
         ],
       );
+      await cache.invalidateQueries({
+        queryKey: [...runtime.key, "profile-reviews"],
+      });
     } catch (failure) {
       if (runtime.isCurrent()) setError(failure);
     } finally {

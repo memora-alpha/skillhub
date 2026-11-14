@@ -1,0 +1,38 @@
+# Đánh giá — hiện trạng giao diện
+
+Cập nhật: 2026-11-13T20:01:03+07:00. Phạm vi theo [plan](plan.md).
+
+## Source
+
+- Màn `/reviews` mặc định **Nhận được**, mở từ nút Xem tất cả trong thẻ “Đánh giá về bạn” trên Profile. Gỡ shortcut “Đánh giá về tôi” và alias navigation tương ứng vì trùng điểm vào. Ba mục Nhận được/Đã gửi/Viết đánh giá lưu bằng query `tab`; điểm tổng/phân bố chỉ xuất hiện ở nhận được. Mục đã gửi ghi rõ người được đánh giá; mục viết mới tải danh sách lộ trình hoàn tất. Back từ editor về `tab=write`.
+- Danh sách lộ trình dùng thẻ có tiêu đề, hình thức học, avatar đối tác và hành động mở đúng route. Trạng thái hoàn tất không được dùng thay xác nhận settlement; form vẫn kiểm tra trạng thái và `settledAt` từ detail.
+- Màn viết đánh giá tách thành screen riêng, ưu tiên form trước các nhận xét. Picker 5 sao có trạng thái chọn/disabled, nhãn mức hài lòng, hỗ trợ Space và phím mũi tên trên web. Input giữ giới hạn 1.000 ký tự và có bộ đếm; gửi thành công chuyển sang xác nhận và nhận xét đã gửi.
+- Form xác định người dạy theo chiều học và hiển thị kỹ năng tương ứng: TWO_WAY mỗi bên đánh giá người đã dạy mình; ONE_WAY người dạy chỉ xem nhận xét, người học mới có form. Helper kiểm participant, teacher/learner trong plan và agreement một chiều; settlement guard vẫn độc lập. Backend hiện chưa giới hạn vai trò này, xem [audit API](api-review-audit.md).
+- ReviewCard/ReviewSummary và hook đọc reviews dùng chung qua public entry của community. Own Profile chỉ giữ tổng quan nhận được và nút mở `/reviews`; gỡ cụm chọn nhận/gửi lồng trong Profile. Public Profile vẫn mở rộng xem nhận xét/phân bố sao và tải thêm tại chỗ. Trạng thái rỗng không xuất hiện khi tải/lỗi/denied.
+- Cài đặt chính có ActionRow “Xem hồ sơ công khai” trong nhóm Tài khoản & bảo mật, mở `/profiles/[userId]` bằng `session.userId` và disabled khi đang logout-all. Gỡ liên kết trên thẻ Own Profile; ProfileSummary/ProfileScreen không thêm prop hay callback riêng cho hành động này. Avatar vẫn giữ hành vi mở self-preview; lối xem trong Quyền riêng tư hiện có được giữ.
+- Cài đặt nằm trong nhóm lối tắt Profile, ô bên phải Uy tín ở hàng cuối; bỏ callback Cài đặt trên thẻ thông tin để không có hai điểm mở liền nhau. Dùng mapping `/account-settings` hiện có; action chỉnh sửa hồ sơ vẫn ở thẻ thông tin.
+- Gỡ intro dài, note cuối danh sách/form và thông báo lặp ở success; review không có comment chỉ hiện sao. Điểm trung bình dùng NunitoBold, toàn bộ chữ phần đánh giá theo Nunito. Caption số lượt ghi rõ đánh giá nhận được vì summary BE vẫn là received khi xem danh sách sent.
+- Tách adapter `/me/reviews` và `/profiles/:id/reviews` từ Profile sang community, validate số sao/tổng và giữ pagination/meta. Key phân biệt own/public và direction dưới runtime owner/session; own read không cho dùng userId của tài khoản khác. Mutation thành công invalidate prefix lịch sử đúng phiên để danh sách vừa gửi không bị cũ; late completion không ghi vào phiên mới.
+- Giữ endpoints, route tree, shared theme và dependencies. Kết quả gửi chưa rõ tiếp tục khóa gửi và cần làm mới trước khi thử lại; không thêm tự động replay.
+
+## Kiểm chứng
+
+- Lượt di chuyển Cài đặt: ESLint/Prettier hai file ảnh hưởng và diff whitespace đạt. Browser fixture320/390/430px xác nhận Cài đặt và Uy tín cùng hàng, Cài đặt bên phải, không có action Cài đặt tài khoản ở thẻ trên và nhấn mở `/account-settings`; không tràn ngang. Đã xem screenshot `.expo/profile-shortcuts-preview/profile-settings-shortcut-390.png`; script/log ignored `.expo/profile-shortcuts-preview.cjs`, `.expo/profile-shortcuts-browser.log`. Không chạy lại full suite/export cho thay đổi vị trí này.
+- Lượt gỡ shortcut trùng: ESLint và Prettier đúng2 file constants, `git diff --check` đạt. Không chạy lại full suite/export cho thay đổi chỉ xóa entry; bằng chứng toàn luồng bên dưới thuộc lượt kiểm điều hướng trước đó.
+- Lượt chuyển lối xem công khai vào Cài đặt: TypeScript, ESLint/Prettier các TSX ảnh hưởng và diff whitespace đạt; browser fixture320/390/430px không tràn ngang, nhấn ActionRow mở route public profile đúng userId hiện tại; đã xem screenshot. Script/log local ignored `.expo/public-profile-settings-preview.cjs`, `.expo/public-profile-settings-browser.log`, screenshot `.expo/public-profile-settings-preview/settings-public-profile-390.png`. Fixture kiểm callback navigation, chưa phải nghiệm thu Expo Router/native hoặc API triển khai. Không chạy lại full suite/export cho thay đổi trình bày này.
+- Full mobile suite **1.144/1.144 PASS**, 0 fail/skipped/cancelled; log local ignored `.expo/reviews-navigation-tests.log`. Giữ3 regression chiều học và thêm5 test adapter/cache: sent cursor/meta, summary độc lập số items, public chỉ received, malformed/denied, invalidate đúng owner/session sau gửi, duplicate và late result. Đây không phải nghiệm thu thiết bị.
+- TypeScript, full ESLint, structure **975 source files**, Prettier code và `git diff --check` đạt.
+- Browser fixture dùng các component source thật trên react-native-web, FeaturePage/AppScreenLayout thật và hook/session thay thế: **6 bề mặt** (3 mục cá nhân, editor, own/public Profile) tại **320/390/430px**, không tràn ngang; tên dài và chữ130% ở320px. Đã xem screenshot để kiểm tra hierarchy, font, spacing và màu.
+- Tương tác fixture đạt: từ thẻ mở editor; bỏ trống sao không gửi; chọn sao/gửi thành công; lỗi gửi giữ sao và nội dung; kết quả chưa rõ khóa gửi, làm mới mở lại; chưa settlement không có nút gửi; Profile mở rộng và đổi nhận/gửi; empty không xuất hiện khi loading/error/denied; Space và phím mũi tên chọn sao, bao gồm quay vòng5→1. Không có pageerror. Hook fixture không kiểm chứng transport/cache của API thật.
+- Browser follow-up kiểm thêm ONE_WAY teacher không có nút gửi, TWO_WAY viewer vẫn có form cùng nhãn người dạy/kỹ năng, layout sau khi bỏ intro/note và đổi font. Đã xem lại screenshot form và profile.
+- Browser điều hướng: Profile mở đúng received, sent ẩn tổng điểm nhận được và hiển thị người được đánh giá, viết mở lộ trình/editor; Back quay về viết. Public Profile không có các mục riêng tư; phím mũi tên chuyển tab trên web.
+- Backend `test:public-reviews` build và4/4 tests đạt sau khi tái tạo Prisma Client local; [audit](api-review-audit.md) mô tả source, endpoints, tổng theo user và giới hạn chưa lọc teacher role. Không sửa source backend hoặc chạy migration/seed.
+- Script/screenshot/log local ignored: `.expo/reviews-ui-preview.cjs`, `.expo/reviews-ui-preview/`, `.expo/reviews-ui-browser.log`. Dữ liệu có nhãn fixture và không dùng tài khoản thật.
+- Expo web export sau điều chỉnh điều hướng PASS tại `.expo/reviews-ui-web`, log `.expo/reviews-navigation-export.log`; dotenv/telemetry tắt. Export xác nhận bundle và route, không thay kiểm native.
+- pnpm cài sẵn là11.25.0 và mặc định cố cài lại modules trước khi chạy. Commands dùng `pnpm --config.verify-deps-before-run=never` với dependencies hiện có để chạy checks, không thay packageManager, lockfile hoặc cài lại dependencies.
+
+Source **Ready for review**; Android/iOS và API triển khai chưa nghiệm thu.
+
+## Giới hạn
+
+Nghiệm thu người dùng: chưa thực hiện. Chưa chạy Android/iOS, VoiceOver/TalkBack, bàn phím phần mềm hoặc API triển khai. Fixture web thay hook API và session bằng dữ liệu cục bộ có nhãn riêng, không ghi tài khoản thật; không thay nghiệm thu native hay cơ chế chống gửi lặp của server.

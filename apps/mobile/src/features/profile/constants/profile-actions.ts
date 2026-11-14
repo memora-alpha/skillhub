@@ -32,8 +32,8 @@ export const profileActions: {
     color: colors.sage,
   },
   {
-    label: "Đánh giá về tôi",
-    icon: "star",
-    color: colors.gold,
+    label: "Cài đặt",
+    icon: "settings",
+    color: colors.body,
   },
 ];
