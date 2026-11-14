@@ -83,7 +83,10 @@ jobs:
 
   open_pr:
     needs: generate_fix
-    if: needs.generate_fix.outputs.has_patch == 'true'
+    if: >-
+      needs.generate_fix.outputs.has_patch == 'true' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     permissions:
