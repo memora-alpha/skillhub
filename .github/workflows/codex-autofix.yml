@@ -47,7 +47,7 @@ jobs:
       - name: Generate Prisma client
         run: pnpm --filter api db:generate
       - name: Run Codex
-        uses: openai/codex-action@1d82a3dba7c7988ec71ecae1ed5b8e8db96495c5
+        uses: openai/codex-action@bdf19a4a223ec2549a3e2274a0cf61556bc07675
         with:
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
           safety-strategy: drop-sudo
