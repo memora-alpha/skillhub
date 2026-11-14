@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException } from "@nestjs/common";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
+import { parseAbsoluteTimestamp } from "../time/timestamp.policy";
 import type { Principal } from "../../modules/auth/application/services/sessions.service";
 
 export function requireFinanceAdmin(actor: Principal, permission: string) {
@@ -58,7 +59,20 @@ export function financeCursor(secret: string, scope: string) {
     },
   };
 }
-export function adminTimeRange(from?: string, to?: string) {
+export function adminTimeRange(from?: string, to?: string, before?: string) {
+  if (before !== undefined) {
+    let start: Date | undefined;
+    let end: Date;
+    try {
+      start = from === undefined ? undefined : parseAbsoluteTimestamp(from);
+      end = parseAbsoluteTimestamp(before);
+    } catch {
+      throw new BadRequestException("INVALID_ADMIN_FINANCE_DATE");
+    }
+    if (to !== undefined || (start && start >= end))
+      throw new BadRequestException("INVALID_ADMIN_FINANCE_RANGE");
+    return { ...(start ? { gte: start } : {}), lt: end };
+  }
   if (
     (from && !z.iso.datetime().safeParse(from).success) ||
     (to && !z.iso.datetime().safeParse(to).success)
@@ -70,6 +84,13 @@ export function adminTimeRange(from?: string, to?: string) {
     ...(from ? { gte: new Date(from) } : {}),
     ...(to ? { lte: new Date(to) } : {}),
   };
+}
+
+export function adminPaidTimeRange(from?: string, before?: string) {
+  if (from === undefined && before === undefined) return undefined;
+  if (from === undefined || before === undefined)
+    throw new BadRequestException("INVALID_ADMIN_FINANCE_RANGE");
+  return adminTimeRange(from, undefined, before);
 }
 export function adminBefore(row: { id: string; createdAt: Date } | null) {
   return row
