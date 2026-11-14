@@ -8,6 +8,11 @@
 
 | Work tiếp nhận                                                                       | Plan                                                 | Hiện trạng và bước tiếp                                  |
 | ------------------------------------------------------------------------------------ | ---------------------------------------------------- | -------------------------------------------------------- |
+| Dọn mock/code thừa và rà soát logic mobile | [plan](mobile-cleanup/plan.md) | [status](mobile-cleanup/status.md) |
+| Tài liệu — Discover, đăng/chỉnh sửa, mua và thư viện | [plan](materials-ui/plan.md) | [status](materials-ui/status.md) |
+| Đồng nhất giao diện Thành tích và danh hiệu | [plan](achievements-ui/plan.md) | [status](achievements-ui/status.md) |
+| Đồng nhất giao diện Uy tín — hạn chế, lịch sử và phục hồi | [plan](reputation-ui/plan.md) | [status](reputation-ui/status.md) |
+| Đồng nhất giao diện đánh giá — lộ trình và Profile | [plan](reviews-ui/plan.md) | [status](reviews-ui/status.md) |
 | Đồng nhất giao diện Report — tạo, theo dõi và trao đổi | [plan](reports-ui/plan.md) | [status](reports-ui/status.md) |
 | Hoàn thiện Settings và thống kê Profile trên Expo | [plan](settings-profile/plan.md) | [status](settings-profile/status.md) |
 | Dừng lộ trình, thông báo và quyết toán Credit | [plan](path-cancellation/plan.md) | [status](path-cancellation/status.md) |
