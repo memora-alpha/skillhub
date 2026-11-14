@@ -34,6 +34,17 @@ export function AccountSettingsScreen() {
         />
         <SettingsSection title="Tài khoản & bảo mật">
           <ActionRow
+            icon="eye"
+            label="Xem hồ sơ công khai"
+            disabled={busy}
+            onPress={() =>
+              router.push({
+                pathname: "/profiles/[userId]",
+                params: { userId: session.userId },
+              })
+            }
+          />
+          <ActionRow
             icon="lock"
             label="Đặt lại mật khẩu"
             description="Bảo vệ tài khoản bằng mật khẩu mới"

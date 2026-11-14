@@ -24,7 +24,6 @@ export function ProfileScreen() {
           <ProfileSummary
             profile={profile}
             onEdit={() => router.push("/edit-profile")}
-            onSettings={() => router.push("/account-settings")}
             avatarNotice={<AvatarUploadNotice />}
             linkToPublicProfile
           />
