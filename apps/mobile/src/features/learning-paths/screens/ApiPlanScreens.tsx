@@ -88,7 +88,6 @@ export function ApiPlanDetailScreen() {
   return (
     <FeaturePage
       title="Chi tiết lộ trình"
-      demo={false}
       stickyFooter={
         query.data && plan && matchesSource ? (
           <ApiPlanActions
@@ -152,7 +151,6 @@ export function ApiPlanEditorScreen() {
     <FeaturePage
       title={planId ? "Chỉnh sửa lộ trình" : "Tạo lộ trình"}
       scrollable={false}
-      demo={false}
       backBehavior="history"
       back={planId ? `/paths/${id}/plans/${planId}` : `/paths/${id}`}
     >

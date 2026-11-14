@@ -59,7 +59,7 @@ test("wallet demo screens, routes and entry links are absent from the applicatio
     "features/wallet/index.ts",
     "features/ui-preview/screens.tsx",
     "features/auth/components/AuthNavigator.tsx",
-    "features/product-shell/context.tsx",
+    "providers/learning-providers.tsx",
   ]) {
     assert.doesNotMatch(source(file), /WalletPreview|wallet-preview/);
   }

@@ -6,16 +6,7 @@ export const avatarPalette = [
   { background: "#FFF0C7", foreground: "#785B12" },
 ] as const;
 
-const avatarOverrides: Record<string, (typeof avatarPalette)[number]> = {
-  "demo-viet-anh": avatarPalette[0],
-  "demo-minh-ha": avatarPalette[4],
-  "demo-quang-huy": avatarPalette[3],
-};
-
 export function getAvatarColors(userId: string) {
-  if (userId.startsWith("demo-user:")) return avatarPalette[0];
-  const override = avatarOverrides[userId];
-  if (override) return override;
   let hash = 2166136261;
   for (const character of userId) {
     hash = Math.imul(hash ^ character.codePointAt(0)!, 16777619);

@@ -17,7 +17,6 @@ export function FeaturePage({
   children,
   back = "/profile",
   backBehavior = "destination",
-  demo = true,
   keyboardDismissMode,
   stickyFooter,
   section = "Hồ sơ",
@@ -32,7 +31,6 @@ export function FeaturePage({
   children: ReactNode;
   back?: Href;
   backBehavior?: "destination" | "history";
-  demo?: boolean;
   keyboardDismissMode?: ScrollViewProps["keyboardDismissMode"];
   stickyFooter?: ReactNode;
   section?: string;
@@ -45,7 +43,6 @@ export function FeaturePage({
   const scrollStyle = stickyFooter ? ui.scrollWithFooter : undefined;
   const content = (
     <>
-      {demo && <Text style={ui.demo}>BẢN XEM THỬ · DỮ LIỆU MẪU</Text>}
       {subtitle && <Text style={ui.subtitle}>{subtitle}</Text>}
       {children}
     </>
@@ -170,13 +167,6 @@ export const ui = StyleSheet.create({
     padding: 16,
     paddingBottom: 36,
     gap: 16,
-  },
-  demo: {
-    fontFamily: fonts.bold,
-    fontSize: 11,
-    lineHeight: 18,
-    letterSpacing: 1,
-    color: colors.primary,
   },
   subtitle: {
     fontFamily: fonts.body,

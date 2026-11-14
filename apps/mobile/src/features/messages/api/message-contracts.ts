@@ -86,7 +86,6 @@ export type MessageBubbleModel = {
   from: "them" | "me";
   text: string;
   time: string;
-  file?: { name: string; bytes: number };
 };
 export type MessageDraft = {
   clientMessageId: string;

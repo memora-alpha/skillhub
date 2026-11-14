@@ -9,7 +9,7 @@ export function AttachmentScreen() {
   if (uuid.safeParse(proposalId).success)
     return <ApiAttachmentScreen id={proposalId!} />;
   return (
-    <FeaturePage title="Gửi tệp trong chat" back="/messages" demo={false}>
+    <FeaturePage title="Gửi tệp trong chat" back="/messages">
       <EmptyState
         title="Không tìm thấy cuộc trao đổi"
         description="Mở một cuộc trò chuyện hợp lệ trước khi gửi tệp."

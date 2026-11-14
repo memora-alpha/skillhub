@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import {
   Pressable,
   ScrollView,
@@ -13,13 +13,11 @@ import { SafeAreaView } from "@/components/SafeArea";
 import { BrandLogo } from "@/components/BrandLogo";
 import { useRouter } from "expo-router";
 import { typography, colors, fonts, layout } from "@/constants/theme";
-import { WelcomeNotice } from "../components/WelcomeNotice";
 import { WelcomeHero } from "../components/WelcomeHero";
 import { WelcomeSections } from "../components/WelcomeSections";
 
 export function WelcomeScreen() {
   const router = useRouter();
-  const [notice, setNotice] = useState<string | null>(null);
   const scroll = useRef<ScrollViewInstance>(null);
   const sections = useRef({ how: 0, categories: 0, credit: 0 });
   const { width } = useWindowDimensions();
@@ -33,7 +31,9 @@ export function WelcomeScreen() {
       return router.push("/explore");
     if (label === "Cách hoạt động") return scrollTo("how");
     if (label === "Credit") return scrollTo("credit");
-    setNotice(label);
+    if (["Điều khoản", "Chính sách bảo mật", "Bảo mật"].includes(label))
+      return router.push("/policies");
+    router.push({ pathname: "/explore", params: { query: label } });
   };
   const onSectionLayout = (
     section: keyof typeof sections.current,
@@ -53,7 +53,7 @@ export function WelcomeScreen() {
             accessibilityLabel="SkillHub — về đầu trang"
             onPress={() => scroll.current?.scrollTo({ y: 0, animated: true })}
           >
-            <BrandLogo />
+            <BrandLogo compact={width < 400} markOnly={width < 360} />
           </Pressable>
           {width >= 768 && (
             <View style={styles.nav}>
@@ -115,7 +115,6 @@ export function WelcomeScreen() {
           onSectionLayout={onSectionLayout}
         />
       </ScrollView>
-      <WelcomeNotice title={notice} onClose={() => setNotice(null)} />
     </SafeAreaView>
   );
 }

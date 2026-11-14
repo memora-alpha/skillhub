@@ -18,7 +18,7 @@ export function PathDetailScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   if (uuid.safeParse(id).success) return <ApiPathDetailScreen />;
   return (
-    <FeaturePage title="Thỏa thuận học" demo={false}>
+    <FeaturePage title="Thỏa thuận học">
       <EmptyState
         title="Không tìm thấy thỏa thuận"
         description="Mở một thỏa thuận hợp lệ từ cuộc trò chuyện của bạn."
