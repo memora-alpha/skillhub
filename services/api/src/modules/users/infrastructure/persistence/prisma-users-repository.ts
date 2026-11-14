@@ -251,6 +251,7 @@ export class PrismaUsersRepository extends UsersRepository {
       "users.lock",
       "users.unlock",
       "roles.staff.assign",
+      "dashboard:read",
       "credit:read:any",
       "payment:read:any",
       "payment:reconcile",
