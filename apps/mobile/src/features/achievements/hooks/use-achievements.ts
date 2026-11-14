@@ -14,7 +14,6 @@ export function useAchievements() {
   const { runtime, session, status } = useAuthSession();
   const generation = runtime.controller.generation;
   const client = useQueryClient();
-  const flight = useRef(false);
   const queryKey = useMemo(
     () => ["achievements", session?.userId, generation] as const,
     [session?.userId, generation],
@@ -28,6 +27,10 @@ export function useAchievements() {
   const api = useMemo(
     () => createAchievementsApi(runtime.client, isCurrent),
     [runtime.client, isCurrent],
+  );
+  const flight = useMemo(
+    () => ({ current: false }),
+    [isCurrent, session?.userId],
   );
   const enabled = status === "authenticated";
   const query = useQuery({
@@ -67,6 +70,9 @@ export function useAchievements() {
         await client.cancelQueries({ queryKey: ["account", "me", generation] });
         const result = await api.selectTitle(code);
         if (!isCurrent()) throw new AppError("session");
+        await client.cancelQueries({ queryKey });
+        await client.cancelQueries({ queryKey: ["account", "me", generation] });
+        if (!isCurrent()) throw new AppError("session");
         client.setQueryData<Achievements | null>(queryKey, (current) =>
           current ? { ...current, ...result } : current,
         );
@@ -78,7 +84,12 @@ export function useAchievements() {
               : current,
         );
         void client.invalidateQueries({
-          queryKey: ["public-profile", session?.userId, generation],
+          queryKey: [
+            "public-profile",
+            session?.userId,
+            generation,
+            session?.userId,
+          ],
         });
         return result;
       } finally {
@@ -89,6 +100,7 @@ export function useAchievements() {
       if (isCurrent()) void client.invalidateQueries({ queryKey });
     },
   });
+  useEffect(() => mutation.reset(), [queryKey, mutation.reset]);
   const visited = useRef(false);
   useFocusEffect(
     useCallback(() => {
@@ -99,7 +111,7 @@ export function useAchievements() {
         if (state === "active" && !flight.current) void query.refetch();
       });
       return () => listener.remove();
-    }, [enabled, query.refetch]),
+    }, [enabled, query.refetch, flight]),
   );
   useEffect(
     () => () => {
