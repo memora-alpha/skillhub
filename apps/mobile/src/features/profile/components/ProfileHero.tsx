@@ -4,6 +4,7 @@ import { ProfileAvatarLink } from "@/components/profile-avatar-link";
 import { Icon } from "@/components/Icon";
 import { typography, avatarSizes, iconSizes, fonts } from "@/constants/theme";
 import { profileColors } from "../constants/theme";
+import { achievementTitleLabel } from "@/constants/achievement-copy";
 
 export function ProfileHero({
   name,
@@ -99,7 +100,7 @@ export function ProfileHero({
               color={profileColors.muted}
             />
             <Text style={[styles.tagline, { flexShrink: 1 }]}>
-              {selectedTitle}
+              {achievementTitleLabel(selectedTitle)}
             </Text>
           </View>
         )}

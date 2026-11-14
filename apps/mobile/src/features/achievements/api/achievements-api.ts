@@ -3,16 +3,22 @@ import type { HttpClient } from "@/lib/http/client";
 import { AppError } from "@/lib/http/errors";
 
 const titleSchema = z.object({ selectedTitle: z.string().nullable() });
-const achievementsSchema = titleSchema.extend({
-  items: z.array(
-    z.object({
-      code: z.string().min(1),
-      title: z.string().min(1),
-      description: z.string(),
-      unlockedAt: z.iso.datetime({ offset: true }),
-    }),
-  ),
-});
+const codeSchema = z.string().min(1).max(80);
+const achievementsSchema = titleSchema
+  .extend({
+    items: z.array(
+      z.object({
+        code: codeSchema,
+        title: z.string().min(1),
+        description: z.string(),
+        unlockedAt: z.iso.datetime({ offset: true }),
+      }),
+    ),
+  })
+  .refine(
+    (page) =>
+      new Set(page.items.map((item) => item.code)).size === page.items.length,
+  );
 export type Achievements = z.infer<typeof achievementsSchema>;
 
 export function createAchievementsApi(
@@ -32,6 +38,7 @@ export function createAchievementsApi(
         ? {
             method: "PATCH" as const,
             body: code === null ? {} : { code },
+            replayAfterRenewal: false,
           }
         : {}),
     });
@@ -47,6 +54,8 @@ export function createAchievementsApi(
       return parsed.data;
     },
     async selectTitle(code: string | null) {
+      if (code !== null && !codeSchema.safeParse(code).success)
+        throw new AppError("protocol");
       const parsed = titleSchema.safeParse(
         await request("/me/achievements/selected-title", code),
       );
