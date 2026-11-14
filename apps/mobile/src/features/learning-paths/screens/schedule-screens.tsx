@@ -12,7 +12,7 @@ export function SchedulesScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   if (uuid.safeParse(id).success) return <ApiSchedulesScreen />;
   return (
-    <FeaturePage title="Lịch của từng kế hoạch" demo={false}>
+    <FeaturePage title="Lịch của từng kế hoạch">
       <EmptyState
         title="Không tìm thấy lộ trình"
         description="Mở lịch từ một lộ trình hợp lệ trong thỏa thuận."
@@ -29,7 +29,7 @@ export function ScheduleEditorScreen() {
   if (uuid.safeParse(id).success && uuid.safeParse(planId).success)
     return <ApiScheduleEditorScreen />;
   return (
-    <FeaturePage title="Đề xuất lịch tôi dạy" demo={false}>
+    <FeaturePage title="Đề xuất lịch tôi dạy">
       <EmptyState
         title="Không tìm thấy kế hoạch"
         description="Mở lịch từ một kế hoạch học hợp lệ."
@@ -43,7 +43,7 @@ export function HoldScreen() {
   if (uuid.safeParse(id).success)
     return <FlowRedirect href={`/paths/${id}/schedules`} />;
   return (
-    <FeaturePage title="Kiểm tra & chốt lịch" demo={false}>
+    <FeaturePage title="Kiểm tra & chốt lịch">
       <EmptyState
         title="Không tìm thấy lộ trình"
         description="Mở bước chốt lịch từ một thỏa thuận hợp lệ."

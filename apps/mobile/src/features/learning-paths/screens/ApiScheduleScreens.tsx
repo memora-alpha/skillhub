@@ -58,7 +58,6 @@ export function ApiSchedulesScreen() {
   return (
     <FeaturePage
       title="Lịch học"
-      demo={false}
       backBehavior="history"
       back={`/paths/${id}`}
       refreshing={pullRefresh.refreshing}
@@ -302,7 +301,6 @@ export function ApiScheduleEditorScreen() {
     <FeaturePage
       title={plan?.schedule ? "Chỉnh sửa lịch tôi dạy" : "Đề xuất lịch tôi dạy"}
       scrollable={false}
-      demo={false}
       backBehavior="history"
       back={`/paths/${id}/schedules`}
     >

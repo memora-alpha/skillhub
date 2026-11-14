@@ -47,7 +47,6 @@ export function ApiHoldScreen() {
   return (
     <FeaturePage
       title="Kiểm tra & chốt lịch"
-      demo={false}
       back={`/paths/${id}`}
       refreshing={pullRefresh.refreshing}
       onRefresh={pullRefresh.onRefresh}

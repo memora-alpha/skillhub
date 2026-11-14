@@ -11,7 +11,6 @@ export function SearchScreen() {
     <FeaturePage
       title="Tìm kiếm"
       back="/home"
-      demo={false}
       subtitle="Kết nối với người có kỹ năng bạn muốn học."
     >
       <ChoiceGroup

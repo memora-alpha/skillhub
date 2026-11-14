@@ -13,11 +13,7 @@ export function TermsEditorScreen() {
       />
     );
   return (
-    <FeaturePage
-      title="Điều chỉnh điều khoản"
-      back="/my-learning?tab=paths"
-      demo={false}
-    >
+    <FeaturePage title="Điều chỉnh điều khoản" back="/my-learning?tab=paths">
       <EmptyState
         title="Không tìm thấy lộ trình"
         description="Mở điều khoản từ một lộ trình hợp lệ để tiếp tục."

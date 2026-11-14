@@ -12,7 +12,6 @@ import { useRouter } from "expo-router";
 import { BrandLogo } from "@/components/BrandLogo";
 import { KeyboardFormScrollView } from "@/components/KeyboardFormScrollView";
 import { typography, colors, fonts, layout } from "@/constants/theme";
-import { authCommunity } from "../mocks/auth";
 import { ScreenLoadingBoundary } from "@/components/ScreenLoadingBoundary";
 
 export function AuthLayout({
@@ -46,21 +45,9 @@ export function AuthLayout({
             <Text style={styles.quote}>
               {'"Chia sẻ điều bạn biết.\nHọc điều bạn muốn."'}
             </Text>
-            <View style={styles.community}>
-              <View style={styles.faces}>
-                {authCommunity.map((person) => (
-                  <View
-                    key={person.initials}
-                    style={[styles.face, { backgroundColor: person.color }]}
-                  >
-                    <Text style={styles.initials}>{person.initials}</Text>
-                  </View>
-                ))}
-              </View>
-              <Text style={styles.communityText}>
-                +12.000 người dùng đang học
-              </Text>
-            </View>
+            <Text style={styles.communityText}>
+              Kết nối qua những kỹ năng bạn muốn học và chia sẻ.
+            </Text>
           </View>
           <Text style={styles.copyright}>
             © 2024 SkillHub. Tất cả quyền được bảo lưu.
@@ -139,24 +126,6 @@ const styles = StyleSheet.create({
     fontSize: 22,
     lineHeight: 30,
     color: colors.ink,
-    includeFontPadding: false,
-  },
-  community: { flexDirection: "row", alignItems: "center", gap: 12 },
-  faces: { flexDirection: "row", paddingLeft: 8 },
-  face: {
-    width: 32,
-    height: 32,
-    marginLeft: -8,
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: colors.sageLight,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  initials: {
-    fontFamily: fonts.bold,
-    fontSize: 12,
-    color: colors.white,
     includeFontPadding: false,
   },
   communityText: {

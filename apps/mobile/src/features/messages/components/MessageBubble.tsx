@@ -56,16 +56,13 @@ export function MessageBubble({
             !!children && !message.text.trim() && styles.fileOnly,
           ]}
         >
-          {(!!message.text.trim() || !!message.file) && (
+          {!!message.text.trim() && (
             <Text
               selectable
               accessibilityHint={`Gửi lúc ${message.time}`}
               style={[styles.text, mine && { color: colors.white }]}
             >
               {message.text}
-              {message.file
-                ? `\n${(message.file.bytes / 1024 / 1024).toFixed(1)} MB · tệp mẫu, không có đường dẫn tải`
-                : ""}
             </Text>
           )}
           {children}

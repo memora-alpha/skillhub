@@ -17,7 +17,7 @@ Hiện tại: Expo SDK58, React Native0.88.0, React19.3.0 và Router58; web prev
 
 Server state thuộc Query; client-only recovery/cooldown dùng Zustand hoặc context hiện hữu. Không mirror entity server sang một global store khác. Không tạo thư mục rỗng từ template.
 
-[AppProviders](../src/providers/AppProviders.tsx) tải Nunito/Fraunces trước, rồi SafeAreaProvider → KeyboardProvider → ToastProvider → QueryProvider → AppRefreshProvider → AuthSessionProvider → WalletProvider → ConnectionGate. AvatarUploadToasts nằm trong connection boundary, ngoài SessionGate; SessionGate → SessionsProvider → SkillsProvider → ProfilePreviewProvider → ConnectionsProvider → ChatEventsProvider → UiPreviewProvider → router children. Chat/Proposal dùng API và SSE; các provider preview còn lại phục vụ các màn chưa tích hợp API.
+[AppProviders](../src/providers/AppProviders.tsx) tải Nunito/Fraunces trước, rồi SafeAreaProvider → KeyboardProvider → ToastProvider → QueryProvider → AppRefreshProvider → AuthSessionProvider → WalletProvider → ConnectionGate. AvatarUploadToasts nằm trong connection boundary, ngoài SessionGate; SessionGate → SessionsProvider → SkillsProvider → ProfilePreviewProvider → ConnectionsProvider → ChatEventsProvider → ChatOutboxProvider → [LearningProviders](../src/providers/learning-providers.tsx) → router children. LearningProviders chỉ bọc RequestsProvider thật theo tài khoản; PathsPreviewProvider/ProductPreviewProvider và dữ liệu mẫu đã gỡ. ProfilePreviewProvider vẫn dùng projection từ account thật cho trang hồ sơ riêng, không phải mock.
 
 ## Imports và trách nhiệm
 
