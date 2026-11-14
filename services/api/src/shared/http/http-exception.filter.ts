@@ -231,6 +231,24 @@ export class HttpExceptionFilter implements ExceptionFilter {
     }
     const detail =
       exception instanceof HttpException ? exception.getResponse() : undefined;
+    if (status === 429 && isRecord(detail) && isRecord(detail.rateLimit)) {
+      const limit = detail.rateLimit.limit;
+      const remaining = detail.rateLimit.remaining;
+      const resetSeconds = detail.rateLimit.resetSeconds;
+      if (
+        Number.isSafeInteger(limit) &&
+        (limit as number) > 0 &&
+        Number.isSafeInteger(remaining) &&
+        (remaining as number) >= 0 &&
+        Number.isSafeInteger(resetSeconds) &&
+        (resetSeconds as number) > 0
+      ) {
+        response.setHeader("Retry-After", String(resetSeconds));
+        response.setHeader("RateLimit-Limit", String(limit));
+        response.setHeader("RateLimit-Remaining", String(remaining));
+        response.setHeader("RateLimit-Reset", String(resetSeconds));
+      }
+    }
     const text = messageText(clientMessage(status, exception, detail));
     response
       .status(status)

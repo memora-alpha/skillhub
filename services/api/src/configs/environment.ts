@@ -37,6 +37,7 @@ const environmentSchema = z.looseObject({
     .enum(["development", "test", "production"])
     .default("development"),
   PORT: z.coerce.number().int().min(1).max(65535).default(3001),
+  TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(10).default(0),
   CORS_ORIGIN: z
     .string()
     .transform((value) => value.split(",").map((origin) => origin.trim()))

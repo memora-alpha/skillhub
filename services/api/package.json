@@ -78,6 +78,10 @@
     "test:report-support": "nest build && node --test test/report-support.test.mjs test/session-report-contracts.test.mjs test/learning-platform/phase3.test.mjs",
     "test:public-reviews": "nest build && node --test test/public-reviews.test.mjs",
     "test:admin-finance": "nest build && node --test test/admin-finance.test.mjs",
+    "test:admin-operations": "nest build && node --test test/admin-dashboard-policy.test.mjs test/admin-work-items.test.mjs test/admin-learning-paths.test.mjs",
+    "test:admin-operations:integration": "node test/require-integration-env.mjs && nest build && node --test --test-concurrency=1 test/admin-dashboard.integration.test.mjs test/admin-work-items.integration.test.mjs test/admin-learning-paths.integration.test.mjs",
+    "test:rate-limit": "nest build && node --test test/identity/rate-limit-policy.test.mjs test/identity/rate-limit-http.test.mjs",
+    "test:backend-hardening": "node --test test/backend-hardening/matrix.test.mjs",
     "test:completion-gaps": "nest build && node --test test/backend-completion-gaps.test.mjs",
     "test:completion-gaps:integration": "node test/require-integration-env.mjs && nest build && node --test --test-concurrency=1 test/backend-completion-gaps.integration.test.mjs"
   },

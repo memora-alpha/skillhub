@@ -57,6 +57,8 @@ export const AUDIT_ACTIONS = [
   "MATERIAL_REVIEW_DELETE",
   "MATERIAL_REVIEW_REPORT",
   "MATERIAL_REVIEW_MODERATE",
+  "ADMIN_WORK_ITEM_READ",
+  "ADMIN_LEARNING_PATH_READ",
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
@@ -136,6 +138,10 @@ const sharingSkill = z.strictObject({
   isVisible: z.boolean(),
   verificationStatus: z.enum(["UNVERIFIED", "PENDING", "VERIFIED", "REJECTED"]),
   version: z.number().int().positive(),
+});
+const adminDetailRead = z.strictObject({
+  kind: z.string().regex(/^[A-Z][A-Z0-9_]{0,63}$/),
+  id: z.string().trim().min(1).max(256),
 });
 const learningRequest = z.strictObject({
   status: z.enum(["PENDING", "APPROVED", "REJECTED"]),
@@ -339,6 +345,8 @@ const projectionByAction: Record<
   MATERIAL_REVIEW_DELETE: materialReview,
   MATERIAL_REVIEW_REPORT: materialReviewReport,
   MATERIAL_REVIEW_MODERATE: materialReview,
+  ADMIN_WORK_ITEM_READ: adminDetailRead,
+  ADMIN_LEARNING_PATH_READ: adminDetailRead,
 };
 
 function validateProjection(

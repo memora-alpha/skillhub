@@ -24,11 +24,19 @@ async function bootstrap() {
   });
   app.useLogger(app.get(Logger));
   app.use(helmet());
+  app.set("trust proxy", config.get<number>("TRUST_PROXY_HOPS") ?? 0);
   app.setGlobalPrefix("api");
   app.enableVersioning({ type: VersioningType.URI });
   app.enableCors({
     origin: config.getOrThrow<string[]>("CORS_ORIGIN"),
-    exposedHeaders: ["x-request-id", "x-correlation-id"],
+    exposedHeaders: [
+      "x-request-id",
+      "x-correlation-id",
+      "retry-after",
+      "ratelimit-limit",
+      "ratelimit-remaining",
+      "ratelimit-reset",
+    ],
   });
   app.enableShutdownHooks();
   app.useGlobalPipes(
