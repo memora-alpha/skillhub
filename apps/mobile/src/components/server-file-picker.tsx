@@ -13,8 +13,11 @@ import { Button } from "./Button";
 import { Copy } from "./feature-page";
 import { FormNotice } from "./FormNotice";
 import { uploadBody, type UploadedFile } from "@/lib/http/file-upload";
-import { errorMessage } from "@/lib/http/errors";
 import { FileSelectionError, photoUploadAsset } from "@/lib/http/picked-image";
+import {
+  filePickerError,
+  type FilePickerPhase,
+} from "@/lib/http/file-picker-error";
 
 function fileStatusLabel(
   state: string,
@@ -26,6 +29,7 @@ function fileStatusLabel(
     [
       "REJECTED",
       "FAILED",
+      "UPLOAD_FAILED",
       "INFECTED",
       "SCAN_FAILED",
       "DELETED",
@@ -76,6 +80,8 @@ export function ServerFilePicker({
   allowPhotos = false,
   checkOnSubmit = false,
   onBusyChange,
+  prepareAsset = (asset) => asset,
+  formats,
   types = [
     "application/pdf",
     "application/msword",
@@ -97,26 +103,30 @@ export function ServerFilePicker({
   allowPhotos?: boolean;
   checkOnSubmit?: boolean;
   onBusyChange?: (busy: boolean) => void;
+  prepareAsset?: (
+    asset: DocumentPicker.DocumentPickerAsset,
+  ) => DocumentPicker.DocumentPickerAsset;
+  formats?: string;
   types?: string[];
 }>) {
   const lock = useRef(false);
+  const phase = useRef<FilePickerPhase>("selection");
   const [pending, setPending] = useState(false),
     [error, setError] = useState<string>();
-  async function work(task: () => Promise<void>) {
+  async function work(
+    task: () => Promise<void>,
+    start: FilePickerPhase = "selection",
+  ) {
     if (lock.current || disabled || !isCurrent()) return;
     lock.current = true;
+    phase.current = start;
     setPending(true);
     onBusyChange?.(true);
     setError(undefined);
     try {
       await task();
     } catch (cause) {
-      if (isCurrent())
-        setError(
-          cause instanceof FileSelectionError
-            ? cause.message
-            : errorMessage(cause),
-        );
+      if (isCurrent()) setError(filePickerError(cause, phase.current, formats));
     } finally {
       lock.current = false;
       if (isCurrent()) setPending(false);
@@ -125,15 +135,28 @@ export function ServerFilePicker({
   }
   async function uploadAsset(file: DocumentPicker.DocumentPickerAsset) {
     if (!isCurrent() || files.length >= maxCount) return;
-    if (
-      !file.size ||
-      !Number.isFinite(file.size) ||
-      file.size < 0 ||
-      file.size > maxBytes
-    ) {
-      setError(`Chọn tệp từ 1 byte đến ${maxBytes / 1_000_000} MB.`);
+    file = prepareAsset(file);
+    if (file.size === 0) {
+      setError("Tệp đang trống. Hãy chọn tệp có nội dung.");
       return;
     }
+    if (
+      file.size === undefined ||
+      !Number.isFinite(file.size) ||
+      file.size < 0
+    ) {
+      setError(
+        "Không đọc được dung lượng tệp. Hãy tải tệp về thiết bị rồi chọn lại.",
+      );
+      return;
+    }
+    if (file.size > maxBytes) {
+      setError(
+        `Tệp vượt quá ${maxBytes / 1_000_000} MB. Hãy chọn tệp nhỏ hơn.`,
+      );
+      return;
+    }
+    phase.current = "upload";
     const receipt = await upload(uploadBody(file));
     if (isCurrent()) onChange([...files, { ...receipt, name: file.name }]);
   }
@@ -174,6 +197,7 @@ export function ServerFilePicker({
         ),
       )}
       <Copy muted size={compact ? "hint" : "body"}>
+        {formats ? `Định dạng hỗ trợ: ${formats}.\n` : ""}
         {fileLimitHint(compact, checkOnSubmit, maxCount, maxBytes)}
       </Copy>
       {error && (
@@ -232,7 +256,12 @@ export function ServerFilePicker({
                 copyToCacheDirectory: true,
               });
               if (result.canceled || !isCurrent()) return;
-              await uploadAsset(result.assets[0]!);
+              const selected = result.assets[0];
+              if (!selected)
+                throw new FileSelectionError(
+                  "Không đọc được tệp đã chọn. Hãy chọn lại.",
+                );
+              await uploadAsset(selected);
             });
           }}
         >
@@ -252,7 +281,7 @@ export function ServerFilePicker({
                 })),
               );
               if (isCurrent()) onChange(checked);
-            });
+            }, "status");
           }}
         >
           Kiểm tra trạng thái tệp

@@ -1,119 +1,146 @@
+import { useState } from "react";
+import { Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useQueryClient } from "@tanstack/react-query";
+import { FeaturePage } from "@/components/feature-page";
 import { Button } from "@/components/Button";
 import { FormNotice } from "@/components/FormNotice";
-import {
-  FeaturePage,
-  Panel,
-  Copy,
-  RouteButton,
-} from "@/components/feature-page";
-import {
-  useConnections,
-  useConnectionCommand,
-  ConnectionFeedback,
-  connectionError,
-} from "@/features/connections";
-import {
-  useMaterial,
-  useMaterialOwnership,
-  useMaterialsApi,
-} from "../hooks/use-materials";
-import type { MaterialOrder } from "../api/material-contracts";
+import { useConnections, ConnectionFeedback } from "@/features/connections";
+import { HomeWalletBalance } from "@/features/wallet";
+import { useMaterial, useMaterialOwnership } from "../hooks/use-materials";
+import { useMaterialPurchase } from "../hooks/use-material-purchase";
+import { materialPrice } from "../utils/owner-material-presentation";
+import { materialFailure } from "../utils/material-failure";
+import { MaterialSummary } from "../components/material-summary";
+import { materialStyles as styles } from "../components/material.styles";
 
 export function MaterialPurchaseScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>(),
-    query = useMaterial(id),
-    orders = useMaterialOwnership(id);
-  const runtime = useConnections(),
-    api = useMaterialsApi(),
-    cache = useQueryClient(),
-    router = useRouter();
-  const command = useConnectionCommand<MaterialOrder>([["materials"]]);
+  const params = useLocalSearchParams<{ id: string }>();
+  const id = typeof params.id === "string" ? params.id : "";
+  const runtime = useConnections();
+  return <PurchaseContent key={JSON.stringify([runtime.key, id])} id={id} />;
+}
+function PurchaseContent({ id }: Readonly<{ id: string }>) {
+  const query = useMaterial(id);
+  const ownership = useMaterialOwnership(id);
+  const runtime = useConnections();
+  const router = useRouter();
+  const command = useMaterialPurchase(id);
+  const [refundedReceipt, setRefundedReceipt] = useState(false);
   const material = query.data;
-  const purchased = !!orders.data;
-  async function finish(order: MaterialOrder | undefined) {
-    if (!order || !runtime.isCurrent()) return;
-    await cache.invalidateQueries({ queryKey: ["wallet", runtime.userId] });
-    router.replace(`/materials/${id}/access`);
-  }
+  const bought = !!ownership.data;
+  const own = material?.ownerId === runtime.userId;
+  const locked =
+    query.isFetching ||
+    !!query.error ||
+    ownership.isFetching ||
+    !!ownership.error ||
+    ownership.data === undefined ||
+    command.pending ||
+    command.uncertain;
+  const complete = (result: Awaited<ReturnType<typeof command.buy>>) => {
+    if (runtime.isCurrent() && result?.status === "REFUNDED")
+      setRefundedReceipt(true);
+  };
   return (
     <FeaturePage
-      demo={false}
-      title="Xác nhận mua tài liệu"
+      title="Mua tài liệu"
+      compact
       back={`/materials/${id}`}
+      backBehavior="history"
     >
       <ConnectionFeedback
-        loading={query.isLoading || orders.isLoading}
-        error={query.error || orders.error}
+        loading={query.isLoading || ownership.isLoading}
+        error={query.error || ownership.error}
         retry={() => {
           void query.refetch();
-          void orders.refetch();
+          void ownership.refetch();
         }}
       />
       {material && (
-        <Panel title={material.title}>
-          <Copy>
-            Giá: {material.priceCredit} CR · Phiên bản {material.listingVersion}
-          </Copy>
-          <Copy>
-            Thanh toán bằng Credit khả dụng. Kiểm tra giá và phiên bản trước khi
-            xác nhận mua.
-          </Copy>
-          {purchased ? (
-            <RouteButton href={`/materials/${id}/access`}>
-              Bạn đã mua · Mở tài liệu
-            </RouteButton>
-          ) : (
+        <View style={styles.page}>
+          <MaterialSummary material={material} />
+          {bought || own || material.accessType === "FREE" ? (
             <Button
-              disabled={
-                query.isFetching ||
-                !!query.error ||
-                orders.isFetching ||
-                !!orders.error ||
-                command.pending ||
-                command.uncertain ||
-                material.ownerId === runtime.userId ||
-                material.status !== "PUBLISHED" ||
-                material.accessType !== "PAID"
-              }
-              onPress={() => {
-                void command
-                  .run(
-                    JSON.stringify({ id, version: material.listingVersion }),
-                    (key) => api.purchase(id, material.listingVersion, key),
-                  )
-                  .then(finish);
-              }}
+              variant="craft"
+              leadingIcon="download"
+              onPress={() => router.replace(`/materials/${id}`)}
             >
-              Xác nhận mua với giá {material.priceCredit} CR
+              {bought ? "Đã mua · Xem chi tiết" : "Xem chi tiết tài liệu"}
             </Button>
+          ) : (
+            <>
+              <View style={styles.payment}>
+                <Text style={styles.sectionTitle}>Thanh toán bằng Credit</Text>
+                <View style={styles.row}>
+                  <Text style={styles.meta}>Giá tài liệu</Text>
+                  <Text style={styles.price}>{materialPrice(material)}</Text>
+                </View>
+                <View style={styles.row}>
+                  <Text style={styles.meta}>Số dư khả dụng</Text>
+                  <HomeWalletBalance />
+                </View>
+                <View style={styles.divider} />
+                <View style={styles.row}>
+                  <Text style={styles.title}>Tổng thanh toán</Text>
+                  <Text style={styles.priceLarge}>
+                    {materialPrice(material)}
+                  </Text>
+                </View>
+                <Button
+                  variant="craft"
+                  leadingIcon="wallet"
+                  disabled={locked || material.status !== "PUBLISHED"}
+                  onPress={() => {
+                    setRefundedReceipt(false);
+                    void command.buy(material).then(complete);
+                  }}
+                >
+                  {command.pending
+                    ? "Đang xử lý…"
+                    : `Xác nhận mua · ${materialPrice(material)}`}
+                </Button>
+              </View>
+              <Text style={styles.meta}>
+                Có thể yêu cầu hoàn tiền trong 24 giờ khi chưa được cấp đường
+                dẫn tải. Hệ thống kiểm tra điều kiện khi gửi yêu cầu.
+              </Text>
+            </>
           )}
           {!!command.error && (
-            <FormNotice tone="error">
-              {connectionError(command.error)}
+            <FormNotice tone="error" compact>
+              {materialFailure(command.error)}
             </FormNotice>
           )}
-          {command.uncertain && (
-            <>
-              <Copy>
-                Chưa xác định kết quả thanh toán. Kiểm tra lại bằng cùng yêu cầu
-                để tránh thu hai lần.
-              </Copy>
+          {refundedReceipt && (
+            <FormNotice tone="info" compact>
+              Đơn mua trước đã được hoàn tiền. Kiểm tra thông tin trước khi mua
+              lại.
+            </FormNotice>
+          )}
+          {command.uncertain && !bought && (
+            <View style={styles.section}>
+              <FormNotice tone="warning" compact>
+                Chưa xác nhận được thanh toán. Kiểm tra giao dịch trước khi mua
+                lại.
+              </FormNotice>
               <Button
+                variant="paper"
                 disabled={command.pending}
-                onPress={() => {
-                  void command.retry().then(finish);
-                }}
+                onPress={() => void command.check().then(complete)}
               >
                 Kiểm tra giao dịch mua
               </Button>
-            </>
+            </View>
           )}
-          <RouteButton secondary href="/wallet">
+          <Button
+            variant="ghost"
+            size="sm"
+            leadingIcon="wallet"
+            onPress={() => router.push("/wallet")}
+          >
             Xem ví Credit
-          </RouteButton>
-        </Panel>
+          </Button>
+        </View>
       )}
     </FeaturePage>
   );

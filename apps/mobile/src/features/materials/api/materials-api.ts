@@ -1,3 +1,5 @@
+import { createMaterialCatalogApi } from "./material-catalog-api";
+import { createMaterialOrdersApi } from "./material-orders-api";
 import { z } from "zod";
 import { readCursorPages } from "@/lib/http/cursor-pages";
 import type { RequestOptions } from "@/lib/http/client";
@@ -13,8 +15,6 @@ import { AppError } from "@/lib/http/errors";
 import {
   materialSchema,
   materialInput,
-  orderSchema,
-  downloadSchema,
   type MaterialInput,
 } from "./material-contracts";
 export function createMaterialsApi(
@@ -43,71 +43,16 @@ export function createMaterialsApi(
   return {
     mine,
     async minePage(cursor?: string, signal?: AbortSignal) {
-      return parsePage(
+      const page = parsePage(
         materialSchema,
         await call(`/me/materials?${pageQuery(cursor)}`, {
           includeMeta: true,
           signal,
         }),
       );
-    },
-    async ordersPage(cursor?: string, signal?: AbortSignal) {
-      return parsePage(
-        orderSchema,
-        await call(`/me/material-orders?${pageQuery(cursor)}`, {
-          includeMeta: true,
-          signal,
-        }),
-      );
-    },
-    async search(
-      q = "",
-      accessType?: "FREE" | "PAID",
-      page = 1,
-      signal?: AbortSignal,
-    ) {
-      const query = new URLSearchParams({
-        page: String(page),
-        limit: "20",
-        ...(q ? { q } : {}),
-        ...(accessType ? { accessType } : {}),
-      });
-      const result = parse(
-        z.object({
-          data: z.array(materialSchema),
-          meta: z.object({
-            pagination: z.object({
-              page: z.number().int().min(1),
-              limit: z.number().int().min(1).max(50),
-              total: z.number().int().nonnegative(),
-            }),
-          }),
-        }),
-        await call("/materials?" + query, { includeMeta: true, signal }),
-      );
-      if (result.data.some((row) => row.status !== "PUBLISHED"))
+      if (page.items.some((row) => row.ownerId !== userId))
         throw new AppError("protocol");
-      return {
-        items: result.data,
-        nextPage:
-          result.meta.pagination.page * result.meta.pagination.limit <
-          result.meta.pagination.total
-            ? page + 1
-            : undefined,
-      };
-    },
-    async detail(id: string, signal?: AbortSignal) {
-      let value: unknown;
-      try {
-        value = await call(resourcePath("materials", id), { signal });
-      } catch (cause) {
-        if (!(cause instanceof AppError) || cause.status !== 404) throw cause;
-        value = (await mine(signal)).find((row) => row.id === id);
-        if (!value) throw cause;
-      }
-      const row = parse(materialSchema, value);
-      if (row.id !== id) throw new AppError("protocol");
-      return row;
+      return page;
     },
     async create(body: MaterialInput) {
       const row = parse(
@@ -135,10 +80,20 @@ export function createMaterialsApi(
       return row;
     },
     async submit(id: string) {
-      return parse(materialSchema, await post(root(id) + "/submit"));
+      const row = parse(materialSchema, await post(root(id) + "/submit"));
+      if (
+        row.id !== id ||
+        row.ownerId !== userId ||
+        row.status !== "PENDING_REVIEW"
+      )
+        throw new AppError("protocol");
+      return row;
     },
     async archive(id: string) {
-      return parse(materialSchema, await post(root(id) + "/archive"));
+      const row = parse(materialSchema, await post(root(id) + "/archive"));
+      if (row.id !== id || row.ownerId !== userId || row.status !== "ARCHIVED")
+        throw new AppError("protocol");
+      return row;
     },
     async upload(body: FormData) {
       return parse(
@@ -167,51 +122,7 @@ export function createMaterialsApi(
         await call("/skills?" + query, { includeMeta: true, signal }),
       );
     },
-    async orders(signal?: AbortSignal) {
-      return readCursorPages(call, "/me/material-orders", orderSchema, signal);
-    },
-    async ownedOrder(materialId: string, signal?: AbortSignal) {
-      parse(uuid, materialId);
-      const matches = (row: z.infer<typeof orderSchema>) =>
-        row.materialId === materialId && row.status === "SUCCESS";
-      const rows = await readCursorPages(
-        call,
-        "/me/material-orders",
-        orderSchema,
-        signal,
-        (items) => items.some(matches),
-      );
-      return rows.find(matches) ?? null;
-    },
-    async purchase(id: string, expectedListingVersion: number, key: string) {
-      const row = parse(
-        orderSchema,
-        await post(
-          resourcePath("materials", id) + "/purchase",
-          { expectedListingVersion },
-          key,
-        ),
-      );
-      if (row.materialId !== id) throw new AppError("protocol");
-      return row;
-    },
-    async refund(id: string) {
-      const row = parse(
-        orderSchema,
-        await post(resourcePath("me/material-orders", id) + "/refund"),
-      );
-      if (row.id !== id || row.status !== "REFUNDED")
-        throw new AppError("protocol");
-      return row;
-    },
-    async download(id: string) {
-      const result = parse(
-        downloadSchema,
-        await call(resourcePath("materials", id) + "/download"),
-      );
-      if (Date.parse(result.expiresAt) <= Date.now())
-        throw new AppError("protocol");
-      return result;
-    },
+    ...createMaterialOrdersApi(call),
+    ...createMaterialCatalogApi(call, mine),
   };
 }

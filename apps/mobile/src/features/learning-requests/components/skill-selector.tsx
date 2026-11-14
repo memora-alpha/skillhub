@@ -81,15 +81,18 @@ export function SkillSelector({
             ]}
             disabled={disabled}
             icon="chevron"
+            accessibilityLabel={allowAll ? "Chọn kỹ năng" : undefined}
             accessibilityState={{ expanded }}
             onPress={() => setExpanded((open) => !open)}
           >
             {selectionLabel}
           </Button>
           <RequestPickerSheet
-            title="Chọn kỹ năng muốn học"
+            title={allowAll ? "Chọn kỹ năng" : "Chọn kỹ năng muốn học"}
             open={active && expanded && !disabled}
             onClose={() => setExpanded(false)}
+            closeLabel={allowAll ? "Đóng bộ chọn kỹ năng" : "Xong"}
+            closeIcon={allowAll}
           >
             {expanded && (
               <>

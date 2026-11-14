@@ -1,6 +1,14 @@
 import { z } from "zod";
 import { timestamp, uuid, version } from "@/lib/http/contracts";
 export const credit = z.string().regex(/^\d{1,10}(\.\d{1,2})?$/);
+export const materialText = (min: number, max: number) =>
+  z
+    .string()
+    .trim()
+    .refine(
+      (value) => [...value].length >= min && [...value].length <= max,
+      `Nhập từ ${min} đến ${max} ký tự.`,
+    );
 export const materialSchema = z.object({
   id: uuid,
   ownerId: uuid,
@@ -27,9 +35,10 @@ export const materialSchema = z.object({
     .nullable(),
   createdAt: timestamp,
   updatedAt: timestamp,
-  scanStatus: z.string().optional(),
+  scanStatus: z.string().nullable().optional(),
   moderationStatus: z.string().optional(),
   rejectReason: z.string().nullable().optional(),
+  reviewedAt: timestamp.nullable().optional(),
   distributionRightsConfirmedAt: timestamp.nullable().optional(),
 });
 export const orderSchema = z.object({
@@ -46,8 +55,8 @@ export const orderSchema = z.object({
 export const materialInput = z
   .object({
     skillId: uuid,
-    title: z.string().trim().min(5).max(150),
-    description: z.string().trim().min(10).max(3000),
+    title: materialText(5, 150),
+    description: materialText(10, 3000),
     accessType: z.enum(["FREE", "PAID"]),
     priceCredit: credit,
     distributionRightsConfirmed: z.literal(true),
