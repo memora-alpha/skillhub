@@ -28,7 +28,7 @@ export async function readDashboardLearning(
       FROM sessions WHERE start_at >= ${from} AND start_at < ${to}
     )
     SELECT kind, to_char(date_trunc(${granularity}::text, at AT TIME ZONE ${timezone}::text),
-      CASE WHEN ${granularity} = 'month' THEN 'YYYY-MM' ELSE 'YYYY-MM-DD' END) AS key,
+      CASE WHEN ${granularity}::text = 'month' THEN 'YYYY-MM' ELSE 'YYYY-MM-DD' END) AS key,
       status, count(*) AS count
     FROM events GROUP BY 1, 2, 3
   `;

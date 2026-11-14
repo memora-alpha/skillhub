@@ -1,11 +1,8 @@
-import type { TransactionContext } from "../../../../infrastructure/database/transaction-context";
-import {
-  dashboardBuckets,
-  type DashboardPeriod,
-} from "../../../admin-dashboard/dashboard-period";
-import { readDashboardPayments } from "../../../payments/application/services/dashboard-payment.reader";
-import { formatCredit } from "../../domain/money";
-import { readRecordedCreditFees } from "./fee-revenue.reader";
+import type { TransactionContext } from "../../infrastructure/database/transaction-context";
+import { dashboardBuckets, type DashboardPeriod } from "./dashboard-period";
+import { readDashboardPayments } from "../payments/application/services/dashboard-payment.reader";
+import { formatCredit } from "../credit/domain/money";
+import { readRecordedCreditFees } from "../credit/application/services/fee-revenue.reader";
 
 export async function readDashboardFees(
   tx: TransactionContext,
@@ -45,12 +42,17 @@ export async function readDashboardFees(
 export async function readDashboardFinance(
   tx: TransactionContext,
   period: DashboardPeriod,
+  include = { fees: true, payments: true, attention: true },
 ) {
-  const { netFeeCredit, feeSeries } = await readDashboardFees(tx, period);
-  const payments = await readDashboardPayments(tx, period);
-  const paymentsInReview = await tx.payment.count({
-    where: { status: "REVIEW" },
-  });
+  const { netFeeCredit, feeSeries } = include.fees
+    ? await readDashboardFees(tx, period)
+    : { netFeeCredit: "0.00", feeSeries: [] };
+  const payments = include.payments
+    ? await readDashboardPayments(tx, period)
+    : [];
+  const paymentsInReview = include.attention
+    ? await tx.payment.count({ where: { status: "REVIEW" } })
+    : 0;
   const byBucket = new Map(
     payments.map((row) => [
       period.granularity === "month" ? row.period.slice(0, -3) : row.period,
@@ -60,21 +62,23 @@ export async function readDashboardFinance(
   let paidOrders = 0;
   let paidAmount = 0n;
   let paidCredit = 0n;
-  const paymentSeries = dashboardBuckets(period).map((bucket) => {
-    const payment = byBucket.get(bucket.key);
-    const orders = Number(payment?.orders ?? 0);
-    const vnd = BigInt(payment?.vnd ?? 0);
-    const credit = BigInt(payment?.credit ?? 0);
-    paidOrders += orders;
-    paidAmount += vnd;
-    paidCredit += credit;
-    return {
-      ...bucket,
-      paidOrders: orders,
-      paidAmountVnd: vnd.toString(),
-      paidCreditAmount: formatCredit(credit),
-    };
-  });
+  const paymentSeries = (include.payments ? dashboardBuckets(period) : []).map(
+    (bucket) => {
+      const payment = byBucket.get(bucket.key);
+      const orders = Number(payment?.orders ?? 0);
+      const vnd = BigInt(payment?.vnd ?? 0);
+      const credit = BigInt(payment?.credit ?? 0);
+      paidOrders += orders;
+      paidAmount += vnd;
+      paidCredit += credit;
+      return {
+        ...bucket,
+        paidOrders: orders,
+        paidAmountVnd: vnd.toString(),
+        paidCreditAmount: formatCredit(credit),
+      };
+    },
+  );
   return {
     kpis: {
       paidOrders,

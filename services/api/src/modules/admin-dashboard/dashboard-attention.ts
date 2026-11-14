@@ -1,4 +1,5 @@
 import type { TransactionContext } from "../../infrastructure/database/transaction-context";
+import { Prisma } from "../../generated/prisma/client";
 import { OPEN_REPORT_STATUSES } from "../reports/domain/report-support.policy";
 
 export const dashboardQueuePermissions = [
@@ -23,7 +24,7 @@ export async function readDashboardAttention(tx: TransactionContext) {
       id: string;
       status: string;
       label: string | null;
-      createdAt: Date;
+      createdAt: Date | null;
       total: bigint;
     }[]
   >`
@@ -41,14 +42,14 @@ export async function readDashboardAttention(tx: TransactionContext) {
       FROM tag_creation_requests WHERE status = 'PENDING'
       UNION ALL
       SELECT 'REPORT_CASE', case_id, status::text, reason_code, created_at
-      FROM report_cases WHERE status::text = ANY(${OPEN_REPORT_STATUSES}::text[])
+      FROM report_cases WHERE status::text IN (${Prisma.join(OPEN_REPORT_STATUSES)})
     ), ranked AS (
       SELECT *, COUNT(*) OVER (PARTITION BY type) AS total,
-        row_number() OVER (PARTITION BY type ORDER BY created_at DESC, id DESC) AS position
+        row_number() OVER (PARTITION BY type ORDER BY created_at DESC NULLS LAST, id DESC) AS position
       FROM queue
     )
     SELECT type, id, status, label, created_at AS "createdAt", total
-    FROM ranked WHERE position <= 10 ORDER BY created_at DESC, type ASC, id DESC
+    FROM ranked WHERE position <= 10 ORDER BY created_at DESC NULLS LAST, type ASC, id DESC
   `;
   for (const row of rows) attentionSummary[row.type] = Number(row.total);
   const priorityItems = rows

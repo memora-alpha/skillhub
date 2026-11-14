@@ -15,7 +15,7 @@ export function readRecordedCreditFees(
   },
 ) {
   return tx.$queryRaw<
-    { period: string; business: string; collected: bigint; refunded: bigint }[]
+    { period: string; business: string; collected: string; refunded: string }[]
   >`
     WITH events AS (
       SELECT t.created_at AS at, o.operation_type AS business, t.amount::numeric AS collected, 0::numeric AS refunded
