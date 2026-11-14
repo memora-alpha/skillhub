@@ -45,13 +45,17 @@ const report = join(
 );
 const output = (result.stdout ?? "") + (result.stderr ?? "");
 writeFileSync(report, output);
-console.log(
-  output
-    .split(/\r?\n/)
-    .filter((line) =>
-      /^# (tests|pass|fail|skipped|duration_ms)|^not ok/.test(line),
-    )
-    .join("\n"),
-);
-if (result.status !== 0) console.log(`Full test output: ${report}`);
+if (result.status !== 0) {
+  console.log(output);
+  console.log(`Full test output: ${report}`);
+} else {
+  console.log(
+    output
+      .split(/\r?\n/)
+      .filter((line) =>
+        /^# (tests|pass|fail|skipped|duration_ms)|^not ok/.test(line),
+      )
+      .join("\n"),
+  );
+}
 process.exit(result.status ?? 1);
