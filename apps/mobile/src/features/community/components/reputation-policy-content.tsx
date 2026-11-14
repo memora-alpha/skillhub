@@ -9,9 +9,11 @@ import { policyStyles as styles } from "./reputation-policy.styles";
 export function ReputationPolicyContent({
   policy,
   showAction = true,
+  context = "request",
 }: Readonly<{
   policy: ReturnType<typeof useReputationPolicy>;
   showAction?: boolean;
+  context?: "request" | "overview";
 }>) {
   const { query, data, pending, acknowledged, needsCheck, error } = policy;
   const failed = error ?? query.error;
@@ -57,15 +59,18 @@ export function ReputationPolicyContent({
                   </View>
                 ))}
               </View>
-              <View style={styles.footnote}>
-                <Text style={styles.note}>
-                  Xác nhận ngay để hoàn tất bước này. Quyền đăng bài được khôi
-                  phục sau khi hết thời hạn và đáp ứng đủ điều kiện.
-                </Text>
-              </View>
+              {context === "request" && (
+                <View style={styles.footnote}>
+                  <Text style={styles.note}>
+                    Xác nhận ngay để hoàn tất bước này. Quyền đăng bài được khôi
+                    phục sau khi hết thời hạn và đáp ứng đủ điều kiện.
+                  </Text>
+                </View>
+              )}
             </View>
           )}
-          {!data.policyNotice?.length &&
+          {context === "request" &&
+            !data.policyNotice?.length &&
             query.isFetchedAfterMount &&
             !failed &&
             !query.isFetching && (

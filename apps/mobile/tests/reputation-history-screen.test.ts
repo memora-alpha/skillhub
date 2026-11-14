@@ -120,6 +120,7 @@ test("history screen shows score and signed events, keeps only load-more, and ex
     },
     "@/components/Button": { Button: "Button" },
     "@/components/Badge": { Badge: "Badge" },
+    "@/components/FormNotice": { FormNotice: "Notice" },
     "@/components/feature-page": {
       FeaturePage: "Page",
       RouteButton: "RouteButton",

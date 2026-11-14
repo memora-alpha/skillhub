@@ -49,7 +49,7 @@ export function RequestCreationFeedback({
                 các bước cần thiết bên dưới trước khi bắt đầu soạn bài.
               </FormNotice>
             )}
-            <ReputationSummary data={policy.data} />
+            <ReputationSummary data={policy.data} compact />
             <ReputationPolicyContent policy={policy} />
           </>
         )}
