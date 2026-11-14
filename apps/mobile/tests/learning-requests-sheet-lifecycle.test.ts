@@ -22,7 +22,10 @@ test("closing sheet retains its height through keyboard resize and icon dismisse
   let height = 800,
     closes = 0,
     keyboardDismissals = 0;
-  const jsx = (type: unknown, props: unknown) => ({ type, props });
+  const jsx = (type: unknown, props: unknown): unknown =>
+    typeof type === "function" && type.name === "PickerSheetHeader"
+      ? type(props)
+      : { type, props };
   const mocks = {
     react: {
       useRef: (initial: unknown) => {
@@ -47,6 +50,9 @@ test("closing sheet retains its height through keyboard resize and icon dismisse
     "@/components/Button": { Button: "Button" },
     "@/components/Icon": { Icon: "Icon" },
     "@/components/KeyboardFormScrollView": { KeyboardFormScrollView: "Scroll" },
+    "@/components/ScreenLoadingBoundary": {
+      ScreenLoadingBoundary: "LoadingBoundary",
+    },
   };
   const contexts = Object.entries(mocks).map(([name, namedExports]) =>
     mock.module(pathToFileURL(local.resolve(name)), { namedExports }),

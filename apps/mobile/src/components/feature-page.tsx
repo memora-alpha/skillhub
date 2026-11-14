@@ -25,6 +25,7 @@ export function FeaturePage({
   scrollable = true,
   refreshing = false,
   onRefresh,
+  rightAction,
 }: {
   title: string;
   subtitle?: string;
@@ -39,6 +40,7 @@ export function FeaturePage({
   scrollable?: boolean;
   refreshing?: boolean;
   onRefresh?: () => void;
+  rightAction?: ReactNode;
 }) {
   const scrollStyle = stickyFooter ? ui.scrollWithFooter : undefined;
   const content = (
@@ -78,6 +80,7 @@ export function FeaturePage({
     <AppScreenLayout
       title={title}
       selected={section}
+      rightAction={rightAction}
       back={{ href: back, label: "Quay lại", behavior: backBehavior }}
     >
       {() => pageContent}

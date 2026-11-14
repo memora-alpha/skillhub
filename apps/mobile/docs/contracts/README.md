@@ -4,6 +4,7 @@ Các file này sở hữu phần giao tiếp mobile cần dùng; backend sở h�
 
 | Domain                         | Contract                                                      |
 | ------------------------------ | ------------------------------------------------------------- |
+| Tài liệu, mua Credit và thư viện | [materials](materials.md) |
 | Auth/account                   | [auth-account](auth-account.md)                               |
 | Profile/avatar                 | [profile](profile.md)                                         |
 | Skill catalog/sharing/evidence | [skills-evidence](skills-evidence.md)                         |

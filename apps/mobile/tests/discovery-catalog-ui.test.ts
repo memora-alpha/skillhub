@@ -15,7 +15,10 @@ test("closed, locked or disabled catalog selectors do not enable background read
   let expanded = false;
   const skills: unknown[][] = [],
     tags: unknown[][] = [];
-  const jsx = (type: unknown, props: unknown) => ({ type, props });
+  const jsx = (type: unknown, props: unknown): unknown =>
+    typeof type === "function" && type.name === "PickerSheetHeader"
+      ? type(props)
+      : { type, props };
   const mocks = {
     react: {
       useState: (initial: unknown) => [
@@ -93,5 +96,91 @@ test("closed, locked or disabled catalog selectors do not enable background read
     delete local.cache[skillFile];
     delete local.cache[tagFile];
     contexts.reverse().forEach((context) => context.restore());
+  }
+});
+
+test("shared request picker isolates loading in its body and leaves close available", () => {
+  const local = createRequire(
+    new URL(
+      "../src/features/learning-requests/components/request-picker-sheet.tsx",
+      import.meta.url,
+    ),
+  );
+  const file = local.resolve("./request-picker-sheet.tsx");
+  let dismissed = 0,
+    closed = 0;
+  const jsx = (type: unknown, props: unknown): unknown =>
+    typeof type === "function" && type.name === "PickerSheetHeader"
+      ? type(props)
+      : { type, props };
+  const contexts = Object.entries({
+    react: {
+      useMemo: (fn: () => unknown) => fn(),
+      useRef: (current: unknown) => ({ current }),
+    },
+    "react/jsx-runtime": { jsx, jsxs: jsx },
+    "react-native": {
+      View: "View",
+      Text: "Text",
+      Pressable: "Pressable",
+      useWindowDimensions: () => ({ height: 844 }),
+      Keyboard: { dismiss: () => dismissed++ },
+    },
+    "@expo/ui": {
+      Host: "Host",
+      BottomSheet: "Sheet",
+      RNHostView: "RNHostView",
+    },
+    "@/components/Icon": { Icon: "Icon" },
+    "@/components/Button": { Button: "Button" },
+    "@/components/KeyboardFormScrollView": { KeyboardFormScrollView: "Body" },
+    "@/components/ScreenLoadingBoundary": {
+      ScreenLoadingBoundary: "LoadingBoundary",
+    },
+  }).map(([name, namedExports]) =>
+    mock.module(pathToFileURL(local.resolve(name)), { namedExports }),
+  );
+  type Node = { type: string; props: Record<string, unknown> };
+  function nodes(
+    tree: unknown,
+    parents: string[] = [],
+  ): { node: Node; parents: string[] }[] {
+    if (Array.isArray(tree))
+      return tree.flatMap((child) => nodes(child, parents));
+    if (!tree || typeof tree !== "object" || !("props" in tree)) return [];
+    const node = tree as Node;
+    return [
+      { node, parents },
+      ...nodes(node.props.children, [...parents, node.type]),
+    ];
+  }
+  try {
+    delete local.cache[file];
+    const { RequestPickerSheet } = local(file);
+    const result = nodes(
+      RequestPickerSheet({
+        title: "Kỹ năng",
+        open: true,
+        onClose: () => closed++,
+        children: "Pending skills",
+        closeIcon: true,
+        closeLabel: "Đóng bộ chọn kỹ năng",
+      }),
+    );
+    const body = result.find(({ node }) => node.type === "Body");
+    assert.ok(body?.parents.includes("LoadingBoundary"));
+    const close = result.find(
+      ({ node }) => node.props.accessibilityLabel === "Đóng bộ chọn kỹ năng",
+    );
+    assert.ok(close);
+    assert.ok(!close.parents.includes("LoadingBoundary"));
+    (close.node.props.onPress as () => void)();
+    const sheet = result.find(({ node }) => node.type === "Sheet");
+    (sheet?.node.props.onDismiss as () => void)();
+    assert.equal(closed, 2);
+    assert.equal(dismissed, 2);
+  } finally {
+    contexts.reverse().forEach((context) => context.restore());
+    delete local.cache[file];
   }
 });

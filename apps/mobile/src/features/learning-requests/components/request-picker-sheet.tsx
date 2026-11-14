@@ -1,16 +1,10 @@
 import { useMemo, useRef, type ReactNode } from "react";
 import { Host, BottomSheet, RNHostView } from "@expo/ui";
-import {
-  Keyboard,
-  Pressable,
-  Text,
-  View,
-  useWindowDimensions,
-} from "react-native";
-import { Icon } from "@/components/Icon";
-import { Button } from "@/components/Button";
+import { Keyboard, View, useWindowDimensions } from "react-native";
+import { PickerSheetHeader } from "@/components/picker-sheet-header";
 import { KeyboardFormScrollView } from "@/components/KeyboardFormScrollView";
-import { appColors, fonts, typography } from "@/constants/theme";
+import { ScreenLoadingBoundary } from "@/components/ScreenLoadingBoundary";
+import { appColors } from "@/constants/theme";
 
 export function RequestPickerSheet({
   title,
@@ -55,62 +49,25 @@ export function RequestPickerSheet({
           <View
             style={{ height: Math.max(0, sheetHeight - 32), width: "100%" }}
           >
-            <View
-              style={{
-                paddingHorizontal: 16,
-                flexDirection: "row",
-                alignItems: "center",
-                gap: 12,
-              }}
-            >
-              <Text
-                accessibilityRole="header"
-                style={{
-                  flex: 1,
-                  fontFamily: fonts.bold,
-                  ...typography.heading,
-                  color: appColors.ink,
+            <PickerSheetHeader
+              title={title}
+              onClose={close}
+              closeLabel={closeLabel}
+              closeIcon={closeIcon}
+            />
+            <ScreenLoadingBoundary>
+              <KeyboardFormScrollView
+                style={{ flex: 1 }}
+                contentContainerStyle={{
+                  padding: 16,
+                  paddingBottom: 32,
+                  gap: 12,
                 }}
+                contentInsetAdjustmentBehavior="automatic"
               >
-                {title}
-              </Text>
-              {closeIcon ? (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={closeLabel}
-                  onPress={close}
-                  style={({ pressed }) => ({
-                    width: 44,
-                    height: 44,
-                    alignItems: "center",
-                    justifyContent: "center",
-                    opacity: pressed ? 0.6 : 1,
-                  })}
-                >
-                  <Icon name="close" size={22} color={appColors.body} />
-                </Pressable>
-              ) : (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  style={{ minHeight: 44 }}
-                  onPress={close}
-                >
-                  {closeLabel}
-                </Button>
-              )}
-            </View>
-            <KeyboardFormScrollView
-              style={{ flex: 1 }}
-              contentContainerStyle={{
-                padding: 16,
-                paddingBottom: 32,
-                gap: 12,
-              }}
-              contentInsetAdjustmentBehavior="automatic"
-            >
-              {children}
-            </KeyboardFormScrollView>
+                {children}
+              </KeyboardFormScrollView>
+            </ScreenLoadingBoundary>
           </View>
         </RNHostView>
       </BottomSheet>
