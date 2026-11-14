@@ -3,11 +3,11 @@ ALTER TABLE "material_download_grants"
   ADD COLUMN "material_id" UUID,
   ADD COLUMN "access_source" TEXT;
 
-UPDATE "material_download_grants" AS grant
+UPDATE "material_download_grants" AS download_grant
 SET "material_id" = orders."material_id",
     "access_source" = 'PAID_ENTITLEMENT'
 FROM "material_orders" AS orders
-WHERE orders."order_id" = grant."order_id";
+WHERE orders."order_id" = download_grant."order_id";
 
 ALTER TABLE "material_download_grants"
   ALTER COLUMN "material_id" SET NOT NULL,
