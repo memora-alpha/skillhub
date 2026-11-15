@@ -341,6 +341,7 @@ model User {
   materialReviewAuthorIdRecords             MaterialReview[]        @relation("MaterialReview_author_id")
   materialReviewReportReporterIdRecords     MaterialReviewReport[]  @relation("MaterialReviewReport_reporter_id")
   materialReviewReportResolvedByIdRecords   MaterialReviewReport[]  @relation("MaterialReviewReport_resolved_by_id")
+  materialFavoriteUserIdRecords             MaterialFavorite[]      @relation("MaterialFavorite_user_id")
   userRestrictionUserIdRecords              UserRestriction[]       @relation("UserRestriction_user_id")
   userRestrictionAppliedByUserIdRecords     UserRestriction[]       @relation("UserRestriction_applied_by_user_id")
 
@@ -1513,6 +1514,7 @@ model Material {
   materialReviewMaterialIdRecords        MaterialReview[]        @relation("MaterialReview_material_id")
   materialRatingSummary                  MaterialRatingSummary?
   materialThumbnailMaterialIdRecords     MaterialThumbnail[]     @relation("MaterialThumbnail_material_id")
+  materialFavoriteMaterialIdRecords      MaterialFavorite[]      @relation("MaterialFavorite_material_id")
   coverFileRecord                        StoredFile?             @relation("Material_cover_file", fields: [coverFileId], references: [id], onDelete: Restrict, onUpdate: Restrict)
 
   @@index([ownerId])
@@ -1521,6 +1523,21 @@ model Material {
   @@index([ownerId, updatedAt(sort: Desc), id(sort: Desc)], map: "materials_owner_page_idx")
   @@index([status, updatedAt, id], map: "materials_staff_page_idx")
   @@map("materials")
+}
+
+model MaterialFavorite {
+  id         String   @id @default(uuid()) @map("favorite_id") @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  materialId String   @map("material_id") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  userIdRecord     User     @relation("MaterialFavorite_user_id", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  materialIdRecord Material @relation("MaterialFavorite_material_id", fields: [materialId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([userId, materialId])
+  @@index([userId, createdAt(sort: Desc), id(sort: Desc)], map: "material_favorites_user_page_idx")
+  @@index([materialId])
+  @@map("material_favorites")
 }
 
 model MaterialOrder {

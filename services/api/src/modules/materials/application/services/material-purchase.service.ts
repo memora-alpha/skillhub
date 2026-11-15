@@ -280,7 +280,84 @@ export class MaterialPurchaseService {
         take: limit + 1,
       });
       const result = listResult(rows, limit, scope, (row) => row.createdAt);
-      return { ...result, data: result.data.map(orderView) };
+      const pageRows = result.data;
+      const materialIds = [...new Set(pageRows.map((row) => row.materialId))];
+      const orderIds = pageRows.map((row) => row.id);
+      const sellerIds = [...new Set(pageRows.map((row) => row.sellerId))];
+      const [clock, reviews, entitlements, grants, wallets, materials] =
+        await Promise.all([
+          tx.$queryRaw<{ now: Date }[]>`SELECT CURRENT_TIMESTAMP AS now`,
+          tx.materialReview.findMany({
+            where: {
+              authorId: principal.userId,
+              materialId: { in: materialIds },
+              deletedAt: null,
+            },
+          }),
+          tx.materialEntitlement.findMany({
+            where: {
+              userId: principal.userId,
+              materialId: { in: materialIds },
+              status: "ACTIVE",
+            },
+          }),
+          tx.materialDownloadGrant.findMany({
+            where: {
+              orderId: { in: orderIds },
+              status: { in: ["ISSUED", "PENDING"] },
+            },
+          }),
+          tx.creditWallet.findMany({ where: { userId: { in: sellerIds } } }),
+          tx.material.findMany({
+            where: { id: { in: materialIds } },
+            select: { id: true, status: true },
+          }),
+        ]);
+      const evaluatedAt = clock[0]?.now;
+      if (!(evaluatedAt instanceof Date))
+        throw new ConflictException("DATABASE_TIME_UNAVAILABLE");
+      const reviewByMaterial = new Map(
+        reviews.map((review) => [review.materialId, review]),
+      );
+      const entitlementByMaterial = new Map(
+        entitlements.map((entitlement) => [
+          entitlement.materialId,
+          entitlement,
+        ]),
+      );
+      const grantsByOrder = new Map<string, (typeof grants)[number][]>();
+      for (const grant of grants) {
+        if (!grant.orderId) continue;
+        const entries = grantsByOrder.get(grant.orderId) ?? [];
+        entries.push(grant);
+        grantsByOrder.set(grant.orderId, entries);
+      }
+      const walletByUser = new Map(
+        wallets.map((wallet) => [wallet.userId, wallet]),
+      );
+      const statusByMaterial = new Map(
+        materials.map((material) => [material.id, material.status]),
+      );
+      return {
+        ...result,
+        data: pageRows.map((order) => ({
+          ...orderView(order),
+          purchasedMaterial: purchasedMaterialView(order.purchasedFileSnapshot),
+          review: orderReviewView(
+            order,
+            reviewByMaterial.get(order.materialId),
+            entitlementByMaterial.get(order.materialId),
+            statusByMaterial.get(order.materialId),
+          ),
+          refundEligibility: refundEligibilityView(
+            order,
+            grantsByOrder.get(order.id) ?? [],
+            entitlementByMaterial.get(order.materialId),
+            walletByUser.get(order.sellerId),
+            evaluatedAt,
+          ),
+        })),
+      };
     });
   }
 }
@@ -311,6 +388,7 @@ function assertPurchasable(
 
 function fileSnapshot(material: Material): PurchasedFileSnapshot {
   return {
+    title: material.title,
     storageKey: material.storageKey as string,
     originalFilename: material.originalFilename,
     mimeType: material.mimeType,
@@ -319,6 +397,108 @@ function fileSnapshot(material: Material): PurchasedFileSnapshot {
     distributionRightsConfirmedAt:
       material.distributionRightsConfirmedAt?.toISOString() ?? null,
     uploadedAt: material.uploadedAt?.toISOString() ?? null,
+  };
+}
+
+function purchasedMaterialView(snapshot: unknown) {
+  const value = (snapshot ?? {}) as Record<string, unknown>;
+  return {
+    title: typeof value.title === "string" ? value.title : null,
+    originalFilename:
+      typeof value.originalFilename === "string"
+        ? value.originalFilename
+        : null,
+    mimeType: typeof value.mimeType === "string" ? value.mimeType : null,
+    sizeBytes: typeof value.sizeBytes === "string" ? value.sizeBytes : null,
+  };
+}
+
+function orderReviewView(
+  order: { id: string },
+  review:
+    | {
+        id: string;
+        status: string;
+        version: number;
+        sourceOrderId: string | null;
+      }
+    | undefined,
+  entitlement: { status: string; sourceOrderId: string | null } | undefined,
+  materialStatus: string | undefined,
+) {
+  if (review)
+    return {
+      hasReview: true,
+      reviewId: review.id,
+      status: review.status,
+      version: review.version,
+      sourceOrderId: review.sourceOrderId,
+      canReview: false,
+      reasonCode: "MATERIAL_REVIEW_ALREADY_EXISTS",
+    };
+  const canReview =
+    materialStatus === "PUBLISHED" &&
+    entitlement?.status === "ACTIVE" &&
+    entitlement.sourceOrderId === order.id;
+  return {
+    hasReview: false,
+    reviewId: null,
+    status: null,
+    version: null,
+    sourceOrderId: null,
+    canReview,
+    reasonCode: canReview
+      ? null
+      : materialStatus !== "PUBLISHED"
+        ? "MATERIAL_NOT_PUBLISHED"
+        : "MATERIAL_ENTITLEMENT_REVOKED",
+  };
+}
+
+function refundEligibilityView(
+  order: {
+    id: string;
+    status: string;
+    consumedAt: Date | null;
+    createdAt: Date;
+    sellerNetCredit: bigint;
+  },
+  grants: { status: string; expiresAt: Date }[],
+  entitlement: { status: string; sourceOrderId: string | null } | undefined,
+  sellerWallet:
+    { availableCredit: bigint; provenanceTracked: boolean } | undefined,
+  evaluatedAt: Date,
+) {
+  const deadline = new Date(order.createdAt.getTime() + 24 * 60 * 60 * 1_000);
+  let reasonCode: string | null = null;
+  if (order.status === "REFUNDED") reasonCode = "MATERIAL_ALREADY_REFUNDED";
+  else if (order.status !== "SUCCESS")
+    reasonCode = "MATERIAL_ORDER_NOT_REFUNDABLE";
+  else if (evaluatedAt.getTime() > deadline.getTime())
+    reasonCode = "MATERIAL_REFUND_WINDOW_CLOSED";
+  else if (order.consumedAt) reasonCode = "MATERIAL_ALREADY_CONSUMED";
+  else if (
+    grants.some(
+      (grant) =>
+        grant.status === "ISSUED" ||
+        (grant.status === "PENDING" && grant.expiresAt > evaluatedAt),
+    )
+  )
+    reasonCode = "MATERIAL_ALREADY_CONSUMED";
+  else if (
+    entitlement?.status !== "ACTIVE" ||
+    entitlement.sourceOrderId !== order.id
+  )
+    reasonCode = "MATERIAL_ENTITLEMENT_NOT_ACTIVE";
+  else if (!sellerWallet?.provenanceTracked)
+    reasonCode = "CREDIT_PROVENANCE_REVIEW_REQUIRED";
+  else if (sellerWallet.availableCredit < order.sellerNetCredit)
+    reasonCode = "MATERIAL_REFUND_ADMIN_REQUIRED";
+  return {
+    canRefund: reasonCode === null,
+    deadline,
+    reasonCode,
+    evaluatedAt,
   };
 }
 

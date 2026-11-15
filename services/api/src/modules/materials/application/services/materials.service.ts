@@ -11,6 +11,7 @@ import {
 } from "@nestjs/common";
 import { randomUUID } from "node:crypto";
 import type { Readable } from "node:stream";
+import type { Prisma } from "../../../../generated/prisma/client";
 import { TransactionRunner } from "../../../../infrastructure/database/transaction-runner";
 import type { TransactionContext } from "../../../../infrastructure/database/transaction-context";
 import { FileAttachmentService } from "../../../../infrastructure/storage/file-attachment.service";
@@ -27,6 +28,7 @@ import {
   type MaterialAccess,
 } from "../../domain/material.policy";
 import { ownerMaterialView } from "../contracts/material-view";
+import { MaterialThumbnailsService } from "./material-thumbnails.service";
 import {
   lockMaterial,
   requirePermission,
@@ -62,6 +64,7 @@ export class MaterialsService {
     private readonly transactions: TransactionRunner,
     private readonly storage: FileStorageService,
     private readonly attachments: FileAttachmentService,
+    private readonly thumbnails: MaterialThumbnailsService,
   ) {}
 
   // Public methods that validate before the transaction are async so every
@@ -116,7 +119,7 @@ export class MaterialsService {
   ) {
     const scope = JSON.stringify(["materials-mine-v1", principal.userId]);
     const { limit, cursor } = listInput(query, scope);
-    return this.transactions.run(async (tx) => {
+    const result = await this.transactions.run(async (tx) => {
       const rows = await tx.material.findMany({
         where: {
           ownerId: principal.userId,
@@ -124,10 +127,16 @@ export class MaterialsService {
         },
         orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
         take: limit + 1,
+        include: ownerProjectionInclude,
       });
-      const result = listResult(rows, limit, scope, (row) => row.updatedAt);
-      return { ...result, data: result.data.map(ownerMaterialView) };
+      return listResult(rows, limit, scope, (row) => row.updatedAt);
     });
+    return {
+      ...result,
+      data: await Promise.all(
+        result.data.map((row) => this.ownerProjectionFromRow(row)),
+      ),
+    };
   }
 
   async create(principal: Principal, input: CreateMaterialInput) {
@@ -136,7 +145,7 @@ export class MaterialsService {
       throw new BadRequestException("MATERIAL_RIGHTS_CONFIRMATION_REQUIRED");
     const text = listingText(input);
     const priceCredit = priceUnits(input.accessType, input.priceCredit);
-    return this.transactions.run(async (tx) => {
+    const created = await this.transactions.run(async (tx) => {
       await assertActiveSkill(tx, input.skillId);
       const id = randomUUID();
       const file = input.fileId
@@ -163,15 +172,16 @@ export class MaterialsService {
         },
       });
       if (cover) await this.requestThumbnail(tx, created.id, cover.id, 1);
-      return ownerMaterialView(created);
+      return created;
     });
+    return this.ownerProjection(created.id);
   }
 
   async update(principal: Principal, id: string, input: UpdateMaterialInput) {
     requirePermission(principal, "material:create:self");
     if (input.fileId && input.distributionRightsConfirmed !== true)
       throw new BadRequestException("MATERIAL_RIGHTS_CONFIRMATION_REQUIRED");
-    return this.transactions.run(async (tx) => {
+    const updated = await this.transactions.run(async (tx) => {
       const current = await lockOwned(tx, id, principal.userId);
       if (current.listingVersion !== input.expectedListingVersion)
         throw new ConflictException("MATERIAL_VERSION_CONFLICT");
@@ -237,13 +247,14 @@ export class MaterialsService {
         },
       });
       if (cover) await this.requestThumbnail(tx, id, cover.id, coverGeneration);
-      return ownerMaterialView(updated);
+      return updated;
     });
+    return this.ownerProjection(updated.id);
   }
 
   async submit(principal: Principal, id: string) {
     requirePermission(principal, "material:create:self");
-    return this.transactions.run(async (tx) => {
+    const updated = await this.transactions.run(async (tx) => {
       const current = await lockOwned(tx, id, principal.userId);
       if (current.status !== "DRAFT")
         throw new ConflictException("MATERIAL_TRANSITION_INVALID");
@@ -252,21 +263,62 @@ export class MaterialsService {
         where: { id },
         data: { status: "PENDING_REVIEW", moderationStatus: "PENDING" },
       });
-      return ownerMaterialView(updated);
+      return updated;
     });
+    return this.ownerProjection(updated.id);
   }
 
   async archive(principal: Principal, id: string) {
     requirePermission(principal, "material:create:self");
-    return this.transactions.run(async (tx) => {
+    const updated = await this.transactions.run(async (tx) => {
       const current = await lockOwned(tx, id, principal.userId);
       assertArchivable(current.status);
       const updated = await tx.material.update({
         where: { id },
         data: { status: "ARCHIVED" },
       });
-      return ownerMaterialView(updated);
+      return updated;
     });
+    return this.ownerProjection(updated.id);
+  }
+
+  private async ownerProjection(materialId: string) {
+    const row = await this.transactions.run((tx) =>
+      tx.material.findUniqueOrThrow({
+        where: { id: materialId },
+        include: ownerProjectionInclude,
+      }),
+    );
+    return this.ownerProjectionFromRow(row);
+  }
+
+  private async ownerProjectionFromRow(row: OwnerProjectionRow) {
+    const thumbnail = row.materialThumbnailMaterialIdRecords[0] ?? null;
+    return {
+      ...ownerMaterialView(row),
+      cover: {
+        attached: row.coverFileRecord !== null,
+        generation: row.coverGeneration,
+        file: row.coverFileRecord
+          ? {
+              id: row.coverFileRecord.id,
+              originalFilename: row.coverFileRecord.originalName,
+              mimeType: row.coverFileRecord.detectedMime,
+              sizeBytes: row.coverFileRecord.sizeBytes?.toString() ?? null,
+              state: row.coverFileRecord.state,
+              scanVerdict: row.coverFileRecord.scanVerdict,
+            }
+          : null,
+        processingStatus: row.coverFileRecord
+          ? (thumbnail?.status ?? "PENDING")
+          : "NONE",
+        failureCode: thumbnail?.failureCode ?? null,
+        preview: await this.thumbnails.publicProjection(
+          row.mimeType,
+          thumbnail,
+        ),
+      },
+    };
   }
 
   /** Binds a READY/CLEAN upload once; the previous object stays bound for buyers (D5). */
@@ -339,6 +391,27 @@ export class MaterialsService {
     });
   }
 }
+
+const ownerProjectionInclude = {
+  coverFileRecord: {
+    select: {
+      id: true,
+      originalName: true,
+      detectedMime: true,
+      sizeBytes: true,
+      state: true,
+      scanVerdict: true,
+    },
+  },
+  materialThumbnailMaterialIdRecords: {
+    orderBy: { sourceGeneration: "desc" as const },
+    take: 1,
+  },
+};
+
+type OwnerProjectionRow = Prisma.MaterialGetPayload<{
+  include: typeof ownerProjectionInclude;
+}>;
 
 /** Other owners' materials get the same 404 as missing ones (no existence oracle). */
 async function lockOwned(tx: TransactionContext, id: string, ownerId: string) {

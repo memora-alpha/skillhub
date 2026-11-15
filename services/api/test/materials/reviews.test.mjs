@@ -125,6 +125,64 @@ test("material review lifecycle on isolated PostgreSQL", async (t) => {
           await f.db.materialReviewReport.count({ where: { status: "OPEN" } }),
           0,
         );
+        await f.reviews.report(reporter.principal, review.id, {
+          reasonCode: "OTHER",
+          description: "This report is intentionally rejected by moderation.",
+        });
+        const dismissed = await f.reviewModeration.dismissReports(
+          admin.principal,
+          review.id,
+          {
+            expectedVersion: restored.version,
+            reason: "Review is valid and the report is unfounded",
+          },
+        );
+        assert.equal(dismissed.resolvedReportCount, 1);
+        assert.equal(dismissed.reviewStatus, "VISIBLE");
+        assert.equal((await f.reviews.list(material.id, {})).summary.total, 1);
+        assert.equal(
+          await f.db.materialReviewReport.count({ where: { status: "OPEN" } }),
+          0,
+        );
+      },
+    );
+
+    await t.test(
+      "deleting a reported review closes its open reports",
+      async () => {
+        const deletingAuthor = await f.account();
+        const deletingReporter = await f.account();
+        await f.catalog.download(deletingAuthor.principal, material.id);
+        const created = await f.reviews.create(
+          deletingAuthor.principal,
+          material.id,
+          { rating: 2, comment: "Will be deleted" },
+          "reported-delete",
+        );
+        await f.reviews.report(deletingReporter.principal, created.review.id, {
+          reasonCode: "OTHER",
+          description: "Open report before the author removes the review.",
+        });
+        await f.reviews.remove(
+          deletingAuthor.principal,
+          created.review.id,
+          created.review.version,
+        );
+        assert.equal(
+          await f.db.materialReviewReport.count({
+            where: { reviewId: created.review.id, status: "OPEN" },
+          }),
+          0,
+        );
+        const queue = await f.reviewModeration.queue(
+          admin.principal,
+          "REPORTED",
+          {},
+        );
+        assert.equal(
+          queue.data.some((item) => item.id === created.review.id),
+          false,
+        );
       },
     );
 
@@ -158,6 +216,13 @@ test("material review lifecycle on isolated PostgreSQL", async (t) => {
         assert.equal(
           (await f.reviews.list(paid.id, {})).data[0].verifiedPurchase,
           false,
+        );
+        await assert.rejects(
+          f.reviews.update(paidReviewer.principal, created.review.id, {
+            expectedVersion: created.review.version,
+            rating: 4,
+          }),
+          /MATERIAL_REVIEW_NOT_ALLOWED/,
         );
         await f.reviews.remove(
           paidReviewer.principal,

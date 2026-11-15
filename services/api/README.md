@@ -136,6 +136,21 @@ và bằng chứng PostgreSQL ở [UTC validation](specs/006-system-configuratio
 
 ## Phạm vi và trạng thái
 
+Material buyer UX amendment (2026-11-15): users can save/un-save and page their
+private material favorites; purchased-order pages return immutable purchase-time file
+metadata, review state, and refund preflight. New snapshots include title; legacy title
+is `null` rather than reconstructed from mutable catalog data. Refund keeps reviews
+visible but blocks edits until repurchase. Apply migration
+`20261115000000_material_favorites_order_views` before rollout; refund execution still
+revalidates eligibility transactionally. See [material review spec](specs/016-material-reviews-thumbnails/spec.md).
+
+Material moderation/owner projection amendment (2026-11-15): deleting a reported
+review resolves its open reports atomically; Staff can dismiss unfounded reports while
+leaving the review visible through `POST /api/v1/staff/material-reviews/:reviewId/dismiss-reports`.
+Owner material responses now include safe cover metadata, thumbnail processing state,
+failure code and signed preview/placeholder without storage keys. No additional migration
+is required beyond the material favorites migration above.
+
 Learning Materials (spec011 + spec016, SH-115..119): owner upload/draft/submit, Staff review/hide,
 public search/preview, material reviews and cover thumbnails, authorized short-lived download and atomic PAID purchase with a 5%
 MATERIAL_PAID fee. Rollout: migrations `20261021000000_material_constraints` then

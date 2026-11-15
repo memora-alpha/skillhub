@@ -132,6 +132,8 @@ export function materialFee(
 
 /** Stored on MaterialOrder.purchasedFileSnapshot (ERD v3: no MaterialVersion). */
 export type PurchasedFileSnapshot = {
+  /** Added in 2026-11; absent on legacy orders rather than reconstructed incorrectly. */
+  title?: string;
   storageKey: string;
   originalFilename: string | null;
   mimeType: string | null;
