@@ -2,6 +2,8 @@ const uuid = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 const route = (pattern: string) => new RegExp("^" + pattern + "$", "i");
 const allowed: Record<string, RegExp[]> = {
   GET: [
+    route("materials/" + uuid + "/(reviews|review-eligibility)"),
+    route("me/skills/" + uuid + "/evidence/" + uuid + "/download"),
     route("reputation/recovery"),
     route("me/(notification-preferences|reviews)"),
     route("profiles/" + uuid + "/reviews"),
@@ -78,6 +80,9 @@ const allowed: Record<string, RegExp[]> = {
     route("sessions/(mine|" + uuid + ")"),
   ],
   POST: [
+    route("materials/" + uuid + "/reviews"),
+    route("material-reviews/" + uuid + "/reports"),
+    route("me/materials/cover-files"),
     route("reputation/recovery/(quiz|claim)"),
     route("reputation/restrictions/policy-acknowledgement"),
     route(
@@ -133,6 +138,7 @@ const allowed: Record<string, RegExp[]> = {
     ),
   ],
   PATCH: [
+    route("material-reviews/" + uuid),
     route("me/notification-preferences"),
     route("me/materials/" + uuid),
     route("me/skills/" + uuid),
@@ -145,7 +151,11 @@ const allowed: Record<string, RegExp[]> = {
     route("learning-paths/plans/" + uuid),
     route("schedule-proposals/" + uuid),
   ],
-  DELETE: [route("me/avatar"), route("notifications/push-tokens/" + uuid)],
+  DELETE: [
+    route("me/avatar"),
+    route("notifications/push-tokens/" + uuid),
+    route("material-reviews/" + uuid),
+  ],
 };
 export function userUpstreamPath(method: string, segments: string[]) {
   if (!segments.length || segments.some((part) => !/^[a-z0-9-]+$/i.test(part)))
@@ -173,6 +183,9 @@ export function userQuery(search: URLSearchParams) {
     "page",
     "accessType",
     "unreadOnly",
+    "expectedVersion",
+    "type",
+    "referenceType",
   ]) {
     for (const value of search.getAll(name)) result.append(name, value);
   }

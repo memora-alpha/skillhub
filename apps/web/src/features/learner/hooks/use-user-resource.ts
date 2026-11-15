@@ -110,6 +110,9 @@ export function useUserList<T extends { id: string }>(
     showItems && items.length ? "Đang hiển thị dữ liệu đã tải trước đó. " : "";
   return {
     items: showItems ? items : [],
+    ratingSummary: showItems
+      ? query.data?.pages[0]?.meta?.ratingSummary
+      : undefined,
     loading: query.isPending || query.isFetching,
     initialLoading: query.isPending,
     error: query.error ? staleNotice + query.error.message : undefined,

@@ -10,6 +10,13 @@ export class UserApiError extends Error {
   }
 }
 const messages: Record<string, string> = {
+  REPORT_POLICY_UNAVAILABLE:
+    "Chưa xác định được thời hạn báo cáo. Vui lòng thử lại sau.",
+  INVALID_SCHEDULE_ITEMS: "Một số buổi học cần điều chỉnh trước khi chốt lịch.",
+  CASE_HANDLER_REQUIRED:
+    "Vụ việc đang chờ người phụ trách. Bạn vẫn có thể bổ sung bằng chứng nếu được phép.",
+  REPORT_CASE_CLOSED: "Vụ việc đã đóng, không thể gửi thêm nội dung.",
+  CASE_EVIDENCE_LIMIT: "Bạn đã gửi tối đa 5 bằng chứng cho vụ việc này.",
   MATERIAL_REFUND_WINDOW_CLOSED: "Đã quá hạn hoàn đơn 24 giờ.",
   MATERIAL_ALREADY_CONSUMED:
     "Đơn đã lấy liên kết tải nên không thể hoàn tự động.",

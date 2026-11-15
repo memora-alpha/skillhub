@@ -14,7 +14,12 @@ export type Pagination = {
 export type Reply<T> = {
   success: true;
   data: T;
-  meta?: { pagination?: Pagination };
+  meta?: { pagination?: Pagination; ratingSummary?: MaterialRatingSummary };
+};
+export type MaterialRatingSummary = {
+  average: string | null;
+  total: number;
+  stars: Record<string, number>;
 };
 export type Skill = { id: string; name: string; status?: string };
 export type SharingSkill = {
@@ -163,7 +168,14 @@ export type LearningPath = {
 export type PathSummary = Pick<
   LearningPath,
   "id" | "conversationId" | "status" | "currentVersion" | "lockedVersion"
-> & { counterpartId: string; createdAt: string; exchangeType: string | null };
+> & {
+  counterpartId: string;
+  createdAt: string;
+  exchangeType: string | null;
+  title?: string | null;
+  lastActivityAt?: string;
+  updatedAt?: string;
+};
 export type SessionAction =
   | "JOIN"
   | "CONFIRM_COMPLETION"
@@ -172,6 +184,12 @@ export type SessionAction =
   | "REPORT_NO_SHOW"
   | "PROPOSE_MAKEUP";
 export type LearningSession = {
+  reporting?: {
+    canReport: boolean;
+    blockedReason: string | null;
+    reportBy: string | null;
+    evaluatedAt: string;
+  };
   id: string;
   pathId: string;
   planId: string;
@@ -231,6 +249,7 @@ export type LearningSession = {
     resolution?: string | null;
   };
   deadlines?: {
+    reportBy?: string | null;
     confirmBy: string | null;
     excuseOrReportBy: string | null;
     makeupBy: string | null;

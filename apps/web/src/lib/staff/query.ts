@@ -1,6 +1,13 @@
 /** Forward only filters supported by the selected upstream endpoint. */
 export function staffQuery(path: string, query: URLSearchParams) {
-  const names = path.startsWith("dashboard/")
+  const accepted = new URLSearchParams();
+  for (const name of staffQueryNames(path))
+    if (query.has(name)) accepted.set(name, query.get(name)!);
+  return accepted.size ? `?${accepted}` : "";
+}
+function staffQueryNames(path: string): string[] {
+  if (path === "dashboard/summary") return ["from", "to", "timezone"];
+  const names = /^dashboard\/(overview|learning|finance)$/.test(path)
     ? ["from", "to", "timezone", "granularity", "sections"]
     : [
         "cursor",
@@ -38,8 +45,15 @@ export function staffQuery(path: string, query: URLSearchParams) {
       "gatewayTransactionId",
     );
   if (path === "reports/support/queue") names.push("severity", "handlerId");
-  const accepted = new URLSearchParams();
-  for (const name of names)
-    if (query.has(name)) accepted.set(name, query.get(name)!);
-  return accepted.size ? `?${accepted}` : "";
+  if (path === "dashboard/work-items")
+    names.push(
+      "kind",
+      "severity",
+      "waitingOn",
+      "assignee",
+      "minAgeHours",
+      "sort",
+    );
+  if (path === "learning-paths") names.push("participantId");
+  return names;
 }
