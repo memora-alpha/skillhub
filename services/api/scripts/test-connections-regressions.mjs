@@ -42,7 +42,7 @@ files.push("test/runtime-v3-repositories.test.mjs");
 const result = spawnSync(
   process.execPath,
   ["--test", "--test-concurrency=2", ...files],
-  { encoding: "utf8", maxBuffer: 10 * 1024 * 1024 },
+  { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 },
 );
 const report = join(
   tmpdir(),
