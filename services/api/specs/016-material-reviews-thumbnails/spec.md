@@ -130,15 +130,37 @@ cover, and verify public material responses never expose object/storage keys.
 - **FR-019**: Expansion-limit failures MUST return
   `FILE_ARCHIVE_EXPANSION_LIMIT_EXCEEDED` (413). Invalid OOXML structure, encryption,
   macros, MIME mismatch, and unsupported formats keep their existing distinct errors.
+- **FR-020**: Authenticated users MUST be able to save, unsave, and cursor-page their
+  own saved materials. The `(userId, materialId)` pair is unique; hidden, archived, or
+  otherwise non-public materials MUST NOT be returned by the saved list.
+- **FR-021**: New paid orders MUST snapshot the purchase-time title together with the
+  existing filename, MIME type, size, checksum, and storage identity. Legacy orders
+  without a title snapshot return `title=null`; they MUST NOT substitute mutable public
+  metadata and present it as historical fact.
+- **FR-022**: `GET /api/v1/me/material-orders` MUST expose per-order review state and a
+  read-time refund preflight with `canRefund`, deadline, reason code, and database
+  evaluation time. The refund command MUST still revalidate all rules transactionally.
+- **FR-023**: Updating a paid-material review MUST recheck current ACTIVE entitlement.
+  Refund keeps the review visible but blocks editing; repurchase restores editing of the
+  same user/material review. Reviews remain one per user/material, not one per order.
+- **FR-024**: Soft-deleting a review MUST resolve its open reports in the same
+  transaction so no unprocessable report remains in the Staff queue.
+- **FR-025**: Staff MUST be able to reject all open reports for a visible review without
+  hiding the review. The operation requires a reason, stores resolver/time, appends an
+  audit record, and does not recompute or change the rating summary.
+- **FR-026**: Owner create/update/list projections MUST include the attached cover's safe
+  metadata, current thumbnail processing status/failure, and a signed preview or format
+  placeholder. Object/storage keys MUST never be returned.
 
 ## Approved product decisions
 
-| ID  | Decision                            | Approved policy                                                                                     |
-| --- | ----------------------------------- | --------------------------------------------------------------------------------------------------- |
-| D1  | Who may review FREE materials?      | Any authenticated non-owner after one successfully issued backend download grant.                   |
-| D2  | Who may review PAID materials?      | Only an ACTIVE purchase entitlement; never accept a client-provided purchase flag.                  |
-| D3  | How many reviews per user/material? | One active review, editable; a soft-deleted review may be recreated.                                |
-| D4  | What happens after refund?          | Keep the review visible, compute `verifiedPurchase=false`, and block a new review until repurchase. |
+| ID  | Decision                            | Approved policy                                                                                                                                        |
+| --- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| D1  | Who may review FREE materials?      | Any authenticated non-owner after one successfully issued backend download grant.                                                                      |
+| D2  | Who may review PAID materials?      | Only an ACTIVE purchase entitlement; never accept a client-provided purchase flag.                                                                     |
+| D3  | How many reviews per user/material? | One active review, editable; a soft-deleted review may be recreated.                                                                                   |
+| D4  | What happens after refund?          | Keep the review visible, compute `verifiedPurchase=false`, and block a new review until repurchase.                                                    |
+| D5  | Review identity after repurchase    | Keep one review per user/material. Refund blocks edits; repurchase restores editing of the existing review rather than opening a review per new order. |
 
 `verifiedPurchase` is a read-time projection from the current ACTIVE purchase
 entitlement. It becomes false after refund and true again after repurchase without

@@ -32,6 +32,7 @@ import {
   PublicMaterialReviewsController,
 } from "./presentation/http/material-reviews.controller";
 import { MaterialReviewModerationController } from "./presentation/http/material-review-moderation.controller";
+import { MaterialFavoritesService } from "./application/services/material-favorites.service";
 
 @Module({
   imports: [
@@ -67,6 +68,7 @@ import { MaterialReviewModerationController } from "./presentation/http/material
     MaterialThumbnailPublisher,
     MaterialThumbnailWorker,
     MaterialDownloadGrantRecovery,
+    MaterialFavoritesService,
   ],
 })
 export class MaterialsModule {}

@@ -225,6 +225,7 @@ export class MaterialReviewsService {
         throw new NotFoundException("MATERIAL_REVIEW_NOT_FOUND");
       if (current.status === "HIDDEN")
         throw new ConflictException("MATERIAL_REVIEW_HIDDEN");
+      await assertReviewStillEditable(tx, current);
       if (current.version !== input.expectedVersion)
         throw new ConflictException("MATERIAL_REVIEW_VERSION_CONFLICT");
       const updated = await tx.materialReview.update({
@@ -271,6 +272,15 @@ export class MaterialReviewsService {
         return { review: ownReviewView(current), replayed: true };
       if (current.version !== expectedVersion)
         throw new ConflictException("MATERIAL_REVIEW_VERSION_CONFLICT");
+      await tx.materialReviewReport.updateMany({
+        where: { reviewId, status: "OPEN" },
+        data: {
+          status: "RESOLVED",
+          resolvedById: principal.userId,
+          resolvedAt: new Date(),
+          decisionReason: "Review deleted by its author",
+        },
+      });
       const deleted = await tx.materialReview.update({
         where: { id: reviewId },
         data: { deletedAt: new Date(), version: { increment: 1 } },
@@ -434,6 +444,42 @@ export class MaterialReviewsService {
       context: auditContext(),
     });
   }
+}
+
+async function assertReviewStillEditable(
+  tx: TransactionContext,
+  review: MaterialReview,
+) {
+  const material = await tx.material.findUniqueOrThrow({
+    where: { id: review.materialId },
+    select: { accessType: true, status: true },
+  });
+  if (material.status !== "PUBLISHED")
+    throw new ConflictException("MATERIAL_REVIEW_NOT_ALLOWED");
+  if (material.accessType === "FREE") {
+    const grant = await tx.materialDownloadGrant.findFirst({
+      where: {
+        materialId: review.materialId,
+        requestedBy: review.authorId,
+        accessSource: "FREE_PUBLIC",
+        status: "ISSUED",
+      },
+      select: { id: true },
+    });
+    if (!grant) throw new ConflictException("MATERIAL_REVIEW_NOT_ALLOWED");
+    return;
+  }
+  const entitlement = await tx.materialEntitlement.findUnique({
+    where: {
+      userId_materialId: {
+        userId: review.authorId,
+        materialId: review.materialId,
+      },
+    },
+    select: { status: true, sourceOrderId: true },
+  });
+  if (entitlement?.status !== "ACTIVE" || !entitlement.sourceOrderId)
+    throw new ConflictException("MATERIAL_REVIEW_NOT_ALLOWED");
 }
 
 function blocked(
