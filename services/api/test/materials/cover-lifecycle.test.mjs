@@ -53,7 +53,7 @@ test("material cover lifecycle on isolated PostgreSQL", async () => {
     const ownerItem = mine.data.find((item) => item.id === material.id);
     assert.ok(ownerItem);
     assert.equal(ownerItem.cover.file.id, firstCover.id);
-    assert.equal(ownerItem.cover.file.originalName, "cover.png");
+    assert.equal(ownerItem.cover.file.originalFilename, "cover.png");
     assert.equal(ownerItem.cover.processingStatus, "READY");
     assert.equal(ownerItem.cover.preview.kind, "GENERATED");
     assert.equal("objectKey" in ownerItem.cover.file, false);

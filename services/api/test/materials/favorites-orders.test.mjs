@@ -51,7 +51,7 @@ test("saved materials and buyer order projections on isolated PostgreSQL", async
         const page = await f.favorites.list(buyer.principal, {});
         assert.equal(page.data.length, 0);
         await f.moderation.moderate(f.moderator.principal, paid.id, "unhide", {
-          expectedListingVersion: paid.listingVersion + 1,
+          expectedListingVersion: paid.listingVersion,
           reason: "Safety review cleared",
         });
       },
@@ -63,7 +63,7 @@ test("saved materials and buyer order projections on isolated PostgreSQL", async
         const purchase = await f.purchases.purchase(
           buyer.principal,
           paid.id,
-          paid.listingVersion + 2,
+          paid.listingVersion,
           "projection-order",
         );
         await f.db.material.update({
