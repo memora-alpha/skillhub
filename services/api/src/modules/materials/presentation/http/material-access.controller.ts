@@ -2,6 +2,7 @@ import { ListPageQuery } from "../../../../shared/http/list-page";
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Header,
   Headers,
@@ -24,6 +25,7 @@ import { MaterialCatalogService } from "../../application/services/material-cata
 import { MaterialPurchaseService } from "../../application/services/material-purchase.service";
 import { MaterialReportsService } from "../../application/services/material-reports.service";
 import { PurchaseMaterialDto, ReportMaterialDto } from "./materials.dto";
+import { MaterialFavoritesService } from "../../application/services/material-favorites.service";
 
 @ApiTags("materials")
 @ApiBearerAuth()
@@ -34,6 +36,7 @@ export class MaterialAccessController {
     private readonly catalog: MaterialCatalogService,
     private readonly purchases: MaterialPurchaseService,
     private readonly reports: MaterialReportsService,
+    private readonly favorites: MaterialFavoritesService,
   ) {}
 
   @Get("materials/:materialId/download")
@@ -43,6 +46,28 @@ export class MaterialAccessController {
     @Param("materialId", ParseUUIDPipe) id: string,
   ) {
     return success(await this.catalog.download(actor, id));
+  }
+
+  @Post("materials/:materialId/favorite")
+  async favorite(
+    @CurrentIdentity() actor: Principal,
+    @Param("materialId", ParseUUIDPipe) materialId: string,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const result = await this.favorites.add(actor, materialId);
+    response.status(result.replayed ? 200 : 201);
+    return success(result.favorite, "Material saved.");
+  }
+
+  @Delete("materials/:materialId/favorite")
+  async unfavorite(
+    @CurrentIdentity() actor: Principal,
+    @Param("materialId", ParseUUIDPipe) materialId: string,
+  ) {
+    return success(
+      await this.favorites.remove(actor, materialId),
+      "Material removed from saved list.",
+    );
   }
 
   @Post("materials/:materialId/purchase")
@@ -95,6 +120,15 @@ export class MaterialAccessController {
     @Query() query: ListPageQuery,
   ) {
     const result = await this.purchases.listOrders(actor, query);
+    return paginated(result.data, result.pagination);
+  }
+
+  @Get("me/material-favorites")
+  async savedMaterials(
+    @CurrentIdentity() actor: Principal,
+    @Query() query: ListPageQuery,
+  ) {
+    const result = await this.favorites.list(actor, query);
     return paginated(result.data, result.pagination);
   }
 }

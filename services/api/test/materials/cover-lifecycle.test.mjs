@@ -49,6 +49,14 @@ test("material cover lifecycle on isolated PostgreSQL", async () => {
     assert.equal(detail.thumbnail.kind, "GENERATED");
     assert.equal("smallObjectKey" in detail.thumbnail, false);
     assert.equal("largeObjectKey" in detail.thumbnail, false);
+    const mine = await f.materials.listMine(owner.principal, {});
+    const ownerItem = mine.data.find((item) => item.id === material.id);
+    assert.ok(ownerItem);
+    assert.equal(ownerItem.cover.file.id, firstCover.id);
+    assert.equal(ownerItem.cover.file.originalFilename, "cover.png");
+    assert.equal(ownerItem.cover.processingStatus, "READY");
+    assert.equal(ownerItem.cover.preview.kind, "GENERATED");
+    assert.equal("objectKey" in ownerItem.cover.file, false);
 
     const secondCover = await makeCover({ r: 100, g: 40, b: 10 });
     const replaced = await f.materials.update(owner.principal, material.id, {
@@ -57,6 +65,9 @@ test("material cover lifecycle on isolated PostgreSQL", async () => {
     });
     assert.equal(replaced.status, "PENDING_REVIEW");
     assert.equal(replaced.listingVersion, material.listingVersion + 1);
+    assert.equal(replaced.cover.file.id, secondCover.id);
+    assert.equal(replaced.cover.processingStatus, "PENDING");
+    assert.equal("objectKey" in replaced.cover.file, false);
     assert.equal(
       await f.db.materialThumbnail.count({
         where: { materialId: material.id, status: "SUPERSEDED" },
@@ -79,6 +90,8 @@ test("material cover lifecycle on isolated PostgreSQL", async () => {
       coverFileId: null,
     });
     assert.equal(removed.status, "PENDING_REVIEW");
+    assert.equal(removed.cover.file, null);
+    assert.equal(removed.cover.processingStatus, "NONE");
     assert.equal(
       (await f.db.material.findUniqueOrThrow({ where: { id: material.id } }))
         .coverFileId,

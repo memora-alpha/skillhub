@@ -74,4 +74,20 @@ export class MaterialReviewModerationController {
       await this.moderation.moderate(actor, reviewId, "restore", body),
     );
   }
+
+  @Post(":reviewId/dismiss-reports")
+  @ApiOperation({
+    summary: "Reject open reports while keeping a visible review unchanged",
+  })
+  @ApiResponse({ status: 409, description: "No open report or stale review." })
+  async dismissReports(
+    @CurrentIdentity() actor: Principal,
+    @Param("reviewId", ParseUUIDPipe) reviewId: string,
+    @Body() body: ModerateMaterialReviewDto,
+  ) {
+    return success(
+      await this.moderation.dismissReports(actor, reviewId, body),
+      "Material review reports dismissed.",
+    );
+  }
 }

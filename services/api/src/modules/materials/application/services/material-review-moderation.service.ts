@@ -184,6 +184,73 @@ export class MaterialReviewModerationService {
       };
     });
   }
+
+  async dismissReports(
+    principal: Principal,
+    reviewId: string,
+    input: { expectedVersion: number; reason: string },
+  ) {
+    requireReviewModerator(principal);
+    const reason = input.reason.trim();
+    if (!reason || reason.length > 2_000)
+      throw new BadRequestException("MATERIAL_REVIEW_REASON_REQUIRED");
+    return this.transactions.run(async (tx) => {
+      await tx.$queryRaw`SELECT review_id FROM material_reviews WHERE review_id = ${reviewId}::uuid FOR UPDATE`;
+      const review = await tx.materialReview.findUnique({
+        where: { id: reviewId },
+      });
+      if (!review || review.deletedAt)
+        throw new NotFoundException("MATERIAL_REVIEW_NOT_FOUND");
+      if (review.version !== input.expectedVersion)
+        throw new ConflictException("MATERIAL_REVIEW_VERSION_CONFLICT");
+      if (review.status !== "VISIBLE")
+        throw new ConflictException("MATERIAL_REVIEW_TRANSITION_INVALID");
+      const reports = await tx.materialReviewReport.findMany({
+        where: { reviewId, status: "OPEN" },
+        select: { id: true },
+        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+      });
+      if (reports.length === 0)
+        throw new ConflictException("MATERIAL_REVIEW_NO_OPEN_REPORTS");
+      const resolvedAt = new Date();
+      await tx.materialReviewReport.updateMany({
+        where: {
+          id: { in: reports.map((report) => report.id) },
+          status: "OPEN",
+        },
+        data: {
+          status: "RESOLVED",
+          resolvedById: principal.userId,
+          resolvedAt,
+          decisionReason: reason,
+        },
+      });
+      await Promise.all(
+        reports.map((report) =>
+          this.audit.append(tx, {
+            actor: {
+              kind: "HUMAN",
+              userId: principal.userId,
+              roles: roleCodes(principal),
+            },
+            action: "MATERIAL_REVIEW_REPORT",
+            target: { type: "MATERIAL_REVIEW_REPORT", id: report.id },
+            before: { reviewId, status: "OPEN" },
+            after: { reviewId, status: "RESOLVED" },
+            reason,
+            context: auditContext(),
+          }),
+        ),
+      );
+      return {
+        reviewId,
+        reviewStatus: review.status,
+        resolvedReportCount: reports.length,
+        resolvedAt,
+        resolvedById: principal.userId,
+      };
+    });
+  }
 }
 
 function requireReviewModerator(principal: Principal) {
