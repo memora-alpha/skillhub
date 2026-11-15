@@ -1,5 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { createMaterialFixture } from "./materials/fixture.mjs";
+import { configureIdentityTestEnvironment } from "./identity/test-environment.mjs";
+
+configureIdentityTestEnvironment("admin-operations-test");
 
 export async function createAdminOperationsFixture() {
   return createMaterialFixture();
