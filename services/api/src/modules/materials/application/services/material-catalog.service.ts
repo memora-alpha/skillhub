@@ -193,7 +193,6 @@ export class MaterialCatalogService {
       });
       return { fileId: stored.id, orderId, grantId: grant.id };
     });
-    let linkIssued = false;
     try {
       const link = await this.storage.issueDownload(
         {
@@ -204,8 +203,7 @@ export class MaterialCatalogService {
         // Authorization already ran inside the transaction above.
         { assertRead: () => Promise.resolve() },
       );
-      linkIssued = true;
-      if (access.grantId && !linkIssued) {
+      if (access.grantId) {
         await this.transactions.run(async (tx) => {
           if (access.orderId)
             await tx.$queryRaw`SELECT order_id FROM material_orders

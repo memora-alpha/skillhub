@@ -47,9 +47,8 @@ test("material cover lifecycle on isolated PostgreSQL", async () => {
     );
     const detail = await f.catalog.detail(material.id);
     assert.equal(detail.thumbnail.kind, "GENERATED");
-    assert.ok(
-      !JSON.stringify(detail.thumbnail).includes("private/material-thumbnails"),
-    );
+    assert.equal("smallObjectKey" in detail.thumbnail, false);
+    assert.equal("largeObjectKey" in detail.thumbnail, false);
 
     const secondCover = await makeCover({ r: 100, g: 40, b: 10 });
     const replaced = await f.materials.update(owner.principal, material.id, {
