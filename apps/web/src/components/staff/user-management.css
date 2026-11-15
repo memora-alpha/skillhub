@@ -4,6 +4,64 @@
   align-items: center;
   gap: 4px 8px;
 }
+.user-list-filters {
+  margin-bottom: 22px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface);
+}
+.staff-shell .user-list-main-filters {
+  align-items: flex-end;
+  margin-bottom: 16px;
+}
+.user-list-main-filters > .search {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+.user-list-main-filters > label,
+.user-list-date-range > label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  color: var(--ink-2);
+  font-size: 12px;
+}
+.user-list-main-filters > label {
+  flex: 0 1 190px;
+}
+.user-list-date-row {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.user-list-date-range {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  min-width: 0;
+  padding: 0;
+  margin: 0;
+  border: 0;
+}
+.user-list-date-range legend {
+  padding: 0 0 10px;
+  color: var(--ink-2);
+  font-size: 12px;
+  font-weight: 500;
+}
+.user-list-date-range .input {
+  min-width: 0;
+  width: 180px;
+  max-width: 100%;
+}
+.user-filter-scope {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
 .user-management-dialog {
   width: min(600px, calc(100vw - 32px));
   overscroll-behavior: contain;
@@ -62,6 +120,21 @@
   border: 0;
 }
 @media (max-width: 600px) {
+  .user-list-filters {
+    padding: 14px;
+  }
+  .user-list-main-filters > label {
+    flex: 1 1 120px;
+  }
+  .user-list-date-range {
+    width: 100%;
+  }
+  .user-list-date-range > label {
+    flex: 1 1 120px;
+  }
+  .user-list-date-range .input {
+    width: 100%;
+  }
   .user-dialog-content {
     gap: 16px;
     padding: 16px;
