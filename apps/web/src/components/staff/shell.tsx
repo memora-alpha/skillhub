@@ -16,7 +16,13 @@ type NavigationItem = {
   label: string;
   icon: IconName;
   aliases?: string[];
-  group?: "Quản trị" | "Cá nhân";
+  group?:
+    | "Quản trị"
+    | "Cá nhân"
+    | "Điều hành"
+    | "Chất lượng"
+    | "Kiểm duyệt"
+    | "Hệ thống";
 };
 const nav: NavigationItem[] = [
   { href: "/staff", label: "Tổng quan", icon: "inbox" },
@@ -45,58 +51,45 @@ const nav: NavigationItem[] = [
     group: "Cá nhân",
   },
 ];
-const adminNav: typeof nav = [
-  { href: "/admin", label: "Tổng quan", icon: "grid" },
-  {
-    href: "/admin/users",
-    label: "Người dùng",
-    icon: "users",
-    group: "Quản trị",
-  },
-  {
-    href: "/admin/staff-permissions",
-    label: "Quyền nhân viên",
-    icon: "shield",
-    group: "Quản trị",
-  },
-  {
-    href: "/admin/profile-moderation",
-    label: "Hồ sơ & đánh giá",
-    icon: "users",
-  },
-  { href: "/admin/reputation", label: "Xét lại uy tín", icon: "star" },
-  {
-    href: "/admin/credits",
-    label: "Tài chính",
-    icon: "card",
-    group: "Quản trị",
-  },
-  {
-    href: "/admin/skills",
-    label: "Danh mục kỹ năng",
-    icon: "tag",
-    group: "Quản trị",
-  },
-  {
-    href: "/admin/tags",
-    label: "Tag cộng đồng",
-    icon: "tag",
-    aliases: ["/admin/tag-requests"],
-    group: "Quản trị",
-  },
-  { href: "/admin/evidence", label: "Bằng chứng kỹ năng", icon: "shield" },
-  { href: "/admin/moderation", label: "Kiểm duyệt yêu cầu học", icon: "flag" },
-  { href: "/admin/content", label: "Duyệt tài liệu", icon: "file" },
-  { href: "/admin/disputes", label: "Báo cáo & tranh chấp", icon: "alert" },
-  { href: "/admin/learning-changes", label: "Dừng lộ trình", icon: "file" },
-  {
-    href: "/admin/config",
-    label: "Quy tắc kiểm duyệt",
-    icon: "sliders",
-    group: "Quản trị",
-  },
-  { href: "/admin/notifications", label: "Thông báo", icon: "bell" },
+type NavigationEntry = readonly [
+  href: string,
+  label: string,
+  icon: IconName,
+  group: NonNullable<NavigationItem["group"]>,
+  aliases?: string[],
 ];
+const adminEntries: NavigationEntry[] = [
+  ["/admin", "Tổng quan", "grid", "Điều hành"],
+  ["/admin/users", "Người dùng", "users", "Điều hành"],
+  ["/admin/staff-permissions", "Quyền nhân viên", "shield", "Điều hành"],
+  ["/admin/profile-moderation", "Hồ sơ & đánh giá", "users", "Chất lượng"],
+  ["/admin/reputation", "Xét lại uy tín", "star", "Chất lượng"],
+  ["/admin/credits", "Tài chính", "card", "Hệ thống"],
+  ["/admin/skills", "Danh mục kỹ năng", "tag", "Chất lượng"],
+  [
+    "/admin/tags",
+    "Tag cộng đồng",
+    "tag",
+    "Chất lượng",
+    ["/admin/tag-requests"],
+  ],
+  ["/admin/evidence", "Bằng chứng kỹ năng", "shield", "Chất lượng"],
+  ["/admin/moderation", "Kiểm duyệt yêu cầu học", "flag", "Kiểm duyệt"],
+  ["/admin/content", "Duyệt tài liệu", "file", "Kiểm duyệt"],
+  ["/admin/disputes", "Báo cáo & tranh chấp", "alert", "Kiểm duyệt"],
+  ["/admin/learning-changes", "Dừng lộ trình", "file", "Kiểm duyệt"],
+  ["/admin/config", "Quy tắc kiểm duyệt", "sliders", "Kiểm duyệt"],
+  ["/admin/notifications", "Thông báo", "bell", "Hệ thống"],
+];
+const adminNav: NavigationItem[] = adminEntries.map(
+  ([href, label, icon, group, aliases]) => ({
+    href,
+    label,
+    icon,
+    group,
+    aliases,
+  }),
+);
 function Frame({ children }: Readonly<{ children: ReactNode }>) {
   const { actor, loading, logout, busy, portal } = useStaffSession();
   const links = portal === "admin" ? adminNav : nav;
@@ -176,7 +169,10 @@ function Frame({ children }: Readonly<{ children: ReactNode }>) {
           </div>
         </div>
         <nav className="side-nav" aria-label={`Điều hướng ${portalName}`}>
-          {(["Công việc", "Quản trị", "Cá nhân"] as const).map((group) => {
+          {(portal === "admin"
+            ? ["Điều hành", "Chất lượng", "Kiểm duyệt", "Hệ thống"]
+            : ["Công việc", "Quản trị", "Cá nhân"]
+          ).map((group) => {
             const items = links.filter(
               (item) => (item.group ?? "Công việc") === group,
             );
