@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useId, useRef, useState } from "react";
 import {
+  DataTable,
   Card,
   PageHeader,
   Segmented,
@@ -135,14 +136,21 @@ function FinanceDetails({ value }: Readonly<{ value: unknown }>) {
     return <span>{value.toString()}</span>;
   return <span>—</span>;
 }
-export function FinanceScreen() {
-  const [tab, setTab] = useState("ledger");
+export function FinanceScreen({
+  initialTab = "ledger",
+  initialPaymentId,
+}: Readonly<{ initialTab?: string; initialPaymentId?: string }>) {
+  const [tab, setTab] = useState(
+    ["ledger", "payments", "wallet", "fees"].includes(initialTab)
+      ? initialTab
+      : "ledger",
+  );
   function financeTab() {
     if (tab === "ledger") {
       return <LedgerScreen />;
     }
     if (tab === "payments") {
-      return <PaymentsScreen />;
+      return <PaymentsScreen initialPaymentId={initialPaymentId} />;
     }
     if (tab === "wallet") {
       return <WalletLookup />;
@@ -206,18 +214,15 @@ function LedgerScreen() {
       <p className={styles.hint}>
         Xem biến động Credit và số dư sau từng giao dịch.
       </p>
-      <form
-        className={styles.filters}
-        onSubmit={(e) => {
-          e.preventDefault();
-          setFilter(draft.trim());
-          setSelected(undefined);
-        }}
-      >
-        <Identifier value={draft} onChange={setDraft} />
-        <button type="submit" className="btn btn-primary">
-          Lọc người dùng
-        </button>
+      <div className={styles.filters}>
+        <Identifier
+          value={draft}
+          onChange={setDraft}
+          onSearch={(value) => {
+            setFilter(value);
+            setSelected(undefined);
+          }}
+        />
         <button
           className="btn"
           type="button"
@@ -229,7 +234,7 @@ function LedgerScreen() {
         >
           Bỏ lọc
         </button>
-      </form>
+      </div>
       <QueueState
         loading={list.loading}
         error={list.error}
@@ -238,87 +243,75 @@ function LedgerScreen() {
         emptyDescription="Thử bỏ bộ lọc hoặc kiểm tra lại mã người dùng."
         reload={list.reload}
       >
-        <div className="table-wrap">
-          <table className={`table ${styles.table}`}>
-            <thead>
-              <tr>
-                <th>Ngày / người dùng</th>
-                <th>Loại</th>
-                <th>Credit</th>
-                <th>Số dư sau giao dịch</th>
-                <th>Chi tiết</th>
-              </tr>
-            </thead>
-            <tbody>
-              {list.items.map((r) => (
-                <tr key={r.id}>
-                  <td data-label="Ngày / người dùng">
-                    {fmtDateTime(r.createdAt)}
-                    <OperationReference id={r.userId} label="Người dùng" />
-                  </td>
-                  <td data-label="Loại">
-                    {financeLabel(r.type)}
-                    <small>
-                      <StatusBadge status={r.status} />
-                    </small>
-                  </td>
-                  <td data-label="Credit">
-                    <span className={styles.money}>
-                      {financeNumber(r.amount)} CR
-                    </span>
-                  </td>
-                  <td data-label="Số dư sau giao dịch">
-                    <span className={styles.money}>
-                      {financeNumber(r.availableAfter)} CR
-                    </span>
-                    <small>Đang giữ: {financeNumber(r.heldAfter)} CR</small>
-                  </td>
-                  <td data-label="Thao tác">
-                    <div className={styles.actions}>
-                      <button
-                        type="button"
-                        className="btn"
-                        onClick={() =>
-                          setSelected(`credit/transactions/${r.id}`)
-                        }
-                      >
-                        Chi tiết
-                      </button>
-                      <button
-                        type="button"
-                        className="btn"
-                        onClick={() =>
-                          setSelected(`credit/operations/${r.operationId}`)
-                        }
-                      >
-                        Nghiệp vụ
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          columns={[
+            "Ngày / người dùng",
+            "Loại",
+            "Credit",
+            "Số dư sau giao dịch",
+            "Chi tiết",
+          ]}
+          className={`table ${styles.table}`}
+        >
+          {list.items.map((r) => (
+            <tr key={r.id}>
+              <td data-label="Ngày / người dùng">
+                {fmtDateTime(r.createdAt)}
+                <OperationReference id={r.userId} label="Người dùng" />
+              </td>
+              <td data-label="Loại">
+                {financeLabel(r.type)}
+                <small>
+                  <StatusBadge status={r.status} />
+                </small>
+              </td>
+              <td data-label="Credit">
+                <span className={styles.money}>
+                  {financeNumber(r.amount)} CR
+                </span>
+              </td>
+              <td data-label="Số dư sau giao dịch">
+                <span className={styles.money}>
+                  {financeNumber(r.availableAfter)} CR
+                </span>
+                <small>Đang giữ: {financeNumber(r.heldAfter)} CR</small>
+              </td>
+              <td data-label="Thao tác">
+                <FinanceActions
+                  actions={[
+                    { path: `credit/transactions/${r.id}`, label: "Chi tiết" },
+                    {
+                      path: `credit/operations/${r.operationId}`,
+                      label: "Nghiệp vụ",
+                    },
+                  ]}
+                  onSelect={setSelected}
+                />
+              </td>
+            </tr>
+          ))}
+        </DataTable>
       </QueueState>
-      <Pager
+      <FinanceQueueFooter
         loading={list.loading}
         more={list.more}
         hasMore={list.page?.hasMore}
+        selected={selected}
+        onClose={() => setSelected(undefined)}
       />
-      {selected && (
-        <Detail
-          key={selected}
-          path={selected}
-          close={() => setSelected(undefined)}
-        />
-      )}
     </Card>
   );
 }
-function PaymentsScreen() {
+function PaymentsScreen({
+  initialPaymentId,
+}: Readonly<{ initialPaymentId?: string }>) {
   const [status, setStatus] = useState("");
-  const [selected, setSelected] = useState<string>();
+  const [selected, setSelected] = useState<string | undefined>(() =>
+    initialPaymentId &&
+    /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(initialPaymentId)
+      ? `payments/${initialPaymentId}`
+      : undefined,
+  );
   const list = useStaffList<Payment>(
     "payments?" +
       new URLSearchParams({ limit: "20", ...(status ? { status } : {}) }),
@@ -383,78 +376,61 @@ function PaymentsScreen() {
         emptyDescription="Không có thanh toán phù hợp với trạng thái đã chọn."
         reload={list.reload}
       >
-        <div className="table-wrap">
-          <table className={`table ${styles.table}`}>
-            <thead>
-              <tr>
-                <th>Đơn / ngày</th>
-                <th>Người dùng</th>
-                <th>Số tiền</th>
-                <th>Trạng thái</th>
-                <th>Tra cứu</th>
-              </tr>
-            </thead>
-            <tbody>
-              {list.items.map((p) => (
-                <tr key={p.id}>
-                  <td data-label="Đơn / ngày">
-                    <strong>
-                      {p.payosCheckout?.orderCode
-                        ? `Đơn #${p.payosCheckout.orderCode}`
-                        : `Thanh toán #${p.id.slice(0, 8)}`}
-                    </strong>
-                    <small>{fmtDateTime(p.createdAt)}</small>
-                  </td>
-                  <td data-label="Người dùng">
-                    <OperationReference id={p.userId} label="Người dùng" />
-                  </td>
-                  <td data-label="Số tiền">
-                    <span className={styles.money}>
-                      {financeNumber(p.paymentAmountVnd)} ₫
-                    </span>
-                    <small>{financeNumber(p.creditAmount)} CR</small>
-                  </td>
-                  <td data-label="Trạng thái">
-                    <PaymentStatus status={p.status} />
-                  </td>
-                  <td data-label="Thao tác">
-                    <div className={styles.actions}>
-                      <button
-                        type="button"
-                        className="btn"
-                        onClick={() => setSelected(`payments/${p.id}`)}
-                      >
-                        Chi tiết
-                      </button>
-                      <button
-                        type="button"
-                        className="btn"
-                        onClick={() =>
-                          setSelected(`payments/${p.id}/reconciliation`)
-                        }
-                      >
-                        Đối soát
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          columns={[
+            "Đơn / ngày",
+            "Người dùng",
+            "Số tiền",
+            "Trạng thái",
+            "Tra cứu",
+          ]}
+          className={`table ${styles.table}`}
+        >
+          {list.items.map((p) => (
+            <tr key={p.id}>
+              <td data-label="Đơn / ngày">
+                <strong>
+                  {p.payosCheckout?.orderCode
+                    ? `Đơn #${p.payosCheckout.orderCode}`
+                    : `Thanh toán #${p.id.slice(0, 8)}`}
+                </strong>
+                <small>{fmtDateTime(p.createdAt)}</small>
+              </td>
+              <td data-label="Người dùng">
+                <OperationReference id={p.userId} label="Người dùng" />
+              </td>
+              <td data-label="Số tiền">
+                <span className={styles.money}>
+                  {financeNumber(p.paymentAmountVnd)} ₫
+                </span>
+                <small>{financeNumber(p.creditAmount)} CR</small>
+              </td>
+              <td data-label="Trạng thái">
+                <PaymentStatus status={p.status} />
+              </td>
+              <td data-label="Thao tác">
+                <FinanceActions
+                  actions={[
+                    { path: `payments/${p.id}`, label: "Chi tiết" },
+                    {
+                      path: `payments/${p.id}/reconciliation`,
+                      label: "Đối soát",
+                    },
+                  ]}
+                  onSelect={setSelected}
+                />
+              </td>
+            </tr>
+          ))}
+        </DataTable>
       </QueueState>
-      <Pager
+      <FinanceQueueFooter
         loading={list.loading}
         more={list.more}
         hasMore={list.page?.hasMore}
+        selected={selected}
+        onClose={() => setSelected(undefined)}
       />
-      {selected && (
-        <Detail
-          key={selected}
-          path={selected}
-          close={() => setSelected(undefined)}
-        />
-      )}
     </Card>
   );
 }
@@ -466,18 +442,9 @@ function WalletLookup() {
       <p className={styles.hint}>
         Nhập mã người dùng để xem Credit khả dụng và Credit đang giữ.
       </p>
-      <form
-        className={styles.filters}
-        onSubmit={(e) => {
-          e.preventDefault();
-          setId(draft);
-        }}
-      >
-        <Identifier value={draft} onChange={setDraft} />
-        <button type="submit" className="btn btn-primary">
-          Xem ví
-        </button>
-      </form>
+      <div className={styles.filters}>
+        <Identifier value={draft} onChange={setDraft} onSearch={setId} />
+      </div>
       {id && (
         <Detail key={id} path={`users/${id}/wallet`} close={() => setId("")} />
       )}
@@ -693,5 +660,46 @@ function PaymentStatus({ status }: Readonly<{ status: string }>) {
     <span className={`badge badge-${tone}`}>
       {paymentStatuses[status] ?? "Chưa xác định"}
     </span>
+  );
+}
+
+function FinanceActions({
+  actions,
+  onSelect,
+}: Readonly<{
+  actions: readonly { path: string; label: string }[];
+  onSelect: (path: string) => void;
+}>) {
+  return (
+    <div className={styles.actions}>
+      {actions.map((action) => (
+        <button
+          key={action.path}
+          type="button"
+          className="btn"
+          onClick={() => onSelect(action.path)}
+        >
+          {action.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+function FinanceQueueFooter({
+  selected,
+  onClose,
+  ...pagination
+}: Readonly<{
+  selected?: string;
+  onClose: () => void;
+  loading: boolean;
+  more: () => void;
+  hasMore?: boolean;
+}>) {
+  return (
+    <>
+      <Pager {...pagination} />
+      {selected && <Detail key={selected} path={selected} close={onClose} />}
+    </>
   );
 }

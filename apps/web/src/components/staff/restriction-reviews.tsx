@@ -30,18 +30,9 @@ export function RestrictionReviewsScreen({
         desc="Xem hạn chế và ghi nhận quyết định xử lý."
       />
       <Card>
-        <form
-          className="toolbar"
-          onSubmit={(e) => {
-            e.preventDefault();
-            setUserId(draft);
-          }}
-        >
-          <Identifier value={draft} onChange={setDraft} />
-          <button className="btn" type="submit">
-            Tra cứu
-          </button>
-        </form>
+        <div className="toolbar">
+          <Identifier value={draft} onChange={setDraft} onSearch={setUserId} />
+        </div>
         {userId && <PendingReviews key={userId} userId={userId} />}
       </Card>
       {portal === "admin" && (
