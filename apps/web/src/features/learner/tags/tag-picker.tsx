@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { SearchInput } from "@/components/search-input";
 import { useEffect, useState } from "react";
 import { useUserList } from "../hooks/use-user-resource";
 import { useUserSession } from "../auth/session";
@@ -70,19 +71,13 @@ export function TagPicker({
         thêm vào danh mục chung.
       </p>
       <div className="learner-search">
-        <input
+        <SearchInput
           aria-label="Tìm tag có sẵn"
           value={search}
           maxLength={120}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={setSearch}
+          onSearch={setTerm}
         />
-        <button
-          type="button"
-          className="btn"
-          onClick={() => setTerm(search.trim())}
-        >
-          Tìm tag
-        </button>
       </div>
       <Feedback
         loading={query.loading}

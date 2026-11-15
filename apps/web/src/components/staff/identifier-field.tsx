@@ -1,19 +1,46 @@
 "use client";
 import { useEffect, useRef } from "react";
+import { SearchInput } from "@/components/search-input";
 
 export function Identifier({
   value,
   onChange,
   label = "Mã người dùng",
+  onSearch,
 }: Readonly<{
   value: string;
   onChange: (value: string) => void;
   label?: string;
+  onSearch?: (value: string) => void;
 }>) {
   const input = useRef<HTMLInputElement>(null);
   useEffect(() => {
     input.current?.setCustomValidity("");
   }, [value]);
+  if (onSearch) {
+    return (
+      <label>
+        {label}
+        <SearchInput
+          className="input"
+          aria-label={label}
+          value={value}
+          onChange={onChange}
+          minimumLength={36}
+          onSearch={(term) =>
+            onSearch(
+              /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(term)
+                ? term
+                : "",
+            )
+          }
+          placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+          spellCheck={false}
+          autoCapitalize="none"
+        />
+      </label>
+    );
+  }
   return (
     <label>
       {label}

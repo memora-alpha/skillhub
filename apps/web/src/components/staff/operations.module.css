@@ -7,7 +7,7 @@
   overflow-x: auto;
   margin-bottom: 24px;
 }
-.tabs > div {
+.tabs > :global(.segmented) {
   width: max-content;
   min-width: 100%;
 }

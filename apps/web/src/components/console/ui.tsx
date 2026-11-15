@@ -3,6 +3,7 @@ import { systemCodeLabel } from "@/lib/system-text";
 
 import type { ReactNode } from "react";
 import { Icon, type IconName } from "./icon";
+import { SearchInput } from "../search-input";
 
 export type Tone = "neutral" | "ok" | "warn" | "bad" | "info" | "brand";
 
@@ -168,7 +169,7 @@ export function Segmented<T extends string>({
   onChange: (id: T) => void;
 }) {
   return (
-    <div className="segmented" role="group" aria-label={label}>
+    <fieldset className="segmented" aria-label={label}>
       {options.map((o) => (
         <button
           key={o.id}
@@ -180,7 +181,7 @@ export function Segmented<T extends string>({
           {o.count !== undefined && <span className="count">{o.count}</span>}
         </button>
       ))}
-    </div>
+    </fieldset>
   );
 }
 
@@ -189,22 +190,36 @@ export function SearchBox({
   onChange,
   placeholder,
   label,
+  onSearch,
+  minimumLength,
 }: {
   value: string;
   onChange: (v: string) => void;
   placeholder: string;
   label: string;
+  onSearch?: (value: string) => void;
+  minimumLength?: number;
 }) {
   return (
     <label className="search">
       <span className="sr-only">{label}</span>
       <Icon name="search" />
-      <input
-        type="search"
-        value={value}
-        placeholder={placeholder}
-        onChange={(e) => onChange(e.target.value)}
-      />
+      {onSearch ? (
+        <SearchInput
+          value={value}
+          placeholder={placeholder}
+          onChange={onChange}
+          onSearch={onSearch}
+          minimumLength={minimumLength}
+        />
+      ) : (
+        <input
+          type="search"
+          value={value}
+          placeholder={placeholder}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      )}
     </label>
   );
 }
@@ -215,6 +230,35 @@ export function Empty({ title, desc }: { title: string; desc?: string }) {
       <Icon name="inbox" size={28} />
       <strong>{title}</strong>
       {desc && <span className="muted">{desc}</span>}
+    </div>
+  );
+}
+
+export function DataTable({
+  columns,
+  children,
+  className = "table",
+  containerClassName = "table-wrap",
+}: Readonly<{
+  columns: readonly string[];
+  children: ReactNode;
+  className?: string;
+  containerClassName?: string;
+}>) {
+  return (
+    <div className={containerClassName}>
+      <table className={className}>
+        <thead>
+          <tr>
+            {columns.map((column) => (
+              <th key={column} scope="col">
+                {column}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>{children}</tbody>
+      </table>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useState } from "react";
+import { SearchInput } from "@/components/search-input";
 import { useUserList } from "../hooks/use-user-resource";
 import { useUserSession } from "../auth/session";
 import type { Post, Skill } from "../types";
@@ -85,24 +86,16 @@ export function PostFeed({
           />
         </aside>
         <div>
-          <form
-            className="learner-search"
-            onSubmit={(e) => {
-              e.preventDefault();
-              setKeyword(search.trim());
-            }}
-          >
-            <input
+          <div className="learner-search">
+            <SearchInput
               aria-label="Tìm bài đăng"
               placeholder="Tìm điều bạn quan tâm…"
               value={search}
               maxLength={120}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={setSearch}
+              onSearch={setKeyword}
             />
-            <button type="submit" className="btn">
-              Tìm bài đăng
-            </button>
-          </form>
+          </div>
           <Feedback
             loading={query.loading}
             error={query.error}
