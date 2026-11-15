@@ -53,7 +53,7 @@ export function OwnerMaterialDetails({
                 disabled={disabled}
                 onPress={onArchive}
               >
-                Lưu trữ
+                Ngừng chia sẻ
               </Button>
             )}
           </View>
@@ -144,7 +144,7 @@ export function ArchiveMaterialDialog({
 }>) {
   return (
     <InfoModal
-      title={material ? "Lưu trữ tài liệu?" : null}
+      title={material ? "Ngừng chia sẻ tài liệu?" : null}
       titleStyle={styles.heading}
       onClose={onClose}
       busy={busy}
@@ -160,7 +160,7 @@ export function ArchiveMaterialDialog({
             </Button>
           ) : (
             <Button variant="craft" disabled={disabled} onPress={onConfirm}>
-              {busy ? "Đang lưu trữ…" : "Lưu trữ"}
+              {busy ? "Đang xử lý…" : "Ngừng chia sẻ"}
             </Button>
           )}
         </View>

@@ -25,12 +25,13 @@ export function useMaterial(id: string) {
     uuid.safeParse(id).success,
   );
 }
-export function useMyMaterials(enabled = true) {
+export function useMyMaterials(enabled = true, freshOnMount = false) {
   const api = useMaterialsApi();
   return useConnectionQuery(
     ["materials", "mine"],
     (signal) => api.mine(signal),
     enabled,
+    { freshOnMount },
   );
 }
 export function useMyMaterialPages() {

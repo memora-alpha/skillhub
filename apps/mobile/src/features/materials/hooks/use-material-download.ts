@@ -7,7 +7,7 @@ import {
   type MaterialDownloadTarget,
 } from "../utils/save-material-file";
 
-export function useMaterialDownload(id: string) {
+export function useMaterialDownload(id: string, onIssued?: () => void) {
   const runtime = useConnections();
   const api = useMaterialsApi();
   const flight = useRef(false);
@@ -36,6 +36,7 @@ export function useMaterialDownload(id: string) {
     try {
       const file = await api.download(id, abort.signal);
       if (!current()) return;
+      onIssued?.();
       await target(file.url, abort.signal);
       if (current()) setComplete(true);
     } catch (cause) {

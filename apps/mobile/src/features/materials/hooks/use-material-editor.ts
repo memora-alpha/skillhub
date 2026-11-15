@@ -21,11 +21,14 @@ function editorValues(material?: ApiMaterial): MaterialEditorValues {
     description: material?.description ?? "",
     accessType: material?.accessType ?? "FREE",
     priceCredit: material?.priceCredit ?? "0",
-    rights: false,
+    rights: !!material?.distributionRightsConfirmedAt,
   };
 }
 
-export function useMaterialEditor(currentMaterial?: ApiMaterial) {
+export function useMaterialEditor(
+  currentMaterial?: ApiMaterial,
+  readBlocked = false,
+) {
   const api = useMaterialsApi();
   const runtime = useConnections();
   const router = useRouter();
@@ -34,6 +37,8 @@ export function useMaterialEditor(currentMaterial?: ApiMaterial) {
   const material = recovery.material;
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [uploadBusy, setUploadBusy] = useState(false);
+  const [coverFiles, setCoverFiles] = useState<UploadedFile[]>([]);
+  const [coverBusy, setCoverBusy] = useState(false);
   const form = useForm<MaterialEditorValues>({
     resolver: zodResolver(materialEditorSchema),
     defaultValues: editorValues(material),
@@ -46,21 +51,25 @@ export function useMaterialEditor(currentMaterial?: ApiMaterial) {
     !!(currentMaterial && !canEditMaterial(currentMaterial));
   const blocked =
     disabled ||
+    readBlocked ||
     recovery.conflict ||
     uploadBusy ||
-    files.some((file) => file.state !== "READY");
+    coverBusy ||
+    files.some((file) => file.state !== "READY") ||
+    coverFiles.some((file) => file.state !== "READY");
   const resolveConflict = (keepDraft: boolean) => {
-    if (command.pending || command.uncertain || uploadBusy) return;
+    if (command.pending || command.uncertain || uploadBusy || coverBusy) return;
     const latest = recovery.adopt();
     if (!latest) return;
     if (!keepDraft) {
       form.reset(editorValues(latest));
       setFiles([]);
+      setCoverFiles([]);
     }
   };
   const save = form.handleSubmit(async (values) => {
     if (blocked || !runtime.isCurrent()) return;
-    const body = editorMaterialInput(values, files[0]);
+    const body = editorMaterialInput(values, files[0], coverFiles[0]);
     const saved = await command.run(
       JSON.stringify({
         id: material?.id,
@@ -72,7 +81,8 @@ export function useMaterialEditor(currentMaterial?: ApiMaterial) {
           ? api.update(material.id, material.listingVersion, body)
           : api.create(body),
     );
-    if (saved && runtime.isCurrent()) router.replace("/materials/mine");
+    if (saved && runtime.isCurrent())
+      router.replace("/materials/mine?tab=posted");
   });
   return {
     api,
@@ -86,6 +96,10 @@ export function useMaterialEditor(currentMaterial?: ApiMaterial) {
     setFiles,
     uploadBusy,
     setUploadBusy,
+    coverFiles,
+    setCoverFiles,
+    coverBusy,
+    setCoverBusy,
     disabled,
     blocked,
     save,

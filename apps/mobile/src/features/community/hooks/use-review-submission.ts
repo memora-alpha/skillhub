@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useConnections } from "@/features/connections";
+import { AppError } from "@/lib/http/errors";
 import { useCommunityApi, usePathReviews } from "./use-community";
 import { createReviewSubmission } from "../utils/review-submission";
 import type { ReviewInput } from "../api/community-api";
@@ -17,6 +18,20 @@ export function useReviewSubmission(pathId: string, counterpartId: string) {
   const [, update] = useState(0);
   const [error, setError] = useState<unknown>();
   const own = reviews.data?.find((row) => row.reviewerId === runtime.userId);
+  const refreshReviewViews = () =>
+    Promise.all([
+      cache.invalidateQueries({
+        queryKey: [...runtime.key, "profile-reviews"],
+      }),
+      cache.invalidateQueries({
+        queryKey: [
+          "public-profile",
+          runtime.userId,
+          runtime.key[2],
+          counterpartId,
+        ],
+      }),
+    ]);
   const send = async (input: ReviewInput) => {
     if (
       own ||
@@ -48,11 +63,16 @@ export function useReviewSubmission(pathId: string, counterpartId: string) {
           saved,
         ],
       );
-      await cache.invalidateQueries({
-        queryKey: [...runtime.key, "profile-reviews"],
-      });
+      await refreshReviewViews();
     } catch (failure) {
-      if (runtime.isCurrent()) setError(failure);
+      if (runtime.isCurrent()) {
+        setError(failure);
+        if (
+          failure instanceof AppError &&
+          failure.code === "REVIEW_ALREADY_SUBMITTED"
+        )
+          await refreshReviewViews();
+      }
     } finally {
       if (runtime.isCurrent()) update((v) => v + 1);
     }
@@ -60,11 +80,11 @@ export function useReviewSubmission(pathId: string, counterpartId: string) {
   const refresh = async () => {
     const result = await reviews.refetch();
     if (!runtime.isCurrent() || !result.isSuccess || !result.data) return;
-    submission.observed(
-      result.data.some((row) => row.reviewerId === runtime.userId),
-    );
+    const found = result.data.some((row) => row.reviewerId === runtime.userId);
+    submission.observed(found);
     setError(undefined);
     update((v) => v + 1);
+    if (found) await refreshReviewViews();
   };
   return { reviews, own, send, refresh, error, state: submission.state };
 }

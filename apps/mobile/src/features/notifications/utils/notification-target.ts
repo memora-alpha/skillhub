@@ -85,6 +85,18 @@ export function notificationTarget(item: InboxNotification): Href | undefined {
   const valid = (field: string) => uuid.safeParse(payload[field]).success;
   const sessionTarget = sessionNotificationTarget(item.type, payload, valid);
   if (sessionTarget) return sessionTarget;
+  if (
+    [
+      "material.review.created",
+      "material.review.hidden",
+      "material.review.restored",
+    ].includes(item.type) &&
+    valid("materialId")
+  )
+    return {
+      pathname: "/materials/[id]",
+      params: { id: payload.materialId as string },
+    };
   if (item.type === "chat.message.delivered" && valid("conversationId"))
     return {
       pathname: "/chat/[proposalId]",

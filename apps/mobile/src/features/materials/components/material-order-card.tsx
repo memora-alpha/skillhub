@@ -10,6 +10,7 @@ import { MaterialFileBadge } from "./material-summary";
 import { materialStyles as styles } from "./material.styles";
 import { useMaterialDownload } from "../hooks/use-material-download";
 import { MaterialDownloadFeedback } from "./material-download-feedback";
+import { useMaterialReviewEligibility } from "../hooks/use-material-reviews";
 
 export function MaterialOrderCard({
   order,
@@ -23,6 +24,7 @@ export function MaterialOrderCard({
   onRefund: () => void;
 }>) {
   const query = usePublicMaterial(order.materialId, visible);
+  const eligibility = useMaterialReviewEligibility(order.materialId, visible);
   const router = useRouter();
   const download = useMaterialDownload(order.materialId);
   return (
@@ -89,6 +91,23 @@ export function MaterialOrderCard({
             Hoàn tiền
           </Button>
         </View>
+      )}
+      {(eligibility.data?.currentReview ||
+        eligibility.data?.canReview ||
+        eligibility.error) && (
+        <Button
+          variant="paper"
+          size="sm"
+          leadingIcon="star"
+          disabled={disabled || eligibility.isFetching}
+          onPress={() => router.push(`/materials/${order.materialId}/review`)}
+        >
+          {eligibility.data?.currentReview
+            ? "Xem đánh giá"
+            : eligibility.data?.canReview
+              ? "Viết đánh giá"
+              : "Đánh giá tài liệu"}
+        </Button>
       )}
       <MaterialDownloadFeedback download={download} />
     </View>

@@ -53,10 +53,13 @@ export type MaterialEditorValues = z.infer<typeof materialEditorSchema>;
 export function editorMaterialInput(
   values: MaterialEditorValues,
   file?: UploadedFile,
+  cover?: UploadedFile,
 ): MaterialInput {
   const checked = materialEditorSchema.parse(values);
   if (file && file.state !== "READY")
     throw new Error("Tệp chưa hoàn tất kiểm tra an toàn.");
+  if (cover && cover.state !== "READY")
+    throw new Error("Ảnh bìa chưa hoàn tất kiểm tra an toàn.");
   return {
     skillId: checked.skillId,
     title: checked.title,
@@ -65,5 +68,6 @@ export function editorMaterialInput(
     priceCredit: checked.priceCredit,
     distributionRightsConfirmed: true,
     ...(file ? { fileId: file.fileId } : {}),
+    ...(cover ? { coverFileId: cover.fileId } : {}),
   };
 }

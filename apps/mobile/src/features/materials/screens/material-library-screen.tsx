@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { Text, View } from "react-native";
-import { useRouter } from "expo-router";
+import { Redirect, useRouter } from "expo-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { FeaturePage } from "@/components/feature-page";
 import { RefreshableFlatList } from "@/components/RefreshableFlatList";
 import { useVisibleListRows } from "@/components/use-visible-list-rows";
 import { Button } from "@/components/Button";
@@ -22,13 +21,16 @@ import { MaterialOrderCard } from "../components/material-order-card";
 import { materialStyles as styles } from "../components/material.styles";
 
 export function MaterialLibraryScreen() {
-  const runtime = useConnections();
-  return <LibraryContent key={JSON.stringify(runtime.key)} />;
+  return (
+    <Redirect
+      href={{ pathname: "/materials/mine", params: { tab: "library" } }}
+    />
+  );
 }
 function Separator() {
   return <View style={styles.separator} />;
 }
-function LibraryContent() {
+export function MaterialLibraryContent() {
   const runtime = useConnections();
   const query = useMaterialOrderPages();
   const api = useMaterialsApi();
@@ -68,12 +70,7 @@ function LibraryContent() {
     setNotice("Đã hoàn tiền theo kết quả từ hệ thống.");
   };
   return (
-    <FeaturePage
-      title="Tài liệu đã mua"
-      back="/discover"
-      backBehavior="history"
-      scrollable={false}
-    >
+    <>
       <RefreshableFlatList
         data={query.items.filter(
           (row) => filter === "ALL" || row.status === filter,
@@ -103,6 +100,9 @@ function LibraryContent() {
                 Khám phá
               </Button>
             </View>
+            <Text style={styles.caption}>
+              Tài liệu miễn phí đã tải sẽ được bổ sung sau.
+            </Text>
             <View style={[styles.row, { justifyContent: "flex-start" }]}>
               {(["ALL", "SUCCESS", "REFUNDED"] as const).map((value) => (
                 <Button
@@ -246,6 +246,6 @@ function LibraryContent() {
           </FormNotice>
         )}
       </InfoModal>
-    </FeaturePage>
+    </>
   );
 }

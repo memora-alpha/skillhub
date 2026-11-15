@@ -89,10 +89,13 @@ test("download is explicit, confirms purchased consumption, blocks duplicates, c
   try {
     delete local.cache[file];
     const { useMaterialDownload } = local(file);
+    let issued = 0;
     const render = (id = materialOwnerId) => {
       stateIndex = 0;
       refIndex = 0;
-      return useMaterialDownload(id) as {
+      return useMaterialDownload(id, () => {
+        issued++;
+      }) as {
         start: (purchased: boolean) => Promise<void>;
         confirm: () => Promise<void>;
         cancel: () => void;
@@ -113,6 +116,7 @@ test("download is explicit, confirms purchased consumption, blocks duplicates, c
     };
     let hook = render();
     assert.equal(reads, 0);
+    assert.equal(issued, 0);
     cancelled = true;
     await hook.start(true);
     assert.equal(
@@ -140,6 +144,11 @@ test("download is explicit, confirms purchased consumption, blocks duplicates, c
     hook = render();
     assert.equal(hook.complete, true);
     assert.equal(saves, 1);
+    assert.equal(
+      issued,
+      1,
+      "eligibility refresh follows server-issued access, never merely opening a picker",
+    );
     reset();
     hook = render();
     waitPick = true;
@@ -162,6 +171,7 @@ test("download is explicit, confirms purchased consumption, blocks duplicates, c
     releaseRead?.();
     await old;
     assert.equal(saves, 2, "no file save after logout/unmount");
+    assert.equal(issued, 2, "an old session cannot refresh review eligibility");
     reset();
     hook = render("invalid-id");
     const prior = picks;

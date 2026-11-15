@@ -177,8 +177,8 @@ test("editor resolves version conflicts only after fresh read and explicit choic
     assert.equal(values.title, server.title);
     assert.equal(
       values.rights,
-      false,
-      "replacing a draft requires confirming distribution rights again",
+      true,
+      "adopting the server draft restores its recorded distribution-rights confirmation",
     );
     assert.deepEqual(hook.files, []);
     assert.equal(hook.material.listingVersion, 3);

@@ -18,6 +18,7 @@ import {
   filePickerError,
   type FilePickerPhase,
 } from "@/lib/http/file-picker-error";
+import { AutomaticFileStatus } from "./automatic-file-status";
 
 function fileStatusLabel(
   state: string,
@@ -25,20 +26,25 @@ function fileStatusLabel(
   disabled: boolean,
 ) {
   if (state === "READY") return "Sẵn sàng";
+  if (state === "REJECTED" || state === "INFECTED")
+    return "Tệp không đạt kiểm tra an toàn. Hãy chọn tệp khác.";
+  if (state === "SCAN_FAILED")
+    return "Không kiểm tra được tệp. Hãy chọn tệp khác hoặc thử tải lại sau.";
   if (
     [
-      "REJECTED",
       "FAILED",
       "UPLOAD_FAILED",
-      "INFECTED",
-      "SCAN_FAILED",
       "DELETED",
       "EXPIRED",
+      "CLEANUP_PENDING",
     ].includes(state)
   )
     return "Tệp chưa hợp lệ";
   if (checkOnSubmit && !disabled) return "Kiểm tra khi gửi";
-  return "Đang kiểm tra";
+  if (state === "UPLOADING") return "Đang tải tệp lên";
+  if (state === "QUARANTINED") return "Đang chờ kiểm tra";
+  if (state === "SCANNING") return "Đang quét an toàn";
+  return "Tệp chưa sẵn sàng. Hãy chọn tệp khác.";
 }
 
 function fileLimitHint(
@@ -82,6 +88,9 @@ export function ServerFilePicker({
   onBusyChange,
   prepareAsset = (asset) => asset,
   formats,
+  autoCheck = false,
+  showHint = true,
+  pickerLabel,
   types = [
     "application/pdf",
     "application/msword",
@@ -94,7 +103,10 @@ export function ServerFilePicker({
   files: UploadedFile[];
   onChange: (files: UploadedFile[]) => void;
   upload: (body: FormData) => Promise<{ fileId: string; state: string }>;
-  status: (id: string) => Promise<{ fileId: string; state: string }>;
+  status: (
+    id: string,
+    signal?: AbortSignal,
+  ) => Promise<{ fileId: string; state: string }>;
   isCurrent: () => boolean;
   maxCount?: number;
   maxBytes?: number;
@@ -107,6 +119,9 @@ export function ServerFilePicker({
     asset: DocumentPicker.DocumentPickerAsset,
   ) => DocumentPicker.DocumentPickerAsset;
   formats?: string;
+  autoCheck?: boolean;
+  showHint?: boolean;
+  pickerLabel?: string;
   types?: string[];
 }>) {
   const lock = useRef(false);
@@ -196,79 +211,94 @@ export function ServerFilePicker({
           </Copy>
         ),
       )}
-      <Copy muted size={compact ? "hint" : "body"}>
-        {formats ? `Định dạng hỗ trợ: ${formats}.\n` : ""}
-        {fileLimitHint(compact, checkOnSubmit, maxCount, maxBytes)}
-      </Copy>
+      {showHint && (
+        <Copy muted size={compact ? "hint" : "body"}>
+          {formats ? `Định dạng hỗ trợ: ${formats}.\n` : ""}
+          {fileLimitHint(compact, checkOnSubmit, maxCount, maxBytes)}
+        </Copy>
+      )}
       {error && (
         <FormNotice compact={compact} tone="error">
           {error}
         </FormNotice>
       )}
-      <View style={allowPhotos ? styles.sources : undefined}>
-        {allowPhotos && (
+      {autoCheck && (
+        <AutomaticFileStatus
+          files={files}
+          onChange={onChange}
+          status={status}
+          isCurrent={isCurrent}
+          enabled={!disabled}
+        />
+      )}
+      {(!autoCheck || files.length < maxCount) && (
+        <View style={allowPhotos ? styles.sources : undefined}>
+          {allowPhotos && (
+            <Button
+              variant="paper"
+              leadingIcon="image"
+              style={styles.sourceButton}
+              disabled={disabled || pending || files.length >= maxCount}
+              onPress={() => {
+                void work(async () => {
+                  const result = await ImagePicker.launchImageLibraryAsync({
+                    mediaTypes: ["images"],
+                    allowsMultipleSelection: false,
+                    allowsEditing: false,
+                    preferredAssetRepresentationMode:
+                      ImagePicker.UIImagePickerPreferredAssetRepresentationMode
+                        .Compatible,
+                    quality: 1,
+                    base64: false,
+                    exif: false,
+                  });
+                  if (result.canceled || !isCurrent()) return;
+                  const selected = result.assets[0];
+                  if (!selected)
+                    throw new FileSelectionError(
+                      "Không đọc được ảnh đã chọn. Hãy chọn lại.",
+                    );
+                  const asset = photoUploadAsset(selected);
+                  if (!types.includes(asset.mimeType!))
+                    throw new FileSelectionError(
+                      "Định dạng ảnh không được hỗ trợ.",
+                    );
+                  await uploadAsset(asset);
+                });
+              }}
+            >
+              Chọn ảnh
+            </Button>
+          )}
           <Button
             variant="paper"
-            leadingIcon="image"
-            style={styles.sourceButton}
+            leadingIcon={compact ? "paperclip" : undefined}
+            style={allowPhotos ? styles.sourceButton : undefined}
             disabled={disabled || pending || files.length >= maxCount}
             onPress={() => {
               void work(async () => {
-                const result = await ImagePicker.launchImageLibraryAsync({
-                  mediaTypes: ["images"],
-                  allowsMultipleSelection: false,
-                  allowsEditing: false,
-                  preferredAssetRepresentationMode:
-                    ImagePicker.UIImagePickerPreferredAssetRepresentationMode
-                      .Compatible,
-                  quality: 1,
-                  base64: false,
-                  exif: false,
+                const result = await DocumentPicker.getDocumentAsync({
+                  type: types,
+                  multiple: false,
+                  copyToCacheDirectory: true,
                 });
                 if (result.canceled || !isCurrent()) return;
                 const selected = result.assets[0];
                 if (!selected)
                   throw new FileSelectionError(
-                    "Không đọc được ảnh đã chọn. Hãy chọn lại.",
+                    "Không đọc được tệp đã chọn. Hãy chọn lại.",
                   );
-                const asset = photoUploadAsset(selected);
-                if (!types.includes(asset.mimeType!))
-                  throw new FileSelectionError(
-                    "Định dạng ảnh không được hỗ trợ.",
-                  );
-                await uploadAsset(asset);
+                await uploadAsset(selected);
               });
             }}
           >
-            Chọn ảnh
+            {!pending && pickerLabel
+              ? pickerLabel
+              : filePickerLabel(allowPhotos, pending, compact)}
           </Button>
-        )}
-        <Button
-          variant="paper"
-          leadingIcon={compact ? "paperclip" : undefined}
-          style={allowPhotos ? styles.sourceButton : undefined}
-          disabled={disabled || pending || files.length >= maxCount}
-          onPress={() => {
-            void work(async () => {
-              const result = await DocumentPicker.getDocumentAsync({
-                type: types,
-                multiple: false,
-                copyToCacheDirectory: true,
-              });
-              if (result.canceled || !isCurrent()) return;
-              const selected = result.assets[0];
-              if (!selected)
-                throw new FileSelectionError(
-                  "Không đọc được tệp đã chọn. Hãy chọn lại.",
-                );
-              await uploadAsset(selected);
-            });
-          }}
-        >
-          {filePickerLabel(allowPhotos, pending, compact)}
-        </Button>
-      </View>
-      {!!files.length && !checkOnSubmit && (
+        </View>
+      )}
+      {!!files.length && !checkOnSubmit && !autoCheck && (
         <Button
           variant="paper"
           disabled={disabled || pending}

@@ -53,7 +53,7 @@ export function createOwnerMaterialActions(deps: {
           notice:
             action === "submit"
               ? "Đã gửi tài liệu để duyệt."
-              : "Đã lưu trữ tài liệu.",
+              : "Đã ngừng chia sẻ tài liệu.",
         });
         return result;
       } catch (error) {

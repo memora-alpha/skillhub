@@ -61,25 +61,27 @@ export function MaterialSummary({
             {ownershipStatus !== "free" && (
               <Text style={styles.priceLarge}>{materialPrice(material)}</Text>
             )}
-            <View
-              accessibilityLiveRegion="polite"
-              style={[
-                styles.ownershipBadge,
-                ownershipStatus === "purchased" && styles.purchasedBadge,
-              ]}
-            >
-              {ownershipStatus === "purchased" && (
-                <Icon name="check" size={14} color={colors.forest} />
-              )}
-              <Text
+            {ownershipStatus !== "checking" && (
+              <View
+                accessibilityLiveRegion="polite"
                 style={[
-                  styles.ownershipLabel,
-                  ownershipStatus === "purchased" && { color: colors.forest },
+                  styles.ownershipBadge,
+                  ownershipStatus === "purchased" && styles.purchasedBadge,
                 ]}
               >
-                {materialOwnershipLabels[ownershipStatus]}
-              </Text>
-            </View>
+                {ownershipStatus === "purchased" && (
+                  <Icon name="check" size={14} color={colors.forest} />
+                )}
+                <Text
+                  style={[
+                    styles.ownershipLabel,
+                    ownershipStatus === "purchased" && { color: colors.forest },
+                  ]}
+                >
+                  {materialOwnershipLabels[ownershipStatus]}
+                </Text>
+              </View>
+            )}
           </View>
           <Text style={styles.caption}>
             Cập nhật {materialDate(material.updatedAt)}
@@ -137,6 +139,13 @@ export function CatalogMaterialCard({
           <Text numberOfLines={2} style={styles.text}>
             {material.description}
           </Text>
+          {material.ratingSummary && (
+            <Text style={styles.caption}>
+              {material.ratingSummary.average === null
+                ? "Chưa có đánh giá"
+                : `${material.ratingSummary.average}/5 · ${material.ratingSummary.total} đánh giá`}
+            </Text>
+          )}
           <View style={styles.cardBottom}>
             <Text style={[styles.price, styles.accent]}>
               {materialPrice(material)}

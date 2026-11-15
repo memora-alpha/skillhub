@@ -1,4 +1,6 @@
 import { StyleSheet, Text, View } from "react-native";
+import { useEffect, useState } from "react";
+import { Image } from "expo-image";
 import { Icon } from "@/components/Icon";
 import {
   appColors as colors,
@@ -8,12 +10,42 @@ import {
 } from "@/constants/theme";
 import type { ApiMaterial } from "../api/material-contracts";
 import { materialFileType } from "../utils/owner-material-presentation";
+import { materialThumbnailUrl } from "../utils/material-thumbnail";
 
 // A format cover, not a page preview: never issue a download to create artwork.
 export function MaterialCover({
   material,
   large = false,
 }: Readonly<{ material: ApiMaterial; large?: boolean }>) {
+  const [failedUrl, setFailedUrl] = useState<string>();
+  const [now, setNow] = useState(Date.now);
+  const expiresAt =
+    material.thumbnail?.kind === "GENERATED"
+      ? material.thumbnail.expiresAt
+      : undefined;
+  useEffect(() => {
+    if (!expiresAt) return;
+    const delay = Date.parse(expiresAt) - Date.now();
+    if (delay <= 0) return;
+    const timer = setTimeout(
+      () => setNow(Date.now()),
+      Math.min(delay, 2_147_483_647),
+    );
+    return () => clearTimeout(timer);
+  }, [expiresAt]);
+  const uri = materialThumbnailUrl(material, large, Math.max(now, Date.now()));
+  if (uri && uri !== failedUrl)
+    return (
+      <Image
+        source={{ uri }}
+        style={[styles.cover, large && styles.large]}
+        contentFit="cover"
+        cachePolicy="none"
+        recyclingKey={uri}
+        accessibilityLabel={`Ảnh bìa ${material.title}`}
+        onError={() => setFailedUrl(uri)}
+      />
+    );
   const format = materialFileType(material);
   const label =
     format === "PowerPoint"
