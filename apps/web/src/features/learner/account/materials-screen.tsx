@@ -1,15 +1,16 @@
 "use client";
-import { formText } from "../components/form-data";
+import { MaterialThumbnail } from "./material-cover";
+import { SearchInput } from "@/components/search-input";
 import Link from "next/link";
 import { useState } from "react";
 import type { Skill } from "../types";
 import { useUserResource, useUserList } from "../hooks/use-user-resource";
 import { Empty, Feedback, PageHeading } from "../components/common";
-import { ProductIcon } from "../components/product-icon";
 import type { Material } from "./account-types";
 export function MaterialsScreen() {
   const skills = useUserList<Skill>("skills?limit=50");
   const [skillId, setSkillId] = useState("");
+  const [search, setSearch] = useState("");
   const [page, setPage] = useState(1),
     [q, setQ] = useState(""),
     [access, setAccess] = useState("");
@@ -40,24 +41,20 @@ export function MaterialsScreen() {
           </div>
         }
       />
-      <form
-        className="product-material-filters"
-        onSubmit={(e) => {
-          e.preventDefault();
-          setQ(formText(new FormData(e.currentTarget), "q").trim());
-          setPage(1);
-        }}
-      >
+      <div className="product-material-filters">
         <div className="learner-search">
-          <input
+          <SearchInput
             name="q"
             aria-label="Tìm tài liệu"
             placeholder="Tìm tài liệu…"
             maxLength={100}
+            value={search}
+            onChange={setSearch}
+            onSearch={(value) => {
+              setQ(value);
+              setPage(1);
+            }}
           />
-          <button type="submit" className="btn">
-            Tìm
-          </button>
         </div>
         <select
           aria-label="Kỹ năng của tài liệu"
@@ -86,7 +83,7 @@ export function MaterialsScreen() {
           <option value="FREE">Miễn phí</option>
           <option value="PAID">Có phí</option>
         </select>
-      </form>
+      </div>
       <Feedback error={skills.error} reload={skills.reload} />
       {skills.cursor && (
         <button
@@ -109,7 +106,7 @@ export function MaterialsScreen() {
         {query.data?.map((material) => (
           <article className="learner-card product-material" key={material.id}>
             <div className="product-material-cover">
-              <ProductIcon name="file" size={45} />
+              <MaterialThumbnail thumbnail={material.thumbnail} />
               <span>
                 {material.file?.mimeType.split("/").at(-1)?.toUpperCase() ??
                   "TÀI LIỆU"}

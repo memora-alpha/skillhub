@@ -8,6 +8,7 @@ import { SkillPicker } from "../components/skill-picker";
 import { UploadControl } from "../components/upload-control";
 import type { Material } from "./account-types";
 import { formText } from "../components/form-data";
+import { MaterialCoverControl, useMaterialCover } from "./material-cover";
 
 export const editableMaterial = (status: string) =>
   ["DRAFT", "REJECTED", "PENDING_REVIEW", "PUBLISHED"].includes(status);
@@ -26,6 +27,7 @@ export function MaterialEditor({
   const [access, setAccess] = useState(material.accessType);
   const [fileId, setFileId] = useState("");
   const [uploading, setUploading] = useState(false);
+  const cover = useMaterialCover();
   const file = useUserResource<{ state: string }>(
     fileId ? "me/materials/files/" + fileId : null,
   );
@@ -38,6 +40,9 @@ export function MaterialEditor({
         const form = new FormData(event.currentTarget);
         const body = {
           expectedListingVersion: material.listingVersion,
+          ...(cover.coverFileId !== undefined
+            ? { coverFileId: cover.coverFileId }
+            : {}),
           skillId,
           title: formText(form, "title").trim(),
           description: formText(form, "description").trim(),
@@ -146,6 +151,7 @@ export function MaterialEditor({
             </label>
           </>
         )}
+        <MaterialCoverControl cover={cover} disabled={disabled} existing />
       </fieldset>
       <CommandFeedback command={command} />
       {command.uncertain && (
@@ -161,6 +167,7 @@ export function MaterialEditor({
           disabled={
             disabled ||
             uploading ||
+            cover.blocked ||
             !skillId ||
             (!!fileId && file.data?.state !== "READY")
           }

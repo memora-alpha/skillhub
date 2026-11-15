@@ -19,7 +19,9 @@ import { SkillPicker } from "../components/skill-picker";
 import { UploadControl } from "../components/upload-control";
 import type { Material } from "./account-types";
 import { MaterialEditor, editableMaterial } from "./material-editor";
+import { MaterialCoverControl, useMaterialCover } from "./material-cover";
 export function MaterialShare() {
+  const cover = useMaterialCover();
   const [skillId, setSkillId] = useState(""),
     [fileId, setFileId] = useState(""),
     [access, setAccess] = useState("FREE"),
@@ -91,6 +93,9 @@ export function MaterialShare() {
                     access === "FREE" ? "0" : formText(data, "priceCredit"),
                   distributionRightsConfirmed: data.get("rights") === "on",
                   fileId,
+                  ...(cover.coverFileId
+                    ? { coverFileId: cover.coverFileId }
+                    : {}),
                 };
                 const result = await command.run(JSON.stringify(body), () =>
                   request<Material>("me/materials", { method: "POST", body }),
@@ -181,6 +186,10 @@ export function MaterialShare() {
                   </button>
                 </div>
               )}
+              <MaterialCoverControl
+                cover={cover}
+                disabled={command.pending || command.uncertain}
+              />
               <label className="product-consent">
                 <input
                   type="checkbox"
@@ -196,6 +205,7 @@ export function MaterialShare() {
                 className="btn btn-primary"
                 disabled={
                   !skillId ||
+                  cover.blocked ||
                   file.data?.state !== "READY" ||
                   command.pending ||
                   command.uncertain
@@ -246,6 +256,7 @@ export function MyMaterials() {
       <CommandFeedback command={command} />
       {command.uncertain && (
         <button
+          type="button"
           className="btn"
           onClick={async () => {
             try {
@@ -299,6 +310,7 @@ export function MyMaterials() {
               editableMaterial(material.status) && (
                 <div className="learner-actions">
                   <button
+                    type="button"
                     className="btn"
                     disabled={command.pending || command.uncertain}
                     onClick={() => {
@@ -309,6 +321,7 @@ export function MyMaterials() {
                     Sửa tài liệu
                   </button>
                   <button
+                    type="button"
                     className="btn"
                     disabled={command.pending || command.uncertain}
                     onClick={() => {
@@ -329,6 +342,7 @@ export function MyMaterials() {
                   quản lý.
                 </p>
                 <button
+                  type="button"
                   className="btn btn-primary"
                   disabled={command.pending || command.uncertain}
                   onClick={() =>
@@ -349,6 +363,7 @@ export function MyMaterials() {
                   Xác nhận lưu trữ
                 </button>{" "}
                 <button
+                  type="button"
                   className="btn"
                   disabled={command.pending}
                   onClick={() => {

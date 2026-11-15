@@ -1,4 +1,5 @@
 "use client";
+import { MaterialThumbnail } from "./material-cover";
 import Link from "next/link";
 import { useRef, useState } from "react";
 import { useUserResource } from "../hooks/use-user-resource";
@@ -12,7 +13,6 @@ import {
   PageHeading,
   Panel,
 } from "../components/common";
-import { ProductIcon } from "../components/product-icon";
 import type { Material, MaterialOrder } from "./account-types";
 import { safeDownloadUrl } from "./view-policy";
 import { materialPurchaseAccess } from "./material-access-policy";
@@ -152,7 +152,7 @@ function MaterialDetailContent({ id }: Readonly<{ id: string }>) {
           <div className="learner-two-columns">
             <Panel>
               <div className="product-file-preview">
-                <ProductIcon name="file" size={64} />
+                <MaterialThumbnail thumbnail={material.thumbnail} large />
                 <strong>
                   {material.file?.originalFilename ?? material.title}
                 </strong>
