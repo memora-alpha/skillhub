@@ -8,3 +8,4 @@ export { MaterialAccessScreen } from "./screens/material-access-screen";
 export { MaterialEditorScreen } from "./screens/owner-screens";
 export { MyMaterialsScreen } from "./screens/my-materials-screen";
 export { MaterialPurchaseScreen } from "./screens/purchase-screen";
+export { MaterialReviewScreen } from "./screens/material-review-screen";

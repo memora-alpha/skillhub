@@ -4,6 +4,9 @@ import type { InboxNotification } from "../api/notifications-api";
 // time so existing inbox entries also follow the app language. Never translate
 // user-authored reasons or replace unfamiliar content with a generic message.
 const titles: Record<string, string> = {
+  "New material review": "Có đánh giá tài liệu mới",
+  "Material review hidden": "Đánh giá tài liệu đã bị ẩn",
+  "Material review restored": "Đánh giá tài liệu đã được khôi phục",
   "Learning change updated": "Cập nhật yêu cầu hủy / dừng học",
   "Session attendance recorded": "Đã có kết quả điểm danh",
   "Absence explanation received": "Có giải trình vắng học",
@@ -31,6 +34,12 @@ const titles: Record<string, string> = {
 };
 
 const bodies: Record<string, string> = {
+  "A learner reviewed your material.":
+    "Có người học vừa đánh giá tài liệu của bạn.",
+  "Your material review was hidden after moderation.":
+    "Đánh giá tài liệu của bạn đã bị ẩn sau khi kiểm duyệt.",
+  "Your material review is visible again.":
+    "Đánh giá tài liệu của bạn đã hiển thị trở lại.",
   "A cancellation or termination request changed. Open your learning path to review it.":
     "Yêu cầu hủy buổi hoặc dừng lộ trình có thay đổi. Mở lộ trình để xem trạng thái và xử lý Credit.",
   "Attendance for your session has been determined. Check the session for next steps.":

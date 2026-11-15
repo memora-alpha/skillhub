@@ -1,5 +1,9 @@
 import { z } from "zod";
 import { timestamp, uuid, version } from "@/lib/http/contracts";
+import {
+  materialRatingSummary,
+  materialThumbnail,
+} from "./material-media-contracts";
 export const credit = z.string().regex(/^\d{1,10}(\.\d{1,2})?$/);
 export const materialText = (min: number, max: number) =>
   z
@@ -35,6 +39,8 @@ export const materialSchema = z.object({
     .nullable(),
   createdAt: timestamp,
   updatedAt: timestamp,
+  ratingSummary: materialRatingSummary.optional(),
+  thumbnail: materialThumbnail.optional(),
   scanStatus: z.string().nullable().optional(),
   moderationStatus: z.string().optional(),
   rejectReason: z.string().nullable().optional(),
@@ -61,6 +67,7 @@ export const materialInput = z
     priceCredit: credit,
     distributionRightsConfirmed: z.literal(true),
     fileId: uuid.optional(),
+    coverFileId: uuid.nullable().optional(),
   })
   .refine((v) =>
     v.accessType === "FREE"

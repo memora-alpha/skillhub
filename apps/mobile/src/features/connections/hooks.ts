@@ -24,6 +24,7 @@ import {
 type ReadOptions = {
   refreshOnFocus?: "always" | "stale";
   cancelOnDisable?: boolean;
+  freshOnMount?: boolean;
 };
 
 function useCancelDisabledRead(
@@ -101,6 +102,9 @@ export function useConnectionQuery<T>(
     enabled: runtime.enabled && valid,
     queryFn: ({ signal }) => access.read(() => read(signal), runtime.isCurrent),
     retry: false,
+    ...(options.freshOnMount
+      ? { staleTime: 0, refetchOnMount: "always" as const }
+      : {}),
   });
   useCancelDisabledRead(queryKey, valid, options.cancelOnDisable);
   useReadRefresh(

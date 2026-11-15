@@ -2,6 +2,7 @@ import { InfoModal } from "@/components/InfoModal";
 import { FormNotice } from "@/components/FormNotice";
 import type { useMaterialDownload } from "../hooks/use-material-download";
 import { materialFailure } from "../utils/material-failure";
+import { materialStyles as styles } from "./material.styles";
 
 export function MaterialDownloadFeedback({
   download,
@@ -21,6 +22,7 @@ export function MaterialDownloadFeedback({
       {download.awaitingConfirmation && (
         <InfoModal
           title="Tải tài liệu đã mua?"
+          titleStyle={styles.heading}
           onClose={download.cancel}
           confirmLabel="Xác nhận tải"
           onConfirm={() => void download.confirm()}

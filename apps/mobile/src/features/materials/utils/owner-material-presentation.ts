@@ -6,7 +6,7 @@ export const materialStatuses = {
   PUBLISHED: { label: "Đã đăng", tone: "success" },
   REJECTED: { label: "Bị từ chối", tone: "error" },
   HIDDEN: { label: "Bị ẩn", tone: "error" },
-  ARCHIVED: { label: "Đã lưu trữ", tone: "muted" },
+  ARCHIVED: { label: "Đã ngừng chia sẻ", tone: "muted" },
 } as const;
 export type MaterialStatus = ApiMaterial["status"];
 export type MaterialFilter = MaterialStatus | "ALL";

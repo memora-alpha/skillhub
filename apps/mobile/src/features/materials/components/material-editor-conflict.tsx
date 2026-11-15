@@ -26,8 +26,8 @@ export function MaterialEditorConflict({
   return (
     <View style={styles.section}>
       <FormNotice tone="warning" compact>
-        Tài liệu đã được cập nhật ở nơi khác. Nội dung bạn đang sửa vẫn được
-        giữ. Tải bản mới để đối chiếu trước khi lưu lại.
+        Phiên bản tài liệu trên máy chủ đã thay đổi. Nội dung bạn đang sửa vẫn
+        được giữ. Tải bản mới để đối chiếu trước khi lưu lại.
       </FormNotice>
       <Button
         variant="paper"

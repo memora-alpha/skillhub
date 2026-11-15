@@ -67,6 +67,7 @@ test("editor saves a file-less draft, gates upload/read-only states and validate
     calls = 0,
     uploadBusy = false;
   let keepSnapshot = false;
+  let defaults: { rights: boolean } | undefined;
   const snapshots: { current: unknown }[] = [];
   let refIndex = 0;
   const api = createMaterialsApi(async (path, options) => {
@@ -89,10 +90,13 @@ test("editor saves a file-less draft, gates upload/read-only states and validate
       ],
     },
     "react-hook-form": {
-      useForm: () => ({
-        handleSubmit: (send: (values: unknown) => Promise<unknown>) => () =>
-          send(values),
-      }),
+      useForm: (options: { defaultValues: { rights: boolean } }) => {
+        defaults = options.defaultValues;
+        return {
+          handleSubmit: (send: (values: unknown) => Promise<unknown>) => () =>
+            send(values),
+        };
+      },
     },
     "@hookform/resolvers/zod": { zodResolver: () => undefined },
     "expo-router": {
@@ -118,16 +122,33 @@ test("editor saves a file-less draft, gates upload/read-only states and validate
   try {
     delete local.cache[file];
     const { useMaterialEditor: renderEditor } = local(file);
-    const useMaterialEditor = (row?: typeof material) => {
+    const useMaterialEditor = (row?: typeof material, readBlocked = false) => {
       refIndex = 0;
-      return renderEditor(row);
+      return renderEditor(row, readBlocked);
     };
     await useMaterialEditor().save();
+    assert.equal(
+      defaults?.rights,
+      false,
+      "new uploads require a distribution-rights confirmation",
+    );
+    useMaterialEditor(material);
+    assert.equal(
+      defaults?.rights,
+      true,
+      "editing restores the confirmation recorded by BE",
+    );
+    useMaterialEditor({ ...material, distributionRightsConfirmedAt: null });
+    assert.equal(
+      defaults?.rights,
+      false,
+      "missing server confirmation is never invented",
+    );
     assert.deepEqual(sent, {
       path: "/me/materials",
       body: editorMaterialInput(values),
     });
-    assert.equal(navigation, "/materials/mine");
+    assert.equal(navigation, "/materials/mine?tab=posted");
     for (const status of ["PENDING_REVIEW", "HIDDEN", "ARCHIVED"] as const)
       assert.equal(
         useMaterialEditor({ ...material, status }).disabled,
@@ -168,6 +189,13 @@ test("editor saves a file-less draft, gates upload/read-only states and validate
       }),
     );
     uploadBusy = false;
+    const beforeRead = calls;
+    await useMaterialEditor(material, true).save();
+    assert.equal(
+      calls,
+      beforeRead,
+      "refreshing or failed owner reads block saving without dropping the form",
+    );
     keepSnapshot = true;
     useMaterialEditor(material);
     await useMaterialEditor({

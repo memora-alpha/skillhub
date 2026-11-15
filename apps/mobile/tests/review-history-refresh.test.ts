@@ -4,6 +4,7 @@ import { mock, test } from "node:test";
 import { pathToFileURL } from "node:url";
 import { QueryClient } from "@tanstack/react-query";
 import { fixtureId } from "./fixtures/learning-requests-data";
+import { AppError } from "../src/lib/http/errors";
 
 test("successful reviews refresh only the current session's histories; duplicates and late session results do not write", async () => {
   const local = createRequire(
@@ -18,6 +19,7 @@ test("successful reviews refresh only the current session's histories; duplicate
     pathId = fixtureId(3);
   let current = true;
   let posts = 0;
+  let failure: unknown;
   let complete!: (value: unknown) => void;
   const runtime = {
     userId,
@@ -27,6 +29,7 @@ test("successful reviews refresh only the current session's histories; duplicate
   const api = {
     submit: async () => {
       posts++;
+      if (failure) throw failure;
       return new Promise((resolve) => {
         complete = resolve;
       });
@@ -56,6 +59,7 @@ test("successful reviews refresh only the current session's histories; duplicate
         isFetching: false,
         denied: false,
         error: null,
+        refetch: async () => ({ isSuccess: true, data: [saved] }),
       }),
     },
   }).map(([name, namedExports]) =>
@@ -84,7 +88,17 @@ test("successful reviews refresh only the current session's histories; duplicate
       "own",
       "sent",
     ];
-    for (const key of [sent, received, otherSession])
+    const publicProfile = ["public-profile", userId, 1, counterpartId];
+    const otherProfile = ["public-profile", userId, 2, counterpartId];
+    const unrelatedProfile = ["public-profile", userId, 1, fixtureId(8)];
+    for (const key of [
+      sent,
+      received,
+      otherSession,
+      publicProfile,
+      otherProfile,
+      unrelatedProfile,
+    ])
       cache.setQueryData(key, { pages: [] });
     const hook = useReviewSubmission(pathId, counterpartId);
     const sending = hook.send({ rating: 5 });
@@ -95,10 +109,33 @@ test("successful reviews refresh only the current session's histories; duplicate
     assert.equal(cache.getQueryState(sent)?.isInvalidated, true);
     assert.equal(cache.getQueryState(received)?.isInvalidated, true);
     assert.equal(cache.getQueryState(otherSession)?.isInvalidated, false);
+    assert.equal(cache.getQueryState(publicProfile)?.isInvalidated, true);
+
+    cache.setQueryData(sent, { pages: [] });
+    cache.setQueryData(publicProfile, {});
+    failure = new AppError("http", 409, "REVIEW_ALREADY_SUBMITTED");
+    await useReviewSubmission(pathId, counterpartId).send({ rating: 5 });
+    assert.equal(cache.getQueryState(sent)?.isInvalidated, true);
+    assert.equal(cache.getQueryState(publicProfile)?.isInvalidated, true);
+    failure = undefined;
+    assert.equal(cache.getQueryState(otherProfile)?.isInvalidated, false);
+    assert.equal(cache.getQueryState(unrelatedProfile)?.isInvalidated, false);
     assert.deepEqual(
       cache.getQueryData([...runtime.key, "reviews", pathId, counterpartId]),
       [saved],
     );
+
+    cache.setQueryData(sent, { pages: [] });
+    cache.setQueryData(publicProfile, {});
+    const postsBeforeRefresh = posts;
+    await hook.refresh();
+    assert.equal(
+      posts,
+      postsBeforeRefresh,
+      "reconciliation reads without replaying a review",
+    );
+    assert.equal(cache.getQueryState(sent)?.isInvalidated, true);
+    assert.equal(cache.getQueryState(publicProfile)?.isInvalidated, true);
 
     cache.clear();
     cache.setQueryData(otherSession, { pages: [] });

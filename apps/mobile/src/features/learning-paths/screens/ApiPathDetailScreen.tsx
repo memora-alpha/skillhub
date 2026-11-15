@@ -52,6 +52,7 @@ import { CompletedAgreementReview } from "../components/completed-agreement-revi
 import { PathCancellationButton } from "../components/path-cancellation-button";
 import { PathOverviewPanel } from "../components/path-overview-panel";
 import { useRefreshLearningPath } from "../hooks/use-refresh-learning-path";
+import { PathReviewAction } from "@/features/community";
 
 function agreementBackTarget(
   source: ReturnType<typeof uuid.safeParse>,
@@ -179,11 +180,7 @@ function PathContent({
       {completed && selected === "completion" && (
         <PathSettlementPanel pathId={path.id} />
       )}
-      {settled && selected === "completion" && (
-        <Button onPress={() => router.push(`/paths/${path.id}/review`)}>
-          Xem / viết đánh giá
-        </Button>
-      )}
+      {settled && selected === "completion" && <PathReviewAction path={path} />}
       {path.lockedVersion &&
       !scheduleHasSessionLink &&
       path.plans.some((plan) => plan.sessions.length > 0) ? (

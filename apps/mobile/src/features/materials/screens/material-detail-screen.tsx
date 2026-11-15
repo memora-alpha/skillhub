@@ -20,10 +20,9 @@ import { materialStyles as styles } from "../components/material.styles";
 import { materialOwnershipStatus } from "../utils/material-ownership-presentation";
 import { useMaterialDownload } from "../hooks/use-material-download";
 import { MaterialDownloadFeedback } from "../components/material-download-feedback";
-import {
-  MaterialReviewPlaceholder,
-  RelatedMaterials,
-} from "../components/material-detail-sections";
+import { RelatedMaterials } from "../components/material-detail-sections";
+import { MaterialReviews } from "../components/material-reviews";
+import { MaterialDetailSkeleton } from "../components/material-detail-skeleton";
 
 export function MaterialDetailScreen() {
   const params = useLocalSearchParams<{ id: string }>();
@@ -40,7 +39,12 @@ function DetailContent({ id }: Readonly<{ id: string }>) {
   const [refreshing, setRefreshing] = useState(false);
   const own = material?.ownerId === runtime.userId;
   const ownership = useMaterialOwnership(id, !!material && !own);
-  const download = useMaterialDownload(id);
+  const download = useMaterialDownload(id, () => {
+    void cache.invalidateQueries({
+      queryKey: [...runtime.key, "materials", "review-eligibility", id],
+      exact: true,
+    });
+  });
   const open = own || !!ownership.data || material?.accessType === "FREE";
   const available =
     !!material &&
@@ -54,6 +58,8 @@ function DetailContent({ id }: Readonly<{ id: string }>) {
       (ownership.isFetching ||
         !!ownership.error ||
         ownership.data === undefined));
+  const checkingAccess =
+    !own && ownership.isFetching && ownership.data === undefined;
   const refresh = async () => {
     if (refreshing || query.isFetching || ownership.isFetching) return;
     setRefreshing(true);
@@ -75,6 +81,14 @@ function DetailContent({ id }: Readonly<{ id: string }>) {
               }),
             ]
           : []),
+        cache.refetchQueries({
+          queryKey: [...runtime.key, "materials", "reviews", id],
+          type: "active",
+        }),
+        cache.refetchQueries({
+          queryKey: [...runtime.key, "materials", "review-eligibility", id],
+          type: "active",
+        }),
       ]);
     } finally {
       setRefreshing(false);
@@ -115,6 +129,7 @@ function DetailContent({ id }: Readonly<{ id: string }>) {
             <Button
               variant="craft"
               leadingIcon={open ? "download" : "wallet"}
+              accessibilityState={{ busy: download.pending || checkingAccess }}
               disabled={
                 locked ||
                 !available ||
@@ -127,21 +142,20 @@ function DetailContent({ id }: Readonly<{ id: string }>) {
                 else router.push(`/materials/${id}/purchase`);
               }}
             >
-              {download.pending
-                ? "Đang tải…"
-                : open
-                  ? "Tải tài liệu"
-                  : `Mua tài liệu · ${materialPrice(material)}`}
+              {checkingAccess
+                ? "Đang kiểm tra quyền truy cập…"
+                : download.pending
+                  ? "Đang tải…"
+                  : open
+                    ? "Tải tài liệu"
+                    : `Mua tài liệu · ${materialPrice(material)}`}
             </Button>
           </View>
         ) : undefined
       }
     >
-      <ConnectionFeedback
-        loading={query.isLoading}
-        error={query.error}
-        retry={refresh}
-      />
+      <ConnectionFeedback error={query.error} retry={refresh} />
+      {query.isLoading && !material && <MaterialDetailSkeleton />}
       {!uuid.safeParse(id).success && (
         <FormNotice tone="info" compact>
           Tài liệu không khả dụng.
@@ -178,8 +192,6 @@ function DetailContent({ id }: Readonly<{ id: string }>) {
           )}
           {!own && (
             <ConnectionFeedback
-              loading={ownership.isFetching && ownership.data === undefined}
-              loadingPresentation="inline"
               error={ownership.error}
               retry={ownership.refetch}
             />
@@ -194,8 +206,10 @@ function DetailContent({ id }: Readonly<{ id: string }>) {
             </Button>
           )}
           <MaterialDownloadFeedback download={download} />
+          {material.status === "PUBLISHED" && (
+            <MaterialReviews material={material} />
+          )}
           <RelatedMaterials material={material} />
-          <MaterialReviewPlaceholder />
         </View>
       )}
     </FeaturePage>

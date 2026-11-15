@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Text, View } from "react-native";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { Avatar } from "@/components/Avatar";
 import { Button } from "@/components/Button";
 import { Input } from "@/components/Input";
@@ -15,38 +15,51 @@ import {
   useParticipantProfile,
   useCatalogName,
 } from "@/features/connections";
-import { useLearningPath } from "@/features/learning-paths";
+import {
+  useLearningPath,
+  type ApiLearningPath,
+} from "@/features/learning-paths";
 import { uuid } from "@/lib/http/contracts";
 import { AppError } from "@/lib/http/errors";
 import { useReviewSubmission } from "../hooks/use-review-submission";
 import { reviewInput } from "../api/community-api";
-import { ReviewRatingPicker } from "../components/review-stars";
+import { ReviewRatingPicker, ReviewStars } from "../components/review-stars";
 import { ReviewCard } from "../components/review-card";
-import { reviewStyles as styles } from "../components/review.styles";
+import { reviewEditorStyles as styles } from "../components/review-editor.styles";
 import { teacherReviewPlan } from "../utils/teacher-review";
+
+const back = { pathname: "/reviews", params: { tab: "write" } } as const;
+const ratingLabels = [
+  "Chạm vào sao để đánh giá",
+  "Chưa hài lòng",
+  "Cần cải thiện",
+  "Tạm ổn",
+  "Hài lòng",
+  "Rất hài lòng",
+];
 
 export function ReviewEditorScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const runtime = useConnections();
   const path = useLearningPath(id ?? "");
-  const counterpartId =
-    path.data?.participantAId === runtime.userId
-      ? path.data?.participantBId
-      : path.data?.participantAId;
-  const plan = path.data
-    ? teacherReviewPlan(path.data, runtime.userId)
-    : undefined;
+  if (uuid.safeParse(id).success && path.data)
+    return (
+      <PathReviews
+        key={`${runtime.key.join(":")}:${id}`}
+        path={path.data}
+        blocked={!!path.error || path.isFetching || path.denied}
+        pathError={path.error}
+        pathRefreshing={path.isFetching}
+        refreshPath={path.refetch}
+      />
+    );
   return (
-    <FeaturePage
-      title="Đánh giá lộ trình"
-      back={{ pathname: "/reviews", params: { tab: "write" } }}
-    >
+    <FeaturePage title="Đánh giá lộ trình" back={back} backBehavior="history">
       {!uuid.safeParse(id).success ? (
         <EmptyState
           icon="book"
           title="Lộ trình không hợp lệ"
           description="Chọn một lộ trình từ danh sách đánh giá."
-          titleStyle={styles.sectionTitle}
         />
       ) : (
         <>
@@ -60,19 +73,6 @@ export function ReviewEditorScreen() {
               Lộ trình không còn khả dụng hoặc bạn không có quyền xem.
             </FormNotice>
           )}
-          {path.data && counterpartId && (
-            <PathReviews
-              key={`${runtime.key.join(":")}:${id}`}
-              id={path.data.id}
-              counterpartId={counterpartId}
-              skillId={plan?.skillId}
-              canReviewTeacher={!!plan}
-              eligible={
-                path.data.status === "COMPLETED" && path.data.settledAt !== null
-              }
-              blocked={!!path.error}
-            />
-          )}
         </>
       )}
     </FeaturePage>
@@ -80,162 +80,258 @@ export function ReviewEditorScreen() {
 }
 
 function PathReviews({
-  id,
-  counterpartId,
-  skillId,
-  canReviewTeacher,
-  eligible,
+  path,
   blocked,
+  pathError,
+  pathRefreshing,
+  refreshPath,
 }: Readonly<{
-  id: string;
-  counterpartId: string;
-  skillId?: string;
-  canReviewTeacher: boolean;
-  eligible: boolean;
+  path: ApiLearningPath;
   blocked: boolean;
+  pathError: unknown;
+  pathRefreshing: boolean;
+  refreshPath: () => Promise<unknown>;
 }>) {
   const runtime = useConnections();
+  const router = useRouter();
+  const counterpartId =
+    path.participantAId === runtime.userId
+      ? path.participantBId
+      : path.participantAId;
+  const plan = teacherReviewPlan(path, runtime.userId);
   const profile = useParticipantProfile(counterpartId);
-  const skill = useCatalogName(skillId);
+  const skill = useCatalogName(
+    plan?.skillId ??
+      path.plans.find((row) => row.teacherId === runtime.userId)?.skillId,
+  );
   const name = profile.data?.fullName ?? "Người trao đổi";
-  const submit = useReviewSubmission(id, counterpartId);
+  const submit = useReviewSubmission(path.id, counterpartId);
   const { reviews, own } = submit;
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState("");
   const [validation, setValidation] = useState<string>();
   const busy = submit.state === "sending";
+  const checking = submit.state === "check";
   const submitted = !!own || submit.state === "submitted";
+  const eligible = path.status === "COMPLETED" && path.settledAt !== null;
   const disabled =
     blocked ||
     reviews.isFetching ||
     !!reviews.error ||
     !reviews.data ||
     reviews.denied;
+  const locked = busy || checking || disabled;
+  const canWrite = !!plan && eligible && !submitted && !reviews.denied;
+  const received =
+    reviews.data?.filter((row) => row.reviewerId !== runtime.userId) ?? [];
   const code = submit.error instanceof AppError ? submit.error.code : "";
+  const refresh = () => Promise.all([refreshPath(), submit.refresh()]);
+  const send = () => {
+    if (locked || !canWrite) return;
+    const input = reviewInput.safeParse({ rating, comment });
+    if (!input.success)
+      return setValidation("Chọn từ 1 đến 5 sao; nhận xét tối đa 1.000 ký tự.");
+    setValidation(undefined);
+    void submit.send(input.data);
+  };
   return (
-    <>
+    <FeaturePage
+      title="Đánh giá lộ trình"
+      back={back}
+      backBehavior="history"
+      keyboardDismissMode="on-drag"
+      refreshing={pathRefreshing || reviews.isFetching}
+      onRefresh={() => {
+        if (!busy) void refresh();
+      }}
+      stickyFooter={
+        canWrite ? (
+          <View style={styles.footer}>
+            <Button
+              variant="craft"
+              size="lg"
+              disabled={locked || rating === 0}
+              accessibilityState={{ busy }}
+              onPress={send}
+            >
+              {busy ? "Đang gửi…" : "Gửi đánh giá"}
+            </Button>
+            <Text style={styles.footerNote}>
+              Bạn chỉ có thể gửi một đánh giá cho lộ trình này.
+            </Text>
+          </View>
+        ) : submitted ? (
+          <View style={styles.footer}>
+            <Button
+              variant="paper"
+              size="lg"
+              onPress={() => router.dismissTo(`/paths/${path.id}`)}
+            >
+              Về lộ trình
+            </Button>
+          </View>
+        ) : undefined
+      }
+    >
+      <ConnectionFeedback error={pathError} retry={refresh} />
       <View style={styles.partner}>
         <Avatar
           name={name}
           userId={counterpartId}
           sourceUri={profile.data?.avatarUrl}
-          size={48}
+          size={52}
         />
-        <View style={styles.grow}>
-          <Text style={styles.meta}>
-            {canReviewTeacher ? "Người dạy của bạn" : "Người học"}
+        <View style={styles.identity}>
+          <Text style={styles.eyebrow}>
+            {plan ? "NGƯỜI DẠY CỦA BẠN" : "NGƯỜI HỌC"}
           </Text>
-          <Text style={styles.cardTitle}>{name}</Text>
+          <Text style={styles.name}>{name}</Text>
           {skill.data && <Text style={styles.meta}>{skill.data}</Text>}
         </View>
       </View>
-      <ConnectionFeedback loading={reviews.isLoading} error={reviews.error} />
-      {reviews.denied && (
+      <ConnectionFeedback
+        loading={reviews.isLoading}
+        error={reviews.error}
+        retry={refresh}
+      />
+      {reviews.denied ? (
         <FormNotice tone="info">
           Bạn hiện không có quyền xem đánh giá của lộ trình này.
         </FormNotice>
-      )}
-      {submitted ? (
+      ) : submitted ? (
         <View style={styles.success} accessibilityLiveRegion="polite">
-          <View style={styles.partner}>
-            <Icon name="check-circle" size={24} color={colors.forest} />
-            <Text style={styles.successTitle}>Đã gửi đánh giá</Text>
+          <View style={styles.successHeading}>
+            <Icon name="check-circle" size={22} color={colors.forest} />
+            <Text style={styles.successTitle}>Đánh giá đã gửi</Text>
           </View>
+          {own ? (
+            <>
+              <ReviewStars rating={own.rating} size={22} />
+              {!!own.comment?.trim() && (
+                <Text selectable style={styles.comment}>
+                  {own.comment}
+                </Text>
+              )}
+              <Text style={styles.meta}>
+                Cảm ơn bạn đã chia sẻ trải nghiệm.
+              </Text>
+            </>
+          ) : (
+            <>
+              <Text style={styles.meta}>
+                Bạn đã gửi đánh giá cho lộ trình này. Tải lại để xem nội dung
+                còn hiển thị.
+              </Text>
+              <Button
+                variant="paper"
+                disabled={reviews.isFetching}
+                onPress={() => void refresh()}
+              >
+                Tải lại đánh giá
+              </Button>
+            </>
+          )}
         </View>
-      ) : !canReviewTeacher ? null : !eligible ? (
+      ) : plan && !eligible ? (
         <FormNotice tone="info">
           Đánh giá sẽ mở sau khi toàn bộ lộ trình hoàn tất và được quyết toán.
         </FormNotice>
-      ) : (
-        <View style={styles.form}>
-          <ReviewRatingPicker
-            value={rating}
-            disabled={busy || disabled || submit.state === "check"}
-            onChange={(value) => {
-              setRating(value);
-              setValidation(undefined);
-            }}
-          />
+      ) : canWrite ? (
+        <>
+          <View style={styles.rating}>
+            <Text accessibilityRole="header" style={styles.heading}>
+              Trải nghiệm học của bạn thế nào?
+            </Text>
+            <ReviewRatingPicker
+              compact
+              value={rating}
+              disabled={locked}
+              onChange={(value) => {
+                setRating(value);
+                setValidation(undefined);
+              }}
+            />
+            <Text accessibilityLiveRegion="polite" style={styles.ratingHint}>
+              {ratingLabels[rating]}
+            </Text>
+          </View>
           <View style={styles.stack}>
+            <View style={styles.commentHeading}>
+              <Text style={styles.commentLabel}>Chia sẻ thêm</Text>
+              <Text style={styles.meta}>(không bắt buộc)</Text>
+            </View>
             <Input
-              label="Chia sẻ trải nghiệm (không bắt buộc)"
-              placeholder="Điều gì hữu ích? Bạn mong muốn cải thiện điều gì?"
+              label="Nhận xét về người dạy"
+              hideLabel
+              placeholder="Cách hướng dẫn, nội dung học hay điều bạn muốn cải thiện…"
               value={comment}
               onChangeText={setComment}
               multiline
               maxLength={1000}
-              editable={!busy}
+              editable={!locked}
               style={styles.input}
               fieldStyle={styles.inputField}
             />
             <Text style={styles.characterCount}>
-              {comment.length.toLocaleString("vi-VN")} / 1.000 ký tự
+              {comment.length.toLocaleString("vi-VN")} / 1.000
             </Text>
           </View>
           {validation && <FormNotice tone="error">{validation}</FormNotice>}
           {code === "REVIEW_NOT_OPEN" ? (
             <FormNotice tone="info">
-              Lộ trình chưa đủ điều kiện đánh giá. Hãy tải lại lộ trình.
+              Lộ trình chưa đủ điều kiện đánh giá. Tải lại để cập nhật trạng
+              thái.
             </FormNotice>
           ) : (
-            <ConnectionFeedback error={submit.error} />
+            !checking && <ConnectionFeedback error={submit.error} />
           )}
-          {submit.state === "check" && (
+          {checking && (
             <FormNotice tone="info">
-              Chưa rõ kết quả gửi. Chọn “Làm mới đánh giá” để kiểm tra trước khi
-              gửi tiếp.
+              Chưa xác nhận được kết quả gửi. Kiểm tra đánh giá trước khi gửi
+              lại; nội dung bạn nhập vẫn được giữ.
             </FormNotice>
           )}
-          <Button
-            variant="craft"
-            leadingIcon="send"
-            accessibilityState={{ busy }}
-            disabled={disabled || busy || submit.state === "check"}
-            onPress={() => {
-              const input = reviewInput.safeParse({ rating, comment });
-              if (!input.success)
-                return setValidation(
-                  "Chọn từ 1 đến 5 sao; nhận xét tối đa 1.000 ký tự.",
-                );
-              setValidation(undefined);
-              void submit.send(input.data);
-            }}
-          >
-            {busy ? "Đang gửi…" : "Gửi đánh giá"}
-          </Button>
+          {(checking || code === "REVIEW_NOT_OPEN") && (
+            <Button
+              variant="paper"
+              leadingIcon="refresh"
+              disabled={busy || reviews.isFetching || pathRefreshing}
+              accessibilityLabel="Làm mới đánh giá"
+              onPress={() => void refresh()}
+            >
+              {checking ? "Kiểm tra đánh giá" : "Tải lại lộ trình"}
+            </Button>
+          )}
+        </>
+      ) : null}
+      {received.length > 0 && (
+        <View>
+          <Text accessibilityRole="header" style={styles.sectionTitle}>
+            Đánh giá từ {name}
+          </Text>
+          {received.map((row) => (
+            <ReviewCard
+              key={row.id}
+              name={name}
+              userId={row.reviewerId}
+              rating={row.rating}
+              comment={row.comment}
+              createdAt={row.createdAt}
+            />
+          ))}
         </View>
       )}
-      <View style={styles.stack}>
-        <View style={styles.row}>
-          <Text accessibilityRole="header" style={styles.sectionTitle}>
-            Đánh giá trong lộ trình
-          </Text>
-          <Button
-            variant="paper"
-            size="sm"
-            leadingIcon="refresh"
-            disabled={reviews.isFetching || busy}
-            accessibilityLabel="Làm mới đánh giá"
-            onPress={() => void submit.refresh()}
-          >
-            Làm mới
-          </Button>
-        </View>
-        {reviews.data?.map((row) => (
-          <ReviewCard
-            key={row.id}
-            name={row.reviewerId === runtime.userId ? "Bạn" : name}
-            userId={row.reviewerId}
-            own={row.reviewerId === runtime.userId}
-            rating={row.rating}
-            comment={row.comment}
-            createdAt={row.createdAt}
+      {!plan &&
+        !submitted &&
+        reviews.data?.length === 0 &&
+        !reviews.error &&
+        !reviews.denied && (
+          <EmptyState
+            icon="star"
+            title="Chưa nhận được đánh giá"
+            description="Đánh giá từ người học sẽ xuất hiện tại đây."
           />
-        ))}
-        {reviews.data?.length === 0 && !reviews.error && !reviews.denied && (
-          <Text style={styles.meta}>Chưa có đánh giá.</Text>
         )}
-      </View>
-    </>
+    </FeaturePage>
   );
 }

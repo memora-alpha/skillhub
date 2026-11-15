@@ -23,5 +23,8 @@ Tham khảo cấu trúc sao cạnh nhận xét của [Airbnb](https://www.airbnb
 - [x] Bỏ shortcut “Đánh giá về tôi” bị trùng; Profile chỉ còn thẻ “Đánh giá về bạn” và nút Xem tất cả để mở danh sách.
 - [x] Đưa lối xem hồ sơ công khai vào Cài đặt chính, nhóm Tài khoản & bảo mật; không đặt liên kết trên thẻ thông tin cá nhân. Mở self public profile hiện có.
 - [x] Đưa Cài đặt vào ô cạnh Uy tín trong nhóm lối tắt Profile; bỏ action Cài đặt trên thẻ thông tin cá nhân.
+- [x] Rà lại luồng sau khi kết thúc lộ trình: shortcut phân biệt viết/xem/đã gửi theo cache review và vai trò, editor Back theo lịch sử, khóa trong lúc tải lại điều kiện, refresh đọc cả path và review.
+- [x] Thiết kế lại editor với thẻ người dạy gọn, sao không có ô nền, nhận xét tùy chọn và nút gửi cố định cuối màn; success hiển thị đúng review BE đã lưu một lần. Tham khảo [Preply](https://help.preply.com/en/articles/4182856-how-to-leave-a-public-review-to-your-tutor) và Airbnb đã dẫn ở trên, giữ theme và chính sách SkillHub.
+- [x] Đồng bộ lịch sử review và hồ sơ công khai người nhận sau POST thành công, phản hồi đã gửi trước đó hoặc GET xác nhận kết quả chưa rõ; không replay mutation. Kiểm bằng hook/adapter/cache thật với transport fixture và Node regression.
 
 Nghiệm thu Android/iOS và API triển khai chưa thực hiện. Browser fixture chỉ kiểm chứng UI với hook thay thế; không chứng minh giao dịch hoặc quyền trên server thật.

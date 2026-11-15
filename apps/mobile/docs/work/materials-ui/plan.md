@@ -10,12 +10,29 @@ Theo yêu cầu ban đầu và mở rộng: đồng bộ toàn bộ màn tài li
 - [Contract](../../contracts/materials.md), controller/service/policy/view thật được dẫn trong contract.
 - Tham khảo [Google Drive search/filter chips](https://support.google.com/drive/answer/2375114?co=GENIE.Platform%3DAndroid&hl=en), [Drive list/grid](https://support.google.com/drive/answer/2375177?co=GENIE.Platform%3DAndroid&hl=en), [Dropbox mobile preview](https://learn.dropbox.com/video-library/how-to-use-the-dropbox-mobile-app). Không lấy assets của các app này.
 - Luồng xem/mua/thư viện tham khảo [Gumroad Library](https://gumroad.com/help/article/199-how-do-i-access-my-purchase); chỉ dùng nghiệp vụ Credit/entitlement của SkillHub.
+- Phần đánh giá tham khảo [Google Play Books — Ratings and reviews](https://play.google.com/store/books/details/Atomic_Habits_An_Easy_Proven_Way_to_Build_Good_Hab?hl=en-US&id=lFhbDwAAQBAJ) và [Apple Books — Rate and Review](https://support.apple.com/en-ie/guide/books/ibks7c0a2e26/mac): điểm tổng/sao/số lượng một cụm, viết theo thao tác rõ ràng. Bố cục rút gọn là lựa chọn cho SkillHub, giữ Nunito/theme hiện hữu, không sao chép assets hoặc chính sách của app tham khảo.
 
 ## Hiện trạng trước sửa
 
 Owner list đã nối cursor/submit/archive nhưng dùng Panel và nhiều nút lớn, trạng thái raw English. BE có reviewedAt chưa parse; nullable scanStatus của draft chưa file bị schema từ chối; minePage thiếu owner check. Mobile khóa sửa/ngừng PENDING_REVIEW sai, lại cho ngừng HIDDEN. Command uncertain không có luồng đọc để mở khóa. Form bắt file mặc dù create nhận fileId optional.
 
 ## Task
+
+- [x] Rà trước commit: bỏ style placeholder/chế độ review inline cũ/state gỡ cover không còn UI và return dư; kiểm không có mock/fixture trong runtime, giữ test isolation và chạy lại checks/bundle.
+- [x] Chặn form edit khởi tạo từ owner cache cũ: fresh read trước mount, giữ draft khi refresh sau đó và khóa lưu lúc read pending/error; khôi phục quyền phân phối theo timestamp BE, không tự bật/tắt khi người dùng đang sửa, dùng thông báo version conflict trung tính.
+- [x] Giảm trễ đọc trạng thái scan ở app: đọc1s trong10s đầu,2s tới30s rồi5s; tách nhãn chờ hàng đợi/quét thực, kiểm regression phát hiện READY nhanh và giữ bounded timeout/terminal guards. Không coi tối ưu polling là rút ngắn thời gian quét BE.
+- [x] Làm gọn upload trong editor: bỏ nút kiểm tra trạng thái thường trực/note lặp/gỡ cover đã lưu; tự GET trạng thái có giới hạn thời gian, hủy theo lifecycle/session và chỉ mở lưu khi BE READY. Giữ retry chỉ đọc khi lỗi/chậm và không tự upload lại.
+- [x] Đồng bộ các tiêu đề empty/dialog của phần tài liệu sang Nunito và typography chung; bỏ fallback Fraunces ở Đã lưu, invalid review, xóa/báo cáo review và xác nhận tải.
+- [x] Đổi Tài liệu của tôi thành hub Thư viện/Đã đăng/Đã lưu; mặc định Thư viện, giữ route library cũ bằng redirect, save/back owner trở về Đã đăng và đổi archive thành Ngừng chia sẻ.
+- [x] Đưa viết/xem/sửa/xóa review vào route riêng mở từ thư viện; detail chỉ đọc nhận xét, bao gồm own review VISIBLE và không cho tự report. Giữ policy/version/idempotency/recovery.
+- [ ] Danh sách tài liệu miễn phí đã tải và lưu yêu thích: chờ BE bổ sung API; người dùng đã chọn không lưu cục bộ. Tab Đã lưu nêu chưa khả dụng, thư viện hiện chỉ có orders thật.
+- [x] Gom loading chi tiết tài liệu: skeleton chung khi mở, bỏ spinner từng section, tải nền review/đề xuất và giữ nội dung khi refresh; giữ khóa quyền mua/tải và error/retry.
+- [x] Rút gọn UI đánh giá: summary một cụm, form đóng mặc định, hàng nhận xét phẳng có avatar; bỏ nhãn/ngày/nút tải lại/banner lặp và không hiện review của mình hai lần. Giữ error/recovery, version/idempotency và xác nhận xóa.
+- [x] Kiểm tác động compact rating picker tới consumer cũ, browser nhỏ/chữ lớn và cập nhật contract/status.
+
+- [x] Đồng bộ spec016 BE: review list/summary, eligibility, tạo/sửa/xóa/báo cáo; giữ version, idempotency và recovery theo session.
+- [x] Nhận thumbnail signed có hạn, fallback khi lỗi/hết hạn; upload/thay/gỡ cover theo policy JPEG/PNG/WEBP 10MB và scanner READY.
+- [x] Kiểm regression API/upload/lifecycle, workspace checks và cập nhật contract/status theo kết quả thực tế.
 
 - [x] Đọc SRS, controller/DTO/service/policy và fetch origin/dev để đối chiếu owner API.
 - [x] Thiết kế list ảo hóa, card tệp, trạng thái Việt, search/filter cam, chi tiết và xác nhận lưu trữ, empty/error/pull refresh.

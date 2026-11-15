@@ -56,18 +56,22 @@ export function ReviewRatingPicker({
   value,
   onChange,
   disabled = false,
+  compact = false,
 }: Readonly<{
   value: number;
   onChange: (rating: number) => void;
   disabled?: boolean;
+  compact?: boolean;
 }>) {
   return (
-    <View style={styles.picker}>
-      <Text style={styles.label}>Trải nghiệm của bạn thế nào?</Text>
+    <View style={[styles.picker, compact && styles.compactPicker]}>
+      {!compact && (
+        <Text style={styles.label}>Trải nghiệm của bạn thế nào?</Text>
+      )}
       <View
         accessibilityRole="radiogroup"
         accessibilityLabel="Số sao đánh giá"
-        style={styles.choices}
+        style={[styles.choices, compact && styles.compactChoices]}
       >
         {stars.map((star) => (
           <Pressable
@@ -114,7 +118,8 @@ export function ReviewRatingPicker({
             }
             style={({ pressed }) => [
               styles.choice,
-              star <= value && styles.chosen,
+              compact && styles.compactChoice,
+              !compact && star <= value && styles.chosen,
               pressed && styles.pressed,
               disabled && styles.disabled,
             ]}
@@ -128,17 +133,28 @@ export function ReviewRatingPicker({
           </Pressable>
         ))}
       </View>
-      <Text
-        accessibilityLiveRegion="polite"
-        style={[styles.hint, value > 0 && styles.selectedHint]}
-      >
-        {labels[value] ?? labels[0]}
-      </Text>
+      {!compact && (
+        <Text
+          accessibilityLiveRegion="polite"
+          style={[styles.hint, value > 0 && styles.selectedHint]}
+        >
+          {labels[value] ?? labels[0]}
+        </Text>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  compactPicker: { alignItems: "flex-start", gap: 0, paddingVertical: 0 },
+  compactChoices: { width: "auto", gap: 4 },
+  compactChoice: {
+    flex: 0,
+    width: 44,
+    minHeight: 44,
+    borderWidth: 0,
+    backgroundColor: "transparent",
+  },
   stars: { flexDirection: "row", gap: 3, alignItems: "center" },
   fill: { position: "absolute", top: 0, left: 0, overflow: "hidden" },
   picker: { gap: 12, alignItems: "center", paddingVertical: 8 },

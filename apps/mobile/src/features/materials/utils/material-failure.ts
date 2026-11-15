@@ -1,6 +1,19 @@
 import { connectionError } from "@/features/connections";
 import { AppError } from "@/lib/http/errors";
 const messages: Readonly<Record<string, string>> = {
+  MATERIAL_REVIEW_NOT_ALLOWED:
+    "Bạn chưa đủ điều kiện đánh giá. Tải lại để xem quyền hiện tại.",
+  MATERIAL_REVIEW_VERSION_CONFLICT:
+    "Đánh giá đã thay đổi. Tải lại trước khi chỉnh sửa.",
+  MATERIAL_REVIEW_HIDDEN: "Đánh giá đang bị ẩn nên chưa thể chỉnh sửa.",
+  MATERIAL_REVIEW_NOT_FOUND:
+    "Đánh giá không còn khả dụng. Hãy tải lại danh sách.",
+  MATERIAL_REVIEW_REPORT_EXISTS:
+    "Bạn đã có báo cáo đang chờ xử lý cho đánh giá này.",
+  MATERIAL_REVIEW_SELF_REPORT_FORBIDDEN:
+    "Bạn không thể báo cáo đánh giá của mình.",
+  MATERIAL_COVER_INVALID:
+    "Ảnh bìa cần là ảnh tĩnh, ít nhất 640 × 360 px. Hãy chọn lại ảnh.",
   MATERIAL_PRICE_CHANGED:
     "Giá tài liệu đã thay đổi. Tải lại và xác nhận giá mới trước khi mua.",
   INSUFFICIENT_AVAILABLE_CREDIT:

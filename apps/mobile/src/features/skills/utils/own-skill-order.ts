@@ -17,8 +17,8 @@ export function recordCreatedSkillReads(
   }
 }
 
-// The current API orders by UUID and has no creation timestamps. Only confirmed
-// creates in this session have a known creation order; older records stay stable.
+// Current BE returns createdAt DESC/id DESC. Keep the legacy session ordering
+// only when talking to an older deployment that omits creation timestamps.
 export function ownSkillItems(
   loaded: OwnSkill[],
   created: Map<string, OwnSkill>,
@@ -32,9 +32,16 @@ export function ownSkillItems(
     if (!known || skill.version >= known.version) items.set(skill.id, skill);
   }
   const ranks = new Map([...created.keys()].map((id, index) => [id, index]));
+  const dated = [...items.values()].every(
+    (skill) => skill.createdAt !== undefined,
+  );
   return [...items.values()]
     .filter((skill) => !skill.archivedAt && !deleted.has(skill.id))
     .map((skill) => withSubmittedVerification(skill, submitted))
     .filter((skill) => matchesSkillFilter(skill, filter))
-    .sort((a, b) => (ranks.get(b.id) ?? -1) - (ranks.get(a.id) ?? -1));
+    .sort((a, b) => {
+      if (!dated) return (ranks.get(b.id) ?? -1) - (ranks.get(a.id) ?? -1);
+      const time = Date.parse(b.createdAt!) - Date.parse(a.createdAt!);
+      return time || (a.id < b.id ? 1 : Number(a.id > b.id) * -1);
+    });
 }

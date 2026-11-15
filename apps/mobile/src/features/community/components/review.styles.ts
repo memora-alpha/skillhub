@@ -80,29 +80,4 @@ export const reviewStyles = StyleSheet.create({
     borderColor: colors.border,
     backgroundColor: colors.surface,
   },
-  input: { minHeight: 128, textAlignVertical: "top", color: colors.ink },
-  inputField: {
-    borderRadius: appRadius.control,
-    borderColor: colors.border,
-    backgroundColor: colors.canvas,
-  },
-  characterCount: {
-    fontFamily: fonts.body,
-    ...typography.caption,
-    color: colors.muted,
-    textAlign: "right",
-    fontVariant: ["tabular-nums"],
-  },
-  success: {
-    padding: 18,
-    gap: 10,
-    borderRadius: appRadius.card,
-    backgroundColor: colors.forestSoft,
-  },
-  successTitle: {
-    flex: 1,
-    fontFamily: fonts.bold,
-    ...typography.heading,
-    color: colors.forest,
-  },
 });

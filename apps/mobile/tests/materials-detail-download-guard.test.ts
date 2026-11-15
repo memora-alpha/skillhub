@@ -51,7 +51,10 @@ test("detail waits for ownership even on free listings and confirms a purchased 
     },
     "../components/material-detail-sections": {
       RelatedMaterials: "RelatedMaterials",
-      MaterialReviewPlaceholder: "MaterialReviewPlaceholder",
+    },
+    "../components/material-reviews": { MaterialReviews: "MaterialReviews" },
+    "../components/material-detail-skeleton": {
+      MaterialDetailSkeleton: "MaterialDetailSkeleton",
     },
     "../hooks/use-materials": {
       useMaterial: () => ({ data: material, isFetching: false }),

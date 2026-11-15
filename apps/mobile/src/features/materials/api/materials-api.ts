@@ -1,5 +1,6 @@
 import { createMaterialCatalogApi } from "./material-catalog-api";
 import { createMaterialOrdersApi } from "./material-orders-api";
+import { createMaterialReviewsApi } from "./material-reviews-api";
 import { z } from "zod";
 import { readCursorPages } from "@/lib/http/cursor-pages";
 import type { RequestOptions } from "@/lib/http/client";
@@ -55,6 +56,7 @@ export function createMaterialsApi(
       return page;
     },
     async create(body: MaterialInput) {
+      if (body.coverFileId === null) throw new AppError("protocol");
       const row = parse(
         materialSchema,
         await post("/me/materials", parse(materialInput, body)),
@@ -106,10 +108,21 @@ export function createMaterialsApi(
         }),
       );
     },
-    async fileStatus(id: string) {
+    async uploadCover(body: FormData) {
+      return parse(
+        uploadedFileSchema,
+        await call("/me/materials/cover-files", {
+          method: "POST",
+          body,
+          multipart: true,
+          replayAfterRenewal: false,
+        }),
+      );
+    },
+    async fileStatus(id: string, signal?: AbortSignal) {
       const row = parse(
         uploadedFileSchema,
-        await call(resourcePath("me/materials/files", id)),
+        await call(resourcePath("me/materials/files", id), { signal }),
       );
       if (row.fileId !== id) throw new AppError("protocol");
       return row;
@@ -123,6 +136,7 @@ export function createMaterialsApi(
       );
     },
     ...createMaterialOrdersApi(call),
+    ...createMaterialReviewsApi(call),
     ...createMaterialCatalogApi(call, mine),
   };
 }

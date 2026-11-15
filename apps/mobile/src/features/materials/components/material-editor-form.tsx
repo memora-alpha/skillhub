@@ -18,12 +18,15 @@ import {
 import { MaterialSkillPicker } from "./material-skill-picker";
 import { MaterialFieldError } from "./material-field-error";
 import { MaterialEditorConflict } from "./material-editor-conflict";
+import { MaterialCoverEditor } from "./material-cover-editor";
 import { materialStyles as styles } from "./material.styles";
 
 export function MaterialEditorForm({
   material: initialMaterial,
-}: Readonly<{ material?: ApiMaterial }>) {
+  readBlocked = false,
+}: Readonly<{ material?: ApiMaterial; readBlocked?: boolean }>) {
   const router = useRouter();
+  const editor = useMaterialEditor(initialMaterial, readBlocked);
   const {
     api,
     material,
@@ -39,7 +42,7 @@ export function MaterialEditorForm({
     disabled,
     blocked,
     save,
-  } = useMaterialEditor(initialMaterial);
+  } = editor;
   const access = form.watch("accessType");
   return (
     <View style={styles.page}>
@@ -80,6 +83,9 @@ export function MaterialEditorForm({
       </View>
       <View style={styles.formSection}>
         <Text style={styles.sectionTitle}>Tệp đính kèm</Text>
+        <Text style={styles.meta}>
+          PDF, DOCX, XLSX hoặc PPTX · tối đa 20 MB
+        </Text>
         {!!material?.file && (
           <Text style={styles.meta}>
             Hiện tại: {material.file.originalFilename ?? "Tệp tài liệu"}
@@ -87,6 +93,8 @@ export function MaterialEditorForm({
         )}
         <ServerFilePicker
           compact
+          autoCheck
+          showHint={false}
           files={files}
           onChange={setFiles}
           upload={api.upload}
@@ -100,11 +108,6 @@ export function MaterialEditorForm({
           prepareAsset={prepareMaterialUpload}
           disabled={disabled}
         />
-        {!material?.file && !files.length && (
-          <Text style={styles.caption}>
-            Bạn có thể lưu nháp và thêm tệp sau.
-          </Text>
-        )}
       </View>
       <View style={styles.formSection}>
         <Text style={styles.sectionTitle}>Cách chia sẻ</Text>
@@ -174,6 +177,7 @@ export function MaterialEditorForm({
           )}
         />
       </View>
+      <MaterialCoverEditor editor={editor} />
       {form.formState.submitCount > 0 &&
         Object.keys(form.formState.errors).length > 0 && (
           <FormNotice tone="error" compact>
@@ -184,7 +188,9 @@ export function MaterialEditorForm({
       <MaterialEditorConflict
         recovery={recovery}
         resolveConflict={resolveConflict}
-        busy={uploadBusy || command.pending || command.uncertain}
+        busy={
+          uploadBusy || editor.coverBusy || command.pending || command.uncertain
+        }
       />
       {!!command.error &&
         !command.uncertain &&
@@ -202,7 +208,7 @@ export function MaterialEditorForm({
           </FormNotice>
           <Button
             variant="paper"
-            onPress={() => router.push("/materials/mine")}
+            onPress={() => router.push("/materials/mine?tab=posted")}
           >
             Kiểm tra tài liệu đã lưu
           </Button>
@@ -220,9 +226,6 @@ export function MaterialEditorForm({
             ? "Lưu bản nháp"
             : "Lưu thay đổi"}
       </Button>
-      <Text style={styles.caption}>
-        Lưu thông tin trước, sau đó gửi duyệt trong Tài liệu của tôi.
-      </Text>
     </View>
   );
 }

@@ -55,7 +55,7 @@ Public list/detail cũng giữ denial theo target profile, kể cả lỗi ở t
 | ------------------------------------- | ---------------------------------------------- | -------------------------------------------------------------------- |
 | SRS SK-002 material-change policy     | Service chưa reset badge theo edit             | Không tự revoke/reset client; cần policy owner                       |
 | HTTP có mô tả INACTIVE public lịch sử | Repository lọc catalog ACTIVE                  | Không ghép owner data để public lại                                  |
-| Newest-first toàn bộ dữ liệu          | Owner API UUID order, thiếu createdAt/sort     | Chỉ ưu tiên confirmed creates trong phiên; GAP-09 chưa đóng          |
+| Newest-first toàn bộ dữ liệu          | BE đã createdAt DESC/id DESC, có createdAt/cursor | Mobile giữ timestamp, merge theo cùng thứ tự; chỉ fallback session-order khi API cũ thiếu createdAt. Deployment/native chưa nghiệm thu |
 | SRS cap theo config                   | Hard ceiling và server có thể chặt hơn         | Handle413/503; không quảng cáo fixed SRS cap                         |
 | Catalog thật đã có dữ liệu            | Admin/public read từng được ghi nhận2026-10-15 | Chưa chứng minh User/mobile CRUD, scan READY/Staff decision/download |
 
