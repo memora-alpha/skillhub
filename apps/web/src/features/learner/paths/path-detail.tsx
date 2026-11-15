@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useUserResource } from "../hooks/use-user-resource";
 import { useUserSession } from "../auth/session";
@@ -57,6 +57,13 @@ export function PathDetail({ id }: Readonly<{ id: string }>) {
     command = useUserCommand(true);
   const [tab, setTab] = useState("overview");
   const [editing, setEditing] = useState(false);
+  const [focusPlan, setFocusPlan] = useState<string>();
+  useEffect(() => {
+    if (tab !== "schedule" || !focusPlan) return;
+    const target = document.getElementById("schedule-plan-" + focusPlan);
+    target?.scrollIntoView({ block: "start", behavior: "auto" });
+    target?.focus();
+  }, [tab, focusPlan]);
   const path = query.data;
   const overview = useUserResource<PathOverview>(
     "learning-paths/" + id + "/overview",
@@ -290,6 +297,10 @@ export function PathDetail({ id }: Readonly<{ id: string }>) {
             <FinalizePanel
               path={path}
               blocked={query.loading || !!query.error}
+              onEditSchedule={(planId) => {
+                setFocusPlan(planId);
+                setTab("schedule");
+              }}
             />
           )}
         </>
