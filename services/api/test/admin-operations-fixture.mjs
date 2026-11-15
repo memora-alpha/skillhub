@@ -166,7 +166,7 @@ export async function createHistoricalPath(f, participantA, participantB) {
       },
       {
         planVersion: 2,
-        status: "SCHEDULED",
+        status: "CONFIRMED",
         startAt: new Date("2026-11-12T00:00:00.000Z"),
       },
     ].map(({ planVersion, status, startAt }) =>
