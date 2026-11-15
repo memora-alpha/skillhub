@@ -65,7 +65,7 @@ if (result.status !== 0) {
   );
   const lines = output.split(/\r?\n/);
   const failureBlocks = lines.flatMap((line, index) =>
-    /^not ok/u.test(line) ? lines.slice(index, index + 30) : [],
+    /^\s*not ok/u.test(line) ? lines.slice(index, index + 30) : [],
   );
   const summary = lines.filter((line) =>
     /^# (tests|pass|fail|cancelled|skipped|duration_ms)/u.test(line),
@@ -77,7 +77,7 @@ if (result.status !== 0) {
     output
       .split(/\r?\n/)
       .filter((line) =>
-        /^# (tests|pass|fail|skipped|duration_ms|ADMIN_QUERY_PLAN)|^not ok/.test(
+        /^# (tests|pass|fail|skipped|duration_ms|ADMIN_QUERY_PLAN)|^\s*not ok/.test(
           line,
         ),
       )

@@ -1,3 +1,11 @@
+-- Cover uploads use a dedicated purpose so they cannot be attached as material
+-- content or as another user's evidence.
+ALTER TABLE "stored_files"
+  DROP CONSTRAINT "stored_files_purpose_check",
+  ADD CONSTRAINT "stored_files_purpose_check" CHECK (
+    "purpose" IN ('EVIDENCE', 'CHAT', 'REPORT', 'MATERIAL', 'MATERIAL_COVER')
+  );
+
 -- Extend durable download grants so FREE access is also recorded server-side.
 ALTER TABLE "material_download_grants"
   ADD COLUMN "material_id" UUID,
