@@ -37,7 +37,7 @@ test(
         data: {
           pathId: path.id,
           checkedAt: new Date("2026-11-13T00:00:00.000Z"),
-          outcome: "FAILED",
+          outcome: "NEEDS_REVIEW",
           errorCode: "FIXTURE_RETRY_REQUIRED",
           attemptCount: 3,
         },

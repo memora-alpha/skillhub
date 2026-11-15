@@ -55,7 +55,9 @@ if (result.status !== 0) {
     output
       .split(/\r?\n/)
       .filter((line) =>
-        /^# (tests|pass|fail|skipped|duration_ms)|^not ok/.test(line),
+        /^# (tests|pass|fail|skipped|duration_ms|ADMIN_QUERY_PLAN)|^not ok/.test(
+          line,
+        ),
       )
       .join("\n"),
   );

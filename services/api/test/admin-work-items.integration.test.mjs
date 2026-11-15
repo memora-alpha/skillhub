@@ -44,7 +44,7 @@ test(
         data: {
           pathId: path.id,
           checkedAt: times[1],
-          outcome: "FAILED",
+          outcome: "NEEDS_REVIEW",
           errorCode: "FIXTURE_SETTLEMENT_FAILURE",
           attemptCount: 2,
         },
