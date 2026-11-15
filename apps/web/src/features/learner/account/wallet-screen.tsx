@@ -1,6 +1,8 @@
 "use client";
 import { systemCodeLabel } from "@/lib/system-text";
 import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
+import { financeNumber } from "@/lib/staff/finance-presentation";
 import { useUserList, useUserResource } from "../hooks/use-user-resource";
 import {
   Empty,
@@ -29,8 +31,14 @@ const transactionNames: Record<string, string> = {
   ADJUSTMENT: "Điều chỉnh",
 };
 export function WalletScreen() {
+  const [type, setType] = useState("");
+  const [referenceType, setReferenceType] = useState("");
+  const [selected, setSelected] = useState<string>();
+  const params = new URLSearchParams({ limit: "20" });
+  if (type) params.set("type", type);
+  if (referenceType) params.set("referenceType", referenceType);
   const wallet = useUserResource<Wallet>("me/wallet"),
-    ledger = useUserList<LedgerEntry>("me/wallet/transactions?limit=20");
+    ledger = useUserList<LedgerEntry>("me/wallet/transactions?" + params);
   return (
     <>
       <PageHeading
@@ -62,7 +70,7 @@ export function WalletScreen() {
           <strong>
             {wallet.data ? wallet.data.heldCredit : "—"} <small>CR</small>
           </strong>
-          <p>Theo các thỏa thuận đang được backend giữ Credit.</p>
+          <p>Credit tạm giữ cho các thỏa thuận đang diễn ra.</p>
           <Link className="learner-card-link" href="/learn/paths">
             Xem lộ trình →
           </Link>
@@ -75,6 +83,42 @@ export function WalletScreen() {
             <h2>Lịch sử giao dịch</h2>
           </div>
           <Link href="/learn/wallet/topup">Lệnh nạp Credit</Link>
+        </div>
+        <div className="learner-actions">
+          <label>
+            <span>Loại giao dịch</span>
+            <select
+              value={type}
+              onChange={(event) => {
+                setType(event.target.value);
+                setSelected(undefined);
+              }}
+            >
+              <option value="">Tất cả giao dịch</option>
+              {Object.entries(transactionNames).map(([code, label]) => (
+                <option key={code} value={code}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>Nguồn giao dịch</span>
+            <select
+              value={referenceType}
+              onChange={(event) => {
+                setReferenceType(event.target.value);
+                setSelected(undefined);
+              }}
+            >
+              <option value="">Tất cả nguồn</option>
+              {Object.entries(referenceLabels).map(([code, label]) => (
+                <option key={code} value={code}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
         <Feedback
           loading={ledger.loading}
@@ -91,6 +135,7 @@ export function WalletScreen() {
                   <th>Thay đổi khả dụng</th>
                   <th>Thay đổi đang giữ</th>
                   <th>Trạng thái</th>
+                  <th>Chi tiết</th>
                 </tr>
               </thead>
               <tbody>
@@ -114,6 +159,15 @@ export function WalletScreen() {
                     <td>
                       <Status value={row.status} />
                     </td>
+                    <td>
+                      <button
+                        type="button"
+                        className="btn"
+                        onClick={() => setSelected(row.id)}
+                      >
+                        Xem chi tiết
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -131,6 +185,91 @@ export function WalletScreen() {
           }}
         />
       </Panel>
+      {selected && (
+        <WalletTransactionDetail
+          key={selected}
+          id={selected}
+          onClose={() => setSelected(undefined)}
+        />
+      )}
     </>
+  );
+}
+const referenceLabels: Record<string, string> = {
+  PAYMENT: "Nạp Credit",
+  LEARNING_PATH: "Lộ trình",
+  SESSION: "Buổi học",
+  REVIEW: "Đánh giá",
+  DISPUTE: "Vụ việc",
+  MATERIAL_ORDER: "Đơn tài liệu",
+  SYSTEM: "Hệ thống",
+};
+function WalletTransactionDetail({
+  id,
+  onClose,
+}: Readonly<{ id: string; onClose: () => void }>) {
+  const query = useUserResource<LedgerEntry>(`me/wallet/transactions/${id}`);
+  const panel = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    panel.current?.scrollIntoView({ block: "start" });
+    panel.current?.focus();
+  }, []);
+  const row = query.data;
+  const destinations: Record<string, string> = {
+    PAYMENT: "/learn/wallet/topup?paymentId=",
+    LEARNING_PATH: "/learn/paths/",
+    SESSION: "/learn/sessions/",
+  };
+  const target =
+    row &&
+    destinations[row.referenceType] &&
+    /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(row.referenceId)
+      ? destinations[row.referenceType] + row.referenceId
+      : undefined;
+  return (
+    <div ref={panel} tabIndex={-1}>
+      <Panel title="Chi tiết giao dịch">
+        <button type="button" className="btn" onClick={onClose}>
+          Đóng chi tiết
+        </button>
+        <Feedback
+          loading={query.loading}
+          error={query.error}
+          reload={query.reload}
+        />
+        {row && (
+          <div className="learner-stack">
+            <h3>{transactionNames[row.type] ?? "Giao dịch Credit"}</h3>
+            <p>
+              {formatTime(row.createdAt)} · <Status value={row.status} />
+            </p>
+            <p>
+              Khả dụng thay đổi:{" "}
+              <strong>{financeNumber(row.availableDelta)} CR</strong>
+            </p>
+            <p>
+              Đang giữ thay đổi:{" "}
+              <strong>{financeNumber(row.heldDelta)} CR</strong>
+            </p>
+            <p>
+              Số dư khả dụng sau giao dịch: {financeNumber(row.availableAfter)}{" "}
+              CR
+            </p>
+            <p>
+              Số dư đang giữ sau giao dịch: {financeNumber(row.heldAfter)} CR
+            </p>
+            <p>
+              Nguồn:{" "}
+              {referenceLabels[row.referenceType] ?? "Giao dịch liên quan"}
+            </p>
+            {target && <Link href={target}>Xem thông tin liên quan →</Link>}
+            <details>
+              <summary>Mã giao dịch</summary>
+              <code>{row.id}</code>
+            </details>
+          </div>
+        )}
+      </Panel>
+    </div>
   );
 }
