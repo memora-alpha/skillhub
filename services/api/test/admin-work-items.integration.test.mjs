@@ -97,12 +97,42 @@ test(
           isVisible: true,
         },
       });
-      const verification = await f.db.skillVerification.create({
-        data: {
-          sharingSkillId: sharing.id,
-          status: "PENDING",
-          submittedAt: times[5],
-        },
+      const evidenceFile = await f.readyFile(owner);
+      const verificationId = randomUUID();
+      const evidenceId = randomUUID();
+      const verification = await f.db.$transaction(async (tx) => {
+        await tx.storedFile.update({
+          where: { id: evidenceFile.id },
+          data: {
+            attachedAt: times[5],
+            resourceType: "SKILL_EVIDENCE",
+            resourceId: evidenceId,
+          },
+        });
+        const pending = await tx.skillVerification.create({
+          data: {
+            id: verificationId,
+            sharingSkillId: sharing.id,
+            status: "PENDING",
+            submittedAt: times[5],
+          },
+        });
+        await tx.skillEvidence.create({
+          data: {
+            id: evidenceId,
+            verificationId,
+            sharingSkillId: sharing.id,
+            mimeType: evidenceFile.detectedMime,
+            storageKey: evidenceFile.objectKey,
+            fileSizeBytes: BigInt(evidenceFile.sizeBytes),
+            uploadedAt: evidenceFile.createdAt,
+            approvalStatus: "PENDING",
+            scanStatus: "CLEAN",
+            checksum: evidenceFile.sha256,
+            storedFileId: evidenceFile.id,
+          },
+        });
+        return pending;
       });
       const tag = await f.db.tagCreationRequest.create({
         data: {
