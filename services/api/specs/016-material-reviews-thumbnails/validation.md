@@ -1,8 +1,8 @@
 # Validation: Material Reviews and Thumbnails
 
-**Validated**: 2026-11-14
+**Validated**: 2026-11-15
 **Baseline revision**: `5a70621d4bf5970e8c2fa8bef81b9725f58fce76` (`dev`)
-**Implementation state**: local worktree; assign the resulting commit SHA during merge/release.
+**Implementation revision**: `d10725c646f60870a016f712c2ef13a79d909fe1`
 
 ## Database and rollout
 
@@ -36,19 +36,20 @@
   `FILE_ARCHIVE_EXPANSION_LIMIT_EXCEEDED` (HTTP 413).
 - Additional focused review/download/cover PostgreSQL suites were added under
   `test/materials/`, including repurchase and concurrent signing regressions.
+- API CI run
+  [`43693089091`](https://github.com/memora-alpha/skillhub/actions/runs/43693089091)
+  passed on the implementation revision. It deployed the full migration chain to a
+  fresh disposable PostgreSQL database, then passed 444 API regressions (443 passed,
+  one intentional skip), 64 PostgreSQL/MongoDB connection tests, six
+  settlement/serialization regressions, and the release-image build.
+- The material and file integration entries are now part of the CI regression manifest,
+  so `test:materials:integration` and `test:files:integration` execute with
+  `TEST_DATABASE_URL` on every API pull-request run.
 
-## Remaining environment gate
+## Remaining release-operator gate
 
-T031 remains open because this environment has no `TEST_DATABASE_URL`. The integration
-guard exits with `TEST_DATABASE_URL is required for isolated PostgreSQL integration
-tests.` Run the following against an isolated migrated database before release:
-
-```powershell
-$env:TEST_DATABASE_URL = "postgresql://.../skillhub_test"
-pnpm test:materials:integration
-pnpm test:files:integration
-```
-
-Also rehearse migration rollback/restore in a disposable database and run a fresh Sonar
-analysis for the implementation commit. Local checks do not claim cloud Quality Gate
-closure.
+Fresh forward deployment and all isolated PostgreSQL integration suites are verified by
+the run above. Prisma migrations are forward-only, so rehearse the production
+backup/restore rollback procedure against a disposable copy before release. This
+operational rehearsal is intentionally not represented as an automated schema-down
+migration.

@@ -58,7 +58,7 @@
 
 - [x] T029 Add Swagger examples/error details and update `specs/011-learning-materials` links.
 - [x] T030 Add summary repair/preflight script and operational metrics for failed jobs.
-- [ ] T031 Run lint, typecheck, build, focused suites, and isolated PostgreSQL integration.
+- [x] T031 Run lint, typecheck, build, focused suites, and isolated PostgreSQL integration.
 - [x] T032 Write validation evidence with exact revision, migration, seed, and worker rollout.
 
 ## Dependency order

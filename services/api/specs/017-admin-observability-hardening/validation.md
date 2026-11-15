@@ -26,6 +26,11 @@
   Prisma generation, lint, typecheck, build, repository hooks/CD controls, 362 API
   regressions (361 passed, one intentional skip), 64 connection integration tests,
   six settlement/serialization regressions and the release-image build.
+- The expanded final API CI run
+  [`43693089091`](https://github.com/memora-alpha/skillhub/actions/runs/43693089091)
+  also passed at revision `d10725c6`: fresh migration deployment, lint, typecheck,
+  build, 444 API regressions (443 passed, one intentional skip), 64 connection tests,
+  six settlement/serialization regressions and the release-image build.
 - The focused PostgreSQL run emitted query-plan evidence below the 1,000 ms guard:
   admin learning-path list `0.042 ms`, payment review queue `0.048 ms`, and report-case
   queue `0.050 ms` execution time.
