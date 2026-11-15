@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { SearchInput } from "@/components/search-input";
 import { useUserList, useUserResource } from "../hooks/use-user-resource";
 import type { Skill } from "../types";
 import { Feedback, More } from "./common";
@@ -14,7 +15,11 @@ export function SkillPicker({
 }>) {
   const [search, setSearch] = useState(""),
     [term, setTerm] = useState("");
-  const [searchError, setSearchError] = useState<string>();
+  const normalized = search.trim().normalize("NFC");
+  const searchError =
+    normalized && Array.from(normalized).length < 2
+      ? "Nhập ít nhất 2 ký tự để tìm kỹ năng, hoặc để trống để xem tất cả."
+      : undefined;
   const query = useUserList<Skill>(
     "skills?limit=20" + (term ? "&q=" + encodeURIComponent(term) : ""),
   );
@@ -31,29 +36,14 @@ export function SkillPicker({
           : "Chọn một kỹ năng trong danh mục."}
       </p>
       <div className="learner-search">
-        <input
+        <SearchInput
           aria-label="Tìm kỹ năng"
           value={search}
           maxLength={100}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={setSearch}
+          onSearch={setTerm}
+          minimumLength={2}
         />
-        <button
-          className="btn"
-          type="button"
-          onClick={() => {
-            const value = search.trim().normalize("NFC");
-            if (value && Array.from(value).length < 2) {
-              setSearchError(
-                "Nhập ít nhất 2 ký tự để tìm kỹ năng, hoặc để trống để xem tất cả.",
-              );
-              return;
-            }
-            setSearchError(undefined);
-            setTerm(value);
-          }}
-        >
-          Tìm
-        </button>
       </div>
       <Feedback error={searchError} />
       <Feedback

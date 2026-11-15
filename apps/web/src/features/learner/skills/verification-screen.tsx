@@ -16,6 +16,7 @@ import {
   formatTime,
 } from "../components/common";
 import { UploadControl } from "../components/upload-control";
+import { safeDownloadUrl } from "../account/view-policy";
 type Verification = {
   id: string;
   status: string;
@@ -154,6 +155,9 @@ export function VerificationScreen({ id }: Readonly<{ id: string }>) {
                 <p key={f.id}>
                   {f.title ?? "Bằng chứng kỹ năng"} ·{" "}
                   <Status value={f.approvalStatus} />
+                  {!["REVOKED"].includes(f.approvalStatus) && (
+                    <OwnEvidenceDownload skillId={id} evidenceId={f.id} />
+                  )}
                 </p>
               ))}
               {item.rejectReason && (
@@ -175,5 +179,70 @@ export function VerificationScreen({ id }: Readonly<{ id: string }>) {
         </Panel>
       </div>
     </>
+  );
+}
+function OwnEvidenceDownload({
+  skillId,
+  evidenceId,
+}: Readonly<{ skillId: string; evidenceId: string }>) {
+  const { request } = useUserSession();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string>();
+  const [download, setDownload] = useState<{
+    url: string;
+    expiresAt: string;
+  }>();
+  return (
+    <span>
+      <button
+        type="button"
+        className="btn"
+        disabled={loading}
+        onClick={async () => {
+          setLoading(true);
+          setError(undefined);
+          setDownload(undefined);
+          try {
+            const result = await request<{ url: string; expiresAt: string }>(
+              `me/skills/${skillId}/evidence/${evidenceId}/download`,
+            );
+            if (
+              !safeDownloadUrl(result.data.url) ||
+              !Number.isFinite(Date.parse(result.data.expiresAt)) ||
+              Date.parse(result.data.expiresAt) <= Date.now()
+            )
+              throw new Error("Liên kết tải chưa sẵn sàng. Vui lòng thử lại.");
+            setDownload(result.data);
+          } catch (cause) {
+            setError(
+              cause instanceof Error
+                ? cause.message
+                : "Chưa tải được bằng chứng.",
+            );
+          } finally {
+            setLoading(false);
+          }
+        }}
+      >
+        {loading ? "Đang lấy tệp…" : "Xem bằng chứng"}
+      </button>
+      {download && (
+        <a
+          href={download.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(event) => {
+            if (Date.now() >= Date.parse(download.expiresAt)) {
+              event.preventDefault();
+              setDownload(undefined);
+              setError("Liên kết đã hết hạn. Bấm Xem bằng chứng để lấy lại.");
+            }
+          }}
+        >
+          Mở tệp ↗
+        </a>
+      )}
+      <Feedback error={error} />
+    </span>
   );
 }

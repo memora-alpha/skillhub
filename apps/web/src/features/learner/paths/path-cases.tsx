@@ -4,11 +4,12 @@ import { useUserList, useUserResource } from "../hooks/use-user-resource";
 import { Feedback, More, Status, formatTime } from "../components/common";
 import { CaseDrawer } from "../components/case-drawer";
 import { PrivateCaseThread } from "../account/private-case-thread";
+import type { CaseCapabilities } from "../account/case-capabilities";
 import { reportReasonLabel } from "../account/report-reasons";
 import { reportStatusLabel } from "../account/report-status";
 import styles from "../components/learning-layout.module.css";
 
-type CaseSummary = {
+type CaseSummary = CaseCapabilities & {
   id: string;
   status: string;
   reasonCode: string;
@@ -110,7 +111,8 @@ export function PathCases({
               )}
               <PrivateCaseThread
                 caseId={current.id}
-                closed={["RESOLVED", "REJECTED"].includes(current.status)}
+                capabilities={current}
+                onRefresh={summary.reload}
               />
             </>
           )}

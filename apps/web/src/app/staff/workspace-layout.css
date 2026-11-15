@@ -492,7 +492,7 @@
   overscroll-behavior: contain;
 }
 .ops-decision-drawer .staff-dialog {
-  padding: 28px;
+  padding: 28px 28px 0;
   min-height: 100%;
   align-content: start;
 }
@@ -523,7 +523,7 @@
 }
 .ops-decision-drawer .staff-dialog-actions {
   position: sticky;
-  bottom: -28px;
+  bottom: 0;
   margin-inline: -28px;
   padding: 18px 28px;
   margin-top: auto;
@@ -599,12 +599,17 @@
   gap: 14px;
 }
 .ops-staff-summary .avatar {
+  flex-shrink: 0;
   width: 44px;
   height: 44px;
+}
+.ops-staff-summary > div {
+  min-width: 0;
 }
 .ops-staff-summary h2 {
   margin: 0;
   font-size: 18px;
+  overflow-wrap: anywhere;
 }
 .ops-staff-summary p {
   margin: 6px 0 0;
@@ -649,8 +654,9 @@
 .ops-permission-row > div {
   min-width: 0;
 }
-.ops-permission-row code {
-  font-size: 12px;
+.ops-permission-row strong {
+  font-size: 13px;
+  font-weight: 500;
   overflow-wrap: anywhere;
 }
 .ops-permission-row p {
@@ -846,10 +852,9 @@
     flex-wrap: wrap;
   }
   .ops-decision-drawer .staff-dialog {
-    padding: 22px 18px;
+    padding: 22px 18px 0;
   }
   .ops-decision-drawer .staff-dialog-actions {
-    bottom: -22px;
     margin-inline: -18px;
     padding: 16px 18px;
   }
@@ -858,6 +863,23 @@
   }
   .ops-permission-heading {
     flex-wrap: wrap;
+  }
+  .ops-staff-summary {
+    flex-wrap: wrap;
+  }
+  .ops-staff-summary > div {
+    flex: 1 1 140px;
+  }
+  .ops-permission-row > div {
+    grid-column: 1 / -1;
+  }
+  .ops-permission-row > .muted {
+    text-align: right;
+    overflow-wrap: anywhere;
+  }
+  .ops-permission-row .btn {
+    grid-column: 1 / -1;
+    justify-self: stretch;
   }
   .staff-shell .ops-inbox .staff-notification {
     padding: 18px 14px;

@@ -1,6 +1,7 @@
 "use client";
 import { useRef, useState } from "react";
 import {
+  DataTable,
   Badge,
   Card,
   Empty,
@@ -87,22 +88,15 @@ export function CatalogScreen() {
           </div>
         }
       />
-      <form
-        className="toolbar"
-        onSubmit={(e) => {
-          e.preventDefault();
-          setSearch(q.trim());
-        }}
-      >
+      <div className="toolbar">
         <SearchBox
           label="Tìm kỹ năng"
           placeholder="Tên kỹ năng, ít nhất 2 ký tự…"
           value={q}
           onChange={setQ}
+          onSearch={setSearch}
+          minimumLength={2}
         />
-        <button type="submit" className="btn" disabled={q.trim().length === 1}>
-          Tìm kiếm
-        </button>
         <label>
           <span className="sr-only">Trạng thái kỹ năng</span>
           <select
@@ -116,7 +110,7 @@ export function CatalogScreen() {
             ))}
           </select>
         </label>
-      </form>
+      </div>
       {success && <output className="staff-success">{success}</output>}
       <Card flush>
         <QueueState
@@ -125,66 +119,61 @@ export function CatalogScreen() {
           empty={!queue.items.length}
           reload={queue.reload}
         >
-          <div className="table-wrap">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Kỹ năng</th>
-                  <th>Trạng thái</th>
-                  <th>Phiên bản</th>
-                  <th>Cập nhật</th>
-                  <th>Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                {queue.items.map((s) => (
-                  <tr key={s.id}>
-                    <td>
-                      <strong>{s.name}</strong>
-                      <p className="muted">{s.description || s.slug}</p>
-                    </td>
-                    <td>
-                      <StatusBadge status={s.status} />
-                    </td>
-                    <td>
-                      <Badge>v{s.version}</Badge>
-                    </td>
-                    <td>{fmtDateTime(s.updatedAt)}</td>
-                    <td>
-                      <div className="row">
-                        <button
-                          type="button"
-                          className="btn btn-sm"
-                          onClick={() => setLevels(s)}
-                        >
-                          Cấp độ
-                        </button>
-                        {s.status !== "ARCHIVED" && (
-                          <button
-                            type="button"
-                            className="btn btn-sm"
-                            onClick={() => edit(s)}
-                          >
-                            Sửa
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          className="btn btn-sm"
-                          onClick={() => {
-                            setRestoreStatus("ACTIVE");
-                            setTransition(s);
-                          }}
-                        >
-                          {s.status === "ARCHIVED" ? "Khôi phục" : "Ẩn"}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <DataTable
+            columns={[
+              "Kỹ năng",
+              "Trạng thái",
+              "Phiên bản",
+              "Cập nhật",
+              "Thao tác",
+            ]}
+          >
+            {queue.items.map((s) => (
+              <tr key={s.id}>
+                <td>
+                  <strong>{s.name}</strong>
+                  <p className="muted">{s.description || s.slug}</p>
+                </td>
+                <td>
+                  <StatusBadge status={s.status} />
+                </td>
+                <td>
+                  <Badge>v{s.version}</Badge>
+                </td>
+                <td>{fmtDateTime(s.updatedAt)}</td>
+                <td>
+                  <div className="row">
+                    <button
+                      type="button"
+                      className="btn btn-sm"
+                      onClick={() => setLevels(s)}
+                    >
+                      Cấp độ
+                    </button>
+                    {s.status !== "ARCHIVED" && (
+                      <button
+                        type="button"
+                        className="btn btn-sm"
+                        onClick={() => edit(s)}
+                      >
+                        Sửa
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="btn btn-sm"
+                      onClick={() => {
+                        setRestoreStatus("ACTIVE");
+                        setTransition(s);
+                      }}
+                    >
+                      {s.status === "ARCHIVED" ? "Khôi phục" : "Ẩn"}
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </DataTable>
         </QueueState>
         <div className="table-foot">{queue.items.length} kỹ năng đã tải</div>
         <Pager

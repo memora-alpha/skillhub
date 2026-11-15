@@ -16,10 +16,34 @@ import { reportReasonLabel } from "./report-reasons";
 import { reportStatusLabel } from "./report-status";
 import styles from "../components/learning-layout.module.css";
 import { PrivateCaseThread } from "./private-case-thread";
+import type { CaseCapabilities } from "./case-capabilities";
 
 export function ReportDetail({ id }: Readonly<{ id: string }>) {
   const query = useUserResource<ReportCase>("reports/mine/" + id);
   const report = query.data;
+  const summary = useUserResource<CaseCapabilities>(
+    report?.relatedPathId
+      ? `learning-paths/${report.relatedPathId}/cases/${id}/summary`
+      : null,
+  );
+  const isOpen =
+    !!report &&
+    ["OPEN", "UNDER_REVIEW", "NEED_MORE_INFO"].includes(report.status);
+  const capabilities: CaseCapabilities = summary.data ?? {
+    hasHandler: !!report?.handlerId,
+    canSendMessage: !report?.relatedPathId && isOpen && !!report?.handlerId,
+    messageBlockedReason: isOpen
+      ? "CASE_HANDLER_REQUIRED"
+      : "REPORT_CASE_CLOSED",
+    canAttachEvidence:
+      !report?.relatedPathId &&
+      isOpen &&
+      (report?.reportEvidenceCaseIdRecords.length ?? 0) < 5,
+    evidenceBlockedReason: isOpen
+      ? "CASE_EVIDENCE_LIMIT"
+      : "REPORT_CASE_CLOSED",
+    ownEvidenceCount: report?.reportEvidenceCaseIdRecords.length ?? 0,
+  };
   return (
     <>
       <Back href="/learn/reports" />
@@ -86,10 +110,23 @@ export function ReportDetail({ id }: Readonly<{ id: string }>) {
           </div>
           <div className="learner-stack">
             <Panel title="Trao đổi riêng với hỗ trợ">
-              <PrivateCaseThread
-                caseId={id}
-                closed={["RESOLVED", "REJECTED"].includes(report.status)}
-              />
+              {report.relatedPathId && (
+                <Feedback
+                  loading={summary.loading}
+                  error={summary.error}
+                  reload={summary.reload}
+                />
+              )}
+              {(!report.relatedPathId || summary.data) && (
+                <PrivateCaseThread
+                  caseId={id}
+                  capabilities={capabilities}
+                  onRefresh={() => {
+                    query.reload();
+                    summary.reload();
+                  }}
+                />
+              )}
             </Panel>
             <Panel title="Bằng chứng đã gửi">
               {report.reportEvidenceCaseIdRecords.map((file) => (

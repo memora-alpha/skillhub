@@ -9,6 +9,7 @@ import {
   PageHeading,
   Panel,
   Status,
+  formatTime,
 } from "../components/common";
 import { ProfileName } from "../components/profile-name";
 import { PathProgress, type PathOverview } from "./path-overview";
@@ -33,14 +34,28 @@ export function PathsScreen() {
               label={learningStageLabel(path.learningStage)}
             />
             <h2>
-              Học cùng <ProfileName id={path.counterpartId} />
+              {path.title?.trim() || (
+                <>
+                  Học cùng <ProfileName id={path.counterpartId} />
+                </>
+              )}
             </h2>
+            {path.title?.trim() && (
+              <p>
+                Học cùng <ProfileName id={path.counterpartId} />
+              </p>
+            )}
             <p>
               {exchangeLabels[path.exchangeType ?? ""] ??
                 "Đang thống nhất hình thức"}
             </p>
             {path.progress && (
               <PathProgress overview={path as PathSummary & PathOverview} />
+            )}
+            {(path.lastActivityAt || path.updatedAt) && (
+              <p className="muted">
+                Cập nhật {formatTime((path.lastActivityAt || path.updatedAt)!)}
+              </p>
             )}
             <Link className="btn btn-primary" href={"/learn/paths/" + path.id}>
               {pathActionLabel(path.learningStage, path.attentionCount)}

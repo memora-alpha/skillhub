@@ -18,10 +18,16 @@ import {
   type FinalizeIntent,
 } from "./finalize-recovery";
 import { PathAgreementSummary } from "./agreement-summary";
+import { InvalidScheduleNotice } from "./invalid-schedule";
 export function FinalizePanel({
   path,
   blocked,
-}: Readonly<{ path: LearningPath; blocked: boolean }>) {
+  onEditSchedule,
+}: Readonly<{
+  path: LearningPath;
+  blocked: boolean;
+  onEditSchedule: (planId: string) => void;
+}>) {
   const { actor, request, refresh } = useUserSession();
   const storageKey =
     "skillhub-user-draft:" + actor.userId + ":finalize:" + path.id;
@@ -229,6 +235,7 @@ export function FinalizePanel({
         </button>
       )}
       <CommandFeedback command={command} />
+      <InvalidScheduleNotice error={command.failure} onEdit={onEditSchedule} />
       <Feedback error={checkError} />
       {notice && (
         <p className="learner-notice">

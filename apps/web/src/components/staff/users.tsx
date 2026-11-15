@@ -11,6 +11,12 @@ import {
 } from "@/components/console/ui";
 import { fmtDateTime } from "@/lib/console/format";
 import type { AdminUser } from "@/lib/staff/admin-types";
+import {
+  filterLoadedUsers,
+  userCreatedDateError,
+  userRoles,
+  userStatuses,
+} from "@/lib/staff/user-list-filters";
 import { useStaffList } from "./hooks";
 import { useStaffSession } from "./session";
 import { Pager, QueueState } from "./common";
@@ -28,6 +34,8 @@ export function UsersScreen({
   const [status, setStatus] = useState("");
   const [role, setRole] = useState("");
   const [q, setQ] = useState("");
+  const [createdFrom, setCreatedFrom] = useState("");
+  const [createdTo, setCreatedTo] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(
     initialUserId ?? null,
   );
@@ -39,11 +47,9 @@ export function UsersScreen({
   if (role) params.set("role", role);
   const queue = useStaffList<AdminUser>(`users?${params}`);
   const selected = queue.items.find((u) => u.userId === selectedId);
-  const rows = queue.items.filter((u) =>
-    `${u.fullName} ${u.maskedEmail} ${u.userId}`
-      .toLocaleLowerCase("vi")
-      .includes(q.trim().toLocaleLowerCase("vi")),
-  );
+  const dateError = userCreatedDateError(createdFrom, createdTo);
+  const rows = filterLoadedUsers(queue.items, q, createdFrom, createdTo);
+  const hasFilters = Boolean(q || role || status || createdFrom || createdTo);
   const reset = () => {
     setSelectedId(null);
     setInitialAction(undefined);
@@ -70,7 +76,7 @@ export function UsersScreen({
                   setCreating(true);
                 }}
               >
-                Tạo tài khoản Staff
+                Tạo tài khoản nhân viên
               </button>
             )}
             <button
@@ -84,54 +90,115 @@ export function UsersScreen({
           </div>
         }
       />
-      <div className="toolbar">
-        <SearchBox
-          label="Tìm trong người dùng đã tải"
-          placeholder="Tên, email đã che hoặc mã…"
-          value={q}
-          onChange={setQ}
-        />
-        <label>
-          <span className="sr-only">Vai trò</span>
-          <select
-            className="select"
-            value={role}
-            onChange={(e) => {
-              reset();
-              setRole(e.target.value);
-            }}
+      <section className="user-list-filters" aria-label="Lọc người dùng">
+        <div className="toolbar user-list-main-filters">
+          <SearchBox
+            label="Tìm trong người dùng đã tải"
+            placeholder="Tên, email đã che hoặc mã…"
+            value={q}
+            onChange={setQ}
+          />
+          <label>
+            <span>Vai trò</span>
+            <select
+              className="select"
+              value={role}
+              onChange={(e) => {
+                reset();
+                setRole(e.target.value);
+              }}
+            >
+              <option value="">Mọi vai trò</option>
+              {userRoles.map((r) => (
+                <option key={r.value} value={r.value}>
+                  {r.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>Trạng thái</span>
+            <select
+              className="select"
+              value={status}
+              onChange={(e) => {
+                reset();
+                setStatus(e.target.value);
+              }}
+            >
+              <option value="">Mọi trạng thái</option>
+              {userStatuses.map((s) => (
+                <option key={s.value} value={s.value}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <div className="user-list-date-row">
+          <fieldset
+            className="user-list-date-range"
+            aria-describedby="user-filter-scope"
           >
-            <option value="">Mọi vai trò</option>
-            {["USER", "STAFF", "ADMIN"].map((r) => (
-              <option key={r}>{r}</option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span className="sr-only">Trạng thái</span>
-          <select
-            className="select"
-            value={status}
-            onChange={(e) => {
-              reset();
-              setStatus(e.target.value);
-            }}
-          >
-            <option value="">Mọi trạng thái</option>
-            {[
-              "ACTIVE",
-              "LOCKED",
-              "PENDING_VERIFICATION",
-              "SUSPENDED",
-              "DEACTIVATED",
-            ].map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
+            <legend>Ngày tạo tài khoản · GMT+7</legend>
+            <label>
+              <span>Từ ngày</span>
+              <input
+                className="input"
+                type="date"
+                value={createdFrom}
+                max={createdTo || undefined}
+                aria-invalid={!!dateError}
+                aria-describedby={dateError ? "user-date-error" : undefined}
+                onChange={(event) => {
+                  reset();
+                  setCreatedFrom(event.target.value);
+                }}
+              />
+            </label>
+            <label>
+              <span>Đến ngày</span>
+              <input
+                className="input"
+                type="date"
+                value={createdTo}
+                min={createdFrom || undefined}
+                aria-invalid={!!dateError}
+                aria-describedby={dateError ? "user-date-error" : undefined}
+                onChange={(event) => {
+                  reset();
+                  setCreatedTo(event.target.value);
+                }}
+              />
+            </label>
+          </fieldset>
+          {hasFilters && (
+            <button
+              type="button"
+              className="btn"
+              onClick={() => {
+                reset();
+                setQ("");
+                setRole("");
+                setStatus("");
+                setCreatedFrom("");
+                setCreatedTo("");
+              }}
+            >
+              Bỏ bộ lọc
+            </button>
+          )}
+        </div>
+        <p className="user-filter-scope" id="user-filter-scope">
+          Tìm kiếm và ngày tạo áp dụng cho các trang đã tải. Vai trò và trạng
+          thái lọc toàn bộ danh sách.
+        </p>
+        {dateError && (
+          <p className="staff-error" id="user-date-error" role="alert">
+            {dateError}
+          </p>
+        )}
+      </section>
       {success && <output className="staff-success">{success}</output>}
       <Card flush>
         <QueueState
@@ -141,7 +208,19 @@ export function UsersScreen({
           reload={queue.reload}
         >
           {!rows.length ? (
-            <Empty title="Không có kết quả trong danh sách đã tải" />
+            <Empty
+              title={
+                dateError
+                  ? "Chọn lại khoảng ngày"
+                  : "Không có kết quả trong danh sách đã tải"
+              }
+              desc={
+                dateError ||
+                (queue.page?.hasMore
+                  ? "Thử đổi bộ lọc hoặc tải thêm người dùng bên dưới."
+                  : "Thử đổi bộ lọc để xem người dùng khác.")
+              }
+            />
           ) : (
             <div className="table-wrap">
               <table className="table">
@@ -195,10 +274,10 @@ export function UsersScreen({
                             disabled={u.roles.includes("ADMIN")}
                             title={
                               u.roles.includes("ADMIN")
-                                ? "Không thể thay đổi quyền Staff của Admin"
+                                ? "Không thể thay đổi quyền nhân viên của quản trị viên"
                                 : undefined
                             }
-                            aria-label={`${u.roles.includes("STAFF") ? "Gỡ" : "Cấp"} quyền Staff cho ${u.fullName || u.maskedEmail}`}
+                            aria-label={`${u.roles.includes("STAFF") ? "Gỡ" : "Cấp"} quyền nhân viên cho ${u.fullName || u.maskedEmail}`}
                             onClick={() => {
                               setSelectedId(u.userId);
                               setInitialAction(
@@ -209,8 +288,8 @@ export function UsersScreen({
                           >
                             <Icon name="shield" size={16} />{" "}
                             {u.roles.includes("STAFF")
-                              ? "Gỡ quyền Staff"
-                              : "Cấp quyền Staff"}
+                              ? "Gỡ quyền nhân viên"
+                              : "Cấp quyền nhân viên"}
                           </button>
                           {["ACTIVE", "LOCKED"].includes(u.accountStatus) && (
                             <button
@@ -270,8 +349,9 @@ export function UsersScreen({
           )}
         </QueueState>
         <div className="table-foot">
-          {queue.items.length} người dùng đã tải · Tìm kiếm trong các trang đã
-          tải
+          {dateError
+            ? "Khoảng ngày chưa hợp lệ"
+            : `${rows.length} kết quả trong ${queue.items.length} người dùng đã tải`}
         </div>
         <Pager
           loading={queue.loading}
@@ -299,7 +379,7 @@ export function UsersScreen({
           onCreated={() => {
             setCreating(false);
             setSuccess(
-              "Đã tạo tài khoản Staff. Nhân viên có thể đăng nhập ngay.",
+              "Đã tạo tài khoản nhân viên. Nhân viên có thể đăng nhập ngay.",
             );
             void reload();
           }}
@@ -308,6 +388,8 @@ export function UsersScreen({
             setRole("");
             setStatus("");
             setQ("");
+            setCreatedFrom("");
+            setCreatedTo("");
             void reload();
           }}
         />

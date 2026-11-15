@@ -43,152 +43,159 @@ export function PlanPanel({
     ? "Đóng đề nghị lịch"
     : proposeScheduleLabel;
   return (
-    <Panel title={teacher ? "Kế hoạch bạn hướng dẫn" : "Kế hoạch bạn học"}>
-      <Status value={plan.status} />
-      {mode === "plan" && (
-        <>
-          <h3>{plan.learningGoal}</h3>
-          <ol>
-            {plan.sessionOutline.map((item) => (
-              <li key={item.sessionNo} className="learner-prose">
-                <strong>Buổi {item.sessionNo}</strong>
-                <span>{item.content}</span>
-              </li>
-            ))}
-          </ol>
-          <p>{plan.totalSessions} buổi</p>
-          {editable && !teacher && !plan.learnerConfirmedAt && (
-            <button
-              type="button"
-              className="btn btn-primary"
-              disabled={command.pending || command.uncertain}
-              onClick={() => {
-                void command.run("plan:" + plan.id + ":" + plan.version, () =>
-                  request("learning-paths/plans/" + plan.id + "/confirm", {
-                    method: "POST",
-                    body: { expectedVersion: plan.version },
-                  }),
-                );
-              }}
-            >
-              Xác nhận kế hoạch
-            </button>
-          )}
-          {editable && teacher && (
-            <button
-              type="button"
-              className="btn"
-              onClick={() => setEdit(!edit)}
-            >
-              {edit ? "Đóng chỉnh sửa" : "Chỉnh sửa kế hoạch"}
-            </button>
-          )}
-          {edit && editable && teacher && (
-            <PlanEditor
-              key={plan.version}
-              path={path}
-              plan={plan}
-              onSaved={() => setEdit(false)}
-            />
-          )}
-        </>
-      )}
-      {mode === "schedule" && (
-        <>
-          <h3>{plan.learningGoal}</h3>
-          {!plan.sessions.length && <h3>Lịch dự kiến</h3>}
-          {!plan.sessions.length &&
-            (plan.schedule ? (
-              <>
-                <Status value={plan.schedule.status} />
-                <ul>
-                  {plan.schedule.items.map((item) => (
-                    <li key={item.sessionNo}>
-                      Buổi {item.sessionNo}: {formatTime(item.startAt)} –{" "}
-                      {formatTime(item.endAt)}
-                    </li>
-                  ))}
-                </ul>
-                {editable && plan.schedule.appliedVersion === null && (
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    disabled={
-                      !!ownScheduleConfirmed ||
-                      command.pending ||
-                      command.uncertain
-                    }
-                    onClick={() => {
-                      void command.run(
-                        "schedule:" +
-                          plan.schedule!.id +
-                          ":" +
-                          plan.schedule!.version,
-                        () =>
-                          request(
-                            "schedule-proposals/" +
-                              plan.schedule!.id +
-                              "/confirm",
-                            {
-                              method: "POST",
-                              body: { expectedVersion: plan.schedule!.version },
-                            },
-                          ),
-                      );
-                    }}
-                  >
-                    {ownScheduleConfirmed
-                      ? "Đã xác nhận lịch"
-                      : "Xác nhận lịch"}
-                  </button>
-                )}
-              </>
-            ) : (
-              <p className="muted">Xác nhận kế hoạch để xếp lịch.</p>
-            ))}
-          {editable &&
-            teacher &&
-            path.status === "CONFIRMED" &&
-            plan.learnerConfirmedAt && (
+    <div
+      id={mode === "schedule" ? "schedule-plan-" + plan.id : undefined}
+      tabIndex={-1}
+    >
+      <Panel title={teacher ? "Kế hoạch bạn hướng dẫn" : "Kế hoạch bạn học"}>
+        <Status value={plan.status} />
+        {mode === "plan" && (
+          <>
+            <h3>{plan.learningGoal}</h3>
+            <ol>
+              {plan.sessionOutline.map((item) => (
+                <li key={item.sessionNo} className="learner-prose">
+                  <strong>Buổi {item.sessionNo}</strong>
+                  <span>{item.content}</span>
+                </li>
+              ))}
+            </ol>
+            <p>{plan.totalSessions} buổi</p>
+            {editable && !teacher && !plan.learnerConfirmedAt && (
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={command.pending || command.uncertain}
+                onClick={() => {
+                  void command.run("plan:" + plan.id + ":" + plan.version, () =>
+                    request("learning-paths/plans/" + plan.id + "/confirm", {
+                      method: "POST",
+                      body: { expectedVersion: plan.version },
+                    }),
+                  );
+                }}
+              >
+                Xác nhận kế hoạch
+              </button>
+            )}
+            {editable && teacher && (
               <button
                 type="button"
                 className="btn"
-                onClick={() => setEditSchedule(!editSchedule)}
+                onClick={() => setEdit(!edit)}
               >
-                {scheduleLabel}
+                {edit ? "Đóng chỉnh sửa" : "Chỉnh sửa kế hoạch"}
               </button>
             )}
-          {editSchedule && editable && teacher && (
-            <ScheduleEditor
-              key={plan.schedule?.version ?? "new"}
-              plan={plan}
-              onSaved={() => setEditSchedule(false)}
-            />
-          )}
-          {!!plan.sessions.length && (
-            <>
-              <h3>Buổi học đã chốt</h3>
-              <div className="learner-stack">
-                {plan.sessions.map((session) => (
-                  <div key={session.id}>
-                    <Status value={session.status} />
-                    <p>
-                      Buổi {session.sessionNo} · {formatTime(session.startAt)}
-                    </p>
-                    <Link
+            {edit && editable && teacher && (
+              <PlanEditor
+                key={plan.version}
+                path={path}
+                plan={plan}
+                onSaved={() => setEdit(false)}
+              />
+            )}
+          </>
+        )}
+        {mode === "schedule" && (
+          <>
+            <h3>{plan.learningGoal}</h3>
+            {!plan.sessions.length && <h3>Lịch dự kiến</h3>}
+            {!plan.sessions.length &&
+              (plan.schedule ? (
+                <>
+                  <Status value={plan.schedule.status} />
+                  <ul>
+                    {plan.schedule.items.map((item) => (
+                      <li key={item.sessionNo}>
+                        Buổi {item.sessionNo}: {formatTime(item.startAt)} –{" "}
+                        {formatTime(item.endAt)}
+                      </li>
+                    ))}
+                  </ul>
+                  {editable && plan.schedule.appliedVersion === null && (
+                    <button
+                      type="button"
                       className="btn btn-primary"
-                      href={"/learn/sessions/" + session.id}
+                      disabled={
+                        !!ownScheduleConfirmed ||
+                        command.pending ||
+                        command.uncertain
+                      }
+                      onClick={() => {
+                        void command.run(
+                          "schedule:" +
+                            plan.schedule!.id +
+                            ":" +
+                            plan.schedule!.version,
+                          () =>
+                            request(
+                              "schedule-proposals/" +
+                                plan.schedule!.id +
+                                "/confirm",
+                              {
+                                method: "POST",
+                                body: {
+                                  expectedVersion: plan.schedule!.version,
+                                },
+                              },
+                            ),
+                        );
+                      }}
                     >
-                      Chi tiết / vào học
-                    </Link>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-        </>
-      )}
-      <CommandFeedback command={command} />
-    </Panel>
+                      {ownScheduleConfirmed
+                        ? "Đã xác nhận lịch"
+                        : "Xác nhận lịch"}
+                    </button>
+                  )}
+                </>
+              ) : (
+                <p className="muted">Xác nhận kế hoạch để xếp lịch.</p>
+              ))}
+            {editable &&
+              teacher &&
+              path.status === "CONFIRMED" &&
+              plan.learnerConfirmedAt && (
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => setEditSchedule(!editSchedule)}
+                >
+                  {scheduleLabel}
+                </button>
+              )}
+            {editSchedule && editable && teacher && (
+              <ScheduleEditor
+                key={plan.schedule?.version ?? "new"}
+                plan={plan}
+                onSaved={() => setEditSchedule(false)}
+              />
+            )}
+            {!!plan.sessions.length && (
+              <>
+                <h3>Buổi học đã chốt</h3>
+                <div className="learner-stack">
+                  {plan.sessions.map((session) => (
+                    <div key={session.id}>
+                      <Status value={session.status} />
+                      <p>
+                        Buổi {session.sessionNo} · {formatTime(session.startAt)}
+                      </p>
+                      <Link
+                        className="btn btn-primary"
+                        href={"/learn/sessions/" + session.id}
+                      >
+                        Chi tiết / vào học
+                      </Link>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </>
+        )}
+        <CommandFeedback command={command} />
+      </Panel>
+    </div>
   );
 }

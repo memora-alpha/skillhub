@@ -10,7 +10,7 @@ import { useUserResource } from "../hooks/use-user-resource";
 import { ProductIcon } from "./product-icon";
 import { NotificationBell } from "./notification-bell";
 import { LearnerAccountMenu } from "./learner-account-menu";
-import { formText } from "./form-data";
+import { SearchInput } from "@/components/search-input";
 function queryAffected(
   query: Query,
   userId: string,
@@ -42,6 +42,7 @@ export function LearnerShell({
     pathname = usePathname(),
     router = useRouter();
   const cache = useQueryClient();
+  const [search, setSearch] = useState("");
   const identity = useUserResource<{
     profile: { fullName: string; avatarUrl: string | null };
   }>("me");
@@ -217,25 +218,29 @@ export function LearnerShell({
           >
             <ProductIcon name="menu" />
           </button>
-          <form
-            className="global-search"
-            onSubmit={(e) => {
-              e.preventDefault();
-              const term = formText(new FormData(e.currentTarget), "q").trim();
-              router.push("/learn/explore?q=" + encodeURIComponent(term));
-            }}
-          >
+          <div className="global-search">
             <ProductIcon name="search" />
-            <input
+            <SearchInput
               name="q"
               aria-label="Tìm nhu cầu học"
               placeholder="Tìm kỹ năng bạn quan tâm…"
               maxLength={120}
+              value={search}
+              onChange={setSearch}
+              onSearch={(term) => {
+                // Ignore typing superseded by navigation to a different page.
+                if (
+                  window.location.pathname !== pathname &&
+                  window.location.pathname !== "/learn/explore"
+                )
+                  return;
+                const href = "/learn/explore?q=" + encodeURIComponent(term);
+                if (window.location.pathname === "/learn/explore")
+                  router.replace(href, { scroll: false });
+                else router.push(href, { scroll: false });
+              }}
             />
-            <button type="submit" aria-label="Tìm kiếm">
-              <ProductIcon name="arrow" size={16} />
-            </button>
-          </form>
+          </div>
           <Link
             className="header-wallet"
             href="/learn/wallet"

@@ -9,6 +9,10 @@ import {
   StatusBadge,
 } from "@/components/console/ui";
 import { PasswordInput } from "@/components/password-input";
+import {
+  canDescribeStaffPermission,
+  staffPermissionPresentation,
+} from "@/lib/staff/permission-presentation";
 import { useStaffList, useStaffResource } from "./hooks";
 import { useStaffSession } from "./session";
 import { DecisionDialog, Pager, QueueState } from "./common";
@@ -41,7 +45,7 @@ export function StaffPermissionsScreen({
     <section className="ops-permissions">
       <PageHeader
         title="Quyền nhân viên"
-        desc="Xem quyền hiệu lực và điều chỉnh quyền cho từng tài khoản Staff."
+        desc="Xem quyền đang áp dụng và điều chỉnh quyền cho từng nhân viên."
       />
       <div className="ops-permission-layout">
         <Card className="ops-staff-picker" title="Nhân viên">
@@ -124,14 +128,14 @@ function PermissionEditor({
         <div>
           <h2>{staff?.fullName ?? "Nhân viên đang chọn"}</h2>
           <p className="muted">
-            {staff?.maskedEmail ?? `#${userId.slice(0, 8)}`} · Staff
+            {staff?.maskedEmail ?? `#${userId.slice(0, 8)}`} · Nhân viên
           </p>
         </div>
         {staff?.accountStatus && <StatusBadge status={staff.accountStatus} />}
       </div>
       <p className="staff-flag">
         Thay đổi quyền sẽ thu hồi các phiên hiện tại của nhân viên. Mỗi thay đổi
-        cần xác thực lại bằng mật khẩu Admin.
+        cần xác thực lại bằng mật khẩu quản trị viên.
       </p>
       <QueueState
         loading={permissions.loading || catalog.loading}
@@ -146,7 +150,7 @@ function PermissionEditor({
           <>
             <div className="ops-permission-heading">
               <div>
-                <h3>Quyền hiệu lực</h3>
+                <h3>Quyền đang áp dụng</h3>
                 <p className="muted">Theo vai trò và tùy chỉnh hiện tại.</p>
               </div>
               <button
@@ -157,7 +161,7 @@ function PermissionEditor({
                   void permissions.reload();
                 }}
               >
-                Cập nhật quyền
+                Làm mới danh sách quyền
               </button>
             </div>
             <ul
@@ -165,6 +169,7 @@ function PermissionEditor({
               aria-label="Danh mục quyền nhân viên"
             >
               {catalog.data.map((permission) => {
+                const text = staffPermissionPresentation(permission.code);
                 const override = permissions.data!.overrides.find(
                   (row) => row.code === permission.code,
                 );
@@ -183,8 +188,8 @@ function PermissionEditor({
                 return (
                   <li className="ops-permission-row" key={permission.code}>
                     <div>
-                      <code>{permission.code}</code>
-                      <p>{permission.description || "Quyền nghiệp vụ"}</p>
+                      <strong>{text.label}</strong>
+                      <p>{text.description}</p>
                     </div>
                     <Badge tone={allowed ? "ok" : "neutral"}>
                       {allowed ? "Được phép" : "Không được phép"}
@@ -193,7 +198,16 @@ function PermissionEditor({
                     <button
                       type="button"
                       className="btn btn-sm"
-                      disabled={permissions.loading}
+                      disabled={
+                        permissions.loading ||
+                        !canDescribeStaffPermission(permission.code)
+                      }
+                      aria-label={`Thay đổi quyền ${text.label.toLocaleLowerCase("vi")}`}
+                      title={
+                        !canDescribeStaffPermission(permission.code)
+                          ? text.description
+                          : undefined
+                      }
                       onClick={() => {
                         setCode(permission.code);
                         function overrideEffect() {
@@ -259,11 +273,10 @@ function PermissionEditor({
               >
                 <div className="stack">
                   <div>
-                    <strong>
-                      {catalog.data.find((row) => row.code === code)
-                        ?.description ?? "Quyền nghiệp vụ"}
-                    </strong>
-                    <p className="mono">{code}</p>
+                    <strong>{staffPermissionPresentation(code).label}</strong>
+                    <p className="muted">
+                      {staffPermissionPresentation(code).description}
+                    </p>
                   </div>
                   <label className="staff-field">
                     <span>Thay đổi</span>
@@ -278,7 +291,7 @@ function PermissionEditor({
                     </select>
                   </label>
                   <label className="staff-field">
-                    <span>Mật khẩu Admin</span>
+                    <span>Mật khẩu quản trị viên</span>
                     <PasswordInput
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}

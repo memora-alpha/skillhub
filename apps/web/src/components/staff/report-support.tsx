@@ -29,7 +29,9 @@ const statuses = [
   ["RESOLVED", "Đã xử lý"],
   ["REJECTED", "Đã từ chối"],
 ] as const;
-export function SupportQueueScreen() {
+export function SupportQueueScreen({
+  initialIncidentId,
+}: Readonly<{ initialIncidentId?: string }>) {
   const { api, actor } = useStaffSession();
   const [scope, setScope] = useState("open");
   const [severity, setSeverity] = useState("");
@@ -38,7 +40,12 @@ export function SupportQueueScreen() {
   const [currentId, setCurrentId] = useState<string>();
   const [selected, setSelected] = useState<string[]>([]);
   const [group, setGroup] = useState(false);
-  const [incident, setIncident] = useState<string>();
+  const [incident, setIncident] = useState<string | undefined>(() =>
+    initialIncidentId &&
+    /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(initialIncidentId)
+      ? initialIncidentId
+      : undefined,
+  );
   const [groupSeverity, setGroupSeverity] = useState("MEDIUM");
   const [classify, setClassify] = useState<SupportCase>();
   const params = new URLSearchParams({ limit: "20" });

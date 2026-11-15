@@ -1,5 +1,11 @@
 const uuid = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 const routes: [string, RegExp, (path: string) => string][] = [
+  ["GET", /^material-reviews$/, (p) => `staff/${p}`],
+  [
+    "POST",
+    new RegExp(`^material-reviews/${uuid}/(hide|restore)$`, "i"),
+    (p) => `staff/${p}`,
+  ],
   ["GET", new RegExp(`^profiles/${uuid}(/skills|/reviews)?$`, "i"), (p) => p],
   ["GET", /^reviews$/, (p) => `staff/${p}`],
   [
@@ -156,6 +162,18 @@ const routes: [string, RegExp, (path: string) => string][] = [
   ["PATCH", new RegExp(`^notifications/${uuid}/read$`, "i"), (p) => p],
 ];
 const adminRoutes: [string, RegExp, (path: string) => string][] = [
+  ["GET", /^dashboard\/summary$/, (p) => `admin/${p}`],
+  ["GET", /^dashboard\/work-items$/, (p) => `admin/${p}`],
+  [
+    "GET",
+    new RegExp(
+      `^dashboard/work-items/(PAYMENT_REVIEW|SETTLEMENT_REVIEW|REPORT_CASE|REPORT_INCIDENT|PATH_TERMINATION|SKILL_VERIFICATION|TAG_REQUEST)/${uuid}$`,
+      "i",
+    ),
+    (p) => `admin/${p}`,
+  ],
+  ["GET", /^learning-paths$/, (p) => `admin/${p}`],
+  ["GET", new RegExp(`^learning-paths/${uuid}$`, "i"), (p) => `admin/${p}`],
   ["GET", /^dashboard\/(overview|learning|finance)$/, (p) => `admin/${p}`],
   ["GET", /^staff-permissions\/catalog$/, (p) => `admin/${p}`],
   ["GET", new RegExp(`^staff-permissions/${uuid}$`, "i"), (p) => `admin/${p}`],

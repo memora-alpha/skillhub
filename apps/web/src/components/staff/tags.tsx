@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import {
+  DataTable,
   Card,
   PageHeader,
   SearchBox,
@@ -62,10 +63,16 @@ export function TagsScreen() {
         desc="Quản lý tag dùng cho tìm kiếm và yêu cầu học."
         actions={
           <div className="row">
-            <button className="btn" disabled={queue.loading} onClick={reload}>
+            <button
+              type="button"
+              className="btn"
+              disabled={queue.loading}
+              onClick={reload}
+            >
               Làm mới
             </button>
             <button
+              type="button"
               className="btn btn-primary"
               onClick={() => setEditor({ label: "", status: "ACTIVE" })}
             >
@@ -75,22 +82,14 @@ export function TagsScreen() {
         }
       />
       <TagNavigation page="catalog" />
-      <form
-        className="toolbar"
-        onSubmit={(e) => {
-          e.preventDefault();
-          setSearch(q.trim());
-        }}
-      >
+      <div className="toolbar">
         <SearchBox
           label="Tìm tag"
           placeholder="Tên tag…"
           value={q}
           onChange={setQ}
+          onSearch={setSearch}
         />
-        <button className="btn" type="submit">
-          Tìm kiếm
-        </button>
         <label>
           <span className="sr-only">Trạng thái tag</span>
           <select
@@ -104,7 +103,7 @@ export function TagsScreen() {
             <option value="ARCHIVED">Đã lưu trữ</option>
           </select>
         </label>
-      </form>
+      </div>
       {success && <output className="staff-success">{success}</output>}
       <Card flush className="ops-tag-table">
         <QueueState
@@ -113,48 +112,35 @@ export function TagsScreen() {
           empty={!queue.items.length}
           reload={reload}
         >
-          <div className="table-wrap">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Tag</th>
-                  <th>Trạng thái</th>
-                  <th>Cập nhật</th>
-                  <th>Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                {queue.items.map((tag) => (
-                  <tr key={tag.id}>
-                    <td>{tag.label}</td>
-                    <td>
-                      <StatusBadge status={tag.status} />
-                    </td>
-                    <td>{fmtDateTime(tag.updatedAt)}</td>
-                    <td>
-                      {tag.status !== "ARCHIVED" && (
-                        <button
-                          className="btn btn-sm"
-                          onClick={() =>
-                            setEditor({
-                              tag,
-                              label: tag.label,
-                              status:
-                                tag.status === "INACTIVE"
-                                  ? "INACTIVE"
-                                  : "ACTIVE",
-                            })
-                          }
-                        >
-                          Sửa
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <DataTable columns={["Tag", "Trạng thái", "Cập nhật", "Thao tác"]}>
+            {queue.items.map((tag) => (
+              <tr key={tag.id}>
+                <td>{tag.label}</td>
+                <td>
+                  <StatusBadge status={tag.status} />
+                </td>
+                <td>{fmtDateTime(tag.updatedAt)}</td>
+                <td>
+                  {tag.status !== "ARCHIVED" && (
+                    <button
+                      type="button"
+                      className="btn btn-sm"
+                      onClick={() =>
+                        setEditor({
+                          tag,
+                          label: tag.label,
+                          status:
+                            tag.status === "INACTIVE" ? "INACTIVE" : "ACTIVE",
+                        })
+                      }
+                    >
+                      Sửa
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </DataTable>
         </QueueState>
         <Pager
           loading={queue.loading}
@@ -228,9 +214,16 @@ export function TagsScreen() {
   );
 }
 
-export function TagRequestsScreen() {
+export function TagRequestsScreen({
+  initialRequestId,
+}: Readonly<{ initialRequestId?: string }>) {
   const [status, setStatus] = useState("PENDING");
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(() =>
+    initialRequestId &&
+    /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(initialRequestId)
+      ? initialRequestId
+      : null,
+  );
   const [success, setSuccess] = useState("");
   const params = new URLSearchParams({ limit: "20" });
   if (status) params.set("status", status);
@@ -242,6 +235,7 @@ export function TagRequestsScreen() {
         desc="Duyệt đề xuất tag gửi riêng. Tag đi kèm yêu cầu học được duyệt ngay trong yêu cầu đó."
         actions={
           <button
+            type="button"
             className="btn"
             disabled={queue.loading}
             onClick={queue.reload}
@@ -272,39 +266,35 @@ export function TagRequestsScreen() {
           empty={!queue.items.length}
           reload={queue.reload}
         >
-          <div className="table-wrap">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Tag đề xuất</th>
-                  <th>Người gửi</th>
-                  <th>Trạng thái</th>
-                  <th>Ngày gửi</th>
-                  <th>Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                {queue.items.map((item) => (
-                  <tr key={item.id}>
-                    <td>{item.label}</td>
-                    <td className="mono">{item.requestedByUserId}</td>
-                    <td>
-                      <StatusBadge status={item.status} />
-                    </td>
-                    <td>{fmtDateTime(item.createdAt)}</td>
-                    <td>
-                      <button
-                        className="btn btn-sm"
-                        onClick={() => setSelected(item.id)}
-                      >
-                        Xem chi tiết
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <DataTable
+            columns={[
+              "Tag đề xuất",
+              "Người gửi",
+              "Trạng thái",
+              "Ngày gửi",
+              "Thao tác",
+            ]}
+          >
+            {queue.items.map((item) => (
+              <tr key={item.id}>
+                <td>{item.label}</td>
+                <td className="mono">{item.requestedByUserId}</td>
+                <td>
+                  <StatusBadge status={item.status} />
+                </td>
+                <td>{fmtDateTime(item.createdAt)}</td>
+                <td>
+                  <button
+                    type="button"
+                    className="btn btn-sm"
+                    onClick={() => setSelected(item.id)}
+                  >
+                    Xem chi tiết
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </DataTable>
         </QueueState>
         <Pager
           loading={queue.loading}
@@ -346,7 +336,7 @@ function TagRequestDetail({
       className="section"
       title="Chi tiết đề xuất"
       actions={
-        <button className="btn" onClick={onClose}>
+        <button type="button" className="btn" onClick={onClose}>
           Đóng chi tiết
         </button>
       }
@@ -385,12 +375,14 @@ function TagRequestDetail({
             {item.status === "PENDING" && (
               <div className="row">
                 <button
+                  type="button"
                   className="btn btn-primary"
                   onClick={() => setAction("approve")}
                 >
                   Duyệt
                 </button>
                 <button
+                  type="button"
                   className="btn btn-danger"
                   onClick={() => setAction("reject")}
                 >

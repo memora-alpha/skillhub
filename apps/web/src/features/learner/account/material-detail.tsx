@@ -1,4 +1,6 @@
 "use client";
+import { MaterialReviews, MaterialRating } from "./material-reviews";
+import { MaterialThumbnail } from "./material-cover";
 import Link from "next/link";
 import { useRef, useState } from "react";
 import { useUserResource } from "../hooks/use-user-resource";
@@ -12,7 +14,6 @@ import {
   PageHeading,
   Panel,
 } from "../components/common";
-import { ProductIcon } from "../components/product-icon";
 import type { Material, MaterialOrder } from "./account-types";
 import { safeDownloadUrl } from "./view-policy";
 import { materialPurchaseAccess } from "./material-access-policy";
@@ -152,13 +153,14 @@ function MaterialDetailContent({ id }: Readonly<{ id: string }>) {
           <div className="learner-two-columns">
             <Panel>
               <div className="product-file-preview">
-                <ProductIcon name="file" size={64} />
+                <MaterialThumbnail thumbnail={material.thumbnail} large />
                 <strong>
                   {material.file?.originalFilename ?? material.title}
                 </strong>
                 <small>{material.file?.mimeType ?? "Tài liệu số"}</small>
               </div>
               <h3>Về tài liệu này</h3>
+              <MaterialRating summary={material.ratingSummary} />
               <p className="learner-prose">{material.description}</p>
               <p>Phiên bản niêm yết: {material.listingVersion}</p>
               <Link
@@ -287,6 +289,7 @@ function MaterialDetailContent({ id }: Readonly<{ id: string }>) {
               )}
             </Panel>
           </div>
+          <MaterialReviews materialId={id} />
         </>
       )}
     </>

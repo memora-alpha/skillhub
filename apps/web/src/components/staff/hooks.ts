@@ -30,7 +30,11 @@ export function useStaffCommand() {
     return result;
   };
 }
-export function useStaffResource<T>(path: string) {
+export function useStaffResource<T>(
+  path: string,
+  options?: { retainOnReload?: boolean },
+) {
+  const retainOnReload = options?.retainOnReload ?? false;
   const { expire, api } = useStaffSession();
   const [state, setState] = useState<{
     path: string;
@@ -51,13 +55,16 @@ export function useStaffResource<T>(path: string) {
       .catch((e: unknown) => {
         if (controller.signal.aborted) return;
         if (isSessionFailure(e)) expire();
-        setState({
+        setState((previous) => ({
           path,
           loading: false,
+          ...(retainOnReload && previous.path === path && isTemporaryFailure(e)
+            ? { result: previous.result }
+            : {}),
           error: e instanceof Error ? e.message : "Không thể tải dữ liệu.",
-        });
+        }));
       });
-  }, [path, expire, api]);
+  }, [path, expire, api, retainOnReload]);
   useEffect(() => {
     void load();
     return () => current.current?.abort();
@@ -69,7 +76,13 @@ export function useStaffResource<T>(path: string) {
     error: fresh ? state.error : undefined,
     loading: !fresh || state.loading,
     reload: () => {
-      setState({ path, loading: true });
+      setState((previous) => ({
+        path,
+        loading: true,
+        ...(retainOnReload && previous.path === path
+          ? { result: previous.result }
+          : {}),
+      }));
       return load();
     },
   };

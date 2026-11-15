@@ -8,6 +8,7 @@ export function uploadLimit(path: string) {
   if (/^conversations\/[0-9a-f-]{36}\/attachments$/i.test(path))
     return 15_000_000;
   if (path === "me/materials/files") return 20_000_000;
+  if (path === "me/materials/cover-files") return 10_000_000;
   if (/^me\/skills\/[0-9a-f-]{36}\/evidence-files$/i.test(path))
     return 10_000_000;
   return null;
@@ -50,6 +51,11 @@ export async function userUpload(
   )
     throw new UserGatewayError(400, "FILE_REQUIRED");
   if (file.size > maxBytes) throw new UserGatewayError(413, "FILE_TOO_LARGE");
+  if (
+    path === "me/materials/cover-files" &&
+    !["image/jpeg", "image/png", "image/webp"].includes(file.type)
+  )
+    throw new UserGatewayError(415, "MATERIAL_COVER_INVALID");
   if (
     path === "me/avatar" &&
     !["image/jpeg", "image/png", "image/webp"].includes(file.type)

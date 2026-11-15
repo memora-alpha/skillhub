@@ -38,6 +38,16 @@ export type PaymentPolicy = {
   existingPaymentId: string | null;
 };
 export type Material = {
+  coverFileId?: string | null;
+  thumbnail?:
+    | {
+        kind: "GENERATED";
+        smallUrl: string;
+        largeUrl: string;
+        expiresAt: string;
+      }
+    | { kind: "PLACEHOLDER"; format: string };
+  ratingSummary?: import("../types").MaterialRatingSummary;
   id: string;
   ownerId: string;
   skillId: string;
@@ -95,6 +105,7 @@ export type InboxNotification = {
   createdAt: string;
 };
 export type ReportCase = {
+  handlerId: string | null;
   id: string;
   status: string;
   reasonCode: string;

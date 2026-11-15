@@ -204,9 +204,16 @@ function VerificationDetail({
     </Card>
   );
 }
-export function EvidenceScreen() {
+export function EvidenceScreen({
+  initialVerificationId,
+}: Readonly<{ initialVerificationId?: string }>) {
   const [status, setStatus] = useState<Verification["status"]>("PENDING");
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(() =>
+    initialVerificationId &&
+    /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(initialVerificationId)
+      ? initialVerificationId
+      : null,
+  );
   const queue = useStaffList<Verification>(
     `verifications?status=${status}&limit=20`,
   );
