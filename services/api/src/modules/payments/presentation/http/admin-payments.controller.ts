@@ -14,6 +14,7 @@ import {
 } from "@nestjs/swagger";
 import {
   IsIn,
+  IsISO8601,
   IsOptional,
   IsString,
   Matches,
@@ -30,6 +31,20 @@ import { AdminFinancePageDto } from "../../../credit/presentation/http/admin-fin
 import { AdminPaymentsReader } from "../../application/services/admin-payments.reader";
 
 export class AdminPaymentQueryDto extends AdminFinancePageDto {
+  @ApiPropertyOptional({
+    format: "date-time",
+    description: "Inclusive checkout paidAt bound. Requires paidBefore.",
+  })
+  @IsOptional()
+  @IsISO8601({ strict: true })
+  paidFrom?: string;
+  @ApiPropertyOptional({
+    format: "date-time",
+    description: "Exclusive checkout paidAt bound. Requires paidFrom.",
+  })
+  @IsOptional()
+  @IsISO8601({ strict: true })
+  paidBefore?: string;
   @ApiPropertyOptional({ enum: PaymentStatus })
   @IsOptional()
   @IsIn(Object.values(PaymentStatus))

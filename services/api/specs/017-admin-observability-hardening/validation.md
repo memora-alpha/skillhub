@@ -27,14 +27,16 @@
 - The Codex auto-fix workflow separates read-only patch generation from write-capable
   PR publication, pins action commit SHAs, rejects forked heads and never executes the
   failed commit in the publisher job.
+- T010 is satisfied by the accepted `dev` Admin Dashboard implementation and its
+  substantive isolated PostgreSQL fixture in `test/admin-dashboard.integration.test.mjs`.
 
 ## Remaining release gates
 
 - T004 remains open: move direct administrative source queries behind exported
   owner-module reader ports before declaring the architecture complete.
-- T010, T015 and T020 remain open: the checked-in integration entry points still need
-  substantive isolated PostgreSQL fixtures for dashboard aggregates, mixed-source work
-  items and historical learning-path projections. The passing connection suite does not
+- T015 and T020 remain open: the checked-in integration entry points still need
+  substantive isolated PostgreSQL fixtures for mixed-source work items and historical
+  learning-path projections. The passing connection and dashboard suites do not
   substitute for these feature-specific fixtures.
 - T030 remains open only for the feature-specific PostgreSQL suites, performance
   query-plan evidence and migration rollback rehearsal; lint, typecheck, build, the

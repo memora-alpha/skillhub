@@ -251,6 +251,7 @@ export class PrismaUsersRepository extends UsersRepository {
       "users.lock",
       "users.unlock",
       "roles.staff.assign",
+      "dashboard:read",
       "credit:read:any",
       "payment:read:any",
       "payment:reconcile",
@@ -260,7 +261,6 @@ export class PrismaUsersRepository extends UsersRepository {
       "fee-policy:manage",
       "credit:adjust:qa",
       "reputation:adjust:qa",
-      "dashboard:read",
       "learning-path:read:admin",
     ];
     const learningRequestGrants = {

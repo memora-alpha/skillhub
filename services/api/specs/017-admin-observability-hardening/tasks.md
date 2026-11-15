@@ -23,7 +23,7 @@
 **Independent Test**: Boundary fixtures in two timezones reproduce the approved metric dictionary and isolate one failed section.
 
 - [x] T009 [P] [US1] Add metric policy unit tests in `test/admin-dashboard-policy.test.mjs`
-- [ ] T010 [P] [US1] Add PostgreSQL aggregate fixtures/tests in `test/admin-dashboard.integration.test.mjs`
+- [x] T010 [P] [US1] Add PostgreSQL aggregate fixtures/tests in `test/admin-dashboard.integration.test.mjs`
 - [x] T011 [US1] Implement user/learning/session aggregate readers in `src/modules/administration/application/services/admin-dashboard.reader.ts`
 - [x] T012 [US1] Compose authoritative Credit/fee/top-skill readers and availability handling in `src/modules/administration/application/services/admin-dashboard.reader.ts`
 - [x] T013 [US1] Implement summary/trends endpoints in `src/modules/administration/presentation/http/admin-operations.controller.ts`

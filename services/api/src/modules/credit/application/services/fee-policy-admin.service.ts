@@ -21,6 +21,7 @@ import {
   listBoundary,
   listResult,
 } from "../../../../shared/http/list-page";
+import { readRecordedCreditFees } from "./fee-revenue.reader";
 import { formatCredit } from "../../domain/money";
 import { parseAbsoluteTimestamp } from "../../../../shared/time/timestamp.policy";
 
@@ -213,30 +214,12 @@ export class FeePolicyAdminService {
     return this.transactions.run(async (tx) => {
       await tx.$executeRaw`SET TRANSACTION READ ONLY`;
       await this.authorize(tx, actor, "credit:read:any");
-      const rows = await tx.$queryRaw<
-        {
-          period: string;
-          business: string;
-          collected: bigint;
-          refunded: bigint;
-        }[]
-      >`
-        WITH events AS (
-          SELECT t.created_at AS at, o.operation_type AS business, t.amount::numeric AS collected, 0::numeric AS refunded
-          FROM credit_transactions t JOIN credit_operations o ON o.operation_id=t.operation_id
-          WHERE t.type='PLATFORM_FEE' AND t.status='SUCCESS' AND o.status='SUCCESS'
-          UNION ALL
-          SELECT o.created_at AS at, 'MATERIAL_PURCHASE' AS business, 0::numeric AS collected,
-            SUM(t.available_delta::numeric) AS refunded
-          FROM credit_operations o JOIN credit_transactions t ON t.operation_id=o.operation_id
-          WHERE o.operation_type='MATERIAL_REFUND' AND o.status='SUCCESS' AND t.status='SUCCESS'
-          GROUP BY o.operation_id, o.created_at
-        )
-        SELECT to_char(date_trunc(${input.granularity}::text, at AT TIME ZONE 'UTC'), 'YYYY-MM-DD') AS period,
-          business, SUM(collected)::bigint AS collected, SUM(refunded)::bigint AS refunded
-        FROM events WHERE at >= ${from} AND at < ${to}
-        GROUP BY 1, 2 ORDER BY 1, 2
-      `;
+      const rows = await readRecordedCreditFees(tx, {
+        from,
+        to,
+        timezone: "UTC",
+        granularity: input.granularity,
+      });
       return {
         from,
         to,
